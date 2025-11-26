@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle SQL Developer - UNA.md/orasldev</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #2b2b2b;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Menu Bar */
+        .menu-bar {
+            background: #1e1e1e;
+            border-bottom: 1px solid #3c3c3c;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        .menu-item {
+            padding: 5px 12px;
+            cursor: pointer;
+            color: #d4d4d4;
+            border-radius: 3px;
+            margin-right: 5px;
+            transition: background 0.2s;
+        }
+        
+        .menu-item:hover {
+            background: #3c3c3c;
+        }
+        
+        .menu-item.active {
+            background: #007acc;
+            color: white;
+        }
+        
+        .menu-item.user {
+            margin-left: auto;
+            color: #858585;
+        }
+        
+        /* Toolbar */
+        .toolbar {
+            background: #252526;
+            border-bottom: 1px solid #3c3c3c;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            z-index: 999;
+        }
+        
+        .toolbar-btn {
+            padding: 6px 12px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+        
+        .toolbar-btn:hover {
+            background: #555;
+        }
+        
+        .toolbar-btn.primary {
+            background: #007acc;
+            border-color: #007acc;
+            color: white;
+        }
+        
+        /* MDI Container */
+        .mdi-container {
+            height: calc(100vh - 70px);
+            position: relative;
+            background: #1e1e1e;
+            overflow: hidden;
+            display: flex;
+        }
+        
+        /* MDI Window */
+        .mdi-window {
+            position: absolute;
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            flex-direction: column;
+            min-width: 400px;
+            min-height: 300px;
+        }
+        
+        .mdi-window.active {
+            display: flex;
+            z-index: 100;
+        }
+        
+        .mdi-window.maximized {
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .mdi-window-header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            border-bottom: 1px solid #3c3c3c;
+            display: flex;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+        }
+        
+        .mdi-window-title {
+            flex: 1;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .mdi-window-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .mdi-window-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: #d4d4d4;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .mdi-window-btn:hover {
+            background: #3c3c3c;
+        }
+        
+        .mdi-window-content {
+            flex: 1;
+            overflow: auto;
+            padding: 10px;
+        }
+        
+        /* SQL Worksheet Window */
+        .sql-worksheet-window {
+            width: 800px;
+            height: 600px;
+            top: 50px;
+            left: 50px;
+        }
+        
+        .sql-editor {
+            width: 100%;
+            height: 300px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+        
+        .results-table {
+            height: 250px;
+            overflow: auto;
+            background: #1e1e1e;
+            margin-top: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        th {
+            background: #252526;
+            color: #d4d4d4;
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #3c3c3c;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #2d2d30;
+            color: #d4d4d4;
+        }
+        
+        tr:hover {
+            background: #2a2d2e;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: #252526;
+            border-right: 1px solid #3c3c3c;
+            height: 100%;
+            overflow-y: auto;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        
+        .schema-selector {
+            padding: 10px;
+            border-bottom: 1px solid #3c3c3c;
+            background: #1e1e1e;
+        }
+        
+        .schema-selector select {
+            width: 100%;
+            padding: 6px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .schema-selector select:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+        
+        .schema-selector label {
+            display: block;
+            font-size: 11px;
+            color: #858585;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        
+        .filter-input {
+            width: 100%;
+            padding: 6px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        
+        .filter-input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+        
+        .filter-input::placeholder {
+            color: #858585;
+        }
+        
+        .sidebar-section {
+            padding: 10px;
+        }
+        
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #858585;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            padding: 5px 0;
+        }
+        
+        .sidebar-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            color: #d4d4d4;
+            border-radius: 3px;
+            margin-bottom: 2px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .sidebar-item:hover {
+            background: #3c3c3c;
+        }
+        
+        .sidebar-item.active {
+            background: #007acc;
+            color: white;
+        }
+        
+        .sidebar-item-icon {
+            font-size: 14px;
+        }
+        
+        .sidebar-item-count {
+            margin-left: auto;
+            color: #858585;
+            font-size: 11px;
+        }
+        
+        .sidebar-items {
+            padding-left: 10px;
+        }
+        
+        .sidebar-items.sidebar-collapsed {
+            display: none;
+        }
+        
+        .toggle {
+            margin-left: auto;
+            font-size: 10px;
+            color: #858585;
+        }
+        
+        .mdi-workspace {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            background: #007acc;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 11px;
+            color: white;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        
+        .error-message {
+            background: #5a1d1d;
+            color: #f48771;
+            padding: 10px;
+            border-left: 3px solid #f48771;
+            margin: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .success-message {
+            background: #1e3a1e;
+            color: #89d185;
+            padding: 10px;
+            border-left: 3px solid #89d185;
+            margin: 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-item active" onclick="openWindow('sql-worksheet')">SQL Worksheet</div>
+        <div class="menu-item" onclick="openWindow('dashboard')">Dashboard</div>
+        <div class="menu-item" onclick="openWindow('connections')">Connections</div>
+        <div class="menu-item user" onclick="logout()">👤 {{ username }} | Выход</div>
+    </div>
+    
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <button class="toolbar-btn primary" onclick="executeSQL()">▶ Execute (F5)</button>
+        <button class="toolbar-btn" onclick="clearEditor()">Clear</button>
+        <div style="flex: 1;"></div>
+        <button class="toolbar-btn" onclick="openWindow('dashboard')">📊 Dashboard</button>
+    </div>
+    
+    <!-- MDI Container -->
+    <div class="mdi-container" id="mdiContainer">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="schema-selector">
+                <label for="schemaSelect">Schema:</label>
+                <select id="schemaSelect" onchange="changeSchema(this.value)">
+                    <option value="">Loading...</option>
+                </select>
+                <input type="text" 
+                       id="objectFilter" 
+                       class="filter-input" 
+                       placeholder="🔍 Filter objects (min 3 chars, 2s delay)"
+                       autocomplete="off">
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <span>Connections</span>
+                </div>
+                <div class="sidebar-item active">
+                    <span class="sidebar-item-icon">🔌</span>
+                    <span class="sidebar-item-name">ADMIN@HXPAVUNKCLU9HE7Q</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-title" onclick="toggleSection('objects')">
+                    <span>Database Objects</span>
+                    <span class="toggle" id="objects-toggle">▼</span>
+                </div>
+                <div class="sidebar-items" id="objects-items">
+                    <div class="sidebar-item" onclick="loadObjects('tables')">
+                        <span class="sidebar-item-icon">📊</span>
+                        <span class="sidebar-item-name">Tables</span>
+                        <span class="sidebar-item-count" id="tables-count"></span>
+                    </div>
+                    <div id="tables-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('views')">
+                        <span class="sidebar-item-icon">👁️</span>
+                        <span class="sidebar-item-name">Views</span>
+                        <span class="sidebar-item-count" id="views-count"></span>
+                    </div>
+                    <div id="views-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('procedures')">
+                        <span class="sidebar-item-icon">⚙️</span>
+                        <span class="sidebar-item-name">Procedures</span>
+                        <span class="sidebar-item-count" id="procedures-count"></span>
+                    </div>
+                    <div id="procedures-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('functions')">
+                        <span class="sidebar-item-icon">🔧</span>
+                        <span class="sidebar-item-name">Functions</span>
+                        <span class="sidebar-item-count" id="functions-count"></span>
+                    </div>
+                    <div id="functions-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('packages')">
+                        <span class="sidebar-item-icon">📦</span>
+                        <span class="sidebar-item-name">Packages</span>
+                        <span class="sidebar-item-count" id="packages-count"></span>
+                    </div>
+                    <div id="packages-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('sequences')">
+                        <span class="sidebar-item-icon">🔢</span>
+                        <span class="sidebar-item-name">Sequences</span>
+                        <span class="sidebar-item-count" id="sequences-count"></span>
+                    </div>
+                    <div id="sequences-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('synonyms')">
+                        <span class="sidebar-item-icon">🔗</span>
+                        <span class="sidebar-item-name">Synonyms</span>
+                        <span class="sidebar-item-count" id="synonyms-count"></span>
+                    </div>
+                    <div id="synonyms-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('indexes')">
+                        <span class="sidebar-item-icon">📇</span>
+                        <span class="sidebar-item-name">Indexes</span>
+                        <span class="sidebar-item-count" id="indexes-count"></span>
+                    </div>
+                    <div id="indexes-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('triggers')">
+                        <span class="sidebar-item-icon">⚡</span>
+                        <span class="sidebar-item-name">Triggers</span>
+                        <span class="sidebar-item-count" id="triggers-count"></span>
+                    </div>
+                    <div id="triggers-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('types')">
+                        <span class="sidebar-item-icon">🏷️</span>
+                        <span class="sidebar-item-name">Types</span>
+                        <span class="sidebar-item-count" id="types-count"></span>
+                    </div>
+                    <div id="types-list" class="sidebar-items"></div>
+                    
+                    <div class="sidebar-item" onclick="loadObjects('materialized_views')">
+                        <span class="sidebar-item-icon">💾</span>
+                        <span class="sidebar-item-name">Materialized Views</span>
+                        <span class="sidebar-item-count" id="materialized_views-count"></span>
+                    </div>
+                    <div id="materialized_views-list" class="sidebar-items"></div>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-title" onclick="toggleSection('dba')">
+                    <span>DBA</span>
+                    <span class="toggle" id="dba-toggle">▼</span>
+                </div>
+                <div class="sidebar-items" id="dba-items">
+                    <div class="sidebar-item" onclick="openWindow('dashboard')">
+                        <span class="sidebar-item-icon">📈</span>
+                        <span class="sidebar-item-name">Performance</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- MDI Workspace -->
+        <div class="mdi-workspace" id="mdiWorkspace">
+            <!-- SQL Worksheet Window -->
+            <div class="mdi-window sql-worksheet-window active" id="sql-worksheet-window">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">SQL Worksheet</div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('sql-worksheet-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('sql-worksheet-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content">
+                <textarea id="sqlEditor" class="sql-editor" placeholder="-- Enter your SQL query here...
+SELECT * FROM DUAL;"></textarea>
+                <div class="results-table" id="resultsTable">
+                    <div style="padding: 20px; text-align: center; color: #858585;">
+                        No results. Execute a query to see results here.
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span>Ready</span>
+        <span style="margin-left: 15px;" id="status-time"></span>
+    </div>
+    
+    <script>
+        // Initialize Socket.IO
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('error', (data) => {
+            console.error('Socket error:', data);
+        });
+        
+        // Window management
+        let windows = {};
+        let zIndexCounter = 100;
+        
+        function openWindow(type) {
+            if (type === 'sql-worksheet') {
+                document.getElementById('sql-worksheet-window').classList.add('active');
+                bringToFront('sql-worksheet-window');
+            } else if (type === 'dashboard') {
+                window.location.href = '/UNA.md/orasldev/dashboard';
+            }
+        }
+        
+        function closeWindow(windowId) {
+            document.getElementById(windowId).classList.remove('active');
+        }
+        
+        function maximizeWindow(windowId) {
+            const window = document.getElementById(windowId);
+            window.classList.toggle('maximized');
+        }
+        
+        function bringToFront(windowId) {
+            const window = document.getElementById(windowId);
+            window.style.zIndex = zIndexCounter++;
+        }
+        
+        // Make windows draggable
+        document.querySelectorAll('.mdi-window-header').forEach(header => {
+            let isDragging = false;
+            let currentX, currentY, initialX, initialY;
+            
+            header.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const window = header.closest('.mdi-window');
+                initialX = e.clientX - window.offsetLeft;
+                initialY = e.clientY - window.offsetTop;
+                bringToFront(window.id);
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    e.preventDefault();
+                    const window = header.closest('.mdi-window');
+                    if (!window.classList.contains('maximized')) {
+                        currentX = e.clientX - initialX;
+                        currentY = e.clientY - initialY;
+                        window.style.left = currentX + 'px';
+                        window.style.top = currentY + 'px';
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+        
+        // Execute SQL
+        async function executeSQL() {
+            const sql = document.getElementById('sqlEditor').value.trim();
+            if (!sql) {
+                alert('Please enter a SQL query');
+                return;
+            }
+            
+            const resultsTable = document.getElementById('resultsTable');
+            resultsTable.innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">Executing...</div>';
+            
+            try {
+                const response = await fetch('/api/execute-sql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sql: sql })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.data && data.data.length > 0) {
+                        let html = '<table><thead><tr>';
+                        data.columns.forEach(col => {
+                            html += `<th>${col}</th>`;
+                        });
+                        html += '</tr></thead><tbody>';
+                        
+                        data.data.forEach(row => {
+                            html += '<tr>';
+                            row.forEach(cell => {
+                                const cellValue = cell === null ? '<em>NULL</em>' : String(cell);
+                                html += `<td>${cellValue}</td>`;
+                            });
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table>';
+                        resultsTable.innerHTML = html;
+                    } else {
+                        resultsTable.innerHTML = '<div class="success-message">Query executed successfully. No rows returned.</div>';
+                    }
+                } else {
+                    resultsTable.innerHTML = `<div class="error-message">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultsTable.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function clearEditor() {
+            if (confirm('Clear SQL editor?')) {
+                document.getElementById('sqlEditor').value = '';
+                document.getElementById('resultsTable').innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">No results. Execute a query to see results here.</div>';
+            }
+        }
+        
+        function logout() {
+            if (confirm('Выйти из системы?')) {
+                fetch('/api/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/login');
+            }
+        }
+        
+        // Keyboard shortcuts
+        document.getElementById('sqlEditor').addEventListener('keydown', function(e) {
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'Enter')) {
+                e.preventDefault();
+                executeSQL();
+            }
+        });
+        
+        // Update time
+        function updateTime() {
+            document.getElementById('status-time').textContent = new Date().toLocaleTimeString();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+        
+        // Текущая выбранная схема
+        let currentSchema = '';
+        
+        // Фильтр объектов
+        let objectFilter = '';
+        let filterTimeout = null;
+        let allObjectsCache = {}; // Кэш для всех объектов по типам
+        
+        // Инициализация фильтра
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterInput = document.getElementById('objectFilter');
+            if (filterInput) {
+                filterInput.addEventListener('input', (e) => {
+                    const value = e.target.value.trim();
+                    
+                    // Очищаем предыдущий таймаут
+                    if (filterTimeout) {
+                        clearTimeout(filterTimeout);
+                    }
+                    
+                    // Если меньше 3 символов, очищаем фильтр
+                    if (value.length < 3 && value.length > 0) {
+                        return; // Ждем пока пользователь введет минимум 3 символа
+                    }
+                    
+                    // Устанавливаем таймаут на 2 секунды
+                    filterTimeout = setTimeout(() => {
+                        objectFilter = value;
+                        applyFilter();
+                    }, 2000);
+                });
+            }
+        });
+        
+        // Применение фильтра к отображаемым объектам
+        function applyFilter() {
+            const allTypes = ['tables', 'views', 'procedures', 'functions', 'packages', 
+                            'sequences', 'synonyms', 'indexes', 'triggers', 'types', 'materialized_views'];
+            
+            allTypes.forEach(type => {
+                const listElement = document.getElementById(type + '-list');
+                if (!listElement) return;
+                
+                // Если нет кэша для этого типа, пропускаем
+                if (!allObjectsCache[type]) return;
+                
+                const objects = allObjectsCache[type];
+                const filterLower = objectFilter.toLowerCase();
+                
+                // Фильтруем объекты
+                const filtered = objectFilter.length >= 3
+                    ? objects.filter(obj => {
+                        const name = (obj.name || '').toLowerCase();
+                        return name.includes(filterLower);
+                    })
+                    : objects;
+                
+                // Очищаем список
+                listElement.innerHTML = '';
+                
+                // Отображаем отфильтрованные объекты
+                filtered.forEach(obj => {
+                    const item = document.createElement('div');
+                    item.className = 'sidebar-item';
+                    item.style.paddingLeft = '20px';
+                    item.style.fontSize = '12px';
+                    item.onclick = () => {
+                        const editor = document.getElementById('sqlEditor');
+                        if (editor) {
+                            const objectName = obj.name || obj;
+                            const schemaPrefix = (obj.schema || currentSchema) 
+                                ? `${obj.schema || currentSchema}.` 
+                                : '';
+                            const fullName = schemaPrefix + objectName;
+                            
+                            if (type === 'tables' || type === 'views' || type === 'materialized_views') {
+                                editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
+                            } else if (type === 'sequences') {
+                                editor.value = `SELECT ${fullName}.NEXTVAL FROM DUAL;\n` + editor.value;
+                            } else if (type === 'synonyms') {
+                                editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
+                            } else {
+                                editor.value = `-- ${type.slice(0, -1).toUpperCase()}: ${fullName}\n` + editor.value;
+                            }
+                            editor.focus();
+                        }
+                    };
+                    item.innerHTML = `
+                        <span class="sidebar-item-icon">${getObjectIcon(type.slice(0, -1))}</span>
+                        <span class="sidebar-item-name">${obj.name || obj}</span>
+                    `;
+                    listElement.appendChild(item);
+                });
+                
+                // Обновляем счетчик
+                const countElement = document.getElementById(type + '-count');
+                if (countElement) {
+                    const totalCount = objects.length;
+                    const filteredCount = filtered.length;
+                    if (objectFilter.length >= 3 && filteredCount < totalCount) {
+                        countElement.textContent = `(${filteredCount}/${totalCount})`;
+                    } else {
+                        countElement.textContent = `(${totalCount})`;
+                    }
+                }
+            });
+        }
+        
+        // Загрузка списка схем
+        async function loadSchemas() {
+            const schemaSelect = document.getElementById('schemaSelect');
+            if (!schemaSelect) return Promise.resolve();
+            
+            schemaSelect.innerHTML = '<option value="">Loading schemas...</option>';
+            schemaSelect.disabled = true;
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // Таймаут 5 секунд
+                
+                const response = await fetch('/api/objects/schemas', {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.schemas && data.schemas.length > 0) {
+                    schemaSelect.innerHTML = '<option value="">-- Current User --</option>';
+                    data.schemas.forEach(schema => {
+                        const option = document.createElement('option');
+                        option.value = schema.name;
+                        option.textContent = schema.display_name;
+                        schemaSelect.appendChild(option);
+                    });
+                    
+                    // Устанавливаем текущего пользователя по умолчанию
+                    if (data.schemas.length > 0) {
+                        const currentUser = data.schemas[0].name;
+                        schemaSelect.value = currentUser;
+                        currentSchema = currentUser;
+                    }
+                } else {
+                    // Fallback: используем текущего пользователя
+                    schemaSelect.innerHTML = '<option value="">Current User</option>';
+                    currentSchema = '';
+                }
+            } catch (error) {
+                console.error('Error loading schemas:', error);
+                // Fallback: используем текущего пользователя
+                schemaSelect.innerHTML = '<option value="">Current User (schemas unavailable)</option>';
+                currentSchema = '';
+            } finally {
+                schemaSelect.disabled = false;
+            }
+        }
+        
+        // Изменение схемы
+        function changeSchema(schema) {
+            currentSchema = schema || '';
+            // Очищаем кэш и фильтр
+            allObjectsCache = {};
+            objectFilter = '';
+            const filterInput = document.getElementById('objectFilter');
+            if (filterInput) {
+                filterInput.value = '';
+            }
+            
+            // Перезагружаем все объекты для новой схемы
+            const activeLists = ['tables', 'views', 'procedures', 'functions', 'packages', 
+                                'sequences', 'synonyms', 'indexes', 'triggers', 'types', 'materialized_views'];
+            activeLists.forEach(type => {
+                const listElement = document.getElementById(type + '-list');
+                if (listElement && listElement.innerHTML.trim() !== '' && !listElement.innerHTML.includes('Loading...')) {
+                    loadObjects(type);
+                }
+            });
+        }
+        
+        // Sidebar functions for database objects
+        function toggleSection(sectionId) {
+            const items = document.getElementById(sectionId + '-items');
+            const toggle = document.getElementById(sectionId + '-toggle');
+            if (items) {
+                items.classList.toggle('sidebar-collapsed');
+                toggle.textContent = items.classList.contains('sidebar-collapsed') ? '▶' : '▼';
+            }
+        }
+        
+        function getObjectIcon(type) {
+            const icons = {
+                'tables': '📊',
+                'views': '👁️',
+                'procedures': '⚙️',
+                'functions': '🔧',
+                'packages': '📦',
+                'sequences': '🔢',
+                'synonyms': '🔗',
+                'indexes': '📇',
+                'triggers': '⚡',
+                'types': '🏷️',
+                'materialized_views': '💾',
+                'table': '📋',
+                'view': '👁️',
+                'procedure': '⚙️',
+                'function': '🔧',
+                'package': '📦',
+                'sequence': '🔢',
+                'synonym': '🔗',
+                'index': '📇',
+                'trigger': '⚡',
+                'type': '🏷️',
+                'materialized_view': '💾'
+            };
+            return icons[type] || '📄';
+        }
+        
+        async function loadObjects(type) {
+            const listId = type + '-list';
+            const countId = type + '-count';
+            const listElement = document.getElementById(listId);
+            const countElement = document.getElementById(countId);
+            
+            if (!listElement) return;
+            
+            // Показываем загрузку
+            listElement.innerHTML = '<div style="padding: 5px; color: #858585; font-size: 11px;">Loading...</div>';
+            
+            try {
+                // Добавляем параметр schema в запрос
+                const url = currentSchema 
+                    ? `/api/objects/${type}?schema=${encodeURIComponent(currentSchema)}`
+                    : `/api/objects/${type}`;
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // Таймаут 10 секунд
+                
+                const response = await fetch(url, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                const data = await response.json();
+                
+                if (data.success && data.objects) {
+                    // Сохраняем в кэш
+                    allObjectsCache[type] = data.objects;
+                    
+                    // Применяем фильтр если он активен
+                    if (objectFilter.length >= 3) {
+                        applyFilter();
+                        return;
+                    }
+                    
+                    // Обновляем счетчик
+                    if (countElement) {
+                        countElement.textContent = `(${data.count || data.objects.length})`;
+                    }
+                    
+                    // Очищаем список
+                    listElement.innerHTML = '';
+                    
+                    // Добавляем объекты
+                    data.objects.forEach(obj => {
+                        const item = document.createElement('div');
+                        item.className = 'sidebar-item';
+                        item.style.paddingLeft = '20px';
+                        item.style.fontSize = '12px';
+                        item.onclick = () => {
+                            // При клике на объект вставляем его имя в редактор
+                            const editor = document.getElementById('sqlEditor');
+                            if (editor) {
+                                const objectName = obj.name || obj;
+                                const schemaPrefix = (obj.schema || currentSchema) 
+                                    ? `${obj.schema || currentSchema}.` 
+                                    : '';
+                                const fullName = schemaPrefix + objectName;
+                                
+                                // Для таблиц и представлений - SELECT, для процедур/функций - вызов
+                                if (type === 'tables' || type === 'views' || type === 'materialized_views') {
+                                    editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
+                                } else if (type === 'sequences') {
+                                    editor.value = `SELECT ${fullName}.NEXTVAL FROM DUAL;\n` + editor.value;
+                                } else if (type === 'synonyms') {
+                                    editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
+                                } else {
+                                    editor.value = `-- ${type.slice(0, -1).toUpperCase()}: ${fullName}\n` + editor.value;
+                                }
+                                editor.focus();
+                            }
+                        };
+                        item.innerHTML = `
+                            <span class="sidebar-item-icon">${getObjectIcon(type.slice(0, -1))}</span>
+                            <span class="sidebar-item-name">${obj.name || obj}</span>
+                        `;
+                        listElement.appendChild(item);
+                    });
+                    
+                    if (data.objects.length === 0) {
+                        listElement.innerHTML = '<div style="padding: 5px; color: #858585; font-size: 11px;">No objects found</div>';
+                    }
+                } else {
+                    listElement.innerHTML = `<div style="padding: 5px; color: #f48771; font-size: 11px;">Error: ${data.error || 'Failed to load'}</div>`;
+                }
+            } catch (error) {
+                listElement.innerHTML = `<div style="padding: 5px; color: #f48771; font-size: 11px;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-load schemas and tables on page load
+        window.addEventListener('load', () => {
+            // Сначала загружаем схемы, потом таблицы
+            loadSchemas().then(() => {
+                setTimeout(() => {
+                    loadObjects('tables');
+                }, 500);
+            });
+        });
+    </script>
+</body>
+</html>
+

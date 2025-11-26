@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Dashboard - Oracle Enterprise Manager Style</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .nav-bar {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 0 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .nav-item {
+            padding: 15px 0;
+            color: #666;
+            text-decoration: none;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .nav-item:hover {
+            color: #007acc;
+        }
+        
+        .nav-item.active {
+            color: #007acc;
+            border-bottom-color: #007acc;
+        }
+        
+        /* Main Content */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+        
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #007acc;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .metric-card.warning {
+            border-left-color: #ff9800;
+        }
+        
+        .metric-card.danger {
+            border-left-color: #f44336;
+        }
+        
+        .metric-card.success {
+            border-left-color: #4caf50;
+        }
+        
+        .metric-title {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .metric-trend {
+            font-size: 12px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007acc 0%, #005a9e 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+        }
+        
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #f44336 0%, #d32f2f 100%);
+        }
+        
+        /* Tables Section */
+        .table-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007acc;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-badge.success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .status-badge.warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .status-badge.danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        /* Refresh Button */
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #007acc;
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .refresh-btn:active {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>📊 Database Dashboard</h1>
+        <div class="subtitle">Oracle Enterprise Manager Style - Real-time Database Metrics</div>
+    </div>
+    
+    <!-- Navigation -->
+    <div class="nav-bar">
+        <a href="/UNA.md/orasldev" class="nav-item">SQL Developer</a>
+        <a href="/UNA.md/orasldev/dashboard" class="nav-item active">Dashboard</a>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="container">
+        <div id="dashboard-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>Loading database metrics...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="loadMetrics()" title="Refresh Metrics">🔄</button>
+    
+    <script>
+        async function loadMetrics() {
+            const content = document.getElementById('dashboard-content');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><div>Loading database metrics...</div></div>';
+            
+            try {
+                const response = await fetch('/api/dashboard/metrics');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderDashboard(data.metrics);
+                } else {
+                    content.innerHTML = `<div class="loading">Error: ${data.error || 'Failed to load metrics'}</div>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="loading">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function renderDashboard(metrics) {
+            const content = document.getElementById('dashboard-content');
+            
+            let html = `
+                <!-- Key Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-card ${getStatusClass(metrics.instance?.status)}">
+                        <div class="metric-title">Database Status</div>
+                        <div class="metric-value">${metrics.instance?.status || 'N/A'}</div>
+                        <div class="metric-label">${metrics.instance?.database_status || ''}</div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Instance Name</div>
+                        <div class="metric-value" style="font-size: 24px;">${metrics.instance?.instance_name || 'N/A'}</div>
+                        <div class="metric-label">${metrics.instance?.host_name || ''}</div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Uptime</div>
+                        <div class="metric-value">${formatUptime(metrics.uptime)}</div>
+                        <div class="metric-label">Days:Hours:Minutes</div>
+                    </div>
+                    
+                    <div class="metric-card ${getUsageClass(metrics.cpu?.usage_percent)}">
+                        <div class="metric-title">CPU Usage</div>
+                        <div class="metric-value">${metrics.cpu?.usage_percent?.toFixed(2) || 0}%</div>
+                        <div class="metric-label">Current CPU Load</div>
+                    </div>
+                    
+                    <div class="metric-card ${getUsageClass(metrics.memory?.usage_percent)}">
+                        <div class="metric-title">Memory Usage</div>
+                        <div class="metric-value">${metrics.memory?.usage_percent?.toFixed(2) || 0}%</div>
+                        <div class="metric-label">${metrics.memory?.used_gb?.toFixed(2) || 0} GB / ${metrics.memory?.total_gb?.toFixed(2) || 0} GB</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${getUsageClass(metrics.memory?.usage_percent)}" style="width: ${metrics.memory?.usage_percent || 0}%">
+                                ${metrics.memory?.usage_percent?.toFixed(1) || 0}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Active Sessions</div>
+                        <div class="metric-value">${metrics.sessions?.active || 0}</div>
+                        <div class="metric-label">Total: ${metrics.sessions?.total || 0} | Inactive: ${metrics.sessions?.inactive || 0}</div>
+                    </div>
+                    
+                    <div class="metric-card ${getUsageClass(metrics.database_size?.usage_percent)}">
+                        <div class="metric-title">Database Size</div>
+                        <div class="metric-value">${metrics.database_size?.used_gb?.toFixed(2) || 0} GB</div>
+                        <div class="metric-label">Used / ${metrics.database_size?.total_gb?.toFixed(2) || 0} GB Total</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${getUsageClass(metrics.database_size?.usage_percent)}" style="width: ${metrics.database_size?.usage_percent || 0}%">
+                                ${metrics.database_size?.usage_percent?.toFixed(1) || 0}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-title">Oracle Version</div>
+                        <div class="metric-value" style="font-size: 14px;">${metrics.instance?.version || 'N/A'}</div>
+                        <div class="metric-label">Database Version</div>
+                    </div>
+                </div>
+                
+                <!-- Tablespaces -->
+                <div class="table-section">
+                    <div class="table-title">Tablespaces Usage</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tablespace Name</th>
+                                <th>Total (MB)</th>
+                                <th>Used (MB)</th>
+                                <th>Free (MB)</th>
+                                <th>Usage %</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${renderTablespaces(metrics.tablespaces || [])}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Top SQL -->
+                <div class="table-section">
+                    <div class="table-title">Top 5 SQL Queries by Elapsed Time</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SQL ID</th>
+                                <th>SQL Text</th>
+                                <th>Executions</th>
+                                <th>Elapsed (sec)</th>
+                                <th>CPU (sec)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${renderTopSQL(metrics.top_sql || [])}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+        }
+        
+        function renderTablespaces(tablespaces) {
+            if (tablespaces.length === 0) {
+                return '<tr><td colspan="6" style="text-align: center; color: #999;">No tablespace data available</td></tr>';
+            }
+            
+            return tablespaces.map(ts => `
+                <tr>
+                    <td><strong>${ts.name}</strong></td>
+                    <td>${ts.total_mb.toFixed(2)}</td>
+                    <td>${ts.used_mb.toFixed(2)}</td>
+                    <td>${ts.free_mb.toFixed(2)}</td>
+                    <td>
+                        <div class="progress-bar" style="height: 20px;">
+                            <div class="progress-fill ${getUsageClass(ts.used_percent)}" style="width: ${ts.used_percent}%">
+                                ${ts.used_percent.toFixed(1)}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="status-badge ${getUsageClass(ts.used_percent)}">
+                            ${ts.used_percent > 90 ? 'Critical' : ts.used_percent > 75 ? 'Warning' : 'OK'}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function renderTopSQL(topSQL) {
+            if (topSQL.length === 0) {
+                return '<tr><td colspan="5" style="text-align: center; color: #999;">No SQL data available</td></tr>';
+            }
+            
+            return topSQL.map(sql => `
+                <tr>
+                    <td><code>${sql.sql_id}</code></td>
+                    <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${sql.sql_text}">${sql.sql_text}</td>
+                    <td>${sql.executions}</td>
+                    <td>${sql.elapsed_seconds.toFixed(2)}</td>
+                    <td>${sql.cpu_seconds.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function getStatusClass(status) {
+            if (status === 'OPEN') return 'success';
+            if (status === 'MOUNTED') return 'warning';
+            return 'danger';
+        }
+        
+        function getUsageClass(percent) {
+            if (!percent) return '';
+            if (percent > 90) return 'danger';
+            if (percent > 75) return 'warning';
+            return 'success';
+        }
+        
+        function formatUptime(uptime) {
+            if (!uptime) return 'N/A';
+            return `${uptime.days}d ${uptime.hours}h ${uptime.minutes}m`;
+        }
+        
+        // Load metrics on page load
+        loadMetrics();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadMetrics, 30000);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Dashboard - Oracle Enterprise Manager Style</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Menu Bar */
+        .menu-bar {
+            background: #1e1e1e;
+            border-bottom: 1px solid #3c3c3c;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        .menu-item {
+            padding: 5px 12px;
+            cursor: pointer;
+            color: #d4d4d4;
+            border-radius: 3px;
+            margin-right: 5px;
+            transition: background 0.2s;
+        }
+        
+        .menu-item:hover {
+            background: #3c3c3c;
+        }
+        
+        .menu-item.active {
+            background: #007acc;
+            color: white;
+        }
+        
+        /* MDI Container */
+        .mdi-container {
+            height: calc(100vh - 30px);
+            position: relative;
+            background: #1e1e1e;
+            overflow: hidden;
+        }
+        
+        /* MDI Window */
+        .mdi-window {
+            position: absolute;
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+            min-height: 200px;
+        }
+        
+        .mdi-window.maximized {
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        
+        .mdi-window-header {
+            background: #2d2d30;
+            padding: 8px 12px;
+            border-bottom: 1px solid #3c3c3c;
+            display: flex;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+        }
+        
+        .mdi-window-title {
+            flex: 1;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .mdi-window-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .mdi-window-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: #d4d4d4;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .mdi-window-btn:hover {
+            background: #3c3c3c;
+        }
+        
+        .mdi-window-content {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+        }
+        
+        /* Metric Card */
+        .metric-card {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            border-left: 4px solid #007acc;
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .metric-card.warning {
+            border-left-color: #ff9800;
+        }
+        
+        .metric-card.danger {
+            border-left-color: #f44336;
+        }
+        
+        .metric-card.success {
+            border-left-color: #4caf50;
+        }
+        
+        .metric-title {
+            font-size: 12px;
+            color: #858585;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #d4d4d4;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #858585;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #2d2d30;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007acc 0%, #005a9e 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #ff9800 0%, #f57c00 100%);
+        }
+        
+        .progress-fill.danger {
+            background: linear-gradient(90deg, #f44336 0%, #d32f2f 100%);
+        }
+        
+        .loading-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #3c3c3c;
+            border-top: 2px solid #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        th {
+            background: #2d2d30;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #d4d4d4;
+            border-bottom: 2px solid #3c3c3c;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #2d2d30;
+            color: #d4d4d4;
+        }
+        
+        tr:hover {
+            background: #2a2d2e;
+        }
+    </style>
+</head>
+<body>
+    <!-- Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-item" onclick="window.location.href='/UNA.md/orasldev'">SQL Developer</div>
+        <div class="menu-item active">Dashboard</div>
+    </div>
+    
+    <!-- MDI Container -->
+    <div class="mdi-container" id="mdiContainer">
+        <!-- Instance Info Window -->
+        <div class="mdi-window" id="instance-window" style="width: 350px; height: 250px; top: 20px; left: 20px; z-index: 100;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">Instance Info <span class="loading-indicator" id="instance-loading"></span></div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('instance-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('instance-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" id="instance-content">
+                <div class="loading-indicator"></div> Loading...
+            </div>
+        </div>
+        
+        <!-- Memory Window -->
+        <div class="mdi-window" id="memory-window" style="width: 350px; height: 250px; top: 20px; left: 390px; z-index: 99;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">Memory Usage <span class="loading-indicator" id="memory-loading"></span></div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('memory-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('memory-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" id="memory-content">
+                <div class="loading-indicator"></div> Loading...
+            </div>
+        </div>
+        
+        <!-- CPU Window -->
+        <div class="mdi-window" id="cpu-window" style="width: 350px; height: 250px; top: 20px; left: 760px; z-index: 98;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">CPU Usage <span class="loading-indicator" id="cpu-loading"></span></div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('cpu-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('cpu-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" id="cpu-content">
+                <div class="loading-indicator"></div> Loading...
+            </div>
+        </div>
+        
+        <!-- Sessions Window -->
+        <div class="mdi-window" id="sessions-window" style="width: 350px; height: 250px; top: 290px; left: 20px; z-index: 97;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">Sessions <span class="loading-indicator" id="sessions-loading"></span></div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('sessions-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('sessions-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" id="sessions-content">
+                <div class="loading-indicator"></div> Loading...
+            </div>
+        </div>
+        
+        <!-- Tablespaces Window -->
+        <div class="mdi-window" id="tablespaces-window" style="width: 600px; height: 400px; top: 290px; left: 390px; z-index: 96;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">Tablespaces <span class="loading-indicator" id="tablespaces-loading"></span></div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('tablespaces-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('tablespaces-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" id="tablespaces-content">
+                <div class="loading-indicator"></div> Loading...
+            </div>
+        </div>
+        
+        <!-- Top SQL Window -->
+        <div class="mdi-window" id="top-sql-window" style="width: 600px; height: 400px; top: 290px; left: 1010px; z-index: 95;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">Top SQL Queries <span class="loading-indicator" id="top-sql-loading"></span></div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('top-sql-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('top-sql-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" id="top-sql-content">
+                <div class="loading-indicator"></div> Loading...
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize Socket.IO
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Connected to WebSocket server');
+            // Подписываемся на все метрики
+            subscribeToMetric('instance');
+            subscribeToMetric('memory');
+            subscribeToMetric('cpu');
+            subscribeToMetric('sessions');
+            subscribeToMetric('tablespaces');
+            subscribeToMetric('top_sql');
+        });
+        
+        socket.on('metric_update', (data) => {
+            if (data.success) {
+                updateMetricDisplay(data.metric, data.data);
+            }
+        });
+        
+        socket.on('error', (data) => {
+            console.error('Socket error:', data);
+        });
+        
+        function subscribeToMetric(metricName) {
+            socket.emit('subscribe_metric', { metric: metricName });
+        }
+        
+        function updateMetricDisplay(metricName, data) {
+            const loadingId = metricName + '-loading';
+            const contentId = metricName + '-content';
+            
+            document.getElementById(loadingId).style.display = 'none';
+            
+            let html = '';
+            
+            switch(metricName) {
+                case 'instance':
+                    html = `
+                        <div class="metric-card success">
+                            <div class="metric-title">Database Status</div>
+                            <div class="metric-value">${data.status || 'N/A'}</div>
+                            <div class="metric-label">${data.database_status || ''}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Instance Name</div>
+                            <div class="metric-value" style="font-size: 24px;">${data.instance_name || 'N/A'}</div>
+                            <div class="metric-label">${data.host_name || ''}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Version</div>
+                            <div class="metric-value" style="font-size: 14px;">${data.version || 'N/A'}</div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'memory':
+                    const memUsage = data.usage_percent || 0;
+                    html = `
+                        <div class="metric-card ${getUsageClass(memUsage)}">
+                            <div class="metric-title">Memory Usage</div>
+                            <div class="metric-value">${memUsage.toFixed(2)}%</div>
+                            <div class="metric-label">${data.used_gb?.toFixed(2) || 0} GB / ${data.total_gb?.toFixed(2) || 0} GB</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill ${getUsageClass(memUsage)}" style="width: ${memUsage}%">
+                                    ${memUsage.toFixed(1)}%
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'cpu':
+                    const cpuUsage = data.usage_percent || 0;
+                    html = `
+                        <div class="metric-card ${getUsageClass(cpuUsage)}">
+                            <div class="metric-title">CPU Usage</div>
+                            <div class="metric-value">${cpuUsage.toFixed(2)}%</div>
+                            <div class="metric-label">Current CPU Load</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill ${getUsageClass(cpuUsage)}" style="width: ${cpuUsage}%">
+                                    ${cpuUsage.toFixed(1)}%
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'sessions':
+                    html = `
+                        <div class="metric-card">
+                            <div class="metric-title">Active Sessions</div>
+                            <div class="metric-value">${data.active || 0}</div>
+                            <div class="metric-label">Total: ${data.total || 0} | Inactive: ${data.inactive || 0}</div>
+                        </div>
+                    `;
+                    break;
+                    
+                case 'tablespaces':
+                    if (Array.isArray(data) && data.length > 0) {
+                        html = '<table><thead><tr><th>Name</th><th>Total (MB)</th><th>Used (MB)</th><th>Free (MB)</th><th>Usage %</th></tr></thead><tbody>';
+                        data.forEach(ts => {
+                            html += `
+                                <tr>
+                                    <td><strong>${ts.name}</strong></td>
+                                    <td>${ts.total_mb.toFixed(2)}</td>
+                                    <td>${ts.used_mb.toFixed(2)}</td>
+                                    <td>${ts.free_mb.toFixed(2)}</td>
+                                    <td>
+                                        <div class="progress-bar" style="height: 20px;">
+                                            <div class="progress-fill ${getUsageClass(ts.used_percent)}" style="width: ${ts.used_percent}%">
+                                                ${ts.used_percent.toFixed(1)}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        html += '</tbody></table>';
+                    } else {
+                        html = '<div style="color: #858585;">No tablespace data available</div>';
+                    }
+                    break;
+                    
+                case 'top_sql':
+                    if (Array.isArray(data) && data.length > 0) {
+                        html = '<table><thead><tr><th>SQL ID</th><th>SQL Text</th><th>Executions</th><th>Elapsed (sec)</th><th>CPU (sec)</th></tr></thead><tbody>';
+                        data.forEach(sql => {
+                            html += `
+                                <tr>
+                                    <td><code>${sql.sql_id}</code></td>
+                                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${sql.sql_text}">${sql.sql_text}</td>
+                                    <td>${sql.executions}</td>
+                                    <td>${sql.elapsed_seconds.toFixed(2)}</td>
+                                    <td>${sql.cpu_seconds.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        });
+                        html += '</tbody></table>';
+                    } else {
+                        html = '<div style="color: #858585;">No SQL data available</div>';
+                    }
+                    break;
+            }
+            
+            document.getElementById(contentId).innerHTML = html;
+        }
+        
+        function getUsageClass(percent) {
+            if (!percent) return '';
+            if (percent > 90) return 'danger';
+            if (percent > 75) return 'warning';
+            return 'success';
+        }
+        
+        // Window management
+        let zIndexCounter = 200;
+        
+        function maximizeWindow(windowId) {
+            const window = document.getElementById(windowId);
+            window.classList.toggle('maximized');
+        }
+        
+        function closeWindow(windowId) {
+            const window = document.getElementById(windowId);
+            window.style.display = 'none';
+        }
+        
+        function bringToFront(windowId) {
+            const window = document.getElementById(windowId);
+            window.style.zIndex = zIndexCounter++;
+        }
+        
+        // Make windows draggable
+        document.querySelectorAll('.mdi-window-header').forEach(header => {
+            let isDragging = false;
+            let currentX, currentY, initialX, initialY;
+            
+            header.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                const window = header.closest('.mdi-window');
+                initialX = e.clientX - window.offsetLeft;
+                initialY = e.clientY - window.offsetTop;
+                bringToFront(window.id);
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    e.preventDefault();
+                    const window = document.querySelector('.mdi-window-header:hover')?.closest('.mdi-window');
+                    if (window && !window.classList.contains('maximized')) {
+                        currentX = e.clientX - initialX;
+                        currentY = e.clientY - initialY;
+                        window.style.left = currentX + 'px';
+                        window.style.top = currentY + 'px';
+                    }
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+        
+        // Initial load
+        async function loadInitialData() {
+            const metrics = ['instance', 'memory', 'cpu', 'sessions', 'tablespaces', 'top_sql'];
+            for (const metric of metrics) {
+                try {
+                    const response = await fetch(`/api/dashboard/metric/${metric}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        updateMetricDisplay(data.metric, data.data);
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${metric}:`, error);
+                }
+            }
+        }
+        
+        loadInitialData();
+    </script>
+</body>
+</html>
+
