@@ -1,841 +1,1000 @@
 """
 Контроллер модуля DIGI Marketing - централизованное управление
-мультимедийным контентом для весов DIGI SM5300/SM6000 и касс WEB3110
+мультимедийным контентом для весов DIGI SM5300/SM6000 и касс WEB3110.
+
+Работает с Oracle DB через пакет DIGI_MARKETING_PKG.
 """
-import datetime
-import uuid
+import sys
 import os
-import json
+import traceback
+from typing import Dict, Any, List, Optional
+
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+from models.database import DatabaseModel
 from flask import session
 
 
 class DigiMarketingController:
     """Контроллер для управления медиаконтентом на весах DIGI"""
 
-    # In-memory хранилище (в продакшене - Oracle DB)
-    _stores = {}
-    _departments = {}
-    _devices = {}
-    _media = {}
-    _playlists = {}
-    _campaigns = {}
-    _sync_log = []
-    _event_log = []
-
-    # Типы отделов
-    DEPARTMENT_TYPES = [
-        {"id": "confectionery", "name": "Кондитерские изделия"},
-        {"id": "culinary", "name": "Кулинария"},
-        {"id": "cheese", "name": "Сыры"},
-        {"id": "sausage", "name": "Колбасы"},
-        {"id": "meat", "name": "Мясо"},
-        {"id": "fish", "name": "Рыба"},
-    ]
-
-    # Типы устройств
-    DEVICE_TYPES = [
-        {"id": "SM5300", "name": "DIGI SM5300", "resolutions": ["800x480", "1024x600"]},
-        {"id": "SM6000", "name": "DIGI SM6000", "resolutions": ["1024x600", "1280x800"]},
-        {"id": "WEB3110", "name": "Касса WEB3110", "resolutions": ["1920x1080", "1280x1024"]},
-    ]
-
-    # Допустимые форматы
     ALLOWED_IMAGE_FORMATS = ["jpg", "jpeg", "png", "bmp", "gif"]
     ALLOWED_VIDEO_FORMATS = ["mp4", "avi", "mkv", "webm"]
-    ALLOWED_RESOLUTIONS = ["800x480", "1024x600", "1280x800", "1920x1080", "1280x1024"]
 
-    # Роли доступа
-    ROLES = [
-        {"id": "admin", "name": "Администратор", "permissions": ["all"]},
-        {"id": "content_manager", "name": "Контент-менеджер", "permissions": ["media", "playlists", "campaigns"]},
-        {"id": "marketer", "name": "Маркетолог", "permissions": ["campaigns", "reports", "playlists"]},
-        {"id": "store_admin", "name": "Администратор магазина", "permissions": ["devices", "reports"]},
-    ]
+    @staticmethod
+    def _rows_to_dicts(result: Dict) -> List[Dict]:
+        """Преобразует результат execute_query в список словарей"""
+        if not result.get("success") or not result.get("data"):
+            return []
+        cols = [c.lower() for c in (result.get("columns") or [])]
+        out = []
+        for row in result.get("data", []):
+            d = dict(zip(cols, row))
+            out.append(d)
+        return out
 
-    @classmethod
-    def _generate_id(cls):
-        return str(uuid.uuid4())[:8]
+    @staticmethod
+    def _first_row(result: Dict) -> Optional[Dict]:
+        rows = DigiMarketingController._rows_to_dicts(result)
+        return rows[0] if rows else None
 
-    @classmethod
-    def _timestamp(cls):
-        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    @staticmethod
+    def _username():
+        return session.get('username', 'system')
 
-    @classmethod
-    def _add_event(cls, action, entity_type, entity_id, details=""):
-        cls._event_log.insert(0, {
-            "id": cls._generate_id(),
-            "timestamp": cls._timestamp(),
-            "action": action,
-            "entity_type": entity_type,
-            "entity_id": entity_id,
-            "details": details,
-            "user": session.get('username', 'system')
-        })
-        if len(cls._event_log) > 500:
-            cls._event_log = cls._event_log[:500]
+    @staticmethod
+    def _add_event(action, entity_type, entity_id, details=""):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO DIGI_EVENT_LOG (ACTION, ENTITY_TYPE, ENTITY_ID, DETAILS, USERNAME) "
+                    "VALUES (:action, :etype, :eid, :details, :uname)",
+                    {"action": action, "etype": entity_type, "eid": entity_id,
+                     "details": details[:2000] if details else None,
+                     "uname": DigiMarketingController._username()}
+                )
+                db.connection.commit()
+        except Exception:
+            pass
 
     # ========== Магазины ==========
 
-    @classmethod
-    def get_stores(cls):
-        stores = sorted(cls._stores.values(), key=lambda x: x.get('name', ''))
-        return {"success": True, "data": stores, "total": len(stores), "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_stores():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, NAME, ADDRESS, REGION, TIMEZONE, STATUS, CREATED_AT, UPDATED_AT, "
+                    "(SELECT COUNT(*) FROM DIGI_DEVICES dv WHERE dv.STORE_ID = s.ID) AS DEVICE_COUNT, "
+                    "(SELECT COUNT(*) FROM DIGI_DEPARTMENTS dp WHERE dp.STORE_ID = s.ID) AS DEPARTMENT_COUNT "
+                    "FROM DIGI_STORES s ORDER BY NAME"
+                )
+                stores = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": stores, "total": len(stores)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_store(cls, store_id):
-        store = cls._stores.get(store_id)
-        if not store:
-            return {"success": False, "error": "Магазин не найден"}
-        # Подсчитываем связанные устройства
-        device_count = sum(1 for d in cls._devices.values() if d.get('store_id') == store_id)
-        dept_count = sum(1 for d in cls._departments.values() if d.get('store_id') == store_id)
-        store['device_count'] = device_count
-        store['department_count'] = dept_count
-        return {"success": True, "data": store, "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_store(store_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, NAME, ADDRESS, REGION, TIMEZONE, STATUS, CREATED_AT, UPDATED_AT, "
+                    "(SELECT COUNT(*) FROM DIGI_DEVICES dv WHERE dv.STORE_ID = s.ID) AS DEVICE_COUNT, "
+                    "(SELECT COUNT(*) FROM DIGI_DEPARTMENTS dp WHERE dp.STORE_ID = s.ID) AS DEPARTMENT_COUNT "
+                    "FROM DIGI_STORES s WHERE ID = :id", {"id": int(store_id)}
+                )
+                store = DigiMarketingController._first_row(r)
+                if not store:
+                    return {"success": False, "error": "Магазин не найден"}
+                return {"success": True, "data": store}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def create_store(cls, data):
-        store_id = cls._generate_id()
-        store = {
-            "id": store_id,
-            "name": data.get('name', ''),
-            "address": data.get('address', ''),
-            "region": data.get('region', ''),
-            "timezone": data.get('timezone', 'Europe/Chisinau'),
-            "status": data.get('status', 'active'),
-            "created_at": cls._timestamp(),
-            "updated_at": cls._timestamp(),
-        }
-        cls._stores[store_id] = store
-        cls._add_event("create", "store", store_id, f"Создан магазин: {store['name']}")
-        return {"success": True, "data": store, "timestamp": cls._timestamp()}
+    @staticmethod
+    def create_store(data):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "INSERT INTO DIGI_STORES (NAME, ADDRESS, REGION, TIMEZONE, STATUS) "
+                    "VALUES (:name, :address, :region, :tz, :status) "
+                    "RETURNING ID INTO :out_id",
+                    {"name": data.get("name", ""), "address": data.get("address", ""),
+                     "region": data.get("region", ""), "tz": data.get("timezone", "Europe/Chisinau"),
+                     "status": data.get("status", "active")}
+                )
+                # Для INSERT RETURNING используем альтернативный подход
+                db.connection.commit()
+                # Получаем последнюю вставленную запись
+                r2 = db.execute_query(
+                    "SELECT ID FROM DIGI_STORES WHERE NAME = :name ORDER BY ID DESC FETCH FIRST 1 ROW ONLY",
+                    {"name": data.get("name", "")}
+                )
+                row = DigiMarketingController._first_row(r2)
+                store_id = row["id"] if row else None
+                DigiMarketingController._add_event("create", "store", store_id, f"Создан магазин: {data.get('name')}")
+                return {"success": True, "data": {"id": store_id, **data}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def update_store(cls, store_id, data):
-        store = cls._stores.get(store_id)
-        if not store:
-            return {"success": False, "error": "Магазин не найден"}
-        for key in ['name', 'address', 'region', 'timezone', 'status']:
-            if key in data:
-                store[key] = data[key]
-        store['updated_at'] = cls._timestamp()
-        cls._add_event("update", "store", store_id, f"Обновлен магазин: {store['name']}")
-        return {"success": True, "data": store, "timestamp": cls._timestamp()}
+    @staticmethod
+    def update_store(store_id, data):
+        try:
+            with DatabaseModel() as db:
+                sets = []
+                params = {"id": int(store_id)}
+                for key in ["name", "address", "region", "timezone", "status"]:
+                    if key in data:
+                        col = key.upper() if key != "timezone" else "TIMEZONE"
+                        sets.append(f"{col} = :{key}")
+                        params[key] = data[key]
+                if not sets:
+                    return {"success": False, "error": "Нет данных для обновления"}
+                db.execute_query(f"UPDATE DIGI_STORES SET {', '.join(sets)} WHERE ID = :id", params)
+                db.connection.commit()
+                DigiMarketingController._add_event("update", "store", int(store_id), f"Обновлен магазин")
+                return DigiMarketingController.get_store(store_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def delete_store(cls, store_id):
-        store = cls._stores.get(store_id)
-        if not store:
-            return {"success": False, "error": "Магазин не найден"}
-        # Проверяем привязанные устройства
-        linked = [d for d in cls._devices.values() if d.get('store_id') == store_id]
-        if linked:
-            return {"success": False, "error": f"Нельзя удалить: {len(linked)} устройств привязано к магазину"}
-        del cls._stores[store_id]
-        # Удаляем отделы магазина
-        dept_ids = [d_id for d_id, d in cls._departments.items() if d.get('store_id') == store_id]
-        for d_id in dept_ids:
-            del cls._departments[d_id]
-        cls._add_event("delete", "store", store_id, f"Удален магазин: {store['name']}")
-        return {"success": True, "timestamp": cls._timestamp()}
+    @staticmethod
+    def delete_store(store_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_DEVICES WHERE STORE_ID = :id", {"id": int(store_id)})
+                row = DigiMarketingController._first_row(r)
+                if row and row.get("cnt", 0) > 0:
+                    return {"success": False, "error": f"Нельзя удалить: {row['cnt']} устройств привязано к магазину"}
+                db.execute_query("DELETE FROM DIGI_STORES WHERE ID = :id", {"id": int(store_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("delete", "store", int(store_id), "Удален магазин")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ========== Отделы ==========
 
-    @classmethod
-    def get_departments(cls, store_id=None):
-        depts = list(cls._departments.values())
-        if store_id:
-            depts = [d for d in depts if d.get('store_id') == store_id]
-        # Обогащаем названием магазина
-        for d in depts:
-            store = cls._stores.get(d.get('store_id'))
-            d['store_name'] = store['name'] if store else '-'
-        return {"success": True, "data": depts, "total": len(depts), "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_departments(store_id=None):
+        try:
+            with DatabaseModel() as db:
+                sql = ("SELECT dp.ID, dp.STORE_ID, s.NAME AS STORE_NAME, dp.DEPT_TYPE, "
+                       "rt.NAME AS DEPT_TYPE_NAME, dp.NAME, dp.STATUS, dp.CREATED_AT "
+                       "FROM DIGI_DEPARTMENTS dp "
+                       "JOIN DIGI_STORES s ON s.ID = dp.STORE_ID "
+                       "JOIN DIGI_REF_DEPT_TYPES rt ON rt.CODE = dp.DEPT_TYPE "
+                       "WHERE 1=1")
+                params = {}
+                if store_id:
+                    sql += " AND dp.STORE_ID = :store_id"
+                    params["store_id"] = int(store_id)
+                sql += " ORDER BY s.NAME, dp.NAME"
+                r = db.execute_query(sql, params if params else None)
+                depts = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": depts, "total": len(depts)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def create_department(cls, data):
-        dept_id = cls._generate_id()
-        dept = {
-            "id": dept_id,
-            "store_id": data.get('store_id', ''),
-            "type": data.get('type', ''),
-            "name": data.get('name', ''),
-            "status": "active",
-            "created_at": cls._timestamp(),
-        }
-        cls._departments[dept_id] = dept
-        cls._add_event("create", "department", dept_id, f"Создан отдел: {dept['name']}")
-        return {"success": True, "data": dept, "timestamp": cls._timestamp()}
+    @staticmethod
+    def create_department(data):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO DIGI_DEPARTMENTS (STORE_ID, DEPT_TYPE, NAME) VALUES (:store_id, :dtype, :name)",
+                    {"store_id": int(data.get("store_id", 0)), "dtype": data.get("type", ""),
+                     "name": data.get("name", "")}
+                )
+                db.connection.commit()
+                r = db.execute_query("SELECT MAX(ID) AS ID FROM DIGI_DEPARTMENTS")
+                row = DigiMarketingController._first_row(r)
+                dept_id = row["id"] if row else None
+                DigiMarketingController._add_event("create", "department", dept_id, f"Создан отдел: {data.get('name')}")
+                return {"success": True, "data": {"id": dept_id, **data}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def delete_department(cls, dept_id):
-        dept = cls._departments.get(dept_id)
-        if not dept:
-            return {"success": False, "error": "Отдел не найден"}
-        del cls._departments[dept_id]
-        cls._add_event("delete", "department", dept_id, f"Удален отдел: {dept['name']}")
-        return {"success": True, "timestamp": cls._timestamp()}
+    @staticmethod
+    def delete_department(dept_id):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query("DELETE FROM DIGI_DEPARTMENTS WHERE ID = :id", {"id": int(dept_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("delete", "department", int(dept_id), "Удален отдел")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    # ========== Устройства (весы/кассы) ==========
+    # ========== Устройства ==========
 
-    @classmethod
-    def get_devices(cls, store_id=None, department_id=None):
-        devices = list(cls._devices.values())
-        if store_id:
-            devices = [d for d in devices if d.get('store_id') == store_id]
-        if department_id:
-            devices = [d for d in devices if d.get('department_id') == department_id]
-        # Обогащаем
-        for d in devices:
-            store = cls._stores.get(d.get('store_id'))
-            dept = cls._departments.get(d.get('department_id'))
-            d['store_name'] = store['name'] if store else '-'
-            d['department_name'] = dept['name'] if dept else '-'
-        return {"success": True, "data": devices, "total": len(devices), "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_devices(store_id=None, department_id=None):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_DIGI_DEVICES WHERE 1=1"
+                params = {}
+                if store_id:
+                    sql += " AND STORE_ID = :store_id"
+                    params["store_id"] = int(store_id)
+                if department_id:
+                    sql += " AND DEPARTMENT_ID = :dept_id"
+                    params["dept_id"] = int(department_id)
+                sql += " ORDER BY STORE_NAME, NAME"
+                r = db.execute_query(sql, params if params else None)
+                devices = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": devices, "total": len(devices)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_device(cls, device_id):
-        device = cls._devices.get(device_id)
-        if not device:
-            return {"success": False, "error": "Устройство не найдено"}
-        store = cls._stores.get(device.get('store_id'))
-        dept = cls._departments.get(device.get('department_id'))
-        device['store_name'] = store['name'] if store else '-'
-        device['department_name'] = dept['name'] if dept else '-'
-        return {"success": True, "data": device, "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_device(device_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_DIGI_DEVICES WHERE ID = :id", {"id": int(device_id)})
+                device = DigiMarketingController._first_row(r)
+                if not device:
+                    return {"success": False, "error": "Устройство не найдено"}
+                return {"success": True, "data": device}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def register_device(cls, data):
-        device_id = cls._generate_id()
-        device = {
-            "id": device_id,
-            "serial_number": data.get('serial_number', ''),
-            "name": data.get('name', ''),
-            "device_type": data.get('device_type', 'SM5300'),
-            "resolution": data.get('resolution', '800x480'),
-            "store_id": data.get('store_id', ''),
-            "department_id": data.get('department_id', ''),
-            "ip_address": data.get('ip_address', ''),
-            "status": "online",
-            "last_sync": None,
-            "firmware_version": data.get('firmware_version', ''),
-            "memory_total_mb": data.get('memory_total_mb', 512),
-            "memory_used_mb": 0,
-            "created_at": cls._timestamp(),
-            "updated_at": cls._timestamp(),
-        }
-        cls._devices[device_id] = device
-        cls._add_event("create", "device", device_id, f"Зарегистрировано устройство: {device['name']} ({device['serial_number']})")
-        return {"success": True, "data": device, "timestamp": cls._timestamp()}
+    @staticmethod
+    def register_device(data):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO DIGI_DEVICES (SERIAL_NUMBER, NAME, DEVICE_TYPE, RESOLUTION, STORE_ID, "
+                    "DEPARTMENT_ID, IP_ADDRESS, STATUS, FIRMWARE_VERSION, MEMORY_TOTAL_MB) "
+                    "VALUES (:sn, :name, :dtype, :res, :store_id, :dept_id, :ip, :status, :fw, :mem)",
+                    {"sn": data.get("serial_number", ""), "name": data.get("name", ""),
+                     "dtype": data.get("device_type", "SM5300"), "res": data.get("resolution", "800x480"),
+                     "store_id": int(data.get("store_id", 0)),
+                     "dept_id": int(data["department_id"]) if data.get("department_id") else None,
+                     "ip": data.get("ip_address", ""), "status": "online",
+                     "fw": data.get("firmware_version", ""), "mem": data.get("memory_total_mb", 512)}
+                )
+                db.connection.commit()
+                r = db.execute_query("SELECT MAX(ID) AS ID FROM DIGI_DEVICES")
+                row = DigiMarketingController._first_row(r)
+                dev_id = row["id"] if row else None
+                DigiMarketingController._add_event("create", "device", dev_id,
+                    f"Зарегистрировано устройство: {data.get('name')} ({data.get('serial_number')})")
+                return {"success": True, "data": {"id": dev_id, **data}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def update_device(cls, device_id, data):
-        device = cls._devices.get(device_id)
-        if not device:
-            return {"success": False, "error": "Устройство не найдено"}
-        for key in ['name', 'store_id', 'department_id', 'ip_address', 'status', 'resolution', 'firmware_version']:
-            if key in data:
-                device[key] = data[key]
-        device['updated_at'] = cls._timestamp()
-        cls._add_event("update", "device", device_id, f"Обновлено устройство: {device['name']}")
-        return {"success": True, "data": device, "timestamp": cls._timestamp()}
+    @staticmethod
+    def update_device(device_id, data):
+        try:
+            with DatabaseModel() as db:
+                sets = []
+                params = {"id": int(device_id)}
+                field_map = {"name": "NAME", "store_id": "STORE_ID", "department_id": "DEPARTMENT_ID",
+                             "ip_address": "IP_ADDRESS", "status": "STATUS", "resolution": "RESOLUTION",
+                             "firmware_version": "FIRMWARE_VERSION"}
+                for key, col in field_map.items():
+                    if key in data:
+                        sets.append(f"{col} = :{key}")
+                        params[key] = int(data[key]) if key in ("store_id", "department_id") and data[key] else data[key]
+                if not sets:
+                    return {"success": False, "error": "Нет данных для обновления"}
+                db.execute_query(f"UPDATE DIGI_DEVICES SET {', '.join(sets)} WHERE ID = :id", params)
+                db.connection.commit()
+                DigiMarketingController._add_event("update", "device", int(device_id), "Обновлено устройство")
+                return DigiMarketingController.get_device(device_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def delete_device(cls, device_id):
-        device = cls._devices.get(device_id)
-        if not device:
-            return {"success": False, "error": "Устройство не найдено"}
-        del cls._devices[device_id]
-        cls._add_event("delete", "device", device_id, f"Удалено устройство: {device['name']}")
-        return {"success": True, "timestamp": cls._timestamp()}
+    @staticmethod
+    def delete_device(device_id):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query("DELETE FROM DIGI_DEVICES WHERE ID = :id", {"id": int(device_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("delete", "device", int(device_id), "Удалено устройство")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ========== Медиаконтент ==========
 
-    @classmethod
-    def get_media_list(cls, media_type=None, resolution=None):
-        media = list(cls._media.values())
-        if media_type:
-            media = [m for m in media if m.get('type') == media_type]
-        if resolution:
-            media = [m for m in media if resolution in m.get('resolutions', [])]
-        media.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-        return {"success": True, "data": media, "total": len(media), "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_media_list(media_type=None, resolution=None):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_DIGI_MEDIA WHERE 1=1"
+                params = {}
+                if media_type:
+                    sql += " AND MEDIA_TYPE = :mtype"
+                    params["mtype"] = media_type
+                if resolution:
+                    sql += " AND INSTR(RESOLUTIONS, :res) > 0"
+                    params["res"] = resolution
+                sql += " ORDER BY CREATED_AT DESC"
+                r = db.execute_query(sql, params if params else None)
+                media = DigiMarketingController._rows_to_dicts(r)
+                # Парсим теги и разрешения из CSV в массивы
+                for m in media:
+                    m["tags"] = [t.strip() for t in (m.get("tags") or "").split(",") if t.strip()]
+                    m["resolutions"] = [r.strip() for r in (m.get("resolutions") or "").split(",") if r.strip()]
+                return {"success": True, "data": media, "total": len(media)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_media(cls, media_id):
-        m = cls._media.get(media_id)
-        if not m:
-            return {"success": False, "error": "Медиафайл не найден"}
-        return {"success": True, "data": m, "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_media(media_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_DIGI_MEDIA WHERE ID = :id", {"id": int(media_id)})
+                m = DigiMarketingController._first_row(r)
+                if not m:
+                    return {"success": False, "error": "Медиафайл не найден"}
+                m["tags"] = [t.strip() for t in (m.get("tags") or "").split(",") if t.strip()]
+                m["resolutions"] = [r.strip() for r in (m.get("resolutions") or "").split(",") if r.strip()]
+                return {"success": True, "data": m}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def upload_media(cls, data):
-        media_id = cls._generate_id()
-        filename = data.get('filename', 'unknown')
-        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-
-        if ext in cls.ALLOWED_IMAGE_FORMATS:
-            media_type = 'image'
-        elif ext in cls.ALLOWED_VIDEO_FORMATS:
-            media_type = 'video'
+    @staticmethod
+    def upload_media(data):
+        filename = data.get("filename", "unknown")
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext in DigiMarketingController.ALLOWED_IMAGE_FORMATS:
+            media_type = "image"
+        elif ext in DigiMarketingController.ALLOWED_VIDEO_FORMATS:
+            media_type = "video"
         else:
             return {"success": False, "error": f"Неподдерживаемый формат: {ext}"}
 
-        media = {
-            "id": media_id,
-            "filename": filename,
-            "original_name": data.get('original_name', filename),
-            "type": media_type,
-            "format": ext,
-            "size_bytes": data.get('size_bytes', 0),
-            "resolutions": data.get('resolutions', []),
-            "description": data.get('description', ''),
-            "tags": data.get('tags', []),
-            "duration_seconds": data.get('duration_seconds', 0) if media_type == 'video' else 0,
-            "width": data.get('width', 0),
-            "height": data.get('height', 0),
-            "status": "ready",
-            "created_at": cls._timestamp(),
-            "created_by": session.get('username', 'system'),
-        }
-        cls._media[media_id] = media
-        cls._add_event("upload", "media", media_id, f"Загружен: {filename} ({media_type})")
-        return {"success": True, "data": media, "timestamp": cls._timestamp()}
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO DIGI_MEDIA (FILENAME, ORIGINAL_NAME, MEDIA_TYPE, FORMAT, SIZE_BYTES, "
+                    "DESCRIPTION, DURATION_SECONDS, WIDTH, HEIGHT, CREATED_BY) "
+                    "VALUES (:fn, :orig, :mtype, :fmt, :sz, :desc, :dur, :w, :h, :by)",
+                    {"fn": filename, "orig": data.get("original_name", filename),
+                     "mtype": media_type, "fmt": ext,
+                     "sz": data.get("size_bytes", 0), "desc": data.get("description", ""),
+                     "dur": data.get("duration_seconds", 0) if media_type == "video" else 0,
+                     "w": data.get("width", 0), "h": data.get("height", 0),
+                     "by": DigiMarketingController._username()}
+                )
+                db.connection.commit()
+                r = db.execute_query("SELECT MAX(ID) AS ID FROM DIGI_MEDIA")
+                row = DigiMarketingController._first_row(r)
+                media_id = row["id"] if row else None
 
-    @classmethod
-    def update_media(cls, media_id, data):
-        m = cls._media.get(media_id)
-        if not m:
-            return {"success": False, "error": "Медиафайл не найден"}
-        for key in ['description', 'tags', 'resolutions']:
-            if key in data:
-                m[key] = data[key]
-        cls._add_event("update", "media", media_id, f"Обновлен: {m['filename']}")
-        return {"success": True, "data": m, "timestamp": cls._timestamp()}
+                # Теги
+                for tag in data.get("tags", []):
+                    if tag:
+                        db.execute_query("INSERT INTO DIGI_MEDIA_TAGS (MEDIA_ID, TAG) VALUES (:mid, :tag)",
+                                         {"mid": media_id, "tag": tag.strip()})
+                # Разрешения
+                for res in data.get("resolutions", []):
+                    if res:
+                        db.execute_query("INSERT INTO DIGI_MEDIA_RESOLUTIONS (MEDIA_ID, RESOLUTION_CODE) VALUES (:mid, :res)",
+                                         {"mid": media_id, "res": res.strip()})
+                db.connection.commit()
+                DigiMarketingController._add_event("upload", "media", media_id, f"Загружен: {filename} ({media_type})")
+                return {"success": True, "data": {"id": media_id, "filename": filename, "type": media_type}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def delete_media(cls, media_id):
-        m = cls._media.get(media_id)
-        if not m:
-            return {"success": False, "error": "Медиафайл не найден"}
-        # Проверяем использование в плейлистах
-        used_in = []
-        for pl in cls._playlists.values():
-            if media_id in [item.get('media_id') for item in pl.get('items', [])]:
-                used_in.append(pl.get('name', pl['id']))
-        if used_in:
-            return {"success": False, "error": f"Используется в плейлистах: {', '.join(used_in)}"}
-        del cls._media[media_id]
-        cls._add_event("delete", "media", media_id, f"Удален: {m['filename']}")
-        return {"success": True, "timestamp": cls._timestamp()}
+    @staticmethod
+    def update_media(media_id, data):
+        try:
+            with DatabaseModel() as db:
+                if "description" in data:
+                    db.execute_query("UPDATE DIGI_MEDIA SET DESCRIPTION = :desc WHERE ID = :id",
+                                     {"desc": data["description"], "id": int(media_id)})
+                if "tags" in data:
+                    db.execute_query("DELETE FROM DIGI_MEDIA_TAGS WHERE MEDIA_ID = :id", {"id": int(media_id)})
+                    for tag in data["tags"]:
+                        if tag:
+                            db.execute_query("INSERT INTO DIGI_MEDIA_TAGS (MEDIA_ID, TAG) VALUES (:mid, :tag)",
+                                             {"mid": int(media_id), "tag": tag.strip()})
+                if "resolutions" in data:
+                    db.execute_query("DELETE FROM DIGI_MEDIA_RESOLUTIONS WHERE MEDIA_ID = :id", {"id": int(media_id)})
+                    for res in data["resolutions"]:
+                        if res:
+                            db.execute_query("INSERT INTO DIGI_MEDIA_RESOLUTIONS (MEDIA_ID, RESOLUTION_CODE) VALUES (:mid, :res)",
+                                             {"mid": int(media_id), "res": res.strip()})
+                db.connection.commit()
+                DigiMarketingController._add_event("update", "media", int(media_id), "Обновлен медиафайл")
+                return DigiMarketingController.get_media(media_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_media(media_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_PLAYLIST_ITEMS WHERE MEDIA_ID = :id",
+                                     {"id": int(media_id)})
+                row = DigiMarketingController._first_row(r)
+                if row and row.get("cnt", 0) > 0:
+                    return {"success": False, "error": f"Используется в {row['cnt']} плейлистах"}
+                db.execute_query("DELETE FROM DIGI_MEDIA WHERE ID = :id", {"id": int(media_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("delete", "media", int(media_id), "Удален медиафайл")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ========== Плейлисты ==========
 
-    @classmethod
-    def get_playlists(cls):
-        playlists = list(cls._playlists.values())
-        for pl in playlists:
-            pl['item_count'] = len(pl.get('items', []))
-        playlists.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-        return {"success": True, "data": playlists, "total": len(playlists), "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_playlists():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_DIGI_PLAYLISTS ORDER BY CREATED_AT DESC")
+                playlists = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": playlists, "total": len(playlists)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_playlist(cls, playlist_id):
-        pl = cls._playlists.get(playlist_id)
-        if not pl:
-            return {"success": False, "error": "Плейлист не найден"}
-        # Обогащаем данными медиа
-        enriched_items = []
-        for item in pl.get('items', []):
-            media = cls._media.get(item.get('media_id'))
-            enriched_items.append({
-                **item,
-                "media": media
-            })
-        pl['items'] = enriched_items
-        return {"success": True, "data": pl, "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_playlist(playlist_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_DIGI_PLAYLISTS WHERE ID = :id", {"id": int(playlist_id)})
+                pl = DigiMarketingController._first_row(r)
+                if not pl:
+                    return {"success": False, "error": "Плейлист не найден"}
+                # Получаем элементы
+                r2 = db.execute_query("SELECT * FROM V_DIGI_PLAYLIST_ITEMS WHERE PLAYLIST_ID = :id ORDER BY SORT_ORDER",
+                                      {"id": int(playlist_id)})
+                pl["items"] = DigiMarketingController._rows_to_dicts(r2)
+                return {"success": True, "data": pl}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def create_playlist(cls, data):
-        pl_id = cls._generate_id()
-        playlist = {
-            "id": pl_id,
-            "name": data.get('name', ''),
-            "description": data.get('description', ''),
-            "items": data.get('items', []),
-            "total_duration": 0,
-            "status": "draft",
-            "created_at": cls._timestamp(),
-            "updated_at": cls._timestamp(),
-            "created_by": session.get('username', 'system'),
-        }
-        # Считаем длительность
-        for item in playlist['items']:
-            media = cls._media.get(item.get('media_id'))
-            if media:
-                playlist['total_duration'] += item.get('duration', media.get('duration_seconds', 5))
-        cls._playlists[pl_id] = playlist
-        cls._add_event("create", "playlist", pl_id, f"Создан плейлист: {playlist['name']}")
-        return {"success": True, "data": playlist, "timestamp": cls._timestamp()}
+    @staticmethod
+    def create_playlist(data):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO DIGI_PLAYLISTS (NAME, DESCRIPTION, STATUS, CREATED_BY) "
+                    "VALUES (:name, :desc, :status, :by)",
+                    {"name": data.get("name", ""), "desc": data.get("description", ""),
+                     "status": data.get("status", "draft"),
+                     "by": DigiMarketingController._username()}
+                )
+                db.connection.commit()
+                r = db.execute_query("SELECT MAX(ID) AS ID FROM DIGI_PLAYLISTS")
+                row = DigiMarketingController._first_row(r)
+                pl_id = row["id"] if row else None
 
-    @classmethod
-    def update_playlist(cls, playlist_id, data):
-        pl = cls._playlists.get(playlist_id)
-        if not pl:
-            return {"success": False, "error": "Плейлист не найден"}
-        for key in ['name', 'description', 'items', 'status']:
-            if key in data:
-                pl[key] = data[key]
-        # Пересчитываем длительность
-        pl['total_duration'] = 0
-        for item in pl.get('items', []):
-            media = cls._media.get(item.get('media_id'))
-            if media:
-                pl['total_duration'] += item.get('duration', media.get('duration_seconds', 5))
-        pl['updated_at'] = cls._timestamp()
-        cls._add_event("update", "playlist", playlist_id, f"Обновлен плейлист: {pl['name']}")
-        return {"success": True, "data": pl, "timestamp": cls._timestamp()}
+                # Добавляем элементы
+                total_dur = 0
+                for item in data.get("items", []):
+                    dur = item.get("duration", 5)
+                    db.execute_query(
+                        "INSERT INTO DIGI_PLAYLIST_ITEMS (PLAYLIST_ID, MEDIA_ID, DURATION, SORT_ORDER) "
+                        "VALUES (:pl_id, :mid, :dur, :ord)",
+                        {"pl_id": pl_id, "mid": int(item["media_id"]), "dur": dur,
+                         "ord": item.get("order", item.get("sort_order", 0))}
+                    )
+                    total_dur += dur
+                db.execute_query("UPDATE DIGI_PLAYLISTS SET TOTAL_DURATION = :dur WHERE ID = :id",
+                                 {"dur": total_dur, "id": pl_id})
+                db.connection.commit()
+                DigiMarketingController._add_event("create", "playlist", pl_id, f"Создан плейлист: {data.get('name')}")
+                return {"success": True, "data": {"id": pl_id, "name": data.get("name"), "total_duration": total_dur}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def delete_playlist(cls, playlist_id):
-        pl = cls._playlists.get(playlist_id)
-        if not pl:
-            return {"success": False, "error": "Плейлист не найден"}
-        # Проверяем использование в кампаниях
-        used_in = [c.get('name', c['id']) for c in cls._campaigns.values() if c.get('playlist_id') == playlist_id]
-        if used_in:
-            return {"success": False, "error": f"Используется в кампаниях: {', '.join(used_in)}"}
-        del cls._playlists[playlist_id]
-        cls._add_event("delete", "playlist", playlist_id, f"Удален плейлист: {pl['name']}")
-        return {"success": True, "timestamp": cls._timestamp()}
+    @staticmethod
+    def update_playlist(playlist_id, data):
+        try:
+            with DatabaseModel() as db:
+                if "name" in data or "description" in data or "status" in data:
+                    sets = []
+                    params = {"id": int(playlist_id)}
+                    for key, col in [("name", "NAME"), ("description", "DESCRIPTION"), ("status", "STATUS")]:
+                        if key in data:
+                            sets.append(f"{col} = :{key}")
+                            params[key] = data[key]
+                    if sets:
+                        db.execute_query(f"UPDATE DIGI_PLAYLISTS SET {', '.join(sets)} WHERE ID = :id", params)
+
+                if "items" in data:
+                    db.execute_query("DELETE FROM DIGI_PLAYLIST_ITEMS WHERE PLAYLIST_ID = :id",
+                                     {"id": int(playlist_id)})
+                    total_dur = 0
+                    for item in data["items"]:
+                        dur = item.get("duration", 5)
+                        db.execute_query(
+                            "INSERT INTO DIGI_PLAYLIST_ITEMS (PLAYLIST_ID, MEDIA_ID, DURATION, SORT_ORDER) "
+                            "VALUES (:pl_id, :mid, :dur, :ord)",
+                            {"pl_id": int(playlist_id), "mid": int(item["media_id"]), "dur": dur,
+                             "ord": item.get("order", item.get("sort_order", 0))}
+                        )
+                        total_dur += dur
+                    db.execute_query("UPDATE DIGI_PLAYLISTS SET TOTAL_DURATION = :dur WHERE ID = :id",
+                                     {"dur": total_dur, "id": int(playlist_id)})
+
+                db.connection.commit()
+                DigiMarketingController._add_event("update", "playlist", int(playlist_id), "Обновлен плейлист")
+                return DigiMarketingController.get_playlist(playlist_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_playlist(playlist_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_CAMPAIGNS WHERE PLAYLIST_ID = :id",
+                                     {"id": int(playlist_id)})
+                row = DigiMarketingController._first_row(r)
+                if row and row.get("cnt", 0) > 0:
+                    return {"success": False, "error": f"Используется в {row['cnt']} кампаниях"}
+                db.execute_query("DELETE FROM DIGI_PLAYLISTS WHERE ID = :id", {"id": int(playlist_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("delete", "playlist", int(playlist_id), "Удален плейлист")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ========== Кампании ==========
 
-    @classmethod
-    def get_campaigns(cls, status=None):
-        campaigns = list(cls._campaigns.values())
-        if status:
-            campaigns = [c for c in campaigns if c.get('status') == status]
-        # Обогащаем
-        for c in campaigns:
-            pl = cls._playlists.get(c.get('playlist_id'))
-            c['playlist_name'] = pl['name'] if pl else '-'
-            c['target_summary'] = cls._build_target_summary(c.get('targeting', {}))
-        campaigns.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-        return {"success": True, "data": campaigns, "total": len(campaigns), "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_campaigns(status=None):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_DIGI_CAMPAIGNS WHERE 1=1"
+                params = {}
+                if status:
+                    sql += " AND STATUS = :status"
+                    params["status"] = status
+                sql += " ORDER BY CREATED_AT DESC"
+                r = db.execute_query(sql, params if params else None)
+                campaigns = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": campaigns, "total": len(campaigns)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_campaign(cls, campaign_id):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        pl = cls._playlists.get(c.get('playlist_id'))
-        c['playlist'] = pl
-        c['target_summary'] = cls._build_target_summary(c.get('targeting', {}))
-        return {"success": True, "data": c, "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_campaign(campaign_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_DIGI_CAMPAIGNS WHERE ID = :id", {"id": int(campaign_id)})
+                c = DigiMarketingController._first_row(r)
+                if not c:
+                    return {"success": False, "error": "Кампания не найдена"}
+                # Получаем таргеты
+                r2 = db.execute_query(
+                    "SELECT TARGET_TYPE, TARGET_ID FROM DIGI_CAMPAIGN_TARGETS WHERE CAMPAIGN_ID = :id",
+                    {"id": int(campaign_id)}
+                )
+                targets = DigiMarketingController._rows_to_dicts(r2)
+                if targets:
+                    c["targeting"] = {
+                        "type": targets[0]["target_type"] + "s",
+                        (targets[0]["target_type"] + "_ids"): [t["target_id"] for t in targets]
+                    }
+                else:
+                    c["targeting"] = {"type": "all"}
+                # Schedule
+                c["schedule"] = {
+                    "start_date": str(c.get("schedule_start", "")) if c.get("schedule_start") else None,
+                    "end_date": str(c.get("schedule_end", "")) if c.get("schedule_end") else None,
+                    "time_from": c.get("schedule_time_from"),
+                    "time_to": c.get("schedule_time_to"),
+                    "days_of_week": [int(d) for d in (c.get("schedule_days") or "").split(",") if d.strip()]
+                }
+                return {"success": True, "data": c}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def create_campaign(cls, data):
-        campaign_id = cls._generate_id()
-        campaign = {
-            "id": campaign_id,
-            "name": data.get('name', ''),
-            "description": data.get('description', ''),
-            "playlist_id": data.get('playlist_id', ''),
-            "targeting": data.get('targeting', {}),
-            "schedule": data.get('schedule', {}),
-            "priority": data.get('priority', 5),
-            "status": "draft",
-            "delivery_status": "pending",
-            "devices_total": 0,
-            "devices_synced": 0,
-            "created_at": cls._timestamp(),
-            "updated_at": cls._timestamp(),
-            "created_by": session.get('username', 'system'),
-        }
-        # Подсчитываем целевые устройства
-        campaign['devices_total'] = cls._count_target_devices(campaign['targeting'])
-        cls._campaigns[campaign_id] = campaign
-        cls._add_event("create", "campaign", campaign_id, f"Создана кампания: {campaign['name']}")
-        return {"success": True, "data": campaign, "timestamp": cls._timestamp()}
+    @staticmethod
+    def create_campaign(data):
+        try:
+            with DatabaseModel() as db:
+                schedule = data.get("schedule", {})
+                db.execute_query(
+                    "INSERT INTO DIGI_CAMPAIGNS (NAME, DESCRIPTION, PLAYLIST_ID, PRIORITY, STATUS, "
+                    "SCHEDULE_START, SCHEDULE_END, SCHEDULE_TIME_FROM, SCHEDULE_TIME_TO, SCHEDULE_DAYS, CREATED_BY) "
+                    "VALUES (:name, :desc, :pl_id, :pri, 'draft', "
+                    "TO_DATE(:sstart, 'YYYY-MM-DD'), TO_DATE(:send, 'YYYY-MM-DD'), :tfrom, :tto, :days, :by)",
+                    {"name": data.get("name", ""), "desc": data.get("description", ""),
+                     "pl_id": int(data["playlist_id"]) if data.get("playlist_id") else None,
+                     "pri": data.get("priority", 5),
+                     "sstart": schedule.get("start_date"), "send": schedule.get("end_date"),
+                     "tfrom": schedule.get("time_from"), "tto": schedule.get("time_to"),
+                     "days": ",".join(str(d) for d in schedule.get("days_of_week", [])) if schedule.get("days_of_week") else None,
+                     "by": DigiMarketingController._username()}
+                )
+                db.connection.commit()
+                r = db.execute_query("SELECT MAX(ID) AS ID FROM DIGI_CAMPAIGNS")
+                row = DigiMarketingController._first_row(r)
+                camp_id = row["id"] if row else None
 
-    @classmethod
-    def update_campaign(cls, campaign_id, data):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        for key in ['name', 'description', 'playlist_id', 'targeting', 'schedule', 'priority', 'status']:
-            if key in data:
-                c[key] = data[key]
-        if 'targeting' in data:
-            c['devices_total'] = cls._count_target_devices(c['targeting'])
-        c['updated_at'] = cls._timestamp()
-        cls._add_event("update", "campaign", campaign_id, f"Обновлена кампания: {c['name']}")
-        return {"success": True, "data": c, "timestamp": cls._timestamp()}
+                # Таргетинг
+                targeting = data.get("targeting", {})
+                target_type = targeting.get("type", "all")
+                if target_type != "all":
+                    singular = target_type.rstrip("s")
+                    ids = targeting.get(f"{singular}_ids", targeting.get(f"store_ids", []))
+                    for tid in ids:
+                        db.execute_query(
+                            "INSERT INTO DIGI_CAMPAIGN_TARGETS (CAMPAIGN_ID, TARGET_TYPE, TARGET_ID) "
+                            "VALUES (:cid, :ttype, :tid)",
+                            {"cid": camp_id, "ttype": singular, "tid": int(tid)}
+                        )
 
-    @classmethod
-    def publish_campaign(cls, campaign_id):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        if not c.get('playlist_id'):
-            return {"success": False, "error": "Не выбран плейлист"}
-        c['status'] = 'active'
-        c['delivery_status'] = 'delivering'
-        c['published_at'] = cls._timestamp()
-        c['updated_at'] = cls._timestamp()
-        # Имитация начала доставки
-        cls._add_event("publish", "campaign", campaign_id, f"Опубликована кампания: {c['name']}")
-        cls._simulate_delivery(campaign_id)
-        return {"success": True, "data": c, "timestamp": cls._timestamp()}
+                # Пересчитываем devices_total
+                devices_total = DigiMarketingController._count_target_devices_db(db, camp_id, targeting)
+                db.execute_query("UPDATE DIGI_CAMPAIGNS SET DEVICES_TOTAL = :cnt WHERE ID = :id",
+                                 {"cnt": devices_total, "id": camp_id})
+                db.connection.commit()
 
-    @classmethod
-    def pause_campaign(cls, campaign_id):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        c['status'] = 'paused'
-        c['updated_at'] = cls._timestamp()
-        cls._add_event("pause", "campaign", campaign_id, f"Приостановлена кампания: {c['name']}")
-        return {"success": True, "data": c, "timestamp": cls._timestamp()}
+                DigiMarketingController._add_event("create", "campaign", camp_id, f"Создана кампания: {data.get('name')}")
+                return {"success": True, "data": {"id": camp_id, "name": data.get("name"), "devices_total": devices_total}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def stop_campaign(cls, campaign_id):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        c['status'] = 'stopped'
-        c['delivery_status'] = 'stopped'
-        c['updated_at'] = cls._timestamp()
-        cls._add_event("stop", "campaign", campaign_id, f"Остановлена кампания: {c['name']}")
-        return {"success": True, "data": c, "timestamp": cls._timestamp()}
+    @staticmethod
+    def update_campaign(campaign_id, data):
+        try:
+            with DatabaseModel() as db:
+                sets = []
+                params = {"id": int(campaign_id)}
+                for key, col in [("name", "NAME"), ("description", "DESCRIPTION"),
+                                 ("playlist_id", "PLAYLIST_ID"), ("priority", "PRIORITY"), ("status", "STATUS")]:
+                    if key in data:
+                        sets.append(f"{col} = :{key}")
+                        params[key] = int(data[key]) if key in ("playlist_id", "priority") and data[key] else data[key]
+                schedule = data.get("schedule", {})
+                if schedule:
+                    for sk, col in [("start_date", "SCHEDULE_START"), ("end_date", "SCHEDULE_END")]:
+                        if sk in schedule:
+                            sets.append(f"{col} = TO_DATE(:{sk}, 'YYYY-MM-DD')")
+                            params[sk] = schedule[sk]
+                    for sk, col in [("time_from", "SCHEDULE_TIME_FROM"), ("time_to", "SCHEDULE_TIME_TO")]:
+                        if sk in schedule:
+                            sets.append(f"{col} = :{sk}")
+                            params[sk] = schedule[sk]
+                    if "days_of_week" in schedule:
+                        sets.append("SCHEDULE_DAYS = :days")
+                        params["days"] = ",".join(str(d) for d in schedule["days_of_week"])
+                if sets:
+                    db.execute_query(f"UPDATE DIGI_CAMPAIGNS SET {', '.join(sets)} WHERE ID = :id", params)
 
-    @classmethod
-    def delete_campaign(cls, campaign_id):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        if c.get('status') == 'active':
-            return {"success": False, "error": "Нельзя удалить активную кампанию. Сначала остановите."}
-        del cls._campaigns[campaign_id]
-        cls._add_event("delete", "campaign", campaign_id, f"Удалена кампания: {c['name']}")
-        return {"success": True, "timestamp": cls._timestamp()}
+                if "targeting" in data:
+                    targeting = data["targeting"]
+                    db.execute_query("DELETE FROM DIGI_CAMPAIGN_TARGETS WHERE CAMPAIGN_ID = :id",
+                                     {"id": int(campaign_id)})
+                    target_type = targeting.get("type", "all")
+                    if target_type != "all":
+                        singular = target_type.rstrip("s")
+                        ids = targeting.get(f"{singular}_ids", targeting.get("store_ids", []))
+                        for tid in ids:
+                            db.execute_query(
+                                "INSERT INTO DIGI_CAMPAIGN_TARGETS (CAMPAIGN_ID, TARGET_TYPE, TARGET_ID) "
+                                "VALUES (:cid, :ttype, :tid)",
+                                {"cid": int(campaign_id), "ttype": singular, "tid": int(tid)}
+                            )
+                    devices_total = DigiMarketingController._count_target_devices_db(db, int(campaign_id), targeting)
+                    db.execute_query("UPDATE DIGI_CAMPAIGNS SET DEVICES_TOTAL = :cnt WHERE ID = :id",
+                                     {"cnt": devices_total, "id": int(campaign_id)})
 
-    # ========== Синхронизация и доставка ==========
+                db.connection.commit()
+                DigiMarketingController._add_event("update", "campaign", int(campaign_id), "Обновлена кампания")
+                return DigiMarketingController.get_campaign(campaign_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def _simulate_delivery(cls, campaign_id):
-        """Имитация доставки контента на устройства"""
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return
-        target_devices = cls._get_target_devices(c.get('targeting', {}))
-        synced = 0
-        for device in target_devices:
-            synced += 1
-            cls._sync_log.insert(0, {
-                "id": cls._generate_id(),
-                "campaign_id": campaign_id,
-                "device_id": device['id'],
-                "device_name": device.get('name', ''),
-                "status": "delivered",
-                "timestamp": cls._timestamp(),
-            })
-            device['last_sync'] = cls._timestamp()
-        c['devices_synced'] = synced
-        if synced == c['devices_total']:
-            c['delivery_status'] = 'completed'
-        if len(cls._sync_log) > 1000:
-            cls._sync_log = cls._sync_log[:1000]
+    @staticmethod
+    def publish_campaign(campaign_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT PLAYLIST_ID, STATUS FROM DIGI_CAMPAIGNS WHERE ID = :id",
+                                     {"id": int(campaign_id)})
+                row = DigiMarketingController._first_row(r)
+                if not row:
+                    return {"success": False, "error": "Кампания не найдена"}
+                if not row.get("playlist_id"):
+                    return {"success": False, "error": "Не выбран плейлист"}
+                db.execute_query(
+                    "UPDATE DIGI_CAMPAIGNS SET STATUS = 'active', DELIVERY_STATUS = 'delivering', "
+                    "PUBLISHED_AT = SYSTIMESTAMP WHERE ID = :id", {"id": int(campaign_id)}
+                )
+                db.connection.commit()
 
-    @classmethod
-    def get_sync_log(cls, campaign_id=None, device_id=None, limit=50):
-        log = cls._sync_log
-        if campaign_id:
-            log = [l for l in log if l.get('campaign_id') == campaign_id]
-        if device_id:
-            log = [l for l in log if l.get('device_id') == device_id]
-        return {"success": True, "data": log[:limit], "total": len(log), "timestamp": cls._timestamp()}
+                # Симуляция доставки
+                DigiMarketingController._simulate_delivery_db(db, int(campaign_id))
 
-    @classmethod
-    def retry_delivery(cls, campaign_id, device_id=None):
-        c = cls._campaigns.get(campaign_id)
-        if not c:
-            return {"success": False, "error": "Кампания не найдена"}
-        if device_id:
-            device = cls._devices.get(device_id)
-            if device:
-                cls._sync_log.insert(0, {
-                    "id": cls._generate_id(),
-                    "campaign_id": campaign_id,
-                    "device_id": device_id,
-                    "device_name": device.get('name', ''),
-                    "status": "retry_delivered",
-                    "timestamp": cls._timestamp(),
-                })
-                device['last_sync'] = cls._timestamp()
-        else:
-            cls._simulate_delivery(campaign_id)
-        cls._add_event("retry", "campaign", campaign_id, "Повторная доставка")
-        return {"success": True, "timestamp": cls._timestamp()}
+                DigiMarketingController._add_event("publish", "campaign", int(campaign_id), "Опубликована кампания")
+                return DigiMarketingController.get_campaign(campaign_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    # ========== Мониторинг и отчеты ==========
+    @staticmethod
+    def pause_campaign(campaign_id):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query("UPDATE DIGI_CAMPAIGNS SET STATUS = 'paused' WHERE ID = :id",
+                                 {"id": int(campaign_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("pause", "campaign", int(campaign_id), "Приостановлена кампания")
+                return DigiMarketingController.get_campaign(campaign_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_dashboard_stats(cls):
-        now = cls._timestamp()
-        total_devices = len(cls._devices)
-        online_devices = sum(1 for d in cls._devices.values() if d.get('status') == 'online')
-        offline_devices = sum(1 for d in cls._devices.values() if d.get('status') == 'offline')
-        error_devices = sum(1 for d in cls._devices.values() if d.get('status') == 'error')
-        active_campaigns = sum(1 for c in cls._campaigns.values() if c.get('status') == 'active')
-        total_media = len(cls._media)
-        total_playlists = len(cls._playlists)
-        total_stores = len(cls._stores)
+    @staticmethod
+    def stop_campaign(campaign_id):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "UPDATE DIGI_CAMPAIGNS SET STATUS = 'stopped', DELIVERY_STATUS = 'stopped' WHERE ID = :id",
+                    {"id": int(campaign_id)}
+                )
+                db.connection.commit()
+                DigiMarketingController._add_event("stop", "campaign", int(campaign_id), "Остановлена кампания")
+                return DigiMarketingController.get_campaign(campaign_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-        return {
-            "success": True,
-            "data": {
-                "stores": total_stores,
-                "devices": {
-                    "total": total_devices,
-                    "online": online_devices,
-                    "offline": offline_devices,
-                    "error": error_devices,
-                },
-                "campaigns": {
-                    "total": len(cls._campaigns),
-                    "active": active_campaigns,
-                    "draft": sum(1 for c in cls._campaigns.values() if c.get('status') == 'draft'),
-                    "paused": sum(1 for c in cls._campaigns.values() if c.get('status') == 'paused'),
-                    "stopped": sum(1 for c in cls._campaigns.values() if c.get('status') == 'stopped'),
-                },
-                "media": {
-                    "total": total_media,
-                    "images": sum(1 for m in cls._media.values() if m.get('type') == 'image'),
-                    "videos": sum(1 for m in cls._media.values() if m.get('type') == 'video'),
-                },
-                "playlists": total_playlists,
-            },
-            "timestamp": now,
-        }
+    @staticmethod
+    def delete_campaign(campaign_id):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT STATUS FROM DIGI_CAMPAIGNS WHERE ID = :id", {"id": int(campaign_id)})
+                row = DigiMarketingController._first_row(r)
+                if not row:
+                    return {"success": False, "error": "Кампания не найдена"}
+                if row.get("status") == "active":
+                    return {"success": False, "error": "Нельзя удалить активную кампанию. Сначала остановите."}
+                db.execute_query("DELETE FROM DIGI_CAMPAIGNS WHERE ID = :id", {"id": int(campaign_id)})
+                db.connection.commit()
+                DigiMarketingController._add_event("delete", "campaign", int(campaign_id), "Удалена кампания")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_event_log(cls, limit=100, entity_type=None):
-        log = cls._event_log
-        if entity_type:
-            log = [l for l in log if l.get('entity_type') == entity_type]
-        return {"success": True, "data": log[:limit], "total": len(log), "timestamp": cls._timestamp()}
+    # ========== Синхронизация ==========
 
-    @classmethod
-    def get_delivery_report(cls, campaign_id=None):
-        if campaign_id:
-            c = cls._campaigns.get(campaign_id)
-            if not c:
-                return {"success": False, "error": "Кампания не найдена"}
-            logs = [l for l in cls._sync_log if l.get('campaign_id') == campaign_id]
-            return {
-                "success": True,
-                "data": {
-                    "campaign": c,
-                    "deliveries": logs,
-                    "total_devices": c.get('devices_total', 0),
-                    "synced_devices": c.get('devices_synced', 0),
-                },
-                "timestamp": cls._timestamp(),
-            }
-        # Общий отчет по всем кампаниям
-        report = []
-        for c in cls._campaigns.values():
-            report.append({
-                "campaign_id": c['id'],
-                "campaign_name": c.get('name', ''),
-                "status": c.get('status', ''),
-                "delivery_status": c.get('delivery_status', ''),
-                "devices_total": c.get('devices_total', 0),
-                "devices_synced": c.get('devices_synced', 0),
-            })
-        return {"success": True, "data": report, "timestamp": cls._timestamp()}
+    @staticmethod
+    def get_sync_log(campaign_id=None, device_id=None, limit=50):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_DIGI_SYNC_LOG WHERE 1=1"
+                params = {}
+                if campaign_id:
+                    sql += " AND CAMPAIGN_ID = :cid"
+                    params["cid"] = int(campaign_id)
+                if device_id:
+                    sql += " AND DEVICE_ID = :did"
+                    params["did"] = int(device_id)
+                sql += f" FETCH FIRST {int(limit)} ROWS ONLY"
+                r = db.execute_query(sql, params if params else None)
+                log = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": log, "total": len(log)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def retry_delivery(campaign_id, device_id=None):
+        try:
+            with DatabaseModel() as db:
+                if device_id:
+                    db.execute_query(
+                        "INSERT INTO DIGI_SYNC_LOG (CAMPAIGN_ID, DEVICE_ID, STATUS) VALUES (:cid, :did, 'retry_delivered')",
+                        {"cid": int(campaign_id), "did": int(device_id)}
+                    )
+                    db.execute_query("UPDATE DIGI_DEVICES SET LAST_SYNC = SYSTIMESTAMP WHERE ID = :id",
+                                     {"id": int(device_id)})
+                    db.connection.commit()
+                else:
+                    DigiMarketingController._simulate_delivery_db(db, int(campaign_id))
+                DigiMarketingController._add_event("retry", "campaign", int(campaign_id), "Повторная доставка")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_delivery_report(campaign_id=None):
+        try:
+            with DatabaseModel() as db:
+                if campaign_id:
+                    r = db.execute_query(
+                        "SELECT ID AS CAMPAIGN_ID, NAME AS CAMPAIGN_NAME, STATUS, DELIVERY_STATUS, "
+                        "DEVICES_TOTAL, DEVICES_SYNCED FROM DIGI_CAMPAIGNS WHERE ID = :id",
+                        {"id": int(campaign_id)}
+                    )
+                else:
+                    r = db.execute_query(
+                        "SELECT ID AS CAMPAIGN_ID, NAME AS CAMPAIGN_NAME, STATUS, DELIVERY_STATUS, "
+                        "DEVICES_TOTAL, DEVICES_SYNCED FROM DIGI_CAMPAIGNS ORDER BY CREATED_AT DESC"
+                    )
+                data = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ========== Статистика ==========
+
+    @staticmethod
+    def get_dashboard_stats():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_DIGI_DASHBOARD_STATS")
+                row = DigiMarketingController._first_row(r)
+                if not row:
+                    return {"success": True, "data": {}}
+                return {
+                    "success": True,
+                    "data": {
+                        "stores": row.get("total_stores", 0),
+                        "devices": {
+                            "total": row.get("total_devices", 0),
+                            "online": row.get("online_devices", 0),
+                            "offline": row.get("offline_devices", 0),
+                            "error": row.get("error_devices", 0),
+                        },
+                        "campaigns": {
+                            "total": row.get("total_campaigns", 0),
+                            "active": row.get("active_campaigns", 0),
+                            "draft": row.get("draft_campaigns", 0),
+                            "paused": row.get("paused_campaigns", 0),
+                            "stopped": row.get("stopped_campaigns", 0),
+                        },
+                        "media": {
+                            "total": row.get("total_media", 0),
+                            "images": row.get("image_media", 0),
+                            "videos": row.get("video_media", 0),
+                        },
+                        "playlists": row.get("total_playlists", 0),
+                    },
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_event_log(limit=100, entity_type=None):
+        try:
+            with DatabaseModel() as db:
+                sql = ("SELECT ID, ACTION, ENTITY_TYPE, ENTITY_ID, DETAILS, USERNAME, CREATED_AT "
+                       "FROM DIGI_EVENT_LOG WHERE 1=1")
+                params = {}
+                if entity_type:
+                    sql += " AND ENTITY_TYPE = :etype"
+                    params["etype"] = entity_type
+                sql += f" ORDER BY CREATED_AT DESC FETCH FIRST {int(limit)} ROWS ONLY"
+                r = db.execute_query(sql, params if params else None)
+                log = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": log, "total": len(log)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ========== Справочники ==========
 
-    @classmethod
-    def get_department_types(cls):
-        return {"success": True, "data": cls.DEPARTMENT_TYPES}
+    @staticmethod
+    def get_department_types():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT CODE AS ID, NAME FROM DIGI_REF_DEPT_TYPES ORDER BY SORT_ORDER, CODE")
+                return {"success": True, "data": DigiMarketingController._rows_to_dicts(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_device_types(cls):
-        return {"success": True, "data": cls.DEVICE_TYPES}
+    @staticmethod
+    def get_device_types():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT dt.CODE AS ID, dt.NAME, "
+                    "(SELECT LISTAGG(dr.RESOLUTION_CODE, ',') WITHIN GROUP (ORDER BY dr.RESOLUTION_CODE) "
+                    " FROM DIGI_REF_DEVICE_RESOLUTIONS dr WHERE dr.DEVICE_TYPE_CODE = dt.CODE) AS RESOLUTIONS "
+                    "FROM DIGI_REF_DEVICE_TYPES dt ORDER BY dt.SORT_ORDER, dt.CODE"
+                )
+                data = DigiMarketingController._rows_to_dicts(r)
+                for d in data:
+                    d["resolutions"] = [r.strip() for r in (d.get("resolutions") or "").split(",") if r.strip()]
+                return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_resolutions(cls):
-        return {"success": True, "data": cls.ALLOWED_RESOLUTIONS}
+    @staticmethod
+    def get_resolutions():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT CODE FROM DIGI_REF_RESOLUTIONS ORDER BY SORT_ORDER, CODE")
+                data = DigiMarketingController._rows_to_dicts(r)
+                return {"success": True, "data": [d["code"] for d in data]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
-    @classmethod
-    def get_roles(cls):
-        return {"success": True, "data": cls.ROLES}
-
-    # ========== Вспомогательные методы ==========
-
-    @classmethod
-    def _build_target_summary(cls, targeting):
-        if not targeting:
-            return "Не задано"
-        target_type = targeting.get('type', '')
-        if target_type == 'all':
-            return "Все магазины"
-        elif target_type == 'stores':
-            store_ids = targeting.get('store_ids', [])
-            names = [cls._stores.get(s, {}).get('name', s) for s in store_ids]
-            return f"Магазины: {', '.join(names)}"
-        elif target_type == 'departments':
-            dept_ids = targeting.get('department_ids', [])
-            names = [cls._departments.get(d, {}).get('name', d) for d in dept_ids]
-            return f"Отделы: {', '.join(names)}"
-        elif target_type == 'devices':
-            device_ids = targeting.get('device_ids', [])
-            return f"Устройства: {len(device_ids)} шт."
-        return "Не задано"
-
-    @classmethod
-    def _count_target_devices(cls, targeting):
-        return len(cls._get_target_devices(targeting))
-
-    @classmethod
-    def _get_target_devices(cls, targeting):
-        if not targeting:
-            return []
-        target_type = targeting.get('type', '')
-        if target_type == 'all':
-            return list(cls._devices.values())
-        elif target_type == 'stores':
-            store_ids = targeting.get('store_ids', [])
-            return [d for d in cls._devices.values() if d.get('store_id') in store_ids]
-        elif target_type == 'departments':
-            dept_ids = targeting.get('department_ids', [])
-            return [d for d in cls._devices.values() if d.get('department_id') in dept_ids]
-        elif target_type == 'devices':
-            device_ids = targeting.get('device_ids', [])
-            return [d for d in cls._devices.values() if d['id'] in device_ids]
-        return []
+    @staticmethod
+    def get_roles():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT CODE AS ID, NAME, PERMISSIONS FROM DIGI_REF_ROLES ORDER BY CODE")
+                data = DigiMarketingController._rows_to_dicts(r)
+                for d in data:
+                    d["permissions"] = [p.strip() for p in (d.get("permissions") or "").split(",") if p.strip()]
+                return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ========== Инициализация демо-данных ==========
 
-    @classmethod
-    def init_demo_data(cls):
-        """Загрузка демонстрационных данных"""
-        if cls._stores:
-            return {"success": True, "message": "Данные уже загружены"}
+    @staticmethod
+    def init_demo_data():
+        """Проверяет наличие данных и предлагает выполнить SQL-скрипты"""
+        try:
+            with DatabaseModel() as db:
+                # Проверяем, есть ли уже данные
+                r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_STORES")
+                row = DigiMarketingController._first_row(r)
+                if row and row.get("cnt", 0) > 0:
+                    return {"success": True, "message": f"Данные уже загружены: {row['cnt']} магазинов"}
+                return {"success": False,
+                        "error": "Таблицы пусты. Выполните SQL-скрипты: sql/20_digi_tables.sql, sql/21_digi_views.sql, sql/22_digi_package.sql, sql/23_digi_demo_data.sql через SQL Developer."}
+        except Exception as e:
+            error_msg = str(e)
+            if "ORA-00942" in error_msg or "table or view does not exist" in error_msg.lower():
+                return {"success": False,
+                        "error": "Таблицы DIGI Marketing не созданы. Выполните DDL-скрипт sql/20_digi_tables.sql через SQL Developer."}
+            return {"success": False, "error": error_msg}
 
-        # Магазины
-        stores_data = [
-            {"name": "ТЦ Малина", "address": "ул. Каля Ешилор 8, Кишинёв", "region": "Кишинёв", "timezone": "Europe/Chisinau"},
-            {"name": "Маркет №1", "address": "ул. Штефана чел Маре 120, Бельцы", "region": "Бельцы", "timezone": "Europe/Chisinau"},
-            {"name": "Супермаркет Центральный", "address": "ул. Независимости 5, Кишинёв", "region": "Кишинёв", "timezone": "Europe/Chisinau"},
-        ]
-        created_stores = []
-        for s in stores_data:
-            result = cls.create_store(s)
-            created_stores.append(result['data'])
+    # ========== Вспомогательные методы ==========
 
-        # Отделы
-        dept_types = ["confectionery", "culinary", "cheese", "sausage", "meat", "fish"]
-        dept_names = ["Кондитерские изделия", "Кулинария", "Сыры", "Колбасы", "Мясо", "Рыба"]
-        created_depts = []
-        for store in created_stores:
-            for dt, dn in zip(dept_types[:4], dept_names[:4]):
-                result = cls.create_department({"store_id": store['id'], "type": dt, "name": dn})
-                created_depts.append(result['data'])
+    @staticmethod
+    def _count_target_devices_db(db, campaign_id, targeting):
+        target_type = targeting.get("type", "all") if targeting else "all"
+        if target_type == "all":
+            r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_DEVICES")
+        else:
+            r = db.execute_query(
+                "SELECT COUNT(DISTINCT d.ID) AS CNT FROM DIGI_DEVICES d "
+                "JOIN DIGI_CAMPAIGN_TARGETS t ON ("
+                "  (t.TARGET_TYPE = 'store' AND d.STORE_ID = t.TARGET_ID) OR "
+                "  (t.TARGET_TYPE = 'department' AND d.DEPARTMENT_ID = t.TARGET_ID) OR "
+                "  (t.TARGET_TYPE = 'device' AND d.ID = t.TARGET_ID)"
+                ") WHERE t.CAMPAIGN_ID = :cid", {"cid": campaign_id}
+            )
+        row = DigiMarketingController._first_row(r)
+        return row.get("cnt", 0) if row else 0
 
-        # Устройства
-        device_configs = [
-            {"device_type": "SM5300", "resolution": "800x480"},
-            {"device_type": "SM5300", "resolution": "1024x600"},
-            {"device_type": "SM6000", "resolution": "1024x600"},
-            {"device_type": "WEB3110", "resolution": "1920x1080"},
-        ]
-        for i, store in enumerate(created_stores):
-            depts = [d for d in created_depts if d['store_id'] == store['id']]
-            for j, dept in enumerate(depts[:3]):
-                cfg = device_configs[(i * 3 + j) % len(device_configs)]
-                cls.register_device({
-                    "serial_number": f"DIGI-{1000 + i * 10 + j}",
-                    "name": f"Весы {dept['name']} #{j + 1}",
-                    "device_type": cfg['device_type'],
-                    "resolution": cfg['resolution'],
-                    "store_id": store['id'],
-                    "department_id": dept['id'],
-                    "ip_address": f"192.168.{10 + i}.{100 + j}",
-                    "firmware_version": "2.1.4",
-                    "memory_total_mb": 512,
-                })
+    @staticmethod
+    def _simulate_delivery_db(db, campaign_id):
+        """Симулирует доставку контента на все целевые устройства"""
+        # Получаем целевые устройства
+        r = db.execute_query(
+            "SELECT DISTINCT d.ID FROM DIGI_DEVICES d "
+            "WHERE d.ID IN ("
+            "  SELECT d2.ID FROM DIGI_DEVICES d2 "
+            "  WHERE NOT EXISTS (SELECT 1 FROM DIGI_CAMPAIGN_TARGETS t WHERE t.CAMPAIGN_ID = :cid)"
+            "  UNION "
+            "  SELECT d3.ID FROM DIGI_DEVICES d3 "
+            "  JOIN DIGI_CAMPAIGN_TARGETS t ON ("
+            "    (t.TARGET_TYPE = 'store' AND d3.STORE_ID = t.TARGET_ID) OR "
+            "    (t.TARGET_TYPE = 'department' AND d3.DEPARTMENT_ID = t.TARGET_ID) OR "
+            "    (t.TARGET_TYPE = 'device' AND d3.ID = t.TARGET_ID)"
+            "  ) WHERE t.CAMPAIGN_ID = :cid2"
+            ")", {"cid": campaign_id, "cid2": campaign_id}
+        )
+        devices = DigiMarketingController._rows_to_dicts(r)
+        synced = 0
+        for dev in devices:
+            db.execute_query(
+                "INSERT INTO DIGI_SYNC_LOG (CAMPAIGN_ID, DEVICE_ID, STATUS) VALUES (:cid, :did, 'delivered')",
+                {"cid": campaign_id, "did": dev["id"]}
+            )
+            db.execute_query("UPDATE DIGI_DEVICES SET LAST_SYNC = SYSTIMESTAMP WHERE ID = :id", {"id": dev["id"]})
+            synced += 1
 
-        # Медиаконтент
-        media_items = [
-            {"filename": "promo_summer_sale.jpg", "original_name": "Летняя распродажа", "size_bytes": 524288, "resolutions": ["800x480", "1024x600"], "description": "Баннер летней распродажи", "tags": ["акция", "лето"], "width": 1024, "height": 600},
-            {"filename": "cheese_collection.jpg", "original_name": "Коллекция сыров", "size_bytes": 412000, "resolutions": ["800x480", "1024x600"], "description": "Ассортимент европейских сыров", "tags": ["сыры", "ассортимент"], "width": 800, "height": 480},
-            {"filename": "meat_promo.mp4", "original_name": "Акция на мясо", "size_bytes": 8500000, "resolutions": ["1024x600"], "description": "Видео-промо мясного отдела", "tags": ["мясо", "видео", "акция"], "duration_seconds": 15, "width": 1024, "height": 600},
-            {"filename": "new_year_sale.jpg", "original_name": "Новогодняя акция", "size_bytes": 620000, "resolutions": ["800x480", "1024x600", "1920x1080"], "description": "Новогодние скидки", "tags": ["новый год", "акция"], "width": 1920, "height": 1080},
-            {"filename": "sausage_week.jpg", "original_name": "Неделя колбас", "size_bytes": 380000, "resolutions": ["800x480"], "description": "Промо неделя колбас", "tags": ["колбасы", "промо"], "width": 800, "height": 480},
-            {"filename": "fish_friday.mp4", "original_name": "Рыбная пятница", "size_bytes": 12000000, "resolutions": ["1024x600", "1920x1080"], "description": "Еженедельная акция на рыбу", "tags": ["рыба", "видео"], "duration_seconds": 20, "width": 1920, "height": 1080},
-        ]
-        created_media = []
-        for m in media_items:
-            result = cls.upload_media(m)
-            created_media.append(result['data'])
+        r2 = db.execute_query("SELECT DEVICES_TOTAL FROM DIGI_CAMPAIGNS WHERE ID = :id", {"id": campaign_id})
+        row = DigiMarketingController._first_row(r2)
+        total = row.get("devices_total", 0) if row else 0
 
-        # Плейлисты
-        playlist1 = cls.create_playlist({
-            "name": "Летний промо-микс",
-            "description": "Промо-материалы для летнего сезона",
-            "items": [
-                {"media_id": created_media[0]['id'], "duration": 8, "order": 1},
-                {"media_id": created_media[1]['id'], "duration": 6, "order": 2},
-                {"media_id": created_media[2]['id'], "duration": 15, "order": 3},
-            ],
-        })
-        playlist2 = cls.create_playlist({
-            "name": "Общий рекламный",
-            "description": "Стандартный плейлист для всех магазинов",
-            "items": [
-                {"media_id": created_media[3]['id'], "duration": 10, "order": 1},
-                {"media_id": created_media[4]['id'], "duration": 7, "order": 2},
-                {"media_id": created_media[5]['id'], "duration": 20, "order": 3},
-            ],
-        })
-
-        # Кампании
-        cls.create_campaign({
-            "name": "Летняя кампания 2025",
-            "description": "Промо-материалы для летнего сезона по всем магазинам",
-            "playlist_id": playlist1['data']['id'],
-            "targeting": {"type": "all"},
-            "schedule": {
-                "start_date": "2025-06-01",
-                "end_date": "2025-08-31",
-                "time_from": "08:00",
-                "time_to": "22:00",
-                "days_of_week": [1, 2, 3, 4, 5, 6, 7],
-            },
-            "priority": 8,
-        })
-        cls.create_campaign({
-            "name": "Новогодняя акция",
-            "description": "Новогодние промо для ТЦ Малина",
-            "playlist_id": playlist2['data']['id'],
-            "targeting": {"type": "stores", "store_ids": [created_stores[0]['id']]},
-            "schedule": {
-                "start_date": "2025-12-15",
-                "end_date": "2026-01-15",
-                "time_from": "09:00",
-                "time_to": "21:00",
-                "days_of_week": [1, 2, 3, 4, 5, 6, 7],
-            },
-            "priority": 10,
-        })
-
-        return {
-            "success": True,
-            "message": f"Демо-данные загружены: {len(created_stores)} магазинов, {len(created_depts)} отделов, {len(cls._devices)} устройств, {len(created_media)} медиа, 2 плейлиста, 2 кампании",
-            "timestamp": cls._timestamp(),
-        }
+        db.execute_query(
+            "UPDATE DIGI_CAMPAIGNS SET DEVICES_SYNCED = :synced, "
+            "DELIVERY_STATUS = CASE WHEN :synced >= :total THEN 'completed' ELSE 'delivering' END "
+            "WHERE ID = :id",
+            {"synced": synced, "total": total, "id": campaign_id}
+        )
+        db.connection.commit()
