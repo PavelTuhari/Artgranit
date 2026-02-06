@@ -950,14 +950,17 @@
             const result = await apiCall('/stats');
             if (result.success && result.data) {
                 const d = result.data;
-                document.getElementById('statStores').textContent = d.stores;
-                document.getElementById('statDevices').textContent = d.devices.total;
-                document.getElementById('statDevicesSub').textContent = `online: ${d.devices.online} / offline: ${d.devices.offline}`;
-                document.getElementById('statMedia').textContent = d.media.total;
-                document.getElementById('statMediaSub').textContent = `img: ${d.media.images} / video: ${d.media.videos}`;
-                document.getElementById('statPlaylists').textContent = d.playlists;
-                document.getElementById('statCampaigns').textContent = d.campaigns.active;
-                document.getElementById('statCampaignsSub').textContent = `всего: ${d.campaigns.total} / черновики: ${d.campaigns.draft}`;
+                document.getElementById('statStores').textContent = d.stores || 0;
+                document.getElementById('statDevices').textContent = (d.devices && d.devices.total) || 0;
+                document.getElementById('statDevicesSub').textContent = d.devices ? `online: ${d.devices.online || 0} / offline: ${d.devices.offline || 0}` : 'online: 0 / offline: 0';
+                document.getElementById('statMedia').textContent = (d.media && d.media.total) || 0;
+                document.getElementById('statMediaSub').textContent = d.media ? `img: ${d.media.images || 0} / video: ${d.media.videos || 0}` : '-';
+                document.getElementById('statPlaylists').textContent = d.playlists || 0;
+                document.getElementById('statCampaigns').textContent = (d.campaigns && d.campaigns.active) || 0;
+                document.getElementById('statCampaignsSub').textContent = d.campaigns ? `всего: ${d.campaigns.total || 0} / черновики: ${d.campaigns.draft || 0}` : '-';
+                if (result.warning) addLog('DB: ' + result.warning, 'warn');
+            } else if (result.error) {
+                addLog('Ошибка: ' + result.error, 'error');
             }
         } catch (e) { addLog('Dashboard error: ' + e.message, 'error'); }
 
@@ -967,7 +970,7 @@
             if (result.success && result.data && result.data.length) {
                 let html = '<table class="data-table"><thead><tr><th>Время</th><th>Действие</th><th>Объект</th><th>Описание</th></tr></thead><tbody>';
                 result.data.forEach(e => {
-                    html += `<tr><td style="white-space:nowrap;">${e.timestamp}</td><td>${getActionBadge(e.action)}</td><td>${e.entity_type}</td><td>${e.details}</td></tr>`;
+                    html += `<tr><td style="white-space:nowrap;">${e.created_at || e.timestamp || '-'}</td><td>${getActionBadge(e.action)}</td><td>${e.entity_type}</td><td>${e.details || '-'}</td></tr>`;
                 });
                 html += '</tbody></table>';
                 document.getElementById('dashboardEvents').innerHTML = html;
@@ -1588,11 +1591,11 @@
                 let html = '<table class="data-table"><thead><tr><th>Время</th><th>Действие</th><th>Тип объекта</th><th>Описание</th><th>Пользователь</th></tr></thead><tbody>';
                 events.forEach(e => {
                     html += `<tr>
-                        <td style="white-space:nowrap; font-size:12px;">${e.timestamp}</td>
+                        <td style="white-space:nowrap; font-size:12px;">${e.created_at || e.timestamp || '-'}</td>
                         <td>${getActionBadge(e.action)}</td>
                         <td>${e.entity_type}</td>
-                        <td>${e.details}</td>
-                        <td style="font-size:12px;">${e.user || '-'}</td>
+                        <td>${e.details || '-'}</td>
+                        <td style="font-size:12px;">${e.username || e.user || '-'}</td>
                     </tr>`;
                 });
                 html += '</tbody></table>';

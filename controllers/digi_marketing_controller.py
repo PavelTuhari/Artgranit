@@ -817,13 +817,24 @@ class DigiMarketingController:
     # ========== Статистика ==========
 
     @staticmethod
+    def _empty_stats():
+        """Возвращает пустую структуру статистики для безопасного отображения"""
+        return {
+            "stores": 0,
+            "devices": {"total": 0, "online": 0, "offline": 0, "error": 0},
+            "campaigns": {"total": 0, "active": 0, "draft": 0, "paused": 0, "stopped": 0},
+            "media": {"total": 0, "images": 0, "videos": 0},
+            "playlists": 0,
+        }
+
+    @staticmethod
     def get_dashboard_stats():
         try:
             with DatabaseModel() as db:
                 r = db.execute_query("SELECT * FROM V_DIGI_DASHBOARD_STATS")
                 row = DigiMarketingController._first_row(r)
                 if not row:
-                    return {"success": True, "data": {}}
+                    return {"success": True, "data": DigiMarketingController._empty_stats()}
                 return {
                     "success": True,
                     "data": {
@@ -850,7 +861,7 @@ class DigiMarketingController:
                     },
                 }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": True, "data": DigiMarketingController._empty_stats(), "warning": str(e)}
 
     @staticmethod
     def get_event_log(limit=100, entity_type=None):
