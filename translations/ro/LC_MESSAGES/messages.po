@@ -1,0 +1,239 @@
+# Romanian translations for Oracle SQL Developer Web
+# Copyright (C) 2025 Artgranit
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Oracle SQL Developer Web\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-29 18:59+0200\n"
+"PO-Revision-Date: 2025-11-29 19:00+0200\n"
+"Last-Translator: Artgranit\n"
+"Language: ro\n"
+"Language-Team: ro\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n==0 || (n!=1 && n%100>=1 && n%100<=19) ? 1 : 2);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid credentials"
+msgstr "Date de autentificare incorecte"
+
+msgid "Login to system"
+msgstr "Autentificare în sistem"
+
+msgid "Username"
+msgstr "Nume utilizator"
+
+msgid "Password"
+msgstr "Parolă"
+
+msgid "Login"
+msgstr "Autentificare"
+
+msgid "Logging in..."
+msgstr "Se autentifică..."
+
+msgid "Connection error"
+msgstr "Eroare de conexiune"
+
+msgid "SQL Worksheet"
+msgstr "Fișa SQL"
+
+msgid "Dashboard"
+msgstr "Tablou de bord"
+
+msgid "AI Generator"
+msgstr "Generator AI"
+
+msgid "Connections"
+msgstr "Conexiuni"
+
+msgid "Logout"
+msgstr "Deconectare"
+
+msgid "Execute"
+msgstr "Execută"
+
+msgid "Clear"
+msgstr "Șterge"
+
+msgid "Schema"
+msgstr "Schemă"
+
+msgid "Loading..."
+msgstr "Se încarcă..."
+
+msgid "🔍 Filter objects (min 3 chars, 2s delay)"
+msgstr "🔍 Filtrează obiecte (min 3 caractere, întârziere 2s)"
+
+msgid "Database Objects"
+msgstr "Obiecte bază de date"
+
+msgid "Tables"
+msgstr "Tabele"
+
+msgid "Views"
+msgstr "Vizualizări"
+
+msgid "Procedures"
+msgstr "Proceduri"
+
+msgid "Functions"
+msgstr "Funcții"
+
+msgid "Packages"
+msgstr "Pachete"
+
+msgid "Sequences"
+msgstr "Secvențe"
+
+msgid "Synonyms"
+msgstr "Sinonime"
+
+msgid "Indexes"
+msgstr "Indecși"
+
+msgid "Triggers"
+msgstr "Declanșatoare"
+
+msgid "Types"
+msgstr "Tipuri"
+
+msgid "Materialized Views"
+msgstr "Vizualizări materializate"
+
+msgid "DBA"
+msgstr "DBA"
+
+msgid "Performance"
+msgstr "Performanță"
+
+msgid "No results. Execute a query to see results here."
+msgstr "Fără rezultate. Executați o interogare pentru a vedea rezultatele aici."
+
+msgid "AI Table Generator"
+msgstr "Generator de tabele AI"
+
+msgid "Table description (in Russian or English):"
+msgstr "Descrierea tabelului (în rusă sau engleză):"
+
+msgid ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+msgstr ""
+"De exemplu: Tabel pentru stocarea utilizatorilor cu câmpurile: id (număr), nume "
+"(șir), email (șir), data_inregistrare (dată)"
+
+msgid "Generate SQL"
+msgstr "Generează SQL"
+
+msgid "Generated SQL:"
+msgstr "SQL generat:"
+
+msgid "Insert into editor"
+msgstr "Inserează în editor"
+
+msgid "Copy"
+msgstr "Copiază"
+
+msgid "All commands"
+msgstr "Toate comenzile"
+
+msgid "Total commands"
+msgstr "Total comenzi"
+
+msgid "Success"
+msgstr "Succes"
+
+msgid "Errors"
+msgstr "Erori"
+
+msgid "Error"
+msgstr "Eroare"
+
+msgid "rows"
+msgstr "rânduri"
+
+msgid "Results"
+msgstr "Rezultate"
+
+msgid "Execution details"
+msgstr "Detalii execuție"
+
+msgid "Command"
+msgstr "Comandă"
+
+msgid "Query executed successfully. No rows returned."
+msgstr "Interogarea a fost executată cu succes. Nu au fost returnate rânduri."
+
+msgid "Error:"
+msgstr "Eroare:"
+
+msgid "Clear SQL editor?"
+msgstr "Șterge editorul SQL?"
+
+msgid "Loading schemas..."
+msgstr "Se încarcă schemele..."
+
+msgid "Current User"
+msgstr "Utilizator curent"
+
+msgid "Ready"
+msgstr "Gata"
+
+msgid "Executing..."
+msgstr "Se execută..."
+
+msgid "Please enter a SQL query"
+msgstr "Vă rugăm să introduceți o interogare SQL"
+
+msgid "Generating SQL..."
+msgstr "Se generează SQL..."
+
+msgid "SQL generated successfully!"
+msgstr "SQL generat cu succes!"
+
+msgid "Error generating SQL:"
+msgstr "Eroare la generarea SQL:"
+
+msgid "SQL inserted into editor"
+msgstr "SQL inserat în editor"
+
+msgid "SQL copied to clipboard"
+msgstr "SQL copiat în clipboard"
+
+msgid "Command executed successfully"
+msgstr "Comandă executată cu succes"
+
+msgid "All commands executed successfully"
+msgstr "Toate comenzile au fost executate cu succes"
+
+msgid "Executed commands"
+msgstr "Comenzi executate"
+
+msgid "Script execution error"
+msgstr "Eroare la executarea scriptului"
+
+msgid "of"
+msgstr "din"
+
+msgid "Query executed successfully. Found rows:"
+msgstr "Interogarea a fost executată cu succes. Rânduri găsite:"
+
+msgid "Insert into AI"
+msgstr "Inserare în AI"
+
+msgid "Loading DDL..."
+msgstr "Se încarcă DDL..."
+
+msgid "DDL for"
+msgstr "DDL pentru"
+
+msgid "Content inserted successfully"
+msgstr "Conținutul a fost inserat cu succes"
+
+msgid "AI Generator window is not open"
+msgstr "Fereastra Generatorului AI nu este deschisă"
+
+msgid "Field cleared"
+msgstr "Câmpul a fost șters"

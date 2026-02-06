@@ -1,0 +1,54 @@
+{
+  "dashboard_id": "03",
+  "dashboard_name": "Табло отправлений",
+  "dashboard_description": "Табло отправлений автовокзала",
+  "widgets": [
+    {
+      "widget_id": "departure_board",
+      "window_id": "departure-board-window",
+      "title": "Табло отправлений",
+      "metric_name": "departure_board",
+      "class_name": "DashboardController",
+      "method_name": "get_departure_board",
+      "method_parameters": {},
+      "position": { "top": 20, "left": 20 },
+      "size": { "width": 900, "height": 420 },
+      "z_index": 100,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Табло отправлений автовокзала: рейсы, направление, время, платформа, статус"
+    },
+    {
+      "widget_id": "documentation_03",
+      "window_id": "documentation-03-window",
+      "title": "📚 Документация Dashboard",
+      "widget_type": "documentation",
+      "dashboard_id": "03",
+      "position": {
+        "top": 460,
+        "left": 940
+      },
+      "size": {
+        "width": 400,
+        "height": 450
+      },
+      "z_index": 50,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Документация по всем виджетам дашборда и генерация DDL/DML скриптов"
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-01-26",
+    "version": "1.0",
+    "update_interval": 30,
+    "websocket_enabled": true,
+    "default_layout": "grid"
+  }
+}

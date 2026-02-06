@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Кредиты — Оператор</title>
+    <style>
+        :root {
+            --primary: #0066CC;
+            --accent: #00CC66;
+            --bg: #f5f7fa;
+            --card-bg: #fff;
+            --text: #1a1a2e;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --danger: #dc2626;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 120px;
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn .25s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .05s;
+            min-height: 48px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+        .btn-success { background: var(--accent); color: #fff; width: 100%; }
+        .btn-ghost { background: #e5e7eb; color: var(--text); }
+        .input-wrap {
+            margin-bottom: 16px;
+        }
+        .input-wrap label { display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 6px; }
+        .input-wrap input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+        }
+        .search-row { display: flex; gap: 12px; margin-bottom: 20px; }
+        .search-row input { flex: 1; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; }
+        .scan-btn {
+            width: 52px; height: 52px;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 24px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .scan-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+        }
+        .scan-overlay.show { display: flex; }
+        .products-scroll {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .products-scroll::-webkit-scrollbar { height: 6px; }
+        .product-card {
+            flex: 0 0 160px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+            cursor: pointer;
+            transition: transform .05s;
+        }
+        .product-card:active { transform: scale(0.98); }
+        .product-card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #f0f0f0; }
+        .product-card .name { font-size: 13px; margin-top: 8px; font-weight: 600; }
+        .product-card .price { font-size: 14px; color: var(--primary); margin-top: 4px; }
+        .product-detail .photo { width: 100%; max-height: 240px; object-fit: contain; background: #f0f0f0; border-radius: 12px; margin-bottom: 16px; }
+        .product-detail .name { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .product-detail .price { font-size: 28px; color: var(--primary); margin-bottom: 20px; }
+        .program-list { display: flex; flex-direction: column; gap: 12px; }
+        .program-card {
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .program-card:hover, .program-card:active { border-color: var(--primary); }
+        .program-card.best { border-color: var(--accent); background: #f0fdf4; }
+        .program-card .title { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+        .program-card .meta { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+        .program-card .monthly { font-size: 18px; font-weight: 700; color: var(--primary); }
+        .program-card .tag { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 4px; }
+        .back-btn { background: none; border: none; color: var(--primary); font-size: 16px; cursor: pointer; margin-bottom: 16px; padding: 8px 0; }
+        .result-icon { font-size: 64px; text-align: center; margin-bottom: 16px; }
+        .result-icon.ok { color: var(--accent); }
+        .result-icon.fail { color: var(--danger); }
+        .result-icon.pending { color: var(--primary); }
+        .result-msg { font-size: 18px; text-align: center; margin-bottom: 24px; line-height: 1.4; }
+        .spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .history { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .history h3 { font-size: 16px; margin-bottom: 12px; color: var(--text-muted); }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .history-item .status { font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+        .history-item .status.ok { background: #dcfce7; color: #166534; }
+        .history-item .status.fail { background: #fee2e2; color: #991b1b; }
+        .history-item .status.pending { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body>
+    <div id="screen-home" class="screen active">
+        <h1 style="font-size: 22px; margin-bottom: 8px;">Рассрочка 0%</h1>
+        <p style="margin-bottom: 16px;">
+            <a href="/UNA.md/orasldev/credit-easycredit" style="font-size: 14px;">Оформление EasyCredit</a> ·
+            <a href="/UNA.md/orasldev/credit-iute" style="font-size: 14px;">Оформление на Iute Credit (API)</a> ·
+            <a href="/UNA.md/orasldev/digi-marketing" style="font-size: 14px;">DIGI Marketing</a>
+        </p>
+        <div class="search-row">
+            <input type="text" id="searchInput" placeholder="Сканировать штрихкод или ввести название/артикул" autocomplete="off">
+            <button type="button" class="scan-btn" id="scanBtn" title="Сканер">📷</button>
+        </div>
+        <div class="scan-overlay" id="scanOverlay">Сканирование...</div>
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">Популярные товары</p>
+        <div class="products-scroll" id="productsScroll"></div>
+        <div class="history">
+            <h3>Последние заявки</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <div id="screen-product" class="screen">
+        <button type="button" class="back-btn" data-back="home">← Назад</button>
+        <div class="product-detail" id="productDetail"></div>
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;">Доступные рассрочки</p>
+        <div class="program-list" id="programList"></div>
+    </div>
+
+    <div id="screen-form" class="screen">
+        <button type="button" class="back-btn" data-back="product">← Назад</button>
+        <div class="card" id="formSummary"></div>
+        <form id="appForm">
+            <div class="input-wrap"><label>ФИО</label><input type="text" name="fio" required placeholder="Иванов Иван Иванович"></div>
+            <div class="input-wrap"><label>Телефон</label><input type="tel" name="phone" required placeholder="+373 ___ ___ __ __"></div>
+            <div class="input-wrap"><label>Серия и номер ID/паспорта</label><input type="text" name="idn" required placeholder=""></div>
+            <button type="submit" class="btn btn-success">Отправить заявку в банк</button>
+        </form>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div id="resultContent"></div>
+        <button type="button" class="btn btn-primary" id="resultBtn">Новая заявка</button>
+    </div>
+
+    <script>
+        const API = '/api/credit-operator';
+        let selectedProduct = null;
+        let selectedProgram = null;
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const el = document.getElementById('screen-' + id);
+            if (el) el.classList.add('active');
+        }
+
+        async function api(path, opts = {}) {
+            try {
+                const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok) {
+                    console.error('API error:', path, r.status, j);
+                    throw new Error(j.error || r.statusText);
+                }
+                // Отладка: выводим что получили (только при ошибках или пустых данных)
+                if (path.includes('/products') || path.includes('/programs') || path.includes('/recent')) {
+                    if (!j.success || (j.data && Array.isArray(j.data) && j.data.length === 0)) {
+                        console.warn('API response:', path, j);
+                    }
+                }
+                return j;
+            } catch (e) {
+                console.error('API fetch error:', path, e);
+                throw e;
+            }
+        }
+
+        async function renderHome() {
+            const wrap = document.getElementById('productsScroll');
+            const hl = document.getElementById('historyList');
+            wrap.innerHTML = '<div style="color:var(--text-muted);">Загрузка…</div>';
+            hl.innerHTML = '';
+            try {
+                const [productsRes, recentRes] = await Promise.all([
+                    api('/products?limit=6'),
+                    api('/recent-applications?limit=5')
+                ]);
+                // Проверяем структуру ответа
+                if (!productsRes.success) {
+                    console.error('Failed to load products:', productsRes);
+                    throw new Error(productsRes.error || 'Failed to load products');
+                }
+                if (!recentRes.success) {
+                    console.warn('Failed to load recent applications:', recentRes.error);
+                }
+                
+                const products = (productsRes.data || []);
+                const history = (recentRes.data || []);
+                
+                if (products.length === 0) {
+                    console.warn('⚠ No products returned from API. Response:', productsRes);
+                    wrap.innerHTML = '<div style="color:var(--text-muted);padding:20px;text-align:center;">Нет товаров. Проверьте, что данные загружены в БД.</div>';
+                }
+                if (!products.length) {
+                    console.error('⚠ Products array is empty!', {
+                        response: productsRes,
+                        data: productsRes.data,
+                        success: productsRes.success,
+                        error: productsRes.error
+                    });
+                    let errorMsg = 'Нет товаров.';
+                    if (productsRes.error) {
+                        errorMsg += ' Ошибка: ' + productsRes.error;
+                    } else if (!productsRes.success) {
+                        errorMsg += ' API вернул success=false';
+                    } else {
+                        errorMsg += ' Проверьте, что данные загружены в БД.';
+                    }
+                    wrap.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center;border:1px solid var(--danger);border-radius:8px;background:#fee2e2;">' + errorMsg + '</div>';
+                    return;
+                }
+                
+                wrap.innerHTML = products.map(p => {
+                        const pid = p.product_id || p.id;
+                        const pname = p.product_name || p.name || '';
+                        const pprice = p.price || 0;
+                        const pimg = p.img_url || 'https://via.placeholder.com/200/f0f0f0/666?text=';
+                        return `
+                        <div class="product-card" data-id="${pid}">
+                            <img src="${String(pimg).replace(/"/g,'&quot;')}" alt="">
+                            <div class="name">${pname.replace(/</g,'&lt;')}</div>
+                            <div class="price">${Number(pprice).toLocaleString('ru')} MDL</div>
+                        </div>
+                    `;
+                    }).join('');
+                wrap.querySelectorAll('.product-card').forEach(c => {
+                    c.addEventListener('click', () => {
+                        const cardId = parseInt(c.dataset.id, 10);
+                        selectedProduct = products.find(x => (x.product_id || x.id) === cardId);
+                        if (selectedProduct) openProduct();
+                    });
+                });
+                const statusMap = { approved: 'ok', rejected: 'fail', on_review: 'pending' };
+                const statusLabel = { ok: 'Одобрено', fail: 'Отказ', pending: 'На рассмотрении' };
+                hl.innerHTML = history.map(h => {
+                    const s = statusMap[h.application_status || h.status] || 'pending';
+                    const pname = h.product_name || '';
+                    const cfio = h.client_fio || '';
+                    const ctime = h.created_at || h.created_time || '';
+                    return `
+                        <div class="history-item">
+                            <div><strong>${pname.replace(/</g,'&lt;')}</strong><br><span style="font-size:12px;color:var(--text-muted);">${cfio.replace(/</g,'&lt;')} · ${ctime}</span></div>
+                            <span class="status ${s}">${statusLabel[s]}</span>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error in renderHome:', e);
+                wrap.innerHTML = '<div style="color:var(--danger);">Ошибка: ' + (e.message || '') + '</div>';
+                if (e.message) {
+                    console.error('Error details:', e);
+                }
+            }
+        }
+
+        async function openProduct() {
+            if (!selectedProduct) return;
+            const detail = document.getElementById('productDetail');
+            const plWrap = document.getElementById('programList');
+            detail.innerHTML = '<div class="result-msg">Загрузка…</div>';
+            plWrap.innerHTML = '';
+            showScreen('product');
+            try {
+                const prodId = selectedProduct.product_id || selectedProduct.id;
+                if (!prodId) throw new Error('ID товара не найден');
+                const [prodRes, progRes] = await Promise.all([
+                    api('/products/' + prodId),
+                    api('/programs-for-product/' + prodId)
+                ]);
+                const p = prodRes.data;
+                const progs = (progRes.data || []);
+                if (!p) throw new Error('Товар не найден');
+                selectedProduct = p;
+                const pname = p.product_name || p.name || '';
+                const pprice = p.price || 0;
+                const pimg = p.img_url || 'https://via.placeholder.com/200/f0f0f0/666?text=';
+                detail.innerHTML = `
+                    <img class="photo" src="${String(pimg).replace(/"/g,'&quot;')}" alt="">
+                    <div class="name">${pname.replace(/</g,'&lt;')}</div>
+                    <div class="price">${Number(pprice).toLocaleString('ru')} MDL</div>
+                `;
+                const best = progs.length ? progs.reduce((a, b) => (a.term_months > b.term_months ? a : b)) : null;
+                plWrap.innerHTML = progs.map(prog => {
+                    const progId = prog.program_id || prog.id;
+                    const progName = prog.program_name || prog.name || '';
+                    const first = Math.round((pprice || 0) * ((prog.first_payment_pct || 0) / 100));
+                    const rest = (pprice || 0) - first;
+                    const monthly = Math.round(rest / (prog.term_months || 1));
+                    const isBest = best && progId === (best.program_id || best.id);
+                    return `
+                        <div class="program-card ${isBest ? 'best' : ''}" data-id="${progId}">
+                            <div class="title">${progName.replace(/</g,'&lt;')}</div>
+                            <div class="meta">Срок ${prog.term_months || 0} мес · Первый взнос ${first} MDL</div>
+                            <div class="monthly">${monthly.toLocaleString('ru')} MDL / мес</div>
+                            ${isBest ? '<div class="tag">Самый выгодный</div>' : ''}
+                            <button type="button" class="btn btn-success" style="margin-top:12px;width:100%;" data-select="${progId}">Выбрать</button>
+                        </div>
+                    `;
+                }).join('');
+                plWrap.querySelectorAll('[data-select]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const selectId = parseInt(btn.dataset.select, 10);
+                        selectedProgram = progs.find(x => (x.program_id || x.id) === selectId);
+                        if (selectedProgram) openForm();
+                    });
+                });
+            } catch (e) {
+                detail.innerHTML = '<div class="result-msg" style="color:var(--danger);">Ошибка: ' + (e.message || '') + '</div>';
+            }
+        }
+
+        function openForm() {
+            if (!selectedProduct || !selectedProgram) return;
+            const first = Math.round((selectedProduct.price || 0) * ((selectedProgram.first_payment_pct || 0) / 100));
+            const rest = (selectedProduct.price || 0) - first;
+            const monthly = Math.round(rest / (selectedProgram.term_months || 1));
+            document.getElementById('formSummary').innerHTML = `
+                <div style="font-size:14px;color:var(--text-muted);">Выбрано: <strong>${(selectedProgram.name || '').replace(/</g,'&lt;')}</strong></div>
+                <div style="margin-top:8px;">Первый взнос: <strong>${first.toLocaleString('ru')} MDL</strong></div>
+                <div>Платёж в мес: <strong>${monthly.toLocaleString('ru')} MDL</strong></div>
+                <div>Общая сумма: <strong>${Number(selectedProduct.price || 0).toLocaleString('ru')} MDL</strong></div>
+            `;
+            document.getElementById('appForm').reset();
+            showScreen('form');
+        }
+
+        function showResult(outcome, approvedAmt, rejectReason) {
+            const ok = outcome === 'approved';
+            const pending = outcome === 'on_review';
+            let icon = '✅';
+            let msg = 'Заявка одобрена! Сумма одобрена: ' + (approvedAmt != null ? Number(approvedAmt).toLocaleString('ru') : '') + ' MDL. Подпишите договор.';
+            if (!ok && !pending) {
+                icon = '❌';
+                msg = 'Отказано. ' + (rejectReason || 'Низкий скоринг');
+            } else if (pending) {
+                icon = '⏳';
+                msg = 'Заявка отправлена, ждите звонка в течение 5 мин.';
+            }
+            document.getElementById('resultContent').innerHTML = `
+                <div class="result-icon ${ok ? 'ok' : pending ? 'pending' : 'fail'}">${icon}</div>
+                <div class="result-msg">${msg.replace(/</g,'&lt;')}</div>
+            `;
+            document.getElementById('resultBtn').textContent = (!ok && !pending) ? 'Попробовать другую программу' : 'Новая заявка';
+            showScreen('result');
+            const rb = document.getElementById('resultBtn');
+            rb.onclick = () => {
+                if (!ok && !pending) showScreen('product');
+                else { selectedProduct = null; selectedProgram = null; showScreen('home'); renderHome(); }
+            };
+        }
+
+        document.getElementById('scanBtn').addEventListener('click', async () => {
+            document.getElementById('scanOverlay').classList.add('show');
+            await new Promise(r => setTimeout(r, 1200));
+            document.getElementById('scanOverlay').classList.remove('show');
+            try {
+                const j = await api('/products?limit=1');
+                const list = j.data || [];
+                if (list.length) { 
+                    selectedProduct = list[0];
+                    // Убедимся, что у товара есть правильный ID
+                    if (!selectedProduct.id && selectedProduct.product_id) {
+                        selectedProduct.id = selectedProduct.product_id;
+                    }
+                    openProduct(); 
+                }
+            } catch (_) {}
+        });
+
+        document.getElementById('searchInput').addEventListener('keydown', async (e) => {
+            if (e.key !== 'Enter') return;
+            const q = (e.target.value || '').trim();
+            if (!q) return;
+            try {
+                const j = await api('/products?search=' + encodeURIComponent(q) + '&limit=1');
+                const list = j.data || [];
+                if (list.length) { 
+                    selectedProduct = list[0];
+                    // Убедимся, что у товара есть правильный ID
+                    if (!selectedProduct.id && selectedProduct.product_id) {
+                        selectedProduct.id = selectedProduct.product_id;
+                    }
+                    openProduct(); 
+                }
+            } catch (_) {}
+        });
+
+        document.getElementById('appForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const fio = form.querySelector('[name="fio"]').value.trim();
+            const phone = form.querySelector('[name="phone"]').value.trim();
+            const idn = form.querySelector('[name="idn"]').value.trim();
+            if (!fio || !phone) return;
+            document.getElementById('resultContent').innerHTML = '<div class="spinner"></div><div class="result-msg">Отправка заявки…</div>';
+            document.getElementById('resultBtn').style.display = 'none';
+            showScreen('result');
+            try {
+                const prodId = selectedProduct.product_id || selectedProduct.id;
+                const progId = selectedProgram.program_id || selectedProgram.id;
+                const j = await api('/application', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        product_id: prodId,
+                        program_id: progId,
+                        client_fio: fio,
+                        client_phone: phone,
+                        client_idn: idn || undefined
+                    })
+                });
+                document.getElementById('resultBtn').style.display = 'block';
+                showResult(j.status, j.approved_amount, j.rejection_reason);
+                renderHome();
+            } catch (err) {
+                document.getElementById('resultContent').innerHTML = '<div class="result-msg" style="color:var(--danger);">Ошибка: ' + (err.message || '').replace(/</g,'&lt;') + '</div>';
+                document.getElementById('resultBtn').style.display = 'block';
+                document.getElementById('resultBtn').textContent = 'Назад';
+                document.getElementById('resultBtn').onclick = () => { showScreen('form'); };
+            }
+        });
+
+        document.querySelectorAll('[data-back]').forEach(btn => {
+            btn.addEventListener('click', () => showScreen(btn.dataset.back));
+        });
+
+        renderHome();
+    </script>
+</body>
+</html>

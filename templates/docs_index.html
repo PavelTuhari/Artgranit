@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документация - Oracle SQL Developer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            line-height: 1.6;
+        }
+        
+        .docs-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .docs-header {
+            background: #252526;
+            padding: 30px;
+            border-radius: 4px;
+            margin-bottom: 30px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .docs-header h1 {
+            color: #4ec9b0;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .docs-header p {
+            color: #858585;
+            font-size: 16px;
+        }
+        
+        .docs-nav {
+            margin-top: 20px;
+        }
+        
+        .docs-nav a {
+            color: #007acc;
+            text-decoration: none;
+            margin-right: 15px;
+            padding: 8px 12px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .docs-nav a:hover {
+            background: #3c3c3c;
+        }
+        
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .docs-card {
+            background: #252526;
+            padding: 20px;
+            border-radius: 4px;
+            border-left: 4px solid #007acc;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .docs-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        
+        .docs-card h3 {
+            color: #4ec9b0;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+        
+        .docs-card p {
+            color: #858585;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .docs-card a {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #007acc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        
+        .docs-card a:hover {
+            background: #005a9e;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #4ec9b0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 2px solid #3c3c3c;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="docs-container">
+        <div class="docs-header">
+            <h1>📚 Документация Oracle SQL Developer Web & Dashboard</h1>
+            <p>Полная документация по системе дашбордов, виджетов и API</p>
+            <div class="docs-nav">
+                <a href="/UNA.md/orasldev/dashboard">📊 Дашборды</a>
+                <a href="/UNA.md/orasldev">🏠 Главная</a>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📊 Документация по дашбордам</h2>
+            <p style="color: #858585; margin-bottom: 16px; font-size: 14px;">В каждом дашборде есть виджет <strong>📚 Документация Dashboard</strong> с кнопками «Полная документация», «Скачать DDL», «Скачать DML», «Просмотр DDL/DML».</p>
+            <div class="docs-grid">
+                <div class="docs-card">
+                    <h3>Dashboard 00: Main Dashboard</h3>
+                    <p>Основной дашборд с базовыми метриками Oracle Database. Мониторинг CPU, Memory, Sessions, Tablespaces и Top SQL.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/00">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 01: Custom Dashboard 01</h3>
+                    <p>Кастомный дашборд с метриками Oracle, Custom SQL (Oracle/SQLite). Для разработчиков и администраторов БД.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/01">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 02: Custom Dashboard 02</h3>
+                    <p>Расширенный кастомный дашборд для тестирования виджетов, QA и кастомных метрик.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/02">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 03: Табло отправлений</h3>
+                    <p>Дашборд для отображения информации о рейсах автовокзала в реальном времени. Расписание, статусы, платформы.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/03">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 04: Кредиты — Админка</h3>
+                    <p>Админ-панель для управления кредитными программами банков-партнёров. Создание, редактирование, матрица доступности.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/04">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 05: Кредиты — Оператор</h3>
+                    <p>Мобильный интерфейс для консультантов по оформлению рассрочки. Поиск товаров, оформление заявок, история.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/05">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 06: Кредитный портфель Бомба</h3>
+                    <p>Пивот: категории/товары × банки/программы. Фильтры, настройки связей, матрица доступности.</p>
+                    <a href="/UNA.md/orasldev/docs/dashboard/06">Читать документацию →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Dashboard 07: Оформление на Iute Credit</h3>
+                    <p>Интеграция через <a href="https://iute-core-partner-gateway.iute.eu/docs/public/guide.html" target="_blank">Iute Physical API</a>: Check Auth, Create Order, Check Status.</p>
+                    <a href="/UNA.md/orasldev/credit-iute">Открыть форму →</a> · <a href="/UNA.md/orasldev/docs/dashboard/07">Документация</a>
+                </div>
+                <div class="docs-card">
+                    <h3>DIGI Marketing: Управление контентом</h3>
+                    <p>Централизованное управление мультимедиа контентом для весов DIGI SM5300/SM6000/WEB3110. Магазины, устройства, медиа, плейлисты, кампании.</p>
+                    <a href="/UNA.md/orasldev/digi-marketing">Открыть →</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 Общая документация</h2>
+            <div class="docs-grid">
+                <div class="docs-card">
+                    <h3>Документация проекта (Claude Code)</h3>
+                    <p>Единый HTML-документ: структура проекта, конфиг, маршруты, контроллеры, SQL, запуск. Для передачи в Claude Code.</p>
+                    <a href="/UNA.md/orasldev/docs/project-documentation">Открыть →</a>
+                </div>
+                <div class="docs-card">
+                    <h3>Развертывание</h3>
+                    <p>Инструкции по установке и развёртыванию системы на сервере.</p>
+                    <a href="/UNA.md/orasldev/docs/deployment">Читать →</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>Конфигурация</h3>
+                    <p>Настройки приложения, БД, переменные окружения.</p>
+                    <a href="/UNA.md/orasldev/docs/configuration">Читать →</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>Разработка виджетов</h3>
+                    <p>Руководство по созданию и доработке виджетов для дашбордов.</p>
+                    <a href="/UNA.md/orasldev/docs/widgets">Читать →</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>API документация</h3>
+                    <p>Описание всех REST API endpoints для интеграции с системой.</p>
+                    <a href="/UNA.md/orasldev/docs/api">Читать →</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>DDL скрипты</h3>
+                    <p>SQL-объекты Oracle: таблицы, представления, пакеты для дашбордов.</p>
+                    <a href="/UNA.md/orasldev/docs/sql">Читать →</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>Easy Credit API</h3>
+                    <p>Документация интеграции EasyCredit SOAP API (архитектура, WSDL, сервисы).</p>
+                    <a href="/UNA.md/orasldev/docs/easycredit">Читать →</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>Iute Credit (Physical API)</h3>
+                    <p>Оформление на Iute Credit через <a href="https://iute-core-partner-gateway.iute.eu/docs/public/guide.html" target="_blank">Iute API</a>.</p>
+                    <a href="/UNA.md/orasldev/credit-iute">Открыть форму →</a> · <a href="/UNA.md/orasldev/docs/iute">Документация</a>
+                </div>
+                
+                <div class="docs-card">
+                    <h3>Настраиваемые отчёты</h3>
+                    <p>CRED_REPORTS, CRED_REPORT_PARAMS, пакеты PL/SQL, API.</p>
+                    <a href="/UNA.md/orasldev/docs/cred-reports">Читать →</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -42,6 +42,21 @@ Wallet_*.zip
 # Config (may contain sensitive data)
 # config.py - uncomment if you want to exclude config
 
+# Environment variables (contains sensitive passwords)
+.env
+
+# Oracle connections (contains sensitive passwords)
+oracle_connections.json
+
+# EasyCredit integration (API user/password)
+data/easycredit_settings.json
+
+# Iute integration (API key)
+data/iute_settings.json
+
+# Credit log (EasyCredit / operator, may contain PII)
+data/credit_log.jsonl
+
 # Temporary files
 *.tmp
 *.bak

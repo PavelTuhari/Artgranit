@@ -1,0 +1,2116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кредиты — Админка</title>
+    <style>
+        :root {
+            --primary: #0066CC;
+            --accent: #00CC66;
+            --bg: #f5f7fa;
+            --card-bg: #fff;
+            --text: #1a1a2e;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+        .sidebar {
+            width: 220px;
+            background: var(--card-bg);
+            box-shadow: 2px 0 8px rgba(0,0,0,.08);
+            padding: 20px 0;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px 20px;
+            color: var(--text);
+            text-decoration: none;
+            transition: background .2s, color .2s;
+        }
+        .sidebar a:hover { background: #eef2ff; color: var(--primary); }
+        .sidebar a.active { background: #e0e7ff; color: var(--primary); font-weight: 600; }
+        .main {
+            flex: 1;
+            padding: 24px;
+            overflow: auto;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity .2s, transform .05s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { opacity: .9; }
+        .btn-success { background: var(--accent); color: #fff; }
+        .btn-success:hover { opacity: .9; }
+        .btn-ghost { background: #e5e7eb; color: var(--text); }
+        .btn-ghost:hover { background: #d1d5db; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        h1 { font-size: 22px; margin-bottom: 20px; color: var(--text); }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f9fafb; font-weight: 600; color: var(--text-muted); }
+        tr:hover { background: #f9fafb; }
+        .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .filters label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+        .filters select, .filters input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .toggle {
+            width: 44px; height: 24px;
+            background: #d1d5db;
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: background .2s;
+        }
+        .toggle.on { background: var(--accent); }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px; height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px; left: 2px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.2);
+            transition: transform .2s;
+        }
+        .toggle.on::after { transform: translateX(20px); }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.4);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.15);
+            max-width: 560px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+            padding: 24px;
+        }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-grid.full { grid-template-columns: 1fr; }
+        .field { display: flex; flex-direction: column; gap: 6px; }
+        .field label { font-size: 13px; color: var(--text-muted); }
+        .field input, .field select, .field textarea {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .field textarea { min-height: 80px; resize: vertical; }
+        .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--accent);
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0,204,102,.3);
+            font-size: 14px;
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: transform .3s, opacity .3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .matrix-table-wrap {
+            overflow: auto;
+            max-height: min(70vh, 720px);
+            margin: 0 -20px;
+            padding: 0 20px;
+        }
+        .matrix-card { overflow: visible; }
+        .matrix-table { position: relative; }
+        .matrix-table th, .matrix-table td { min-width: 100px; }
+        .matrix-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f9fafb;
+            box-shadow: 0 1px 0 var(--border);
+        }
+        .matrix-table th:first-child, .matrix-table td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 1;
+            background: var(--card-bg);
+            min-width: 180px;
+            box-shadow: 2px 0 6px rgba(0,0,0,.06);
+        }
+        .matrix-table th:first-child {
+            z-index: 3;
+            background: #f9fafb;
+        }
+        .matrix-table tr:hover td { background: #f9fafb; }
+        .matrix-table tr:hover td:first-child { background: #f9fafb; }
+        .matrix-table td:first-child:only-child { position: static; box-shadow: none; min-width: auto; }
+        .matrix-table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .actions-cell { display: flex; gap: 8px; }
+        .matrix-cell { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+        .matrix-cell .btn-products { padding: 4px 8px; font-size: 11px; min-width: 0; }
+        .matrix-th-block { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; }
+        .matrix-th-name { font-weight: 600; }
+        .matrix-th-meta { font-size: 11px; font-weight: 400; color: var(--text-muted); white-space: nowrap; }
+        .products-modal-list { max-height: 380px; overflow-y: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; }
+        .products-modal-list label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+        .products-modal-list label:hover { background: #f9fafb; }
+        .products-modal-list label:last-child { border-bottom: none; }
+        .products-modal-list input[type="checkbox"] { flex-shrink: 0; }
+        .products-modal-list .prod-name { flex: 1; }
+        .products-modal-list .prod-meta { font-size: 12px; color: var(--text-muted); }
+        .products-filter-wrap { margin-bottom: 12px; }
+        .products-filter-wrap input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 14px; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <a href="#" class="nav-link active" data-page="dashboard">Дашборд</a>
+        <a href="#" class="nav-link" data-page="programs">Кредитные программы</a>
+        <a href="#" class="nav-link" data-page="matrix">Матрица доступности</a>
+        <a href="#" class="nav-link" data-page="ec-testing">🧪 Тестирование API</a>
+        <a href="#" class="nav-link" data-page="reports">📊 Отчёты</a>
+        <a href="#" class="nav-link" data-page="settings">Настройки</a>
+        <a href="/UNA.md/orasldev/credit-portfolio-bomba" target="_blank" class="nav-link">Кредитный портфель Бомба</a>
+        <a href="/UNA.md/orasldev/credit-easycredit" target="_blank" class="nav-link">Оформление EasyCredit</a>
+        <a href="/UNA.md/orasldev/credit-iute" target="_blank" class="nav-link">Оформление на Iute Credit (API)</a>
+        <a href="/UNA.md/orasldev/digi-marketing" target="_blank" class="nav-link">📺 DIGI Marketing</a>
+    </aside>
+    <main class="main">
+        <div id="page-dashboard" class="page active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>Кредитные программы</h1>
+                <button type="button" class="btn btn-success" id="btnCreate">Создать новую программу</button>
+            </div>
+            <div class="filters">
+                <select id="filterBank"><option value="">Все банки</option></select>
+                <select id="filterTerm"><option value="">Любой срок</option><option value="6">6 мес</option><option value="12">12 мес</option><option value="24">24 мес</option><option value="36">36 мес</option></select>
+                <select id="filterStatus"><option value="">Все</option><option value="Y">Активна</option><option value="N">Выкл</option></select>
+            </div>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr><th>Название</th><th>Банк</th><th>Срок (мес)</th><th>Мин/Макс сумма</th><th>Первый взнос</th><th>Комиссия %</th><th>Статус</th><th>Действия</th></tr>
+                    </thead>
+                    <tbody id="programsTable"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="page-programs" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>Список программ</h1>
+                <button type="button" class="btn btn-success" id="btnCreate2">Создать новую программу</button>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 16px;">Та же таблица с фильтрами.</p>
+            <div class="filters">
+                <select id="filterBank2"><option value="">Все банки</option></select>
+                <select id="filterTerm2"><option value="">Любой срок</option><option value="6">6 мес</option><option value="12">12 мес</option><option value="24">24 мес</option><option value="36">36 мес</option></select>
+                <select id="filterStatus2"><option value="">Все</option><option value="Y">Активна</option><option value="N">Выкл</option></select>
+            </div>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr><th>Название</th><th>Банк</th><th>Срок (мес)</th><th>Мин/Макс сумма</th><th>Первый взнос</th><th>Комиссия %</th><th>Статус</th><th>Действия</th></tr>
+                    </thead>
+                    <tbody id="programsTable2"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="page-matrix" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>Матрица доступности</h1>
+                <button type="button" class="btn btn-success" id="btnCreateMatrix">Создать запись в матрице</button>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 16px;">Категории × программы. Массовое выделение.</p>
+            <div class="filters matrix-filters" style="margin-bottom: 16px;">
+                <label>Категории:</label>
+                <input type="text" id="matrixFilterCategory" placeholder="поиск по названию" style="max-width: 200px;" />
+                <label>Программы:</label>
+                <input type="text" id="matrixFilterProgram" placeholder="по названию" style="max-width: 180px;" />
+                <label>Банк:</label>
+                <select id="matrixFilterBank"><option value="">Все</option></select>
+                <label>Срок (мес):</label>
+                <select id="matrixFilterTerm"><option value="">Любой</option><option value="6">6</option><option value="12">12</option><option value="18">18</option><option value="24">24</option><option value="36">36</option></select>
+                <label>Ставка %:</label>
+                <input type="text" id="matrixFilterRate" placeholder="например 0 или 9.9" style="max-width: 90px;" />
+                <button type="button" class="btn btn-ghost" id="matrixFilterReset">Сбросить</button>
+            </div>
+            <div class="card matrix-card">
+                <div class="matrix-table-wrap">
+                    <table class="matrix-table">
+                        <thead><tr id="matrixHead"></tr></thead>
+                        <tbody id="matrixBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div id="page-ec-testing" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>🧪 Тестирование API</h1>
+                <button class="btn btn-primary" id="btnRefreshProviders">🔄 Обновить</button>
+            </div>
+
+            <!-- Выбор провайдера -->
+            <div id="providerSelector" class="card" style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 12px; color: var(--primary);">Выберите провайдера</h3>
+                <div id="providerTabs" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="color: var(--text-muted); padding: 16px;">Загрузка провайдеров...</div>
+                </div>
+            </div>
+
+            <!-- Настройки провайдера -->
+            <div id="providerSettings" class="card" style="margin-bottom: 20px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0;"><span id="providerSettingsIcon"></span> <span id="providerSettingsName">—</span></h3>
+                    <span id="providerConfigBadge" style="padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;"></span>
+                </div>
+                <div id="providerSettingsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; font-size: 13px;"></div>
+                <div style="margin-top: 12px;">
+                    <span style="font-size: 12px; color: var(--text-muted);">Capabilities: </span>
+                    <span id="providerCapsList" style="font-size: 12px;"></span>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 380px; gap: 20px;">
+                <div>
+                    <!-- EasyCredit: Поиск клиента -->
+                    <div id="sectionSearchClient" class="card" style="margin-bottom: 20px; display: none;">
+                        <h3 style="margin-bottom: 12px; color: var(--primary);">👤 Поиск клиента (IDNP)</h3>
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <input type="text" id="testUin" placeholder="IDNP" style="width: 200px;">
+                            <button class="btn btn-primary btn-sm" id="btnTestSearchClient">Найти</button>
+                        </div>
+                        <div id="testClientCard" style="padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: #fff; display: none;">
+                            <div style="font-size: 18px; font-weight: 600;" id="testClientName">—</div>
+                            <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;" id="testClientUin">IDNP: —</div>
+                            <div style="font-size: 13px; opacity: 0.9;" id="testClientBirth">—</div>
+                            <div style="font-size: 13px; opacity: 0.9;" id="testClientEmail">—</div>
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.3);">
+                                <div style="font-size: 12px; opacity: 0.7;">Макс. автоодобрение</div>
+                                <div style="font-size: 20px; font-weight: 700;" id="testClientMaxAmount">0 MDL</div>
+                            </div>
+                        </div>
+                        <div id="testClientLoansBox" style="margin-top: 12px; display: none;">
+                            <h4 style="margin-bottom: 8px; color: var(--primary);">📋 Займы</h4>
+                            <div style="overflow: auto; max-height: 250px;">
+                                <table style="width: 100%; font-size: 12px;">
+                                    <thead><tr style="background:#f9fafb;">
+                                        <th style="padding:6px;text-align:left;">URN</th>
+                                        <th style="padding:6px;text-align:left;">Продукт</th>
+                                        <th style="padding:6px;text-align:right;">Сумма</th>
+                                        <th style="padding:6px;text-align:center;">Статус</th>
+                                        <th style="padding:6px;text-align:center;">Дата</th>
+                                    </tr></thead>
+                                    <tbody id="testClientLoans"><tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-muted);">Нет данных</td></tr></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Iute: Проверка авторизации -->
+                    <div id="sectionCheckAuth" class="card" style="margin-bottom: 20px; display: none;">
+                        <h3 style="margin-bottom: 12px; color: var(--primary);">🔑 Проверка авторизации</h3>
+                        <button class="btn btn-primary btn-sm" id="btnTestCheckAuth">Проверить подключение</button>
+                        <div id="checkAuthResult" style="margin-top: 12px; display: none; padding: 12px; border-radius: 8px;"></div>
+                    </div>
+
+                    <!-- Универсальная отправка заявки / создание заказа -->
+                    <div id="sectionSubmit" class="card" style="margin-bottom: 20px; display: none;">
+                        <h3 style="margin-bottom: 16px; color: var(--accent);">➕ <span id="submitSectionTitle">Создать заявку</span></h3>
+                        <div id="testClientsContainer"></div>
+                        <button class="btn btn-primary" id="btnSubmitAll" style="margin-top: 12px;">📤 Отправить все</button>
+                    </div>
+
+                    <!-- Проверка статуса -->
+                    <div id="sectionStatus" class="card" style="display: none;">
+                        <h3 style="margin-bottom: 16px; color: var(--primary);">🔍 <span id="statusSectionTitle">Проверка статуса</span></h3>
+                        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                            <input type="text" id="testStatusId" placeholder="URN / Order ID" style="width: 220px;">
+                            <button class="btn btn-primary btn-sm" id="btnTestCheckStatus">Проверить</button>
+                        </div>
+                        <div id="testStatusResult" style="display: none;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;" id="testStatusCards"></div>
+                            <div id="testStatusDetails" style="margin-top: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 12px; font-family: monospace; max-height: 200px; overflow: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Лог -->
+                <div class="card" style="height: fit-content; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h3 style="color: var(--text-muted); margin: 0;">📋 Лог операций</h3>
+                        <button class="btn btn-ghost btn-sm" id="btnClearLog">Очистить</button>
+                    </div>
+                    <div id="ecTestLog" style="flex: 1; overflow: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 11px; background: #1a1a2e; color: #e0e0e0; padding: 12px; border-radius: 8px; min-height: 350px; max-height: 500px;">
+                        <div style="color: #6b7280;">Ожидание операций...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="page-reports" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>📊 Отчёты</h1>
+            </div>
+            <p style="color: var(--text-muted); margin-bottom: 20px;">Настраиваемые отчёты. Параметры, шаблоны и алгоритмы задаются в таблицах CRED_REPORTS и CRED_REPORT_PARAMS.</p>
+            <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px;">
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: var(--primary);">Список отчётов</h3>
+                    <div id="reportsList" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="color: var(--text-muted); padding: 16px;">Загрузка...</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div id="reportFormArea" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h3 style="margin-bottom: 12px; color: var(--primary);" id="reportFormTitle">—</h3>
+                                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;" id="reportFormDesc">—</p>
+                            </div>
+                            <button type="button" class="btn btn-ghost" id="btnEditReportTemplate" title="Редактировать шаблон отчёта">✏️ Шаблон</button>
+                        </div>
+                        <div id="reportParamsForm" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;"></div>
+                        <button type="button" class="btn btn-primary" id="btnRunReport">▶ Сформировать отчёт</button>
+                    </div>
+                    <div id="reportResultArea" style="margin-top: 20px; display: none;">
+                        <div class="bi-toolbar" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; padding: 10px; background: #f9fafb; border-radius: 8px;">
+                            <input type="text" id="reportGlobalSearch" placeholder="Поиск по всем колонкам..." style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; min-width: 200px; font-size: 13px;">
+                            <select id="reportSortCol" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;">
+                                <option value="">— Сортировка —</option>
+                            </select>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px;">
+                                <input type="checkbox" id="reportSortAsc" checked> По возрастанию
+                            </label>
+                            <div style="flex: 1;"></div>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-ghost" id="btnExportCsv">📄 CSV</button>
+                                <button type="button" class="btn btn-sm btn-ghost" id="btnExportExcel">📊 Excel</button>
+                                <button type="button" class="btn btn-sm btn-ghost" id="btnExportPdf">📑 PDF</button>
+                            </div>
+                        </div>
+                        <div id="reportResultTable" style="overflow: auto; max-height: 520px; border: 1px solid var(--border); border-radius: 8px;"></div>
+                        <div id="reportResultMeta" style="font-size: 12px; color: var(--text-muted); margin-top: 8px;"></div>
+                    </div>
+                    <div id="reportEmptyState" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                        Выберите отчёт из списка слева
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="page-settings" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1>Настройки</h1>
+                <button type="button" class="btn btn-success" id="btnCreateSettings">Создать новую программу</button>
+            </div>
+            <div class="card">
+                <p style="color: var(--text-muted); margin-bottom: 20px;">Настройки интеграций с банками, уведомления и т.д.</p>
+                <h3 style="margin-bottom: 12px; color: var(--accent);">Интеграция EasyCredit (API)</h3>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">Sandbox: <code>https://tst.ecmoldova.cloud:8082</code>. Production: <code>https://w81.ecredit.md:8082</code>. Ключ интеграции — user + passwd. Для sandbox проверка SSL отключена.</p>
+                <form id="easycreditSettingsForm" class="form-grid" style="max-width: 560px;">
+                    <div class="field"><label>Окружение</label>
+                        <select name="env" id="ecEnv">
+                            <option value="sandbox" selected>Sandbox (тест)</option>
+                            <option value="production">Production</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Base URL (необяз.)</label>
+                        <input type="text" name="base_url" id="ecBaseUrl" placeholder="https://tst.ecmoldova.cloud:8082" value="https://tst.ecmoldova.cloud:8082">
+                    </div>
+                    <div class="field"><label>API user (ключ интеграции)</label>
+                        <input type="text" name="api_user" id="ecApiUser" placeholder="demo" value="demo">
+                    </div>
+                    <div class="field"><label>API password</label>
+                        <input type="password" name="api_password" id="ecApiPassword" placeholder="demo" autocomplete="off">
+                    </div>
+                    <div class="field full" style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-success">Сохранить</button>
+                        <span id="ecSettingsStatus" style="font-size: 13px; color: var(--text-muted);"></span>
+                    </div>
+                </form>
+                <h3 style="margin-top: 32px; margin-bottom: 12px; color: var(--accent);">Интеграция Iute Credit (Physical API)</h3>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;"><a href="https://iute-core-partner-gateway.iute.eu/docs/public/guide.html" target="_blank">Документация API</a>. Base URL: <code>https://iute-core-partner-gateway.iute.eu</code>. API key (plain, без Bearer/base64). POS Identifier и Salesman Identifier.</p>
+                <form id="iuteSettingsForm" class="form-grid" style="max-width: 560px;">
+                    <div class="field"><label>Окружение</label>
+                        <select name="env" id="iuteEnv">
+                            <option value="sandbox" selected>Sandbox (тест)</option>
+                            <option value="production">Production</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Base URL (необяз.)</label>
+                        <input type="text" name="base_url" id="iuteBaseUrl" placeholder="https://iute-core-partner-gateway.iute.eu">
+                    </div>
+                    <div class="field"><label>API key (ключ интеграции)</label>
+                        <input type="password" name="api_key" id="iuteApiKey" placeholder="Введите API ключ" autocomplete="new-password">
+                    </div>
+                    <div class="field"><label>POS Identifier</label>
+                        <input type="password" name="pos_identifier" id="iutePosIdentifier" placeholder="Введите POS Identifier" autocomplete="new-password">
+                    </div>
+                    <div class="field"><label>Salesman Identifier</label>
+                        <input type="password" name="salesman_identifier" id="iuteSalesmanIdentifier" placeholder="Введите Salesman Identifier" autocomplete="new-password">
+                    </div>
+                    <div class="field full" style="display: flex; gap: 10px;">
+                        <button type="submit" class="btn btn-success">Сохранить</button>
+                        <span id="iuteSettingsStatus" style="font-size: 13px; color: var(--text-muted);"></span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="formModal">
+        <div class="modal">
+            <h2 style="margin-bottom: 20px;" id="formTitle">Создать программу</h2>
+            <form id="programForm">
+                <div class="form-grid">
+                    <div class="field"><label>Название</label><input type="text" name="name" required></div>
+                    <div class="field"><label>Банк</label>
+                        <select name="bank_id" id="formBank"><option value="">—</option></select>
+                    </div>
+                    <div class="field"><label>Срок (мес)</label><input type="number" name="term_months" min="6" max="36" value="24"></div>
+                    <div class="field"><label>Процентная ставка %</label><input type="number" name="rate_pct" min="0" value="0" step="0.01"></div>
+                    <div class="field"><label>Первый взнос %</label>
+                        <select name="first_payment_pct"><option value="0">0%</option><option value="10">10%</option><option value="20">20%</option></select>
+                    </div>
+                    <div class="field"><label>Мин. сумма</label><input type="number" name="min_sum" value="1000"></div>
+                    <div class="field"><label>Макс. сумма</label><input type="number" name="max_sum" value="100000"></div>
+                    <div class="field"><label>Комиссия банка %</label><input type="number" name="commission_pct" value="0" step="0.01"></div>
+                    <div class="field"><label>Статус</label><div class="toggle on" data-toggle="status" title="Вкл/выкл"></div><input type="hidden" name="active" value="1"></div>
+                    <div class="field full"><label>Примечания</label><textarea name="notes"></textarea></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" id="btnCancel">Отмена</button>
+                    <button type="submit" class="btn btn-success">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Программа сохранена</div>
+
+    <!-- Модальное окно: редактирование шаблона отчёта -->
+    <div class="modal-overlay" id="reportTemplateModal">
+        <div class="modal" style="max-width: 520px;">
+            <h2 style="margin-bottom: 16px;">Редактирование шаблона отчёта</h2>
+            <form id="reportTemplateForm">
+                <div class="field" style="margin-bottom: 12px;"><label>Название</label><input type="text" id="tmplReportName" required></div>
+                <div class="field" style="margin-bottom: 12px;"><label>Описание</label><textarea id="tmplReportDesc" rows="2"></textarea></div>
+                <div class="field" style="margin-bottom: 12px;"><label>Конфиг колонок (JSON, опционально)</label><textarea id="tmplReportConfig" rows="4" placeholder='{"columnOrder":["ID","NAME"],"hiddenColumns":[]}' style="font-family: monospace; font-size: 12px;"></textarea></div>
+                <div class="modal-actions" style="margin-top: 16px;">
+                    <button type="button" class="btn btn-ghost" id="btnTemplateCancel">Отмена</button>
+                    <button type="submit" class="btn btn-success">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно для создания записи в матрице -->
+    <div class="modal-overlay" id="matrixModal">
+        <div class="modal">
+            <h2 style="margin-bottom: 20px;">Создать запись в матрице доступности</h2>
+            <form id="matrixForm">
+                <div class="form-grid">
+                    <div class="field"><label>Категория</label>
+                        <select name="category_id" id="matrixCategory" required>
+                            <option value="">— Выберите категорию —</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Программа</label>
+                        <select name="program_id" id="matrixProgram" required>
+                            <option value="">— Выберите программу —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost" id="btnCancelMatrix">Отмена</button>
+                    <button type="submit" class="btn btn-success">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: конкретные товары для программа × категория -->
+    <div class="modal-overlay" id="productsModal">
+        <div class="modal" style="max-width: 560px;">
+            <h2 style="margin-bottom: 8px;" id="productsModalTitle">Товары для пакета</h2>
+            <p id="productsModalSubtitle" style="margin-bottom: 16px; font-size: 13px; color: var(--text-muted);"></p>
+            <div class="products-filter-wrap">
+                <input type="text" id="productsFilter" placeholder="Фильтр по наименованию или артикулу — введите текст для поиска" autocomplete="off" />
+            </div>
+            <div class="products-modal-list" id="productsModalList"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="btnProductsModalCancel">Отмена</button>
+                <button type="button" class="btn btn-success" id="btnProductsModalSave">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script>
+        const API = '/api/credit-admin';
+        let programs = [], banks = [], matrix = [], matrixPrograms = [], editingId = null;
+
+        function toast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        async function api(path, opts = {}) {
+            try {
+                const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok) {
+                    console.error('API error:', path, r.status, j);
+                    throw new Error(j.error || r.statusText);
+                }
+                // Отладка: выводим только при проблемах
+                if (path.includes('/programs') || path.includes('/banks') || path.includes('/matrix')) {
+                    if (!j.success || (j.data && Array.isArray(j.data) && j.data.length === 0)) {
+                        console.warn('API response:', path, j);
+                        if (j.data && Array.isArray(j.data) && j.data.length === 0) {
+                            console.warn('  Empty data array returned');
+                        }
+                    }
+                }
+                return j;
+            } catch (e) {
+                console.error('API fetch error:', path, e);
+                throw e;
+            }
+        }
+
+        async function loadBanks() {
+            const j = await api('/banks');
+            if (!j.success) throw new Error(j.error);
+            banks = j.data || [];
+            // Используем code для фильтров, если есть, иначе id
+            const opts = banks.map(b => `<option value="${b.code || b.id}">${b.name}</option>`).join('');
+            ['filterBank','filterBank2'].forEach(id => {
+                const sel = document.getElementById(id);
+                if (sel) sel.innerHTML = '<option value="">Все банки</option>' + opts;
+            });
+            const formBank = document.getElementById('formBank');
+            if (formBank) formBank.innerHTML = '<option value="">—</option>' + banks.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+        }
+
+        async function loadPrograms() {
+            const bank = document.getElementById('filterBank').value || undefined;
+            const term = document.getElementById('filterTerm').value ? parseInt(document.getElementById('filterTerm').value, 10) : undefined;
+            const active = document.getElementById('filterStatus').value || undefined;
+            let q = '';
+            if (bank) q += '&bank=' + encodeURIComponent(bank);
+            if (term) q += '&term=' + term;
+            if (active) q += '&active=' + encodeURIComponent(active);
+            const j = await api('/programs?' + q.replace(/^&/, ''));
+            if (!j.success) {
+                console.error('Failed to load programs:', j);
+                throw new Error(j.error || 'Failed to load programs');
+            }
+            programs = j.data || [];
+            if (!programs.length) {
+                console.warn('⚠ Programs array is empty! Response:', j);
+            } else {
+                console.log('✓ Loaded', programs.length, 'programs');
+            }
+        }
+
+        async function loadPrograms2() {
+            const bank = document.getElementById('filterBank2').value || undefined;
+            const term = document.getElementById('filterTerm2').value ? parseInt(document.getElementById('filterTerm2').value, 10) : undefined;
+            const active = document.getElementById('filterStatus2').value || undefined;
+            let q = '';
+            if (bank) q += '&bank=' + encodeURIComponent(bank);
+            if (term) q += '&term=' + term;
+            if (active) q += '&active=' + encodeURIComponent(active);
+            const j = await api('/programs?' + q.replace(/^&/, ''));
+            if (!j.success) {
+                console.error('Failed to load programs (table 2):', j);
+                throw new Error(j.error || 'Failed to load programs');
+            }
+            programs = j.data || [];
+            if (!programs.length) {
+                console.warn('⚠ Programs array is empty (table 2)! Response:', j);
+            }
+        }
+
+        async function loadMatrix() {
+            const j = await api('/matrix');
+            if (!j.success) throw new Error(j.error);
+            matrix = j.data || [];
+        }
+
+        async function loadMatrixPrograms() {
+            const j = await api('/programs');
+            if (!j.success) throw new Error(j.error);
+            matrixPrograms = j.data || [];
+        }
+
+        function firstPct(p) {
+            const n = p.first_payment_pct;
+            return n == null ? '0%' : (n + '%');
+        }
+
+        async function renderTable(tbodyId) {
+            const tbody = document.getElementById(tbodyId);
+            const useFilter1 = tbodyId === 'programsTable';
+            let responseData = null;
+            try {
+                if (useFilter1) {
+                    await loadPrograms();
+                } else {
+                    await loadPrograms2();
+                }
+            } catch (e) {
+                console.error('Error loading programs:', e);
+                tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-muted);">Ошибка загрузки: ' + (e.message || '') + '</td></tr>';
+                return;
+            }
+            if (!programs.length) {
+                console.error('⚠ No programs found!', {
+                    programs: programs,
+                    programsLength: programs.length
+                });
+                let errorMsg = 'Нет программ.';
+                errorMsg += ' Проверьте, что данные загружены в БД.';
+                tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-muted);padding:20px;text-align:center;border:1px solid #dc2626;border-radius:8px;background:#fee2e2;">' + errorMsg + '</td></tr>';
+                return;
+            }
+            tbody.innerHTML = programs.map(p => {
+                const pid = p.program_id || p.id;
+                const pname = p.program_name || p.name || '';
+                const bankName = p.bank_name || '';
+                const minSum = p.min_amount || p.min_sum || 0;
+                const maxSum = p.max_amount || p.max_sum || 0;
+                const isActive = p.is_active === 1 || p.active === 'Y' || p.active === 1;
+                return `
+                <tr>
+                    <td><strong>${pname.replace(/</g,'&lt;')}</strong></td>
+                    <td>${bankName.replace(/</g,'&lt;')}</td>
+                    <td>${p.term_months || ''}</td>
+                    <td>${minSum} – ${maxSum}</td>
+                    <td>${firstPct(p)}</td>
+                    <td>${p.commission_pct || 0}%</td>
+                    <td><div class="toggle ${isActive ? 'on' : ''}" data-id="${pid}" data-toggle="row"></div></td>
+                    <td class="actions-cell">
+                        <button type="button" class="btn btn-ghost btn-sm" data-edit="${pid}">Edit</button>
+                        <button type="button" class="btn btn-ghost btn-sm" data-delete="${pid}">Delete</button>
+                        <button type="button" class="btn btn-ghost btn-sm" data-archive="${pid}">Archive</button>
+                    </td>
+                </tr>
+            `;
+            }).join('');
+            tbody.querySelectorAll('[data-toggle="row"]').forEach(el => {
+                el.addEventListener('click', async () => {
+                    const id = parseInt(el.dataset.id, 10);
+                    const p = programs.find(x => (x.program_id || x.id) === id);
+                    if (!p) return;
+                    const isActive = p.is_active === 1 || p.active === 'Y' || p.active === 1;
+                    const next = !isActive;
+                    try {
+                        const pid = p.program_id || p.id;
+                        const pname = p.program_name || p.name || '';
+                        const minSum = p.min_amount || p.min_sum || 1000;
+                        const maxSum = p.max_amount || p.max_sum || 100000;
+                        await api('/programs', { method: 'POST', body: JSON.stringify({
+                            id: pid, name: pname, bank_id: p.bank_id, term_months: p.term_months,
+                            rate_pct: p.rate_pct || 0, first_payment_pct: p.first_payment_pct || 0,
+                            min_sum: minSum, max_sum: maxSum, commission_pct: p.commission_pct || 0,
+                            active: next, notes: p.notes || ''
+                        })});
+                        el.classList.toggle('on', next);
+                        p.active = next ? 'Y' : 'N';
+                        p.is_active = next ? 1 : 0;
+                    } catch (e) { toast('Ошибка: ' + (e.message || '')); }
+                });
+            });
+            tbody.querySelectorAll('[data-edit]').forEach(el => {
+                el.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // Предотвращаем всплытие события
+                    const id = parseInt(el.dataset.edit, 10);
+                    if (!id || isNaN(id)) {
+                        console.error('Invalid program ID:', el.dataset.edit);
+                        toast('Ошибка: неверный ID программы');
+                        return;
+                    }
+                    console.log('Opening form for program ID:', id);
+                    await openForm(id);
+                });
+            });
+            tbody.querySelectorAll('[data-delete]').forEach(el => el.addEventListener('click', async () => {
+                try {
+                    await api('/programs/' + el.dataset.delete, { method: 'DELETE' });
+                    toast('Удалено');
+                    renderTable('programsTable'); renderTable('programsTable2'); renderMatrix();
+                } catch (e) { toast('Ошибка: ' + (e.message || '')); }
+            }));
+            tbody.querySelectorAll('[data-archive]').forEach(el => el.addEventListener('click', async () => {
+                const id = parseInt(el.dataset.archive, 10);
+                const p = programs.find(x => (x.program_id || x.id) === id);
+                if (!p) return;
+                try {
+                    const pid = p.program_id || p.id;
+                    const pname = p.program_name || p.name || '';
+                    const minSum = p.min_amount || p.min_sum || 1000;
+                    const maxSum = p.max_amount || p.max_sum || 100000;
+                    await api('/programs', { method: 'POST', body: JSON.stringify({
+                        id: pid, name: pname, bank_id: p.bank_id, term_months: p.term_months,
+                        rate_pct: p.rate_pct || 0, first_payment_pct: p.first_payment_pct || 0,
+                        min_sum: minSum, max_sum: maxSum, commission_pct: p.commission_pct || 0,
+                        active: false, notes: p.notes || ''
+                    })});
+                    toast('В архив');
+                    renderTable('programsTable'); renderTable('programsTable2'); renderMatrix();
+                } catch (e) { toast('Ошибка: ' + (e.message || '')); }
+            }));
+        }
+
+        function getMatrixFilterValues() {
+            const cat = (document.getElementById('matrixFilterCategory') || {}).value || '';
+            const prog = (document.getElementById('matrixFilterProgram') || {}).value || '';
+            const bank = (document.getElementById('matrixFilterBank') || {}).value || '';
+            const term = (document.getElementById('matrixFilterTerm') || {}).value || '';
+            const rate = (document.getElementById('matrixFilterRate') || {}).value || '';
+            return { cat: cat.trim().toLowerCase(), prog: prog.trim().toLowerCase(), bank, term, rate: rate.trim() };
+        }
+
+        function applyMatrixFilters() {
+            const catsAll = [...new Map(matrix.map(m => [m.category_id, { id: m.category_id, name: m.category_name }])).values()];
+            const f = getMatrixFilterValues();
+            const catMatch = c => !f.cat || (c.name || '').toLowerCase().includes(f.cat);
+            const cats = catsAll.filter(catMatch);
+
+            let progsAll = matrixPrograms.length
+                ? [...new Map(matrixPrograms.map(p => {
+                    const id = p.program_id || p.id;
+                    const min = p.min_sum ?? p.min_amount, max = p.max_sum ?? p.max_amount;
+                    return [id, { id, name: (p.program_name || p.name || ''), bank_id: p.bank_id, term_months: p.term_months, rate_pct: p.rate_pct != null ? String(p.rate_pct) : '', min_sum: min, max_sum: max }];
+                })).values()]
+                : [...new Map(matrix.map(m => [m.program_id, { id: m.program_id, name: m.program_name || '', bank_id: null, term_months: null, rate_pct: '', min_sum: null, max_sum: null }])).values()];
+            const bankIdForCode = (codeOrId) => {
+                if (!codeOrId) return null;
+                const b = banks.find(x => (x.code || '') === codeOrId || String(x.id) === codeOrId);
+                return b ? b.id : null;
+            };
+            const progMatch = p => {
+                if (f.prog && !(p.name || '').toLowerCase().includes(f.prog)) return false;
+                if (f.bank) {
+                    const bid = bankIdForCode(f.bank);
+                    if (bid != null && (p.bank_id == null || String(p.bank_id) !== String(bid))) return false;
+                }
+                if (f.term && (p.term_months == null || String(p.term_months) !== f.term)) return false;
+                if (f.rate && !(p.rate_pct && p.rate_pct.includes(f.rate))) return false;
+                return true;
+            };
+            const progs = progsAll.filter(progMatch);
+            return { cats, progs };
+        }
+
+        function renderMatrixTable() {
+            const thead = document.getElementById('matrixHead');
+            const tbody = document.getElementById('matrixBody');
+            if (!thead || !tbody) return;
+            const selBank = document.getElementById('matrixFilterBank');
+            if (selBank && banks.length && selBank.options.length <= 1) {
+                selBank.innerHTML = '<option value="">Все</option>' + banks.map(b => `<option value="${(b.code || b.id)}">${(b.name || '').replace(/</g,'&lt;')}</option>`).join('');
+            }
+            const { cats, progs } = applyMatrixFilters();
+            const fmtNum = (n) => (n == null || n === '') ? '' : Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+            const fmtRange = (min, max) => {
+                const a = fmtNum(min), b = fmtNum(max);
+                if (!a && !b) return '—';
+                return (a || '0') + '–' + (b || '0') + ' ₽';
+            };
+            const thCell = (p) => {
+                const name = (p.name || '').replace(/</g, '&lt;');
+                const range = fmtRange(p.min_sum, p.max_sum);
+                const key = '#' + (p.id ?? '');
+                const rangeLabel = range !== '—' ? ('диапазон сумм: ' + range) : 'диапазон сумм: —';
+                const meta = [rangeLabel, key].filter(Boolean).join(' · ');
+                return `<th><div class="matrix-th-block"><span class="matrix-th-name">${name}</span><span class="matrix-th-meta">${meta.replace(/</g, '&lt;')}</span></div></th>`;
+            };
+            thead.innerHTML = '<th>Категория</th>' + progs.map(thCell).join('');
+            tbody.innerHTML = cats.map(c => {
+                const cells = progs.map(p => {
+                    const m = matrix.find(x => x.category_id === c.id && x.program_id === p.id);
+                    const en = m && m.enabled === 1;
+                    const cn = (c.name || '').replace(/"/g, '&quot;');
+                    const pn = (p.name || '').replace(/"/g, '&quot;');
+                    return `<td><div class="matrix-cell">
+                        <input type="checkbox" data-cat="${c.id}" data-prog="${p.id}" ${en ? 'checked' : ''}>
+                        <button type="button" class="btn btn-ghost btn-products" data-cat="${c.id}" data-catname="${cn}" data-prog="${p.id}" data-progname="${pn}" title="Конкретные товары">Товары</button>
+                    </div></td>`;
+                }).join('');
+                return `<tr><td><strong>${(c.name || '').replace(/</g,'&lt;')}</strong></td>${cells}</tr>`;
+            }).join('');
+            if (!cats.length || !progs.length) {
+                const cols = Math.max(1, 1 + progs.length);
+                tbody.insertAdjacentHTML('beforeend', '<tr><td colspan="' + cols + '" style="color:var(--text-muted);padding:16px;">Нет данных по фильтрам. Измените условия.</td></tr>');
+            }
+            tbody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', async () => {
+                    try {
+                        await api('/matrix', { method: 'POST', body: JSON.stringify({
+                            program_id: parseInt(cb.dataset.prog, 10),
+                            category_id: parseInt(cb.dataset.cat, 10),
+                            enabled: cb.checked
+                        })});
+                    } catch (e) { toast('Ошибка матрицы'); cb.checked = !cb.checked; }
+                });
+            });
+            tbody.querySelectorAll('.btn-products').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openProductsModal(
+                        parseInt(btn.dataset.cat, 10),
+                        btn.dataset.catname || '',
+                        parseInt(btn.dataset.prog, 10),
+                        btn.dataset.progname || ''
+                    );
+                });
+            });
+        }
+
+        async function renderMatrix() {
+            try {
+                await loadMatrix();
+                await loadMatrixPrograms();
+                if (!banks.length) await loadBanks();
+            } catch (e) {
+                const thead = document.getElementById('matrixHead');
+                const tbody = document.getElementById('matrixBody');
+                if (thead) thead.innerHTML = '';
+                if (tbody) tbody.innerHTML = '<tr><td style="color:var(--text-muted);">Ошибка загрузки матрицы</td></tr>';
+                return;
+            }
+            renderMatrixTable();
+        }
+
+        async function openForm(id) {
+            editingId = id || null;
+            document.getElementById('formTitle').textContent = id ? 'Редактировать программу' : 'Создать программу';
+            const form = document.getElementById('programForm');
+            form.reset();
+            const toggleWrap = form.querySelector('[data-toggle="status"]');
+            if (toggleWrap) {
+                toggleWrap.classList.add('on');
+                form.querySelector('input[name="active"]').value = '1';
+                toggleWrap.onclick = () => {
+                    toggleWrap.classList.toggle('on');
+                    form.querySelector('input[name="active"]').value = toggleWrap.classList.contains('on') ? '1' : '0';
+                };
+            }
+            if (id) {
+                try {
+                    console.log('Loading program with ID:', id);
+                    const j = await api('/programs/' + id);
+                    console.log('Program API response:', j);
+                    if (!j.success || !j.data) { 
+                        console.error('Program not found or error:', j);
+                        toast('Программа не найдена: ' + (j.error || 'Неизвестная ошибка')); 
+                        return; 
+                    }
+                    const p = j.data;
+                    console.log('Program data:', p);
+                    // Используем правильные поля из ответа API
+                    const programId = p.program_id || p.id;
+                    const programName = p.program_name || p.name || '';
+                    const bankId = p.bank_id || null;
+                    const termMonths = p.term_months || 24;
+                    const ratePct = p.rate_pct ?? 0;
+                    const firstPaymentPct = p.first_payment_pct ?? 0;
+                    const minSum = p.min_amount || p.min_sum || 1000;
+                    const maxSum = p.max_amount || p.max_sum || 100000;
+                    const commissionPct = p.commission_pct ?? 0;
+                    const notes = p.notes || '';
+                    const isActive = p.is_active === 1 || p.active === 'Y' || p.active === 1;
+                    
+                    // Заполняем форму
+                    const nameInput = form.querySelector('[name="name"]');
+                    const bankInput = form.querySelector('[name="bank_id"]');
+                    const termInput = form.querySelector('[name="term_months"]');
+                    const rateInput = form.querySelector('[name="rate_pct"]');
+                    const firstInput = form.querySelector('[name="first_payment_pct"]');
+                    const minInput = form.querySelector('[name="min_sum"]');
+                    const maxInput = form.querySelector('[name="max_sum"]');
+                    const commInput = form.querySelector('[name="commission_pct"]');
+                    const notesInput = form.querySelector('[name="notes"]');
+                    
+                    if (nameInput) nameInput.value = programName;
+                    if (bankInput) bankInput.value = bankId || '';
+                    if (termInput) termInput.value = termMonths;
+                    if (rateInput) rateInput.value = ratePct;
+                    if (firstInput) firstInput.value = String(firstPaymentPct);
+                    if (minInput) minInput.value = minSum;
+                    if (maxInput) maxInput.value = maxSum;
+                    if (commInput) commInput.value = commissionPct;
+                    if (notesInput) notesInput.value = notes;
+                    
+                    if (toggleWrap) { 
+                        toggleWrap.classList.toggle('on', isActive); 
+                        const activeInput = form.querySelector('input[name="active"]');
+                        if (activeInput) activeInput.value = isActive ? '1' : '0'; 
+                    }
+                    editingId = programId; // Обновляем editingId с правильным ID
+                    console.log('Form filled, editingId:', editingId);
+                } catch (e) { 
+                    console.error('Ошибка загрузки программы:', e);
+                    toast('Ошибка загрузки: ' + (e.message || '')); 
+                    return; 
+                }
+            }
+            document.getElementById('formModal').classList.add('open');
+        }
+
+        function closeForm() {
+            document.getElementById('formModal').classList.remove('open');
+            editingId = null;
+        }
+
+        document.getElementById('programForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const payload = {
+                id: editingId || undefined,
+                name: fd.get('name') || '',
+                bank_id: parseInt(fd.get('bank_id'), 10) || null,
+                term_months: parseInt(fd.get('term_months'), 10) || 24,
+                rate_pct: parseFloat(fd.get('rate_pct')) || 0,
+                first_payment_pct: parseInt(fd.get('first_payment_pct'), 10) || 0,
+                min_sum: parseInt(fd.get('min_sum'), 10) || 1000,
+                max_sum: parseInt(fd.get('max_sum'), 10) || 100000,
+                commission_pct: parseFloat(fd.get('commission_pct')) || 0,
+                active: fd.get('active') === '1',
+                notes: fd.get('notes') || null
+            };
+            if (!payload.bank_id) { toast('Выберите банк'); return; }
+            try {
+                const j = await api('/programs', { method: 'POST', body: JSON.stringify(payload) });
+                if (!j.success) throw new Error(j.error);
+                closeForm();
+                toast('Программа сохранена');
+                renderTable('programsTable'); renderTable('programsTable2'); renderMatrix();
+            } catch (err) {
+                toast('Ошибка: ' + (err.message || ''));
+            }
+        });
+
+        document.getElementById('btnCancel').addEventListener('click', closeForm);
+        document.getElementById('btnCreate').addEventListener('click', () => openForm(null));
+        document.getElementById('btnCreate2').addEventListener('click', () => openForm(null));
+        document.getElementById('btnCreateSettings').addEventListener('click', () => openForm(null));
+        
+        // Обработчики для матрицы доступности
+        async function openMatrixForm() {
+            const modal = document.getElementById('matrixModal');
+            const categorySelect = document.getElementById('matrixCategory');
+            const programSelect = document.getElementById('matrixProgram');
+            
+            // Загружаем категории
+            try {
+                const catsRes = await api('/categories');
+                if (catsRes.success && catsRes.data) {
+                    categorySelect.innerHTML = '<option value="">— Выберите категорию —</option>' +
+                        catsRes.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                }
+            } catch (e) {
+                console.error('Error loading categories:', e);
+                toast('Ошибка загрузки категорий');
+                return;
+            }
+            
+            // Загружаем программы (только активные)
+            try {
+                const progsRes = await api('/programs?active=Y');
+                if (progsRes.success && progsRes.data) {
+                    programSelect.innerHTML = '<option value="">— Выберите программу —</option>' +
+                        progsRes.data.map(p => `<option value="${p.program_id || p.id}">${p.program_name || p.name}</option>`).join('');
+                }
+            } catch (e) {
+                console.error('Error loading programs:', e);
+                toast('Ошибка загрузки программ');
+                return;
+            }
+            
+            modal.classList.add('open');
+        }
+        
+        function closeMatrixForm() {
+            document.getElementById('matrixModal').classList.remove('open');
+            document.getElementById('matrixForm').reset();
+        }
+        
+        document.getElementById('btnCreateMatrix').addEventListener('click', openMatrixForm);
+        document.getElementById('btnCancelMatrix').addEventListener('click', closeMatrixForm);
+        
+        document.getElementById('matrixForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const categoryId = parseInt(fd.get('category_id'), 10);
+            const programId = parseInt(fd.get('program_id'), 10);
+            
+            if (!categoryId || !programId) {
+                toast('Выберите категорию и программу');
+                return;
+            }
+            
+            try {
+                const result = await api('/matrix', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        program_id: programId,
+                        category_id: categoryId,
+                        enabled: true
+                    })
+                });
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Ошибка создания записи');
+                }
+                
+                closeMatrixForm();
+                toast('Запись в матрице создана');
+                renderMatrix();
+            } catch (err) {
+                toast('Ошибка: ' + (err.message || ''));
+            }
+        });
+
+        // Модальное окно «Конкретные товары» для ячейки матрицы
+        let productsModalCatId = null, productsModalCatName = '', productsModalProgId = null, productsModalProgName = '';
+        let productsModalList = [];
+        let productsFilterDebounce = null;
+
+        async function fetchProductsForModal() {
+            const search = (document.getElementById('productsFilter') || {}).value || '';
+            const j = await api('/matrix/products?program_id=' + productsModalProgId + '&category_id=' + productsModalCatId + '&search=' + encodeURIComponent(search) + '&limit=500');
+            if (!j.success) throw new Error(j.error || 'Ошибка загрузки товаров');
+            return j.data || [];
+        }
+
+        function renderProductsList(data) {
+            productsModalList = data;
+            const listEl = document.getElementById('productsModalList');
+            if (!listEl) return;
+            listEl.innerHTML = data.map(prod => {
+                const name = (prod.name || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                const art = (prod.article || '').replace(/</g, '&lt;');
+                return `<label><input type="checkbox" data-product-id="${prod.id}" ${prod.linked ? 'checked' : ''}><span class="prod-name">${name}</span><span class="prod-meta">${art} · ${prod.price} ₽</span></label>`;
+            }).join('');
+            if (!data.length) listEl.innerHTML = '<div style="padding:16px;color:var(--text-muted);">Нет товаров в категории' + (document.getElementById('productsFilter').value.trim() ? ' по фильтру' : '') + '.</div>';
+        }
+
+        async function openProductsModal(catId, catName, progId, progName) {
+            productsModalCatId = catId;
+            productsModalCatName = catName;
+            productsModalProgId = progId;
+            productsModalProgName = progName;
+            document.getElementById('productsModalTitle').textContent = 'Конкретные товары для пакета';
+            document.getElementById('productsModalSubtitle').textContent = (progName || '') + ' × ' + (catName || '');
+            document.getElementById('productsFilter').value = '';
+            const listEl = document.getElementById('productsModalList');
+            listEl.innerHTML = '<div style="padding:16px;color:var(--text-muted);">Загрузка…</div>';
+            document.getElementById('productsModal').classList.add('open');
+            try {
+                const data = await fetchProductsForModal();
+                renderProductsList(data);
+            } catch (e) {
+                listEl.innerHTML = '<div style="padding:16px;color:#c00;">Ошибка: ' + (e.message || '') + '</div>';
+            }
+            setTimeout(() => { const q = document.getElementById('productsFilter'); if (q) q.focus(); }, 100);
+        }
+
+        function closeProductsModal() {
+            document.getElementById('productsModal').classList.remove('open');
+            productsModalCatId = productsModalProgId = null;
+        }
+
+        document.getElementById('btnProductsModalCancel').addEventListener('click', closeProductsModal);
+        document.getElementById('btnProductsModalSave').addEventListener('click', async () => {
+            const listEl = document.getElementById('productsModalList');
+            const boxes = listEl.querySelectorAll('input[type="checkbox"]:checked');
+            const productIds = Array.from(boxes).map(b => parseInt(b.dataset.productId, 10)).filter(Boolean);
+            try {
+                const r = await api('/matrix/products', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        program_id: productsModalProgId,
+                        category_id: productsModalCatId,
+                        product_ids: productIds
+                    })
+                });
+                if (!r.success) throw new Error(r.error || 'Ошибка сохранения');
+                closeProductsModal();
+                toast('Сохранено');
+            } catch (e) {
+                toast('Ошибка: ' + (e.message || ''));
+            }
+        });
+
+        document.getElementById('productsFilter').addEventListener('input', () => {
+            clearTimeout(productsFilterDebounce);
+            productsFilterDebounce = setTimeout(async () => {
+                if (!productsModalProgId || !productsModalCatId) return;
+                const listEl = document.getElementById('productsModalList');
+                listEl.innerHTML = '<div style="padding:16px;color:var(--text-muted);">Поиск…</div>';
+                try {
+                    const data = await fetchProductsForModal();
+                    renderProductsList(data);
+                } catch (e) {
+                    listEl.innerHTML = '<div style="padding:16px;color:#c00;">Ошибка: ' + (e.message || '') + '</div>';
+                }
+            }, 280);
+        });
+
+        ['matrixFilterCategory','matrixFilterProgram','matrixFilterBank','matrixFilterTerm','matrixFilterRate'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => renderMatrixTable());
+            if (el) el.addEventListener('change', () => renderMatrixTable());
+        });
+        const btnReset = document.getElementById('matrixFilterReset');
+        if (btnReset) btnReset.addEventListener('click', () => {
+            const q = (id) => document.getElementById(id);
+            if (q('matrixFilterCategory')) q('matrixFilterCategory').value = '';
+            if (q('matrixFilterProgram')) q('matrixFilterProgram').value = '';
+            if (q('matrixFilterBank')) q('matrixFilterBank').value = '';
+            if (q('matrixFilterTerm')) q('matrixFilterTerm').value = '';
+            if (q('matrixFilterRate')) q('matrixFilterRate').value = '';
+            renderMatrixTable();
+        });
+
+        document.querySelectorAll('.nav-link').forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = a.dataset.page;
+                document.querySelectorAll('.nav-link').forEach(x => x.classList.remove('active'));
+                a.classList.add('active');
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                const el = document.getElementById('page-' + page);
+                if (el) el.classList.add('active');
+                if (page === 'dashboard' || page === 'programs') { renderTable('programsTable'); renderTable('programsTable2'); }
+                if (page === 'matrix') renderMatrix();
+                if (page === 'reports') loadReportsPage();
+                if (page === 'ec-testing' && !providersCache.length) loadProviders();
+                if (page === 'settings') {
+                    loadEasyCreditSettings();
+                    loadIuteSettings();
+                }
+            });
+        });
+
+        // === Отчёты (общее ядро) ===
+        let reportsList = [];
+        let selectedReportId = null;
+        let reportParams = [];
+        let reportData = [];
+        let reportFilteredData = [];
+        let reportCols = [];
+        let reportParamsForExport = {};
+        let reportNameForExport = '';
+        let reportSortCol = '';
+        let reportSortAsc = true;
+        let reportColumnFilters = {};
+
+        async function loadReportsPage() {
+            const listEl = document.getElementById('reportsList');
+            listEl.innerHTML = '<div style="color: var(--text-muted); padding: 16px;">Загрузка...</div>';
+            try {
+                const j = await api('/reports');
+                if (!j.success) throw new Error(j.error || 'Ошибка загрузки');
+                reportsList = j.data || [];
+                if (!reportsList.length) {
+                    listEl.innerHTML = '<div style="color: var(--text-muted); padding: 16px;">Нет отчётов. Выполните sql/12_cred_reports.sql</div>';
+                    return;
+                }
+                listEl.innerHTML = reportsList.map(r => `
+                    <button type="button" class="btn btn-ghost" style="text-align: left; justify-content: flex-start;" data-report-id="${r.id || r.report_id}">
+                        <strong>${(r.name || r.report_name || '').replace(/</g,'&lt;')}</strong>
+                        <span style="font-size: 12px; color: var(--text-muted); display: block; margin-top: 2px;">${(r.description || '').replace(/</g,'&lt;')}</span>
+                    </button>
+                `).join('');
+                listEl.querySelectorAll('[data-report-id]').forEach(btn => {
+                    btn.addEventListener('click', () => selectReport(parseInt(btn.dataset.reportId, 10)));
+                });
+            } catch (e) {
+                listEl.innerHTML = '<div style="color: #c00; padding: 16px;">Ошибка: ' + (e.message || '').replace(/</g,'&lt;') + '</div>';
+            }
+            document.getElementById('reportFormArea').style.display = 'none';
+            document.getElementById('reportResultArea').style.display = 'none';
+            document.getElementById('reportEmptyState').style.display = 'block';
+        }
+
+        async function selectReport(reportId) {
+            selectedReportId = reportId;
+            const report = reportsList.find(r => (r.id || r.report_id) === reportId);
+            document.getElementById('reportEmptyState').style.display = 'none';
+            document.getElementById('reportFormArea').style.display = 'block';
+            document.getElementById('reportFormTitle').textContent = report?.name || report?.report_name || '—';
+            document.getElementById('reportFormDesc').textContent = report?.description || '—';
+            document.getElementById('reportResultArea').style.display = 'none';
+
+            const paramsEl = document.getElementById('reportParamsForm');
+            paramsEl.innerHTML = 'Загрузка параметров...';
+            try {
+                const j = await api('/reports/' + reportId + '/params');
+                if (!j.success) throw new Error(j.error || 'Ошибка');
+                reportParams = j.data || [];
+                paramsEl.innerHTML = '';
+
+                for (const p of reportParams) {
+                    const code = p.param_code || p.param_name || '';
+                    const name = p.param_name || code;
+                    const type = (p.param_type || 'string').toLowerCase();
+                    const def = p.default_value || '';
+                    const required = p.required === 'Y';
+                    const options = p.options_json ? (typeof p.options_json === 'string' ? JSON.parse(p.options_json) : p.options_json) : null;
+
+                    const wrap = document.createElement('div');
+                    wrap.className = 'field';
+                    const label = document.createElement('label');
+                    label.textContent = name + (required ? ' *' : '');
+                    wrap.appendChild(label);
+
+                    if (type === 'select') {
+                        const sel = document.createElement('select');
+                        sel.dataset.paramCode = code;
+                        sel.innerHTML = '<option value="">— Все —</option>';
+                        if (options && options.source === 'banks') {
+                            (async () => {
+                                const bj = await api('/banks');
+                                if (bj.success && bj.data) {
+                                    bj.data.forEach(b => {
+                                        sel.appendChild(new Option(b.name, b.id));
+                                    });
+                                }
+                            })();
+                        } else if (Array.isArray(options)) {
+                            options.forEach(opt => {
+                                const val = typeof opt === 'object' ? (opt.id || opt.value) : opt;
+                                const txt = typeof opt === 'object' ? (opt.name || opt.label || val) : opt;
+                                sel.appendChild(new Option(txt, val));
+                            });
+                        }
+                        wrap.appendChild(sel);
+                    } else if (type === 'date') {
+                        const inp = document.createElement('input');
+                        inp.type = 'date';
+                        inp.dataset.paramCode = code;
+                        inp.value = def;
+                        wrap.appendChild(inp);
+                    } else if (type === 'number') {
+                        const inp = document.createElement('input');
+                        inp.type = 'number';
+                        inp.dataset.paramCode = code;
+                        inp.value = def;
+                        wrap.appendChild(inp);
+                    } else {
+                        const inp = document.createElement('input');
+                        inp.type = 'text';
+                        inp.dataset.paramCode = code;
+                        inp.placeholder = def;
+                        inp.value = def;
+                        wrap.appendChild(inp);
+                    }
+                    paramsEl.appendChild(wrap);
+                }
+                if (!reportParams.length) paramsEl.innerHTML = '<span style="color: var(--text-muted);">Нет параметров</span>';
+            } catch (e) {
+                paramsEl.innerHTML = '<div style="color: #c00;">Ошибка: ' + (e.message || '').replace(/</g,'&lt;') + '</div>';
+            }
+        }
+
+        function getReportFormParams() {
+            const paramsEl = document.getElementById('reportParamsForm');
+            const inputs = paramsEl?.querySelectorAll('[data-param-code]') || [];
+            const params = {};
+            inputs.forEach(inp => {
+                const code = inp.dataset.paramCode;
+                let val = inp.value;
+                if (val !== '' && val !== null && val !== undefined) {
+                    if (inp.type === 'number') val = parseFloat(val) || val;
+                    params[code] = val;
+                }
+            });
+            return params;
+        }
+
+        function applyReportFilters() {
+            const search = (document.getElementById('reportGlobalSearch')?.value || '').toLowerCase();
+            const sortCol = document.getElementById('reportSortCol')?.value || '';
+            const sortAsc = document.getElementById('reportSortAsc')?.checked !== false;
+            let data = [...reportData];
+            if (search) {
+                data = data.filter(row => {
+                    return Object.values(row).some(v => String(v || '').toLowerCase().includes(search));
+                });
+            }
+            Object.entries(reportColumnFilters).forEach(([col, val]) => {
+                if (val) data = data.filter(row => String(row[col] || '').toLowerCase().includes(val));
+            });
+            if (sortCol && reportCols.includes(sortCol)) {
+                data.sort((a, b) => {
+                    const va = a[sortCol];
+                    const vb = b[sortCol];
+                    const cmp = (va == null && vb == null) ? 0 : (va == null ? 1 : (vb == null ? -1 : (String(va).localeCompare(String(vb), undefined, { numeric: true }))));
+                    return sortAsc ? cmp : -cmp;
+                });
+            }
+            reportFilteredData = data;
+            renderReportTable(data);
+            document.getElementById('reportResultMeta').textContent = `Показано ${data.length} из ${reportData.length} записей`;
+        }
+
+        function renderReportTable(data) {
+            const resultEl = document.getElementById('reportResultTable');
+            if (!reportCols.length) return;
+            const hasFilters = document.getElementById('reportResultTable')?.querySelector('[data-col-filter]');
+            let html = '<table class="bi-report-table" style="width:100%;font-size:13px;border-collapse:collapse;"><thead><tr>';
+            reportCols.forEach(c => {
+                html += '<th style="padding:8px;text-align:left;background:#e5e7eb;cursor:pointer;user-select:none;" data-sort-col="' + c.replace(/"/g,'&quot;') + '" title="Сортировать">' + c.replace(/</g,'&lt;') + ' ▾▴</th>';
+            });
+            html += '</tr><tr class="bi-filter-row">';
+            reportCols.forEach(c => {
+                const fv = (reportColumnFilters[c] || '');
+                html += '<th style="padding:4px;background:#f9fafb;"><input type="text" data-col-filter="' + c.replace(/"/g,'&quot;') + '" value="' + fv.replace(/"/g,'&quot;').replace(/</g,'&lt;') + '" placeholder="Фильтр..." style="width:100%;padding:4px 6px;font-size:11px;border:1px solid #e5e7eb;border-radius:4px;"></th>';
+            });
+            html += '</tr></thead><tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                reportCols.forEach(c => {
+                    html += '<td style="padding:8px;border-bottom:1px solid #e5e7eb;">' + (row[c] != null ? String(row[c]).replace(/</g,'&lt;') : '') + '</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            resultEl.innerHTML = html;
+            resultEl.querySelectorAll('th[data-sort-col]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const col = th.dataset.sortCol;
+                    reportSortAsc = (reportSortCol === col) ? !reportSortAsc : true;
+                    reportSortCol = col;
+                    document.getElementById('reportSortCol').value = col;
+                    document.getElementById('reportSortAsc').checked = reportSortAsc;
+                    applyReportFilters();
+                });
+            });
+            resultEl.querySelectorAll('[data-col-filter]').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    reportColumnFilters[inp.dataset.colFilter] = inp.value.trim();
+                    applyReportFilters();
+                });
+            });
+        }
+
+        document.getElementById('btnRunReport')?.addEventListener('click', async () => {
+            if (!selectedReportId) return;
+            const params = getReportFormParams();
+            reportParamsForExport = params;
+            reportNameForExport = document.getElementById('reportFormTitle')?.textContent || 'Report';
+            const btn = document.getElementById('btnRunReport');
+            btn.disabled = true;
+            btn.textContent = 'Формирование...';
+            const ac = new AbortController();
+            const t = setTimeout(() => ac.abort(), 30000);
+            try {
+                const j = await api('/reports/' + selectedReportId + '/execute', {
+                    method: 'POST',
+                    body: JSON.stringify({ params }),
+                    signal: ac.signal,
+                });
+                clearTimeout(t);
+                document.getElementById('reportResultArea').style.display = 'block';
+                const resultEl = document.getElementById('reportResultTable');
+                if (!j.success) {
+                    resultEl.innerHTML = '<div style="color: #c00; padding: 16px;">Ошибка: ' + (j.error || '').replace(/</g,'&lt;') + '</div>';
+                    document.getElementById('reportResultMeta').textContent = '';
+                } else {
+                    reportData = j.data || [];
+                    reportCols = reportData.length ? Object.keys(reportData[0]).filter(k => !k.startsWith('_')) : [];
+                    reportColumnFilters = {};
+                    reportFilteredData = [];
+                    const sortSel = document.getElementById('reportSortCol');
+                    sortSel.innerHTML = '<option value="">— Сортировка —</option>' + reportCols.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                    document.getElementById('reportGlobalSearch').value = '';
+                    applyReportFilters();
+                }
+            } catch (e) {
+                clearTimeout(t);
+                document.getElementById('reportResultArea').style.display = 'block';
+                document.getElementById('reportResultTable').innerHTML = '<div style="color: #c00; padding: 16px;">' +
+                    (e.name === 'AbortError' ? 'Превышено время ожидания (30 сек)' : ('Ошибка: ' + (e.message || '').replace(/</g,'&lt;'))) + '</div>';
+                document.getElementById('reportResultMeta').textContent = '';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '▶ Сформировать отчёт';
+            }
+        });
+
+        document.getElementById('reportGlobalSearch')?.addEventListener('input', () => applyReportFilters());
+        document.getElementById('reportSortCol')?.addEventListener('change', () => applyReportFilters());
+        document.getElementById('reportSortAsc')?.addEventListener('change', () => applyReportFilters());
+
+        function doExport(format) {
+            const data = reportFilteredData.length ? reportFilteredData : reportData;
+            const cols = reportCols;
+            if (!data.length || !cols.length) { toast('Сформируйте отчёт сначала'); return; }
+            const fname = (reportNameForExport || 'report').replace(/[^a-zA-Z0-9а-яА-ЯёЁ\s-_]/g, '').trim() || 'report';
+            try {
+                if (format === 'csv') {
+                    const BOM = '\uFEFF';
+                    const line = (row) => cols.map(c => {
+                        let v = String(row[c] ?? '').replace(/"/g, '""');
+                        if (/[;\n"\r]/.test(v)) v = '"' + v + '"';
+                        return v;
+                    }).join(';');
+                    const csv = BOM + cols.join(';') + '\n' + data.map(line).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = fname + '.csv';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                } else if (format === 'excel' || format === 'xlsx') {
+                    if (typeof XLSX === 'undefined') {
+                        toast('Библиотека Excel не загружена. Обновите страницу.');
+                        return;
+                    }
+                    const ws = XLSX.utils.json_to_sheet(data.map(r => { const o={}; cols.forEach(c=>o[c]=r[c]); return o; }));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, (fname || 'Sheet1').substring(0, 31));
+                    XLSX.writeFile(wb, fname + '.xlsx');
+                } else if (format === 'pdf') {
+                    (async () => {
+                        try {
+                            const r = await fetch(API + '/reports/export-pdf', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'same-origin',
+                                body: JSON.stringify({
+                                    data: data,
+                                    columns: cols,
+                                    report_name: reportNameForExport || fname,
+                                }),
+                            });
+                            if (!r.ok) {
+                                const err = await r.json().catch(() => ({}));
+                                throw new Error(err.error || 'Ошибка экспорта');
+                            }
+                            const blob = await r.blob();
+                            if (blob.size < 100) {
+                                const t = await blob.text();
+                                if (t && t.startsWith('{')) {
+                                    const j = JSON.parse(t);
+                                    throw new Error(j.error || 'Ошибка');
+                                }
+                            }
+                            const a = document.createElement('a');
+                            a.href = URL.createObjectURL(blob);
+                            a.download = fname + '.pdf';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(a.href);
+                            toast('Выгрузка сохранена');
+                        } catch (e) {
+                            toast('Ошибка: ' + (e.message || ''));
+                        }
+                    })();
+                    return;
+                }
+                toast('Выгрузка сохранена');
+            } catch (e) {
+                toast('Ошибка: ' + (e.message || ''));
+            }
+        }
+        document.getElementById('btnExportCsv')?.addEventListener('click', () => doExport('csv'));
+        document.getElementById('btnExportExcel')?.addEventListener('click', () => doExport('excel'));
+        document.getElementById('btnExportPdf')?.addEventListener('click', () => doExport('pdf'));
+
+        document.getElementById('btnEditReportTemplate')?.addEventListener('click', async () => {
+            if (!selectedReportId) return;
+            try {
+                const j = await api('/reports/' + selectedReportId);
+                if (!j.success || !j.data) throw new Error(j.error || 'Ошибка загрузки');
+                const d = j.data;
+                document.getElementById('tmplReportName').value = d.name || '';
+                document.getElementById('tmplReportDesc').value = d.description || '';
+                document.getElementById('tmplReportConfig').value = (d.template_html && typeof d.template_html === 'string') ? d.template_html : '';
+                document.getElementById('reportTemplateModal').classList.add('open');
+            } catch (e) {
+                toast('Ошибка: ' + (e.message || ''));
+            }
+        });
+        document.getElementById('btnTemplateCancel')?.addEventListener('click', () => {
+            document.getElementById('reportTemplateModal').classList.remove('open');
+        });
+        document.getElementById('reportTemplateForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('tmplReportName').value.trim();
+            const desc = document.getElementById('tmplReportDesc').value.trim();
+            const cfg = document.getElementById('tmplReportConfig').value.trim();
+            try {
+                const j = await api('/reports/' + selectedReportId + '/template', {
+                    method: 'PUT',
+                    body: JSON.stringify({ name, description: desc || null, template_html: cfg || null }),
+                });
+                if (!j.success) throw new Error(j.error || 'Ошибка');
+                document.getElementById('reportTemplateModal').classList.remove('open');
+                document.getElementById('reportFormTitle').textContent = name;
+                document.getElementById('reportFormDesc').textContent = desc;
+                toast('Шаблон сохранён');
+            } catch (err) {
+                toast('Ошибка: ' + (err.message || ''));
+            }
+        });
+
+        async function loadEasyCreditSettings() {
+            const form = document.getElementById('easycreditSettingsForm');
+            const status = document.getElementById('ecSettingsStatus');
+            if (!form) return;
+            try {
+                const j = await api('/easycredit-settings');
+                if (j.success && j.data) {
+                    const d = j.data;
+                    const envEl = document.getElementById('ecEnv');
+                    const baseEl = document.getElementById('ecBaseUrl');
+                    const userEl = document.getElementById('ecApiUser');
+                    const pwdEl = document.getElementById('ecApiPassword');
+                    if (envEl) envEl.value = d.env || 'sandbox';
+                    if (baseEl) baseEl.value = d.base_url || '';
+                    if (userEl) userEl.value = d.api_user || '';
+                    if (pwdEl) pwdEl.placeholder = d.api_password_masked ? '********' : 'demo';
+                }
+            } catch (e) {
+                if (status) status.textContent = 'Ошибка загрузки: ' + (e.message || '');
+            }
+        }
+
+        document.getElementById('easycreditSettingsForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('ecSettingsStatus');
+            if (status) status.textContent = '';
+            const payload = {
+                env: document.getElementById('ecEnv')?.value || 'sandbox',
+                base_url: document.getElementById('ecBaseUrl')?.value || '',
+                api_user: document.getElementById('ecApiUser')?.value || '',
+                api_password: document.getElementById('ecApiPassword')?.value || ''
+            };
+            try {
+                const j = await api('/easycredit-settings', { method: 'POST', body: JSON.stringify(payload) });
+                if (j.success) {
+                    if (status) status.textContent = 'Сохранено';
+                    toast('Настройки EasyCredit сохранены');
+                } else throw new Error(j.error || 'Ошибка');
+            } catch (err) {
+                const msg = err.message || 'Ошибка сохранения';
+                if (status) status.textContent = msg;
+                toast('Ошибка: ' + msg);
+            }
+        });
+
+        async function loadIuteSettings() {
+            const form = document.getElementById('iuteSettingsForm');
+            const status = document.getElementById('iuteSettingsStatus');
+            if (!form) return;
+            try {
+                const j = await api('/iute-settings');
+                if (j.success && j.data) {
+                    const d = j.data;
+                    const envEl = document.getElementById('iuteEnv');
+                    const baseEl = document.getElementById('iuteBaseUrl');
+                    const keyEl = document.getElementById('iuteApiKey');
+                    const posEl = document.getElementById('iutePosIdentifier');
+                    const salesEl = document.getElementById('iuteSalesmanIdentifier');
+                    if (envEl) envEl.value = d.env || 'sandbox';
+                    if (baseEl) baseEl.value = d.base_url || '';
+                    // Only show placeholder masks - never show real values
+                    if (keyEl) keyEl.placeholder = d.api_key_masked ? '••••••••••••' : 'Введите API ключ';
+                    if (posEl) posEl.placeholder = d.pos_identifier_masked ? '••••••••••••' : 'Введите POS Identifier';
+                    if (salesEl) salesEl.placeholder = d.salesman_identifier_masked ? '••••••••••••' : 'Введите Salesman Identifier';
+                }
+            } catch (e) {
+                if (status) status.textContent = 'Ошибка загрузки: ' + (e.message || '');
+            }
+        }
+
+        document.getElementById('iuteSettingsForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = document.getElementById('iuteSettingsStatus');
+            if (status) status.textContent = '';
+            const payload = {
+                env: document.getElementById('iuteEnv')?.value || 'sandbox',
+                base_url: document.getElementById('iuteBaseUrl')?.value || '',
+                api_key: document.getElementById('iuteApiKey')?.value || '',
+                pos_identifier: document.getElementById('iutePosIdentifier')?.value || '',
+                salesman_identifier: document.getElementById('iuteSalesmanIdentifier')?.value || ''
+            };
+            try {
+                const j = await api('/iute-settings', { method: 'POST', body: JSON.stringify(payload) });
+                if (j.success) {
+                    if (status) status.textContent = 'Сохранено';
+                    toast('Настройки Iute сохранены');
+                } else throw new Error(j.error || 'Ошибка');
+            } catch (err) {
+                const msg = err.message || 'Ошибка сохранения';
+                if (status) status.textContent = msg;
+                toast('Ошибка: ' + msg);
+            }
+        });
+
+        ['filterBank','filterTerm','filterStatus','filterBank2','filterTerm2','filterStatus2'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', () => { renderTable('programsTable'); renderTable('programsTable2'); });
+        });
+
+        // === EasyCredit Testing ===
+        // ============================================================
+        // 🧪 Универсальное тестирование API (multi-provider)
+        // ============================================================
+        const ecTestLog = document.getElementById('ecTestLog');
+        let activeProvider = null;   // текущий выбранный провайдер (объект)
+        let providersCache = [];     // кэш списка провайдеров
+        let currentClientData = null;
+
+        function logEC(msg, type = 'info') {
+            if (!ecTestLog) return;
+            const time = new Date().toLocaleTimeString('ru-RU');
+            const colors = { info: '#60a5fa', warn: '#fbbf24', error: '#f87171', success: '#34d399' };
+            const color = colors[type] || colors.info;
+            const line = document.createElement('div');
+            line.style.marginBottom = '4px';
+            line.innerHTML = `<span style="color:#6b7280">[${time}]</span> <span style="color:${color}">${type.toUpperCase()}</span> ${String(msg).replace(/</g,'&lt;')}`;
+            const ph = ecTestLog.querySelector('div[style*="color: #6b7280"]');
+            if (ph && (ph.textContent.includes('Ожидание') || ph.textContent.includes('очищен'))) ph.remove();
+            ecTestLog.appendChild(line);
+            ecTestLog.scrollTop = ecTestLog.scrollHeight;
+        }
+
+        document.getElementById('btnClearLog')?.addEventListener('click', () => {
+            if (ecTestLog) ecTestLog.innerHTML = '<div style="color: #6b7280;">Лог очищен.</div>';
+        });
+
+        // --- Загрузка провайдеров ---
+        async function loadProviders() {
+            try {
+                const r = await fetch('/api/credit-testing/providers');
+                const j = await r.json();
+                if (j.success) {
+                    providersCache = j.providers || [];
+                    renderProviderTabs(providersCache);
+                    if (providersCache.length > 0 && !activeProvider) {
+                        selectProvider(providersCache[0]);
+                    }
+                } else {
+                    document.getElementById('providerTabs').innerHTML = '<div style="color:#c00;">Ошибка загрузки провайдеров</div>';
+                }
+            } catch (e) {
+                document.getElementById('providerTabs').innerHTML = '<div style="color:#c00;">Сервер недоступен</div>';
+            }
+        }
+
+        function renderProviderTabs(providers) {
+            const container = document.getElementById('providerTabs');
+            container.innerHTML = providers.map(p => `
+                <div class="provider-tab" data-id="${p.id}"
+                     onclick="selectProviderById('${p.id}')"
+                     style="cursor:pointer; padding:12px 20px; border-radius:10px; border:2px solid ${p.color || '#ccc'};
+                            background: ${activeProvider?.id === p.id ? (p.color || '#0066CC') + '15' : '#fff'};
+                            min-width:140px; text-align:center; transition:all .2s;
+                            ${activeProvider?.id === p.id ? 'box-shadow:0 2px 8px ' + (p.color || '#0066CC') + '30;' : ''}">
+                    <div style="font-size:24px; margin-bottom:4px;">${p.icon || '🏦'}</div>
+                    <div style="font-weight:600; font-size:14px; color:${p.color || '#333'}">${p.name}</div>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+                        ${p.configured ? '✅ Настроен' : '⚠️ Не настроен'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.selectProviderById = function(id) {
+            const p = providersCache.find(x => x.id === id);
+            if (p) selectProvider(p);
+        };
+
+        function selectProvider(provider) {
+            activeProvider = provider;
+            currentClientData = null;
+            renderProviderTabs(providersCache);
+            renderProviderSettings(provider);
+            renderProviderSections(provider);
+            renderTestClients(provider);
+            logEC(`Провайдер: ${provider.icon} ${provider.name}`, 'info');
+        }
+
+        function renderProviderSettings(p) {
+            const el = document.getElementById('providerSettings');
+            el.style.display = 'block';
+            document.getElementById('providerSettingsIcon').textContent = p.icon || '🏦';
+            document.getElementById('providerSettingsName').textContent = p.name;
+            const badge = document.getElementById('providerConfigBadge');
+            badge.textContent = p.configured ? '✅ Настроен' : '⚠️ Не настроен';
+            badge.style.background = p.configured ? '#f0fdf4' : '#fefce8';
+            badge.style.color = p.configured ? '#166534' : '#a16207';
+
+            const grid = document.getElementById('providerSettingsGrid');
+            const settings = p.settings || {};
+            grid.innerHTML = Object.entries(settings).map(([k, v]) => `
+                <div style="padding:8px 12px; background:#f9fafb; border-radius:6px;">
+                    <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase;">${k}</div>
+                    <div style="font-weight:600; word-break:break-all;">${v || '—'}</div>
+                </div>
+            `).join('');
+
+            const caps = p.capabilities || [];
+            document.getElementById('providerCapsList').innerHTML = caps.map(c =>
+                `<span style="display:inline-block; padding:2px 8px; background:${p.color || '#0066CC'}15; color:${p.color || '#0066CC'}; border-radius:4px; margin:2px; font-size:11px;">${c}</span>`
+            ).join('');
+        }
+
+        function renderProviderSections(p) {
+            const caps = p.capabilities || [];
+            // Показываем/скрываем секции в зависимости от capabilities
+            document.getElementById('sectionSearchClient').style.display = caps.includes('search_client') ? 'block' : 'none';
+            document.getElementById('sectionCheckAuth').style.display = caps.includes('check_auth') ? 'block' : 'none';
+
+            const hasSubmit = caps.includes('submit') || caps.includes('create_order');
+            document.getElementById('sectionSubmit').style.display = hasSubmit ? 'block' : 'none';
+            if (caps.includes('create_order')) {
+                document.getElementById('submitSectionTitle').textContent = 'Создать заказ';
+            } else {
+                document.getElementById('submitSectionTitle').textContent = 'Создать тестовую заявку';
+            }
+
+            const hasStatus = caps.includes('status') || caps.includes('order_status');
+            document.getElementById('sectionStatus').style.display = hasStatus ? 'block' : 'none';
+            if (caps.includes('order_status')) {
+                document.getElementById('statusSectionTitle').textContent = 'Статус заказа';
+                document.getElementById('testStatusId').placeholder = 'Order ID';
+            } else {
+                document.getElementById('statusSectionTitle').textContent = 'Детальный статус заявки';
+                document.getElementById('testStatusId').placeholder = 'URN заявки';
+            }
+
+            // Сбросить результаты
+            document.getElementById('checkAuthResult').style.display = 'none';
+            document.getElementById('testClientCard').style.display = 'none';
+            document.getElementById('testClientLoansBox').style.display = 'none';
+            document.getElementById('testStatusResult').style.display = 'none';
+        }
+
+        // --- Тестовые клиенты (динамические) ---
+        function renderTestClients(p) {
+            const container = document.getElementById('testClientsContainer');
+            const clients = p.test_clients || [];
+            const caps = p.capabilities || [];
+            const isIute = caps.includes('create_order');
+
+            if (!clients.length) {
+                container.innerHTML = '<div style="color:var(--text-muted);padding:12px;">Нет тестовых клиентов</div>';
+                return;
+            }
+
+            container.innerHTML = clients.map((c, i) => {
+                if (isIute) {
+                    return `<div class="test-client-row" style="display:grid; grid-template-columns:1fr 160px 100px 80px auto; gap:8px; margin-bottom:8px; align-items:end;">
+                        <div class="field">${i === 0 ? '<label>ФИО</label>' : ''}<input type="text" class="tc-fio" value="${c.fio || ''}"></div>
+                        <div class="field">${i === 0 ? '<label>Телефон</label>' : ''}<input type="text" class="tc-phone" value="${c.phone || ''}"></div>
+                        <div class="field">${i === 0 ? '<label>Сумма</label>' : ''}<input type="number" class="tc-amount" value="${c.amount || 1000}"></div>
+                        <div class="field">${i === 0 ? '<label>Order ID</label>' : ''}<input type="text" class="tc-orderid" value="${c.order_id || 'test-' + (i+1)}"></div>
+                        <button class="btn btn-success btn-sm tc-submit" ${i === 0 ? 'style="margin-bottom:6px;"' : ''}>Отправить</button>
+                    </div>`;
+                } else {
+                    return `<div class="test-client-row" style="display:grid; grid-template-columns:1fr 150px 150px 100px auto; gap:8px; margin-bottom:8px; align-items:end;">
+                        <div class="field">${i === 0 ? '<label>ФИО</label>' : ''}<input type="text" class="tc-fio" value="${c.fio || ''}"></div>
+                        <div class="field">${i === 0 ? '<label>IDNP</label>' : ''}<input type="text" class="tc-uin" value="${c.id_number || ''}"></div>
+                        <div class="field">${i === 0 ? '<label>Телефон</label>' : ''}<input type="text" class="tc-phone" value="${c.phone || ''}"></div>
+                        <div class="field">${i === 0 ? '<label>Сумма</label>' : ''}<input type="number" class="tc-amount" value="${c.amount || 10000}"></div>
+                        <button class="btn btn-success btn-sm tc-submit" ${i === 0 ? 'style="margin-bottom:6px;"' : ''}>Отправить</button>
+                    </div>`;
+                }
+            }).join('');
+
+            // Привязка обработчиков
+            container.querySelectorAll('.tc-submit').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const row = btn.closest('.test-client-row');
+                    btn.disabled = true; btn.textContent = '...';
+                    await submitTestRequest(row);
+                    btn.disabled = false; btn.textContent = 'Отправить';
+                });
+            });
+        }
+
+        // --- Операции ---
+
+        // Поиск клиента (EasyCredit)
+        document.getElementById('btnTestSearchClient')?.addEventListener('click', async () => {
+            const uin = document.getElementById('testUin')?.value?.trim();
+            if (!uin || !activeProvider) { toast('Введите IDNP'); return; }
+            logEC(`Поиск клиента: ***${uin.slice(-4)} [${activeProvider.name}]`, 'info');
+            try {
+                const r = await fetch(`/api/credit-testing/search-client?provider=${activeProvider.id}&uin=${encodeURIComponent(uin)}`);
+                const j = await r.json();
+                if (j.success && j.data) {
+                    currentClientData = j.data;
+                    const customer = j.data.Customer || {};
+                    // Заполняем карточку
+                    const card = document.getElementById('testClientCard');
+                    card.style.display = 'block';
+                    card.style.background = `linear-gradient(135deg, ${activeProvider.color || '#667eea'} 0%, #764ba2 100%)`;
+                    document.getElementById('testClientName').textContent = `${customer.LastName || ''} ${customer.FirstName || ''} ${customer.FatherName || ''}`.trim() || '—';
+                    document.getElementById('testClientUin').textContent = `IDNP: ${customer.UIN || uin}`;
+                    document.getElementById('testClientBirth').textContent = `Дата рождения: ${customer.BirthDate || '—'}`;
+                    document.getElementById('testClientEmail').textContent = `Email: ${customer.eMail1 || customer.eMail2 || '—'}`;
+                    document.getElementById('testClientMaxAmount').textContent = `${customer.MaxAmountForAutoApprove || 0} MDL`;
+                    // Займы
+                    const loans = customer.Loans || [];
+                    const loansBox = document.getElementById('testClientLoansBox');
+                    const tbody = document.getElementById('testClientLoans');
+                    if (loans.length) {
+                        loansBox.style.display = 'block';
+                        tbody.innerHTML = loans.map(l => {
+                            const sc = {'New':'#3b82f6','Approved':'#22c55e','Rejected':'#ef4444','Pending':'#f59e0b'};
+                            const c = sc[l.RequestStatus] || '#6b7280';
+                            return `<tr style="cursor:pointer" onclick="document.getElementById('testStatusId').value='${l.URN||''}';document.getElementById('btnTestCheckStatus').click();">
+                                <td style="padding:6px;font-weight:600;color:var(--primary);">${l.URN||'—'}</td>
+                                <td style="padding:6px;">${l.ProductName||'—'}</td>
+                                <td style="padding:6px;text-align:right;font-weight:600;">${l.Capital||'0'} MDL</td>
+                                <td style="padding:6px;text-align:center;"><span style="background:${c}20;color:${c};padding:2px 8px;border-radius:4px;font-size:11px;">${l.RequestStatus||'—'}</span></td>
+                                <td style="padding:6px;text-align:center;font-size:11px;">${l.Creation||'—'}</td>
+                            </tr>`;
+                        }).join('');
+                    } else {
+                        loansBox.style.display = 'none';
+                    }
+                    logEC(`Клиент найден: ${customer.LastName || ''} ${customer.FirstName || ''}`, 'success');
+                } else {
+                    document.getElementById('testClientCard').style.display = 'none';
+                    document.getElementById('testClientLoansBox').style.display = 'none';
+                    logEC(`Клиент не найден: ${j.error || ''}`, 'warn');
+                }
+            } catch (e) {
+                logEC('Ошибка: ' + e.message, 'error');
+            }
+        });
+
+        // Проверка авторизации (Iute)
+        document.getElementById('btnTestCheckAuth')?.addEventListener('click', async () => {
+            if (!activeProvider) return;
+            logEC(`Проверка авторизации [${activeProvider.name}]`, 'info');
+            const resEl = document.getElementById('checkAuthResult');
+            resEl.style.display = 'none';
+            try {
+                const r = await fetch(`/api/credit-testing/check-auth?provider=${activeProvider.id}`);
+                const j = await r.json();
+                resEl.style.display = 'block';
+                if (j.success) {
+                    resEl.style.background = '#f0fdf4';
+                    resEl.innerHTML = `<span style="color:#166534;font-weight:600;">✅ Авторизация OK</span>
+                        <pre style="margin-top:8px;font-size:11px;white-space:pre-wrap;">${JSON.stringify(j.data || j, null, 2)}</pre>`;
+                    logEC('Авторизация: OK', 'success');
+                } else {
+                    resEl.style.background = '#fef2f2';
+                    resEl.innerHTML = `<span style="color:#991b1b;font-weight:600;">❌ Ошибка</span>
+                        <div style="margin-top:4px;font-size:12px;color:#991b1b;">${j.error || 'Неизвестная ошибка'}</div>`;
+                    logEC(`Ошибка: ${j.error || ''}`, 'error');
+                }
+            } catch (e) {
+                resEl.style.display = 'block';
+                resEl.style.background = '#fef2f2';
+                resEl.innerHTML = `<span style="color:#991b1b;">Exception: ${e.message}</span>`;
+                logEC('Exception: ' + e.message, 'error');
+            }
+        });
+
+        // Отправить заявку / создать заказ
+        async function submitTestRequest(row) {
+            if (!activeProvider) return { success: false };
+            const caps = activeProvider.capabilities || [];
+            const fio = row.querySelector('.tc-fio')?.value?.trim() || '';
+            const phone = row.querySelector('.tc-phone')?.value?.trim() || '';
+            const amount = parseInt(row.querySelector('.tc-amount')?.value) || 10000;
+
+            if (caps.includes('create_order')) {
+                // Iute: create_order
+                const orderId = row.querySelector('.tc-orderid')?.value?.trim() || 'test-001';
+                logEC(`Заказ: ${fio}, ${phone}, ${amount} MDL [${activeProvider.name}]`, 'info');
+                try {
+                    const r = await fetch('/api/credit-testing/create-order', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ provider: activeProvider.id, order_id: orderId, phone, amount, currency: 'MDL', fio })
+                    });
+                    const j = await r.json();
+                    if (j.success) {
+                        logEC(`✓ Заказ создан: ${JSON.stringify(j.data || {}).substring(0, 100)}`, 'success');
+                        toast('Заказ создан');
+                        if (orderId) document.getElementById('testStatusId').value = orderId;
+                        return { success: true };
+                    } else {
+                        logEC(`✗ Ошибка: ${j.error || ''}`, 'error');
+                        toast(`Ошибка: ${j.error || ''}`);
+                        return { success: false };
+                    }
+                } catch (e) {
+                    logEC('Exception: ' + e.message, 'error');
+                    return { success: false };
+                }
+            } else {
+                // EasyCredit: submit
+                const uin = row.querySelector('.tc-uin')?.value?.trim() || '';
+                logEC(`Заявка: ${fio}, ***${uin.slice(-4)}, ${amount} MDL [${activeProvider.name}]`, 'info');
+                try {
+                    const r = await fetch('/api/credit-testing/submit', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ provider: activeProvider.id, fio, uin, phone, amount, product_name: 'Тестовый товар', goods_price: amount })
+                    });
+                    const j = await r.json();
+                    if (j.success) {
+                        const urn = j.data?.urn || j.data?.URN || '';
+                        logEC(`✓ Заявка: URN=${urn}`, 'success');
+                        toast(`Заявка: ${urn || 'OK'}`);
+                        if (urn) document.getElementById('testStatusId').value = urn;
+                        return { success: true, urn };
+                    } else {
+                        logEC(`✗ Ошибка: ${j.error || ''}`, 'error');
+                        toast(`Ошибка: ${j.error || ''}`);
+                        return { success: false };
+                    }
+                } catch (e) {
+                    logEC('Exception: ' + e.message, 'error');
+                    return { success: false };
+                }
+            }
+        }
+
+        document.getElementById('btnSubmitAll')?.addEventListener('click', async () => {
+            const btn = document.getElementById('btnSubmitAll');
+            btn.disabled = true; btn.textContent = '📤 Отправка...';
+            logEC(`=== Отправка всех [${activeProvider?.name}] ===`, 'info');
+            for (const row of document.querySelectorAll('#testClientsContainer .test-client-row')) {
+                await submitTestRequest(row);
+                await new Promise(r => setTimeout(r, 500));
+            }
+            logEC('=== Готово ===', 'success');
+            btn.disabled = false; btn.textContent = '📤 Отправить все';
+        });
+
+        // Проверка статуса (универсальная)
+        document.getElementById('btnTestCheckStatus')?.addEventListener('click', async () => {
+            if (!activeProvider) return;
+            const id = document.getElementById('testStatusId')?.value?.trim();
+            if (!id) { toast('Введите URN / Order ID'); return; }
+            const caps = activeProvider.capabilities || [];
+            const resultEl = document.getElementById('testStatusResult');
+            resultEl.style.display = 'none';
+            logEC(`Проверка статуса: ${id} [${activeProvider.name}]`, 'info');
+
+            try {
+                let url;
+                if (caps.includes('order_status')) {
+                    url = `/api/credit-testing/order-status?provider=${activeProvider.id}&order_id=${encodeURIComponent(id)}`;
+                } else {
+                    url = `/api/credit-testing/status?provider=${activeProvider.id}&urn=${encodeURIComponent(id)}`;
+                }
+                const r = await fetch(url);
+                const j = await r.json();
+                resultEl.style.display = 'block';
+                const cardsEl = document.getElementById('testStatusCards');
+                const detailsEl = document.getElementById('testStatusDetails');
+
+                if (j.success) {
+                    const d = j.data || {};
+                    // Создаём карточки статуса динамически
+                    const entries = Object.entries(d).filter(([k]) => k.toLowerCase().includes('status') || k === 'state');
+                    if (entries.length) {
+                        cardsEl.innerHTML = entries.map(([k, v]) => `
+                            <div style="padding:12px; background:#f0fdf4; border-radius:10px; text-align:center;">
+                                <div style="font-size:11px; color:#166534; margin-bottom:4px;">${k}</div>
+                                <div style="font-size:14px; font-weight:700; color:#15803d;">${v || '—'}</div>
+                            </div>
+                        `).join('');
+                    } else {
+                        cardsEl.innerHTML = `<div style="padding:12px;background:#f0fdf4;border-radius:10px;text-align:center;">
+                            <div style="font-size:11px;color:#166534;">Результат</div>
+                            <div style="font-size:14px;font-weight:700;color:#15803d;">OK</div>
+                        </div>`;
+                    }
+                    detailsEl.innerHTML = `<pre style="margin:0;white-space:pre-wrap;">${JSON.stringify(d, null, 2)}</pre>`;
+                    logEC(`Статус получен`, 'success');
+                } else {
+                    cardsEl.innerHTML = `<div style="padding:12px;background:#fef2f2;border-radius:10px;text-align:center;">
+                        <div style="font-size:11px;color:#991b1b;">Ошибка</div>
+                        <div style="font-size:14px;font-weight:700;color:#991b1b;">${j.error || '—'}</div>
+                    </div>`;
+                    detailsEl.innerHTML = '';
+                    logEC(`Ошибка: ${j.error || ''}`, 'warn');
+                }
+            } catch (e) {
+                resultEl.style.display = 'block';
+                document.getElementById('testStatusDetails').innerHTML = `<span style="color:#c00;">Exception: ${e.message}</span>`;
+                logEC('Exception: ' + e.message, 'error');
+            }
+        });
+
+        // Обновление провайдеров
+        document.getElementById('btnRefreshProviders')?.addEventListener('click', () => {
+            activeProvider = null;
+            loadProviders();
+        });
+
+        // Автозагрузка: если страница тестирования уже активна при загрузке
+        if (document.getElementById('page-ec-testing')?.classList.contains('active')) {
+            loadProviders();
+        }
+
+        (async () => {
+            try {
+                await loadBanks();
+                await renderTable('programsTable');
+                await renderTable('programsTable2');
+                await renderMatrix();
+            } catch (e) {
+                toast('Ошибка загрузки: ' + (e.message || ''));
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+-- ============================================================
+-- Табло отправлений: пакет BUS_PKG
+-- ============================================================
+
+CREATE OR REPLACE PACKAGE BUS_PKG AS
+  PROCEDURE GET_DEPARTURES (
+    P_DATE   IN  DATE DEFAULT TRUNC(SYSDATE),
+    P_CUR    OUT SYS_REFCURSOR
+  );
+  PROCEDURE UPDATE_STATUS (
+    P_ID     IN NUMBER,
+    P_STATUS IN VARCHAR2
+  );
+END BUS_PKG;
+/
+
+CREATE OR REPLACE PACKAGE BODY BUS_PKG AS
+  PROCEDURE GET_DEPARTURES (
+    P_DATE   IN  DATE DEFAULT TRUNC(SYSDATE),
+    P_CUR    OUT SYS_REFCURSOR
+  ) IS
+  BEGIN
+    OPEN P_CUR FOR
+      SELECT
+        d.ROUTE_CODE    AS ROUTE,
+        r.DESTINATION,
+        TO_CHAR(d.DEPARTURE_DT, 'HH24:MI') AS DEPARTURE_TIME,
+        d.PLATFORM,
+        NVL(d.GATE, '-') AS GATE,
+        d.STATUS
+      FROM BUS_DEPARTURES d
+      JOIN BUS_ROUTES r ON r.ROUTE_CODE = d.ROUTE_CODE
+      WHERE TRUNC(d.DEPARTURE_DT) = TRUNC(P_DATE)
+        AND d.STATUS <> 'Отменен'
+      ORDER BY d.DEPARTURE_DT;
+  END GET_DEPARTURES;
+
+  PROCEDURE UPDATE_STATUS (
+    P_ID     IN NUMBER,
+    P_STATUS IN VARCHAR2
+  ) IS
+  BEGIN
+    UPDATE BUS_DEPARTURES
+       SET STATUS = P_STATUS
+     WHERE ID = P_ID;
+    COMMIT;
+  END UPDATE_STATUS;
+END BUS_PKG;
+/

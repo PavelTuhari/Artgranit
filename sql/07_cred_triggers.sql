@@ -1,0 +1,19 @@
+-- ============================================================
+-- Кредиты: триггеры
+-- ============================================================
+
+CREATE OR REPLACE TRIGGER TR_CRED_PROGRAMS_BIU
+BEFORE INSERT OR UPDATE ON CRED_PROGRAMS
+FOR EACH ROW
+BEGIN
+  :NEW.UPDATED_AT := SYSTIMESTAMP;
+END;
+/
+
+CREATE OR REPLACE TRIGGER TR_CRED_APPLICATIONS_BIU
+BEFORE INSERT OR UPDATE ON CRED_APPLICATIONS
+FOR EACH ROW
+BEGIN
+  :NEW.UPDATED_AT := SYSTIMESTAMP;
+END;
+/

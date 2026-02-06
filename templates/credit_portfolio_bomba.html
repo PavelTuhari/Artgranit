@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кредитный портфель Бомба</title>
+    <style>
+        :root {
+            --primary: #0066CC;
+            --accent: #00AA66;
+            --bg: #f0f4f8;
+            --card: #fff;
+            --text: #1a1a2e;
+            --muted: #6b7280;
+            --border: #e2e8f0;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+        .sidebar {
+            width: 200px;
+            background: var(--card);
+            box-shadow: 2px 0 10px rgba(0,0,0,.06);
+            padding: 16px 0;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px 20px;
+            color: var(--text);
+            text-decoration: none;
+            transition: background .2s, color .2s;
+        }
+        .sidebar a:hover { background: #eef2ff; color: var(--primary); }
+        .sidebar a.active { background: #e0e7ff; color: var(--primary); font-weight: 600; }
+        .main { flex: 1; padding: 24px; overflow: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.06);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .filters label { font-size: 13px; color: var(--muted); }
+        .filters select, .filters input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .filters input[type="text"] { min-width: 200px; }
+        .pivot-wrap { overflow: auto; max-width: 100%; }
+        .pivot-table { border-collapse: collapse; font-size: 13px; min-width: 600px; }
+        .pivot-table th, .pivot-table td { padding: 8px 10px; border: 1px solid var(--border); text-align: left; }
+        .pivot-table th { background: #f8fafc; font-weight: 600; color: var(--muted); position: sticky; top: 0; z-index: 1; }
+        .pivot-table .row-cat { background: #f1f5f9; font-weight: 600; }
+        .pivot-table .row-prod { padding-left: 24px; }
+        .pivot-table .cell-check { text-align: center; }
+        .pivot-table .cell-check.enabled { color: var(--accent); font-weight: bold; }
+        .bank-header { background: #e2e8f0 !important; font-weight: 700; }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity .2s;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { opacity: .9; }
+        .btn-ghost { background: var(--border); color: var(--text); }
+        .btn-ghost:hover { background: #cbd5e1; }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.4);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--card);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.15);
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            padding: 24px;
+        }
+        .settings-matrix { overflow: auto; max-height: 60vh; }
+        .settings-matrix table { border-collapse: collapse; font-size: 12px; }
+        .settings-matrix th, .settings-matrix td { padding: 6px 8px; border: 1px solid var(--border); }
+        .settings-matrix th { background: #f8fafc; }
+        .settings-matrix input[type="checkbox"] { cursor: pointer; }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--accent);
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0,170,102,.3);
+            z-index: 2000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: transform .3s, opacity .3s;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        h1 { font-size: 20px; margin-bottom: 16px; }
+        .muted { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <a href="#" class="nav-link active" data-page="pivot">Пивот</a>
+        <a href="#" class="nav-link" data-page="settings">Настройки</a>
+        <a href="/UNA.md/orasldev/digi-marketing" target="_blank" class="nav-link">📺 DIGI Marketing</a>
+    </aside>
+    <main class="main">
+        <div id="page-pivot" class="page active">
+            <h1>Кредитный портфель Бомба</h1>
+            <p class="muted">По вертикали — группы и товары, по горизонтали — банки и кредитные предложения. Фильтрация по категориям и товарам.</p>
+            <div class="filters">
+                <label>Категории:</label>
+                <select id="filterCategories" multiple size="4" style="min-width:220px;" title="Оставьте пустым для всех категорий"></select>
+                <label>Поиск товара:</label>
+                <input type="text" id="filterProductSearch" placeholder="название или артикул" />
+                <button type="button" class="btn btn-primary" id="btnApplyFilters">Применить</button>
+                <button type="button" class="btn btn-ghost" id="btnResetFilters">Сбросить</button>
+            </div>
+            <div class="card pivot-wrap">
+                <table class="pivot-table" id="pivotTable">
+                    <thead id="pivotHead"></thead>
+                    <tbody id="pivotBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="page-settings" class="page">
+            <h1>Настройки: товарные группы × кредитные предложения</h1>
+            <p class="muted">Связь категорий товаров с кредитными программами. Включение/выключение доступности.</p>
+            <div class="filters">
+                <label>Банк:</label>
+                <select id="settingsBank"><option value="">Все</option></select>
+                <button type="button" class="btn btn-primary" id="btnLoadSettings">Обновить</button>
+            </div>
+            <div class="card settings-matrix">
+                <table id="settingsMatrixTable">
+                    <thead id="settingsHead"></thead>
+                    <tbody id="settingsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div class="toast" id="toast">Сохранено</div>
+
+    <script>
+        const API = '/api/credit-admin';
+        let meta = { categories: [], banks: [] };
+        let matrix = [];
+        let products = [];
+
+        function toast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        async function api(path, opts = {}) {
+            const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        async function loadPivotMeta() {
+            const j = await api('/pivot/meta');
+            if (!j.success) throw new Error(j.error);
+            meta = { categories: j.categories || [], banks: j.banks || [] };
+            return meta;
+        }
+
+        async function loadPivotMatrix() {
+            const j = await api('/pivot/matrix');
+            if (!j.success) throw new Error(j.error);
+            matrix = j.data || [];
+            return matrix;
+        }
+
+        function matrixLookup(catId, progId) {
+            return matrix.some(m => m.category_id === catId && m.program_id === progId && m.enabled);
+        }
+
+        async function loadPivotProducts() {
+            const catSel = document.getElementById('filterCategories');
+            const ids = Array.from(catSel.selectedOptions).map(o => o.value).filter(Boolean);
+            const search = document.getElementById('filterProductSearch').value.trim();
+            const q = new URLSearchParams();
+            if (ids.length) q.set('category_ids', ids.join(','));
+            if (search) q.set('search', search);
+            q.set('limit', '500');
+            const j = await api('/pivot/products?' + q.toString());
+            if (!j.success) throw new Error(j.error);
+            products = j.data || [];
+            return products;
+        }
+
+        function buildPivotTable() {
+            const thead = document.getElementById('pivotHead');
+            const tbody = document.getElementById('pivotBody');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            const programs = meta.banks.flatMap(b => (b.programs || []).filter(p => p.active === 'Y'));
+            const progById = {};
+            programs.forEach(p => { progById[p.id] = p; });
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = '<th>Группа / Товар</th>';
+            meta.banks.forEach(b => {
+                const progs = (b.programs || []).filter(p => p.active === 'Y');
+                if (progs.length) {
+                    const th = document.createElement('th');
+                    th.colSpan = progs.length;
+                    th.className = 'bank-header';
+                    th.textContent = b.name;
+                    tr.appendChild(th);
+                }
+            });
+            thead.appendChild(tr);
+
+            tr = document.createElement('tr');
+            tr.innerHTML = '<th></th>';
+            meta.banks.forEach(b => {
+                (b.programs || []).filter(p => p.active === 'Y').forEach(p => {
+                    const th = document.createElement('th');
+                    th.textContent = p.name;
+                    th.title = p.name;
+                    tr.appendChild(th);
+                });
+            });
+            thead.appendChild(tr);
+
+            const catIds = [...new Set(products.map(pr => pr.category_id))];
+            const catsUsed = meta.categories.filter(c => catIds.includes(c.id));
+
+            if (!products.length && !catsUsed.length) {
+                const r = document.createElement('tr');
+                r.innerHTML = '<td colspan="' + (1 + programs.length) + '">Нет данных. Задайте фильтры и нажмите «Применить».</td>';
+                tbody.appendChild(r);
+                return;
+            }
+
+            for (const cat of catsUsed) {
+                const catProds = products.filter(p => p.category_id === cat.id);
+                const trCat = document.createElement('tr');
+                trCat.className = 'row-cat';
+                let td = document.createElement('td');
+                td.textContent = cat.name + ' (' + (catProds.length) + ')';
+                trCat.appendChild(td);
+                programs.forEach(prog => {
+                    const td = document.createElement('td');
+                    td.className = 'cell-check' + (matrixLookup(cat.id, prog.id) ? ' enabled' : '');
+                    td.textContent = matrixLookup(cat.id, prog.id) ? '✓' : '—';
+                    trCat.appendChild(td);
+                });
+                tbody.appendChild(trCat);
+                for (const pr of catProds) {
+                    const trP = document.createElement('tr');
+                    trP.className = 'row-prod';
+                    let t = document.createElement('td');
+                    t.textContent = pr.name + ' — ' + (pr.article || '') + ', ' + pr.price + ' ₽';
+                    trP.appendChild(t);
+                    programs.forEach(prog => {
+                        const td = document.createElement('td');
+                        td.className = 'cell-check' + (matrixLookup(cat.id, prog.id) ? ' enabled' : '');
+                        td.textContent = matrixLookup(cat.id, prog.id) ? '✓' : '—';
+                        trP.appendChild(td);
+                    });
+                    tbody.appendChild(trP);
+                }
+            }
+        }
+
+        async function applyPivotFilters() {
+            try {
+                await loadPivotProducts();
+                await loadPivotMatrix();
+                buildPivotTable();
+            } catch (e) {
+                console.error(e);
+                toast('Ошибка: ' + e.message);
+            }
+        }
+
+        function fillCategoryFilter() {
+            const sel = document.getElementById('filterCategories');
+            sel.innerHTML = '';
+            meta.categories.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + ' (' + (c.product_count || 0) + ')';
+                sel.appendChild(opt);
+            });
+        }
+
+        async function loadSettingsMatrix() {
+            const bankId = document.getElementById('settingsBank').value;
+            const jMatrix = await api('/matrix');
+            if (!jMatrix.success) throw new Error(jMatrix.error);
+            const matrixData = jMatrix.data || [];
+            const jMeta = await api('/pivot/meta');
+            if (!jMeta.success) throw new Error(jMeta.error);
+            const cats = jMeta.categories || [];
+            let progs = (jMeta.banks || []).flatMap(b => (b.programs || []).filter(p => p.active === 'Y'));
+            if (bankId) progs = progs.filter(p => p.bank_id == bankId);
+
+            const thead = document.getElementById('settingsHead');
+            const tbody = document.getElementById('settingsBody');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = '<th>Категория</th>';
+            progs.forEach(p => {
+                const th = document.createElement('th');
+                th.textContent = p.name;
+                th.title = p.name;
+                tr.appendChild(th);
+            });
+            thead.appendChild(tr);
+
+            const lookup = {};
+            matrixData.forEach(m => {
+                const k = (m.category_id || m.categoryid) + '_' + (m.program_id || m.programid);
+                lookup[k] = !!(m.enabled === 1 || m.enabled === true);
+            });
+
+            cats.forEach(c => {
+                const tr = document.createElement('tr');
+                let td = document.createElement('td');
+                td.textContent = c.name;
+                tr.appendChild(td);
+                progs.forEach(prog => {
+                    const td = document.createElement('td');
+                    const ch = document.createElement('input');
+                    ch.type = 'checkbox';
+                    const k = c.id + '_' + prog.id;
+                    ch.checked = !!lookup[k];
+                    ch.dataset.categoryId = c.id;
+                    ch.dataset.programId = prog.id;
+                    ch.addEventListener('change', async () => {
+                        try {
+                            await api('/matrix', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    program_id: parseInt(prog.id),
+                                    category_id: parseInt(c.id),
+                                    enabled: ch.checked
+                                })
+                            });
+                            toast('Сохранено');
+                        } catch (e) {
+                            ch.checked = !ch.checked;
+                            toast('Ошибка: ' + e.message);
+                        }
+                    });
+                    td.appendChild(ch);
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        function fillSettingsBankFilter() {
+            const sel = document.getElementById('settingsBank');
+            sel.innerHTML = '<option value="">Все банки</option>';
+            (meta.banks || []).forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.id;
+                opt.textContent = b.name;
+                sel.appendChild(opt);
+            });
+        }
+
+        document.querySelectorAll('.nav-link').forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = a.dataset.page;
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                a.classList.add('active');
+                document.getElementById('page-' + page).classList.add('active');
+                if (page === 'settings') {
+                    fillSettingsBankFilter();
+                    loadSettingsMatrix();
+                }
+            });
+        });
+
+        document.getElementById('btnApplyFilters').addEventListener('click', applyPivotFilters);
+        document.getElementById('btnResetFilters').addEventListener('click', async () => {
+            document.getElementById('filterProductSearch').value = '';
+            const sel = document.getElementById('filterCategories');
+            Array.from(sel.options).forEach(o => o.selected = false);
+            try {
+                await loadPivotProducts();
+                await loadPivotMatrix();
+                buildPivotTable();
+            } catch (e) {
+                toast('Ошибка: ' + e.message);
+            }
+        });
+        document.getElementById('btnLoadSettings').addEventListener('click', () => loadSettingsMatrix());
+
+        (async () => {
+            try {
+                await loadPivotMeta();
+                fillCategoryFilter();
+                await loadPivotProducts();
+                await loadPivotMatrix();
+                buildPivotTable();
+            } catch (e) {
+                console.error(e);
+                toast('Ошибка загрузки: ' + e.message);
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оформление кредита EasyCredit</title>
+    <style>
+        :root { --primary: #0066CC; --accent: #00CC66; --bg: #f5f7fa; --card-bg: #fff; --text: #1a1a2e; --text-muted: #6b7280; --border: #e5e7eb; --danger: #dc2626; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; max-width: 720px; margin: 0 auto; }
+        .card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); padding: 20px; margin-bottom: 16px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-success { background: var(--accent); color: #fff; }
+        .btn-ghost { background: var(--border); color: var(--text); }
+        .input-wrap { margin-bottom: 14px; }
+        .input-wrap label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+        .input-wrap input, .input-wrap select { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; }
+        .search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+        .search-row input { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .mb { margin-bottom: 16px; }
+        .mt { margin-top: 16px; }
+        .muted { font-size: 13px; color: var(--text-muted); }
+        .preapproved-ok { color: var(--accent); font-weight: 600; }
+        .preapproved-fail { color: var(--danger); }
+        .urn { font-family: monospace; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+        a { color: var(--primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1 style="margin-bottom: 8px;">Оформление кредита EasyCredit</h1>
+    <p class="muted mb">Реальные вызовы EasyCredit при настройке user/pass. При ошибке или без ключа — mock. Preapproved → Request → Status.</p>
+
+    <div class="card">
+        <h2 style="font-size: 16px; margin-bottom: 12px;">1. Товар и программа</h2>
+        <div class="search-row">
+            <input type="text" id="searchInput" placeholder="Поиск по названию/артикулу" autocomplete="off">
+        </div>
+        <div id="productPick" class="muted mb">Выберите товар → затем программу.</div>
+        <div id="programPick" class="muted"></div>
+    </div>
+
+    <div class="card">
+        <h2 style="font-size: 16px; margin-bottom: 12px;">2. Данные клиента и сумма</h2>
+        <form id="clientForm">
+            <div class="grid2">
+                <div class="input-wrap"><label>ФИО</label><input type="text" name="fio" placeholder="Тест Тестович Тестов" value="Тест Тестович Тестов"></div>
+                <div class="input-wrap"><label>Телефон</label><input type="tel" name="phone" placeholder="+37369123456" value="+37369123456"></div>
+            </div>
+            <div class="input-wrap"><label>ID/паспорт</label><input type="text" name="idn" placeholder="12345678901234" value="12345678901234"></div>
+            <div class="input-wrap"><label>Сумма кредита (₽)</label><input type="number" name="amount" min="1" placeholder="10000" value="10000"></div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 style="font-size: 16px; margin-bottom: 12px;">3. EasyCredit API</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+            <button type="button" class="btn btn-ghost" id="btnPreapproved">Проверить предодобрение</button>
+            <button type="button" class="btn btn-success" id="btnSubmit">Отправить заявку</button>
+            <button type="button" class="btn btn-ghost" id="btnStatus">Проверить статус</button>
+        </div>
+        <div id="apiResult" class="muted" style="min-height: 24px;"></div>
+        <div id="urnBlock" style="display: none;" class="mt">
+            <label class="muted">URN заявки</label>
+            <div class="urn" id="urnValue"></div>
+        </div>
+    </div>
+
+    <p class="muted mt">Для тестов всё заполнено по умолчанию. <a href="/UNA.md/orasldev/credit-admin">← Настройки EasyCredit</a> · <a href="/UNA.md/orasldev/credit-operator">Оператор</a> · <a href="/UNA.md/orasldev/digi-marketing">DIGI Marketing</a></p>
+
+    <script>
+        const API = '/api/credit-operator';
+        const EC = '/api/credit-easycredit';
+        let selectedProduct = null;
+        let selectedProgram = null;
+        let lastUrn = null;
+        let programsCache = [];
+
+        async function api(base, path, opts = {}) {
+            const url = (base === 'ec' ? EC : API) + (path || '');
+            const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        async function loadProducts() {
+            const q = document.getElementById('searchInput').value.trim();
+            const j = await api('op', '/products?limit=20' + (q ? '&search=' + encodeURIComponent(q) : ''));
+            return j.data || [];
+        }
+
+        function setProgramList(progs, selectFirst) {
+            programsCache = progs || [];
+            const wrap = document.getElementById('programPick');
+            if (!progs || !progs.length) {
+                wrap.innerHTML = '<span class="muted">Нет программ для товара.</span>';
+                selectedProgram = null;
+                return;
+            }
+            wrap.innerHTML = progs.map(pr => {
+                const id = pr.program_id || pr.id;
+                const n = (pr.program_name || pr.name || '').replace(/</g, '&lt;');
+                const active = selectedProgram && (selectedProgram.program_id || selectedProgram.id) === id ? '; border-color: var(--accent);' : '';
+                return `<div data-pid="${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;cursor:pointer;${active}">${n}</div>`;
+            }).join('');
+            wrap.querySelectorAll('[data-pid]').forEach(d => {
+                d.addEventListener('click', () => {
+                    selectedProgram = progs.find(x => (x.program_id || x.id) === parseInt(d.dataset.pid, 10));
+                    document.querySelectorAll('#programPick [data-pid]').forEach(x => { x.style.borderColor = ''; });
+                    d.style.borderColor = 'var(--accent)';
+                });
+            });
+            if (selectFirst && progs.length) {
+                selectedProgram = progs[0];
+                const first = wrap.querySelector('[data-pid]');
+                if (first) first.style.borderColor = 'var(--accent)';
+            }
+        }
+
+        function renderProductList(products) {
+            const el = document.getElementById('productPick');
+            if (!products.length) {
+                el.innerHTML = '<span class="muted">Нет товаров.</span>';
+                return;
+            }
+            el.innerHTML = products.map(p => {
+                const name = (p.name || '').replace(/</g, '&lt;');
+                const price = p.price != null ? p.price + ' ₽' : '';
+                const active = selectedProduct && selectedProduct.id === p.id ? '; border: 2px solid var(--accent);' : '';
+                return `<div data-id="${p.id}" style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;${active}"><strong>${name}</strong><br><span class="muted">${price}</span></div>`;
+            }).join('');
+            el.querySelectorAll('[data-id]').forEach(div => {
+                div.addEventListener('click', async () => {
+                    selectedProduct = products.find(x => x.id === parseInt(div.dataset.id, 10));
+                    selectedProgram = null;
+                    const j = await api('op', '/programs-for-product/' + selectedProduct.id);
+                    setProgramList(j.data || [], true);
+                    const am = document.querySelector('[name="amount"]');
+                    if (am && selectedProduct.price != null) am.value = selectedProduct.price;
+                    renderProductList(products);
+                });
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(window._ecSearch);
+            window._ecSearch = setTimeout(() => loadProducts().then(renderProductList), 200);
+        });
+
+        (async () => {
+            const products = await loadProducts();
+            renderProductList(products);
+            if (products.length) {
+                selectedProduct = products[0];
+                const j = await api('op', '/programs-for-product/' + selectedProduct.id);
+                const progs = j.data || [];
+                setProgramList(progs, true);
+                const am = document.querySelector('[name="amount"]');
+                if (am && selectedProduct.price != null) am.value = selectedProduct.price;
+                renderProductList(products);
+            }
+        })();
+
+        function setResult(html, isOk) {
+            const el = document.getElementById('apiResult');
+            el.innerHTML = html;
+            el.className = isOk === true ? 'preapproved-ok' : isOk === false ? 'preapproved-fail' : 'muted';
+        }
+
+        document.getElementById('btnPreapproved').addEventListener('click', async () => {
+            const f = document.getElementById('clientForm');
+            const fd = new FormData(f);
+            const amount = parseInt(fd.get('amount'), 10) || 10000;
+            const idn = (fd.get('idn') || '12345678901234').trim();
+            setResult('Проверка…', null);
+            try {
+                const j = await api('ec', '/preapproved', { method: 'POST', body: JSON.stringify({ amount, idn }) });
+                const d = j.data || {};
+                setResult(d.message || (d.preapproved ? 'Предодобрено.' : 'Не предодобрено.'), !!d.preapproved);
+            } catch (e) {
+                setResult('Ошибка: ' + (e.message || ''), false);
+            }
+        });
+
+        document.getElementById('btnSubmit').addEventListener('click', async () => {
+            const f = document.getElementById('clientForm');
+            const fd = new FormData(f);
+            const payload = {
+                product_id: selectedProduct ? selectedProduct.id : null,
+                program_id: selectedProgram ? (selectedProgram.program_id || selectedProgram.id) : null,
+                amount: parseInt(fd.get('amount'), 10) || 10000,
+                fio: (fd.get('fio') || 'Тест Тестович Тестов').trim(),
+                phone: (fd.get('phone') || '+37369123456').trim(),
+                idn: (fd.get('idn') || '12345678901234').trim(),
+            };
+            setResult('Отправка…', null);
+            try {
+                const j = await api('ec', '/submit', { method: 'POST', body: JSON.stringify(payload) });
+                const d = j.data || {};
+                lastUrn = d.urn || null;
+                setResult(d.message || 'Заявка отправлена.', true);
+                const ub = document.getElementById('urnBlock');
+                const uv = document.getElementById('urnValue');
+                if (lastUrn) {
+                    ub.style.display = 'block';
+                    uv.textContent = lastUrn;
+                }
+            } catch (e) {
+                setResult('Ошибка: ' + (e.message || ''), false);
+            }
+        });
+
+        document.getElementById('btnStatus').addEventListener('click', async () => {
+            const uv = document.getElementById('urnValue');
+            const urn = lastUrn || (uv && uv.textContent) || prompt('URN заявки:');
+            if (!urn) return;
+            setResult('Проверка статуса…', null);
+            try {
+                const j = await api('ec', '/status?urn=' + encodeURIComponent(urn));
+                const d = j.data || {};
+                setResult((d.message || '') + ' Статус: ' + (d.status || '—'), d.status === 'Approved');
+            } catch (e) {
+                setResult('Ошибка: ' + (e.message || ''), false);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Database Dashboard - Oracle Enterprise Manager Style</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
@@ -30,6 +33,11 @@
             padding: 0 10px;
             font-size: 12px;
             z-index: 1000;
+            transition: height 0.3s, opacity 0.3s;
+        }
+        
+        body.fullscreen .menu-bar {
+            display: none;
         }
         
         .menu-item {
@@ -50,12 +58,41 @@
             color: white;
         }
         
+        .dashboard-tabs {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            gap: 5px;
+        }
+        
+        .dashboard-tab {
+            padding: 5px 12px;
+            cursor: pointer;
+            color: #d4d4d4;
+            border-radius: 3px;
+            transition: background 0.2s;
+            font-size: 11px;
+        }
+        
+        .dashboard-tab:hover {
+            background: #3c3c3c;
+        }
+        
+        .dashboard-tab.active {
+            background: #007acc;
+            color: white;
+        }
+        
         /* MDI Container */
         .mdi-container {
             height: calc(100vh - 30px);
             position: relative;
             background: #1e1e1e;
             overflow: hidden;
+        }
+        
+        body.fullscreen .mdi-container {
+            height: 100vh;
         }
         
         /* MDI Window */
@@ -69,6 +106,85 @@
             flex-direction: column;
             min-width: 300px;
             min-height: 200px;
+            overflow: hidden;
+        }
+        
+        /* Resize handles */
+        .mdi-window-resize-handle {
+            position: absolute;
+            background: transparent;
+            z-index: 10;
+        }
+        
+        /* Угловые handle */
+        .mdi-window-resize-handle.nw {
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            cursor: nw-resize;
+        }
+        
+        .mdi-window-resize-handle.ne {
+            top: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            cursor: ne-resize;
+        }
+        
+        .mdi-window-resize-handle.sw {
+            bottom: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            cursor: sw-resize;
+        }
+        
+        .mdi-window-resize-handle.se {
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            cursor: se-resize;
+        }
+        
+        /* Боковые handle */
+        .mdi-window-resize-handle.n {
+            top: 0;
+            left: 10px;
+            right: 10px;
+            height: 5px;
+            cursor: n-resize;
+        }
+        
+        .mdi-window-resize-handle.s {
+            bottom: 0;
+            left: 10px;
+            right: 10px;
+            height: 5px;
+            cursor: s-resize;
+        }
+        
+        .mdi-window-resize-handle.e {
+            top: 10px;
+            bottom: 10px;
+            right: 0;
+            width: 5px;
+            cursor: e-resize;
+        }
+        
+        .mdi-window-resize-handle.w {
+            top: 10px;
+            bottom: 10px;
+            left: 0;
+            width: 5px;
+            cursor: w-resize;
+        }
+        
+        /* Отключаем resize для максимизированных окон */
+        .mdi-window.maximized .mdi-window-resize-handle {
+            display: none;
         }
         
         .mdi-window.maximized {
@@ -76,6 +192,84 @@
             left: 0 !important;
             width: 100% !important;
             height: 100% !important;
+        }
+        
+        /* Resize handles */
+        .mdi-window-resize-handle {
+            position: absolute;
+            background: transparent;
+            z-index: 10;
+        }
+        
+        /* Угловые handle */
+        .mdi-window-resize-handle.nw {
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            cursor: nw-resize;
+        }
+        
+        .mdi-window-resize-handle.ne {
+            top: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            cursor: ne-resize;
+        }
+        
+        .mdi-window-resize-handle.sw {
+            bottom: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            cursor: sw-resize;
+        }
+        
+        .mdi-window-resize-handle.se {
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            cursor: se-resize;
+        }
+        
+        /* Боковые handle */
+        .mdi-window-resize-handle.n {
+            top: 0;
+            left: 10px;
+            right: 10px;
+            height: 5px;
+            cursor: n-resize;
+        }
+        
+        .mdi-window-resize-handle.s {
+            bottom: 0;
+            left: 10px;
+            right: 10px;
+            height: 5px;
+            cursor: s-resize;
+        }
+        
+        .mdi-window-resize-handle.e {
+            top: 10px;
+            bottom: 10px;
+            right: 0;
+            width: 5px;
+            cursor: e-resize;
+        }
+        
+        .mdi-window-resize-handle.w {
+            top: 10px;
+            bottom: 10px;
+            left: 0;
+            width: 5px;
+            cursor: w-resize;
+        }
+        
+        /* Отключаем resize для максимизированных окон */
+        .mdi-window.maximized .mdi-window-resize-handle {
+            display: none;
         }
         
         .mdi-window-header {
@@ -121,6 +315,11 @@
             flex: 1;
             overflow: auto;
             padding: 20px;
+        }
+        
+        .mdi-window-content.mdi-window-content-embed {
+            padding: 0;
+            overflow: hidden;
         }
         
         /* Metric Card */
@@ -238,115 +437,368 @@
         tr:hover {
             background: #2a2d2e;
         }
+        
+        /* ========================================
+           RESPONSIVE DESIGN FOR MOBILE DEVICES
+           ======================================== */
+        
+        /* Tablet devices (768px - 1024px) */
+        @media screen and (max-width: 1024px) {
+            .mdi-window {
+                min-width: 250px;
+                min-height: 180px;
+            }
+            
+            .metric-value {
+                font-size: 28px;
+            }
+            
+            .mdi-window-content {
+                padding: 15px;
+            }
+            
+            table {
+                font-size: 11px;
+            }
+            
+            th, td {
+                padding: 8px;
+            }
+        }
+        
+        /* Mobile devices (до 768px) */
+        @media screen and (max-width: 768px) {
+            /* Menu Bar адаптация */
+            .menu-bar {
+                height: auto;
+                flex-wrap: wrap;
+                padding: 8px 5px;
+            }
+            
+            .menu-item {
+                padding: 8px 10px;
+                font-size: 11px;
+                margin: 2px;
+            }
+            
+            .dashboard-tabs {
+                width: 100%;
+                margin-top: 5px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .dashboard-tab {
+                padding: 6px 10px;
+                font-size: 10px;
+                margin: 2px;
+            }
+            
+            /* MDI Container - вертикальный список на мобильных */
+            .mdi-container {
+                height: calc(100vh - 60px);
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                padding: 10px;
+                gap: 10px;
+            }
+            
+            body.fullscreen .mdi-container {
+                height: 100vh;
+                padding: 10px;
+            }
+            
+            /* MDI Windows - вертикальный список вместо абсолютного позиционирования */
+            .mdi-window {
+                position: static !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+                min-height: auto !important;
+                height: auto !important;
+                left: auto !important;
+                top: auto !important;
+                margin: 0 !important;
+                margin-bottom: 10px !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+            
+            /* Минимальный заголовок виджета на мобильных */
+            .mdi-window-header {
+                padding: 6px 10px !important;
+                min-height: 32px;
+                display: flex;
+                align-items: center;
+                cursor: default !important; /* Отключаем курсор move на мобильных */
+            }
+            
+            .mdi-window-title {
+                font-size: 12px !important;
+                font-weight: 600;
+            }
+            
+            /* Скрываем кнопки управления на мобильных для компактности */
+            .mdi-window-controls {
+                gap: 4px;
+            }
+            
+            .mdi-window-btn {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 14px !important;
+                touch-action: manipulation;
+            }
+            
+            .mdi-window-content {
+                padding: 12px !important;
+                font-size: 14px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Metric Cards */
+            .metric-card {
+                padding: 15px;
+            }
+            
+            .metric-title {
+                font-size: 11px;
+            }
+            
+            .metric-value {
+                font-size: 24px;
+            }
+            
+            .metric-label {
+                font-size: 12px;
+            }
+            
+            /* Progress bars */
+            .progress-bar {
+                height: 24px;
+            }
+            
+            /* Tables */
+            table {
+                font-size: 11px;
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+                white-space: nowrap;
+            }
+            
+            /* Улучшаем читаемость на мобильных */
+            .mdi-window {
+                box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            }
+        }
+        
+        /* Small mobile devices (до 480px) */
+        @media screen and (max-width: 480px) {
+            /* Menu Bar */
+            .menu-bar {
+                font-size: 11px;
+            }
+            
+            .menu-item {
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+            
+            .dashboard-tab {
+                padding: 5px 8px;
+                font-size: 9px;
+            }
+            
+            /* MDI Container - еще более компактный */
+            .mdi-container {
+                padding: 5px;
+                gap: 8px;
+            }
+            
+            /* MDI Windows - вертикальный список */
+            .mdi-window {
+                position: static !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: 100% !important;
+                left: auto !important;
+                top: auto !important;
+                margin: 0 !important;
+                margin-bottom: 8px !important;
+            }
+            
+            /* Еще более минимальный заголовок */
+            .mdi-window-header {
+                padding: 5px 8px !important;
+                min-height: 28px;
+            }
+            
+            .mdi-window-title {
+                font-size: 11px !important;
+            }
+            
+            .mdi-window-btn {
+                width: 24px !important;
+                height: 24px !important;
+                font-size: 12px !important;
+            }
+            
+            .mdi-window-content {
+                padding: 10px !important;
+                font-size: 13px;
+            }
+            
+            /* Metrics */
+            .metric-value {
+                font-size: 20px;
+            }
+            
+            .metric-title {
+                font-size: 10px;
+            }
+            
+            /* Tables - еще более компактные */
+            table {
+                font-size: 10px;
+            }
+            
+            th, td {
+                padding: 6px 4px;
+            }
+        }
+        
+        /* Landscape orientation для мобильных */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .mdi-window {
+                min-height: auto !important;
+            }
+            
+            .menu-bar {
+                height: 28px;
+            }
+            
+            .mdi-container {
+                height: calc(100vh - 28px);
+                padding: 8px;
+                gap: 8px;
+            }
+            
+            /* Еще более компактные заголовки в landscape */
+            .mdi-window-header {
+                padding: 4px 8px !important;
+                min-height: 24px;
+            }
+            
+            .mdi-window-title {
+                font-size: 11px !important;
+            }
+        }
+        
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            /* Для touch-устройств увеличиваем размеры кликабельных элементов */
+            .mdi-window-btn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+            
+            .dashboard-tab {
+                min-height: 44px;
+                padding: 10px 12px;
+            }
+            
+            .menu-item {
+                min-height: 44px;
+                padding: 10px 12px;
+            }
+            
+            /* Отключаем hover эффекты на touch-устройствах */
+            .metric-card:hover {
+                transform: none;
+            }
+            
+            /* Улучшаем перетаскивание для touch */
+            .mdi-window-header {
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                touch-action: none;
+            }
+        }
+        
+        /* Высокая плотность пикселей (Retina) */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .mdi-window {
+                border-width: 0.5px;
+            }
+            
+            .menu-bar {
+                border-bottom-width: 0.5px;
+            }
+        }
+        
+        /* Улучшение прокрутки на мобильных */
+        @media screen and (max-width: 768px) {
+            .mdi-window-content {
+                scrollbar-width: thin;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .mdi-window-content::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            
+            .mdi-window-content::-webkit-scrollbar-thumb {
+                background: #3c3c3c;
+                border-radius: 4px;
+            }
+            
+            .mdi-window-content::-webkit-scrollbar-track {
+                background: #1e1e1e;
+            }
+        }
     </style>
 </head>
-<body>
+<body{% if is_fullscreen %} class="fullscreen"{% endif %}>
     <!-- Menu Bar -->
-    <div class="menu-bar">
+    <div class="menu-bar"{% if is_fullscreen %} style="display: none;"{% endif %}>
         <div class="menu-item" onclick="window.location.href='/UNA.md/orasldev'">SQL Developer</div>
         <div class="menu-item active">Dashboard</div>
+        <div class="dashboard-tabs" id="dashboardTabs">
+            <!-- Dashboard tabs will be loaded dynamically -->
+        </div>
+        <a href="/UNA.md/orasldev/docs" class="menu-item" style="margin-left: 12px; text-decoration: none; color: inherit;" title="Документация и DDL/DML скрипты">📚 Документация</a>
     </div>
     
     <!-- MDI Container -->
     <div class="mdi-container" id="mdiContainer">
-        <!-- Instance Info Window -->
-        <div class="mdi-window" id="instance-window" style="width: 350px; height: 250px; top: 20px; left: 20px; z-index: 100;">
-            <div class="mdi-window-header">
-                <div class="mdi-window-title">Instance Info <span class="loading-indicator" id="instance-loading"></span></div>
-                <div class="mdi-window-controls">
-                    <button class="mdi-window-btn" onclick="maximizeWindow('instance-window')">□</button>
-                    <button class="mdi-window-btn" onclick="closeWindow('instance-window')">×</button>
-                </div>
-            </div>
-            <div class="mdi-window-content" id="instance-content">
-                <div class="loading-indicator"></div> Loading...
-            </div>
-        </div>
-        
-        <!-- Memory Window -->
-        <div class="mdi-window" id="memory-window" style="width: 350px; height: 250px; top: 20px; left: 390px; z-index: 99;">
-            <div class="mdi-window-header">
-                <div class="mdi-window-title">Memory Usage <span class="loading-indicator" id="memory-loading"></span></div>
-                <div class="mdi-window-controls">
-                    <button class="mdi-window-btn" onclick="maximizeWindow('memory-window')">□</button>
-                    <button class="mdi-window-btn" onclick="closeWindow('memory-window')">×</button>
-                </div>
-            </div>
-            <div class="mdi-window-content" id="memory-content">
-                <div class="loading-indicator"></div> Loading...
-            </div>
-        </div>
-        
-        <!-- CPU Window -->
-        <div class="mdi-window" id="cpu-window" style="width: 350px; height: 250px; top: 20px; left: 760px; z-index: 98;">
-            <div class="mdi-window-header">
-                <div class="mdi-window-title">CPU Usage <span class="loading-indicator" id="cpu-loading"></span></div>
-                <div class="mdi-window-controls">
-                    <button class="mdi-window-btn" onclick="maximizeWindow('cpu-window')">□</button>
-                    <button class="mdi-window-btn" onclick="closeWindow('cpu-window')">×</button>
-                </div>
-            </div>
-            <div class="mdi-window-content" id="cpu-content">
-                <div class="loading-indicator"></div> Loading...
-            </div>
-        </div>
-        
-        <!-- Sessions Window -->
-        <div class="mdi-window" id="sessions-window" style="width: 350px; height: 250px; top: 290px; left: 20px; z-index: 97;">
-            <div class="mdi-window-header">
-                <div class="mdi-window-title">Sessions <span class="loading-indicator" id="sessions-loading"></span></div>
-                <div class="mdi-window-controls">
-                    <button class="mdi-window-btn" onclick="maximizeWindow('sessions-window')">□</button>
-                    <button class="mdi-window-btn" onclick="closeWindow('sessions-window')">×</button>
-                </div>
-            </div>
-            <div class="mdi-window-content" id="sessions-content">
-                <div class="loading-indicator"></div> Loading...
-            </div>
-        </div>
-        
-        <!-- Tablespaces Window -->
-        <div class="mdi-window" id="tablespaces-window" style="width: 600px; height: 400px; top: 290px; left: 390px; z-index: 96;">
-            <div class="mdi-window-header">
-                <div class="mdi-window-title">Tablespaces <span class="loading-indicator" id="tablespaces-loading"></span></div>
-                <div class="mdi-window-controls">
-                    <button class="mdi-window-btn" onclick="maximizeWindow('tablespaces-window')">□</button>
-                    <button class="mdi-window-btn" onclick="closeWindow('tablespaces-window')">×</button>
-                </div>
-            </div>
-            <div class="mdi-window-content" id="tablespaces-content">
-                <div class="loading-indicator"></div> Loading...
-            </div>
-        </div>
-        
-        <!-- Top SQL Window -->
-        <div class="mdi-window" id="top-sql-window" style="width: 600px; height: 400px; top: 290px; left: 1010px; z-index: 95;">
-            <div class="mdi-window-header">
-                <div class="mdi-window-title">Top SQL Queries <span class="loading-indicator" id="top-sql-loading"></span></div>
-                <div class="mdi-window-controls">
-                    <button class="mdi-window-btn" onclick="maximizeWindow('top-sql-window')">□</button>
-                    <button class="mdi-window-btn" onclick="closeWindow('top-sql-window')">×</button>
-                </div>
-            </div>
-            <div class="mdi-window-content" id="top-sql-content">
-                <div class="loading-indicator"></div> Loading...
-            </div>
-        </div>
+        <!-- Widgets will be loaded dynamically -->
     </div>
     
     <script>
+        // Global variables
+        let currentDashboardId = null;
+        let currentDashboardConfig = null;
+        let zIndexCounter = 200;
+        let activeSubscriptions = new Set();
+        
         // Initialize Socket.IO
         const socket = io();
         
         socket.on('connect', () => {
             console.log('Connected to WebSocket server');
-            // Подписываемся на все метрики
-            subscribeToMetric('instance');
-            subscribeToMetric('memory');
-            subscribeToMetric('cpu');
-            subscribeToMetric('sessions');
-            subscribeToMetric('tablespaces');
-            subscribeToMetric('top_sql');
+            // Подписки будут добавлены при загрузке dashboard'а
         });
         
         socket.on('metric_update', (data) => {
@@ -360,14 +812,933 @@
         });
         
         function subscribeToMetric(metricName) {
+            if (!activeSubscriptions.has(metricName)) {
             socket.emit('subscribe_metric', { metric: metricName });
+                activeSubscriptions.add(metricName);
+            }
         }
         
-        function updateMetricDisplay(metricName, data) {
-            const loadingId = metricName + '-loading';
-            const contentId = metricName + '-content';
+        function unsubscribeFromMetric(metricName) {
+            if (activeSubscriptions.has(metricName)) {
+                socket.emit('unsubscribe_metric', { metric: metricName });
+                activeSubscriptions.delete(metricName);
+            }
+        }
+        
+        // Load dashboard list and create tabs
+        async function loadDashboardsList() {
+            try {
+                const response = await fetch('/api/dashboard/list');
+                const data = await response.json();
+                
+                if (data.success && data.dashboards) {
+                    const tabsContainer = document.getElementById('dashboardTabs');
+                    tabsContainer.innerHTML = '';
+                    
+                    data.dashboards.forEach(dashboard => {
+                        const tab = document.createElement('div');
+                        tab.className = 'dashboard-tab';
+                        tab.textContent = dashboard.dashboard_name;
+                        tab.title = dashboard.dashboard_description || dashboard.dashboard_name;
+                        tab.onclick = () => loadDashboard(dashboard.dashboard_id);
+                        tabsContainer.appendChild(tab);
+                    });
+                    
+                    // Load first dashboard by default
+                    if (data.dashboards.length > 0) {
+                        const firstDashboard = data.dashboards[0];
+                        loadDashboard(firstDashboard.dashboard_id);
+                    }
+                } else {
+                    console.error('Failed to load dashboards:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading dashboards list:', error);
+            }
+        }
+        
+        // Load specific dashboard
+        async function loadDashboard(dashboardId, skipTabsUpdate = false) {
+            try {
+                // Unsubscribe from all metrics
+                activeSubscriptions.forEach(metric => unsubscribeFromMetric(metric));
+                activeSubscriptions.clear();
+                
+                // Clear container - полностью удаляем все виджеты, включая логирование
+                const container = document.getElementById('mdiContainer');
+                // Удаляем все дочерние элементы, чтобы гарантировать полную очистку
+                while (container.firstChild) {
+                    container.removeChild(container.firstChild);
+                }
+                container.innerHTML = '';
+                
+                // Load dashboard config
+                const response = await fetch(`/api/dashboard/config/${dashboardId}`);
+                const data = await response.json();
+                
+                if (data.success && data.config) {
+                    currentDashboardId = dashboardId;
+                    currentDashboardConfig = data.config;
+                    
+                    // Update active tab (только если не в fullscreen режиме)
+                    if (!skipTabsUpdate) {
+                        document.querySelectorAll('.dashboard-tab').forEach(tab => {
+                            tab.classList.remove('active');
+                            if (tab.textContent === data.config.dashboard_name) {
+                                tab.classList.add('active');
+                            }
+                        });
+                    }
+                    
+                    // Create widgets - создаем виджеты только для текущего дашборда
+                    createWidgets(data.config.widgets);
+                    
+                    // Load initial data for all widgets - загружаем данные только для виджетов текущего дашборда
+                    loadWidgetsData(data.config.widgets);
+                    
+                } else {
+                    console.error('Failed to load dashboard config:', data.error);
+                    container.innerHTML = `<div style="padding: 20px; color: #f48771;">Error loading dashboard: ${data.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                const container = document.getElementById('mdiContainer');
+                container.innerHTML = `<div style="padding: 20px; color: #f48771;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Функция проверки мобильного устройства (вне createWidgets для доступа к глобальному window)
+        function checkIfMobileDevice() {
+            try {
+                if (typeof window !== 'undefined') {
+                    return window.innerWidth <= 768 || 
+                           (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+                }
+                return document.documentElement.clientWidth <= 768;
+            } catch(e) {
+                return document.documentElement.clientWidth <= 768;
+            }
+        }
+        
+        // Create widgets from config
+        function createWidgets(widgets) {
+            const container = document.getElementById('mdiContainer');
             
-            document.getElementById(loadingId).style.display = 'none';
+            // Проверяем, является ли устройство мобильным
+            const isMobileDevice = checkIfMobileDevice();
+            
+            widgets.forEach(widget => {
+                if (!widget.enabled) return;
+                
+                const isEmbed = widget.widget_type === 'embed' && widget.embed_url;
+                const isDocumentation = widget.widget_type === 'documentation';
+                const isLogging = widget.widget_type === 'logging';
+                
+                const windowElement = document.createElement('div');
+                windowElement.className = 'mdi-window';
+                windowElement.id = widget.window_id;
+                windowElement.style.width = widget.size.width + 'px';
+                windowElement.style.height = widget.size.height + 'px';
+                windowElement.style.top = widget.position.top + 'px';
+                windowElement.style.left = widget.position.left + 'px';
+                windowElement.style.zIndex = widget.z_index;
+                
+                const header = document.createElement('div');
+                header.className = 'mdi-window-header';
+                
+                const title = document.createElement('div');
+                title.className = 'mdi-window-title';
+                title.innerHTML = widget.title + (isEmbed || isDocumentation || isLogging ? '' : ' <span class="loading-indicator" id="' + widget.window_id + '-loading" style="display: none;"></span>');
+                
+                const controls = document.createElement('div');
+                controls.className = 'mdi-window-controls';
+                
+                if (widget.maximizable) {
+                    const maxBtn = document.createElement('button');
+                    maxBtn.className = 'mdi-window-btn';
+                    maxBtn.textContent = '□';
+                    maxBtn.onclick = () => maximizeWindow(widget.window_id);
+                    controls.appendChild(maxBtn);
+                }
+                
+                if (widget.closable) {
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'mdi-window-btn';
+                    closeBtn.textContent = '×';
+                    closeBtn.onclick = () => closeWindow(widget.window_id);
+                    controls.appendChild(closeBtn);
+                }
+                
+                header.appendChild(title);
+                header.appendChild(controls);
+                
+                const content = document.createElement('div');
+                content.className = 'mdi-window-content' + (isEmbed ? ' mdi-window-content-embed' : '');
+                content.id = widget.window_id + '-content';
+                if (isEmbed) {
+                    const embedUrl = widget.embed_url.startsWith('/') ? widget.embed_url : (window.location.pathname.replace(/\/dashboard.*$/, '') + '/' + widget.embed_url);
+                    content.style.position = 'relative';
+                    content.innerHTML = '<iframe src="' + embedUrl.replace(/"/g, '&quot;') + '" style="position:absolute;top:0;left:0;width:100%;height:100%;min-height:280px;border:0;" title="' + (widget.title || 'Embed').replace(/"/g, '&quot;') + '"></iframe>';
+                } else if (isDocumentation) {
+                    content.innerHTML = '<div class="loading-indicator"></div> Загрузка документации...';
+                } else if (isLogging) {
+                    content.innerHTML = '<div class="loading-indicator"></div> Загрузка логов...';
+                } else {
+                    content.innerHTML = '<div class="loading-indicator"></div> Loading...';
+                }
+                
+                windowElement.appendChild(header);
+                windowElement.appendChild(content);
+                container.appendChild(windowElement);
+                
+                // Make draggable if enabled (но не на мобильных устройствах)
+                if (widget.draggable && !isMobileDevice) {
+                    makeWindowDraggable(windowElement, header);
+                } else if (widget.draggable) {
+                    // На мобильных отключаем перетаскивание и курсор "move"
+                    header.style.cursor = 'default';
+                    header.style.userSelect = 'auto';
+                }
+                
+                // Make resizable if enabled (но не на мобильных устройствах)
+                if (widget.resizable && !isMobileDevice) {
+                    makeWindowResizable(windowElement);
+                }
+            });
+        }
+        
+        // Make window draggable
+        function makeWindowDraggable(window, header) {
+            let isDragging = false;
+            let currentX, currentY, initialX, initialY;
+            
+            // Универсальная функция для получения координат (мышь или touch)
+            function getClientCoords(e) {
+                if (e.touches && e.touches.length > 0) {
+                    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+                return { x: e.clientX, y: e.clientY };
+            }
+            
+            // Начало перетаскивания
+            function startDrag(e) {
+                const coords = getClientCoords(e);
+                isDragging = true;
+                initialX = coords.x - window.offsetLeft;
+                initialY = coords.y - window.offsetTop;
+                bringToFront(window.id);
+                
+                // Предотвращаем скролл на мобильных
+                if (e.touches) {
+                    e.preventDefault();
+                }
+            }
+            
+            // Перетаскивание
+            function drag(e) {
+                if (!isDragging || window.classList.contains('maximized')) return;
+                
+                const coords = getClientCoords(e);
+                e.preventDefault();
+                
+                currentX = coords.x - initialX;
+                currentY = coords.y - initialY;
+                
+                // Ограничиваем перемещение в пределах контейнера
+                const container = document.getElementById('mdiContainer');
+                const containerRect = container.getBoundingClientRect();
+                const windowRect = window.getBoundingClientRect();
+                
+                const maxX = containerRect.width - windowRect.width;
+                const maxY = containerRect.height - windowRect.height;
+                
+                currentX = Math.max(0, Math.min(currentX, maxX));
+                currentY = Math.max(0, Math.min(currentY, maxY));
+                
+                window.style.left = currentX + 'px';
+                window.style.top = currentY + 'px';
+            }
+            
+            // Окончание перетаскивания
+            function stopDrag() {
+                isDragging = false;
+            }
+            
+            // Поддержка мыши
+            header.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+            
+            // Поддержка touch-событий для мобильных устройств
+            header.addEventListener('touchstart', startDrag, { passive: false });
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', stopDrag);
+            document.addEventListener('touchcancel', stopDrag);
+        }
+        
+        // Make window resizable
+        function makeWindowResizable(window) {
+            const minWidth = 300;
+            const minHeight = 200;
+            let isResizing = false;
+            let resizeHandle = null;
+            let startX, startY, startWidth, startHeight, startLeft, startTop;
+            
+            // Создаем resize handles
+            const handles = [
+                { className: 'nw', cursor: 'nw-resize' },
+                { className: 'ne', cursor: 'ne-resize' },
+                { className: 'sw', cursor: 'sw-resize' },
+                { className: 'se', cursor: 'se-resize' },
+                { className: 'n', cursor: 'n-resize' },
+                { className: 's', cursor: 's-resize' },
+                { className: 'e', cursor: 'e-resize' },
+                { className: 'w', cursor: 'w-resize' }
+            ];
+            
+            handles.forEach(handle => {
+                const handleEl = document.createElement('div');
+                handleEl.className = `mdi-window-resize-handle ${handle.className}`;
+                handleEl.style.cursor = handle.cursor;
+                window.appendChild(handleEl);
+                
+                handleEl.addEventListener('mousedown', (e) => startResize(e, handle.className));
+            });
+            
+            function startResize(e, handle) {
+                if (window.classList.contains('maximized')) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                isResizing = true;
+                resizeHandle = handle;
+                bringToFront(window.id);
+                
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = parseInt(window.style.width, 10);
+                startHeight = parseInt(window.style.height, 10);
+                startLeft = parseInt(window.style.left, 10);
+                startTop = parseInt(window.style.top, 10);
+                
+                document.addEventListener('mousemove', doResize);
+                document.addEventListener('mouseup', stopResize);
+            }
+            
+            function doResize(e) {
+                if (!isResizing) return;
+                
+                e.preventDefault();
+                
+                const container = document.getElementById('mdiContainer');
+                const containerRect = container.getBoundingClientRect();
+                
+                let newWidth = startWidth;
+                let newHeight = startHeight;
+                let newLeft = startLeft;
+                let newTop = startTop;
+                
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                
+                // Обработка изменений размера в зависимости от handle
+                if (resizeHandle.includes('e')) {
+                    // Правый край
+                    newWidth = Math.max(minWidth, startWidth + deltaX);
+                    // Ограничиваем правой границей контейнера
+                    const maxWidth = containerRect.width - startLeft;
+                    newWidth = Math.min(newWidth, maxWidth);
+                }
+                
+                if (resizeHandle.includes('w')) {
+                    // Левый край
+                    newLeft = Math.max(0, startLeft + deltaX);
+                    newWidth = Math.max(minWidth, startWidth - deltaX);
+                    // Корректировка, если окно выходит за правую границу
+                    if (newLeft + newWidth > containerRect.width) {
+                        newWidth = containerRect.width - newLeft;
+                    }
+                }
+                
+                if (resizeHandle.includes('s')) {
+                    // Нижний край
+                    newHeight = Math.max(minHeight, startHeight + deltaY);
+                    // Ограничиваем нижней границей контейнера
+                    const maxHeight = containerRect.height - startTop;
+                    newHeight = Math.min(newHeight, maxHeight);
+                }
+                
+                if (resizeHandle.includes('n')) {
+                    // Верхний край
+                    newTop = Math.max(0, startTop + deltaY);
+                    newHeight = Math.max(minHeight, startHeight - deltaY);
+                    // Корректировка, если окно выходит за нижнюю границу
+                    if (newTop + newHeight > containerRect.height) {
+                        newHeight = containerRect.height - newTop;
+                    }
+                }
+                
+                // Применяем изменения
+                window.style.width = Math.max(minWidth, newWidth) + 'px';
+                window.style.height = Math.max(minHeight, newHeight) + 'px';
+                window.style.left = Math.max(0, newLeft) + 'px';
+                window.style.top = Math.max(0, newTop) + 'px';
+            }
+            
+            function stopResize() {
+                if (isResizing) {
+                    isResizing = false;
+                    resizeHandle = null;
+                    document.removeEventListener('mousemove', doResize);
+                    document.removeEventListener('mouseup', stopResize);
+                }
+            }
+        }
+        
+        // Load data for all widgets
+        async function loadWidgetsData(widgets) {
+            const metricsToLoad = new Set();
+            const customSqlWidgets = [];
+            
+            widgets.forEach(widget => {
+                if (!widget.enabled) return;
+                if (widget.widget_type === 'embed') return;
+                if (widget.widget_type === 'documentation') {
+                    // Documentation widgets are loaded separately
+                    return;
+                }
+                if (widget.widget_type === 'logging') {
+                    return;
+                }
+                if (widget.widget_type === 'custom_sql') {
+                    customSqlWidgets.push(widget);
+                } else if (widget.metric_name) {
+                    metricsToLoad.add(widget.metric_name);
+                    subscribeToMetric(widget.metric_name);
+                }
+            });
+            
+            // Load initial data for each metric
+            for (const metricName of metricsToLoad) {
+                try {
+                    const response = await fetch(`/api/dashboard/metric/${metricName}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        updateMetricDisplay(data.metric, data.data);
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${metricName}:`, error);
+                }
+            }
+            
+            // Load data for custom SQL widgets
+            for (const widget of customSqlWidgets) {
+                try {
+                    await loadCustomSqlWidget(widget);
+                } catch (error) {
+                    console.error(`Error loading custom SQL widget ${widget.widget_id}:`, error);
+                    const contentId = widget.window_id + '-content';
+                    const loadingId = widget.window_id + '-loading';
+                    const contentEl = document.getElementById(contentId);
+                    const loadingEl = document.getElementById(loadingId);
+                    if (loadingEl) loadingEl.style.display = 'none';
+                    if (contentEl) {
+                        contentEl.innerHTML = `<div style="color: #f48771;">Error: ${error.message}</div>`;
+                    }
+                }
+            }
+            
+            // Load documentation widgets
+            const documentationWidgets = currentDashboardConfig?.widgets?.filter(w => w.widget_type === 'documentation' && w.enabled) || [];
+            for (const widget of documentationWidgets) {
+                try {
+                    await loadDocumentationWidget(widget);
+                } catch (error) {
+                    console.error(`Error loading documentation widget ${widget.widget_id}:`, error);
+                    const contentId = widget.window_id + '-content';
+                    const contentEl = document.getElementById(contentId);
+                    if (contentEl) {
+                        contentEl.innerHTML = `<div style="color: #f48771;">Ошибка: ${escapeHtml(error.message)}</div>`;
+                    }
+                }
+            }
+
+            // Load logging widgets (Output / EasyCredit logs) - только из текущего дашборда
+            // Фильтруем виджеты логирования, которые принадлежат текущему дашборду (проверяем window_id)
+            const loggingWidgets = currentDashboardConfig?.widgets?.filter(w => 
+                w.widget_type === 'logging' && 
+                w.enabled && 
+                document.getElementById(w.window_id + '-content') !== null
+            ) || [];
+            for (const widget of loggingWidgets) {
+                try {
+                    // Дополнительная проверка: виджет должен существовать в DOM
+                    const contentEl = document.getElementById(widget.window_id + '-content');
+                    if (!contentEl) {
+                        console.warn(`Logging widget ${widget.window_id} not found in DOM, skipping`);
+                        continue;
+                    }
+                    await loadLoggingWidget(widget);
+                } catch (error) {
+                    console.error(`Error loading logging widget ${widget.widget_id}:`, error);
+                    const contentId = widget.window_id + '-content';
+                    const contentEl = document.getElementById(contentId);
+                    if (contentEl) {
+                        contentEl.innerHTML = `<div style="color: #f48771;">Ошибка: ${escapeHtml(error.message)}</div>`;
+                    }
+                }
+            }
+        }
+        
+        // Load documentation widget data
+        async function loadDocumentationWidget(widget) {
+            const contentId = widget.window_id + '-content';
+            const contentEl = document.getElementById(contentId);
+            
+            if (!contentEl) return;
+            
+            const dashboardId = widget.dashboard_id || currentDashboardId || '00';
+            
+            try {
+                const response = await fetch(`/api/dashboard/documentation/${dashboardId}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    contentEl.innerHTML = renderDocumentationHTML(result.data, dashboardId);
+                } else {
+                    contentEl.innerHTML = `<div style="color: #f48771;">Ошибка: ${escapeHtml(result.error || 'Не удалось загрузить документацию')}</div>`;
+                }
+            } catch (error) {
+                contentEl.innerHTML = `<div style="color: #f48771;">Ошибка: ${escapeHtml(error.message)}</div>`;
+                throw error;
+            }
+        }
+
+        async function loadLoggingWidget(widget) {
+            const contentId = widget.window_id + '-content';
+            const contentEl = document.getElementById(contentId);
+            if (!contentEl) return;
+            const wid = widget.window_id;
+            try {
+                const r = await fetch('/api/credit-logs?limit=500', { credentials: 'same-origin' });
+                const j = await r.json().catch(function() { return {}; });
+                if (r.status === 401) {
+                    contentEl.innerHTML = '<div style="padding:12px;color:#dcdcaa;">Требуется авторизация. <a href="/login" style="color:#4ec9b0;">Войти</a></div>';
+                    return;
+                }
+                if (j.success && Array.isArray(j.data)) {
+                    contentEl.innerHTML = renderLoggingHTML(j.data, wid);
+                } else {
+                    contentEl.innerHTML = '<div style="color: #f48771;">Ошибка: ' + (j.error || 'Не удалось загрузить логи') + '</div>';
+                }
+            } catch (e) {
+                contentEl.innerHTML = '<div style="color: #f48771;">Ошибка: ' + String(e.message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+                throw e;
+            }
+        }
+
+        async function refreshLoggingWidget(windowId) {
+            // Обновляем виджет напрямую по windowId, без поиска в конфигурации
+            // Это гарантирует, что обновляется правильный виджет, даже если пользователь переключился между дашбордами
+            const contentId = windowId + '-content';
+            const contentEl = document.getElementById(contentId);
+            if (!contentEl) {
+                console.warn('Logging widget not found:', windowId);
+                return;
+            }
+            try {
+                const r = await fetch('/api/credit-logs?limit=500', { credentials: 'same-origin' });
+                const j = await r.json().catch(function() { return {}; });
+                if (r.status === 401) {
+                    contentEl.innerHTML = '<div style="padding:12px;color:#dcdcaa;">Требуется авторизация. <a href="/login" style="color:#4ec9b0;">Войти</a></div>';
+                    return;
+                }
+                if (j.success && Array.isArray(j.data)) {
+                    contentEl.innerHTML = renderLoggingHTML(j.data, windowId);
+                } else {
+                    contentEl.innerHTML = '<div style="color: #f48771;">Ошибка: ' + (j.error || 'Не удалось загрузить логи') + '</div>';
+                }
+            } catch (e) {
+                contentEl.innerHTML = '<div style="color: #f48771;">Ошибка: ' + String(e.message).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+            }
+        }
+
+        async function clearAndRefreshLoggingWidget(windowId) {
+            try {
+                await fetch('/api/credit-logs/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' });
+            } catch (_) {}
+            await refreshLoggingWidget(windowId);
+        }
+
+        function renderLoggingHTML(entries, windowId) {
+            function esc(t) {
+                if (t == null) return '';
+                var d = document.createElement('div');
+                d.textContent = String(t);
+                return d.innerHTML;
+            }
+            var html = '<div class="credit-log-panel" style="display:flex;flex-direction:column;height:100%;min-height:200px;padding:0;">';
+            html += '<div style="flex:0 0 auto;display:flex;gap:8px;padding:8px;background:#2d2d30;border-bottom:1px solid #3c3c3c;">';
+            html += '<button type="button" onclick="refreshLoggingWidget(\'' + esc(windowId) + '\')" style="padding:4px 12px;background:#0e639c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">Обновить</button>';
+            html += '<button type="button" onclick="clearAndRefreshLoggingWidget(\'' + esc(windowId) + '\')" style="padding:4px 12px;background:#3c3c3c;color:#d4d4d4;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;">Очистить</button>';
+            html += '<span style="color:#858585;font-size:11px;align-self:center;margin-left:8px;">Output · EasyCredit и кредиты. После действий нажмите «Обновить».</span>';
+            html += '</div>';
+            html += '<pre id="credit-log-output-' + esc(windowId) + '" style="flex:1;margin:0;padding:10px;overflow:auto;font-family:Consolas,Monaco,\'Courier New\',monospace;font-size:12px;line-height:1.4;background:#1e1e1e;color:#d4d4d4;white-space:pre-wrap;word-break:break-all;">';
+            if (!entries || entries.length === 0) {
+                html += esc('Нет записей. Выполните действия в EasyCredit (предодобрение, заявка, статус) или в кредитных виджетах.');
+            } else {
+                for (var i = 0; i < entries.length; i++) {
+                    var e = entries[i];
+                    var ts = (e.ts || '').replace('T', ' ').slice(0, 19);
+                    var lv = (e.level || 'INFO').toUpperCase();
+                    var src = e.source || '';
+                    var msg = esc(e.message || '');
+                    var color = lv === 'ERROR' ? '#f48771' : lv === 'WARN' ? '#dcdcaa' : '#4ec9b0';
+                    html += '<span style="color:#858585;">[' + esc(ts) + ']</span> <span style="color:' + color + '">' + lv + '</span> ' + esc(src) + ' | ' + msg;
+                    var pl = e.payload;
+                    if (pl && typeof pl === 'object' && Object.keys(pl).length) {
+                        try { html += ' ' + esc(JSON.stringify(pl)); } catch (_) {}
+                    }
+                    html += '\n';
+                }
+            }
+            html += '</pre></div>';
+            return html;
+        }
+        
+        // Render documentation HTML
+        function renderDocumentationHTML(docData, dashboardId) {
+            function escapeHtml(text) {
+                if (text == null || text === undefined) return '';
+                const div = document.createElement('div');
+                div.textContent = String(text);
+                return div.innerHTML;
+            }
+            
+            let html = `<div style="padding: 10px;">`;
+            html += `<h3 style="margin-bottom: 15px; color: #4ec9b0;">${escapeHtml(docData.dashboard_name || 'Dashboard')}</h3>`;
+            html += `<p style="color: #858585; margin-bottom: 20px; font-size: 12px;">${escapeHtml(docData.dashboard_description || '')}</p>`;
+            
+            // Кнопки для генерации скриптов и документации
+            html += `<div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">`;
+            html += `<a href="/UNA.md/orasldev/docs/dashboard/${dashboardId}" target="_blank" style="padding: 8px 16px; background: #4ec9b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; text-decoration: none; display: inline-block;">📚 Полная документация</a>`;
+            html += `<button onclick="downloadDDL('${dashboardId}')" style="padding: 8px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">📥 Скачать DDL</button>`;
+            html += `<button onclick="downloadDML('${dashboardId}')" style="padding: 8px 16px; background: #00cc66; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">📥 Скачать DML</button>`;
+            html += `<button onclick="viewDDL('${dashboardId}')" style="padding: 8px 16px; background: #3c3c3c; color: white; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 12px;">👁️ Просмотр DDL</button>`;
+            html += `<button onclick="viewDML('${dashboardId}')" style="padding: 8px 16px; background: #3c3c3c; color: white; border: 1px solid #555; border-radius: 4px; cursor: pointer; font-size: 12px;">👁️ Просмотр DML</button>`;
+            html += `</div>`;
+            
+            // Ссылка на общую документацию
+            html += `<div style="margin-top: 20px; margin-bottom: 15px; padding: 12px; background: #2d2d30; border-radius: 4px; border-left: 3px solid #4ec9b0;">`;
+            html += `<div style="font-weight: 600; color: #4ec9b0; margin-bottom: 5px;">📖 Документация</div>`;
+            html += `<div style="font-size: 11px; color: #858585; margin-bottom: 8px;">Полная документация по развертыванию, доработке и использованию дашборда</div>`;
+            html += `<a href="/UNA.md/orasldev/docs/dashboard/${dashboardId}" target="_blank" style="color: #007acc; text-decoration: none; font-size: 12px;">→ Открыть документацию в новой вкладке</a>`;
+            html += `</div>`;
+            
+            // Общая документация (Развертывание, Конфигурация)
+            html += `<div style="margin-bottom: 15px; padding: 12px; background: #2d2d30; border-radius: 4px; border-left: 3px solid #007acc;">`;
+            html += `<div style="font-weight: 600; color: #4ec9b0; margin-bottom: 8px;">📚 Общая документация</div>`;
+            html += `<div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">`;
+            html += `<a href="/UNA.md/orasldev/docs" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Обзор документации</a>`;
+            html += `<a href="/UNA.md/orasldev/docs/deployment" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Развертывание</a>`;
+            html += `<a href="/UNA.md/orasldev/docs/configuration" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Конфигурация</a>`;
+            html += `</div>`;
+            html += `</div>`;
+            
+            // Дополнительные ресурсы для кредитных дашбордов (04, 05, 06, 07)
+            if (['04', '05', '06', '07'].indexOf(dashboardId) !== -1) {
+                html += `<div style="margin-bottom: 15px; padding: 12px; background: #1e2d3a; border-radius: 4px; border-left: 3px solid #007acc;">`;
+                html += `<div style="font-weight: 600; color: #4ec9b0; margin-bottom: 8px;">📎 Дополнительные ресурсы</div>`;
+                html += `<div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">`;
+                html += `<a href="/UNA.md/orasldev/docs/sql" target="_blank" style="color: #60a5fa; text-decoration: none;">→ DDL скрипты</a>`;
+                html += `<a href="/UNA.md/orasldev/docs/api" target="_blank" style="color: #60a5fa; text-decoration: none;">→ API документация</a>`;
+                if (dashboardId === '04') {
+                    html += `<a href="/UNA.md/orasldev/docs/dashboard/05" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Dashboard 05: Кредиты — Оператор</a>`;
+                }
+                if (dashboardId === '05') {
+                    html += `<a href="/UNA.md/orasldev/docs/dashboard/04" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Dashboard 04: Кредиты — Админка</a>`;
+                }
+                html += `<a href="/UNA.md/orasldev/docs/easycredit" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Easy Credit API документация</a>`;
+                html += `<a href="/UNA.md/orasldev/docs/cred-reports" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Настраиваемые отчёты</a>`;
+                if (dashboardId === '06' || dashboardId === '07') {
+                    html += `<a href="/UNA.md/orasldev/docs/iute" target="_blank" style="color: #60a5fa; text-decoration: none;">→ Iute REST API</a>`;
+                }
+                html += `</div>`;
+                html += `</div>`;
+            }
+            
+            // Список виджетов
+            html += `<h4 style="margin-top: 20px; margin-bottom: 10px; color: #4ec9b0; font-size: 14px;">Виджеты (${docData.widgets?.length || 0}):</h4>`;
+            
+            if (docData.widgets && docData.widgets.length > 0) {
+                html += `<div style="display: flex; flex-direction: column; gap: 10px;">`;
+                docData.widgets.forEach((widget, idx) => {
+                    html += `<div style="background: #2d2d30; padding: 12px; border-radius: 4px; border-left: 3px solid #007acc;">`;
+                    html += `<div style="font-weight: 600; color: #4ec9b0; margin-bottom: 5px;">${idx + 1}. ${escapeHtml(widget.title || widget.widget_id)}</div>`;
+                    html += `<div style="font-size: 11px; color: #858585; margin-bottom: 8px;">${escapeHtml(widget.description || '')}</div>`;
+                    
+                    html += `<div style="font-size: 11px; color: #858585;">`;
+                    html += `<div><strong>Тип:</strong> ${escapeHtml(widget.widget_type || 'metric')}</div>`;
+                    if (widget.metric_name) {
+                        html += `<div><strong>Метрика:</strong> ${escapeHtml(widget.metric_name)}</div>`;
+                    }
+                    if (widget.class_name && widget.method_name) {
+                        html += `<div><strong>Класс:</strong> ${escapeHtml(widget.class_name)}.${escapeHtml(widget.method_name)}</div>`;
+                    }
+                    if (widget.embed_url) {
+                        html += `<div><strong>URL:</strong> <code style="background: #1e1e1e; padding: 2px 4px; border-radius: 2px;">${escapeHtml(widget.embed_url)}</code></div>`;
+                    }
+                    html += `</div>`;
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            } else {
+                html += `<div style="color: #858585; font-size: 12px;">Виджеты не найдены</div>`;
+            }
+            
+            html += `</div>`;
+            return html;
+        }
+        
+        // Download DDL script
+        async function downloadDDL(dashboardId) {
+            try {
+                const response = await fetch(`/api/dashboard/ddl/${dashboardId}`);
+                const result = await response.json();
+                if (result.success) {
+                    const blob = new Blob([result.script], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `dashboard_${dashboardId}_ddl.sql`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Не удалось сгенерировать DDL'));
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+        
+        // Download DML script
+        async function downloadDML(dashboardId) {
+            try {
+                const response = await fetch(`/api/dashboard/dml/${dashboardId}`);
+                const result = await response.json();
+                if (result.success) {
+                    const blob = new Blob([result.script], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `dashboard_${dashboardId}_dml.sql`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Не удалось сгенерировать DML'));
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+        
+        // View DDL script in modal
+        async function viewDDL(dashboardId) {
+            try {
+                const response = await fetch(`/api/dashboard/ddl/${dashboardId}`);
+                const result = await response.json();
+                if (result.success) {
+                    showScriptModal(`DDL скрипт для дашборда ${dashboardId}`, result.script);
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Не удалось загрузить DDL'));
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+        
+        // View DML script in modal
+        async function viewDML(dashboardId) {
+            try {
+                const response = await fetch(`/api/dashboard/dml/${dashboardId}`);
+                const result = await response.json();
+                if (result.success) {
+                    showScriptModal(`DML скрипт (демо-данные) для дашборда ${dashboardId}`, result.script);
+                } else {
+                    alert('Ошибка: ' + (result.error || 'Не удалось загрузить DML'));
+                }
+            } catch (error) {
+                alert('Ошибка: ' + error.message);
+            }
+        }
+        
+        // Show script in modal
+        function showScriptModal(title, script) {
+            function escapeHtml(text) {
+                if (text == null || text === undefined) return '';
+                const div = document.createElement('div');
+                div.textContent = String(text);
+                return div.innerHTML;
+            }
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+            
+            const content = document.createElement('div');
+            content.style.cssText = 'background: #252526; border: 1px solid #3c3c3c; border-radius: 4px; width: 90%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;';
+            
+            const header = document.createElement('div');
+            header.style.cssText = 'padding: 15px; border-bottom: 1px solid #3c3c3c; display: flex; justify-content: space-between; align-items: center;';
+            header.innerHTML = `<h3 style="margin: 0; color: #4ec9b0;">${escapeHtml(title)}</h3><button onclick="this.closest('div[style*=\\'position: fixed\\']').remove()" style="background: #3c3c3c; color: white; border: none; border-radius: 3px; padding: 5px 10px; cursor: pointer;">×</button>`;
+            
+            const textarea = document.createElement('textarea');
+            textarea.value = script;
+            textarea.style.cssText = 'flex: 1; background: #1e1e1e; color: #d4d4d4; border: none; padding: 15px; font-family: monospace; font-size: 12px; resize: none; outline: none;';
+            textarea.readOnly = true;
+            
+            const footer = document.createElement('div');
+            footer.style.cssText = 'padding: 10px; border-top: 1px solid #3c3c3c; display: flex; justify-content: flex-end; gap: 10px;';
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = '📋 Копировать';
+            copyBtn.style.cssText = 'padding: 6px 12px; background: #007acc; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(script).then(() => {
+                    alert('Скопировано в буфер обмена');
+                }).catch(() => {
+                    alert('Ошибка копирования');
+                });
+            };
+            footer.appendChild(copyBtn);
+            
+            content.appendChild(header);
+            content.appendChild(textarea);
+            content.appendChild(footer);
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+        
+        // Load custom SQL widget data
+        async function loadCustomSqlWidget(widget) {
+            const loadingId = widget.window_id + '-loading';
+            const contentId = widget.window_id + '-content';
+            const loadingEl = document.getElementById(loadingId);
+            const contentEl = document.getElementById(contentId);
+            
+            if (loadingEl) loadingEl.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch('/api/dashboard/widget/custom-sql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        database_type: widget.database_type || 'oracle',
+                        sql_query: widget.sql_query || '',
+                        connection_params: widget.connection_params || {}
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (loadingEl) loadingEl.style.display = 'none';
+                
+                if (contentEl) {
+                    if (result.success) {
+                        contentEl.innerHTML = renderCustomSqlResults(result);
+                    } else {
+                        contentEl.innerHTML = `<div style="color: #f48771;">Error: ${escapeHtml(result.error || 'Unknown error')}</div>`;
+                    }
+                }
+            } catch (error) {
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (contentEl) {
+                    contentEl.innerHTML = `<div style="color: #f48771;">Error: ${escapeHtml(error.message)}</div>`;
+                }
+                throw error;
+            }
+        }
+        
+        // Render custom SQL results in grid
+        function renderCustomSqlResults(result) {
+            function escapeHtml(text) {
+                if (text == null || text === undefined) return '';
+                const div = document.createElement('div');
+                div.textContent = String(text);
+                return div.innerHTML;
+            }
+            
+            if (!result.data || result.data.length === 0) {
+                return `<div style="color: #858585; padding: 20px;">No data returned. ${result.message || ''}</div>`;
+            }
+            
+            if (!result.columns || result.columns.length === 0) {
+                return `<div style="color: #858585; padding: 20px;">No columns in result. ${result.message || ''}</div>`;
+            }
+            
+            let html = `<div style="margin-bottom: 10px; font-size: 11px; color: #858585;">Rows: ${result.rowcount || 0}</div>`;
+            html += '<table><thead><tr>';
+            
+            // Header row
+            result.columns.forEach(col => {
+                html += `<th>${escapeHtml(col)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // Data rows
+            result.data.forEach(row => {
+                html += '<tr>';
+                row.forEach(cell => {
+                    html += `<td>${escapeHtml(cell)}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        // Update metric display
+        function updateMetricDisplay(metricName, data) {
+            // Try to find widget by metric_name
+            const widget = currentDashboardConfig?.widgets?.find(w => w.metric_name === metricName);
+            if (widget) {
+                const loadingId = widget.window_id + '-loading';
+                const contentId = widget.window_id + '-content';
+                const loadingEl = document.getElementById(loadingId);
+                const contentEl = document.getElementById(contentId);
+                
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (contentEl) {
+                    contentEl.innerHTML = renderMetricHTML(metricName, data);
+                }
+            }
+        }
+        
+        // Render metric HTML (keep existing implementation but simplified)
+        function renderMetricHTML(metricName, data) {
+            function escapeHtml(text) {
+                if (text == null) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            function getUsageClass(percent) {
+                if (!percent) return '';
+                if (percent > 90) return 'danger';
+                if (percent > 75) return 'warning';
+                return 'success';
+            }
             
             let html = '';
             
@@ -376,32 +1747,37 @@
                     html = `
                         <div class="metric-card success">
                             <div class="metric-title">Database Status</div>
-                            <div class="metric-value">${data.status || 'N/A'}</div>
-                            <div class="metric-label">${data.database_status || ''}</div>
+                            <div class="metric-value">${escapeHtml(data.status || 'N/A')}</div>
+                            <div class="metric-label">${escapeHtml(data.database_status || '')}</div>
                         </div>
                         <div class="metric-card">
                             <div class="metric-title">Instance Name</div>
-                            <div class="metric-value" style="font-size: 24px;">${data.instance_name || 'N/A'}</div>
-                            <div class="metric-label">${data.host_name || ''}</div>
+                            <div class="metric-value" style="font-size: 24px;">${escapeHtml(data.instance_name || 'N/A')}</div>
+                            <div class="metric-label">${escapeHtml(data.host_name || '')}</div>
                         </div>
                         <div class="metric-card">
                             <div class="metric-title">Version</div>
-                            <div class="metric-value" style="font-size: 14px;">${data.version || 'N/A'}</div>
+                            <div class="metric-value" style="font-size: 14px;">${escapeHtml(data.version || 'N/A')}</div>
                         </div>
                     `;
                     break;
                     
                 case 'memory':
                     const memUsage = data.usage_percent || 0;
+                    const memFree = data.free_gb || 0;
+                    const memTotal = data.total_gb || 0;
                     html = `
                         <div class="metric-card ${getUsageClass(memUsage)}">
-                            <div class="metric-title">Memory Usage</div>
+                            <div class="metric-title">Database Memory (SGA)</div>
                             <div class="metric-value">${memUsage.toFixed(2)}%</div>
-                            <div class="metric-label">${data.used_gb?.toFixed(2) || 0} GB / ${data.total_gb?.toFixed(2) || 0} GB</div>
+                            <div class="metric-label">Free: ${memFree.toFixed(2)} GB / Total: ${memTotal.toFixed(2)} GB</div>
                             <div class="progress-bar">
                                 <div class="progress-fill ${getUsageClass(memUsage)}" style="width: ${memUsage}%">
                                     ${memUsage.toFixed(1)}%
                                 </div>
+                            </div>
+                            <div style="margin-top: 10px; font-size: 11px; color: #858585;">
+                                Used: ${(memTotal - memFree).toFixed(2)} GB | Free: ${memFree.toFixed(2)} GB
                             </div>
                         </div>
                     `;
@@ -439,7 +1815,7 @@
                         data.forEach(ts => {
                             html += `
                                 <tr>
-                                    <td><strong>${ts.name}</strong></td>
+                                    <td><strong>${escapeHtml(ts.name)}</strong></td>
                                     <td>${ts.total_mb.toFixed(2)}</td>
                                     <td>${ts.used_mb.toFixed(2)}</td>
                                     <td>${ts.free_mb.toFixed(2)}</td>
@@ -465,11 +1841,11 @@
                         data.forEach(sql => {
                             html += `
                                 <tr>
-                                    <td><code>${sql.sql_id}</code></td>
-                                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${sql.sql_text}">${sql.sql_text}</td>
-                                    <td>${sql.executions}</td>
-                                    <td>${sql.elapsed_seconds.toFixed(2)}</td>
-                                    <td>${sql.cpu_seconds.toFixed(2)}</td>
+                                    <td><code>${escapeHtml(sql.sql_id)}</code></td>
+                                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(sql.sql_text || '')}">${escapeHtml(sql.sql_text || 'N/A')}</td>
+                                    <td>${sql.executions || 0}</td>
+                                    <td>${(sql.elapsed_seconds || 0).toFixed(2)}</td>
+                                    <td>${(sql.cpu_seconds || 0).toFixed(2)}</td>
                                 </tr>
                             `;
                         });
@@ -478,84 +1854,172 @@
                         html = '<div style="color: #858585;">No SQL data available</div>';
                     }
                     break;
+                    
+                case 'system':
+                    if (data.memory && data.disk) {
+                        const mem = data.memory;
+                        const disk = data.disk;
+                        html = `
+                            <div style="margin-bottom: 20px;">
+                                <div class="metric-title" style="font-size: 14px; margin-bottom: 10px;">💾 Server Memory</div>
+                                <div class="metric-card ${getUsageClass(mem.usage_percent)}">
+                                    <div class="metric-value">${mem.usage_percent.toFixed(2)}%</div>
+                                    <div class="metric-label">Free: ${mem.free_gb.toFixed(2)} GB / Total: ${mem.total_gb.toFixed(2)} GB</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill ${getUsageClass(mem.usage_percent)}" style="width: ${mem.usage_percent}%">
+                                            ${mem.usage_percent.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 8px; font-size: 11px; color: #858585;">
+                                        Used: ${mem.used_gb.toFixed(2)} GB | Free: ${mem.free_gb.toFixed(2)} GB
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="metric-title" style="font-size: 14px; margin-bottom: 10px;">💿 Disk Space</div>
+                                <div class="metric-card ${getUsageClass(disk.usage_percent)}">
+                                    <div class="metric-value">${disk.usage_percent.toFixed(2)}%</div>
+                                    <div class="metric-label">Free: ${disk.free_gb.toFixed(2)} GB / Total: ${disk.total_gb.toFixed(2)} GB</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill ${getUsageClass(disk.usage_percent)}" style="width: ${disk.usage_percent}%">
+                                            ${disk.usage_percent.toFixed(1)}%
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 8px; font-size: 11px; color: #858585;">
+                                        Used: ${disk.used_gb.toFixed(2)} GB | Free: ${disk.free_gb.toFixed(2)} GB
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (data.error) {
+                        html = `<div style="color: #f48771;">Error: ${escapeHtml(data.error)}</div><div style="color: #858585; font-size: 11px; margin-top: 10px;">Install psutil: pip install psutil</div>`;
+                    } else {
+                        html = '<div style="color: #858585;">System metrics not available</div>';
+                    }
+                    break;
+                    
+                case 'weather':
+                    if (data.time || data.temperature !== undefined) {
+                        const conditionIcon = data.condition_icon || '🌤️';
+                        const condition = data.condition || 'Неизвестно';
+                        const temp = data.temperature !== undefined ? data.temperature : 'N/A';
+                        const tempUnit = data.temperature_unit || '°C';
+                        const time = data.time || '--:--:--';
+                        const date = data.date || '';
+                        const day = data.day || '';
+                        const location = data.location || '';
+                        
+                        html = `
+                            <div style="display: flex; flex-direction: column; gap: 15px;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 48px; margin-bottom: 10px;">${conditionIcon}</div>
+                                    <div class="metric-value" style="font-size: 36px; margin-bottom: 5px;">${temp}${tempUnit}</div>
+                                    <div class="metric-label" style="font-size: 14px; color: #858585;">${condition}</div>
+                                    ${location ? `<div style="font-size: 11px; color: #858585; margin-top: 5px;">📍 ${escapeHtml(location)}</div>` : ''}
+                                </div>
+                                
+                                <div style="border-top: 1px solid #3c3c3c; padding-top: 15px;">
+                                    <div style="text-align: center;">
+                                        <div class="metric-title" style="font-size: 12px; margin-bottom: 8px;">🕐 Текущее время</div>
+                                        <div class="metric-value" style="font-size: 32px; margin-bottom: 5px;">${time}</div>
+                                        ${date ? `<div class="metric-label" style="font-size: 12px; color: #858585;">${day}, ${date}</div>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (data.error) {
+                        html = `<div style="color: #f48771;">Error: ${escapeHtml(data.error)}</div>`;
+                    } else {
+                        html = '<div style="color: #858585;">Погодные данные недоступны</div>';
+                    }
+                    break;
+                    
+                case 'departure_board':
+                    if (data.departures && data.departures.length) {
+                        const curTime = data.current_time || '--:--:--';
+                        html = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #3c3c3c;">
+                                <div class="metric-title" style="font-size: 16px;">${escapeHtml(data.title || 'Табло отправлений')}</div>
+                                <div style="font-size: 24px; font-weight: 600; color: #4ec9b0;">${curTime}</div>
+                            </div>
+                            <table><thead><tr>
+                                <th>Рейс</th><th>Направление</th><th>Отправление</th><th>Платформа</th><th>Ворота</th><th>Статус</th>
+                            </tr></thead><tbody>`;
+                        data.departures.forEach(d => {
+                            const statusClass = (d.status || '').toLowerCase().includes('посадка') ? 'success' : '';
+                            html += `<tr>
+                                <td><strong>${escapeHtml(d.route || '')}</strong></td>
+                                <td>${escapeHtml(d.destination || '')}</td>
+                                <td style="font-size: 18px;">${escapeHtml(d.departure || '')}</td>
+                                <td>${escapeHtml(d.platform || '')}</td>
+                                <td>${escapeHtml(d.gate || '—')}</td>
+                                <td><span class="metric-card ${statusClass}" style="padding: 4px 10px; font-size: 12px;">${escapeHtml(d.status || '')}</span></td>
+                            </tr>`;
+                        });
+                        html += '</tbody></table>';
+                    } else if (data.error) {
+                        html = `<div style="color: #f48771;">${escapeHtml(data.error)}</div>`;
+                    } else {
+                        html = '<div style="color: #858585;">Нет данных о рейсах</div>';
+                    }
+                    break;
+                    
+                default:
+                    html = `<div style="color: #858585;">Unknown metric: ${escapeHtml(metricName)}</div>`;
+                    console.warn(`Unknown metric type: ${metricName}`, data);
+                    break;
             }
             
-            document.getElementById(contentId).innerHTML = html;
+            return html;
         }
         
-        function getUsageClass(percent) {
-            if (!percent) return '';
-            if (percent > 90) return 'danger';
-            if (percent > 75) return 'warning';
-            return 'success';
+        function escapeHtml(text) {
+            if (text == null || text === undefined) return '';
+            const div = document.createElement('div');
+            div.textContent = String(text);
+            return div.innerHTML;
         }
-        
-        // Window management
-        let zIndexCounter = 200;
         
         function maximizeWindow(windowId) {
             const window = document.getElementById(windowId);
+            if (window) {
             window.classList.toggle('maximized');
+            }
         }
         
         function closeWindow(windowId) {
             const window = document.getElementById(windowId);
+            if (window) {
             window.style.display = 'none';
+            }
         }
         
         function bringToFront(windowId) {
             const window = document.getElementById(windowId);
+            if (window) {
             window.style.zIndex = zIndexCounter++;
-        }
-        
-        // Make windows draggable
-        document.querySelectorAll('.mdi-window-header').forEach(header => {
-            let isDragging = false;
-            let currentX, currentY, initialX, initialY;
-            
-            header.addEventListener('mousedown', (e) => {
-                isDragging = true;
-                const window = header.closest('.mdi-window');
-                initialX = e.clientX - window.offsetLeft;
-                initialY = e.clientY - window.offsetTop;
-                bringToFront(window.id);
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (isDragging) {
-                    e.preventDefault();
-                    const window = document.querySelector('.mdi-window-header:hover')?.closest('.mdi-window');
-                    if (window && !window.classList.contains('maximized')) {
-                        currentX = e.clientX - initialX;
-                        currentY = e.clientY - initialY;
-                        window.style.left = currentX + 'px';
-                        window.style.top = currentY + 'px';
-                    }
-                }
-            });
-            
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
-        });
-        
-        // Initial load
-        async function loadInitialData() {
-            const metrics = ['instance', 'memory', 'cpu', 'sessions', 'tablespaces', 'top_sql'];
-            for (const metric of metrics) {
-                try {
-                    const response = await fetch(`/api/dashboard/metric/${metric}`);
-                    const data = await response.json();
-                    if (data.success) {
-                        updateMetricDisplay(data.metric, data.data);
-                    }
-                } catch (error) {
-                    console.error(`Error loading ${metric}:`, error);
-                }
             }
         }
         
-        loadInitialData();
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Получаем dashboard_id из шаблона или URL
+            const dashboardIdFromTemplate = {% if dashboard_id %}'{{ dashboard_id }}'{% else %}null{% endif %};
+            const urlParams = new URLSearchParams(window.location.search);
+            const dashboardIdFromUrl = urlParams.get('p');
+            
+            // Определяем dashboard_id (приоритет: шаблон > URL параметр)
+            const targetDashboardId = dashboardIdFromTemplate || dashboardIdFromUrl;
+            
+            // Если указан конкретный dashboard (fullscreen режим)
+            if (targetDashboardId) {
+                // В fullscreen режиме загружаем только указанный dashboard без обновления вкладок
+                loadDashboard(targetDashboardId, true);
+            } else {
+                // Обычный режим - загружаем список всех dashboard'ов
+                loadDashboardsList();
+            }
+        });
     </script>
 </body>
 </html>

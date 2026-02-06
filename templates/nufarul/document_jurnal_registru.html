@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jurnal Registru Comenzi / Журнал регистраций</title>
+    <style>
+        body { font-family: 'Courier New', monospace; font-size: 11px; margin: 20px; background: #f5f5f5; }
+        .document { background: #fffef8; padding: 20px; max-width: 1000px; margin: 0 auto; border: 1px solid #ccc; }
+        .header { text-align: center; margin-bottom: 16px; }
+        .header h1 { font-size: 14px; margin: 0 0 4px 0; }
+        .header .sub { font-size: 10px; color: #666; }
+        table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        th, td { border: 1px solid #666; padding: 5px 8px; text-align: left; }
+        th { background: #e8e8e8; font-weight: bold; }
+        .row-num { width: 36px; text-align: right; }
+        .date-col { width: 72px; }
+        .num-col { width: 90px; }
+        .name-col { min-width: 120px; }
+        .phone-col { width: 100px; }
+        .total-col { width: 70px; text-align: right; }
+        .handwritten { color: #000080; }
+        .note { font-size: 9px; color: #666; margin-top: 12px; }
+        @media print { body { background: #fff; } .document { box-shadow: none; } }
+    </style>
+</head>
+<body>
+    <div class="document">
+        <div class="header">
+            <div class="logo" style="font-weight:bold;font-style:italic;font-size:16px;margin-bottom:8px;">Nufărul</div>
+            <h1>Jurnal Registru Comenzi / Журнал регистраций заказов</h1>
+            <p class="sub">{{ period_label }}</p>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="row-num">Nr.</th>
+                    <th class="date-col">Data / Ora</th>
+                    <th class="num-col">Nr. comandă</th>
+                    <th class="name-col">Nume Client / Клиент</th>
+                    <th class="phone-col">Telefon</th>
+                    <th class="total-col">Total, lei</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td class="row-num">{{ e.row_num }}</td>
+                    <td class="handwritten">{{ e.created_time }}</td>
+                    <td class="handwritten">{{ e.order_number }}</td>
+                    <td class="handwritten">{{ e.client_name }}</td>
+                    <td class="handwritten">{{ e.client_phone or '—' }}</td>
+                    <td class="total-col">{{ "%.2f"|format(e.total_amount|float) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="note">Generat automat din sistem. Perioada: {{ period_label }}. Total înregistrări: {{ entries|length }}</p>
+    </div>
+</body>
+</html>

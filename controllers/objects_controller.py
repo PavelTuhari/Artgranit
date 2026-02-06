@@ -18,64 +18,29 @@ class ObjectsController:
     
     @staticmethod
     def get_schemas() -> Dict[str, Any]:
-        """Получает список доступных схем"""
+        """Получает список доступных схем - упрощенная версия для быстроты"""
+        # Возвращаем только текущего пользователя для предотвращения зависаний
+        # Запрос к all_tables может быть медленным, поэтому убираем его
         try:
             with DatabaseModel() as db:
                 with db.connection.cursor() as cursor:
-                    # Сначала получаем текущего пользователя
+                    # Получаем только текущего пользователя - это быстро
                     cursor.execute("SELECT USER FROM DUAL")
                     current_user = cursor.fetchone()[0]
                     
-                    schemas = [{"name": current_user, "display_name": current_user}]
-                    
-                    # Пробуем получить схемы из all_tables (более надежный способ)
-                    try:
-                        cursor.execute("""
-                            SELECT DISTINCT owner
-                            FROM all_tables
-                            WHERE owner NOT IN ('SYS', 'SYSTEM', 'XS$NULL', 'LBACSYS', 'OUTLN', 
-                                                'GSMADMIN_INTERNAL', 'DIP', 'ORACLE_OCM', 'DBSNMP', 
-                                                'DBSFWUSER', 'APPQOSSYS')
-                            AND owner = UPPER(owner)
-                            ORDER BY owner
-                        """)
-                        
-                        for row in cursor.fetchall():
-                            schema_name = row[0]
-                            # Добавляем только если еще нет в списке
-                            if not any(s['name'] == schema_name for s in schemas):
-                                schemas.append({
-                                    "name": schema_name,
-                                    "display_name": schema_name
-                                })
-                    except Exception as e2:
-                        # Если all_tables не доступен, используем только текущего пользователя
-                        print(f"Could not get schemas from all_tables: {e2}")
-                    
                     return {
                         "success": True,
-                        "schemas": schemas,
-                        "count": len(schemas)
+                        "schemas": [{"name": current_user, "display_name": current_user}],
+                        "count": 1
                     }
         except Exception as e:
-            # Последний fallback: возвращаем только текущего пользователя
-            try:
-                with DatabaseModel() as db:
-                    with db.connection.cursor() as cursor:
-                        cursor.execute("SELECT USER FROM DUAL")
-                        current_user = cursor.fetchone()[0]
-                        return {
-                            "success": True,
-                            "schemas": [{"name": current_user, "display_name": current_user}],
-                            "count": 1
-                        }
-            except Exception as e2:
-                return {
-                    "success": False,
-                    "error": f"{str(e)} / {str(e2)}",
-                    "schemas": [],
-                    "count": 0
-                }
+            # Если даже это не работает, возвращаем пустой список с ошибкой
+            return {
+                "success": False,
+                "error": f"Failed to get schemas: {str(e)}",
+                "schemas": [],
+                "count": 0
+            }
     
     @staticmethod
     def get_tables(schema: str = None) -> Dict[str, Any]:

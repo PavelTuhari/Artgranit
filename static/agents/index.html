@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="/una.md/shell/agents/">
+  <title>Агенты: бухгалтерия и страховки</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Unbounded:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117; --bg-card: #161b22; --border: #30363d; --text: #e6edf3; --text-muted: #8b949e;
+      --accent: #58a6ff; --accent-soft: rgba(88, 166, 255, 0.15); --success: #3fb950; --danger: #f85149;
+      --font-sans: 'JetBrains Mono', ui-monospace, monospace; --font-display: 'Unbounded', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { font-size: 15px; -webkit-font-smoothing: antialiased; }
+    body { font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .layout { min-height: 100vh; display: flex; flex-direction: column; }
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--bg-card); }
+    .logo { font-family: var(--font-display); font-weight: 600; font-size: 1.25rem; color: var(--text); }
+    .nav { display: flex; gap: 1.5rem; }
+    .nav a { color: var(--text-muted); font-size: 0.9rem; }
+    .nav a:hover, .nav a.active { color: var(--accent); }
+    .main { flex: 1; padding: 1.5rem; max-width: 1400px; margin: 0 auto; width: 100%; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .title { font-family: var(--font-display); font-size: 1.75rem; font-weight: 600; margin: 0 0 0.75rem; }
+    .lead { color: var(--text-muted); max-width: 640px; margin: 0 0 2rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+    .card { display: block; padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: inherit; transition: border-color 0.2s, background 0.2s; }
+    .card:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .card h2 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+    .card p { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 1rem; }
+    .quote { padding: 1rem 1.25rem; border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+    .btn { padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.9rem; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; font-family: inherit; }
+    .btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .panel h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+    table { font-size: 0.8rem; width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.35rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .amount-neg { color: var(--danger); }
+    .log-entry { padding: 0.35rem 0; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
+    .log-entry.success { color: var(--success); }
+    .log-entry.action { color: var(--accent); }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .tab { padding: 0.5rem 1rem; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); border-radius: 6px; cursor: pointer; }
+    .tab.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .criteria-form { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: center; max-width: 400px; margin-bottom: 1rem; }
+    .criteria-form input { padding: 0.4rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); }
+    .plan-card { padding: 1rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="header">
+      <a href="/una.md/shell/agents/" class="logo">Агенты</a>
+      <nav class="nav">
+        <a href="/una.md/shell/agents/" class="nav-link" data-page="home">Главная</a>
+        <a href="/una.md/shell/agents/accountant" class="nav-link" data-page="accountant">Бухгалтер + QuickBooks</a>
+        <a href="/una.md/shell/agents/insurance" class="nav-link" data-page="insurance">Страховки</a>
+      </nav>
+    </header>
+    <main class="main">
+      <div id="page-home" class="page">
+        <h1 class="title">Личная инфраструктура агентов</h1>
+        <p class="lead">Симуляция того, как агенты могут заменить «ручной труд и человеческую забывчивость»: бухгалтерия, налоги, страховки — не магия, а формализуемые задачи.</p>
+        <div class="cards">
+          <a href="/una.md/shell/agents/accountant" class="card">
+            <span>📒</span>
+            <h2>Агент-бухгалтер</h2>
+            <p>QuickBooks → P&L → мэппинг категорий → TaxAct. Агент разбирает транзакции, раскладывает расходы, формирует отчёт.</p>
+            <span style="font-size:0.85rem;color:var(--accent)">Открыть симуляцию →</span>
+          </a>
+          <a href="/una.md/shell/agents/insurance" class="card">
+            <span>🛡️</span>
+            <h2>Агенты по страховкам</h2>
+            <p>Подбор плана по критериям: здоровье, авто. Не «магия консультанта», а агент с правилами и твоими параметрами.</p>
+            <span style="font-size:0.85rem;color:var(--accent)">Открыть симуляцию →</span>
+          </a>
+        </div>
+        <blockquote class="quote">Технически это уже не выглядит «сложно». Те, кто пользуется агентами, будут делать быстрее/дешевле/ровнее.</blockquote>
+      </div>
+
+      <div id="page-accountant" class="page">
+        <h1 class="title">Агент-бухгалтер: QuickBooks → TaxAct</h1>
+        <p class="lead">Симуляция: агент читает транзакции из «QuickBooks», корректирует категории, строит P&L, делает мэппинг в формат «TaxAct».</p>
+        <div style="margin-bottom:1rem">
+          <button type="button" class="btn btn-primary" id="btn-run-agent">Запустить агента</button>
+          <button type="button" class="btn" id="btn-reset">Сбросить</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem" id="accountant-panels">
+          <section class="panel">
+            <h2>QuickBooks (транзакции)</h2>
+            <div id="qb-transactions"></div>
+            <div id="qb-pl" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:none">
+              <h3>P&L (по категориям)</h3>
+              <div id="qb-pl-table"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <h2>TaxAct (форма)</h2>
+            <div id="taxact-form"></div>
+          </section>
+        </div>
+        <section class="panel">
+          <h2>Лог агента</h2>
+          <div id="agent-log"></div>
+        </section>
+      </div>
+
+      <div id="page-insurance" class="page">
+        <h1 class="title">Агенты по страховкам</h1>
+        <p class="lead">«Подобрать план по критериям» — формализуемая задача. Агент с правилами и твоими параметрами отбирает подходящие планы.</p>
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="health">Здоровье</button>
+          <button type="button" class="tab" data-tab="auto">Авто</button>
+        </div>
+        <div id="insurance-health">
+          <div class="criteria-form">
+            <label>Макс. премия ($/мес)</label><input type="number" id="ins-prem" value="500">
+            <label>Макс. дедуктебл ($)</label><input type="number" id="ins-ded" value="5000">
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-health">Подобрать планы (агент)</button>
+          <div id="health-results" style="margin-top:1rem"></div>
+        </div>
+        <div id="insurance-auto" style="display:none">
+          <div class="criteria-form">
+            <label>Макс. премия ($/мес)</label><input type="number" id="auto-prem" value="200">
+            <label>Макс. дедуктебл ($)</label><input type="number" id="auto-ded" value="1000">
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-auto">Подобрать планы (агент)</button>
+          <div id="auto-results" style="margin-top:1rem"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function() {
+      var BASE = '/una.md/shell/agents';
+      var transactions = [
+        { id: 't1', date: '2024-01-15', description: 'Google Ads', amount: -450, category: 'Advertising' },
+        { id: 't2', date: '2024-01-18', description: 'Stripe fee', amount: -12.5, category: 'Bank Fees' },
+        { id: 't3', date: '2024-01-20', description: 'Freelancer payment', amount: -1200, category: 'Contractors' },
+        { id: 't4', date: '2024-01-22', description: 'Notion subscription', amount: -24, category: 'Software' },
+        { id: 't5', date: '2024-01-25', description: 'Office rent', amount: -1800, category: 'Rent' },
+        { id: 't6', date: '2024-01-28', description: 'Electricity', amount: -89, category: 'Utilities' },
+        { id: 't7', date: '2024-01-30', description: 'CPA consultation', amount: -350, category: 'Professional Services' },
+        { id: 't8', date: '2024-02-01', description: 'Facebook Ads', amount: -320, category: 'Advertising' },
+        { id: 't9', date: '2024-02-05', description: 'Slack', amount: -15, category: 'Software' },
+        { id: 't10', date: '2024-02-10', description: 'Travel - client meeting', amount: -420, category: 'Travel' }
+      ];
+      var healthPlans = [
+        { name: 'Basic Health', provider: 'HealthFirst', premium: 320, deductible: 6000, coverage: 'Essential', features: ['GP visits', 'Emergency'] },
+        { name: 'Standard Plus', provider: 'HealthFirst', premium: 480, deductible: 2500, coverage: 'Standard', features: ['GP', 'Specialists', 'Emergency', 'Labs'] },
+        { name: 'Premium Care', provider: 'MedGuard', premium: 620, deductible: 1000, coverage: 'Full', features: ['All above', 'Dental', 'Vision', 'Mental'] },
+        { name: 'Budget Saver', provider: 'LowCost Health', premium: 220, deductible: 8000, coverage: 'Catastrophic', features: ['Emergency only'] }
+      ];
+      var autoPlans = [
+        { name: 'Liability Only', provider: 'SafeDrive', premium: 85, deductible: 0, coverage: 'State minimum', features: ['Liability'] },
+        { name: 'Standard Auto', provider: 'SafeDrive', premium: 140, deductible: 500, coverage: 'Collision + Liability', features: ['Liability', 'Collision', 'Comprehensive'] },
+        { name: 'Full Coverage', provider: 'AutoShield', premium: 195, deductible: 250, coverage: 'Full', features: ['All', 'Rental', 'Roadside'] }
+      ];
+
+      function getPage() {
+        var path = location.pathname.replace(/\/$/, '');
+        if (path === BASE + '/accountant') return 'accountant';
+        if (path === BASE + '/insurance') return 'insurance';
+        return 'home';
+      }
+      function showPage(name) {
+        document.querySelectorAll('.page').forEach(function(el) { el.classList.remove('active'); });
+        var el = document.getElementById('page-' + name);
+        if (el) el.classList.add('active');
+        document.querySelectorAll('.nav-link').forEach(function(a) { a.classList.toggle('active', a.getAttribute('data-page') === name); });
+      }
+      function route() {
+        var page = getPage();
+        showPage(page);
+        if (page === 'accountant') renderQB();
+      }
+      window.addEventListener('popstate', route);
+      route();
+
+      function renderQB() {
+        var html = '<table><tr><th>Дата</th><th>Описание</th><th>Сумма</th><th>Категория</th></tr>';
+        transactions.forEach(function(t) {
+          html += '<tr><td>' + t.date + '</td><td>' + t.description + '</td><td class="' + (t.amount < 0 ? 'amount-neg' : '') + '">' + t.amount + '</td><td>' + t.category + '</td></tr>';
+        });
+        html += '</table>';
+        var el = document.getElementById('qb-transactions');
+        if (el) el.innerHTML = html;
+      }
+      function buildPL() {
+        var byCat = {};
+        transactions.forEach(function(t) {
+          if (t.amount >= 0) return;
+          var cat = t.category;
+          byCat[cat] = (byCat[cat] || 0) + Math.abs(t.amount);
+        });
+        return Object.entries(byCat).map(function(e) { return { category: e[0], amount: e[1] }; });
+      }
+      function addLog(msg, type) {
+        type = type || 'info';
+        var log = document.getElementById('agent-log');
+        if (!log) return;
+        var div = document.createElement('div');
+        div.className = 'log-entry ' + type;
+        div.textContent = new Date().toLocaleTimeString('ru-RU') + ' — ' + msg;
+        log.insertBefore(div, log.firstChild);
+      }
+      function runAgent() {
+        var log = document.getElementById('agent-log');
+        if (log) log.innerHTML = '';
+        addLog('Агент запущен. Читаю транзакции из QuickBooks...', 'action');
+        addLog('Найдено транзакций: ' + transactions.length, 'info');
+        addLog('Корректирую категории...', 'info');
+        addLog('Формирую P&L по категориям...', 'action');
+        var pl = buildPL();
+        addLog('P&L готов. Категорий: ' + pl.length, 'success');
+        addLog('Применяю мэппинг QuickBooks → TaxAct...', 'info');
+        addLog('Данные для TaxAct подготовлены.', 'success');
+        var plEl = document.getElementById('qb-pl');
+        var tableEl = document.getElementById('qb-pl-table');
+        if (plEl && tableEl) {
+          plEl.style.display = 'block';
+          tableEl.innerHTML = '<table><tr><th>Категория</th><th>Сумма</th></tr>' + pl.map(function(l) { return '<tr><td>' + l.category + '</td><td>' + l.amount.toFixed(2) + '</td></tr>'; }).join('') + '</table>';
+        }
+        var formEl = document.getElementById('taxact-form');
+        if (formEl) formEl.innerHTML = '<p style="color:var(--text-muted)">Данные подготовлены агентом (симуляция полей TaxAct).</p>' + pl.map(function(l) { return '<div style="display:flex;justify-content:space-between;padding:0.3rem 0"><span>' + l.category + '</span><span>' + l.amount.toFixed(2) + '</span></div>'; }).join('');
+      }
+      document.getElementById('btn-run-agent') && document.getElementById('btn-run-agent').addEventListener('click', runAgent);
+      document.getElementById('btn-reset') && document.getElementById('btn-reset').addEventListener('click', function() {
+        document.getElementById('agent-log').innerHTML = '';
+        document.getElementById('qb-pl').style.display = 'none';
+        document.getElementById('taxact-form').innerHTML = '<p style="color:var(--text-muted)">Данные появятся после запуска агента.</p>';
+        renderQB();
+      });
+
+      document.querySelectorAll('.tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var tab = btn.getAttribute('data-tab');
+          document.querySelectorAll('.tab').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-tab') === tab); });
+          document.getElementById('insurance-health').style.display = tab === 'health' ? 'block' : 'none';
+          document.getElementById('insurance-auto').style.display = tab === 'auto' ? 'block' : 'none';
+        });
+      });
+      function filterPlans(plans, maxPrem, maxDed) {
+        return plans.filter(function(p) {
+          if (maxPrem != null && p.premium > maxPrem) return false;
+          if (maxDed != null && p.deductible > maxDed) return false;
+          return true;
+        });
+      }
+      function renderPlans(plans, containerId) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        if (!plans.length) { el.innerHTML = '<p style="color:var(--text-muted)">Нет планов по критериям.</p>'; return; }
+        el.innerHTML = plans.map(function(p) {
+          return '<div class="plan-card"><h3 style="margin:0 0 0.25rem">' + p.name + '</h3><p style="color:var(--text-muted);font-size:0.85rem;margin:0 0 0.5rem">' + p.provider + '</p><p style="font-size:0.85rem">Премия: $' + p.premium + '/мес, дедуктебл: $' + p.deductible + '</p><p style="font-size:0.8rem;color:var(--text-muted)">' + (p.features || []).join(', ') + '</p></div>';
+        }).join('');
+      }
+      document.getElementById('btn-health') && document.getElementById('btn-health').addEventListener('click', function() {
+        var prem = parseInt(document.getElementById('ins-prem').value, 10) || 500;
+        var ded = parseInt(document.getElementById('ins-ded').value, 10) || 5000;
+        var res = filterPlans(healthPlans, prem, ded);
+        renderPlans(res, 'health-results');
+      });
+      document.getElementById('btn-auto') && document.getElementById('btn-auto').addEventListener('click', function() {
+        var prem = parseInt(document.getElementById('auto-prem').value, 10) || 200;
+        var ded = parseInt(document.getElementById('auto-ded').value, 10) || 1000;
+        var res = filterPlans(autoPlans, prem, ded);
+        renderPlans(res, 'auto-results');
+      });
+    })();
+  </script>
+</body>
+</html>

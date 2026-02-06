@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оформление на Iute Credit (API)</title>
+    <style>
+        :root { --primary: #0066CC; --accent: #00CC66; --bg: #f5f7fa; --card-bg: #fff; --text: #1a1a2e; --text-muted: #6b7280; --border: #e5e7eb; --danger: #dc2626; --warning: #f59e0b; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; max-width: 720px; margin: 0 auto; }
+        .card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); padding: 20px; margin-bottom: 16px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 20px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-success { background: var(--accent); color: #fff; }
+        .btn-ghost { background: var(--border); color: var(--text); }
+        .input-wrap { margin-bottom: 14px; }
+        .input-wrap label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+        .input-wrap input, .input-wrap select { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; }
+        .search-row { display: flex; gap: 10px; margin-bottom: 16px; }
+        .search-row input { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .mb { margin-bottom: 16px; }
+        .mt { margin-top: 16px; }
+        .muted { font-size: 13px; color: var(--text-muted); }
+        .status-ok { color: var(--accent); font-weight: 600; }
+        .status-fail { color: var(--danger); }
+        .status-pending { color: var(--warning); }
+        .order-id { font-family: monospace; background: #f0f0f0; padding: 4px 8px; border-radius: 4px; font-size: 13px; }
+        a { color: var(--primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .status-badge.PAID { background: #d1fae5; color: #065f46; }
+        .status-badge.IN_PROGRESS { background: #fef3c7; color: #92400e; }
+        .status-badge.PENDING { background: #dbeafe; color: #1e40af; }
+        .status-badge.CANCELLED { background: #fee2e2; color: #991b1b; }
+        .status-badge.CUSTOMER_NOT_EXISTS { background: #f3f4f6; color: #374151; }
+    </style>
+</head>
+<body>
+    <h1 style="margin-bottom: 8px;">Оформление на Iute Credit (API)</h1>
+    <p class="muted mb">Интеграция через <a href="https://iute-core-partner-gateway.iute.eu/docs/public/guide.html" target="_blank">Iute Physical API</a>. Check Auth → Create Order → Check Status. При ошибке или без ключа — mock.</p>
+
+    <div class="card">
+        <h2 style="font-size: 16px; margin-bottom: 12px;">1. Товар и программа</h2>
+        <div class="search-row">
+            <input type="text" id="searchInput" placeholder="Поиск по названию/артикулу" autocomplete="off">
+        </div>
+        <div id="productPick" class="muted mb">Выберите товар → затем программу.</div>
+        <div id="programPick" class="muted"></div>
+    </div>
+
+    <div class="card">
+        <h2 style="font-size: 16px; margin-bottom: 12px;">2. Данные клиента и сумма</h2>
+        <form id="clientForm">
+            <div class="grid2">
+                <div class="input-wrap"><label>Телефон MyIute</label><input type="tel" name="phone" placeholder="+37369123456" value="+37369123456"></div>
+                <div class="input-wrap"><label>Сумма заказа</label><input type="number" name="amount" min="1" placeholder="1000" value="1000"></div>
+            </div>
+            <div class="grid2">
+                <div class="input-wrap"><label>Валюта</label><select name="currency"><option value="EUR" selected>EUR</option><option value="MDL">MDL</option><option value="ALL">ALL</option><option value="MKD">MKD</option></select></div>
+                <div class="input-wrap"><label>ID/паспорт (опционально)</label><input type="text" name="userPin" placeholder="12345678901234" value=""></div>
+            </div>
+            <div class="grid2">
+                <div class="input-wrap"><label>Дата рождения (dd.MM.yyyy)</label><input type="text" name="birthday" placeholder="31.12.1990" value=""></div>
+                <div class="input-wrap"><label>Пол</label><select name="gender"><option value="">—</option><option value="MALE">Мужской</option><option value="FEMALE">Женский</option></select></div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 style="font-size: 16px; margin-bottom: 12px;">3. Iute API</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+            <button type="button" class="btn btn-ghost" id="btnCheckAuth">Проверить авторизацию</button>
+            <button type="button" class="btn btn-success" id="btnCreateOrder">Создать заказ</button>
+            <button type="button" class="btn btn-ghost" id="btnCheckStatus">Проверить статус</button>
+        </div>
+        <div id="apiResult" class="muted" style="min-height: 24px;"></div>
+        <div id="orderIdBlock" style="display: none;" class="mt">
+            <label class="muted">Order ID</label>
+            <div class="order-id" id="orderIdValue"></div>
+        </div>
+    </div>
+
+    <p class="muted mt">Для тестов всё заполнено по умолчанию. <a href="/UNA.md/orasldev/credit-admin">← Настройки Iute</a> · <a href="/UNA.md/orasldev/credit-operator">Оператор</a> · <a href="/UNA.md/orasldev/digi-marketing">DIGI Marketing</a></p>
+
+    <script>
+        const API = '/api/credit-operator';
+        const IUTE = '/api/credit-iute';
+        let selectedProduct = null;
+        let selectedProgram = null;
+        let lastOrderId = null;
+        let programsCache = [];
+
+        async function api(base, path, opts = {}) {
+            const url = (base === 'iute' ? IUTE : API) + (path || '');
+            const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        async function loadProducts() {
+            const q = document.getElementById('searchInput').value.trim();
+            const j = await api('op', '/products?limit=20' + (q ? '&search=' + encodeURIComponent(q) : ''));
+            return j.data || [];
+        }
+
+        function setProgramList(progs, selectFirst) {
+            programsCache = progs || [];
+            const wrap = document.getElementById('programPick');
+            if (!progs || !progs.length) {
+                wrap.innerHTML = '<span class="muted">Нет программ для товара.</span>';
+                selectedProgram = null;
+                return;
+            }
+            wrap.innerHTML = progs.map(pr => {
+                const id = pr.program_id || pr.id;
+                const n = (pr.program_name || pr.name || '').replace(/</g, '&lt;');
+                const active = selectedProgram && (selectedProgram.program_id || selectedProgram.id) === id ? '; border-color: var(--accent);' : '';
+                return `<div data-pid="${id}" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;cursor:pointer;${active}">${n}</div>`;
+            }).join('');
+            wrap.querySelectorAll('[data-pid]').forEach(d => {
+                d.addEventListener('click', () => {
+                    selectedProgram = progs.find(x => (x.program_id || x.id) === parseInt(d.dataset.pid, 10));
+                    document.querySelectorAll('#programPick [data-pid]').forEach(x => { x.style.borderColor = ''; });
+                    d.style.borderColor = 'var(--accent)';
+                });
+            });
+            if (selectFirst && progs.length) {
+                selectedProgram = progs[0];
+                const first = wrap.querySelector('[data-pid]');
+                if (first) first.style.borderColor = 'var(--accent)';
+            }
+        }
+
+        function renderProductList(products) {
+            const el = document.getElementById('productPick');
+            if (!products.length) {
+                el.innerHTML = '<span class="muted">Нет товаров.</span>';
+                return;
+            }
+            el.innerHTML = products.map(p => {
+                const name = (p.name || '').replace(/</g, '&lt;');
+                const price = p.price != null ? p.price + ' ₽' : '';
+                const active = selectedProduct && selectedProduct.id === p.id ? '; border: 2px solid var(--accent);' : '';
+                return `<div data-id="${p.id}" style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;${active}"><strong>${name}</strong><br><span class="muted">${price}</span></div>`;
+            }).join('');
+            el.querySelectorAll('[data-id]').forEach(div => {
+                div.addEventListener('click', async () => {
+                    selectedProduct = products.find(x => x.id === parseInt(div.dataset.id, 10));
+                    selectedProgram = null;
+                    const j = await api('op', '/programs-for-product/' + selectedProduct.id);
+                    setProgramList(j.data || [], true);
+                    const am = document.querySelector('[name="amount"]');
+                    if (am && selectedProduct.price != null) am.value = selectedProduct.price;
+                    renderProductList(products);
+                });
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            clearTimeout(window._iuteSearch);
+            window._iuteSearch = setTimeout(() => loadProducts().then(renderProductList), 200);
+        });
+
+        (async () => {
+            const products = await loadProducts();
+            renderProductList(products);
+            if (products.length) {
+                selectedProduct = products[0];
+                const j = await api('op', '/programs-for-product/' + selectedProduct.id);
+                const progs = j.data || [];
+                setProgramList(progs, true);
+                const am = document.querySelector('[name="amount"]');
+                if (am && selectedProduct.price != null) am.value = selectedProduct.price;
+                renderProductList(products);
+            }
+        })();
+
+        function setResult(html, status) {
+            const el = document.getElementById('apiResult');
+            el.innerHTML = html;
+            if (status === 'PAID' || status === 'IN_PROGRESS') {
+                el.className = 'status-ok';
+            } else if (status === 'CANCELLED' || status === 'ERROR') {
+                el.className = 'status-fail';
+            } else if (status === 'PENDING' || status === 'CUSTOMER_NOT_EXISTS') {
+                el.className = 'status-pending';
+            } else {
+                el.className = 'muted';
+            }
+        }
+
+        function formatStatus(status) {
+            const badges = {
+                'PAID': '<span class="status-badge PAID">PAID</span>',
+                'IN_PROGRESS': '<span class="status-badge IN_PROGRESS">IN_PROGRESS</span>',
+                'PENDING': '<span class="status-badge PENDING">PENDING</span>',
+                'CANCELLED': '<span class="status-badge CANCELLED">CANCELLED</span>',
+                'CUSTOMER_NOT_EXISTS': '<span class="status-badge CUSTOMER_NOT_EXISTS">CUSTOMER_NOT_EXISTS</span>',
+            };
+            return badges[status] || status;
+        }
+
+        document.getElementById('btnCheckAuth').addEventListener('click', async () => {
+            setResult('Проверка авторизации…', null);
+            try {
+                const j = await api('iute', '/check-auth');
+                const d = j.data || {};
+                if (j.success) {
+                    const products = (d.products || []).map(p => p.name || p.description || '').join(', ') || 'нет';
+                    setResult(`Авторизация успешна. Partner ID: ${d.partnerId || '—'}, POS ID: ${d.posId || '—'}, Продукты: ${products}`, 'PENDING');
+                } else {
+                    setResult('Ошибка авторизации: ' + (j.error || ''), 'ERROR');
+                }
+            } catch (e) {
+                setResult('Ошибка: ' + (e.message || ''), 'ERROR');
+            }
+        });
+
+        document.getElementById('btnCreateOrder').addEventListener('click', async () => {
+            const f = document.getElementById('clientForm');
+            const fd = new FormData(f);
+            const orderId = 'order-' + Date.now();
+            const payload = {
+                product_id: selectedProduct ? selectedProduct.id : null,
+                program_id: selectedProgram ? (selectedProgram.program_id || selectedProgram.id) : null,
+                order_id: orderId,
+                myiute_phone: (fd.get('phone') || '+37369123456').trim(),
+                total_amount: parseInt(fd.get('amount'), 10) || 1000,
+                currency: (fd.get('currency') || 'EUR').trim(),
+                user_pin: (fd.get('userPin') || '').trim() || null,
+                birthday: (fd.get('birthday') || '').trim() || null,
+                gender: (fd.get('gender') || '').trim() || null,
+            };
+            setResult('Создание заказа…', null);
+            try {
+                const j = await api('iute', '/create-order', { method: 'POST', body: JSON.stringify(payload) });
+                const d = j.data || {};
+                lastOrderId = orderId;
+                const status = d.status || 'PENDING';
+                const msg = d.message || 'Заказ создан.';
+                const customer = d.myiuteCustomer ? ' (существующий клиент MyIute)' : ' (новый клиент)';
+                setResult(formatStatus(status) + ' ' + msg + customer, status);
+                const ob = document.getElementById('orderIdBlock');
+                const ov = document.getElementById('orderIdValue');
+                if (lastOrderId) {
+                    ob.style.display = 'block';
+                    ov.textContent = lastOrderId;
+                }
+            } catch (e) {
+                setResult('Ошибка: ' + (e.message || ''), 'ERROR');
+            }
+        });
+
+        document.getElementById('btnCheckStatus').addEventListener('click', async () => {
+            const ov = document.getElementById('orderIdValue');
+            const orderId = lastOrderId || (ov && ov.textContent) || prompt('Order ID:');
+            if (!orderId) return;
+            setResult('Проверка статуса…', null);
+            try {
+                const j = await api('iute', '/order-status?order_id=' + encodeURIComponent(orderId));
+                const d = j.data || {};
+                const status = d.status || '';
+                const msg = d.productName ? ` Продукт: ${d.productName}` : '';
+                const duration = d.loanDuration ? ` Срок: ${d.loanDuration}` : '';
+                setResult(formatStatus(status) + msg + duration, status);
+            } catch (e) {
+                setResult('Ошибка: ' + (e.message || ''), 'ERROR');
+            }
+        });
+    </script>
+</body>
+</html>

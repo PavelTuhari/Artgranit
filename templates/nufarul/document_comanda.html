@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comandă / Заказ {{ order_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; background: #f5f5f5; }
+        .document { background: #fff; padding: 20px; max-width: 850px; margin: 0 auto; border: 1px solid #ccc; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .logo { font-weight: bold; font-style: italic; font-size: 16px; border: 2px solid #333; padding: 5px 15px; border-radius: 10px; }
+        .doc-info { text-align: right; }
+        .doc-number { font-size: 22px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #333; padding: 5px 8px; text-align: left; vertical-align: top; }
+        th { background: #e0e0e0; font-size: 10px; }
+        .info-table td { border: none; padding: 2px 5px; }
+        .small-text { font-size: 9px; }
+        .handwritten { font-family: 'Courier New', monospace; color: #000080; }
+        .signature-section { margin-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+        .total-box { border: 2px solid #333; text-align: center; font-weight: bold; padding: 10px; margin-top: 10px; }
+        @media print { body { background: #fff; } .document { box-shadow: none; } }
+    </style>
+</head>
+<body>
+    <div class="document">
+        <div class="header">
+            <div>
+                <div class="logo">Nufărul</div>
+                <p class="small-text">cod F-FTP-01-01</p>
+                <p class="small-text">Cod fiscal: 1003600019210</p>
+                <p class="small-text">Adresa / Адрес: _______________________</p>
+                <p class="handwritten">{{ client_phone or '—' }}</p>
+            </div>
+            <div style="text-align: center;">
+                <p>Punctul de recepție / Приемный пункт № ________</p>
+            </div>
+            <div class="doc-info">
+                <p>Comandă / Заказ</p>
+                <p>Nr. <span class="doc-number">{{ order_number }}</span></p>
+                <p class="small-text">Barcode: {{ barcode or order_number }}</p>
+            </div>
+        </div>
+        <table class="info-table">
+            <tr><td><strong>Beneficiar / Клиент:</strong></td><td class="handwritten">{{ client_name }}</td></tr>
+            <tr><td><strong>Telefon:</strong></td><td class="handwritten">{{ client_phone or '—' }}</td></tr>
+            <tr><td><strong>Data primirii / Дата приёма:</strong></td><td class="handwritten">{{ created_at }}</td></tr>
+        </table>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nr.</th>
+                    <th>Denumirea serviciului / Наименование</th>
+                    <th>Cant.</th>
+                    <th>Preț, lei</th>
+                    <th>Total, lei</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.service_name or '—' }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>{{ "%.2f"|format(item.price|float) }}</td>
+                    <td>{{ "%.2f"|format(item.amount|float) }}</td>
+                </tr>
+                {% endfor %}
+                <tr style="font-weight: bold; background: #f0f0f0;">
+                    <td colspan="4" style="text-align: right;">TOTAL:</td>
+                    <td>{{ "%.2f"|format(total_amount|float) }} lei</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="total-box">Total de plată: {{ "%.2f"|format(total_amount|float) }} lei</div>
+        <div class="signature-section">
+            <div>
+                <p>Semnătura clientului / Подпись клиента</p>
+                <p>_______________________</p>
+            </div>
+            <div>
+                <p>Reprezentant Nufărul S.A.</p>
+                <p>_______________________</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

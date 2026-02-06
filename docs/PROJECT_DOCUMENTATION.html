@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artgranit OCI — документация проекта для Claude Code</title>
+    <style>
+        :root { --primary: #0d9488; --bg: #f8fafc; --card: #fff; --text: #0f172a; --muted: #64748b; --border: #e2e8f0; --code: #1e293b; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; padding: 24px; max-width: 920px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 8px; }
+        h2 { font-size: 20px; margin-top: 28px; margin-bottom: 12px; color: var(--text); }
+        h3 { font-size: 16px; margin-top: 18px; margin-bottom: 8px; color: var(--muted); }
+        p { margin-bottom: 10px; }
+        ul, ol { margin: 8px 0 12px 20px; }
+        li { margin-bottom: 4px; }
+        pre, code { font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; background: #f1f5f9; color: var(--code); padding: 2px 6px; border-radius: 4px; }
+        pre { display: block; padding: 14px 16px; overflow-x: auto; margin: 12px 0; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--border); }
+        pre code { padding: 0; background: none; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+        th, td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+        th { background: #e2e8f0; font-weight: 600; }
+        .meta { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+        .toc { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
+        .toc ul { list-style: none; margin-left: 0; }
+        .toc a { color: var(--primary); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        .file-path { color: var(--muted); font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<h1>Artgranit OCI — документация проекта</h1>
+<p class="meta">Единый HTML-документ для передачи в Claude Code. Обновлено: вход в проект (login), модули Nufarul (оператор, первичные документы Bon de Comandă, Comandă, Jurnal Registru), документация, структура.</p>
+
+<nav class="toc">
+    <h2 id="toc">Содержание</h2>
+    <ul>
+        <li><a href="#purpose">1. Назначение проекта</a></li>
+        <li><a href="#stack">2. Стек и зависимости</a></li>
+        <li><a href="#structure">3. Структура каталогов</a></li>
+        <li><a href="#config">4. Конфигурация (config.py, .env)</a></li>
+        <li><a href="#entry">5. Точка входа (app.py) и маршруты</a></li>
+        <li><a href="#models">6. Модели (database.py)</a></li>
+        <li><a href="#controllers">7. Контроллеры</a></li>
+        <li><a href="#sql">8. SQL-скрипты (Oracle)</a></li>
+        <li><a href="#templates">9. Шаблоны (templates)</a></li>
+        <li><a href="#integrations">10. Интеграции (EasyCredit, Iute)</a></li>
+        <li><a href="#services">11. Сервисы</a></li>
+        <li><a href="#scripts">12. Скрипты и утилиты</a></li>
+        <li><a href="#run">13. Запуск (локально и на сервере)</a></li>
+    </ul>
+</nav>
+
+<!-- ========== 1. НАЗНАЧЕНИЕ ========== -->
+<h2 id="purpose">1. Назначение проекта</h2>
+<p>Веб-приложение для работы с <strong>Oracle Autonomous Database (OCI)</strong> и бизнес-модулями:</p>
+<ul>
+    <li><strong>Oracle SQL Developer–подобный режим</strong> — выполнение SQL, браузер объектов (таблицы, представления, процедуры, пакеты).</li>
+    <li><strong>Dashboard</strong> — метрики в реальном времени (CPU, RAM, сессии), Top SQL, tablespaces (WebSockets).</li>
+    <li><strong>Кредиты</strong> — админка программ/банков/матрицы, оператор оформления заявок, интеграции EasyCredit и Iute, портфель «Бомба», отчёты.</li>
+    <li><strong>Nufarul</strong> — приём заказов (химчистка, пакеты): админка услуг/статусов (RU/RO/EN), интерфейс оператора (создание заказа, поиск по штрихкоду), автоматическая генерация первичных документов: Bon de Comandă, Comandă (заказ), Jurnal Registru (журнал регистраций) — печать/просмотр по заказу или список последних заказов.</li>
+    <li><strong>Shell</strong> — мультипроектный вход (shell, gara, credit, nufarul) с дашбордами по slug.</li>
+    <li><strong>Документация</strong> — просмотр Markdown/HTML, ТЗ Nufarul, XLSX/DOC/PDF viewer, галерея JPG с OCR-таблицами.</li>
+</ul>
+<p>Архитектура: <strong>MVC</strong>. Backend: Python + Flask. Real-time: Flask-SocketIO. БД: oracledb (Oracle Wallet).</p>
+
+<!-- ========== 2. СТЕК ========== -->
+<h2 id="stack">2. Стек и зависимости</h2>
+<p><span class="file-path">requirements.txt</span></p>
+<pre><code>Flask>=3.0.0
+Flask-Limiter>=3.5.0
+oracledb>=2.0.0
+requests>=2.28.0
+flask-socketio>=5.3.0
+python-socketio>=5.10.0
+eventlet>=0.33.0
+psutil>=6.0.0
+selenium>=4.0.0
+Flask-Babel>=4.0.0
+Babel>=2.13.0
+python-dotenv>=1.0.0
+markdown>=3.10.0
+openpyxl>=3.1.0
+reportlab>=4.0.0
+mammoth>=1.6.0
+pdfminer.six>=20221105</code></pre>
+<p>Опционально для OCR документов Nufarul: <code>pytesseract</code>, <code>Pillow</code>; на системе — Tesseract.</p>
+
+<!-- ========== 3. СТРУКТУРА ========== -->
+<h2 id="structure">3. Структура каталогов</h2>
+<pre><code>Artgranit/
+├── app.py                    # Точка входа, маршруты, SocketIO
+├── config.py                 # Конфигурация (Config), .env
+├── requirements.txt
+├── .env.example              # Пример переменных окружения
+│
+├── controllers/              # Обработчики запросов
+│   ├── auth_controller.py
+│   ├── dashboard_controller.py
+│   ├── sql_controller.py
+│   ├── objects_controller.py
+│   ├── combo_scenario_controller.py
+│   ├── credit_controller.py
+│   ├── nufarul_controller.py
+│   ├── documentation_controller.py
+│   └── shell_controller.py
+│
+├── models/
+│   ├── database.py           # Connection pool, запросы к Oracle
+│   ├── combo_scenario.py
+│   └── shell_project.py
+│
+├── templates/                # Jinja2 HTML
+│   ├── login.html
+│   ├── sqldeveloper_mdi.html
+│   ├── dashboard_mdi.html
+│   ├── credit_admin.html, credit_operator.html, credit_easycredit.html, credit_iute.html, credit_portfolio_bomba.html
+│   ├── nufarul_admin.html, nufarul_operator.html
+│   ├── nufarul/                  # Первичные документы оператора
+│   │   ├── document_bon_comanda.html
+│   │   ├── document_comanda.html
+│   │   └── document_jurnal_registru.html
+│   ├── shell_dashboard_mdi.html, shell_projects.html
+│   ├── docs_index.html, docs_viewer.html
+│   └── test.html
+│
+├── sql/                      # DDL/DML для Oracle (порядок важен)
+│   ├── 00_drop.sql … 18_nufarul_name_en.sql
+│   └── README.md
+│
+├── docs/                     # Документация и материалы
+│   ├── PROJECT_DOCUMENTATION.html  # этот файл
+│   ├── dashboards/           # .md по дашбордам
+│   └── Nufarul/              # ТЗ, каталоги, docs_jpg (галерея + OCR)
+│
+├── integrations/
+│   ├── easycredit_client.py  # EasyCredit API
+│   └── iute_client.py        # Iute API
+│
+├── services/
+│   ├── credit_logger.py
+│   └── report_export.py
+│
+├── scripts/
+│   └── ocr_docs_jpg_to_tables.py   # OCR JPG → таблицы в page_*.html
+│
+├── dashboards/               # JSON конфиги дашбордов (dashboard_00.json …)
+├── data/                     # demo_database.db, easycredit_settings.json, iute_settings.json
+├── static/                   # agents/, fonts/
+├── translations/             # ru, ro, en (Flask-Babel)
+└── Wallet_DBManager/        # Oracle wallet (или WALLET_DIR из .env)</code></pre>
+
+<!-- ========== 4. КОНФИГУРАЦИЯ ========== -->
+<h2 id="config">4. Конфигурация (config.py, .env)</h2>
+<p>Все секреты и пути — в <code>.env</code>. <code>config.py</code> читает через <code>os.environ.get()</code> и <code>load_dotenv()</code>.</p>
+<h3>Основные переменные (.env)</h3>
+<table>
+    <thead><tr><th>Переменная</th><th>Описание</th></tr></thead>
+    <tbody>
+        <tr><td>DB_USER, DB_PASSWORD</td><td>Пользователь и пароль Oracle</td></tr>
+        <tr><td>WALLET_DIR</td><td>Путь к распакованной папке Oracle Wallet</td></tr>
+        <tr><td>WALLET_PASSWORD</td><td>Пароль кошелька (если ewallet.pem)</td></tr>
+        <tr><td>CONNECT_STRING</td><td>TNS connect string (из tnsnames.ora)</td></tr>
+        <tr><td>ENVIRONMENT</td><td>LOCAL | REMOTE</td></tr>
+        <tr><td>PORT</td><td>Порт сервера (3003 локально, 8000 удалённо)</td></tr>
+        <tr><td>SECRET_KEY</td><td>Flask session secret</td></tr>
+        <tr><td>DEFAULT_USERNAME, DEFAULT_PASSWORD</td><td>Логин/пароль веб-интерфейса</td></tr>
+        <tr><td>EASYCREDIT_*</td><td>Sandbox/production, base_url, api_user, api_password</td></tr>
+        <tr><td>IUTE_*</td><td>base_url, api_key, pos_identifier, salesman_identifier</td></tr>
+        <tr><td>RATELIMIT_*</td><td>Лимиты запросов (по умолчанию 200/hour, memory://)</td></tr>
+    </tbody>
+</table>
+<p>Переопределения API (без секретов в репо): <code>data/easycredit_settings.json</code>, <code>data/iute_settings.json</code>. Методы <code>Config.easycredit_base_url()</code>, <code>Config.iute_api_key()</code> и т.д. учитывают эти файлы.</p>
+<p>Языки: <code>BABEL_DEFAULT_LOCALE = 'ru'</code>, <code>SUPPORTED_LANGUAGES = ['ru', 'ro', 'en']</code>.</p>
+
+<!-- ========== 5. ТОЧКА ВХОДА И МАРШРУТЫ ========== -->
+<h2 id="entry">5. Точка входа (app.py) и маршруты</h2>
+<p><span class="file-path">app.py</span> — Flask app, Flask-SocketIO, Flask-Babel, Limiter. Импорты контроллеров: AuthController, DashboardController, SQLController, ObjectsController, ComboScenarioController, CreditController, NufarulController, DocumentationController, ShellController.</p>
+<h3>Основные маршруты (страницы)</h3>
+<table>
+    <thead><tr><th>Маршрут</th><th>Назначение</th></tr></thead>
+    <tbody>
+        <tr><td>/</td><td>Редирект на login или sqldeveloper</td></tr>
+        <tr><td>/login</td><td>Головная страница входа в проект (Artgranit OCI): SQL Developer, Dashboard, Nufarul, Кредиты, Документация</td></tr>
+        <tr><td>/logout</td><td>Выход</td></tr>
+        <tr><td>/UNA.md/orasldev, /UNA.md/orasldev/</td><td>SQL Developer (sqldeveloper_mdi.html)</td></tr>
+        <tr><td>/UNA.md/orasldev/dashboard, …/dashboard/&lt;id&gt;</td><td>Дашборд метрик</td></tr>
+        <tr><td>/UNA.md/orasldev/credit-admin</td><td>Админка кредитов</td></tr>
+        <tr><td>/UNA.md/orasldev/credit-operator</td><td>Оператор кредитов</td></tr>
+        <tr><td>/UNA.md/orasldev/credit-easycredit</td><td>Оформление EasyCredit</td></tr>
+        <tr><td>/UNA.md/orasldev/credit-iute</td><td>Оформление Iute</td></tr>
+        <tr><td>/UNA.md/orasldev/credit-portfolio-bomba</td><td>Портфель Бомба</td></tr>
+        <tr><td>/UNA.md/orasldev/nufarul-admin</td><td>Админка Nufarul</td></tr>
+        <tr><td>/UNA.md/orasldev/nufarul-operator</td><td>Оператор Nufarul (заказы, печать документов)</td></tr>
+        <tr><td>/UNA.md/orasldev/nufarul-operator/document/jurnal</td><td>Журнал регистраций (Jurnal Registru) — таблица последних заказов, ?limit=50</td></tr>
+        <tr><td>/UNA.md/orasldev/nufarul-operator/document/&lt;order_id&gt;?type=bon_comanda|comanda</td><td>Печать Bon de Comandă или Comandă по заказу</td></tr>
+        <tr><td>/UNA.md/orasldev/docs, …/docs/…</td><td>Индекс документации, viewer Markdown, Nufarul ТЗ, project-documentation (Claude)</td></tr>
+        <tr><td>/UNA.md/orasldev/docs/nufarul, …/nufarul/…</td><td>Список материалов Nufarul, file/view-xlsx/view-doc/view-pdf, docs_jpg</td></tr>
+        <tr><td>/UNA.md/shell, /UNA.md/shell/projects</td><td>Shell: список проектов</td></tr>
+        <tr><td>/UNA.md/shell/&lt;project_slug&gt;, …/dashboard</td><td>Дашборд по проекту</td></tr>
+        <tr><td>/test.html</td><td>Диагностика, проверка БД, перезапуск сервера</td></tr>
+    </tbody>
+</table>
+<h3>API (выборка)</h3>
+<table>
+    <thead><tr><th>Префикс/группа</th><th>Примеры</th></tr></thead>
+    <tbody>
+        <tr><td>/api/login, /api/logout, /api/status</td><td>Авторизация</td></tr>
+        <tr><td>/api/execute-sql</td><td>Выполнение SQL (SQLController)</td></tr>
+        <tr><td>/api/dashboard/metrics, …/metric/&lt;name&gt;, …/list, …/config/&lt;id&gt;, …/widget/custom-sql</td><td>Метрики и виджеты</td></tr>
+        <tr><td>/api/objects/schemas, tables, views, procedures, functions, packages, …</td><td>Браузер объектов БД</td></tr>
+        <tr><td>/api/combo-scenario/execute, execute-iteration</td><td>Сценарии комбо</td></tr>
+        <tr><td>/api/credit-admin/*</td><td>Программы, банки, категории, бренды, matrix, pivot, easycredit-settings, iute-settings, reports, export</td></tr>
+        <tr><td>/api/credit-operator/products, programs-for-product, application, recent-applications</td><td>Оператор кредитов</td></tr>
+        <tr><td>/api/nufarul-admin/services, statuses, orders, report-by-day</td><td>Админка Nufarul</td></tr>
+        <tr><td>/api/nufarul-operator/services, order, recent-orders, order-by-barcode</td><td>Оператор Nufarul</td></tr>
+        <tr><td>/api/credit-easycredit/preapproved, submit, status, client-by-phone, client-by-uin, urns</td><td>EasyCredit API</td></tr>
+        <tr><td>/api/credit-iute/check-auth, create-order, order-status</td><td>Iute API</td></tr>
+        <tr><td>/api/test_connection</td><td>Проверка подключения к Oracle</td></tr>
+        <tr><td>/api/set-language, /api/get-language</td><td>Смена языка (ru/ro/en)</td></tr>
+        <tr><td>/api/restart</td><td>Перезапуск Python-процесса (test page)</td></tr>
+    </tbody>
+</table>
+<h3>WebSocket (SocketIO)</h3>
+<p><code>subscribe_metric</code>, <code>unsubscribe_metric</code> — подписка на метрики дашборда в реальном времени.</p>
+
+<!-- ========== 6. МОДЕЛИ ========== -->
+<h2 id="models">6. Модели (database.py)</h2>
+<p><span class="file-path">models/database.py</span></p>
+<ul>
+    <li><strong>DatabaseConnection</strong> — проверка wallet (<code>WALLET_DIR</code>), <code>get_connection()</code>, <code>get_pool()</code> (oracledb pool, min=1, max=5), поддержка ewallet.pem и config_dir.</li>
+    <li><strong>DatabaseModel</strong> — контекстный менеджер для запросов; методы для выполнения SQL и выборок (используются контроллерами).</li>
+</ul>
+<p>Подключение только через .env: DB_USER, DB_PASSWORD, CONNECT_STRING, WALLET_DIR, WALLET_PASSWORD.</p>
+
+<!-- ========== 7. КОНТРОЛЛЕРЫ ========== -->
+<h2 id="controllers">7. Контроллеры</h2>
+<table>
+    <thead><tr><th>Файл</th><th>Назначение</th></tr></thead>
+    <tbody>
+        <tr><td>auth_controller.py</td><td>Проверка логина/пароля, is_authenticated(), set_authenticated(), get_current_user(), logout()</td></tr>
+        <tr><td>dashboard_controller.py</td><td>Сбор метрик (CPU, RAM, сессии), конфиги дашбордов из dashboards/*.json, custom-sql виджеты</td></tr>
+        <tr><td>sql_controller.py</td><td>Выполнение произвольного SQL, возврат результатов в JSON</td></tr>
+        <tr><td>objects_controller.py</td><td>Список схем, таблиц, представлений, процедур, функций, пакетов, последовательностей, синонимов, индексов, триггеров, типов, материализованных представлений</td></tr>
+        <tr><td>combo_scenario_controller.py</td><td>Выполнение комбо-сценариев (execute, execute-iteration)</td></tr>
+        <tr><td>credit_controller.py</td><td>CRUD программ, банков, категорий, брендов, матрица продуктов, pivot, настройки EasyCredit/Iute, отчёты, экспорт PDF; оператор: продукты, программы по продукту, заявка, последние заявки</td></tr>
+        <tr><td>nufarul_controller.py</td><td>Услуги (get/upsert/delete), статусы заказов, заказы, смена статуса, отчёт по дням; оператор: список услуг (по группам), создание заказа, последние заказы, поиск по штрихкоду</td></tr>
+        <tr><td>documentation_controller.py</td><td>Используется для маршрутов документации (рендер docs_viewer и т.д.)</td></tr>
+        <tr><td>shell_controller.py</td><td>Проекты из UNA_SHELL_PROJECTS, дашборды по project_slug</td></tr>
+    </tbody>
+</table>
+
+<!-- ========== 8. SQL ========== -->
+<h2 id="sql">8. SQL-скрипты (Oracle)</h2>
+<p><span class="file-path">sql/README.md</span> — порядок выполнения. Развёртывание: <code>python deploy_oracle_objects.py</code> (опция <code>--drop</code> для пересоздания).</p>
+<table>
+    <thead><tr><th>Скрипт</th><th>Содержимое</th></tr></thead>
+    <tbody>
+        <tr><td>00_drop.sql</td><td>Удаление объектов (при --drop)</td></tr>
+        <tr><td>01–04</td><td>BUS: таблицы, представления, триггеры, пакет BUS_PKG</td></tr>
+        <tr><td>05–09</td><td>CRED: таблицы, представления, триггеры, CRED_ADMIN_PKG, CRED_OPERATOR_PKG</td></tr>
+        <tr><td>10_demo_data.sql</td><td>Демо-данные (банки, категории, бренды, программы, заявки и т.д.)</td></tr>
+        <tr><td>11_cred_program_products.sql</td><td>Продукты программ</td></tr>
+        <tr><td>12_cred_reports.sql</td><td>Отчёты, параметры, пакеты отчётов</td></tr>
+        <tr><td>13_shell_projects.sql</td><td>UNA_SHELL_PROJECTS (slug, name, dashboard_ids)</td></tr>
+        <tr><td>14_nufarul_tables.sql</td><td>NUF_ORDER_STATUSES, NUF_SERVICES, NUF_ORDERS, NUF_ORDER_ITEMS</td></tr>
+        <tr><td>15_nufarul_views.sql</td><td>Представления Nufarul</td></tr>
+        <tr><td>16–18</td><td>Данные услуг, группы услуг (SERVICE_GROUP), NAME_EN</td></tr>
+    </tbody>
+</table>
+
+<!-- ========== 9. ШАБЛОНЫ ========== -->
+<h2 id="templates">9. Шаблоны (templates)</h2>
+<p>Jinja2, единый стиль (teal/бирюза). Доступны <code>_()</code>, <code>get_locale</code>, <code>languages</code> (Babel).</p>
+<ul>
+    <li>login.html — форма входа</li>
+    <li>sqldeveloper_mdi.html — SQL Worksheet, дерево объектов</li>
+    <li>dashboard_mdi.html — дашборд с виджетами</li>
+    <li>credit_admin.html, credit_operator.html, credit_easycredit.html, credit_iute.html, credit_portfolio_bomba.html</li>
+    <li>nufarul_admin.html, nufarul_operator.html — админка и оператор Nufarul (услуги по группам, RU/RO/EN). Первичные документы: templates/nufarul/document_bon_comanda.html, document_comanda.html, document_jurnal_registru.html — подставляются данные заказа (order_number, client_name, items, total_amount); доступ по маршрутам document/&lt;order_id&gt; и document/jurnal.</li>
+    <li>shell_dashboard_mdi.html, shell_projects.html — shell-проекты и дашборды</li>
+    <li>docs_index.html, docs_viewer.html — индекс документации и просмотр Markdown</li>
+    <li>test.html — диагностика, кнопка перезапуска сервера</li>
+</ul>
+
+<!-- ========== 10. ИНТЕГРАЦИИ ========== -->
+<h2 id="integrations">10. Интеграции (EasyCredit, Iute)</h2>
+<p><span class="file-path">integrations/easycredit_client.py</span> — вызовы API EasyCredit (Preapproved, Request, Status, GetClientInfo и т.д.). URL и учётные данные из Config + data/easycredit_settings.json.</p>
+<p><span class="file-path">integrations/iute_client.py</span> — Iute API (check auth, create order, order status). URL и api_key из Config + data/iute_settings.json.</p>
+<p>WSDL и описание запросов: <code>wsdl/easycredit/</code>, <code>wsdl/iute/</code> (при наличии).</p>
+
+<!-- ========== 11. СЕРВИСЫ ========== -->
+<h2 id="services">11. Сервисы</h2>
+<p><span class="file-path">services/credit_logger.py</span> — логирование операций по кредитам.</p>
+<p><span class="file-path">services/report_export.py</span> — экспорт отчётов (PDF и др.).</p>
+
+<!-- ========== 12. СКРИПТЫ ========== -->
+<h2 id="scripts">12. Скрипты и утилиты</h2>
+<table>
+    <thead><tr><th>Скрипт</th><th>Назначение</th></tr></thead>
+    <tbody>
+        <tr><td>deploy_oracle_objects.py</td><td>Развёртывание SQL-скриптов в Oracle (--drop, --dry-run)</td></tr>
+        <tr><td>import_nufarul_services.py</td><td>Импорт услуг Nufarul в NUF_SERVICES (с группами)</td></tr>
+        <tr><td>run_nufarul_setup.py</td><td>Миграции 17/18 и импорт услуг</td></tr>
+        <tr><td>scripts/ocr_docs_jpg_to_tables.py</td><td>OCR изображений docs/Nufarul/docs_jpg, вставка описаний по смыслу и таблиц в page_1.html … page_8.html</td></tr>
+        <tr><td>run_local.sh</td><td>Локальный запуск (ENVIRONMENT=LOCAL, PORT=3003)</td></tr>
+        <tr><td>full_restart.sh</td><td>Перезапуск на сервере (kill процесса, освобождение порта, nohup)</td></tr>
+    </tbody>
+</table>
+
+<!-- ========== 13. ЗАПУСК ========== -->
+<h2 id="run">13. Запуск (локально и на сервере)</h2>
+<h3>Локально (Mac)</h3>
+<pre><code>cd /Users/paveltuhari/cursorsprojects/OCI/Artgranit
+cp .env.example .env   # заполнить WALLET_DIR, пароли и т.д.
+./run_local.sh
+# или: source venv/bin/activate && export ENVIRONMENT=LOCAL PORT=3003 && python3 app.py</code></pre>
+<p>Приложение: <code>http://localhost:3003</code>. Логин — DEFAULT_USERNAME / DEFAULT_PASSWORD из .env.</p>
+<h3>Удалённый сервер</h3>
+<pre><code>cd /home/ubuntu/oracle_test_app   # или путь проекта на сервере
+source venv/bin/activate
+export ENVIRONMENT=REMOTE PORT=8000
+nohup python3 app.py &gt; app.log 2&gt;&amp;1 &amp;</code></pre>
+<p>Или <code>./full_restart.sh</code>. Доступ: <code>http://&lt;SERVER_IP&gt;:8000</code>.</p>
+<h3>Проверка и перезапуск</h3>
+<p><code>/test.html</code> — проверка подключения к БД, кнопка «Перезапустить Python сервер».</p>
+
+<hr style="margin-top: 32px; border: none; border-top: 1px solid var(--border);">
+<p class="meta">Конец документа. Artgranit OCI — документация для Claude Code. Вход: /login. После входа — /UNA.md/orasldev (SQL Developer), дашборды, Nufarul (оператор + печать Bon de Comandă, Comandă, Jurnal), кредиты, /UNA.md/orasldev/docs (документация и project-documentation).</p>
+
+</body>
+</html>

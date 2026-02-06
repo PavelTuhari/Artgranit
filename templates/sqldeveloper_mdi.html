@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Oracle SQL Developer - UNA.md/orasldev</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <!-- CodeMirror для подсветки синтаксиса SQL/PL-SQL -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/scroll/simplescrollbars.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/scroll/simplescrollbars.min.css">
     <style>
         * {
             margin: 0;
@@ -177,32 +187,72 @@
         
         .sql-editor {
             width: 100%;
-            height: 300px;
+            min-height: 300px;
+            flex: 1;
             background: #1e1e1e;
             color: #d4d4d4;
-            border: none;
-            padding: 15px;
+            border: 1px solid #3c3c3c;
+            border-radius: 3px;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
             font-size: 14px;
-            resize: none;
-            outline: none;
-            line-height: 1.5;
+        }
+        
+        .sql-editor-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        
+        .CodeMirror {
+            height: auto;
+            min-height: 300px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            background: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+        
+        .CodeMirror-scroll {
+            min-height: 300px;
+            max-height: none;
+        }
+        
+        .CodeMirror-vscrollbar, .CodeMirror-hscrollbar {
+            background: #252526;
+        }
+        
+        .ai-sql-editor-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+            flex: 1;
+        }
+        
+        .ai-sql-editor {
+            min-height: 300px;
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 3px;
         }
         
         .results-table {
-            height: 250px;
+            min-height: 200px;
             overflow: auto;
             background: #1e1e1e;
             margin-top: 10px;
+            padding: 10px;
         }
         
-        table {
+        .results-table table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
+            background: #1e1e1e;
         }
         
-        th {
+        .results-table th {
             background: #252526;
             color: #d4d4d4;
             padding: 8px;
@@ -211,16 +261,79 @@
             position: sticky;
             top: 0;
             font-weight: 600;
+            z-index: 10;
         }
         
-        td {
+        .results-table td {
             padding: 8px;
             border-bottom: 1px solid #2d2d30;
             color: #d4d4d4;
+            background: #1e1e1e;
         }
         
-        tr:hover {
+        .results-table tr:hover {
             background: #2a2d2e;
+        }
+        
+        .results-table         tr:hover td {
+            background: #2a2d2e;
+        }
+        
+        /* Стили для CLOB ячеек */
+        td[data-clob-full] {
+            position: relative;
+        }
+        
+        td[data-clob-full]:hover::after {
+            content: attr(data-clob-full);
+            position: absolute;
+            left: 100%;
+            top: 0;
+            background: #252526;
+            color: #d4d4d4;
+            padding: 10px;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            z-index: 1000;
+            max-width: 600px;
+            max-height: 400px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            margin-left: 10px;
+        }
+        
+        /* Стили для CLOB tooltip */
+        .clob-cell {
+            cursor: help;
+            position: relative;
+        }
+        
+        .clob-tooltip {
+            position: fixed;
+            background: #252526;
+            color: #d4d4d4;
+            padding: 10px;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            z-index: 10000;
+            max-width: 600px;
+            max-height: 400px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            display: none;
+            pointer-events: none;
+        }
+        
+        .clob-tooltip.show {
+            display: block;
         }
         
         /* Sidebar */
@@ -391,18 +504,28 @@
 <body>
     <!-- Menu Bar -->
     <div class="menu-bar">
-        <div class="menu-item active" onclick="openWindow('sql-worksheet')">SQL Worksheet</div>
-        <div class="menu-item" onclick="openWindow('dashboard')">Dashboard</div>
-        <div class="menu-item" onclick="openWindow('connections')">Connections</div>
-        <div class="menu-item user" onclick="logout()">👤 {{ username }} | Выход</div>
+        <div class="menu-item active" onclick="openWindow('sql-worksheet')">{{ _('SQL Worksheet') }}</div>
+        <div class="menu-item" onclick="openWindow('dashboard')">{{ _('Dashboard') }}</div>
+        <div class="menu-item" onclick="openWindow('ai-generator')">🤖 {{ _('AI Generator') }}</div>
+        <div class="menu-item" onclick="openWindow('combo-scenario')">🔄 {{ _('Combo Scenario') }}</div>
+        <div class="menu-item" onclick="openWindow('connections')">{{ _('Connections') }}</div>
+        <div class="menu-item" onclick="window.location.href='/UNA.md/orasldev/digi-marketing'">📺 DIGI Marketing</div>
+        <div class="menu-item" style="margin-left: auto; padding: 5px 8px;">
+            <select id="languageSelect" onchange="changeLanguage(this.value)" style="background: #2d2d30; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 3px; padding: 2px 5px; font-size: 11px; cursor: pointer;">
+                {% for lang_code, lang_name in languages.items() %}
+                <option value="{{ lang_code }}" {% if get_locale() == lang_code %}selected{% endif %}>{{ lang_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="menu-item user" onclick="logout()">👤 {{ username }} | {{ _('Logout') }}</div>
     </div>
     
     <!-- Toolbar -->
     <div class="toolbar">
-        <button class="toolbar-btn primary" onclick="executeSQL()">▶ Execute (F5)</button>
-        <button class="toolbar-btn" onclick="clearEditor()">Clear</button>
+        <button class="toolbar-btn primary" onclick="executeSQL()">▶ {{ _('Execute') }} (F5)</button>
+        <button class="toolbar-btn" onclick="clearEditor()">{{ _('Clear') }}</button>
         <div style="flex: 1;"></div>
-        <button class="toolbar-btn" onclick="openWindow('dashboard')">📊 Dashboard</button>
+        <button class="toolbar-btn" onclick="openWindow('dashboard')">📊 {{ _('Dashboard') }}</button>
     </div>
     
     <!-- MDI Container -->
@@ -410,20 +533,20 @@
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="schema-selector">
-                <label for="schemaSelect">Schema:</label>
+                <label for="schemaSelect">{{ _('Schema') }}:</label>
                 <select id="schemaSelect" onchange="changeSchema(this.value)">
-                    <option value="">Loading...</option>
+                    <option value="">{{ _('Loading...') }}</option>
                 </select>
                 <input type="text" 
                        id="objectFilter" 
                        class="filter-input" 
-                       placeholder="🔍 Filter objects (min 3 chars, 2s delay)"
+                       placeholder="{{ _('🔍 Filter objects (min 3 chars, 2s delay)') }}"
                        autocomplete="off">
             </div>
             
             <div class="sidebar-section">
                 <div class="sidebar-title">
-                    <span>Connections</span>
+                    <span>{{ _('Connections') }}</span>
                 </div>
                 <div class="sidebar-item active">
                     <span class="sidebar-item-icon">🔌</span>
@@ -433,83 +556,83 @@
             
             <div class="sidebar-section">
                 <div class="sidebar-title" onclick="toggleSection('objects')">
-                    <span>Database Objects</span>
+                    <span>{{ _('Database Objects') }}</span>
                     <span class="toggle" id="objects-toggle">▼</span>
                 </div>
                 <div class="sidebar-items" id="objects-items">
                     <div class="sidebar-item" onclick="loadObjects('tables')">
                         <span class="sidebar-item-icon">📊</span>
-                        <span class="sidebar-item-name">Tables</span>
+                        <span class="sidebar-item-name">{{ _('Tables') }}</span>
                         <span class="sidebar-item-count" id="tables-count"></span>
                     </div>
                     <div id="tables-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('views')">
                         <span class="sidebar-item-icon">👁️</span>
-                        <span class="sidebar-item-name">Views</span>
+                        <span class="sidebar-item-name">{{ _('Views') }}</span>
                         <span class="sidebar-item-count" id="views-count"></span>
                     </div>
                     <div id="views-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('procedures')">
                         <span class="sidebar-item-icon">⚙️</span>
-                        <span class="sidebar-item-name">Procedures</span>
+                        <span class="sidebar-item-name">{{ _('Procedures') }}</span>
                         <span class="sidebar-item-count" id="procedures-count"></span>
                     </div>
                     <div id="procedures-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('functions')">
                         <span class="sidebar-item-icon">🔧</span>
-                        <span class="sidebar-item-name">Functions</span>
+                        <span class="sidebar-item-name">{{ _('Functions') }}</span>
                         <span class="sidebar-item-count" id="functions-count"></span>
                     </div>
                     <div id="functions-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('packages')">
                         <span class="sidebar-item-icon">📦</span>
-                        <span class="sidebar-item-name">Packages</span>
+                        <span class="sidebar-item-name">{{ _('Packages') }}</span>
                         <span class="sidebar-item-count" id="packages-count"></span>
                     </div>
                     <div id="packages-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('sequences')">
                         <span class="sidebar-item-icon">🔢</span>
-                        <span class="sidebar-item-name">Sequences</span>
+                        <span class="sidebar-item-name">{{ _('Sequences') }}</span>
                         <span class="sidebar-item-count" id="sequences-count"></span>
                     </div>
                     <div id="sequences-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('synonyms')">
                         <span class="sidebar-item-icon">🔗</span>
-                        <span class="sidebar-item-name">Synonyms</span>
+                        <span class="sidebar-item-name">{{ _('Synonyms') }}</span>
                         <span class="sidebar-item-count" id="synonyms-count"></span>
                     </div>
                     <div id="synonyms-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('indexes')">
                         <span class="sidebar-item-icon">📇</span>
-                        <span class="sidebar-item-name">Indexes</span>
+                        <span class="sidebar-item-name">{{ _('Indexes') }}</span>
                         <span class="sidebar-item-count" id="indexes-count"></span>
                     </div>
                     <div id="indexes-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('triggers')">
                         <span class="sidebar-item-icon">⚡</span>
-                        <span class="sidebar-item-name">Triggers</span>
+                        <span class="sidebar-item-name">{{ _('Triggers') }}</span>
                         <span class="sidebar-item-count" id="triggers-count"></span>
                     </div>
                     <div id="triggers-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('types')">
                         <span class="sidebar-item-icon">🏷️</span>
-                        <span class="sidebar-item-name">Types</span>
+                        <span class="sidebar-item-name">{{ _('Types') }}</span>
                         <span class="sidebar-item-count" id="types-count"></span>
                     </div>
                     <div id="types-list" class="sidebar-items"></div>
                     
                     <div class="sidebar-item" onclick="loadObjects('materialized_views')">
                         <span class="sidebar-item-icon">💾</span>
-                        <span class="sidebar-item-name">Materialized Views</span>
+                        <span class="sidebar-item-name">{{ _('Materialized Views') }}</span>
                         <span class="sidebar-item-count" id="materialized_views-count"></span>
                     </div>
                     <div id="materialized_views-list" class="sidebar-items"></div>
@@ -518,13 +641,13 @@
             
             <div class="sidebar-section">
                 <div class="sidebar-title" onclick="toggleSection('dba')">
-                    <span>DBA</span>
+                    <span>{{ _('DBA') }}</span>
                     <span class="toggle" id="dba-toggle">▼</span>
                 </div>
                 <div class="sidebar-items" id="dba-items">
                     <div class="sidebar-item" onclick="openWindow('dashboard')">
                         <span class="sidebar-item-icon">📈</span>
-                        <span class="sidebar-item-name">Performance</span>
+                        <span class="sidebar-item-name">{{ _('Performance') }}</span>
                     </div>
                 </div>
             </div>
@@ -535,20 +658,176 @@
             <!-- SQL Worksheet Window -->
             <div class="mdi-window sql-worksheet-window active" id="sql-worksheet-window">
             <div class="mdi-window-header">
-                <div class="mdi-window-title">SQL Worksheet</div>
+                <div class="mdi-window-title">{{ _('SQL Worksheet') }}</div>
                 <div class="mdi-window-controls">
                     <button class="mdi-window-btn" onclick="maximizeWindow('sql-worksheet-window')">□</button>
                     <button class="mdi-window-btn" onclick="closeWindow('sql-worksheet-window')">×</button>
                 </div>
             </div>
-            <div class="mdi-window-content">
-                <textarea id="sqlEditor" class="sql-editor" placeholder="-- Enter your SQL query here...
-SELECT * FROM DUAL;"></textarea>
-                <div class="results-table" id="resultsTable">
+            <div class="mdi-window-content" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                <div class="sql-editor-container" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+                    <textarea id="sqlEditor"></textarea>
+                </div>
+                <div class="results-table" id="resultsTable" style="flex: 1; min-height: 200px; max-height: 50%; margin-top: 10px;">
                     <div style="padding: 20px; text-align: center; color: #858585;">
-                        No results. Execute a query to see results here.
+                        {{ _('No results. Execute a query to see results here.') }}
                     </div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- AI Table Generator Window -->
+        <div class="mdi-window" id="ai-generator-window" style="width: 700px; height: 700px; top: 50px; left: 870px; z-index: 99;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">🤖 {{ _('AI Table Generator') }}</div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('ai-generator-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('ai-generator-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #858585; margin-bottom: 5px;">
+                        {{ _('Table description (in Russian or English):') }}
+                    </label>
+                    <textarea id="aiDescription" 
+                              style="width: 100%; height: 100px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 8px; font-family: inherit; font-size: 12px; resize: vertical; border-radius: 3px;"
+                              placeholder="{{ _('For example: Table to store users with fields: id (number), name (string), email (string), registration_date (date)') }}"></textarea>
+                </div>
+                
+                <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                    <button id="aiGenerateBtn" 
+                            class="toolbar-btn primary" 
+                            onclick="generateTableSQL()"
+                            style="flex: 1;">
+                        ✨ {{ _('Generate SQL') }}
+                    </button>
+                    <button class="toolbar-btn" 
+                            onclick="clearAIDescription()"
+                            style="flex: 0 0 auto;">
+                        🗑️ {{ _('Clear') }}
+                    </button>
+                    <div id="aiStatus" style="font-size: 11px; color: #858585;"></div>
+                </div>
+                
+                <div style="margin-bottom: 10px; flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+                    <label style="display: block; font-size: 12px; color: #858585; margin-bottom: 5px;">
+                        {{ _('Generated SQL:') }}
+                    </label>
+                    <div class="ai-sql-editor-container" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+                        <textarea id="aiGeneratedSQL"></textarea>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="toolbar-btn" 
+                            onclick="insertSQLToEditor()"
+                            style="flex: 1;">
+                        📋 {{ _('Insert into editor') }}
+                    </button>
+                    <button class="toolbar-btn" 
+                            onclick="copySQLToClipboard()"
+                            style="flex: 1;">
+                        📄 {{ _('Copy') }}
+                    </button>
+                </div>
+                
+                <div id="aiError" style="margin-top: 10px; display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Combo Scenario Window -->
+        <div class="mdi-window" id="combo-scenario-window" style="width: 800px; height: 750px; top: 50px; left: 950px; z-index: 99;">
+            <div class="mdi-window-header">
+                <div class="mdi-window-title">🔄 {{ _('Combo Scenario') }}</div>
+                <div class="mdi-window-controls">
+                    <button class="mdi-window-btn" onclick="maximizeWindow('combo-scenario-window')">□</button>
+                    <button class="mdi-window-btn" onclick="closeWindow('combo-scenario-window')">×</button>
+                </div>
+            </div>
+            <div class="mdi-window-content" style="display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 15px;">
+                <!-- Главная тема -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #858585; margin-bottom: 5px; font-weight: bold;">
+                        {{ _('Main Task (Главная тема):') }}
+                    </label>
+                    <input type="text" id="comboMainTask" 
+                           value="проверь если существует таблица ADMIN.TEST_QUESTIONS_CXX то удали её и создай таблицу для хранения вопросов тестов по с++ со следующими полями: QUESTION_ID (NUMBER, PRIMARY KEY), QUESTION_TEXT (VARCHAR2(4000), NOT NULL), ANSWER (VARCHAR2(4000)), CREATED_DATE (DATE DEFAULT SYSTIMESTAMP)"
+                           style="width: 100%; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 8px; font-family: inherit; font-size: 12px; border-radius: 3px;"
+                           placeholder="{{ _('Example: создай таблицу с вопросами тест sql') }}">
+                </div>
+                
+                <!-- Количество итераций -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 12px; color: #858585; margin-bottom: 5px; font-weight: bold;">
+                        {{ _('Iterations Count (Сколько итераций):') }}
+                    </label>
+                    <input type="number" id="comboIterationsCount" 
+                           value="50" min="1" max="1000"
+                           style="width: 100%; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 8px; font-family: inherit; font-size: 12px; border-radius: 3px;">
+                </div>
+                
+                <!-- Итерационное задание -->
+                <div style="margin-bottom: 15px; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                    <label style="display: block; font-size: 12px; color: #858585; margin-bottom: 5px; font-weight: bold;">
+                        {{ _('Iterative Task (Итерационное задание):') }}
+                    </label>
+                    <textarea id="comboIterativeTask" 
+                              style="flex: 1; min-height: 100px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 8px; font-family: inherit; font-size: 12px; resize: vertical; border-radius: 3px;"
+                              placeholder="{{ _('Example: заполни таблицу 10 вопросов по sql') }}">заполни таблицу 10 новыми вопросами для тестов по с++. Используй INSERT INTO команды. Вопросы должны быть уникальными и не повторяться с предыдущими итерациями</textarea>
+                </div>
+                
+                <!-- Кнопки управления -->
+                <div style="margin-bottom: 10px; display: flex; gap: 10px;">
+                    <button id="comboExecuteBtn" 
+                            class="toolbar-btn primary" 
+                            onclick="executeComboScenario()"
+                            style="flex: 1;">
+                        ▶️ {{ _('Execute Scenario') }}
+                    </button>
+                    <button id="comboStopBtn" 
+                            class="toolbar-btn" 
+                            onclick="stopComboScenario()"
+                            style="flex: 0 0 auto; display: none; background: #c6262e; color: white;"
+                            disabled>
+                        ⏹️ {{ _('Stop') }}
+                    </button>
+                    <button class="toolbar-btn" 
+                            onclick="clearComboScenario()"
+                            style="flex: 0 0 auto;">
+                        🗑️ {{ _('Clear') }}
+                    </button>
+                </div>
+                
+                <!-- Статус выполнения -->
+                <div id="comboStatus" style="margin-bottom: 10px; font-size: 11px; color: #858585;">
+                    {{ _('Ready to execute') }}
+                </div>
+                
+                <!-- Прогресс -->
+                <div style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #858585; margin-bottom: 5px;">
+                        <span id="comboProgressText">{{ _('Progress:') }} 0/0</span>
+                        <span id="comboProgressPercent">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 20px; background: #1e1e1e; border: 1px solid #3c3c3c; border-radius: 3px; overflow: hidden;">
+                        <div id="comboProgressBar" style="width: 0%; height: 100%; background: #007acc; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                
+                <!-- Лог результатов -->
+                <div style="flex: 1; min-height: 150px; display: flex; flex-direction: column; overflow: hidden;">
+                    <label style="display: block; font-size: 12px; color: #858585; margin-bottom: 5px; font-weight: bold;">
+                        {{ _('Execution Log:') }}
+                    </label>
+                    <div id="comboLog" 
+                         style="flex: 1; background: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; padding: 10px; font-family: 'Courier New', monospace; font-size: 11px; overflow-y: auto; border-radius: 3px;">
+                        {{ _('Log will appear here...') }}
+                    </div>
+                </div>
+                
+                <!-- Ошибки -->
+                <div id="comboError" style="margin-top: 10px; display: none; color: #f48771; font-size: 11px;"></div>
             </div>
         </div>
         </div>
@@ -561,6 +840,589 @@ SELECT * FROM DUAL;"></textarea>
     </div>
     
     <script>
+        // Translations object for JavaScript
+        const translations = {
+            'All commands': '{{ _("All commands") }}',
+            'Total commands': '{{ _("Total commands") }}',
+            'Success': '{{ _("Success") }}',
+            'Errors': '{{ _("Errors") }}',
+            'Error': '{{ _("Error") }}',
+            'rows': '{{ _("rows") }}',
+            'Results': '{{ _("Results") }}',
+            'Execution details': '{{ _("Execution details") }}',
+            'Command': '{{ _("Command") }}',
+            'Query executed successfully. No rows returned.': '{{ _("Query executed successfully. No rows returned.") }}',
+            'Error:': '{{ _("Error:") }}',
+            'Clear SQL editor?': '{{ _("Clear SQL editor?") }}',
+            'No results. Execute a query to see results here.': '{{ _("No results. Execute a query to see results here.") }}',
+            'Loading schemas...': '{{ _("Loading schemas...") }}',
+            'Current User': '{{ _("Current User") }}',
+            'Loading...': '{{ _("Loading...") }}',
+            'Ready': '{{ _("Ready") }}',
+            'Executing...': '{{ _("Executing...") }}',
+            'Executing iteration': '{{ _("Executing iteration") }}',
+            'Please enter a SQL query': '{{ _("Please enter a SQL query") }}',
+            'Generating SQL...': '{{ _("Generating SQL...") }}',
+            'SQL generated successfully!': '{{ _("SQL generated successfully!") }}',
+            'Error generating SQL:': '{{ _("Error generating SQL:") }}',
+            'SQL inserted into editor': '{{ _("SQL inserted into editor") }}',
+            'SQL copied to clipboard': '{{ _("SQL copied to clipboard") }}',
+            'Command executed successfully': '{{ _("Command executed successfully") }}',
+            'All commands executed successfully': '{{ _("All commands executed successfully") }}',
+            'Executed commands': '{{ _("Executed commands") }}',
+            'Script execution error': '{{ _("Script execution error") }}',
+            'of': '{{ _("of") }}',
+            'Query executed successfully. Found rows:': '{{ _("Query executed successfully. Found rows:") }}',
+            'Iteration': '{{ _("Iteration") }}',
+            'Prompt': '{{ _("Prompt") }}',
+            'SQL': '{{ _("SQL") }}',
+            'Stop': '{{ _("Stop") }}',
+            'Stopped by user': '{{ _("Stopped by user") }}',
+            'Ready to execute': '{{ _("Ready to execute") }}'
+        };
+        
+        function t(key) {
+            return translations[key] || key;
+        }
+        
+        // Функция для перевода сообщений от бэкенда
+        function translateBackendMessage(message) {
+            if (!message) return message;
+            
+            // Обрабатываем ключи-сообщения
+            if (message.startsWith('COMMAND_SUCCESS_ROWS:')) {
+                const rows = message.split(':')[1];
+                return t('Command executed successfully') + ` (${rows} ${t('rows')})`;
+            }
+            if (message === 'COMMAND_SUCCESS') {
+                return t('Command executed successfully');
+            }
+            if (message.startsWith('QUERY_SUCCESS_ROWS:')) {
+                const rows = message.split(':')[1];
+                return t('Query executed successfully. Found rows:') + ' ' + rows;
+            }
+            if (message.startsWith('ALL_COMMANDS_SUCCESS:')) {
+                const parts = message.split(':');
+                const success = parts[1];
+                const total = parts[2];
+                return t('All commands executed successfully') + ` (${success} ${t('of')} ${total})`;
+            }
+            if (message.startsWith('COMMANDS_PARTIAL:')) {
+                const parts = message.split(':');
+                const success = parts[1];
+                const total = parts[2];
+                const errors = parts[3];
+                return t('Executed commands') + ` ${success} ${t('of')} ${total}, ${t('Errors')}: ${errors}`;
+            }
+            if (message.startsWith('SCRIPT_ERROR:')) {
+                const error = message.split(':').slice(1).join(':');
+                return t('Script execution error') + ': ' + error;
+            }
+            
+            return message;
+        }
+        
+        // Escape HTML для безопасности
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Функция для обработки CLOB - сокращает длинный текст, сохраняет полный для tooltip
+        function formatCLOBCell(cellValue, maxLength = 100) {
+            if (cellValue === null || cellValue === undefined) {
+                return { display: '<em>NULL</em>', full: null, isClob: false };
+            }
+            
+            const cellStr = String(cellValue);
+            const isLong = cellStr.length > maxLength;
+            
+            if (isLong) {
+                const truncated = cellStr.substring(0, maxLength) + '...';
+                return {
+                    display: escapeHtml(truncated),
+                    full: cellStr, // Сохраняем оригинальный текст для JSON и tooltip
+                    isClob: true,
+                    length: cellStr.length
+                };
+            } else {
+                return {
+                    display: escapeHtml(cellStr),
+                    full: null,
+                    isClob: false
+                };
+            }
+        }
+        
+        // Создаем tooltip элемент для CLOB
+        let clobTooltip = null;
+        function createCLOBTooltip() {
+            if (!clobTooltip) {
+                clobTooltip = document.createElement('div');
+                clobTooltip.className = 'clob-tooltip';
+                clobTooltip.id = 'clobTooltip';
+                document.body.appendChild(clobTooltip);
+            }
+            return clobTooltip;
+        }
+        
+        // Декодирование HTML сущностей
+        function decodeHtmlEntities(text) {
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = text;
+            return textarea.value;
+        }
+        
+        // Функция для получения DDL объекта через DBMS_METADATA.GET_DDL
+        async function loadObjectDDL(objectType, objectName, schemaPrefix) {
+            const resultsTable = document.getElementById('resultsTable');
+            if (!resultsTable) return;
+            
+            // Маппинг типов объектов для DBMS_METADATA
+            const ddlTypeMap = {
+                'tables': 'TABLE',
+                'views': 'VIEW',
+                'materialized_views': 'MATERIALIZED_VIEW',
+                'procedures': 'PROCEDURE',
+                'functions': 'FUNCTION',
+                'packages': 'PACKAGE',
+                'sequences': 'SEQUENCE',
+                'synonyms': 'SYNONYM',
+                'indexes': 'INDEX',
+                'triggers': 'TRIGGER',
+                'types': 'TYPE'
+            };
+            
+            const ddlType = ddlTypeMap[objectType] || 'TABLE';
+            const fullName = schemaPrefix + objectName;
+            
+            // Показываем загрузку
+            resultsTable.innerHTML = `<div style="padding: 20px; text-align: center; color: #858585;">${t('Loading DDL...')}</div>`;
+            
+            try {
+                // Формируем SQL запрос для получения DDL
+                let ddlQuery = '';
+                const schemaName = schemaPrefix ? schemaPrefix.replace('.', '') : null;
+                
+                if (schemaName) {
+                    // Если есть схема, используем полное имя
+                    ddlQuery = `SELECT DBMS_METADATA.GET_DDL('${ddlType}', '${objectName}', '${schemaName}') AS DDL FROM DUAL`;
+                } else {
+                    // Без схемы
+                    ddlQuery = `SELECT DBMS_METADATA.GET_DDL('${ddlType}', '${objectName}') AS DDL FROM DUAL`;
+                }
+                
+                const response = await fetch('/api/execute-sql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sql: ddlQuery })
+                });
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Server returned ${contentType || 'unknown'} instead of JSON. Status: ${response.status}. Response: ${text.substring(0, 200)}`);
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 500)}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    const ddlText = data.data[0][0]; // Первая строка, первая колонка
+                    
+                    // Формируем JSON объект для отображения
+                    const jsonResult = {
+                        object_type: ddlType,
+                        object_name: fullName,
+                        ddl: ddlText
+                    };
+                    
+                    const jsonString = JSON.stringify(jsonResult, null, 2);
+                    
+                    // Сохраняем DDL результат для копирования в AI
+                    lastDDLResult = jsonResult;
+                    // Очищаем SELECT результаты, так как DDL имеет приоритет
+                    lastSelectResults = null;
+                    
+                    // Формируем краткую версию для отображения (первая строка JSON)
+                    const jsonLines = jsonString.split('\n');
+                    const previewLine = jsonLines.length > 0 ? jsonLines[0] : jsonString;
+                    const ddlPreview = previewLine.length > 100 ? previewLine.substring(0, 100) + '...' : previewLine;
+                    
+                    let html = `<div style="margin-bottom: 15px;">
+                        <strong style="color: #d4d4d4;">${t('DDL for')} ${escapeHtml(fullName)}:</strong>
+                    </div>`;
+                    
+                    // Используем details/summary для раскрывающегося блока, как у JSON результатов
+                    html += `<div style="background: #1e1e1e; padding: 15px; border-radius: 4px; border: 1px solid #3c3c3c; margin-bottom: 15px;">`;
+                    html += `<details style="cursor: pointer;">`;
+                    // Экранируем JSON для использования в data-атрибуте
+                    const escapedJson = escapeHtml(jsonString).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    html += `<summary class="ddl-summary" style="color: #858585; font-size: 11px; margin-bottom: 5px; user-select: none; outline: none; padding: 5px; background: #252526; border-radius: 3px; cursor: pointer; position: relative;" data-ddl-full="${escapedJson}" title="Click to expand or hover to see full DDL">`;
+                    html += `📋 DDL (${jsonString.length} chars) - <span style="color: #d4d4d4; font-family: 'Courier New', monospace; font-size: 10px;">${escapeHtml(ddlPreview)}</span>`;
+                    html += `</summary>`;
+                    html += `<pre style="background: #252526; padding: 10px; border-radius: 3px; overflow: auto; max-height: 400px; font-size: 11px; color: #d4d4d4; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #3c3c3c; margin: 5px 0 0 0;">${escapeHtml(jsonString)}</pre>`;
+                    html += `</details>`;
+                    html += `</div>`;
+                    
+                    // Добавляем кнопку "вставить в AI"
+                    html += `<div style="margin-top: 10px;">
+                        <button class="toolbar-btn primary" onclick="insertWorksheetToAI()" style="width: 100%;">
+                            🤖 ${t('Insert into AI')}
+                        </button>
+                    </div>`;
+                    
+                    resultsTable.innerHTML = html;
+                    
+                    // Настраиваем tooltip для DDL summary после вставки HTML
+                    setTimeout(() => {
+                        const ddlSummary = resultsTable.querySelector('.ddl-summary');
+                        if (ddlSummary) {
+                            const tooltip = createCLOBTooltip();
+                            ddlSummary.addEventListener('mouseenter', function(e) {
+                                const fullText = this.getAttribute('data-ddl-full');
+                                if (fullText) {
+                                    const decodedText = decodeHtmlEntities(fullText);
+                                    const rect = this.getBoundingClientRect();
+                                    tooltip.textContent = decodedText;
+                                    tooltip.style.left = (rect.right + 10) + 'px';
+                                    tooltip.style.top = rect.top + 'px';
+                                    
+                                    // Проверяем границы экрана
+                                    setTimeout(() => {
+                                        const tooltipRect = tooltip.getBoundingClientRect();
+                                        if (tooltipRect.right > window.innerWidth) {
+                                            tooltip.style.left = (rect.left - tooltipRect.width - 10) + 'px';
+                                        }
+                                        if (tooltipRect.bottom > window.innerHeight) {
+                                            tooltip.style.top = (window.innerHeight - tooltipRect.height - 10) + 'px';
+                                        }
+                                    }, 10);
+                                    
+                                    tooltip.classList.add('show');
+                                }
+                            });
+                            ddlSummary.addEventListener('mouseleave', function() {
+                                tooltip.classList.remove('show');
+                            });
+                        }
+                    }, 100);
+                } else {
+                    resultsTable.innerHTML = `<div class="error-message" style="padding: 15px;">
+                        <strong>${t('Error')}:</strong><br>
+                        <pre style="white-space: pre-wrap; word-wrap: break-word; margin-top: 10px;">${escapeHtml(data.message || 'Failed to get DDL')}</pre>
+                    </div>`;
+                }
+            } catch (error) {
+                console.error('DDL Load Error:', error);
+                resultsTable.innerHTML = `<div class="error-message" style="padding: 15px;">
+                    <strong>${t('Error')}:</strong><br>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin-top: 10px;">${escapeHtml(error.message)}</pre>
+                </div>`;
+            }
+        }
+        
+        // Глобальная переменная для хранения последних результатов SELECT запросов
+        let lastSelectResults = null;
+        
+        // Глобальная переменная для хранения последнего DDL результата
+        let lastDDLResult = null;
+        
+        // Функция для преобразования HTML таблицы в JSON
+        function tableToJSON(tableElement) {
+            const rows = tableElement.querySelectorAll('tbody tr');
+            const headers = Array.from(tableElement.querySelectorAll('thead th')).map(th => {
+                return (th.textContent || '').trim();
+            });
+            
+            if (headers.length === 0 || rows.length === 0) {
+                return null;
+            }
+            
+            const data = [];
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length === headers.length) {
+                    const rowData = {};
+                    headers.forEach((header, index) => {
+                        let cellText = cells[index].textContent || '';
+                        // Убираем метки [CLOB: X chars] если есть
+                        cellText = cellText.replace(/\[CLOB:\s*\d+\s*chars\]/gi, '').trim();
+                        rowData[header] = cellText || null;
+                    });
+                    data.push(rowData);
+                }
+            });
+            
+            return { columns: headers, data: data };
+        }
+        
+        // Функция для вставки содержимого SQL Worksheet в AI генератор
+        function insertWorksheetToAI() {
+            const aiDescription = document.getElementById('aiDescription');
+            if (!aiDescription) {
+                alert(t('AI Generator window is not open'));
+                return;
+            }
+            
+            // Собираем все содержимое SQL Worksheet
+            let worksheetContent = '';
+            
+            // 1. SQL запросы из редактора
+            if (sqlEditorCM) {
+                const sqlText = sqlEditorCM.getValue();
+                if (sqlText.trim()) {
+                    worksheetContent += '=== SQL Queries ===\n';
+                    worksheetContent += sqlText + '\n\n';
+                }
+            } else {
+                const sqlEditor = document.getElementById('sqlEditor');
+                if (sqlEditor && sqlEditor.value.trim()) {
+                    worksheetContent += '=== SQL Queries ===\n';
+                    worksheetContent += sqlEditor.value + '\n\n';
+                }
+            }
+            
+            // 2. Результаты из resultsTable
+            const resultsTable = document.getElementById('resultsTable');
+            if (resultsTable) {
+                // Собираем все типы результатов, не исключая друг друга
+                
+                // 2.1. DDL результаты (если есть)
+                if (lastDDLResult) {
+                    const jsonString = JSON.stringify(lastDDLResult, null, 2);
+                    worksheetContent += '=== DDL Result ===\n';
+                    worksheetContent += jsonString + '\n\n';
+                } else {
+                    // Проверяем наличие DDL контента в resultsTable
+                    const resultsTableHTML = resultsTable.innerHTML || '';
+                    if (resultsTableHTML.includes('DDL for') || resultsTableHTML.includes('DDL для') || resultsTableHTML.includes('DDL pentru')) {
+                        // Ищем pre элемент с JSON
+                        const preElements = resultsTable.querySelectorAll('pre');
+                        preElements.forEach(pre => {
+                            const preText = pre.textContent || '';
+                            // Проверяем, является ли это DDL JSON - ищем характерные поля DDL
+                            if (preText.includes('"ddl"') || (preText.includes('"object_type"') && preText.includes('"object_name"'))) {
+                                // Добавляем DDL контент - берем только JSON
+                                try {
+                                    // Пробуем извлечь JSON объект
+                                    const jsonMatch = preText.match(/\{[\s\S]*\}/);
+                                    if (jsonMatch) {
+                                        const jsonObj = JSON.parse(jsonMatch[0]);
+                                        const jsonString = JSON.stringify(jsonObj, null, 2);
+                                        worksheetContent += '=== DDL Result ===\n';
+                                        worksheetContent += jsonString + '\n\n';
+                                    } else {
+                                        // Если не удалось распарсить, добавляем как есть
+                                        worksheetContent += '=== DDL Result ===\n';
+                                        worksheetContent += preText.trim() + '\n\n';
+                                    }
+                                } catch (e) {
+                                    // Если ошибка парсинга, добавляем как есть
+                                    worksheetContent += '=== DDL Result ===\n';
+                                    worksheetContent += preText.trim() + '\n\n';
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                // 2.2. SELECT результаты (если есть) - добавляем независимо от DDL
+                if (lastSelectResults && lastSelectResults.data && lastSelectResults.data.length > 0 && lastSelectResults.columns) {
+                    // Преобразуем данные в формат объектов с именами колонок
+                    const jsonData = lastSelectResults.data.map(row => {
+                        const obj = {};
+                        lastSelectResults.columns.forEach((col, idx) => {
+                            // Обрабатываем как массив (обычный случай)
+                            if (Array.isArray(row)) {
+                                obj[col] = row[idx] !== null && row[idx] !== undefined ? row[idx] : null;
+                            } else {
+                                // Если row - объект
+                                obj[col] = row[col] !== null && row[col] !== undefined ? row[col] : null;
+                            }
+                        });
+                        return obj;
+                    });
+                    const jsonString = JSON.stringify(jsonData, null, 2);
+                    worksheetContent += '=== SELECT Results ===\n';
+                    worksheetContent += jsonString + '\n\n';
+                } else {
+                    // Если нет сохраненных данных, пробуем парсить HTML таблицы
+                    const tables = resultsTable.querySelectorAll('table');
+                    if (tables.length > 0) {
+                        tables.forEach(table => {
+                            const jsonData = tableToJSON(table);
+                            if (jsonData && jsonData.data.length > 0) {
+                                // Формируем JSON из данных таблицы (jsonData.data уже содержит объекты)
+                                const jsonString = JSON.stringify(jsonData.data, null, 2);
+                                worksheetContent += '=== SELECT Results ===\n';
+                                worksheetContent += jsonString + '\n\n';
+                            }
+                        });
+                    }
+                }
+                
+                // 2.3. Другой контент (текстовые ошибки и т.д.), который не является SELECT или DDL
+                const tables = resultsTable.querySelectorAll('table');
+                if (tables.length === 0 && (!lastSelectResults || !lastSelectResults.data || lastSelectResults.data.length === 0) && !lastDDLResult) {
+                    // Создаем копию для фильтрации служебных элементов
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = resultsTable.innerHTML;
+                    
+                    // Удаляем служебные элементы (кнопки, комментарии о выполнении)
+                    // Удаляем кнопки "Insert into AI" и весь блок с кнопкой
+                    const buttons = tempDiv.querySelectorAll('button[onclick*="insertWorksheetToAI"]');
+                    buttons.forEach(btn => {
+                        const buttonContainer = btn.closest('div');
+                        if (buttonContainer && buttonContainer.style && buttonContainer.style.borderTop) {
+                            buttonContainer.remove();
+                        } else {
+                            btn.remove();
+                        }
+                    });
+                    
+                    // Удаляем блоки с заголовками "Execution details", "Детали выполнения" и т.д.
+                    const allDivs = tempDiv.querySelectorAll('div');
+                    allDivs.forEach(el => {
+                        const text = el.textContent || '';
+                        if (text.includes('Детали выполнения') || 
+                            text.includes('Execution details') ||
+                            text.includes('Detalii executare') ||
+                            (text.includes('Команда') && (text.includes('(SELECT)') || text.includes('(INSERT)') || text.includes('(UPDATE)'))) ||
+                            (text.includes('Command') && (text.includes('(SELECT)') || text.includes('(INSERT)') || text.includes('(UPDATE)'))) ||
+                            (text.includes('Comandă') && (text.includes('(SELECT)') || text.includes('(INSERT)') || text.includes('(UPDATE)'))) ||
+                            text.includes('Insert into AI') ||
+                            text.includes('Вставить в AI') ||
+                            text.includes('Inserare în AI')) {
+                            el.remove();
+                        }
+                    });
+                    
+                    // Удаляем блоки с деталями выполнения и комментариями
+                    const executionDetails = tempDiv.querySelectorAll('div[class*="success-message"], div[class*="error-message"]');
+                    executionDetails.forEach(el => {
+                        const text = el.textContent || '';
+                        if (text.includes('Команда выполнена') || 
+                            text.includes('Command executed') ||
+                            text.includes('Comandă executată') ||
+                            text.includes('Total commands') ||
+                            text.includes('Total comenzi') ||
+                            text.includes('Всего команд') ||
+                            text.includes('Все команды') ||
+                            text.includes('All commands') ||
+                            text.includes('Toate comenzile') ||
+                            (text.match(/✅.*[Кк]оманда/) || text.match(/✅.*Command/) || text.match(/✅.*Comandă/)) ||
+                            text.includes('Success:') ||
+                            text.includes('Succes:') ||
+                            text.includes('Успешно:') ||
+                            text.includes('Errors:') ||
+                            text.includes('Erori:') ||
+                            text.includes('Ошибки:') ||
+                            text.includes('из 1)') ||
+                            text.includes('of 1)')) {
+                            el.remove();
+                        }
+                    });
+                    
+                    // Получаем текстовое содержимое после фильтрации
+                    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+                    
+                    if (textContent.trim()) {
+                        worksheetContent += '=== Other Results ===\n';
+                        worksheetContent += textContent + '\n\n';
+                    }
+                }
+            }
+            
+            // Добавляем содержимое в поле AI (не очищая его)
+            if (worksheetContent.trim()) {
+                const currentContent = aiDescription.value.trim();
+                if (currentContent) {
+                    aiDescription.value = currentContent + '\n\n' + worksheetContent.trim();
+                } else {
+                    aiDescription.value = worksheetContent.trim();
+                }
+            }
+            
+            // Фокус на поле AI
+            aiDescription.focus();
+            
+            // Показываем сообщение
+            const aiStatus = document.getElementById('aiStatus');
+            if (aiStatus) {
+                aiStatus.textContent = t('Content inserted successfully');
+                aiStatus.style.color = '#89d185';
+                setTimeout(() => {
+                    aiStatus.textContent = '';
+                }, 3000);
+            }
+        }
+        
+        // Настройка обработчиков для CLOB ячеек
+        function setupCLOBTooltips(container) {
+            const clobCells = container.querySelectorAll('td[data-clob-full]');
+            const tooltip = createCLOBTooltip();
+            
+            clobCells.forEach(cell => {
+                cell.addEventListener('mouseenter', function(e) {
+                    const encodedText = this.getAttribute('data-clob-full');
+                    if (encodedText) {
+                        // Декодируем HTML сущности для отображения
+                        const fullText = decodeHtmlEntities(encodedText);
+                        const rect = this.getBoundingClientRect();
+                        tooltip.textContent = fullText;
+                        tooltip.style.left = (rect.right + 10) + 'px';
+                        tooltip.style.top = rect.top + 'px';
+                        
+                        // Проверяем, не выходит ли tooltip за границы экрана
+                        setTimeout(() => {
+                            const tooltipRect = tooltip.getBoundingClientRect();
+                            if (tooltipRect.right > window.innerWidth) {
+                                tooltip.style.left = (rect.left - tooltipRect.width - 10) + 'px';
+                            }
+                            if (tooltipRect.bottom > window.innerHeight) {
+                                tooltip.style.top = (window.innerHeight - tooltipRect.height - 10) + 'px';
+                            }
+                        }, 10);
+                        
+                        tooltip.classList.add('show');
+                    }
+                });
+                
+                cell.addEventListener('mouseleave', function() {
+                    tooltip.classList.remove('show');
+                });
+                
+                cell.addEventListener('mousemove', function(e) {
+                    if (tooltip.classList.contains('show')) {
+                        const rect = this.getBoundingClientRect();
+                        let left = rect.right + 10;
+                        let top = rect.top;
+                        
+                        // Проверяем границы окна
+                        setTimeout(() => {
+                            const tooltipRect = tooltip.getBoundingClientRect();
+                            if (left + tooltipRect.width > window.innerWidth) {
+                                left = rect.left - tooltipRect.width - 10;
+                            }
+                            if (top + tooltipRect.height > window.innerHeight) {
+                                top = window.innerHeight - tooltipRect.height - 10;
+                            }
+                            tooltip.style.left = left + 'px';
+                            tooltip.style.top = top + 'px';
+                        }, 0);
+                    }
+                });
+            });
+        }
+        
         // Initialize Socket.IO
         const socket = io();
         
@@ -572,6 +1434,28 @@ SELECT * FROM DUAL;"></textarea>
             console.error('Socket error:', data);
         });
         
+        // CodeMirror editors
+        let sqlEditorCM = null;
+        let aiGeneratedSQLCM = null;
+        
+        // Language switcher
+        async function changeLanguage(lang) {
+            try {
+                const response = await fetch('/api/set-language', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lang: lang })
+                });
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Language change error:', error);
+            }
+        }
+        
         // Window management
         let windows = {};
         let zIndexCounter = 100;
@@ -580,6 +1464,13 @@ SELECT * FROM DUAL;"></textarea>
             if (type === 'sql-worksheet') {
                 document.getElementById('sql-worksheet-window').classList.add('active');
                 bringToFront('sql-worksheet-window');
+            } else if (type === 'ai-generator') {
+                document.getElementById('ai-generator-window').classList.add('active');
+                bringToFront('ai-generator-window');
+            } else if (type === 'combo-scenario') {
+                document.getElementById('combo-scenario-window').classList.add('active');
+                bringToFront('combo-scenario-window');
+                checkAIStatus();
             } else if (type === 'dashboard') {
                 window.location.href = '/UNA.md/orasldev/dashboard';
             }
@@ -632,14 +1523,41 @@ SELECT * FROM DUAL;"></textarea>
         
         // Execute SQL
         async function executeSQL() {
-            const sql = document.getElementById('sqlEditor').value.trim();
+            let sql = '';
+            
+            // Проверяем, есть ли выделенный текст
+            if (sqlEditorCM) {
+                const selection = sqlEditorCM.getSelection();
+                if (selection && selection.trim()) {
+                    // Если есть выделение - используем его
+                    sql = selection.trim();
+                } else {
+                    // Если выделения нет - используем весь текст
+                    sql = sqlEditorCM.getValue().trim();
+                }
+            } else {
+                const editor = document.getElementById('sqlEditor');
+                if (editor) {
+                    // Для обычного textarea проверяем выделение
+                    const start = editor.selectionStart;
+                    const end = editor.selectionEnd;
+                    if (start !== end && end > start) {
+                        // Есть выделение
+                        sql = editor.value.substring(start, end).trim();
+                    } else {
+                        // Нет выделения - весь текст
+                        sql = editor.value.trim();
+                    }
+                }
+            }
+            
             if (!sql) {
-                alert('Please enter a SQL query');
+                alert(t('Please enter a SQL query'));
                 return;
             }
             
             const resultsTable = document.getElementById('resultsTable');
-            resultsTable.innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">Executing...</div>';
+            resultsTable.innerHTML = `<div style="padding: 20px; text-align: center; color: #858585;">${t('Executing...')}</div>`;
             
             try {
                 const response = await fetch('/api/execute-sql', {
@@ -650,42 +1568,287 @@ SELECT * FROM DUAL;"></textarea>
                     body: JSON.stringify({ sql: sql })
                 });
                 
+                // Проверяем Content-Type перед парсингом
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Server returned ${contentType || 'unknown'} instead of JSON. Status: ${response.status}. Response: ${text.substring(0, 200)}`);
+                }
+                
+                // Проверяем статус ответа
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 500)}`);
+                }
+                
                 const data = await response.json();
                 
-                if (data.success) {
-                    if (data.data && data.data.length > 0) {
-                        let html = '<table><thead><tr>';
+                // Если это результат выполнения скрипта (несколько команд)
+                if (data.script_results && data.script_results.length > 0) {
+                    let html = `<div class="success-message" style="margin-bottom: 15px;">
+                        <strong>${translateBackendMessage(data.message)}</strong><br>
+                        ${t('Total commands')}: ${data.total_commands} | 
+                        ${t('Success')}: <span style="color: #89d185;">${data.success_count}</span> | 
+                        ${t('Errors')}: <span style="color: #f48771;">${data.error_count}</span>
+                    </div>`;
+                    
+                    // Сначала показываем результаты таблицы (если есть SELECT)
+                    if (data.data && data.data.length > 0 && data.columns) {
+                        // Сохраняем результаты для вставки в AI
+                        lastSelectResults = {
+                            columns: data.columns,
+                            data: data.data
+                        };
+                        
+                        html += `<div style="margin-bottom: 20px;"><strong>${t('Results')}:</strong></div>`;
+                        html += '<div style="overflow: auto; max-height: 50vh;">';
+                        html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;"><thead><tr>';
                         data.columns.forEach(col => {
-                            html += `<th>${col}</th>`;
+                            html += `<th style="background: #252526; color: #d4d4d4; padding: 8px; text-align: left; border-bottom: 1px solid #3c3c3c; position: sticky; top: 0; font-weight: 600;">${escapeHtml(String(col))}</th>`;
                         });
                         html += '</tr></thead><tbody>';
                         
                         data.data.forEach(row => {
                             html += '<tr>';
-                            row.forEach(cell => {
-                                const cellValue = cell === null ? '<em>NULL</em>' : String(cell);
-                                html += `<td>${cellValue}</td>`;
-                            });
+                            if (Array.isArray(row)) {
+                                row.forEach((cell, cellIdx) => {
+                                    const cellInfo = formatCLOBCell(cell);
+                                    let cellHtml = '';
+                                    if (cellInfo.isClob) {
+                                        const escapedFull = String(cellInfo.full).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                        cellHtml = `<td class="clob-cell" style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e; cursor: help; max-width: 500px;" 
+                                                    data-clob-full="${escapedFull}"
+                                                    data-clob-length="${cellInfo.length}">
+                                                    <span style="color: #858585; font-size: 10px;">[CLOB: ${cellInfo.length} chars]</span><br>
+                                                    ${cellInfo.display}
+                                                   </td>`;
+                                    } else {
+                                        cellHtml = `<td style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e;">${cellInfo.display}</td>`;
+                                    }
+                                    html += cellHtml;
+                                });
+                            } else {
+                                data.columns.forEach(col => {
+                                    const cellInfo = formatCLOBCell(row[col]);
+                                    let cellHtml = '';
+                                    if (cellInfo.isClob) {
+                                        const escapedFull = String(cellInfo.full).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                        cellHtml = `<td class="clob-cell" style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e; cursor: help; max-width: 500px;" 
+                                                    data-clob-full="${escapedFull}"
+                                                    data-clob-length="${cellInfo.length}">
+                                                    <span style="color: #858585; font-size: 10px;">[CLOB: ${cellInfo.length} chars]</span><br>
+                                                    ${cellInfo.display}
+                                                   </td>`;
+                                    } else {
+                                        cellHtml = `<td style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e;">${cellInfo.display}</td>`;
+                                    }
+                                    html += cellHtml;
+                                });
+                            }
                             html += '</tr>';
                         });
                         
                         html += '</tbody></table>';
+                        html += '</div>';
+                    }
+                    
+                    // Затем показываем детальные результаты каждой команды
+                    html += `<div style="margin-top: 20px; margin-bottom: 15px;"><strong>${t('Execution details')}:</strong></div>`;
+                    html += '<div style="max-height: 400px; overflow-y: auto;">';
+                    
+                    data.script_results.forEach(result => {
+                        const statusClass = result.success ? 'success-message' : 'error-message';
+                        const statusIcon = result.success ? '✅' : '❌';
+                        const typeLabel = result.type || 'UNKNOWN';
+                        
+                        html += `<div class="${statusClass}" style="margin-bottom: 10px; padding: 10px; font-size: 12px;">`;
+                        html += `<strong>${statusIcon} ${t('Command')} ${result.command_num} (${typeLabel}):</strong><br>`;
+                        html += `<code style="font-size: 11px; color: #d4d4d4; word-break: break-all;">${escapeHtml(result.command)}</code><br>`;
+                        html += `<span style="font-size: 11px;">${translateBackendMessage(result.message)}</span>`;
+                        
+                        // Добавляем JSON результат для SELECT запросов
+                        if (result.success && result.data && Array.isArray(result.data) && result.data.length > 0 && result.columns && Array.isArray(result.columns)) {
+                            html += '<div style="margin-top: 10px;">';
+                            html += '<details style="cursor: pointer;">';
+                            html += `<summary style="color: #858585; font-size: 11px; margin-bottom: 5px; user-select: none;">📋 JSON Result (${result.data.length} ${result.data.length === 1 ? 'row' : 'rows'})</summary>`;
+                            
+                            // Формируем JSON объект
+                            try {
+                                const jsonResult = result.data.map(row => {
+                                    const obj = {};
+                                    result.columns.forEach((col, idx) => {
+                                        obj[col] = row[idx] !== null && row[idx] !== undefined ? row[idx] : null;
+                                    });
+                                    return obj;
+                                });
+                                
+                                const jsonString = JSON.stringify(jsonResult, null, 2);
+                                html += `<pre style="background: #1e1e1e; padding: 10px; border-radius: 3px; overflow: auto; max-height: 300px; font-size: 11px; color: #d4d4d4; margin-top: 5px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #3c3c3c;">${escapeHtml(jsonString)}</pre>`;
+                            } catch (e) {
+                                html += `<div style="color: #f48771; font-size: 11px;">Error formatting JSON: ${escapeHtml(e.message)}</div>`;
+                            }
+                            html += '</details>';
+                            html += '</div>';
+                        }
+                        
+                        html += '</div>';
+                    });
+                    
+                    html += '</div>';
+                    
+                    // Добавляем кнопку "вставить в AI" для результатов скрипта
+                    html += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3c3c3c;">
+                        <button class="toolbar-btn primary" onclick="insertWorksheetToAI()" style="width: 100%;">
+                            🤖 ${t('Insert into AI')}
+                        </button>
+                    </div>`;
+                    
+                    resultsTable.innerHTML = html;
+                    
+                    // Настраиваем tooltip для CLOB ячеек в результатах скрипта
+                    setTimeout(() => {
+                        setupCLOBTooltips(resultsTable);
+                    }, 100);
+                }
+                // Обычный одиночный запрос
+                else if (data.success) {
+                    if (data.data && Array.isArray(data.data) && data.data.length > 0 && data.columns && Array.isArray(data.columns)) {
+                        // Сохраняем результаты для вставки в AI
+                        lastSelectResults = {
+                            columns: data.columns,
+                            data: data.data
+                        };
+                        
+                        const rowCount = data.rowcount || data.data.length;
+                        let html = `<div class="success-message" style="margin-bottom: 10px; padding: 8px;">
+                            <strong>✅ ${t('Success')}</strong> - ${rowCount} ${t('rows')}
+                        </div>`;
+                        html += '<div style="overflow: auto; max-height: 70vh; background: #1e1e1e;">';
+                        html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;"><thead><tr>';
+                        
+                        data.columns.forEach(col => {
+                            html += `<th style="background: #252526; color: #d4d4d4; padding: 8px; text-align: left; border-bottom: 1px solid #3c3c3c; position: sticky; top: 0; font-weight: 600;">${escapeHtml(String(col))}</th>`;
+                        });
+                        html += '</tr></thead><tbody>';
+                        
+                        data.data.forEach(row => {
+                            html += '<tr>';
+                            if (Array.isArray(row)) {
+                                row.forEach((cell, cellIdx) => {
+                                    const cellInfo = formatCLOBCell(cell);
+                                    let cellHtml = '';
+                                    if (cellInfo.isClob) {
+                                        // CLOB ячейка с tooltip - используем data-атрибут для полного текста
+                                        // Экранируем для безопасного использования в HTML атрибутах
+                                        const escapedFull = String(cellInfo.full).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                        cellHtml = `<td class="clob-cell" style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e; cursor: help; max-width: 500px;" 
+                                                    data-clob-full="${escapedFull}"
+                                                    data-clob-length="${cellInfo.length}">
+                                                    <span style="color: #858585; font-size: 10px;">[CLOB: ${cellInfo.length} chars]</span><br>
+                                                    ${cellInfo.display}
+                                                   </td>`;
+                                    } else {
+                                        cellHtml = `<td style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e;">${cellInfo.display}</td>`;
+                                    }
+                                    html += cellHtml;
+                                });
+                            } else {
+                                // Если row - это объект, попробуем использовать columns как ключи
+                                data.columns.forEach(col => {
+                                    const cellInfo = formatCLOBCell(row[col]);
+                                    let cellHtml = '';
+                                    if (cellInfo.isClob) {
+                                        const escapedFull = String(cellInfo.full).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                                        cellHtml = `<td class="clob-cell" style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e; cursor: help; max-width: 500px;" 
+                                                    data-clob-full="${escapedFull}"
+                                                    data-clob-length="${cellInfo.length}">
+                                                    <span style="color: #858585; font-size: 10px;">[CLOB: ${cellInfo.length} chars]</span><br>
+                                                    ${cellInfo.display}
+                                                   </td>`;
+                                    } else {
+                                        cellHtml = `<td style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e;">${cellInfo.display}</td>`;
+                                    }
+                                    html += cellHtml;
+                                });
+                            }
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table>';
+                        html += '</div>';
+                        
+                        // Добавляем кнопку "вставить в AI"
+                        html += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3c3c3c;">
+                            <button class="toolbar-btn primary" onclick="insertWorksheetToAI()" style="width: 100%;">
+                                🤖 ${t('Insert into AI')}
+                            </button>
+                        </div>`;
+                        
                         resultsTable.innerHTML = html;
+                        
+                        // Настраиваем tooltip для CLOB ячеек
+                        setTimeout(() => {
+                            setupCLOBTooltips(resultsTable);
+                        }, 100);
                     } else {
-                        resultsTable.innerHTML = '<div class="success-message">Query executed successfully. No rows returned.</div>';
+                        let html = `<div class="success-message" style="padding: 10px;">✅ ${t('Query executed successfully. No rows returned.')}</div>`;
+                        // Добавляем кнопку "вставить в AI" даже если нет результатов
+                        html += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3c3c3c;">
+                            <button class="toolbar-btn primary" onclick="insertWorksheetToAI()" style="width: 100%;">
+                                🤖 ${t('Insert into AI')}
+                            </button>
+                        </div>`;
+                        resultsTable.innerHTML = html;
                     }
                 } else {
-                    resultsTable.innerHTML = `<div class="error-message">Error: ${data.message}</div>`;
+                    let html = `<div class="error-message" style="padding: 10px;">${t('Error:')} ${escapeHtml(data.message || 'Unknown error')}</div>`;
+                    // Добавляем кнопку "вставить в AI" даже при ошибке
+                    html += `<div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3c3c3c;">
+                        <button class="toolbar-btn primary" onclick="insertWorksheetToAI()" style="width: 100%;">
+                            🤖 ${t('Insert into AI')}
+                        </button>
+                    </div>`;
+                    resultsTable.innerHTML = html;
                 }
             } catch (error) {
-                resultsTable.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+                console.error('SQL Execution Error:', error);
+                let errorMessage = error.message || 'Unknown error';
+                
+                // Проверяем, не является ли это ошибкой парсинга JSON
+                if (errorMessage.includes('Unexpected token')) {
+                    errorMessage = `Server returned invalid response. ${errorMessage}`;
+                }
+                
+                resultsTable.innerHTML = `<div class="error-message" style="padding: 15px;">
+                    <strong>${t('Error')}:</strong><br>
+                    <pre style="white-space: pre-wrap; word-wrap: break-word; margin-top: 10px;">${escapeHtml(errorMessage)}</pre>
+                    <p style="font-size: 11px; color: #858585; margin-top: 10px;">
+                        ${t('Please check the server logs for more details.')}
+                    </p>
+                </div>`;
             }
         }
         
         function clearEditor() {
-            if (confirm('Clear SQL editor?')) {
-                document.getElementById('sqlEditor').value = '';
-                document.getElementById('resultsTable').innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">No results. Execute a query to see results here.</div>';
+            const confirmMessage = t('Clear SQL editor?') || 'Clear SQL editor?';
+            if (confirm(confirmMessage)) {
+                if (sqlEditorCM) {
+                    sqlEditorCM.setValue('');
+                    sqlEditorCM.focus();
+                } else {
+                    const editor = document.getElementById('sqlEditor');
+                    if (editor) {
+                        editor.value = '';
+                        editor.focus();
+                    }
+                }
+                const resultsTable = document.getElementById('resultsTable');
+                if (resultsTable) {
+                    resultsTable.innerHTML = `<div style="padding: 20px; text-align: center; color: #858585;">${t('No results. Execute a query to see results here.')}</div>`;
+                }
+                // Очищаем сохраненные результаты SELECT и DDL
+                lastSelectResults = null;
+                lastDDLResult = null;
             }
         }
         
@@ -777,26 +1940,40 @@ SELECT * FROM DUAL;"></textarea>
                     item.className = 'sidebar-item';
                     item.style.paddingLeft = '20px';
                     item.style.fontSize = '12px';
-                    item.onclick = () => {
-                        const editor = document.getElementById('sqlEditor');
-                        if (editor) {
-                            const objectName = obj.name || obj;
-                            const schemaPrefix = (obj.schema || currentSchema) 
-                                ? `${obj.schema || currentSchema}.` 
-                                : '';
-                            const fullName = schemaPrefix + objectName;
-                            
-                            if (type === 'tables' || type === 'views' || type === 'materialized_views') {
-                                editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
-                            } else if (type === 'sequences') {
-                                editor.value = `SELECT ${fullName}.NEXTVAL FROM DUAL;\n` + editor.value;
-                            } else if (type === 'synonyms') {
-                                editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
-                            } else {
-                                editor.value = `-- ${type.slice(0, -1).toUpperCase()}: ${fullName}\n` + editor.value;
-                            }
-                            editor.focus();
+                    item.onclick = async () => {
+                        const objectName = obj.name || obj;
+                        const schemaPrefix = (obj.schema || currentSchema) 
+                            ? `${obj.schema || currentSchema}.` 
+                            : '';
+                        const fullName = schemaPrefix + objectName;
+                        
+                        let insertText = '';
+                        if (type === 'tables' || type === 'views' || type === 'materialized_views') {
+                            insertText = `SELECT * FROM ${fullName};\n`;
+                        } else if (type === 'sequences') {
+                            insertText = `SELECT ${fullName}.NEXTVAL FROM DUAL;\n`;
+                        } else if (type === 'synonyms') {
+                            insertText = `SELECT * FROM ${fullName};\n`;
+                        } else {
+                            insertText = `-- ${type.slice(0, -1).toUpperCase()}: ${fullName}\n`;
                         }
+                        
+                        if (sqlEditorCM) {
+                            // Используем CodeMirror API - вставляем в начало
+                            const currentValue = sqlEditorCM.getValue();
+                            sqlEditorCM.setValue(insertText + currentValue);
+                            sqlEditorCM.setCursor(0, 0);
+                            sqlEditorCM.focus();
+                        } else {
+                            const editor = document.getElementById('sqlEditor');
+                            if (editor) {
+                                editor.value = insertText + editor.value;
+                                editor.focus();
+                            }
+                        }
+                        
+                        // Получаем DDL через DBMS_METADATA.GET_DDL
+                        await loadObjectDDL(type, objectName, schemaPrefix);
                     };
                     item.innerHTML = `
                         <span class="sidebar-item-icon">${getObjectIcon(type.slice(0, -1))}</span>
@@ -824,12 +2001,12 @@ SELECT * FROM DUAL;"></textarea>
             const schemaSelect = document.getElementById('schemaSelect');
             if (!schemaSelect) return Promise.resolve();
             
-            schemaSelect.innerHTML = '<option value="">Loading schemas...</option>';
+            schemaSelect.innerHTML = `<option value="">${t('Loading schemas...')}</option>`;
             schemaSelect.disabled = true;
             
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000); // Таймаут 5 секунд
+                const timeoutId = setTimeout(() => controller.abort(), 2000); // Таймаут 2 секунды
                 
                 const response = await fetch('/api/objects/schemas', {
                     signal: controller.signal
@@ -837,14 +2014,22 @@ SELECT * FROM DUAL;"></textarea>
                 
                 clearTimeout(timeoutId);
                 
+                // Проверяем Content-Type перед парсингом
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Server returned ${contentType || 'unknown'} instead of JSON. Status: ${response.status}. Response: ${text.substring(0, 200)}`);
+                }
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 500)}`);
                 }
                 
                 const data = await response.json();
                 
                 if (data.success && data.schemas && data.schemas.length > 0) {
-                    schemaSelect.innerHTML = '<option value="">-- Current User --</option>';
+                    schemaSelect.innerHTML = `<option value="">-- ${t('Current User')} --</option>`;
                     data.schemas.forEach(schema => {
                         const option = document.createElement('option');
                         option.value = schema.name;
@@ -860,15 +2045,14 @@ SELECT * FROM DUAL;"></textarea>
                     }
                 } else {
                     // Fallback: используем текущего пользователя
-                    schemaSelect.innerHTML = '<option value="">Current User</option>';
+                    schemaSelect.innerHTML = `<option value="">${t('Current User')}</option>`;
                     currentSchema = '';
                 }
             } catch (error) {
                 console.error('Error loading schemas:', error);
-                // Fallback: используем текущего пользователя
-                schemaSelect.innerHTML = '<option value="">Current User (schemas unavailable)</option>';
+                // Быстрый fallback: используем текущего пользователя
+                schemaSelect.innerHTML = `<option value="">${t('Current User')}</option>`;
                 currentSchema = '';
-            } finally {
                 schemaSelect.disabled = false;
             }
         }
@@ -942,7 +2126,7 @@ SELECT * FROM DUAL;"></textarea>
             if (!listElement) return;
             
             // Показываем загрузку
-            listElement.innerHTML = '<div style="padding: 5px; color: #858585; font-size: 11px;">Loading...</div>';
+            listElement.innerHTML = `<div style="padding: 5px; color: #858585; font-size: 11px;">${t('Loading...')}</div>`;
             
             try {
                 // Добавляем параметр schema в запрос
@@ -985,28 +2169,42 @@ SELECT * FROM DUAL;"></textarea>
                         item.className = 'sidebar-item';
                         item.style.paddingLeft = '20px';
                         item.style.fontSize = '12px';
-                        item.onclick = () => {
+                        item.onclick = async () => {
                             // При клике на объект вставляем его имя в редактор
-                            const editor = document.getElementById('sqlEditor');
-                            if (editor) {
-                                const objectName = obj.name || obj;
-                                const schemaPrefix = (obj.schema || currentSchema) 
-                                    ? `${obj.schema || currentSchema}.` 
-                                    : '';
-                                const fullName = schemaPrefix + objectName;
-                                
-                                // Для таблиц и представлений - SELECT, для процедур/функций - вызов
-                                if (type === 'tables' || type === 'views' || type === 'materialized_views') {
-                                    editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
-                                } else if (type === 'sequences') {
-                                    editor.value = `SELECT ${fullName}.NEXTVAL FROM DUAL;\n` + editor.value;
-                                } else if (type === 'synonyms') {
-                                    editor.value = `SELECT * FROM ${fullName};\n` + editor.value;
-                                } else {
-                                    editor.value = `-- ${type.slice(0, -1).toUpperCase()}: ${fullName}\n` + editor.value;
-                                }
-                                editor.focus();
+                            const objectName = obj.name || obj;
+                            const schemaPrefix = (obj.schema || currentSchema) 
+                                ? `${obj.schema || currentSchema}.` 
+                                : '';
+                            const fullName = schemaPrefix + objectName;
+                            
+                            let insertText = '';
+                            // Для таблиц и представлений - SELECT, для процедур/функций - вызов
+                            if (type === 'tables' || type === 'views' || type === 'materialized_views') {
+                                insertText = `SELECT * FROM ${fullName};\n`;
+                            } else if (type === 'sequences') {
+                                insertText = `SELECT ${fullName}.NEXTVAL FROM DUAL;\n`;
+                            } else if (type === 'synonyms') {
+                                insertText = `SELECT * FROM ${fullName};\n`;
+                            } else {
+                                insertText = `-- ${type.slice(0, -1).toUpperCase()}: ${fullName}\n`;
                             }
+                            
+                            if (sqlEditorCM) {
+                                // Используем CodeMirror API - вставляем в начало
+                                const currentValue = sqlEditorCM.getValue();
+                                sqlEditorCM.setValue(insertText + currentValue);
+                                sqlEditorCM.setCursor(0, 0);
+                                sqlEditorCM.focus();
+                            } else {
+                                const editor = document.getElementById('sqlEditor');
+                                if (editor) {
+                                    editor.value = insertText + editor.value;
+                                    editor.focus();
+                                }
+                            }
+                            
+                            // Получаем DDL через DBMS_METADATA.GET_DDL
+                            await loadObjectDDL(type, objectName, schemaPrefix);
                         };
                         item.innerHTML = `
                             <span class="sidebar-item-icon">${getObjectIcon(type.slice(0, -1))}</span>
@@ -1026,15 +2224,670 @@ SELECT * FROM DUAL;"></textarea>
             }
         }
         
+        // Функция для очистки поля AI генератора
+        function clearAIDescription() {
+            const aiDescription = document.getElementById('aiDescription');
+            if (aiDescription) {
+                aiDescription.value = '';
+                aiDescription.focus();
+                
+                // Показываем сообщение
+                const aiStatus = document.getElementById('aiStatus');
+                if (aiStatus) {
+                    aiStatus.textContent = t('Field cleared');
+                    aiStatus.style.color = '#858585';
+                    setTimeout(() => {
+                        aiStatus.textContent = '';
+                    }, 2000);
+                }
+            }
+        }
+        
+        // AI Table Generator Functions
+        async function checkAIStatus() {
+            try {
+                const response = await fetch('/api/ai-status');
+                const data = await response.json();
+                const statusEl = document.getElementById('aiStatus');
+                
+                if (data.success) {
+                    if (data.ai_available) {
+                        statusEl.textContent = '✅ AI доступен';
+                        statusEl.style.color = '#89d185';
+                    } else {
+                        statusEl.textContent = data.is_server ? '⚠️ Серверный режим (заглушка)' : '⚠️ AI недоступен (заглушка)';
+                        statusEl.style.color = '#f48771';
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking AI status:', error);
+            }
+        }
+        
+        async function generateTableSQL() {
+            const description = document.getElementById('aiDescription').value.trim();
+            const generateBtn = document.getElementById('aiGenerateBtn');
+            const errorEl = document.getElementById('aiError');
+            const statusEl = document.getElementById('aiStatus');
+            
+            if (!description) {
+                errorEl.innerHTML = '<div class="error-message">Пожалуйста, введите описание таблицы</div>';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            // Показываем загрузку
+            generateBtn.disabled = true;
+            generateBtn.textContent = '⏳ Генерация...';
+            errorEl.style.display = 'none';
+            statusEl.textContent = '⏳ Генерация SQL...';
+            statusEl.style.color = '#858585';
+            
+            try {
+                const response = await fetch('/api/ai-generate-table', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        description: description,
+                        use_ai: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const sqlText = data.sql || '';
+                    if (aiGeneratedSQLCM) {
+                        aiGeneratedSQLCM.setValue(sqlText);
+                        aiGeneratedSQLCM.refresh();
+                        // Принудительно обновляем размер после установки значения
+                        setTimeout(() => {
+                            if (aiGeneratedSQLCM) {
+                                const container = aiGeneratedSQLCM.getWrapperElement().parentElement;
+                                if (container) {
+                                    const containerHeight = container.offsetHeight || container.clientHeight;
+                                    aiGeneratedSQLCM.setSize(null, Math.max(300, containerHeight - 20));
+                                    aiGeneratedSQLCM.refresh();
+                                    aiGeneratedSQLCM.scrollTo(0, 0);
+                                }
+                            }
+                        }, 100);
+                    } else {
+                        const aiEditor = document.getElementById('aiGeneratedSQL');
+                        if (aiEditor) {
+                            aiEditor.value = sqlText;
+                        }
+                    }
+                    
+                    if (data.note) {
+                        statusEl.textContent = 'ℹ️ ' + data.note;
+                        statusEl.style.color = '#858585';
+                    } else {
+                        statusEl.textContent = '✅ SQL сгенерирован';
+                        statusEl.style.color = '#89d185';
+                    }
+                    
+                    errorEl.style.display = 'none';
+                } else {
+                    errorEl.innerHTML = `<div class="error-message">Ошибка: ${data.error || 'Неизвестная ошибка'}</div>`;
+                    errorEl.style.display = 'block';
+                    statusEl.textContent = '❌ Ошибка генерации';
+                    statusEl.style.color = '#f48771';
+                }
+            } catch (error) {
+                errorEl.innerHTML = `<div class="error-message">Ошибка: ${error.message}</div>`;
+                errorEl.style.display = 'block';
+                statusEl.textContent = '❌ Ошибка соединения';
+                statusEl.style.color = '#f48771';
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = '✨ Сгенерировать SQL';
+            }
+        }
+        
+        function insertSQLToEditor() {
+            const generatedSQL = aiGeneratedSQLCM ? aiGeneratedSQLCM.getValue().trim() : document.getElementById('aiGeneratedSQL').value.trim();
+            
+            if (!generatedSQL) {
+                alert('Нет сгенерированного SQL для вставки');
+                return;
+            }
+            
+            // Вставляем SQL в редактор
+            if (sqlEditorCM) {
+                const currentValue = sqlEditorCM.getValue();
+                sqlEditorCM.setValue(generatedSQL + '\n\n' + currentValue);
+                sqlEditorCM.focus();
+                sqlEditorCM.setCursor(0, 0);
+            } else {
+                const sqlEditor = document.getElementById('sqlEditor');
+                const currentValue = sqlEditor.value;
+                sqlEditor.value = generatedSQL + '\n\n' + currentValue;
+                sqlEditor.focus();
+                sqlEditor.scrollTop = 0;
+            }
+        }
+        
+        async function copySQLToClipboard() {
+            const generatedSQL = aiGeneratedSQLCM ? aiGeneratedSQLCM.getValue().trim() : document.getElementById('aiGeneratedSQL').value.trim();
+            
+            if (!generatedSQL) {
+                alert('Нет SQL для копирования');
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(generatedSQL);
+                const statusEl = document.getElementById('aiStatus');
+                statusEl.textContent = '✅ Скопировано в буфер обмена';
+                statusEl.style.color = '#89d185';
+                
+                setTimeout(() => {
+                    checkAIStatus();
+                }, 2000);
+            } catch (error) {
+                alert('Ошибка копирования: ' + error.message);
+            }
+        }
+        
+        // Initialize CodeMirror editors
+        function initCodeMirror() {
+            // Oracle SQL keywords для расширенной подсветки
+            CodeMirror.defineMode('oraclesql', function(config, parserConfig) {
+                const sqlMode = CodeMirror.getMode(config, 'text/x-sql');
+                return CodeMirror.overlayMode(sqlMode, {
+                    token: function(stream, state) {
+                        const ch = stream.next();
+                        // Подсветка Oracle-специфичных конструкций
+                        if (stream.match(/^BEGIN\b/i) || stream.match(/^END\b/i) || 
+                            stream.match(/^DECLARE\b/i) || stream.match(/^EXCEPTION\b/i) ||
+                            stream.match(/^RAISE\b/i) || stream.match(/^CURSOR\b/i) ||
+                            stream.match(/^TYPE\b/i) || stream.match(/^RECORD\b/i) ||
+                            stream.match(/^TABLE\s+OF\b/i) || stream.match(/^VARRAY\b/i) ||
+                            stream.match(/^PACKAGE\b/i) || stream.match(/^PROCEDURE\b/i) ||
+                            stream.match(/^FUNCTION\b/i) || stream.match(/^TRIGGER\b/i)) {
+                            return 'keyword';
+                        }
+                        return null;
+                    }
+                });
+            });
+            
+            // Инициализация SQL Editor
+            const sqlEditorEl = document.getElementById('sqlEditor');
+            if (sqlEditorEl) {
+                sqlEditorCM = CodeMirror.fromTextArea(sqlEditorEl, {
+                    mode: 'text/x-sql',
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    indentUnit: 4,
+                    matchBrackets: true,
+                    autoCloseBrackets: true,
+                    styleActiveLine: true,
+                    scrollbarStyle: 'simple',
+                    extraKeys: {
+                        "Ctrl-Space": "autocomplete",
+                        "Ctrl-/": function(cm) {
+                            cm.toggleComment({ indent: true, fillBlank: false });
+                        }
+                    },
+                    placeholder: '-- Enter your SQL query here...\nSELECT * FROM DUAL;'
+                });
+                
+                // Автоматическое изменение размера с учетом контейнера
+                function updateSQLEditorSize() {
+                    const container = sqlEditorCM.getWrapperElement().parentElement;
+                    if (container) {
+                        const containerHeight = container.offsetHeight || container.clientHeight;
+                        sqlEditorCM.setSize(null, containerHeight - 20);
+                        sqlEditorCM.refresh();
+                    }
+                }
+                
+                sqlEditorCM.on('change', function() {
+                    updateSQLEditorSize();
+                });
+                
+                // Обновляем размер при изменении размера окна
+                const resizeObserver = new ResizeObserver(updateSQLEditorSize);
+                if (sqlEditorCM.getWrapperElement().parentElement) {
+                    resizeObserver.observe(sqlEditorCM.getWrapperElement().parentElement);
+                }
+                
+                // Первоначальная установка размера
+                setTimeout(updateSQLEditorSize, 100);
+            }
+            
+            // Инициализация AI Generated SQL Editor (readonly)
+            const aiGeneratedSQLEl = document.getElementById('aiGeneratedSQL');
+            if (aiGeneratedSQLEl) {
+                aiGeneratedSQLCM = CodeMirror.fromTextArea(aiGeneratedSQLEl, {
+                    mode: 'text/x-sql',
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    lineWrapping: true,
+                    indentUnit: 4,
+                    matchBrackets: true,
+                    readOnly: true,
+                    scrollbarStyle: 'simple',
+                    placeholder: 'SQL скрипт появится здесь после генерации...'
+                });
+                
+                // Автоматическое изменение размера с учетом контейнера
+                function updateAISQLEditorSize() {
+                    const container = aiGeneratedSQLCM.getWrapperElement().parentElement;
+                    if (container) {
+                        const containerHeight = container.offsetHeight || container.clientHeight;
+                        aiGeneratedSQLCM.setSize(null, Math.max(300, containerHeight - 20));
+                        aiGeneratedSQLCM.refresh();
+                    }
+                }
+                
+                aiGeneratedSQLCM.on('change', function() {
+                    updateAISQLEditorSize();
+                });
+                
+                // Обновляем размер при изменении содержимого через setValue
+                const originalSetValue = aiGeneratedSQLCM.setValue.bind(aiGeneratedSQLCM);
+                aiGeneratedSQLCM.setValue = function(value) {
+                    originalSetValue(value);
+                    setTimeout(updateAISQLEditorSize, 10);
+                };
+                
+                // Обновляем размер при изменении размера окна
+                const aiResizeObserver = new ResizeObserver(updateAISQLEditorSize);
+                if (aiGeneratedSQLCM.getWrapperElement().parentElement) {
+                    aiResizeObserver.observe(aiGeneratedSQLCM.getWrapperElement().parentElement);
+                }
+                
+                // Первоначальная установка размера
+                setTimeout(updateAISQLEditorSize, 100);
+            }
+        }
+        
         // Auto-load schemas and tables on page load
         window.addEventListener('load', () => {
-            // Сначала загружаем схемы, потом таблицы
-            loadSchemas().then(() => {
+            // Инициализируем CodeMirror редакторы
+            setTimeout(() => {
+                initCodeMirror();
+            }, 100);
+            
+            // Загружаем схемы асинхронно с таймаутом - не блокируем интерфейс
+            Promise.race([
+                loadSchemas(),
+                new Promise((resolve) => setTimeout(() => resolve(), 2000)) // Максимум 2 секунды
+            ]).then(() => {
+                // После загрузки схем загружаем таблицы
+                setTimeout(() => {
+                    loadObjects('tables');
+                }, 500);
+            }).catch((error) => {
+                console.error('Schema loading failed:', error);
+                // Все равно загружаем таблицы
                 setTimeout(() => {
                     loadObjects('tables');
                 }, 500);
             });
+            
+            // Открываем окно ИИ генератора при загрузке
+            setTimeout(() => {
+                openWindow('ai-generator');
+            }, 1000);
         });
+        
+        // ===== Combo Scenario Functions =====
+        
+        // Переменная для отслеживания выполнения сценария
+        let comboScenarioRunning = false;
+        let comboScenarioStopped = false;
+        
+        function clearComboScenario() {
+            document.getElementById('comboMainTask').value = '';
+            document.getElementById('comboIterationsCount').value = '50';
+            document.getElementById('comboIterativeTask').value = '';
+            document.getElementById('comboLog').innerHTML = t('Log will appear here...');
+            document.getElementById('comboStatus').textContent = t('Ready to execute');
+            document.getElementById('comboStatus').style.color = '#858585';
+            document.getElementById('comboProgressBar').style.width = '0%';
+            document.getElementById('comboProgressText').textContent = t('Progress:') + ' 0/0';
+            document.getElementById('comboProgressPercent').textContent = '0%';
+            document.getElementById('comboError').style.display = 'none';
+            comboScenarioRunning = false;
+            comboScenarioStopped = false;
+            const executeBtn = document.getElementById('comboExecuteBtn');
+            const stopBtn = document.getElementById('comboStopBtn');
+            executeBtn.disabled = false;
+            executeBtn.textContent = '▶️ ' + t('Execute Scenario');
+            stopBtn.style.display = 'none';
+            stopBtn.disabled = true;
+        }
+        
+        function stopComboScenario() {
+            comboScenarioStopped = true;
+            comboScenarioRunning = false;
+            const statusEl = document.getElementById('comboStatus');
+            statusEl.textContent = t('Stopped by user');
+            statusEl.style.color = '#f48771';
+            
+            const executeBtn = document.getElementById('comboExecuteBtn');
+            const stopBtn = document.getElementById('comboStopBtn');
+            executeBtn.disabled = false;
+            executeBtn.textContent = '▶️ ' + t('Execute Scenario');
+            stopBtn.style.display = 'none';
+            stopBtn.disabled = true;
+        }
+        
+        // Функция для очистки AI Generator виджета
+        function clearAIGeneratorWidget() {
+            const aiDescription = document.getElementById('aiDescription');
+            const aiGeneratedSQL = document.getElementById('aiGeneratedSQL');
+            
+            if (aiDescription) {
+                aiDescription.value = '';
+            }
+            
+            if (aiGeneratedSQL) {
+                if (aiGeneratedSQLCM) {
+                    aiGeneratedSQLCM.setValue('');
+                    aiGeneratedSQLCM.refresh();
+                } else {
+                    aiGeneratedSQL.value = '';
+                }
+            }
+        }
+        
+        // Функция для очистки SQL Worksheet виджета
+        function clearSQLWorksheetWidget() {
+            // Очищаем SQL редактор
+            if (sqlEditorCM) {
+                sqlEditorCM.setValue('');
+                sqlEditorCM.refresh();
+            } else {
+                const sqlEditor = document.getElementById('sqlEditor');
+                if (sqlEditor) {
+                    sqlEditor.value = '';
+                }
+            }
+            
+            // Очищаем results table
+            const resultsTable = document.getElementById('resultsTable');
+            if (resultsTable) {
+                resultsTable.innerHTML = '<div style="padding: 20px; text-align: center; color: #858585;">' + 
+                    t('No results. Execute a query to see results here.') + '</div>';
+            }
+        }
+        
+        // Функция для обновления AI Generator виджета
+        function updateAIGeneratorWidget(prompt, sqlResult) {
+            const aiDescription = document.getElementById('aiDescription');
+            const aiGeneratedSQL = document.getElementById('aiGeneratedSQL');
+            
+            if (aiDescription) {
+                aiDescription.value = prompt;
+            }
+            
+            if (sqlResult && aiGeneratedSQL) {
+                if (aiGeneratedSQLCM) {
+                    aiGeneratedSQLCM.setValue(sqlResult);
+                    aiGeneratedSQLCM.refresh();
+                } else {
+                    aiGeneratedSQL.value = sqlResult;
+                }
+            }
+        }
+        
+        // Функция для обновления SQL Worksheet виджета
+        function updateSQLWorksheetWidget(sqlCode, executionResult) {
+            // Обновляем SQL редактор
+            if (sqlEditorCM) {
+                sqlEditorCM.setValue(sqlCode);
+                sqlEditorCM.refresh();
+            } else {
+                const sqlEditor = document.getElementById('sqlEditor');
+                if (sqlEditor) {
+                    sqlEditor.value = sqlCode;
+                }
+            }
+            
+            // Обновляем results table с результатами выполнения
+            const resultsTable = document.getElementById('resultsTable');
+            if (!resultsTable) return;
+            
+            if (executionResult && executionResult.success) {
+                if (executionResult.data && Array.isArray(executionResult.data) && executionResult.data.length > 0 && executionResult.columns) {
+                    // Показываем таблицу результатов
+                    const rowCount = executionResult.rowcount || executionResult.data.length;
+                    let html = `<div class="success-message" style="margin-bottom: 10px; padding: 8px;">
+                        <strong>✅ ${t('Success')}</strong> - ${rowCount} ${t('rows')}
+                    </div>`;
+                    
+                    html += '<div style="overflow: auto; max-height: 50vh;">';
+                    html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;"><thead><tr>';
+                    executionResult.columns.forEach(col => {
+                        html += `<th style="background: #252526; color: #d4d4d4; padding: 8px; text-align: left; border-bottom: 1px solid #3c3c3c; position: sticky; top: 0; font-weight: 600;">${escapeHtml(String(col))}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+                    
+                    executionResult.data.forEach(row => {
+                        html += '<tr>';
+                        if (Array.isArray(row)) {
+                            row.forEach(cell => {
+                                const cellInfo = formatCLOBCell(cell);
+                                html += `<td style="padding: 8px; border-bottom: 1px solid #2d2d30; color: #d4d4d4; background: #1e1e1e;">${cellInfo.display}</td>`;
+                            });
+                        }
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    resultsTable.innerHTML = html;
+                } else {
+                    // Нет данных, но успешно
+                    resultsTable.innerHTML = `<div class="success-message" style="padding: 10px;">
+                        <strong>✅ ${t('Command executed successfully')}</strong>
+                    </div>`;
+                }
+            } else if (executionResult && !executionResult.success) {
+                // Ошибка выполнения
+                resultsTable.innerHTML = `<div class="error-message" style="padding: 10px;">
+                    <strong>❌ ${t('Error')}:</strong> ${escapeHtml(executionResult.message || executionResult.error || 'Unknown error')}
+                </div>`;
+            }
+        }
+        
+        async function executeComboScenario() {
+            if (comboScenarioRunning) {
+                return;
+            }
+            
+            const mainTask = document.getElementById('comboMainTask').value.trim();
+            const iterationsCount = parseInt(document.getElementById('comboIterationsCount').value);
+            const iterativeTask = document.getElementById('comboIterativeTask').value.trim();
+            
+            if (!mainTask) {
+                alert(t('Please enter main task'));
+                return;
+            }
+            
+            if (iterationsCount < 1 || iterationsCount > 1000) {
+                alert(t('Iterations count must be between 1 and 1000'));
+                return;
+            }
+            
+            comboScenarioRunning = true;
+            comboScenarioStopped = false;
+            const executeBtn = document.getElementById('comboExecuteBtn');
+            const stopBtn = document.getElementById('comboStopBtn');
+            executeBtn.disabled = true;
+            executeBtn.textContent = '⏳ ' + t('Executing...');
+            stopBtn.style.display = 'inline-block';
+            stopBtn.disabled = false;
+            
+            const statusEl = document.getElementById('comboStatus');
+            const logEl = document.getElementById('comboLog');
+            const progressBar = document.getElementById('comboProgressBar');
+            const progressText = document.getElementById('comboProgressText');
+            const progressPercent = document.getElementById('comboProgressPercent');
+            const errorEl = document.getElementById('comboError');
+            
+            statusEl.textContent = t('Executing scenario...');
+            statusEl.style.color = '#007acc';
+            errorEl.style.display = 'none';
+            logEl.innerHTML = '';
+            
+            // Очищаем виджеты ОДИН РАЗ перед началом выполнения
+            clearAIGeneratorWidget();
+            clearSQLWorksheetWidget();
+            
+            // Массив для хранения выполненных итераций
+            const previousIterations = [];
+            
+            try {
+                // Выполняем итерации по одной
+                for (let i = 1; i <= iterationsCount; i++) {
+                    // Проверяем, была ли нажата кнопка стоп
+                    if (comboScenarioStopped) {
+                        statusEl.textContent = t('Stopped by user');
+                        statusEl.style.color = '#f48771';
+                        break;
+                    }
+                    
+                    statusEl.textContent = `${t('Executing iteration')} ${i}/${iterationsCount}...`;
+                    
+                    // Обновляем прогресс
+                    const percent = Math.round((i / iterationsCount) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = t('Progress:') + ` ${i}/${iterationsCount}`;
+                    progressPercent.textContent = percent + '%';
+                    
+                    try {
+                        const response = await fetch('/api/combo-scenario/execute-iteration', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                main_task: mainTask,
+                                iterations_count: iterationsCount,
+                                iterative_task: iterativeTask,
+                                current_iteration: i,
+                                previous_iterations: previousIterations
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success && data.iteration_result) {
+                            const iterResult = data.iteration_result;
+                            
+                            // Добавляем в массив предыдущих итераций
+                            previousIterations.push(iterResult);
+                            
+                            // Обновляем AI Generator виджет с результатами
+                            updateAIGeneratorWidget(iterResult.prompt, iterResult.ai_response);
+                            
+                            // Обновляем SQL Worksheet виджет с результатами
+                            updateSQLWorksheetWidget(iterResult.ai_response, iterResult.sql_execution_result);
+                            
+                            // Добавляем результат в лог
+                            const iterDiv = document.createElement('div');
+                            iterDiv.style.marginBottom = '10px';
+                            iterDiv.style.padding = '10px';
+                            iterDiv.style.background = '#252526';
+                            iterDiv.style.border = '1px solid #3c3c3c';
+                            iterDiv.style.borderRadius = '3px';
+                            
+                            const iterHeader = document.createElement('div');
+                            iterHeader.style.fontWeight = 'bold';
+                            iterHeader.style.marginBottom = '5px';
+                            iterHeader.style.color = iterResult.error ? '#f48771' : '#4ec9b0';
+                            iterHeader.textContent = `${t('Iteration')} ${iterResult.iteration_number}: ${iterResult.error ? t('Error') : t('Success')}`;
+                            iterDiv.appendChild(iterHeader);
+                            
+                            const promptDiv = document.createElement('div');
+                            promptDiv.style.marginBottom = '5px';
+                            promptDiv.style.fontSize = '10px';
+                            promptDiv.style.color = '#858585';
+                            promptDiv.innerHTML = `<strong>${t('Prompt')}:</strong> ${escapeHtml(iterResult.prompt.substring(0, 200))}...`;
+                            iterDiv.appendChild(promptDiv);
+                            
+                            const sqlDiv = document.createElement('div');
+                            sqlDiv.style.marginBottom = '5px';
+                            sqlDiv.style.fontSize = '10px';
+                            sqlDiv.style.color = '#ce9178';
+                            sqlDiv.innerHTML = `<strong>${t('SQL')}:</strong> <pre style="margin: 5px 0; white-space: pre-wrap;">${escapeHtml(iterResult.ai_response.substring(0, 500))}...</pre>`;
+                            iterDiv.appendChild(sqlDiv);
+                            
+                            if (iterResult.error) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.style.color = '#f48771';
+                                errorDiv.style.fontSize = '10px';
+                                errorDiv.textContent = t('Error') + ': ' + iterResult.error;
+                                iterDiv.appendChild(errorDiv);
+                            } else if (iterResult.sql_execution_result && iterResult.sql_execution_result.success) {
+                                const resultDiv = document.createElement('div');
+                                resultDiv.style.fontSize = '10px';
+                                resultDiv.style.color = '#4ec9b0';
+                                resultDiv.textContent = t('SQL executed successfully');
+                                iterDiv.appendChild(resultDiv);
+                            }
+                            
+                            logEl.appendChild(iterDiv);
+                            
+                            // Прокручиваем лог вниз
+                            logEl.scrollTop = logEl.scrollHeight;
+                            
+                            // Небольшая задержка для наглядности
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                            
+                        } else {
+                            throw new Error(data.error || 'Unknown error');
+                        }
+                    } catch (iterError) {
+                        // Продолжаем выполнение даже при ошибке одной итерации
+                        const errorIterDiv = document.createElement('div');
+                        errorIterDiv.style.marginBottom = '10px';
+                        errorIterDiv.style.padding = '10px';
+                        errorIterDiv.style.background = '#252526';
+                        errorIterDiv.style.border = '1px solid #f48771';
+                        errorIterDiv.style.borderRadius = '3px';
+                        errorIterDiv.innerHTML = `<div style="color: #f48771; font-weight: bold;">${t('Iteration')} ${i}: ${t('Error')}</div><div style="font-size: 10px; color: #f48771;">${escapeHtml(iterError.message)}</div>`;
+                        logEl.appendChild(errorIterDiv);
+                    }
+                }
+                
+                statusEl.textContent = t('Scenario completed successfully');
+                statusEl.style.color = '#4ec9b0';
+                
+            } catch (error) {
+                statusEl.textContent = t('Error executing scenario');
+                statusEl.style.color = '#f48771';
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+                console.error('Combo scenario error:', error);
+            } finally {
+                comboScenarioRunning = false;
+                executeBtn.disabled = false;
+                executeBtn.textContent = '▶️ ' + t('Execute Scenario');
+                stopBtn.style.display = 'none';
+                stopBtn.disabled = true;
+                
+                // Если сценарий был остановлен, не меняем статус
+                if (!comboScenarioStopped && statusEl.textContent.includes('Executing')) {
+                    statusEl.textContent = t('Scenario completed successfully');
+                    statusEl.style.color = '#4ec9b0';
+                }
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
 </html>

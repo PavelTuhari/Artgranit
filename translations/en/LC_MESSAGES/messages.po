@@ -1,0 +1,239 @@
+# English translations for Oracle SQL Developer Web
+# Copyright (C) 2025 Artgranit
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Oracle SQL Developer Web\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-29 18:59+0200\n"
+"PO-Revision-Date: 2025-11-29 19:00+0200\n"
+"Last-Translator: Artgranit\n"
+"Language: en\n"
+"Language-Team: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid credentials"
+msgstr "Invalid credentials"
+
+msgid "Login to system"
+msgstr "Login to system"
+
+msgid "Username"
+msgstr "Username"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "Logging in..."
+msgstr "Logging in..."
+
+msgid "Connection error"
+msgstr "Connection error"
+
+msgid "SQL Worksheet"
+msgstr "SQL Worksheet"
+
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgid "AI Generator"
+msgstr "AI Generator"
+
+msgid "Connections"
+msgstr "Connections"
+
+msgid "Logout"
+msgstr "Logout"
+
+msgid "Execute"
+msgstr "Execute"
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Schema"
+msgstr "Schema"
+
+msgid "Loading..."
+msgstr "Loading..."
+
+msgid "🔍 Filter objects (min 3 chars, 2s delay)"
+msgstr "🔍 Filter objects (min 3 chars, 2s delay)"
+
+msgid "Database Objects"
+msgstr "Database Objects"
+
+msgid "Tables"
+msgstr "Tables"
+
+msgid "Views"
+msgstr "Views"
+
+msgid "Procedures"
+msgstr "Procedures"
+
+msgid "Functions"
+msgstr "Functions"
+
+msgid "Packages"
+msgstr "Packages"
+
+msgid "Sequences"
+msgstr "Sequences"
+
+msgid "Synonyms"
+msgstr "Synonyms"
+
+msgid "Indexes"
+msgstr "Indexes"
+
+msgid "Triggers"
+msgstr "Triggers"
+
+msgid "Types"
+msgstr "Types"
+
+msgid "Materialized Views"
+msgstr "Materialized Views"
+
+msgid "DBA"
+msgstr "DBA"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "No results. Execute a query to see results here."
+msgstr "No results. Execute a query to see results here."
+
+msgid "AI Table Generator"
+msgstr "AI Table Generator"
+
+msgid "Table description (in Russian or English):"
+msgstr "Table description (in Russian or English):"
+
+msgid ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+msgstr ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+
+msgid "Generate SQL"
+msgstr "Generate SQL"
+
+msgid "Generated SQL:"
+msgstr "Generated SQL:"
+
+msgid "Insert into editor"
+msgstr "Insert into editor"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "All commands"
+msgstr "All commands"
+
+msgid "Total commands"
+msgstr "Total commands"
+
+msgid "Success"
+msgstr "Success"
+
+msgid "Errors"
+msgstr "Errors"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "rows"
+msgstr "rows"
+
+msgid "Results"
+msgstr "Results"
+
+msgid "Execution details"
+msgstr "Execution details"
+
+msgid "Command"
+msgstr "Command"
+
+msgid "Query executed successfully. No rows returned."
+msgstr "Query executed successfully. No rows returned."
+
+msgid "Error:"
+msgstr "Error:"
+
+msgid "Clear SQL editor?"
+msgstr "Clear SQL editor?"
+
+msgid "Loading schemas..."
+msgstr "Loading schemas..."
+
+msgid "Current User"
+msgstr "Current User"
+
+msgid "Ready"
+msgstr "Ready"
+
+msgid "Executing..."
+msgstr "Executing..."
+
+msgid "Please enter a SQL query"
+msgstr "Please enter a SQL query"
+
+msgid "Generating SQL..."
+msgstr "Generating SQL..."
+
+msgid "SQL generated successfully!"
+msgstr "SQL generated successfully!"
+
+msgid "Error generating SQL:"
+msgstr "Error generating SQL:"
+
+msgid "SQL inserted into editor"
+msgstr "SQL inserted into editor"
+
+msgid "SQL copied to clipboard"
+msgstr "SQL copied to clipboard"
+
+msgid "Command executed successfully"
+msgstr "Command executed successfully"
+
+msgid "All commands executed successfully"
+msgstr "All commands executed successfully"
+
+msgid "Executed commands"
+msgstr "Executed commands"
+
+msgid "Script execution error"
+msgstr "Script execution error"
+
+msgid "of"
+msgstr "of"
+
+msgid "Query executed successfully. Found rows:"
+msgstr "Query executed successfully. Found rows:"
+
+msgid "Insert into AI"
+msgstr "Insert into AI"
+
+msgid "Loading DDL..."
+msgstr "Loading DDL..."
+
+msgid "DDL for"
+msgstr "DDL for"
+
+msgid "Content inserted successfully"
+msgstr "Content inserted successfully"
+
+msgid "AI Generator window is not open"
+msgstr "AI Generator window is not open"
+
+msgid "Field cleared"
+msgstr "Field cleared"

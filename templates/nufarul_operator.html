@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Nufarul — Приём заказов в зале</title>
+    <style>
+        :root {
+            --primary: #0d9488;
+            --accent: #10b981;
+            --bg: #f0fdfa;
+            --card-bg: #fff;
+            --text: #134e4a;
+            --text-muted: #64748b;
+            --border: #99f6e4;
+            --danger: #dc2626;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 120px;
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn .25s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .05s;
+            min-height: 48px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+        .btn-success { background: var(--accent); color: #fff; width: 100%; }
+        .btn-ghost { background: #ccfbf1; color: var(--text); }
+        .input-wrap { margin-bottom: 16px; }
+        .input-wrap label { display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 6px; }
+        .input-wrap input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+        }
+        h1 { font-size: 22px; margin-bottom: 8px; color: var(--text); }
+        .service-list { display: flex; flex-direction: column; gap: 10px; }
+        .service-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .service-row .name { font-weight: 600; flex: 1; }
+        .service-row .price { color: var(--primary); font-weight: 600; margin-right: 12px; }
+        .service-row .qty { width: 56px; padding: 8px; text-align: center; border: 1px solid var(--border); border-radius: 8px; }
+        .service-row .add { padding: 8px 16px; background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .cart { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .cart h3 { font-size: 16px; margin-bottom: 12px; color: var(--text-muted); }
+        .cart-item { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+        .cart-item .rmv { color: var(--danger); cursor: pointer; font-size: 12px; }
+        .cart-total { font-size: 18px; font-weight: 700; color: var(--primary); margin-top: 12px; }
+        .result-icon { font-size: 64px; text-align: center; margin-bottom: 16px; }
+        .result-icon.ok { color: var(--accent); }
+        .result-msg { font-size: 18px; text-align: center; margin-bottom: 16px; line-height: 1.4; }
+        .barcode-box {
+            text-align: center;
+            padding: 24px;
+            background: #f0fdfa;
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            letter-spacing: 4px;
+        }
+        .print-btn { margin-top: 16px; }
+        .history { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .history h3 { font-size: 16px; margin-bottom: 12px; color: var(--text-muted); }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .history-item .status { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #ccfbf1; color: #0f766e; }
+        .search-row { display: flex; gap: 12px; margin-bottom: 16px; }
+        .search-row input { flex: 1; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; }
+        .link-admin { font-size: 14px; margin-bottom: 16px; }
+        .link-admin a { color: var(--primary); }
+        .service-group { margin-bottom: 20px; }
+        .service-group-title { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px; padding: 8px 12px; background: #ccfbf1; border-radius: 8px; }
+        .lang-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .lang-bar button { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-muted); font-size: 13px; cursor: pointer; }
+        .lang-bar button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .load-err { padding: 20px; text-align: center; color: var(--danger); background: #fef2f2; border-radius: 12px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div id="screen-home" class="screen active">
+        <h1>Nufarul — Приём заказов</h1>
+        <p class="link-admin">
+            <a href="/UNA.md/orasldev/nufarul-admin">Админка</a>
+            &nbsp;·&nbsp;
+            <a href="/UNA.md/orasldev/nufarul-operator/document/jurnal" target="_blank">Jurnal / Журнал регистраций</a>
+        </p>
+        <div class="card">
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">Услуги (добавить в заказ)</p>
+            <div class="lang-bar">
+                <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+                <button type="button" class="lang-btn" data-lang="ro">RO</button>
+                <button type="button" class="lang-btn" data-lang="en">EN</button>
+            </div>
+            <div class="service-list" id="serviceList"></div>
+            <div class="cart" id="cartSection" style="display: none;">
+                <h3>Ваш заказ</h3>
+                <div id="cartItems"></div>
+                <div class="cart-total" id="cartTotal">0 MDL</div>
+            </div>
+        </div>
+        <div class="card" id="clientCard" style="display: none;">
+            <div class="input-wrap">
+                <label>Имя клиента</label>
+                <input type="text" id="clientName" placeholder="Иванов Иван">
+            </div>
+            <div class="input-wrap">
+                <label>Телефон</label>
+                <input type="tel" id="clientPhone" placeholder="+373 69 123 456">
+            </div>
+            <div class="input-wrap">
+                <label>Примечание</label>
+                <input type="text" id="orderNotes" placeholder="Опционально">
+            </div>
+            <button type="button" class="btn btn-success" id="btnCreateOrder">Оформить заказ</button>
+        </div>
+        <div class="history">
+            <h3>Последние заказы</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div id="resultContent"></div>
+        <button type="button" class="btn btn-primary" id="resultBtn">Новый заказ</button>
+    </div>
+
+    <div id="screen-search" class="screen">
+        <h1>Поиск заказа по штрихкоду</h1>
+        <div class="search-row">
+            <input type="text" id="barcodeInput" placeholder="Штрихкод или номер заказа">
+            <button type="button" class="btn btn-primary" id="btnSearchBarcode" style="width: auto;">Найти</button>
+        </div>
+        <div id="orderDetail"></div>
+        <p style="margin-top: 16px;"><a href="#" id="backFromSearch">← Назад</a></p>
+    </div>
+
+    <script>
+        const API = '/api/nufarul-operator';
+        const GROUP_ORDER = ['delivery','dry_cleaning','carpets','pillows_cleaning','laundry','leather_dyeing','conditions','silicone_pillows'];
+        let services = [];
+        let cart = [];
+        let groupLabelsRu = {}, groupLabelsRo = {}, groupLabelsEn = {};
+
+        function getLang() {
+            return (localStorage.getItem('nufarul_lang') || 'ru').toLowerCase();
+        }
+        function setLang(lang) {
+            localStorage.setItem('nufarul_lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.lang === lang);
+            });
+            renderServicesInList();
+        }
+        function serviceName(s) {
+            const lang = getLang();
+            if (lang === 'ro') return (s.name_ro || s.name_ru || s.name_en || '').trim() || s.name;
+            if (lang === 'en') return (s.name_en || s.name_ru || s.name_ro || '').trim() || s.name;
+            return (s.name_ru || s.name_ro || s.name_en || '').trim() || s.name;
+        }
+        function groupLabels() {
+            const lang = getLang();
+            if (lang === 'ro') return groupLabelsRo;
+            if (lang === 'en') return groupLabelsEn;
+            return groupLabelsRu;
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const el = document.getElementById('screen-' + id);
+            if (el) el.classList.add('active');
+        }
+
+        async function api(path, opts = {}) {
+            const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        function renderServicesInList() {
+            const wrap = document.getElementById('serviceList');
+            if (!wrap) return;
+            const labels = groupLabels();
+            const byGroup = {};
+            services.forEach(s => {
+                const g = s.service_group || 'dry_cleaning';
+                if (!byGroup[g]) byGroup[g] = [];
+                byGroup[g].push(s);
+            });
+            let html = '';
+            GROUP_ORDER.forEach(code => {
+                const rows = byGroup[code] || [];
+                if (rows.length === 0) return;
+                html += `<div class="service-group"><div class="service-group-title">${escapeHtml(labels[code] || code)}</div>`;
+                html += rows.map(s => `
+                    <div class="service-row" data-id="${s.id}">
+                        <span class="name">${escapeHtml(serviceName(s))}</span>
+                        <span class="price">${Number(s.price || 0).toLocaleString('ru')} MDL</span>
+                        <input type="number" class="qty" value="1" min="1" data-id="${s.id}">
+                        <button type="button" class="add" data-id="${s.id}">+</button>
+                    </div>
+                `).join('');
+                html += '</div>';
+            });
+            wrap.innerHTML = html || '<div style="color:var(--text-muted);">Нет услуг</div>';
+            wrap.querySelectorAll('.add').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.dataset.id, 10);
+                    const row = btn.closest('.service-row');
+                    const qtyInput = row.querySelector('.qty');
+                    const qty = parseInt(qtyInput.value, 10) || 1;
+                    const svc = services.find(x => x.id === id);
+                    if (svc) {
+                        const existing = cart.find(x => x.service_id === id);
+                        const name = serviceName(svc);
+                        if (existing) existing.qty += qty; else cart.push({ service_id: id, name, price: svc.price, qty });
+                        renderCart();
+                    }
+                });
+            });
+        }
+
+        async function loadServices() {
+            const wrap = document.getElementById('serviceList');
+            try {
+                const j = await api('/services');
+                if (!j.success && j.error) throw new Error(j.error);
+                services = j.data || [];
+                groupLabelsRu = j.group_labels_ru || {};
+                groupLabelsRo = j.group_labels_ro || {};
+                groupLabelsEn = j.group_labels_en || {};
+                renderServicesInList();
+            } catch (e) {
+                const msg = e.message || 'Ошибка загрузки';
+                wrap.innerHTML = `<div class="load-err"><strong>${escapeHtml(msg)}</strong><br><small>Проверьте авторизацию и наличие данных. Для загрузки услуг: python import_nufarul_services.py --clear</small></div>`;
+            }
+        }
+
+        function renderCart() {
+            const section = document.getElementById('cartSection');
+            const clientCard = document.getElementById('clientCard');
+            if (cart.length === 0) {
+                section.style.display = 'none';
+                clientCard.style.display = 'none';
+                return;
+            }
+            section.style.display = 'block';
+            clientCard.style.display = 'block';
+            let total = 0;
+            document.getElementById('cartItems').innerHTML = cart.map((it, i) => {
+                const sum = (it.price || 0) * (it.qty || 1);
+                total += sum;
+                return `
+                    <div class="cart-item">
+                        <span>${escapeHtml(it.name)} × ${it.qty} — ${sum.toLocaleString('ru')} MDL</span>
+                        <span class="rmv" data-i="${i}">✕</span>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('cartTotal').textContent = total.toLocaleString('ru') + ' MDL';
+            document.querySelectorAll('.cart-item .rmv').forEach(el => {
+                el.addEventListener('click', () => { cart.splice(parseInt(el.dataset.i, 10), 1); renderCart(); });
+            });
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        async function loadRecent() {
+            try {
+                const j = await api('/recent-orders?limit=10');
+                const list = j.data || [];
+                const docBase = '/UNA.md/orasldev/nufarul-operator/document/';
+                document.getElementById('historyList').innerHTML = list.map(o => `
+                    <div class="history-item">
+                        <div>
+                            <strong>${escapeHtml(o.order_number)}</strong><br>
+                            <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(o.client_name)} · ${escapeHtml(o.created_time || '')}</span>
+                            ${o.id ? `<br><a href="${docBase}${o.id}?type=bon_comanda" target="_blank" style="font-size:12px;color:var(--primary);">Bon de Comandă</a> · <a href="${docBase}${o.id}?type=comanda" target="_blank" style="font-size:12px;color:var(--primary);">Comandă</a>` : ''}
+                        </div>
+                        <span class="status">${escapeHtml(o.status_name || o.status_code)}</span>
+                    </div>
+                `).join('');
+            } catch (_) {
+                document.getElementById('historyList').innerHTML = '<p style="color:var(--text-muted);">Нет данных</p>';
+            }
+        }
+
+        document.getElementById('btnCreateOrder').addEventListener('click', async () => {
+            const clientName = document.getElementById('clientName').value.trim();
+            const clientPhone = document.getElementById('clientPhone').value.trim();
+            const notes = document.getElementById('orderNotes').value.trim();
+            if (!clientName || !clientPhone) {
+                alert('Укажите имя и телефон клиента.');
+                return;
+            }
+            if (cart.length === 0) {
+                alert('Добавьте хотя бы одну услугу.');
+                return;
+            }
+            const items = cart.map(it => ({ service_id: it.service_id, qty: it.qty, price: it.price }));
+            try {
+                const j = await api('/order', { method: 'POST', body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, items, notes }) });
+                if (!j.success) throw new Error(j.error);
+                const docUrl = '/UNA.md/orasldev/nufarul-operator/document/' + (j.order_id || '');
+                document.getElementById('resultContent').innerHTML = `
+                    <div class="result-icon ok">✓</div>
+                    <div class="result-msg">Заказ создан</div>
+                    <div class="barcode-box" id="barcodePrint">${escapeHtml(j.order_number)}</div>
+                    <p style="text-align:center;color:var(--text-muted);">Номер заказа и штрихкод: <strong>${escapeHtml(j.order_number)}</strong></p>
+                    <p style="text-align:center;margin-top:8px;">Сумма: <strong>${Number(j.total_amount || 0).toLocaleString('ru')} MDL</strong></p>
+                    <div class="print-btn" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px;">
+                        <button type="button" class="btn btn-ghost" onclick="window.print();">Печать штрихкода</button>
+                        <a href="${docUrl}?type=bon_comanda" target="_blank" class="btn btn-ghost" style="text-decoration:none;">Bon de Comandă</a>
+                        <a href="${docUrl}?type=comanda" target="_blank" class="btn btn-ghost" style="text-decoration:none;">Comandă / Заказ</a>
+                    </div>
+                `;
+                document.getElementById('resultBtn').textContent = 'Новый заказ';
+                document.getElementById('resultBtn').onclick = () => { cart = []; renderCart(); document.getElementById('clientName').value = ''; document.getElementById('clientPhone').value = ''; showScreen('home'); loadRecent(); };
+                showScreen('result');
+                loadRecent();
+            } catch (e) {
+                alert('Ошибка: ' + (e.message || ''));
+            }
+        });
+
+        document.getElementById('resultBtn').onclick = () => { showScreen('home'); loadRecent(); };
+
+        document.getElementById('btnSearchBarcode').addEventListener('click', async () => {
+            const barcode = document.getElementById('barcodeInput').value.trim();
+            if (!barcode) return;
+            try {
+                const j = await api('/order-by-barcode?barcode=' + encodeURIComponent(barcode));
+                const detail = document.getElementById('orderDetail');
+                if (!j.success || !j.data) {
+                    detail.innerHTML = '<p style="color:var(--danger);">Заказ не найден</p>';
+                    return;
+                }
+                const o = j.data;
+                const docBase = '/UNA.md/orasldev/nufarul-operator/document/';
+                const docLinks = o.id ? `<p style="margin-top:12px;"><a href="${docBase}${o.id}?type=bon_comanda" target="_blank" style="color:var(--primary);margin-right:12px;">Bon de Comandă</a> <a href="${docBase}${o.id}?type=comanda" target="_blank" style="color:var(--primary);">Comandă / Заказ</a></p>` : '';
+                detail.innerHTML = `
+                    <div class="card">
+                        <p><strong>№ ${escapeHtml(o.order_number)}</strong> · ${escapeHtml(o.status_name)}</p>
+                        <p>${escapeHtml(o.client_name)} · ${escapeHtml(o.client_phone || '')}</p>
+                        <p>Сумма: ${Number(o.total_amount || 0).toLocaleString('ru')} MDL</p>
+                        ${(o.items || []).length ? '<p>Позиции: ' + (o.items || []).map(i => escapeHtml(i.service_name) + ' × ' + i.qty).join(', ') + '</p>' : ''}
+                        ${docLinks}
+                    </div>
+                `;
+            } catch (e) {
+                document.getElementById('orderDetail').innerHTML = '<p style="color:var(--danger);">Ошибка: ' + escapeHtml(e.message) + '</p>';
+            }
+        });
+
+        document.getElementById('backFromSearch').addEventListener('click', (e) => { e.preventDefault(); showScreen('home'); });
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => setLang(btn.dataset.lang));
+        });
+        const savedLang = getLang();
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === savedLang));
+
+        (async () => {
+            await loadServices();
+            loadRecent();
+        })();
+    </script>
+</body>
+</html>
