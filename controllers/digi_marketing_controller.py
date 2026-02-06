@@ -933,23 +933,136 @@ class DigiMarketingController:
     # ========== Инициализация демо-данных ==========
 
     @staticmethod
+    def _parse_sql_blocks(content):
+        """Парсит SQL-файл, разделяя на исполняемые блоки.
+        Обрабатывает как ';' разделители, так и '/' для PL/SQL блоков."""
+        # Разделяем по '/' на отдельной строке (PL/SQL block terminator)
+        raw_blocks = []
+        current = []
+        for line in content.split('\n'):
+            if line.strip() == '/':
+                if current:
+                    raw_blocks.append('\n'.join(current))
+                    current = []
+            else:
+                current.append(line)
+        if current:
+            raw_blocks.append('\n'.join(current))
+
+        statements = []
+        for block in raw_blocks:
+            block = block.strip()
+            if not block:
+                continue
+            upper = block.upper()
+            # PL/SQL блоки (триггеры, пакеты) — исполняем целиком
+            is_plsql = any(kw in upper for kw in [
+                'CREATE OR REPLACE TRIGGER',
+                'CREATE OR REPLACE PACKAGE',
+                'CREATE OR REPLACE FUNCTION',
+                'CREATE OR REPLACE PROCEDURE',
+            ])
+            if is_plsql:
+                statements.append(block)
+            else:
+                # Обычный SQL — разделяем по ';'
+                for part in block.split(';'):
+                    stmt = part.strip()
+                    if not stmt:
+                        continue
+                    # Пропускаем строки, состоящие только из комментариев
+                    non_comment = [l for l in stmt.split('\n')
+                                   if l.strip() and not l.strip().startswith('--')]
+                    if not non_comment:
+                        continue
+                    # Пропускаем голые COMMIT (будем коммитить сами)
+                    if stmt.upper().strip() == 'COMMIT':
+                        continue
+                    statements.append(stmt)
+        return statements
+
+    @staticmethod
     def init_demo_data():
-        """Проверяет наличие данных и предлагает выполнить SQL-скрипты"""
+        """Автоматически создает DDL/Views/Package и вставляет демо-данные"""
+        log = []
         try:
             with DatabaseModel() as db:
                 # Проверяем, есть ли уже данные
-                r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_STORES")
-                row = DigiMarketingController._first_row(r)
-                if row and row.get("cnt", 0) > 0:
-                    return {"success": True, "message": f"Данные уже загружены: {row['cnt']} магазинов"}
-                return {"success": False,
-                        "error": "Таблицы пусты. Выполните SQL-скрипты: sql/20_digi_tables.sql, sql/21_digi_views.sql, sql/22_digi_package.sql, sql/23_digi_demo_data.sql через SQL Developer."}
+                try:
+                    r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_STORES")
+                    row = DigiMarketingController._first_row(r)
+                    if row and row.get("cnt", 0) > 0:
+                        return {"success": True, "message": f"Данные уже загружены: {row['cnt']} магазинов"}
+                except Exception:
+                    pass  # Таблицы ещё не существуют — создадим ниже
+
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                sql_dir = os.path.join(base_dir, 'sql')
+
+                files = [
+                    ('20_digi_tables.sql', 'DDL'),
+                    ('21_digi_views.sql', 'Views'),
+                    ('22_digi_package.sql', 'Package'),
+                    ('23_digi_demo_data.sql', 'Demo data'),
+                ]
+
+                for filename, desc in files:
+                    filepath = os.path.join(sql_dir, filename)
+                    if not os.path.exists(filepath):
+                        log.append(f"{desc}: файл не найден")
+                        continue
+
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    stmts = DigiMarketingController._parse_sql_blocks(content)
+                    ok_count = 0
+                    skip_count = 0
+                    err_count = 0
+                    last_err = ""
+
+                    for stmt in stmts:
+                        try:
+                            with db.connection.cursor() as cursor:
+                                cursor.execute(stmt)
+                            db.connection.commit()
+                            ok_count += 1
+                        except Exception as e:
+                            err_str = str(e)
+                            # Игнорируем ошибки "уже существует"
+                            ignorable = ['ORA-00955', 'ORA-02261', 'ORA-01408',
+                                         'ORA-04081', 'ORA-00001', 'ORA-02264',
+                                         'ORA-02275', 'ORA-00972']
+                            if any(code in err_str for code in ignorable):
+                                skip_count += 1
+                            else:
+                                err_count += 1
+                                last_err = err_str[:200]
+
+                    status = f"{desc}: {ok_count} OK"
+                    if skip_count:
+                        status += f", {skip_count} уже существует"
+                    if err_count:
+                        status += f", {err_count} ошибок"
+                        if last_err:
+                            status += f" ({last_err})"
+                    log.append(status)
+
+                # Проверяем итог
+                try:
+                    r = db.execute_query("SELECT COUNT(*) AS CNT FROM DIGI_STORES")
+                    row = DigiMarketingController._first_row(r)
+                    cnt = row.get("cnt", 0) if row else 0
+                    if cnt > 0:
+                        return {"success": True,
+                                "message": f"Инициализация завершена: {cnt} магазинов. " + "; ".join(log)}
+                except Exception:
+                    pass
+
+                return {"success": True, "message": "Инициализация завершена. " + "; ".join(log)}
         except Exception as e:
-            error_msg = str(e)
-            if "ORA-00942" in error_msg or "table or view does not exist" in error_msg.lower():
-                return {"success": False,
-                        "error": "Таблицы DIGI Marketing не созданы. Выполните DDL-скрипт sql/20_digi_tables.sql через SQL Developer."}
-            return {"success": False, "error": error_msg}
+            return {"success": False,
+                    "error": f"Ошибка инициализации: {str(e)}" + (f". {'; '.join(log)}" if log else "")}
 
     # ========== Вспомогательные методы ==========
 
