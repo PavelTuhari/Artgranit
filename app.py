@@ -1223,8 +1223,8 @@ def api_objects_materialized_views():
 
 # ========== DIGI Marketing Module Routes ==========
 
-@app.route('/UNA.md/digi-marketing')
-@app.route('/UNA.md/digi-marketing/')
+@app.route('/UNA.md/orasldev/digi-marketing')
+@app.route('/UNA.md/orasldev/digi-marketing/')
 def digi_marketing():
     """Модуль управления мультимедийным контентом DIGI"""
     if not AuthController.is_authenticated():
@@ -3046,9 +3046,9 @@ if __name__ == '__main__':
         print(f"   • http://{local_ip}:{Config.SERVER_PORT}/una.md/shell/projects")
     print(f"")
     print(f"📺 DIGI Marketing (управление контентом весов):")
-    print(f"   • http://localhost:{Config.SERVER_PORT}/UNA.md/digi-marketing")
+    print(f"   • http://localhost:{Config.SERVER_PORT}/UNA.md/orasldev/digi-marketing")
     if local_ip:
-        print(f"   • http://{local_ip}:{Config.SERVER_PORT}/UNA.md/digi-marketing")
+        print(f"   • http://{local_ip}:{Config.SERVER_PORT}/UNA.md/orasldev/digi-marketing")
     
     use_reloader = Config.ENVIRONMENT != "REMOTE"
     socketio.run(app, host=Config.SERVER_HOST, port=Config.SERVER_PORT, debug=True, use_reloader=use_reloader, allow_unsafe_werkzeug=True)
