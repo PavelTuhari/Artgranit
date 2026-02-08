@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIGI Marketing - Управление мультимедийным контентом</title>
+    <title>DIGI SM - Управление весами и загрузкой данных</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -407,13 +407,13 @@
 
 <!-- ===== Top Bar ===== -->
 <div class="top-bar">
-    <div class="logo">DIGI<span>MARKETING</span></div>
+    <div class="logo">DIGI<span>SM</span></div>
     <div class="nav-item active" data-panel="dashboard" onclick="showPanel('dashboard')">Dashboard</div>
     <div class="nav-item" data-panel="stores" onclick="showPanel('stores')">Магазины</div>
-    <div class="nav-item" data-panel="devices" onclick="showPanel('devices')">Устройства</div>
-    <div class="nav-item" data-panel="media" onclick="showPanel('media')">Медиа</div>
-    <div class="nav-item" data-panel="playlists" onclick="showPanel('playlists')">Плейлисты</div>
-    <div class="nav-item" data-panel="campaigns" onclick="showPanel('campaigns')">Кампании</div>
+    <div class="nav-item" data-panel="devices" onclick="showPanel('devices')">Весы</div>
+    <div class="nav-item" data-panel="media" onclick="showPanel('media')">PLU / Товары</div>
+    <div class="nav-item" data-panel="playlists" onclick="showPanel('playlists')">Загрузки</div>
+    <div class="nav-item" data-panel="campaigns" onclick="showPanel('campaigns')">Этикетки</div>
     <div class="nav-item" data-panel="monitoring" onclick="showPanel('monitoring')">Мониторинг</div>
     <div class="spacer"></div>
     <a href="/UNA.md/orasldev" class="back-link">&#8592; SQL Developer</a>
@@ -427,10 +427,10 @@
         <div class="sidebar-section">
             <div class="sidebar-header">Быстрые действия</div>
             <div class="sidebar-item" onclick="showModal('storeModal')">+ Новый магазин</div>
-            <div class="sidebar-item" onclick="showModal('deviceModal')">+ Новое устройство</div>
-            <div class="sidebar-item" onclick="showModal('mediaModal')">+ Загрузить медиа</div>
-            <div class="sidebar-item" onclick="showModal('playlistModal')">+ Новый плейлист</div>
-            <div class="sidebar-item" onclick="showModal('campaignModal')">+ Новая кампания</div>
+            <div class="sidebar-item" onclick="showModal('deviceModal')">+ Новые весы</div>
+            <div class="sidebar-item" onclick="showModal('mediaModal')">+ Новый PLU товар</div>
+            <div class="sidebar-item" onclick="showModal('playlistModal')">+ Новая загрузка</div>
+            <div class="sidebar-item" onclick="showModal('campaignModal')">+ Новый шаблон этикетки</div>
         </div>
         <div class="sidebar-section">
             <div class="sidebar-header">Система</div>
@@ -451,10 +451,10 @@
             <h2 class="section-title">Dashboard</h2>
             <div class="stat-grid" id="statsGrid">
                 <div class="stat-card"><div class="stat-label">Магазины</div><div class="stat-value white" id="statStores">0</div></div>
-                <div class="stat-card"><div class="stat-label">Устройства</div><div class="stat-value blue" id="statDevices">0</div><div class="stat-sub" id="statDevicesSub">online: 0</div></div>
-                <div class="stat-card"><div class="stat-label">Медиафайлы</div><div class="stat-value yellow" id="statMedia">0</div><div class="stat-sub" id="statMediaSub">-</div></div>
-                <div class="stat-card"><div class="stat-label">Плейлисты</div><div class="stat-value white" id="statPlaylists">0</div></div>
-                <div class="stat-card"><div class="stat-label">Активные кампании</div><div class="stat-value green" id="statCampaigns">0</div><div class="stat-sub" id="statCampaignsSub">-</div></div>
+                <div class="stat-card"><div class="stat-label">Весы</div><div class="stat-value blue" id="statDevices">0</div><div class="stat-sub" id="statDevicesSub">онлайн: 0</div></div>
+                <div class="stat-card"><div class="stat-label">PLU Товары</div><div class="stat-value yellow" id="statMedia">0</div><div class="stat-sub" id="statMediaSub">-</div></div>
+                <div class="stat-card"><div class="stat-label">Загрузки</div><div class="stat-value white" id="statPlaylists">0</div></div>
+                <div class="stat-card"><div class="stat-label">Активные шаблоны</div><div class="stat-value green" id="statCampaigns">0</div><div class="stat-sub" id="statCampaignsSub">-</div></div>
             </div>
 
             <div class="card">
@@ -481,9 +481,9 @@
 
         <!-- ===== Panel: Devices ===== -->
         <div class="panel" id="panel-devices">
-            <h2 class="section-title">Устройства (Весы / Кассы)</h2>
+            <h2 class="section-title">Весы</h2>
             <div class="toolbar">
-                <button class="btn btn-primary" onclick="showModal('deviceModal')">+ Зарегистрировать</button>
+                <button class="btn btn-primary" onclick="showModal('deviceModal')">+ Зарегистрировать весы</button>
                 <button class="btn btn-secondary" onclick="loadDevices()">&#8635; Обновить</button>
                 <select class="form-control" style="width:200px;" id="deviceFilterStore" onchange="loadDevices()">
                     <option value="">Все магазины</option>
@@ -498,17 +498,17 @@
 
         <!-- ===== Panel: Media ===== -->
         <div class="panel" id="panel-media">
-            <h2 class="section-title">Медиаконтент</h2>
+            <h2 class="section-title">PLU / Товары</h2>
             <div class="toolbar">
-                <button class="btn btn-primary" onclick="showModal('mediaModal')">+ Загрузить</button>
+                <button class="btn btn-primary" onclick="showModal('mediaModal')">+ Новый товар</button>
                 <button class="btn btn-secondary" onclick="loadMedia()">&#8635; Обновить</button>
                 <select class="form-control" style="width:150px;" id="mediaFilterType" onchange="loadMedia()">
-                    <option value="">Все типы</option>
-                    <option value="image">Изображения</option>
-                    <option value="video">Видео</option>
+                    <option value="">Все категории</option>
+                    <option value="image">С фото</option>
+                    <option value="video">Без фото</option>
                 </select>
-                <select class="form-control" style="width:150px;" id="mediaFilterRes" onchange="loadMedia()">
-                    <option value="">Все разрешения</option>
+                <select class="form-control" style="width:180px;" id="mediaFilterRes" onchange="loadMedia()">
+                    <option value="">Все модели весов</option>
                     <option value="800x480">800x480</option>
                     <option value="1024x600">1024x600</option>
                     <option value="1280x800">1280x800</option>
@@ -520,9 +520,9 @@
 
         <!-- ===== Panel: Playlists ===== -->
         <div class="panel" id="panel-playlists">
-            <h2 class="section-title">Плейлисты</h2>
+            <h2 class="section-title">Загрузки данных</h2>
             <div class="toolbar">
-                <button class="btn btn-primary" onclick="showModal('playlistModal')">+ Новый плейлист</button>
+                <button class="btn btn-primary" onclick="showModal('playlistModal')">+ Новая загрузка</button>
                 <button class="btn btn-secondary" onclick="loadPlaylists()">&#8635; Обновить</button>
             </div>
             <div class="card">
@@ -534,9 +534,9 @@
 
         <!-- ===== Panel: Campaigns ===== -->
         <div class="panel" id="panel-campaigns">
-            <h2 class="section-title">Кампании</h2>
+            <h2 class="section-title">Шаблоны этикеток</h2>
             <div class="toolbar">
-                <button class="btn btn-primary" onclick="showModal('campaignModal')">+ Новая кампания</button>
+                <button class="btn btn-primary" onclick="showModal('campaignModal')">+ Новый шаблон</button>
                 <button class="btn btn-secondary" onclick="loadCampaigns()">&#8635; Обновить</button>
                 <select class="form-control" style="width:150px;" id="campaignFilterStatus" onchange="loadCampaigns()">
                     <option value="">Все статусы</option>
@@ -553,13 +553,13 @@
         <div class="panel" id="panel-monitoring">
             <h2 class="section-title">Мониторинг и отчеты</h2>
             <div class="tab-bar">
-                <div class="tab-item active" onclick="showMonTab('devices')">Статус устройств</div>
-                <div class="tab-item" onclick="showMonTab('delivery')">Доставка контента</div>
+                <div class="tab-item active" onclick="showMonTab('devices')">Статус весов</div>
+                <div class="tab-item" onclick="showMonTab('delivery')">Загрузка данных</div>
                 <div class="tab-item" onclick="showMonTab('events')">Журнал событий</div>
             </div>
             <div id="monTab-devices">
                 <div class="card">
-                    <div class="card-header">Состояние устройств</div>
+                    <div class="card-header">Состояние весов</div>
                     <div class="card-body" style="padding:0;" id="monDevicesTable">
                         <div class="empty-state">Загрузка...</div>
                     </div>
@@ -567,7 +567,7 @@
             </div>
             <div id="monTab-delivery" style="display:none;">
                 <div class="card">
-                    <div class="card-header">Отчет по доставке контента</div>
+                    <div class="card-header">Отчет по загрузке данных</div>
                     <div class="card-body" id="deliveryReport">
                         <div class="empty-state">Загрузка...</div>
                     </div>
@@ -629,7 +629,7 @@
 <div class="modal-overlay" id="deviceModal">
     <div class="modal">
         <div class="modal-header">
-            <h3>Регистрация устройства</h3>
+            <h3>Регистрация весов</h3>
             <button class="modal-close" onclick="hideModal('deviceModal')">&times;</button>
         </div>
         <div class="modal-body">
@@ -645,7 +645,7 @@
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Тип устройства</label>
+                    <label>Модель весов</label>
                     <select class="form-control" id="deviceFormType" onchange="onDeviceTypeChange()">
                         <option value="SM5300">DIGI SM5300</option>
                         <option value="SM6000">DIGI SM6000</option>
@@ -692,61 +692,61 @@
 <div class="modal-overlay" id="mediaModal">
     <div class="modal">
         <div class="modal-header">
-            <h3>Загрузка медиаконтента</h3>
+            <h3>Новый PLU товар</h3>
             <button class="modal-close" onclick="hideModal('mediaModal')">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label>Файл (имя)</label>
-                <input type="text" class="form-control" id="mediaFormFilename" placeholder="promo_banner.jpg / video_ad.mp4">
+                <label>Название товара</label>
+                <input type="text" class="form-control" id="mediaFormFilename" placeholder="Сыр Гауда 1кг">
             </div>
             <div class="form-group">
-                <label>Описание</label>
-                <textarea class="form-control" id="mediaFormDesc" placeholder="Описание контента"></textarea>
+                <label>Описание товара</label>
+                <textarea class="form-control" id="mediaFormDesc" placeholder="Описание для этикетки"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Ширина (px)</label>
-                    <input type="number" class="form-control" id="mediaFormWidth" value="1024">
+                    <label>Цена (бань)</label>
+                    <input type="number" class="form-control" id="mediaFormWidth" value="0">
                 </div>
                 <div class="form-group">
-                    <label>Высота (px)</label>
-                    <input type="number" class="form-control" id="mediaFormHeight" value="600">
+                    <label>Единица измерения (г)</label>
+                    <input type="number" class="form-control" id="mediaFormHeight" value="1000">
                 </div>
             </div>
             <div class="form-group">
-                <label>Размер файла (байт)</label>
-                <input type="number" class="form-control" id="mediaFormSize" value="500000">
+                <label>Вес нетто (г)</label>
+                <input type="number" class="form-control" id="mediaFormSize" value="1000">
             </div>
             <div class="form-group">
-                <label>Длительность видео (сек, только для видео)</label>
-                <input type="number" class="form-control" id="mediaFormDuration" value="0">
+                <label>Срок годности (дней)</label>
+                <input type="number" class="form-control" id="mediaFormDuration" value="30">
             </div>
             <div class="form-group">
-                <label>Целевые разрешения (множественный выбор)</label>
+                <label>Модели весов (множественный выбор)</label>
                 <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
                     <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        <input type="checkbox" class="media-res-check" value="800x480"> 800x480
+                        <input type="checkbox" class="media-res-check" value="800x480"> SM5300 (800x480)
                     </label>
                     <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        <input type="checkbox" class="media-res-check" value="1024x600" checked> 1024x600
+                        <input type="checkbox" class="media-res-check" value="1024x600" checked> SM6000 (1024x600)
                     </label>
                     <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        <input type="checkbox" class="media-res-check" value="1280x800"> 1280x800
+                        <input type="checkbox" class="media-res-check" value="1280x800"> SM6000+ (1280x800)
                     </label>
                     <label style="font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px;">
-                        <input type="checkbox" class="media-res-check" value="1920x1080"> 1920x1080
+                        <input type="checkbox" class="media-res-check" value="1920x1080"> WEB3110 (1920x1080)
                     </label>
                 </div>
             </div>
             <div class="form-group">
-                <label>Теги (через запятую)</label>
-                <input type="text" class="form-control" id="mediaFormTags" placeholder="акция, лето, промо">
+                <label>Категории (через запятую)</label>
+                <input type="text" class="form-control" id="mediaFormTags" placeholder="молочные, сыры, весовые">
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="hideModal('mediaModal')">Отмена</button>
-            <button class="btn btn-primary" onclick="saveMedia()">Загрузить</button>
+            <button class="btn btn-primary" onclick="saveMedia()">Создать</button>
         </div>
     </div>
 </div>
@@ -755,20 +755,20 @@
 <div class="modal-overlay" id="playlistModal">
     <div class="modal" style="width:700px;">
         <div class="modal-header">
-            <h3>Создание плейлиста</h3>
+            <h3>Создание загрузки данных</h3>
             <button class="modal-close" onclick="hideModal('playlistModal')">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label>Название плейлиста</label>
-                <input type="text" class="form-control" id="playlistFormName" placeholder="Летний промо-микс">
+                <label>Название загрузки</label>
+                <input type="text" class="form-control" id="playlistFormName" placeholder="Молочный отдел - январь">
             </div>
             <div class="form-group">
                 <label>Описание</label>
-                <textarea class="form-control" id="playlistFormDesc" placeholder="Описание плейлиста"></textarea>
+                <textarea class="form-control" id="playlistFormDesc" placeholder="Описание задачи загрузки"></textarea>
             </div>
             <div class="form-group">
-                <label>Элементы плейлиста (выберите медиа)</label>
+                <label>Товары для загрузки (выберите PLU)</label>
                 <div id="playlistMediaSelector" class="target-list" style="max-height:250px;"></div>
             </div>
         </div>
@@ -783,20 +783,20 @@
 <div class="modal-overlay" id="campaignModal">
     <div class="modal" style="width:700px;">
         <div class="modal-header">
-            <h3>Создание кампании</h3>
+            <h3>Новый шаблон этикетки</h3>
             <button class="modal-close" onclick="hideModal('campaignModal')">&times;</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label>Название кампании</label>
-                <input type="text" class="form-control" id="campaignFormName" placeholder="Летняя кампания 2025">
+                <label>Название шаблона</label>
+                <input type="text" class="form-control" id="campaignFormName" placeholder="Этикетки Молочный - 2025">
             </div>
             <div class="form-group">
                 <label>Описание</label>
-                <textarea class="form-control" id="campaignFormDesc" placeholder="Описание кампании"></textarea>
+                <textarea class="form-control" id="campaignFormDesc" placeholder="Описание шаблона этикетки"></textarea>
             </div>
             <div class="form-group">
-                <label>Плейлист</label>
+                <label>Загрузка данных</label>
                 <select class="form-control" id="campaignFormPlaylist"></select>
             </div>
             <div class="form-group">
@@ -806,14 +806,14 @@
 
             <!-- Таргетинг -->
             <div style="border: 1px solid #333366; border-radius: 6px; padding: 12px; margin-bottom: 14px; background: #1a1a2e;">
-                <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px;">Таргетинг</div>
+                <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px;">Назначение</div>
                 <div class="form-group">
-                    <label>Тип таргетинга</label>
+                    <label>Тип назначения</label>
                     <select class="form-control" id="campaignFormTargetType" onchange="onTargetTypeChange()">
                         <option value="all">Все магазины</option>
                         <option value="stores">Группа магазинов</option>
                         <option value="departments">Отделы</option>
-                        <option value="devices">Конкретные устройства</option>
+                        <option value="devices">Конкретные весы</option>
                     </select>
                 </div>
                 <div id="targetSelection" style="display:none;">
@@ -823,7 +823,7 @@
 
             <!-- Расписание -->
             <div style="border: 1px solid #333366; border-radius: 6px; padding: 12px; background: #1a1a2e;">
-                <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px;">Расписание</div>
+                <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px;">Расписание загрузки</div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Дата начала</label>
@@ -952,9 +952,9 @@
                 const d = result.data;
                 document.getElementById('statStores').textContent = d.stores || 0;
                 document.getElementById('statDevices').textContent = (d.devices && d.devices.total) || 0;
-                document.getElementById('statDevicesSub').textContent = d.devices ? `online: ${d.devices.online || 0} / offline: ${d.devices.offline || 0}` : 'online: 0 / offline: 0';
+                document.getElementById('statDevicesSub').textContent = d.devices ? `онлайн: ${d.devices.online || 0} / офлайн: ${d.devices.offline || 0}` : 'онлайн: 0 / офлайн: 0';
                 document.getElementById('statMedia').textContent = (d.media && d.media.total) || 0;
-                document.getElementById('statMediaSub').textContent = d.media ? `img: ${d.media.images || 0} / video: ${d.media.videos || 0}` : '-';
+                document.getElementById('statMediaSub').textContent = d.media ? `товаров: ${d.media.images || 0} / с фото: ${d.media.videos || 0}` : '-';
                 document.getElementById('statPlaylists').textContent = d.playlists || 0;
                 document.getElementById('statCampaigns').textContent = (d.campaigns && d.campaigns.active) || 0;
                 document.getElementById('statCampaignsSub').textContent = d.campaigns ? `всего: ${d.campaigns.total || 0} / черновики: ${d.campaigns.draft || 0}` : '-';
@@ -984,7 +984,7 @@
             'update': ['badge-info', 'Изменение'],
             'delete': ['badge-danger', 'Удаление'],
             'upload': ['badge-info', 'Загрузка'],
-            'publish': ['badge-success', 'Публикация'],
+            'publish': ['badge-success', 'Отправка'],
             'pause': ['badge-warning', 'Пауза'],
             'stop': ['badge-danger', 'Стоп'],
             'retry': ['badge-warning', 'Повтор'],
@@ -1073,8 +1073,8 @@
             const result = await apiCall('/devices', { params });
             if (result.success) {
                 devicesCache = result.data || [];
-                if (!devicesCache.length) { div.innerHTML = '<div class="empty-state"><div class="icon">&#9878;</div>Нет устройств</div>'; return; }
-                let html = '<table class="data-table"><thead><tr><th>Название</th><th>S/N</th><th>Тип</th><th>Разрешение</th><th>Магазин</th><th>Отдел</th><th>IP</th><th>Статус</th><th>Синхр.</th><th>Действия</th></tr></thead><tbody>';
+                if (!devicesCache.length) { div.innerHTML = '<div class="empty-state"><div class="icon">&#9878;</div>Нет весов</div>'; return; }
+                let html = '<table class="data-table"><thead><tr><th>Название</th><th>S/N</th><th>Модель</th><th>Дисплей</th><th>Магазин</th><th>Отдел</th><th>IP</th><th>Статус</th><th>Посл. загрузка</th><th>Действия</th></tr></thead><tbody>';
                 devicesCache.forEach(d => {
                     const statusBadge = d.status === 'online' ? '<span class="badge badge-success">Online</span>' :
                         d.status === 'offline' ? '<span class="badge badge-secondary">Offline</span>' : '<span class="badge badge-danger">Error</span>';
@@ -1093,7 +1093,7 @@
                 });
                 html += '</tbody></table>';
                 div.innerHTML = html;
-                addLog('Устройства загружены: ' + devicesCache.length, 'success');
+                addLog('Весы загружены: ' + devicesCache.length, 'success');
             }
         } catch (e) { div.innerHTML = `<div class="empty-state" style="color:#e94560;">Ошибка: ${e.message}</div>`; }
     }
@@ -1155,7 +1155,7 @@
         try {
             const result = await apiCall('/devices', { method: 'POST', body: data });
             if (result.success) {
-                addLog('Устройство зарегистрировано: ' + data.name, 'success');
+                addLog('Весы зарегистрированы: ' + data.name, 'success');
                 hideModal('deviceModal');
                 loadDevices();
             } else { addLog('Ошибка: ' + result.error, 'error'); }
@@ -1163,10 +1163,10 @@
     }
 
     async function deleteDevice(id) {
-        if (!confirm('Удалить устройство?')) return;
+        if (!confirm('Удалить весы?')) return;
         try {
             const result = await apiCall('/devices/' + id, { method: 'DELETE' });
-            if (result.success) { addLog('Устройство удалено', 'success'); loadDevices(); }
+            if (result.success) { addLog('Весы удалены', 'success'); loadDevices(); }
             else { addLog('Ошибка: ' + result.error, 'error'); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
@@ -1183,7 +1183,7 @@
             const result = await apiCall('/media', { params });
             if (result.success) {
                 mediaCache = result.data || [];
-                if (!mediaCache.length) { grid.innerHTML = '<div class="empty-state"><div class="icon">&#127910;</div>Нет медиафайлов</div>'; return; }
+                if (!mediaCache.length) { grid.innerHTML = '<div class="empty-state"><div class="icon">&#128722;</div>Нет товаров</div>'; return; }
                 grid.innerHTML = '';
                 mediaCache.forEach(m => {
                     const isVideo = m.type === 'video';
@@ -1202,7 +1202,7 @@
                         </div>
                     `;
                 });
-                addLog('Медиа загружены: ' + mediaCache.length, 'success');
+                addLog('Товары загружены: ' + mediaCache.length, 'success');
             }
         } catch (e) { grid.innerHTML = `<div class="empty-state" style="color:#e94560;">Ошибка: ${e.message}</div>`; }
     }
@@ -1226,11 +1226,11 @@
             resolutions: resolutions,
             tags: tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [],
         };
-        if (!data.filename) { addLog('Введите имя файла', 'warn'); return; }
+        if (!data.filename) { addLog('Введите название товара', 'warn'); return; }
         try {
             const result = await apiCall('/media', { method: 'POST', body: data });
             if (result.success) {
-                addLog('Медиа загружен: ' + data.filename, 'success');
+                addLog('Товар создан: ' + data.filename, 'success');
                 hideModal('mediaModal');
                 document.getElementById('mediaFormFilename').value = '';
                 document.getElementById('mediaFormDesc').value = '';
@@ -1247,8 +1247,8 @@
             const result = await apiCall('/playlists');
             if (result.success) {
                 playlistsCache = result.data || [];
-                if (!playlistsCache.length) { div.innerHTML = '<div class="empty-state"><div class="icon">&#127925;</div>Нет плейлистов</div>'; return; }
-                let html = '<table class="data-table"><thead><tr><th>Название</th><th>Описание</th><th>Элементов</th><th>Длительность</th><th>Статус</th><th>Создан</th><th>Действия</th></tr></thead><tbody>';
+                if (!playlistsCache.length) { div.innerHTML = '<div class="empty-state"><div class="icon">&#128230;</div>Нет загрузок</div>'; return; }
+                let html = '<table class="data-table"><thead><tr><th>Название</th><th>Описание</th><th>Товаров</th><th>Размер данных</th><th>Статус</th><th>Создан</th><th>Действия</th></tr></thead><tbody>';
                 playlistsCache.forEach(pl => {
                     html += `<tr>
                         <td><strong>${pl.name}</strong></td>
@@ -1265,7 +1265,7 @@
                 });
                 html += '</tbody></table>';
                 div.innerHTML = html;
-                addLog('Плейлисты загружены: ' + playlistsCache.length, 'success');
+                addLog('Загрузки получены: ' + playlistsCache.length, 'success');
             }
         } catch (e) { div.innerHTML = `<div class="empty-state" style="color:#e94560;">Ошибка: ${e.message}</div>`; }
     }
@@ -1276,7 +1276,7 @@
             if (result.success) {
                 mediaCache = result.data || [];
                 const div = document.getElementById('playlistMediaSelector');
-                if (!mediaCache.length) { div.innerHTML = '<div style="color:#6c6c8a; padding:8px;">Нет доступных медиафайлов</div>'; return; }
+                if (!mediaCache.length) { div.innerHTML = '<div style="color:#6c6c8a; padding:8px;">Нет доступных товаров</div>'; return; }
                 div.innerHTML = '';
                 mediaCache.forEach(m => {
                     div.innerHTML += `
@@ -1303,12 +1303,12 @@
             description: document.getElementById('playlistFormDesc').value.trim(),
             items: items,
         };
-        if (!data.name) { addLog('Введите название плейлиста', 'warn'); return; }
-        if (!items.length) { addLog('Выберите хотя бы один медиафайл', 'warn'); return; }
+        if (!data.name) { addLog('Введите название загрузки', 'warn'); return; }
+        if (!items.length) { addLog('Выберите хотя бы один товар', 'warn'); return; }
         try {
             const result = await apiCall('/playlists', { method: 'POST', body: data });
             if (result.success) {
-                addLog('Плейлист создан: ' + data.name, 'success');
+                addLog('Загрузка создана: ' + data.name, 'success');
                 hideModal('playlistModal');
                 document.getElementById('playlistFormName').value = '';
                 document.getElementById('playlistFormDesc').value = '';
@@ -1325,10 +1325,10 @@
     }
 
     async function deletePlaylist(id) {
-        if (!confirm('Удалить плейлист?')) return;
+        if (!confirm('Удалить загрузку?')) return;
         try {
             const result = await apiCall('/playlists/' + id, { method: 'DELETE' });
-            if (result.success) { addLog('Плейлист удален', 'success'); loadPlaylists(); }
+            if (result.success) { addLog('Загрузка удалена', 'success'); loadPlaylists(); }
             else { addLog('Ошибка: ' + result.error, 'error'); alert(result.error); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
@@ -1343,7 +1343,7 @@
             const result = await apiCall('/campaigns', { params });
             if (result.success) {
                 campaignsCache = result.data || [];
-                if (!campaignsCache.length) { div.innerHTML = '<div class="empty-state"><div class="icon">&#128227;</div>Нет кампаний</div>'; return; }
+                if (!campaignsCache.length) { div.innerHTML = '<div class="empty-state"><div class="icon">&#127991;</div>Нет шаблонов этикеток</div>'; return; }
                 let html = '';
                 campaignsCache.forEach(c => {
                     const statusBadge = getCampaignStatusBadge(c.status);
@@ -1359,35 +1359,35 @@
                             <div class="card-body">
                                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px;">
                                     <div>
-                                        <div style="font-size:11px; color:#6c6c8a;">Плейлист</div>
+                                        <div style="font-size:11px; color:#6c6c8a;">Загрузка данных</div>
                                         <div style="font-size:13px;">${c.playlist_name || '-'}</div>
                                     </div>
                                     <div>
-                                        <div style="font-size:11px; color:#6c6c8a;">Таргетинг</div>
+                                        <div style="font-size:11px; color:#6c6c8a;">Назначение</div>
                                         <div style="font-size:13px;">${c.target_summary || '-'}</div>
                                     </div>
                                     <div>
-                                        <div style="font-size:11px; color:#6c6c8a;">Устройства</div>
-                                        <div style="font-size:13px;">${c.devices_synced || 0} / ${c.devices_total || 0} доставлено</div>
+                                        <div style="font-size:11px; color:#6c6c8a;">Весы</div>
+                                        <div style="font-size:13px;">${c.devices_synced || 0} / ${c.devices_total || 0} загружено</div>
                                     </div>
                                 </div>
                                 ${c.schedule ? `<div style="font-size:12px; color:#8888aa; margin-bottom:8px;">
                                     Расписание: ${c.schedule.start_date || '?'} - ${c.schedule.end_date || '?'} | ${c.schedule.time_from || '?'} - ${c.schedule.time_to || '?'}
                                 </div>` : ''}
                                 <div class="btn-group" style="margin-top:0;">
-                                    ${c.status === 'draft' ? `<button class="btn btn-sm btn-success" onclick="publishCampaign('${c.id}')">&#9654; Опубликовать</button>` : ''}
+                                    ${c.status === 'draft' ? `<button class="btn btn-sm btn-success" onclick="publishCampaign('${c.id}')">&#9654; Отправить на весы</button>` : ''}
                                     ${c.status === 'active' ? `<button class="btn btn-sm btn-warning" onclick="pauseCampaign('${c.id}')">&#9208; Пауза</button>` : ''}
                                     ${c.status === 'paused' ? `<button class="btn btn-sm btn-success" onclick="publishCampaign('${c.id}')">&#9654; Возобновить</button>` : ''}
                                     ${c.status !== 'stopped' ? `<button class="btn btn-sm btn-danger" onclick="stopCampaign('${c.id}')">&#9632; Стоп</button>` : ''}
                                     ${c.status === 'stopped' || c.status === 'draft' ? `<button class="btn btn-sm btn-danger" onclick="deleteCampaign('${c.id}')">&#10005; Удалить</button>` : ''}
-                                    <button class="btn btn-sm btn-secondary" onclick="retryCampaign('${c.id}')">&#8635; Повтор доставки</button>
+                                    <button class="btn btn-sm btn-secondary" onclick="retryCampaign('${c.id}')">&#8635; Повтор загрузки</button>
                                 </div>
                             </div>
                         </div>
                     `;
                 });
                 div.innerHTML = html;
-                addLog('Кампании загружены: ' + campaignsCache.length, 'success');
+                addLog('Шаблоны загружены: ' + campaignsCache.length, 'success');
             }
         } catch (e) { div.innerHTML = `<div class="empty-state" style="color:#e94560;">Ошибка: ${e.message}</div>`; }
     }
@@ -1398,7 +1398,7 @@
         return `<span class="badge ${cls}">${label}</span>`;
     }
     function getDeliveryBadge(status) {
-        const map = { pending: ['badge-secondary', 'Ожидание'], delivering: ['badge-info', 'Доставка'], completed: ['badge-success', 'Доставлено'], stopped: ['badge-danger', 'Остановлено'] };
+        const map = { pending: ['badge-secondary', 'Ожидание'], delivering: ['badge-info', 'Загрузка'], completed: ['badge-success', 'Загружено'], stopped: ['badge-danger', 'Остановлено'] };
         const [cls, label] = map[status] || ['badge-secondary', status || '-'];
         return `<span class="badge ${cls}">${label}</span>`;
     }
@@ -1409,7 +1409,7 @@
             if (result.success) {
                 playlistsCache = result.data || [];
                 const sel = document.getElementById('campaignFormPlaylist');
-                sel.innerHTML = '<option value="">-- Выберите плейлист --</option>';
+                sel.innerHTML = '<option value="">-- Выберите загрузку --</option>';
                 playlistsCache.forEach(pl => { sel.innerHTML += `<option value="${pl.id}">${pl.name} (${pl.item_count || 0} эл.)</option>`; });
             }
         } catch (e) {}
@@ -1455,7 +1455,7 @@
         const targeting = { type: targetType };
         if (targetType !== 'all') {
             const checked = Array.from(document.querySelectorAll('.target-check:checked')).map(c => c.value);
-            if (!checked.length) { addLog('Выберите целевые объекты', 'warn'); return; }
+            if (!checked.length) { addLog('Выберите назначение', 'warn'); return; }
             if (targetType === 'stores') targeting.store_ids = checked;
             else if (targetType === 'departments') targeting.department_ids = checked;
             else if (targetType === 'devices') targeting.device_ids = checked;
@@ -1475,12 +1475,12 @@
                 days_of_week: days,
             }
         };
-        if (!data.name) { addLog('Введите название кампании', 'warn'); return; }
-        if (!data.playlist_id) { addLog('Выберите плейлист', 'warn'); return; }
+        if (!data.name) { addLog('Введите название шаблона', 'warn'); return; }
+        if (!data.playlist_id) { addLog('Выберите загрузку', 'warn'); return; }
         try {
             const result = await apiCall('/campaigns', { method: 'POST', body: data });
             if (result.success) {
-                addLog('Кампания создана: ' + data.name, 'success');
+                addLog('Шаблон создан: ' + data.name, 'success');
                 hideModal('campaignModal');
                 document.getElementById('campaignFormName').value = '';
                 document.getElementById('campaignFormDesc').value = '';
@@ -1490,10 +1490,10 @@
     }
 
     async function publishCampaign(id) {
-        if (!confirm('Опубликовать кампанию? Контент будет доставлен на устройства.')) return;
+        if (!confirm('Отправить на весы? Данные будут загружены.')) return;
         try {
             const result = await apiCall('/campaigns/' + id + '/publish', { method: 'POST' });
-            if (result.success) { addLog('Кампания опубликована', 'success'); loadCampaigns(); }
+            if (result.success) { addLog('Данные отправлены на весы', 'success'); loadCampaigns(); }
             else { addLog('Ошибка: ' + result.error, 'error'); alert(result.error); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
@@ -1501,25 +1501,25 @@
     async function pauseCampaign(id) {
         try {
             const result = await apiCall('/campaigns/' + id + '/pause', { method: 'POST' });
-            if (result.success) { addLog('Кампания приостановлена', 'success'); loadCampaigns(); }
+            if (result.success) { addLog('Загрузка приостановлена', 'success'); loadCampaigns(); }
             else { addLog('Ошибка: ' + result.error, 'error'); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
 
     async function stopCampaign(id) {
-        if (!confirm('Остановить кампанию?')) return;
+        if (!confirm('Остановить загрузку?')) return;
         try {
             const result = await apiCall('/campaigns/' + id + '/stop', { method: 'POST' });
-            if (result.success) { addLog('Кампания остановлена', 'success'); loadCampaigns(); }
+            if (result.success) { addLog('Загрузка остановлена', 'success'); loadCampaigns(); }
             else { addLog('Ошибка: ' + result.error, 'error'); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
 
     async function deleteCampaign(id) {
-        if (!confirm('Удалить кампанию?')) return;
+        if (!confirm('Удалить шаблон?')) return;
         try {
             const result = await apiCall('/campaigns/' + id, { method: 'DELETE' });
-            if (result.success) { addLog('Кампания удалена', 'success'); loadCampaigns(); }
+            if (result.success) { addLog('Шаблон удален', 'success'); loadCampaigns(); }
             else { addLog('Ошибка: ' + result.error, 'error'); alert(result.error); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
@@ -1527,7 +1527,7 @@
     async function retryCampaign(id) {
         try {
             const result = await apiCall('/campaigns/' + id + '/retry', { method: 'POST' });
-            if (result.success) { addLog('Повторная доставка запущена', 'success'); loadCampaigns(); }
+            if (result.success) { addLog('Повторная загрузка запущена', 'success'); loadCampaigns(); }
             else { addLog('Ошибка: ' + result.error, 'error'); }
         } catch (e) { addLog('Ошибка: ' + e.message, 'error'); }
     }
@@ -1539,8 +1539,8 @@
             const result = await apiCall('/devices');
             if (result.success) {
                 const devices = result.data || [];
-                if (!devices.length) { div.innerHTML = '<div class="empty-state">Нет устройств</div>'; return; }
-                let html = '<table class="data-table"><thead><tr><th>Устройство</th><th>Тип</th><th>Разрешение</th><th>Магазин</th><th>Отдел</th><th>IP</th><th>Статус</th><th>Последняя синхр.</th></tr></thead><tbody>';
+                if (!devices.length) { div.innerHTML = '<div class="empty-state">Нет весов</div>'; return; }
+                let html = '<table class="data-table"><thead><tr><th>Весы</th><th>Модель</th><th>Дисплей</th><th>Магазин</th><th>Отдел</th><th>IP</th><th>Статус</th><th>Последняя загрузка</th></tr></thead><tbody>';
                 devices.forEach(d => {
                     const statusBadge = d.status === 'online' ? '<span class="badge badge-success">Online</span>' :
                         d.status === 'offline' ? '<span class="badge badge-secondary">Offline</span>' : '<span class="badge badge-danger">Error</span>';
@@ -1558,8 +1558,8 @@
             const result = await apiCall('/delivery-report');
             if (result.success) {
                 const data = result.data || [];
-                if (!data.length) { div.innerHTML = '<div class="empty-state">Нет данных о доставке</div>'; return; }
-                let html = '<table class="data-table"><thead><tr><th>Кампания</th><th>Статус</th><th>Доставка</th><th>Устройства</th><th>Прогресс</th></tr></thead><tbody>';
+                if (!data.length) { div.innerHTML = '<div class="empty-state">Нет данных о загрузках</div>'; return; }
+                let html = '<table class="data-table"><thead><tr><th>Шаблон</th><th>Статус</th><th>Загрузка</th><th>Весы</th><th>Прогресс</th></tr></thead><tbody>';
                 data.forEach(r => {
                     const pct = r.devices_total > 0 ? Math.round(r.devices_synced / r.devices_total * 100) : 0;
                     html += `<tr>
@@ -1606,7 +1606,7 @@
 
     // ===== Demo Data =====
     async function loadDemoData() {
-        if (!confirm('Загрузить демонстрационные данные? (магазины, устройства, медиа, плейлисты, кампании)')) return;
+        if (!confirm('Загрузить демо-данные? (магазины, весы, товары, загрузки, шаблоны)')) return;
         addLog('Загрузка демо-данных...', 'info');
         try {
             const result = await apiCall('/init-demo', { method: 'POST' });
@@ -1631,7 +1631,7 @@
     // ===== Init =====
     document.addEventListener('DOMContentLoaded', () => {
         loadDashboard();
-        addLog('DIGI Marketing модуль инициализирован', 'info');
+        addLog('DIGI SM модуль инициализирован', 'info');
     });
 </script>
 </body>

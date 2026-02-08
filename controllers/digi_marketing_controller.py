@@ -1,6 +1,6 @@
 """
-Контроллер модуля DIGI Marketing - централизованное управление
-мультимедийным контентом для весов DIGI SM5300/SM6000 и касс WEB3110.
+Контроллер модуля DIGI SM - централизованное управление
+весами DIGI SM5300/SM6000 и кассами WEB3110.
 
 Работает с Oracle DB через пакет DIGI_MARKETING_PKG.
 """
@@ -18,7 +18,7 @@ from flask import session
 
 
 class DigiMarketingController:
-    """Контроллер для управления медиаконтентом на весах DIGI"""
+    """Контроллер для управления весами DIGI SM"""
 
     ALLOWED_IMAGE_FORMATS = ["jpg", "jpeg", "png", "bmp", "gif"]
     ALLOWED_VIDEO_FORMATS = ["mp4", "avi", "mkv", "webm"]

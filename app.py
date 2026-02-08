@@ -1221,15 +1221,20 @@ def api_objects_materialized_views():
     return jsonify(result)
 
 
-# ========== DIGI Marketing Module Routes ==========
+# ========== DIGI SM (Scale Management) Routes ==========
 
-@app.route('/UNA.md/orasldev/digi-marketing')
-@app.route('/UNA.md/orasldev/digi-marketing/')
-def digi_marketing():
-    """Модуль управления мультимедийным контентом DIGI"""
+@app.route('/UNA.md/orasldev/digi-sm')
+@app.route('/UNA.md/orasldev/digi-sm/')
+def digi_sm():
+    """Модуль управления весами DIGI SM"""
     if not AuthController.is_authenticated():
         return redirect(url_for('login'))
     return render_template('digi_marketing.html')
+
+@app.route('/UNA.md/orasldev/digi-marketing')
+@app.route('/UNA.md/orasldev/digi-marketing/')
+def digi_marketing_redirect():
+    return redirect('/UNA.md/orasldev/digi-sm')
 
 
 # --- Dashboard & Stats ---
@@ -3045,10 +3050,10 @@ if __name__ == '__main__':
     if local_ip:
         print(f"   • http://{local_ip}:{Config.SERVER_PORT}/una.md/shell/projects")
     print(f"")
-    print(f"📺 DIGI Marketing (управление контентом весов):")
-    print(f"   • http://localhost:{Config.SERVER_PORT}/UNA.md/orasldev/digi-marketing")
+    print(f"⚖️ DIGI SM (управление весами):")
+    print(f"   • http://localhost:{Config.SERVER_PORT}/UNA.md/orasldev/digi-sm")
     if local_ip:
-        print(f"   • http://{local_ip}:{Config.SERVER_PORT}/UNA.md/orasldev/digi-marketing")
+        print(f"   • http://{local_ip}:{Config.SERVER_PORT}/UNA.md/orasldev/digi-sm")
     
     use_reloader = Config.ENVIRONMENT != "REMOTE"
     socketio.run(app, host=Config.SERVER_HOST, port=Config.SERVER_PORT, debug=True, use_reloader=use_reloader, allow_unsafe_werkzeug=True)
