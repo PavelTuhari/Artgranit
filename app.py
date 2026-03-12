@@ -3674,6 +3674,89 @@ def api_agro_admin_module_config_delete(record_id):
         return jsonify({"success": False, "error": "Auth required"}), 401
     return jsonify(AgroAdminController.delete_module_config(record_id))
 
+# ---------------------------------------------------------------------------
+# AGRO — Field API: barcodes, crates, purchases, offline sync
+# ---------------------------------------------------------------------------
+
+# --- AGRO Field API ---
+@app.route('/api/agro-field/barcodes/generate', methods=['GET'])
+def api_agro_barcodes_gen():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    count = int(request.args.get('count', 10))
+    bc_type = request.args.get('type', 'internal')
+    return jsonify(AgroFieldController.generate_barcodes(count, bc_type))
+
+@app.route('/api/agro-field/barcodes/print-batch', methods=['GET'])
+def api_agro_barcodes_print():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    ids = request.args.getlist('ids')
+    return jsonify(AgroFieldController.get_barcode_print_batch(ids))
+
+@app.route('/api/agro-field/crates/scan', methods=['POST'])
+def api_agro_crate_scan():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.get_json() or {}
+    return jsonify(AgroFieldController.scan_crate(data.get('barcode', '')))
+
+@app.route('/api/agro-field/crates/weigh', methods=['POST'])
+def api_agro_crate_weigh():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.register_crate(request.get_json() or {}))
+
+@app.route('/api/agro-field/purchases', methods=['GET'])
+def api_agro_field_purchases():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_purchases(request.args.to_dict()))
+
+@app.route('/api/agro-field/purchases', methods=['POST'])
+def api_agro_field_purchase_create():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.create_purchase(request.get_json() or {}))
+
+@app.route('/api/agro-field/purchases/<int:doc_id>', methods=['GET'])
+def api_agro_field_purchase_get(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_purchase_by_id(doc_id))
+
+@app.route('/api/agro-field/purchases/<int:doc_id>', methods=['PUT'])
+def api_agro_field_purchase_update(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.get_json() or {}
+    data['id'] = doc_id
+    return jsonify(AgroFieldController.update_purchase(data))
+
+@app.route('/api/agro-field/purchases/<int:doc_id>/confirm', methods=['PUT'])
+def api_agro_field_purchase_confirm(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.confirm_purchase(doc_id))
+
+@app.route('/api/agro-field/purchases/<int:doc_id>/cancel', methods=['PUT'])
+def api_agro_field_purchase_cancel(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.cancel_purchase(doc_id))
+
+@app.route('/api/agro-field/sync', methods=['POST'])
+def api_agro_field_sync():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.sync_offline_queue(request.get_json() or {}))
+
+@app.route('/api/agro-field/sync/references', methods=['GET'])
+def api_agro_field_sync_refs():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_sync_references())
+
 
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик

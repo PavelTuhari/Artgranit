@@ -38,8 +38,20 @@ class AgroFieldController:
         return _safe_call(AgroStore.create_purchase, data)
 
     @staticmethod
+    def get_purchase_by_id(doc_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_purchase_by_id, doc_id)
+
+    @staticmethod
+    def update_purchase(data: Dict[str, Any]) -> Dict[str, Any]:
+        return _safe_call(AgroStore.update_purchase, data)
+
+    @staticmethod
     def confirm_purchase(doc_id: int) -> Dict[str, Any]:
         return _safe_call(AgroStore.confirm_purchase, doc_id)
+
+    @staticmethod
+    def cancel_purchase(doc_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.cancel_purchase, doc_id)
 
     @staticmethod
     def sync_offline_queue(queue: List[Dict[str, Any]]) -> Dict[str, Any]:
