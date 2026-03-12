@@ -5,30 +5,1610 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AGRO Admin</title>
 <style>
-  :root { --primary: #059669; --primary-dark: #047857; --bg: #f0fdf4; --sidebar-bg: #064e3b; --sidebar-text: #d1fae5; --white: #fff; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); display: flex; min-height: 100vh; }
-  .sidebar { width: 220px; background: var(--sidebar-bg); color: var(--sidebar-text); padding: 20px 0; flex-shrink: 0; }
-  .sidebar h2 { padding: 0 20px 16px; font-size: 18px; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 8px; }
-  .sidebar a { display: block; padding: 10px 20px; color: var(--sidebar-text); text-decoration: none; font-size: 14px; transition: background .15s; }
-  .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,.12); color: var(--white); }
-  .main { flex: 1; padding: 32px 40px; }
-  .main h1 { color: var(--primary-dark); margin-bottom: 8px; }
-  .main p { color: #374151; }
+:root {
+    --primary: #059669;
+    --primary-dark: #047857;
+    --accent: #10b981;
+    --bg: #f0fdf4;
+    --card-bg: #fff;
+    --sidebar-bg: #064e3b;
+    --sidebar-text: #d1fae5;
+    --text: #134e4a;
+    --text-muted: #64748b;
+    --border: #a7f3d0;
+    --white: #fff;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    width: 220px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 100vh;
+    position: sticky;
+    top: 0;
+}
+.sidebar-logo {
+    padding: 20px 20px 12px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    letter-spacing: .5px;
+}
+.sidebar-section {
+    padding: 14px 20px 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,.45);
+    font-weight: 600;
+}
+.sidebar a {
+    display: block;
+    padding: 9px 20px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 13px;
+    transition: background .15s;
+    border-left: 3px solid transparent;
+}
+.sidebar a:hover { background: rgba(255,255,255,.08); color: var(--white); }
+.sidebar a.active { background: rgba(255,255,255,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
+.sidebar-divider { border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+
+/* ---------- Main ---------- */
+.main {
+    flex: 1;
+    padding: 28px 36px;
+    overflow-x: hidden;
+    min-width: 0;
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ---------- Card ---------- */
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* ---------- Page header ---------- */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.page-header h1 { font-size: 22px; color: var(--primary-dark); }
+.page-header .subtitle { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- Buttons ---------- */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: opacity .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn:hover { opacity: .88; }
+.btn-primary { background: var(--primary); color: var(--white); }
+.btn-accent { background: var(--accent); color: var(--white); }
+.btn-ghost { background: #ecfdf5; color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #fecaca; color: #991b1b; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn-icon { padding: 4px 8px; font-size: 14px; background: none; border: none; cursor: pointer; border-radius: 6px; }
+.btn-icon:hover { background: #ecfdf5; }
+.btn-icon.btn-danger { background: none; }
+.btn-icon.btn-danger:hover { background: #fef2f2; }
+
+/* ---------- Table ---------- */
+.table-wrap {
+    overflow-x: auto;
+    margin-top: 12px;
+    max-height: calc(100vh - 240px);
+    overflow-y: auto;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th {
+    background: #ecfdf5;
+    font-weight: 600;
+    color: var(--text-muted);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+th:hover { color: var(--primary); }
+th .sort-arrow { font-size: 10px; margin-left: 4px; }
+tr:hover td { background: #f0fdf4; }
+td.actions { white-space: nowrap; }
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-active { background: #d1fae5; color: #065f46; }
+.badge-inactive { background: #fee2e2; color: #991b1b; }
+.empty-row td { text-align: center; color: var(--text-muted); padding: 24px; font-size: 14px; }
+.count-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    max-width: 520px;
+    width: 92%;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.modal h2 { font-size: 18px; color: var(--primary-dark); margin-bottom: 20px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 500; }
+.field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color .15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(5,150,105,.12);
+}
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.modal-actions { display: flex; gap: 12px; margin-top: 22px; justify-content: flex-end; }
+
+/* ---------- Toast ---------- */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 2000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform .3s, opacity .3s;
+    color: var(--white);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-success { background: var(--primary); }
+.toast-error { background: var(--danger); }
+
+/* ---------- Filters ---------- */
+.filters { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filters select, .filters input {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .sidebar { width: 180px; }
+    .main { padding: 16px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .field-row { flex-direction: column; gap: 0; }
+}
 </style>
 </head>
 <body>
+
+<!-- ============================================================ -->
+<!-- SIDEBAR                                                       -->
+<!-- ============================================================ -->
 <nav class="sidebar">
-  <h2>AGRO</h2>
-  <a class="active" href="/UNA.md/orasldev/agro-admin">Admin</a>
-  <a href="/UNA.md/orasldev/agro-field">Field</a>
-  <a href="/UNA.md/orasldev/agro-warehouse">Warehouse</a>
-  <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
-  <a href="/UNA.md/orasldev/agro-sales">Sales</a>
+    <div class="sidebar-logo">AGRO</div>
+
+    <div class="sidebar-section">Справочники / Referinte</div>
+    <a href="#suppliers" class="nav-link active" data-page="suppliers">Поставщики / Furnizori</a>
+    <a href="#customers" class="nav-link" data-page="customers">Покупатели / Clienti</a>
+    <a href="#warehouses" class="nav-link" data-page="warehouses">Склады / Depozite</a>
+    <a href="#cells" class="nav-link" data-page="cells">Ячейки / Celule</a>
+    <a href="#items" class="nav-link" data-page="items">Продукция / Produse</a>
+    <a href="#packaging" class="nav-link" data-page="packaging">Типы тары / Ambalaj</a>
+    <a href="#vehicles" class="nav-link" data-page="vehicles">Транспорт / Transport</a>
+
+    <div class="sidebar-section">Валюты / Valute</div>
+    <a href="#currencies" class="nav-link" data-page="currencies">Валюты / Valute</a>
+    <a href="#rates" class="nav-link" data-page="rates">Курсы / Cursuri</a>
+
+    <div class="sidebar-section">Настройки / Setari</div>
+    <a href="#formulas" class="nav-link" data-page="formulas">Формулы / Formule</a>
+    <a href="#config" class="nav-link" data-page="config">Конфигурация / Config</a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Навигация</div>
+    <a href="/UNA.md/orasldev/agro-field">Field / Поле</a>
+    <a href="/UNA.md/orasldev/agro-warehouse">Warehouse / Склад</a>
+    <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales">Sales / Продажи</a>
 </nav>
+
+<!-- ============================================================ -->
+<!-- MAIN CONTENT                                                  -->
+<!-- ============================================================ -->
 <main class="main">
-  <h1>AGRO Admin</h1>
-  <p>References, settings, reports. Module under construction.</p>
+
+<!-- ==================== 1. SUPPLIERS ==================== -->
+<div id="page-suppliers" class="page active">
+    <div class="page-header">
+        <div><h1>Поставщики</h1><div class="subtitle">Furnizori</div></div>
+        <button class="btn btn-primary" onclick="openModal('supplier')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="suppliersCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('suppliers','code')">Код <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('suppliers','name')">Название <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('suppliers','country')">Страна <span class="sort-arrow"></span></th>
+                    <th>ИНН / IDNO</th>
+                    <th>Телефон</th>
+                    <th>Email</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="suppliersTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 2. CUSTOMERS ==================== -->
+<div id="page-customers" class="page">
+    <div class="page-header">
+        <div><h1>Покупатели</h1><div class="subtitle">Clienti</div></div>
+        <button class="btn btn-primary" onclick="openModal('customer')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="customersCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('customers','code')">Код</th>
+                    <th onclick="sortTable('customers','name')">Название</th>
+                    <th>Тип</th>
+                    <th>Страна</th>
+                    <th>ИНН / IDNO</th>
+                    <th>Телефон</th>
+                    <th>Email</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="customersTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 3. WAREHOUSES ==================== -->
+<div id="page-warehouses" class="page">
+    <div class="page-header">
+        <div><h1>Склады</h1><div class="subtitle">Depozite</div></div>
+        <button class="btn btn-primary" onclick="openModal('warehouse')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="warehousesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('warehouses','code')">Код</th>
+                    <th onclick="sortTable('warehouses','name')">Название</th>
+                    <th>Тип</th>
+                    <th>Адрес</th>
+                    <th>Вместимость, кг</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="warehousesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 4. STORAGE CELLS ==================== -->
+<div id="page-cells" class="page">
+    <div class="page-header">
+        <div><h1>Ячейки хранения</h1><div class="subtitle">Celule de depozitare</div></div>
+        <button class="btn btn-primary" onclick="openModal('cell')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="filters">
+            <label>Склад:</label>
+            <select id="cellsFilterWarehouse" onchange="loadCells()">
+                <option value="">Все</option>
+            </select>
+        </div>
+        <div class="count-label" id="cellsCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('cells','code')">Код</th>
+                    <th>Название</th>
+                    <th>Склад</th>
+                    <th>Тип</th>
+                    <th>t min</th>
+                    <th>t max</th>
+                    <th>Влаж. min</th>
+                    <th>Влаж. max</th>
+                    <th>Вместимость, кг</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="cellsTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 5. ITEMS ==================== -->
+<div id="page-items" class="page">
+    <div class="page-header">
+        <div><h1>Продукция</h1><div class="subtitle">Produse</div></div>
+        <button class="btn btn-primary" onclick="openModal('item')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="itemsCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('items','code')">Код</th>
+                    <th onclick="sortTable('items','name_ru')">Название (RU)</th>
+                    <th>Название (RO)</th>
+                    <th>Группа</th>
+                    <th>Ед.</th>
+                    <th>Тара, кг</th>
+                    <th>Срок, дн.</th>
+                    <th>t min</th>
+                    <th>t max</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="itemsTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 6. PACKAGING TYPES ==================== -->
+<div id="page-packaging" class="page">
+    <div class="page-header">
+        <div><h1>Типы тары</h1><div class="subtitle">Tipuri de ambalaj</div></div>
+        <button class="btn btn-primary" onclick="openModal('packaging')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="packagingCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('packaging','code')">Код</th>
+                    <th onclick="sortTable('packaging','name_ru')">Название (RU)</th>
+                    <th>Название (RO)</th>
+                    <th>Вес тары, кг</th>
+                    <th>Вместимость, кг</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="packagingTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 7. VEHICLES ==================== -->
+<div id="page-vehicles" class="page">
+    <div class="page-header">
+        <div><h1>Транспорт</h1><div class="subtitle">Transport</div></div>
+        <button class="btn btn-primary" onclick="openModal('vehicle')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="vehiclesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('vehicles','plate_number')">Номер</th>
+                    <th>Тип</th>
+                    <th>Водитель</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="vehiclesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 8. CURRENCIES ==================== -->
+<div id="page-currencies" class="page">
+    <div class="page-header">
+        <div><h1>Валюты</h1><div class="subtitle">Valute</div></div>
+        <button class="btn btn-primary" onclick="openModal('currency')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="currenciesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('currencies','code')">Код</th>
+                    <th onclick="sortTable('currencies','name')">Название</th>
+                    <th>Символ</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="currenciesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 9. EXCHANGE RATES ==================== -->
+<div id="page-rates" class="page">
+    <div class="page-header">
+        <div><h1>Курсы валют</h1><div class="subtitle">Cursuri valutare</div></div>
+        <button class="btn btn-primary" onclick="openModal('rate')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="ratesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Из / Din</th>
+                    <th>В / In</th>
+                    <th onclick="sortTable('rates','rate')">Курс</th>
+                    <th onclick="sortTable('rates','rate_date')">Дата</th>
+                    <th>Источник</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="ratesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 10. FORMULA PARAMS ==================== -->
+<div id="page-formulas" class="page">
+    <div class="page-header">
+        <div><h1>Параметры формул</h1><div class="subtitle">Parametrii formulelor</div></div>
+        <button class="btn btn-primary" onclick="openModal('formula')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="formulasCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('formulas','param_name')">Параметр</th>
+                    <th>Значение</th>
+                    <th>Продукт (ID)</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="formulasTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 11. MODULE CONFIG ==================== -->
+<div id="page-config" class="page">
+    <div class="page-header">
+        <div><h1>Конфигурация модуля</h1><div class="subtitle">Configurare modul</div></div>
+        <button class="btn btn-primary" onclick="openModal('mconfig')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="configCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('config','config_key')">Ключ / Cheie</th>
+                    <th>Значение / Valoare</th>
+                    <th>Группа / Grup</th>
+                    <th>Описание</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="configTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 </main>
+
+<!-- ============================================================ -->
+<!-- MODALS                                                        -->
+<!-- ============================================================ -->
+
+<!-- Supplier Modal -->
+<div class="modal-overlay" id="modal-supplier">
+<div class="modal">
+    <h2 id="modal-supplier-title">Поставщик / Furnizor</h2>
+    <input type="hidden" id="supplier-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="supplier-code" placeholder="SUP001"></div>
+        <div class="field"><label>Название *</label><input type="text" id="supplier-name" placeholder="Наименование"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Страна</label><input type="text" id="supplier-country" placeholder="MD"></div>
+        <div class="field"><label>ИНН / IDNO</label><input type="text" id="supplier-tax_id"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Телефон</label><input type="text" id="supplier-contact_phone"></div>
+        <div class="field"><label>Email</label><input type="email" id="supplier-contact_email"></div>
+    </div>
+    <div class="field"><label>Адрес</label><input type="text" id="supplier-address"></div>
+    <div class="field"><label>Активен</label><select id="supplier-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('supplier')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveSupplier()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal-overlay" id="modal-customer">
+<div class="modal">
+    <h2 id="modal-customer-title">Покупатель / Client</h2>
+    <input type="hidden" id="customer-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="customer-code" placeholder="CUS001"></div>
+        <div class="field"><label>Название *</label><input type="text" id="customer-name"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Тип</label>
+            <select id="customer-customer_type">
+                <option value="domestic">Внутренний / Intern</option>
+                <option value="export">Экспорт / Export</option>
+            </select>
+        </div>
+        <div class="field"><label>Страна</label><input type="text" id="customer-country" placeholder="MD"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>ИНН / IDNO</label><input type="text" id="customer-tax_id"></div>
+        <div class="field"><label>Телефон</label><input type="text" id="customer-contact_phone"></div>
+    </div>
+    <div class="field"><label>Email</label><input type="email" id="customer-contact_email"></div>
+    <div class="field"><label>Адрес</label><input type="text" id="customer-address"></div>
+    <div class="field"><label>Активен</label><select id="customer-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('customer')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveCustomer()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Warehouse Modal -->
+<div class="modal-overlay" id="modal-warehouse">
+<div class="modal">
+    <h2 id="modal-warehouse-title">Склад / Depozit</h2>
+    <input type="hidden" id="warehouse-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="warehouse-code" placeholder="WH01"></div>
+        <div class="field"><label>Название *</label><input type="text" id="warehouse-name"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Тип</label>
+            <select id="warehouse-warehouse_type">
+                <option value="cold_storage">Холодильник / Frigider</option>
+                <option value="dry_storage">Сухой / Uscat</option>
+                <option value="freezer">Морозильник / Congelator</option>
+                <option value="open">Открытый / Deschis</option>
+            </select>
+        </div>
+        <div class="field"><label>Вместимость, кг</label><input type="number" id="warehouse-capacity_kg" step="1" min="0"></div>
+    </div>
+    <div class="field"><label>Адрес</label><input type="text" id="warehouse-address"></div>
+    <div class="field"><label>Активен</label><select id="warehouse-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('warehouse')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveWarehouse()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Storage Cell Modal -->
+<div class="modal-overlay" id="modal-cell">
+<div class="modal">
+    <h2 id="modal-cell-title">Ячейка хранения / Celula</h2>
+    <input type="hidden" id="cell-id">
+    <div class="field"><label>Склад *</label><select id="cell-warehouse_id"></select></div>
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="cell-code" placeholder="A-01"></div>
+        <div class="field"><label>Название</label><input type="text" id="cell-name"></div>
+    </div>
+    <div class="field"><label>Тип ячейки</label>
+        <select id="cell-cell_type">
+            <option value="chamber">Камера / Camera</option>
+            <option value="shelf">Полка / Raft</option>
+            <option value="pallet">Паллет / Palet</option>
+            <option value="zone">Зона / Zona</option>
+        </select>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>t min, C</label><input type="number" id="cell-temp_min" step="0.1"></div>
+        <div class="field"><label>t max, C</label><input type="number" id="cell-temp_max" step="0.1"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Влажность min, %</label><input type="number" id="cell-humidity_min" step="0.1" min="0" max="100"></div>
+        <div class="field"><label>Влажность max, %</label><input type="number" id="cell-humidity_max" step="0.1" min="0" max="100"></div>
+    </div>
+    <div class="field"><label>Вместимость, кг</label><input type="number" id="cell-capacity_kg" step="1" min="0"></div>
+    <div class="field"><label>Активна</label><select id="cell-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('cell')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveCell()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Item Modal -->
+<div class="modal-overlay" id="modal-item">
+<div class="modal">
+    <h2 id="modal-item-title">Продукция / Produs</h2>
+    <input type="hidden" id="item-id">
+    <div class="field"><label>Код *</label><input type="text" id="item-code" placeholder="APPLE01"></div>
+    <div class="field-row">
+        <div class="field"><label>Название (RU) *</label><input type="text" id="item-name_ru"></div>
+        <div class="field"><label>Название (RO)</label><input type="text" id="item-name_ro"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Группа</label>
+            <select id="item-item_group">
+                <option value="fruit">Фрукты / Fructe</option>
+                <option value="vegetable">Овощи / Legume</option>
+                <option value="grain">Зерно / Cereale</option>
+                <option value="nut">Орехи / Nuci</option>
+                <option value="berry">Ягоды / Fructe de padure</option>
+                <option value="other">Прочее / Altele</option>
+            </select>
+        </div>
+        <div class="field"><label>Ед. измерения</label><input type="text" id="item-unit" value="kg" placeholder="kg, buc, l"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Тара по умолч., кг</label><input type="number" id="item-default_tare_kg" step="0.01" min="0"></div>
+        <div class="field"><label>Срок хранения, дн.</label><input type="number" id="item-shelf_life_days" step="1" min="0"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Оптим. t min, C</label><input type="number" id="item-optimal_temp_min" step="0.1"></div>
+        <div class="field"><label>Оптим. t max, C</label><input type="number" id="item-optimal_temp_max" step="0.1"></div>
+    </div>
+    <div class="field"><label>Активен</label><select id="item-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('item')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveItem()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Packaging Type Modal -->
+<div class="modal-overlay" id="modal-packaging">
+<div class="modal">
+    <h2 id="modal-packaging-title">Тип тары / Tip ambalaj</h2>
+    <input type="hidden" id="packaging-id">
+    <div class="field"><label>Код *</label><input type="text" id="packaging-code" placeholder="BOX20"></div>
+    <div class="field-row">
+        <div class="field"><label>Название (RU) *</label><input type="text" id="packaging-name_ru"></div>
+        <div class="field"><label>Название (RO)</label><input type="text" id="packaging-name_ro"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Вес тары, кг</label><input type="number" id="packaging-tare_weight_kg" step="0.01" min="0"></div>
+        <div class="field"><label>Вместимость, кг</label><input type="number" id="packaging-capacity_kg" step="0.1" min="0"></div>
+    </div>
+    <div class="field"><label>Активен</label><select id="packaging-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('packaging')">Отмена</button>
+        <button class="btn btn-accent" onclick="savePackaging()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Vehicle Modal -->
+<div class="modal-overlay" id="modal-vehicle">
+<div class="modal">
+    <h2 id="modal-vehicle-title">Транспорт / Transport</h2>
+    <input type="hidden" id="vehicle-id">
+    <div class="field"><label>Гос. номер *</label><input type="text" id="vehicle-plate_number" placeholder="ABC 123"></div>
+    <div class="field"><label>Тип</label>
+        <select id="vehicle-vehicle_type">
+            <option value="truck">Грузовик / Camion</option>
+            <option value="van">Фургон / Furgon</option>
+            <option value="refrigerator">Рефрижератор / Frigorific</option>
+            <option value="trailer">Прицеп / Remorca</option>
+        </select>
+    </div>
+    <div class="field"><label>Водитель</label><input type="text" id="vehicle-driver_name"></div>
+    <div class="field"><label>Активен</label><select id="vehicle-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('vehicle')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveVehicle()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Currency Modal -->
+<div class="modal-overlay" id="modal-currency">
+<div class="modal">
+    <h2 id="modal-currency-title">Валюта / Valuta</h2>
+    <input type="hidden" id="currency-id">
+    <div class="field"><label>Код * (ISO)</label><input type="text" id="currency-code" placeholder="MDL" maxlength="3"></div>
+    <div class="field"><label>Название</label><input type="text" id="currency-name" placeholder="Лей молдавский"></div>
+    <div class="field"><label>Символ</label><input type="text" id="currency-symbol" placeholder="L" maxlength="5"></div>
+    <div class="field"><label>Активна</label><select id="currency-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('currency')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveCurrency()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Exchange Rate Modal -->
+<div class="modal-overlay" id="modal-rate">
+<div class="modal">
+    <h2 id="modal-rate-title">Курс валюты / Curs valutar</h2>
+    <input type="hidden" id="rate-id">
+    <div class="field-row">
+        <div class="field"><label>Из валюты *</label><input type="text" id="rate-from_currency" placeholder="USD" maxlength="3"></div>
+        <div class="field"><label>В валюту *</label><input type="text" id="rate-to_currency" placeholder="MDL" maxlength="3"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Курс *</label><input type="number" id="rate-rate" step="0.0001" min="0"></div>
+        <div class="field"><label>Дата *</label><input type="date" id="rate-rate_date"></div>
+    </div>
+    <div class="field"><label>Источник / Sursa</label><input type="text" id="rate-source" placeholder="BNM, manual"></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('rate')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveRate()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Formula Param Modal -->
+<div class="modal-overlay" id="modal-formula">
+<div class="modal">
+    <h2 id="modal-formula-title">Параметр формулы / Parametru formula</h2>
+    <input type="hidden" id="formula-id">
+    <div class="field"><label>Название параметра *</label><input type="text" id="formula-param_name" placeholder="loss_rate_percent"></div>
+    <div class="field"><label>Значение</label><input type="text" id="formula-param_value" placeholder="0.03"></div>
+    <div class="field"><label>ID продукта (пусто = глобальный)</label><input type="number" id="formula-item_id" step="1" min="1"></div>
+    <div class="field"><label>Активен</label><select id="formula-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('formula')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveFormula()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Module Config Modal -->
+<div class="modal-overlay" id="modal-mconfig">
+<div class="modal">
+    <h2 id="modal-mconfig-title">Конфигурация / Configurare</h2>
+    <input type="hidden" id="mconfig-id">
+    <div class="field"><label>Ключ *</label><input type="text" id="mconfig-config_key" placeholder="default_currency"></div>
+    <div class="field"><label>Значение</label><input type="text" id="mconfig-config_value"></div>
+    <div class="field"><label>Группа</label><input type="text" id="mconfig-config_group" placeholder="general"></div>
+    <div class="field"><label>Описание</label><textarea id="mconfig-description" rows="2"></textarea></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('mconfig')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveMconfig()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+const API = '/api/agro-admin';
+
+/* ---------- Utility ---------- */
+function esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+}
+
+function showToast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast ' + (type === 'error' ? 'toast-error' : 'toast-success') + ' show';
+    clearTimeout(el._tid);
+    el._tid = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function activeBadge(v) {
+    return v === 'Y'
+        ? '<span class="badge badge-active">Да</span>'
+        : '<span class="badge badge-inactive">Нет</span>';
+}
+
+function numFmt(v) {
+    if (v == null || v === '') return '';
+    return Number(v).toLocaleString('ru-RU');
+}
+
+function dateFmt(v) {
+    if (!v) return '';
+    return String(v).slice(0, 10);
+}
+
+/* ---------- Modal open/close ---------- */
+function openModal(entity, id) {
+    const el = document.getElementById('modal-' + entity);
+    if (!el) return;
+    el.classList.add('open');
+}
+
+function closeModal(entity) {
+    const el = document.getElementById('modal-' + entity);
+    if (el) el.classList.remove('open');
+}
+
+function getField(entity, field) {
+    return document.getElementById(entity + '-' + field);
+}
+function getVal(entity, field) {
+    const el = getField(entity, field);
+    return el ? el.value.trim() : '';
+}
+function setVal(entity, field, val) {
+    const el = getField(entity, field);
+    if (el) el.value = (val != null) ? val : '';
+}
+function clearForm(entity, fields) {
+    fields.forEach(f => setVal(entity, f, ''));
+}
+
+/* ---------- Sort state ---------- */
+const sortState = {};
+
+function sortTable(page, col) {
+    const key = page + '.' + col;
+    sortState[key] = sortState[key] === 'asc' ? 'desc' : 'asc';
+    const dir = sortState[key];
+    const data = cachedData[page];
+    if (!data) return;
+    data.sort((a, b) => {
+        let va = a[col], vb = b[col];
+        if (va == null) va = '';
+        if (vb == null) vb = '';
+        if (typeof va === 'number' && typeof vb === 'number') return dir === 'asc' ? va - vb : vb - va;
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    renderFns[page](data);
+}
+
+/* ---------- Data cache for sorting ---------- */
+const cachedData = {};
+
+/* ---------- Generic fetch ---------- */
+async function apiFetch(path) {
+    const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' } });
+    return await r.json();
+}
+
+async function apiPost(path, data) {
+    const r = await fetch(API + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    return await r.json();
+}
+
+async function apiDelete(path) {
+    const r = await fetch(API + path, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+    return await r.json();
+}
+
+/* ================================================================
+   1. SUPPLIERS
+   ================================================================ */
+async function loadSuppliers() {
+    const j = await apiFetch('/suppliers');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.suppliers = j.data || [];
+    document.getElementById('suppliersCount').textContent = 'Всего: ' + cachedData.suppliers.length;
+    renderSuppliers(cachedData.suppliers);
+}
+function renderSuppliers(rows) {
+    document.getElementById('suppliersTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.country)}</td>
+        <td>${esc(r.tax_id)}</td><td>${esc(r.contact_phone)}</td><td>${esc(r.contact_email)}</td>
+        <td>${esc(r.address)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editSupplier(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteSupplier(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="9">Нет данных</td></tr>';
+}
+function editSupplier(id) {
+    const r = cachedData.suppliers.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-supplier-title').textContent = 'Редактировать поставщика';
+    setVal('supplier','id', r.id);
+    ['code','name','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => setVal('supplier', f, r[f]));
+    openModal('supplier');
+}
+async function deleteSupplier(id) {
+    if (!confirm('Удалить поставщика?')) return;
+    const j = await apiDelete('/suppliers/' + id);
+    if (j.success) { showToast('Удалено'); loadSuppliers(); } else showToast(j.error, 'error');
+}
+async function saveSupplier() {
+    const data = {};
+    ['code','name','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => data[f] = getVal('supplier', f));
+    const idVal = getVal('supplier','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/suppliers', data);
+    if (j.success) { closeModal('supplier'); showToast('Сохранено'); loadSuppliers(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   2. CUSTOMERS
+   ================================================================ */
+async function loadCustomers() {
+    const j = await apiFetch('/customers');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.customers = j.data || [];
+    document.getElementById('customersCount').textContent = 'Всего: ' + cachedData.customers.length;
+    renderCustomers(cachedData.customers);
+}
+function renderCustomers(rows) {
+    document.getElementById('customersTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.customer_type)}</td>
+        <td>${esc(r.country)}</td><td>${esc(r.tax_id)}</td><td>${esc(r.contact_phone)}</td>
+        <td>${esc(r.contact_email)}</td><td>${esc(r.address)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editCustomer(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteCustomer(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="10">Нет данных</td></tr>';
+}
+function editCustomer(id) {
+    const r = cachedData.customers.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-customer-title').textContent = 'Редактировать покупателя';
+    setVal('customer','id', r.id);
+    ['code','name','customer_type','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => setVal('customer', f, r[f]));
+    openModal('customer');
+}
+async function deleteCustomer(id) {
+    if (!confirm('Удалить покупателя?')) return;
+    const j = await apiDelete('/customers/' + id);
+    if (j.success) { showToast('Удалено'); loadCustomers(); } else showToast(j.error, 'error');
+}
+async function saveCustomer() {
+    const data = {};
+    ['code','name','customer_type','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => data[f] = getVal('customer', f));
+    const idVal = getVal('customer','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/customers', data);
+    if (j.success) { closeModal('customer'); showToast('Сохранено'); loadCustomers(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   3. WAREHOUSES
+   ================================================================ */
+let warehousesList = [];
+
+async function loadWarehouses() {
+    const j = await apiFetch('/warehouses');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.warehouses = j.data || [];
+    warehousesList = cachedData.warehouses;
+    document.getElementById('warehousesCount').textContent = 'Всего: ' + cachedData.warehouses.length;
+    renderWarehouses(cachedData.warehouses);
+}
+function renderWarehouses(rows) {
+    const typeLabels = { cold_storage: 'Холодильник', dry_storage: 'Сухой', freezer: 'Морозильник', open: 'Открытый' };
+    document.getElementById('warehousesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(typeLabels[r.warehouse_type] || r.warehouse_type)}</td>
+        <td>${esc(r.address)}</td><td>${numFmt(r.capacity_kg)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editWarehouse(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteWarehouse(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="7">Нет данных</td></tr>';
+}
+function editWarehouse(id) {
+    const r = cachedData.warehouses.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-warehouse-title').textContent = 'Редактировать склад';
+    setVal('warehouse','id', r.id);
+    ['code','name','warehouse_type','address','capacity_kg','active'].forEach(f => setVal('warehouse', f, r[f]));
+    openModal('warehouse');
+}
+async function deleteWarehouse(id) {
+    if (!confirm('Удалить склад?')) return;
+    const j = await apiDelete('/warehouses/' + id);
+    if (j.success) { showToast('Удалено'); loadWarehouses(); } else showToast(j.error, 'error');
+}
+async function saveWarehouse() {
+    const data = {};
+    ['code','name','warehouse_type','address','active'].forEach(f => data[f] = getVal('warehouse', f));
+    data.capacity_kg = parseFloat(getVal('warehouse','capacity_kg')) || null;
+    const idVal = getVal('warehouse','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/warehouses', data);
+    if (j.success) { closeModal('warehouse'); showToast('Сохранено'); loadWarehouses(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   4. STORAGE CELLS
+   ================================================================ */
+async function loadCells() {
+    const whId = document.getElementById('cellsFilterWarehouse').value;
+    let path = '/storage-cells';
+    if (whId) path += '?warehouse_id=' + whId;
+    const j = await apiFetch(path);
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.cells = j.data || [];
+    document.getElementById('cellsCount').textContent = 'Всего: ' + cachedData.cells.length;
+    renderCells(cachedData.cells);
+}
+function renderCells(rows) {
+    const whMap = {};
+    warehousesList.forEach(w => whMap[w.id] = w.name);
+    const typeLabels = { chamber: 'Камера', shelf: 'Полка', pallet: 'Паллет', zone: 'Зона' };
+    document.getElementById('cellsTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(whMap[r.warehouse_id] || r.warehouse_id)}</td>
+        <td>${esc(typeLabels[r.cell_type] || r.cell_type)}</td>
+        <td>${r.temp_min != null ? r.temp_min : ''}</td><td>${r.temp_max != null ? r.temp_max : ''}</td>
+        <td>${r.humidity_min != null ? r.humidity_min : ''}</td><td>${r.humidity_max != null ? r.humidity_max : ''}</td>
+        <td>${numFmt(r.capacity_kg)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editCell(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteCell(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="11">Нет данных</td></tr>';
+}
+function populateCellWarehouseSelects() {
+    const opts = '<option value="">-- выберите --</option>' + warehousesList.map(w =>
+        `<option value="${w.id}">${esc(w.name)} (${esc(w.code)})</option>`
+    ).join('');
+    document.getElementById('cell-warehouse_id').innerHTML = opts;
+    const filterSel = document.getElementById('cellsFilterWarehouse');
+    filterSel.innerHTML = '<option value="">Все</option>' + warehousesList.map(w =>
+        `<option value="${w.id}">${esc(w.name)}</option>`
+    ).join('');
+}
+function editCell(id) {
+    const r = cachedData.cells.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-cell-title').textContent = 'Редактировать ячейку';
+    populateCellWarehouseSelects();
+    setVal('cell','id', r.id);
+    ['warehouse_id','code','name','cell_type','temp_min','temp_max','humidity_min','humidity_max','capacity_kg','active'].forEach(f => setVal('cell', f, r[f]));
+    openModal('cell');
+}
+async function deleteCell(id) {
+    if (!confirm('Удалить ячейку?')) return;
+    const j = await apiDelete('/storage-cells/' + id);
+    if (j.success) { showToast('Удалено'); loadCells(); } else showToast(j.error, 'error');
+}
+async function saveCell() {
+    const data = {};
+    ['code','name','cell_type','active'].forEach(f => data[f] = getVal('cell', f));
+    data.warehouse_id = parseInt(getVal('cell','warehouse_id')) || null;
+    ['temp_min','temp_max','humidity_min','humidity_max','capacity_kg'].forEach(f => {
+        const v = getVal('cell', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('cell','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/storage-cells', data);
+    if (j.success) { closeModal('cell'); showToast('Сохранено'); loadCells(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   5. ITEMS
+   ================================================================ */
+async function loadItems() {
+    const j = await apiFetch('/items');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.items = j.data || [];
+    document.getElementById('itemsCount').textContent = 'Всего: ' + cachedData.items.length;
+    renderItems(cachedData.items);
+}
+function renderItems(rows) {
+    const groupLabels = { fruit: 'Фрукты', vegetable: 'Овощи', grain: 'Зерно', nut: 'Орехи', berry: 'Ягоды', other: 'Прочее' };
+    document.getElementById('itemsTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name_ru)}</td><td>${esc(r.name_ro)}</td>
+        <td>${esc(groupLabels[r.item_group] || r.item_group)}</td><td>${esc(r.unit)}</td>
+        <td>${numFmt(r.default_tare_kg)}</td><td>${r.shelf_life_days || ''}</td>
+        <td>${r.optimal_temp_min != null ? r.optimal_temp_min : ''}</td>
+        <td>${r.optimal_temp_max != null ? r.optimal_temp_max : ''}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editItem(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteItem(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="11">Нет данных</td></tr>';
+}
+function editItem(id) {
+    const r = cachedData.items.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-item-title').textContent = 'Редактировать продукцию';
+    setVal('item','id', r.id);
+    ['code','name_ru','name_ro','item_group','unit','default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max','active'].forEach(f => setVal('item', f, r[f]));
+    openModal('item');
+}
+async function deleteItem(id) {
+    if (!confirm('Удалить продукцию?')) return;
+    const j = await apiDelete('/items/' + id);
+    if (j.success) { showToast('Удалено'); loadItems(); } else showToast(j.error, 'error');
+}
+async function saveItem() {
+    const data = {};
+    ['code','name_ru','name_ro','item_group','unit','active'].forEach(f => data[f] = getVal('item', f));
+    ['default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max'].forEach(f => {
+        const v = getVal('item', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('item','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/items', data);
+    if (j.success) { closeModal('item'); showToast('Сохранено'); loadItems(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   6. PACKAGING TYPES
+   ================================================================ */
+async function loadPackaging() {
+    const j = await apiFetch('/packaging-types');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.packaging = j.data || [];
+    document.getElementById('packagingCount').textContent = 'Всего: ' + cachedData.packaging.length;
+    renderPackaging(cachedData.packaging);
+}
+function renderPackaging(rows) {
+    document.getElementById('packagingTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name_ru)}</td><td>${esc(r.name_ro)}</td>
+        <td>${numFmt(r.tare_weight_kg)}</td><td>${numFmt(r.capacity_kg)}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editPackaging(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deletePackaging(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="7">Нет данных</td></tr>';
+}
+function editPackaging(id) {
+    const r = cachedData.packaging.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-packaging-title').textContent = 'Редактировать тип тары';
+    setVal('packaging','id', r.id);
+    ['code','name_ru','name_ro','tare_weight_kg','capacity_kg','active'].forEach(f => setVal('packaging', f, r[f]));
+    openModal('packaging');
+}
+async function deletePackaging(id) {
+    if (!confirm('Удалить тип тары?')) return;
+    const j = await apiDelete('/packaging-types/' + id);
+    if (j.success) { showToast('Удалено'); loadPackaging(); } else showToast(j.error, 'error');
+}
+async function savePackaging() {
+    const data = {};
+    ['code','name_ru','name_ro','active'].forEach(f => data[f] = getVal('packaging', f));
+    ['tare_weight_kg','capacity_kg'].forEach(f => {
+        const v = getVal('packaging', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('packaging','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/packaging-types', data);
+    if (j.success) { closeModal('packaging'); showToast('Сохранено'); loadPackaging(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   7. VEHICLES
+   ================================================================ */
+async function loadVehicles() {
+    const j = await apiFetch('/vehicles');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.vehicles = j.data || [];
+    document.getElementById('vehiclesCount').textContent = 'Всего: ' + cachedData.vehicles.length;
+    renderVehicles(cachedData.vehicles);
+}
+function renderVehicles(rows) {
+    const typeLabels = { truck: 'Грузовик', van: 'Фургон', refrigerator: 'Рефрижератор', trailer: 'Прицеп' };
+    document.getElementById('vehiclesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.plate_number)}</td><td>${esc(typeLabels[r.vehicle_type] || r.vehicle_type)}</td>
+        <td>${esc(r.driver_name)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editVehicle(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteVehicle(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editVehicle(id) {
+    const r = cachedData.vehicles.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-vehicle-title').textContent = 'Редактировать транспорт';
+    setVal('vehicle','id', r.id);
+    ['plate_number','vehicle_type','driver_name','active'].forEach(f => setVal('vehicle', f, r[f]));
+    openModal('vehicle');
+}
+async function deleteVehicle(id) {
+    if (!confirm('Удалить транспорт?')) return;
+    const j = await apiDelete('/vehicles/' + id);
+    if (j.success) { showToast('Удалено'); loadVehicles(); } else showToast(j.error, 'error');
+}
+async function saveVehicle() {
+    const data = {};
+    ['plate_number','vehicle_type','driver_name','active'].forEach(f => data[f] = getVal('vehicle', f));
+    const idVal = getVal('vehicle','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/vehicles', data);
+    if (j.success) { closeModal('vehicle'); showToast('Сохранено'); loadVehicles(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   8. CURRENCIES
+   ================================================================ */
+async function loadCurrencies() {
+    const j = await apiFetch('/currencies');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.currencies = j.data || [];
+    document.getElementById('currenciesCount').textContent = 'Всего: ' + cachedData.currencies.length;
+    renderCurrencies(cachedData.currencies);
+}
+function renderCurrencies(rows) {
+    document.getElementById('currenciesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.symbol)}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editCurrency(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteCurrency(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editCurrency(id) {
+    const r = cachedData.currencies.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-currency-title').textContent = 'Редактировать валюту';
+    setVal('currency','id', r.id);
+    ['code','name','symbol','active'].forEach(f => setVal('currency', f, r[f]));
+    openModal('currency');
+}
+async function deleteCurrency(id) {
+    if (!confirm('Удалить валюту?')) return;
+    const j = await apiDelete('/currencies/' + id);
+    if (j.success) { showToast('Удалено'); loadCurrencies(); } else showToast(j.error, 'error');
+}
+async function saveCurrency() {
+    const data = {};
+    ['code','name','symbol','active'].forEach(f => data[f] = getVal('currency', f));
+    const idVal = getVal('currency','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/currencies', data);
+    if (j.success) { closeModal('currency'); showToast('Сохранено'); loadCurrencies(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   9. EXCHANGE RATES
+   ================================================================ */
+async function loadRates() {
+    const j = await apiFetch('/exchange-rates');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.rates = j.data || [];
+    document.getElementById('ratesCount').textContent = 'Всего: ' + cachedData.rates.length;
+    renderRates(cachedData.rates);
+}
+function renderRates(rows) {
+    document.getElementById('ratesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.from_currency)}</td><td>${esc(r.to_currency)}</td>
+        <td>${r.rate}</td><td>${dateFmt(r.rate_date)}</td><td>${esc(r.source)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editRate(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteRate(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="6">Нет данных</td></tr>';
+}
+function editRate(id) {
+    const r = cachedData.rates.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-rate-title').textContent = 'Редактировать курс';
+    setVal('rate','id', r.id);
+    setVal('rate','from_currency', r.from_currency);
+    setVal('rate','to_currency', r.to_currency);
+    setVal('rate','rate', r.rate);
+    setVal('rate','rate_date', dateFmt(r.rate_date));
+    setVal('rate','source', r.source);
+    openModal('rate');
+}
+async function deleteRate(id) {
+    if (!confirm('Удалить курс?')) return;
+    const j = await apiDelete('/exchange-rates/' + id);
+    if (j.success) { showToast('Удалено'); loadRates(); } else showToast(j.error, 'error');
+}
+async function saveRate() {
+    const data = {
+        from_currency: getVal('rate','from_currency'),
+        to_currency: getVal('rate','to_currency'),
+        rate: parseFloat(getVal('rate','rate')) || 0,
+        rate_date: getVal('rate','rate_date'),
+        source: getVal('rate','source') || null
+    };
+    const idVal = getVal('rate','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/exchange-rates', data);
+    if (j.success) { closeModal('rate'); showToast('Сохранено'); loadRates(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   10. FORMULA PARAMS
+   ================================================================ */
+async function loadFormulas() {
+    const j = await apiFetch('/formula-params');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.formulas = j.data || [];
+    document.getElementById('formulasCount').textContent = 'Всего: ' + cachedData.formulas.length;
+    renderFormulas(cachedData.formulas);
+}
+function renderFormulas(rows) {
+    document.getElementById('formulasTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.param_name)}</td><td>${esc(r.param_value)}</td>
+        <td>${r.item_id || '<span style="color:#94a3b8">глоб.</span>'}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editFormula(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteFormula(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editFormula(id) {
+    const r = cachedData.formulas.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-formula-title').textContent = 'Редактировать параметр';
+    setVal('formula','id', r.id);
+    setVal('formula','param_name', r.param_name);
+    setVal('formula','param_value', r.param_value);
+    setVal('formula','item_id', r.item_id);
+    setVal('formula','active', r.active);
+    openModal('formula');
+}
+async function deleteFormula(id) {
+    if (!confirm('Удалить параметр?')) return;
+    const j = await apiDelete('/formula-params/' + id);
+    if (j.success) { showToast('Удалено'); loadFormulas(); } else showToast(j.error, 'error');
+}
+async function saveFormula() {
+    const data = {
+        param_name: getVal('formula','param_name'),
+        param_value: getVal('formula','param_value') || null,
+        item_id: parseInt(getVal('formula','item_id')) || null,
+        active: getVal('formula','active')
+    };
+    const idVal = getVal('formula','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/formula-params', data);
+    if (j.success) { closeModal('formula'); showToast('Сохранено'); loadFormulas(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   11. MODULE CONFIG
+   ================================================================ */
+async function loadConfig() {
+    const j = await apiFetch('/module-config');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.config = j.data || [];
+    document.getElementById('configCount').textContent = 'Всего: ' + cachedData.config.length;
+    renderConfig(cachedData.config);
+}
+function renderConfig(rows) {
+    document.getElementById('configTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.config_key)}</td><td>${esc(r.config_value)}</td>
+        <td>${esc(r.config_group)}</td><td>${esc(r.description)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editMconfig(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteMconfig(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editMconfig(id) {
+    const r = cachedData.config.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-mconfig-title').textContent = 'Редактировать конфигурацию';
+    setVal('mconfig','id', r.id);
+    setVal('mconfig','config_key', r.config_key);
+    setVal('mconfig','config_value', r.config_value);
+    setVal('mconfig','config_group', r.config_group);
+    setVal('mconfig','description', r.description);
+    openModal('mconfig');
+}
+async function deleteMconfig(id) {
+    if (!confirm('Удалить параметр конфигурации?')) return;
+    const j = await apiDelete('/module-config/' + id);
+    if (j.success) { showToast('Удалено'); loadConfig(); } else showToast(j.error, 'error');
+}
+async function saveMconfig() {
+    const data = {
+        config_key: getVal('mconfig','config_key'),
+        config_value: getVal('mconfig','config_value') || null,
+        config_group: getVal('mconfig','config_group') || null,
+        description: getVal('mconfig','description') || null
+    };
+    const idVal = getVal('mconfig','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/module-config', data);
+    if (j.success) { closeModal('mconfig'); showToast('Сохранено'); loadConfig(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   RENDER FUNCTION MAP (for sorting)
+   ================================================================ */
+const renderFns = {
+    suppliers: renderSuppliers,
+    customers: renderCustomers,
+    warehouses: renderWarehouses,
+    cells: renderCells,
+    items: renderItems,
+    packaging: renderPackaging,
+    vehicles: renderVehicles,
+    currencies: renderCurrencies,
+    rates: renderRates,
+    formulas: renderFormulas,
+    config: renderConfig
+};
+
+/* ================================================================
+   PAGE SWITCHING
+   ================================================================ */
+const pageLoaders = {
+    suppliers: loadSuppliers,
+    customers: loadCustomers,
+    warehouses: () => { loadWarehouses().then(() => populateCellWarehouseSelects()); },
+    cells: () => {
+        if (!warehousesList.length) {
+            loadWarehouses().then(() => { populateCellWarehouseSelects(); loadCells(); });
+        } else {
+            populateCellWarehouseSelects(); loadCells();
+        }
+    },
+    items: loadItems,
+    packaging: loadPackaging,
+    vehicles: loadVehicles,
+    currencies: loadCurrencies,
+    rates: loadRates,
+    formulas: loadFormulas,
+    config: loadConfig
+};
+
+const defaultForms = {
+    supplier: ['id','code','name','country','tax_id','contact_phone','contact_email','address'],
+    customer: ['id','code','name','customer_type','country','tax_id','contact_phone','contact_email','address'],
+    warehouse: ['id','code','name','warehouse_type','address','capacity_kg'],
+    cell: ['id','warehouse_id','code','name','cell_type','temp_min','temp_max','humidity_min','humidity_max','capacity_kg'],
+    item: ['id','code','name_ru','name_ro','item_group','unit','default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max'],
+    packaging: ['id','code','name_ru','name_ro','tare_weight_kg','capacity_kg'],
+    vehicle: ['id','plate_number','vehicle_type','driver_name'],
+    currency: ['id','code','name','symbol'],
+    rate: ['id','from_currency','to_currency','rate','rate_date','source'],
+    formula: ['id','param_name','param_value','item_id'],
+    mconfig: ['id','config_key','config_value','config_group','description']
+};
+
+const defaultTitles = {
+    supplier: 'Новый поставщик / Furnizor nou',
+    customer: 'Новый покупатель / Client nou',
+    warehouse: 'Новый склад / Depozit nou',
+    cell: 'Новая ячейка / Celula noua',
+    item: 'Новая продукция / Produs nou',
+    packaging: 'Новый тип тары / Tip ambalaj nou',
+    vehicle: 'Новый транспорт / Transport nou',
+    currency: 'Новая валюта / Valuta noua',
+    rate: 'Новый курс / Curs nou',
+    formula: 'Новый параметр / Parametru nou',
+    mconfig: 'Новый параметр / Configurare noua'
+};
+
+/* Override openModal to also clear form for new entries */
+const _origOpenModal = openModal;
+openModal = function(entity, id) {
+    if (!id && defaultForms[entity]) {
+        clearForm(entity, defaultForms[entity]);
+        /* Set defaults for selects */
+        if (entity === 'supplier' || entity === 'customer' || entity === 'warehouse' ||
+            entity === 'cell' || entity === 'item' || entity === 'packaging' ||
+            entity === 'vehicle' || entity === 'currency' || entity === 'formula') {
+            setVal(entity, 'active', 'Y');
+        }
+        if (entity === 'customer') setVal('customer', 'customer_type', 'domestic');
+        if (entity === 'warehouse') setVal('warehouse', 'warehouse_type', 'cold_storage');
+        if (entity === 'cell') { setVal('cell', 'cell_type', 'chamber'); populateCellWarehouseSelects(); }
+        if (entity === 'item') { setVal('item', 'item_group', 'fruit'); setVal('item', 'unit', 'kg'); }
+        if (entity === 'vehicle') setVal('vehicle', 'vehicle_type', 'truck');
+        const titleEl = document.getElementById('modal-' + entity + '-title');
+        if (titleEl && defaultTitles[entity]) titleEl.textContent = defaultTitles[entity];
+    }
+    _origOpenModal(entity, id);
+};
+
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+    const page = document.getElementById('page-' + name);
+    const link = document.querySelector('.nav-link[data-page="' + name + '"]');
+    if (page) page.classList.add('active');
+    if (link) link.classList.add('active');
+    if (pageLoaders[name]) pageLoaders[name]();
+    window.location.hash = name;
+}
+
+/* Sidebar navigation */
+document.querySelectorAll('.nav-link').forEach(a => {
+    a.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(a.dataset.page);
+    });
+});
+
+/* Close modal on overlay click */
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+    ov.addEventListener('click', (e) => {
+        if (e.target === ov) ov.classList.remove('open');
+    });
+});
+
+/* Close modal on Escape */
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    }
+});
+
+/* Init from hash or default */
+const initPage = window.location.hash.replace('#','') || 'suppliers';
+showPage(initPage);
+</script>
 </body>
 </html>
