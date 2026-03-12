@@ -1,6 +1,9 @@
 """AGRO module Oracle store — all AGRO_* table operations."""
 from __future__ import annotations
 
+import json
+from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP, ROUND_DOWN, ROUND_UP
 from typing import Any, Dict, List, Optional
 
 from models.database import DatabaseModel
@@ -763,3 +766,846 @@ class AgroStore:
     @staticmethod
     def delete_module_config(record_id: int) -> Dict[str, Any]:
         return AgroStore._delete("AGRO_MODULE_CONFIG", record_id)
+
+    # ==================================================================
+    # 12. Barcode & Crate Operations
+    # ==================================================================
+
+    @staticmethod
+    def generate_barcodes(
+        count: int, barcode_type: str = "internal"
+    ) -> Dict[str, Any]:
+        """Generate *count* barcodes with format AGRO-YYYYMMDD-NNNNNN."""
+        try:
+            with DatabaseModel() as db:
+                today_str = datetime.now().strftime("%Y%m%d")
+                barcodes: List[str] = []
+                for _ in range(count):
+                    # Get next sequence value
+                    r = db.execute_query(
+                        "SELECT AGRO_BARCODES_SEQ.NEXTVAL AS SEQ_VAL FROM DUAL",
+                        None,
+                    )
+                    rows = _norm_rows(r)
+                    seq_val = int(rows[0]["seq_val"])
+                    barcode = f"AGRO-{today_str}-{seq_val:06d}"
+                    db.execute_query(
+                        """INSERT INTO AGRO_BARCODES
+                                  (ID, BARCODE, BARCODE_TYPE, PRINTED, ASSIGNED)
+                           VALUES (:id, :barcode, :barcode_type, 'N', 'N')""",
+                        {
+                            "id": seq_val,
+                            "barcode": barcode,
+                            "barcode_type": barcode_type,
+                        },
+                    )
+                    barcodes.append(barcode)
+                db.connection.commit()
+                return {"success": True, "data": barcodes}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_barcode_print_batch(
+        barcode_ids: Optional[List[int]] = None,
+    ) -> Dict[str, Any]:
+        """Return barcodes for label printing and mark them as PRINTED."""
+        try:
+            with DatabaseModel() as db:
+                if barcode_ids:
+                    # Build bind-variable list for IN clause
+                    binds: Dict[str, Any] = {}
+                    placeholders = []
+                    for idx, bid in enumerate(barcode_ids):
+                        key = f"id_{idx}"
+                        binds[key] = bid
+                        placeholders.append(f":{key}")
+                    in_clause = ", ".join(placeholders)
+                    sql = f"SELECT * FROM AGRO_BARCODES WHERE ID IN ({in_clause}) ORDER BY ID"
+                    r = db.execute_query(sql, binds)
+                else:
+                    r = db.execute_query(
+                        "SELECT * FROM AGRO_BARCODES WHERE PRINTED = :printed ORDER BY ID",
+                        {"printed": "N"},
+                    )
+                rows = _norm_rows(r)
+                # Mark as printed
+                if barcode_ids:
+                    binds_upd: Dict[str, Any] = {}
+                    ph_upd = []
+                    for idx, bid in enumerate(barcode_ids):
+                        key = f"id_{idx}"
+                        binds_upd[key] = bid
+                        ph_upd.append(f":{key}")
+                    in_upd = ", ".join(ph_upd)
+                    db.execute_query(
+                        f"UPDATE AGRO_BARCODES SET PRINTED = 'Y' WHERE ID IN ({in_upd})",
+                        binds_upd,
+                    )
+                else:
+                    db.execute_query(
+                        "UPDATE AGRO_BARCODES SET PRINTED = 'Y' WHERE PRINTED = :printed",
+                        {"printed": "N"},
+                    )
+                db.connection.commit()
+                return {"success": True, "data": rows}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def scan_crate(barcode: str) -> Dict[str, Any]:
+        """Look up barcode and return associated crate data if any."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT b.ID AS BARCODE_ID, b.BARCODE, b.BARCODE_TYPE,
+                              b.PRINTED, b.ASSIGNED, b.BATCH_ID,
+                              c.ID AS CRATE_ID, c.EXTERNAL_BARCODE,
+                              c.PACKAGING_TYPE_ID, c.GROSS_WEIGHT_KG,
+                              c.TARE_WEIGHT_KG, c.NET_WEIGHT_KG, c.STATUS
+                       FROM AGRO_BARCODES b
+                       LEFT JOIN AGRO_CRATES c ON c.BARCODE_ID = b.ID
+                       WHERE b.BARCODE = :barcode""",
+                    {"barcode": barcode},
+                )
+                rows = _norm_rows(r)
+                if rows:
+                    return {"success": True, "data": rows[0]}
+                # Try external barcode on crates
+                r2 = db.execute_query(
+                    """SELECT c.ID AS CRATE_ID, c.BARCODE_ID, c.EXTERNAL_BARCODE,
+                              c.PACKAGING_TYPE_ID, c.GROSS_WEIGHT_KG,
+                              c.TARE_WEIGHT_KG, c.NET_WEIGHT_KG, c.STATUS
+                       FROM AGRO_CRATES c
+                       WHERE c.EXTERNAL_BARCODE = :barcode""",
+                    {"barcode": barcode},
+                )
+                rows2 = _norm_rows(r2)
+                if rows2:
+                    return {"success": True, "data": rows2[0]}
+                return {"success": True, "data": None, "message": "New barcode"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def register_crate(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Register a new crate with optional barcode assignment."""
+        try:
+            with DatabaseModel() as db:
+                gross = data.get("gross_weight_kg")
+                tare = data.get("tare_weight_kg")
+                net = data.get("net_weight_kg")
+                if gross is not None and tare is not None and net is None:
+                    net = float(gross) - float(tare)
+                params = {
+                    "barcode_id": data.get("barcode_id"),
+                    "external_barcode": data.get("external_barcode"),
+                    "packaging_type_id": data.get("packaging_type_id"),
+                    "gross_weight_kg": gross,
+                    "tare_weight_kg": tare,
+                    "net_weight_kg": net,
+                    "status": data.get("status", "empty"),
+                }
+                db.execute_query(
+                    """INSERT INTO AGRO_CRATES
+                              (ID, BARCODE_ID, EXTERNAL_BARCODE, PACKAGING_TYPE_ID,
+                               GROSS_WEIGHT_KG, TARE_WEIGHT_KG, NET_WEIGHT_KG, STATUS)
+                       VALUES (AGRO_CRATES_SEQ.NEXTVAL, :barcode_id, :external_barcode,
+                               :packaging_type_id, :gross_weight_kg, :tare_weight_kg,
+                               :net_weight_kg, :status)""",
+                    params,
+                )
+                # Mark barcode as assigned if provided
+                if data.get("barcode_id"):
+                    db.execute_query(
+                        "UPDATE AGRO_BARCODES SET ASSIGNED = 'Y' WHERE ID = :id",
+                        {"id": data["barcode_id"]},
+                    )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ==================================================================
+    # 13. Purchase Documents & Batches
+    # ==================================================================
+
+    @staticmethod
+    def get_purchases(
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Query AGRO_V_PURCHASES with optional filters."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM AGRO_V_PURCHASES WHERE 1=1"
+                params: Dict[str, Any] = {}
+                if filters:
+                    if filters.get("date_from"):
+                        sql += " AND DOC_DATE >= TO_DATE(:date_from, 'YYYY-MM-DD')"
+                        params["date_from"] = filters["date_from"]
+                    if filters.get("date_to"):
+                        sql += " AND DOC_DATE <= TO_DATE(:date_to, 'YYYY-MM-DD')"
+                        params["date_to"] = filters["date_to"]
+                    if filters.get("supplier_id"):
+                        sql += " AND DOC_ID IN (SELECT ID FROM AGRO_PURCHASE_DOCS WHERE SUPPLIER_ID = :supplier_id)"
+                        params["supplier_id"] = filters["supplier_id"]
+                    if filters.get("status"):
+                        sql += " AND STATUS = :status"
+                        params["status"] = filters["status"]
+                sql += " ORDER BY DOC_DATE DESC, DOC_ID DESC"
+                r = db.execute_query(sql, params or None)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_purchase_by_id(doc_id: int) -> Dict[str, Any]:
+        """Get purchase header with JOINed names and all lines."""
+        try:
+            with DatabaseModel() as db:
+                # Header
+                rh = db.execute_query(
+                    """SELECT pd.*,
+                              s.NAME   AS SUPPLIER_NAME,
+                              w.NAME   AS WAREHOUSE_NAME,
+                              v.PLATE_NUMBER AS VEHICLE_PLATE,
+                              cur.CODE AS CURRENCY_CODE
+                       FROM AGRO_PURCHASE_DOCS pd
+                       JOIN AGRO_SUPPLIERS       s   ON s.ID   = pd.SUPPLIER_ID
+                       JOIN AGRO_WAREHOUSES      w   ON w.ID   = pd.WAREHOUSE_ID
+                       LEFT JOIN AGRO_VEHICLES   v   ON v.ID   = pd.VEHICLE_ID
+                       LEFT JOIN AGRO_CURRENCIES cur ON cur.ID = pd.CURRENCY_ID
+                       WHERE pd.ID = :doc_id""",
+                    {"doc_id": doc_id},
+                )
+                headers = _norm_rows(rh)
+                if not headers:
+                    return {"success": False, "error": "Purchase document not found"}
+                # Lines
+                rl = db.execute_query(
+                    """SELECT pl.*,
+                              i.NAME_RU AS ITEM_NAME_RU,
+                              i.NAME_RO AS ITEM_NAME_RO,
+                              i.CODE    AS ITEM_CODE
+                       FROM AGRO_PURCHASE_LINES pl
+                       JOIN AGRO_ITEMS i ON i.ID = pl.ITEM_ID
+                       WHERE pl.PURCHASE_DOC_ID = :doc_id
+                       ORDER BY pl.ID""",
+                    {"doc_id": doc_id},
+                )
+                lines = _norm_rows(rl)
+                return {
+                    "success": True,
+                    "data": {"header": headers[0], "lines": lines},
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def _calc_line_net_amount(line: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate NET_WEIGHT_KG and AMOUNT for a purchase line."""
+        gross = line.get("gross_weight_kg")
+        tare = line.get("tare_weight_kg")
+        net = line.get("net_weight_kg")
+        price = line.get("price_per_kg")
+        if gross is not None and tare is not None and net is None:
+            net = float(gross) - float(tare)
+        amount = line.get("amount")
+        if net is not None and price is not None and amount is None:
+            amount = round(float(net) * float(price), 2)
+        return {**line, "net_weight_kg": net, "amount": amount}
+
+    @staticmethod
+    def create_purchase(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Insert purchase header + lines, calculating totals."""
+        try:
+            with DatabaseModel() as db:
+                lines_raw = data.get("lines", [])
+                lines = [AgroStore._calc_line_net_amount(ln) for ln in lines_raw]
+
+                total_gross = sum(
+                    float(ln.get("gross_weight_kg") or 0) for ln in lines
+                )
+                total_net = sum(
+                    float(ln.get("net_weight_kg") or 0) for ln in lines
+                )
+                total_amount = sum(
+                    float(ln.get("amount") or 0) for ln in lines
+                )
+
+                # Get next doc ID
+                r_seq = db.execute_query(
+                    "SELECT AGRO_PURCHASE_DOCS_SEQ.NEXTVAL AS SEQ_VAL FROM DUAL",
+                    None,
+                )
+                doc_id = int(_norm_rows(r_seq)[0]["seq_val"])
+
+                hdr_params = {
+                    "id": doc_id,
+                    "doc_number": data.get("doc_number"),
+                    "doc_date": data.get("doc_date"),
+                    "supplier_id": data.get("supplier_id"),
+                    "warehouse_id": data.get("warehouse_id"),
+                    "vehicle_id": data.get("vehicle_id"),
+                    "currency_id": data.get("currency_id"),
+                    "status": data.get("status", "draft"),
+                    "total_gross_kg": total_gross,
+                    "total_net_kg": total_net,
+                    "total_amount": total_amount,
+                    "advance_amount": data.get("advance_amount", 0),
+                    "transfer_amount": data.get("transfer_amount", 0),
+                    "e_factura_ref": data.get("e_factura_ref"),
+                    "additional_costs": data.get("additional_costs", 0),
+                    "notes": data.get("notes"),
+                    "created_by": data.get("created_by"),
+                }
+                db.execute_query(
+                    """INSERT INTO AGRO_PURCHASE_DOCS
+                              (ID, DOC_NUMBER, DOC_DATE, SUPPLIER_ID, WAREHOUSE_ID,
+                               VEHICLE_ID, CURRENCY_ID, STATUS,
+                               TOTAL_GROSS_KG, TOTAL_NET_KG, TOTAL_AMOUNT,
+                               ADVANCE_AMOUNT, TRANSFER_AMOUNT, E_FACTURA_REF,
+                               ADDITIONAL_COSTS, NOTES, CREATED_BY)
+                       VALUES (:id, :doc_number, TO_DATE(:doc_date, 'YYYY-MM-DD'),
+                               :supplier_id, :warehouse_id,
+                               :vehicle_id, :currency_id, :status,
+                               :total_gross_kg, :total_net_kg, :total_amount,
+                               :advance_amount, :transfer_amount, :e_factura_ref,
+                               :additional_costs, :notes, :created_by)""",
+                    hdr_params,
+                )
+
+                for ln in lines:
+                    db.execute_query(
+                        """INSERT INTO AGRO_PURCHASE_LINES
+                                  (ID, PURCHASE_DOC_ID, ITEM_ID, PALLETS,
+                                   CRATES_COUNT, GROSS_WEIGHT_KG, TARE_WEIGHT_KG,
+                                   NET_WEIGHT_KG, PRICE_PER_KG, AMOUNT, NOTES)
+                           VALUES (AGRO_PURCHASE_LINES_SEQ.NEXTVAL, :purchase_doc_id,
+                                   :item_id, :pallets, :crates_count,
+                                   :gross_weight_kg, :tare_weight_kg,
+                                   :net_weight_kg, :price_per_kg, :amount, :notes)""",
+                        {
+                            "purchase_doc_id": doc_id,
+                            "item_id": ln.get("item_id"),
+                            "pallets": ln.get("pallets", 0),
+                            "crates_count": ln.get("crates_count", 0),
+                            "gross_weight_kg": ln.get("gross_weight_kg"),
+                            "tare_weight_kg": ln.get("tare_weight_kg"),
+                            "net_weight_kg": ln.get("net_weight_kg"),
+                            "price_per_kg": ln.get("price_per_kg"),
+                            "amount": ln.get("amount"),
+                            "notes": ln.get("notes"),
+                        },
+                    )
+                db.connection.commit()
+                return {"success": True, "data": {"doc_id": doc_id}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_purchase(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update purchase header, delete old lines, insert new lines."""
+        try:
+            with DatabaseModel() as db:
+                doc_id = data["id"]
+                lines_raw = data.get("lines", [])
+                lines = [AgroStore._calc_line_net_amount(ln) for ln in lines_raw]
+
+                total_gross = sum(
+                    float(ln.get("gross_weight_kg") or 0) for ln in lines
+                )
+                total_net = sum(
+                    float(ln.get("net_weight_kg") or 0) for ln in lines
+                )
+                total_amount = sum(
+                    float(ln.get("amount") or 0) for ln in lines
+                )
+
+                hdr_params = {
+                    "id": doc_id,
+                    "doc_number": data.get("doc_number"),
+                    "doc_date": data.get("doc_date"),
+                    "supplier_id": data.get("supplier_id"),
+                    "warehouse_id": data.get("warehouse_id"),
+                    "vehicle_id": data.get("vehicle_id"),
+                    "currency_id": data.get("currency_id"),
+                    "total_gross_kg": total_gross,
+                    "total_net_kg": total_net,
+                    "total_amount": total_amount,
+                    "advance_amount": data.get("advance_amount", 0),
+                    "transfer_amount": data.get("transfer_amount", 0),
+                    "e_factura_ref": data.get("e_factura_ref"),
+                    "additional_costs": data.get("additional_costs", 0),
+                    "notes": data.get("notes"),
+                }
+                db.execute_query(
+                    """UPDATE AGRO_PURCHASE_DOCS
+                          SET DOC_NUMBER = :doc_number,
+                              DOC_DATE = TO_DATE(:doc_date, 'YYYY-MM-DD'),
+                              SUPPLIER_ID = :supplier_id,
+                              WAREHOUSE_ID = :warehouse_id,
+                              VEHICLE_ID = :vehicle_id,
+                              CURRENCY_ID = :currency_id,
+                              TOTAL_GROSS_KG = :total_gross_kg,
+                              TOTAL_NET_KG = :total_net_kg,
+                              TOTAL_AMOUNT = :total_amount,
+                              ADVANCE_AMOUNT = :advance_amount,
+                              TRANSFER_AMOUNT = :transfer_amount,
+                              E_FACTURA_REF = :e_factura_ref,
+                              ADDITIONAL_COSTS = :additional_costs,
+                              NOTES = :notes
+                        WHERE ID = :id""",
+                    hdr_params,
+                )
+
+                # Delete old lines (CASCADE would handle batches only if not yet created)
+                db.execute_query(
+                    "DELETE FROM AGRO_PURCHASE_LINES WHERE PURCHASE_DOC_ID = :doc_id",
+                    {"doc_id": doc_id},
+                )
+
+                for ln in lines:
+                    db.execute_query(
+                        """INSERT INTO AGRO_PURCHASE_LINES
+                                  (ID, PURCHASE_DOC_ID, ITEM_ID, PALLETS,
+                                   CRATES_COUNT, GROSS_WEIGHT_KG, TARE_WEIGHT_KG,
+                                   NET_WEIGHT_KG, PRICE_PER_KG, AMOUNT, NOTES)
+                           VALUES (AGRO_PURCHASE_LINES_SEQ.NEXTVAL, :purchase_doc_id,
+                                   :item_id, :pallets, :crates_count,
+                                   :gross_weight_kg, :tare_weight_kg,
+                                   :net_weight_kg, :price_per_kg, :amount, :notes)""",
+                        {
+                            "purchase_doc_id": doc_id,
+                            "item_id": ln.get("item_id"),
+                            "pallets": ln.get("pallets", 0),
+                            "crates_count": ln.get("crates_count", 0),
+                            "gross_weight_kg": ln.get("gross_weight_kg"),
+                            "tare_weight_kg": ln.get("tare_weight_kg"),
+                            "net_weight_kg": ln.get("net_weight_kg"),
+                            "price_per_kg": ln.get("price_per_kg"),
+                            "amount": ln.get("amount"),
+                            "notes": ln.get("notes"),
+                        },
+                    )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def confirm_purchase(doc_id: int) -> Dict[str, Any]:
+        """Validate and confirm a purchase document, creating batches and stock movements."""
+        try:
+            with DatabaseModel() as db:
+                # --- Load header ---
+                rh = db.execute_query(
+                    "SELECT * FROM AGRO_PURCHASE_DOCS WHERE ID = :doc_id",
+                    {"doc_id": doc_id},
+                )
+                headers = _norm_rows(rh)
+                if not headers:
+                    return {"success": False, "error": "Document not found"}
+                hdr = headers[0]
+
+                if hdr.get("status") != "draft":
+                    return {
+                        "success": False,
+                        "error": f"Cannot confirm document with status '{hdr.get('status')}'",
+                    }
+
+                # --- Validation ---
+                errors: List[str] = []
+                if not hdr.get("doc_date"):
+                    errors.append("DOC_DATE is required")
+                if not hdr.get("supplier_id"):
+                    errors.append("SUPPLIER_ID is required")
+                if not hdr.get("warehouse_id"):
+                    errors.append("WAREHOUSE_ID is required")
+
+                rl = db.execute_query(
+                    "SELECT * FROM AGRO_PURCHASE_LINES WHERE PURCHASE_DOC_ID = :doc_id ORDER BY ID",
+                    {"doc_id": doc_id},
+                )
+                lines = _norm_rows(rl)
+                valid_lines = [
+                    ln
+                    for ln in lines
+                    if ln.get("item_id") and ln.get("gross_weight_kg")
+                ]
+                if not valid_lines:
+                    errors.append(
+                        "At least one line with ITEM_ID and GROSS_WEIGHT_KG is required"
+                    )
+                if errors:
+                    return {"success": False, "error": "; ".join(errors)}
+
+                warehouse_id = hdr["warehouse_id"]
+                today_str = datetime.now().strftime("%Y%m%d")
+
+                total_gross = 0.0
+                total_net = 0.0
+                total_amount = 0.0
+
+                for ln in valid_lines:
+                    # Recalculate net weight via Q-Net formula
+                    gross_kg = float(ln.get("gross_weight_kg") or 0)
+                    tare_kg = float(ln.get("tare_weight_kg") or 0)
+                    net_kg = gross_kg - tare_kg if tare_kg else gross_kg
+                    price = float(ln.get("price_per_kg") or 0)
+                    amount = round(net_kg * price, 2)
+
+                    # Update line with recalculated values
+                    db.execute_query(
+                        """UPDATE AGRO_PURCHASE_LINES
+                              SET NET_WEIGHT_KG = :net_kg,
+                                  AMOUNT = :amount
+                            WHERE ID = :line_id""",
+                        {
+                            "net_kg": net_kg,
+                            "amount": amount,
+                            "line_id": ln["id"],
+                        },
+                    )
+
+                    total_gross += gross_kg
+                    total_net += net_kg
+                    total_amount += amount
+
+                    # --- Create batch ---
+                    r_bseq = db.execute_query(
+                        "SELECT AGRO_BATCHES_SEQ.NEXTVAL AS SEQ_VAL FROM DUAL",
+                        None,
+                    )
+                    batch_id = int(_norm_rows(r_bseq)[0]["seq_val"])
+                    batch_number = f"B-{today_str}-{batch_id:04d}"
+
+                    # Look up shelf life from AGRO_ITEMS
+                    r_item = db.execute_query(
+                        "SELECT SHELF_LIFE_DAYS FROM AGRO_ITEMS WHERE ID = :item_id",
+                        {"item_id": ln["item_id"]},
+                    )
+                    item_rows = _norm_rows(r_item)
+                    shelf_days = (
+                        int(item_rows[0]["shelf_life_days"])
+                        if item_rows and item_rows[0].get("shelf_life_days")
+                        else None
+                    )
+
+                    batch_params: Dict[str, Any] = {
+                        "id": batch_id,
+                        "batch_number": batch_number,
+                        "purchase_line_id": ln["id"],
+                        "item_id": ln["item_id"],
+                        "warehouse_id": warehouse_id,
+                        "initial_qty_kg": net_kg,
+                        "current_qty_kg": net_kg,
+                        "status": "active",
+                    }
+
+                    if shelf_days is not None:
+                        db.execute_query(
+                            """INSERT INTO AGRO_BATCHES
+                                      (ID, BATCH_NUMBER, PURCHASE_LINE_ID, ITEM_ID,
+                                       WAREHOUSE_ID, INITIAL_QTY_KG, CURRENT_QTY_KG,
+                                       STATUS, EXPIRY_DATE)
+                               VALUES (:id, :batch_number, :purchase_line_id, :item_id,
+                                       :warehouse_id, :initial_qty_kg, :current_qty_kg,
+                                       :status, SYSTIMESTAMP + :shelf_days)""",
+                            {**batch_params, "shelf_days": shelf_days},
+                        )
+                    else:
+                        db.execute_query(
+                            """INSERT INTO AGRO_BATCHES
+                                      (ID, BATCH_NUMBER, PURCHASE_LINE_ID, ITEM_ID,
+                                       WAREHOUSE_ID, INITIAL_QTY_KG, CURRENT_QTY_KG,
+                                       STATUS)
+                               VALUES (:id, :batch_number, :purchase_line_id, :item_id,
+                                       :warehouse_id, :initial_qty_kg, :current_qty_kg,
+                                       :status)""",
+                            batch_params,
+                        )
+
+                    # --- Create stock movement (receipt) ---
+                    db.execute_query(
+                        """INSERT INTO AGRO_STOCK_MOVEMENTS
+                                  (ID, BATCH_ID, MOVEMENT_TYPE,
+                                   TO_WAREHOUSE_ID, QTY_KG, DOC_REF)
+                           VALUES (AGRO_STOCK_MOVEMENTS_SEQ.NEXTVAL, :batch_id,
+                                   'receipt', :warehouse_id, :qty_kg, :doc_ref)""",
+                        {
+                            "batch_id": batch_id,
+                            "warehouse_id": warehouse_id,
+                            "qty_kg": net_kg,
+                            "doc_ref": f"PD-{doc_id}",
+                        },
+                    )
+
+                # --- Update header totals and status ---
+                db.execute_query(
+                    """UPDATE AGRO_PURCHASE_DOCS
+                          SET STATUS = 'confirmed',
+                              CONFIRMED_AT = SYSTIMESTAMP,
+                              TOTAL_GROSS_KG = :total_gross,
+                              TOTAL_NET_KG = :total_net,
+                              TOTAL_AMOUNT = :total_amount
+                        WHERE ID = :doc_id""",
+                    {
+                        "total_gross": total_gross,
+                        "total_net": total_net,
+                        "total_amount": total_amount,
+                        "doc_id": doc_id,
+                    },
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def cancel_purchase(doc_id: int) -> Dict[str, Any]:
+        """Cancel a purchase document (only if status is draft)."""
+        try:
+            with DatabaseModel() as db:
+                rh = db.execute_query(
+                    "SELECT STATUS FROM AGRO_PURCHASE_DOCS WHERE ID = :doc_id",
+                    {"doc_id": doc_id},
+                )
+                rows = _norm_rows(rh)
+                if not rows:
+                    return {"success": False, "error": "Document not found"}
+                if rows[0]["status"] != "draft":
+                    return {
+                        "success": False,
+                        "error": "Only draft documents can be cancelled",
+                    }
+                db.execute_query(
+                    "UPDATE AGRO_PURCHASE_DOCS SET STATUS = 'cancelled' WHERE ID = :doc_id",
+                    {"doc_id": doc_id},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ==================================================================
+    # Q-Net / Suma calculation helpers
+    # ==================================================================
+
+    @staticmethod
+    def calc_qnet_suma(
+        item_id: Optional[int],
+        gross_kg: float,
+        crates_count: int,
+        price_per_kg: float,
+    ) -> Dict[str, Any]:
+        """Calculate Q-Net and Suma using AGRO_FORMULA_PARAMS.
+
+        Q-Net = Q-Brut - (Crates x Tare)
+        Suma  = Q-Net  x Price
+
+        Tare comes from item-specific formula param or global default.
+        Rounding per rounding_mode / rounding_precision params.
+        """
+        try:
+            with DatabaseModel() as db:
+                # Look up tare — item-specific first, then global
+                tare_per_crate = 0.0
+                rounding_mode = "half_up"
+                rounding_precision = 2
+
+                def _get_param(
+                    p_item_id: Optional[int], name: str
+                ) -> Optional[str]:
+                    sql = (
+                        "SELECT PARAM_VALUE FROM AGRO_FORMULA_PARAMS "
+                        "WHERE PARAM_NAME = :pname AND ACTIVE = 'Y'"
+                    )
+                    params: Dict[str, Any] = {"pname": name}
+                    if p_item_id is not None:
+                        sql += " AND ITEM_ID = :item_id"
+                        params["item_id"] = p_item_id
+                    else:
+                        sql += " AND ITEM_ID IS NULL"
+                    r = db.execute_query(sql, params)
+                    rows = _norm_rows(r)
+                    return rows[0]["param_value"] if rows else None
+
+                # Tare
+                val = None
+                if item_id is not None:
+                    val = _get_param(item_id, "tare_per_crate")
+                if val is None:
+                    val = _get_param(None, "tare_per_crate")
+                if val is not None:
+                    tare_per_crate = float(val)
+
+                # Rounding mode
+                rm = None
+                if item_id is not None:
+                    rm = _get_param(item_id, "rounding_mode")
+                if rm is None:
+                    rm = _get_param(None, "rounding_mode")
+                if rm:
+                    rounding_mode = rm
+
+                # Rounding precision
+                rp = None
+                if item_id is not None:
+                    rp = _get_param(item_id, "rounding_precision")
+                if rp is None:
+                    rp = _get_param(None, "rounding_precision")
+                if rp is not None:
+                    rounding_precision = int(rp)
+
+                qnet = gross_kg - (crates_count * tare_per_crate)
+                suma = qnet * price_per_kg
+
+                # Apply rounding
+                mode_map = {
+                    "half_up": ROUND_HALF_UP,
+                    "down": ROUND_DOWN,
+                    "up": ROUND_UP,
+                }
+                dec_mode = mode_map.get(rounding_mode, ROUND_HALF_UP)
+                quantize_str = f"1.{'0' * rounding_precision}"
+                qnet_rounded = float(
+                    Decimal(str(qnet)).quantize(
+                        Decimal(quantize_str), rounding=dec_mode
+                    )
+                )
+                suma_rounded = float(
+                    Decimal(str(suma)).quantize(
+                        Decimal(quantize_str), rounding=dec_mode
+                    )
+                )
+
+                return {
+                    "success": True,
+                    "data": {
+                        "gross_kg": gross_kg,
+                        "crates_count": crates_count,
+                        "tare_per_crate": tare_per_crate,
+                        "total_tare": crates_count * tare_per_crate,
+                        "net_kg": qnet_rounded,
+                        "price_per_kg": price_per_kg,
+                        "amount": suma_rounded,
+                        "rounding_mode": rounding_mode,
+                        "rounding_precision": rounding_precision,
+                    },
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ==================================================================
+    # Sync / Offline support
+    # ==================================================================
+
+    @staticmethod
+    def get_sync_references() -> Dict[str, Any]:
+        """Return all active reference data for offline cache."""
+        try:
+            result: Dict[str, Any] = {}
+            ref_tables = {
+                "suppliers": ("AGRO_SUPPLIERS", "NAME"),
+                "customers": ("AGRO_CUSTOMERS", "NAME"),
+                "warehouses": ("AGRO_WAREHOUSES", "NAME"),
+                "items": ("AGRO_ITEMS", "NAME_RU"),
+                "packaging_types": ("AGRO_PACKAGING_TYPES", "NAME_RU"),
+                "vehicles": ("AGRO_VEHICLES", "PLATE_NUMBER"),
+                "currencies": ("AGRO_CURRENCIES", "CODE"),
+            }
+            with DatabaseModel() as db:
+                for key, (table, order) in ref_tables.items():
+                    r = db.execute_query(
+                        f"SELECT * FROM {table} WHERE ACTIVE = :active ORDER BY {order}",
+                        {"active": "Y"},
+                    )
+                    result[key] = _norm_rows(r)
+            return {"success": True, "data": result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def sync_offline_queue(queue: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Process a list of offline operations, deduplicating by client_uuid.
+
+        Each item in *queue* should have:
+          - client_uuid: unique operation ID from the client
+          - event_type: operation type (e.g. 'create_purchase', 'register_crate')
+          - payload: dict with operation data
+        """
+        try:
+            synced = 0
+            conflicts: List[Dict[str, Any]] = []
+            with DatabaseModel() as db:
+                for op in queue:
+                    client_uuid = op.get("client_uuid")
+                    event_type = op.get("event_type", "")
+                    payload = op.get("payload", {})
+
+                    # Dedup: check if this client_uuid was already processed
+                    if client_uuid:
+                        r_check = db.execute_query(
+                            """SELECT COUNT(*) AS CNT FROM AGRO_EVENT_LOG
+                               WHERE EVENT_TYPE = :etype
+                                 AND PAYLOAD LIKE :uuid_pattern""",
+                            {
+                                "etype": f"sync_{event_type}",
+                                "uuid_pattern": f"%{client_uuid}%",
+                            },
+                        )
+                        check_rows = _norm_rows(r_check)
+                        if check_rows and int(check_rows[0].get("cnt", 0)) > 0:
+                            conflicts.append(
+                                {
+                                    "client_uuid": client_uuid,
+                                    "reason": "already_processed",
+                                }
+                            )
+                            continue
+
+                    # Log the event
+                    event_payload = json.dumps(
+                        {"client_uuid": client_uuid, **payload},
+                        default=str,
+                    )
+                    db.execute_query(
+                        """INSERT INTO AGRO_EVENT_LOG
+                                  (ID, EVENT_TYPE, ENTITY_TYPE, ENTITY_ID, PAYLOAD)
+                           VALUES (AGRO_EVENT_LOG_SEQ.NEXTVAL, :etype,
+                                   :entity_type, :entity_id, :payload)""",
+                        {
+                            "etype": f"sync_{event_type}",
+                            "entity_type": payload.get("entity_type"),
+                            "entity_id": payload.get("entity_id"),
+                            "payload": event_payload,
+                        },
+                    )
+
+                    # Dispatch operation
+                    try:
+                        if event_type == "create_purchase":
+                            AgroStore.create_purchase(payload)
+                        elif event_type == "register_crate":
+                            AgroStore.register_crate(payload)
+                        elif event_type == "update_purchase":
+                            AgroStore.update_purchase(payload)
+                        # Additional event types can be added here
+                        synced += 1
+                    except Exception as op_err:
+                        conflicts.append(
+                            {
+                                "client_uuid": client_uuid,
+                                "reason": str(op_err),
+                            }
+                        )
+
+                db.connection.commit()
+            return {
+                "success": True,
+                "synced": synced,
+                "conflicts": conflicts,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
