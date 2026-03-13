@@ -430,7 +430,7 @@ Implementation: Socket.io events pushed to connected clients by role. No email/S
 
 ## 13. DDL Deployment
 
-- Files: `sql/30_agro_tables.sql`, `sql/31_agro_views.sql`, `sql/32_agro_triggers.sql`
+- Files: `sql/35_agro_tables.sql`, `sql/36_agro_views.sql`, `sql/37_agro_triggers.sql`, `sql/38_agro_demo_data.sql`
 - Add to `deploy_oracle_objects.py` execution order after existing entries
 - Remote deploy: `DEPLOY_ORACLE_ON_REMOTE=1` to include DDL
 - Oracle wallet: external path, not in code repo (per CLAUDE.md)
@@ -494,7 +494,7 @@ Implementation: Socket.io events pushed to connected clients by role. No email/S
 
 Post-deployment verification:
 
-- [ ] All 34 AGRO_* tables visible in USER_OBJECTS
+- [ ] All 36 AGRO_* tables visible in USER_OBJECTS
 - [ ] Sequences and triggers created
 - [ ] All 5 UI pages accessible at /UNA.md/orasldev/agro-*
 - [ ] All ~55 API endpoints responding
