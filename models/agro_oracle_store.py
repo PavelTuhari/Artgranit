@@ -1609,3 +1609,841 @@ class AgroStore:
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Warehouse — Stock & Movements
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_stock_balance(filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Query AGRO_V_STOCK_BALANCE view with optional filters."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM AGRO_V_STOCK_BALANCE WHERE 1=1"
+                params: Dict[str, Any] = {}
+                if filters:
+                    if filters.get("warehouse_id"):
+                        sql += " AND WAREHOUSE_ID = :wh_id"
+                        params["wh_id"] = filters["warehouse_id"]
+                    if filters.get("item_id"):
+                        sql += " AND ITEM_ID = :item_id"
+                        params["item_id"] = filters["item_id"]
+                    if filters.get("status"):
+                        sql += " AND STATUS = :status"
+                        params["status"] = filters["status"]
+                sql += " ORDER BY ITEM_NAME, WAREHOUSE_NAME"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_batch_by_id(batch_id: int) -> Dict[str, Any]:
+        """Get batch with full details: movements, QA checks, allocations."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT b.*, i.NAME AS ITEM_NAME, i.CODE AS ITEM_CODE,
+                              w.NAME AS WAREHOUSE_NAME, c.CODE AS CELL_CODE
+                       FROM AGRO_BATCHES b
+                       LEFT JOIN AGRO_ITEMS i ON b.ITEM_ID = i.ID
+                       LEFT JOIN AGRO_WAREHOUSES w ON b.WAREHOUSE_ID = w.ID
+                       LEFT JOIN AGRO_STORAGE_CELLS c ON b.CELL_ID = c.ID
+                       WHERE b.ID = :bid""",
+                    {"bid": batch_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Batch not found"}
+                batch = rows[0]
+
+                r2 = db.execute_query(
+                    """SELECT * FROM AGRO_STOCK_MOVEMENTS
+                       WHERE BATCH_ID = :bid ORDER BY CREATED_AT DESC""",
+                    {"bid": batch_id},
+                )
+                movements = _norm_rows(r2)
+
+                r3 = db.execute_query(
+                    """SELECT qc.*, cl.NAME_RU AS CHECKLIST_NAME
+                       FROM AGRO_QA_CHECKS qc
+                       LEFT JOIN AGRO_QA_CHECKLISTS cl ON qc.CHECKLIST_ID = cl.ID
+                       WHERE qc.BATCH_ID = :bid ORDER BY qc.CREATED_AT DESC""",
+                    {"bid": batch_id},
+                )
+                qa_checks = _norm_rows(r3)
+
+                r4 = db.execute_query(
+                    """SELECT ba.*, sl.ITEM_ID, sl.QTY_KG AS LINE_QTY
+                       FROM AGRO_BATCH_ALLOCATIONS ba
+                       LEFT JOIN AGRO_SALES_DOC_LINES sl ON ba.SALES_LINE_ID = sl.ID
+                       WHERE ba.BATCH_ID = :bid ORDER BY ba.CREATED_AT DESC""",
+                    {"bid": batch_id},
+                )
+                allocations = _norm_rows(r4)
+
+                return {
+                    "success": True,
+                    "data": {
+                        "batch": batch,
+                        "movements": movements,
+                        "qa_checks": qa_checks,
+                        "allocations": allocations,
+                    },
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_batch_history(batch_id: int) -> Dict[str, Any]:
+        """Timeline of all events for a batch."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT 'movement' AS EVENT_TYPE, MOVEMENT_TYPE AS DETAIL,
+                           QTY_KG, REASON AS DESCRIPTION, CREATED_AT AS EVENT_TIME
+                    FROM AGRO_STOCK_MOVEMENTS WHERE BATCH_ID = :bid
+                    UNION ALL
+                    SELECT 'qa_check', RESULT, NULL,
+                           NOTES, CREATED_AT
+                    FROM AGRO_QA_CHECKS WHERE BATCH_ID = :bid
+                    UNION ALL
+                    SELECT 'block', 'blocked', NULL,
+                           REASON, BLOCKED_AT
+                    FROM AGRO_BATCH_BLOCKS WHERE BATCH_ID = :bid
+                    UNION ALL
+                    SELECT 'unblock', 'unblocked', NULL,
+                           RESOLUTION_NOTES, UNBLOCKED_AT
+                    FROM AGRO_BATCH_BLOCKS WHERE BATCH_ID = :bid AND UNBLOCKED_AT IS NOT NULL
+                    ORDER BY EVENT_TIME DESC
+                """
+                r = db.execute_query(sql, {"bid": batch_id})
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_movement(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create stock movement (transfer, receipt, shipment, etc.)."""
+        try:
+            batch_id = data.get("batch_id")
+            movement_type = data.get("movement_type", "transfer")
+            qty_kg = float(data.get("qty_kg", 0))
+            if not batch_id or qty_kg <= 0:
+                return {"success": False, "error": "batch_id and qty_kg > 0 required"}
+
+            valid_types = ("receipt", "transfer", "processing", "shipment", "adjustment", "loss")
+            if movement_type not in valid_types:
+                return {"success": False, "error": f"Invalid movement_type: {movement_type}"}
+
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT CURRENT_QTY_KG FROM AGRO_BATCHES WHERE ID = :bid",
+                    {"bid": batch_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Batch not found"}
+
+                current_qty = float(rows[0].get("current_qty_kg", 0))
+                if movement_type in ("transfer", "shipment", "loss", "processing") and qty_kg > current_qty:
+                    return {
+                        "success": False,
+                        "error": f"Insufficient qty: have {current_qty:.3f}, requested {qty_kg:.3f}",
+                    }
+
+                db.execute_query(
+                    """INSERT INTO AGRO_STOCK_MOVEMENTS
+                       (ID, BATCH_ID, MOVEMENT_TYPE, FROM_WAREHOUSE_ID, FROM_CELL_ID,
+                        TO_WAREHOUSE_ID, TO_CELL_ID, QTY_KG, REASON, DOC_REF, CREATED_BY)
+                       VALUES (AGRO_STOCK_MOVEMENTS_SEQ.NEXTVAL,
+                               :bid, :mtype, :fwh, :fcell, :twh, :tcell,
+                               :qty, :reason, :doc_ref, :created_by)""",
+                    {
+                        "bid": batch_id,
+                        "mtype": movement_type,
+                        "fwh": data.get("from_warehouse_id"),
+                        "fcell": data.get("from_cell_id"),
+                        "twh": data.get("to_warehouse_id"),
+                        "tcell": data.get("to_cell_id"),
+                        "qty": qty_kg,
+                        "reason": data.get("reason"),
+                        "doc_ref": data.get("doc_ref"),
+                        "created_by": data.get("created_by"),
+                    },
+                )
+
+                if movement_type in ("transfer", "shipment", "loss", "processing"):
+                    db.execute_query(
+                        "UPDATE AGRO_BATCHES SET CURRENT_QTY_KG = CURRENT_QTY_KG - :qty WHERE ID = :bid",
+                        {"qty": qty_kg, "bid": batch_id},
+                    )
+
+                if movement_type == "transfer" and data.get("to_warehouse_id"):
+                    upd_sql = "UPDATE AGRO_BATCHES SET WAREHOUSE_ID = :twh"
+                    upd_params: Dict[str, Any] = {"twh": data["to_warehouse_id"], "bid": batch_id}
+                    if data.get("to_cell_id"):
+                        upd_sql += ", CELL_ID = :tcell"
+                        upd_params["tcell"] = data["to_cell_id"]
+                    upd_sql += " WHERE ID = :bid"
+                    db.execute_query(upd_sql, upd_params)
+
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def receive_crates(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Receive crates at warehouse, update status to accepted."""
+        try:
+            crate_ids = data.get("crate_ids", [])
+            warehouse_id = data.get("warehouse_id")
+            cell_id = data.get("cell_id")
+            if not crate_ids:
+                return {"success": False, "error": "crate_ids required"}
+
+            with DatabaseModel() as db:
+                for cid in crate_ids:
+                    db.execute_query(
+                        "UPDATE AGRO_BATCH_CRATES SET STATUS = 'accepted' WHERE ID = :cid",
+                        {"cid": cid},
+                    )
+                    if warehouse_id:
+                        db.execute_query(
+                            """UPDATE AGRO_BATCHES SET WAREHOUSE_ID = :wh, CELL_ID = :cell
+                               WHERE ID = (SELECT BATCH_ID FROM AGRO_BATCH_CRATES WHERE ID = :cid)""",
+                            {"wh": warehouse_id, "cell": cell_id, "cid": cid},
+                        )
+                db.connection.commit()
+                return {"success": True, "updated": len(crate_ids)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Warehouse — Temperature / Readings
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_readings(cell_id: int = None, date_from: str = None, date_to: str = None) -> Dict[str, Any]:
+        """Get storage readings with optional cell and date filters."""
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT sr.*, sc.CODE AS CELL_CODE, sc.NAME AS CELL_NAME,
+                                w.NAME AS WAREHOUSE_NAME
+                         FROM AGRO_STORAGE_READINGS sr
+                         JOIN AGRO_STORAGE_CELLS sc ON sr.CELL_ID = sc.ID
+                         JOIN AGRO_WAREHOUSES w ON sc.WAREHOUSE_ID = w.ID
+                         WHERE 1=1"""
+                params: Dict[str, Any] = {}
+                if cell_id:
+                    sql += " AND sr.CELL_ID = :cell_id"
+                    params["cell_id"] = cell_id
+                if date_from:
+                    sql += " AND sr.RECORDED_AT >= TO_TIMESTAMP(:dfrom, 'YYYY-MM-DD')"
+                    params["dfrom"] = date_from
+                if date_to:
+                    sql += " AND sr.RECORDED_AT < TO_TIMESTAMP(:dto, 'YYYY-MM-DD') + 1"
+                    params["dto"] = date_to
+                sql += " ORDER BY sr.RECORDED_AT DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def add_reading(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Insert reading and check thresholds. Create alert if out of range."""
+        try:
+            cell_id = data.get("cell_id")
+            if not cell_id:
+                return {"success": False, "error": "cell_id required"}
+
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """INSERT INTO AGRO_STORAGE_READINGS
+                       (ID, CELL_ID, TEMPERATURE_C, HUMIDITY_PCT, O2_PCT, CO2_PCT,
+                        READING_SOURCE, SENSOR_ID, RECORDED_BY)
+                       VALUES (AGRO_STORAGE_READINGS_SEQ.NEXTVAL,
+                               :cell, :temp, :hum, :o2, :co2, :src, :sensor, :by)""",
+                    {
+                        "cell": cell_id,
+                        "temp": data.get("temperature_c"),
+                        "hum": data.get("humidity_pct"),
+                        "o2": data.get("o2_pct"),
+                        "co2": data.get("co2_pct"),
+                        "src": data.get("reading_source", "manual"),
+                        "sensor": data.get("sensor_id"),
+                        "by": data.get("recorded_by"),
+                    },
+                )
+
+                r_id = db.execute_query(
+                    "SELECT AGRO_STORAGE_READINGS_SEQ.CURRVAL AS RID FROM DUAL", {}
+                )
+                reading_id = _norm_rows(r_id)[0]["rid"] if _norm_rows(r_id) else None
+
+                r_cell = db.execute_query(
+                    "SELECT TEMP_MIN, TEMP_MAX, HUMIDITY_MIN, HUMIDITY_MAX FROM AGRO_STORAGE_CELLS WHERE ID = :cell",
+                    {"cell": cell_id},
+                )
+                cell_info = _norm_rows(r_cell)
+                alerts: List = []
+
+                if cell_info:
+                    ci = cell_info[0]
+                    temp = data.get("temperature_c")
+                    hum = data.get("humidity_pct")
+
+                    if temp is not None:
+                        temp = float(temp)
+                        if ci.get("temp_max") is not None and temp > float(ci["temp_max"]):
+                            alerts.append(("temp_high", float(ci["temp_max"]), temp))
+                        elif ci.get("temp_min") is not None and temp < float(ci["temp_min"]):
+                            alerts.append(("temp_low", float(ci["temp_min"]), temp))
+
+                    if hum is not None:
+                        hum_val = float(hum)
+                        if ci.get("humidity_max") is not None and hum_val > float(ci["humidity_max"]):
+                            alerts.append(("humidity", float(ci["humidity_max"]), hum_val))
+                        elif ci.get("humidity_min") is not None and hum_val < float(ci["humidity_min"]):
+                            alerts.append(("humidity", float(ci["humidity_min"]), hum_val))
+
+                for alert_type, threshold, actual in alerts:
+                    db.execute_query(
+                        """INSERT INTO AGRO_STORAGE_ALERTS
+                           (ID, CELL_ID, READING_ID, ALERT_TYPE, THRESHOLD_VALUE, ACTUAL_VALUE)
+                           VALUES (AGRO_STORAGE_ALERTS_SEQ.NEXTVAL,
+                                   :cell, :rid, :atype, :thresh, :actual)""",
+                        {"cell": cell_id, "rid": reading_id, "atype": alert_type,
+                         "thresh": threshold, "actual": actual},
+                    )
+
+                db.connection.commit()
+                return {
+                    "success": True,
+                    "data": {
+                        "reading_id": reading_id,
+                        "alerts": [{"type": a[0], "threshold": a[1], "actual": a[2]} for a in alerts],
+                    },
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_alerts(acknowledged: str = None) -> Dict[str, Any]:
+        """List storage alerts. Filter by acknowledged status."""
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT sa.*, sc.CODE AS CELL_CODE, sc.NAME AS CELL_NAME,
+                                w.NAME AS WAREHOUSE_NAME
+                         FROM AGRO_STORAGE_ALERTS sa
+                         JOIN AGRO_STORAGE_CELLS sc ON sa.CELL_ID = sc.ID
+                         JOIN AGRO_WAREHOUSES w ON sc.WAREHOUSE_ID = w.ID
+                         WHERE 1=1"""
+                params: Dict[str, Any] = {}
+                if acknowledged:
+                    sql += " AND sa.ACKNOWLEDGED = :ack"
+                    params["ack"] = acknowledged
+                sql += " ORDER BY sa.CREATED_AT DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def acknowledge_alert(alert_id: int, user: str) -> Dict[str, Any]:
+        """Mark alert as acknowledged."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """UPDATE AGRO_STORAGE_ALERTS
+                       SET ACKNOWLEDGED = 'Y', ACKNOWLEDGED_BY = :usr, ACKNOWLEDGED_AT = SYSTIMESTAMP
+                       WHERE ID = :aid""",
+                    {"aid": alert_id, "usr": user},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Warehouse — Processing Tasks
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_processing_tasks(filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """List processing tasks with batch info."""
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT pt.*, b.BATCH_NUMBER, i.NAME AS ITEM_NAME
+                         FROM AGRO_PROCESSING_TASKS pt
+                         JOIN AGRO_BATCHES b ON pt.BATCH_ID = b.ID
+                         LEFT JOIN AGRO_ITEMS i ON b.ITEM_ID = i.ID
+                         WHERE 1=1"""
+                params: Dict[str, Any] = {}
+                if filters:
+                    if filters.get("status"):
+                        sql += " AND pt.STATUS = :status"
+                        params["status"] = filters["status"]
+                    if filters.get("batch_id"):
+                        sql += " AND pt.BATCH_ID = :bid"
+                        params["bid"] = filters["batch_id"]
+                    if filters.get("task_type"):
+                        sql += " AND pt.TASK_TYPE = :ttype"
+                        params["ttype"] = filters["task_type"]
+                sql += " ORDER BY pt.ID DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_processing_task(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create processing task linked to batch."""
+        try:
+            batch_id = data.get("batch_id")
+            task_type = data.get("task_type", "sorting")
+            if not batch_id:
+                return {"success": False, "error": "batch_id required"}
+
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """INSERT INTO AGRO_PROCESSING_TASKS
+                       (ID, BATCH_ID, TASK_TYPE, DESCRIPTION, ASSIGNED_TO, INPUT_QTY_KG, NOTES)
+                       VALUES (AGRO_PROCESSING_TASKS_SEQ.NEXTVAL,
+                               :bid, :ttype, :descr, :assigned, :input_qty, :notes)""",
+                    {
+                        "bid": batch_id,
+                        "ttype": task_type,
+                        "descr": data.get("description"),
+                        "assigned": data.get("assigned_to"),
+                        "input_qty": data.get("input_qty_kg"),
+                        "notes": data.get("notes"),
+                    },
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_task_status(
+        task_id: int, status: str,
+        output_qty: float = None, waste_qty: float = None,
+    ) -> Dict[str, Any]:
+        """Update task status. On completion, adjust batch qty for waste."""
+        try:
+            valid = ("pending", "in_progress", "completed", "cancelled")
+            if status not in valid:
+                return {"success": False, "error": f"Invalid status: {status}"}
+
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT BATCH_ID FROM AGRO_PROCESSING_TASKS WHERE ID = :tid",
+                    {"tid": task_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Task not found"}
+                batch_id = rows[0]["batch_id"]
+
+                upd = "UPDATE AGRO_PROCESSING_TASKS SET STATUS = :st"
+                params: Dict[str, Any] = {"st": status, "tid": task_id}
+
+                if output_qty is not None:
+                    upd += ", OUTPUT_QTY_KG = :oqty"
+                    params["oqty"] = output_qty
+                if waste_qty is not None:
+                    upd += ", WASTE_QTY_KG = :wqty"
+                    params["wqty"] = waste_qty
+                if status == "in_progress":
+                    upd += ", STARTED_AT = SYSTIMESTAMP"
+                if status == "completed":
+                    upd += ", COMPLETED_AT = SYSTIMESTAMP"
+                upd += " WHERE ID = :tid"
+
+                db.execute_query(upd, params)
+
+                if status == "completed" and waste_qty and waste_qty > 0:
+                    db.execute_query(
+                        "UPDATE AGRO_BATCHES SET CURRENT_QTY_KG = CURRENT_QTY_KG - :waste WHERE ID = :bid",
+                        {"waste": waste_qty, "bid": batch_id},
+                    )
+
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Sales & Export — Documents
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_sales_docs(filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """List sales documents with customer/warehouse joins."""
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT sd.*, c.NAME AS CUSTOMER_NAME, c.CODE AS CUSTOMER_CODE,
+                                w.NAME AS WAREHOUSE_NAME, cur.CODE AS CURRENCY_CODE
+                         FROM AGRO_SALES_DOCS sd
+                         LEFT JOIN AGRO_CUSTOMERS c ON sd.CUSTOMER_ID = c.ID
+                         LEFT JOIN AGRO_WAREHOUSES w ON sd.WAREHOUSE_ID = w.ID
+                         LEFT JOIN AGRO_CURRENCIES cur ON sd.CURRENCY_ID = cur.ID
+                         WHERE 1=1"""
+                params: Dict[str, Any] = {}
+                if filters:
+                    if filters.get("status"):
+                        sql += " AND sd.STATUS = :status"
+                        params["status"] = filters["status"]
+                    if filters.get("customer_id"):
+                        sql += " AND sd.CUSTOMER_ID = :cust_id"
+                        params["cust_id"] = filters["customer_id"]
+                    if filters.get("date_from"):
+                        sql += " AND sd.DOC_DATE >= TO_DATE(:dfrom, 'YYYY-MM-DD')"
+                        params["dfrom"] = filters["date_from"]
+                    if filters.get("date_to"):
+                        sql += " AND sd.DOC_DATE <= TO_DATE(:dto, 'YYYY-MM-DD')"
+                        params["dto"] = filters["date_to"]
+                sql += " ORDER BY sd.CREATED_AT DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_sales_doc_by_id(doc_id: int) -> Dict[str, Any]:
+        """Get sales doc header + lines + allocations."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT sd.*, c.NAME AS CUSTOMER_NAME,
+                              w.NAME AS WAREHOUSE_NAME, cur.CODE AS CURRENCY_CODE
+                       FROM AGRO_SALES_DOCS sd
+                       LEFT JOIN AGRO_CUSTOMERS c ON sd.CUSTOMER_ID = c.ID
+                       LEFT JOIN AGRO_WAREHOUSES w ON sd.WAREHOUSE_ID = w.ID
+                       LEFT JOIN AGRO_CURRENCIES cur ON sd.CURRENCY_ID = cur.ID
+                       WHERE sd.ID = :did""",
+                    {"did": doc_id},
+                )
+                docs = _norm_rows(r)
+                if not docs:
+                    return {"success": False, "error": "Sales doc not found"}
+
+                r2 = db.execute_query(
+                    """SELECT sl.*, i.NAME AS ITEM_NAME, i.CODE AS ITEM_CODE
+                       FROM AGRO_SALES_DOC_LINES sl
+                       LEFT JOIN AGRO_ITEMS i ON sl.ITEM_ID = i.ID
+                       WHERE sl.SALES_DOC_ID = :did ORDER BY sl.ID""",
+                    {"did": doc_id},
+                )
+                lines = _norm_rows(r2)
+
+                r3 = db.execute_query(
+                    """SELECT ba.*, b.BATCH_NUMBER, b.CURRENT_QTY_KG
+                       FROM AGRO_BATCH_ALLOCATIONS ba
+                       JOIN AGRO_BATCHES b ON ba.BATCH_ID = b.ID
+                       JOIN AGRO_SALES_DOC_LINES sl ON ba.SALES_LINE_ID = sl.ID
+                       WHERE sl.SALES_DOC_ID = :did ORDER BY ba.ID""",
+                    {"did": doc_id},
+                )
+                allocations = _norm_rows(r3)
+
+                return {
+                    "success": True,
+                    "data": {"doc": docs[0], "lines": lines, "allocations": allocations},
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_sales_doc(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create sales document with lines."""
+        try:
+            customer_id = data.get("customer_id")
+            warehouse_id = data.get("warehouse_id")
+            if not customer_id or not warehouse_id:
+                return {"success": False, "error": "customer_id and warehouse_id required"}
+
+            with DatabaseModel() as db:
+                r_seq = db.execute_query(
+                    "SELECT AGRO_SALES_DOCS_SEQ.NEXTVAL AS NID FROM DUAL", {}
+                )
+                new_id = _norm_rows(r_seq)[0]["nid"]
+                today = datetime.now().strftime("%Y%m%d")
+                doc_number = f"SALE-{today}-{int(new_id):04d}"
+
+                db.execute_query(
+                    """INSERT INTO AGRO_SALES_DOCS
+                       (ID, DOC_NUMBER, DOC_DATE, CUSTOMER_ID, WAREHOUSE_ID,
+                        VEHICLE_ID, CURRENCY_ID, TOTAL_AMOUNT, STATUS, NOTES, CREATED_BY)
+                       VALUES (:id, :dnum, TRUNC(SYSDATE), :cust, :wh,
+                               :veh, :cur, 0, 'draft', :notes, :by)""",
+                    {
+                        "id": new_id, "dnum": doc_number,
+                        "cust": customer_id, "wh": warehouse_id,
+                        "veh": data.get("vehicle_id"), "cur": data.get("currency_id"),
+                        "notes": data.get("notes"), "by": data.get("created_by"),
+                    },
+                )
+
+                total_amount = Decimal("0")
+                for line in data.get("lines", []):
+                    qty = Decimal(str(line.get("qty_kg", 0)))
+                    price = Decimal(str(line.get("price_per_kg", 0)))
+                    amount = (qty * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                    total_amount += amount
+
+                    db.execute_query(
+                        """INSERT INTO AGRO_SALES_DOC_LINES
+                           (ID, SALES_DOC_ID, ITEM_ID, QTY_KG, PRICE_PER_KG, AMOUNT, NOTES)
+                           VALUES (AGRO_SALES_DOC_LINES_SEQ.NEXTVAL,
+                                   :did, :iid, :qty, :price, :amt, :notes)""",
+                        {
+                            "did": new_id, "iid": line.get("item_id"),
+                            "qty": float(qty), "price": float(price),
+                            "amt": float(amount), "notes": line.get("notes"),
+                        },
+                    )
+
+                if total_amount > 0:
+                    db.execute_query(
+                        "UPDATE AGRO_SALES_DOCS SET TOTAL_AMOUNT = :amt WHERE ID = :id",
+                        {"amt": float(total_amount), "id": new_id},
+                    )
+
+                db.connection.commit()
+                return {"success": True, "id": int(new_id), "doc_number": doc_number}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def confirm_sales_doc(doc_id: int) -> Dict[str, Any]:
+        """Confirm sales doc: validate stock, check blocks, allocate via FIFO."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID AS LINE_ID, ITEM_ID, QTY_KG FROM AGRO_SALES_DOC_LINES WHERE SALES_DOC_ID = :did",
+                    {"did": doc_id},
+                )
+                lines = _norm_rows(r)
+                if not lines:
+                    return {"success": False, "error": "No lines in document"}
+
+                r_doc = db.execute_query(
+                    "SELECT WAREHOUSE_ID, STATUS FROM AGRO_SALES_DOCS WHERE ID = :did",
+                    {"did": doc_id},
+                )
+                doc_rows = _norm_rows(r_doc)
+                if not doc_rows:
+                    return {"success": False, "error": "Document not found"}
+                if doc_rows[0].get("status") != "draft":
+                    return {"success": False, "error": "Only draft docs can be confirmed"}
+                wh_id = doc_rows[0].get("warehouse_id")
+
+                for line in lines:
+                    item_id = line["item_id"]
+                    needed = float(line["qty_kg"])
+                    line_id = line["line_id"]
+
+                    sql = """SELECT ID, CURRENT_QTY_KG FROM AGRO_BATCHES
+                             WHERE ITEM_ID = :iid AND STATUS = 'active' AND CURRENT_QTY_KG > 0"""
+                    p: Dict[str, Any] = {"iid": item_id}
+                    if wh_id:
+                        sql += " AND WAREHOUSE_ID = :wh"
+                        p["wh"] = wh_id
+                    sql += " ORDER BY RECEIVED_AT ASC"
+                    r_batches = db.execute_query(sql, p)
+                    batches = _norm_rows(r_batches)
+
+                    remaining = needed
+                    for batch in batches:
+                        if remaining <= 0:
+                            break
+                        alloc = min(float(batch["current_qty_kg"]), remaining)
+                        db.execute_query(
+                            """INSERT INTO AGRO_BATCH_ALLOCATIONS
+                               (ID, SALES_LINE_ID, BATCH_ID, ALLOCATED_QTY_KG, ALLOCATION_METHOD)
+                               VALUES (AGRO_BATCH_ALLOCATIONS_SEQ.NEXTVAL, :sl, :bid, :qty, 'fifo')""",
+                            {"sl": line_id, "bid": batch["id"], "qty": alloc},
+                        )
+                        db.execute_query(
+                            "UPDATE AGRO_BATCHES SET CURRENT_QTY_KG = CURRENT_QTY_KG - :qty WHERE ID = :bid",
+                            {"qty": alloc, "bid": batch["id"]},
+                        )
+                        db.execute_query(
+                            """INSERT INTO AGRO_STOCK_MOVEMENTS
+                               (ID, BATCH_ID, MOVEMENT_TYPE, QTY_KG, DOC_REF)
+                               VALUES (AGRO_STOCK_MOVEMENTS_SEQ.NEXTVAL, :bid, 'shipment', :qty, :ref)""",
+                            {"bid": batch["id"], "qty": alloc, "ref": f"SALE-DOC-{doc_id}"},
+                        )
+                        remaining -= alloc
+
+                    if remaining > 0:
+                        db.connection.rollback()
+                        return {"success": False, "error": f"Insufficient stock for item {item_id}: {remaining:.3f} kg short"}
+
+                db.execute_query(
+                    "UPDATE AGRO_SALES_DOCS SET STATUS = 'confirmed', CONFIRMED_AT = SYSTIMESTAMP WHERE ID = :did",
+                    {"did": doc_id},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_available_stock(item_id: int = None, warehouse_id: int = None) -> Dict[str, Any]:
+        """Get available (non-blocked) batches for sale."""
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT b.ID, b.BATCH_NUMBER, b.CURRENT_QTY_KG, b.RECEIVED_AT,
+                                i.NAME AS ITEM_NAME, i.CODE AS ITEM_CODE,
+                                w.NAME AS WAREHOUSE_NAME
+                         FROM AGRO_BATCHES b
+                         JOIN AGRO_ITEMS i ON b.ITEM_ID = i.ID
+                         LEFT JOIN AGRO_WAREHOUSES w ON b.WAREHOUSE_ID = w.ID
+                         WHERE b.STATUS = 'active' AND b.CURRENT_QTY_KG > 0"""
+                params: Dict[str, Any] = {}
+                if item_id:
+                    sql += " AND b.ITEM_ID = :iid"
+                    params["iid"] = item_id
+                if warehouse_id:
+                    sql += " AND b.WAREHOUSE_ID = :wh"
+                    params["wh"] = warehouse_id
+                sql += " ORDER BY b.RECEIVED_AT ASC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def allocate_batches(
+        sales_line_id: int, item_id: int, qty_kg: float,
+        warehouse_id: int = None, method: str = "fifo",
+    ) -> Dict[str, Any]:
+        """Allocate batches to sales line using FIFO."""
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT ID, CURRENT_QTY_KG FROM AGRO_BATCHES
+                         WHERE ITEM_ID = :iid AND STATUS = 'active' AND CURRENT_QTY_KG > 0"""
+                params: Dict[str, Any] = {"iid": item_id}
+                if warehouse_id:
+                    sql += " AND WAREHOUSE_ID = :wh"
+                    params["wh"] = warehouse_id
+                sql += " ORDER BY RECEIVED_AT ASC"
+                r = db.execute_query(sql, params)
+                batches = _norm_rows(r)
+
+                remaining = qty_kg
+                allocations: List = []
+                for batch in batches:
+                    if remaining <= 0:
+                        break
+                    alloc = min(float(batch["current_qty_kg"]), remaining)
+                    db.execute_query(
+                        """INSERT INTO AGRO_BATCH_ALLOCATIONS
+                           (ID, SALES_LINE_ID, BATCH_ID, ALLOCATED_QTY_KG, ALLOCATION_METHOD)
+                           VALUES (AGRO_BATCH_ALLOCATIONS_SEQ.NEXTVAL, :sl, :bid, :qty, :method)""",
+                        {"sl": sales_line_id, "bid": batch["id"], "qty": alloc, "method": method},
+                    )
+                    remaining -= alloc
+                    allocations.append({"batch_id": batch["id"], "qty": alloc})
+
+                if remaining > 0:
+                    db.connection.rollback()
+                    return {"success": False, "error": f"Insufficient stock: {remaining:.3f} kg short"}
+
+                db.connection.commit()
+                return {"success": True, "data": allocations}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Sales — Export Declarations
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def create_export_decl(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create export declaration linked to sales doc."""
+        try:
+            sales_doc_id = data.get("sales_doc_id")
+            if not sales_doc_id:
+                return {"success": False, "error": "sales_doc_id required"}
+
+            with DatabaseModel() as db:
+                r_seq = db.execute_query(
+                    "SELECT AGRO_EXPORT_DECLARATIONS_SEQ.NEXTVAL AS NID FROM DUAL", {}
+                )
+                new_id = _norm_rows(r_seq)[0]["nid"]
+                today = datetime.now().strftime("%Y%m%d")
+                decl_number = f"EXP-{today}-{int(new_id):04d}"
+
+                db.execute_query(
+                    """INSERT INTO AGRO_EXPORT_DECLARATIONS
+                       (ID, SALES_DOC_ID, DECL_NUMBER, DESTINATION_COUNTRY,
+                        CUSTOMS_CODE, TRANSPORT_CONDITIONS,
+                        PHYTO_CERT_NUMBER, VET_CERT_NUMBER, NOTES)
+                       VALUES (:id, :sdid, :dnum, :country,
+                               :customs, :transport, :phyto, :vet, :notes)""",
+                    {
+                        "id": new_id, "sdid": sales_doc_id, "dnum": decl_number,
+                        "country": data.get("destination_country"),
+                        "customs": data.get("customs_code"),
+                        "transport": data.get("transport_conditions"),
+                        "phyto": data.get("phyto_cert_number"),
+                        "vet": data.get("vet_cert_number"),
+                        "notes": data.get("notes"),
+                    },
+                )
+                db.connection.commit()
+                return {"success": True, "id": int(new_id), "decl_number": decl_number}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_export_decl(decl_id: int) -> Dict[str, Any]:
+        """Get export declaration with sales doc info."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT ed.*, sd.DOC_NUMBER AS SALES_DOC_NUMBER, c.NAME AS CUSTOMER_NAME
+                       FROM AGRO_EXPORT_DECLARATIONS ed
+                       JOIN AGRO_SALES_DOCS sd ON ed.SALES_DOC_ID = sd.ID
+                       LEFT JOIN AGRO_CUSTOMERS c ON sd.CUSTOMER_ID = c.ID
+                       WHERE ed.ID = :did""",
+                    {"did": decl_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Declaration not found"}
+                return {"success": True, "data": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_export_decl(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update export declaration fields."""
+        try:
+            decl_id = data.get("id")
+            if not decl_id:
+                return {"success": False, "error": "id required"}
+
+            with DatabaseModel() as db:
+                fields = []
+                params: Dict[str, Any] = {"did": decl_id}
+                for col in ("destination_country", "customs_code", "transport_conditions",
+                            "phyto_cert_number", "vet_cert_number", "notes"):
+                    if col in data:
+                        fields.append(f"{col.upper()} = :{col}")
+                        params[col] = data[col]
+                if not fields:
+                    return {"success": False, "error": "No fields to update"}
+
+                sql = f"UPDATE AGRO_EXPORT_DECLARATIONS SET {', '.join(fields)} WHERE ID = :did"
+                db.execute_query(sql, params)
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
