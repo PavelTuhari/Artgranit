@@ -692,6 +692,30 @@ document.querySelectorAll('.nav-link').forEach(function(l) {
 });
 
 })();
+
+/* Socket.io — real-time notifications */
+(function() {
+    if (typeof io === 'undefined') {
+        var s = document.createElement('script');
+        s.src = '/socket.io/socket.io.js';
+        s.onload = connectSocket;
+        document.head.appendChild(s);
+    } else { connectSocket(); }
+
+    function connectSocket() {
+        if (typeof io === 'undefined') return;
+        var socket = io();
+        socket.on('agro_event', function(evt) {
+            if (evt.type === 'sales_confirmed') {
+                toast('✓ ' + (evt.data.message || 'Документ подтверждён'), 'success');
+                loadDocs();
+            } else if (evt.type === 'batch_blocked') {
+                toast('🔒 ' + (evt.data.message || 'Партия заблокирована'), 'warning');
+                loadAvailStock();
+            }
+        });
+    }
+})();
 </script>
 </body>
 </html>

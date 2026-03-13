@@ -458,6 +458,31 @@ window.completeTaskPrompt = function(id) {
 };
 
 })();
+
+/* Socket.io — real-time notifications */
+(function() {
+    if (typeof io === 'undefined') {
+        var s = document.createElement('script');
+        s.src = '/socket.io/socket.io.js';
+        s.onload = connectSocket;
+        document.head.appendChild(s);
+    } else { connectSocket(); }
+
+    function connectSocket() {
+        if (typeof io === 'undefined') return;
+        var socket = io();
+        socket.on('agro_event', function(evt) {
+            if (evt.type === 'temp_alert') {
+                window.showToast('⚠ ' + (evt.data.message || 'Температурный алерт!'), 'error');
+                loadAlerts();
+                loadReadings();
+            } else if (evt.type === 'batch_blocked') {
+                window.showToast('🔒 ' + (evt.data.message || 'Партия заблокирована'), 'warning');
+                loadStock();
+            }
+        });
+    }
+})();
 </script>
 </body>
 </html>

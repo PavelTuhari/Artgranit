@@ -4095,6 +4095,67 @@ def api_agro_report_export(report_type):
                      download_name=f'agro_{report_type}.{fmt}')
 
 
+# ============================================================
+# AGRO Socket.io Events
+# ============================================================
+
+def agro_emit(event_type, data):
+    """Broadcast AGRO event to all connected clients."""
+    try:
+        socketio.emit('agro_event', {
+            'type': event_type,
+            'data': data,
+            'timestamp': __import__('datetime').datetime.now().isoformat()
+        })
+    except Exception:
+        pass  # Don't fail operations if socket emit fails
+
+# Monkey-patch store methods to emit events after successful operations
+_orig_add_reading = AgroStore.add_reading.__func__ if hasattr(AgroStore.add_reading, '__func__') else AgroStore.add_reading
+
+@staticmethod
+def _patched_add_reading(data):
+    result = _orig_add_reading(data)
+    if result.get('success'):
+        alerts = result.get('data', {}).get('alerts', [])
+        if alerts:
+            agro_emit('temp_alert', {
+                'cell_id': data.get('cell_id'),
+                'alerts_count': len(alerts),
+                'message': f"Температурный алерт! {len(alerts)} нарушений"
+            })
+    return result
+AgroStore.add_reading = _patched_add_reading
+
+_orig_block_batch = AgroStore.block_batch.__func__ if hasattr(AgroStore.block_batch, '__func__') else AgroStore.block_batch
+
+@staticmethod
+def _patched_block_batch(batch_id, reason, blocked_by=None):
+    result = _orig_block_batch(batch_id, reason, blocked_by)
+    if result.get('success'):
+        agro_emit('batch_blocked', {
+            'batch_id': batch_id,
+            'reason': reason,
+            'blocked_by': blocked_by or 'operator',
+            'message': f"Партия #{batch_id} заблокирована: {reason}"
+        })
+    return result
+AgroStore.block_batch = _patched_block_batch
+
+_orig_confirm_sales = AgroStore.confirm_sales_doc.__func__ if hasattr(AgroStore.confirm_sales_doc, '__func__') else AgroStore.confirm_sales_doc
+
+@staticmethod
+def _patched_confirm_sales(doc_id):
+    result = _orig_confirm_sales(doc_id)
+    if result.get('success'):
+        agro_emit('sales_confirmed', {
+            'doc_id': doc_id,
+            'message': f"Документ отгрузки #{doc_id} подтверждён"
+        })
+    return result
+AgroStore.confirm_sales_doc = _patched_confirm_sales
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)
