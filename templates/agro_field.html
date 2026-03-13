@@ -2,33 +2,1291 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>AGRO Field</title>
+<script src="/static/agro/barcode-scanner.js"></script>
+<script src="/static/agro/barcode-generator.js"></script>
 <style>
-  :root { --primary: #059669; --primary-dark: #047857; --bg: #f0fdf4; --sidebar-bg: #064e3b; --sidebar-text: #d1fae5; --white: #fff; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); display: flex; min-height: 100vh; }
-  .sidebar { width: 220px; background: var(--sidebar-bg); color: var(--sidebar-text); padding: 20px 0; flex-shrink: 0; }
-  .sidebar h2 { padding: 0 20px 16px; font-size: 18px; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 8px; }
-  .sidebar a { display: block; padding: 10px 20px; color: var(--sidebar-text); text-decoration: none; font-size: 14px; transition: background .15s; }
-  .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,.12); color: var(--white); }
-  .main { flex: 1; padding: 32px 40px; }
-  .main h1 { color: var(--primary-dark); margin-bottom: 8px; }
-  .main p { color: #374151; }
+:root {
+    --primary: #059669;
+    --primary-dark: #047857;
+    --accent: #10b981;
+    --bg: #f0fdf4;
+    --card-bg: #fff;
+    --sidebar-bg: #064e3b;
+    --sidebar-text: #d1fae5;
+    --text: #134e4a;
+    --text-muted: #64748b;
+    --border: #a7f3d0;
+    --white: #fff;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --warning: #d97706;
+    --warning-bg: #fffbeb;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    min-height: 100vh;
+    font-size: 16px;
+}
+
+/* ---------- Online/Offline Bar ---------- */
+.status-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 3000;
+    transition: transform .3s;
+}
+.status-bar.online { background: #d1fae5; color: #065f46; transform: translateY(-32px); }
+.status-bar.online.flash { transform: translateY(0); }
+.status-bar.offline { background: #fef2f2; color: #991b1b; transform: translateY(0); }
+.status-bar .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+.status-bar.online .dot { background: #059669; }
+.status-bar.offline .dot { background: #dc2626; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    width: 180px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 100vh;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.sidebar-logo {
+    padding: 20px 16px 12px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--white);
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    letter-spacing: .5px;
+}
+.sidebar-section {
+    padding: 14px 16px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,.45);
+    font-weight: 600;
+}
+.sidebar a {
+    display: block;
+    padding: 12px 16px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 14px;
+    transition: background .15s;
+    border-left: 3px solid transparent;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+}
+.sidebar a:hover { background: rgba(255,255,255,.08); color: var(--white); }
+.sidebar a.active { background: rgba(255,255,255,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
+.sidebar-divider { border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+.sidebar-toggle {
+    display: none;
+    position: fixed;
+    top: 8px; left: 8px;
+    z-index: 200;
+    width: 48px; height: 48px;
+    background: var(--sidebar-bg);
+    color: var(--white);
+    border: none;
+    border-radius: 10px;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+/* ---------- Main ---------- */
+.main {
+    flex: 1;
+    padding: 24px 28px;
+    overflow-x: hidden;
+    min-width: 0;
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ---------- Page Header ---------- */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.page-header h1 { font-size: 22px; color: var(--primary-dark); }
+.page-header .subtitle { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+
+/* ---------- Card ---------- */
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* ---------- Buttons (tablet-sized) ---------- */
+.btn {
+    padding: 14px 24px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: opacity .15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    touch-action: manipulation;
+}
+.btn:hover { opacity: .88; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--primary); color: var(--white); }
+.btn-accent { background: var(--accent); color: var(--white); }
+.btn-ghost { background: #ecfdf5; color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #fecaca; color: #991b1b; }
+.btn-warning { background: var(--warning-bg); color: #92400e; border: 1px solid #fbbf24; }
+.btn-sm { padding: 10px 16px; font-size: 14px; }
+.btn-lg {
+    padding: 18px 36px;
+    font-size: 20px;
+    border-radius: 14px;
+    min-height: 60px;
+    width: 100%;
+}
+.btn-block { width: 100%; }
+
+/* ---------- Form Fields (tablet-sized) ---------- */
+.field { margin-bottom: 16px; }
+.field label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+.field input, .field select, .field textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 18px;
+    color: var(--text);
+    background: var(--white);
+    transition: border-color .15s;
+    min-height: 48px;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(5,150,105,.12);
+}
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.field-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* ---------- Large Numeric Input ---------- */
+.input-weight {
+    font-size: 36px;
+    font-weight: 700;
+    text-align: center;
+    padding: 20px;
+    min-height: 80px;
+    letter-spacing: 2px;
+    color: var(--primary-dark);
+}
+.weight-display {
+    display: flex;
+    gap: 16px;
+    margin: 16px 0;
+}
+.weight-box {
+    flex: 1;
+    background: #ecfdf5;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+}
+.weight-box.net { border-color: var(--primary); background: #d1fae5; }
+.weight-box .wlabel { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.weight-box .wvalue { font-size: 28px; font-weight: 700; color: var(--primary-dark); }
+
+/* ---------- Packaging Type Selector ---------- */
+.pkg-selector {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+}
+.pkg-btn {
+    padding: 14px 20px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--white);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    min-height: 48px;
+    min-width: 100px;
+    text-align: center;
+    transition: all .15s;
+    touch-action: manipulation;
+}
+.pkg-btn:hover { border-color: var(--accent); }
+.pkg-btn.selected {
+    border-color: var(--primary);
+    background: #d1fae5;
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+/* ---------- Camera Viewfinder ---------- */
+.viewfinder {
+    width: 100%;
+    max-width: 640px;
+    height: 300px;
+    background: #1a1a1a;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    margin: 0 auto 16px;
+}
+.viewfinder video { width: 100%; height: 100%; object-fit: cover; }
+.viewfinder canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.viewfinder-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #9ca3af;
+    font-size: 18px;
+    gap: 12px;
+}
+.viewfinder-placeholder .cam-icon { font-size: 48px; }
+
+/* ---------- Table (tablet) ---------- */
+.table-wrap {
+    overflow-x: auto;
+    margin-top: 12px;
+}
+table { width: 100%; border-collapse: collapse; font-size: 15px; }
+th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+th {
+    background: #ecfdf5;
+    font-weight: 600;
+    color: var(--text-muted);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+tr:hover td { background: #f0fdf4; }
+tr.clickable { cursor: pointer; }
+
+/* ---------- Badges ---------- */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.badge-draft { background: #fef3c7; color: #92400e; }
+.badge-confirmed { background: #d1fae5; color: #065f46; }
+.badge-closed { background: #e2e8f0; color: #475569; }
+.badge-generated { background: #e0f2fe; color: #0369a1; }
+.badge-printed { background: #fef3c7; color: #92400e; }
+.badge-assigned { background: #d1fae5; color: #065f46; }
+
+/* ---------- Status Tabs ---------- */
+.status-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.status-tab {
+    padding: 10px 20px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    background: var(--white);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    transition: all .15s;
+    touch-action: manipulation;
+}
+.status-tab:hover { border-color: var(--accent); }
+.status-tab.active { border-color: var(--primary); background: #d1fae5; color: var(--primary-dark); font-weight: 700; }
+.status-tab .tab-count {
+    background: rgba(0,0,0,.08);
+    padding: 2px 8px;
+    border-radius: 8px;
+    margin-left: 8px;
+    font-size: 12px;
+}
+
+/* ---------- Crate Info Panel ---------- */
+.crate-info {
+    display: none;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 16px;
+    background: var(--white);
+}
+.crate-info.visible { display: block; }
+.crate-info.new-crate { border-color: var(--accent); background: #ecfdf5; }
+.crate-info.existing-crate { border-color: #60a5fa; background: #eff6ff; }
+.crate-info h3 { font-size: 18px; margin-bottom: 12px; }
+
+/* ---------- Purchase Lines ---------- */
+.purchase-lines { margin: 16px 0; }
+.purchase-line {
+    display: grid;
+    grid-template-columns: 2fr repeat(6, 1fr) auto;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    font-size: 15px;
+}
+.purchase-line-header {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.line-remove {
+    width: 40px; height: 40px;
+    border: none;
+    background: #fef2f2;
+    color: #dc2626;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    max-width: 700px;
+    width: 95%;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.modal h2 { font-size: 20px; color: var(--primary-dark); margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 12px; margin-top: 22px; justify-content: flex-end; }
+
+/* ---------- Toast ---------- */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 16px 28px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    z-index: 2000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform .3s, opacity .3s;
+    color: var(--white);
+    max-width: 400px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-success { background: var(--primary); }
+.toast-error { background: var(--danger); }
+.toast-warning { background: var(--warning); }
+
+/* ---------- Print Container ---------- */
+.barcode-print-area { margin-top: 20px; }
+.barcode-print-container { border: 1px dashed var(--border); border-radius: 12px; padding: 16px; min-height: 100px; }
+.barcode-page {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 4px;
+    margin-bottom: 16px;
+}
+.barcode-label {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 8px;
+    text-align: center;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.barcode-label svg { max-width: 100%; }
+.barcode-text { font-family: monospace; font-size: 11px; margin-top: 4px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+    .sidebar { position: fixed; left: -200px; top: 0; bottom: 0; z-index: 150; transition: left .25s; width: 200px; }
+    .sidebar.open { left: 0; }
+    .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+    .main { padding: 16px; padding-top: 64px; }
+    .viewfinder { height: 250px; }
+    .purchase-line { grid-template-columns: 1fr 1fr; gap: 6px; font-size: 14px; }
+    .purchase-line-header { display: none; }
+    .weight-display { flex-direction: column; gap: 10px; }
+}
+
+@media print {
+    body * { visibility: hidden !important; }
+    .barcode-print-container, .barcode-print-container * { visibility: visible !important; }
+    .barcode-print-container {
+        position: fixed !important;
+        left: 0; top: 0;
+        width: 210mm;
+        margin: 0; padding: 5mm;
+        z-index: 99999;
+    }
+    .barcode-page {
+        width: 200mm;
+        height: 287mm;
+        page-break-after: always;
+    }
+}
 </style>
 </head>
 <body>
-<nav class="sidebar">
-  <h2>AGRO</h2>
-  <a href="/UNA.md/orasldev/agro-admin">Admin</a>
-  <a class="active" href="/UNA.md/orasldev/agro-field">Field</a>
-  <a href="/UNA.md/orasldev/agro-warehouse">Warehouse</a>
-  <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
-  <a href="/UNA.md/orasldev/agro-sales">Sales</a>
+
+<!-- ============================================================ -->
+<!-- STATUS BAR                                                     -->
+<!-- ============================================================ -->
+<div id="statusBar" class="status-bar online">
+    <span class="dot"></span>
+    <span id="statusText">Online</span>
+</div>
+
+<!-- ============================================================ -->
+<!-- SIDEBAR TOGGLE (mobile)                                        -->
+<!-- ============================================================ -->
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">&#9776;</button>
+
+<!-- ============================================================ -->
+<!-- SIDEBAR                                                        -->
+<!-- ============================================================ -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">AGRO Field</div>
+
+    <div class="sidebar-section">Операции / Operatii</div>
+    <a href="#scan" class="nav-link active" data-page="scan">Scan / Приёмка</a>
+    <a href="#purchase" class="nav-link" data-page="purchase">Закупка / Achizitie</a>
+    <a href="#barcodes" class="nav-link" data-page="barcodes">Штрихкоды / Coduri</a>
+    <a href="#purchases-list" class="nav-link" data-page="purchases-list">Список / Lista</a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Навигация</div>
+    <a href="/UNA.md/orasldev/agro-admin">Admin</a>
+    <a href="/UNA.md/orasldev/agro-warehouse">Warehouse</a>
+    <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales">Sales</a>
 </nav>
+
+<!-- ============================================================ -->
+<!-- MAIN CONTENT                                                   -->
+<!-- ============================================================ -->
 <main class="main">
-  <h1>AGRO Field</h1>
-  <p>Purchases, barcodes, crates, offline sync. Module under construction.</p>
+
+<!-- ==================== 1. SCAN / ПРИЁМКА ==================== -->
+<div id="page-scan" class="page active">
+    <div class="page-header">
+        <div><h1>Scan / Приёмка ящиков</h1><div class="subtitle">Scanare / Receptie lazi</div></div>
+    </div>
+
+    <div class="card">
+        <div class="viewfinder" id="cameraViewfinder">
+            <div class="viewfinder-placeholder" id="viewfinderPlaceholder">
+                <span class="cam-icon">&#128247;</span>
+                <span>Камера не активна</span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary btn-lg" id="btnScanToggle" onclick="toggleScanner()">
+            Сканировать / Scanează
+        </button>
+
+        <div style="margin-top: 16px;">
+            <div class="field">
+                <label>Ручной ввод / Introducere manuala</label>
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="manualBarcode" placeholder="Введите штрихкод..." style="flex:1;">
+                    <button class="btn btn-accent" onclick="lookupBarcode(document.getElementById('manualBarcode').value)">Найти</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Crate Info Panel (appears after scan) -->
+    <div class="crate-info" id="crateInfoPanel">
+        <h3 id="crateInfoTitle">Ящик / Lada</h3>
+
+        <div id="crateExistingInfo" style="display:none;margin-bottom:16px;">
+            <div class="weight-display">
+                <div class="weight-box"><div class="wlabel">Barcode</div><div class="wvalue" id="crateBarcode">-</div></div>
+                <div class="weight-box"><div class="wlabel">Status</div><div class="wvalue" id="crateStatus">-</div></div>
+            </div>
+        </div>
+
+        <div id="crateWeighForm">
+            <div class="field">
+                <label>Тип тары / Tip ambalaj</label>
+                <div class="pkg-selector" id="pkgSelector">
+                    <!-- Filled from references -->
+                </div>
+            </div>
+
+            <div class="field">
+                <label>Вес брутто, кг / Greutate brut, kg</label>
+                <input type="number" class="input-weight" id="grossWeight" placeholder="0.00" step="0.01" min="0"
+                       oninput="calcNetWeight()">
+            </div>
+
+            <div class="weight-display">
+                <div class="weight-box">
+                    <div class="wlabel">Tare / Тара, кг</div>
+                    <div class="wvalue" id="tareDisplay">0.00</div>
+                </div>
+                <div class="weight-box net">
+                    <div class="wlabel">Net / Нетто, кг</div>
+                    <div class="wvalue" id="netDisplay">0.00</div>
+                </div>
+            </div>
+
+            <input type="hidden" id="scanBarcodeId">
+            <input type="hidden" id="scanPackagingTypeId">
+
+            <button class="btn btn-primary btn-lg" onclick="saveCrateWeight()" id="btnSaveCrate">
+                Сохранить / Salvează
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 2. PURCHASE / ЗАКУПКА ==================== -->
+<div id="page-purchase" class="page">
+    <div class="page-header">
+        <div><h1>Закупка / Achizitie</h1><div class="subtitle">Document de achizitie</div></div>
+    </div>
+
+    <div class="card">
+        <div class="field-row">
+            <div class="field">
+                <label>Поставщик / Furnizor</label>
+                <select id="purchaseSupplier"></select>
+            </div>
+            <div class="field">
+                <label>Склад / Depozit</label>
+                <select id="purchaseWarehouse"></select>
+            </div>
+            <div class="field">
+                <label>Дата / Data</label>
+                <input type="date" id="purchaseDate">
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3>Позиции / Linii</h3>
+            <button class="btn btn-accent btn-sm" onclick="addPurchaseLine()">+ Добавить позицию</button>
+        </div>
+
+        <div class="purchase-line purchase-line-header">
+            <div>Продукция / Produs</div>
+            <div>Паллет</div>
+            <div>Ящики</div>
+            <div>Брутто</div>
+            <div>Тара</div>
+            <div>Нетто</div>
+            <div>Цена/кг</div>
+            <div></div>
+        </div>
+
+        <div id="purchaseLines">
+            <!-- Dynamic purchase lines -->
+        </div>
+
+        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="font-size:18px;font-weight:700;color:var(--primary-dark);">
+                Итого / Total: <span id="purchaseTotal">0.00</span> MDL
+            </div>
+            <div style="display:flex;gap:10px;">
+                <button class="btn btn-ghost" onclick="savePurchaseDraft()">Черновик / Draft</button>
+                <button class="btn btn-primary" onclick="confirmPurchase()">Подтвердить / Confirma</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 3. BARCODES / ШТРИХКОДЫ ==================== -->
+<div id="page-barcodes" class="page">
+    <div class="page-header">
+        <div><h1>Штрихкоды / Coduri de bare</h1><div class="subtitle">Generare si tiparire coduri</div></div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:12px;">Генерация / Generare</h3>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="margin-bottom:0;min-width:150px;">
+                <label>Количество / Cantitate</label>
+                <input type="number" id="barcodeCount" value="24" min="1" max="1000" step="1">
+            </div>
+            <button class="btn btn-primary" onclick="generateBarcodes()">Генерировать / Genereaza</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+            <h3>Сгенерированные / Generate</h3>
+            <div style="display:flex;gap:10px;">
+                <button class="btn btn-ghost btn-sm" onclick="selectAllBarcodes()">Выбрать все</button>
+                <button class="btn btn-accent btn-sm" onclick="printSelectedBarcodes()">Печать / Tiparire</button>
+            </div>
+        </div>
+
+        <div class="table-wrap" style="max-height:400px;overflow-y:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px;"><input type="checkbox" id="barcodeSelectAll" onchange="toggleAllBarcodeCheckboxes(this)"></th>
+                        <th>Код / Cod</th>
+                        <th>Статус / Status</th>
+                        <th>Создан / Creat</th>
+                    </tr>
+                </thead>
+                <tbody id="barcodesTableBody">
+                    <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">Нет штрихкодов / Nu exista coduri</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="barcode-print-area">
+        <div id="barcodePrintContainer" class="barcode-print-container" style="display:none;"></div>
+    </div>
+</div>
+
+<!-- ==================== 4. PURCHASES LIST / СПИСОК ЗАКУПОК ==================== -->
+<div id="page-purchases-list" class="page">
+    <div class="page-header">
+        <div><h1>Список закупок / Lista achizitii</h1><div class="subtitle">Toate documentele de achizitie</div></div>
+        <button class="btn btn-primary" onclick="navigateTo('purchase')">+ Новая закупка</button>
+    </div>
+
+    <div class="status-tabs" id="purchaseStatusTabs">
+        <div class="status-tab active" data-status="all" onclick="filterPurchases('all')">Все / Toate <span class="tab-count" id="countAll">0</span></div>
+        <div class="status-tab" data-status="DRAFT" onclick="filterPurchases('DRAFT')">Черновик / Draft <span class="tab-count" id="countDraft">0</span></div>
+        <div class="status-tab" data-status="CONFIRMED" onclick="filterPurchases('CONFIRMED')">Подтверждено / Confirmat <span class="tab-count" id="countConfirmed">0</span></div>
+        <div class="status-tab" data-status="CLOSED" onclick="filterPurchases('CLOSED')">Закрыт / Inchis <span class="tab-count" id="countClosed">0</span></div>
+    </div>
+
+    <div class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Номер</th>
+                        <th>Дата / Data</th>
+                        <th>Поставщик / Furnizor</th>
+                        <th>Статус / Status</th>
+                        <th>Кг / Kg</th>
+                        <th>Сумма / Suma</th>
+                    </tr>
+                </thead>
+                <tbody id="purchasesListBody">
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Загрузка... / Se incarca...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 </main>
+
+<!-- ============================================================ -->
+<!-- TOAST                                                          -->
+<!-- ============================================================ -->
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                     -->
+<!-- ============================================================ -->
+<script>
+(function() {
+'use strict';
+
+/* ========== STATE ========== */
+var refs = { suppliers: [], customers: [], warehouses: [], items: [], packaging: [], currencies: [] };
+var barcodesList = [];
+var purchasesList = [];
+var currentPurchase = { supplier_id: null, warehouse_id: null, doc_date: '', lines: [] };
+var purchaseFilter = 'all';
+var lineCounter = 0;
+
+/* ========== INIT ========== */
+document.addEventListener('DOMContentLoaded', function() {
+    initNavigation();
+    initOnlineStatus();
+    setDefaultDate();
+    loadReferences();
+    loadPurchasesList();
+});
+
+/* ========== NAVIGATION ========== */
+function initNavigation() {
+    var links = document.querySelectorAll('.nav-link');
+    links.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var page = this.getAttribute('data-page');
+            navigateTo(page);
+            // close sidebar on mobile
+            document.getElementById('sidebar').classList.remove('open');
+        });
+    });
+
+    // Handle hash on load
+    var hash = window.location.hash.replace('#', '');
+    if (hash) navigateTo(hash);
+}
+
+window.navigateTo = function(page) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
+
+    var pageEl = document.getElementById('page-' + page);
+    var linkEl = document.querySelector('.nav-link[data-page="' + page + '"]');
+    if (pageEl) pageEl.classList.add('active');
+    if (linkEl) linkEl.classList.add('active');
+
+    window.location.hash = page;
+
+    // Refresh data on page switch
+    if (page === 'purchases-list') loadPurchasesList();
+};
+
+window.toggleSidebar = function() {
+    document.getElementById('sidebar').classList.toggle('open');
+};
+
+/* ========== ONLINE / OFFLINE ========== */
+function initOnlineStatus() {
+    var bar = document.getElementById('statusBar');
+    var text = document.getElementById('statusText');
+
+    function update() {
+        if (navigator.onLine) {
+            bar.className = 'status-bar online';
+            text.textContent = 'Online';
+            bar.classList.add('flash');
+            setTimeout(function() { bar.classList.remove('flash'); }, 2000);
+        } else {
+            bar.className = 'status-bar offline';
+            text.textContent = 'Offline / Нет сети';
+        }
+    }
+
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    update();
+}
+
+/* ========== TOAST ========== */
+window.showToast = function(msg, type) {
+    type = type || 'success';
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast toast-' + type + ' show';
+    setTimeout(function() { t.classList.remove('show'); }, 3000);
+};
+
+/* ========== API HELPERS ========== */
+function api(method, url, body) {
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(url, opts).then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'API error ' + r.status); });
+        return r.json();
+    });
+}
+
+/* ========== REFERENCES ========== */
+function loadReferences() {
+    api('GET', '/api/agro-field/sync/references').then(function(data) {
+        refs = data;
+        populateDropdowns();
+        populatePackagingSelector();
+    }).catch(function(err) {
+        console.warn('Failed to load references:', err);
+        showToast('Ошибка загрузки справочников / Eroare la incarcarea referintelor', 'error');
+    });
+}
+
+function populateDropdowns() {
+    fillSelect('purchaseSupplier', refs.suppliers || [], 'id', 'name');
+    fillSelect('purchaseWarehouse', refs.warehouses || [], 'id', 'name');
+}
+
+function fillSelect(id, items, valKey, textKey) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">-- Выбрать --</option>';
+    items.forEach(function(item) {
+        var opt = document.createElement('option');
+        opt.value = item[valKey];
+        opt.textContent = item[textKey] || item.code || item[valKey];
+        sel.appendChild(opt);
+    });
+}
+
+function populatePackagingSelector() {
+    var container = document.getElementById('pkgSelector');
+    container.innerHTML = '';
+    (refs.packaging || []).forEach(function(pkg) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pkg-btn';
+        btn.textContent = (pkg.name || pkg.code) + ' (' + (pkg.tare_weight_kg || 0) + ' кг)';
+        btn.setAttribute('data-id', pkg.id);
+        btn.setAttribute('data-tare', pkg.tare_weight_kg || 0);
+        btn.addEventListener('click', function() {
+            container.querySelectorAll('.pkg-btn').forEach(function(b) { b.classList.remove('selected'); });
+            btn.classList.add('selected');
+            document.getElementById('scanPackagingTypeId').value = pkg.id;
+            calcNetWeight();
+        });
+        container.appendChild(btn);
+    });
+}
+
+/* ========== DATE ========== */
+function setDefaultDate() {
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('purchaseDate').value = today;
+}
+
+/* ========== BARCODE SCANNER ========== */
+window.toggleScanner = function() {
+    if (AgroBarcodeScanner.isRunning()) {
+        AgroBarcodeScanner.stop();
+        document.getElementById('btnScanToggle').textContent = 'Сканировать / Scanează';
+        document.getElementById('viewfinderPlaceholder').style.display = '';
+    } else {
+        document.getElementById('viewfinderPlaceholder').style.display = 'none';
+        document.getElementById('btnScanToggle').textContent = 'Остановить / Opreste';
+        AgroBarcodeScanner.start('cameraViewfinder', function(code) {
+            showToast('Считан код: ' + code);
+            lookupBarcode(code);
+        }).catch(function(err) {
+            showToast(err.message, 'error');
+            document.getElementById('viewfinderPlaceholder').style.display = '';
+            document.getElementById('btnScanToggle').textContent = 'Сканировать / Scanează';
+        });
+    }
+};
+
+window.lookupBarcode = function(code) {
+    if (!code || !code.trim()) {
+        showToast('Введите штрихкод / Introduceti codul', 'warning');
+        return;
+    }
+    code = code.trim();
+
+    api('POST', '/api/agro-field/crates/scan', { barcode: code }).then(function(data) {
+        var panel = document.getElementById('crateInfoPanel');
+        panel.classList.add('visible');
+
+        if (data.found) {
+            // Existing crate
+            panel.className = 'crate-info visible existing-crate';
+            document.getElementById('crateInfoTitle').textContent = 'Найден ящик / Lada gasita: ' + code;
+            document.getElementById('crateExistingInfo').style.display = 'block';
+            document.getElementById('crateBarcode').textContent = code;
+            document.getElementById('crateStatus').textContent = data.status || '-';
+            document.getElementById('scanBarcodeId').value = data.barcode_id || data.id || '';
+        } else {
+            // New crate
+            panel.className = 'crate-info visible new-crate';
+            document.getElementById('crateInfoTitle').textContent = 'Новый ящик / Lada noua: ' + code;
+            document.getElementById('crateExistingInfo').style.display = 'none';
+            document.getElementById('scanBarcodeId').value = data.barcode_id || '';
+        }
+
+        // Reset weight form
+        document.getElementById('grossWeight').value = '';
+        document.getElementById('tareDisplay').textContent = '0.00';
+        document.getElementById('netDisplay').textContent = '0.00';
+        document.getElementById('pkgSelector').querySelectorAll('.pkg-btn').forEach(function(b) { b.classList.remove('selected'); });
+        document.getElementById('scanPackagingTypeId').value = '';
+
+        // Focus on weight input
+        document.getElementById('grossWeight').focus();
+    }).catch(function(err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    });
+};
+
+/* ========== WEIGHT CALCULATION ========== */
+window.calcNetWeight = function() {
+    var gross = parseFloat(document.getElementById('grossWeight').value) || 0;
+    var selectedPkg = document.querySelector('#pkgSelector .pkg-btn.selected');
+    var tare = selectedPkg ? parseFloat(selectedPkg.getAttribute('data-tare')) || 0 : 0;
+    var net = Math.max(0, gross - tare);
+
+    document.getElementById('tareDisplay').textContent = tare.toFixed(2);
+    document.getElementById('netDisplay').textContent = net.toFixed(2);
+};
+
+window.saveCrateWeight = function() {
+    var barcodeId = document.getElementById('scanBarcodeId').value;
+    var pkgTypeId = document.getElementById('scanPackagingTypeId').value;
+    var grossWeight = parseFloat(document.getElementById('grossWeight').value) || 0;
+
+    if (!barcodeId) { showToast('Сначала отсканируйте штрихкод / Mai intai scanati codul', 'warning'); return; }
+    if (!pkgTypeId) { showToast('Выберите тип тары / Selectati tipul ambalajului', 'warning'); return; }
+    if (grossWeight <= 0) { showToast('Введите вес брутто / Introduceti greutatea brut', 'warning'); return; }
+
+    api('POST', '/api/agro-field/crates/weigh', {
+        barcode_id: parseInt(barcodeId),
+        packaging_type_id: parseInt(pkgTypeId),
+        gross_weight_kg: grossWeight
+    }).then(function(data) {
+        showToast('Вес сохранен / Greutate salvata');
+        document.getElementById('crateInfoPanel').classList.remove('visible');
+        document.getElementById('grossWeight').value = '';
+        document.getElementById('manualBarcode').value = '';
+    }).catch(function(err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    });
+};
+
+/* ========== PURCHASE DOCUMENT ========== */
+window.addPurchaseLine = function() {
+    lineCounter++;
+    var lineId = 'line-' + lineCounter;
+    var container = document.getElementById('purchaseLines');
+
+    var div = document.createElement('div');
+    div.className = 'purchase-line';
+    div.id = lineId;
+
+    var itemOptions = '<option value="">-- Продукция --</option>';
+    (refs.items || []).forEach(function(it) {
+        itemOptions += '<option value="' + it.id + '">' + (it.name || it.code) + '</option>';
+    });
+
+    div.innerHTML =
+        '<div><select class="line-item" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;">' + itemOptions + '</select></div>' +
+        '<div><input type="number" class="line-pallets" placeholder="0" min="0" step="1" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-crates" placeholder="0" min="0" step="1" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-gross" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-tare" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
+        '<div style="font-size:18px;font-weight:700;text-align:center;padding:10px;" class="line-net-display">0.00</div>' +
+        '<div><input type="number" class="line-price" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
+        '<div><button class="line-remove" onclick="removePurchaseLine(\'' + lineId + '\')">&times;</button></div>';
+
+    container.appendChild(div);
+};
+
+window.removePurchaseLine = function(lineId) {
+    var el = document.getElementById(lineId);
+    if (el) el.remove();
+    recalcPurchaseTotal();
+};
+
+window.recalcPurchaseLine = function(lineId) {
+    var line = document.getElementById(lineId);
+    if (!line) return;
+    var gross = parseFloat(line.querySelector('.line-gross').value) || 0;
+    var tare = parseFloat(line.querySelector('.line-tare').value) || 0;
+    var net = Math.max(0, gross - tare);
+    line.querySelector('.line-net-display').textContent = net.toFixed(2);
+    recalcPurchaseTotal();
+};
+
+function recalcPurchaseTotal() {
+    var total = 0;
+    document.querySelectorAll('#purchaseLines .purchase-line').forEach(function(line) {
+        var gross = parseFloat(line.querySelector('.line-gross').value) || 0;
+        var tare = parseFloat(line.querySelector('.line-tare').value) || 0;
+        var net = Math.max(0, gross - tare);
+        var price = parseFloat(line.querySelector('.line-price').value) || 0;
+        total += net * price;
+    });
+    document.getElementById('purchaseTotal').textContent = total.toFixed(2);
+}
+
+function collectPurchaseData() {
+    var lines = [];
+    document.querySelectorAll('#purchaseLines .purchase-line').forEach(function(line) {
+        var itemId = line.querySelector('.line-item').value;
+        if (!itemId) return;
+        var gross = parseFloat(line.querySelector('.line-gross').value) || 0;
+        var tare = parseFloat(line.querySelector('.line-tare').value) || 0;
+        lines.push({
+            item_id: parseInt(itemId),
+            pallets: parseInt(line.querySelector('.line-pallets').value) || 0,
+            crates: parseInt(line.querySelector('.line-crates').value) || 0,
+            gross_weight_kg: gross,
+            tare_weight_kg: tare,
+            net_weight_kg: Math.max(0, gross - tare),
+            price_per_kg: parseFloat(line.querySelector('.line-price').value) || 0
+        });
+    });
+    return {
+        supplier_id: parseInt(document.getElementById('purchaseSupplier').value) || null,
+        warehouse_id: parseInt(document.getElementById('purchaseWarehouse').value) || null,
+        doc_date: document.getElementById('purchaseDate').value,
+        lines: lines
+    };
+}
+
+window.savePurchaseDraft = function() {
+    var data = collectPurchaseData();
+    if (!data.supplier_id) { showToast('Выберите поставщика / Selectati furnizorul', 'warning'); return; }
+    if (!data.warehouse_id) { showToast('Выберите склад / Selectati depozitul', 'warning'); return; }
+
+    api('POST', '/api/agro-field/purchases', data).then(function(result) {
+        showToast('Черновик сохранен / Draft salvat');
+        document.getElementById('purchaseLines').innerHTML = '';
+        loadPurchasesList();
+    }).catch(function(err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    });
+};
+
+window.confirmPurchase = function() {
+    var data = collectPurchaseData();
+    if (!data.supplier_id) { showToast('Выберите поставщика / Selectati furnizorul', 'warning'); return; }
+    if (!data.warehouse_id) { showToast('Выберите склад / Selectati depozitul', 'warning'); return; }
+    if (data.lines.length === 0) { showToast('Добавьте позиции / Adaugati linii', 'warning'); return; }
+
+    api('POST', '/api/agro-field/purchases', data).then(function(result) {
+        if (result.id) {
+            return api('PUT', '/api/agro-field/purchases/' + result.id + '/confirm');
+        }
+        return result;
+    }).then(function() {
+        showToast('Закупка подтверждена / Achizitie confirmata');
+        document.getElementById('purchaseLines').innerHTML = '';
+        setDefaultDate();
+        loadPurchasesList();
+    }).catch(function(err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    });
+};
+
+/* ========== PURCHASES LIST ========== */
+function loadPurchasesList() {
+    api('GET', '/api/agro-field/purchases').then(function(data) {
+        purchasesList = data.purchases || data || [];
+        renderPurchasesList();
+    }).catch(function(err) {
+        console.warn('Failed to load purchases:', err);
+    });
+}
+
+window.filterPurchases = function(status) {
+    purchaseFilter = status;
+    document.querySelectorAll('.status-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelector('.status-tab[data-status="' + status + '"]').classList.add('active');
+    renderPurchasesList();
+};
+
+function renderPurchasesList() {
+    var tbody = document.getElementById('purchasesListBody');
+    var filtered = purchaseFilter === 'all' ? purchasesList : purchasesList.filter(function(p) { return p.status === purchaseFilter; });
+
+    // Update counts
+    var all = purchasesList.length;
+    var draft = purchasesList.filter(function(p) { return p.status === 'DRAFT'; }).length;
+    var confirmed = purchasesList.filter(function(p) { return p.status === 'CONFIRMED'; }).length;
+    var closed = purchasesList.filter(function(p) { return p.status === 'CLOSED'; }).length;
+    document.getElementById('countAll').textContent = all;
+    document.getElementById('countDraft').textContent = draft;
+    document.getElementById('countConfirmed').textContent = confirmed;
+    document.getElementById('countClosed').textContent = closed;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Нет документов / Nu exista documente</td></tr>';
+        return;
+    }
+
+    var supplierMap = {};
+    (refs.suppliers || []).forEach(function(s) { supplierMap[s.id] = s.name || s.code; });
+
+    tbody.innerHTML = filtered.map(function(p) {
+        var badgeClass = 'badge-' + (p.status || 'draft').toLowerCase();
+        var supplierName = supplierMap[p.supplier_id] || p.supplier_name || '-';
+        return '<tr class="clickable" onclick="openPurchaseDetail(' + p.id + ')">' +
+            '<td>' + (p.doc_number || p.id || '-') + '</td>' +
+            '<td>' + (p.doc_date || '-') + '</td>' +
+            '<td>' + supplierName + '</td>' +
+            '<td><span class="badge ' + badgeClass + '">' + (p.status || 'DRAFT') + '</span></td>' +
+            '<td>' + (p.total_kg != null ? parseFloat(p.total_kg).toFixed(1) : '-') + '</td>' +
+            '<td>' + (p.total_amount != null ? parseFloat(p.total_amount).toFixed(2) : '-') + '</td>' +
+            '</tr>';
+    }).join('');
+}
+
+window.openPurchaseDetail = function(id) {
+    // Navigate to purchase page and load data
+    navigateTo('purchase');
+    var purchase = purchasesList.find(function(p) { return p.id === id; });
+    if (!purchase) return;
+
+    document.getElementById('purchaseSupplier').value = purchase.supplier_id || '';
+    document.getElementById('purchaseWarehouse').value = purchase.warehouse_id || '';
+    document.getElementById('purchaseDate').value = purchase.doc_date || '';
+
+    // Load lines if available
+    var container = document.getElementById('purchaseLines');
+    container.innerHTML = '';
+    if (purchase.lines && purchase.lines.length > 0) {
+        purchase.lines.forEach(function(l) {
+            addPurchaseLine();
+            var lastLine = container.lastElementChild;
+            if (!lastLine) return;
+            lastLine.querySelector('.line-item').value = l.item_id || '';
+            lastLine.querySelector('.line-pallets').value = l.pallets || 0;
+            lastLine.querySelector('.line-crates').value = l.crates || 0;
+            lastLine.querySelector('.line-gross').value = l.gross_weight_kg || 0;
+            lastLine.querySelector('.line-tare').value = l.tare_weight_kg || 0;
+            lastLine.querySelector('.line-price').value = l.price_per_kg || 0;
+            lastLine.querySelector('.line-net-display').textContent = (parseFloat(l.net_weight_kg) || 0).toFixed(2);
+        });
+        recalcPurchaseTotal();
+    }
+};
+
+/* ========== BARCODES ========== */
+window.generateBarcodes = function() {
+    var count = parseInt(document.getElementById('barcodeCount').value) || 24;
+    if (count < 1 || count > 1000) { showToast('Количество от 1 до 1000 / Cantitate intre 1 si 1000', 'warning'); return; }
+
+    api('GET', '/api/agro-field/barcodes/generate?count=' + count).then(function(data) {
+        showToast('Сгенерировано ' + count + ' штрихкодов / ' + count + ' coduri generate');
+        barcodesList = data.barcodes || data || [];
+        renderBarcodesTable();
+    }).catch(function(err) {
+        showToast('Ошибка: ' + err.message, 'error');
+    });
+};
+
+function renderBarcodesTable() {
+    var tbody = document.getElementById('barcodesTableBody');
+    if (barcodesList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">Нет штрихкодов / Nu exista coduri</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = barcodesList.map(function(bc) {
+        var badgeClass = 'badge-' + (bc.status || 'generated').toLowerCase();
+        return '<tr>' +
+            '<td><input type="checkbox" class="barcode-check" value="' + bc.id + '" data-code="' + (bc.code || bc.barcode) + '"></td>' +
+            '<td style="font-family:monospace;font-size:16px;">' + (bc.code || bc.barcode || '-') + '</td>' +
+            '<td><span class="badge ' + badgeClass + '">' + (bc.status || 'generated') + '</span></td>' +
+            '<td>' + (bc.created_at || bc.generated_at || '-') + '</td>' +
+            '</tr>';
+    }).join('');
+}
+
+window.selectAllBarcodes = function() {
+    var checks = document.querySelectorAll('.barcode-check');
+    var allChecked = Array.from(checks).every(function(c) { return c.checked; });
+    checks.forEach(function(c) { c.checked = !allChecked; });
+    document.getElementById('barcodeSelectAll').checked = !allChecked;
+};
+
+window.toggleAllBarcodeCheckboxes = function(master) {
+    document.querySelectorAll('.barcode-check').forEach(function(c) { c.checked = master.checked; });
+};
+
+window.printSelectedBarcodes = function() {
+    var checked = document.querySelectorAll('.barcode-check:checked');
+    if (checked.length === 0) { showToast('Выберите штрихкоды для печати / Selectati codurile', 'warning'); return; }
+
+    var codes = [];
+    var ids = [];
+    checked.forEach(function(c) {
+        ids.push(c.value);
+        codes.push({ code: c.getAttribute('data-code'), text: c.getAttribute('data-code') });
+    });
+
+    var container = document.getElementById('barcodePrintContainer');
+    container.style.display = 'block';
+
+    AgroBarcodeGenerator.generateLabels(codes, 'barcodePrintContainer').then(function() {
+        // Mark as printed via API
+        api('GET', '/api/agro-field/barcodes/print-batch?ids=' + ids.join(',')).then(function() {
+            showToast('Готово к печати / Gata de tiparire');
+            // Update statuses locally
+            ids.forEach(function(id) {
+                var bc = barcodesList.find(function(b) { return String(b.id) === String(id); });
+                if (bc) bc.status = 'printed';
+            });
+            renderBarcodesTable();
+        }).catch(function() {});
+
+        setTimeout(function() { window.print(); }, 500);
+    }).catch(function(err) {
+        showToast('Ошибка генерации: ' + err.message, 'error');
+    });
+};
+
+})();
+</script>
 </body>
 </html>
