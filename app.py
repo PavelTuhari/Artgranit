@@ -3453,6 +3453,26 @@ def agro_sales():
     return render_template('agro_sales.html')
 
 
+@app.route('/UNA.md/orasldev/agro-document/<int:doc_id>')
+def agro_document_print(doc_id):
+    """AGRO: Print document — renders A4-optimized document templates."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    doc_type = request.args.get('type', 'purchase_act')
+    allowed_types = [
+        'purchase_act', 'weight_ticket', 'shipping_note', 'invoice',
+        'export_decl', 'qa_protocol', 'gmp_checklist', 'haccp_report',
+        'mass_balance',
+    ]
+    if doc_type not in allowed_types:
+        return jsonify({"success": False, "error": f"Unknown document type: {doc_type}"}), 400
+    data = AgroStore.get_document_data(doc_type, doc_id) if hasattr(AgroStore, 'get_document_data') else {}
+    if not isinstance(data, dict):
+        data = {}
+    template = f"agro/document_{doc_type}.html"
+    return render_template(template, **data)
+
+
 # ---------------------------------------------------------------------------
 # AGRO — Admin API: reference tables CRUD
 # ---------------------------------------------------------------------------

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>HACCP отчёт / Raport HACCP</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; max-width: 210mm; margin: 0 auto; padding: 20mm; }
+.header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #dc2626; padding-bottom: 10px; }
+.header h1 { font-size: 15pt; margin-bottom: 4px; color: #991b1b; }
+.header .company { font-size: 10pt; color: #555; }
+.header .subtitle { font-size: 10pt; color: #dc2626; }
+.doc-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11pt; }
+.section { margin-bottom: 16px; }
+.section-title { font-size: 11pt; font-weight: bold; background: #fef2f2; padding: 6px 10px; border: 1px solid #dc2626; margin-bottom: 8px; color: #991b1b; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11pt; }
+.info-grid .label { color: #555; }
+.info-grid .value { font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11pt; }
+th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+th { background: #fef2f2; font-weight: bold; font-size: 10pt; }
+.severity-critical { color: #991b1b; font-weight: bold; }
+.severity-major { color: #92400e; font-weight: bold; }
+.severity-minor { color: #1e40af; }
+.deviation-box { border: 2px solid #dc2626; padding: 14px; margin: 16px 0; }
+.deviation-box .title { font-weight: bold; color: #991b1b; margin-bottom: 8px; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 30%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 25px; margin-top: 20px; }
+.sig-block .label { font-size: 9pt; color: #555; margin-top: 4px; text-align: center; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #dc2626; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>HACCP ОТЧЁТ О НЕСООТВЕТСТВИЯХ / RAPORT HACCP DEVIERI</h1>
+    <div class="subtitle">Система анализа рисков и критических контрольных точек</div>
+</div>
+<div class="doc-row">
+    <div>Номер / Nr.: <strong>{{ report_number or '—' }}</strong></div>
+    <div>Период / Perioada: <strong>{{ date_from or '—' }}</strong> — <strong>{{ date_to or '—' }}</strong></div>
+</div>
+<div class="section">
+    <div class="section-title">1. Сводка / Sumar</div>
+    <div class="info-grid">
+        <div><span class="label">Всего записей / Total inregistrari:</span> <span class="value">{{ total_records or 0 }}</span></div>
+        <div><span class="label">Несоответствий / Devieri:</span> <span class="value" style="color:#dc2626;">{{ total_deviations or 0 }}</span></div>
+        <div><span class="label">Критических / Critice:</span> <span class="value severity-critical">{{ critical_count or 0 }}</span></div>
+        <div><span class="label">Значительных / Majore:</span> <span class="value severity-major">{{ major_count or 0 }}</span></div>
+    </div>
+</div>
+<div class="section">
+    <div class="section-title">2. Детали несоответствий / Detalii devieri</div>
+    <table>
+        <thead><tr><th>#</th><th>Дата</th><th>CCP / Punct critic</th><th>Описание / Descriere</th><th>Серьёзность</th><th>Корр. действие</th><th>Статус</th></tr></thead>
+        <tbody>
+        {% for dev in deviations or [] %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ dev.recorded_at or '—' }}</td>
+            <td>{{ dev.ccp_name or '—' }}</td>
+            <td>{{ dev.description or '—' }}</td>
+            <td class="severity-{{ dev.severity or 'minor' }}">{{ dev.severity or '—' }}</td>
+            <td>{{ dev.corrective_action or '—' }}</td>
+            <td>{{ dev.status or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if temperature_deviations %}
+<div class="section">
+    <div class="section-title">3. Температурные отклонения / Devieri temperatura</div>
+    <table>
+        <thead><tr><th>Дата</th><th>Ячейка / Celula</th><th>Порог / Limita</th><th>Факт / Valoare</th><th>Длительность</th></tr></thead>
+        <tbody>
+        {% for td in temperature_deviations %}
+        <tr><td>{{ td.date or '—' }}</td><td>{{ td.cell_code or '—' }}</td><td>{{ td.threshold or '—' }}</td><td style="color:#dc2626;font-weight:bold;">{{ td.actual or '—' }}</td><td>{{ td.duration or '—' }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% if corrective_summary %}
+<div class="deviation-box">
+    <div class="title">Корректирующие меры / Masuri corective</div>
+    <div>{{ corrective_summary }}</div>
+</div>
+{% endif %}
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Ответственный HACCP</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Руководитель производства</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Директор / Director</div></div>
+</div>
+</body>
+</html>

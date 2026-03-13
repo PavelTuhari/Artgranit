@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Протокол контроля качества / Protocol control calitate</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; max-width: 210mm; margin: 0 auto; padding: 20mm; }
+.header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+.header h1 { font-size: 15pt; margin-bottom: 4px; }
+.header .company { font-size: 10pt; color: #555; }
+.doc-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11pt; }
+.section { margin-bottom: 16px; }
+.section-title { font-size: 11pt; font-weight: bold; background: #f0f0f0; padding: 6px 10px; border: 1px solid #000; margin-bottom: 8px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11pt; }
+.info-grid .label { color: #555; }
+.info-grid .value { font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11pt; }
+th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+th { background: #f0f0f0; font-weight: bold; font-size: 10pt; }
+.pass { color: #065f46; font-weight: bold; }
+.fail { color: #991b1b; font-weight: bold; }
+.verdict { border: 2px solid #000; padding: 16px; margin: 20px 0; text-align: center; }
+.verdict .result { font-size: 18pt; font-weight: bold; }
+.verdict.pass-verdict { border-color: #059669; }
+.verdict.fail-verdict { border-color: #dc2626; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 40%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 25px; margin-top: 20px; }
+.sig-block .label { font-size: 10pt; color: #555; margin-top: 4px; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #059669; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>ПРОТОКОЛ КОНТРОЛЯ КАЧЕСТВА / PROTOCOL CONTROL CALITATE</h1>
+</div>
+<div class="doc-row">
+    <div>Номер / Nr.: <strong>{{ protocol_number or '—' }}</strong></div>
+    <div>Дата / Data: <strong>{{ check_date or '—' }}</strong></div>
+</div>
+<div class="section">
+    <div class="section-title">Объект контроля / Obiect control</div>
+    <div class="info-grid">
+        <div><span class="label">Партия / Lot:</span> <span class="value">{{ batch_number or '—' }}</span></div>
+        <div><span class="label">Продукция / Produs:</span> <span class="value">{{ item_name or '—' }}</span></div>
+        <div><span class="label">Поставщик / Furnizor:</span> <span class="value">{{ supplier_name or '—' }}</span></div>
+        <div><span class="label">Склад / Depozit:</span> <span class="value">{{ warehouse_name or '—' }}</span></div>
+        <div><span class="label">Тип проверки / Tip control:</span> <span class="value">{{ check_type or '—' }}</span></div>
+        <div><span class="label">Инспектор:</span> <span class="value">{{ inspector or '—' }}</span></div>
+    </div>
+</div>
+<div class="section">
+    <div class="section-title">Результаты проверки / Rezultate control</div>
+    <table>
+        <thead><tr><th>#</th><th>Параметр / Parametru</th><th>Норма / Norma</th><th>Факт / Rezultat</th><th>Результат</th></tr></thead>
+        <tbody>
+        {% for check in checks or [] %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ check.param_name or '—' }}</td>
+            <td>{{ check.norm_value or '—' }}</td>
+            <td>{{ check.actual_value or '—' }}</td>
+            <td class="{{ 'pass' if check.passed else 'fail' }}">{{ 'ГОДЕН / CONFORM' if check.passed else 'БРАК / NECONFORM' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="verdict {{ 'pass-verdict' if overall_pass else 'fail-verdict' }}">
+    <div class="result">{{ 'ГОДЕН / CONFORM' if overall_pass else 'БРАК / NECONFORM' }}</div>
+    {% if not overall_pass and rejection_reason %}<div style="margin-top:8px;font-size:11pt;">Причина: {{ rejection_reason }}</div>{% endif %}
+</div>
+{% if notes %}<div class="section"><strong>Примечания / Observatii:</strong> {{ notes }}</div>{% endif %}
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Инспектор QC / Inspector calitate</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Руководитель / Responsabil</div></div>
+</div>
+</body>
+</html>

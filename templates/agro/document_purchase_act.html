@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Акт приёмки / Act de receptie</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; max-width: 210mm; margin: 0 auto; padding: 20mm; }
+.header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+.header h1 { font-size: 16pt; margin-bottom: 4px; }
+.header .company { font-size: 10pt; color: #555; }
+.doc-info { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 11pt; }
+.doc-info div { flex: 1; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 11pt; }
+th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+th { background: #f0f0f0; font-weight: bold; }
+.total-row td { font-weight: bold; background: #f8f8f8; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 40%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 30px; margin-top: 20px; }
+.sig-block .label { font-size: 10pt; color: #555; margin-top: 4px; }
+.stamp-area { text-align: center; margin-top: 30px; font-size: 10pt; color: #999; border: 1px dashed #ccc; padding: 20px; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #059669; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>АКТ ПРИЁМКИ СЫРЬЯ / ACT DE RECEPTIE MATERIE PRIMA</h1>
+</div>
+<div class="doc-info">
+    <div>Номер / Nr.: <strong>{{ doc_number or '—' }}</strong></div>
+    <div style="text-align:center;">Дата: <strong>{{ doc_date or '—' }}</strong></div>
+    <div style="text-align:right;">Статус: <strong>{{ status or 'draft' }}</strong></div>
+</div>
+<div class="doc-info">
+    <div>Поставщик / Furnizor: <strong>{{ supplier_name or '—' }}</strong></div>
+    <div style="text-align:right;">Склад / Depozit: <strong>{{ warehouse_name or '—' }}</strong></div>
+</div>
+<table>
+    <thead><tr><th>#</th><th>Продукция / Produs</th><th>Ящиков / Lazi</th><th>Брутто кг</th><th>Тара кг</th><th>Нетто кг</th><th>Цена/кг</th><th>Сумма</th></tr></thead>
+    <tbody>
+    {% for line in lines or [] %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ line.item_name or '—' }}</td>
+        <td>{{ line.crate_count or '—' }}</td>
+        <td>{{ '%.1f'|format(line.gross_weight_kg|float) if line.gross_weight_kg else '—' }}</td>
+        <td>{{ '%.1f'|format(line.tare_weight_kg|float) if line.tare_weight_kg else '—' }}</td>
+        <td>{{ '%.1f'|format(line.net_weight_kg|float) if line.net_weight_kg else '—' }}</td>
+        <td>{{ '%.2f'|format(line.price_per_kg|float) if line.price_per_kg else '—' }}</td>
+        <td>{{ '%.2f'|format(line.total_amount|float) if line.total_amount else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr class="total-row"><td colspan="5">ИТОГО / TOTAL</td><td>{{ '%.1f'|format(total_net_kg|float) if total_net_kg else '—' }}</td><td></td><td>{{ '%.2f'|format(total_amount|float) if total_amount else '—' }}</td></tr></tfoot>
+</table>
+<div class="doc-info"><div>Транспорт / Vehicle: {{ vehicle_number or '—' }}</div><div style="text-align:right;">Водитель / Sofer: {{ driver_name or '—' }}</div></div>
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Принял / Primit de</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Сдал / Predat de</div></div>
+</div>
+<div class="stamp-area">М.П. / L.S.</div>
+</body>
+</html>
