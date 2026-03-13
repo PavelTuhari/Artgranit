@@ -3951,6 +3951,113 @@ def api_agro_sales_export_update(decl_id):
     return jsonify(AgroSalesController.update_export_decl(data))
 
 
+# ============================================================
+# AGRO QA / HACCP API
+# ============================================================
+
+@app.route('/api/agro-qa/checklists', methods=['GET'])
+def api_agro_qa_checklists():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    ctype = request.args.get('type')
+    return jsonify(AgroQaController.get_checklists(ctype))
+
+@app.route('/api/agro-qa/checklists', methods=['POST'])
+def api_agro_qa_checklists_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.upsert_checklist(request.json or {}))
+
+@app.route('/api/agro-qa/checklists/<int:cl_id>', methods=['GET'])
+def api_agro_qa_checklist_detail(cl_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.get_checklist_by_id(cl_id))
+
+@app.route('/api/agro-qa/checklists/<int:cl_id>', methods=['DELETE'])
+def api_agro_qa_checklist_delete(cl_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.delete_checklist(cl_id))
+
+@app.route('/api/agro-qa/checks', methods=['GET'])
+def api_agro_qa_checks():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    batch_id = request.args.get('batch_id', type=int)
+    return jsonify(AgroQaController.get_checks(batch_id))
+
+@app.route('/api/agro-qa/checks', methods=['POST'])
+def api_agro_qa_checks_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.perform_check(request.json or {}))
+
+@app.route('/api/agro-qa/checks/<int:check_id>', methods=['GET'])
+def api_agro_qa_check_detail(check_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.get_check_detail(check_id))
+
+@app.route('/api/agro-qa/batches/<int:batch_id>/block', methods=['POST'])
+def api_agro_qa_block(batch_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.json or {}
+    return jsonify(AgroQaController.block_batch(batch_id, data.get('reason', ''), data.get('blocked_by')))
+
+@app.route('/api/agro-qa/batches/<int:batch_id>/unblock', methods=['POST'])
+def api_agro_qa_unblock(batch_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.json or {}
+    return jsonify(AgroQaController.unblock_batch(batch_id, data.get('unblocked_by'), data.get('resolution')))
+
+@app.route('/api/agro-qa/blocks', methods=['GET'])
+def api_agro_qa_blocks():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    active_only = request.args.get('active_only', '1') == '1'
+    return jsonify(AgroQaController.get_batch_blocks(active_only))
+
+@app.route('/api/agro-qa/haccp/plans', methods=['GET'])
+def api_agro_qa_haccp_plans():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.get_haccp_plans())
+
+@app.route('/api/agro-qa/haccp/plans', methods=['POST'])
+def api_agro_qa_haccp_plans_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.upsert_haccp_plan(request.json or {}))
+
+@app.route('/api/agro-qa/haccp/plans/<int:plan_id>/ccps', methods=['GET'])
+def api_agro_qa_ccps(plan_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.get_ccps(plan_id))
+
+@app.route('/api/agro-qa/haccp/ccps', methods=['POST'])
+def api_agro_qa_ccps_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.upsert_ccp(request.json or {}))
+
+@app.route('/api/agro-qa/haccp/records', methods=['POST'])
+def api_agro_qa_haccp_record():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.record_haccp_measurement(request.json or {}))
+
+@app.route('/api/agro-qa/haccp/deviations', methods=['GET'])
+def api_agro_qa_deviations():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroQaController.get_haccp_deviations(
+        request.args.get('date_from'), request.args.get('date_to')))
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)

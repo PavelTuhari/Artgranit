@@ -2447,3 +2447,458 @@ class AgroStore:
                 return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # QA & HACCP
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_checklists(checklist_type: str = None) -> Dict[str, Any]:
+        """List QA checklists with item counts."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT c.ID, c.NAME, c.CHECKLIST_TYPE, c.IS_ACTIVE,
+                           (SELECT COUNT(*) FROM AGRO_QA_CHECKLIST_ITEMS ci WHERE ci.CHECKLIST_ID = c.ID) AS ITEM_COUNT,
+                           c.CREATED_AT
+                    FROM AGRO_QA_CHECKLISTS c
+                """
+                params: Dict[str, Any] = {}
+                if checklist_type:
+                    sql += " WHERE c.CHECKLIST_TYPE = :ctype"
+                    params["ctype"] = checklist_type
+                sql += " ORDER BY c.NAME"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_checklist_by_id(cl_id: int) -> Dict[str, Any]:
+        """Get checklist header + items."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT * FROM AGRO_QA_CHECKLISTS WHERE ID = :cid",
+                    {"cid": cl_id})
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Checklist not found"}
+                checklist = rows[0]
+                r2 = db.execute_query(
+                    "SELECT * FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid ORDER BY SORT_ORDER",
+                    {"cid": cl_id})
+                checklist["items"] = _norm_rows(r2)
+                return {"success": True, "data": checklist}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def upsert_checklist(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update checklist + items."""
+        try:
+            with DatabaseModel() as db:
+                cl_id = data.get("id")
+                if cl_id:
+                    db.execute_query(
+                        """UPDATE AGRO_QA_CHECKLISTS SET NAME=:name, CHECKLIST_TYPE=:ctype,
+                           IS_ACTIVE=:active WHERE ID=:cid""",
+                        {"cid": cl_id, "name": data["name"],
+                         "ctype": data.get("checklist_type", "incoming"),
+                         "active": data.get("is_active", "Y")})
+                else:
+                    db.execute_query(
+                        """INSERT INTO AGRO_QA_CHECKLISTS (NAME, CHECKLIST_TYPE, IS_ACTIVE)
+                           VALUES (:name, :ctype, :active)""",
+                        {"name": data["name"],
+                         "ctype": data.get("checklist_type", "incoming"),
+                         "active": data.get("is_active", "Y")})
+                    r = db.execute_query(
+                        "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKLISTS WHERE NAME = :name",
+                        {"name": data["name"]})
+                    cl_id = _norm_rows(r)[0]["id"]
+
+                # Sync items
+                items = data.get("items", [])
+                if items:
+                    db.execute_query(
+                        "DELETE FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid",
+                        {"cid": cl_id})
+                    for idx, item in enumerate(items):
+                        db.execute_query(
+                            """INSERT INTO AGRO_QA_CHECKLIST_ITEMS
+                               (CHECKLIST_ID, PARAM_NAME, EXPECTED_VALUE, TOLERANCE, IS_CRITICAL, SORT_ORDER)
+                               VALUES (:cid, :pname, :exp, :tol, :crit, :sort)""",
+                            {"cid": cl_id, "pname": item.get("param_name", ""),
+                             "exp": item.get("expected_value", ""),
+                             "tol": item.get("tolerance", ""),
+                             "crit": item.get("is_critical", "N"),
+                             "sort": idx + 1})
+                db.connection.commit()
+                return {"success": True, "data": {"id": cl_id}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_checklist(cl_id: int) -> Dict[str, Any]:
+        """Delete checklist and its items."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "DELETE FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid",
+                    {"cid": cl_id})
+                db.execute_query(
+                    "DELETE FROM AGRO_QA_CHECKLISTS WHERE ID = :cid",
+                    {"cid": cl_id})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def perform_check(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute QA check: create check + values, auto-evaluate, auto-block on fail."""
+        try:
+            batch_id = data.get("batch_id")
+            checklist_id = data.get("checklist_id")
+            values = data.get("values", [])
+            if not batch_id or not checklist_id:
+                return {"success": False, "error": "batch_id and checklist_id required"}
+
+            with DatabaseModel() as db:
+                # Get checklist items to know criticality
+                r = db.execute_query(
+                    "SELECT ID, PARAM_NAME, IS_CRITICAL FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid ORDER BY SORT_ORDER",
+                    {"cid": checklist_id})
+                cl_items = _norm_rows(r)
+                critical_map = {it["id"]: it["is_critical"] for it in cl_items}
+
+                # Determine result
+                result = "pass"
+                has_critical_fail = False
+                has_non_critical_fail = False
+                for v in values:
+                    if v.get("is_compliant") == "N":
+                        item_id = v.get("checklist_item_id")
+                        if critical_map.get(item_id) == "Y":
+                            has_critical_fail = True
+                        else:
+                            has_non_critical_fail = True
+
+                if has_critical_fail:
+                    result = "fail"
+                elif has_non_critical_fail:
+                    result = "conditional"
+
+                # Insert check header
+                db.execute_query(
+                    """INSERT INTO AGRO_QA_CHECKS
+                       (BATCH_ID, CHECKLIST_ID, CHECK_TYPE, CHECKED_BY, RESULT, NOTES)
+                       VALUES (:bid, :clid, :ctype, :by, :result, :notes)""",
+                    {"bid": batch_id, "clid": checklist_id,
+                     "ctype": data.get("check_type", "incoming"),
+                     "by": data.get("checked_by", "inspector"),
+                     "result": result, "notes": data.get("notes", "")})
+
+                r2 = db.execute_query(
+                    "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKS WHERE BATCH_ID = :bid",
+                    {"bid": batch_id})
+                check_id = _norm_rows(r2)[0]["id"]
+
+                # Insert values
+                for v in values:
+                    db.execute_query(
+                        """INSERT INTO AGRO_QA_CHECK_VALUES
+                           (CHECK_ID, CHECKLIST_ITEM_ID, ACTUAL_VALUE, IS_COMPLIANT, NOTES)
+                           VALUES (:chk, :cli, :val, :comp, :notes)""",
+                        {"chk": check_id, "cli": v.get("checklist_item_id"),
+                         "val": v.get("actual_value", ""),
+                         "comp": v.get("is_compliant", "Y"),
+                         "notes": v.get("notes", "")})
+
+                # Auto-block on fail
+                if result == "fail":
+                    reason = f"QA check #{check_id} failed — critical non-compliance"
+                    db.execute_query(
+                        """INSERT INTO AGRO_BATCH_BLOCKS (BATCH_ID, REASON, BLOCKED_BY)
+                           VALUES (:bid, :reason, :by)""",
+                        {"bid": batch_id, "reason": reason,
+                         "by": data.get("checked_by", "qa_system")})
+                    db.execute_query(
+                        """UPDATE AGRO_BATCHES SET STATUS='blocked',
+                           BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
+                        {"bid": batch_id, "reason": reason,
+                         "by": data.get("checked_by", "qa_system")})
+
+                db.connection.commit()
+                return {"success": True, "data": {"check_id": check_id, "result": result}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_checks(batch_id: int = None) -> Dict[str, Any]:
+        """Get QA check history, optionally filtered by batch."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT c.ID, c.BATCH_ID, c.CHECKLIST_ID, c.CHECK_TYPE,
+                           c.CHECKED_BY, c.RESULT, c.NOTES, c.CHECKED_AT,
+                           b.BATCH_NUMBER, cl.NAME AS CHECKLIST_NAME
+                    FROM AGRO_QA_CHECKS c
+                    LEFT JOIN AGRO_BATCHES b ON b.ID = c.BATCH_ID
+                    LEFT JOIN AGRO_QA_CHECKLISTS cl ON cl.ID = c.CHECKLIST_ID
+                """
+                params: Dict[str, Any] = {}
+                if batch_id:
+                    sql += " WHERE c.BATCH_ID = :bid"
+                    params["bid"] = batch_id
+                sql += " ORDER BY c.CHECKED_AT DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_check_detail(check_id: int) -> Dict[str, Any]:
+        """Get check header + values."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT c.*, b.BATCH_NUMBER, cl.NAME AS CHECKLIST_NAME
+                       FROM AGRO_QA_CHECKS c
+                       LEFT JOIN AGRO_BATCHES b ON b.ID = c.BATCH_ID
+                       LEFT JOIN AGRO_QA_CHECKLISTS cl ON cl.ID = c.CHECKLIST_ID
+                       WHERE c.ID = :cid""",
+                    {"cid": check_id})
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Check not found"}
+                check = rows[0]
+                r2 = db.execute_query(
+                    """SELECT v.*, ci.PARAM_NAME, ci.EXPECTED_VALUE, ci.IS_CRITICAL
+                       FROM AGRO_QA_CHECK_VALUES v
+                       LEFT JOIN AGRO_QA_CHECKLIST_ITEMS ci ON ci.ID = v.CHECKLIST_ITEM_ID
+                       WHERE v.CHECK_ID = :cid
+                       ORDER BY ci.SORT_ORDER""",
+                    {"cid": check_id})
+                check["values"] = _norm_rows(r2)
+                return {"success": True, "data": check}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def block_batch(batch_id: int, reason: str, blocked_by: str = None) -> Dict[str, Any]:
+        """Block a batch — insert block record and update batch status."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """INSERT INTO AGRO_BATCH_BLOCKS (BATCH_ID, REASON, BLOCKED_BY)
+                       VALUES (:bid, :reason, :by)""",
+                    {"bid": batch_id, "reason": reason, "by": blocked_by or "operator"})
+                db.execute_query(
+                    """UPDATE AGRO_BATCHES SET STATUS='blocked',
+                       BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
+                    {"bid": batch_id, "reason": reason, "by": blocked_by or "operator"})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def unblock_batch(batch_id: int, unblocked_by: str = None, resolution: str = None) -> Dict[str, Any]:
+        """Unblock a batch — close block record and restore batch status."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """UPDATE AGRO_BATCH_BLOCKS SET UNBLOCKED_BY=:by,
+                       UNBLOCKED_AT=SYSTIMESTAMP, RESOLUTION_NOTES=:notes
+                       WHERE BATCH_ID=:bid AND UNBLOCKED_AT IS NULL""",
+                    {"bid": batch_id, "by": unblocked_by or "operator", "notes": resolution or ""})
+                db.execute_query(
+                    """UPDATE AGRO_BATCHES SET STATUS='active',
+                       BLOCKED_BY=NULL, BLOCK_REASON=NULL WHERE ID=:bid""",
+                    {"bid": batch_id})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_batch_blocks(active_only: bool = True) -> Dict[str, Any]:
+        """List batch blocks with batch info."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT bb.ID, bb.BATCH_ID, bb.REASON, bb.BLOCKED_BY,
+                           bb.BLOCKED_AT, bb.UNBLOCKED_BY, bb.UNBLOCKED_AT,
+                           bb.RESOLUTION_NOTES,
+                           b.BATCH_NUMBER, i.NAME AS ITEM_NAME
+                    FROM AGRO_BATCH_BLOCKS bb
+                    LEFT JOIN AGRO_BATCHES b ON b.ID = bb.BATCH_ID
+                    LEFT JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
+                """
+                if active_only:
+                    sql += " WHERE bb.UNBLOCKED_AT IS NULL"
+                sql += " ORDER BY bb.BLOCKED_AT DESC"
+                r = db.execute_query(sql)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_haccp_plans() -> Dict[str, Any]:
+        """List HACCP plans."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT h.ID, h.PLAN_NAME, h.PRODUCT_CATEGORY, h.IS_ACTIVE, h.CREATED_AT,
+                           (SELECT COUNT(*) FROM AGRO_HACCP_CCPS c WHERE c.PLAN_ID = h.ID) AS CCP_COUNT
+                       FROM AGRO_HACCP_PLANS h ORDER BY h.PLAN_NAME""")
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def upsert_haccp_plan(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update HACCP plan."""
+        try:
+            with DatabaseModel() as db:
+                plan_id = data.get("id")
+                if plan_id:
+                    db.execute_query(
+                        """UPDATE AGRO_HACCP_PLANS SET PLAN_NAME=:name,
+                           PRODUCT_CATEGORY=:cat, IS_ACTIVE=:active WHERE ID=:pid""",
+                        {"pid": plan_id, "name": data["plan_name"],
+                         "cat": data.get("product_category", ""),
+                         "active": data.get("is_active", "Y")})
+                else:
+                    db.execute_query(
+                        """INSERT INTO AGRO_HACCP_PLANS (PLAN_NAME, PRODUCT_CATEGORY, IS_ACTIVE)
+                           VALUES (:name, :cat, :active)""",
+                        {"name": data["plan_name"],
+                         "cat": data.get("product_category", ""),
+                         "active": data.get("is_active", "Y")})
+                    r = db.execute_query(
+                        "SELECT MAX(ID) AS ID FROM AGRO_HACCP_PLANS WHERE PLAN_NAME = :name",
+                        {"name": data["plan_name"]})
+                    plan_id = _norm_rows(r)[0]["id"]
+                db.connection.commit()
+                return {"success": True, "data": {"id": plan_id}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_ccps(plan_id: int) -> Dict[str, Any]:
+        """Get CCPs for a HACCP plan."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT * FROM AGRO_HACCP_CCPS WHERE PLAN_ID = :pid ORDER BY CCP_NUMBER",
+                    {"pid": plan_id})
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def upsert_ccp(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update a CCP."""
+        try:
+            with DatabaseModel() as db:
+                ccp_id = data.get("id")
+                if ccp_id:
+                    db.execute_query(
+                        """UPDATE AGRO_HACCP_CCPS SET CCP_NUMBER=:num, CCP_NAME=:name,
+                           HAZARD_DESCRIPTION=:haz, CRITICAL_LIMIT=:clim,
+                           MONITORING_PROCEDURE=:mon, CORRECTIVE_ACTION=:corr
+                           WHERE ID=:cid""",
+                        {"cid": ccp_id, "num": data.get("ccp_number", ""),
+                         "name": data.get("ccp_name", ""),
+                         "haz": data.get("hazard_description", ""),
+                         "clim": data.get("critical_limit", ""),
+                         "mon": data.get("monitoring_procedure", ""),
+                         "corr": data.get("corrective_action", "")})
+                else:
+                    db.execute_query(
+                        """INSERT INTO AGRO_HACCP_CCPS
+                           (PLAN_ID, CCP_NUMBER, CCP_NAME, HAZARD_DESCRIPTION,
+                            CRITICAL_LIMIT, MONITORING_PROCEDURE, CORRECTIVE_ACTION)
+                           VALUES (:pid, :num, :name, :haz, :clim, :mon, :corr)""",
+                        {"pid": data["plan_id"], "num": data.get("ccp_number", ""),
+                         "name": data.get("ccp_name", ""),
+                         "haz": data.get("hazard_description", ""),
+                         "clim": data.get("critical_limit", ""),
+                         "mon": data.get("monitoring_procedure", ""),
+                         "corr": data.get("corrective_action", "")})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def record_haccp_measurement(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Record HACCP measurement, evaluate if within limits."""
+        try:
+            ccp_id = data.get("ccp_id")
+            measured_value = data.get("measured_value")
+            if not ccp_id or measured_value is None:
+                return {"success": False, "error": "ccp_id and measured_value required"}
+
+            with DatabaseModel() as db:
+                # Get critical limit for evaluation
+                r = db.execute_query(
+                    "SELECT CRITICAL_LIMIT FROM AGRO_HACCP_CCPS WHERE ID = :cid",
+                    {"cid": ccp_id})
+                ccp_rows = _norm_rows(r)
+                is_within = "Y"
+                if ccp_rows:
+                    crit_limit = ccp_rows[0].get("critical_limit", "")
+                    # Simple numeric comparison: if critical_limit is a number, compare
+                    try:
+                        limit_val = float(crit_limit)
+                        meas_val = float(measured_value)
+                        if meas_val > limit_val:
+                            is_within = "N"
+                    except (ValueError, TypeError):
+                        pass  # Non-numeric limits — manual evaluation
+
+                db.execute_query(
+                    """INSERT INTO AGRO_HACCP_RECORDS
+                       (CCP_ID, BATCH_ID, MEASURED_VALUE, IS_WITHIN_LIMITS,
+                        CORRECTIVE_ACTION_TAKEN, RECORDED_BY)
+                       VALUES (:cid, :bid, :val, :within, :corr, :by)""",
+                    {"cid": ccp_id, "bid": data.get("batch_id"),
+                     "val": str(measured_value), "within": is_within,
+                     "corr": data.get("corrective_action", ""),
+                     "by": data.get("recorded_by", "operator")})
+                db.connection.commit()
+                return {"success": True, "data": {"is_within_limits": is_within}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_haccp_deviations(date_from: str = None, date_to: str = None) -> Dict[str, Any]:
+        """Get HACCP records where IS_WITHIN_LIMITS = 'N'."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT r.ID, r.CCP_ID, r.BATCH_ID, r.MEASURED_VALUE,
+                           r.CORRECTIVE_ACTION_TAKEN, r.RECORDED_BY, r.RECORDED_AT,
+                           c.CCP_NUMBER, c.CCP_NAME, c.CRITICAL_LIMIT,
+                           b.BATCH_NUMBER
+                    FROM AGRO_HACCP_RECORDS r
+                    LEFT JOIN AGRO_HACCP_CCPS c ON c.ID = r.CCP_ID
+                    LEFT JOIN AGRO_BATCHES b ON b.ID = r.BATCH_ID
+                    WHERE r.IS_WITHIN_LIMITS = 'N'
+                """
+                params: Dict[str, Any] = {}
+                if date_from:
+                    sql += " AND r.RECORDED_AT >= TO_DATE(:df, 'YYYY-MM-DD')"
+                    params["df"] = date_from
+                if date_to:
+                    sql += " AND r.RECORDED_AT < TO_DATE(:dt, 'YYYY-MM-DD') + 1"
+                    params["dt"] = date_to
+                sql += " ORDER BY r.RECORDED_AT DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
