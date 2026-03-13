@@ -4058,6 +4058,43 @@ def api_agro_qa_deviations():
         request.args.get('date_from'), request.args.get('date_to')))
 
 
+# ============================================================
+# AGRO Reports API
+# ============================================================
+
+@app.route('/api/agro-admin/reports/<report_type>', methods=['GET'])
+def api_agro_report(report_type):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    allowed = ['purchases', 'sales', 'mass_balance', 'stock', 'expiry']
+    if report_type not in allowed:
+        return jsonify({"success": False, "error": "Unknown report type"}), 404
+    filters = {k: v for k, v in request.args.items()}
+    method = getattr(AgroStore, f'report_{report_type}', None)
+    if not method:
+        return jsonify({"success": False, "error": "Not implemented"}), 404
+    return jsonify(method(**filters))
+
+@app.route('/api/agro-admin/reports/export/<report_type>', methods=['GET'])
+def api_agro_report_export(report_type):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    allowed = ['purchases', 'sales', 'mass_balance', 'stock', 'expiry']
+    if report_type not in allowed:
+        return jsonify({"success": False, "error": "Unknown report type"}), 404
+    fmt = request.args.get('format', 'xlsx')
+    filters = {k: v for k, v in request.args.items() if k != 'format'}
+    data = AgroStore.export_report(report_type, fmt, filters)
+    if data is None:
+        return jsonify({"success": False, "error": "Export failed"}), 500
+    import io as _io
+    mime = {'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'csv': 'text/csv'}.get(fmt, 'application/octet-stream')
+    return send_file(_io.BytesIO(data), mimetype=mime,
+                     as_attachment=True,
+                     download_name=f'agro_{report_type}.{fmt}')
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)

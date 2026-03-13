@@ -2902,3 +2902,162 @@ class AgroStore:
                 return {"success": True, "data": _norm_rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # REPORTS
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def report_purchases(date_from: str = None, date_to: str = None,
+                         supplier_id: str = None, item_id: str = None) -> Dict[str, Any]:
+        """Purchase report from AGRO_V_PURCHASES view."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM AGRO_V_PURCHASES WHERE 1=1"
+                params: Dict[str, Any] = {}
+                if date_from:
+                    sql += " AND DOC_DATE >= TO_DATE(:df, 'YYYY-MM-DD')"
+                    params["df"] = date_from
+                if date_to:
+                    sql += " AND DOC_DATE <= TO_DATE(:dt, 'YYYY-MM-DD')"
+                    params["dt"] = date_to
+                if supplier_id:
+                    sql += " AND SUPPLIER_ID = :sid"
+                    params["sid"] = int(supplier_id)
+                if item_id:
+                    sql += " AND ITEM_ID = :iid"
+                    params["iid"] = int(item_id)
+                sql += " ORDER BY DOC_DATE DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def report_sales(date_from: str = None, date_to: str = None,
+                     customer_id: str = None, item_id: str = None) -> Dict[str, Any]:
+        """Sales report from AGRO_V_SALES view."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM AGRO_V_SALES WHERE 1=1"
+                params: Dict[str, Any] = {}
+                if date_from:
+                    sql += " AND DOC_DATE >= TO_DATE(:df, 'YYYY-MM-DD')"
+                    params["df"] = date_from
+                if date_to:
+                    sql += " AND DOC_DATE <= TO_DATE(:dt, 'YYYY-MM-DD')"
+                    params["dt"] = date_to
+                if customer_id:
+                    sql += " AND CUSTOMER_ID = :cid"
+                    params["cid"] = int(customer_id)
+                if item_id:
+                    sql += " AND ITEM_ID = :iid"
+                    params["iid"] = int(item_id)
+                sql += " ORDER BY DOC_DATE DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def report_mass_balance(date_from: str = None, date_to: str = None,
+                            warehouse_id: str = None, item_id: str = None) -> Dict[str, Any]:
+        """Mass balance report from AGRO_V_MASS_BALANCE view."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM AGRO_V_MASS_BALANCE WHERE 1=1"
+                params: Dict[str, Any] = {}
+                if warehouse_id:
+                    sql += " AND WAREHOUSE_ID = :wid"
+                    params["wid"] = int(warehouse_id)
+                if item_id:
+                    sql += " AND ITEM_ID = :iid"
+                    params["iid"] = int(item_id)
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def report_stock(warehouse_id: str = None, item_id: str = None) -> Dict[str, Any]:
+        """Current stock report from AGRO_V_STOCK_BALANCE view."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM AGRO_V_STOCK_BALANCE WHERE 1=1"
+                params: Dict[str, Any] = {}
+                if warehouse_id:
+                    sql += " AND WAREHOUSE_ID = :wid"
+                    params["wid"] = int(warehouse_id)
+                if item_id:
+                    sql += " AND ITEM_ID = :iid"
+                    params["iid"] = int(item_id)
+                sql += " ORDER BY ITEM_NAME, WAREHOUSE_NAME"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def report_expiry(days_ahead: str = "30", warehouse_id: str = None) -> Dict[str, Any]:
+        """Batches expiring within N days."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT b.ID, b.BATCH_NUMBER, b.EXPIRY_DATE, b.CURRENT_QTY_KG, b.STATUS,
+                           i.NAME AS ITEM_NAME, w.NAME AS WAREHOUSE_NAME,
+                           ROUND(b.EXPIRY_DATE - SYSDATE) AS DAYS_REMAINING
+                    FROM AGRO_BATCHES b
+                    LEFT JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
+                    LEFT JOIN AGRO_WAREHOUSES w ON w.ID = b.WAREHOUSE_ID
+                    WHERE b.EXPIRY_DATE IS NOT NULL
+                      AND b.EXPIRY_DATE <= SYSDATE + :days
+                      AND b.STATUS != 'depleted'
+                """
+                params: Dict[str, Any] = {"days": int(days_ahead)}
+                if warehouse_id:
+                    sql += " AND b.WAREHOUSE_ID = :wid"
+                    params["wid"] = int(warehouse_id)
+                sql += " ORDER BY b.EXPIRY_DATE ASC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def export_report(report_type: str, fmt: str, filters: Dict[str, Any]) -> bytes:
+        """Generate report file. Returns bytes for download."""
+        import io
+        method = getattr(AgroStore, f'report_{report_type}', None)
+        if not method:
+            return None
+        data = method(**filters)
+        if not data.get('success'):
+            return None
+
+        rows = data['data']
+        if fmt == 'csv':
+            import csv
+            output = io.StringIO()
+            if rows:
+                writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+                writer.writeheader()
+                writer.writerows(rows)
+            return output.getvalue().encode('utf-8')
+
+        elif fmt == 'xlsx':
+            try:
+                from openpyxl import Workbook
+                wb = Workbook()
+                ws = wb.active
+                ws.title = report_type
+                if rows:
+                    ws.append(list(rows[0].keys()))
+                    for row in rows:
+                        ws.append([str(v) if v is not None else '' for v in row.values()])
+                buf = io.BytesIO()
+                wb.save(buf)
+                return buf.getvalue()
+            except ImportError:
+                return None
+
+        return None

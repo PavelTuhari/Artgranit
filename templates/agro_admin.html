@@ -271,6 +271,10 @@ td.actions { white-space: nowrap; }
     <a href="#config" class="nav-link" data-page="config">Конфигурация / Config</a>
 
     <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Отчёты / Rapoarte</div>
+    <a href="#reports" class="nav-link" data-page="reports">Отчёты / Rapoarte</a>
+
+    <div class="sidebar-divider"></div>
     <div class="sidebar-section">Навигация</div>
     <a href="/UNA.md/orasldev/agro-field">Field / Поле</a>
     <a href="/UNA.md/orasldev/agro-warehouse">Warehouse / Склад</a>
@@ -565,6 +569,45 @@ td.actions { white-space: nowrap; }
                 <tbody id="configTable"></tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<!-- ==================== REPORTS ==================== -->
+<div id="page-reports" class="page">
+    <div class="page-header">
+        <div><h1>Отчёты / Rapoarte</h1><div class="subtitle">Rapoarte operationale si analitice</div></div>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:14px;">Фильтры / Filtre</h3>
+        <div class="field-row">
+            <div class="field"><label>Дата от / De la</label><input type="date" id="rptFrom"></div>
+            <div class="field"><label>Дата до / Pana la</label><input type="date" id="rptTo"></div>
+            <div class="field"><label>Склад / Depozit</label><select id="rptWarehouse"><option value="">Все / Toate</option></select></div>
+            <div class="field"><label>Продукт / Produs</label><select id="rptItem"><option value="">Все / Toate</option></select></div>
+        </div>
+        <div class="field-row">
+            <div class="field"><label>Тип отчёта / Tip raport</label>
+                <select id="rptType">
+                    <option value="stock">Остатки / Stoc curent</option>
+                    <option value="purchases">Закупки / Achizitii</option>
+                    <option value="sales">Продажи / Vanzari</option>
+                    <option value="mass_balance">Баланс массы / Bilant masa</option>
+                    <option value="expiry">Сроки годности / Termene expirare</option>
+                </select>
+            </div>
+            <div class="field" style="display:flex;align-items:flex-end;gap:8px;">
+                <button class="btn btn-primary" onclick="runReport()">Сформировать / Genereaza</button>
+                <button class="btn btn-ghost" onclick="exportReport('xlsx')">XLSX</button>
+                <button class="btn btn-ghost" onclick="exportReport('csv')">CSV</button>
+            </div>
+        </div>
+    </div>
+    <div class="card" id="reportResults" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 id="reportTitle">Результаты</h3>
+            <span id="reportCount" style="font-size:13px;color:var(--text-muted);"></span>
+        </div>
+        <div class="table-wrap"><table id="reportTable"><thead id="reportHead"></thead><tbody id="reportBody"></tbody></table></div>
     </div>
 </div>
 
@@ -1501,6 +1544,75 @@ const renderFns = {
 };
 
 /* ================================================================
+   REPORTS
+   ================================================================ */
+function initReports() {
+    // Populate warehouse and item selects for reports
+    const rptWh = document.getElementById('rptWarehouse');
+    const rptIt = document.getElementById('rptItem');
+    if (rptWh.options.length <= 1 && warehousesList.length) {
+        warehousesList.forEach(w => { const o = document.createElement('option'); o.value = w.id; o.textContent = w.name; rptWh.appendChild(o); });
+    }
+    if (rptIt.options.length <= 1) {
+        apiFetch('items').then(data => {
+            (data || []).forEach(i => { const o = document.createElement('option'); o.value = i.id; o.textContent = i.name; rptIt.appendChild(o); });
+        });
+    }
+}
+
+function runReport() {
+    const type = document.getElementById('rptType').value;
+    const params = new URLSearchParams();
+    const df = document.getElementById('rptFrom').value;
+    const dt = document.getElementById('rptTo').value;
+    const wh = document.getElementById('rptWarehouse').value;
+    const it = document.getElementById('rptItem').value;
+    if (df) params.set('date_from', df);
+    if (dt) params.set('date_to', dt);
+    if (wh) params.set('warehouse_id', wh);
+    if (it) params.set('item_id', it);
+
+    const url = '/api/agro-admin/reports/' + type + (params.toString() ? '?' + params : '');
+    fetch(url, { headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(d => {
+            const rows = d.data || [];
+            const container = document.getElementById('reportResults');
+            container.style.display = '';
+            const titles = { stock: 'Остатки / Stoc', purchases: 'Закупки / Achizitii', sales: 'Продажи / Vanzari', mass_balance: 'Баланс массы', expiry: 'Сроки годности' };
+            document.getElementById('reportTitle').textContent = titles[type] || type;
+            document.getElementById('reportCount').textContent = rows.length + ' записей';
+
+            if (!rows.length) {
+                document.getElementById('reportHead').innerHTML = '';
+                document.getElementById('reportBody').innerHTML = '<tr><td style="text-align:center;padding:24px;color:var(--text-muted);">Нет данных</td></tr>';
+                return;
+            }
+            const keys = Object.keys(rows[0]);
+            document.getElementById('reportHead').innerHTML = '<tr>' + keys.map(k => '<th>' + k + '</th>').join('') + '</tr>';
+            document.getElementById('reportBody').innerHTML = rows.map(r =>
+                '<tr>' + keys.map(k => '<td>' + (r[k] != null ? r[k] : '-') + '</td>').join('') + '</tr>'
+            ).join('');
+        })
+        .catch(() => showToast('Ошибка загрузки отчёта', 'error'));
+}
+
+function exportReport(fmt) {
+    const type = document.getElementById('rptType').value;
+    const params = new URLSearchParams();
+    params.set('format', fmt);
+    const df = document.getElementById('rptFrom').value;
+    const dt = document.getElementById('rptTo').value;
+    const wh = document.getElementById('rptWarehouse').value;
+    const it = document.getElementById('rptItem').value;
+    if (df) params.set('date_from', df);
+    if (dt) params.set('date_to', dt);
+    if (wh) params.set('warehouse_id', wh);
+    if (it) params.set('item_id', it);
+    window.open('/api/agro-admin/reports/export/' + type + '?' + params, '_blank');
+}
+
+/* ================================================================
    PAGE SWITCHING
    ================================================================ */
 const pageLoaders = {
@@ -1520,7 +1632,8 @@ const pageLoaders = {
     currencies: loadCurrencies,
     rates: loadRates,
     formulas: loadFormulas,
-    config: loadConfig
+    config: loadConfig,
+    reports: initReports
 };
 
 const defaultForms = {
