@@ -5,30 +5,459 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AGRO Warehouse</title>
 <style>
-  :root { --primary: #059669; --primary-dark: #047857; --bg: #f0fdf4; --sidebar-bg: #064e3b; --sidebar-text: #d1fae5; --white: #fff; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); display: flex; min-height: 100vh; }
-  .sidebar { width: 220px; background: var(--sidebar-bg); color: var(--sidebar-text); padding: 20px 0; flex-shrink: 0; }
-  .sidebar h2 { padding: 0 20px 16px; font-size: 18px; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.15); margin-bottom: 8px; }
-  .sidebar a { display: block; padding: 10px 20px; color: var(--sidebar-text); text-decoration: none; font-size: 14px; transition: background .15s; }
-  .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,.12); color: var(--white); }
-  .main { flex: 1; padding: 32px 40px; }
-  .main h1 { color: var(--primary-dark); margin-bottom: 8px; }
-  .main p { color: #374151; }
+:root {
+    --primary: #059669; --primary-dark: #047857; --accent: #10b981;
+    --bg: #f0fdf4; --card-bg: #fff; --sidebar-bg: #064e3b; --sidebar-text: #d1fae5;
+    --text: #134e4a; --text-muted: #64748b; --border: #a7f3d0; --white: #fff;
+    --danger: #dc2626; --danger-bg: #fef2f2; --warning: #d97706; --warning-bg: #fffbeb;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+.sidebar { width: 200px; background: var(--sidebar-bg); color: var(--sidebar-text); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
+.sidebar-logo { padding: 20px 16px 12px; font-size: 20px; font-weight: 700; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.12); }
+.sidebar-section { padding: 14px 16px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.45); font-weight: 600; }
+.sidebar a { display: flex; align-items: center; padding: 10px 16px; color: var(--sidebar-text); text-decoration: none; font-size: 13px; transition: background .15s; border-left: 3px solid transparent; min-height: 42px; }
+.sidebar a:hover { background: rgba(255,255,255,.08); color: var(--white); }
+.sidebar a.active { background: rgba(255,255,255,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
+.sidebar-divider { border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+.main { flex: 1; padding: 24px 32px; overflow-x: hidden; min-width: 0; }
+.page { display: none; } .page.active { display: block; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.page-header h1 { font-size: 22px; color: var(--primary-dark); }
+.page-header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 20px; margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; }
+.btn:hover { opacity: .88; } .btn:active { transform: scale(.97); }
+.btn-primary { background: var(--primary); color: var(--white); }
+.btn-accent { background: var(--accent); color: var(--white); }
+.btn-ghost { background: #ecfdf5; color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #fecaca; color: #991b1b; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+.field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; color: var(--text); background: var(--white); min-height: 40px; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5,150,105,.12); }
+.field-row { display: flex; gap: 12px; } .field-row .field { flex: 1; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #ecfdf5; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; position: sticky; top: 0; z-index: 1; }
+tr:hover td { background: #f0fdf4; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.badge-active { background: #d1fae5; color: #065f46; }
+.badge-blocked { background: #fecaca; color: #991b1b; }
+.badge-depleted { background: #e2e8f0; color: #475569; }
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-in_progress { background: #dbeafe; color: #1e40af; }
+.badge-completed { background: #d1fae5; color: #065f46; }
+.badge-cancelled { background: #e2e8f0; color: #475569; }
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+.alert-card { border-left: 4px solid var(--danger); padding: 14px 18px; background: var(--danger-bg); border-radius: 0 8px 8px 0; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.alert-card.acked { border-left-color: #94a3b8; background: #f8fafc; opacity: .7; }
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 500; z-index: 2000; transform: translateY(100px); opacity: 0; transition: transform .3s, opacity .3s; color: var(--white); max-width: 400px; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-success { background: var(--primary); } .toast-error { background: var(--danger); } .toast-warning { background: var(--warning); }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card-bg); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.18); max-width: 600px; width: 95%; padding: 24px; max-height: 90vh; overflow-y: auto; }
+.modal h2 { font-size: 18px; color: var(--primary-dark); margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+@media (max-width: 900px) { .sidebar { display: none; } .main { padding: 16px; } }
 </style>
 </head>
 <body>
 <nav class="sidebar">
-  <h2>AGRO</h2>
-  <a href="/UNA.md/orasldev/agro-admin">Admin</a>
-  <a href="/UNA.md/orasldev/agro-field">Field</a>
-  <a class="active" href="/UNA.md/orasldev/agro-warehouse">Warehouse</a>
-  <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
-  <a href="/UNA.md/orasldev/agro-sales">Sales</a>
+    <div class="sidebar-logo">AGRO Warehouse</div>
+    <div class="sidebar-section">Операции / Operatii</div>
+    <a href="#stock" class="nav-link active" data-page="stock">Остатки / Stoc</a>
+    <a href="#receive" class="nav-link" data-page="receive">Приёмка / Receptie</a>
+    <a href="#movements" class="nav-link" data-page="movements">Перемещения / Transferuri</a>
+    <a href="#temperature" class="nav-link" data-page="temperature">Температура / Temperatura</a>
+    <a href="#tasks" class="nav-link" data-page="tasks">Задания / Sarcini</a>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Навигация</div>
+    <a href="/UNA.md/orasldev/agro-admin">Admin</a>
+    <a href="/UNA.md/orasldev/agro-field">Field</a>
+    <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales">Sales</a>
 </nav>
+
 <main class="main">
-  <h1>AGRO Warehouse</h1>
-  <p>Stock, movements, sensor readings, processing tasks. Module under construction.</p>
+
+<!-- ==================== STOCK ==================== -->
+<div id="page-stock" class="page active">
+    <div class="page-header">
+        <div><h1>Остатки / Stoc</h1><div class="subtitle">Solduri pe loturi si depozite</div></div>
+        <div style="display:flex;gap:8px;">
+            <select id="stockFilterWh" onchange="loadStock()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">Все склады</option>
+            </select>
+            <select id="stockFilterStatus" onchange="loadStock()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="">Все статусы</option>
+                <option value="active">Active</option>
+                <option value="blocked">Blocked</option>
+                <option value="depleted">Depleted</option>
+            </select>
+        </div>
+    </div>
+    <div class="card"><div class="table-wrap">
+        <table><thead><tr>
+            <th>Партия / Lot</th><th>Продукция / Produs</th><th>Склад / Depozit</th>
+            <th>Ячейка / Celula</th><th>Остаток кг</th><th>Статус</th>
+        </tr></thead><tbody id="stockBody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Загрузка...</td></tr></tbody></table>
+    </div></div>
+</div>
+
+<!-- ==================== RECEIVE ==================== -->
+<div id="page-receive" class="page">
+    <div class="page-header"><div><h1>Приёмка / Receptie</h1><div class="subtitle">Primirea lazilor in depozit</div></div></div>
+    <div class="card">
+        <div class="field-row">
+            <div class="field"><label>Склад / Depozit</label><select id="receiveWh"></select></div>
+            <div class="field"><label>Ячейка / Celula</label><select id="receiveCell"></select></div>
+        </div>
+        <div class="field"><label>ID ящиков (через запятую) / ID lazi</label><input type="text" id="receiveCrateIds" placeholder="1,2,3..."></div>
+        <button class="btn btn-primary" onclick="receiveCrates()">Принять / Primeste</button>
+    </div>
+</div>
+
+<!-- ==================== MOVEMENTS ==================== -->
+<div id="page-movements" class="page">
+    <div class="page-header">
+        <div><h1>Перемещения / Transferuri</h1><div class="subtitle">Mutari intre celule si depozite</div></div>
+        <button class="btn btn-primary" onclick="openMovementModal()">+ Новое перемещение</button>
+    </div>
+    <div class="card" id="movementsList"><p style="text-align:center;color:var(--text-muted);padding:20px;">Выберите партию для просмотра истории</p></div>
+</div>
+
+<!-- ==================== TEMPERATURE ==================== -->
+<div id="page-temperature" class="page">
+    <div class="page-header">
+        <div><h1>Температура / Temperatura</h1><div class="subtitle">Monitorizarea conditiilor de depozitare</div></div>
+        <button class="btn btn-primary" onclick="openReadingModal()">+ Показание / Citire</button>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:12px;">Алерты / Alerte</h3>
+        <div id="alertsContainer"><p style="color:var(--text-muted);">Загрузка...</p></div>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:12px;">Последние показания / Ultimele citiri</h3>
+        <div class="table-wrap"><table><thead><tr>
+            <th>Ячейка</th><th>Склад</th><th>Темп. C</th><th>Влажн. %</th><th>Источник</th><th>Дата</th>
+        </tr></thead><tbody id="readingsBody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Загрузка...</td></tr></tbody></table></div>
+    </div>
+</div>
+
+<!-- ==================== TASKS ==================== -->
+<div id="page-tasks" class="page">
+    <div class="page-header">
+        <div><h1>Задания / Sarcini</h1><div class="subtitle">Sarcini de procesare</div></div>
+        <button class="btn btn-primary" onclick="openTaskModal()">+ Новое задание</button>
+    </div>
+    <div class="card"><div class="table-wrap">
+        <table><thead><tr>
+            <th>Тип</th><th>Партия / Lot</th><th>Продукция</th><th>Статус</th>
+            <th>Вход кг</th><th>Выход кг</th><th>Отходы кг</th><th>Действия</th>
+        </tr></thead><tbody id="tasksBody"><tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted);">Загрузка...</td></tr></tbody></table>
+    </div></div>
+</div>
 </main>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="movementModal">
+    <div class="modal">
+        <h2>Перемещение / Transfer</h2>
+        <div class="field"><label>Партия ID / Lot ID</label><input type="number" id="mvBatchId"></div>
+        <div class="field"><label>Тип / Tip</label>
+            <select id="mvType"><option value="transfer">Transfer</option><option value="processing">Processing</option><option value="adjustment">Adjustment</option><option value="loss">Loss</option></select>
+        </div>
+        <div class="field"><label>Количество кг / Cantitate kg</label><input type="number" id="mvQty" step="0.01"></div>
+        <div class="field-row">
+            <div class="field"><label>В склад / La depozit</label><select id="mvToWh"></select></div>
+            <div class="field"><label>В ячейку / La celula</label><select id="mvToCell"></select></div>
+        </div>
+        <div class="field"><label>Причина / Motiv</label><input type="text" id="mvReason"></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('movementModal')">Отмена</button>
+            <button class="btn btn-primary" onclick="createMovement()">Создать</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="readingModal">
+    <div class="modal">
+        <h2>Показание / Citire</h2>
+        <div class="field"><label>Ячейка / Celula</label><select id="rdCell"></select></div>
+        <div class="field-row">
+            <div class="field"><label>Температура C</label><input type="number" id="rdTemp" step="0.1"></div>
+            <div class="field"><label>Влажность %</label><input type="number" id="rdHum" step="0.1"></div>
+        </div>
+        <div class="field-row">
+            <div class="field"><label>O2 %</label><input type="number" id="rdO2" step="0.1"></div>
+            <div class="field"><label>CO2 %</label><input type="number" id="rdCo2" step="0.1"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('readingModal')">Отмена</button>
+            <button class="btn btn-primary" onclick="addReading()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="taskModal">
+    <div class="modal">
+        <h2>Задание / Sarcina</h2>
+        <div class="field"><label>Партия ID / Lot ID</label><input type="number" id="tkBatchId"></div>
+        <div class="field"><label>Тип / Tip</label>
+            <select id="tkType"><option value="sorting">Sorting</option><option value="washing">Washing</option><option value="packing">Packing</option><option value="labeling">Labeling</option><option value="other">Other</option></select>
+        </div>
+        <div class="field"><label>Описание / Descriere</label><textarea id="tkDescr" rows="2"></textarea></div>
+        <div class="field"><label>Вход кг / Input kg</label><input type="number" id="tkInputQty" step="0.01"></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('taskModal')">Отмена</button>
+            <button class="btn btn-primary" onclick="createTask()">Создать</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+'use strict';
+
+var refs = { warehouses: [], cells: [] };
+
+document.addEventListener('DOMContentLoaded', function() {
+    initNav();
+    loadRefs();
+    loadStock();
+    loadAlerts();
+    loadReadings();
+    loadTasks();
+});
+
+function initNav() {
+    document.querySelectorAll('.nav-link').forEach(function(l) {
+        l.addEventListener('click', function(e) {
+            e.preventDefault();
+            var pg = this.getAttribute('data-page');
+            document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+            document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
+            var el = document.getElementById('page-' + pg);
+            if (el) el.classList.add('active');
+            this.classList.add('active');
+        });
+    });
+}
+
+function toast(msg, type) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast toast-' + (type || 'success') + ' show';
+    setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+window.showToast = toast;
+
+function api(method, url, body) {
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(url, opts).then(function(r) { return r.json(); });
+}
+
+function fillSel(id, items, vk, tk) {
+    var s = document.getElementById(id); if (!s) return;
+    s.innerHTML = '<option value="">--</option>';
+    (items || []).forEach(function(i) { var o = document.createElement('option'); o.value = i[vk]; o.textContent = i[tk] || i.code || i[vk]; s.appendChild(o); });
+}
+
+function loadRefs() {
+    api('GET', '/api/agro-admin/warehouses').then(function(d) {
+        refs.warehouses = d.data || d || [];
+        fillSel('stockFilterWh', refs.warehouses, 'id', 'name');
+        fillSel('receiveWh', refs.warehouses, 'id', 'name');
+        fillSel('mvToWh', refs.warehouses, 'id', 'name');
+    });
+    api('GET', '/api/agro-admin/storage_cells').then(function(d) {
+        refs.cells = d.data || d || [];
+        fillSel('receiveCell', refs.cells, 'id', 'code');
+        fillSel('mvToCell', refs.cells, 'id', 'code');
+        fillSel('rdCell', refs.cells, 'id', 'code');
+    });
+}
+
+/* STOCK */
+window.loadStock = function() {
+    var f = {};
+    var wh = document.getElementById('stockFilterWh').value;
+    var st = document.getElementById('stockFilterStatus').value;
+    var url = '/api/agro-warehouse/stock';
+    var params = [];
+    if (wh) params.push('warehouse_id=' + wh);
+    if (st) params.push('status=' + st);
+    if (params.length) url += '?' + params.join('&');
+
+    api('GET', url).then(function(d) {
+        var rows = d.data || [];
+        var tb = document.getElementById('stockBody');
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Нет данных</td></tr>'; return; }
+        tb.innerHTML = rows.map(function(r) {
+            var bc = 'badge-' + (r.status || 'active');
+            return '<tr><td>' + (r.batch_number || '-') + '</td><td>' + (r.item_name || '-') + '</td>' +
+                '<td>' + (r.warehouse_name || '-') + '</td><td>' + (r.cell_code || '-') + '</td>' +
+                '<td style="font-weight:600;">' + (parseFloat(r.current_qty_kg || 0).toFixed(1)) + '</td>' +
+                '<td><span class="badge ' + bc + '">' + (r.status || 'active') + '</span></td></tr>';
+        }).join('');
+    });
+};
+
+/* RECEIVE */
+window.receiveCrates = function() {
+    var ids = document.getElementById('receiveCrateIds').value.split(',').map(function(s) { return parseInt(s.trim()); }).filter(function(n) { return !isNaN(n); });
+    if (!ids.length) { toast('Введите ID ящиков', 'warning'); return; }
+    api('POST', '/api/agro-warehouse/receive', {
+        crate_ids: ids,
+        warehouse_id: parseInt(document.getElementById('receiveWh').value) || null,
+        cell_id: parseInt(document.getElementById('receiveCell').value) || null
+    }).then(function(d) {
+        if (d.success) { toast('Принято: ' + (d.updated || ids.length) + ' ящиков'); document.getElementById('receiveCrateIds').value = ''; }
+        else toast(d.error || 'Ошибка', 'error');
+    });
+};
+
+/* MOVEMENTS */
+window.openMovementModal = function() { document.getElementById('movementModal').classList.add('open'); };
+window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); };
+
+window.createMovement = function() {
+    api('POST', '/api/agro-warehouse/movements', {
+        batch_id: parseInt(document.getElementById('mvBatchId').value),
+        movement_type: document.getElementById('mvType').value,
+        qty_kg: parseFloat(document.getElementById('mvQty').value),
+        to_warehouse_id: parseInt(document.getElementById('mvToWh').value) || null,
+        to_cell_id: parseInt(document.getElementById('mvToCell').value) || null,
+        reason: document.getElementById('mvReason').value
+    }).then(function(d) {
+        if (d.success) { toast('Перемещение создано'); closeModal('movementModal'); loadStock(); }
+        else toast(d.error || 'Ошибка', 'error');
+    });
+};
+
+/* TEMPERATURE */
+function loadAlerts() {
+    api('GET', '/api/agro-warehouse/alerts?acknowledged=N').then(function(d) {
+        var alerts = d.data || [];
+        var c = document.getElementById('alertsContainer');
+        if (!alerts.length) { c.innerHTML = '<p style="color:var(--text-muted);">Нет активных алертов / Nu exista alerte</p>'; return; }
+        c.innerHTML = alerts.map(function(a) {
+            return '<div class="alert-card">' +
+                '<div><strong>' + (a.alert_type || '').toUpperCase() + '</strong> — ' + (a.cell_name || a.cell_code || '-') +
+                ' | Порог: ' + (a.threshold_value || '-') + ' | Факт: ' + (a.actual_value || '-') +
+                ' <span style="font-size:12px;color:var(--text-muted);">' + (a.warehouse_name || '') + '</span></div>' +
+                '<button class="btn btn-sm btn-ghost" onclick="ackAlert(' + a.id + ')">OK</button></div>';
+        }).join('');
+    });
+}
+
+window.ackAlert = function(id) {
+    api('PUT', '/api/agro-warehouse/alerts/' + id + '/ack', { user: 'operator' }).then(function(d) {
+        if (d.success) { toast('Подтверждено'); loadAlerts(); }
+        else toast(d.error, 'error');
+    });
+};
+
+function loadReadings() {
+    api('GET', '/api/agro-warehouse/readings').then(function(d) {
+        var rows = d.data || [];
+        var tb = document.getElementById('readingsBody');
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Нет показаний</td></tr>'; return; }
+        tb.innerHTML = rows.slice(0, 50).map(function(r) {
+            return '<tr><td>' + (r.cell_code || '-') + '</td><td>' + (r.warehouse_name || '-') + '</td>' +
+                '<td>' + (r.temperature_c != null ? parseFloat(r.temperature_c).toFixed(1) : '-') + '</td>' +
+                '<td>' + (r.humidity_pct != null ? parseFloat(r.humidity_pct).toFixed(1) : '-') + '</td>' +
+                '<td>' + (r.reading_source || '-') + '</td>' +
+                '<td>' + (r.recorded_at || '-') + '</td></tr>';
+        }).join('');
+    });
+}
+
+window.openReadingModal = function() { document.getElementById('readingModal').classList.add('open'); };
+
+window.addReading = function() {
+    var cellId = parseInt(document.getElementById('rdCell').value);
+    if (!cellId) { toast('Выберите ячейку', 'warning'); return; }
+    api('POST', '/api/agro-warehouse/readings', {
+        cell_id: cellId,
+        temperature_c: parseFloat(document.getElementById('rdTemp').value) || null,
+        humidity_pct: parseFloat(document.getElementById('rdHum').value) || null,
+        o2_pct: parseFloat(document.getElementById('rdO2').value) || null,
+        co2_pct: parseFloat(document.getElementById('rdCo2').value) || null,
+        recorded_by: 'operator'
+    }).then(function(d) {
+        if (d.success) {
+            var alertCount = (d.data && d.data.alerts) ? d.data.alerts.length : 0;
+            toast('Показание сохранено' + (alertCount ? ' (' + alertCount + ' алертов!)' : ''));
+            closeModal('readingModal');
+            loadReadings();
+            loadAlerts();
+        } else toast(d.error, 'error');
+    });
+};
+
+/* TASKS */
+function loadTasks() {
+    api('GET', '/api/agro-warehouse/tasks').then(function(d) {
+        var rows = d.data || [];
+        var tb = document.getElementById('tasksBody');
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted);">Нет заданий</td></tr>'; return; }
+        tb.innerHTML = rows.map(function(t) {
+            var bc = 'badge-' + (t.status || 'pending');
+            var actions = '';
+            if (t.status === 'pending') actions = '<button class="btn btn-sm btn-accent" onclick="updateTask(' + t.id + ',\'in_progress\')">Старт</button>';
+            else if (t.status === 'in_progress') actions = '<button class="btn btn-sm btn-primary" onclick="completeTaskPrompt(' + t.id + ')">Завершить</button>';
+            return '<tr><td>' + (t.task_type || '-') + '</td><td>' + (t.batch_number || '-') + '</td>' +
+                '<td>' + (t.item_name || '-') + '</td><td><span class="badge ' + bc + '">' + (t.status || '-') + '</span></td>' +
+                '<td>' + (t.input_qty_kg || '-') + '</td><td>' + (t.output_qty_kg || '-') + '</td>' +
+                '<td>' + (t.waste_qty_kg || '-') + '</td><td>' + actions + '</td></tr>';
+        }).join('');
+    });
+}
+
+window.openTaskModal = function() { document.getElementById('taskModal').classList.add('open'); };
+
+window.createTask = function() {
+    var batchId = parseInt(document.getElementById('tkBatchId').value);
+    if (!batchId) { toast('Введите ID партии', 'warning'); return; }
+    api('POST', '/api/agro-warehouse/tasks', {
+        batch_id: batchId,
+        task_type: document.getElementById('tkType').value,
+        description: document.getElementById('tkDescr').value,
+        input_qty_kg: parseFloat(document.getElementById('tkInputQty').value) || null
+    }).then(function(d) {
+        if (d.success) { toast('Задание создано'); closeModal('taskModal'); loadTasks(); }
+        else toast(d.error, 'error');
+    });
+};
+
+window.updateTask = function(id, status) {
+    api('PUT', '/api/agro-warehouse/tasks/' + id + '/status', { status: status }).then(function(d) {
+        if (d.success) { toast('Статус обновлен'); loadTasks(); }
+        else toast(d.error, 'error');
+    });
+};
+
+window.completeTaskPrompt = function(id) {
+    var output = prompt('Выход кг (output_qty):');
+    var waste = prompt('Отходы кг (waste_qty):');
+    api('PUT', '/api/agro-warehouse/tasks/' + id + '/status', {
+        status: 'completed',
+        output_qty: parseFloat(output) || null,
+        waste_qty: parseFloat(waste) || null
+    }).then(function(d) {
+        if (d.success) { toast('Задание завершено'); loadTasks(); loadStock(); }
+        else toast(d.error, 'error');
+    });
+};
+
+})();
+</script>
 </body>
 </html>
