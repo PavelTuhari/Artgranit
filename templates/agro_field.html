@@ -6,6 +6,7 @@
 <title>AGRO Field</title>
 <script src="/static/agro/barcode-scanner.js"></script>
 <script src="/static/agro/barcode-generator.js"></script>
+<script src="/static/agro/offline-db.js"></script>
 <style>
 :root {
     --primary: #059669;
@@ -1285,6 +1286,104 @@ window.printSelectedBarcodes = function() {
         showToast('Ошибка генерации: ' + err.message, 'error');
     });
 };
+
+})();
+
+/* ================================================================
+   SERVICE WORKER + OFFLINE SYNC
+   ================================================================ */
+(function() {
+'use strict';
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/agro/offline-worker.js')
+        .then(function(reg) { console.log('AGRO SW registered:', reg.scope); })
+        .catch(function(err) { console.warn('AGRO SW failed:', err); });
+
+    // Listen for queued requests from SW
+    navigator.serviceWorker.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'QUEUE_REQUEST') {
+            AgroOfflineDB.queueOperation(e.data).then(function() {
+                updateQueueBadge();
+                if (window.showToast) window.showToast('Сохранено офлайн / Salvat offline', 'warning');
+            });
+        }
+    });
+}
+
+// Online/Offline indicators
+var statusBar = document.querySelector('.status-bar');
+function updateOnlineStatus() {
+    if (statusBar) {
+        if (navigator.onLine) {
+            statusBar.className = 'status-bar online';
+            statusBar.textContent = 'Online';
+            // Auto-sync when back online
+            syncOfflineQueue();
+        } else {
+            statusBar.className = 'status-bar offline';
+            statusBar.textContent = 'Офлайн / Offline — данные сохраняются локально';
+        }
+    }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// Sync offline queue
+function syncOfflineQueue() {
+    if (!navigator.onLine) return;
+    AgroOfflineDB.getQueueCount().then(function(count) {
+        if (count === 0) return;
+        if (window.showToast) window.showToast('Синхронизация ' + count + ' операций...', 'warning');
+        AgroOfflineDB.syncQueue().then(function(result) {
+            if (result.synced > 0) {
+                if (window.showToast) window.showToast('Синхронизировано: ' + result.synced + ' из ' + result.total, 'success');
+            }
+            if (result.failed > 0) {
+                if (window.showToast) window.showToast('Ошибки синхронизации: ' + result.failed, 'error');
+            }
+            updateQueueBadge();
+        });
+    });
+}
+
+// Queue badge (shows pending sync count)
+function updateQueueBadge() {
+    AgroOfflineDB.getQueueCount().then(function(count) {
+        var badge = document.getElementById('offlineQueueBadge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.id = 'offlineQueueBadge';
+            badge.style.cssText = 'position:fixed;top:36px;right:12px;background:#d97706;color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:700;z-index:3001;display:none;';
+            document.body.appendChild(badge);
+        }
+        if (count > 0) {
+            badge.textContent = count + ' в очереди';
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    });
+}
+
+// Cache references for offline use
+function cacheReferencesOffline() {
+    if (!navigator.onLine) return;
+    var url = '/api/agro-field/sync/references';
+    fetch(url).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success && d.data) {
+            AgroOfflineDB.saveAllReferences(d.data);
+        }
+    }).catch(function() {});
+}
+
+// Cache references on load
+AgroOfflineDB.open().then(function() {
+    cacheReferencesOffline();
+    updateQueueBadge();
+});
 
 })();
 </script>
