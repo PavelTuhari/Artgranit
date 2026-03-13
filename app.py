@@ -3758,6 +3758,179 @@ def api_agro_field_sync_refs():
     return jsonify(AgroFieldController.get_sync_references())
 
 
+# ============================================================
+# AGRO Warehouse API
+# ============================================================
+
+@app.route('/api/agro-warehouse/stock', methods=['GET'])
+def api_agro_wh_stock():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    filters = {}
+    if request.args.get('warehouse_id'):
+        filters['warehouse_id'] = int(request.args['warehouse_id'])
+    if request.args.get('item_id'):
+        filters['item_id'] = int(request.args['item_id'])
+    if request.args.get('status'):
+        filters['status'] = request.args['status']
+    return jsonify(AgroWarehouseController.get_stock_balance(filters or None))
+
+@app.route('/api/agro-warehouse/batches/<int:batch_id>', methods=['GET'])
+def api_agro_wh_batch(batch_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroWarehouseController.get_batch_by_id(batch_id))
+
+@app.route('/api/agro-warehouse/batches/<int:batch_id>/history', methods=['GET'])
+def api_agro_wh_batch_history(batch_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroWarehouseController.get_batch_history(batch_id))
+
+@app.route('/api/agro-warehouse/movements', methods=['POST'])
+def api_agro_wh_movement():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroWarehouseController.create_movement(request.json))
+
+@app.route('/api/agro-warehouse/receive', methods=['POST'])
+def api_agro_wh_receive():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroWarehouseController.receive_crates(request.json))
+
+@app.route('/api/agro-warehouse/readings', methods=['GET'])
+def api_agro_wh_readings_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    cell_id = request.args.get('cell_id', type=int)
+    return jsonify(AgroWarehouseController.get_readings(
+        cell_id, request.args.get('date_from'), request.args.get('date_to')
+    ))
+
+@app.route('/api/agro-warehouse/readings', methods=['POST'])
+def api_agro_wh_readings_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroWarehouseController.add_reading(request.json))
+
+@app.route('/api/agro-warehouse/alerts', methods=['GET'])
+def api_agro_wh_alerts():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    ack = request.args.get('acknowledged')
+    return jsonify(AgroWarehouseController.get_alerts(ack))
+
+@app.route('/api/agro-warehouse/alerts/<int:alert_id>/ack', methods=['PUT'])
+def api_agro_wh_alert_ack(alert_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.json or {}
+    return jsonify(AgroWarehouseController.acknowledge_alert(alert_id, data.get('user')))
+
+@app.route('/api/agro-warehouse/tasks', methods=['GET'])
+def api_agro_wh_tasks_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    filters = {}
+    if request.args.get('status'):
+        filters['status'] = request.args['status']
+    if request.args.get('batch_id'):
+        filters['batch_id'] = int(request.args['batch_id'])
+    if request.args.get('task_type'):
+        filters['task_type'] = request.args['task_type']
+    return jsonify(AgroWarehouseController.get_processing_tasks(filters or None))
+
+@app.route('/api/agro-warehouse/tasks', methods=['POST'])
+def api_agro_wh_tasks_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroWarehouseController.create_processing_task(request.json))
+
+@app.route('/api/agro-warehouse/tasks/<int:task_id>/status', methods=['PUT'])
+def api_agro_wh_task_status(task_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.json or {}
+    return jsonify(AgroWarehouseController.update_task_status(
+        task_id, data.get('status', ''),
+        data.get('output_qty'), data.get('waste_qty')
+    ))
+
+
+# ============================================================
+# AGRO Sales API
+# ============================================================
+
+@app.route('/api/agro-sales/documents', methods=['GET'])
+def api_agro_sales_docs():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    filters = {}
+    if request.args.get('status'):
+        filters['status'] = request.args['status']
+    if request.args.get('customer_id'):
+        filters['customer_id'] = int(request.args['customer_id'])
+    if request.args.get('date_from'):
+        filters['date_from'] = request.args['date_from']
+    if request.args.get('date_to'):
+        filters['date_to'] = request.args['date_to']
+    return jsonify(AgroSalesController.get_sales_docs(filters or None))
+
+@app.route('/api/agro-sales/documents', methods=['POST'])
+def api_agro_sales_doc_create():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.create_sales_doc(request.json))
+
+@app.route('/api/agro-sales/documents/<int:doc_id>', methods=['GET'])
+def api_agro_sales_doc_get(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.get_sales_doc_by_id(doc_id))
+
+@app.route('/api/agro-sales/documents/<int:doc_id>/confirm', methods=['PUT'])
+def api_agro_sales_doc_confirm(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.confirm_sales_doc(doc_id))
+
+@app.route('/api/agro-sales/allocate', methods=['POST'])
+def api_agro_sales_allocate():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.allocate_batches(request.json))
+
+@app.route('/api/agro-sales/available-stock', methods=['GET'])
+def api_agro_sales_avail_stock():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.get_available_stock(
+        request.args.get('item_id', type=int),
+        request.args.get('warehouse_id', type=int)
+    ))
+
+@app.route('/api/agro-sales/export-decl', methods=['POST'])
+def api_agro_sales_export_create():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.create_export_decl(request.json))
+
+@app.route('/api/agro-sales/export-decl/<int:decl_id>', methods=['GET'])
+def api_agro_sales_export_get(decl_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.get_export_decl(decl_id))
+
+@app.route('/api/agro-sales/export-decl/<int:decl_id>', methods=['PUT'])
+def api_agro_sales_export_update(decl_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.json or {}
+    data['id'] = decl_id
+    return jsonify(AgroSalesController.update_export_decl(data))
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)

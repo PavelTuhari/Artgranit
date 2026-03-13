@@ -20,9 +20,13 @@ class AgroSalesController:
         return _safe_call(AgroStore.get_sales_docs, filters)
 
     @staticmethod
+    def get_sales_doc_by_id(doc_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_sales_doc_by_id, doc_id)
+
+    @staticmethod
     def create_sales_doc(data: Dict[str, Any]) -> Dict[str, Any]:
-        if not data.get('customer_id') or not data.get('items'):
-            return {"success": False, "error": "CUSTOMER_ID and ITEMS are required"}
+        if not data.get('customer_id') or not data.get('warehouse_id'):
+            return {"success": False, "error": "customer_id and warehouse_id required"}
         return _safe_call(AgroStore.create_sales_doc, data)
 
     @staticmethod
@@ -31,16 +35,31 @@ class AgroSalesController:
 
     @staticmethod
     def allocate_batches(data: Dict[str, Any]) -> Dict[str, Any]:
-        return _safe_call(AgroStore.allocate_batches, data)
+        sales_line_id = data.get('sales_line_id')
+        item_id = data.get('item_id')
+        qty_kg = data.get('qty_kg')
+        if not sales_line_id or not item_id or not qty_kg:
+            return {"success": False, "error": "sales_line_id, item_id, qty_kg required"}
+        return _safe_call(
+            AgroStore.allocate_batches,
+            sales_line_id, item_id, float(qty_kg),
+            data.get('warehouse_id'), data.get('method', 'fifo'),
+        )
 
     @staticmethod
-    def get_available_stock(item_id: int, warehouse_id: int = None) -> Dict[str, Any]:
+    def get_available_stock(item_id: int = None, warehouse_id: int = None) -> Dict[str, Any]:
         return _safe_call(AgroStore.get_available_stock, item_id, warehouse_id)
 
     @staticmethod
     def create_export_decl(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('sales_doc_id'):
+            return {"success": False, "error": "sales_doc_id required"}
         return _safe_call(AgroStore.create_export_decl, data)
 
     @staticmethod
-    def calculate_amounts(data: Dict[str, Any]) -> Dict[str, Any]:
-        return _safe_call(AgroStore.calculate_amounts, data)
+    def get_export_decl(decl_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_export_decl, decl_id)
+
+    @staticmethod
+    def update_export_decl(data: Dict[str, Any]) -> Dict[str, Any]:
+        return _safe_call(AgroStore.update_export_decl, data)
