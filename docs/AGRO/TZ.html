@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caiet de sarcini — Modulul AGRO</title>
+    <style>
+        :root { --primary: #0d9488; --bg: #f0fdfa; --card: #fff; --text: #134e4a; --muted: #64748b; --border: #99f6e4; --accent: #0f766e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; max-width: 920px; margin: 0 auto; }
+        .lead { font-size: 17px; color: var(--text); margin-bottom: 28px; padding: 20px 24px; background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%); border-radius: 16px; border-left: 4px solid var(--primary); }
+        .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+        @media (max-width: 640px) { .choice { grid-template-columns: 1fr; } }
+        .choice-card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,.08); border: 2px solid var(--border); transition: border-color .2s, box-shadow .2s; }
+        .choice-card:hover { border-color: var(--primary); box-shadow: 0 6px 20px rgba(13, 148, 136, .15); }
+        .choice-card h2 { font-size: 18px; margin-bottom: 10px; color: var(--primary); display: flex; align-items: center; gap: 10px; border: none; padding-bottom: 0; margin-top: 0; }
+        .choice-card p { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+        .choice-card .links { display: flex; flex-direction: column; gap: 10px; }
+        .btn { display: inline-block; padding: 12px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; text-align: center; transition: opacity .2s, transform .05s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { opacity: .92; }
+        .btn-ghost { background: #f0fdfa; color: var(--accent); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: #ccfbf1; }
+        .btn-block { width: 100%; }
+        h1 { font-size: 28px; margin-bottom: 8px; color: var(--text); }
+        h2 { font-size: 20px; margin-top: 28px; margin-bottom: 12px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+        h3 { font-size: 16px; margin-top: 16px; margin-bottom: 8px; color: var(--text); }
+        p { margin-bottom: 12px; }
+        ul, ol { margin: 0 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        .meta { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+        .card { background: var(--card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+        .toc { list-style: none; margin-left: 0; }
+        .toc li { margin-bottom: 8px; }
+        .toc a { color: var(--primary); text-decoration: none; }
+        .toc a:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0; }
+        th, td { padding: 10px 12px; text-align: left; border: 1px solid var(--border); }
+        th { background: #f0fdfa; font-weight: 600; color: var(--muted); }
+        tr:hover td { background: #f9fffe; }
+        .nav { margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .nav a { color: var(--primary); }
+        .section-read { margin-top: 40px; }
+        .section-read .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 12px; }
+        .sub-link { font-size: 13px; margin-top: 6px; }
+        .sub-link a { color: var(--muted); }
+        .sub-link a:hover { color: var(--primary); }
+        code { background: #f0fdfa; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 13px; font-family: 'Cascadia Code', 'Fira Code', monospace; color: var(--accent); }
+        pre { background: #f0fdfa; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-size: 13px; font-family: 'Cascadia Code', 'Fira Code', monospace; overflow-x: auto; margin: 12px 0; color: var(--accent); }
+        .tag-group { display: inline-block; background: #ccfbf1; color: var(--accent); border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Modulul AGRO — Caiet de sarcini</h1>
+    <p class="meta">Specificații tehnice pentru gestionarea operațiunilor cu produse agricole. Platformă: UNA.md/orasldev (Flask + Oracle).</p>
+
+    <p class="lead">
+        <strong>Pe această pagină:</strong> specificații tehnice complete — arhitectura sistemului, tabelele Oracle, rutele UI, documentația API, configurarea locală și remote, checklist de verificare post-deploiere.
+    </p>
+
+    <div class="choice">
+        <div class="choice-card">
+            <h2>Cuprins</h2>
+            <p>Navigare rapidă prin secțiunile documentului.</p>
+            <div class="links">
+                <a href="#intro" class="btn btn-ghost btn-block">1. Introducere</a>
+                <a href="#architecture" class="btn btn-ghost btn-block">2. Arhitectură</a>
+                <a href="#ui-modules" class="btn btn-ghost btn-block">3. Module și interfețe UI</a>
+                <a href="#oracle" class="btn btn-ghost btn-block">4. Obiecte Oracle</a>
+                <a href="#api" class="btn btn-ghost btn-block">5. API Endpoints</a>
+                <a href="#documents" class="btn btn-ghost btn-block">6. Documente tipărite</a>
+                <a href="#local-setup" class="btn btn-ghost btn-block">7. Configurare locală</a>
+                <a href="#remote-deploy" class="btn btn-ghost btn-block">8. Deploiere remote</a>
+                <a href="#checklist" class="btn btn-ghost btn-block">9. Checklist post-deploiere</a>
+            </div>
+        </div>
+        <div class="choice-card">
+            <h2>Module de lucru</h2>
+            <p>Accesați direct interfețele operaționale ale modulului AGRO.</p>
+            <div class="links">
+                <a href="/UNA.md/orasldev/agro" class="btn btn-primary btn-block">AGRO MDI Shell — interfața principală</a>
+                <p class="sub-link">Interfață cu tab-uri pentru toate modulele AGRO.</p>
+                <a href="/UNA.md/orasldev/agro-admin" class="btn btn-primary btn-block">Admin — date referință și rapoarte</a>
+                <p class="sub-link">Furnizori, clienți, depozite, articole, configurare, export.</p>
+                <a href="/UNA.md/orasldev/agro-field" class="btn btn-ghost btn-block">Recepție câmp</a>
+                <a href="/UNA.md/orasldev/agro-warehouse" class="btn btn-ghost btn-block">Depozit / Stocuri</a>
+                <a href="/UNA.md/orasldev/agro-qa" class="btn btn-ghost btn-block">Calitate / HACCP</a>
+                <a href="/UNA.md/orasldev/agro-sales" class="btn btn-ghost btn-block">Vânzări / Export</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-read">
+        <p class="section-label">Textul specificațiilor tehnice</p>
+    </div>
+
+    <!-- ==================== 1. INTRODUCERE ==================== -->
+    <div class="card">
+        <h2 id="intro">1. Introducere</h2>
+        <p>Modulul <strong>AGRO</strong> gestionează ciclul complet al operațiunilor cu produse agricole:</p>
+        <p style="margin: 12px 0 16px 0; padding: 12px 16px; background: #ccfbf1; border-radius: 8px; font-weight: 500;">
+            Recepție câmp → Depozitare frigorifică → Control calitate / HACCP → Procesare → Vânzări / Export
+        </p>
+
+        <h3>Caracteristici cheie</h3>
+        <ul>
+            <li><strong>Prefix Oracle:</strong> <code>AGRO_</code></li>
+            <li><strong>36 tabele normalizate</strong> + 5 vizualizări + 36 triggere auto-ID + 3 triggere de audit</li>
+            <li><strong>5 interfețe UI</strong> cu roluri distincte: Admin, Recepție, Depozit, Calitate, Vânzări</li>
+            <li><strong>Evenimente în timp real</strong> via Socket.IO (alerte temperatură, notificări blocuri)</li>
+            <li><strong>Alocare loturi FIFO</strong> automată la confirmarea documentelor de vânzare</li>
+            <li><strong>9 tipuri de documente tipărite</strong> (acte, tichete, facturi, declarații vamale)</li>
+        </ul>
+
+        <h3>Domenii funcționale</h3>
+        <ul>
+            <li><strong>Recepție câmp</strong> — achiziții de la producători, cântărire lăzi, generare coduri de bare EAN/QR</li>
+            <li><strong>Depozit frigorific</strong> — stocuri pe celule, mișcări de intrare/ieșire, monitorizare temperatură și umiditate</li>
+            <li><strong>Calitate și HACCP</strong> — liste de verificare GMP, controale fizico-chimice, blocări loturi la neconformitate, planuri HACCP cu puncte critice de control</li>
+            <li><strong>Vânzări și export</strong> — documente de vânzare, alocare loturi, declarații vamale pentru export</li>
+        </ul>
+    </div>
+
+    <!-- ==================== 2. ARHITECTURĂ ==================== -->
+    <div class="card">
+        <h2 id="architecture">2. Arhitectură</h2>
+
+        <h3>Stiva tehnologică</h3>
+        <pre>
+┌──────────────┐   ┌──────────────────────┐   ┌──────────────────┐
+│  5 Pagini UI │──▶│  5 Controllere Flask │──▶│   AgroStore      │──▶ Oracle DB
+│  (HTML/JS)   │   │  (validare + routing)│   │  (~3000 linii)   │   (tabele AGRO_*)
+└──────────────┘   └──────────────────────┘   └──────────────────┘
+        ▲                                              │
+        └──────────── Socket.IO (evenimente RT) ───────┘</pre>
+
+        <h3>Controllere backend</h3>
+        <table>
+            <tr><th>Controller</th><th>Responsabilitate</th></tr>
+            <tr><td><code>AgroAdminController</code></td><td>CRUD pentru 11 tabele de referință, rapoarte, export</td></tr>
+            <tr><td><code>AgroFieldController</code></td><td>Coduri de bare, operațiuni lăzi (crate), documente achiziție</td></tr>
+            <tr><td><code>AgroWarehouseController</code></td><td>Stocuri, mișcări, citiri senzori temperatură, sarcini depozit</td></tr>
+            <tr><td><code>AgroQaController</code></td><td>Liste verificare, controale calitate, blocări loturi, HACCP</td></tr>
+            <tr><td><code>AgroSalesController</code></td><td>Documente vânzare, alocare FIFO, declarații export</td></tr>
+        </table>
+
+        <h3>Evenimente în timp real (Socket.IO)</h3>
+        <ul>
+            <li>Alerte de temperatură când senzorul depășește pragul configurat</li>
+            <li>Notificări de blocare lot la neconformitate critică la control calitate</li>
+            <li>Actualizare live a soldurilor de stoc după confirmare documente</li>
+        </ul>
+    </div>
+
+    <!-- ==================== 3. MODULE UI ==================== -->
+    <div class="card">
+        <h2 id="ui-modules">3. Module și interfețe UI</h2>
+
+        <table>
+            <tr>
+                <th>URL</th>
+                <th>Modul</th>
+                <th>Descriere</th>
+            </tr>
+            <tr>
+                <td><code>/UNA.md/orasldev/agro</code></td>
+                <td>MDI Shell</td>
+                <td>Interfață cu tab-uri pentru toate modulele AGRO — punct de intrare unificat</td>
+            </tr>
+            <tr>
+                <td><code>/UNA.md/orasldev/agro-admin</code></td>
+                <td>Administrare</td>
+                <td>Date de referință (11 tabele), configurare sistem, rapoarte, export XLSX/CSV</td>
+            </tr>
+            <tr>
+                <td><code>/UNA.md/orasldev/agro-field</code></td>
+                <td>Recepție câmp</td>
+                <td>Operator câmp — achiziții de la producători, cântărire lăzi, coduri de bare; optimizat pentru tabletă</td>
+            </tr>
+            <tr>
+                <td><code>/UNA.md/orasldev/agro-warehouse</code></td>
+                <td>Depozit</td>
+                <td>Operator depozit — stocuri pe celule, mișcări, monitorizare temperatură, sarcini, alerte</td>
+            </tr>
+            <tr>
+                <td><code>/UNA.md/orasldev/agro-qa</code></td>
+                <td>Calitate / HACCP</td>
+                <td>Inspector calitate — liste de verificare GMP, controale pe loturi, blocări automate, planuri HACCP</td>
+            </tr>
+            <tr>
+                <td><code>/UNA.md/orasldev/agro-sales</code></td>
+                <td>Vânzări</td>
+                <td>Operator vânzări — documente de expediere, alocare loturi FIFO, export, declarații vamale</td>
+            </tr>
+        </table>
+
+        <h3>Pagina AGRO Admin — secțiuni</h3>
+        <ul>
+            <li><strong>Date de referință</strong> — furnizori, clienți, depozite, celule, articole, tipuri ambalaj, vehicule, valute, cursuri valutare, parametri formulă, configurare modul</li>
+            <li><strong>Rapoarte</strong> — achiziții, vânzări, bilanț de masă, stoc curent, expirări</li>
+            <li><strong>Export</strong> — orice raport în format XLSX sau CSV</li>
+        </ul>
+
+        <h3>Pagina AGRO Recepție (Field) — secțiuni</h3>
+        <ul>
+            <li><strong>Coduri de bare</strong> — generare lot, tipărire etichete EAN-128/QR</li>
+            <li><strong>Lăzi (Crates)</strong> — scanare cod de bare, înregistrare greutate brut/tară/net</li>
+            <li><strong>Documente achiziție</strong> — creare, confirmare, anulare; sincronizare offline pentru tabletă în câmp</li>
+        </ul>
+
+        <h3>Pagina AGRO Depozit (Warehouse) — secțiuni</h3>
+        <ul>
+            <li><strong>Stoc curent</strong> — solduri pe lot / depozit / celulă cu dată expirare și status lot</li>
+            <li><strong>Mișcări</strong> — intrare, ieșire, transfer intern între celule</li>
+            <li><strong>Temperaturi și umiditate</strong> — citiri senzori, grafice istorice, alerte la depășire prag</li>
+            <li><strong>Sarcini depozit</strong> — gestionarea task-urilor operatorilor</li>
+        </ul>
+
+        <h3>Pagina AGRO Calitate / HACCP (QA) — secțiuni</h3>
+        <ul>
+            <li><strong>Liste de verificare</strong> — șabloane GMP cu puncte de control configurabile</li>
+            <li><strong>Controale calitate</strong> — execuție verificări pe loturi cu valori măsurate</li>
+            <li><strong>Blocări loturi</strong> — blocare automată la neconformitate critică; deblocare cu justificare</li>
+            <li><strong>HACCP</strong> — planuri HACCP, puncte critice de control (CCP), înregistrări și devieri</li>
+        </ul>
+
+        <h3>Pagina AGRO Vânzări (Sales) — secțiuni</h3>
+        <ul>
+            <li><strong>Documente vânzare</strong> — creare, confirmare cu alocare FIFO automată, tipărire factură</li>
+            <li><strong>Stoc disponibil</strong> — vizualizare loturi disponibile pentru vânzare</li>
+            <li><strong>Export și declarații vamale</strong> — creare și gestionare declarații de export</li>
+        </ul>
+    </div>
+
+    <!-- ==================== 4. OBIECTE ORACLE ==================== -->
+    <div class="card">
+        <h2 id="oracle">4. Obiecte Oracle</h2>
+        <p>Toate obiectele folosesc prefixul <code>AGRO_</code>. DDL-ul se găsește în fișierele <code>sql/35_agro_tables.sql</code>, <code>sql/36_agro_views.sql</code>, <code>sql/37_agro_triggers.sql</code>, <code>sql/38_agro_demo_data.sql</code>.</p>
+
+        <h3>Date de referință (Master Data) — 11 tabele</h3>
+        <table>
+            <tr><th>Tabel</th><th>Descriere</th></tr>
+            <tr><td><code>AGRO_SUPPLIERS</code></td><td>Furnizori (producători agricoli): denumire, cod fiscal, adresă, contact, status activ</td></tr>
+            <tr><td><code>AGRO_CUSTOMERS</code></td><td>Clienți (cumpărători): denumire, cod fiscal, tip (intern/export), contact</td></tr>
+            <tr><td><code>AGRO_WAREHOUSES</code></td><td>Depozite: denumire, tip (frigorific/uscat), adresă, capacitate</td></tr>
+            <tr><td><code>AGRO_STORAGE_CELLS</code></td><td>Celule de depozitare: depozit, număr celulă, temperatură target, umiditate target, capacitate kg</td></tr>
+            <tr><td><code>AGRO_ITEMS</code></td><td>Articole (produse agricole): cod, denumire, unitate de măsură, temperatură de stocare, durată de valabilitate zile</td></tr>
+            <tr><td><code>AGRO_PACKAGING_TYPES</code></td><td>Tipuri ambalaj: denumire, greutate tară, capacitate nominală</td></tr>
+            <tr><td><code>AGRO_VEHICLES</code></td><td>Vehicule de transport: număr înmatriculare, tip, capacitate, șofer</td></tr>
+            <tr><td><code>AGRO_CURRENCIES</code></td><td>Valute: cod ISO (MDL, EUR, USD, RON)</td></tr>
+            <tr><td><code>AGRO_EXCHANGE_RATES</code></td><td>Cursuri valutare zilnice față de MDL</td></tr>
+            <tr><td><code>AGRO_FORMULA_PARAMS</code></td><td>Parametri de calcul formulă (randament prelucrare, procent pierderi etc.)</td></tr>
+            <tr><td><code>AGRO_MODULE_CONFIG</code></td><td>Configurare modul: praguri temperatură, zile alertă expirare, setări HACCP</td></tr>
+        </table>
+
+        <h3>Operațiuni — 9 tabele</h3>
+        <table>
+            <tr><th>Tabel</th><th>Descriere</th></tr>
+            <tr><td><code>AGRO_BARCODES</code></td><td>Coduri de bare generate: tip (EAN-128/QR), valoare, dată generare, utilizare</td></tr>
+            <tr><td><code>AGRO_PURCHASE_DOCS</code></td><td>Documente de achiziție (capete): furnizor, dată, vehicul, status, total kg, total sumă</td></tr>
+            <tr><td><code>AGRO_PURCHASE_LINES</code></td><td>Linii document achiziție: articol, cantitate, preț unitar, total</td></tr>
+            <tr><td><code>AGRO_CRATES</code></td><td>Lăzi cântărite: cod de bare, document achiziție, greutate brut, greutate tară, greutate net, timestamp cântărire</td></tr>
+            <tr><td><code>AGRO_BATCHES</code></td><td>Loturi: număr lot, articol, furnizor, dată recepție, dată expirare, cantitate inițială, status (activ/blocat/epuizat)</td></tr>
+            <tr><td><code>AGRO_STOCK_MOVEMENTS</code></td><td>Mișcări de stoc: lot, celulă sursă/destinație, tip (intrare/ieșire/transfer), cantitate, document referință</td></tr>
+            <tr><td><code>AGRO_SENSOR_READINGS</code></td><td>Citiri senzori: celulă, timestamp, temperatură, umiditate relativă, sursa (senzor/manual)</td></tr>
+            <tr><td><code>AGRO_STORAGE_ALERTS</code></td><td>Alerte depozit: celulă, tip alertă (temperatură/umiditate/expirare), valoare, prag, status (nou/confirmat/rezolvat)</td></tr>
+            <tr><td><code>AGRO_PROCESSING_TASKS</code></td><td>Sarcini de procesare: lot, tip sarcină, operator asignat, status, deadline, note</td></tr>
+        </table>
+
+        <h3>Vânzări — 4 tabele</h3>
+        <table>
+            <tr><th>Tabel</th><th>Descriere</th></tr>
+            <tr><td><code>AGRO_SALES_DOCS</code></td><td>Documente de vânzare (capete): client, dată, tip (intern/export), status, total kg, total sumă, monedă</td></tr>
+            <tr><td><code>AGRO_SALES_LINES</code></td><td>Linii document vânzare: articol, cantitate comandată, preț unitar, total</td></tr>
+            <tr><td><code>AGRO_SALES_ALLOCATIONS</code></td><td>Alocări loturi la linii vânzare: linie vânzare, lot, cantitate alocată (FIFO automat)</td></tr>
+            <tr><td><code>AGRO_EXPORT_DECLARATIONS</code></td><td>Declarații vamale de export: document vânzare, număr declarație, vamă, dată declarare, status</td></tr>
+        </table>
+
+        <h3>Calitate și HACCP — 8 tabele</h3>
+        <table>
+            <tr><th>Tabel</th><th>Descriere</th></tr>
+            <tr><td><code>AGRO_QA_CHECKLISTS</code></td><td>Șabloane liste de verificare: denumire, tip (GMP/HACCP/recepție), status activ</td></tr>
+            <tr><td><code>AGRO_QA_CHECKLIST_ITEMS</code></td><td>Puncte de verificare pe șablon: descriere, tip valoare (DA/NU, numeric, text), prag critic</td></tr>
+            <tr><td><code>AGRO_QA_CHECKS</code></td><td>Controale de calitate executate: lot, șablon, inspector, dată, rezultat general, observații</td></tr>
+            <tr><td><code>AGRO_QA_CHECK_VALUES</code></td><td>Valori măsurate per punct de verificare în cadrul unui control</td></tr>
+            <tr><td><code>AGRO_BATCH_BLOCKS</code></td><td>Blocări loturi: lot, motiv, tip (automat/manual), inspector, dată blocare, dată deblocare, justificare</td></tr>
+            <tr><td><code>AGRO_HACCP_PLANS</code></td><td>Planuri HACCP: denumire, produs/linie de producție, versiune, dată aprobare, status</td></tr>
+            <tr><td><code>AGRO_HACCP_CCPS</code></td><td>Puncte critice de control (CCP): plan, etapă proces, pericol identificat, limite critice, acțiuni corective</td></tr>
+            <tr><td><code>AGRO_HACCP_RECORDS</code></td><td>Înregistrări de monitorizare CCP: CCP, lot, timestamp, valoare măsurată, operator, deviere (DA/NU)</td></tr>
+        </table>
+
+        <h3>Audit — 1 tabel</h3>
+        <table>
+            <tr><th>Tabel</th><th>Descriere</th></tr>
+            <tr><td><code>AGRO_EVENT_LOG</code></td><td>Jurnal append-only: modul, acțiune, entitate, id_entitate, utilizator, timestamp, detalii JSON</td></tr>
+        </table>
+
+        <h3>Vizualizări (Views) — 5</h3>
+        <table>
+            <tr><th>Vizualizare</th><th>Descriere</th></tr>
+            <tr><td><code>AGRO_V_STOCK_BALANCE</code></td><td>Solduri curente de stoc pe lot / depozit / celulă cu date articol și dată expirare</td></tr>
+            <tr><td><code>AGRO_V_PURCHASES</code></td><td>Documente de achiziție cu detalii furnizor, articol și totale cantitate/valoare</td></tr>
+            <tr><td><code>AGRO_V_SALES</code></td><td>Documente de vânzare cu detalii client, loturi alocate și status confirmare</td></tr>
+            <tr><td><code>AGRO_V_MASS_BALANCE</code></td><td>Bilanț de masă pe articol: cantitate recepționată, procesată, vândută, stoc rămas</td></tr>
+            <tr><td><code>AGRO_V_CELL_READINGS</code></td><td>Ultimele citiri ale senzorilor cu informații celulă și depozit, flag alertă</td></tr>
+        </table>
+
+        <h3>Triggere</h3>
+        <ul>
+            <li><strong>36 triggere auto-ID</strong> — câte unul per tabel, generează ID-ul primar via secvență <code>AGRO_&lt;TABLE&gt;_SEQ</code></li>
+            <li><strong>3 triggere de audit</strong> — <code>AGRO_PURCHASES_AUDIT</code>, <code>AGRO_BATCHES_AUDIT</code>, <code>AGRO_SALES_DOCS_AUDIT</code> — inserează în <code>AGRO_EVENT_LOG</code> la INSERT/UPDATE</li>
+        </ul>
+    </div>
+
+    <!-- ==================== 5. API ENDPOINTS ==================== -->
+    <div class="card">
+        <h2 id="api">5. API Endpoints</h2>
+
+        <h3>Admin API — <code>/api/agro-admin/</code></h3>
+        <table>
+            <tr><th>Metodă</th><th>Endpoint</th><th>Descriere</th></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/suppliers</code></td><td>Listare / creare furnizori</td></tr>
+            <tr><td><code>GET/PUT/DELETE</code></td><td><code>/suppliers/&lt;id&gt;</code></td><td>Detalii / modificare / ștergere furnizor</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/customers</code></td><td>Listare / creare clienți</td></tr>
+            <tr><td><code>GET/PUT/DELETE</code></td><td><code>/customers/&lt;id&gt;</code></td><td>Detalii / modificare / ștergere client</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/warehouses</code></td><td>Listare / creare depozite</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/storage-cells</code></td><td>Listare / creare celule de depozitare</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/items</code></td><td>Listare / creare articole</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/packaging-types</code></td><td>Listare / creare tipuri ambalaj</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/vehicles</code></td><td>Listare / creare vehicule</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/currencies</code></td><td>Listare / creare valute</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/exchange-rates</code></td><td>Listare / creare cursuri valutare</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/formula-params</code></td><td>Listare / creare parametri formulă</td></tr>
+            <tr><td><code>GET/PUT</code></td><td><code>/module-config</code></td><td>Citire / actualizare configurare modul</td></tr>
+            <tr><td><code>DELETE</code></td><td><code>/&lt;entity&gt;/&lt;id&gt;</code></td><td>Ștergere entitate după tip și ID</td></tr>
+            <tr><td><code>GET</code></td><td><code>/reports/&lt;type&gt;</code></td><td>Rapoarte: <code>purchases</code>, <code>sales</code>, <code>mass_balance</code>, <code>stock</code>, <code>expiry</code></td></tr>
+            <tr><td><code>GET</code></td><td><code>/reports/export/&lt;type&gt;?format=xlsx|csv</code></td><td>Export raport în XLSX sau CSV</td></tr>
+        </table>
+
+        <h3>Recepție API — <code>/api/agro-field/</code></h3>
+        <table>
+            <tr><th>Metodă</th><th>Endpoint</th><th>Descriere</th></tr>
+            <tr><td><code>POST</code></td><td><code>/barcodes/generate</code></td><td>Generare lot de coduri de bare (cantitate, prefix, tip)</td></tr>
+            <tr><td><code>GET</code></td><td><code>/barcodes/print-batch</code></td><td>Obținere coduri de bare pentru tipărire etichete</td></tr>
+            <tr><td><code>POST</code></td><td><code>/crates/scan</code></td><td>Scanare cod de bare ladă — identificare și asociere document</td></tr>
+            <tr><td><code>POST</code></td><td><code>/crates/weigh</code></td><td>Înregistrare greutate ladă (brut, tară, net calculat)</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/purchases</code></td><td>Listare / creare documente de achiziție</td></tr>
+            <tr><td><code>GET</code></td><td><code>/purchases/&lt;id&gt;</code></td><td>Detalii document achiziție cu linii și lăzi</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/purchases/&lt;id&gt;</code></td><td>Modificare document achiziție în draft</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/purchases/&lt;id&gt;/confirm</code></td><td>Confirmare document — creează loturi și mișcări de stoc</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/purchases/&lt;id&gt;/cancel</code></td><td>Anulare document achiziție</td></tr>
+            <tr><td><code>GET</code></td><td><code>/sync/references</code></td><td>Sincronizare date de referință pentru lucru offline (tabletă câmp)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/sync</code></td><td>Trimitere coadă offline la server după reconectare</td></tr>
+        </table>
+
+        <h3>Depozit API — <code>/api/agro-warehouse/</code></h3>
+        <table>
+            <tr><th>Metodă</th><th>Endpoint</th><th>Descriere</th></tr>
+            <tr><td><code>GET</code></td><td><code>/stock</code></td><td>Solduri stoc curente (filtrabil după depozit, celulă, articol, lot)</td></tr>
+            <tr><td><code>GET</code></td><td><code>/batches/&lt;id&gt;</code></td><td>Detalii lot cu informații calitate și status</td></tr>
+            <tr><td><code>GET</code></td><td><code>/batches/&lt;id&gt;/history</code></td><td>Istoricul mișcărilor de stoc ale unui lot</td></tr>
+            <tr><td><code>POST</code></td><td><code>/movements</code></td><td>Înregistrare mișcare de stoc (ieșire, transfer intern)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/receive</code></td><td>Recepție manuală lot la depozit (fără document recepție câmp)</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/readings</code></td><td>Listare / adăugare citiri senzori temperatură și umiditate</td></tr>
+            <tr><td><code>GET</code></td><td><code>/alerts</code></td><td>Listare alerte active de depozit (temperatură, umiditate, expirare)</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/alerts/&lt;id&gt;/ack</code></td><td>Confirmare alertă (acknowledged) de către operator</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/tasks</code></td><td>Listare / creare sarcini de depozit</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/tasks/&lt;id&gt;/status</code></td><td>Actualizare status sarcină (în lucru, finalizat, anulat)</td></tr>
+        </table>
+
+        <h3>Vânzări API — <code>/api/agro-sales/</code></h3>
+        <table>
+            <tr><th>Metodă</th><th>Endpoint</th><th>Descriere</th></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/documents</code></td><td>Listare / creare documente de vânzare</td></tr>
+            <tr><td><code>GET</code></td><td><code>/documents/&lt;id&gt;</code></td><td>Detalii document cu linii și alocări loturi</td></tr>
+            <tr><td><code>PUT</code></td><td><code>/documents/&lt;id&gt;/confirm</code></td><td>Confirmare document — execută alocare FIFO și actualizează stoc</td></tr>
+            <tr><td><code>POST</code></td><td><code>/allocate</code></td><td>Alocare manuală loturi la linie de vânzare</td></tr>
+            <tr><td><code>GET</code></td><td><code>/available-stock</code></td><td>Stoc disponibil per articol pentru vânzare (loturi neblocate)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/export-decl</code></td><td>Creare declarație vamală de export</td></tr>
+            <tr><td><code>GET/PUT</code></td><td><code>/export-decl/&lt;id&gt;</code></td><td>Detalii / actualizare declarație de export</td></tr>
+        </table>
+
+        <h3>Calitate API — <code>/api/agro-qa/</code></h3>
+        <table>
+            <tr><th>Metodă</th><th>Endpoint</th><th>Descriere</th></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/checklists</code></td><td>Listare / creare șabloane liste de verificare</td></tr>
+            <tr><td><code>GET/DELETE</code></td><td><code>/checklists/&lt;id&gt;</code></td><td>Detalii / ștergere șablon (cu puncte de verificare)</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/checks</code></td><td>Listare / creare controale de calitate executate</td></tr>
+            <tr><td><code>GET</code></td><td><code>/checks/&lt;id&gt;</code></td><td>Detalii control cu toate valorile măsurate</td></tr>
+            <tr><td><code>POST</code></td><td><code>/batches/&lt;id&gt;/block</code></td><td>Blocare lot (manual sau automat la neconformitate critică)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/batches/&lt;id&gt;/unblock</code></td><td>Deblocare lot cu justificare obligatorie</td></tr>
+            <tr><td><code>GET</code></td><td><code>/blocks</code></td><td>Listare toate blocările active și istoricul blocărilor</td></tr>
+            <tr><td><code>GET/POST</code></td><td><code>/haccp/plans</code></td><td>Listare / creare planuri HACCP</td></tr>
+            <tr><td><code>GET</code></td><td><code>/haccp/plans/&lt;id&gt;/ccps</code></td><td>Punctele critice de control (CCP) ale unui plan</td></tr>
+            <tr><td><code>POST</code></td><td><code>/haccp/ccps</code></td><td>Adăugare punct critic de control la un plan HACCP</td></tr>
+            <tr><td><code>POST</code></td><td><code>/haccp/records</code></td><td>Înregistrare monitorizare CCP cu valoare și flag deviere</td></tr>
+            <tr><td><code>GET</code></td><td><code>/haccp/deviations</code></td><td>Listare devieri CCP nerezolvate pentru urmărire</td></tr>
+        </table>
+
+        <h3>Emulator Cântar API — <code>/api/agro-scale/</code></h3>
+        <table>
+            <tr><th>Metodă</th><th>Endpoint</th><th>Descriere</th></tr>
+            <tr><td><code>GET</code></td><td><code>/read</code></td><td>Citire greutate curentă de pe cântar (real sau emulat)</td></tr>
+            <tr><td><code>POST</code></td><td><code>/zero</code></td><td>Zerorizare cântar</td></tr>
+            <tr><td><code>POST</code></td><td><code>/tare</code></td><td>Tară — scădere greutate ambalaj</td></tr>
+            <tr><td><code>POST</code></td><td><code>/capture</code></td><td>Captură greutate stabilă și asociere cu ladă activă</td></tr>
+            <tr><td><code>POST</code></td><td><code>/simulate</code></td><td>Setare greutate simulată (pentru teste și demo)</td></tr>
+            <tr><td><code>GET</code></td><td><code>/config</code></td><td>Configurare cântar (port serial, protocol, unitate)</td></tr>
+            <tr><td><code>GET</code></td><td><code>/list</code></td><td>Listare cântare disponibile și statusul conexiunii</td></tr>
+        </table>
+    </div>
+
+    <!-- ==================== 6. DOCUMENTE TIPĂRITE ==================== -->
+    <div class="card">
+        <h2 id="documents">6. Documente tipărite</h2>
+        <p>URL general: <code>/UNA.md/orasldev/agro-document/&lt;id&gt;?type=&lt;type&gt;</code> — format A4, tipărire directă din browser.</p>
+
+        <table>
+            <tr><th>Șablon</th><th>Parametru <code>type</code></th><th>Descriere</th></tr>
+            <tr><td>Act de recepție</td><td><code>purchase_act</code></td><td>Document de preluare marfă de la furnizor, cu semnături</td></tr>
+            <tr><td>Tichet de cântărire</td><td><code>weight_ticket</code></td><td>Tichet cu greutate brut/tară/net per ladă sau per document</td></tr>
+            <tr><td>Scrisoare de trăsură</td><td><code>shipping_note</code></td><td>Document de însoțire marfă la transport</td></tr>
+            <tr><td>Factură</td><td><code>invoice</code></td><td>Factură fiscală pentru client intern sau export</td></tr>
+            <tr><td>Declarație vamală export</td><td><code>export_decl</code></td><td>Declarație pentru vamă la export internațional</td></tr>
+            <tr><td>Protocol control calitate</td><td><code>qa_protocol</code></td><td>Rezultatele controlului de calitate cu valori și concluzii</td></tr>
+            <tr><td>Listă verificare GMP</td><td><code>gmp_checklist</code></td><td>Lista completată de verificare GMP cu semnătură inspector</td></tr>
+            <tr><td>Raport HACCP</td><td><code>haccp_report</code></td><td>Raportul înregistrărilor CCP pe perioadă</td></tr>
+            <tr><td>Bilanț de masă</td><td><code>mass_balance</code></td><td>Situația cantitativă intrări/ieșiri/stoc per articol</td></tr>
+        </table>
+    </div>
+
+    <!-- ==================== 7. CONFIGURARE LOCALĂ ==================== -->
+    <div class="card">
+        <h2 id="local-setup">7. Configurare locală</h2>
+
+        <h3>Pas 1 — Configurare Oracle Wallet în <code>.env</code></h3>
+        <pre>WALLET_DIR=/path/to/oracle_wallet
+DB_USER=your_user
+DB_PASSWORD=your_password
+DB_DSN=your_dsn
+PORT=3003</pre>
+
+        <h3>Pas 2 — Deploiere DDL (creare tabele Oracle)</h3>
+        <pre>python deploy_oracle_objects.py</pre>
+        <p>Se execută în ordine: <code>sql/35_agro_tables.sql</code>, <code>sql/36_agro_views.sql</code>, <code>sql/37_agro_triggers.sql</code>, <code>sql/38_agro_demo_data.sql</code>.</p>
+
+        <h3>Pas 3 — Lansarea aplicației</h3>
+        <pre>./run_local.sh
+# sau direct:
+python app.py</pre>
+        <p>Aplicația pornește pe portul configurat în <code>.env</code> (implicit <code>PORT=3003</code>).</p>
+
+        <h3>Pas 4 — Navigare în browser</h3>
+        <ul>
+            <li>MDI Shell: <a href="http://localhost:3003/UNA.md/orasldev/agro">http://localhost:3003/UNA.md/orasldev/agro</a></li>
+            <li>Admin: <a href="http://localhost:3003/UNA.md/orasldev/agro-admin">http://localhost:3003/UNA.md/orasldev/agro-admin</a></li>
+            <li>Recepție: <a href="http://localhost:3003/UNA.md/orasldev/agro-field">http://localhost:3003/UNA.md/orasldev/agro-field</a></li>
+            <li>Depozit: <a href="http://localhost:3003/UNA.md/orasldev/agro-warehouse">http://localhost:3003/UNA.md/orasldev/agro-warehouse</a></li>
+            <li>Calitate/HACCP: <a href="http://localhost:3003/UNA.md/orasldev/agro-qa">http://localhost:3003/UNA.md/orasldev/agro-qa</a></li>
+            <li>Vânzări: <a href="http://localhost:3003/UNA.md/orasldev/agro-sales">http://localhost:3003/UNA.md/orasldev/agro-sales</a></li>
+        </ul>
+
+        <h3>Notă privind Oracle Wallet local</h3>
+        <p>Oracle Wallet nu face parte din codul sursă al aplicației. <code>WALLET_DIR</code> din <code>.env</code> trebuie să fie un path absolut către wallet-ul local. Nu se face commit cu wallet-ul în repozitoriu.</p>
+    </div>
+
+    <!-- ==================== 8. DEPLOIERE REMOTE ==================== -->
+    <div class="card">
+        <h2 id="remote-deploy">8. Deploiere pe serverul remote</h2>
+
+        <h3>Pas 1 — Transfer cod</h3>
+        <pre>./deploy_to_remote.sh</pre>
+        <p>Transferă codul aplicației la <code>/home/ubuntu/artgranit</code> pe serverul remote. <strong>Nu execută DDL Oracle.</strong></p>
+
+        <h3>Pas 2 — Oracle Wallet pe remote</h3>
+        <p>Wallet-ul Oracle rămâne la locația sa permanentă pe server, <strong>în afara directorului de deploy</strong>:</p>
+        <pre>/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q</pre>
+        <p>În <code>.env</code> de pe server, <code>WALLET_DIR</code> trebuie să indice acest path absolut.</p>
+
+        <h3>Pas 3 — Deploiere modificări schemă Oracle (dacă e cazul)</h3>
+        <p>Dacă release-ul include tabele noi sau modificări DDL, se execută separat:</p>
+        <pre>DEPLOY_ORACLE_ON_REMOTE=1 python deploy_oracle_objects.py</pre>
+
+        <h3>Pas 4 — Verificare URL producție</h3>
+        <ul>
+            <li>MDI Shell: <a href="http://92.5.3.187:8000/UNA.md/orasldev/agro">http://92.5.3.187:8000/UNA.md/orasldev/agro</a></li>
+            <li>Admin: <a href="http://92.5.3.187:8000/UNA.md/orasldev/agro-admin">http://92.5.3.187:8000/UNA.md/orasldev/agro-admin</a></li>
+            <li>Recepție: <a href="http://92.5.3.187:8000/UNA.md/orasldev/agro-field">http://92.5.3.187:8000/UNA.md/orasldev/agro-field</a></li>
+            <li>Depozit: <a href="http://92.5.3.187:8000/UNA.md/orasldev/agro-warehouse">http://92.5.3.187:8000/UNA.md/orasldev/agro-warehouse</a></li>
+            <li>Calitate/HACCP: <a href="http://92.5.3.187:8000/UNA.md/orasldev/agro-qa">http://92.5.3.187:8000/UNA.md/orasldev/agro-qa</a></li>
+            <li>Vânzări: <a href="http://92.5.3.187:8000/UNA.md/orasldev/agro-sales">http://92.5.3.187:8000/UNA.md/orasldev/agro-sales</a></li>
+        </ul>
+
+        <p><strong>Notă:</strong> URL-ul root <code>http://92.5.3.187:8000/</code> redirecționează la <code>/login</code> — comportament normal al platformei.</p>
+    </div>
+
+    <!-- ==================== 9. CHECKLIST ==================== -->
+    <div class="card">
+        <h2 id="checklist">9. Verificare post-deploiere (Checklist)</h2>
+
+        <h3>Obiecte Oracle</h3>
+        <ul>
+            <li>Obiectele Oracle cu prefixul <code>AGRO_</code> sunt vizibile în <code>USER_OBJECTS</code></li>
+            <li>Toate cele 36 tabele, 5 vizualizări, 36 triggere auto-ID și 3 triggere audit există</li>
+        </ul>
+
+        <h3>Interfețe UI</h3>
+        <ul>
+            <li>Toate cele 5 pagini UI se încarcă fără erori (<code>agro-admin</code>, <code>agro-field</code>, <code>agro-warehouse</code>, <code>agro-qa</code>, <code>agro-sales</code>)</li>
+            <li>MDI Shell <code>/agro</code> afișează tab-urile tuturor modulelor</li>
+        </ul>
+
+        <h3>Funcționalitate Admin</h3>
+        <ul>
+            <li>CRUD funcțional pentru toate cele 11 tabele de referință (furnizori, clienți, depozite, celule, articole, tipuri ambalaj, vehicule, valute, cursuri, parametri, configurare)</li>
+            <li>Rapoartele generează date corecte pentru toate cele 5 tipuri (achiziții, vânzări, bilanț masă, stoc, expirări)</li>
+            <li>Export funcțional în format XLSX și CSV</li>
+        </ul>
+
+        <h3>Flux Recepție</h3>
+        <ul>
+            <li>Generarea codurilor de bare produce valori unice</li>
+            <li>Scanarea unui cod de bare identifică corect lada</li>
+            <li>Cântărirea lăzii salvează greutatea și calculează netul</li>
+            <li>Crearea și confirmarea documentului de achiziție creează loturile și mișcările de stoc corespunzătoare</li>
+        </ul>
+
+        <h3>Flux Depozit</h3>
+        <ul>
+            <li>Soldurile de stoc se actualizează corect după mișcări</li>
+            <li>Citirile de temperatură se salvează și apar în grafice</li>
+            <li>Depășirea pragului de temperatură generează alertă automată</li>
+            <li>Confirmarea alertei (ack) funcționează</li>
+        </ul>
+
+        <h3>Flux Calitate / HACCP</h3>
+        <ul>
+            <li>Crearea și execuția unui control de calitate pe lot funcționează</li>
+            <li>O neconformitate critică blochează automat lotul</li>
+            <li>Deblocarea lotului necesită justificare și funcționează corect</li>
+            <li>Înregistrările CCP cu deviere apar în lista de devieri</li>
+        </ul>
+
+        <h3>Flux Vânzări</h3>
+        <ul>
+            <li>Confirmarea documentului de vânzare execută alocarea FIFO corect</li>
+            <li>Stocul se reduce după confirmare</li>
+            <li>Loturile blocate nu sunt incluse în stocul disponibil pentru vânzare</li>
+            <li>Declarația de export se creează și se poate actualiza</li>
+        </ul>
+
+        <h3>Documente tipărite</h3>
+        <ul>
+            <li>Toate cele 9 tipuri de documente se afișează corect în format A4</li>
+            <li>Imprimarea din browser funcționează fără elemente de navigare</li>
+        </ul>
+    </div>
+
+    <p class="nav"><a href="index.html">← Înapoi la indexul documentației AGRO</a> &nbsp;·&nbsp; <a href="/UNA.md/orasldev/docs">Documentație generală</a></p>
+</body>
+</html>

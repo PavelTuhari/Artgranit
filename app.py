@@ -905,6 +905,40 @@ def docs_nufarul_file(filename):
     return Response(html, mimetype='text/html; charset=utf-8')
 
 
+# База для HTML-документов AGRO (абсолютный путь)
+_DOCS_AGRO_DIR = Path(__file__).resolve().parent / "docs" / "AGRO"
+
+
+@app.route('/UNA.md/orasldev/docs/agro')
+@app.route('/UNA.md/orasldev/docs/agro/')
+def docs_agro_index():
+    """Documentație AGRO — index."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    p = _DOCS_AGRO_DIR / "index.html"
+    if not p.is_file():
+        return "<h1>Nu s-a găsit</h1>", 404
+    return Response(p.read_text(encoding='utf-8'), mimetype='text/html; charset=utf-8')
+
+
+@app.route('/UNA.md/orasldev/docs/agro/<path:filename>')
+def docs_agro_file(filename):
+    """Documentație AGRO — fișiere HTML (TZ.html etc.)"""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    safe = Path(filename).name
+    if not safe or ".." in filename:
+        return "<h1>Cale invalidă</h1>", 400
+    if not safe.endswith('.html'):
+        return "<h1>Doar fișiere .html</h1>", 400
+    p = _DOCS_AGRO_DIR / safe
+    if not p.resolve().parent == _DOCS_AGRO_DIR.resolve():
+        return "<h1>Cale invalidă</h1>", 400
+    if not p.is_file():
+        return "<h1>Nu s-a găsit</h1><p><a href='/UNA.md/orasldev/docs/agro/'>Înapoi</a></p>", 404
+    return Response(p.read_text(encoding='utf-8'), mimetype='text/html; charset=utf-8')
+
+
 # База для HTML-документов DECOR (абсолютный путь)
 _DOCS_DECOR_DIR = Path(__file__).resolve().parent / "docs" / "DECOR"
 
