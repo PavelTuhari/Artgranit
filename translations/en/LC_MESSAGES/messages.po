@@ -1,0 +1,517 @@
+# English translations for Oracle SQL Developer Web
+# Copyright (C) 2025 Artgranit
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Oracle SQL Developer Web\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-29 18:59+0200\n"
+"PO-Revision-Date: 2025-11-29 19:00+0200\n"
+"Last-Translator: Artgranit\n"
+"Language: en\n"
+"Language-Team: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid credentials"
+msgstr "Invalid credentials"
+
+msgid "Login to system"
+msgstr "Login to system"
+
+msgid "Username"
+msgstr "Username"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Login"
+msgstr "Login"
+
+msgid "Logging in..."
+msgstr "Logging in..."
+
+msgid "Connection error"
+msgstr "Connection error"
+
+msgid "SQL Worksheet"
+msgstr "SQL Worksheet"
+
+msgid "Dashboard"
+msgstr "Dashboard"
+
+msgid "AI Generator"
+msgstr "AI Generator"
+
+msgid "Connections"
+msgstr "Connections"
+
+msgid "Logout"
+msgstr "Logout"
+
+msgid "Execute"
+msgstr "Execute"
+
+msgid "Clear"
+msgstr "Clear"
+
+msgid "Schema"
+msgstr "Schema"
+
+msgid "Loading..."
+msgstr "Loading..."
+
+msgid "🔍 Filter objects (min 3 chars, 2s delay)"
+msgstr "🔍 Filter objects (min 3 chars, 2s delay)"
+
+msgid "Database Objects"
+msgstr "Database Objects"
+
+msgid "Tables"
+msgstr "Tables"
+
+msgid "Views"
+msgstr "Views"
+
+msgid "Procedures"
+msgstr "Procedures"
+
+msgid "Functions"
+msgstr "Functions"
+
+msgid "Packages"
+msgstr "Packages"
+
+msgid "Sequences"
+msgstr "Sequences"
+
+msgid "Synonyms"
+msgstr "Synonyms"
+
+msgid "Indexes"
+msgstr "Indexes"
+
+msgid "Triggers"
+msgstr "Triggers"
+
+msgid "Types"
+msgstr "Types"
+
+msgid "Materialized Views"
+msgstr "Materialized Views"
+
+msgid "DBA"
+msgstr "DBA"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "No results. Execute a query to see results here."
+msgstr "No results. Execute a query to see results here."
+
+msgid "AI Table Generator"
+msgstr "AI Table Generator"
+
+msgid "Table description (in Russian or English):"
+msgstr "Table description (in Russian or English):"
+
+msgid ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+msgstr ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+
+msgid "Generate SQL"
+msgstr "Generate SQL"
+
+msgid "Generated SQL:"
+msgstr "Generated SQL:"
+
+msgid "Insert into editor"
+msgstr "Insert into editor"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "All commands"
+msgstr "All commands"
+
+msgid "Total commands"
+msgstr "Total commands"
+
+msgid "Success"
+msgstr "Success"
+
+msgid "Errors"
+msgstr "Errors"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "rows"
+msgstr "rows"
+
+msgid "Results"
+msgstr "Results"
+
+msgid "Execution details"
+msgstr "Execution details"
+
+msgid "Command"
+msgstr "Command"
+
+msgid "Query executed successfully. No rows returned."
+msgstr "Query executed successfully. No rows returned."
+
+msgid "Error:"
+msgstr "Error:"
+
+msgid "Clear SQL editor?"
+msgstr "Clear SQL editor?"
+
+msgid "Loading schemas..."
+msgstr "Loading schemas..."
+
+msgid "Current User"
+msgstr "Current User"
+
+msgid "Ready"
+msgstr "Ready"
+
+msgid "Executing..."
+msgstr "Executing..."
+
+msgid "Please enter a SQL query"
+msgstr "Please enter a SQL query"
+
+msgid "Generating SQL..."
+msgstr "Generating SQL..."
+
+msgid "SQL generated successfully!"
+msgstr "SQL generated successfully!"
+
+msgid "Error generating SQL:"
+msgstr "Error generating SQL:"
+
+msgid "SQL inserted into editor"
+msgstr "SQL inserted into editor"
+
+msgid "SQL copied to clipboard"
+msgstr "SQL copied to clipboard"
+
+msgid "Command executed successfully"
+msgstr "Command executed successfully"
+
+msgid "All commands executed successfully"
+msgstr "All commands executed successfully"
+
+msgid "Executed commands"
+msgstr "Executed commands"
+
+msgid "Script execution error"
+msgstr "Script execution error"
+
+msgid "of"
+msgstr "of"
+
+msgid "Query executed successfully. Found rows:"
+msgstr "Query executed successfully. Found rows:"
+
+msgid "Insert into AI"
+msgstr "Insert into AI"
+
+msgid "Loading DDL..."
+msgstr "Loading DDL..."
+
+msgid "DDL for"
+msgstr "DDL for"
+
+msgid "Content inserted successfully"
+msgstr "Content inserted successfully"
+
+msgid "AI Generator window is not open"
+msgstr "AI Generator window is not open"
+
+msgid "Field cleared"
+msgstr "Field cleared"
+
+# --- AGRO Module ---
+
+msgid "AGRO Admin"
+msgstr "AGRO Admin"
+
+msgid "AGRO Field"
+msgstr "AGRO Field"
+
+msgid "AGRO Warehouse"
+msgstr "AGRO Warehouse"
+
+msgid "AGRO QA"
+msgstr "AGRO QA"
+
+msgid "AGRO Sales"
+msgstr "AGRO Sales"
+
+msgid "Not implemented yet"
+msgstr "Not implemented yet"
+
+msgid "SUPPLIER_ID and ITEMS are required"
+msgstr "SUPPLIER_ID and ITEMS are required"
+
+msgid "MOVEMENT_TYPE and BATCH_ID are required"
+msgstr "MOVEMENT_TYPE and BATCH_ID are required"
+
+msgid "CODE and NAME are required"
+msgstr "CODE and NAME are required"
+
+msgid "CODE and NAME_RU are required"
+msgstr "CODE and NAME_RU are required"
+
+msgid "WAREHOUSE_ID and CODE are required"
+msgstr "WAREHOUSE_ID and CODE are required"
+
+msgid "PLATE_NUMBER is required"
+msgstr "PLATE_NUMBER is required"
+
+msgid "CODE is required"
+msgstr "CODE is required"
+
+msgid "FROM_CURRENCY, TO_CURRENCY, RATE and RATE_DATE are required"
+msgstr "FROM_CURRENCY, TO_CURRENCY, RATE and RATE_DATE are required"
+
+msgid "PARAM_NAME is required"
+msgstr "PARAM_NAME is required"
+
+msgid "CONFIG_KEY is required"
+msgstr "CONFIG_KEY is required"
+
+msgid "name required"
+msgstr "name required"
+
+msgid "batch_id and checklist_id required"
+msgstr "batch_id and checklist_id required"
+
+msgid "reason required"
+msgstr "reason required"
+
+msgid "plan_name required"
+msgstr "plan_name required"
+
+msgid "plan_id and ccp_name required"
+msgstr "plan_id and ccp_name required"
+
+msgid "ccp_id and measured_value required"
+msgstr "ccp_id and measured_value required"
+
+msgid "customer_id and warehouse_id required"
+msgstr "customer_id and warehouse_id required"
+
+msgid "sales_line_id, item_id, qty_kg required"
+msgstr "sales_line_id, item_id, qty_kg required"
+
+msgid "sales_doc_id required"
+msgstr "sales_doc_id required"
+
+msgid "Suppliers"
+msgstr "Suppliers"
+
+msgid "Customers"
+msgstr "Customers"
+
+msgid "Items"
+msgstr "Items"
+
+msgid "Warehouses"
+msgstr "Warehouses"
+
+msgid "Zones"
+msgstr "Zones"
+
+msgid "Vehicles"
+msgstr "Vehicles"
+
+msgid "Currencies"
+msgstr "Currencies"
+
+msgid "Exchange rates"
+msgstr "Exchange rates"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "System config"
+msgstr "System config"
+
+msgid "Reports"
+msgstr "Reports"
+
+msgid "Purchases"
+msgstr "Purchases"
+
+msgid "Sales"
+msgstr "Sales"
+
+msgid "Stock"
+msgstr "Stock"
+
+msgid "Mass balance"
+msgstr "Mass balance"
+
+msgid "Expiry"
+msgstr "Expiry"
+
+msgid "Export XLSX"
+msgstr "Export XLSX"
+
+msgid "Export CSV"
+msgstr "Export CSV"
+
+msgid "Date from"
+msgstr "Date from"
+
+msgid "Date to"
+msgstr "Date to"
+
+msgid "Warehouse"
+msgstr "Warehouse"
+
+msgid "Item"
+msgstr "Item"
+
+msgid "Run report"
+msgstr "Run report"
+
+msgid "Checklists"
+msgstr "Checklists"
+
+msgid "Checks"
+msgstr "Checks"
+
+msgid "Blocks"
+msgstr "Blocks"
+
+msgid "HACCP Plans"
+msgstr "HACCP Plans"
+
+msgid "Deviations"
+msgstr "Deviations"
+
+msgid "Batch blocked"
+msgstr "Batch blocked"
+
+msgid "Batch unblocked"
+msgstr "Batch unblocked"
+
+msgid "Temperature alert"
+msgstr "Temperature alert"
+
+msgid "Document confirmed"
+msgstr "Document confirmed"
+
+msgid "Receiving"
+msgstr "Receiving"
+
+msgid "Movements"
+msgstr "Movements"
+
+msgid "Temperature"
+msgstr "Temperature"
+
+msgid "Tasks"
+msgstr "Tasks"
+
+msgid "Documents"
+msgstr "Documents"
+
+msgid "Available stock"
+msgstr "Available stock"
+
+msgid "Export declarations"
+msgstr "Export declarations"
+
+msgid "Offline mode"
+msgstr "Offline mode"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Offline"
+msgstr "Offline"
+
+msgid "Sync pending"
+msgstr "Sync pending"
+
+msgid "Print"
+msgstr "Print"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Add"
+msgstr "Add"
+
+msgid "Close"
+msgstr "Close"
+
+msgid "Confirm"
+msgstr "Confirm"
+
+msgid "Search"
+msgstr "Search"
+
+msgid "Filter"
+msgstr "Filter"
+
+msgid "No data"
+msgstr "No data"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Date"
+msgstr "Date"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "Name"
+msgstr "Name"
+
+msgid "Code"
+msgstr "Code"
+
+msgid "Description"
+msgstr "Description"
+
+msgid "Quantity"
+msgstr "Quantity"
+
+msgid "Weight, kg"
+msgstr "Weight, kg"
+
+msgid "Price"
+msgstr "Price"
+
+msgid "Amount"
+msgstr "Amount"
+
+msgid "Created"
+msgstr "Created"
+
+msgid "Updated"
+msgstr "Updated"

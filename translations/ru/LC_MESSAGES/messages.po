@@ -1,0 +1,517 @@
+# Russian translations for Oracle SQL Developer Web
+# Copyright (C) 2025 Artgranit
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Oracle SQL Developer Web\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-29 18:59+0200\n"
+"PO-Revision-Date: 2025-11-29 19:00+0200\n"
+"Last-Translator: Artgranit\n"
+"Language: ru\n"
+"Language-Team: ru\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid credentials"
+msgstr "Неверные учетные данные"
+
+msgid "Login to system"
+msgstr "Вход в систему"
+
+msgid "Username"
+msgstr "Имя пользователя"
+
+msgid "Password"
+msgstr "Пароль"
+
+msgid "Login"
+msgstr "Войти"
+
+msgid "Logging in..."
+msgstr "Вход..."
+
+msgid "Connection error"
+msgstr "Ошибка подключения"
+
+msgid "SQL Worksheet"
+msgstr "SQL Worksheet"
+
+msgid "Dashboard"
+msgstr "Панель управления"
+
+msgid "AI Generator"
+msgstr "AI Генератор"
+
+msgid "Connections"
+msgstr "Подключения"
+
+msgid "Logout"
+msgstr "Выход"
+
+msgid "Execute"
+msgstr "Выполнить"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "Schema"
+msgstr "Схема"
+
+msgid "Loading..."
+msgstr "Загрузка..."
+
+msgid "🔍 Filter objects (min 3 chars, 2s delay)"
+msgstr "🔍 Фильтр объектов (мин 3 символа, задержка 2с)"
+
+msgid "Database Objects"
+msgstr "Объекты базы данных"
+
+msgid "Tables"
+msgstr "Таблицы"
+
+msgid "Views"
+msgstr "Представления"
+
+msgid "Procedures"
+msgstr "Процедуры"
+
+msgid "Functions"
+msgstr "Функции"
+
+msgid "Packages"
+msgstr "Пакеты"
+
+msgid "Sequences"
+msgstr "Последовательности"
+
+msgid "Synonyms"
+msgstr "Синонимы"
+
+msgid "Indexes"
+msgstr "Индексы"
+
+msgid "Triggers"
+msgstr "Триггеры"
+
+msgid "Types"
+msgstr "Типы"
+
+msgid "Materialized Views"
+msgstr "Материализованные представления"
+
+msgid "DBA"
+msgstr "DBA"
+
+msgid "Performance"
+msgstr "Производительность"
+
+msgid "No results. Execute a query to see results here."
+msgstr "Нет результатов. Выполните запрос, чтобы увидеть результаты здесь."
+
+msgid "AI Table Generator"
+msgstr "Генератор таблиц AI"
+
+msgid "Table description (in Russian or English):"
+msgstr "Описание таблицы (на русском или английском):"
+
+msgid ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+msgstr ""
+"Например: Таблица для хранения пользователей с полями: id (число), имя "
+"(строка), email (строка), дата регистрации (дата)"
+
+msgid "Generate SQL"
+msgstr "Сгенерировать SQL"
+
+msgid "Generated SQL:"
+msgstr "Сгенерированный SQL:"
+
+msgid "Insert into editor"
+msgstr "Вставить в редактор"
+
+msgid "Copy"
+msgstr "Копировать"
+
+msgid "All commands"
+msgstr "Все команды"
+
+msgid "Total commands"
+msgstr "Всего команд"
+
+msgid "Success"
+msgstr "Успешно"
+
+msgid "Errors"
+msgstr "Ошибок"
+
+msgid "Error"
+msgstr "Ошибка"
+
+msgid "rows"
+msgstr "строк"
+
+msgid "Results"
+msgstr "Результаты"
+
+msgid "Execution details"
+msgstr "Детали выполнения"
+
+msgid "Command"
+msgstr "Команда"
+
+msgid "Query executed successfully. No rows returned."
+msgstr "Запрос выполнен успешно. Строки не возвращены."
+
+msgid "Error:"
+msgstr "Ошибка:"
+
+msgid "Clear SQL editor?"
+msgstr "Очистить редактор SQL?"
+
+msgid "Loading schemas..."
+msgstr "Загрузка схем..."
+
+msgid "Current User"
+msgstr "Текущий пользователь"
+
+msgid "Ready"
+msgstr "Готов"
+
+msgid "Executing..."
+msgstr "Выполнение..."
+
+msgid "Please enter a SQL query"
+msgstr "Пожалуйста, введите SQL запрос"
+
+msgid "Generating SQL..."
+msgstr "Генерация SQL..."
+
+msgid "SQL generated successfully!"
+msgstr "SQL успешно сгенерирован!"
+
+msgid "Error generating SQL:"
+msgstr "Ошибка генерации SQL:"
+
+msgid "SQL inserted into editor"
+msgstr "SQL вставлен в редактор"
+
+msgid "SQL copied to clipboard"
+msgstr "SQL скопирован в буфер обмена"
+
+msgid "Command executed successfully"
+msgstr "Команда выполнена успешно"
+
+msgid "All commands executed successfully"
+msgstr "Все команды выполнены успешно"
+
+msgid "Executed commands"
+msgstr "Выполнено команд"
+
+msgid "Script execution error"
+msgstr "Ошибка выполнения скрипта"
+
+msgid "of"
+msgstr "из"
+
+msgid "Query executed successfully. Found rows:"
+msgstr "Запрос выполнен успешно. Найдено строк:"
+
+msgid "Insert into AI"
+msgstr "Вставить в AI"
+
+msgid "Loading DDL..."
+msgstr "Загрузка DDL..."
+
+msgid "DDL for"
+msgstr "DDL для"
+
+msgid "Content inserted successfully"
+msgstr "Содержимое успешно вставлено"
+
+msgid "AI Generator window is not open"
+msgstr "Окно AI генератора не открыто"
+
+msgid "Field cleared"
+msgstr "Поле очищено"
+
+# --- AGRO Module ---
+
+msgid "AGRO Admin"
+msgstr "АГРО Администрирование"
+
+msgid "AGRO Field"
+msgstr "АГРО Поле"
+
+msgid "AGRO Warehouse"
+msgstr "АГРО Склад"
+
+msgid "AGRO QA"
+msgstr "АГРО Контроль качества"
+
+msgid "AGRO Sales"
+msgstr "АГРО Продажи"
+
+msgid "Not implemented yet"
+msgstr "Ещё не реализовано"
+
+msgid "SUPPLIER_ID and ITEMS are required"
+msgstr "SUPPLIER_ID и ITEMS обязательны"
+
+msgid "MOVEMENT_TYPE and BATCH_ID are required"
+msgstr "MOVEMENT_TYPE и BATCH_ID обязательны"
+
+msgid "CODE and NAME are required"
+msgstr "CODE и NAME обязательны"
+
+msgid "CODE and NAME_RU are required"
+msgstr "CODE и NAME_RU обязательны"
+
+msgid "WAREHOUSE_ID and CODE are required"
+msgstr "WAREHOUSE_ID и CODE обязательны"
+
+msgid "PLATE_NUMBER is required"
+msgstr "PLATE_NUMBER обязателен"
+
+msgid "CODE is required"
+msgstr "CODE обязателен"
+
+msgid "FROM_CURRENCY, TO_CURRENCY, RATE and RATE_DATE are required"
+msgstr "FROM_CURRENCY, TO_CURRENCY, RATE и RATE_DATE обязательны"
+
+msgid "PARAM_NAME is required"
+msgstr "PARAM_NAME обязателен"
+
+msgid "CONFIG_KEY is required"
+msgstr "CONFIG_KEY обязателен"
+
+msgid "name required"
+msgstr "Название обязательно"
+
+msgid "batch_id and checklist_id required"
+msgstr "batch_id и checklist_id обязательны"
+
+msgid "reason required"
+msgstr "Причина обязательна"
+
+msgid "plan_name required"
+msgstr "Название плана обязательно"
+
+msgid "plan_id and ccp_name required"
+msgstr "plan_id и ccp_name обязательны"
+
+msgid "ccp_id and measured_value required"
+msgstr "ccp_id и measured_value обязательны"
+
+msgid "customer_id and warehouse_id required"
+msgstr "customer_id и warehouse_id обязательны"
+
+msgid "sales_line_id, item_id, qty_kg required"
+msgstr "sales_line_id, item_id и qty_kg обязательны"
+
+msgid "sales_doc_id required"
+msgstr "sales_doc_id обязателен"
+
+msgid "Suppliers"
+msgstr "Поставщики"
+
+msgid "Customers"
+msgstr "Клиенты"
+
+msgid "Items"
+msgstr "Продукция"
+
+msgid "Warehouses"
+msgstr "Склады"
+
+msgid "Zones"
+msgstr "Зоны хранения"
+
+msgid "Vehicles"
+msgstr "Транспорт"
+
+msgid "Currencies"
+msgstr "Валюты"
+
+msgid "Exchange rates"
+msgstr "Курсы валют"
+
+msgid "Settings"
+msgstr "Настройки"
+
+msgid "System config"
+msgstr "Конфигурация системы"
+
+msgid "Reports"
+msgstr "Отчёты"
+
+msgid "Purchases"
+msgstr "Закупки"
+
+msgid "Sales"
+msgstr "Продажи"
+
+msgid "Stock"
+msgstr "Остатки"
+
+msgid "Mass balance"
+msgstr "Баланс массы"
+
+msgid "Expiry"
+msgstr "Срок годности"
+
+msgid "Export XLSX"
+msgstr "Экспорт XLSX"
+
+msgid "Export CSV"
+msgstr "Экспорт CSV"
+
+msgid "Date from"
+msgstr "Дата с"
+
+msgid "Date to"
+msgstr "Дата по"
+
+msgid "Warehouse"
+msgstr "Склад"
+
+msgid "Item"
+msgstr "Продукт"
+
+msgid "Run report"
+msgstr "Сформировать отчёт"
+
+msgid "Checklists"
+msgstr "Чек-листы"
+
+msgid "Checks"
+msgstr "Проверки"
+
+msgid "Blocks"
+msgstr "Блокировки"
+
+msgid "HACCP Plans"
+msgstr "Планы HACCP"
+
+msgid "Deviations"
+msgstr "Отклонения"
+
+msgid "Batch blocked"
+msgstr "Партия заблокирована"
+
+msgid "Batch unblocked"
+msgstr "Партия разблокирована"
+
+msgid "Temperature alert"
+msgstr "Температурное предупреждение"
+
+msgid "Document confirmed"
+msgstr "Документ подтверждён"
+
+msgid "Receiving"
+msgstr "Приёмка"
+
+msgid "Movements"
+msgstr "Перемещения"
+
+msgid "Temperature"
+msgstr "Температура"
+
+msgid "Tasks"
+msgstr "Задачи"
+
+msgid "Documents"
+msgstr "Документы"
+
+msgid "Available stock"
+msgstr "Доступные остатки"
+
+msgid "Export declarations"
+msgstr "Экспортные декларации"
+
+msgid "Offline mode"
+msgstr "Автономный режим"
+
+msgid "Online"
+msgstr "В сети"
+
+msgid "Offline"
+msgstr "Не в сети"
+
+msgid "Sync pending"
+msgstr "Ожидает синхронизации"
+
+msgid "Print"
+msgstr "Печать"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Delete"
+msgstr "Удалить"
+
+msgid "Edit"
+msgstr "Редактировать"
+
+msgid "Add"
+msgstr "Добавить"
+
+msgid "Close"
+msgstr "Закрыть"
+
+msgid "Confirm"
+msgstr "Подтвердить"
+
+msgid "Search"
+msgstr "Поиск"
+
+msgid "Filter"
+msgstr "Фильтр"
+
+msgid "No data"
+msgstr "Нет данных"
+
+msgid "Total"
+msgstr "Итого"
+
+msgid "Status"
+msgstr "Статус"
+
+msgid "Date"
+msgstr "Дата"
+
+msgid "Actions"
+msgstr "Действия"
+
+msgid "Name"
+msgstr "Наименование"
+
+msgid "Code"
+msgstr "Код"
+
+msgid "Description"
+msgstr "Описание"
+
+msgid "Quantity"
+msgstr "Количество"
+
+msgid "Weight, kg"
+msgstr "Вес, кг"
+
+msgid "Price"
+msgstr "Цена"
+
+msgid "Amount"
+msgstr "Сумма"
+
+msgid "Created"
+msgstr "Создано"
+
+msgid "Updated"
+msgstr "Обновлено"

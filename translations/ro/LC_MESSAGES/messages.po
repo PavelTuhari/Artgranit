@@ -1,0 +1,517 @@
+# Romanian translations for Oracle SQL Developer Web
+# Copyright (C) 2025 Artgranit
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Oracle SQL Developer Web\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-29 18:59+0200\n"
+"PO-Revision-Date: 2025-11-29 19:00+0200\n"
+"Last-Translator: Artgranit\n"
+"Language: ro\n"
+"Language-Team: ro\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n==0 || (n!=1 && n%100>=1 && n%100<=19) ? 1 : 2);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Invalid credentials"
+msgstr "Date de autentificare incorecte"
+
+msgid "Login to system"
+msgstr "Autentificare în sistem"
+
+msgid "Username"
+msgstr "Nume utilizator"
+
+msgid "Password"
+msgstr "Parolă"
+
+msgid "Login"
+msgstr "Autentificare"
+
+msgid "Logging in..."
+msgstr "Se autentifică..."
+
+msgid "Connection error"
+msgstr "Eroare de conexiune"
+
+msgid "SQL Worksheet"
+msgstr "Fișa SQL"
+
+msgid "Dashboard"
+msgstr "Tablou de bord"
+
+msgid "AI Generator"
+msgstr "Generator AI"
+
+msgid "Connections"
+msgstr "Conexiuni"
+
+msgid "Logout"
+msgstr "Deconectare"
+
+msgid "Execute"
+msgstr "Execută"
+
+msgid "Clear"
+msgstr "Șterge"
+
+msgid "Schema"
+msgstr "Schemă"
+
+msgid "Loading..."
+msgstr "Se încarcă..."
+
+msgid "🔍 Filter objects (min 3 chars, 2s delay)"
+msgstr "🔍 Filtrează obiecte (min 3 caractere, întârziere 2s)"
+
+msgid "Database Objects"
+msgstr "Obiecte bază de date"
+
+msgid "Tables"
+msgstr "Tabele"
+
+msgid "Views"
+msgstr "Vizualizări"
+
+msgid "Procedures"
+msgstr "Proceduri"
+
+msgid "Functions"
+msgstr "Funcții"
+
+msgid "Packages"
+msgstr "Pachete"
+
+msgid "Sequences"
+msgstr "Secvențe"
+
+msgid "Synonyms"
+msgstr "Sinonime"
+
+msgid "Indexes"
+msgstr "Indecși"
+
+msgid "Triggers"
+msgstr "Declanșatoare"
+
+msgid "Types"
+msgstr "Tipuri"
+
+msgid "Materialized Views"
+msgstr "Vizualizări materializate"
+
+msgid "DBA"
+msgstr "DBA"
+
+msgid "Performance"
+msgstr "Performanță"
+
+msgid "No results. Execute a query to see results here."
+msgstr "Fără rezultate. Executați o interogare pentru a vedea rezultatele aici."
+
+msgid "AI Table Generator"
+msgstr "Generator de tabele AI"
+
+msgid "Table description (in Russian or English):"
+msgstr "Descrierea tabelului (în rusă sau engleză):"
+
+msgid ""
+"For example: Table to store users with fields: id (number), name "
+"(string), email (string), registration_date (date)"
+msgstr ""
+"De exemplu: Tabel pentru stocarea utilizatorilor cu câmpurile: id (număr), nume "
+"(șir), email (șir), data_inregistrare (dată)"
+
+msgid "Generate SQL"
+msgstr "Generează SQL"
+
+msgid "Generated SQL:"
+msgstr "SQL generat:"
+
+msgid "Insert into editor"
+msgstr "Inserează în editor"
+
+msgid "Copy"
+msgstr "Copiază"
+
+msgid "All commands"
+msgstr "Toate comenzile"
+
+msgid "Total commands"
+msgstr "Total comenzi"
+
+msgid "Success"
+msgstr "Succes"
+
+msgid "Errors"
+msgstr "Erori"
+
+msgid "Error"
+msgstr "Eroare"
+
+msgid "rows"
+msgstr "rânduri"
+
+msgid "Results"
+msgstr "Rezultate"
+
+msgid "Execution details"
+msgstr "Detalii execuție"
+
+msgid "Command"
+msgstr "Comandă"
+
+msgid "Query executed successfully. No rows returned."
+msgstr "Interogarea a fost executată cu succes. Nu au fost returnate rânduri."
+
+msgid "Error:"
+msgstr "Eroare:"
+
+msgid "Clear SQL editor?"
+msgstr "Șterge editorul SQL?"
+
+msgid "Loading schemas..."
+msgstr "Se încarcă schemele..."
+
+msgid "Current User"
+msgstr "Utilizator curent"
+
+msgid "Ready"
+msgstr "Gata"
+
+msgid "Executing..."
+msgstr "Se execută..."
+
+msgid "Please enter a SQL query"
+msgstr "Vă rugăm să introduceți o interogare SQL"
+
+msgid "Generating SQL..."
+msgstr "Se generează SQL..."
+
+msgid "SQL generated successfully!"
+msgstr "SQL generat cu succes!"
+
+msgid "Error generating SQL:"
+msgstr "Eroare la generarea SQL:"
+
+msgid "SQL inserted into editor"
+msgstr "SQL inserat în editor"
+
+msgid "SQL copied to clipboard"
+msgstr "SQL copiat în clipboard"
+
+msgid "Command executed successfully"
+msgstr "Comandă executată cu succes"
+
+msgid "All commands executed successfully"
+msgstr "Toate comenzile au fost executate cu succes"
+
+msgid "Executed commands"
+msgstr "Comenzi executate"
+
+msgid "Script execution error"
+msgstr "Eroare la executarea scriptului"
+
+msgid "of"
+msgstr "din"
+
+msgid "Query executed successfully. Found rows:"
+msgstr "Interogarea a fost executată cu succes. Rânduri găsite:"
+
+msgid "Insert into AI"
+msgstr "Inserare în AI"
+
+msgid "Loading DDL..."
+msgstr "Se încarcă DDL..."
+
+msgid "DDL for"
+msgstr "DDL pentru"
+
+msgid "Content inserted successfully"
+msgstr "Conținutul a fost inserat cu succes"
+
+msgid "AI Generator window is not open"
+msgstr "Fereastra Generatorului AI nu este deschisă"
+
+msgid "Field cleared"
+msgstr "Câmpul a fost șters"
+
+# --- AGRO Module ---
+
+msgid "AGRO Admin"
+msgstr "AGRO Administrare"
+
+msgid "AGRO Field"
+msgstr "AGRO Câmp"
+
+msgid "AGRO Warehouse"
+msgstr "AGRO Depozit"
+
+msgid "AGRO QA"
+msgstr "AGRO Control calitate"
+
+msgid "AGRO Sales"
+msgstr "AGRO Vânzări"
+
+msgid "Not implemented yet"
+msgstr "Nu este implementat încă"
+
+msgid "SUPPLIER_ID and ITEMS are required"
+msgstr "SUPPLIER_ID și ITEMS sunt obligatorii"
+
+msgid "MOVEMENT_TYPE and BATCH_ID are required"
+msgstr "MOVEMENT_TYPE și BATCH_ID sunt obligatorii"
+
+msgid "CODE and NAME are required"
+msgstr "CODE și NAME sunt obligatorii"
+
+msgid "CODE and NAME_RU are required"
+msgstr "CODE și NAME_RU sunt obligatorii"
+
+msgid "WAREHOUSE_ID and CODE are required"
+msgstr "WAREHOUSE_ID și CODE sunt obligatorii"
+
+msgid "PLATE_NUMBER is required"
+msgstr "PLATE_NUMBER este obligatoriu"
+
+msgid "CODE is required"
+msgstr "CODE este obligatoriu"
+
+msgid "FROM_CURRENCY, TO_CURRENCY, RATE and RATE_DATE are required"
+msgstr "FROM_CURRENCY, TO_CURRENCY, RATE și RATE_DATE sunt obligatorii"
+
+msgid "PARAM_NAME is required"
+msgstr "PARAM_NAME este obligatoriu"
+
+msgid "CONFIG_KEY is required"
+msgstr "CONFIG_KEY este obligatoriu"
+
+msgid "name required"
+msgstr "Numele este obligatoriu"
+
+msgid "batch_id and checklist_id required"
+msgstr "batch_id și checklist_id sunt obligatorii"
+
+msgid "reason required"
+msgstr "Motivul este obligatoriu"
+
+msgid "plan_name required"
+msgstr "Numele planului este obligatoriu"
+
+msgid "plan_id and ccp_name required"
+msgstr "plan_id și ccp_name sunt obligatorii"
+
+msgid "ccp_id and measured_value required"
+msgstr "ccp_id și measured_value sunt obligatorii"
+
+msgid "customer_id and warehouse_id required"
+msgstr "customer_id și warehouse_id sunt obligatorii"
+
+msgid "sales_line_id, item_id, qty_kg required"
+msgstr "sales_line_id, item_id și qty_kg sunt obligatorii"
+
+msgid "sales_doc_id required"
+msgstr "sales_doc_id este obligatoriu"
+
+msgid "Suppliers"
+msgstr "Furnizori"
+
+msgid "Customers"
+msgstr "Clienți"
+
+msgid "Items"
+msgstr "Produse"
+
+msgid "Warehouses"
+msgstr "Depozite"
+
+msgid "Zones"
+msgstr "Zone de depozitare"
+
+msgid "Vehicles"
+msgstr "Vehicule"
+
+msgid "Currencies"
+msgstr "Valute"
+
+msgid "Exchange rates"
+msgstr "Cursuri de schimb"
+
+msgid "Settings"
+msgstr "Setări"
+
+msgid "System config"
+msgstr "Configurare sistem"
+
+msgid "Reports"
+msgstr "Rapoarte"
+
+msgid "Purchases"
+msgstr "Achiziții"
+
+msgid "Sales"
+msgstr "Vânzări"
+
+msgid "Stock"
+msgstr "Stoc"
+
+msgid "Mass balance"
+msgstr "Bilanț de masă"
+
+msgid "Expiry"
+msgstr "Termen de valabilitate"
+
+msgid "Export XLSX"
+msgstr "Export XLSX"
+
+msgid "Export CSV"
+msgstr "Export CSV"
+
+msgid "Date from"
+msgstr "Data de la"
+
+msgid "Date to"
+msgstr "Data până la"
+
+msgid "Warehouse"
+msgstr "Depozit"
+
+msgid "Item"
+msgstr "Produs"
+
+msgid "Run report"
+msgstr "Generează raport"
+
+msgid "Checklists"
+msgstr "Liste de verificare"
+
+msgid "Checks"
+msgstr "Verificări"
+
+msgid "Blocks"
+msgstr "Blocări"
+
+msgid "HACCP Plans"
+msgstr "Planuri HACCP"
+
+msgid "Deviations"
+msgstr "Abateri"
+
+msgid "Batch blocked"
+msgstr "Lot blocat"
+
+msgid "Batch unblocked"
+msgstr "Lot deblocat"
+
+msgid "Temperature alert"
+msgstr "Alertă de temperatură"
+
+msgid "Document confirmed"
+msgstr "Document confirmat"
+
+msgid "Receiving"
+msgstr "Recepție"
+
+msgid "Movements"
+msgstr "Mișcări"
+
+msgid "Temperature"
+msgstr "Temperatură"
+
+msgid "Tasks"
+msgstr "Sarcini"
+
+msgid "Documents"
+msgstr "Documente"
+
+msgid "Available stock"
+msgstr "Stoc disponibil"
+
+msgid "Export declarations"
+msgstr "Declarații de export"
+
+msgid "Offline mode"
+msgstr "Mod offline"
+
+msgid "Online"
+msgstr "Conectat"
+
+msgid "Offline"
+msgstr "Deconectat"
+
+msgid "Sync pending"
+msgstr "Sincronizare în așteptare"
+
+msgid "Print"
+msgstr "Tipărește"
+
+msgid "Save"
+msgstr "Salvează"
+
+msgid "Cancel"
+msgstr "Anulează"
+
+msgid "Delete"
+msgstr "Șterge"
+
+msgid "Edit"
+msgstr "Editează"
+
+msgid "Add"
+msgstr "Adaugă"
+
+msgid "Close"
+msgstr "Închide"
+
+msgid "Confirm"
+msgstr "Confirmă"
+
+msgid "Search"
+msgstr "Căutare"
+
+msgid "Filter"
+msgstr "Filtru"
+
+msgid "No data"
+msgstr "Fără date"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Status"
+msgstr "Stare"
+
+msgid "Date"
+msgstr "Dată"
+
+msgid "Actions"
+msgstr "Acțiuni"
+
+msgid "Name"
+msgstr "Denumire"
+
+msgid "Code"
+msgstr "Cod"
+
+msgid "Description"
+msgstr "Descriere"
+
+msgid "Quantity"
+msgstr "Cantitate"
+
+msgid "Weight, kg"
+msgstr "Greutate, kg"
+
+msgid "Price"
+msgstr "Preț"
+
+msgid "Amount"
+msgstr "Sumă"
+
+msgid "Created"
+msgstr "Creat"
+
+msgid "Updated"
+msgstr "Actualizat"
