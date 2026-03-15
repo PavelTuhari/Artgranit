@@ -512,7 +512,7 @@ tr.clickable { cursor: pointer; }
 .purchase-lines { margin: 16px 0; }
 .purchase-line {
     display: grid;
-    grid-template-columns: 2fr repeat(6, 1fr) auto;
+    grid-template-columns: 2fr repeat(6, 1fr) auto auto;
     gap: 8px;
     padding: 10px 0;
     border-bottom: 1px solid var(--border);
@@ -525,6 +525,20 @@ tr.clickable { cursor: pointer; }
     color: var(--text-muted);
     text-transform: uppercase;
 }
+.btn-weigh {
+    width: 48px; height: 48px;
+    border: 2px solid var(--accent, #53d769);
+    background: rgba(83,215,105,.1);
+    color: #53d769;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all .2s;
+}
+.btn-weigh:hover { background: rgba(83,215,105,.25); transform: scale(1.05); }
+.btn-weigh:active { transform: scale(.95); }
+.btn-weigh.weighing { animation: weigh-pulse 1s infinite; border-color: #ffc107; }
+@keyframes weigh-pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
 .line-remove {
     width: 40px; height: 40px;
     border: none;
@@ -828,6 +842,7 @@ html.embed .main { height: 100vh; }
             <div>Тара</div>
             <div>Нетто</div>
             <div>Цена/кг</div>
+            <div>Весы</div>
             <div></div>
         </div>
 
@@ -1108,8 +1123,8 @@ window.navigateTo = function(page) {
 
     // Refresh data on page switch
     if (page === 'purchases-list') loadPurchasesList();
-    if (page === 'scale') startScalePolling();
-    else stopScalePolling();
+    if (page === 'scale') { if (window.startScalePolling) window.startScalePolling(); }
+    else { if (window.stopScalePolling) window.stopScalePolling(); }
 };
 
 window.toggleSidebar = function() {
@@ -1120,6 +1135,7 @@ window.toggleSidebar = function() {
 function initOnlineStatus() {
     var bar = document.getElementById('statusBar');
     var text = document.getElementById('statusText');
+    if (!bar || !text) return;
 
     function update() {
         if (navigator.onLine) {
@@ -1160,7 +1176,7 @@ function api(method, url, body) {
 /* ========== REFERENCES ========== */
 function loadReferences() {
     api('GET', '/api/agro-field/sync/references').then(function(data) {
-        refs = data;
+        refs = data.data || data;
         populateDropdowns();
         populatePackagingSelector();
     }).catch(function(err) {
@@ -1330,6 +1346,7 @@ window.addPurchaseLine = function() {
         '<div><input type="number" class="line-tare" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
         '<div style="font-size:18px;font-weight:700;text-align:center;padding:10px;" class="line-net-display">0.00</div>' +
         '<div><input type="number" class="line-price" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
+        '<div><button class="btn-weigh" onclick="weighPurchaseLine(\'' + lineId + '\')" title="Снять вес / Cântărește">⚖️</button></div>' +
         '<div><button class="line-remove" onclick="removePurchaseLine(\'' + lineId + '\')">&times;</button></div>';
 
     container.appendChild(div);
@@ -1362,6 +1379,65 @@ function recalcPurchaseTotal() {
     });
     document.getElementById('purchaseTotal').textContent = total.toFixed(2);
 }
+
+window.weighPurchaseLine = function(lineId) {
+    var line = document.getElementById(lineId);
+    if (!line) return;
+    var btn = line.querySelector('.btn-weigh');
+
+    // Step 1: simulate random weight on emulator
+    btn.classList.add('weighing');
+    btn.textContent = '⏳';
+
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default', random: true, min_kg: 50, max_kg: 500})
+    }).then(function(r) { return r.json(); })
+    .then(function() {
+        // Step 2: wait for scale to settle, then capture
+        var attempts = 0;
+        var maxAttempts = 30;
+        var pollTimer = setInterval(function() {
+            attempts++;
+            fetch('/api/agro-scale/read?scale_id=default')
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (!res.success) return;
+                    var d = res.data;
+                    // Show live weight while settling
+                    line.querySelector('.line-gross').value = d.gross_kg.toFixed(2);
+                    recalcPurchaseLine(lineId);
+
+                    if (d.stable || attempts >= maxAttempts) {
+                        clearInterval(pollTimer);
+                        // Capture the stable reading
+                        fetch('/api/agro-scale/capture', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({scale_id: 'default'})
+                        }).then(function(r) { return r.json(); })
+                        .then(function(cap) {
+                            btn.classList.remove('weighing');
+                            btn.textContent = '⚖️';
+                            if (cap.success) {
+                                var rd = cap.reading;
+                                line.querySelector('.line-gross').value = rd.gross_kg.toFixed(2);
+                                line.querySelector('.line-tare').value = rd.tare_kg.toFixed(2);
+                                recalcPurchaseLine(lineId);
+                                showToast('Вес снят: ' + rd.net_kg.toFixed(2) + ' кг / Cântărit: ' + rd.net_kg.toFixed(2) + ' kg', 'success');
+                            } else {
+                                // Use last reading if capture fails
+                                showToast('Вес снят (не стабилен) / Cântărit (instabil)', 'warning');
+                            }
+                        });
+                    }
+                });
+        }, 300);
+    }).catch(function(err) {
+        btn.classList.remove('weighing');
+        btn.textContent = '⚖️';
+        showToast('Ошибка весов: ' + err.message, 'error');
+    });
+};
 
 function collectPurchaseData() {
     var lines = [];
@@ -1737,24 +1813,11 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Online/Offline indicators
-var statusBar = document.querySelector('.status-bar');
-function updateOnlineStatus() {
-    if (statusBar) {
-        if (navigator.onLine) {
-            statusBar.className = 'status-bar online';
-            statusBar.textContent = 'Online';
-            // Auto-sync when back online
-            syncOfflineQueue();
-        } else {
-            statusBar.className = 'status-bar offline';
-            statusBar.textContent = 'Офлайн / Offline — данные сохраняются локально';
-        }
-    }
+// Online/Offline indicators (uses initOnlineStatus from above)
+function syncOnReconnect() {
+    if (navigator.onLine) syncOfflineQueue();
 }
-window.addEventListener('online', updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
-updateOnlineStatus();
+window.addEventListener('online', syncOnReconnect);
 
 // Sync offline queue
 function syncOfflineQueue() {
@@ -1814,14 +1877,14 @@ AgroOfflineDB.open().then(function() {
 var scalePollingTimer = null;
 var scaleCurrentReading = null;
 
-function startScalePolling() {
+window.startScalePolling = function() {
     if (scalePollingTimer) return;
     loadScaleConfig();
     scalePollingTimer = setInterval(pollScale, 250);
     pollScale();
 }
 
-function stopScalePolling() {
+window.stopScalePolling = function() {
     if (scalePollingTimer) {
         clearInterval(scalePollingTimer);
         scalePollingTimer = null;
