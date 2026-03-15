@@ -1643,7 +1643,7 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    """SELECT b.*, i.NAME AS ITEM_NAME, i.CODE AS ITEM_CODE,
+                    """SELECT b.*, i.NAME_RU AS ITEM_NAME, i.CODE AS ITEM_CODE,
                               w.NAME AS WAREHOUSE_NAME, c.CODE AS CELL_CODE
                        FROM AGRO_BATCHES b
                        LEFT JOIN AGRO_ITEMS i ON b.ITEM_ID = i.ID
@@ -1976,7 +1976,7 @@ class AgroStore:
         """List processing tasks with batch info."""
         try:
             with DatabaseModel() as db:
-                sql = """SELECT pt.*, b.BATCH_NUMBER, i.NAME AS ITEM_NAME
+                sql = """SELECT pt.*, b.BATCH_NUMBER, i.NAME_RU AS ITEM_NAME
                          FROM AGRO_PROCESSING_TASKS pt
                          JOIN AGRO_BATCHES b ON pt.BATCH_ID = b.ID
                          LEFT JOIN AGRO_ITEMS i ON b.ITEM_ID = i.ID
@@ -2132,7 +2132,7 @@ class AgroStore:
                     return {"success": False, "error": "Sales doc not found"}
 
                 r2 = db.execute_query(
-                    """SELECT sl.*, i.NAME AS ITEM_NAME, i.CODE AS ITEM_CODE
+                    """SELECT sl.*, i.NAME_RU AS ITEM_NAME, i.CODE AS ITEM_CODE
                        FROM AGRO_SALES_DOC_LINES sl
                        LEFT JOIN AGRO_ITEMS i ON sl.ITEM_ID = i.ID
                        WHERE sl.SALES_DOC_ID = :did ORDER BY sl.ID""",
@@ -2299,7 +2299,7 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 sql = """SELECT b.ID, b.BATCH_NUMBER, b.CURRENT_QTY_KG, b.RECEIVED_AT,
-                                i.NAME AS ITEM_NAME, i.CODE AS ITEM_CODE,
+                                i.NAME_RU AS ITEM_NAME, i.CODE AS ITEM_CODE,
                                 w.NAME AS WAREHOUSE_NAME
                          FROM AGRO_BATCHES b
                          JOIN AGRO_ITEMS i ON b.ITEM_ID = i.ID
@@ -2458,16 +2458,15 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 sql = """
-                    SELECT c.ID, c.NAME, c.CHECKLIST_TYPE, c.IS_ACTIVE,
-                           (SELECT COUNT(*) FROM AGRO_QA_CHECKLIST_ITEMS ci WHERE ci.CHECKLIST_ID = c.ID) AS ITEM_COUNT,
-                           c.CREATED_AT
+                    SELECT c.ID, c.CODE, c.NAME_RU, c.NAME_RO, c.CHECKLIST_TYPE, c.ACTIVE,
+                           (SELECT COUNT(*) FROM AGRO_QA_CHECKLIST_ITEMS ci WHERE ci.CHECKLIST_ID = c.ID) AS ITEM_COUNT
                     FROM AGRO_QA_CHECKLISTS c
                 """
                 params: Dict[str, Any] = {}
                 if checklist_type:
                     sql += " WHERE c.CHECKLIST_TYPE = :ctype"
                     params["ctype"] = checklist_type
-                sql += " ORDER BY c.NAME"
+                sql += " ORDER BY c.NAME_RU"
                 r = db.execute_query(sql, params)
                 return {"success": True, "data": _norm_rows(r)}
         except Exception as e:
@@ -2486,7 +2485,7 @@ class AgroStore:
                     return {"success": False, "error": "Checklist not found"}
                 checklist = rows[0]
                 r2 = db.execute_query(
-                    "SELECT * FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid ORDER BY SORT_ORDER",
+                    "SELECT * FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid ORDER BY ITEM_ORDER",
                     {"cid": cl_id})
                 checklist["items"] = _norm_rows(r2)
                 return {"success": True, "data": checklist}
@@ -2501,21 +2500,25 @@ class AgroStore:
                 cl_id = data.get("id")
                 if cl_id:
                     db.execute_query(
-                        """UPDATE AGRO_QA_CHECKLISTS SET NAME=:name, CHECKLIST_TYPE=:ctype,
-                           IS_ACTIVE=:active WHERE ID=:cid""",
-                        {"cid": cl_id, "name": data["name"],
+                        """UPDATE AGRO_QA_CHECKLISTS SET CODE=:code, NAME_RU=:name_ru, NAME_RO=:name_ro,
+                           CHECKLIST_TYPE=:ctype, ACTIVE=:active WHERE ID=:cid""",
+                        {"cid": cl_id, "code": data.get("code", ""),
+                         "name_ru": data.get("name") or data.get("name_ru", ""),
+                         "name_ro": data.get("name_ro", ""),
                          "ctype": data.get("checklist_type", "incoming"),
-                         "active": data.get("is_active", "Y")})
+                         "active": data.get("active", "Y")})
                 else:
                     db.execute_query(
-                        """INSERT INTO AGRO_QA_CHECKLISTS (NAME, CHECKLIST_TYPE, IS_ACTIVE)
-                           VALUES (:name, :ctype, :active)""",
-                        {"name": data["name"],
+                        """INSERT INTO AGRO_QA_CHECKLISTS (CODE, NAME_RU, NAME_RO, CHECKLIST_TYPE, ACTIVE)
+                           VALUES (:code, :name_ru, :name_ro, :ctype, :active)""",
+                        {"code": data.get("code", ""),
+                         "name_ru": data.get("name") or data.get("name_ru", ""),
+                         "name_ro": data.get("name_ro", ""),
                          "ctype": data.get("checklist_type", "incoming"),
-                         "active": data.get("is_active", "Y")})
+                         "active": data.get("active", "Y")})
                     r = db.execute_query(
-                        "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKLISTS WHERE NAME = :name",
-                        {"name": data["name"]})
+                        "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKLISTS WHERE NAME_RU = :name",
+                        {"name": data.get("name") or data.get("name_ru", "")})
                     cl_id = _norm_rows(r)[0]["id"]
 
                 # Sync items
@@ -2527,13 +2530,18 @@ class AgroStore:
                     for idx, item in enumerate(items):
                         db.execute_query(
                             """INSERT INTO AGRO_QA_CHECKLIST_ITEMS
-                               (CHECKLIST_ID, PARAM_NAME, EXPECTED_VALUE, TOLERANCE, IS_CRITICAL, SORT_ORDER)
-                               VALUES (:cid, :pname, :exp, :tol, :crit, :sort)""",
-                            {"cid": cl_id, "pname": item.get("param_name", ""),
-                             "exp": item.get("expected_value", ""),
-                             "tol": item.get("tolerance", ""),
-                             "crit": item.get("is_critical", "N"),
-                             "sort": idx + 1})
+                               (CHECKLIST_ID, ITEM_ORDER, PARAMETER_NAME_RU, PARAMETER_NAME_RO,
+                                VALUE_TYPE, MIN_VALUE, MAX_VALUE, CHOICES, IS_CRITICAL)
+                               VALUES (:cid, :sort, :pname_ru, :pname_ro,
+                                :vtype, :minv, :maxv, :choices, :crit)""",
+                            {"cid": cl_id, "sort": idx + 1,
+                             "pname_ru": item.get("parameter_name_ru") or item.get("param_name", ""),
+                             "pname_ro": item.get("parameter_name_ro", ""),
+                             "vtype": item.get("value_type", "boolean"),
+                             "minv": item.get("min_value"),
+                             "maxv": item.get("max_value"),
+                             "choices": item.get("choices", ""),
+                             "crit": item.get("is_critical", "N")})
                 db.connection.commit()
                 return {"success": True, "data": {"id": cl_id}}
         except Exception as e:
@@ -2568,7 +2576,7 @@ class AgroStore:
             with DatabaseModel() as db:
                 # Get checklist items to know criticality
                 r = db.execute_query(
-                    "SELECT ID, PARAM_NAME, IS_CRITICAL FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid ORDER BY SORT_ORDER",
+                    "SELECT ID, PARAMETER_NAME_RU, IS_CRITICAL FROM AGRO_QA_CHECKLIST_ITEMS WHERE CHECKLIST_ID = :cid ORDER BY ITEM_ORDER",
                     {"cid": checklist_id})
                 cl_items = _norm_rows(r)
                 critical_map = {it["id"]: it["is_critical"] for it in cl_items}
@@ -2593,12 +2601,12 @@ class AgroStore:
                 # Insert check header
                 db.execute_query(
                     """INSERT INTO AGRO_QA_CHECKS
-                       (BATCH_ID, CHECKLIST_ID, CHECK_TYPE, CHECKED_BY, RESULT, NOTES)
-                       VALUES (:bid, :clid, :ctype, :by, :result, :notes)""",
+                       (BATCH_ID, CHECKLIST_ID, CHECK_DATE, RESULT, INSPECTOR, NOTES)
+                       VALUES (:bid, :clid, TRUNC(SYSDATE), :result, :inspector, :notes)""",
                     {"bid": batch_id, "clid": checklist_id,
-                     "ctype": data.get("check_type", "incoming"),
-                     "by": data.get("checked_by", "inspector"),
-                     "result": result, "notes": data.get("notes", "")})
+                     "result": result,
+                     "inspector": data.get("checked_by") or data.get("inspector", "inspector"),
+                     "notes": data.get("notes", "")})
 
                 r2 = db.execute_query(
                     "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKS WHERE BATCH_ID = :bid",
@@ -2609,12 +2617,11 @@ class AgroStore:
                 for v in values:
                     db.execute_query(
                         """INSERT INTO AGRO_QA_CHECK_VALUES
-                           (CHECK_ID, CHECKLIST_ITEM_ID, ACTUAL_VALUE, IS_COMPLIANT, NOTES)
-                           VALUES (:chk, :cli, :val, :comp, :notes)""",
+                           (CHECK_ID, CHECKLIST_ITEM_ID, VALUE, IS_COMPLIANT)
+                           VALUES (:chk, :cli, :val, :comp)""",
                         {"chk": check_id, "cli": v.get("checklist_item_id"),
-                         "val": v.get("actual_value", ""),
-                         "comp": v.get("is_compliant", "Y"),
-                         "notes": v.get("notes", "")})
+                         "val": v.get("value") or v.get("actual_value", ""),
+                         "comp": v.get("is_compliant", "Y")})
 
                 # Auto-block on fail
                 if result == "fail":
@@ -2641,9 +2648,9 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 sql = """
-                    SELECT c.ID, c.BATCH_ID, c.CHECKLIST_ID, c.CHECK_TYPE,
-                           c.CHECKED_BY, c.RESULT, c.NOTES, c.CHECKED_AT,
-                           b.BATCH_NUMBER, cl.NAME AS CHECKLIST_NAME
+                    SELECT c.ID, c.BATCH_ID, c.CHECKLIST_ID, c.CHECK_DATE,
+                           c.INSPECTOR, c.RESULT, c.NOTES, c.CREATED_AT,
+                           b.BATCH_NUMBER, cl.NAME_RU AS CHECKLIST_NAME
                     FROM AGRO_QA_CHECKS c
                     LEFT JOIN AGRO_BATCHES b ON b.ID = c.BATCH_ID
                     LEFT JOIN AGRO_QA_CHECKLISTS cl ON cl.ID = c.CHECKLIST_ID
@@ -2652,7 +2659,7 @@ class AgroStore:
                 if batch_id:
                     sql += " WHERE c.BATCH_ID = :bid"
                     params["bid"] = batch_id
-                sql += " ORDER BY c.CHECKED_AT DESC"
+                sql += " ORDER BY c.CREATED_AT DESC"
                 r = db.execute_query(sql, params)
                 return {"success": True, "data": _norm_rows(r)}
         except Exception as e:
@@ -2664,7 +2671,7 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    """SELECT c.*, b.BATCH_NUMBER, cl.NAME AS CHECKLIST_NAME
+                    """SELECT c.*, b.BATCH_NUMBER, cl.NAME_RU AS CHECKLIST_NAME
                        FROM AGRO_QA_CHECKS c
                        LEFT JOIN AGRO_BATCHES b ON b.ID = c.BATCH_ID
                        LEFT JOIN AGRO_QA_CHECKLISTS cl ON cl.ID = c.CHECKLIST_ID
@@ -2675,11 +2682,12 @@ class AgroStore:
                     return {"success": False, "error": "Check not found"}
                 check = rows[0]
                 r2 = db.execute_query(
-                    """SELECT v.*, ci.PARAM_NAME, ci.EXPECTED_VALUE, ci.IS_CRITICAL
+                    """SELECT v.*, ci.PARAMETER_NAME_RU, ci.PARAMETER_NAME_RO,
+                              ci.VALUE_TYPE, ci.MIN_VALUE, ci.MAX_VALUE, ci.IS_CRITICAL
                        FROM AGRO_QA_CHECK_VALUES v
                        LEFT JOIN AGRO_QA_CHECKLIST_ITEMS ci ON ci.ID = v.CHECKLIST_ITEM_ID
                        WHERE v.CHECK_ID = :cid
-                       ORDER BY ci.SORT_ORDER""",
+                       ORDER BY ci.ITEM_ORDER""",
                     {"cid": check_id})
                 check["values"] = _norm_rows(r2)
                 return {"success": True, "data": check}
@@ -2732,7 +2740,7 @@ class AgroStore:
                     SELECT bb.ID, bb.BATCH_ID, bb.REASON, bb.BLOCKED_BY,
                            bb.BLOCKED_AT, bb.UNBLOCKED_BY, bb.UNBLOCKED_AT,
                            bb.RESOLUTION_NOTES,
-                           b.BATCH_NUMBER, i.NAME AS ITEM_NAME
+                           b.BATCH_NUMBER, i.NAME_RU AS ITEM_NAME
                     FROM AGRO_BATCH_BLOCKS bb
                     LEFT JOIN AGRO_BATCHES b ON b.ID = bb.BATCH_ID
                     LEFT JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
@@ -2751,9 +2759,9 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    """SELECT h.ID, h.PLAN_NAME, h.PRODUCT_CATEGORY, h.IS_ACTIVE, h.CREATED_AT,
+                    """SELECT h.ID, h.CODE, h.NAME_RU, h.NAME_RO, h.PROCESS_STAGE, h.ACTIVE,
                            (SELECT COUNT(*) FROM AGRO_HACCP_CCPS c WHERE c.PLAN_ID = h.ID) AS CCP_COUNT
-                       FROM AGRO_HACCP_PLANS h ORDER BY h.PLAN_NAME""")
+                       FROM AGRO_HACCP_PLANS h ORDER BY h.NAME_RU""")
                 return {"success": True, "data": _norm_rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -2764,23 +2772,26 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 plan_id = data.get("id")
+                name_ru = data.get("plan_name") or data.get("name_ru", "")
                 if plan_id:
                     db.execute_query(
-                        """UPDATE AGRO_HACCP_PLANS SET PLAN_NAME=:name,
-                           PRODUCT_CATEGORY=:cat, IS_ACTIVE=:active WHERE ID=:pid""",
-                        {"pid": plan_id, "name": data["plan_name"],
-                         "cat": data.get("product_category", ""),
-                         "active": data.get("is_active", "Y")})
+                        """UPDATE AGRO_HACCP_PLANS SET CODE=:code, NAME_RU=:name_ru, NAME_RO=:name_ro,
+                           PROCESS_STAGE=:stage, ACTIVE=:active WHERE ID=:pid""",
+                        {"pid": plan_id, "code": data.get("code", ""),
+                         "name_ru": name_ru, "name_ro": data.get("name_ro", ""),
+                         "stage": data.get("process_stage", ""),
+                         "active": data.get("active", "Y")})
                 else:
                     db.execute_query(
-                        """INSERT INTO AGRO_HACCP_PLANS (PLAN_NAME, PRODUCT_CATEGORY, IS_ACTIVE)
-                           VALUES (:name, :cat, :active)""",
-                        {"name": data["plan_name"],
-                         "cat": data.get("product_category", ""),
-                         "active": data.get("is_active", "Y")})
+                        """INSERT INTO AGRO_HACCP_PLANS (CODE, NAME_RU, NAME_RO, PROCESS_STAGE, ACTIVE)
+                           VALUES (:code, :name_ru, :name_ro, :stage, :active)""",
+                        {"code": data.get("code", ""),
+                         "name_ru": name_ru, "name_ro": data.get("name_ro", ""),
+                         "stage": data.get("process_stage", ""),
+                         "active": data.get("active", "Y")})
                     r = db.execute_query(
-                        "SELECT MAX(ID) AS ID FROM AGRO_HACCP_PLANS WHERE PLAN_NAME = :name",
-                        {"name": data["plan_name"]})
+                        "SELECT MAX(ID) AS ID FROM AGRO_HACCP_PLANS WHERE NAME_RU = :name",
+                        {"name": name_ru})
                     plan_id = _norm_rows(r)[0]["id"]
                 db.connection.commit()
                 return {"success": True, "data": {"id": plan_id}}
@@ -2807,27 +2818,31 @@ class AgroStore:
                 ccp_id = data.get("id")
                 if ccp_id:
                     db.execute_query(
-                        """UPDATE AGRO_HACCP_CCPS SET CCP_NUMBER=:num, CCP_NAME=:name,
-                           HAZARD_DESCRIPTION=:haz, CRITICAL_LIMIT=:clim,
-                           MONITORING_PROCEDURE=:mon, CORRECTIVE_ACTION=:corr
+                        """UPDATE AGRO_HACCP_CCPS SET CCP_NUMBER=:num, HAZARD_TYPE=:htype,
+                           HAZARD_DESCRIPTION=:haz, CRITICAL_LIMIT_MIN=:clim_min,
+                           CRITICAL_LIMIT_MAX=:clim_max,
+                           MONITORING_FREQUENCY=:mon, CORRECTIVE_ACTION=:corr
                            WHERE ID=:cid""",
                         {"cid": ccp_id, "num": data.get("ccp_number", ""),
-                         "name": data.get("ccp_name", ""),
+                         "htype": data.get("hazard_type", "biological"),
                          "haz": data.get("hazard_description", ""),
-                         "clim": data.get("critical_limit", ""),
-                         "mon": data.get("monitoring_procedure", ""),
+                         "clim_min": data.get("critical_limit_min"),
+                         "clim_max": data.get("critical_limit_max"),
+                         "mon": data.get("monitoring_frequency", ""),
                          "corr": data.get("corrective_action", "")})
                 else:
                     db.execute_query(
                         """INSERT INTO AGRO_HACCP_CCPS
-                           (PLAN_ID, CCP_NUMBER, CCP_NAME, HAZARD_DESCRIPTION,
-                            CRITICAL_LIMIT, MONITORING_PROCEDURE, CORRECTIVE_ACTION)
-                           VALUES (:pid, :num, :name, :haz, :clim, :mon, :corr)""",
+                           (PLAN_ID, CCP_NUMBER, HAZARD_TYPE, HAZARD_DESCRIPTION,
+                            CRITICAL_LIMIT_MIN, CRITICAL_LIMIT_MAX,
+                            MONITORING_FREQUENCY, CORRECTIVE_ACTION)
+                           VALUES (:pid, :num, :htype, :haz, :clim_min, :clim_max, :mon, :corr)""",
                         {"pid": data["plan_id"], "num": data.get("ccp_number", ""),
-                         "name": data.get("ccp_name", ""),
+                         "htype": data.get("hazard_type", "biological"),
                          "haz": data.get("hazard_description", ""),
-                         "clim": data.get("critical_limit", ""),
-                         "mon": data.get("monitoring_procedure", ""),
+                         "clim_min": data.get("critical_limit_min"),
+                         "clim_max": data.get("critical_limit_max"),
+                         "mon": data.get("monitoring_frequency", ""),
                          "corr": data.get("corrective_action", "")})
                 db.connection.commit()
                 return {"success": True}
@@ -2844,19 +2859,20 @@ class AgroStore:
                 return {"success": False, "error": "ccp_id and measured_value required"}
 
             with DatabaseModel() as db:
-                # Get critical limit for evaluation
+                # Get critical limits for evaluation
                 r = db.execute_query(
-                    "SELECT CRITICAL_LIMIT FROM AGRO_HACCP_CCPS WHERE ID = :cid",
+                    "SELECT CRITICAL_LIMIT_MIN, CRITICAL_LIMIT_MAX FROM AGRO_HACCP_CCPS WHERE ID = :cid",
                     {"cid": ccp_id})
                 ccp_rows = _norm_rows(r)
                 is_within = "Y"
                 if ccp_rows:
-                    crit_limit = ccp_rows[0].get("critical_limit", "")
-                    # Simple numeric comparison: if critical_limit is a number, compare
                     try:
-                        limit_val = float(crit_limit)
                         meas_val = float(measured_value)
-                        if meas_val > limit_val:
+                        cmin = ccp_rows[0].get("critical_limit_min")
+                        cmax = ccp_rows[0].get("critical_limit_max")
+                        if cmin is not None and meas_val < float(cmin):
+                            is_within = "N"
+                        if cmax is not None and meas_val > float(cmax):
                             is_within = "N"
                     except (ValueError, TypeError):
                         pass  # Non-numeric limits — manual evaluation
@@ -2864,10 +2880,11 @@ class AgroStore:
                 db.execute_query(
                     """INSERT INTO AGRO_HACCP_RECORDS
                        (CCP_ID, BATCH_ID, MEASURED_VALUE, IS_WITHIN_LIMITS,
-                        CORRECTIVE_ACTION_TAKEN, RECORDED_BY)
-                       VALUES (:cid, :bid, :val, :within, :corr, :by)""",
+                        DEVIATION_NOTES, CORRECTIVE_ACTION_TAKEN, RECORDED_BY)
+                       VALUES (:cid, :bid, :val, :within, :dev, :corr, :by)""",
                     {"cid": ccp_id, "bid": data.get("batch_id"),
-                     "val": str(measured_value), "within": is_within,
+                     "val": float(measured_value), "within": is_within,
+                     "dev": data.get("deviation_notes", ""),
                      "corr": data.get("corrective_action", ""),
                      "by": data.get("recorded_by", "operator")})
                 db.connection.commit()
@@ -2882,8 +2899,10 @@ class AgroStore:
             with DatabaseModel() as db:
                 sql = """
                     SELECT r.ID, r.CCP_ID, r.BATCH_ID, r.MEASURED_VALUE,
-                           r.CORRECTIVE_ACTION_TAKEN, r.RECORDED_BY, r.RECORDED_AT,
-                           c.CCP_NUMBER, c.CCP_NAME, c.CRITICAL_LIMIT,
+                           r.DEVIATION_NOTES, r.CORRECTIVE_ACTION_TAKEN,
+                           r.RECORDED_BY, r.RECORDED_AT,
+                           c.CCP_NUMBER, c.HAZARD_DESCRIPTION,
+                           c.CRITICAL_LIMIT_MIN, c.CRITICAL_LIMIT_MAX,
                            b.BATCH_NUMBER
                     FROM AGRO_HACCP_RECORDS r
                     LEFT JOIN AGRO_HACCP_CCPS c ON c.ID = r.CCP_ID
@@ -3004,7 +3023,7 @@ class AgroStore:
             with DatabaseModel() as db:
                 sql = """
                     SELECT b.ID, b.BATCH_NUMBER, b.EXPIRY_DATE, b.CURRENT_QTY_KG, b.STATUS,
-                           i.NAME AS ITEM_NAME, w.NAME AS WAREHOUSE_NAME,
+                           i.NAME_RU AS ITEM_NAME, w.NAME AS WAREHOUSE_NAME,
                            ROUND(b.EXPIRY_DATE - SYSDATE) AS DAYS_REMAINING
                     FROM AGRO_BATCHES b
                     LEFT JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
