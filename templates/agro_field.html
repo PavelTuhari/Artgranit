@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>AGRO Field</title>
+<script>if(location.search.indexOf('embed=1')!==-1)document.documentElement.classList.add('embed');</script>
 <script src="/static/agro/barcode-scanner.js"></script>
 <script src="/static/agro/barcode-generator.js"></script>
 <script src="/static/agro/offline-db.js"></script>
@@ -485,6 +486,10 @@ tr.clickable { cursor: pointer; }
     .purchase-line-header { display: none; }
     .weight-display { flex-direction: column; gap: 10px; }
 }
+
+/* ---------- Embed mode (inside MDI) ---------- */
+html.embed .top-bar { display: none; }
+html.embed .main { height: 100vh; }
 
 /* ---------- Top Bar ---------- */
 .top-bar {

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AGRO QA / HACCP</title>
+<script>if(location.search.indexOf('embed=1')!==-1)document.documentElement.classList.add('embed');</script>
 <style>
 :root {
     --primary: #e94560; --primary-dark: #d63a55; --accent: #53d769;
@@ -13,6 +14,8 @@
     --warning: #f0a500; --warning-bg: #f0a50020; --info: #4a9eff;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html.embed .top-bar { display: none !important; }
+html.embed .main { height: 100vh; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
 .top-bar { height: 48px; background: #0f3460; display: flex; align-items: center; padding: 0 16px; gap: 4px; flex-shrink: 0; border-bottom: 1px solid #1a4a7a; position: sticky; top: 0; z-index: 100; }
 .top-bar .logo { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-right: 12px; }

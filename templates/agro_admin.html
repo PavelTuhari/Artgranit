@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AGRO Admin</title>
+<script>if(location.search.indexOf('embed=1')!==-1)document.documentElement.classList.add('embed');</script>
 <style>
 :root {
     --primary: #e94560;
@@ -29,6 +30,10 @@ body {
     display: flex;
     flex-direction: column;
 }
+
+/* ---------- Embed mode (inside MDI) ---------- */
+html.embed .top-bar { display: none; }
+html.embed .main { height: 100vh; }
 
 /* ---------- Top Bar ---------- */
 .top-bar {

@@ -3414,12 +3414,21 @@ from models.agro_oracle_store import AgroStore
 # AGRO — UI routes
 # ---------------------------------------------------------------------------
 
+@app.route('/UNA.md/orasldev/agro')
+def agro_mdi():
+    """AGRO: MDI shell — all AGRO modules in tabbed interface."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('agro_mdi.html')
+
+
 @app.route('/UNA.md/orasldev/agro-admin')
 def agro_admin():
     """AGRO: admin — references, settings, reports."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('agro_admin.html')
+    embed = request.args.get('embed') == '1'
+    return render_template('agro_admin.html', embed=embed)
 
 
 @app.route('/UNA.md/orasldev/agro-field')
@@ -3427,7 +3436,8 @@ def agro_field():
     """AGRO: field — purchases, barcodes, crates, offline sync."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('agro_field.html')
+    embed = request.args.get('embed') == '1'
+    return render_template('agro_field.html', embed=embed)
 
 
 @app.route('/UNA.md/orasldev/agro-warehouse')
@@ -3435,7 +3445,8 @@ def agro_warehouse():
     """AGRO: warehouse — stock, movements, readings, tasks."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('agro_warehouse.html')
+    embed = request.args.get('embed') == '1'
+    return render_template('agro_warehouse.html', embed=embed)
 
 
 @app.route('/UNA.md/orasldev/agro-qa')
@@ -3443,7 +3454,8 @@ def agro_qa():
     """AGRO: QA / HACCP — checklists, checks, batch blocks."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('agro_qa.html')
+    embed = request.args.get('embed') == '1'
+    return render_template('agro_qa.html', embed=embed)
 
 
 @app.route('/UNA.md/orasldev/agro-sales')
@@ -3451,7 +3463,8 @@ def agro_sales():
     """AGRO: sales — shipments, export, batch allocation."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('agro_sales.html')
+    embed = request.args.get('embed') == '1'
+    return render_template('agro_sales.html', embed=embed)
 
 
 @app.route('/UNA.md/orasldev/agro-document/<int:doc_id>')
