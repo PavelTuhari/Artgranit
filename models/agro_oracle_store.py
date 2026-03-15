@@ -1245,122 +1245,83 @@ class AgroStore:
                     return {"success": False, "error": "; ".join(errors)}
 
                 warehouse_id = hdr["warehouse_id"]
-                today_str = datetime.now().strftime("%Y%m%d")
 
-                total_gross = 0.0
-                total_net = 0.0
-                total_amount = 0.0
+                # Execute entire confirmation in a single PL/SQL block
+                # to minimize Oracle round trips (critical for remote DB).
+                plsql = """
+                DECLARE
+                    v_batch_id   NUMBER;
+                    v_batch_num  VARCHAR2(100);
+                    v_net_kg     NUMBER;
+                    v_amount     NUMBER;
+                    v_shelf_days NUMBER;
+                    v_today      VARCHAR2(8) := TO_CHAR(SYSDATE, 'YYYYMMDD');
+                    v_total_gross NUMBER := 0;
+                    v_total_net   NUMBER := 0;
+                    v_total_amt   NUMBER := 0;
+                BEGIN
+                    FOR ln IN (
+                        SELECT pl.ID, pl.ITEM_ID, pl.GROSS_WEIGHT_KG,
+                               NVL(pl.TARE_WEIGHT_KG, 0) AS TARE_WEIGHT_KG,
+                               NVL(pl.PRICE_PER_KG, 0)   AS PRICE_PER_KG,
+                               ai.SHELF_LIFE_DAYS
+                        FROM AGRO_PURCHASE_LINES pl
+                        LEFT JOIN AGRO_ITEMS ai ON ai.ID = pl.ITEM_ID
+                        WHERE pl.PURCHASE_DOC_ID = :doc_id
+                          AND pl.ITEM_ID IS NOT NULL
+                          AND pl.GROSS_WEIGHT_KG IS NOT NULL
+                        ORDER BY pl.ID
+                    ) LOOP
+                        v_net_kg := ln.GROSS_WEIGHT_KG - ln.TARE_WEIGHT_KG;
+                        v_amount := ROUND(v_net_kg * ln.PRICE_PER_KG, 2);
 
-                for ln in valid_lines:
-                    # Recalculate net weight via Q-Net formula
-                    gross_kg = float(ln.get("gross_weight_kg") or 0)
-                    tare_kg = float(ln.get("tare_weight_kg") or 0)
-                    net_kg = gross_kg - tare_kg if tare_kg else gross_kg
-                    price = float(ln.get("price_per_kg") or 0)
-                    amount = round(net_kg * price, 2)
+                        UPDATE AGRO_PURCHASE_LINES
+                           SET NET_WEIGHT_KG = v_net_kg, AMOUNT = v_amount
+                         WHERE ID = ln.ID;
 
-                    # Update line with recalculated values
-                    db.execute_query(
-                        """UPDATE AGRO_PURCHASE_LINES
-                              SET NET_WEIGHT_KG = :net_kg,
-                                  AMOUNT = :amount
-                            WHERE ID = :line_id""",
-                        {
-                            "net_kg": net_kg,
-                            "amount": amount,
-                            "line_id": ln["id"],
-                        },
-                    )
+                        v_total_gross := v_total_gross + ln.GROSS_WEIGHT_KG;
+                        v_total_net   := v_total_net   + v_net_kg;
+                        v_total_amt   := v_total_amt   + v_amount;
 
-                    total_gross += gross_kg
-                    total_net += net_kg
-                    total_amount += amount
+                        SELECT AGRO_BATCHES_SEQ.NEXTVAL INTO v_batch_id FROM DUAL;
+                        v_batch_num := 'B-' || v_today || '-' || LPAD(v_batch_id, 4, '0');
 
-                    # --- Create batch ---
-                    r_bseq = db.execute_query(
-                        "SELECT AGRO_BATCHES_SEQ.NEXTVAL AS SEQ_VAL FROM DUAL",
-                        None,
-                    )
-                    batch_id = int(_norm_rows(r_bseq)[0]["seq_val"])
-                    batch_number = f"B-{today_str}-{batch_id:04d}"
+                        v_shelf_days := ln.SHELF_LIFE_DAYS;
 
-                    # Look up shelf life from AGRO_ITEMS
-                    r_item = db.execute_query(
-                        "SELECT SHELF_LIFE_DAYS FROM AGRO_ITEMS WHERE ID = :item_id",
-                        {"item_id": ln["item_id"]},
-                    )
-                    item_rows = _norm_rows(r_item)
-                    shelf_days = (
-                        int(item_rows[0]["shelf_life_days"])
-                        if item_rows and item_rows[0].get("shelf_life_days")
-                        else None
-                    )
+                        INSERT INTO AGRO_BATCHES
+                            (ID, BATCH_NUMBER, PURCHASE_LINE_ID, ITEM_ID,
+                             WAREHOUSE_ID, INITIAL_QTY_KG, CURRENT_QTY_KG,
+                             STATUS, EXPIRY_DATE)
+                        VALUES
+                            (v_batch_id, v_batch_num, ln.ID, ln.ITEM_ID,
+                             :warehouse_id, v_net_kg, v_net_kg,
+                             'active',
+                             CASE WHEN v_shelf_days IS NOT NULL
+                                  THEN SYSTIMESTAMP + v_shelf_days
+                             END);
 
-                    batch_params: Dict[str, Any] = {
-                        "id": batch_id,
-                        "batch_number": batch_number,
-                        "purchase_line_id": ln["id"],
-                        "item_id": ln["item_id"],
-                        "warehouse_id": warehouse_id,
-                        "initial_qty_kg": net_kg,
-                        "current_qty_kg": net_kg,
-                        "status": "active",
-                    }
+                        INSERT INTO AGRO_STOCK_MOVEMENTS
+                            (ID, BATCH_ID, MOVEMENT_TYPE,
+                             TO_WAREHOUSE_ID, QTY_KG, DOC_REF)
+                        VALUES
+                            (AGRO_STOCK_MOVEMENTS_SEQ.NEXTVAL, v_batch_id,
+                             'receipt', :warehouse_id, v_net_kg,
+                             'PD-' || :doc_id);
+                    END LOOP;
 
-                    if shelf_days is not None:
-                        db.execute_query(
-                            """INSERT INTO AGRO_BATCHES
-                                      (ID, BATCH_NUMBER, PURCHASE_LINE_ID, ITEM_ID,
-                                       WAREHOUSE_ID, INITIAL_QTY_KG, CURRENT_QTY_KG,
-                                       STATUS, EXPIRY_DATE)
-                               VALUES (:id, :batch_number, :purchase_line_id, :item_id,
-                                       :warehouse_id, :initial_qty_kg, :current_qty_kg,
-                                       :status, SYSTIMESTAMP + :shelf_days)""",
-                            {**batch_params, "shelf_days": shelf_days},
-                        )
-                    else:
-                        db.execute_query(
-                            """INSERT INTO AGRO_BATCHES
-                                      (ID, BATCH_NUMBER, PURCHASE_LINE_ID, ITEM_ID,
-                                       WAREHOUSE_ID, INITIAL_QTY_KG, CURRENT_QTY_KG,
-                                       STATUS)
-                               VALUES (:id, :batch_number, :purchase_line_id, :item_id,
-                                       :warehouse_id, :initial_qty_kg, :current_qty_kg,
-                                       :status)""",
-                            batch_params,
-                        )
-
-                    # --- Create stock movement (receipt) ---
-                    db.execute_query(
-                        """INSERT INTO AGRO_STOCK_MOVEMENTS
-                                  (ID, BATCH_ID, MOVEMENT_TYPE,
-                                   TO_WAREHOUSE_ID, QTY_KG, DOC_REF)
-                           VALUES (AGRO_STOCK_MOVEMENTS_SEQ.NEXTVAL, :batch_id,
-                                   'receipt', :warehouse_id, :qty_kg, :doc_ref)""",
-                        {
-                            "batch_id": batch_id,
-                            "warehouse_id": warehouse_id,
-                            "qty_kg": net_kg,
-                            "doc_ref": f"PD-{doc_id}",
-                        },
-                    )
-
-                # --- Update header totals and status ---
-                db.execute_query(
-                    """UPDATE AGRO_PURCHASE_DOCS
-                          SET STATUS = 'confirmed',
-                              CONFIRMED_AT = SYSTIMESTAMP,
-                              TOTAL_GROSS_KG = :total_gross,
-                              TOTAL_NET_KG = :total_net,
-                              TOTAL_AMOUNT = :total_amount
-                        WHERE ID = :doc_id""",
-                    {
-                        "total_gross": total_gross,
-                        "total_net": total_net,
-                        "total_amount": total_amount,
-                        "doc_id": doc_id,
-                    },
-                )
+                    UPDATE AGRO_PURCHASE_DOCS
+                       SET STATUS = 'confirmed',
+                           CONFIRMED_AT = SYSTIMESTAMP,
+                           TOTAL_GROSS_KG = v_total_gross,
+                           TOTAL_NET_KG   = v_total_net,
+                           TOTAL_AMOUNT   = v_total_amt
+                     WHERE ID = :doc_id;
+                END;
+                """
+                db.execute_query(plsql, {
+                    "doc_id": doc_id,
+                    "warehouse_id": warehouse_id,
+                })
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
@@ -2518,18 +2479,17 @@ class AgroStore:
                          "active": data.get("active", "Y")})
                 else:
                     code = data.get("code") or f"CL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    r_seq = db.execute_query(
+                        "SELECT AGRO_QA_CHECKLISTS_SEQ.NEXTVAL AS ID FROM DUAL")
+                    cl_id = int(_norm_rows(r_seq)[0]["id"])
                     db.execute_query(
-                        """INSERT INTO AGRO_QA_CHECKLISTS (CODE, NAME_RU, NAME_RO, CHECKLIST_TYPE, ACTIVE)
-                           VALUES (:code, :name_ru, :name_ro, :ctype, :active)""",
-                        {"code": code,
+                        """INSERT INTO AGRO_QA_CHECKLISTS (ID, CODE, NAME_RU, NAME_RO, CHECKLIST_TYPE, ACTIVE)
+                           VALUES (:cid, :code, :name_ru, :name_ro, :ctype, :active)""",
+                        {"cid": cl_id, "code": code,
                          "name_ru": data.get("name") or data.get("name_ru", ""),
                          "name_ro": data.get("name_ro", ""),
                          "ctype": data.get("checklist_type", "incoming"),
                          "active": data.get("active", "Y")})
-                    r = db.execute_query(
-                        "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKLISTS WHERE NAME_RU = :name",
-                        {"name": data.get("name") or data.get("name_ru", "")})
-                    cl_id = _norm_rows(r)[0]["id"]
 
                 # Sync items
                 items = data.get("items", [])
@@ -2608,20 +2568,20 @@ class AgroStore:
                 elif has_non_critical_fail:
                     result = "conditional"
 
+                # Pre-fetch check ID from sequence
+                r_seq = db.execute_query(
+                    "SELECT AGRO_QA_CHECKS_SEQ.NEXTVAL AS ID FROM DUAL")
+                check_id = int(_norm_rows(r_seq)[0]["id"])
+
                 # Insert check header
                 db.execute_query(
                     """INSERT INTO AGRO_QA_CHECKS
-                       (BATCH_ID, CHECKLIST_ID, CHECK_DATE, RESULT, INSPECTOR, NOTES)
-                       VALUES (:bid, :clid, TRUNC(SYSDATE), :result, :inspector, :notes)""",
-                    {"bid": batch_id, "clid": checklist_id,
+                       (ID, BATCH_ID, CHECKLIST_ID, CHECK_DATE, RESULT, INSPECTOR, NOTES)
+                       VALUES (:chk_id, :bid, :clid, TRUNC(SYSDATE), :result, :inspector, :notes)""",
+                    {"chk_id": check_id, "bid": batch_id, "clid": checklist_id,
                      "result": result,
                      "inspector": data.get("checked_by") or data.get("inspector", "inspector"),
                      "notes": data.get("notes", "")})
-
-                r2 = db.execute_query(
-                    "SELECT MAX(ID) AS ID FROM AGRO_QA_CHECKS WHERE BATCH_ID = :bid",
-                    {"bid": batch_id})
-                check_id = _norm_rows(r2)[0]["id"]
 
                 # Insert values
                 for v in values:
@@ -2643,9 +2603,9 @@ class AgroStore:
                          "created_by": data.get("checked_by", "qa_system")})
                     db.execute_query(
                         """UPDATE AGRO_BATCHES SET STATUS='blocked',
-                           BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
+                           BLOCKED_BY=:blocked_by, BLOCK_REASON=:reason WHERE ID=:bid""",
                         {"bid": batch_id, "reason": reason,
-                         "created_by": data.get("checked_by", "qa_system")})
+                         "blocked_by": data.get("checked_by", "qa_system")})
 
                 db.connection.commit()
                 return {"success": True, "data": {"check_id": check_id, "result": result}}
@@ -2715,8 +2675,8 @@ class AgroStore:
                     {"bid": batch_id, "reason": reason, "created_by": blocked_by or "operator"})
                 db.execute_query(
                     """UPDATE AGRO_BATCHES SET STATUS='blocked',
-                       BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
-                    {"bid": batch_id, "reason": reason, "created_by": blocked_by or "operator"})
+                       BLOCKED_BY=:blocked_by, BLOCK_REASON=:reason WHERE ID=:bid""",
+                    {"bid": batch_id, "reason": reason, "blocked_by": blocked_by or "operator"})
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
@@ -2728,10 +2688,10 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 db.execute_query(
-                    """UPDATE AGRO_BATCH_BLOCKS SET UNBLOCKED_BY=:by,
+                    """UPDATE AGRO_BATCH_BLOCKS SET UNBLOCKED_BY=:unblocked_by,
                        UNBLOCKED_AT=SYSTIMESTAMP, RESOLUTION_NOTES=:notes
                        WHERE BATCH_ID=:bid AND UNBLOCKED_AT IS NULL""",
-                    {"bid": batch_id, "created_by": unblocked_by or "operator", "notes": resolution or ""})
+                    {"bid": batch_id, "unblocked_by": unblocked_by or "operator", "notes": resolution or ""})
                 db.execute_query(
                     """UPDATE AGRO_BATCHES SET STATUS='active',
                        BLOCKED_BY=NULL, BLOCK_REASON=NULL WHERE ID=:bid""",
@@ -2793,17 +2753,16 @@ class AgroStore:
                          "active": data.get("active", "Y")})
                 else:
                     code = data.get("code") or f"HACCP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                    r_seq = db.execute_query(
+                        "SELECT AGRO_HACCP_PLANS_SEQ.NEXTVAL AS ID FROM DUAL")
+                    plan_id = int(_norm_rows(r_seq)[0]["id"])
                     db.execute_query(
-                        """INSERT INTO AGRO_HACCP_PLANS (CODE, NAME_RU, NAME_RO, PROCESS_STAGE, ACTIVE)
-                           VALUES (:code, :name_ru, :name_ro, :stage, :active)""",
-                        {"code": code,
+                        """INSERT INTO AGRO_HACCP_PLANS (ID, CODE, NAME_RU, NAME_RO, PROCESS_STAGE, ACTIVE)
+                           VALUES (:pid, :code, :name_ru, :name_ro, :stage, :active)""",
+                        {"pid": plan_id, "code": code,
                          "name_ru": name_ru, "name_ro": data.get("name_ro", ""),
                          "stage": data.get("process_stage", ""),
                          "active": data.get("active", "Y")})
-                    r = db.execute_query(
-                        "SELECT MAX(ID) AS ID FROM AGRO_HACCP_PLANS WHERE NAME_RU = :name",
-                        {"name": name_ru})
-                    plan_id = _norm_rows(r)[0]["id"]
                 db.connection.commit()
                 return {"success": True, "data": {"id": plan_id}}
         except Exception as e:
@@ -2842,23 +2801,23 @@ class AgroStore:
                          "mon": data.get("monitoring_frequency", ""),
                          "corr": data.get("corrective_action", "")})
                 else:
+                    r_seq = db.execute_query(
+                        "SELECT AGRO_HACCP_CCPS_SEQ.NEXTVAL AS ID FROM DUAL")
+                    ccp_id = int(_norm_rows(r_seq)[0]["id"])
                     db.execute_query(
                         """INSERT INTO AGRO_HACCP_CCPS
-                           (PLAN_ID, CCP_NUMBER, HAZARD_TYPE, HAZARD_DESCRIPTION,
+                           (ID, PLAN_ID, CCP_NUMBER, HAZARD_TYPE, HAZARD_DESCRIPTION,
                             CRITICAL_LIMIT_MIN, CRITICAL_LIMIT_MAX,
                             MONITORING_FREQUENCY, CORRECTIVE_ACTION)
-                           VALUES (:pid, :num, :htype, :haz, :clim_min, :clim_max, :mon, :corr)""",
-                        {"pid": data["plan_id"], "num": data.get("ccp_number", ""),
+                           VALUES (:ccp_id, :pid, :num, :htype, :haz, :clim_min, :clim_max, :mon, :corr)""",
+                        {"ccp_id": ccp_id,
+                         "pid": data["plan_id"], "num": data.get("ccp_number", ""),
                          "htype": data.get("hazard_type", "biological"),
                          "haz": data.get("hazard_description", ""),
                          "clim_min": data.get("critical_limit_min"),
                          "clim_max": data.get("critical_limit_max"),
                          "mon": data.get("monitoring_frequency", ""),
                          "corr": data.get("corrective_action", "")})
-                    r = db.execute_query(
-                        "SELECT MAX(ID) AS ID FROM AGRO_HACCP_CCPS WHERE PLAN_ID = :pid",
-                        {"pid": data["plan_id"]})
-                    ccp_id = _norm_rows(r)[0]["id"]
                 db.connection.commit()
                 return {"success": True, "data": {"id": ccp_id}}
         except Exception as e:
