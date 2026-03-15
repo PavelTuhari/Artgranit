@@ -79,6 +79,42 @@ tr:hover td { background: rgba(255,255,255,.04); }
 .result-fail { color: var(--danger); font-weight: 700; font-size: 18px; }
 .result-conditional { color: var(--warning); font-weight: 700; font-size: 18px; }
 .page-header h1 { font-size: 22px; color: var(--text); }
+/* ---------- Master-Detail Journal (1C style) ---------- */
+.journal-master-detail { display: flex; flex-direction: column; height: calc(100vh - 260px); min-height: 400px; }
+.journal-master { flex: 0 0 auto; max-height: 45%; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px 12px 0 0; background: var(--card-bg); }
+.journal-master table { margin: 0; }
+.journal-master tr.selected td { background: #0f3460 !important; border-left: 3px solid var(--primary); }
+.journal-master tr { cursor: pointer; }
+.journal-detail { flex: 1; overflow-y: auto; border: 1px solid var(--border); border-top: none; border-radius: 0 0 12px 12px; background: var(--card-bg); padding: 16px 20px; }
+.journal-detail-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 15px; }
+.detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.detail-header h3 { font-size: 16px; color: var(--text); }
+.detail-props { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 14px; font-size: 13px; }
+.detail-props .prop { color: var(--text-muted); }
+.detail-props .prop b { color: var(--text); font-weight: 600; }
+.detail-lines-table { font-size: 13px; }
+.detail-lines-table th { font-size: 11px; background: #0a1e3d; }
+.detail-lines-table td { padding: 8px 10px; }
+.journal-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.journal-toolbar .search-input { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: #0f2043; color: var(--text); font-size: 14px; min-width: 200px; min-height: 40px; }
+.journal-toolbar .search-input:focus { outline: none; border-color: var(--primary); }
+.check-value-row { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; }
+.check-value-row.compliant { background: rgba(83,215,105,.08); border-left: 3px solid #53d769; }
+.check-value-row.non-compliant { background: rgba(233,69,96,.08); border-left: 3px solid #e94560; }
+.check-value-row .param-name { flex: 2; font-weight: 500; font-size: 13px; }
+.check-value-row .param-norm { flex: 1; color: var(--text-muted); font-size: 12px; }
+.check-value-row .param-actual { flex: 1; font-weight: 600; font-size: 14px; }
+.check-value-row .param-verdict { width: 60px; text-align: center; font-weight: 700; font-size: 13px; }
+.instructions-panel { background: #0f2043; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.instructions-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; cursor: pointer; color: var(--text-muted); font-size: 13px; font-weight: 500; transition: background .15s; }
+.instructions-toggle:hover { background: rgba(255,255,255,.04); }
+.instructions-toggle .arrow { transition: transform .2s; font-size: 12px; }
+.instructions-toggle .arrow.open { transform: rotate(90deg); }
+.instructions-body { display: none; padding: 0 16px 14px; font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+.instructions-body.open { display: block; }
+.instructions-body ol { padding-left: 20px; }
+.instructions-body li { margin-bottom: 4px; }
+.instructions-body kbd { background: #1a1a2e; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 11px; color: var(--accent); }
 @media (max-width: 900px) { .sidebar { display: none; } .main { padding: 16px; } }
 </style>
 </head>
@@ -121,17 +157,54 @@ tr:hover td { background: rgba(255,255,255,.04); }
     </div></div>
 </div>
 
-<!-- ==================== CHECKS ==================== -->
+<!-- ==================== CHECKS / ЖУРНАЛ АНАЛИЗОВ ==================== -->
 <div id="page-checks" class="page">
     <div class="page-header">
-        <div><h1>Проверки / Inspectii</h1><div class="subtitle">Istoricul inspectiilor de calitate</div></div>
+        <div><h1>Журнал анализов / Jurnal inspectii</h1><div class="subtitle">Registrul inspectiilor de calitate (stil 1C)</div></div>
         <button class="btn btn-primary" onclick="openNewCheckModal()">+ Проверка / Inspectie</button>
     </div>
-    <div class="card"><div class="table-wrap">
-        <table><thead><tr>
-            <th>Дата</th><th>Партия / Lot</th><th>Чек-лист</th><th>Инспектор</th><th>Результат</th><th>Действия</th>
-        </tr></thead><tbody id="checksBody"><tr><td colspan="6" class="empty">Загрузка...</td></tr></tbody></table>
-    </div></div>
+
+    <!-- User Instructions -->
+    <div class="instructions-panel">
+        <div class="instructions-toggle" onclick="toggleInstructions('qaInstr')">
+            <span>📖 Инструкция / Instructiuni de utilizare</span>
+            <span class="arrow" id="qaInstrArrow">▶</span>
+        </div>
+        <div class="instructions-body" id="qaInstr">
+            <ol>
+                <li>В верхней таблице — <b>список всех лабораторных проверок</b>. Кликните на строку для просмотра содержимого анализа.</li>
+                <li>Используйте <b>поле поиска</b> для фильтрации по партии, чек-листу или инспектору.</li>
+                <li>В <b>нижней панели</b> отображаются пункты выбранной проверки: параметр, норма, фактическое значение, вердикт (ОК / FAIL).</li>
+                <li>Цветовая индикация: <span style="color:#53d769;">зелёный</span> = соответствует, <span style="color:#e94560;">красный</span> = не соответствует.</li>
+                <li>Кнопка <kbd>+ Проверка</kbd> открывает форму для создания новой инспекции.</li>
+                <li>Критические параметры помечены звёздочкой <span style="color:#e94560;">*</span>.</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="journal-toolbar">
+        <input type="text" class="search-input" id="checksSearchInput" placeholder="Поиск / Cautare..." oninput="renderChecksList()">
+    </div>
+
+    <!-- Master-Detail -->
+    <div class="journal-master-detail">
+        <!-- Master: check headers -->
+        <div class="journal-master">
+            <table><thead><tr>
+                <th style="width:60px;">ID</th>
+                <th style="width:110px;">Дата</th>
+                <th>Партия / Lot</th>
+                <th>Чек-лист / Sablon</th>
+                <th>Инспектор</th>
+                <th style="width:100px;">Результат</th>
+            </tr></thead><tbody id="checksBody"><tr><td colspan="6" class="empty">Загрузка...</td></tr></tbody></table>
+        </div>
+        <!-- Detail: selected check values -->
+        <div class="journal-detail" id="checkDetailPanel">
+            <div class="journal-detail-empty">Выберите проверку из списка выше / Selectati o inspectie din lista de mai sus</div>
+        </div>
+    </div>
 </div>
 
 <!-- ==================== BLOCKS ==================== -->
@@ -455,23 +528,109 @@ window.deleteChecklist = function(clId) {
     });
 };
 
-/* ==================== CHECKS ==================== */
+/* ==================== CHECKS (Master-Detail) ==================== */
+var checksList = [];
+var selectedCheckId = null;
+
 function loadChecks() {
     api('GET', '/api/agro-qa/checks').then(function(d) {
-        var rows = d.data || [];
-        var tb = document.getElementById('checksBody');
-        if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Нет проверок</td></tr>'; return; }
-        tb.innerHTML = rows.map(function(r) {
-            var rc = 'badge-' + (r.result || 'pass');
-            return '<tr><td>' + (r.check_date || r.created_at || '-') + '</td>' +
-                '<td>' + (r.batch_number || '-') + '</td>' +
-                '<td>' + (r.checklist_name || '-') + '</td>' +
-                '<td>' + (r.inspector || r.checked_by || '-') + '</td>' +
-                '<td><span class="badge ' + rc + '">' + (r.result || '-') + '</span></td>' +
-                '<td><button class="btn btn-sm btn-ghost" onclick="viewCheck(' + r.id + ')">Детали</button></td></tr>';
-        }).join('');
+        checksList = d.data || [];
+        renderChecksList();
     });
 }
+
+function renderChecksList() {
+    var tb = document.getElementById('checksBody');
+    var searchVal = (document.getElementById('checksSearchInput') || {}).value || '';
+    searchVal = searchVal.toLowerCase();
+
+    var filtered = checksList;
+    if (searchVal) {
+        filtered = checksList.filter(function(r) {
+            return ((r.batch_number || '').toLowerCase().indexOf(searchVal) !== -1) ||
+                ((r.checklist_name || '').toLowerCase().indexOf(searchVal) !== -1) ||
+                ((r.inspector || r.checked_by || '').toLowerCase().indexOf(searchVal) !== -1);
+        });
+    }
+
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Нет проверок / Nu exista inspectii</td></tr>'; return; }
+    tb.innerHTML = filtered.map(function(r) {
+        var rc = 'badge-' + (r.result || 'pass');
+        var isSelected = r.id === selectedCheckId;
+        var dateStr = r.check_date || r.created_at || '-';
+        if (dateStr !== '-') { var dd = new Date(dateStr); if (!isNaN(dd)) dateStr = dd.toLocaleDateString('ro-RO'); }
+        return '<tr class="' + (isSelected ? 'selected' : '') + '" onclick="selectCheckRow(' + r.id + ')">' +
+            '<td>' + (r.id || '-') + '</td>' +
+            '<td>' + dateStr + '</td>' +
+            '<td>' + (r.batch_number || '-') + '</td>' +
+            '<td>' + (r.checklist_name || '-') + '</td>' +
+            '<td>' + (r.inspector || r.checked_by || '-') + '</td>' +
+            '<td><span class="badge ' + rc + '">' + (r.result || '-') + '</span></td></tr>';
+    }).join('');
+
+    // Auto-select first row if nothing selected
+    if (!selectedCheckId && filtered.length > 0) {
+        selectCheckRow(filtered[0].id);
+    }
+}
+
+window.selectCheckRow = function(checkId) {
+    selectedCheckId = checkId;
+    // Highlight row
+    document.querySelectorAll('#checksBody tr').forEach(function(r) {
+        r.classList.remove('selected');
+        if (r.getAttribute('onclick') && r.getAttribute('onclick').indexOf('(' + checkId + ')') !== -1) {
+            r.classList.add('selected');
+        }
+    });
+    // Load detail
+    var panel = document.getElementById('checkDetailPanel');
+    panel.innerHTML = '<div class="journal-detail-empty">Загрузка... / Se incarca...</div>';
+
+    api('GET', '/api/agro-qa/checks/' + checkId).then(function(d) {
+        var c = d.data || {};
+        var resultBadge = 'badge-' + (c.result || 'pass');
+        var resultLabels = { pass: 'ГОДЕН / CONFORM', fail: 'БРАК / NECONFORM', conditional: 'УСЛОВНО / CONDITIONAL' };
+
+        var html = '<div class="detail-header">' +
+            '<h3>Проверка #' + (c.id || '-') + '</h3>' +
+            '<span class="badge ' + resultBadge + '" style="font-size:14px;padding:6px 16px;">' + (resultLabels[c.result] || c.result || '-') + '</span></div>';
+
+        html += '<div class="detail-props">' +
+            '<div class="prop">Партия: <b>' + (c.batch_number || '-') + '</b></div>' +
+            '<div class="prop">Чек-лист: <b>' + (c.checklist_name || '-') + '</b></div>' +
+            '<div class="prop">Инспектор: <b>' + (c.inspector || c.checked_by || '-') + '</b></div>' +
+            '<div class="prop">Дата: <b>' + (function(ds) { if (!ds) return '-'; var dd = new Date(ds); return isNaN(dd) ? ds : dd.toLocaleDateString('ro-RO'); })(c.check_date || c.created_at) + '</b></div></div>';
+
+        var values = c.values || [];
+        if (values.length === 0) {
+            html += '<div style="color:var(--text-muted);padding:20px;text-align:center;">Нет данных анализа / Nu exista date de inspectie</div>';
+        } else {
+            html += '<div style="margin-top:8px;">';
+            values.forEach(function(v, i) {
+                var compliant = v.is_compliant === 'Y';
+                var isCritical = v.is_critical === 'Y';
+                html += '<div class="check-value-row ' + (compliant ? 'compliant' : 'non-compliant') + '">' +
+                    '<div class="param-name">' + (i + 1) + '. ' + (v.parameter_name_ru || v.param_name || '?') +
+                        (isCritical ? ' <span style="color:#e94560;">*крит</span>' : '') + '</div>' +
+                    '<div class="param-norm">Норма: ' + (v.choices || ((v.min_value != null ? v.min_value : '') + (v.max_value != null ? '–' + v.max_value : '')) || '-') + '</div>' +
+                    '<div class="param-actual">' + (v.value || v.actual_value || '-') + '</div>' +
+                    '<div class="param-verdict" style="color:' + (compliant ? '#53d769' : '#e94560') + ';">' + (compliant ? 'OK' : 'FAIL') + '</div></div>';
+            });
+            html += '</div>';
+        }
+        panel.innerHTML = html;
+    }).catch(function(err) {
+        panel.innerHTML = '<div class="journal-detail-empty" style="color:var(--danger);">Ошибка: ' + err.message + '</div>';
+    });
+};
+
+window.toggleInstructions = function(id) {
+    var body = document.getElementById(id);
+    var arrow = document.getElementById(id + 'Arrow');
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+};
 
 window.openNewCheckModal = function() {
     document.getElementById('chkBatchId').value = '';
@@ -536,21 +695,7 @@ window.submitCheck = function() {
     });
 };
 
-window.viewCheck = function(checkId) {
-    api('GET', '/api/agro-qa/checks/' + checkId).then(function(d) {
-        var c = d.data || {};
-        var msg = 'Проверка #' + c.id + '\n' +
-            'Партия: ' + (c.batch_number || '-') + '\n' +
-            'Чек-лист: ' + (c.checklist_name || '-') + '\n' +
-            'Результат: ' + (c.result || '-') + '\n\n';
-        (c.values || []).forEach(function(v) {
-            msg += (v.parameter_name_ru || v.param_name || '?') + ': ' + (v.value || v.actual_value || '-') +
-                ' [' + (v.is_compliant === 'Y' ? 'OK' : 'FAIL') + ']' +
-                (v.is_critical === 'Y' ? ' *КРИТ*' : '') + '\n';
-        });
-        alert(msg);
-    });
-};
+/* viewCheck replaced by selectCheckRow in master-detail journal */
 
 /* ==================== BLOCKS ==================== */
 function loadBlocks() {
