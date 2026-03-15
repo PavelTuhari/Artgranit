@@ -488,6 +488,7 @@ def seed_qa(s: requests.Session) -> None:
             if ok(res):
                 counts["qa_checks_created"] += 1
                 chk_id = (res.get("check_id") or res.get("id")
+                          or res.get("data", {}).get("check_id")
                           or res.get("data", {}).get("id"))
                 print(f"    check #{i+1} batch={bid} checklist={cl_id} id={chk_id}")
             else:
