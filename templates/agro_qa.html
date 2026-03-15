@@ -6,21 +6,30 @@
 <title>AGRO QA / HACCP</title>
 <style>
 :root {
-    --primary: #059669; --primary-dark: #047857; --accent: #10b981;
-    --bg: #f0fdf4; --card-bg: #fff; --sidebar-bg: #064e3b; --sidebar-text: #d1fae5;
-    --text: #134e4a; --text-muted: #64748b; --border: #a7f3d0; --white: #fff;
-    --danger: #dc2626; --danger-bg: #fef2f2; --warning: #d97706; --warning-bg: #fffbeb;
-    --info: #2563eb;
+    --primary: #e94560; --primary-dark: #d63a55; --accent: #53d769;
+    --bg: #1a1a2e; --card-bg: #16213e; --sidebar-bg: #16213e; --sidebar-text: #b0b0c8;
+    --text: #e0e0e0; --text-muted: #8888aa; --border: #0f3460;
+    --white: #fff; --danger: #e94560; --danger-bg: #dc354530;
+    --warning: #f0a500; --warning-bg: #f0a50020; --info: #4a9eff;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
-.sidebar { width: 200px; background: var(--sidebar-bg); color: var(--sidebar-text); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
-.sidebar-logo { padding: 20px 16px 12px; font-size: 20px; font-weight: 700; color: var(--white); border-bottom: 1px solid rgba(255,255,255,.12); }
-.sidebar-section { padding: 14px 16px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.45); font-weight: 600; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+.top-bar { height: 48px; background: #0f3460; display: flex; align-items: center; padding: 0 16px; gap: 4px; flex-shrink: 0; border-bottom: 1px solid #1a4a7a; position: sticky; top: 0; z-index: 100; }
+.top-bar .logo { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-right: 12px; }
+.top-bar .nav-item { padding: 6px 14px; color: #b0b0c8; text-decoration: none; font-size: 13px; border-radius: 6px; transition: background .15s, color .15s; white-space: nowrap; }
+.top-bar .nav-item:hover { background: rgba(255,255,255,.08); color: var(--white); }
+.top-bar .nav-item.active { background: rgba(83,215,105,.15); color: var(--accent); font-weight: 600; }
+.top-bar .spacer { flex: 1; }
+.top-bar .back-link { padding: 6px 14px; color: var(--text-muted); text-decoration: none; font-size: 13px; border-radius: 6px; transition: background .15s, color .15s; white-space: nowrap; }
+.top-bar .back-link:hover { background: rgba(255,255,255,.06); color: var(--text); }
+.main-layout { display: flex; flex: 1; min-height: 0; }
+.sidebar { width: 200px; background: var(--sidebar-bg); color: var(--sidebar-text); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; max-height: calc(100vh - 48px); position: sticky; top: 48px; border-right: 1px solid var(--border); }
+.sidebar-logo { display: none; }
+.sidebar-section { padding: 14px 16px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.35); font-weight: 600; }
 .sidebar a { display: flex; align-items: center; padding: 10px 16px; color: var(--sidebar-text); text-decoration: none; font-size: 13px; transition: background .15s; border-left: 3px solid transparent; min-height: 42px; }
-.sidebar a:hover { background: rgba(255,255,255,.08); color: var(--white); }
-.sidebar a.active { background: rgba(255,255,255,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
-.sidebar-divider { border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+.sidebar a:hover { background: rgba(255,255,255,.07); color: var(--white); }
+.sidebar a.active { background: rgba(83,215,105,.1); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.sidebar-divider { border-top: 1px solid rgba(255,255,255,.07); margin: 8px 0; }
 .main { flex: 1; padding: 24px 32px; overflow-x: hidden; min-width: 0; }
 .page { display: none; } .page.active { display: block; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
@@ -31,45 +40,57 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .btn:hover { opacity: .88; } .btn:active { transform: scale(.97); }
 .btn-primary { background: var(--primary); color: var(--white); }
 .btn-accent { background: var(--accent); color: var(--white); }
-.btn-ghost { background: #ecfdf5; color: var(--text); border: 1px solid var(--border); }
-.btn-danger { background: #fecaca; color: #991b1b; }
-.btn-warning { background: #fef3c7; color: #92400e; }
+.btn-ghost { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+.btn-warning { background: var(--warning-bg); color: var(--warning); }
 .btn-sm { padding: 6px 14px; font-size: 13px; }
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
-.field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; color: var(--text); background: var(--white); min-height: 40px; }
-.field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(5,150,105,.12); }
+.field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; color: var(--text); background: #0f2043; min-height: 40px; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(233,69,96,.15); }
 .field-row { display: flex; gap: 12px; } .field-row .field { flex: 1; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-th { background: #ecfdf5; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; position: sticky; top: 0; z-index: 1; }
-tr:hover td { background: #f0fdf4; }
+th { background: #0f2043; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; position: sticky; top: 0; z-index: 1; }
+tr:hover td { background: rgba(255,255,255,.04); }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-.badge-pass { background: #d1fae5; color: #065f46; }
-.badge-fail { background: #fecaca; color: #991b1b; }
-.badge-conditional { background: #fef3c7; color: #92400e; }
-.badge-active { background: #d1fae5; color: #065f46; }
-.badge-blocked { background: #fecaca; color: #991b1b; }
+.badge-pass { background: rgba(83,215,105,.18); color: #53d769; }
+.badge-fail { background: rgba(233,69,96,.18); color: #e94560; }
+.badge-conditional { background: rgba(240,165,0,.18); color: #f0a500; }
+.badge-active { background: rgba(83,215,105,.18); color: #53d769; }
+.badge-blocked { background: rgba(233,69,96,.18); color: #e94560; }
 .table-wrap { overflow-x: auto; margin-top: 12px; }
 .block-card { border-left: 4px solid var(--danger); padding: 14px 18px; background: var(--danger-bg); border-radius: 0 8px 8px 0; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
-.check-item { background: #f9fafb; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
+.check-item { background: rgba(255,255,255,.04); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
 .check-item .field { margin-bottom: 0; flex: 1; }
 .toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 500; z-index: 2000; transform: translateY(100px); opacity: 0; transition: transform .3s, opacity .3s; color: var(--white); max-width: 400px; }
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast-success { background: var(--primary); } .toast-error { background: var(--danger); } .toast-warning { background: var(--warning); }
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; }
 .modal-overlay.open { display: flex; }
-.modal { background: var(--card-bg); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.18); max-width: 700px; width: 95%; padding: 24px; max-height: 90vh; overflow-y: auto; }
-.modal h2 { font-size: 18px; color: var(--primary-dark); margin-bottom: 16px; }
+.modal { background: var(--card-bg); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); border: 1px solid var(--border); max-width: 700px; width: 95%; padding: 24px; max-height: 90vh; overflow-y: auto; }
+.modal h2 { font-size: 18px; color: var(--text); margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
 .empty { text-align: center; padding: 24px; color: var(--text-muted); }
-.result-pass { color: #065f46; font-weight: 700; font-size: 18px; }
-.result-fail { color: #991b1b; font-weight: 700; font-size: 18px; }
-.result-conditional { color: #92400e; font-weight: 700; font-size: 18px; }
+.result-pass { color: #53d769; font-weight: 700; font-size: 18px; }
+.result-fail { color: var(--danger); font-weight: 700; font-size: 18px; }
+.result-conditional { color: var(--warning); font-weight: 700; font-size: 18px; }
+.page-header h1 { font-size: 22px; color: var(--text); }
 @media (max-width: 900px) { .sidebar { display: none; } .main { padding: 16px; } }
 </style>
 </head>
 <body>
+<div class="top-bar">
+    <div class="logo">AGRO</div>
+    <a href="/UNA.md/orasldev/agro-admin" class="nav-item">Admin</a>
+    <a href="/UNA.md/orasldev/agro-field" class="nav-item">Приёмка</a>
+    <a href="/UNA.md/orasldev/agro-warehouse" class="nav-item">Склад</a>
+    <a href="/UNA.md/orasldev/agro-qa" class="nav-item active">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales" class="nav-item">Продажи</a>
+    <div class="spacer"></div>
+    <a href="/UNA.md/orasldev" class="back-link">&#8592; SQL Developer</a>
+</div>
+<div class="main-layout">
 <nav class="sidebar">
     <div class="sidebar-logo">AGRO QA</div>
     <div class="sidebar-section">Контроль качества</div>
@@ -80,12 +101,6 @@ tr:hover td { background: #f0fdf4; }
     <div class="sidebar-section">HACCP</div>
     <a href="#haccp" class="nav-link" data-page="haccp">Планы / Planuri</a>
     <a href="#deviations" class="nav-link" data-page="deviations">Отклонения / Devieri</a>
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">Навигация</div>
-    <a href="/UNA.md/orasldev/agro-admin">Admin</a>
-    <a href="/UNA.md/orasldev/agro-field">Field</a>
-    <a href="/UNA.md/orasldev/agro-warehouse">Warehouse</a>
-    <a href="/UNA.md/orasldev/agro-sales">Sales</a>
 </nav>
 
 <main class="main">
@@ -153,8 +168,8 @@ tr:hover td { background: #f0fdf4; }
     <div class="page-header">
         <div><h1>Отклонения HACCP / Devieri HACCP</h1><div class="subtitle">Inregistrari in afara limitelor critice</div></div>
         <div style="display:flex;gap:8px;">
-            <input type="date" id="devFrom" onchange="loadDeviations()" style="padding:8px;border:1px solid var(--border);border-radius:8px;">
-            <input type="date" id="devTo" onchange="loadDeviations()" style="padding:8px;border:1px solid var(--border);border-radius:8px;">
+            <input type="date" id="devFrom" onchange="loadDeviations()" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:#0f2043;color:var(--text);">
+            <input type="date" id="devTo" onchange="loadDeviations()" style="padding:8px;border:1px solid var(--border);border-radius:8px;background:#0f2043;color:var(--text);">
         </div>
     </div>
     <div class="card"><div class="table-wrap">
@@ -164,6 +179,7 @@ tr:hover td { background: #f0fdf4; }
     </div></div>
 </div>
 </main>
+</div><!-- /.main-layout -->
 
 <!-- MODALS -->
 <!-- Checklist Modal -->

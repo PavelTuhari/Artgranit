@@ -3780,6 +3780,81 @@ def api_agro_field_sync_refs():
 
 
 # ============================================================
+# AGRO Scale Emulator API
+# ============================================================
+from services.scale_emulator import get_scale, list_scales, create_scale
+
+
+@app.route('/api/agro-scale/read', methods=['GET'])
+def api_agro_scale_read():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    scale_id = request.args.get('scale_id', 'default')
+    scale = get_scale(scale_id)
+    return jsonify({"success": True, "data": scale.read().to_dict()})
+
+
+@app.route('/api/agro-scale/zero', methods=['POST'])
+def api_agro_scale_zero():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    scale_id = (request.json or {}).get('scale_id', 'default')
+    return jsonify(get_scale(scale_id).zero())
+
+
+@app.route('/api/agro-scale/tare', methods=['POST'])
+def api_agro_scale_tare():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    scale_id = (request.json or {}).get('scale_id', 'default')
+    return jsonify(get_scale(scale_id).tare())
+
+
+@app.route('/api/agro-scale/capture', methods=['POST'])
+def api_agro_scale_capture():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    scale_id = (request.json or {}).get('scale_id', 'default')
+    return jsonify(get_scale(scale_id).capture())
+
+
+@app.route('/api/agro-scale/simulate', methods=['POST'])
+def api_agro_scale_simulate():
+    """Place a simulated weight on the scale (emulator only)."""
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.json or {}
+    scale_id = data.get('scale_id', 'default')
+    scale = get_scale(scale_id)
+    weight = data.get('weight_kg')
+    if weight is not None:
+        return jsonify(scale.simulate_load(float(weight)))
+    if data.get('random'):
+        return jsonify(scale.simulate_random_load(
+            min_kg=float(data.get('min_kg', 5)),
+            max_kg=float(data.get('max_kg', 50)),
+        ))
+    if data.get('remove'):
+        return jsonify(scale.simulate_remove())
+    return jsonify({"success": False, "error": "Provide weight_kg, random, or remove"})
+
+
+@app.route('/api/agro-scale/config', methods=['GET'])
+def api_agro_scale_config():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    scale_id = request.args.get('scale_id', 'default')
+    return jsonify({"success": True, "data": get_scale(scale_id).get_config()})
+
+
+@app.route('/api/agro-scale/list', methods=['GET'])
+def api_agro_scale_list():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify({"success": True, "data": list_scales()})
+
+
+# ============================================================
 # AGRO Warehouse API
 # ============================================================
 

@@ -9,21 +9,21 @@
 <script src="/static/agro/offline-db.js"></script>
 <style>
 :root {
-    --primary: #059669;
-    --primary-dark: #047857;
-    --accent: #10b981;
-    --bg: #f0fdf4;
-    --card-bg: #fff;
-    --sidebar-bg: #064e3b;
-    --sidebar-text: #d1fae5;
-    --text: #134e4a;
-    --text-muted: #64748b;
-    --border: #a7f3d0;
+    --primary: #e94560;
+    --primary-dark: #d63a55;
+    --accent: #53d769;
+    --bg: #1a1a2e;
+    --card-bg: #16213e;
+    --sidebar-bg: #16213e;
+    --sidebar-text: #b0b0c8;
+    --text: #e0e0e0;
+    --text-muted: #8888aa;
+    --border: #0f3460;
     --white: #fff;
-    --danger: #dc2626;
-    --danger-bg: #fef2f2;
-    --warning: #d97706;
-    --warning-bg: #fffbeb;
+    --danger: #e94560;
+    --danger-bg: #dc354530;
+    --warning: #f59e0b;
+    --warning-bg: #f59e0b22;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -31,6 +31,7 @@ body {
     background: var(--bg);
     color: var(--text);
     display: flex;
+    flex-direction: column;
     min-height: 100vh;
     font-size: 16px;
 }
@@ -48,48 +49,42 @@ body {
     z-index: 3000;
     transition: transform .3s;
 }
-.status-bar.online { background: #d1fae5; color: #065f46; transform: translateY(-32px); }
+.status-bar.online { background: #1a3a2e; color: #53d769; transform: translateY(-32px); }
 .status-bar.online.flash { transform: translateY(0); }
-.status-bar.offline { background: #fef2f2; color: #991b1b; transform: translateY(0); }
+.status-bar.offline { background: #3a1a1a; color: #e94560; transform: translateY(0); }
 .status-bar .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
-.status-bar.online .dot { background: #059669; }
-.status-bar.offline .dot { background: #dc2626; }
+.status-bar.online .dot { background: #53d769; }
+.status-bar.offline .dot { background: #e94560; }
 
 /* ---------- Sidebar ---------- */
 .sidebar {
     width: 180px;
-    background: var(--sidebar-bg);
+    background: #16213e;
+    border-right: 1px solid #0f3460;
     color: var(--sidebar-text);
     padding: 0;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    max-height: 100vh;
+    max-height: calc(100vh - 48px);
     position: sticky;
     top: 0;
     z-index: 100;
 }
-.sidebar-logo {
-    padding: 20px 16px 12px;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--white);
-    border-bottom: 1px solid rgba(255,255,255,.12);
-    letter-spacing: .5px;
-}
+.sidebar-logo { display: none; }
 .sidebar-section {
     padding: 14px 16px 4px;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: rgba(255,255,255,.45);
+    color: #555577;
     font-weight: 600;
 }
 .sidebar a {
     display: block;
     padding: 12px 16px;
-    color: var(--sidebar-text);
+    color: #8888aa;
     text-decoration: none;
     font-size: 14px;
     transition: background .15s;
@@ -98,16 +93,16 @@ body {
     display: flex;
     align-items: center;
 }
-.sidebar a:hover { background: rgba(255,255,255,.08); color: var(--white); }
-.sidebar a.active { background: rgba(255,255,255,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
-.sidebar-divider { border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+.sidebar a:hover { background: #0f3460; color: #e0e0e0; }
+.sidebar a.active { background: #0f3460; color: #e0e0e0; border-left-color: #e94560; font-weight: 600; }
+.sidebar-divider { display: none; }
 .sidebar-toggle {
     display: none;
     position: fixed;
-    top: 8px; left: 8px;
+    top: 56px; left: 8px;
     z-index: 200;
     width: 48px; height: 48px;
-    background: var(--sidebar-bg);
+    background: #16213e;
     color: var(--white);
     border: none;
     border-radius: 10px;
@@ -115,11 +110,15 @@ body {
     cursor: pointer;
 }
 
+/* ---------- Main Layout ---------- */
+.main-layout { display: flex; flex: 1; min-height: 0; }
+
 /* ---------- Main ---------- */
 .main {
     flex: 1;
-    padding: 24px 28px;
-    overflow-x: hidden;
+    padding: 20px 28px;
+    overflow-y: auto;
+    height: calc(100vh - 48px);
     min-width: 0;
 }
 .page { display: none; }
@@ -134,14 +133,15 @@ body {
     flex-wrap: wrap;
     gap: 12px;
 }
-.page-header h1 { font-size: 22px; color: var(--primary-dark); }
+.page-header h1 { font-size: 22px; color: #e0e0e0; }
 .page-header .subtitle { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
 
 /* ---------- Card ---------- */
 .card {
-    background: var(--card-bg);
+    background: #16213e;
+    border: 1px solid #0f3460;
     border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
     padding: 20px;
     margin-bottom: 20px;
 }
@@ -166,9 +166,9 @@ body {
 .btn:active { transform: scale(.97); }
 .btn-primary { background: var(--primary); color: var(--white); }
 .btn-accent { background: var(--accent); color: var(--white); }
-.btn-ghost { background: #ecfdf5; color: var(--text); border: 1px solid var(--border); }
-.btn-danger { background: #fecaca; color: #991b1b; }
-.btn-warning { background: var(--warning-bg); color: #92400e; border: 1px solid #fbbf24; }
+.btn-ghost { background: #1a1a2e; color: var(--text); border: 1px solid #333366; }
+.btn-danger { background: #e9456030; color: #e94560; border: 1px solid #e9456060; }
+.btn-warning { background: var(--warning-bg); color: #f59e0b; border: 1px solid #f59e0b60; }
 .btn-sm { padding: 10px 16px; font-size: 14px; }
 .btn-lg {
     padding: 18px 36px;
@@ -191,18 +191,18 @@ body {
 .field input, .field select, .field textarea {
     width: 100%;
     padding: 14px 16px;
-    border: 1px solid var(--border);
+    border: 1px solid #333366;
     border-radius: 10px;
     font-size: 18px;
-    color: var(--text);
-    background: var(--white);
+    color: #e0e0e0;
+    background: #1a1a2e;
     transition: border-color .15s;
     min-height: 48px;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(5,150,105,.12);
+    box-shadow: 0 0 0 3px rgba(233,69,96,.18);
 }
 .field-row { display: flex; gap: 12px; }
 .field-row .field { flex: 1; }
@@ -216,7 +216,7 @@ body {
     padding: 20px;
     min-height: 80px;
     letter-spacing: 2px;
-    color: var(--primary-dark);
+    color: #e0e0e0;
 }
 .weight-display {
     display: flex;
@@ -225,15 +225,15 @@ body {
 }
 .weight-box {
     flex: 1;
-    background: #ecfdf5;
-    border: 2px solid var(--border);
+    background: #1a1a2e;
+    border: 2px solid #0f3460;
     border-radius: 12px;
     padding: 16px;
     text-align: center;
 }
-.weight-box.net { border-color: var(--primary); background: #d1fae5; }
+.weight-box.net { border-color: var(--primary); background: #2a0f1e; }
 .weight-box .wlabel { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
-.weight-box .wvalue { font-size: 28px; font-weight: 700; color: var(--primary-dark); }
+.weight-box .wvalue { font-size: 28px; font-weight: 700; color: #e0e0e0; }
 
 /* ---------- Packaging Type Selector ---------- */
 .pkg-selector {
@@ -244,9 +244,10 @@ body {
 }
 .pkg-btn {
     padding: 14px 20px;
-    border: 2px solid var(--border);
+    border: 2px solid #333366;
     border-radius: 12px;
-    background: var(--white);
+    background: #1a1a2e;
+    color: #b0b0c8;
     cursor: pointer;
     font-size: 16px;
     font-weight: 500;
@@ -256,11 +257,11 @@ body {
     transition: all .15s;
     touch-action: manipulation;
 }
-.pkg-btn:hover { border-color: var(--accent); }
+.pkg-btn:hover { border-color: var(--accent); color: #e0e0e0; }
 .pkg-btn.selected {
     border-color: var(--primary);
-    background: #d1fae5;
-    color: var(--primary-dark);
+    background: #2a0f1e;
+    color: #e94560;
     font-weight: 700;
 }
 
@@ -297,7 +298,7 @@ body {
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
 th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); }
 th {
-    background: #ecfdf5;
+    background: #0f3460;
     font-weight: 600;
     color: var(--text-muted);
     position: sticky;
@@ -307,7 +308,7 @@ th {
     text-transform: uppercase;
     letter-spacing: .3px;
 }
-tr:hover td { background: #f0fdf4; }
+tr:hover td { background: #1a1a3e; }
 tr.clickable { cursor: pointer; }
 
 /* ---------- Badges ---------- */
@@ -319,12 +320,12 @@ tr.clickable { cursor: pointer; }
     font-weight: 600;
     white-space: nowrap;
 }
-.badge-draft { background: #fef3c7; color: #92400e; }
-.badge-confirmed { background: #d1fae5; color: #065f46; }
-.badge-closed { background: #e2e8f0; color: #475569; }
-.badge-generated { background: #e0f2fe; color: #0369a1; }
-.badge-printed { background: #fef3c7; color: #92400e; }
-.badge-assigned { background: #d1fae5; color: #065f46; }
+.badge-draft { background: #f59e0b22; color: #f59e0b; }
+.badge-confirmed { background: #53d76922; color: #53d769; }
+.badge-closed { background: #8888aa22; color: #8888aa; }
+.badge-generated { background: #3b82f622; color: #60a5fa; }
+.badge-printed { background: #f59e0b22; color: #f59e0b; }
+.badge-assigned { background: #53d76922; color: #53d769; }
 
 /* ---------- Status Tabs ---------- */
 .status-tabs {
@@ -335,9 +336,10 @@ tr.clickable { cursor: pointer; }
 }
 .status-tab {
     padding: 10px 20px;
-    border: 2px solid var(--border);
+    border: 2px solid #333366;
     border-radius: 10px;
-    background: var(--white);
+    background: #1a1a2e;
+    color: #8888aa;
     cursor: pointer;
     font-size: 15px;
     font-weight: 500;
@@ -347,8 +349,8 @@ tr.clickable { cursor: pointer; }
     transition: all .15s;
     touch-action: manipulation;
 }
-.status-tab:hover { border-color: var(--accent); }
-.status-tab.active { border-color: var(--primary); background: #d1fae5; color: var(--primary-dark); font-weight: 700; }
+.status-tab:hover { border-color: var(--accent); color: #e0e0e0; }
+.status-tab.active { border-color: var(--primary); background: #2a0f1e; color: #e94560; font-weight: 700; }
 .status-tab .tab-count {
     background: rgba(0,0,0,.08);
     padding: 2px 8px;
@@ -360,15 +362,15 @@ tr.clickable { cursor: pointer; }
 /* ---------- Crate Info Panel ---------- */
 .crate-info {
     display: none;
-    border: 2px solid var(--border);
+    border: 2px solid #333366;
     border-radius: 14px;
     padding: 20px;
     margin-top: 16px;
-    background: var(--white);
+    background: #16213e;
 }
 .crate-info.visible { display: block; }
-.crate-info.new-crate { border-color: var(--accent); background: #ecfdf5; }
-.crate-info.existing-crate { border-color: #60a5fa; background: #eff6ff; }
+.crate-info.new-crate { border-color: var(--accent); background: #0f2a1a; }
+.crate-info.existing-crate { border-color: #3b82f6; background: #0f1f3a; }
 .crate-info h3 { font-size: 18px; margin-bottom: 12px; }
 
 /* ---------- Purchase Lines ---------- */
@@ -391,8 +393,8 @@ tr.clickable { cursor: pointer; }
 .line-remove {
     width: 40px; height: 40px;
     border: none;
-    background: #fef2f2;
-    color: #dc2626;
+    background: #e9456022;
+    color: #e94560;
     border-radius: 8px;
     cursor: pointer;
     font-size: 18px;
@@ -406,23 +408,24 @@ tr.clickable { cursor: pointer; }
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,.45);
+    background: rgba(0,0,0,.65);
     z-index: 1000;
     align-items: center;
     justify-content: center;
 }
 .modal-overlay.open { display: flex; }
 .modal {
-    background: var(--card-bg);
+    background: #16213e;
+    border: 1px solid #0f3460;
     border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
     max-width: 700px;
     width: 95%;
     padding: 28px;
     max-height: 90vh;
     overflow-y: auto;
 }
-.modal h2 { font-size: 20px; color: var(--primary-dark); margin-bottom: 20px; }
+.modal h2 { font-size: 20px; color: #e0e0e0; margin-bottom: 20px; }
 .modal-actions { display: flex; gap: 12px; margin-top: 22px; justify-content: flex-end; }
 
 /* ---------- Toast ---------- */
@@ -448,7 +451,7 @@ tr.clickable { cursor: pointer; }
 
 /* ---------- Print Container ---------- */
 .barcode-print-area { margin-top: 20px; }
-.barcode-print-container { border: 1px dashed var(--border); border-radius: 12px; padding: 16px; min-height: 100px; }
+.barcode-print-container { border: 1px dashed #333366; border-radius: 12px; padding: 16px; min-height: 100px; }
 .barcode-page {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -457,7 +460,7 @@ tr.clickable { cursor: pointer; }
     margin-bottom: 16px;
 }
 .barcode-label {
-    border: 1px solid #e5e7eb;
+    border: 1px solid #333366;
     border-radius: 4px;
     padding: 8px;
     text-align: center;
@@ -466,21 +469,46 @@ tr.clickable { cursor: pointer; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    background: #1a1a2e;
 }
 .barcode-label svg { max-width: 100%; }
 .barcode-text { font-family: monospace; font-size: 11px; margin-top: 4px; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
-    .sidebar { position: fixed; left: -200px; top: 0; bottom: 0; z-index: 150; transition: left .25s; width: 200px; }
+    .sidebar { position: fixed; left: -200px; top: 48px; bottom: 0; z-index: 150; transition: left .25s; width: 200px; max-height: calc(100vh - 48px); }
     .sidebar.open { left: 0; }
     .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
-    .main { padding: 16px; padding-top: 64px; }
+    .main { padding: 16px; height: calc(100vh - 48px); }
     .viewfinder { height: 250px; }
     .purchase-line { grid-template-columns: 1fr 1fr; gap: 6px; font-size: 14px; }
     .purchase-line-header { display: none; }
     .weight-display { flex-direction: column; gap: 10px; }
 }
+
+/* ---------- Top Bar ---------- */
+.top-bar {
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    flex-shrink: 0;
+    z-index: 500;
+}
+.top-bar .logo { color: #53d769; font-weight: 700; font-size: 16px; letter-spacing: 1px; margin-right: 8px; }
+.top-bar .logo span { color: #e94560; }
+.top-bar .nav-item {
+    padding: 6px 12px; cursor: pointer; color: #a0a0c0; border-radius: 4px;
+    font-size: 12px; transition: all .2s; white-space: nowrap; text-decoration: none;
+}
+.top-bar .nav-item:hover { background: #0f3460; color: #fff; }
+.top-bar .nav-item.active { background: #e94560; color: #fff; }
+.top-bar .spacer { flex: 1; }
+.back-link { color: #8888aa; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+.back-link:hover { color: #e94560; }
 
 @media print {
     body * { visibility: hidden !important; }
@@ -511,8 +539,21 @@ tr.clickable { cursor: pointer; }
 </div>
 
 <!-- ============================================================ -->
-<!-- SIDEBAR TOGGLE (mobile)                                        -->
+<!-- TOP BAR                                                        -->
 <!-- ============================================================ -->
+<div class="top-bar">
+    <div class="logo">AGRO</div>
+    <a href="/UNA.md/orasldev/agro-admin" class="nav-item">Admin</a>
+    <a href="/UNA.md/orasldev/agro-field" class="nav-item active">Приёмка</a>
+    <a href="/UNA.md/orasldev/agro-warehouse" class="nav-item">Склад</a>
+    <a href="/UNA.md/orasldev/agro-qa" class="nav-item">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales" class="nav-item">Продажи</a>
+    <div class="spacer"></div>
+    <a href="/UNA.md/orasldev" class="back-link">&#8592; SQL Developer</a>
+</div>
+
+<div class="main-layout">
+
 <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">&#9776;</button>
 
 <!-- ============================================================ -->
@@ -526,13 +567,9 @@ tr.clickable { cursor: pointer; }
     <a href="#purchase" class="nav-link" data-page="purchase">Закупка / Achizitie</a>
     <a href="#barcodes" class="nav-link" data-page="barcodes">Штрихкоды / Coduri</a>
     <a href="#purchases-list" class="nav-link" data-page="purchases-list">Список / Lista</a>
-
     <div class="sidebar-divider"></div>
-    <div class="sidebar-section">Навигация</div>
-    <a href="/UNA.md/orasldev/agro-admin">Admin</a>
-    <a href="/UNA.md/orasldev/agro-warehouse">Warehouse</a>
-    <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
-    <a href="/UNA.md/orasldev/agro-sales">Sales</a>
+    <div class="sidebar-section">Весы / Cântar</div>
+    <a href="#scale" class="nav-link" data-page="scale">Весы / Cântar</a>
 </nav>
 
 <!-- ============================================================ -->
@@ -660,7 +697,7 @@ tr.clickable { cursor: pointer; }
         </div>
 
         <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div style="font-size:18px;font-weight:700;color:var(--primary-dark);">
+            <div style="font-size:18px;font-weight:700;color:#e0e0e0;">
                 Итого / Total: <span id="purchaseTotal">0.00</span> MDL
             </div>
             <div style="display:flex;gap:10px;">
@@ -754,7 +791,94 @@ tr.clickable { cursor: pointer; }
     </div>
 </div>
 
+<!-- ==================== 5. SCALE / ВЕСЫ ==================== -->
+<div id="page-scale" class="page">
+    <div class="page-header">
+        <div><h1>Весы / Cântar</h1><div class="subtitle">Интеграция с весовым оборудованием / Integrare cântar</div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <span id="scaleConnectionStatus" style="font-size:12px;padding:4px 10px;border-radius:10px;background:#28a74530;color:#53d769;">Emulator</span>
+            <select id="scaleId" class="form-control" style="width:140px;padding:6px 10px;font-size:12px;background:#1a1a2e;border:1px solid #333366;color:#e0e0e0;border-radius:4px;" onchange="switchScale()">
+                <option value="default">Default</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Live Weight Display -->
+    <div class="card" style="text-align:center;padding:30px;">
+        <div id="scaleStatusIndicator" style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#666;margin-bottom:12px;transition:background .3s;"></div>
+        <div style="font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;" id="scaleStatusText">Idle</div>
+        <div id="scaleGrossDisplay" style="font-size:72px;font-weight:700;color:#e0e0e0;line-height:1;font-variant-numeric:tabular-nums;">0.000</div>
+        <div style="font-size:16px;color:#8888aa;margin-top:4px;">kg (gross)</div>
+
+        <div class="weight-display" style="margin-top:20px;justify-content:center;gap:30px;">
+            <div class="weight-box" style="min-width:140px;">
+                <div class="wlabel">Tare / Тара</div>
+                <div class="wvalue" id="scaleTareDisplay">0.000</div>
+            </div>
+            <div class="weight-box net" style="min-width:140px;">
+                <div class="wlabel">Net / Нетто</div>
+                <div class="wvalue" id="scaleNetDisplay">0.000</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="scaleZero()">Zero / Ноль</button>
+            <button class="btn btn-accent" onclick="scaleTare()">Tare / Тара</button>
+            <button class="btn btn-primary" onclick="scaleCapture()" id="btnScaleCapture">Capture / Зафиксировать</button>
+        </div>
+    </div>
+
+    <!-- Emulator Controls -->
+    <div class="card">
+        <h3 style="font-size:14px;color:#8888aa;margin-bottom:14px;">Emulator / Эмулятор</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="field" style="margin:0;flex:0 0 160px;">
+                <label>Вес / Greutate (kg)</label>
+                <input type="number" id="scaleSimWeight" value="25.5" step="0.1" min="0" max="600" style="width:100%;padding:8px;background:#1a1a2e;border:1px solid #333366;color:#e0e0e0;border-radius:4px;">
+            </div>
+            <button class="btn btn-secondary" onclick="scaleSimulate()">Поставить / Pune</button>
+            <button class="btn btn-secondary" onclick="scaleSimulateRandom()">Случайный / Aleator</button>
+            <button class="btn btn-danger" onclick="scaleSimulateRemove()">Снять / Ridica</button>
+        </div>
+        <div style="font-size:11px;color:#6c6c8a;margin-top:10px;">
+            Этот блок управляет эмулятором весов. При подключении реального оборудования он заменяется драйвером.
+        </div>
+    </div>
+
+    <!-- Captured Reading -->
+    <div class="card" id="scaleCapturedCard" style="display:none;">
+        <h3 style="font-size:14px;color:#53d769;margin-bottom:14px;">Зафиксированный вес / Greutate fixata</h3>
+        <div class="weight-display" style="margin-bottom:16px;">
+            <div class="weight-box">
+                <div class="wlabel">Gross / Брутто</div>
+                <div class="wvalue" id="capturedGross">-</div>
+            </div>
+            <div class="weight-box">
+                <div class="wlabel">Tare / Тара</div>
+                <div class="wvalue" id="capturedTare">-</div>
+            </div>
+            <div class="weight-box net">
+                <div class="wlabel">Net / Нетто</div>
+                <div class="wvalue" id="capturedNet">-</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary" onclick="applyScaleToCurrentLine()">Применить к строке / Aplica la linie</button>
+            <button class="btn btn-secondary" onclick="clearCaptured()">Сбросить / Reseteaza</button>
+        </div>
+    </div>
+
+    <!-- Scale Config -->
+    <div class="card">
+        <h3 style="font-size:14px;color:#8888aa;margin-bottom:10px;">Конфигурация / Configurare</h3>
+        <div id="scaleConfigInfo" style="font-size:12px;color:#b0b0c8;font-family:monospace;"></div>
+    </div>
+</div>
+
 </main>
+
+</div><!-- /.main-layout -->
 
 <!-- ============================================================ -->
 <!-- TOAST                                                          -->
@@ -816,6 +940,8 @@ window.navigateTo = function(page) {
 
     // Refresh data on page switch
     if (page === 'purchases-list') loadPurchasesList();
+    if (page === 'scale') startScalePolling();
+    else stopScalePolling();
 };
 
 window.toggleSidebar = function() {
@@ -1384,6 +1510,163 @@ AgroOfflineDB.open().then(function() {
     cacheReferencesOffline();
     updateQueueBadge();
 });
+
+/* ========== SCALE INTEGRATION ========== */
+var scalePollingTimer = null;
+var scaleCurrentReading = null;
+
+function startScalePolling() {
+    if (scalePollingTimer) return;
+    loadScaleConfig();
+    scalePollingTimer = setInterval(pollScale, 250);
+    pollScale();
+}
+
+function stopScalePolling() {
+    if (scalePollingTimer) {
+        clearInterval(scalePollingTimer);
+        scalePollingTimer = null;
+    }
+}
+
+function pollScale() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/read?scale_id=' + encodeURIComponent(scaleId))
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success) return;
+            var d = res.data;
+            scaleCurrentReading = d;
+            document.getElementById('scaleGrossDisplay').textContent = d.gross_kg.toFixed(3);
+            document.getElementById('scaleTareDisplay').textContent = d.tare_kg.toFixed(3);
+            document.getElementById('scaleNetDisplay').textContent = d.net_kg.toFixed(3);
+
+            var indicator = document.getElementById('scaleStatusIndicator');
+            var statusText = document.getElementById('scaleStatusText');
+            var captureBtn = document.getElementById('btnScaleCapture');
+            if (d.status === 'stable') {
+                indicator.style.background = '#53d769';
+                statusText.textContent = 'Stable / Стабильно';
+                captureBtn.disabled = false;
+            } else if (d.status === 'settling') {
+                indicator.style.background = '#ffc107';
+                statusText.textContent = 'Settling... / Стабилизация...';
+                captureBtn.disabled = true;
+            } else if (d.status === 'overload') {
+                indicator.style.background = '#e94560';
+                statusText.textContent = 'OVERLOAD / ПЕРЕГРУЗ';
+                captureBtn.disabled = true;
+            } else if (d.status === 'error') {
+                indicator.style.background = '#e94560';
+                statusText.textContent = 'ERROR / ОШИБКА';
+                captureBtn.disabled = true;
+            } else {
+                indicator.style.background = '#666';
+                statusText.textContent = 'Idle / Ожидание';
+                captureBtn.disabled = true;
+            }
+        })
+        .catch(function() {});
+}
+
+window.scaleZero = function() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/zero', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: scaleId})
+    }).then(function(r) { return r.json(); })
+      .then(function(res) { if (res.success) showToast('Scale zeroed / Весы обнулены', 'success'); });
+};
+
+window.scaleTare = function() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/tare', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: scaleId})
+    }).then(function(r) { return r.json(); })
+      .then(function(res) { if (res.success) showToast('Tare set: ' + res.tare_kg + ' kg', 'success'); });
+};
+
+window.scaleCapture = function() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/capture', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: scaleId})
+    }).then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res.success) {
+            var rd = res.reading;
+            document.getElementById('capturedGross').textContent = rd.gross_kg.toFixed(3);
+            document.getElementById('capturedTare').textContent = rd.tare_kg.toFixed(3);
+            document.getElementById('capturedNet').textContent = rd.net_kg.toFixed(3);
+            document.getElementById('scaleCapturedCard').style.display = 'block';
+            showToast('Weight captured / Вес зафиксирован', 'success');
+        } else {
+            showToast(res.error || 'Cannot capture', 'error');
+        }
+    });
+};
+
+window.clearCaptured = function() {
+    document.getElementById('scaleCapturedCard').style.display = 'none';
+};
+
+window.applyScaleToCurrentLine = function() {
+    var gross = document.getElementById('capturedGross').textContent;
+    var tare = document.getElementById('capturedTare').textContent;
+    var net = document.getElementById('capturedNet').textContent;
+    // Apply to the scan page gross weight input
+    var grossInput = document.getElementById('grossWeight');
+    if (grossInput) {
+        grossInput.value = parseFloat(gross).toFixed(2);
+        if (typeof calcNetWeight === 'function') calcNetWeight();
+    }
+    showToast('Weight applied / Вес применён: ' + net + ' kg', 'success');
+    clearCaptured();
+    navigateTo('scan');
+};
+
+window.scaleSimulate = function() {
+    var w = parseFloat(document.getElementById('scaleSimWeight').value) || 0;
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: scaleId, weight_kg: w})
+    });
+};
+
+window.scaleSimulateRandom = function() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: scaleId, random: true, min_kg: 5, max_kg: 50})
+    });
+};
+
+window.scaleSimulateRemove = function() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: scaleId, remove: true})
+    });
+};
+
+window.switchScale = function() {
+    stopScalePolling();
+    startScalePolling();
+};
+
+function loadScaleConfig() {
+    var scaleId = document.getElementById('scaleId').value;
+    fetch('/api/agro-scale/config?scale_id=' + encodeURIComponent(scaleId))
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success) return;
+            var c = res.data;
+            var info = document.getElementById('scaleConfigInfo');
+            info.innerHTML = 'Max: ' + c.max_capacity_kg + ' kg | Resolution: ' + c.resolution_kg + ' kg | Settle: ' + c.settle_time_s + 's | Mode: ' + (c.emulator ? 'Emulator' : 'Hardware');
+        });
+}
 
 })();
 </script>

@@ -6,77 +6,114 @@
 <title>AGRO Admin</title>
 <style>
 :root {
-    --primary: #059669;
-    --primary-dark: #047857;
-    --accent: #10b981;
-    --bg: #f0fdf4;
-    --card-bg: #fff;
-    --sidebar-bg: #064e3b;
-    --sidebar-text: #d1fae5;
-    --text: #134e4a;
-    --text-muted: #64748b;
-    --border: #a7f3d0;
+    --primary: #e94560;
+    --primary-dark: #d63a55;
+    --accent: #53d769;
+    --bg: #1a1a2e;
+    --card-bg: #16213e;
+    --sidebar-bg: #16213e;
+    --sidebar-text: #b0b0c8;
+    --text: #e0e0e0;
+    --text-muted: #8888aa;
+    --border: #0f3460;
     --white: #fff;
-    --danger: #dc2626;
-    --danger-bg: #fef2f2;
+    --danger: #e94560;
+    --danger-bg: #dc354530;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    display: flex;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Top Bar ---------- */
+.top-bar {
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.top-bar .logo {
+    color: #53d769;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 1px;
+    margin-right: 8px;
+}
+.top-bar .logo span { color: #e94560; }
+.top-bar .nav-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    color: #a0a0c0;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: all .2s;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.top-bar .nav-item:hover { background: #0f3460; color: #fff; }
+.top-bar .nav-item.active { background: #e94560; color: #fff; }
+.top-bar .spacer { flex: 1; }
+.back-link {
+    color: #8888aa;
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.back-link:hover { color: #e94560; }
+
+/* ---------- Main Layout ---------- */
+.main-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
 }
 
 /* ---------- Sidebar ---------- */
 .sidebar {
     width: 220px;
-    background: var(--sidebar-bg);
-    color: var(--sidebar-text);
-    padding: 0;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
+    background: #16213e;
+    border-right: 1px solid #0f3460;
     overflow-y: auto;
-    max-height: 100vh;
-    position: sticky;
-    top: 0;
-}
-.sidebar-logo {
-    padding: 20px 20px 12px;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--white);
-    border-bottom: 1px solid rgba(255,255,255,.12);
-    letter-spacing: .5px;
+    flex-shrink: 0;
 }
 .sidebar-section {
-    padding: 14px 20px 4px;
+    padding: 10px 14px 4px;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: rgba(255,255,255,.45);
+    color: #6c6c8a;
     font-weight: 600;
 }
 .sidebar a {
     display: block;
-    padding: 9px 20px;
-    color: var(--sidebar-text);
+    padding: 7px 14px 7px 20px;
+    color: #b0b0c8;
     text-decoration: none;
     font-size: 13px;
-    transition: background .15s;
+    transition: all .15s;
     border-left: 3px solid transparent;
 }
-.sidebar a:hover { background: rgba(255,255,255,.08); color: var(--white); }
-.sidebar a.active { background: rgba(255,255,255,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
-.sidebar-divider { border-top: 1px solid rgba(255,255,255,.1); margin: 8px 0; }
+.sidebar a:hover { background: #0f3460; color: #fff; }
+.sidebar a.active { background: #0f346080; color: #fff; border-left-color: #e94560; font-weight: 600; }
+.sidebar-divider { border-top: 1px solid #0f3460; margin: 6px 0; }
 
 /* ---------- Main ---------- */
 .main {
     flex: 1;
-    padding: 28px 36px;
-    overflow-x: hidden;
+    padding: 20px 28px;
+    overflow-y: auto;
+    height: calc(100vh - 48px);
     min-width: 0;
 }
 .page { display: none; }
@@ -100,8 +137,8 @@ body {
     flex-wrap: wrap;
     gap: 12px;
 }
-.page-header h1 { font-size: 22px; color: var(--primary-dark); }
-.page-header .subtitle { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+.page-header h1 { font-size: 22px; color: #e0e0e0; }
+.page-header .subtitle { font-size: 14px; color: #8888aa; margin-top: 2px; }
 
 /* ---------- Buttons ---------- */
 .btn {
@@ -119,13 +156,13 @@ body {
 .btn:hover { opacity: .88; }
 .btn-primary { background: var(--primary); color: var(--white); }
 .btn-accent { background: var(--accent); color: var(--white); }
-.btn-ghost { background: #ecfdf5; color: var(--text); border: 1px solid var(--border); }
-.btn-danger { background: #fecaca; color: #991b1b; }
+.btn-ghost { background: #1a1a3e; color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #dc354530; color: #e94560; }
 .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
-.btn-icon { padding: 4px 8px; font-size: 14px; background: none; border: none; cursor: pointer; border-radius: 6px; }
-.btn-icon:hover { background: #ecfdf5; }
-.btn-icon.btn-danger { background: none; }
-.btn-icon.btn-danger:hover { background: #fef2f2; }
+.btn-icon { padding: 4px 8px; font-size: 14px; background: none; border: none; cursor: pointer; border-radius: 6px; color: #b0b0c8; }
+.btn-icon:hover { background: #0f3460; color: #fff; }
+.btn-icon.btn-danger { background: none; color: #e94560; }
+.btn-icon.btn-danger:hover { background: #dc354530; }
 
 /* ---------- Table ---------- */
 .table-wrap {
@@ -137,9 +174,9 @@ body {
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th {
-    background: #ecfdf5;
+    background: #0f3460;
     font-weight: 600;
-    color: var(--text-muted);
+    color: #8888aa;
     position: sticky;
     top: 0;
     z-index: 1;
@@ -149,9 +186,9 @@ th {
     text-transform: uppercase;
     letter-spacing: .3px;
 }
-th:hover { color: var(--primary); }
+th:hover { color: #e0e0e0; }
 th .sort-arrow { font-size: 10px; margin-left: 4px; }
-tr:hover td { background: #f0fdf4; }
+tr:hover td { background: #1a1a3e; }
 td.actions { white-space: nowrap; }
 .badge {
     display: inline-block;
@@ -160,10 +197,10 @@ td.actions { white-space: nowrap; }
     font-size: 11px;
     font-weight: 600;
 }
-.badge-active { background: #d1fae5; color: #065f46; }
-.badge-inactive { background: #fee2e2; color: #991b1b; }
-.empty-row td { text-align: center; color: var(--text-muted); padding: 24px; font-size: 14px; }
-.count-label { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.badge-active { background: #28a74530; color: #53d769; }
+.badge-inactive { background: #dc354530; color: #e94560; }
+.empty-row td { text-align: center; color: #8888aa; padding: 24px; font-size: 14px; }
+.count-label { font-size: 13px; color: #8888aa; margin-bottom: 4px; }
 
 /* ---------- Modal ---------- */
 .modal-overlay {
@@ -177,32 +214,33 @@ td.actions { white-space: nowrap; }
 }
 .modal-overlay.open { display: flex; }
 .modal {
-    background: var(--card-bg);
+    background: #16213e;
     border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
     max-width: 520px;
     width: 92%;
     padding: 28px;
     max-height: 90vh;
     overflow-y: auto;
+    border: 1px solid #0f3460;
 }
-.modal h2 { font-size: 18px; color: var(--primary-dark); margin-bottom: 20px; }
+.modal h2 { font-size: 18px; color: #e0e0e0; margin-bottom: 20px; }
 .field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-weight: 500; }
+.field label { display: block; font-size: 12px; color: #8888aa; margin-bottom: 5px; font-weight: 500; }
 .field input, .field select, .field textarea {
     width: 100%;
     padding: 9px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid #333366;
     border-radius: 8px;
     font-size: 14px;
-    color: var(--text);
-    background: var(--white);
+    color: #e0e0e0;
+    background: #1a1a2e;
     transition: border-color .15s;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(5,150,105,.12);
+    border-color: #e94560;
+    box-shadow: 0 0 0 3px rgba(233,69,96,.15);
 }
 .field-row { display: flex; gap: 12px; }
 .field-row .field { flex: 1; }
@@ -224,16 +262,18 @@ td.actions { white-space: nowrap; }
     color: var(--white);
 }
 .toast.show { transform: translateY(0); opacity: 1; }
-.toast-success { background: var(--primary); }
-.toast-error { background: var(--danger); }
+.toast-success { background: #53d769; color: #1a1a2e; }
+.toast-error { background: #e94560; color: #fff; }
 
 /* ---------- Filters ---------- */
 .filters { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
 .filters select, .filters input {
     padding: 7px 12px;
-    border: 1px solid var(--border);
+    border: 1px solid #333366;
     border-radius: 8px;
     font-size: 13px;
+    background: #1a1a2e;
+    color: #e0e0e0;
 }
 
 /* ---------- Responsive ---------- */
@@ -248,11 +288,28 @@ td.actions { white-space: nowrap; }
 <body>
 
 <!-- ============================================================ -->
+<!-- TOP BAR                                                        -->
+<!-- ============================================================ -->
+<div class="top-bar">
+    <div class="logo">AGRO</div>
+    <a href="/UNA.md/orasldev/agro-admin" class="nav-item active">Admin</a>
+    <a href="/UNA.md/orasldev/agro-field" class="nav-item">Приёмка</a>
+    <a href="/UNA.md/orasldev/agro-warehouse" class="nav-item">Склад</a>
+    <a href="/UNA.md/orasldev/agro-qa" class="nav-item">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales" class="nav-item">Продажи</a>
+    <div class="spacer"></div>
+    <a href="/UNA.md/orasldev" class="back-link">&#8592; SQL Developer</a>
+</div>
+
+<!-- ============================================================ -->
+<!-- MAIN LAYOUT: SIDEBAR + CONTENT                                -->
+<!-- ============================================================ -->
+<div class="main-layout">
+
+<!-- ============================================================ -->
 <!-- SIDEBAR                                                       -->
 <!-- ============================================================ -->
 <nav class="sidebar">
-    <div class="sidebar-logo">AGRO</div>
-
     <div class="sidebar-section">Справочники / Referinte</div>
     <a href="#suppliers" class="nav-link active" data-page="suppliers">Поставщики / Furnizori</a>
     <a href="#customers" class="nav-link" data-page="customers">Покупатели / Clienti</a>
@@ -262,10 +319,12 @@ td.actions { white-space: nowrap; }
     <a href="#packaging" class="nav-link" data-page="packaging">Типы тары / Ambalaj</a>
     <a href="#vehicles" class="nav-link" data-page="vehicles">Транспорт / Transport</a>
 
+    <div class="sidebar-divider"></div>
     <div class="sidebar-section">Валюты / Valute</div>
     <a href="#currencies" class="nav-link" data-page="currencies">Валюты / Valute</a>
     <a href="#rates" class="nav-link" data-page="rates">Курсы / Cursuri</a>
 
+    <div class="sidebar-divider"></div>
     <div class="sidebar-section">Настройки / Setari</div>
     <a href="#formulas" class="nav-link" data-page="formulas">Формулы / Formule</a>
     <a href="#config" class="nav-link" data-page="config">Конфигурация / Config</a>
@@ -273,13 +332,6 @@ td.actions { white-space: nowrap; }
     <div class="sidebar-divider"></div>
     <div class="sidebar-section">Отчёты / Rapoarte</div>
     <a href="#reports" class="nav-link" data-page="reports">Отчёты / Rapoarte</a>
-
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">Навигация</div>
-    <a href="/UNA.md/orasldev/agro-field">Field / Поле</a>
-    <a href="/UNA.md/orasldev/agro-warehouse">Warehouse / Склад</a>
-    <a href="/UNA.md/orasldev/agro-qa">QA / HACCP</a>
-    <a href="/UNA.md/orasldev/agro-sales">Sales / Продажи</a>
 </nav>
 
 <!-- ============================================================ -->
@@ -612,6 +664,8 @@ td.actions { white-space: nowrap; }
 </div>
 
 </main>
+
+</div><!-- /.main-layout -->
 
 <!-- ============================================================ -->
 <!-- MODALS                                                        -->

@@ -161,7 +161,7 @@ class AgroAdminController:
     # ---- Module Config ----
     @staticmethod
     def get_module_config() -> Dict[str, Any]:
-        return AgroStore.get_module_config()
+        return AgroStore.get_module_configs()
 
     @staticmethod
     def upsert_module_config(data: Dict[str, Any]) -> Dict[str, Any]:
