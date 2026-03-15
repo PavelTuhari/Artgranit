@@ -149,6 +149,8 @@ def _version_widget_snippet() -> str:
 
 @app.after_request
 def _inject_version_widget(response):
+    if not app.config.get("VERSION_WIDGET_ENABLED", False):
+        return response
     try:
         ctype = (response.content_type or "").lower()
         if "text/html" not in ctype:

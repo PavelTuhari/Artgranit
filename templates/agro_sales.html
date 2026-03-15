@@ -395,9 +395,10 @@ window.viewDoc = function(docId) {
 
     api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
         if (!d.success && !d.data) { document.getElementById('docDetailContent').innerHTML = '<p class="empty">Ошибка загрузки</p>'; return; }
-        var doc = d.data || d;
-        var lines = doc.lines || [];
-        var allocations = doc.allocations || [];
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
+        var allocations = raw.allocations || doc.allocations || [];
 
         var html = '<div class="doc-detail">' +
             '<div class="doc-num">' + (doc.doc_number || '-') + '</div>' +
@@ -467,8 +468,9 @@ window.confirmDoc = function() {
 window.allocateDoc = function() {
     if (!currentDocId) return;
     api('GET', '/api/agro-sales/documents/' + currentDocId).then(function(d) {
-        var doc = d.data || d;
-        var lines = doc.lines || [];
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
         if (!lines.length) { toast('Нет позиций для распределения', 'warning'); return; }
 
         var pending = lines.length;
@@ -565,7 +567,7 @@ window.submitNewDoc = function() {
         lines: lines
     }).then(function(d) {
         if (d.success) {
-            toast('Документ создан: ' + (d.data && d.data.doc_number || ''));
+            toast('Документ создан: ' + (d.doc_number || (d.data && d.data.doc_number) || ''));
             // Reset form
             document.getElementById('lineItemsContainer').innerHTML = '';
             document.getElementById('noLines').style.display = '';
@@ -623,13 +625,13 @@ window.createExportDecl = function() {
     api('POST', '/api/agro-sales/export-decl', {
         sales_doc_id: salesDocId,
         destination_country: document.getElementById('expCountry').value,
-        port_of_exit: document.getElementById('expPort').value,
-        transport_mode: document.getElementById('expTransport').value,
-        phytosanitary_cert: document.getElementById('expPhyto').value,
+        customs_code: document.getElementById('expPort').value,
+        transport_conditions: document.getElementById('expTransport').value,
+        phyto_cert_number: document.getElementById('expPhyto').value,
         notes: document.getElementById('expNotes').value
     }).then(function(d) {
         if (d.success) {
-            toast('Декларация создана: ' + (d.data && d.data.decl_number || ''));
+            toast('Декларация создана: ' + (d.decl_number || (d.data && d.data.decl_number) || ''));
             closeModal('exportModal');
             loadExportDecls();
         } else {

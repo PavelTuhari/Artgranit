@@ -282,7 +282,10 @@ tr:hover td { background: rgba(255,255,255,.04); }
             <div class="field"><label>Название</label><input type="text" id="ccpName"></div>
         </div>
         <div class="field"><label>Описание опасности / Descriere pericol</label><textarea id="ccpHazard" rows="2"></textarea></div>
-        <div class="field"><label>Критический предел / Limita critica</label><input type="text" id="ccpLimit" placeholder="Числовое значение или описание"></div>
+        <div class="field-row">
+            <div class="field"><label>Предел MIN</label><input type="number" id="ccpLimitMin" step="0.1" placeholder="мин."></div>
+            <div class="field"><label>Предел MAX</label><input type="number" id="ccpLimitMax" step="0.1" placeholder="макс."></div>
+        </div>
         <div class="field"><label>Процедура мониторинга</label><textarea id="ccpMonitoring" rows="2"></textarea></div>
         <div class="field"><label>Корректирующее действие</label><textarea id="ccpCorrective" rows="2"></textarea></div>
         <div class="modal-actions">
@@ -363,17 +366,17 @@ function loadChecklists() {
         var tb = document.getElementById('checklistsBody');
         if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">Нет чек-листов</td></tr>'; return; }
         tb.innerHTML = rows.map(function(r) {
-            return '<tr><td style="font-weight:600;">' + (r.name || '-') + '</td>' +
+            return '<tr><td style="font-weight:600;">' + (r.name_ru || r.name || '-') + '</td>' +
                 '<td>' + (r.checklist_type || '-') + '</td>' +
                 '<td>' + (r.item_count || 0) + '</td>' +
-                '<td><span class="badge badge-' + (r.is_active === 'Y' ? 'active' : 'blocked') + '">' + (r.is_active === 'Y' ? 'Active' : 'Inactive') + '</span></td>' +
+                '<td><span class="badge badge-' + ((r.active || r.is_active) === 'Y' ? 'active' : 'blocked') + '">' + ((r.active || r.is_active) === 'Y' ? 'Active' : 'Inactive') + '</span></td>' +
                 '<td><button class="btn btn-sm btn-ghost" onclick="editChecklist(' + r.id + ')">Ред.</button> ' +
                 '<button class="btn btn-sm btn-danger" onclick="deleteChecklist(' + r.id + ')">X</button></td></tr>';
         }).join('');
         // Fill checklist select in check modal
         var sel = document.getElementById('chkChecklist');
         sel.innerHTML = '<option value="">Выбрать...</option>';
-        rows.forEach(function(r) { sel.innerHTML += '<option value="' + r.id + '">' + r.name + '</option>'; });
+        rows.forEach(function(r) { sel.innerHTML += '<option value="' + r.id + '">' + (r.name_ru || r.name || r.id) + '</option>'; });
     });
 }
 
@@ -460,10 +463,10 @@ function loadChecks() {
         if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Нет проверок</td></tr>'; return; }
         tb.innerHTML = rows.map(function(r) {
             var rc = 'badge-' + (r.result || 'pass');
-            return '<tr><td>' + (r.checked_at || '-') + '</td>' +
+            return '<tr><td>' + (r.check_date || r.created_at || '-') + '</td>' +
                 '<td>' + (r.batch_number || '-') + '</td>' +
                 '<td>' + (r.checklist_name || '-') + '</td>' +
-                '<td>' + (r.checked_by || '-') + '</td>' +
+                '<td>' + (r.inspector || r.checked_by || '-') + '</td>' +
                 '<td><span class="badge ' + rc + '">' + (r.result || '-') + '</span></td>' +
                 '<td><button class="btn btn-sm btn-ghost" onclick="viewCheck(' + r.id + ')">Детали</button></td></tr>';
         }).join('');
@@ -488,8 +491,8 @@ window.loadChecklistItems = function() {
         container.innerHTML = items.map(function(it, i) {
             return '<div class="check-item" data-item-id="' + it.id + '">' +
                 '<div style="min-width:30px;font-weight:600;">' + (i + 1) + '</div>' +
-                '<div class="field" style="flex:2;"><label>' + (it.param_name || '') + (it.is_critical === 'Y' ? ' <span style="color:#dc2626;">*</span>' : '') + '</label>' +
-                '<div style="font-size:12px;color:var(--text-muted);">Норма: ' + (it.expected_value || '-') + ' ±' + (it.tolerance || '-') + '</div></div>' +
+                '<div class="field" style="flex:2;"><label>' + (it.parameter_name_ru || it.param_name || '') + (it.is_critical === 'Y' ? ' <span style="color:#dc2626;">*</span>' : '') + '</label>' +
+                '<div style="font-size:12px;color:var(--text-muted);">Норма: ' + (it.choices || it.min_value || '-') + (it.max_value ? ' — ' + it.max_value : '') + '</div></div>' +
                 '<div class="field" style="max-width:120px;"><label>Факт</label><input type="text" class="chk-val"></div>' +
                 '<div class="field" style="max-width:100px;"><label>Годен?</label><select class="chk-comp"><option value="Y">Да</option><option value="N">Нет</option></select></div></div>';
         }).join('');
@@ -541,7 +544,7 @@ window.viewCheck = function(checkId) {
             'Чек-лист: ' + (c.checklist_name || '-') + '\n' +
             'Результат: ' + (c.result || '-') + '\n\n';
         (c.values || []).forEach(function(v) {
-            msg += (v.param_name || '?') + ': ' + (v.actual_value || '-') +
+            msg += (v.parameter_name_ru || v.param_name || '?') + ': ' + (v.value || v.actual_value || '-') +
                 ' [' + (v.is_compliant === 'Y' ? 'OK' : 'FAIL') + ']' +
                 (v.is_critical === 'Y' ? ' *КРИТ*' : '') + '\n';
         });
@@ -602,12 +605,12 @@ function loadHaccpPlans() {
         var tb = document.getElementById('haccpBody');
         if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">Нет планов HACCP</td></tr>'; return; }
         tb.innerHTML = rows.map(function(r) {
-            return '<tr onclick="selectPlan(' + r.id + ', \'' + (r.plan_name || '').replace(/'/g, "\\'") + '\')" style="cursor:pointer;">' +
+            return '<tr onclick="selectPlan(' + r.id + ', \'' + (r.name_ru || r.plan_name || '').replace(/'/g, "\\'") + '\')" style="cursor:pointer;">' +
                 '<td style="font-weight:600;">' + (r.plan_name || '-') + '</td>' +
-                '<td>' + (r.product_category || '-') + '</td>' +
+                '<td>' + (r.process_stage || r.product_category || '-') + '</td>' +
                 '<td>' + (r.ccp_count || 0) + '</td>' +
-                '<td><span class="badge badge-' + (r.is_active === 'Y' ? 'active' : 'blocked') + '">' + (r.is_active === 'Y' ? 'Active' : 'Inactive') + '</span></td>' +
-                '<td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();selectPlan(' + r.id + ', \'' + (r.plan_name || '').replace(/'/g, "\\'") + '\')">CCP</button></td></tr>';
+                '<td><span class="badge badge-' + ((r.active || r.is_active) === 'Y' ? 'active' : 'blocked') + '">' + ((r.active || r.is_active) === 'Y' ? 'Active' : 'Inactive') + '</span></td>' +
+                '<td><button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();selectPlan(' + r.id + ', \'' + (r.name_ru || r.plan_name || '').replace(/'/g, "\\'") + '\')">CCP</button></td></tr>';
         }).join('');
     });
 }
@@ -624,8 +627,8 @@ window.saveHaccpPlan = function() {
     if (!name) { toast('Введите название плана', 'warning'); return; }
     api('POST', '/api/agro-qa/haccp/plans', {
         plan_name: name,
-        product_category: document.getElementById('hpCategory').value,
-        is_active: document.getElementById('hpActive').value
+        process_stage: document.getElementById('hpCategory').value,
+        active: document.getElementById('hpActive').value
     }).then(function(d) {
         if (d.success) { toast('План HACCP сохранён'); closeModal('haccpPlanModal'); loadHaccpPlans(); }
         else toast(d.error, 'error');
@@ -648,11 +651,11 @@ function loadCcps(planId) {
         sel.innerHTML = '<option value="">Выбрать CCP...</option>';
         if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">Нет CCP</td></tr>'; return; }
         tb.innerHTML = rows.map(function(r) {
-            sel.innerHTML += '<option value="' + r.id + '">' + (r.ccp_number || '') + ' — ' + (r.ccp_name || '') + '</option>';
+            sel.innerHTML += '<option value="' + r.id + '">' + (r.ccp_number || '') + ' — ' + (r.hazard_type || '') + '</option>';
             return '<tr><td>' + (r.ccp_number || '-') + '</td>' +
-                '<td style="font-weight:600;">' + (r.ccp_name || '-') + '</td>' +
+                '<td style="font-weight:600;">' + (r.hazard_type || '-') + '</td>' +
                 '<td>' + (r.hazard_description || '-') + '</td>' +
-                '<td style="color:#dc2626;font-weight:600;">' + (r.critical_limit || '-') + '</td>' +
+                '<td style="color:#dc2626;font-weight:600;">' + ((r.critical_limit_min != null ? r.critical_limit_min : '') + ' — ' + (r.critical_limit_max != null ? r.critical_limit_max : '')).replace(/^ — $/, '-') + '</td>' +
                 '<td style="font-size:12px;">' + (r.monitoring_procedure || '-') + '</td></tr>';
         }).join('');
     });
@@ -662,7 +665,8 @@ window.openCcpModal = function() {
     document.getElementById('ccpNum').value = '';
     document.getElementById('ccpName').value = '';
     document.getElementById('ccpHazard').value = '';
-    document.getElementById('ccpLimit').value = '';
+    document.getElementById('ccpLimitMin').value = '';
+    document.getElementById('ccpLimitMax').value = '';
     document.getElementById('ccpMonitoring').value = '';
     document.getElementById('ccpCorrective').value = '';
     document.getElementById('ccpModal').classList.add('open');
@@ -677,8 +681,9 @@ window.saveCcp = function() {
         ccp_number: document.getElementById('ccpNum').value,
         ccp_name: name,
         hazard_description: document.getElementById('ccpHazard').value,
-        critical_limit: document.getElementById('ccpLimit').value,
-        monitoring_procedure: document.getElementById('ccpMonitoring').value,
+        critical_limit_min: parseFloat(document.getElementById('ccpLimitMin').value) || null,
+        critical_limit_max: parseFloat(document.getElementById('ccpLimitMax').value) || null,
+        monitoring_frequency: document.getElementById('ccpMonitoring').value,
         corrective_action: document.getElementById('ccpCorrective').value
     }).then(function(d) {
         if (d.success) { toast('CCP сохранён'); closeModal('ccpModal'); loadCcps(currentPlanId); }
@@ -730,9 +735,9 @@ window.loadDeviations = function() {
         tb.innerHTML = rows.map(function(r) {
             return '<tr>' +
                 '<td>' + (r.recorded_at || '-') + '</td>' +
-                '<td style="font-weight:600;">' + (r.ccp_number || '') + ' ' + (r.ccp_name || '-') + '</td>' +
+                '<td style="font-weight:600;">' + (r.ccp_number || '') + ' ' + (r.hazard_type || '-') + '</td>' +
                 '<td>' + (r.batch_number || '-') + '</td>' +
-                '<td style="color:#dc2626;">' + (r.critical_limit || '-') + '</td>' +
+                '<td style="color:#dc2626;">' + ((r.critical_limit_min != null ? r.critical_limit_min : '') + ' — ' + (r.critical_limit_max != null ? r.critical_limit_max : '')).replace(/^ — $/, '-') + '</td>' +
                 '<td style="font-weight:700;color:#991b1b;">' + (r.measured_value || '-') + '</td>' +
                 '<td>' + (r.corrective_action_taken || '<span style="color:#dc2626;">Требуется!</span>') + '</td></tr>';
         }).join('');

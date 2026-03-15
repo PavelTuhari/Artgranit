@@ -33,8 +33,10 @@ class AgroFieldController:
 
     @staticmethod
     def create_purchase(data: Dict[str, Any]) -> Dict[str, Any]:
-        if not data.get('supplier_id') or not data.get('items'):
-            return {"success": False, "error": "SUPPLIER_ID and ITEMS are required"}
+        if not data.get('supplier_id') or not (data.get('items') or data.get('lines')):
+            return {"success": False, "error": "SUPPLIER_ID and ITEMS/LINES are required"}
+        if data.get('items') and not data.get('lines'):
+            data['lines'] = data['items']
         return _safe_call(AgroStore.create_purchase, data)
 
     @staticmethod

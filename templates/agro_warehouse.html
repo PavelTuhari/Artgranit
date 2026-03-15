@@ -519,7 +519,7 @@ function loadRefs() {
         fillSel('receiveWh', refs.warehouses, 'id', 'name');
         fillSel('mvToWh', refs.warehouses, 'id', 'name');
     });
-    api('GET', '/api/agro-admin/storage_cells').then(function(d) {
+    api('GET', '/api/agro-admin/storage-cells').then(function(d) {
         refs.cells = d.data || d || [];
         fillSel('receiveCell', refs.cells, 'id', 'code');
         fillSel('mvToCell', refs.cells, 'id', 'code');

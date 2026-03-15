@@ -1039,11 +1039,15 @@ class AgroStore:
                     None,
                 )
                 doc_id = int(_norm_rows(r_seq)[0]["seq_val"])
+                today_str = datetime.now().strftime("%Y%m%d")
+                doc_number = data.get("doc_number") or f"PUR-{today_str}-{doc_id:04d}"
+
+                doc_date = data.get("doc_date") or datetime.now().strftime("%Y-%m-%d")
 
                 hdr_params = {
                     "id": doc_id,
-                    "doc_number": data.get("doc_number"),
-                    "doc_date": data.get("doc_date"),
+                    "doc_number": doc_number,
+                    "doc_date": doc_date,
                     "supplier_id": data.get("supplier_id"),
                     "warehouse_id": data.get("warehouse_id"),
                     "vehicle_id": data.get("vehicle_id"),
@@ -1099,7 +1103,7 @@ class AgroStore:
                         },
                     )
                 db.connection.commit()
-                return {"success": True, "data": {"doc_id": doc_id}}
+                return {"success": True, "data": {"doc_id": doc_id, "doc_number": doc_number}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -1631,7 +1635,7 @@ class AgroStore:
                     if filters.get("status"):
                         sql += " AND STATUS = :status"
                         params["status"] = filters["status"]
-                sql += " ORDER BY ITEM_NAME, WAREHOUSE_NAME"
+                sql += " ORDER BY ITEM_NAME_RU, WAREHOUSE_NAME"
                 r = db.execute_query(sql, params)
                 return {"success": True, "data": _norm_rows(r)}
         except Exception as e:
@@ -1676,7 +1680,7 @@ class AgroStore:
                 r4 = db.execute_query(
                     """SELECT ba.*, sl.ITEM_ID, sl.QTY_KG AS LINE_QTY
                        FROM AGRO_BATCH_ALLOCATIONS ba
-                       LEFT JOIN AGRO_SALES_DOC_LINES sl ON ba.SALES_LINE_ID = sl.ID
+                       LEFT JOIN AGRO_SALES_LINES sl ON ba.SALES_LINE_ID = sl.ID
                        WHERE ba.BATCH_ID = :bid ORDER BY ba.CREATED_AT DESC""",
                     {"bid": batch_id},
                 )
@@ -1865,7 +1869,7 @@ class AgroStore:
                        (ID, CELL_ID, TEMPERATURE_C, HUMIDITY_PCT, O2_PCT, CO2_PCT,
                         READING_SOURCE, SENSOR_ID, RECORDED_BY)
                        VALUES (AGRO_STORAGE_READINGS_SEQ.NEXTVAL,
-                               :cell, :temp, :hum, :o2, :co2, :src, :sensor, :by)""",
+                               :cell, :temp, :hum, :o2, :co2, :src, :sensor, :created_by)""",
                     {
                         "cell": cell_id,
                         "temp": data.get("temperature_c"),
@@ -1874,7 +1878,7 @@ class AgroStore:
                         "co2": data.get("co2_pct"),
                         "src": data.get("reading_source", "manual"),
                         "sensor": data.get("sensor_id"),
-                        "by": data.get("recorded_by"),
+                        "created_by": data.get("recorded_by"),
                     },
                 )
 
@@ -2008,12 +2012,16 @@ class AgroStore:
                 return {"success": False, "error": "batch_id required"}
 
             with DatabaseModel() as db:
+                r_seq = db.execute_query(
+                    "SELECT AGRO_PROCESSING_TASKS_SEQ.NEXTVAL AS NID FROM DUAL", {})
+                new_id = _norm_rows(r_seq)[0]["nid"]
                 db.execute_query(
                     """INSERT INTO AGRO_PROCESSING_TASKS
                        (ID, BATCH_ID, TASK_TYPE, DESCRIPTION, ASSIGNED_TO, INPUT_QTY_KG, NOTES)
-                       VALUES (AGRO_PROCESSING_TASKS_SEQ.NEXTVAL,
+                       VALUES (:tid,
                                :bid, :ttype, :descr, :assigned, :input_qty, :notes)""",
                     {
+                        "tid": new_id,
                         "bid": batch_id,
                         "ttype": task_type,
                         "descr": data.get("description"),
@@ -2023,7 +2031,7 @@ class AgroStore:
                     },
                 )
                 db.connection.commit()
-                return {"success": True}
+                return {"success": True, "data": {"id": int(new_id)}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -2133,7 +2141,7 @@ class AgroStore:
 
                 r2 = db.execute_query(
                     """SELECT sl.*, i.NAME_RU AS ITEM_NAME, i.CODE AS ITEM_CODE
-                       FROM AGRO_SALES_DOC_LINES sl
+                       FROM AGRO_SALES_LINES sl
                        LEFT JOIN AGRO_ITEMS i ON sl.ITEM_ID = i.ID
                        WHERE sl.SALES_DOC_ID = :did ORDER BY sl.ID""",
                     {"did": doc_id},
@@ -2144,7 +2152,7 @@ class AgroStore:
                     """SELECT ba.*, b.BATCH_NUMBER, b.CURRENT_QTY_KG
                        FROM AGRO_BATCH_ALLOCATIONS ba
                        JOIN AGRO_BATCHES b ON ba.BATCH_ID = b.ID
-                       JOIN AGRO_SALES_DOC_LINES sl ON ba.SALES_LINE_ID = sl.ID
+                       JOIN AGRO_SALES_LINES sl ON ba.SALES_LINE_ID = sl.ID
                        WHERE sl.SALES_DOC_ID = :did ORDER BY ba.ID""",
                     {"did": doc_id},
                 )
@@ -2179,12 +2187,12 @@ class AgroStore:
                        (ID, DOC_NUMBER, DOC_DATE, CUSTOMER_ID, WAREHOUSE_ID,
                         VEHICLE_ID, CURRENCY_ID, TOTAL_AMOUNT, STATUS, NOTES, CREATED_BY)
                        VALUES (:id, :dnum, TRUNC(SYSDATE), :cust, :wh,
-                               :veh, :cur, 0, 'draft', :notes, :by)""",
+                               :veh, :cur, 0, 'draft', :notes, :created_by)""",
                     {
                         "id": new_id, "dnum": doc_number,
                         "cust": customer_id, "wh": warehouse_id,
                         "veh": data.get("vehicle_id"), "cur": data.get("currency_id"),
-                        "notes": data.get("notes"), "by": data.get("created_by"),
+                        "notes": data.get("notes"), "created_by": data.get("created_by"),
                     },
                 )
 
@@ -2196,14 +2204,15 @@ class AgroStore:
                     total_amount += amount
 
                     db.execute_query(
-                        """INSERT INTO AGRO_SALES_DOC_LINES
-                           (ID, SALES_DOC_ID, ITEM_ID, QTY_KG, PRICE_PER_KG, AMOUNT, NOTES)
-                           VALUES (AGRO_SALES_DOC_LINES_SEQ.NEXTVAL,
-                                   :did, :iid, :qty, :price, :amt, :notes)""",
+                        """INSERT INTO AGRO_SALES_LINES
+                           (ID, SALES_DOC_ID, ITEM_ID, GROSS_WEIGHT_KG, NET_WEIGHT_KG,
+                            PRICE_PER_KG, AMOUNT)
+                           VALUES (AGRO_SALES_LINES_SEQ.NEXTVAL,
+                                   :did, :iid, :gross_kg, :net_kg, :price, :amt)""",
                         {
                             "did": new_id, "iid": line.get("item_id"),
-                            "qty": float(qty), "price": float(price),
-                            "amt": float(amount), "notes": line.get("notes"),
+                            "gross_kg": float(qty), "net_kg": float(qty),
+                            "price": float(price), "amt": float(amount),
                         },
                     )
 
@@ -2224,7 +2233,7 @@ class AgroStore:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    "SELECT ID AS LINE_ID, ITEM_ID, QTY_KG FROM AGRO_SALES_DOC_LINES WHERE SALES_DOC_ID = :did",
+                    "SELECT ID AS LINE_ID, ITEM_ID, NET_WEIGHT_KG AS QTY_KG FROM AGRO_SALES_LINES WHERE SALES_DOC_ID = :did",
                     {"did": doc_id},
                 )
                 lines = _norm_rows(r)
@@ -2374,7 +2383,7 @@ class AgroStore:
 
             with DatabaseModel() as db:
                 r_seq = db.execute_query(
-                    "SELECT AGRO_EXPORT_DECLARATIONS_SEQ.NEXTVAL AS NID FROM DUAL", {}
+                    "SELECT AGRO_EXPORT_DECLS_SEQ.NEXTVAL AS NID FROM DUAL", {}
                 )
                 new_id = _norm_rows(r_seq)[0]["nid"]
                 today = datetime.now().strftime("%Y%m%d")
@@ -2508,10 +2517,11 @@ class AgroStore:
                          "ctype": data.get("checklist_type", "incoming"),
                          "active": data.get("active", "Y")})
                 else:
+                    code = data.get("code") or f"CL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     db.execute_query(
                         """INSERT INTO AGRO_QA_CHECKLISTS (CODE, NAME_RU, NAME_RO, CHECKLIST_TYPE, ACTIVE)
                            VALUES (:code, :name_ru, :name_ro, :ctype, :active)""",
-                        {"code": data.get("code", ""),
+                        {"code": code,
                          "name_ru": data.get("name") or data.get("name_ru", ""),
                          "name_ro": data.get("name_ro", ""),
                          "ctype": data.get("checklist_type", "incoming"),
@@ -2628,14 +2638,14 @@ class AgroStore:
                     reason = f"QA check #{check_id} failed — critical non-compliance"
                     db.execute_query(
                         """INSERT INTO AGRO_BATCH_BLOCKS (BATCH_ID, REASON, BLOCKED_BY)
-                           VALUES (:bid, :reason, :by)""",
+                           VALUES (:bid, :reason, :created_by)""",
                         {"bid": batch_id, "reason": reason,
-                         "by": data.get("checked_by", "qa_system")})
+                         "created_by": data.get("checked_by", "qa_system")})
                     db.execute_query(
                         """UPDATE AGRO_BATCHES SET STATUS='blocked',
                            BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
                         {"bid": batch_id, "reason": reason,
-                         "by": data.get("checked_by", "qa_system")})
+                         "created_by": data.get("checked_by", "qa_system")})
 
                 db.connection.commit()
                 return {"success": True, "data": {"check_id": check_id, "result": result}}
@@ -2701,12 +2711,12 @@ class AgroStore:
             with DatabaseModel() as db:
                 db.execute_query(
                     """INSERT INTO AGRO_BATCH_BLOCKS (BATCH_ID, REASON, BLOCKED_BY)
-                       VALUES (:bid, :reason, :by)""",
-                    {"bid": batch_id, "reason": reason, "by": blocked_by or "operator"})
+                       VALUES (:bid, :reason, :created_by)""",
+                    {"bid": batch_id, "reason": reason, "created_by": blocked_by or "operator"})
                 db.execute_query(
                     """UPDATE AGRO_BATCHES SET STATUS='blocked',
                        BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
-                    {"bid": batch_id, "reason": reason, "by": blocked_by or "operator"})
+                    {"bid": batch_id, "reason": reason, "created_by": blocked_by or "operator"})
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
@@ -2721,7 +2731,7 @@ class AgroStore:
                     """UPDATE AGRO_BATCH_BLOCKS SET UNBLOCKED_BY=:by,
                        UNBLOCKED_AT=SYSTIMESTAMP, RESOLUTION_NOTES=:notes
                        WHERE BATCH_ID=:bid AND UNBLOCKED_AT IS NULL""",
-                    {"bid": batch_id, "by": unblocked_by or "operator", "notes": resolution or ""})
+                    {"bid": batch_id, "created_by": unblocked_by or "operator", "notes": resolution or ""})
                 db.execute_query(
                     """UPDATE AGRO_BATCHES SET STATUS='active',
                        BLOCKED_BY=NULL, BLOCK_REASON=NULL WHERE ID=:bid""",
@@ -2782,10 +2792,11 @@ class AgroStore:
                          "stage": data.get("process_stage", ""),
                          "active": data.get("active", "Y")})
                 else:
+                    code = data.get("code") or f"HACCP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     db.execute_query(
                         """INSERT INTO AGRO_HACCP_PLANS (CODE, NAME_RU, NAME_RO, PROCESS_STAGE, ACTIVE)
                            VALUES (:code, :name_ru, :name_ro, :stage, :active)""",
-                        {"code": data.get("code", ""),
+                        {"code": code,
                          "name_ru": name_ru, "name_ro": data.get("name_ro", ""),
                          "stage": data.get("process_stage", ""),
                          "active": data.get("active", "Y")})
@@ -2844,8 +2855,12 @@ class AgroStore:
                          "clim_max": data.get("critical_limit_max"),
                          "mon": data.get("monitoring_frequency", ""),
                          "corr": data.get("corrective_action", "")})
+                    r = db.execute_query(
+                        "SELECT MAX(ID) AS ID FROM AGRO_HACCP_CCPS WHERE PLAN_ID = :pid",
+                        {"pid": data["plan_id"]})
+                    ccp_id = _norm_rows(r)[0]["id"]
                 db.connection.commit()
-                return {"success": True}
+                return {"success": True, "data": {"id": ccp_id}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -2881,12 +2896,12 @@ class AgroStore:
                     """INSERT INTO AGRO_HACCP_RECORDS
                        (CCP_ID, BATCH_ID, MEASURED_VALUE, IS_WITHIN_LIMITS,
                         DEVIATION_NOTES, CORRECTIVE_ACTION_TAKEN, RECORDED_BY)
-                       VALUES (:cid, :bid, :val, :within, :dev, :corr, :by)""",
+                       VALUES (:cid, :bid, :val, :within, :dev, :corr, :created_by)""",
                     {"cid": ccp_id, "bid": data.get("batch_id"),
                      "val": float(measured_value), "within": is_within,
                      "dev": data.get("deviation_notes", ""),
                      "corr": data.get("corrective_action", ""),
-                     "by": data.get("recorded_by", "operator")})
+                     "created_by": data.get("recorded_by", "operator")})
                 db.connection.commit()
                 return {"success": True, "data": {"is_within_limits": is_within}}
         except Exception as e:
@@ -3010,7 +3025,7 @@ class AgroStore:
                 if item_id:
                     sql += " AND ITEM_ID = :iid"
                     params["iid"] = int(item_id)
-                sql += " ORDER BY ITEM_NAME, WAREHOUSE_NAME"
+                sql += " ORDER BY ITEM_NAME_RU, WAREHOUSE_NAME"
                 r = db.execute_query(sql, params)
                 return {"success": True, "data": _norm_rows(r)}
         except Exception as e:

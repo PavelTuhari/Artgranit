@@ -77,8 +77,8 @@ class AgroQaController:
 
     @staticmethod
     def upsert_ccp(data: Dict[str, Any]) -> Dict[str, Any]:
-        if not data.get('plan_id') or not data.get('ccp_name'):
-            return {"success": False, "error": "plan_id and ccp_name required"}
+        if not data.get('plan_id') or not (data.get('ccp_number') or data.get('ccp_name')):
+            return {"success": False, "error": "plan_id and ccp_number required"}
         return _safe_call(AgroStore.upsert_ccp, data)
 
     @staticmethod
