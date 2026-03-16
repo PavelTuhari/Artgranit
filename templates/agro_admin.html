@@ -1717,8 +1717,30 @@ async function loadScaleDrivers() {
     const j = await apiFetch('/module-config');
     if (!j.success) return;
     cachedData.scaleDrivers = (j.data || []).filter(r => r.config_group === 'scale_driver');
+    // Auto-seed emulator driver if no drivers exist
+    if (cachedData.scaleDrivers.length === 0) {
+        await seedEmulatorDriver();
+        return; // seedEmulatorDriver will call loadScaleDrivers again
+    }
     document.getElementById('scaleDriverCount').textContent = 'Драйверов: ' + cachedData.scaleDrivers.length;
     renderScaleDrivers(cachedData.scaleDrivers);
+}
+
+async function seedEmulatorDriver() {
+    const cfg = {
+        brand: 'Emulator', protocol: 'Virtual', port: '—',
+        baudrate: '9600', dataformat: '8N1',
+        max_capacity: 600, resolution: 0.02,
+        settle_time: 2.0, emu_interval: 10000, active: true
+    };
+    await apiPost('/module-config', {
+        config_key: 'scale_emulator',
+        config_value: JSON.stringify(cfg),
+        config_group: 'scale_driver',
+        description: 'Emulator — Virtual (авто-создан)'
+    });
+    showToast('Создан эмулятор весов по умолчанию');
+    await loadScaleDrivers();
 }
 
 function renderScaleDrivers(rows) {

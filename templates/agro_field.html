@@ -2170,6 +2170,26 @@ function loadScaleConfig() {
                     <button class="sk-btn sk-btn-zero" onclick="modalScaleZero()">Zero</button>
                     <button class="sk-btn sk-btn-tare" onclick="modalScaleTare()">Tare</button>
                 </div>
+                <!-- Numeric keypad for manual weight entry -->
+                <div class="sk-numpad">
+                    <div class="sk-numpad-title">Ручной ввод / Introducere manuală</div>
+                    <input type="text" class="sk-numpad-input" id="numpadInput" placeholder="0.00" readonly>
+                    <div class="sk-numpad-grid">
+                        <button class="sk-numpad-btn" onclick="numpadPress('7')">7</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('8')">8</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('9')">9</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('4')">4</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('5')">5</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('6')">6</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('1')">1</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('2')">2</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('3')">3</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('0')">0</button>
+                        <button class="sk-numpad-btn" onclick="numpadPress('.')">.</button>
+                        <button class="sk-numpad-btn sk-numpad-del" onclick="numpadPress('del')">⌫</button>
+                    </div>
+                    <button class="sk-numpad-apply" onclick="numpadApply()">Применить вес / Aplică</button>
+                </div>
                 <!-- Capture button - main action -->
                 <button class="sk-capture-btn" id="modalCaptureBtn" onclick="modalScaleCapture()">
                     ⚖️ Снять вес / Cântărește
@@ -2261,8 +2281,8 @@ function loadScaleConfig() {
 /* Center: Scale display */
 .sk-scale {
     background: #0a1628; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 16px; padding: 20px;
-    border-right: 1px solid #0f3460;
+    align-items: center; gap: 12px; padding: 16px;
+    border-right: 1px solid #0f3460; overflow-y: auto;
 }
 .sk-weight-display {
     text-align: center; padding: 20px 30px;
@@ -2321,6 +2341,37 @@ function loadScaleConfig() {
 .sk-ai-label { font-size: 11px; color: #6c6c8a; }
 .sk-ai-product { font-size: 16px; font-weight: 700; color: #53d769; }
 .sk-ai-confidence { font-size: 12px; color: #6c6c8a; margin-top: 4px; }
+
+/* Numeric keypad */
+.sk-numpad {
+    width: 100%; background: #0d1830; border-radius: 8px;
+    border: 1px solid #0f3460; padding: 10px; display: flex;
+    flex-direction: column; gap: 8px;
+}
+.sk-numpad-title { font-size: 10px; color: #6c6c8a; text-align: center; }
+.sk-numpad-input {
+    width: 100%; padding: 8px 12px; text-align: right; font-size: 20px;
+    font-family: 'Courier New', monospace; font-weight: 700;
+    color: #ffc107; background: #060e1a; border: 1px solid #0f3460;
+    border-radius: 6px; letter-spacing: 1px;
+}
+.sk-numpad-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.sk-numpad-btn {
+    padding: 10px 0; font-size: 18px; font-weight: 600;
+    background: #16213e; border: 1px solid #0f3460; border-radius: 6px;
+    color: #e0e0e0; cursor: pointer; transition: all .15s;
+}
+.sk-numpad-btn:hover { background: #0f3460; color: #fff; }
+.sk-numpad-btn:active { transform: scale(0.95); }
+.sk-numpad-del { color: #e94560; }
+.sk-numpad-apply {
+    padding: 8px; border: none; border-radius: 6px;
+    background: #ffc107; color: #0a0a1a; font-size: 13px;
+    font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.sk-numpad-apply:hover { background: #ffca2c; }
 
 /* Responsive: stack on small screens */
 @media (max-width: 900px) {
@@ -2384,6 +2435,7 @@ var modalTargetLineId = null;
 var modalPollingTimer = null;
 var autoEmulationTimer = null;
 var selectedProductKey = null;
+var manualWeightMode = false; // true when user entered weight via numpad
 
 // Product image map for AI camera simulation (SVG pictograms)
 var productImages = {
@@ -2449,9 +2501,72 @@ function highlightProductInGrid(key) {
     }
 }
 
+// Numeric keypad functions
+window.numpadPress = function(val) {
+    var inp = document.getElementById('numpadInput');
+    if (!inp) return;
+    if (val === 'del') {
+        inp.value = inp.value.slice(0, -1);
+    } else if (val === '.') {
+        if (inp.value.indexOf('.') === -1) inp.value += '.';
+    } else {
+        // Limit to reasonable length
+        if (inp.value.replace('.', '').length < 6) inp.value += val;
+    }
+};
+
+window.numpadApply = function() {
+    var inp = document.getElementById('numpadInput');
+    var weight = parseFloat(inp.value);
+    if (!weight || weight <= 0) return;
+    manualWeightMode = true;
+    // Stop auto-emulation — user entered weight manually
+    stopAutoEmulation();
+    // Simulate this exact weight on the scale
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default', weight_kg: weight})
+    }).then(function(r) { return r.json(); })
+    .then(function() {
+        // Update display immediately
+        document.getElementById('modalScaleGross').textContent = weight.toFixed(3);
+        document.getElementById('modalScaleNet').textContent = weight.toFixed(3);
+        document.getElementById('modalScaleIndicator').style.background = '#ffc107';
+        document.getElementById('modalScaleStatusText').textContent = 'Ручной ввод / Manual';
+        document.getElementById('modalCaptureBtn').disabled = false;
+        inp.value = '';
+    });
+};
+
+// Load active scale driver config from admin settings
+function loadActiveScaleDriver() {
+    fetch('/api/agro-admin/module-config')
+        .then(function(r) { return r.json(); })
+        .then(function(j) {
+            if (!j.success) return;
+            var drivers = (j.data || []).filter(function(r) { return r.config_group === 'scale_driver'; });
+            var active = null;
+            for (var i = 0; i < drivers.length; i++) {
+                try {
+                    var cfg = JSON.parse(drivers[i].config_value || '{}');
+                    if (cfg.active !== false) { active = cfg; break; }
+                } catch(e) {}
+            }
+            if (active) {
+                var titleEl = document.querySelector('.sk-title');
+                if (titleEl) titleEl.textContent = '⚖️ Весы / Cântar — ' + (active.brand || 'Emulator');
+                var infoEl = document.querySelector('.sk-driver-info');
+                if (infoEl) infoEl.innerHTML =
+                    '<span>Driver: <b>' + (active.brand || '—') + '</b></span>' +
+                    '<span>Max: <b>' + (active.max_capacity || 600) + ' kg</b></span>';
+            }
+        }).catch(function() {});
+}
+
 window.weighPurchaseLine = function(lineId) {
     modalTargetLineId = lineId;
     selectedProductKey = null;
+    manualWeightMode = false;
     document.getElementById('scaleModal').style.display = 'flex';
     // Reset displays
     document.getElementById('modalScaleGross').textContent = '0.000';
@@ -2464,6 +2579,9 @@ window.weighPurchaseLine = function(lineId) {
     document.getElementById('cameraViewport').innerHTML =
         '<div class="camera-idle"><div style="font-size:40px;">📷</div>' +
         '<div>Запуск... / Pornire...</div></div>';
+    document.getElementById('numpadInput').value = '';
+    // Load active driver config
+    loadActiveScaleDriver();
     // Build product grid
     buildProductGrid();
     // Start polling scale + auto-emulation immediately
