@@ -288,6 +288,11 @@ td.actions { white-space: nowrap; }
     .page-header { flex-direction: column; align-items: flex-start; }
     .field-row { flex-direction: column; gap: 0; }
 }
+.chip {
+    display: inline-block; padding: 4px 12px; background: #0f3460;
+    border: 1px solid #2a3a5c; border-radius: 16px; font-size: 12px;
+    color: #b0b0c8;
+}
 </style>
 </head>
 <body>
@@ -332,6 +337,7 @@ td.actions { white-space: nowrap; }
     <div class="sidebar-divider"></div>
     <div class="sidebar-section">Настройки / Setari</div>
     <a href="#formulas" class="nav-link" data-page="formulas">Формулы / Formule</a>
+    <a href="#scales" class="nav-link" data-page="scales">Весы / Cântar</a>
     <a href="#config" class="nav-link" data-page="config">Конфигурация / Config</a>
 
     <div class="sidebar-divider"></div>
@@ -606,7 +612,124 @@ td.actions { white-space: nowrap; }
     </div>
 </div>
 
-<!-- ==================== 11. MODULE CONFIG ==================== -->
+<!-- ==================== 11. SCALE DRIVERS ==================== -->
+<div id="page-scales" class="page">
+    <div class="page-header">
+        <div><h1>Весы / Cântar</h1><div class="subtitle">Configurare drivere cântar — настройка драйверов весов</div></div>
+        <button class="btn btn-primary" onclick="openModal('scale-driver')">+ Добавить драйвер</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="scaleDriverCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Имя / Nume</th>
+                    <th>Марка / Brand</th>
+                    <th>Протокол</th>
+                    <th>Порт</th>
+                    <th>Макс. вес</th>
+                    <th>Разрешение</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="scaleDriverTable"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:8px;">Поддерживаемые марки / Branduri suportate</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+            <span class="chip">Alex SE</span>
+            <span class="chip">CAS DB-II</span>
+            <span class="chip">CAS CI-200</span>
+            <span class="chip">Jadever JWI-700</span>
+            <span class="chip">DIGI SM5300</span>
+            <span class="chip">Massa-K ВПН</span>
+            <span class="chip">Massa-K ТВ</span>
+            <span class="chip">Emulator</span>
+        </div>
+    </div>
+</div>
+
+<!-- Scale Driver Modal -->
+<div class="modal-overlay" id="modal-scale-driver">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="scaleDriverModalTitle">Драйвер весов / Driver cântar</h2>
+            <button class="modal-close" onclick="closeModal('scale-driver')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="sd_id">
+            <div class="field-row">
+                <div class="field"><label>Имя / Nume</label><input id="sd_name" placeholder="Весы приёмка №1"></div>
+                <div class="field"><label>Марка / Brand</label>
+                    <select id="sd_brand" onchange="onScaleBrandChange()">
+                        <option value="">-- Выбрать --</option>
+                        <option value="Alex SE">Alex SE</option>
+                        <option value="CAS DB-II">CAS DB-II</option>
+                        <option value="CAS CI-200">CAS CI-200</option>
+                        <option value="Jadever JWI-700">Jadever JWI-700</option>
+                        <option value="DIGI SM5300">DIGI SM5300</option>
+                        <option value="Massa-K ВПН">Massa-K ВПН</option>
+                        <option value="Massa-K ТВ">Massa-K ТВ</option>
+                        <option value="Emulator">Emulator</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Протокол / Protocol</label>
+                    <select id="sd_protocol">
+                        <option value="RS232">RS232</option>
+                        <option value="RS485">RS485</option>
+                        <option value="USB">USB</option>
+                        <option value="TCP/IP">TCP/IP</option>
+                        <option value="Virtual">Virtual (Emulator)</option>
+                    </select>
+                </div>
+                <div class="field"><label>Порт / Port</label><input id="sd_port" placeholder="COM3 / /dev/ttyS0"></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Baud Rate</label>
+                    <select id="sd_baudrate">
+                        <option value="2400">2400</option>
+                        <option value="4800">4800</option>
+                        <option value="9600" selected>9600</option>
+                        <option value="19200">19200</option>
+                        <option value="38400">38400</option>
+                        <option value="115200">115200</option>
+                    </select>
+                </div>
+                <div class="field"><label>Data / Parity / Stop</label>
+                    <select id="sd_dataformat">
+                        <option value="8N1">8 / None / 1</option>
+                        <option value="8E1">8 / Even / 1</option>
+                        <option value="8O1">8 / Odd / 1</option>
+                        <option value="7E1">7 / Even / 1</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Макс. вес (кг)</label><input id="sd_max_capacity" type="number" value="600"></div>
+                <div class="field"><label>Разрешение (кг)</label><input id="sd_resolution" type="number" step="0.001" value="0.02"></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Время стабилизации (сек)</label><input id="sd_settle_time" type="number" step="0.1" value="2.0"></div>
+                <div class="field"><label>Интервал эмулятора (мс)</label><input id="sd_emu_interval" type="number" value="3000"></div>
+            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label><input type="checkbox" id="sd_active" checked> Активен / Activ</label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('scale-driver')">Отмена</button>
+            <button class="btn btn-primary" onclick="saveScaleDriver()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 12. MODULE CONFIG ==================== -->
 <div id="page-config" class="page">
     <div class="page-header">
         <div><h1>Конфигурация модуля</h1><div class="subtitle">Configurare modul</div></div>
@@ -1586,6 +1709,120 @@ async function saveMconfig() {
 }
 
 /* ================================================================
+   12. SCALE DRIVERS (stored in module-config with group='scale_driver')
+   ================================================================ */
+cachedData.scaleDrivers = [];
+
+async function loadScaleDrivers() {
+    const j = await apiFetch('/module-config');
+    if (!j.success) return;
+    cachedData.scaleDrivers = (j.data || []).filter(r => r.config_group === 'scale_driver');
+    document.getElementById('scaleDriverCount').textContent = 'Драйверов: ' + cachedData.scaleDrivers.length;
+    renderScaleDrivers(cachedData.scaleDrivers);
+}
+
+function renderScaleDrivers(rows) {
+    document.getElementById('scaleDriverTable').innerHTML = rows.length ? rows.map(r => {
+        let cfg = {};
+        try { cfg = JSON.parse(r.config_value || '{}'); } catch(e) {}
+        let statusHtml = cfg.active !== false
+            ? '<span style="color:#53d769;">● Активен</span>'
+            : '<span style="color:#888;">● Выкл</span>';
+        return `<tr>
+            <td>${esc(r.config_key)}</td>
+            <td><b>${esc(cfg.brand || '—')}</b></td>
+            <td>${esc(cfg.protocol || '—')} ${cfg.baudrate ? cfg.baudrate + ',' + (cfg.dataformat||'8N1') : ''}</td>
+            <td>${esc(cfg.port || '—')}</td>
+            <td>${cfg.max_capacity || 600} kg</td>
+            <td>${cfg.resolution || 0.02} kg</td>
+            <td>${statusHtml}</td>
+            <td class="actions">
+                <button class="btn-icon" onclick="editScaleDriver(${r.id})">&#9998;</button>
+                <button class="btn-icon btn-danger" onclick="deleteScaleDriver(${r.id})">&#10005;</button>
+            </td></tr>`;
+    }).join('') : '<tr class="empty-row"><td colspan="8">Нет драйверов. Добавьте первый.</td></tr>';
+}
+
+// Brand presets for auto-filling protocol params
+const scaleBrandPresets = {
+    'Alex SE': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 },
+    'CAS DB-II': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 },
+    'CAS CI-200': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 200, resolution: 0.01 },
+    'Jadever JWI-700': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.05 },
+    'DIGI SM5300': { protocol: 'RS232', baudrate: '9600', dataformat: '8E1', max_capacity: 6000, resolution: 0.5 },
+    'Massa-K ВПН': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 },
+    'Massa-K ТВ': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 300, resolution: 0.01 },
+    'Emulator': { protocol: 'Virtual', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 }
+};
+window.onScaleBrandChange = function() {
+    const brand = document.getElementById('sd_brand').value;
+    const preset = scaleBrandPresets[brand];
+    if (preset) {
+        document.getElementById('sd_protocol').value = preset.protocol;
+        document.getElementById('sd_baudrate').value = preset.baudrate;
+        document.getElementById('sd_dataformat').value = preset.dataformat;
+        document.getElementById('sd_max_capacity').value = preset.max_capacity;
+        document.getElementById('sd_resolution').value = preset.resolution;
+        if (brand === 'Emulator') document.getElementById('sd_port').value = '—';
+    }
+};
+
+function editScaleDriver(id) {
+    const r = cachedData.scaleDrivers.find(x => x.id === id);
+    if (!r) return;
+    let cfg = {};
+    try { cfg = JSON.parse(r.config_value || '{}'); } catch(e) {}
+    document.getElementById('scaleDriverModalTitle').textContent = 'Редактировать драйвер';
+    document.getElementById('sd_id').value = r.id;
+    document.getElementById('sd_name').value = r.config_key;
+    document.getElementById('sd_brand').value = cfg.brand || '';
+    document.getElementById('sd_protocol').value = cfg.protocol || 'RS232';
+    document.getElementById('sd_port').value = cfg.port || '';
+    document.getElementById('sd_baudrate').value = cfg.baudrate || '9600';
+    document.getElementById('sd_dataformat').value = cfg.dataformat || '8N1';
+    document.getElementById('sd_max_capacity').value = cfg.max_capacity || 600;
+    document.getElementById('sd_resolution').value = cfg.resolution || 0.02;
+    document.getElementById('sd_settle_time').value = cfg.settle_time || 2.0;
+    document.getElementById('sd_emu_interval').value = cfg.emu_interval || 3000;
+    document.getElementById('sd_active').checked = cfg.active !== false;
+    openModal('scale-driver');
+}
+window.editScaleDriver = editScaleDriver;
+
+async function deleteScaleDriver(id) {
+    if (!confirm('Удалить драйвер весов?')) return;
+    const j = await apiDelete('/module-config/' + id);
+    if (j.success) { showToast('Удалено'); loadScaleDrivers(); } else showToast(j.error, 'error');
+}
+window.deleteScaleDriver = deleteScaleDriver;
+
+async function saveScaleDriver() {
+    const cfg = {
+        brand: document.getElementById('sd_brand').value,
+        protocol: document.getElementById('sd_protocol').value,
+        port: document.getElementById('sd_port').value,
+        baudrate: document.getElementById('sd_baudrate').value,
+        dataformat: document.getElementById('sd_dataformat').value,
+        max_capacity: parseFloat(document.getElementById('sd_max_capacity').value) || 600,
+        resolution: parseFloat(document.getElementById('sd_resolution').value) || 0.02,
+        settle_time: parseFloat(document.getElementById('sd_settle_time').value) || 2.0,
+        emu_interval: parseInt(document.getElementById('sd_emu_interval').value) || 3000,
+        active: document.getElementById('sd_active').checked
+    };
+    const data = {
+        config_key: document.getElementById('sd_name').value,
+        config_value: JSON.stringify(cfg),
+        config_group: 'scale_driver',
+        description: cfg.brand + ' — ' + cfg.protocol + ' ' + cfg.port
+    };
+    const idVal = document.getElementById('sd_id').value;
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/module-config', data);
+    if (j.success) { closeModal('scale-driver'); showToast('Драйвер сохранён'); loadScaleDrivers(); } else showToast(j.error, 'error');
+}
+window.saveScaleDriver = saveScaleDriver;
+
+/* ================================================================
    RENDER FUNCTION MAP (for sorting)
    ================================================================ */
 const renderFns = {
@@ -1599,7 +1836,8 @@ const renderFns = {
     currencies: renderCurrencies,
     rates: renderRates,
     formulas: renderFormulas,
-    config: renderConfig
+    config: renderConfig,
+    scaleDrivers: renderScaleDrivers
 };
 
 /* ================================================================
@@ -1691,6 +1929,7 @@ const pageLoaders = {
     currencies: loadCurrencies,
     rates: loadRates,
     formulas: loadFormulas,
+    scales: loadScaleDrivers,
     config: loadConfig,
     reports: initReports
 };

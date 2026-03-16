@@ -268,10 +268,10 @@ body {
 
 <!-- ===== Tab Bar ===== -->
 <div class="tab-bar" id="tabBar">
-    <div class="mdi-tab active" data-tab="admin" onclick="activateTab('admin')">
+    <div class="mdi-tab" data-tab="admin" onclick="activateTab('admin')">
         <span class="tab-icon">&#9881;</span> Admin
     </div>
-    <div class="mdi-tab" data-tab="field" onclick="activateTab('field')">
+    <div class="mdi-tab active" data-tab="field" onclick="activateTab('field')">
         <span class="tab-icon">&#128230;</span> Приёмка
     </div>
     <div class="mdi-tab" data-tab="warehouse" onclick="activateTab('warehouse')">
@@ -302,8 +302,8 @@ body {
 <!-- ===== MDI Container ===== -->
 <div class="mdi-container" id="mdiContainer">
     <!-- Tab panels (lazy-loaded iframes) -->
-    <div class="tab-panel active" id="panel-admin" data-src="/UNA.md/orasldev/agro-admin?embed=1"></div>
-    <div class="tab-panel" id="panel-field" data-src="/UNA.md/orasldev/agro-field?embed=1"></div>
+    <div class="tab-panel" id="panel-admin" data-src="/UNA.md/orasldev/agro-admin?embed=1"></div>
+    <div class="tab-panel active" id="panel-field" data-src="/UNA.md/orasldev/agro-field?embed=1"></div>
     <div class="tab-panel" id="panel-warehouse" data-src="/UNA.md/orasldev/agro-warehouse?embed=1"></div>
     <div class="tab-panel" id="panel-qa" data-src="/UNA.md/orasldev/agro-qa?embed=1"></div>
     <div class="tab-panel" id="panel-sales" data-src="/UNA.md/orasldev/agro-sales?embed=1"></div>
@@ -356,8 +356,8 @@ function activateTab(name) {
 }
 window.activateTab = activateTab;
 
-// Load first tab on init
-activateTab('admin');
+// Load first tab on init (Приёмка as default)
+activateTab('field');
 
 /* ========== FLOATING WINDOWS ========== */
 

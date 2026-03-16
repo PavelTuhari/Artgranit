@@ -2125,60 +2125,72 @@ function loadScaleConfig() {
 })();
 </script>
 
-<!-- Scale Emulator Modal -->
-<div id="scaleModal" class="scale-modal-overlay" style="display:none;" onclick="if(event.target===this)closeScaleModal()">
-    <div class="scale-modal">
-        <div class="scale-modal-header">
-            <h2>⚖️ Весы / Cântar — Эмулятор</h2>
-            <button class="scale-modal-close" onclick="closeScaleModal()">&times;</button>
+<!-- Scale Emulator Modal — Full-screen kiosk style -->
+<div id="scaleModal" class="scale-kiosk-overlay" style="display:none;">
+    <div class="scale-kiosk">
+        <!-- Top bar -->
+        <div class="sk-header">
+            <div class="sk-title">⚖️ Весы / Cântar — Эмулятор</div>
+            <div class="sk-status">
+                <span class="sk-indicator" id="modalScaleIndicator"></span>
+                <span id="modalScaleStatusText">Idle</span>
+            </div>
+            <div class="sk-driver-info">
+                <span>Driver: <b>Emulator</b></span>
+                <span>Max: <b>600 kg</b></span>
+            </div>
+            <button class="sk-close" onclick="closeScaleModal()">&times;</button>
         </div>
-        <div class="scale-modal-body">
-            <div class="scale-modal-columns">
-                <!-- Left: Scale display -->
-                <div class="scale-display-panel">
-                    <div class="scale-big-display">
-                        <div class="scale-big-value" id="modalScaleGross">0.000</div>
-                        <div class="scale-big-unit">kg gross</div>
+        <!-- Main 3-column layout -->
+        <div class="sk-body">
+            <!-- Left: Product grid (square buttons like self-service scales) -->
+            <div class="sk-products">
+                <div class="sk-products-title">Продукция / Produse</div>
+                <div class="sk-product-grid" id="productGrid">
+                    <!-- Filled dynamically -->
+                </div>
+            </div>
+            <!-- Center: Scale display -->
+            <div class="sk-scale">
+                <div class="sk-weight-display">
+                    <div class="sk-weight-gross" id="modalScaleGross">0.000</div>
+                    <div class="sk-weight-unit">kg</div>
+                </div>
+                <div class="sk-weight-sub">
+                    <div class="sk-sub-item">
+                        <span class="sk-sub-label">Tare / Тара</span>
+                        <span class="sk-sub-val" id="modalScaleTare">0.000</span>
                     </div>
-                    <div class="scale-sub-values">
-                        <div><span class="scale-label">Tare / Тара</span><span class="scale-val" id="modalScaleTare">0.000</span></div>
-                        <div><span class="scale-label">Net / Нетто</span><span class="scale-val scale-val-net" id="modalScaleNet">0.000</span></div>
-                    </div>
-                    <div class="scale-status-bar">
-                        <span class="scale-indicator" id="modalScaleIndicator"></span>
-                        <span id="modalScaleStatusText">Idle / Ожидание</span>
-                    </div>
-                    <div class="scale-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="modalScaleZero()">Zero</button>
-                        <button class="btn btn-accent btn-sm" onclick="modalScaleTare()">Tare</button>
-                        <button class="btn btn-primary" id="modalCaptureBtn" onclick="modalScaleCapture()" disabled>
-                            ⚖️ Снять вес / Cântărește
-                        </button>
-                    </div>
-                    <div class="scale-driver-info">
-                        <span>Driver: <b>Emulator</b></span>
-                        <span>Max: <b>600 kg</b></span>
-                        <span>Resolution: <b>0.02 kg</b></span>
+                    <div class="sk-sub-item">
+                        <span class="sk-sub-label">Net / Нетто</span>
+                        <span class="sk-sub-val sk-net" id="modalScaleNet">0.000</span>
                     </div>
                 </div>
-                <!-- Right: AI Camera simulation -->
-                <div class="ai-camera-panel">
-                    <div class="camera-header">
-                        <span>📷 AI Camera — распознавание / recunoaștere</span>
-                        <span class="ai-badge">AI</span>
+                <div class="sk-scale-btns">
+                    <button class="sk-btn sk-btn-zero" onclick="modalScaleZero()">Zero</button>
+                    <button class="sk-btn sk-btn-tare" onclick="modalScaleTare()">Tare</button>
+                </div>
+                <!-- Capture button - main action -->
+                <button class="sk-capture-btn" id="modalCaptureBtn" onclick="modalScaleCapture()">
+                    ⚖️ Снять вес / Cântărește
+                </button>
+            </div>
+            <!-- Right: AI Camera panel -->
+            <div class="sk-camera">
+                <div class="sk-camera-header">
+                    <span>📷 AI Camera</span>
+                    <span class="ai-badge">AI</span>
+                </div>
+                <div class="sk-camera-viewport" id="cameraViewport">
+                    <div class="camera-idle">
+                        <div style="font-size:40px;">📷</div>
+                        <div>Запуск...</div>
                     </div>
-                    <div class="camera-viewport" id="cameraViewport">
-                        <div class="camera-idle">
-                            <div class="camera-icon">📷</div>
-                            <div>Камера не активна</div>
-                            <div class="camera-hint">Нажмите «Снять вес» для эмуляции</div>
-                        </div>
-                    </div>
-                    <div class="ai-result" id="aiResult" style="display:none;">
-                        <div class="ai-result-label">Распознано / Recunoscut:</div>
-                        <div class="ai-result-product" id="aiProductName">—</div>
-                        <div class="ai-result-confidence" id="aiConfidence"></div>
-                    </div>
+                </div>
+                <div class="sk-ai-result" id="aiResult" style="display:none;">
+                    <div class="sk-ai-label">Распознано / Recunoscut:</div>
+                    <div class="sk-ai-product" id="aiProductName">—</div>
+                    <div class="sk-ai-confidence" id="aiConfidence"></div>
                 </div>
             </div>
         </div>
@@ -2186,88 +2198,145 @@ function loadScaleConfig() {
 </div>
 
 <style>
-.scale-modal-overlay {
+/* ===== Scale Kiosk — Full-screen style ===== */
+.scale-kiosk-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,.7); z-index: 9999;
-    display: flex; align-items: center; justify-content: center;
+    background: #0a0a1a; z-index: 9999;
+    display: flex; flex-direction: column;
 }
-.scale-modal {
-    background: var(--card-bg, #16213e); border-radius: 16px;
-    width: 90%; max-width: 900px; max-height: 90vh; overflow: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,.5); border: 1px solid var(--border, #2a3a5c);
+.scale-kiosk {
+    display: flex; flex-direction: column; width: 100%; height: 100%;
 }
-.scale-modal-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 16px 24px; border-bottom: 1px solid var(--border, #2a3a5c);
+.sk-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 8px 16px; background: #0d0d1a;
+    border-bottom: 1px solid #0f3460; flex-shrink: 0;
 }
-.scale-modal-header h2 { font-size: 18px; color: var(--accent, #53d769); margin: 0; }
-.scale-modal-close {
-    background: none; border: none; color: var(--text-muted); font-size: 28px; cursor: pointer;
-    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
-    border-radius: 8px; transition: all .2s;
+.sk-title { color: #53d769; font-weight: 700; font-size: 16px; }
+.sk-status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8888aa; }
+.sk-indicator { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+.sk-driver-info { margin-left: auto; font-size: 11px; color: #6c6c8a; display: flex; gap: 12px; }
+.sk-close {
+    background: none; border: none; color: #8888aa; font-size: 28px; cursor: pointer;
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; transition: all .2s;
 }
-.scale-modal-close:hover { background: rgba(233,69,96,.2); color: var(--primary, #e94560); }
-.scale-modal-body { padding: 20px 24px; }
-.scale-modal-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-@media (max-width: 700px) { .scale-modal-columns { grid-template-columns: 1fr; } }
+.sk-close:hover { background: #e9456040; color: #e94560; }
 
-/* Scale display */
-.scale-display-panel { display: flex; flex-direction: column; gap: 16px; }
-.scale-big-display {
-    background: #0a1628; border-radius: 12px; padding: 24px; text-align: center;
-    border: 2px solid var(--border, #2a3a5c);
-}
-.scale-big-value {
-    font-size: 48px; font-weight: 700; font-family: 'Courier New', monospace;
-    color: var(--accent, #53d769); line-height: 1;
-}
-.scale-big-display.settling .scale-big-value { color: #ffc107; }
-.scale-big-display.stable { border-color: var(--accent, #53d769); }
-.scale-big-unit { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
-.scale-sub-values { display: flex; gap: 16px; }
-.scale-sub-values > div {
-    flex: 1; background: #0a1628; border-radius: 8px; padding: 12px; text-align: center;
-}
-.scale-label { display: block; font-size: 11px; color: var(--text-muted); }
-.scale-val { display: block; font-size: 20px; font-weight: 600; font-family: 'Courier New', monospace; }
-.scale-val-net { color: var(--accent, #53d769); }
-.scale-status-bar {
-    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-    background: #0a1628; border-radius: 8px; font-size: 13px;
-}
-.scale-indicator {
-    width: 10px; height: 10px; border-radius: 50%; background: #666;
-    display: inline-block;
-}
-.scale-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.scale-actions .btn-primary { flex: 1; min-height: 48px; font-size: 16px; }
-.scale-driver-info {
-    display: flex; gap: 12px; font-size: 11px; color: var(--text-muted);
-    padding: 8px 0; border-top: 1px solid var(--border, #2a3a5c); flex-wrap: wrap;
+/* Body: 3-column layout */
+.sk-body {
+    flex: 1; display: grid;
+    grid-template-columns: 1fr 300px 280px;
+    gap: 0; overflow: hidden;
 }
 
-/* AI Camera */
-.ai-camera-panel { display: flex; flex-direction: column; gap: 12px; }
-.camera-header {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 14px; font-weight: 600;
+/* Left: Product grid */
+.sk-products {
+    background: #12122a; border-right: 1px solid #0f3460;
+    display: flex; flex-direction: column; overflow: hidden;
 }
+.sk-products-title {
+    padding: 10px 16px; font-size: 13px; font-weight: 600; color: #8888aa;
+    border-bottom: 1px solid #0f3460; flex-shrink: 0;
+}
+.sk-product-grid {
+    flex: 1; overflow-y: auto; padding: 12px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px; align-content: start;
+}
+.sk-product-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; padding: 12px 8px;
+    background: #16213e; border: 2px solid #0f3460; border-radius: 10px;
+    cursor: pointer; transition: all .15s; min-height: 100px;
+}
+.sk-product-btn:hover { border-color: #53d769; background: #1a2a4e; }
+.sk-product-btn.active { border-color: #53d769; background: #1a3a2e; box-shadow: 0 0 12px rgba(83,215,105,.3); }
+.sk-product-btn .sk-product-img { width: 48px; height: 48px; object-fit: contain; }
+.sk-product-btn .sk-product-label {
+    font-size: 11px; color: #b0b0c8; text-align: center; line-height: 1.2;
+}
+.sk-product-btn.active .sk-product-label { color: #53d769; font-weight: 600; }
+
+/* Center: Scale display */
+.sk-scale {
+    background: #0a1628; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px; padding: 20px;
+    border-right: 1px solid #0f3460;
+}
+.sk-weight-display {
+    text-align: center; padding: 20px 30px;
+    background: #060e1a; border-radius: 12px;
+    border: 2px solid #0f3460; width: 100%;
+}
+.sk-weight-gross {
+    font-size: 48px; font-weight: 700; color: #53d769;
+    font-family: 'Courier New', monospace; letter-spacing: 2px;
+}
+.sk-weight-unit { font-size: 14px; color: #6c6c8a; margin-top: 4px; }
+.sk-weight-sub { display: flex; gap: 16px; width: 100%; }
+.sk-sub-item {
+    flex: 1; text-align: center; padding: 10px;
+    background: #0d1830; border-radius: 8px; border: 1px solid #0f3460;
+}
+.sk-sub-label { display: block; font-size: 10px; color: #6c6c8a; margin-bottom: 4px; }
+.sk-sub-val { font-size: 18px; font-family: monospace; color: #b0b0c8; }
+.sk-net { color: #4ec9b0; }
+.sk-scale-btns { display: flex; gap: 10px; }
+.sk-btn {
+    padding: 8px 20px; border: 1px solid #0f3460; border-radius: 6px;
+    background: #16213e; color: #b0b0c8; cursor: pointer; font-size: 13px;
+    transition: all .15s;
+}
+.sk-btn:hover { background: #0f3460; color: #fff; }
+.sk-btn-tare { border-color: #e94560; color: #e94560; }
+.sk-btn-tare:hover { background: #e94560; color: #fff; }
+.sk-capture-btn {
+    width: 100%; padding: 16px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #e94560, #d63a55);
+    color: #fff; font-size: 18px; font-weight: 700; cursor: pointer;
+    transition: all .2s; letter-spacing: 0.5px;
+}
+.sk-capture-btn:hover { transform: scale(1.02); box-shadow: 0 4px 20px rgba(233,69,96,.4); }
+.sk-capture-btn:active { transform: scale(0.98); }
+
+/* Right: AI Camera */
+.sk-camera {
+    background: #12122a; display: flex; flex-direction: column;
+}
+.sk-camera-header {
+    padding: 10px 16px; font-size: 13px; color: #8888aa;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #0f3460; flex-shrink: 0;
+}
+.sk-camera-viewport {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: #0a0a1a; margin: 12px; border-radius: 8px;
+    border: 1px solid #0f3460; min-height: 200px; overflow: hidden;
+}
+.sk-ai-result {
+    padding: 12px 16px; border-top: 1px solid #0f3460;
+    background: rgba(83,215,105,.08);
+}
+.sk-ai-label { font-size: 11px; color: #6c6c8a; }
+.sk-ai-product { font-size: 16px; font-weight: 700; color: #53d769; }
+.sk-ai-confidence { font-size: 12px; color: #6c6c8a; margin-top: 4px; }
+
+/* Responsive: stack on small screens */
+@media (max-width: 900px) {
+    .sk-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .sk-products { max-height: 200px; }
+    .sk-product-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+}
+/* AI badge */
 .ai-badge {
     background: linear-gradient(135deg, #667eea, #764ba2); color: white;
     padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;
 }
-.camera-viewport {
-    background: #0a1628; border-radius: 12px; min-height: 200px;
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid var(--border, #2a3a5c); overflow: hidden; position: relative;
-}
-.camera-idle { text-align: center; color: var(--text-muted); font-size: 13px; }
-.camera-icon { font-size: 48px; margin-bottom: 8px; }
-.camera-hint { font-size: 11px; margin-top: 4px; }
+.camera-idle { text-align: center; color: #6c6c8a; font-size: 13px; }
 .camera-scanning {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: rgba(10,22,40,.9);
+    gap: 12px; padding: 20px;
 }
 .camera-scanline {
     width: 80%; height: 2px; background: linear-gradient(90deg, transparent, #53d769, transparent);
@@ -2275,25 +2344,11 @@ function loadScaleConfig() {
 }
 @keyframes scanline { 0%{transform:translateY(-60px);opacity:0} 50%{opacity:1} 100%{transform:translateY(60px);opacity:0} }
 .camera-product-preview {
-    text-align: center; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 10px; padding: 16px;
 }
-.camera-product-preview img, .camera-product-emoji {
-    font-size: 80px; display: block; margin: 0 auto 12px;
-}
-.camera-product-name {
-    font-size: 16px; font-weight: 600; color: var(--accent, #53d769);
-}
-.ai-result {
-    background: rgba(83,215,105,.08); border: 1px solid rgba(83,215,105,.3);
-    border-radius: 8px; padding: 12px;
-}
-.ai-result-label { font-size: 11px; color: var(--text-muted); }
-.ai-result-product { font-size: 18px; font-weight: 700; color: var(--accent, #53d769); }
-.ai-result-confidence { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-
-/* Product image in camera viewport */
 .camera-product-img {
-    width: 100px; height: 100px; object-fit: contain;
+    width: 80px; height: 80px; object-fit: contain;
     filter: drop-shadow(0 4px 12px rgba(0,0,0,.4));
     animation: productAppear .5s ease-out;
 }
@@ -2302,16 +2357,11 @@ function loadScaleConfig() {
     60% { transform: scale(1.1) rotate(2deg); opacity: 1; }
     100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
-.camera-product-preview {
-    display: flex; flex-direction: column; align-items: center;
-    justify-content: center; gap: 10px; min-height: 150px;
-}
 .camera-product-name {
-    font-size: 15px; font-weight: 600; color: var(--accent, #53d769);
-    text-align: center;
+    font-size: 14px; font-weight: 600; color: #53d769; text-align: center;
 }
 .camera-ai-confidence {
-    display: flex; align-items: center; gap: 8px; width: 80%;
+    display: flex; align-items: center; gap: 8px; width: 90%;
 }
 .camera-ai-bar {
     flex: 1; height: 6px; background: rgba(255,255,255,.1);
@@ -2322,7 +2372,7 @@ function loadScaleConfig() {
     border-radius: 3px; transition: width .5s ease;
 }
 .camera-ai-confidence span {
-    font-size: 11px; color: var(--text-muted); white-space: nowrap;
+    font-size: 11px; color: #6c6c8a; white-space: nowrap;
 }
 </style>
 
@@ -2333,6 +2383,7 @@ function loadScaleConfig() {
 var modalTargetLineId = null;
 var modalPollingTimer = null;
 var autoEmulationTimer = null;
+var selectedProductKey = null;
 
 // Product image map for AI camera simulation (SVG pictograms)
 var productImages = {
@@ -2352,21 +2403,70 @@ var productNamesRu = {
 };
 var productKeys = Object.keys(productImages);
 
+// Build product grid with square SVG buttons
+function buildProductGrid() {
+    var grid = document.getElementById('productGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    productKeys.forEach(function(key) {
+        var btn = document.createElement('button');
+        btn.className = 'sk-product-btn';
+        btn.setAttribute('data-product', key);
+        btn.innerHTML =
+            '<img src="' + productImages[key] + '" alt="' + key + '" class="sk-product-img">' +
+            '<span class="sk-product-label">' + (productNamesRu[key] || key) + '</span>';
+        btn.onclick = function() { selectProduct(key); };
+        grid.appendChild(btn);
+    });
+}
+
+// Select a product in the grid (manual click)
+function selectProduct(key) {
+    selectedProductKey = key;
+    highlightProductInGrid(key);
+    // Update AI result panel
+    document.getElementById('aiResult').style.display = 'block';
+    document.getElementById('aiProductName').textContent = productNamesRu[key] || key;
+    document.getElementById('aiConfidence').textContent = 'Выбрано вручную / Selectat manual';
+    // Show product in camera viewport
+    var viewport = document.getElementById('cameraViewport');
+    viewport.innerHTML =
+        '<div class="camera-product-preview">' +
+        '<img src="' + productImages[key] + '" class="camera-product-img" alt="' + key + '">' +
+        '<div class="camera-product-name">' + (productNamesRu[key] || key) + '</div>' +
+        '</div>';
+}
+
+// Highlight the active product button in the grid
+function highlightProductInGrid(key) {
+    var btns = document.querySelectorAll('.sk-product-btn');
+    for (var i = 0; i < btns.length; i++) {
+        if (btns[i].getAttribute('data-product') === key) {
+            btns[i].classList.add('active');
+        } else {
+            btns[i].classList.remove('active');
+        }
+    }
+}
+
 window.weighPurchaseLine = function(lineId) {
     modalTargetLineId = lineId;
+    selectedProductKey = null;
     document.getElementById('scaleModal').style.display = 'flex';
     // Reset displays
     document.getElementById('modalScaleGross').textContent = '0.000';
     document.getElementById('modalScaleTare').textContent = '0.000';
     document.getElementById('modalScaleNet').textContent = '0.000';
-    document.getElementById('modalScaleStatusText').textContent = 'Idle / Ожидание';
-    document.getElementById('modalScaleIndicator').style.background = '#666';
+    document.getElementById('modalScaleStatusText').textContent = 'Запуск... / Pornire...';
+    document.getElementById('modalScaleIndicator').style.background = '#ffc107';
     document.getElementById('modalCaptureBtn').disabled = true;
     document.getElementById('aiResult').style.display = 'none';
     document.getElementById('cameraViewport').innerHTML =
-        '<div class="camera-idle"><div class="camera-icon">📷</div>' +
-        '<div>Камера готова / Camera pregătită</div><div class="camera-hint">Авто-эмуляция каждые 10 сек</div></div>';
-    // Start polling scale + auto-emulation
+        '<div class="camera-idle"><div style="font-size:40px;">📷</div>' +
+        '<div>Запуск... / Pornire...</div></div>';
+    // Build product grid
+    buildProductGrid();
+    // Start polling scale + auto-emulation immediately
     startModalPolling();
     startAutoEmulation();
 };
@@ -2376,6 +2476,7 @@ window.closeScaleModal = function() {
     stopModalPolling();
     stopAutoEmulation();
     modalTargetLineId = null;
+    selectedProductKey = null;
 };
 
 function startModalPolling() {
@@ -2401,19 +2502,15 @@ function pollModalScale() {
             var indicator = document.getElementById('modalScaleIndicator');
             var statusText = document.getElementById('modalScaleStatusText');
             var captureBtn = document.getElementById('modalCaptureBtn');
-            var bigDisplay = document.querySelector('.scale-big-display');
 
-            bigDisplay.classList.remove('stable', 'settling');
             if (d.status === 'stable' && d.gross_kg > 0) {
                 indicator.style.background = '#53d769';
                 statusText.textContent = '● Stable / Стабильно';
                 captureBtn.disabled = false;
-                bigDisplay.classList.add('stable');
             } else if (d.status === 'settling') {
                 indicator.style.background = '#ffc107';
                 statusText.textContent = '◌ Settling... / Стабилизация...';
                 captureBtn.disabled = true;
-                bigDisplay.classList.add('settling');
             } else {
                 indicator.style.background = '#666';
                 statusText.textContent = 'Idle / Ожидание';
@@ -2439,9 +2536,7 @@ window.modalScaleTare = function() {
 // Auto-emulation: every 10s simulate new random weight + AI recognition
 function startAutoEmulation() {
     stopAutoEmulation();
-    // First emulation immediately
     runEmulationCycle();
-    // Then every 10 seconds
     autoEmulationTimer = setInterval(runEmulationCycle, 10000);
 }
 
@@ -2468,7 +2563,6 @@ function runEmulationCycle() {
         body: JSON.stringify({scale_id: 'default', random: true, min_kg: 50, max_kg: 500})
     }).then(function(r) { return r.json(); })
     .then(function() {
-        // Wait for stable weight
         var attempts = 0;
         var stableTimer = setInterval(function() {
             attempts++;
@@ -2480,10 +2574,14 @@ function runEmulationCycle() {
                         clearInterval(stableTimer);
                         // Pick random product for AI recognition
                         var randomKey = productKeys[Math.floor(Math.random() * productKeys.length)];
+                        selectedProductKey = randomKey;
                         var imgSrc = productImages[randomKey];
                         var productLabel = productNamesRu[randomKey] || randomKey;
                         var confidence = (85 + Math.random() * 14).toFixed(1);
                         var d = res.data;
+
+                        // Highlight product in the grid
+                        highlightProductInGrid(randomKey);
 
                         // Show product pictogram in camera viewport
                         viewport.innerHTML =
@@ -2502,10 +2600,8 @@ function runEmulationCycle() {
                         document.getElementById('aiConfidence').textContent =
                             'Точность: ' + confidence + '% | Вес: ' + d.net_kg.toFixed(2) + ' кг';
 
-                        // Enable capture button
                         if (captureBtn) {
                             captureBtn.disabled = false;
-                            captureBtn.innerHTML = '⚖️ Принять вес / Acceptă';
                         }
                     }
                 });
@@ -2513,13 +2609,12 @@ function runEmulationCycle() {
     }).catch(function() {});
 }
 
-// Manual capture: apply current weight + product to purchase line
+// Capture: apply current weight + selected product to purchase line, then close modal
 window.modalScaleCapture = function() {
     var captureBtn = document.getElementById('modalCaptureBtn');
     captureBtn.disabled = true;
     captureBtn.textContent = '⏳ Фиксация...';
 
-    // Stop auto-emulation (user chose to capture this reading)
     stopAutoEmulation();
 
     fetch('/api/agro-scale/capture', {
@@ -2528,20 +2623,19 @@ window.modalScaleCapture = function() {
     }).then(function(r) { return r.json(); })
     .then(function(cap) {
         var reading = cap.reading || cap.data || {};
+        var productLabel = selectedProductKey ? (productNamesRu[selectedProductKey] || selectedProductKey) : '';
 
         // Apply weight to purchase line
         var line = modalTargetLineId ? document.getElementById(modalTargetLineId) : null;
         if (line) {
             line.querySelector('.line-gross').value = (reading.gross_kg || 0).toFixed(2);
             line.querySelector('.line-tare').value = (reading.tare_kg || 0).toFixed(2);
-            // Set product from AI recognition if not already set
+            // Set product from selection or AI recognition
             var selectedItem = line.querySelector('.line-item');
-            var aiProduct = document.getElementById('aiProductName').textContent;
-            if (selectedItem && (!selectedItem.value || selectedItem.value === '')) {
-                // Try to match AI product to dropdown
+            if (selectedItem && (!selectedItem.value || selectedItem.value === '') && productLabel) {
+                var searchName = productLabel.split(' /')[0];
                 for (var i = 0; i < selectedItem.options.length; i++) {
-                    if (aiProduct.indexOf(selectedItem.options[i].textContent) !== -1 ||
-                        selectedItem.options[i].textContent.indexOf(aiProduct.split(' /')[0]) !== -1) {
+                    if (selectedItem.options[i].textContent.indexOf(searchName) !== -1) {
                         selectedItem.value = selectedItem.options[i].value;
                         break;
                     }
@@ -2550,20 +2644,17 @@ window.modalScaleCapture = function() {
             if (typeof recalcPurchaseLine === 'function') recalcPurchaseLine(modalTargetLineId);
         }
 
-        captureBtn.textContent = '✅ Готово! Закрыть';
-        captureBtn.disabled = false;
-        captureBtn.onclick = function() {
-            closeScaleModal();
-            captureBtn.textContent = '⚖️ Снять вес / Cântărește';
-            captureBtn.onclick = modalScaleCapture;
-            if (typeof showToast === 'function') {
-                showToast('Вес снят: ' + (reading.net_kg || 0).toFixed(2) + ' кг — ' + aiProduct, 'success');
-            }
-        };
+        // Close modal immediately and show toast
+        var weightStr = (reading.net_kg || 0).toFixed(2);
+        closeScaleModal();
+        captureBtn.textContent = '⚖️ Снять вес / Cântărește';
+        if (typeof showToast === 'function') {
+            showToast('Вес снят: ' + weightStr + ' кг — ' + productLabel, 'success');
+        }
     }).catch(function(err) {
         captureBtn.textContent = '⚖️ Снять вес / Cântărește';
         captureBtn.disabled = false;
-        startAutoEmulation(); // Resume auto-emulation on error
+        startAutoEmulation();
         if (typeof showToast === 'function') showToast('Ошибка: ' + err.message, 'error');
     });
 };
