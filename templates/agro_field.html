@@ -2750,12 +2750,25 @@ window.modalScaleCapture = function() {
             line.querySelector('.line-tare').value = (reading.tare_kg || 0).toFixed(2);
             // Set product from selection or AI recognition
             var selectedItem = line.querySelector('.line-item');
-            if (selectedItem && (!selectedItem.value || selectedItem.value === '') && productLabel) {
-                var searchName = productLabel.split(' /')[0];
+            if (selectedItem && (!selectedItem.value || selectedItem.value === '') && selectedProductKey) {
+                // First try exact match by product key (e.g. "PEACH" matches option value/text "PEACH")
+                var matched = false;
                 for (var i = 0; i < selectedItem.options.length; i++) {
-                    if (selectedItem.options[i].textContent.indexOf(searchName) !== -1) {
+                    if (selectedItem.options[i].value === selectedProductKey ||
+                        selectedItem.options[i].textContent.trim() === selectedProductKey) {
                         selectedItem.value = selectedItem.options[i].value;
+                        matched = true;
                         break;
+                    }
+                }
+                // Fallback: try matching by Russian/Romanian name
+                if (!matched && productLabel) {
+                    var searchName = productLabel.split(' /')[0];
+                    for (var j = 0; j < selectedItem.options.length; j++) {
+                        if (selectedItem.options[j].textContent.indexOf(searchName) !== -1) {
+                            selectedItem.value = selectedItem.options[j].value;
+                            break;
+                        }
                     }
                 }
             }
