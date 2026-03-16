@@ -2290,6 +2290,40 @@ function loadScaleConfig() {
 .ai-result-label { font-size: 11px; color: var(--text-muted); }
 .ai-result-product { font-size: 18px; font-weight: 700; color: var(--accent, #53d769); }
 .ai-result-confidence { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* Product image in camera viewport */
+.camera-product-img {
+    width: 100px; height: 100px; object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,.4));
+    animation: productAppear .5s ease-out;
+}
+@keyframes productAppear {
+    0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+    60% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.camera-product-preview {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 10px; min-height: 150px;
+}
+.camera-product-name {
+    font-size: 15px; font-weight: 600; color: var(--accent, #53d769);
+    text-align: center;
+}
+.camera-ai-confidence {
+    display: flex; align-items: center; gap: 8px; width: 80%;
+}
+.camera-ai-bar {
+    flex: 1; height: 6px; background: rgba(255,255,255,.1);
+    border-radius: 3px; overflow: hidden;
+}
+.camera-ai-bar-fill {
+    height: 100%; background: linear-gradient(90deg, #53d769, #4ec9b0);
+    border-radius: 3px; transition: width .5s ease;
+}
+.camera-ai-confidence span {
+    font-size: 11px; color: var(--text-muted); white-space: nowrap;
+}
 </style>
 
 <script>
@@ -2298,14 +2332,25 @@ function loadScaleConfig() {
 
 var modalTargetLineId = null;
 var modalPollingTimer = null;
+var autoEmulationTimer = null;
 
-// Product emoji map for AI camera simulation
-var productEmojis = {
-    'APPLE': '🍎', 'GRAPE': '🍇', 'CHERRY': '🍒', 'WALNUT': '🥜',
-    'PEPPER': '🌶️', 'PEACH': '🍑', 'TOMATO': '🍅', 'PLUM': '🫐',
-    'apple': '🍎', 'grape': '🍇', 'cherry': '🍒', 'walnut': '🥜',
-    'pepper': '🌶️', 'peach': '🍑', 'tomato': '🍅', 'plum': '🫐'
+// Product image map for AI camera simulation (SVG pictograms)
+var productImages = {
+    'APPLE': '/static/agro/products/apple.svg',
+    'GRAPE': '/static/agro/products/grape.svg',
+    'CHERRY': '/static/agro/products/cherry.svg',
+    'WALNUT': '/static/agro/products/walnut.svg',
+    'PEPPER': '/static/agro/products/pepper.svg',
+    'PEACH': '/static/agro/products/peach.svg',
+    'TOMATO': '/static/agro/products/tomato.svg',
+    'PLUM': '/static/agro/products/plum.svg'
 };
+var productNamesRu = {
+    'APPLE': 'Яблоко / Măr', 'GRAPE': 'Виноград / Struguri', 'CHERRY': 'Черешня / Cireșe',
+    'WALNUT': 'Грецкий орех / Nucă', 'PEPPER': 'Перец / Ardei', 'PEACH': 'Персик / Piersică',
+    'TOMATO': 'Помидор / Roșie', 'PLUM': 'Слива / Prună'
+};
+var productKeys = Object.keys(productImages);
 
 window.weighPurchaseLine = function(lineId) {
     modalTargetLineId = lineId;
@@ -2320,20 +2365,22 @@ window.weighPurchaseLine = function(lineId) {
     document.getElementById('aiResult').style.display = 'none';
     document.getElementById('cameraViewport').innerHTML =
         '<div class="camera-idle"><div class="camera-icon">📷</div>' +
-        '<div>Камера не активна</div><div class="camera-hint">Нажмите «Снять вес» для эмуляции</div></div>';
-    // Start polling scale
+        '<div>Камера готова / Camera pregătită</div><div class="camera-hint">Авто-эмуляция каждые 10 сек</div></div>';
+    // Start polling scale + auto-emulation
     startModalPolling();
+    startAutoEmulation();
 };
 
 window.closeScaleModal = function() {
     document.getElementById('scaleModal').style.display = 'none';
     stopModalPolling();
+    stopAutoEmulation();
     modalTargetLineId = null;
 };
 
 function startModalPolling() {
     stopModalPolling();
-    modalPollingTimer = setInterval(pollModalScale, 250);
+    modalPollingTimer = setInterval(pollModalScale, 1000);
     pollModalScale();
 }
 
@@ -2389,27 +2436,39 @@ window.modalScaleTare = function() {
     });
 };
 
-window.modalScaleCapture = function() {
-    var captureBtn = document.getElementById('modalCaptureBtn');
-    captureBtn.disabled = true;
-    captureBtn.textContent = '⏳ Взвешивание...';
+// Auto-emulation: every 10s simulate new random weight + AI recognition
+function startAutoEmulation() {
+    stopAutoEmulation();
+    // First emulation immediately
+    runEmulationCycle();
+    // Then every 10 seconds
+    autoEmulationTimer = setInterval(runEmulationCycle, 10000);
+}
 
-    // Step 1: Simulate random weight
+function stopAutoEmulation() {
+    if (autoEmulationTimer) { clearInterval(autoEmulationTimer); autoEmulationTimer = null; }
+}
+
+function runEmulationCycle() {
+    var viewport = document.getElementById('cameraViewport');
+    var captureBtn = document.getElementById('modalCaptureBtn');
+    if (!viewport) return;
+
+    // Show scanning animation
+    viewport.innerHTML =
+        '<div class="camera-scanning">' +
+        '<div style="font-size:13px;color:#ffc107;margin-bottom:12px;">🔍 Сканирование... / Scanare...</div>' +
+        '<div class="camera-scanline"></div>' +
+        '<div style="font-size:11px;color:var(--text-muted);margin-top:12px;">Анализ изображения / Analiza imaginii</div>' +
+        '</div>';
+
+    // Simulate random weight 50-500 kg
     fetch('/api/agro-scale/simulate', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({scale_id: 'default', random: true, min_kg: 50, max_kg: 500})
     }).then(function(r) { return r.json(); })
     .then(function() {
-        // Step 2: Start AI camera scanning animation
-        var viewport = document.getElementById('cameraViewport');
-        viewport.innerHTML =
-            '<div class="camera-scanning">' +
-            '<div style="font-size:13px;color:#ffc107;margin-bottom:12px;">🔍 Сканирование... / Scanare...</div>' +
-            '<div class="camera-scanline"></div>' +
-            '<div style="font-size:11px;color:var(--text-muted);margin-top:12px;">Анализ изображения / Analiza imaginii</div>' +
-            '</div>';
-
-        // Step 3: Wait for stable weight, then capture + show AI result
+        // Wait for stable weight
         var attempts = 0;
         var stableTimer = setInterval(function() {
             attempts++;
@@ -2417,78 +2476,95 @@ window.modalScaleCapture = function() {
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
                     if (!res.success) return;
-                    if (res.data.stable || attempts >= 30) {
+                    if (res.data.stable || attempts >= 20) {
                         clearInterval(stableTimer);
-                        // Capture
-                        fetch('/api/agro-scale/capture', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({scale_id: 'default'})
-                        }).then(function(r) { return r.json(); })
-                        .then(function(cap) {
-                            var reading = cap.reading || res.data;
-                            // Determine product from line or random
-                            var line = modalTargetLineId ? document.getElementById(modalTargetLineId) : null;
-                            var selectedItem = line ? line.querySelector('.line-item') : null;
-                            var productName = '';
-                            var productCode = '';
-                            if (selectedItem && selectedItem.value) {
-                                productName = selectedItem.options[selectedItem.selectedIndex].textContent;
-                                productCode = productName;
-                            }
-                            // If no product selected, simulate AI recognition
-                            if (!productName || productName === '-- Продукция --') {
-                                var items = selectedItem ? Array.from(selectedItem.options).filter(function(o) { return o.value; }) : [];
-                                if (items.length > 0) {
-                                    var randomItem = items[Math.floor(Math.random() * items.length)];
-                                    productName = randomItem.textContent;
-                                    productCode = randomItem.textContent;
-                                    selectedItem.value = randomItem.value;
-                                } else {
-                                    productName = 'Неизвестный продукт';
-                                    productCode = '';
-                                }
-                            }
+                        // Pick random product for AI recognition
+                        var randomKey = productKeys[Math.floor(Math.random() * productKeys.length)];
+                        var imgSrc = productImages[randomKey];
+                        var productLabel = productNamesRu[randomKey] || randomKey;
+                        var confidence = (85 + Math.random() * 14).toFixed(1);
+                        var d = res.data;
 
-                            // Show AI camera result
-                            var emoji = productEmojis[productCode] || productEmojis[productCode.toLowerCase()] || '📦';
-                            var confidence = (85 + Math.random() * 14).toFixed(1);
+                        // Show product pictogram in camera viewport
+                        viewport.innerHTML =
+                            '<div class="camera-product-preview">' +
+                            '<img src="' + imgSrc + '" class="camera-product-img" alt="' + productLabel + '">' +
+                            '<div class="camera-product-name">' + productLabel + '</div>' +
+                            '<div class="camera-ai-confidence">' +
+                            '<div class="camera-ai-bar"><div class="camera-ai-bar-fill" style="width:' + confidence + '%"></div></div>' +
+                            '<span>AI: ' + confidence + '%</span>' +
+                            '</div>' +
+                            '</div>';
 
-                            viewport.innerHTML =
-                                '<div class="camera-product-preview">' +
-                                '<div class="camera-product-emoji">' + emoji + '</div>' +
-                                '<div class="camera-product-name">' + productName + '</div>' +
-                                '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">AI confidence: ' + confidence + '%</div>' +
-                                '</div>';
+                        // Update AI result panel
+                        document.getElementById('aiResult').style.display = 'block';
+                        document.getElementById('aiProductName').textContent = productLabel;
+                        document.getElementById('aiConfidence').textContent =
+                            'Точность: ' + confidence + '% | Вес: ' + d.net_kg.toFixed(2) + ' кг';
 
-                            document.getElementById('aiResult').style.display = 'block';
-                            document.getElementById('aiProductName').textContent = productName;
-                            document.getElementById('aiConfidence').textContent = 'Точность: ' + confidence + '% | Вес: ' + reading.net_kg.toFixed(2) + ' кг';
-
-                            // Apply to purchase line
-                            if (line) {
-                                line.querySelector('.line-gross').value = reading.gross_kg.toFixed(2);
-                                line.querySelector('.line-tare').value = reading.tare_kg.toFixed(2);
-                                if (typeof recalcPurchaseLine === 'function') recalcPurchaseLine(modalTargetLineId);
-                            }
-
-                            captureBtn.textContent = '✅ Готово! Закрыть';
+                        // Enable capture button
+                        if (captureBtn) {
                             captureBtn.disabled = false;
-                            captureBtn.onclick = function() {
-                                closeScaleModal();
-                                captureBtn.textContent = '⚖️ Снять вес / Cântărește';
-                                captureBtn.onclick = modalScaleCapture;
-                                if (typeof showToast === 'function') {
-                                    showToast('Вес снят: ' + reading.net_kg.toFixed(2) + ' кг — ' + productName, 'success');
-                                }
-                            };
-                        });
+                            captureBtn.innerHTML = '⚖️ Принять вес / Acceptă';
+                        }
                     }
                 });
         }, 300);
+    }).catch(function() {});
+}
+
+// Manual capture: apply current weight + product to purchase line
+window.modalScaleCapture = function() {
+    var captureBtn = document.getElementById('modalCaptureBtn');
+    captureBtn.disabled = true;
+    captureBtn.textContent = '⏳ Фиксация...';
+
+    // Stop auto-emulation (user chose to capture this reading)
+    stopAutoEmulation();
+
+    fetch('/api/agro-scale/capture', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default'})
+    }).then(function(r) { return r.json(); })
+    .then(function(cap) {
+        var reading = cap.reading || cap.data || {};
+
+        // Apply weight to purchase line
+        var line = modalTargetLineId ? document.getElementById(modalTargetLineId) : null;
+        if (line) {
+            line.querySelector('.line-gross').value = (reading.gross_kg || 0).toFixed(2);
+            line.querySelector('.line-tare').value = (reading.tare_kg || 0).toFixed(2);
+            // Set product from AI recognition if not already set
+            var selectedItem = line.querySelector('.line-item');
+            var aiProduct = document.getElementById('aiProductName').textContent;
+            if (selectedItem && (!selectedItem.value || selectedItem.value === '')) {
+                // Try to match AI product to dropdown
+                for (var i = 0; i < selectedItem.options.length; i++) {
+                    if (aiProduct.indexOf(selectedItem.options[i].textContent) !== -1 ||
+                        selectedItem.options[i].textContent.indexOf(aiProduct.split(' /')[0]) !== -1) {
+                        selectedItem.value = selectedItem.options[i].value;
+                        break;
+                    }
+                }
+            }
+            if (typeof recalcPurchaseLine === 'function') recalcPurchaseLine(modalTargetLineId);
+        }
+
+        captureBtn.textContent = '✅ Готово! Закрыть';
+        captureBtn.disabled = false;
+        captureBtn.onclick = function() {
+            closeScaleModal();
+            captureBtn.textContent = '⚖️ Снять вес / Cântărește';
+            captureBtn.onclick = modalScaleCapture;
+            if (typeof showToast === 'function') {
+                showToast('Вес снят: ' + (reading.net_kg || 0).toFixed(2) + ' кг — ' + aiProduct, 'success');
+            }
+        };
     }).catch(function(err) {
         captureBtn.textContent = '⚖️ Снять вес / Cântărește';
         captureBtn.disabled = false;
-        if (typeof showToast === 'function') showToast('Ошибка весов: ' + err.message, 'error');
+        startAutoEmulation(); // Resume auto-emulation on error
+        if (typeof showToast === 'function') showToast('Ошибка: ' + err.message, 'error');
     });
 };
 

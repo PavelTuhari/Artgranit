@@ -3835,6 +3835,7 @@ from services.scale_emulator import get_scale, list_scales, create_scale
 
 
 @app.route('/api/agro-scale/read', methods=['GET'])
+@limiter.exempt
 def api_agro_scale_read():
     if not AuthController.is_authenticated():
         return jsonify({"success": False, "error": "Auth required"}), 401
@@ -3860,6 +3861,7 @@ def api_agro_scale_tare():
 
 
 @app.route('/api/agro-scale/capture', methods=['POST'])
+@limiter.exempt
 def api_agro_scale_capture():
     if not AuthController.is_authenticated():
         return jsonify({"success": False, "error": "Auth required"}), 401
@@ -3868,6 +3870,7 @@ def api_agro_scale_capture():
 
 
 @app.route('/api/agro-scale/simulate', methods=['POST'])
+@limiter.exempt
 def api_agro_scale_simulate():
     """Place a simulated weight on the scale (emulator only)."""
     if not AuthController.is_authenticated():

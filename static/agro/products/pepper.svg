@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="ppg" cx="42%" cy="38%" r="58%">
+      <stop offset="0%" stop-color="#ff922b"/>
+      <stop offset="50%" stop-color="#e8590c"/>
+      <stop offset="100%" stop-color="#d9480f"/>
+    </radialGradient>
+    <radialGradient id="pph" cx="35%" cy="30%" r="22%">
+      <stop offset="0%" stop-color="rgba(255,255,255,.3)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Stem -->
+  <rect x="55" y="12" width="10" height="14" rx="3" fill="#2b8a3e"/>
+  <!-- Pepper body -->
+  <path d="M40 28 Q30 28 28 45 Q26 65 32 80 Q38 95 50 100 Q55 102 60 98 Q65 102 70 100 Q82 95 88 80 Q94 65 92 45 Q90 28 80 28 Q72 24 60 26 Q48 24 40 28Z" fill="url(#ppg)"/>
+  <!-- Lobes -->
+  <path d="M40 28 Q50 35 60 28 Q70 35 80 28" stroke="rgba(0,0,0,.1)" stroke-width="1.5" fill="none"/>
+  <!-- Segments -->
+  <path d="M60 28 Q58 60 55 98" stroke="rgba(0,0,0,.08)" stroke-width="1.5" fill="none"/>
+  <path d="M42 35 Q38 60 40 92" stroke="rgba(0,0,0,.06)" stroke-width="1" fill="none"/>
+  <path d="M78 35 Q82 60 80 92" stroke="rgba(0,0,0,.06)" stroke-width="1" fill="none"/>
+  <!-- Highlight -->
+  <ellipse cx="46" cy="50" rx="10" ry="18" fill="url(#pph)"/>
+</svg>
