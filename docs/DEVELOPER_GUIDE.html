@@ -775,6 +775,10 @@ python app.py</code></pre>
 
 <h3 id="s8-2">8.2 Create Oracle DDL</h3>
 <p>Create SQL files in <code>sql/</code> continuing the numbering:</p>
+
+<p>DDL &mdash; это &laquo;фундамент&raquo; модуля. Без правильной схемы данных всё остальное развалится. Обратите внимание на структуру шаблона ниже: сначала sequences (генераторы ID), затем master data (справочники), затем documents (документы-шапки), затем document items (строки документов), и наконец event log. Это классическая последовательность для любой учётной системы &mdash; тот же паттерн, что и в Oracle E-Business Suite, SAP или 1С.</p>
+
+<p>Каждая таблица имеет поля <code>CREATED_AT</code> и <code>UPDATED_AT</code> с <code>DEFAULT CURRENT_TIMESTAMP</code> &mdash; это обеспечивает автоматическую метку времени создания без дополнительного кода. Флаг <code>IS_ACTIVE CHAR(1) DEFAULT 'Y'</code> с CHECK-constraint &mdash; стандарт проекта для &laquo;мягкого удаления&raquo;: записи не удаляются физически, а деактивируются. Trigger auto-ID (<code>BEFORE INSERT ... WHEN (NEW.ID IS NULL)</code>) позволяет как автоматическую генерацию ID из sequence, так и явную вставку с заданным ID (полезно для миграций и seed-данных).</p>
 <pre><code>sql/40_logis_tables.sql        # Tables and sequences
 sql/41_logis_views.sql         # Views
 sql/42_logis_triggers.sql      # Triggers
