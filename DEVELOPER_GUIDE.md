@@ -730,6 +730,10 @@ python deploy_oracle_objects.py
 
 ### 8.4 Создать модель (Oracle store)
 
+Модель (Oracle store) -- это слой абстракции над SQL-запросами. Его задача -- скрыть от контроллера детали работы с Oracle (формирование SQL, передача параметров, парсинг результатов) и предоставить чистый Python API: `get_warehouses()`, `create_order()`, `update_status()`. Это аналог TDataModule в C++ Builder: он инкапсулирует доступ к данным и предоставляет готовые методы для форм.
+
+Обратите внимание на паттерн `with DatabaseModel() as db:` -- это context manager, который автоматически получает соединение из pool и возвращает его после завершения. Результат `db.execute_query()` -- словарь с ключами `"success"`, `"columns"`, `"data"`. Конструкция `dict(zip(cols, row))` превращает позиционный tuple Oracle в именованный словарь.
+
 Создать `models/logis_oracle_store.py`:
 
 ```python
