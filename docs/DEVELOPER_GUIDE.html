@@ -754,7 +754,11 @@ python app.py</code></pre>
 <!-- ═══════ 8. NEW MODULE ═══════ -->
 <h2 id="s8">8. How to Create a New Module</h2>
 
-<p>Step-by-step guide for creating a new module (for developer or AI agent).</p>
+<p>Это, пожалуй, самый важный раздел документации. Он описывает полный цикл создания нового модуля &mdash; от выбора имени до final checklist перед merge. Инструкция написана так, чтобы быть одинаково полезной и для разработчика, читающего её глазами, и для AI-агента (Claude Code, Cursor, GitHub Copilot), выполняющего задачу автоматически.</p>
+
+<p>Каждый шаг содержит не только &laquo;что делать&raquo;, но и &laquo;почему именно так&raquo; и &laquo;как проверить, что сделано правильно&raquo;. Порядок шагов имеет значение: DDL создаётся <em>до</em> модели, модель &mdash; <em>до</em> контроллера, контроллер &mdash; <em>до</em> маршрутов. Каждый последующий слой зависит от предыдущего.</p>
+
+<p>Аналогия с C++ Builder: если вы когда-либо создавали новый модуль данных (TDataModule) с набором TTable/TQuery, потом форму (TForm) с DBGrid и привязкой к источнику данных, и наконец регистрировали форму в главном меню &mdash; здесь та же самая последовательность, только вместо TTable у нас Oracle DDL, вместо TDataModule &mdash; Python model, вместо TForm &mdash; HTML template, а вместо MainMenu &mdash; Shell projects.</p>
 
 <h3 id="s8-1">8.1 Choose a Prefix</h3>
 <p>Pick a short (3-5 char) unique prefix. All Oracle objects of the module are named <code>PREFIX_*</code>.</p>
