@@ -394,6 +394,12 @@
 </table>
 <p><strong>Reference module</strong> for normalized Oracle storage. Materials, settings, orders + items, sliding systems &mdash; all in separate tables.</p>
 
+<p>DECOR занимает особое место в архитектуре Artgranit. Это <em>эталонный модуль</em>, на который нужно ориентироваться при создании новых модулей. Именно здесь впервые была реализована полная нормализованная Oracle-схема взамен ранее существовавшего JSON-хранилища.</p>
+
+<p>Бизнес-домен DECOR &mdash; алюминиевые фасадные и раздвижные системы. Оператор собирает заказ из материалов (профили, стекло, фурнитура), система рассчитывает стоимость с учётом курса валюты, наценки, процента отходов. Все справочные данные &mdash; материалы, статусы, настройки расчёта &mdash; хранятся в отдельных таблицах, а не в одном JSON-поле. Заказы разделены на документ-шапку (<code>DECOR_ORDERS</code>) и строки (<code>DECOR_ORDER_ITEMS</code>) &mdash; классический паттерн &laquo;master-detail&raquo;, хорошо знакомый каждому, кто работал с учётными системами.</p>
+
+<p>Модель данных реализована в <code>models/decor_oracle_store.py</code> (55 KB) &mdash; это единый класс, который предоставляет CRUD-методы для всех таблиц <code>DECOR_*</code>. Публичный API возвращает nested dict для удобства фронтенда, но persistence под ним строго нормализована. Если вам нужно понять, как строить Oracle store для нового модуля &mdash; начните с чтения <code>decor_oracle_store.py</code>.</p>
+
 <!-- CLS / Colass -->
 <h3 id="s2-8">2.8 CLS (Colass) <span class="badge badge-blue">CLS_*</span> <span class="badge badge-blue">CLS_CRM_*</span> <span class="badge badge-blue">CLS_CONTRACT_*</span></h3>
 <table>
