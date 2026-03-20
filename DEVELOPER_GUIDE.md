@@ -349,7 +349,7 @@ CONNECT_STRING=(description= (retry_count=20)(retry_delay=3)(address=(protocol=t
 | Локально  | `./wallet_HXPAVUNKCLU9HE7Q/` (в корне проекта, в .gitignore) |
 | Remote    | `/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q`   |
 
-Wallet **не включается в Git** (правило `.gitignore`: `wallet_*/`, `Wallet_*.zip`). На remote wallet хранится вне каталога деплоя, чтобы `deploy_to_remote.sh` не мог его потерять.
+Wallet **не включается в Git** (правило `.gitignore`: `wallet_*/`, `Wallet_*.zip`). На remote wallet хранится вне каталога деплоя, чтобы `deploy_to_remote.sh` не мог его потерять. Это принципиальный момент: wallet -- это эквивалент приватного ключа SSL-сертификата. Если он попадёт в Git, любой с доступом к репозиторию получит полный доступ к Oracle ADB. На remote-сервере wallet хранится *вне* каталога `/home/ubuntu/artgranit`, а именно в `/home/ubuntu/oracle_wallets/`, чтобы скрипт `deploy_to_remote.sh`, который пересоздаёт каталог проекта, не мог случайно удалить wallet.
 
 ---
 
