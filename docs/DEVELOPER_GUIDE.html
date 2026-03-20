@@ -320,6 +320,8 @@
 </table>
 <p>Real-time Oracle metrics: CPU, RAM, Sessions, Top SQL, Tablespaces. WebSocket updates every 60s. Fullscreen mode for individual panels.</p>
 
+<p>Dashboard &mdash; это панель мониторинга Oracle, аналогичная тому, что вы видели бы в Oracle Enterprise Manager, но встроенная прямо в приложение. Дашборд конфигурируется через JSON-файлы (<code>dashboards/dashboard_00.json</code> &ndash; <code>dashboard_10.json</code>), каждый из которых описывает набор виджетов: какой SQL-запрос выполняется, как часто обновляются данные, в каком виде отображаются (карточка, таблица, график). WebSocket-соединение инициируется при открытии дашборда, и далее сервер каждые 60 секунд отправляет обновлённые метрики без повторных HTTP-запросов. Это особенно важно для метрики Top SQL: запрос к <code>v$sqlarea</code> может быть ресурсоёмким, и контроллер использует упрощённую выборку без тяжёлого поля <code>sql_text</code>, чтобы не перегружать ADB.</p>
+
 <!-- BUS -->
 <h3 id="s2-3">2.3 BUS <span class="badge badge-blue">BUS_*</span></h3>
 <table>
