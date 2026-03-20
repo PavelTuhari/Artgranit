@@ -490,6 +490,8 @@
         )</code></pre>
 
 <h3 id="s3-3">3.3 .env Variables for Oracle</h3>
+
+<p>Все секреты подключения хранятся в файле <code>.env</code> (который <strong>не коммитится в Git</strong>). Файл <code>.env.example</code> содержит шаблон с описаниями всех переменных. Обратите внимание на <code>CONNECT_STRING</code> &mdash; это полный TNS descriptor, а не короткий alias. Полный descriptor надёжнее, т.к. не зависит от содержимого <code>tnsnames.ora</code> в wallet и содержит всё необходимое для подключения: хост, порт, имя сервиса, параметры retry и TLS.</p>
 <pre><code><span class="cm"># DB user</span>
 DB_USER=ADMIN
 
