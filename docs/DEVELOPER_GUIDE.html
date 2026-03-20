@@ -679,6 +679,10 @@ python deploy_oracle_objects.py --dry-run</code></pre>
 <!-- ═══════ 6. REMOTE DEPLOY ═══════ -->
 <h2 id="s6">6. Remote Deploy</h2>
 
+<p>Deploy в Artgranit разделён на два независимых шага: <em>кодовый deploy</em> (обновление Python-кода, шаблонов, статики) и <em>DDL deploy</em> (создание/обновление Oracle-объектов). Это принципиальное решение: кодовый deploy происходит часто (при каждом обновлении), а DDL deploy &mdash; только когда добавляются новые таблицы или меняется схема. Поскольку все окружения (local и remote) работают с <em>одной и той же</em> Oracle ADB, DDL достаточно выполнить один раз с любой машины.</p>
+
+<p>Deploy реализован &laquo;по-старинке&raquo; &mdash; через tar.gz + SSH/SCP, без Docker, Kubernetes или CI/CD. Это сознательный выбор для проекта текущего масштаба: один remote-сервер, один разработчик, minimal overhead. Скрипт <code>deploy_to_remote.sh</code> выполняет всю работу одной командой, но при этом надёжно сохраняет <code>.env</code> и wallet.</p>
+
 <h3>6.1 Code Deploy</h3>
 <pre><code><span class="cm"># From local machine:</span>
 ./deploy_to_remote.sh</code></pre>
