@@ -763,6 +763,10 @@ python app.py</code></pre>
 <h3 id="s8-1">8.1 Choose a Prefix</h3>
 <p>Pick a short (3-5 char) unique prefix. All Oracle objects of the module are named <code>PREFIX_*</code>.</p>
 
+<p>Выбор префикса &mdash; это первое и одно из самых важных решений при создании модуля. Префикс должен быть коротким (3-5 символов), уникальным и интуитивно понятным. Он будет использоваться <em>повсюду</em>: в именах таблиц, sequences, triggers, views, PL/SQL-пакетов. Хороший префикс &mdash; это аббревиатура предметной области: <code>AGRO</code> для агро-модуля, <code>CLS</code> для Colass, <code>CRED</code> для кредитов. Плохой префикс &mdash; это что-то слишком общее (<code>APP_</code>, <code>DATA_</code>) или слишком длинное (<code>LOGISTICS_WAREHOUSE_</code>).</p>
+
+<p>Почему это важно: когда в одной Oracle-схеме живут 150+ объектов от 9 модулей, единственный способ быстро понять, кому принадлежит таблица &mdash; это посмотреть на её префикс. Команда <code>SELECT OBJECT_NAME FROM USER_OBJECTS WHERE OBJECT_NAME LIKE 'AGRO_%'</code> мгновенно покажет все 36 объектов AGRO-модуля.</p>
+
 <div class="callout">
   <strong>Used prefixes:</strong> <code>BUS_</code>, <code>CRED_</code>, <code>NUF_</code>, <code>UNA_SHELL_</code>, <code>DIGI_</code>, <code>DECOR_</code>, <code>CLS_</code>, <code>CLS_CRM_</code>, <code>CLS_CONTRACT_</code>, <code>AGRO_</code>
 </div>
