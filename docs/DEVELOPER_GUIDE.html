@@ -887,6 +887,8 @@ class LogisStore:
 
 <h3 id="s8-5">8.5 Create Controller</h3>
 <p>Create <code>controllers/logis_controller.py</code>:</p>
+
+<p>Контроллер &mdash; это &laquo;мозг&raquo; модуля. Он принимает параметры из HTTP-запроса (через маршрут в <code>app.py</code>), вызывает методы модели, при необходимости трансформирует данные (агрегирует, фильтрует, вычисляет) и возвращает результат. Контроллер <em>не должен</em> содержать SQL-запросы напрямую &mdash; это ответственность модели. И наоборот, модель <em>не должна</em> знать о HTTP, request, response &mdash; это ответственность контроллера и маршрута. Такое разделение позволяет тестировать бизнес-логику отдельно от веб-слоя.</p>
 <pre><code><span class="cm">"""LOGIS module controller: business logic + API."""</span>
 from models.logis_oracle_store import LogisStore
 
