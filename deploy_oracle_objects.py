@@ -100,7 +100,7 @@ def _split_ddl_dml(block: str) -> list[str]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Развёртывание Oracle-объектов (bus, cred, nuf, decor, agro)")
+    ap = argparse.ArgumentParser(description="Развёртывание Oracle-объектов (bus, cred, nuf, decor, digi, colass, agro)")
     ap.add_argument("--drop", action="store_true", help="Сначала выполнить 00_drop.sql")
     ap.add_argument("--dry-run", action="store_true", help="Не выполнять, только вывести команды")
     ap.add_argument("--sql-dir", type=Path, default=ROOT / "sql", help="Каталог с SQL-файлами")
