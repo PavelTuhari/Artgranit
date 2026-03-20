@@ -45,8 +45,13 @@ python deploy_oracle_objects.py --dry-run
 13. `13_shell_projects.sql` — таблица `UNA_SHELL_PROJECTS` (основной список проектов shell: slug, name, dashboard_ids), демо-записи (shell, gara, credit, nufarul)
 14. `14_nufarul_tables.sql` — Nufarul: таблицы
 15. `15_nufarul_views.sql` — Nufarul: представления
-16-23. `16-23_*` — Nufarul/Digi миграции и демо-данные
-24. `24_*` — зарезервировано
+16-18. `16-18_*` — Nufarul: данные услуг, группы, EN-переводы
+19. `19_nufarul_photos.sql` — Nufarul: фото
+20. `20_digi_tables.sql` — DigiMarketing: таблицы `DIGI_*`
+21. `21_digi_views.sql` — DigiMarketing: представления
+22. `22_digi_package.sql` — DigiMarketing: PL/SQL пакет
+23. `23_digi_demo_data.sql` — DigiMarketing: демо-данные
+24. `24_decor_runtime_tables.sql` — DECOR: нормализованные таблицы `DECOR_*`
 25. `25_colass_tables.sql` — Colass: 8 таблиц `CLS_*`, 7 sequences/triggers, 3 views, indexes
 26. `26_colass_demo_data.sql` — Colass: 404 INSERT (ресурсы F3, работы F5, нормы, проект/смета/разделы)
 27. `27_colass_crm_tables.sql` — Colass CRM: 5 таблиц `CLS_CRM_*`, 5 sequences/triggers, 2 views, справочники этапов/источников
