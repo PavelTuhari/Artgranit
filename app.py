@@ -851,6 +851,17 @@ def docs_project_documentation():
     return Response(p.read_text(encoding="utf-8"), mimetype="text/html; charset=utf-8")
 
 
+@app.route('/UNA.md/orasldev/docs/developer-guide')
+def docs_developer_guide():
+    """Developer Guide v2.0 — архитектура, модули, Oracle ADB, deploy, howto"""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    p = Path(__file__).resolve().parent / "docs" / "DEVELOPER_GUIDE.html"
+    if not p.is_file():
+        return "<h1>Developer Guide не найден</h1><p>Файл docs/DEVELOPER_GUIDE.html отсутствует.</p><p><a href='/UNA.md/orasldev/docs'>Назад</a></p>", 404
+    return Response(p.read_text(encoding="utf-8"), mimetype="text/html; charset=utf-8")
+
+
 @app.route('/UNA.md/orasldev/docs/sql')
 def docs_sql():
     """Документация DDL скриптов"""
