@@ -464,7 +464,7 @@
     &#9492;&#9472;&#9472; APEX:     runs inside the same ADB</code></pre>
 
 <div class="callout">
-  <strong>APEX and ADB are the same service.</strong> APEX runs inside ADB, no separate connection needed. APEX Workspaces are created by admin inside the same DB.
+  <strong>APEX and ADB are the same service.</strong> APEX runs inside ADB, no separate connection needed. APEX Workspaces are created by admin inside the same DB. Частый вопрос: &laquo;Нужен ли отдельный аккаунт или подключение для APEX?&raquo; Ответ: нет. APEX &mdash; это компонент, установленный внутри ADB. Он работает на том же сервере, с теми же таблицами, в том же schema. Если вы создаёте таблицу через Python-приложение, она видна в APEX, и наоборот. APEX Workspaces &mdash; это логическое разделение внутри той же БД, создаваемое администратором через APEX Administration.
 </div>
 
 <h3 id="s3-2">3.2 Connection Flow</h3>
