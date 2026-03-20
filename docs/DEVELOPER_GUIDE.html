@@ -468,6 +468,8 @@
 </div>
 
 <h3 id="s3-2">3.2 Connection Flow</h3>
+
+<p>Разберём механизм подключения подробно. Python-библиотека <code>oracledb</code> (начиная с версии 2.0) работает в <em>thin mode</em> &mdash; это значит, что для подключения не нужен установленный Oracle Client. Библиотека сама умеет парсить файлы wallet, устанавливать TLS-соединение и обмениваться данными по протоколу Oracle Net. Подключение происходит в <code>models/database.py</code> &mdash; класс <code>DatabaseConnection</code> сначала проверяет, что <code>WALLET_DIR</code> указывает на существующую папку, затем определяет метод подключения: если в wallet есть <code>ewallet.pem</code>, используется <code>wallet_location + wallet_password</code>; если нет &mdash; <code>config_dir</code> (для SSO-wallet без пароля). Соединения управляются через connection pool (2-10 соединений), чтобы не открывать TLS-handshake на каждый HTTP-запрос.</p>
 <pre><code>Application (Python / oracledb)
     &#9474;
     &#9500;&#9472;&#9472; .env                        # DB_USER, DB_PASSWORD, WALLET_*, CONNECT_STRING
