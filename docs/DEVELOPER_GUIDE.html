@@ -965,6 +965,8 @@ def api_logis_warehouses():
 <!-- ═══════ 9. ANTI-PATTERNS ═══════ -->
 <h2 id="s9">9. Anti-patterns <span class="badge badge-red">PROHIBITED</span></h2>
 
+<p>Этот раздел &mdash; результат прожитого опыта. Каждый пункт ниже &mdash; это ошибка, которая была допущена хотя бы один раз в истории проекта, потребовала значительных усилий для исправления, и теперь зафиксирована как запрет. Аналогия с C++ Builder: вы бы не стали хранить все записи TTable в одном TMemoField вместо нормальных полей &mdash; по той же причине мы не храним бизнес-данные в JSON blob.</p>
+
 <div class="callout danger">
 <ol>
   <li><code>APP_RUNTIME_KV</code>, <code>MODULE_RUNTIME_KV</code> &mdash; generic KV tables for primary state</li>
