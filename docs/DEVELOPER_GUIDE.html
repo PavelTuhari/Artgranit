@@ -860,6 +860,10 @@ sql/43_logis_demo_data.sql     # Demo data</code></pre>
 
 <h3 id="s8-4">8.4 Create Model (Oracle store)</h3>
 <p>Create <code>models/logis_oracle_store.py</code>:</p>
+
+<p>Модель (Oracle store) &mdash; это слой абстракции над SQL-запросами. Его задача &mdash; скрыть от контроллера детали работы с Oracle (формирование SQL, передача параметров, парсинг результатов) и предоставить чистый Python API: <code>get_warehouses()</code>, <code>create_order()</code>, <code>update_status()</code>. Это аналог TDataModule в C++ Builder: он инкапсулирует доступ к данным и предоставляет готовые методы для форм.</p>
+
+<p>Обратите внимание на паттерн <code>with DatabaseModel() as db:</code> &mdash; это context manager, который автоматически получает соединение из pool и возвращает его после завершения. Результат <code>db.execute_query()</code> &mdash; словарь с ключами <code>"success"</code>, <code>"columns"</code>, <code>"data"</code>. Конструкция <code>dict(zip(cols, row))</code> превращает позиционный tuple Oracle в именованный словарь.</p>
 <pre><code><span class="cm">"""Normalized Oracle store for LOGIS module."""</span>
 from models.database import DatabaseModel
 
