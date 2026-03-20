@@ -903,6 +903,8 @@ class LogisController:
         return LogisStore.get_orders(warehouse_id)</code></pre>
 
 <h3 id="s8-6">8.6 Add Routes to app.py</h3>
+
+<p>Маршруты регистрируются в <code>app.py</code> и делятся на два типа: <strong>UI-маршруты</strong> (возвращают HTML-страницу) и <strong>API-маршруты</strong> (возвращают JSON). UI-маршруты всегда начинаются с <code>/UNA.md/orasldev/</code>, API-маршруты &mdash; с <code>/api/</code>. Каждый маршрут проверяет аутентификацию вызовом <code>AuthController.is_authenticated()</code> &mdash; это стандартный boilerplate, который нужно копировать без изменений.</p>
 <pre><code>from controllers.logis_controller import LogisController
 
 <span class="cm"># UI routes</span>
