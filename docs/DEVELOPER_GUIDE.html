@@ -305,6 +305,10 @@
 </table>
 <p>Shell &mdash; root app shell. Stores project list (slug, name, dashboard_ids) in normalized table <code>UNA_SHELL_PROJECTS</code>. Each project leads to its own set of dashboards.</p>
 
+<p>Shell можно воспринимать как &laquo;рабочий стол&raquo; всей платформы. Когда пользователь заходит на <code>/UNA.md/orasldev/</code>, он попадает в MDI-интерфейс (Multiple Document Interface) &mdash; среду с плавающими окнами, аналогичную Oracle SQL Developer. Оттуда открываются SQL-воркшиты, браузер объектов, дашборды. Shell &mdash; это именно оболочка, в которую встроены все остальные модули.</p>
+
+<p>Таблица <code>UNA_SHELL_PROJECTS</code> играет роль реестра проектов. Каждый проект &mdash; это запись с <code>slug</code> (уникальный URL-идентификатор), <code>name</code>, <code>description</code> и строкой <code>dashboard_ids</code> (список ID дашбордов через запятую). Когда добавляется новый модуль, он регистрируется в этой таблице, чтобы появиться в навигации Shell. Это аналог <code>TForm</code> с <code>TMainMenu</code> в Delphi/C++ Builder: Shell &mdash; главная форма, а модули &mdash; дочерние формы, вызываемые через меню.</p>
+
 <!-- Dashboard -->
 <h3 id="s2-2">2.2 Dashboard</h3>
 <table>
