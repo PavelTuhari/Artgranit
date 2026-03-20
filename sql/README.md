@@ -60,6 +60,10 @@ python deploy_oracle_objects.py --dry-run
 30. `30_colass_contracts_demo_data.sql` — Colass Contracts: демо-договор (связь CRM/Estimate), контакты, маршруты, snapshot позиций
 31. `31_colass_contracts_workflow_tables.sql` — вложения к договору + workflow согласования, проверки обязательных приложений
 32. `32_colass_contracts_workflow_demo_data.sql` — демо-приложения: финансовые условия, сметные условия, общий прайс-лист
+35. `35_agro_tables.sql` — AGRO: 36 таблиц `AGRO_*` (склады, товары, закупки, партии, QA, HACCP, продажи, аудит)
+36. `36_agro_views.sql` — AGRO: представления
+37. `37_agro_triggers.sql` — AGRO: триггеры auto-ID и бизнес-логика
+38. `38_agro_demo_data.sql` — AGRO: демо-данные (поставщики, клиенты, товары, закупки)
 
 ## Демо-данные
 
