@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colass - Estimator</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0f172a;
+            color: #e5e7eb;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #334155;
+            background: #020617;
+        }
+        .topbar h1 {
+            margin: 0;
+            font-size: 18px;
+            color: #93c5fd;
+        }
+        .topbar .links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .topbar a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .topbar select {
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 220px 130px;
+            gap: 10px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #334155;
+            background: #111827;
+        }
+        .controls select,
+        .controls button {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #e5e7eb;
+            padding: 9px 10px;
+            font-size: 13px;
+        }
+        .controls button {
+            background: #2563eb;
+            border-color: #2563eb;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .page {
+            display: grid;
+            grid-template-columns: minmax(340px, 40%) 1fr;
+            gap: 12px;
+            height: calc(100vh - 108px);
+            padding: 12px;
+        }
+        .col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .section {
+            border: 1px solid #334155;
+            border-radius: 10px;
+            background: #0f172a;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .section h2 {
+            margin: 0;
+            padding: 10px 12px;
+            font-size: 14px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            color: #cbd5e1;
+        }
+        .section-body {
+            padding: 10px;
+            min-height: 0;
+        }
+
+        .muted { color: #94a3b8; }
+        .empty { padding: 12px; color: #94a3b8; font-size: 13px; }
+
+        .ai-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+            height: 100%;
+        }
+        .ai-row {
+            display: grid;
+            grid-template-columns: 1fr 170px 120px 130px;
+            gap: 8px;
+        }
+        .ai-row input, .ai-row select, .ai-row button {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0b1220;
+            color: #e5e7eb;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+        .ai-row button {
+            background: #0ea5e9;
+            border-color: #0ea5e9;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .ai-status { font-size: 12px; color: #93c5fd; min-height: 16px; }
+        .ai-presets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .ai-preset-btn {
+            border-radius: 999px;
+            border: 1px solid #334155;
+            background: #111827;
+            color: #cbd5e1;
+            padding: 5px 10px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .ai-preset-btn:hover {
+            border-color: #0ea5e9;
+            color: #e0f2fe;
+        }
+        .ai-results { border-top: 1px solid #1e293b; padding-top: 8px; }
+        .ai-match {
+            display: grid;
+            grid-template-columns: 1fr 66px 66px 54px;
+            gap: 8px;
+            align-items: center;
+            border-bottom: 1px dashed #1e293b;
+            padding: 6px 0;
+            font-size: 12px;
+        }
+        .ai-match:last-child { border-bottom: 0; }
+        .ai-tag {
+            display: inline-block;
+            border-radius: 999px;
+            padding: 1px 7px;
+            font-size: 10px;
+            margin-right: 6px;
+            border: 1px solid #334155;
+            color: #bfdbfe;
+        }
+        .ai-add-one, .ai-add-all {
+            border-radius: 6px;
+            border: 1px solid #2563eb;
+            background: #2563eb;
+            color: #fff;
+            padding: 5px 7px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        .ai-add-all {
+            margin-top: 8px;
+            background: #059669;
+            border-color: #059669;
+        }
+        .ai-notfound { color: #fca5a5; font-size: 12px; padding: 6px 0; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            min-width: 720px;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #1e293b;
+            vertical-align: top;
+        }
+        th {
+            color: #94a3b8;
+            background: #111827;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        tr:hover td { background: #172033; }
+
+        .work-row button {
+            border: 1px solid #2563eb;
+            border-radius: 6px;
+            background: #2563eb;
+            color: #fff;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+        .summary-card {
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: #111827;
+            padding: 8px;
+        }
+        .summary-card .label { font-size: 11px; color: #94a3b8; }
+        .summary-card .value { margin-top: 4px; font-size: 15px; font-weight: 700; color: #bfdbfe; }
+
+        .item-input {
+            width: 84px;
+            border-radius: 6px;
+            border: 1px solid #334155;
+            background: #0b1220;
+            color: #e5e7eb;
+            padding: 4px 6px;
+            font-size: 12px;
+        }
+        .item-delete {
+            border: 1px solid #b91c1c;
+            background: #b91c1c;
+            color: #fff;
+            border-radius: 6px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .col-left > .section {
+            flex: 1;
+        }
+        .col-right > .section:last-child {
+            flex: 1;
+        }
+        .work-filter-block {
+            border-top: 1px solid #1e293b;
+            margin-top: 8px;
+            padding-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+            flex: 1;
+        }
+        #worksWrap {
+            flex: 1;
+            min-height: 0;
+            max-height: none;
+            overflow: auto;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+        }
+        #itemsWrap {
+            flex: 1;
+            min-height: 0;
+            max-height: none;
+            overflow: auto;
+            border-top: 1px solid #1e293b;
+        }
+
+        @media (max-width: 1200px) {
+            .page { grid-template-columns: 1fr; height: auto; }
+            .controls { grid-template-columns: 1fr 1fr; }
+            .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .ai-row { grid-template-columns: 1fr 1fr; }
+            .ai-match { grid-template-columns: 1fr 66px 66px; }
+            .col { overflow: auto; }
+            .col-left > .section,
+            .col-right > .section:last-child { flex: initial; }
+            #worksWrap { max-height: 32vh; }
+            #itemsWrap { max-height: 48vh; }
+        }
+
+        @media print {
+            .topbar, .controls, .col-left, .item-delete { display: none !important; }
+            .page { display: block; height: auto; padding: 0; }
+            body { background: #fff; color: #000; }
+            .section, .summary-card { border-color: #ddd; background: #fff; }
+            th { background: #f5f5f5; color: #333; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1 id="titleMain"></h1>
+        <div class="links">
+            <a href="/UNA.md/orasldev/colass-catalog" id="linkCatalog"></a>
+            <a href="/UNA.md/orasldev/colass-crm" id="linkCrm"></a>
+            <a href="/UNA.md/orasldev/colass-contracts" id="linkContracts"></a>
+            <a href="/UNA.md/orasldev/docs/colass" id="linkDocs"></a>
+            <a href="/UNA.md/orasldev/dashboard">Dashboard</a>
+            <select id="langSelect">
+                <option value="ru">RU</option>
+                <option value="ro">RO</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="controls">
+        <select id="projectSelect"></select>
+        <select id="estimateSelect"></select>
+        <select id="sectionSelect"></select>
+        <button id="printBtn"></button>
+    </div>
+
+    <div class="page">
+        <div class="col col-left">
+            <section class="section">
+                <h2 id="leftMainTitle"></h2>
+                <div class="section-body ai-bar">
+                    <div class="ai-row">
+                        <input id="aiInput" type="text">
+                        <select id="aiBackend">
+                            <option value="local">Local (rapidfuzz)</option>
+                            <option value="oracle">Oracle (UTL_MATCH)</option>
+                        </select>
+                        <input id="aiThreshold" type="number" min="0" max="100" value="45" title="Threshold">
+                        <button id="aiParseBtn"></button>
+                    </div>
+                    <div id="aiPresets" class="ai-presets"></div>
+                    <div id="aiStatus" class="ai-status"></div>
+                    <div id="aiResults" class="ai-results"></div>
+                    <div class="work-filter-block">
+                        <div class="muted" style="font-size:12px; margin-bottom:6px;" id="workFilterLabel"></div>
+                        <input id="workSearch" type="text" style="margin-bottom:8px;width:100%;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e5e7eb;padding:8px 10px;font-size:13px;">
+                        <div id="worksWrap" class="empty"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="col col-right">
+            <section class="section">
+                <h2 id="summaryTitle"></h2>
+                <div class="section-body">
+                    <div id="summaryWrap" class="summary-grid"></div>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2 id="itemsTitle"></h2>
+                <div id="itemsWrap" class="empty section-body"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const I18N = {
+            ru: {
+                titleMain: 'Colass - Сметчик (офферта по ресурсам/услугам/материалам)',
+                linkCatalog: 'Каталог',
+                linkCrm: 'CRM',
+                linkContracts: 'Contracts',
+                linkDocs: 'Документация Colass',
+                print: 'Печать',
+                leftMainTitle: 'Подбор позиций и фильтры',
+                aiPlaceholder: 'Напр.: 120м труба ПЭ100 SDR11, сварка стыков, кран 25т 3ч',
+                aiParse: 'Разобрать',
+                aiNeedText: 'Введите текст запроса',
+                aiAnalyzing: 'Анализ...',
+                aiError: 'Ошибка AI-парсинга',
+                aiAddOne: '+ добавить',
+                aiAddAll: 'Добавить все найденные',
+                aiAdded: 'Добавлено из AI',
+                aiNotFound: 'не найдено',
+                aiFound: 'найдено',
+                aiBackendLocal: 'Local',
+                aiBackendOracle: 'Oracle',
+                workFilterLabel: 'Фильтр каталога работ (F5)',
+                workSearchPlaceholder: 'Поиск работы',
+                workNoFound: 'Работы не найдены',
+                addWork: '+ в смету',
+                needEstimateFirst: 'Сначала выберите смету',
+                addWorkErr: 'Ошибка добавления работы',
+                summaryTitle: 'Итоги сметы',
+                itemsTitle: 'Позиции сметы (inline-редактирование)',
+                itemsEmpty: 'Позиции сметы пока пустые. Добавьте работу из каталога слева.',
+                chooseProject: 'Выберите проект',
+                chooseEstimate: 'Выберите смету',
+                defaultSection: 'Раздел по умолчанию',
+                chooseEstimateHint: 'Выберите проект и смету',
+                saveErr: 'Ошибка сохранения',
+                deleteAsk: 'Удалить позицию из сметы?',
+                deleteErr: 'Ошибка удаления',
+                aiAddErr: 'Не удалось добавить позицию',
+                summaryLabor: 'Работы (manopera)',
+                summaryMaterials: 'Материалы',
+                summaryEquipment: 'Техника',
+                summaryTotal: 'ИТОГО',
+                thCode: 'Код', thWork: 'Работа', thPos: 'Позиция', thUnit: 'Ед.', thAmount: 'Сумма',
+                thSection: 'Раздел', thQty: 'Кол-во', thPrice: 'Цена', thType: 'Тип', thNorms: 'Норм',
+                typeWork: 'Работа', typeResource: 'Ресурс',
+                typeMap: { MANOPERA: 'Работы', MATERIALE: 'Материалы', UTILAJE: 'Техника', OTHER: 'Прочее' },
+                presets: [
+                    { title: 'Траншея + песок', text: 'Sapatura manuala teren tare 20 m3, Umpluturi in santuri cu nisip 10 m3, compactare cu mai mecanic' },
+                    { title: 'ПЭ газопровод', text: 'Teava PE100 SDR11 ф32 120 m, mufa electrofuziune ф32 8 buc, sedelka electrofuziune ф50/32 2 buc' },
+                    { title: 'Сталь + арматура', text: 'Труба стальная Ду20 35 m, кран шаровый газовый Ду20 3 buc, отвод стальной Ду20 8 buc' },
+                    { title: 'Узел счетчика', text: 'Счетчик газовый BK-G4T 1 buc, ящик для счетчика BK-G4T 1 buc, гайки на счетчик Ду20 1 set' },
+                    { title: 'Сварка и защита', text: 'Sudor 16 h-om, Electrozi pentru sudura 4 kg, bitum protectie conducte 12 kg, Лента сигнальная ГАЗ 90 m' },
+                    { title: 'Техника и механизмы', text: 'Aparat de sudura PE electrofuziune 5 h-ut, tractor U650 2 h-ut, mai mecanic 150-200kg 2 h-ut' }
+                ]
+            },
+            ro: {
+                titleMain: 'Colass - Devizier (oferta resurse/servicii/materiale)',
+                linkCatalog: 'Catalog',
+                linkCrm: 'CRM',
+                linkContracts: 'Contracts',
+                linkDocs: 'Documentatie Colass',
+                print: 'Tiparire',
+                leftMainTitle: 'Selectie pozitii si filtre',
+                aiPlaceholder: 'Ex.: 120m teava PE100 SDR11, sudura imbinari, macara 25t 3h',
+                aiParse: 'Analizeaza',
+                aiNeedText: 'Introduceti textul cererii',
+                aiAnalyzing: 'Analiza in curs...',
+                aiError: 'Eroare AI la analiza',
+                aiAddOne: '+ adauga',
+                aiAddAll: 'Adauga toate pozitiile gasite',
+                aiAdded: 'Adaugat din AI',
+                aiNotFound: 'negasit',
+                aiFound: 'gasit',
+                aiBackendLocal: 'Local',
+                aiBackendOracle: 'Oracle',
+                workFilterLabel: 'Filtru catalog lucrari (F5)',
+                workSearchPlaceholder: 'Cautare lucrare',
+                workNoFound: 'Lucrari negasite',
+                addWork: '+ in deviz',
+                needEstimateFirst: 'Selectati mai intai devizul',
+                addWorkErr: 'Eroare la adaugarea lucrarii',
+                summaryTitle: 'Totaluri deviz',
+                itemsTitle: 'Pozitii deviz (editare inline)',
+                itemsEmpty: 'Devizul este gol. Adaugati o lucrare din catalogul din stanga.',
+                chooseProject: 'Selectati proiectul',
+                chooseEstimate: 'Selectati devizul',
+                defaultSection: 'Sectiune implicita',
+                chooseEstimateHint: 'Selectati proiectul si devizul',
+                saveErr: 'Eroare la salvare',
+                deleteAsk: 'Stergeti pozitia din deviz?',
+                deleteErr: 'Eroare la stergere',
+                aiAddErr: 'Nu s-a putut adauga pozitia',
+                summaryLabor: 'Manopera',
+                summaryMaterials: 'Materiale',
+                summaryEquipment: 'Utilaje',
+                summaryTotal: 'TOTAL',
+                thCode: 'Cod', thWork: 'Lucrare', thPos: 'Pozitie', thUnit: 'UM', thAmount: 'Suma',
+                thSection: 'Sectiune', thQty: 'Cant.', thPrice: 'Pret', thType: 'Tip', thNorms: 'Norme',
+                typeWork: 'Lucrare', typeResource: 'Resursa',
+                typeMap: { MANOPERA: 'Manopera', MATERIALE: 'Materiale', UTILAJE: 'Utilaje', OTHER: 'Altele' },
+                presets: [
+                    { title: 'Sapatura + nisip', text: 'Sapatura manuala teren tare 20 m3, Umpluturi in santuri cu nisip 10 m3, compactare cu mai mecanic' },
+                    { title: 'Gazoduct PE', text: 'Teava PE100 SDR11 ф32 120 m, mufa electrofuziune ф32 8 buc, sedelka electrofuziune ф50/32 2 buc' },
+                    { title: 'Otel + armatura', text: 'Труба стальная Ду20 35 m, кран шаровый газовый Ду20 3 buc, отвод стальной Ду20 8 buc' },
+                    { title: 'Nod contor', text: 'Счетчик газовый BK-G4T 1 buc, ящик для счетчика BK-G4T 1 buc, гайки на счетчик Ду20 1 set' },
+                    { title: 'Sudura si protectie', text: 'Sudor 16 h-om, Electrozi pentru sudura 4 kg, bitum protectie conducte 12 kg, Лента сигнальная ГАЗ 90 m' },
+                    { title: 'Utilaje mecanisme', text: 'Aparat de sudura PE electrofuziune 5 h-ut, tractor U650 2 h-ut, mai mecanic 150-200kg 2 h-ut' }
+                ]
+            }
+        };
+
+        const state = {
+            lang: localStorage.getItem('colass_lang') || 'ru',
+            projects: [],
+            estimates: [],
+            sections: [],
+            works: [],
+            items: [],
+            currentProjectId: null,
+            currentEstimateId: null
+        };
+
+        const el = {
+            titleMain: document.getElementById('titleMain'),
+            linkCatalog: document.getElementById('linkCatalog'),
+            linkCrm: document.getElementById('linkCrm'),
+            linkContracts: document.getElementById('linkContracts'),
+            linkDocs: document.getElementById('linkDocs'),
+            langSelect: document.getElementById('langSelect'),
+            projectSelect: document.getElementById('projectSelect'),
+            estimateSelect: document.getElementById('estimateSelect'),
+            sectionSelect: document.getElementById('sectionSelect'),
+            workSearch: document.getElementById('workSearch'),
+            worksWrap: document.getElementById('worksWrap'),
+            itemsWrap: document.getElementById('itemsWrap'),
+            summaryWrap: document.getElementById('summaryWrap'),
+            printBtn: document.getElementById('printBtn'),
+            leftMainTitle: document.getElementById('leftMainTitle'),
+            aiInput: document.getElementById('aiInput'),
+            aiBackend: document.getElementById('aiBackend'),
+            aiThreshold: document.getElementById('aiThreshold'),
+            aiParseBtn: document.getElementById('aiParseBtn'),
+            aiPresets: document.getElementById('aiPresets'),
+            aiStatus: document.getElementById('aiStatus'),
+            aiResults: document.getElementById('aiResults'),
+            workFilterLabel: document.getElementById('workFilterLabel'),
+            summaryTitle: document.getElementById('summaryTitle'),
+            itemsTitle: document.getElementById('itemsTitle')
+        };
+
+        function t(key) {
+            return (I18N[state.lang] && I18N[state.lang][key]) || (I18N.ru && I18N.ru[key]) || key;
+        }
+
+        function esc(s) {
+            return String(s ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;');
+        }
+
+        function num(v, digits = 2) {
+            const n = Number(v || 0);
+            if (!Number.isFinite(n)) return '0';
+            const locale = state.lang === 'ro' ? 'ro-RO' : 'ru-RU';
+            return n.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: digits });
+        }
+
+        function typeName(code, ru, ro) {
+            if (state.lang === 'ro' && ro) return ro;
+            if (state.lang === 'ru' && ru) return ru;
+            return (I18N[state.lang].typeMap || {})[String(code || 'OTHER').toUpperCase()] || String(code || 'OTHER');
+        }
+
+        function applyLanguage() {
+            document.documentElement.lang = state.lang;
+            document.title = t('titleMain');
+            el.langSelect.value = state.lang;
+            el.titleMain.textContent = t('titleMain');
+            el.linkCatalog.textContent = t('linkCatalog');
+            el.linkCrm.textContent = t('linkCrm');
+            el.linkContracts.textContent = t('linkContracts');
+            el.linkDocs.textContent = t('linkDocs');
+            el.printBtn.textContent = t('print');
+            el.leftMainTitle.textContent = t('leftMainTitle');
+            el.aiInput.placeholder = t('aiPlaceholder');
+            el.aiParseBtn.textContent = t('aiParse');
+            el.workFilterLabel.textContent = t('workFilterLabel');
+            el.workSearch.placeholder = t('workSearchPlaceholder');
+            el.summaryTitle.textContent = t('summaryTitle');
+            el.itemsTitle.textContent = t('itemsTitle');
+            if (!state.items.length) el.itemsWrap.innerHTML = `<div class="empty">${esc(t('chooseEstimateHint'))}</div>`;
+            renderAiPresets();
+            renderProjectSelect();
+            renderEstimateSelect();
+            renderSectionSelect();
+            renderWorks();
+            renderItems();
+            renderSummary({ estimate: state.lastSummaryEstimate || {} });
+        }
+
+        async function getJson(url, init) {
+            const r = await fetch(url, { credentials: 'same-origin', ...init });
+            return await r.json();
+        }
+
+        function renderAiPresets() {
+            const presets = (I18N[state.lang] && I18N[state.lang].presets) || [];
+            el.aiPresets.innerHTML = presets.map((p, idx) =>
+                `<button type="button" class="ai-preset-btn" data-ai-preset="${idx}" title="${esc(p.text)}">${esc(p.title)}</button>`
+            ).join('');
+            el.aiPresets.querySelectorAll('[data-ai-preset]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const idx = Number(btn.getAttribute('data-ai-preset'));
+                    const preset = presets[idx];
+                    if (!preset) return;
+                    el.aiInput.value = preset.text;
+                    await aiParse();
+                });
+            });
+        }
+
+        function renderProjectSelect() {
+            const options = [`<option value="">${esc(t('chooseProject'))}</option>`]
+                .concat((state.projects || []).map(p => `<option value="${p.id}">${esc(p.name)} (${esc(p.code)})</option>`));
+            el.projectSelect.innerHTML = options.join('');
+            if (state.currentProjectId) el.projectSelect.value = String(state.currentProjectId);
+        }
+
+        function renderEstimateSelect() {
+            const options = [`<option value="">${esc(t('chooseEstimate'))}</option>`]
+                .concat((state.estimates || []).map(e => `<option value="${e.id}">${esc(e.name)} (${esc(e.code)})</option>`));
+            el.estimateSelect.innerHTML = options.join('');
+            if (state.currentEstimateId) el.estimateSelect.value = String(state.currentEstimateId);
+        }
+
+        function renderSectionSelect() {
+            const options = [`<option value="">${esc(t('defaultSection'))}</option>`]
+                .concat((state.sections || []).map(s => `<option value="${s.id}">${esc(s.name)}</option>`));
+            el.sectionSelect.innerHTML = options.join('');
+        }
+
+        function renderWorks() {
+            if (!state.works.length) {
+                el.worksWrap.innerHTML = `<div class="empty">${esc(t('workNoFound'))}</div>`;
+                return;
+            }
+            const rows = state.works.map(w => `<tr class="work-row">
+                <td>${esc(w.work_no)}</td>
+                <td>${esc(w.work_code || '')}</td>
+                <td>${esc(w.work_name || '')}<br><span class="muted">${esc(w.level3_name || '')}</span></td>
+                <td>${esc(w.unit || '')}</td>
+                <td>${num(w.amount)}</td>
+                <td><button data-add-work="${w.id}">${esc(t('addWork'))}</button></td>
+            </tr>`).join('');
+            el.worksWrap.innerHTML = `<table>
+                <thead><tr><th>#</th><th>${esc(t('thCode'))}</th><th>${esc(t('thWork'))}</th><th>${esc(t('thUnit'))}</th><th>${esc(t('thAmount'))}</th><th></th></tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+
+            el.worksWrap.querySelectorAll('[data-add-work]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!state.currentEstimateId) {
+                        alert(t('needEstimateFirst'));
+                        return;
+                    }
+                    const workId = Number(btn.getAttribute('data-add-work'));
+                    const sectionId = el.sectionSelect.value ? Number(el.sectionSelect.value) : null;
+                    btn.disabled = true;
+                    const out = await getJson(`/api/colass/estimates/${state.currentEstimateId}/add-work`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ work_id: workId, section_id: sectionId, qty_multiplier: 1 })
+                    });
+                    btn.disabled = false;
+                    if (!out.success) {
+                        alert(out.error || t('addWorkErr'));
+                        return;
+                    }
+                    await loadItems();
+                    await loadSummary();
+                });
+            });
+        }
+
+        function renderSummary(summary) {
+            const estimate = summary.estimate || {};
+            state.lastSummaryEstimate = estimate;
+            const cards = [
+                { label: t('summaryLabor'), value: estimate.total_manopera || 0 },
+                { label: t('summaryMaterials'), value: estimate.total_materiale || 0 },
+                { label: t('summaryEquipment'), value: estimate.total_utilaje || 0 },
+                { label: t('summaryTotal'), value: estimate.total_amount || 0 }
+            ];
+            el.summaryWrap.innerHTML = cards.map(c => `<div class="summary-card"><div class="label">${esc(c.label)}</div><div class="value">${num(c.value)}</div></div>`).join('');
+        }
+
+        function renderItems() {
+            if (!state.items.length) {
+                el.itemsWrap.innerHTML = `<div class="empty">${esc(t('itemsEmpty'))}</div>`;
+                return;
+            }
+
+            const sectionName = Object.fromEntries((state.sections || []).map(s => [String(s.id), s.name]));
+
+            const rows = state.items.map(item => `<tr>
+                <td>${item.id}</td>
+                <td>${esc(sectionName[String(item.section_id)] || item.section_name || '')}</td>
+                <td>${esc(item.item_code || '')}</td>
+                <td>${esc(item.item_name || '')}</td>
+                <td>${esc(item.unit || '')}</td>
+                <td><input class="item-input" data-field="qty" data-item-id="${item.id}" type="number" step="0.001" value="${Number(item.qty || 0)}"></td>
+                <td><input class="item-input" data-field="price" data-item-id="${item.id}" type="number" step="0.01" value="${Number(item.price || 0)}"></td>
+                <td>${num(item.amount)}</td>
+                <td>${esc(typeName(item.type_code, item.type_name_ru, item.type_name_ro))}</td>
+                <td><button class="item-delete" data-del-item="${item.id}">X</button></td>
+            </tr>`).join('');
+
+            el.itemsWrap.innerHTML = `<table>
+                <thead>
+                    <tr>
+                        <th>ID</th><th>${esc(t('thSection'))}</th><th>${esc(t('thCode'))}</th><th>${esc(t('thPos'))}</th><th>${esc(t('thUnit'))}</th><th>${esc(t('thQty'))}</th><th>${esc(t('thPrice'))}</th><th>${esc(t('thAmount'))}</th><th>${esc(t('thType'))}</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+
+            el.itemsWrap.querySelectorAll('[data-field]').forEach(input => {
+                input.addEventListener('change', async () => {
+                    const itemId = Number(input.getAttribute('data-item-id'));
+                    const field = input.getAttribute('data-field');
+                    const value = Number(input.value || 0);
+                    const payload = { [field]: value };
+                    const row = state.items.find(i => Number(i.id) === itemId);
+                    if (row) {
+                        payload.qty = field === 'qty' ? value : Number(row.qty || 0);
+                        payload.price = field === 'price' ? value : Number(row.price || 0);
+                    }
+                    const out = await getJson(`/api/colass/estimate-items/${itemId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!out.success) alert(out.error || t('saveErr'));
+                    await loadItems();
+                    await loadSummary();
+                });
+            });
+
+            el.itemsWrap.querySelectorAll('[data-del-item]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const itemId = Number(btn.getAttribute('data-del-item'));
+                    if (!confirm(t('deleteAsk'))) return;
+                    const out = await getJson(`/api/colass/estimate-items/${itemId}`, { method: 'DELETE' });
+                    if (!out.success) alert(out.error || t('deleteErr'));
+                    await loadItems();
+                    await loadSummary();
+                });
+            });
+        }
+
+        async function addAiMatchToEstimate(match) {
+            if (!state.currentEstimateId) {
+                alert(t('needEstimateFirst'));
+                return false;
+            }
+            if (!match || !match.entity_type || !match.id) return false;
+            const sectionId = el.sectionSelect.value ? Number(el.sectionSelect.value) : null;
+            if (match.entity_type === 'work') {
+                const out = await getJson(`/api/colass/estimates/${state.currentEstimateId}/add-work`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        work_id: Number(match.id),
+                        section_id: sectionId,
+                        qty_multiplier: Number(match.qty || 1)
+                    })
+                });
+                return !!out.success;
+            }
+            if (match.entity_type === 'resource') {
+                const qty = Number(match.qty || 1);
+                const price = Number(match.price || 0);
+                const out = await getJson(`/api/colass/estimates/${state.currentEstimateId}/items`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        section_id: sectionId,
+                        resource_type_id: match.resource_type_id || null,
+                        resource_id: Number(match.id),
+                        item_code: match.code || null,
+                        item_name: match.name || 'AI Resource',
+                        unit: match.unit || null,
+                        qty,
+                        price,
+                        amount: qty * price,
+                        source_doc: 'AI',
+                        created_by: 'ai'
+                    })
+                });
+                return !!out.success;
+            }
+            return false;
+        }
+
+        function renderAiResults(matches, backend) {
+            if (!matches || !matches.length) {
+                el.aiResults.innerHTML = '';
+                return;
+            }
+
+            const rows = matches.map((m, idx) => {
+                if (!m.entity_type || !m.id) {
+                    return `<div class="ai-notfound">❓ «${esc(m.original || m.token || '')}» — ${esc(t('aiNotFound'))}</div>`;
+                }
+                const typeLabel = m.entity_type === 'work' ? t('typeWork') : t('typeResource');
+                return `<div class="ai-match">
+                    <div>
+                        <span class="ai-tag">${esc(typeLabel)}</span>${esc(m.name || '')}
+                        <div class="muted">${esc(m.code || '')} | ${esc(m.unit || '')} | ${num(m.price)} x ${num(m.qty, 3)}</div>
+                    </div>
+                    <div>${num(m.confidence, 0)}%</div>
+                    <div>${num((Number(m.qty || 0) * Number(m.price || 0)), 2)}</div>
+                    <button class="ai-add-one" data-ai-add-one="${idx}">${esc(t('aiAddOne'))}</button>
+                </div>`;
+            }).join('');
+
+            const foundCount = matches.filter(m => m.entity_type && m.id).length;
+            const notFound = matches.length - foundCount;
+            const backendLabel = backend === 'oracle' ? t('aiBackendOracle') : t('aiBackendLocal');
+            el.aiStatus.textContent = `${backendLabel}: ${t('aiFound')} ${foundCount}, ${t('aiNotFound')} ${notFound}`;
+
+            el.aiResults.innerHTML = rows + (foundCount ? `<button class="ai-add-all" id="aiAddAllBtn">${esc(t('aiAddAll'))} (${foundCount})</button>` : '');
+
+            el.aiResults.querySelectorAll('[data-ai-add-one]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    btn.disabled = true;
+                    const idx = Number(btn.getAttribute('data-ai-add-one'));
+                    const ok = await addAiMatchToEstimate(matches[idx]);
+                    btn.disabled = false;
+                    if (!ok) {
+                        alert(t('aiAddErr'));
+                        return;
+                    }
+                    await loadItems();
+                    await loadSummary();
+                });
+            });
+
+            const addAllBtn = document.getElementById('aiAddAllBtn');
+            if (addAllBtn) {
+                addAllBtn.addEventListener('click', async () => {
+                    addAllBtn.disabled = true;
+                    let added = 0;
+                    for (const m of matches) {
+                        if (!m.entity_type || !m.id) continue;
+                        const ok = await addAiMatchToEstimate(m);
+                        if (ok) added += 1;
+                    }
+                    addAllBtn.disabled = false;
+                    el.aiStatus.textContent = `${t('aiAdded')}: ${added}`;
+                    await loadItems();
+                    await loadSummary();
+                });
+            }
+        }
+
+        async function aiParse() {
+            const text = (el.aiInput.value || '').trim();
+            if (!text) {
+                el.aiStatus.textContent = t('aiNeedText');
+                el.aiResults.innerHTML = '';
+                return;
+            }
+            const backend = (el.aiBackend.value || 'local').toLowerCase();
+            const threshold = Math.max(0, Math.min(100, Number(el.aiThreshold.value || 45)));
+            el.aiParseBtn.disabled = true;
+            el.aiStatus.textContent = t('aiAnalyzing');
+            el.aiResults.innerHTML = '';
+            const out = await getJson('/api/colass/ai-parse', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, backend, threshold })
+            });
+            el.aiParseBtn.disabled = false;
+            if (!out.success) {
+                el.aiStatus.textContent = out.error || t('aiError');
+                return;
+            }
+            renderAiResults(out.matches || [], out.backend || backend);
+        }
+
+        async function loadProjects() {
+            const out = await getJson('/api/colass/projects');
+            state.projects = out.data || [];
+            renderProjectSelect();
+
+            if (!state.currentProjectId && state.projects.length) {
+                state.currentProjectId = Number(state.projects[0].id);
+                el.projectSelect.value = String(state.currentProjectId);
+            }
+            if (state.currentProjectId) await loadEstimates(state.currentProjectId);
+        }
+
+        async function loadEstimates(projectId) {
+            const out = await getJson(`/api/colass/projects/${projectId}/estimates`);
+            state.estimates = out.data || [];
+            renderEstimateSelect();
+
+            if (!state.currentEstimateId && state.estimates.length) {
+                state.currentEstimateId = Number(state.estimates[0].id);
+                el.estimateSelect.value = String(state.currentEstimateId);
+            }
+            if (state.currentEstimateId) await loadEstimateContext();
+        }
+
+        async function loadEstimateContext() {
+            if (!state.currentEstimateId) return;
+            const sections = await getJson(`/api/colass/estimates/${state.currentEstimateId}/sections`);
+            state.sections = sections.data || [];
+            renderSectionSelect();
+            await loadItems();
+            await loadSummary();
+        }
+
+        async function loadItems() {
+            if (!state.currentEstimateId) {
+                state.items = [];
+                renderItems();
+                return;
+            }
+            const out = await getJson(`/api/colass/estimates/${state.currentEstimateId}/items`);
+            state.items = out.data || [];
+            renderItems();
+        }
+
+        async function loadSummary() {
+            if (!state.currentEstimateId) {
+                renderSummary({ estimate: {} });
+                return;
+            }
+            const out = await getJson(`/api/colass/estimates/${state.currentEstimateId}/summary`);
+            renderSummary(out || { estimate: {} });
+        }
+
+        async function loadWorks() {
+            const q = (el.workSearch.value || '').trim();
+            const params = new URLSearchParams();
+            params.set('limit', '500');
+            if (q) params.set('search', q);
+            const out = await getJson('/api/colass/catalog/works?' + params.toString());
+            state.works = out.data || [];
+            renderWorks();
+        }
+
+        el.projectSelect.addEventListener('change', async () => {
+            state.currentProjectId = el.projectSelect.value ? Number(el.projectSelect.value) : null;
+            state.currentEstimateId = null;
+            state.sections = [];
+            renderSectionSelect();
+            renderEstimateSelect();
+            state.items = [];
+            renderItems();
+            renderSummary({ estimate: {} });
+            if (state.currentProjectId) await loadEstimates(state.currentProjectId);
+        });
+
+        el.estimateSelect.addEventListener('change', async () => {
+            state.currentEstimateId = el.estimateSelect.value ? Number(el.estimateSelect.value) : null;
+            state.sections = [];
+            renderSectionSelect();
+            await loadEstimateContext();
+        });
+
+        el.workSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadWorks();
+        });
+
+        el.aiInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') aiParse();
+        });
+
+        el.aiParseBtn.addEventListener('click', aiParse);
+        el.printBtn.addEventListener('click', () => window.print());
+        el.langSelect.addEventListener('change', async () => {
+            state.lang = el.langSelect.value === 'ro' ? 'ro' : 'ru';
+            localStorage.setItem('colass_lang', state.lang);
+            applyLanguage();
+            await loadWorks();
+            await loadSummary();
+        });
+
+        (async function init() {
+            applyLanguage();
+            await loadWorks();
+            await loadProjects();
+            if (!state.currentEstimateId) renderSummary({ estimate: {} });
+        })();
+    </script>
+</body>
+</html>

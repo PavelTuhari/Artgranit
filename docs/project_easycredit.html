@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документация: Интеграция EasyCredit</title>
+    <style>
+        :root {
+            --primary: #0066CC;
+            --accent: #00CC66;
+            --bg: #f8fafc;
+            --card: #fff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #1e293b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 24px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; color: var(--primary); }
+        h2 { font-size: 20px; margin: 32px 0 16px; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+        h3 { font-size: 16px; margin: 24px 0 12px; color: var(--primary); }
+        p { margin-bottom: 12px; }
+        .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .badge-blue { background: #dbeafe; color: #1d4ed8; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin: 16px 0;
+        }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f8fafc; font-weight: 600; color: var(--muted); }
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+        }
+        pre {
+            background: var(--code-bg);
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            margin: 12px 0;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        .highlight { color: #60a5fa; }
+        .string { color: #86efac; }
+        .comment { color: #64748b; }
+        ul, ol { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        a { color: var(--primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        .note {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .success {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .toc {
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .toc ul { margin: 8px 0 0 20px; }
+        .toc a { color: var(--text); }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 Интеграция EasyCredit SOAP API</h1>
+        <p class="subtitle">Oracle SQL Developer Web — Модуль кредитования</p>
+
+        <div class="toc">
+            <strong>📋 Содержание</strong>
+            <ul>
+                <li><a href="#overview">Обзор проекта</a></li>
+                <li><a href="#architecture">Архитектура</a></li>
+                <li><a href="#soap-client">SOAP клиент</a></li>
+                <li><a href="#services">API сервисы</a></li>
+                <li><a href="#wsdl">Локальные WSDL</a></li>
+                <li><a href="#config">Конфигурация</a></li>
+                <li><a href="#testing">Тестирование</a></li>
+                <li><a href="#security">Безопасность</a></li>
+            </ul>
+        </div>
+
+        <h2 id="overview">📌 Обзор проекта</h2>
+        <div class="card">
+            <p>Интеграция с EasyCredit (EC Moldova) для оформления кредитов через SOAP API.</p>
+            <div class="grid" style="margin-top: 16px;">
+                <div>
+                    <span class="badge badge-blue">Технология</span> Python + Flask + SOAP
+                </div>
+                <div>
+                    <span class="badge badge-green">Окружение</span> Sandbox / Production
+                </div>
+                <div>
+                    <span class="badge badge-yellow">Статус</span> В разработке
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <tr><th>Параметр</th><th>Sandbox (тест)</th><th>Production</th></tr>
+            <tr><td>Base URL</td><td><code>https://tst.ecmoldova.cloud:8082</code></td><td><code>https://w81.ecredit.md:8082</code></td></tr>
+            <tr><td>SSL проверка</td><td>Отключена (сертификат истёк)</td><td>Включена</td></tr>
+            <tr><td>WSDL доступ</td><td>Доступен online</td><td>Только локальные файлы</td></tr>
+            <tr><td>Учётные данные</td><td>MTadmin / Parola007</td><td>Выдаются отдельно</td></tr>
+        </table>
+
+        <h2 id="architecture">🏗️ Архитектура</h2>
+        <div class="card">
+            <h3>Структура файлов</h3>
+            <pre><code>Artgranit/
+├── integrations/
+│   └── <span class="highlight">easycredit_client.py</span>    # SOAP клиент (ручная реализация)
+├── wsdl/
+│   └── easycredit/              # Локальные WSDL файлы
+│       ├── Preapproved_v2.1.wsdl
+│       ├── Request_v4_PJ.wsdl
+│       ├── URNStatus_v2.wsdl
+│       ├── eShopClientInfo_v3.wsdl
+│       ├── ECM_GetClientInfoByPhone.wsdl
+│       └── ECM_GetUrnPerUin_V2.wsdl
+├── data/
+│   └── easycredit_settings.json # Конфигурация (в .gitignore)
+├── templates/
+│   ├── credit_admin.html        # Админка кредитов
+│   └── credit_easycredit.html   # Форма оформления
+├── app.py                       # Flask API endpoints
+└── config.py                    # Настройки приложения</code></pre>
+        </div>
+
+        <h2 id="soap-client">🔧 SOAP клиент</h2>
+        <div class="card">
+            <h3>Тип реализации</h3>
+            <p><span class="badge badge-blue">Ручная реализация</span> Клиент написан вручную на Python с использованием библиотеки <code>requests</code> без WSDL-based библиотек (zeep, suds).</p>
+            
+            <div class="note">
+                <strong>⚠️ Требование EasyCredit:</strong> С 20.10.2025 production WSDL недоступны по URL. Необходимо использовать локальные файлы WSDL.
+            </div>
+
+            <h3>Как работает</h3>
+            <ol>
+                <li>XML SOAP envelope формируется вручную по структуре из WSDL</li>
+                <li>Запрос отправляется через <code>requests.post()</code></li>
+                <li>Ответ парсится через <code>xml.etree.ElementTree</code></li>
+            </ol>
+
+            <h3>Преимущества текущей реализации</h3>
+            <ul>
+                <li>✅ Не требует runtime доступа к WSDL</li>
+                <li>✅ Минимальные зависимости</li>
+                <li>✅ Полный контроль над XML структурой</li>
+            </ul>
+
+            <h3>Пример кода</h3>
+            <pre><code><span class="comment"># integrations/easycredit_client.py</span>
+<span class="highlight">def</span> preapproved(base_url, user, passwd, idn, verify_ssl=<span class="highlight">True</span>):
+    url = base_url + <span class="string">"/Preapproved_v2.1.svc"</span>
+    action = <span class="string">"http://tempuri.org/IPreapproved_v2_1/Preapproved"</span>
+    
+    body = <span class="string">'''
+    &lt;Preapproved xmlns="http://tempuri.org/"&gt;
+        &lt;Login&gt;{user}&lt;/Login&gt;
+        &lt;Password&gt;{passwd}&lt;/Password&gt;
+        &lt;UIN&gt;{idn}&lt;/UIN&gt;
+    &lt;/Preapproved&gt;
+    '''</span>
+    
+    <span class="highlight">return</span> _soap_post(url, action, body, verify_ssl)</code></pre>
+        </div>
+
+        <h2 id="services">📡 API сервисы</h2>
+
+        <div class="card">
+            <h3>Preapproved_v2.1</h3>
+            <p>Проверка предодобренной суммы кредита по IDNP клиента.</p>
+            <table>
+                <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+                <tr><td>Login</td><td>string</td><td>Логин API</td></tr>
+                <tr><td>Password</td><td>string</td><td>Пароль API</td></tr>
+                <tr><td>UIN</td><td>string</td><td>IDNP клиента (13 цифр)</td></tr>
+                <tr><td>BirthDate</td><td>string</td><td>Дата рождения (опц.)</td></tr>
+                <tr><td>Phone</td><td>string</td><td>Телефон (опц.)</td></tr>
+                <tr><td>cardid</td><td>string</td><td>ID карты (опц.)</td></tr>
+            </table>
+            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/IPreapproved_v2_1/Preapproved</code></p>
+        </div>
+
+        <div class="card">
+            <h3>Request_v4_PJ</h3>
+            <p>Отправка заявки на кредит.</p>
+            <table>
+                <tr><th>Ключевые поля</th><th>Описание</th></tr>
+                <tr><td>Login, Password</td><td>Авторизация API</td></tr>
+                <tr><td>Product</td><td>ID продукта (long)</td></tr>
+                <tr><td>UIN</td><td>IDNP клиента</td></tr>
+                <tr><td>GUFirstName, GULastName, GUFatherName</td><td>ФИО клиента</td></tr>
+                <tr><td>GUMobile</td><td>Телефон клиента</td></tr>
+                <tr><td>GoodsName, GoodsPrice</td><td>Товар и цена</td></tr>
+                <tr><td>CreditAmount</td><td>Сумма кредита</td></tr>
+            </table>
+            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/Request_v4_PJ_I/InsertRequest</code></p>
+        </div>
+
+        <div class="card">
+            <h3>URNStatus_v2</h3>
+            <p>Проверка статуса заявки по URN.</p>
+            <table>
+                <tr><th>Параметр</th><th>Описание</th></tr>
+                <tr><td>Login, Password</td><td>Авторизация API</td></tr>
+                <tr><td>URN</td><td>Номер заявки (например: 001198450)</td></tr>
+            </table>
+            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/URNStatus_v2_I/GetUrnStatus</code></p>
+        </div>
+
+        <div class="card">
+            <h3>eShopClientInfo_v3</h3>
+            <p>Информация о клиенте и его займах по IDNP.</p>
+            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/eShopClientInfo_v3_I/eShopClientInfo_v3</code></p>
+            <p><strong>Возвращает:</strong> ФИО, дата рождения, email, список займов (URN, сумма, статус, продукт)</p>
+        </div>
+
+        <div class="card">
+            <h3>ECM_GetClientInfoByPhone</h3>
+            <p>Поиск клиента по номеру телефона.</p>
+            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/ECM_GetClientInfoByPhone_I/GetClientInfoByPhone</code></p>
+        </div>
+
+        <div class="card">
+            <h3>ECM_GetUrnPerUin_V2</h3>
+            <p>Список всех заявок (URN) клиента по IDNP.</p>
+            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/ECM_GetUrnPerUin_V2_I/ECM_GetUrnPerUin</code></p>
+        </div>
+
+        <h2 id="wsdl">📁 Локальные WSDL</h2>
+        <div class="card">
+            <div class="success">
+                <strong>✅ WSDL файлы скачаны и сохранены локально</strong> в директории <code>wsdl/easycredit/</code>
+            </div>
+            <table>
+                <tr><th>Файл</th><th>Сервис</th></tr>
+                <tr><td><code>Preapproved_v2.1.wsdl</code></td><td>Preapproved_v2.1.svc</td></tr>
+                <tr><td><code>Request_v4_PJ.wsdl</code></td><td>Request_v4_PJ.svc</td></tr>
+                <tr><td><code>URNStatus_v2.wsdl</code></td><td>URNStatus_v2.svc</td></tr>
+                <tr><td><code>eShopClientInfo_v3.wsdl</code></td><td>eShopClientInfo_v3.svc</td></tr>
+                <tr><td><code>ECM_GetClientInfoByPhone.wsdl</code></td><td>ECM_GetClientInfoByPhone.svc</td></tr>
+                <tr><td><code>ECM_GetUrnPerUin_V2.wsdl</code></td><td>ECM_GetUrnPerUin_V2.svc</td></tr>
+            </table>
+            <div class="note">
+                При изменении структуры сервисов EasyCredit необходимо скачать новые версии WSDL.
+            </div>
+        </div>
+
+        <h2 id="config">⚙️ Конфигурация</h2>
+        <div class="card">
+            <h3>Файл настроек</h3>
+            <p>Настройки хранятся в <code>data/easycredit_settings.json</code> (добавлен в <code>.gitignore</code>):</p>
+            <pre><code>{
+    <span class="string">"env"</span>: <span class="string">"sandbox"</span>,
+    <span class="string">"base_url"</span>: <span class="string">"https://tst.ecmoldova.cloud:8082"</span>,
+    <span class="string">"api_user"</span>: <span class="string">"MTadmin"</span>,
+    <span class="string">"api_password"</span>: <span class="string">"********"</span>
+}</code></pre>
+
+            <h3>Переключение окружения</h3>
+            <p>Админка: <a href="/UNA.md/orasldev/credit-admin">/UNA.md/orasldev/credit-admin</a> → Настройки</p>
+        </div>
+
+        <h2 id="testing">🧪 Тестирование</h2>
+        <div class="card">
+            <h3>Тестовый клиент в EasyCredit</h3>
+            <table>
+                <tr><th>Параметр</th><th>Значение</th></tr>
+                <tr><td>IDNP (UIN)</td><td><code>2000000000001</code></td></tr>
+                <tr><td>Имя</td><td>Test Test</td></tr>
+                <tr><td>URN заявки</td><td><code>001198450</code></td></tr>
+                <tr><td>Продукт</td><td>Shop-12 (eSimplu)</td></tr>
+            </table>
+
+            <h3>Интерфейсы тестирования</h3>
+            <ul>
+                <li><a href="/UNA.md/orasldev/credit-admin">Админка</a> → вкладка "🧪 Тест EasyCredit"</li>
+                <li><a href="/UNA.md/orasldev/credit-easycredit">Форма оформления кредита</a></li>
+            </ul>
+        </div>
+
+        <h2 id="security">🔒 Безопасность</h2>
+        <div class="card">
+            <ul>
+                <li>✅ API ключи хранятся в <code>data/*.json</code> (в .gitignore)</li>
+                <li>✅ Пароли не передаются в frontend — только маски</li>
+                <li>✅ SSL проверка включена для production</li>
+                <li>✅ IDNP маскируется в логах (***1234)</li>
+                <li>✅ Все операции логируются в виджет "Output"</li>
+            </ul>
+        </div>
+
+        <h2>📞 Контакты</h2>
+        <div class="card">
+            <p><strong>EasyCredit техподдержка:</strong> <a href="mailto:it@ecredit.md">it@ecredit.md</a></p>
+            <p><strong>Ruslan Costin:</strong> Telegram</p>
+        </div>
+
+        <div class="footer">
+            <p>📅 Документ создан: 30.01.2026 | Версия: 1.0</p>
+            <p>Oracle SQL Developer Web — Artgranit Project</p>
+        </div>
+    </div>
+</body>
+</html>

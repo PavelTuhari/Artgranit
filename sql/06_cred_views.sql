@@ -1,0 +1,77 @@
+-- ============================================================
+-- Кредиты: представления
+-- ============================================================
+
+-- Список программ с банком и флагами (для админки)
+CREATE OR REPLACE VIEW V_CRED_PROGRAMS AS
+SELECT
+  p.ID,
+  p.NAME,
+  p.BANK_ID,
+  b.NAME       AS BANK_NAME,
+  b.CODE       AS BANK_CODE,
+  p.TERM_MONTHS,
+  p.RATE_PCT,
+  p.FIRST_PAYMENT_PCT,
+  p.MIN_SUM,
+  p.MAX_SUM,
+  p.COMMISSION_PCT,
+  p.ACTIVE,
+  p.NOTES,
+  p.CREATED_AT,
+  p.UPDATED_AT
+FROM CRED_PROGRAMS p
+JOIN CRED_BANKS b ON b.ID = p.BANK_ID;
+
+-- Матрица доступности: категория × программа (0/1)
+CREATE OR REPLACE VIEW V_CRED_MATRIX AS
+SELECT
+  c.ID   AS CATEGORY_ID,
+  c.NAME AS CATEGORY_NAME,
+  p.ID   AS PROGRAM_ID,
+  p.NAME AS PROGRAM_NAME,
+  CASE WHEN pc.PROGRAM_ID IS NOT NULL THEN 1 ELSE 0 END AS ENABLED
+FROM CRED_CATEGORIES c
+CROSS JOIN CRED_PROGRAMS p
+LEFT JOIN CRED_PROGRAM_CATEGORIES pc ON pc.CATEGORY_ID = c.ID AND pc.PROGRAM_ID = p.ID
+WHERE p.ACTIVE = 'Y'
+ORDER BY c.NAME, p.NAME;
+
+-- Товары с категорией и брендом (для оператора)
+CREATE OR REPLACE VIEW V_CRED_PRODUCTS AS
+SELECT
+  pr.ID,
+  pr.NAME,
+  pr.ARTICLE,
+  pr.BARCODE,
+  pr.PRICE,
+  pr.CATEGORY_ID,
+  c.NAME AS CATEGORY_NAME,
+  pr.BRAND_ID,
+  b.NAME AS BRAND_NAME,
+  pr.IMG_URL
+FROM CRED_PRODUCTS pr
+JOIN CRED_CATEGORIES c ON c.ID = pr.CATEGORY_ID
+LEFT JOIN CRED_BRANDS b ON b.ID = pr.BRAND_ID;
+
+-- Последние заявки (для оператора)
+CREATE OR REPLACE VIEW V_CRED_APPLICATIONS_RECENT AS
+SELECT
+  a.ID,
+  a.PRODUCT_ID,
+  pr.NAME AS PRODUCT_NAME,
+  a.PROGRAM_ID,
+  pg.NAME AS PROGRAM_NAME,
+  a.CLIENT_FIO,
+  a.CLIENT_PHONE,
+  a.STATUS,
+  a.APPROVED_AMOUNT,
+  a.REJECTION_REASON,
+  a.CREATED_AT,
+  TO_CHAR(a.CREATED_AT, 'HH24:MI') AS CREATED_TIME
+FROM CRED_APPLICATIONS a
+JOIN CRED_PRODUCTS pr ON pr.ID = a.PRODUCT_ID
+JOIN CRED_PROGRAMS pg ON pg.ID = a.PROGRAM_ID
+ORDER BY a.CREATED_AT DESC;
+
+/

@@ -20,6 +20,7 @@ from controllers.nufarul_controller import NufarulController
 from controllers.documentation_controller import DocumentationController
 from controllers.shell_controller import ShellController
 from controllers.digi_marketing_controller import DigiMarketingController
+from controllers.colass_controller import ColassController
 import threading
 import time
 import os
@@ -361,6 +362,314 @@ def credit_iute():
     if not AuthController.is_authenticated():
         return _login_redirect()
     return render_template('credit_iute.html')
+
+
+# ──────────────────── Colass: page routes ────────────────────
+@app.route('/UNA.md/orasldev/colass-catalog')
+def colass_catalog():
+    """Colass: каталог работ F5 и ресурсов F3."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('colass_catalog.html')
+
+
+@app.route('/UNA.md/orasldev/colass-estimator')
+def colass_estimator():
+    """Colass: сметчик с добавлением работ из каталога."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('colass_estimator.html')
+
+
+@app.route('/UNA.md/orasldev/colass-crm')
+def colass_crm():
+    """Colass CRM: лиды, воронка, активности."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('colass_crm.html')
+
+
+@app.route('/UNA.md/orasldev/colass-contracts')
+def colass_contracts():
+    """Colass: реестр договоров."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('colass_contracts.html')
+
+
+# ──────────────────── Colass: catalog API ────────────────────
+@app.route('/api/colass/catalog/tree')
+def api_colass_catalog_tree():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    search = request.args.get('search')
+    return jsonify(ColassController.get_catalog_tree(search=search))
+
+
+@app.route('/api/colass/catalog/works')
+def api_colass_catalog_works():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    search = request.args.get('search')
+    limit = request.args.get('limit', 500, type=int)
+    return jsonify(ColassController.get_work_catalog(search=search, limit=limit))
+
+
+@app.route('/api/colass/catalog/resources')
+def api_colass_catalog_resources():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    type_code = request.args.get('type')
+    limit = request.args.get('limit', 500, type=int)
+    return jsonify(ColassController.get_resources(type_code=type_code, limit=limit))
+
+
+@app.route('/api/colass/catalog/work/<int:work_id>/resources')
+def api_colass_work_resources(work_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_work_resources(work_id))
+
+
+# ──────────────────── Colass: projects & estimates API ────────────────────
+@app.route('/api/colass/projects')
+def api_colass_projects():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_projects())
+
+
+@app.route('/api/colass/projects/<int:project_id>/estimates')
+def api_colass_project_estimates(project_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_project_estimates(project_id))
+
+
+@app.route('/api/colass/estimates/<int:estimate_id>/sections')
+def api_colass_estimate_sections(estimate_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_estimate_sections(estimate_id))
+
+
+@app.route('/api/colass/estimates/<int:estimate_id>/items', methods=['GET', 'POST'])
+def api_colass_estimate_items(estimate_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'POST':
+        return jsonify(ColassController.add_estimate_item(estimate_id, request.get_json(force=True)))
+    section_id = request.args.get('section_id', type=int)
+    return jsonify(ColassController.get_estimate_items(estimate_id, section_id=section_id))
+
+
+@app.route('/api/colass/estimates/<int:estimate_id>/add-work', methods=['POST'])
+def api_colass_estimate_add_work(estimate_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    payload = request.get_json(force=True)
+    return jsonify(ColassController.add_work_to_estimate(
+        estimate_id=estimate_id,
+        work_id=int(payload.get('work_id', 0)),
+        section_id=payload.get('section_id'),
+        multiplier=float(payload.get('multiplier', 1.0)),
+    ))
+
+
+@app.route('/api/colass/estimates/<int:estimate_id>/summary')
+def api_colass_estimate_summary(estimate_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_estimate_summary(estimate_id))
+
+
+@app.route('/api/colass/estimate-items/<int:item_id>', methods=['PUT', 'DELETE'])
+def api_colass_estimate_item(item_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'DELETE':
+        return jsonify(ColassController.delete_estimate_item(item_id))
+    return jsonify(ColassController.update_estimate_item(item_id, request.get_json(force=True)))
+
+
+@app.route('/api/colass/ai-parse', methods=['POST'])
+def api_colass_ai_parse():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    payload = request.get_json(force=True)
+    text = payload.get('text', '')
+    return jsonify(ColassController.ai_parse_estimate_oracle(text))
+
+
+# ──────────────────── Colass: CRM API ────────────────────
+@app.route('/api/colass/crm/stages')
+def api_colass_crm_stages():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_crm_stages())
+
+
+@app.route('/api/colass/crm/sources')
+def api_colass_crm_sources():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_crm_sources())
+
+
+@app.route('/api/colass/crm/leads', methods=['GET', 'POST'])
+def api_colass_crm_leads():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'POST':
+        return jsonify(ColassController.create_crm_lead(request.get_json(force=True)))
+    search = request.args.get('search')
+    stage_code = request.args.get('stage_code')
+    limit = request.args.get('limit', 300, type=int)
+    return jsonify(ColassController.get_crm_leads(search=search, stage_code=stage_code, limit=limit))
+
+
+@app.route('/api/colass/crm/leads/<int:lead_id>', methods=['PUT'])
+def api_colass_crm_lead_update(lead_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.update_crm_lead(lead_id, request.get_json(force=True)))
+
+
+@app.route('/api/colass/crm/leads/<int:lead_id>/activities', methods=['GET', 'POST'])
+def api_colass_crm_activities(lead_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'POST':
+        return jsonify(ColassController.add_crm_activity(lead_id, request.get_json(force=True)))
+    limit = request.args.get('limit', 100, type=int)
+    return jsonify(ColassController.get_crm_activities(lead_id, limit=limit))
+
+
+@app.route('/api/colass/crm/leads/<int:lead_id>/register-contract', methods=['POST'])
+def api_colass_crm_register_contract(lead_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.register_crm_contract(lead_id, request.get_json(force=True)))
+
+
+@app.route('/api/colass/crm/import-email', methods=['POST'])
+def api_colass_crm_import_email():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.import_crm_leads_from_email())
+
+
+# ──────────────────── Colass: contracts API ────────────────────
+@app.route('/api/colass/contracts', methods=['GET', 'POST'])
+def api_colass_contracts():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'POST':
+        return jsonify(ColassController.create_contract(request.get_json(force=True)))
+    search = request.args.get('search')
+    limit = request.args.get('limit', 300, type=int)
+    return jsonify(ColassController.get_contracts(search=search, limit=limit))
+
+
+@app.route('/api/colass/contracts/<int:contract_id>', methods=['GET', 'PUT', 'DELETE'])
+def api_colass_contract(contract_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'DELETE':
+        return jsonify(ColassController.delete_contract(contract_id))
+    if request.method == 'PUT':
+        return jsonify(ColassController.update_contract(contract_id, request.get_json(force=True)))
+    return jsonify(ColassController.get_contract_detail(contract_id))
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/contacts', methods=['POST'])
+def api_colass_contract_contacts(contract_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    payload = request.get_json(force=True)
+    return jsonify(ColassController.add_contract_contact(
+        contract_id, payload.get('kind', ''), payload.get('value', ''), payload.get('is_primary', 'N')
+    ))
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/contacts/<kind>/<int:row_id>', methods=['DELETE'])
+def api_colass_contract_contact_delete(contract_id, kind, row_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.delete_contract_contact(contract_id, kind, row_id))
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/attachments', methods=['GET', 'POST'])
+def api_colass_contract_attachments(contract_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    if request.method == 'POST':
+        f = request.files.get('file')
+        if not f:
+            return jsonify({"error": "no file"}), 400
+        return jsonify(ColassController.add_contract_attachment(
+            contract_id,
+            type_code=request.form.get('type_code', 'OTHER'),
+            file_name=f.filename,
+            mime_type=f.mimetype or 'application/octet-stream',
+            file_bytes=f.read(),
+        ))
+    return jsonify(ColassController.get_contract_attachments(contract_id))
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/attachments/<int:att_id>', methods=['DELETE'])
+def api_colass_contract_attachment_delete(contract_id, att_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.delete_contract_attachment(contract_id, att_id))
+
+
+@app.route('/api/colass/contracts/attachments/<int:att_id>/download')
+def api_colass_contract_attachment_download(att_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    result = ColassController.get_contract_attachment_blob(att_id)
+    if not result.get('success'):
+        return jsonify(result), 404
+    data = result['data']
+    return Response(data['blob'], mimetype=data.get('mime_type', 'application/octet-stream'),
+                    headers={'Content-Disposition': f'attachment; filename="{data.get("file_name", "file")}"'})
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/export-word')
+def api_colass_contract_export_word(contract_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    result = ColassController.export_contract_to_word(contract_id)
+    if not result.get('success'):
+        return jsonify(result), 500
+    return Response(result['data']['blob'], mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    headers={'Content-Disposition': f'attachment; filename="{result["data"].get("filename", "contract.docx")}"'})
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/approval', methods=['GET'])
+def api_colass_contract_approval(contract_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(ColassController.get_contract_approval(contract_id))
+
+
+@app.route('/api/colass/contracts/<int:contract_id>/approval/start', methods=['POST'])
+def api_colass_contract_approval_start(contract_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    payload = request.get_json(force=True)
+    return jsonify(ColassController.start_contract_approval(contract_id, payload.get('approvers', payload.get('steps', [])), started_by=payload.get('started_by', 'ui'), comment_text=payload.get('comment')))
+
+
+@app.route('/api/colass/contracts/approval/steps/<int:step_id>/decision', methods=['POST'])
+def api_colass_contract_approval_decision(step_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    payload = request.get_json(force=True)
+    return jsonify(ColassController.decide_contract_approval_step(
+        step_id, payload.get('decision', ''), decided_by=payload.get('decided_by', 'ui'), comment_text=payload.get('comment')
+    ))
 
 
 @app.route('/UNA.md/orasldev/docs')
@@ -4327,4 +4636,5 @@ if __name__ == '__main__':
         print(f"   • http://{local_ip}:{Config.SERVER_PORT}/UNA.md/orasldev/digi-sm")
     
     use_reloader = Config.ENVIRONMENT != "REMOTE"
-    socketio.run(app, host=Config.SERVER_HOST, port=Config.SERVER_PORT, debug=True, use_reloader=use_reloader, allow_unsafe_werkzeug=True)
+    is_debug = Config.ENVIRONMENT != "REMOTE"
+    socketio.run(app, host=Config.SERVER_HOST, port=Config.SERVER_PORT, debug=is_debug, use_reloader=use_reloader, allow_unsafe_werkzeug=True)

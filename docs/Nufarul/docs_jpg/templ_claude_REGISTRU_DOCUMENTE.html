@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registru Documente Nufărul - Реестр документов</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 28px;
+        }
+        .header .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin: 0;
+        }
+        .logo {
+            font-weight: bold;
+            font-style: italic;
+            font-size: 36px;
+            color: #667eea;
+            border: 3px solid #667eea;
+            display: inline-block;
+            padding: 10px 30px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .document-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+        }
+        .card-header {
+            padding: 20px;
+            color: white;
+        }
+        .card-header.bon-comanda {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .card-header.comanda {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-header.chitanta {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .card-header.jurnal {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .card-type {
+            font-size: 12px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            letter-spacing: 1px;
+        }
+        .card-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .card-number {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            color: #888;
+            font-size: 12px;
+        }
+        .info-value {
+            font-weight: 500;
+            color: #333;
+        }
+        .card-link {
+            display: block;
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+        .card-link:hover {
+            background: #667eea;
+            color: white;
+        }
+        .source-image {
+            font-size: 11px;
+            color: #999;
+            padding: 10px 20px;
+            background: #fafafa;
+            border-top: 1px solid #eee;
+        }
+        table.registry {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            margin-top: 30px;
+        }
+        table.registry th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        table.registry td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        table.registry tr:hover {
+            background: #f8f9fa;
+        }
+        table.registry a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        table.registry a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: white;
+            opacity: 0.8;
+            font-size: 12px;
+        }
+        @media (max-width: 768px) {
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Nufărul</div>
+            <h1>Registru Documente / Реестр Документов</h1>
+            <p class="subtitle">Curățătorie chimică și spălătorie / Химчистка и прачечная</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">Imagini procesate</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">HTML generate</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">Tipuri documente</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="documents-grid">
+            <!-- Bon de Comandă P nr. 569583 -->
+            <div class="document-card">
+                <div class="card-header bon-comanda">
+                    <div class="card-type">Bon de Comandă</div>
+                    <div class="card-title">P nr. 569583</div>
+                    <div class="card-number">Curățarea penelor și fulgilor</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Manager</span>
+                            <span class="info-value">079982297</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Punctul de recepție</span>
+                            <span class="info-value">Nr. 4</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Tip serviciu</span>
+                            <span class="info-value">Curățarea pernelor</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_bon_comanda_P569583.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-3306ee75f3235c26822a33a8b96ad1ca748c2221f4932bfc94403241e36ae567_22131a74553.jpg</div>
+            </div>
+
+            <!-- Comandă C nr. 499755 -->
+            <div class="document-card">
+                <div class="card-header comanda">
+                    <div class="card-type">Comandă / Заказ</div>
+                    <div class="card-title">C nr. 499755</div>
+                    <div class="card-number">Curățare chimică confecții</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Cod formular</span>
+                            <span class="info-value">F-FTP-01-01</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Adresa</span>
+                            <span class="info-value">Drag 28/3</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Telefon</span>
+                            <span class="info-value">079982297</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_comanda_C499755.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-e5bb4937139f1573aff097f7e52217afe4cbd3548ac897e53dc9861d3bf5bd7e_22131a6f6c6.jpg</div>
+            </div>
+
+            <!-- Chitanță № 003352 Part 1 -->
+            <div class="document-card">
+                <div class="card-header chitanta">
+                    <div class="card-type">Chitanță / Квитанция</div>
+                    <div class="card-title">№ 003352 (Partea 1)</div>
+                    <div class="card-number">Geacă / Куртка зимняя</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Data</span>
+                            <span class="info-value">14.01.2026</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Client</span>
+                            <span class="info-value">Barbos Larisa</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Preț cu reducere</span>
+                            <span class="info-value">478 lei</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_chitanta_003352_part1.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-a8ee3d774af4ed70775d52f85319e68e3ea2bb0016397e282260cf27b5ff6023_22131a771f6.jpg</div>
+            </div>
+
+            <!-- Chitanță № 003352 Part 2 -->
+            <div class="document-card">
+                <div class="card-header chitanta">
+                    <div class="card-type">Chitanță / Квитанция</div>
+                    <div class="card-title">№ 003352 (Partea 2)</div>
+                    <div class="card-number">Total și semnături</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Total fără reducere</span>
+                            <span class="info-value">531 lei</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Reducere</span>
+                            <span class="info-value">53 lei (10%)</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Plată card</span>
+                            <span class="info-value">478 lei</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_chitanta_003352_part2.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-f66daccf98c1184603f5116aad9f125fcb416da3bf38b1ae33ca0614bcf35e34_22131a7d72c.jpg</div>
+            </div>
+
+            <!-- Jurnal Registru Page 1 -->
+            <div class="document-card">
+                <div class="card-header jurnal">
+                    <div class="card-type">Jurnal Registru</div>
+                    <div class="card-title">Pagina 1 (Rânduri 54-83)</div>
+                    <div class="card-number">Lista clienți și comenzi</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Perioada</span>
+                            <span class="info-value">21.01 - 03.02</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Înregistrări</span>
+                            <span class="info-value">30 comenzi</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Tip</span>
+                            <span class="info-value">Manuscris</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_jurnal_registru_page1.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-07af6583836e1f1aa32c260781ab197d19872016a9db1e441eac63c975a7d96e_22131a71b7b.jpg</div>
+            </div>
+
+            <!-- Jurnal Registru Page 2 -->
+            <div class="document-card">
+                <div class="card-header jurnal">
+                    <div class="card-type">Jurnal Registru</div>
+                    <div class="card-title">Pagina 2 (Lista Articole)</div>
+                    <div class="card-number">Articole de curățătorie</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Perioada</span>
+                            <span class="info-value">16.03 - 27.03</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Înregistrări</span>
+                            <span class="info-value">~60 articole</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Tip articole</span>
+                            <span class="info-value">Paltoane, scurte, plapume</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_jurnal_registru_page2.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-d2dc54ae3828a0ec838b9605bf2355bdab4c04afec79fea628c7d4873e3d5f04_22131a7724b.jpg</div>
+            </div>
+
+            <!-- Comandă S nr. 352991 -->
+            <div class="document-card">
+                <div class="card-header comanda">
+                    <div class="card-type">Comandă / Заказ</div>
+                    <div class="card-title">S nr. 352991</div>
+                    <div class="card-number">Spălătorie / Lenjerie</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Manager</span>
+                            <span class="info-value">Грец</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Data primirii</span>
+                            <span class="info-value">02.02</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Data livrării</span>
+                            <span class="info-value">05.02, ora 15</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_comanda_S352991.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-a2ebd704fa1dc0438beb5c86e58d8f94fedf49db9a64743b67bae177124642ed_22131a752ed.jpg</div>
+            </div>
+
+            <!-- Bon de Comandă K nr. 535036 -->
+            <div class="document-card">
+                <div class="card-header bon-comanda">
+                    <div class="card-type">Bon de Comandă</div>
+                    <div class="card-title">K nr. 535036</div>
+                    <div class="card-number">Curățătorie covoare/textile</div>
+                </div>
+                <div class="card-body">
+                    <div class="card-info">
+                        <div class="info-row">
+                            <span class="info-label">Manager</span>
+                            <span class="info-value">Грец</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Telefon</span>
+                            <span class="info-value">079982297</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Punctul</span>
+                            <span class="info-value">Nr. 4</span>
+                        </div>
+                    </div>
+                </div>
+                <a href="templ_claude_bon_comanda_K535036.html" class="card-link">Deschide documentul →</a>
+                <div class="source-image">Sursă: 0-02-05-74bc305a4e0b3ce699f9ff5dc73e87592f6bc42205cdf3e0e3d9e80049ae2828_22131a6fc7f.jpg</div>
+            </div>
+        </div>
+
+        <!-- Tabel sumar -->
+        <table class="registry">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Tip Document</th>
+                    <th>Număr</th>
+                    <th>Fișier HTML</th>
+                    <th>Fișier Imagine Sursă</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>Bon de Comandă (Perne)</td>
+                    <td>P nr. 569583</td>
+                    <td><a href="templ_claude_bon_comanda_P569583.html">templ_claude_bon_comanda_P569583.html</a></td>
+                    <td>0-02-05-3306ee75...74553.jpg</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Comandă (Confecții)</td>
+                    <td>C nr. 499755</td>
+                    <td><a href="templ_claude_comanda_C499755.html">templ_claude_comanda_C499755.html</a></td>
+                    <td>0-02-05-e5bb4937...6f6c6.jpg</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Chitanță - Partea 1</td>
+                    <td>№ 003352</td>
+                    <td><a href="templ_claude_chitanta_003352_part1.html">templ_claude_chitanta_003352_part1.html</a></td>
+                    <td>0-02-05-a8ee3d77...771f6.jpg</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>Chitanță - Partea 2</td>
+                    <td>№ 003352</td>
+                    <td><a href="templ_claude_chitanta_003352_part2.html">templ_claude_chitanta_003352_part2.html</a></td>
+                    <td>0-02-05-f66daccf...7d72c.jpg</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Jurnal Registru</td>
+                    <td>Pagina 1 (54-83)</td>
+                    <td><a href="templ_claude_jurnal_registru_page1.html">templ_claude_jurnal_registru_page1.html</a></td>
+                    <td>0-02-05-07af6583...71b7b.jpg</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>Jurnal Registru</td>
+                    <td>Pagina 2 (Articole)</td>
+                    <td><a href="templ_claude_jurnal_registru_page2.html">templ_claude_jurnal_registru_page2.html</a></td>
+                    <td>0-02-05-d2dc54ae...7724b.jpg</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>Comandă (Spălătorie)</td>
+                    <td>S nr. 352991</td>
+                    <td><a href="templ_claude_comanda_S352991.html">templ_claude_comanda_S352991.html</a></td>
+                    <td>0-02-05-a2ebd704...752ed.jpg</td>
+                </tr>
+                <tr>
+                    <td>8</td>
+                    <td>Bon de Comandă (Textile)</td>
+                    <td>K nr. 535036</td>
+                    <td><a href="templ_claude_bon_comanda_K535036.html">templ_claude_bon_comanda_K535036.html</a></td>
+                    <td>0-02-05-74bc305a...6fc7f.jpg</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Generat automat prin OCR și procesare Claude AI</p>
+            <p>Data generării: 2026-02-03</p>
+            <p>© Nufărul S.A. - Curățătorie chimică și spălătorie</p>
+        </div>
+    </div>
+</body>
+</html>

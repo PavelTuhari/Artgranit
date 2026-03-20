@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Flask
+instance/
+.webassets-cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+app.log
+
+# Backups
+backups/
+*.tar.gz
+*.zip
+
+# Wallet files (sensitive)
+wallet_*/
+Wallet_*.zip
+*.jks
+*.sso
+
+# Config (may contain sensitive data)
+# config.py - uncomment if you want to exclude config
+
+# Environment variables (contains sensitive passwords)
+.env
+
+# Oracle connections (contains sensitive passwords)
+oracle_connections.json
+
+# EasyCredit integration (API user/password)
+data/easycredit_settings.json
+
+# Iute integration (API key)
+data/iute_settings.json
+
+# Credit log (EasyCredit / operator, may contain PII)
+data/credit_log.jsonl
+
+# Virtual environments (broken/run copies)
+.venv_run/
+venv.broken.*/
+
+# Superpowers local state
+.superpowers/
+
+# Remote sync state
+.remote_nufarul_sync/
+
+# Xcode build artifacts
+AccountingDemoXcode/.cache/
+AccountingDemoXcode/.derived/
+AccountingDemoXcode/.derived-release/
+AccountingDemoXcode/.build/
+AccountingDemoXcode/AccountingDemoXcodeApp.xcodeproj/project.xcworkspace/xcuserdata/
+AccountingDemoXcode/AccountingDemoXcodeApp.xcodeproj/xcuserdata/
+*.xcuserstate
+*.xcschememanagement.plist
+
+# SQLite databases
+*.db
+
+# Temporary files
+*.tmp
+*.bak
+

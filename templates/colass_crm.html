@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Colass CRM</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #111827;
+            --line: #243042;
+            --text: #e5e7eb;
+            --muted: #93a4b8;
+            --accent: #38bdf8;
+            --good: #10b981;
+            --warn: #f59e0b;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            color: var(--text);
+            background: radial-gradient(circle at 10% 10%, #172554, var(--bg) 40%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .topbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(17,24,39,0.92);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+        .nav { display: flex; flex-wrap: wrap; gap: 8px; }
+        .nav a {
+            color: #bfdbfe;
+            text-decoration: none;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 6px 9px;
+            font-size: 12px;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 12px;
+            padding: 12px;
+            min-height: 0;
+            flex: 1;
+        }
+        .panel {
+            border: 1px solid var(--line);
+            background: rgba(17,24,39,0.96);
+            border-radius: 12px;
+            padding: 10px;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .row { display: grid; grid-template-columns: repeat(4, minmax(120px,1fr)); gap: 8px; }
+        .row2 { display: grid; grid-template-columns: repeat(2, minmax(120px,1fr)); gap: 8px; }
+        .filters { display: grid; grid-template-columns: 1.3fr 0.8fr 0.5fr 0.6fr; gap: 8px; }
+        input, select, textarea, button {
+            width: 100%;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            background: #0b1220;
+            color: var(--text);
+            padding: 8px;
+            font-size: 13px;
+        }
+        textarea { min-height: 76px; resize: vertical; }
+        button { cursor: pointer; }
+        .btn-primary { background: #0369a1; }
+        .btn-good { background: #065f46; }
+        .btn-warn { background: #92400e; }
+        .label { color: var(--muted); font-size: 12px; }
+        .funnel {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+            gap: 8px;
+        }
+        .funnel-card {
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px;
+            background: #0b1220;
+            font-size: 12px;
+        }
+        .table-wrap {
+            min-height: 0;
+            flex: 1;
+            overflow: auto;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border-bottom: 1px solid #1f2937; padding: 7px; text-align: left; }
+        th { position: sticky; top: 0; background: #0b1220; }
+        tr.sel { background: rgba(56,189,248,0.12); }
+        .activity-list {
+            min-height: 0;
+            max-height: 180px;
+            overflow: auto;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px;
+            background: #0b1220;
+            font-size: 12px;
+        }
+        .activity-item { border-bottom: 1px solid #1f2937; padding: 6px 0; }
+        .muted { color: var(--muted); }
+        @media (max-width: 1080px) {
+            .layout { grid-template-columns: 1fr; }
+            .row, .row2, .filters { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="nav">
+            <a href="/UNA.md/orasldev/colass-catalog" id="lnkCatalog"></a>
+            <a href="/UNA.md/orasldev/colass-estimator" id="lnkEstimator"></a>
+            <a href="/UNA.md/orasldev/colass-contracts" id="lnkContracts"></a>
+            <a href="/UNA.md/orasldev/docs/colass" id="lnkDocs"></a>
+            <a href="/UNA.md/orasldev/docs/colass/crm-business-processes.html" id="lnkBpm"></a>
+            <a href="/UNA.md/orasldev/dashboard">Dashboard</a>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <span id="title"></span>
+            <select id="langSelect" style="width:auto; min-width:120px;">
+                <option value="ru">Русский</option>
+                <option value="ro">Română</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="layout">
+        <section class="panel">
+            <div class="filters">
+                <input id="searchInput" placeholder="" />
+                <select id="stageFilter"></select>
+                <button class="btn-primary" id="btnRefresh"></button>
+                <button class="btn-warn" id="btnEmailImport"></button>
+            </div>
+            <div class="funnel" id="funnel"></div>
+            <div class="table-wrap">
+                <table id="leadTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th id="thLeadNo"></th>
+                            <th id="thContact"></th>
+                            <th id="thCompany"></th>
+                            <th>Email</th>
+                            <th id="thStage"></th>
+                            <th id="thSource"></th>
+                            <th id="thBudget"></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="row">
+                <div>
+                    <div class="label" id="lblContact"></div>
+                    <input id="fContact" />
+                </div>
+                <div>
+                    <div class="label" id="lblCompany"></div>
+                    <input id="fCompany" />
+                </div>
+                <div>
+                    <div class="label" id="lblPhone"></div>
+                    <input id="fPhone" />
+                </div>
+                <div>
+                    <div class="label">Email</div>
+                    <input id="fEmail" />
+                </div>
+            </div>
+            <div class="row2">
+                <div>
+                    <div class="label" id="lblStage"></div>
+                    <select id="fStage"></select>
+                </div>
+                <div>
+                    <div class="label" id="lblSource"></div>
+                    <select id="fSource"></select>
+                </div>
+            </div>
+            <div class="row2">
+                <div>
+                    <div class="label" id="lblSubject"></div>
+                    <input id="fSubject" />
+                </div>
+                <div>
+                    <div class="label" id="lblBudget"></div>
+                    <input id="fBudget" type="number" step="0.01" />
+                </div>
+            </div>
+            <div>
+                <div class="label" id="lblNeeds"></div>
+                <textarea id="fNeeds"></textarea>
+            </div>
+            <div class="row2">
+                <button class="btn-primary" id="btnCreate"></button>
+                <button class="btn-good" id="btnSave"></button>
+            </div>
+            <div class="row2">
+                <button class="btn-warn" id="btnContract"></button>
+                <button id="btnAddActivity"></button>
+            </div>
+            <div>
+                <div class="label" id="lblActivities"></div>
+                <div class="activity-list" id="activities"></div>
+            </div>
+            <div class="muted" id="statusLine"></div>
+        </section>
+    </div>
+
+    <script>
+        const i18n = {
+            ru: {
+                title: 'Colass CRM: лиды -> контракт',
+                catalog: 'Каталог', estimator: 'Сметчик', contracts: 'Contracts', docs: 'Документация', bpm: 'CRM схема',
+                search: 'Поиск: ФИО / компания / email / телефон',
+                stageAll: 'Все этапы', refresh: 'Обновить', importEmail: 'Импорт из Email',
+                leadNo: 'Лид', contact: 'Контакт', company: 'Компания', stage: 'Этап', source: 'Источник', budget: 'Бюджет',
+                lblContact: 'Контакт', lblCompany: 'Компания', lblPhone: 'Телефон', lblStage: 'Этап', lblSource: 'Источник',
+                lblSubject: 'Тема', lblBudget: 'Бюджет (MDL)', lblNeeds: 'Потребность / задача',
+                create: 'Новый лид', save: 'Сохранить изменения', contract: 'Зарегистрировать контракт',
+                addActivity: 'Добавить заметку', activities: 'Активности',
+                msgSaved: 'Сохранено', msgCreated: 'Лид создан', msgContract: 'Контракт зарегистрирован',
+                askNote: 'Текст заметки:', askContractNo: 'Номер контракта (можно пусто):', askLimit: 'Сколько писем импортировать?',
+                noData: 'Нет данных', stageFilter: 'Этап'
+            },
+            ro: {
+                title: 'Colass CRM: lead -> contract',
+                catalog: 'Catalog', estimator: 'Devizier', contracts: 'Contracts', docs: 'Documentație', bpm: 'Schema CRM',
+                search: 'Căutare: contact / companie / email / telefon',
+                stageAll: 'Toate etapele', refresh: 'Actualizează', importEmail: 'Import din Email',
+                leadNo: 'Lead', contact: 'Contact', company: 'Companie', stage: 'Etapă', source: 'Sursă', budget: 'Buget',
+                lblContact: 'Contact', lblCompany: 'Companie', lblPhone: 'Telefon', lblStage: 'Etapă', lblSource: 'Sursă',
+                lblSubject: 'Subiect', lblBudget: 'Buget (MDL)', lblNeeds: 'Necesar / cerință',
+                create: 'Lead nou', save: 'Salvează modificările', contract: 'Înregistrează contract',
+                addActivity: 'Adaugă notă', activities: 'Activități',
+                msgSaved: 'Salvat', msgCreated: 'Lead creat', msgContract: 'Contract înregistrat',
+                askNote: 'Textul notei:', askContractNo: 'Numărul contractului (poate fi gol):', askLimit: 'Câte email-uri importăm?',
+                noData: 'Fără date', stageFilter: 'Etapă'
+            }
+        };
+
+        const state = {
+            lang: localStorage.getItem('colass_lang') || 'ru',
+            leads: [], stages: [], sources: [], selectedLeadId: null,
+        };
+
+        const $ = (id) => document.getElementById(id);
+        async function getJson(url, options = {}) {
+            const response = await fetch(url, options);
+            const out = await response.json();
+            if (!response.ok || out.success === false) throw new Error(out.error || response.statusText);
+            return out;
+        }
+        function esc(v){ return String(v ?? '').replace(/[&<>'"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','"':'&quot;'}[m])); }
+
+        function tr(key){ return (i18n[state.lang] && i18n[state.lang][key]) || key; }
+        function stageName(x){ return state.lang === 'ro' ? (x.stage_name_ro || x.name_ro || x.code) : (x.stage_name_ru || x.name_ru || x.code); }
+        function sourceName(x){ return state.lang === 'ro' ? (x.source_name_ro || x.name_ro || x.code) : (x.source_name_ru || x.name_ru || x.code); }
+
+        function applyI18n(){
+            $('title').textContent = tr('title');
+            $('lnkCatalog').textContent = tr('catalog');
+            $('lnkEstimator').textContent = tr('estimator');
+            $('lnkContracts').textContent = tr('contracts');
+            $('lnkDocs').textContent = tr('docs');
+            $('lnkBpm').textContent = tr('bpm');
+            $('searchInput').placeholder = tr('search');
+            $('btnRefresh').textContent = tr('refresh');
+            $('btnEmailImport').textContent = tr('importEmail');
+            $('thLeadNo').textContent = tr('leadNo');
+            $('thContact').textContent = tr('contact');
+            $('thCompany').textContent = tr('company');
+            $('thStage').textContent = tr('stage');
+            $('thSource').textContent = tr('source');
+            $('thBudget').textContent = tr('budget');
+            $('lblContact').textContent = tr('lblContact');
+            $('lblCompany').textContent = tr('lblCompany');
+            $('lblPhone').textContent = tr('lblPhone');
+            $('lblStage').textContent = tr('lblStage');
+            $('lblSource').textContent = tr('lblSource');
+            $('lblSubject').textContent = tr('lblSubject');
+            $('lblBudget').textContent = tr('lblBudget');
+            $('lblNeeds').textContent = tr('lblNeeds');
+            $('btnCreate').textContent = tr('create');
+            $('btnSave').textContent = tr('save');
+            $('btnContract').textContent = tr('contract');
+            $('btnAddActivity').textContent = tr('addActivity');
+            $('lblActivities').textContent = tr('activities');
+        }
+
+        function fillStageSelects(){
+            const all = `<option value="">${esc(tr('stageAll'))}</option>` + state.stages.map(s => `<option value="${esc(s.code)}">${esc(state.lang==='ro' ? s.name_ro : s.name_ru)}</option>`).join('');
+            $('stageFilter').innerHTML = all;
+            $('fStage').innerHTML = state.stages.map(s => `<option value="${esc(s.code)}">${esc(state.lang==='ro' ? s.name_ro : s.name_ru)}</option>`).join('');
+            $('fSource').innerHTML = state.sources.map(s => `<option value="${esc(s.code)}">${esc(state.lang==='ro' ? s.name_ro : s.name_ru)}</option>`).join('');
+        }
+
+        function renderFunnel(funnel){
+            $('funnel').innerHTML = (funnel || []).map(s => (
+                `<div class="funnel-card"><div>${esc(state.lang==='ro' ? s.stage_name_ro : s.stage_name_ru)}</div><div><b>${Number(s.leads_count||0)}</b></div><div class="muted">${Number(s.budget_total||0).toFixed(2)} MDL</div></div>`
+            )).join('');
+        }
+
+        function renderLeads(){
+            const tbody = $('leadTable').querySelector('tbody');
+            if (!state.leads.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="muted">${esc(tr('noData'))}</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = state.leads.map(l => {
+                const selected = Number(l.id) === Number(state.selectedLeadId) ? 'sel' : '';
+                return `<tr class="${selected}" data-id="${l.id}">
+                    <td>${l.id}</td>
+                    <td>${esc(l.lead_no || '')}</td>
+                    <td>${esc(l.contact_name || '')}</td>
+                    <td>${esc(l.company_name || '')}</td>
+                    <td>${esc(l.email || '')}</td>
+                    <td>${esc(stageName(l))}</td>
+                    <td>${esc(sourceName(l))}</td>
+                    <td>${Number(l.budget_amount || 0).toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+            tbody.querySelectorAll('tr[data-id]').forEach(trEl => {
+                trEl.addEventListener('click', async () => {
+                    state.selectedLeadId = Number(trEl.dataset.id);
+                    const lead = state.leads.find(x => Number(x.id) === state.selectedLeadId);
+                    fillForm(lead);
+                    renderLeads();
+                    await loadActivities();
+                });
+            });
+        }
+
+        function fillForm(lead){
+            if (!lead) return;
+            $('fContact').value = lead.contact_name || '';
+            $('fCompany').value = lead.company_name || '';
+            $('fPhone').value = lead.phone || '';
+            $('fEmail').value = lead.email || '';
+            $('fSubject').value = lead.subject || '';
+            $('fBudget').value = lead.budget_amount || '';
+            $('fNeeds').value = lead.needs_text || '';
+            $('fStage').value = lead.stage_code || '';
+            $('fSource').value = lead.source_code || 'MANUAL';
+        }
+
+        function payloadFromForm(){
+            return {
+                contact_name: $('fContact').value.trim(),
+                company_name: $('fCompany').value.trim(),
+                phone: $('fPhone').value.trim(),
+                email: $('fEmail').value.trim(),
+                subject: $('fSubject').value.trim(),
+                budget_amount: $('fBudget').value.trim(),
+                needs_text: $('fNeeds').value.trim(),
+                stage_code: $('fStage').value,
+                source_code: $('fSource').value,
+                currency: 'MDL',
+                lang_pref: state.lang,
+            };
+        }
+
+        async function loadDictionary(){
+            const [stages, sources] = await Promise.all([
+                getJson('/api/colass/crm/stages'),
+                getJson('/api/colass/crm/sources')
+            ]);
+            state.stages = stages.data || [];
+            state.sources = sources.data || [];
+            fillStageSelects();
+        }
+
+        async function loadLeads(){
+            const params = new URLSearchParams();
+            if ($('searchInput').value.trim()) params.set('search', $('searchInput').value.trim());
+            if ($('stageFilter').value) params.set('stage_code', $('stageFilter').value);
+            params.set('limit', '500');
+            const out = await getJson('/api/colass/crm/leads?' + params.toString());
+            state.leads = out.data || [];
+            renderFunnel(out.funnel || []);
+            if (!state.selectedLeadId && state.leads.length) state.selectedLeadId = Number(state.leads[0].id);
+            const selected = state.leads.find(x => Number(x.id) === Number(state.selectedLeadId));
+            if (selected) fillForm(selected);
+            renderLeads();
+            await loadActivities();
+            $('statusLine').textContent = `Leads: ${state.leads.length}`;
+        }
+
+        async function loadActivities(){
+            if (!state.selectedLeadId) { $('activities').innerHTML = ''; return; }
+            const out = await getJson(`/api/colass/crm/leads/${state.selectedLeadId}/activities?limit=50`);
+            const rows = out.data || [];
+            $('activities').innerHTML = rows.length
+                ? rows.map(a => `<div class="activity-item"><div><b>${esc(a.activity_type || '')}</b> <span class="muted">${esc(a.created_at || '')}</span></div><div>${esc(a.note_text || '')}</div></div>`).join('')
+                : `<div class="muted">${esc(tr('noData'))}</div>`;
+        }
+
+        async function createLead(){
+            const out = await getJson('/api/colass/crm/leads', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payloadFromForm())
+            });
+            $('statusLine').textContent = `${tr('msgCreated')}: ${out.lead_no || out.id || ''}`;
+            await loadLeads();
+        }
+
+        async function saveLead(){
+            if (!state.selectedLeadId) return;
+            await getJson(`/api/colass/crm/leads/${state.selectedLeadId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payloadFromForm())
+            });
+            $('statusLine').textContent = tr('msgSaved');
+            await loadLeads();
+        }
+
+        async function registerContract(){
+            if (!state.selectedLeadId) return;
+            const contractNo = prompt(tr('askContractNo'));
+            if (contractNo === null) return;
+            const out = await getJson(`/api/colass/crm/leads/${state.selectedLeadId}/register-contract`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({contract_no: contractNo.trim()})
+            });
+            $('statusLine').textContent = `${tr('msgContract')}: ${out.contract_no || ''}`;
+            await loadLeads();
+        }
+
+        async function addActivity(){
+            if (!state.selectedLeadId) return;
+            const note = prompt(tr('askNote'));
+            if (!note || !note.trim()) return;
+            await getJson(`/api/colass/crm/leads/${state.selectedLeadId}/activities`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({activity_type: 'NOTE', note_text: note.trim()})
+            });
+            await loadActivities();
+        }
+
+        async function importEmail(){
+            const val = prompt(tr('askLimit'), '20');
+            if (val === null) return;
+            const limit = Math.max(1, Math.min(200, Number(val) || 20));
+            const out = await getJson('/api/colass/crm/import-email', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({limit, unread_only: true})
+            });
+            $('statusLine').textContent = `Email imported: ${out.imported || 0}, deduplicated: ${out.deduplicated || 0}`;
+            await loadLeads();
+        }
+
+        async function boot(){
+            $('langSelect').value = state.lang;
+            applyI18n();
+            await loadDictionary();
+            await loadLeads();
+
+            $('langSelect').addEventListener('change', async (e) => {
+                state.lang = e.target.value;
+                localStorage.setItem('colass_lang', state.lang);
+                applyI18n();
+                fillStageSelects();
+                renderLeads();
+                await loadActivities();
+            });
+            $('btnRefresh').addEventListener('click', loadLeads);
+            $('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadLeads(); });
+            $('stageFilter').addEventListener('change', loadLeads);
+            $('btnCreate').addEventListener('click', createLead);
+            $('btnSave').addEventListener('click', saveLead);
+            $('btnContract').addEventListener('click', registerContract);
+            $('btnAddActivity').addEventListener('click', addActivity);
+            $('btnEmailImport').addEventListener('click', importEmail);
+        }
+
+        boot().catch((e) => { $('statusLine').textContent = e.message || String(e); });
+    </script>
+</body>
+</html>

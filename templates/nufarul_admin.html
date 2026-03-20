@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nufarul — Админка</title>
+    <style>
+        :root {
+            --primary: #0d9488;
+            --accent: #10b981;
+            --bg: #f0fdfa;
+            --card-bg: #fff;
+            --text: #134e4a;
+            --text-muted: #64748b;
+            --border: #99f6e4;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+        .sidebar {
+            width: 220px;
+            background: var(--card-bg);
+            box-shadow: 2px 0 8px rgba(0,0,0,.08);
+            padding: 20px 0;
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px 20px;
+            color: var(--text);
+            text-decoration: none;
+            transition: background .2s, color .2s;
+        }
+        .sidebar a:hover { background: #ccfbf1; color: var(--primary); }
+        .sidebar a.active { background: #99f6e4; color: var(--primary); font-weight: 600; }
+        .main { flex: 1; padding: 24px; overflow: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.06);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-success { background: var(--accent); color: #fff; }
+        .btn-ghost { background: #ccfbf1; color: var(--text); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-danger { background: #fecaca; color: #991b1b; }
+        h1 { font-size: 22px; margin-bottom: 20px; color: var(--text); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f0fdfa; font-weight: 600; color: var(--text-muted); }
+        .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .filters select, .filters input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: var(--card-bg); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.15); max-width: 480px; width: 90%; padding: 24px; }
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+        .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+        .modal-actions { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #fff; padding: 14px 24px; border-radius: 10px; font-size: 14px; z-index: 2000; transform: translateY(100px); opacity: 0; transition: transform .3s, opacity .3s; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .link-operator { margin-bottom: 16px; }
+        .link-operator a { color: var(--primary); }
+        .table-wrap { overflow: auto; max-height: calc(100vh - 220px); margin-top: 12px; }
+        .table-wrap table { margin-bottom: 0; }
+        .table-wrap thead th { position: sticky; top: 0; z-index: 1; background: #f0fdfa; box-shadow: 0 1px 0 var(--border); }
+        .services-count { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+        .lang-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .lang-bar button { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-muted); font-size: 13px; cursor: pointer; }
+        .lang-bar button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .load-err { padding: 20px; text-align: center; color: #991b1b; background: #fef2f2; border-radius: 12px; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <a href="/UNA.md/orasldev/nufarul-operator" class="link-operator" style="padding: 12px 20px;">← Оператор</a>
+        <a href="#" class="nav-link active" data-page="services">Услуги</a>
+        <a href="#" class="nav-link" data-page="orders">Заказы</a>
+        <a href="#" class="nav-link" data-page="report">Отчёт по дням</a>
+    </nav>
+    <main class="main">
+        <div id="page-services" class="page active">
+            <h1>Услуги</h1>
+            <div class="card">
+                <div class="lang-bar">
+                    <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+                    <button type="button" class="lang-btn" data-lang="ro">RO</button>
+                    <button type="button" class="lang-btn" data-lang="en">EN</button>
+                </div>
+                <button type="button" class="btn btn-primary" id="btnAddService">+ Добавить услугу</button>
+                <p class="services-count" id="servicesCount">Загрузка…</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Название</th><th>Цена, MDL</th><th>Ед.</th><th>Активна</th><th>Примечание</th><th></th></tr>
+                        </thead>
+                        <tbody id="servicesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div id="page-orders" class="page">
+            <h1>Заказы</h1>
+            <div class="card">
+                <div class="filters">
+                    <label>Статус</label>
+                    <select id="filterStatus">
+                        <option value="">Все</option>
+                    </select>
+                    <label>С</label>
+                    <input type="date" id="filterDateFrom">
+                    <label>По</label>
+                    <input type="date" id="filterDateTo">
+                    <label>Поиск</label>
+                    <input type="text" id="filterSearch" placeholder="Номер, клиент, штрихкод">
+                    <button type="button" class="btn btn-primary" id="btnLoadOrders">Обновить</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>№</th><th>Клиент</th><th>Телефон</th><th>Статус</th><th>Сумма</th><th>Дата</th><th></th></tr>
+                    </thead>
+                    <tbody id="ordersTable"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="page-report" class="page">
+            <h1>Отчёт по дням</h1>
+            <div class="card">
+                <div class="filters">
+                    <label>С</label>
+                    <input type="date" id="reportDateFrom">
+                    <label>По</label>
+                    <input type="date" id="reportDateTo">
+                    <button type="button" class="btn btn-primary" id="btnLoadReport">Показать</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>Дата</th><th>Кол-во заказов</th><th>Сумма, MDL</th></tr>
+                    </thead>
+                    <tbody id="reportTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="serviceModal">
+        <div class="modal">
+            <h2 id="serviceModalTitle">Услуга</h2>
+            <input type="hidden" id="serviceId">
+            <div class="field"><label>Название (RU)</label><input type="text" id="serviceNameRu" placeholder="Название на русском"></div>
+            <div class="field"><label>Название (RO)</label><input type="text" id="serviceNameRo" placeholder="Denumire în română"></div>
+            <div class="field"><label>Название (EN)</label><input type="text" id="serviceNameEn" placeholder="Name in English"></div>
+            <div class="field"><label>Цена, MDL</label><input type="number" id="servicePrice" step="0.01" min="0"></div>
+            <div class="field"><label>Единица</label><input type="text" id="serviceUnit" placeholder="buc, mp, perechi"></div>
+            <div class="field"><label>Группа</label><select id="serviceGroup"></select></div>
+            <div class="field"><label>Активна</label><select id="serviceActive"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+            <div class="field"><label>Примечание</label><textarea id="serviceNotes" rows="2"></textarea></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="serviceModalCancel">Отмена</button>
+                <button type="button" class="btn btn-success" id="serviceModalSave">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="orderStatusModal">
+        <div class="modal">
+            <h2>Изменить статус заказа</h2>
+            <input type="hidden" id="orderIdForStatus">
+            <div class="field"><label>Статус</label><select id="orderNewStatus"></select></div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" id="orderStatusCancel">Отмена</button>
+                <button type="button" class="btn btn-success" id="orderStatusSave">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const API = '/api/nufarul-admin';
+        const GROUP_ORDER = ['delivery','dry_cleaning','carpets','pillows_cleaning','laundry','leather_dyeing','conditions','silicone_pillows'];
+        let groupLabelsRu = {}, groupLabelsRo = {}, groupLabelsEn = {};
+
+        function getLang() {
+            return (localStorage.getItem('nufarul_lang') || 'ru').toLowerCase();
+        }
+        function setLang(lang) {
+            localStorage.setItem('nufarul_lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.lang === lang);
+            });
+            if (document.getElementById('page-services').classList.contains('active')) loadServices();
+        }
+        function serviceName(s) {
+            const lang = getLang();
+            if (lang === 'ro') return (s.name_ro || s.name_ru || s.name_en || '').trim() || '';
+            if (lang === 'en') return (s.name_en || s.name_ru || s.name_ro || '').trim() || '';
+            return (s.name_ru || s.name_ro || s.name_en || '').trim() || '';
+        }
+        function groupLabels() {
+            const lang = getLang();
+            if (lang === 'ro') return groupLabelsRo;
+            if (lang === 'en') return groupLabelsEn;
+            return groupLabelsRu;
+        }
+
+        function showPage(name) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+            const page = document.getElementById('page-' + name);
+            const link = document.querySelector('.nav-link[data-page="' + name + '"]');
+            if (page) page.classList.add('active');
+            if (link) link.classList.add('active');
+            if (name === 'services') loadServices();
+            if (name === 'orders') { loadStatuses(); loadOrders(); }
+            if (name === 'report') loadReport();
+        }
+
+        function toast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        async function api(path, opts = {}) {
+            const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        async function loadServices() {
+            const tableBody = document.getElementById('servicesTable');
+            const countEl = document.getElementById('servicesCount');
+            try {
+                const j = await api('/services');
+                if (!j.success && j.error) throw new Error(j.error);
+                const list = j.data || [];
+                groupLabelsRu = j.group_labels_ru || {};
+                groupLabelsRo = j.group_labels_ro || {};
+                groupLabelsEn = j.group_labels_en || {};
+                countEl.textContent = list.length ? `Всего: ${list.length} услуг` : 'Нет услуг';
+                const labels = groupLabels();
+                const byGroup = {};
+                list.forEach(s => {
+                    const g = s.service_group || 'dry_cleaning';
+                    if (!byGroup[g]) byGroup[g] = [];
+                    byGroup[g].push(s);
+                });
+                let html = '';
+                GROUP_ORDER.forEach(code => {
+                    const rows = byGroup[code] || [];
+                    if (rows.length === 0) return;
+                    html += `<tr class="group-header"><td colspan="6" style="background:#0d9488;color:#fff;font-weight:700;padding:10px 12px;">${escapeHtml(labels[code] || code)}</td></tr>`;
+                    html += rows.map(s => `
+                        <tr>
+                            <td>${escapeHtml(serviceName(s))}</td>
+                            <td>${Number(s.price || 0).toLocaleString('ru')}</td>
+                            <td>${escapeHtml(s.unit || 'buc')}</td>
+                            <td>${s.active === 'Y' ? 'Да' : 'Нет'}</td>
+                            <td>${escapeHtml((s.notes || '').toString().slice(0, 80))}${(s.notes || '').length > 80 ? '…' : ''}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-ghost edit-service" data-id="${s.id}">Изм.</button>
+                                <button type="button" class="btn btn-sm btn-danger delete-service" data-id="${s.id}">Удал.</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                });
+                if (!html) html = '<tr><td colspan="6">Нет услуг</td></tr>';
+                tableBody.innerHTML = html;
+                document.querySelectorAll('.edit-service').forEach(btn => btn.addEventListener('click', () => openServiceModal(parseInt(btn.dataset.id, 10))));
+                document.querySelectorAll('.delete-service').forEach(btn => btn.addEventListener('click', async () => {
+                    if (!confirm('Удалить услугу?')) return;
+                    await api('/services/' + btn.dataset.id, { method: 'DELETE' });
+                    toast('Удалено');
+                    loadServices();
+                }));
+            } catch (e) {
+                countEl.textContent = 'Ошибка загрузки';
+                tableBody.innerHTML = `<tr><td colspan="6" class="load-err" style="display:block;padding:16px;"><strong>${escapeHtml(e.message || 'Ошибка')}</strong><br><small>Проверьте авторизацию. Для загрузки услуг: python import_nufarul_services.py --clear</small></td></tr>`;
+            }
+        }
+
+        function fillGroupSelect() {
+            const sel = document.getElementById('serviceGroup');
+            const labels = groupLabels();
+            sel.innerHTML = '';
+            GROUP_ORDER.forEach(code => {
+                const opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = labels[code] || code;
+                sel.appendChild(opt);
+            });
+        }
+        function openServiceModal(id) {
+            fillGroupSelect();
+            document.getElementById('serviceId').value = id || '';
+            document.getElementById('serviceModalTitle').textContent = id ? 'Редактировать услугу' : 'Новая услуга';
+            if (id) {
+                api('/services/' + id).then(j => {
+                    const d = j.data;
+                    document.getElementById('serviceNameRu').value = d.name_ru || d.name || '';
+                    document.getElementById('serviceNameRo').value = d.name_ro || '';
+                    document.getElementById('serviceNameEn').value = d.name_en || '';
+                    document.getElementById('servicePrice').value = d.price || '';
+                    document.getElementById('serviceUnit').value = d.unit || 'buc';
+                    document.getElementById('serviceGroup').value = d.service_group || 'dry_cleaning';
+                    document.getElementById('serviceActive').value = d.active === 'N' ? 'N' : 'Y';
+                    document.getElementById('serviceNotes').value = d.notes || '';
+                });
+            } else {
+                document.getElementById('serviceNameRu').value = '';
+                document.getElementById('serviceNameRo').value = '';
+                document.getElementById('serviceNameEn').value = '';
+                document.getElementById('servicePrice').value = '';
+                document.getElementById('serviceUnit').value = 'buc';
+                document.getElementById('serviceGroup').value = 'dry_cleaning';
+                document.getElementById('serviceActive').value = 'Y';
+                document.getElementById('serviceNotes').value = '';
+            }
+            document.getElementById('serviceModal').classList.add('open');
+        }
+
+        document.getElementById('btnAddService').addEventListener('click', () => openServiceModal(null));
+        document.getElementById('serviceModalCancel').addEventListener('click', () => document.getElementById('serviceModal').classList.remove('open'));
+        document.getElementById('serviceModalSave').addEventListener('click', async () => {
+            const id = document.getElementById('serviceId').value;
+            const data = {
+                name_ru: document.getElementById('serviceNameRu').value.trim(),
+                name_ro: document.getElementById('serviceNameRo').value.trim(),
+                name_en: document.getElementById('serviceNameEn').value.trim() || null,
+                price: parseFloat(document.getElementById('servicePrice').value) || 0,
+                unit: document.getElementById('serviceUnit').value.trim() || 'buc',
+                service_group: document.getElementById('serviceGroup').value || 'dry_cleaning',
+                active: document.getElementById('serviceActive').value === 'Y',
+                notes: document.getElementById('serviceNotes').value.trim() || null,
+            };
+            if (id) data.id = parseInt(id, 10);
+            await api('/services', { method: 'POST', body: JSON.stringify(data) });
+            document.getElementById('serviceModal').classList.remove('open');
+            toast('Сохранено');
+            loadServices();
+        });
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => setLang(btn.dataset.lang));
+        });
+        const savedLang = getLang();
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === savedLang));
+
+        let statuses = [];
+        async function loadStatuses() {
+            const j = await api('/statuses');
+            statuses = j.data || [];
+            const sel = document.getElementById('filterStatus');
+            const oldVal = sel.value;
+            sel.innerHTML = '<option value="">Все</option>' + statuses.map(s => `<option value="${s.id}">${escapeHtml(s.name_ru || s.name_ro)}</option>`).join('');
+            sel.value = oldVal || '';
+            const orderSel = document.getElementById('orderNewStatus');
+            orderSel.innerHTML = statuses.map(s => `<option value="${s.id}">${escapeHtml(s.name_ru || s.name_ro)}</option>`).join('');
+        }
+
+        async function loadOrders() {
+            const statusId = document.getElementById('filterStatus').value || null;
+            const dateFrom = document.getElementById('filterDateFrom').value || null;
+            const dateTo = document.getElementById('filterDateTo').value || null;
+            const search = document.getElementById('filterSearch').value.trim() || null;
+            let path = '/orders?limit=200';
+            if (statusId) path += '&status_id=' + statusId;
+            if (dateFrom) path += '&date_from=' + dateFrom;
+            if (dateTo) path += '&date_to=' + dateTo;
+            if (search) path += '&search=' + encodeURIComponent(search);
+            const j = await api(path);
+            const list = j.data || [];
+            document.getElementById('ordersTable').innerHTML = list.map(o => `
+                <tr>
+                    <td>${escapeHtml(o.order_number)}</td>
+                    <td>${escapeHtml(o.client_name)}</td>
+                    <td>${escapeHtml(o.client_phone || '')}</td>
+                    <td>${escapeHtml(o.status_name)}</td>
+                    <td>${Number(o.total_amount || 0).toLocaleString('ru')}</td>
+                    <td>${escapeHtml((o.created_at || '').toString().slice(0, 16))}</td>
+                    <td><button type="button" class="btn btn-sm btn-ghost change-status" data-id="${o.id}" data-status="${o.status_id}">Статус</button></td>
+                </tr>
+            `).join('') || '<tr><td colspan="7">Нет заказов</td></tr>';
+            document.querySelectorAll('.change-status').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.getElementById('orderIdForStatus').value = btn.dataset.id;
+                    document.getElementById('orderNewStatus').value = btn.dataset.status;
+                    document.getElementById('orderStatusModal').classList.add('open');
+                });
+            });
+        }
+
+        document.getElementById('btnLoadOrders').addEventListener('click', loadOrders);
+        document.getElementById('orderStatusCancel').addEventListener('click', () => document.getElementById('orderStatusModal').classList.remove('open'));
+        document.getElementById('orderStatusSave').addEventListener('click', async () => {
+            const orderId = document.getElementById('orderIdForStatus').value;
+            const statusId = document.getElementById('orderNewStatus').value;
+            await api('/orders/' + orderId + '/status', { method: 'PUT', body: JSON.stringify({ status_id: parseInt(statusId, 10) }) });
+            document.getElementById('orderStatusModal').classList.remove('open');
+            toast('Статус обновлён');
+            loadOrders();
+        });
+
+        async function loadReport() {
+            const dateFrom = document.getElementById('reportDateFrom').value || null;
+            const dateTo = document.getElementById('reportDateTo').value || null;
+            let path = '/report-by-day';
+            if (dateFrom) path += '?date_from=' + dateFrom;
+            if (dateTo) path += (path.includes('?') ? '&' : '?') + 'date_to=' + dateTo;
+            const j = await api(path);
+            const list = j.data || [];
+            document.getElementById('reportTable').innerHTML = list.map(r => `
+                <tr>
+                    <td>${escapeHtml((r.order_date || '').toString().slice(0, 10))}</td>
+                    <td>${r.cnt || 0}</td>
+                    <td>${Number(r.total || 0).toLocaleString('ru')}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3">Нет данных</td></tr>';
+        }
+
+        document.getElementById('btnLoadReport').addEventListener('click', loadReport);
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); showPage(a.dataset.page); }));
+
+        showPage('services');
+    </script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход — Artgranit OCI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .login-btn:active {
+            transform: translateY(0);
+        }
+        
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Artgranit OCI</h1>
+            <p style="font-size: 13px; color: #888; margin-top: 6px;">Oracle SQL Developer · Dashboard · Nufarul (химчистка) · Кредиты · DIGI SM · Документация</p>
+            <p style="margin-top: 14px;">{{ _('Login to system') }}</p>
+        </div>
+        
+        <div style="text-align: right; margin-bottom: 10px;">
+            <select id="languageSelect" onchange="changeLanguage(this.value)" style="padding: 5px; border-radius: 5px; border: 1px solid #ddd;">
+                {% for lang_code, lang_name in languages.items() %}
+                <option value="{{ lang_code }}" {% if get_locale() == lang_code %}selected{% endif %}>{{ lang_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)" data-next="{{ next_url|e }}">
+            <div class="form-group">
+                <label for="username">{{ _('Username') }}</label>
+                <input type="text" id="username" name="username" value="{{ default_username }}" required autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">{{ _('Password') }}</label>
+                <input type="password" id="password" name="password" value="{{ default_password }}" required autocomplete="current-password">
+            </div>
+            
+            <div class="form-group">
+                <label for="projectSelect">Проект / раздел</label>
+                <select id="projectSelect" class="form-select" style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white;">
+                    <option value="">— По ссылке (не менять) —</option>
+                    <option value="/UNA.md/orasldev">SQL Developer</option>
+                    <option value="/UNA.md/orasldev/dashboard">Dashboard</option>
+                    <option value="/UNA.md/orasldev/docs">Документация</option>
+                    <option value="/UNA.md/orasldev/docs/nufarul">Nufarul — ТЗ и материалы</option>
+                    <option value="/UNA.md/orasldev/docs/nufarul/docs_jpg/">Nufarul — уточнение задач (docs_jpg)</option>
+                    <option value="/UNA.md/orasldev/docs/nufarul/TZ.html">Nufarul — ТЗ (TZ.html)</option>
+                    <option value="/UNA.md/orasldev/nufarul-admin">Nufarul — админка</option>
+                    <option value="/UNA.md/orasldev/nufarul-operator">Nufarul — оператор (приём заказов)</option>
+                    <option value="/UNA.md/orasldev/credit-admin">Кредиты — админка</option>
+                    <option value="/UNA.md/orasldev/credit-operator">Кредиты — оператор</option>
+                    <option value="/UNA.md/orasldev/credit-portfolio-bomba">Кредиты — портфолио Bomba</option>
+                    <option value="/UNA.md/orasldev/credit-easycredit">Кредиты — EasyCredit</option>
+                    <option value="/UNA.md/orasldev/credit-iute">Кредиты — Iute</option>
+                    <option value="/UNA.md/orasldev/digi-sm">DIGI SM — управление весами</option>
+                </select>
+                <p style="font-size: 11px; color: #888; margin-top: 4px;">Выберите раздел — путь подставится ниже. Можно ввести свой.</p>
+            </div>
+            
+            <div class="form-group" id="nextUrlGroup">
+                <label for="nextUrl">Перейти после входа</label>
+                <input type="text" id="nextUrl" name="next" placeholder="/UNA.md/orasldev/docs/nufarul/docs_jpg/" value="{{ next_url|e }}" autocomplete="off" style="font-size: 12px;">
+                <p style="font-size: 11px; color: #888; margin-top: 4px;">Заполняется из ссылки или из списка выше. Пусто — откроется SQL Developer.</p>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">
+                {{ _('Login') }}
+            </button>
+        </form>
+    </div>
+    
+    <script>
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Показываем загрузку
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="spinner"></span>{{ _("Logging in...") }}';
+            errorMessage.classList.remove('show');
+            
+            try {
+                // Берём адрес перехода из видимого поля (оно уже заполнено из ссылки или можно ввести вручную)
+                const nextInput = document.getElementById('nextUrl');
+                let nextUrl = (nextInput && nextInput.value && nextInput.value.trim()) || '';
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password, next: nextUrl })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Успешный вход — перенаправляем на запрошенную страницу или в SQL Developer
+                    window.location.href = data.redirect || '/UNA.md/orasldev';
+                } else {
+                    // Ошибка входа
+                    errorMessage.textContent = data.error || '{{ _("Invalid credentials") }}';
+                    errorMessage.classList.add('show');
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '{{ _("Login") }}';
+                }
+            } catch (error) {
+                errorMessage.textContent = '{{ _("Connection error") }}';
+                errorMessage.classList.add('show');
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '{{ _("Login") }}';
+            }
+        }
+        
+        (function initProjectAndNext() {
+            var nextInput = document.getElementById('nextUrl');
+            var projectSelect = document.getElementById('projectSelect');
+            if (!nextInput) return;
+            // Заполняем "Перейти после входа" из ?next= в URL, если поле пусто
+            if (!nextInput.value || !nextInput.value.trim()) {
+                if (typeof URLSearchParams !== 'undefined') {
+                    var params = new URLSearchParams(window.location.search);
+                    var next = params.get('next');
+                    if (next) nextInput.value = next;
+                }
+            }
+            // Подбираем пункт "Проект" по текущему значению поля
+            if (projectSelect && nextInput.value) {
+                var path = nextInput.value.trim().replace(/\/+$/, '') || '/';
+                var opts = projectSelect.options;
+                for (var i = 0; i < opts.length; i++) {
+                    var v = (opts[i].value || '').replace(/\/+$/, '');
+                    if (v && (path === v || path.indexOf(v) === 0)) {
+                        projectSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            // При выборе проекта подставляем путь в поле "Перейти после входа"
+            if (projectSelect) {
+                projectSelect.addEventListener('change', function() {
+                    var v = this.value;
+                    if (v) nextInput.value = v;
+                });
+            }
+        })();
+        
+        async function changeLanguage(lang) {
+            try {
+                const response = await fetch('/api/set-language', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ lang: lang })
+                });
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Language change error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+

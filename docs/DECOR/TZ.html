@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ТЗ DECOR — стеклянные крыши / веранда</title>
+  <style>
+    :root { --primary:#0f766e; --bg:#eef7f8; --card:#fff; --text:#12323c; --muted:#5f7480; --line:#d6e2e8; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: Segoe UI, system-ui, sans-serif; background:var(--bg); color:var(--text); line-height:1.6; padding:24px; max-width:980px; margin:0 auto; }
+    .lead { margin: 16px 0 22px; background: linear-gradient(135deg,#dff4f2,#eaf8fb); border:1px solid var(--line); border-left:4px solid var(--primary); border-radius:14px; padding:16px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+    @media (max-width: 760px) { .grid { grid-template-columns:1fr; } }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+    h1 { font-size:28px; margin-bottom:6px; }
+    h2 { font-size:20px; color:var(--primary); margin-bottom:8px; }
+    h3 { font-size:16px; margin:8px 0; }
+    p, ul, ol { margin-bottom:10px; }
+    ul, ol { margin-left:22px; }
+    .btn { display:inline-block; text-decoration:none; font-weight:600; padding:10px 12px; border-radius:10px; margin:4px 6px 0 0; }
+    .btn.primary { background:var(--primary); color:#fff; }
+    .btn.ghost { background:#f7fbfb; color:var(--primary); border:1px solid var(--line); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { border:1px solid #e7eef2; padding:8px 10px; text-align:left; vertical-align:top; }
+    th { background:#f3fafb; color:var(--muted); }
+    .muted { color:var(--muted); font-size:13px; }
+    code { background:#f3fafb; padding:1px 4px; border-radius:4px; }
+    a { color:var(--primary); }
+  </style>
+</head>
+<body>
+  <h1>DECOR — Техническое задание</h1>
+  <p class="muted">Проект: админка и интерфейс оператора приёма заказов для стеклянных крыш / веранд / пергол. Сгенерировано: 2026-02-26 12:15.</p>
+  <div class="lead">
+    ТЗ сформировано на основе: 1) страницы GARDECOR для категории стеклянных крыш/веранд (каталог/лид-форма/консультация/showroom/contact, best-effort из открытых snippets), 2) материалов <code>decor/docs/veranda</code> (PDF + 2 XLSX: прайс материалов и производственная калькуляция), 3) shell-концепции и паттерна модулей <em>credit / nufarul</em> в текущем проекте Artgranit.
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Рабочие интерфейсы</h2>
+      <p>Реализованы внутри платформы UNA shell как отдельный модуль DECOR.</p>
+      <p>
+        <a class="btn primary" href="/UNA.md/orasldev/decor-operator">DECOR Оператор</a>
+        <a class="btn primary" href="/UNA.md/orasldev/decor-admin">DECOR Админка</a>
+      </p>
+      <p><a class="btn ghost" href="/UNA.md/orasldev/docs/decor/">Материалы / HTML-конверсии</a></p>
+    </div>
+    <div class="card">
+      <h2>Ключевая идея</h2>
+      <p>Оператор в зале быстро вводит параметры изделия (габариты, стекло, LED, опции), получает расчёт сметы и сохраняет заявку/заказ. Администратор управляет справочником материалов, коэффициентами расчёта, статусами заказов и отчётностью.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. Предметная область (по материалам veranda)</h2>
+    <ul>
+      <li>Прайс профилей и аксессуаров HUUN Veranda: листы <code>PROFILE (NEW SYSTEM)</code>, <code>ACCESSORY (2)</code>.</li>
+      <li>Производственная калькуляция veranda (турецкий шаблон): типы стекла <code>TEKCAM / ISICAM</code>, размеры (ширина/вылет/высоты), LED / RGB / dimmer, листы себестоимости и спецификации.</li>
+      <li>Категории материалов: профили, аксессуары, стекло, водоотвод, монтаж, опции LED.</li>
+      <li>Тип заказа: индивидуальный проект с параметрами, а не стандартная товарная корзина.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>2. Роли пользователей</h2>
+    <table>
+      <tr><th>Роль</th><th>Назначение</th><th>Функции</th></tr>
+      <tr><td>Оператор приёма</td><td>Работа в шоуруме / в зале</td><td>Ввод параметров изделия, расчёт сметы, оформление заявки/заказа, поиск по номеру, просмотр последних заказов</td></tr>
+      <tr><td>Администратор</td><td>Поддержка справочников и расчётной модели</td><td>Материалы, коэффициенты (маржа/отходы/ставки), список заказов, смена статусов, отчёт по дням</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>3. Функциональные требования</h2>
+    <h3>3.1 Оператор (зал)</h3>
+    <ul>
+      <li>Форма параметров: тип проекта, тип системы (TEKCAM/ISICAM), цвет, ширина/вылет, передняя/задняя высоты, LED-опция.</li>
+      <li>Опции включения в смету: водоотвод, транспорт, монтаж.</li>
+      <li>Кнопка расчёта сметы с отображением: площадь, периметр, уклон, строки сметы, итог в USD и MDL.</li>
+      <li>Карточка клиента: имя, телефон, email, адрес/локация, примечание.</li>
+      <li>Сохранение заказа/лида с автогенерацией номера формата <code>DEC-YYYYMM-NNNNN</code>.</li>
+      <li>Поиск заказа по номеру/штрихкоду, список последних заказов.</li>
+    </ul>
+    <h3>3.2 Админка</h3>
+    <ul>
+      <li>Справочник материалов: CRUD (код, название, категория, единица, цена, валюта, источник: файл/лист, активность).</li>
+      <li>Настройки расчёта: курсы валют, маржа, отходы, ставки на стекло, монтаж, транспорт, LED-опции, списки типов/цветов.</li>
+      <li>Список заказов с фильтрами по статусу/периоду/поиску.</li>
+      <li>Смена статуса заказа (лид, смета отправлена, согласовано, производство, монтаж, завершено, отменено).</li>
+      <li>Отчёт по дням: количество заказов и сумма.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>4. Расчётная модель (MVP)</h2>
+    <p>Расчёт реализован как конфигурируемая оценочная модель (не заменяет инженерный production-калькулятор из XLSX, но даёт быстрый коммерческий расчёт для оператора).</p>
+    <ul>
+      <li><strong>Площадь:</strong> ширина × вылет (в м²).</li>
+      <li><strong>Периметр:</strong> используется для LED white per meter.</li>
+      <li><strong>Уклон:</strong> вычисляется из разницы высот (rear - front) и вылета.</li>
+      <li><strong>Себестоимость:</strong> стекло + профиль (оценка) + аксессуары + водоотвод + LED + монтаж + транспорт.</li>
+      <li><strong>Коммерция:</strong> тех. отходы (%) + маржа (%).</li>
+      <li><strong>Валюты:</strong> итог в USD и пересчёт в MDL по настраиваемому курсу.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>5. Техническая реализация (в рамках shell-концепции)</h2>
+    <ul>
+      <li>Платформа: Flask-приложение текущего проекта <code>Artgranit</code>.</li>
+      <li>Маршруты UI: <code>/UNA.md/orasldev/decor-operator</code>, <code>/UNA.md/orasldev/decor-admin</code>.</li>
+      <li>Маршруты docs: <code>/UNA.md/orasldev/docs/decor/</code> + HTML-файлы из <code>docs/DECOR</code>.</li>
+      <li>API:
+        <ul>
+          <li><code>/api/decor-operator/catalog</code>, <code>/api/decor-operator/calculate</code>, <code>/api/decor-operator/order</code>, <code>/api/decor-operator/recent-orders</code>, <code>/api/decor-operator/order-by-number</code></li>
+          <li><code>/api/decor-admin/materials</code>, <code>/api/decor-admin/settings</code>, <code>/api/decor-admin/statuses</code>, <code>/api/decor-admin/orders</code>, <code>/api/decor-admin/orders/&lt;id&gt;/status</code>, <code>/api/decor-admin/report-by-day</code></li>
+        </ul>
+      </li>
+      <li>Хранилище MVP: локальный JSON <code>data/decor_store.json</code> (fallback без Oracle-таблиц/контроллеров).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>6. Конвертированные материалы veranda (HTML)</h2>
+    <ul>
+      <li><a href="/UNA.md/orasldev/docs/decor/huun_new_veranda_material_base_price_list_2024.html">huun_new_veranda_material_base_price_list_2024.html</a> <span style="color:#64748b;">— HUUN- NEW VERANDA- Material Base Price List -2024.xlsx (xlsx)</span></li><li><a href="/UNA.md/orasldev/docs/decor/veranda.html">veranda.html</a> <span style="color:#64748b;">— Veranda.pdf (pdf)</span></li><li><a href="/UNA.md/orasldev/docs/decor/yeni_veranda_u_reti_m_mali_yet_hesaplama.html">yeni_veranda_u_reti_m_mali_yet_hesaplama.html</a> <span style="color:#64748b;">— YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx (xlsx)</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>6.1 Все HTML-файлы в docs/DECOR (включая поддиректории)</h2>
+    <ul>
+      <li><a href="/UNA.md/orasldev/docs/decor/Configurator2 Proiect Test UNA 1.html">Configurator2 Proiect Test UNA 1.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.html">YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/html_image_tables/configurator2_proiect_test_una_1__image_table.html">html_image_tables/configurator2_proiect_test_una_1__image_table.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/html_image_tables/index.html">html_image_tables/index.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/html_image_tables/yeni_veranda_u_reti_m_mali_yet_hesaplama__image_table.html">html_image_tables/yeni_veranda_u_reti_m_mali_yet_hesaplama__image_table.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/huun_new_veranda_material_base_price_list_2024.html">huun_new_veranda_material_base_price_list_2024.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/image_catalog/Configurator2 Proiect Test UNA 1_catalog.html">image_catalog/Configurator2 Proiect Test UNA 1_catalog.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/image_catalog/YENİ VERANDA ÜRETİM MALİYET HESAPLAMA_catalog.html">image_catalog/YENİ VERANDA ÜRETİM MALİYET HESAPLAMA_catalog.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/index.html">index.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/veranda.html">veranda.html</a></li><li><a href="/UNA.md/orasldev/docs/decor/yeni_veranda_u_reti_m_mali_yet_hesaplama.html">yeni_veranda_u_reti_m_mali_yet_hesaplama.html</a></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>7. Ограничения и дальнейшие шаги</h2>
+    <ul>
+      <li>Текущий расчёт — коммерческий MVP; для инженерной точности нужна более глубокая интеграция с логикой XLSX (формулы/все коэффициенты).</li>
+      <li>PDF <code>Veranda.pdf</code> конвертирован в HTML-обёртку best-effort без OCR/профильных библиотек.</li>
+      <li>Для shell-списка проектов (<code>/una.md/shell/projects</code>) может потребоваться запись в таблицу <code>UNA_SHELL_PROJECTS</code>.</li>
+    </ul>
+  </div>
+
+  <p><a href="/UNA.md/orasldev/docs/decor/">← К списку материалов DECOR</a></p>
+</body>
+</html>

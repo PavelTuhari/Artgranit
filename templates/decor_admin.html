@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DECOR - Admin / Админка</title>
+    <style>
+        :root {
+            --bg: #edf2f7;
+            --card: #fff;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --line: #dbe4ea;
+            --brand: #0f766e;
+            --brand2: #0ea5a4;
+            --danger: #b91c1c;
+            --warnbg: #fff7ed;
+            --okbg: #ecfdf5;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: ui-sans-serif, -apple-system, Segoe UI, sans-serif; background: linear-gradient(180deg,#f8fbfd 0,#edf2f7 100%); color: var(--ink); min-height: 100vh; display: flex; }
+        .sidebar { width: 240px; background: #132028; color: #e5eef5; padding: 14px 0; box-shadow: 2px 0 14px rgba(0,0,0,.15); }
+        .sidebar h1 { font-size: 16px; padding: 0 16px 10px; color: #f8fbfd; }
+        .sidebar .sub { font-size: 12px; color: #9fb4c3; padding: 0 16px 10px; line-height: 1.4; }
+        .nav-link { display: block; padding: 10px 16px; color: #d7e5ef; text-decoration: none; border-left: 3px solid transparent; }
+        .nav-link:hover { background: rgba(255,255,255,.05); }
+        .nav-link.active { background: rgba(14,165,164,.15); border-left-color: #14b8a6; color: #fff; }
+        .sidebar .toplink { display:block; margin: 8px 16px 14px; color:#99f6e4; text-decoration:none; font-size:13px; }
+        .main { flex: 1; padding: 16px; overflow: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(15, 23, 42, .04); }
+        .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom: 10px; }
+        .toolbar input, .toolbar select, .toolbar textarea { padding: 9px 10px; border:1px solid var(--line); border-radius:10px; font-size:13px; }
+        .toolbar input, .toolbar select { min-width: 120px; }
+        .btn { border:0; border-radius:10px; padding:10px 12px; cursor:pointer; font-size:13px; font-weight:600; }
+        .btn-primary { background: var(--brand); color:#fff; }
+        .btn-alt { background: #dbf5f3; color:#115e59; }
+        .btn-ghost { background:#f7fafc; color:var(--ink); border:1px solid var(--line); }
+        .btn-danger { background: #fee2e2; color: #991b1b; }
+        table { width:100%; border-collapse: collapse; font-size: 13px; }
+        th, td { border-bottom:1px solid var(--line); padding: 8px; text-align:left; vertical-align: top; }
+        th { background: #f7fafc; color: var(--muted); position: sticky; top: 0; }
+        .table-wrap { overflow:auto; max-height: calc(100vh - 220px); border:1px solid var(--line); border-radius: 10px; }
+        .muted { color: var(--muted); font-size: 12px; }
+        .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#dff4f2; color:#115e59; font-size:11px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:1000; }
+        .modal-overlay.open { display:flex; }
+        .modal { width: min(720px, 95vw); background: var(--card); border-radius: 14px; border: 1px solid var(--line); padding: 14px; }
+        .grid { display:grid; gap:10px; }
+        .grid-2 { grid-template-columns:1fr 1fr; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 920px) { body { display:block; } .sidebar { width: 100%; } .main { padding: 12px; } .grid-2, .grid-3 { grid-template-columns:1fr; } }
+        label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+        input, select, textarea { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:10px; font-size:13px; }
+        textarea { min-height: 70px; }
+        .msg { padding:10px 12px; border-radius:10px; font-size:13px; margin-bottom: 10px; }
+        .msg.ok { background: var(--okbg); color: #166534; border:1px solid #bbf7d0; }
+        .msg.err { background: #fef2f2; color: #991b1b; border:1px solid #fecaca; }
+        .kpi-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+        .kpi { border:1px solid var(--line); border-radius:10px; padding:10px; background:#fbfdff; }
+        .kpi .l { font-size:11px; color: var(--muted); text-transform: uppercase; }
+        .kpi .v { margin-top:4px; font-size:17px; font-weight:700; color: var(--brand); }
+        @media (max-width: 920px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+        .lang-toggle { display:flex; gap:6px; margin: 8px 16px 12px; }
+        .lang-toggle .btn { padding:6px 9px; font-size:12px; }
+        .lang-toggle .btn.is-active { background: var(--brand2); color:#fff; }
+        .ui-langbar { display:flex; gap:6px; margin: 0 16px 10px; }
+        .ui-langbar .btn { padding:6px 9px; font-size:12px; }
+        .ui-langbar .btn.is-active { background: var(--brand); color:#fff; }
+        .thumb-mini { width:54px; height:40px; border-radius:6px; border:1px solid var(--line); object-fit:cover; background:#fff; display:block; }
+        .thumb-empty { width:54px; height:40px; border-radius:6px; border:1px dashed var(--line); color:var(--muted); font-size:10px; display:flex; align-items:center; justify-content:center; }
+        .name-stack { line-height:1.2; }
+        .name-stack .name-main { font-weight:600; }
+        .name-stack .subline { display:block; font-size:11px; color:var(--muted); margin-top:3px; }
+        .img-editor { border:1px solid var(--line); border-radius:10px; padding:10px; background:#fbfdff; }
+        .img-preview-box { display:grid; grid-template-columns: 120px 1fr; gap:10px; align-items:start; }
+        .img-preview-box img { width:120px; height:90px; object-fit:contain; border:1px solid var(--line); border-radius:8px; background:#fff; }
+        .img-preview-empty { width:120px; height:90px; border:1px dashed var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; background:#fff; }
+        .img-picker-list { max-height:180px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:8px; }
+        .img-picker-row { display:grid; grid-template-columns: 54px 1fr auto; gap:8px; align-items:center; padding:6px 8px; border-bottom:1px solid #eef2f6; }
+        .img-picker-row:last-child { border-bottom:0; }
+        .img-picker-row img { width:54px; height:40px; object-fit:cover; border:1px solid var(--line); border-radius:6px; background:#fff; }
+        .img-picker-row .meta { line-height:1.2; min-width:0; }
+        .img-picker-row .meta .t { font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .img-picker-row .meta .s { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .img-picker-row button { border:1px solid var(--line); background:#f8fafc; border-radius:8px; padding:6px 8px; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <h1>DECOR Admin</h1>
+        <div class="sub">Catalog materiale veranda, coeficienți calcul, comenzi și rapoarte. / Материалы, коэффициенты, заказы и отчётность.</div>
+        <div class="ui-langbar">
+            <button class="btn btn-ghost is-active" id="btnUiRo" type="button">RO</button>
+            <button class="btn btn-ghost" id="btnUiRu" type="button">RU</button>
+            <button class="btn btn-ghost" id="btnUiEn" type="button">EN</button>
+        </div>
+        <a class="toplink" href="/UNA.md/orasldev/decor-operator">← Operator / Оператор</a>
+        <a class="toplink" href="/UNA.md/orasldev/docs/decor/">Documentație / ТЗ / материалы</a>
+        <div class="lang-toggle">
+            <button class="btn btn-ghost is-active" id="btnMatLangRo" type="button">RO (activ)</button>
+            <button class="btn btn-ghost" id="btnMatLangOrig" type="button">Original</button>
+        </div>
+        <a href="#" class="nav-link active" data-page="materials">Materiale / Материалы</a>
+        <a href="#" class="nav-link" data-page="settings">Setări calcul / Настройки</a>
+        <a href="#" class="nav-link" data-page="orders">Comenzi / Заказы</a>
+        <a href="#" class="nav-link" data-page="report">Raport / Отчёт</a>
+        <a href="#" class="nav-link" data-page="sliding">Sliding</a>
+    </aside>
+    <main class="main">
+        <div id="msgBox"></div>
+
+        <section id="page-materials" class="page active">
+            <div class="card">
+                <div class="toolbar">
+                    <select id="matFilterCategory">
+                        <option value="">Toate categoriile / Все категории</option>
+                    </select>
+                    <select id="matFilterActive">
+                        <option value="">Active + inactive / Активные и неактивные</option>
+                        <option value="Y">Doar active / Только активные</option>
+                        <option value="N">Doar inactive / Только неактивные</option>
+                    </select>
+                    <input type="text" id="matSearch" placeholder="Căutare cod / denumire / поиск">
+                    <button class="btn btn-primary" id="btnMatNew">+ Material / Материал</button>
+                    <button class="btn btn-alt" id="btnBulkImportXml">Import XML comenzi / Импорт XML заказов</button>
+                    <button class="btn btn-ghost" id="btnMatReload">Reîncarcă / Обновить</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>Img</th><th>Cod</th><th>Denumire (RO / Original)</th><th>Categorie</th><th>UM</th>
+                                <th>Preț</th><th>Valută</th><th>Sursă</th><th>Activ</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="materialsTable"></tbody>
+                    </table>
+                </div>
+                <p class="muted" id="materialsCount" style="margin-top:8px;"></p>
+            </div>
+        </section>
+
+        <section id="page-settings" class="page">
+            <div class="card">
+                <h2 style="font-size:16px; margin-bottom:10px;">Coeficienți calcul DECOR / Коэффициенты расчёта</h2>
+                <div class="grid grid-3">
+                    <div><label>USD→MDL</label><input type="number" step="0.0001" id="s_exchange_rate_usd_to_mdl"></div>
+                    <div><label>Маржа, %</label><input type="number" step="0.01" id="s_markup_percent"></div>
+                    <div><label>Отходы, %</label><input type="number" step="0.01" id="s_waste_percent"></div>
+                    <div><label>Профиль, кг/м²</label><input type="number" step="0.01" id="s_profile_weight_kg_per_m2"></div>
+                    <div><label>Аксессуары, USD/м²</label><input type="number" step="0.01" id="s_accessory_fixed_per_m2"></div>
+                    <div><label>Водоотвод, USD</label><input type="number" step="0.01" id="s_drainage_fixed"></div>
+                    <div><label>Транспорт, USD</label><input type="number" step="0.01" id="s_transport_fixed"></div>
+                    <div><label>Монтаж, USD/м²</label><input type="number" step="0.01" id="s_install_rate_m2"></div>
+                </div>
+                <div class="grid grid-2" style="margin-top:10px;">
+                    <div>
+                        <label>Стекло TEKCAM, USD/м²</label>
+                        <input type="number" step="0.01" id="s_glass_tekcam">
+                    </div>
+                    <div>
+                        <label>Стекло ISICAM, USD/м²</label>
+                        <input type="number" step="0.01" id="s_glass_isicam">
+                    </div>
+                    <div>
+                        <label>LED white, USD/м</label>
+                        <input type="number" step="0.01" id="s_led_white">
+                    </div>
+                    <div>
+                        <label>RGB LED + dimmer, USD/set</label>
+                        <input type="number" step="0.01" id="s_led_rgb">
+                    </div>
+                </div>
+                <div class="grid grid-3" style="margin-top:10px;">
+                    <div><label>Типы проектов (по строке)</label><textarea id="s_project_types"></textarea></div>
+                    <div><label>Типы систем (по строке)</label><textarea id="s_system_types"></textarea></div>
+                    <div><label>Цвета (по строке)</label><textarea id="s_colors"></textarea></div>
+                </div>
+                <div class="toolbar" style="margin-top:12px;">
+                    <button class="btn btn-primary" id="btnSettingsSave">Сохранить настройки</button>
+                    <button class="btn btn-ghost" id="btnSettingsReload">Перезагрузить</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-orders" class="page">
+            <div class="card">
+                <div class="toolbar">
+                    <select id="ordStatus"><option value="">Все статусы</option></select>
+                    <input type="date" id="ordDateFrom">
+                    <input type="date" id="ordDateTo">
+                    <input type="text" id="ordSearch" placeholder="Номер, клиент, телефон, проект">
+                    <button class="btn btn-primary" id="btnOrdersReload">Обновить</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>№</th><th>Клиент</th><th>Проект</th><th>Статус</th><th>Сумма</th><th>Дата</th><th>Документ</th><th></th></tr>
+                        </thead>
+                        <tbody id="ordersTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-report" class="page">
+            <div class="card">
+                <div class="toolbar">
+                    <input type="date" id="repDateFrom">
+                    <input type="date" id="repDateTo">
+                    <button class="btn btn-primary" id="btnReportReload">Показать</button>
+                </div>
+                <div class="kpi-grid" style="margin-bottom:10px;">
+                    <div class="kpi"><div class="l">Дней</div><div class="v" id="repDays">0</div></div>
+                    <div class="kpi"><div class="l">Заказов</div><div class="v" id="repOrders">0</div></div>
+                    <div class="kpi"><div class="l">Сумма USD</div><div class="v" id="repAmount">0</div></div>
+                    <div class="kpi"><div class="l">Средний чек</div><div class="v" id="repAvg">0</div></div>
+                </div>
+                <div class="table-wrap" style="max-height:60vh;">
+                    <table>
+                        <thead><tr><th>Дата</th><th>Заказов</th><th>Сумма</th><th>Валюта</th></tr></thead>
+                        <tbody id="reportTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-sliding" class="page">
+            <div class="card">
+                <h2 style="font-size:16px; margin-bottom:10px;">Catalog materiale Sliding</h2>
+                <div class="toolbar">
+                    <select id="slidingMatFilterCategory">
+                        <option value="">Toate / Все</option>
+                        <option value="profile">Profile</option>
+                        <option value="accessory">Accesorii</option>
+                        <option value="glass">Sticlă</option>
+                        <option value="service">Servicii</option>
+                    </select>
+                    <input type="text" id="slidingMatSearch" placeholder="Căutare cod / denumire">
+                    <button class="btn btn-ghost" id="btnSlidingMatReload" onclick="loadSlidingMaterials()">Reîncarcă</button>
+                </div>
+                <div class="table-wrap" style="max-height:40vh;">
+                    <table>
+                        <thead>
+                            <tr><th>ID</th><th>Cod</th><th>Denumire</th><th>Familie</th><th>UM</th><th>Preț (MDL)</th><th>Greutate g/m</th><th>Activ</th><th></th></tr>
+                        </thead>
+                        <tbody id="slidingMaterialsTable"></tbody>
+                    </table>
+                </div>
+                <p class="muted" id="slidingMatCount" style="margin-top:8px;"></p>
+            </div>
+
+            <div class="card">
+                <h2 style="font-size:16px; margin-bottom:10px;">Setări Sliding</h2>
+
+                <h3 style="font-size:14px; margin:12px 0 8px;">Matrice prețuri sticlă (MDL/m²)</h3>
+                <table style="max-width:600px;">
+                    <thead>
+                        <tr><th></th><th>Transparentă 8mm</th><th>Transparentă 10mm</th><th>Tonată 8mm</th><th>Tonată 10mm</th><th>Mată 8mm</th><th>Mată 10mm</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>TEKCAM</strong></td>
+                            <td><input type="number" step="0.01" id="sg_TEKCAM_transparent_8mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_TEKCAM_transparent_10mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_TEKCAM_tinted_8mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_TEKCAM_tinted_10mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_TEKCAM_matte_8mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_TEKCAM_matte_10mm" style="width:80px;"></td>
+                        </tr>
+                        <tr>
+                            <td><strong>ISICAM</strong></td>
+                            <td><input type="number" step="0.01" id="sg_ISICAM_transparent_8mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_ISICAM_transparent_10mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_ISICAM_tinted_8mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_ISICAM_tinted_10mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_ISICAM_matte_8mm" style="width:80px;"></td>
+                            <td><input type="number" step="0.01" id="sg_ISICAM_matte_10mm" style="width:80px;"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 style="font-size:14px; margin:16px 0 8px;">Rate servicii și marje</h3>
+                <div class="grid grid-3">
+                    <div><label>Asamblare rată (MDL)</label><input type="number" step="0.01" id="ss_assembly_rate"></div>
+                    <div>
+                        <label>Baza metraj asamblare</label>
+                        <select id="ss_assembly_basis">
+                            <option value="perimeter">Perimetru</option>
+                            <option value="width">Lățime</option>
+                            <option value="area">Arie</option>
+                        </select>
+                    </div>
+                    <div><label>Montaj rată (MDL)</label><input type="number" step="0.01" id="ss_installation_rate"></div>
+                    <div>
+                        <label>Baza metraj montaj</label>
+                        <select id="ss_installation_basis">
+                            <option value="perimeter">Perimetru</option>
+                            <option value="width">Lățime</option>
+                            <option value="area">Arie</option>
+                        </select>
+                    </div>
+                    <div><label>Vopsire RAL (MDL/m²)</label><input type="number" step="0.01" id="ss_painting_rate_m2"></div>
+                    <div><label>Marjă %</label><input type="number" step="0.01" id="ss_markup_percent"></div>
+                    <div><label>Deșeuri %</label><input type="number" step="0.01" id="ss_waste_percent"></div>
+                    <div><label>Curs MDL→USD</label><input type="number" step="0.0001" id="ss_exchange_rate_mdl_to_usd"></div>
+                </div>
+                <div class="toolbar" style="margin-top:12px;">
+                    <button class="btn btn-primary" id="btnSlidingSettingsSave" onclick="saveSlidingSettings()">Salvează setări Sliding</button>
+                    <button class="btn btn-ghost" id="btnSlidingSettingsReload" onclick="loadSlidingSettings()">Reîncarcă</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-overlay" id="matModal">
+        <div class="modal">
+            <h2 style="font-size:16px; margin-bottom:10px;" id="matModalTitle">Material / Материал</h2>
+            <input type="hidden" id="m_id">
+            <div class="grid grid-3">
+                <div><label>Cod / Код</label><input id="m_code"></div>
+                <div><label>Categorie / Категория</label><input id="m_category" placeholder="profile/accessory/glass/..."></div>
+                <div><label>UM / Ед.</label><input id="m_unit" placeholder="m / m2 / pc / set"></div>
+                <div style="grid-column: span 2;"><label>Denumire de lucru (legacy `name`) / Рабочее название</label><input id="m_name"></div>
+                <div><label>Limbă original / Язык оригинала</label><select id="m_original_lang"><option value="en">English (EN)</option><option value="tr">Türkçe (TR)</option><option value="ro">Română (RO)</option></select></div>
+                <div style="grid-column: span 3;"><label>Original (producător) / Оригинал (производитель)</label><input id="m_name_original"></div>
+                <div style="grid-column: span 3;"><label>Română (traducere manuală) / Румынский</label><input id="m_name_ro"></div>
+                <div style="grid-column: span 3;"><label>Image URL / URL изображения</label><input id="m_image_url" placeholder="/static/decor/materials/..."></div>
+                <div style="grid-column: span 3;" class="img-editor">
+                    <div class="img-preview-box">
+                        <div id="m_image_preview_wrap"><div class="img-preview-empty">no image</div></div>
+                        <div>
+                            <label>Previzualizare + selecție rapidă / Превью + быстрый выбор</label>
+                            <div class="muted" id="m_image_preview_text">Укажите URL изображения или выберите из списка ниже.</div>
+                            <input id="m_image_pick_q" placeholder="Фильтр изображений по коду/названию/category">
+                            <div class="img-picker-list" id="m_image_pick_list"></div>
+                        </div>
+                    </div>
+                </div>
+                <div><label>Цена за единицу</label><input type="number" step="0.01" id="m_unit_price"></div>
+                <div><label>Валюта</label><input id="m_currency" value="USD"></div>
+                <div><label>Активен</label><select id="m_active"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+                <div><label>Source file</label><input id="m_source_file"></div>
+                <div><label>Sheet</label><input id="m_source_sheet"></div>
+                <div><label>Примечание</label><input id="m_notes"></div>
+            </div>
+            <div class="toolbar" style="margin-top:12px;">
+                <button class="btn btn-primary" id="btnMatSave">Salvează / Сохранить</button>
+                <button class="btn btn-ghost" id="btnMatCancel">Anulează / Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="ordStatusModal">
+        <div class="modal" style="width:min(420px,95vw);">
+            <h2 style="font-size:16px; margin-bottom:10px;">Смена статуса заказа</h2>
+            <input type="hidden" id="os_order_id">
+            <label>Статус</label>
+            <select id="os_status_id"></select>
+            <div class="toolbar" style="margin-top:12px;">
+                <button class="btn btn-primary" id="btnOrdStatusSave">Сохранить</button>
+                <button class="btn btn-ghost" id="btnOrdStatusCancel">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const APIA = '/api/decor-admin';
+        let materials = [];
+        let statuses = [];
+        let settings = {};
+        let orders = [];
+        let materialNameLang = 'ro';
+        let imageCandidates = [];
+        let uiLang = 'ro';
+        const UI_TX = {
+            ro: { top1: '← Operator', top2: 'Documentație', btnNew: '+ Material', btnBulk: 'Import XML comenzi', btnReload: 'Reîncarcă' },
+            ru: { top1: '← Оператор', top2: 'ТЗ / материалы', btnNew: '+ Материал', btnBulk: 'Импорт XML заказов', btnReload: 'Обновить' },
+            en: { top1: '← Operator', top2: 'Documentation', btnNew: '+ Material', btnBulk: 'Import XML orders', btnReload: 'Reload' },
+        };
+        function actionLabel(kind) {
+            const lang = (uiLang === 'ru' || uiLang === 'en') ? uiLang : 'ro';
+            if (kind === 'open') return (lang === 'ru') ? 'Открыть' : (lang === 'en' ? 'Open' : 'Deschide');
+            if (kind === 'print') return (lang === 'ru') ? 'Печать' : (lang === 'en' ? 'Print' : 'Tipărire');
+            return kind;
+        }
+
+        const el = id => document.getElementById(id);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        const money = (v, c='USD') => `${Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})} ${c}`;
+        const num = v => Number(v || 0);
+        const langShort = s => ({en:'EN', tr:'TR', ro:'RO'}[(s||'').toLowerCase()] || String(s||'').toUpperCase());
+        const matOrig = m => (m.name_original || m.name || '');
+        const matRo = m => (m.name_ro || m.name || m.name_original || '');
+        const matShown = m => (materialNameLang === 'orig' ? matOrig(m) : matRo(m));
+        const norm = s => String(s ?? '').toLowerCase();
+
+        async function api(path, opts={}) {
+            const r = await fetch(APIA + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || j.success === false) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        function msg(text, type='ok') {
+            if (!text) { el('msgBox').innerHTML = ''; return; }
+            el('msgBox').innerHTML = `<div class="msg ${type}">${esc(text)}</div>`;
+            setTimeout(() => { if (el('msgBox').textContent.includes(text)) el('msgBox').innerHTML = ''; }, 2800);
+        }
+
+        function showPage(name) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+            el('page-' + name).classList.add('active');
+            document.querySelector(`.nav-link[data-page="${name}"]`).classList.add('active');
+            if (name === 'materials') loadMaterials();
+            if (name === 'settings') loadSettings();
+            if (name === 'orders') loadOrders();
+            if (name === 'report') loadReport();
+            if (name === 'sliding') { loadSlidingMaterials(); loadSlidingSettings(); }
+        }
+
+        function applyUiLang(lang) {
+            uiLang = (lang === 'ru' || lang === 'en') ? lang : 'ro';
+            const t = UI_TX[uiLang] || UI_TX.ro;
+            const topLinks = document.querySelectorAll('.toplink');
+            if (topLinks[0]) topLinks[0].textContent = t.top1;
+            if (topLinks[1]) topLinks[1].textContent = t.top2;
+            if (el('btnMatNew')) el('btnMatNew').textContent = t.btnNew;
+            if (el('btnBulkImportXml')) el('btnBulkImportXml').textContent = t.btnBulk;
+            if (el('btnMatReload')) el('btnMatReload').textContent = t.btnReload;
+            document.documentElement.lang = uiLang;
+            ['btnUiRo', 'btnUiRu', 'btnUiEn'].forEach((id) => el(id).classList.remove('is-active'));
+            el(uiLang === 'ro' ? 'btnUiRo' : (uiLang === 'ru' ? 'btnUiRu' : 'btnUiEn')).classList.add('is-active');
+            try { localStorage.setItem('decor_ui_lang', uiLang); } catch (e) {}
+        }
+
+        async function loadStatuses() {
+            const r = await api('/statuses');
+            statuses = r.data || [];
+            const opts = statuses.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+            el('ordStatus').innerHTML = `<option value="">Все статусы</option>` + opts;
+            el('os_status_id').innerHTML = opts;
+        }
+
+        function filterMaterialsLocal(rows) {
+            const cat = el('matFilterCategory').value.trim();
+            const active = el('matFilterActive').value.trim();
+            const q = el('matSearch').value.trim().toLowerCase();
+            return (rows || []).filter(m => {
+                if (cat && (m.category || '') !== cat) return false;
+                if (active && (m.active || 'Y') !== active) return false;
+                if (q) {
+                    const hay = `${m.code||''} ${m.name||''} ${m.name_original||''} ${m.name_ro||''} ${m.source_file||''} ${m.source_sheet||''}`.toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+        }
+
+        function renderMaterials() {
+            const rows = filterMaterialsLocal(materials);
+            el('materialsTable').innerHTML = rows.map(m => `
+                <tr>
+                    <td>${m.id}</td>
+                    <td>${m.image_url ? `<img class="thumb-mini" src="${esc(m.image_url)}" alt="${esc(m.code||'')}">` : `<div class="thumb-empty">no img</div>`}</td>
+                    <td><strong>${esc(m.code||'')}</strong></td>
+                    <td class="name-stack">
+                        <span class="name-main">${esc(matShown(m))}</span>
+                        <span class="subline">RO: ${esc(matRo(m))}</span>
+                        <span class="subline">Original (${esc(langShort(m.original_lang||''))}): ${esc(matOrig(m))}</span>
+                    </td>
+                    <td><span class="pill">${esc(m.category||'')}</span></td>
+                    <td>${esc(m.unit||'')}</td>
+                    <td>${Number(m.unit_price||0).toLocaleString('ru-RU',{minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td>${esc(m.currency||'USD')}</td>
+                    <td class="muted">${esc(m.source_file||'')}${m.source_sheet ? ' · ' + esc(m.source_sheet) : ''}</td>
+                    <td>${(m.active||'Y') === 'Y' ? 'Да' : 'Нет'}</td>
+                    <td>
+                        <button class="btn btn-ghost" data-edit="${m.id}">Ред.</button>
+                        <button class="btn btn-danger" data-del="${m.id}">Удалить</button>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="11" class="muted">Nu sunt date / Нет данных</td></tr>`;
+            el('materialsCount').textContent = `Afișate ${rows.length} / ${materials.length} materiale · afișare nume: ${materialNameLang === 'ro' ? 'RO' : 'Original'}`;
+            [...document.querySelectorAll('[data-edit]')].forEach(b => b.onclick = () => openMaterialModal(Number(b.dataset.edit)));
+            [...document.querySelectorAll('[data-del]')].forEach(b => b.onclick = () => deleteMaterial(Number(b.dataset.del)));
+            const cats = [...new Set(materials.map(m => m.category).filter(Boolean))].sort();
+            const current = el('matFilterCategory').value;
+            el('matFilterCategory').innerHTML = `<option value="">Toate categoriile / Все категории</option>` + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+            if (cats.includes(current)) el('matFilterCategory').value = current;
+        }
+
+        function rebuildImageCandidates() {
+            const byUrl = new Map();
+            for (const m of (materials || [])) {
+                const url = String(m.image_url || '').trim();
+                if (!url) continue;
+                const rec = byUrl.get(url) || { url, refs: [] };
+                rec.refs.push({
+                    code: m.code || '',
+                    category: m.category || '',
+                    ro: matRo(m),
+                    orig: matOrig(m),
+                });
+                byUrl.set(url, rec);
+            }
+            imageCandidates = [...byUrl.values()].map(x => ({
+                ...x,
+                search: norm([
+                    x.url,
+                    ...x.refs.map(r => [r.code, r.category, r.ro, r.orig].join(' '))
+                ].join(' ')),
+            }));
+        }
+
+        function updateMaterialImagePreview() {
+            const url = el('m_image_url').value.trim();
+            el('m_image_preview_text').textContent = url || 'Укажите URL изображения или выберите из списка ниже.';
+            el('m_image_preview_wrap').innerHTML = url
+                ? `<img src="${esc(url)}" alt="preview" onerror="this.closest('#m_image_preview_wrap').innerHTML='<div class=&quot;img-preview-empty&quot;>404 / bad url</div>';">`
+                : `<div class="img-preview-empty">no image</div>`;
+        }
+
+        function scoreImageCandidate(c, codeQ, catQ, textQ) {
+            let s = 0;
+            if (codeQ && c.search.includes(codeQ)) s += 50;
+            if (catQ && c.search.includes(catQ)) s += 20;
+            if (textQ && c.search.includes(textQ)) s += 10;
+            return s;
+        }
+
+        function renderImagePicker() {
+            const list = el('m_image_pick_list');
+            if (!list) return;
+            const codeQ = norm(el('m_code').value.trim());
+            const catQ = norm(el('m_category').value.trim());
+            const textQ = norm(el('m_image_pick_q').value.trim());
+            const rows = (imageCandidates || [])
+                .filter(c => !textQ || c.search.includes(textQ) || c.url.toLowerCase().includes(textQ))
+                .map(c => ({...c, _score: scoreImageCandidate(c, codeQ, catQ, textQ)}))
+                .sort((a,b) => (b._score - a._score) || (a.url > b.url ? 1 : -1))
+                .slice(0, 24);
+            if (!rows.length) {
+                list.innerHTML = `<div class="muted" style="padding:8px;">Нет подходящих изображений</div>`;
+                return;
+            }
+            list.innerHTML = rows.map(c => {
+                const refs = c.refs.slice(0,2).map(r => `${r.code}${r.category ? ' · ' + r.category : ''}`).join(' | ');
+                const title = (c.refs[0] && (c.refs[0].ro || c.refs[0].orig || c.refs[0].code)) || c.url;
+                return `
+                    <div class="img-picker-row">
+                        <img src="${esc(c.url)}" alt="">
+                        <div class="meta">
+                            <div class="t">${esc(title)}</div>
+                            <div class="s">${esc(refs || c.url)}</div>
+                        </div>
+                        <button type="button" data-pick-img="${esc(c.url)}">Use</button>
+                    </div>
+                `;
+            }).join('');
+            [...list.querySelectorAll('[data-pick-img]')].forEach(b => {
+                b.onclick = () => {
+                    el('m_image_url').value = b.getAttribute('data-pick-img') || '';
+                    updateMaterialImagePreview();
+                };
+            });
+        }
+
+        async function loadMaterials() {
+            const r = await api('/materials');
+            materials = r.data || [];
+            rebuildImageCandidates();
+            renderMaterials();
+        }
+
+        function matModalOpen(flag=true) { el('matModal').classList.toggle('open', flag); }
+        function openMaterialModal(id=null) {
+            const m = id ? (materials.find(x => Number(x.id) === Number(id)) || {}) : {};
+            el('matModalTitle').textContent = id ? 'Editare material / Редактировать материал' : 'Material nou / Новый материал';
+            ['id','code','name','name_original','original_lang','name_ro','image_url','category','unit','unit_price','currency','source_file','source_sheet','notes','active'].forEach(k => {
+                const target = el('m_' + k);
+                if (!target) return;
+                target.value = (m[k] ?? (k === 'currency' ? 'USD' : k === 'active' ? 'Y' : k === 'original_lang' ? 'en' : ''));
+            });
+            el('m_image_pick_q').value = '';
+            updateMaterialImagePreview();
+            renderImagePicker();
+            matModalOpen(true);
+        }
+
+        async function saveMaterial() {
+            const payload = {
+                id: el('m_id').value || undefined,
+                code: el('m_code').value.trim(),
+                name: el('m_name').value.trim(),
+                name_original: el('m_name_original').value.trim(),
+                original_lang: el('m_original_lang').value,
+                name_ro: el('m_name_ro').value.trim(),
+                image_url: el('m_image_url').value.trim(),
+                category: el('m_category').value.trim(),
+                unit: el('m_unit').value.trim(),
+                unit_price: num(el('m_unit_price').value),
+                currency: el('m_currency').value.trim() || 'USD',
+                source_file: el('m_source_file').value.trim(),
+                source_sheet: el('m_source_sheet').value.trim(),
+                notes: el('m_notes').value.trim(),
+                active: el('m_active').value
+            };
+            await api('/materials', { method: 'POST', body: JSON.stringify(payload) });
+            matModalOpen(false);
+            msg('Материал сохранён');
+            await loadMaterials();
+        }
+
+        async function deleteMaterial(id) {
+            if (!confirm('Удалить материал #' + id + '?')) return;
+            try {
+                await api('/materials/' + id, { method: 'DELETE' });
+                msg('Материал удалён');
+                await loadMaterials();
+            } catch (e) {
+                msg(e.message || String(e), 'err');
+            }
+        }
+
+        function fillSettingsForm() {
+            const s = settings || {};
+            const put = (id, v) => { if (el(id)) el(id).value = (v ?? ''); };
+            [
+                'exchange_rate_usd_to_mdl','markup_percent','waste_percent','profile_weight_kg_per_m2',
+                'accessory_fixed_per_m2','drainage_fixed','transport_fixed','install_rate_m2'
+            ].forEach(k => put('s_' + k, s[k]));
+            put('s_glass_tekcam', (s.glass_rate_m2||{}).TEKCAM);
+            put('s_glass_isicam', (s.glass_rate_m2||{}).ISICAM);
+            put('s_led_white', (s.led_options||{}).white_led);
+            put('s_led_rgb', (s.led_options||{}).rgb_led_dimmer);
+            put('s_project_types', (s.project_types || []).join('\n'));
+            put('s_system_types', (s.system_types || []).join('\n'));
+            put('s_colors', (s.colors || []).join('\n'));
+        }
+
+        async function loadSettings() {
+            const r = await api('/settings');
+            settings = r.data || {};
+            fillSettingsForm();
+        }
+
+        async function saveSettings() {
+            const payload = {
+                exchange_rate_usd_to_mdl: num(el('s_exchange_rate_usd_to_mdl').value),
+                markup_percent: num(el('s_markup_percent').value),
+                waste_percent: num(el('s_waste_percent').value),
+                profile_weight_kg_per_m2: num(el('s_profile_weight_kg_per_m2').value),
+                accessory_fixed_per_m2: num(el('s_accessory_fixed_per_m2').value),
+                drainage_fixed: num(el('s_drainage_fixed').value),
+                transport_fixed: num(el('s_transport_fixed').value),
+                install_rate_m2: num(el('s_install_rate_m2').value),
+                glass_rate_m2: {
+                    TEKCAM: num(el('s_glass_tekcam').value),
+                    ISICAM: num(el('s_glass_isicam').value),
+                },
+                led_options: {
+                    none: 0,
+                    white_led: num(el('s_led_white').value),
+                    rgb_led_dimmer: num(el('s_led_rgb').value),
+                },
+                project_types: el('s_project_types').value.split('\n').map(x => x.trim()).filter(Boolean),
+                system_types: el('s_system_types').value.split('\n').map(x => x.trim()).filter(Boolean),
+                colors: el('s_colors').value.split('\n').map(x => x.trim()).filter(Boolean),
+            };
+            await api('/settings', { method: 'POST', body: JSON.stringify(payload) });
+            msg('Настройки сохранены');
+            await loadSettings();
+        }
+
+        function statusNameById(id) {
+            return (statuses.find(s => Number(s.id) === Number(id)) || {}).name || '';
+        }
+
+        async function loadOrders() {
+            const params = new URLSearchParams();
+            if (el('ordStatus').value) params.set('status_id', el('ordStatus').value);
+            if (el('ordDateFrom').value) params.set('date_from', el('ordDateFrom').value);
+            if (el('ordDateTo').value) params.set('date_to', el('ordDateTo').value);
+            if (el('ordSearch').value.trim()) params.set('search', el('ordSearch').value.trim());
+            params.set('limit', '500');
+            const r = await api('/orders?' + params.toString());
+            orders = r.data || [];
+            el('ordersTable').innerHTML = orders.map(o => {
+                const q = (o.quote || {}).summary || {};
+                return `
+                    <tr>
+                        <td><strong>${esc(o.order_number || '')}</strong><div class="muted">${esc(o.barcode || '')}</div></td>
+                        <td>${esc(o.client_name || '')}<div class="muted">${esc(o.client_phone || '')}</div></td>
+                        <td>${esc(o.project_type || '')}${o.project_name ? '<div class="muted">' + esc(o.project_name) + '</div>' : ''}</td>
+                        <td><span class="pill">${esc(o.status_name || '')}</span></td>
+                        <td>${money(q.total || o.total_amount || 0, q.currency || o.currency || 'USD')}</td>
+                        <td><div class="muted">${esc((o.created_at || '').slice(0,16))}</div></td>
+                        <td>
+                            <a href="/UNA.md/orasldev/decor-operator/document/${Number(o.id||0)}" target="_blank">${esc(actionLabel('open'))}</a>
+                            ·
+                            <a href="/UNA.md/orasldev/decor-operator/document/${Number(o.id||0)}?print=1" target="_blank">${esc(actionLabel('print'))}</a>
+                        </td>
+                        <td><button class="btn btn-ghost" data-status="${o.id}">Статус</button></td>
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="8" class="muted">Нет заказов</td></tr>`;
+            [...document.querySelectorAll('[data-status]')].forEach(b => b.onclick = () => openOrderStatus(Number(b.dataset.status)));
+        }
+
+        function orderStatusModal(flag=true) { el('ordStatusModal').classList.toggle('open', flag); }
+        function openOrderStatus(orderId) {
+            const o = orders.find(x => Number(x.id) === Number(orderId));
+            if (!o) return;
+            el('os_order_id').value = orderId;
+            el('os_status_id').value = o.status_id;
+            orderStatusModal(true);
+        }
+
+        async function saveOrderStatus() {
+            const orderId = Number(el('os_order_id').value || 0);
+            const statusId = Number(el('os_status_id').value || 0);
+            await api(`/orders/${orderId}/status`, { method: 'POST', body: JSON.stringify({ status_id: statusId }) });
+            orderStatusModal(false);
+            msg('Статус обновлён');
+            await loadOrders();
+        }
+
+        async function loadReport() {
+            const qs = new URLSearchParams();
+            if (el('repDateFrom').value) qs.set('date_from', el('repDateFrom').value);
+            if (el('repDateTo').value) qs.set('date_to', el('repDateTo').value);
+            const r = await api('/report-by-day?' + qs.toString());
+            const rows = r.data || [];
+            el('reportTable').innerHTML = rows.map(x => `
+                <tr>
+                    <td>${esc(x.date || '')}</td>
+                    <td>${Number(x.orders_count || 0)}</td>
+                    <td>${money(x.total_amount || 0, x.currency || 'USD')}</td>
+                    <td>${esc(x.currency || 'USD')}</td>
+                </tr>
+            `).join('') || `<tr><td colspan="4" class="muted">Нет данных</td></tr>`;
+            const totalOrders = rows.reduce((a,b) => a + Number(b.orders_count || 0), 0);
+            const totalAmount = rows.reduce((a,b) => a + Number(b.total_amount || 0), 0);
+            el('repDays').textContent = rows.length;
+            el('repOrders').textContent = totalOrders;
+            el('repAmount').textContent = totalAmount.toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2});
+            el('repAvg').textContent = totalOrders ? (totalAmount/totalOrders).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0.00';
+        }
+
+        async function bulkImportXmlOrders() {
+            const defaultDir = 'docs/DECOR';
+            const dir = (prompt('Folder pentru import *.xml / Папка для импорта *.xml', defaultDir) || '').trim();
+            if (!dir) return;
+            try {
+                msg('Import XML în execuție... / Импорт XML выполняется...');
+                const r = await api('/import-xml-orders', { method: 'POST', body: JSON.stringify({ dir }) });
+                const imported = Number(r.imported_count || 0);
+                const skipped = Number(r.skipped_count || 0);
+                const failed = Number(r.failed_count || 0);
+                const total = Number(r.total_files || 0);
+                msg(`XML import: files=${total}, imported=${imported}, skipped=${skipped}, failed=${failed}`);
+                if (failed > 0 && Array.isArray(r.results)) {
+                    const failedRows = r.results.filter(x => x && x.success === false).slice(0, 3)
+                        .map(x => `${x.xml_file || ''}: ${x.error || 'error'}`).join(' | ');
+                    if (failedRows) msg(`Erori import XML: ${failedRows}`, 'err');
+                }
+                await loadOrders();
+            } catch (e) {
+                msg(e.message || String(e), 'err');
+            }
+        }
+
+        document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', (e) => {
+            e.preventDefault();
+            showPage(a.dataset.page);
+        }));
+        el('btnMatReload').onclick = loadMaterials;
+        el('btnMatNew').onclick = () => openMaterialModal(null);
+        el('btnBulkImportXml').onclick = bulkImportXmlOrders;
+        el('btnUiRo').onclick = () => applyUiLang('ro');
+        el('btnUiRu').onclick = () => applyUiLang('ru');
+        el('btnUiEn').onclick = () => applyUiLang('en');
+        el('btnMatSave').onclick = saveMaterial;
+        el('btnMatCancel').onclick = () => matModalOpen(false);
+        el('m_image_url').addEventListener('input', updateMaterialImagePreview);
+        el('m_code').addEventListener('input', renderImagePicker);
+        el('m_category').addEventListener('input', renderImagePicker);
+        el('m_image_pick_q').addEventListener('input', renderImagePicker);
+        el('matFilterCategory').onchange = renderMaterials;
+        el('matFilterActive').onchange = renderMaterials;
+        el('matSearch').oninput = renderMaterials;
+        el('btnMatLangRo').onclick = () => {
+            materialNameLang = 'ro';
+            el('btnMatLangRo').classList.add('is-active');
+            el('btnMatLangOrig').classList.remove('is-active');
+            renderMaterials();
+        };
+        el('btnMatLangOrig').onclick = () => {
+            materialNameLang = 'orig';
+            el('btnMatLangOrig').classList.add('is-active');
+            el('btnMatLangRo').classList.remove('is-active');
+            renderMaterials();
+        };
+        el('btnSettingsReload').onclick = loadSettings;
+        el('btnSettingsSave').onclick = saveSettings;
+        el('btnOrdersReload').onclick = loadOrders;
+        el('btnOrdStatusCancel').onclick = () => orderStatusModal(false);
+        el('btnOrdStatusSave').onclick = saveOrderStatus;
+        el('btnReportReload').onclick = loadReport;
+
+        // ── Sliding Admin ─────────────────────────────────────
+        let slidingMaterials = [];
+        let slidingSettings = {};
+
+        async function loadSlidingMaterials() {
+            try {
+                const r = await fetch('/api/decor-admin/sliding-materials');
+                const j = await r.json();
+                if (j.success) slidingMaterials = j.data || [];
+                renderSlidingMaterials();
+            } catch(e) { msg(e.message || String(e), 'err'); }
+        }
+
+        function renderSlidingMaterials() {
+            const catFilter = el('slidingMatFilterCategory').value;
+            const q = (el('slidingMatSearch').value || '').toLowerCase();
+            const rows = slidingMaterials.filter(m => {
+                if (catFilter && m.category !== catFilter) return false;
+                if (q) {
+                    const hay = `${m.code||''} ${m.name||''} ${m.name_ro||''} ${m.family||''}`.toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+            el('slidingMaterialsTable').innerHTML = rows.map(m => `
+                <tr>
+                    <td>${m.id}</td>
+                    <td><strong>${esc(m.code||'')}</strong></td>
+                    <td>${esc(m.name_ro || m.name || '')}</td>
+                    <td><span class="pill">${esc(m.family||'')}</span></td>
+                    <td>${esc(m.unit||'')}</td>
+                    <td><input type="number" step="0.01" value="${m.unit_price||0}" style="width:90px;" data-slidmat-id="${m.id}" data-field="unit_price"></td>
+                    <td>${m.weight_g_per_m || 0}</td>
+                    <td>${(m.active||'Y') === 'Y' ? 'Da' : 'Nu'}</td>
+                    <td><button class="btn btn-ghost" onclick="saveSlidingMaterial(${m.id})">Salvează</button></td>
+                </tr>
+            `).join('') || '<tr><td colspan="9" class="muted">Nu sunt materiale sliding</td></tr>';
+            el('slidingMatCount').textContent = `${rows.length} / ${slidingMaterials.length} materiale sliding`;
+        }
+
+        async function saveSlidingMaterial(id) {
+            const input = document.querySelector(`[data-slidmat-id="${id}"][data-field="unit_price"]`);
+            if (!input) return;
+            try {
+                const r = await fetch('/api/decor-admin/sliding-materials/' + id, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ unit_price: parseFloat(input.value) || 0 })
+                });
+                const j = await r.json();
+                if (j.success) { msg('Material sliding actualizat'); await loadSlidingMaterials(); }
+                else msg(j.error || 'Eroare', 'err');
+            } catch(e) { msg(e.message || String(e), 'err'); }
+        }
+
+        async function loadSlidingSettings() {
+            try {
+                const r = await fetch('/api/decor-admin/sliding-settings');
+                const j = await r.json();
+                if (j.success) slidingSettings = j.data || {};
+                fillSlidingSettingsForm();
+            } catch(e) { msg(e.message || String(e), 'err'); }
+        }
+
+        function fillSlidingSettingsForm() {
+            const s = slidingSettings;
+            const grm = s.glass_rate_matrix || {};
+            ['TEKCAM', 'ISICAM'].forEach(sys => {
+                const m = grm[sys] || {};
+                ['transparent_8mm','transparent_10mm','tinted_8mm','tinted_10mm','matte_8mm','matte_10mm'].forEach(k => {
+                    const inp = el('sg_' + sys + '_' + k);
+                    if (inp) inp.value = m[k] || 0;
+                });
+            });
+            const put = (id, v) => { if (el(id)) el(id).value = (v ?? ''); };
+            put('ss_assembly_rate', s.assembly_rate);
+            put('ss_assembly_basis', s.assembly_basis || 'perimeter');
+            put('ss_installation_rate', s.installation_rate);
+            put('ss_installation_basis', s.installation_basis || 'perimeter');
+            put('ss_painting_rate_m2', s.painting_rate_m2);
+            put('ss_markup_percent', s.markup_percent);
+            put('ss_waste_percent', s.waste_percent);
+            put('ss_exchange_rate_mdl_to_usd', s.exchange_rate_mdl_to_usd);
+        }
+
+        async function saveSlidingSettings() {
+            const grm = {};
+            ['TEKCAM', 'ISICAM'].forEach(sys => {
+                grm[sys] = {};
+                ['transparent_8mm','transparent_10mm','tinted_8mm','tinted_10mm','matte_8mm','matte_10mm'].forEach(k => {
+                    const inp = el('sg_' + sys + '_' + k);
+                    grm[sys][k] = parseFloat(inp ? inp.value : 0) || 0;
+                });
+            });
+            const payload = {
+                glass_rate_matrix: grm,
+                assembly_rate: parseFloat(el('ss_assembly_rate').value) || 0,
+                assembly_basis: el('ss_assembly_basis').value,
+                installation_rate: parseFloat(el('ss_installation_rate').value) || 0,
+                installation_basis: el('ss_installation_basis').value,
+                painting_rate_m2: parseFloat(el('ss_painting_rate_m2').value) || 0,
+                markup_percent: parseFloat(el('ss_markup_percent').value) || 0,
+                waste_percent: parseFloat(el('ss_waste_percent').value) || 0,
+                exchange_rate_mdl_to_usd: parseFloat(el('ss_exchange_rate_mdl_to_usd').value) || 0,
+            };
+            try {
+                const r = await fetch('/api/decor-admin/sliding-settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const j = await r.json();
+                if (j.success) { msg('Setări Sliding salvate'); await loadSlidingSettings(); }
+                else msg(j.error || 'Eroare', 'err');
+            } catch(e) { msg(e.message || String(e), 'err'); }
+        }
+
+        if (el('slidingMatFilterCategory')) el('slidingMatFilterCategory').onchange = renderSlidingMaterials;
+        if (el('slidingMatSearch')) el('slidingMatSearch').oninput = renderSlidingMaterials;
+
+        (async function init() {
+            try {
+                applyUiLang((() => { try { return localStorage.getItem('decor_ui_lang') || 'ro'; } catch (e) { return 'ro'; } })());
+                await loadStatuses();
+                await loadMaterials();
+                await loadSettings();
+            } catch (e) {
+                msg(e.message || String(e), 'err');
+            }
+        })();
+    </script>
+</body>
+</html>

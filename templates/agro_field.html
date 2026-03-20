@@ -1972,7 +1972,7 @@ var scaleCurrentReading = null;
 window.startScalePolling = function() {
     if (scalePollingTimer) return;
     loadScaleConfig();
-    scalePollingTimer = setInterval(pollScale, 250);
+    scalePollingTimer = setInterval(pollScale, 1000);
     pollScale();
 }
 

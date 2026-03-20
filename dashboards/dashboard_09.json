@@ -1,0 +1,78 @@
+{
+  "dashboard_id": "09",
+  "dashboard_name": "DECOR — Веранда / Стеклянная крыша",
+  "dashboard_description": "DECOR: оператор приёма заказов, админка и материалы ТЗ в одном shell-дашборде.",
+  "widgets": [
+    {
+      "widget_id": "decor_operator_embed",
+      "window_id": "decor-operator-window",
+      "title": "DECOR — Оператор",
+      "widget_type": "embed",
+      "embed_url": "/UNA.md/orasldev/decor",
+      "position": { "top": 20, "left": 20 },
+      "size": { "width": 920, "height": 860 },
+      "z_index": 100,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Расчёт сметы и оформление заказа стеклянной конструкции в зале."
+    },
+    {
+      "widget_id": "decor_admin_embed",
+      "window_id": "decor-admin-window",
+      "title": "DECOR — Админка",
+      "widget_type": "embed",
+      "embed_url": "/UNA.md/orasldev/decor-admin",
+      "position": { "top": 20, "left": 960 },
+      "size": { "width": 960, "height": 860 },
+      "z_index": 99,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Материалы, коэффициенты расчёта, заказы, отчёты DECOR."
+    },
+    {
+      "widget_id": "decor_docs_embed",
+      "window_id": "decor-docs-window",
+      "title": "DECOR — ТЗ / Материалы",
+      "widget_type": "embed",
+      "embed_url": "/UNA.md/orasldev/docs/decor/",
+      "position": { "top": 900, "left": 20 },
+      "size": { "width": 760, "height": 360 },
+      "z_index": 70,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Индекс HTML-материалов и ТЗ проекта DECOR."
+    },
+    {
+      "widget_id": "documentation_09",
+      "window_id": "documentation-09-window",
+      "title": "📚 Документация Dashboard",
+      "widget_type": "documentation",
+      "dashboard_id": "09",
+      "position": { "top": 900, "left": 800 },
+      "size": { "width": 520, "height": 360 },
+      "z_index": 60,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Документация и описание виджетов дашборда DECOR."
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-02-26",
+    "version": "1.0",
+    "update_interval": 0,
+    "websocket_enabled": false,
+    "default_layout": "free"
+  }
+}

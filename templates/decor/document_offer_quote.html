@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DECOR - Ofertă comercială / Коммерческое предложение {{ order.order_number }}</title>
+    <style>
+        :root { --ink:#17212b; --muted:#64748b; --line:#dbe4ea; --brand:#0f766e; }
+        * { box-sizing:border-box; }
+        body { font-family: "Segoe UI", system-ui, sans-serif; color:var(--ink); margin: 24px; }
+        .sheet { max-width: 980px; margin: 0 auto; }
+        .head { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; margin-bottom:16px; }
+        .logo { font-size:24px; font-weight:800; color:var(--brand); }
+        .muted { color:var(--muted); font-size:13px; }
+        .box { border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+        .grid3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+        table { width:100%; border-collapse:collapse; font-size:13px; }
+        th, td { border:1px solid var(--line); padding:7px 8px; text-align:left; vertical-align:top; }
+        th { background:#f8fafc; color:var(--muted); }
+        .right { text-align:right; }
+        .totals { margin-left:auto; width:min(420px, 100%); }
+        .totals td:first-child { width:65%; }
+        .grand { font-weight:800; font-size:16px; }
+        .line-img { width: 86px; height: 58px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; background:#fff; display:block; }
+        .line-img-empty { color: var(--muted); font-size: 11px; }
+        .note { font-size:12px; color:var(--muted); line-height:1.45; }
+        .printbar { margin: 0 auto 14px; max-width:980px; display:flex; gap:8px; }
+        .langbar { margin: 0 auto 10px; max-width:980px; display:flex; gap:6px; }
+        .btn { border:1px solid var(--line); background:#fff; border-radius:8px; padding:8px 10px; cursor:pointer; text-decoration:none; color:var(--ink); font-size:13px; }
+        .btn.primary { background: var(--brand); border-color: var(--brand); color:#fff; }
+        @media print {
+            .printbar { display:none; }
+            body { margin: 0; }
+            .sheet { max-width: none; margin: 12mm; }
+            a[href]:after { content: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="langbar">
+        <button class="btn" id="btnUiRo" type="button">RO</button>
+        <button class="btn" id="btnUiRu" type="button">RU</button>
+        <button class="btn" id="btnUiEn" type="button">EN</button>
+    </div>
+    <div class="printbar">
+        <button class="btn primary" id="btnPrint" onclick="window.print()">Tipărire / PDF</button>
+        <a class="btn" id="btnBack" href="/UNA.md/orasldev/decor-operator">← Operator DECOR</a>
+    </div>
+    <div class="sheet">
+        <div class="head">
+            <div>
+                <div class="logo">DECOR</div>
+                <div class="muted" id="subtitle">Ofertă comercială / deviz pentru structură din sticlă</div>
+            </div>
+            <div class="muted">
+                <div><strong id="lblNr">Nr:</strong> {{ order.order_number }}</div>
+                <div><strong id="lblDate">Data:</strong> {{ created_at }}</div>
+                <div><strong id="lblStatus">Status:</strong> {{ order.status_name }}</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="box">
+                <h3 id="hClient" style="margin:0 0 8px;">Client</h3>
+                <div><strong>{{ order.client_name }}</strong></div>
+                <div>{{ order.client_phone }}</div>
+                {% if order.client_email %}<div>{{ order.client_email }}</div>{% endif %}
+                {% if order.location %}<div class="muted" style="margin-top:6px;">{{ order.location }}</div>{% endif %}
+            </div>
+            <div class="box">
+                <h3 id="hProject" style="margin:0 0 8px;">Proiect</h3>
+                <div><strong>{{ order.project_type }}</strong>{% if order.project_name %} · {{ order.project_name }}{% endif %}</div>
+                {% if order.color %}<div>Culoare / Цвет: {{ order.color }}</div>{% endif %}
+                {% if quote.inputs and quote.inputs.system_type %}<div>Sticlă / Стекло: {{ quote.inputs.system_type }}</div>{% endif %}
+                {% if quote.inputs and quote.inputs.led_option %}<div>LED: {{ quote.inputs.led_option }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="box">
+                <h3 id="hGeom" style="margin:0 0 8px;">Parametri și geometrie (calcul)</h3>
+            <div class="grid3">
+                <div><div class="muted">Lățime / Ширина</div><div>{{ quote.inputs.width_mm }} мм</div></div>
+                <div><div class="muted">Proiecție / Вылет</div><div>{{ quote.inputs.projection_mm }} мм</div></div>
+                <div><div class="muted">Pantă / Уклон</div><div>{{ metrics.slope_percent }}%</div></div>
+                <div><div class="muted">Înălțime față / Передняя высота</div><div>{{ quote.inputs.front_height_mm }} мм</div></div>
+                <div><div class="muted">Înălțime spate / Задняя высота</div><div>{{ quote.inputs.rear_height_mm }} мм</div></div>
+                <div><div class="muted">Suprafață / Площадь</div><div>{{ metrics.area_m2 }} м²</div></div>
+                <div><div class="muted">Secțiuni / Секций</div><div>{{ metrics.section_count }}</div></div>
+                <div><div class="muted">Stâlpi / Стоек</div><div>{{ metrics.post_count }}</div></div>
+                <div><div class="muted">Lungime profile / Профильная длина</div><div>{{ metrics.frame_length_m }} м</div></div>
+            </div>
+        </div>
+
+        <div class="box">
+            <h3 id="hQuote" style="margin:0 0 8px;">Deviz</h3>
+            <table>
+                <thead>
+                    <tr><th>Img</th><th>Cod / Код</th><th>Denumire / Наименование</th><th class="right">Cant. / Кол-во</th><th>UM / Ед.</th><th class="right">Preț / Цена</th><th class="right">Sumă / Сумма</th></tr>
+                </thead>
+                <tbody>
+                    {% for line in quote.lines or [] %}
+                    <tr>
+                        <td>
+                            {% if line.image_url %}
+                            <img class="line-img" src="{{ line.image_url }}" alt="{{ line.code or line.name }}">
+                            {% else %}
+                            <span class="line-img-empty">n/a</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ line.code }}</td>
+                        <td>{{ line.name }}</td>
+                        <td class="right">{{ '%.3f'|format((line.qty or 0)|float) if (line.qty or 0)|float % 1 else (line.qty or 0)|int }}</td>
+                        <td>{{ line.unit }}</td>
+                        <td class="right">{{ '%.2f'|format((line.unit_price or 0)|float) }} {{ summary.currency or order.currency }}</td>
+                        <td class="right">{{ '%.2f'|format((line.amount or 0)|float) }} {{ summary.currency or order.currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <table class="totals">
+            <tr><td id="tDirect">Costuri directe</td><td class="right">{{ '%.2f'|format((summary.direct_cost or 0)|float) }} {{ summary.currency or order.currency }}</td></tr>
+            <tr><td id="tWaste">Deșeuri</td><td class="right">{{ '%.2f'|format((summary.waste_amount or 0)|float) }} {{ summary.currency or order.currency }}</td></tr>
+            <tr><td id="tSubtotal">Subtotal</td><td class="right">{{ '%.2f'|format((summary.subtotal or 0)|float) }} {{ summary.currency or order.currency }}</td></tr>
+            <tr><td id="tMargin">Marjă</td><td class="right">{{ '%.2f'|format((summary.margin_amount or 0)|float) }} {{ summary.currency or order.currency }}</td></tr>
+            <tr class="grand"><td id="tTotal">TOTAL</td><td class="right">{{ '%.2f'|format((summary.total or order.total_amount or 0)|float) }} {{ summary.currency or order.currency }}</td></tr>
+            {% if summary.total_mdl %}
+            <tr class="grand"><td>TOTAL (MDL)</td><td class="right">{{ '%.2f'|format((summary.total_mdl or 0)|float) }} MDL</td></tr>
+            {% endif %}
+        </table>
+
+        {% if order.notes %}
+        <div class="box" style="margin-top:12px;">
+            <h3 style="margin:0 0 8px;">Comentariu / Примечание</h3>
+            <div>{{ order.notes }}</div>
+        </div>
+        {% endif %}
+
+        <div class="box" style="margin-top:12px;">
+            <div class="note">
+                Oferta comercială este generată automat (calculator MVP DECOR) pe baza parametrilor produsului și coeficienților configurabili.
+                Для запуска в производство требуется подтверждение замеров, инженерная проверка узлов и финальная спецификация материалов.
+            </div>
+        </div>
+    </div>
+    <script>
+      (function(){
+        const TXT = {
+          ro: {btnPrint:'Tipărire / PDF',btnBack:'← Operator DECOR',subtitle:'Ofertă comercială / deviz pentru structură din sticlă',lblNr:'Nr:',lblDate:'Data:',lblStatus:'Status:',hClient:'Client',hProject:'Proiect',hGeom:'Parametri și geometrie (calcul)',hQuote:'Deviz',tDirect:'Costuri directe',tWaste:'Deșeuri',tSubtotal:'Subtotal',tMargin:'Marjă',tTotal:'TOTAL'},
+          ru: {btnPrint:'Печать / PDF',btnBack:'← Оператор DECOR',subtitle:'Коммерческое предложение / смета',lblNr:'№:',lblDate:'Дата:',lblStatus:'Статус:',hClient:'Клиент',hProject:'Проект',hGeom:'Параметры и геометрия',hQuote:'Смета',tDirect:'Прямые затраты',tWaste:'Отходы',tSubtotal:'Промежуточный итог',tMargin:'Маржа',tTotal:'ИТОГО'},
+          en: {btnPrint:'Print / PDF',btnBack:'← DECOR Operator',subtitle:'Commercial offer / quote for glass structure',lblNr:'No:',lblDate:'Date:',lblStatus:'Status:',hClient:'Client',hProject:'Project',hGeom:'Parameters and Geometry',hQuote:'Quote',tDirect:'Direct cost',tWaste:'Waste',tSubtotal:'Subtotal',tMargin:'Margin',tTotal:'TOTAL'}
+        };
+        function apply(lang){
+          const l = TXT[lang] ? lang : 'ro';
+          document.documentElement.lang = l;
+          ['btnUiRo','btnUiRu','btnUiEn'].forEach(id=>{const e=document.getElementById(id); if(e) e.classList.remove('primary');});
+          const b = document.getElementById(l==='ro'?'btnUiRo':(l==='ru'?'btnUiRu':'btnUiEn')); if(b) b.classList.add('primary');
+          const t = TXT[l];
+          Object.keys(t).forEach(k=>{ const e=document.getElementById(k); if(e) e.textContent=t[k]; });
+          try { localStorage.setItem('decor_ui_lang', l); } catch(e) {}
+        }
+        document.getElementById('btnUiRo').onclick=()=>apply('ro');
+        document.getElementById('btnUiRu').onclick=()=>apply('ru');
+        document.getElementById('btnUiEn').onclick=()=>apply('en');
+        let saved='ro'; try { saved = localStorage.getItem('decor_ui_lang') || 'ro'; } catch(e) {}
+        apply(saved);
+        {% if auto_print %}
+        setTimeout(function(){ window.print(); }, 200);
+        {% endif %}
+      })();
+    </script>
+</body>
+</html>

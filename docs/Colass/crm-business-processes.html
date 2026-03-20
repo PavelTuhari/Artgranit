@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Colass CRM — бизнес-процесс</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body { margin: 0; background:#0f172a; color:#e5e7eb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; }
+        .head { padding: 14px 18px; border-bottom: 1px solid #334155; background:#111827; display:flex; gap:10px; justify-content:space-between; flex-wrap:wrap; }
+        .links a { color:#93c5fd; text-decoration:none; border:1px solid #334155; border-radius:8px; padding:6px 10px; margin-right:8px; }
+        .box { padding: 14px; }
+        .card { border:1px solid #334155; border-radius: 10px; background:#111827; padding:12px; margin-bottom:12px; }
+        .mermaid-wrap { overflow:auto; border:1px solid #334155; border-radius:10px; background:#fff; padding:16px; }
+        .mermaid { min-width: 980px; }
+        ul { margin: 8px 0 0 16px; }
+    </style>
+</head>
+<body>
+    <div class="head">
+        <div><b>Colass CRM: от фиксации лида до регистрации контракта</b></div>
+        <div class="links">
+            <a href="/UNA.md/orasldev/colass-crm">Colass CRM</a>
+            <a href="/UNA.md/orasldev/colass-estimator">Сметчик</a>
+            <a href="/UNA.md/orasldev/colass-contracts">Contracts</a>
+            <a href="/UNA.md/orasldev/docs/colass">Документация Colass</a>
+        </div>
+    </div>
+
+    <div class="box">
+        <div class="card">
+            Поток покрывает классический CRM цикл Colass:
+            <ul>
+                <li>Email/ручной канал -> регистрация лида</li>
+                <li>Квалификация запроса и уточнение данных</li>
+                <li>Подготовка оферты/сметы из F3/F5 в Colass Estimator</li>
+                <li>Переговоры и согласование условий</li>
+                <li>Регистрация контракта и перевод лида в статус Won</li>
+            </ul>
+        </div>
+
+        <div class="mermaid-wrap">
+            <div class="mermaid">
+flowchart LR
+  classDef source fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+  classDef process fill:#e2e8f0,stroke:#475569,stroke-width:2px,color:#0f172a
+  classDef decision fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#78350f
+  classDef doc fill:#fce7f3,stroke:#be185d,stroke-width:2px,color:#831843
+  classDef success fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
+  classDef fail fill:#fee2e2,stroke:#dc2626,stroke-width:2px,color:#7f1d1d
+
+  A["Email Inbox / Manual entry"]:::source --> B["CRM intake: create lead"]:::process
+  B --> C["Stage: NEW"]:::process
+  C --> D{"Qualified?"}:::decision
+
+  D -->|No| E["Stage: LOST"]:::fail
+  D -->|Yes| F["Stage: QUALIFICATION"]:::process
+
+  F --> G["Collect requirements\n(object, timeline, budget)"]:::process
+  G --> H["Create/update estimate in Colass Estimator\n(F3/F5 resources + works)"]:::doc
+  H --> I["Stage: ESTIMATE_PREP"]:::process
+  I --> J["Offer sent to customer"]:::doc
+  J --> K["Stage: NEGOTIATION"]:::process
+  K --> L{"Approved?"}:::decision
+
+  L -->|Revision needed| G
+  L -->|Rejected| E
+  L -->|Approved| M["Stage: APPROVED"]:::process
+
+  M --> N["Register contract\n(contract_no, amount, registry)"]:::doc
+  N --> O["Stage: CONTRACT_REGISTERED\n(WON)"]:::success
+
+  O --> P["Handover to project execution\n(project/estimate linkage)"]:::process
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'base' });
+    </script>
+</body>
+</html>

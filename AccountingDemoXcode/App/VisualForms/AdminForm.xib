@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24506" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+    <dependencies>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24506"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <customObject id="-2" userLabel="File's Owner"/>
+        <customObject id="-1" userLabel="First Responder" customClass="FirstResponder"/>
+        <customObject id="-3" userLabel="Application" customClass="NSObject"/>
+        <view wantsLayer="YES" misplaced="YES" id="d1">
+            <rect key="frame" x="0.0" y="0.0" width="1177" height="378"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+            <subviews>
+                <stackView distribution="fill" orientation="vertical" alignment="leading" spacing="12" translatesAutoresizingMaskIntoConstraints="NO" id="d2">
+                    <rect key="frame" x="10" y="10" width="1178" height="0.0"/>
+                    <subviews>
+                        <textField focusRingType="none" id="d3">
+                            <rect key="frame" x="0.0" y="0.0" width="1180" height="22"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <textFieldCell key="cell" title="SKU | Name | Barcode | SalePrice" id="d4"/>
+                        </textField>
+                        <button id="d5">
+                            <rect key="frame" x="0.0" y="0.0" width="130" height="30"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <buttonCell key="cell" type="bevel" title="Save card" bezelStyle="rounded" id="d6">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            </buttonCell>
+                        </button>
+                        <textField focusRingType="none" id="d7">
+                            <rect key="frame" x="0.0" y="0.0" width="1180" height="22"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <textFieldCell key="cell" title="PurchaseDocNo | Supplier | Qty | Cost" id="d8"/>
+                        </textField>
+                        <button id="d9">
+                            <rect key="frame" x="0.0" y="0.0" width="150" height="30"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <buttonCell key="cell" type="bevel" title="Add purchase" bezelStyle="rounded" id="d10">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            </buttonCell>
+                        </button>
+                        <button id="d11">
+                            <rect key="frame" x="0.0" y="0.0" width="180" height="30"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <buttonCell key="cell" type="bevel" title="Start/Pause simulation" bezelStyle="rounded" id="d12">
+                                <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
+                            </buttonCell>
+                        </button>
+                        <textField focusRingType="none" id="d13">
+                            <rect key="frame" x="0.0" y="0.0" width="1180" height="22"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <textFieldCell key="cell" title="Products list (products + barcodes + price_list)" id="d14"/>
+                        </textField>
+                        <textField focusRingType="none" id="d15">
+                            <rect key="frame" x="0.0" y="0.0" width="1180" height="22"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            <textFieldCell key="cell" title="Purchases list (purchase_docs + purchase_doc_items)" id="d16"/>
+                        </textField>
+                    </subviews>
+                    <visibilityPriorities>
+                        <integer value="1000"/>
+                        <integer value="1000"/>
+                        <integer value="1000"/>
+                        <integer value="1000"/>
+                        <integer value="1000"/>
+                        <integer value="1000"/>
+                        <integer value="1000"/>
+                    </visibilityPriorities>
+                    <customSpacing>
+                        <real value="3.4028234663852886e+38"/>
+                        <real value="3.4028234663852886e+38"/>
+                        <real value="3.4028234663852886e+38"/>
+                        <real value="3.4028234663852886e+38"/>
+                        <real value="3.4028234663852886e+38"/>
+                        <real value="3.4028234663852886e+38"/>
+                        <real value="3.4028234663852886e+38"/>
+                    </customSpacing>
+                </stackView>
+            </subviews>
+            <constraints>
+                <constraint firstItem="d2" firstAttribute="leading" secondItem="d1" secondAttribute="leading" constant="10" id="dc1"/>
+                <constraint firstAttribute="trailing" secondItem="d2" secondAttribute="trailing" constant="10" id="dc2"/>
+                <constraint firstItem="d2" firstAttribute="top" secondItem="d1" secondAttribute="top" constant="10" id="dc3"/>
+                <constraint firstAttribute="bottom" secondItem="d2" secondAttribute="bottom" constant="10" id="dc4"/>
+            </constraints>
+            <point key="canvasLocation" x="150.5" y="-29"/>
+        </view>
+    </objects>
+</document>
