@@ -1678,7 +1678,7 @@ function editVehicle(id) {
     document.getElementById('modal-vehicle-title').textContent = 'Редактировать транспорт';
     setVal('vehicle','id', r.id);
     ['plate_number','vehicle_type','driver_name','active'].forEach(f => setVal('vehicle', f, r[f]));
-    openModal('vehicle');
+    openModal('vehicle', id);
 }
 async function deleteVehicle(id) {
     if (!confirm('Удалить транспорт?')) return;
