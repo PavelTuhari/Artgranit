@@ -4064,6 +4064,47 @@ def api_agro_admin_module_config_delete(record_id):
         return jsonify({"success": False, "error": "Auth required"}), 401
     return jsonify(AgroAdminController.delete_module_config(record_id))
 
+# --- AGRO Admin: Item Varieties ---
+@app.route('/api/agro-admin/item-varieties', methods=['GET'])
+def api_agro_admin_item_varieties():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    item_id = request.args.get('item_id', type=int)
+    active_only = request.args.get('active_only', '0') == '1'
+    return jsonify(AgroAdminController.get_item_varieties(item_id, active_only))
+
+@app.route('/api/agro-admin/item-varieties', methods=['POST'])
+def api_agro_admin_item_varieties_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroAdminController.upsert_item_variety(request.get_json() or {}))
+
+@app.route('/api/agro-admin/item-varieties/<int:record_id>', methods=['DELETE'])
+def api_agro_admin_item_variety_delete(record_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroAdminController.delete_item_variety(record_id))
+
+# --- AGRO Admin: Acceptance Profiles ---
+@app.route('/api/agro-admin/acceptance-profiles', methods=['GET'])
+def api_agro_admin_acceptance_profiles():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    active_only = request.args.get('active_only', '0') == '1'
+    return jsonify(AgroAdminController.get_acceptance_profiles(active_only))
+
+@app.route('/api/agro-admin/acceptance-profiles', methods=['POST'])
+def api_agro_admin_acceptance_profiles_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroAdminController.upsert_acceptance_profile(request.get_json() or {}))
+
+@app.route('/api/agro-admin/acceptance-profiles/<int:record_id>', methods=['DELETE'])
+def api_agro_admin_acceptance_profile_delete(record_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroAdminController.delete_acceptance_profile(record_id))
+
 # ---------------------------------------------------------------------------
 # AGRO — Field API: barcodes, crates, purchases, offline sync
 # ---------------------------------------------------------------------------
