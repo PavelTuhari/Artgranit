@@ -1862,7 +1862,7 @@ function editMconfig(id) {
     setVal('mconfig','config_value', r.config_value);
     setVal('mconfig','config_group', r.config_group);
     setVal('mconfig','description', r.description);
-    openModal('mconfig');
+    openModal('mconfig', id);
 }
 async function deleteMconfig(id) {
     if (!confirm('Удалить параметр конфигурации?')) return;
