@@ -1386,7 +1386,7 @@ function editSupplier(id) {
     document.getElementById('modal-supplier-title').textContent = 'Редактировать поставщика';
     setVal('supplier','id', r.id);
     ['code','name','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => setVal('supplier', f, r[f]));
-    openModal('supplier');
+    openModal('supplier', id);
 }
 async function deleteSupplier(id) {
     if (!confirm('Удалить поставщика?')) return;
