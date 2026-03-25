@@ -2070,7 +2070,7 @@ function editVariety(id) {
     document.getElementById('modal-variety-title').textContent = 'Редактировать сорт';
     setVal('variety','id', r.id);
     ['item_id','code','name_ru','name_ro','min_calibre_mm','min_brix','shelf_life_days','color_coverage_pct','optimal_temp_min','optimal_temp_max','active'].forEach(f => setVal('variety', f, r[f]));
-    openModal('variety');
+    openModal('variety', id);
 }
 async function deleteVariety(id) {
     if (!confirm('Удалить сорт?')) return;
