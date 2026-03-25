@@ -1789,11 +1789,17 @@ class AgroStore:
                         """INSERT INTO AGRO_PURCHASE_LINES
                                   (ID, PURCHASE_DOC_ID, ITEM_ID, VARIETY_ID, PALLETS,
                                    CRATES_COUNT, GROSS_WEIGHT_KG, TARE_WEIGHT_KG,
-                                   NET_WEIGHT_KG, PRICE_PER_KG, AMOUNT, NOTES)
+                                   NET_WEIGHT_KG, PRICE_PER_KG, AMOUNT, NOTES,
+                                   CALIBRE_MM, BRIX, COLOR_COVERAGE_PCT,
+                                   FRESHNESS_SCORE, TEMP_C, PACKAGING,
+                                   LABELING, DEFECTS, DEFECT_PCT, PASSPORT_NOTES)
                            VALUES (AGRO_PURCHASE_LINES_SEQ.NEXTVAL, :purchase_doc_id,
                                    :item_id, :variety_id, :pallets, :crates_count,
                                    :gross_weight_kg, :tare_weight_kg,
-                                   :net_weight_kg, :price_per_kg, :amount, :notes)""",
+                                   :net_weight_kg, :price_per_kg, :amount, :notes,
+                                   :calibre_mm, :brix, :color_coverage_pct,
+                                   :freshness_score, :temp_c, :packaging,
+                                   :labeling, :defects, :defect_pct, :passport_notes)""",
                         {
                             "purchase_doc_id": doc_id,
                             "item_id": ln.get("item_id"),
@@ -1806,6 +1812,16 @@ class AgroStore:
                             "price_per_kg": ln.get("price_per_kg"),
                             "amount": ln.get("amount"),
                             "notes": ln.get("notes"),
+                            "calibre_mm": ln.get("calibre_mm"),
+                            "brix": ln.get("brix"),
+                            "color_coverage_pct": ln.get("color_coverage_pct"),
+                            "freshness_score": ln.get("freshness_score"),
+                            "temp_c": ln.get("temp_c"),
+                            "packaging": ln.get("packaging"),
+                            "labeling": ln.get("labeling"),
+                            "defects": ln.get("defects"),
+                            "defect_pct": ln.get("defect_pct"),
+                            "passport_notes": ln.get("passport_notes"),
                         },
                     )
                 db.connection.commit()
