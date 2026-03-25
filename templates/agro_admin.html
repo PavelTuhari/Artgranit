@@ -2137,7 +2137,7 @@ function editProfile(id) {
     document.getElementById('modal-profile-title').textContent = 'Редактировать профиль';
     setVal('profile','id', r.id);
     profileFields.forEach(f => setVal('profile', f, r[f]));
-    openModal('profile');
+    openModal('profile', id);
 }
 async function deleteProfile(id) {
     if (!confirm('Удалить профиль приёмки?')) return;
