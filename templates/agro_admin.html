@@ -1586,7 +1586,7 @@ function editItem(id) {
     document.getElementById('modal-item-title').textContent = 'Редактировать продукцию';
     setVal('item','id', r.id);
     ['code','name_ru','name_ro','item_group','unit','default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max','active'].forEach(f => setVal('item', f, r[f]));
-    openModal('item');
+    openModal('item', id);
 }
 async function deleteItem(id) {
     if (!confirm('Удалить продукцию?')) return;
