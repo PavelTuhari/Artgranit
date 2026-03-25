@@ -165,3 +165,42 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
 - [ ] Reports render data and export to XLSX/CSV
 - [ ] Print documents render with proper A4 layout
 - [ ] Dashboard `dashboard_10.json` loads in shell
+- [ ] Item varieties visible in Admin → Сорта / Soiuri
+- [ ] Acceptance profiles CRUD in Admin → Профили приёмки
+- [ ] Field request creation, approval, and cancellation
+- [ ] Batch inspection scoring engine: 17 weighted checks + freshness(0-5), critical fail = instant REJECT
+- [ ] Inspection decision: ACCEPT (score≥95), ACCEPT_WITH_SORTING (score≥85), REJECT (score<85 or critical fail)
+
+## Acceptance Scoring Engine
+
+The batch acceptance scoring engine (`AgroStore.perform_batch_inspection`) evaluates incoming produce
+against retailer-specific acceptance profiles. Based on Kaufland, Metro, and Linella procurement standards.
+
+**17 weighted boolean checks:**
+| Check | Weight | Critical |
+|-------|--------|----------|
+| CLASS_OK | 10 | Yes |
+| SERIOUS_OK | 15 | Yes |
+| TEMP_OK | 10 | Yes |
+| LAB_OK | 8 | Yes |
+| PHYTO_OK | 4 | Yes |
+| TRACE_OK | 6 | Yes |
+| CALIBRE_OK | 8 | |
+| MINOR_OK | 8 | |
+| BELOW_MIN_OK | 5 | |
+| BRIX_OK | 5 | |
+| MIXED_OK | 4 | |
+| PACK_OK | 3 | |
+| LABEL_OK | 2 | |
+| ACTIVES_OK | 2 | |
+| SINGLE_RESIDUE_OK | 2 | |
+| TOTAL_RESIDUE_OK | 2 | |
+| GLYPHOSATE_OK | 1 | |
+
+**+ Freshness score** (0–5 manual rating)
+
+**Decision logic:**
+1. Any critical check fails → REJECT
+2. All checks pass and score ≥ 95 → ACCEPT
+3. Score ≥ 85 (accept_min_score from profile) → ACCEPT_WITH_SORTING
+4. Otherwise → REJECT
