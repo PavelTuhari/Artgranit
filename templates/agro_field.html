@@ -1331,6 +1331,8 @@ window.navigateTo = function(page) {
 
     // Refresh data on page switch
     if (page === 'purchases-list') loadPurchasesList();
+    if (page === 'requests') loadRequests();
+    if (page === 'inspections') initInspections();
     if (page === 'scale') { if (window.startScalePolling) window.startScalePolling(); }
     else { if (window.stopScalePolling) window.stopScalePolling(); }
 };
