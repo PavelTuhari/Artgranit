@@ -770,8 +770,710 @@ class AgroStore:
         return AgroStore._delete("AGRO_MODULE_CONFIG", record_id)
 
     # ==================================================================
-    # 12. Barcode & Crate Operations
+    # 12. AGRO_ITEM_VARIETIES
     # ==================================================================
+
+    @staticmethod
+    def get_item_varieties(
+        item_id: Optional[int] = None, active_only: bool = False
+    ) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT v.*, i.CODE AS ITEM_CODE, i.NAME_RU AS ITEM_NAME_RU
+                         FROM AGRO_ITEM_VARIETIES v
+                         JOIN AGRO_ITEMS i ON i.ID = v.ITEM_ID"""
+                params: Dict[str, Any] = {}
+                conditions: List[str] = []
+                if item_id:
+                    conditions.append("v.ITEM_ID = :item_id")
+                    params["item_id"] = item_id
+                if active_only:
+                    conditions.append("v.ACTIVE = 'Y'")
+                if conditions:
+                    sql += " WHERE " + " AND ".join(conditions)
+                sql += " ORDER BY i.NAME_RU, v.NAME_RU"
+                r = db.execute_query(sql, params or None)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_item_variety(record_id: int) -> Dict[str, Any]:
+        return AgroStore._get_by_id("AGRO_ITEM_VARIETIES", record_id)
+
+    @staticmethod
+    def upsert_item_variety(data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                params = {
+                    "item_id": data.get("item_id"),
+                    "code": data.get("code"),
+                    "name_ru": data.get("name_ru"),
+                    "name_ro": data.get("name_ro"),
+                    "min_calibre_mm": data.get("min_calibre_mm"),
+                    "min_brix": data.get("min_brix"),
+                    "shelf_life_days": data.get("shelf_life_days"),
+                    "optimal_temp_min": data.get("optimal_temp_min"),
+                    "optimal_temp_max": data.get("optimal_temp_max"),
+                    "color_coverage_pct": data.get("color_coverage_pct"),
+                    "notes": data.get("notes"),
+                    "active": data.get("active", "Y"),
+                }
+                if data.get("id"):
+                    params["id"] = data["id"]
+                    db.execute_query(
+                        """UPDATE AGRO_ITEM_VARIETIES
+                              SET ITEM_ID = :item_id, CODE = :code,
+                                  NAME_RU = :name_ru, NAME_RO = :name_ro,
+                                  MIN_CALIBRE_MM = :min_calibre_mm, MIN_BRIX = :min_brix,
+                                  SHELF_LIFE_DAYS = :shelf_life_days,
+                                  OPTIMAL_TEMP_MIN = :optimal_temp_min,
+                                  OPTIMAL_TEMP_MAX = :optimal_temp_max,
+                                  COLOR_COVERAGE_PCT = :color_coverage_pct,
+                                  NOTES = :notes, ACTIVE = :active
+                            WHERE ID = :id""",
+                        params,
+                    )
+                else:
+                    db.execute_query(
+                        """INSERT INTO AGRO_ITEM_VARIETIES
+                                  (ID, ITEM_ID, CODE, NAME_RU, NAME_RO,
+                                   MIN_CALIBRE_MM, MIN_BRIX, SHELF_LIFE_DAYS,
+                                   OPTIMAL_TEMP_MIN, OPTIMAL_TEMP_MAX,
+                                   COLOR_COVERAGE_PCT, NOTES, ACTIVE)
+                           VALUES (AGRO_ITEM_VARIETIES_SEQ.NEXTVAL,
+                                   :item_id, :code, :name_ru, :name_ro,
+                                   :min_calibre_mm, :min_brix, :shelf_life_days,
+                                   :optimal_temp_min, :optimal_temp_max,
+                                   :color_coverage_pct, :notes, :active)""",
+                        params,
+                    )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_item_variety(record_id: int) -> Dict[str, Any]:
+        return AgroStore._delete("AGRO_ITEM_VARIETIES", record_id)
+
+    # ==================================================================
+    # 13. AGRO_ACCEPTANCE_PROFILES
+    # ==================================================================
+
+    @staticmethod
+    def get_acceptance_profiles(active_only: bool = False) -> Dict[str, Any]:
+        return AgroStore._get_all("AGRO_ACCEPTANCE_PROFILES", active_only, "NAME_RU")
+
+    @staticmethod
+    def get_acceptance_profile(record_id: int) -> Dict[str, Any]:
+        return AgroStore._get_by_id("AGRO_ACCEPTANCE_PROFILES", record_id)
+
+    @staticmethod
+    def upsert_acceptance_profile(data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                params = {
+                    "code": data.get("code"),
+                    "name_ru": data.get("name_ru"),
+                    "name_ro": data.get("name_ro"),
+                    "customer_id": data.get("customer_id"),
+                    "required_class": data.get("required_class", "I"),
+                    "allow_class_ii": data.get("allow_class_ii", "N"),
+                    "min_calibre_mm": data.get("min_calibre_mm"),
+                    "max_below_min_pct": data.get("max_below_min_pct"),
+                    "max_mixed_size_pct": data.get("max_mixed_size_pct"),
+                    "max_minor_defects_pct": data.get("max_minor_defects_pct"),
+                    "max_serious_defects_pct": data.get("max_serious_defects_pct"),
+                    "min_brix": data.get("min_brix"),
+                    "temp_min_c": data.get("temp_min_c"),
+                    "temp_max_c": data.get("temp_max_c"),
+                    "lab_req": data.get("lab_req", "N"),
+                    "phyto_req": data.get("phyto_req", "N"),
+                    "trace_req": data.get("trace_req", "N"),
+                    "pack_req": data.get("pack_req", "N"),
+                    "label_req": data.get("label_req", "N"),
+                    "max_actives": data.get("max_actives"),
+                    "max_single_residue_pct_mrl": data.get("max_single_residue_pct_mrl"),
+                    "max_total_residue_pct": data.get("max_total_residue_pct"),
+                    "max_glyphosate_pct_mrl": data.get("max_glyphosate_pct_mrl"),
+                    "accept_min_score": data.get("accept_min_score", 85),
+                    "active": data.get("active", "Y"),
+                }
+                if data.get("id"):
+                    params["id"] = data["id"]
+                    db.execute_query(
+                        """UPDATE AGRO_ACCEPTANCE_PROFILES
+                              SET CODE = :code, NAME_RU = :name_ru, NAME_RO = :name_ro,
+                                  CUSTOMER_ID = :customer_id, REQUIRED_CLASS = :required_class,
+                                  ALLOW_CLASS_II = :allow_class_ii,
+                                  MIN_CALIBRE_MM = :min_calibre_mm,
+                                  MAX_BELOW_MIN_PCT = :max_below_min_pct,
+                                  MAX_MIXED_SIZE_PCT = :max_mixed_size_pct,
+                                  MAX_MINOR_DEFECTS_PCT = :max_minor_defects_pct,
+                                  MAX_SERIOUS_DEFECTS_PCT = :max_serious_defects_pct,
+                                  MIN_BRIX = :min_brix,
+                                  TEMP_MIN_C = :temp_min_c, TEMP_MAX_C = :temp_max_c,
+                                  LAB_REQ = :lab_req, PHYTO_REQ = :phyto_req,
+                                  TRACE_REQ = :trace_req, PACK_REQ = :pack_req,
+                                  LABEL_REQ = :label_req,
+                                  MAX_ACTIVES = :max_actives,
+                                  MAX_SINGLE_RESIDUE_PCT_MRL = :max_single_residue_pct_mrl,
+                                  MAX_TOTAL_RESIDUE_PCT = :max_total_residue_pct,
+                                  MAX_GLYPHOSATE_PCT_MRL = :max_glyphosate_pct_mrl,
+                                  ACCEPT_MIN_SCORE = :accept_min_score,
+                                  ACTIVE = :active
+                            WHERE ID = :id""",
+                        params,
+                    )
+                else:
+                    db.execute_query(
+                        """INSERT INTO AGRO_ACCEPTANCE_PROFILES
+                                  (ID, CODE, NAME_RU, NAME_RO, CUSTOMER_ID,
+                                   REQUIRED_CLASS, ALLOW_CLASS_II,
+                                   MIN_CALIBRE_MM, MAX_BELOW_MIN_PCT, MAX_MIXED_SIZE_PCT,
+                                   MAX_MINOR_DEFECTS_PCT, MAX_SERIOUS_DEFECTS_PCT,
+                                   MIN_BRIX, TEMP_MIN_C, TEMP_MAX_C,
+                                   LAB_REQ, PHYTO_REQ, TRACE_REQ, PACK_REQ, LABEL_REQ,
+                                   MAX_ACTIVES, MAX_SINGLE_RESIDUE_PCT_MRL,
+                                   MAX_TOTAL_RESIDUE_PCT, MAX_GLYPHOSATE_PCT_MRL,
+                                   ACCEPT_MIN_SCORE, ACTIVE)
+                           VALUES (AGRO_ACCEPTANCE_PROFILES_SEQ.NEXTVAL,
+                                   :code, :name_ru, :name_ro, :customer_id,
+                                   :required_class, :allow_class_ii,
+                                   :min_calibre_mm, :max_below_min_pct, :max_mixed_size_pct,
+                                   :max_minor_defects_pct, :max_serious_defects_pct,
+                                   :min_brix, :temp_min_c, :temp_max_c,
+                                   :lab_req, :phyto_req, :trace_req, :pack_req, :label_req,
+                                   :max_actives, :max_single_residue_pct_mrl,
+                                   :max_total_residue_pct, :max_glyphosate_pct_mrl,
+                                   :accept_min_score, :active)""",
+                        params,
+                    )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_acceptance_profile(record_id: int) -> Dict[str, Any]:
+        return AgroStore._delete("AGRO_ACCEPTANCE_PROFILES", record_id)
+
+    # ==================================================================
+    # 14. AGRO_FIELD_REQUESTS (header + lines)
+    # ==================================================================
+
+    @staticmethod
+    def get_field_requests(
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT fr.*,
+                                s.NAME   AS SUPPLIER_NAME,
+                                w.NAME   AS WAREHOUSE_NAME,
+                                ap.NAME_RU AS PROFILE_NAME,
+                                (SELECT COUNT(*) FROM AGRO_FIELD_REQUEST_LINES frl
+                                 WHERE frl.REQUEST_ID = fr.ID) AS LINE_COUNT,
+                                (SELECT SUM(frl.EXPECTED_QTY_KG) FROM AGRO_FIELD_REQUEST_LINES frl
+                                 WHERE frl.REQUEST_ID = fr.ID) AS TOTAL_EXPECTED_KG
+                         FROM AGRO_FIELD_REQUESTS fr
+                         LEFT JOIN AGRO_SUPPLIERS s ON s.ID = fr.SUPPLIER_ID
+                         LEFT JOIN AGRO_WAREHOUSES w ON w.ID = fr.WAREHOUSE_ID
+                         LEFT JOIN AGRO_ACCEPTANCE_PROFILES ap ON ap.ID = fr.PROFILE_ID
+                         WHERE 1=1"""
+                params: Dict[str, Any] = {}
+                if filters:
+                    if filters.get("status"):
+                        sql += " AND fr.STATUS = :status"
+                        params["status"] = filters["status"]
+                    if filters.get("supplier_id"):
+                        sql += " AND fr.SUPPLIER_ID = :supplier_id"
+                        params["supplier_id"] = filters["supplier_id"]
+                    if filters.get("date_from"):
+                        sql += " AND fr.REQUEST_DATE >= TO_DATE(:date_from, 'YYYY-MM-DD')"
+                        params["date_from"] = filters["date_from"]
+                    if filters.get("date_to"):
+                        sql += " AND fr.REQUEST_DATE <= TO_DATE(:date_to, 'YYYY-MM-DD')"
+                        params["date_to"] = filters["date_to"]
+                sql += " ORDER BY fr.REQUEST_DATE DESC, fr.ID DESC"
+                r = db.execute_query(sql, params or None)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_field_request_by_id(request_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                rh = db.execute_query(
+                    """SELECT fr.*,
+                              s.NAME   AS SUPPLIER_NAME,
+                              w.NAME   AS WAREHOUSE_NAME,
+                              ap.NAME_RU AS PROFILE_NAME
+                       FROM AGRO_FIELD_REQUESTS fr
+                       LEFT JOIN AGRO_SUPPLIERS s ON s.ID = fr.SUPPLIER_ID
+                       LEFT JOIN AGRO_WAREHOUSES w ON w.ID = fr.WAREHOUSE_ID
+                       LEFT JOIN AGRO_ACCEPTANCE_PROFILES ap ON ap.ID = fr.PROFILE_ID
+                       WHERE fr.ID = :id""",
+                    {"id": request_id},
+                )
+                headers = _norm_rows(rh)
+                if not headers:
+                    return {"success": False, "error": "Request not found"}
+                rl = db.execute_query(
+                    """SELECT frl.*,
+                              i.CODE AS ITEM_CODE, i.NAME_RU AS ITEM_NAME_RU,
+                              v.CODE AS VARIETY_CODE, v.NAME_RU AS VARIETY_NAME_RU
+                       FROM AGRO_FIELD_REQUEST_LINES frl
+                       JOIN AGRO_ITEMS i ON i.ID = frl.ITEM_ID
+                       LEFT JOIN AGRO_ITEM_VARIETIES v ON v.ID = frl.VARIETY_ID
+                       WHERE frl.REQUEST_ID = :id
+                       ORDER BY frl.ID""",
+                    {"id": request_id},
+                )
+                lines = _norm_rows(rl)
+                return {
+                    "success": True,
+                    "data": {"header": headers[0], "lines": lines},
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_field_request(data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r_seq = db.execute_query(
+                    "SELECT AGRO_FIELD_REQUESTS_SEQ.NEXTVAL AS SEQ_VAL FROM DUAL", None
+                )
+                req_id = int(_norm_rows(r_seq)[0]["seq_val"])
+                today_str = datetime.now().strftime("%Y%m%d")
+                req_number = data.get("request_number") or f"REQ-{today_str}-{req_id:04d}"
+                req_date = data.get("request_date") or datetime.now().strftime("%Y-%m-%d")
+
+                db.execute_query(
+                    """INSERT INTO AGRO_FIELD_REQUESTS
+                              (ID, REQUEST_NUMBER, REQUEST_DATE, EXPECTED_DATE,
+                               SUPPLIER_ID, WAREHOUSE_ID, PROFILE_ID,
+                               STATUS, NOTES, CREATED_BY)
+                       VALUES (:id, :request_number, TO_DATE(:request_date, 'YYYY-MM-DD'),
+                               TO_DATE(:expected_date, 'YYYY-MM-DD'),
+                               :supplier_id, :warehouse_id, :profile_id,
+                               :status, :notes, :created_by)""",
+                    {
+                        "id": req_id,
+                        "request_number": req_number,
+                        "request_date": req_date,
+                        "expected_date": data.get("expected_date"),
+                        "supplier_id": data.get("supplier_id"),
+                        "warehouse_id": data.get("warehouse_id"),
+                        "profile_id": data.get("profile_id"),
+                        "status": data.get("status", "draft"),
+                        "notes": data.get("notes"),
+                        "created_by": data.get("created_by"),
+                    },
+                )
+                for ln in data.get("lines", []):
+                    db.execute_query(
+                        """INSERT INTO AGRO_FIELD_REQUEST_LINES
+                                  (ID, REQUEST_ID, ITEM_ID, VARIETY_ID,
+                                   EXPECTED_QTY_KG, PRICE_LIMIT_PER_KG, NOTES)
+                           VALUES (AGRO_FIELD_REQUEST_LINES_SEQ.NEXTVAL, :request_id,
+                                   :item_id, :variety_id,
+                                   :expected_qty_kg, :price_limit_per_kg, :notes)""",
+                        {
+                            "request_id": req_id,
+                            "item_id": ln.get("item_id"),
+                            "variety_id": ln.get("variety_id"),
+                            "expected_qty_kg": ln.get("expected_qty_kg"),
+                            "price_limit_per_kg": ln.get("price_limit_per_kg"),
+                            "notes": ln.get("notes"),
+                        },
+                    )
+                db.connection.commit()
+                return {"success": True, "data": {"request_id": req_id, "request_number": req_number}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_field_request(data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                req_id = data["id"]
+                db.execute_query(
+                    """UPDATE AGRO_FIELD_REQUESTS
+                          SET REQUEST_DATE = TO_DATE(:request_date, 'YYYY-MM-DD'),
+                              EXPECTED_DATE = TO_DATE(:expected_date, 'YYYY-MM-DD'),
+                              SUPPLIER_ID = :supplier_id, WAREHOUSE_ID = :warehouse_id,
+                              PROFILE_ID = :profile_id, NOTES = :notes
+                        WHERE ID = :id AND STATUS = 'draft'""",
+                    {
+                        "id": req_id,
+                        "request_date": data.get("request_date"),
+                        "expected_date": data.get("expected_date"),
+                        "supplier_id": data.get("supplier_id"),
+                        "warehouse_id": data.get("warehouse_id"),
+                        "profile_id": data.get("profile_id"),
+                        "notes": data.get("notes"),
+                    },
+                )
+                db.execute_query(
+                    "DELETE FROM AGRO_FIELD_REQUEST_LINES WHERE REQUEST_ID = :id",
+                    {"id": req_id},
+                )
+                for ln in data.get("lines", []):
+                    db.execute_query(
+                        """INSERT INTO AGRO_FIELD_REQUEST_LINES
+                                  (ID, REQUEST_ID, ITEM_ID, VARIETY_ID,
+                                   EXPECTED_QTY_KG, PRICE_LIMIT_PER_KG, NOTES)
+                           VALUES (AGRO_FIELD_REQUEST_LINES_SEQ.NEXTVAL, :request_id,
+                                   :item_id, :variety_id,
+                                   :expected_qty_kg, :price_limit_per_kg, :notes)""",
+                        {
+                            "request_id": req_id,
+                            "item_id": ln.get("item_id"),
+                            "variety_id": ln.get("variety_id"),
+                            "expected_qty_kg": ln.get("expected_qty_kg"),
+                            "price_limit_per_kg": ln.get("price_limit_per_kg"),
+                            "notes": ln.get("notes"),
+                        },
+                    )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def approve_field_request(request_id: int, approved_by: Optional[str] = None) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """UPDATE AGRO_FIELD_REQUESTS
+                          SET STATUS = 'approved', APPROVED_BY = :approved_by,
+                              APPROVED_AT = SYSTIMESTAMP
+                        WHERE ID = :id AND STATUS = 'draft'""",
+                    {"id": request_id, "approved_by": approved_by},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def cancel_field_request(request_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """UPDATE AGRO_FIELD_REQUESTS
+                          SET STATUS = 'cancelled'
+                        WHERE ID = :id AND STATUS IN ('draft', 'approved')""",
+                    {"id": request_id},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ==================================================================
+    # 15. AGRO_BATCH_INSPECTIONS — acceptance scoring engine
+    # ==================================================================
+
+    # Scoring weights per procurement standards
+    _SCORING_WEIGHTS = {
+        "CLASS_OK": 10, "CALIBRE_OK": 8, "BELOW_MIN_OK": 5,
+        "MINOR_OK": 8, "SERIOUS_OK": 15, "MIXED_OK": 4,
+        "BRIX_OK": 5, "TEMP_OK": 10, "LAB_OK": 8,
+        "PHYTO_OK": 4, "TRACE_OK": 6, "PACK_OK": 3,
+        "LABEL_OK": 2, "ACTIVES_OK": 2, "SINGLE_RESIDUE_OK": 2,
+        "TOTAL_RESIDUE_OK": 2, "GLYPHOSATE_OK": 1,
+    }
+    _CRITICAL_CHECKS = {"CLASS_OK", "SERIOUS_OK", "TEMP_OK", "LAB_OK", "PHYTO_OK", "TRACE_OK"}
+
+    @staticmethod
+    def _class_to_num(cls_str: str) -> int:
+        return {"Extra": 3, "I": 2, "II": 1}.get(cls_str, 0)
+
+    @staticmethod
+    def perform_batch_inspection(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Run acceptance inspection with weighted scoring engine."""
+        try:
+            with DatabaseModel() as db:
+                batch_id = data["batch_id"]
+                profile_id = data["profile_id"]
+                m = data.get("measurements", {})
+                freshness = float(data.get("freshness_score", 0))
+
+                # Load profile thresholds
+                rp = db.execute_query(
+                    "SELECT * FROM AGRO_ACCEPTANCE_PROFILES WHERE ID = :id",
+                    {"id": profile_id},
+                )
+                prows = _norm_rows(rp)
+                if not prows:
+                    return {"success": False, "error": "Profile not found"}
+                prof = prows[0]
+
+                # Build checks list: (code, label, measured, threshold, is_pass, is_critical, weight)
+                checks: List[Dict[str, Any]] = []
+
+                def _add_check(code: str, label: str, measured, threshold, is_pass: bool):
+                    is_crit = code in AgroStore._CRITICAL_CHECKS
+                    weight = AgroStore._SCORING_WEIGHTS.get(code, 0)
+                    checks.append({
+                        "code": code, "label": label,
+                        "measured": str(measured) if measured is not None else "",
+                        "threshold": str(threshold) if threshold is not None else "",
+                        "is_pass": is_pass, "is_critical": is_crit, "weight": weight,
+                    })
+
+                # 1. Class
+                declared = m.get("quality_class", "I")
+                req = prof.get("required_class", "I")
+                _add_check("CLASS_OK", "Товарный класс", declared, f">= {req}",
+                           AgroStore._class_to_num(declared) >= AgroStore._class_to_num(req))
+
+                # 2. Calibre
+                cal = m.get("calibre_avg_mm")
+                min_cal = prof.get("min_calibre_mm")
+                _add_check("CALIBRE_OK", "Калибр средний", cal, f">= {min_cal}",
+                           float(cal or 0) >= float(min_cal or 0) if cal is not None and min_cal else True)
+
+                # 3. Below minimum %
+                bm = m.get("below_min_pct")
+                max_bm = prof.get("max_below_min_pct")
+                _add_check("BELOW_MIN_OK", "Ниже мин. калибра %", bm, f"<= {max_bm}",
+                           float(bm or 0) <= float(max_bm or 100) if bm is not None else True)
+
+                # 4. Minor defects
+                minor = m.get("minor_defects_pct")
+                max_minor = prof.get("max_minor_defects_pct")
+                _add_check("MINOR_OK", "Мелкие дефекты %", minor, f"<= {max_minor}",
+                           float(minor or 0) <= float(max_minor or 100) if minor is not None else True)
+
+                # 5. Serious defects
+                serious = m.get("serious_defects_pct")
+                max_ser = prof.get("max_serious_defects_pct")
+                _add_check("SERIOUS_OK", "Серьёзные дефекты %", serious, f"<= {max_ser}",
+                           float(serious or 0) <= float(max_ser or 100) if serious is not None else True)
+
+                # 6. Mixed size
+                mixed = m.get("mixed_size_pct")
+                max_mix = prof.get("max_mixed_size_pct")
+                _add_check("MIXED_OK", "Разнородность размера %", mixed, f"<= {max_mix}",
+                           float(mixed or 0) <= float(max_mix or 100) if mixed is not None else True)
+
+                # 7. Brix
+                brix = m.get("brix")
+                min_brix = prof.get("min_brix")
+                _add_check("BRIX_OK", "Brix (сахаристость)", brix, f">= {min_brix}",
+                           float(brix or 0) >= float(min_brix or 0) if brix is not None and min_brix else True)
+
+                # 8. Temperature
+                temp = m.get("temp_c")
+                t_min = prof.get("temp_min_c")
+                t_max = prof.get("temp_max_c")
+                temp_pass = True
+                if temp is not None and t_min is not None and t_max is not None:
+                    temp_pass = float(t_min) <= float(temp) <= float(t_max)
+                _add_check("TEMP_OK", "Температура C", temp, f"{t_min}-{t_max}°C", temp_pass)
+
+                # 9-13. Document checks
+                for code, label, field, req_field in [
+                    ("LAB_OK", "Лабораторный отчёт", "has_lab", "lab_req"),
+                    ("PHYTO_OK", "Фитосанитарный", "has_phyto", "phyto_req"),
+                    ("TRACE_OK", "Прослеживаемость", "has_trace", "trace_req"),
+                    ("PACK_OK", "Упаковка", "has_pack", "pack_req"),
+                    ("LABEL_OK", "Маркировка", "has_label", "label_req"),
+                ]:
+                    has_doc = m.get(field, False)
+                    required = prof.get(req_field, "N") == "Y"
+                    _add_check(code, label, "Да" if has_doc else "Нет",
+                               "Требуется" if required else "Не требуется",
+                               has_doc or not required)
+
+                # 14-17. Pesticide checks
+                actives = m.get("actives_count")
+                max_act = prof.get("max_actives")
+                _add_check("ACTIVES_OK", "Акт. вещества (кол-во)", actives, f"<= {max_act}",
+                           int(actives or 0) <= int(max_act or 999) if actives is not None and max_act else True)
+
+                sr = m.get("single_residue_pct_mrl")
+                max_sr = prof.get("max_single_residue_pct_mrl")
+                _add_check("SINGLE_RESIDUE_OK", "Макс. остаток % MRL", sr, f"<= {max_sr}",
+                           float(sr or 0) <= float(max_sr or 100) if sr is not None and max_sr else True)
+
+                tr = m.get("total_residue_pct")
+                max_tr = prof.get("max_total_residue_pct")
+                _add_check("TOTAL_RESIDUE_OK", "Общий индекс остатков %", tr, f"<= {max_tr}",
+                           float(tr or 0) <= float(max_tr or 100) if tr is not None and max_tr else True)
+
+                gly = m.get("glyphosate_pct_mrl")
+                max_gly = prof.get("max_glyphosate_pct_mrl")
+                _add_check("GLYPHOSATE_OK", "Глифосат % MRL", gly, f"<= {max_gly}",
+                           float(gly or 0) <= float(max_gly or 100) if gly is not None and max_gly else True)
+
+                # Calculate score
+                total_score = freshness  # Freshness contributes 0-5 directly
+                critical_fails = 0
+                all_pass = True
+                for chk in checks:
+                    if chk["is_pass"]:
+                        chk["score_contribution"] = chk["weight"]
+                    else:
+                        chk["score_contribution"] = 0
+                        all_pass = False
+                        if chk["is_critical"]:
+                            critical_fails += 1
+                    total_score += chk["score_contribution"]
+
+                # Decision
+                accept_min = float(prof.get("accept_min_score", 85))
+                if critical_fails > 0:
+                    decision = "REJECT"
+                elif all_pass:
+                    decision = "ACCEPT"
+                elif total_score >= accept_min:
+                    decision = "ACCEPT_WITH_SORTING"
+                else:
+                    decision = "REJECT"
+
+                # Insert inspection header
+                r_seq = db.execute_query(
+                    "SELECT AGRO_BATCH_INSPECTIONS_SEQ.NEXTVAL AS SEQ_VAL FROM DUAL", None
+                )
+                insp_id = int(_norm_rows(r_seq)[0]["seq_val"])
+
+                db.execute_query(
+                    """INSERT INTO AGRO_BATCH_INSPECTIONS
+                              (ID, BATCH_ID, PROFILE_ID, VARIETY_ID, INSPECTION_DATE,
+                               INSPECTOR, TOTAL_SCORE, CRITICAL_FAILS, DECISION,
+                               FRESHNESS_SCORE, NOTES)
+                       VALUES (:id, :batch_id, :profile_id, :variety_id,
+                               TRUNC(SYSDATE), :inspector,
+                               :total_score, :critical_fails, :decision,
+                               :freshness_score, :notes)""",
+                    {
+                        "id": insp_id,
+                        "batch_id": batch_id,
+                        "profile_id": profile_id,
+                        "variety_id": data.get("variety_id"),
+                        "inspector": data.get("inspector"),
+                        "total_score": round(total_score, 2),
+                        "critical_fails": critical_fails,
+                        "decision": decision,
+                        "freshness_score": freshness,
+                        "notes": data.get("notes"),
+                    },
+                )
+
+                # Insert check values
+                for chk in checks:
+                    db.execute_query(
+                        """INSERT INTO AGRO_BATCH_INSPECTION_VALUES
+                                  (ID, INSPECTION_ID, PARAM_CODE, PARAM_LABEL,
+                                   MEASURED_VALUE, THRESHOLD_VALUE,
+                                   IS_PASS, IS_CRITICAL, WEIGHT, SCORE_CONTRIBUTION)
+                           VALUES (AGRO_BATCH_INSPECTION_VALUES_SEQ.NEXTVAL,
+                                   :inspection_id, :param_code, :param_label,
+                                   :measured_value, :threshold_value,
+                                   :is_pass, :is_critical, :weight, :score_contribution)""",
+                        {
+                            "inspection_id": insp_id,
+                            "param_code": chk["code"],
+                            "param_label": chk["label"],
+                            "measured_value": chk["measured"],
+                            "threshold_value": chk["threshold"],
+                            "is_pass": "Y" if chk["is_pass"] else "N",
+                            "is_critical": "Y" if chk["is_critical"] else "N",
+                            "weight": chk["weight"],
+                            "score_contribution": chk["score_contribution"],
+                        },
+                    )
+
+                # If REJECT, block the batch
+                if decision == "REJECT":
+                    db.execute_query(
+                        """INSERT INTO AGRO_BATCH_BLOCKS
+                                  (ID, BATCH_ID, BLOCK_REASON, BLOCKED_BY)
+                           VALUES (AGRO_BATCH_BLOCKS_SEQ.NEXTVAL,
+                                   :batch_id, :reason, :blocked_by)""",
+                        {
+                            "batch_id": batch_id,
+                            "reason": f"Inspection #{insp_id}: REJECT (score={round(total_score, 2)}, critical_fails={critical_fails})",
+                            "blocked_by": data.get("inspector"),
+                        },
+                    )
+                    db.execute_query(
+                        "UPDATE AGRO_BATCHES SET STATUS = 'blocked' WHERE ID = :id",
+                        {"id": batch_id},
+                    )
+
+                db.connection.commit()
+                return {
+                    "success": True,
+                    "data": {
+                        "inspection_id": insp_id,
+                        "total_score": round(total_score, 2),
+                        "critical_fails": critical_fails,
+                        "decision": decision,
+                        "checks": checks,
+                    },
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_batch_inspections(batch_id: Optional[int] = None) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                sql = """SELECT bi.*, b.BATCH_NUMBER, i.NAME_RU AS ITEM_NAME,
+                                ap.NAME_RU AS PROFILE_NAME
+                         FROM AGRO_BATCH_INSPECTIONS bi
+                         JOIN AGRO_BATCHES b ON b.ID = bi.BATCH_ID
+                         JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
+                         JOIN AGRO_ACCEPTANCE_PROFILES ap ON ap.ID = bi.PROFILE_ID"""
+                params: Dict[str, Any] = {}
+                if batch_id:
+                    sql += " WHERE bi.BATCH_ID = :batch_id"
+                    params["batch_id"] = batch_id
+                sql += " ORDER BY bi.INSPECTION_DATE DESC, bi.ID DESC"
+                r = db.execute_query(sql, params or None)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_batch_inspection_detail(inspection_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                rh = db.execute_query(
+                    """SELECT bi.*, b.BATCH_NUMBER, i.NAME_RU AS ITEM_NAME,
+                              ap.NAME_RU AS PROFILE_NAME,
+                              v.NAME_RU AS VARIETY_NAME
+                       FROM AGRO_BATCH_INSPECTIONS bi
+                       JOIN AGRO_BATCHES b ON b.ID = bi.BATCH_ID
+                       JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
+                       JOIN AGRO_ACCEPTANCE_PROFILES ap ON ap.ID = bi.PROFILE_ID
+                       LEFT JOIN AGRO_ITEM_VARIETIES v ON v.ID = bi.VARIETY_ID
+                       WHERE bi.ID = :id""",
+                    {"id": inspection_id},
+                )
+                headers = _norm_rows(rh)
+                if not headers:
+                    return {"success": False, "error": "Inspection not found"}
+                rv = db.execute_query(
+                    """SELECT * FROM AGRO_BATCH_INSPECTION_VALUES
+                       WHERE INSPECTION_ID = :id ORDER BY ID""",
+                    {"id": inspection_id},
+                )
+                values = _norm_rows(rv)
+                return {
+                    "success": True,
+                    "data": {"header": headers[0], "values": values},
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def generate_barcodes(
