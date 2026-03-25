@@ -3074,6 +3074,14 @@ function showProductPassport(productKey) {
         return v.item_code === productKey;
     });
 
+    // Show/hide color field based on product type
+    var colorRow = document.getElementById('ppColorRow');
+    var hasColor = (productKey === 'APPLE' || productKey === 'PEACH' || productKey === 'CHERRY');
+    colorRow.style.display = hasColor ? 'flex' : 'none';
+
+    // Reset passport fields FIRST, then select variety fills them
+    resetPassportFields();
+
     // Build variety buttons
     var vGrid = document.getElementById('passportVarietyGrid');
     selectedVariety = null;
@@ -3088,17 +3096,9 @@ function showProductPassport(productKey) {
             btn.onclick = function() { selectVariety(v, productKey); };
             vGrid.appendChild(btn);
         });
-        // Auto-select first variety
+        // Auto-select first variety (this fills values from passport)
         selectVariety(productVarieties[0], productKey);
     }
-
-    // Show/hide color field based on product type
-    var colorRow = document.getElementById('ppColorRow');
-    var hasColor = (productKey === 'APPLE' || productKey === 'PEACH' || productKey === 'CHERRY');
-    colorRow.style.display = hasColor ? 'flex' : 'none';
-
-    // Reset passport data
-    resetPassportFields();
 }
 
 function selectVariety(v, productKey) {
