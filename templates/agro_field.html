@@ -1862,9 +1862,11 @@ function renderPurchasesList() {
             '</tr>';
     }).join('');
 
-    // Auto-select first row if nothing selected
+    // Auto-select first row if nothing selected, or reload detail for current selection
     if (!selectedPurchaseId && filtered.length > 0) {
         selectPurchaseRow(filtered[0].id);
+    } else if (selectedPurchaseId) {
+        selectPurchaseRow(selectedPurchaseId);
     }
 }
 
