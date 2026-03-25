@@ -418,6 +418,12 @@ tr.clickable { cursor: pointer; }
 .detail-props .prop { color: var(--text-muted); }
 .detail-props .prop b { color: var(--text); font-weight: 600; }
 .passport-sub-row td { padding: 2px 8px 8px !important; border-top: none !important; }
+.pp-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px 10px;
+}
+.pp-cell { display: flex; flex-direction: column; }
+.pp-lbl { font-size: 10px; color: #6c6c8a; line-height: 1.2; }
+.pp-val { font-size: 13px; color: #8ecae6; font-weight: 600; }
 .pp-badge {
     display: inline-block; padding: 2px 8px; margin: 2px 3px;
     background: #1a2744; border: 1px solid #2a3a5c; border-radius: 6px;
