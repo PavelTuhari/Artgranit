@@ -1994,6 +1994,24 @@ window.openPurchaseForEdit = function(id) {
             lastLine.querySelector('.line-tare').value = l.tare_weight_kg || 0;
             lastLine.querySelector('.line-price').value = l.price_per_kg || 0;
             lastLine.querySelector('.line-net-display').textContent = (parseFloat(l.net_weight_kg) || 0).toFixed(2);
+            /* Restore passport data from DB fields */
+            var pp = {};
+            if (l.variety_id) pp.variety_id = l.variety_id;
+            if (l.variety_code) pp.variety_code = l.variety_code;
+            if (l.calibre_mm) pp.calibre_mm = l.calibre_mm;
+            if (l.brix) pp.brix = l.brix;
+            if (l.color_coverage_pct) pp.color_coverage_pct = l.color_coverage_pct;
+            if (l.freshness_score) pp.freshness_score = l.freshness_score;
+            if (l.temp_c != null && l.temp_c !== '') pp.temp_c = l.temp_c;
+            if (l.packaging) pp.packaging = l.packaging;
+            if (l.labeling) pp.labeling = l.labeling;
+            if (l.defects) pp.defects = l.defects;
+            if (l.defect_pct) pp.defect_pct = l.defect_pct;
+            if (l.passport_notes) pp.notes = l.passport_notes;
+            if (Object.keys(pp).length > 0) {
+                lastLine.setAttribute('data-passport', JSON.stringify(pp));
+                renderPassportBadges(lastLine);
+            }
         });
         recalcPurchaseTotal();
     }).catch(function(err) {
