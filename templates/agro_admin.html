@@ -2324,6 +2324,14 @@ openModal = function(entity, id) {
         if (entity === 'cell') { setVal('cell', 'cell_type', 'chamber'); populateCellWarehouseSelects(); }
         if (entity === 'item') { setVal('item', 'item_group', 'fruit'); setVal('item', 'unit', 'kg'); }
         if (entity === 'vehicle') setVal('vehicle', 'vehicle_type', 'truck');
+        if (entity === 'variety') { setVal('variety', 'active', 'Y'); populateVarietyItemSelects(); }
+        if (entity === 'profile') {
+            setVal('profile', 'active', 'Y');
+            setVal('profile', 'required_class', 'I');
+            setVal('profile', 'allow_class_ii', 'N');
+            setVal('profile', 'accept_min_score', '85');
+            ['lab_req','phyto_req','trace_req','pack_req','label_req'].forEach(f => setVal('profile', f, 'Y'));
+        }
         const titleEl = document.getElementById('modal-' + entity + '-title');
         if (titleEl && defaultTitles[entity]) titleEl.textContent = defaultTitles[entity];
     }
