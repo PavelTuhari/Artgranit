@@ -2963,7 +2963,8 @@ function showProductPassport(productKey) {
     document.getElementById('passportProductName').textContent = productNamesRu[productKey] || productKey;
 
     // Find varieties for this product code
-    var allVarieties = (typeof refs !== 'undefined' && refs.varieties) ? refs.varieties : [];
+    var agroRefs = window._agroRefs || {};
+    var allVarieties = agroRefs.varieties || [];
     var productVarieties = allVarieties.filter(function(v) {
         return v.item_code === productKey;
     });
