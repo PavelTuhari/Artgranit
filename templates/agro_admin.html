@@ -499,6 +499,67 @@ td.actions { white-space: nowrap; }
     </div>
 </div>
 
+<!-- ==================== 5a. ITEM VARIETIES ==================== -->
+<div id="page-varieties" class="page">
+    <div class="page-header">
+        <div><h1>Сорта продукции</h1><div class="subtitle">Soiuri de produse</div></div>
+        <button class="btn btn-primary" onclick="openModal('variety')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+            <label>Фильтр по продукту:</label>
+            <select id="varietyFilterItem" onchange="loadVarieties()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+                <option value="">Все</option>
+            </select>
+            <span class="count-label" id="varietiesCount"></span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Продукт</th>
+                    <th>Код</th>
+                    <th>Название (RU)</th>
+                    <th>Название (RO)</th>
+                    <th>Калибр мин</th>
+                    <th>Brix мин</th>
+                    <th>Окраска %</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="varietiesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 5b. ACCEPTANCE PROFILES ==================== -->
+<div id="page-profiles" class="page">
+    <div class="page-header">
+        <div><h1>Профили приёмки</h1><div class="subtitle">Profile de receptie</div></div>
+        <button class="btn btn-primary" onclick="openModal('profile')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="profilesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Код</th>
+                    <th>Название</th>
+                    <th>Класс</th>
+                    <th>Калибр мин</th>
+                    <th>Дефекты серьёз. %</th>
+                    <th>Brix мин</th>
+                    <th>t мин-макс</th>
+                    <th>Мин. балл</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="profilesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- ==================== 6. PACKAGING TYPES ==================== -->
 <div id="page-packaging" class="page">
     <div class="page-header">
