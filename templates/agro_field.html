@@ -2382,121 +2382,103 @@ function loadScaleConfig() {
                             <!-- Variety buttons filled dynamically -->
                         </div>
                     </div>
-                    <!-- Characteristics pages with swipe/scroll -->
-                    <div class="sk-passport-tabs" id="passportTabs">
-                        <button class="sk-passport-tab active" data-tab="quality" onclick="showPassportTab('quality')">Качество</button>
-                        <button class="sk-passport-tab" data-tab="storage" onclick="showPassportTab('storage')">Хранение</button>
-                        <button class="sk-passport-tab" data-tab="visual" onclick="showPassportTab('visual')">Осмотр</button>
-                    </div>
-                    <div class="sk-passport-pages">
-                        <!-- Tab: Quality -->
-                        <div class="sk-passport-page active" id="passportPage-quality">
-                            <div class="sk-field-row">
-                                <div class="sk-field">
-                                    <label>Калибр, мм / Calibru</label>
-                                    <div class="sk-stepper">
-                                        <button class="sk-step-btn" onclick="stepField('ppCalibr',-1)">−</button>
-                                        <input type="number" id="ppCalibr" class="sk-step-input" placeholder="—" step="1" min="0">
-                                        <button class="sk-step-btn" onclick="stepField('ppCalibr',1)">+</button>
-                                    </div>
-                                    <div class="sk-field-ref" id="ppCalibrRef"></div>
+                    <!-- All characteristics in one scrollable view -->
+                    <div class="sk-passport-all">
+                        <div class="sk-field-row">
+                            <div class="sk-field">
+                                <label>Калибр, мм / Calibru</label>
+                                <div class="sk-stepper">
+                                    <button class="sk-step-btn" onclick="stepField('ppCalibr',-1)">−</button>
+                                    <input type="number" id="ppCalibr" class="sk-step-input" placeholder="—" step="1" min="0">
+                                    <button class="sk-step-btn" onclick="stepField('ppCalibr',1)">+</button>
                                 </div>
-                                <div class="sk-field">
-                                    <label>Brix, °</label>
-                                    <div class="sk-stepper">
-                                        <button class="sk-step-btn" onclick="stepField('ppBrix',-0.5)">−</button>
-                                        <input type="number" id="ppBrix" class="sk-step-input" placeholder="—" step="0.5" min="0">
-                                        <button class="sk-step-btn" onclick="stepField('ppBrix',0.5)">+</button>
-                                    </div>
-                                    <div class="sk-field-ref" id="ppBrixRef"></div>
-                                </div>
+                                <div class="sk-field-ref" id="ppCalibrRef"></div>
                             </div>
-                            <div class="sk-field-row" id="ppColorRow">
-                                <div class="sk-field" style="flex:1;">
-                                    <label>Окраска, % / Colorare</label>
-                                    <input type="range" id="ppColorSlider" min="0" max="100" value="50" class="sk-slider" oninput="document.getElementById('ppColorVal').textContent=this.value+'%'">
-                                    <div style="display:flex;justify-content:space-between;font-size:11px;color:#6c6c8a;"><span>0%</span><span id="ppColorVal" style="color:#53d769;font-weight:700;">50%</span><span>100%</span></div>
-                                    <div class="sk-field-ref" id="ppColorRef"></div>
+                            <div class="sk-field">
+                                <label>Brix, °</label>
+                                <div class="sk-stepper">
+                                    <button class="sk-step-btn" onclick="stepField('ppBrix',-0.5)">−</button>
+                                    <input type="number" id="ppBrix" class="sk-step-input" placeholder="—" step="0.5" min="0">
+                                    <button class="sk-step-btn" onclick="stepField('ppBrix',0.5)">+</button>
                                 </div>
+                                <div class="sk-field-ref" id="ppBrixRef"></div>
                             </div>
-                            <div class="sk-field-row">
-                                <div class="sk-field">
-                                    <label>Свежесть / Prospetime</label>
-                                    <div class="sk-rating" id="ppFreshness">
-                                        <button class="sk-rate-btn" onclick="setRating('ppFreshness',1)">1</button>
-                                        <button class="sk-rate-btn" onclick="setRating('ppFreshness',2)">2</button>
-                                        <button class="sk-rate-btn" onclick="setRating('ppFreshness',3)">3</button>
-                                        <button class="sk-rate-btn active" onclick="setRating('ppFreshness',4)">4</button>
-                                        <button class="sk-rate-btn" onclick="setRating('ppFreshness',5)">5</button>
-                                    </div>
+                        </div>
+                        <div class="sk-field-row" id="ppColorRow">
+                            <div class="sk-field" style="flex:1;">
+                                <label>Окраска, % / Colorare</label>
+                                <input type="range" id="ppColorSlider" min="0" max="100" value="50" class="sk-slider" oninput="document.getElementById('ppColorVal').textContent=this.value+'%'">
+                                <div style="display:flex;justify-content:space-between;font-size:11px;color:#6c6c8a;"><span>0%</span><span id="ppColorVal" style="color:#53d769;font-weight:700;">50%</span><span>100%</span></div>
+                                <div class="sk-field-ref" id="ppColorRef"></div>
+                            </div>
+                        </div>
+                        <div class="sk-field-row">
+                            <div class="sk-field">
+                                <label>t °C / Temperatura</label>
+                                <div class="sk-stepper">
+                                    <button class="sk-step-btn" onclick="stepField('ppTemp',-0.5)">−</button>
+                                    <input type="number" id="ppTemp" class="sk-step-input" placeholder="—" step="0.5">
+                                    <button class="sk-step-btn" onclick="stepField('ppTemp',0.5)">+</button>
+                                </div>
+                                <div class="sk-field-ref" id="ppTempRef"></div>
+                            </div>
+                            <div class="sk-field">
+                                <label>Свежесть / Prospetime</label>
+                                <div class="sk-rating" id="ppFreshness">
+                                    <button class="sk-rate-btn" onclick="setRating('ppFreshness',1)">1</button>
+                                    <button class="sk-rate-btn" onclick="setRating('ppFreshness',2)">2</button>
+                                    <button class="sk-rate-btn" onclick="setRating('ppFreshness',3)">3</button>
+                                    <button class="sk-rate-btn active" onclick="setRating('ppFreshness',4)">4</button>
+                                    <button class="sk-rate-btn" onclick="setRating('ppFreshness',5)">5</button>
                                 </div>
                             </div>
                         </div>
-                        <!-- Tab: Storage -->
-                        <div class="sk-passport-page" id="passportPage-storage">
-                            <div class="sk-field-row">
-                                <div class="sk-field">
-                                    <label>t при приёмке, °C / Temperatura</label>
-                                    <div class="sk-stepper">
-                                        <button class="sk-step-btn" onclick="stepField('ppTemp',-0.5)">−</button>
-                                        <input type="number" id="ppTemp" class="sk-step-input" placeholder="—" step="0.5">
-                                        <button class="sk-step-btn" onclick="stepField('ppTemp',0.5)">+</button>
-                                    </div>
-                                    <div class="sk-field-ref" id="ppTempRef"></div>
-                                </div>
-                                <div class="sk-field">
-                                    <label>Срок хранения, дн. / Termen</label>
-                                    <div class="sk-step-input-ro" id="ppShelfLife">—</div>
-                                </div>
+                        <div class="sk-field-row">
+                            <div class="sk-field">
+                                <label>Срок хран. / Termen</label>
+                                <div class="sk-step-input-ro" id="ppShelfLife">—</div>
                             </div>
-                            <div class="sk-field-row">
-                                <div class="sk-field" style="flex:1;">
-                                    <label>Упаковка / Ambalaj</label>
-                                    <div class="sk-btn-group" id="ppPackaging">
-                                        <button class="sk-opt-btn active" onclick="selectOpt('ppPackaging',this,'ok')">✓ OK</button>
-                                        <button class="sk-opt-btn" onclick="selectOpt('ppPackaging',this,'damaged')">Повреждена</button>
-                                        <button class="sk-opt-btn" onclick="selectOpt('ppPackaging',this,'missing')">Нет</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="sk-field-row">
-                                <div class="sk-field" style="flex:1;">
-                                    <label>Маркировка / Etichetare</label>
-                                    <div class="sk-btn-group" id="ppLabel">
-                                        <button class="sk-opt-btn active" onclick="selectOpt('ppLabel',this,'ok')">✓ OK</button>
-                                        <button class="sk-opt-btn" onclick="selectOpt('ppLabel',this,'partial')">Частичная</button>
-                                        <button class="sk-opt-btn" onclick="selectOpt('ppLabel',this,'missing')">Нет</button>
-                                    </div>
+                            <div class="sk-field">
+                                <label>Дефекты / Defecte</label>
+                                <div class="sk-btn-group" id="ppDefects">
+                                    <button class="sk-opt-btn active" onclick="selectOpt('ppDefects',this,'none')">Нет</button>
+                                    <button class="sk-opt-btn" onclick="selectOpt('ppDefects',this,'minor')">Мин.</button>
+                                    <button class="sk-opt-btn" onclick="selectOpt('ppDefects',this,'serious')">Серьёз.</button>
                                 </div>
                             </div>
                         </div>
-                        <!-- Tab: Visual -->
-                        <div class="sk-passport-page" id="passportPage-visual">
-                            <div class="sk-field-row">
-                                <div class="sk-field" style="flex:1;">
-                                    <label>Дефекты / Defecte</label>
-                                    <div class="sk-btn-group" id="ppDefects">
-                                        <button class="sk-opt-btn active" onclick="selectOpt('ppDefects',this,'none')">Нет</button>
-                                        <button class="sk-opt-btn" onclick="selectOpt('ppDefects',this,'minor')">Незначит.</button>
-                                        <button class="sk-opt-btn" onclick="selectOpt('ppDefects',this,'serious')">Серьёзные</button>
-                                    </div>
+                        <div class="sk-field-row" id="ppDefectPctRow" style="display:none;">
+                            <div class="sk-field" style="flex:1;">
+                                <label>% дефектных / % defecte</label>
+                                <div class="sk-stepper">
+                                    <button class="sk-step-btn" onclick="stepField('ppDefectPct',-1)">−</button>
+                                    <input type="number" id="ppDefectPct" class="sk-step-input" value="0" step="1" min="0" max="100">
+                                    <button class="sk-step-btn" onclick="stepField('ppDefectPct',1)">+</button>
                                 </div>
                             </div>
-                            <div class="sk-field-row" id="ppDefectPctRow" style="display:none;">
-                                <div class="sk-field" style="flex:1;">
-                                    <label>% дефектных / % defecte</label>
-                                    <div class="sk-stepper">
-                                        <button class="sk-step-btn" onclick="stepField('ppDefectPct',-1)">−</button>
-                                        <input type="number" id="ppDefectPct" class="sk-step-input" value="0" step="1" min="0" max="100">
-                                        <button class="sk-step-btn" onclick="stepField('ppDefectPct',1)">+</button>
-                                    </div>
+                        </div>
+                        <div class="sk-field-row">
+                            <div class="sk-field">
+                                <label>Упаковка / Ambalaj</label>
+                                <div class="sk-btn-group" id="ppPackaging">
+                                    <button class="sk-opt-btn active" onclick="selectOpt('ppPackaging',this,'ok')">✓ OK</button>
+                                    <button class="sk-opt-btn" onclick="selectOpt('ppPackaging',this,'damaged')">Поврежд.</button>
+                                    <button class="sk-opt-btn" onclick="selectOpt('ppPackaging',this,'missing')">Нет</button>
                                 </div>
                             </div>
-                            <div class="sk-field-row">
-                                <div class="sk-field" style="flex:1;">
-                                    <label>Заметки / Note</label>
-                                    <textarea id="ppNotes" rows="2" class="sk-textarea" placeholder="Комментарий..."></textarea>
+                            <div class="sk-field">
+                                <label>Маркировка / Etichetare</label>
+                                <div class="sk-btn-group" id="ppLabel">
+                                    <button class="sk-opt-btn active" onclick="selectOpt('ppLabel',this,'ok')">✓ OK</button>
+                                    <button class="sk-opt-btn" onclick="selectOpt('ppLabel',this,'partial')">Частичн.</button>
+                                    <button class="sk-opt-btn" onclick="selectOpt('ppLabel',this,'missing')">Нет</button>
                                 </div>
+                            </div>
+                        </div>
+                        <div class="sk-field-row">
+                            <div class="sk-field" style="flex:1;">
+                                <label>Заметки / Note</label>
+                                <textarea id="ppNotes" rows="2" class="sk-textarea" placeholder="Комментарий..."></textarea>
                             </div>
                         </div>
                     </div>
