@@ -278,3 +278,20 @@ BEGIN
   log_change('STATUS', :OLD.STATUS, :NEW.STATUS);
 END;
 /
+
+-- ============================================================
+-- 6. ALTER TABLE — passport/quality fields on purchase lines
+-- ============================================================
+
+ALTER TABLE AGRO_PURCHASE_LINES ADD (
+  CALIBRE_MM          NUMBER(6,1),
+  BRIX                NUMBER(5,2),
+  COLOR_COVERAGE_PCT  NUMBER(5,2),
+  FRESHNESS_SCORE     NUMBER(2,1),
+  TEMP_C              NUMBER(5,2),
+  PACKAGING           VARCHAR2(20),
+  LABELING            VARCHAR2(20),
+  DEFECTS             VARCHAR2(20),
+  DEFECT_PCT          NUMBER(5,2),
+  PASSPORT_NOTES      VARCHAR2(2000)
+);
