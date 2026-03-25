@@ -3122,14 +3122,23 @@ function selectVariety(v, productKey) {
     tempRef.textContent = (v.optimal_temp_min != null ? v.optimal_temp_min + '…' + v.optimal_temp_max + ' °C' : '');
     shelfLife.textContent = v.shelf_life_days ? v.shelf_life_days + ' дн.' : '—';
 
-    // Pre-fill defaults from passport
-    if (v.min_calibre_mm) document.getElementById('ppCalibr').placeholder = v.min_calibre_mm;
-    if (v.min_brix) document.getElementById('ppBrix').placeholder = v.min_brix;
+    // Pre-fill defaults from passport into VALUE (not just placeholder)
+    if (v.min_calibre_mm) {
+        document.getElementById('ppCalibr').value = v.min_calibre_mm;
+        document.getElementById('ppCalibr').placeholder = v.min_calibre_mm;
+    }
+    if (v.min_brix) {
+        document.getElementById('ppBrix').value = v.min_brix;
+        document.getElementById('ppBrix').placeholder = v.min_brix;
+    }
     if (v.color_coverage_pct) {
         document.getElementById('ppColorSlider').value = v.color_coverage_pct;
         document.getElementById('ppColorVal').textContent = v.color_coverage_pct + '%';
     }
-    if (v.optimal_temp_min != null) document.getElementById('ppTemp').placeholder = v.optimal_temp_min + '…' + v.optimal_temp_max;
+    if (v.optimal_temp_min != null) {
+        document.getElementById('ppTemp').value = v.optimal_temp_min;
+        document.getElementById('ppTemp').placeholder = v.optimal_temp_min + '…' + v.optimal_temp_max;
+    }
 }
 
 function resetPassportFields() {
