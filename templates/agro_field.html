@@ -3151,10 +3151,12 @@ function resetPassportFields() {
     document.getElementById('ppDefectPct').value = '0';
     document.getElementById('ppNotes').value = '';
     setRating('ppFreshness', 4);
-    // Reset option groups to first option
+    // Reset option groups to first option and set data-value
+    var defaults = {ppPackaging: 'ok', ppLabel: 'ok', ppDefects: 'none'};
     ['ppPackaging','ppLabel','ppDefects'].forEach(function(gid) {
         var grp = document.getElementById(gid);
         if (grp) {
+            grp.setAttribute('data-value', defaults[gid]);
             grp.querySelectorAll('.sk-opt-btn').forEach(function(b, i) {
                 b.classList.toggle('active', i === 0);
             });
