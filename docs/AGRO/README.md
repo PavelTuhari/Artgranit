@@ -6,7 +6,7 @@ The AGRO module manages the full cycle of agricultural product operations:
 field harvest → cold storage → quality control → processing → sales/export.
 
 **Oracle prefix:** `AGRO_`
-**Tables:** 36 normalized tables + 5 views + 36 auto-ID triggers + 3 audit triggers
+**Tables:** 42 normalized tables + 7 views + 42 auto-ID triggers + 4 audit triggers
 
 ## Architecture
 
