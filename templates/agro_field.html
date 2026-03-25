@@ -1896,6 +1896,23 @@ window.selectPurchaseRow = function(id) {
                     '<td style="text-align:right;font-weight:600;">' + net.toFixed(2) + '</td>' +
                     '<td style="text-align:right;">' + price.toFixed(2) + '</td>' +
                     '<td style="text-align:right;">' + amount.toFixed(2) + '</td></tr>';
+                /* Passport sub-row */
+                var ppParts = [];
+                if (l.variety_name_ru || l.variety_code) ppParts.push('Сорт: ' + (l.variety_name_ru || l.variety_code));
+                if (l.calibre_mm) ppParts.push('∅ ' + l.calibre_mm + ' мм');
+                if (l.brix) ppParts.push('Brix ' + l.brix + '°');
+                if (l.color_coverage_pct) ppParts.push('Окраска ' + l.color_coverage_pct + '%');
+                if (l.freshness_score) ppParts.push('Свежесть ' + l.freshness_score + '/5');
+                if (l.temp_c != null && l.temp_c !== '') ppParts.push('t° ' + l.temp_c + '°C');
+                if (l.packaging && l.packaging !== 'ok') ppParts.push('Упак: ' + l.packaging);
+                if (l.labeling && l.labeling !== 'ok') ppParts.push('Марк: ' + l.labeling);
+                if (l.defects && l.defects !== 'none') ppParts.push('Дефекты: ' + l.defects + (l.defect_pct ? ' ' + l.defect_pct + '%' : ''));
+                if (l.passport_notes) ppParts.push('📝 ' + l.passport_notes);
+                if (ppParts.length) {
+                    html += '<tr class="passport-sub-row"><td></td><td colspan="6">' +
+                        ppParts.map(function(t){ return '<span class="pp-badge">' + t + '</span>'; }).join(' ') +
+                        '</td></tr>';
+                }
             });
             html += '</tbody></table></div>';
             html += '<div class="detail-totals">' +
