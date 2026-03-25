@@ -1629,6 +1629,7 @@ function renderPassportBadges(lineEl) {
     if (pp.notes) pairs.push(['Заметки', pp.notes]);
     box.innerHTML = pairs.map(function(p){ return '<span class="pp-badge-edit"><b>' + p[0] + ':</b> ' + p[1] + '</span>'; }).join(' ');
 }
+window.renderPassportBadges = renderPassportBadges;
 
 window.weighPurchaseLine = function(lineId) {
     var line = document.getElementById(lineId);
