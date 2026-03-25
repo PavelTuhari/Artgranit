@@ -3200,6 +3200,9 @@ window.closeScaleModal = function() {
     stopAutoEmulation();
     modalTargetLineId = null;
     selectedProductKey = null;
+    autoPaused = false;
+    var pauseBtn = document.getElementById('autoPauseBtn');
+    if (pauseBtn) { pauseBtn.classList.remove('active'); pauseBtn.textContent = '⏸ Пауза / Pauză'; }
     hideProductPassport();
 };
 
