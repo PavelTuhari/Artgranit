@@ -1428,7 +1428,7 @@ function editCustomer(id) {
     document.getElementById('modal-customer-title').textContent = 'Редактировать покупателя';
     setVal('customer','id', r.id);
     ['code','name','customer_type','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => setVal('customer', f, r[f]));
-    openModal('customer');
+    openModal('customer', id);
 }
 async function deleteCustomer(id) {
     if (!confirm('Удалить покупателя?')) return;
