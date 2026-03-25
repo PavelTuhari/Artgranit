@@ -3389,6 +3389,10 @@ window.modalScaleCapture = function() {
                 }
             }
             if (typeof recalcPurchaseLine === 'function') recalcPurchaseLine(modalTargetLineId);
+            // Store passport data on the line
+            if (typeof collectPassportData === 'function') {
+                line.setAttribute('data-passport', JSON.stringify(collectPassportData()));
+            }
         }
 
         // Close modal immediately and show toast
