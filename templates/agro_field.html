@@ -1569,7 +1569,8 @@ window.addPurchaseLine = function() {
         '<div style="font-size:18px;font-weight:700;text-align:center;padding:10px;" class="line-net-display">0.00</div>' +
         '<div><input type="number" class="line-price" placeholder="0.00" min="0" step="0.01" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcPurchaseLine(\'' + lineId + '\')"></div>' +
         '<div><button class="btn-weigh" onclick="weighPurchaseLine(\'' + lineId + '\')" title="Снять вес / Cântărește">⚖️</button></div>' +
-        '<div><button class="line-remove" onclick="removePurchaseLine(\'' + lineId + '\')">&times;</button></div>';
+        '<div><button class="line-remove" onclick="removePurchaseLine(\'' + lineId + '\')">&times;</button></div>' +
+        '<div class="line-passport-badges" style="grid-column:1/-1;min-height:0;"></div>';
 
     container.appendChild(div);
 };
