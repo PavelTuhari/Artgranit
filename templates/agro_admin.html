@@ -1981,7 +1981,7 @@ function editScaleDriver(id) {
     document.getElementById('sd_settle_time').value = cfg.settle_time || 2.0;
     document.getElementById('sd_emu_interval').value = cfg.emu_interval || 3000;
     document.getElementById('sd_active').checked = cfg.active !== false;
-    openModal('scale-driver');
+    openModal('scale-driver', id);
 }
 window.editScaleDriver = editScaleDriver;
 
