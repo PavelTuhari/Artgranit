@@ -2590,6 +2590,13 @@ function loadScaleConfig() {
 .sk-status { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #8888aa; }
 .sk-indicator { width: 10px; height: 10px; border-radius: 50%; background: #666; }
 .sk-driver-info { margin-left: auto; font-size: 11px; color: #6c6c8a; display: flex; gap: 12px; }
+.sk-pause-btn {
+    padding: 4px 14px; border-radius: 6px; border: 1px solid #ffc107;
+    background: transparent; color: #ffc107; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.sk-pause-btn:hover { background: #ffc10720; }
+.sk-pause-btn.active { background: #ffc107; color: #0d0d1a; }
 .sk-close {
     background: none; border: none; color: #8888aa; font-size: 28px; cursor: pointer;
     width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
