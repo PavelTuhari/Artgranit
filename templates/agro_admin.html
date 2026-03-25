@@ -2019,6 +2019,148 @@ async function saveScaleDriver() {
 window.saveScaleDriver = saveScaleDriver;
 
 /* ================================================================
+   5a. ITEM VARIETIES
+   ================================================================ */
+let itemsList = [];
+
+async function loadVarieties() {
+    if (!itemsList.length) {
+        const ij = await apiFetch('/items');
+        if (ij.success) itemsList = ij.data || [];
+        populateVarietyItemSelects();
+    }
+    const filterItem = document.getElementById('varietyFilterItem').value;
+    const params = filterItem ? '?item_id=' + filterItem : '';
+    const j = await apiFetch('/item-varieties' + params);
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.varieties = j.data || [];
+    document.getElementById('varietiesCount').textContent = 'Всего: ' + cachedData.varieties.length;
+    renderVarieties(cachedData.varieties);
+}
+function populateVarietyItemSelects() {
+    const filterSel = document.getElementById('varietyFilterItem');
+    if (filterSel && filterSel.options.length <= 1) {
+        itemsList.forEach(it => { const o = document.createElement('option'); o.value = it.id; o.textContent = it.name_ru || it.code; filterSel.appendChild(o); });
+    }
+    const modalSel = document.getElementById('variety-item_id');
+    if (modalSel) {
+        modalSel.innerHTML = '<option value="">-- Выбрать --</option>';
+        itemsList.forEach(it => { const o = document.createElement('option'); o.value = it.id; o.textContent = it.name_ru || it.code; modalSel.appendChild(o); });
+    }
+}
+function renderVarieties(rows) {
+    const itemMap = {};
+    itemsList.forEach(it => itemMap[it.id] = it.name_ru || it.code);
+    document.getElementById('varietiesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.item_name_ru || itemMap[r.item_id] || r.item_id)}</td>
+        <td>${esc(r.code)}</td><td>${esc(r.name_ru)}</td><td>${esc(r.name_ro)}</td>
+        <td>${r.min_calibre_mm != null ? r.min_calibre_mm : ''}</td>
+        <td>${r.min_brix != null ? r.min_brix : ''}</td>
+        <td>${r.color_coverage_pct != null ? r.color_coverage_pct : ''}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editVariety(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteVariety(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="9">Нет данных</td></tr>';
+}
+function editVariety(id) {
+    const r = cachedData.varieties.find(x => x.id === id);
+    if (!r) return;
+    populateVarietyItemSelects();
+    document.getElementById('modal-variety-title').textContent = 'Редактировать сорт';
+    setVal('variety','id', r.id);
+    ['item_id','code','name_ru','name_ro','min_calibre_mm','min_brix','shelf_life_days','color_coverage_pct','optimal_temp_min','optimal_temp_max','active'].forEach(f => setVal('variety', f, r[f]));
+    openModal('variety');
+}
+async function deleteVariety(id) {
+    if (!confirm('Удалить сорт?')) return;
+    const j = await apiDelete('/item-varieties/' + id);
+    if (j.success) { showToast('Удалено'); loadVarieties(); } else showToast(j.error, 'error');
+}
+async function saveVariety() {
+    const data = {};
+    ['code','name_ru','name_ro','active'].forEach(f => data[f] = getVal('variety', f));
+    const itemId = getVal('variety','item_id');
+    if (!itemId) { showToast('Выберите продукт', 'error'); return; }
+    data.item_id = parseInt(itemId);
+    ['min_calibre_mm','min_brix','shelf_life_days','color_coverage_pct','optimal_temp_min','optimal_temp_max'].forEach(f => {
+        const v = getVal('variety', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('variety','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/item-varieties', data);
+    if (j.success) { closeModal('variety'); showToast('Сохранено'); loadVarieties(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   5b. ACCEPTANCE PROFILES
+   ================================================================ */
+async function loadProfiles() {
+    const j = await apiFetch('/acceptance-profiles');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.profiles = j.data || [];
+    document.getElementById('profilesCount').textContent = 'Всего: ' + cachedData.profiles.length;
+    renderProfiles(cachedData.profiles);
+}
+function renderProfiles(rows) {
+    document.getElementById('profilesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td>
+        <td>${esc(r.name_ru)}</td>
+        <td>${esc(r.required_class)}</td>
+        <td>${r.min_calibre_mm != null ? r.min_calibre_mm : ''}</td>
+        <td>${r.max_serious_defects_pct != null ? r.max_serious_defects_pct : ''}</td>
+        <td>${r.min_brix != null ? r.min_brix : ''}</td>
+        <td>${r.temp_min_c != null ? r.temp_min_c + '…' + (r.temp_max_c != null ? r.temp_max_c : '') : ''}</td>
+        <td>${r.accept_min_score != null ? r.accept_min_score : ''}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editProfile(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteProfile(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="10">Нет данных</td></tr>';
+}
+const profileFields = ['code','name_ru','name_ro','required_class','allow_class_ii',
+    'min_calibre_mm','max_below_min_pct','max_mixed_size_pct',
+    'max_minor_defects_pct','max_serious_defects_pct',
+    'min_brix','temp_min_c','temp_max_c',
+    'lab_req','phyto_req','trace_req','pack_req','label_req',
+    'max_actives','max_single_residue_pct_mrl','max_total_residue_pct','max_glyphosate_pct_mrl',
+    'accept_min_score','active'];
+const profileNumericFields = ['min_calibre_mm','max_below_min_pct','max_mixed_size_pct',
+    'max_minor_defects_pct','max_serious_defects_pct','min_brix','temp_min_c','temp_max_c',
+    'max_actives','max_single_residue_pct_mrl','max_total_residue_pct','max_glyphosate_pct_mrl',
+    'accept_min_score'];
+
+function editProfile(id) {
+    const r = cachedData.profiles.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-profile-title').textContent = 'Редактировать профиль';
+    setVal('profile','id', r.id);
+    profileFields.forEach(f => setVal('profile', f, r[f]));
+    openModal('profile');
+}
+async function deleteProfile(id) {
+    if (!confirm('Удалить профиль приёмки?')) return;
+    const j = await apiDelete('/acceptance-profiles/' + id);
+    if (j.success) { showToast('Удалено'); loadProfiles(); } else showToast(j.error, 'error');
+}
+async function saveProfile() {
+    const data = {};
+    profileFields.forEach(f => {
+        if (profileNumericFields.includes(f)) {
+            const v = getVal('profile', f);
+            data[f] = v !== '' ? parseFloat(v) : null;
+        } else {
+            data[f] = getVal('profile', f);
+        }
+    });
+    const idVal = getVal('profile','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/acceptance-profiles', data);
+    if (j.success) { closeModal('profile'); showToast('Сохранено'); loadProfiles(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
    RENDER FUNCTION MAP (for sorting)
    ================================================================ */
 const renderFns = {
