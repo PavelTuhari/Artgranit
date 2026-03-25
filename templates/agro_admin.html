@@ -1535,7 +1535,7 @@ function editCell(id) {
     populateCellWarehouseSelects();
     setVal('cell','id', r.id);
     ['warehouse_id','code','name','cell_type','temp_min','temp_max','humidity_min','humidity_max','capacity_kg','active'].forEach(f => setVal('cell', f, r[f]));
-    openModal('cell');
+    openModal('cell', id);
 }
 async function deleteCell(id) {
     if (!confirm('Удалить ячейку?')) return;
