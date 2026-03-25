@@ -2068,20 +2068,23 @@ window.printPurchaseAct = function(id) {
                 '<td style="text-align:right">' + net.toFixed(2) + '</td>' +
                 '<td style="text-align:right">' + price.toFixed(2) + '</td>' +
                 '<td style="text-align:right">' + amount.toFixed(2) + '</td></tr>';
-            /* Passport sub-row for print */
-            var ppParts = [];
-            if (l.variety_name_ru || l.variety_code) ppParts.push('Сорт: ' + (l.variety_name_ru || l.variety_code));
-            if (l.calibre_mm) ppParts.push('∅ ' + l.calibre_mm + ' мм');
-            if (l.brix) ppParts.push('Brix ' + l.brix + '°');
-            if (l.color_coverage_pct) ppParts.push('Окраска ' + l.color_coverage_pct + '%');
-            if (l.freshness_score) ppParts.push('Свежесть ' + l.freshness_score + '/5');
-            if (l.temp_c != null && l.temp_c !== '') ppParts.push('t° ' + l.temp_c + '°C');
-            if (l.packaging && l.packaging !== 'ok') ppParts.push('Упак: ' + l.packaging);
-            if (l.labeling && l.labeling !== 'ok') ppParts.push('Марк: ' + l.labeling);
-            if (l.defects && l.defects !== 'none') ppParts.push('Дефекты: ' + l.defects + (l.defect_pct ? ' ' + l.defect_pct + '%' : ''));
-            if (l.passport_notes) ppParts.push(l.passport_notes);
-            if (ppParts.length) {
-                row += '<tr><td></td><td colspan="6" style="font-size:11px;color:#555;border-top:none;padding-top:0;">' + ppParts.join(' · ') + '</td></tr>';
+            /* Passport sub-row for print — show all */
+            var hasPassport = l.variety_id || l.calibre_mm || l.brix || l.color_coverage_pct ||
+                l.freshness_score || l.temp_c != null || l.packaging || l.labeling || l.defects || l.passport_notes;
+            if (hasPassport) {
+                var ppItems = [
+                    'Сорт: ' + (l.variety_name_ru || l.variety_code || '-'),
+                    'Калибр: ' + (l.calibre_mm != null ? l.calibre_mm + ' мм' : '-'),
+                    'Brix: ' + (l.brix != null ? l.brix + '°' : '-'),
+                    'Окраска: ' + (l.color_coverage_pct != null ? l.color_coverage_pct + '%' : '-'),
+                    'Свежесть: ' + (l.freshness_score != null ? l.freshness_score + '/5' : '-'),
+                    't°C: ' + (l.temp_c != null ? l.temp_c + '°C' : '-'),
+                    'Упак: ' + (l.packaging || '-'),
+                    'Марк: ' + (l.labeling || '-'),
+                    'Дефекты: ' + (l.defects ? l.defects + (l.defect_pct ? ' (' + l.defect_pct + '%)' : '') : '-')
+                ];
+                if (l.passport_notes) ppItems.push('Заметки: ' + l.passport_notes);
+                row += '<tr><td></td><td colspan="6" style="font-size:11px;color:#555;border-top:none;padding-top:0;">' + ppItems.join(' · ') + '</td></tr>';
             }
             return row;
         }).join('');
