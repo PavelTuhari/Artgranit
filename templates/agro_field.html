@@ -1741,7 +1741,10 @@ window.savePurchaseDraft = function() {
     api('POST', '/api/agro-field/purchases', data).then(function(result) {
         showToast('Черновик сохранен / Draft salvat');
         document.getElementById('purchaseLines').innerHTML = '';
+        var newId = result.doc_id || (result.data && result.data.doc_id);
+        selectedPurchaseId = newId || null;
         loadPurchasesList();
+        navigateTo('purchases-list');
     }).catch(function(err) {
         showToast('Ошибка: ' + err.message, 'error');
     });
