@@ -3279,6 +3279,7 @@ function toggleAutoPause() {
         btn.textContent = autoPaused ? '▶ Продолжить / Continuă' : '⏸ Пауза / Pauză';
     }
 }
+window.toggleAutoPause = toggleAutoPause;
 
 function runEmulationCycle() {
     if (autoPaused) return;
