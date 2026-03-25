@@ -1387,6 +1387,7 @@ function api(method, url, body) {
 function loadReferences() {
     api('GET', '/api/agro-field/sync/references').then(function(data) {
         refs = data.data || data;
+        window._agroRefs = refs;
         populateDropdowns();
         populatePackagingSelector();
     }).catch(function(err) {
