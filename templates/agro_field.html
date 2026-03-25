@@ -2951,6 +2951,167 @@ function highlightProductInGrid(key) {
     }
 }
 
+/* ========== PRODUCT PASSPORT ========== */
+var selectedVariety = null;
+var passportData = {}; // collected characteristics for current product
+
+function showProductPassport(productKey) {
+    var panel = document.getElementById('productPassport');
+    if (!panel) return;
+    panel.style.display = 'flex';
+    document.getElementById('passportProductName').textContent = productNamesRu[productKey] || productKey;
+
+    // Find varieties for this product code
+    var allVarieties = (typeof refs !== 'undefined' && refs.varieties) ? refs.varieties : [];
+    var productVarieties = allVarieties.filter(function(v) {
+        return v.item_code === productKey;
+    });
+
+    // Build variety buttons
+    var vGrid = document.getElementById('passportVarietyGrid');
+    selectedVariety = null;
+    if (productVarieties.length === 0) {
+        vGrid.innerHTML = '<span style="font-size:12px;color:#6c6c8a;">Нет сортов / Fara soiuri</span>';
+    } else {
+        vGrid.innerHTML = '';
+        productVarieties.forEach(function(v) {
+            var btn = document.createElement('button');
+            btn.className = 'sk-variety-btn';
+            btn.textContent = v.name_ru || v.code;
+            btn.onclick = function() { selectVariety(v, productKey); };
+            vGrid.appendChild(btn);
+        });
+        // Auto-select first variety
+        selectVariety(productVarieties[0], productKey);
+    }
+
+    // Show/hide color field based on product type
+    var colorRow = document.getElementById('ppColorRow');
+    var hasColor = (productKey === 'APPLE' || productKey === 'PEACH' || productKey === 'CHERRY');
+    colorRow.style.display = hasColor ? 'flex' : 'none';
+
+    // Reset passport data
+    resetPassportFields();
+    showPassportTab('quality');
+}
+
+function selectVariety(v, productKey) {
+    selectedVariety = v;
+    // Highlight button
+    var btns = document.querySelectorAll('.sk-variety-btn');
+    btns.forEach(function(b) { b.classList.remove('active'); });
+    event.target ? event.target.classList.add('active') :
+        (btns.length > 0 && btns.forEach(function(b) { if (b.textContent === (v.name_ru || v.code)) b.classList.add('active'); }));
+
+    // Populate reference values from variety passport
+    var calibrRef = document.getElementById('ppCalibrRef');
+    var brixRef = document.getElementById('ppBrixRef');
+    var colorRef = document.getElementById('ppColorRef');
+    var tempRef = document.getElementById('ppTempRef');
+    var shelfLife = document.getElementById('ppShelfLife');
+
+    calibrRef.textContent = v.min_calibre_mm ? 'мин. ' + v.min_calibre_mm + ' мм' : '';
+    brixRef.textContent = v.min_brix ? 'мин. ' + v.min_brix + '°' : '';
+    colorRef.textContent = v.color_coverage_pct ? 'мин. ' + v.color_coverage_pct + '%' : '';
+    tempRef.textContent = (v.optimal_temp_min != null ? v.optimal_temp_min + '…' + v.optimal_temp_max + ' °C' : '');
+    shelfLife.textContent = v.shelf_life_days ? v.shelf_life_days + ' дн.' : '—';
+
+    // Pre-fill defaults from passport
+    if (v.min_calibre_mm) document.getElementById('ppCalibr').placeholder = v.min_calibre_mm;
+    if (v.min_brix) document.getElementById('ppBrix').placeholder = v.min_brix;
+    if (v.color_coverage_pct) {
+        document.getElementById('ppColorSlider').value = v.color_coverage_pct;
+        document.getElementById('ppColorVal').textContent = v.color_coverage_pct + '%';
+    }
+    if (v.optimal_temp_min != null) document.getElementById('ppTemp').placeholder = v.optimal_temp_min + '…' + v.optimal_temp_max;
+}
+
+function resetPassportFields() {
+    document.getElementById('ppCalibr').value = '';
+    document.getElementById('ppBrix').value = '';
+    document.getElementById('ppColorSlider').value = 50;
+    document.getElementById('ppColorVal').textContent = '50%';
+    document.getElementById('ppTemp').value = '';
+    document.getElementById('ppDefectPct').value = '0';
+    document.getElementById('ppNotes').value = '';
+    setRating('ppFreshness', 4);
+    // Reset option groups to first option
+    ['ppPackaging','ppLabel','ppDefects'].forEach(function(gid) {
+        var grp = document.getElementById(gid);
+        if (grp) {
+            grp.querySelectorAll('.sk-opt-btn').forEach(function(b, i) {
+                b.classList.toggle('active', i === 0);
+            });
+        }
+    });
+    document.getElementById('ppDefectPctRow').style.display = 'none';
+}
+
+window.showPassportTab = function(tabName) {
+    document.querySelectorAll('.sk-passport-tab').forEach(function(t) {
+        t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
+    });
+    document.querySelectorAll('.sk-passport-page').forEach(function(p) {
+        p.classList.toggle('active', p.id === 'passportPage-' + tabName);
+    });
+};
+
+window.stepField = function(id, delta) {
+    var inp = document.getElementById(id);
+    if (!inp) return;
+    var val = parseFloat(inp.value) || 0;
+    val = Math.round((val + delta) * 10) / 10;
+    if (inp.min !== '' && val < parseFloat(inp.min)) val = parseFloat(inp.min);
+    if (inp.max !== '' && val > parseFloat(inp.max)) val = parseFloat(inp.max);
+    inp.value = val;
+};
+
+window.setRating = function(groupId, val) {
+    var grp = document.getElementById(groupId);
+    if (!grp) return;
+    grp.querySelectorAll('.sk-rate-btn').forEach(function(b) {
+        b.classList.toggle('active', parseInt(b.textContent) <= val);
+    });
+    grp.setAttribute('data-value', val);
+};
+
+window.selectOpt = function(groupId, btn, val) {
+    var grp = document.getElementById(groupId);
+    if (!grp) return;
+    grp.querySelectorAll('.sk-opt-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    grp.setAttribute('data-value', val);
+    // Show defect percentage input when defects != none
+    if (groupId === 'ppDefects') {
+        document.getElementById('ppDefectPctRow').style.display = (val !== 'none') ? 'flex' : 'none';
+    }
+};
+
+// Collect passport data for the current product (called before capture)
+function collectPassportData() {
+    return {
+        product_key: selectedProductKey,
+        variety_id: selectedVariety ? selectedVariety.id : null,
+        variety_code: selectedVariety ? selectedVariety.code : null,
+        calibre_mm: parseFloat(document.getElementById('ppCalibr').value) || null,
+        brix: parseFloat(document.getElementById('ppBrix').value) || null,
+        color_coverage_pct: parseInt(document.getElementById('ppColorSlider').value) || null,
+        freshness_score: parseInt((document.getElementById('ppFreshness').getAttribute('data-value')) || '4'),
+        temp_c: parseFloat(document.getElementById('ppTemp').value) || null,
+        packaging: (document.getElementById('ppPackaging').getAttribute('data-value')) || 'ok',
+        labeling: (document.getElementById('ppLabel').getAttribute('data-value')) || 'ok',
+        defects: (document.getElementById('ppDefects').getAttribute('data-value')) || 'none',
+        defect_pct: parseFloat(document.getElementById('ppDefectPct').value) || 0,
+        notes: document.getElementById('ppNotes').value || ''
+    };
+}
+
+function hideProductPassport() {
+    var panel = document.getElementById('productPassport');
+    if (panel) panel.style.display = 'none';
+    selectedVariety = null;
+}
+
 // Numeric keypad functions
 window.numpadPress = function(val) {
     var inp = document.getElementById('numpadInput');
