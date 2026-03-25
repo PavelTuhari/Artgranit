@@ -2704,19 +2704,13 @@ function loadScaleConfig() {
 }
 .sk-variety-btn:hover { border-color: #53d769; color: #fff; }
 .sk-variety-btn.active { border-color: #53d769; background: #1a3a2e; color: #53d769; font-weight: 600; }
-.sk-passport-tabs {
-    display: flex; gap: 0; border-bottom: 1px solid #0f3460; flex-shrink: 0; padding: 0 14px;
+.sk-passport-tabs { display: none; }
+.sk-passport-pages { display: none; }
+.sk-passport-page { display: none; }
+.sk-passport-all {
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 8px 14px;
 }
-.sk-passport-tab {
-    padding: 8px 16px; border: none; background: none; color: #6c6c8a;
-    font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent;
-    transition: all .15s;
-}
-.sk-passport-tab:hover { color: #b0b0c8; }
-.sk-passport-tab.active { color: #53d769; border-bottom-color: #53d769; font-weight: 600; }
-.sk-passport-pages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.sk-passport-page { display: none; padding: 10px 14px; }
-.sk-passport-page.active { display: block; }
 .sk-field-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .sk-field { flex: 1; }
 .sk-field > label {
