@@ -1814,7 +1814,7 @@ function editFormula(id) {
     setVal('formula','param_value', r.param_value);
     setVal('formula','item_id', r.item_id);
     setVal('formula','active', r.active);
-    openModal('formula');
+    openModal('formula', id);
 }
 async function deleteFormula(id) {
     if (!confirm('Удалить параметр?')) return;
