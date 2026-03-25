@@ -3249,18 +3249,28 @@ window.modalScaleTare = function() {
     });
 };
 
-// Auto-emulation: every 10s simulate new random weight + AI recognition
+// Auto-emulation: every 20s simulate new random weight + AI recognition
 function startAutoEmulation() {
     stopAutoEmulation();
     runEmulationCycle();
-    autoEmulationTimer = setInterval(runEmulationCycle, 10000);
+    autoEmulationTimer = setInterval(runEmulationCycle, 20000);
 }
 
 function stopAutoEmulation() {
     if (autoEmulationTimer) { clearInterval(autoEmulationTimer); autoEmulationTimer = null; }
 }
 
+function toggleAutoPause() {
+    autoPaused = !autoPaused;
+    var btn = document.getElementById('autoPauseBtn');
+    if (btn) {
+        btn.classList.toggle('active', autoPaused);
+        btn.textContent = autoPaused ? '▶ Продолжить / Continuă' : '⏸ Пауза / Pauză';
+    }
+}
+
 function runEmulationCycle() {
+    if (autoPaused) return;
     var viewport = document.getElementById('cameraViewport');
     var captureBtn = document.getElementById('modalCaptureBtn');
     if (!viewport) return;
