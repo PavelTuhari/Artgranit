@@ -147,6 +147,8 @@ def main() -> None:
         "36_agro_views.sql",
         "37_agro_triggers.sql",
         "38_agro_demo_data.sql",
+        "39_agro_acceptance.sql",
+        "40_agro_acceptance_demo.sql",
     ]
     if not args.drop:
         order = [f for f in order if f != "00_drop.sql"]
