@@ -66,3 +66,45 @@ class AgroFieldController:
     @staticmethod
     def get_barcode_print_batch(barcode_ids: List[int]) -> Dict[str, Any]:
         return _safe_call(AgroStore.get_barcode_print_batch, barcode_ids)
+
+    # ---- Field Requests ----
+    @staticmethod
+    def get_field_requests(filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_field_requests, filters)
+
+    @staticmethod
+    def get_field_request_by_id(request_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_field_request_by_id, request_id)
+
+    @staticmethod
+    def create_field_request(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('lines'):
+            return {"success": False, "error": "At least one line item is required"}
+        return _safe_call(AgroStore.create_field_request, data)
+
+    @staticmethod
+    def update_field_request(data: Dict[str, Any]) -> Dict[str, Any]:
+        return _safe_call(AgroStore.update_field_request, data)
+
+    @staticmethod
+    def approve_field_request(request_id: int, approved_by: str = None) -> Dict[str, Any]:
+        return _safe_call(AgroStore.approve_field_request, request_id, approved_by)
+
+    @staticmethod
+    def cancel_field_request(request_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.cancel_field_request, request_id)
+
+    # ---- Batch Inspections ----
+    @staticmethod
+    def perform_batch_inspection(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('batch_id') or not data.get('profile_id'):
+            return {"success": False, "error": "batch_id and profile_id are required"}
+        return _safe_call(AgroStore.perform_batch_inspection, data)
+
+    @staticmethod
+    def get_batch_inspections(batch_id: int = None) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_batch_inspections, batch_id)
+
+    @staticmethod
+    def get_batch_inspection_detail(inspection_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_batch_inspection_detail, inspection_id)
