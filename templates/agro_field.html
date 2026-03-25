@@ -1657,7 +1657,7 @@ function collectPurchaseData() {
         if (!itemId) return;
         var gross = parseFloat(line.querySelector('.line-gross').value) || 0;
         var tare = parseFloat(line.querySelector('.line-tare').value) || 0;
-        lines.push({
+        var lineObj = {
             item_id: parseInt(itemId),
             pallets: parseInt(line.querySelector('.line-pallets').value) || 0,
             crates: parseInt(line.querySelector('.line-crates').value) || 0,
@@ -1665,7 +1665,26 @@ function collectPurchaseData() {
             tare_weight_kg: tare,
             net_weight_kg: Math.max(0, gross - tare),
             price_per_kg: parseFloat(line.querySelector('.line-price').value) || 0
-        });
+        };
+        /* Merge passport/quality data captured during weighing */
+        var passportJson = line.getAttribute('data-passport');
+        if (passportJson) {
+            try {
+                var pp = JSON.parse(passportJson);
+                lineObj.variety_id     = pp.variety_id  || null;
+                lineObj.calibre_mm     = pp.calibre_mm  || null;
+                lineObj.brix           = pp.brix        || null;
+                lineObj.color_coverage_pct = pp.color_coverage_pct || null;
+                lineObj.freshness_score = pp.freshness_score || null;
+                lineObj.temp_c         = pp.temp_c      || null;
+                lineObj.packaging      = pp.packaging   || null;
+                lineObj.labeling       = pp.labeling    || null;
+                lineObj.defects        = pp.defects     || null;
+                lineObj.defect_pct     = pp.defect_pct  || null;
+                lineObj.passport_notes = pp.notes       || null;
+            } catch(e) { /* ignore bad JSON */ }
+        }
+        lines.push(lineObj);
     });
     return {
         supplier_id: parseInt(document.getElementById('purchaseSupplier').value) || null,
