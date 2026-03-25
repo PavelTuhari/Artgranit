@@ -201,5 +201,67 @@ JOIN AGRO_WAREHOUSES     w ON w.ID  = sc.WAREHOUSE_ID;
 /
 
 -- ============================================================
+-- 6. AGRO_V_FIELD_REQUESTS — field request summary with line counts
+-- ============================================================
+
+CREATE OR REPLACE VIEW AGRO_V_FIELD_REQUESTS AS
+SELECT
+    fr.ID,
+    fr.REQUEST_NUMBER,
+    fr.SUPPLIER_ID,
+    s.NAME AS SUPPLIER_NAME,
+    fr.WAREHOUSE_ID,
+    w.NAME AS WAREHOUSE_NAME,
+    fr.EXPECTED_DATE,
+    fr.PROFILE_ID,
+    ap.NAME_RU AS PROFILE_NAME,
+    fr.STATUS,
+    fr.APPROVED_BY,
+    fr.APPROVED_AT,
+    fr.NOTES,
+    fr.CREATED_AT,
+    NVL(lc.LINE_COUNT, 0) AS LINE_COUNT,
+    NVL(lc.TOTAL_EXPECTED_KG, 0) AS TOTAL_EXPECTED_KG
+FROM AGRO_FIELD_REQUESTS fr
+LEFT JOIN AGRO_SUPPLIERS s ON s.ID = fr.SUPPLIER_ID
+LEFT JOIN AGRO_WAREHOUSES w ON w.ID = fr.WAREHOUSE_ID
+LEFT JOIN AGRO_ACCEPTANCE_PROFILES ap ON ap.ID = fr.PROFILE_ID
+LEFT JOIN (
+    SELECT FIELD_REQUEST_ID,
+           COUNT(*) AS LINE_COUNT,
+           SUM(EXPECTED_QTY_KG) AS TOTAL_EXPECTED_KG
+    FROM AGRO_FIELD_REQUEST_LINES
+    GROUP BY FIELD_REQUEST_ID
+) lc ON lc.FIELD_REQUEST_ID = fr.ID;
+/
+
+-- ============================================================
+-- 7. AGRO_V_BATCH_INSPECTIONS — inspection results with item/profile info
+-- ============================================================
+
+CREATE OR REPLACE VIEW AGRO_V_BATCH_INSPECTIONS AS
+SELECT
+    bi.ID,
+    bi.BATCH_ID,
+    b.BATCH_NUMBER,
+    b.ITEM_ID,
+    i.NAME_RU AS ITEM_NAME,
+    i.CODE AS ITEM_CODE,
+    bi.PROFILE_ID,
+    ap.NAME_RU AS PROFILE_NAME,
+    bi.INSPECTION_DATE,
+    bi.INSPECTED_BY,
+    bi.TOTAL_SCORE,
+    bi.CRITICAL_FAILS,
+    bi.DECISION,
+    bi.NOTES,
+    bi.CREATED_AT
+FROM AGRO_BATCH_INSPECTIONS bi
+JOIN AGRO_BATCHES b ON b.ID = bi.BATCH_ID
+JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
+JOIN AGRO_ACCEPTANCE_PROFILES ap ON ap.ID = bi.PROFILE_ID;
+/
+
+-- ============================================================
 -- End of AGRO module views
 -- ============================================================
