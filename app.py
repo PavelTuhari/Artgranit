@@ -4188,6 +4188,66 @@ def api_agro_field_sync_refs():
         return jsonify({"success": False, "error": "Auth required"}), 401
     return jsonify(AgroFieldController.get_sync_references())
 
+# --- AGRO Field: Field Requests ---
+@app.route('/api/agro-field/requests', methods=['GET'])
+def api_agro_field_requests():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_field_requests(request.args.to_dict()))
+
+@app.route('/api/agro-field/requests', methods=['POST'])
+def api_agro_field_request_create():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.create_field_request(request.get_json() or {}))
+
+@app.route('/api/agro-field/requests/<int:request_id>', methods=['GET'])
+def api_agro_field_request_get(request_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_field_request_by_id(request_id))
+
+@app.route('/api/agro-field/requests/<int:request_id>', methods=['PUT'])
+def api_agro_field_request_update(request_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.get_json() or {}
+    data['id'] = request_id
+    return jsonify(AgroFieldController.update_field_request(data))
+
+@app.route('/api/agro-field/requests/<int:request_id>/approve', methods=['PUT'])
+def api_agro_field_request_approve(request_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.get_json() or {}
+    return jsonify(AgroFieldController.approve_field_request(request_id, data.get('approved_by')))
+
+@app.route('/api/agro-field/requests/<int:request_id>/cancel', methods=['PUT'])
+def api_agro_field_request_cancel(request_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.cancel_field_request(request_id))
+
+# --- AGRO Field: Batch Inspections ---
+@app.route('/api/agro-field/inspections', methods=['GET'])
+def api_agro_field_inspections():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    batch_id = request.args.get('batch_id', type=int)
+    return jsonify(AgroFieldController.get_batch_inspections(batch_id))
+
+@app.route('/api/agro-field/inspections', methods=['POST'])
+def api_agro_field_inspection_perform():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.perform_batch_inspection(request.get_json() or {}))
+
+@app.route('/api/agro-field/inspections/<int:inspection_id>', methods=['GET'])
+def api_agro_field_inspection_detail(inspection_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_batch_inspection_detail(inspection_id))
+
 
 # ============================================================
 # AGRO Scale Emulator API
