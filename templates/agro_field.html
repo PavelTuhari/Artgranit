@@ -2998,6 +2998,402 @@ window.modalScaleCapture = function() {
     });
 };
 
+/* ========== FIELD REQUESTS ========== */
+var requestsList = [];
+var reqLineCounter = 0;
+var varietiesMap = {}; // item_id -> [{id, code, name_ru}]
+
+function loadRequests() {
+    var status = document.getElementById('reqFilterStatus').value;
+    var url = '/api/agro-field/requests';
+    if (status) url += '?status=' + status;
+    api('GET', url).then(function(data) {
+        requestsList = data.data || data || [];
+        document.getElementById('reqCount').textContent = 'Всего: ' + requestsList.length;
+        renderRequests();
+    }).catch(function(err) { console.warn('loadRequests error:', err); });
+}
+
+function renderRequests() {
+    var tbody = document.getElementById('requestsTableBody');
+    if (!requestsList.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--text-muted);">Нет заявок / Fara cereri</td></tr>';
+        return;
+    }
+    var statusColors = { DRAFT: '#888', APPROVED: '#53d769', FULFILLED: '#4fc3f7', CANCELLED: '#e94560' };
+    var statusLabels = { DRAFT: 'Черновик', APPROVED: 'Утверждена', FULFILLED: 'Выполнена', CANCELLED: 'Отменена' };
+    tbody.innerHTML = requestsList.map(function(r) {
+        var st = (r.status || 'DRAFT').toUpperCase();
+        return '<tr style="cursor:pointer;" onclick="viewRequest(' + r.id + ')">' +
+            '<td style="padding:8px 12px;">' + esc(r.request_number || '') + '</td>' +
+            '<td style="padding:8px 12px;">' + esc(r.expected_date || '') + '</td>' +
+            '<td style="padding:8px 12px;">' + esc(r.supplier_name || '') + '</td>' +
+            '<td style="padding:8px 12px;">' + esc(r.warehouse_name || '') + '</td>' +
+            '<td style="padding:8px 12px;">' + esc(r.profile_name || '') + '</td>' +
+            '<td style="padding:8px 12px;text-align:right;">' + (r.total_expected_kg != null ? Number(r.total_expected_kg).toFixed(0) : '') + '</td>' +
+            '<td style="padding:8px 12px;text-align:center;">' + (r.line_count || 0) + '</td>' +
+            '<td style="padding:8px 12px;text-align:center;"><span style="background:' + (statusColors[st]||'#888') + '22;color:' + (statusColors[st]||'#888') + ';padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;">' + (statusLabels[st]||st) + '</span></td>' +
+            '<td style="padding:8px 12px;">' +
+                (st === 'DRAFT' ? '<button class="btn btn-sm btn-accent" onclick="event.stopPropagation();approveRequest(' + r.id + ')">Утвердить</button> ' : '') +
+                (st === 'DRAFT' ? '<button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();cancelRequest(' + r.id + ')">Отменить</button>' : '') +
+            '</td></tr>';
+    }).join('');
+}
+
+function esc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+
+function openRequestForm(id) {
+    var card = document.getElementById('requestFormCard');
+    card.style.display = 'block';
+    reqLineCounter = 0;
+    document.getElementById('requestLines').innerHTML = '';
+    document.getElementById('req-id').value = '';
+    document.getElementById('req-notes').value = '';
+    document.getElementById('req-expected_date').value = new Date().toISOString().split('T')[0];
+
+    // Populate selects from refs
+    fillSelect('req-supplier_id', refs.suppliers || [], 'id', 'name');
+    fillSelect('req-warehouse_id', refs.warehouses || [], 'id', 'name');
+    var profSel = document.getElementById('req-profile_id');
+    profSel.innerHTML = '<option value="">-- Без профиля --</option>';
+    (refs.acceptance_profiles || []).forEach(function(p) {
+        var o = document.createElement('option');
+        o.value = p.id; o.textContent = p.name_ru || p.code;
+        profSel.appendChild(o);
+    });
+
+    // Build variety map
+    varietiesMap = {};
+    (refs.varieties || []).forEach(function(v) {
+        if (!varietiesMap[v.item_id]) varietiesMap[v.item_id] = [];
+        varietiesMap[v.item_id].push(v);
+    });
+
+    if (id) {
+        document.getElementById('requestFormTitle').textContent = 'Редактирование заявки';
+        api('GET', '/api/agro-field/requests/' + id).then(function(data) {
+            var r = data.data || data;
+            document.getElementById('req-id').value = r.id;
+            document.getElementById('req-supplier_id').value = r.supplier_id || '';
+            document.getElementById('req-warehouse_id').value = r.warehouse_id || '';
+            document.getElementById('req-expected_date').value = r.expected_date || '';
+            document.getElementById('req-profile_id').value = r.profile_id || '';
+            document.getElementById('req-notes').value = r.notes || '';
+            (r.lines || []).forEach(function(ln) { addRequestLine(ln); });
+        });
+    } else {
+        document.getElementById('requestFormTitle').textContent = 'Новая заявка / Cerere noua';
+        addRequestLine();
+    }
+    card.scrollIntoView({ behavior: 'smooth' });
+}
+
+function addRequestLine(data) {
+    reqLineCounter++;
+    var lineId = 'rline-' + reqLineCounter;
+    var container = document.getElementById('requestLines');
+    var div = document.createElement('div');
+    div.className = 'req-line-row';
+    div.id = lineId;
+
+    var itemOpts = '<option value="">-- Продукция --</option>';
+    (refs.items || []).forEach(function(it) {
+        itemOpts += '<option value="' + it.id + '"' + (data && data.item_id == it.id ? ' selected' : '') + '>' + (it.name_ru || it.code) + '</option>';
+    });
+
+    div.innerHTML =
+        '<div><select class="rline-item" onchange="updateVarietySelect(\'' + lineId + '\')">' + itemOpts + '</select></div>' +
+        '<div><select class="rline-variety"><option value="">-- Сорт --</option></select></div>' +
+        '<div><input type="number" class="rline-expected-kg" placeholder="0" min="0" step="1" value="' + (data ? (data.expected_qty_kg || '') : '') + '"></div>' +
+        '<div><input type="number" class="rline-price" placeholder="0.00" min="0" step="0.01" value="' + (data ? (data.target_price_per_kg || '') : '') + '"></div>' +
+        '<div><button style="background:none;border:none;color:var(--danger);font-size:18px;cursor:pointer;" onclick="this.parentElement.parentElement.remove()">&times;</button></div>';
+    container.appendChild(div);
+
+    if (data && data.item_id) {
+        updateVarietySelect(lineId);
+        if (data.variety_id) {
+            setTimeout(function() { div.querySelector('.rline-variety').value = data.variety_id; }, 50);
+        }
+    }
+}
+
+window.updateVarietySelect = function(lineId) {
+    var row = document.getElementById(lineId);
+    if (!row) return;
+    var itemId = row.querySelector('.rline-item').value;
+    var vSel = row.querySelector('.rline-variety');
+    vSel.innerHTML = '<option value="">-- Сорт --</option>';
+    (varietiesMap[itemId] || []).forEach(function(v) {
+        var o = document.createElement('option');
+        o.value = v.id; o.textContent = v.name_ru || v.code;
+        vSel.appendChild(o);
+    });
+};
+
+function collectRequestData() {
+    var lines = [];
+    document.querySelectorAll('#requestLines .req-line-row').forEach(function(row) {
+        var itemId = row.querySelector('.rline-item').value;
+        if (!itemId) return;
+        lines.push({
+            item_id: parseInt(itemId),
+            variety_id: parseInt(row.querySelector('.rline-variety').value) || null,
+            expected_qty_kg: parseFloat(row.querySelector('.rline-expected-kg').value) || 0,
+            target_price_per_kg: parseFloat(row.querySelector('.rline-price').value) || null
+        });
+    });
+    return {
+        id: parseInt(document.getElementById('req-id').value) || null,
+        supplier_id: parseInt(document.getElementById('req-supplier_id').value) || null,
+        warehouse_id: parseInt(document.getElementById('req-warehouse_id').value) || null,
+        expected_date: document.getElementById('req-expected_date').value,
+        profile_id: parseInt(document.getElementById('req-profile_id').value) || null,
+        notes: document.getElementById('req-notes').value,
+        lines: lines
+    };
+}
+
+function saveRequest() {
+    var data = collectRequestData();
+    if (!data.supplier_id) { showToast('Выберите поставщика', 'warning'); return; }
+    if (!data.warehouse_id) { showToast('Выберите склад', 'warning'); return; }
+    if (!data.lines.length) { showToast('Добавьте позиции', 'warning'); return; }
+
+    var method = data.id ? 'PUT' : 'POST';
+    var url = data.id ? '/api/agro-field/requests/' + data.id : '/api/agro-field/requests';
+    api(method, url, data).then(function() {
+        showToast('Заявка сохранена / Cerere salvata');
+        cancelRequestForm();
+        loadRequests();
+    }).catch(function(err) { showToast('Ошибка: ' + err.message, 'error'); });
+}
+
+function saveAndApproveRequest() {
+    var data = collectRequestData();
+    if (!data.supplier_id) { showToast('Выберите поставщика', 'warning'); return; }
+
+    var method = data.id ? 'PUT' : 'POST';
+    var url = data.id ? '/api/agro-field/requests/' + data.id : '/api/agro-field/requests';
+    api(method, url, data).then(function(result) {
+        var reqId = result.id || data.id;
+        return api('PUT', '/api/agro-field/requests/' + reqId + '/approve');
+    }).then(function() {
+        showToast('Заявка утверждена / Cerere aprobata');
+        cancelRequestForm();
+        loadRequests();
+    }).catch(function(err) { showToast('Ошибка: ' + err.message, 'error'); });
+}
+
+function cancelRequestForm() {
+    document.getElementById('requestFormCard').style.display = 'none';
+}
+
+window.viewRequest = function(id) { openRequestForm(id); };
+
+window.approveRequest = function(id) {
+    if (!confirm('Утвердить заявку?')) return;
+    api('PUT', '/api/agro-field/requests/' + id + '/approve').then(function() {
+        showToast('Утверждена'); loadRequests();
+    }).catch(function(err) { showToast('Ошибка: ' + err.message, 'error'); });
+};
+
+window.cancelRequest = function(id) {
+    if (!confirm('Отменить заявку?')) return;
+    api('PUT', '/api/agro-field/requests/' + id + '/cancel').then(function() {
+        showToast('Отменена'); loadRequests();
+    }).catch(function(err) { showToast('Ошибка: ' + err.message, 'error'); });
+};
+
+/* ========== BATCH INSPECTIONS ========== */
+var SCORING_WEIGHTS = {
+    class_ok:10, calibre_ok:8, below_min_ok:5, minor_ok:8, serious_ok:15, mixed_ok:4,
+    brix_ok:5, temp_ok:10, lab_ok:8, phyto_ok:4, trace_ok:6,
+    pack_ok:3, label_ok:2, actives_ok:2, single_residue_ok:2, total_residue_ok:2, glyphosate_ok:1
+};
+var CRITICAL_CHECKS = ['class_ok','serious_ok','temp_ok','lab_ok','phyto_ok','trace_ok'];
+var ALL_CHECKS = Object.keys(SCORING_WEIGHTS);
+
+function initInspections() {
+    // Populate purchase & profile selects
+    api('GET', '/api/agro-field/purchases').then(function(data) {
+        var pList = data.data || data.purchases || data || [];
+        var sel = document.getElementById('inspPurchaseId');
+        sel.innerHTML = '<option value="">-- Выбрать закупку --</option>';
+        pList.forEach(function(p) {
+            if ((p.status||'').toUpperCase() === 'CONFIRMED') {
+                var o = document.createElement('option');
+                o.value = p.id || p.doc_id;
+                o.textContent = (p.doc_number || '#' + (p.id||p.doc_id)) + ' — ' + (p.doc_date || '');
+                sel.appendChild(o);
+            }
+        });
+    });
+
+    var profSel = document.getElementById('inspProfileId');
+    profSel.innerHTML = '<option value="">-- Профиль --</option>';
+    (refs.acceptance_profiles || []).forEach(function(p) {
+        var o = document.createElement('option');
+        o.value = p.id; o.textContent = p.name_ru || p.code;
+        profSel.appendChild(o);
+    });
+
+    // Hook live preview on checkbox changes
+    ALL_CHECKS.forEach(function(chk) {
+        var el = document.getElementById('chk-' + chk);
+        if (el) el.addEventListener('change', updateScorePreview);
+    });
+    document.getElementById('insp-freshness_score').addEventListener('input', updateScorePreview);
+
+    loadInspectionHistory();
+    updateScorePreview();
+}
+
+window.loadPurchaseBatches = function() {
+    var purchaseId = document.getElementById('inspPurchaseId').value;
+    var bSel = document.getElementById('inspBatchId');
+    bSel.innerHTML = '<option value="">-- Выбрать партию --</option>';
+    if (!purchaseId) return;
+
+    api('GET', '/api/agro-field/purchases/' + purchaseId).then(function(data) {
+        var doc = data.data || data;
+        var lines = doc.lines || [];
+        lines.forEach(function(ln) {
+            var o = document.createElement('option');
+            o.value = ln.batch_id || ln.id;
+            o.textContent = (ln.item_name || ln.item_code || 'Item#' + ln.item_id) +
+                ' — ' + (ln.net_weight_kg || 0) + ' кг' +
+                (ln.variety_name ? ' (' + ln.variety_name + ')' : '');
+            bSel.appendChild(o);
+        });
+    });
+};
+
+function updateScorePreview() {
+    var totalWeight = 0;
+    var earnedWeight = 0;
+    var critFails = [];
+
+    ALL_CHECKS.forEach(function(chk) {
+        var w = SCORING_WEIGHTS[chk];
+        totalWeight += w;
+        var el = document.getElementById('chk-' + chk);
+        var passed = el ? el.checked : false;
+        if (passed) earnedWeight += w;
+        if (!passed && CRITICAL_CHECKS.indexOf(chk) >= 0) critFails.push(chk);
+    });
+
+    var freshness = parseInt(document.getElementById('insp-freshness_score').value) || 0;
+    earnedWeight += freshness;
+    totalWeight += 5;
+
+    var score = totalWeight > 0 ? Math.round(earnedWeight / totalWeight * 100) : 0;
+
+    var decision, color;
+    if (critFails.length > 0) {
+        decision = 'REJECT / ОТКЛОНИТЬ';
+        color = '#e94560';
+    } else if (score >= 95) {
+        decision = 'ACCEPT / ПРИНЯТЬ';
+        color = '#53d769';
+    } else if (score >= 85) {
+        decision = 'ACCEPT WITH SORTING / С СОРТИРОВКОЙ';
+        color = '#ffc107';
+    } else {
+        decision = 'REJECT / ОТКЛОНИТЬ';
+        color = '#e94560';
+    }
+
+    document.getElementById('inspScoreValue').textContent = score;
+    document.getElementById('inspScoreValue').style.color = color;
+    var badge = document.getElementById('inspDecisionBadge');
+    badge.textContent = decision;
+    badge.style.background = color + '22';
+    badge.style.color = color;
+
+    var warn = document.getElementById('inspCriticalWarning');
+    if (critFails.length) {
+        warn.style.display = 'block';
+        warn.textContent = 'Критические проверки не пройдены: ' + critFails.join(', ');
+    } else {
+        warn.style.display = 'none';
+    }
+}
+
+window.submitInspection = function() {
+    var batchId = document.getElementById('inspBatchId').value;
+    var profileId = document.getElementById('inspProfileId').value;
+    if (!batchId) { showToast('Выберите партию / Selectati lotul', 'warning'); return; }
+    if (!profileId) { showToast('Выберите профиль / Selectati profilul', 'warning'); return; }
+
+    var values = {};
+    ALL_CHECKS.forEach(function(chk) {
+        var el = document.getElementById('chk-' + chk);
+        values[chk] = el ? (el.checked ? 'Y' : 'N') : 'N';
+    });
+    values.freshness_score = parseInt(document.getElementById('insp-freshness_score').value) || 0;
+
+    var payload = {
+        batch_id: parseInt(batchId),
+        profile_id: parseInt(profileId),
+        values: values,
+        notes: document.getElementById('insp-notes').value
+    };
+
+    api('POST', '/api/agro-field/inspections', payload).then(function(result) {
+        var r = result.data || result;
+        var decision = r.decision || '';
+        if (decision === 'ACCEPT') {
+            showToast('ПРИНЯТО! Балл: ' + (r.total_score || '') + ' / Acceptat!', 'success');
+        } else if (decision === 'ACCEPT_WITH_SORTING') {
+            showToast('ПРИНЯТО С СОРТИРОВКОЙ. Балл: ' + (r.total_score || ''), 'warning');
+        } else {
+            showToast('ОТКЛОНЕНО. Балл: ' + (r.total_score || '') + ' / Respins', 'error');
+        }
+        // Reset checkboxes
+        ALL_CHECKS.forEach(function(chk) {
+            var el = document.getElementById('chk-' + chk);
+            if (el) el.checked = false;
+        });
+        document.getElementById('insp-freshness_score').value = '5';
+        document.getElementById('insp-notes').value = '';
+        updateScorePreview();
+        loadInspectionHistory();
+    }).catch(function(err) { showToast('Ошибка: ' + err.message, 'error'); });
+};
+
+function loadInspectionHistory() {
+    api('GET', '/api/agro-field/inspections').then(function(data) {
+        var list = data.data || data || [];
+        var container = document.getElementById('inspectionsList');
+        if (!list.length) {
+            container.innerHTML = '<div style="color:var(--text-muted);padding:10px;">Нет записей / Fara inregistrari</div>';
+            return;
+        }
+        var decColors = { ACCEPT: '#53d769', ACCEPT_WITH_SORTING: '#ffc107', REJECT: '#e94560' };
+        var decLabels = { ACCEPT: 'Принято', ACCEPT_WITH_SORTING: 'С сортировкой', REJECT: 'Отклонено' };
+        container.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>' +
+            '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Дата</th>' +
+            '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Партия</th>' +
+            '<th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--text-muted);">Балл</th>' +
+            '<th style="padding:6px 8px;text-align:center;border-bottom:1px solid var(--border);color:var(--text-muted);">Решение</th>' +
+            '<th style="padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Примечание</th>' +
+            '</tr></thead><tbody>' +
+            list.map(function(insp) {
+                var dec = (insp.decision || '').toUpperCase();
+                return '<tr>' +
+                    '<td style="padding:6px 8px;">' + (insp.inspected_at || insp.created_at || '') + '</td>' +
+                    '<td style="padding:6px 8px;">' + (insp.batch_id || '') + '</td>' +
+                    '<td style="padding:6px 8px;text-align:center;font-weight:700;">' + (insp.total_score || '') + '</td>' +
+                    '<td style="padding:6px 8px;text-align:center;"><span style="background:' + (decColors[dec]||'#888') + '22;color:' + (decColors[dec]||'#888') + ';padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">' + (decLabels[dec]||dec) + '</span></td>' +
+                    '<td style="padding:6px 8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + (insp.notes || '') + '</td>' +
+                    '</tr>';
+            }).join('') +
+            '</tbody></table>';
+    }).catch(function(err) {
+        document.getElementById('inspectionsList').textContent = 'Ошибка загрузки';
+    });
+}
+
 })();
 </script>
 </body>
