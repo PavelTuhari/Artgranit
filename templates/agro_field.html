@@ -2935,6 +2935,8 @@ function selectProduct(key) {
         '<img src="' + productImages[key] + '" class="camera-product-img" alt="' + key + '">' +
         '<div class="camera-product-name">' + (productNamesRu[key] || key) + '</div>' +
         '</div>';
+    // Show product passport
+    showProductPassport(key);
 }
 
 // Highlight the active product button in the grid
