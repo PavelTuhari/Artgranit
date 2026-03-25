@@ -1797,6 +1797,7 @@ class AgroStore:
                         {
                             "purchase_doc_id": doc_id,
                             "item_id": ln.get("item_id"),
+                            "variety_id": ln.get("variety_id"),
                             "pallets": ln.get("pallets", 0),
                             "crates_count": ln.get("crates_count", 0),
                             "gross_weight_kg": ln.get("gross_weight_kg"),
@@ -1887,6 +1888,7 @@ class AgroStore:
                         {
                             "purchase_doc_id": doc_id,
                             "item_id": ln.get("item_id"),
+                            "variety_id": ln.get("variety_id"),
                             "pallets": ln.get("pallets", 0),
                             "crates_count": ln.get("crates_count", 0),
                             "gross_weight_kg": ln.get("gross_weight_kg"),
