@@ -3767,9 +3767,21 @@ class AgroStore:
                 ws = wb.active
                 ws.title = report_type
                 if rows:
+                    from decimal import Decimal as _Dec
+                    from datetime import (datetime as _dt, date as _d)
+                    def _xl_val(v):
+                        if v is None:
+                            return ''
+                        if isinstance(v, (int, float)):
+                            return v
+                        if isinstance(v, _Dec):
+                            return float(v)
+                        if isinstance(v, (_dt, _d)):
+                            return v
+                        return str(v)
                     ws.append(list(rows[0].keys()))
                     for row in rows:
-                        ws.append([str(v) if v is not None else '' for v in row.values()])
+                        ws.append([_xl_val(v) for v in row.values()])
                 buf = io.BytesIO()
                 wb.save(buf)
                 return buf.getvalue()
