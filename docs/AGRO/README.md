@@ -72,6 +72,10 @@ AGRO_HACCP_CCPS, AGRO_HACCP_RECORDS
 **Audit:**
 AGRO_EVENT_LOG
 
+**Acceptance & Procurement (new):**
+AGRO_ITEM_VARIETIES, AGRO_ACCEPTANCE_PROFILES, AGRO_FIELD_REQUESTS,
+AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
+
 ### Views
 - `AGRO_V_STOCK_BALANCE` — current stock by batch/warehouse/cell
 - `AGRO_V_PURCHASES` — purchase documents with supplier/item details
