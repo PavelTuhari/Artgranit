@@ -1603,6 +1603,27 @@ function recalcPurchaseTotal() {
     document.getElementById('purchaseTotal').textContent = total.toFixed(2);
 }
 
+function renderPassportBadges(lineEl) {
+    var box = lineEl.querySelector('.line-passport-badges');
+    if (!box) return;
+    var raw = lineEl.getAttribute('data-passport');
+    if (!raw) { box.innerHTML = ''; return; }
+    try { var pp = JSON.parse(raw); } catch(e) { box.innerHTML = ''; return; }
+    var parts = [];
+    if (pp.variety_code) parts.push('Сорт: ' + pp.variety_code);
+    if (pp.calibre_mm) parts.push('∅ ' + pp.calibre_mm + ' мм');
+    if (pp.brix) parts.push('Brix ' + pp.brix  + '°');
+    if (pp.color_coverage_pct) parts.push('Окраска ' + pp.color_coverage_pct + '%');
+    if (pp.freshness_score) parts.push('Свежесть ' + pp.freshness_score + '/5');
+    if (pp.temp_c != null && pp.temp_c !== '') parts.push('t° ' + pp.temp_c + '°C');
+    if (pp.packaging && pp.packaging !== 'ok') parts.push('Упак: ' + pp.packaging);
+    if (pp.labeling && pp.labeling !== 'ok') parts.push('Марк: ' + pp.labeling);
+    if (pp.defects && pp.defects !== 'none') parts.push('Дефекты: ' + pp.defects + (pp.defect_pct ? ' ' + pp.defect_pct + '%' : ''));
+    if (pp.notes) parts.push('📝 ' + pp.notes);
+    if (!parts.length) { box.innerHTML = ''; return; }
+    box.innerHTML = parts.map(function(t){ return '<span class="pp-badge-edit">' + t + '</span>'; }).join(' ');
+}
+
 window.weighPurchaseLine = function(lineId) {
     var line = document.getElementById(lineId);
     if (!line) return;
