@@ -1473,7 +1473,7 @@ function editWarehouse(id) {
     document.getElementById('modal-warehouse-title').textContent = 'Редактировать склад';
     setVal('warehouse','id', r.id);
     ['code','name','warehouse_type','address','capacity_kg','active'].forEach(f => setVal('warehouse', f, r[f]));
-    openModal('warehouse');
+    openModal('warehouse', id);
 }
 async function deleteWarehouse(id) {
     if (!confirm('Удалить склад?')) return;
