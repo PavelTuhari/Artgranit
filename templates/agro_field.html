@@ -1063,6 +1063,191 @@ html.embed .main { height: 100vh; }
     </div>
 </div>
 
+<!-- ==================== 6. FIELD REQUESTS / ЗАЯВКИ ==================== -->
+<div id="page-requests" class="page">
+    <div class="page-header">
+        <div><h1>Заявки на закупку / Cereri de achizitie</h1><div class="subtitle">Cereri catre furnizori pentru receptie din camp</div></div>
+        <button class="btn btn-accent" onclick="openRequestForm()">+ Новая заявка</button>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="card" style="padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <select id="reqFilterStatus" onchange="loadRequests()" style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:13px;">
+            <option value="">Все статусы</option>
+            <option value="DRAFT">Черновик / Draft</option>
+            <option value="APPROVED">Утверждена / Aprobata</option>
+            <option value="FULFILLED">Выполнена / Indeplinita</option>
+            <option value="CANCELLED">Отменена / Anulata</option>
+        </select>
+        <span id="reqCount" style="color:var(--text-muted);font-size:12px;"></span>
+    </div>
+
+    <!-- Requests list -->
+    <div class="card" style="padding:0;overflow:auto;">
+        <table class="data-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr>
+                <th style="padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">№</th>
+                <th style="padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Дата</th>
+                <th style="padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Поставщик</th>
+                <th style="padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Склад</th>
+                <th style="padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);color:var(--text-muted);">Профиль</th>
+                <th style="padding:10px 12px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-muted);">Ожид. кг</th>
+                <th style="padding:10px 12px;text-align:center;border-bottom:1px solid var(--border);color:var(--text-muted);">Позиций</th>
+                <th style="padding:10px 12px;text-align:center;border-bottom:1px solid var(--border);color:var(--text-muted);">Статус</th>
+                <th style="padding:10px 12px;border-bottom:1px solid var(--border);"></th>
+            </tr></thead>
+            <tbody id="requestsTableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Request form (hidden by default) -->
+    <div id="requestFormCard" class="card" style="display:none;">
+        <h3 id="requestFormTitle" style="margin-bottom:12px;">Новая заявка / Cerere noua</h3>
+        <input type="hidden" id="req-id">
+        <div class="field-row">
+            <div class="field">
+                <label>Поставщик / Furnizor *</label>
+                <select id="req-supplier_id"></select>
+            </div>
+            <div class="field">
+                <label>Склад / Depozit *</label>
+                <select id="req-warehouse_id"></select>
+            </div>
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label>Ожидаемая дата / Data asteptata *</label>
+                <input type="date" id="req-expected_date">
+            </div>
+            <div class="field">
+                <label>Профиль приёмки / Profil receptie</label>
+                <select id="req-profile_id"><option value="">-- Без профиля --</option></select>
+            </div>
+        </div>
+        <div class="field"><label>Примечание / Nota</label><textarea id="req-notes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;"></textarea></div>
+
+        <!-- Request Lines -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px;">
+            <h3 style="font-size:14px;">Позиции / Linii</h3>
+            <button class="btn btn-accent btn-sm" onclick="addRequestLine()">+ Позиция</button>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 40px;gap:6px;font-size:11px;color:var(--text-muted);padding:0 4px;margin-bottom:4px;">
+            <div>Продукция</div><div>Сорт</div><div>Ожид. кг</div><div>Цена/кг</div><div></div>
+        </div>
+        <div id="requestLines"></div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-ghost" onclick="cancelRequestForm()">Отмена</button>
+            <button class="btn btn-primary" onclick="saveRequest()">Сохранить черновик</button>
+            <button class="btn btn-accent" onclick="saveAndApproveRequest()">Утвердить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 7. BATCH INSPECTIONS / ПРИЁМКА ПАРТИЙ ==================== -->
+<div id="page-inspections" class="page">
+    <div class="page-header">
+        <div><h1>Приёмка партий / Receptie loturi</h1><div class="subtitle">Inspectia calitatii la receptie conform standardelor</div></div>
+    </div>
+
+    <!-- Select batch for inspection -->
+    <div class="card">
+        <h3 style="font-size:14px;margin-bottom:10px;">Выбрать партию / Selectati lotul</h3>
+        <div class="field-row">
+            <div class="field">
+                <label>Закупка / Achizitie</label>
+                <select id="inspPurchaseId" onchange="loadPurchaseBatches()">
+                    <option value="">-- Выбрать закупку --</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Партия / Lot</label>
+                <select id="inspBatchId">
+                    <option value="">-- Выбрать партию --</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Профиль приёмки</label>
+                <select id="inspProfileId">
+                    <option value="">-- Профиль --</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inspection form -->
+    <div class="card" id="inspectionFormCard">
+        <h3 style="font-size:14px;margin-bottom:12px;">Чек-лист приёмки / Checklist receptie</h3>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <!-- Quality checks -->
+            <div class="card" style="background:var(--bg);padding:12px;">
+                <h4 style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Качество / Calitate</h4>
+                <label class="check-row"><input type="checkbox" id="chk-class_ok"> Класс соответствует / Clasa corespunde <span class="crit-badge">КРИТ</span></label>
+                <label class="check-row"><input type="checkbox" id="chk-calibre_ok"> Калибр в норме / Calibru in norma</label>
+                <label class="check-row"><input type="checkbox" id="chk-below_min_ok"> Подкалибр в допуске / Sub-calibru in toleranta</label>
+                <label class="check-row"><input type="checkbox" id="chk-minor_ok"> Незначит. дефекты в норме / Defecte minore in norma</label>
+                <label class="check-row"><input type="checkbox" id="chk-serious_ok"> Серьёзные дефекты ОК / Defecte grave OK <span class="crit-badge">КРИТ</span></label>
+                <label class="check-row"><input type="checkbox" id="chk-mixed_ok"> Разнокалибр. ОК / Calibru mixt OK</label>
+            </div>
+
+            <!-- Maturity & Temperature -->
+            <div class="card" style="background:var(--bg);padding:12px;">
+                <h4 style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Зрелость и t / Maturitate si t</h4>
+                <label class="check-row"><input type="checkbox" id="chk-brix_ok"> Brix в норме</label>
+                <label class="check-row"><input type="checkbox" id="chk-temp_ok"> Температура ОК / Temperatura OK <span class="crit-badge">КРИТ</span></label>
+                <div class="field" style="margin-top:8px;">
+                    <label style="font-size:11px;">Свежесть 0-5 / Prospetime</label>
+                    <input type="number" id="insp-freshness_score" min="0" max="5" step="1" value="5" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:14px;">
+                </div>
+            </div>
+
+            <!-- Documents -->
+            <div class="card" style="background:var(--bg);padding:12px;">
+                <h4 style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Документы / Documente</h4>
+                <label class="check-row"><input type="checkbox" id="chk-lab_ok"> Лаборатория ОК / Laborator OK <span class="crit-badge">КРИТ</span></label>
+                <label class="check-row"><input type="checkbox" id="chk-phyto_ok"> Фитосанитарный ОК / Fitosanitar OK <span class="crit-badge">КРИТ</span></label>
+                <label class="check-row"><input type="checkbox" id="chk-trace_ok"> Трассируемость ОК / Trasabilitate OK <span class="crit-badge">КРИТ</span></label>
+                <label class="check-row"><input type="checkbox" id="chk-pack_ok"> Упаковка ОК / Ambalaj OK</label>
+                <label class="check-row"><input type="checkbox" id="chk-label_ok"> Маркировка ОК / Etichetare OK</label>
+            </div>
+
+            <!-- Pesticides -->
+            <div class="card" style="background:var(--bg);padding:12px;">
+                <h4 style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Пестициды / Pesticide</h4>
+                <label class="check-row"><input type="checkbox" id="chk-actives_ok"> Кол-во в.в. ОК / Nr substante OK</label>
+                <label class="check-row"><input type="checkbox" id="chk-single_residue_ok"> Одно в.в. ОК / Reziduu singular OK</label>
+                <label class="check-row"><input type="checkbox" id="chk-total_residue_ok"> Сумма в.в. ОК / Total reziduuri OK</label>
+                <label class="check-row"><input type="checkbox" id="chk-glyphosate_ok"> Глифосат ОК / Glifosat OK</label>
+            </div>
+        </div>
+
+        <div class="field" style="margin-top:12px;"><label>Комментарий / Comentariu</label><textarea id="insp-notes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;"></textarea></div>
+
+        <!-- Live score preview -->
+        <div id="inspScorePreview" style="margin-top:16px;padding:16px;border-radius:10px;background:var(--bg);display:flex;align-items:center;gap:20px;">
+            <div style="text-align:center;">
+                <div style="font-size:36px;font-weight:800;" id="inspScoreValue">--</div>
+                <div style="font-size:11px;color:var(--text-muted);">БАЛЛ / SCOR</div>
+            </div>
+            <div style="flex:1;">
+                <div id="inspDecisionBadge" style="font-size:16px;font-weight:700;padding:8px 16px;border-radius:8px;display:inline-block;background:#333;color:#888;">Заполните чек-лист</div>
+                <div id="inspCriticalWarning" style="font-size:12px;color:var(--danger);margin-top:6px;display:none;"></div>
+            </div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn btn-primary btn-lg" onclick="submitInspection()">Провести приёмку / Efectueaza receptia</button>
+        </div>
+    </div>
+
+    <!-- Previous inspections -->
+    <div class="card">
+        <h3 style="font-size:14px;margin-bottom:10px;">История приёмок / Istoricul receptiilor</h3>
+        <div id="inspectionsList" style="font-size:13px;color:var(--text-muted);">Загрузка...</div>
+    </div>
+</div>
+
 </main>
 
 </div><!-- /.main-layout -->
