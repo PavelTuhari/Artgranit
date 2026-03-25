@@ -135,7 +135,8 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
    python deploy_oracle_objects.py
    ```
    This executes `sql/35_agro_tables.sql`, `sql/36_agro_views.sql`,
-   `sql/37_agro_triggers.sql`, `sql/38_agro_demo_data.sql`.
+   `sql/37_agro_triggers.sql`, `sql/38_agro_demo_data.sql`,
+   `sql/39_agro_acceptance.sql`, `sql/40_agro_acceptance_demo.sql`.
 
 3. Run the application:
    ```bash
