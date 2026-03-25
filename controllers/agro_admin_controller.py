@@ -172,3 +172,33 @@ class AgroAdminController:
     @staticmethod
     def delete_module_config(record_id: int) -> Dict[str, Any]:
         return AgroStore.delete_module_config(record_id)
+
+    # ---- Item Varieties ----
+    @staticmethod
+    def get_item_varieties(item_id: int = None, active_only: bool = False) -> Dict[str, Any]:
+        return AgroStore.get_item_varieties(item_id, active_only)
+
+    @staticmethod
+    def upsert_item_variety(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('item_id') or not data.get('code') or not data.get('name_ru'):
+            return {"success": False, "error": "ITEM_ID, CODE and NAME_RU are required"}
+        return AgroStore.upsert_item_variety(data)
+
+    @staticmethod
+    def delete_item_variety(record_id: int) -> Dict[str, Any]:
+        return AgroStore.delete_item_variety(record_id)
+
+    # ---- Acceptance Profiles ----
+    @staticmethod
+    def get_acceptance_profiles(active_only: bool = False) -> Dict[str, Any]:
+        return AgroStore.get_acceptance_profiles(active_only)
+
+    @staticmethod
+    def upsert_acceptance_profile(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('code') or not data.get('name_ru'):
+            return {"success": False, "error": "CODE and NAME_RU are required"}
+        return AgroStore.upsert_acceptance_profile(data)
+
+    @staticmethod
+    def delete_acceptance_profile(record_id: int) -> Dict[str, Any]:
+        return AgroStore.delete_acceptance_profile(record_id)
