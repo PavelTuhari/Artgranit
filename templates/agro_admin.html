@@ -1632,7 +1632,7 @@ function editPackaging(id) {
     document.getElementById('modal-packaging-title').textContent = 'Редактировать тип тары';
     setVal('packaging','id', r.id);
     ['code','name_ru','name_ro','tare_weight_kg','capacity_kg','active'].forEach(f => setVal('packaging', f, r[f]));
-    openModal('packaging');
+    openModal('packaging', id);
 }
 async function deletePackaging(id) {
     if (!confirm('Удалить тип тары?')) return;
