@@ -2022,7 +2022,16 @@ window.generateBarcodes = function() {
 
     api('GET', '/api/agro-field/barcodes/generate?count=' + count).then(function(data) {
         showToast('Сгенерировано ' + count + ' штрихкодов / ' + count + ' coduri generate');
-        barcodesList = data.barcodes || data || [];
+        var raw = data.data || data.barcodes || data || [];
+        if (!Array.isArray(raw)) raw = [];
+        // API returns strings — convert to objects for the table
+        var newCodes = raw.map(function(item, i) {
+            if (typeof item === 'string') {
+                return { id: 'gen-' + Date.now() + '-' + i, code: item, status: 'generated', created_at: new Date().toLocaleString() };
+            }
+            return item;
+        });
+        barcodesList = newCodes.concat(barcodesList);
         renderBarcodesTable();
     }).catch(function(err) {
         showToast('Ошибка: ' + err.message, 'error');
