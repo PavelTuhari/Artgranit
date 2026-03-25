@@ -1766,6 +1766,7 @@ class AgroStore:
                     "additional_costs": data.get("additional_costs", 0),
                     "notes": data.get("notes"),
                     "created_by": data.get("created_by"),
+                    "field_request_id": data.get("field_request_id"),
                 }
                 db.execute_query(
                     """INSERT INTO AGRO_PURCHASE_DOCS
@@ -1773,13 +1774,13 @@ class AgroStore:
                                VEHICLE_ID, CURRENCY_ID, STATUS,
                                TOTAL_GROSS_KG, TOTAL_NET_KG, TOTAL_AMOUNT,
                                ADVANCE_AMOUNT, TRANSFER_AMOUNT, E_FACTURA_REF,
-                               ADDITIONAL_COSTS, NOTES, CREATED_BY)
+                               ADDITIONAL_COSTS, NOTES, CREATED_BY, FIELD_REQUEST_ID)
                        VALUES (:id, :doc_number, TO_DATE(:doc_date, 'YYYY-MM-DD'),
                                :supplier_id, :warehouse_id,
                                :vehicle_id, :currency_id, :status,
                                :total_gross_kg, :total_net_kg, :total_amount,
                                :advance_amount, :transfer_amount, :e_factura_ref,
-                               :additional_costs, :notes, :created_by)""",
+                               :additional_costs, :notes, :created_by, :field_request_id)""",
                     hdr_params,
                 )
 
