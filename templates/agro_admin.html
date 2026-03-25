@@ -1140,6 +1140,114 @@ td.actions { white-space: nowrap; }
 </div>
 </div>
 
+<!-- Variety Modal -->
+<div class="modal-overlay" id="modal-variety">
+<div class="modal">
+    <h2 id="modal-variety-title">Сорт / Soi</h2>
+    <input type="hidden" id="variety-id">
+    <div class="field"><label>Продукт *</label><select id="variety-item_id"></select></div>
+    <div class="field"><label>Код *</label><input type="text" id="variety-code" placeholder="GALA"></div>
+    <div class="field-row">
+        <div class="field"><label>Название (RU) *</label><input type="text" id="variety-name_ru"></div>
+        <div class="field"><label>Название (RO)</label><input type="text" id="variety-name_ro"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Калибр мин, мм</label><input type="number" id="variety-min_calibre_mm" step="1" min="0"></div>
+        <div class="field"><label>Brix мин</label><input type="number" id="variety-min_brix" step="0.1" min="0"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Срок хранения, дн.</label><input type="number" id="variety-shelf_life_days" step="1" min="0"></div>
+        <div class="field"><label>Окраска, %</label><input type="number" id="variety-color_coverage_pct" step="1" min="0" max="100"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Оптим. t min, C</label><input type="number" id="variety-optimal_temp_min" step="0.1"></div>
+        <div class="field"><label>Оптим. t max, C</label><input type="number" id="variety-optimal_temp_max" step="0.1"></div>
+    </div>
+    <div class="field"><label>Активен</label><select id="variety-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('variety')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveVariety()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Acceptance Profile Modal -->
+<div class="modal-overlay" id="modal-profile">
+<div class="modal" style="max-width:680px;">
+    <h2 id="modal-profile-title">Профиль приёмки / Profil receptie</h2>
+    <input type="hidden" id="profile-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="profile-code" placeholder="KAUFLAND_DEFAULT"></div>
+        <div class="field"><label>Название (RU) *</label><input type="text" id="profile-name_ru"></div>
+    </div>
+    <div class="field"><label>Название (RO)</label><input type="text" id="profile-name_ro"></div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Качество / Calitate</h3>
+    <div class="field-row">
+        <div class="field"><label>Треб. класс</label>
+            <select id="profile-required_class">
+                <option value="Extra">Extra</option>
+                <option value="I" selected>I</option>
+                <option value="II">II</option>
+            </select>
+        </div>
+        <div class="field"><label>Допустить класс II</label><select id="profile-allow_class_ii"><option value="N">Нет</option><option value="Y">Да</option></select></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Калибровка / Calibrare</h3>
+    <div class="field-row">
+        <div class="field"><label>Калибр мин, мм</label><input type="number" id="profile-min_calibre_mm" step="1" min="0"></div>
+        <div class="field"><label>Макс. ниже мин, %</label><input type="number" id="profile-max_below_min_pct" step="0.1" min="0" max="100"></div>
+        <div class="field"><label>Макс. разнокалибр, %</label><input type="number" id="profile-max_mixed_size_pct" step="0.1" min="0" max="100"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Дефекты / Defecte</h3>
+    <div class="field-row">
+        <div class="field"><label>Незначит. макс, %</label><input type="number" id="profile-max_minor_defects_pct" step="0.1" min="0" max="100"></div>
+        <div class="field"><label>Серьёзные макс, %</label><input type="number" id="profile-max_serious_defects_pct" step="0.1" min="0" max="100"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Зрелость и температура / Maturitate si temperatura</h3>
+    <div class="field-row">
+        <div class="field"><label>Brix мин</label><input type="number" id="profile-min_brix" step="0.1" min="0"></div>
+        <div class="field"><label>t мин, C</label><input type="number" id="profile-temp_min_c" step="0.1"></div>
+        <div class="field"><label>t макс, C</label><input type="number" id="profile-temp_max_c" step="0.1"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Документы / Documente</h3>
+    <div class="field-row">
+        <div class="field"><label>Лаборатория</label><select id="profile-lab_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+        <div class="field"><label>Фитосанитарный</label><select id="profile-phyto_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+        <div class="field"><label>Трассируемость</label><select id="profile-trace_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Упаковка</label><select id="profile-pack_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+        <div class="field"><label>Маркировка</label><select id="profile-label_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Пестициды / Pesticide</h3>
+    <div class="field-row">
+        <div class="field"><label>Макс. в.в.</label><input type="number" id="profile-max_actives" step="1" min="0"></div>
+        <div class="field"><label>Одно в.в. % MRL</label><input type="number" id="profile-max_single_residue_pct_mrl" step="0.1" min="0"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Сумма % MRL</label><input type="number" id="profile-max_total_residue_pct" step="0.1" min="0"></div>
+        <div class="field"><label>Глифосат % MRL</label><input type="number" id="profile-max_glyphosate_pct_mrl" step="0.1" min="0"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Скоринг / Scor</h3>
+    <div class="field-row">
+        <div class="field"><label>Мин. балл приёмки</label><input type="number" id="profile-accept_min_score" step="1" min="0" max="100" value="85"></div>
+        <div class="field"><label>Активен</label><select id="profile-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    </div>
+
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('profile')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveProfile()">Сохранить</button>
+    </div>
+</div>
+</div>
+
 <!-- Toast -->
 <div id="toast" class="toast"></div>
 
