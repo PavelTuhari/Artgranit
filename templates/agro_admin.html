@@ -1719,7 +1719,7 @@ function editCurrency(id) {
     document.getElementById('modal-currency-title').textContent = 'Редактировать валюту';
     setVal('currency','id', r.id);
     ['code','name','symbol','active'].forEach(f => setVal('currency', f, r[f]));
-    openModal('currency');
+    openModal('currency', id);
 }
 async function deleteCurrency(id) {
     if (!confirm('Удалить валюту?')) return;
