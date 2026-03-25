@@ -101,6 +101,9 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
 - `POST /crates/scan`, `POST /crates/register` — crate operations
 - `GET/POST /purchases`, `GET /purchases/<id>`, `PUT /purchases/<id>/confirm`
 - `GET /sync/references`, `POST /sync/offline-queue`
+- `GET/POST /requests`, `GET/PUT /requests/<id>` — field procurement requests (заявки)
+- `PUT /requests/<id>/approve`, `PUT /requests/<id>/cancel` — request status transitions
+- `GET/POST /inspections`, `GET /inspections/<id>` — batch acceptance inspections with weighted scoring
 
 ### Warehouse API (`/api/agro-warehouse/`)
 - `GET /stock`, `GET /batches/<id>`, `GET /batches/<id>/history`
