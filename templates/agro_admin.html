@@ -1764,7 +1764,7 @@ function editRate(id) {
     setVal('rate','rate', r.rate);
     setVal('rate','rate_date', dateFmt(r.rate_date));
     setVal('rate','source', r.source);
-    openModal('rate');
+    openModal('rate', id);
 }
 async function deleteRate(id) {
     if (!confirm('Удалить курс?')) return;
