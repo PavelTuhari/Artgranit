@@ -82,6 +82,8 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
 - `AGRO_V_SALES` — sales documents with customer details
 - `AGRO_V_MASS_BALANCE` — mass balance by item
 - `AGRO_V_CELL_READINGS` — storage readings with cell/warehouse info
+- `AGRO_V_FIELD_REQUESTS` — field requests with supplier/warehouse/profile/line counts
+- `AGRO_V_BATCH_INSPECTIONS` — batch inspection results with item/profile info
 
 ## API Endpoints
 
