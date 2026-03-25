@@ -3187,6 +3187,7 @@ window.weighPurchaseLine = function(lineId) {
     document.getElementById('modalScaleIndicator').style.background = '#ffc107';
     document.getElementById('modalCaptureBtn').disabled = true;
     document.getElementById('aiResult').style.display = 'none';
+    hideProductPassport();
     document.getElementById('cameraViewport').innerHTML =
         '<div class="camera-idle"><div style="font-size:40px;">📷</div>' +
         '<div>Запуск... / Pornire...</div></div>';
