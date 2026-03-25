@@ -2693,6 +2693,103 @@ function loadScaleConfig() {
 .sk-ai-product { font-size: 16px; font-weight: 700; color: #53d769; }
 .sk-ai-confidence { font-size: 12px; color: #6c6c8a; margin-top: 4px; }
 
+/* Product passport panel */
+.sk-passport {
+    border-top: 2px solid #0f3460; background: #0d1830;
+    display: flex; flex-direction: column; overflow: hidden;
+    max-height: 50vh; animation: slideUp .2s ease-out;
+}
+@keyframes slideUp { from { max-height: 0; opacity: 0; } to { max-height: 50vh; opacity: 1; } }
+.sk-passport-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px; border-bottom: 1px solid #0f346080; flex-shrink: 0;
+}
+.sk-passport-product-name { font-size: 14px; font-weight: 700; color: #53d769; }
+.sk-passport-badge {
+    font-size: 10px; font-weight: 600; color: #8888aa; background: #16213e;
+    padding: 3px 10px; border-radius: 10px; letter-spacing: .5px; text-transform: uppercase;
+}
+.sk-passport-section { padding: 6px 14px; flex-shrink: 0; }
+.sk-passport-label { font-size: 11px; color: #6c6c8a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+.sk-variety-grid {
+    display: flex; flex-wrap: wrap; gap: 6px;
+}
+.sk-variety-btn {
+    padding: 8px 14px; border: 1px solid #0f3460; border-radius: 8px;
+    background: #16213e; color: #b0b0c8; font-size: 13px; cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+}
+.sk-variety-btn:hover { border-color: #53d769; color: #fff; }
+.sk-variety-btn.active { border-color: #53d769; background: #1a3a2e; color: #53d769; font-weight: 600; }
+.sk-passport-tabs {
+    display: flex; gap: 0; border-bottom: 1px solid #0f3460; flex-shrink: 0; padding: 0 14px;
+}
+.sk-passport-tab {
+    padding: 8px 16px; border: none; background: none; color: #6c6c8a;
+    font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .15s;
+}
+.sk-passport-tab:hover { color: #b0b0c8; }
+.sk-passport-tab.active { color: #53d769; border-bottom-color: #53d769; font-weight: 600; }
+.sk-passport-pages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.sk-passport-page { display: none; padding: 10px 14px; }
+.sk-passport-page.active { display: block; }
+.sk-field-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.sk-field { flex: 1; }
+.sk-field > label {
+    display: block; font-size: 11px; color: #6c6c8a; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sk-field-ref { font-size: 10px; color: #4ec9b0; margin-top: 2px; }
+.sk-stepper { display: flex; gap: 0; align-items: center; }
+.sk-step-btn {
+    width: 44px; height: 44px; border: 1px solid #0f3460; background: #16213e;
+    color: #b0b0c8; font-size: 20px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; transition: all .12s;
+}
+.sk-step-btn:first-child { border-radius: 8px 0 0 8px; }
+.sk-step-btn:last-child { border-radius: 0 8px 8px 0; }
+.sk-step-btn:active { background: #0f3460; }
+.sk-step-input {
+    flex: 1; height: 44px; border: 1px solid #0f3460; border-left: none; border-right: none;
+    background: #0a1628; color: #e0e0e0; font-size: 18px; font-weight: 700;
+    text-align: center; font-family: monospace; min-width: 60px;
+    -moz-appearance: textfield;
+}
+.sk-step-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.sk-step-input-ro {
+    height: 44px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid #0f3460; border-radius: 8px; background: #0a1628;
+    color: #b0b0c8; font-size: 16px; font-family: monospace;
+}
+.sk-slider {
+    width: 100%; height: 32px; -webkit-appearance: none; background: #16213e;
+    border-radius: 6px; outline: none; cursor: pointer;
+}
+.sk-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%;
+    background: #53d769; cursor: pointer; border: 2px solid #0a1628;
+}
+.sk-rating { display: flex; gap: 6px; }
+.sk-rate-btn {
+    width: 44px; height: 44px; border: 1px solid #0f3460; border-radius: 8px;
+    background: #16213e; color: #6c6c8a; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: all .12s;
+}
+.sk-rate-btn.active { background: #1a3a2e; border-color: #53d769; color: #53d769; }
+.sk-rate-btn:active { transform: scale(0.9); }
+.sk-btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.sk-opt-btn {
+    padding: 10px 14px; border: 1px solid #0f3460; border-radius: 8px;
+    background: #16213e; color: #b0b0c8; font-size: 12px; cursor: pointer;
+    transition: all .12s; flex: 1; text-align: center; min-width: 70px;
+}
+.sk-opt-btn.active { border-color: #53d769; background: #1a3a2e; color: #53d769; font-weight: 600; }
+.sk-opt-btn:active { transform: scale(0.95); }
+.sk-textarea {
+    width: 100%; padding: 10px; border: 1px solid #0f3460; border-radius: 8px;
+    background: #0a1628; color: #e0e0e0; font-size: 13px; resize: none;
+}
+
 /* Numeric keypad */
 .sk-numpad {
     width: 100%; background: #0d1830; border-radius: 8px;
