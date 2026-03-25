@@ -1787,11 +1787,11 @@ class AgroStore:
                 for ln in lines:
                     db.execute_query(
                         """INSERT INTO AGRO_PURCHASE_LINES
-                                  (ID, PURCHASE_DOC_ID, ITEM_ID, PALLETS,
+                                  (ID, PURCHASE_DOC_ID, ITEM_ID, VARIETY_ID, PALLETS,
                                    CRATES_COUNT, GROSS_WEIGHT_KG, TARE_WEIGHT_KG,
                                    NET_WEIGHT_KG, PRICE_PER_KG, AMOUNT, NOTES)
                            VALUES (AGRO_PURCHASE_LINES_SEQ.NEXTVAL, :purchase_doc_id,
-                                   :item_id, :pallets, :crates_count,
+                                   :item_id, :variety_id, :pallets, :crates_count,
                                    :gross_weight_kg, :tare_weight_kg,
                                    :net_weight_kg, :price_per_kg, :amount, :notes)""",
                         {
@@ -1877,11 +1877,11 @@ class AgroStore:
                 for ln in lines:
                     db.execute_query(
                         """INSERT INTO AGRO_PURCHASE_LINES
-                                  (ID, PURCHASE_DOC_ID, ITEM_ID, PALLETS,
+                                  (ID, PURCHASE_DOC_ID, ITEM_ID, VARIETY_ID, PALLETS,
                                    CRATES_COUNT, GROSS_WEIGHT_KG, TARE_WEIGHT_KG,
                                    NET_WEIGHT_KG, PRICE_PER_KG, AMOUNT, NOTES)
                            VALUES (AGRO_PURCHASE_LINES_SEQ.NEXTVAL, :purchase_doc_id,
-                                   :item_id, :pallets, :crates_count,
+                                   :item_id, :variety_id, :pallets, :crates_count,
                                    :gross_weight_kg, :tare_weight_kg,
                                    :net_weight_kg, :price_per_kg, :amount, :notes)""",
                         {
