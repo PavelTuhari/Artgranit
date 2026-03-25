@@ -18,8 +18,8 @@ field harvest → cold storage → quality control → processing → sales/expo
 ```
 
 ### Controllers
-- `AgroAdminController` — 11 reference tables CRUD
-- `AgroFieldController` — barcode, crate, purchase operations
+- `AgroAdminController` — 11 reference tables CRUD + item varieties + acceptance profiles
+- `AgroFieldController` — barcode, crate, purchase, field requests, batch inspections
 - `AgroWarehouseController` — stock, movements, temperature, tasks
 - `AgroQaController` — checklists, checks, batch blocks, HACCP
 - `AgroSalesController` — sales docs, FIFO allocation, export declarations
