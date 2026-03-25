@@ -1690,9 +1690,13 @@ class AgroStore:
                     """SELECT pl.*,
                               i.NAME_RU AS ITEM_NAME_RU,
                               i.NAME_RO AS ITEM_NAME_RO,
-                              i.CODE    AS ITEM_CODE
+                              i.CODE    AS ITEM_CODE,
+                              v.CODE    AS VARIETY_CODE,
+                              v.NAME_RU AS VARIETY_NAME_RU,
+                              v.NAME_RO AS VARIETY_NAME_RO
                        FROM AGRO_PURCHASE_LINES pl
                        JOIN AGRO_ITEMS i ON i.ID = pl.ITEM_ID
+                       LEFT JOIN AGRO_ITEM_VARIETIES v ON v.ID = pl.VARIETY_ID
                        WHERE pl.PURCHASE_DOC_ID = :doc_id
                        ORDER BY pl.ID""",
                     {"doc_id": doc_id},
