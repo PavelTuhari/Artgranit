@@ -3001,9 +3001,9 @@ function selectVariety(v, productKey) {
     selectedVariety = v;
     // Highlight button
     var btns = document.querySelectorAll('.sk-variety-btn');
-    btns.forEach(function(b) { b.classList.remove('active'); });
-    event.target ? event.target.classList.add('active') :
-        (btns.length > 0 && btns.forEach(function(b) { if (b.textContent === (v.name_ru || v.code)) b.classList.add('active'); }));
+    btns.forEach(function(b) {
+        b.classList.toggle('active', b.textContent === (v.name_ru || v.code));
+    });
 
     // Populate reference values from variety passport
     var calibrRef = document.getElementById('ppCalibrRef');
