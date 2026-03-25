@@ -3021,15 +3021,6 @@ function resetPassportFields() {
     document.getElementById('ppDefectPctRow').style.display = 'none';
 }
 
-window.showPassportTab = function(tabName) {
-    document.querySelectorAll('.sk-passport-tab').forEach(function(t) {
-        t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
-    });
-    document.querySelectorAll('.sk-passport-page').forEach(function(p) {
-        p.classList.toggle('active', p.id === 'passportPage-' + tabName);
-    });
-};
-
 window.stepField = function(id, delta) {
     var inp = document.getElementById(id);
     if (!inp) return;
