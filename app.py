@@ -4,7 +4,7 @@ from __future__ import annotations
 Главное приложение Oracle SQL Developer - UNA.md/orasldev
 MVC архитектура с WebSockets для реального времени
 """
-from flask import Flask, Response, render_template, jsonify, request, session, redirect, url_for, g, send_from_directory
+from flask import Flask, Response, render_template, jsonify, request, session, redirect, url_for, g, send_from_directory, send_file
 from flask_socketio import SocketIO, emit
 from flask_babel import Babel, _, lazy_gettext as _l
 from flask_limiter import Limiter
