@@ -2194,6 +2194,22 @@ class AgroStore:
                         {"active": "Y"},
                     )
                     result[key] = _norm_rows(r)
+                # Varieties with item info
+                rv = db.execute_query(
+                    """SELECT v.*, i.CODE AS ITEM_CODE, i.NAME_RU AS ITEM_NAME_RU
+                       FROM AGRO_ITEM_VARIETIES v
+                       JOIN AGRO_ITEMS i ON i.ID = v.ITEM_ID
+                       WHERE v.ACTIVE = 'Y'
+                       ORDER BY i.NAME_RU, v.NAME_RU""",
+                    None,
+                )
+                result["varieties"] = _norm_rows(rv)
+                # Acceptance profiles
+                rp = db.execute_query(
+                    "SELECT * FROM AGRO_ACCEPTANCE_PROFILES WHERE ACTIVE = 'Y' ORDER BY NAME_RU",
+                    None,
+                )
+                result["acceptance_profiles"] = _norm_rows(rp)
             return {"success": True, "data": result}
         except Exception as e:
             return {"success": False, "error": str(e)}
