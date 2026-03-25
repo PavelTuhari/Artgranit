@@ -3513,7 +3513,7 @@ window.modalScaleCapture = function() {
             // Store passport data on the line
             if (typeof collectPassportData === 'function') {
                 line.setAttribute('data-passport', JSON.stringify(collectPassportData()));
-                if (typeof renderPassportBadges === 'function') renderPassportBadges(line);
+                if (typeof window.renderPassportBadges === 'function') window.renderPassportBadges(line);
             }
         }
 
