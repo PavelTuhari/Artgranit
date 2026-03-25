@@ -90,6 +90,8 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
 ### Admin API (`/api/agro-admin/`)
 - `GET/POST` — suppliers, customers, warehouses, storage_cells, items, packaging_types, vehicles, currencies, exchange_rates, formula_params, module_config
 - `PUT/DELETE` — `/<entity>/<id>`
+- `GET/POST /item-varieties`, `DELETE /item-varieties/<id>` — product varieties (calibre, brix, shelf life)
+- `GET/POST /acceptance-profiles`, `DELETE /acceptance-profiles/<id>` — retailer acceptance threshold profiles
 - `GET /api/agro-admin/reports/<type>` — purchases, sales, mass_balance, stock, expiry
 - `GET /api/agro-admin/reports/export/<type>?format=xlsx|csv`
 
