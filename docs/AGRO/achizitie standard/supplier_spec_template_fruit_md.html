@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Шаблон технической спецификации поставщика фруктов</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:32px;background:#f8fafc;color:#111827;line-height:1.45}
+.container{max-width:1180px;margin:0 auto;background:#fff;padding:34px 40px;border:1px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.05)}
+h1,h2{color:#0f172a}
+h1{font-size:30px;margin:0 0 10px}
+h2{font-size:22px;margin-top:28px;border-bottom:2px solid #e5e7eb;padding-bottom:8px}
+table{width:100%;border-collapse:collapse;margin:14px 0 24px}
+th,td{border:1px solid #d1d5db;padding:9px 11px;vertical-align:top}
+th{background:#0f172a;color:#fff;text-align:left}
+.fill{background:#eff6ff;color:#1d4ed8;font-weight:bold}
+.note{background:#f8fafc;border-left:4px solid #64748b;padding:12px 14px;margin:14px 0}
+.small{font-size:12px;color:#475569}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Шаблон технической спецификации поставщика<br>Яблоки и другие свежие фрукты</h1>
+<p>Используйте как приложение к договору или как pre-approval form перед первой поставкой в торговую сеть.</p>
+
+<div class="note">
+Поля с голубой подложкой — для заполнения. В конце документа предусмотрен блок правил приемки, уценки и отказа.
+</div>
+
+<h2>1) Общая информация</h2>
+<table>
+  <tr><th>Параметр</th><th>Значение</th></tr>
+  <tr><td>Поставщик</td><td class="fill">[Наименование поставщика]</td></tr>
+  <tr><td>Код поставщика / vendor code</td><td class="fill">[Код]</td></tr>
+  <tr><td>Контакт по качеству</td><td class="fill">[ФИО, телефон, e-mail]</td></tr>
+  <tr><td>Сеть / покупатель</td><td class="fill">[Kaufland / Metro / Linella / другое]</td></tr>
+  <tr><td>Продукт</td><td class="fill">[Яблоки / груши / сливы / виноград / др.]</td></tr>
+  <tr><td>Сорт</td><td class="fill">[Gala / Golden Delicious / Fuji / др.]</td></tr>
+  <tr><td>Страна происхождения</td><td class="fill">[MD / RO / PL / др.]</td></tr>
+  <tr><td>Регион / сад / производитель</td><td class="fill">[Указать]</td></tr>
+  <tr><td>Сезон / окно поставки</td><td class="fill">[дд.мм.гггг – дд.мм.гггг]</td></tr>
+  <tr><td>Инкотермс / место поставки</td><td class="fill">[DDP / FCA / др.]</td></tr>
+</table>
+
+<h2>2) Коммерческий класс и качество</h2>
+<table>
+  <tr>
+    <th>Параметр</th>
+    <th>Требование</th>
+    <th>Комментарий</th>
+  </tr>
+  <tr><td>Коммерческий класс</td><td class="fill">[Extra / I / II]</td><td>Для retail обычно согласуют Class I или выше</td></tr>
+  <tr><td>Минимальные требования</td><td class="fill">[целые, здоровые, чистые, без вредителей, пригодные к продаже]</td><td>Ссылка на применимый стандарт ЕС / UNECE / локальный акт</td></tr>
+  <tr><td>Однородность партии</td><td class="fill">[да / нет + допуск]</td><td>По сорту, происхождению, калибру, степени зрелости и окраске</td></tr>
+  <tr><td>Запреты</td><td class="fill">[гниль 0%, плесень 0%, живые вредители 0%, посторонний запах 0%]</td><td>Критические несоответствия</td></tr>
+</table>
+
+<h2>3) Калибр и размер</h2>
+<table>
+  <tr><th>Параметр</th><th>Требование</th><th>Метод контроля</th></tr>
+  <tr><td>Метод</td><td class="fill">[диаметр мм / масса г]</td><td>Штангенциркуль / калибровочное кольцо / весы</td></tr>
+  <tr><td>Целевой диапазон</td><td class="fill">[например 65–75 мм]</td><td>Среднее по выборке</td></tr>
+  <tr><td>Минимальный калибр</td><td class="fill">[например 65 мм]</td><td>Минимально допустимый размер</td></tr>
+  <tr><td>Доля ниже минимального калибра</td><td class="fill">[например не более 5%]</td><td>% плодов в выборке</td></tr>
+  <tr><td>Смешение размеров в одной упаковке</td><td class="fill">[например не более 10%]</td><td>% отклоняющихся плодов</td></tr>
+</table>
+
+<h2>4) Внешний вид и допустимые дефекты</h2>
+<table>
+  <tr><th>Дефект</th><th>Допуск</th><th>Критичность</th></tr>
+  <tr><td>Незначительные поверхностные дефекты кожицы</td><td class="fill">[например не более 5% партии]</td><td>Некритично</td></tr>
+  <tr><td>Деформация / нехарактерная форма</td><td class="fill">[например не более 3%]</td><td>Средняя</td></tr>
+  <tr><td>Нажимы / bruising</td><td class="fill">[например не более 1%]</td><td>Высокая</td></tr>
+  <tr><td>Трещины / расколы</td><td class="fill">[0% или порог]</td><td>Высокая</td></tr>
+  <tr><td>Гниль / плесень</td><td class="fill">0%</td><td>Критическая</td></tr>
+  <tr><td>Живые вредители / следы заражения</td><td class="fill">0%</td><td>Критическая</td></tr>
+  <tr><td>Наличие листьев, веточек, посторонних включений</td><td class="fill">[допуск]</td><td>Низкая / средняя</td></tr>
+</table>
+
+<h2>5) Зрелость и eating quality</h2>
+<table>
+  <tr><th>Параметр</th><th>Требование</th><th>Метод</th></tr>
+  <tr><td>Brix</td><td class="fill">[минимум ___]</td><td>Рефрактометр</td></tr>
+  <tr><td>Твердость</td><td class="fill">[диапазон ___]</td><td>Пенетрометр</td></tr>
+  <tr><td>Окраска</td><td class="fill">[например min 60% red cover для Gala]</td><td>Визуально по выборке</td></tr>
+  <tr><td>Состояние мякоти</td><td class="fill">[без стекловидности / без internal browning]</td><td>Разрез выборки</td></tr>
+  <tr><td>Аромат / вкус</td><td class="fill">[типичный для сорта]</td><td>Органолептика</td></tr>
+</table>
+
+<h2>6) Безопасность и документы</h2>
+<table>
+  <tr><th>Документ / требование</th><th>Статус</th><th>Комментарий</th></tr>
+  <tr><td>Traceability sheet / лот / orchard code</td><td class="fill">[обязательно / по запросу]</td><td>Должно совпадать с маркировкой и invoice</td></tr>
+  <tr><td>Лабораторный отчет по остаткам пестицидов</td><td class="fill">[обязательно / по запросу]</td><td>Указать периодичность и лабораторию</td></tr>
+  <tr><td>Фитосанитарный / health document</td><td class="fill">[обязательно / не требуется]</td><td>По типу поставки</td></tr>
+  <tr><td>GLOBALG.A.P.</td><td class="fill">[обязательно / желательно / не требуется]</td><td>При необходимости указать версию</td></tr>
+  <tr><td>GRASP / социальный модуль</td><td class="fill">[обязательно / желательно / не требуется]</td><td>Опционально</td></tr>
+  <tr><td>Список запрещенных действующих веществ</td><td class="fill">[приложить / ссылка на policy]</td><td>Если сеть применяет stricter-than-law policy</td></tr>
+</table>
+
+<h2>7) Упаковка и маркировка</h2>
+<table>
+  <tr><th>Параметр</th><th>Требование</th></tr>
+  <tr><td>Тип упаковки</td><td class="fill">[картон / IFCO / RPC / flowpack / др.]</td></tr>
+  <tr><td>Нетто в единице</td><td class="fill">[например 13 кг]</td></tr>
+  <tr><td>Схема укладки</td><td class="fill">[слоями / навалом / tray pack]</td></tr>
+  <tr><td>Паллета</td><td class="fill">[EUR / CHEP / размеры]</td></tr>
+  <tr><td>Этикетка короба</td><td class="fill">[страна, сорт, класс, калибр, lot, pack date, supplier]</td></tr>
+  <tr><td>Потребительская маркировка</td><td class="fill">[EAN / PLU / private label / origin statement]</td></tr>
+</table>
+
+<h2>8) Логистика и температура</h2>
+<table>
+  <tr><th>Параметр</th><th>Требование</th></tr>
+  <tr><td>Температура при отгрузке</td><td class="fill">[например 0…+4 °C]</td></tr>
+  <tr><td>Температура при приемке</td><td class="fill">[например 0…+6 °C]</td></tr>
+  <tr><td>Тип транспорта</td><td class="fill">[рефрижератор / изотерм / др.]</td></tr>
+  <tr><td>Санитарное состояние транспорта</td><td class="fill">[чистый, сухой, без посторонних запахов]</td></tr>
+  <tr><td>Максимальное время отгрузка → приемка</td><td class="fill">[___ часов / суток]</td></tr>
+</table>
+
+<h2>9) Правила выборки и приемки</h2>
+<table>
+  <tr><th>Параметр</th><th>Требование</th></tr>
+  <tr><td>Размер выборки</td><td class="fill">[например 5 коробов или 2% партии]</td></tr>
+  <tr><td>Метод выборки</td><td class="fill">[случайная / по паллетам / комбинированная]</td></tr>
+  <tr><td>Решение “Принять”</td><td class="fill">[при полном соответствии]</td></tr>
+  <tr><td>Решение “Принять с сортировкой / скидкой”</td><td class="fill">[условия и формула скидки]</td></tr>
+  <tr><td>Решение “Отказать”</td><td class="fill">[критические несоответствия и пороги]</td></tr>
+  <tr><td>Фото-акт / претензия</td><td class="fill">[кто оформляет, срок, пакет доказательств]</td></tr>
+</table>
+
+<h2>10) Подписи и версия</h2>
+<table>
+  <tr><th>Поле</th><th>Значение</th></tr>
+  <tr><td>Версия спецификации</td><td class="fill">[v__]</td></tr>
+  <tr><td>Дата вступления в силу</td><td class="fill">[дд.мм.гггг]</td></tr>
+  <tr><td>Согласовано поставщиком</td><td class="fill">[ФИО / должность / дата]</td></tr>
+  <tr><td>Согласовано покупателем</td><td class="fill">[ФИО / должность / дата]</td></tr>
+</table>
+
+<p class="small">
+Подсказка: если сеть не дает готовый produce annex, этот шаблон можно отправить как проект спецификации на согласование. В приложениях удобно добавить defect photo guide, pesticide policy и pallet pattern.
+</p>
+</div>
+</body>
+</html>
