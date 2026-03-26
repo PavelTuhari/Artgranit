@@ -791,12 +791,14 @@ function wtLookupCrate() {
     var bc = document.getElementById('wtBarcode').value.trim();
     if (!bc) return toast('Введите штрихкод', 'warning');
     // Try to resolve crate from field API
-    api('GET', '/api/agro-field/crates?barcode=' + encodeURIComponent(bc)).then(function(d) {
+    api('POST', '/api/agro-field/crates/scan', {barcode: bc}).then(function(d) {
         if (d.success && d.data) {
-            var crate = Array.isArray(d.data) ? d.data[0] : d.data;
-            if (crate && crate.item_id) {
+            var crate = d.data;
+            if (crate.item_id) {
                 document.getElementById('wtItem').value = crate.item_id;
-                if (crate.net_weight_kg) {
+                // Store batch_id for later use
+                document.getElementById('wtBarcode').setAttribute('data-batch-id', crate.batch_id || '');
+                if (crate.gross_weight_kg) {
                     document.getElementById('wtGross').value = parseFloat(crate.gross_weight_kg || 0).toFixed(2);
                     wtCalcNet();
                 }
