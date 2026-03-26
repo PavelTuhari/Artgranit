@@ -312,5 +312,8 @@ Each template is self-contained. Copy touchscreen styles from `agro_field.html` 
 - `agro_oracle_store.py` scoring engine (already correct)
 - Existing sales document workflow
 - Existing field purchase/barcode/crate workflows
-- Oracle schema for existing tables
+- Oracle schema for existing tables (except AGRO_ATTACHMENTS constraint update)
 - Other templates (admin, warehouse, qa)
+- Scale API (`/api/agro-scale/*`) — existing dependency, no changes needed
+- `static/agro/barcode-scanner.js` — shared static asset, reused in sales template via `<script src>`
+- `static/agro/barcode-generator.js` — shared static asset, not needed for sales
