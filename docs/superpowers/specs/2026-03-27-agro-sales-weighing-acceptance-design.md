@@ -97,11 +97,22 @@ Add to the batch inspection UI (after the 17-checkbox section):
 
 ### 3.4 Backend changes
 
-None. Existing API endpoints and scoring engine are sufficient:
-- `POST /api/agro-field/batch-inspections` — already accepts check values
+Minimal. Existing API endpoints and scoring engine are sufficient:
+- `POST /api/agro-field/inspections` — already accepts check values
 - `perform_batch_inspection()` in store — already computes weighted score
 - `AGRO_BATCH_INSPECTIONS` + `AGRO_BATCH_INSPECTION_VALUES` — already store results
 - `AGRO_ATTACHMENTS` — already exists for file storage
+
+**Required DDL change:** `ALTER TABLE AGRO_ATTACHMENTS` to add `'batch_inspection'` to the `CK_AGRO_ATT_ETYPE` CHECK constraint (currently allows: `'purchase','sale','batch','qa_check'`).
+
+### 3.5 Client-side scoring weights
+
+Scoring weights are served via `GET /api/agro-field/scoring-config` (new endpoint) to maintain a single source of truth. Returns `_SCORING_WEIGHTS` and `_CRITICAL_CHECKS` from store. Avoids hardcoding in JS.
+
+### 3.6 Notes
+
+- D-code numbering gap D15–D19 is intentional — reserved for future Major-category codes
+- D12 maps to two scoring checks simultaneously (`CALIBRE_OK` + `BELOW_MIN_OK`); tapping D12 toggles both
 
 ---
 
