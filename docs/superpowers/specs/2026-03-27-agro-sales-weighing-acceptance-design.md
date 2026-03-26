@@ -299,9 +299,10 @@ Each template is self-contained. Copy touchscreen styles from `agro_field.html` 
 | `templates/agro_field.html` | Add D-code panel, photo cells, live score to inspections |
 | `templates/agro_sales.html` | Add weighing page, weight ticket journal, touchscreen styles |
 | `controllers/agro_sales_controller.py` | Add weight ticket methods |
-| `models/agro_oracle_store.py` | Add weight ticket CRUD + finalization logic |
-| `app.py` | Add 6 weight ticket API routes |
-| `sql/41_agro_weight_tickets.sql` | DDL for 2 new tables + sequences + triggers |
+| `models/agro_oracle_store.py` | Add weight ticket CRUD + finalization + scoring-config endpoint |
+| `app.py` | Add 8 API routes (7 weight ticket + 1 scoring-config) |
+| `sql/41_agro_weight_tickets.sql` | DDL: 2 tables, 2 sequences, 2 triggers, 6 indexes, ALTER ATTACHMENTS |
+| `templates/agro_document_weight_ticket.html` | Print template for weight ticket (A4) |
 | `deploy_oracle_objects.py` | Register new SQL file |
 
 ---
