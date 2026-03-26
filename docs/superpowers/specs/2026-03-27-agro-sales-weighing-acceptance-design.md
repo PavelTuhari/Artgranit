@@ -261,7 +261,8 @@ GET    /api/agro-field/scoring-config                — get scoring weights + c
 ### 4.7 Controller additions
 
 Extend `AgroSalesController` with:
-- `create_weight_ticket(sales_doc_id)`
+- `create_weight_ticket(data)` — customer_id, warehouse_id, optional sales_doc_id
+- `update_weight_ticket(ticket_id, data)` — notes, operator, sales_doc_id
 - `add_weight_line(ticket_id, barcode, gross_kg)`
 - `remove_weight_line(ticket_id, line_id)`
 - `finalize_weight_ticket(ticket_id)`
