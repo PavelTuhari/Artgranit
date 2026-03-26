@@ -846,8 +846,10 @@ window.wtAddLine = function() {
     var item = refs.items.find(function(i) { return String(i.id) === String(itemId); });
     if (item) itemName = item.name || item.name_ru || item.code;
 
+    var batchId = document.getElementById('wtBarcode').getAttribute('data-batch-id') || null;
     wtLines.push({
         crate_code: bc, item_id: parseInt(itemId), item_name: itemName,
+        batch_id: batchId ? parseInt(batchId) : null,
         gross_kg: gross, tare_kg: tare, net_kg: net
     });
     wtRenderLines();
