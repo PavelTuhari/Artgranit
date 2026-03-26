@@ -251,9 +251,11 @@ ALTER TABLE AGRO_ATTACHMENTS ADD CONSTRAINT CK_AGRO_ATT_ETYPE
 POST   /api/agro-sales/weight-tickets              — create ticket
 GET    /api/agro-sales/weight-tickets               — list tickets (with filters)
 GET    /api/agro-sales/weight-tickets/<id>           — get ticket + lines
+PUT    /api/agro-sales/weight-tickets/<id>           — update ticket header (notes, operator, sales_doc_id)
 POST   /api/agro-sales/weight-tickets/<id>/lines     — add line (barcode, gross_kg)
 DELETE /api/agro-sales/weight-tickets/<id>/lines/<lid> — remove line
 POST   /api/agro-sales/weight-tickets/<id>/finalize  — finalize ticket
+GET    /api/agro-field/scoring-config                — get scoring weights + critical checks (new)
 ```
 
 ### 4.7 Controller additions
