@@ -393,11 +393,24 @@ Continue inserting after the scoring config method:
             return {"success": False, "error": str(e)}
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Add print data method for weight ticket**
+
+Append after finalize method:
+
+```python
+    @staticmethod
+    def get_document_data(doc_type: str, doc_id: int) -> Dict[str, Any]:
+        """Return data for print templates (weight_ticket, etc.)."""
+        if doc_type == "weight_ticket":
+            return AgroStore.get_weight_ticket_by_id(doc_id)
+        return {"success": False, "error": f"Unknown doc type: {doc_type}"}
+```
+
+- [ ] **Step 4: Commit**
 
 ```
 git add models/agro_oracle_store.py
-git commit -m "feat(agro): add weight ticket store methods + scoring config endpoint"
+git commit -m "feat(agro): add weight ticket store methods + scoring config + print data"
 ```
 
 ---
