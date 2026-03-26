@@ -620,7 +620,7 @@ In the `<nav class="sidebar">` section (around line 103-111), replace/extend:
 
 - [ ] **Step 3: Add weighing page HTML**
 
-After the export declarations page (`</div>` closing `page-export`, around line 205), insert:
+After the export declarations page closing `</div>` (line 205), but BEFORE `</main>` (line 207), insert:
 
 ```html
 <!-- ==================== WEIGHING / ВЗВЕШИВАНИЕ ==================== -->
