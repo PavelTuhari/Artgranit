@@ -1243,20 +1243,65 @@ def docs_agro_index():
 
 @app.route('/UNA.md/orasldev/docs/agro/<path:filename>')
 def docs_agro_file(filename):
-    """Documentație AGRO — fișiere HTML (TZ.html etc.)"""
+    """Documentație AGRO — fișiere HTML din docs/AGRO/ (inclusiv subdirectoare)."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    safe = Path(filename).name
-    if not safe or ".." in filename:
+    if ".." in filename:
         return "<h1>Cale invalidă</h1>", 400
-    if not safe.endswith('.html'):
-        return "<h1>Doar fișiere .html</h1>", 400
-    p = _DOCS_AGRO_DIR / safe
-    if not p.resolve().parent == _DOCS_AGRO_DIR.resolve():
+    p = (_DOCS_AGRO_DIR / filename).resolve()
+    try:
+        p.relative_to(_DOCS_AGRO_DIR.resolve())
+    except ValueError:
         return "<h1>Cale invalidă</h1>", 400
     if not p.is_file():
         return "<h1>Nu s-a găsit</h1><p><a href='/UNA.md/orasldev/docs/agro/'>Înapoi</a></p>", 404
-    return Response(p.read_text(encoding='utf-8'), mimetype='text/html; charset=utf-8')
+    suffix = p.suffix.lower()
+    if suffix == '.html':
+        return Response(p.read_text(encoding='utf-8'), mimetype='text/html; charset=utf-8')
+    if suffix == '.xlsx':
+        return _docs_agro_view_xlsx(p)
+    return "<h1>Tip de fișier neacceptat</h1><p><a href='/UNA.md/orasldev/docs/agro/'>Înapoi</a></p>", 400
+
+
+def _docs_agro_view_xlsx(p: Path):
+    """Render .xlsx ca tabel HTML (similar cu Nufarul xlsx viewer)."""
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(p, data_only=True)
+        sheets_html = []
+        for ws in wb.worksheets:
+            rows = list(ws.iter_rows(values_only=True))
+            if not rows:
+                continue
+            tbl = f'<h3 style="margin-top:24px;color:#0d9488;">{ws.title}</h3>'
+            tbl += '<table style="width:100%;border-collapse:collapse;margin:8px 0 20px;">'
+            for i, row in enumerate(rows):
+                tag = 'th' if i == 0 else 'td'
+                style_hdr = 'background:#0f172a;color:#fff;' if i == 0 else ''
+                cells = ''.join(
+                    f'<{tag} style="border:1px solid #d1d5db;padding:8px 10px;{style_hdr}">{v if v is not None else ""}</{tag}>'
+                    for v in row
+                )
+                tbl += f'<tr>{cells}</tr>'
+            tbl += '</table>'
+            sheets_html.append(tbl)
+        body = ''.join(sheets_html)
+    except Exception as e:
+        body = f'<p style="color:red;">Eroare la citirea fișierului: {e}</p>'
+    html = f'''<!DOCTYPE html>
+<html lang="ro"><head><meta charset="utf-8">
+<title>{p.name}</title>
+<style>body{{font-family:Arial,sans-serif;margin:32px;background:#f8fafc;color:#111827;line-height:1.45}}
+.container{{max-width:1400px;margin:0 auto;background:#fff;padding:28px 36px;border:1px solid #e5e7eb;box-shadow:0 8px 24px rgba(0,0,0,.05)}}
+h2{{color:#0f172a;font-size:22px;margin-bottom:6px}}
+a.back{{display:inline-block;margin-bottom:16px;color:#0d9488;text-decoration:none;font-weight:600}}
+a.back:hover{{text-decoration:underline}}</style></head>
+<body><div class="container">
+<a class="back" href="/UNA.md/orasldev/docs/agro/">&larr; Înapoi la documentație AGRO</a>
+<h2>{p.name}</h2>
+{body}
+</div></body></html>'''
+    return Response(html, mimetype='text/html; charset=utf-8')
 
 
 # База для HTML-документов DECOR (абсолютный путь)
