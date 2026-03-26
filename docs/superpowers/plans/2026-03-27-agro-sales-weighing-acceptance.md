@@ -912,6 +912,7 @@ window.wtCreateTicket = function() {
             chain = chain.then(function() {
                 return api('POST', '/api/agro-sales/weight-tickets/' + ticketId + '/lines', {
                     crate_code: line.crate_code, item_id: line.item_id,
+                    batch_id: line.batch_id,
                     gross_kg: line.gross_kg, tare_kg: line.tare_kg
                 });
             });
