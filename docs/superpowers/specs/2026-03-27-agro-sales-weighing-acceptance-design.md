@@ -273,9 +273,10 @@ Extend `AgroSalesController` with:
 
 Extend `AgroStore` with corresponding Oracle operations. Finalization should:
 1. Sum net weights per item
-2. Validate against sales doc line quantities
+2. Validate against sales doc line quantities (if sales_doc_id linked)
 3. Update ticket status to 'finalized'
-4. Log event to `AGRO_EVENT_LOG`
+4. If sales_doc_id linked, optionally update sales doc status to 'shipped'
+5. Log event to `AGRO_EVENT_LOG`
 
 ---
 
