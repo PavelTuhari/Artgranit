@@ -616,6 +616,9 @@ tr:hover td { background: rgba(255,255,255,.04); }
 var refs = { customers: [], warehouses: [], items: [], currencies: [] };
 var currentDocId = null;
 var lineCounter = 0;
+var allSalesDocs = [];
+var salesStatusFilter = 'all';
+var ticketStatusFilter = '';
 
 document.addEventListener('DOMContentLoaded', function() {
     initNav();
