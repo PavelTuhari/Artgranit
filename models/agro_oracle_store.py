@@ -3178,6 +3178,252 @@ class AgroStore:
             return {"success": False, "error": str(e)}
 
     # ------------------------------------------------------------------
+    # Weight Tickets (Sales Weighing)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def get_scoring_config() -> Dict[str, Any]:
+        """Return scoring weights and critical checks for client-side calculation."""
+        return {
+            "success": True,
+            "data": {
+                "weights": dict(AgroStore._SCORING_WEIGHTS),
+                "critical": list(AgroStore._CRITICAL_CHECKS),
+            },
+        }
+
+    @staticmethod
+    def get_weight_tickets(filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """List weight tickets with optional filters."""
+        try:
+            with DatabaseModel() as db:
+                sql = """
+                    SELECT wt.ID, wt.TICKET_NUMBER, wt.TICKET_DATE, wt.STATUS,
+                           wt.OPERATOR, wt.NOTES, wt.SALES_DOC_ID, wt.CREATED_AT,
+                           c.NAME AS CUSTOMER_NAME, w.NAME AS WAREHOUSE_NAME,
+                           sd.DOC_NUMBER AS SALES_DOC_NUMBER,
+                           (SELECT NVL(SUM(wtl.NET_KG), 0) FROM AGRO_WEIGHT_TICKET_LINES wtl
+                            WHERE wtl.TICKET_ID = wt.ID) AS TOTAL_NET_KG
+                    FROM AGRO_WEIGHT_TICKETS wt
+                    LEFT JOIN AGRO_CUSTOMERS c ON c.ID = wt.CUSTOMER_ID
+                    LEFT JOIN AGRO_WAREHOUSES w ON w.ID = wt.WAREHOUSE_ID
+                    LEFT JOIN AGRO_SALES_DOCS sd ON sd.ID = wt.SALES_DOC_ID
+                    WHERE 1=1
+                """
+                params: Dict[str, Any] = {}
+                f = filters or {}
+                if f.get("status"):
+                    sql += " AND wt.STATUS = :status"
+                    params["status"] = f["status"]
+                if f.get("date_from"):
+                    sql += " AND wt.TICKET_DATE >= TO_DATE(:dfrom, 'YYYY-MM-DD')"
+                    params["dfrom"] = f["date_from"]
+                if f.get("date_to"):
+                    sql += " AND wt.TICKET_DATE <= TO_DATE(:dto, 'YYYY-MM-DD')"
+                    params["dto"] = f["date_to"]
+                sql += " ORDER BY wt.CREATED_AT DESC"
+                r = db.execute_query(sql, params)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_weight_ticket_by_id(ticket_id: int) -> Dict[str, Any]:
+        """Get weight ticket header + lines."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT wt.*, c.NAME AS CUSTOMER_NAME, w.NAME AS WAREHOUSE_NAME,
+                              sd.DOC_NUMBER AS SALES_DOC_NUMBER
+                       FROM AGRO_WEIGHT_TICKETS wt
+                       LEFT JOIN AGRO_CUSTOMERS c ON c.ID = wt.CUSTOMER_ID
+                       LEFT JOIN AGRO_WAREHOUSES w ON w.ID = wt.WAREHOUSE_ID
+                       LEFT JOIN AGRO_SALES_DOCS sd ON sd.ID = wt.SALES_DOC_ID
+                       WHERE wt.ID = :tid""",
+                    {"tid": ticket_id},
+                )
+                tickets = _norm_rows(r)
+                if not tickets:
+                    return {"success": False, "error": "Ticket not found"}
+                ticket = tickets[0]
+
+                rl = db.execute_query(
+                    """SELECT wtl.*, i.NAME_RU AS ITEM_NAME
+                       FROM AGRO_WEIGHT_TICKET_LINES wtl
+                       LEFT JOIN AGRO_ITEMS i ON i.ID = wtl.ITEM_ID
+                       WHERE wtl.TICKET_ID = :tid
+                       ORDER BY wtl.LINE_NO""",
+                    {"tid": ticket_id},
+                )
+                ticket["lines"] = _norm_rows(rl)
+                return {"success": True, "data": ticket}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_weight_ticket(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new weight ticket (draft)."""
+        try:
+            with DatabaseModel() as db:
+                r_seq = db.execute_query(
+                    "SELECT AGRO_WEIGHT_TICKETS_SEQ.NEXTVAL AS NID FROM DUAL", {}
+                )
+                new_id = _norm_rows(r_seq)[0]["nid"]
+                today = datetime.now().strftime("%Y%m%d")
+                ticket_number = f"WT-{today}-{int(new_id):04d}"
+
+                db.execute_query(
+                    """INSERT INTO AGRO_WEIGHT_TICKETS
+                       (ID, TICKET_NUMBER, SALES_DOC_ID, CUSTOMER_ID, WAREHOUSE_ID,
+                        TICKET_DATE, STATUS, OPERATOR, NOTES)
+                       VALUES (:id, :tnum, :sdid, :cid, :wid,
+                               TRUNC(SYSDATE), 'draft', :op, :notes)""",
+                    {
+                        "id": new_id, "tnum": ticket_number,
+                        "sdid": data.get("sales_doc_id"),
+                        "cid": data.get("customer_id"),
+                        "wid": data.get("warehouse_id"),
+                        "op": data.get("operator"),
+                        "notes": data.get("notes"),
+                    },
+                )
+                db.connection.commit()
+                return {"success": True, "id": int(new_id), "ticket_number": ticket_number}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_weight_ticket(ticket_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update weight ticket header fields."""
+        try:
+            with DatabaseModel() as db:
+                fields = []
+                params: Dict[str, Any] = {"tid": ticket_id}
+                for col in ("sales_doc_id", "customer_id", "warehouse_id",
+                            "operator", "notes"):
+                    if col in data:
+                        fields.append(f"{col.upper()} = :{col}")
+                        params[col] = data[col]
+                if not fields:
+                    return {"success": False, "error": "No fields to update"}
+                fields.append("UPDATED_AT = SYSTIMESTAMP")
+                sql = f"UPDATE AGRO_WEIGHT_TICKETS SET {', '.join(fields)} WHERE ID = :tid AND STATUS = 'draft'"
+                db.execute_query(sql, params)
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def add_weight_ticket_line(ticket_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Add a weighing line to a draft ticket."""
+        try:
+            with DatabaseModel() as db:
+                rt = db.execute_query(
+                    "SELECT STATUS FROM AGRO_WEIGHT_TICKETS WHERE ID = :tid",
+                    {"tid": ticket_id},
+                )
+                rows = _norm_rows(rt)
+                if not rows:
+                    return {"success": False, "error": "Ticket not found"}
+                if rows[0].get("status") != "draft":
+                    return {"success": False, "error": "Ticket is not in draft status"}
+
+                rl = db.execute_query(
+                    "SELECT NVL(MAX(LINE_NO), 0) + 1 AS NEXT_NO FROM AGRO_WEIGHT_TICKET_LINES WHERE TICKET_ID = :tid",
+                    {"tid": ticket_id},
+                )
+                next_no = _norm_rows(rl)[0]["next_no"]
+
+                gross_kg = float(data.get("gross_kg", 0))
+                tare_kg = float(data.get("tare_kg", 0))
+                net_kg = gross_kg - tare_kg
+
+                db.execute_query(
+                    """INSERT INTO AGRO_WEIGHT_TICKET_LINES
+                       (ID, TICKET_ID, LINE_NO, BATCH_ID, CRATE_CODE, ITEM_ID,
+                        GROSS_KG, TARE_KG, NET_KG)
+                       VALUES (AGRO_WEIGHT_TICKET_LINES_SEQ.NEXTVAL,
+                               :tid, :lno, :bid, :ccode, :iid,
+                               :gross, :tare, :net)""",
+                    {
+                        "tid": ticket_id, "lno": int(next_no),
+                        "bid": data.get("batch_id"), "ccode": data.get("crate_code"),
+                        "iid": data.get("item_id"),
+                        "gross": gross_kg, "tare": tare_kg, "net": net_kg,
+                    },
+                )
+                db.connection.commit()
+                return {"success": True, "line_no": int(next_no), "net_kg": net_kg}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def remove_weight_ticket_line(ticket_id: int, line_id: int) -> Dict[str, Any]:
+        """Remove a line from a draft ticket."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """DELETE FROM AGRO_WEIGHT_TICKET_LINES
+                       WHERE ID = :lid AND TICKET_ID = :tid
+                       AND EXISTS (SELECT 1 FROM AGRO_WEIGHT_TICKETS WHERE ID = :tid AND STATUS = 'draft')""",
+                    {"lid": line_id, "tid": ticket_id},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def finalize_weight_ticket(ticket_id: int) -> Dict[str, Any]:
+        """Finalize a weight ticket: validate, update status, log event."""
+        try:
+            with DatabaseModel() as db:
+                rt = db.execute_query(
+                    "SELECT * FROM AGRO_WEIGHT_TICKETS WHERE ID = :tid",
+                    {"tid": ticket_id},
+                )
+                tickets = _norm_rows(rt)
+                if not tickets:
+                    return {"success": False, "error": "Ticket not found"}
+                ticket = tickets[0]
+                if ticket.get("status") != "draft":
+                    return {"success": False, "error": "Ticket already finalized"}
+
+                rl = db.execute_query(
+                    "SELECT COUNT(*) AS CNT FROM AGRO_WEIGHT_TICKET_LINES WHERE TICKET_ID = :tid",
+                    {"tid": ticket_id},
+                )
+                if _norm_rows(rl)[0]["cnt"] == 0:
+                    return {"success": False, "error": "No lines in ticket"}
+
+                db.execute_query(
+                    "UPDATE AGRO_WEIGHT_TICKETS SET STATUS = 'finalized', UPDATED_AT = SYSTIMESTAMP WHERE ID = :tid",
+                    {"tid": ticket_id},
+                )
+
+                db.execute_query(
+                    """INSERT INTO AGRO_EVENT_LOG
+                       (ID, EVENT_TYPE, ENTITY_TYPE, ENTITY_ID, CHANGE_DATA, CREATED_AT)
+                       VALUES (AGRO_EVENT_LOG_SEQ.NEXTVAL,
+                               'weight_ticket_finalized', 'weight_ticket', :tid,
+                               :data, SYSTIMESTAMP)""",
+                    {"tid": ticket_id, "data": f'{{"ticket_number":"{ticket.get("ticket_number")}"}}'},
+                )
+
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_document_data(doc_type: str, doc_id: int) -> Dict[str, Any]:
+        """Return data for print templates (weight_ticket, etc.)."""
+        if doc_type == "weight_ticket":
+            return AgroStore.get_weight_ticket_by_id(doc_id)
+        return {"success": False, "error": f"Unknown doc type: {doc_type}"}
+
+    # ------------------------------------------------------------------
     # QA & HACCP
     # ------------------------------------------------------------------
 
