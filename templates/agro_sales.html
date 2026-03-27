@@ -860,8 +860,8 @@ window.confirmDoc = function() {
     api('PUT', '/api/agro-sales/documents/' + currentDocId + '/confirm').then(function(d) {
         if (d.success) {
             toast('Документ подтверждён / Document confirmat');
-            closeModal('docDetailModal');
             loadDocs();
+            if (currentDocId) selectSalesDoc(currentDocId);
         } else {
             toast(d.error || 'Ошибка подтверждения', 'error');
         }
