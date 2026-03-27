@@ -4014,6 +4014,136 @@ function loadInspectionHistory() {
     });
 }
 
+/* ==================== D-CODE DEFECT PANEL ==================== */
+var activeDcodes = {};
+var inspPhotos = {};
+var inspPhotoTarget = null;
+
+var scoringWeights = {};
+var criticalChecks = [];
+(function loadScoringConfig() {
+    fetch('/api/agro-field/scoring-config')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.success && d.data) {
+                scoringWeights = d.data.weights || {};
+                criticalChecks = d.data.critical || [];
+            }
+        }).catch(function() {
+            scoringWeights = {CLASS_OK:10,CALIBRE_OK:8,BELOW_MIN_OK:5,MINOR_OK:8,SERIOUS_OK:15,MIXED_OK:4,BRIX_OK:5,TEMP_OK:10,LAB_OK:8,PHYTO_OK:4,TRACE_OK:6,PACK_OK:3,LABEL_OK:2,ACTIVES_OK:2,SINGLE_RESIDUE_OK:2,TOTAL_RESIDUE_OK:2,GLYPHOSATE_OK:1};
+            criticalChecks = ['CLASS_OK','SERIOUS_OK','TEMP_OK','LAB_OK','PHYTO_OK','TRACE_OK'];
+        });
+})();
+
+window.toggleDcode = function(btn) {
+    var dcode = btn.getAttribute('data-dcode');
+    var checks = btn.getAttribute('data-checks').split(',');
+    var isActive = btn.classList.toggle('active');
+    activeDcodes[dcode] = isActive;
+
+    checks.forEach(function(chk) {
+        var cb = document.getElementById('chk-' + chk);
+        if (cb && isActive) cb.checked = false;
+    });
+
+    updateInspPhotoGrid();
+    recalcScore();
+};
+
+function updateInspPhotoGrid() {
+    var grid = document.getElementById('inspPhotoGrid');
+    var activeList = Object.keys(activeDcodes).filter(function(k) { return activeDcodes[k]; });
+    if (!activeList.length) {
+        grid.innerHTML = '<div class="photo-cell" style="border-style:dashed;color:#555;">Нажмите D-код для фото</div>';
+        return;
+    }
+    grid.innerHTML = activeList.map(function(dc) {
+        var hasPhoto = inspPhotos[dc];
+        var content = hasPhoto
+            ? '<img src="' + inspPhotos[dc] + '" alt="' + dc + '">'
+            : '<span style="font-size:24px;">📷</span>';
+        return '<div class="photo-cell ' + (hasPhoto ? 'has-photo' : '') + '" onclick="inspStartPhoto(\'' + dc + '\')">' +
+            '<div style="font-weight:700;font-size:11px;margin-bottom:4px;">' + dc + '</div>' +
+            content + '</div>';
+    }).join('');
+}
+
+window.inspStartPhoto = function(dcode) {
+    inspPhotoTarget = dcode;
+    document.getElementById('inspPhotoInput').click();
+};
+
+window.inspPhotoCapture = function(input) {
+    if (input.files && input.files[0] && inspPhotoTarget) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            inspPhotos[inspPhotoTarget] = e.target.result;
+            updateInspPhotoGrid();
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+function recalcScore() {
+    var totalWeight = 0, earned = 0;
+    var critFail = false, failedCritical = [];
+
+    Object.keys(scoringWeights).forEach(function(code) {
+        var w = scoringWeights[code];
+        totalWeight += w;
+        var cb = document.getElementById('chk-' + code.toLowerCase());
+        var isPass = cb ? cb.checked : false;
+        if (isPass) earned += w;
+        if (!isPass && criticalChecks.indexOf(code) !== -1) {
+            critFail = true;
+            failedCritical.push(code);
+        }
+    });
+
+    var freshness = parseFloat(document.getElementById('insp-freshness_score').value) || 0;
+    var score = totalWeight > 0 ? Math.round((earned / totalWeight) * 100 + freshness) : 0;
+    if (score > 100) score = 100;
+
+    document.getElementById('inspScoreValue').textContent = score;
+    var bar = document.getElementById('inspScoreBar');
+    bar.style.width = score + '%';
+
+    var badge = document.getElementById('inspDecisionBadge');
+    var warn = document.getElementById('inspCriticalWarning');
+    var summary = document.getElementById('inspDcodesSummary');
+
+    if (critFail) {
+        badge.textContent = 'REJECT / ОТКАЗ';
+        badge.style.background = '#e9456040'; badge.style.color = '#ff8fa3';
+        bar.style.background = '#e94560';
+        warn.style.display = ''; warn.textContent = 'Критические: ' + failedCritical.join(', ');
+    } else if (score >= 95) {
+        badge.textContent = 'ACCEPT / ПРИНЯТО';
+        badge.style.background = '#53d76930'; badge.style.color = '#53d769';
+        bar.style.background = '#53d769';
+        warn.style.display = 'none';
+    } else if (score >= 85) {
+        badge.textContent = 'ACCEPT WITH SORTING / С СОРТИРОВКОЙ';
+        badge.style.background = '#f59e0b30'; badge.style.color = '#fcd34d';
+        bar.style.background = '#f59e0b';
+        warn.style.display = 'none';
+    } else {
+        badge.textContent = 'REJECT / ОТКАЗ';
+        badge.style.background = '#e9456040'; badge.style.color = '#ff8fa3';
+        bar.style.background = '#e94560';
+        warn.style.display = 'none';
+    }
+
+    var activeList = Object.keys(activeDcodes).filter(function(k) { return activeDcodes[k]; });
+    summary.textContent = activeList.length ? 'Дефекты: ' + activeList.join(', ') : '';
+}
+
+// Hook recalcScore to all checkboxes
+document.querySelectorAll('[id^="chk-"]').forEach(function(cb) {
+    cb.addEventListener('change', recalcScore);
+});
+document.getElementById('insp-freshness_score').addEventListener('input', recalcScore);
+
 })();
 </script>
 </body>
