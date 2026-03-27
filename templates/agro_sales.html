@@ -523,11 +523,11 @@ tr:hover td { background: rgba(255,255,255,.04); }
         <div><h1>Акты взвешивания / Acte de cântărire</h1>
         <div class="subtitle">Jurnal acte cu detalii si tiparire</div></div>
         <div style="display:flex;gap:8px;">
-            <select id="wtFilterStatus" onchange="loadTickets()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#1e2a45;color:var(--text);">
-                <option value="">Все статусы</option>
-                <option value="draft">Draft</option>
-                <option value="finalized">Finalized</option>
-            </select>
+            <div class="status-tabs" id="ticketStatusTabs">
+                <div class="status-tab active" data-status="" onclick="filterTickets('')">Все <span class="tab-count" id="ticketCountAll">0</span></div>
+                <div class="status-tab" data-status="draft" onclick="filterTickets('draft')">Черновик <span class="tab-count" id="ticketCountDraft">0</span></div>
+                <div class="status-tab" data-status="finalized" onclick="filterTickets('finalized')">Финализировано <span class="tab-count" id="ticketCountFinalized">0</span></div>
+            </div>
         </div>
     </div>
     <div class="stat-cards" id="wtStats">
