@@ -397,6 +397,19 @@ tr:hover td { background: rgba(255,255,255,.04); }
     </div>
 </div>
 
+<!-- ==================== TICKET DETAIL MODAL ==================== -->
+<div class="modal-overlay" id="wtDetailModal">
+    <div class="modal" style="max-width:800px;">
+        <h2>Акт взвешивания / Act de cântărire</h2>
+        <div id="wtDetailContent"><p class="empty">Загрузка...</p></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('wtDetailModal')">Закрыть / Închide</button>
+            <button class="btn btn-info btn-sm" id="btnWtPrint" onclick="wtPrint()" style="display:none;">Печать / Tipărește</button>
+            <button class="btn btn-primary" id="btnWtFinalize" onclick="wtFinalize()" style="display:none;">Финализировать / Finalizează</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
