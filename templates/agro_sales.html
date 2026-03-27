@@ -1029,57 +1029,163 @@ window.addShipLine = function() {
 /* Keep legacy alias */
 window.addLineItem = window.addShipLine;
 
+/* ===== Scale Kiosk Modal Logic ===== */
+var salesScaleTargetLineId = null;
+var salesScalePollTimer = null;
+
 window.weighSalesLine = function(lineId) {
-    var line = document.getElementById(lineId);
+    openSalesScaleModal(lineId);
+};
+
+function openSalesScaleModal(lineId) {
+    salesScaleTargetLineId = lineId;
+    var modal = document.getElementById('salesScaleModal');
+    modal.style.display = 'flex';
+    document.getElementById('skGross').textContent = '0.00';
+    document.getElementById('skTare').textContent = '0.00';
+    document.getElementById('skNet').textContent = '0.00';
+    document.getElementById('skNumpadInput').value = '';
+    document.getElementById('skIndicator').style.background = '#666';
+    document.getElementById('skStatusText').textContent = 'Подключение...';
+    // Start polling scale
+    if (salesScalePollTimer) clearInterval(salesScalePollTimer);
+    salesScalePollTimer = setInterval(pollSalesScale, 1000);
+    pollSalesScale();
+}
+
+function pollSalesScale() {
+    fetch('/api/agro-scale/read?scale_id=default')
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success) {
+                document.getElementById('skIndicator').style.background = '#666';
+                document.getElementById('skStatusText').textContent = 'Нет данных';
+                return;
+            }
+            var d = res.data;
+            document.getElementById('skGross').textContent = (d.gross_kg || 0).toFixed(2);
+            document.getElementById('skTare').textContent = (d.tare_kg || 0).toFixed(2);
+            var net = Math.max(0, (d.gross_kg || 0) - (d.tare_kg || 0));
+            document.getElementById('skNet').textContent = net.toFixed(2);
+
+            if (d.status === 'stable') {
+                document.getElementById('skIndicator').style.background = '#53d769';
+                document.getElementById('skStatusText').textContent = 'Стабильно / Stable';
+            } else if (d.status === 'settling') {
+                document.getElementById('skIndicator').style.background = '#f5a623';
+                document.getElementById('skStatusText').textContent = 'Стабилизация...';
+            } else {
+                document.getElementById('skIndicator').style.background = '#666';
+                document.getElementById('skStatusText').textContent = d.status || 'Ожидание';
+            }
+        }).catch(function() {
+            document.getElementById('skIndicator').style.background = '#e94560';
+            document.getElementById('skStatusText').textContent = 'Ошибка связи';
+        });
+}
+
+window.closeSalesScaleModal = function() {
+    var modal = document.getElementById('salesScaleModal');
+    modal.style.display = 'none';
+    if (salesScalePollTimer) { clearInterval(salesScalePollTimer); salesScalePollTimer = null; }
+    salesScaleTargetLineId = null;
+};
+
+window.salesScaleCapture = function() {
+    var btn = document.getElementById('skCaptureBtn');
+    btn.textContent = '⏳ Захват...';
+    btn.disabled = true;
+
+    fetch('/api/agro-scale/capture', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default'})
+    }).then(function(r) { return r.json(); })
+    .then(function(cap) {
+        btn.textContent = '📥 Захватить вес / Capture';
+        btn.disabled = false;
+        if (cap.success && cap.reading) {
+            var gross = cap.reading.gross_kg || 0;
+            var tare = cap.reading.tare_kg || 0;
+            applySalesWeight(gross, tare);
+        } else {
+            toast(cap.error || 'Ошибка захвата', 'error');
+        }
+    }).catch(function() {
+        btn.textContent = '📥 Захватить вес / Capture';
+        btn.disabled = false;
+        toast('Ошибка связи с весами', 'error');
+    });
+};
+
+function applySalesWeight(gross, tare) {
+    if (!salesScaleTargetLineId) return;
+    var line = document.getElementById(salesScaleTargetLineId);
     if (!line) return;
-    var btn = line.querySelector('.btn-weigh');
+    line.querySelector('.line-gross').value = gross.toFixed(2);
+    line.querySelector('.line-tare').value = tare.toFixed(2);
+    recalcSalesLine(salesScaleTargetLineId);
+    toast('Вес: ' + gross.toFixed(2) + ' кг (брутто)', 'success');
+    closeSalesScaleModal();
+}
 
-    // Step 1: simulate random weight on emulator
-    btn.classList.add('weighing');
-    btn.textContent = '⏳';
+window.salesScaleZero = function() {
+    fetch('/api/agro-scale/zero', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default'})
+    }).then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) toast('Zero выполнен'); });
+};
 
+window.salesScaleTare = function() {
+    fetch('/api/agro-scale/tare', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default'})
+    }).then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) toast('Тара установлена'); });
+};
+
+/* Numpad */
+window.salesNumpadPress = function(key) {
+    var inp = document.getElementById('skNumpadInput');
+    if (key === 'del') {
+        inp.value = inp.value.slice(0, -1);
+    } else {
+        if (key === '.' && inp.value.indexOf('.') >= 0) return;
+        inp.value += key;
+    }
+};
+
+window.salesNumpadApply = function() {
+    var val = parseFloat(document.getElementById('skNumpadInput').value);
+    if (isNaN(val) || val <= 0) { toast('Введите вес', 'warning'); return; }
+    applySalesWeight(val, 0);
+};
+
+/* Emulator controls */
+window.salesEmuSet = function() {
+    var kg = parseFloat(document.getElementById('skEmuWeight').value);
+    if (isNaN(kg) || kg < 0) { toast('Введите вес для эмулятора', 'warning'); return; }
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default', weight_kg: kg})
+    }).then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) toast('Эмулятор: ' + kg + ' кг'); });
+};
+
+window.salesEmuRandom = function() {
     fetch('/api/agro-scale/simulate', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({scale_id: 'default', random: true, min_kg: 5, max_kg: 100})
     }).then(function(r) { return r.json(); })
-    .then(function() {
-        // Step 2: wait for scale to settle, then capture
-        var attempts = 0;
-        var maxAttempts = 30;
-        var pollTimer = setInterval(function() {
-            attempts++;
-            fetch('/api/agro-scale/read?scale_id=default')
-                .then(function(r) { return r.json(); })
-                .then(function(res) {
-                    if (!res.success) return;
-                    var d = res.data;
-                    // Show live weight while settling
-                    line.querySelector('.line-gross').value = d.gross_kg.toFixed(2);
+    .then(function(d) { if (d.success) toast('Эмулятор: случайный вес'); });
+};
 
-                    if (d.status === 'stable' || attempts >= maxAttempts) {
-                        clearInterval(pollTimer);
-                        // Capture
-                        fetch('/api/agro-scale/capture', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({scale_id: 'default'})
-                        }).then(function(r) { return r.json(); })
-                        .then(function(cap) {
-                            if (cap.success && cap.reading) {
-                                line.querySelector('.line-gross').value = cap.reading.gross_kg.toFixed(2);
-                                line.querySelector('.line-tare').value = cap.reading.tare_kg.toFixed(2);
-                                recalcSalesLine(lineId);
-                            }
-                            btn.classList.remove('weighing');
-                            btn.textContent = '⚖️';
-                        });
-                    }
-                });
-            if (attempts >= maxAttempts) clearInterval(pollTimer);
-        }, 500);
-    }).catch(function() {
-        btn.classList.remove('weighing');
-        btn.textContent = '⚖️';
-    });
+window.salesEmuRemove = function() {
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default', weight_kg: 0})
+    }).then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) toast('Эмулятор: вес убран'); });
 };
 
 window.recalcSalesLine = function(lineId) {
