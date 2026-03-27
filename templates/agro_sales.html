@@ -478,6 +478,7 @@ function loadRefs(cb) {
     api('GET', '/api/agro-admin/customers').then(function(d) {
         refs.customers = d.data || d || [];
         fillSel('newDocCustomer', refs.customers, 'id', 'name', 'Выбрать клиента');
+        fillSel('wtCustomer', refs.customers, 'id', 'name', 'Выбрать клиента');
         check();
     }).catch(check);
 
