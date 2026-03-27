@@ -241,6 +241,112 @@ tr:hover td { background: rgba(255,255,255,.04); }
     </div></div>
 </div>
 
+<!-- ==================== WEIGHING / ВЗВЕШИВАНИЕ ==================== -->
+<div id="page-weighing" class="page">
+    <div class="page-header">
+        <div><h1>⚖ Взвешивание при отгрузке / Cântărire la expediere</h1>
+        <div class="subtitle">Interfata touchscreen pentru cantarire si formare acte</div></div>
+    </div>
+
+    <div class="card">
+        <div class="field-row">
+            <div class="field"><label>Документ продажи / Document vânzare</label>
+                <select id="wtSalesDoc" onchange="wtSalesDocChanged()">
+                    <option value="">-- Без привязки --</option>
+                </select></div>
+            <div class="field"><label>Клиент / Client</label>
+                <select id="wtCustomer"></select></div>
+            <div class="field"><label>Склад / Depozit</label>
+                <select id="wtWarehouse"></select></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-bottom:12px;">Сканер + Весы / Scanner + Cântar</h3>
+        <div class="field-row">
+            <div class="field" style="flex:2;">
+                <label>Штрихкод ящика / Cod de bare lada</label>
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="wtBarcode" placeholder="Сканируйте или введите..." style="flex:1;font-size:18px;padding:14px 16px;">
+                    <button class="btn btn-accent" onclick="wtLookupCrate()" style="min-width:100px;">Найти</button>
+                </div>
+            </div>
+            <div class="field" style="flex:1;">
+                <label>Продукт / Produs</label>
+                <select id="wtItem"></select>
+            </div>
+        </div>
+
+        <div class="weight-display">
+            <div class="weight-box">
+                <div class="wlabel">Брутто / Brut, кг</div>
+                <input type="number" class="input-weight" id="wtGross" placeholder="0.00" step="0.01" min="0" oninput="wtCalcNet()">
+            </div>
+            <div class="weight-box">
+                <div class="wlabel">Тара / Tara, кг</div>
+                <div class="wvalue" id="wtTare">0.00</div>
+            </div>
+            <div class="weight-box net">
+                <div class="wlabel">Нетто / Net, кг</div>
+                <div class="wvalue" id="wtNet">0.00</div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button class="btn btn-accent btn-lg" style="flex:1;" onclick="wtReadScale()">⚖ Взвесить / Cântărește</button>
+            <button class="btn btn-primary btn-lg" style="flex:1;" onclick="wtAddLine()">+ Добавить / Adaugă</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3>Позиции акта / Liniile actului</h3>
+            <span style="font-size:13px;color:var(--text-muted);" id="wtLineCount">0 позиций</span>
+        </div>
+        <div class="wt-line-row wt-line-header">
+            <div>#</div><div>Штрихкод</div><div>Продукт</div>
+            <div>Брутто</div><div>Тара</div><div>Нетто</div><div>⚖</div><div></div>
+        </div>
+        <div id="wtLinesBody"><div style="text-align:center;padding:20px;color:var(--text-muted);">Сканируйте ящик и взвесьте</div></div>
+
+        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="font-size:22px;font-weight:700;color:var(--accent);">
+                Итого нетто: <span id="wtTotalNet">0.00</span> кг
+            </div>
+            <button class="btn btn-primary btn-lg" style="width:auto;padding:18px 40px;" onclick="wtCreateTicket()">
+                Сформировать акт / Generează act
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== TICKET JOURNAL / АКТЫ ==================== -->
+<div id="page-tickets" class="page">
+    <div class="page-header">
+        <div><h1>Акты взвешивания / Acte de cântărire</h1>
+        <div class="subtitle">Jurnal acte cu detalii si tiparire</div></div>
+        <div style="display:flex;gap:8px;">
+            <select id="wtFilterStatus" onchange="loadTickets()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#1e2a45;color:var(--text);">
+                <option value="">Все статусы</option>
+                <option value="draft">Draft</option>
+                <option value="finalized">Finalized</option>
+            </select>
+        </div>
+    </div>
+    <div class="stat-cards" id="wtStats">
+        <div class="stat-card"><div class="val" id="wtStatTotal">0</div><div class="lbl">Всего / Total</div></div>
+        <div class="stat-card"><div class="val" id="wtStatDraft">0</div><div class="lbl">Черновики / Ciorne</div></div>
+        <div class="stat-card"><div class="val" id="wtStatFinal">0</div><div class="lbl">Финализированы</div></div>
+        <div class="stat-card"><div class="val" id="wtStatTotalKg">0</div><div class="lbl">Всего кг / Total kg</div></div>
+    </div>
+    <div class="card"><div class="table-wrap">
+        <table><thead><tr>
+            <th>Номер / Nr.</th><th>Дата</th><th>Клиент / Client</th><th>Склад</th>
+            <th>Док. продажи</th><th>Статус</th><th>Нетто кг</th><th>Действия</th>
+        </tr></thead><tbody id="wtTicketsBody"><tr><td colspan="8" class="empty">Загрузка...</td></tr></tbody></table>
+    </div></div>
+</div>
+
 </main>
 </div><!-- /.main-layout -->
 
