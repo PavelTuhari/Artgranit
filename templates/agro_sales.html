@@ -1044,12 +1044,23 @@ document.querySelectorAll('.nav-link').forEach(function(l) {
 window.wtAddLine = function() {
     var bc = document.getElementById('wtBarcode').value.trim();
     var itemId = document.getElementById('wtItem').value;
-    var gross = parseFloat(document.getElementById('wtGross').value) || 0;
     if (!itemId) return toast('Выберите продукт', 'warning');
+
+    // Get weight from captured card
+    var capturedCard = document.getElementById('wtCapturedCard');
+    var grossText = document.getElementById('wtCapturedGross').textContent;
+    var tareText = document.getElementById('wtCapturedTare').textContent;
+    var netText = document.getElementById('wtCapturedNet').textContent;
+
+    if (capturedCard.style.display === 'none' || grossText === '-') {
+        return toast('Сначала зафиксируйте вес / Mai întâi fixați greutatea', 'warning');
+    }
+
+    var gross = parseFloat(grossText) || 0;
+    var tare = parseFloat(tareText) || 0;
+    var net = parseFloat(netText) || 0;
     if (gross <= 0) return toast('Взвесьте ящик', 'warning');
 
-    var tare = parseFloat(document.getElementById('wtTare').textContent) || 0;
-    var net = gross - tare;
     var itemName = '';
     var item = refs.items.find(function(i) { return String(i.id) === String(itemId); });
     if (item) itemName = item.name || item.name_ru || item.code;
@@ -1061,10 +1072,12 @@ window.wtAddLine = function() {
         gross_kg: gross, tare_kg: tare, net_kg: net
     });
     wtRenderLines();
+    // Reset
     document.getElementById('wtBarcode').value = '';
-    document.getElementById('wtGross').value = '';
-    document.getElementById('wtNet').textContent = '0.00';
-    document.getElementById('wtTare').textContent = '0.00';
+    document.getElementById('wtCapturedCard').style.display = 'none';
+    document.getElementById('wtCapturedGross').textContent = '-';
+    document.getElementById('wtCapturedTare').textContent = '-';
+    document.getElementById('wtCapturedNet').textContent = '-';
     document.getElementById('wtBarcode').focus();
 };
 
