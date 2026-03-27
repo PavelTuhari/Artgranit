@@ -659,8 +659,57 @@ ul{margin-top:8px}
 <strong>Важно:</strong> маркировка партии <strong>должна совпадать</strong> с данными в traceability sheet и invoice. Расхождение (другой лот, другой сорт, другая дата) &mdash; основание для отказа на приёмке.
 </div>
 
-<!-- ═══════ 9. ИСТОЧНИКИ ═══════ -->
-<h2 id="s9">9) Источники</h2>
+<!-- ═══════ 9. СВЯЗЬ С СИСТЕМОЙ AGRO ═══════ -->
+<h2 id="s9">9) Связь с системой AGRO / Legătura cu sistemul AGRO</h2>
+
+<div class="section-card">
+<h3>Единая система кодирования дефектов</h3>
+<p>Коды D01–D27 из данного документа полностью синхронизированы с модулем приёмки AGRO. При инспекции на планшете инспектор нажимает D-кнопки — система автоматически переключает соответствующие проверки скоринга и вычисляет взвешенную оценку в реальном времени.</p>
+
+<table>
+  <tr>
+    <th>Параметр</th>
+    <th>Значение</th>
+  </tr>
+  <tr>
+    <td>Количество проверок</td>
+    <td>17 точек (AGRO Scoring Engine)</td>
+  </tr>
+  <tr>
+    <td>Максимальный балл</td>
+    <td>100 (95 по проверкам + 5 за свежесть)</td>
+  </tr>
+  <tr>
+    <td>Критические проверки (авто-отказ)</td>
+    <td>6: <code>CLASS_OK</code>, <code>SERIOUS_OK</code>, <code>TEMP_OK</code>, <code>LAB_OK</code>, <code>PHYTO_OK</code>, <code>TRACE_OK</code></td>
+  </tr>
+  <tr>
+    <td>Порог принятия</td>
+    <td>&ge; 95 (ACCEPT), &ge; 85 (ACCEPT_WITH_SORTING)</td>
+  </tr>
+  <tr>
+    <td>Профили сетей</td>
+    <td><code>KAUFLAND</code>, <code>METRO</code>, <code>LINELLA</code> в таблице <code>AGRO_ACCEPTANCE_PROFILES</code></td>
+  </tr>
+  <tr>
+    <td>D-code gap D15–D19</td>
+    <td>Зарезервировано для будущих дефектов категории &laquo;Значительный&raquo;</td>
+  </tr>
+</table>
+
+<h3>Как это работает</h3>
+<ol>
+  <li>Инспектор открывает приёмку партии на планшете (AGRO &rarr; Field &rarr; Инспекции).</li>
+  <li>Выбирает профиль сети (Kaufland / Metro / Linella) &mdash; пороги загружаются автоматически.</li>
+  <li>Нажимает D-кнопки обнаруженных дефектов &mdash; скоринговые чекбоксы переключаются автоматически.</li>
+  <li>При необходимости делает фото дефекта прямо с камеры устройства.</li>
+  <li>Система показывает live-оценку: балл, прогресс-бар, решение (ACCEPT / SORT / REJECT).</li>
+  <li>По завершении инспекция сохраняется с полной историей в Oracle.</li>
+</ol>
+</div>
+
+<!-- ═══════ 10. ИСТОЧНИКИ ═══════ -->
+<h2 id="s10">10) Источники</h2>
 <ol class="small">
   <li>EU Delegated Regulation 2023/2429: <a href="https://eur-lex.europa.eu/eli/reg_del/2023/2429/oj/eng" target="_blank">eur-lex.europa.eu</a></li>
   <li>Moldova / HG 929/2009 &mdash; cerințe de marketing fructe și legume: <a href="https://www.legis.md/cautare/rezultate/22719" target="_blank">legis.md</a></li>
