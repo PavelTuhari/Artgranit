@@ -293,29 +293,32 @@ tr:hover td { background: rgba(255,255,255,.04); }
 <!-- ==================== DOCUMENTS LIST ==================== -->
 <div id="page-documents" class="page active">
     <div class="page-header">
-        <div><h1>Документы отгрузки / Documente livrare</h1><div class="subtitle">Gestionarea documentelor de vanzare si livrare</div></div>
-        <div style="display:flex;gap:8px;">
-            <select id="docFilterStatus" onchange="loadDocs()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#1e2a45;color:var(--text);">
-                <option value="">Все статусы</option>
-                <option value="draft">Draft</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="shipped">Shipped</option>
-                <option value="cancelled">Cancelled</option>
-            </select>
+        <div><h1>Документы отгрузки</h1><div class="subtitle">Журнал документов продажи и отгрузки</div></div>
+        <button class="btn btn-accent" onclick="navigateTo('new-doc')">+ Отгрузка</button>
+    </div>
+
+    <div class="status-tabs">
+        <div class="status-tab active" data-status="all" onclick="filterSalesDocs('all')">Все <span class="tab-count" id="salesCountAll">0</span></div>
+        <div class="status-tab" data-status="draft" onclick="filterSalesDocs('draft')">Черновик <span class="tab-count" id="salesCountDraft">0</span></div>
+        <div class="status-tab" data-status="confirmed" onclick="filterSalesDocs('confirmed')">Подтверждено <span class="tab-count" id="salesCountConfirmed">0</span></div>
+        <div class="status-tab" data-status="shipped" onclick="filterSalesDocs('shipped')">Отгружено <span class="tab-count" id="salesCountShipped">0</span></div>
+    </div>
+
+    <div class="journal-toolbar">
+        <input type="text" class="search-input" id="salesSearchInput" placeholder="Поиск по номеру, клиенту, дате..." oninput="renderSalesDocsList()">
+    </div>
+
+    <div class="journal-master-detail">
+        <div class="journal-master">
+            <table><thead><tr>
+                <th>Номер</th><th>Дата</th><th>Клиент</th><th>Склад</th>
+                <th>Статус</th><th style="text-align:right;">Сумма</th>
+            </tr></thead><tbody id="docsBody"><tr><td colspan="6" class="empty">Загрузка...</td></tr></tbody></table>
+        </div>
+        <div class="journal-detail" id="salesDetailPanel">
+            <div class="journal-detail-empty">Выберите документ из списка</div>
         </div>
     </div>
-    <div class="stat-cards" id="docStats">
-        <div class="stat-card"><div class="val" id="statTotal">0</div><div class="lbl">Всего / Total</div></div>
-        <div class="stat-card"><div class="val" id="statDraft">0</div><div class="lbl">Черновики / Ciorne</div></div>
-        <div class="stat-card"><div class="val" id="statConfirmed">0</div><div class="lbl">Подтверждено / Confirmate</div></div>
-        <div class="stat-card"><div class="val" id="statShipped">0</div><div class="lbl">Отгружено / Livrate</div></div>
-    </div>
-    <div class="card"><div class="table-wrap">
-        <table><thead><tr>
-            <th>Номер / Nr.</th><th>Дата</th><th>Клиент / Client</th><th>Склад / Depozit</th>
-            <th>Статус</th><th>Сумма</th><th>Действия / Actiuni</th>
-        </tr></thead><tbody id="docsBody"><tr><td colspan="7" class="empty">Загрузка...</td></tr></tbody></table>
-    </div></div>
 </div>
 
 <!-- ==================== NEW DOCUMENT ==================== -->
