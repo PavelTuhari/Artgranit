@@ -493,6 +493,7 @@ function loadRefs(cb) {
     api('GET', '/api/agro-admin/items').then(function(d) {
         refs.items = d.data || d || [];
         fillSel('stockFilterItem', refs.items, 'id', 'name', 'Все продукты');
+        fillSel('wtItem', refs.items, 'id', 'name', 'Выбрать продукт');
         check();
     }).catch(check);
 
