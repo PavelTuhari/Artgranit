@@ -899,29 +899,119 @@ window.allocateDoc = function() {
     });
 };
 
-/* NEW DOCUMENT */
-window.addLineItem = function() {
+/* NEW DOCUMENT — ship-line grid */
+window.addShipLine = function() {
     lineCounter++;
     var noLines = document.getElementById('noLines');
     if (noLines) noLines.style.display = 'none';
 
     var container = document.getElementById('lineItemsContainer');
+    var lineId = 'line-' + lineCounter;
     var div = document.createElement('div');
-    div.className = 'line-item-row';
-    div.id = 'line-' + lineCounter;
+    div.className = 'ship-line';
+    div.id = lineId;
     div.setAttribute('data-idx', lineCounter);
 
     var itemOptions = '<option value="">Продукт...</option>';
     refs.items.forEach(function(i) { itemOptions += '<option value="' + i.id + '">' + (i.name || i.code) + '</option>'; });
 
     div.innerHTML =
-        '<div class="field"><label>Продукт / Produs</label><select id="lineItem' + lineCounter + '">' + itemOptions + '</select></div>' +
-        '<div class="field" style="max-width:120px;"><label>Кол-во кг</label><input type="number" id="lineQty' + lineCounter + '" step="0.1" value="0" onchange="recalcTotal()"></div>' +
-        '<div class="field" style="max-width:120px;"><label>Цена/кг</label><input type="number" id="linePrice' + lineCounter + '" step="0.01" value="0" onchange="recalcTotal()"></div>' +
-        '<div style="padding-bottom:2px;"><button class="btn btn-sm btn-danger" onclick="removeLine(' + lineCounter + ')">X</button></div>';
+        '<div><select id="lineItem' + lineCounter + '" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;">' + itemOptions + '</select></div>' +
+        '<div><input type="number" id="lineQty' + lineCounter + '" placeholder="0" step="0.1" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-gross" id="lineGross' + lineCounter + '" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-tare" id="lineTare' + lineCounter + '" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div style="font-size:18px;font-weight:700;text-align:center;padding:10px;" class="line-net-display">0.00</div>' +
+        '<div><input type="number" id="linePrice' + lineCounter + '" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div><button class="btn-weigh" onclick="weighSalesLine(\'' + lineId + '\')" title="Снять вес">⚖️</button></div>' +
+        '<div><button class="btn btn-sm btn-danger" onclick="removeLine(' + lineCounter + ')" style="padding:4px 8px;">✕</button></div>';
 
     container.appendChild(div);
 };
+
+/* Keep legacy alias */
+window.addLineItem = window.addShipLine;
+
+window.weighSalesLine = function(lineId) {
+    var line = document.getElementById(lineId);
+    if (!line) return;
+    var btn = line.querySelector('.btn-weigh');
+
+    // Step 1: simulate random weight on emulator
+    btn.classList.add('weighing');
+    btn.textContent = '⏳';
+
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default', random: true, min_kg: 5, max_kg: 100})
+    }).then(function(r) { return r.json(); })
+    .then(function() {
+        // Step 2: wait for scale to settle, then capture
+        var attempts = 0;
+        var maxAttempts = 30;
+        var pollTimer = setInterval(function() {
+            attempts++;
+            fetch('/api/agro-scale/read?scale_id=default')
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (!res.success) return;
+                    var d = res.data;
+                    // Show live weight while settling
+                    line.querySelector('.line-gross').value = d.gross_kg.toFixed(2);
+
+                    if (d.status === 'stable' || attempts >= maxAttempts) {
+                        clearInterval(pollTimer);
+                        // Capture
+                        fetch('/api/agro-scale/capture', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({scale_id: 'default'})
+                        }).then(function(r) { return r.json(); })
+                        .then(function(cap) {
+                            if (cap.success && cap.reading) {
+                                line.querySelector('.line-gross').value = cap.reading.gross_kg.toFixed(2);
+                                line.querySelector('.line-tare').value = cap.reading.tare_kg.toFixed(2);
+                                recalcSalesLine(lineId);
+                            }
+                            btn.classList.remove('weighing');
+                            btn.textContent = '⚖️';
+                        });
+                    }
+                });
+            if (attempts >= maxAttempts) clearInterval(pollTimer);
+        }, 500);
+    }).catch(function() {
+        btn.classList.remove('weighing');
+        btn.textContent = '⚖️';
+    });
+};
+
+window.recalcSalesLine = function(lineId) {
+    var line = document.getElementById(lineId);
+    if (!line) return;
+    var gross = parseFloat(line.querySelector('.line-gross').value) || 0;
+    var tare = parseFloat(line.querySelector('.line-tare').value) || 0;
+    var net = Math.max(0, gross - tare);
+    line.querySelector('.line-net-display').textContent = net.toFixed(2);
+    recalcSalesTotal();
+};
+
+function recalcSalesTotal() {
+    var total = 0;
+    document.querySelectorAll('#lineItemsContainer .ship-line').forEach(function(line) {
+        var idx = line.getAttribute('data-idx');
+        var qty = parseFloat(document.getElementById('lineQty' + idx).value) || 0;
+        var price = parseFloat(document.getElementById('linePrice' + idx).value) || 0;
+        if (qty > 0 && price > 0) {
+            total += qty * price;
+        } else {
+            // Fallback: use net * price
+            var gross = parseFloat(document.getElementById('lineGross' + idx).value) || 0;
+            var tare = parseFloat(document.getElementById('lineTare' + idx).value) || 0;
+            var net = Math.max(0, gross - tare);
+            if (net > 0 && price > 0) total += net * price;
+        }
+    });
+    document.getElementById('newDocTotal').textContent = total.toFixed(2);
+}
 
 window.removeLine = function(idx) {
     var el = document.getElementById('line-' + idx);
