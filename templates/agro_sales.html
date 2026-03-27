@@ -1034,7 +1034,7 @@ window.submitNewDoc = function() {
     if (!customerId || !warehouseId) { toast('Выберите клиента и склад / Selectati clientul si depozitul', 'warning'); return; }
 
     var lines = [];
-    document.querySelectorAll('.line-item-row').forEach(function(row) {
+    document.querySelectorAll('#lineItemsContainer .ship-line').forEach(function(row) {
         var idx = row.getAttribute('data-idx');
         var itemId = parseInt(document.getElementById('lineItem' + idx).value);
         var qty = parseFloat(document.getElementById('lineQty' + idx).value);
