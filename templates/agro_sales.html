@@ -337,11 +337,14 @@ tr:hover td { background: rgba(255,255,255,.04); }
 
     <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <h3>Позиции / Linii</h3>
-            <button class="btn btn-sm btn-accent" onclick="addLineItem()">+ Позиция</button>
+            <h3>Позиции отгрузки</h3>
+            <button class="btn btn-sm btn-accent" onclick="addShipLine()">+ Позиция</button>
+        </div>
+        <div class="ship-line ship-line-header">
+            <div>Продукт</div><div>Кол-во</div><div>Брутто</div><div>Тара</div><div>Нетто</div><div>Цена/кг</div><div>⚖</div><div></div>
         </div>
         <div id="lineItemsContainer"></div>
-        <div id="noLines" style="text-align:center;padding:16px;color:var(--text-muted);">Нажмите + Позиция для добавления товаров / Apasati + pentru a adauga produse</div>
+        <div id="noLines" style="text-align:center;padding:16px;color:var(--text-muted);">Нажмите + Позиция для добавления товаров</div>
     </div>
 
     <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
