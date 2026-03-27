@@ -1016,20 +1016,13 @@ function recalcSalesTotal() {
 window.removeLine = function(idx) {
     var el = document.getElementById('line-' + idx);
     if (el) el.remove();
-    recalcTotal();
+    recalcSalesTotal();
     var container = document.getElementById('lineItemsContainer');
     if (!container.children.length) document.getElementById('noLines').style.display = '';
 };
 
 window.recalcTotal = function() {
-    var total = 0;
-    document.querySelectorAll('.line-item-row').forEach(function(row) {
-        var idx = row.getAttribute('data-idx');
-        var qty = parseFloat(document.getElementById('lineQty' + idx).value) || 0;
-        var price = parseFloat(document.getElementById('linePrice' + idx).value) || 0;
-        total += qty * price;
-    });
-    document.getElementById('newDocTotal').textContent = total.toFixed(2);
+    recalcSalesTotal();
 };
 
 window.submitNewDoc = function() {
