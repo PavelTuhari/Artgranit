@@ -1422,9 +1422,16 @@ window.wtCreateTicket = function() {
 };
 
 /* ==================== TICKET JOURNAL ==================== */
+window.filterTickets = function(status) {
+    ticketStatusFilter = status;
+    document.querySelectorAll('#ticketStatusTabs .status-tab').forEach(function(t) { t.classList.remove('active'); });
+    var tab = document.querySelector('#ticketStatusTabs .status-tab[data-status="' + status + '"]');
+    if (tab) tab.classList.add('active');
+    loadTickets();
+};
+
 window.loadTickets = function() {
-    var el = document.getElementById('wtFilterStatus');
-    var status = el ? el.value : '';
+    var status = ticketStatusFilter || '';
     var url = '/api/agro-sales/weight-tickets';
     if (status) url += '?status=' + status;
     api('GET', url).then(function(d) {
