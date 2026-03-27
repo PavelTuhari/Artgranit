@@ -425,6 +425,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRefs(function() {
         loadDocs();
         loadAvailStock();
+        loadTickets();
+        api('GET', '/api/agro-sales/documents').then(function(d) {
+            var docs = (d.data || []).filter(function(r) { return r.status === 'draft' || r.status === 'confirmed'; });
+            fillSel('wtSalesDoc', docs, 'id', 'doc_number', '-- Без привязки --');
+        });
     });
 });
 
