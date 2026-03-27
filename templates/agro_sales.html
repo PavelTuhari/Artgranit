@@ -706,42 +706,140 @@ function loadRefs(cb) {
 
 /* ==================== DOCUMENTS ==================== */
 window.loadDocs = function() {
-    var status = document.getElementById('docFilterStatus').value;
-    var url = '/api/agro-sales/documents';
-    if (status) url += '?status=' + status;
-
-    api('GET', url).then(function(d) {
-        var rows = d.data || [];
-        // Stats
-        var total = rows.length, drafts = 0, confirmed = 0, shipped = 0;
-        rows.forEach(function(r) {
-            if (r.status === 'draft') drafts++;
-            else if (r.status === 'confirmed') confirmed++;
-            else if (r.status === 'shipped') shipped++;
-        });
-        document.getElementById('statTotal').textContent = total;
-        document.getElementById('statDraft').textContent = drafts;
-        document.getElementById('statConfirmed').textContent = confirmed;
-        document.getElementById('statShipped').textContent = shipped;
+    api('GET', '/api/agro-sales/documents').then(function(d) {
+        allSalesDocs = d.data || [];
+        renderSalesDocsList();
 
         // Fill sales doc select in export modal
-        fillSel('expSalesDoc', rows.filter(function(r) { return r.status === 'confirmed' || r.status === 'shipped'; }), 'id', 'doc_number', 'Выбрать документ');
-
-        var tb = document.getElementById('docsBody');
-        if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">Нет документов / Nu exista documente</td></tr>'; return; }
-        tb.innerHTML = rows.map(function(r) {
-            var bc = 'badge-' + (r.status || 'draft');
-            var actions = '<button class="btn btn-sm btn-ghost" onclick="viewDoc(' + r.id + ')">Открыть</button>';
-            return '<tr>' +
-                '<td style="font-weight:600;">' + (r.doc_number || '-') + '</td>' +
-                '<td>' + (r.doc_date || '-') + '</td>' +
-                '<td>' + (r.customer_name || '-') + '</td>' +
-                '<td>' + (r.warehouse_name || '-') + '</td>' +
-                '<td><span class="badge ' + bc + '">' + (r.status || 'draft') + '</span></td>' +
-                '<td style="font-weight:600;">' + formatMoney(r.total_amount, r.currency_code) + '</td>' +
-                '<td>' + actions + '</td></tr>';
-        }).join('');
+        fillSel('expSalesDoc', allSalesDocs.filter(function(r) { return r.status === 'confirmed' || r.status === 'shipped'; }), 'id', 'doc_number', 'Выбрать документ');
     });
+};
+
+window.renderSalesDocsList = function() {
+    var searchVal = (document.getElementById('salesSearchInput') || {}).value || '';
+    searchVal = searchVal.toLowerCase();
+
+    var filtered = salesStatusFilter === 'all' ? allSalesDocs : allSalesDocs.filter(function(r) { return r.status === salesStatusFilter; });
+
+    // Search filter
+    if (searchVal) {
+        filtered = filtered.filter(function(r) {
+            var docNum = (r.doc_number || '').toLowerCase();
+            var docDate = (r.doc_date || '').toLowerCase();
+            var customer = (r.customer_name || '').toLowerCase();
+            return docNum.indexOf(searchVal) !== -1 || docDate.indexOf(searchVal) !== -1 || customer.indexOf(searchVal) !== -1;
+        });
+    }
+
+    // Update tab counts
+    var all = allSalesDocs.length;
+    var drafts = allSalesDocs.filter(function(r) { return r.status === 'draft'; }).length;
+    var confirmed = allSalesDocs.filter(function(r) { return r.status === 'confirmed'; }).length;
+    var shipped = allSalesDocs.filter(function(r) { return r.status === 'shipped'; }).length;
+    var e = function(id, v) { var x = document.getElementById(id); if (x) x.textContent = v; };
+    e('salesCountAll', all);
+    e('salesCountDraft', drafts);
+    e('salesCountConfirmed', confirmed);
+    e('salesCountShipped', shipped);
+
+    var tb = document.getElementById('docsBody');
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Нет документов</td></tr>'; return; }
+
+    tb.innerHTML = filtered.map(function(r) {
+        var bc = 'badge-' + (r.status || 'draft');
+        return '<tr onclick="selectSalesDoc(' + r.id + ')">' +
+            '<td style="font-weight:600;">' + (r.doc_number || '-') + '</td>' +
+            '<td>' + (r.doc_date || '-') + '</td>' +
+            '<td>' + (r.customer_name || '-') + '</td>' +
+            '<td>' + (r.warehouse_name || '-') + '</td>' +
+            '<td><span class="badge ' + bc + '">' + (r.status || 'draft') + '</span></td>' +
+            '<td style="text-align:right;font-weight:600;">' + formatMoney(r.total_amount, r.currency_code) + '</td></tr>';
+    }).join('');
+};
+
+window.filterSalesDocs = function(status) {
+    salesStatusFilter = status;
+    document.querySelectorAll('#page-documents .status-tab').forEach(function(t) { t.classList.remove('active'); });
+    var tab = document.querySelector('#page-documents .status-tab[data-status="' + status + '"]');
+    if (tab) tab.classList.add('active');
+    renderSalesDocsList();
+};
+
+window.selectSalesDoc = function(docId) {
+    currentDocId = docId;
+    // Highlight row
+    var rows = document.querySelectorAll('#docsBody tr');
+    rows.forEach(function(r) { r.classList.remove('selected'); });
+    rows.forEach(function(r) {
+        if (r.getAttribute('onclick') && r.getAttribute('onclick').indexOf('(' + docId + ')') !== -1) {
+            r.classList.add('selected');
+        }
+    });
+
+    var panel = document.getElementById('salesDetailPanel');
+    panel.innerHTML = '<div class="journal-detail-empty">Загрузка...</div>';
+
+    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
+        if (!d.success && !d.data) { panel.innerHTML = '<div class="journal-detail-empty">Ошибка загрузки</div>'; return; }
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
+        var allocations = raw.allocations || doc.allocations || [];
+
+        var badgeClass = 'badge-' + (doc.status || 'draft');
+        var html = '<div class="detail-header">' +
+            '<h3>Документ ' + (doc.doc_number || '-') + ' от ' + (doc.doc_date || '-') + '</h3>' +
+            '<div class="detail-status"><span class="badge ' + badgeClass + '">' + (doc.status || 'draft') + '</span>';
+        if (doc.status === 'draft') {
+            html += '  <button class="btn btn-sm btn-ghost" onclick="allocateDoc()">Распределить</button>';
+            html += '  <button class="btn btn-sm btn-primary" onclick="confirmDoc()">Подтвердить</button>';
+        }
+        html += '</div></div>';
+
+        html += '<div class="detail-props">' +
+            '<div class="prop">Клиент: <b>' + (doc.customer_name || '-') + '</b></div>' +
+            '<div class="prop">Склад: <b>' + (doc.warehouse_name || '-') + '</b></div>' +
+            '<div class="prop">Позиций: <b>' + lines.length + '</b></div>' +
+            '</div>';
+
+        if (lines.length) {
+            html += '<div class="table-wrap"><table class="detail-lines-table"><thead><tr><th>Продукт</th><th style="text-align:right;">Кол-во кг</th><th style="text-align:right;">Цена/кг</th><th style="text-align:right;">Сумма</th></tr></thead><tbody>';
+            var total = 0;
+            lines.forEach(function(l) {
+                var lineTotal = (parseFloat(l.qty_kg || 0) * parseFloat(l.price_per_kg || 0));
+                total += lineTotal;
+                html += '<tr><td>' + (l.item_name || l.item_id || '-') + '</td>' +
+                    '<td style="text-align:right;">' + parseFloat(l.qty_kg || 0).toFixed(1) + '</td>' +
+                    '<td style="text-align:right;">' + parseFloat(l.price_per_kg || 0).toFixed(2) + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + lineTotal.toFixed(2) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<div class="detail-totals"><div class="total-item">Итого: <b>' + total.toFixed(2) + ' ' + (doc.currency_code || '') + '</b></div></div>';
+        }
+
+        if (allocations.length) {
+            html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-muted);">Распределение партий</h4>';
+            html += '<div class="table-wrap"><table class="detail-lines-table"><thead><tr><th>Позиция</th><th>Партия</th><th style="text-align:right;">Кол-во кг</th></tr></thead><tbody>';
+            allocations.forEach(function(a) {
+                html += '<tr><td>' + (a.sales_line_id || '-') + '</td><td>' + (a.batch_number || a.batch_id || '-') + '</td>' +
+                    '<td style="text-align:right;">' + parseFloat(a.allocated_qty_kg || 0).toFixed(1) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
+        if (doc.notes) html += '<div style="margin-top:12px;font-size:13px;color:var(--text-muted);"><em>' + doc.notes + '</em></div>';
+
+        panel.innerHTML = html;
+    });
+};
+
+window.navigateTo = function(page) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
+    var el = document.getElementById('page-' + page);
+    if (el) el.classList.add('active');
+    var link = document.querySelector('[data-page="' + page + '"]');
+    if (link) link.classList.add('active');
 };
 
 function formatMoney(val, cur) {
