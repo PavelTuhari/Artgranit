@@ -1410,12 +1410,7 @@ window.wtCreateTicket = function() {
             toast('Акт ' + d.ticket_number + ' создан!', 'success');
             wtLines = [];
             wtRenderLines();
-            document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
-            document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-            var ticketsLink = document.querySelector('[data-page="tickets"]');
-            if (ticketsLink) ticketsLink.classList.add('active');
-            var ticketsPage = document.getElementById('page-tickets');
-            if (ticketsPage) ticketsPage.classList.add('active');
+            navigateTo('tickets');
             loadTickets();
         });
     });
