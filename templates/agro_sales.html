@@ -947,39 +947,99 @@ function wtLookupCrate() {
             if (crate.item_id) {
                 document.getElementById('wtItem').value = crate.item_id;
                 document.getElementById('wtBarcode').setAttribute('data-batch-id', crate.batch_id || '');
-                if (crate.gross_weight_kg) {
-                    document.getElementById('wtGross').value = parseFloat(crate.gross_weight_kg || 0).toFixed(2);
-                    wtCalcNet();
-                }
                 toast('Ящик найден: ' + (crate.crate_code || bc), 'success');
             }
         }
     }).catch(function() {});
 }
 
-window.wtReadScale = function() {
-    api('GET', '/api/agro-scale/read').then(function(d) {
-        if (d.success && d.data && d.data.weight !== undefined) {
-            document.getElementById('wtGross').value = parseFloat(d.data.weight).toFixed(2);
-            wtCalcNet();
-            toast('Вес захвачен: ' + d.data.weight + ' кг', 'success');
+/* ---- Scale polling (same pattern as agro_field) ---- */
+var wtScaleTimer = null;
+var wtScaleReading = null;
+
+function wtStartPolling() {
+    if (wtScaleTimer) return;
+    wtScaleTimer = setInterval(wtPollScale, 1000);
+}
+function wtStopPolling() {
+    if (wtScaleTimer) { clearInterval(wtScaleTimer); wtScaleTimer = null; }
+}
+
+function wtPollScale() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('GET', '/api/agro-scale/read?scale_id=' + encodeURIComponent(scaleId)).then(function(res) {
+        if (!res.success) return;
+        var d = res.data;
+        wtScaleReading = d;
+        document.getElementById('wtScaleGross').textContent = (d.gross_kg || 0).toFixed(3);
+        document.getElementById('wtScaleTare').textContent = (d.tare_kg || 0).toFixed(3);
+        document.getElementById('wtScaleNet').textContent = (d.net_kg || 0).toFixed(3);
+        // Status indicator
+        var ind = document.getElementById('wtScaleIndicator');
+        var txt = document.getElementById('wtScaleStatusText');
+        var status = d.status || 'idle';
+        if (status === 'stable') { ind.style.background = '#53d769'; txt.textContent = 'Stable'; }
+        else if (status === 'settling') { ind.style.background = '#f59e0b'; txt.textContent = 'Settling...'; }
+        else if (status === 'overload' || status === 'error') { ind.style.background = '#e94560'; txt.textContent = status; }
+        else { ind.style.background = '#666'; txt.textContent = 'Idle'; }
+    }).catch(function() {});
+}
+
+window.wtScaleZero = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/zero', {scale_id: scaleId}).then(function(r) {
+        if (r.success) toast('Zero OK');
+    });
+};
+window.wtScaleTare = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/tare', {scale_id: scaleId}).then(function(r) {
+        if (r.success) toast('Tare OK');
+    });
+};
+window.wtScaleCapture = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/capture', {scale_id: scaleId}).then(function(r) {
+        if (r.success && r.reading) {
+            var rd = r.reading;
+            document.getElementById('wtCapturedGross').textContent = (rd.gross_kg || 0).toFixed(3);
+            document.getElementById('wtCapturedTare').textContent = (rd.tare_kg || 0).toFixed(3);
+            document.getElementById('wtCapturedNet').textContent = (rd.net_kg || 0).toFixed(3);
+            document.getElementById('wtCapturedCard').style.display = 'block';
+            toast('Вес зафиксирован: ' + (rd.net_kg || 0).toFixed(3) + ' кг', 'success');
         } else {
-            toast('Весы не ответили', 'warning');
+            toast('Не удалось зафиксировать', 'warning');
         }
     }).catch(function() { toast('Ошибка весов', 'error'); });
 };
-
-window.wtCalcNet = function() {
-    var gross = parseFloat(document.getElementById('wtGross').value) || 0;
-    var tare = 0;
-    var pkgSel = document.getElementById('wtItem');
-    if (pkgSel && pkgSel.value) {
-        var item = refs.items.find(function(i) { return String(i.id) === String(pkgSel.value); });
-        if (item && item.default_tare_kg) tare = parseFloat(item.default_tare_kg);
-    }
-    document.getElementById('wtTare').textContent = tare.toFixed(2);
-    document.getElementById('wtNet').textContent = (gross - tare).toFixed(2);
+window.wtClearCaptured = function() {
+    document.getElementById('wtCapturedCard').style.display = 'none';
 };
+
+/* ---- Emulator ---- */
+window.wtSimulate = function() {
+    var w = parseFloat(document.getElementById('wtSimWeight').value) || 0;
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/simulate', {scale_id: scaleId, weight: w});
+};
+window.wtSimulateRandom = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/simulate', {scale_id: scaleId});
+};
+window.wtSimulateRemove = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/simulate', {scale_id: scaleId, weight: 0});
+};
+window.wtSwitchScale = function() {};
+
+/* Start scale polling when navigating to weighing page */
+document.querySelectorAll('.nav-link').forEach(function(l) {
+    l.addEventListener('click', function() {
+        var pg = this.getAttribute('data-page');
+        if (pg === 'weighing') wtStartPolling();
+        else wtStopPolling();
+    });
+});
 
 window.wtAddLine = function() {
     var bc = document.getElementById('wtBarcode').value.trim();
