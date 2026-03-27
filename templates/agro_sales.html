@@ -1645,5 +1645,74 @@ window.wtPrint = function() {
     }
 })();
 </script>
+
+<!-- ===== Scale Kiosk Modal (like field's #scaleModal) ===== -->
+<div id="salesScaleModal" class="scale-kiosk-overlay" style="display:none;">
+  <div class="scale-kiosk">
+    <div class="sk-header">
+      <span class="sk-title">⚖ Весы отгрузки</span>
+      <div class="sk-status">
+        <span class="sk-indicator" id="skIndicator"></span>
+        <span id="skStatusText">Ожидание</span>
+      </div>
+      <button class="sk-close" onclick="closeSalesScaleModal()">&times;</button>
+    </div>
+    <div class="sk-body">
+      <div class="sk-scale">
+        <!-- Weight display -->
+        <div class="sk-weight-display">
+          <div class="sk-weight-gross" id="skGross">0.00</div>
+          <div class="sk-weight-unit">кг</div>
+          <div class="sk-weight-sub">
+            <div class="sk-sub-item"><span class="sk-sub-label">Тара</span><span class="sk-sub-val" id="skTare">0.00</span></div>
+            <div class="sk-sub-item"><span class="sk-sub-label">Нетто</span><span class="sk-sub-val" id="skNet">0.00</span></div>
+          </div>
+        </div>
+
+        <!-- Zero / Tare buttons -->
+        <div class="sk-scale-btns">
+          <button class="sk-btn" onclick="salesScaleZero()">Zero</button>
+          <button class="sk-btn sk-btn-tare" onclick="salesScaleTare()">Tare</button>
+        </div>
+
+        <!-- Capture button -->
+        <button class="sk-capture-btn" id="skCaptureBtn" onclick="salesScaleCapture()">📥 Захватить вес / Capture</button>
+
+        <!-- Numpad -->
+        <div class="sk-numpad">
+          <div class="sk-numpad-title">Ручной ввод / Manual</div>
+          <input type="text" class="sk-numpad-input" id="skNumpadInput" placeholder="0.00" readonly>
+          <div class="sk-numpad-grid">
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('7')">7</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('8')">8</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('9')">9</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('4')">4</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('5')">5</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('6')">6</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('1')">1</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('2')">2</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('3')">3</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('0')">0</button>
+            <button class="sk-numpad-btn" onclick="salesNumpadPress('.')">.</button>
+            <button class="sk-numpad-btn sk-numpad-del" onclick="salesNumpadPress('del')">⌫</button>
+          </div>
+          <button class="sk-numpad-btn sk-numpad-apply" onclick="salesNumpadApply()">Применить / Apply</button>
+        </div>
+
+        <!-- Emulator -->
+        <div class="sk-emulator">
+          <div class="sk-emulator-title">Эмулятор весов / Scale emulator</div>
+          <div class="sk-emu-btns">
+            <input type="number" id="skEmuWeight" placeholder="кг" step="0.1" min="0" style="flex:1;padding:10px;border:1px solid #0f3460;border-radius:6px;background:#060e1a;color:#e0e0f0;font-size:15px;min-height:44px;">
+            <button class="sk-btn" onclick="salesEmuSet()">Set</button>
+            <button class="sk-btn" onclick="salesEmuRandom()">Random</button>
+            <button class="sk-btn" onclick="salesEmuRemove()">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
