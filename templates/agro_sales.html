@@ -486,6 +486,7 @@ function loadRefs(cb) {
         refs.warehouses = d.data || d || [];
         fillSel('newDocWarehouse', refs.warehouses, 'id', 'name', 'Выбрать склад');
         fillSel('stockFilterWh', refs.warehouses, 'id', 'name', 'Все склады');
+        fillSel('wtWarehouse', refs.warehouses, 'id', 'name', 'Выбрать склад');
         check();
     }).catch(check);
 
