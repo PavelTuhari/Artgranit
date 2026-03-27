@@ -1445,6 +1445,8 @@ window.loadTickets = function() {
         var e = function(id) { var x = document.getElementById(id); if (x) x.textContent = arguments[1]; };
         e('wtStatTotal', total); e('wtStatDraft', drafts);
         e('wtStatFinal', finals); e('wtStatTotalKg', totalKg.toFixed(0));
+        e('ticketCountAll', total); e('ticketCountDraft', drafts);
+        e('ticketCountFinalized', finals);
 
         var tb = document.getElementById('wtTicketsBody');
         if (!tb) return;
