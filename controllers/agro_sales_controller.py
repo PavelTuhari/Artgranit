@@ -63,3 +63,41 @@ class AgroSalesController:
     @staticmethod
     def update_export_decl(data: Dict[str, Any]) -> Dict[str, Any]:
         return _safe_call(AgroStore.update_export_decl, data)
+
+    # --- Weight Tickets ---
+
+    @staticmethod
+    def get_weight_tickets(filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_weight_tickets, filters)
+
+    @staticmethod
+    def get_weight_ticket_by_id(ticket_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_weight_ticket_by_id, ticket_id)
+
+    @staticmethod
+    def create_weight_ticket(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('customer_id') and not data.get('sales_doc_id'):
+            return {"success": False, "error": "customer_id or sales_doc_id required"}
+        return _safe_call(AgroStore.create_weight_ticket, data)
+
+    @staticmethod
+    def update_weight_ticket(ticket_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        return _safe_call(AgroStore.update_weight_ticket, ticket_id, data)
+
+    @staticmethod
+    def add_weight_line(ticket_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('item_id'):
+            return {"success": False, "error": "item_id required"}
+        return _safe_call(AgroStore.add_weight_ticket_line, ticket_id, data)
+
+    @staticmethod
+    def remove_weight_line(ticket_id: int, line_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.remove_weight_ticket_line, ticket_id, line_id)
+
+    @staticmethod
+    def finalize_weight_ticket(ticket_id: int) -> Dict[str, Any]:
+        return _safe_call(AgroStore.finalize_weight_ticket, ticket_id)
+
+    @staticmethod
+    def get_scoring_config() -> Dict[str, Any]:
+        return _safe_call(AgroStore.get_scoring_config)
