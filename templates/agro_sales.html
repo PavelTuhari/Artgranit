@@ -261,11 +261,12 @@ tr:hover td { background: rgba(255,255,255,.04); }
         </div>
     </div>
 
+    <!-- Scanner -->
     <div class="card">
-        <h3 style="margin-bottom:12px;">Сканер + Весы / Scanner + Cântar</h3>
+        <h3 style="margin-bottom:12px;">Сканер / Scanner</h3>
         <div class="field-row">
             <div class="field" style="flex:2;">
-                <label>Штрихкод ящика / Cod de bare lada</label>
+                <label>Штрихкод ящика / Cod de bare ladă</label>
                 <div style="display:flex;gap:10px;">
                     <input type="text" id="wtBarcode" placeholder="Сканируйте или введите..." style="flex:1;font-size:18px;padding:14px 16px;">
                     <button class="btn btn-accent" onclick="wtLookupCrate()" style="min-width:100px;">Найти</button>
@@ -276,25 +277,74 @@ tr:hover td { background: rgba(255,255,255,.04); }
                 <select id="wtItem"></select>
             </div>
         </div>
+    </div>
 
-        <div class="weight-display">
-            <div class="weight-box">
-                <div class="wlabel">Брутто / Brut, кг</div>
-                <input type="number" class="input-weight" id="wtGross" placeholder="0.00" step="0.01" min="0" oninput="wtCalcNet()">
+    <!-- Live Scale Display -->
+    <div class="card" style="text-align:center;padding:30px;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
+            <div id="wtScaleIndicator" style="width:14px;height:14px;border-radius:50%;background:#666;transition:background .3s;"></div>
+            <span id="wtScaleStatusText" style="font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:1px;">Idle</span>
+            <select id="wtScaleId" style="padding:4px 8px;font-size:11px;background:#1a1a2e;border:1px solid #333366;color:#e0e0e0;border-radius:4px;" onchange="wtSwitchScale()">
+                <option value="default">Default</option>
+            </select>
+        </div>
+        <div id="wtScaleGross" style="font-size:72px;font-weight:700;color:#e0e0e0;line-height:1;font-variant-numeric:tabular-nums;">0.000</div>
+        <div style="font-size:16px;color:#8888aa;margin-top:4px;">kg (gross)</div>
+
+        <div class="weight-display" style="margin-top:20px;justify-content:center;gap:30px;">
+            <div class="weight-box" style="min-width:140px;">
+                <div class="wlabel">Tare / Тара</div>
+                <div class="wvalue" id="wtScaleTare">0.000</div>
             </div>
-            <div class="weight-box">
-                <div class="wlabel">Тара / Tara, кг</div>
-                <div class="wvalue" id="wtTare">0.00</div>
-            </div>
-            <div class="weight-box net">
-                <div class="wlabel">Нетто / Net, кг</div>
-                <div class="wvalue" id="wtNet">0.00</div>
+            <div class="weight-box net" style="min-width:140px;">
+                <div class="wlabel">Net / Нетто</div>
+                <div class="wvalue" id="wtScaleNet">0.000</div>
             </div>
         </div>
 
+        <!-- Scale Controls -->
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="wtScaleZero()" style="min-width:100px;">Zero / Ноль</button>
+            <button class="btn btn-accent" onclick="wtScaleTare()" style="min-width:100px;">Tare / Тара</button>
+            <button class="btn btn-primary btn-lg" onclick="wtScaleCapture()" id="btnWtCapture" style="width:auto;padding:18px 36px;">⚖ Зафиксировать / Fixează</button>
+        </div>
+    </div>
+
+    <!-- Emulator Controls -->
+    <div class="card">
+        <h3 style="font-size:14px;color:#8888aa;margin-bottom:14px;">Emulator / Эмулятор весов</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="field" style="margin:0;flex:0 0 160px;">
+                <label>Вес / Greutate (kg)</label>
+                <input type="number" id="wtSimWeight" value="25.5" step="0.1" min="0" max="600" style="width:100%;padding:8px;background:#1a1a2e;border:1px solid #333366;color:#e0e0e0;border-radius:4px;">
+            </div>
+            <button class="btn btn-ghost" onclick="wtSimulate()">Поставить / Pune</button>
+            <button class="btn btn-ghost" onclick="wtSimulateRandom()">Случайный / Aleator</button>
+            <button class="btn btn-danger" onclick="wtSimulateRemove()">Снять / Ridică</button>
+        </div>
+        <div style="font-size:11px;color:#6c6c8a;margin-top:10px;">Управление эмулятором весов. При реальном оборудовании — заменяется драйвером.</div>
+    </div>
+
+    <!-- Captured Reading -->
+    <div class="card" id="wtCapturedCard" style="display:none;">
+        <h3 style="font-size:14px;color:#53d769;margin-bottom:14px;">Зафиксированный вес / Greutate fixată</h3>
+        <div class="weight-display" style="margin-bottom:16px;">
+            <div class="weight-box">
+                <div class="wlabel">Gross / Брутто</div>
+                <div class="wvalue" id="wtCapturedGross">-</div>
+            </div>
+            <div class="weight-box">
+                <div class="wlabel">Tare / Тара</div>
+                <div class="wvalue" id="wtCapturedTare">-</div>
+            </div>
+            <div class="weight-box net">
+                <div class="wlabel">Net / Нетто</div>
+                <div class="wvalue" id="wtCapturedNet">-</div>
+            </div>
+        </div>
         <div style="display:flex;gap:10px;">
-            <button class="btn btn-accent btn-lg" style="flex:1;" onclick="wtReadScale()">⚖ Взвесить / Cântărește</button>
-            <button class="btn btn-primary btn-lg" style="flex:1;" onclick="wtAddLine()">+ Добавить / Adaugă</button>
+            <button class="btn btn-primary btn-lg" style="flex:1;" onclick="wtAddLine()">+ Добавить в акт / Adaugă la act</button>
+            <button class="btn btn-ghost" onclick="wtClearCaptured()" style="min-width:120px;">Сброс / Reset</button>
         </div>
     </div>
 
