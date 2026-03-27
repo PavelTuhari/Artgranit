@@ -1287,6 +1287,59 @@ html.embed .main { height: 100vh; }
             </div>
         </div>
 
+        <!-- D-Code Defect Panel -->
+        <div class="card" style="background:var(--bg);padding:14px;margin-top:12px;">
+            <h4 style="font-size:12px;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;">Шкала дефектов / Scala defecte (D-коды)</h4>
+            <div class="dcode-panel">
+                <div class="dcode-group">
+                    <div class="dcode-group-title critical">Критические / Critice</div>
+                    <div class="dcode-btns">
+                        <button class="dcode-btn critical" data-dcode="D01" data-checks="serious_ok" onclick="toggleDcode(this)">D01 Гниль</button>
+                        <button class="dcode-btn critical" data-dcode="D02" data-checks="serious_ok" onclick="toggleDcode(this)">D02 Плесень</button>
+                        <button class="dcode-btn critical" data-dcode="D03" data-checks="serious_ok" onclick="toggleDcode(this)">D03 Вредители</button>
+                        <button class="dcode-btn critical" data-dcode="D04" data-checks="serious_ok" onclick="toggleDcode(this)">D04 Запах</button>
+                        <button class="dcode-btn critical" data-dcode="D05" data-checks="class_ok" onclick="toggleDcode(this)">D05 Класс</button>
+                        <button class="dcode-btn critical" data-dcode="D06" data-checks="temp_ok" onclick="toggleDcode(this)">D06 Темп.</button>
+                        <button class="dcode-btn critical" data-dcode="D07" data-checks="lab_ok" onclick="toggleDcode(this)">D07 Лаб.</button>
+                        <button class="dcode-btn critical" data-dcode="D08" data-checks="phyto_ok" onclick="toggleDcode(this)">D08 Фито</button>
+                        <button class="dcode-btn critical" data-dcode="D09" data-checks="trace_ok" onclick="toggleDcode(this)">D09 Трассир.</button>
+                    </div>
+                </div>
+                <div class="dcode-group">
+                    <div class="dcode-group-title major">Значительные / Majore</div>
+                    <div class="dcode-btns">
+                        <button class="dcode-btn major" data-dcode="D10" data-checks="minor_ok" onclick="toggleDcode(this)">D10 Нажимы</button>
+                        <button class="dcode-btn major" data-dcode="D11" data-checks="minor_ok" onclick="toggleDcode(this)">D11 Деформ.</button>
+                        <button class="dcode-btn major" data-dcode="D12" data-checks="calibre_ok,below_min_ok" onclick="toggleDcode(this)">D12 Калибр</button>
+                        <button class="dcode-btn major" data-dcode="D13" data-checks="mixed_ok" onclick="toggleDcode(this)">D13 Разнокал.</button>
+                        <button class="dcode-btn major" data-dcode="D14" data-checks="brix_ok" onclick="toggleDcode(this)">D14 Brix</button>
+                    </div>
+                </div>
+                <div class="dcode-group">
+                    <div class="dcode-group-title minor">Незначительные / Minore</div>
+                    <div class="dcode-btns">
+                        <button class="dcode-btn minor" data-dcode="D20" data-checks="minor_ok" onclick="toggleDcode(this)">D20 Кожица</button>
+                        <button class="dcode-btn minor" data-dcode="D21" data-checks="minor_ok" onclick="toggleDcode(this)">D21 Листья</button>
+                        <button class="dcode-btn minor" data-dcode="D22" data-checks="label_ok" onclick="toggleDcode(this)">D22 Маркир.</button>
+                        <button class="dcode-btn minor" data-dcode="D23" data-checks="pack_ok" onclick="toggleDcode(this)">D23 Упаковка</button>
+                        <button class="dcode-btn minor" data-dcode="D24" data-checks="single_residue_ok" onclick="toggleDcode(this)">D24 Резид.1</button>
+                        <button class="dcode-btn minor" data-dcode="D25" data-checks="total_residue_ok" onclick="toggleDcode(this)">D25 Резид.∑</button>
+                        <button class="dcode-btn minor" data-dcode="D26" data-checks="glyphosate_ok" onclick="toggleDcode(this)">D26 Глифос.</button>
+                        <button class="dcode-btn minor" data-dcode="D27" data-checks="actives_ok" onclick="toggleDcode(this)">D27 В.в.</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo cells for defect evidence -->
+        <div class="card" style="background:var(--bg);padding:14px;margin-top:8px;">
+            <h4 style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Фото дефектов / Foto defecte</h4>
+            <div class="photo-grid" id="inspPhotoGrid">
+                <div class="photo-cell" style="border-style:dashed;color:#555;">Нажмите D-код для фото</div>
+            </div>
+            <input type="file" id="inspPhotoInput" accept="image/*" capture="environment" style="display:none;" onchange="inspPhotoCapture(this)">
+        </div>
+
         <div class="field" style="margin-top:12px;"><label>Комментарий / Comentariu</label><textarea id="insp-notes" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;"></textarea></div>
 
         <!-- Live score preview -->
