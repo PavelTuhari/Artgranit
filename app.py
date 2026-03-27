@@ -4544,6 +4544,59 @@ def api_agro_sales_export_update(decl_id):
     data['id'] = decl_id
     return jsonify(AgroSalesController.update_export_decl(data))
 
+# --- Weight Tickets ---
+
+@app.route('/api/agro-sales/weight-tickets', methods=['GET'])
+def api_agro_sales_wt_list():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    filters = {}
+    for k in ('status', 'date_from', 'date_to'):
+        if request.args.get(k):
+            filters[k] = request.args[k]
+    return jsonify(AgroSalesController.get_weight_tickets(filters or None))
+
+@app.route('/api/agro-sales/weight-tickets', methods=['POST'])
+def api_agro_sales_wt_create():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.create_weight_ticket(request.json))
+
+@app.route('/api/agro-sales/weight-tickets/<int:tid>', methods=['GET'])
+def api_agro_sales_wt_get(tid):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.get_weight_ticket_by_id(tid))
+
+@app.route('/api/agro-sales/weight-tickets/<int:tid>', methods=['PUT'])
+def api_agro_sales_wt_update(tid):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.update_weight_ticket(tid, request.json))
+
+@app.route('/api/agro-sales/weight-tickets/<int:tid>/lines', methods=['POST'])
+def api_agro_sales_wt_add_line(tid):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.add_weight_line(tid, request.json))
+
+@app.route('/api/agro-sales/weight-tickets/<int:tid>/lines/<int:lid>', methods=['DELETE'])
+def api_agro_sales_wt_del_line(tid, lid):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.remove_weight_line(tid, lid))
+
+@app.route('/api/agro-sales/weight-tickets/<int:tid>/finalize', methods=['POST'])
+def api_agro_sales_wt_finalize(tid):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.finalize_weight_ticket(tid))
+
+@app.route('/api/agro-field/scoring-config', methods=['GET'])
+def api_agro_field_scoring_config():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroSalesController.get_scoring_config())
 
 # ============================================================
 # AGRO QA / HACCP API
