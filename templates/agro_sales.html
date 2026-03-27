@@ -870,8 +870,259 @@ document.querySelectorAll('.nav-link').forEach(function(l) {
         if (pg === 'export') loadExportDecls();
         else if (pg === 'stock') loadAvailStock();
         else if (pg === 'documents') loadDocs();
+        else if (pg === 'tickets') loadTickets();
     });
 });
+
+/* ==================== WEIGHT TICKETS ==================== */
+var wtLines = [];
+var wtCurrentTicketId = null;
+
+function wtSalesDocChanged() {
+    var docId = document.getElementById('wtSalesDoc').value;
+    if (!docId) return;
+    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
+        var doc = (d.data || d).doc || d.data || d;
+        if (doc.customer_id) document.getElementById('wtCustomer').value = doc.customer_id;
+        if (doc.warehouse_id) document.getElementById('wtWarehouse').value = doc.warehouse_id;
+    });
+}
+
+function wtLookupCrate() {
+    var bc = document.getElementById('wtBarcode').value.trim();
+    if (!bc) return toast('Введите штрихкод', 'warning');
+    api('POST', '/api/agro-field/crates/scan', {barcode: bc}).then(function(d) {
+        if (d.success && d.data) {
+            var crate = d.data;
+            if (crate.item_id) {
+                document.getElementById('wtItem').value = crate.item_id;
+                document.getElementById('wtBarcode').setAttribute('data-batch-id', crate.batch_id || '');
+                if (crate.gross_weight_kg) {
+                    document.getElementById('wtGross').value = parseFloat(crate.gross_weight_kg || 0).toFixed(2);
+                    wtCalcNet();
+                }
+                toast('Ящик найден: ' + (crate.crate_code || bc), 'success');
+            }
+        }
+    }).catch(function() {});
+}
+
+window.wtReadScale = function() {
+    api('GET', '/api/agro-scale/read').then(function(d) {
+        if (d.success && d.data && d.data.weight !== undefined) {
+            document.getElementById('wtGross').value = parseFloat(d.data.weight).toFixed(2);
+            wtCalcNet();
+            toast('Вес захвачен: ' + d.data.weight + ' кг', 'success');
+        } else {
+            toast('Весы не ответили', 'warning');
+        }
+    }).catch(function() { toast('Ошибка весов', 'error'); });
+};
+
+window.wtCalcNet = function() {
+    var gross = parseFloat(document.getElementById('wtGross').value) || 0;
+    var tare = 0;
+    var pkgSel = document.getElementById('wtItem');
+    if (pkgSel && pkgSel.value) {
+        var item = refs.items.find(function(i) { return String(i.id) === String(pkgSel.value); });
+        if (item && item.default_tare_kg) tare = parseFloat(item.default_tare_kg);
+    }
+    document.getElementById('wtTare').textContent = tare.toFixed(2);
+    document.getElementById('wtNet').textContent = (gross - tare).toFixed(2);
+};
+
+window.wtAddLine = function() {
+    var bc = document.getElementById('wtBarcode').value.trim();
+    var itemId = document.getElementById('wtItem').value;
+    var gross = parseFloat(document.getElementById('wtGross').value) || 0;
+    if (!itemId) return toast('Выберите продукт', 'warning');
+    if (gross <= 0) return toast('Взвесьте ящик', 'warning');
+
+    var tare = parseFloat(document.getElementById('wtTare').textContent) || 0;
+    var net = gross - tare;
+    var itemName = '';
+    var item = refs.items.find(function(i) { return String(i.id) === String(itemId); });
+    if (item) itemName = item.name || item.name_ru || item.code;
+
+    var batchId = document.getElementById('wtBarcode').getAttribute('data-batch-id') || null;
+    wtLines.push({
+        crate_code: bc, item_id: parseInt(itemId), item_name: itemName,
+        batch_id: batchId ? parseInt(batchId) : null,
+        gross_kg: gross, tare_kg: tare, net_kg: net
+    });
+    wtRenderLines();
+    document.getElementById('wtBarcode').value = '';
+    document.getElementById('wtGross').value = '';
+    document.getElementById('wtNet').textContent = '0.00';
+    document.getElementById('wtTare').textContent = '0.00';
+    document.getElementById('wtBarcode').focus();
+};
+
+function wtRenderLines() {
+    var body = document.getElementById('wtLinesBody');
+    if (!wtLines.length) {
+        body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Сканируйте ящик и взвесьте</div>';
+        document.getElementById('wtLineCount').textContent = '0 позиций';
+        document.getElementById('wtTotalNet').textContent = '0.00';
+        return;
+    }
+    var totalNet = 0;
+    body.innerHTML = wtLines.map(function(l, i) {
+        totalNet += l.net_kg;
+        return '<div class="wt-line-row">' +
+            '<div>' + (i + 1) + '</div>' +
+            '<div style="font-family:monospace;">' + (l.crate_code || '-') + '</div>' +
+            '<div>' + l.item_name + '</div>' +
+            '<div style="font-weight:600;">' + l.gross_kg.toFixed(2) + '</div>' +
+            '<div>' + l.tare_kg.toFixed(2) + '</div>' +
+            '<div style="font-weight:700;color:var(--accent);">' + l.net_kg.toFixed(2) + '</div>' +
+            '<div></div>' +
+            '<div><button class="btn btn-sm btn-danger" onclick="wtRemoveLine(' + i + ')" style="padding:4px 8px;">✕</button></div>' +
+            '</div>';
+    }).join('');
+    document.getElementById('wtLineCount').textContent = wtLines.length + ' позиций';
+    document.getElementById('wtTotalNet').textContent = totalNet.toFixed(2);
+}
+
+window.wtRemoveLine = function(idx) {
+    wtLines.splice(idx, 1);
+    wtRenderLines();
+};
+
+window.wtCreateTicket = function() {
+    if (!wtLines.length) return toast('Нет позиций', 'warning');
+    var custId = document.getElementById('wtCustomer').value;
+    var whId = document.getElementById('wtWarehouse').value;
+    var sdId = document.getElementById('wtSalesDoc').value;
+    if (!custId) return toast('Выберите клиента', 'warning');
+
+    api('POST', '/api/agro-sales/weight-tickets', {
+        customer_id: parseInt(custId),
+        warehouse_id: whId ? parseInt(whId) : null,
+        sales_doc_id: sdId ? parseInt(sdId) : null
+    }).then(function(d) {
+        if (!d.success) return toast(d.error || 'Ошибка', 'error');
+        var ticketId = d.id;
+        var chain = Promise.resolve();
+        wtLines.forEach(function(line) {
+            chain = chain.then(function() {
+                return api('POST', '/api/agro-sales/weight-tickets/' + ticketId + '/lines', {
+                    crate_code: line.crate_code, item_id: line.item_id,
+                    batch_id: line.batch_id,
+                    gross_kg: line.gross_kg, tare_kg: line.tare_kg
+                });
+            });
+        });
+        chain.then(function() {
+            toast('Акт ' + d.ticket_number + ' создан!', 'success');
+            wtLines = [];
+            wtRenderLines();
+            document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
+            document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+            var ticketsLink = document.querySelector('[data-page="tickets"]');
+            if (ticketsLink) ticketsLink.classList.add('active');
+            var ticketsPage = document.getElementById('page-tickets');
+            if (ticketsPage) ticketsPage.classList.add('active');
+            loadTickets();
+        });
+    });
+};
+
+/* ==================== TICKET JOURNAL ==================== */
+window.loadTickets = function() {
+    var el = document.getElementById('wtFilterStatus');
+    var status = el ? el.value : '';
+    var url = '/api/agro-sales/weight-tickets';
+    if (status) url += '?status=' + status;
+    api('GET', url).then(function(d) {
+        var rows = d.data || [];
+        var total = rows.length, drafts = 0, finals = 0, totalKg = 0;
+        rows.forEach(function(r) {
+            if (r.status === 'draft') drafts++;
+            else if (r.status === 'finalized') finals++;
+            totalKg += parseFloat(r.total_net_kg || 0);
+        });
+        var e = function(id) { var x = document.getElementById(id); if (x) x.textContent = arguments[1]; };
+        e('wtStatTotal', total); e('wtStatDraft', drafts);
+        e('wtStatFinal', finals); e('wtStatTotalKg', totalKg.toFixed(0));
+
+        var tb = document.getElementById('wtTicketsBody');
+        if (!tb) return;
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">Нет актов</td></tr>'; return; }
+        tb.innerHTML = rows.map(function(r) {
+            var bc = r.status === 'finalized' ? 'badge-confirmed' : 'badge-draft';
+            return '<tr>' +
+                '<td style="font-weight:600;">' + (r.ticket_number || '-') + '</td>' +
+                '<td>' + (r.ticket_date || '-') + '</td>' +
+                '<td>' + (r.customer_name || '-') + '</td>' +
+                '<td>' + (r.warehouse_name || '-') + '</td>' +
+                '<td>' + (r.sales_doc_number || '-') + '</td>' +
+                '<td><span class="badge ' + bc + '">' + (r.status || '-') + '</span></td>' +
+                '<td style="font-weight:700;color:var(--accent);">' + parseFloat(r.total_net_kg || 0).toFixed(2) + '</td>' +
+                '<td><button class="btn btn-sm btn-ghost" onclick="viewTicket(' + r.id + ')">Открыть</button></td></tr>';
+        }).join('');
+    });
+};
+
+window.viewTicket = function(tid) {
+    wtCurrentTicketId = tid;
+    document.getElementById('wtDetailContent').innerHTML = '<p class="empty">Загрузка...</p>';
+    document.getElementById('btnWtFinalize').style.display = 'none';
+    document.getElementById('btnWtPrint').style.display = 'none';
+    document.getElementById('wtDetailModal').classList.add('open');
+
+    api('GET', '/api/agro-sales/weight-tickets/' + tid).then(function(d) {
+        if (!d.success) { document.getElementById('wtDetailContent').innerHTML = '<p class="empty">Ошибка</p>'; return; }
+        var t = d.data;
+        var lines = t.lines || [];
+
+        var html = '<div class="doc-detail">' +
+            '<div class="doc-num">' + (t.ticket_number || '-') + '</div>' +
+            '<div class="doc-info">Клиент: <strong>' + (t.customer_name || '-') + '</strong> | ' +
+            'Склад: <strong>' + (t.warehouse_name || '-') + '</strong> | ' +
+            'Дата: ' + (t.ticket_date || '-') + ' | ' +
+            'Статус: <span class="badge badge-' + (t.status === 'finalized' ? 'confirmed' : 'draft') + '">' + (t.status || '-') + '</span>' +
+            '</div></div>';
+
+        if (lines.length) {
+            html += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Штрихкод</th><th>Продукт</th><th>Брутто</th><th>Тара</th><th>Нетто</th></tr></thead><tbody>';
+            var totalNet = 0;
+            lines.forEach(function(l) {
+                totalNet += parseFloat(l.net_kg || 0);
+                html += '<tr><td>' + (l.line_no || '-') + '</td><td style="font-family:monospace;">' + (l.crate_code || '-') + '</td>' +
+                    '<td>' + (l.item_name || '-') + '</td>' +
+                    '<td>' + parseFloat(l.gross_kg || 0).toFixed(2) + '</td>' +
+                    '<td>' + parseFloat(l.tare_kg || 0).toFixed(2) + '</td>' +
+                    '<td style="font-weight:700;color:var(--accent);">' + parseFloat(l.net_kg || 0).toFixed(2) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<div style="text-align:right;margin-top:12px;font-size:20px;font-weight:700;color:var(--accent);">Итого нетто: ' + totalNet.toFixed(2) + ' кг</div>';
+        }
+
+        document.getElementById('wtDetailContent').innerHTML = html;
+        if (t.status === 'draft') document.getElementById('btnWtFinalize').style.display = '';
+        document.getElementById('btnWtPrint').style.display = '';
+    });
+};
+
+window.wtFinalize = function() {
+    if (!wtCurrentTicketId) return;
+    if (!confirm('Финализировать акт? Изменения будут невозможны.')) return;
+    api('POST', '/api/agro-sales/weight-tickets/' + wtCurrentTicketId + '/finalize').then(function(d) {
+        if (d.success) {
+            toast('Акт финализирован', 'success');
+            closeModal('wtDetailModal');
+            loadTickets();
+        } else {
+            toast(d.error || 'Ошибка', 'error');
+        }
+    });
+};
+
+window.wtPrint = function() {
+    if (!wtCurrentTicketId) return;
+    window.open('/UNA.md/orasldev/agro-document/' + wtCurrentTicketId + '?type=weight_ticket', '_blank');
+};
 
 })();
 
