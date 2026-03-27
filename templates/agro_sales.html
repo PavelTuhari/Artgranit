@@ -847,67 +847,9 @@ function formatMoney(val, cur) {
     return n + ' ' + (cur || '');
 }
 
-/* VIEW DOCUMENT */
+/* VIEW DOCUMENT — legacy modal redirect */
 window.viewDoc = function(docId) {
-    currentDocId = docId;
-    document.getElementById('docDetailContent').innerHTML = '<p class="empty">Загрузка...</p>';
-    document.getElementById('btnConfirmDoc').style.display = 'none';
-    document.getElementById('btnAllocate').style.display = 'none';
-    document.getElementById('docDetailModal').classList.add('open');
-
-    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
-        if (!d.success && !d.data) { document.getElementById('docDetailContent').innerHTML = '<p class="empty">Ошибка загрузки</p>'; return; }
-        var raw = d.data || d;
-        var doc = raw.doc || raw;
-        var lines = raw.lines || doc.lines || [];
-        var allocations = raw.allocations || doc.allocations || [];
-
-        var html = '<div class="doc-detail">' +
-            '<div class="doc-num">' + (doc.doc_number || '-') + '</div>' +
-            '<div class="doc-info">' +
-            'Клиент: <strong>' + (doc.customer_name || '-') + '</strong> | ' +
-            'Склад: <strong>' + (doc.warehouse_name || '-') + '</strong> | ' +
-            'Дата: ' + (doc.doc_date || '-') + ' | ' +
-            'Статус: <span class="badge badge-' + (doc.status || 'draft') + '">' + (doc.status || '-') + '</span>' +
-            '</div></div>';
-
-        // Lines table
-        if (lines.length) {
-            html += '<h4 style="margin:12px 0 8px;">Позиции / Linii</h4>';
-            html += '<div class="table-wrap"><table><thead><tr><th>Продукт</th><th>Кол-во кг</th><th>Цена/кг</th><th>Сумма</th></tr></thead><tbody>';
-            var total = 0;
-            lines.forEach(function(l) {
-                var lineTotal = (parseFloat(l.qty_kg || 0) * parseFloat(l.price_per_kg || 0));
-                total += lineTotal;
-                html += '<tr><td>' + (l.item_name || l.item_id || '-') + '</td>' +
-                    '<td>' + parseFloat(l.qty_kg || 0).toFixed(1) + '</td>' +
-                    '<td>' + parseFloat(l.price_per_kg || 0).toFixed(2) + '</td>' +
-                    '<td style="font-weight:600;">' + lineTotal.toFixed(2) + '</td></tr>';
-            });
-            html += '<tr style="font-weight:700;background:rgba(83,215,105,.08);"><td colspan="3">Итого / Total</td><td>' + total.toFixed(2) + ' ' + (doc.currency_code || '') + '</td></tr>';
-            html += '</tbody></table></div>';
-        }
-
-        // Allocations
-        if (allocations.length) {
-            html += '<h4 style="margin:16px 0 8px;">Распределение партий / Alocare loturi</h4>';
-            html += '<div class="table-wrap"><table><thead><tr><th>Позиция</th><th>Партия / Lot</th><th>Кол-во кг</th></tr></thead><tbody>';
-            allocations.forEach(function(a) {
-                html += '<tr><td>' + (a.sales_line_id || '-') + '</td><td>' + (a.batch_number || a.batch_id || '-') + '</td>' +
-                    '<td>' + parseFloat(a.allocated_qty_kg || 0).toFixed(1) + '</td></tr>';
-            });
-            html += '</tbody></table></div>';
-        }
-
-        if (doc.notes) html += '<div style="margin-top:12px;font-size:13px;color:var(--text-muted);"><em>' + doc.notes + '</em></div>';
-
-        document.getElementById('docDetailContent').innerHTML = html;
-
-        if (doc.status === 'draft') {
-            document.getElementById('btnConfirmDoc').style.display = '';
-            document.getElementById('btnAllocate').style.display = '';
-        }
-    });
+    selectSalesDoc(docId);
 };
 
 /* CONFIRM DOCUMENT */
