@@ -1062,10 +1062,7 @@ window.submitNewDoc = function() {
             document.getElementById('newDocNotes').value = '';
             lineCounter = 0;
             // Switch to docs list
-            document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-            document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
-            document.getElementById('page-documents').classList.add('active');
-            document.querySelector('[data-page="documents"]').classList.add('active');
+            navigateTo('documents');
             loadDocs();
         } else {
             toast(d.error || 'Ошибка создания', 'error');
