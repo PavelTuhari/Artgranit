@@ -261,126 +261,217 @@ ul{margin-top:8px}
   <tr><td>Уценка / отказ</td><td>Формула скидки, право на сортировку, фото-акт, срок рекламации</td></tr>
 </table>
 
-<!-- ═══════ 5. ШКАЛА ДЕФЕКТОВ ═══════ -->
-<h2 id="s5">5) Шкала кодирования дефектов (DIPP Defect Coding)</h2>
+<!-- ═══════ 5. ШКАЛА ДЕФЕКТОВ (D01–D27, AGRO Scoring) ═══════ -->
+<h2 id="s5">5) Шкала кодирования дефектов (DIPP Defect Coding D01–D27)</h2>
 
 <div class="note">
-<strong>Как пользоваться.</strong> При приёмке партии инспектор проверяет выборку (min 5 коробов или 2% партии) и фиксирует каждый обнаруженный дефект кодом из таблицы ниже. Итоговый % по категориям определяет решение: &laquo;Принять&raquo;, &laquo;Сортировка / скидка&raquo; или &laquo;Отказать&raquo;.
+<strong>Как пользоваться.</strong> При приёмке партии инспектор проверяет выборку (min 5 коробов или 2% партии) и фиксирует каждый обнаруженный дефект кодом из таблицы ниже.
+Коды D01–D27 синхронизированы с системой скоринга AGRO модуля (17-точечная взвешенная оценка). Профили приёмки настраиваются в Admin &rarr; Acceptance Profiles для каждой торговой сети.
 </div>
 
+<h3>5.1 Критические дефекты (D01–D09) &mdash; автоматический отказ при обнаружении</h3>
 <table>
   <tr>
-    <th>Код</th>
-    <th>Дефект</th>
-    <th>Категория</th>
+    <th style="width:60px">Код</th>
+    <th>Дефект / Defect</th>
+    <th style="width:140px">Проверка AGRO</th>
+    <th style="width:60px">Вес</th>
     <th>Описание / пример</th>
-    <th>Порог отказа</th>
   </tr>
   <tr>
     <td class="dc-critical">D01</td>
-    <td>Гниль</td>
-    <td class="dc-critical">Критический</td>
+    <td>Гниль / Rot</td>
+    <td><code>SERIOUS_OK</code></td>
+    <td>15</td>
     <td>Любой очаг гниения, мягкая зона с неприятным запахом</td>
-    <td>&gt;0% &rarr; сортировка; &gt;2% &rarr; отказ партии</td>
   </tr>
   <tr>
     <td class="dc-critical">D02</td>
-    <td>Плесень</td>
-    <td class="dc-critical">Критический</td>
+    <td>Плесень / Mould</td>
+    <td><code>SERIOUS_OK</code></td>
+    <td>15</td>
     <td>Видимый мицелий, споры, грибковые пятна</td>
-    <td>&gt;0% &rarr; сортировка; &gt;2% &rarr; отказ партии</td>
   </tr>
   <tr>
     <td class="dc-critical">D03</td>
-    <td>Живые вредители</td>
-    <td class="dc-critical">Критический</td>
-    <td>Насекомые, личинки, ходы. Фрукт с ходом = заражён</td>
-    <td>0% &mdash; любое обнаружение = отказ партии</td>
+    <td>Живые вредители / Live pests</td>
+    <td><code>SERIOUS_OK</code></td>
+    <td>15</td>
+    <td>Насекомые, личинки, ходы. Фрукт с ходом = заражён. <strong>Любое обнаружение = отказ</strong></td>
   </tr>
   <tr>
     <td class="dc-critical">D04</td>
-    <td>Посторонний запах</td>
-    <td class="dc-critical">Критический</td>
-    <td>Химический, гнилостный, нетипичный запах</td>
-    <td>Любое обнаружение = отказ партии</td>
+    <td>Посторонний запах / Foreign odour</td>
+    <td><code>SERIOUS_OK</code></td>
+    <td>15</td>
+    <td>Химический, гнилостный, нетипичный запах. <strong>Любое обнаружение = отказ</strong></td>
   </tr>
   <tr>
-    <td class="dc-major">D10</td>
-    <td>Нажимы / bruising</td>
-    <td class="dc-major">Значительный</td>
-    <td>Потемнение мякоти &gt;1 см&sup2;, вдавления &gt;3 мм глубиной</td>
-    <td>&le;3% &rarr; ОК; 3-8% &rarr; скидка; &gt;8% &rarr; отказ</td>
+    <td class="dc-critical">D05</td>
+    <td>Несоответствие классу / Class mismatch</td>
+    <td><code>CLASS_OK</code></td>
+    <td>10</td>
+    <td>Поставлен ниже заявленного коммерческого класса (Extra / I / II)</td>
   </tr>
   <tr>
-    <td class="dc-major">D11</td>
-    <td>Трещины / расколы</td>
-    <td class="dc-major">Значительный</td>
-    <td>Видимые трещины кожицы, расколы</td>
-    <td>&le;1% &rarr; ОК; &gt;1% &rarr; скидка; &gt;3% &rarr; отказ</td>
+    <td class="dc-critical">D06</td>
+    <td>Температура нарушена / Temp breach</td>
+    <td><code>TEMP_OK</code></td>
+    <td>10</td>
+    <td>Температура при приёмке выше допустимого диапазона (0&hellip;+4 &deg;C)</td>
   </tr>
   <tr>
-    <td class="dc-major">D12</td>
-    <td>Стекловидность / watercore</td>
-    <td class="dc-major">Значительный</td>
-    <td>Прозрачная мякоть при разрезе (яблоки)</td>
-    <td>&le;5% &rarr; ОК; &gt;5% &rarr; скидка; &gt;10% &rarr; отказ</td>
+    <td class="dc-critical">D07</td>
+    <td>Нет лаб. отчёта / Missing lab report</td>
+    <td><code>LAB_OK</code></td>
+    <td>8</td>
+    <td>Отсутствует лабораторный анализ по партии (CoA)</td>
   </tr>
   <tr>
-    <td class="dc-major">D13</td>
-    <td>Internal browning</td>
-    <td class="dc-major">Значительный</td>
-    <td>Потемнение мякоти вокруг сердцевины (хранение)</td>
-    <td>&le;2% &rarr; ОК; &gt;2% &rarr; скидка; &gt;5% &rarr; отказ</td>
+    <td class="dc-critical">D08</td>
+    <td>Нет фитосанитарного серт. / Missing phyto</td>
+    <td><code>PHYTO_OK</code></td>
+    <td>4</td>
+    <td>Отсутствует фитосанитарный / health сертификат</td>
   </tr>
   <tr>
-    <td class="dc-minor">D20</td>
-    <td>Царапины кожицы</td>
-    <td class="dc-minor">Незначительный</td>
-    <td>Поверхностные царапины &lt;15 мм, без повреждения мякоти</td>
-    <td>&le;5% &rarr; ОК; &gt;5% &rarr; скидка; &gt;15% &rarr; отказ</td>
-  </tr>
-  <tr>
-    <td class="dc-minor">D21</td>
-    <td>Руссетинг / russeting</td>
-    <td class="dc-minor">Незначительный</td>
-    <td>Шероховатость кожицы, характерная для сорта</td>
-    <td>&le;10% площади плода ОК для Class I</td>
-  </tr>
-  <tr>
-    <td class="dc-minor">D22</td>
-    <td>Деформация формы</td>
-    <td class="dc-minor">Незначительный</td>
-    <td>Нехарактерная форма, асимметрия, наросты</td>
-    <td>&le;3% &rarr; ОК; &gt;3% &rarr; скидка</td>
-  </tr>
-  <tr>
-    <td class="dc-minor">D23</td>
-    <td>Недостаток окраски</td>
-    <td class="dc-minor">Незначительный</td>
-    <td>Менее заявленного % покровной окраски для сорта</td>
-    <td>&le;5% &rarr; ОК; &gt;5% &rarr; скидка</td>
-  </tr>
-  <tr>
-    <td class="dc-minor">D24</td>
-    <td>Плодоножка повреждена / отсутствует</td>
-    <td class="dc-minor">Незначительный</td>
-    <td>Обломанная или отсутствующая плодоножка</td>
-    <td>&le;5% &rarr; ОК; &gt;5% &rarr; скидка</td>
-  </tr>
-  <tr>
-    <td class="dc-ok">D30</td>
-    <td>Посторонние включения</td>
-    <td class="dc-minor">Незначительный</td>
-    <td>Листья, веточки, земля в коробе</td>
-    <td>Убрать при сортировке; при массовом загрязнении &rarr; скидка</td>
+    <td class="dc-critical">D09</td>
+    <td>Нет traceability / Missing traceability</td>
+    <td><code>TRACE_OK</code></td>
+    <td>6</td>
+    <td>Невозможно установить происхождение: поле, дата сбора, обработки</td>
   </tr>
 </table>
 
+<h3>5.2 Значительные дефекты (D10–D14) &mdash; снижение оценки, возможна сортировка</h3>
+<table>
+  <tr>
+    <th style="width:60px">Код</th>
+    <th>Дефект / Defect</th>
+    <th style="width:140px">Проверка AGRO</th>
+    <th style="width:60px">Вес</th>
+    <th>Описание / пример</th>
+  </tr>
+  <tr>
+    <td class="dc-major">D10</td>
+    <td>Нажимы / Bruising</td>
+    <td><code>MINOR_OK</code></td>
+    <td>8</td>
+    <td>Потемнение мякоти &gt;1 см&sup2;, вдавления &gt;3 мм глубиной</td>
+  </tr>
+  <tr>
+    <td class="dc-major">D11</td>
+    <td>Деформация / Deformation</td>
+    <td><code>MINOR_OK</code></td>
+    <td>8</td>
+    <td>Нехарактерная форма, трещины кожицы, расколы, асимметрия</td>
+  </tr>
+  <tr>
+    <td class="dc-major">D12</td>
+    <td>Ниже мин. калибра / Below min calibre</td>
+    <td><code>CALIBRE_OK</code> + <code>BELOW_MIN_OK</code></td>
+    <td>8+5</td>
+    <td>Средний калибр ниже нормы или доля плодов below-min &gt; допуска</td>
+  </tr>
+  <tr>
+    <td class="dc-major">D13</td>
+    <td>Смешение размеров / Mixed sizes</td>
+    <td><code>MIXED_OK</code></td>
+    <td>4</td>
+    <td>Неоднородность размеров в коробе, смешение калибровочных групп</td>
+  </tr>
+  <tr>
+    <td class="dc-major">D14</td>
+    <td>Brix ниже нормы / Low Brix</td>
+    <td><code>BRIX_OK</code></td>
+    <td>5</td>
+    <td>Содержание сахара ниже минимального порога для сорта</td>
+  </tr>
+</table>
+
+<p class="small"><em>D15–D19 зарезервированы для будущих дефектов категории &laquo;Значительный&raquo;.</em></p>
+
+<h3>5.3 Незначительные дефекты (D20–D27) &mdash; информационные, влияют на общую оценку</h3>
+<table>
+  <tr>
+    <th style="width:60px">Код</th>
+    <th>Дефект / Defect</th>
+    <th style="width:140px">Проверка AGRO</th>
+    <th style="width:60px">Вес</th>
+    <th>Описание / пример</th>
+  </tr>
+  <tr>
+    <td class="dc-minor">D20</td>
+    <td>Пов. дефекты кожицы / Skin defects</td>
+    <td><code>MINOR_OK</code></td>
+    <td>8</td>
+    <td>Царапины, руссетинг, пятна &mdash; поверхностные, без повреждения мякоти</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D21</td>
+    <td>Следы листьев / веточек / Leaves &amp; twigs</td>
+    <td><code>MINOR_OK</code></td>
+    <td>8</td>
+    <td>Посторонние включения в коробе: листья, веточки, земля</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D22</td>
+    <td>Неполная маркировка / Incomplete label</td>
+    <td><code>LABEL_OK</code></td>
+    <td>2</td>
+    <td>Отсутствуют обязательные поля на этикетке короба (см. раздел 8)</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D23</td>
+    <td>Нарушение упаковки / Pack damage</td>
+    <td><code>PACK_OK</code></td>
+    <td>3</td>
+    <td>Повреждённая, деформированная или грязная тара</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D24</td>
+    <td>Residue single &gt; MRL</td>
+    <td><code>SINGLE_RESIDUE_OK</code></td>
+    <td>2</td>
+    <td>Одно действующее вещество превышает максимально допустимый уровень (MRL)</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D25</td>
+    <td>Residue total &gt; limit</td>
+    <td><code>TOTAL_RESIDUE_OK</code></td>
+    <td>2</td>
+    <td>Суммарные остатки пестицидов превышают групповой порог</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D26</td>
+    <td>Glyphosate &gt; MRL</td>
+    <td><code>GLYPHOSATE_OK</code></td>
+    <td>1</td>
+    <td>Глифосат обнаружен выше допустимого уровня</td>
+  </tr>
+  <tr>
+    <td class="dc-minor">D27</td>
+    <td>Кол-во акт. веществ &gt; лимит / Active substances</td>
+    <td><code>ACTIVES_OK</code></td>
+    <td>2</td>
+    <td>Число обнаруженных действующих веществ превышает допустимый лимит</td>
+  </tr>
+</table>
+
+<h3>5.4 Решение по партии (синхронизировано с AGRO Scoring Engine)</h3>
+
 <div class="ok">
-<strong>Сводка решений:</strong><br>
-<strong>ПРИНЯТЬ</strong> &mdash; Критических дефектов 0%, значительных &le;3%, незначительных &le;5%.<br>
-<strong>СОРТИРОВКА / СКИДКА</strong> &mdash; Критических &le;2%, значительных 3-8%, или незначительных 5-15%. Формула скидки: (% значительных &times; 1.5 + % незначительных) &times; стоимость партии.<br>
-<strong>ОТКАЗ</strong> &mdash; Критических &gt;2%, значительных &gt;8%, или любой D03/D04.
+<strong>ПРИНЯТЬ (ACCEPT)</strong> &mdash; Все 6 критических проверок пройдены <strong>И</strong> взвешенная оценка &ge; 95 из 100.<br>
+Формула: сумма весов всех пройденных проверок (max 95) + оценка свежести (0–5) = итоговый балл.
+</div>
+
+<div class="warn">
+<strong>СОРТИРОВКА / СКИДКА (ACCEPT_WITH_SORTING)</strong> &mdash; Все 6 критических проверок пройдены <strong>И</strong> оценка &ge; 85 (настраиваемый порог <code>accept_min_score</code> в профиле сети).
+Партия принимается с условием пересортировки или ценовой скидки.
+</div>
+
+<div class="note" style="background:#fef2f2;border-color:#dc2626;">
+<strong>ОТКАЗ (REJECT)</strong> &mdash; Любая критическая проверка не пройдена (D01–D09) <strong>ИЛИ</strong> оценка &lt; 85.
 </div>
 
 <!-- ═══════ 6. ФОТО-ГИД ═══════ -->
