@@ -502,10 +502,12 @@ function renderGroups() {
 
 function selectGroup(gk) {
   activeGroup = gk;
+  activeSubgroup = null;
   document.querySelectorAll('.group-btn').forEach(b => b.classList.toggle('active', b.dataset.gk === gk));
   const g = groups.find(x => x.group_key === gk);
   document.getElementById('svcGroupTitle').textContent = (g ? (g.icon + ' ' + g.label_ru) : gk);
   document.getElementById('svcSearch').value = '';
+  renderSubgroupsBar();
   renderServices('');
   clearParams();
 }
