@@ -299,6 +299,22 @@ def nufarul_operator():
     return render_template('nufarul_operator.html')
 
 
+@app.route('/UNA.md/orasldev/nufarul-oper-ts')
+def nufarul_oper_ts():
+    """Touchscreen kiosk interface for Nufarul intake/issue"""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('nufarul_oper_ts.html')
+
+
+@app.route('/UNA.md/orasldev/nufarul-customer-screen')
+def nufarul_customer_screen():
+    """Customer-facing second display for Nufarul TS kiosk"""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('nufarul_customer_screen.html')
+
+
 @app.route('/UNA.md/orasldev/decor-admin')
 def decor_admin():
     """DECOR: админка материалов, коэффициентов и заказов стеклянных крыш/веранд."""
