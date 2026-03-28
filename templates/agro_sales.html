@@ -1211,9 +1211,63 @@ window.addShipLine = function() {
 /* Keep legacy alias */
 window.addLineItem = window.addShipLine;
 
-/* ===== Scale Kiosk Modal Logic ===== */
+/* ===== Scale Kiosk Modal Logic (matches field exactly) ===== */
 var salesScaleTargetLineId = null;
 var salesScalePollTimer = null;
+var salesSelectedProductKey = null;
+var salesAutoPaused = false;
+
+/* Product data for grid */
+var salesProductImages = {
+    'APPLE': '/static/img/products/apple.png',
+    'PEAR': '/static/img/products/pear.png',
+    'PEACH': '/static/img/products/peach.png',
+    'PLUM': '/static/img/products/plum.png',
+    'CHERRY': '/static/img/products/cherry.png',
+    'GRAPE': '/static/img/products/grape.png',
+    'APRICOT': '/static/img/products/apricot.png',
+    'WALNUT': '/static/img/products/walnut.png',
+    'TOMATO': '/static/img/products/tomato.png',
+    'PEPPER': '/static/img/products/pepper.png'
+};
+var salesProductNamesRu = {
+    'APPLE': 'Яблоко / Măr',
+    'PEAR': 'Груша / Pară',
+    'PEACH': 'Персик / Piersică',
+    'PLUM': 'Слива / Prună',
+    'CHERRY': 'Вишня / Cireșe',
+    'GRAPE': 'Виноград / Struguri',
+    'APRICOT': 'Абрикос / Caisă',
+    'WALNUT': 'Орех / Nucă',
+    'TOMATO': 'Томат / Roșie',
+    'PEPPER': 'Перец / Ardei'
+};
+var salesProductKeys = Object.keys(salesProductNamesRu);
+
+function buildSalesProductGrid() {
+    var grid = document.getElementById('skProductGrid');
+    if (!grid) return;
+    grid.innerHTML = salesProductKeys.map(function(key) {
+        var img = salesProductImages[key] || '';
+        var label = salesProductNamesRu[key] || key;
+        return '<div class="sk-product-btn" data-key="' + key + '" onclick="selectSalesProduct(\'' + key + '\')">' +
+            (img ? '<img class="sk-product-img" src="' + img + '" alt="' + label + '" onerror="this.style.display=\'none\'">' : '') +
+            '<div style="font-size:28px;">' + getProductEmoji(key) + '</div>' +
+            '<div class="sk-product-label">' + label + '</div></div>';
+    }).join('');
+}
+
+function getProductEmoji(key) {
+    var map = { APPLE:'🍎', PEAR:'🍐', PEACH:'🍑', PLUM:'🟣', CHERRY:'🍒', GRAPE:'🍇', APRICOT:'🟠', WALNUT:'🌰', TOMATO:'🍅', PEPPER:'🌶️' };
+    return map[key] || '📦';
+}
+
+window.selectSalesProduct = function(key) {
+    salesSelectedProductKey = key;
+    document.querySelectorAll('#skProductGrid .sk-product-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-key') === key);
+    });
+};
 
 window.weighSalesLine = function(lineId) {
     openSalesScaleModal(lineId);
@@ -1221,19 +1275,30 @@ window.weighSalesLine = function(lineId) {
 
 function openSalesScaleModal(lineId) {
     salesScaleTargetLineId = lineId;
+    salesSelectedProductKey = null;
+    salesAutoPaused = false;
     var modal = document.getElementById('salesScaleModal');
     modal.style.display = 'flex';
-    document.getElementById('skGross').textContent = '0.00';
-    document.getElementById('skTare').textContent = '0.00';
-    document.getElementById('skNet').textContent = '0.00';
+    document.getElementById('skGross').textContent = '0.000';
+    document.getElementById('skTare').textContent = '0.000';
+    document.getElementById('skNet').textContent = '0.000';
     document.getElementById('skNumpadInput').value = '';
-    document.getElementById('skIndicator').style.background = '#666';
-    document.getElementById('skStatusText').textContent = 'Подключение...';
-    // Start polling scale
+    document.getElementById('skIndicator').style.background = '#ffc107';
+    document.getElementById('skStatusText').textContent = 'Запуск... / Pornire...';
+    document.getElementById('skCaptureBtn').disabled = true;
+    document.getElementById('skAiResult').style.display = 'none';
+    document.getElementById('skCameraViewport').innerHTML =
+        '<div class="camera-idle"><div style="font-size:40px;">📷</div><div>Запуск... / Pornire...</div></div>';
+    var pauseBtn = document.getElementById('skPauseBtn');
+    if (pauseBtn) { pauseBtn.classList.remove('active'); pauseBtn.textContent = '⏸ Пауза / Pauză'; }
+    // Build product grid
+    buildSalesProductGrid();
+    // Start polling + auto-emulation
     if (salesScalePollTimer) clearInterval(salesScalePollTimer);
     salesScalePollTimer = setInterval(pollSalesScale, 1000);
     pollSalesScale();
     startSalesAutoEmulation();
+    runSalesEmulationCycle();
 }
 
 function pollSalesScale() {
@@ -1246,20 +1311,27 @@ function pollSalesScale() {
                 return;
             }
             var d = res.data;
-            document.getElementById('skGross').textContent = (d.gross_kg || 0).toFixed(2);
-            document.getElementById('skTare').textContent = (d.tare_kg || 0).toFixed(2);
-            var net = Math.max(0, (d.gross_kg || 0) - (d.tare_kg || 0));
-            document.getElementById('skNet').textContent = net.toFixed(2);
+            document.getElementById('skGross').textContent = (d.gross_kg || 0).toFixed(3);
+            document.getElementById('skTare').textContent = (d.tare_kg || 0).toFixed(3);
+            var net = (d.net_kg !== undefined) ? d.net_kg : Math.max(0, (d.gross_kg || 0) - (d.tare_kg || 0));
+            document.getElementById('skNet').textContent = net.toFixed(3);
 
-            if (d.status === 'stable') {
-                document.getElementById('skIndicator').style.background = '#53d769';
-                document.getElementById('skStatusText').textContent = 'Стабильно / Stable';
+            var indicator = document.getElementById('skIndicator');
+            var statusText = document.getElementById('skStatusText');
+            var captureBtn = document.getElementById('skCaptureBtn');
+
+            if (d.status === 'stable' && d.gross_kg > 0) {
+                indicator.style.background = '#53d769';
+                statusText.textContent = '● Stable / Стабильно';
+                captureBtn.disabled = false;
             } else if (d.status === 'settling') {
-                document.getElementById('skIndicator').style.background = '#f5a623';
-                document.getElementById('skStatusText').textContent = 'Стабилизация...';
+                indicator.style.background = '#ffc107';
+                statusText.textContent = '◌ Settling... / Стабилизация...';
+                captureBtn.disabled = true;
             } else {
-                document.getElementById('skIndicator').style.background = '#666';
-                document.getElementById('skStatusText').textContent = d.status || 'Ожидание';
+                indicator.style.background = '#666';
+                statusText.textContent = 'Idle / Ожидание';
+                captureBtn.disabled = true;
             }
         }).catch(function() {
             document.getElementById('skIndicator').style.background = '#e94560';
@@ -1273,6 +1345,8 @@ window.closeSalesScaleModal = function() {
     if (salesScalePollTimer) { clearInterval(salesScalePollTimer); salesScalePollTimer = null; }
     stopSalesAutoEmulation();
     salesScaleTargetLineId = null;
+    salesSelectedProductKey = null;
+    salesAutoPaused = false;
 };
 
 window.salesScaleCapture = function() {
