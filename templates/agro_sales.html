@@ -1119,6 +1119,7 @@ window.closeSalesScaleModal = function() {
     var modal = document.getElementById('salesScaleModal');
     modal.style.display = 'none';
     if (salesScalePollTimer) { clearInterval(salesScalePollTimer); salesScalePollTimer = null; }
+    stopSalesAutoEmulation();
     salesScaleTargetLineId = null;
 };
 
