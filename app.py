@@ -3048,6 +3048,8 @@ def api_nufarul_ts_order():
         return jsonify({"success": False, "error": "client_name required"}), 400
     if not items:
         return jsonify({"success": False, "error": "items required"}), 400
+    if not isinstance(items, list) or not all(isinstance(i, dict) for i in items):
+        return jsonify({"success": False, "error": "items must be a list of objects"}), 400
     return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes))
 
 
