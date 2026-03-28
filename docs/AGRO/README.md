@@ -182,6 +182,8 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
 
 ### ScaleKiosk — Universal Touchscreen Weighing Modal
 
+> **Full specification:** [`docs/AGRO/scale_kiosk_specification.md`](scale_kiosk_specification.md) — 25 sections, 900+ lines: constructor, DOM tree, CSS architecture, events, passport fields, capture flow, lifecycle diagram, data-attributes reference, checklist.
+
 **Files:**
 - `/static/agro/scale-kiosk.css` (~326 lines) — shared CSS for full-screen 3-column kiosk
 - `/static/agro/scale-kiosk.js` (~900 lines) — `ScaleKiosk` class (IIFE, `window.ScaleKiosk`)
