@@ -1218,6 +1218,43 @@ window.salesEmuRemove = function() {
     .then(function(d) { if (d.success) toast('Эмулятор: вес убран'); });
 };
 
+/* ===== Instructions toggle ===== */
+window.toggleInstructions = function(id) {
+    var body = document.getElementById(id);
+    var arrow = document.getElementById(id + 'Arrow');
+    if (body) {
+        body.classList.toggle('open');
+        if (arrow) arrow.textContent = body.classList.contains('open') ? '▼' : '▶';
+    }
+};
+
+/* ===== Auto-emulation in scale modal (20s cycle like field) ===== */
+var salesAutoEmuTimer = null;
+
+function startSalesAutoEmulation() {
+    stopSalesAutoEmulation();
+    salesAutoEmuTimer = setInterval(runSalesEmulationCycle, 20000);
+}
+
+function stopSalesAutoEmulation() {
+    if (salesAutoEmuTimer) { clearInterval(salesAutoEmuTimer); salesAutoEmuTimer = null; }
+}
+
+function runSalesEmulationCycle() {
+    fetch('/api/agro-scale/simulate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scale_id: 'default', random: true, min_kg: 5, max_kg: 200})
+    }).then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            document.getElementById('skCaptureBtn').disabled = true;
+            setTimeout(function() {
+                document.getElementById('skCaptureBtn').disabled = false;
+            }, 3000);
+        }
+    }).catch(function() {});
+}
+
 window.recalcSalesLine = function(lineId) {
     var line = document.getElementById(lineId);
     if (!line) return;
