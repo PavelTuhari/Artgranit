@@ -474,6 +474,8 @@ async function loadGroups() {
       groups.forEach(g => {
         try { groupParams[g.group_key] = JSON.parse(g.params_json || '[]'); }
         catch(_) { groupParams[g.group_key] = []; }
+        try { groupSubgroups[g.group_key] = JSON.parse(g.subgroups_json || '[]'); }
+        catch(_) { groupSubgroups[g.group_key] = []; }
       });
     }
   } catch(e) { console.error('loadGroups', e); }
