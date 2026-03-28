@@ -467,7 +467,8 @@ class NufarulController:
                     return {"success": True, "data": rows[0]}
                 else:
                     r = db.execute_query(
-                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER, PARAMS_JSON, ACTIVE
+                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER,
+                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE
                            FROM NUF_GROUP_PARAMS WHERE ACTIVE = 'Y' ORDER BY SORT_ORDER"""
                     )
                     return {"success": True, "data": _norm_rows(r)}
