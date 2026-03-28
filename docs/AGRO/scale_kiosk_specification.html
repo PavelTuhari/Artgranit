@@ -112,57 +112,340 @@ td code { font-size:12px; }
 <!-- ==================== 1 ==================== -->
 <h2 id="s1">1. Назначение и архитектура</h2>
 
+<!-- 1.1 Что такое ScaleKiosk -->
+<h3 id="s1-what">1.1 Что такое ScaleKiosk</h3>
+
 <div class="card">
-<p>ScaleKiosk&nbsp;&mdash; полноэкранный модальный интерфейс для операторов промышленных весов, оптимизированный для тачскринов. Используется в двух режимах:</p>
+<p><strong>ScaleKiosk</strong> — это полноэкранный модальный интерфейс, который превращает обычный монитор или планшет в терминал промышленных весов. Компонент спроектирован для работы в условиях склада или полевого пункта приёмки, где оператор взаимодействует с интерфейсом не мышью, а пальцами: крупные кнопки, минимум текстовых полей, высокая контрастность и однозначная визуальная индикация состояния.</p>
+
+<p>Когда оператор нажимает кнопку <strong>⚖ Весы</strong> в строке документа (закупки или продажи), ScaleKiosk перекрывает весь экран и берёт на себя три задачи:</p>
+
+<ol>
+    <li><strong>Снятие веса</strong> — связь с физическими весами через REST API, отображение gross/tare/net в реальном времени, ручной ввод через экранную numpad-клавиатуру.</li>
+    <li><strong>Идентификация продукции</strong> — выбор продукта через тач-грид с SVG-иконками, распознавание через AI-камеру (эмуляция), заполнение паспорта качества (калибр, Brix, температура, дефекты и т.д.).</li>
+    <li><strong>Передача данных в документ</strong> — по нажатию «Capture» весь собранный пакет (вес, продукт, паспорт) отправляется обратно в строку документа, модал закрывается.</li>
+</ol>
+</div>
+
+<!-- 1.2 Бизнес-контекст -->
+<h3 id="s1-business">1.2 Бизнес-контекст: зачем нужен отдельный модальный интерфейс</h3>
+
+<div class="card">
+<p>В модуле AGRO существуют два фундаментальных процесса, связанных с взвешиванием:</p>
+
 <table>
-<thead><tr><th>Режим</th><th>Модуль</th><th>HTML-шаблон</th><th>Переменная</th></tr></thead>
+<thead><tr><th></th><th>Приёмка (Field)</th><th>Отгрузка (Sales)</th></tr></thead>
 <tbody>
-<tr><td><strong>purchase</strong> (приёмка)</td><td>AGRO Field</td><td><code>agro_field.html</code></td><td><code>fieldKiosk</code></td></tr>
-<tr><td><strong>sale</strong> (отгрузка)</td><td>AGRO Sales</td><td><code>agro_sales.html</code></td><td><code>salesKiosk</code></td></tr>
+<tr><td><strong>What</strong></td><td>Фермер привозит фрукты, оператор взвешивает каждую партию, фиксирует качество</td><td>Менеджер формирует отгрузку клиенту, взвешивает паллеты перед экспедицией</td></tr>
+<tr><td><strong>Where</strong></td><td>Полевой пункт / рампа склада, часто на солнце, пыль, влажные руки</td><td>Зона отгрузки склада, рядом с погрузчиком</td></tr>
+<tr><td><strong>Device</strong></td><td>Планшет 10" на штативе рядом с весами</td><td>Монитор 15-22" на стойке</td></tr>
+<tr><td><strong>Operator</strong></td><td>Оператор без IT-навыков, работает в перчатках</td><td>Складской менеджер, работает быстро</td></tr>
+<tr><td><strong>Key data</strong></td><td>Gross, tare, net + продукт + паспорт качества (12 полей)</td><td>Gross, tare, net + продукт</td></tr>
+</tbody>
+</table>
+
+<p>Несмотря на различия в контексте, <strong>ядро операции идентично</strong>: подключиться к весам → дождаться стабильного показания → зафиксировать вес → вернуть результат в документ. Именно это позволило создать один универсальный компонент вместо двух отдельных.</p>
+</div>
+
+<!-- 1.3 Два режима работы -->
+<h3 id="s1-modes">1.3 Два режима работы</h3>
+
+<div class="card">
+<p>Единственный класс <code>ScaleKiosk</code> создаётся с конфигурацией, которая определяет режим. Каждый шаблон создаёт свой экземпляр:</p>
+
+<table>
+<thead><tr><th>Параметр</th><th><code>purchase</code> (приёмка)</th><th><code>sale</code> (отгрузка)</th></tr></thead>
+<tbody>
+<tr><td><strong>Модуль</strong></td><td>AGRO Field</td><td>AGRO Sales</td></tr>
+<tr><td><strong>Шаблон</strong></td><td><code>agro_field.html</code></td><td><code>agro_sales.html</code></td></tr>
+<tr><td><strong>Переменная</strong></td><td><code>var fieldKiosk</code></td><td><code>var salesKiosk</code></td></tr>
+<tr><td><strong>Паспорт качества</strong></td><td>Да &mdash; 12 полей (сорт, калибр, Brix, температура, свежесть, дефекты, упаковка, маркировка, заметки)</td><td>Да &mdash; те же 12 полей</td></tr>
+<tr><td><strong>Панель эмулятора</strong></td><td>Скрыта &mdash; в поле используются реальные весы</td><td>Видна &mdash; позволяет тестировать без физических весов</td></tr>
+<tr><td><strong>Продукты в гриде</strong></td><td>8 позиций (основные фрукты полевой приёмки)</td><td>10 позиций (полный каталог включая перец, грецкий орех)</td></tr>
+<tr><td><strong>Диапазон авто-эмуляции</strong></td><td>50–500 кг (крупные партии с поля)</td><td>5–200 кг (паллетная отгрузка)</td></tr>
+<tr><td><strong>Callback при захвате</strong></td><td>Записывает gross/tare в строку закупки, устанавливает продукт в <code>&lt;select&gt;</code>, сохраняет паспорт в <code>data-passport</code>, вызывает <code>recalcPurchaseLine(lineId)</code></td><td>Записывает gross/tare в строку продажи, вызывает <code>recalcSalesLine(lineId)</code></td></tr>
+</tbody>
+</table>
+
+<p>Визуально оба режима выглядят практически идентично &mdash; три колонки (продукция | весы | камера), одинаковый дизайн. Оператору не нужно переучиваться при переходе между рабочими местами.</p>
+</div>
+
+<!-- 1.4 Архитектурный паттерн -->
+<h3 id="s1-pattern">1.4 Архитектурный паттерн: IIFE + Prototype</h3>
+
+<div class="card">
+<p>ScaleKiosk реализован как JavaScript-класс в стиле ES5 (без <code>class</code> ES6), обёрнутый в IIFE. Этот выбор продиктован совместимостью со всеми целевыми устройствами &mdash; включая старые Android-планшеты в полевых условиях.</p>
+
+<h4>Паттерн на уровне кода</h4>
+<pre><code>(function() {
+    'use strict';
+
+    // Приватные константы (эмодзи-маппинг, продукты)
+    var EMOJI_MAP = { APPLE:'🍎', PEAR:'🍐', PEACH:'🍑', ... };
+
+    // Конструктор — единственная экспортируемая сущность
+    function ScaleKiosk(config) {
+        this.mode = config.mode || 'purchase';
+        this.title = config.title || '⚖️ Весы / Cântar';
+        // ... ещё 9 параметров конфигурации
+        // ... 13 внутренних свойств (_pollTimer, _paused, ...)
+        // ... построение карт продуктов
+        this._renderModal();   // генерация DOM
+        this._bindEvents();    // подключение событий
+    }
+
+    // 34 метода на прототипе
+    ScaleKiosk.prototype.open = function(lineId) { ... };
+    ScaleKiosk.prototype.close = function() { ... };
+    ScaleKiosk.prototype.destroy = function() { ... };
+    ScaleKiosk.prototype.$ = function(suffix) {
+        return this._container.querySelector('[data-sk="' + suffix + '"]');
+    };
+    // ... _pollScale, _capture, _numpadPress, _selectProduct, ...
+
+    // Глобальный экспорт
+    window.ScaleKiosk = ScaleKiosk;
+})();</code></pre>
+
+<h4>Почему именно так</h4>
+<table>
+<thead><tr><th>Решение</th><th>Обоснование</th></tr></thead>
+<tbody>
+<tr><td><strong>IIFE</strong></td><td>Инкапсуляция: <code>EMOJI_MAP</code> и другие константы недоступны извне. Нет загрязнения глобального пространства имён &mdash; экспортируется только <code>window.ScaleKiosk</code></td></tr>
+<tr><td><strong>Prototype</strong></td><td>Все 34 метода на прототипе &mdash; экономия памяти при создании нескольких экземпляров. Метод создаётся один раз, а не копируется в каждый объект</td></tr>
+<tr><td><strong>ES5 синтаксис</strong></td><td>Не требуется Babel/webpack. Работает на Android 5+ WebView, Internet Explorer 11 (если вдруг), любом планшете старше 2015 года</td></tr>
+<tr><td><strong><code>this.$(suffix)</code> helper</strong></td><td>Выбор элементов по <code>data-sk</code> атрибуту внутри контейнера. Избегает конфликтов ID при наличии нескольких экземпляров на странице</td></tr>
+<tr><td><strong>Dynamic DOM</strong></td><td>Метод <code>_renderModal()</code> генерирует всё HTML-дерево модала. Шаблону не нужно содержать modal-разметку &mdash; только <code>&lt;script src&gt;</code> и конфигурацию</td></tr>
 </tbody>
 </table>
 </div>
 
-<h3>Принцип &laquo;один класс &mdash; два режима&raquo;</h3>
+<!-- 1.5 3-колоночная структура -->
+<h3 id="s1-layout">1.5 Трёхколоночная структура интерфейса</h3>
+
 <div class="card">
-<p>Класс написан по шаблону <strong>IIFE</strong> (Immediately Invoked Function Expression), экспортируется в <code>window.ScaleKiosk</code>. Различия между режимами контролируются конфигурационными флагами.</p>
-<pre><code class="diagram">┌──────────────────────────────────────┐
-│          ScaleKiosk (class)          │
-│  /static/agro/scale-kiosk.js (902)  │
-│  /static/agro/scale-kiosk.css (326) │
-├──────────────────────────────────────┤
-│  Config flags:                       │
-│    mode: 'purchase' | 'sale'         │
-│    showPassport: true | false        │
-│    showEmulator: true | false        │
-│    products: [{key,name,svgPath}]    │
-│    weightRange: {min, max}           │
-│    onCapture: callback               │
-│    toastFn: callback                 │
-└──────────────┬───────────────────────┘
+<p>Полноэкранный модал разделён на три функциональных зоны, каждая из которых решает свою задачу в операции взвешивания:</p>
+
+<pre><code class="diagram">┌─────────────────────────────────────────────────────────────────┐
+│ ⚖️ Весы — Приёмка          ● Stable    Driver: Emu    [⏸] [✕]  │  ← sk-header
+├──────────────────┬───────────────────┬──────────────────────────┤
+│                  │                   │                          │
+│  ЛЕВАЯ КОЛОНКА   │ ЦЕНТРАЛЬНАЯ       │  ПРАВАЯ КОЛОНКА          │
+│  ═══════════     │ ═══════════       │  ═══════════             │
+│                  │                   │                          │
+│  Грид продуктов  │  Дисплей веса     │  AI Camera viewport      │
+│  ┌──┬──┬──┐      │  ┌─────────────┐  │  ┌──────────────────┐    │
+│  │🍎│🍐│🍑│      │  │  125.500 kg │  │  │ ╱╲  scanning...  │    │
+│  ├──┼──┼──┤      │  │ █████████░░ │  │  │╱  ╲             │    │
+│  │🍒│🍇│🟠│      │  └─────────────┘  │  └──────────────────┘    │
+│  ├──┼──┼──┤      │  Tare: 2.000 kg   │                          │
+│  │🌰│🍅│  │      │  Net: 123.500 kg  │  AI результат:           │
+│  └──┴──┴──┘      │                   │  «Персик 95.2%»          │
+│                  │  [Zero]   [Tare]  │                          │
+│  ──────────────  │                   │  ──────────────────       │
+│                  │  ┌───────────┐    │                          │
+│  ПАСПОРТ         │  │  Numpad   │    │  Эмулятор (sale mode):   │
+│  Сорт: Redhaven  │  │ [7][8][9] │    │  ┌──────────────────┐    │
+│  Калибр: 65 мм   │  │ [4][5][6] │    │  │ [Поставить]      │    │
+│  Brix: 11.5°     │  │ [1][2][3] │    │  │ [Случайный]      │    │
+│  t°C: 4          │  │ [0][.][⌫] │    │  │ [Снять]          │    │
+│  Свежесть: ★★★★  │  │ [Aplica]  │    │  └──────────────────┘    │
+│  Дефекты: Нет    │  └───────────┘    │                          │
+│  Упаковка: OK    │                   │                          │
+│  Маркировка: OK  │  ┌─────────────┐  │                          │
+│                  │  │ ⚖ СНЯТЬ ВЕС │  │                          │
+│                  │  └─────────────┘  │                          │
+└──────────────────┴───────────────────┴──────────────────────────┘</code></pre>
+
+<table>
+<thead><tr><th>Колонка</th><th>CSS-класс</th><th>Ширина</th><th>Функция</th></tr></thead>
+<tbody>
+<tr><td><strong>Левая</strong></td><td><code>.sk-products</code></td><td><code>260px</code> фикс.</td><td>Выбор продукта (тач-грид), паспорт качества (12 полей). Оператор работает здесь первым — определяет, что именно на весах</td></tr>
+<tr><td><strong>Центральная</strong></td><td><code>.sk-scale</code></td><td><code>flex:1</code></td><td>Дисплей веса (gross/tare/net), управление весами (Zero/Tare), numpad для ручного ввода, кнопка захвата. Ядро операции</td></tr>
+<tr><td><strong>Правая</strong></td><td><code>.sk-camera</code></td><td><code>280px</code> фикс.</td><td>AI Camera (анимация сканирования, результат распознавания), панель эмулятора (только <code>sale</code> mode)</td></tr>
+</tbody>
+</table>
+
+<p>CSS-сетка: <code>.sk-body { display: flex; gap: 32px; }</code>. На экранах уже <em>900px</em> раскладка переключается в одну колонку (<code>flex-direction: column</code>).</p>
+</div>
+
+<!-- 1.6 Жизненный цикл (обзор) -->
+<h3 id="s1-lifecycle">1.6 Жизненный цикл операции (обзор)</h3>
+
+<div class="card">
+<p>Полный цикл от нажатия кнопки ⚖ до возврата веса в документ:</p>
+
+<pre><code class="diagram">    Оператор нажимает ⚖ в строке документа
+                     │
+                     ▼
+            ┌─────────────────┐
+            │   kiosk.open()  │
+            │   lineId → _targetLineId
+            │   modal: display:flex
+            │   _startPolling() → GET /read каждую 1с
+            │   _startAutoEmulation() → цикл 20с
+            └────────┬────────┘
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+   Оператор вручную       Авто-эмуляция (20с)
+   выбирает продукт       ─ POST /simulate (случайный вес)
+   заполняет паспорт      ─ анимация камеры 3с
+   вводит вес numpad      ─ случайный продукт из грида
+          │                ─ confidence bar → pictogram
+          │                     │
+          └──────────┬──────────┘
+                     │
+                     ▼
+            Индикатор: ● Stable (зелёный)
+            Кнопка «СНЯТЬ ВЕС» → enabled
+                     │
+                     ▼
+            ┌─────────────────┐
+            │  _capture()     │
+            │  POST /capture  │
+            │  onCapture({    │
+            │    lineId,      │
+            │    gross, tare, │
+            │    net,         │
+            │    productKey,  │
+            │    passport     │
+            │  })             │
+            └────────┬────────┘
+                     │
+                     ▼
+            ┌─────────────────┐
+            │  kiosk.close()  │
+            │  _stopPolling() │
+            │  _stopAutoEmulation()
+            │  modal: display:none
+            │  toast: «Вес снят»
+            └─────────────────┘
+                     │
+                     ▼
+       Данные в строке документа обновлены.
+       Модал закрыт. Оператор продолжает работу.</code></pre>
+
+<p>Среднее время одной операции: <strong>10–30 секунд</strong> (выбор продукта → ожидание стабильного показания → захват). Быстрые операторы выполняют захват за 5–7 секунд при заранее стабилизированных весах.</p>
+</div>
+
+<!-- 1.7 Принцип «один класс — два режима» (диаграмма) -->
+<h3 id="s1-class">1.7 Архитектурная диаграмма класса</h3>
+
+<div class="card">
+<pre><code class="diagram">┌──────────────────────────────────────────┐
+│            ScaleKiosk (class)            │
+│    /static/agro/scale-kiosk.js (902 LOC) │
+│    /static/agro/scale-kiosk.css (326 LOC)│
+├──────────────────────────────────────────┤
+│  Конфигурация (11 параметров):           │
+│    mode          'purchase' | 'sale'     │
+│    title         текст заголовка         │
+│    products      [{key, name, svgPath}]  │
+│    weightRange   {min, max}              │
+│    showPassport  boolean                 │
+│    showEmulator  boolean                 │
+│    onCapture     function(data)          │
+│    toastFn       function(msg)           │
+│    scaleId       string                  │
+│    emulationInterval  ms                 │
+│    loadDriverConfig   boolean            │
+├──────────────────────────────────────────┤
+│  Публичный API (3 метода):               │
+│    .open(lineId)     → показать модал    │
+│    .close()          → скрыть модал      │
+│    .destroy()        → удалить из DOM    │
+├──────────────────────────────────────────┤
+│  Внутреннее (31 метод на прототипе):     │
+│    DOM:  _renderModal, _bindEvents, $    │
+│    Poll: _startPolling, _pollScale, ...  │
+│    Emu:  _startAutoEmulation, ...        │
+│    Num:  _numpadPress, _numpadApply      │
+│    Prod: _selectProduct, _buildGrid      │
+│    Pass: _showPassport, _collectPassport │
+│    Capt: _capture                        │
+└──────────────┬───────────────────────────┘
                │
       ┌────────┴─────────┐
       ▼                  ▼
-┌───────────┐    ┌────────────┐
-│ Purchase  │    │   Sale     │
-│ passport  │    │ passport   │
-│ no emu    │    │ emulator   │
-│ 8 items   │    │ 10 items   │
-│ 50-500 kg │    │ 5-200 kg   │
-└───────────┘    └────────────┘</code></pre>
+┌───────────────┐  ┌───────────────┐
+│  Purchase     │  │  Sale         │
+│  Instance     │  │  Instance     │
+│               │  │               │
+│  passport: ✓  │  │  passport: ✓  │
+│  emulator: ✗  │  │  emulator: ✓  │
+│  8 products   │  │  10 products  │
+│  50–500 kg    │  │  5–200 kg     │
+│  fieldKiosk   │  │  salesKiosk   │
+└───────────────┘  └───────────────┘</code></pre>
 </div>
 
-<h3>До/после рефакторинга (28.03.2026)</h3>
+<!-- 1.8 История рефакторинга -->
+<h3 id="s1-refactoring">1.8 Рефакторинг: до и после (28.03.2026)</h3>
+
 <div class="card">
+<h4>Проблема</h4>
+<p>До рефакторинга код весового модала дублировался в двух HTML-шаблонах. Каждый шаблон содержал свою копию CSS, HTML-разметки и JavaScript-логики. Любое изменение (баг-фикс, новая кнопка, исправление анимации) приходилось вносить в оба файла, что приводило к расхождениям и ошибкам.</p>
+
+<h4>Решение</h4>
+<p>Весь код весов вынесен в два общих файла (<code>scale-kiosk.js</code> + <code>scale-kiosk.css</code>). HTML-разметка модала генерируется динамически методом <code>_renderModal()</code>. В каждом шаблоне осталось лишь ~30 строк: подключение файлов + конфигурация экземпляра + callback.</p>
+
+<h4>Метрики</h4>
 <table>
-<thead><tr><th>Метрика</th><th>До</th><th>После</th></tr></thead>
+<thead><tr><th>Метрика</th><th>До рефакторинга</th><th>После</th><th>Δ</th></tr></thead>
 <tbody>
-<tr><td>JS в agro_field.html</td><td>~550 строк</td><td>~30 строк (конфиг)</td></tr>
-<tr><td>CSS в agro_field.html</td><td>~300 строк</td><td>0 (shared file)</td></tr>
-<tr><td>HTML в agro_field.html</td><td>~200 строк</td><td>0 (dynamic DOM)</td></tr>
-<tr><td>JS в agro_sales.html</td><td>~340 строк</td><td>~30 строк (конфиг)</td></tr>
-<tr><td>CSS в agro_sales.html</td><td>~190 строк</td><td>0 (shared file)</td></tr>
-<tr><td>Общие файлы</td><td>0</td><td><strong>902 JS + 326 CSS</strong></td></tr>
+<tr><td>JS в <code>agro_field.html</code></td><td>~550 строк</td><td>~30 строк (конфиг)</td><td><strong>−520</strong></td></tr>
+<tr><td>CSS в <code>agro_field.html</code></td><td>~300 строк</td><td>0 (shared file)</td><td><strong>−300</strong></td></tr>
+<tr><td>HTML модала в <code>agro_field.html</code></td><td>~200 строк</td><td>0 (dynamic DOM)</td><td><strong>−200</strong></td></tr>
+<tr><td>JS в <code>agro_sales.html</code></td><td>~340 строк</td><td>~30 строк (конфиг)</td><td><strong>−310</strong></td></tr>
+<tr><td>CSS в <code>agro_sales.html</code></td><td>~190 строк</td><td>0 (shared file)</td><td><strong>−190</strong></td></tr>
+<tr><td>HTML модала в <code>agro_sales.html</code></td><td>~100 строк</td><td>0 (dynamic DOM)</td><td><strong>−100</strong></td></tr>
+<tr><td>Общий файл JS</td><td>—</td><td><strong>902 строки</strong></td><td>+902</td></tr>
+<tr><td>Общий файл CSS</td><td>—</td><td><strong>326 строк</strong></td><td>+326</td></tr>
+</tbody>
+</table>
+
+<p><strong>Итого:</strong> ~1680 строк дублированного кода → 1228 строк общего кода + 60 строк конфигурации. Экономия: ~25% кода, и главное — <strong>единая точка правды</strong> для обоих модулей.</p>
+</div>
+
+<!-- 1.9 Взаимодействие с внешним миром -->
+<h3 id="s1-integration">1.9 Взаимодействие с внешним миром</h3>
+
+<div class="card">
+<p>ScaleKiosk не существует изолированно. Он встроен в экосистему модуля AGRO и зависит от нескольких внешних компонентов:</p>
+
+<pre><code class="diagram">                    ┌──────────────────┐
+                    │  Scale Hardware   │
+                    │  (RS-232 / USB)   │
+                    └────────┬─────────┘
+                             │
+                    ┌────────▼─────────┐
+                    │  Scale Driver    │
+                    │  (Python backend)│
+                    │  5 REST endpoints│
+                    └────────┬─────────┘
+                             │ HTTP
+┌──────────────┐    ┌────────▼─────────┐    ┌──────────────────┐
+│  Document    │◀───│   ScaleKiosk     │───▸│  Product SVGs    │
+│  (purchase   │    │   (JS, browser)  │    │  /static/agro/   │
+│   or sale    │    │                  │    │  products/*.svg  │
+│   line)      │    │  ┌────────────┐  │    └──────────────────┘
+│              │    │  │ AI Camera  │  │
+│  Callback:   │    │  │ (эмуляция) │  │    ┌──────────────────┐
+│  onCapture() │    │  └────────────┘  │───▸│  Admin Config    │
+└──────────────┘    └──────────────────┘    │  /api/agro-admin/│
+                                            │  module_config   │
+                                            └──────────────────┘</code></pre>
+
+<table>
+<thead><tr><th>Внешний компонент</th><th>Тип связи</th><th>Endpoint / механизм</th></tr></thead>
+<tbody>
+<tr><td><strong>Scale Driver</strong></td><td>REST polling (1с)</td><td><code>GET /api/agro-scale/read?scale_id=default</code></td></tr>
+<tr><td><strong>Scale Commands</strong></td><td>REST POST</td><td><code>/capture</code>, <code>/zero</code>, <code>/tare</code>, <code>/simulate</code></td></tr>
+<tr><td><strong>Admin Config</strong></td><td>REST GET (при открытии)</td><td><code>GET /api/agro-admin/module_config</code></td></tr>
+<tr><td><strong>Product SVGs</strong></td><td>Загрузка <code>&lt;img&gt;</code></td><td><code>/static/agro/products/{product}.svg</code></td></tr>
+<tr><td><strong>Document Line</strong></td><td>JS callback</td><td><code>config.onCapture({ lineId, gross, tare, net, productKey, passport })</code></td></tr>
+<tr><td><strong>Toast notifications</strong></td><td>JS callback</td><td><code>config.toastFn('Вес снят: 125.5 кг — Персик')</code></td></tr>
 </tbody>
 </table>
 </div>
