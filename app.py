@@ -3000,7 +3000,10 @@ def api_nufarul_operator_ai_parse_order():
     data = request.get_json() or {}
     text = (data.get('text') or '').strip()
     backend = (data.get('backend') or 'oracle').lower()
-    threshold = int(data.get('threshold') or 40)
+    try:
+        threshold = int(data.get('threshold') or 40)
+    except (ValueError, TypeError):
+        threshold = 40
     if not text:
         return jsonify({"success": False, "error": "text required"}), 400
     if backend == 'oracle':
