@@ -1893,42 +1893,52 @@ window.wtPrint = function() {
 <!-- ===== Scale Kiosk Modal (like field's #scaleModal) ===== -->
 <div id="salesScaleModal" class="scale-kiosk-overlay" style="display:none;">
   <div class="scale-kiosk">
+    <!-- Top bar (exact match field) -->
     <div class="sk-header">
-      <span class="sk-title">⚖ Весы отгрузки / Cântar expediere</span>
+      <div class="sk-title">⚖️ Весы / Cântar — Отгрузка</div>
       <div class="sk-status">
         <span class="sk-indicator" id="skIndicator"></span>
-        <span id="skStatusText">Ожидание</span>
+        <span id="skStatusText">Idle</span>
       </div>
       <div class="sk-driver-info" id="skDriverInfo">
         <span>Driver: <b>Emulator</b></span>
         <span>Max: <b>600 kg</b></span>
       </div>
+      <button class="sk-pause-btn" id="skPauseBtn" onclick="toggleSalesPause()">⏸ Пауза / Pauză</button>
       <button class="sk-close" onclick="closeSalesScaleModal()">&times;</button>
     </div>
+    <!-- Main 3-column layout -->
     <div class="sk-body">
+      <!-- Left: Product grid -->
+      <div class="sk-products">
+        <div class="sk-products-title">Продукция / Produse</div>
+        <div class="sk-product-grid" id="skProductGrid">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+      <!-- Center: Scale display -->
       <div class="sk-scale">
-        <!-- Weight display -->
         <div class="sk-weight-display">
-          <div class="sk-weight-gross" id="skGross">0.00</div>
-          <div class="sk-weight-unit">кг</div>
-          <div class="sk-weight-sub">
-            <div class="sk-sub-item"><span class="sk-sub-label">Тара</span><span class="sk-sub-val" id="skTare">0.00</span></div>
-            <div class="sk-sub-item"><span class="sk-sub-label">Нетто</span><span class="sk-sub-val" id="skNet">0.00</span></div>
+          <div class="sk-weight-gross" id="skGross">0.000</div>
+          <div class="sk-weight-unit">kg</div>
+        </div>
+        <div class="sk-weight-sub">
+          <div class="sk-sub-item">
+            <span class="sk-sub-label">Tare / Тара</span>
+            <span class="sk-sub-val" id="skTare">0.000</span>
+          </div>
+          <div class="sk-sub-item">
+            <span class="sk-sub-label">Net / Нетто</span>
+            <span class="sk-sub-val sk-net" id="skNet">0.000</span>
           </div>
         </div>
-
-        <!-- Zero / Tare buttons -->
         <div class="sk-scale-btns">
-          <button class="sk-btn" onclick="salesScaleZero()">Zero</button>
+          <button class="sk-btn sk-btn-zero" onclick="salesScaleZero()">Zero</button>
           <button class="sk-btn sk-btn-tare" onclick="salesScaleTare()">Tare</button>
         </div>
-
-        <!-- Capture button -->
-        <button class="sk-capture-btn" id="skCaptureBtn" onclick="salesScaleCapture()">📥 Захватить вес / Capture</button>
-
         <!-- Numpad -->
         <div class="sk-numpad">
-          <div class="sk-numpad-title">Ручной ввод / Manual</div>
+          <div class="sk-numpad-title">Ручной ввод / Introducere manuală</div>
           <input type="text" class="sk-numpad-input" id="skNumpadInput" placeholder="0.00" readonly>
           <div class="sk-numpad-grid">
             <button class="sk-numpad-btn" onclick="salesNumpadPress('7')">7</button>
@@ -1944,12 +1954,33 @@ window.wtPrint = function() {
             <button class="sk-numpad-btn" onclick="salesNumpadPress('.')">.</button>
             <button class="sk-numpad-btn sk-numpad-del" onclick="salesNumpadPress('del')">⌫</button>
           </div>
-          <button class="sk-numpad-btn sk-numpad-apply" onclick="salesNumpadApply()">Применить / Apply</button>
+          <button class="sk-numpad-apply" onclick="salesNumpadApply()">Применить вес / Aplică</button>
         </div>
-
+        <!-- Capture -->
+        <button class="sk-capture-btn" id="skCaptureBtn" onclick="salesScaleCapture()">
+          ⚖️ Снять вес / Cântărește
+        </button>
+      </div>
+      <!-- Right: AI Camera panel -->
+      <div class="sk-camera">
+        <div class="sk-camera-header">
+          <span>📷 AI Camera</span>
+          <span class="ai-badge">AI</span>
+        </div>
+        <div class="sk-camera-viewport" id="skCameraViewport">
+          <div class="camera-idle">
+            <div style="font-size:40px;">📷</div>
+            <div>Запуск...</div>
+          </div>
+        </div>
+        <div class="sk-ai-result" id="skAiResult" style="display:none;">
+          <div class="sk-ai-label">Распознано / Recunoscut:</div>
+          <div class="sk-ai-product" id="skAiProductName">—</div>
+          <div class="sk-ai-confidence" id="skAiConfidence"></div>
+        </div>
         <!-- Emulator -->
-        <div class="sk-emulator">
-          <div class="sk-emulator-title">Эмулятор весов / Scale emulator</div>
+        <div style="padding:12px;border-top:1px solid #0f3460;">
+          <div style="font-size:10px;color:#6c6c8a;text-align:center;margin-bottom:8px;">Эмулятор / Emulator</div>
           <div class="sk-emu-btns">
             <input type="number" id="skEmuWeight" placeholder="кг" step="0.1" min="0" style="flex:1;padding:10px;border:1px solid #0f3460;border-radius:6px;background:#060e1a;color:#e0e0f0;font-size:15px;min-height:44px;">
             <button class="sk-btn" onclick="salesEmuSet()">Set</button>
