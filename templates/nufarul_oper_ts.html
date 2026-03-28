@@ -527,7 +527,7 @@ function renderSubgroupsBar() {
   </button>`;
   const subBtns = subs.map(s =>
     `<button class="subgrp-btn${activeSubgroup===s.key?' active':''}" onclick="selectSubgroup('${esc(s.key)}')">
-      <span class="sg-icon">${s.icon||'📦'}</span>
+      <span class="sg-icon">${esc(s.icon||'📦')}</span>
       <span class="sg-label">${esc(s.label_ru||s.key)}</span>
     </button>`
   ).join('');
