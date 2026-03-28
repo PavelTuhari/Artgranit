@@ -990,6 +990,54 @@ window.viewDoc = function(docId) {
     selectSalesDoc(docId);
 };
 
+/* OPEN DOCUMENT — navigate to edit form like field's "Открыть" */
+window.openSalesDoc = function(docId) {
+    navigateTo('new-doc');
+    currentDocId = docId;
+
+    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
+
+        // Fill header fields
+        var custSel = document.getElementById('newDocCustomer');
+        if (custSel) custSel.value = doc.customer_id || '';
+        var whSel = document.getElementById('newDocWarehouse');
+        if (whSel) whSel.value = doc.warehouse_id || '';
+        var curSel = document.getElementById('newDocCurrency');
+        if (curSel) curSel.value = doc.currency_code || '';
+        var notesEl = document.getElementById('newDocNotes');
+        if (notesEl) notesEl.value = doc.notes || '';
+
+        // Clear existing lines
+        var container = document.getElementById('lineItemsContainer');
+        container.innerHTML = '';
+        lineCounter = 0;
+        var noLines = document.getElementById('noLines');
+        if (noLines) noLines.style.display = 'none';
+
+        // Add lines from doc
+        lines.forEach(function(l) {
+            addShipLine();
+            var lineId = 'shipLine' + lineCounter;
+            var line = document.getElementById(lineId);
+            if (!line) return;
+            var itemSel = line.querySelector('select');
+            if (itemSel) itemSel.value = l.item_id || '';
+            var qtyInput = line.querySelector('[id^="lineQty"]');
+            if (qtyInput) qtyInput.value = l.qty_kg || '';
+            var grossInput = line.querySelector('.line-gross');
+            if (grossInput) grossInput.value = l.gross_kg || '';
+            var tareInput = line.querySelector('.line-tare');
+            if (tareInput) tareInput.value = l.tare_kg || '';
+            var priceInput = line.querySelector('[id^="linePrice"]');
+            if (priceInput) priceInput.value = l.price_per_kg || '';
+            recalcSalesLine(lineId);
+        });
+    });
+};
+
 /* CONFIRM DOCUMENT */
 window.confirmDoc = function() {
     if (!currentDocId) return;
