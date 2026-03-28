@@ -447,6 +447,113 @@ class NufarulController:
         except Exception as e:
             return {"success": False, "error": str(e), "data": []}
 
+    # ---------- Touchscreen kiosk: group parameters ----------
+
+    @staticmethod
+    def get_group_params(group_key: Optional[str] = None) -> Dict[str, Any]:
+        """Returns NUF_GROUP_PARAMS rows. If group_key given, returns single row."""
+        try:
+            with DatabaseModel() as db:
+                if group_key:
+                    r = db.execute_query(
+                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER, PARAMS_JSON, ACTIVE
+                           FROM NUF_GROUP_PARAMS WHERE GROUP_KEY = :gk""",
+                        {"gk": group_key},
+                    )
+                    rows = _norm_rows(r)
+                    if not rows:
+                        return {"success": False, "error": f"Group '{group_key}' not found"}
+                    return {"success": True, "data": rows[0]}
+                else:
+                    r = db.execute_query(
+                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER, PARAMS_JSON, ACTIVE
+                           FROM NUF_GROUP_PARAMS WHERE ACTIVE = 'Y' ORDER BY SORT_ORDER"""
+                    )
+                    return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e), "data": []}
+
+    @staticmethod
+    def create_order_with_params(
+        client_name: str,
+        client_phone: str,
+        items: List[Dict[str, Any]],
+        notes: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Creates order and stores per-item params in NUF_ORDER_ITEM_PARAMS companion table."""
+        try:
+            with DatabaseModel() as db:
+                r_seq = db.execute_query("SELECT NUF_ORDER_NUM_SEQ.NEXTVAL AS NX FROM DUAL")
+                if not r_seq.get("success") or not r_seq.get("data"):
+                    return {"success": False, "error": "Could not generate order number"}
+                seq_val = r_seq["data"][0][0]
+                r_yr = db.execute_query("SELECT TO_CHAR(SYSDATE,'YYYY') AS Y FROM DUAL")
+                year = r_yr["data"][0][0] if r_yr.get("data") else "2026"
+                order_number = f"{year}-{str(seq_val).zfill(5)}"
+                barcode = order_number
+
+                r_st = db.execute_query("SELECT ID FROM NUF_ORDER_STATUSES WHERE CODE = 'received'")
+                if not r_st.get("data"):
+                    return {"success": False, "error": "Status 'received' not found"}
+                status_id = r_st["data"][0][0]
+
+                total = sum(float(it.get("qty") or 1) * float(it.get("price") or 0) for it in items)
+
+                r_new_id = db.execute_query("SELECT NUF_ORDERS_LEDGER_SEQ.NEXTVAL FROM DUAL")
+                order_id = r_new_id["data"][0][0] if r_new_id.get("data") else None
+                if not order_id:
+                    return {"success": False, "error": "Could not generate order ID"}
+
+                db.execute_query(
+                    """INSERT INTO NUF_ORDERS_LEDGER
+                       (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES)
+                       VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes)""",
+                    {
+                        "oid": order_id, "onum": order_number, "barcode": barcode,
+                        "cname": (client_name or "").strip(),
+                        "cphone": (client_phone or "").strip(),
+                        "sid": status_id, "total": round(total, 2),
+                        "notes": (notes or "").strip() or None,
+                    },
+                )
+
+                item_ids = []
+                for it in items:
+                    service_id = int(it.get("service_id") or 0)
+                    qty = float(it.get("qty") or 1)
+                    price = float(it.get("price") or 0)
+                    amount = round(qty * price, 2)
+
+                    r_iid_seq = db.execute_query("SELECT NUF_ITEMS_LEDGER_SEQ.NEXTVAL FROM DUAL")
+                    iid = r_iid_seq["data"][0][0] if r_iid_seq.get("data") else None
+                    db.execute_query(
+                        """INSERT INTO NUF_ORDER_ITEMS_LEDGER
+                           (ID, ORDER_ID, SERVICE_ID, QTY, PRICE, AMOUNT)
+                           VALUES (:iid, :oid, :sid, :qty, :price, :amount)""",
+                        {"iid": iid, "oid": order_id, "sid": service_id,
+                         "qty": qty, "price": price, "amount": amount},
+                    )
+
+                    params_raw = it.get("params")
+                    if params_raw:
+                        params_json = json.dumps(params_raw, ensure_ascii=False)
+                        db.execute_query(
+                            """INSERT INTO NUF_ORDER_ITEM_PARAMS (ORDER_ITEM_ID, PARAMS)
+                               VALUES (:item_id, :params)""",
+                            {"item_id": iid, "params": params_json},
+                        )
+
+                    item_ids.append({"service_id": service_id, "item_id": iid})
+
+                db.connection.commit()
+                return {
+                    "success": True, "order_id": order_id,
+                    "order_number": order_number, "barcode": barcode,
+                    "total_amount": round(total, 2), "item_ids": item_ids,
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ---------- Отчётность (базовая) ----------
 
     @staticmethod
