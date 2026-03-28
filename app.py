@@ -2992,6 +2992,62 @@ def api_nufarul_operator_order_by_barcode():
     return jsonify(NufarulController.get_order_by_barcode(barcode))
 
 
+# ---------- Nufarul: AI parse order (shared by operator + TS kiosk) ----------
+@app.route('/api/nufarul-operator/ai-parse-order', methods=['POST'])
+def api_nufarul_operator_ai_parse_order():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    data = request.get_json() or {}
+    text = (data.get('text') or '').strip()
+    backend = (data.get('backend') or 'oracle').lower()
+    threshold = int(data.get('threshold') or 40)
+    if not text:
+        return jsonify({"success": False, "error": "text required"}), 400
+    if backend == 'oracle':
+        matches = NufarulController.ai_parse_order_oracle(text, threshold=threshold)
+        return jsonify({"success": True, "matches": matches, "backend": "oracle"})
+    # local rapidfuzz fallback
+    try:
+        from nufarul_ai_parser import parse_order as _local_parse
+        svc_result = NufarulController.get_services(active_only=True)
+        services = svc_result.get('data') or []
+        matches = _local_parse(text, services, threshold=threshold)
+        return jsonify({"success": True, "matches": matches, "backend": "local"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ---------- Nufarul: touchscreen kiosk API ----------
+@app.route('/api/nufarul-ts/group-params', methods=['GET'])
+def api_nufarul_ts_group_params():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    return jsonify(NufarulController.get_group_params())
+
+
+@app.route('/api/nufarul-ts/group-params/<group_key>', methods=['GET'])
+def api_nufarul_ts_group_params_single(group_key):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    return jsonify(NufarulController.get_group_params(group_key=group_key))
+
+
+@app.route('/api/nufarul-ts/order', methods=['POST'])
+def api_nufarul_ts_order():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    data = request.get_json() or {}
+    client_name = (data.get('client_name') or '').strip()
+    client_phone = (data.get('client_phone') or '').strip()
+    items = data.get('items') or []
+    notes = (data.get('notes') or '').strip() or None
+    if not client_name:
+        return jsonify({"success": False, "error": "client_name required"}), 400
+    if not items:
+        return jsonify({"success": False, "error": "items required"}), 400
+    return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes))
+
+
 # ========== DECOR: админка + оператор (локальное JSON-хранилище, fallback без Oracle) ==========
 
 @app.route('/api/decor-admin/materials', methods=['GET'])
