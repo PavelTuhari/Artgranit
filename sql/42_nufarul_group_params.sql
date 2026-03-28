@@ -16,8 +16,13 @@ CREATE TABLE NUF_GROUP_PARAMS (
 )
 /
 
--- 2. Add PARAMS column to order items (stores per-item values as JSON)
-ALTER TABLE NUF_ORDER_ITEMS_LEDGER ADD (PARAMS CLOB)
+-- 2. Per-item parameter values (companion to blockchain ledger)
+CREATE TABLE NUF_ORDER_ITEM_PARAMS (
+    ORDER_ITEM_ID  NUMBER        NOT NULL,
+    PARAMS         CLOB,
+    CREATED_AT     TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_NUF_ORDER_ITEM_PARAMS PRIMARY KEY (ORDER_ITEM_ID)
+)
 /
 
 -- 3. Seed default groups
