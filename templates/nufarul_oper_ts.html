@@ -82,6 +82,16 @@ button, input, select, textarea { font-family:inherit; }
 .ai-status { font-size:10px; color:#444; margin-left:auto; }
 .ai-results { display:none; margin-top:6px; background:#0a1a0a; border:1px solid #22c55e44; border-radius:7px; padding:6px 8px; max-height:120px; overflow-y:auto; }
 .ai-results.visible { display:block; }
+/* Subgroups bar */
+.subgroups-bar { display:none; flex-shrink:0; padding:7px 8px; gap:6px; overflow-x:auto; border-bottom:1px solid #1e1e4a; background:#0a0a1a; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+.subgroups-bar.visible { display:flex; animation:sgSlideDown .2s ease; }
+@keyframes sgSlideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.subgrp-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 10px; border-radius:9px; border:1px solid #2a2a5a; background:#12122a; cursor:pointer; flex-shrink:0; transition:background .15s,border-color .15s; scroll-snap-align:start; min-width:72px; }
+.subgrp-btn:active { background:#1e1e3a; }
+.subgrp-btn.active { background:#192a19; border-color:#22c55e; }
+.subgrp-btn .sg-icon { font-size:22px; }
+.subgrp-btn .sg-label { font-size:10px; color:#7dd3fc; font-weight:600; text-align:center; line-height:1.2; max-width:70px; white-space:normal; }
+.subgrp-btn.active .sg-label { color:#53d769; }
 .ai-result-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid #0f1e0f; font-size:11px; }
 .ai-result-row:last-child { border:none; }
 .ai-result-name { flex:1; color:#7dd3fc; font-weight:600; }
@@ -307,6 +317,9 @@ button, input, select, textarea { font-family:inherit; }
         <div class="ai-results" id="aiResults"></div>
       </div>
 
+      <!-- Subgroups bar -->
+      <div class="subgroups-bar" id="subgroupsBar"></div>
+
       <!-- Services grid (intake) -->
       <div class="svc-section" id="svcSection">
         <div class="svc-hdr">
@@ -429,14 +442,16 @@ const API_OP = '/api/nufarul-operator';
 const API_TS = '/api/nufarul-ts';
 
 // ── State ──────────────────────────────────────────────────────────────
-let groups = [];         // [{group_key, label_ru, icon, params_json, ...}]
-let services = [];       // [{id, name_ru, price, unit, service_group, ...}]
-let activeGroup = null;  // group_key string
-let selectedSvc = null;  // service object
-let groupParams = {};    // {group_key: parsed_params_array}
-let paramValues = {};    // {param_key: value} — current param panel state
-let cart = [];           // [{service_id, name, price, qty, params, params_summary}]
-let mode = 'intake';     // 'intake' | 'issue'
+let groups = [];           // [{group_key, label_ru, icon, params_json, subgroups_json, ...}]
+let services = [];         // [{id, name_ru, price, unit, service_group, service_subgroup, ...}]
+let activeGroup = null;    // group_key string
+let selectedSvc = null;    // service object
+let groupParams = {};      // {group_key: parsed_params_array}
+let groupSubgroups = {};   // {group_key: [{key, label_ru, label_ro, icon, sort_order}]}
+let activeSubgroup = null; // subgroup key string | null = show all
+let paramValues = {};      // {param_key: value} — current param panel state
+let cart = [];             // [{service_id, name, price, qty, params, params_summary}]
+let mode = 'intake';       // 'intake' | 'issue'
 let customerWin = null;  // window reference for second screen
 let cartOpen = true;
 let camStream = null;
@@ -459,6 +474,8 @@ async function loadGroups() {
       groups.forEach(g => {
         try { groupParams[g.group_key] = JSON.parse(g.params_json || '[]'); }
         catch(_) { groupParams[g.group_key] = []; }
+        try { groupSubgroups[g.group_key] = JSON.parse(g.subgroups_json || '[]'); }
+        catch(_) { groupSubgroups[g.group_key] = []; }
       });
     }
   } catch(e) { console.error('loadGroups', e); }
@@ -485,23 +502,57 @@ function renderGroups() {
 
 function selectGroup(gk) {
   activeGroup = gk;
+  activeSubgroup = null;
   document.querySelectorAll('.group-btn').forEach(b => b.classList.toggle('active', b.dataset.gk === gk));
   const g = groups.find(x => x.group_key === gk);
   document.getElementById('svcGroupTitle').textContent = (g ? (g.icon + ' ' + g.label_ru) : gk);
   document.getElementById('svcSearch').value = '';
+  renderSubgroupsBar();
   renderServices('');
   clearParams();
+}
+
+// ── Subgroups ──────────────────────────────────────────────────────────
+function renderSubgroupsBar() {
+  const bar = document.getElementById('subgroupsBar');
+  const subs = groupSubgroups[activeGroup] || [];
+  if (!subs.length) {
+    bar.innerHTML = '';
+    bar.classList.remove('visible');
+    return;
+  }
+  const allBtn = `<button class="subgrp-btn${activeSubgroup===null?' active':''}" onclick="selectSubgroup(null)">
+    <span class="sg-icon">🔸</span>
+    <span class="sg-label">Все</span>
+  </button>`;
+  const subBtns = subs.map(s =>
+    `<button class="subgrp-btn${activeSubgroup===s.key?' active':''}" onclick="selectSubgroup('${esc(s.key)}')">
+      <span class="sg-icon">${esc(s.icon||'📦')}</span>
+      <span class="sg-label">${esc(s.label_ru||s.key)}</span>
+    </button>`
+  ).join('');
+  bar.innerHTML = allBtn + subBtns;
+  bar.classList.add('visible');
+}
+
+function selectSubgroup(key) {
+  activeSubgroup = key;
+  renderSubgroupsBar();
+  renderServices(document.getElementById('svcSearch').value);
 }
 
 // ── Services ───────────────────────────────────────────────────────────
 function renderServices(filter) {
   const grid = document.getElementById('svcGrid');
-  const grouped = activeGroup
+  let filtered = activeGroup
     ? services.filter(s => s.service_group === activeGroup)
     : services;
-  const filtered = filter
-    ? grouped.filter(s => (s.name_ru || s.name || '').toLowerCase().includes(filter.toLowerCase()))
-    : grouped;
+  if (activeSubgroup) {
+    filtered = filtered.filter(s => s.service_subgroup === activeSubgroup);
+  }
+  if (filter) {
+    filtered = filtered.filter(s => (s.name_ru || s.name || '').toLowerCase().includes(filter.toLowerCase()));
+  }
   grid.innerHTML = filtered.map(s =>
     `<div class="svc-card${selectedSvc && selectedSvc.id===s.id?' selected':''}" onclick="selectService(${s.id})">
        <div class="sn">${esc(s.name_ru || s.name || '')}</div>
@@ -1073,7 +1124,7 @@ async function apiFetch(url, opts={}) {
 }
 
 function esc(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 boot();

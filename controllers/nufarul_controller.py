@@ -81,7 +81,7 @@ class NufarulController:
                 order_sql = f" ORDER BY CASE NVL(SERVICE_GROUP, 'dry_cleaning') {order_cases} ELSE 99 END, NAME"
                 params = {}
                 where = " AND ACTIVE = 'Y'" if active_only else ""
-                sql_with_en = f"""SELECT ID, NAME AS NAME_RU, NAME_RO, NAME_EN, PRICE, UNIT, ACTIVE, NOTES, CREATED_AT, SERVICE_GROUP
+                sql_with_en = f"""SELECT ID, NAME AS NAME_RU, NAME_RO, NAME_EN, PRICE, UNIT, ACTIVE, NOTES, CREATED_AT, SERVICE_GROUP, SERVICE_SUBGROUP
                          FROM NUF_SERVICES WHERE 1=1{where}{order_sql}"""
                 try:
                     r = db.execute_query(sql_with_en, params)
@@ -89,7 +89,7 @@ class NufarulController:
                 except Exception as col_err:
                     err_msg = str(col_err).upper()
                     if "NAME_EN" in err_msg or "INVALID IDENTIFIER" in err_msg:
-                        sql_no_en = f"""SELECT ID, NAME AS NAME_RU, NAME_RO, PRICE, UNIT, ACTIVE, NOTES, CREATED_AT, SERVICE_GROUP
+                        sql_no_en = f"""SELECT ID, NAME AS NAME_RU, NAME_RO, PRICE, UNIT, ACTIVE, NOTES, CREATED_AT, SERVICE_GROUP, SERVICE_SUBGROUP
                                  FROM NUF_SERVICES WHERE 1=1{where}{order_sql}"""
                         r = db.execute_query(sql_no_en, params)
                         rows = _norm_rows(r)
@@ -456,7 +456,8 @@ class NufarulController:
             with DatabaseModel() as db:
                 if group_key:
                     r = db.execute_query(
-                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER, PARAMS_JSON, ACTIVE
+                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER,
+                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE
                            FROM NUF_GROUP_PARAMS WHERE GROUP_KEY = :gk""",
                         {"gk": group_key},
                     )
@@ -466,7 +467,8 @@ class NufarulController:
                     return {"success": True, "data": rows[0]}
                 else:
                     r = db.execute_query(
-                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER, PARAMS_JSON, ACTIVE
+                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER,
+                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE
                            FROM NUF_GROUP_PARAMS WHERE ACTIVE = 'Y' ORDER BY SORT_ORDER"""
                     )
                     return {"success": True, "data": _norm_rows(r)}

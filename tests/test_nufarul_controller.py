@@ -53,6 +53,24 @@ def test_get_group_params_single_not_found():
     assert result['success'] is False
 
 
+def test_get_group_params_includes_subgroups_json():
+    """SUBGROUPS_JSON must be present in each group row returned."""
+    rows = [
+        ('dry_cleaning', 'Химчистка', 'Curățare', '👗', 10,
+         '[{"key":"color"}]', '[{"key":"sg1","label_ru":"Test"}]', 'Y')
+    ]
+    cols = ['GROUP_KEY','LABEL_RU','LABEL_RO','ICON','SORT_ORDER',
+            'PARAMS_JSON','SUBGROUPS_JSON','ACTIVE']
+    with patch('controllers.nufarul_controller.DatabaseModel',
+               return_value=FakeDB(rows, cols)):
+        result = NufarulController.get_group_params()
+    assert result['success'] is True
+    assert len(result['data']) == 1
+    row = result['data'][0]
+    assert 'subgroups_json' in row, "subgroups_json key must be present"
+    assert row['subgroups_json'] == '[{"key":"sg1","label_ru":"Test"}]'
+
+
 # ── create_order_with_params ──────────────────────────────────
 
 def test_create_order_with_params_writes_params_to_companion_table():
