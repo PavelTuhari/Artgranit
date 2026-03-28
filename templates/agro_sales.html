@@ -1081,6 +1081,7 @@ function openSalesScaleModal(lineId) {
     if (salesScalePollTimer) clearInterval(salesScalePollTimer);
     salesScalePollTimer = setInterval(pollSalesScale, 1000);
     pollSalesScale();
+    startSalesAutoEmulation();
 }
 
 function pollSalesScale() {
