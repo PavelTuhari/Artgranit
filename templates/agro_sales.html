@@ -357,6 +357,17 @@ tr:hover td { background: rgba(255,255,255,.04); }
     min-height: 40px; transition: all .15s;
 }
 .sk-emu-btns button:hover { background: #0f3460; color: #fff; }
+.sk-driver-info { display: flex; gap: 16px; font-size: 12px; color: #8888aa; align-items: center; }
+.sk-driver-info b { color: #e0e0f0; }
+/* Instructions panel */
+.instructions-panel { background: var(--card-bg, #12122a); border: 1px solid var(--border, #1a1a3e); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.instructions-toggle { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; font-size: 14px; color: var(--text-muted, #8888aa); transition: background .15s; }
+.instructions-toggle:hover { background: rgba(255,255,255,0.03); }
+.instructions-toggle .arrow { font-size: 12px; transition: transform .2s; }
+.instructions-body { display: none; padding: 0 16px 14px; font-size: 13px; line-height: 1.7; color: var(--text, #e0e0f0); }
+.instructions-body.open { display: block; }
+.instructions-body ol { padding-left: 20px; margin: 0; }
+.instructions-body li { margin-bottom: 4px; }
 @media (max-width: 900px) { .sidebar { display: none; } .main { padding: 16px; } .top-bar .nav-item { display: none; } .top-bar .nav-item.active { display: inline-flex; } }
 </style>
 </head>
