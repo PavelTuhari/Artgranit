@@ -1351,27 +1351,31 @@ window.closeSalesScaleModal = function() {
 
 window.salesScaleCapture = function() {
     var btn = document.getElementById('skCaptureBtn');
-    btn.textContent = '⏳ Захват...';
     btn.disabled = true;
+    btn.textContent = '⏳ Фиксация...';
+
+    stopSalesAutoEmulation();
 
     fetch('/api/agro-scale/capture', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({scale_id: 'default'})
     }).then(function(r) { return r.json(); })
     .then(function(cap) {
-        btn.textContent = '📥 Захватить вес / Capture';
+        var reading = cap.reading || cap.data || {};
+        var productLabel = salesSelectedProductKey ? (salesProductNamesRu[salesSelectedProductKey] || salesSelectedProductKey) : '';
+        var gross = reading.gross_kg || 0;
+        var tare = reading.tare_kg || 0;
+
+        applySalesWeight(gross, tare);
+
+        var weightStr = (reading.net_kg || Math.max(0, gross - tare)).toFixed(2);
+        btn.textContent = '⚖️ Снять вес / Cântărește';
+        toast('Вес снят: ' + weightStr + ' кг' + (productLabel ? ' — ' + productLabel : ''), 'success');
+    }).catch(function(err) {
+        btn.textContent = '⚖️ Снять вес / Cântărește';
         btn.disabled = false;
-        if (cap.success && cap.reading) {
-            var gross = cap.reading.gross_kg || 0;
-            var tare = cap.reading.tare_kg || 0;
-            applySalesWeight(gross, tare);
-        } else {
-            toast(cap.error || 'Ошибка захвата', 'error');
-        }
-    }).catch(function() {
-        btn.textContent = '📥 Захватить вес / Capture';
-        btn.disabled = false;
-        toast('Ошибка связи с весами', 'error');
+        startSalesAutoEmulation();
+        toast('Ошибка: ' + (err.message || 'связь с весами'), 'error');
     });
 };
 
