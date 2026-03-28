@@ -456,7 +456,8 @@ class NufarulController:
             with DatabaseModel() as db:
                 if group_key:
                     r = db.execute_query(
-                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER, PARAMS_JSON, ACTIVE
+                        """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER,
+                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE
                            FROM NUF_GROUP_PARAMS WHERE GROUP_KEY = :gk""",
                         {"gk": group_key},
                     )
