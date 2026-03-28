@@ -858,16 +858,18 @@ window.renderSalesDocsList = function() {
     e('salesCountShipped', shipped);
 
     var tb = document.getElementById('docsBody');
-    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Нет документов</td></tr>'; return; }
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">Нет документов</td></tr>'; return; }
 
     tb.innerHTML = filtered.map(function(r) {
         var bc = 'badge-' + (r.status || 'draft');
+        var totalKg = parseFloat(r.total_qty_kg || r.total_kg || 0);
         return '<tr onclick="selectSalesDoc(' + r.id + ')">' +
             '<td style="font-weight:600;">' + (r.doc_number || '-') + '</td>' +
             '<td>' + (r.doc_date || '-') + '</td>' +
             '<td>' + (r.customer_name || '-') + '</td>' +
             '<td>' + (r.warehouse_name || '-') + '</td>' +
             '<td><span class="badge ' + bc + '">' + (r.status || 'draft') + '</span></td>' +
+            '<td style="text-align:right;font-weight:600;color:var(--accent);">' + (totalKg > 0 ? totalKg.toFixed(0) : '-') + '</td>' +
             '<td style="text-align:right;font-weight:600;">' + formatMoney(r.total_amount, r.currency_code) + '</td></tr>';
     }).join('');
 };
