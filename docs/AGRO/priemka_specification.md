@@ -183,10 +183,16 @@
 ## 4. Точскрин-режим весов (Scale Kiosk Modal)
 
 > **КРИТИЧЕСКИ ВАЖНО** — ключевой интерфейс для операторов весов.
+>
+> **Рефакторинг (28.03.2026):** Scale Kiosk вынесен в универсальный класс `ScaleKiosk`
+> (`/static/agro/scale-kiosk.js` + `/static/agro/scale-kiosk.css`).
+> Оба модуля (приёмка и продажа) создают экземпляр класса с нужной конфигурацией:
+> - Приёмка: `new ScaleKiosk({mode:'purchase', showPassport:true, showEmulator:false})`
+> - Продажа: `new ScaleKiosk({mode:'sale', showPassport:true, showEmulator:true})`
 
 ### 4.1 3-колоночный layout
 
-Модал `#scaleModal` — **100% экрана** (position:fixed, z-index:9999).
+Модал генерируется динамически классом `ScaleKiosk` — **100% экрана** (position:fixed, z-index:9999).
 
 ```
 ┌─────────────────────────────────────────────────────────┐
