@@ -1037,7 +1037,7 @@ var salesKiosk = new ScaleKiosk({
         {key: 'PEPPER',  name: 'Перец / Ardei',         svgPath: '/static/agro/products/pepper.svg'}
     ],
     weightRange: {min: 5, max: 200},
-    showPassport: false,
+    showPassport: true,
     showEmulator: true,
     toastFn: function(msg, type) { if (typeof toast === 'function') toast(msg, type); },
     onCapture: function(data) {
