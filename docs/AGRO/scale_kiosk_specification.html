@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScaleKiosk — Полная спецификация — Artgranit AGRO</title>
+<style>
+:root {
+    --bg: #0a0a1a;
+    --card: #12122a;
+    --border: #1a1a3e;
+    --accent: #53d769;
+    --accent2: #4fc3f7;
+    --danger: #e94560;
+    --warn: #f5a623;
+    --text: #e0e0f0;
+    --muted: #8888aa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:24px; max-width:1100px; margin:0 auto; }
+h1 { font-size:28px; color:var(--accent); margin-bottom:6px; }
+h2 { font-size:22px; color:var(--accent2); margin:36px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+h3 { font-size:17px; color:var(--text); margin:20px 0 8px; }
+h4 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin:14px 0 6px; }
+p, li { font-size:15px; }
+ul, ol { padding-left:24px; margin-bottom:12px; }
+li { margin-bottom:4px; }
+code { background:#1a1a2e; padding:2px 6px; border-radius:4px; font-size:13px; color:var(--accent); }
+pre { background:#0d0d20; padding:16px; border-radius:8px; border:1px solid var(--border); overflow-x:auto; margin:10px 0 16px; font-size:13px; line-height:1.5; }
+pre code { background:none; padding:0; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; margin:14px 0; }
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; margin-right:4px; }
+.tag-api { background:#53d76920; color:var(--accent); border:1px solid #53d76944; }
+.tag-crit { background:#e9456020; color:var(--danger); border:1px solid #e9456044; }
+.tag-new { background:#f5a62320; color:var(--warn); border:1px solid #f5a62344; }
+.tag-page { background:#0f346040; color:var(--accent2); border:1px solid #0f3460; }
+table { width:100%; border-collapse:collapse; margin:10px 0 16px; font-size:14px; }
+th, td { padding:8px 12px; text-align:left; border:1px solid var(--border); }
+th { background:#0d0d20; color:var(--muted); font-size:12px; text-transform:uppercase; }
+.subtitle { font-size:14px; color:var(--muted); margin-bottom:24px; }
+.toc { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; margin:20px 0; }
+.toc a { color:var(--accent2); text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.toc ol { list-style:none; counter-reset:toc; padding-left:0; }
+.toc > ol > li { counter-increment:toc; margin-bottom:4px; }
+.toc > ol > li::before { content:counter(toc) ". "; color:var(--accent); font-weight:700; }
+.color-swatch { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:middle; margin-right:6px; border:1px solid #333; }
+.checklist { list-style:none; padding-left:0; }
+.checklist li { padding:6px 0; border-bottom:1px solid #1a1a2e; }
+.checklist li::before { content:"[ ] "; color:var(--muted); font-family:monospace; }
+a { color:var(--accent2); }
+</style>
+</head>
+<body>
+
+<h1>ScaleKiosk — Полная спецификация универсального модуля весов</h1>
+<div class="subtitle">Детальная техническая документация: архитектура, API, DOM, CSS, события, жизненный цикл — v1.0, 28.03.2026</div>
+
+<!-- TOC -->
+<div class="toc">
+<strong>Содержание (25 секций)</strong>
+<ol>
+    <li><a href="#s1">Назначение и архитектура</a></li>
+    <li><a href="#s2">Файловая структура</a></li>
+    <li><a href="#s3">Конструктор и конфигурация</a></li>
+    <li><a href="#s4">Публичный API</a></li>
+    <li><a href="#s5">Внутреннее состояние</a></li>
+    <li><a href="#s6">DOM-структура модала</a></li>
+    <li><a href="#s7">CSS-архитектура</a></li>
+    <li><a href="#s8">Система событий и делегирование</a></li>
+    <li><a href="#s9">Левая колонка: Продукция + Паспорт</a></li>
+    <li><a href="#s10">Центральная колонка: Весы + Numpad</a></li>
+    <li><a href="#s11">Правая колонка: AI Camera + Эмулятор</a></li>
+    <li><a href="#s12">Polling и связь с весами</a></li>
+    <li><a href="#s13">Авто-эмуляция</a></li>
+    <li><a href="#s14">Паспорт продукции (детально)</a></li>
+    <li><a href="#s15">Процесс захвата (Capture)</a></li>
+    <li><a href="#s16">Конфигурация драйвера</a></li>
+    <li><a href="#s17">Интеграция с шаблонами</a></li>
+    <li><a href="#s18">Scale API: полный справочник</a></li>
+    <li><a href="#s19">Product SVG иконки</a></li>
+    <li><a href="#s20">Responsive и адаптивность</a></li>
+    <li><a href="#s21">Анимации</a></li>
+    <li><a href="#s22">Работа с data-атрибутами</a></li>
+    <li><a href="#s23">Совместимость с legacy-кодом</a></li>
+    <li><a href="#s24">Диаграмма жизненного цикла</a></li>
+    <li><a href="#s25">Checklist после изменений</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s1">1. Назначение и архитектура</h2>
+
+<h3>1.1 Что такое ScaleKiosk</h3>
+<p>ScaleKiosk — полноэкранный модальный интерфейс для операторов промышленных весов, оптимизированный для тачскринов. Используется в двух режимах:</p>
+
+<table>
+<tr><th>Режим</th><th>Модуль</th><th>HTML-шаблон</th><th>Переменная</th></tr>
+<tr><td><strong>purchase</strong> (приёмка)</td><td>AGRO Field</td><td><code>agro_field.html</code></td><td><code>fieldKiosk</code></td></tr>
+<tr><td><strong>sale</strong> (отгрузка)</td><td>AGRO Sales</td><td><code>agro_sales.html</code></td><td><code>salesKiosk</code></td></tr>
+</table>
+
+<h3>1.2 Принцип «один класс — два режима»</h3>
+<p>Класс написан по шаблону <strong>IIFE</strong> (Immediately Invoked Function Expression), экспортируется в <code>window.ScaleKiosk</code>. Различия между режимами контролируются конфигурационными флагами:</p>
+
+<pre><code>┌──────────────────────────────────────┐
+│          ScaleKiosk (class)          │
+│  /static/agro/scale-kiosk.js (902)  │
+│  /static/agro/scale-kiosk.css (326) │
+├──────────────────────────────────────┤
+│  Config flags:                       │
+│    mode: 'purchase' | 'sale'         │
+│    showPassport: true | false        │
+│    showEmulator: true | false        │
+│    products: [{key,name,svgPath}]    │
+│    weightRange: {min, max}           │
+│    onCapture: callback               │
+│    toastFn: callback                 │
+└──────────────┬───────────────────────┘
+               │
+      ┌────────┴─────────┐
+      ▼                  ▼
+┌───────────┐    ┌────────────┐
+│ Purchase  │    │   Sale     │
+│ passport  │    │ passport   │
+│ no emu    │    │ emulator   │
+│ 8 items   │    │ 10 items   │
+│ 50-500 kg │    │ 5-200 kg   │
+└───────────┘    └────────────┘</code></pre>
+
+<h3>1.3 Зачем рефакторинг</h3>
+<p>До рефакторинга (28.03.2026) код весов дублировался:</p>
+<ul>
+<li>В <code>agro_field.html</code> — ~550 строк JS + ~300 строк CSS + ~200 строк HTML</li>
+<li>В <code>agro_sales.html</code> — ~340 строк JS + ~190 строк CSS + ~100 строк HTML</li>
+</ul>
+<p>После: <strong>902 строки JS + 326 строк CSS</strong> в общих файлах. В каждом шаблоне осталось лишь ~30 строк конфигурации.</p>
+
+<!-- ============================================================ -->
+<h2 id="s2">2. Файловая структура</h2>
+<pre><code>/static/agro/
+├── scale-kiosk.css          326 строк  — все CSS-классы .sk-*
+├── scale-kiosk.js           902 строки — класс ScaleKiosk (IIFE)
+└── products/                SVG-иконки продуктов
+    ├── apple.svg
+    ├── apricot.svg           (создан 28.03.2026)
+    ├── cherry.svg
+    ├── grape.svg
+    ├── peach.svg
+    ├── pear.svg
+    ├── pepper.svg
+    ├── plum.svg
+    ├── tomato.svg
+    └── walnut.svg
+
+/templates/
+├── agro_field.html          fieldKiosk = new ScaleKiosk({mode:'purchase',...})
+└── agro_sales.html          salesKiosk = new ScaleKiosk({mode:'sale',...})</code></pre>
+
+<h3>2.1 Порядок подключения в HTML</h3>
+<div class="card">
+<p><span class="tag tag-crit">КРИТИЧЕСКИ ВАЖНО</span> CSS и JS должны подключаться <b>ДО</b> inline-скрипта, создающего экземпляр.</p>
+<pre><code>&lt;!-- В &lt;head&gt; --&gt;
+&lt;link rel="stylesheet" href="/static/agro/scale-kiosk.css"&gt;
+
+&lt;!-- В &lt;body&gt;, ПЕРЕД inline &lt;script&gt; --&gt;
+&lt;script src="/static/agro/scale-kiosk.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  // Здесь можно создавать new ScaleKiosk({...})
+&lt;/script&gt;</code></pre>
+<p>Ошибка при нарушении порядка: <code>ReferenceError: ScaleKiosk is not defined</code>.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="s3">3. Конструктор и конфигурация</h2>
+
+<h3>3.1 Сигнатура</h3>
+<pre><code>var kiosk = new ScaleKiosk(config);</code></pre>
+
+<h3>3.2 Все параметры конфигурации</h3>
+<table>
+<tr><th>Параметр</th><th>Тип</th><th>По умолчанию</th><th>Описание</th></tr>
+<tr><td><code>mode</code></td><td>string</td><td><code>'purchase'</code></td><td>Идентификатор режима. Влияет на ID контейнера</td></tr>
+<tr><td><code>title</code></td><td>string</td><td><code>'⚖️ Весы / Cântar'</code></td><td>Текст заголовка модала</td></tr>
+<tr><td><code>products</code></td><td>Array&lt;{key,name,svgPath}&gt;</td><td><code>[]</code></td><td>Массив продуктов для грида</td></tr>
+<tr><td><code>weightRange</code></td><td>{min,max}</td><td><code>{min:50, max:500}</code></td><td>Диапазон случайного веса для авто-эмуляции (кг)</td></tr>
+<tr><td><code>showPassport</code></td><td>boolean</td><td><code>false</code></td><td>Показывать панель паспорта продукции (12 полей)</td></tr>
+<tr><td><code>showEmulator</code></td><td>boolean</td><td><code>false</code></td><td>Показывать панель эмулятора весов</td></tr>
+<tr><td><code>onCapture</code></td><td>function(data)</td><td>noop</td><td>Callback при захвате веса (см. §15)</td></tr>
+<tr><td><code>toastFn</code></td><td>function(msg, type)</td><td>noop</td><td>Функция уведомлений. type: success/error/warning</td></tr>
+<tr><td><code>scaleId</code></td><td>string</td><td><code>'default'</code></td><td>Идентификатор весов для API</td></tr>
+<tr><td><code>emulationInterval</code></td><td>number</td><td><code>20000</code></td><td>Интервал авто-эмуляции (мс)</td></tr>
+<tr><td><code>loadDriverConfig</code></td><td>boolean</td><td><code>true</code></td><td>Загружать конфиг драйвера при .open()</td></tr>
+</table>
+
+<h3>3.3 Пример: Purchase (приёмка)</h3>
+<pre><code>var fieldKiosk = new ScaleKiosk({
+    mode: 'purchase',
+    title: '⚖️ Весы — Закупка / Cântar — Achiziție',
+    products: [
+        {key: 'APPLE',  name: 'Яблоко / Măr',       svgPath: '/static/agro/products/apple.svg'},
+        {key: 'GRAPE',  name: 'Виноград / Struguri', svgPath: '/static/agro/products/grape.svg'},
+        {key: 'CHERRY', name: 'Черешня / Cireșe',    svgPath: '/static/agro/products/cherry.svg'},
+        {key: 'WALNUT', name: 'Грецкий орех / Nucă', svgPath: '/static/agro/products/walnut.svg'},
+        {key: 'PEPPER', name: 'Перец / Ardei',       svgPath: '/static/agro/products/pepper.svg'},
+        {key: 'PEACH',  name: 'Персик / Piersică',   svgPath: '/static/agro/products/peach.svg'},
+        {key: 'TOMATO', name: 'Помидор / Roșie',     svgPath: '/static/agro/products/tomato.svg'},
+        {key: 'PLUM',   name: 'Слива / Prună',       svgPath: '/static/agro/products/plum.svg'}
+    ],
+    weightRange: {min: 50, max: 500},
+    showPassport: true,
+    showEmulator: false,
+    toastFn: function(msg, type) { showToast(msg, type); },
+    onCapture: function(data) { /* ... */ }
+});
+window.weighPurchaseLine = function(lineId) { fieldKiosk.open(lineId); };</code></pre>
+
+<h3>3.4 Пример: Sale (отгрузка)</h3>
+<pre><code>var salesKiosk = new ScaleKiosk({
+    mode: 'sale',
+    title: '⚖️ Весы — Отгрузка / Cântar — Expediere',
+    products: [ /* 10 продуктов вкл. PEAR, APRICOT */ ],
+    weightRange: {min: 5, max: 200},
+    showPassport: true,
+    showEmulator: true,
+    toastFn: function(msg, type) { toast(msg, type); },
+    onCapture: function(data) { /* ... */ }
+});
+window.weighSalesLine = function(lineId) { salesKiosk.open(lineId); };</code></pre>
+
+<h3>3.5 Различия конфигурации по режимам</h3>
+<table>
+<tr><th>Параметр</th><th>Purchase</th><th>Sale</th></tr>
+<tr><td><code>mode</code></td><td><code>'purchase'</code></td><td><code>'sale'</code></td></tr>
+<tr><td><code>title</code></td><td>Закупка / Achiziție</td><td>Отгрузка / Expediere</td></tr>
+<tr><td><code>products</code></td><td>8 (без PEAR, APRICOT)</td><td>10 (все)</td></tr>
+<tr><td><code>weightRange</code></td><td>50–500 кг</td><td>5–200 кг</td></tr>
+<tr><td><code>showPassport</code></td><td><code>true</code></td><td><code>true</code></td></tr>
+<tr><td><code>showEmulator</code></td><td><code>false</code></td><td><code>true</code></td></tr>
+<tr><td><code>toastFn</code></td><td><code>showToast()</code></td><td><code>toast()</code></td></tr>
+<tr><td><code>onCapture</code></td><td>gross/tare/product/passport</td><td>gross/tare</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s4">4. Публичный API</h2>
+
+<h3>4.1 <code>.open(lineId)</code></h3>
+<p>Открывает полноэкранный модал и привязывает его к строке документа.</p>
+<pre><code>kiosk.open('line_42');</code></pre>
+<p><strong>Действия:</strong></p>
+<ol>
+<li>Сохраняет <code>lineId</code> в <code>this._targetLineId</code></li>
+<li>Сбрасывает состояние: <code>_selectedProduct</code>, <code>_selectedVariety</code>, <code>_manualWeight</code>, <code>_paused</code></li>
+<li>Устанавливает UI в начальное состояние (вес 0.000, статус idle, capture disabled)</li>
+<li>Если <code>showPassport</code> — скрывает паспорт</li>
+<li>Если <code>loadDriverConfig</code> — загружает конфиг драйвера</li>
+<li>Строит грид продуктов</li>
+<li>Показывает модал (<code>display: flex</code>)</li>
+<li>Запускает polling весов (1с)</li>
+<li>Запускает авто-эмуляцию (20с)</li>
+</ol>
+
+<h3>4.2 <code>.close()</code></h3>
+<p>Закрывает модал, останавливает polling и эмуляцию, сбрасывает состояние.</p>
+
+<h3>4.3 <code>.destroy()</code></h3>
+<p>Вызывает <code>.close()</code>, удаляет DOM-элемент контейнера из <code>document.body</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="s5">5. Внутреннее состояние</h2>
+<table>
+<tr><th>Свойство</th><th>Тип</th><th>Назначение</th></tr>
+<tr><td><code>_targetLineId</code></td><td>string|null</td><td>ID строки документа</td></tr>
+<tr><td><code>_pollTimer</code></td><td>number|null</td><td>Таймер polling весов (1с)</td></tr>
+<tr><td><code>_emuTimer</code></td><td>number|null</td><td>Таймер авто-эмуляции (20с)</td></tr>
+<tr><td><code>_paused</code></td><td>boolean</td><td>Флаг паузы</td></tr>
+<tr><td><code>_selectedProduct</code></td><td>string|null</td><td>Ключ продукта (APPLE, GRAPE...)</td></tr>
+<tr><td><code>_selectedVariety</code></td><td>object|null</td><td>Объект сорта из <code>_agroRefs.varieties</code></td></tr>
+<tr><td><code>_manualWeight</code></td><td>boolean</td><td>Вес введён через Numpad</td></tr>
+<tr><td><code>_container</code></td><td>HTMLElement|null</td><td>Корневой DOM-элемент модала</td></tr>
+<tr><td><code>_id</code></td><td>string</td><td>Prefix: <code>'sk_purchase'</code> / <code>'sk_sale'</code></td></tr>
+<tr><td><code>_productNames</code></td><td>Object</td><td>Карта {KEY: 'Имя'}</td></tr>
+<tr><td><code>_productImages</code></td><td>Object</td><td>Карта {KEY: '/path/to/svg'}</td></tr>
+<tr><td><code>_productKeys</code></td><td>string[]</td><td>Ключи продуктов по порядку</td></tr>
+<tr><td><code>_currentVarieties</code></td><td>object[]</td><td>Сорта текущего продукта</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s6">6. DOM-структура модала</h2>
+<p>Модал генерируется динамически в <code>_renderModal()</code> и добавляется в <code>document.body</code>.</p>
+<pre><code>div.scale-kiosk-overlay (id="sk_{mode}_overlay", display:none)
+└── div.scale-kiosk
+    ├── div.sk-header
+    │   ├── div.sk-title [data-sk="title"]
+    │   ├── div.sk-status
+    │   │   ├── span.sk-indicator [data-sk="indicator"]
+    │   │   └── span [data-sk="statusText"]
+    │   ├── div.sk-driver-info [data-sk="driverInfo"]
+    │   ├── button.sk-pause-btn [data-sk="pauseBtn"]
+    │   └── button.sk-close [data-sk="closeBtn"]
+    │
+    └── div.sk-body (CSS Grid: 3 колонки)
+        ├── div.sk-products (Левая)
+        │   ├── div.sk-products-title
+        │   ├── div.sk-product-grid [data-sk="productGrid"]
+        │   │   └── button.sk-product-btn [data-product="KEY"] (×N)
+        │   └── div.sk-passport [data-sk="passport"] (если showPassport)
+        │       ├── div.sk-passport-header
+        │       ├── div.sk-passport-section → varietyGrid
+        │       └── div.sk-passport-all (scrollable, 12 полей)
+        │
+        ├── div.sk-scale (Центральная)
+        │   ├── div.sk-weight-display → gross + unit
+        │   ├── div.sk-weight-sub → tare + net
+        │   ├── div.sk-scale-btns → Zero + Tare
+        │   ├── div.sk-numpad → input + grid(12) + apply
+        │   └── button.sk-capture-btn [data-sk="captureBtn"]
+        │
+        └── div.sk-camera (Правая)
+            ├── div.sk-camera-header → "AI Camera" + badge
+            ├── div.sk-camera-viewport [data-sk="viewport"]
+            ├── div.sk-ai-result [data-sk="aiResult"]
+            └── div.sk-emulator (если showEmulator)
+                └── div.sk-emu-btns → Set + Random + Remove</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="s7">7. CSS-архитектура</h2>
+
+<h3>7.1 Файл: <code>/static/agro/scale-kiosk.css</code> (326 строк)</h3>
+<p>Все классы используют префикс <code>.sk-</code> для изоляции.</p>
+
+<h3>7.2 Основные CSS-секции</h3>
+<table>
+<tr><th>Секция</th><th>Строки</th><th>Описание</th></tr>
+<tr><td>Overlay + Kiosk</td><td>1–11</td><td>Полноэкранный fixed overlay</td></tr>
+<tr><td>Header</td><td>14–36</td><td>Flex: title + status + driver + pause + close</td></tr>
+<tr><td>Body grid</td><td>39–43</td><td><code>grid-template-columns: 1fr 300px 280px</code></td></tr>
+<tr><td>Products</td><td>46–72</td><td>Грид продуктов, кнопки, SVG/emoji</td></tr>
+<tr><td>Scale</td><td>75–115</td><td>Вес, tare/net, кнопки, capture</td></tr>
+<tr><td>Camera</td><td>118–137</td><td>Viewport, AI result</td></tr>
+<tr><td>Emulator</td><td>140–154</td><td>Панель эмулятора (sale mode)</td></tr>
+<tr><td>Passport</td><td>157–241</td><td>12 полей: steppers, slider, rating, groups, textarea</td></tr>
+<tr><td>Numpad</td><td>244–272</td><td>Цифровая клавиатура 3×4</td></tr>
+<tr><td>Animations</td><td>275–318</td><td>AI badge, camera, scanline, productAppear</td></tr>
+<tr><td>Responsive</td><td>322–326</td><td><code>@media (max-width: 900px)</code></td></tr>
+</table>
+
+<h3>7.3 Цветовая палитра</h3>
+<table>
+<tr><th>Цвет</th><th>Hex</th><th>Назначение</th></tr>
+<tr><td><span class="color-swatch" style="background:#0a0a1a"></span>Фон overlay</td><td><code>#0a0a1a</code></td><td>Тёмный фон на весь экран</td></tr>
+<tr><td><span class="color-swatch" style="background:#0d0d1a"></span>Фон header</td><td><code>#0d0d1a</code></td><td>Шапка</td></tr>
+<tr><td><span class="color-swatch" style="background:#12122a"></span>Фон products</td><td><code>#12122a</code></td><td>Левая/правая колонки</td></tr>
+<tr><td><span class="color-swatch" style="background:#0a1628"></span>Фон scale</td><td><code>#0a1628</code></td><td>Центральная колонка</td></tr>
+<tr><td><span class="color-swatch" style="background:#16213e"></span>Фон карточек</td><td><code>#16213e</code></td><td>Кнопки, поля, группы</td></tr>
+<tr><td><span class="color-swatch" style="background:#060e1a"></span>Фон дисплея</td><td><code>#060e1a</code></td><td>Дисплей веса, numpad input</td></tr>
+<tr><td><span class="color-swatch" style="background:#0f3460"></span>Бордер</td><td><code>#0f3460</code></td><td>Все бордеры и разделители</td></tr>
+<tr><td><span class="color-swatch" style="background:#53d769"></span>Акцент</td><td><code>#53d769</code></td><td>Stable, active, net, passport</td></tr>
+<tr><td><span class="color-swatch" style="background:#ffc107"></span>Предупреждение</td><td><code>#ffc107</code></td><td>Settling, pause, numpad</td></tr>
+<tr><td><span class="color-swatch" style="background:#e94560"></span>Опасность</td><td><code>#e94560</code></td><td>Capture btn, tare, delete, error</td></tr>
+<tr><td><span class="color-swatch" style="background:#4ec9b0"></span>Teal</td><td><code>#4ec9b0</code></td><td>Net значение, reference hints</td></tr>
+<tr><td><span class="color-swatch" style="background:#e0e0f0"></span>Текст</td><td><code>#e0e0f0</code></td><td>Основной текст</td></tr>
+<tr><td><span class="color-swatch" style="background:#8888aa"></span>Текст muted</td><td><code>#8888aa</code></td><td>Подписи, labels</td></tr>
+<tr><td><span class="color-swatch" style="background:#6c6c8a"></span>Текст dimmed</td><td><code>#6c6c8a</code></td><td>Самый тусклый текст</td></tr>
+<tr><td><span class="color-swatch" style="background:#b0b0c8"></span>Текст inputs</td><td><code>#b0b0c8</code></td><td>Значения в полях</td></tr>
+</table>
+
+<h3>7.4 3-колоночная сетка</h3>
+<pre><code>.sk-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 300px 280px;
+    gap: 0;
+    overflow: hidden;
+}</code></pre>
+<table>
+<tr><th>Колонка</th><th>Ширина</th><th>CSS-класс</th><th>Содержимое</th></tr>
+<tr><td>Левая</td><td><code>1fr</code> (flexible)</td><td><code>.sk-products</code></td><td>Грид продуктов + паспорт</td></tr>
+<tr><td>Центральная</td><td><code>300px</code> (fixed)</td><td><code>.sk-scale</code></td><td>Дисплей веса + numpad + capture</td></tr>
+<tr><td>Правая</td><td><code>280px</code> (fixed)</td><td><code>.sk-camera</code></td><td>AI camera + emulator</td></tr>
+</table>
+
+<h3>7.5 Тач-оптимизация</h3>
+<p>Все интерактивные элементы ≥ 44×44px:</p>
+<ul>
+<li><code>.sk-product-btn</code> — min-height: 100px</li>
+<li><code>.sk-step-btn</code>, <code>.sk-rate-btn</code> — 44×44px</li>
+<li><code>.sk-opt-btn</code> — padding: 10px 14px, min-width: 70px</li>
+<li><code>.sk-capture-btn</code> — min-height: 60px, font-size: 18px</li>
+<li><code>.sk-emu-btns button</code> — min-height: 40px</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="s8">8. Система событий и делегирование</h2>
+
+<h3>8.1 Принцип</h3>
+<p>Все события через <strong>event delegation</strong> на корневом контейнере. Один обработчик <code>click</code> маршрутизирует по <code>data-*</code> атрибутам:</p>
+
+<table>
+<tr><th>Селектор</th><th>Действие</th><th>Метод</th></tr>
+<tr><td><code>[data-sk="closeBtn"]</code></td><td>Закрыть модал</td><td><code>close()</code></td></tr>
+<tr><td><code>[data-sk="pauseBtn"]</code></td><td>Пауза/продолжить</td><td><code>_togglePause()</code></td></tr>
+<tr><td><code>[data-sk="zeroBtn"]</code></td><td>Обнулить весы</td><td><code>_scaleZero()</code></td></tr>
+<tr><td><code>[data-sk="tareBtn"]</code></td><td>Установить тару</td><td><code>_scaleTare()</code></td></tr>
+<tr><td><code>[data-sk="captureBtn"]</code></td><td>Захватить вес</td><td><code>_capture()</code></td></tr>
+<tr><td><code>[data-num="N"]</code></td><td>Numpad цифра</td><td><code>_numpadPress(val)</code></td></tr>
+<tr><td><code>[data-sk="numpadApply"]</code></td><td>Применить</td><td><code>_numpadApply()</code></td></tr>
+<tr><td><code>.sk-product-btn[data-product]</code></td><td>Выбрать продукт</td><td><code>_selectProduct(key)</code></td></tr>
+<tr><td><code>[data-step][data-delta]</code></td><td>Stepper ±</td><td><code>_stepField(name, delta)</code></td></tr>
+<tr><td><code>.sk-rate-btn[data-rate]</code></td><td>Рейтинг</td><td><code>_setRating(group, val)</code></td></tr>
+<tr><td><code>.sk-opt-btn[data-opt]</code></td><td>Выбрать опцию</td><td><code>_selectOpt(group, btn)</code></td></tr>
+<tr><td><code>.sk-variety-btn[data-vidx]</code></td><td>Выбрать сорт</td><td><code>_selectVarietyByIndex(idx)</code></td></tr>
+<tr><td><code>[data-sk="emuSet"]</code></td><td>Эмулятор: Set</td><td><code>_emuSet()</code></td></tr>
+<tr><td><code>[data-sk="emuRandom"]</code></td><td>Эмулятор: Random</td><td><code>_emuRandom()</code></td></tr>
+<tr><td><code>[data-sk="emuRemove"]</code></td><td>Эмулятор: Remove</td><td><code>_emuRemove()</code></td></tr>
+</table>
+
+<h3>8.2 Input-события</h3>
+<p>Отдельный обработчик <code>input</code> для ползунка <code>ppColorSlider</code> (только если <code>showPassport</code>).</p>
+
+<!-- ============================================================ -->
+<h2 id="s9">9. Левая колонка: Продукция + Паспорт</h2>
+
+<h3>9.1 Грид продуктов</h3>
+<p>CSS: <code>repeat(auto-fill, minmax(110px, 1fr))</code>, gap: 10px. Перестраивается при каждом <code>.open()</code>.</p>
+
+<pre><code>&lt;button class="sk-product-btn" data-product="APPLE"&gt;
+  &lt;img src="/static/.../apple.svg" class="sk-product-img"&gt;
+  &lt;div class="sk-product-emoji" style="display:none;"&gt;🍎&lt;/div&gt;
+  &lt;span class="sk-product-label"&gt;Яблоко / Măr&lt;/span&gt;
+&lt;/button&gt;</code></pre>
+
+<h3>9.2 Emoji-карта (EMOJI_MAP)</h3>
+<table>
+<tr><th>Ключ</th><th>Emoji</th><th>Ключ</th><th>Emoji</th></tr>
+<tr><td>APPLE</td><td>🍎</td><td>GRAPE</td><td>🍇</td></tr>
+<tr><td>PEAR</td><td>🍐</td><td>APRICOT</td><td>🟠</td></tr>
+<tr><td>PEACH</td><td>🍑</td><td>WALNUT</td><td>🌰</td></tr>
+<tr><td>PLUM</td><td>🟣</td><td>TOMATO</td><td>🍅</td></tr>
+<tr><td>CHERRY</td><td>🍒</td><td>PEPPER</td><td>🌶️</td></tr>
+</table>
+
+<h3>9.3 Выбор продукта (<code>_selectProduct</code>)</h3>
+<ol>
+<li>Сохраняет <code>_selectedProduct = key</code></li>
+<li>Подсвечивает кнопку (<code>.active</code>)</li>
+<li>Обновляет AI-панель</li>
+<li>Показывает превью в camera viewport</li>
+<li>Если <code>showPassport</code> — вызывает <code>_showPassport(key)</code></li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="s10">10. Центральная колонка: Весы + Numpad</h2>
+
+<h3>10.1 Дисплей веса</h3>
+<pre><code>┌──────────────────────┐
+│      125.500         │  ← .sk-weight-gross (48px monospace, #53d769)
+│        kg            │  ← .sk-weight-unit
+└──────────────────────┘
+┌──────────┐ ┌──────────┐
+│ Tare     │ │ Net      │
+│ 0.000    │ │ 125.500  │  ← teal (#4ec9b0)
+└──────────┘ └──────────┘
+  [Zero]       [Tare]</code></pre>
+
+<h3>10.2 Numpad</h3>
+<pre><code>┌─────────────────────┐
+│ Ручной ввод / Manual│
+│  ┌───────────────┐  │
+│  │         125.5 │  │  ← readonly, monospace, #ffc107
+│  └───────────────┘  │
+│   [7] [8] [9]       │
+│   [4] [5] [6]       │
+│   [1] [2] [3]       │
+│   [0] [.] [⌫]       │  ← ⌫ красный
+│  [Применить / Aplică]│
+└─────────────────────┘</code></pre>
+<p><strong>Логика:</strong> <code>del</code> → удалить последний символ; <code>.</code> → если нет точки; <code>0-9</code> → если длина &lt; 6. Apply → POST simulate → обновить дисплей → разблокировать Capture.</p>
+
+<!-- ============================================================ -->
+<h2 id="s11">11. Правая колонка: AI Camera + Эмулятор</h2>
+
+<h3>11.1 Camera Viewport (3 состояния)</h3>
+<table>
+<tr><th>Состояние</th><th>CSS-класс</th><th>Описание</th></tr>
+<tr><td>Idle</td><td><code>.camera-idle</code></td><td>«📷 Запуск...»</td></tr>
+<tr><td>Scanning</td><td><code>.camera-scanning</code></td><td>«🔍 Сканирование...» + scanline</td></tr>
+<tr><td>Product</td><td><code>.camera-product-preview</code></td><td>SVG/emoji + имя + AI confidence bar</td></tr>
+</table>
+
+<h3>11.2 Панель эмулятора (только sale mode)</h3>
+<pre><code>&lt;div class="sk-emulator"&gt;
+  &lt;input data-sk="emuWeight" placeholder="кг"&gt;
+  &lt;button data-sk="emuSet"&gt;Set&lt;/button&gt;       → POST simulate {weight_kg}
+  &lt;button data-sk="emuRandom"&gt;Random&lt;/button&gt;  → POST simulate {random:true}
+  &lt;button data-sk="emuRemove"&gt;Remove&lt;/button&gt;  → POST simulate {weight_kg:0}
+&lt;/div&gt;</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="s12">12. Polling и связь с весами</h2>
+<pre><code>.open() → _startPolling() → setInterval(_pollScale, 1000)
+            └── GET /api/agro-scale/read?scale_id=default
+                  └── Update: gross, tare, net, indicator, status, captureBtn</code></pre>
+<table>
+<tr><th>Условие</th><th>Индикатор</th><th>Статус</th><th>Capture</th></tr>
+<tr><td><code>stable &amp;&amp; gross &gt; 0</code></td><td style="color:#53d769">●</td><td>Stable / Стабильно</td><td>enabled</td></tr>
+<tr><td><code>settling</code></td><td style="color:#ffc107">●</td><td>Settling... / Стабилизация</td><td>disabled</td></tr>
+<tr><td>Иное</td><td style="color:#666">●</td><td>Idle / Ожидание</td><td>disabled</td></tr>
+<tr><td>Ошибка fetch</td><td style="color:#e94560">●</td><td>Ошибка связи</td><td>—</td></tr>
+</table>
+
+<h3>Пауза</h3>
+<p>Кнопка <code>⏸ Пауза</code> переключает <code>_paused</code>. Polling продолжает, но <code>_runEmulationCycle</code> пропускает.</p>
+
+<!-- ============================================================ -->
+<h2 id="s13">13. Авто-эмуляция</h2>
+<pre><code>.open() → _startAutoEmulation() → setInterval(_runEmulationCycle, 20000)</code></pre>
+<h3>Шаги одного цикла:</h3>
+<ol>
+<li>Если <code>_paused</code> → return</li>
+<li>Показать анимацию сканирования</li>
+<li>POST <code>/api/agro-scale/simulate</code> (random weight)</li>
+<li>Ожидание стабильности (300мс × 20 попыток)</li>
+<li>Случайный продукт</li>
+<li>Confidence 85–99%</li>
+<li>Update: viewport, AI result, highlight product, show passport</li>
+<li>Разблокировать Capture</li>
+</ol>
+
+<pre><code>0с          2-3с               4-6с               20с
+│           │                  │                   │
+▼           ▼                  ▼                   ▼
+Simulate    Scanning anim      AI recognizes       Next cycle
+POST        🔍 scanline        📷 product + %      ──→</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="s14">14. Паспорт продукции (детально)</h2>
+
+<h3>14.1 Когда показывается</h3>
+<p><code>showPassport: true</code> И продукт выбран (вручную или авто-эмуляцией).</p>
+
+<h3>14.2 Источник данных</h3>
+<p>Сорта из <code>window._agroRefs.varieties</code> (Oracle <code>AGRO_ITEM_VARIETIES</code>), фильтруются по <code>item_code === productKey</code>.</p>
+
+<h3>14.3 Поля паспорта</h3>
+<table>
+<tr><th>#</th><th>Поле</th><th>data-sk</th><th>Виджет</th><th>Тип</th><th>По умолч.</th></tr>
+<tr><td>1</td><td>Сорт / Soi</td><td><code>varietyGrid</code></td><td>Grid кнопок</td><td>object</td><td>Первый сорт</td></tr>
+<tr><td>2</td><td>Калибр, мм</td><td><code>ppCalibr</code></td><td>Stepper (−1/+1)</td><td>int</td><td>от сорта</td></tr>
+<tr><td>3</td><td>Brix, °</td><td><code>ppBrix</code></td><td>Stepper (−0.5/+0.5)</td><td>float</td><td>от сорта</td></tr>
+<tr><td>4</td><td>Окраска, %</td><td><code>ppColorSlider</code></td><td>Range slider 0–100</td><td>int</td><td>50%</td></tr>
+<tr><td>5</td><td>t °C</td><td><code>ppTemp</code></td><td>Stepper (−0.5/+0.5)</td><td>float</td><td>от сорта</td></tr>
+<tr><td>6</td><td>Свежесть</td><td><code>ppFreshness</code></td><td>Rating 1–5</td><td>int</td><td>4</td></tr>
+<tr><td>7</td><td>Срок хран.</td><td><code>ppShelfLife</code></td><td>Readonly</td><td>string</td><td>от сорта</td></tr>
+<tr><td>8</td><td>Дефекты</td><td><code>ppDefects</code></td><td>Btn-group</td><td>none|minor|serious</td><td>none</td></tr>
+<tr><td>9</td><td>% дефектных</td><td><code>ppDefectPct</code></td><td>Stepper (0–100)</td><td>int</td><td>0</td></tr>
+<tr><td>10</td><td>Упаковка</td><td><code>ppPackaging</code></td><td>Btn-group</td><td>ok|damaged|missing</td><td>ok</td></tr>
+<tr><td>11</td><td>Маркировка</td><td><code>ppLabel</code></td><td>Btn-group</td><td>ok|partial|missing</td><td>ok</td></tr>
+<tr><td>12</td><td>Заметки</td><td><code>ppNotes</code></td><td>Textarea</td><td>string</td><td>''</td></tr>
+</table>
+
+<h3>14.4 Условная видимость</h3>
+<ul>
+<li><strong>Окраска:</strong> только APPLE, PEACH, CHERRY</li>
+<li><strong>% дефектных:</strong> только если Дефекты ≠ <code>'none'</code></li>
+</ul>
+
+<h3>14.5 Reference hints</h3>
+<table>
+<tr><th>Поле</th><th>Элемент</th><th>Пример</th></tr>
+<tr><td>Калибр</td><td><code>ppCalibrRef</code></td><td>мин. 65 мм</td></tr>
+<tr><td>Brix</td><td><code>ppBrixRef</code></td><td>мин. 11.5°</td></tr>
+<tr><td>Окраска</td><td><code>ppColorRef</code></td><td>мин. 50%</td></tr>
+<tr><td>t °C</td><td><code>ppTempRef</code></td><td>2…4 °C</td></tr>
+</table>
+
+<h3>14.6 Объект паспорта (<code>_collectPassport</code>)</h3>
+<pre><code>{
+    product_key: 'APPLE',
+    variety_id: 42,
+    variety_code: 'GOLDEN',
+    calibre_mm: 70,
+    brix: 12.5,
+    color_coverage_pct: 65,
+    freshness_score: 4,
+    temp_c: 3.0,
+    packaging: 'ok',
+    labeling: 'ok',
+    defects: 'none',
+    defect_pct: 0,
+    notes: 'Партия хорошая'
+}</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="s15">15. Процесс захвата (Capture)</h2>
+
+<h3>15.1 Последовательность</h3>
+<pre><code>1. captureBtn.disabled = true
+2. captureBtn.textContent = '⏳ Фиксация...'
+3. _stopAutoEmulation()
+4. POST /api/agro-scale/capture {scale_id}
+5. reading: {gross_kg, tare_kg, net_kg}
+6. data = {lineId, gross, tare, net, productKey, productName, passport}
+7. onCapture(data)
+8. close()
+9. toast: «Вес снят: X.XX кг — Продукт»</code></pre>
+
+<h3>15.2 Объект data</h3>
+<table>
+<tr><th>Поле</th><th>Тип</th><th>Описание</th></tr>
+<tr><td><code>lineId</code></td><td>string</td><td>ID строки документа</td></tr>
+<tr><td><code>gross</code></td><td>number</td><td>Брутто, кг</td></tr>
+<tr><td><code>tare</code></td><td>number</td><td>Тара, кг</td></tr>
+<tr><td><code>net</code></td><td>number</td><td>Нетто, кг</td></tr>
+<tr><td><code>productKey</code></td><td>string|null</td><td>Код продукта</td></tr>
+<tr><td><code>productName</code></td><td>string</td><td>Имя продукта</td></tr>
+<tr><td><code>passport</code></td><td>object|null</td><td>Объект паспорта (см. §14.6)</td></tr>
+</table>
+
+<h3>15.3 Обработка ошибки</h3>
+<p>При ошибке: вернуть текст кнопки, разблокировать Capture, перезапустить эмуляцию, toast error.</p>
+
+<!-- ============================================================ -->
+<h2 id="s16">16. Конфигурация драйвера</h2>
+<pre><code>GET /api/agro-admin/module-config
+  → filter config_group === 'scale_driver'
+    → parse JSON → find active !== false
+      → title: '⚖️ Весы — {brand}'
+      → driverInfo: 'Driver: {brand} | Max: {max_capacity} kg'</code></pre>
+<p><strong>Fallback:</strong> Driver: Emulator | Max: 600 kg</p>
+
+<!-- ============================================================ -->
+<h2 id="s17">17. Интеграция с шаблонами</h2>
+
+<h3>17.1 agro_field.html (приёмка)</h3>
+<pre><code>Кнопка ⚖ → weighPurchaseLine(lineId)
+  → fieldKiosk.open(lineId)
+    → Capture → onCapture(data)
+      → line.querySelector('.line-gross').value = data.gross
+      → line.querySelector('.line-tare').value = data.tare
+      → line.querySelector('.line-item').value = data.productKey
+      → line.setAttribute('data-passport', JSON.stringify(data.passport))
+      → recalcPurchaseLine(lineId)</code></pre>
+
+<h3>17.2 agro_sales.html (отгрузка)</h3>
+<pre><code>Кнопка ⚖ → weighSalesLine(lineId)
+  → salesKiosk.open(lineId)
+    → Capture → onCapture(data)
+      → line.querySelector('.line-gross').value = data.gross
+      → line.querySelector('.line-tare').value = data.tare
+      → recalcSalesLine(lineId)</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="s18">18. Scale API: полный справочник</h2>
+
+<h3>18.1 GET <code>/api/agro-scale/read</code></h3>
+<p>Параметры: <code>?scale_id=default</code></p>
+<pre><code>{
+  "success": true,
+  "data": {
+    "gross_kg": 125.500,
+    "tare_kg": 0.000,
+    "net_kg": 125.500,
+    "status": "stable",
+    "stable": true,
+    "timestamp": "2026-03-28T14:30:00"
+  }
+}</code></pre>
+<table>
+<tr><th>status</th><th>Описание</th></tr>
+<tr><td><code>stable</code></td><td>Вес стабилен, можно захватывать</td></tr>
+<tr><td><code>settling</code></td><td>Стабилизируется</td></tr>
+<tr><td><code>idle</code></td><td>Нет груза</td></tr>
+</table>
+
+<h3>18.2 POST <code>/api/agro-scale/capture</code></h3>
+<p>Body: <code>{ "scale_id": "default" }</code></p>
+<pre><code>{
+  "success": true,
+  "reading": {
+    "gross_kg": 125.500,
+    "tare_kg": 0.000,
+    "net_kg": 125.500,
+    "captured_at": "2026-03-28T14:30:05"
+  }
+}</code></pre>
+
+<h3>18.3 POST <code>/api/agro-scale/zero</code></h3>
+<p>Обнуление весов. Body: <code>{ "scale_id": "default" }</code></p>
+
+<h3>18.4 POST <code>/api/agro-scale/tare</code></h3>
+<p>Установка тары. Body: <code>{ "scale_id": "default" }</code></p>
+
+<h3>18.5 POST <code>/api/agro-scale/simulate</code></h3>
+<table>
+<tr><th>Вариант</th><th>Body</th></tr>
+<tr><td>Установить вес</td><td><code>{ "scale_id": "default", "weight_kg": 125.5 }</code></td></tr>
+<tr><td>Случайный вес</td><td><code>{ "scale_id": "default", "random": true, "min_kg": 50, "max_kg": 500 }</code></td></tr>
+<tr><td>Убрать вес</td><td><code>{ "scale_id": "default", "weight_kg": 0 }</code></td></tr>
+</table>
+
+<h3>18.6 GET <code>/api/agro-admin/module-config</code></h3>
+<p>Конфигурация драйвера. Фильтруется по <code>config_group === 'scale_driver'</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="s19">19. Product SVG иконки</h2>
+<p><code>/static/agro/products/</code> — 10 SVG-файлов ~48×48px.</p>
+<table>
+<tr><th>Файл</th><th>Продукт</th><th>Ключ</th><th>Fallback</th></tr>
+<tr><td>apple.svg</td><td>Яблоко</td><td>APPLE</td><td>🍎</td></tr>
+<tr><td>apricot.svg</td><td>Абрикос</td><td>APRICOT</td><td>🟠</td></tr>
+<tr><td>cherry.svg</td><td>Вишня/Черешня</td><td>CHERRY</td><td>🍒</td></tr>
+<tr><td>grape.svg</td><td>Виноград</td><td>GRAPE</td><td>🍇</td></tr>
+<tr><td>peach.svg</td><td>Персик</td><td>PEACH</td><td>🍑</td></tr>
+<tr><td>pear.svg</td><td>Груша</td><td>PEAR</td><td>🍐</td></tr>
+<tr><td>pepper.svg</td><td>Перец</td><td>PEPPER</td><td>🌶️</td></tr>
+<tr><td>plum.svg</td><td>Слива</td><td>PLUM</td><td>🟣</td></tr>
+<tr><td>tomato.svg</td><td>Томат</td><td>TOMATO</td><td>🍅</td></tr>
+<tr><td>walnut.svg</td><td>Грецкий орех</td><td>WALNUT</td><td>🌰</td></tr>
+</table>
+<p><strong>Fallback:</strong> <code>img.onerror</code> скрывает <code>&lt;img&gt;</code>, показывает <code>&lt;div&gt;</code> с emoji.</p>
+
+<!-- ============================================================ -->
+<h2 id="s20">20. Responsive</h2>
+<pre><code>@media (max-width: 900px) {
+    .sk-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    .sk-products { max-height: 200px; }
+    .sk-product-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); }
+}</code></pre>
+<table>
+<tr><th>Элемент</th><th>Desktop (&gt;900px)</th><th>Mobile (≤900px)</th></tr>
+<tr><td>Layout</td><td>3 колонки в ряд</td><td>3 блока в стопку</td></tr>
+<tr><td>Products</td><td>Без ограничений</td><td>max-height: 200px</td></tr>
+<tr><td>Product buttons</td><td>minmax(110px, 1fr)</td><td>minmax(80px, 1fr)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s21">21. Анимации</h2>
+
+<h3>CSS @keyframes</h3>
+<table>
+<tr><th>Анимация</th><th>Keyframes</th><th>Длительность</th><th>Назначение</th></tr>
+<tr><td><code>scanline</code></td><td>translateY(-60px→+60px)</td><td>2s infinite</td><td>Линия сканирования</td></tr>
+<tr><td><code>productAppear</code></td><td>scale(0.3→1.1→1) + rotate</td><td>0.5s ease-out</td><td>Появление продукта</td></tr>
+<tr><td><code>skSlideUp</code></td><td>max-height 0→50vh, opacity 0→1</td><td>0.2s ease-out</td><td>Появление паспорта</td></tr>
+</table>
+
+<h3>CSS transitions</h3>
+<table>
+<tr><th>Элемент</th><th>Свойство</th><th>Длительность</th></tr>
+<tr><td><code>.sk-product-btn</code></td><td>all</td><td>0.15s</td></tr>
+<tr><td><code>.sk-btn</code></td><td>all</td><td>0.15s</td></tr>
+<tr><td><code>.sk-close</code>, <code>.sk-pause-btn</code>, <code>.sk-capture-btn</code></td><td>all</td><td>0.2s</td></tr>
+<tr><td><code>.sk-step-btn</code>, <code>.sk-rate-btn</code>, <code>.sk-opt-btn</code></td><td>all</td><td>0.12s</td></tr>
+<tr><td><code>.sk-numpad-btn</code>, <code>.sk-variety-btn</code></td><td>all</td><td>0.15s</td></tr>
+<tr><td><code>.camera-ai-bar-fill</code></td><td>width</td><td>0.5s ease</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s22">22. Работа с data-атрибутами</h2>
+
+<h3>22.1 <code>data-sk</code> — адресация элементов</h3>
+<pre><code>this.$ = function(suffix) {
+    return this._container.querySelector('[data-sk="' + suffix + '"]');
+};</code></pre>
+
+<h4>Полный список data-sk значений</h4>
+<table>
+<tr><th>data-sk</th><th>Элемент</th><th>Тип</th></tr>
+<tr><td><code>title</code></td><td>Заголовок модала</td><td>div</td></tr>
+<tr><td><code>indicator</code></td><td>Индикатор статуса</td><td>span</td></tr>
+<tr><td><code>statusText</code></td><td>Текст статуса</td><td>span</td></tr>
+<tr><td><code>driverInfo</code></td><td>Информация о драйвере</td><td>div</td></tr>
+<tr><td><code>pauseBtn</code></td><td>Кнопка паузы</td><td>button</td></tr>
+<tr><td><code>closeBtn</code></td><td>Кнопка закрытия</td><td>button</td></tr>
+<tr><td><code>productGrid</code></td><td>Контейнер продуктов</td><td>div</td></tr>
+<tr><td><code>passport</code></td><td>Панель паспорта</td><td>div</td></tr>
+<tr><td><code>passportName</code></td><td>Имя продукта</td><td>span</td></tr>
+<tr><td><code>varietyGrid</code></td><td>Грид сортов</td><td>div</td></tr>
+<tr><td><code>ppCalibr</code></td><td>input Калибр</td><td>input[number]</td></tr>
+<tr><td><code>ppCalibrRef</code></td><td>Ref hint</td><td>div</td></tr>
+<tr><td><code>ppBrix</code></td><td>input Brix</td><td>input[number]</td></tr>
+<tr><td><code>ppBrixRef</code></td><td>Ref hint</td><td>div</td></tr>
+<tr><td><code>ppColorSlider</code></td><td>Slider окраска</td><td>input[range]</td></tr>
+<tr><td><code>ppColorVal</code></td><td>Значение окраски</td><td>span</td></tr>
+<tr><td><code>ppColorRow</code></td><td>Строка окраски</td><td>div</td></tr>
+<tr><td><code>ppColorRef</code></td><td>Ref hint</td><td>div</td></tr>
+<tr><td><code>ppTemp</code></td><td>input Температура</td><td>input[number]</td></tr>
+<tr><td><code>ppTempRef</code></td><td>Ref hint</td><td>div</td></tr>
+<tr><td><code>ppFreshness</code></td><td>Рейтинг свежести</td><td>div</td></tr>
+<tr><td><code>ppShelfLife</code></td><td>Срок хранения</td><td>div</td></tr>
+<tr><td><code>ppDefects</code></td><td>Btn-group дефекты</td><td>div</td></tr>
+<tr><td><code>ppDefectPctRow</code></td><td>Строка % дефекты</td><td>div</td></tr>
+<tr><td><code>ppDefectPct</code></td><td>input % дефекты</td><td>input[number]</td></tr>
+<tr><td><code>ppPackaging</code></td><td>Btn-group упаковка</td><td>div</td></tr>
+<tr><td><code>ppLabel</code></td><td>Btn-group маркировка</td><td>div</td></tr>
+<tr><td><code>ppNotes</code></td><td>Textarea заметки</td><td>textarea</td></tr>
+<tr><td><code>gross</code></td><td>Дисплей Gross</td><td>div</td></tr>
+<tr><td><code>tare</code></td><td>Значение Tare</td><td>span</td></tr>
+<tr><td><code>net</code></td><td>Значение Net</td><td>span</td></tr>
+<tr><td><code>zeroBtn</code></td><td>Кнопка Zero</td><td>button</td></tr>
+<tr><td><code>tareBtn</code></td><td>Кнопка Tare</td><td>button</td></tr>
+<tr><td><code>numpadInput</code></td><td>Поле numpad</td><td>input</td></tr>
+<tr><td><code>numpadApply</code></td><td>Кнопка Применить</td><td>button</td></tr>
+<tr><td><code>captureBtn</code></td><td>Кнопка захвата</td><td>button</td></tr>
+<tr><td><code>viewport</code></td><td>Camera viewport</td><td>div</td></tr>
+<tr><td><code>aiResult</code></td><td>Панель AI</td><td>div</td></tr>
+<tr><td><code>aiProduct</code></td><td>Имя продукта AI</td><td>div</td></tr>
+<tr><td><code>aiConfidence</code></td><td>Точность + вес</td><td>div</td></tr>
+<tr><td><code>emuWeight</code></td><td>input вес эмулятора</td><td>input[number]</td></tr>
+<tr><td><code>emuSet</code></td><td>Кнопка Set</td><td>button</td></tr>
+<tr><td><code>emuRandom</code></td><td>Кнопка Random</td><td>button</td></tr>
+<tr><td><code>emuRemove</code></td><td>Кнопка Remove</td><td>button</td></tr>
+</table>
+
+<h3>22.2 Другие data-атрибуты</h3>
+<table>
+<tr><th>Атрибут</th><th>На элементе</th><th>Значение</th><th>Использование</th></tr>
+<tr><td><code>data-product</code></td><td><code>.sk-product-btn</code></td><td>APPLE, GRAPE, ...</td><td>Выбор продукта</td></tr>
+<tr><td><code>data-num</code></td><td><code>.sk-numpad-btn</code></td><td>0–9, ., del</td><td>Numpad</td></tr>
+<tr><td><code>data-step</code></td><td><code>.sk-step-btn</code></td><td>ppCalibr, ppBrix, ppTemp, ppDefectPct</td><td>Stepper target</td></tr>
+<tr><td><code>data-delta</code></td><td><code>.sk-step-btn</code></td><td>-1, 1, -0.5, 0.5</td><td>Stepper increment</td></tr>
+<tr><td><code>data-rate</code></td><td><code>.sk-rate-btn</code></td><td>1–5</td><td>Rating</td></tr>
+<tr><td><code>data-opt</code></td><td><code>.sk-opt-btn</code></td><td>none, minor, serious, ok, damaged, missing, partial</td><td>Option</td></tr>
+<tr><td><code>data-vidx</code></td><td><code>.sk-variety-btn</code></td><td>0, 1, ...</td><td>Variety index</td></tr>
+<tr><td><code>data-value</code></td><td><code>.sk-rating</code>, <code>.sk-btn-group</code></td><td>Current selected</td><td>Read by <code>_collectPassport()</code></td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s23">23. Совместимость с legacy-кодом</h2>
+
+<h3>Legacy-обёртки</h3>
+<table>
+<tr><th>Шаблон</th><th>Глобальная функция</th><th>Вызывает</th></tr>
+<tr><td>agro_field.html</td><td><code>weighPurchaseLine(lineId)</code></td><td><code>fieldKiosk.open(lineId)</code></td></tr>
+<tr><td>agro_field.html</td><td><code>closeScaleModal()</code></td><td><code>fieldKiosk.close()</code></td></tr>
+<tr><td>agro_sales.html</td><td><code>weighSalesLine(lineId)</code></td><td><code>salesKiosk.open(lineId)</code></td></tr>
+<tr><td>agro_sales.html</td><td><code>closeSalesScaleModal()</code></td><td><code>salesKiosk.close()</code></td></tr>
+</table>
+
+<h3>Что осталось в шаблонах</h3>
+<table>
+<tr><th>Элемент</th><th>Описание</th></tr>
+<tr><td>Standalone scale JS</td><td>Автономная страница весов (не модал)</td></tr>
+<tr><td>recalcPurchaseLine / recalcSalesLine</td><td>Пересчёт строки документа</td></tr>
+<tr><td>showToast / toast</td><td>Функции уведомлений</td></tr>
+<tr><td><code>window._agroRefs</code></td><td>Справочники (items, suppliers, varieties, profiles)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="s24">24. Диаграмма жизненного цикла</h2>
+<pre><code>[Конструктор]
+    ├── Читает config
+    ├── Строит product maps
+    ├── _renderModal() → DOM добавлен в body (display:none)
+    └── _bindEvents() → delegation на container
+
+[.open(lineId)]
+    ├── Reset state + UI
+    ├── _hidePassport()
+    ├── _loadDriverConfig() → GET /api/agro-admin/module-config
+    ├── _buildProductGrid()
+    ├── container.style.display = 'flex'
+    ├── _startPolling() → setInterval(1000ms)
+    │     └── _pollScale() → GET /api/agro-scale/read
+    └── _startAutoEmulation() → setInterval(20000ms)
+          └── _runEmulationCycle()
+
+[Работа оператора]
+    ├── Click product → _selectProduct() → _showPassport()
+    ├── Fill passport → _stepField(), _setRating(), _selectOpt()
+    ├── Numpad → _numpadPress() + _numpadApply()
+    ├── Zero → _scaleZero(), Tare → _scaleTare()
+    └── Pause → _togglePause()
+
+[Capture]
+    ├── captureBtn disabled, _stopAutoEmulation()
+    ├── POST /api/agro-scale/capture
+    ├── data = {lineId, gross, tare, net, productKey, passport}
+    ├── onCapture(data)
+    ├── close()
+    └── toast: «Вес снят: X.XX кг — Продукт»
+
+[.close()]
+    ├── display:none
+    ├── _stopPolling(), _stopAutoEmulation()
+    ├── Reset state
+    └── _hidePassport()
+
+[.destroy()]
+    ├── close()
+    └── Remove DOM, _container = null</code></pre>
+
+<!-- ============================================================ -->
+<h2 id="s25">25. Checklist после изменений</h2>
+<ul class="checklist">
+<li><code>scale-kiosk.js</code> — нет синтаксических ошибок</li>
+<li><code>scale-kiosk.css</code> — нет конфликтов <code>.sk-*</code> классов</li>
+<li><code>agro_field.html</code> — <code>&lt;script src="scale-kiosk.js"&gt;</code> ДО inline <code>&lt;script&gt;</code></li>
+<li><code>agro_sales.html</code> — <code>&lt;script src="scale-kiosk.js"&gt;</code> ДО inline <code>&lt;script&gt;</code></li>
+<li>Purchase mode: кнопка ⚖ → модал открывается</li>
+<li>Purchase mode: грид продуктов (8 SVG)</li>
+<li>Purchase mode: паспорт при выборе продукта (12 полей)</li>
+<li>Purchase mode: сорта из <code>_agroRefs.varieties</code></li>
+<li>Purchase mode: capture → gross/tare/product → строка документа</li>
+<li>Purchase mode: passport JSON → <code>data-passport</code></li>
+<li>Sale mode: кнопка ⚖ → модал открывается</li>
+<li>Sale mode: грид продуктов (10 SVG)</li>
+<li>Sale mode: паспорт при выборе продукта</li>
+<li>Sale mode: эмулятор (Set/Random/Remove)</li>
+<li>Sale mode: авто-эмуляция 20с цикл</li>
+<li>Sale mode: capture → gross/tare → строка документа</li>
+<li>Numpad: цифры, точка, delete, apply</li>
+<li>Zero/Tare → API вызовы</li>
+<li>Pause/Resume → эмуляция останавливается/продолжается</li>
+<li>Driver config → заголовок обновляется</li>
+<li>Responsive: &lt;900px → stacked layout</li>
+<li>SVG fallback: emoji при ошибке загрузки</li>
+<li>Нет console errors при открытии/закрытии</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>Полный список внутренних методов (34)</h2>
+<table>
+<tr><th>#</th><th>Метод</th><th>Тип</th><th>Описание</th></tr>
+<tr><td>1</td><td><code>$(suffix)</code></td><td>DOM</td><td>Найти элемент по data-sk</td></tr>
+<tr><td>2</td><td><code>$$(suffix)</code></td><td>DOM</td><td>Найти все по data-sk</td></tr>
+<tr><td>3</td><td><code>_renderModal()</code></td><td>Init</td><td>Создать DOM-дерево</td></tr>
+<tr><td>4</td><td><code>_bindEvents()</code></td><td>Init</td><td>Event delegation</td></tr>
+<tr><td>5</td><td><code>open(lineId)</code></td><td>Public</td><td>Открыть модал</td></tr>
+<tr><td>6</td><td><code>close()</code></td><td>Public</td><td>Закрыть модал</td></tr>
+<tr><td>7</td><td><code>destroy()</code></td><td>Public</td><td>Удалить из DOM</td></tr>
+<tr><td>8</td><td><code>_buildProductGrid()</code></td><td>Products</td><td>Построить грид</td></tr>
+<tr><td>9</td><td><code>_selectProduct(key)</code></td><td>Products</td><td>Выбрать продукт</td></tr>
+<tr><td>10</td><td><code>_highlightProduct(key)</code></td><td>Products</td><td>Подсветить кнопку</td></tr>
+<tr><td>11</td><td><code>_startPolling()</code></td><td>Scale</td><td>Запустить polling</td></tr>
+<tr><td>12</td><td><code>_stopPolling()</code></td><td>Scale</td><td>Остановить polling</td></tr>
+<tr><td>13</td><td><code>_pollScale()</code></td><td>Scale</td><td>Один цикл</td></tr>
+<tr><td>14</td><td><code>_scaleZero()</code></td><td>Scale</td><td>POST /zero</td></tr>
+<tr><td>15</td><td><code>_scaleTare()</code></td><td>Scale</td><td>POST /tare</td></tr>
+<tr><td>16</td><td><code>_numpadPress(val)</code></td><td>Numpad</td><td>Нажатие</td></tr>
+<tr><td>17</td><td><code>_numpadApply()</code></td><td>Numpad</td><td>Применить</td></tr>
+<tr><td>18</td><td><code>_startAutoEmulation()</code></td><td>Emu</td><td>Запустить</td></tr>
+<tr><td>19</td><td><code>_stopAutoEmulation()</code></td><td>Emu</td><td>Остановить</td></tr>
+<tr><td>20</td><td><code>_togglePause()</code></td><td>Emu</td><td>Пауза</td></tr>
+<tr><td>21</td><td><code>_runEmulationCycle()</code></td><td>Emu</td><td>Один цикл</td></tr>
+<tr><td>22</td><td><code>_capture()</code></td><td>Capture</td><td>Захватить вес</td></tr>
+<tr><td>23</td><td><code>_loadDriverConfig()</code></td><td>Config</td><td>Загрузить конфиг</td></tr>
+<tr><td>24</td><td><code>_showPassport(key)</code></td><td>Passport</td><td>Показать паспорт</td></tr>
+<tr><td>25</td><td><code>_selectVarietyByIndex(idx)</code></td><td>Passport</td><td>Выбрать сорт</td></tr>
+<tr><td>26</td><td><code>_resetPassport()</code></td><td>Passport</td><td>Сброс полей</td></tr>
+<tr><td>27</td><td><code>_hidePassport()</code></td><td>Passport</td><td>Скрыть</td></tr>
+<tr><td>28</td><td><code>_stepField(name, delta)</code></td><td>Passport</td><td>Stepper ±</td></tr>
+<tr><td>29</td><td><code>_setRating(group, val)</code></td><td>Passport</td><td>Рейтинг</td></tr>
+<tr><td>30</td><td><code>_selectOpt(group, btn)</code></td><td>Passport</td><td>Выбрать опцию</td></tr>
+<tr><td>31</td><td><code>_collectPassport()</code></td><td>Passport</td><td>Собрать данные</td></tr>
+<tr><td>32</td><td><code>_emuSet()</code></td><td>Emulator</td><td>Установить вес</td></tr>
+<tr><td>33</td><td><code>_emuRandom()</code></td><td>Emulator</td><td>Случайный</td></tr>
+<tr><td>34</td><td><code>_emuRemove()</code></td><td>Emulator</td><td>Убрать вес</td></tr>
+</table>
+
+<p style="margin-top:40px; color:var(--muted); font-size:13px; text-align:center;">Artgranit AGRO — ScaleKiosk Specification — v1.0 — 28.03.2026</p>
+
+</body>
+</html>
