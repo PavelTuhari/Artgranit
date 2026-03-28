@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="apg" cx="45%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#ffe0b2"/>
+      <stop offset="40%" stop-color="#ffb74d"/>
+      <stop offset="80%" stop-color="#ff9800"/>
+      <stop offset="100%" stop-color="#ef6c00"/>
+    </radialGradient>
+    <radialGradient id="aph" cx="38%" cy="30%" r="25%">
+      <stop offset="0%" stop-color="rgba(255,255,255,.35)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <radialGradient id="apb" cx="65%" cy="55%" r="35%">
+      <stop offset="0%" stop-color="rgba(255,120,80,.25)"/>
+      <stop offset="100%" stop-color="rgba(255,120,80,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Stem -->
+  <path d="M62 22 Q60 28 61 34" stroke="#5c3d2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Leaf -->
+  <ellipse cx="70" cy="24" rx="9" ry="4" fill="#69db7c" transform="rotate(-25 70 24)"/>
+  <!-- Body (slightly smaller/rounder than peach) -->
+  <circle cx="60" cy="64" r="30" fill="url(#apg)"/>
+  <!-- Blush -->
+  <circle cx="60" cy="64" r="30" fill="url(#apb)"/>
+  <!-- Groove -->
+  <path d="M60 36 Q56 50 56 64 Q56 78 60 94" stroke="rgba(200,100,20,.18)" stroke-width="1.8" fill="none"/>
+  <!-- Highlight -->
+  <ellipse cx="49" cy="53" rx="9" ry="12" fill="url(#aph)"/>
+</svg>
