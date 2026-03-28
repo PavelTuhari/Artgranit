@@ -526,6 +526,8 @@ class NufarulController:
 
                     r_iid_seq = db.execute_query("SELECT NUF_ITEMS_LEDGER_SEQ.NEXTVAL FROM DUAL")
                     iid = r_iid_seq["data"][0][0] if r_iid_seq.get("data") else None
+                    if not iid:
+                        raise ValueError("Could not generate item ID from NUF_ITEMS_LEDGER_SEQ")
                     db.execute_query(
                         """INSERT INTO NUF_ORDER_ITEMS_LEDGER
                            (ID, ORDER_ID, SERVICE_ID, QTY, PRICE, AMOUNT)
