@@ -1019,244 +1019,39 @@ window.addShipLine = function() {
 /* Keep legacy alias */
 window.addLineItem = window.addShipLine;
 
-/* ===== Scale Kiosk Modal Logic (matches field exactly) ===== */
-var salesScaleTargetLineId = null;
-var salesScalePollTimer = null;
-var salesSelectedProductKey = null;
-var salesAutoPaused = false;
-
-/* Product data for grid */
-var salesProductImages = {
-    'APPLE': '/static/img/products/apple.png',
-    'PEAR': '/static/img/products/pear.png',
-    'PEACH': '/static/img/products/peach.png',
-    'PLUM': '/static/img/products/plum.png',
-    'CHERRY': '/static/img/products/cherry.png',
-    'GRAPE': '/static/img/products/grape.png',
-    'APRICOT': '/static/img/products/apricot.png',
-    'WALNUT': '/static/img/products/walnut.png',
-    'TOMATO': '/static/img/products/tomato.png',
-    'PEPPER': '/static/img/products/pepper.png'
-};
-var salesProductNamesRu = {
-    'APPLE': 'Яблоко / Măr',
-    'PEAR': 'Груша / Pară',
-    'PEACH': 'Персик / Piersică',
-    'PLUM': 'Слива / Prună',
-    'CHERRY': 'Вишня / Cireșe',
-    'GRAPE': 'Виноград / Struguri',
-    'APRICOT': 'Абрикос / Caisă',
-    'WALNUT': 'Орех / Nucă',
-    'TOMATO': 'Томат / Roșie',
-    'PEPPER': 'Перец / Ardei'
-};
-var salesProductKeys = Object.keys(salesProductNamesRu);
-
-function buildSalesProductGrid() {
-    var grid = document.getElementById('skProductGrid');
-    if (!grid) return;
-    grid.innerHTML = salesProductKeys.map(function(key) {
-        var img = salesProductImages[key] || '';
-        var label = salesProductNamesRu[key] || key;
-        return '<div class="sk-product-btn" data-key="' + key + '" onclick="selectSalesProduct(\'' + key + '\')">' +
-            (img ? '<img class="sk-product-img" src="' + img + '" alt="' + label + '" onerror="this.style.display=\'none\'">' : '') +
-            '<div style="font-size:28px;">' + getProductEmoji(key) + '</div>' +
-            '<div class="sk-product-label">' + label + '</div></div>';
-    }).join('');
-}
-
-function getProductEmoji(key) {
-    var map = { APPLE:'🍎', PEAR:'🍐', PEACH:'🍑', PLUM:'🟣', CHERRY:'🍒', GRAPE:'🍇', APRICOT:'🟠', WALNUT:'🌰', TOMATO:'🍅', PEPPER:'🌶️' };
-    return map[key] || '📦';
-}
-
-window.selectSalesProduct = function(key) {
-    salesSelectedProductKey = key;
-    document.querySelectorAll('#skProductGrid .sk-product-btn').forEach(function(b) {
-        b.classList.toggle('active', b.getAttribute('data-key') === key);
-    });
-};
-
-window.weighSalesLine = function(lineId) {
-    openSalesScaleModal(lineId);
-};
-
-function openSalesScaleModal(lineId) {
-    salesScaleTargetLineId = lineId;
-    salesSelectedProductKey = null;
-    salesAutoPaused = false;
-    var modal = document.getElementById('salesScaleModal');
-    modal.style.display = 'flex';
-    document.getElementById('skGross').textContent = '0.000';
-    document.getElementById('skTare').textContent = '0.000';
-    document.getElementById('skNet').textContent = '0.000';
-    document.getElementById('skNumpadInput').value = '';
-    document.getElementById('skIndicator').style.background = '#ffc107';
-    document.getElementById('skStatusText').textContent = 'Запуск... / Pornire...';
-    document.getElementById('skCaptureBtn').disabled = true;
-    document.getElementById('skAiResult').style.display = 'none';
-    document.getElementById('skCameraViewport').innerHTML =
-        '<div class="camera-idle"><div style="font-size:40px;">📷</div><div>Запуск... / Pornire...</div></div>';
-    var pauseBtn = document.getElementById('skPauseBtn');
-    if (pauseBtn) { pauseBtn.classList.remove('active'); pauseBtn.textContent = '⏸ Пауза / Pauză'; }
-    // Build product grid
-    buildSalesProductGrid();
-    // Start polling + auto-emulation
-    if (salesScalePollTimer) clearInterval(salesScalePollTimer);
-    salesScalePollTimer = setInterval(pollSalesScale, 1000);
-    pollSalesScale();
-    startSalesAutoEmulation();
-    runSalesEmulationCycle();
-}
-
-function pollSalesScale() {
-    fetch('/api/agro-scale/read?scale_id=default')
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            if (!res.success) {
-                document.getElementById('skIndicator').style.background = '#666';
-                document.getElementById('skStatusText').textContent = 'Нет данных';
-                return;
-            }
-            var d = res.data;
-            document.getElementById('skGross').textContent = (d.gross_kg || 0).toFixed(3);
-            document.getElementById('skTare').textContent = (d.tare_kg || 0).toFixed(3);
-            var net = (d.net_kg !== undefined) ? d.net_kg : Math.max(0, (d.gross_kg || 0) - (d.tare_kg || 0));
-            document.getElementById('skNet').textContent = net.toFixed(3);
-
-            var indicator = document.getElementById('skIndicator');
-            var statusText = document.getElementById('skStatusText');
-            var captureBtn = document.getElementById('skCaptureBtn');
-
-            if (d.status === 'stable' && d.gross_kg > 0) {
-                indicator.style.background = '#53d769';
-                statusText.textContent = '● Stable / Стабильно';
-                captureBtn.disabled = false;
-            } else if (d.status === 'settling') {
-                indicator.style.background = '#ffc107';
-                statusText.textContent = '◌ Settling... / Стабилизация...';
-                captureBtn.disabled = true;
-            } else {
-                indicator.style.background = '#666';
-                statusText.textContent = 'Idle / Ожидание';
-                captureBtn.disabled = true;
-            }
-        }).catch(function() {
-            document.getElementById('skIndicator').style.background = '#e94560';
-            document.getElementById('skStatusText').textContent = 'Ошибка связи';
-        });
-}
-
-window.closeSalesScaleModal = function() {
-    var modal = document.getElementById('salesScaleModal');
-    modal.style.display = 'none';
-    if (salesScalePollTimer) { clearInterval(salesScalePollTimer); salesScalePollTimer = null; }
-    stopSalesAutoEmulation();
-    salesScaleTargetLineId = null;
-    salesSelectedProductKey = null;
-    salesAutoPaused = false;
-};
-
-window.salesScaleCapture = function() {
-    var btn = document.getElementById('skCaptureBtn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Фиксация...';
-
-    stopSalesAutoEmulation();
-
-    fetch('/api/agro-scale/capture', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({scale_id: 'default'})
-    }).then(function(r) { return r.json(); })
-    .then(function(cap) {
-        var reading = cap.reading || cap.data || {};
-        var productLabel = salesSelectedProductKey ? (salesProductNamesRu[salesSelectedProductKey] || salesSelectedProductKey) : '';
-        var gross = reading.gross_kg || 0;
-        var tare = reading.tare_kg || 0;
-
-        applySalesWeight(gross, tare);
-
-        var weightStr = (reading.net_kg || Math.max(0, gross - tare)).toFixed(2);
-        btn.textContent = '⚖️ Снять вес / Cântărește';
-        toast('Вес снят: ' + weightStr + ' кг' + (productLabel ? ' — ' + productLabel : ''), 'success');
-    }).catch(function(err) {
-        btn.textContent = '⚖️ Снять вес / Cântărește';
-        btn.disabled = false;
-        startSalesAutoEmulation();
-        toast('Ошибка: ' + (err.message || 'связь с весами'), 'error');
-    });
-};
-
-function applySalesWeight(gross, tare) {
-    if (!salesScaleTargetLineId) return;
-    var line = document.getElementById(salesScaleTargetLineId);
-    if (!line) return;
-    line.querySelector('.line-gross').value = gross.toFixed(2);
-    line.querySelector('.line-tare').value = tare.toFixed(2);
-    recalcSalesLine(salesScaleTargetLineId);
-    toast('Вес: ' + gross.toFixed(2) + ' кг (брутто)', 'success');
-    closeSalesScaleModal();
-}
-
-window.salesScaleZero = function() {
-    fetch('/api/agro-scale/zero', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({scale_id: 'default'})
-    }).then(function(r) { return r.json(); })
-    .then(function(d) { if (d.success) toast('Zero выполнен'); });
-};
-
-window.salesScaleTare = function() {
-    fetch('/api/agro-scale/tare', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({scale_id: 'default'})
-    }).then(function(r) { return r.json(); })
-    .then(function(d) { if (d.success) toast('Тара установлена'); });
-};
-
-/* Numpad */
-window.salesNumpadPress = function(key) {
-    var inp = document.getElementById('skNumpadInput');
-    if (key === 'del') {
-        inp.value = inp.value.slice(0, -1);
-    } else {
-        if (key === '.' && inp.value.indexOf('.') >= 0) return;
-        inp.value += key;
+/* ===== ScaleKiosk instantiation for Sale mode ===== */
+var salesKiosk = new ScaleKiosk({
+    mode: 'sale',
+    title: '⚖️ Весы — Отгрузка / Cântar — Expediere',
+    products: [
+        {key: 'APPLE',   name: 'Яблоко / Măr',         svgPath: '/static/agro/products/apple.svg'},
+        {key: 'PEAR',    name: 'Груша / Pară',          svgPath: '/static/agro/products/pear.svg'},
+        {key: 'PEACH',   name: 'Персик / Piersică',     svgPath: '/static/agro/products/peach.svg'},
+        {key: 'PLUM',    name: 'Слива / Prună',         svgPath: '/static/agro/products/plum.svg'},
+        {key: 'CHERRY',  name: 'Вишня / Cireșe',        svgPath: '/static/agro/products/cherry.svg'},
+        {key: 'GRAPE',   name: 'Виноград / Struguri',   svgPath: '/static/agro/products/grape.svg'},
+        {key: 'APRICOT', name: 'Абрикос / Caisă',       svgPath: '/static/agro/products/apricot.svg'},
+        {key: 'WALNUT',  name: 'Орех / Nucă',           svgPath: '/static/agro/products/walnut.svg'},
+        {key: 'TOMATO',  name: 'Томат / Roșie',         svgPath: '/static/agro/products/tomato.svg'},
+        {key: 'PEPPER',  name: 'Перец / Ardei',         svgPath: '/static/agro/products/pepper.svg'}
+    ],
+    weightRange: {min: 5, max: 200},
+    showPassport: false,
+    showEmulator: true,
+    toastFn: function(msg, type) { if (typeof toast === 'function') toast(msg, type); },
+    onCapture: function(data) {
+        if (!data.lineId) return;
+        var line = document.getElementById(data.lineId);
+        if (!line) return;
+        line.querySelector('.line-gross').value = data.gross.toFixed(2);
+        line.querySelector('.line-tare').value = data.tare.toFixed(2);
+        if (typeof recalcSalesLine === 'function') recalcSalesLine(data.lineId);
     }
-};
+});
 
-window.salesNumpadApply = function() {
-    var val = parseFloat(document.getElementById('skNumpadInput').value);
-    if (isNaN(val) || val <= 0) { toast('Введите вес', 'warning'); return; }
-    applySalesWeight(val, 0);
-};
-
-/* Emulator controls */
-window.salesEmuSet = function() {
-    var kg = parseFloat(document.getElementById('skEmuWeight').value);
-    if (isNaN(kg) || kg < 0) { toast('Введите вес для эмулятора', 'warning'); return; }
-    fetch('/api/agro-scale/simulate', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({scale_id: 'default', weight_kg: kg})
-    }).then(function(r) { return r.json(); })
-    .then(function(d) { if (d.success) toast('Эмулятор: ' + kg + ' кг'); });
-};
-
-window.salesEmuRandom = function() {
-    fetch('/api/agro-scale/simulate', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({scale_id: 'default', random: true, min_kg: 5, max_kg: 100})
-    }).then(function(r) { return r.json(); })
-    .then(function(d) { if (d.success) toast('Эмулятор: случайный вес'); });
-};
-
-window.salesEmuRemove = function() {
-    fetch('/api/agro-scale/simulate', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({scale_id: 'default', weight_kg: 0})
-    }).then(function(r) { return r.json(); })
-    .then(function(d) { if (d.success) toast('Эмулятор: вес убран'); });
-};
+window.weighSalesLine = function(lineId) { salesKiosk.open(lineId); };
+window.closeSalesScaleModal = function() { salesKiosk.close(); };
+window.openSalesScaleModal = function(lineId) { salesKiosk.open(lineId); };
 
 /* ===== Instructions toggle ===== */
 window.toggleInstructions = function(id) {
