@@ -53,8 +53,6 @@ def test_get_group_params_single_not_found():
     assert result['success'] is False
 
 
-# ── create_order_with_params ──────────────────────────────────
-
 def test_get_group_params_includes_subgroups_json():
     """SUBGROUPS_JSON must be present in each group row returned."""
     rows = [
@@ -72,6 +70,8 @@ def test_get_group_params_includes_subgroups_json():
     assert 'subgroups_json' in row, "subgroups_json key must be present"
     assert row['subgroups_json'] == '[{"key":"sg1","label_ru":"Test"}]'
 
+
+# ── create_order_with_params ──────────────────────────────────
 
 def test_create_order_with_params_writes_params_to_companion_table():
     """PARAMS JSON must be inserted into NUF_ORDER_ITEM_PARAMS for each item."""
