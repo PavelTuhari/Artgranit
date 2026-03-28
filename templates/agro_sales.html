@@ -1507,6 +1507,15 @@ function wtLookupCrate() {
 var wtScaleTimer = null;
 var wtScaleReading = null;
 
+function loadWtScaleConfig() {
+    api('GET', '/api/agro-scale/config?scale_id=default').then(function(res) {
+        if (!res.success) return;
+        var c = res.data || res;
+        var info = document.getElementById('wtScaleConfigInfo');
+        if (info) info.innerHTML = 'Max: ' + (c.max_capacity_kg || 600) + ' kg | Resolution: ' + (c.resolution_kg || 0.01) + ' kg | Settle: ' + (c.settle_time_s || 3) + 's | Mode: ' + (c.emulator ? 'Emulator' : 'Hardware');
+    }).catch(function() {});
+}
+
 function wtStartPolling() {
     if (wtScaleTimer) return;
     wtScaleTimer = setInterval(wtPollScale, 1000);
