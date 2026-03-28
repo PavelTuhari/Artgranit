@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 import sys
 import os
 import base64
+import json
 import oracledb
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
