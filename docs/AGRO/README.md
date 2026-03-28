@@ -170,6 +170,52 @@ AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
 - [ ] Field request creation, approval, and cancellation
 - [ ] Batch inspection scoring engine: 17 weighted checks + freshness(0-5), critical fail = instant REJECT
 - [ ] Inspection decision: ACCEPT (score≥95), ACCEPT_WITH_SORTING (score≥85), REJECT (score<85 or critical fail)
+- [ ] **ScaleKiosk** — touchscreen weighing modal opens in both Field (purchase) and Sales (sale) modes
+- [ ] Product grid displays SVG images with emoji fallback
+- [ ] Product passport (calibre, brix, temp, freshness, defects, packaging, labeling) visible in both modes
+- [ ] Auto-emulation 20s cycle: weight simulated → AI camera scans → product highlighted
+- [ ] Pause/Resume, Numpad manual entry, Zero/Tare work in both modes
+- [ ] Emulator panel (Set/Random/Remove) visible in Sales mode
+- [ ] Capture transfers weight + passport data back to document line
+
+## Shared UI Components
+
+### ScaleKiosk — Universal Touchscreen Weighing Modal
+
+**Files:**
+- `/static/agro/scale-kiosk.css` (~326 lines) — shared CSS for full-screen 3-column kiosk
+- `/static/agro/scale-kiosk.js` (~900 lines) — `ScaleKiosk` class (IIFE, `window.ScaleKiosk`)
+- `/static/agro/products/*.svg` — product pictograms (10: apple, apricot, cherry, grape, peach, pear, pepper, plum, tomato, walnut)
+
+**Architecture:**
+```
+ScaleKiosk(config) → .open(lineId) → full-screen modal → .close()
+    ├── mode: 'purchase' | 'sale'
+    ├── showPassport: true/false (product quality attributes)
+    ├── showEmulator: true/false (weight simulation panel)
+    ├── products: [{key, name, svgPath}]
+    ├── weightRange: {min, max}
+    ├── onCapture: callback({lineId, gross, tare, net, productKey, passport})
+    └── toastFn: notification function
+```
+
+**3-Column Layout:**
+| Column | Content |
+|--------|---------|
+| Left | Product grid (SVG buttons) + Product Passport (varieties, calibre, brix, color, temp, freshness, defects, packaging, labeling) |
+| Center | Weight display (gross/tare/net), Zero/Tare buttons, Numpad, Capture button |
+| Right | AI Camera viewport (scanning animation, product recognition), AI result panel, Emulator controls (sale mode) |
+
+**Instantiation in templates:**
+- `agro_field.html`: `new ScaleKiosk({mode:'purchase', showPassport:true, showEmulator:false, ...})`
+- `agro_sales.html`: `new ScaleKiosk({mode:'sale', showPassport:true, showEmulator:true, ...})`
+
+**Scale API endpoints:**
+- `GET /api/agro-scale/read?scale_id=default` — current weight reading
+- `POST /api/agro-scale/capture` — capture stable weight
+- `POST /api/agro-scale/zero` — zero the scale
+- `POST /api/agro-scale/tare` — set tare weight
+- `POST /api/agro-scale/simulate` — emulator: set/random weight
 
 ## Acceptance Scoring Engine
 
