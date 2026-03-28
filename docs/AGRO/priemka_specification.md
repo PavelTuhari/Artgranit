@@ -189,6 +189,8 @@
 > Оба модуля (приёмка и продажа) создают экземпляр класса с нужной конфигурацией:
 > - Приёмка: `new ScaleKiosk({mode:'purchase', showPassport:true, showEmulator:false})`
 > - Продажа: `new ScaleKiosk({mode:'sale', showPassport:true, showEmulator:true})`
+>
+> **Полная спецификация:** [`docs/AGRO/scale_kiosk_specification.md`](scale_kiosk_specification.md) — DOM-дерево, CSS, события, паспорт, data-атрибуты, lifecycle, API.
 
 ### 4.1 3-колоночный layout
 
