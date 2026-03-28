@@ -442,14 +442,16 @@ const API_OP = '/api/nufarul-operator';
 const API_TS = '/api/nufarul-ts';
 
 // ── State ──────────────────────────────────────────────────────────────
-let groups = [];         // [{group_key, label_ru, icon, params_json, ...}]
-let services = [];       // [{id, name_ru, price, unit, service_group, ...}]
-let activeGroup = null;  // group_key string
-let selectedSvc = null;  // service object
-let groupParams = {};    // {group_key: parsed_params_array}
-let paramValues = {};    // {param_key: value} — current param panel state
-let cart = [];           // [{service_id, name, price, qty, params, params_summary}]
-let mode = 'intake';     // 'intake' | 'issue'
+let groups = [];           // [{group_key, label_ru, icon, params_json, subgroups_json, ...}]
+let services = [];         // [{id, name_ru, price, unit, service_group, service_subgroup, ...}]
+let activeGroup = null;    // group_key string
+let selectedSvc = null;    // service object
+let groupParams = {};      // {group_key: parsed_params_array}
+let groupSubgroups = {};   // {group_key: [{key, label_ru, label_ro, icon, sort_order}]}
+let activeSubgroup = null; // subgroup key string | null = show all
+let paramValues = {};      // {param_key: value} — current param panel state
+let cart = [];             // [{service_id, name, price, qty, params, params_summary}]
+let mode = 'intake';       // 'intake' | 'issue'
 let customerWin = null;  // window reference for second screen
 let cartOpen = true;
 let camStream = null;
