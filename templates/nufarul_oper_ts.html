@@ -512,15 +512,47 @@ function selectGroup(gk) {
   clearParams();
 }
 
+// ── Subgroups ──────────────────────────────────────────────────────────
+function renderSubgroupsBar() {
+  const bar = document.getElementById('subgroupsBar');
+  const subs = groupSubgroups[activeGroup] || [];
+  if (!subs.length) {
+    bar.innerHTML = '';
+    bar.classList.remove('visible');
+    return;
+  }
+  const allBtn = `<button class="subgrp-btn${activeSubgroup===null?' active':''}" onclick="selectSubgroup(null)">
+    <span class="sg-icon">🔸</span>
+    <span class="sg-label">Все</span>
+  </button>`;
+  const subBtns = subs.map(s =>
+    `<button class="subgrp-btn${activeSubgroup===s.key?' active':''}" onclick="selectSubgroup('${esc(s.key)}')">
+      <span class="sg-icon">${s.icon||'📦'}</span>
+      <span class="sg-label">${esc(s.label_ru||s.key)}</span>
+    </button>`
+  ).join('');
+  bar.innerHTML = allBtn + subBtns;
+  bar.classList.add('visible');
+}
+
+function selectSubgroup(key) {
+  activeSubgroup = key;
+  renderSubgroupsBar();
+  renderServices(document.getElementById('svcSearch').value);
+}
+
 // ── Services ───────────────────────────────────────────────────────────
 function renderServices(filter) {
   const grid = document.getElementById('svcGrid');
-  const grouped = activeGroup
+  let filtered = activeGroup
     ? services.filter(s => s.service_group === activeGroup)
     : services;
-  const filtered = filter
-    ? grouped.filter(s => (s.name_ru || s.name || '').toLowerCase().includes(filter.toLowerCase()))
-    : grouped;
+  if (activeSubgroup) {
+    filtered = filtered.filter(s => s.service_subgroup === activeSubgroup);
+  }
+  if (filter) {
+    filtered = filtered.filter(s => (s.name_ru || s.name || '').toLowerCase().includes(filter.toLowerCase()));
+  }
   grid.innerHTML = filtered.map(s =>
     `<div class="svc-card${selectedSvc && selectedSvc.id===s.id?' selected':''}" onclick="selectService(${s.id})">
        <div class="sn">${esc(s.name_ru || s.name || '')}</div>
