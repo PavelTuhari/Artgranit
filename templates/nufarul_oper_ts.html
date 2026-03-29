@@ -1013,19 +1013,61 @@ async function confirmIssue(orderId) {
 }
 
 // ── Checkout modal ─────────────────────────────────────────────────────
+const PAY_LABELS = { cash:'💵 Numerar', card:'💳 Card POS', mia:'📱 MIA', mpay:'🏛 MPay' };
+
+// Payment method buttons
+document.querySelectorAll('.co-pay-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedPayment = btn.dataset.pay;
+    document.querySelectorAll('.co-pay-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+});
+
+// Client toggle
+document.getElementById('coClientToggle').addEventListener('change', function() {
+  const fields = document.getElementById('coClientFields');
+  const badge = document.getElementById('coAnonBadge');
+  if (this.checked) {
+    fields.classList.add('open');
+    badge.style.display = 'none';
+    document.getElementById('coName').focus();
+  } else {
+    fields.classList.remove('open');
+    badge.style.display = '';
+    document.getElementById('coName').value = '';
+    document.getElementById('coPhone').value = '';
+  }
+});
+
 function openCheckout() {
   lastOrder = null;
   const modal = document.getElementById('checkoutModal');
   document.getElementById('checkoutForm').style.display = '';
   document.getElementById('checkoutSuccess').style.display = 'none';
+  // Reset client to anonymous
+  document.getElementById('coClientToggle').checked = false;
+  document.getElementById('coClientFields').classList.remove('open');
+  document.getElementById('coAnonBadge').style.display = '';
   document.getElementById('coName').value = document.getElementById('inpName').value;
   document.getElementById('coPhone').value = document.getElementById('inpPhone').value;
-  const items = cart;
-  const total = items.reduce((s,i) => s + i.price*i.qty, 0);
-  document.getElementById('coSummary').innerHTML = items.map(i =>
-    `<div class="checkout-summary-item">${esc(i.name)} × ${i.qty} · ${esc(i.params_summary)} — ${(i.price*i.qty).toFixed(0)} MDL</div>`
-  ).join('');
-  document.getElementById('coTotal').textContent = 'Итого: ' + total.toFixed(0) + ' MDL';
+  // If header fields have values — pre-expand client section
+  if (document.getElementById('coName').value) {
+    document.getElementById('coClientToggle').checked = true;
+    document.getElementById('coClientFields').classList.add('open');
+    document.getElementById('coAnonBadge').style.display = 'none';
+  }
+  // Reset payment to cash
+  selectedPayment = 'cash';
+  document.querySelectorAll('.co-pay-btn').forEach(b => b.classList.toggle('selected', b.dataset.pay === 'cash'));
+  // Summary
+  const total = cart.reduce((s,i) => s + i.price*i.qty, 0);
+  document.getElementById('coTotalBadge').textContent = total.toFixed(0) + ' MDL';
+  document.getElementById('coSummary').innerHTML = cart.map(i => {
+    const amt = (i.price * i.qty).toFixed(0);
+    const par = i.params_summary ? ` · ${i.params_summary}` : '';
+    return `<div class="co-summary-item"><span class="co-summary-name">${esc(i.name)}${esc(par)}</span><span class="co-summary-amt">${amt} MDL</span></div>`;
+  }).join('');
   modal.classList.add('open');
 }
 
@@ -1034,9 +1076,9 @@ document.getElementById('coCancelBtn').addEventListener('click', () => {
 });
 
 document.getElementById('coConfirmBtn').addEventListener('click', async () => {
-  const name = document.getElementById('coName').value.trim();
-  if (!name) { document.getElementById('coName').focus(); return; }
-  const phone = document.getElementById('coPhone').value.trim();
+  const useClient = document.getElementById('coClientToggle').checked;
+  const name = useClient ? (document.getElementById('coName').value.trim() || 'Аноним') : 'Аноним';
+  const phone = useClient ? document.getElementById('coPhone').value.trim() : '';
   const btn = document.getElementById('coConfirmBtn');
   btn.disabled = true;
   btn.textContent = '...';
@@ -1044,6 +1086,7 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     const payload = {
       client_name: name,
       client_phone: phone,
+      payment_method: selectedPayment,
       notes: '',
       items: cart.map(i => ({
         service_id: i.service_id,
@@ -1054,12 +1097,12 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     };
     const r = await apiFetch(API_TS + '/order', { method:'POST', body: JSON.stringify(payload) });
     if (!r.success) throw new Error(r.error || 'Ошибка создания заказа');
-    // Capture order data before clearing cart
     lastOrder = {
       order_number: r.order_number || '',
       barcode: r.barcode || r.order_number || '',
       client_name: name,
       client_phone: phone,
+      payment_method: selectedPayment,
       items: cart.map(i => ({...i})),
       total: r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0),
       date: new Date(),
@@ -1067,8 +1110,8 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     document.getElementById('checkoutForm').style.display = 'none';
     document.getElementById('checkoutSuccess').style.display = '';
     document.getElementById('coSuccessNum').textContent = 'Заказ: ' + lastOrder.order_number;
+    document.getElementById('coSuccessPay').textContent = PAY_LABELS[selectedPayment] || selectedPayment;
     document.getElementById('coBarcode').textContent = lastOrder.barcode;
-    // Clear cart
     cart = [];
     renderCart();
     pushCustomerState();
