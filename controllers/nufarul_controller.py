@@ -515,14 +515,15 @@ class NufarulController:
                     # 2nd round-trip: insert order header
                     cur.execute(
                         """INSERT INTO NUF_ORDERS_LEDGER
-                           (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES)
-                           VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes)""",
+                           (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES, PAYMENT_METHOD)
+                           VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes, :pay)""",
                         {
                             "oid": order_id, "onum": order_number, "barcode": barcode,
-                            "cname": (client_name or "").strip(),
-                            "cphone": (client_phone or "").strip(),
+                            "cname": (client_name or "Аноним").strip(),
+                            "cphone": (client_phone or "").strip() or None,
                             "sid": status_id, "total": round(total, 2),
                             "notes": (notes or "").strip() or None,
+                            "pay": (payment_method or "cash").strip(),
                         },
                     )
 
