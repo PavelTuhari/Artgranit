@@ -113,9 +113,12 @@ def test_create_order_with_params_writes_params_to_companion_table():
     mock_conn.rollback = MagicMock()
 
     class DirectCursorDB(FakeDB):
-        @property
-        def connection(self):
-            return mock_conn
+        def __init__(self):
+            self._rows = []
+            self._cols = []
+            self.connection = mock_conn
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
 
     items = [
         {"service_id": 1, "qty": 1, "price": 180.0,
