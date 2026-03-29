@@ -1024,9 +1024,59 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('coNewOrderBtn').addEventListener('click', () => {
+document.getElementById('coNewOrderBtn').addEventListener('click', resetNewOrder);
+document.getElementById('coPrintBtn').addEventListener('click', openReceipt);
+
+function resetNewOrder() {
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
   document.getElementById('checkoutModal').classList.remove('open');
-});
+  document.getElementById('checkoutSuccess').style.display = 'none';
+  document.getElementById('checkoutForm').style.display = '';
+  document.getElementById('coCountdown').textContent = '';
+  clearParams();
+  activeSubgroup = null;
+  renderSubgroupsBar();
+  document.getElementById('svcSearch').value = '';
+  renderServices('');
+}
+
+function openReceipt() {
+  if (!lastOrder) return;
+  const o = lastOrder;
+  const dateStr = o.date.toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const itemsHtml = o.items.map(i => {
+    const amt = (i.price * i.qty).toFixed(2);
+    return `<div class="rcp-row"><span class="rcp-name">${esc(i.name||'')}</span></div>`
+      + `<div class="rcp-row"><span>${i.qty} x ${(i.price||0).toFixed(2)}</span><span>${amt}</span></div>`
+      + (i.params_summary ? `<div style="font-size:9px;color:#777;padding-left:4px">${esc(i.params_summary)}</div>` : '');
+  }).join('');
+  const html = `
+    <div class="rcp-center"><strong>Nufarul Curățătorie</strong></div>
+    <div class="rcp-center" style="font-size:9px">Chișinău, str. Albișoara 78</div>
+    <div class="rcp-center" style="font-size:9px">Tel: +373 69 XXX XXX</div>
+    <hr class="rcp-hr">
+    <div class="rcp-row"><span>БОН FISCAL (EMULARE)</span></div>
+    <div class="rcp-row"><span>Дата:</span><span>${dateStr}</span></div>
+    <div class="rcp-row"><span>Заказ:</span><span>${esc(o.order_number)}</span></div>
+    <div class="rcp-row"><span>Клиент:</span><span>${esc(o.client_name)}</span></div>
+    ${o.client_phone ? `<div class="rcp-row"><span>Тел:</span><span>${esc(o.client_phone)}</span></div>` : ''}
+    <hr class="rcp-hr">
+    ${itemsHtml}
+    <hr class="rcp-hr">
+    <div class="rcp-row rcp-total"><span>ИТОГО:</span><span>${(o.total||0).toFixed(2)} MDL</span></div>
+    <hr class="rcp-hr">
+    <div class="rcp-footer">*** EMULARE — Nu este bon fiscal real ***</div>
+    <div class="rcp-footer">${esc(o.order_number)}</div>
+  `;
+  document.getElementById('receiptContent').innerHTML = html;
+  document.getElementById('receiptModal').classList.add('open');
+}
+
+function printReceipt() {
+  if (!lastOrder) return;
+  document.getElementById('fiscalPrintArea').innerHTML = document.getElementById('receiptContent').innerHTML;
+  window.print();
+}
 
 // ── AI bar ────────────────────────────────────────────────────────────
 document.getElementById('aiSend').addEventListener('click', runAI);
