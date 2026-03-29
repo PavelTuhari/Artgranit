@@ -528,7 +528,7 @@ class NufarulController:
                     # 3rd round-trip: fetch all item IDs at once
                     cur.execute(f"""
                         SELECT NUF_ITEMS_LEDGER_SEQ.NEXTVAL
-                        FROM DUAL CONNECT BY LEVEL <= {n}
+                        FROM DUAL CONNECT BY LEVEL <= {int(n)}
                     """)
                     item_ids_seq = [r[0] for r in cur.fetchall()]
                     if len(item_ids_seq) != n:
