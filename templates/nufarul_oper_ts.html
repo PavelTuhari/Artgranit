@@ -244,72 +244,126 @@ button, input, select, textarea { font-family:inherit; }
 .cam-close { background:rgba(255,255,255,.2); color:#fff; }
 
 /* ── Checkout modal ── */
-.checkout-modal { display:none; position:fixed; inset:0; z-index:8888; background:rgba(0,0,0,.85); align-items:center; justify-content:center; }
+.checkout-modal { display:none; position:fixed; inset:0; z-index:8888; background:rgba(0,0,0,.88); align-items:center; justify-content:center; }
 .checkout-modal.open { display:flex; }
-.checkout-box { background:#0d1728; border:2px solid #f59e0b; border-radius:18px; padding:20px; width:92%; max-width:460px; max-height:92vh; overflow-y:auto; }
-/* header */
-.co-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
-.co-header h2 { font-size:15px; font-weight:800; color:#f59e0b; margin:0; }
-.co-total-badge { background:#192e19; border:1px solid #22c55e55; border-radius:10px; padding:5px 14px; font-size:16px; font-weight:800; color:#53d769; }
-/* summary */
-.co-summary { background:#060c06; border-radius:10px; padding:8px 12px; margin-bottom:14px; max-height:130px; overflow-y:auto; }
+.checkout-box { background:#0d1728; border:2px solid #f59e0b; border-radius:20px; padding:18px; width:96%; max-width:520px; max-height:94vh; overflow-y:auto; }
+.co-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.co-header h2 { font-size:16px; font-weight:800; color:#f59e0b; margin:0; }
+.co-total-badge { background:#192e19; border:1px solid #22c55e55; border-radius:12px; padding:6px 16px; font-size:18px; font-weight:800; color:#53d769; }
+.co-summary { background:#060c06; border-radius:10px; padding:8px 12px; margin-bottom:12px; max-height:110px; overflow-y:auto; }
 .co-summary-item { font-size:11px; color:#7dd3fc; padding:3px 0; border-bottom:1px solid #0f1e0f; display:flex; justify-content:space-between; gap:6px; }
 .co-summary-item:last-child { border:none; }
 .co-summary-name { flex:1; }
 .co-summary-amt { color:#53d769; white-space:nowrap; }
-/* client section */
 .co-client-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:10px; user-select:none; }
-.co-client-toggle input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:#3b82f6; }
-.co-client-toggle label { font-size:12px; color:#7dd3fc; cursor:pointer; }
+.co-client-toggle input[type=checkbox] { width:18px; height:18px; cursor:pointer; accent-color:#3b82f6; }
+.co-client-toggle label { font-size:13px; color:#7dd3fc; cursor:pointer; }
 .co-anon-badge { font-size:11px; color:#555; margin-left:auto; }
 .co-client-fields { display:none; margin-bottom:12px; }
 .co-client-fields.open { display:block; }
 .co-field { margin-bottom:10px; }
 .co-field label { font-size:10px; color:#555; display:block; margin-bottom:3px; }
-.co-field input { width:100%; background:#12122a; border:1px solid #2a2a5a; border-radius:7px; color:#e0e0f0; padding:8px 11px; font-size:13px; }
+.co-field input { width:100%; background:#12122a; border:1px solid #2a2a5a; border-radius:8px; color:#e0e0f0; padding:10px 12px; font-size:14px; }
 .co-field input:focus { outline:none; border-color:#3b82f6; }
-/* payment methods */
+/* payment – large touchscreen buttons */
 .co-pay-label { font-size:10px; color:#555; margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
-.co-pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px; }
-.co-pay-btn { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 8px; border-radius:12px; border:2px solid #1e1e4a; background:#0a0a1a; cursor:pointer; transition:background .15s,border-color .15s; }
-.co-pay-btn:active { transform:scale(.97); }
-.co-pay-btn.selected { border-color:#22c55e; background:#0d1e0d; }
-.co-pay-icon { font-size:24px; line-height:1; }
-.co-pay-name { font-size:12px; font-weight:700; color:#e0e0f0; }
-.co-pay-desc { font-size:9px; color:#555; text-align:center; line-height:1.3; }
+.co-pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.co-pay-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:16px 8px; border-radius:16px; border:2px solid #1e1e4a; background:#0a0a1a; cursor:pointer; transition:background .12s,border-color .12s; min-height:90px; }
+.co-pay-btn:active { transform:scale(.94); }
+.co-pay-btn.selected { border-color:#22c55e; background:#0d1e0d; box-shadow:0 0 16px #22c55e22; }
+.co-pay-icon { font-size:34px; line-height:1; }
+.co-pay-name { font-size:15px; font-weight:800; color:#e0e0f0; }
+.co-pay-desc { font-size:10px; color:#666; text-align:center; line-height:1.3; }
 .co-pay-btn.selected .co-pay-name { color:#53d769; }
+/* cash panel */
+.co-cash-panel { display:none; background:#060d06; border:1px solid #1a3a1a; border-radius:14px; padding:12px; margin-bottom:12px; }
+.co-cash-panel.open { display:block; }
+.co-cash-display { text-align:right; background:#000; border-radius:10px; padding:10px 14px; margin-bottom:10px; }
+.co-cash-recv-lbl { font-size:10px; color:#555; }
+.co-cash-recv-val { font-size:30px; font-weight:800; color:#f59e0b; font-family:'Courier New',monospace; }
+.co-cash-change { display:flex; justify-content:space-between; align-items:center; padding:8px 14px; border-radius:8px; margin-top:6px; background:#111; }
+.co-cash-change.ok { background:#0d1e0d; }
+.co-cash-change.low { background:#1e0d0d; }
+.co-change-lbl { font-size:12px; color:#aaa; }
+.co-change-val { font-size:24px; font-weight:800; font-family:'Courier New',monospace; color:#555; }
+.co-cash-change.ok .co-change-val { color:#53d769; }
+.co-cash-change.low .co-change-val { color:#ef4444; }
+/* banknotes */
+.co-banknotes { display:flex; gap:7px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px; }
+.co-banknotes::-webkit-scrollbar { height:3px; } .co-banknotes::-webkit-scrollbar-thumb { background:#2a4a2a; border-radius:2px; }
+.co-banknote { flex-shrink:0; padding:10px 16px; border-radius:10px; border:1px solid #2a4a2a; background:#0f1e0f; color:#86efac; font-size:14px; font-weight:700; cursor:pointer; }
+.co-banknote:active { background:#1a3a1a; transform:scale(.94); }
+/* numpad */
+.co-numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+.co-numpad-btn { border:none; border-radius:12px; height:60px; font-size:24px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; user-select:none; }
+.co-numpad-btn:active { transform:scale(.91); }
+.co-numpad-btn.num { background:#162436; color:#e0e0f0; }
+.co-numpad-btn.num:active { background:#1e3450; }
+.co-numpad-btn.del { background:#2a1e1e; color:#f87171; font-size:20px; }
+.co-numpad-btn.clr { background:#1a1e2a; color:#60a5fa; font-size:13px; font-weight:800; }
 /* actions */
 .co-actions { display:flex; gap:10px; }
-.co-confirm { flex:1; background:#22c55e; border:none; border-radius:10px; padding:13px; color:#000; font-size:14px; font-weight:800; cursor:pointer; transition:opacity .15s; }
-.co-confirm:disabled { opacity:.5; cursor:not-allowed; }
-.co-cancel { background:#1e1e3a; border:1px solid #2a2a5a; border-radius:10px; padding:13px 18px; color:#aaa; font-size:13px; cursor:pointer; }
-/* success screen */
+.co-confirm { flex:1; background:#22c55e; border:none; border-radius:12px; padding:15px; color:#000; font-size:15px; font-weight:800; cursor:pointer; min-height:54px; }
+.co-confirm:disabled { opacity:.45; cursor:not-allowed; }
+.co-cancel { background:#1e1e3a; border:1px solid #2a2a5a; border-radius:12px; padding:15px 20px; color:#aaa; font-size:14px; cursor:pointer; }
+/* success */
 .checkout-success { display:none; text-align:center; padding:14px 0; }
-.checkout-success h3 { font-size:18px; color:#53d769; margin-bottom:6px; }
-.co-success-pay { display:inline-block; font-size:12px; background:#0d1e0d; border:1px solid #22c55e44; border-radius:8px; padding:4px 12px; color:#53d769; margin-bottom:8px; }
-.checkout-barcode { font-family:'Courier New',monospace; font-size:22px; letter-spacing:4px; color:#fff; background:#0f0f22; padding:12px; border-radius:8px; margin:10px 0; border:2px dashed #22c55e44; }
-.checkout-new-btn { background:#3b82f6; border:none; border-radius:8px; padding:12px 24px; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
-.checkout-print-btn { background:#f59e0b; border:none; border-radius:8px; padding:12px 20px; color:#000; font-size:13px; font-weight:700; cursor:pointer; }
-.checkout-success-btns { display:flex; gap:8px; justify-content:center; margin-top:12px; }
-/* ── Fiscal receipt modal ── */
-.receipt-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.92); align-items:center; justify-content:center; }
-.receipt-modal.open { display:flex; }
-.receipt-box { background:#fff; color:#000; width:290px; border-radius:8px; padding:18px 14px; font-family:'Courier New',monospace; font-size:11px; line-height:1.6; max-height:90vh; overflow-y:auto; }
-.receipt-box .rcp-center { text-align:center; }
-.receipt-box .rcp-hr { border:none; border-top:1px dashed #000; margin:5px 0; }
-.receipt-box .rcp-row { display:flex; justify-content:space-between; gap:4px; font-size:11px; }
-.receipt-box .rcp-name { flex:1; word-break:break-word; }
-.receipt-box .rcp-total { font-weight:800; font-size:13px; margin-top:4px; }
-.receipt-box .rcp-footer { text-align:center; font-size:10px; color:#555; margin-top:8px; }
-.receipt-actions { display:flex; gap:8px; margin-top:14px; justify-content:center; }
-.receipt-print-btn { background:#22c55e; border:none; border-radius:7px; padding:10px 22px; font-size:13px; font-weight:800; cursor:pointer; }
-.receipt-close-btn { background:#666; border:none; border-radius:7px; padding:10px 18px; font-size:13px; cursor:pointer; color:#fff; }
-/* print: show only receipt */
+.checkout-success h3 { font-size:20px; color:#53d769; margin-bottom:6px; }
+.co-success-pay { display:inline-block; font-size:13px; background:#0d1e0d; border:1px solid #22c55e44; border-radius:8px; padding:5px 14px; color:#53d769; margin-bottom:4px; }
+.co-success-change { font-size:13px; color:#f59e0b; margin:4px 0 8px; min-height:20px; }
+.checkout-barcode { font-family:'Courier New',monospace; font-size:20px; letter-spacing:4px; color:#fff; background:#0f0f22; padding:12px; border-radius:10px; margin:10px 0; border:2px dashed #22c55e44; }
+.checkout-success-btns { display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+.co-print-bon { background:#f59e0b; border:none; border-radius:10px; padding:12px 18px; color:#000; font-size:13px; font-weight:700; cursor:pointer; }
+.co-print-act { background:#3b82f6; border:none; border-radius:10px; padding:12px 18px; color:#fff; font-size:13px; font-weight:700; cursor:pointer; }
+.co-new-order-btn { background:#374151; border:none; border-radius:10px; padding:12px 18px; color:#e0e0f0; font-size:13px; font-weight:700; cursor:pointer; }
+/* ── Document modals ── */
+.doc-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.94); align-items:center; justify-content:center; }
+.doc-modal.open { display:flex; }
+.doc-wrap { display:flex; flex-direction:column; align-items:center; max-height:92vh; }
+.doc-box { background:#fff; color:#000; border-radius:8px; overflow-y:auto; max-height:74vh; }
+.doc-actions { display:flex; gap:8px; margin-top:12px; }
+.doc-print-btn { background:#22c55e; border:none; border-radius:8px; padding:12px 24px; font-size:14px; font-weight:800; cursor:pointer; }
+.doc-close-btn { background:#555; border:none; border-radius:8px; padding:12px 20px; font-size:14px; cursor:pointer; color:#fff; }
+/* Bon fiscal */
+.bon-box { width:272px; padding:16px 14px; font-family:'Courier New',monospace; font-size:11px; line-height:1.65; }
+.bon-center { text-align:center; }
+.bon-hr { border:none; border-top:1px dashed #000; margin:5px 0; }
+.bon-row { display:flex; justify-content:space-between; gap:4px; font-size:11px; }
+.bon-name { flex:1; word-break:break-word; }
+.bon-total { font-weight:800; font-size:13px; }
+.bon-footer { text-align:center; font-size:9px; color:#555; margin-top:6px; }
+/* Act de primire */
+.act-box { width:min(560px,90vw); padding:24px 28px; font-family:'Arial',sans-serif; font-size:12px; line-height:1.6; }
+.act-company { text-align:center; margin-bottom:12px; }
+.act-company-name { font-size:16px; font-weight:800; }
+.act-company-sub { font-size:10px; color:#555; }
+.act-title { text-align:center; font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border:2px solid #000; padding:8px; margin:10px 0; }
+.act-meta { display:grid; grid-template-columns:auto 1fr; gap:3px 14px; margin-bottom:12px; font-size:11px; }
+.act-meta-lbl { color:#555; white-space:nowrap; }
+.act-meta-val { font-weight:600; }
+.act-table { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:10px; }
+.act-table th { background:#000; color:#fff; padding:5px 6px; text-align:left; }
+.act-table td { border-bottom:1px solid #ddd; padding:4px 6px; vertical-align:top; }
+.act-table tr:nth-child(even) td { background:#f9f9f9; }
+.act-params-cell { font-size:9px; color:#666; }
+.act-total-row td { border-top:2px solid #000; font-weight:800; background:#f0f0f0; padding:6px; }
+.act-payment { background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; font-size:11px; align-items:center; }
+.act-change { font-weight:700; }
+.act-qr-block { display:flex; align-items:center; gap:14px; background:#f5f5f5; border-radius:6px; padding:10px 14px; margin-bottom:14px; }
+.act-qr-block img { width:80px; height:80px; flex-shrink:0; }
+.act-qr-text { font-size:10px; color:#555; }
+.act-qr-title { font-size:11px; font-weight:700; color:#000; margin-bottom:3px; }
+.act-sigs { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:16px; }
+.act-sig-line { border-top:1px solid #000; padding-top:3px; font-size:10px; color:#555; margin-top:30px; }
+.act-ru { border-top:2px dashed #aaa; margin:14px 0 10px; padding-top:12px; font-size:11px; }
+.act-ru-title { font-size:9px; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; font-weight:700; }
+/* print */
 @media print {
-  body > *:not(#fiscalPrintArea) { display:none !important; }
-  #fiscalPrintArea { display:block !important; position:static !important; background:#fff; color:#000; }
+  body > * { display:none !important; }
+  body.print-bon #bonPrintArea { display:block !important; position:static !important; background:#fff; color:#000; }
+  body.print-act #actPrintArea { display:block !important; position:static !important; background:#fff; color:#000; }
 }
-#fiscalPrintArea { display:none; }
+#bonPrintArea, #actPrintArea { display:none; }
 </style>
 </head>
 <body>
