@@ -1018,7 +1018,6 @@ document.getElementById('coNewOrderBtn').addEventListener('click', resetNewOrder
 document.getElementById('coPrintBtn').addEventListener('click', openReceipt);
 
 function resetNewOrder() {
-  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
   document.getElementById('checkoutModal').classList.remove('open');
   document.getElementById('checkoutSuccess').style.display = 'none';
   document.getElementById('checkoutForm').style.display = '';
