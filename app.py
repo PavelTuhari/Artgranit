@@ -3060,7 +3060,7 @@ def api_nufarul_ts_order():
             return jsonify({"success": False, "error": "qty must be > 0"}), 400
         if float(i.get("price", -1)) < 0:
             return jsonify({"success": False, "error": "price must be >= 0"}), 400
-    return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes))
+    return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes, payment_method))
 
 
 # ========== DECOR: админка + оператор (локальное JSON-хранилище, fallback без Oracle) ==========
