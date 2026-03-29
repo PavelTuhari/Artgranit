@@ -1165,6 +1165,7 @@ function openReceipt() {
     ${itemsHtml}
     <hr class="rcp-hr">
     <div class="rcp-row rcp-total"><span>ИТОГО:</span><span>${(o.total||0).toFixed(2)} MDL</span></div>
+    <div class="rcp-row"><span>Оплата:</span><span>${esc(PAY_LABELS[o.payment_method] || o.payment_method || 'Numerar')}</span></div>
     <hr class="rcp-hr">
     <div class="rcp-footer">*** EMULARE — Nu este bon fiscal real ***</div>
     <div class="rcp-footer">${esc(o.order_number)}</div>
