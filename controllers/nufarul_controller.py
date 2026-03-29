@@ -7,7 +7,11 @@ import sys
 import os
 import base64
 import json
+import logging
+import traceback as _traceback
 import oracledb
+
+_log = logging.getLogger(__name__)
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
