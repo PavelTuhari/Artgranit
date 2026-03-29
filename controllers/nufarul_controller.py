@@ -581,8 +581,8 @@ class NufarulController:
                         conn.rollback()
                     except Exception:
                         pass
-                    import traceback
-                    return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+                    _log.error("create_order_with_params failed: %s\n%s", e, _traceback.format_exc())
+                    return {"success": False, "error": str(e)}
                 finally:
                     cur.close()
         except Exception as e:
