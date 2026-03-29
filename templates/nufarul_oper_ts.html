@@ -459,25 +459,66 @@ button, input, select, textarea { font-family:inherit; }
 <div class="checkout-modal" id="checkoutModal">
   <div class="checkout-box">
     <div id="checkoutForm">
-      <h2>📋 Оформление заказа</h2>
-      <div class="checkout-field">
-        <label>Имя клиента *</label>
-        <input id="coName" placeholder="Иванов Иван">
+      <div class="co-header">
+        <h2>📋 Оформление</h2>
+        <div class="co-total-badge" id="coTotalBadge">0 MDL</div>
       </div>
-      <div class="checkout-field">
-        <label>Телефон</label>
-        <input id="coPhone" placeholder="+373 69 123 456" type="tel">
+
+      <!-- Item summary -->
+      <div class="co-summary" id="coSummary"></div>
+
+      <!-- Client: anonymous by default -->
+      <div class="co-client-toggle">
+        <input type="checkbox" id="coClientToggle">
+        <label for="coClientToggle">Указать клиента</label>
+        <span class="co-anon-badge" id="coAnonBadge">Аноним</span>
       </div>
-      <div class="checkout-summary" id="coSummary"></div>
-      <div class="checkout-total" id="coTotal"></div>
-      <div class="checkout-actions" style="margin-top:12px;">
-        <button class="checkout-confirm" id="coConfirmBtn">✓ ПОДТВЕРДИТЬ</button>
-        <button class="checkout-cancel" id="coCancelBtn">Отмена</button>
+      <div class="co-client-fields" id="coClientFields">
+        <div class="co-field">
+          <label>Имя / Фамилия</label>
+          <input id="coName" placeholder="Иванов Иван" autocomplete="off">
+        </div>
+        <div class="co-field">
+          <label>Телефон</label>
+          <input id="coPhone" placeholder="+373 69 123 456" type="tel" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Payment method -->
+      <div class="co-pay-label">Способ оплаты</div>
+      <div class="co-pay-grid">
+        <button class="co-pay-btn selected" data-pay="cash">
+          <span class="co-pay-icon">💵</span>
+          <span class="co-pay-name">Numerar</span>
+          <span class="co-pay-desc">Наличные</span>
+        </button>
+        <button class="co-pay-btn" data-pay="card">
+          <span class="co-pay-icon">💳</span>
+          <span class="co-pay-name">Card POS</span>
+          <span class="co-pay-desc">Visa / Mastercard</span>
+        </button>
+        <button class="co-pay-btn" data-pay="mia">
+          <span class="co-pay-icon">📱</span>
+          <span class="co-pay-name">MIA</span>
+          <span class="co-pay-desc">MAIB, transfer instant</span>
+        </button>
+        <button class="co-pay-btn" data-pay="mpay">
+          <span class="co-pay-icon">🏛</span>
+          <span class="co-pay-name">MPay</span>
+          <span class="co-pay-desc">Portalul e-guvernare</span>
+        </button>
+      </div>
+
+      <div class="co-actions">
+        <button class="co-confirm" id="coConfirmBtn">✓ ПОДТВЕРДИТЬ</button>
+        <button class="co-cancel" id="coCancelBtn">Отмена</button>
       </div>
     </div>
+
     <div class="checkout-success" id="checkoutSuccess">
       <h3>✓ Заказ принят!</h3>
-      <div id="coSuccessNum" style="font-size:13px;color:#aaa;margin-bottom:6px;"></div>
+      <div id="coSuccessNum" style="font-size:13px;color:#aaa;margin-bottom:4px;"></div>
+      <div class="co-success-pay" id="coSuccessPay"></div>
       <div class="checkout-barcode" id="coBarcode"></div>
       <div class="checkout-success-btns">
         <button class="checkout-print-btn" id="coPrintBtn">🖨 Чек</button>
