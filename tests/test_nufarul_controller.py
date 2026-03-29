@@ -124,7 +124,7 @@ def test_create_order_with_params_writes_params_to_companion_table():
         {"service_id": 1, "qty": 1, "price": 180.0,
          "params": {"color": "#c0392b", "fabric": "Шерсть", "stains": True}}
     ]
-    with patch('controllers.nufarul_controller.DatabaseModel', return_value=DirectCursorDB([], [])):
+    with patch('controllers.nufarul_controller.DatabaseModel', return_value=DirectCursorDB()):
         result = NufarulController.create_order_with_params("Test", "+373", items)
 
     assert result.get('success'), f"Expected success, got: {result}"
