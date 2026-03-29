@@ -485,6 +485,7 @@ class NufarulController:
         client_phone: str,
         items: List[Dict[str, Any]],
         notes: Optional[str] = None,
+        payment_method: Optional[str] = 'cash',
     ) -> Dict[str, Any]:
         """Creates order and stores per-item params in NUF_ORDER_ITEM_PARAMS companion table.
         Uses a single bootstrap query + executemany to minimize Oracle round-trips."""
