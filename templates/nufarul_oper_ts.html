@@ -261,7 +261,29 @@ button, input, select, textarea { font-family:inherit; }
 .checkout-success { display:none; text-align:center; padding:16px 0; }
 .checkout-success h3 { font-size:18px; color:#53d769; margin-bottom:8px; }
 .checkout-barcode { font-family:'Courier New',monospace; font-size:22px; letter-spacing:4px; color:#fff; background:#0f0f22; padding:12px; border-radius:8px; margin:10px 0; border:2px dashed #22c55e44; }
-.checkout-new-btn { background:#3b82f6; border:none; border-radius:8px; padding:12px 24px; color:#fff; font-size:14px; font-weight:700; cursor:pointer; margin-top:8px; }
+.checkout-new-btn { background:#3b82f6; border:none; border-radius:8px; padding:12px 24px; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
+.checkout-print-btn { background:#f59e0b; border:none; border-radius:8px; padding:12px 20px; color:#000; font-size:13px; font-weight:700; cursor:pointer; }
+.checkout-success-btns { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+.co-countdown { font-size:11px; color:#555; margin:6px 0; min-height:16px; }
+/* ── Fiscal receipt modal ── */
+.receipt-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.92); align-items:center; justify-content:center; }
+.receipt-modal.open { display:flex; }
+.receipt-box { background:#fff; color:#000; width:290px; border-radius:8px; padding:18px 14px; font-family:'Courier New',monospace; font-size:11px; line-height:1.6; max-height:90vh; overflow-y:auto; }
+.receipt-box .rcp-center { text-align:center; }
+.receipt-box .rcp-hr { border:none; border-top:1px dashed #000; margin:5px 0; }
+.receipt-box .rcp-row { display:flex; justify-content:space-between; gap:4px; font-size:11px; }
+.receipt-box .rcp-name { flex:1; word-break:break-word; }
+.receipt-box .rcp-total { font-weight:800; font-size:13px; margin-top:4px; }
+.receipt-box .rcp-footer { text-align:center; font-size:10px; color:#555; margin-top:8px; }
+.receipt-actions { display:flex; gap:8px; margin-top:14px; justify-content:center; }
+.receipt-print-btn { background:#22c55e; border:none; border-radius:7px; padding:10px 22px; font-size:13px; font-weight:800; cursor:pointer; }
+.receipt-close-btn { background:#666; border:none; border-radius:7px; padding:10px 18px; font-size:13px; cursor:pointer; color:#fff; }
+/* print: show only receipt */
+@media print {
+  body > *:not(#fiscalPrintArea) { display:none !important; }
+  #fiscalPrintArea { display:block !important; position:static !important; background:#fff; color:#000; }
+}
+#fiscalPrintArea { display:none; }
 </style>
 </head>
 <body>
