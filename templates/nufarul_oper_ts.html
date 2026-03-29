@@ -462,6 +462,19 @@ button, input, select, textarea { font-family:inherit; }
   </div>
 </div>
 
+<!-- Fiscal receipt modal -->
+<div class="receipt-modal" id="receiptModal">
+  <div>
+    <div class="receipt-box" id="receiptContent"></div>
+    <div class="receipt-actions">
+      <button class="receipt-print-btn" onclick="printReceipt()">🖨 Печать</button>
+      <button class="receipt-close-btn" onclick="document.getElementById('receiptModal').classList.remove('open')">Закрыть</button>
+    </div>
+  </div>
+</div>
+<!-- Hidden printable receipt -->
+<div id="fiscalPrintArea"></div>
+
 <script>
 'use strict';
 const API_OP = '/api/nufarul-operator';
