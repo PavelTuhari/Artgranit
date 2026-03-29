@@ -1021,7 +1021,9 @@ function resetNewOrder() {
   document.getElementById('checkoutSuccess').style.display = 'none';
   document.getElementById('checkoutForm').style.display = '';
   clearParams();
+  activeGroup = null;
   activeSubgroup = null;
+  renderGroups();
   renderSubgroupsBar();
   document.getElementById('svcSearch').value = '';
   renderServices('');
