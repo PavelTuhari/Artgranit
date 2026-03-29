@@ -1001,15 +1001,6 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     document.getElementById('checkoutSuccess').style.display = '';
     document.getElementById('coSuccessNum').textContent = 'Заказ: ' + lastOrder.order_number;
     document.getElementById('coBarcode').textContent = lastOrder.barcode;
-    // Auto-reset countdown
-    let secs = 15;
-    document.getElementById('coCountdown').textContent = 'Новый заказ через ' + secs + ' сек...';
-    if (_countdownTimer) clearInterval(_countdownTimer);
-    _countdownTimer = setInterval(() => {
-      secs--;
-      if (secs <= 0) { resetNewOrder(); }
-      else { document.getElementById('coCountdown').textContent = 'Новый заказ через ' + secs + ' сек...'; }
-    }, 1000);
     // Clear cart
     cart = [];
     renderCart();
