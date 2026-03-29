@@ -1123,6 +1123,25 @@ async function confirmIssue(orderId) {
 
 // ── Checkout modal ─────────────────────────────────────────────────────
 const PAY_LABELS = { cash:'💵 Numerar', card:'💳 Card POS', mia:'📱 MIA', mpay:'🏛 MPay' };
+let cashStr = '';  // digit string for numpad input
+
+function updateCashDisplay() {
+  const total = cart.reduce((s,i) => s + i.price*i.qty, 0);
+  const recv = parseInt(cashStr || '0', 10);
+  document.getElementById('coCashVal').textContent = recv || '0';
+  const changeEl = document.getElementById('coCashChange');
+  const changeValEl = document.getElementById('coChangeVal');
+  if (!cashStr) {
+    changeEl.className = 'co-cash-change';
+    changeValEl.textContent = '—';
+  } else if (recv >= Math.ceil(total)) {
+    changeEl.className = 'co-cash-change ok';
+    changeValEl.textContent = (recv - Math.ceil(total)).toFixed(0) + ' MDL';
+  } else {
+    changeEl.className = 'co-cash-change low';
+    changeValEl.textContent = (recv - Math.ceil(total)).toFixed(0) + ' MDL';
+  }
+}
 
 // Payment method buttons
 document.querySelectorAll('.co-pay-btn').forEach(btn => {
@@ -1130,6 +1149,38 @@ document.querySelectorAll('.co-pay-btn').forEach(btn => {
     selectedPayment = btn.dataset.pay;
     document.querySelectorAll('.co-pay-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
+    const cashPanel = document.getElementById('coCashPanel');
+    cashPanel.classList.toggle('open', selectedPayment === 'cash');
+  });
+});
+
+// Numpad digit buttons
+document.querySelectorAll('.co-numpad-btn.num').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (cashStr.length >= 6) return;
+    cashStr += btn.dataset.d;
+    updateCashDisplay();
+  });
+});
+
+document.getElementById('coNumDel').addEventListener('click', () => {
+  cashStr = cashStr.slice(0, -1);
+  updateCashDisplay();
+});
+
+document.getElementById('coNumClr').addEventListener('click', () => {
+  cashStr = '';
+  updateCashDisplay();
+});
+
+// Banknote shortcuts
+document.querySelectorAll('.co-banknote').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const val = parseInt(btn.dataset.bn, 10);
+    const cur = parseInt(cashStr || '0', 10);
+    cashStr = String(cur + val);
+    if (cashStr.length > 6) cashStr = cashStr.slice(0, 6);
+    updateCashDisplay();
   });
 });
 
@@ -1151,6 +1202,7 @@ document.getElementById('coClientToggle').addEventListener('change', function() 
 
 function openCheckout() {
   lastOrder = null;
+  cashStr = '';
   const modal = document.getElementById('checkoutModal');
   document.getElementById('checkoutForm').style.display = '';
   document.getElementById('checkoutSuccess').style.display = 'none';
@@ -1160,15 +1212,16 @@ function openCheckout() {
   document.getElementById('coAnonBadge').style.display = '';
   document.getElementById('coName').value = document.getElementById('inpName').value;
   document.getElementById('coPhone').value = document.getElementById('inpPhone').value;
-  // If header fields have values — pre-expand client section
   if (document.getElementById('coName').value) {
     document.getElementById('coClientToggle').checked = true;
     document.getElementById('coClientFields').classList.add('open');
     document.getElementById('coAnonBadge').style.display = 'none';
   }
-  // Reset payment to cash
+  // Reset payment to cash + show cash panel
   selectedPayment = 'cash';
   document.querySelectorAll('.co-pay-btn').forEach(b => b.classList.toggle('selected', b.dataset.pay === 'cash'));
+  document.getElementById('coCashPanel').classList.add('open');
+  updateCashDisplay();
   // Summary
   const total = cart.reduce((s,i) => s + i.price*i.qty, 0);
   document.getElementById('coTotalBadge').textContent = total.toFixed(0) + ' MDL';
@@ -1206,20 +1259,33 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     };
     const r = await apiFetch(API_TS + '/order', { method:'POST', body: JSON.stringify(payload) });
     if (!r.success) throw new Error(r.error || 'Ошибка создания заказа');
+    const total = r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0);
+    const recv = parseInt(cashStr || '0', 10);
+    const change = (selectedPayment === 'cash' && recv > 0) ? recv - Math.ceil(total) : null;
     lastOrder = {
       order_number: r.order_number || '',
       barcode: r.barcode || r.order_number || '',
       client_name: name,
       client_phone: phone,
       payment_method: selectedPayment,
+      cash_received: recv,
+      change: change,
       items: cart.map(i => ({...i})),
-      total: r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0),
+      total: total,
       date: new Date(),
     };
     document.getElementById('checkoutForm').style.display = 'none';
     document.getElementById('checkoutSuccess').style.display = '';
     document.getElementById('coSuccessNum').textContent = 'Заказ: ' + lastOrder.order_number;
     document.getElementById('coSuccessPay').textContent = PAY_LABELS[selectedPayment] || selectedPayment;
+    const changeEl = document.getElementById('coSuccessChange');
+    if (selectedPayment === 'cash' && recv > 0 && change !== null) {
+      changeEl.textContent = change >= 0
+        ? `Rest: ${change.toFixed(0)} MDL`
+        : `Insuficient: ${Math.abs(change).toFixed(0)} MDL`;
+    } else {
+      changeEl.textContent = '';
+    }
     document.getElementById('coBarcode').textContent = lastOrder.barcode;
     cart = [];
     renderCart();
@@ -1235,7 +1301,8 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('coNewOrderBtn').addEventListener('click', resetNewOrder);
-document.getElementById('coPrintBtn').addEventListener('click', openReceipt);
+document.getElementById('coPrintBon').addEventListener('click', openBon);
+document.getElementById('coPrintAct').addEventListener('click', openAct);
 
 function resetNewOrder() {
   document.getElementById('checkoutModal').classList.remove('open');
@@ -1250,44 +1317,144 @@ function resetNewOrder() {
   renderServices('');
 }
 
-function openReceipt() {
-  if (!lastOrder) return;
-  const o = lastOrder;
-  const dateStr = o.date.toLocaleString('ru', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const itemsHtml = o.items.map(i => {
-    const amt = (i.price * i.qty).toFixed(2);
-    return `<div class="rcp-row"><span class="rcp-name">${esc(i.name||'')}</span></div>`
-      + `<div class="rcp-row"><span>${i.qty} x ${(i.price||0).toFixed(2)}</span><span>${amt}</span></div>`
-      + (i.params_summary ? `<div style="font-size:9px;color:#777;padding-left:4px">${esc(i.params_summary)}</div>` : '');
-  }).join('');
-  const html = `
-    <div class="rcp-center"><strong>Nufarul Curățătorie</strong></div>
-    <div class="rcp-center" style="font-size:9px">Chișinău, str. Albișoara 78</div>
-    <div class="rcp-center" style="font-size:9px">Tel: +373 69 XXX XXX</div>
-    <hr class="rcp-hr">
-    <div class="rcp-row"><span>БОН FISCAL (EMULARE)</span></div>
-    <div class="rcp-row"><span>Дата:</span><span>${dateStr}</span></div>
-    <div class="rcp-row"><span>Заказ:</span><span>${esc(o.order_number)}</span></div>
-    <div class="rcp-row"><span>Клиент:</span><span>${esc(o.client_name)}</span></div>
-    ${o.client_phone ? `<div class="rcp-row"><span>Тел:</span><span>${esc(o.client_phone)}</span></div>` : ''}
-    <hr class="rcp-hr">
-    ${itemsHtml}
-    <hr class="rcp-hr">
-    <div class="rcp-row rcp-total"><span>ИТОГО:</span><span>${(o.total||0).toFixed(2)} MDL</span></div>
-    <div class="rcp-row"><span>Оплата:</span><span>${esc(PAY_LABELS[o.payment_method] || o.payment_method || 'Numerar')}</span></div>
-    <hr class="rcp-hr">
-    <div class="rcp-footer">*** EMULARE — Nu este bon fiscal real ***</div>
-    <div class="rcp-footer">${esc(o.order_number)}</div>
-  `;
-  document.getElementById('receiptContent').innerHTML = html;
-  document.getElementById('receiptModal').classList.add('open');
+// ── Document generation ─────────────────────────────────────────────────
+
+function _fmtDate(d) {
+  return d.toLocaleString('ro', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 
-function printReceipt() {
+function buildBonHtml(o) {
+  const dateStr = _fmtDate(o.date);
+  const itemsHtml = o.items.map(i => {
+    const amt = (i.price * i.qty).toFixed(2);
+    return `<div class="bon-row"><span class="bon-name">${esc(i.name||'')}</span></div>`
+      + `<div class="bon-row"><span>${i.qty} x ${(i.price||0).toFixed(2)}</span><span>${amt}</span></div>`
+      + (i.params_summary ? `<div style="font-size:9px;color:#777;padding-left:4px">${esc(i.params_summary)}</div>` : '');
+  }).join('');
+  const changeRows = (o.payment_method === 'cash' && o.cash_received > 0 && o.change !== null)
+    ? `<div class="bon-row"><span>Primit / Принято:</span><span>${o.cash_received.toFixed(0)} MDL</span></div>`
+      + `<div class="bon-row"><span>Rest / Сдача:</span><span>${Math.max(0,o.change).toFixed(0)} MDL</span></div>`
+    : '';
+  return `
+    <div class="bon-center"><strong>Nufarul Curățătorie</strong></div>
+    <div class="bon-center" style="font-size:9px">Chișinău, str. Albișoara 78</div>
+    <div class="bon-center" style="font-size:9px">Tel: +373 69 XXX XXX</div>
+    <hr class="bon-hr">
+    <div class="bon-row"><span>BON FISCAL (EMULARE)</span></div>
+    <div class="bon-row"><span>Data:</span><span>${dateStr}</span></div>
+    <div class="bon-row"><span>Comanda:</span><span>${esc(o.order_number)}</span></div>
+    <div class="bon-row"><span>Client:</span><span>${esc(o.client_name)}</span></div>
+    ${o.client_phone ? `<div class="bon-row"><span>Tel:</span><span>${esc(o.client_phone)}</span></div>` : ''}
+    <hr class="bon-hr">
+    ${itemsHtml}
+    <hr class="bon-hr">
+    <div class="bon-row bon-total"><span>TOTAL:</span><span>${(o.total||0).toFixed(2)} MDL</span></div>
+    <div class="bon-row"><span>Plată:</span><span>${esc(PAY_LABELS[o.payment_method] || o.payment_method || 'Numerar')}</span></div>
+    ${changeRows}
+    <hr class="bon-hr">
+    <div class="bon-footer">*** EMULARE — Nu este bon fiscal real ***</div>
+    <div class="bon-footer">${esc(o.order_number)}</div>
+  `;
+}
+
+function buildActHtml(o) {
+  const dateStr = _fmtDate(o.date);
+  const itemRows = o.items.map((i, idx) => {
+    const amt = (i.price * i.qty).toFixed(2);
+    const params = i.params_summary ? `<div class="act-params-cell">${esc(i.params_summary)}</div>` : '';
+    return `<tr>
+      <td>${idx+1}</td>
+      <td>${esc(i.name||'')}${params}</td>
+      <td style="text-align:center">${i.qty}</td>
+      <td style="text-align:right">${(i.price||0).toFixed(2)}</td>
+      <td style="text-align:right">${amt}</td>
+    </tr>`;
+  }).join('');
+  const total = (o.total||0).toFixed(2);
+  const payMethod = PAY_LABELS[o.payment_method] || o.payment_method || 'Numerar';
+  const changeStr = (o.payment_method === 'cash' && o.cash_received > 0 && o.change !== null)
+    ? `Primit: ${o.cash_received.toFixed(0)} MDL | Rest: ${Math.max(0,o.change).toFixed(0)} MDL`
+    : '';
+  const qrUrl = 'https://nufarul.md/reguli-curatare';
+  const qrSrc = `https://chart.googleapis.com/chart?chs=80x80&cht=qr&chl=${encodeURIComponent(qrUrl)}&choe=UTF-8`;
+  const ruSection = `
+    <div class="act-ru">
+      <div class="act-ru-title">Дополнительно на русском языке / Suplimentar în limba rusă</div>
+      <strong>АКТ ПРИЁМКИ</strong><br>
+      Заказ №${esc(o.order_number)} от ${dateStr}<br>
+      Клиент: ${esc(o.client_name)}${o.client_phone ? ' · ' + esc(o.client_phone) : ''}<br>
+      Итого: ${total} MDL · Оплата: ${esc(payMethod)}<br>
+      ${changeStr ? 'Принято: ' + o.cash_received.toFixed(0) + ' MDL · Сдача: ' + Math.max(0,o.change).toFixed(0) + ' MDL<br>' : ''}
+      <div style="margin-top:6px;font-size:10px;color:#555">Товары/услуги перечислены в таблице выше.</div>
+    </div>`;
+  return `
+    <div class="act-company">
+      <div class="act-company-name">Nufarul Curățătorie</div>
+      <div class="act-company-sub">Chișinău, str. Albișoara 78 · Tel: +373 69 XXX XXX</div>
+    </div>
+    <div class="act-title">Act de Primire nr. ${esc(o.order_number)}</div>
+    <div class="act-meta">
+      <span class="act-meta-lbl">Data:</span><span class="act-meta-val">${dateStr}</span>
+      <span class="act-meta-lbl">Client:</span><span class="act-meta-val">${esc(o.client_name)}</span>
+      ${o.client_phone ? `<span class="act-meta-lbl">Telefon:</span><span class="act-meta-val">${esc(o.client_phone)}</span>` : ''}
+    </div>
+    <table class="act-table">
+      <thead><tr>
+        <th>#</th><th>Serviciu / Articol</th><th style="text-align:center">Cant.</th>
+        <th style="text-align:right">Preț</th><th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot><tr class="act-total-row">
+        <td colspan="4">TOTAL</td><td style="text-align:right">${total} MDL</td>
+      </tr></tfoot>
+    </table>
+    <div class="act-payment">
+      <span>Metoda de plată: <strong>${esc(payMethod)}</strong></span>
+      ${changeStr ? `<span class="act-change">${esc(changeStr)}</span>` : ''}
+    </div>
+    <div class="act-qr-block">
+      <img src="${qrSrc}" alt="QR">
+      <div>
+        <div class="act-qr-title">Reguli de curățătorie</div>
+        <div class="act-qr-text">Scanați codul QR pentru instrucțiunile de îngrijire a articolelor predate la curățătorie.</div>
+      </div>
+    </div>
+    <div class="act-sigs">
+      <div><div class="act-sig-line">Recepționer / Оператор</div></div>
+      <div><div class="act-sig-line">Client / Клиент</div></div>
+    </div>
+    ${ruSection}
+  `;
+}
+
+function openBon() {
   if (!lastOrder) return;
-  document.getElementById('fiscalPrintArea').innerHTML = document.getElementById('receiptContent').innerHTML;
+  document.getElementById('bonContent').innerHTML = buildBonHtml(lastOrder);
+  document.getElementById('bonModal').classList.add('open');
+}
+
+function printBon() {
+  if (!lastOrder) return;
+  document.getElementById('bonPrintArea').innerHTML = buildBonHtml(lastOrder);
+  document.body.classList.add('print-bon');
   window.print();
-  document.getElementById('receiptModal').classList.remove('open');
+  document.body.classList.remove('print-bon');
+  document.getElementById('bonModal').classList.remove('open');
+}
+
+function openAct() {
+  if (!lastOrder) return;
+  document.getElementById('actContent').innerHTML = buildActHtml(lastOrder);
+  document.getElementById('actModal').classList.add('open');
+}
+
+function printAct() {
+  if (!lastOrder) return;
+  document.getElementById('actPrintArea').innerHTML = buildActHtml(lastOrder);
+  document.body.classList.add('print-act');
+  window.print();
+  document.body.classList.remove('print-act');
+  document.getElementById('actModal').classList.remove('open');
 }
 
 // ── AI bar ────────────────────────────────────────────────────────────
