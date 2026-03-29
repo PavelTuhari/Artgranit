@@ -987,10 +987,29 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     };
     const r = await apiFetch(API_TS + '/order', { method:'POST', body: JSON.stringify(payload) });
     if (!r.success) throw new Error(r.error || 'Ошибка создания заказа');
+    // Capture order data before clearing cart
+    lastOrder = {
+      order_number: r.order_number || '',
+      barcode: r.barcode || r.order_number || '',
+      client_name: name,
+      client_phone: phone,
+      items: cart.map(i => ({...i})),
+      total: r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0),
+      date: new Date(),
+    };
     document.getElementById('checkoutForm').style.display = 'none';
     document.getElementById('checkoutSuccess').style.display = '';
-    document.getElementById('coSuccessNum').textContent = 'Номер заказа: ' + (r.order_number || '');
-    document.getElementById('coBarcode').textContent = r.barcode || r.order_number || '';
+    document.getElementById('coSuccessNum').textContent = 'Заказ: ' + lastOrder.order_number;
+    document.getElementById('coBarcode').textContent = lastOrder.barcode;
+    // Auto-reset countdown
+    let secs = 15;
+    document.getElementById('coCountdown').textContent = 'Новый заказ через ' + secs + ' сек...';
+    if (_countdownTimer) clearInterval(_countdownTimer);
+    _countdownTimer = setInterval(() => {
+      secs--;
+      if (secs <= 0) { resetNewOrder(); }
+      else { document.getElementById('coCountdown').textContent = 'Новый заказ через ' + secs + ' сек...'; }
+    }, 1000);
     // Clear cart
     cart = [];
     renderCart();
