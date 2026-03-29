@@ -512,18 +512,30 @@ class NufarulController:
                     barcode = order_number
                     total = sum(float(it.get("qty") or 1) * float(it.get("price") or 0) for it in items)
 
-                    # 2nd round-trip: insert order header
+                    # 2nd round-trip: insert order header into blockchain ledger
+                    cname = (client_name or "Аноним").strip()
+                    cphone = (client_phone or "").strip() or None
+                    pay = (payment_method or "cash").strip()
                     cur.execute(
                         """INSERT INTO NUF_ORDERS_LEDGER
-                           (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES, PAYMENT_METHOD)
-                           VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes, :pay)""",
+                           (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES)
+                           VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes)""",
                         {
                             "oid": order_id, "onum": order_number, "barcode": barcode,
-                            "cname": (client_name or "Аноним").strip(),
-                            "cphone": (client_phone or "").strip() or None,
+                            "cname": cname, "cphone": cphone,
                             "sid": status_id, "total": round(total, 2),
                             "notes": (notes or "").strip() or None,
-                            "pay": (payment_method or "cash").strip(),
+                        },
+                    )
+                    # Insert payment metadata into companion table
+                    cur.execute(
+                        """INSERT INTO NUF_ORDER_PAYMENT
+                           (ORDER_ID, ORDER_NUMBER, CLIENT_NAME, CLIENT_PHONE, PAYMENT_METHOD, NOTES)
+                           VALUES (:oid, :onum, :cname, :cphone, :pay, :notes)""",
+                        {
+                            "oid": order_id, "onum": order_number,
+                            "cname": cname, "cphone": cphone,
+                            "pay": pay, "notes": (notes or "").strip() or None,
                         },
                     )
 
