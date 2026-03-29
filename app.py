@@ -3050,6 +3050,15 @@ def api_nufarul_ts_order():
         return jsonify({"success": False, "error": "items required"}), 400
     if not isinstance(items, list) or not all(isinstance(i, dict) for i in items):
         return jsonify({"success": False, "error": "items must be a list of objects"}), 400
+    if len(items) > 50:
+        return jsonify({"success": False, "error": "Too many items (max 50)"}), 400
+    for i in items:
+        if not i.get("service_id") or int(i.get("service_id", 0)) <= 0:
+            return jsonify({"success": False, "error": "Each item must have a valid service_id"}), 400
+        if float(i.get("qty", 0)) <= 0:
+            return jsonify({"success": False, "error": "qty must be > 0"}), 400
+        if float(i.get("price", -1)) < 0:
+            return jsonify({"success": False, "error": "price must be >= 0"}), 400
     return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes))
 
 
