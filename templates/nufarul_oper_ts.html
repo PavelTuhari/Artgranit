@@ -945,6 +945,7 @@ async function confirmIssue(orderId) {
 
 // ── Checkout modal ─────────────────────────────────────────────────────
 function openCheckout() {
+  lastOrder = null;
   const modal = document.getElementById('checkoutModal');
   document.getElementById('checkoutForm').style.display = '';
   document.getElementById('checkoutSuccess').style.display = 'none';
