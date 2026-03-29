@@ -3040,12 +3040,13 @@ def api_nufarul_ts_order():
     if not AuthController.is_authenticated():
         return jsonify({"success": False, "error": "Authentication required"}), 401
     data = request.get_json() or {}
-    client_name = (data.get('client_name') or '').strip()
+    client_name = (data.get('client_name') or 'Аноним').strip() or 'Аноним'
     client_phone = (data.get('client_phone') or '').strip()
+    payment_method = (data.get('payment_method') or 'cash').strip().lower()
+    if payment_method not in ('cash', 'card', 'mia', 'mpay'):
+        payment_method = 'cash'
     items = data.get('items') or []
     notes = (data.get('notes') or '').strip() or None
-    if not client_name:
-        return jsonify({"success": False, "error": "client_name required"}), 400
     if not items:
         return jsonify({"success": False, "error": "items required"}), 400
     if not isinstance(items, list) or not all(isinstance(i, dict) for i in items):
