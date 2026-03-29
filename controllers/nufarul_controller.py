@@ -589,6 +589,7 @@ class NufarulController:
                         "success": True, "order_id": order_id,
                         "order_number": order_number, "barcode": barcode,
                         "total_amount": round(total, 2), "item_ids": item_ids,
+                        "payment_method": pay,
                     }
                 except Exception as e:
                     try:
