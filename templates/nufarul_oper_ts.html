@@ -562,6 +562,7 @@ let cartOpen = true;
 let camStream = null;
 let recognition = null;
 let lastOrder = null;    // last confirmed order (for receipt)
+let selectedPayment = 'cash'; // default payment method
 
 // ── Boot ───────────────────────────────────────────────────────────────
 async function boot() {
