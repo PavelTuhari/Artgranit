@@ -1065,6 +1065,7 @@ function printReceipt() {
   if (!lastOrder) return;
   document.getElementById('fiscalPrintArea').innerHTML = document.getElementById('receiptContent').innerHTML;
   window.print();
+  document.getElementById('receiptModal').classList.remove('open');
 }
 
 // ── AI bar ────────────────────────────────────────────────────────────
