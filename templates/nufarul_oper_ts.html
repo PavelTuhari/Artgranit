@@ -563,6 +563,42 @@ button, input, select, textarea { font-family:inherit; }
         </button>
       </div>
 
+      <!-- Cash panel: numpad + banknotes (visible only for cash) -->
+      <div class="co-cash-panel open" id="coCashPanel">
+        <div class="co-cash-display">
+          <div class="co-cash-recv-lbl">Primit / Получено (MDL)</div>
+          <div class="co-cash-recv-val" id="coCashVal">0</div>
+          <div class="co-cash-change" id="coCashChange">
+            <span class="co-change-lbl">Rest / Сдача</span>
+            <span class="co-change-val" id="coChangeVal">—</span>
+          </div>
+        </div>
+        <div class="co-banknotes">
+          <button class="co-banknote" data-bn="1">1</button>
+          <button class="co-banknote" data-bn="5">5</button>
+          <button class="co-banknote" data-bn="10">10</button>
+          <button class="co-banknote" data-bn="20">20</button>
+          <button class="co-banknote" data-bn="50">50</button>
+          <button class="co-banknote" data-bn="100">100</button>
+          <button class="co-banknote" data-bn="200">200</button>
+          <button class="co-banknote" data-bn="500">500</button>
+        </div>
+        <div class="co-numpad">
+          <button class="co-numpad-btn num" data-d="1">1</button>
+          <button class="co-numpad-btn num" data-d="2">2</button>
+          <button class="co-numpad-btn num" data-d="3">3</button>
+          <button class="co-numpad-btn num" data-d="4">4</button>
+          <button class="co-numpad-btn num" data-d="5">5</button>
+          <button class="co-numpad-btn num" data-d="6">6</button>
+          <button class="co-numpad-btn num" data-d="7">7</button>
+          <button class="co-numpad-btn num" data-d="8">8</button>
+          <button class="co-numpad-btn num" data-d="9">9</button>
+          <button class="co-numpad-btn clr" id="coNumClr">C</button>
+          <button class="co-numpad-btn num" data-d="0">0</button>
+          <button class="co-numpad-btn del" id="coNumDel">⌫</button>
+        </div>
+      </div>
+
       <div class="co-actions">
         <button class="co-confirm" id="coConfirmBtn">✓ ПОДТВЕРДИТЬ</button>
         <button class="co-cancel" id="coCancelBtn">Отмена</button>
@@ -573,27 +609,46 @@ button, input, select, textarea { font-family:inherit; }
       <h3>✓ Заказ принят!</h3>
       <div id="coSuccessNum" style="font-size:13px;color:#aaa;margin-bottom:4px;"></div>
       <div class="co-success-pay" id="coSuccessPay"></div>
+      <div class="co-success-change" id="coSuccessChange"></div>
       <div class="checkout-barcode" id="coBarcode"></div>
       <div class="checkout-success-btns">
-        <button class="checkout-print-btn" id="coPrintBtn">🖨 Чек</button>
-        <button class="checkout-new-btn" id="coNewOrderBtn">Новый заказ</button>
+        <button class="co-print-bon" id="coPrintBon">🖨 Bon Fiscal</button>
+        <button class="co-print-act" id="coPrintAct">📄 Act Primire</button>
+        <button class="co-new-order-btn" id="coNewOrderBtn">Новый заказ</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Fiscal receipt modal -->
-<div class="receipt-modal" id="receiptModal">
-  <div>
-    <div class="receipt-box" id="receiptContent"></div>
-    <div class="receipt-actions">
-      <button class="receipt-print-btn" onclick="printReceipt()">🖨 Печать</button>
-      <button class="receipt-close-btn" onclick="document.getElementById('receiptModal').classList.remove('open')">Закрыть</button>
+<!-- Bon Fiscal document modal -->
+<div class="doc-modal" id="bonModal">
+  <div class="doc-wrap">
+    <div class="doc-box">
+      <div class="bon-box" id="bonContent"></div>
+    </div>
+    <div class="doc-actions">
+      <button class="doc-print-btn" onclick="printBon()">🖨 Imprimare</button>
+      <button class="doc-close-btn" onclick="document.getElementById('bonModal').classList.remove('open')">Închide</button>
     </div>
   </div>
 </div>
-<!-- Hidden printable receipt -->
-<div id="fiscalPrintArea"></div>
+
+<!-- Act de Primire document modal -->
+<div class="doc-modal" id="actModal">
+  <div class="doc-wrap">
+    <div class="doc-box">
+      <div class="act-box" id="actContent"></div>
+    </div>
+    <div class="doc-actions">
+      <button class="doc-print-btn" onclick="printAct()">🖨 Imprimare</button>
+      <button class="doc-close-btn" onclick="document.getElementById('actModal').classList.remove('open')">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden printable areas -->
+<div id="bonPrintArea"></div>
+<div id="actPrintArea"></div>
 
 <script>
 'use strict';
