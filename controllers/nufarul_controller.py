@@ -482,32 +482,33 @@ class NufarulController:
         items: List[Dict[str, Any]],
         notes: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Creates order and stores per-item params in NUF_ORDER_ITEM_PARAMS companion table."""
+        """Creates order and stores per-item params in NUF_ORDER_ITEM_PARAMS companion table.
+        Uses a single bootstrap query + executemany to minimize Oracle round-trips."""
         try:
             with DatabaseModel() as db:
+                conn = db.connection
+                cur = conn.cursor()
                 try:
-                    r_seq = db.execute_query("SELECT NUF_ORDER_NUM_SEQ.NEXTVAL AS NX FROM DUAL")
-                    if not r_seq.get("success") or not r_seq.get("data"):
-                        return {"success": False, "error": "Could not generate order number"}
-                    seq_val = r_seq["data"][0][0]
-                    r_yr = db.execute_query("SELECT TO_CHAR(SYSDATE,'YYYY') AS Y FROM DUAL")
-                    year = r_yr["data"][0][0] if r_yr.get("data") else "2026"
-                    order_number = f"{year}-{str(seq_val).zfill(5)}"
-                    barcode = order_number
-
-                    r_st = db.execute_query("SELECT ID FROM NUF_ORDER_STATUSES WHERE CODE = 'received'")
-                    if not r_st.get("data"):
+                    n = len(items)
+                    # 1 round-trip: all sequences + year + status in one query
+                    cur.execute(f"""
+                        SELECT
+                            NUF_ORDER_NUM_SEQ.NEXTVAL,
+                            NUF_ORDERS_LEDGER_SEQ.NEXTVAL,
+                            TO_CHAR(SYSDATE,'YYYY'),
+                            (SELECT ID FROM NUF_ORDER_STATUSES WHERE CODE='received' AND ROWNUM=1)
+                        FROM DUAL
+                    """)
+                    row = cur.fetchone()
+                    if not row or row[3] is None:
                         return {"success": False, "error": "Status 'received' not found"}
-                    status_id = r_st["data"][0][0]
-
+                    seq_val, order_id, year, status_id = row
+                    order_number = f"{year}-{str(int(seq_val)).zfill(5)}"
+                    barcode = order_number
                     total = sum(float(it.get("qty") or 1) * float(it.get("price") or 0) for it in items)
 
-                    r_new_id = db.execute_query("SELECT NUF_ORDERS_LEDGER_SEQ.NEXTVAL FROM DUAL")
-                    order_id = r_new_id["data"][0][0] if r_new_id.get("data") else None
-                    if not order_id:
-                        return {"success": False, "error": "Could not generate order ID"}
-
-                    db.execute_query(
+                    # 2nd round-trip: insert order header
+                    cur.execute(
                         """INSERT INTO NUF_ORDERS_LEDGER
                            (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES)
                            VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes)""",
@@ -520,37 +521,52 @@ class NufarulController:
                         },
                     )
 
+                    # 3rd round-trip: fetch all item IDs at once
+                    cur.execute(f"""
+                        SELECT NUF_ITEMS_LEDGER_SEQ.NEXTVAL
+                        FROM DUAL CONNECT BY LEVEL <= {n}
+                    """)
+                    item_ids_seq = [r[0] for r in cur.fetchall()]
+                    if len(item_ids_seq) != n:
+                        raise ValueError("Could not generate all item IDs")
+
+                    # 4th round-trip: batch insert items
+                    items_data = []
+                    params_data = []
                     item_ids = []
-                    for it in items:
+                    for iid, it in zip(item_ids_seq, items):
                         service_id = int(it.get("service_id") or 0)
                         qty = float(it.get("qty") or 1)
                         price = float(it.get("price") or 0)
                         amount = round(qty * price, 2)
-
-                        r_iid_seq = db.execute_query("SELECT NUF_ITEMS_LEDGER_SEQ.NEXTVAL FROM DUAL")
-                        iid = r_iid_seq["data"][0][0] if r_iid_seq.get("data") else None
-                        if not iid:
-                            raise ValueError("Could not generate item ID from NUF_ITEMS_LEDGER_SEQ")
-                        db.execute_query(
-                            """INSERT INTO NUF_ORDER_ITEMS_LEDGER
-                               (ID, ORDER_ID, SERVICE_ID, QTY, PRICE, AMOUNT)
-                               VALUES (:iid, :oid, :sid, :qty, :price, :amount)""",
-                            {"iid": iid, "oid": order_id, "sid": service_id,
-                             "qty": qty, "price": price, "amount": amount},
-                        )
-
+                        items_data.append({
+                            "iid": iid, "oid": order_id, "sid": service_id,
+                            "qty": qty, "price": price, "amount": amount,
+                        })
                         params_raw = it.get("params")
                         if params_raw:
-                            params_json = json.dumps(params_raw, ensure_ascii=False)
-                            db.execute_query(
-                                """INSERT INTO NUF_ORDER_ITEM_PARAMS (ORDER_ITEM_ID, PARAMS)
-                                   VALUES (:item_id, :params)""",
-                                {"item_id": iid, "params": params_json},
-                            )
-
+                            params_data.append({
+                                "item_id": iid,
+                                "params": json.dumps(params_raw, ensure_ascii=False),
+                            })
                         item_ids.append({"service_id": service_id, "item_id": iid})
 
-                    db.connection.commit()
+                    cur.executemany(
+                        """INSERT INTO NUF_ORDER_ITEMS_LEDGER
+                           (ID, ORDER_ID, SERVICE_ID, QTY, PRICE, AMOUNT)
+                           VALUES (:iid, :oid, :sid, :qty, :price, :amount)""",
+                        items_data,
+                    )
+
+                    # 5th round-trip (only if params present): batch insert params
+                    if params_data:
+                        cur.executemany(
+                            """INSERT INTO NUF_ORDER_ITEM_PARAMS (ORDER_ITEM_ID, PARAMS)
+                               VALUES (:item_id, :params)""",
+                            params_data,
+                        )
+
+                    conn.commit()
                     return {
                         "success": True, "order_id": order_id,
                         "order_number": order_number, "barcode": barcode,
@@ -558,10 +574,13 @@ class NufarulController:
                     }
                 except Exception as e:
                     try:
-                        db.connection.rollback()
+                        conn.rollback()
                     except Exception:
                         pass
-                    return {"success": False, "error": str(e)}
+                    import traceback
+                    return {"success": False, "error": str(e), "traceback": traceback.format_exc()}
+                finally:
+                    cur.close()
         except Exception as e:
             return {"success": False, "error": str(e)}
 
