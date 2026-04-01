@@ -15,6 +15,26 @@
 7. Рабочий web-префикс приложения: `/UNA.md/orasldev/...`. Путь `/UNA.md/` сам по себе не является точкой входа.
 8. Oracle wallet на remote должен жить вне каталога деплоя или явно сохраняться и восстанавливаться при обновлении кода.
 
+## Production: Конфигурация сервера
+
+Зафиксировано по состоянию на 2026-04.
+
+| Компонент | Значение |
+|---|---|
+| Домен | `https://nufarul.eminescu.md/` |
+| Сервер | `ubuntu@92.5.3.187` |
+| Project path | `/home/ubuntu/artgranit/` |
+| Systemd unit | `artgranit.service` |
+| Python venv | `/home/ubuntu/artgranit/venv/` (Python 3.12) |
+| Flask порт | `8000` (только `127.0.0.1`, не публичный) |
+| Nginx config | `/etc/nginx/sites-enabled/` → `proxy_pass http://127.0.0.1:8000` |
+| SSL | Let's Encrypt, автопродление certbot |
+| SSL cert | `/etc/letsencrypt/live/nufarul.eminescu.md/` |
+| Oracle wallet | `/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q` |
+| `.env` | `/home/ubuntu/artgranit/.env` |
+
+Приложение запускается systemd при старте сервера. Перезапускать только через `sudo systemctl restart artgranit`.
+
 ## Production Invariant: Не ломать `nufarul.eminescu.md`
 
 `https://nufarul.eminescu.md/` — это действующий production URL. Его нельзя ломать изменениями в коде, `.env`, `systemd`, `nginx`, `deploy_to_remote.sh`, `setup-https.sh` или backend-порта.
