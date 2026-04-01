@@ -351,10 +351,13 @@ sudo pkill -f "http.server"
 ```
 
 ### 4. Просмотр логов
-Чтобы увидеть ошибки в реальном времени:
 
 ```bash
-tail -f /home/ubuntu/artgranit/app.log
+# Журнал systemd (предпочтительно)
+journalctl -u artgranit -f
+
+# Последние 100 строк
+journalctl -u artgranit -n 100
 ```
 
 ---
