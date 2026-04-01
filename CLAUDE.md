@@ -13,6 +13,19 @@
 3. у модуля есть собственный префикс Oracle-объектов;
 4. код, dashboards, docs и deploy обновляются согласованно.
 
+## Критический production-инвариант
+
+`https://nufarul.eminescu.md/` нельзя ломать.
+
+Для любого AI-агента и разработчика это правило обязательное:
+
+1. Не менять backend port, `systemd` unit, `WorkingDirectory`, virtualenv, `.env`, `nginx` `proxy_pass`, `server_name` или SSL-конфиг по отдельности, если это может уронить `https://nufarul.eminescu.md/`.
+2. Любые изменения remote runtime или deploy-контура считаются незавершёнными, пока не подтверждено:
+   `curl -I https://nufarul.eminescu.md/login`
+3. Если домен начал отдавать `502`, `504`, `403`, неверный сертификат или перестал открываться после чьих-то правок, первая задача агента: восстановить `https://nufarul.eminescu.md/`, а не продолжать разработку.
+4. Если в `/home/ubuntu/artgranit` уже работает другая модель или другой runtime-контур, нельзя “поверх” переключать порт или путь запуска без проверки live-домена.
+5. Production URL `https://nufarul.eminescu.md/` важнее локальных экспериментов, временных рефакторингов и новых модулей.
+
 ## Что запрещено
 
 Нельзя повторять следующие паттерны:
@@ -105,6 +118,83 @@
 3. `deploy_to_remote.sh` разворачивает код в `/home/ubuntu/artgranit`.
 4. Production Oracle wallet хранится вне каталога деплоя: `/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q`.
 5. Remote root URL может редиректить на `/login`; это нормальное поведение. Рабочий модульный URL: `/UNA.md/orasldev/...`.
+
+## Production infrastructure — точная конфигурация сервера
+
+Зафиксировано по состоянию на 2026-04. Менять эти параметры можно только синхронно, с проверкой `https://nufarul.eminescu.md/` после каждого изменения.
+
+### Flask / systemd
+
+| Параметр | Значение |
+|---|---|
+| Сервис | `/etc/systemd/system/artgranit.service` |
+| User | `ubuntu` |
+| WorkingDirectory | `/home/ubuntu/artgranit` |
+| ExecStart | `/home/ubuntu/artgranit/venv/bin/python3 app.py` |
+| EnvironmentFile | `/home/ubuntu/artgranit/.env` |
+| PORT | `8000` (только localhost: `127.0.0.1:8000`) |
+| ENVIRONMENT | `REMOTE` |
+| Python venv | `/home/ubuntu/artgranit/venv/` (Python 3.12) |
+
+Перезапускать приложение только через:
+```bash
+sudo systemctl restart artgranit
+```
+
+Проверить статус:
+```bash
+sudo systemctl status artgranit
+journalctl -u artgranit -f
+```
+
+**Нельзя** перезапускать через `pkill` + `nohup` — это уводит процесс из-под systemd, и при следующем restart сервера приложение не поднимется.
+
+### Nginx
+
+Конфиг: `/etc/nginx/sites-enabled/` (домен `nufarul.eminescu.md`)
+
+- HTTP (80) → редирект 301 на HTTPS (кроме `.well-known/acme-challenge/`)
+- HTTPS (443) → `proxy_pass http://127.0.0.1:8000`
+- WebSocket поддержка: `Upgrade`, `Connection: upgrade`, `proxy_read_timeout 86400`
+- `client_max_body_size 16M`
+- Security headers: HSTS, X-Frame-Options, X-Content-Type-Options
+
+Перезапустить nginx после изменений:
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### SSL
+
+- Провайдер: Let's Encrypt (certbot)
+- Сертификат: `/etc/letsencrypt/live/nufarul.eminescu.md/fullchain.pem`
+- Ключ: `/etc/letsencrypt/live/nufarul.eminescu.md/privkey.pem`
+- Автопродление: certbot systemd timer + cron (`0 */12 * * *`)
+- Продление не требует ручного вмешательства, пока сервер доступен по HTTP для ACME-challenge
+
+Проверить сертификат:
+```bash
+certbot certificates
+```
+
+### Oracle Wallet
+
+- Путь: `/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q`
+- В `.env`: `WALLET_DIR=/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q`
+- Wallet **не входит** в deploy-архив и не должен туда попадать
+
+### Проверка production после любых изменений
+
+```bash
+# 1. Flask слушает
+curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/login  # → 200
+
+# 2. Домен отвечает через nginx + SSL
+curl -I https://nufarul.eminescu.md/login  # → HTTP/2 200
+
+# 3. Статус сервиса
+sudo systemctl status artgranit --no-pager
+```
 
 ## Если нужно быстро принять решение
 
