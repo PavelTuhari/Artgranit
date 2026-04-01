@@ -15,6 +15,19 @@
 7. Рабочий web-префикс приложения: `/UNA.md/orasldev/...`. Путь `/UNA.md/` сам по себе не является точкой входа.
 8. Oracle wallet на remote должен жить вне каталога деплоя или явно сохраняться и восстанавливаться при обновлении кода.
 
+## Production Invariant: Не ломать `nufarul.eminescu.md`
+
+`https://nufarul.eminescu.md/` — это действующий production URL. Его нельзя ломать изменениями в коде, `.env`, `systemd`, `nginx`, `deploy_to_remote.sh`, `setup-https.sh` или backend-порта.
+
+Обязательные правила:
+
+1. Перед любым remote deploy или изменением конфигурации считать `https://nufarul.eminescu.md/` защищённым production-инвариантом.
+2. Нельзя менять backend port, `proxy_pass`, `WorkingDirectory`, virtualenv, `server_name` или SSL-пути по отдельности. Эти вещи меняются только синхронно.
+3. После каждого изменения, затрагивающего запуск приложения или reverse proxy, обязательно проверить:
+   `curl -I https://nufarul.eminescu.md/login`
+4. Ожидаемый результат проверки: `200 OK` на `/login` и корректный redirect на `/login` для защищённых страниц вроде `/UNA.md/orasldev/nufarul-operator`.
+5. Если после правок домен перестал отвечать, приоритет номер один: немедленно вернуть работоспособность `nufarul.eminescu.md`, а уже потом продолжать остальные задачи.
+
 ## 🚀 Основные возможности
 
 1.  **SQL Worksheet (Oracle SQL Developer):**
@@ -235,31 +248,25 @@ python3 app.py
 
 #### Удаленный сервер (Production режим)
 
-Для запуска на удаленном сервере в фоновом режиме:
+Приложение управляется через `systemd`. Запускается автоматически при старте сервера.
 
 ```bash
-cd /home/ubuntu/artgranit
-./full_restart.sh
+# Перезапустить
+sudo systemctl restart artgranit
+
+# Статус
+sudo systemctl status artgranit
+
+# Логи в реальном времени
+journalctl -u artgranit -f
 ```
 
-Или вручную:
+Рабочие URL:
 
-```bash
-cd /home/ubuntu/artgranit
-source venv/bin/activate
-export ENVIRONMENT=REMOTE
-export PORT=8000
-nohup python3 app.py > app.log 2>&1 &
-```
+*   `https://nufarul.eminescu.md/login` — production (через nginx + SSL)
+*   `http://127.0.0.1:8000/login` — напрямую к Flask (только с сервера)
 
-Приложение будет доступно по адресу: `http://92.5.3.187:8000`
-
-Рабочие URL после запуска:
-
-*   `http://92.5.3.187:8000/login`
-*   `http://92.5.3.187:8000/UNA.md/orasldev/`
-
-Путь `http://92.5.3.187:8000/UNA.md/` не является отдельным маршрутом и может возвращать `404`.
+Путь `/UNA.md/` сам по себе не является маршрутом. Рабочие модульные URL: `/UNA.md/orasldev/...`
 
 ### Кодовый deploy на remote
 
