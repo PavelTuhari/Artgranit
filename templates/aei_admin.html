@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEÎ — Evidența depozitelor și creditelor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --menu-h:  32px;
+      --sb-w:    230px;
+      --status-h:22px;
+      --bg:      #1a1a2e;
+      --bg2:     #16213e;
+      --bg3:     #0f3460;
+      --accent:  #4f8ef7;
+      --accent2: #7c6af7;
+      --green:   #22c55e;
+      --yellow:  #f59e0b;
+      --red:     #ef4444;
+      --text:    #e2e8f0;
+      --text-dim:#7c8ba0;
+      --border:  #2d3a4f;
+
+      /* content (light) */
+      --c-bg:    #f8fafc;
+      --c-text:  #1e293b;
+      --c-border:#e2e8f0;
+      --c-blue:  #1d4ed8;
+      --c-blue-lt:#dbeafe;
+      --c-gray:  #475569;
+      --c-green: #15803d;
+      --c-green-lt:#dcfce7;
+      --c-yellow-lt:#fefce8;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── MENU BAR ──────────────────────────────────────── */
+    .menu-bar {
+      height: var(--menu-h);
+      background: #0d0d1a;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 10px; gap: 2px;
+      flex-shrink: 0; z-index: 200;
+      user-select: none;
+    }
+    .menu-logo {
+      display: flex; align-items: center; gap: 8px;
+      margin-right: 10px;
+      font-weight: 700; font-size: 13px; color: var(--accent);
+      letter-spacing: .03em;
+    }
+    .menu-logo .logo-badge {
+      background: var(--accent); color: #fff;
+      border-radius: 3px; padding: 1px 6px;
+      font-size: 11px; font-weight: 700;
+    }
+    .menu-item {
+      padding: 4px 10px; font-size: 12px;
+      color: var(--text-dim); border-radius: 3px;
+      cursor: pointer; transition: background .12s, color .12s;
+    }
+    .menu-item:hover { background: var(--bg3); color: var(--text); }
+    .menu-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .menu-user { font-size: 11px; color: var(--text-dim); }
+    .menu-back {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 10px; font-size: 12px;
+      color: var(--accent); border-radius: 3px;
+      cursor: pointer; text-decoration: none;
+      transition: background .12s;
+    }
+    .menu-back:hover { background: rgba(79,142,247,.15); }
+
+    /* ── APP SHELL ─────────────────────────────────────── */
+    .app-shell {
+      display: flex;
+      height: calc(100vh - var(--menu-h) - var(--status-h));
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ───────────────────────────────────────── */
+    .sidebar {
+      width: var(--sb-w); min-width: var(--sb-w);
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden; flex-shrink: 0;
+    }
+    .sb-header {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sb-org { font-size: 12px; font-weight: 700; color: var(--accent); }
+    .sb-sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+    .sb-section-title {
+      padding: 10px 14px 4px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .nav-list { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 14px;
+      cursor: pointer; font-size: 12px;
+      color: var(--text-dim);
+      border-left: 3px solid transparent;
+      transition: background .12s, color .12s, border-color .12s;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.05); color: var(--text); }
+    .nav-item.active {
+      background: rgba(79,142,247,.15);
+      border-left-color: var(--accent);
+      color: var(--text);
+    }
+    .nav-icon { width: 16px; text-align: center; font-size: 13px; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--red); color: #fff;
+      border-radius: 8px; padding: 1px 6px;
+      font-size: 10px; font-weight: 700;
+      display: none;
+    }
+    .nav-badge.show { display: inline; }
+
+    .sb-footer {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ── MAIN AREA ─────────────────────────────────────── */
+    .main-area {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      background: var(--c-bg);
+    }
+
+    /* toolbar */
+    .toolbar {
+      height: 40px;
+      background: #fff;
+      border-bottom: 1px solid var(--c-border);
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 8px;
+      flex-shrink: 0;
+    }
+    .tb-title {
+      font-size: 14px; font-weight: 700;
+      color: var(--c-blue);
+    }
+    .tb-sep { width: 1px; height: 20px; background: var(--c-border); margin: 0 4px; }
+    .tb-btn {
+      padding: 5px 12px; font-size: 12px;
+      border: 1px solid var(--c-border);
+      border-radius: 4px; background: #fff;
+      color: var(--c-text); cursor: pointer;
+      display: flex; align-items: center; gap: 5px;
+      transition: background .12s, border-color .12s;
+    }
+    .tb-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+    .tb-btn.primary {
+      background: var(--c-blue); color: #fff;
+      border-color: var(--c-blue);
+    }
+    .tb-btn.primary:hover { background: #1e40af; }
+    .tb-right { margin-left: auto; display: flex; gap: 8px; }
+    .tb-search {
+      padding: 5px 10px; font-size: 12px;
+      border: 1px solid var(--c-border);
+      border-radius: 4px; width: 200px;
+      outline: none;
+    }
+    .tb-search:focus { border-color: var(--c-blue); }
+
+    /* content panels */
+    .content-area { flex: 1; overflow-y: auto; overflow-x: hidden; }
+    .panel { display: none; padding: 20px; }
+    .panel.active { display: block; }
+
+    /* ── CARDS / KPI ───────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px,1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      position: relative; overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0;
+      width: 4px; height: 100%;
+      background: var(--kpi-color, var(--c-blue));
+    }
+    .kpi-val {
+      font-size: 24px; font-weight: 700;
+      color: var(--c-blue); line-height: 1.2;
+    }
+    .kpi-label { font-size: 11px; color: var(--c-gray); margin-top: 2px; }
+    .kpi-sub { font-size: 11px; color: var(--c-gray); margin-top: 4px; }
+
+    /* ── SECTION HEADER ────────────────────────────────── */
+    .sec-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .sec-header h2 { font-size: 15px; font-weight: 700; color: var(--c-text); }
+    .sec-header .count {
+      background: var(--c-blue-lt); color: var(--c-blue);
+      border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 700;
+    }
+
+    /* ── DATA TABLE ────────────────────────────────────── */
+    .data-table-wrap {
+      background: #fff;
+      border: 1px solid var(--c-border);
+      border-radius: 8px; overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .data-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .data-table th {
+      background: #f8fafc;
+      color: var(--c-gray);
+      font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .04em;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--c-border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f8fafc; }
+    .data-table .td-actions { white-space: nowrap; text-align: right; }
+    .data-table .btn-sm {
+      padding: 3px 8px; font-size: 11px;
+      border: 1px solid var(--c-border);
+      border-radius: 3px; cursor: pointer;
+      background: #fff; color: var(--c-text);
+      transition: background .1s;
+    }
+    .data-table .btn-sm:hover { background: #f1f5f9; }
+    .data-table .btn-sm.danger { color: var(--red); border-color: #fecaca; }
+    .data-table .btn-sm.danger:hover { background: #fef2f2; }
+
+    /* status badges */
+    .badge {
+      display: inline-block; border-radius: 10px;
+      padding: 2px 8px; font-size: 10px; font-weight: 700;
+    }
+    .badge-active   { background: #dcfce7; color: #15803d; }
+    .badge-expired  { background: #f3f4f6; color: #6b7280; }
+    .badge-overdue  { background: #fee2e2; color: #b91c1c; }
+    .badge-inactive { background: #f3f4f6; color: #6b7280; }
+    .badge-closed   { background: #dbeafe; color: #1d4ed8; }
+
+    /* ── MODAL ─────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 500;
+      align-items: center; justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      width: 560px; max-width: 95vw;
+      max-height: 90vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--c-border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-header h3 { font-size: 15px; font-weight: 700; flex: 1; }
+    .modal-close {
+      width: 28px; height: 28px;
+      border-radius: 50%; border: none;
+      background: #f1f5f9; cursor: pointer;
+      font-size: 16px; color: var(--c-gray);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: #e2e8f0; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--c-border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
+    /* ── FORM ──────────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .form-grid .full { grid-column: 1 / -1; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 11px; font-weight: 600; color: var(--c-gray); }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 7px 10px; font-size: 12px;
+      border: 1px solid var(--c-border);
+      border-radius: 4px; outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { border-color: var(--c-blue); }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+
+    /* ── ALERT ─────────────────────────────────────────── */
+    .alert {
+      padding: 10px 14px; border-radius: 6px;
+      font-size: 13px; margin-bottom: 14px;
+    }
+    .alert-info  { background: var(--c-blue-lt); border-left: 3px solid var(--c-blue); }
+    .alert-warn  { background: #fefce8; border-left: 3px solid #ca8a04; }
+    .alert-ok    { background: var(--c-green-lt); border-left: 3px solid var(--c-green); }
+    .alert-err   { background: #fee2e2; border-left: 3px solid var(--red); }
+
+    /* ── TOAST ─────────────────────────────────────────── */
+    .toast-container {
+      position: fixed; bottom: 28px; right: 16px;
+      z-index: 1000;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 10px 16px; border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+      background: #1e293b; color: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+      animation: slideIn .2s ease;
+      max-width: 320px;
+    }
+    .toast.ok  { background: var(--c-green); }
+    .toast.err { background: var(--red); }
+    @keyframes slideIn { from { transform: translateX(110%); } to { transform: translateX(0); } }
+
+    /* ── JOURNAL TABLE ─────────────────────────────────── */
+    .journal-tbl { font-size: 11px; }
+    .journal-tbl td { padding: 6px 10px; }
+    .td-acc { font-weight: 700; color: var(--c-blue); font-family: monospace; }
+    .td-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    /* ── DEPOSIT FISA ──────────────────────────────────── */
+    .fisa-wrap {
+      background: #fff; border: 1px solid var(--c-border);
+      border-radius: 8px; overflow: hidden; margin-top: 14px;
+    }
+    .fisa-wrap .fisa-header {
+      background: var(--c-blue); color: #fff;
+      padding: 10px 16px; font-weight: 700; font-size: 13px;
+    }
+
+    /* ── ACCOUNTS TREE ─────────────────────────────────── */
+    .acc-tree { list-style: none; }
+    .acc-tree li {
+      padding: 6px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex; gap: 12px; align-items: baseline;
+    }
+    .acc-tree li:last-child { border-bottom: none; }
+    .acc-code { font-family: monospace; font-weight: 700; color: var(--c-blue); min-width: 60px; }
+    .acc-name { flex: 1; }
+    .acc-type { font-size: 10px; color: var(--c-gray); }
+    .acc-tree .indent-1 { padding-left: 28px; }
+    .acc-tree .indent-2 { padding-left: 44px; font-size: 11px; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.3); border-radius: 3px; }
+
+    /* ── STATUS BAR ────────────────────────────────────── */
+    .status-bar {
+      height: var(--status-h);
+      background: var(--c-blue);
+      color: #fff;
+      display: flex; align-items: center;
+      padding: 0 14px; gap: 20px;
+      font-size: 11px; flex-shrink: 0;
+    }
+    .status-bar .sb-right { margin-left: auto; }
+
+    /* empty state */
+    .empty-state {
+      text-align: center; padding: 40px 20px;
+      color: var(--c-gray);
+    }
+    .empty-state .es-icon { font-size: 40px; margin-bottom: 10px; }
+    .empty-state p { font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<!-- ── MENU BAR ──────────────────────────────────────────── -->
+<div class="menu-bar">
+  <div class="menu-logo">
+    <span class="logo-badge">AEÎ</span>
+    Evidența depozitelor și creditelor
+  </div>
+  <div class="menu-item">Fișier</div>
+  <div class="menu-item">Rapoarte</div>
+  <div class="menu-item">Instrumente</div>
+  <div class="menu-right">
+    <a class="menu-back" href="/UNA.md/orasldev">← SQL Dev</a>
+    <span class="menu-user" id="menu-user">aei</span>
+  </div>
+</div>
+
+<!-- ── APP SHELL ─────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-org" id="sb-org-name">AEÎ</div>
+      <div class="sb-sub">Asociația de Economii și Împrumut</div>
+    </div>
+    <div class="nav-list">
+
+      <div class="sb-section-title">Principală</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="showPanel('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+
+      <div class="sb-section-title">Operațional</div>
+      <div class="nav-item" id="nav-deposits" onclick="showPanel('deposits')">
+        <span class="nav-icon">💰</span> Depozite
+        <span class="nav-badge" id="badge-deposits-exp">0</span>
+      </div>
+      <div class="nav-item" id="nav-loans" onclick="showPanel('loans')">
+        <span class="nav-icon">🏦</span> Credite
+        <span class="nav-badge" id="badge-loans-overdue">0</span>
+      </div>
+      <div class="nav-item" id="nav-members" onclick="showPanel('members')">
+        <span class="nav-icon">👥</span> Membri
+      </div>
+
+      <div class="sb-section-title">Contabilitate</div>
+      <div class="nav-item" id="nav-journal" onclick="showPanel('journal')">
+        <span class="nav-icon">📒</span> Jurnal contabil
+      </div>
+      <div class="nav-item" id="nav-accounts" onclick="showPanel('accounts')">
+        <span class="nav-icon">🗂️</span> Plan de conturi
+      </div>
+
+      <div class="sb-section-title">Configurare</div>
+      <div class="nav-item" id="nav-settings" onclick="showPanel('settings')">
+        <span class="nav-icon">⚙️</span> Setări
+      </div>
+      <div class="nav-item" id="nav-tz" onclick="window.open('/UNA.md/orasldev/aei-tz','_blank')">
+        <span class="nav-icon">📋</span> TZ / Documentație ↗
+      </div>
+    </div>
+    <div class="sb-footer">
+      <div id="sb-date">—</div>
+      <div>www.aei.md</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-area">
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <span class="tb-title" id="toolbar-title">Dashboard</span>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" id="tb-refresh" onclick="refreshCurrent()">↻ Actualizare</button>
+      <button class="tb-btn primary" id="tb-add" onclick="openAddModal()" style="display:none">+ Adaugă</button>
+      <div class="tb-right">
+        <input class="tb-search" type="text" id="tb-search" placeholder="Caută..." oninput="filterTable(this.value)">
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div class="content-area">
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- DASHBOARD                                         -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi-card" style="--kpi-color:#1d4ed8">
+            <div class="kpi-val" id="kpi-deposits-count">—</div>
+            <div class="kpi-label">Depozite active</div>
+            <div class="kpi-sub" id="kpi-deposits-sum">—</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#15803d">
+            <div class="kpi-val" id="kpi-loans-count">—</div>
+            <div class="kpi-label">Credite active</div>
+            <div class="kpi-sub" id="kpi-loans-sum">—</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#7c3aed">
+            <div class="kpi-val" id="kpi-members-count">—</div>
+            <div class="kpi-label">Membri activi</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#ca8a04">
+            <div class="kpi-val" id="kpi-exp-30d">—</div>
+            <div class="kpi-label">Depozite scadente (30 zile)</div>
+          </div>
+          <div class="kpi-card" style="--kpi-color:#dc2626">
+            <div class="kpi-val" id="kpi-overdue">—</div>
+            <div class="kpi-label">Credite restante</div>
+          </div>
+        </div>
+
+        <div class="alert alert-info">
+          <strong>AEÎ</strong> — Asociația de Economii și Împrumut.
+          Modul gestionează depozitele membrilor, creditele acordate, contabilitatea conform
+          <strong>planului de conturi AEÎ</strong> (indicații metodice CNPF) și rapoartele financiare.
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px">
+          <div>
+            <div class="sec-header"><h2>Depozite recente</h2></div>
+            <div class="data-table-wrap">
+              <table class="data-table" id="dash-deposits-tbl">
+                <thead><tr>
+                  <th>Contract</th><th>Membru</th>
+                  <th>Suma</th><th>Scadență</th><th>Statut</th>
+                </tr></thead>
+                <tbody id="dash-deposits-body">
+                  <tr><td colspan="5" class="empty-state">Se încarcă...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="sec-header"><h2>Credite recente</h2></div>
+            <div class="data-table-wrap">
+              <table class="data-table" id="dash-loans-tbl">
+                <thead><tr>
+                  <th>Contract</th><th>Membru</th>
+                  <th>Suma</th><th>Scadență</th><th>Statut</th>
+                </tr></thead>
+                <tbody id="dash-loans-body">
+                  <tr><td colspan="5" class="empty-state">Se încarcă...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- DEPOSITS                                          -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-deposits">
+        <div class="sec-header">
+          <h2>Depozite de economii</h2>
+          <span class="count" id="deposits-count">0</span>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+          <button class="tb-btn" onclick="loadDeposits('')">Toate</button>
+          <button class="tb-btn" onclick="loadDeposits('ACTIVE')">Active</button>
+          <button class="tb-btn" onclick="loadDeposits('EXPIRED')">Expirate</button>
+          <button class="tb-btn" onclick="loadDeposits('TERMINATED')">Reziliate</button>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="data-table" id="deposits-tbl">
+            <thead><tr>
+              <th>Nr. contract</th>
+              <th>Membru</th>
+              <th>Data semnării</th>
+              <th>Scadență</th>
+              <th>Suma (MDL)</th>
+              <th>Rata (%)</th>
+              <th>Capitalizare</th>
+              <th>Statut</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="deposits-body">
+              <tr><td colspan="9"><div class="empty-state"><div class="es-icon">💰</div><p>Niciun depozit înregistrat</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- LOANS                                             -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-loans">
+        <div class="sec-header">
+          <h2>Credite acordate</h2>
+          <span class="count" id="loans-count">0</span>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+          <button class="tb-btn" onclick="loadLoans('')">Toate</button>
+          <button class="tb-btn" onclick="loadLoans('ACTIVE')">Active</button>
+          <button class="tb-btn" onclick="loadLoans('OVERDUE')">Restante</button>
+          <button class="tb-btn" onclick="loadLoans('CLOSED')">Achitate</button>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="data-table" id="loans-tbl">
+            <thead><tr>
+              <th>Nr. contract</th>
+              <th>Membru</th>
+              <th>Acordat</th>
+              <th>Scadență</th>
+              <th>Suma (MDL)</th>
+              <th>Rata (%)</th>
+              <th>Termen (luni)</th>
+              <th>Clasă risc</th>
+              <th>Statut</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="loans-body">
+              <tr><td colspan="10"><div class="empty-state"><div class="es-icon">🏦</div><p>Niciun credit înregistrat</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- MEMBERS                                           -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-members">
+        <div class="sec-header">
+          <h2>Registrul membrilor</h2>
+          <span class="count" id="members-count">0</span>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table" id="members-tbl">
+            <thead><tr>
+              <th>IDNP / IDNO</th>
+              <th>Nume, Prenume</th>
+              <th>Tip</th>
+              <th>Telefon</th>
+              <th>Email</th>
+              <th>Data aderării</th>
+              <th>Statut</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="members-body">
+              <tr><td colspan="8"><div class="empty-state"><div class="es-icon">👥</div><p>Niciun membru înregistrat</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- JOURNAL                                           -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-journal">
+        <div class="sec-header"><h2>Jurnal contabil</h2></div>
+        <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center">
+          <label style="font-size:11px;color:var(--c-gray)">De la:</label>
+          <input type="date" id="jrn-from" class="tb-search" style="width:140px">
+          <label style="font-size:11px;color:var(--c-gray)">Până la:</label>
+          <input type="date" id="jrn-to" class="tb-search" style="width:140px">
+          <input type="text" id="jrn-acc" placeholder="Cont..." class="tb-search" style="width:100px">
+          <button class="tb-btn primary" onclick="loadJournal()">Filtru</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table journal-tbl" id="journal-tbl">
+            <thead><tr>
+              <th>Data</th><th>Nr.</th>
+              <th>Dt cont</th><th>Ct cont</th>
+              <th>Ct extra +</th><th>Ct extra -</th>
+              <th>Suma</th>
+              <th>Descriere</th><th>Document</th>
+            </tr></thead>
+            <tbody id="journal-body">
+              <tr><td colspan="9"><div class="empty-state"><div class="es-icon">📒</div><p>Alegeți perioada și apăsați Filtru</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- ACCOUNTS                                          -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-accounts">
+        <div class="sec-header"><h2>Plan de conturi AEÎ</h2></div>
+        <div class="alert alert-info" style="margin-bottom:14px">
+          Plan de conturi conform <strong>indicațiilor metodice CNPF</strong> pentru AEÎ din Republica Moldova.
+          Conturi 5131–5133 pentru depuneri, 7151 pentru cheltuieli dobânzi, 9201 extrabilanțier.
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table" id="accounts-tbl">
+            <thead><tr>
+              <th>Cod cont</th><th>Denumire</th>
+              <th>Tip</th><th>Sold normal</th><th>Note</th>
+            </tr></thead>
+            <tbody id="accounts-body">
+              <tr><td colspan="5">Se încarcă...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- SETTINGS                                          -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-settings">
+        <div class="sec-header"><h2>Setări modul AEÎ</h2></div>
+        <div id="settings-content">Se încarcă...</div>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<!-- ── STATUS BAR ─────────────────────────────────────────── -->
+<div class="status-bar">
+  <span id="sb-status">Gata</span>
+  <span>AEÎ · Unisim-SOFT</span>
+  <span class="sb-right" id="sb-panel">dashboard</span>
+</div>
+
+<!-- ── MODAL: DEPOSIT ─────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-deposit">
+  <div class="modal" style="width:620px">
+    <div class="modal-header">
+      <span style="font-size:18px">💰</span>
+      <h3 id="modal-deposit-title">Depozit nou</h3>
+      <button class="modal-close" onclick="closeModal('modal-deposit')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="dep-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nr. contract *</label>
+          <input type="text" id="dep-contract-no" placeholder="D-2026-001">
+        </div>
+        <div class="form-group">
+          <label>Titular (Membrul) *</label>
+          <select id="dep-member-id"></select>
+        </div>
+        <div class="form-group">
+          <label>Data semnării *</label>
+          <input type="date" id="dep-sign-date">
+        </div>
+        <div class="form-group">
+          <label>Data încasării *</label>
+          <input type="date" id="dep-start-date">
+        </div>
+        <div class="form-group">
+          <label>Data expirării *</label>
+          <input type="date" id="dep-end-date">
+        </div>
+        <div class="form-group">
+          <label>Suma inițială (MDL) *</label>
+          <input type="number" id="dep-principal" placeholder="100000" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Rata dobânzii anuale (%)</label>
+          <input type="number" id="dep-interest-rate" value="10" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Impozit pe dobândă (%)</label>
+          <input type="number" id="dep-tax-rate" value="6" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Capitalizare</label>
+          <select id="dep-capitalization">
+            <option value="QUARTERLY">Trimestrială</option>
+            <option value="MONTHLY">Lunară</option>
+            <option value="ANNUAL">Anuală</option>
+            <option value="NONE">Nu se capitalizează</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Baza de calcul zile</label>
+          <select id="dep-day-count">
+            <option value="ACT365">Actual/365</option>
+            <option value="ACT360">Actual/360</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Observații</label>
+          <textarea id="dep-notes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn" onclick="closeModal('modal-deposit')">Anulare</button>
+      <button class="tb-btn primary" onclick="saveDeposit()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: LOAN ─────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-loan">
+  <div class="modal" style="width:620px">
+    <div class="modal-header">
+      <span style="font-size:18px">🏦</span>
+      <h3 id="modal-loan-title">Credit nou</h3>
+      <button class="modal-close" onclick="closeModal('modal-loan')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="loan-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nr. contract *</label>
+          <input type="text" id="loan-contract-no" placeholder="C-2026-001">
+        </div>
+        <div class="form-group">
+          <label>Împrumutat (Membrul) *</label>
+          <select id="loan-member-id"></select>
+        </div>
+        <div class="form-group">
+          <label>Data semnării *</label>
+          <input type="date" id="loan-sign-date">
+        </div>
+        <div class="form-group">
+          <label>Data acordării *</label>
+          <input type="date" id="loan-disbursement-date">
+        </div>
+        <div class="form-group">
+          <label>Data scadenței *</label>
+          <input type="date" id="loan-end-date">
+        </div>
+        <div class="form-group">
+          <label>Suma creditului (MDL) *</label>
+          <input type="number" id="loan-principal" placeholder="50000" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Rata dobânzii anuale (%) *</label>
+          <input type="number" id="loan-interest-rate" value="15" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Penalități restanță (%/zi)</label>
+          <input type="number" id="loan-penalty-rate" value="0.1" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Tip rambursare</label>
+          <select id="loan-repayment-type">
+            <option value="ANNUITY">Anuitate (rate egale)</option>
+            <option value="DECLINING">Descrescător (principal egal)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Termen (luni) *</label>
+          <input type="number" id="loan-term-months" value="12" min="1" max="360">
+        </div>
+        <div class="form-group">
+          <label>Clasă risc (CNPF)</label>
+          <select id="loan-risk-class">
+            <option value="S">S — Standard</option>
+            <option value="W">W — Supravegheat</option>
+            <option value="D">D — Dubios</option>
+            <option value="D1">D1 — Dubios agravat</option>
+            <option value="P">P — Pierdere</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>Scopul creditului</label>
+          <input type="text" id="loan-purpose" placeholder="Consum, investiții...">
+        </div>
+        <div class="form-group full">
+          <label>Garanții</label>
+          <input type="text" id="loan-collateral" placeholder="Ipotecă, gaj, fideiusiune...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn" onclick="closeModal('modal-loan')">Anulare</button>
+      <button class="tb-btn primary" onclick="saveLoan()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: MEMBER ──────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-member">
+  <div class="modal">
+    <div class="modal-header">
+      <span style="font-size:18px">👤</span>
+      <h3 id="modal-member-title">Membru nou</h3>
+      <button class="modal-close" onclick="closeModal('modal-member')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mbr-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tip</label>
+          <select id="mbr-type">
+            <option value="PERSON">Persoană fizică</option>
+            <option value="COMPANY">Persoană juridică</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>IDNP / IDNO</label>
+          <input type="text" id="mbr-idnp" placeholder="13 cifre">
+        </div>
+        <div class="form-group">
+          <label>Nume *</label>
+          <input type="text" id="mbr-last-name">
+        </div>
+        <div class="form-group">
+          <label>Prenume</label>
+          <input type="text" id="mbr-first-name">
+        </div>
+        <div class="form-group">
+          <label>Telefon</label>
+          <input type="text" id="mbr-phone" placeholder="+373...">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="mbr-email">
+        </div>
+        <div class="form-group full">
+          <label>Adresa</label>
+          <input type="text" id="mbr-address">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="tb-btn" onclick="closeModal('modal-member')">Anulare</button>
+      <button class="tb-btn primary" onclick="saveMember()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST CONTAINER ───────────────────────────────────── -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ================================================================
+// State
+// ================================================================
+let currentPanel = 'dashboard';
+let allMembers   = [];
+const PANELS = ['dashboard','deposits','loans','members','journal','accounts','settings'];
+
+const PANEL_TITLES = {
+  dashboard: 'Dashboard',
+  deposits:  'Depozite de economii',
+  loans:     'Credite acordate',
+  members:   'Registrul membrilor',
+  journal:   'Jurnal contabil',
+  accounts:  'Plan de conturi',
+  settings:  'Setări modul',
+};
+
+const ADD_BTN_PANELS = {
+  deposits: true,
+  loans:    true,
+  members:  true,
+};
+
+// ================================================================
+// Navigation
+// ================================================================
+function showPanel(id) {
+  PANELS.forEach(p => {
+    document.getElementById('panel-'+p)?.classList.remove('active');
+    document.getElementById('nav-'+p)?.classList.remove('active');
+  });
+  document.getElementById('panel-'+id)?.classList.add('active');
+  document.getElementById('nav-'+id)?.classList.add('active');
+  currentPanel = id;
+  document.getElementById('toolbar-title').textContent = PANEL_TITLES[id] || id;
+  document.getElementById('sb-panel').textContent = id;
+  const addBtn = document.getElementById('tb-add');
+  addBtn.style.display = ADD_BTN_PANELS[id] ? '' : 'none';
+  document.getElementById('tb-search').value = '';
+  setStatus('Gata');
+
+  // lazy-load
+  if (id === 'deposits')  loadDeposits('ACTIVE');
+  if (id === 'loans')     loadLoans('ACTIVE');
+  if (id === 'members')   loadMembers();
+  if (id === 'accounts')  loadAccounts();
+  if (id === 'settings')  loadSettings();
+}
+
+function openAddModal() {
+  if (currentPanel === 'deposits')  openDepositModal();
+  if (currentPanel === 'loans')     openLoanModal();
+  if (currentPanel === 'members')   openMemberModal();
+}
+
+function refreshCurrent() { showPanel(currentPanel); }
+
+// ================================================================
+// API helpers
+// ================================================================
+async function api(method, url, body) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+// ================================================================
+// Toast
+// ================================================================
+function toast(msg, type='ok') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+function setStatus(msg) {
+  document.getElementById('sb-status').textContent = msg;
+}
+
+// ================================================================
+// DASHBOARD
+// ================================================================
+async function loadDashboard() {
+  setStatus('Se încarcă dashboard...');
+  const r = await api('GET', '/api/aei/dashboard');
+  if (!r.success) { setStatus('Eroare: ' + (r.error||'')); return; }
+  const d = r.data || {};
+  const fmt = n => (n||0).toLocaleString('ro-MD');
+
+  document.getElementById('kpi-deposits-count').textContent = d.deposits_count ?? '—';
+  document.getElementById('kpi-deposits-sum').textContent   = fmt(d.deposits_principal) + ' MDL';
+  document.getElementById('kpi-loans-count').textContent    = d.loans_count ?? '—';
+  document.getElementById('kpi-loans-sum').textContent      = fmt(d.loans_principal) + ' MDL';
+  document.getElementById('kpi-members-count').textContent  = d.members_count ?? '—';
+  document.getElementById('kpi-exp-30d').textContent        = d.deposits_expiring_30d ?? '—';
+  document.getElementById('kpi-overdue').textContent        = d.loans_overdue ?? '—';
+
+  const expBadge = document.getElementById('badge-deposits-exp');
+  expBadge.textContent = d.deposits_expiring_30d || 0;
+  expBadge.classList.toggle('show', (d.deposits_expiring_30d||0) > 0);
+
+  const ovBadge = document.getElementById('badge-loans-overdue');
+  ovBadge.textContent = d.loans_overdue || 0;
+  ovBadge.classList.toggle('show', (d.loans_overdue||0) > 0);
+
+  // recent deposits
+  const dr = await api('GET', '/api/aei/deposits?status=ACTIVE');
+  renderDashDeposits((dr.data||[]).slice(0,5));
+  const lr = await api('GET', '/api/aei/loans?status=ACTIVE');
+  renderDashLoans((lr.data||[]).slice(0,5));
+
+  setStatus('Actualizat la ' + new Date().toLocaleTimeString('ro-MD'));
+}
+
+function renderDashDeposits(rows) {
+  const tb = document.getElementById('dash-deposits-body');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">—</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td><strong>${r.contract_no||''}</strong></td>
+    <td>${r.member_name||''}</td>
+    <td style="text-align:right">${fmtNum(r.principal)}</td>
+    <td>${r.end_date||''}</td>
+    <td>${badge(r.status)}</td>
+  </tr>`).join('');
+}
+
+function renderDashLoans(rows) {
+  const tb = document.getElementById('dash-loans-body');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:12px">—</td></tr>'; return; }
+  tb.innerHTML = rows.map(r => `<tr>
+    <td><strong>${r.contract_no||''}</strong></td>
+    <td>${r.member_name||''}</td>
+    <td style="text-align:right">${fmtNum(r.principal)}</td>
+    <td>${r.end_date||''}</td>
+    <td>${badge(r.status)}</td>
+  </tr>`).join('');
+}
+
+// ================================================================
+// DEPOSITS
+// ================================================================
+async function loadDeposits(status='ACTIVE') {
+  setStatus('Se încarcă depozite...');
+  const url = '/api/aei/deposits' + (status ? '?status='+status : '');
+  const r = await api('GET', url);
+  const rows = r.data || [];
+  document.getElementById('deposits-count').textContent = rows.length;
+  const tb = document.getElementById('deposits-body');
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="es-icon">💰</div><p>Niciun depozit</p></div></td></tr>';
+    setStatus('Gata — 0 depozite');
+    return;
+  }
+  tb.innerHTML = rows.map(r => `<tr data-search="${(r.contract_no+' '+r.member_name).toLowerCase()}">
+    <td><strong>${r.contract_no||''}</strong></td>
+    <td>${r.member_name||''}</td>
+    <td>${r.sign_date||''}</td>
+    <td>${r.end_date||''}</td>
+    <td style="text-align:right"><strong>${fmtNum(r.principal)}</strong></td>
+    <td style="text-align:center">${r.interest_rate||''}%</td>
+    <td style="text-align:center">${capLabel(r.capitalization)}</td>
+    <td>${badge(r.status)}</td>
+    <td class="td-actions">
+      <button class="btn-sm" onclick="viewDepositFlows(${r.deposit_id})">📋 Fișă</button>
+      <button class="btn-sm" onclick="editDeposit(${r.deposit_id})">✏️</button>
+    </td>
+  </tr>`).join('');
+  setStatus(`Gata — ${rows.length} depozite`);
+}
+
+function capLabel(v) {
+  return {QUARTERLY:'Trimestrială',MONTHLY:'Lunară',ANNUAL:'Anuală',NONE:'Nu'}[v] || v || '—';
+}
+
+async function viewDepositFlows(depositId) {
+  const r = await api('GET', '/api/aei/deposits/'+depositId+'/flows');
+  const rows = r.data || [];
+  const dep = await api('GET', '/api/aei/deposits/'+depositId);
+  const d = dep.data || {};
+
+  const win = window.open('', '_blank', 'width=1200,height=700');
+  const flowRows = rows.map(f => `<tr class="${f.flow_type.includes('CAPITALIZE')||f.flow_type.includes('TAX')?'tr-special':''}">
+    <td>${f.flow_date||''}</td>
+    <td>${f.flow_type||''}</td>
+    <td>${f.days||''}</td>
+    <td style="text-align:right">${fmtNum4(f.amount)}</td>
+    <td style="text-align:right">${fmtNum4(f.balance_5131)}</td>
+    <td style="text-align:right">${fmtNum4(f.balance_51321)}</td>
+    <td style="text-align:right">${fmtNum4(f.balance_5133)}</td>
+    <td style="text-align:right">${fmtNum4(f.balance_51332)}</td>
+    <td style="text-align:right">${fmtNum4(f.balance_5343)}</td>
+    <td style="max-width:200px;font-size:11px">${(f.description||'').substring(0,80)}</td>
+  </tr>`).join('');
+
+  win.document.write(`<!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8">
+  <title>Fișă depozit ${d.contract_no||''}</title>
+  <style>
+    body{font-family:sans-serif;font-size:12px;margin:16px;color:#1e293b}
+    h2{color:#1d4ed8;margin-bottom:8px}
+    .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+    .mf{border:1px solid #e2e8f0;border-radius:4px;padding:8px 10px}
+    .mf .l{font-size:10px;text-transform:uppercase;color:#64748b}
+    .mf .v{font-weight:700;color:#1d4ed8}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{background:#1d4ed8;color:#fff;padding:6px 8px;text-align:left}
+    td{padding:5px 8px;border-bottom:1px solid #f1f5f9}
+    tr:nth-child(even) td{background:#f8fafc}
+    .tr-special td{background:#fefce8!important}
+    @media print{button{display:none}}
+  </style></head><body>
+  <h2>Fișa de evidență a depunerilor — ${d.contract_no||''}</h2>
+  <div class="meta">
+    <div class="mf"><div class="l">Titular</div><div class="v">${d.member_name||''}</div></div>
+    <div class="mf"><div class="l">Suma inițială</div><div class="v">${fmtNum(d.principal)} MDL</div></div>
+    <div class="mf"><div class="l">Rata dobânzii</div><div class="v">${d.interest_rate||''}%</div></div>
+    <div class="mf"><div class="l">Impozit</div><div class="v">${d.tax_rate||''}%</div></div>
+    <div class="mf"><div class="l">Data semnării</div><div class="v">${d.sign_date||''}</div></div>
+    <div class="mf"><div class="l">Data încasării</div><div class="v">${d.start_date||''}</div></div>
+    <div class="mf"><div class="l">Scadență</div><div class="v">${d.end_date||''}</div></div>
+    <div class="mf"><div class="l">Capitalizare</div><div class="v">${capLabel(d.capitalization)}</div></div>
+  </div>
+  <button onclick="window.print()" style="margin-bottom:12px;padding:6px 14px;background:#1d4ed8;color:#fff;border:none;border-radius:4px;cursor:pointer">🖨️ Print</button>
+  <table>
+    <thead><tr>
+      <th>Data</th><th>Tip operație</th><th>Zile</th><th>Sumă</th>
+      <th>5131 Sold</th><th>51321 Sold</th><th>5133 Sold</th>
+      <th>51332 Sold</th><th>5343 Sold</th><th>Descriere</th>
+    </tr></thead>
+    <tbody>${flowRows}</tbody>
+  </table>
+  </body></html>`);
+  win.document.close();
+}
+
+// ================================================================
+// LOANS
+// ================================================================
+async function loadLoans(status='ACTIVE') {
+  setStatus('Se încarcă credite...');
+  const url = '/api/aei/loans' + (status ? '?status='+status : '');
+  const r = await api('GET', url);
+  const rows = r.data || [];
+  document.getElementById('loans-count').textContent = rows.length;
+  const tb = document.getElementById('loans-body');
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="es-icon">🏦</div><p>Niciun credit</p></div></td></tr>';
+    setStatus('Gata — 0 credite');
+    return;
+  }
+  tb.innerHTML = rows.map(r => `<tr data-search="${(r.contract_no+' '+r.member_name).toLowerCase()}">
+    <td><strong>${r.contract_no||''}</strong></td>
+    <td>${r.member_name||''}</td>
+    <td>${r.disbursement_date||''}</td>
+    <td>${r.end_date||''}</td>
+    <td style="text-align:right"><strong>${fmtNum(r.principal)}</strong></td>
+    <td style="text-align:center">${r.interest_rate||''}%</td>
+    <td style="text-align:center">${r.term_months||''}</td>
+    <td style="text-align:center">${r.risk_class||''}</td>
+    <td>${badge(r.status)}</td>
+    <td class="td-actions">
+      <button class="btn-sm" onclick="editLoan(${r.loan_id})">✏️</button>
+    </td>
+  </tr>`).join('');
+  setStatus(`Gata — ${rows.length} credite`);
+}
+
+// ================================================================
+// MEMBERS
+// ================================================================
+async function loadMembers() {
+  setStatus('Se încarcă membri...');
+  const r = await api('GET', '/api/aei/members');
+  allMembers = r.data || [];
+  document.getElementById('members-count').textContent = allMembers.length;
+  const tb = document.getElementById('members-body');
+  if (!allMembers.length) {
+    tb.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="es-icon">👥</div><p>Niciun membru</p></div></td></tr>';
+    return;
+  }
+  tb.innerHTML = allMembers.map(m => `<tr data-search="${(m.last_name+' '+m.first_name+' '+(m.idnp||'')+(m.idno||'')).toLowerCase()}">
+    <td>${m.idnp||m.idno||'—'}</td>
+    <td><strong>${m.last_name||''}</strong> ${m.first_name||''}</td>
+    <td>${m.member_type==='COMPANY'?'Juridică':'Fizică'}</td>
+    <td>${m.phone||'—'}</td>
+    <td>${m.email||'—'}</td>
+    <td>${m.join_date||'—'}</td>
+    <td>${badge(m.status)}</td>
+    <td class="td-actions">
+      <button class="btn-sm" onclick="editMember(${m.member_id})">✏️</button>
+      <button class="btn-sm danger" onclick="deleteMember(${m.member_id})">✗</button>
+    </td>
+  </tr>`).join('');
+  setStatus(`Gata — ${allMembers.length} membri`);
+}
+
+function populateMemberSelects() {
+  ['dep-member-id','loan-member-id'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Selectați membrul —</option>' +
+      allMembers.map(m => `<option value="${m.member_id}">${m.last_name} ${m.first_name||''} (${m.idnp||m.idno||'—'})</option>`).join('');
+  });
+}
+
+// ================================================================
+// JOURNAL
+// ================================================================
+async function loadJournal() {
+  const df = document.getElementById('jrn-from').value.split('-').reverse().join('.');
+  const dt = document.getElementById('jrn-to').value.split('-').reverse().join('.');
+  const acc = document.getElementById('jrn-acc').value;
+  let url = '/api/aei/journal?';
+  if (df !== '..') url += 'date_from='+df+'&';
+  if (dt !== '..') url += 'date_to='+dt+'&';
+  if (acc) url += 'account='+acc;
+  setStatus('Se încarcă jurnalul...');
+  const r = await api('GET', url);
+  const rows = r.data || [];
+  const tb = document.getElementById('journal-body');
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:16px">Nicio înregistrare pentru perioada selectată</td></tr>';
+    setStatus('Gata — 0 înregistrări');
+    return;
+  }
+  tb.innerHTML = rows.map(e => `<tr>
+    <td class="td-date">${e.entry_date||''}</td>
+    <td>${e.entry_no||''}</td>
+    <td class="td-acc">${e.debit_account||''}</td>
+    <td class="td-acc">${e.credit_account||''}</td>
+    <td class="td-acc" style="color:#6b7280">${e.extra_debit||''}</td>
+    <td class="td-acc" style="color:#6b7280">${e.extra_credit||''}</td>
+    <td class="td-num"><strong>${fmtNum4(e.amount)}</strong></td>
+    <td style="max-width:220px;font-size:11px">${(e.description||'').substring(0,80)}</td>
+    <td style="font-size:10px;color:#64748b">${(e.document_ref||'').substring(0,60)}</td>
+  </tr>`).join('');
+  setStatus(`Gata — ${rows.length} înregistrări`);
+}
+
+// ================================================================
+// ACCOUNTS
+// ================================================================
+async function loadAccounts() {
+  const r = await api('GET', '/api/aei/accounts');
+  const rows = r.data || [];
+  const tb = document.getElementById('accounts-body');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5">Niciun cont</td></tr>'; return; }
+  const TYPE_LABELS = {ASSET:'Activ',LIABILITY:'Pasiv',EQUITY:'Capital',INCOME:'Venituri',EXPENSE:'Cheltuieli',OFFBALANCE:'Extrabilanțier'};
+  tb.innerHTML = rows.map(a => {
+    const lvl = a.account_code.length <= 3 ? '' : (a.account_code.length <= 4 ? 'indent-1' : 'indent-2');
+    const fw = a.account_code.length <= 3 ? 'font-weight:700' : '';
+    return `<tr class="${lvl}">
+      <td style="${fw}"><code>${a.account_code||''}</code></td>
+      <td style="${fw}">${a.account_name||''}</td>
+      <td>${TYPE_LABELS[a.account_type]||a.account_type||''}</td>
+      <td style="text-align:center">${a.normal_balance||''}</td>
+      <td style="color:#15803d;font-size:11px">${a.notes||''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ================================================================
+// SETTINGS
+// ================================================================
+async function loadSettings() {
+  const r = await api('GET', '/api/aei/settings');
+  const rows = r.rows || [];
+  const groups = {};
+  rows.forEach(s => {
+    if (!groups[s.setting_group]) groups[s.setting_group] = [];
+    groups[s.setting_group].push(s);
+  });
+  let html = '';
+  for (const [grp, settings] of Object.entries(groups)) {
+    html += `<div style="margin-bottom:20px">
+      <h4 style="font-size:12px;font-weight:700;color:var(--c-gray);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">${grp}</h4>
+      <div style="background:#fff;border:1px solid var(--c-border);border-radius:6px;overflow:hidden">`;
+    settings.forEach(s => {
+      html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #f1f5f9">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600">${s.setting_key}</div>
+          <div style="font-size:11px;color:var(--c-gray)">${s.description||''}</div>
+        </div>
+        <input type="text" value="${s.setting_value||''}"
+               style="padding:5px 10px;font-size:12px;border:1px solid var(--c-border);border-radius:4px;width:220px"
+               onblur="saveSetting('${s.setting_key}', this.value)">
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+  document.getElementById('settings-content').innerHTML = html || '<div class="alert alert-warn">Setările nu au fost găsite.</div>';
+}
+
+async function saveSetting(key, value) {
+  const r = await api('POST', '/api/aei/settings', {key, value});
+  if (r.success) toast('Salvat: ' + key);
+  else toast('Eroare: ' + (r.error||''), 'err');
+}
+
+// ================================================================
+// MODALS: DEPOSIT
+// ================================================================
+function openDepositModal(data) {
+  document.getElementById('modal-deposit-title').textContent = data ? 'Editare depozit' : 'Depozit nou';
+  document.getElementById('dep-id').value          = data?.deposit_id || '';
+  document.getElementById('dep-contract-no').value = data?.contract_no || '';
+  document.getElementById('dep-sign-date').value   = isoDate(data?.sign_date);
+  document.getElementById('dep-start-date').value  = isoDate(data?.start_date);
+  document.getElementById('dep-end-date').value    = isoDate(data?.end_date);
+  document.getElementById('dep-principal').value   = data?.principal || '';
+  document.getElementById('dep-interest-rate').value = data?.interest_rate || '10';
+  document.getElementById('dep-tax-rate').value    = data?.tax_rate || '6';
+  document.getElementById('dep-capitalization').value = data?.capitalization || 'QUARTERLY';
+  document.getElementById('dep-day-count').value   = data?.day_count || 'ACT365';
+  document.getElementById('dep-notes').value       = data?.notes || '';
+  populateMemberSelects();
+  if (data?.member_id) document.getElementById('dep-member-id').value = data.member_id;
+  openModal('modal-deposit');
+}
+
+async function editDeposit(id) {
+  const r = await api('GET', '/api/aei/deposits/'+id);
+  if (r.success && r.data) openDepositModal(r.data);
+}
+
+async function saveDeposit() {
+  const data = {
+    deposit_id:    document.getElementById('dep-id').value || null,
+    contract_no:   document.getElementById('dep-contract-no').value,
+    member_id:     document.getElementById('dep-member-id').value,
+    sign_date:     formatDate(document.getElementById('dep-sign-date').value),
+    start_date:    formatDate(document.getElementById('dep-start-date').value),
+    end_date:      formatDate(document.getElementById('dep-end-date').value),
+    principal:     document.getElementById('dep-principal').value,
+    interest_rate: document.getElementById('dep-interest-rate').value,
+    tax_rate:      document.getElementById('dep-tax-rate').value,
+    capitalization:document.getElementById('dep-capitalization').value,
+    day_count:     document.getElementById('dep-day-count').value,
+    notes:         document.getElementById('dep-notes').value,
+  };
+  const r = await api('POST', '/api/aei/deposits', data);
+  if (r.success) {
+    toast('Depozit salvat ✓');
+    closeModal('modal-deposit');
+    loadDeposits('ACTIVE');
+  } else toast('Eroare: ' + (r.error||''), 'err');
+}
+
+// ================================================================
+// MODALS: LOAN
+// ================================================================
+function openLoanModal(data) {
+  document.getElementById('modal-loan-title').textContent = data ? 'Editare credit' : 'Credit nou';
+  document.getElementById('loan-id').value               = data?.loan_id || '';
+  document.getElementById('loan-contract-no').value      = data?.contract_no || '';
+  document.getElementById('loan-sign-date').value        = isoDate(data?.sign_date);
+  document.getElementById('loan-disbursement-date').value= isoDate(data?.disbursement_date);
+  document.getElementById('loan-end-date').value         = isoDate(data?.end_date);
+  document.getElementById('loan-principal').value        = data?.principal || '';
+  document.getElementById('loan-interest-rate').value    = data?.interest_rate || '15';
+  document.getElementById('loan-penalty-rate').value     = data?.penalty_rate || '0.1';
+  document.getElementById('loan-repayment-type').value   = data?.repayment_type || 'ANNUITY';
+  document.getElementById('loan-term-months').value      = data?.term_months || '12';
+  document.getElementById('loan-risk-class').value       = data?.risk_class || 'S';
+  document.getElementById('loan-purpose').value          = data?.purpose || '';
+  document.getElementById('loan-collateral').value       = data?.collateral || '';
+  populateMemberSelects();
+  if (data?.member_id) document.getElementById('loan-member-id').value = data.member_id;
+  openModal('modal-loan');
+}
+
+async function editLoan(id) {
+  const r = await api('GET', '/api/aei/loans/'+id);
+  if (r.success && r.data) openLoanModal(r.data);
+}
+
+async function saveLoan() {
+  const data = {
+    loan_id:           document.getElementById('loan-id').value || null,
+    contract_no:       document.getElementById('loan-contract-no').value,
+    member_id:         document.getElementById('loan-member-id').value,
+    sign_date:         formatDate(document.getElementById('loan-sign-date').value),
+    disbursement_date: formatDate(document.getElementById('loan-disbursement-date').value),
+    end_date:          formatDate(document.getElementById('loan-end-date').value),
+    principal:         document.getElementById('loan-principal').value,
+    interest_rate:     document.getElementById('loan-interest-rate').value,
+    penalty_rate:      document.getElementById('loan-penalty-rate').value,
+    repayment_type:    document.getElementById('loan-repayment-type').value,
+    term_months:       document.getElementById('loan-term-months').value,
+    risk_class:        document.getElementById('loan-risk-class').value,
+    purpose:           document.getElementById('loan-purpose').value,
+    collateral:        document.getElementById('loan-collateral').value,
+  };
+  const r = await api('POST', '/api/aei/loans', data);
+  if (r.success) {
+    toast('Credit salvat ✓');
+    closeModal('modal-loan');
+    loadLoans('ACTIVE');
+  } else toast('Eroare: ' + (r.error||''), 'err');
+}
+
+// ================================================================
+// MODALS: MEMBER
+// ================================================================
+function openMemberModal(data) {
+  document.getElementById('modal-member-title').textContent = data ? 'Editare membru' : 'Membru nou';
+  document.getElementById('mbr-id').value         = data?.member_id || '';
+  document.getElementById('mbr-type').value       = data?.member_type || 'PERSON';
+  document.getElementById('mbr-idnp').value       = data?.idnp || data?.idno || '';
+  document.getElementById('mbr-last-name').value  = data?.last_name || '';
+  document.getElementById('mbr-first-name').value = data?.first_name || '';
+  document.getElementById('mbr-phone').value      = data?.phone || '';
+  document.getElementById('mbr-email').value      = data?.email || '';
+  document.getElementById('mbr-address').value    = data?.address || '';
+  openModal('modal-member');
+}
+
+async function editMember(id) {
+  const m = allMembers.find(m => m.member_id == id);
+  if (m) openMemberModal(m);
+}
+
+async function saveMember() {
+  const data = {
+    member_id:   document.getElementById('mbr-id').value || null,
+    member_type: document.getElementById('mbr-type').value,
+    idnp:        document.getElementById('mbr-idnp').value,
+    last_name:   document.getElementById('mbr-last-name').value,
+    first_name:  document.getElementById('mbr-first-name').value,
+    phone:       document.getElementById('mbr-phone').value,
+    email:       document.getElementById('mbr-email').value,
+    address:     document.getElementById('mbr-address').value,
+  };
+  const r = await api('POST', '/api/aei/members', data);
+  if (r.success) {
+    toast('Membru salvat ✓');
+    closeModal('modal-member');
+    loadMembers();
+  } else toast('Eroare: ' + (r.error||''), 'err');
+}
+
+async function deleteMember(id) {
+  if (!confirm('Dezactivați membrul?')) return;
+  const r = await api('DELETE', '/api/aei/members/'+id);
+  if (r.success) { toast('Dezactivat'); loadMembers(); }
+  else toast('Eroare', 'err');
+}
+
+// ================================================================
+// Modal helpers
+// ================================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+});
+
+// ================================================================
+// Search
+// ================================================================
+function filterTable(q) {
+  const v = q.toLowerCase();
+  document.querySelectorAll('#panel-'+currentPanel+' tr[data-search]').forEach(tr => {
+    tr.style.display = v === '' || tr.dataset.search.includes(v) ? '' : 'none';
+  });
+}
+
+// ================================================================
+// Helpers
+// ================================================================
+function fmtNum(n)  { return n != null ? parseFloat(n).toLocaleString('ro-MD', {minimumFractionDigits:2,maximumFractionDigits:2}) : '—'; }
+function fmtNum4(n) { return n != null && n != 0 ? parseFloat(n).toLocaleString('ro-MD', {minimumFractionDigits:2,maximumFractionDigits:4}) : ''; }
+
+function badge(status) {
+  const cls = {ACTIVE:'badge-active',EXPIRED:'badge-expired',OVERDUE:'badge-overdue',
+               INACTIVE:'badge-inactive',CLOSED:'badge-closed',TERMINATED:'badge-expired'}[status] || 'badge-inactive';
+  const labels = {ACTIVE:'Activ',EXPIRED:'Expirat',OVERDUE:'Restant',INACTIVE:'Inactiv',
+                  CLOSED:'Achitat',TERMINATED:'Reziliat'};
+  return `<span class="badge ${cls}">${labels[status]||status||'—'}</span>`;
+}
+
+function isoDate(ddmmyyyy) {
+  if (!ddmmyyyy) return '';
+  const p = ddmmyyyy.split('.');
+  if (p.length === 3) return `${p[2]}-${p[1]}-${p[0]}`;
+  return ddmmyyyy; // already iso
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const p = iso.split('-');
+  if (p.length === 3) return `${p[2]}.${p[1]}.${p[0]}`;
+  return iso;
+}
+
+// ================================================================
+// Init
+// ================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('sb-date').textContent = new Date().toLocaleDateString('ro-MD');
+
+  // update org name from settings
+  const s = await api('GET', '/api/aei/settings');
+  if (s.success && s.data) {
+    const name = s.data['AEI_NAME'];
+    if (name) {
+      document.getElementById('sb-org-name').textContent = name;
+      document.title = name + ' — AEÎ';
+    }
+  }
+
+  // preload members for selects
+  const mr = await api('GET', '/api/aei/members');
+  allMembers = mr.data || [];
+
+  loadDashboard();
+});
+</script>
+</body>
+</html>
