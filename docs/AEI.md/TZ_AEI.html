@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ТЗ — Soluție IT integrată pentru AEÎ</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:    #1a56a6;
+      --blue-lt: #e8f0fb;
+      --blue-md: #4a7fc1;
+      --green:   #1a7a4a;
+      --green-lt:#e6f4ed;
+      --gray:    #4a5568;
+      --gray-lt: #f7f8fa;
+      --border:  #dce3ed;
+      --text:    #1a202c;
+      --red-lt:  #fff3f3;
+      --red:     #c0392b;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      color: var(--text);
+      background: #f0f4f8;
+      line-height: 1.65;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      background: var(--blue);
+      color: #fff;
+      padding: 36px 0 28px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-block;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 4px;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      margin-bottom: 14px;
+    }
+    header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    header p  { font-size: 14px; opacity: .82; }
+
+    /* ── LAYOUT ─────────────────────────────────────────── */
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+    /* ── NAV PILLS ──────────────────────────────────────── */
+    nav.toc {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 50;
+    }
+    nav.toc ul {
+      display: flex; flex-wrap: wrap; gap: 2px;
+      list-style: none; padding: 10px 20px;
+      max-width: 960px; margin: 0 auto;
+    }
+    nav.toc a {
+      display: block;
+      padding: 5px 12px;
+      border-radius: 4px;
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background .15s;
+    }
+    nav.toc a:hover { background: var(--blue-lt); }
+
+    /* ── SECTIONS ───────────────────────────────────────── */
+    main { padding: 36px 0 60px; }
+
+    section {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .sec-head {
+      background: var(--blue-lt);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .sec-num {
+      background: var(--blue);
+      color: #fff;
+      border-radius: 50%;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700;
+      flex-shrink: 0;
+    }
+    .sec-head h2 { font-size: 16px; font-weight: 700; color: var(--blue); }
+    .sec-body { padding: 20px 24px; }
+
+    /* ── CARDS GRID ─────────────────────────────────────── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 4px;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+    }
+    .card .card-title {
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--blue);
+      margin-bottom: 8px;
+    }
+    .card ul { padding-left: 18px; }
+    .card ul li { margin-bottom: 4px; font-size: 14px; }
+
+    /* ── REQUIREMENT BLOCKS ─────────────────────────────── */
+    .req-block {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .req-block .req-head {
+      background: var(--gray-lt);
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .req-icon {
+      width: 32px; height: 32px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .req-head h3 { font-size: 15px; font-weight: 700; }
+    .req-body { padding: 14px 16px; }
+    .req-body ul { padding-left: 20px; }
+    .req-body ul li { margin-bottom: 6px; font-size: 14px; }
+    .req-body ul li strong { color: var(--blue); }
+
+    /* ── TABLE ──────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: var(--blue);
+      color: #fff;
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+    }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: var(--gray-lt); }
+
+    /* ── FISA DEPOZIT ───────────────────────────────────── */
+    .fisa-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .fisa-field {
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    .fisa-field .ff-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--gray);
+      margin-bottom: 2px;
+    }
+    .fisa-field .ff-val {
+      font-weight: 600;
+      color: var(--blue);
+    }
+    .fisa-field.full { grid-column: 1 / -1; }
+
+    /* ── BADGE ──────────────────────────────────────────── */
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      margin-right: 4px;
+    }
+    .tag-must  { background: #fde8e8; color: var(--red); }
+    .tag-should{ background: #fef3cd; color: #7a5500; }
+    .tag-may   { background: #d1f0e0; color: var(--green); }
+
+    /* ── ALERT BOX ──────────────────────────────────────── */
+    .alert {
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .alert-info  { background: var(--blue-lt); border-left: 4px solid var(--blue); }
+    .alert-warn  { background: #fffbea;       border-left: 4px solid #e6b800; }
+    .alert-ok    { background: var(--green-lt); border-left: 4px solid var(--green); }
+
+    /* ── LETTER BOX ─────────────────────────────────────── */
+    .letter-box {
+      background: var(--gray-lt);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px 24px;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .letter-box ul { padding-left: 22px; margin: 8px 0; }
+    .letter-box li { margin-bottom: 4px; }
+    .letter-sig { margin-top: 16px; font-size: 13px; color: var(--gray); }
+    .letter-sig strong { color: var(--text); }
+
+    /* ── FOOTER ─────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      color: var(--gray);
+      border-top: 1px solid var(--border);
+      background: #fff;
+    }
+
+    @media (max-width: 600px) {
+      .cards { grid-template-columns: 1fr; }
+      .fisa-grid { grid-template-columns: 1fr; }
+      nav.toc ul { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Documentație Tehnică · AEÎ · 2026</div>
+  <h1>Soluție IT Integrată pentru Asociații de Economii și Împrumut</h1>
+  <p>Caiet de Sarcini (Технічне завдання) · Unisim-SOFT · versiunea 1.0</p>
+</header>
+
+<nav class="toc">
+  <ul>
+    <li><a href="#s0">Solicitare</a></li>
+    <li><a href="#s1">Obiect & Scop</a></li>
+    <li><a href="#s2">Cerințe funcționale</a></li>
+    <li><a href="#s3">Fișa depozitului</a></li>
+    <li><a href="#s4">Cerințe nefuncționale</a></li>
+    <li><a href="#s5">Condiții implementare</a></li>
+    <li><a href="#s6">Criterii acceptare</a></li>
+  </ul>
+</nav>
+
+<main>
+<div class="wrap">
+
+  <!-- ── 0. SCRISOAREA ORIGINALĂ ─────────────────────── -->
+  <section id="s0">
+    <div class="sec-head">
+      <div class="sec-num">✉</div>
+      <h2>Solicitarea originală — AEÎ</h2>
+    </div>
+    <div class="sec-body">
+      <div class="letter-box">
+        <p><em>Stimați domni / Stimate doamne,</em></p>
+        <p style="margin-top:10px">
+          Vă rugăm să ne comunicați dacă aplicația distribuită de <strong>Unisim-SOFT</strong>
+          dispune de o soluție IT integrată care să permită:
+        </p>
+        <ul>
+          <li>evidența depozitelor și a creditelor;</li>
+          <li>ținerea contabilității complete;</li>
+          <li>întocmirea situațiilor financiare și a rapoartelor specifice;</li>
+          <li>generalizarea (consolidarea) informației financiare;</li>
+          <li>analiza datelor financiare.</li>
+        </ul>
+        <p style="margin-top:10px">
+          De asemenea, vă rugăm să ne informați dacă soluția poate fi adaptată specificului activității
+          AEÎ și dacă include funcționalități dedicate <strong>gestionării contractelor de depuneri și împrumut</strong>.
+        </p>
+        <p style="margin-top:10px">
+          În cazul în care soluția există, vă rugăm să ne transmiteți o prezentare succintă a
+          funcționalităților, precum și condițiile de implementare.
+        </p>
+        <p style="margin-top:10px">
+          În anexa atașată este prezentată <strong>fișa de evidență a depunerilor</strong>.
+        </p>
+        <p>Vă mulțumim anticipat pentru informațiile oferite.</p>
+        <div class="letter-sig">
+          Cu respect,<br>
+          <strong>Veaceslav SCUTELNIC</strong><br>
+          Manager digitalizare și dezvoltare<br>
+          Asociația Națională Centrală a AEÎ<br>
+          MD 2069, or. Chișinău, str. Ion Creangă 10/5<br>
+          web: <a href="http://www.aei.md" target="_blank">www.aei.md</a> ·
+          e-mail: veaceslav.scutelnic@aei.md ·
+          +373 22595430 / +373 60033715
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 1. OBIECT & SCOP ────────────────────────────── -->
+  <section id="s1">
+    <div class="sec-head">
+      <div class="sec-num">1</div>
+      <h2>Obiectul și scopul documentului</h2>
+    </div>
+    <div class="sec-body">
+      <div class="alert alert-info">
+        Prezentul caiet de sarcini definește cerințele față de soluția IT integrată
+        destinată <strong>Asociațiilor de Economii și Împrumut (AEÎ)</strong> din Republica Moldova.
+        Documentul servește ca bază pentru evaluarea, adaptarea și implementarea aplicației
+        distribuite de <strong>Unisim-SOFT</strong>.
+      </div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="card-title">🏦 Beneficiar</div>
+          <ul>
+            <li>Asociațiile de Economii și Împrumut membre AEÎ</li>
+            <li>Asociația Națională Centrală a AEÎ</li>
+            <li>Operatori contabili și manageri AEÎ</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🎯 Obiective principale</div>
+          <ul>
+            <li>Automatizarea evidenței depozitelor și creditelor</li>
+            <li>Contabilitate completă conform legislației RM</li>
+            <li>Rapoarte financiare consolidate</li>
+            <li>Analiza datelor financiare</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">📋 Domeniu de aplicare</div>
+          <ul>
+            <li>Toate AEÎ membre ale ANC AEÎ</li>
+            <li>Sistem multi-entitate (consolidare)</li>
+            <li>Operare online și offline (opțional)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. CERINȚE FUNCȚIONALE ──────────────────────── -->
+  <section id="s2">
+    <div class="sec-head">
+      <div class="sec-num">2</div>
+      <h2>Cerințe funcționale</h2>
+    </div>
+    <div class="sec-body">
+      <p style="margin-bottom:16px; color:var(--gray); font-size:13px">
+        <span class="tag tag-must">OBLIGATORIU</span>
+        <span class="tag tag-should">RECOMANDAT</span>
+        <span class="tag tag-may">OPȚIONAL</span>
+      </p>
+
+      <!-- 2.1 Depozite & Credite -->
+      <div class="req-block">
+        <div class="req-head">
+          <div class="req-icon" style="background:#e8f0fb">💰</div>
+          <h3>2.1 Evidența depozitelor și a creditelor</h3>
+        </div>
+        <div class="req-body">
+          <ul>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Înregistrarea contractelor de <strong>depozit</strong> (număr, dată, suma, rata dobânzii, termen, titular)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Înregistrarea contractelor de <strong>împrumut/credit</strong> (număr, dată, suma, rata, scadență, garanții)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Calculul automat al <strong>dobânzilor</strong> conform ratei și perioadei</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Urmărirea <strong>plăților</strong>: achitat, restanță, penalități</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Generarea <strong>graficului de rambursare</strong> (anuitate / descrescător)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Istoricul complet al <strong>operațiunilor</strong> pe fiecare contract</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Notificări automate la <strong>scadențe</strong> și restanțe</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Clasificare contracte: active, expirate, reînnoite, lichidate</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> Integrare cu <strong>Biroul de Credit</strong> (verificare debitori)</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> Scoring automat al împrumutaților</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2.2 Contabilitate -->
+      <div class="req-block">
+        <div class="req-head">
+          <div class="req-icon" style="background:#e6f4ed">📒</div>
+          <h3>2.2 Contabilitate completă</h3>
+        </div>
+        <div class="req-body">
+          <ul>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Plan de conturi</strong> conform standardelor MF RM pentru AEÎ</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Înregistrări <strong>contabile duble</strong> (debit / credit) pentru toate operațiunile</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Jurnal contabil</strong> cu filtrare pe perioadă, cont, operațiune</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Balanța de verificare</strong> lunară și anuală</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Gestiunea <strong>casieriei</strong> (registru de casă, ordine de plată)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Gestiunea <strong>conturilor bancare</strong> (extras de cont, reconciliere)</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Gestiunea <strong>mijloacelor fixe</strong> și calculul amortizării</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> <strong>Salariaților</strong>: calcul salariu, contribuții sociale și medicale</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> Import automat extrase bancare (MT940 / CSV)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2.3 Situații financiare & rapoarte -->
+      <div class="req-block">
+        <div class="req-head">
+          <div class="req-icon" style="background:#fff3e0">📊</div>
+          <h3>2.3 Situații financiare și rapoarte specifice</h3>
+        </div>
+        <div class="req-body">
+          <ul>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Bilanț contabil</strong> (Forma 1) conform SNC RM</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Situația de profit și pierdere</strong> (Forma 2)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Situația fluxurilor de numerar</strong></li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Raport CNPF</strong> — rapoarte prudențiale pentru AEÎ</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Declarații fiscale: <strong>TVA, impozit pe venit</strong></li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Raport lunar al <strong>depozitelor și creditelor</strong> (sold, rulaj, dobânzi)</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Export rapoarte în format <strong>Excel / PDF</strong></li>
+            <li><span class="tag tag-should">RECOMANDAT</span> <strong>Fișa contului</strong> analitic per client / contract</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> Rapoarte configurabile de utilizator (report builder)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2.4 Consolidare -->
+      <div class="req-block">
+        <div class="req-head">
+          <div class="req-icon" style="background:#f3e8ff">🔗</div>
+          <h3>2.4 Generalizarea (consolidarea) informației financiare</h3>
+        </div>
+        <div class="req-body">
+          <ul>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Arhitectură <strong>multi-entitate</strong>: fiecare AEÎ ca entitate separată</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Raport consolidat</strong> la nivel de Asociație Națională Centrală</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Compararea indicatorilor între entități (benchmark)</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Import date din AEÎ care nu folosesc sistemul (Excel / CSV)</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Dashboard centralizat cu KPI-uri agregate</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> API pentru interconectare cu alte sisteme (BNM, CNPF)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2.5 Analiză -->
+      <div class="req-block">
+        <div class="req-head">
+          <div class="req-icon" style="background:#e8fef3">📈</div>
+          <h3>2.5 Analiza datelor financiare</h3>
+        </div>
+        <div class="req-body">
+          <ul>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Indicatori de <strong>lichiditate</strong> (rata curentă, rapidă)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Indicatori de <strong>profitabilitate</strong> (ROA, ROE, marja dobânzii nete)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Analiza <strong>portofoliului de credite</strong>: calitate, restanță, provizioane</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Analiza <strong>structurii depozitelor</strong> (pe termen, pe client, pe rată)</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Grafice și vizualizări interactive (trend, comparație)</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Alertă automată la depășirea pragurilor prudențiale CNPF</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> Proiecții financiare (scenarii bugetare)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2.6 Contracte -->
+      <div class="req-block">
+        <div class="req-head">
+          <div class="req-icon" style="background:#fef0e8">📄</div>
+          <h3>2.6 Gestionarea contractelor de depuneri și împrumut</h3>
+        </div>
+        <div class="req-body">
+          <ul>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Generarea automată a <strong>contractului tipizat</strong> din date introduse</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Numerotare unică</strong> a contractelor (serie + număr)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Stocare documentelor scanate (PDF/JPEG) atașate contractului</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> <strong>Fișa de evidență</strong> a depunerilor (conform anexei AEÎ — XLSX)</li>
+            <li><span class="tag tag-must">OBLIGATORIU</span> Urmărirea <strong>prelungirii</strong> și <strong>rezilierii</strong> contractelor</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Semnătură electronică / confirmare digitală</li>
+            <li><span class="tag tag-should">RECOMANDAT</span> Trimitere contract prin email direct din sistem</li>
+            <li><span class="tag tag-may">OPȚIONAL</span> Integrare cu registru notarial</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── 3. FIȘA DEPOZITULUI ─────────────────────────── -->
+  <section id="s3">
+    <div class="sec-head">
+      <div class="sec-num">3</div>
+      <h2>Structura Fișei de Evidență a Depunerilor (anexa AEÎ)</h2>
+    </div>
+    <div class="sec-body">
+      <div class="alert alert-warn">
+        Câmpurile de mai jos reprezintă structura minimă obligatorie a fișei de evidență
+        a depunerilor (conform fișierului anexat <strong>Fisa de evidenta a depozitelor.xlsx</strong>).
+        Sistemul trebuie să le suporte integral.
+      </div>
+
+      <div class="fisa-grid">
+        <div class="fisa-field">
+          <div class="ff-label">Titular depozit</div>
+          <div class="ff-val">Nume, Prenume / Denumire juridică</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">IDNP / IDNO</div>
+          <div class="ff-val">Cod personal sau fiscal</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Nr. contract</div>
+          <div class="ff-val">Număr unic de înregistrare</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Data încheierii</div>
+          <div class="ff-val">ZZ.LL.AAAA</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Suma depozitului</div>
+          <div class="ff-val">MDL / valută</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Rata dobânzii (%)</div>
+          <div class="ff-val">Anuală / pe perioadă</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Termenul</div>
+          <div class="ff-val">Număr luni / data scadenței</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Data scadenței</div>
+          <div class="ff-val">ZZ.LL.AAAA (calculat automat)</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Dobânda acumulată</div>
+          <div class="ff-val">Calculată automat zilnic / lunar</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Dobânda plătită</div>
+          <div class="ff-val">Cu data și suma fiecărei plăți</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Sold curent</div>
+          <div class="ff-val">Principal + dobânda neachitată</div>
+        </div>
+        <div class="fisa-field">
+          <div class="ff-label">Statut contract</div>
+          <div class="ff-val">Activ / Scadent / Reînnoit / Lichidat</div>
+        </div>
+        <div class="fisa-field full">
+          <div class="ff-label">Observații / Mențiuni</div>
+          <div class="ff-val">Câmp text liber pentru note operationale</div>
+        </div>
+      </div>
+
+      <div class="alert alert-ok" style="margin-top:14px">
+        ✅ Sistemul trebuie să genereze fișa de evidență în format <strong>Excel și PDF</strong>,
+        cu posibilitatea de tipărire directă și export per contract sau per perioadă.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 4. CERINȚE NEFUNCȚIONALE ───────────────────── -->
+  <section id="s4">
+    <div class="sec-head">
+      <div class="sec-num">4</div>
+      <h2>Cerințe nefuncționale</h2>
+    </div>
+    <div class="sec-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Categorie</th>
+            <th>Cerință</th>
+            <th>Nivel</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Securitate</strong></td>
+            <td>Autentificare cu parolă + roluri (admin, operator, auditor, read-only)</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+          <tr>
+            <td><strong>Backup</strong></td>
+            <td>Backup automat zilnic al bazei de date; restaurare testată</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+          <tr>
+            <td><strong>Audit trail</strong></td>
+            <td>Jurnalizarea tuturor modificărilor (cine, când, ce)</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+          <tr>
+            <td><strong>Conformitate</strong></td>
+            <td>SNC RM, IFRS (opțional), cerințe CNPF pentru AEÎ, Legea nr. 139/2007</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+          <tr>
+            <td><strong>Disponibilitate</strong></td>
+            <td>Uptime ≥ 99% în orele de lucru; suport offline pentru operațiuni de bază</td>
+            <td><span class="tag tag-should">RECOMANDAT</span></td>
+          </tr>
+          <tr>
+            <td><strong>Performanță</strong></td>
+            <td>Generarea oricărui raport în max. 30 secunde pentru date de 5 ani</td>
+            <td><span class="tag tag-should">RECOMANDAT</span></td>
+          </tr>
+          <tr>
+            <td><strong>Interfață</strong></td>
+            <td>Limbă română; adaptare pentru rezoluții 1024×768 și mai mari</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+          <tr>
+            <td><strong>Instalare</strong></td>
+            <td>Server local (on-premise) sau cloud; suport Windows Server / Linux</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+          <tr>
+            <td><strong>Migrare date</strong></td>
+            <td>Import date istorice din Excel / CSV la implementare</td>
+            <td><span class="tag tag-should">RECOMANDAT</span></td>
+          </tr>
+          <tr>
+            <td><strong>Actualizări</strong></td>
+            <td>Actualizări regulate la schimbări legislative; notificare prealabilă</td>
+            <td><span class="tag tag-must">OBLIGATORIU</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── 5. CONDIȚII IMPLEMENTARE ───────────────────── -->
+  <section id="s5">
+    <div class="sec-head">
+      <div class="sec-num">5</div>
+      <h2>Condiții de implementare solicitate</h2>
+    </div>
+    <div class="sec-body">
+      <div class="cards">
+        <div class="card">
+          <div class="card-title">📦 Livrabile</div>
+          <ul>
+            <li>Licență software (per entitate / per utilizator)</li>
+            <li>Instalare și configurare inițială</li>
+            <li>Migrarea datelor istorice</li>
+            <li>Documentație utilizator în limba română</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🎓 Training</div>
+          <ul>
+            <li>Instruire operatori (min. 2 zile)</li>
+            <li>Instruire administratori sistem</li>
+            <li>Materiale de referință rapide</li>
+            <li>Sesiuni de follow-up (1 lună post-lansare)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">🛠️ Suport tehnic</div>
+          <ul>
+            <li>Helpdesk telefonic + email (L-V, 9:00–18:00)</li>
+            <li>SLA: răspuns în max. 4h pentru erori critice</li>
+            <li>Actualizări incluse în contract de mentenanță</li>
+            <li>Acces remote pentru depanare</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">💰 Informații financiare</div>
+          <ul>
+            <li>Cost licență (per AEÎ sau central)</li>
+            <li>Cost implementare (one-time)</li>
+            <li>Cost mentenanță anuală</li>
+            <li>Condiții de plată și garanții</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 6. CRITERII DE ACCEPTARE ───────────────────── -->
+  <section id="s6">
+    <div class="sec-head">
+      <div class="sec-num">6</div>
+      <h2>Criterii de acceptare a soluției</h2>
+    </div>
+    <div class="sec-body">
+      <div class="alert alert-info">
+        Soluția propusă de Unisim-SOFT va fi acceptată dacă răspunde <strong>tuturor</strong>
+        cerințelor marcate <span class="tag tag-must">OBLIGATORIU</span> și cel puțin
+        <strong>70%</strong> din cerințele marcate <span class="tag tag-should">RECOMANDAT</span>.
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Criteriu</th>
+            <th>Verificare</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Înregistrare și gestionare completă depozite + credite</td>
+            <td>Demo live pe date de test AEÎ</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Generarea fișei de evidență a depunerilor (conform anexă)</td>
+            <td>Comparare cu formatul XLSX primit</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Bilanț și situație profit/pierdere conform SNC RM</td>
+            <td>Verificare de contabil certificat</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Raport CNPF generat corect</td>
+            <td>Validare cu formatul oficial CNPF</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Consolidare date pentru cel puțin 3 entități AEÎ</td>
+            <td>Test cu date anonimizate din 3 AEÎ</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Roluri de utilizator funcționale (operator, auditor, admin)</td>
+            <td>Test de permisiuni</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Export rapoarte Excel + PDF</td>
+            <td>Verificare format și date</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>Interfață în limba română</td>
+            <td>Inspecție vizuală</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- /wrap -->
+</main>
+
+<footer>
+  <div class="wrap">
+    Asociația Națională Centrală a AEÎ &nbsp;·&nbsp;
+    Chișinău, str. Ion Creangă 10/5, MD-2069 &nbsp;·&nbsp;
+    <a href="http://www.aei.md" target="_blank">www.aei.md</a> &nbsp;·&nbsp;
+    Caiet de sarcini v1.0 — 2026
+  </div>
+</footer>
+
+</body>
+</html>
