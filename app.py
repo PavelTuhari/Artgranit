@@ -4890,6 +4890,154 @@ def _patched_confirm_sales(doc_id):
 AgroStore.confirm_sales_doc = _patched_confirm_sales
 
 
+# ---------------------------------------------------------------------------
+# AEI — Asociații de Economii și Împrumut
+# ---------------------------------------------------------------------------
+from controllers.aei_controller import AEIController
+
+
+@app.route('/UNA.md/orasldev/aei')
+@app.route('/UNA.md/orasldev/aei-admin')
+def aei_admin():
+    """AEÎ: main admin — deposits, loans, members, accounting."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('aei_admin.html')
+
+
+@app.route('/UNA.md/orasldev/aei-tz')
+def aei_tz():
+    """AEÎ: Technical Specification (TZ) document."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    tz_path = os.path.join(os.path.dirname(__file__), 'docs', 'AEI.md', 'TZ_AEI.html')
+    with open(tz_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+# AEI — API routes
+
+@app.route('/api/aei/dashboard', methods=['GET'])
+def api_aei_dashboard():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_dashboard())
+
+
+@app.route('/api/aei/members', methods=['GET'])
+def api_aei_members_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_members())
+
+
+@app.route('/api/aei/members', methods=['POST'])
+def api_aei_members_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.upsert_member())
+
+
+@app.route('/api/aei/members/<int:member_id>', methods=['GET'])
+def api_aei_member_get(member_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_member(member_id))
+
+
+@app.route('/api/aei/members/<int:member_id>', methods=['DELETE'])
+def api_aei_member_delete(member_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.delete_member(member_id))
+
+
+@app.route('/api/aei/deposits', methods=['GET'])
+def api_aei_deposits_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_deposits())
+
+
+@app.route('/api/aei/deposits', methods=['POST'])
+def api_aei_deposits_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.upsert_deposit())
+
+
+@app.route('/api/aei/deposits/<int:deposit_id>', methods=['GET'])
+def api_aei_deposit_get(deposit_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_deposit(deposit_id))
+
+
+@app.route('/api/aei/deposits/<int:deposit_id>/flows', methods=['GET'])
+def api_aei_deposit_flows(deposit_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_deposit_flows(deposit_id))
+
+
+@app.route('/api/aei/loans', methods=['GET'])
+def api_aei_loans_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_loans())
+
+
+@app.route('/api/aei/loans', methods=['POST'])
+def api_aei_loans_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.upsert_loan())
+
+
+@app.route('/api/aei/loans/<int:loan_id>', methods=['GET'])
+def api_aei_loan_get(loan_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    from models.aei_oracle_store import AEIStore
+    return jsonify(AEIStore.get_loans())  # fallback list
+
+
+@app.route('/api/aei/journal', methods=['GET'])
+def api_aei_journal_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_journal())
+
+
+@app.route('/api/aei/journal', methods=['POST'])
+def api_aei_journal_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.insert_journal_entry())
+
+
+@app.route('/api/aei/accounts', methods=['GET'])
+def api_aei_accounts():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_accounts())
+
+
+@app.route('/api/aei/settings', methods=['GET'])
+def api_aei_settings_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_settings())
+
+
+@app.route('/api/aei/settings', methods=['POST'])
+def api_aei_settings_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.update_setting())
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)
