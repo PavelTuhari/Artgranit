@@ -166,7 +166,14 @@ class AEIStore:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    """SELECT d.*, m.LAST_NAME||' '||m.FIRST_NAME AS MEMBER_NAME
+                    """SELECT d.DEPOSIT_ID, d.CONTRACT_NO, d.MEMBER_ID,
+                              TO_CHAR(d.SIGN_DATE,'DD.MM.YYYY') AS SIGN_DATE,
+                              TO_CHAR(d.START_DATE,'DD.MM.YYYY') AS START_DATE,
+                              TO_CHAR(d.END_DATE,'DD.MM.YYYY') AS END_DATE,
+                              d.PRINCIPAL, d.CURRENCY, d.INTEREST_RATE, d.PENALTY_RATE,
+                              d.TAX_RATE, d.CAPITALIZATION, d.TERM_MONTHS, d.STATUS,
+                              d.NOTES, d.CREATED_AT,
+                              m.LAST_NAME||' '||m.FIRST_NAME AS MEMBER_NAME
                          FROM AEI_DEPOSITS d
                          JOIN AEI_MEMBERS m ON m.MEMBER_ID=d.MEMBER_ID
                         WHERE d.DEPOSIT_ID=:id""",
