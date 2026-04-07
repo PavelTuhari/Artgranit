@@ -869,6 +869,16 @@ function renderParam(p) {
         <textarea class="notes-input" placeholder="Комментарий..."
                   oninput="paramValues['${esc(p.key)}']=this.value||null"></textarea>
       </div>`;
+    case 'defects':
+      return `<div class="param-sec">${lbl}<div class="defect-chips">${
+        (p.options||[]).map(o =>
+          `<span class="defect-chip" data-pk="${esc(p.key)}" data-val="${esc(o)}"
+                onclick="toggleDefect('${esc(p.key)}','${esc(o)}',this)">${esc(o)}</span>`
+        ).join('')
+      }</div><input class="defect-detail-input" type="text" inputmode="text"
+        placeholder="Detaliu... (ex: la guler)"
+        oninput="paramValues['${esc(p.key)}__detail']=this.value||null">
+      </div>`;
     default: return '';
   }
 }
