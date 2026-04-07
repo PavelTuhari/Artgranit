@@ -1322,7 +1322,10 @@ async function viewLoanSchedule(loanId) {
     </tr></thead>
     <tbody>${flowRows}</tbody>
   </table>
-  ${'<script>'}
+  </body></html>`);
+  win.document.close();
+  const s = win.document.createElement('script');
+  s.textContent = `
     async function regenerate(loanId) {
       if (!confirm('Regenerează graficul? Ratele neachitate vor fi recalculate.')) return;
       const r = await fetch('/api/aei/loans/'+loanId+'/generate-schedule',{method:'POST',credentials:'include'});
@@ -1330,7 +1333,7 @@ async function viewLoanSchedule(loanId) {
       if (d.success) { alert(d.message); window.location.reload(); }
       else alert('Eroare: '+d.error);
     }
-    async function recordPayment(flowId, sched) {
+    async function recordPayment(flowId, sched, loanId) {
       const amtStr = prompt('Suma achitată (MDL):', sched.toFixed(2));
       if (!amtStr) return;
       const amt = parseFloat(amtStr);
@@ -1348,9 +1351,8 @@ async function viewLoanSchedule(loanId) {
       if (data.success) { window.location.reload(); }
       else alert('Eroare: '+data.error);
     }
-  ${'</script>'}`
-  </body></html>`);
-  win.document.close();
+  `;
+  win.document.head.appendChild(s);
 }
 
 // ================================================================
