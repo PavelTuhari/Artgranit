@@ -125,10 +125,23 @@ def get_or_create_members():
         db.connection.commit()
         print(f"  Члены: добавлено {added}")
 
-        # Build offset → member_id map
-        r3 = db.execute_query("SELECT MEMBER_ID FROM AEI_MEMBERS ORDER BY MEMBER_ID", {})
-        all_ids = [row[0] for row in r3.get('data', [])]
-        return {i+1: mid for i, mid in enumerate(all_ids)}
+        # Build offset → member_id map via IDNP/IDNO lookup (handles duplicates correctly)
+        r3 = db.execute_query("SELECT MEMBER_ID, IDNP, IDNO FROM AEI_MEMBERS ORDER BY MEMBER_ID", {})
+        all_rows = r3.get('data', [])
+        # existing members 1-11 by position
+        pos_map = {i+1: row[0] for i, row in enumerate(all_rows)}
+        # NEW_MEMBERS by doc lookup
+        doc_to_mid = {}
+        for row in all_rows:
+            mid, idnp, idno = row[0], row[1], row[2]
+            if idnp: doc_to_mid[str(idnp)] = mid
+            if idno:  doc_to_mid[str(idno)]  = mid
+        for i, (ln, fn, mt, doc, ph, jd) in enumerate(NEW_MEMBERS):
+            offset = 12 + i
+            mid = doc_to_mid.get(str(doc))
+            if mid:
+                pos_map[offset] = mid
+        return pos_map
 
 def add_loans(member_map):
     """Insert loans and generate schedules."""
