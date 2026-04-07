@@ -171,8 +171,8 @@ class AEIStore:
                               TO_CHAR(d.START_DATE,'DD.MM.YYYY') AS START_DATE,
                               TO_CHAR(d.END_DATE,'DD.MM.YYYY') AS END_DATE,
                               d.PRINCIPAL, d.CURRENCY, d.INTEREST_RATE, d.PENALTY_RATE,
-                              d.TAX_RATE, d.CAPITALIZATION, d.TERM_MONTHS, d.STATUS,
-                              d.NOTES, d.CREATED_AT,
+                              d.TAX_RATE, d.CAPITALIZATION, d.DAY_COUNT, d.STATUS,
+                              d.PARENT_ID, d.NOTES, d.CREATED_AT, d.UPDATED_AT,
                               m.LAST_NAME||' '||m.FIRST_NAME AS MEMBER_NAME
                          FROM AEI_DEPOSITS d
                          JOIN AEI_MEMBERS m ON m.MEMBER_ID=d.MEMBER_ID
