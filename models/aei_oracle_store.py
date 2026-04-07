@@ -484,6 +484,175 @@ class AEIStore:
             return {"success": False, "error": str(e)}
 
     # ================================================================
+    # REPORTS
+    # ================================================================
+
+    @staticmethod
+    def get_trial_balance(date_from: str = None, date_to: str = None) -> Dict[str, Any]:
+        """Оборотно-сальдовая ведомость по счетам AEI_JOURNAL."""
+        try:
+            with DatabaseModel() as db:
+                p: Dict = {}
+                # opening: all entries strictly before date_from
+                if date_from:
+                    ob_where = "ENTRY_DATE < TO_DATE(:df,'DD.MM.YYYY')"
+                    p["df"] = date_from
+                else:
+                    ob_where = "1=0"   # no opening balance if no date_from
+
+                # period: entries in [date_from, date_to]
+                per_cond = "1=1"
+                if date_from:
+                    per_cond += " AND ENTRY_DATE >= TO_DATE(:df,'DD.MM.YYYY')"
+                if date_to:
+                    per_cond += " AND ENTRY_DATE <= TO_DATE(:dt,'DD.MM.YYYY')"
+                    p["dt"] = date_to
+
+                sql = f"""
+                WITH ob AS (
+                    SELECT account_code,
+                           SUM(debit_amt)  AS ob_dt,
+                           SUM(credit_amt) AS ob_ct
+                    FROM (
+                        SELECT DEBIT_ACCOUNT  AS account_code, AMOUNT AS debit_amt, 0 AS credit_amt
+                        FROM AEI_JOURNAL WHERE {ob_where}
+                        UNION ALL
+                        SELECT CREDIT_ACCOUNT, 0, AMOUNT
+                        FROM AEI_JOURNAL WHERE {ob_where}
+                    ) GROUP BY account_code
+                ),
+                per AS (
+                    SELECT account_code,
+                           SUM(debit_amt)  AS per_dt,
+                           SUM(credit_amt) AS per_ct
+                    FROM (
+                        SELECT DEBIT_ACCOUNT  AS account_code, AMOUNT AS debit_amt, 0 AS credit_amt
+                        FROM AEI_JOURNAL WHERE {per_cond}
+                        UNION ALL
+                        SELECT CREDIT_ACCOUNT, 0, AMOUNT
+                        FROM AEI_JOURNAL WHERE {per_cond}
+                    ) GROUP BY account_code
+                ),
+                all_accts AS (
+                    SELECT DISTINCT account_code FROM ob
+                    UNION
+                    SELECT DISTINCT account_code FROM per
+                )
+                SELECT
+                    a.account_code,
+                    ac.ACCOUNT_NAME,
+                    ac.ACCOUNT_TYPE,
+                    NVL(ob.ob_dt,0)  AS ob_dt,
+                    NVL(ob.ob_ct,0)  AS ob_ct,
+                    NVL(per.per_dt,0) AS per_dt,
+                    NVL(per.per_ct,0) AS per_ct,
+                    GREATEST(NVL(ob.ob_dt,0) + NVL(per.per_dt,0)
+                             - NVL(ob.ob_ct,0) - NVL(per.per_ct,0), 0) AS fin_dt,
+                    GREATEST(NVL(ob.ob_ct,0) + NVL(per.per_ct,0)
+                             - NVL(ob.ob_dt,0) - NVL(per.per_dt,0), 0) AS fin_ct
+                FROM all_accts a
+                LEFT JOIN ob  ON ob.account_code  = a.account_code
+                LEFT JOIN per ON per.account_code = a.account_code
+                LEFT JOIN AEI_ACCOUNTS ac ON ac.ACCOUNT_CODE = a.account_code
+                ORDER BY a.account_code
+                """
+                r = db.execute_query(sql, p)
+                rows = []
+                for row in (r.get("data") or []):
+                    rows.append({
+                        "account_code": row[0],
+                        "account_name": row[1] or "",
+                        "account_type": row[2] or "",
+                        "ob_dt":   float(row[3] or 0),
+                        "ob_ct":   float(row[4] or 0),
+                        "per_dt":  float(row[5] or 0),
+                        "per_ct":  float(row[6] or 0),
+                        "fin_dt":  float(row[7] or 0),
+                        "fin_ct":  float(row[8] or 0),
+                    })
+                # totals
+                totals = {k: sum(r[k] for r in rows)
+                          for k in ("ob_dt","ob_ct","per_dt","per_ct","fin_dt","fin_ct")}
+                return {"success": True, "data": rows, "totals": totals}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_olap_loans(group_by: str = "month", date_from: str = None, date_to: str = None) -> Dict[str, Any]:
+        """OLAP агрегация кредитов по выбранному измерению."""
+        try:
+            with DatabaseModel() as db:
+                dim_expr = {
+                    "month":        "TO_CHAR(l.DISBURSEMENT_DATE,'YYYY-MM')",
+                    "quarter":      "TO_CHAR(l.DISBURSEMENT_DATE,'YYYY') || '-Q' || TO_CHAR(l.DISBURSEMENT_DATE,'Q')",
+                    "year":         "TO_CHAR(l.DISBURSEMENT_DATE,'YYYY')",
+                    "status":       "l.STATUS",
+                    "repayment":    "l.REPAYMENT_TYPE",
+                    "risk":         "NVL(l.RISK_CLASS,'—')",
+                    "member_type":  "NVL(m.MEMBER_TYPE,'—')",
+                }.get(group_by, "TO_CHAR(l.DISBURSEMENT_DATE,'YYYY-MM')")
+
+                p: Dict = {}
+                where = "WHERE 1=1"
+                if date_from:
+                    where += " AND l.DISBURSEMENT_DATE >= TO_DATE(:df,'DD.MM.YYYY')"
+                    p["df"] = date_from
+                if date_to:
+                    where += " AND l.DISBURSEMENT_DATE <= TO_DATE(:dt,'DD.MM.YYYY')"
+                    p["dt"] = date_to
+
+                sql = f"""
+                SELECT
+                    {dim_expr}              AS dim_value,
+                    COUNT(*)                AS loan_count,
+                    SUM(l.PRINCIPAL)        AS total_principal,
+                    AVG(l.INTEREST_RATE)    AS avg_rate,
+                    SUM(CASE WHEN l.STATUS='ACTIVE'  THEN l.PRINCIPAL ELSE 0 END) AS active_principal,
+                    SUM(CASE WHEN l.STATUS='OVERDUE' THEN l.PRINCIPAL ELSE 0 END) AS overdue_principal,
+                    SUM(CASE WHEN l.STATUS='CLOSED'  THEN l.PRINCIPAL ELSE 0 END) AS closed_principal,
+                    COUNT(CASE WHEN l.STATUS='OVERDUE' THEN 1 END)                AS overdue_count,
+                    SUM(NVL(lf.total_paid,0))     AS total_paid,
+                    SUM(NVL(lf.total_overdue,0))  AS total_overdue,
+                    SUM(l.PRINCIPAL * l.INTEREST_RATE / 100 * l.TERM_MONTHS / 12) AS projected_interest
+                FROM AEI_LOANS l
+                LEFT JOIN AEI_MEMBERS m ON m.MEMBER_ID = l.MEMBER_ID
+                LEFT JOIN (
+                    SELECT LOAN_ID,
+                           SUM(AMOUNT_PAID)    AS total_paid,
+                           SUM(AMOUNT_OVERDUE) AS total_overdue
+                    FROM AEI_LOAN_FLOWS
+                    GROUP BY LOAN_ID
+                ) lf ON lf.LOAN_ID = l.LOAN_ID
+                {where}
+                GROUP BY {dim_expr}
+                ORDER BY 1
+                """
+                r = db.execute_query(sql, p)
+                rows = []
+                for row in (r.get("data") or []):
+                    rows.append({
+                        "dim":               row[0] or "—",
+                        "loan_count":        int(row[1] or 0),
+                        "total_principal":   float(row[2] or 0),
+                        "avg_rate":          round(float(row[3] or 0), 2),
+                        "active_principal":  float(row[4] or 0),
+                        "overdue_principal": float(row[5] or 0),
+                        "closed_principal":  float(row[6] or 0),
+                        "overdue_count":     int(row[7] or 0),
+                        "total_paid":        float(row[8] or 0),
+                        "total_overdue":     float(row[9] or 0),
+                        "projected_interest":float(row[10] or 0),
+                    })
+                totals = {k: sum(r[k] for r in rows if isinstance(r[k], (int,float)))
+                          for k in ("loan_count","total_principal","active_principal",
+                                    "overdue_principal","closed_principal","overdue_count",
+                                    "total_paid","total_overdue","projected_interest")}
+                totals["avg_rate"] = round(sum(r["avg_rate"]*r["loan_count"] for r in rows) / max(totals["loan_count"],1), 2)
+                return {"success": True, "data": rows, "totals": totals}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ================================================================
     # DASHBOARD STATS
     # ================================================================
 
