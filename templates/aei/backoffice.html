@@ -1437,13 +1437,14 @@ async function runPnL(){
   document.getElementById('jrn-to').value=isoTo;
   document.getElementById('je-date').value=isoToday;
 
-  // set report defaults
+  // set report defaults — cover full demo period Oct 2025 – current date
+  const isoDataStart = `${y-1}-10-01`;  // Oct of previous year
   document.getElementById('olap-from').value=isoYearFrom;
   document.getElementById('olap-to').value=isoToday;
-  document.getElementById('osv-from').value=isoFrom;
-  document.getElementById('osv-to').value=isoTo;
-  document.getElementById('pnl-from').value=isoFrom;
-  document.getElementById('pnl-to').value=isoTo;
+  document.getElementById('osv-from').value=isoDataStart;
+  document.getElementById('osv-to').value=isoToday;
+  document.getElementById('pnl-from').value=isoDataStart;
+  document.getElementById('pnl-to').value=isoToday;
 
   // hide-zero toggle live update
   document.getElementById('osv-hide-zero').addEventListener('change',()=>{
