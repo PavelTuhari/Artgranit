@@ -1383,28 +1383,28 @@ async function runPnL(){
       <div class="pnl-val ${cls}" style="color:#94a3b8;font-size:11px">${totalVen>0?Math.round(val/totalVen*100)+'%':'—'}</div>
     </div>`;
 
-  const accRow=(a,val)=>row(`${a.account_code} — ${a.account_name||''}`,Math.abs(val),'neutral');
+  const accRow=(a,val)=>row(`${a.account_code} — ${a.account_name||''}`, val, 'neutral');
 
   let html=`
     <div class="pnl-section">
       <div class="pnl-section-header">📈 VENITURI</div>
-      <div style="display:grid;grid-template-columns:1fr 120px 120px" class="pnl-row" style="background:#f8fafc">
-        <div class="pnl-name" style="font-size:10px;text-transform:uppercase;color:#64748b">Cont / Articol</div>
+      <div style="display:grid;grid-template-columns:1fr 120px 120px;padding:4px 12px">
+        <div style="font-size:10px;text-transform:uppercase;color:#64748b">Cont / Articol</div>
         <div class="pnl-col-header">Sumă MDL</div>
         <div class="pnl-col-header">% din total</div>
       </div>
-      ${venituri.map(a=>accRow(a,a.per_ct-a.per_dt)).join('')}
+      ${venituri.filter(a=>incVal(a)>0).map(a=>accRow(a, incVal(a))).join('')}
       <div class="pnl-row total"><div class="pnl-name">Total venituri</div><div class="pnl-val positive">${fmtN(totalVen)}</div><div class="pnl-val positive">100%</div></div>
     </div>
 
     <div class="pnl-section">
       <div class="pnl-section-header">📉 CHELTUIELI</div>
-      <div style="display:grid;grid-template-columns:1fr 120px 120px" class="pnl-row">
-        <div class="pnl-name" style="font-size:10px;text-transform:uppercase;color:#64748b">Cont / Articol</div>
+      <div style="display:grid;grid-template-columns:1fr 120px 120px;padding:4px 12px">
+        <div style="font-size:10px;text-transform:uppercase;color:#64748b">Cont / Articol</div>
         <div class="pnl-col-header">Sumă MDL</div>
         <div class="pnl-col-header">% din venituri</div>
       </div>
-      ${cheltuieli.map(a=>accRow(a,a.per_dt-a.per_ct)).join('')}
+      ${cheltuieli.filter(a=>expVal(a)>0).map(a=>accRow(a, expVal(a))).join('')}
       <div class="pnl-row total"><div class="pnl-name">Total cheltuieli</div><div class="pnl-val negative">${fmtN(totalCh)}</div><div class="pnl-val negative">${totalVen>0?Math.round(totalCh/totalVen*100)+'%':'—'}</div></div>
     </div>
 
