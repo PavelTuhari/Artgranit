@@ -5081,6 +5081,20 @@ def api_aei_settings_post():
     return jsonify(AEIController.update_setting())
 
 
+@app.route('/api/aei/reports/trial-balance', methods=['GET'])
+def api_aei_trial_balance():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_trial_balance())
+
+
+@app.route('/api/aei/reports/olap-loans', methods=['GET'])
+def api_aei_olap_loans():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_olap_loans())
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)
