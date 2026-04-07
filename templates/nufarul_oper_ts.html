@@ -928,6 +928,16 @@ function buildParamSummary() {
   const params = groupParams[activeGroup] || [];
   params.forEach(p => {
     const v = paramValues[p.key];
+    if (p.type === 'defects') {
+      const chips = Array.isArray(v) ? v : [];
+      const detail = paramValues[p.key + '__detail'] || '';
+      if (chips.length || detail) {
+        let s = chips.join(', ');
+        if (detail) s += (s ? ' — ' : '') + detail;
+        parts.push(s);
+      }
+      return;
+    }
     if (v === null || v === undefined || v === '' || v === false) return;
     if (p.type === 'color') { parts.push('●'); return; }
     if (p.type === 'toggle' && v === true) { parts.push(p.label_ru); return; }
