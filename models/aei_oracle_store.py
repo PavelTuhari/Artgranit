@@ -345,6 +345,13 @@ class AEIStore:
                                    :status, :risk_class, :notes)""",
                         p
                     )
+                    db.connection.commit()
+                    r2 = db.execute_query(
+                        "SELECT LOAN_ID FROM AEI_LOANS WHERE CONTRACT_NO=:cn ORDER BY LOAN_ID DESC",
+                        {"cn": p["contract_no"]}
+                    )
+                    new_id = r2["data"][0][0] if r2.get("data") else None
+                    return {"success": True, "loan_id": new_id}
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
