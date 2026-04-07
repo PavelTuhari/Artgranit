@@ -1562,6 +1562,24 @@ async function editLoan(id) {
   if (r.success && r.data) openLoanModal(r.data);
 }
 
+// ================================================================
+// DEPOSIT INTEREST CALCULATOR
+// ================================================================
+async function calcDepositInterest(depositId) {
+  const r = await api('GET', '/api/aei/deposits/'+depositId+'/calculate-interest');
+  if (!r.success) { toast('Eroare: '+(r.error||''), 'err'); return; }
+  const d = r.data;
+  const msg = `📊 Calcul dobândă acumulată\n\n` +
+    `Contract: ${d.contract_no}\n` +
+    `Sold: ${fmtNum(d.balance)} MDL\n` +
+    `Perioadă: ${d.from_date} → ${d.to_date} (${d.days} zile)\n` +
+    `Rata: ${d.rate_pct}% anual\n\n` +
+    `Dobândă brută:  ${fmtNum4(d.gross_interest)} MDL\n` +
+    `Impozit 6%:     ${fmtNum4(d.tax_amount)} MDL\n` +
+    `Dobândă netă:   ${fmtNum4(d.net_interest)} MDL`;
+  alert(msg);
+}
+
 async function saveLoan() {
   const data = {
     loan_id:           document.getElementById('loan-id').value || null,
