@@ -905,6 +905,14 @@ function setChip(key, val, el, multi) {
   updateCustomerAdding();
 }
 
+function toggleDefect(key, val, el) {
+  if (!Array.isArray(paramValues[key])) paramValues[key] = [];
+  const idx = paramValues[key].indexOf(val);
+  if (idx >= 0) { paramValues[key].splice(idx, 1); el.classList.remove('active'); }
+  else { paramValues[key].push(val); el.classList.add('active'); }
+  updateCustomerAdding();
+}
+
 function changeCount(key, delta) {
   const params = groupParams[activeGroup] || [];
   const def = params.find(p => p.key === key);
