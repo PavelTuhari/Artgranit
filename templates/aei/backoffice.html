@@ -1406,6 +1406,7 @@ async function runPnL(){
       </div>
       ${cheltuieli.filter(a=>expVal(a)>0).map(a=>accRow(a, expVal(a))).join('')}
       <div class="pnl-row total"><div class="pnl-name">Total cheltuieli</div><div class="pnl-val negative">${fmtN(totalCh)}</div><div class="pnl-val negative">${totalVen>0?Math.round(totalCh/totalVen*100)+'%':'—'}</div></div>
+
     </div>
 
     <div class="pnl-section">
