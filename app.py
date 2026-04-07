@@ -4999,8 +4999,35 @@ def api_aei_loans_post():
 def api_aei_loan_get(loan_id):
     if not AuthController.is_authenticated():
         return jsonify({"success": False, "error": "auth"}), 401
-    from models.aei_oracle_store import AEIStore
-    return jsonify(AEIStore.get_loans())  # fallback list
+    return jsonify(AEIController.get_loan(loan_id))
+
+
+@app.route('/api/aei/loans/<int:loan_id>/flows', methods=['GET'])
+def api_aei_loan_flows(loan_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.get_loan_flows(loan_id))
+
+
+@app.route('/api/aei/loans/<int:loan_id>/generate-schedule', methods=['POST'])
+def api_aei_loan_generate_schedule(loan_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.generate_loan_schedule(loan_id))
+
+
+@app.route('/api/aei/loans/payment', methods=['POST'])
+def api_aei_loan_payment():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.record_loan_payment())
+
+
+@app.route('/api/aei/deposits/<int:deposit_id>/calculate-interest', methods=['GET'])
+def api_aei_deposit_calc_interest(deposit_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(AEIController.calculate_deposit_interest(deposit_id))
 
 
 @app.route('/api/aei/journal', methods=['GET'])
