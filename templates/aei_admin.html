@@ -1215,10 +1215,141 @@ async function loadLoans(status='ACTIVE') {
     <td style="text-align:center">${r.risk_class||''}</td>
     <td>${badge(r.status)}</td>
     <td class="td-actions">
+      <button class="btn-sm" onclick="viewLoanSchedule(${r.loan_id})" title="Grafic rambursare">📅 Grafic</button>
       <button class="btn-sm" onclick="editLoan(${r.loan_id})">✏️</button>
     </td>
   </tr>`).join('');
   setStatus(`Gata — ${rows.length} credite`);
+}
+
+// ================================================================
+// LOAN SCHEDULE VIEWER
+// ================================================================
+async function viewLoanSchedule(loanId) {
+  const lr = await api('GET', '/api/aei/loans/'+loanId);
+  const d  = lr.data || {};
+  const fr = await api('GET', '/api/aei/loans/'+loanId+'/flows');
+  const rows = fr.data || [];
+
+  const today = new Date();
+  const totalSched  = rows.reduce((s,f)=>s+parseFloat(f.amount_scheduled||0),0);
+  const totalPaid   = rows.reduce((s,f)=>s+parseFloat(f.amount_paid||0),0);
+  const totalOverdue= rows.reduce((s,f)=>s+parseFloat(f.amount_overdue||0),0);
+  const remaining   = d.principal ? parseFloat(d.principal) - totalPaid : 0;
+
+  const repayLabel = {ANNUITY:'Anuitate (plată egală)',DECLINING:'Descrescător (principal egal)'}[d.repayment_type] || d.repayment_type || '—';
+
+  const flowRows = rows.map((f,i) => {
+    const isPaid    = parseFloat(f.amount_paid||0) >= parseFloat(f.amount_scheduled||0)*0.99;
+    const isOverdue = parseFloat(f.amount_overdue||0) > 0;
+    const isPartial = parseFloat(f.amount_paid||0) > 0 && !isPaid;
+    const rowCls = isPaid ? 'lf-paid' : isOverdue ? 'lf-overdue' : isPartial ? 'lf-partial' : '';
+    const statusIcon = isPaid ? '✅' : isOverdue ? '⚠️' : isPartial ? '🔸' : '⬜';
+    const payBtn = isPaid ? '' :
+      `<button class="btn-sm" onclick="recordPayment(${f.flow_id},${f.amount_scheduled},${loanId})" style="font-size:10px">💳 Plată</button>`;
+    return `<tr class="${rowCls}">
+      <td style="text-align:center;color:#64748b">${i+1}</td>
+      <td>${f.due_date||''}</td>
+      <td style="text-align:right">${fmtNum4(f.amount_scheduled)}</td>
+      <td style="text-align:right">${fmtNum4(f.amount_paid)||'—'}</td>
+      <td style="text-align:right;color:#dc2626">${parseFloat(f.amount_overdue||0)>0?fmtNum4(f.amount_overdue):'—'}</td>
+      <td style="text-align:right;color:#475569">${fmtNum4(f.balance_principal)}</td>
+      <td>${f.payment_date||'—'}</td>
+      <td>${f.days_overdue>0?f.days_overdue+' zile':'—'}</td>
+      <td style="text-align:center">${statusIcon}</td>
+      <td>${payBtn}</td>
+    </tr>`;
+  }).join('');
+
+  const win = window.open('', '_blank', 'width=1100,height=700');
+  win.document.write(`<!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8">
+  <title>Grafic rambursare ${d.contract_no||''}</title>
+  <style>
+    body{font-family:sans-serif;font-size:12px;margin:16px;color:#1e293b}
+    h2{color:#1d4ed8;margin-bottom:8px}
+    .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+    .mf{border:1px solid #e2e8f0;border-radius:4px;padding:8px 10px}
+    .mf .l{font-size:10px;text-transform:uppercase;color:#64748b}
+    .mf .v{font-weight:700;color:#1d4ed8}
+    .summary{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+    .sum-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 14px;min-width:130px}
+    .sum-card .sl{font-size:10px;color:#64748b;text-transform:uppercase}
+    .sum-card .sv{font-size:16px;font-weight:700}
+    .sum-card.green .sv{color:#15803d}
+    .sum-card.red .sv{color:#dc2626}
+    .sum-card.blue .sv{color:#1d4ed8}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{background:#1d4ed8;color:#fff;padding:6px 8px;text-align:left;white-space:nowrap}
+    td{padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#1e293b}
+    tr.lf-paid td{background:#f0fdf4}
+    tr.lf-overdue td{background:#fff7f7}
+    tr.lf-partial td{background:#fffbeb}
+    .btn-sm{padding:2px 8px;font-size:10px;border:1px solid #cbd5e1;border-radius:3px;cursor:pointer;background:#fff}
+    .btn-sm:hover{background:#f1f5f9}
+    .btn-gen{padding:6px 14px;font-size:12px;background:#1d4ed8;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-right:8px}
+    @media print{.btn-gen,.btn-sm,.no-print{display:none}}
+  </style></head><body>
+  <h2>📅 Grafic de rambursare — ${d.contract_no||''}</h2>
+  <div class="meta">
+    <div class="mf"><div class="l">Titular</div><div class="v">${d.member_name||''}</div></div>
+    <div class="mf"><div class="l">Suma creditului</div><div class="v">${fmtNum(d.principal)} ${d.currency||'MDL'}</div></div>
+    <div class="mf"><div class="l">Rata dobânzii</div><div class="v">${d.interest_rate||''}% anual</div></div>
+    <div class="mf"><div class="l">Garanții</div><div class="v">${d.collateral||'—'}</div></div>
+    <div class="mf"><div class="l">Data acordării</div><div class="v">${d.disbursement_date||''}</div></div>
+    <div class="mf"><div class="l">Scadență</div><div class="v">${d.end_date||''}</div></div>
+    <div class="mf"><div class="l">Termen</div><div class="v">${d.term_months||''} luni</div></div>
+    <div class="mf"><div class="l">Tip rambursare</div><div class="v">${repayLabel}</div></div>
+    <div class="mf"><div class="l">Penalitate</div><div class="v">${d.penalty_rate||0}%/zi</div></div>
+    <div class="mf"><div class="l">Scop</div><div class="v">${d.purpose||'—'}</div></div>
+    <div class="mf"><div class="l">Statut</div><div class="v">${d.status||''}</div></div>
+  </div>
+  <div class="summary">
+    <div class="sum-card blue"><div class="sl">Total rate</div><div class="sv">${fmtNum(totalSched)} MDL</div></div>
+    <div class="sum-card green"><div class="sl">Achitat</div><div class="sv">${fmtNum(totalPaid)} MDL</div></div>
+    <div class="sum-card red"><div class="sl">Restanță</div><div class="sv">${fmtNum(totalOverdue)} MDL</div></div>
+    <div class="sum-card"><div class="sl">Sold principal</div><div class="sv">${fmtNum(Math.max(remaining,0))} MDL</div></div>
+  </div>
+  <div class="no-print" style="margin-bottom:10px">
+    <button class="btn-gen" onclick="regenerate(${loanId})">🔄 Regenerează graficul</button>
+    <button class="btn-gen" style="background:#475569" onclick="window.print()">🖨️ Print</button>
+  </div>
+  <table>
+    <thead><tr>
+      <th>#</th><th>Scadență</th><th>Rată totală</th><th>Achitat</th>
+      <th>Restanță</th><th>Sold principal</th><th>Data plății</th><th>Zile întârziere</th>
+      <th>Statut</th><th class="no-print">Acțiuni</th>
+    </tr></thead>
+    <tbody>${flowRows}</tbody>
+  </table>
+  <script>
+    async function regenerate(loanId) {
+      if (!confirm('Regenerează graficul? Ratele neachitate vor fi recalculate.')) return;
+      const r = await fetch('/api/aei/loans/'+loanId+'/generate-schedule',{method:'POST',credentials:'include'});
+      const d = await r.json();
+      if (d.success) { alert(d.message); window.location.reload(); }
+      else alert('Eroare: '+d.error);
+    }
+    async function recordPayment(flowId, sched, loanId) {
+      const amtStr = prompt('Suma achitată (MDL):', sched.toFixed(2));
+      if (!amtStr) return;
+      const amt = parseFloat(amtStr);
+      if (isNaN(amt)||amt<=0) { alert('Sumă invalidă'); return; }
+      const today = new Date();
+      const dd = String(today.getDate()).padStart(2,'0')+'.'+String(today.getMonth()+1).padStart(2,'0')+'.'+today.getFullYear();
+      const dateStr = prompt('Data plății (DD.MM.YYYY):', dd);
+      if (!dateStr) return;
+      const r = await fetch('/api/aei/loans/payment',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({flow_id:flowId,amount_paid:amt,payment_date:dateStr})
+      });
+      const data = await r.json();
+      if (data.success) { window.location.reload(); }
+      else alert('Eroare: '+data.error);
+    }
+  </script>
+  </body></html>`);
+  win.document.close();
 }
 
 // ================================================================
