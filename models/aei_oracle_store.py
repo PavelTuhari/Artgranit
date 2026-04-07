@@ -686,17 +686,20 @@ class AEIStore:
                             "descr":     f"Rata {i}/{n_months}: principal {principal_part:,.2f} + dobândă {interest_part:,.2f}",
                         })
 
-                # --- insert rows ---
+                # --- insert rows (pass only bound keys) ---
                 for f in flows:
-                    db.execute_query(
+                    r = db.execute_query(
                         """INSERT INTO AEI_LOAN_FLOWS
                                (LOAN_ID, DUE_DATE, FLOW_TYPE, AMOUNT_SCHEDULED,
                                 AMOUNT_PAID, AMOUNT_OVERDUE, BALANCE_PRINCIPAL, DESCRIPTION)
                            VALUES
                                (:loan_id, TO_DATE(:due,'DD.MM.YYYY'), 'PAYMENT',
                                 :sched, 0, 0, :bal, :descr)""",
-                        f
+                        {"loan_id": f["loan_id"], "due": f["due"],
+                         "sched": f["sched"], "bal": f["bal"], "descr": f["descr"]}
                     )
+                    if not r.get("success"):
+                        raise Exception(f"Insert failed: {r.get('message')}")
 
                 db.connection.commit()
                 return {"success": True, "count": len(flows),
