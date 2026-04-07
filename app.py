@@ -4905,6 +4905,22 @@ def aei_admin():
     return render_template('aei_admin.html')
 
 
+@app.route('/UNA.md/orasldev/aei-operator')
+def aei_operator():
+    """AEÎ: Loan officer interface — issue credits, record payments."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('aei/operator.html')
+
+
+@app.route('/UNA.md/orasldev/aei-backoffice')
+def aei_backoffice():
+    """AEÎ: Back-office interface — BI reports, settings, accounts, journal."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('aei/backoffice.html')
+
+
 @app.route('/UNA.md/orasldev/aei-tz')
 def aei_tz():
     """AEÎ: Technical Specification (TZ) document."""
