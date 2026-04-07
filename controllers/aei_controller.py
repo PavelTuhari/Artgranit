@@ -121,6 +121,43 @@ class AEIController:
             )
         return result
 
+    @staticmethod
+    def get_loan(loan_id: int) -> Dict[str, Any]:
+        return AEIStore.get_loan(loan_id)
+
+    @staticmethod
+    def get_loan_flows(loan_id: int) -> Dict[str, Any]:
+        return AEIStore.get_loan_flows(loan_id)
+
+    @staticmethod
+    def generate_loan_schedule(loan_id: int) -> Dict[str, Any]:
+        result = AEIStore.generate_loan_schedule(loan_id)
+        if result.get("success"):
+            AEIStore.log_event("SCHEDULE_GENERATED", "AEI_LOANS", loan_id,
+                               session.get("username"),
+                               result.get("message", f"Schedule generated for loan {loan_id}"))
+        return result
+
+    @staticmethod
+    def record_loan_payment() -> Dict[str, Any]:
+        data = request.get_json(silent=True) or {}
+        flow_id = data.get("flow_id")
+        if not flow_id:
+            return {"success": False, "error": "flow_id is required"}
+        amount_paid  = float(data.get("amount_paid", 0))
+        payment_date = data.get("payment_date", "")
+        notes        = data.get("notes")
+        result = AEIStore.record_loan_payment(flow_id, amount_paid, payment_date, notes)
+        if result.get("success"):
+            AEIStore.log_event("PAYMENT_RECORDED", "AEI_LOAN_FLOWS", flow_id,
+                               session.get("username"),
+                               f"Paid {amount_paid} on flow {flow_id}")
+        return result
+
+    @staticmethod
+    def calculate_deposit_interest(deposit_id: int) -> Dict[str, Any]:
+        return AEIStore.calculate_deposit_interest(deposit_id)
+
     # ----------------------------------------------------------------
     # JOURNAL
     # ----------------------------------------------------------------
