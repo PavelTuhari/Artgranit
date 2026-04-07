@@ -1357,9 +1357,11 @@ async function runPnL(){
   const venituri=rows.filter(x=>x.account_type==='INCOME');
   const cheltuieli=rows.filter(x=>x.account_type==='EXPENSE');
 
-  // INCOME: credited (fin_ct), EXPENSE: debited (fin_dt) in NBM plan
-  const totalVen=venituri.reduce((s,x)=>s+Math.max(x.per_ct-x.per_dt, x.per_ct, 0),0);
-  const totalCh =cheltuieli.reduce((s,x)=>s+Math.max(x.per_dt-x.per_ct, x.per_dt, 0),0);
+  // NBM plan: 8xx INCOME credited, 7xx EXPENSE debited
+  const incVal  = x => Math.max(x.per_ct - x.per_dt, 0);
+  const expVal  = x => Math.max(x.per_dt - x.per_ct, 0);
+  const totalVen = venituri.reduce((s,x)=>s+incVal(x), 0);
+  const totalCh  = cheltuieli.reduce((s,x)=>s+expVal(x), 0);
   const profit=totalVen-totalCh;
 
   // KPI
