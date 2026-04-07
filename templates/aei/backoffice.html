@@ -771,12 +771,18 @@ let currentPanel='dashboard';
 const panelTitles={
   dashboard:'Dashboard BI', portfolio:'Analiză portofoliu',
   aging:'Aging restanțe', maturities:'Scadențe depozite',
-  journal:'Jurnal contabil', accounts:'Plan de conturi', settings:'Setări AEÎ'
+  journal:'Jurnal contabil', accounts:'Plan de conturi', settings:'Setări AEÎ',
+  olap:'OLAP — Analiza portofoliului de credite',
+  'trial-balance':'Оборотно-сальдовая ведомость (Balanță de verificare)',
+  pnl:'Raport Venituri & Cheltuieli',
 };
 const panelLoaders={
   dashboard:loadDashboard, portfolio:loadPortfolio,
   aging:loadAging, maturities:loadMaturities,
-  journal:loadJournal, accounts:loadAccounts, settings:loadSettings
+  journal:loadJournal, accounts:loadAccounts, settings:loadSettings,
+  olap:()=>{ /* on-demand: user clicks Run */ },
+  'trial-balance':()=>{ /* on-demand */ },
+  pnl:()=>{ /* on-demand */ },
 };
 function showPanel(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
