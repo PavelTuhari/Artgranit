@@ -1419,8 +1419,8 @@ async function runPnL(){
       </div>
     </div>`;
 
-  if(!venituri.length&&!cheltuieli.length)
-    html='<div style="text-align:center;padding:40px;color:#94a3b8">Nicio înregistrare în conturile de venituri/cheltuieli (5xx, 6xx)</div>';
+  if(totalVen===0&&totalCh===0)
+    html='<div style="text-align:center;padding:40px;color:#94a3b8">Nicio înregistrare în conturile de venituri/cheltuieli pentru perioada selectată</div>';
   document.getElementById('pnl-content').innerHTML=html;
   setStatus('Gata');
 }
