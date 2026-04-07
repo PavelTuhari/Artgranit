@@ -1440,13 +1440,12 @@ async function runPnL(){
   document.getElementById('jrn-to').value=isoTo;
   document.getElementById('je-date').value=isoToday;
 
-  // set report defaults — cover full demo period Oct 2025 – current date
-  const isoDataStart = `${y-1}-10-01`;  // Oct of previous year
-  document.getElementById('olap-from').value=`${y-3}-01-01`;  // cover 3 years of demo data
+  // set report defaults — cover full demo period
+  document.getElementById('olap-from').value=`${y-3}-01-01`;  // 3 years back for OLAP
   document.getElementById('olap-to').value=isoToday;
-  document.getElementById('osv-from').value=isoDataStart;
+  document.getElementById('osv-from').value=`${y-1}-10-01`;   // Oct last year for OSV
   document.getElementById('osv-to').value=isoToday;
-  document.getElementById('pnl-from').value=isoDataStart;
+  document.getElementById('pnl-from').value=`${y-1}-10-01`;   // Oct last year for P&L
   document.getElementById('pnl-to').value=isoToday;
 
   // hide-zero toggle live update
