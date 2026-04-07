@@ -1119,6 +1119,7 @@ async function loadDeposits(status='ACTIVE') {
     <td>${badge(r.status)}</td>
     <td class="td-actions">
       <button class="btn-sm" onclick="viewDepositFlows(${r.deposit_id})">📋 Fișă</button>
+      <button class="btn-sm" onclick="calcDepositInterest(${r.deposit_id})" title="Calculează dobânda acumulată">📊 Dobândă</button>
       <button class="btn-sm" onclick="editDeposit(${r.deposit_id})">✏️</button>
     </td>
   </tr>`).join('');
