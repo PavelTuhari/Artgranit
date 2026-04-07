@@ -1284,11 +1284,11 @@ async function loadJournal() {
     <td>${e.entry_no||''}</td>
     <td class="td-acc">${e.debit_account||''}</td>
     <td class="td-acc">${e.credit_account||''}</td>
-    <td class="td-acc" style="color:#6b7280">${e.extra_debit||''}</td>
-    <td class="td-acc" style="color:#6b7280">${e.extra_credit||''}</td>
+    <td class="td-acc">${e.extra_debit||''}</td>
+    <td class="td-acc">${e.extra_credit||''}</td>
     <td class="td-num"><strong>${fmtNum4(e.amount)}</strong></td>
     <td style="max-width:220px;font-size:11px">${(e.description||'').substring(0,80)}</td>
-    <td style="font-size:10px;color:#64748b">${(e.document_ref||'').substring(0,60)}</td>
+    <td style="font-size:10px">${(e.document_ref||'').substring(0,60)}</td>
   </tr>`).join('');
   setStatus(`Gata — ${rows.length} înregistrări`);
 }
