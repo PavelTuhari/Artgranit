@@ -1442,7 +1442,7 @@ async function runPnL(){
 
   // set report defaults — cover full demo period Oct 2025 – current date
   const isoDataStart = `${y-1}-10-01`;  // Oct of previous year
-  document.getElementById('olap-from').value=isoYearFrom;
+  document.getElementById('olap-from').value=`${y-3}-01-01`;  // cover 3 years of demo data
   document.getElementById('olap-to').value=isoToday;
   document.getElementById('osv-from').value=isoDataStart;
   document.getElementById('osv-to').value=isoToday;
