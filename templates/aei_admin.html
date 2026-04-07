@@ -1322,7 +1322,7 @@ async function viewLoanSchedule(loanId) {
     </tr></thead>
     <tbody>${flowRows}</tbody>
   </table>
-  <scr\`+\`ipt>
+  ${'<script>'}
     async function regenerate(loanId) {
       if (!confirm('Regenerează graficul? Ratele neachitate vor fi recalculate.')) return;
       const r = await fetch('/api/aei/loans/'+loanId+'/generate-schedule',{method:'POST',credentials:'include'});
@@ -1348,7 +1348,7 @@ async function viewLoanSchedule(loanId) {
       if (data.success) { window.location.reload(); }
       else alert('Eroare: '+data.error);
     }
-  </scr\`+\`ipt>`
+  ${'</script>'}`
   </body></html>`);
   win.document.close();
 }
