@@ -1353,9 +1353,9 @@ async function runPnL(){
   if(!r.success){alert('Eroare: '+r.error);setStatus('Eroare');return;}
   const rows=r.data||[];
 
-  // Clasa 5 = venituri, Clasa 6 = cheltuieli
-  const venituri=rows.filter(x=>String(x.account_code||'').startsWith('5'));
-  const cheltuieli=rows.filter(x=>String(x.account_code||'').startsWith('6'));
+  // INCOME / EXPENSE by account_type (NBM plan: 8xx=INCOME, 7xx=EXPENSE)
+  const venituri=rows.filter(x=>x.account_type==='INCOME');
+  const cheltuieli=rows.filter(x=>x.account_type==='EXPENSE');
 
   const totalVen=venituri.reduce((s,x)=>s+(x.per_ct-x.per_dt),0);   // credit > debit for income
   const totalCh =cheltuieli.reduce((s,x)=>s+(x.per_dt-x.per_ct),0); // debit > credit for expense
