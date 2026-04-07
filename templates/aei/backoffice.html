@@ -1127,15 +1127,331 @@ async function saveSetting(key){
   else { alert('Eroare: '+r.error); setStatus('Eroare'); }
 }
 
+/* ═══════════════════════════════════════════════════
+   OLAP CREDITE
+   ═══════════════════════════════════════════════ */
+const DIM_LABELS = {
+  month:'Lună','quarter':'Trimestru',year:'An',
+  status:'Statut',repayment:'Tip rambursare',risk:'Clasă risc',member_type:'Tip membru'
+};
+let olapData=[];
+
+async function runOlap(){
+  const grp=document.getElementById('olap-group').value;
+  const from=document.getElementById('olap-from').value;
+  const to=document.getElementById('olap-to').value;
+  let url=`/api/aei/reports/olap-loans?group_by=${grp}`;
+  if(from) url+=`&date_from=${from.split('-').reverse().join('.')}`;
+  if(to)   url+=`&date_to=${to.split('-').reverse().join('.')}`;
+  setStatus('Se calculează OLAP...');
+  const r=await api('GET',url);
+  if(!r.success){alert('Eroare: '+r.error);setStatus('Eroare');return;}
+  olapData=r.data||[];
+  const tot=r.totals||{};
+  const grand=tot.total_principal||1;
+
+  // KPI cards
+  const nplPct=grand>0?Math.round((tot.overdue_principal||0)/grand*1000)/10:0;
+  const collPct=grand>0?Math.round((tot.total_paid||0)/grand*1000)/10:0;
+  document.getElementById('olap-kpi').innerHTML=`
+    <div class="kpi-card"><div class="kpi-val">${tot.loan_count||0}</div><div class="kpi-label">Total credite</div></div>
+    <div class="kpi-card" style="--kpi-color:#0ea5e9"><div class="kpi-val" style="color:#0369a1">${fmtN(tot.total_principal)}</div><div class="kpi-label">Portofoliu total (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#15803d"><div class="kpi-val green">${fmtN(tot.active_principal)}</div><div class="kpi-label">Active (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#dc2626"><div class="kpi-val red">${fmtN(tot.overdue_principal)}</div><div class="kpi-label">Restante (MDL)</div><div class="kpi-sub">NPL: ${nplPct}%</div></div>
+    <div class="kpi-card" style="--kpi-color:#f59e0b"><div class="kpi-val gold">${fmtN(tot.projected_interest)}</div><div class="kpi-label">Dobândă proiectată (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#6366f1"><div class="kpi-val" style="color:#4f46e5">${collPct}%</div><div class="kpi-label">% colectat din portofoliu</div></div>
+  `;
+
+  // Header
+  document.getElementById('olap-dim-header').textContent=DIM_LABELS[grp]||grp;
+
+  // Table rows
+  const body=document.getElementById('olap-body');
+  if(!olapData.length){
+    body.innerHTML='<tr><td colspan="11" style="text-align:center;padding:20px;color:#94a3b8">Niciun rezultat</td></tr>';
+    setStatus('Gata');return;
+  }
+  const maxP=Math.max(...olapData.map(r=>r.total_principal),1);
+  body.innerHTML=olapData.map(row=>{
+    const npl=row.total_principal>0?Math.round(row.overdue_principal/row.total_principal*1000)/10:0;
+    const pct=grand>0?Math.round(row.total_principal/grand*1000)/10:0;
+    const nplCls=npl===0?'heat-0':npl<10?'heat-1':'heat-2';
+    const barW=Math.max(row.total_principal/maxP*60,2);
+    return `<tr>
+      <td><strong>${row.dim}</strong></td>
+      <td class="num">${row.loan_count}</td>
+      <td class="num"><span class="cell-bar" style="width:${barW}px;background:#4f46e5"></span>${fmtN(row.total_principal)}</td>
+      <td class="num" style="color:#15803d">${fmtN(row.active_principal)}</td>
+      <td class="num" style="color:#dc2626">${fmtN(row.overdue_principal)}</td>
+      <td class="num" style="color:#64748b">${fmtN(row.closed_principal)}</td>
+      <td class="num">${row.avg_rate}%</td>
+      <td class="num" style="color:#0369a1">${fmtN(row.total_paid)}</td>
+      <td class="num">${fmtN(row.projected_interest)}</td>
+      <td class="num ${nplCls}">${npl}%</td>
+      <td class="num">${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  // Total row
+  body.innerHTML+=`<tr class="olap-total">
+    <td>TOTAL</td>
+    <td class="num">${tot.loan_count}</td>
+    <td class="num">${fmtN(tot.total_principal)}</td>
+    <td class="num" style="color:#15803d">${fmtN(tot.active_principal)}</td>
+    <td class="num" style="color:#dc2626">${fmtN(tot.overdue_principal)}</td>
+    <td class="num" style="color:#64748b">${fmtN(tot.closed_principal)}</td>
+    <td class="num">${tot.avg_rate}%</td>
+    <td class="num">${fmtN(tot.total_paid)}</td>
+    <td class="num">${fmtN(tot.projected_interest)}</td>
+    <td class="num">${nplPct}%</td>
+    <td class="num">100%</td>
+  </tr>`;
+
+  // Charts
+  document.getElementById('olap-chart-principal').innerHTML=barChart(
+    olapData.map((r,i)=>({label:r.dim,val:r.total_principal,display:fmtN0(r.total_principal)+' MDL'})),
+    maxP,(_,i)=>COLORS[i%COLORS.length]);
+
+  const maxNpl=Math.max(...olapData.map(r=>r.total_principal>0?r.overdue_principal/r.total_principal*100:0),0.1);
+  document.getElementById('olap-chart-npl').innerHTML=barChart(
+    olapData.map(r=>{const n=r.total_principal>0?r.overdue_principal/r.total_principal*100:0;
+      return {label:r.dim,val:n,display:n.toFixed(1)+'%'};}),
+    maxNpl,g=>g.val>10?'#dc2626':g.val>5?'#f59e0b':'#15803d');
+
+  setSBInfo(`OLAP: ${olapData.length} grupe · ${tot.loan_count} credite · ${fmtN(tot.total_principal)} MDL`);
+  setStatus('Gata');
+}
+
+function exportOlapCSV(){
+  if(!olapData.length){alert('Rulați calculul mai întâi');return;}
+  const grp=document.getElementById('olap-group').value;
+  const header=[DIM_LABELS[grp]||grp,'Nr.credite','Total MDL','Active','Restante','Rambursate','Rata medie','Achitat','Dobanda proiectata','NPL%'];
+  const rows=olapData.map(r=>{
+    const npl=r.total_principal>0?(r.overdue_principal/r.total_principal*100).toFixed(1):0;
+    return[r.dim,r.loan_count,r.total_principal,r.active_principal,r.overdue_principal,
+           r.closed_principal,r.avg_rate,r.total_paid,r.projected_interest,npl+'%'];
+  });
+  const csv=[header,...rows].map(r=>r.join(';')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`olap_credite_${grp}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+/* ═══════════════════════════════════════════════════
+   ОБОРОТНО-САЛЬДОВАЯ ВЕДОМОСТЬ
+   ═══════════════════════════════════════════════ */
+let osvData=[];
+
+async function runTrialBalance(){
+  const from=document.getElementById('osv-from').value;
+  const to=document.getElementById('osv-to').value;
+  let url='/api/aei/reports/trial-balance?';
+  if(from) url+=`date_from=${from.split('-').reverse().join('.')}&`;
+  if(to)   url+=`date_to=${to.split('-').reverse().join('.')}`;
+  setStatus('Se calculează ОСВ...');
+  const r=await api('GET',url);
+  if(!r.success){alert('Eroare: '+r.error);setStatus('Eroare: '+r.error);return;}
+  osvData=r.data||[];
+  const tot=r.totals||{};
+  renderOSV(tot);
+  setStatus('Gata');
+}
+
+function renderOSV(tot){
+  const hideZero=document.getElementById('osv-hide-zero').checked;
+  let rows=osvData;
+  if(hideZero) rows=rows.filter(r=>r.ob_dt||r.ob_ct||r.per_dt||r.per_ct||r.fin_dt||r.fin_ct);
+
+  // KPI summary
+  document.getElementById('osv-kpi').innerHTML=`
+    <div class="kpi-card" style="--kpi-color:#4f46e5"><div class="kpi-val" style="color:#4f46e5">${rows.length}</div><div class="kpi-label">Conturi active</div></div>
+    <div class="kpi-card" style="--kpi-color:#0369a1"><div class="kpi-val" style="font-size:16px;color:#0369a1">${fmtN(tot.per_dt)}</div><div class="kpi-label">Rulaj total Debit (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#7c3aed"><div class="kpi-val" style="font-size:16px;color:#7c3aed">${fmtN(tot.per_ct)}</div><div class="kpi-label">Rulaj total Credit (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#15803d"><div class="kpi-val" style="font-size:16px;color:#15803d">${fmtN(tot.fin_dt)}</div><div class="kpi-label">Sold final Debit (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#b45309"><div class="kpi-val" style="font-size:16px;color:#b45309">${fmtN(tot.fin_ct)}</div><div class="kpi-label">Sold final Credit (MDL)</div></div>
+  `;
+
+  // Group by account class
+  const byClass={};
+  rows.forEach(r=>{
+    const cls=String(r.account_code||'').charAt(0)||'?';
+    (byClass[cls]=byClass[cls]||[]).push(r);
+  });
+  const classNames={'1':'Clasa 1 — Active','2':'Clasa 2 — Creanțe / Depozite',
+    '3':'Clasa 3 — Datorii','4':'Clasa 4 — Capital propriu',
+    '5':'Clasa 5 — Venituri','6':'Clasa 6 — Cheltuieli','7':'Clasa 7 — Rezultate'};
+
+  const fmtCell=v=>v?`<span>${fmtN(v)}</span>`:
+    `<span class="osv-zero">—</span>`;
+
+  let html='';
+  Object.entries(byClass).sort(([a],[b])=>a.localeCompare(b)).forEach(([cls,list])=>{
+    const gOb_dt=list.reduce((s,r)=>s+r.ob_dt,0);
+    const gOb_ct=list.reduce((s,r)=>s+r.ob_ct,0);
+    const gPer_dt=list.reduce((s,r)=>s+r.per_dt,0);
+    const gPer_ct=list.reduce((s,r)=>s+r.per_ct,0);
+    const gFin_dt=list.reduce((s,r)=>s+r.fin_dt,0);
+    const gFin_ct=list.reduce((s,r)=>s+r.fin_ct,0);
+    html+=`<tr class="osv-group-header"><td colspan="9">${classNames[cls]||'Clasa '+cls}</td></tr>`;
+    list.sort((a,b)=>String(a.account_code).localeCompare(String(b.account_code))).forEach(row=>{
+      html+=`<tr>
+        <td class="code">${row.account_code}</td>
+        <td class="name">${row.account_name||''}</td>
+        <td style="font-size:10px;text-align:center;color:#64748b">${row.account_type||''}</td>
+        <td class="num">${fmtCell(row.ob_dt)}</td>
+        <td class="num">${fmtCell(row.ob_ct)}</td>
+        <td class="num">${fmtCell(row.per_dt)}</td>
+        <td class="num">${fmtCell(row.per_ct)}</td>
+        <td class="num">${fmtCell(row.fin_dt)}</td>
+        <td class="num">${fmtCell(row.fin_ct)}</td>
+      </tr>`;
+    });
+    // group sub-total
+    html+=`<tr style="background:#f8fafc;font-weight:600;color:#475569">
+      <td colspan="3" style="padding:5px 10px;font-size:11px;color:#64748b">Subtotal ${classNames[cls]?.split('—')[0]||'Clasa '+cls}</td>
+      <td class="num">${gOb_dt?fmtN(gOb_dt):'—'}</td><td class="num">${gOb_ct?fmtN(gOb_ct):'—'}</td>
+      <td class="num">${gPer_dt?fmtN(gPer_dt):'—'}</td><td class="num">${gPer_ct?fmtN(gPer_ct):'—'}</td>
+      <td class="num">${gFin_dt?fmtN(gFin_dt):'—'}</td><td class="num">${gFin_ct?fmtN(gFin_ct):'—'}</td>
+    </tr>`;
+  });
+  document.getElementById('osv-body').innerHTML=html||
+    '<tr><td colspan="9" style="text-align:center;padding:20px;color:#94a3b8">Nicio mișcare în perioadă</td></tr>';
+
+  // Totals footer
+  const foot=document.getElementById('osv-foot');
+  foot.style.display='';
+  ['ob_dt','ob_ct','per_dt','per_ct','fin_dt','fin_ct'].forEach(k=>{
+    document.getElementById('osv-tot-'+k.replace('_','-')).textContent=fmtN(tot[k]||0);
+  });
+  setSBInfo(`ОСВ: ${rows.length} conturi`);
+}
+
+function exportOSVCSV(){
+  if(!osvData.length){alert('Rulați calculul mai întâi');return;}
+  const header=['Cont','Denumire','Tip','Sold init Dt','Sold init Ct','Rulaj Dt','Rulaj Ct','Sold final Dt','Sold final Ct'];
+  const rows=osvData.map(r=>[r.account_code,r.account_name,r.account_type,
+    r.ob_dt,r.ob_ct,r.per_dt,r.per_ct,r.fin_dt,r.fin_ct]);
+  const csv=[header,...rows].map(r=>r.join(';')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`OSV_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+/* ═══════════════════════════════════════════════════
+   P&L — VENITURI & CHELTUIELI
+   ═══════════════════════════════════════════════ */
+async function runPnL(){
+  const from=document.getElementById('pnl-from').value;
+  const to=document.getElementById('pnl-to').value;
+  let url='/api/aei/reports/trial-balance?';
+  if(from) url+=`date_from=${from.split('-').reverse().join('.')}&`;
+  if(to)   url+=`date_to=${to.split('-').reverse().join('.')}`;
+  setStatus('Se calculează P&L...');
+  const r=await api('GET',url);
+  if(!r.success){alert('Eroare: '+r.error);setStatus('Eroare');return;}
+  const rows=r.data||[];
+
+  // Clasa 5 = venituri, Clasa 6 = cheltuieli
+  const venituri=rows.filter(x=>String(x.account_code||'').startsWith('5'));
+  const cheltuieli=rows.filter(x=>String(x.account_code||'').startsWith('6'));
+
+  const totalVen=venituri.reduce((s,x)=>s+(x.per_ct-x.per_dt),0);   // credit > debit for income
+  const totalCh =cheltuieli.reduce((s,x)=>s+(x.per_dt-x.per_ct),0); // debit > credit for expense
+  const profit=totalVen-totalCh;
+
+  // KPI
+  document.getElementById('pnl-kpi').innerHTML=`
+    <div class="kpi-card" style="--kpi-color:#15803d"><div class="kpi-val green">${fmtN(totalVen)}</div><div class="kpi-label">Total venituri (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#dc2626"><div class="kpi-val red">${fmtN(totalCh)}</div><div class="kpi-label">Total cheltuieli (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:${profit>=0?'#15803d':'#dc2626'}">
+      <div class="kpi-val" style="color:${profit>=0?'#15803d':'#dc2626'}">${fmtN(Math.abs(profit))}</div>
+      <div class="kpi-label">${profit>=0?'Profit net':'Pierdere netă'} (MDL)</div></div>
+    <div class="kpi-card" style="--kpi-color:#4f46e5">
+      <div class="kpi-val" style="color:#4f46e5;font-size:18px">${totalVen>0?Math.round(profit/totalVen*1000)/10:0}%</div>
+      <div class="kpi-label">Marjă netă</div></div>
+  `;
+
+  const row=(name,val,cls='')=>`
+    <div class="pnl-row">
+      <div class="pnl-name">${name}</div>
+      <div class="pnl-val ${cls}">${fmtN(val)}</div>
+      <div class="pnl-val ${cls}" style="color:#94a3b8;font-size:11px">${totalVen>0?Math.round(val/totalVen*100)+'%':'—'}</div>
+    </div>`;
+
+  const accRow=(a,val)=>row(`${a.account_code} — ${a.account_name||''}`,Math.abs(val),'neutral');
+
+  let html=`
+    <div class="pnl-section">
+      <div class="pnl-section-header">📈 VENITURI</div>
+      <div style="display:grid;grid-template-columns:1fr 120px 120px" class="pnl-row" style="background:#f8fafc">
+        <div class="pnl-name" style="font-size:10px;text-transform:uppercase;color:#64748b">Cont / Articol</div>
+        <div class="pnl-col-header">Sumă MDL</div>
+        <div class="pnl-col-header">% din total</div>
+      </div>
+      ${venituri.map(a=>accRow(a,a.per_ct-a.per_dt)).join('')}
+      <div class="pnl-row total"><div class="pnl-name">Total venituri</div><div class="pnl-val positive">${fmtN(totalVen)}</div><div class="pnl-val positive">100%</div></div>
+    </div>
+
+    <div class="pnl-section">
+      <div class="pnl-section-header">📉 CHELTUIELI</div>
+      <div style="display:grid;grid-template-columns:1fr 120px 120px" class="pnl-row">
+        <div class="pnl-name" style="font-size:10px;text-transform:uppercase;color:#64748b">Cont / Articol</div>
+        <div class="pnl-col-header">Sumă MDL</div>
+        <div class="pnl-col-header">% din venituri</div>
+      </div>
+      ${cheltuieli.map(a=>accRow(a,a.per_dt-a.per_ct)).join('')}
+      <div class="pnl-row total"><div class="pnl-name">Total cheltuieli</div><div class="pnl-val negative">${fmtN(totalCh)}</div><div class="pnl-val negative">${totalVen>0?Math.round(totalCh/totalVen*100)+'%':'—'}</div></div>
+    </div>
+
+    <div class="pnl-section">
+      <div class="pnl-section-header" style="background:${profit>=0?'#14532d':'#7f1d1d'}">${profit>=0?'✅ PROFIT NET':'⚠️ PIERDERE NETĂ'}</div>
+      <div class="pnl-row total" style="background:${profit>=0?'#dcfce7':'#fee2e2'}">
+        <div class="pnl-name" style="color:${profit>=0?'#15803d':'#dc2626'};font-size:14px">
+          ${profit>=0?'Profit net':'Pierdere netă'}</div>
+        <div class="pnl-val" style="color:${profit>=0?'#15803d':'#dc2626'};font-size:16px">${fmtN(Math.abs(profit))}</div>
+        <div class="pnl-val" style="color:${profit>=0?'#15803d':'#dc2626'}">${totalVen>0?Math.round(Math.abs(profit)/totalVen*100)+'%':'—'}</div>
+      </div>
+    </div>`;
+
+  if(!venituri.length&&!cheltuieli.length)
+    html='<div style="text-align:center;padding:40px;color:#94a3b8">Nicio înregistrare în conturile de venituri/cheltuieli (5xx, 6xx)</div>';
+  document.getElementById('pnl-content').innerHTML=html;
+  setStatus('Gata');
+}
+
 /* ── INIT ────────────────────────────────────────── */
 (function init(){
   // set default journal dates (current month)
   const now=new Date();
   const y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('jrn-from').value=`${y}-${m}-01`;
-  document.getElementById('jrn-to').value=`${y}-${m}-${String(new Date(y,now.getMonth()+1,0).getDate()).padStart(2,'0')}`;
-  // set journal entry date
-  document.getElementById('je-date').value=now.toISOString().split('T')[0];
+  const lastDay=new Date(y,now.getMonth()+1,0).getDate();
+  const isoFrom=`${y}-${m}-01`;
+  const isoTo=`${y}-${m}-${String(lastDay).padStart(2,'0')}`;
+  const isoYearFrom=`${y}-01-01`;
+  const isoToday=now.toISOString().split('T')[0];
+
+  document.getElementById('jrn-from').value=isoFrom;
+  document.getElementById('jrn-to').value=isoTo;
+  document.getElementById('je-date').value=isoToday;
+
+  // set report defaults
+  document.getElementById('olap-from').value=isoYearFrom;
+  document.getElementById('olap-to').value=isoToday;
+  document.getElementById('osv-from').value=isoFrom;
+  document.getElementById('osv-to').value=isoTo;
+  document.getElementById('pnl-from').value=isoFrom;
+  document.getElementById('pnl-to').value=isoTo;
+
+  // hide-zero toggle live update
+  document.getElementById('osv-hide-zero').addEventListener('change',()=>{
+    if(osvData.length) renderOSV({
+      ob_dt:osvData.reduce((s,r)=>s+r.ob_dt,0),ob_ct:osvData.reduce((s,r)=>s+r.ob_ct,0),
+      per_dt:osvData.reduce((s,r)=>s+r.per_dt,0),per_ct:osvData.reduce((s,r)=>s+r.per_ct,0),
+      fin_dt:osvData.reduce((s,r)=>s+r.fin_dt,0),fin_ct:osvData.reduce((s,r)=>s+r.fin_ct,0),
+    });
+  });
 
   loadDashboard();
   setInterval(()=>{
