@@ -1599,7 +1599,14 @@ async function saveLoan() {
   };
   const r = await api('POST', '/api/aei/loans', data);
   if (r.success) {
-    toast('Credit salvat ✓');
+    const loanId = r.loan_id || data.loan_id;
+    // Auto-generate schedule for new loans
+    if (!data.loan_id && loanId) {
+      await api('POST', '/api/aei/loans/'+loanId+'/generate-schedule', {});
+      toast('Credit salvat + grafic generat ✓');
+    } else {
+      toast('Credit salvat ✓');
+    }
     closeModal('modal-loan');
     loadLoans('ACTIVE');
   } else toast('Eroare: ' + (r.error||''), 'err');
