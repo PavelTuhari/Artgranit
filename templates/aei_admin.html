@@ -1322,7 +1322,7 @@ async function viewLoanSchedule(loanId) {
     </tr></thead>
     <tbody>${flowRows}</tbody>
   </table>
-  <script>
+  <scr\`+\`ipt>
     async function regenerate(loanId) {
       if (!confirm('Regenerează graficul? Ratele neachitate vor fi recalculate.')) return;
       const r = await fetch('/api/aei/loans/'+loanId+'/generate-schedule',{method:'POST',credentials:'include'});
@@ -1330,7 +1330,7 @@ async function viewLoanSchedule(loanId) {
       if (d.success) { alert(d.message); window.location.reload(); }
       else alert('Eroare: '+d.error);
     }
-    async function recordPayment(flowId, sched, loanId) {
+    async function recordPayment(flowId, sched) {
       const amtStr = prompt('Suma achitată (MDL):', sched.toFixed(2));
       if (!amtStr) return;
       const amt = parseFloat(amtStr);
@@ -1339,16 +1339,16 @@ async function viewLoanSchedule(loanId) {
       const dd = String(today.getDate()).padStart(2,'0')+'.'+String(today.getMonth()+1).padStart(2,'0')+'.'+today.getFullYear();
       const dateStr = prompt('Data plății (DD.MM.YYYY):', dd);
       if (!dateStr) return;
-      const r = await fetch('/api/aei/loans/payment',{
+      const resp = await fetch('/api/aei/loans/payment',{
         method:'POST', credentials:'include',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({flow_id:flowId,amount_paid:amt,payment_date:dateStr})
       });
-      const data = await r.json();
+      const data = await resp.json();
       if (data.success) { window.location.reload(); }
       else alert('Eroare: '+data.error);
     }
-  </script>
+  </scr\`+\`ipt>`
   </body></html>`);
   win.document.close();
 }
