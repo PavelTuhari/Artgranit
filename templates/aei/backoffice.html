@@ -780,9 +780,9 @@ const panelLoaders={
   dashboard:loadDashboard, portfolio:loadPortfolio,
   aging:loadAging, maturities:loadMaturities,
   journal:loadJournal, accounts:loadAccounts, settings:loadSettings,
-  olap:()=>{ /* on-demand: user clicks Run */ },
-  'trial-balance':()=>{ /* on-demand */ },
-  pnl:()=>{ /* on-demand */ },
+  olap: runOlap,
+  'trial-balance': runTrialBalance,
+  pnl: runPnL,
 };
 function showPanel(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
