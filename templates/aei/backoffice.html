@@ -219,6 +219,77 @@
     .status-dot { width:6px; height:6px; border-radius:50%;
       background:#22c55e; display:inline-block; margin-right:4px; }
 
+    /* ── OLAP / PIVOT ─────────────────────────────── */
+    .olap-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      background:#fff; border:1px solid var(--c-border); border-radius:8px;
+      padding:12px 16px; margin-bottom:16px; }
+    .olap-toolbar label { font-size:11px; font-weight:700; color:var(--c-gray);
+      text-transform:uppercase; letter-spacing:.04em; }
+    .olap-select { padding:6px 10px; font-size:12px; border:1px solid var(--c-border);
+      border-radius:5px; outline:none; color:var(--c-text); background:#fff; min-width:150px; }
+    .olap-select:focus { border-color:#4f46e5; }
+    .olap-run { padding:6px 16px; font-size:12px; background:#4f46e5; color:#fff;
+      border:none; border-radius:5px; cursor:pointer; }
+    .olap-run:hover { background:#3730a3; }
+
+    /* OLAP table */
+    .olap-wrap { overflow-x:auto; }
+    .olap-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .olap-table th { background:#4f46e5; color:#fff; padding:8px 10px;
+      text-align:left; white-space:nowrap; font-weight:600; position:sticky; top:0; }
+    .olap-table th.num { text-align:right; }
+    .olap-table td { padding:7px 10px; border-bottom:1px solid #f1f5f9; color:var(--c-text); }
+    .olap-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .olap-table tr:hover td { background:#f0f4ff; }
+    .olap-table tr.olap-total td { background:#e0e7ff; font-weight:700; border-top:2px solid #4f46e5; }
+    .olap-table .heat-0 { color:#15803d; }
+    .olap-table .heat-1 { color:#92400e; }
+    .olap-table .heat-2 { color:#dc2626; font-weight:700; }
+
+    /* mini sparkline bar inside cell */
+    .cell-bar { display:inline-block; height:6px; border-radius:2px;
+      vertical-align:middle; margin-right:5px; }
+
+    /* ── TRIAL BALANCE (ОСВ) ──────────────────────── */
+    .osv-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .osv-table thead tr { background:#1e293b; color:#fff; }
+    .osv-table thead tr th { padding:8px 10px; text-align:center;
+      border:1px solid #334155; white-space:nowrap; }
+    .osv-table thead tr.sub th { background:#334155; font-size:10px;
+      font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+    .osv-table tbody td { padding:6px 10px; border:1px solid #e2e8f0;
+      color:var(--c-text); font-size:12px; }
+    .osv-table tbody td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .osv-table tbody td.code { font-weight:700; font-family:monospace; color:#4f46e5; }
+    .osv-table tbody td.name { color:var(--c-gray); }
+    .osv-table tbody tr:hover td { background:#f0f4ff; }
+    .osv-table tfoot td { background:#e0e7ff; font-weight:700;
+      padding:8px 10px; border:1px solid #c7d2fe; text-align:right;
+      font-size:12px; }
+    .osv-table tfoot td.label { text-align:left; color:#4f46e5; }
+    .osv-zero { color:#cbd5e1 !important; }
+    .osv-group-header { background:#f1f5f9 !important; }
+    .osv-group-header td { font-weight:700 !important; color:#4f46e5 !important;
+      font-size:11px !important; text-transform:uppercase; letter-spacing:.05em; }
+
+    /* ── P&L REPORT ───────────────────────────────── */
+    .pnl-section { margin-bottom:20px; }
+    .pnl-section-header { background:#1e293b; color:#fff; padding:8px 12px;
+      font-size:12px; font-weight:700; border-radius:4px 4px 0 0; }
+    .pnl-row { display:grid; grid-template-columns:1fr 120px 120px;
+      padding:7px 12px; border:1px solid var(--c-border); border-top:none;
+      background:#fff; font-size:12px; align-items:center; }
+    .pnl-row:last-child { border-radius:0 0 4px 4px; }
+    .pnl-row.total { background:#f0f4ff; font-weight:700; border-top:2px solid #4f46e5 !important; }
+    .pnl-row.total .pnl-name { color:#4f46e5; }
+    .pnl-name { color:var(--c-text); }
+    .pnl-val { text-align:right; font-variant-numeric:tabular-nums; }
+    .pnl-val.positive { color:#15803d; font-weight:700; }
+    .pnl-val.negative { color:#dc2626; }
+    .pnl-val.neutral { color:var(--c-gray); }
+    .pnl-col-header { text-align:right; font-size:10px; text-transform:uppercase;
+      color:var(--c-gray); padding:4px 12px; }
+
     @media print { .sidebar,.menu-bar,.toolbar,.status-bar,.no-print { display:none!important; }
       .main-area { overflow:visible; } .content-area { overflow:visible; }
       .panel { display:block!important; } }
