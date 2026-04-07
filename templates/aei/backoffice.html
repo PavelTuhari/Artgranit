@@ -546,6 +546,184 @@
         <div class="settings-list" id="settings-list"></div>
       </div>
 
+      <!-- ═══════════════════════════════════════════
+           RAPOARTE — OLAP CREDITE
+           ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-olap">
+        <div class="sec-header"><h2>OLAP — Analiza portofoliului de credite</h2></div>
+
+        <!-- Toolbar -->
+        <div class="olap-toolbar">
+          <div>
+            <label>Grupare după</label><br>
+            <select class="olap-select" id="olap-group">
+              <option value="month">Lună acordare</option>
+              <option value="quarter">Trimestru</option>
+              <option value="year">An</option>
+              <option value="status">Statut credit</option>
+              <option value="repayment">Tip rambursare</option>
+              <option value="risk">Clasă de risc</option>
+              <option value="member_type">Tip membru</option>
+            </select>
+          </div>
+          <div>
+            <label>Perioadă acordare — de la</label><br>
+            <input type="date" id="olap-from" class="olap-select" style="min-width:130px">
+          </div>
+          <div>
+            <label>până la</label><br>
+            <input type="date" id="olap-to" class="olap-select" style="min-width:130px">
+          </div>
+          <div style="align-self:flex-end">
+            <button class="olap-run" onclick="runOlap()">▶ Calculează</button>
+          </div>
+          <div style="align-self:flex-end;margin-left:auto">
+            <button class="tb-btn no-print" onclick="exportOlapCSV()">⬇ CSV</button>
+            <button class="tb-btn no-print" onclick="window.print()" style="margin-left:4px">🖨 Print</button>
+          </div>
+        </div>
+
+        <!-- Metric cards -->
+        <div class="kpi-grid" id="olap-kpi" style="margin-bottom:16px"></div>
+
+        <!-- OLAP table -->
+        <div class="data-table-wrap">
+          <div class="olap-wrap">
+            <table class="olap-table" id="olap-table">
+              <thead>
+                <tr>
+                  <th id="olap-dim-header">Dimensiune</th>
+                  <th class="num">Nr. credite</th>
+                  <th class="num">Portofoliu total (MDL)</th>
+                  <th class="num">Active (MDL)</th>
+                  <th class="num">Restante (MDL)</th>
+                  <th class="num">Rambursate (MDL)</th>
+                  <th class="num">Rată medie (%)</th>
+                  <th class="num">Total achitat (MDL)</th>
+                  <th class="num">Dobândă proiectată (MDL)</th>
+                  <th class="num">NPL %</th>
+                  <th class="num">% Portofoliu</th>
+                </tr>
+              </thead>
+              <tbody id="olap-body">
+                <tr><td colspan="11" style="text-align:center;padding:30px;color:#94a3b8">Selectați parametrii și apăsați ▶ Calculează</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bar chart visualization -->
+        <div class="bi-grid" style="margin-top:16px">
+          <div class="bi-card">
+            <h3>Distribuție portofoliu (MDL)</h3>
+            <div id="olap-chart-principal"></div>
+          </div>
+          <div class="bi-card">
+            <h3>NPL % pe dimensiune</h3>
+            <div id="olap-chart-npl"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
+           RAPOARTE — ОБОРОТНО-САЛЬДОВАЯ ВЕДОМОСТЬ
+           ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-trial-balance">
+        <div class="sec-header"><h2>Оборотно-сальдовая ведомость (Balanță de verificare)</h2></div>
+
+        <!-- Filters -->
+        <div class="olap-toolbar">
+          <div>
+            <label>Perioadă — de la</label><br>
+            <input type="date" id="osv-from" class="olap-select" style="min-width:130px">
+          </div>
+          <div>
+            <label>până la</label><br>
+            <input type="date" id="osv-to" class="olap-select" style="min-width:130px">
+          </div>
+          <div style="align-self:flex-end">
+            <button class="olap-run" onclick="runTrialBalance()">▶ Calculează</button>
+          </div>
+          <div style="align-self:flex-end;margin-left:auto">
+            <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-weight:400">
+              <input type="checkbox" id="osv-hide-zero" checked> Ascunde conturi fără mișcări
+            </label>
+            <button class="tb-btn no-print" onclick="exportOSVCSV()" style="margin-left:8px">⬇ CSV</button>
+            <button class="tb-btn no-print" onclick="window.print()" style="margin-left:4px">🖨 Print</button>
+          </div>
+        </div>
+
+        <!-- Summary cards -->
+        <div class="kpi-grid" id="osv-kpi" style="margin-bottom:16px"></div>
+
+        <!-- OSV table -->
+        <div class="data-table-wrap">
+          <div class="olap-wrap">
+            <table class="osv-table" id="osv-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="text-align:left;min-width:70px">Cont</th>
+                  <th rowspan="2" style="text-align:left;min-width:180px">Denumire</th>
+                  <th rowspan="2" style="min-width:80px">Tip</th>
+                  <th colspan="2">Sold inițial</th>
+                  <th colspan="2">Rulaj perioadă</th>
+                  <th colspan="2">Sold final</th>
+                </tr>
+                <tr class="sub">
+                  <th>Debit</th><th>Credit</th>
+                  <th>Debit</th><th>Credit</th>
+                  <th>Debit</th><th>Credit</th>
+                </tr>
+              </thead>
+              <tbody id="osv-body">
+                <tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8">Selectați perioada și apăsați ▶ Calculează</td></tr>
+              </tbody>
+              <tfoot id="osv-foot" style="display:none">
+                <tr>
+                  <td colspan="3" class="label">TOTAL</td>
+                  <td id="osv-tot-ob-dt" class="num">—</td>
+                  <td id="osv-tot-ob-ct" class="num">—</td>
+                  <td id="osv-tot-per-dt" class="num">—</td>
+                  <td id="osv-tot-per-ct" class="num">—</td>
+                  <td id="osv-tot-fin-dt" class="num">—</td>
+                  <td id="osv-tot-fin-ct" class="num">—</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════
+           RAPOARTE — VENITURI & CHELTUIELI (P&L)
+           ═══════════════════════════════════════ -->
+      <div class="panel" id="panel-pnl">
+        <div class="sec-header"><h2>Raport Venituri & Cheltuieli</h2></div>
+
+        <div class="olap-toolbar">
+          <div>
+            <label>Perioadă — de la</label><br>
+            <input type="date" id="pnl-from" class="olap-select" style="min-width:130px">
+          </div>
+          <div>
+            <label>până la</label><br>
+            <input type="date" id="pnl-to" class="olap-select" style="min-width:130px">
+          </div>
+          <div style="align-self:flex-end">
+            <button class="olap-run" onclick="runPnL()">▶ Calculează</button>
+          </div>
+          <div style="align-self:flex-end;margin-left:auto">
+            <button class="tb-btn no-print" onclick="window.print()">🖨 Print</button>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="pnl-kpi" style="margin-bottom:16px"></div>
+
+        <div id="pnl-content">
+          <div style="text-align:center;padding:40px;color:#94a3b8">Selectați perioada și apăsați ▶ Calculează</div>
+        </div>
+      </div>
+
     </div><!-- content-area -->
   </div><!-- main-area -->
 </div><!-- app-shell -->
