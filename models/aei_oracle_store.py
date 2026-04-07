@@ -523,6 +523,313 @@ class AEIStore:
             return {"success": False, "error": str(e), "data": {}}
 
     # ================================================================
+    # LOAN FLOWS — schedule + payments
+    # ================================================================
+
+    @staticmethod
+    def get_loan_flows(loan_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT FLOW_ID,
+                              TO_CHAR(DUE_DATE,'DD.MM.YYYY')     AS DUE_DATE,
+                              FLOW_TYPE, AMOUNT_SCHEDULED, AMOUNT_PAID,
+                              AMOUNT_OVERDUE, BALANCE_PRINCIPAL,
+                              TO_CHAR(PAYMENT_DATE,'DD.MM.YYYY') AS PAYMENT_DATE,
+                              DAYS_OVERDUE, DESCRIPTION
+                         FROM AEI_LOAN_FLOWS
+                        WHERE LOAN_ID=:lid
+                        ORDER BY DUE_DATE, FLOW_ID""",
+                    {"lid": loan_id}
+                )
+                return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_loan(loan_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT l.LOAN_ID, l.CONTRACT_NO, l.MEMBER_ID,
+                              TO_CHAR(l.SIGN_DATE,'DD.MM.YYYY')         AS SIGN_DATE,
+                              TO_CHAR(l.DISBURSEMENT_DATE,'DD.MM.YYYY') AS DISBURSEMENT_DATE,
+                              TO_CHAR(l.END_DATE,'DD.MM.YYYY')          AS END_DATE,
+                              l.PRINCIPAL, l.CURRENCY, l.INTEREST_RATE, l.PENALTY_RATE,
+                              l.REPAYMENT_TYPE, l.TERM_MONTHS, l.PURPOSE, l.COLLATERAL,
+                              l.STATUS, l.RISK_CLASS, l.PROVISION_PCT, l.NOTES,
+                              m.LAST_NAME||' '||m.FIRST_NAME AS MEMBER_NAME
+                         FROM AEI_LOANS l
+                         JOIN AEI_MEMBERS m ON m.MEMBER_ID=l.MEMBER_ID
+                        WHERE l.LOAN_ID=:id""",
+                    {"id": loan_id}
+                )
+                rows = _rows(r)
+                return {"success": True, "data": rows[0] if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def generate_loan_schedule(loan_id: int) -> Dict[str, Any]:
+        """Generate annuity or declining repayment schedule and persist to AEI_LOAN_FLOWS."""
+        from datetime import datetime, timedelta
+        import math
+
+        try:
+            with DatabaseModel() as db:
+                # --- load loan ---
+                r = db.execute_query(
+                    """SELECT PRINCIPAL, INTEREST_RATE, TERM_MONTHS, REPAYMENT_TYPE,
+                              DISBURSEMENT_DATE, END_DATE, CONTRACT_NO
+                         FROM AEI_LOANS WHERE LOAN_ID=:id""",
+                    {"id": loan_id}
+                )
+                if not r.get("data"):
+                    return {"success": False, "error": "Loan not found"}
+                row = r["data"][0]
+                principal    = float(row[0])
+                annual_rate  = float(row[1]) / 100.0
+                n_months     = int(row[2])
+                rtype        = row[3]          # ANNUITY | DECLINING
+                disb_date    = row[4]          # datetime
+                contract_no  = row[6]
+
+                # --- clear existing PAYMENT rows ---
+                db.execute_query(
+                    "DELETE FROM AEI_LOAN_FLOWS WHERE LOAN_ID=:lid AND FLOW_TYPE='PAYMENT'",
+                    {"lid": loan_id}
+                )
+
+                monthly_rate = annual_rate / 12.0
+                balance      = principal
+                flows        = []
+
+                if rtype == "ANNUITY":
+                    # equal total payment each month
+                    if monthly_rate > 0:
+                        annuity = principal * monthly_rate / (1 - (1 + monthly_rate) ** (-n_months))
+                    else:
+                        annuity = principal / n_months
+
+                    for i in range(1, n_months + 1):
+                        interest_part  = round(balance * monthly_rate, 2)
+                        principal_part = round(annuity - interest_part, 2)
+                        if i == n_months:
+                            principal_part = round(balance, 2)
+                            interest_part  = round(annuity - principal_part, 2)
+                            if interest_part < 0:
+                                interest_part = 0.0
+                        payment_total  = round(principal_part + interest_part, 2)
+                        balance        = round(balance - principal_part, 2)
+                        if balance < 0:
+                            balance = 0.0
+
+                        # due date: disbursement day-of-month, i months later
+                        if isinstance(disb_date, str):
+                            base = datetime.strptime(disb_date, "%d.%m.%Y")
+                        else:
+                            base = disb_date
+
+                        month = base.month - 1 + i
+                        year  = base.year + month // 12
+                        month = month % 12 + 1
+                        try:
+                            due = base.replace(year=year, month=month)
+                        except ValueError:
+                            import calendar
+                            last_day = calendar.monthrange(year, month)[1]
+                            due = base.replace(year=year, month=month, day=last_day)
+
+                        flows.append({
+                            "loan_id":    loan_id,
+                            "due":        due.strftime("%d.%m.%Y"),
+                            "sched":      payment_total,
+                            "principal":  principal_part,
+                            "interest":   interest_part,
+                            "bal":        balance,
+                            "descr":      f"Rata {i}/{n_months}: principal {principal_part:,.2f} + dobândă {interest_part:,.2f}",
+                        })
+
+                else:  # DECLINING — equal principal each month
+                    principal_part = round(principal / n_months, 2)
+                    for i in range(1, n_months + 1):
+                        if i == n_months:
+                            principal_part = round(balance, 2)
+                        interest_part = round(balance * monthly_rate, 2)
+                        payment_total = round(principal_part + interest_part, 2)
+                        balance       = round(balance - principal_part, 2)
+                        if balance < 0:
+                            balance = 0.0
+
+                        if isinstance(disb_date, str):
+                            base = datetime.strptime(disb_date, "%d.%m.%Y")
+                        else:
+                            base = disb_date
+
+                        month = base.month - 1 + i
+                        year  = base.year + month // 12
+                        month = month % 12 + 1
+                        try:
+                            due = base.replace(year=year, month=month)
+                        except ValueError:
+                            import calendar
+                            last_day = calendar.monthrange(year, month)[1]
+                            due = base.replace(year=year, month=month, day=last_day)
+
+                        flows.append({
+                            "loan_id":   loan_id,
+                            "due":       due.strftime("%d.%m.%Y"),
+                            "sched":     payment_total,
+                            "principal": principal_part,
+                            "interest":  interest_part,
+                            "bal":       balance,
+                            "descr":     f"Rata {i}/{n_months}: principal {principal_part:,.2f} + dobândă {interest_part:,.2f}",
+                        })
+
+                # --- insert rows ---
+                for f in flows:
+                    db.execute_query(
+                        """INSERT INTO AEI_LOAN_FLOWS
+                               (LOAN_ID, DUE_DATE, FLOW_TYPE, AMOUNT_SCHEDULED,
+                                AMOUNT_PAID, AMOUNT_OVERDUE, BALANCE_PRINCIPAL, DESCRIPTION)
+                           VALUES
+                               (:loan_id, TO_DATE(:due,'DD.MM.YYYY'), 'PAYMENT',
+                                :sched, 0, 0, :bal, :descr)""",
+                        f
+                    )
+
+                db.connection.commit()
+                return {"success": True, "count": len(flows),
+                        "message": f"Grafic generat: {len(flows)} rate ({rtype})"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def record_loan_payment(flow_id: int, amount_paid: float,
+                            payment_date: str, notes: str = None) -> Dict[str, Any]:
+        """Mark a loan flow row as paid (full or partial)."""
+        try:
+            with DatabaseModel() as db:
+                # get scheduled amount and due date
+                r = db.execute_query(
+                    """SELECT AMOUNT_SCHEDULED, DUE_DATE, LOAN_ID
+                         FROM AEI_LOAN_FLOWS WHERE FLOW_ID=:fid""",
+                    {"fid": flow_id}
+                )
+                if not r.get("data"):
+                    return {"success": False, "error": "Flow not found"}
+                sched, due_date, loan_id = r["data"][0]
+                sched = float(sched)
+                amount_paid = round(float(amount_paid), 2)
+                overdue = round(max(sched - amount_paid, 0), 2)
+
+                # days overdue
+                from datetime import datetime
+                today = datetime.today()
+                if isinstance(due_date, str):
+                    due = datetime.strptime(due_date, "%d.%m.%Y")
+                else:
+                    due = due_date
+                days_ov = max((today - due).days, 0) if overdue > 0 else 0
+
+                db.execute_query(
+                    """UPDATE AEI_LOAN_FLOWS
+                          SET AMOUNT_PAID   = :paid,
+                              AMOUNT_OVERDUE= :ov,
+                              PAYMENT_DATE  = TO_DATE(:pdate,'DD.MM.YYYY'),
+                              DAYS_OVERDUE  = :dov,
+                              DESCRIPTION   = :descr
+                        WHERE FLOW_ID=:fid""",
+                    {
+                        "paid":  amount_paid,
+                        "ov":    overdue,
+                        "pdate": payment_date,
+                        "dov":   days_ov,
+                        "descr": notes or f"Achitat {amount_paid:,.2f} din {sched:,.2f}",
+                        "fid":   flow_id,
+                    }
+                )
+
+                # update loan status if overdue
+                if overdue > 0 and days_ov > 0:
+                    db.execute_query(
+                        "UPDATE AEI_LOANS SET STATUS='OVERDUE', UPDATED_AT=SYSTIMESTAMP WHERE LOAN_ID=:lid",
+                        {"lid": loan_id}
+                    )
+
+                db.connection.commit()
+                return {"success": True, "overdue": overdue, "days_overdue": days_ov}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def calculate_deposit_interest(deposit_id: int) -> Dict[str, Any]:
+        """Calculate accrued interest from last flow date to today."""
+        from datetime import datetime
+
+        try:
+            with DatabaseModel() as db:
+                # get deposit details
+                r = db.execute_query(
+                    """SELECT d.PRINCIPAL, d.INTEREST_RATE, d.TAX_RATE, d.CAPITALIZATION,
+                              TO_CHAR(d.START_DATE,'DD.MM.YYYY') AS START_DATE,
+                              TO_CHAR(d.END_DATE,'DD.MM.YYYY')   AS END_DATE,
+                              d.STATUS, d.CONTRACT_NO
+                         FROM AEI_DEPOSITS d WHERE d.DEPOSIT_ID=:id""",
+                    {"id": deposit_id}
+                )
+                if not r.get("data"):
+                    return {"success": False, "error": "Deposit not found"}
+                row = r["data"][0]
+                principal, rate, tax_rate, cap, start_s, end_s, status, contract_no = row
+                principal = float(principal)
+                rate      = float(rate) / 100.0
+                tax_rate  = float(tax_rate) / 100.0
+
+                # get last capitalization event
+                r2 = db.execute_query(
+                    """SELECT TO_CHAR(MAX(FLOW_DATE),'DD.MM.YYYY'), MAX(BALANCE_5131)
+                         FROM AEI_DEPOSIT_FLOWS
+                        WHERE DEPOSIT_ID=:id AND FLOW_TYPE IN ('DEPOSIT','CAPITALIZATION','SUPPLEMENTARY')""",
+                    {"id": deposit_id}
+                )
+                last_date_s, current_balance = r2["data"][0] if r2.get("data") else (None, None)
+
+                # fallback to start date
+                if not last_date_s:
+                    last_date_s = start_s
+                calc_from = datetime.strptime(last_date_s, "%d.%m.%Y")
+                today     = datetime.today()
+                end_date  = datetime.strptime(end_s, "%d.%m.%Y")
+                calc_to   = min(today, end_date)
+
+                balance = float(current_balance or principal)
+                days    = (calc_to - calc_from).days
+
+                gross_interest = round(balance * rate * days / 365.0, 2)
+                tax_amount     = round(gross_interest * tax_rate, 2)
+                net_interest   = round(gross_interest - tax_amount, 2)
+
+                return {
+                    "success": True,
+                    "data": {
+                        "contract_no":      contract_no,
+                        "balance":          balance,
+                        "rate_pct":         float(rate * 100),
+                        "days":             days,
+                        "from_date":        last_date_s,
+                        "to_date":          calc_to.strftime("%d.%m.%Y"),
+                        "gross_interest":   gross_interest,
+                        "tax_amount":       tax_amount,
+                        "net_interest":     net_interest,
+                        "status":           status,
+                    }
+                }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ================================================================
     # EVENT LOG
     # ================================================================
 
