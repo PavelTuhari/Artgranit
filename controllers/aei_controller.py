@@ -201,3 +201,22 @@ class AEIController:
         if not key:
             return {"success": False, "error": "key is required"}
         return AEIStore.set_setting(key, value)
+
+    # ----------------------------------------------------------------
+    # REPORTS
+    # ----------------------------------------------------------------
+
+    @staticmethod
+    def get_trial_balance() -> Dict[str, Any]:
+        return AEIStore.get_trial_balance(
+            date_from=request.args.get("date_from"),
+            date_to=request.args.get("date_to"),
+        )
+
+    @staticmethod
+    def get_olap_loans() -> Dict[str, Any]:
+        return AEIStore.get_olap_loans(
+            group_by=request.args.get("group_by", "month"),
+            date_from=request.args.get("date_from"),
+            date_to=request.args.get("date_to"),
+        )
