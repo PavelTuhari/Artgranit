@@ -4932,6 +4932,17 @@ def aei_tz():
         return f.read()
 
 
+@app.route('/UNA.md/orasldev/aei-simulator')
+def aei_simulator():
+    """AEÎ: Credit simulation with commission calculator."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    sim_path = os.path.join(os.path.dirname(__file__), 'docs', 'AEI.md', 'simulator_credit.html')
+    with open(sim_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
 @app.route('/UNA.md/orasldev/aei-docs')
 def aei_docs():
     """AEÎ: Module documentation."""
