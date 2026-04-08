@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulator Credit AEÎ — Contract &amp; Comision de Administrare</title>
+<style>
+:root {
+  --blue: #1a5fa8;
+  --blue-d: #0e3d6e;
+  --blue-l: #e8f2fc;
+  --green: #1a7a4a;
+  --green-l: #e6f4ec;
+  --orange: #c06a00;
+  --orange-l: #fff3e0;
+  --red: #b0211a;
+  --border: #d0dcea;
+  --bg: #f4f7fb;
+  --font: 'Segoe UI', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); font-size: 14px; background: var(--bg); color: #1a1a2e; }
+
+/* ---- HEADER ---- */
+header {
+  background: linear-gradient(135deg, #0e3d6e 0%, #1a5fa8 60%, #2980cc 100%);
+  color: #fff; padding: 28px 40px 22px;
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+header h1 { font-size: 22px; font-weight: 700; letter-spacing: .2px; }
+header p  { font-size: 13px; opacity: .8; margin-top: 4px; }
+.header-badge {
+  background: rgba(255,255,255,.15); border-radius: 6px;
+  padding: 6px 14px; font-size: 12px; font-weight: 600; letter-spacing: .4px; white-space: nowrap;
+}
+
+/* ---- LAYOUT ---- */
+.page { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; }
+.row  { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: start; }
+
+/* ---- CARD ---- */
+.card {
+  background: #fff; border-radius: 12px; border: 1px solid var(--border);
+  padding: 22px 24px; margin-bottom: 20px;
+}
+.card-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--blue-d); margin-bottom: 18px; padding-bottom: 10px;
+  border-bottom: 2px solid var(--blue-l);
+}
+
+/* ---- FORM ---- */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+.field input, .field select {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 7px;
+  padding: 8px 12px; font-size: 14px; font-family: var(--font); background: #f9fbfd;
+  transition: border-color .15s;
+}
+.field input:focus, .field select:focus { outline: none; border-color: var(--blue); background: #fff; }
+.field .hint { font-size: 11px; color: #888; margin-top: 3px; }
+
+/* Rate inputs side by side */
+.rates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ---- COMMISSION HIGHLIGHT BOX ---- */
+.comm-box {
+  background: var(--orange-l); border: 1.5px solid #ffc87a;
+  border-radius: 10px; padding: 16px 18px; margin-bottom: 14px;
+}
+.comm-box .comm-title { font-size: 12px; font-weight: 700; color: var(--orange); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
+.comm-formula {
+  background: #fff; border: 1px solid #ffc87a; border-radius: 6px;
+  padding: 10px 14px; font-family: monospace; font-size: 13px; color: #5a3000; line-height: 1.7;
+}
+.comm-formula var { color: var(--blue); font-style: italic; }
+.comm-formula .result { color: var(--green); font-weight: 700; font-style: normal; }
+
+/* ---- KPI STRIP ---- */
+.kpi-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.kpi {
+  background: #fff; border-radius: 10px; border: 1px solid var(--border);
+  padding: 14px 16px; text-align: center;
+}
+.kpi .kv { font-size: 20px; font-weight: 800; color: var(--blue-d); margin-bottom: 2px; }
+.kpi .kl { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.kpi.accent-green .kv { color: var(--green); }
+.kpi.accent-orange .kv { color: var(--orange); }
+.kpi.accent-red .kv    { color: var(--red); }
+
+/* ---- TABLE ---- */
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+thead tr { background: var(--blue-d); }
+thead th {
+  color: #fff; font-weight: 600; padding: 10px 14px; text-align: right;
+  font-size: 12px; letter-spacing: .3px;
+}
+thead th:first-child { text-align: center; }
+thead th.comm-col { background: #8b4a00; }
+tbody tr:nth-child(even) td { background: #f6f9fd; }
+tbody tr:hover td { background: #eef5ff; }
+tbody td { padding: 8px 14px; text-align: right; border-bottom: 1px solid #eaeef5; color: #333; }
+tbody td:first-child { text-align: center; font-weight: 600; color: var(--blue-d); }
+tbody td.comm-val { color: var(--orange); font-weight: 600; background: #fff8ee !important; }
+tbody tr:nth-child(even) td.comm-val { background: #fff3e2 !important; }
+tfoot td {
+  padding: 10px 14px; font-weight: 700; text-align: right; font-size: 13px;
+  background: #f0f5ff; border-top: 2px solid var(--blue);
+}
+tfoot td:first-child { text-align: center; color: var(--blue-d); }
+tfoot td.comm-val { color: var(--orange); background: #fff0d8; }
+tfoot td.total-col { color: var(--blue-d); background: #e0eaff; }
+
+/* ---- METHODOLOGY CARD ---- */
+.method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.method-item { background: var(--blue-l); border-radius: 8px; padding: 14px 16px; }
+.method-item h4 { font-size: 12px; font-weight: 700; color: var(--blue-d); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.method-item p, .method-item ul { font-size: 13px; color: #444; line-height: 1.6; }
+.method-item ul { list-style: none; }
+.method-item ul li::before { content: '▸ '; color: var(--blue); }
+.comm-method { background: var(--orange-l) !important; }
+.comm-method h4 { color: var(--orange) !important; }
+
+/* ---- BUTTON ---- */
+.btn-calc {
+  width: 100%; background: var(--blue); color: #fff; border: none;
+  border-radius: 8px; padding: 12px; font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-top: 8px; letter-spacing: .3px; transition: background .15s;
+}
+.btn-calc:hover { background: var(--blue-d); }
+
+/* ---- CONTRACT HEADER ---- */
+.contract-header {
+  background: linear-gradient(90deg, #f0f5ff 0%, #fff 100%);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 20px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.ch-field { font-size: 12px; color: #666; }
+.ch-field strong { display: block; font-size: 14px; color: #1a1a2e; font-weight: 700; margin-top: 2px; }
+
+/* ---- COST DECOMPOSITION ---- */
+.cost-bar { height: 22px; border-radius: 4px; display: flex; overflow: hidden; margin: 10px 0 6px; }
+.cb-principal { background: var(--blue); }
+.cb-dobanda   { background: #e67e22; }
+.cb-comision  { background: #f39c12; }
+.cost-legend  { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; margin-top: 4px; }
+.cost-legend span { display: flex; align-items: center; gap: 5px; }
+.cost-legend .dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* responsive */
+@media(max-width:900px) {
+  .row { grid-template-columns: 1fr; }
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .method-grid { grid-template-columns: 1fr; }
+  .contract-header { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Simulator Contract Credit — AEÎ</h1>
+    <p>Sold descrescător · Calcul dobânzi + comision de administrare · Grafic plăți contractuale</p>
+  </div>
+  <div class="header-badge">AEÎ · NBM · MDL</div>
+</header>
+
+<div class="page">
+
+  <div class="row">
+
+    <!-- LEFT: Parameters -->
+    <div>
+      <div class="card">
+        <div class="card-title">Parametrii creditului</div>
+
+        <div class="field">
+          <label>Suma creditului (MDL)</label>
+          <input type="number" id="f-principal" value="20000" min="1000" step="500">
+        </div>
+
+        <div class="field">
+          <label>Termen (luni)</label>
+          <input type="number" id="f-term" value="12" min="1" max="120">
+        </div>
+
+        <div class="field">
+          <label>Data acordării</label>
+          <input type="date" id="f-date" value="2025-12-11">
+        </div>
+
+        <div class="rates">
+          <div class="field">
+            <label>Dobânda anuală (%)</label>
+            <input type="number" id="f-rate" value="22" min="0" max="100" step="0.1">
+          </div>
+          <div class="field">
+            <label>Comision anual (%)</label>
+            <input type="number" id="f-comm" value="3" min="0" max="20" step="0.1">
+            <div class="hint">Comision de administrare pe sold</div>
+          </div>
+        </div>
+
+        <div class="rates">
+          <div class="field">
+            <label>Comision unic (%)</label>
+            <input type="number" id="f-fee-once" value="0" min="0" max="10" step="0.1">
+            <div class="hint">Din suma acordată, la emitere</div>
+          </div>
+          <div class="field">
+            <label>Penalitate (%/an)</label>
+            <input type="number" id="f-penalty" value="0.5" min="0" max="50" step="0.1">
+            <div class="hint">La sold restant (ref.)</div>
+          </div>
+        </div>
+
+        <button class="btn-calc" onclick="calc()">▶ Calculează graficul</button>
+      </div>
+
+      <!-- COMMISSION METHOD BOX -->
+      <div class="comm-box">
+        <div class="comm-title">Comision de administrare — metodologie</div>
+        <div class="comm-formula" id="comm-formula">
+          <div>Formula lunară:</div>
+          <br>
+          <div><strong>C<sub>k</sub></strong> = <var>Sold<sub>k</sub></var> × <var>r<sub>com</sub></var> / 12</div>
+          <br>
+          <div>Unde:</div>
+          <div>&nbsp;• <var>Sold<sub>k</sub></var> = soldul la luna <em>k</em> (descrescător)</div>
+          <div>&nbsp;• <var>r<sub>com</sub></var> = <span id="r-comm-val">3,00%</span> pe an</div>
+          <br>
+          <div>Comision lunar (luna 1):</div>
+          <div class="result" id="comm-month1-formula">
+            20.000 × 3% / 12 = <strong>50,00 MDL</strong>
+          </div>
+          <br>
+          <div>Total comision contract:</div>
+          <div class="result" id="comm-total-formula">—</div>
+        </div>
+      </div>
+
+    </div><!-- end left -->
+
+    <!-- RIGHT: Results -->
+    <div>
+
+      <!-- Contract Header -->
+      <div class="contract-header" id="contract-header">
+        <div class="ch-field">Beneficiar<strong>— simulare demo —</strong></div>
+        <div class="ch-field">Nr. contract<strong id="ch-no">AEI-SIM-2025-001</strong></div>
+        <div class="ch-field">Data acordării<strong id="ch-date">11.12.2025</strong></div>
+        <div class="ch-field">Suma<strong id="ch-sum">20.000,00 MDL</strong></div>
+        <div class="ch-field">Termen<strong id="ch-term">12 luni</strong></div>
+        <div class="ch-field">Tip rambursare<strong>Sold descrescător</strong></div>
+      </div>
+
+      <!-- KPI strip -->
+      <div class="kpi-strip">
+        <div class="kpi">
+          <div class="kv" id="kpi-principal">20.000</div>
+          <div class="kl">Principal MDL</div>
+        </div>
+        <div class="kpi accent-orange">
+          <div class="kv" id="kpi-interest">2.383</div>
+          <div class="kl">Total dobânzi MDL</div>
+        </div>
+        <div class="kpi accent-red">
+          <div class="kv" id="kpi-comm">325</div>
+          <div class="kl">Total comision MDL</div>
+        </div>
+        <div class="kpi accent-green">
+          <div class="kv" id="kpi-dae">25,0%</div>
+          <div class="kl">DAE (cost total)</div>
+        </div>
+      </div>
+
+      <!-- Cost bar -->
+      <div class="card" style="padding:16px 20px;margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Structura costului total</div>
+        <div class="cost-bar" id="cost-bar">
+          <div class="cb-principal" style="width:88%"></div>
+          <div class="cb-dobanda"   style="width:9%"></div>
+          <div class="cb-comision"  style="width:3%"></div>
+        </div>
+        <div class="cost-legend">
+          <span><span class="dot" style="background:var(--blue)"></span><span id="leg-p">Principal 20.000 MDL (88,0%)</span></span>
+          <span><span class="dot" style="background:#e67e22"></span><span id="leg-i">Dobânzi 2.383 MDL (9,5%)</span></span>
+          <span><span class="dot" style="background:#f39c12"></span><span id="leg-c">Comision 325 MDL (1,3%)</span></span>
+        </div>
+      </div>
+
+      <!-- Schedule table -->
+      <div class="table-wrap">
+        <table id="sched-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Data scadentei</th>
+              <th>Sold credit</th>
+              <th>Principal</th>
+              <th>Dobânda</th>
+              <th class="comm-col">Comision adm.</th>
+              <th>Total plată</th>
+            </tr>
+          </thead>
+          <tbody id="sched-body"></tbody>
+          <tfoot id="sched-foot"></tfoot>
+        </table>
+      </div>
+
+    </div><!-- end right -->
+  </div><!-- end row -->
+
+  <!-- METHODOLOGY SECTION -->
+  <div class="card" style="margin-top:8px">
+    <div class="card-title">Metodologie de calcul — Sold descrescător</div>
+    <div class="method-grid">
+      <div class="method-item">
+        <h4>Principal (Credit spre rambursare)</h4>
+        <p>Rambursare în rate egale lunare:</p>
+        <p style="font-family:monospace;font-size:13px;margin-top:6px">
+          P<sub>k</sub> = <strong>Suma / n</strong><br>
+          = 20.000 / 12 = <strong>1.666,67 MDL/lună</strong>
+        </p>
+        <p style="margin-top:8px;font-size:12px;color:#666">Soldul scade cu suma rambursată în fiecare lună.</p>
+      </div>
+
+      <div class="method-item">
+        <h4>Dobânda spre plată</h4>
+        <p>Calculată pe soldul rămas:</p>
+        <p style="font-family:monospace;font-size:13px;margin-top:6px">
+          D<sub>k</sub> = <strong>Sold<sub>k</sub> × r / 12</strong><br>
+          Luna 1: 20.000 × 22% / 12 = <strong>366,67 MDL</strong><br>
+          Luna 12: 1.667 × 22% / 12 = <strong>30,56 MDL</strong>
+        </p>
+      </div>
+
+      <div class="method-item comm-method">
+        <h4>Comision de administrare ← evidențiat</h4>
+        <ul>
+          <li>Se calculează pe <strong>soldul descrescător</strong>, nu pe suma inițială</li>
+          <li>Rata: <strong>3% pe an</strong>, aplicată lunar = 3%/12 = 0,25% / lună</li>
+          <li>Luna 1: 20.000 × 0,25% = <strong>50,00 MDL</strong></li>
+          <li>Luna 6: 11.667 × 0,25% = <strong>29,17 MDL</strong></li>
+          <li>Luna 12: 1.667 × 0,25% = <strong>4,17 MDL</strong></li>
+          <li>Total: <strong>325,00 MDL</strong> (≈ 1,625% din suma inițială)</li>
+        </ul>
+      </div>
+
+      <div class="method-item">
+        <h4>DAE — Dobânda Anuală Efectivă</h4>
+        <p>Costul total anual al creditului (dobânzi + comisioane):</p>
+        <p style="font-family:monospace;font-size:13px;margin-top:6px">
+          DAE ≈ rata nominală + comision<br>
+          = 22% + 3% = <strong>~25%</strong>
+        </p>
+        <p style="margin-top:8px;font-size:12px;color:#666">
+          Valoarea exactă se calculează prin metoda IRR pe fluxurile de numerar contractuale.
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────────────
+function fmt(n, dec=2) {
+  if (n === null || isNaN(n)) return '—';
+  return n.toLocaleString('ro-RO', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function fmtDate(d) {
+  return d.toLocaleDateString('ro-RO', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function addMonths(d, m) {
+  const r = new Date(d);
+  r.setMonth(r.getMonth() + m);
+  return r;
+}
+
+// ── main calculator ──────────────────────────────────────────────────────────
+function calc() {
+  const principal  = parseFloat(document.getElementById('f-principal').value)  || 20000;
+  const termMonths = parseInt(document.getElementById('f-term').value)          || 12;
+  const annRate    = parseFloat(document.getElementById('f-rate').value)   / 100 || 0.22;
+  const annComm    = parseFloat(document.getElementById('f-comm').value)   / 100 || 0.03;
+  const feeOnce    = parseFloat(document.getElementById('f-fee-once').value)/100 || 0;
+  const startDateStr = document.getElementById('f-date').value || '2025-12-11';
+  const startDate  = new Date(startDateStr);
+
+  const monthlyRate  = annRate / 12;
+  const monthlyComm  = annComm / 12;
+  const principalPmt = principal / termMonths;
+  const onceFee      = principal * feeOnce;
+
+  let rows = [];
+  let balance = principal;
+  let totalInterest = 0, totalComm = 0, totalPrincipal = 0, totalPayment = 0;
+
+  // Row 0 — disbursement
+  rows.push({
+    n: 0, date: startDate, balance: principal,
+    pmt_p: 0, pmt_i: 0, pmt_c: onceFee, total: onceFee,
+    isDisburs: true
+  });
+  if (onceFee > 0) { totalComm += onceFee; totalPayment += onceFee; }
+
+  for (let k = 1; k <= termMonths; k++) {
+    const dueDate  = addMonths(startDate, k);
+    const interest = balance * monthlyRate;
+    const comm     = balance * monthlyComm;
+    const pmtP     = (k < termMonths) ? principalPmt : balance; // last = remaining
+    const total    = pmtP + interest + comm;
+
+    rows.push({ n: k, date: dueDate, balance, pmt_p: pmtP, pmt_i: interest, pmt_c: comm, total });
+    totalInterest  += interest;
+    totalComm      += comm;
+    totalPrincipal += pmtP;
+    totalPayment   += total;
+    balance -= pmtP;
+  }
+
+  const totalCost = totalPayment + onceFee;
+  const dae = (annRate + annComm) * 100;  // approx
+
+  // ── Update KPIs ──
+  document.getElementById('kpi-principal').textContent = fmt(principal, 0);
+  document.getElementById('kpi-interest').textContent  = fmt(totalInterest, 0);
+  document.getElementById('kpi-comm').textContent      = fmt(totalComm - onceFee, 0);
+  document.getElementById('kpi-dae').textContent       = fmt(dae, 1) + '%';
+
+  // ── Update commission formula box ──
+  document.getElementById('r-comm-val').textContent = fmt(annComm*100, 2) + '%';
+  document.getElementById('comm-month1-formula').innerHTML =
+    fmt(principal) + ' × ' + fmt(annComm*100,2) + '% / 12 = <strong>' + fmt(principal * monthlyComm) + ' MDL</strong>';
+  document.getElementById('comm-total-formula').innerHTML =
+    'Total = <strong>' + fmt(totalComm - onceFee) + ' MDL</strong> (' +
+    fmt((totalComm - onceFee) / principal * 100, 2) + '% din suma acordată)';
+
+  // ── Update contract header ──
+  document.getElementById('ch-date').textContent = fmtDate(startDate);
+  document.getElementById('ch-sum').textContent  = fmt(principal) + ' MDL';
+  document.getElementById('ch-term').textContent = termMonths + ' luni';
+
+  // ── Cost bar ──
+  const grand = totalPrincipal + totalInterest + (totalComm - onceFee);
+  const pPct = totalPrincipal / grand * 100;
+  const iPct = totalInterest  / grand * 100;
+  const cPct = (totalComm - onceFee) / grand * 100;
+  document.getElementById('cost-bar').innerHTML =
+    `<div class="cb-principal" style="width:${pPct.toFixed(1)}%"></div>` +
+    `<div class="cb-dobanda"   style="width:${iPct.toFixed(1)}%"></div>` +
+    `<div class="cb-comision"  style="width:${cPct.toFixed(1)}%"></div>`;
+  document.getElementById('leg-p').textContent = `Principal ${fmt(totalPrincipal,0)} MDL (${pPct.toFixed(1)}%)`;
+  document.getElementById('leg-i').textContent = `Dobânzi ${fmt(totalInterest,0)} MDL (${iPct.toFixed(1)}%)`;
+  document.getElementById('leg-c').textContent = `Comision ${fmt(totalComm-onceFee,0)} MDL (${cPct.toFixed(1)}%)`;
+
+  // ── Table body ──
+  const tbody = document.getElementById('sched-body');
+  tbody.innerHTML = '';
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (r.isDisburs) {
+      tr.style.background = '#eef5ff';
+      tr.innerHTML = `
+        <td style="color:#1a5fa8;font-weight:700">✦</td>
+        <td style="text-align:left">${fmtDate(r.date)}</td>
+        <td>${fmt(r.balance)}</td>
+        <td style="color:#888">Acordare credit</td>
+        <td>—</td>
+        <td class="comm-val">${r.pmt_c > 0 ? fmt(r.pmt_c) + ' (unic)' : '—'}</td>
+        <td style="color:#888">${r.pmt_c > 0 ? fmt(r.pmt_c) : '—'}</td>`;
+    } else {
+      tr.innerHTML = `
+        <td>${r.n}</td>
+        <td style="text-align:left">${fmtDate(r.date)}</td>
+        <td>${fmt(r.balance)}</td>
+        <td>${fmt(r.pmt_p)}</td>
+        <td>${fmt(r.pmt_i)}</td>
+        <td class="comm-val">${fmt(r.pmt_c)}</td>
+        <td style="font-weight:700;color:var(--blue-d)">${fmt(r.total)}</td>`;
+    }
+    tbody.appendChild(tr);
+  });
+
+  // ── Table footer ──
+  const tfoot = document.getElementById('sched-foot');
+  tfoot.innerHTML = `
+    <tr>
+      <td colspan="2" style="text-align:left;font-size:12px;color:var(--blue-d)">TOTAL</td>
+      <td>—</td>
+      <td>${fmt(totalPrincipal)}</td>
+      <td>${fmt(totalInterest)}</td>
+      <td class="comm-val">${fmt(totalComm)}</td>
+      <td class="total-col">${fmt(totalPayment)}</td>
+    </tr>`;
+
+  // ── Update methodology examples ──
+  updateMethodNotes(principal, termMonths, annRate, annComm);
+}
+
+function updateMethodNotes(P, n, r, c) {
+  const pMonth = P / n;
+  const d1 = P * r / 12;
+  const dN = (P - (n-1)*pMonth) * r / 12;
+  const c1 = P * c / 12;
+  const c6 = P * (1 - 5/n) * c / 12;
+  const cN = (P - (n-1)*pMonth) * c / 12;
+
+  // Total comm = P * c/12 * (n+1)/2
+  const totalC = P * c / 12 * (n + 1) / 2;
+  const totalI = P * r / 12 * (n + 1) / 2;
+
+  const commBoxes = document.querySelectorAll('.method-item.comm-method ul li');
+  if (commBoxes.length >= 6) {
+    const rAnn = (c * 100).toFixed(2) + '%';
+    const rMon = (c / 12 * 100).toFixed(4) + '%';
+    commBoxes[0].innerHTML = `Se calculează pe <strong>soldul descrescător</strong>, nu pe suma inițială`;
+    commBoxes[1].innerHTML = `Rata: <strong>${rAnn} pe an</strong>, aplicată lunar = ${rAnn}/12 = ${rMon} / lună`;
+    commBoxes[2].innerHTML = `Luna 1: ${fmt(P)} × ${(c/12*100).toFixed(2)}% = <strong>${fmt(c1)} MDL</strong>`;
+    commBoxes[3].innerHTML = `Luna ${Math.ceil(n/2)}: ${fmt(P*(1-(Math.ceil(n/2)-1)/n))} × ${(c/12*100).toFixed(2)}% = <strong>${fmt(c6)} MDL</strong>`;
+    commBoxes[4].innerHTML = `Luna ${n}: ${fmt(pMonth)} × ${(c/12*100).toFixed(2)}% = <strong>${fmt(cN)} MDL</strong>`;
+    commBoxes[5].innerHTML = `Total: <strong>${fmt(totalC)} MDL</strong> (≈ ${fmt(totalC/P*100,3)}% din suma inițială)`;
+  }
+}
+
+// ── auto-calc on load ─────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  calc();
+  ['f-principal','f-term','f-date','f-rate','f-comm','f-fee-once'].forEach(id => {
+    document.getElementById(id).addEventListener('change', calc);
+    document.getElementById(id).addEventListener('input', calc);
+  });
+});
+</script>
+</body>
+</html>
