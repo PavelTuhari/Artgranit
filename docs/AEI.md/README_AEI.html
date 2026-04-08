@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modulul AEÎ — Documentație</title>
+<style>
+  :root {
+    --blue: #1a6eb5;
+    --blue-light: #e8f0fb;
+    --green: #1a7a4a;
+    --green-light: #e6f4ec;
+    --orange: #c47a00;
+    --orange-light: #fdf3e0;
+    --purple: #6b3fa0;
+    --purple-light: #f3eeff;
+    --red: #b5222a;
+    --gray: #555;
+    --border: #dde3ee;
+    --bg: #f7f9fc;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); font-size: 14px; background: var(--bg); color: #222; line-height: 1.6; }
+  header {
+    background: linear-gradient(135deg, #1a3a6b 0%, #1a6eb5 100%);
+    color: #fff; padding: 36px 48px 28px;
+  }
+  header h1 { font-size: 26px; font-weight: 700; letter-spacing: .3px; }
+  header p { margin-top: 6px; opacity: .85; font-size: 14px; }
+  header .badge {
+    display: inline-block; background: rgba(255,255,255,.18);
+    border-radius: 4px; padding: 2px 10px; font-size: 12px; margin-top: 10px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  h2 { font-size: 18px; font-weight: 700; color: #1a3a6b; border-bottom: 2px solid var(--border);
+       padding-bottom: 6px; margin: 36px 0 16px; }
+  h3 { font-size: 14px; font-weight: 700; color: #333; margin: 20px 0 8px; }
+
+  /* Interface cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .card {
+    background: #fff; border-radius: 10px; border: 1px solid var(--border);
+    padding: 20px; transition: box-shadow .15s;
+  }
+  .card:hover { box-shadow: 0 4px 16px rgba(26,110,181,.15); }
+  .card-icon { font-size: 28px; margin-bottom: 10px; }
+  .card-title { font-size: 15px; font-weight: 700; color: #1a3a6b; margin-bottom: 4px; }
+  .card-role { font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+               font-weight: 600; margin-bottom: 10px; }
+  .card-desc { font-size: 13px; color: var(--gray); margin-bottom: 14px; line-height: 1.5; }
+  .card-links a {
+    display: block; font-size: 12px; color: var(--blue);
+    text-decoration: none; padding: 3px 0;
+    font-family: monospace;
+  }
+  .card-links a:hover { text-decoration: underline; }
+  .role-operator .card-role { color: var(--green); }
+  .role-backoffice .card-role { color: var(--purple); }
+  .role-admin .card-role { color: var(--orange); }
+  .role-tz .card-role { color: var(--gray); }
+
+  /* API table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #1a3a6b; color: #fff; text-align: left; padding: 8px 12px; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: #f4f7fc; }
+  .method { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 11px;
+            font-weight: 700; font-family: monospace; }
+  .GET { background: #d4edda; color: #1a7a4a; }
+  .POST { background: #cce5ff; color: #0055a5; }
+  .DELETE { background: #f8d7da; color: #721c24; }
+  code { background: #eef2fa; border-radius: 3px; padding: 1px 5px; font-size: 12px;
+         font-family: monospace; }
+
+  /* Oracle objects */
+  .obj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .obj-box { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .obj-box h4 { font-size: 13px; font-weight: 700; color: #1a6eb5; margin-bottom: 8px; }
+  .obj-box ul { list-style: none; font-size: 12px; color: #444; }
+  .obj-box ul li { padding: 2px 0; }
+  .obj-box ul li::before { content: '▸ '; color: #1a6eb5; }
+  .obj-box .obj-desc { font-size: 11px; color: #888; margin-left: 14px; }
+
+  /* Deploy box */
+  .deploy-box {
+    background: #1a2a3a; color: #c8e6c9; border-radius: 8px;
+    padding: 16px 20px; font-family: monospace; font-size: 12px;
+    line-height: 1.8; overflow-x: auto;
+  }
+  .deploy-box .comment { color: #7cb9e8; }
+  .deploy-box .cmd { color: #fff; }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li { padding: 5px 0; padding-left: 28px; position: relative; font-size: 13px; }
+  .checklist li::before { content: '☐'; position: absolute; left: 4px; font-size: 16px; color: #1a6eb5; }
+
+  /* Feature list */
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .feature { background: #fff; border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0;
+             padding: 8px 12px; font-size: 13px; border: 1px solid var(--border);
+             border-left-width: 3px; border-left-color: var(--blue); }
+
+  /* Info banner */
+  .info-banner {
+    background: var(--blue-light); border: 1px solid #b0c8f0; border-radius: 8px;
+    padding: 12px 16px; font-size: 13px; color: #1a3a6b; margin-bottom: 24px;
+  }
+  .warn-banner {
+    background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+    padding: 12px 16px; font-size: 13px; color: #7a5800; margin-bottom: 16px;
+  }
+
+  footer { text-align: center; padding: 32px; font-size: 12px; color: #999; border-top: 1px solid var(--border); margin-top: 40px; }
+  @media (max-width: 700px) {
+    .obj-grid, .features { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    header { padding: 24px 20px; }
+    .container { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Modulul AEÎ — Asociații de Economii și Împrumut</h1>
+  <p>Sistem de gestiune a creditelor, depozitelor, membrilor și contabilității AEÎ</p>
+  <span class="badge">Oracle · Flask · v1.0 · Aprilie 2026</span>
+</header>
+
+<div class="container">
+
+  <div class="info-banner">
+    <strong>Production URL:</strong>
+    <a href="https://nufarul.eminescu.md/" style="color:#1a3a6b">https://nufarul.eminescu.md/</a>
+    &nbsp;|&nbsp;
+    <strong>Local:</strong> <a href="http://localhost:3003/" style="color:#1a3a6b">http://localhost:3003/</a>
+    &nbsp;|&nbsp;
+    Toate rutele modulului sunt sub prefixul <code>/UNA.md/orasldev/aei*</code>
+  </div>
+
+  <!-- ======== INTERFEȚE ======== -->
+  <h2>Interfețe utilizator</h2>
+
+  <div class="cards">
+
+    <div class="card role-operator">
+      <div class="card-icon">💳</div>
+      <div class="card-title">Operator Credite</div>
+      <div class="card-role">Rol: Ofițer de credite</div>
+      <div class="card-desc">
+        Gestionarea cererilor de credit, aprobarea și emiterea graficelor de rambursare,
+        înregistrarea plăților, monitorizarea portofoliului propriu.
+      </div>
+      <div class="card-links">
+        <a href="/UNA.md/orasldev/aei-operator">/UNA.md/orasldev/aei-operator</a>
+        <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei-operator">→ Production</a>
+      </div>
+    </div>
+
+    <div class="card role-backoffice">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Back-office &amp; BI</div>
+      <div class="card-role">Rol: Contabil / Manager BI</div>
+      <div class="card-desc">
+        Rapoarte OLAP, oборotно-сальдовая ведомость (ОСВ), P&amp;L Venituri &amp; Cheltuieli,
+        jurnal contabil, plan de conturi, aging restanțe, setări sistem.
+      </div>
+      <div class="card-links">
+        <a href="/UNA.md/orasldev/aei-backoffice">/UNA.md/orasldev/aei-backoffice</a>
+        <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei-backoffice">→ Production</a>
+      </div>
+    </div>
+
+    <div class="card role-admin">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">Admin Complet</div>
+      <div class="card-role">Rol: Administrator sistem</div>
+      <div class="card-desc">
+        Acces complet la toți membrii, credite, depozite, jurnal. Gestionare directă a
+        tuturor entităților, override-uri și operații speciale.
+      </div>
+      <div class="card-links">
+        <a href="/UNA.md/orasldev/aei">/UNA.md/orasldev/aei</a>
+        <a href="/UNA.md/orasldev/aei-admin">/UNA.md/orasldev/aei-admin</a>
+        <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei">→ Production</a>
+      </div>
+    </div>
+
+    <div class="card role-tz">
+      <div class="card-icon">📄</div>
+      <div class="card-title">Documentație TZ</div>
+      <div class="card-role">Rol: Toți utilizatorii</div>
+      <div class="card-desc">
+        Specificații tehnice, cerințe funcționale, sarcina de lucru (TZ) pentru modulul AEÎ.
+        Document de referință pentru echipa de implementare.
+      </div>
+      <div class="card-links">
+        <a href="/UNA.md/orasldev/aei-tz">/UNA.md/orasldev/aei-tz</a>
+        <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei-tz">→ Production</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ======== FUNCȚIONALITATE ======== -->
+  <h2>Funcționalitate principală</h2>
+
+  <h3>Operator Credite — panouri</h3>
+  <div class="features">
+    <div class="feature">Dashboard — KPI: credite active, volume, restanțe</div>
+    <div class="feature">Portofoliu — lista creditelor cu filtre și grafic</div>
+    <div class="feature">Cerere nouă — search membri + formular complet credit</div>
+    <div class="feature">Grafic plăți — ANNUITY / DECLINING, generare automată</div>
+    <div class="feature">Plăți — înregistrare plăți per scadențe</div>
+    <div class="feature">Membri — vizualizare membri AEÎ</div>
+    <div class="feature">Depozite — vizualizare depozite active</div>
+    <div class="feature">Alerte restanțe — tabel cu credite depășite</div>
+  </div>
+
+  <h3 style="margin-top:20px">Back-office &amp; BI — panouri</h3>
+  <div class="features">
+    <div class="feature">Dashboard BI — KPI agregat, top conturi, activitate</div>
+    <div class="feature">Portofoliu complet — toți membrii, toate creditele</div>
+    <div class="feature">Aging restanțe — 4 buckets: 1–30 / 31–60 / 61–90 / >90 zile</div>
+    <div class="feature">Scadențe depozite — calendar maturitate depozite</div>
+    <div class="feature">Jurnal contabil — înregistrări, filtre, adăugare manuală</div>
+    <div class="feature">Plan de conturi — structura NBM completă</div>
+    <div class="feature">Setări — parametri sistem (rate dobândă, limite, roluri)</div>
+    <div class="feature">OLAP Credite — analiză multidimensională portofoliu</div>
+    <div class="feature">ОСВ — Оборотно-сальдовая ведомость (Trial Balance)</div>
+    <div class="feature">P&amp;L — Raport Venituri &amp; Cheltuieli pe perioadă</div>
+  </div>
+
+  <!-- ======== OLAP ======== -->
+  <h2>Rapoarte BI — detalii tehnice</h2>
+
+  <h3>OLAP — Analiza portofoliului de credite</h3>
+  <p style="font-size:13px;color:var(--gray);margin-bottom:10px">
+    Agregare dinamică pe 7 dimensiuni cu filtru de perioadă. Exportabil în CSV.
+  </p>
+  <table>
+    <tr><th>Dimensiune</th><th>GROUP BY (Oracle SQL)</th><th>Exemple valori</th></tr>
+    <tr><td>Lună</td><td><code>TO_CHAR(DISBURSEMENT_DATE,'YYYY-MM')</code></td><td>2024-03, 2024-04…</td></tr>
+    <tr><td>Trimestru</td><td><code>TO_CHAR(DISBURSEMENT_DATE,'YYYY-"Q"Q')</code></td><td>2024-Q1, 2024-Q2…</td></tr>
+    <tr><td>An</td><td><code>TO_CHAR(DISBURSEMENT_DATE,'YYYY')</code></td><td>2023, 2024, 2025</td></tr>
+    <tr><td>Status</td><td><code>STATUS</code></td><td>ACTIVE / CLOSED / OVERDUE</td></tr>
+    <tr><td>Tip rambursare</td><td><code>REPAYMENT_TYPE</code></td><td>ANNUITY / DECLINING</td></tr>
+    <tr><td>Clasă risc</td><td><code>RISK_CLASS</code></td><td>S / SM / SN / D / P / PI / C</td></tr>
+    <tr><td>Tip membru</td><td><code>MEMBER_TYPE</code></td><td>PERSON / COMPANY</td></tr>
+  </table>
+
+  <h3>ОСВ — Trial Balance (Оборотно-сальдовая ведомость)</h3>
+  <p style="font-size:13px;color:var(--gray);margin-bottom:10px">
+    Raport contabil complet per perioadă: sold inițial + rulaj + sold final per cont.
+    Afișare 1С-style cu subtotaluri per clasă de conturi. Invariant: Rulaj Dt = Rulaj Ct.
+  </p>
+  <table>
+    <tr><th>Coloană</th><th>Sursă Oracle</th><th>Descriere</th></tr>
+    <tr><td>Sold inițial Dt/Ct</td><td>CTE <code>ob</code></td><td>Rulaj acumulat înainte de data_from</td></tr>
+    <tr><td>Rulaj perioadă Dt/Ct</td><td>CTE <code>per</code></td><td>Înregistrări în intervalul selectat</td></tr>
+    <tr><td>Sold final Dt/Ct</td><td>ob + per</td><td>Calculat prin adunare</td></tr>
+  </table>
+
+  <h3>P&amp;L — Venituri &amp; Cheltuieli</h3>
+  <p style="font-size:13px;color:var(--gray);margin-bottom:10px">
+    Filtrat automat din ОСВ: conturi clasă 8xx = VENITURI, clasă 7xx = CHELTUIELI.
+    Afișează profit net = Venituri − Cheltuieli.
+  </p>
+  <table>
+    <tr><th>Clasă NBM</th><th>Tip</th><th>Exemple conturi</th></tr>
+    <tr><td>8xxx</td><td>VENITURI (INCOME)</td><td>8111 Dobânzi credite, 8112 Comisioane, 8113–8116</td></tr>
+    <tr><td>7xxx</td><td>CHELTUIELI (EXPENSE)</td><td>7151 Dobânzi depozite, 7211 Salarii, 7311 Chirie…</td></tr>
+    <tr><td>2xxx</td><td>ACTIVE</td><td>2101 Casa, 2421 Conturi curente, 2551 Credite acordate</td></tr>
+    <tr><td>3xxx</td><td>PASIVE / DATORII</td><td>3211 Depozite, 3411 Amortizare</td></tr>
+  </table>
+
+  <!-- ======== API ======== -->
+  <h2>API Endpoints</h2>
+  <table>
+    <tr>
+      <th width="50">Metodă</th>
+      <th width="320">URL</th>
+      <th>Descriere</th>
+      <th width="200">Parametri</th>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/dashboard</code></td>
+      <td>KPI-uri principale (credite active, volume, restanțe)</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/members</code></td>
+      <td>Lista membrilor AEÎ</td>
+      <td><code>status</code></td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/members</code></td>
+      <td>Creare / actualizare membru</td>
+      <td>JSON body</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/members/{id}</code></td>
+      <td>Detalii unui membru</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method DELETE">DELETE</span></td>
+      <td><code>/api/aei/members/{id}</code></td>
+      <td>Dezactivare membru</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/loans</code></td>
+      <td>Lista creditelor</td>
+      <td><code>status, member_id</code></td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/loans</code></td>
+      <td>Creare / actualizare credit</td>
+      <td>JSON body</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/loans/{id}</code></td>
+      <td>Detalii credit</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/loans/{id}/flows</code></td>
+      <td>Grafic rambursare (scadențar)</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/loans/{id}/generate-schedule</code></td>
+      <td>Generare grafic rambursare</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/loans/payment</code></td>
+      <td>Înregistrare plată</td>
+      <td><code>flow_id, amount_paid, payment_date</code></td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/deposits</code></td>
+      <td>Lista depozitelor</td>
+      <td><code>status, member_id</code></td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/deposits</code></td>
+      <td>Creare / actualizare depozit</td>
+      <td>JSON body</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/deposits/{id}/flows</code></td>
+      <td>Fluxuri depozit</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/deposits/{id}/calculate-interest</code></td>
+      <td>Calcul dobândă depozit</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/journal</code></td>
+      <td>Jurnal contabil</td>
+      <td><code>date_from, date_to, account, source_type</code></td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/journal</code></td>
+      <td>Adăugare intrare jurnal</td>
+      <td>JSON body</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/accounts</code></td>
+      <td>Plan de conturi NBM</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/settings</code></td>
+      <td>Setări sistem</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="method POST">POST</span></td>
+      <td><code>/api/aei/settings</code></td>
+      <td>Actualizare setare</td>
+      <td><code>key, value</code></td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/reports/trial-balance</code></td>
+      <td>ОСВ — Trial Balance</td>
+      <td><code>date_from, date_to</code></td>
+    </tr>
+    <tr>
+      <td><span class="method GET">GET</span></td>
+      <td><code>/api/aei/reports/olap-loans</code></td>
+      <td>OLAP analiză credite</td>
+      <td><code>group_by, date_from, date_to</code></td>
+    </tr>
+  </table>
+
+  <!-- ======== ORACLE SCHEMA ======== -->
+  <h2>Schema Oracle — obiecte cu prefix AEI_</h2>
+
+  <div class="obj-grid">
+    <div class="obj-box">
+      <h4>Tabele principale</h4>
+      <ul>
+        <li>AEI_MEMBERS <span class="obj-desc">— registrul membrilor</span></li>
+        <li>AEI_LOANS <span class="obj-desc">— contracte de credit</span></li>
+        <li>AEI_LOAN_FLOWS <span class="obj-desc">— grafic rambursare + plăți</span></li>
+        <li>AEI_DEPOSITS <span class="obj-desc">— contracte depozit</span></li>
+        <li>AEI_DEPOSIT_FLOWS <span class="obj-desc">— fluxuri depozit</span></li>
+      </ul>
+    </div>
+    <div class="obj-box">
+      <h4>Contabilitate</h4>
+      <ul>
+        <li>AEI_ACCOUNTS <span class="obj-desc">— planul de conturi NBM</span></li>
+        <li>AEI_JOURNAL <span class="obj-desc">— jurnal înregistrări duble</span></li>
+        <li>AEI_SETTINGS <span class="obj-desc">— parametri sistem</span></li>
+        <li>AEI_EVENT_LOG <span class="obj-desc">— audit trail acțiuni</span></li>
+      </ul>
+    </div>
+    <div class="obj-box">
+      <h4>Coloane cheie — AEI_LOANS</h4>
+      <ul>
+        <li>LOAN_ID, MEMBER_ID, CONTRACT_NO</li>
+        <li>PRINCIPAL, INTEREST_RATE, TERM_MONTHS</li>
+        <li>STATUS: ACTIVE / OVERDUE / CLOSED</li>
+        <li>REPAYMENT_TYPE: ANNUITY / DECLINING</li>
+        <li>RISK_CLASS: S / SM / SN / D / P / PI / C</li>
+        <li>MEMBER_TYPE: PERSON / COMPANY</li>
+      </ul>
+    </div>
+    <div class="obj-box">
+      <h4>Coloane cheie — AEI_LOAN_FLOWS</h4>
+      <ul>
+        <li>FLOW_ID, LOAN_ID, DUE_DATE</li>
+        <li>AMOUNT_SCHEDULED (principal + dobândă)</li>
+        <li>AMOUNT_PAID, PAYMENT_DATE</li>
+        <li>AMOUNT_OVERDUE, DAYS_OVERDUE</li>
+        <li>FLOW_TYPE: PAYMENT / INTEREST / FEE</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ======== DEPLOY ======== -->
+  <h2>Deploy — instrucțiuni</h2>
+
+  <div class="warn-banner">
+    <strong>Important:</strong> <code>deploy_to_remote.sh</code> transferă numai codul Python/templates.
+    DDL Oracle (modificări schemă) trebuie executat separat via <code>python deploy_oracle_objects.py</code>
+    sau cu <code>DEPLOY_ORACLE_ON_REMOTE=1</code>.
+  </div>
+
+  <h3>Deploy complet (cod + restart)</h3>
+  <div class="deploy-box">
+<span class="comment"># 1. Deploy cod pe server remote</span>
+<br><span class="cmd">bash deploy_to_remote.sh</span>
+<br><br><span class="comment"># 2. Sau deploy manual (fișiere selectate)</span>
+<br><span class="cmd">rsync -avz -e "ssh -i ~/Downloads/ssh-key-2024-10-06.key" \</span>
+<br><span class="cmd">&nbsp;&nbsp;app.py models/ controllers/ templates/ static/ \</span>
+<br><span class="cmd">&nbsp;&nbsp;ubuntu@92.5.3.187:/home/ubuntu/artgranit/</span>
+<br><br><span class="comment"># 3. Restart serviciu (DOAR via systemd!)</span>
+<br><span class="cmd">ssh -i ~/Downloads/ssh-key-2024-10-06.key ubuntu@92.5.3.187 \</span>
+<br><span class="cmd">&nbsp;&nbsp;"sudo systemctl restart artgranit"</span>
+<br><br><span class="comment"># 4. Verificare production</span>
+<br><span class="cmd">curl -I https://nufarul.eminescu.md/login</span>
+  </div>
+
+  <h3>Verificare după deploy</h3>
+  <ul class="checklist">
+    <li><code>curl -I https://nufarul.eminescu.md/login</code> → HTTP/2 200</li>
+    <li><code>curl -s https://nufarul.eminescu.md/api/aei/dashboard</code> → JSON cu date</li>
+    <li>Interfața Operator: <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei-operator">aei-operator</a> — dashboard cu KPI-uri</li>
+    <li>Interfața Backoffice: <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei-backoffice">aei-backoffice</a> — OLAP, ОСВ, P&L funcționale</li>
+    <li>Admin complet: <a href="https://nufarul.eminescu.md/UNA.md/orasldev/aei">aei-admin</a> — toți membrii/credite</li>
+    <li>Jurnal contabil afișează intrările demo (oct 2025 – mar 2026)</li>
+    <li>OLAP — minim 30 credite, toate 7 dimensiuni disponibile</li>
+    <li>Aging — toate 4 bucket-uri: 1–30, 31–60, 61–90, >90 zile cu valori MDL</li>
+  </ul>
+
+  <!-- ======== LOCAL DEV ======== -->
+  <h2>Lansare locală</h2>
+
+  <div class="deploy-box">
+<span class="comment"># Activare virtualenv și pornire server local</span>
+<br><span class="cmd">source .venv_run/bin/activate</span>
+<br><span class="cmd">python app.py</span>
+<br><br><span class="comment"># Server pornit la http://localhost:3003/</span>
+<br><span class="comment"># Interfețe AEÎ:</span>
+<br><span class="cmd">http://localhost:3003/UNA.md/orasldev/aei-operator</span>
+<br><span class="cmd">http://localhost:3003/UNA.md/orasldev/aei-backoffice</span>
+<br><span class="cmd">http://localhost:3003/UNA.md/orasldev/aei</span>
+<br><span class="cmd">http://localhost:3003/UNA.md/orasldev/aei-tz</span>
+  </div>
+
+  <!-- ======== FIȘIERE ======== -->
+  <h2>Structura fișierelor modulului AEÎ</h2>
+  <table>
+    <tr><th>Fișier / Director</th><th>Rol</th></tr>
+    <tr><td><code>models/aei_oracle_store.py</code></td><td>Toate interogările Oracle (CRUD + rapoarte)</td></tr>
+    <tr><td><code>controllers/aei_controller.py</code></td><td>Request handlers Flask (validare + delegare)</td></tr>
+    <tr><td><code>templates/aei_admin.html</code></td><td>Interfață admin complet (pagina principală AEÎ)</td></tr>
+    <tr><td><code>templates/aei/operator.html</code></td><td>Interfață ofițer credite</td></tr>
+    <tr><td><code>templates/aei/backoffice.html</code></td><td>Interfață back-office &amp; BI</td></tr>
+    <tr><td><code>sql/</code></td><td>DDL pentru tabele AEI_* (deploy separat)</td></tr>
+    <tr><td><code>scripts/insert_pnl_demo.py</code></td><td>Date demo P&amp;L (oct 2025 – mar 2026)</td></tr>
+    <tr><td><code>scripts/insert_olap_demo.py</code></td><td>Date demo OLAP (40 credite, 2023–2025)</td></tr>
+    <tr><td><code>docs/AEI.md/README_AEI.html</code></td><td>Această documentație</td></tr>
+    <tr><td><code>docs/AEI.md/TZ_AEI.html</code></td><td>Specificații tehnice (TZ)</td></tr>
+  </table>
+
+</div>
+
+<footer>
+  Modulul AEÎ · Artgranit / Nufarul · Documentație generată April 2026
+</footer>
+
+</body>
+</html>
