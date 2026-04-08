@@ -4932,6 +4932,17 @@ def aei_tz():
         return f.read()
 
 
+@app.route('/UNA.md/orasldev/aei-docs')
+def aei_docs():
+    """AEÎ: Module documentation."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    doc_path = os.path.join(os.path.dirname(__file__), 'docs', 'AEI.md', 'README_AEI.html')
+    with open(doc_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
 # AEI — API routes
 
 @app.route('/api/aei/dashboard', methods=['GET'])
