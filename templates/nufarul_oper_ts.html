@@ -1420,7 +1420,7 @@ function buildActHtml(o) {
     ? `Primit: ${o.cash_received.toFixed(0)} MDL | Rest: ${Math.max(0,o.change).toFixed(0)} MDL`
     : '';
   const qrUrl = 'https://nufarul.md/reguli-curatare';
-  const qrSrc = `https://chart.googleapis.com/chart?chs=80x80&cht=qr&chl=${encodeURIComponent(qrUrl)}&choe=UTF-8`;
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrUrl)}&format=png`;
   const ruSection = `
     <div class="act-ru">
       <div class="act-ru-title">Дополнительно на русском языке / Suplimentar în limba rusă</div>
