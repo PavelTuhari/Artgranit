@@ -254,7 +254,11 @@ button, input, select, textarea { font-family:inherit; }
 /* ── Checkout modal ── */
 .checkout-modal { display:none; position:fixed; inset:0; z-index:8888; background:rgba(0,0,0,.88); align-items:center; justify-content:center; }
 .checkout-modal.open { display:flex; }
-.checkout-box { background:#0d1728; border:2px solid #f59e0b; border-radius:20px; padding:18px; width:96%; max-width:520px; max-height:94vh; overflow-y:auto; }
+.checkout-box { background:#0d1728; border:2px solid #f59e0b; border-radius:20px; padding:18px; width:96%; max-width:860px; max-height:94vh; overflow-y:auto; }
+.co-two-col { display:flex; gap:16px; align-items:flex-start; }
+.co-left { flex:1; min-width:0; }
+.co-right { flex:0 0 310px; display:flex; flex-direction:column; gap:10px; }
+@media(max-width:640px){ .co-two-col{flex-direction:column;} .co-right{flex:none;} }
 .co-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 .co-header h2 { font-size:16px; font-weight:800; color:#f59e0b; margin:0; }
 .co-total-badge { background:#192e19; border:1px solid #22c55e55; border-radius:12px; padding:6px 16px; font-size:18px; font-weight:800; color:#53d769; }
