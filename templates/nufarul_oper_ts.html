@@ -1311,7 +1311,7 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
       date: new Date(),
     };
     document.getElementById('checkoutForm').style.display = 'none';
-    document.getElementById('checkoutSuccess').style.display = '';
+    document.getElementById('checkoutSuccess').style.display = 'block';
     document.getElementById('coSuccessNum').textContent = 'Заказ: ' + lastOrder.order_number;
     document.getElementById('coSuccessPay').textContent = PAY_LABELS[selectedPayment] || selectedPayment;
     const changeEl = document.getElementById('coSuccessChange');
