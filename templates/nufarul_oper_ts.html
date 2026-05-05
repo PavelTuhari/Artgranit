@@ -530,90 +530,94 @@ button, input, select, textarea { font-family:inherit; }
         <div class="co-total-badge" id="coTotalBadge">0 MDL</div>
       </div>
 
-      <!-- Item summary -->
-      <div class="co-summary" id="coSummary"></div>
+      <div class="co-two-col">
+        <!-- LEFT: summary, client, payment method -->
+        <div class="co-left">
+          <div class="co-summary" id="coSummary"></div>
 
-      <!-- Client: anonymous by default -->
-      <div class="co-client-toggle">
-        <input type="checkbox" id="coClientToggle">
-        <label for="coClientToggle">Указать клиента</label>
-        <span class="co-anon-badge" id="coAnonBadge">Аноним</span>
-      </div>
-      <div class="co-client-fields" id="coClientFields">
-        <div class="co-field">
-          <label>Имя / Фамилия</label>
-          <input id="coName" placeholder="Иванов Иван" autocomplete="off">
-        </div>
-        <div class="co-field">
-          <label>Телефон</label>
-          <input id="coPhone" placeholder="+373 69 123 456" type="tel" autocomplete="off">
-        </div>
-      </div>
+          <div class="co-client-toggle">
+            <input type="checkbox" id="coClientToggle">
+            <label for="coClientToggle">Указать клиента</label>
+            <span class="co-anon-badge" id="coAnonBadge">Аноним</span>
+          </div>
+          <div class="co-client-fields" id="coClientFields">
+            <div class="co-field">
+              <label>Имя / Фамилия</label>
+              <input id="coName" placeholder="Иванов Иван" autocomplete="off">
+            </div>
+            <div class="co-field">
+              <label>Телефон</label>
+              <input id="coPhone" placeholder="+373 69 123 456" type="tel" autocomplete="off">
+            </div>
+          </div>
 
-      <!-- Payment method -->
-      <div class="co-pay-label">Способ оплаты</div>
-      <div class="co-pay-grid">
-        <button class="co-pay-btn selected" data-pay="cash">
-          <span class="co-pay-icon">💵</span>
-          <span class="co-pay-name">Numerar</span>
-          <span class="co-pay-desc">Наличные</span>
-        </button>
-        <button class="co-pay-btn" data-pay="card">
-          <span class="co-pay-icon">💳</span>
-          <span class="co-pay-name">Card POS</span>
-          <span class="co-pay-desc">Visa / Mastercard</span>
-        </button>
-        <button class="co-pay-btn" data-pay="mia">
-          <span class="co-pay-icon">📱</span>
-          <span class="co-pay-name">MIA</span>
-          <span class="co-pay-desc">MAIB, transfer instant</span>
-        </button>
-        <button class="co-pay-btn" data-pay="mpay">
-          <span class="co-pay-icon">🏛</span>
-          <span class="co-pay-name">MPay</span>
-          <span class="co-pay-desc">Portalul e-guvernare</span>
-        </button>
-      </div>
-
-      <!-- Cash panel: numpad + banknotes (visible only for cash) -->
-      <div class="co-cash-panel open" id="coCashPanel">
-        <div class="co-cash-display">
-          <div class="co-cash-recv-lbl">Primit / Получено (MDL)</div>
-          <div class="co-cash-recv-val" id="coCashVal">0</div>
-          <div class="co-cash-change" id="coCashChange">
-            <span class="co-change-lbl">Rest / Сдача</span>
-            <span class="co-change-val" id="coChangeVal">—</span>
+          <div class="co-pay-label">Способ оплаты</div>
+          <div class="co-pay-grid">
+            <button class="co-pay-btn selected" data-pay="cash">
+              <span class="co-pay-icon">💵</span>
+              <span class="co-pay-name">Numerar</span>
+              <span class="co-pay-desc">Наличные</span>
+            </button>
+            <button class="co-pay-btn" data-pay="card">
+              <span class="co-pay-icon">💳</span>
+              <span class="co-pay-name">Card POS</span>
+              <span class="co-pay-desc">Visa / Mastercard</span>
+            </button>
+            <button class="co-pay-btn" data-pay="mia">
+              <span class="co-pay-icon">📱</span>
+              <span class="co-pay-name">MIA</span>
+              <span class="co-pay-desc">MAIB, transfer instant</span>
+            </button>
+            <button class="co-pay-btn" data-pay="mpay">
+              <span class="co-pay-icon">🏛</span>
+              <span class="co-pay-name">MPay</span>
+              <span class="co-pay-desc">Portalul e-guvernare</span>
+            </button>
           </div>
         </div>
-        <div class="co-banknotes">
-          <button class="co-banknote" data-bn="1">1</button>
-          <button class="co-banknote" data-bn="5">5</button>
-          <button class="co-banknote" data-bn="10">10</button>
-          <button class="co-banknote" data-bn="20">20</button>
-          <button class="co-banknote" data-bn="50">50</button>
-          <button class="co-banknote" data-bn="100">100</button>
-          <button class="co-banknote" data-bn="200">200</button>
-          <button class="co-banknote" data-bn="500">500</button>
-        </div>
-        <div class="co-numpad">
-          <button class="co-numpad-btn num" data-d="1">1</button>
-          <button class="co-numpad-btn num" data-d="2">2</button>
-          <button class="co-numpad-btn num" data-d="3">3</button>
-          <button class="co-numpad-btn num" data-d="4">4</button>
-          <button class="co-numpad-btn num" data-d="5">5</button>
-          <button class="co-numpad-btn num" data-d="6">6</button>
-          <button class="co-numpad-btn num" data-d="7">7</button>
-          <button class="co-numpad-btn num" data-d="8">8</button>
-          <button class="co-numpad-btn num" data-d="9">9</button>
-          <button class="co-numpad-btn clr" id="coNumClr">C</button>
-          <button class="co-numpad-btn num" data-d="0">0</button>
-          <button class="co-numpad-btn del" id="coNumDel">⌫</button>
-        </div>
-      </div>
 
-      <div class="co-actions">
-        <button class="co-confirm" id="coConfirmBtn">✓ ПОДТВЕРДИТЬ</button>
-        <button class="co-cancel" id="coCancelBtn">Отмена</button>
+        <!-- RIGHT: cash panel (numpad + banknotes) + confirm -->
+        <div class="co-right">
+          <div class="co-cash-panel open" id="coCashPanel">
+            <div class="co-cash-display">
+              <div class="co-cash-recv-lbl">Primit / Получено (MDL)</div>
+              <div class="co-cash-recv-val" id="coCashVal">0</div>
+              <div class="co-cash-change" id="coCashChange">
+                <span class="co-change-lbl">Rest / Сдача</span>
+                <span class="co-change-val" id="coChangeVal">—</span>
+              </div>
+            </div>
+            <div class="co-banknotes">
+              <button class="co-banknote" data-bn="1">1</button>
+              <button class="co-banknote" data-bn="5">5</button>
+              <button class="co-banknote" data-bn="10">10</button>
+              <button class="co-banknote" data-bn="20">20</button>
+              <button class="co-banknote" data-bn="50">50</button>
+              <button class="co-banknote" data-bn="100">100</button>
+              <button class="co-banknote" data-bn="200">200</button>
+              <button class="co-banknote" data-bn="500">500</button>
+            </div>
+            <div class="co-numpad">
+              <button class="co-numpad-btn num" data-d="1">1</button>
+              <button class="co-numpad-btn num" data-d="2">2</button>
+              <button class="co-numpad-btn num" data-d="3">3</button>
+              <button class="co-numpad-btn num" data-d="4">4</button>
+              <button class="co-numpad-btn num" data-d="5">5</button>
+              <button class="co-numpad-btn num" data-d="6">6</button>
+              <button class="co-numpad-btn num" data-d="7">7</button>
+              <button class="co-numpad-btn num" data-d="8">8</button>
+              <button class="co-numpad-btn num" data-d="9">9</button>
+              <button class="co-numpad-btn clr" id="coNumClr">C</button>
+              <button class="co-numpad-btn num" data-d="0">0</button>
+              <button class="co-numpad-btn del" id="coNumDel">⌫</button>
+            </div>
+          </div>
+
+          <div class="co-actions">
+            <button class="co-confirm" id="coConfirmBtn">✓ ПОДТВЕРДИТЬ</button>
+            <button class="co-cancel" id="coCancelBtn">Отмена</button>
+          </div>
+        </div>
       </div>
     </div>
 
