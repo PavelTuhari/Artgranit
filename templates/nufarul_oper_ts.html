@@ -737,11 +737,21 @@ let selectedPayment = 'cash'; // default payment method
 
 // ── Boot ───────────────────────────────────────────────────────────────
 async function boot() {
-  await Promise.all([loadGroups(), loadServices()]);
+  await Promise.all([loadGroups(), loadServices(), loadSystemSettings()]);
   renderGroups();
   if (groups.length) selectGroup(groups[0].group_key);
   renderCart();
   initVoice();
+}
+
+async function loadSystemSettings() {
+  try {
+    const r = await apiFetch(API_TS + '/system-settings');
+    if (r.success && r.data && r.data.param_modal_width) {
+      const w = parseInt(r.data.param_modal_width.value, 10);
+      if (w > 0) document.documentElement.style.setProperty('--param-modal-w', w + 'px');
+    }
+  } catch(e) { /* keep CSS default */ }
 }
 
 async function loadGroups() {
