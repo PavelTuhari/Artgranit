@@ -907,12 +907,23 @@ function renderParam(p) {
         <span class="cnt-val" id="cnt_${esc(p.key)}">${p.min||1}</span>
         <button class="cnt-btn" onclick="changeCount('${esc(p.key)}',1)">+</button>
       </div></div>`;
-    case 'numeric':
+    case 'numeric': {
+      const step = p.step || null;
+      const minV = p.min != null ? p.min : 0;
+      const initV = minV || 0;
+      if (step) {
+        return `<div class="param-sec">${lbl}<div class="num-stepper">
+          <button class="cnt-btn" onclick="changeNumeric('${esc(p.key)}',${-step},${minV},${step})">−</button>
+          <span class="num-stepper-val" id="nst_${esc(p.key)}">${initV}</span>
+          <button class="cnt-btn" onclick="changeNumeric('${esc(p.key)}',${step},${minV},${step})">+</button>
+        </div></div>`;
+      }
       return `<div class="param-sec">${lbl}
         <input class="num-input" type="number" inputmode="decimal" step="0.1" min="0"
                placeholder="${esc(p.placeholder||'0')}"
                onchange="paramValues['${esc(p.key)}']=parseFloat(this.value)||null">
       </div>`;
+    }
     case 'notes':
       return `<div class="param-sec">${lbl}
         <textarea class="notes-input" placeholder="Комментарий..."
