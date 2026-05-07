@@ -722,6 +722,7 @@ let selectedSvc = null;    // service object
 let groupParams = {};      // {group_key: parsed_params_array}
 let groupSubgroups = {};   // {group_key: [{key, label_ru, label_ro, icon, sort_order}]}
 let activeSubgroup = null; // subgroup key string | null = show all
+let activeSubgroupPage = 0; // current page within subgroup (0-based)
 let paramValues = {};      // {param_key: value} — current param panel state
 let cart = [];             // [{service_id, name, price, qty, params, params_summary}]
 let mode = 'intake';       // 'intake' | 'issue'
