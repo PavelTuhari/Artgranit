@@ -901,6 +901,18 @@ function renderParamsPanel() {
   });
 
   document.getElementById('paramModalBody').innerHTML = params.map(p => renderParam(p)).join('');
+
+  // Pre-populate ready date from group lead_days
+  const grp = groups.find(g => g.group_key === (selectedSvc && selectedSvc.service_group));
+  const leadDays = grp && grp.lead_days != null ? Number(grp.lead_days) : null;
+  const rdInp = document.getElementById('paramModalReadyDate');
+  if (leadDays != null) {
+    const rd = addWorkingDays(new Date(), leadDays);
+    rdInp.value = rd.toISOString().slice(0,16);
+  } else {
+    rdInp.value = '';
+  }
+
   document.getElementById('paramModal').classList.add('open');
 }
 
