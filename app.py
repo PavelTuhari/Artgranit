@@ -3047,6 +3047,7 @@ def api_nufarul_ts_order():
         payment_method = 'cash'
     items = data.get('items') or []
     notes = (data.get('notes') or '').strip() or None
+    ready_date = (data.get('ready_date') or '').strip() or None
     if not items:
         return jsonify({"success": False, "error": "items required"}), 400
     if not isinstance(items, list) or not all(isinstance(i, dict) for i in items):
@@ -3060,7 +3061,7 @@ def api_nufarul_ts_order():
             return jsonify({"success": False, "error": "qty must be > 0"}), 400
         if float(i.get("price", -1)) < 0:
             return jsonify({"success": False, "error": "price must be >= 0"}), 400
-    return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes, payment_method))
+    return jsonify(NufarulController.create_order_with_params(client_name, client_phone, items, notes, payment_method, ready_date))
 
 
 # ========== DECOR: админка + оператор (локальное JSON-хранилище, fallback без Oracle) ==========
