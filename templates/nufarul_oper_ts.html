@@ -841,41 +841,40 @@ document.getElementById('svcSearch').addEventListener('input', e => renderServic
 function selectService(id) {
   selectedSvc = services.find(s => s.id === id) || null;
   if (!selectedSvc) return;
-  document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('selected'));
-  const cards = document.getElementById('svcGrid').querySelectorAll('.svc-card');
-  // re-render to update selected state
-  renderServices(document.getElementById('svcSearch').value);
   renderParamsPanel();
   document.getElementById('addBtn').disabled = false;
   updateCustomerAdding();
 }
 
-// ── Params panel ───────────────────────────────────────────────────────
+// ── Params modal ────────────────────────────────────────────────────────
 function clearParams() {
   selectedSvc = null;
   paramValues = {};
-  document.getElementById('paramsHdr').innerHTML = '<div class="params-hdr-empty">← Выберите услугу</div>';
-  document.getElementById('paramsBody').innerHTML = '';
   document.getElementById('addBtn').disabled = true;
+  closeParamModal();
+}
+
+function closeParamModal() {
+  document.getElementById('paramModal').classList.remove('open');
 }
 
 function renderParamsPanel() {
   if (!selectedSvc) return;
-  const hdr = document.getElementById('paramsHdr');
-  hdr.innerHTML = `<div class="params-hdr-name">${esc(selectedSvc.name_ru||selectedSvc.name||'')}</div>
-    <div class="params-hdr-price">${(selectedSvc.price||0).toLocaleString('ru')} MDL / ${esc(selectedSvc.unit||'шт')}</div>`;
+  document.getElementById('paramModalName').textContent = selectedSvc.name_ru || selectedSvc.name || '';
+  document.getElementById('paramModalPrice').textContent =
+    (selectedSvc.price||0).toLocaleString('ru') + ' MDL / ' + (selectedSvc.unit||'шт');
 
   const params = groupParams[activeGroup] || [];
   paramValues = {};
-  // Set defaults: counter = 1
   params.forEach(p => {
     if (p.type === 'counter') paramValues[p.key] = p.min || 1;
+    else if (p.type === 'numeric') paramValues[p.key] = p.min || null;
     else if (p.type === 'toggle') paramValues[p.key] = false;
     else paramValues[p.key] = null;
   });
 
-  const body = document.getElementById('paramsBody');
-  body.innerHTML = params.map(p => renderParam(p)).join('');
+  document.getElementById('paramModalBody').innerHTML = params.map(p => renderParam(p)).join('');
+  document.getElementById('paramModal').classList.add('open');
 }
 
 function renderParam(p) {
