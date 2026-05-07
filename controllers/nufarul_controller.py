@@ -536,15 +536,16 @@ class NufarulController:
                             "notes": (notes or "").strip() or None,
                         },
                     )
-                    # Insert payment metadata into companion table
+                    # Insert payment metadata into companion table (stores READY_DATE here, not on blockchain table)
                     cur.execute(
                         """INSERT INTO NUF_ORDER_PAYMENT
-                           (ORDER_ID, ORDER_NUMBER, CLIENT_NAME, CLIENT_PHONE, PAYMENT_METHOD, NOTES)
-                           VALUES (:oid, :onum, :cname, :cphone, :pay, :notes)""",
+                           (ORDER_ID, ORDER_NUMBER, CLIENT_NAME, CLIENT_PHONE, PAYMENT_METHOD, NOTES, READY_DATE)
+                           VALUES (:oid, :onum, :cname, :cphone, :pay, :notes, :rdate)""",
                         {
                             "oid": order_id, "onum": order_number,
                             "cname": cname, "cphone": cphone,
                             "pay": pay, "notes": (notes or "").strip() or None,
+                            "rdate": rdate,
                         },
                     )
 
