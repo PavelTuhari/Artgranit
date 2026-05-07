@@ -525,6 +525,23 @@ button, input, select, textarea { font-family:inherit; }
   </div>
 </div>
 
+<!-- Param modal -->
+<div class="param-modal-overlay" id="paramModal">
+  <div class="param-modal-box">
+    <div class="param-modal-hdr">
+      <div class="param-modal-hdr-info">
+        <div class="param-modal-name" id="paramModalName"></div>
+        <div class="param-modal-price" id="paramModalPrice"></div>
+      </div>
+      <button class="param-modal-close" onclick="closeParamModal()">✕</button>
+    </div>
+    <div class="param-modal-body" id="paramModalBody"></div>
+    <div class="param-modal-footer">
+      <button class="add-btn" id="addBtn" disabled>+ ДОБАВИТЬ В КОРЗИНУ</button>
+    </div>
+  </div>
+</div>
+
 <!-- Camera modal -->
 <div class="camera-modal" id="cameraModal">
   <video id="camVideo" autoplay playsinline></video>
