@@ -1417,8 +1417,10 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '...';
   try {
-    const rdInputVal = document.getElementById('coReadyInput').value;
-    const readyDateISO = rdInputVal || null;
+    // Order ready_date = max of all item ready_dates
+    const allDates = cart.map(i => i.ready_date).filter(d => d instanceof Date && !isNaN(d));
+    const orderReadyDate = allDates.length ? new Date(Math.max(...allDates.map(d => d.getTime()))) : null;
+    const readyDateISO = orderReadyDate ? orderReadyDate.toISOString().slice(0,16) : null;
     const payload = {
       client_name: name,
       client_phone: phone,
