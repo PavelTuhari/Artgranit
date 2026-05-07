@@ -1382,26 +1382,27 @@ function openCheckout() {
       </div>
     </div>`;
   }).join('');
-  // Ready date badge (max of all items)
-  const rdRes = computeCartReadyDate();
+  updateCartReadyBadge();
+  modal.classList.add('open');
+}
+
+function updateCartReadyBadge() {
+  // Show max ready_date across all cart items in the coReadyRow
+  const dates = cart.map(i => i.ready_date).filter(d => d instanceof Date && !isNaN(d));
   const rdValEl = document.getElementById('coReadyVal');
   const rdInput = document.getElementById('coReadyInput');
-  if (rdRes.date) {
-    rdValEl.textContent = _fmtDate(rdRes.date);
+  if (dates.length) {
+    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    rdValEl.textContent = _fmtDate(maxDate);
     rdValEl.style.display = '';
-    rdInput.value = rdRes.date.toISOString().slice(0,16);
-    rdInput.style.display = rdRes.manual ? '' : 'none';
+    rdInput.value = maxDate.toISOString().slice(0,16);
+    rdInput.style.display = 'none';
   } else {
     rdValEl.textContent = '';
     rdValEl.style.display = 'none';
     rdInput.style.display = '';
     rdInput.value = '';
   }
-  // If manual input and date was computed as max — show both
-  if (rdRes.manual && rdRes.date) {
-    rdInput.style.display = '';
-  }
-  modal.classList.add('open');
 }
 
 document.getElementById('coCancelBtn').addEventListener('click', () => {
