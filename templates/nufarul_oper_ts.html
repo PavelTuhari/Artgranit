@@ -1066,10 +1066,9 @@ document.getElementById('addBtn').addEventListener('click', () => {
   const summary = buildParamSummary();
   const colorVal = paramValues['color'];
   const colorDot = colorVal ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colorVal};vertical-align:middle;margin-right:3px;"></span>` : '';
-  // Per-item ready date based on group lead_days
-  const grp = groups.find(g => g.group_key === selectedSvc.service_group);
-  const itemLeadDays = grp && grp.lead_days != null ? Number(grp.lead_days) : null;
-  const itemReadyDate = itemLeadDays != null ? addWorkingDays(new Date(), itemLeadDays) : null;
+  // Per-item ready date — use value from param modal ready-date input
+  const rdRaw = document.getElementById('paramModalReadyDate').value;
+  const itemReadyDate = rdRaw ? new Date(rdRaw) : null;
 
   cart.push({
     service_id: selectedSvc.id,
