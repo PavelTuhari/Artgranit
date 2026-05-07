@@ -798,22 +798,39 @@ function renderSubgroupsBar() {
     bar.classList.remove('visible');
     return;
   }
-  const allBtn = `<button class="subgrp-btn${activeSubgroup===null?' active':''}" onclick="selectSubgroup(null)">
+  const allBtn = `<button class="subgrp-btn${activeSubgroup===null?' active':''}" onclick="selectSubgroup(null,0)">
     <span class="sg-icon">🔸</span>
     <span class="sg-label">Все</span>
   </button>`;
-  const subBtns = subs.map(s =>
-    `<button class="subgrp-btn${activeSubgroup===s.key?' active':''}" onclick="selectSubgroup('${esc(s.key)}')">
-      <span class="sg-icon">${esc(s.icon||'📦')}</span>
-      <span class="sg-label">${esc(s.label_ru||s.key)}</span>
-    </button>`
-  ).join('');
+  const subBtns = subs.map(s => {
+    const cnt = services.filter(x => x.service_group === activeGroup && x.service_subgroup === s.key).length;
+    if (cnt <= PAGE_SIZE) {
+      const isActive = activeSubgroup === s.key;
+      return `<button class="subgrp-btn${isActive?' active':''}" onclick="selectSubgroup('${esc(s.key)}',0)">
+        <span class="sg-icon">${esc(s.icon||'📦')}</span>
+        <span class="sg-label">${esc(s.label_ru||s.key)}</span>
+      </button>`;
+    }
+    // Split into pages
+    const pages = Math.ceil(cnt / PAGE_SIZE);
+    return Array.from({length: pages}, (_, pg) => {
+      const from = pg * PAGE_SIZE + 1;
+      const to = Math.min((pg+1) * PAGE_SIZE, cnt);
+      const isActive = activeSubgroup === s.key && activeSubgroupPage === pg;
+      return `<button class="subgrp-btn${isActive?' active':''}" onclick="selectSubgroup('${esc(s.key)}',${pg})">
+        <span class="sg-icon">${esc(s.icon||'📦')}</span>
+        <span class="sg-label">${esc(s.label_ru||s.key)}</span>
+        <span class="sg-page">${from}–${to}</span>
+      </button>`;
+    }).join('');
+  }).join('');
   bar.innerHTML = allBtn + subBtns;
   bar.classList.add('visible');
 }
 
-function selectSubgroup(key) {
+function selectSubgroup(key, page) {
   activeSubgroup = key;
+  activeSubgroupPage = page || 0;
   renderSubgroupsBar();
   renderServices(document.getElementById('svcSearch').value);
 }
