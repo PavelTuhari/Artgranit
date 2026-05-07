@@ -461,7 +461,7 @@ class NufarulController:
                 if group_key:
                     r = db.execute_query(
                         """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER,
-                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE
+                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE, LEAD_DAYS
                            FROM NUF_GROUP_PARAMS WHERE GROUP_KEY = :gk""",
                         {"gk": group_key},
                     )
@@ -472,7 +472,7 @@ class NufarulController:
                 else:
                     r = db.execute_query(
                         """SELECT GROUP_KEY, LABEL_RU, LABEL_RO, ICON, SORT_ORDER,
-                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE
+                                  PARAMS_JSON, SUBGROUPS_JSON, ACTIVE, LEAD_DAYS
                            FROM NUF_GROUP_PARAMS WHERE ACTIVE = 'Y' ORDER BY SORT_ORDER"""
                     )
                     return {"success": True, "data": _norm_rows(r)}
