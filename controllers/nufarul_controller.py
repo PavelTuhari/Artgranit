@@ -480,6 +480,37 @@ class NufarulController:
             return {"success": False, "error": str(e), "data": []}
 
     @staticmethod
+    def get_system_settings() -> Dict[str, Any]:
+        """Returns all NUF_SYSTEM_SETTINGS rows as a dict {key: {value, label_ru}}."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT SETTING_KEY, SETTING_VALUE, LABEL_RU FROM NUF_SYSTEM_SETTINGS ORDER BY SETTING_KEY"
+                )
+                rows = _norm_rows(r)
+                data = {row["setting_key"]: {"value": row["setting_value"], "label_ru": row["label_ru"]} for row in rows}
+                return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e), "data": {}}
+
+    @staticmethod
+    def update_system_setting(key: str, value: str) -> Dict[str, Any]:
+        """Upserts a single NUF_SYSTEM_SETTINGS row."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_non_query(
+                    """MERGE INTO NUF_SYSTEM_SETTINGS t
+                       USING DUAL ON (t.SETTING_KEY = :k)
+                       WHEN MATCHED THEN UPDATE SET SETTING_VALUE = :v, UPDATED_AT = SYSDATE
+                       WHEN NOT MATCHED THEN INSERT (SETTING_KEY, SETTING_VALUE, UPDATED_AT)
+                         VALUES (:k, :v, SYSDATE)""",
+                    {"k": key, "v": value},
+                )
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def create_order_with_params(
         client_name: str,
         client_phone: str,
