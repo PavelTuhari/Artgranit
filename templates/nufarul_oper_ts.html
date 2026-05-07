@@ -843,6 +843,11 @@ function renderServices(filter) {
     : services;
   if (activeSubgroup) {
     filtered = filtered.filter(s => s.service_subgroup === activeSubgroup);
+    // Apply page slice (only when not searching)
+    if (!filter) {
+      const start = activeSubgroupPage * PAGE_SIZE;
+      filtered = filtered.slice(start, start + PAGE_SIZE);
+    }
   }
   if (filter) {
     filtered = filtered.filter(s => (s.name_ru || s.name || '').toLowerCase().includes(filter.toLowerCase()));
