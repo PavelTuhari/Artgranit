@@ -205,8 +205,19 @@ button, input, select, textarea { font-family:inherit; }
 .num-input { background:#0f0f22; border:1px solid #2a2a5a; border-radius:6px; color:#7dd3fc; padding:6px 9px; font-size:14px; font-weight:700; width:100px; }
 /* notes */
 .notes-input { width:100%; background:#0f0f22; border:1px solid #2a2a5a; border-radius:5px; color:#e0e0f0; padding:5px 7px; font-size:11px; resize:none; height:42px; }
-.add-btn { margin:0 9px 9px; background:#22c55e; border:none; border-radius:8px; padding:11px; width:calc(100% - 18px); color:#000; font-size:13px; font-weight:800; cursor:pointer; flex-shrink:0; transition:opacity .2s; }
+.add-btn { background:#22c55e; border:none; border-radius:8px; padding:11px; width:100%; color:#000; font-size:13px; font-weight:800; cursor:pointer; flex-shrink:0; transition:opacity .2s; }
 .add-btn:disabled { opacity:.3; cursor:not-allowed; }
+/* numeric stepper (size_m2) */
+.num-stepper { display:flex; align-items:center; gap:8px; }
+.num-stepper-val { min-width:52px; text-align:center; font-size:18px; font-weight:800; color:#e0e0f0; background:#11111e; border-radius:8px; padding:5px 10px; }
+/* subgroup page badge */
+.sg-page { font-size:9px; color:#888; display:block; margin-top:1px; }
+/* per-item ready date in checkout summary */
+.co-item-ready { display:flex; align-items:center; gap:6px; padding:3px 0 5px 4px; border-bottom:1px solid #0f1e0f; }
+.co-item-ready:last-child { border:none; }
+.co-item-ready-lbl { font-size:10px; color:#f59e0b; flex-shrink:0; }
+.co-item-ready input[type=datetime-local] { background:#0a0a1a; border:1px solid #2a3a1a; border-radius:6px; color:#f59e0b; padding:3px 6px; font-size:11px; flex:1; min-width:0; }
+.co-summary-block { margin-bottom:2px; }
 
 /* ── Col 4: Customer screen preview ── */
 .col-customer { background:#0a1020; border-left:2px solid #3b82f6; display:flex; flex-direction:column; overflow:hidden; }
