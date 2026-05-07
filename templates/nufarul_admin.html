@@ -461,6 +461,34 @@
             return div.innerHTML;
         }
 
+        // ── System settings ──────────────────────────────────────────
+        async function loadSettings() {
+            document.getElementById('settingsLoadErr').style.display = 'none';
+            try {
+                const r = await fetch(API + '/system-settings').then(x => x.json());
+                if (!r.success) throw new Error(r.error || 'Ошибка');
+                const w = r.data && r.data.param_modal_width ? r.data.param_modal_width.value : '';
+                document.getElementById('settingParamModalWidth').value = w;
+            } catch(e) {
+                document.getElementById('settingsLoadErr').textContent = 'Ошибка загрузки настроек: ' + e.message;
+                document.getElementById('settingsLoadErr').style.display = '';
+            }
+        }
+
+        document.getElementById('btnSaveSettings').addEventListener('click', async () => {
+            const w = document.getElementById('settingParamModalWidth').value.trim();
+            if (!w || isNaN(parseInt(w))) { toast('Введите корректное число'); return; }
+            try {
+                const r = await fetch(API + '/system-settings/param_modal_width', {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({value: w})
+                }).then(x => x.json());
+                if (!r.success) throw new Error(r.error || 'Ошибка');
+                toast('Настройки сохранены');
+            } catch(e) { toast('Ошибка: ' + e.message); }
+        });
+
         document.querySelectorAll('.nav-link').forEach(a => a.addEventListener('click', (e) => { e.preventDefault(); showPage(a.dataset.page); }));
 
         showPage('services');
