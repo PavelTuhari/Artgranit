@@ -1394,24 +1394,7 @@ function openCheckout() {
   modal.classList.add('open');
 }
 
-function updateCartReadyBadge() {
-  // Show max ready_date across all cart items in the coReadyRow
-  const dates = cart.map(i => i.ready_date).filter(d => d instanceof Date && !isNaN(d));
-  const rdValEl = document.getElementById('coReadyVal');
-  const rdInput = document.getElementById('coReadyInput');
-  if (dates.length) {
-    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-    rdValEl.textContent = _fmtDate(maxDate);
-    rdValEl.style.display = '';
-    rdInput.value = maxDate.toISOString().slice(0,16);
-    rdInput.style.display = 'none';
-  } else {
-    rdValEl.textContent = '';
-    rdValEl.style.display = 'none';
-    rdInput.style.display = '';
-    rdInput.value = '';
-  }
-}
+function updateCartReadyBadge() { /* removed — deadline now set per-item in param modal */ }
 
 document.getElementById('coCancelBtn').addEventListener('click', () => {
   document.getElementById('checkoutModal').classList.remove('open');
