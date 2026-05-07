@@ -2952,6 +2952,31 @@ def api_nufarul_admin_report_by_day():
     return jsonify(NufarulController.report_orders_by_day(date_from=date_from, date_to=date_to))
 
 
+@app.route('/api/nufarul-admin/system-settings', methods=['GET'])
+def api_nufarul_admin_system_settings_get():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    return jsonify(NufarulController.get_system_settings())
+
+
+@app.route('/api/nufarul-admin/system-settings/<key>', methods=['PUT'])
+def api_nufarul_admin_system_settings_put(key):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    data = request.get_json() or {}
+    value = str(data.get('value', '')).strip()
+    if not value:
+        return jsonify({"success": False, "error": "value required"}), 400
+    return jsonify(NufarulController.update_system_setting(key, value))
+
+
+@app.route('/api/nufarul-ts/system-settings', methods=['GET'])
+def api_nufarul_ts_system_settings():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Authentication required"}), 401
+    return jsonify(NufarulController.get_system_settings())
+
+
 # ---------- Nufarul: оператор ----------
 @app.route('/api/nufarul-operator/services', methods=['GET'])
 def api_nufarul_operator_services():
