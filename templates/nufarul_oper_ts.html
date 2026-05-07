@@ -169,8 +169,11 @@ button, input, select, textarea { font-family:inherit; }
 .param-modal-close { background:#1e1e3a; border:none; border-radius:8px; color:#888; font-size:18px; cursor:pointer; padding:6px 10px; flex-shrink:0; }
 .param-modal-close:hover { color:#e0e0f0; }
 .param-modal-body { flex:1; overflow-y:auto; padding:14px; }
-.param-modal-footer { padding:12px 14px; border-top:1px solid #1e1e4a; flex-shrink:0; }
+.param-modal-footer { padding:12px 14px; border-top:1px solid #1e1e4a; flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
 .param-modal-footer .add-btn { margin:0; width:100%; }
+.param-modal-ready { display:flex; align-items:center; gap:8px; background:#0d1a0d; border:1px solid #1e3a1e; border-radius:8px; padding:7px 10px; }
+.param-modal-ready-lbl { font-size:11px; color:#f59e0b; font-weight:600; flex-shrink:0; }
+.param-modal-ready input[type=datetime-local] { background:transparent; border:none; color:#f59e0b; font-size:12px; flex:1; min-width:0; outline:none; }
 /* legacy refs kept for JS compat */
 .params-hdr { display:none; }
 .params-body { display:none; }
