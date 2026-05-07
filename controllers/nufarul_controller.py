@@ -613,6 +613,7 @@ class NufarulController:
                         "order_number": order_number, "barcode": barcode,
                         "total_amount": round(total, 2), "item_ids": item_ids,
                         "payment_method": pay,
+                        "ready_date": rdate.isoformat() if rdate else None,
                     }
                 except Exception as e:
                     try:
