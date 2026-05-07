@@ -1078,7 +1078,7 @@ function renderCustomerPreview(state) {
     document.getElementById('custAddingName').textContent = adding.name;
     document.getElementById('custAddingPar').textContent = adding.params_summary || '';
     document.getElementById('custAddingPrice').textContent =
-      (adding.price||0).toFixed(0) + ' MDL × ' + (adding.qty||1) + ' шт';
+      (adding.price||0).toFixed(0) + ' MDL × ' + (adding.qty||1) + ' ' + (adding.unit||'шт');
     addEl.classList.add('visible');
   } else {
     addEl.classList.remove('visible');
