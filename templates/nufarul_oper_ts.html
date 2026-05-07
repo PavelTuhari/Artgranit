@@ -1374,6 +1374,11 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
       changeEl.textContent = '';
     }
     document.getElementById('coBarcode').textContent = lastOrder.barcode;
+    const rdSuccessEl = document.getElementById('coReadySuccess');
+    if (rdSuccessEl) {
+      rdSuccessEl.textContent = readyDateObj ? '⏱ ' + _fmtDate(readyDateObj) : '';
+      rdSuccessEl.style.display = readyDateObj ? '' : 'none';
+    }
     cart = [];
     renderCart();
     pushCustomerState();
