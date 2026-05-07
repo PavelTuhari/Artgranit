@@ -517,17 +517,39 @@ class NufarulController:
                     cname = (client_name or "Аноним").strip()
                     cphone = (client_phone or "").strip() or None
                     pay = (payment_method or "cash").strip()
-                    cur.execute(
-                        """INSERT INTO NUF_ORDERS_LEDGER
-                           (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES)
-                           VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes)""",
-                        {
-                            "oid": order_id, "onum": order_number, "barcode": barcode,
-                            "cname": cname, "cphone": cphone,
-                            "sid": status_id, "total": round(total, 2),
-                            "notes": (notes or "").strip() or None,
-                        },
-                    )
+                    # Parse ready_date if provided (ISO format: YYYY-MM-DDTHH:MM)
+                    rdate = None
+                    if ready_date:
+                        try:
+                            from datetime import datetime
+                            rdate = datetime.fromisoformat(str(ready_date)[:16])
+                        except Exception:
+                            rdate = None
+                    if rdate is not None:
+                        cur.execute(
+                            """INSERT INTO NUF_ORDERS_LEDGER
+                               (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES, READY_DATE)
+                               VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes, :rdate)""",
+                            {
+                                "oid": order_id, "onum": order_number, "barcode": barcode,
+                                "cname": cname, "cphone": cphone,
+                                "sid": status_id, "total": round(total, 2),
+                                "notes": (notes or "").strip() or None,
+                                "rdate": rdate,
+                            },
+                        )
+                    else:
+                        cur.execute(
+                            """INSERT INTO NUF_ORDERS_LEDGER
+                               (ID, ORDER_NUMBER, BARCODE, CLIENT_NAME, CLIENT_PHONE, STATUS_ID, TOTAL_AMOUNT, NOTES)
+                               VALUES (:oid, :onum, :barcode, :cname, :cphone, :sid, :total, :notes)""",
+                            {
+                                "oid": order_id, "onum": order_number, "barcode": barcode,
+                                "cname": cname, "cphone": cphone,
+                                "sid": status_id, "total": round(total, 2),
+                                "notes": (notes or "").strip() or None,
+                            },
+                        )
                     # Insert payment metadata into companion table
                     cur.execute(
                         """INSERT INTO NUF_ORDER_PAYMENT
