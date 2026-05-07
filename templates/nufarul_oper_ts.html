@@ -1439,7 +1439,7 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     const total = r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0);
     const recv = parseInt(cashStr || '0', 10);
     const change = (selectedPayment === 'cash' && recv > 0) ? recv - Math.ceil(total) : null;
-    const readyDateObj = readyDateISO ? new Date(readyDateISO) : null;
+    const readyDateObj = orderReadyDate;
     lastOrder = {
       order_number: r.order_number || '',
       barcode: r.barcode || r.order_number || '',
