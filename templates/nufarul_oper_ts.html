@@ -1462,6 +1462,7 @@ function buildBonHtml(o) {
     <hr class="bon-hr">
     <div class="bon-row"><span>BON FISCAL (EMULARE)</span></div>
     <div class="bon-row"><span>Data:</span><span>${dateStr}</span></div>
+    ${o.ready_date ? `<div class="bon-row"><span>Termen:</span><span>${_fmtDate(o.ready_date)}</span></div>` : ''}
     <div class="bon-row"><span>Comanda:</span><span>${esc(o.order_number)}</span></div>
     <div class="bon-row"><span>Client:</span><span>${esc(o.client_name)}</span></div>
     ${o.client_phone ? `<div class="bon-row"><span>Tel:</span><span>${esc(o.client_phone)}</span></div>` : ''}
