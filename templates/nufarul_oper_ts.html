@@ -714,6 +714,7 @@ const API_OP = '/api/nufarul-operator';
 const API_TS = '/api/nufarul-ts';
 
 // ── State ──────────────────────────────────────────────────────────────
+const PAGE_SIZE = 20;      // max items per subgroup page before splitting
 let groups = [];           // [{group_key, label_ru, icon, params_json, subgroups_json, ...}]
 let services = [];         // [{id, name_ru, price, unit, service_group, service_subgroup, ...}]
 let activeGroup = null;    // group_key string
