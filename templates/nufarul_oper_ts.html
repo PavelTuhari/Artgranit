@@ -1503,6 +1503,7 @@ function buildActHtml(o) {
       <strong>АКТ ПРИЁМКИ</strong><br>
       Заказ №${esc(o.order_number)} от ${dateStr}<br>
       Клиент: ${esc(o.client_name)}${o.client_phone ? ' · ' + esc(o.client_phone) : ''}<br>
+      Принят: ${dateStr}${o.ready_date ? ` · Срок исполнения: <strong>${_fmtDate(o.ready_date)}</strong>` : ''}<br>
       Итого: ${total} MDL · Оплата: ${esc(payMethod)}<br>
       ${changeStr ? 'Принято: ' + o.cash_received.toFixed(0) + ' MDL · Сдача: ' + Math.max(0,o.change).toFixed(0) + ' MDL<br>' : ''}
       <div style="margin-top:6px;font-size:10px;color:#555">Товары/услуги перечислены в таблице выше.</div>
