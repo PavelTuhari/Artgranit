@@ -1320,11 +1320,14 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '...';
   try {
+    const rdInputVal = document.getElementById('coReadyInput').value;
+    const readyDateISO = rdInputVal || null;
     const payload = {
       client_name: name,
       client_phone: phone,
       payment_method: selectedPayment,
       notes: '',
+      ready_date: readyDateISO,
       items: cart.map(i => ({
         service_id: i.service_id,
         qty: i.qty,
@@ -1337,6 +1340,7 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
     const total = r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0);
     const recv = parseInt(cashStr || '0', 10);
     const change = (selectedPayment === 'cash' && recv > 0) ? recv - Math.ceil(total) : null;
+    const readyDateObj = readyDateISO ? new Date(readyDateISO) : null;
     lastOrder = {
       order_number: r.order_number || '',
       barcode: r.barcode || r.order_number || '',
@@ -1348,6 +1352,7 @@ document.getElementById('coConfirmBtn').addEventListener('click', async () => {
       items: cart.map(i => ({...i})),
       total: total,
       date: new Date(),
+      ready_date: readyDateObj,
     };
     document.getElementById('checkoutForm').style.display = 'none';
     document.getElementById('checkoutSuccess').style.display = 'block';
