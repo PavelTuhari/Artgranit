@@ -971,7 +971,10 @@ function buildParamSummary() {
 // ── Cart ───────────────────────────────────────────────────────────────
 document.getElementById('addBtn').addEventListener('click', () => {
   if (!selectedSvc) return;
-  const qty = paramValues['qty'] || 1;
+  const itemCount = paramValues['qty'] || 1;
+  const size_m2 = (typeof paramValues['size_m2'] === 'number' && paramValues['size_m2'] > 0)
+    ? paramValues['size_m2'] : null;
+  const qty = size_m2 ? Math.round(size_m2 * itemCount * 100) / 100 : itemCount;
   const summary = buildParamSummary();
   const colorVal = paramValues['color'];
   const colorDot = colorVal ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colorVal};vertical-align:middle;margin-right:3px;"></span>` : '';
