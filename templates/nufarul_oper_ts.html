@@ -1495,7 +1495,7 @@ function buildActHtml(o) {
   const changeStr = (o.payment_method === 'cash' && o.cash_received > 0 && o.change !== null)
     ? `Primit: ${o.cash_received.toFixed(0)} MDL | Rest: ${Math.max(0,o.change).toFixed(0)} MDL`
     : '';
-  const qrUrl = 'https://nufarul.md/reguli-curatare';
+  const qrUrl = 'https://nufarul.com';
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrUrl)}&format=png`;
   const ruSection = `
     <div class="act-ru">
