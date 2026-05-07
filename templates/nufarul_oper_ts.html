@@ -1286,6 +1286,25 @@ function openCheckout() {
     const par = i.params_summary ? ` · ${i.params_summary}` : '';
     return `<div class="co-summary-item"><span class="co-summary-name">${esc(i.name)}${esc(par)}</span><span class="co-summary-amt">${amt} MDL</span></div>`;
   }).join('');
+  // Ready date
+  const rdRes = computeCartReadyDate();
+  const rdValEl = document.getElementById('coReadyVal');
+  const rdInput = document.getElementById('coReadyInput');
+  if (rdRes.date) {
+    rdValEl.textContent = _fmtDate(rdRes.date);
+    rdValEl.style.display = '';
+    rdInput.value = rdRes.date.toISOString().slice(0,16);
+    rdInput.style.display = rdRes.manual ? '' : 'none';
+  } else {
+    rdValEl.textContent = '';
+    rdValEl.style.display = 'none';
+    rdInput.style.display = '';
+    rdInput.value = '';
+  }
+  // If manual input and date was computed as max — show both
+  if (rdRes.manual && rdRes.date) {
+    rdInput.style.display = '';
+  }
   modal.classList.add('open');
 }
 
