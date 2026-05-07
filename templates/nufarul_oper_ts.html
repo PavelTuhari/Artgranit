@@ -983,6 +983,15 @@ function changeCount(key, delta) {
   updateCustomerAdding();
 }
 
+function changeNumeric(key, delta, min, step) {
+  const cur = paramValues[key] || min;
+  const next = Math.max(min, Math.round((cur + delta) * 100) / 100);
+  paramValues[key] = next;
+  const el = document.getElementById('nst_' + key);
+  if (el) el.textContent = next % 1 === 0 ? next : next.toFixed(1);
+  updateCustomerAdding();
+}
+
 function buildParamSummary() {
   const parts = [];
   const params = groupParams[activeGroup] || [];
