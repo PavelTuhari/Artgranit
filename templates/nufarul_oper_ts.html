@@ -1368,12 +1368,21 @@ function openCheckout() {
   // Summary
   const total = cart.reduce((s,i) => s + i.price*i.qty, 0);
   document.getElementById('coTotalBadge').textContent = total.toFixed(0) + ' MDL';
-  document.getElementById('coSummary').innerHTML = cart.map(i => {
+  document.getElementById('coSummary').innerHTML = cart.map((i, idx) => {
     const amt = (i.price * i.qty).toFixed(0);
     const par = i.params_summary ? ` · ${i.params_summary}` : '';
-    return `<div class="co-summary-item"><span class="co-summary-name">${esc(i.name)}${esc(par)}</span><span class="co-summary-amt">${amt} MDL</span></div>`;
+    const rdVal = i.ready_date ? i.ready_date.toISOString().slice(0,16) : '';
+    const rdDisp = i.ready_date ? _fmtDate(i.ready_date) : '—';
+    return `<div class="co-summary-block">
+      <div class="co-summary-item"><span class="co-summary-name">${esc(i.name)}${esc(par)}</span><span class="co-summary-amt">${amt} MDL</span></div>
+      <div class="co-item-ready">
+        <span class="co-item-ready-lbl">⏱ Termen:</span>
+        <input type="datetime-local" value="${rdVal}"
+          onchange="cart[${idx}].ready_date=this.value?new Date(this.value):null;updateCartReadyBadge()">
+      </div>
+    </div>`;
   }).join('');
-  // Ready date
+  // Ready date badge (max of all items)
   const rdRes = computeCartReadyDate();
   const rdValEl = document.getElementById('coReadyVal');
   const rdInput = document.getElementById('coReadyInput');
