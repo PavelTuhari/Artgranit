@@ -1388,14 +1388,9 @@ function openCheckout() {
     const rdDisp = i.ready_date ? _fmtDate(i.ready_date) : '—';
     return `<div class="co-summary-block">
       <div class="co-summary-item"><span class="co-summary-name">${esc(i.name)}${esc(par)}</span><span class="co-summary-amt">${amt} MDL</span></div>
-      <div class="co-item-ready">
-        <span class="co-item-ready-lbl">⏱ Termen:</span>
-        <input type="datetime-local" value="${rdVal}"
-          onchange="cart[${idx}].ready_date=this.value?new Date(this.value):null;updateCartReadyBadge()">
-      </div>
+      ${i.ready_date ? `<div class="co-item-ready"><span class="co-item-ready-lbl">⏱ Termen:</span><span style="font-size:11px;color:#f59e0b">${rdDisp}</span></div>` : ''}
     </div>`;
   }).join('');
-  updateCartReadyBadge();
   modal.classList.add('open');
 }
 
