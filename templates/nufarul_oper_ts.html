@@ -1465,6 +1465,61 @@ function openCheckout() {
 
 function updateCartReadyBadge() { /* removed — deadline now set per-item in param modal */ }
 
+// ── Touch calendar ──────────────────────────────────────────────────────
+const CAL_MO = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+const CAL_DH = ['L','Ma','Mi','J','V','S','D'];
+let calY = 0, calM = 0, calD = 0, calH = 15, calMin = 0;
+
+function openCalModal() {
+  const raw = document.getElementById('paramModalReadyDate').value;
+  const base = raw ? new Date(raw) : addWorkingDays(new Date(), 0);
+  calY = base.getFullYear(); calM = base.getMonth(); calD = base.getDate();
+  calH = raw ? base.getHours() : 15; calMin = raw ? base.getMinutes() : 0;
+  _renderCal();
+  document.getElementById('calModal').classList.add('open');
+}
+function closeCalModal() { document.getElementById('calModal').classList.remove('open'); }
+function confirmCalModal() {
+  const d = new Date(calY, calM, calD, calH, calMin, 0, 0);
+  const iso = calY + '-' + String(calM+1).padStart(2,'0') + '-' + String(calD).padStart(2,'0') + 'T' + String(calH).padStart(2,'0') + ':' + String(calMin).padStart(2,'0');
+  document.getElementById('paramModalReadyDate').value = iso;
+  document.getElementById('pmReadyVal').textContent = _fmtDate(d);
+  closeCalModal();
+}
+function calNavMonth(d) {
+  calM += d;
+  if (calM < 0) { calM = 11; calY--; }
+  if (calM > 11) { calM = 0; calY++; }
+  _renderCal();
+}
+function calChgHour(d) {
+  calH = (calH + d + 24) % 24;
+  document.getElementById('calHourVal').textContent = String(calH).padStart(2,'0');
+}
+function calChgMin(d) {
+  calMin = ((calMin + d) % 60 + 60) % 60;
+  document.getElementById('calMinVal').textContent = String(calMin).padStart(2,'0');
+}
+function calSelDay(d) { calD = d; _renderCal(); }
+function _renderCal() {
+  document.getElementById('calMonthLbl').textContent = CAL_MO[calM] + ' ' + calY;
+  document.getElementById('calHourVal').textContent = String(calH).padStart(2,'0');
+  document.getElementById('calMinVal').textContent = String(calMin).padStart(2,'0');
+  const today = new Date();
+  const firstDow = new Date(calY, calM, 1).getDay(); // 0=Sun
+  const startOff = firstDow === 0 ? 6 : firstDow - 1; // Mon-first offset
+  const daysInMo = new Date(calY, calM + 1, 0).getDate();
+  const dh = CAL_DH.map(n => `<div class="cal-dh">${n}</div>`).join('');
+  const empty = Array(startOff).fill('<div class="cal-day empty"></div>').join('');
+  const days = Array.from({length: daysInMo}, (_, i) => {
+    const n = i + 1;
+    const isToday = today.getFullYear()===calY && today.getMonth()===calM && today.getDate()===n;
+    const isSel = calD === n;
+    return `<button class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="calSelDay(${n})">${n}</button>`;
+  }).join('');
+  document.getElementById('calGrid').innerHTML = dh + empty + days;
+}
+
 document.getElementById('coCancelBtn').addEventListener('click', () => {
   document.getElementById('checkoutModal').classList.remove('open');
 });
