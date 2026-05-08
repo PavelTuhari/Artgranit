@@ -1692,12 +1692,17 @@ function buildBonHtml(o) {
 
 function buildActHtml(o) {
   const dateStr = _fmtDate(o.date);
+  const _toDate = v => v instanceof Date ? v : (v ? new Date(v) : null);
+  const allRd = o.items.map(i => _toDate(i.ready_date)).filter(d => d && !isNaN(d));
+  const maxRd = allRd.length ? new Date(Math.max(...allRd.map(d => d.getTime()))) : _toDate(o.ready_date);
   const itemRows = o.items.map((i, idx) => {
     const amt = (i.price * i.qty).toFixed(2);
     const params = i.params_summary ? `<div class="act-params-cell">${esc(i.params_summary)}</div>` : '';
+    const rdDate = _toDate(i.ready_date);
+    const rdRow = rdDate ? `<div style="font-size:9px;color:#b45309;margin-top:3px;font-weight:700">⏱ ${_fmtDate(rdDate)}</div>` : '';
     return `<tr>
       <td>${idx+1}</td>
-      <td>${esc(i.name||'')}${params}</td>
+      <td>${esc(i.name||'')}${params}${rdRow}</td>
       <td style="text-align:center">${i.qty}</td>
       <td style="text-align:right">${(i.price||0).toFixed(2)}</td>
       <td style="text-align:right">${amt}</td>
