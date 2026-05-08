@@ -565,11 +565,42 @@ button, input, select, textarea { font-family:inherit; }
     </div>
     <div class="param-modal-body" id="paramModalBody"></div>
     <div class="param-modal-footer">
-      <div class="param-modal-ready">
-        <span class="param-modal-ready-lbl">⏱ Termen executare:</span>
-        <input type="datetime-local" id="paramModalReadyDate">
-      </div>
+      <button class="pm-ready-btn" type="button" onclick="openCalModal()">
+        <span class="pm-ready-ico">📅</span>
+        <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+          <span class="pm-ready-lbl">⏱ Termen de executare</span>
+          <span class="pm-ready-val" id="pmReadyVal">—</span>
+        </div>
+        <span style="font-size:14px;color:#555">▼</span>
+      </button>
+      <input type="hidden" id="paramModalReadyDate">
       <button class="add-btn" id="addBtn" disabled>+ ДОБАВИТЬ В КОРЗИНУ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar modal -->
+<div class="cal-overlay" id="calModal">
+  <div class="cal-box">
+    <div class="cal-hdr">
+      <button class="cal-nav" onclick="calNavMonth(-1)">◀</button>
+      <span class="cal-month-lbl" id="calMonthLbl"></span>
+      <button class="cal-nav" onclick="calNavMonth(1)">▶</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-time">
+      <span class="cal-t-lbl">Ora:</span>
+      <button class="cal-t-btn" onclick="calChgHour(-1)">−</button>
+      <span class="cal-t-val" id="calHourVal">15</span>
+      <button class="cal-t-btn" onclick="calChgHour(1)">+</button>
+      <span class="cal-t-lbl">:</span>
+      <button class="cal-t-btn" onclick="calChgMin(-15)">−</button>
+      <span class="cal-t-val" id="calMinVal">00</span>
+      <button class="cal-t-btn" onclick="calChgMin(15)">+</button>
+    </div>
+    <div class="cal-acts">
+      <button class="cal-btn-cancel" onclick="closeCalModal()">Отмена</button>
+      <button class="cal-btn-ok" onclick="confirmCalModal()">✓ Подтвердить</button>
     </div>
   </div>
 </div>
