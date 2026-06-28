@@ -356,6 +356,7 @@ html, body {
     <div class="tab-btn" id="tab-groups" onclick="showTab('groups')" data-i18n="tab_groups"></div>
     <div class="tab-btn" id="tab-prices" onclick="showTab('prices')" data-i18n="tab_prices"></div>
     <div class="tab-btn" id="tab-mapping" onclick="showTab('mapping')" data-i18n="tab_mapping"></div>
+    <div class="tab-btn" id="tab-wizard" onclick="showTab('wizard')" data-i18n="tab_wizard"></div>
   </div>
 
   <div class="main-area">
@@ -682,6 +683,66 @@ html, body {
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 6: IMPORT WIZARD (4-step)                     -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-wizard">
+        <div class="sec-header"><h2 data-i18n="tab_wizard"></h2></div>
+        <div class="btn-row" id="wiz-stepper">
+          <span class="badge badge-default" id="wiz-step-1">1 · <span data-i18n="wiz_s1"></span></span>
+          <span class="badge badge-default" id="wiz-step-2">2 · <span data-i18n="wiz_s2"></span></span>
+          <span class="badge badge-default" id="wiz-step-3">3 · <span data-i18n="wiz_s3"></span></span>
+          <span class="badge badge-default" id="wiz-step-4">4 · <span data-i18n="wiz_s4"></span></span>
+        </div>
+
+        <div class="card" id="wiz-body-1">
+          <h3 data-i18n="wiz_s1"></h3>
+          <div class="filter-bar">
+            <label data-i18n="f_source"></label>
+            <select class="f-select" id="wiz-source" onchange="wizardInit()">
+              <option value="BIRO26_GOODS">BIRO26_GOODS</option>
+            </select>
+          </div>
+          <p class="muted" id="wiz-src-info"></p>
+          <div class="form-actions"><button class="btn primary" onclick="wizGoto(2)" data-i18n="wiz_next"></button></div>
+        </div>
+
+        <div class="card" id="wiz-body-2" style="display:none">
+          <h3 data-i18n="wiz_s2"></h3>
+          <div class="data-table-wrap">
+            <table class="data-table" id="wiz-map-table">
+              <thead><tr>
+                <th data-i18n="wiz_col_target"></th>
+                <th data-i18n="wiz_col_source"></th>
+                <th data-i18n="wiz_col_sample"></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="form-actions">
+            <button class="btn" onclick="wizGoto(1)" data-i18n="wiz_back"></button>
+            <button class="btn primary" onclick="wizSaveMapping()" data-i18n="wiz_next"></button>
+          </div>
+        </div>
+
+        <div class="card" id="wiz-body-3" style="display:none">
+          <h3 data-i18n="wiz_s3"></h3>
+          <div class="btn-row"><button class="btn primary" onclick="wizValidate()" data-i18n="wiz_run_validate"></button></div>
+          <div class="report-panel" id="wiz-validate-report" data-empty=""></div>
+          <div class="form-actions">
+            <button class="btn" onclick="wizGoto(2)" data-i18n="wiz_back"></button>
+            <button class="btn primary" onclick="wizGoto(4)" data-i18n="wiz_next"></button>
+          </div>
+        </div>
+
+        <div class="card" id="wiz-body-4" style="display:none">
+          <h3 data-i18n="wiz_s4"></h3>
+          <div class="btn-row"><button class="btn primary" onclick="wizImport()" data-i18n="wiz_run_import"></button></div>
+          <div class="report-panel" id="wiz-import-report" data-empty=""></div>
+          <div class="form-actions"><button class="btn" onclick="wizGoto(3)" data-i18n="wiz_back"></button></div>
+        </div>
+      </div>
+
     </div><!-- /content-area -->
   </div><!-- /main-area -->
 </div><!-- /app-shell -->
@@ -751,6 +812,12 @@ ru: {
   app_title: 'Biro26 — Бэк-офис', back: 'Biro26',
   tab_source: 'Источник', tab_dict: 'Номенклатура', tab_groups: 'Группы / Поставщики',
   tab_prices: 'Прайс-лист', tab_mapping: 'Сопоставление / Настройки',
+  tab_wizard: 'Импорт (мастер)',
+  wiz_s1: 'Источник', wiz_s2: 'Сопоставление', wiz_s3: 'Проверка', wiz_s4: 'Импорт',
+  wiz_back: 'Назад', wiz_next: 'Далее',
+  wiz_run_validate: 'Запустить проверку', wiz_run_import: 'Импортировать номенклатуру',
+  wiz_col_target: 'Целевое поле', wiz_col_source: 'Колонка источника', wiz_col_sample: 'Пример',
+  f_source: 'Источник:',
   loading: 'Загрузка...', f_apply: 'Применить', f_search: 'Поиск...', f_all: 'Все',
   f_brand: 'Бренд:', f_furnizor: 'Поставщик:', f_status: 'Статус:', f_gr1: 'Группа (gr1):',
   f_arhiv: 'Архив:', f_codprice: 'Код цены:', f_codgrp: 'Код группы:',
@@ -808,6 +875,12 @@ ro: {
   app_title: 'Biro26 — Back-office', back: 'Biro26',
   tab_source: 'Sursă', tab_dict: 'Nomenclator', tab_groups: 'Grupe / Furnizori',
   tab_prices: 'Listă de prețuri', tab_mapping: 'Mapare / Setări',
+  tab_wizard: 'Import (asistent)',
+  wiz_s1: 'Sursă', wiz_s2: 'Mapare', wiz_s3: 'Verificare', wiz_s4: 'Import',
+  wiz_back: 'Înapoi', wiz_next: 'Înainte',
+  wiz_run_validate: 'Rulează validarea', wiz_run_import: 'Importă nomenclatorul',
+  wiz_col_target: 'Câmp țintă', wiz_col_source: 'Coloană sursă', wiz_col_sample: 'Exemplu',
+  f_source: 'Sursă:',
   loading: 'Se încarcă...', f_apply: 'Aplică', f_search: 'Căutare...', f_all: 'Toate',
   f_brand: 'Brand:', f_furnizor: 'Furnizor:', f_status: 'Status:', f_gr1: 'Grupă (gr1):',
   f_arhiv: 'Arhivă:', f_codprice: 'Cod preț:', f_codgrp: 'Cod grupă:',
@@ -865,6 +938,12 @@ en: {
   app_title: 'Biro26 — Back-office', back: 'Biro26',
   tab_source: 'Source', tab_dict: 'Dictionary', tab_groups: 'Groups / Suppliers',
   tab_prices: 'Price list', tab_mapping: 'Mapping / Settings',
+  tab_wizard: 'Import (wizard)',
+  wiz_s1: 'Source', wiz_s2: 'Mapping', wiz_s3: 'Validate', wiz_s4: 'Import',
+  wiz_back: 'Back', wiz_next: 'Next',
+  wiz_run_validate: 'Run validation', wiz_run_import: 'Import dictionary',
+  wiz_col_target: 'Target field', wiz_col_source: 'Source column', wiz_col_sample: 'Sample',
+  f_source: 'Source:',
   loading: 'Loading...', f_apply: 'Apply', f_search: 'Search...', f_all: 'All',
   f_brand: 'Brand:', f_furnizor: 'Supplier:', f_status: 'Status:', f_gr1: 'Group (gr1):',
   f_arhiv: 'Archive:', f_codprice: 'Price code:', f_codgrp: 'Group code:',
@@ -958,7 +1037,7 @@ function renderI18n() {
 /* =====================================================================
    TABS
    ===================================================================== */
-const TABS = ['source','dict','groups','prices','mapping'];
+const TABS = ['source','dict','groups','prices','mapping','wizard'];
 
 function showTab(id) {
   TABS.forEach(x => {
@@ -976,6 +1055,7 @@ function showTab(id) {
   if (id === 'groups')  { loadGroups(); loadSuppliers(); loadFurnizori(); loadCategories(); }
   if (id === 'prices')  { loadPrices(); loadPriceDates(); }
   if (id === 'mapping') { loadProfiles(); }
+  if (id === 'wizard')  { wizardInit(); }
 }
 
 /* =====================================================================

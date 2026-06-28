@@ -505,3 +505,90 @@ async function createNewProfile() {
   const r = await apiPost(API + '/mapping/profiles', {name, codprice, params: {}});
   if (r.success) { toast(t('ok_generic'), 'ok'); loadProfiles(); }
 }
+
+/* =====================================================================
+   IMPORT WIZARD
+   ===================================================================== */
+const WIZ_TARGETS = [
+  {param:'col_key',      label:'COD_UNIVERS (key)'},
+  {param:'col_articol',  label:'CODVECHI ← articol'},
+  {param:'col_denumire', label:'DENUMIREA ← denumire'},
+  {param:'col_retail',   label:'PRETV ← retail'},
+  {param:'col_angro',    label:'PRETV1 ← angro'},
+  {param:'col_ionline',  label:'PRETV2 ← ionline'},
+  {param:'col_brand',    label:'group ← brand'},
+];
+let wizState = {step:1, source:'BIRO26_GOODS', activeId:null, columns:[], sample:{columns:[],data:[]}, mapping:{}};
+
+async function wizardInit() {
+  const src = el('wiz-source') ? el('wiz-source').value : 'BIRO26_GOODS';
+  wizState.source = src;
+  const pr = await apiGet(API + '/mapping/profiles');
+  const active = (pr.data||[]).find(p=>String(p.is_default)==='1');
+  if (active) {
+    wizState.activeId = active.id;
+    const d = await apiGet(API+'/mapping/profiles/'+active.id);
+    wizState.mapping = (d.data && d.data.params) || {};
+  }
+  const c = await apiGet(API+'/source/columns?source='+encodeURIComponent(src));
+  wizState.columns = c.data || [];
+  const s = await apiGet(API+'/source/sample?source='+encodeURIComponent(src)+'&limit=10');
+  wizState.sample = {columns:s.columns||[], data:s.data||[]};
+  if (el('wiz-src-info')) el('wiz-src-info').textContent =
+    (wizState.columns.length) + ' cols · ' + (wizState.sample.data.length) + ' sample rows' +
+    (active ? (' · profile: ' + active.name) : '');
+  wizState.step = 1; wizRender();
+}
+
+function wizGoto(step){ wizState.step = step; wizRender(); if (step===2) wizRenderMapTable(); }
+
+function wizRender(){
+  for (let i=1;i<=4;i++){
+    const body = el('wiz-body-'+i); if (body) body.style.display = (i===wizState.step)?'':'none';
+    const chip = el('wiz-step-'+i);
+    if (chip) chip.className = 'badge ' + (i===wizState.step ? 'badge-indict' : 'badge-default');
+  }
+}
+
+function wizSampleFor(colName){
+  const i = wizState.sample.columns.indexOf(colName);
+  if (i < 0) return '';
+  const vals = wizState.sample.data.slice(0,3).map(r => r[i]).filter(v=>v!=null);
+  return escapeHtml(vals.join(', '));
+}
+
+function wizRenderMapTable(){
+  const opts = ['<option value=""></option>'].concat(
+    wizState.columns.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>')).join('');
+  el('wiz-map-table').querySelector('tbody').innerHTML = WIZ_TARGETS.map(tg => {
+    const cur = wizState.mapping[tg.param] || '';
+    const sel = opts.replace('value="'+escapeHtml(cur)+'"','value="'+escapeHtml(cur)+'" selected');
+    return '<tr><td>'+escapeHtml(tg.label)+'</td>'+
+      '<td><select class="f-select" data-param="'+tg.param+'" onchange="wizOnMap(this)">'+sel+'</select></td>'+
+      '<td class="muted">'+wizSampleFor(cur)+'</td></tr>';
+  }).join('');
+}
+
+function wizOnMap(selEl){
+  wizState.mapping[selEl.dataset.param] = selEl.value;
+  selEl.closest('tr').lastElementChild.textContent = wizSampleFor(selEl.value);
+}
+
+async function wizSaveMapping(){
+  if (!wizState.activeId){ toast(t('err_generic'),'err'); return; }
+  const params = {};
+  WIZ_TARGETS.forEach(tg=>{ if (wizState.mapping[tg.param]) params[tg.param]=wizState.mapping[tg.param]; });
+  const r = await apiPut(API+'/mapping/profiles/'+wizState.activeId, {params});
+  if (r.success){ toast(t('saved'),'ok'); wizGoto(3); }
+}
+
+async function wizValidate(){
+  const r = await apiPost(API + '/goods/validate', {});
+  renderReport('wiz-validate-report', r);
+}
+
+async function wizImport(){
+  if (!confirmAction('confirm_univers_import')) return;
+  const r = await apiPost(API + '/univers/import', {});
+  renderReport('wiz-import-report', r);
+}
