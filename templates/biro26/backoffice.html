@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biro26 — Back-office</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --menu-h: 32px;
+  --status-h: 22px;
+  --bg: #1a1a2e;
+  --bg2: #16213e;
+  --bg3: #0f3460;
+  --accent: #4f8ef7;
+  --accent2: #7c6af7;
+  --green: #22c55e;
+  --yellow: #f59e0b;
+  --red: #ef4444;
+  --text: #e2e8f0;
+  --text-dim: #7c8ba0;
+  --border: #2d3a4f;
+
+  --c-bg: #f8fafc;
+  --c-text: #1e293b;
+  --c-border: #e2e8f0;
+  --c-blue: #1d4ed8;
+  --c-blue-lt: #dbeafe;
+  --c-gray: #475569;
+  --c-green: #15803d;
+  --c-green-lt: #dcfce7;
+  --c-red: #dc2626;
+  --c-red-lt: #fee2e2;
+}
+
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── MENU BAR ──────────────────────────────────────── */
+.menu-bar {
+  height: var(--menu-h);
+  background: #0d0d1a;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 10px; gap: 2px;
+  flex-shrink: 0; z-index: 200;
+  user-select: none;
+}
+.menu-logo {
+  display: flex; align-items: center; gap: 8px;
+  margin-right: 10px;
+  font-weight: 700; font-size: 13px; color: var(--accent);
+  letter-spacing: .03em;
+}
+.menu-logo .logo-badge {
+  background: var(--accent); color: #fff;
+  border-radius: 3px; padding: 1px 6px;
+  font-size: 11px; font-weight: 700;
+}
+.menu-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.menu-back {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px; font-size: 12px;
+  color: var(--accent); border-radius: 3px;
+  cursor: pointer; text-decoration: none;
+  transition: background .12s;
+}
+.menu-back:hover { background: rgba(79,142,247,.15); }
+.menu-profile {
+  font-size: 11px; color: #a5f3fc;
+  background: rgba(165,243,252,.1);
+  border-radius: 3px; padding: 2px 8px;
+}
+
+/* lang switcher */
+.lang-switch { display: flex; gap: 2px; background: rgba(255,255,255,.06); border-radius: 5px; padding: 2px; }
+.lang-btn {
+  border: none; background: transparent; color: var(--text-dim);
+  font-size: 11px; font-weight: 700; padding: 3px 9px;
+  border-radius: 4px; cursor: pointer; transition: background .12s, color .12s;
+}
+.lang-btn:hover { color: var(--text); }
+.lang-btn.active { background: var(--accent); color: #fff; }
+
+/* ── APP SHELL ─────────────────────────────────────── */
+.app-shell {
+  display: flex; flex-direction: column;
+  height: calc(100vh - var(--menu-h) - var(--status-h));
+  overflow: hidden;
+}
+
+/* ── TAB STRIP ─────────────────────────────────────── */
+.tab-strip {
+  display: flex; align-items: center; gap: 2px;
+  background: #fff; border-bottom: 1px solid var(--c-border);
+  padding: 0 12px; height: 42px; flex-shrink: 0;
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 9px 16px; font-size: 12.5px; font-weight: 600;
+  color: var(--c-gray); cursor: pointer; border-bottom: 2px solid transparent;
+  white-space: nowrap; transition: color .12s, border-color .12s;
+}
+.tab-btn:hover { color: var(--c-blue); }
+.tab-btn.active { color: var(--c-blue); border-bottom-color: var(--c-blue); }
+
+/* ── MAIN AREA ─────────────────────────────────────── */
+.main-area { flex: 1; min-width: 0; overflow: hidden; background: var(--c-bg); display: flex; flex-direction: column; }
+.content-area { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 18px 20px; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── SECTION HEADER ────────────────────────────────── */
+.sec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.sec-header h2 { font-size: 15px; font-weight: 700; color: var(--c-text); }
+.sec-header .count {
+  background: var(--c-blue-lt); color: var(--c-blue);
+  border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 700;
+}
+.sec-header .sp { flex: 1; }
+
+/* ── FILTER BAR ────────────────────────────────────── */
+.filter-bar {
+  display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center;
+  background: #fff; border: 1px solid var(--c-border); border-radius: 8px; padding: 10px 12px;
+}
+.filter-bar label { font-size: 11px; color: var(--c-gray); font-weight: 600; }
+.f-input, .f-select {
+  padding: 6px 9px; font-size: 12px;
+  border: 1px solid var(--c-border); border-radius: 5px;
+  outline: none; color: var(--c-text); background: #fff;
+}
+.f-input:focus, .f-select:focus { border-color: var(--c-blue); }
+.f-input.w-search { width: 200px; }
+.f-input.w-sm { width: 90px; }
+.f-input.w-date { width: 130px; }
+
+/* ── BUTTONS ───────────────────────────────────────── */
+.btn {
+  padding: 6px 13px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--c-border); border-radius: 5px;
+  background: #fff; color: var(--c-text); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .12s, border-color .12s;
+}
+.btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+.btn.primary { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
+.btn.primary:hover { background: #1e40af; }
+.btn.danger { color: var(--c-red); border-color: #fecaca; }
+.btn.danger:hover { background: #fef2f2; }
+.btn.danger.solid { background: var(--c-red); color: #fff; border-color: var(--c-red); }
+.btn.danger.solid:hover { background: #b91c1c; }
+.btn.success { color: var(--c-green); border-color: #bbf7d0; }
+.btn.success:hover { background: #f0fdf4; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+
+/* ── DATA TABLE ────────────────────────────────────── */
+.data-table-wrap {
+  background: #fff; border: 1px solid var(--c-border);
+  border-radius: 8px; overflow: auto; margin-bottom: 16px;
+  max-height: 460px;
+}
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+  background: #f8fafc; color: var(--c-gray);
+  font-weight: 600; font-size: 11px;
+  text-transform: uppercase; letter-spacing: .03em;
+  padding: 8px 10px; border-bottom: 1px solid var(--c-border);
+  text-align: left; white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+}
+.data-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #f8fafc; }
+.data-table tr.row-selected td { background: #eff6ff; }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.data-table .td-actions { white-space: nowrap; text-align: right; }
+.btn-sm {
+  padding: 3px 8px; font-size: 11px;
+  border: 1px solid var(--c-border); border-radius: 3px; cursor: pointer;
+  background: #fff; color: var(--c-text); transition: background .1s;
+}
+.btn-sm:hover { background: #f1f5f9; }
+.edit-input {
+  width: 100%; min-width: 70px; padding: 3px 5px; font-size: 12px;
+  border: 1px solid var(--c-border); border-radius: 3px; outline: none;
+}
+.edit-input:focus { border-color: var(--c-blue); background: #fff7ed; }
+
+/* ── BADGE ─────────────────────────────────────────── */
+.badge { display: inline-block; border-radius: 10px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
+.badge-new      { background: var(--c-blue-lt); color: var(--c-blue); }
+.badge-indict   { background: var(--c-green-lt); color: var(--c-green); }
+.badge-conflict { background: var(--c-red-lt); color: var(--c-red); }
+.badge-default  { background: #f1f5f9; color: var(--c-gray); }
+
+/* ── REPORT PANEL (monospace output) ──────────────── */
+.report-panel {
+  background: #0f172a; color: #d1fae5;
+  border-radius: 8px; padding: 12px 14px;
+  font-family: 'SF Mono', Consolas, Menlo, monospace;
+  font-size: 11.5px; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 280px; overflow-y: auto;
+  margin-bottom: 16px;
+}
+.report-panel:empty::before { content: attr(data-empty); color: #64748b; font-style: italic; }
+.report-panel .ln-err { color: #fca5a5; }
+.report-panel .ln-ok { color: #86efac; }
+
+/* ── CARD ──────────────────────────────────────────── */
+.card {
+  background: #fff; border: 1px solid var(--c-border); border-radius: 8px;
+  padding: 16px; margin-bottom: 16px;
+}
+.card h3 {
+  font-size: 13px; font-weight: 700; color: var(--c-text);
+  margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--c-border);
+}
+
+/* ── TWO COLUMN LAYOUT ─────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-items: start; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: start; }
+
+/* ── DETAIL CARD (univers) ─────────────────────────── */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.detail-field { font-size: 12px; }
+.detail-field .df-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--c-gray); margin-bottom: 1px;
+}
+.detail-field .df-val { color: var(--c-text); font-weight: 600; word-break: break-word; }
+.detail-section-title {
+  font-size: 11px; font-weight: 700; color: var(--c-blue);
+  text-transform: uppercase; letter-spacing: .04em;
+  margin: 14px 0 8px; padding-top: 10px; border-top: 1px dashed var(--c-border);
+}
+.detail-section-title:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+/* ── FORM ──────────────────────────────────────────── */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+.form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-group label { font-size: 11px; font-weight: 600; color: var(--c-gray); }
+.form-group input, .form-group select {
+  padding: 6px 9px; font-size: 12px;
+  border: 1px solid var(--c-border); border-radius: 5px; outline: none;
+  font-family: inherit; color: var(--c-text);
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--c-blue); }
+.form-group input.invalid { border-color: var(--c-red); background: #fef2f2; }
+.form-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+/* ── ALERT ─────────────────────────────────────────── */
+.alert { padding: 10px 14px; border-radius: 6px; font-size: 12.5px; margin-bottom: 14px; line-height: 1.5; }
+.alert-info { background: var(--c-blue-lt); border-left: 3px solid var(--c-blue); }
+.alert-warn { background: #fefce8; border-left: 3px solid #ca8a04; }
+.alert-ok { background: var(--c-green-lt); border-left: 3px solid var(--c-green); }
+.alert-err { background: var(--c-red-lt); border-left: 3px solid var(--c-red); }
+
+/* ── MODAL (small forms: merge groups, new profile) ──── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.5); z-index: 500;
+  align-items: center; justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: #fff; border-radius: 10px;
+  width: 440px; max-width: 92vw; max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.modal-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--c-border);
+  display: flex; align-items: center; gap: 10px;
+}
+.modal-header h3 { font-size: 14px; font-weight: 700; flex: 1; }
+.modal-close {
+  width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: #f1f5f9; cursor: pointer; font-size: 15px; color: var(--c-gray);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: #e2e8f0; }
+.modal-body { padding: 18px; overflow-y: auto; flex: 1; }
+.modal-footer { padding: 12px 18px; border-top: 1px solid var(--c-border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ── TOAST ─────────────────────────────────────────── */
+.toast-container { position: fixed; bottom: 28px; right: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  background: #1e293b; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  animation: slideIn .2s ease; max-width: 340px;
+}
+.toast.ok { background: var(--c-green); }
+.toast.err { background: var(--c-red); }
+@keyframes slideIn { from { transform: translateX(110%); } to { transform: translateX(0); } }
+
+/* ── EMPTY STATE ───────────────────────────────────── */
+.empty-state { text-align: center; padding: 30px 20px; color: var(--c-gray); }
+.empty-state .es-icon { font-size: 30px; margin-bottom: 8px; }
+
+/* ── STATUS BAR ────────────────────────────────────── */
+.status-bar {
+  height: var(--status-h); background: var(--c-blue); color: #fff;
+  display: flex; align-items: center; padding: 0 14px; gap: 20px;
+  font-size: 11px; flex-shrink: 0;
+}
+.status-bar .sb-right { margin-left: auto; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100,116,139,.3); border-radius: 3px; }
+
+.mono { font-family: 'SF Mono', Consolas, Menlo, monospace; }
+.muted { color: var(--c-gray); }
+.req { color: var(--c-red); }
+</style>
+</head>
+<body>
+
+<!-- ── MENU BAR ──────────────────────────────────────────── -->
+<div class="menu-bar">
+  <div class="menu-logo">
+    <span class="logo-badge">B26</span>
+    <span id="t-app-title">Biro26 — Back-office</span>
+  </div>
+  <span class="menu-profile" id="active-profile-indicator" style="display:none"></span>
+  <div class="menu-right">
+    <div class="lang-switch">
+      <button class="lang-btn" id="lang-ru" onclick="setLang('ru')">RU</button>
+      <button class="lang-btn" id="lang-ro" onclick="setLang('ro')">RO</button>
+      <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
+    </div>
+    <a class="menu-back" href="/UNA.md/orasldev/biro26">← <span id="t-back">Biro26</span></a>
+  </div>
+</div>
+
+<!-- ── APP SHELL ─────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- TAB STRIP -->
+  <div class="tab-strip">
+    <div class="tab-btn active" id="tab-source" onclick="showTab('source')" data-i18n="tab_source"></div>
+    <div class="tab-btn" id="tab-dict" onclick="showTab('dict')" data-i18n="tab_dict"></div>
+    <div class="tab-btn" id="tab-groups" onclick="showTab('groups')" data-i18n="tab_groups"></div>
+    <div class="tab-btn" id="tab-prices" onclick="showTab('prices')" data-i18n="tab_prices"></div>
+    <div class="tab-btn" id="tab-mapping" onclick="showTab('mapping')" data-i18n="tab_mapping"></div>
+  </div>
+
+  <div class="main-area">
+    <div class="content-area">
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 1: SURSĂ (BIRO26_GOODS)                       -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel active" id="panel-source">
+        <div class="sec-header">
+          <h2 data-i18n="src_title"></h2>
+          <span class="count" id="src-count">0</span>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" class="f-input w-search" id="src-search" data-i18n-ph="f_search" oninput="debounceLoadGoods()">
+          <label data-i18n="f_brand"></label>
+          <select class="f-select" id="src-brand" onchange="loadGoods()">
+            <option value="" data-i18n="f_all"></option>
+          </select>
+          <label data-i18n="f_furnizor"></label>
+          <select class="f-select" id="src-furnizor" onchange="loadGoods()">
+            <option value="" data-i18n="f_all"></option>
+          </select>
+          <label data-i18n="f_status"></label>
+          <select class="f-select" id="src-status" onchange="loadGoods()">
+            <option value="" data-i18n="f_all"></option>
+            <option value="NEW" data-i18n="status_new"></option>
+            <option value="IN_DICT" data-i18n="status_indict"></option>
+            <option value="CONFLICT" data-i18n="status_conflict"></option>
+          </select>
+          <button class="btn" onclick="loadGoods()" data-i18n="f_apply"></button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" onclick="runGoodsAction('validate')" data-i18n="act_validate"></button>
+          <button class="btn primary" onclick="runGoodsAction('prepare')" data-i18n="act_prepare"></button>
+          <button class="btn primary" onclick="runGoodsAction('assign-keys')" data-i18n="act_assignkeys"></button>
+        </div>
+
+        <div class="report-panel" id="src-report" data-empty=""></div>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th data-i18n="col_articol"></th>
+              <th data-i18n="col_denumire"></th>
+              <th data-i18n="col_brand"></th>
+              <th data-i18n="col_furnizor"></th>
+              <th class="num" data-i18n="col_angro"></th>
+              <th class="num" data-i18n="col_ionline"></th>
+              <th class="num" data-i18n="col_retail1"></th>
+              <th class="num" data-i18n="col_stoc"></th>
+              <th data-i18n="col_codunivers"></th>
+              <th data-i18n="col_status"></th>
+            </tr></thead>
+            <tbody id="src-body">
+              <tr><td colspan="10"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 2: NOMENCLATOR (TMS_UNIVERS)                  -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-dict">
+        <div class="sec-header">
+          <h2 data-i18n="dict_title"></h2>
+          <span class="count" id="dict-count">0</span>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" class="f-input w-search" id="dict-search" data-i18n-ph="f_search" oninput="debounceLoadUnivers()">
+          <label data-i18n="f_gr1"></label>
+          <input type="text" class="f-input w-sm" id="dict-gr1" oninput="debounceLoadUnivers()">
+          <label data-i18n="f_arhiv"></label>
+          <select class="f-select" id="dict-arhiv" onchange="loadUnivers()">
+            <option value="active" data-i18n="arhiv_active"></option>
+            <option value="archived" data-i18n="arhiv_archived"></option>
+          </select>
+          <button class="btn" onclick="loadUnivers()" data-i18n="f_apply"></button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" onclick="confirmAndRun('univers_import','/api/biro26/univers/import',null,'dict-report')" data-i18n="act_import_dict"></button>
+          <button class="btn danger" onclick="archiveSelectedUnivers()" data-i18n="act_archive"></button>
+          <button class="btn" onclick="confirmAndRun('univers_fix','/api/biro26/univers/fix-confusables',{},'dict-report')" data-i18n="act_fixconfus"></button>
+        </div>
+
+        <div class="report-panel" id="dict-report" data-empty=""></div>
+
+        <div class="two-col">
+          <div>
+            <div class="data-table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th data-i18n="col_cod"></th>
+                  <th data-i18n="col_codvechi"></th>
+                  <th data-i18n="col_denumirea"></th>
+                  <th data-i18n="col_gr1"></th>
+                  <th data-i18n="col_um"></th>
+                  <th data-i18n="col_isarhiv"></th>
+                </tr></thead>
+                <tbody id="dict-body">
+                  <tr><td colspan="6"><div class="empty-state"><div class="es-icon">📚</div><p data-i18n="loading"></p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card" id="dict-detail-card">
+            <h3 data-i18n="dict_detail_title"></h3>
+            <div id="dict-detail-body">
+              <div class="empty-state"><p data-i18n="dict_detail_empty"></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 3: GRUPE / FURNIZORI                          -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-groups">
+        <div class="sec-header">
+          <h2 data-i18n="grp_title"></h2>
+          <span class="count" id="grp-count">0</span>
+        </div>
+
+        <div class="filter-bar">
+          <label data-i18n="f_codprice"></label>
+          <input type="number" class="f-input w-sm" id="grp-codprice" value="1" min="1" onchange="loadGroups()">
+          <button class="btn" onclick="loadGroups()" data-i18n="f_apply"></button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" onclick="confirmAndRun('grp_import','/api/biro26/groups/import',()=>({codprice:Number(document.getElementById('grp-codprice').value||1)}),'grp-report')" data-i18n="act_import_groups"></button>
+          <button class="btn" onclick="openMergeModal()" data-i18n="act_merge_groups"></button>
+        </div>
+
+        <div class="report-panel" id="grp-report" data-empty=""></div>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th data-i18n="col_codprice"></th>
+              <th data-i18n="col_codgrp"></th>
+              <th data-i18n="col_grpname"></th>
+              <th data-i18n="col_typesc"></th>
+              <th data-i18n="col_gr1sc"></th>
+              <th data-i18n="col_actions"></th>
+            </tr></thead>
+            <tbody id="grp-body">
+              <tr><td colspan="6"><div class="empty-state"><div class="es-icon">🗂️</div><p data-i18n="loading"></p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="three-col">
+          <div class="card">
+            <h3 data-i18n="sup_title"></h3>
+            <div class="filter-bar" style="margin-bottom:10px">
+              <input type="text" class="f-input w-search" id="sup-search" data-i18n-ph="f_search" oninput="debounceLoadSuppliers()">
+            </div>
+            <div class="data-table-wrap" style="max-height:300px">
+              <table class="data-table">
+                <thead><tr>
+                  <th data-i18n="col_cod"></th>
+                  <th data-i18n="col_name"></th>
+                  <th data-i18n="col_gr1"></th>
+                </tr></thead>
+                <tbody id="sup-body">
+                  <tr><td colspan="3"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 data-i18n="furn_title"></h3>
+            <div class="data-table-wrap" style="max-height:300px">
+              <table class="data-table">
+                <thead><tr>
+                  <th data-i18n="col_furnizor"></th>
+                  <th class="num" data-i18n="col_cnt"></th>
+                </tr></thead>
+                <tbody id="furn-body">
+                  <tr><td colspan="2"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 data-i18n="cat_title"></h3>
+            <div class="data-table-wrap" style="max-height:300px">
+              <table class="data-table">
+                <thead><tr>
+                  <th data-i18n="col_id0"></th>
+                  <th data-i18n="col_label"></th>
+                  <th data-i18n="col_tip"></th>
+                </tr></thead>
+                <tbody id="cat-body">
+                  <tr><td colspan="3"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 4: LISTĂ DE PREȚURI                           -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-prices">
+        <div class="sec-header">
+          <h2 data-i18n="price_title"></h2>
+          <span class="count" id="price-count">0</span>
+        </div>
+
+        <div class="filter-bar">
+          <label data-i18n="f_codprice"></label>
+          <input type="number" class="f-input w-sm" id="price-codprice" value="1" min="1">
+          <label data-i18n="f_codgrp"></label>
+          <input type="text" class="f-input w-sm" id="price-codgrp">
+          <button class="btn" onclick="loadPrices(); loadPriceDates();" data-i18n="f_apply"></button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" onclick="confirmAndRun('grp_import','/api/biro26/groups/import',()=>({codprice:Number(document.getElementById('price-codprice').value||1)}),'price-report')" data-i18n="act_import_groups"></button>
+          <span class="muted">|</span>
+          <input type="date" class="f-input w-date" id="price-import-date">
+          <button class="btn primary" onclick="confirmAndRun('price_import_dates','/api/biro26/prices/import-dates',()=>({codprice:Number(document.getElementById('price-codprice').value||1), data: document.getElementById('price-import-date').value || undefined}),'price-report')" data-i18n="act_import_dates"></button>
+          <span class="muted">|</span>
+          <input type="date" class="f-input w-date" id="price-start-date" data-i18n-ph="f_datestart">
+          <input type="date" class="f-input w-date" id="price-end-date" data-i18n-ph="f_dateend">
+          <button class="btn primary" onclick="confirmAndRun('price_import','/api/biro26/prices/import',()=>({codprice:Number(document.getElementById('price-codprice').value||1), date_start: document.getElementById('price-start-date').value || undefined, date_end: document.getElementById('price-end-date').value || undefined}),'price-report')" data-i18n="act_import_prices"></button>
+          <span class="muted">|</span>
+          <button class="btn danger solid" onclick="rollbackPriceList()" data-i18n="act_rollback"></button>
+        </div>
+
+        <div class="report-panel" id="price-report" data-empty=""></div>
+
+        <div class="card">
+          <h3 data-i18n="price_periods_title"></h3>
+          <div class="data-table-wrap" style="max-height:200px">
+            <table class="data-table">
+              <thead><tr>
+                <th data-i18n="col_codprice"></th>
+                <th data-i18n="col_codgrp"></th>
+                <th data-i18n="col_data"></th>
+                <th data-i18n="col_nrdoc"></th>
+              </tr></thead>
+              <tbody id="price-dates-body">
+                <tr><td colspan="4"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th data-i18n="col_codprice"></th>
+              <th data-i18n="col_codgrp"></th>
+              <th data-i18n="col_sc"></th>
+              <th data-i18n="col_datastart"></th>
+              <th class="num" data-i18n="col_pretv"></th>
+              <th class="num" data-i18n="col_pretv1"></th>
+              <th class="num" data-i18n="col_pretv2"></th>
+              <th class="num" data-i18n="col_pretv3"></th>
+              <th data-i18n="col_actions"></th>
+            </tr></thead>
+            <tbody id="price-body">
+              <tr><td colspan="9"><div class="empty-state"><div class="es-icon">💲</div><p data-i18n="loading"></p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 5: MAPARE / SETĂRI                            -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-mapping">
+        <div class="sec-header">
+          <h2 data-i18n="map_title"></h2>
+        </div>
+
+        <div class="card">
+          <h3 data-i18n="map_conn_title"></h3>
+          <div class="btn-row" style="margin-bottom:0">
+            <button class="btn primary" onclick="testConnection()" data-i18n="act_test_conn"></button>
+            <span id="conn-result" class="muted"></span>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <h3 data-i18n="map_profiles_title"></h3>
+            <div class="btn-row">
+              <button class="btn" onclick="createNewProfile()" data-i18n="act_new_profile"></button>
+            </div>
+            <div class="data-table-wrap" style="max-height:280px">
+              <table class="data-table">
+                <thead><tr>
+                  <th data-i18n="col_name"></th>
+                  <th data-i18n="col_codprice"></th>
+                  <th data-i18n="col_default"></th>
+                  <th data-i18n="col_actions"></th>
+                </tr></thead>
+                <tbody id="profiles-body">
+                  <tr><td colspan="4"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" id="profile-detail-card">
+            <h3 id="profile-detail-title" data-i18n="map_detail_empty_title"></h3>
+            <div id="profile-detail-body">
+              <div class="empty-state"><p data-i18n="map_detail_empty"></p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /main-area -->
+</div><!-- /app-shell -->
+
+<!-- ── STATUS BAR ─────────────────────────────────────────── -->
+<div class="status-bar">
+  <span id="sb-status">—</span>
+  <span>Biro26</span>
+  <span class="sb-right" id="sb-panel">source</span>
+</div>
+
+<!-- ── MODAL: MERGE GROUPS ───────────────────────────────── -->
+<div class="modal-backdrop" id="modal-merge">
+  <div class="modal">
+    <div class="modal-header">
+      <span style="font-size:16px">🔀</span>
+      <h3 data-i18n="merge_title"></h3>
+      <button class="modal-close" onclick="closeModal('modal-merge')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label data-i18n="f_codprice"></label>
+          <input type="number" id="merge-codprice" value="1" min="1">
+        </div>
+        <div class="form-group">
+          <label data-i18n="merge_src"></label>
+          <input type="text" id="merge-src">
+        </div>
+        <div class="form-group full">
+          <label data-i18n="merge_dst"></label>
+          <input type="text" id="merge-dst">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-merge')" data-i18n="btn_cancel"></button>
+      <button class="btn primary" onclick="mergeGroups()" data-i18n="btn_save"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST CONTAINER ───────────────────────────────────── -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+/* =====================================================================
+   I18N
+   ===================================================================== */
+const I18N = {
+ru: {
+  app_title: 'Biro26 — Бэк-офис', back: 'Biro26',
+  tab_source: 'Источник', tab_dict: 'Номенклатура', tab_groups: 'Группы / Поставщики',
+  tab_prices: 'Прайс-лист', tab_mapping: 'Сопоставление / Настройки',
+  loading: 'Загрузка...', f_apply: 'Применить', f_search: 'Поиск...', f_all: 'Все',
+  f_brand: 'Бренд:', f_furnizor: 'Поставщик:', f_status: 'Статус:', f_gr1: 'Группа (gr1):',
+  f_arhiv: 'Архив:', f_codprice: 'Код цены:', f_codgrp: 'Код группы:',
+  f_datestart: 'Дата с', f_dateend: 'Дата по',
+  status_new: 'Новый', status_indict: 'В словаре', status_conflict: 'Конфликт',
+  arhiv_active: 'Активные', arhiv_archived: 'Архивные',
+  src_title: 'Источник товаров (BIRO26_GOODS)',
+  act_validate: 'Валидация', act_prepare: 'Подготовка', act_assignkeys: 'Назначить ключи',
+  col_articol: 'Артикул', col_denumire: 'Наименование', col_brand: 'Бренд', col_furnizor: 'Поставщик',
+  col_angro: 'Опт', col_ionline: 'Онлайн', col_retail1: 'Розница', col_stoc: 'Остаток',
+  col_codunivers: 'Код словаря', col_status: 'Статус',
+  dict_title: 'Номенклатура (TMS_UNIVERS)',
+  act_import_dict: 'Импорт номенклатуры', act_archive: 'Архивировать', act_fixconfus: 'Исправить похожие символы',
+  col_cod: 'Код', col_codvechi: 'Старый код', col_denumirea: 'Наименование', col_gr1: 'Группа',
+  col_um: 'Ед.изм.', col_isarhiv: 'Архив',
+  dict_detail_title: 'Карточка товара', dict_detail_empty: 'Выберите строку в таблице слева',
+  grp_title: 'Группы / Поставщики',
+  act_import_groups: 'Импорт групп', act_merge_groups: 'Объединить группы',
+  col_codprice: 'Код цены', col_codgrp: 'Код группы', col_grpname: 'Название группы',
+  col_typesc: 'Тип SC', col_gr1sc: 'Группа SC', col_actions: 'Действия',
+  sup_title: 'Поставщики (справочник)', furn_title: 'Поставщики (из фида)', cat_title: 'Категории',
+  col_name: 'Название', col_cnt: 'Кол-во', col_id0: 'ID', col_label: 'Метка', col_tip: 'Тип',
+  price_title: 'Прайс-лист',
+  act_import_dates: 'Импорт дат', act_import_prices: 'Импорт цен', act_rollback: 'Откатить лист',
+  price_periods_title: 'Периоды', col_data: 'Дата', col_nrdoc: '№ документа',
+  col_sc: 'SC', col_datastart: 'Дата начала', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
+  col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
+  map_title: 'Сопоставление / Настройки', map_conn_title: 'Подключение к Oracle',
+  act_test_conn: 'Проверить подключение',
+  map_profiles_title: 'Профили сопоставления', act_new_profile: 'Новый профиль',
+  col_default: 'По умолч.',
+  map_detail_empty_title: 'Профиль', map_detail_empty: 'Выберите профиль слева',
+  group_ids: 'Идентификаторы', group_const: 'Константы',
+  btn_save: 'Сохранить', btn_cancel: 'Отмена', btn_activate: 'Активировать', btn_edit: 'Изменить',
+  btn_view: 'Просмотр', btn_select: 'Выбрать', btn_delete: 'Удалить',
+  merge_title: 'Объединение групп', merge_src: 'Исходная группа (src_codgrp):', merge_dst: 'Целевая группа (dst_codgrp):',
+  active_profile: 'Активный профиль',
+  confirm_univers_import: 'Импортировать номенклатуру в TMS_UNIVERS? Это операция на живой ERP.',
+  confirm_univers_archive: 'Архивировать выбранные позиции? Действие необратимо без отдельного восстановления.',
+  confirm_univers_fix: 'Исправить похожие (confusable) символы в номенклатуре?',
+  confirm_grp_import: 'Импортировать группы для выбранного codprice?',
+  confirm_grp_merge: 'Объединить группы? Это переместит товары из исходной группы в целевую.',
+  confirm_price_import_dates: 'Импортировать даты прайс-листа?',
+  confirm_price_import: 'Импортировать цены? Это операция на живой ERP.',
+  confirm_price_rollback: 'ВНИМАНИЕ! Откат прайс-листа удалит импортированные цены для этого codprice. Продолжить?',
+  confirm_profile_activate: 'Сделать этот профиль активным по умолчанию?',
+  err_generic: 'Ошибка', ok_generic: 'Готово', saved: 'Сохранено',
+  validation_numeric: 'должно быть числом', validation_required: 'обязательное поле',
+  validation_date: 'неверный формат даты (гггг-мм-дд)',
+  no_data: 'Нет данных', select_row_hint: 'Нажмите на строку для подробностей',
+  prompt_profile_name: 'Название нового профиля:', prompt_codprice: 'Код цены (codprice):',
+},
+ro: {
+  app_title: 'Biro26 — Back-office', back: 'Biro26',
+  tab_source: 'Sursă', tab_dict: 'Nomenclator', tab_groups: 'Grupe / Furnizori',
+  tab_prices: 'Listă de prețuri', tab_mapping: 'Mapare / Setări',
+  loading: 'Se încarcă...', f_apply: 'Aplică', f_search: 'Căutare...', f_all: 'Toate',
+  f_brand: 'Brand:', f_furnizor: 'Furnizor:', f_status: 'Status:', f_gr1: 'Grupă (gr1):',
+  f_arhiv: 'Arhivă:', f_codprice: 'Cod preț:', f_codgrp: 'Cod grupă:',
+  f_datestart: 'Data de la', f_dateend: 'Data până la',
+  status_new: 'Nou', status_indict: 'În dicționar', status_conflict: 'Conflict',
+  arhiv_active: 'Active', arhiv_archived: 'Arhivate',
+  src_title: 'Sursă mărfuri (BIRO26_GOODS)',
+  act_validate: 'Validare', act_prepare: 'Pregătire', act_assignkeys: 'Atribuie chei',
+  col_articol: 'Articol', col_denumire: 'Denumire', col_brand: 'Brand', col_furnizor: 'Furnizor',
+  col_angro: 'Angro', col_ionline: 'Online', col_retail1: 'Retail', col_stoc: 'Stoc',
+  col_codunivers: 'Cod univers', col_status: 'Status',
+  dict_title: 'Nomenclator (TMS_UNIVERS)',
+  act_import_dict: 'Import nomenclator', act_archive: 'Arhivare', act_fixconfus: 'Corectează confundabile',
+  col_cod: 'Cod', col_codvechi: 'Cod vechi', col_denumirea: 'Denumire', col_gr1: 'Grupă',
+  col_um: 'U.M.', col_isarhiv: 'Arhivat',
+  dict_detail_title: 'Fișă produs', dict_detail_empty: 'Selectați un rând din tabel',
+  grp_title: 'Grupe / Furnizori',
+  act_import_groups: 'Import grupe', act_merge_groups: 'Îmbinare grupe',
+  col_codprice: 'Cod preț', col_codgrp: 'Cod grupă', col_grpname: 'Denumire grupă',
+  col_typesc: 'Tip SC', col_gr1sc: 'Grupă SC', col_actions: 'Acțiuni',
+  sup_title: 'Furnizori (nomenclator)', furn_title: 'Furnizori (din flux)', cat_title: 'Categorii',
+  col_name: 'Denumire', col_cnt: 'Nr.', col_id0: 'ID', col_label: 'Etichetă', col_tip: 'Tip',
+  price_title: 'Listă de prețuri',
+  act_import_dates: 'Import date', act_import_prices: 'Import prețuri', act_rollback: 'Anulează lista',
+  price_periods_title: 'Perioade', col_data: 'Data', col_nrdoc: 'Nr. document',
+  col_sc: 'SC', col_datastart: 'Data start', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
+  col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
+  map_title: 'Mapare / Setări', map_conn_title: 'Conexiune Oracle',
+  act_test_conn: 'Testează conexiunea',
+  map_profiles_title: 'Profiluri de mapare', act_new_profile: 'Profil nou',
+  col_default: 'Implicit',
+  map_detail_empty_title: 'Profil', map_detail_empty: 'Selectați un profil din stânga',
+  group_ids: 'Identificatori', group_const: 'Constante',
+  btn_save: 'Salvează', btn_cancel: 'Anulare', btn_activate: 'Activează', btn_edit: 'Editează',
+  btn_view: 'Vizualizare', btn_select: 'Selectează', btn_delete: 'Șterge',
+  merge_title: 'Îmbinare grupe', merge_src: 'Grupă sursă (src_codgrp):', merge_dst: 'Grupă destinație (dst_codgrp):',
+  active_profile: 'Profil activ',
+  confirm_univers_import: 'Importați nomenclatorul în TMS_UNIVERS? Operație pe ERP live.',
+  confirm_univers_archive: 'Arhivați pozițiile selectate? Acțiune ce afectează datele live.',
+  confirm_univers_fix: 'Corectați caracterele confundabile din nomenclator?',
+  confirm_grp_import: 'Importați grupele pentru codprice-ul selectat?',
+  confirm_grp_merge: 'Îmbinați grupele? Mărfurile din grupa sursă vor fi mutate în grupa destinație.',
+  confirm_price_import_dates: 'Importați datele listei de prețuri?',
+  confirm_price_import: 'Importați prețurile? Operație pe ERP live.',
+  confirm_price_rollback: 'ATENȚIE! Anularea listei va șterge prețurile importate pentru acest codprice. Continuați?',
+  confirm_profile_activate: 'Activați acest profil ca implicit?',
+  err_generic: 'Eroare', ok_generic: 'Finalizat', saved: 'Salvat',
+  validation_numeric: 'trebuie să fie numeric', validation_required: 'câmp obligatoriu',
+  validation_date: 'format de dată invalid (aaaa-ll-zz)',
+  no_data: 'Fără date', select_row_hint: 'Apăsați un rând pentru detalii',
+  prompt_profile_name: 'Denumirea noului profil:', prompt_codprice: 'Cod preț (codprice):',
+},
+en: {
+  app_title: 'Biro26 — Back-office', back: 'Biro26',
+  tab_source: 'Source', tab_dict: 'Dictionary', tab_groups: 'Groups / Suppliers',
+  tab_prices: 'Price list', tab_mapping: 'Mapping / Settings',
+  loading: 'Loading...', f_apply: 'Apply', f_search: 'Search...', f_all: 'All',
+  f_brand: 'Brand:', f_furnizor: 'Supplier:', f_status: 'Status:', f_gr1: 'Group (gr1):',
+  f_arhiv: 'Archive:', f_codprice: 'Price code:', f_codgrp: 'Group code:',
+  f_datestart: 'Date from', f_dateend: 'Date to',
+  status_new: 'New', status_indict: 'In dictionary', status_conflict: 'Conflict',
+  arhiv_active: 'Active', arhiv_archived: 'Archived',
+  src_title: 'Source feed (BIRO26_GOODS)',
+  act_validate: 'Validate', act_prepare: 'Prepare', act_assignkeys: 'Assign keys',
+  col_articol: 'Article', col_denumire: 'Name', col_brand: 'Brand', col_furnizor: 'Supplier',
+  col_angro: 'Wholesale', col_ionline: 'Online', col_retail1: 'Retail', col_stoc: 'Stock',
+  col_codunivers: 'Dict code', col_status: 'Status',
+  dict_title: 'Dictionary (TMS_UNIVERS)',
+  act_import_dict: 'Import dictionary', act_archive: 'Archive', act_fixconfus: 'Fix confusables',
+  col_cod: 'Code', col_codvechi: 'Old code', col_denumirea: 'Name', col_gr1: 'Group',
+  col_um: 'Unit', col_isarhiv: 'Archived',
+  dict_detail_title: 'Item card', dict_detail_empty: 'Select a row from the table',
+  grp_title: 'Groups / Suppliers',
+  act_import_groups: 'Import groups', act_merge_groups: 'Merge groups',
+  col_codprice: 'Price code', col_codgrp: 'Group code', col_grpname: 'Group name',
+  col_typesc: 'SC type', col_gr1sc: 'SC group', col_actions: 'Actions',
+  sup_title: 'Suppliers (dictionary)', furn_title: 'Suppliers (from feed)', cat_title: 'Categories',
+  col_name: 'Name', col_cnt: 'Count', col_id0: 'ID', col_label: 'Label', col_tip: 'Type',
+  price_title: 'Price list',
+  act_import_dates: 'Import dates', act_import_prices: 'Import prices', act_rollback: 'Rollback list',
+  price_periods_title: 'Periods', col_data: 'Date', col_nrdoc: 'Doc no.',
+  col_sc: 'SC', col_datastart: 'Start date', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
+  col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
+  map_title: 'Mapping / Settings', map_conn_title: 'Oracle connection',
+  act_test_conn: 'Test connection',
+  map_profiles_title: 'Mapping profiles', act_new_profile: 'New profile',
+  col_default: 'Default',
+  map_detail_empty_title: 'Profile', map_detail_empty: 'Select a profile on the left',
+  group_ids: 'Identifiers', group_const: 'Constants',
+  btn_save: 'Save', btn_cancel: 'Cancel', btn_activate: 'Activate', btn_edit: 'Edit',
+  btn_view: 'View', btn_select: 'Select', btn_delete: 'Delete',
+  merge_title: 'Merge groups', merge_src: 'Source group (src_codgrp):', merge_dst: 'Destination group (dst_codgrp):',
+  active_profile: 'Active profile',
+  confirm_univers_import: 'Import the dictionary into TMS_UNIVERS? This runs against the live ERP.',
+  confirm_univers_archive: 'Archive the selected items? This affects live data.',
+  confirm_univers_fix: 'Fix confusable characters in the dictionary?',
+  confirm_grp_import: 'Import groups for the selected codprice?',
+  confirm_grp_merge: 'Merge groups? Items from the source group will be moved into the destination group.',
+  confirm_price_import_dates: 'Import price list dates?',
+  confirm_price_import: 'Import prices? This runs against the live ERP.',
+  confirm_price_rollback: 'WARNING! Rolling back the price list will delete imported prices for this codprice. Continue?',
+  confirm_profile_activate: 'Make this profile the default active one?',
+  err_generic: 'Error', ok_generic: 'Done', saved: 'Saved',
+  validation_numeric: 'must be numeric', validation_required: 'required field',
+  validation_date: 'invalid date format (yyyy-mm-dd)',
+  no_data: 'No data', select_row_hint: 'Click a row for details',
+  prompt_profile_name: 'New profile name:', prompt_codprice: 'Price code (codprice):',
+},
+};
+
+let LANG = localStorage.getItem('biro26_lang') || 'ro';
+let currentTab = 'source';
+let goodsDebounceTimer = null, universDebounceTimer = null, suppliersDebounceTimer = null;
+let selectedUniversCod = null;
+let selectedProfileId = null;
+let gParamNames = [];
+
+function t(key) { return (I18N[LANG] && I18N[LANG][key]) || (I18N.ro[key]) || key; }
+
+/* =====================================================================
+   LANG SWITCH / RENDER
+   ===================================================================== */
+function setLang(l) {
+  LANG = l;
+  localStorage.setItem('biro26_lang', l);
+  ['ru','ro','en'].forEach(x => document.getElementById('lang-'+x).classList.toggle('active', x===l));
+  renderI18n();
+}
+
+function renderI18n() {
+  document.title = t('app_title');
+  document.getElementById('t-app-title').textContent = t('app_title');
+  document.getElementById('t-back').textContent = t('back');
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph')));
+  });
+  document.getElementById('sb-panel').textContent = currentTab;
+  // re-render dynamic bits that embed i18n strings
+  renderActiveProfileIndicator();
+}
+
+/* =====================================================================
+   TABS
+   ===================================================================== */
+const TABS = ['source','dict','groups','prices','mapping'];
+
+function showTab(id) {
+  TABS.forEach(x => {
+    document.getElementById('panel-'+x)?.classList.remove('active');
+    document.getElementById('tab-'+x)?.classList.remove('active');
+  });
+  document.getElementById('panel-'+id)?.classList.add('active');
+  document.getElementById('tab-'+id)?.classList.add('active');
+  currentTab = id;
+  document.getElementById('sb-panel').textContent = id;
+  setStatus('—');
+
+  if (id === 'source')  { loadBrands(); loadFurnizoriFilter(); loadGoods(); }
+  if (id === 'dict')    { loadUnivers(); }
+  if (id === 'groups')  { loadGroups(); loadSuppliers(); loadFurnizori(); loadCategories(); }
+  if (id === 'prices')  { loadPrices(); loadPriceDates(); }
+  if (id === 'mapping') { loadProfiles(); }
+}
+
+/* =====================================================================
+   FETCH HELPERS
+   ===================================================================== */
+async function fetchJSON(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  opts.credentials = 'include';
+  let r, body;
+  try {
+    r = await fetch(url, opts);
+    body = await r.json();
+  } catch (e) {
+    toast(t('err_generic') + ': ' + e.message, 'err');
+    return {success:false, error:e.message};
+  }
+  if (!body.success) {
+    toast(t('err_generic') + ': ' + (body.error || ('HTTP '+r.status)), 'err');
+  }
+  return body;
+}
+
+function apiGet(url) { return fetchJSON(url, {method:'GET'}); }
+function apiPost(url, body) { return fetchJSON(url, {method:'POST', body: JSON.stringify(body||{})}); }
+function apiPut(url, body) { return fetchJSON(url, {method:'PUT', body: JSON.stringify(body||{})}); }
+
+function confirmAction(msgKey) {
+  return window.confirm(t(msgKey));
+}
+
+/* generic "confirm then POST then render output[] into report panel" helper */
+async function confirmAndRun(msgKey, url, bodyOrFn, reportElId) {
+  if (!confirmAction(msgKey)) return;
+  const body = (typeof bodyOrFn === 'function') ? bodyOrFn() : bodyOrFn;
+  setStatus(t('loading'));
+  const r = await apiPost(url, body);
+  renderReport(reportElId, r);
+  setStatus(r.success ? t('ok_generic') : t('err_generic'));
+  return r;
+}
+
+function renderReport(elId, r) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const lines = (r && (r.output || r.data)) || [];
+  if (!r.success) {
+    el.innerHTML = '<span class="ln-err">' + escapeHtml(r.error || t('err_generic')) + '</span>';
+    return;
+  }
+  if (!lines.length) {
+    el.innerHTML = '<span class="ln-ok">' + t('ok_generic') + '</span>';
+    return;
+  }
+  el.innerHTML = lines.map(l => {
+    const s = String(l);
+    const cls = /error|eroare|ошибк/i.test(s) ? 'ln-err' : '';
+    return '<div class="'+cls+'">' + escapeHtml(s) + '</div>';
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =====================================================================
+   TOAST / STATUS
+   ===================================================================== */
+function toast(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || 'ok');
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+function setStatus(msg) { document.getElementById('sb-status').textContent = msg; }
+
+/* data-name fallback: RO denumirea, else RU namerus */
+function dispName(row) {
+  return row.denumirea || row.namerus || '';
+}
+
+function badgeStatus(s) {
+  const cls = {NEW:'badge-new', IN_DICT:'badge-indict', CONFLICT:'badge-conflict'}[s] || 'badge-default';
+  const label = {NEW:'status_new', IN_DICT:'status_indict', CONFLICT:'status_conflict'}[s];
+  return '<span class="badge '+cls+'">' + (label ? t(label) : (s||'—')) + '</span>';
+}
+</script>
+<script src="/static/biro26/backoffice-tabs.js"></script>
+</body>
+</html>
