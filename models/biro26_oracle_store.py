@@ -266,3 +266,58 @@ class Biro26Store:
     @staticmethod
     def assign_keys() -> Dict[str, Any]:
         return Biro26Store._run_pkg("assign_keys;", capture=True)
+
+    # ============================================================
+    # DICTIONARY — TMS_UNIVERS + TMS_MPT
+    # ============================================================
+    @staticmethod
+    def get_univers(search: Optional[str] = None, gr1: Optional[str] = None,
+                    arhiv: Optional[str] = None, limit: int = 200,
+                    offset: int = 0) -> Dict[str, Any]:
+        try:
+            inner = ("SELECT COD, CODVECHI, DENUMIREA, NAMERUS, GR1, UM, ISARHIV "
+                     "FROM TMS_UNIVERS WHERE TIP='P'")
+            params: Dict[str, Any] = {}
+            if search:
+                inner += (" AND (UPPER(DENUMIREA) LIKE UPPER(:s) "
+                          "OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s)")
+                params["s"] = f"%{search}%"
+            if gr1:
+                inner += " AND GR1=:gr1"; params["gr1"] = gr1
+            if arhiv == "active":
+                inner += " AND (ISARHIV IS NULL OR ISARHIV='0')"
+            elif arhiv == "archived":
+                inner += " AND ISARHIV IS NOT NULL AND ISARHIV<>'0'"
+            inner += " ORDER BY DENUMIREA"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_univers_card(cod: int) -> Dict[str, Any]:
+        try:
+            db = Biro26DB()
+            u = _rows(db.execute_query("SELECT * FROM TMS_UNIVERS WHERE COD=:c", {"c": cod}))
+            if not u:
+                return {"success": False, "error": "not found"}
+            mpt = _rows(db.execute_query("SELECT * FROM TMS_MPT WHERE COD=:c", {"c": cod}))
+            return {"success": True,
+                    "data": {"univers": u[0], "mpt": mpt[0] if mpt else None}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_univers() -> Dict[str, Any]:
+        return Biro26Store._run_pkg("import_univers;", capture=True)
+
+    @staticmethod
+    def archive_univers(isarhiv: str = "1") -> Dict[str, Any]:
+        # value '2' is blocked by trigger TMS_UNIVERS_DONT_DELETE; guard upstream too
+        return Biro26Store._run_pkg(f"archive_univers(p_isarhiv => {_q(isarhiv)});",
+                                    capture=True)
+
+    @staticmethod
+    def fix_denumirea_confusables(cod: Optional[int] = None) -> Dict[str, Any]:
+        arg = f"p_cod => {int(cod)}" if cod is not None else "p_cod => NULL"
+        return Biro26Store._run_pkg(f"fix_denumirea_confusables({arg});", capture=True)

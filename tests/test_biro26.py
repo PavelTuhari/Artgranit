@@ -160,3 +160,30 @@ def test_validate_input_captures_output():
     with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB()):
         r = Biro26Store.validate_input()
     assert r["success"] and r["output"] == ["RO: ok / EN: ok"]
+
+
+# ── store: dictionary ───────────────────────────────────────────────
+
+def test_get_univers_filters_tip_p():
+    cols = ["COD","CODVECHI","DENUMIREA","NAMERUS","GR1","UM","ISARHIV"]
+    rows = [(1001,"A1","Nume","Имя","TVR","buc.",None)]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_univers(arhiv="active")
+    assert r["success"] and r["data"][0]["namerus"] == "Имя"
+    assert "TIP='P'" in fake.last_sql and "ROWNUM" in fake.last_sql
+
+
+def test_archive_univers_value_two_still_calls_pkg():
+    # store does not guard '2' (controller does); ensure it builds the call
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.archive_univers("1")
+    assert r["success"] and "archive_univers" in fake.last_sql
+
+
+def test_fix_confusables_single_cod():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.fix_denumirea_confusables(1001)
+    assert r["success"] and "p_cod => 1001" in fake.last_sql
