@@ -99,7 +99,14 @@ class Config:
     WALLET_DIR = os.environ.get('WALLET_DIR', '')
     TNS_ALIAS = os.environ.get('TNS_ALIAS', '')
     CONNECT_STRING = os.environ.get('CONNECT_STRING', '')
-    
+
+    # ── Biro26 module — separate OfficePlus ERP Oracle DB (thin mode) ──
+    BIRO26_DB_USER = os.environ.get('BIRO26_DB_USER', 'officeplus')
+    BIRO26_DB_PASSWORD = os.environ.get('BIRO26_DB_PASSWORD', '')  # secret: set in .env, never hardcoded
+    BIRO26_DB_DSN = os.environ.get('BIRO26_DB_DSN', 'orange.una.md:4024/cloudbd.world')
+    BIRO26_NLS_LANGUAGE = os.environ.get('BIRO26_NLS_LANGUAGE', 'ENGLISH')
+    BIRO26_NLS_TERRITORY = os.environ.get('BIRO26_NLS_TERRITORY', 'AMERICA')
+
     # Version widget (fixed bottom-right popup)
     VERSION_WIDGET_ENABLED = os.environ.get('VERSION_WIDGET_ENABLED', '0').strip() in ('1', 'true', 'yes')
 
