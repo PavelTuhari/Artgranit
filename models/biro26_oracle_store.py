@@ -34,7 +34,10 @@ def _rows(r: Dict) -> List[Dict]:
     if not r.get("success") or not r.get("data"):
         return []
     cols = [c.lower() for c in r["columns"]]
-    return [dict(zip(cols, row)) for row in r["data"]]
+    out = [dict(zip(cols, row)) for row in r["data"]]
+    for d in out:           # drop the ROWNUM pagination artifact from _page()
+        d.pop("rn", None)
+    return out
 
 
 def _q(v: Any) -> str:
