@@ -11,6 +11,20 @@
 
 const API = '/api/biro26';
 
+function imgCell(url) {
+  if (!url) return '<td></td>';
+  const u = escapeHtml(url);
+  return '<td><img src="' + u + '" loading="lazy" referrerpolicy="no-referrer" ' +
+    'style="width:38px;height:38px;object-fit:cover;border-radius:4px;cursor:pointer" ' +
+    'onclick="openLightbox(\'' + u + '\')" ' +
+    'onerror="this.style.display=\'none\'"></td>';
+}
+function openLightbox(url) {
+  el('lightbox-img').src = url;
+  el('lightbox-link').href = url;
+  el('modal-image').classList.add('open');
+}
+
 /* package g_* names that are "identifiers" (vs constants) for the mapping form */
 const ID_PARAMS = ['tbl_goods','col_key','col_id','col_brand','col_articol',
                    'col_denumire','col_angro','col_ionline','col_retail','seq_key'];
@@ -101,7 +115,7 @@ async function loadFurnizoriFilter() {
 
 async function loadGoods() {
   const tbody = el('src-body');
-  tbody.innerHTML = emptyRow(tbody, 10, 'loading');
+  tbody.innerHTML = emptyRow(tbody, 11, 'loading');
   const qs = new URLSearchParams();
   if (val('src-search')) qs.set('search', val('src-search'));
   if (val('src-brand')) qs.set('brand', val('src-brand'));
@@ -109,11 +123,12 @@ async function loadGoods() {
   if (val('src-status')) qs.set('status', val('src-status'));
   qs.set('limit', '300');
   const r = await apiGet(API + '/goods?' + qs.toString());
-  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 10, 'no_data'); return; }
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 11, 'no_data'); return; }
   const rows = r.data || [];
   el('src-count').textContent = rows.length;
-  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 10, 'no_data'); return; }
+  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 11, 'no_data'); return; }
   tbody.innerHTML = rows.map(g => '<tr>' +
+    imgCell(g.photo_url || g.image_link) +
     '<td class="mono">' + escapeHtml(g.articol) + '</td>' +
     '<td>' + escapeHtml(g.denumire || '') + '</td>' +
     '<td>' + escapeHtml(g.brand || '') + '</td>' +
@@ -184,6 +199,12 @@ async function loadUniversCard(cod, rowEl) {
   const r = await apiGet(API + '/univers/' + cod);
   if (!r.success || !r.data) { body.innerHTML = '<div class="empty-state"><p>' + t('no_data') + '</p></div>'; return; }
   const u = r.data.univers || {};
+  const cardImg = (r.data.photo_url || r.data.image_link)
+    ? '<div style="text-align:center;margin-bottom:10px"><img src="' +
+      escapeHtml(r.data.photo_url || r.data.image_link) + '" referrerpolicy="no-referrer" ' +
+      'style="max-width:100%;max-height:180px;border-radius:8px;cursor:pointer" ' +
+      'onclick="openLightbox(this.src)" onerror="this.style.display=\'none\'"></div>'
+    : '';
   const mpt = r.data.mpt;
   function fields(obj) {
     return Object.keys(obj).map(k =>
@@ -199,7 +220,7 @@ async function loadUniversCard(cod, rowEl) {
   } else {
     html += '<div class="detail-section-title">TMS_MPT</div><p class="muted">' + t('no_data') + '</p>';
   }
-  body.innerHTML = html;
+  body.innerHTML = cardImg + html;
 }
 
 async function archiveSelectedUnivers() {

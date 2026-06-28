@@ -401,6 +401,7 @@ html, body {
         <div class="data-table-wrap">
           <table class="data-table">
             <thead><tr>
+              <th data-i18n="col_image"></th>
               <th data-i18n="col_articol"></th>
               <th data-i18n="col_denumire"></th>
               <th data-i18n="col_brand"></th>
@@ -413,7 +414,7 @@ html, body {
               <th data-i18n="col_status"></th>
             </tr></thead>
             <tbody id="src-body">
-              <tr><td colspan="10"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
+              <tr><td colspan="11"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -723,6 +724,21 @@ html, body {
   </div>
 </div>
 
+<!-- ── LIGHTBOX (image viewer) ─────────────────────────────── -->
+<div class="modal-backdrop" id="modal-image" onclick="closeModal('modal-image')">
+  <div class="modal" style="width:auto;max-width:90vw" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span style="font-size:16px">🖼️</span>
+      <h3 data-i18n="img_title"></h3>
+      <button class="modal-close" onclick="closeModal('modal-image')">×</button>
+    </div>
+    <div class="modal-body" style="text-align:center">
+      <img id="lightbox-img" src="" alt="" style="max-width:80vw;max-height:70vh;border-radius:8px">
+      <div style="margin-top:10px"><a id="lightbox-link" href="#" target="_blank" rel="noopener" class="btn" data-i18n="img_open"></a></div>
+    </div>
+  </div>
+</div>
+
 <!-- ── TOAST CONTAINER ───────────────────────────────────── -->
 <div class="toast-container" id="toasts"></div>
 
@@ -743,6 +759,7 @@ ru: {
   arhiv_active: 'Активные', arhiv_archived: 'Архивные',
   src_title: 'Источник товаров (BIRO26_GOODS)',
   act_validate: 'Валидация', act_prepare: 'Подготовка', act_assignkeys: 'Назначить ключи',
+  col_image: 'Фото', img_title: 'Изображение', img_open: 'Открыть в новой вкладке',
   col_articol: 'Артикул', col_denumire: 'Наименование', col_brand: 'Бренд', col_furnizor: 'Поставщик',
   col_angro: 'Опт', col_ionline: 'Онлайн', col_retail1: 'Розница', col_stoc: 'Остаток',
   col_codunivers: 'Код словаря', col_status: 'Статус',
@@ -799,6 +816,7 @@ ro: {
   arhiv_active: 'Active', arhiv_archived: 'Arhivate',
   src_title: 'Sursă mărfuri (BIRO26_GOODS)',
   act_validate: 'Validare', act_prepare: 'Pregătire', act_assignkeys: 'Atribuie chei',
+  col_image: 'Foto', img_title: 'Imagine', img_open: 'Deschide în filă nouă',
   col_articol: 'Articol', col_denumire: 'Denumire', col_brand: 'Brand', col_furnizor: 'Furnizor',
   col_angro: 'Angro', col_ionline: 'Online', col_retail1: 'Retail', col_stoc: 'Stoc',
   col_codunivers: 'Cod univers', col_status: 'Status',
@@ -855,6 +873,7 @@ en: {
   arhiv_active: 'Active', arhiv_archived: 'Archived',
   src_title: 'Source feed (BIRO26_GOODS)',
   act_validate: 'Validate', act_prepare: 'Prepare', act_assignkeys: 'Assign keys',
+  col_image: 'Photo', img_title: 'Image', img_open: 'Open in new tab',
   col_articol: 'Article', col_denumire: 'Name', col_brand: 'Brand', col_furnizor: 'Supplier',
   col_angro: 'Wholesale', col_ionline: 'Online', col_retail1: 'Retail', col_stoc: 'Stock',
   col_codunivers: 'Dict code', col_status: 'Status',
