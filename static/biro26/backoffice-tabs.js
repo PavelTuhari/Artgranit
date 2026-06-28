@@ -674,8 +674,25 @@ async function wizValidate(){
 
 async function wizImport(){
   if (!confirmAction('confirm_univers_import')) return;
+  setStatus(t('loading'));
   const r = await apiPost(API + '/univers/import', {});
   renderReport('wiz-import-report', r);
+  // chain image-link import so picture links land automatically with each import
+  if (r.success) {
+    const im = await apiPost(API + '/images/import', {});
+    const el2 = el('wiz-import-report');
+    if (el2) el2.innerHTML += '<div class="ln-ok">images: ' +
+      (im.success ? ((im.rows||0) + ' linked') : escapeHtml(im.error||'err')) + '</div>';
+  }
+  setStatus(r.success ? t('ok_generic') : t('err_generic'));
+}
+
+async function wizImportImages(){
+  setStatus(t('loading'));
+  const r = await apiPost(API + '/images/import', {});
+  renderReport('wiz-import-report',
+    r.success ? {success:true, output:['images: ' + (r.rows||0) + ' linked']} : r);
+  setStatus(r.success ? t('ok_generic') : t('err_generic'));
 }
 
 /* ── wizard: new SELECT source (AI draft / map / save) ──────────────── */

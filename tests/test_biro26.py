@@ -362,3 +362,11 @@ def test_is_safe_select_strips_comments():
     assert is_safe_select("select 1 from dual -- drop table t")
     # but a real second statement is still rejected
     assert not is_safe_select("select 1 from dual; drop table t")
+
+
+def test_import_images_merges_feed_links():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.import_images()
+    assert r["success"] and "rows" in r
+    assert "MERGE INTO TMS_MPT_TVR" in fake.last_sql and "IE_LINKADRES" in fake.last_sql

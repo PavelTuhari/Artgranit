@@ -371,6 +371,31 @@ class Biro26Store:
         return Biro26Store._run_pkg("import_univers;", capture=True)
 
     @staticmethod
+    def import_images() -> Dict[str, Any]:
+        """Import feed image links into TMS_MPT_TVR.IE_LINKADRES (keyed by COD).
+
+        Set-based MERGE from BIRO26_GOODS: one row per COD_UNIVERS (PHOTO_URL,
+        else IMAGE_LINK). Idempotent — re-run after a new feed updates/inserts links.
+        Backs the product-card image (VMS_MPT_TVR is a view over TMS_MPT_TVR)."""
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO TMS_MPT_TVR t USING ("
+                "  SELECT COD_UNIVERS AS COD, "
+                "         MAX(SUBSTR(NVL(PHOTO_URL, IMAGE_LINK),1,1000)) AS URL "
+                "  FROM BIRO26_GOODS "
+                "  WHERE COD_UNIVERS IS NOT NULL "
+                "    AND (PHOTO_URL IS NOT NULL OR IMAGE_LINK IS NOT NULL) "
+                "  GROUP BY COD_UNIVERS"
+                ") s ON (t.COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.IE_LINKADRES = s.URL "
+                "WHEN NOT MATCHED THEN INSERT (COD, IE_LINKADRES) VALUES (s.COD, s.URL)")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "rows": r.get("rowcount", 0)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def archive_univers(isarhiv: str = "1") -> Dict[str, Any]:
         # value '2' is blocked by trigger TMS_UNIVERS_DONT_DELETE; guard upstream too
         return Biro26Store._run_pkg(f"archive_univers(p_isarhiv => {_q(isarhiv)});",

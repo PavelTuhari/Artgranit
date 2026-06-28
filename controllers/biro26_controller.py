@@ -153,6 +153,10 @@ class Biro26Controller:
         return Biro26Store.import_univers()
 
     @staticmethod
+    def import_images() -> Dict[str, Any]:
+        return Biro26Store.import_images()
+
+    @staticmethod
     def archive_univers() -> Dict[str, Any]:
         d = request.get_json(silent=True) or {}
         isarhiv = str(d.get("isarhiv", "1"))

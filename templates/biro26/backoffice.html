@@ -787,7 +787,10 @@ html, body {
 
         <div class="card" id="wiz-body-4" style="display:none">
           <h3 data-i18n="wiz_s4"></h3>
-          <div class="btn-row"><button class="btn primary" onclick="wizImport()" data-i18n="wiz_run_import"></button></div>
+          <div class="btn-row">
+            <button class="btn primary" onclick="wizImport()" data-i18n="wiz_run_import"></button>
+            <button class="btn" onclick="wizImportImages()" data-i18n="wiz_run_images"></button>
+          </div>
           <div class="report-panel" id="wiz-import-report" data-empty=""></div>
           <div class="form-actions"><button class="btn" onclick="wizGoto(3)" data-i18n="wiz_back"></button></div>
         </div>
@@ -881,6 +884,7 @@ ru: {
   wiz_save_source: 'Сохранить источник', wiz_src_name: 'Имя', wiz_md_label: 'Описание (Markdown)',
   wiz_ai_unavailable: 'AI недоступен — эвристика',
   wiz_run_validate: 'Запустить проверку', wiz_run_import: 'Импортировать номенклатуру',
+  wiz_run_images: 'Импортировать картинки',
   wiz_col_target: 'Целевое поле', wiz_col_source: 'Колонка источника', wiz_col_sample: 'Пример',
   f_source: 'Источник:',
   loading: 'Загрузка...', f_apply: 'Применить', f_search: 'Поиск...', f_all: 'Все',
@@ -948,6 +952,7 @@ ro: {
   wiz_save_source: 'Salvează sursa', wiz_src_name: 'Nume', wiz_md_label: 'Descriere (Markdown)',
   wiz_ai_unavailable: 'AI indisponibil — euristică',
   wiz_run_validate: 'Rulează validarea', wiz_run_import: 'Importă nomenclatorul',
+  wiz_run_images: 'Importă imaginile',
   wiz_col_target: 'Câmp țintă', wiz_col_source: 'Coloană sursă', wiz_col_sample: 'Exemplu',
   f_source: 'Sursă:',
   loading: 'Se încarcă...', f_apply: 'Aplică', f_search: 'Căutare...', f_all: 'Toate',
@@ -1015,6 +1020,7 @@ en: {
   wiz_save_source: 'Save source', wiz_src_name: 'Name', wiz_md_label: 'Description (Markdown)',
   wiz_ai_unavailable: 'AI unavailable — heuristic',
   wiz_run_validate: 'Run validation', wiz_run_import: 'Import dictionary',
+  wiz_run_images: 'Import images',
   wiz_col_target: 'Target field', wiz_col_source: 'Source column', wiz_col_sample: 'Sample',
   f_source: 'Source:',
   loading: 'Loading...', f_apply: 'Apply', f_search: 'Search...', f_all: 'All',

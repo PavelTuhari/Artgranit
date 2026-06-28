@@ -5285,6 +5285,10 @@ def api_biro26_univers_card(cod):
 def api_biro26_univers_import():
     return _b26(Biro26Controller.import_univers)
 
+@app.route('/api/biro26/images/import', methods=['POST'])
+def api_biro26_images_import():
+    return _b26(Biro26Controller.import_images)
+
 @app.route('/api/biro26/univers/archive', methods=['POST'])
 def api_biro26_univers_archive():
     return _b26(Biro26Controller.archive_univers)

@@ -150,5 +150,16 @@ AI-подбор маппинга колонок. SELECT материализуе
 fallback по именам колонок, поэтому мастер работает и без AI.</p>
 <p><strong>Новые эндпоинты:</strong> <code>GET /api/biro26/source/columns|sample</code>,
 <code>GET/POST /api/biro26/sources</code>, <code>POST /api/biro26/sources/sample|ai-draft-md|ai-suggest-mapping</code>.</p>
+
+<h3>Прайс-лист в стиле Windows + импорт картинок</h3>
+<p>Вкладка «Listă de prețuri» — мастер-деталь как в нативном приложении: слева прайс-листы
+(<code>VPR0M_PRICES</code>) и группы, справа строки цен с наименованием товара и миниатюрой;
+клик по строке — карточка товара с изображением. Эндпоинт <code>GET /api/biro26/prices/lists</code>.</p>
+<p><strong>Импорт ссылок на картинки:</strong> ссылки из фида (<code>BIRO26_GOODS.PHOTO_URL</code>,
+иначе <code>IMAGE_LINK</code>) импортируются в <code>TMS_MPT_TVR.IE_LINKADRES</code> (база вью
+<code>VMS_MPT_TVR</code>; колонка расширена до <code>VARCHAR2(1000)</code>) — set-based MERGE по
+<code>COD = COD_UNIVERS</code>, идемпотентно. Эндпоинт <code>POST /api/biro26/images/import</code>;
+в мастере импорта запускается автоматически после «Import nomenclator», либо вручную кнопкой
+«Импортировать картинки». Так ссылки на изображения подтягиваются при каждом импорте.</p>
 </body>
 </html>
