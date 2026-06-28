@@ -16,11 +16,16 @@ _FORBIDDEN = re.compile(
     r"begin|declare|call|execute|exec|comment|rename|lock)\b", re.IGNORECASE)
 
 
+_COMMENTS = re.compile(r"--[^\n]*|/\*.*?\*/", re.DOTALL)
+
+
 def is_safe_select(sql: str) -> bool:
     if not sql or not sql.strip():
         return False
-    s = sql.strip().rstrip(";").strip()
-    if ";" in s:                      # only a single statement
+    # strip comments first so they cannot hide ';' or forbidden keywords,
+    # and so a ';' inside a comment doesn't trigger a false multi-statement reject
+    s = _COMMENTS.sub(" ", sql).strip().rstrip(";").strip()
+    if not s or ";" in s:             # only a single statement
         return False
     low = s.lower()
     if not (low.startswith("select") or low.startswith("with")):
@@ -71,7 +76,9 @@ class Biro26Sources:
         view = view_name_for(name)
         inner = sql.strip().rstrip(";")
         db = Biro26DB()
-        cv = db.execute_dml(f"CREATE OR REPLACE VIEW {view} AS {inner}")
+        # wrap the body in a subquery: only something that parses as a SELECT
+        # survives, so the SELECT can't morph the CREATE VIEW into other DDL/DML
+        cv = db.execute_dml(f"CREATE OR REPLACE VIEW {view} AS SELECT * FROM ({inner})")
         if not cv.get("success"):
             return {"success": False, "error": cv.get("message")}
         res = db.execute_script([
@@ -81,6 +88,7 @@ class Biro26Sources:
              "params": {"n": name, "s": inner, "v": view, "m": md_path}, "kind": "dml"},
         ])
         if not res.get("success"):
+            db.execute_dml(f"DROP VIEW {view}")  # avoid orphaned view on metadata failure
             return {"success": False, "error": res.get("message")}
         return {"success": True, "data": {"name": name, "view_name": view}}
 

@@ -353,3 +353,12 @@ def test_controller_create_source_requires_select():
             S.create_source.return_value = {"success": False, "error": "only a single read-only SELECT is allowed"}
             r = Biro26Controller.create_source()
     assert r["success"] is False
+
+
+def test_is_safe_select_strips_comments():
+    # ';' inside a comment must NOT trigger multi-statement reject
+    assert is_safe_select("select /* ; */ 1 from dual")
+    # forbidden keyword hidden in a comment is removed, statement still a SELECT
+    assert is_safe_select("select 1 from dual -- drop table t")
+    # but a real second statement is still rejected
+    assert not is_safe_select("select 1 from dual; drop table t")
