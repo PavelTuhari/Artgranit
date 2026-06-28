@@ -335,6 +335,58 @@ async function mergeGroups() {
 /* =====================================================================
    TAB 4 — PRICE LIST
    ===================================================================== */
+/* master-detail: price lists (VPR0M_PRICES) → groups → item rows (Windows-style) */
+async function loadPricelists() {
+  const tbody = el('pricelists-body'); if (!tbody) return;
+  tbody.innerHTML = emptyRow(tbody, 2, 'loading');
+  const r = await apiGet(API + '/prices/lists');
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 2, 'no_data'); return; }
+  const rows = r.data || [];
+  const cur = numVal('price-codprice', 1);
+  tbody.innerHTML = rows.map(p =>
+    '<tr onclick="selectPriceList(' + p.codprice + ', this)" style="cursor:pointer"' +
+    (p.codprice === cur ? ' class="row-selected"' : '') + '>' +
+    '<td class="mono">' + p.codprice + '</td>' +
+    '<td>' + escapeHtml(p.pricename || '') + '</td>' +
+    '</tr>').join('') || emptyRow(tbody, 2, 'no_data');
+}
+
+function selectPriceList(codprice, rowEl) {
+  el('price-codprice').value = codprice;
+  el('price-codgrp').value = '';
+  document.querySelectorAll('#pricelists-body tr').forEach(tr => tr.classList.remove('row-selected'));
+  if (rowEl) rowEl.classList.add('row-selected');
+  loadPriceGroups();
+  loadPrices();
+  loadPriceDates();
+}
+
+async function loadPriceGroups() {
+  const tbody = el('pricegroups-body'); if (!tbody) return;
+  tbody.innerHTML = emptyRow(tbody, 2, 'loading');
+  const cp = numVal('price-codprice', 1);
+  const r = await apiGet(API + '/groups?codprice=' + cp);
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 2, 'no_data'); return; }
+  const rows = r.data || [];
+  const curg = val('price-codgrp');
+  tbody.innerHTML =
+    '<tr onclick="selectPriceGroup(\'\', this)" style="cursor:pointer"' + (curg===''?' class="row-selected"':'') + '>' +
+    '<td class="mono">—</td><td class="muted">' + t('f_all') + '</td></tr>' +
+    rows.map(g =>
+      '<tr onclick="selectPriceGroup(' + g.codgrp + ', this)" style="cursor:pointer"' +
+      (String(g.codgrp)===curg ? ' class="row-selected"' : '') + '>' +
+      '<td class="mono">' + g.codgrp + '</td>' +
+      '<td>' + escapeHtml(g.grpname || '') + '</td>' +
+      '</tr>').join('');
+}
+
+function selectPriceGroup(codgrp, rowEl) {
+  el('price-codgrp').value = (codgrp === '' ? '' : codgrp);
+  document.querySelectorAll('#pricegroups-body tr').forEach(tr => tr.classList.remove('row-selected'));
+  if (rowEl) rowEl.classList.add('row-selected');
+  loadPrices();
+}
+
 async function loadPrices() {
   const tbody = el('price-body');
   tbody.innerHTML = emptyRow(tbody, 9, 'loading');
@@ -342,26 +394,52 @@ async function loadPrices() {
   const qs = new URLSearchParams();
   qs.set('codprice', cp);
   if (val('price-codgrp')) qs.set('codgrp', val('price-codgrp'));
-  qs.set('limit', '300');
+  qs.set('limit', '500');
   const r = await apiGet(API + '/prices?' + qs.toString());
   if (!r.success) { tbody.innerHTML = emptyRow(tbody, 9, 'no_data'); return; }
   const rows = r.data || [];
   el('price-count').textContent = rows.length;
+  if (el('price-sel-info')) el('price-sel-info').textContent =
+    'codprice=' + cp + (val('price-codgrp') ? (' · codgrp=' + val('price-codgrp')) : '');
   if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 9, 'no_data'); return; }
   tbody.innerHTML = rows.map((p, i) => {
     const k = 'price-' + i;
     return '<tr>' +
-      '<td class="mono">' + p.codprice + '</td>' +
+      imgCell(p.image) +
       '<td class="mono">' + p.codgrp + '</td>' +
-      '<td class="mono">' + p.sc + '</td>' +
+      '<td class="mono" style="cursor:pointer" onclick="showItemCard(' + p.sc + ')">' + p.sc + '</td>' +
+      '<td style="cursor:pointer" onclick="showItemCard(' + p.sc + ')">' + escapeHtml(p.denumirea || '') + '</td>' +
       '<td>' + escapeHtml(p.datastart || '') + '</td>' +
-      '<td class="num"><input class="edit-input" id="' + k + '-pretv" value="' + fmtNum(p.pretv) + '" style="width:80px"></td>' +
-      '<td class="num"><input class="edit-input" id="' + k + '-pretv1" value="' + fmtNum(p.pretv1) + '" style="width:80px"></td>' +
-      '<td class="num"><input class="edit-input" id="' + k + '-pretv2" value="' + fmtNum(p.pretv2) + '" style="width:80px"></td>' +
-      '<td class="num">' + fmtNum(p.pretv3) + '</td>' +
+      '<td class="num"><input class="edit-input" id="' + k + '-pretv" value="' + fmtNum(p.pretv) + '" style="width:78px"></td>' +
+      '<td class="num"><input class="edit-input" id="' + k + '-pretv1" value="' + fmtNum(p.pretv1) + '" style="width:78px"></td>' +
+      '<td class="num"><input class="edit-input" id="' + k + '-pretv2" value="' + fmtNum(p.pretv2) + '" style="width:78px"></td>' +
       '<td class="td-actions"><button class="btn-sm" onclick="savePrice(' + p.codprice + ',' + p.codgrp + ',' + p.sc + ',\'' + escapeHtml(p.datastart) + '\',\'' + k + '\')">' + t('btn_save') + '</button></td>' +
       '</tr>';
   }).join('');
+}
+
+async function showItemCard(cod) {
+  const body = el('item-card-body');
+  body.innerHTML = '<div class="empty-state"><p>' + t('loading') + '</p></div>';
+  el('modal-item').classList.add('open');
+  const r = await apiGet(API + '/univers/' + cod);
+  if (!r.success || !r.data) { body.innerHTML = '<div class="empty-state"><p>' + t('no_data') + '</p></div>'; return; }
+  const u = r.data.univers || {}, mpt = r.data.mpt;
+  const imgUrl = r.data.photo_url || r.data.image_link;
+  const cardImg = imgUrl
+    ? '<div style="text-align:center;margin-bottom:12px"><img src="' + escapeHtml(imgUrl) +
+      '" referrerpolicy="no-referrer" style="max-width:100%;max-height:240px;border-radius:8px;cursor:pointer" ' +
+      'onclick="openLightbox(this.src)" onerror="this.style.display=\'none\'"></div>'
+    : '';
+  function fields(obj) {
+    return '<div class="detail-grid">' + Object.keys(obj).map(kk =>
+      '<div class="detail-field"><div class="df-label">' + escapeHtml(kk) + '</div><div class="df-val">' +
+      escapeHtml(obj[kk] === null || obj[kk] === undefined ? '—' : obj[kk]) + '</div></div>').join('') + '</div>';
+  }
+  body.innerHTML = cardImg +
+    '<div class="detail-section-title">TMS_UNIVERS</div>' + fields(u) +
+    (mpt ? '<div class="detail-section-title">TMS_MPT</div>' + fields(mpt)
+         : '<div class="detail-section-title">TMS_MPT</div><p class="muted">' + t('no_data') + '</p>');
 }
 
 async function savePrice(codprice, codgrp, sc, datastart, k) {

@@ -577,13 +577,8 @@ html, body {
           <span class="count" id="price-count">0</span>
         </div>
 
-        <div class="filter-bar">
-          <label data-i18n="f_codprice"></label>
-          <input type="number" class="f-input w-sm" id="price-codprice" value="1" min="1">
-          <label data-i18n="f_codgrp"></label>
-          <input type="text" class="f-input w-sm" id="price-codgrp">
-          <button class="btn" onclick="loadPrices(); loadPriceDates();" data-i18n="f_apply"></button>
-        </div>
+        <input type="hidden" id="price-codprice" value="1">
+        <input type="hidden" id="price-codgrp" value="">
 
         <div class="btn-row">
           <button class="btn primary" onclick="confirmAndRun('grp_import','/api/biro26/groups/import',()=>({codprice:Number(document.getElementById('price-codprice').value||1)}),'price-report')" data-i18n="act_import_groups"></button>
@@ -600,9 +595,59 @@ html, body {
 
         <div class="report-panel" id="price-report" data-empty=""></div>
 
-        <div class="card">
-          <h3 data-i18n="price_periods_title"></h3>
-          <div class="data-table-wrap" style="max-height:200px">
+        <!-- Windows-style master-detail: price lists + groups (left), item rows (right) -->
+        <div class="two-col" style="grid-template-columns:280px 1fr">
+          <div>
+            <div class="card" style="padding:0;margin-bottom:12px">
+              <h3 style="padding:10px 12px;margin:0;border:none" data-i18n="price_lists_title"></h3>
+              <div class="data-table-wrap" style="max-height:200px;border:none;margin:0">
+                <table class="data-table">
+                  <thead><tr><th data-i18n="col_codprice"></th><th data-i18n="col_pricename"></th></tr></thead>
+                  <tbody id="pricelists-body"><tr><td colspan="2"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card" style="padding:0">
+              <h3 style="padding:10px 12px;margin:0;border:none" data-i18n="grp_title"></h3>
+              <div class="data-table-wrap" style="max-height:360px;border:none;margin:0">
+                <table class="data-table">
+                  <thead><tr><th data-i18n="col_codgrp"></th><th data-i18n="col_grpname"></th></tr></thead>
+                  <tbody id="pricegroups-body"><tr><td colspan="2"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="filter-bar" style="margin-bottom:8px">
+              <span class="muted" id="price-sel-info"></span>
+              <span style="flex:1"></span>
+              <button class="btn" onclick="loadPrices()" data-i18n="f_apply"></button>
+            </div>
+            <div class="data-table-wrap" style="max-height:560px">
+              <table class="data-table">
+                <thead><tr>
+                  <th data-i18n="col_image"></th>
+                  <th data-i18n="col_codgrp"></th>
+                  <th data-i18n="col_sc"></th>
+                  <th data-i18n="col_denumire"></th>
+                  <th data-i18n="col_datastart"></th>
+                  <th class="num" data-i18n="col_pretv"></th>
+                  <th class="num" data-i18n="col_pretv1"></th>
+                  <th class="num" data-i18n="col_pretv2"></th>
+                  <th data-i18n="col_actions"></th>
+                </tr></thead>
+                <tbody id="price-body">
+                  <tr><td colspan="9"><div class="empty-state"><div class="es-icon">💲</div><p data-i18n="loading"></p></div></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <details style="margin-top:12px">
+          <summary style="cursor:pointer;font-weight:600" data-i18n="price_periods_title"></summary>
+          <div class="data-table-wrap" style="max-height:200px;margin-top:8px">
             <table class="data-table">
               <thead><tr>
                 <th data-i18n="col_codprice"></th>
@@ -615,26 +660,7 @@ html, body {
               </tbody>
             </table>
           </div>
-        </div>
-
-        <div class="data-table-wrap">
-          <table class="data-table">
-            <thead><tr>
-              <th data-i18n="col_codprice"></th>
-              <th data-i18n="col_codgrp"></th>
-              <th data-i18n="col_sc"></th>
-              <th data-i18n="col_datastart"></th>
-              <th class="num" data-i18n="col_pretv"></th>
-              <th class="num" data-i18n="col_pretv1"></th>
-              <th class="num" data-i18n="col_pretv2"></th>
-              <th class="num" data-i18n="col_pretv3"></th>
-              <th data-i18n="col_actions"></th>
-            </tr></thead>
-            <tbody id="price-body">
-              <tr><td colspan="9"><div class="empty-state"><div class="es-icon">💲</div><p data-i18n="loading"></p></div></td></tr>
-            </tbody>
-          </table>
-        </div>
+        </details>
       </div>
 
       <!-- ══════════════════════════════════════════════════ -->
@@ -824,6 +850,18 @@ html, body {
   </div>
 </div>
 
+<!-- ── ITEM CARD (product card with image) ─────────────────── -->
+<div class="modal-backdrop" id="modal-item" onclick="closeModal('modal-item')">
+  <div class="modal" style="width:560px;max-width:92vw" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span style="font-size:16px">🧾</span>
+      <h3 id="item-card-title" data-i18n="dict_detail_title"></h3>
+      <button class="modal-close" onclick="closeModal('modal-item')">×</button>
+    </div>
+    <div class="modal-body" id="item-card-body"></div>
+  </div>
+</div>
+
 <!-- ── TOAST CONTAINER ───────────────────────────────────── -->
 <div class="toast-container" id="toasts"></div>
 
@@ -871,6 +909,7 @@ ru: {
   price_title: 'Прайс-лист',
   act_import_dates: 'Импорт дат', act_import_prices: 'Импорт цен', act_rollback: 'Откатить лист',
   price_periods_title: 'Периоды', col_data: 'Дата', col_nrdoc: '№ документа',
+  price_lists_title: 'Прайс-листы', col_pricename: 'Название',
   col_sc: 'SC', col_datastart: 'Дата начала', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Сопоставление / Настройки', map_conn_title: 'Подключение к Oracle',
@@ -937,6 +976,7 @@ ro: {
   price_title: 'Listă de prețuri',
   act_import_dates: 'Import date', act_import_prices: 'Import prețuri', act_rollback: 'Anulează lista',
   price_periods_title: 'Perioade', col_data: 'Data', col_nrdoc: 'Nr. document',
+  price_lists_title: 'Liste de prețuri', col_pricename: 'Denumire',
   col_sc: 'SC', col_datastart: 'Data start', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Mapare / Setări', map_conn_title: 'Conexiune Oracle',
@@ -1003,6 +1043,7 @@ en: {
   price_title: 'Price list',
   act_import_dates: 'Import dates', act_import_prices: 'Import prices', act_rollback: 'Rollback list',
   price_periods_title: 'Periods', col_data: 'Date', col_nrdoc: 'Doc no.',
+  price_lists_title: 'Price lists', col_pricename: 'Name',
   col_sc: 'SC', col_datastart: 'Start date', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Mapping / Settings', map_conn_title: 'Oracle connection',
@@ -1086,7 +1127,7 @@ function showTab(id) {
   if (id === 'source')  { loadBrands(); loadFurnizoriFilter(); loadGoods(); }
   if (id === 'dict')    { loadUnivers(); }
   if (id === 'groups')  { loadGroups(); loadSuppliers(); loadFurnizori(); loadCategories(); }
-  if (id === 'prices')  { loadPrices(); loadPriceDates(); }
+  if (id === 'prices')  { loadPricelists(); loadPriceGroups(); loadPrices(); loadPriceDates(); }
   if (id === 'mapping') { loadProfiles(); }
   if (id === 'wizard')  { wizardInit(); }
 }

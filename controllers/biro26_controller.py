@@ -216,6 +216,10 @@ class Biro26Controller:
             limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
 
     @staticmethod
+    def get_pricelists() -> Dict[str, Any]:
+        return Biro26Store.get_pricelists()
+
+    @staticmethod
     def get_dates() -> Dict[str, Any]:
         return Biro26Store.get_dates(request.args.get("codprice", 1, type=int))
 

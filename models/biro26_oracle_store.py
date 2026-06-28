@@ -350,14 +350,19 @@ class Biro26Store:
             if not u:
                 return {"success": False, "error": "not found"}
             mpt = _rows(db.execute_query("SELECT * FROM TMS_MPT WHERE COD=:c", {"c": cod}))
+            # primary image: ERP VMS_MPT_TVR.IE_LINKADRES (keyed by COD); fallback to feed
+            tvr = _rows(db.execute_query(
+                "SELECT IE_LINKADRES FROM VMS_MPT_TVR WHERE COD=:c AND ROWNUM=1", {"c": cod}))
             img = _rows(db.execute_query(
                 "SELECT PHOTO_URL, IMAGE_LINK FROM BIRO26_GOODS "
                 "WHERE COD_UNIVERS = :c AND ROWNUM = 1", {"c": cod}))
             photo = img[0] if img else {}
+            ie = tvr[0].get("ie_linkadres") if tvr else None
             return {"success": True,
                     "data": {"univers": u[0], "mpt": mpt[0] if mpt else None,
-                             "photo_url": photo.get("photo_url"),
-                             "image_link": photo.get("image_link")}}
+                             "photo_url": ie or photo.get("photo_url"),
+                             "image_link": photo.get("image_link"),
+                             "ie_linkadres": ie}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -466,16 +471,30 @@ class Biro26Store:
     # PRICE LIST — VPR1D_PRDATE / VTPR1D_PERPRLIST
     # ============================================================
     @staticmethod
+    def get_pricelists() -> Dict[str, Any]:
+        """Price lists (VPR0M_PRICES) — left panel of the Windows-style layout."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT CODPRICE, PRICENAME, VAL, TYPE_SC FROM VPR0M_PRICES ORDER BY CODPRICE"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def get_prices(codprice: int = 1, codgrp: Optional[int] = None,
                    limit: int = 200, offset: int = 0) -> Dict[str, Any]:
         try:
-            inner = ("SELECT CODPRICE, CODGRP, SC, PRETV, PRETV1, PRETV2, PRETV3, "
-                     "TO_CHAR(DATASTART,'DD.MM.YYYY') DATASTART "
-                     "FROM VTPR1D_PERPRLIST WHERE CODPRICE=:c")
+            # join item name (TMS_UNIVERS) + image link (VMS_MPT_TVR.IE_LINKADRES)
+            inner = ("SELECT p.CODPRICE, p.CODGRP, p.SC, u.DENUMIREA, "
+                     "p.PRETV, p.PRETV1, p.PRETV2, p.PRETV3, "
+                     "TO_CHAR(p.DATASTART,'DD.MM.YYYY') DATASTART, m.IE_LINKADRES IMAGE "
+                     "FROM VTPR1D_PERPRLIST p "
+                     "LEFT JOIN TMS_UNIVERS u ON u.COD = p.SC "
+                     "LEFT JOIN VMS_MPT_TVR m ON m.COD = p.SC "
+                     "WHERE p.CODPRICE=:c")
             params: Dict[str, Any] = {"c": codprice}
             if codgrp is not None:
-                inner += " AND CODGRP=:g"; params["g"] = codgrp
-            inner += " ORDER BY CODGRP, SC"
+                inner += " AND p.CODGRP=:g"; params["g"] = codgrp
+            inner += " ORDER BY p.CODGRP, u.DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
             return _result(r)
         except Exception as e:

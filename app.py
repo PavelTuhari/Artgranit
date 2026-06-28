@@ -5329,6 +5329,10 @@ def api_biro26_prices_get():
 def api_biro26_prices_put():
     return _b26(Biro26Controller.update_price)
 
+@app.route('/api/biro26/prices/lists', methods=['GET'])
+def api_biro26_prices_lists():
+    return _b26(Biro26Controller.get_pricelists)
+
 @app.route('/api/biro26/prices/dates', methods=['GET'])
 def api_biro26_prices_dates_get():
     return _b26(Biro26Controller.get_dates)
