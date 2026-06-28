@@ -11,6 +11,8 @@ from typing import Any, Dict
 from flask import request
 
 from models.biro26_oracle_store import Biro26Store, G_PARAMS
+from models.biro26_sources import Biro26Sources
+from models import biro26_ai
 
 
 class Biro26Controller:
@@ -78,6 +80,51 @@ class Biro26Controller:
     @staticmethod
     def assign_keys() -> Dict[str, Any]:
         return Biro26Store.assign_keys()
+
+    # -- sources (any SELECT) ----------------------------------------
+    @staticmethod
+    def list_sources() -> Dict[str, Any]:
+        return Biro26Sources.list_sources()
+
+    @staticmethod
+    def sample_select() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        return Biro26Sources.sample(d.get("sql", ""), d.get("limit", 20))
+
+    @staticmethod
+    def create_source() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        if not d.get("name") or not d.get("sql"):
+            return {"success": False, "error": "name and sql are required"}
+        md = d.get("md")
+        md_path = None
+        if md:
+            import os as _os
+            sd = _os.path.join(_os.path.dirname(__file__), "..", "docs", "Biro26", "sources")
+            _os.makedirs(sd, exist_ok=True)
+            md_path = f"docs/Biro26/sources/{d['name']}.md"
+            with open(_os.path.join(sd, f"{d['name']}.md"), "w", encoding="utf-8") as f:
+                f.write(md)
+        return Biro26Sources.create_source(d["name"], d["sql"], md_path)
+
+    @staticmethod
+    def ai_draft_md() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        s = Biro26Sources.sample(d.get("sql", ""), 10)
+        if not s.get("success"):
+            return s
+        md = biro26_ai.draft_source_md(d.get("name", "source"), s["columns"], s["data"])
+        return {"success": True, "data": {"md": md, "columns": s["columns"]}}
+
+    @staticmethod
+    def ai_suggest_mapping() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        s = Biro26Sources.sample(d.get("sql", ""), 10)
+        if not s.get("success"):
+            return s
+        r = biro26_ai.suggest_mapping(s["columns"], s["data"], d.get("md", ""))
+        r["columns"] = s["columns"]
+        return r
 
     @staticmethod
     def source_columns() -> Dict[str, Any]:

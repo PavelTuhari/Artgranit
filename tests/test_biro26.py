@@ -345,3 +345,11 @@ def test_suggest_mapping_falls_back_when_ai_unavailable():
     with patch("models.biro26_ai.is_available", return_value=False):
         r = suggest_mapping(cols, [], "")
     assert r["success"] and r["source"] == "heuristic"
+
+
+def test_controller_create_source_requires_select():
+    with _app.test_request_context(json={"name":"x","sql":"DELETE FROM t"}):
+        with patch("controllers.biro26_controller.Biro26Sources") as S:
+            S.create_source.return_value = {"success": False, "error": "only a single read-only SELECT is allowed"}
+            r = Biro26Controller.create_source()
+    assert r["success"] is False

@@ -5345,6 +5345,26 @@ def api_biro26_prices_import():
 def api_biro26_prices_rollback():
     return _b26(Biro26Controller.rollback_pricelist)
 
+@app.route('/api/biro26/sources', methods=['GET'])
+def api_biro26_sources_list():
+    return _b26(Biro26Controller.list_sources)
+
+@app.route('/api/biro26/sources', methods=['POST'])
+def api_biro26_sources_create():
+    return _b26(Biro26Controller.create_source)
+
+@app.route('/api/biro26/sources/sample', methods=['POST'])
+def api_biro26_sources_sample():
+    return _b26(Biro26Controller.sample_select)
+
+@app.route('/api/biro26/sources/ai-draft-md', methods=['POST'])
+def api_biro26_sources_ai_md():
+    return _b26(Biro26Controller.ai_draft_md)
+
+@app.route('/api/biro26/sources/ai-suggest-mapping', methods=['POST'])
+def api_biro26_sources_ai_map():
+    return _b26(Biro26Controller.ai_suggest_mapping)
+
 
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
