@@ -47,23 +47,22 @@ docs/Biro26/README_BIRO26.html     — документация модуля (п
 
 ---
 
-## 3. Слой подключения (единственная принципиально новая часть)
+## 3. Слой подключения (subprocess-воркер — главное отличие от остальных модулей)
 
-`DatabaseModel` жёстко привязан к wallet-БД, поэтому Biro26 получает собственный коннектор.
+> **ВАЖНО (уточнено по факту, 2026-06-28):** officeplus — это **Oracle 11g (11.2.0.4)**, charset **CL8MSWIN1251**. python-oracledb может работать с 11g **только в thick-режиме** (Instant Client; thin даёт `DPY-3010`). Thick — переключатель уровня **всего процесса**, и его включение **ломает** существующее thin+wallet подключение основного приложения к Oracle Cloud (проверено: `ORA-12506`), от которого зависит production `nufarul.eminescu.md`. Поэтому Biro26 **не** подключается в основном процессе.
 
-- **python-oracledb thin mode** — без Instant Client. cloudbd = Oracle 23ai; БД в `AL32UTF8`, драйвер в thin работает в UTF-8, что обходит ловушку `cp1252`/`ORA-12705`.
-- **После connect:** `ALTER SESSION SET NLS_LANGUAGE='ENGLISH' NLS_TERRITORY='AMERICA' NLS_NUMERIC_CHARACTERS='. '` — нейтрализует локаль `en_MD` (ТЗ §2) и делает парсинг цен детерминированным.
-- **Конфигурация** в `config.py`/`.env` с дефолтами:
-  - `BIRO26_DB_USER=officeplus`
-  - `BIRO26_DB_PASSWORD=officeplus26`
-  - `BIRO26_DB_DSN=orange.una.md:4024/cloudbd.world`
-  - `BIRO26_NLS_LANGUAGE=ENGLISH`, `BIRO26_NLS_TERRITORY=AMERICA` (переопределяемо)
-  Параметры можно посмотреть/изменить/протестировать во вкладке «Настройки» (ТЗ §2: приложение конфигурирует подключение, а не полагается на ОС). Пароль — только в `.env`.
-- **API класса `Biro26DB`** (context manager):
+- **Изоляция через subprocess-воркер.** `models/biro26_worker.py` — отдельный короткоживущий процесс: включает thick (`init_oracle_client`), подключается к officeplus, выполняет запрос/DML/PLSQL/script, печатает JSON в stdout. Обмен JSON через stdin/stdout. Основной Flask остаётся **thin** — cloud/production не затрагивается.
+- **`models/biro26_db.py` (`Biro26DB`)** — в основном процессе; на каждый вызов запускает воркер через `subprocess.run([sys.executable, worker])`, парсит JSON. Контракт совпадает с `DatabaseModel`:
   - `execute_query(sql, params) -> {success, columns, data, rowcount, message}`
-  - `execute_dml(sql, params) -> {success, rowcount}` (commit/rollback внутри)
-  - `call_proc(name, params, capture_output=False) -> {success, output_lines[], error?}` — включает `DBMS_OUTPUT.ENABLE`, после вызова собирает строки через `DBMS_OUTPUT.GET_LINES`.
-  - `test_connection() -> {success, version?, error?}` — для кнопки «Проверить подключение».
+  - `execute_dml(sql, params) -> {success, rowcount, message}` (commit в воркере)
+  - `call_proc(plsql, params, capture_output=False) -> {success, output_lines[], message}` — `plsql` — полный блок; `g_*` пакета ставятся в **том же** блоке (session state).
+  - `execute_script([{sql,params,kind}]) -> {success, results[], message}` — несколько операторов в **одной** транзакции (атомарные multi-statement, напр. создание профиля).
+  - `test_connection() -> {success, version, error}`.
+- **NLS** в воркере после connect: `NLS_LANGUAGE='ENGLISH' NLS_TERRITORY='AMERICA' NLS_NUMERIC_CHARACTERS='. '` (детерминированный парсинг цен; нейтрализует `en_MD`/`ORA-12705`).
+- **Charset:** thick-клиент отдаёт данные в UTF-8 (Cyrillic `NAMERUS` читается корректно). Данные ERP практически без диакритики (RO без диакритик + RU кириллица). Запись в officeplus — в пределах CL8MSWIN1251.
+- **Особенности Oracle 11g для всего SQL модуля:** нет `FETCH FIRST/OFFSET` — пагинация только через `ROWNUM` (паттерн: `SELECT * FROM (SELECT a.*, ROWNUM rn FROM (<inner ORDER BY> ) a WHERE ROWNUM<=:hi) WHERE rn>:lo`).
+- **Конфигурация** в `config.py`/`.env`: `BIRO26_DB_USER=officeplus`, `BIRO26_DB_PASSWORD` (только в `.env`), `BIRO26_DB_DSN=orange.una.md:4024/cloudbd.world`, `BIRO26_NLS_*`, `BIRO26_INSTANT_CLIENT=/Users/pt/Downloads/instantclient_23_26` (сборка `23_26` работает; `23_3` даёт `ORA-28041`). Видны/тестируются во вкладке «Настройки».
+- **Deploy на сервер (позже):** потребуется Instant Client на Linux-сервере + сетевой доступ к `orange.una.md:4024`; основной thin-контур не меняется. Пока модуль — локальный.
 
 ---
 
