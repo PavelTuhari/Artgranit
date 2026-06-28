@@ -71,12 +71,18 @@
 
 5.  **DECOR:** оператор, админка, расчёт заказов, печатные документы, нормализованное хранение материалов, настроек, заказов и раздвижных систем в Oracle.
 
-6.  **Документация:**
+6.  **Biro26 (OfficePlus ERP, Oracle 11g):** трёхъязычный (RU/RO/EN) импорт номенклатуры и прайс-листов.
+    *   Маршруты `/UNA.md/orasldev/biro26*` (5 вкладок: источник `BIRO26_GOODS`, справочник `TMS_UNIVERS`/`TMS_MPT`, группы/поставщики, прайс-лист, маппинг/настройки).
+    *   Вся бизнес-логика — в пакете `YBIRO_Import_Marfa`; приложение его вызывает (validate/prepare/assign, import_univers, import_groups/dates/prices, rollback, archive, fix-confusables).
+    *   **Подключается к officeplus** (`orange.una.md:4024/cloudbd.world`) — отдельная Oracle 11g БД, та же, что в примере `/Users/pt/Projects.AI/BIRO26/`. 11g требует thick-режим, поэтому доступ изолирован в **subprocess-воркере**; основной thin-контур Artgranit и `nufarul.eminescu.md` не затрагиваются.
+    *   Документация: `docs/Biro26/README_BIRO26.html`, ТЗ — `docs/Biro26/TZ_BIRO26_App.md`. Профили маппинга — таблицы `YBIRO_MAP_*` (деплой: `deploy_biro26_app_tables.py`).
+
+7.  **Документация:**
     *   Индекс документации (`/UNA.md/orasldev/docs`), просмотр Markdown, ТЗ Nufarul.
     *   Материалы DECOR и HTML-конверсии (`/UNA.md/orasldev/docs/decor`).
     *   Материалы Nufarul: список файлов, просмотр XLSX/DOC/PDF, галерея JPG (`docs_jpg`) с описаниями по смыслу и OCR-таблицами, Registru Documente.
 
-7.  **Системные функции:**
+8.  **Системные функции:**
     *   Страница диагностики и управления сервером (`/test.html`).
     *   Авторизация, смена языка (RU/RO/EN).
 

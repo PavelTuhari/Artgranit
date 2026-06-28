@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biro26 — Documentație modul / Документация модуля</title>
+<style>
+  body { max-width: 960px; margin: 2rem auto; padding: 0 1.2rem;
+         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         line-height: 1.6; color: #1e293b; }
+  h1 { color: #1d4ed8; border-bottom: 2px solid #dbeafe; padding-bottom: .3em; }
+  h2 { color: #1e40af; margin-top: 1.8em; border-bottom: 1px solid #e2e8f0; padding-bottom: .2em; }
+  h3 { color: #334155; margin-top: 1.2em; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: .92em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: .85em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .92em; }
+  th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; }
+  th { background: #f8fafc; }
+  .warn { background: #fefce8; border-left: 4px solid #ca8a04; padding: 10px 14px; border-radius: 6px; }
+  .ok { background: #dcfce7; border-left: 4px solid #15803d; padding: 10px 14px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Biro26 — Nomenclator / Listă de prețuri / Import</h1>
+<p><strong>RO:</strong> Modul pentru importul mărfurilor din fluxul <code>BIRO26_GOODS</code> în
+nomenclatorul ERP <code>TMS_UNIVERS</code> și construirea listelor de prețuri (OfficePlus).
+<strong>RU:</strong> Модуль импорта товаров из фида <code>BIRO26_GOODS</code> в справочник ERP
+<code>TMS_UNIVERS</code> и построения прайс-листов (OfficePlus). Фазы ТЗ 1–5.</p>
+
+<h2>1. База данных и подключение (важно) / DB &amp; connection</h2>
+<div class="warn">
+<strong>OfficePlus = Oracle 11g</strong> (11.2.0.4, charset <code>CL8MSWIN1251</code>).
+python-oracledb работает с 11g только в <strong>thick-режиме</strong> (Instant Client).
+Thick — переключатель уровня всего процесса и <em>ломает</em> основное thin+wallet подключение
+Artgranit к Oracle Cloud (production <code>nufarul.eminescu.md</code>). Поэтому Biro26 обращается к
+officeplus через <strong>изолированный subprocess-воркер</strong>; основное приложение остаётся thin
+и не затрагивается.
+</div>
+<table>
+<tr><th>Параметр</th><th>Значение</th></tr>
+<tr><td>DSN</td><td><code>orange.una.md:4024/cloudbd.world</code></td></tr>
+<tr><td>User</td><td><code>officeplus</code> (пароль — в <code>.env</code>, ключ <code>BIRO26_DB_PASSWORD</code>)</td></tr>
+<tr><td>Instant Client</td><td><code>BIRO26_INSTANT_CLIENT</code> (по умолч. <code>/Users/pt/Downloads/instantclient_23_26</code>; сборка <code>23_3</code> даёт <code>ORA-28041</code>)</td></tr>
+<tr><td>NLS</td><td><code>ENGLISH</code> / <code>AMERICA</code> / <code>NLS_NUMERIC_CHARACTERS='. '</code> (обходит <code>ORA-12705</code>, детерминированный парсинг цен)</td></tr>
+</table>
+
+<h2>2. Объекты БД / DB objects</h2>
+<h3>Существующие в officeplus (используются как есть)</h3>
+<ul>
+<li><code>BIRO26_GOODS</code> — входной фид (~78 000 строк).</li>
+<li><code>TMS_UNIVERS</code> (TIP='P' товары, 'O' организации), <code>TMS_MPT</code> — карточка.</li>
+<li><code>VPR01M_GROUPS</code>, <code>VPR1D_PRDATE</code>, <code>VTPR1D_PERPRLIST</code> (view + INSTEAD OF), <code>TPR1D_PERPRLIST</code>.</li>
+<li><code>TMS_ORG</code> (поставщики; имя — через <code>TMS_UNIVERS</code> TIP='O'), <code>TMS_SYSGR</code> (категории-корни).</li>
+<li><code>YBIRO_Import_Marfa</code> — PL/SQL пакет (вся бизнес-логика импорта).</li>
+</ul>
+<h3>Новые (префикс <code>YBIRO_</code>) — деплоятся отдельно на officeplus</h3>
+<ul>
+<li><code>YBIRO_MAP_PROFILE</code> + <code>YBIRO_MAP_PROFILE_SEQ</code> + триггер — профили маппинга.</li>
+<li><code>YBIRO_MAP_PARAM</code> — значения переменных пакета <code>g_*</code> (1 строка на параметр).</li>
+</ul>
+<p>Деплой: <code>./venv/bin/python deploy_biro26_app_tables.py</code> (идемпотентно) или
+<code>sqlplus officeplus/&lt;pwd&gt;@orange.una.md:4024/cloudbd.world @sql/biro26/01_biro26_app_tables.sql</code>.
+Это <strong>не</strong> входит в <code>deploy_oracle_objects.py</code> (та БД — облачная wallet-БД Artgranit).</p>
+
+<h2>3. Архитектура кода / code layers</h2>
+<table>
+<tr><th>Файл</th><th>Роль</th></tr>
+<tr><td><code>models/biro26_worker.py</code></td><td>thick-воркер (subprocess): connect → NLS → query/dml/plsql/script → JSON</td></tr>
+<tr><td><code>models/biro26_db.py</code></td><td><code>Biro26DB</code>: запускает воркер, контракт как у <code>DatabaseModel</code></td></tr>
+<tr><td><code>models/biro26_oracle_store.py</code></td><td><code>Biro26Store</code>: весь SQL + вызовы пакета; <code>g_*</code> preamble; 11g ROWNUM-пагинация</td></tr>
+<tr><td><code>controllers/biro26_controller.py</code></td><td>тонкие HTTP-обработчики</td></tr>
+<tr><td><code>templates/biro26_admin.html</code>, <code>templates/biro26/backoffice.html</code></td><td>трёхъязычный UI (RU/RO/EN), 5 вкладок</td></tr>
+<tr><td><code>static/biro26/backoffice-tabs.js</code></td><td>загрузка данных и действия по вкладкам</td></tr>
+</table>
+
+<h2>4. UI-маршруты / routes</h2>
+<ul>
+<li><code>/UNA.md/orasldev/biro26</code> — лендинг (launcher).</li>
+<li><code>/UNA.md/orasldev/biro26-backoffice</code> — основной интерфейс (5 вкладок).</li>
+<li><code>/UNA.md/orasldev/biro26-tz</code> — ТЗ (Markdown → HTML).</li>
+<li><code>/UNA.md/orasldev/biro26-docs</code> — этот документ.</li>
+</ul>
+<p>Вкладки: <strong>Sursă</strong> (фид + validate/prepare/assign), <strong>Nomenclator</strong>
+(справочник + карточка + import/archive/fix-confusables), <strong>Grupe/Furnizori</strong>
+(группы + слияние, поставщики, категории), <strong>Listă de prețuri</strong>
+(группы→даты→цены + правка PRETV* + откат), <strong>Mapare/Setări</strong>
+(профили <code>g_*</code> + тест подключения).</p>
+
+<h2>5. API</h2>
+<p>Все под <code>/api/biro26</code>, auth-guarded, ответ <code>{success, data?/output?, error?}</code>.</p>
+<pre>GET  /connection/test                 GET  /mapping/g-params
+GET/POST /mapping/profiles            GET/PUT /mapping/profiles/&lt;id&gt;
+POST /mapping/profiles/&lt;id&gt;/activate
+GET  /goods  /goods/brands  /goods/count
+POST /goods/validate  /goods/prepare  /goods/assign-keys
+GET  /univers  /univers/&lt;cod&gt;
+POST /univers/import  /univers/archive  /univers/fix-confusables
+GET  /groups   PUT /groups   POST /groups/import  /groups/merge
+GET  /categories   /suppliers   /suppliers/furnizori
+GET  /prices   PUT /prices   GET /prices/dates
+POST /prices/import-dates  /prices/import  /prices/rollback</pre>
+
+<h2>6. Локальный запуск / local run</h2>
+<pre>cd /Users/pt/Projects.AI/Artgranit
+# .env: BIRO26_DB_PASSWORD=officeplus26 (и при необходимости BIRO26_INSTANT_CLIENT)
+./venv/bin/python deploy_biro26_app_tables.py    # один раз: создать YBIRO_MAP_*
+./venv/bin/python test_biro26_smoke.py           # проверка подключения и объектов
+./venv/bin/python app.py                         # порт 3003
+# открыть /UNA.md/orasldev/biro26 (после /login)</pre>
+
+<h2>7. Тесты / tests</h2>
+<pre>./venv/bin/python -m pytest tests/test_biro26.py -v   # 27 unit (mocked)
+./venv/bin/python test_biro26_smoke.py                # live officeplus</pre>
+
+<h2>8. Деплой на сервер (позже) / server deploy</h2>
+<p>Сейчас модуль локальный. Для сервера потребуется: Instant Client на Linux
+(<code>BIRO26_INSTANT_CLIENT</code>), сетевой доступ к <code>orange.una.md:4024</code>,
+<code>BIRO26_DB_PASSWORD</code> в remote <code>.env</code>, и запуск
+<code>deploy_biro26_app_tables.py</code> против officeplus. Основной thin-контур и
+production <code>nufarul.eminescu.md</code> не меняются.</p>
+
+<h2>9. Checklist верификации после релиза</h2>
+<div class="ok">
+<ol>
+<li><code>test_biro26_smoke.py</code> → connection OK, все объекты, пакет VALID, 25 параметров маппинга.</li>
+<li><code>pytest tests/test_biro26.py</code> → все зелёные.</li>
+<li><code>import app</code> без ошибок; маршруты <code>biro26</code> зарегистрированы.</li>
+<li>Вкладки открываются, «Test connection» показывает версию 11g, «Validare» выводит отчёт RO/EN.</li>
+<li>Деструктивные операции (import/rollback/archive/merge) — только с подтверждением; не запускать на проде без явного согласия.</li>
+<li>Production-инвариант: основное приложение и <code>nufarul.eminescu.md</code> работают (thin-контур не тронут).</li>
+</ol>
+</div>
+</body>
+</html>
