@@ -134,3 +134,29 @@ def test_create_profile_returns_new_id():
     with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB()):
         r = Biro26Store.create_profile("feed2", 5, {"codprice": "5", "um": "buc."})
     assert r["success"] and r["data"]["id"] == 42
+
+
+# ── store: source feed ──────────────────────────────────────────────
+
+def test_get_goods_returns_rows_and_status():
+    cols = ["ID","ARTICOL","DENUMIRE","BRAND","FURNIZOR","ANGRO","IONLINE","RETAIL1","STOC","COD_UNIVERS","ROW_STATUS"]
+    rows = [(1,"A1","Name","BR","F",10,9,12,5,1001,"IN_DICT")]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_goods(limit=50, offset=0)
+    assert r["success"] and r["data"][0]["row_status"] == "IN_DICT"
+    assert "ROWNUM" in fake.last_sql and "FETCH" not in fake.last_sql.upper()
+
+
+def test_get_goods_status_filter():
+    cols = ["ID","ARTICOL","DENUMIRE","BRAND","FURNIZOR","ANGRO","IONLINE","RETAIL1","STOC","COD_UNIVERS","ROW_STATUS"]
+    rows = [(1,"A1","N","B","F",1,1,1,1,1,"NEW"),(2,"A2","M","B","F",1,1,1,1,None,"CONFLICT")]
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB(rows, cols)):
+        r = Biro26Store.get_goods(status="CONFLICT")
+    assert [d["id"] for d in r["data"]] == [2]
+
+
+def test_validate_input_captures_output():
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB()):
+        r = Biro26Store.validate_input()
+    assert r["success"] and r["output"] == ["RO: ok / EN: ok"]

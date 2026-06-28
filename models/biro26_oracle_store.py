@@ -196,3 +196,73 @@ class Biro26Store:
                     "error": res.get("message") or None}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # SOURCE FEED — BIRO26_GOODS
+    # ============================================================
+    @staticmethod
+    def get_goods(search: Optional[str] = None, brand: Optional[str] = None,
+                  furnizor: Optional[str] = None, status: Optional[str] = None,
+                  limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        try:
+            # ROW_STATUS: IN_DICT (key already in dictionary), CONFLICT (same
+            # CODVECHI maps to an existing product), else NEW.
+            inner = """
+              SELECT g.ID, g.ARTICOL, g.DENUMIRE, g.BRAND, g.FURNIZOR,
+                     g.ANGRO, g.IONLINE, g.RETAIL1, g.STOC, g.COD_UNIVERS,
+                     CASE
+                       WHEN g.COD_UNIVERS IS NOT NULL
+                         AND EXISTS (SELECT 1 FROM TMS_UNIVERS u
+                                     WHERE u.COD = g.COD_UNIVERS) THEN 'IN_DICT'
+                       WHEN EXISTS (SELECT 1 FROM TMS_UNIVERS u
+                                    WHERE u.CODVECHI = SUBSTR(g.ARTICOL,1,20)
+                                      AND u.TIP='P') THEN 'CONFLICT'
+                       ELSE 'NEW'
+                     END AS ROW_STATUS
+                FROM BIRO26_GOODS g
+               WHERE 1=1"""
+            params: Dict[str, Any] = {}
+            if search:
+                inner += " AND (UPPER(g.DENUMIRE) LIKE UPPER(:s) OR UPPER(g.ARTICOL) LIKE UPPER(:s))"
+                params["s"] = f"%{search}%"
+            if brand:
+                inner += " AND g.BRAND = :brand"; params["brand"] = brand
+            if furnizor:
+                inner += " AND g.FURNIZOR = :furnizor"; params["furnizor"] = furnizor
+            inner += " ORDER BY g.ID"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            data = _rows(r)
+            if status:
+                data = [d for d in data if d.get("row_status") == status]
+            return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def goods_brands() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT BRAND, COUNT(*) CNT FROM BIRO26_GOODS GROUP BY BRAND ORDER BY BRAND")
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def goods_count() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query("SELECT COUNT(*) CNT FROM BIRO26_GOODS")
+            return {"success": True, "data": {"count": r["data"][0][0] if r["data"] else 0}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def validate_input() -> Dict[str, Any]:
+        return Biro26Store._run_pkg("validate_input;", capture=True)
+
+    @staticmethod
+    def prepare_input() -> Dict[str, Any]:
+        return Biro26Store._run_pkg("prepare_input;", capture=True)
+
+    @staticmethod
+    def assign_keys() -> Dict[str, Any]:
+        return Biro26Store._run_pkg("assign_keys;", capture=True)
