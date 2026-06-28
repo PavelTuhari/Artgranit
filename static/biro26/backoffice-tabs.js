@@ -521,6 +521,13 @@ const WIZ_TARGETS = [
 let wizState = {step:1, source:'BIRO26_GOODS', activeId:null, columns:[], sample:{columns:[],data:[]}, mapping:{}};
 
 async function wizardInit() {
+  if (el('wiz-source')) {
+    const srcList = await apiGet(API + '/sources');
+    const saved = (srcList.data||[]).map(s=>'<option value="'+escapeHtml(s.view_name)+'">'+escapeHtml(s.name)+' ('+escapeHtml(s.view_name)+')</option>').join('');
+    const keep = el('wiz-source').value;
+    el('wiz-source').innerHTML = '<option value="BIRO26_GOODS">BIRO26_GOODS</option>' + saved;
+    if (keep) el('wiz-source').value = keep;
+  }
   const src = el('wiz-source') ? el('wiz-source').value : 'BIRO26_GOODS';
   wizState.source = src;
   const pr = await apiGet(API + '/mapping/profiles');
@@ -591,4 +598,35 @@ async function wizImport(){
   if (!confirmAction('confirm_univers_import')) return;
   const r = await apiPost(API + '/univers/import', {});
   renderReport('wiz-import-report', r);
+}
+
+/* ── wizard: new SELECT source (AI draft / map / save) ──────────────── */
+async function wizAiDraft() {
+  const sql = val('wiz-sql'); if (!sql) { toast(t('validation_required'),'err'); return; }
+  setStatus(t('loading'));
+  const r = await apiPost(API+'/sources/ai-draft-md', {name: val('wiz-newname')||'source', sql});
+  setStatus('—');
+  if (r.success) el('wiz-md').value = r.data.md;
+}
+async function wizAiMap() {
+  const sql = val('wiz-sql'); if (!sql) { toast(t('validation_required'),'err'); return; }
+  setStatus(t('loading'));
+  const r = await apiPost(API+'/sources/ai-suggest-mapping', {sql, md: val('wiz-md')});
+  setStatus('—');
+  if (r.success) {
+    wizState.columns = r.columns || wizState.columns;
+    Object.assign(wizState.mapping, r.mapping || {});
+    if (r.source === 'heuristic') toast(t('wiz_ai_unavailable'),'ok');
+    wizGoto(2);
+  }
+}
+async function wizSaveSource() {
+  const name = val('wiz-newname'), sql = val('wiz-sql');
+  if (!name || !sql) { toast(t('validation_required'),'err'); return; }
+  const r = await apiPost(API+'/sources', {name, sql, md: val('wiz-md')});
+  if (r.success) {
+    toast(t('saved'),'ok');
+    await wizardInit();
+    if (el('wiz-source')) { el('wiz-source').value = r.data.view_name; await wizardInit(); }
+  }
 }

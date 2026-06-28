@@ -704,6 +704,30 @@ html, body {
             </select>
           </div>
           <p class="muted" id="wiz-src-info"></p>
+
+          <details style="margin-top:12px">
+            <summary style="cursor:pointer;font-weight:600" data-i18n="wiz_new_source"></summary>
+            <div style="margin-top:10px">
+              <div class="form-group">
+                <label data-i18n="wiz_src_name"></label>
+                <input id="wiz-newname" placeholder="my_source">
+              </div>
+              <div class="form-group full">
+                <label>SELECT</label>
+                <textarea id="wiz-sql" rows="4" style="width:100%;font-family:monospace" placeholder="SELECT ARTICOL, DENUMIRE, RETAIL1 FROM BIRO26_GOODS WHERE ROWNUM&lt;=100"></textarea>
+              </div>
+              <div class="btn-row">
+                <button class="btn" onclick="wizAiDraft()" data-i18n="wiz_ai_desc"></button>
+                <button class="btn" onclick="wizAiMap()" data-i18n="wiz_ai_map"></button>
+                <button class="btn primary" onclick="wizSaveSource()" data-i18n="wiz_save_source"></button>
+              </div>
+              <div class="form-group full">
+                <label data-i18n="wiz_md_label"></label>
+                <textarea id="wiz-md" rows="6" style="width:100%;font-family:monospace"></textarea>
+              </div>
+            </div>
+          </details>
+
           <div class="form-actions"><button class="btn primary" onclick="wizGoto(2)" data-i18n="wiz_next"></button></div>
         </div>
 
@@ -815,6 +839,9 @@ ru: {
   tab_wizard: 'Импорт (мастер)',
   wiz_s1: 'Источник', wiz_s2: 'Сопоставление', wiz_s3: 'Проверка', wiz_s4: 'Импорт',
   wiz_back: 'Назад', wiz_next: 'Далее',
+  wiz_new_source: 'Новый источник (SELECT)', wiz_ai_desc: 'AI: описание', wiz_ai_map: 'AI: маппинг',
+  wiz_save_source: 'Сохранить источник', wiz_src_name: 'Имя', wiz_md_label: 'Описание (Markdown)',
+  wiz_ai_unavailable: 'AI недоступен — эвристика',
   wiz_run_validate: 'Запустить проверку', wiz_run_import: 'Импортировать номенклатуру',
   wiz_col_target: 'Целевое поле', wiz_col_source: 'Колонка источника', wiz_col_sample: 'Пример',
   f_source: 'Источник:',
@@ -878,6 +905,9 @@ ro: {
   tab_wizard: 'Import (asistent)',
   wiz_s1: 'Sursă', wiz_s2: 'Mapare', wiz_s3: 'Verificare', wiz_s4: 'Import',
   wiz_back: 'Înapoi', wiz_next: 'Înainte',
+  wiz_new_source: 'Sursă nouă (SELECT)', wiz_ai_desc: 'AI: descriere', wiz_ai_map: 'AI: mapare',
+  wiz_save_source: 'Salvează sursa', wiz_src_name: 'Nume', wiz_md_label: 'Descriere (Markdown)',
+  wiz_ai_unavailable: 'AI indisponibil — euristică',
   wiz_run_validate: 'Rulează validarea', wiz_run_import: 'Importă nomenclatorul',
   wiz_col_target: 'Câmp țintă', wiz_col_source: 'Coloană sursă', wiz_col_sample: 'Exemplu',
   f_source: 'Sursă:',
@@ -941,6 +971,9 @@ en: {
   tab_wizard: 'Import (wizard)',
   wiz_s1: 'Source', wiz_s2: 'Mapping', wiz_s3: 'Validate', wiz_s4: 'Import',
   wiz_back: 'Back', wiz_next: 'Next',
+  wiz_new_source: 'New source (SELECT)', wiz_ai_desc: 'AI: describe', wiz_ai_map: 'AI: map',
+  wiz_save_source: 'Save source', wiz_src_name: 'Name', wiz_md_label: 'Description (Markdown)',
+  wiz_ai_unavailable: 'AI unavailable — heuristic',
   wiz_run_validate: 'Run validation', wiz_run_import: 'Import dictionary',
   wiz_col_target: 'Target field', wiz_col_source: 'Source column', wiz_col_sample: 'Sample',
   f_source: 'Source:',
