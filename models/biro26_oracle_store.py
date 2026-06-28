@@ -40,6 +40,13 @@ def _rows(r: Dict) -> List[Dict]:
     return out
 
 
+def _result(r: Dict) -> Dict[str, Any]:
+    """Standard read result: surface DB errors instead of masking as empty success."""
+    if not r.get("success"):
+        return {"success": False, "error": r.get("message")}
+    return {"success": True, "data": _rows(r)}
+
+
 def _q(v: Any) -> str:
     return "'" + str(v).replace("'", "''") + "'"
 
@@ -57,7 +64,7 @@ def build_gset_block(profile: Dict[str, Any]) -> str:
         if name not in G_PARAMS or val is None or val == "":
             continue
         if name in _NUMERIC:
-            rhs = str(val)
+            rhs = str(int(val))  # numeric param: coerce, reject non-integer
         elif name in _DATE:
             rhs = f"DATE {_q(val)}"
         else:
@@ -89,7 +96,7 @@ class Biro26Store:
                 "SELECT id, name, codprice, is_default, "
                 "TO_CHAR(created_at,'DD.MM.YYYY HH24:MI') created_at, created_by "
                 "FROM YBIRO_MAP_PROFILE ORDER BY is_default DESC, name")
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -234,6 +241,8 @@ class Biro26Store:
                 inner += " AND g.FURNIZOR = :furnizor"; params["furnizor"] = furnizor
             inner += " ORDER BY g.ID"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
             data = _rows(r)
             if status:
                 data = [d for d in data if d.get("row_status") == status]
@@ -246,7 +255,7 @@ class Biro26Store:
         try:
             r = Biro26DB().execute_query(
                 "SELECT BRAND, COUNT(*) CNT FROM BIRO26_GOODS GROUP BY BRAND ORDER BY BRAND")
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -293,7 +302,7 @@ class Biro26Store:
                 inner += " AND ISARHIV IS NOT NULL AND ISARHIV<>'0'"
             inner += " ORDER BY DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -334,7 +343,7 @@ class Biro26Store:
             r = Biro26DB().execute_query(
                 "SELECT CODPRICE, CODGRP, GRPNAME, TYPE_SC, GR1_SC "
                 "FROM VPR01M_GROUPS WHERE CODPRICE=:c ORDER BY CODGRP", {"c": codprice})
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -377,7 +386,7 @@ class Biro26Store:
                 "FROM TMS_SYSGR ORDER BY ID0")
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -397,7 +406,7 @@ class Biro26Store:
                 params["s"] = f"%{search}%"
             inner += " ORDER BY u.DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -407,7 +416,7 @@ class Biro26Store:
             r = Biro26DB().execute_query(
                 "SELECT FURNIZOR, COUNT(*) CNT FROM BIRO26_GOODS "
                 "WHERE FURNIZOR IS NOT NULL GROUP BY FURNIZOR ORDER BY FURNIZOR")
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -426,7 +435,7 @@ class Biro26Store:
                 inner += " AND CODGRP=:g"; params["g"] = codgrp
             inner += " ORDER BY CODGRP, SC"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -441,7 +450,7 @@ class Biro26Store:
                 {"c": codprice})
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
-            return {"success": True, "data": _rows(r)}
+            return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
