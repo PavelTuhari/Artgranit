@@ -290,3 +290,17 @@ def test_get_goods_includes_image_cols():
         r = Biro26Store.get_goods(limit=10)
     assert r["success"] and r["data"][0]["photo_url"] == "http://x/p.jpg"
     assert "PHOTO_URL" in fake.last_sql and "IMAGE_LINK" in fake.last_sql
+
+
+# ── stage 2: source columns/sample ──────────────────────────────────
+
+def test_source_columns_rejects_bad_name():
+    r = Biro26Store.source_columns("BIRO26_GOODS; DROP")
+    assert r["success"] is False
+
+def test_source_columns_ok():
+    cols = ["ID","ARTICOL","DENUMIRE"]
+    fake = _FakeBiro26DB([(1,"a","b")], cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.source_columns("BIRO26_GOODS")
+    assert r["success"] and r["data"] == ["ID","ARTICOL","DENUMIRE"]

@@ -8,6 +8,7 @@ Multi-statement atomic ops use db.execute_script([...]) (one transaction).
 """
 from __future__ import annotations
 
+import re as _re
 from typing import Any, Dict, List, Optional
 
 from models.biro26_db import Biro26DB
@@ -49,6 +50,13 @@ def _result(r: Dict) -> Dict[str, Any]:
 
 def _q(v: Any) -> str:
     return "'" + str(v).replace("'", "''") + "'"
+
+
+_IDENT_RE = _re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,60}$")
+
+
+def _is_ident(name: str) -> bool:
+    return bool(name and _IDENT_RE.match(name))
 
 
 def _page(inner_sql: str, limit: int, offset: int) -> str:
@@ -279,6 +287,33 @@ class Biro26Store:
     @staticmethod
     def assign_keys() -> Dict[str, Any]:
         return Biro26Store._run_pkg("assign_keys;", capture=True)
+
+    @staticmethod
+    def source_columns(source: str) -> Dict[str, Any]:
+        """Column names of a table/view source (identifier-validated)."""
+        if not _is_ident(source):
+            return {"success": False, "error": "invalid source name"}
+        try:
+            r = Biro26DB().execute_query(f"SELECT * FROM {source} WHERE ROWNUM = 0")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": list(r.get("columns", []))}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def source_sample(source: str, limit: int = 20) -> Dict[str, Any]:
+        if not _is_ident(source):
+            return {"success": False, "error": "invalid source name"}
+        try:
+            r = Biro26DB().execute_query(
+                f"SELECT * FROM {source} WHERE ROWNUM <= :n", {"n": int(limit)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "columns": list(r.get("columns", [])),
+                    "data": [list(row) for row in r.get("data", [])]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     # ============================================================
     # DICTIONARY — TMS_UNIVERS + TMS_MPT

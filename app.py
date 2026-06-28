@@ -5265,6 +5265,14 @@ def api_biro26_goods_prepare():
 def api_biro26_goods_assign():
     return _b26(Biro26Controller.assign_keys)
 
+@app.route('/api/biro26/source/columns', methods=['GET'])
+def api_biro26_source_columns():
+    return _b26(Biro26Controller.source_columns)
+
+@app.route('/api/biro26/source/sample', methods=['GET'])
+def api_biro26_source_sample():
+    return _b26(Biro26Controller.source_sample)
+
 @app.route('/api/biro26/univers', methods=['GET'])
 def api_biro26_univers():
     return _b26(Biro26Controller.get_univers)

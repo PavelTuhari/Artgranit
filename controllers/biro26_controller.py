@@ -79,6 +79,16 @@ class Biro26Controller:
     def assign_keys() -> Dict[str, Any]:
         return Biro26Store.assign_keys()
 
+    @staticmethod
+    def source_columns() -> Dict[str, Any]:
+        return Biro26Store.source_columns(request.args.get("source", "BIRO26_GOODS"))
+
+    @staticmethod
+    def source_sample() -> Dict[str, Any]:
+        return Biro26Store.source_sample(
+            request.args.get("source", "BIRO26_GOODS"),
+            request.args.get("limit", 20, type=int))
+
     # -- dictionary ---------------------------------------------------
     @staticmethod
     def get_univers() -> Dict[str, Any]:
