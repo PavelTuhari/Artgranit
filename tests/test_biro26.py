@@ -187,3 +187,30 @@ def test_fix_confusables_single_cod():
     with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
         r = Biro26Store.fix_denumirea_confusables(1001)
     assert r["success"] and "p_cod => 1001" in fake.last_sql
+
+
+# ── store: groups / suppliers / categories ──────────────────────────
+
+def test_get_groups_ok():
+    cols = ["CODPRICE","CODGRP","GRPNAME","TYPE_SC","GR1_SC"]
+    rows = [(1,10,"Birolux","P",None)]
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB(rows, cols)):
+        r = Biro26Store.get_groups(codprice=1)
+    assert r["success"] and r["data"][0]["grpname"] == "Birolux"
+
+
+def test_merge_groups_uses_script():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.merge_groups(1, 10, 20)
+    assert r["success"] and isinstance(fake.last_sql, list) and len(fake.last_sql) == 2
+
+
+def test_get_suppliers_joins_univers_name():
+    cols = ["COD","NAME","GR1","ADRESS","BANK","CODFISCAL"]
+    rows = [(160420,"S.R.L. CRAFTI BUSINESS","X","addr","bank","123")]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_suppliers()
+    assert r["success"] and r["data"][0]["name"].startswith("S.R.L.")
+    assert "TIP='O'" in fake.last_sql

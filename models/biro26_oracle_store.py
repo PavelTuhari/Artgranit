@@ -321,3 +321,89 @@ class Biro26Store:
     def fix_denumirea_confusables(cod: Optional[int] = None) -> Dict[str, Any]:
         arg = f"p_cod => {int(cod)}" if cod is not None else "p_cod => NULL"
         return Biro26Store._run_pkg(f"fix_denumirea_confusables({arg});", capture=True)
+
+    # ============================================================
+    # GROUPS — VPR01M_GROUPS + category tree (read-only)
+    # ============================================================
+    @staticmethod
+    def get_groups(codprice: int = 1) -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT CODPRICE, CODGRP, GRPNAME, TYPE_SC, GR1_SC "
+                "FROM VPR01M_GROUPS WHERE CODPRICE=:c ORDER BY CODGRP", {"c": codprice})
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_group(codprice: int, codgrp: int, grpname: str) -> Dict[str, Any]:
+        try:
+            return Biro26DB().execute_dml(
+                "UPDATE VPR01M_GROUPS SET GRPNAME=:n WHERE CODPRICE=:c AND CODGRP=:g",
+                {"n": grpname, "c": codprice, "g": codgrp})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_groups(codprice: int = 1) -> Dict[str, Any]:
+        return Biro26Store._run_pkg(f"import_groups(p_codprice => {int(codprice)});",
+                                    capture=True)
+
+    @staticmethod
+    def merge_groups(codprice: int, src_codgrp: int, dst_codgrp: int) -> Dict[str, Any]:
+        """Move prices from src group to dst, then delete empty src group (one tx)."""
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": "UPDATE TPR1D_PERPRLIST SET CODGRP=:dst "
+                        "WHERE CODPRICE=:c AND CODGRP=:src",
+                 "params": {"dst": dst_codgrp, "c": codprice, "src": src_codgrp},
+                 "kind": "dml"},
+                {"sql": "DELETE FROM VPR01M_GROUPS WHERE CODPRICE=:c AND CODGRP=:src",
+                 "params": {"c": codprice, "src": src_codgrp}, "kind": "dml"},
+            ])
+            return {"success": res.get("success", False), "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_categories() -> Dict[str, Any]:
+        """Read-only category roots from TMS_SYSGR (phase 1; labels in TEXT)."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT ID0, TEXT AS LABEL, TIP, GR1, NODETYPE "
+                "FROM TMS_SYSGR ORDER BY ID0")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # SUPPLIERS — TMS_ORG (+ name via TMS_UNIVERS TIP='O') / FURNIZOR
+    # ============================================================
+    @staticmethod
+    def get_suppliers(search: Optional[str] = None,
+                      limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        try:
+            inner = ("SELECT o.COD, u.DENUMIREA AS NAME, o.GR1, o.ADRESS, o.BANK, "
+                     "o.CODFISCAL FROM TMS_ORG o "
+                     "LEFT JOIN TMS_UNIVERS u ON u.COD=o.COD AND u.TIP='O'")
+            params: Dict[str, Any] = {}
+            if search:
+                inner += " WHERE UPPER(u.DENUMIREA) LIKE UPPER(:s)"
+                params["s"] = f"%{search}%"
+            inner += " ORDER BY u.DENUMIREA"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_furnizori() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT FURNIZOR, COUNT(*) CNT FROM BIRO26_GOODS "
+                "WHERE FURNIZOR IS NOT NULL GROUP BY FURNIZOR ORDER BY FURNIZOR")
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
