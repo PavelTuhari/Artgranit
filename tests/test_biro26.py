@@ -322,3 +322,26 @@ def test_is_safe_select_rejects_dml_and_multi():
 def test_view_name_for_sanitizes():
     assert view_name_for("My Feed!") == "V_BIRO26_SRC_MY_FEED"
     assert view_name_for("abc") == "V_BIRO26_SRC_ABC"
+
+
+# ── stage 3: AI helper ──────────────────────────────────────────────
+from models.biro26_ai import heuristic_mapping, extract_json, suggest_mapping
+
+def test_heuristic_mapping_matches_common_names():
+    cols = ["ARTICOL","DENUMIRE","RETAIL1","ANGRO","IONLINE","BRAND","COD_UNIVERS"]
+    m = heuristic_mapping(cols)
+    assert m["col_articol"] == "ARTICOL"
+    assert m["col_denumire"] == "DENUMIRE"
+    assert m["col_retail"] == "RETAIL1"
+    assert m["col_brand"] == "BRAND"
+    assert m["col_key"] == "COD_UNIVERS"
+
+def test_extract_json_from_noisy_text():
+    assert extract_json('blah {"col_articol": "ART"} tail')["col_articol"] == "ART"
+    assert extract_json("no json here") is None
+
+def test_suggest_mapping_falls_back_when_ai_unavailable():
+    cols = ["ART","NAME","PRICE"]
+    with patch("models.biro26_ai.is_available", return_value=False):
+        r = suggest_mapping(cols, [], "")
+    assert r["success"] and r["source"] == "heuristic"
