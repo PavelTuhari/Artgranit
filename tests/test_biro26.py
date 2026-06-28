@@ -71,3 +71,66 @@ def test_test_connection_maps_version():
     with patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)):
         r = Biro26DB().test_connection()
     assert r["success"] and "11g" in r["version"]
+
+
+# ── store: mapping profiles + g_* builder ───────────────────────────
+
+from models.biro26_oracle_store import Biro26Store, G_PARAMS, build_gset_block, _page
+
+
+def test_g_params_complete():
+    assert len(G_PARAMS) == 25
+    assert "codprice" in G_PARAMS and "len_denumire" in G_PARAMS
+
+
+def test_build_gset_block_numbers_strings_dates():
+    block = build_gset_block({"codprice": "5", "um": "buc.", "len_denumire": "160",
+                              "date_start": "2026-01-01", "bogus": "x"})
+    assert "g_codprice := 5" in block            # numeric unquoted
+    assert "g_um := 'buc.'" in block             # string quoted
+    assert "g_len_denumire := 160" in block
+    assert "g_date_start := DATE '2026-01-01'" in block
+    assert "bogus" not in block                  # unknown param ignored
+
+
+def test_page_uses_rownum_not_fetch():
+    sql = _page("SELECT id FROM t ORDER BY id", limit=10, offset=20)
+    assert "ROWNUM <= 30" in sql and "rn > 20" in sql
+    assert "FETCH" not in sql.upper()
+
+
+class _FakeBiro26DB:
+    """Stand-in for Biro26DB in store unit tests."""
+    def __init__(self, rows=None, cols=None):
+        self._rows = rows or []
+        self._cols = cols or []
+        self.last_sql = None
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def execute_query(self, sql, params=None):
+        self.last_sql = sql
+        return {"success": True, "data": self._rows, "columns": self._cols,
+                "rowcount": len(self._rows), "message": ""}
+    def execute_dml(self, sql, params=None):
+        self.last_sql = sql
+        return {"success": True, "rowcount": 1, "message": ""}
+    def execute_script(self, statements):
+        self.last_sql = statements
+        return {"success": True, "results": [{"data": [[42]], "columns": ["ID"]}], "message": ""}
+    def call_proc(self, plsql, params=None, capture_output=False):
+        self.last_sql = plsql
+        return {"success": True, "output_lines": ["RO: ok / EN: ok"], "message": ""}
+
+
+def test_get_profiles_ok():
+    cols = ["ID", "NAME", "CODPRICE", "IS_DEFAULT", "CREATED_AT", "CREATED_BY"]
+    rows = [(1, "default", 1, "1", "28.06.2026 10:00", "OFFICEPLUS")]
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB(rows, cols)):
+        r = Biro26Store.get_profiles()
+    assert r["success"] and r["data"][0]["name"] == "default"
+
+
+def test_create_profile_returns_new_id():
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB()):
+        r = Biro26Store.create_profile("feed2", 5, {"codprice": "5", "um": "buc."})
+    assert r["success"] and r["data"]["id"] == 42

@@ -1,0 +1,198 @@
+"""Biro26 module Oracle store — all SQL + YBIRO_Import_Marfa package calls.
+
+Target DB: OfficePlus ERP (Oracle 11g) via models.biro26_db.Biro26DB (subprocess
+worker, thick mode). Prefix for our own objects: YBIRO_.
+
+11g notes: no OFFSET/FETCH — pagination uses the ROWNUM pattern (see _page()).
+Multi-statement atomic ops use db.execute_script([...]) (one transaction).
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+from models.biro26_db import Biro26DB
+
+PKG = "YBIRO_Import_Marfa"
+
+# Canonical configurable package vars (without g_ prefix), TZ §7.1.
+G_PARAMS: List[str] = [
+    "tbl_goods", "col_key", "col_id", "col_brand", "col_articol",
+    "col_denumire", "col_angro", "col_ionline", "col_retail", "seq_key",
+    "codprice", "um", "gr1", "tip", "caccess", "codtva",
+    "date_start", "date_end", "group_type", "empty_brand",
+    "len_codvechi", "len_denumire", "isarhiv_arc", "isarhiv_lock",
+    "confus_max_cyr",
+]
+
+# g_* typed as NUMBER / PLS_INTEGER → emit unquoted in PL/SQL
+_NUMERIC = {"codprice", "len_codvechi", "len_denumire", "confus_max_cyr"}
+# g_* typed as DATE → emit DATE 'YYYY-MM-DD'
+_DATE = {"date_start", "date_end"}
+
+
+def _rows(r: Dict) -> List[Dict]:
+    if not r.get("success") or not r.get("data"):
+        return []
+    cols = [c.lower() for c in r["columns"]]
+    return [dict(zip(cols, row)) for row in r["data"]]
+
+
+def _q(v: Any) -> str:
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def _page(inner_sql: str, limit: int, offset: int) -> str:
+    """Wrap an ORDER-BY'd inner SELECT with Oracle 11g ROWNUM pagination."""
+    return (f"SELECT * FROM (SELECT a.*, ROWNUM rn FROM ({inner_sql}) a "
+            f"WHERE ROWNUM <= {int(offset) + int(limit)}) WHERE rn > {int(offset)}")
+
+
+def build_gset_block(profile: Dict[str, Any]) -> str:
+    """Build PL/SQL assignment lines that set YBIRO_Import_Marfa.g_* vars."""
+    lines = []
+    for name, val in profile.items():
+        if name not in G_PARAMS or val is None or val == "":
+            continue
+        if name in _NUMERIC:
+            rhs = str(val)
+        elif name in _DATE:
+            rhs = f"DATE {_q(val)}"
+        else:
+            rhs = _q(val)
+        lines.append(f"  {PKG}.g_{name} := {rhs};")
+    return "\n".join(lines)
+
+
+class Biro26Store:
+    """All OfficePlus CRUD + package orchestration for Biro26."""
+
+    # ============================================================
+    # CONNECTION
+    # ============================================================
+    @staticmethod
+    def test_connection() -> Dict[str, Any]:
+        try:
+            return Biro26DB().test_connection()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # MAPPING PROFILES
+    # ============================================================
+    @staticmethod
+    def get_profiles() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT id, name, codprice, is_default, "
+                "TO_CHAR(created_at,'DD.MM.YYYY HH24:MI') created_at, created_by "
+                "FROM YBIRO_MAP_PROFILE ORDER BY is_default DESC, name")
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_profile(profile_id: int) -> Dict[str, Any]:
+        try:
+            db = Biro26DB()
+            head = _rows(db.execute_query(
+                "SELECT id, name, codprice, is_default FROM YBIRO_MAP_PROFILE WHERE id=:id",
+                {"id": profile_id}))
+            if not head:
+                return {"success": False, "error": "profile not found"}
+            params = _rows(db.execute_query(
+                "SELECT param_name, param_value FROM YBIRO_MAP_PARAM WHERE profile_id=:id",
+                {"id": profile_id}))
+            pmap = {p["param_name"]: p["param_value"] for p in params}
+            return {"success": True, "data": {**head[0], "params": pmap}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_profile(name: str, codprice: int, params: Dict[str, str]) -> Dict[str, Any]:
+        try:
+            stmts: List[Dict[str, Any]] = [{
+                "sql": "INSERT INTO YBIRO_MAP_PROFILE(name, codprice, is_default) "
+                       "VALUES(:n, :c, '0')",
+                "params": {"n": name, "c": codprice}, "kind": "dml",
+            }]
+            for k, v in params.items():
+                if k in G_PARAMS:
+                    stmts.append({
+                        "sql": "INSERT INTO YBIRO_MAP_PARAM(profile_id, param_name, param_value) "
+                               "SELECT id, :k, :v FROM YBIRO_MAP_PROFILE WHERE name=:n",
+                        "params": {"k": k, "v": str(v), "n": name}, "kind": "dml",
+                    })
+            stmts.append({
+                "sql": "SELECT id FROM YBIRO_MAP_PROFILE WHERE name=:n",
+                "params": {"n": name}, "kind": "query",
+            })
+            res = Biro26DB().execute_script(stmts)
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            last = res["results"][-1]
+            new_id = last["data"][0][0] if last.get("data") else None
+            return {"success": True, "data": {"id": new_id}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_profile(profile_id: int, params: Dict[str, str],
+                       codprice: Optional[int] = None) -> Dict[str, Any]:
+        try:
+            stmts: List[Dict[str, Any]] = []
+            if codprice is not None:
+                stmts.append({
+                    "sql": "UPDATE YBIRO_MAP_PROFILE SET codprice=:c WHERE id=:id",
+                    "params": {"c": codprice, "id": profile_id}, "kind": "dml"})
+            for k, v in params.items():
+                if k not in G_PARAMS:
+                    continue
+                stmts.append({
+                    "sql": "MERGE INTO YBIRO_MAP_PARAM t "
+                           "USING (SELECT :p pid, :k pn FROM dual) s "
+                           "ON (t.profile_id=s.pid AND t.param_name=s.pn) "
+                           "WHEN MATCHED THEN UPDATE SET param_value=:v "
+                           "WHEN NOT MATCHED THEN INSERT(profile_id,param_name,param_value) "
+                           "VALUES(:p,:k,:v)",
+                    "params": {"p": profile_id, "k": k, "v": str(v)}, "kind": "dml"})
+            if not stmts:
+                return {"success": True}
+            res = Biro26DB().execute_script(stmts)
+            return {"success": res.get("success", False), "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def activate_profile(profile_id: int) -> Dict[str, Any]:
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": "UPDATE YBIRO_MAP_PROFILE SET is_default='0'",
+                 "params": {}, "kind": "dml"},
+                {"sql": "UPDATE YBIRO_MAP_PROFILE SET is_default='1' WHERE id=:id",
+                 "params": {"id": profile_id}, "kind": "dml"},
+            ])
+            return {"success": res.get("success", False), "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # internal: active profile params for the g_* preamble
+    @staticmethod
+    def _active_params() -> Dict[str, str]:
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT param_name, param_value FROM YBIRO_MAP_PARAM WHERE profile_id="
+            "(SELECT id FROM (SELECT id FROM YBIRO_MAP_PROFILE WHERE is_default='1' "
+            " ORDER BY id) WHERE ROWNUM=1)"))
+        return {r["param_name"]: r["param_value"] for r in rows}
+
+    @staticmethod
+    def _run_pkg(proc_call: str, capture: bool = True) -> Dict[str, Any]:
+        """Set active g_* then run a package proc in ONE block (session state)."""
+        try:
+            preamble = build_gset_block(Biro26Store._active_params())
+            block = f"BEGIN\n{preamble}\n  {PKG}.{proc_call}\nEND;"
+            res = Biro26DB().call_proc(block, capture_output=capture)
+            return {"success": res.get("success", False),
+                    "output": res.get("output_lines", []),
+                    "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
