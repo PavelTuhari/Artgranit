@@ -75,6 +75,7 @@
     *   Маршруты `/UNA.md/orasldev/biro26*` (5 вкладок: источник `BIRO26_GOODS`, справочник `TMS_UNIVERS`/`TMS_MPT`, группы/поставщики, прайс-лист, маппинг/настройки).
     *   Вся бизнес-логика — в пакете `YBIRO_Import_Marfa`; приложение его вызывает (validate/prepare/assign, import_univers, import_groups/dates/prices, rollback, archive, fix-confusables).
     *   **Подключается к officeplus** (`orange.una.md:4024/cloudbd.world`) — отдельная Oracle 11g БД, та же, что в примере `/Users/pt/Projects.AI/BIRO26/`. 11g требует thick-режим, поэтому доступ изолирован в **subprocess-воркере**; основной thin-контур Artgranit и `nufarul.eminescu.md` не затрагиваются.
+    *   Просмотр изображений товаров (миниатюры + лайтбокс), мастер импорта в стиле wisepim (4 шага), AI-маппинг любого read-only SELECT (материализуется во VIEW, таблица `YBIRO_SRC_DEF`, деплой `deploy_biro26_sources.py`; AI через `ai_helper` с эвристическим fallback).
     *   Документация: `docs/Biro26/README_BIRO26.html`, ТЗ — `docs/Biro26/TZ_BIRO26_App.md`. Профили маппинга — таблицы `YBIRO_MAP_*` (деплой: `deploy_biro26_app_tables.py`).
 
 7.  **Документация:**

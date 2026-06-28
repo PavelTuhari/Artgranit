@@ -130,5 +130,25 @@ production <code>nufarul.eminescu.md</code> не меняются.</p>
 <li>Production-инвариант: основное приложение и <code>nufarul.eminescu.md</code> работают (thin-контур не тронут).</li>
 </ol>
 </div>
+
+<h2>10. Расширения: изображения, мастер импорта, AI-источники</h2>
+<h3>Просмотр изображений</h3>
+<p>Грид «Sursă» показывает миниатюры из <code>PHOTO_URL</code>/<code>IMAGE_LINK</code> (внешние https URL),
+клик — лайтбокс. Карточка товара (Nomenclator) подтягивает изображение из <code>BIRO26_GOODS</code>
+по <code>COD_UNIVERS</code>. Битые URL скрываются (<code>onerror</code>).</p>
+<h3>Мастер импорта (wisepim-стиль)</h3>
+<p>Вкладка «Import (asistent)» — 4 шага: <strong>Sursă</strong> → <strong>Mapare</strong>
+(таблица «целевое поле ← колонка источника» с авто-подбором и превью примеров) →
+<strong>Verificare</strong> (<code>validate_input</code>) → <strong>Import</strong>
+(<code>import_univers</code>). Маппинг сохраняется в активный профиль <code>YBIRO_MAP_*</code>.</p>
+<h3>Любой SELECT как источник (+ AI)</h3>
+<p>В шаге «Sursă» — блок «Sursă nouă (SELECT)»: вставка read-only SELECT (guard: один оператор,
+запрет DML/DDL), AI-черновик описания (<code>.md</code> в <code>docs/Biro26/sources/</code>),
+AI-подбор маппинга колонок. SELECT материализуется во VIEW <code>V_BIRO26_SRC_&lt;name&gt;</code>,
+определение хранится в <code>YBIRO_SRC_DEF</code> (deploy: <code>deploy_biro26_sources.py</code>,
+требует привилегию CREATE VIEW). AI — через <code>ai_helper</code> (Selenium) с эвристическим
+fallback по именам колонок, поэтому мастер работает и без AI.</p>
+<p><strong>Новые эндпоинты:</strong> <code>GET /api/biro26/source/columns|sample</code>,
+<code>GET/POST /api/biro26/sources</code>, <code>POST /api/biro26/sources/sample|ai-draft-md|ai-suggest-mapping</code>.</p>
 </body>
 </html>
