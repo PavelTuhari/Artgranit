@@ -1,114 +1,113 @@
-"""Biro26 module — Oracle connection to the OfficePlus ERP DB.
+"""Biro26 module — OfficePlus ERP access from the main (thin-mode) Flask app.
 
-Separate from the wallet-based DatabaseModel: thin mode, direct DSN.
-Default target: officeplus@orange.una.md:4024/cloudbd.world.
-NLS is forced on connect (ENGLISH/AMERICA) to avoid ORA-12705 from the
-macOS en_MD locale and to make price parsing deterministic.
+The OfficePlus ERP is Oracle 11g and needs python-oracledb THICK mode, which is a
+whole-process switch that would break the main app's thin cloud-wallet connection
+(production nufarul.eminescu.md). So Biro26DB does NOT connect in-process: it spawns
+an isolated thick-mode subprocess worker (models/biro26_worker.py) per operation and
+exchanges JSON over stdin/stdout. The main process never enables thick mode.
 
-Contract mirrors models.database.DatabaseModel:
-    {success, data, columns, rowcount, message}
+Method contract mirrors models.database.DatabaseModel so the store/controller layers
+are identical to other modules:
+    execute_query -> {success, data, columns, rowcount, message}
+    execute_dml   -> {success, rowcount, message}
+    call_proc     -> {success, output_lines, message}
+    execute_script-> {success, results, message}   (multiple statements, one tx)
+    test_connection -> {success, version, error}
+
+Usable as a context manager for parity with DatabaseModel (`with Biro26DB() as db:`),
+but there is no persistent connection — each call is its own subprocess/transaction.
 """
 from __future__ import annotations
 
-import oracledb
+import json
+import os
+import subprocess
+import sys
 from typing import Any, Dict, List, Optional
 
-from config import Config
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_WORKER = os.path.join(_PROJECT_ROOT, "models", "biro26_worker.py")
+_TIMEOUT = int(os.environ.get("BIRO26_WORKER_TIMEOUT", "300"))
 
 
 class Biro26DB:
-    """Context-manager connection to the OfficePlus ERP database."""
+    """Subprocess-backed accessor for the OfficePlus ERP (Oracle 11g, thick mode)."""
 
-    def __init__(self):
-        self.connection: Optional[oracledb.Connection] = None
-
-    # -- NLS ----------------------------------------------------------
-    def _nls_statements(self) -> List[str]:
-        return [
-            f"ALTER SESSION SET NLS_LANGUAGE='{Config.BIRO26_NLS_LANGUAGE}'",
-            f"ALTER SESSION SET NLS_TERRITORY='{Config.BIRO26_NLS_TERRITORY}'",
-            "ALTER SESSION SET NLS_NUMERIC_CHARACTERS='. '",
-        ]
-
-    # -- lifecycle ----------------------------------------------------
     def __enter__(self) -> "Biro26DB":
-        self.connection = oracledb.connect(
-            user=Config.BIRO26_DB_USER,
-            password=Config.BIRO26_DB_PASSWORD,
-            dsn=Config.BIRO26_DB_DSN,
-        )
-        with self.connection.cursor() as cur:
-            for stmt in self._nls_statements():
-                cur.execute(stmt)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.connection:
-            try:
-                if exc_type:
-                    self.connection.rollback()
-            finally:
-                self.connection.close()
+        return False
+
+    # -- transport ----------------------------------------------------
+    def _call(self, req: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            proc = subprocess.run(
+                [sys.executable, _WORKER],
+                input=json.dumps(req),
+                capture_output=True,
+                text=True,
+                cwd=_PROJECT_ROOT,
+                timeout=_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            return {"success": False, "message": f"worker timeout after {_TIMEOUT}s"}
+        except Exception as e:
+            return {"success": False, "message": f"worker spawn failed: {e}"}
+        if proc.returncode != 0:
+            return {"success": False,
+                    "message": f"worker exit {proc.returncode}: {(proc.stderr or '')[:500]}"}
+        try:
+            return json.loads(proc.stdout)
+        except Exception:
+            return {"success": False,
+                    "message": f"bad worker output: {(proc.stdout or '')[:300]} "
+                               f"{(proc.stderr or '')[:300]}"}
 
     # -- queries ------------------------------------------------------
     def execute_query(self, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        result = {"success": False, "data": [], "columns": [], "rowcount": 0, "message": ""}
-        try:
-            with self.connection.cursor() as cur:
-                cur.execute(sql, params or {})
-                if cur.description:
-                    result["columns"] = [d[0] for d in cur.description]
-                    result["data"] = cur.fetchall()
-                    result["rowcount"] = len(result["data"])
-                result["success"] = True
-        except Exception as e:
-            result["message"] = str(e)
-        return result
+        r = self._call({"op": "query", "sql": sql, "params": params or {}})
+        return {
+            "success": r.get("success", False),
+            "columns": r.get("columns", []),
+            "data": [tuple(row) for row in r.get("data", [])],
+            "rowcount": r.get("rowcount", 0),
+            "message": r.get("message", ""),
+        }
 
     def execute_dml(self, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        try:
-            with self.connection.cursor() as cur:
-                cur.execute(sql, params or {})
-                rc = cur.rowcount
-            self.connection.commit()
-            return {"success": True, "rowcount": rc}
-        except Exception as e:
-            self.connection.rollback()
-            return {"success": False, "rowcount": 0, "message": str(e)}
+        r = self._call({"op": "dml", "sql": sql, "params": params or {}})
+        return {"success": r.get("success", False),
+                "rowcount": r.get("rowcount", 0),
+                "message": r.get("message", "")}
 
     def call_proc(self, plsql: str, params: Optional[Dict[str, Any]] = None,
                   capture_output: bool = False) -> Dict[str, Any]:
-        """Run an anonymous PL/SQL block. If capture_output, return DBMS_OUTPUT lines.
+        """Run an anonymous PL/SQL block (optionally capturing DBMS_OUTPUT).
 
-        `plsql` is a full block, e.g.
-            "BEGIN YBIRO_Import_Marfa.validate_input; END;"
-        Set package g_* vars in the same block so session state is consistent.
+        `plsql` is a full block, e.g. "BEGIN YBIRO_Import_Marfa.validate_input; END;".
+        Set package g_* vars in the SAME block so session state is consistent — the
+        worker uses one connection for the whole block.
         """
-        lines: List[str] = []
-        try:
-            with self.connection.cursor() as cur:
-                if capture_output:
-                    cur.callproc("DBMS_OUTPUT.ENABLE", [None])
-                cur.execute(plsql, params or {})
-                if capture_output:
-                    chunk = cur.var(str, 32767)  # avoid truncating long DBMS_OUTPUT lines
-                    status = cur.var(int)
-                    while True:
-                        cur.callproc("DBMS_OUTPUT.GET_LINE", [chunk, status])
-                        if status.getvalue() != 0:
-                            break
-                        lines.append(chunk.getvalue() or "")
-            self.connection.commit()
-            return {"success": True, "output_lines": lines}
-        except Exception as e:
-            self.connection.rollback()
-            return {"success": False, "output_lines": lines, "message": str(e)}
+        r = self._call({"op": "plsql", "plsql": plsql, "params": params or {},
+                        "capture_output": capture_output})
+        return {"success": r.get("success", False),
+                "output_lines": r.get("output_lines", []),
+                "message": r.get("message", "")}
+
+    def execute_script(self, statements: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Run several statements in ONE transaction (atomic multi-statement ops).
+
+        Each statement: {"sql": str, "params": dict, "kind": "query"|"dml"}.
+        Returns {success, results:[{columns,data,rowcount} | {rowcount}], message}.
+        """
+        r = self._call({"op": "script", "statements": statements})
+        return {"success": r.get("success", False),
+                "results": r.get("results", []),
+                "message": r.get("message", "")}
 
     def test_connection(self) -> Dict[str, Any]:
-        try:
-            r = self.execute_query(
-                "SELECT banner FROM v$version WHERE ROWNUM = 1")
-            ver = r["data"][0][0] if r.get("data") else None
-            return {"success": r["success"], "version": ver, "error": r.get("message")}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        r = self._call({"op": "test"})
+        return {"success": r.get("success", False),
+                "version": r.get("version"),
+                "error": r.get("message")}

@@ -1,0 +1,161 @@
+"""Biro26 thick-mode Oracle worker (runs as an isolated subprocess).
+
+WHY A SUBPROCESS: the OfficePlus ERP is Oracle 11g, which python-oracledb can
+only reach in THICK mode (Instant Client). Thick mode is a whole-process switch
+that breaks the main Flask app's thin cloud-wallet connection (the one production
+nufarul.eminescu.md depends on). So all OfficePlus access happens here, in a
+short-lived child process that the main (thin) app spawns via models/biro26_db.py.
+
+PROTOCOL: read one JSON request object from stdin, write one JSON response object
+to stdout. Requests:
+  {"op":"test"}
+  {"op":"query","sql":..,"params":{..}}              -> {success,columns,data,rowcount}
+  {"op":"dml","sql":..,"params":{..}}                -> {success,rowcount} (commits)
+  {"op":"plsql","plsql":..,"params":{..},"capture_output":bool}
+                                                     -> {success,output_lines} (commits)
+  {"op":"script","statements":[{"sql":..,"params":{..},"kind":"query|dml"}]}
+                                                     -> {success,results:[..]} (one tx, commits)
+All responses include "success"; on failure also "message".
+Messages/comments in DB code stay RO+EN per project rule; this is app code (RU/EN ok).
+"""
+from __future__ import annotations
+
+import datetime
+import decimal
+import json
+import os
+import sys
+
+# Make `from config import Config` work regardless of cwd.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+import oracledb  # noqa: E402
+from config import Config  # noqa: E402
+
+
+def _nls_statements():
+    return [
+        f"ALTER SESSION SET NLS_LANGUAGE='{Config.BIRO26_NLS_LANGUAGE}'",
+        f"ALTER SESSION SET NLS_TERRITORY='{Config.BIRO26_NLS_TERRITORY}'",
+        "ALTER SESSION SET NLS_NUMERIC_CHARACTERS='. '",
+    ]
+
+
+def _cell(v):
+    """Make a fetched value JSON-serializable while keeping numbers numeric."""
+    if isinstance(v, decimal.Decimal):
+        f = float(v)
+        return int(f) if f.is_integer() else f
+    if isinstance(v, (datetime.datetime, datetime.date)):
+        return v.isoformat()
+    if isinstance(v, bytes):
+        return v.decode("utf-8", "replace")
+    return v
+
+
+def _fetch(cur):
+    cols = [d[0] for d in cur.description] if cur.description else []
+    data = [[_cell(c) for c in row] for row in cur.fetchall()] if cur.description else []
+    return cols, data
+
+
+def _capture_dbms_output(cur):
+    lines = []
+    chunk = cur.var(str, 32767)
+    status = cur.var(int)
+    while True:
+        cur.callproc("DBMS_OUTPUT.GET_LINE", [chunk, status])
+        if status.getvalue() != 0:
+            break
+        lines.append(chunk.getvalue() or "")
+    return lines
+
+
+def _handle(conn, req):
+    op = req.get("op")
+    cur = conn.cursor()
+    for stmt in _nls_statements():
+        cur.execute(stmt)
+
+    if op == "test":
+        cur.execute("SELECT banner FROM v$version WHERE ROWNUM = 1")
+        row = cur.fetchone()
+        return {"success": True, "version": row[0] if row else None}
+
+    if op == "query":
+        cur.execute(req["sql"], req.get("params") or {})
+        cols, data = _fetch(cur)
+        return {"success": True, "columns": cols, "data": data, "rowcount": len(data)}
+
+    if op == "dml":
+        cur.execute(req["sql"], req.get("params") or {})
+        rc = cur.rowcount
+        conn.commit()
+        return {"success": True, "rowcount": rc}
+
+    if op == "plsql":
+        if req.get("capture_output"):
+            cur.callproc("DBMS_OUTPUT.ENABLE", [None])
+        cur.execute(req["plsql"], req.get("params") or {})
+        lines = _capture_dbms_output(cur) if req.get("capture_output") else []
+        conn.commit()
+        return {"success": True, "output_lines": lines}
+
+    if op == "script":
+        results = []
+        for st in req.get("statements", []):
+            cur.execute(st["sql"], st.get("params") or {})
+            if st.get("kind") == "query" and cur.description:
+                cols, data = _fetch(cur)
+                results.append({"columns": cols, "data": data, "rowcount": len(data)})
+            else:
+                results.append({"rowcount": cur.rowcount})
+        conn.commit()
+        return {"success": True, "results": results}
+
+    return {"success": False, "message": f"unknown op: {op}"}
+
+
+def main():
+    try:
+        req = json.loads(sys.stdin.read() or "{}")
+    except Exception as e:
+        print(json.dumps({"success": False, "message": f"bad request json: {e}"}))
+        return
+
+    try:
+        oracledb.init_oracle_client(lib_dir=Config.BIRO26_INSTANT_CLIENT)
+    except Exception as e:
+        if "already been initialized" not in str(e):
+            print(json.dumps({"success": False, "message": f"thick init failed: {e}"}))
+            return
+
+    conn = None
+    try:
+        conn = oracledb.connect(
+            user=Config.BIRO26_DB_USER,
+            password=Config.BIRO26_DB_PASSWORD,
+            dsn=Config.BIRO26_DB_DSN,
+        )
+        out = _handle(conn, req)
+    except Exception as e:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        out = {"success": False, "message": str(e)}
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    print(json.dumps(out, default=str))
+
+
+if __name__ == "__main__":
+    main()

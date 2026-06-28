@@ -100,12 +100,20 @@ class Config:
     TNS_ALIAS = os.environ.get('TNS_ALIAS', '')
     CONNECT_STRING = os.environ.get('CONNECT_STRING', '')
 
-    # ── Biro26 module — separate OfficePlus ERP Oracle DB (thin mode) ──
+    # ── Biro26 module — OfficePlus ERP (Oracle 11g) ──
+    # 11g needs python-oracledb THICK mode (Instant Client). Because thick is a
+    # whole-process switch that would break the main app's thin cloud-wallet
+    # connection, Biro26 runs its Oracle access in an isolated subprocess worker
+    # (models/biro26_worker.py). These settings configure that worker.
     BIRO26_DB_USER = os.environ.get('BIRO26_DB_USER', 'officeplus')
     BIRO26_DB_PASSWORD = os.environ.get('BIRO26_DB_PASSWORD', '')  # secret: set in .env, never hardcoded
     BIRO26_DB_DSN = os.environ.get('BIRO26_DB_DSN', 'orange.una.md:4024/cloudbd.world')
     BIRO26_NLS_LANGUAGE = os.environ.get('BIRO26_NLS_LANGUAGE', 'ENGLISH')
     BIRO26_NLS_TERRITORY = os.environ.get('BIRO26_NLS_TERRITORY', 'AMERICA')
+    # Instant Client dir for thick mode (the 23_26 build connects to this 11g DB;
+    # the 23_3 build raises ORA-28041). Override via env if installed elsewhere.
+    BIRO26_INSTANT_CLIENT = os.environ.get(
+        'BIRO26_INSTANT_CLIENT', '/Users/pt/Downloads/instantclient_23_26')
 
     # Version widget (fixed bottom-right popup)
     VERSION_WIDGET_ENABLED = os.environ.get('VERSION_WIDGET_ENABLED', '0').strip() in ('1', 'true', 'yes')
