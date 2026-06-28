@@ -407,3 +407,74 @@ class Biro26Store:
             return {"success": True, "data": _rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRICE LIST — VPR1D_PRDATE / VTPR1D_PERPRLIST
+    # ============================================================
+    @staticmethod
+    def get_prices(codprice: int = 1, codgrp: Optional[int] = None,
+                   limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        try:
+            inner = ("SELECT CODPRICE, CODGRP, SC, PRETV, PRETV1, PRETV2, PRETV3, "
+                     "TO_CHAR(DATASTART,'DD.MM.YYYY') DATASTART "
+                     "FROM VTPR1D_PERPRLIST WHERE CODPRICE=:c")
+            params: Dict[str, Any] = {"c": codprice}
+            if codgrp is not None:
+                inner += " AND CODGRP=:g"; params["g"] = codgrp
+            inner += " ORDER BY CODGRP, SC"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_dates(codprice: int = 1) -> Dict[str, Any]:
+        try:
+            # DATAEND is computed inside the view via a date conversion that raises
+            # ORA-01843 under our session NLS, so it is omitted (open-end is implicit).
+            r = Biro26DB().execute_query(
+                "SELECT CODPRICE, CODGRP, TO_CHAR(DATA,'DD.MM.YYYY') DATA, NRDOC "
+                "FROM VPR1D_PRDATE WHERE CODPRICE=:c ORDER BY CODGRP",
+                {"c": codprice})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": _rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_price(codprice: int, codgrp: int, sc: int, datastart: str,
+                     pretv=None, pretv1=None, pretv2=None) -> Dict[str, Any]:
+        """Update price cells via the INSTEAD OF trigger on VTPR1D_PERPRLIST.
+        datastart is 'DD.MM.YYYY'. PK = (CODPRICE, CODGRP, SC, DATASTART)."""
+        try:
+            return Biro26DB().execute_dml(
+                "UPDATE VTPR1D_PERPRLIST SET PRETV=:p, PRETV1=:p1, PRETV2=:p2 "
+                "WHERE CODPRICE=:c AND CODGRP=:g AND SC=:sc "
+                "AND DATASTART=TO_DATE(:d,'DD.MM.YYYY')",
+                {"p": pretv, "p1": pretv1, "p2": pretv2,
+                 "c": codprice, "g": codgrp, "sc": sc, "d": datastart})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_dates(codprice: int = 1, data: Optional[str] = None) -> Dict[str, Any]:
+        arg = f"p_codprice => {int(codprice)}"
+        if data:
+            arg += f", p_data => DATE {_q(data)}"
+        return Biro26Store._run_pkg(f"import_dates({arg});", capture=True)
+
+    @staticmethod
+    def import_prices(codprice: int = 1, date_start: Optional[str] = None,
+                      date_end: Optional[str] = None) -> Dict[str, Any]:
+        arg = f"p_codprice => {int(codprice)}"
+        if date_start:
+            arg += f", p_date_start => DATE {_q(date_start)}"
+        if date_end:
+            arg += f", p_date_end => DATE {_q(date_end)}"
+        return Biro26Store._run_pkg(f"import_prices({arg});", capture=True)
+
+    @staticmethod
+    def rollback_pricelist(codprice: int = 1) -> Dict[str, Any]:
+        return Biro26Store._run_pkg(
+            f"rollback_pricelist(p_codprice => {int(codprice)});", capture=True)

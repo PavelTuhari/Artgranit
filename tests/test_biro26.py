@@ -214,3 +214,30 @@ def test_get_suppliers_joins_univers_name():
         r = Biro26Store.get_suppliers()
     assert r["success"] and r["data"][0]["name"].startswith("S.R.L.")
     assert "TIP='O'" in fake.last_sql
+
+
+# ── store: price list ───────────────────────────────────────────────
+
+def test_get_prices_paginated():
+    cols = ["CODPRICE","CODGRP","SC","PRETV","PRETV1","PRETV2","PRETV3","DATASTART"]
+    rows = [(1,10,1001,12.0,10.0,9.0,None,"01.01.2026")]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_prices(codprice=1, codgrp=10)
+    assert r["success"] and r["data"][0]["pretv"] == 12.0
+    assert "ROWNUM" in fake.last_sql and "VTPR1D_PERPRLIST" in fake.last_sql
+
+
+def test_import_prices_builds_date_args():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.import_prices(1, "2026-01-01", "3000-01-01")
+    assert r["success"]
+    assert "import_prices" in fake.last_sql and "DATE '2026-01-01'" in fake.last_sql
+
+
+def test_rollback_pricelist_call():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.rollback_pricelist(5)
+    assert r["success"] and "rollback_pricelist(p_codprice => 5)" in fake.last_sql
