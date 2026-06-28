@@ -241,3 +241,39 @@ def test_rollback_pricelist_call():
     with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
         r = Biro26Store.rollback_pricelist(5)
     assert r["success"] and "rollback_pricelist(p_codprice => 5)" in fake.last_sql
+
+
+# ── controller ──────────────────────────────────────────────────────
+
+from flask import Flask
+from controllers.biro26_controller import Biro26Controller
+
+_app = Flask(__name__)
+
+
+def test_controller_connection_test_delegates():
+    with patch("controllers.biro26_controller.Biro26Store") as S:
+        S.test_connection.return_value = {"success": True, "version": "Oracle 11g"}
+        r = Biro26Controller.connection_test()
+    assert r["success"] and "version" in r
+
+
+def test_controller_create_profile_requires_name():
+    with _app.test_request_context(json={"codprice": 1, "params": {}}):
+        r = Biro26Controller.create_profile()
+    assert r["success"] is False and "name" in r["error"]
+
+
+def test_controller_archive_blocks_value_two():
+    with _app.test_request_context(json={"isarhiv": "2"}):
+        r = Biro26Controller.archive_univers()
+    assert r["success"] is False and "blocked" in r["error"]
+
+
+def test_controller_get_goods_passes_filters():
+    with patch("controllers.biro26_controller.Biro26Store") as S:
+        S.get_goods.return_value = {"success": True, "data": []}
+        with _app.test_request_context("/?search=pen&status=NEW&limit=10"):
+            Biro26Controller.get_goods()
+        kwargs = S.get_goods.call_args.kwargs
+    assert kwargs["search"] == "pen" and kwargs["status"] == "NEW" and kwargs["limit"] == 10
