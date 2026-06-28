@@ -277,3 +277,16 @@ def test_controller_get_goods_passes_filters():
             Biro26Controller.get_goods()
         kwargs = S.get_goods.call_args.kwargs
     assert kwargs["search"] == "pen" and kwargs["status"] == "NEW" and kwargs["limit"] == 10
+
+
+# ── stage 1: images ─────────────────────────────────────────────────
+
+def test_get_goods_includes_image_cols():
+    cols = ["ID","ARTICOL","DENUMIRE","BRAND","FURNIZOR","ANGRO","IONLINE","RETAIL1",
+            "STOC","COD_UNIVERS","PHOTO_URL","IMAGE_LINK","ROW_STATUS"]
+    rows = [(1,"A1","N","B","F",1,1,1,1,1001,"http://x/p.jpg","http://x/i.jpg","IN_DICT")]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_goods(limit=10)
+    assert r["success"] and r["data"][0]["photo_url"] == "http://x/p.jpg"
+    assert "PHOTO_URL" in fake.last_sql and "IMAGE_LINK" in fake.last_sql

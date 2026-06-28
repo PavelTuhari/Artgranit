@@ -220,6 +220,7 @@ class Biro26Store:
             inner = """
               SELECT g.ID, g.ARTICOL, g.DENUMIRE, g.BRAND, g.FURNIZOR,
                      g.ANGRO, g.IONLINE, g.RETAIL1, g.STOC, g.COD_UNIVERS,
+                     g.PHOTO_URL, g.IMAGE_LINK,
                      CASE
                        WHEN g.COD_UNIVERS IS NOT NULL
                          AND EXISTS (SELECT 1 FROM TMS_UNIVERS u
@@ -314,8 +315,14 @@ class Biro26Store:
             if not u:
                 return {"success": False, "error": "not found"}
             mpt = _rows(db.execute_query("SELECT * FROM TMS_MPT WHERE COD=:c", {"c": cod}))
+            img = _rows(db.execute_query(
+                "SELECT PHOTO_URL, IMAGE_LINK FROM BIRO26_GOODS "
+                "WHERE COD_UNIVERS = :c AND ROWNUM = 1", {"c": cod}))
+            photo = img[0] if img else {}
             return {"success": True,
-                    "data": {"univers": u[0], "mpt": mpt[0] if mpt else None}}
+                    "data": {"univers": u[0], "mpt": mpt[0] if mpt else None,
+                             "photo_url": photo.get("photo_url"),
+                             "image_link": photo.get("image_link")}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
