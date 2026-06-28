@@ -44,7 +44,7 @@ def main() -> int:
     for label, sql, cap in [("table", DDL_TABLE, False),
                             ("sequence", DDL_SEQ, False),
                             ("trigger", DDL_TRG, True)]:
-        r = db.call_proc(sql + ";") if cap else db.execute_dml(sql)
+        r = db.call_proc(sql) if cap else db.execute_dml(sql)  # DDL_TRG already ends with END;
         ok = r.get("success")
         print(f"  [{'OK ' if ok else 'ERR'}] {label}" + ("" if ok else f" -> {r.get('message')}"))
         if not ok:

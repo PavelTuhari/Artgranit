@@ -304,3 +304,21 @@ def test_source_columns_ok():
     with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
         r = Biro26Store.source_columns("BIRO26_GOODS")
     assert r["success"] and r["data"] == ["ID","ARTICOL","DENUMIRE"]
+
+
+# ── stage 3: sources ────────────────────────────────────────────────
+from models.biro26_sources import is_safe_select, view_name_for, Biro26Sources
+
+def test_is_safe_select_accepts_plain_select():
+    assert is_safe_select("SELECT a, b FROM t WHERE x=1")
+    assert is_safe_select("  with q as (select 1 a from dual) select * from q")
+
+def test_is_safe_select_rejects_dml_and_multi():
+    assert not is_safe_select("SELECT 1; DROP TABLE t")
+    assert not is_safe_select("UPDATE t SET x=1")
+    assert not is_safe_select("select * from t; delete from t")
+    assert not is_safe_select("")
+
+def test_view_name_for_sanitizes():
+    assert view_name_for("My Feed!") == "V_BIRO26_SRC_MY_FEED"
+    assert view_name_for("abc") == "V_BIRO26_SRC_ABC"
