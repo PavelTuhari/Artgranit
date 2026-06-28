@@ -5143,6 +5143,201 @@ def api_aei_olap_loans():
     return jsonify(AEIController.get_olap_loans())
 
 
+# ---------------------------------------------------------------------------
+# Biro26 — Nomenclator / Listă de prețuri / Import (OfficePlus ERP, Oracle 11g)
+# Reaches officeplus via an isolated thick-mode subprocess worker; main app stays thin.
+# ---------------------------------------------------------------------------
+from controllers.biro26_controller import Biro26Controller
+
+
+def _biro26_api_guard():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return None
+
+
+@app.route('/UNA.md/orasldev/biro26')
+@app.route('/UNA.md/orasldev/biro26-admin')
+def biro26_admin():
+    """Biro26: launcher / landing."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26_admin.html')
+
+
+@app.route('/UNA.md/orasldev/biro26-backoffice')
+def biro26_backoffice():
+    """Biro26: main trilingual back-office (source, dictionary, groups, prices, mapping)."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/backoffice.html')
+
+
+@app.route('/UNA.md/orasldev/biro26-tz')
+def biro26_tz():
+    """Biro26: Technical Specification (TZ) — rendered from Markdown."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    tz_path = os.path.join(os.path.dirname(__file__), 'docs', 'Biro26', 'TZ_BIRO26_App.md')
+    with open(tz_path, 'r', encoding='utf-8') as f:
+        text = f.read()
+    try:
+        import markdown as _md
+        body = _md.markdown(text, extensions=['tables', 'fenced_code'])
+    except Exception:
+        from markupsafe import escape
+        body = '<pre>' + str(escape(text)) + '</pre>'
+    return ('<!doctype html><meta charset="utf-8"><title>TZ Biro26</title>'
+            '<body style="max-width:900px;margin:2rem auto;font-family:system-ui;'
+            'line-height:1.5;padding:0 1rem">' + body + '</body>')
+
+
+@app.route('/UNA.md/orasldev/biro26-docs')
+def biro26_docs():
+    """Biro26: module documentation."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    doc_path = os.path.join(os.path.dirname(__file__), 'docs', 'Biro26', 'README_BIRO26.html')
+    with open(doc_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+# Biro26 — API routes
+def _b26(fn):
+    """Run a Biro26Controller call behind the auth guard, return jsonify."""
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    return jsonify(fn())
+
+
+@app.route('/api/biro26/connection/test', methods=['GET'])
+def api_biro26_conn_test():
+    return _b26(Biro26Controller.connection_test)
+
+@app.route('/api/biro26/mapping/g-params', methods=['GET'])
+def api_biro26_gparams():
+    return _b26(Biro26Controller.list_g_params)
+
+@app.route('/api/biro26/mapping/profiles', methods=['GET'])
+def api_biro26_profiles_get():
+    return _b26(Biro26Controller.get_profiles)
+
+@app.route('/api/biro26/mapping/profiles', methods=['POST'])
+def api_biro26_profiles_post():
+    return _b26(Biro26Controller.create_profile)
+
+@app.route('/api/biro26/mapping/profiles/<int:pid>', methods=['GET'])
+def api_biro26_profile_get(pid):
+    return _b26(lambda: Biro26Controller.get_profile(pid))
+
+@app.route('/api/biro26/mapping/profiles/<int:pid>', methods=['PUT'])
+def api_biro26_profile_put(pid):
+    return _b26(lambda: Biro26Controller.update_profile(pid))
+
+@app.route('/api/biro26/mapping/profiles/<int:pid>/activate', methods=['POST'])
+def api_biro26_profile_activate(pid):
+    return _b26(lambda: Biro26Controller.activate_profile(pid))
+
+@app.route('/api/biro26/goods', methods=['GET'])
+def api_biro26_goods():
+    return _b26(Biro26Controller.get_goods)
+
+@app.route('/api/biro26/goods/brands', methods=['GET'])
+def api_biro26_goods_brands():
+    return _b26(Biro26Controller.goods_brands)
+
+@app.route('/api/biro26/goods/count', methods=['GET'])
+def api_biro26_goods_count():
+    return _b26(Biro26Controller.goods_count)
+
+@app.route('/api/biro26/goods/validate', methods=['POST'])
+def api_biro26_goods_validate():
+    return _b26(Biro26Controller.validate_input)
+
+@app.route('/api/biro26/goods/prepare', methods=['POST'])
+def api_biro26_goods_prepare():
+    return _b26(Biro26Controller.prepare_input)
+
+@app.route('/api/biro26/goods/assign-keys', methods=['POST'])
+def api_biro26_goods_assign():
+    return _b26(Biro26Controller.assign_keys)
+
+@app.route('/api/biro26/univers', methods=['GET'])
+def api_biro26_univers():
+    return _b26(Biro26Controller.get_univers)
+
+@app.route('/api/biro26/univers/<int:cod>', methods=['GET'])
+def api_biro26_univers_card(cod):
+    return _b26(lambda: Biro26Controller.get_univers_card(cod))
+
+@app.route('/api/biro26/univers/import', methods=['POST'])
+def api_biro26_univers_import():
+    return _b26(Biro26Controller.import_univers)
+
+@app.route('/api/biro26/univers/archive', methods=['POST'])
+def api_biro26_univers_archive():
+    return _b26(Biro26Controller.archive_univers)
+
+@app.route('/api/biro26/univers/fix-confusables', methods=['POST'])
+def api_biro26_univers_fix():
+    return _b26(Biro26Controller.fix_confusables)
+
+@app.route('/api/biro26/groups', methods=['GET'])
+def api_biro26_groups_get():
+    return _b26(Biro26Controller.get_groups)
+
+@app.route('/api/biro26/groups', methods=['PUT'])
+def api_biro26_groups_put():
+    return _b26(Biro26Controller.update_group)
+
+@app.route('/api/biro26/groups/import', methods=['POST'])
+def api_biro26_groups_import():
+    return _b26(Biro26Controller.import_groups)
+
+@app.route('/api/biro26/groups/merge', methods=['POST'])
+def api_biro26_groups_merge():
+    return _b26(Biro26Controller.merge_groups)
+
+@app.route('/api/biro26/categories', methods=['GET'])
+def api_biro26_categories():
+    return _b26(Biro26Controller.get_categories)
+
+@app.route('/api/biro26/suppliers', methods=['GET'])
+def api_biro26_suppliers():
+    return _b26(Biro26Controller.get_suppliers)
+
+@app.route('/api/biro26/suppliers/furnizori', methods=['GET'])
+def api_biro26_furnizori():
+    return _b26(Biro26Controller.get_furnizori)
+
+@app.route('/api/biro26/prices', methods=['GET'])
+def api_biro26_prices_get():
+    return _b26(Biro26Controller.get_prices)
+
+@app.route('/api/biro26/prices', methods=['PUT'])
+def api_biro26_prices_put():
+    return _b26(Biro26Controller.update_price)
+
+@app.route('/api/biro26/prices/dates', methods=['GET'])
+def api_biro26_prices_dates_get():
+    return _b26(Biro26Controller.get_dates)
+
+@app.route('/api/biro26/prices/import-dates', methods=['POST'])
+def api_biro26_prices_dates():
+    return _b26(Biro26Controller.import_dates)
+
+@app.route('/api/biro26/prices/import', methods=['POST'])
+def api_biro26_prices_import():
+    return _b26(Biro26Controller.import_prices)
+
+@app.route('/api/biro26/prices/rollback', methods=['POST'])
+def api_biro26_prices_rollback():
+    return _b26(Biro26Controller.rollback_pricelist)
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)
