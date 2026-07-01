@@ -725,3 +725,120 @@ async function wizSaveSource() {
     if (el('wiz-source')) { el('wiz-source').value = r.data.view_name; await wizardInit(); }
   }
 }
+
+/* =====================================================================
+   TAB 6 — PRODUCT + STOCK GRID (Excel-style, Windows app parity)
+   ===================================================================== */
+function debounceLoadProductsStock() {
+  clearTimeout(productsDebounceTimer);
+  productsDebounceTimer = setTimeout(loadProductsStock, 350);
+}
+
+function loadStockConst() {
+  const el2 = el('prod-const');
+  if (!el2) return;
+  const saved = localStorage.getItem('biro26_stock_const');
+  if (saved !== null) el2.value = saved;
+}
+
+function onStockConstChange() {
+  const v = el('prod-const');
+  if (v) localStorage.setItem('biro26_stock_const', v.value);
+  renderProductsStockRows(lastProductsStockRows || []);
+}
+
+let lastProductsStockRows = [];
+
+async function loadProductsStock() {
+  const tbody = el('prod-body');
+  tbody.innerHTML = emptyRow(tbody, 13, 'loading');
+  const qs = new URLSearchParams();
+  if (val('prod-search')) qs.set('search', val('prod-search'));
+  if (val('prod-gr1')) qs.set('gr1', val('prod-gr1'));
+  qs.set('limit', '300');
+  const r = await apiGet(API + '/products?' + qs.toString());
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 13, 'no_data'); return; }
+  lastProductsStockRows = r.data || [];
+  el('prod-count').textContent = lastProductsStockRows.length;
+  renderProductsStockRows(lastProductsStockRows);
+}
+
+function renderProductsStockRows(rows) {
+  const tbody = el('prod-body');
+  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 13, 'no_data'); return; }
+  const constVal = parseFloat(val('prod-const')) || 0;
+  tbody.innerHTML = rows.map(p => {
+    const real = p.real_cant;
+    const hasReal = real !== null && real !== undefined && Number(real) !== 0;
+    const qty = hasReal ? real : constVal;
+    const qtyCell = hasReal
+      ? '<td class="num">' + fmtNum(qty) + '</td>'
+      : '<td class="num muted" style="font-style:italic" title="' + escapeHtml(t('prod_const_label')) + '">' + fmtNum(qty) + '</td>';
+    return '<tr>' +
+      imgCell(p.image) +
+      '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
+      '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' + escapeHtml(dispName(p) || '') + '</td>' +
+      '<td>' + escapeHtml(p.grupa || '') + '</td>' +
+      '<td>' + escapeHtml(p.categorie || '') + '</td>' +
+      '<td>' + escapeHtml(p.um || '') + '</td>' +
+      qtyCell +
+      '<td class="num">' + fmtNum(p.angro_fara_tva) + '</td>' +
+      '<td class="num">' + fmtNum(p.angro) + '</td>' +
+      '<td class="num">' + fmtNum(p.ionline) + '</td>' +
+      '<td class="num">' + fmtNum(p.retail1) + '</td>' +
+      '<td>' + escapeHtml(p.brand || '') + '</td>' +
+      '<td class="num">20</td>' +
+      '</tr>';
+  }).join('');
+}
+
+/* =====================================================================
+   TAB 7 — STOCK CALCULATION (UN$SOLD.GET_SOLDT)
+   ===================================================================== */
+async function loadLatestStockCalc() {
+  const r = await apiGet(API + '/stock/latest');
+  const info = el('stock-last-info');
+  if (!info) return;
+  if (r.success && r.data) {
+    const d = r.data;
+    info.textContent = t('stock_last_run') + ': ' + d.run_at + ' — ' +
+      d.data_doc + ' / dep="' + (d.dep_filter || '') + '" — ' + d.row_count + ' ' + t('prod_col_qty').toLowerCase();
+  } else {
+    info.textContent = t('stock_no_calc');
+  }
+}
+
+async function loadStockItems() {
+  const tbody = el('stock-items-body');
+  if (!tbody) return;
+  tbody.innerHTML = emptyRow(tbody, 3, 'loading');
+  const r = await apiGet(API + '/stock/items?limit=300');
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 3, 'no_data'); return; }
+  const rows = r.data || [];
+  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 3, 'no_data'); return; }
+  tbody.innerHTML = rows.map(it => '<tr>' +
+    '<td class="mono">' + it.sc + '</td>' +
+    '<td>' + escapeHtml(it.denumirea || '') + '</td>' +
+    '<td class="num">' + fmtNum(it.cant) + '</td>' +
+    '</tr>').join('');
+}
+
+async function runStockCalc() {
+  if (!confirmAction('confirm_stock_calc')) return;
+  const dataDoc = val('stock-datadoc');
+  if (!dataDoc) { toast(t('validation_required'), 'err'); return; }
+  setStatus(t('loading'));
+  const r = await apiPost(API + '/stock/calculate', {
+    data_doc: dataDoc,
+    dep_filter: val('stock-dep'),
+    cont_filter: val('stock-cont') || undefined,
+  });
+  renderReport('stock-report', r.success
+    ? {success: true, output: ['run_id=' + r.data.id + ', rows=' + r.data.row_count + ', ' + r.data.run_at]}
+    : r);
+  setStatus(r.success ? t('ok_generic') : t('err_generic'));
+  if (r.success) {
+    await loadLatestStockCalc();
+    await loadStockItems();
+  }
+}

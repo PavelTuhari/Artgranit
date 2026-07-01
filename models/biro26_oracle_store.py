@@ -576,3 +576,130 @@ class Biro26Store:
     def rollback_pricelist(codprice: int = 1) -> Dict[str, Any]:
         return Biro26Store._run_pkg(
             f"rollback_pricelist(p_codprice => {int(codprice)});", capture=True)
+
+    # ============================================================
+    # STOCK BALANCES — UN$SOLD.GET_SOLDT (session-scoped GTT) persisted
+    # into normal tables so any later request can read the result fast.
+    # ============================================================
+
+    STOCK_GTT = "YBIRO_STOCK_GTT"          # fixed name so the whole calc runs in ONE session
+    DEFAULT_CONT = "217 2165 2114"          # RO: conturi marfa / EN: goods GL accounts
+    DEFAULT_PFILT = "ACDE12"                # RO: masca filtru / EN: filter mask (per formula)
+
+    @staticmethod
+    def calc_stock(data_doc: str, dep_filter: str = "",
+                   cont_filter: Optional[str] = None,
+                   pfilt: Optional[str] = None) -> Dict[str, Any]:
+        """Run UN$SOLD.GET_SOLDT and persist the balance into YBIRO_STOCK_CALC(_ITEM).
+
+        data_doc: 'YYYY-MM-DD' (the :datadoc bind). dep_filter: the :m_ctdep bind
+        (blank = no department filter value supplied by the caller). Everything
+        (compute + persist) runs in ONE Oracle session (one execute_script call)
+        because GET_SOLDT's result is a Global Temporary Table, visible only within
+        the session that created it — a later request cannot see its rows. The
+        persisted YBIRO_STOCK_CALC_ITEM already carries its own index (SC), so no
+        index is created on the ephemeral GTT (Oracle blocks that: ORA-14452).
+        """
+        cont = cont_filter or Biro26Store.DEFAULT_CONT
+        flt = pfilt or Biro26Store.DEFAULT_PFILT
+        gtt = Biro26Store.STOCK_GTT
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": "UPDATE YBIRO_STOCK_CALC SET is_latest='0' WHERE is_latest='1'",
+                 "params": {}, "kind": "dml"},
+                {"sql": f"BEGIN EXECUTE IMMEDIATE 'DROP TABLE {gtt}'; "
+                        "EXCEPTION WHEN OTHERS THEN NULL; END;",
+                 "params": {}, "kind": "dml"},
+                {"sql": ("DECLARE v VARCHAR2(100); BEGIN "
+                        f"v := UN$SOLD.GET_SOLDT(pData => TO_DATE(:p_data,'YYYY-MM-DD'), "
+                        f"sTableName => '{gtt}', pFilt => :p_pfilt, pCont => :p_cont, "
+                        "pDep => :p_dep); END;"),
+                 "params": {"p_data": data_doc, "p_pfilt": flt, "p_cont": cont,
+                            "p_dep": dep_filter or " "},
+                 "kind": "dml"},
+                {"sql": "INSERT INTO YBIRO_STOCK_CALC(data_doc, dep_filter, cont_filter, "
+                        "pfilt, src_table, row_count, is_latest, status) "
+                        "VALUES(TO_DATE(:p_data,'YYYY-MM-DD'), :p_dep, :p_cont, :p_pfilt, "
+                        f"'{gtt}', (SELECT COUNT(*) FROM {gtt}), '1', 'OK')",
+                 "params": {"p_data": data_doc, "p_dep": dep_filter or "", "p_cont": cont,
+                            "p_pfilt": flt},
+                 "kind": "dml"},
+                {"sql": "INSERT INTO YBIRO_STOCK_CALC_ITEM(calc_id, sc, dep, cant, cant1) "
+                        "SELECT (SELECT MAX(id) FROM YBIRO_STOCK_CALC WHERE is_latest='1'), "
+                        f"SC, NVL(DEP,0), SUM(CANT), SUM(CANT1) FROM {gtt} "
+                        "WHERE SC IS NOT NULL GROUP BY SC, NVL(DEP,0)",
+                 "params": {}, "kind": "dml"},
+            ])
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            head = _rows(Biro26DB().execute_query(
+                "SELECT * FROM (SELECT id, row_count, "
+                "TO_CHAR(run_at,'DD.MM.YYYY HH24:MI') run_at FROM YBIRO_STOCK_CALC "
+                "WHERE is_latest='1' ORDER BY id DESC) WHERE ROWNUM=1"))
+            return {"success": True, "data": head[0] if head else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_latest_stock_calc() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT * FROM (SELECT id, TO_CHAR(data_doc,'DD.MM.YYYY') data_doc, "
+                "dep_filter, cont_filter, pfilt, row_count, status, err_text, "
+                "TO_CHAR(run_at,'DD.MM.YYYY HH24:MI') run_at FROM YBIRO_STOCK_CALC "
+                "WHERE is_latest='1' ORDER BY id DESC) WHERE ROWNUM=1")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            rows = _rows(r)
+            return {"success": True, "data": rows[0] if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_stock_items(limit: int = 500, offset: int = 0) -> Dict[str, Any]:
+        """Rows of the latest stock calculation (SC, total CANT across depts)."""
+        try:
+            inner = ("SELECT i.sc, u.DENUMIREA, SUM(i.cant) cant FROM YBIRO_STOCK_CALC_ITEM i "
+                     "LEFT JOIN TMS_UNIVERS u ON u.COD = i.sc "
+                     "WHERE i.calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
+                     "GROUP BY i.sc, u.DENUMIREA ORDER BY u.DENUMIREA")
+            r = Biro26DB().execute_query(_page(inner, limit, offset))
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
+                           limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
+
+        Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
+        calculated or item has no postings). App/UI applies the visual placeholder
+        constant when real_cant is NULL or 0, mirroring the legacy Excel export.
+        """
+        try:
+            inner = (
+                "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
+                "g.GRUPA, g.CATEGORIE, g.BRAND, g.ANGRO, g.IONLINE, g.RETAIL1, "
+                "ROUND(g.ANGRO/1.2,2) ANGRO_FARA_TVA, "
+                "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL,g.IMAGE_LINK)) IMAGE, "
+                "s.CANT REAL_CANT "
+                "FROM TMS_UNIVERS u "
+                "LEFT JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
+                "LEFT JOIN VMS_MPT_TVR m ON m.COD = u.COD "
+                "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
+                "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
+                "  GROUP BY sc) s ON s.sc = u.COD "
+                "WHERE u.TIP='P'")
+            params: Dict[str, Any] = {}
+            if search:
+                inner += (" AND (UPPER(u.DENUMIREA) LIKE UPPER(:s) "
+                          "OR UPPER(u.NAMERUS) LIKE UPPER(:s) OR u.CODVECHI LIKE :s)")
+                params["s"] = f"%{search}%"
+            if gr1:
+                inner += " AND u.GR1=:gr1"; params["gr1"] = gr1
+            inner += " ORDER BY u.DENUMIREA"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}

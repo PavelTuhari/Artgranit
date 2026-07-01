@@ -5373,6 +5373,22 @@ def api_biro26_sources_ai_md():
 def api_biro26_sources_ai_map():
     return _b26(Biro26Controller.ai_suggest_mapping)
 
+@app.route('/api/biro26/stock/calculate', methods=['POST'])
+def api_biro26_stock_calculate():
+    return _b26(Biro26Controller.calc_stock)
+
+@app.route('/api/biro26/stock/latest', methods=['GET'])
+def api_biro26_stock_latest():
+    return _b26(Biro26Controller.get_latest_stock_calc)
+
+@app.route('/api/biro26/stock/items', methods=['GET'])
+def api_biro26_stock_items():
+    return _b26(Biro26Controller.get_stock_items)
+
+@app.route('/api/biro26/products', methods=['GET'])
+def api_biro26_products():
+    return _b26(Biro26Controller.get_products_stock)
+
 
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
