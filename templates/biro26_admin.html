@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biro26 — Import nomenclator &amp; prețuri</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #1a1a2e;
+      --bg2:     #16213e;
+      --bg3:     #0f3460;
+      --accent:  #4f8ef7;
+      --accent2: #7c6af7;
+      --green:   #22c55e;
+      --yellow:  #f59e0b;
+      --red:     #ef4444;
+      --text:    #e2e8f0;
+      --text-dim:#7c8ba0;
+      --border:  #2d3a4f;
+
+      --c-bg:    #f8fafc;
+      --c-text:  #1e293b;
+      --c-border:#e2e8f0;
+      --c-blue:  #1d4ed8;
+      --c-blue-lt:#dbeafe;
+      --c-gray:  #475569;
+      --c-green: #15803d;
+      --c-green-lt:#dcfce7;
+      --c-red:   #dc2626;
+      --c-red-lt:#fee2e2;
+    }
+
+    html, body {
+      min-height: 100%; width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      background: var(--c-bg);
+      color: var(--c-text);
+    }
+
+    /* ── MENU BAR ──────────────────────────────────────── */
+    .menu-bar {
+      height: 32px;
+      background: #0d0d1a;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 10px; gap: 2px;
+      flex-shrink: 0; z-index: 200;
+      user-select: none;
+    }
+    .menu-logo {
+      display: flex; align-items: center; gap: 8px;
+      margin-right: 10px;
+      font-weight: 700; font-size: 13px; color: var(--accent);
+      letter-spacing: .03em;
+    }
+    .menu-logo .logo-badge {
+      background: var(--accent); color: #fff;
+      border-radius: 3px; padding: 1px 6px;
+      font-size: 11px; font-weight: 700;
+    }
+    .menu-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .menu-back {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 10px; font-size: 12px;
+      color: var(--accent); border-radius: 3px;
+      cursor: pointer; text-decoration: none;
+      transition: background .12s;
+    }
+    .menu-back:hover { background: rgba(79,142,247,.15); }
+    .menu-user { font-size: 11px; color: var(--text-dim); }
+
+    /* ── PAGE ──────────────────────────────────────────── */
+    .page-wrap {
+      max-width: 880px; margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, var(--bg3), var(--bg2));
+      border-radius: 12px; color: #fff;
+      padding: 26px 28px; margin-bottom: 22px;
+      display: flex; align-items: center; gap: 18px;
+    }
+    .hero .hero-badge {
+      font-size: 30px; line-height: 1; flex-shrink: 0;
+      background: rgba(255,255,255,.12); border-radius: 10px;
+      width: 56px; height: 56px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hero h1 { font-size: 19px; font-weight: 700; margin-bottom: 4px; }
+    .hero p { font-size: 12px; color: #c7d2fe; line-height: 1.5; }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px,1fr));
+      gap: 14px; margin-bottom: 22px;
+    }
+    .launch-card {
+      background: #fff; border: 1px solid var(--c-border);
+      border-radius: 10px; padding: 18px;
+      display: flex; flex-direction: column; gap: 8px;
+      text-decoration: none; color: inherit;
+      transition: box-shadow .15s, border-color .15s, transform .1s;
+    }
+    .launch-card:hover {
+      box-shadow: 0 6px 18px rgba(15,23,42,.08);
+      border-color: var(--c-blue);
+      transform: translateY(-1px);
+    }
+    .launch-card .lc-icon { font-size: 22px; }
+    .launch-card .lc-title { font-size: 14px; font-weight: 700; color: var(--c-text); }
+    .launch-card .lc-desc { font-size: 11.5px; color: var(--c-gray); line-height: 1.5; }
+    .launch-card .lc-cta {
+      margin-top: 4px; font-size: 11px; font-weight: 700;
+      color: var(--c-blue);
+    }
+    .launch-card.primary { border-color: var(--c-blue); background: var(--c-blue-lt); }
+    .launch-card.primary .lc-title,
+    .launch-card.primary .lc-cta { color: var(--c-blue); }
+
+    .status-row {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff; border: 1px solid var(--c-border);
+      border-radius: 10px; padding: 14px 18px;
+      margin-bottom: 22px; font-size: 12px;
+    }
+    .status-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: var(--text-dim); flex-shrink: 0;
+    }
+    .status-dot.ok   { background: var(--green); }
+    .status-dot.err  { background: var(--red); }
+    .status-row .st-label { font-weight: 700; color: var(--c-text); }
+    .status-row .st-detail { color: var(--c-gray); flex: 1; }
+    .status-row .st-btn {
+      padding: 5px 12px; font-size: 11px;
+      border: 1px solid var(--c-border); border-radius: 5px;
+      background: #fff; color: var(--c-text); cursor: pointer;
+    }
+    .status-row .st-btn:hover { background: #f1f5f9; }
+
+    .alert {
+      padding: 12px 16px; border-radius: 8px;
+      font-size: 12px; line-height: 1.6; margin-bottom: 22px;
+      background: var(--c-blue-lt); border-left: 3px solid var(--c-blue);
+    }
+    .alert b { color: var(--c-blue); }
+    .alert code {
+      background: rgba(0,0,0,.06); border-radius: 3px;
+      padding: 1px 5px; font-size: 11px;
+    }
+
+    .footnote {
+      text-align: center; font-size: 11px; color: var(--c-gray);
+      margin-top: 10px;
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(100,116,139,.3); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── MENU BAR ──────────────────────────────────────────── -->
+<div class="menu-bar">
+  <div class="menu-logo">
+    <span class="logo-badge">B26</span>
+    Biro26 — Import nomenclator &amp; prețuri
+  </div>
+  <div class="menu-right">
+    <a class="menu-back" href="/UNA.md/orasldev">← SQL Dev</a>
+    <span class="menu-user" id="menu-user">biro26</span>
+  </div>
+</div>
+
+<!-- ── PAGE ──────────────────────────────────────────────── -->
+<div class="page-wrap">
+
+  <div class="hero">
+    <div class="hero-badge">📦</div>
+    <div>
+      <h1>Biro26 — import marfă &amp; listă de prețuri</h1>
+      <p>
+        Importă mărfuri din fluxul furnizorului (BIRO26_GOODS) în nomenclatorul ERP
+        (TMS_UNIVERS) și construiește listele de prețuri, apelând pachetul Oracle dedicat.
+      </p>
+    </div>
+  </div>
+
+  <div class="status-row">
+    <span class="status-dot" id="conn-dot"></span>
+    <span class="st-label">Conexiune Oracle:</span>
+    <span class="st-detail" id="conn-detail">se verifică...</span>
+    <button class="st-btn" onclick="testConnection()">↻ Testează</button>
+  </div>
+
+  <div class="cards-grid">
+    <a class="launch-card primary" href="/UNA.md/orasldev/biro26-backoffice">
+      <div class="lc-icon">🗂️</div>
+      <div class="lc-title">Back-office Biro26</div>
+      <div class="lc-desc">
+        Consola principală: sursă (BIRO26_GOODS), nomenclator, grupe/furnizori,
+        listă de prețuri, mapare/setări. Interfață trilingvă RU / RO / EN.
+      </div>
+      <div class="lc-cta">Deschide consola →</div>
+    </a>
+
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-tz" target="_blank">
+      <div class="lc-icon">📋</div>
+      <div class="lc-title">Specificație tehnică (TZ)</div>
+      <div class="lc-desc">
+        Documentul de proiectare al modulului: arhitectură, mapare de câmpuri,
+        pachetul Oracle, fazele de implementare.
+      </div>
+      <div class="lc-cta">Vezi TZ ↗</div>
+    </a>
+
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-docs" target="_blank">
+      <div class="lc-icon">📖</div>
+      <div class="lc-title">Documentație modul</div>
+      <div class="lc-desc">
+        Descrierea obiectelor Oracle, rutelor UI/API, instrucțiuni de rulare locală
+        și de deploy.
+      </div>
+      <div class="lc-cta">Vezi documentația ↗</div>
+    </a>
+  </div>
+
+  <div class="alert">
+    <b>Despre modul.</b> Biro26 citește fluxul sursă <code>BIRO26_GOODS</code>, îl validează
+    și îl pregătește, atribuie chei (<code>cod_univers</code>) și importă în
+    <code>TMS_UNIVERS</code> / <code>TMS_MPT</code>. Grupele de mărfuri și prețurile sunt
+    gestionate per <code>codprice</code>, cu profiluri de mapare reutilizabile
+    (<code>g_*</code> parametri) și jurnal de operații.
+  </div>
+
+  <div class="footnote">Biro26 · Artgranit ERP bridge</div>
+</div>
+
+<script>
+async function testConnection() {
+  const dot = document.getElementById('conn-dot');
+  const detail = document.getElementById('conn-detail');
+  dot.className = 'status-dot';
+  detail.textContent = 'se verifică...';
+  try {
+    const r = await fetch('/api/biro26/connection/test', {credentials:'include'});
+    const d = await r.json();
+    if (d.success) {
+      dot.className = 'status-dot ok';
+      detail.textContent = 'OK' + (d.version ? (' — ' + d.version) : '');
+    } else {
+      dot.className = 'status-dot err';
+      detail.textContent = 'Eroare: ' + (d.error || 'conexiune indisponibilă');
+    }
+  } catch (e) {
+    dot.className = 'status-dot err';
+    detail.textContent = 'Eroare de rețea: ' + e.message;
+  }
+}
+document.addEventListener('DOMContentLoaded', testConnection);
+</script>
+
+</body>
+</html>
