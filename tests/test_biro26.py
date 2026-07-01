@@ -370,3 +370,67 @@ def test_import_images_merges_feed_links():
         r = Biro26Store.import_images()
     assert r["success"] and "rows" in r
     assert "MERGE INTO TMS_MPT_TVR" in fake.last_sql and "IE_LINKADRES" in fake.last_sql
+
+
+# ── store: stock balances (UN$SOLD.GET_SOLDT) ───────────────────────
+
+class _FakeStockCalcDB(_FakeBiro26DB):
+    """Like _FakeBiro26DB but remembers the execute_script statements
+    separately, since calc_stock() issues a follow-up execute_query()
+    that would otherwise overwrite last_sql."""
+    def __init__(self, header_rows, header_cols):
+        super().__init__(header_rows, header_cols)
+        self.last_script = None
+    def execute_script(self, statements):
+        self.last_script = statements
+        return super().execute_script(statements)
+
+
+def _stock_header_fake():
+    cols = ["ID", "ROW_COUNT", "RUN_AT"]
+    rows = [(1, 0, "01.07.2026 16:53")]
+    return _FakeStockCalcDB(rows, cols)
+
+
+def test_calc_stock_runs_script_and_returns_header():
+    fake = _stock_header_fake()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.calc_stock(data_doc="2026-07-01", dep_filter="")
+    assert r["success"] and r["data"]["id"] == 1
+    assert isinstance(fake.last_script, list)
+    joined = " ".join(s["sql"] for s in fake.last_script)
+    assert "UN$SOLD.GET_SOLDT" in joined
+    assert "YBIRO_STOCK_CALC_ITEM" in joined
+    assert "GROUP BY SC, NVL(DEP,0)" in joined  # aggregated to avoid PK collisions
+
+
+def test_calc_stock_no_gtt_index_step():
+    # Oracle blocks CREATE INDEX on a GTT right after it's populated (ORA-14452);
+    # calc_stock must not attempt it.
+    fake = _stock_header_fake()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        Biro26Store.calc_stock(data_doc="2026-07-01", dep_filter="")
+    joined = " ".join(s["sql"] for s in fake.last_script)
+    assert "CREATE INDEX" not in joined.upper()
+
+
+def test_get_latest_stock_calc_ok():
+    cols = ["ID","DATA_DOC","DEP_FILTER","CONT_FILTER","PFILT","ROW_COUNT","STATUS","ERR_TEXT","RUN_AT"]
+    rows = [(1,"01.07.2026",None,"217 2165 2114","ACDE12",0,"OK",None,"01.07.2026 16:53")]
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeBiro26DB(rows, cols)):
+        r = Biro26Store.get_latest_stock_calc()
+    assert r["success"] and r["data"]["status"] == "OK"
+
+
+def test_get_products_stock_joins_stock_and_image():
+    cols = ["COD","CODVECHI","DENUMIREA","NAMERUS","UM","TIP","GRUPA","CATEGORIE",
+            "BRAND","ANGRO","IONLINE","RETAIL1","ANGRO_FARA_TVA","IMAGE","REAL_CANT"]
+    rows = [(239265,"SKU: 903194","Ace gamalie 120 buc","Имя","buc.","P",
+             "Table si accesorii","Accesorii pentru table","Austral",
+             3.92,4.64,5.10,3.27,"http://x/p.jpg",None)]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_products_stock(limit=10)
+    assert r["success"] and r["data"][0]["real_cant"] is None
+    assert "TIP='P'" in fake.last_sql and "YBIRO_STOCK_CALC_ITEM" in fake.last_sql
+    assert "ROWNUM" in fake.last_sql and "FETCH" not in fake.last_sql.upper()

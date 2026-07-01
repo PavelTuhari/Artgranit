@@ -357,6 +357,8 @@ html, body {
     <div class="tab-btn" id="tab-prices" onclick="showTab('prices')" data-i18n="tab_prices"></div>
     <div class="tab-btn" id="tab-mapping" onclick="showTab('mapping')" data-i18n="tab_mapping"></div>
     <div class="tab-btn" id="tab-wizard" onclick="showTab('wizard')" data-i18n="tab_wizard"></div>
+    <div class="tab-btn" id="tab-products" onclick="showTab('products')" data-i18n="tab_products"></div>
+    <div class="tab-btn" id="tab-stock" onclick="showTab('stock')" data-i18n="tab_stock"></div>
   </div>
 
   <div class="main-area">
@@ -796,6 +798,99 @@ html, body {
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 6: TOVAR / STOC (product + stock, Excel-style)-->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-products">
+        <div class="sec-header">
+          <h2 data-i18n="prod_title"></h2>
+          <span class="count" id="prod-count">0</span>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" class="f-input w-search" id="prod-search" data-i18n-ph="f_search" oninput="debounceLoadProductsStock()">
+          <label data-i18n="f_gr1"></label>
+          <input type="text" class="f-input w-sm" id="prod-gr1" oninput="debounceLoadProductsStock()">
+          <button class="btn" onclick="loadProductsStock()" data-i18n="f_apply"></button>
+          <span style="flex:1"></span>
+          <label data-i18n="prod_const_label"></label>
+          <input type="number" class="f-input w-sm" id="prod-const" value="1000" min="0"
+                 onchange="onStockConstChange()" style="width:90px">
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th data-i18n="col_image"></th>
+              <th data-i18n="col_articol"></th>
+              <th data-i18n="col_denumire"></th>
+              <th data-i18n="prod_col_customs"></th>
+              <th data-i18n="prod_col_group"></th>
+              <th data-i18n="col_um"></th>
+              <th class="num" data-i18n="prod_col_qty"></th>
+              <th class="num" data-i18n="prod_col_purch_notva"></th>
+              <th class="num" data-i18n="prod_col_purch_tva"></th>
+              <th class="num" data-i18n="prod_col_online"></th>
+              <th class="num" data-i18n="prod_col_retail"></th>
+              <th data-i18n="prod_col_producer"></th>
+              <th class="num" data-i18n="prod_col_tva_pct"></th>
+            </tr></thead>
+            <tbody id="prod-body">
+              <tr><td colspan="13"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 7: OSTATKI (stock balance calculation)         -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-stock">
+        <div class="sec-header">
+          <h2 data-i18n="stock_title"></h2>
+        </div>
+
+        <div class="card">
+          <h3 data-i18n="stock_calc_title"></h3>
+          <p class="muted" style="margin-bottom:10px" data-i18n="stock_formula_hint"></p>
+          <div class="form-grid cols-3">
+            <div class="form-group">
+              <label data-i18n="stock_data_doc"></label>
+              <input type="date" id="stock-datadoc">
+            </div>
+            <div class="form-group">
+              <label data-i18n="stock_dep"></label>
+              <input type="text" id="stock-dep" data-i18n-ph="stock_dep_ph">
+            </div>
+            <div class="form-group">
+              <label data-i18n="stock_cont"></label>
+              <input type="text" id="stock-cont" value="217 2165 2114">
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:12px">
+            <button class="btn primary" onclick="runStockCalc()" data-i18n="stock_run"></button>
+            <span class="muted" id="stock-last-info"></span>
+          </div>
+          <div class="report-panel" id="stock-report" data-empty=""></div>
+        </div>
+
+        <div class="card">
+          <h3 data-i18n="stock_items_title"></h3>
+          <div class="data-table-wrap" style="max-height:420px">
+            <table class="data-table">
+              <thead><tr>
+                <th data-i18n="col_sc"></th>
+                <th data-i18n="col_denumire"></th>
+                <th class="num" data-i18n="prod_col_qty"></th>
+              </tr></thead>
+              <tbody id="stock-items-body">
+                <tr><td colspan="3"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /content-area -->
   </div><!-- /main-area -->
 </div><!-- /app-shell -->
@@ -914,6 +1009,19 @@ ru: {
   act_import_dates: 'Импорт дат', act_import_prices: 'Импорт цен', act_rollback: 'Откатить лист',
   price_periods_title: 'Периоды', col_data: 'Дата', col_nrdoc: '№ документа',
   price_lists_title: 'Прайс-листы', col_pricename: 'Название',
+  tab_products: 'Товар / Остатки', tab_stock: 'Остатки (расчёт)',
+  prod_title: 'Товар и остатки', prod_const_label: 'Константа (если нет остатка):',
+  prod_col_customs: 'Тамож. группа', prod_col_group: 'Тов. группа', prod_col_qty: 'Кол-во',
+  prod_col_purch_notva: 'Закупка без НДС', prod_col_purch_tva: 'Закупка с НДС',
+  prod_col_online: 'Онлайн цена', prod_col_retail: 'Розница с НДС',
+  prod_col_producer: 'Производитель', prod_col_tva_pct: 'Ставка НДС %',
+  stock_title: 'Остатки', stock_calc_title: 'Расчёт остатков (UN$SOLD.GET_SOLDT)',
+  stock_formula_hint: 'Считает по счетам 217, 2165, 2114 на указанную дату и департамент.',
+  stock_data_doc: 'Дата документа', stock_dep: 'Департамент (m_ctdep)',
+  stock_dep_ph: 'пусто = все', stock_cont: 'Счета (pCont)',
+  stock_run: 'Рассчитать остатки', stock_items_title: 'Результат последнего расчёта',
+  stock_no_calc: 'Ещё не рассчитано', stock_last_run: 'Последний расчёт',
+  confirm_stock_calc: 'Запустить расчёт остатков? Это выполнит реальный запрос к ERP.',
   col_sc: 'SC', col_datastart: 'Дата начала', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Сопоставление / Настройки', map_conn_title: 'Подключение к Oracle',
@@ -982,6 +1090,19 @@ ro: {
   act_import_dates: 'Import date', act_import_prices: 'Import prețuri', act_rollback: 'Anulează lista',
   price_periods_title: 'Perioade', col_data: 'Data', col_nrdoc: 'Nr. document',
   price_lists_title: 'Liste de prețuri', col_pricename: 'Denumire',
+  tab_products: 'Marfă / Stoc', tab_stock: 'Stoc (calcul)',
+  prod_title: 'Marfă și stoc', prod_const_label: 'Constantă (dacă nu există stoc):',
+  prod_col_customs: 'Grupă vamală', prod_col_group: 'Grupă marfă', prod_col_qty: 'Cant.',
+  prod_col_purch_notva: 'Achiziție fără TVA', prod_col_purch_tva: 'Achiziție cu TVA',
+  prod_col_online: 'Preț online', prod_col_retail: 'Retail cu TVA',
+  prod_col_producer: 'Producător', prod_col_tva_pct: 'Cotă TVA %',
+  stock_title: 'Stoc', stock_calc_title: 'Calcul stoc (UN$SOLD.GET_SOLDT)',
+  stock_formula_hint: 'Calculează pe conturile 217, 2165, 2114 la data și departamentul indicate.',
+  stock_data_doc: 'Data document', stock_dep: 'Departament (m_ctdep)',
+  stock_dep_ph: 'gol = toate', stock_cont: 'Conturi (pCont)',
+  stock_run: 'Calculează stocul', stock_items_title: 'Rezultatul ultimului calcul',
+  stock_no_calc: 'Încă necalculat', stock_last_run: 'Ultimul calcul',
+  confirm_stock_calc: 'Rulați calculul de stoc? Aceasta interoghează ERP-ul live.',
   col_sc: 'SC', col_datastart: 'Data start', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Mapare / Setări', map_conn_title: 'Conexiune Oracle',
@@ -1050,6 +1171,19 @@ en: {
   act_import_dates: 'Import dates', act_import_prices: 'Import prices', act_rollback: 'Rollback list',
   price_periods_title: 'Periods', col_data: 'Date', col_nrdoc: 'Doc no.',
   price_lists_title: 'Price lists', col_pricename: 'Name',
+  tab_products: 'Goods / Stock', tab_stock: 'Stock (calculate)',
+  prod_title: 'Goods and stock', prod_const_label: 'Constant (when no stock):',
+  prod_col_customs: 'Customs group', prod_col_group: 'Product group', prod_col_qty: 'Qty',
+  prod_col_purch_notva: 'Purchase w/o VAT', prod_col_purch_tva: 'Purchase w/ VAT',
+  prod_col_online: 'Online price', prod_col_retail: 'Retail w/ VAT',
+  prod_col_producer: 'Producer', prod_col_tva_pct: 'VAT rate %',
+  stock_title: 'Stock', stock_calc_title: 'Stock calculation (UN$SOLD.GET_SOLDT)',
+  stock_formula_hint: 'Computes over accounts 217, 2165, 2114 for the given date and department.',
+  stock_data_doc: 'Document date', stock_dep: 'Department (m_ctdep)',
+  stock_dep_ph: 'blank = all', stock_cont: 'Accounts (pCont)',
+  stock_run: 'Calculate stock', stock_items_title: 'Latest calculation result',
+  stock_no_calc: 'Not calculated yet', stock_last_run: 'Last run',
+  confirm_stock_calc: 'Run the stock calculation? This queries the live ERP.',
   col_sc: 'SC', col_datastart: 'Start date', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Mapping / Settings', map_conn_title: 'Oracle connection',
@@ -1082,6 +1216,7 @@ en: {
 let LANG = localStorage.getItem('biro26_lang') || 'ro';
 let currentTab = 'source';
 let goodsDebounceTimer = null, universDebounceTimer = null, suppliersDebounceTimer = null;
+let productsDebounceTimer = null;
 let selectedUniversCod = null;
 let selectedProfileId = null;
 let gParamNames = [];
@@ -1117,7 +1252,7 @@ function renderI18n() {
 /* =====================================================================
    TABS
    ===================================================================== */
-const TABS = ['source','dict','groups','prices','mapping','wizard'];
+const TABS = ['source','dict','groups','prices','mapping','wizard','products','stock'];
 
 function showTab(id) {
   TABS.forEach(x => {
@@ -1136,6 +1271,8 @@ function showTab(id) {
   if (id === 'prices')  { loadPricelists(); loadPriceGroups(); loadPrices(); loadPriceDates(); }
   if (id === 'mapping') { loadProfiles(); }
   if (id === 'wizard')  { wizardInit(); }
+  if (id === 'products'){ loadStockConst(); loadProductsStock(); }
+  if (id === 'stock')   { loadLatestStockCalc(); loadStockItems(); }
 }
 
 /* =====================================================================

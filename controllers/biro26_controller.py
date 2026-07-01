@@ -252,3 +252,30 @@ class Biro26Controller:
     def rollback_pricelist() -> Dict[str, Any]:
         d = request.get_json(silent=True) or {}
         return Biro26Store.rollback_pricelist(d.get("codprice", 1))
+
+    # -- stock balances (UN$SOLD.GET_SOLDT) ---------------------------
+    @staticmethod
+    def calc_stock() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        if not d.get("data_doc"):
+            return {"success": False, "error": "data_doc is required"}
+        return Biro26Store.calc_stock(
+            d["data_doc"], d.get("dep_filter", ""),
+            d.get("cont_filter"), d.get("pfilt"))
+
+    @staticmethod
+    def get_latest_stock_calc() -> Dict[str, Any]:
+        return Biro26Store.get_latest_stock_calc()
+
+    @staticmethod
+    def get_stock_items() -> Dict[str, Any]:
+        a = request.args
+        return Biro26Store.get_stock_items(
+            limit=a.get("limit", 500, type=int), offset=a.get("offset", 0, type=int))
+
+    @staticmethod
+    def get_products_stock() -> Dict[str, Any]:
+        a = request.args
+        return Biro26Store.get_products_stock(
+            search=a.get("search"), gr1=a.get("gr1"),
+            limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
