@@ -212,7 +212,8 @@ async function loadUniversCard(cod, rowEl) {
       '<div class="df-val">' + escapeHtml(obj[k] === null || obj[k] === undefined ? '—' : obj[k]) + '</div></div>'
     ).join('');
   }
-  let html = '<div class="detail-section-title">TMS_UNIVERS</div>' +
+  let html = barcodesHtml(r.data.barcodes) +
+             '<div class="detail-section-title">TMS_UNIVERS</div>' +
              '<div class="detail-grid">' + fields(u) + '</div>';
   if (mpt) {
     html += '<div class="detail-section-title">TMS_MPT</div>' +
@@ -437,9 +438,19 @@ async function showItemCard(cod) {
       escapeHtml(obj[kk] === null || obj[kk] === undefined ? '—' : obj[kk]) + '</div></div>').join('') + '</div>';
   }
   body.innerHTML = cardImg +
+    barcodesHtml(r.data.barcodes) +
     '<div class="detail-section-title">TMS_UNIVERS</div>' + fields(u) +
     (mpt ? '<div class="detail-section-title">TMS_MPT</div>' + fields(mpt)
          : '<div class="detail-section-title">TMS_MPT</div><p class="muted">' + t('no_data') + '</p>');
+}
+
+/* barcodes chips block for product cards (TMS_MPT_BARCODE) */
+function barcodesHtml(list) {
+  if (!list || !list.length) return '';
+  return '<div class="detail-section-title">' + t('card_barcodes') + ' (' + list.length + ')</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">' +
+    list.map(b => '<span class="badge badge-default mono" style="font-size:11.5px">' +
+      escapeHtml(b) + '</span>').join('') + '</div>';
 }
 
 async function savePrice(codprice, codgrp, sc, datastart, k) {
@@ -747,7 +758,7 @@ function onStockConstChange() {
   // re-render every already-loaded row with the new constant (no re-fetch)
   const tbody = el('prod-body');
   if (tbody) tbody.innerHTML = prodState.rows.map(productRowHtml).join('') ||
-    emptyRow(tbody, 13, 'no_data');
+    emptyRow(tbody, 14, 'no_data');
 }
 
 /* infinite-scroll state for the product+stock grid */
@@ -768,21 +779,71 @@ async function loadProductBrandsFilter() {
   }
 }
 
-async function loadProductCategoriesFilter() {
-  const dl = el('prod-categorie-list');
-  if (!dl || dl.dataset.loaded) return;
-  const r = await apiGet(API + '/products/categories');
-  if (r.success) {
-    dl.innerHTML = (r.data || []).map(c =>
-      '<option value="' + escapeHtml(c.categorie) + '">').join('');
-    dl.dataset.loaded = '1';
-  }
+/* ── GRUPA → CATEGORIE tree (left panel, BI-style dimension filter) ── */
+let prodTreeData = null;   // [{grupa, categorie, cnt}]
+
+async function loadProductTree() {
+  const box = el('prod-tree');
+  if (!box || box.dataset.loaded) return;
+  const r = await apiGet(API + '/products/tree');
+  if (!r.success) { box.innerHTML = '<div class="empty-state"><p>' + t('no_data') + '</p></div>'; return; }
+  prodTreeData = r.data || [];
+  box.dataset.loaded = '1';
+  renderProductTree();
+}
+
+function renderProductTree() {
+  const box = el('prod-tree');
+  if (!box || !prodTreeData) return;
+  const selG = val('prod-grupa'), selC = val('prod-categorie');
+  // group rows into grupa -> [{categorie,cnt}]
+  const groups = {};
+  let total = 0;
+  prodTreeData.forEach(r => {
+    (groups[r.grupa] = groups[r.grupa] || []).push(r);
+    total += r.cnt;
+  });
+  const nodeStyle = 'padding:5px 12px;cursor:pointer;display:flex;justify-content:space-between;gap:8px';
+  const selBg = 'background:#eff6ff;color:#1d4ed8;font-weight:600';
+  let html = '<div style="' + nodeStyle + (!selG && !selC ? ';' + selBg : '') + '" ' +
+    'onclick="selectTreeNode(\'\',\'\')"><span>📦 ' + t('prod_tree_all') + '</span>' +
+    '<span class="muted">' + total + '</span></div>';
+  Object.keys(groups).sort().forEach(g => {
+    const kids = groups[g];
+    const gCnt = kids.reduce((a, k) => a + k.cnt, 0);
+    const open = selG === g;
+    const gEsc = escapeHtml(g).replace(/'/g, "\\'");
+    html += '<div style="' + nodeStyle + (open && !selC ? ';' + selBg : '') + '" ' +
+      'onclick="selectTreeNode(\'' + gEsc + '\',\'\')">' +
+      '<span>' + (open ? '▾' : '▸') + ' ' + escapeHtml(g) + '</span>' +
+      '<span class="muted">' + gCnt + '</span></div>';
+    if (open) {
+      kids.forEach(k => {
+        const cEsc = escapeHtml(k.categorie || '').replace(/'/g, "\\'");
+        html += '<div style="' + nodeStyle + ';padding-left:30px' +
+          (selC === (k.categorie || '') ? ';' + selBg : '') + '" ' +
+          'onclick="selectTreeNode(\'' + gEsc + '\',\'' + cEsc + '\')">' +
+          '<span>' + escapeHtml(k.categorie || '—') + '</span>' +
+          '<span class="muted">' + k.cnt + '</span></div>';
+      });
+    }
+  });
+  box.innerHTML = html;
+}
+
+function selectTreeNode(grupa, categorie) {
+  el('prod-grupa').value = grupa;
+  el('prod-categorie').value = categorie;
+  renderProductTree();
+  loadProductsStock(true);
 }
 
 function clearProductFilters() {
   if (el('prod-search')) el('prod-search').value = '';
   if (el('prod-brand')) el('prod-brand').value = '';
+  if (el('prod-grupa')) el('prod-grupa').value = '';
   if (el('prod-categorie')) el('prod-categorie').value = '';
+  renderProductTree();
   loadProductsStock(true);
 }
 
@@ -810,7 +871,7 @@ async function loadProductsStock(reset = true) {
     prodState.hasMore = true;
     prodState.rows = [];
     const tbody = el('prod-body');
-    tbody.innerHTML = emptyRow(tbody, 13, 'loading');
+    tbody.innerHTML = emptyRow(tbody, 14, 'loading');
     if (el('prod-end-row')) el('prod-end-row').style.display = 'none';
   }
 
@@ -820,6 +881,7 @@ async function loadProductsStock(reset = true) {
   const qs = new URLSearchParams();
   if (val('prod-search')) qs.set('search', val('prod-search'));
   if (val('prod-brand')) qs.set('brand', val('prod-brand'));
+  if (val('prod-grupa')) qs.set('grupa', val('prod-grupa'));
   if (val('prod-categorie')) qs.set('categorie', val('prod-categorie'));
   qs.set('limit', String(prodState.limit));
   qs.set('offset', String(prodState.offset));
@@ -829,7 +891,7 @@ async function loadProductsStock(reset = true) {
   if (el('prod-more-row')) el('prod-more-row').style.display = 'none';
 
   if (!r.success) {
-    if (reset) el('prod-body').innerHTML = emptyRow(el('prod-body'), 13, 'no_data');
+    if (reset) el('prod-body').innerHTML = emptyRow(el('prod-body'), 14, 'no_data');
     return;
   }
   const batch = r.data || [];
@@ -840,7 +902,7 @@ async function loadProductsStock(reset = true) {
 
   const tbody = el('prod-body');
   if (reset) {
-    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 13, 'no_data');
+    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 14, 'no_data');
   } else if (batch.length) {
     tbody.insertAdjacentHTML('beforeend', batch.map(productRowHtml).join(''));
   }
@@ -855,9 +917,14 @@ function productRowHtml(p) {
   const qtyCell = hasReal
     ? '<td class="num">' + fmtNum(qty) + '</td>'
     : '<td class="num muted" style="font-style:italic" title="' + escapeHtml(t('prod_const_label')) + '">' + fmtNum(qty) + '</td>';
+  const bcCell = p.barcode
+    ? '<td class="mono">' + escapeHtml(p.barcode) +
+      (p.bc_cnt > 1 ? ' <span class="badge badge-default" title="' + p.bc_cnt + '">+' + (p.bc_cnt - 1) + '</span>' : '') + '</td>'
+    : '<td></td>';
   return '<tr>' +
     imgCell(p.image) +
     '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
+    bcCell +
     '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' + escapeHtml(dispName(p) || '') + '</td>' +
     '<td>' + escapeHtml(p.grupa || '') + '</td>' +
     '<td>' + escapeHtml(p.categorie || '') + '</td>' +

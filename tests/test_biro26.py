@@ -463,3 +463,62 @@ def test_get_product_categories_scoped_to_tip_p():
         r = Biro26Store.get_product_categories()
     assert r["success"] and r["data"][0]["categorie"] == "Abac"
     assert "TIP='P'" in fake.last_sql and "GROUP BY g.CATEGORIE" in fake.last_sql
+
+
+# ── store: barcodes (TMS_MPT_BARCODE) + product tree ────────────────
+
+def test_get_univers_search_matches_barcode():
+    fake = _FakeBiro26DB([], ["COD"])
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        Biro26Store.get_univers(search="4840000000022")
+    assert "TMS_MPT_BARCODE" in fake.last_sql and "b.BARCODE LIKE :s" in fake.last_sql
+
+
+def test_get_products_stock_barcode_column_and_search():
+    cols = ["COD","CODVECHI","DENUMIREA","NAMERUS","UM","TIP","GRUPA","CATEGORIE",
+            "BRAND","ANGRO","IONLINE","RETAIL1","ANGRO_FARA_TVA","IMAGE","REAL_CANT",
+            "BARCODE","BC_CNT"]
+    rows = [(161226,"21171","Блок","",None,"P","Rechizite","Blocuri","Crafti",
+             11.04,12.15,"13.25",9.2,"http://x/p.jpg",None,"4840000000022",2)]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_products_stock(search="4840000000022")
+    assert r["success"] and r["data"][0]["barcode"] == "4840000000022"
+    assert r["data"][0]["bc_cnt"] == 2
+    assert "MIN(BARCODE)" in fake.last_sql and "b.BARCODE LIKE :s" in fake.last_sql
+    # feed join must be deduplicated (a few products have duplicate feed rows)
+    assert "ROW_NUMBER() OVER" in fake.last_sql and "PARTITION BY g0.COD_UNIVERS" in fake.last_sql
+
+
+def test_get_products_stock_grupa_filter():
+    fake = _FakeBiro26DB([], ["COD"])
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        Biro26Store.get_products_stock(grupa="Table si accesorii")
+    assert "g.GRUPA=:grupa" in fake.last_sql
+
+
+def test_get_product_tree_groups_by_grupa_categorie():
+    cols = ["GRUPA", "CATEGORIE", "CNT"]
+    rows = [("Table si accesorii", "Accesorii pentru table", 57)]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_product_tree()
+    assert r["success"] and r["data"][0]["grupa"] == "Table si accesorii"
+    assert "GROUP BY g.GRUPA, g.CATEGORIE" in fake.last_sql
+
+
+def test_get_univers_card_includes_barcodes():
+    class _CardFake(_FakeBiro26DB):
+        def execute_query(self, sql, params=None):
+            self.last_sql = sql
+            if "TMS_MPT_BARCODE" in sql:
+                return {"success": True, "columns": ["BARCODE"],
+                        "data": [("4840000000022",), ("4840070000021",)],
+                        "rowcount": 2, "message": ""}
+            if "FROM TMS_UNIVERS" in sql:
+                return {"success": True, "columns": ["COD", "DENUMIREA"],
+                        "data": [(161226, "Блок")], "rowcount": 1, "message": ""}
+            return {"success": True, "columns": [], "data": [], "rowcount": 0, "message": ""}
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_CardFake()):
+        r = Biro26Store.get_univers_card(161226)
+    assert r["success"] and r["data"]["barcodes"] == ["4840000000022", "4840070000021"]
