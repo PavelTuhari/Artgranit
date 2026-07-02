@@ -670,12 +670,15 @@ class Biro26Store:
 
     @staticmethod
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
+                           brand: Optional[str] = None, categorie: Optional[str] = None,
                            limit: int = 200, offset: int = 0) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
         calculated or item has no postings). App/UI applies the visual placeholder
         constant when real_cant is NULL or 0, mirroring the legacy Excel export.
+        Paginated (ROWNUM, 11g) so the UI can page through all ~78k products via
+        infinite scroll instead of loading everything at once.
         """
         try:
             inner = (
@@ -698,8 +701,40 @@ class Biro26Store:
                 params["s"] = f"%{search}%"
             if gr1:
                 inner += " AND u.GR1=:gr1"; params["gr1"] = gr1
+            if brand:
+                inner += " AND g.BRAND=:brand"; params["brand"] = brand
+            if categorie:
+                inner += " AND g.CATEGORIE=:categorie"; params["categorie"] = categorie
             inner += " ORDER BY u.DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_product_brands() -> Dict[str, Any]:
+        """Distinct brands for the Marfă/Stoc filter dropdown, scoped to the same
+        TIP='P' + BIRO26_GOODS join as get_products_stock (so filter options never
+        lead to an empty result)."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT g.BRAND, COUNT(*) CNT FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "WHERE u.TIP='P' AND g.BRAND IS NOT NULL "
+                "GROUP BY g.BRAND ORDER BY g.BRAND")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_product_categories() -> Dict[str, Any]:
+        """Distinct product groups (CATEGORIE) for the Marfă/Stoc filter dropdown."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT g.CATEGORIE, COUNT(*) CNT FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "WHERE u.TIP='P' AND g.CATEGORIE IS NOT NULL "
+                "GROUP BY g.CATEGORIE ORDER BY g.CATEGORIE")
             return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}

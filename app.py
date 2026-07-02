@@ -5389,6 +5389,14 @@ def api_biro26_stock_items():
 def api_biro26_products():
     return _b26(Biro26Controller.get_products_stock)
 
+@app.route('/api/biro26/products/brands', methods=['GET'])
+def api_biro26_products_brands():
+    return _b26(Biro26Controller.get_product_brands)
+
+@app.route('/api/biro26/products/categories', methods=['GET'])
+def api_biro26_products_categories():
+    return _b26(Biro26Controller.get_product_categories)
+
 
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик

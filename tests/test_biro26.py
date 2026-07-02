@@ -434,3 +434,32 @@ def test_get_products_stock_joins_stock_and_image():
     assert r["success"] and r["data"][0]["real_cant"] is None
     assert "TIP='P'" in fake.last_sql and "YBIRO_STOCK_CALC_ITEM" in fake.last_sql
     assert "ROWNUM" in fake.last_sql and "FETCH" not in fake.last_sql.upper()
+
+
+def test_get_products_stock_filters_by_brand_and_categorie():
+    cols = ["COD","CODVECHI","DENUMIREA","NAMERUS","UM","TIP","GRUPA","CATEGORIE",
+            "BRAND","ANGRO","IONLINE","RETAIL1","ANGRO_FARA_TVA","IMAGE","REAL_CANT"]
+    fake = _FakeBiro26DB([], cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        Biro26Store.get_products_stock(brand="Austral", categorie="Accesorii pentru table")
+    assert "g.BRAND=:brand" in fake.last_sql and "g.CATEGORIE=:categorie" in fake.last_sql
+
+
+def test_get_product_brands_scoped_to_tip_p():
+    cols = ["BRAND", "CNT"]
+    rows = [("Austral", 1110), ("Biblion", 29157)]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_product_brands()
+    assert r["success"] and r["data"][0]["brand"] == "Austral"
+    assert "TIP='P'" in fake.last_sql and "GROUP BY g.BRAND" in fake.last_sql
+
+
+def test_get_product_categories_scoped_to_tip_p():
+    cols = ["CATEGORIE", "CNT"]
+    rows = [("Abac", 13)]
+    fake = _FakeBiro26DB(rows, cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.get_product_categories()
+    assert r["success"] and r["data"][0]["categorie"] == "Abac"
+    assert "TIP='P'" in fake.last_sql and "GROUP BY g.CATEGORIE" in fake.last_sql

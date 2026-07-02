@@ -278,4 +278,13 @@ class Biro26Controller:
         a = request.args
         return Biro26Store.get_products_stock(
             search=a.get("search"), gr1=a.get("gr1"),
+            brand=a.get("brand"), categorie=a.get("categorie"),
             limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
+
+    @staticmethod
+    def get_product_brands() -> Dict[str, Any]:
+        return Biro26Store.get_product_brands()
+
+    @staticmethod
+    def get_product_categories() -> Dict[str, Any]:
+        return Biro26Store.get_product_categories()
