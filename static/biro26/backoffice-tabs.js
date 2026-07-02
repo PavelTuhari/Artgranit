@@ -727,11 +727,11 @@ async function wizSaveSource() {
 }
 
 /* =====================================================================
-   TAB 6 — PRODUCT + STOCK GRID (Excel-style, Windows app parity)
+   TAB 6 — PRODUCT + STOCK GRID (Excel-style, infinite scroll + BI filters)
    ===================================================================== */
 function debounceLoadProductsStock() {
   clearTimeout(productsDebounceTimer);
-  productsDebounceTimer = setTimeout(loadProductsStock, 350);
+  productsDebounceTimer = setTimeout(() => loadProductsStock(true), 350);
 }
 
 function loadStockConst() {
@@ -744,52 +744,132 @@ function loadStockConst() {
 function onStockConstChange() {
   const v = el('prod-const');
   if (v) localStorage.setItem('biro26_stock_const', v.value);
-  renderProductsStockRows(lastProductsStockRows || []);
+  // re-render every already-loaded row with the new constant (no re-fetch)
+  const tbody = el('prod-body');
+  if (tbody) tbody.innerHTML = prodState.rows.map(productRowHtml).join('') ||
+    emptyRow(tbody, 13, 'no_data');
 }
 
-let lastProductsStockRows = [];
+/* infinite-scroll state for the product+stock grid */
+const prodState = { offset: 0, limit: 100, hasMore: true, loading: false, rows: [] };
+let prodScrollBound = false;
 
-async function loadProductsStock() {
-  const tbody = el('prod-body');
-  tbody.innerHTML = emptyRow(tbody, 13, 'loading');
+async function loadProductBrandsFilter() {
+  const sel = el('prod-brand');
+  if (!sel || sel.dataset.loaded) return;
+  const r = await apiGet(API + '/products/brands');
+  if (r.success) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">' + t('f_all') + '</option>' +
+      (r.data || []).map(b => '<option value="' + escapeHtml(b.brand) + '">' +
+        escapeHtml(b.brand) + ' (' + b.cnt + ')</option>').join('');
+    sel.value = cur;
+    sel.dataset.loaded = '1';
+  }
+}
+
+async function loadProductCategoriesFilter() {
+  const dl = el('prod-categorie-list');
+  if (!dl || dl.dataset.loaded) return;
+  const r = await apiGet(API + '/products/categories');
+  if (r.success) {
+    dl.innerHTML = (r.data || []).map(c =>
+      '<option value="' + escapeHtml(c.categorie) + '">').join('');
+    dl.dataset.loaded = '1';
+  }
+}
+
+function clearProductFilters() {
+  if (el('prod-search')) el('prod-search').value = '';
+  if (el('prod-brand')) el('prod-brand').value = '';
+  if (el('prod-categorie')) el('prod-categorie').value = '';
+  loadProductsStock(true);
+}
+
+function bindProductsScroll() {
+  if (prodScrollBound) return;
+  const wrap = el('prod-table-wrap');
+  if (!wrap) return;
+  wrap.addEventListener('scroll', () => {
+    if (wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 200) {
+      loadProductsStock(false);
+    }
+  });
+  prodScrollBound = true;
+}
+
+/* reset=true: new search/filter (clears + reloads from offset 0)
+   reset=false: infinite-scroll continuation (appends the next page) */
+async function loadProductsStock(reset = true) {
+  bindProductsScroll();
+  if (prodState.loading) return;
+  if (!reset && !prodState.hasMore) return;
+
+  if (reset) {
+    prodState.offset = 0;
+    prodState.hasMore = true;
+    prodState.rows = [];
+    const tbody = el('prod-body');
+    tbody.innerHTML = emptyRow(tbody, 13, 'loading');
+    if (el('prod-end-row')) el('prod-end-row').style.display = 'none';
+  }
+
+  prodState.loading = true;
+  if (el('prod-more-row')) el('prod-more-row').style.display = reset ? 'none' : '';
+
   const qs = new URLSearchParams();
   if (val('prod-search')) qs.set('search', val('prod-search'));
-  if (val('prod-gr1')) qs.set('gr1', val('prod-gr1'));
-  qs.set('limit', '300');
+  if (val('prod-brand')) qs.set('brand', val('prod-brand'));
+  if (val('prod-categorie')) qs.set('categorie', val('prod-categorie'));
+  qs.set('limit', String(prodState.limit));
+  qs.set('offset', String(prodState.offset));
+
   const r = await apiGet(API + '/products?' + qs.toString());
-  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 13, 'no_data'); return; }
-  lastProductsStockRows = r.data || [];
-  el('prod-count').textContent = lastProductsStockRows.length;
-  renderProductsStockRows(lastProductsStockRows);
+  prodState.loading = false;
+  if (el('prod-more-row')) el('prod-more-row').style.display = 'none';
+
+  if (!r.success) {
+    if (reset) el('prod-body').innerHTML = emptyRow(el('prod-body'), 13, 'no_data');
+    return;
+  }
+  const batch = r.data || [];
+  prodState.hasMore = batch.length === prodState.limit;
+  prodState.offset += batch.length;
+  prodState.rows = prodState.rows.concat(batch);
+  el('prod-count').textContent = prodState.rows.length;
+
+  const tbody = el('prod-body');
+  if (reset) {
+    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 13, 'no_data');
+  } else if (batch.length) {
+    tbody.insertAdjacentHTML('beforeend', batch.map(productRowHtml).join(''));
+  }
+  if (el('prod-end-row')) el('prod-end-row').style.display = (!prodState.hasMore && prodState.rows.length) ? '' : 'none';
 }
 
-function renderProductsStockRows(rows) {
-  const tbody = el('prod-body');
-  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 13, 'no_data'); return; }
+function productRowHtml(p) {
   const constVal = parseFloat(val('prod-const')) || 0;
-  tbody.innerHTML = rows.map(p => {
-    const real = p.real_cant;
-    const hasReal = real !== null && real !== undefined && Number(real) !== 0;
-    const qty = hasReal ? real : constVal;
-    const qtyCell = hasReal
-      ? '<td class="num">' + fmtNum(qty) + '</td>'
-      : '<td class="num muted" style="font-style:italic" title="' + escapeHtml(t('prod_const_label')) + '">' + fmtNum(qty) + '</td>';
-    return '<tr>' +
-      imgCell(p.image) +
-      '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
-      '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' + escapeHtml(dispName(p) || '') + '</td>' +
-      '<td>' + escapeHtml(p.grupa || '') + '</td>' +
-      '<td>' + escapeHtml(p.categorie || '') + '</td>' +
-      '<td>' + escapeHtml(p.um || '') + '</td>' +
-      qtyCell +
-      '<td class="num">' + fmtNum(p.angro_fara_tva) + '</td>' +
-      '<td class="num">' + fmtNum(p.angro) + '</td>' +
-      '<td class="num">' + fmtNum(p.ionline) + '</td>' +
-      '<td class="num">' + fmtNum(p.retail1) + '</td>' +
-      '<td>' + escapeHtml(p.brand || '') + '</td>' +
-      '<td class="num">20</td>' +
-      '</tr>';
-  }).join('');
+  const real = p.real_cant;
+  const hasReal = real !== null && real !== undefined && Number(real) !== 0;
+  const qty = hasReal ? real : constVal;
+  const qtyCell = hasReal
+    ? '<td class="num">' + fmtNum(qty) + '</td>'
+    : '<td class="num muted" style="font-style:italic" title="' + escapeHtml(t('prod_const_label')) + '">' + fmtNum(qty) + '</td>';
+  return '<tr>' +
+    imgCell(p.image) +
+    '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
+    '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' + escapeHtml(dispName(p) || '') + '</td>' +
+    '<td>' + escapeHtml(p.grupa || '') + '</td>' +
+    '<td>' + escapeHtml(p.categorie || '') + '</td>' +
+    '<td>' + escapeHtml(p.um || '') + '</td>' +
+    qtyCell +
+    '<td class="num">' + fmtNum(p.angro_fara_tva) + '</td>' +
+    '<td class="num">' + fmtNum(p.angro) + '</td>' +
+    '<td class="num">' + fmtNum(p.ionline) + '</td>' +
+    '<td class="num">' + fmtNum(p.retail1) + '</td>' +
+    '<td>' + escapeHtml(p.brand || '') + '</td>' +
+    '<td class="num">20</td>' +
+    '</tr>';
 }
 
 /* =====================================================================

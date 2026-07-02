@@ -809,16 +809,22 @@ html, body {
 
         <div class="filter-bar">
           <input type="text" class="f-input w-search" id="prod-search" data-i18n-ph="f_search" oninput="debounceLoadProductsStock()">
-          <label data-i18n="f_gr1"></label>
-          <input type="text" class="f-input w-sm" id="prod-gr1" oninput="debounceLoadProductsStock()">
-          <button class="btn" onclick="loadProductsStock()" data-i18n="f_apply"></button>
+          <label data-i18n="f_brand"></label>
+          <select class="f-select" id="prod-brand" onchange="loadProductsStock()">
+            <option value="" data-i18n="f_all"></option>
+          </select>
+          <label data-i18n="prod_col_group"></label>
+          <input type="text" class="f-input w-search" id="prod-categorie" list="prod-categorie-list"
+                 data-i18n-ph="prod_group_ph" oninput="debounceLoadProductsStock()">
+          <datalist id="prod-categorie-list"></datalist>
+          <button class="btn" onclick="clearProductFilters()" data-i18n="prod_clear_filters"></button>
           <span style="flex:1"></span>
           <label data-i18n="prod_const_label"></label>
           <input type="number" class="f-input w-sm" id="prod-const" value="1000" min="0"
                  onchange="onStockConstChange()" style="width:90px">
         </div>
 
-        <div class="data-table-wrap">
+        <div class="data-table-wrap" id="prod-table-wrap">
           <table class="data-table">
             <thead><tr>
               <th data-i18n="col_image"></th>
@@ -839,6 +845,8 @@ html, body {
               <tr><td colspan="13"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
             </tbody>
           </table>
+          <div id="prod-more-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_loading_more"></div>
+          <div id="prod-end-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_end_of_list"></div>
         </div>
       </div>
 
@@ -1011,6 +1019,8 @@ ru: {
   price_lists_title: 'Прайс-листы', col_pricename: 'Название',
   tab_products: 'Товар / Остатки', tab_stock: 'Остатки (расчёт)',
   prod_title: 'Товар и остатки', prod_const_label: 'Константа (если нет остатка):',
+  prod_group_ph: 'Группа товара...', prod_clear_filters: 'Сбросить фильтры',
+  prod_loading_more: 'Загрузка следующей порции...', prod_end_of_list: 'Показаны все товары',
   prod_col_customs: 'Тамож. группа', prod_col_group: 'Тов. группа', prod_col_qty: 'Кол-во',
   prod_col_purch_notva: 'Закупка без НДС', prod_col_purch_tva: 'Закупка с НДС',
   prod_col_online: 'Онлайн цена', prod_col_retail: 'Розница с НДС',
@@ -1092,6 +1102,8 @@ ro: {
   price_lists_title: 'Liste de prețuri', col_pricename: 'Denumire',
   tab_products: 'Marfă / Stoc', tab_stock: 'Stoc (calcul)',
   prod_title: 'Marfă și stoc', prod_const_label: 'Constantă (dacă nu există stoc):',
+  prod_group_ph: 'Grupă marfă...', prod_clear_filters: 'Resetează filtrele',
+  prod_loading_more: 'Se încarcă mai multe...', prod_end_of_list: 'Toate produsele afișate',
   prod_col_customs: 'Grupă vamală', prod_col_group: 'Grupă marfă', prod_col_qty: 'Cant.',
   prod_col_purch_notva: 'Achiziție fără TVA', prod_col_purch_tva: 'Achiziție cu TVA',
   prod_col_online: 'Preț online', prod_col_retail: 'Retail cu TVA',
@@ -1173,6 +1185,8 @@ en: {
   price_lists_title: 'Price lists', col_pricename: 'Name',
   tab_products: 'Goods / Stock', tab_stock: 'Stock (calculate)',
   prod_title: 'Goods and stock', prod_const_label: 'Constant (when no stock):',
+  prod_group_ph: 'Product group...', prod_clear_filters: 'Clear filters',
+  prod_loading_more: 'Loading more...', prod_end_of_list: 'All products shown',
   prod_col_customs: 'Customs group', prod_col_group: 'Product group', prod_col_qty: 'Qty',
   prod_col_purch_notva: 'Purchase w/o VAT', prod_col_purch_tva: 'Purchase w/ VAT',
   prod_col_online: 'Online price', prod_col_retail: 'Retail w/ VAT',
@@ -1271,7 +1285,7 @@ function showTab(id) {
   if (id === 'prices')  { loadPricelists(); loadPriceGroups(); loadPrices(); loadPriceDates(); }
   if (id === 'mapping') { loadProfiles(); }
   if (id === 'wizard')  { wizardInit(); }
-  if (id === 'products'){ loadStockConst(); loadProductsStock(); }
+  if (id === 'products'){ loadStockConst(); loadProductBrandsFilter(); loadProductCategoriesFilter(); loadProductsStock(true); }
   if (id === 'stock')   { loadLatestStockCalc(); loadStockItems(); }
 }
 
