@@ -710,10 +710,16 @@ class Biro26Store:
                 "WHERE u.TIP='P'")
             params: Dict[str, Any] = {}
             if search:
-                inner += (" AND (UPPER(u.DENUMIREA) LIKE UPPER(:s) "
-                          "OR UPPER(u.NAMERUS) LIKE UPPER(:s) OR u.CODVECHI LIKE :s "
-                          "OR EXISTS (SELECT 1 FROM TMS_MPT_BARCODE b "
-                          "  WHERE b.COD = u.COD AND b.BARCODE LIKE :s))")
+                # pre-resolve the matching COD set (two cheap scans) instead of
+                # OR/EXISTS predicates inside the heavy join — with the VMS_MPT_TVR
+                # view and the ROW_NUMBER feed dedupe in play, the OR form made
+                # Oracle evaluate the whole join row-by-row (minutes, not seconds)
+                inner += (" AND u.COD IN ("
+                          "SELECT COD FROM TMS_UNIVERS WHERE TIP='P' AND ("
+                          "  UPPER(DENUMIREA) LIKE UPPER(:s) "
+                          "  OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s) "
+                          "UNION "
+                          "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s)")
                 params["s"] = f"%{search}%"
             if gr1:
                 inner += " AND u.GR1=:gr1"; params["gr1"] = gr1

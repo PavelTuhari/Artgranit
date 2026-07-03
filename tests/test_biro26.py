@@ -485,7 +485,13 @@ def test_get_products_stock_barcode_column_and_search():
         r = Biro26Store.get_products_stock(search="4840000000022")
     assert r["success"] and r["data"][0]["barcode"] == "4840000000022"
     assert r["data"][0]["bc_cnt"] == 2
-    assert "MIN(BARCODE)" in fake.last_sql and "b.BARCODE LIKE :s" in fake.last_sql
+    assert "MIN(BARCODE)" in fake.last_sql
+    # search must be a pre-resolved COD set (IN ... UNION), NOT OR/EXISTS inside
+    # the heavy join — the OR form made Oracle evaluate the whole join row-by-row
+    # (~300s vs ~3s live)
+    assert "u.COD IN (" in fake.last_sql and "UNION" in fake.last_sql
+    assert "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s" in fake.last_sql
+    assert "OR EXISTS" not in fake.last_sql
     # feed join must be deduplicated (a few products have duplicate feed rows)
     assert "ROW_NUMBER() OVER" in fake.last_sql and "PARTITION BY g0.COD_UNIVERS" in fake.last_sql
 
