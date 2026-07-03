@@ -328,7 +328,9 @@ class Biro26Store:
             params: Dict[str, Any] = {}
             if search:
                 inner += (" AND (UPPER(DENUMIREA) LIKE UPPER(:s) "
-                          "OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s)")
+                          "OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s "
+                          "OR EXISTS (SELECT 1 FROM TMS_MPT_BARCODE b "
+                          "  WHERE b.COD = TMS_UNIVERS.COD AND b.BARCODE LIKE :s))")
                 params["s"] = f"%{search}%"
             if gr1:
                 inner += " AND GR1=:gr1"; params["gr1"] = gr1
@@ -358,11 +360,15 @@ class Biro26Store:
                 "WHERE COD_UNIVERS = :c AND ROWNUM = 1", {"c": cod}))
             photo = img[0] if img else {}
             ie = tvr[0].get("ie_linkadres") if tvr else None
+            barcodes = [b["barcode"] for b in _rows(db.execute_query(
+                "SELECT BARCODE FROM TMS_MPT_BARCODE WHERE COD=:c ORDER BY BARCODE",
+                {"c": cod}))]
             return {"success": True,
                     "data": {"univers": u[0], "mpt": mpt[0] if mpt else None,
                              "photo_url": ie or photo.get("photo_url"),
                              "image_link": photo.get("image_link"),
-                             "ie_linkadres": ie}}
+                             "ie_linkadres": ie,
+                             "barcodes": barcodes}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -671,6 +677,7 @@ class Biro26Store:
     @staticmethod
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
                            brand: Optional[str] = None, categorie: Optional[str] = None,
+                           grupa: Optional[str] = None,
                            limit: int = 200, offset: int = 0) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
@@ -679,6 +686,8 @@ class Biro26Store:
         constant when real_cant is NULL or 0, mirroring the legacy Excel export.
         Paginated (ROWNUM, 11g) so the UI can page through all ~78k products via
         infinite scroll instead of loading everything at once.
+        BARCODE = first EAN from TMS_MPT_BARCODE, BC_CNT = how many the item has;
+        text search also matches any of the item's barcodes.
         """
         try:
             inner = (
@@ -686,27 +695,50 @@ class Biro26Store:
                 "g.GRUPA, g.CATEGORIE, g.BRAND, g.ANGRO, g.IONLINE, g.RETAIL1, "
                 "ROUND(g.ANGRO/1.2,2) ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL,g.IMAGE_LINK)) IMAGE, "
-                "s.CANT REAL_CANT "
+                "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT "
                 "FROM TMS_UNIVERS u "
-                "LEFT JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
+                # dedupe: the feed holds a few identical duplicate rows per product
+                "LEFT JOIN (SELECT gg.* FROM (SELECT g0.*, ROW_NUMBER() OVER "
+                "  (PARTITION BY g0.COD_UNIVERS ORDER BY g0.ID) RN0 "
+                "  FROM BIRO26_GOODS g0) gg WHERE gg.RN0 = 1) g ON g.COD_UNIVERS = u.COD "
                 "LEFT JOIN VMS_MPT_TVR m ON m.COD = u.COD "
                 "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
                 "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
                 "  GROUP BY sc) s ON s.sc = u.COD "
+                "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
+                "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = u.COD "
                 "WHERE u.TIP='P'")
             params: Dict[str, Any] = {}
             if search:
                 inner += (" AND (UPPER(u.DENUMIREA) LIKE UPPER(:s) "
-                          "OR UPPER(u.NAMERUS) LIKE UPPER(:s) OR u.CODVECHI LIKE :s)")
+                          "OR UPPER(u.NAMERUS) LIKE UPPER(:s) OR u.CODVECHI LIKE :s "
+                          "OR EXISTS (SELECT 1 FROM TMS_MPT_BARCODE b "
+                          "  WHERE b.COD = u.COD AND b.BARCODE LIKE :s))")
                 params["s"] = f"%{search}%"
             if gr1:
                 inner += " AND u.GR1=:gr1"; params["gr1"] = gr1
             if brand:
                 inner += " AND g.BRAND=:brand"; params["brand"] = brand
+            if grupa:
+                inner += " AND g.GRUPA=:grupa"; params["grupa"] = grupa
             if categorie:
                 inner += " AND g.CATEGORIE=:categorie"; params["categorie"] = categorie
             inner += " ORDER BY u.DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_product_tree() -> Dict[str, Any]:
+        """GRUPA -> CATEGORIE counts for the Marfă/Stoc left-panel tree
+        (same TIP='P' + BIRO26_GOODS scope as the grid; ~768 rows)."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT g.GRUPA, g.CATEGORIE, COUNT(*) CNT FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "WHERE u.TIP='P' AND g.GRUPA IS NOT NULL "
+                "GROUP BY g.GRUPA, g.CATEGORIE ORDER BY g.GRUPA, g.CATEGORIE")
             return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}
