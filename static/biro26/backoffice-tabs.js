@@ -916,7 +916,9 @@ function productRowHtml(p) {
   const real = p.real_cant;
   const hasReal = real !== null && real !== undefined && Number(real) !== 0;
   const qty = hasReal ? real : constVal;
-  const qtyCell = hasReal
+  // NB: named qtyDisplayCell — a local `qtyCell` would shadow the global
+  // cart qtyCell() function called below (broke the grid: "not a function")
+  const qtyDisplayCell = hasReal
     ? '<td class="num">' + fmtNum(qty) + '</td>'
     : '<td class="num muted" style="font-style:italic" title="' + escapeHtml(t('prod_const_label')) + '">' + fmtNum(qty) + '</td>';
   const bcCell = p.barcode
@@ -931,7 +933,7 @@ function productRowHtml(p) {
     '<td>' + escapeHtml(p.grupa || '') + '</td>' +
     '<td>' + escapeHtml(p.categorie || '') + '</td>' +
     '<td>' + escapeHtml(p.um || '') + '</td>' +
-    qtyCell +
+    qtyDisplayCell +
     '<td class="num">' + fmtNum(p.angro_fara_tva) + '</td>' +
     '<td class="num">' + fmtNum(p.angro) + '</td>' +
     '<td class="num">' + fmtNum(p.ionline) + '</td>' +
