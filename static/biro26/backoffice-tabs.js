@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setLang(LANG);
   await loadGParams();
   await refreshActiveProfile();
+  cartUpdateBadge();
   showTab('source');
 });
 
@@ -168,17 +169,17 @@ function debounceLoadUnivers() {
 
 async function loadUnivers() {
   const tbody = el('dict-body');
-  tbody.innerHTML = emptyRow(tbody, 6, 'loading');
+  tbody.innerHTML = emptyRow(tbody, 7, 'loading');
   const qs = new URLSearchParams();
   if (val('dict-search')) qs.set('search', val('dict-search'));
   if (val('dict-gr1')) qs.set('gr1', val('dict-gr1'));
   if (val('dict-arhiv')) qs.set('arhiv', val('dict-arhiv'));
   qs.set('limit', '300');
   const r = await apiGet(API + '/univers?' + qs.toString());
-  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 6, 'no_data'); return; }
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 7, 'no_data'); return; }
   const rows = r.data || [];
   el('dict-count').textContent = rows.length;
-  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 6, 'no_data'); return; }
+  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 7, 'no_data'); return; }
   tbody.innerHTML = rows.map(u =>
     '<tr onclick="loadUniversCard(' + u.cod + ', this)" style="cursor:pointer">' +
     '<td class="mono">' + u.cod + '</td>' +
@@ -187,6 +188,7 @@ async function loadUnivers() {
     '<td>' + escapeHtml(u.gr1 || '') + '</td>' +
     '<td>' + escapeHtml(u.um || '') + '</td>' +
     '<td>' + escapeHtml(u.isarhiv || '') + '</td>' +
+    qtyCell('dict', u.cod, dispName(u) || u.denumirea, u.um, '') +
     '</tr>').join('');
 }
 
@@ -238,13 +240,13 @@ async function archiveSelectedUnivers() {
    ===================================================================== */
 async function loadGroups() {
   const tbody = el('grp-body');
-  tbody.innerHTML = emptyRow(tbody, 6, 'loading');
+  tbody.innerHTML = emptyRow(tbody, 7, 'loading');
   const cp = numVal('grp-codprice', 1);
   const r = await apiGet(API + '/groups?codprice=' + cp);
-  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 6, 'no_data'); return; }
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 7, 'no_data'); return; }
   const rows = r.data || [];
   el('grp-count').textContent = rows.length;
-  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 6, 'no_data'); return; }
+  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 7, 'no_data'); return; }
   tbody.innerHTML = rows.map(g => {
     const inputId = 'grpname-' + g.codprice + '-' + g.codgrp;
     return '<tr>' +
@@ -758,7 +760,7 @@ function onStockConstChange() {
   // re-render every already-loaded row with the new constant (no re-fetch)
   const tbody = el('prod-body');
   if (tbody) tbody.innerHTML = prodState.rows.map(productRowHtml).join('') ||
-    emptyRow(tbody, 14, 'no_data');
+    emptyRow(tbody, 15, 'no_data');
 }
 
 /* infinite-scroll state for the product+stock grid */
@@ -871,7 +873,7 @@ async function loadProductsStock(reset = true) {
     prodState.hasMore = true;
     prodState.rows = [];
     const tbody = el('prod-body');
-    tbody.innerHTML = emptyRow(tbody, 14, 'loading');
+    tbody.innerHTML = emptyRow(tbody, 15, 'loading');
     if (el('prod-end-row')) el('prod-end-row').style.display = 'none';
   }
 
@@ -891,7 +893,7 @@ async function loadProductsStock(reset = true) {
   if (el('prod-more-row')) el('prod-more-row').style.display = 'none';
 
   if (!r.success) {
-    if (reset) el('prod-body').innerHTML = emptyRow(el('prod-body'), 14, 'no_data');
+    if (reset) el('prod-body').innerHTML = emptyRow(el('prod-body'), 15, 'no_data');
     return;
   }
   const batch = r.data || [];
@@ -902,7 +904,7 @@ async function loadProductsStock(reset = true) {
 
   const tbody = el('prod-body');
   if (reset) {
-    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 14, 'no_data');
+    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 15, 'no_data');
   } else if (batch.length) {
     tbody.insertAdjacentHTML('beforeend', batch.map(productRowHtml).join(''));
   }
@@ -936,6 +938,7 @@ function productRowHtml(p) {
     '<td class="num">' + fmtNum(p.retail1) + '</td>' +
     '<td>' + escapeHtml(p.brand || '') + '</td>' +
     '<td class="num">20</td>' +
+    qtyCell('prod', p.cod, dispName(p), p.um, p.barcode) +
     '</tr>';
 }
 
@@ -958,15 +961,16 @@ async function loadLatestStockCalc() {
 async function loadStockItems() {
   const tbody = el('stock-items-body');
   if (!tbody) return;
-  tbody.innerHTML = emptyRow(tbody, 3, 'loading');
+  tbody.innerHTML = emptyRow(tbody, 4, 'loading');
   const r = await apiGet(API + '/stock/items?limit=300');
-  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 3, 'no_data'); return; }
+  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 4, 'no_data'); return; }
   const rows = r.data || [];
-  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 3, 'no_data'); return; }
+  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 4, 'no_data'); return; }
   tbody.innerHTML = rows.map(it => '<tr>' +
     '<td class="mono">' + it.sc + '</td>' +
     '<td>' + escapeHtml(it.denumirea || '') + '</td>' +
     '<td class="num">' + fmtNum(it.cant) + '</td>' +
+    qtyCell('stock', it.sc, it.denumirea, 'buc.', '') +
     '</tr>').join('');
 }
 
@@ -988,4 +992,152 @@ async function runStockCalc() {
     await loadLatestStockCalc();
     await loadStockItems();
   }
+}
+
+/* =====================================================================
+   CART — universal basket (localStorage), copy as CSV / ADO-rowset XML.
+   Items: {cod, name, um, barcode, qty}. Rows in the Marfă/Stoc,
+   Nomenclator and Stoc(calcul) grids carry a qty input (class cart-qty,
+   data-tab/-cod/-name/-um/-barcode); a value > 0 acts as the "selected"
+   checkbox, and collectQtyAdd(tab) adds all selected rows in one shot.
+   ===================================================================== */
+const CART_KEY = 'biro26_cart';
+
+function cartLoad() {
+  try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function cartSave(items) {
+  localStorage.setItem(CART_KEY, JSON.stringify(items));
+  cartUpdateBadge(items);
+}
+function cartUpdateBadge(items) {
+  const b = el('cart-count');
+  if (b) b.textContent = (items || cartLoad()).length;
+}
+
+/* qty input cell shared by the three grids */
+function qtyCell(tab, cod, name, um, barcode) {
+  return '<td class="num"><input type="number" min="0" step="any" placeholder="0" ' +
+    'class="edit-input cart-qty" style="width:64px" ' +
+    'data-tab="' + tab + '" data-cod="' + cod + '" ' +
+    'data-name="' + escapeHtml(name || '') + '" data-um="' + escapeHtml(um || '') + '" ' +
+    'data-barcode="' + escapeHtml(barcode || '') + '" ' +
+    'onclick="event.stopPropagation()"></td>';
+}
+
+/* one-shot add of every row with qty > 0 on the given tab */
+function collectQtyAdd(tab) {
+  const inputs = document.querySelectorAll('input.cart-qty[data-tab="' + tab + '"]');
+  const sel = [];
+  inputs.forEach(inp => {
+    const q = parseFloat(inp.value);
+    if (q > 0) sel.push({ cod: Number(inp.dataset.cod), name: inp.dataset.name || '',
+                          um: inp.dataset.um || 'buc.', barcode: inp.dataset.barcode || '',
+                          qty: q });
+  });
+  if (!sel.length) { toast(t('cart_nothing'), 'err'); return; }
+  const items = cartLoad();
+  sel.forEach(n => {
+    const ex = items.find(i => i.cod === n.cod);
+    if (ex) ex.qty += n.qty; else items.push(n);
+  });
+  cartSave(items);
+  inputs.forEach(inp => { if (parseFloat(inp.value) > 0) inp.value = ''; });
+  toast(t('cart_added').replace('{n}', sel.length), 'ok');
+}
+
+function openCart() { renderCart(); el('modal-cart').classList.add('open'); }
+
+function renderCart() {
+  const items = cartLoad();
+  el('cart-total').textContent = items.length;
+  cartUpdateBadge(items);
+  const tbody = el('cart-body');
+  if (!items.length) { tbody.innerHTML = emptyRow(tbody, 6, 'cart_empty'); return; }
+  tbody.innerHTML = items.map(i => '<tr>' +
+    '<td class="mono">' + i.cod + '</td>' +
+    '<td>' + escapeHtml(i.name || '') + '</td>' +
+    '<td>' + escapeHtml(i.um || '') + '</td>' +
+    '<td class="mono">' + escapeHtml(i.barcode || '') + '</td>' +
+    '<td class="num"><input type="number" min="0" step="any" class="edit-input" style="width:72px" ' +
+      'value="' + (i.qty || 0) + '" onchange="cartSetQty(' + i.cod + ', this.value)"></td>' +
+    '<td class="td-actions"><button class="btn-sm" onclick="cartRemove(' + i.cod + ')">×</button></td>' +
+    '</tr>').join('');
+}
+
+function cartSetQty(cod, v) {
+  const items = cartLoad();
+  const it = items.find(i => i.cod === cod);
+  if (it) { it.qty = parseFloat(v) || 0; cartSave(items); }
+}
+function cartRemove(cod) { cartSave(cartLoad().filter(i => i.cod !== cod)); renderCart(); }
+function cartClear() {
+  if (!confirmAction('cart_confirm_clear')) return;
+  cartSave([]); renderCart();
+}
+
+/* CSV: COD;DENUMIRE;UM;BARCODE;CANT */
+function cartCsvText(items) {
+  return 'COD;DENUMIRE;UM;BARCODE;CANT\n' + items.map(i =>
+    [i.cod, '"' + String(i.name || '').replace(/"/g, '""') + '"',
+     i.um || '', i.barcode || '', i.qty || 0].join(';')).join('\n');
+}
+
+/* XML: exact ADO-rowset shape of the native UNA.md app (quantity -> PARAM) */
+const CART_XML_HEAD =
+"<xml xmlns:s='uuid:BDC6E3F0-6DA3-11d1-A2A3-00AA00C14882'\n" +
+" xmlns:dt='uuid:C2F41010-65B3-11d1-A29F-00AA00C14882'\n" +
+" xmlns:rs='urn:schemas-microsoft-com:rowset'\n" +
+" xmlns:z='#RowsetSchema'>\n" +
+"<s:Schema id='RowsetSchema'>\n" +
+"<s:ElementType name='row' content='eltOnly' rs:updatable='true'>\n" +
+"<s:AttributeType name='NRSET' rs:number='1' rs:write='true'>\n" +
+"<s:datatype dt:type='float' dt:maxLength='10' rs:precision='15'/>\n" +
+"</s:AttributeType>\n" +
+"<s:AttributeType name='COD' rs:number='2' rs:write='true'>\n" +
+"<s:datatype dt:type='float' dt:maxLength='10' rs:precision='15'/>\n" +
+"</s:AttributeType>\n" +
+"<s:AttributeType name='NRORD' rs:number='3' rs:write='true'>\n" +
+"<s:datatype dt:type='float' dt:maxLength='10' rs:precision='15'/>\n" +
+"</s:AttributeType>\n" +
+"<s:AttributeType name='MARK' rs:number='4' rs:write='true'>\n" +
+"<s:datatype dt:type='string' dt:maxLength='1'/>\n" +
+"</s:AttributeType>\n" +
+"<s:AttributeType name='PARAM' rs:number='5' rs:write='true'>\n" +
+"<s:datatype dt:type='float' dt:maxLength='10' rs:precision='15'/>\n" +
+"</s:AttributeType>\n" +
+"<s:AttributeType name='UM' rs:number='8' rs:write='true'>\n" +
+"<s:datatype dt:type='string' dt:maxLength='15'/>\n" +
+"</s:AttributeType>\n" +
+"<s:AttributeType name='BARCODE' rs:number='9' rs:write='true'>\n" +
+"<s:datatype dt:type='string' dt:maxLength='20'/>\n" +
+"</s:AttributeType>\n" +
+"<s:extends type='rs:rowbase'/>\n" +
+"</s:ElementType>\n" +
+"</s:Schema>\n" +
+"<rs:data>\n";
+const CART_XML_TAIL = "</rs:data>\n</xml>\n";
+
+function cartXmlText(items) {
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+  return CART_XML_HEAD + items.map((i, ix) =>
+    "<z:row NRSET='0' COD='" + i.cod + "' NRORD='" + (ix + 1) + "' MARK='1' " +
+    "PARAM='" + (i.qty || 0) + "' UM='" + esc(i.um || 'buc.') + "' " +
+    "BARCODE='" + esc(i.barcode || '') + "'/>").join('\n') + '\n' + CART_XML_TAIL;
+}
+
+async function cartCopy(fmt) {
+  const items = cartLoad();
+  if (!items.length) { toast(t('cart_empty'), 'err'); return; }
+  const txt = fmt === 'xml' ? cartXmlText(items) : cartCsvText(items);
+  try {
+    await navigator.clipboard.writeText(txt);
+  } catch (e) {  // clipboard API blocked (http / permissions) — fallback
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  toast(t('cart_copied'), 'ok');
 }
