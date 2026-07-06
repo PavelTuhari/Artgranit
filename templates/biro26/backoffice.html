@@ -337,6 +337,9 @@ html, body {
   </div>
   <span class="menu-profile" id="active-profile-indicator" style="display:none"></span>
   <div class="menu-right">
+    <span class="menu-profile" id="cart-open-btn" style="cursor:pointer;font-size:12px"
+          onclick="openCart()" title="">🛒 <span data-i18n="cart_open"></span>
+      <span id="cart-count" class="badge badge-indict" style="margin-left:2px">0</span></span>
     <div class="lang-switch">
       <button class="lang-btn" id="lang-ru" onclick="setLang('ru')">RU</button>
       <button class="lang-btn" id="lang-ro" onclick="setLang('ro')">RO</button>
@@ -449,6 +452,7 @@ html, body {
           <button class="btn primary" onclick="confirmAndRun('univers_import','/api/biro26/univers/import',null,'dict-report')" data-i18n="act_import_dict"></button>
           <button class="btn danger" onclick="archiveSelectedUnivers()" data-i18n="act_archive"></button>
           <button class="btn" onclick="confirmAndRun('univers_fix','/api/biro26/univers/fix-confusables',{},'dict-report')" data-i18n="act_fixconfus"></button>
+          <button class="btn success" onclick="collectQtyAdd('dict')" data-i18n="cart_add_selected"></button>
         </div>
 
         <div class="report-panel" id="dict-report" data-empty=""></div>
@@ -464,9 +468,10 @@ html, body {
                   <th data-i18n="col_gr1"></th>
                   <th data-i18n="col_um"></th>
                   <th data-i18n="col_isarhiv"></th>
+                  <th class="num" data-i18n="cart_qty_col"></th>
                 </tr></thead>
                 <tbody id="dict-body">
-                  <tr><td colspan="6"><div class="empty-state"><div class="es-icon">📚</div><p data-i18n="loading"></p></div></td></tr>
+                  <tr><td colspan="7"><div class="empty-state"><div class="es-icon">📚</div><p data-i18n="loading"></p></div></td></tr>
                 </tbody>
               </table>
             </div>
@@ -818,6 +823,7 @@ html, body {
           <input type="hidden" id="prod-grupa" value="">
           <input type="hidden" id="prod-categorie" value="">
           <button class="btn" onclick="clearProductFilters()" data-i18n="prod_clear_filters"></button>
+          <button class="btn success" onclick="collectQtyAdd('prod')" data-i18n="cart_add_selected"></button>
           <span style="flex:1"></span>
           <label data-i18n="prod_const_label"></label>
           <input type="number" class="f-input w-sm" id="prod-const" value="1000" min="0"
@@ -850,9 +856,10 @@ html, body {
                 <th class="num" data-i18n="prod_col_retail"></th>
                 <th data-i18n="prod_col_producer"></th>
                 <th class="num" data-i18n="prod_col_tva_pct"></th>
+                <th class="num" data-i18n="cart_qty_col"></th>
               </tr></thead>
               <tbody id="prod-body">
-                <tr><td colspan="14"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
+                <tr><td colspan="15"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
               </tbody>
             </table>
             <div id="prod-more-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_loading_more"></div>
@@ -895,15 +902,19 @@ html, body {
 
         <div class="card">
           <h3 data-i18n="stock_items_title"></h3>
+          <div class="btn-row">
+            <button class="btn success" onclick="collectQtyAdd('stock')" data-i18n="cart_add_selected"></button>
+          </div>
           <div class="data-table-wrap" style="max-height:420px">
             <table class="data-table">
               <thead><tr>
                 <th data-i18n="col_sc"></th>
                 <th data-i18n="col_denumire"></th>
                 <th class="num" data-i18n="prod_col_qty"></th>
+                <th class="num" data-i18n="cart_qty_col"></th>
               </tr></thead>
               <tbody id="stock-items-body">
-                <tr><td colspan="3"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
+                <tr><td colspan="4"><div class="empty-state"><p data-i18n="loading"></p></div></td></tr>
               </tbody>
             </table>
           </div>
@@ -979,6 +990,39 @@ html, body {
   </div>
 </div>
 
+<!-- ── CART (universal basket: copy as CSV / ADO-rowset XML) ── -->
+<div class="modal-backdrop" id="modal-cart" onclick="closeModal('modal-cart')">
+  <div class="modal" style="width:720px;max-width:94vw" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span style="font-size:16px">🛒</span>
+      <h3><span data-i18n="cart_title"></span> <span class="count" id="cart-total">0</span></h3>
+      <button class="modal-close" onclick="closeModal('modal-cart')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="data-table-wrap" style="max-height:380px">
+        <table class="data-table">
+          <thead><tr>
+            <th data-i18n="col_cod"></th>
+            <th data-i18n="col_denumire"></th>
+            <th data-i18n="col_um"></th>
+            <th data-i18n="col_barcode"></th>
+            <th class="num" data-i18n="cart_qty_col"></th>
+            <th></th>
+          </tr></thead>
+          <tbody id="cart-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn danger" onclick="cartClear()" data-i18n="cart_clear"></button>
+      <div style="display:flex;gap:8px">
+        <button class="btn primary" onclick="cartCopy('csv')" data-i18n="cart_copy_csv"></button>
+        <button class="btn primary" onclick="cartCopy('xml')" data-i18n="cart_copy_xml"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ── TOAST CONTAINER ───────────────────────────────────── -->
 <div class="toast-container" id="toasts"></div>
 
@@ -1034,6 +1078,11 @@ ru: {
   prod_loading_more: 'Загрузка следующей порции...', prod_end_of_list: 'Показаны все товары',
   col_barcode: 'Штрихкод', prod_tree_title: 'Группы товара', prod_tree_all: 'Все товары',
   search_bc_ph: 'Поиск: название / артикул / штрихкод', card_barcodes: 'Штрихкоды',
+  cart_open: 'Корзина', cart_title: 'Корзина', cart_qty_col: 'Заказ',
+  cart_add_selected: 'В корзину (выбранное)', cart_copy_csv: 'Копировать CSV',
+  cart_copy_xml: 'Копировать XML', cart_clear: 'Очистить', cart_empty: 'Корзина пуста',
+  cart_added: 'Добавлено позиций: {n}', cart_nothing: 'Укажите количество хотя бы для одной позиции',
+  cart_copied: 'Скопировано в буфер обмена', cart_confirm_clear: 'Очистить корзину?',
   prod_col_customs: 'Тамож. группа', prod_col_group: 'Тов. группа', prod_col_qty: 'Кол-во',
   prod_col_purch_notva: 'Закупка без НДС', prod_col_purch_tva: 'Закупка с НДС',
   prod_col_online: 'Онлайн цена', prod_col_retail: 'Розница с НДС',
@@ -1119,6 +1168,11 @@ ro: {
   prod_loading_more: 'Se încarcă mai multe...', prod_end_of_list: 'Toate produsele afișate',
   col_barcode: 'Cod de bare', prod_tree_title: 'Grupe de marfă', prod_tree_all: 'Toate produsele',
   search_bc_ph: 'Căutare: denumire / articol / cod de bare', card_barcodes: 'Coduri de bare',
+  cart_open: 'Coș', cart_title: 'Coș', cart_qty_col: 'Comandă',
+  cart_add_selected: 'În coș (selectate)', cart_copy_csv: 'Copiază CSV',
+  cart_copy_xml: 'Copiază XML', cart_clear: 'Golește', cart_empty: 'Coșul este gol',
+  cart_added: 'Poziții adăugate: {n}', cart_nothing: 'Indicați cantitatea pentru cel puțin o poziție',
+  cart_copied: 'Copiat în clipboard', cart_confirm_clear: 'Goliți coșul?',
   prod_col_customs: 'Grupă vamală', prod_col_group: 'Grupă marfă', prod_col_qty: 'Cant.',
   prod_col_purch_notva: 'Achiziție fără TVA', prod_col_purch_tva: 'Achiziție cu TVA',
   prod_col_online: 'Preț online', prod_col_retail: 'Retail cu TVA',
@@ -1204,6 +1258,11 @@ en: {
   prod_loading_more: 'Loading more...', prod_end_of_list: 'All products shown',
   col_barcode: 'Barcode', prod_tree_title: 'Product groups', prod_tree_all: 'All products',
   search_bc_ph: 'Search: name / article / barcode', card_barcodes: 'Barcodes',
+  cart_open: 'Cart', cart_title: 'Cart', cart_qty_col: 'Order',
+  cart_add_selected: 'Add selected to cart', cart_copy_csv: 'Copy CSV',
+  cart_copy_xml: 'Copy XML', cart_clear: 'Clear', cart_empty: 'Cart is empty',
+  cart_added: 'Items added: {n}', cart_nothing: 'Enter a quantity for at least one item',
+  cart_copied: 'Copied to clipboard', cart_confirm_clear: 'Clear the cart?',
   prod_col_customs: 'Customs group', prod_col_group: 'Product group', prod_col_qty: 'Qty',
   prod_col_purch_notva: 'Purchase w/o VAT', prod_col_purch_tva: 'Purchase w/ VAT',
   prod_col_online: 'Online price', prod_col_retail: 'Retail w/ VAT',
