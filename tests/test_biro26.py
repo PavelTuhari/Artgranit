@@ -442,7 +442,21 @@ def test_get_products_stock_filters_by_brand_and_categorie():
     fake = _FakeBiro26DB([], cols)
     with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
         Biro26Store.get_products_stock(brand="Austral", categorie="Accesorii pentru table")
-    assert "g.BRAND=:brand" in fake.last_sql and "g.CATEGORIE=:categorie" in fake.last_sql
+    assert "g.BRAND IN (:br0)" in fake.last_sql and "g.CATEGORIE=:categorie" in fake.last_sql
+
+
+def test_get_products_stock_multi_brand_and_price_range():
+    # RO/EN: shop facets — comma-separated brands + price bounds on the
+    # effective (as-of) retail price expression
+    cols = ["COD","CODVECHI","DENUMIREA","NAMERUS","UM","TIP","GRUPA","CATEGORIE",
+            "BRAND","ANGRO","IONLINE","RETAIL1","ANGRO_FARA_TVA","IMAGE","REAL_CANT"]
+    fake = _FakeBiro26DB([], cols)
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        Biro26Store.get_products_stock(brand="Austral, Biblion",
+                                       price_min=50, price_max=200)
+    assert "g.BRAND IN (:br0,:br1)" in fake.last_sql
+    assert ">= :pmin" in fake.last_sql and "<= :pmax" in fake.last_sql
+    assert "NVL(pl.PRETV" in fake.last_sql
 
 
 def test_get_product_brands_scoped_to_tip_p():

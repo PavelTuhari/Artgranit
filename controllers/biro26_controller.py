@@ -280,6 +280,8 @@ class Biro26Controller:
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
             grupa=a.get("grupa"), price_date=a.get("price_date"),
+            price_min=a.get("price_min", type=float),
+            price_max=a.get("price_max", type=float),
             limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
 
     # ── price periods on Marfă/Stoc (y_ai_BIRO26.set_price/del_price) ──

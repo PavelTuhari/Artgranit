@@ -254,6 +254,15 @@ history-триггерами ERP.</p>
 <code>/UNA.md/orasldev/biro26-shop</code> (<code>templates/biro26/shop.html</code>).
 Каталог = тот же грид Marfă/Stoc (<code>GET /api/biro26/shop/products</code>, read-only,
 поиск по названию/артикулу/штрихкоду, постраничная подгрузка).</p>
+<p><strong>Фасетные фильтры (Amazon-style, боковая панель):</strong> дерево
+«группа → подгруппа» (<code>GET /api/biro26/shop/tree</code> — GRUPA/CATEGORIE со
+счётчиками), бренды с чекбоксами и мультивыбором
+(<code>GET /api/biro26/shop/brands</code>; в <code>/shop/products</code> параметр
+<code>brand</code> принимает список через запятую), диапазон цены — пресеты
+(до 50 / 50–100 / 100–200 / 200–500 / от 500 LEI) и поля Min–Max
+(параметры <code>price_min</code>/<code>price_max</code>, применяются к действующей
+retail-цене из прайс-листа). Активные фильтры показываются чипами над гридом
+(клик по чипу снимает фильтр), есть «Сбросить фильтры».</p>
 
 <h3>11.1 Саморегистрация клиентов</h3>
 <p>Таблица <code>YBIRO_CLIENT</code> в cloudbd (id по <code>YBIRO_CLIENT_SEQ</code>+триггер;
