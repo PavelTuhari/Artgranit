@@ -291,5 +291,48 @@ VMDB_DOCS_WORK), проводка через <code>VMDB_ST201M</code>
 prompt COD клиента), пустые цены дополняются серверными. Ответ:
 <code>{cod, nrset}</code>. Один PL/SQL-скрипт на всё (create_invoice + add_line×N +
 last_doc) — атомарно в одной сессии воркера, до 200 строк.</p>
+
+<h2>12. Цены по периодам на Marfă / Stoc / period prices on Marfă / Stoc</h2>
+<p>Цены в гриде Marfă/Stoc (RETAIL, ANGRO, ONLINE) читаются из периодного
+прайс-листа <code>TPR1D_PERPRLIST</code> (<code>CODPRICE=1</code> «BIRO») —
+<strong>по тому же принципу, что и вкладка Listă de prețuri</strong> — на дату
+из поля «Prețuri la data» (по умолчанию сегодня, можно менять; параметр
+<code>price_date</code> у <code>GET /api/biro26/products</code>). Для товаров,
+которых ещё нет в прайс-листе, fallback — значения из feed-таблицы
+<code>BIRO26_GOODS</code>. Соответствие колонок:
+<code>PRETV</code>=RETAIL1, <code>PRETV1</code>=ANGRO, <code>PRETV2</code>=IONLINE.</p>
+
+<h3>12.1 Правила периодов (пакет <code>y_ai_BIRO26</code>)</h3>
+<ul>
+<li><code>set_price(p_sc, p_data, p_pretv, p_pretv1, p_pretv2 [, p_codprice, p_codgrp])</code> —
+устанавливает цены, действующие с <code>p_data</code>. Если период с таким
+DATASTART уже есть — обновление на месте; иначе действующий период
+<strong>ДРОБИТСЯ</strong>: нативный INSTEAD OF триггер
+(<code>TRG_VTPR1D_PERPRLIST_M_ALL</code> на <code>VTPR1D_PERPRLIST</code>)
+закрывает старый период на <code>p_data-1</code> и вставляет новый.
+NULL-параметр цены сохраняет значение колонки из действующего периода.</li>
+<li><code>del_price(p_sc, p_data [, p_codprice])</code> — удаляет период,
+начинающийся с <code>p_data</code>; соседние периоды
+<strong>ОБЪЕДИНЯЮТСЯ</strong> (предыдущий период продлевается до конца
+удалённого; при удалении первого периода следующий расширяется назад), так
+что диапазон дат остаётся <em>без разрывов</em>.
+<strong>Когда строка одна — её удалить нельзя</strong> (ORA-20261);
+несуществующий период — ORA-20262.</li>
+<li><code>price_on(p_sc, p_data, p_which)</code> — цена на дату
+('V' retail / '1' angro / '2' online).</li>
+</ul>
+
+<h3>12.2 UI и API</h3>
+<p>Внизу вкладки Marfă/Stoc — панель <strong>«Istoric prețuri»</strong>: клик по
+строке товара в гриде показывает все его периоды (С даты / По дату / цены).
+У каждой строки кнопка удаления периода (🗑), <em>скрытая, когда строка
+одна</em>. Изменение цен в inline-редакторе строки и в карточке товара пишется
+через <code>set_price</code> на дату «Prețuri la data» (дробит период); прочие
+атрибуты — по-прежнему через <code>PUT /api/biro26/products/&lt;cod&gt;</code>.
+Endpoints: <code>GET /api/biro26/products/price-history?sc=</code>,
+<code>POST /api/biro26/products/price</code> {sc, date 'YYYY-MM-DD', retail1,
+angro, ionline}, <code>POST /api/biro26/products/price/delete</code>
+{sc, date 'DD.MM.YYYY'}. Цены публичного магазина
+(<code>shop_prices_for</code>) также читаются из прайс-листа на сегодня.</p>
 </body>
 </html>

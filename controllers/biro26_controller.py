@@ -279,8 +279,44 @@ class Biro26Controller:
         return Biro26Store.get_products_stock(
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
-            grupa=a.get("grupa"),
+            grupa=a.get("grupa"), price_date=a.get("price_date"),
             limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
+
+    # ── price periods on Marfă/Stoc (y_ai_BIRO26.set_price/del_price) ──
+    @staticmethod
+    def product_price_history() -> Dict[str, Any]:
+        sc = request.args.get("sc", type=int)
+        if not sc:
+            return {"success": False, "error": "sc is required"}
+        return Biro26Store.get_price_history(
+            sc, request.args.get("codprice", 1, type=int))
+
+    @staticmethod
+    def product_price_set() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        if not d.get("sc") or not d.get("date"):
+            return {"success": False, "error": "sc and date are required"}
+
+        def num(k):
+            v = d.get(k)
+            if v in (None, ""):
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+        return Biro26Store.set_product_price(
+            int(d["sc"]), str(d["date"]), retail1=num("retail1"),
+            angro=num("angro"), ionline=num("ionline"),
+            codprice=int(d.get("codprice") or 1))
+
+    @staticmethod
+    def product_price_delete() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        if not d.get("sc") or not d.get("date"):
+            return {"success": False, "error": "sc and date are required"}
+        return Biro26Store.delete_price_period(
+            int(d["sc"]), str(d["date"]), codprice=int(d.get("codprice") or 1))
 
     @staticmethod
     def get_product_tree() -> Dict[str, Any]:

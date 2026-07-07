@@ -682,7 +682,8 @@ class Biro26Store:
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
                            brand: Optional[str] = None, categorie: Optional[str] = None,
                            grupa: Optional[str] = None,
-                           limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+                           limit: int = 200, offset: int = 0,
+                           price_date: Optional[str] = None) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
@@ -692,12 +693,26 @@ class Biro26Store:
         infinite scroll instead of loading everything at once.
         BARCODE = first EAN from TMS_MPT_BARCODE, BC_CNT = how many the item has;
         text search also matches any of the item's barcodes.
+        Prices (retail1/angro/ionline) come from the period price list
+        TPR1D_PERPRLIST (codprice=1) AS OF price_date ('YYYY-MM-DD', default
+        today) — same principle as the Listă de prețuri tab — falling back to
+        the BIRO26_GOODS feed values for items not in the price list yet.
         """
+        if not price_date:
+            from datetime import date as _date
+            price_date = _date.today().isoformat()
         try:
             inner = (
                 "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
-                "g.GRUPA, g.CATEGORIE, g.BRAND, g.ANGRO, g.IONLINE, g.RETAIL1, "
-                "ROUND(g.ANGRO/1.2,2) ANGRO_FARA_TVA, "
+                "g.GRUPA, g.CATEGORIE, g.BRAND, "
+                "NVL(pl.PRETV1, g.ANGRO) ANGRO, "
+                "NVL(pl.PRETV2, g.IONLINE) IONLINE, "
+                # RO: RETAIL1 e VARCHAR in feed; conversia doar pentru valori numerice
+                # EN: RETAIL1 is VARCHAR in the feed; convert only numeric-looking values
+                "NVL(pl.PRETV, CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
+                "'^-?[0-9]+([.,][0-9]+)?$') THEN "
+                "TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.')) END) RETAIL1, "
+                "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL,g.IMAGE_LINK)) IMAGE, "
                 "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT "
                 "FROM TMS_UNIVERS u "
@@ -706,13 +721,16 @@ class Biro26Store:
                 "  (PARTITION BY g0.COD_UNIVERS ORDER BY g0.ID) RN0 "
                 "  FROM BIRO26_GOODS g0) gg WHERE gg.RN0 = 1) g ON g.COD_UNIVERS = u.COD "
                 "LEFT JOIN VMS_MPT_TVR m ON m.COD = u.COD "
+                # RO: pretul in vigoare la data ceruta / EN: price effective at the requested date
+                "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
+                "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
                 "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
                 "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
                 "  GROUP BY sc) s ON s.sc = u.COD "
                 "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
                 "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = u.COD "
                 "WHERE u.TIP='P'")
-            params: Dict[str, Any] = {}
+            params: Dict[str, Any] = {"pd": price_date}
             if search:
                 # pre-resolve the matching COD set (two cheap scans) instead of
                 # OR/EXISTS predicates inside the heavy join — with the VMS_MPT_TVR
@@ -973,7 +991,9 @@ END;""",
     @staticmethod
     def shop_prices_for(cods: List[int]) -> Dict[str, Any]:
         """Authoritative retail prices for the shop invoice (server-side —
-        the public client must not be able to supply its own price)."""
+        the public client must not be able to supply its own price). Reads
+        the period price list (codprice=1) as of today, falling back to the
+        BIRO26_GOODS feed value for items not in the price list yet."""
         try:
             cods = [int(c) for c in cods][:200]
             if not cods:
@@ -981,10 +1001,81 @@ END;""",
             marks = ",".join(f":c{i}" for i in range(len(cods)))
             params = {f"c{i}": c for i, c in enumerate(cods)}
             rows = _rows(Biro26DB().execute_query(
-                f"SELECT COD_UNIVERS COD, MAX(TO_NUMBER(REPLACE(RETAIL1, ',', '.'))) PRICE "
-                f"FROM BIRO26_GOODS WHERE COD_UNIVERS IN ({marks}) "
-                f"GROUP BY COD_UNIVERS", params))
+                f"SELECT g.COD_UNIVERS COD, "
+                f"NVL(MAX(pl.PRETV), MAX(CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
+                f"'^-?[0-9]+([.,][0-9]+)?$') THEN "
+                f"TO_NUMBER(REPLACE(TRIM(g.RETAIL1), ',', '.')) END)) PRICE "
+                f"FROM BIRO26_GOODS g "
+                f"LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 "
+                f"  AND pl.SC = g.COD_UNIVERS "
+                f"  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
+                f"WHERE g.COD_UNIVERS IN ({marks}) "
+                f"GROUP BY g.COD_UNIVERS", params))
             return {"success": True,
                     "data": {int(r["cod"]): float(r["price"] or 0) for r in rows}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRICE PERIODS on Marfă/Stoc — y_ai_BIRO26.set_price/del_price
+    # over TPR1D_PERPRLIST (same principle as the Listă de prețuri
+    # tab: a change SPLITS the period at the chosen date, a delete
+    # MERGES neighbouring periods; the last row cannot be deleted).
+    # ============================================================
+
+    @staticmethod
+    def get_price_history(sc: int, codprice: int = 1) -> Dict[str, Any]:
+        """All price periods of one item, oldest first (the Istoric prețuri
+        bottom panel of Marfă/Stoc)."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT CODPRICE, CODGRP, SC, "
+                "TO_CHAR(DATASTART,'DD.MM.YYYY') DATASTART, "
+                "TO_CHAR(DATAEND,'DD.MM.YYYY') DATAEND, "
+                "PRETV, PRETV1, PRETV2 "
+                "FROM TPR1D_PERPRLIST "
+                "WHERE CODPRICE = :cp AND SC = :sc ORDER BY DATASTART",
+                {"cp": int(codprice), "sc": int(sc)}))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_product_price(sc: int, data: str, retail1=None, angro=None,
+                          ionline=None, codprice: int = 1) -> Dict[str, Any]:
+        """Set item prices effective from `data` ('YYYY-MM-DD') via
+        y_ai_BIRO26.set_price (splits the period). None keeps the current
+        value of that price column."""
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN y_ai_BIRO26.set_price("
+                "p_sc => :sc, p_data => TO_DATE(:d,'YYYY-MM-DD'), "
+                "p_pretv => :pv, p_pretv1 => :p1, p_pretv2 => :p2, "
+                "p_codprice => :cp); END;",
+                {"sc": int(sc), "d": data,
+                 "pv": None if retail1 is None else float(retail1),
+                 "p1": None if angro is None else float(angro),
+                 "p2": None if ionline is None else float(ionline),
+                 "cp": int(codprice)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return Biro26Store.get_price_history(sc, codprice)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_price_period(sc: int, data: str,
+                            codprice: int = 1) -> Dict[str, Any]:
+        """Delete the period starting at `data` ('DD.MM.YYYY' as shown in the
+        history panel) via y_ai_BIRO26.del_price (merges periods; the last
+        remaining row raises ORA-20261)."""
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN y_ai_BIRO26.del_price("
+                "p_sc => :sc, p_data => TO_DATE(:d,'DD.MM.YYYY'), "
+                "p_codprice => :cp); END;",
+                {"sc": int(sc), "d": data, "cp": int(codprice)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return Biro26Store.get_price_history(sc, codprice)
         except Exception as e:
             return {"success": False, "error": str(e)}

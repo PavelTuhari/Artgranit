@@ -896,6 +896,7 @@ async function loadProductsStock(reset = true) {
   if (val('prod-brand')) qs.set('brand', val('prod-brand'));
   if (val('prod-grupa')) qs.set('grupa', val('prod-grupa'));
   if (val('prod-categorie')) qs.set('categorie', val('prod-categorie'));
+  qs.set('price_date', prodPriceDate());
   qs.set('limit', String(prodState.limit));
   qs.set('offset', String(prodState.offset));
 
@@ -936,7 +937,7 @@ function productRowHtml(p) {
     ? '<td class="mono">' + escapeHtml(p.barcode) +
       (p.bc_cnt > 1 ? ' <span class="badge badge-default" title="' + p.bc_cnt + '">+' + (p.bc_cnt - 1) + '</span>' : '') + '</td>'
     : '<td></td>';
-  return '<tr id="prow-' + p.cod + '">' +
+  return '<tr id="prow-' + p.cod + '" onclick="selectProdForHistory(' + p.cod + ')">' +
     imgCell(p.image) +
     '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
     bcCell +
@@ -1229,24 +1230,44 @@ async function saveProductRow(cod) {
   const g = f => val('pe-' + cod + '-' + f);
   const body = {
     univers: { denumirea: g('denumirea'), um: g('um') },
-    goods: { grupa: g('grupa'), categorie: g('categorie'), brand: g('brand'),
-             angro: parseFloat(g('angro')) || 0, ionline: parseFloat(g('ionline')) || 0,
-             retail1: g('retail1') },
+    goods: { grupa: g('grupa'), categorie: g('categorie'), brand: g('brand') },
   };
   setStatus(t('loading'));
   const r = await apiPut(API + '/products/' + cod, body);
+  if (!r.success) { setStatus('—'); return; } // fetchJSON already toasted the error
+  // prices go through the period price list (split at the as-of date),
+  // same principle as the Listă de prețuri tab
+  const pr = await savePricePeriod(cod, g('retail1'), g('angro'), g('ionline'));
   setStatus('—');
-  if (!r.success) return;                     // fetchJSON already toasted the error
+  if (!pr) return;
   const p = prodState.rows.find(x => x.cod === cod);
   if (p) Object.assign(p, { denumirea: body.univers.denumirea, um: body.univers.um,
                             grupa: body.goods.grupa, categorie: body.goods.categorie,
-                            brand: body.goods.brand, angro: body.goods.angro,
-                            ionline: body.goods.ionline, retail1: body.goods.retail1,
-                            angro_fara_tva: Math.round(body.goods.angro / 1.2 * 100) / 100 });
+                            brand: body.goods.brand, angro: numOrNull(g('angro')),
+                            ionline: numOrNull(g('ionline')), retail1: numOrNull(g('retail1')),
+                            angro_fara_tva: g('angro') ? Math.round(parseFloat(g('angro')) / 1.2 * 100) / 100 : p.angro_fara_tva });
   const tr = el('prow-' + cod);
   if (p && tr) tr.outerHTML = productRowHtml(p);
   toast(t('saved'), 'ok');
   invalidateProductTree();                    // grupa/categorie counts may have shifted
+}
+
+function numOrNull(v) {
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+/* write prices via y_ai_BIRO26.set_price as of the grid's price date:
+   an existing period is split at that date; empty inputs keep the current
+   column value. Refreshes the bottom history panel when it shows this item. */
+async function savePricePeriod(cod, retail1, angro, ionline) {
+  if (retail1 === '' && angro === '' && ionline === '') return true; // nothing to write
+  const r = await apiPost(API + '/products/price', {
+    sc: cod, date: prodPriceDate(),
+    retail1: numOrNull(retail1), angro: numOrNull(angro), ionline: numOrNull(ionline),
+  });
+  if (r.success && phState.sc === cod) renderPriceHistory(r.data || []);
+  return r.success;
 }
 
 /* ── product card: attribute edit form ─────────────────────────────── */
@@ -1258,6 +1279,10 @@ async function editItemCard(cod) {
   const r = await apiGet(API + '/univers/' + cod);
   if (!r.success || !r.data) { body.innerHTML = '<div class="empty-state"><p>' + t('no_data') + '</p></div>'; return; }
   const u = r.data.univers || {}, gd = r.data.goods || {};
+  // prices in the form come from the period price list as shown in the grid
+  // (as of #prod-price-date); BIRO26_GOODS is only the fallback
+  const gridRow = prodState.rows.find(x => x.cod === cod);
+  if (gridRow) { gd.angro = gridRow.angro; gd.ionline = gridRow.ionline; gd.retail1 = gridRow.retail1; }
   const fld = (label, id, value) =>
     '<div class="form-group"><label>' + escapeHtml(label) + '</label>' + _peInput(id, value) + '</div>';
   body.innerHTML =
@@ -1300,15 +1325,15 @@ async function saveItemCard(cod) {
   const body = {
     univers: { denumirea: val('ic-denumirea'), namerus: val('ic-namerus'),
                codvechi: val('ic-codvechi'), um: val('ic-um') },
-    goods: { brand: val('ic-brand'), grupa: val('ic-grupa'), categorie: val('ic-categorie'),
-             angro: parseFloat(val('ic-angro')) || 0, ionline: parseFloat(val('ic-ionline')) || 0,
-             retail1: val('ic-retail1') },
+    goods: { brand: val('ic-brand'), grupa: val('ic-grupa'), categorie: val('ic-categorie') },
     image: val('ic-image') || null,
   };
   setStatus(t('loading'));
   const r = await apiPut(API + '/products/' + cod, body);
+  if (!r.success) { setStatus('—'); return; }
+  const pr = await savePricePeriod(cod, val('ic-retail1'), val('ic-angro'), val('ic-ionline'));
   setStatus('—');
-  if (!r.success) return;
+  if (!pr) return;
   toast(t('saved'), 'ok');
   showItemCard(cod);
   refreshProductRowFromServer(cod);
@@ -1335,16 +1360,94 @@ async function refreshProductRowFromServer(cod) {
   if (!r.success || !r.data) return;
   const u = r.data.univers || {}, gd = r.data.goods || {};
   const bcs = r.data.barcodes || [];
+  // NB: prices intentionally NOT taken from BIRO26_GOODS here — the grid
+  // shows the period price list as of #prod-price-date (savePricePeriod
+  // already updated the local row)
   Object.assign(prodState.rows[idx], {
     denumirea: u.denumirea, namerus: u.namerus, codvechi: u.codvechi, um: u.um,
     brand: gd.brand, grupa: gd.grupa, categorie: gd.categorie,
-    angro: gd.angro, ionline: gd.ionline, retail1: gd.retail1,
     image: r.data.ie_linkadres || r.data.photo_url,
     barcode: bcs[0] || null, bc_cnt: bcs.length,
-    angro_fara_tva: gd.angro ? Math.round(gd.angro / 1.2 * 100) / 100 : null,
   });
   const tr = el('prow-' + cod);
   if (tr) tr.outerHTML = productRowHtml(prodState.rows[idx]);
+}
+
+/* ── price-period history panel (bottom of Marfă/Stoc) ──────────────
+   Rules (mirrored in y_ai_BIRO26): a price change SPLITS the period at
+   the chosen date; deleting a row MERGES neighbouring periods so the
+   date range stays gap-free; the last row cannot be deleted. */
+const phState = { sc: null, name: '' };
+
+/* as-of date for the grid prices; defaults to today on first use */
+function prodPriceDate() {
+  const inp = el('prod-price-date');
+  if (inp && !inp.value) inp.value = new Date().toISOString().slice(0, 10);
+  return inp ? inp.value : new Date().toISOString().slice(0, 10);
+}
+
+function selectProdForHistory(cod) {
+  const p = prodState.rows.find(x => x.cod === cod);
+  phState.sc = cod;
+  phState.name = p ? (dispName(p) || '') : '';
+  document.querySelectorAll('#prod-body tr').forEach(tr => tr.classList.remove('row-selected'));
+  const tr = el('prow-' + cod);
+  if (tr) tr.classList.add('row-selected');
+  loadPriceHistory();
+}
+
+async function loadPriceHistory() {
+  if (!phState.sc) return;
+  const box = el('ph-body');
+  if (!box) return;
+  el('ph-item').textContent = '— ' + phState.sc + ' · ' + phState.name;
+  box.innerHTML = emptyRow(box, 6, 'loading');
+  const r = await apiGet(API + '/products/price-history?sc=' + phState.sc);
+  if (!r.success) { box.innerHTML = emptyRow(box, 6, 'no_data'); return; }
+  renderPriceHistory(r.data || []);
+}
+
+function renderPriceHistory(rows) {
+  const box = el('ph-body');
+  if (!box) return;
+  if (!rows.length) { box.innerHTML = emptyRow(box, 6, 'no_data'); return; }
+  const single = rows.length === 1;   // the last row must not be deletable
+  box.innerHTML = rows.map(h => '<tr>' +
+    '<td class="mono">' + escapeHtml(h.datastart || '') + '</td>' +
+    '<td class="mono">' + escapeHtml(h.dataend || '') + '</td>' +
+    '<td class="num">' + fmtNum(h.pretv) + '</td>' +
+    '<td class="num">' + fmtNum(h.pretv1) + '</td>' +
+    '<td class="num">' + fmtNum(h.pretv2) + '</td>' +
+    '<td class="td-actions">' + (single ? '' :
+      '<button class="btn-sm" title="' + t('ph_del') + '" ' +
+      'onclick="phDelete(\'' + escapeHtml(h.datastart) + '\')">🗑</button>') + '</td>' +
+    '</tr>').join('');
+}
+
+async function phDelete(datastart) {
+  if (!phState.sc) return;
+  if (!window.confirm(t('ph_confirm_del'))) return;
+  const r = await apiPost(API + '/products/price/delete', { sc: phState.sc, date: datastart });
+  if (!r.success) return;                     // error already toasted
+  toast(t('saved'), 'ok');
+  renderPriceHistory(r.data || []);
+  refreshRowPricesFromHistory(phState.sc, r.data || []);
+}
+
+/* after a merge the as-of price may change — update the grid row locally
+   from the returned history instead of reloading the whole grid */
+function refreshRowPricesFromHistory(cod, hist) {
+  const p = prodState.rows.find(x => x.cod === cod);
+  if (!p) return;
+  const d = prodPriceDate();                  // YYYY-MM-DD
+  const iso = s => s ? s.split('.').reverse().join('-') : '';   // DD.MM.YYYY -> ISO
+  const h = hist.find(x => iso(x.datastart) <= d && d <= iso(x.dataend));
+  if (h) {
+    p.retail1 = h.pretv; p.angro = h.pretv1; p.ionline = h.pretv2;
+    p.angro_fara_tva = h.pretv1 != null ? Math.round(h.pretv1 / 1.2 * 100) / 100 : null;
+  }
+  const tr = el('prow-' + cod);
+  if (tr) { tr.outerHTML = productRowHtml(p); const nt = el('prow-' + cod); if (nt) nt.classList.add('row-selected'); }
 }
 
 /* ── product tree editing (rename grupa/categorie, move categorie) ── */

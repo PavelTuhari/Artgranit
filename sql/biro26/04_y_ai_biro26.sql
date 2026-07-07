@@ -53,6 +53,7 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
   g_client_tip VARCHAR2(1):= 'O';    -- RO: client = organizatie / EN: client = organisation
   g_client_gr1 VARCHAR2(5):= 'E';    -- RO: grupa clientilor / EN: clients group
   g_caccess  VARCHAR2(5)  := '11100';
+  g_codprice NUMBER       := 1;      -- RO: lista de preturi implicita (BIRO) / EN: default price list
 
   -- RO: Inregistreaza un client nou in TMS_UNIVERS (TIP='O'); intoarce COD.
   -- EN: Register a new client in TMS_UNIVERS (TIP='O'); returns COD.
@@ -81,6 +82,50 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
   -- RO: COD-ul ultimului document creat in ACEASTA sesiune (stare pachet).
   -- EN: COD of the last document created in THIS session (package state).
   FUNCTION last_doc RETURN NUMBER;
+
+  -- ===================================================================
+  -- Preturi pe perioade (TPR1D_PERPRLIST prin vederea VTPR1D_PERPRLIST)
+  -- Price periods (TPR1D_PERPRLIST through the VTPR1D_PERPRLIST view)
+  -- ===================================================================
+
+  -- RO: Seteaza pretul valabil de la p_data. Daca exista deja o perioada
+  --     care incepe exact la p_data, se actualizeaza; altfel perioada
+  --     curenta se DIVIZEAZA (trigger-ul nativ inchide perioada veche la
+  --     p_data-1 si insereaza una noua). Parametrii de pret NULL pastreaza
+  --     valoarea perioadei in vigoare la p_data.
+  -- EN: Set the price effective from p_data. If a period starting exactly
+  --     at p_data exists it is updated in place; otherwise the current
+  --     period is SPLIT (the native INSTEAD OF trigger closes the old
+  --     period at p_data-1 and inserts the new one). NULL price parameters
+  --     keep the value of the period effective at p_data.
+  PROCEDURE set_price(p_sc       IN NUMBER,
+                      p_data     IN DATE   DEFAULT TRUNC(SYSDATE),
+                      p_pretv    IN NUMBER DEFAULT NULL,   -- retail
+                      p_pretv1   IN NUMBER DEFAULT NULL,   -- angro
+                      p_pretv2   IN NUMBER DEFAULT NULL,   -- online
+                      p_codprice IN NUMBER DEFAULT NULL,
+                      p_codgrp   IN NUMBER DEFAULT NULL);
+
+  -- RO: Sterge perioada care incepe la p_data; perioadele se UNESC
+  --     (perioada precedenta se extinde pana la sfarsitul celei sterse;
+  --     daca se sterge prima perioada, urmatoarea se extinde inapoi) ca
+  --     diapazonul de date sa ramana fara goluri. Ultimul rand ramas NU
+  --     poate fi sters (ORA-20261). Rand inexistent -> ORA-20262.
+  -- EN: Delete the period starting at p_data; periods are MERGED (the
+  --     previous period extends to the deleted one's end; deleting the
+  --     first period extends the next one backwards) so the date range
+  --     stays gap-free. The LAST remaining row cannot be deleted
+  --     (ORA-20261). Missing row -> ORA-20262.
+  PROCEDURE del_price(p_sc       IN NUMBER,
+                      p_data     IN DATE,
+                      p_codprice IN NUMBER DEFAULT NULL);
+
+  -- RO: Pretul in vigoare la p_data (p_which: 'V' retail, '1' angro,
+  --     '2' online). / EN: the price effective at p_data.
+  FUNCTION price_on(p_sc       IN NUMBER,
+                    p_data     IN DATE     DEFAULT TRUNC(SYSDATE),
+                    p_which    IN VARCHAR2 DEFAULT 'V',
+                    p_codprice IN NUMBER   DEFAULT NULL) RETURN NUMBER;
 END y_ai_BIRO26;
 /
 
@@ -152,6 +197,144 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
   BEGIN
     RETURN g_last_cod;
   END last_doc;
+
+  -- ===================================================================
+  -- Preturi pe perioade / price periods
+  -- ===================================================================
+
+  -- RO: Grupa articolului in lista de preturi (1 daca articolul e nou).
+  -- EN: The item's group inside the price list (1 for brand-new items).
+  FUNCTION price_group(p_sc IN NUMBER, p_codprice IN NUMBER) RETURN NUMBER IS
+    v_grp NUMBER;
+  BEGIN
+    SELECT CODGRP INTO v_grp
+      FROM (SELECT CODGRP FROM TPR1D_PERPRLIST
+             WHERE CODPRICE = p_codprice AND SC = p_sc
+             ORDER BY DATASTART DESC)
+     WHERE ROWNUM = 1;
+    RETURN v_grp;
+  EXCEPTION WHEN NO_DATA_FOUND THEN
+    RETURN 1;
+  END price_group;
+
+  PROCEDURE set_price(p_sc       IN NUMBER,
+                      p_data     IN DATE   DEFAULT TRUNC(SYSDATE),
+                      p_pretv    IN NUMBER DEFAULT NULL,
+                      p_pretv1   IN NUMBER DEFAULT NULL,
+                      p_pretv2   IN NUMBER DEFAULT NULL,
+                      p_codprice IN NUMBER DEFAULT NULL,
+                      p_codgrp   IN NUMBER DEFAULT NULL) IS
+    v_cp   NUMBER := NVL(p_codprice, g_codprice);
+    v_grp  NUMBER := NVL(p_codgrp, price_group(p_sc, NVL(p_codprice, g_codprice)));
+    v_d    DATE   := TRUNC(p_data);
+    v_cnt  NUMBER;
+    v_pv   NUMBER; v_p1 NUMBER; v_p2 NUMBER; v_p3 NUMBER;
+  BEGIN
+    -- RO: trigger-ul nativ de INSERT foloseste literalul '31.12.3000';
+    --     fixam formatul de sesiune ca sa nu pice sub alt NLS.
+    -- EN: the native INSERT trigger uses the '31.12.3000' literal; pin the
+    --     session date format so it parses under any client NLS.
+    EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_DATE_FORMAT=''DD.MM.YYYY''';
+
+    SELECT COUNT(*) INTO v_cnt FROM TPR1D_PERPRLIST
+     WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc AND DATASTART = v_d;
+
+    IF v_cnt > 0 THEN
+      -- RO: perioada incepe exact la p_data -> doar actualizare
+      -- EN: a period starts exactly at p_data -> plain update
+      UPDATE VTPR1D_PERPRLIST
+         SET PRETV  = NVL(p_pretv,  PRETV),
+             PRETV1 = NVL(p_pretv1, PRETV1),
+             PRETV2 = NVL(p_pretv2, PRETV2)
+       WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc AND DATASTART = v_d;
+    ELSE
+      -- RO: valorile nespecificate se preiau din perioada in vigoare
+      -- EN: unspecified values are carried from the effective period
+      BEGIN
+        SELECT PRETV, PRETV1, PRETV2, PRETV3 INTO v_pv, v_p1, v_p2, v_p3
+          FROM TPR1D_PERPRLIST
+         WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc
+           AND v_d BETWEEN DATASTART AND DATAEND;
+      EXCEPTION WHEN NO_DATA_FOUND THEN
+        v_pv := NULL; v_p1 := NULL; v_p2 := NULL; v_p3 := NULL;
+      END;
+      -- RO: INSERT prin vedere -> trigger-ul nativ DIVIDE perioada
+      -- EN: INSERT through the view -> the native trigger SPLITS the period
+      INSERT INTO VTPR1D_PERPRLIST
+        (CODPRICE, CODGRP, SC, DATASTART, PRETV, PRETV1, PRETV2, PRETV3)
+      VALUES
+        (v_cp, v_grp, p_sc, v_d,
+         NVL(p_pretv, v_pv), NVL(p_pretv1, v_p1), NVL(p_pretv2, v_p2), v_p3);
+    END IF;
+  END set_price;
+
+  PROCEDURE del_price(p_sc       IN NUMBER,
+                      p_data     IN DATE,
+                      p_codprice IN NUMBER DEFAULT NULL) IS
+    v_cp   NUMBER := NVL(p_codprice, g_codprice);
+    v_d    DATE   := TRUNC(p_data);
+    v_grp  NUMBER;
+    v_de   DATE;
+    v_cnt  NUMBER;
+    v_prev NUMBER;
+  BEGIN
+    BEGIN
+      SELECT CODGRP, DATAEND INTO v_grp, v_de FROM TPR1D_PERPRLIST
+       WHERE CODPRICE = v_cp AND SC = p_sc AND DATASTART = v_d;
+    EXCEPTION WHEN NO_DATA_FOUND THEN
+      RAISE_APPLICATION_ERROR(-20262,
+        'Perioada de pret inexistenta / price period not found');
+    END;
+
+    SELECT COUNT(*) INTO v_cnt FROM TPR1D_PERPRLIST
+     WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc;
+    IF v_cnt <= 1 THEN
+      -- RO: regula: ultimul rand ramas nu se sterge
+      -- EN: rule: the last remaining row cannot be deleted
+      RAISE_APPLICATION_ERROR(-20261,
+        'Ultimul rand de pret nu poate fi sters / the last price row cannot be deleted');
+    END IF;
+
+    SELECT COUNT(*) INTO v_prev FROM TPR1D_PERPRLIST
+     WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc AND DATAEND = v_d - 1;
+
+    IF v_prev > 0 THEN
+      -- RO: stergere prin vedere -> trigger-ul nativ UNESTE perioadele
+      --     (perioada precedenta se extinde pana la DATAEND-ul sters)
+      -- EN: delete through the view -> the native trigger MERGES periods
+      --     (the previous period extends to the deleted DATAEND)
+      DELETE FROM VTPR1D_PERPRLIST
+       WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc AND DATASTART = v_d;
+    ELSE
+      -- RO: prima perioada: urmatoarea se extinde INAPOI la DATASTART-ul
+      --     sters (stergere directa + update pe tabela de baza, ca sa nu
+      --     ramana gol la inceputul diapazonului)
+      -- EN: first period: the next one extends BACKWARDS to the deleted
+      --     DATASTART (direct base-table delete + update so the start of
+      --     the range stays covered)
+      DELETE FROM TPR1D_PERPRLIST
+       WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc AND DATASTART = v_d;
+      UPDATE TPR1D_PERPRLIST SET DATASTART = v_d
+       WHERE CODPRICE = v_cp AND CODGRP = v_grp AND SC = p_sc AND DATASTART = v_de + 1;
+    END IF;
+  END del_price;
+
+  FUNCTION price_on(p_sc       IN NUMBER,
+                    p_data     IN DATE     DEFAULT TRUNC(SYSDATE),
+                    p_which    IN VARCHAR2 DEFAULT 'V',
+                    p_codprice IN NUMBER   DEFAULT NULL) RETURN NUMBER IS
+    v_cp NUMBER := NVL(p_codprice, g_codprice);
+    v    NUMBER;
+  BEGIN
+    SELECT DECODE(p_which, '1', PRETV1, '2', PRETV2, PRETV) INTO v
+      FROM TPR1D_PERPRLIST
+     WHERE CODPRICE = v_cp AND SC = p_sc
+       AND TRUNC(p_data) BETWEEN DATASTART AND DATAEND
+       AND ROWNUM = 1;
+    RETURN v;
+  EXCEPTION WHEN NO_DATA_FOUND THEN
+    RETURN NULL;
+  END price_on;
 
 END y_ai_BIRO26;
 /
