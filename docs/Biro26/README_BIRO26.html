@@ -248,5 +248,48 @@ history-триггерами ERP.</p>
 <strong>количество передаётся в атрибуте <code>PARAM</code></strong>, <code>NRSET='0'</code>,
 <code>MARK='1'</code>, <code>NRORD</code> — порядковый номер.</li>
 </ul>
+
+<h2>11. Публичный магазин и счета на оплату / public shop &amp; payment invoices</h2>
+<p>Автономная публичная страница (без входа в backoffice) для физических лиц:
+<code>/UNA.md/orasldev/biro26-shop</code> (<code>templates/biro26/shop.html</code>).
+Каталог = тот же грид Marfă/Stoc (<code>GET /api/biro26/shop/products</code>, read-only,
+поиск по названию/артикулу/штрихкоду, постраничная подгрузка).</p>
+
+<h3>11.1 Саморегистрация клиентов</h3>
+<p>Таблица <code>YBIRO_CLIENT</code> в cloudbd (id по <code>YBIRO_CLIENT_SEQ</code>+триггер;
+<code>email</code> UNIQUE = логин; <code>pwd_hash</code> — pbkdf2-sha256, 100000 итераций,
+формат <code>pbkdf2$salt$hash</code>). При регистрации создаётся и организация-клиент в
+<code>TMS_UNIVERS</code> (<code>TIP='O'</code>, <code>GR1='E'</code>) через
+<code>y_ai_BIRO26.register_client</code>; её <code>COD</code> хранится в
+<code>YBIRO_CLIENT.univers_cod</code>. API: <code>POST /api/biro26/shop/register|login|logout</code>,
+<code>GET /api/biro26/shop/me</code> (сессия <code>biro26_client</code>).</p>
+
+<h3>11.2 Пакет <code>y_ai_BIRO26</code> (sql/biro26/04_y_ai_biro26.sql)</h3>
+<p>Создаёт документы «счёт на оплату» (SYSFID 12280, референс COD=140), видимые через
+нативные представления:</p>
+<pre>SELECT * FROM VMDB_DOCS_WORK WHERE COD=:COD;
+SELECT * FROM VMDB_ST201M WHERE NRDOC=:COD;
+SELECT * FROM VMDB_ST201D WHERE NRDOC=:COD ORDER BY RROWID;</pre>
+<ul>
+<li><code>register_client(p_name)</code> → COD нового клиента TMS_UNIVERS;</li>
+<li><code>create_invoice(p_client_cod, p_data)</code> → шапка: TMDB_DOCS
+(<code>NRSET</code>=MAX+1 по SYSFID, <strong><code>AT2=2</code></strong> — обходит проверку
+рабочего периода в <code>TRIG_BFALL_TMDB_DOCS</code> и держит документ видимым в
+VMDB_DOCS_WORK), проводка через <code>VMDB_ST201M</code>
+(DT=2214/CT=2171, DTDEP=клиент, CTDEP=1, LEI) и <code>XNRDOC</code>;</li>
+<li><code>add_line(p_nrdoc,p_sc,p_cant,p_pret,p_coment)</code> — строка через
+<code>VMDB_ST201D</code> (SUMA=ROUND(cant*pret,2), RROWID из ID_TMDB_CM);</li>
+<li><code>last_doc / get_nrset</code> — COD/NRSET созданного документа (state сессии).</li>
+</ul>
+<p>Деплой объектов: <code>./venv/bin/python deploy_biro26_shop.py</code> (идемпотентен).</p>
+
+<h3>11.3 Кнопка «Создать счёт на оплату»</h3>
+<p><code>POST /api/biro26/shop/invoice</code>, тело <code>{items:[{cod,qty,name}]}</code>.
+Два пути: (а) публичный клиент — <code>client_cod</code> из сессии, цены <em>всегда</em>
+берутся на сервере из <code>BIRO26_GOODS.RETAIL1</code> (клиентские цены игнорируются);
+(б) оператор backoffice — передаёт <code>client_cod</code> явно (кнопка в модалке корзины,
+prompt COD клиента), пустые цены дополняются серверными. Ответ:
+<code>{cod, nrset}</code>. Один PL/SQL-скрипт на всё (create_invoice + add_line×N +
+last_doc) — атомарно в одной сессии воркера, до 200 строк.</p>
 </body>
 </html>

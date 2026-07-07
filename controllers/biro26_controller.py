@@ -316,3 +316,106 @@ class Biro26Controller:
     @staticmethod
     def get_product_categories() -> Dict[str, Any]:
         return Biro26Store.get_product_categories()
+
+    # -- web-shop (public page: self-registration + invoices) ---------
+    # Password hashing: pbkdf2-sha256, format "pbkdf2$<salt-hex>$<hash-hex>".
+
+    @staticmethod
+    def _hash_pwd(pwd: str) -> str:
+        import hashlib, os as _os, binascii
+        salt = _os.urandom(16)
+        dk = hashlib.pbkdf2_hmac("sha256", pwd.encode(), salt, 100000)
+        return "pbkdf2$" + binascii.hexlify(salt).decode() + "$" + binascii.hexlify(dk).decode()
+
+    @staticmethod
+    def _check_pwd(pwd: str, stored: str) -> bool:
+        import hashlib, binascii, hmac
+        try:
+            _, salt_hex, hash_hex = (stored or "").split("$")
+            dk = hashlib.pbkdf2_hmac("sha256", pwd.encode(),
+                                     binascii.unhexlify(salt_hex), 100000)
+            return hmac.compare_digest(binascii.hexlify(dk).decode(), hash_hex)
+        except Exception:
+            return False
+
+    @staticmethod
+    def shop_register() -> Dict[str, Any]:
+        from flask import session
+        d = request.get_json(silent=True) or {}
+        email = (d.get("email") or "").strip().lower()
+        name = (d.get("full_name") or "").strip()
+        pwd = d.get("password") or ""
+        if not email or "@" not in email or not name or len(pwd) < 6:
+            return {"success": False,
+                    "error": "email, full_name and password (min 6) are required"}
+        exists = Biro26Store.shop_client_by_email(email)
+        if exists.get("data"):
+            return {"success": False, "error": "email already registered"}
+        r = Biro26Store.shop_register_client(
+            email, name, d.get("phone") or "", Biro26Controller._hash_pwd(pwd))
+        if r.get("success"):
+            session["biro26_client"] = {"id": r["data"]["client_id"],
+                                        "univers_cod": r["data"]["univers_cod"],
+                                        "email": email, "name": name}
+        return r
+
+    @staticmethod
+    def shop_login() -> Dict[str, Any]:
+        from flask import session
+        d = request.get_json(silent=True) or {}
+        r = Biro26Store.shop_client_by_email(d.get("email") or "")
+        c = r.get("data")
+        if not c or not Biro26Controller._check_pwd(d.get("password") or "", c["pwd_hash"]):
+            return {"success": False, "error": "invalid email or password"}
+        session["biro26_client"] = {"id": c["id"], "univers_cod": c["univers_cod"],
+                                    "email": c["email"], "name": c["full_name"]}
+        return {"success": True, "data": {"name": c["full_name"], "email": c["email"]}}
+
+    @staticmethod
+    def shop_logout() -> Dict[str, Any]:
+        from flask import session
+        session.pop("biro26_client", None)
+        return {"success": True}
+
+    @staticmethod
+    def shop_me() -> Dict[str, Any]:
+        from flask import session
+        c = session.get("biro26_client")
+        return {"success": True,
+                "data": {"name": c["name"], "email": c["email"]} if c else None}
+
+    @staticmethod
+    def shop_invoice() -> Dict[str, Any]:
+        from flask import session
+        d = request.get_json(silent=True) or {}
+        items = d.get("items") or []
+        c = session.get("biro26_client")
+        if c:
+            client_cod = c["univers_cod"]
+        elif d.get("client_cod") and session.get("username"):
+            # RO/EN: back-office operator may issue for an explicit client COD
+            client_cod = int(d["client_cod"])
+        else:
+            return {"success": False, "error": "login required"}
+        clean = []
+        for it in items:
+            try:
+                cod, qty, price = int(it["cod"]), float(it["qty"]), float(it.get("price") or 0)
+            except Exception:
+                return {"success": False, "error": "bad item format"}
+            if qty <= 0:
+                return {"success": False, "error": "qty must be > 0"}
+            clean.append({"cod": cod, "qty": qty, "price": price,
+                          "name": str(it.get("name") or "")[:180]})
+        # RO/EN: public client -> authoritative server-side prices only;
+        #        operator -> server price fills items sent without a price
+        need = [it["cod"] for it in clean] if c else \
+               [it["cod"] for it in clean if it["price"] <= 0]
+        if need:
+            pr = Biro26Store.shop_prices_for(need)
+            if not pr.get("success"):
+                return pr
+            for it in clean:
+                if c or it["price"] <= 0:
+                    it["price"] = pr["data"].get(it["cod"], 0)
+        return Biro26Store.shop_create_invoice(client_cod, clean)

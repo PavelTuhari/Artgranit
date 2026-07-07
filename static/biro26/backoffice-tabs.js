@@ -1157,6 +1157,32 @@ async function cartCopy(fmt) {
   toast(t('cart_copied'), 'ok');
 }
 
+/* Admin path of the shop invoice API: same y_ai_BIRO26 package, but the
+   operator supplies the client COD (TMS_UNIVERS) instead of a shop session. */
+async function cartInvoice() {
+  const items = cartLoad().filter(i => (i.qty || 0) > 0);
+  if (!items.length) { toast(t('cart_empty'), 'err'); return; }
+  const clientCod = prompt(t('cart_invoice_client'));
+  if (!clientCod || !/^\d+$/.test(clientCod.trim())) return;
+  try {
+    const r = await fetch('/api/biro26/shop/invoice', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        client_cod: parseInt(clientCod.trim(), 10),
+        items: items.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
+      })
+    });
+    const b = await r.json();
+    if (b.success) {
+      toast(t('cart_invoice_ok') + ': NRSET ' + b.data.nrset + ' (COD ' + b.data.cod + ')', 'ok');
+    } else {
+      toast(t('cart_invoice_err') + ': ' + (b.error || ''), 'err');
+    }
+  } catch (e) {
+    toast(t('cart_invoice_err') + ': ' + e, 'err');
+  }
+}
+
 /* =====================================================================
    PRODUCT EDITING — inline row edit (Marfă/Stoc grid), full attribute
    form in the product card, and product-tree editing (rename/move).

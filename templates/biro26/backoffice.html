@@ -1018,6 +1018,7 @@ html, body {
       <div style="display:flex;gap:8px">
         <button class="btn primary" onclick="cartCopy('csv')" data-i18n="cart_copy_csv"></button>
         <button class="btn primary" onclick="cartCopy('xml')" data-i18n="cart_copy_xml"></button>
+        <button class="btn success" onclick="cartInvoice()" data-i18n="cart_invoice"></button>
       </div>
     </div>
   </div>
@@ -1081,6 +1082,8 @@ ru: {
   cart_open: 'Корзина', cart_title: 'Корзина', cart_qty_col: 'Заказ',
   cart_add_selected: 'В корзину (выбранное)', cart_copy_csv: 'Копировать CSV',
   cart_copy_xml: 'Копировать XML', cart_clear: 'Очистить', cart_empty: 'Корзина пуста',
+  cart_invoice: 'Создать счёт на оплату', cart_invoice_client: 'COD клиента (TMS_UNIVERS):',
+  cart_invoice_ok: 'Счёт создан', cart_invoice_err: 'Ошибка создания счёта',
   cart_added: 'Добавлено позиций: {n}', cart_nothing: 'Укажите количество хотя бы для одной позиции',
   cart_copied: 'Скопировано в буфер обмена', cart_confirm_clear: 'Очистить корзину?',
   edit_row: 'Редактировать строку', card_edit: 'Редактировать атрибуты',
@@ -1176,6 +1179,8 @@ ro: {
   cart_open: 'Coș', cart_title: 'Coș', cart_qty_col: 'Comandă',
   cart_add_selected: 'În coș (selectate)', cart_copy_csv: 'Copiază CSV',
   cart_copy_xml: 'Copiază XML', cart_clear: 'Golește', cart_empty: 'Coșul este gol',
+  cart_invoice: 'Creează cont de plată', cart_invoice_client: 'COD client (TMS_UNIVERS):',
+  cart_invoice_ok: 'Cont de plată creat', cart_invoice_err: 'Eroare la crearea contului',
   cart_added: 'Poziții adăugate: {n}', cart_nothing: 'Indicați cantitatea pentru cel puțin o poziție',
   cart_copied: 'Copiat în clipboard', cart_confirm_clear: 'Goliți coșul?',
   edit_row: 'Editează rândul', card_edit: 'Editează atributele',
@@ -1271,6 +1276,8 @@ en: {
   cart_open: 'Cart', cart_title: 'Cart', cart_qty_col: 'Order',
   cart_add_selected: 'Add selected to cart', cart_copy_csv: 'Copy CSV',
   cart_copy_xml: 'Copy XML', cart_clear: 'Clear', cart_empty: 'Cart is empty',
+  cart_invoice: 'Create payment invoice', cart_invoice_client: 'Client COD (TMS_UNIVERS):',
+  cart_invoice_ok: 'Invoice created', cart_invoice_err: 'Invoice creation failed',
   cart_added: 'Items added: {n}', cart_nothing: 'Enter a quantity for at least one item',
   cart_copied: 'Copied to clipboard', cart_confirm_clear: 'Clear the cart?',
   edit_row: 'Edit row', card_edit: 'Edit attributes',

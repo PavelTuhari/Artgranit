@@ -5414,6 +5414,39 @@ def api_biro26_tree_move():
     return _b26(Biro26Controller.tree_move)
 
 
+# ── Biro26 web-shop: PUBLIC page + API (client self-registration,
+#    catalog browsing, invoice creation via package y_ai_BIRO26) ──
+@app.route('/UNA.md/orasldev/biro26-shop')
+def biro26_shop():
+    """Public self-service Marfă/Stoc page for individual clients."""
+    return render_template('biro26/shop.html')
+
+@app.route('/api/biro26/shop/register', methods=['POST'])
+def api_biro26_shop_register():
+    return jsonify(Biro26Controller.shop_register())
+
+@app.route('/api/biro26/shop/login', methods=['POST'])
+def api_biro26_shop_login():
+    return jsonify(Biro26Controller.shop_login())
+
+@app.route('/api/biro26/shop/logout', methods=['POST'])
+def api_biro26_shop_logout():
+    return jsonify(Biro26Controller.shop_logout())
+
+@app.route('/api/biro26/shop/me', methods=['GET'])
+def api_biro26_shop_me():
+    return jsonify(Biro26Controller.shop_me())
+
+@app.route('/api/biro26/shop/products', methods=['GET'])
+def api_biro26_shop_products():
+    # public read-only catalog (same grid data as Marfă/Stoc)
+    return jsonify(Biro26Controller.get_products_stock())
+
+@app.route('/api/biro26/shop/invoice', methods=['POST'])
+def api_biro26_shop_invoice():
+    return jsonify(Biro26Controller.shop_invoice())
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)
