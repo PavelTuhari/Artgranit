@@ -892,3 +892,99 @@ class Biro26Store:
             return {"success": True, "rows": r.get("rowcount", 0)}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # WEB-SHOP — self-registered clients (YBIRO_CLIENT + TMS_UNIVERS
+    # TIP='O' via package y_ai_BIRO26) and "cont de plata" invoices
+    # (TMDB_DOCS + VMDB_ST201M/D, visible in VMDB_DOCS_WORK).
+    # ============================================================
+
+    @staticmethod
+    def shop_register_client(email: str, full_name: str, phone: str,
+                             pwd_hash: str) -> Dict[str, Any]:
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": """DECLARE
+  v_cod NUMBER;
+BEGIN
+  v_cod := y_ai_BIRO26.register_client(p_name => :nm);
+  INSERT INTO YBIRO_CLIENT (univers_cod, email, full_name, phone, pwd_hash)
+  VALUES (v_cod, :em, :nm, :ph, :pw);
+END;""",
+                 "params": {"nm": full_name, "em": email.lower().strip(),
+                            "ph": phone or "", "pw": pwd_hash},
+                 "kind": "dml"},
+                {"sql": "SELECT id, univers_cod FROM YBIRO_CLIENT WHERE email = :em",
+                 "params": {"em": email.lower().strip()}, "kind": "query"},
+            ])
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            row = res["results"][-1]["data"]
+            return {"success": True,
+                    "data": {"client_id": row[0][0], "univers_cod": row[0][1]}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_client_by_email(email: str) -> Dict[str, Any]:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT id, univers_cod, email, full_name, phone, pwd_hash "
+                "FROM YBIRO_CLIENT WHERE email = :em",
+                {"em": (email or "").lower().strip()}))
+            return {"success": True, "data": rows[0] if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_create_invoice(client_cod: int, items: List[Dict[str, Any]],
+                            coment: str = "") -> Dict[str, Any]:
+        """Create the invoice + all lines in ONE session/transaction, then
+        return {cod, nrset}. items: [{cod, qty, price, name?}]."""
+        try:
+            if not items:
+                return {"success": False, "error": "empty cart"}
+            lines = []
+            params: Dict[str, Any] = {"client": int(client_cod)}
+            for i, it in enumerate(items[:200]):
+                lines.append(f"  y_ai_BIRO26.add_line(v_cod, :sc{i}, :q{i}, :p{i}, :c{i});")
+                params[f"sc{i}"] = int(it["cod"])
+                params[f"q{i}"] = float(it.get("qty") or 0)
+                params[f"p{i}"] = float(it.get("price") or 0)
+                params[f"c{i}"] = (str(it.get("name") or "")[:180] or None)
+            block = ("DECLARE\n  v_cod NUMBER;\nBEGIN\n"
+                     "  v_cod := y_ai_BIRO26.create_invoice(p_client_cod => :client);\n"
+                     + "\n".join(lines) + "\nEND;")
+            res = Biro26DB().execute_script([
+                {"sql": block, "params": params, "kind": "dml"},
+                {"sql": "SELECT y_ai_BIRO26.last_doc FROM dual",
+                 "params": {}, "kind": "query"},
+            ])
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            cod = res["results"][-1]["data"][0][0]
+            nr = _rows(Biro26DB().execute_query(
+                "SELECT NRSET FROM TMDB_DOCS WHERE COD = :c", {"c": cod}))
+            return {"success": True,
+                    "data": {"cod": cod, "nrset": nr[0]["nrset"] if nr else None}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_prices_for(cods: List[int]) -> Dict[str, Any]:
+        """Authoritative retail prices for the shop invoice (server-side —
+        the public client must not be able to supply its own price)."""
+        try:
+            cods = [int(c) for c in cods][:200]
+            if not cods:
+                return {"success": True, "data": {}}
+            marks = ",".join(f":c{i}" for i in range(len(cods)))
+            params = {f"c{i}": c for i, c in enumerate(cods)}
+            rows = _rows(Biro26DB().execute_query(
+                f"SELECT COD_UNIVERS COD, MAX(TO_NUMBER(REPLACE(RETAIL1, ',', '.'))) PRICE "
+                f"FROM BIRO26_GOODS WHERE COD_UNIVERS IN ({marks}) "
+                f"GROUP BY COD_UNIVERS", params))
+            return {"success": True,
+                    "data": {int(r["cod"]): float(r["price"] or 0) for r in rows}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
