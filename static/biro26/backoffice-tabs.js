@@ -440,6 +440,8 @@ async function showItemCard(cod) {
       escapeHtml(obj[kk] === null || obj[kk] === undefined ? '—' : obj[kk]) + '</div></div>').join('') + '</div>';
   }
   body.innerHTML = cardImg +
+    '<div class="btn-row"><button class="btn primary" onclick="editItemCard(' + cod + ')">\u270e ' +
+    t('card_edit') + '</button></div>' +
     barcodesHtml(r.data.barcodes) +
     '<div class="detail-section-title">TMS_UNIVERS</div>' + fields(u) +
     (mpt ? '<div class="detail-section-title">TMS_MPT</div>' + fields(mpt)
@@ -818,7 +820,10 @@ function renderProductTree() {
     html += '<div style="' + nodeStyle + (open && !selC ? ';' + selBg : '') + '" ' +
       'onclick="selectTreeNode(\'' + gEsc + '\',\'\')">' +
       '<span>' + (open ? '▾' : '▸') + ' ' + escapeHtml(g) + '</span>' +
-      '<span class="muted">' + gCnt + '</span></div>';
+      '<span class="muted" style="white-space:nowrap">' + gCnt +
+      ' <a href="#" title="' + t('tree_rename') + '" style="text-decoration:none" ' +
+      'onclick="event.preventDefault();event.stopPropagation();' +
+      'treeRenameNode(\'grupa\',\'\',\'' + gEsc + '\',' + gCnt + ')">\u270e</a></span></div>';
     if (open) {
       kids.forEach(k => {
         const cEsc = escapeHtml(k.categorie || '').replace(/'/g, "\\'");
@@ -826,7 +831,13 @@ function renderProductTree() {
           (selC === (k.categorie || '') ? ';' + selBg : '') + '" ' +
           'onclick="selectTreeNode(\'' + gEsc + '\',\'' + cEsc + '\')">' +
           '<span>' + escapeHtml(k.categorie || '—') + '</span>' +
-          '<span class="muted">' + k.cnt + '</span></div>';
+          '<span class="muted" style="white-space:nowrap">' + k.cnt +
+          ' <a href="#" title="' + t('tree_rename') + '" style="text-decoration:none" ' +
+          'onclick="event.preventDefault();event.stopPropagation();' +
+          'treeRenameNode(\'categorie\',\'' + gEsc + '\',\'' + cEsc + '\',' + k.cnt + ')">\u270e</a>' +
+          ' <a href="#" title="' + t('tree_move') + '" style="text-decoration:none" ' +
+          'onclick="event.preventDefault();event.stopPropagation();' +
+          'treeMoveCategorie(\'' + gEsc + '\',\'' + cEsc + '\',' + k.cnt + ')">\u21c4</a></span></div>';
       });
     }
   });
@@ -925,7 +936,7 @@ function productRowHtml(p) {
     ? '<td class="mono">' + escapeHtml(p.barcode) +
       (p.bc_cnt > 1 ? ' <span class="badge badge-default" title="' + p.bc_cnt + '">+' + (p.bc_cnt - 1) + '</span>' : '') + '</td>'
     : '<td></td>';
-  return '<tr>' +
+  return '<tr id="prow-' + p.cod + '">' +
     imgCell(p.image) +
     '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
     bcCell +
@@ -940,7 +951,9 @@ function productRowHtml(p) {
     '<td class="num">' + fmtNum(p.retail1) + '</td>' +
     '<td>' + escapeHtml(p.brand || '') + '</td>' +
     '<td class="num">20</td>' +
-    qtyCell('prod', p.cod, dispName(p), p.um, p.barcode) +
+    qtyCell('prod', p.cod, dispName(p), p.um, p.barcode)
+      .replace('</td>', ' <button class="btn-sm" title="' + t('edit_row') + '" ' +
+               'onclick="editProductRow(' + p.cod + ')">\u270e</button></td>') +
     '</tr>';
 }
 
@@ -1142,4 +1155,209 @@ async function cartCopy(fmt) {
     ta.select(); document.execCommand('copy'); ta.remove();
   }
   toast(t('cart_copied'), 'ok');
+}
+
+/* =====================================================================
+   PRODUCT EDITING — inline row edit (Marfă/Stoc grid), full attribute
+   form in the product card, and product-tree editing (rename/move).
+   Writes go through PUT /api/biro26/products/<cod> (atomic) and
+   POST /api/biro26/products/tree/rename|move.
+   ===================================================================== */
+
+function _peInput(id, value, width) {
+  return '<input class="edit-input" id="' + id + '" value="' + escapeHtml(value == null ? '' : value) + '"' +
+         (width ? ' style="width:' + width + '"' : '') + '>';
+}
+
+function editProductRow(cod) {
+  const p = prodState.rows.find(r => r.cod === cod);
+  const tr = el('prow-' + cod);
+  if (!p || !tr) return;
+  tr.innerHTML =
+    imgCell(p.image) +
+    '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
+    '<td class="mono">' + escapeHtml(p.barcode || '') + '</td>' +
+    '<td>' + _peInput('pe-' + cod + '-denumirea', p.denumirea, '98%') + '</td>' +
+    '<td>' + _peInput('pe-' + cod + '-grupa', p.grupa, '110px') + '</td>' +
+    '<td>' + _peInput('pe-' + cod + '-categorie', p.categorie, '110px') + '</td>' +
+    '<td>' + _peInput('pe-' + cod + '-um', p.um, '52px') + '</td>' +
+    '<td class="num muted">' + fmtNum(p.real_cant) + '</td>' +
+    '<td class="num muted">' + fmtNum(p.angro_fara_tva) + '</td>' +
+    '<td class="num">' + _peInput('pe-' + cod + '-angro', p.angro, '70px') + '</td>' +
+    '<td class="num">' + _peInput('pe-' + cod + '-ionline', p.ionline, '70px') + '</td>' +
+    '<td class="num">' + _peInput('pe-' + cod + '-retail1', p.retail1, '70px') + '</td>' +
+    '<td>' + _peInput('pe-' + cod + '-brand', p.brand, '90px') + '</td>' +
+    '<td class="num">20</td>' +
+    '<td class="td-actions" style="white-space:nowrap">' +
+      '<button class="btn-sm" onclick="saveProductRow(' + cod + ')">💾</button> ' +
+      '<button class="btn-sm" onclick="cancelEditProductRow(' + cod + ')">✖</button></td>';
+}
+
+function cancelEditProductRow(cod) {
+  const p = prodState.rows.find(r => r.cod === cod);
+  const tr = el('prow-' + cod);
+  if (p && tr) tr.outerHTML = productRowHtml(p);
+}
+
+async function saveProductRow(cod) {
+  const g = f => val('pe-' + cod + '-' + f);
+  const body = {
+    univers: { denumirea: g('denumirea'), um: g('um') },
+    goods: { grupa: g('grupa'), categorie: g('categorie'), brand: g('brand'),
+             angro: parseFloat(g('angro')) || 0, ionline: parseFloat(g('ionline')) || 0,
+             retail1: g('retail1') },
+  };
+  setStatus(t('loading'));
+  const r = await apiPut(API + '/products/' + cod, body);
+  setStatus('—');
+  if (!r.success) return;                     // fetchJSON already toasted the error
+  const p = prodState.rows.find(x => x.cod === cod);
+  if (p) Object.assign(p, { denumirea: body.univers.denumirea, um: body.univers.um,
+                            grupa: body.goods.grupa, categorie: body.goods.categorie,
+                            brand: body.goods.brand, angro: body.goods.angro,
+                            ionline: body.goods.ionline, retail1: body.goods.retail1,
+                            angro_fara_tva: Math.round(body.goods.angro / 1.2 * 100) / 100 });
+  const tr = el('prow-' + cod);
+  if (p && tr) tr.outerHTML = productRowHtml(p);
+  toast(t('saved'), 'ok');
+  invalidateProductTree();                    // grupa/categorie counts may have shifted
+}
+
+/* ── product card: attribute edit form ─────────────────────────────── */
+let itemCardCod = null;
+
+async function editItemCard(cod) {
+  const body = el('item-card-body');
+  body.innerHTML = '<div class="empty-state"><p>' + t('loading') + '</p></div>';
+  const r = await apiGet(API + '/univers/' + cod);
+  if (!r.success || !r.data) { body.innerHTML = '<div class="empty-state"><p>' + t('no_data') + '</p></div>'; return; }
+  const u = r.data.univers || {}, gd = r.data.goods || {};
+  const fld = (label, id, value) =>
+    '<div class="form-group"><label>' + escapeHtml(label) + '</label>' + _peInput(id, value) + '</div>';
+  body.innerHTML =
+    '<div class="detail-section-title">TMS_UNIVERS</div>' +
+    '<div class="form-grid">' +
+      fld('DENUMIREA (RO)', 'ic-denumirea', u.denumirea) +
+      fld('NAMERUS (RU)', 'ic-namerus', u.namerus) +
+      fld('CODVECHI', 'ic-codvechi', u.codvechi) +
+      fld('UM', 'ic-um', u.um) +
+    '</div>' +
+    '<div class="detail-section-title">BIRO26_GOODS</div>' +
+    '<div class="form-grid">' +
+      fld('BRAND', 'ic-brand', gd.brand) +
+      fld('GRUPA', 'ic-grupa', gd.grupa) +
+      fld('CATEGORIE', 'ic-categorie', gd.categorie) +
+      fld('ANGRO', 'ic-angro', gd.angro) +
+      fld('IONLINE', 'ic-ionline', gd.ionline) +
+      fld('RETAIL1', 'ic-retail1', gd.retail1) +
+    '</div>' +
+    '<div class="detail-section-title">' + t('attr_image') + '</div>' +
+    '<div class="form-group full">' + _peInput('ic-image', r.data.ie_linkadres || r.data.photo_url, '100%') + '</div>' +
+    '<div class="detail-section-title">' + t('card_barcodes') + '</div>' +
+    '<div id="ic-bc-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
+      (r.data.barcodes || []).map(b =>
+        '<span class="badge badge-default mono">' + escapeHtml(b) +
+        ' <a href="#" style="color:var(--c-red);text-decoration:none" ' +
+        'onclick="event.preventDefault(); icRemoveBarcode(' + cod + ', \'' + escapeHtml(b) + '\')">×</a></span>').join('') +
+    '</div>' +
+    '<div class="form-grid"><div class="form-group">' +
+      '<input class="edit-input" id="ic-bc-new" placeholder="' + t('bc_add_ph') + '" maxlength="15"></div>' +
+      '<div class="form-group"><button class="btn" onclick="icAddBarcode(' + cod + ')">+ ' + t('card_barcodes') + '</button></div>' +
+    '</div>' +
+    '<div class="form-actions">' +
+      '<button class="btn primary" onclick="saveItemCard(' + cod + ')">' + t('btn_save') + '</button>' +
+      '<button class="btn" onclick="showItemCard(' + cod + ')">' + t('btn_cancel') + '</button>' +
+    '</div>';
+}
+
+async function saveItemCard(cod) {
+  const body = {
+    univers: { denumirea: val('ic-denumirea'), namerus: val('ic-namerus'),
+               codvechi: val('ic-codvechi'), um: val('ic-um') },
+    goods: { brand: val('ic-brand'), grupa: val('ic-grupa'), categorie: val('ic-categorie'),
+             angro: parseFloat(val('ic-angro')) || 0, ionline: parseFloat(val('ic-ionline')) || 0,
+             retail1: val('ic-retail1') },
+    image: val('ic-image') || null,
+  };
+  setStatus(t('loading'));
+  const r = await apiPut(API + '/products/' + cod, body);
+  setStatus('—');
+  if (!r.success) return;
+  toast(t('saved'), 'ok');
+  showItemCard(cod);
+  refreshProductRowFromServer(cod);
+  invalidateProductTree();
+}
+
+async function icAddBarcode(cod) {
+  const b = val('ic-bc-new').trim();
+  if (!b) return;
+  const r = await apiPut(API + '/products/' + cod, { bc_add: [b] });
+  if (r.success) { toast(t('saved'), 'ok'); editItemCard(cod); refreshProductRowFromServer(cod); }
+}
+
+async function icRemoveBarcode(cod, b) {
+  const r = await apiPut(API + '/products/' + cod, { bc_remove: [b] });
+  if (r.success) { toast(t('saved'), 'ok'); editItemCard(cod); refreshProductRowFromServer(cod); }
+}
+
+/* refresh a single grid row after card edits (denumire/barcodes/image) */
+async function refreshProductRowFromServer(cod) {
+  const idx = prodState.rows.findIndex(x => x.cod === cod);
+  if (idx < 0) return;
+  const r = await apiGet(API + '/univers/' + cod);
+  if (!r.success || !r.data) return;
+  const u = r.data.univers || {}, gd = r.data.goods || {};
+  const bcs = r.data.barcodes || [];
+  Object.assign(prodState.rows[idx], {
+    denumirea: u.denumirea, namerus: u.namerus, codvechi: u.codvechi, um: u.um,
+    brand: gd.brand, grupa: gd.grupa, categorie: gd.categorie,
+    angro: gd.angro, ionline: gd.ionline, retail1: gd.retail1,
+    image: r.data.ie_linkadres || r.data.photo_url,
+    barcode: bcs[0] || null, bc_cnt: bcs.length,
+    angro_fara_tva: gd.angro ? Math.round(gd.angro / 1.2 * 100) / 100 : null,
+  });
+  const tr = el('prow-' + cod);
+  if (tr) tr.outerHTML = productRowHtml(prodState.rows[idx]);
+}
+
+/* ── product tree editing (rename grupa/categorie, move categorie) ── */
+function invalidateProductTree() {
+  const box = el('prod-tree');
+  if (box) delete box.dataset.loaded;
+  prodTreeData = null;
+  loadProductTree();
+}
+
+async function treeRenameNode(level, grupa, oldName, cnt) {
+  const nn = window.prompt(t('tree_rename_prompt'), oldName);
+  if (!nn || nn === oldName) return;
+  if (!window.confirm(t('tree_confirm').replace('{n}', cnt))) return;
+  setStatus(t('loading'));
+  const r = await apiPost(API + '/products/tree/rename',
+    { level: level, old: oldName, new: nn, grupa: grupa });
+  setStatus('—');
+  if (!r.success) return;
+  toast(t('saved') + ' (' + (r.rows || 0) + ')', 'ok');
+  // keep an active filter pointing at the renamed node valid
+  if (level === 'grupa' && val('prod-grupa') === oldName) el('prod-grupa').value = nn;
+  if (level === 'categorie' && val('prod-categorie') === oldName) el('prod-categorie').value = nn;
+  invalidateProductTree();
+  loadProductsStock(true);
+}
+
+async function treeMoveCategorie(grupa, categorie, cnt) {
+  const ng = window.prompt(t('tree_move_prompt'), grupa);
+  if (!ng || ng === grupa) return;
+  if (!window.confirm(t('tree_confirm').replace('{n}', cnt))) return;
+  setStatus(t('loading'));
+  const r = await apiPost(API + '/products/tree/move',
+    { grupa: grupa, categorie: categorie, new_grupa: ng });
+  setStatus('—');
+  if (!r.success) return;
+  toast(t('saved') + ' (' + (r.rows || 0) + ')', 'ok');
+  if (val('prod-grupa') === grupa && val('prod-categorie') === categorie)
+    el('prod-grupa').value = ng;
+  invalidateProductTree();
+  loadProductsStock(true);
 }
