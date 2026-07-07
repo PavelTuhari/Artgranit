@@ -112,8 +112,10 @@ class Config:
     BIRO26_NLS_TERRITORY = os.environ.get('BIRO26_NLS_TERRITORY', 'AMERICA')
     # Instant Client dir for thick mode (the 23_26 build connects to this 11g DB;
     # the 23_3 build raises ORA-28041). Override via env if installed elsewhere.
+    # Permanent local home is ~/lib (never ~/Downloads — macOS TCC blocks shell
+    # access there; see /Users/pt/lib/instantclient_23_26/SETUP.md).
     BIRO26_INSTANT_CLIENT = os.environ.get(
-        'BIRO26_INSTANT_CLIENT', '/Users/pt/Downloads/instantclient_23_26')
+        'BIRO26_INSTANT_CLIENT', '/Users/pt/lib/instantclient_23_26')
 
     # Version widget (fixed bottom-right popup)
     VERSION_WIDGET_ENABLED = os.environ.get('VERSION_WIDGET_ENABLED', '0').strip() in ('1', 'true', 'yes')
