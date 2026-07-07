@@ -721,7 +721,8 @@ class Biro26Store:
                 f"{price_expr} RETAIL1, "
                 "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL,g.IMAGE_LINK)) IMAGE, "
-                "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT "
+                "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT, "
+                "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT "
                 "FROM TMS_UNIVERS u "
                 # dedupe: the feed holds a few identical duplicate rows per product
                 "LEFT JOIN (SELECT gg.* FROM (SELECT g0.*, ROW_NUMBER() OVER "
@@ -736,6 +737,12 @@ class Biro26Store:
                 "  GROUP BY sc) s ON s.sc = u.COD "
                 "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
                 "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = u.COD "
+                # RO: familia de variante (BIRO26_VARIANTS) — cate variante are grupul
+                # EN: variant family (BIRO26_VARIANTS) — how many variants the group has
+                "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = u.COD "
+                "LEFT JOIN (SELECT MASTER_COD, COUNT(*) VCNT FROM BIRO26_VARIANTS "
+                "  WHERE MASTER_COD IS NOT NULL GROUP BY MASTER_COD) vg "
+                "  ON vg.MASTER_COD = vr.MASTER_COD "
                 "WHERE u.TIP='P'")
             params: Dict[str, Any] = {"pd": price_date}
             if search:
@@ -1092,5 +1099,67 @@ END;""",
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
             return Biro26Store.get_price_history(sc, codprice)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRODUCT VARIANTS — BIRO26_VARIANTS (master/detail families,
+    # see docs BIRO26_VARIANTS_IMPLEMENTATION.md). Group key =
+    # MASTER_COD; prices belong to the group (from the master row);
+    # single products have VARIANT NULL and a one-row family.
+    # ============================================================
+
+    @staticmethod
+    def get_variants(cod: int) -> Dict[str, Any]:
+        """All variants of the family that `cod` belongs to (any member code).
+        Rows with MASTER_COD NULL (unlinked master) fall back to the single
+        row so the card never comes back empty for a known item."""
+        try:
+            sel = ("SELECT v.ID, v.MASTER_ID, v.MASTER_COD, v.COD_UNIVERS, "
+                   "v.ARTICOL, v.BASE_NAME, v.VARIANT, v.FULL_NAME, "
+                   "v.ANGRO, v.ONLINE_PR, v.RETAIL, v.FURNIZOR, "
+                   "(SELECT LISTAGG(b.BARCODE, ',') WITHIN GROUP (ORDER BY b.BARCODE) "
+                   "  FROM TMS_MPT_BARCODE b WHERE b.COD = v.COD_UNIVERS) BARCODES "
+                   "FROM BIRO26_VARIANTS v ")
+            return _result(Biro26DB().execute_query(
+                sel + "WHERE v.MASTER_COD IN "
+                      "(SELECT MASTER_COD FROM BIRO26_VARIANTS WHERE COD_UNIVERS = :c1) "
+                      "UNION ALL " +
+                sel + "WHERE v.COD_UNIVERS = :c2 AND v.MASTER_COD IS NULL "
+                      "ORDER BY 1",
+                {"c1": int(cod), "c2": int(cod)}))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_variant(cod: int, variant: Optional[str] = None,
+                       articol: Optional[str] = None,
+                       furnizor: Optional[str] = None) -> Dict[str, Any]:
+        """Edit one variant row (by its COD_UNIVERS). A VARIANT change also
+        refreshes TMS_MPT_BARCODE.COMENT for that item (the label/cash-desk
+        caption, kept in sync per the variants implementation doc)."""
+        try:
+            sets, params = [], {"cod": int(cod)}
+            if variant is not None:
+                sets.append("VARIANT = :v")
+                params["v"] = (variant.strip()[:500] or None)
+            if articol is not None:
+                sets.append("ARTICOL = :a"); params["a"] = articol.strip()[:200]
+            if furnizor is not None:
+                sets.append("FURNIZOR = :f"); params["f"] = furnizor.strip()[:200]
+            if not sets:
+                return {"success": False, "error": "nothing to update"}
+            steps = [{"sql": "UPDATE BIRO26_VARIANTS SET " + ", ".join(sets) +
+                             " WHERE COD_UNIVERS = :cod",
+                      "params": params, "kind": "dml"}]
+            if variant is not None:
+                steps.append({"sql": "UPDATE TMS_MPT_BARCODE SET COMENT = :v "
+                                     "WHERE COD = :cod",
+                              "params": {"v": params["v"], "cod": int(cod)},
+                              "kind": "dml"})
+            r = Biro26DB().execute_script(steps)
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": {"cod": int(cod)}}
         except Exception as e:
             return {"success": False, "error": str(e)}

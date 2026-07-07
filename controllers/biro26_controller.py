@@ -312,6 +312,25 @@ class Biro26Controller:
             angro=num("angro"), ionline=num("ionline"),
             codprice=int(d.get("codprice") or 1))
 
+    # ── product variants (BIRO26_VARIANTS master/detail families) ──
+    @staticmethod
+    def get_variants(cod: int) -> Dict[str, Any]:
+        return Biro26Store.get_variants(cod)
+
+    @staticmethod
+    def update_variant(cod: int) -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        return Biro26Store.update_variant(
+            cod, variant=d.get("variant"),
+            articol=d.get("articol"), furnizor=d.get("furnizor"))
+
+    @staticmethod
+    def shop_variants() -> Dict[str, Any]:
+        cod = request.args.get("cod", type=int)
+        if not cod:
+            return {"success": False, "error": "cod is required"}
+        return Biro26Store.get_variants(cod)
+
     @staticmethod
     def product_price_delete() -> Dict[str, Any]:
         d = request.get_json(silent=True) or {}

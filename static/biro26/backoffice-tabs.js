@@ -443,9 +443,50 @@ async function showItemCard(cod) {
     '<div class="btn-row"><button class="btn primary" onclick="editItemCard(' + cod + ')">\u270e ' +
     t('card_edit') + '</button></div>' +
     barcodesHtml(r.data.barcodes) +
+    '<div id="card-variants"></div>' +
     '<div class="detail-section-title">TMS_UNIVERS</div>' + fields(u) +
     (mpt ? '<div class="detail-section-title">TMS_MPT</div>' + fields(mpt)
          : '<div class="detail-section-title">TMS_MPT</div><p class="muted">' + t('no_data') + '</p>');
+  loadCardVariants(cod);
+}
+
+/* \u2500\u2500 variants (BIRO26_VARIANTS): editable family detail in the card \u2500\u2500
+   Group = MASTER_COD; the price belongs to the group (master row);
+   VARIANT edits also refresh TMS_MPT_BARCODE.COMENT server-side. */
+async function loadCardVariants(cod) {
+  const box = el('card-variants');
+  if (!box) return;
+  const r = await apiGet(API + '/univers/' + cod + '/variants');
+  if (!r.success || !(r.data || []).length) { box.innerHTML = ''; return; }
+  const rows = r.data;
+  const base = rows[0].base_name || '';
+  box.innerHTML =
+    '<div class="detail-section-title">' + t('card_variants') + ' (' + rows.length + ')</div>' +
+    (base ? '<p class="muted" style="margin:0 0 6px;font-size:12px">' + escapeHtml(base) +
+            ' \u2014 ' + t('var_group_hint') + '</p>' : '') +
+    '<div class="data-table-wrap" style="max-height:240px;margin-bottom:10px"><table class="data-table"><thead><tr>' +
+    '<th>COD</th><th data-i18n="col_articol">' + t('col_articol') + '</th>' +
+    '<th>' + t('var_variant') + '</th><th>' + t('var_furnizor') + '</th>' +
+    '<th data-i18n="col_barcode">' + t('col_barcode') + '</th><th></th>' +
+    '</tr></thead><tbody>' + rows.map(v => {
+      const me = v.cod_univers === cod ? ' style="background:#eff6ff"' : '';
+      return '<tr' + me + '>' +
+        '<td class="mono" style="cursor:pointer" onclick="showItemCard(' + v.cod_univers + ')">' + v.cod_univers + '</td>' +
+        '<td>' + _peInput('vr-' + v.cod_univers + '-articol', v.articol, '90px') + '</td>' +
+        '<td>' + _peInput('vr-' + v.cod_univers + '-variant', v.variant, '150px') + '</td>' +
+        '<td>' + _peInput('vr-' + v.cod_univers + '-furnizor', v.furnizor, '110px') + '</td>' +
+        '<td class="mono" style="font-size:11px">' + escapeHtml(v.barcodes || '') + '</td>' +
+        '<td class="td-actions"><button class="btn-sm" title="' + t('btn_save') + '" ' +
+        'onclick="saveVariantRow(' + v.cod_univers + ')">\ud83d\udcbe</button></td>' +
+        '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+async function saveVariantRow(vcod) {
+  const g = f => val('vr-' + vcod + '-' + f);
+  const r = await apiPut(API + '/variants/' + vcod,
+    { variant: g('variant'), articol: g('articol'), furnizor: g('furnizor') });
+  if (r.success) toast(t('saved'), 'ok');
 }
 
 /* barcodes chips block for product cards (TMS_MPT_BARCODE) */

@@ -5426,6 +5426,15 @@ def api_biro26_price_set():
 def api_biro26_price_delete():
     return _b26(Biro26Controller.product_price_delete)
 
+# ── product variants (BIRO26_VARIANTS): family detail + editing ──
+@app.route('/api/biro26/univers/<int:cod>/variants', methods=['GET'])
+def api_biro26_variants_get(cod):
+    return _b26(lambda: Biro26Controller.get_variants(cod))
+
+@app.route('/api/biro26/variants/<int:cod>', methods=['PUT'])
+def api_biro26_variants_put(cod):
+    return _b26(lambda: Biro26Controller.update_variant(cod))
+
 
 # ── Biro26 web-shop: PUBLIC page + API (client self-registration,
 #    catalog browsing, invoice creation via package y_ai_BIRO26) ──
@@ -5464,6 +5473,11 @@ def api_biro26_shop_tree():
 def api_biro26_shop_brands():
     # public read-only brand facet with counts
     return jsonify(Biro26Controller.get_product_brands())
+
+@app.route('/api/biro26/shop/variants', methods=['GET'])
+def api_biro26_shop_variants():
+    # public read-only variant family (choose a characteristic in the shop)
+    return jsonify(Biro26Controller.shop_variants())
 
 @app.route('/api/biro26/shop/invoice', methods=['POST'])
 def api_biro26_shop_invoice():
