@@ -683,7 +683,9 @@ class Biro26Store:
                            brand: Optional[str] = None, categorie: Optional[str] = None,
                            grupa: Optional[str] = None,
                            limit: int = 200, offset: int = 0,
-                           price_date: Optional[str] = None) -> Dict[str, Any]:
+                           price_date: Optional[str] = None,
+                           price_min: Optional[float] = None,
+                           price_max: Optional[float] = None) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
@@ -697,21 +699,26 @@ class Biro26Store:
         TPR1D_PERPRLIST (codprice=1) AS OF price_date ('YYYY-MM-DD', default
         today) — same principle as the Listă de prețuri tab — falling back to
         the BIRO26_GOODS feed values for items not in the price list yet.
+        Faceted filters (Amazon-style, public shop + backoffice): `brand`
+        accepts a single value or a comma-separated list; price_min/price_max
+        bound the effective retail price.
         """
         if not price_date:
             from datetime import date as _date
             price_date = _date.today().isoformat()
+        # RO: pretul retail efectiv (folosit in SELECT si in filtrul de pret)
+        # EN: effective retail price (used in SELECT and in the price filter);
+        #     RETAIL1 is VARCHAR in the feed — convert only numeric-looking values
+        price_expr = ("NVL(pl.PRETV, CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
+                      "'^-?[0-9]+([.,][0-9]+)?$') THEN "
+                      "TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.')) END)")
         try:
             inner = (
                 "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
                 "g.GRUPA, g.CATEGORIE, g.BRAND, "
                 "NVL(pl.PRETV1, g.ANGRO) ANGRO, "
                 "NVL(pl.PRETV2, g.IONLINE) IONLINE, "
-                # RO: RETAIL1 e VARCHAR in feed; conversia doar pentru valori numerice
-                # EN: RETAIL1 is VARCHAR in the feed; convert only numeric-looking values
-                "NVL(pl.PRETV, CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
-                "'^-?[0-9]+([.,][0-9]+)?$') THEN "
-                "TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.')) END) RETAIL1, "
+                f"{price_expr} RETAIL1, "
                 "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL,g.IMAGE_LINK)) IMAGE, "
                 "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT "
@@ -746,11 +753,19 @@ class Biro26Store:
             if gr1:
                 inner += " AND u.GR1=:gr1"; params["gr1"] = gr1
             if brand:
-                inner += " AND g.BRAND=:brand"; params["brand"] = brand
+                # single value or comma-separated multi-select (shop facets)
+                bl = [b.strip() for b in str(brand).split(",") if b.strip()][:30]
+                marks = ",".join(f":br{i}" for i in range(len(bl)))
+                inner += f" AND g.BRAND IN ({marks})"
+                params.update({f"br{i}": b for i, b in enumerate(bl)})
             if grupa:
                 inner += " AND g.GRUPA=:grupa"; params["grupa"] = grupa
             if categorie:
                 inner += " AND g.CATEGORIE=:categorie"; params["categorie"] = categorie
+            if price_min is not None:
+                inner += f" AND {price_expr} >= :pmin"; params["pmin"] = float(price_min)
+            if price_max is not None:
+                inner += f" AND {price_expr} <= :pmax"; params["pmax"] = float(price_max)
             inner += " ORDER BY u.DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
             return _result(r)

@@ -5455,6 +5455,16 @@ def api_biro26_shop_products():
     # public read-only catalog (same grid data as Marfă/Stoc)
     return jsonify(Biro26Controller.get_products_stock())
 
+@app.route('/api/biro26/shop/tree', methods=['GET'])
+def api_biro26_shop_tree():
+    # public read-only grupa->categorie facet tree (Amazon-style sidebar)
+    return jsonify(Biro26Controller.get_product_tree())
+
+@app.route('/api/biro26/shop/brands', methods=['GET'])
+def api_biro26_shop_brands():
+    # public read-only brand facet with counts
+    return jsonify(Biro26Controller.get_product_brands())
+
 @app.route('/api/biro26/shop/invoice', methods=['POST'])
 def api_biro26_shop_invoice():
     return jsonify(Biro26Controller.shop_invoice())
