@@ -528,3 +528,57 @@ def test_get_univers_card_includes_barcodes():
     with patch("models.biro26_oracle_store.Biro26DB", return_value=_CardFake()):
         r = Biro26Store.get_univers_card(161226)
     assert r["success"] and r["data"]["barcodes"] == ["4840000000022", "4840070000021"]
+
+
+# ── store: product editing + tree editing ───────────────────────────
+
+class _FakeEditDB(_FakeBiro26DB):
+    def __init__(self):
+        super().__init__()
+        self.last_script = None
+    def execute_script(self, statements):
+        self.last_script = statements
+        return {"success": True, "results": [], "message": ""}
+
+
+def test_update_product_builds_atomic_script_with_whitelist():
+    fake = _FakeEditDB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.update_product(
+            161226,
+            univers={"denumirea": "X", "um": "buc.", "hack": "no"},
+            goods={"brand": "B", "grupa": "G", "angro": 5, "evil": "no"},
+            image="http://x/p.jpg", bc_add=["123"], bc_remove=["456"])
+    assert r["success"]
+    sqls = " || ".join(st["sql"] for st in fake.last_script)
+    assert "UPDATE TMS_UNIVERS SET" in sqls and "DENUMIREA = :denumirea" in sqls
+    assert "hack" not in sqls and "evil" not in sqls          # whitelisted fields only
+    assert "UPDATE BIRO26_GOODS SET" in sqls and "BRAND = :brand" in sqls
+    assert "MERGE INTO TMS_MPT_TVR" in sqls                    # image upsert
+    assert "INSERT INTO TMS_MPT (COD)" in sqls                 # barcode FK card
+    assert "INSERT INTO TMS_MPT_BARCODE" in sqls
+    assert "DELETE FROM TMS_MPT_BARCODE" in sqls
+
+
+def test_update_product_nothing_to_update():
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=_FakeEditDB()):
+        r = Biro26Store.update_product(1, univers={"bogus": "x"})
+    assert r["success"] is False
+
+
+def test_rename_tree_node_grupa_and_categorie():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.rename_tree_node("grupa", "Old", "New")
+    assert r["success"] and "SET GRUPA = :new WHERE GRUPA = :old" in fake.last_sql
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r2 = Biro26Store.rename_tree_node("categorie", "OldC", "NewC", grupa="G")
+    assert r2["success"] and "WHERE GRUPA = :g AND CATEGORIE = :old" in fake.last_sql
+
+
+def test_move_tree_categorie_sql():
+    fake = _FakeBiro26DB()
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=fake):
+        r = Biro26Store.move_tree_categorie("G1", "C1", "G2")
+    assert r["success"] and "SET GRUPA = :ng" in fake.last_sql
+    assert "WHERE GRUPA = :g AND CATEGORIE = :c" in fake.last_sql

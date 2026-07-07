@@ -363,12 +363,16 @@ class Biro26Store:
             barcodes = [b["barcode"] for b in _rows(db.execute_query(
                 "SELECT BARCODE FROM TMS_MPT_BARCODE WHERE COD=:c ORDER BY BARCODE",
                 {"c": cod}))]
+            goods = _rows(db.execute_query(
+                "SELECT BRAND, GRUPA, CATEGORIE, ANGRO, IONLINE, RETAIL1 "
+                "FROM BIRO26_GOODS WHERE COD_UNIVERS=:c AND ROWNUM=1", {"c": cod}))
             return {"success": True,
                     "data": {"univers": u[0], "mpt": mpt[0] if mpt else None,
                              "photo_url": ie or photo.get("photo_url"),
                              "image_link": photo.get("image_link"),
                              "ie_linkadres": ie,
-                             "barcodes": barcodes}}
+                             "barcodes": barcodes,
+                             "goods": goods[0] if goods else None}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -774,5 +778,117 @@ class Biro26Store:
                 "WHERE u.TIP='P' AND g.CATEGORIE IS NOT NULL "
                 "GROUP BY g.CATEGORIE ORDER BY g.CATEGORIE")
             return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRODUCT EDITING — attributes across TMS_UNIVERS / BIRO26_GOODS /
+    # TMS_MPT_TVR (image) / TMS_MPT_BARCODE, one atomic script.
+    # TMS_UNIVERS updates are audited by its history triggers; CODVECHI
+    # uniqueness and barcode uniqueness are enforced by DB triggers and
+    # surface as errors here.
+    # ============================================================
+
+    UNIVERS_EDIT_FIELDS = {"denumirea": "DENUMIREA", "namerus": "NAMERUS",
+                           "codvechi": "CODVECHI", "um": "UM"}
+    GOODS_EDIT_FIELDS = {"brand": "BRAND", "grupa": "GRUPA", "categorie": "CATEGORIE",
+                         "angro": "ANGRO", "ionline": "IONLINE", "retail1": "RETAIL1"}
+
+    @staticmethod
+    def update_product(cod: int, univers: Optional[Dict[str, Any]] = None,
+                       goods: Optional[Dict[str, Any]] = None,
+                       image: Optional[str] = None,
+                       bc_add: Optional[List[str]] = None,
+                       bc_remove: Optional[List[str]] = None) -> Dict[str, Any]:
+        try:
+            cod = int(cod)
+            stmts: List[Dict[str, Any]] = []
+
+            uv = {k: v for k, v in (univers or {}).items()
+                  if k in Biro26Store.UNIVERS_EDIT_FIELDS}
+            if uv:
+                sets = ", ".join(f"{Biro26Store.UNIVERS_EDIT_FIELDS[k]} = :{k}" for k in uv)
+                stmts.append({"sql": f"UPDATE TMS_UNIVERS SET {sets} WHERE COD = :cod",
+                              "params": {**uv, "cod": cod}, "kind": "dml"})
+
+            gv = {k: v for k, v in (goods or {}).items()
+                  if k in Biro26Store.GOODS_EDIT_FIELDS}
+            if gv:
+                sets = ", ".join(f"{Biro26Store.GOODS_EDIT_FIELDS[k]} = :{k}" for k in gv)
+                stmts.append({"sql": f"UPDATE BIRO26_GOODS SET {sets} WHERE COD_UNIVERS = :cod",
+                              "params": {**gv, "cod": cod}, "kind": "dml"})
+
+            if image is not None:
+                stmts.append({"sql": "MERGE INTO TMS_MPT_TVR t USING (SELECT :cod c FROM dual) s "
+                                     "ON (t.COD = s.c) "
+                                     "WHEN MATCHED THEN UPDATE SET t.IE_LINKADRES = :img "
+                                     "WHEN NOT MATCHED THEN INSERT (COD, IE_LINKADRES) "
+                                     "VALUES (:cod, :img)",
+                              "params": {"cod": cod, "img": image[:1000] if image else None},
+                              "kind": "dml"})
+
+            for b in (bc_add or []):
+                b = str(b).strip()[:15]
+                if not b:
+                    continue
+                # barcode FK needs a TMS_MPT card; create a minimal one if missing
+                stmts.append({"sql": "INSERT INTO TMS_MPT (COD) "
+                                     "SELECT :cod FROM dual WHERE NOT EXISTS "
+                                     "(SELECT 1 FROM TMS_MPT WHERE COD = :cod)",
+                              "params": {"cod": cod}, "kind": "dml"})
+                stmts.append({"sql": "INSERT INTO TMS_MPT_BARCODE (COD, BARCODE) "
+                                     "SELECT :cod, :b FROM dual WHERE NOT EXISTS "
+                                     "(SELECT 1 FROM TMS_MPT_BARCODE WHERE COD = :cod AND BARCODE = :b)",
+                              "params": {"cod": cod, "b": b}, "kind": "dml"})
+
+            for b in (bc_remove or []):
+                stmts.append({"sql": "DELETE FROM TMS_MPT_BARCODE WHERE COD = :cod AND BARCODE = :b",
+                              "params": {"cod": cod, "b": str(b).strip()}, "kind": "dml"})
+
+            if not stmts:
+                return {"success": False, "error": "nothing to update"}
+            res = Biro26DB().execute_script(stmts)
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── product tree editing (BIRO26_GOODS.GRUPA / .CATEGORIE) ─────────
+    @staticmethod
+    def rename_tree_node(level: str, old: str, new: str,
+                         grupa: Optional[str] = None) -> Dict[str, Any]:
+        try:
+            if not old or not new:
+                return {"success": False, "error": "old and new names are required"}
+            if level == "grupa":
+                r = Biro26DB().execute_dml(
+                    "UPDATE BIRO26_GOODS SET GRUPA = :new WHERE GRUPA = :old",
+                    {"new": new, "old": old})
+            elif level == "categorie":
+                r = Biro26DB().execute_dml(
+                    "UPDATE BIRO26_GOODS SET CATEGORIE = :new "
+                    "WHERE GRUPA = :g AND CATEGORIE = :old",
+                    {"new": new, "old": old, "g": grupa})
+            else:
+                return {"success": False, "error": "level must be grupa|categorie"}
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "rows": r.get("rowcount", 0)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def move_tree_categorie(grupa: str, categorie: str, new_grupa: str) -> Dict[str, Any]:
+        try:
+            if not (grupa and categorie and new_grupa):
+                return {"success": False, "error": "grupa, categorie, new_grupa are required"}
+            r = Biro26DB().execute_dml(
+                "UPDATE BIRO26_GOODS SET GRUPA = :ng "
+                "WHERE GRUPA = :g AND CATEGORIE = :c",
+                {"ng": new_grupa, "g": grupa, "c": categorie})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "rows": r.get("rowcount", 0)}
         except Exception as e:
             return {"success": False, "error": str(e)}

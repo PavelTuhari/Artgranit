@@ -5401,6 +5401,18 @@ def api_biro26_products_categories():
 def api_biro26_products_tree():
     return _b26(Biro26Controller.get_product_tree)
 
+@app.route('/api/biro26/products/<int:cod>', methods=['PUT'])
+def api_biro26_product_update(cod):
+    return _b26(lambda: Biro26Controller.update_product(cod))
+
+@app.route('/api/biro26/products/tree/rename', methods=['POST'])
+def api_biro26_tree_rename():
+    return _b26(Biro26Controller.tree_rename)
+
+@app.route('/api/biro26/products/tree/move', methods=['POST'])
+def api_biro26_tree_move():
+    return _b26(Biro26Controller.tree_move)
+
 
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик

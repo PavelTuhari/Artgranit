@@ -287,6 +287,29 @@ class Biro26Controller:
         return Biro26Store.get_product_tree()
 
     @staticmethod
+    def update_product(cod: int) -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        return Biro26Store.update_product(
+            cod, univers=d.get("univers"), goods=d.get("goods"),
+            image=d.get("image"), bc_add=d.get("bc_add"), bc_remove=d.get("bc_remove"))
+
+    @staticmethod
+    def tree_rename() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        for k in ("level", "old", "new"):
+            if not d.get(k):
+                return {"success": False, "error": f"{k} is required"}
+        return Biro26Store.rename_tree_node(d["level"], d["old"], d["new"], d.get("grupa"))
+
+    @staticmethod
+    def tree_move() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        for k in ("grupa", "categorie", "new_grupa"):
+            if not d.get(k):
+                return {"success": False, "error": f"{k} is required"}
+        return Biro26Store.move_tree_categorie(d["grupa"], d["categorie"], d["new_grupa"])
+
+    @staticmethod
     def get_product_brands() -> Dict[str, Any]:
         return Biro26Store.get_product_brands()
 
