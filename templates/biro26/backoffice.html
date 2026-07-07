@@ -822,6 +822,8 @@ html, body {
           </select>
           <input type="hidden" id="prod-grupa" value="">
           <input type="hidden" id="prod-categorie" value="">
+          <label data-i18n="prod_price_date"></label>
+          <input type="date" class="f-input" id="prod-price-date" onchange="loadProductsStock()" style="width:150px">
           <button class="btn" onclick="clearProductFilters()" data-i18n="prod_clear_filters"></button>
           <button class="btn success" onclick="collectQtyAdd('prod')" data-i18n="cart_add_selected"></button>
           <span style="flex:1"></span>
@@ -864,6 +866,27 @@ html, body {
             </table>
             <div id="prod-more-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_loading_more"></div>
             <div id="prod-end-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_end_of_list"></div>
+          </div>
+        </div>
+
+        <!-- bottom panel: price-period history of the selected product -->
+        <div class="card" style="margin-top:14px">
+          <h3><span data-i18n="ph_title"></span> <span class="muted" id="ph-item" style="font-weight:normal;font-size:12.5px"></span></h3>
+          <p class="muted" style="margin:4px 0 10px" data-i18n="ph_rules_hint"></p>
+          <div class="data-table-wrap" style="max-height:260px">
+            <table class="data-table">
+              <thead><tr>
+                <th data-i18n="ph_from"></th>
+                <th data-i18n="ph_to"></th>
+                <th class="num" data-i18n="prod_col_retail"></th>
+                <th class="num" data-i18n="prod_col_purch_tva"></th>
+                <th class="num" data-i18n="prod_col_online"></th>
+                <th></th>
+              </tr></thead>
+              <tbody id="ph-body">
+                <tr><td colspan="6"><div class="empty-state"><p data-i18n="ph_select_hint"></p></div></td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1084,6 +1107,11 @@ ru: {
   cart_copy_xml: 'Копировать XML', cart_clear: 'Очистить', cart_empty: 'Корзина пуста',
   cart_invoice: 'Создать счёт на оплату', cart_invoice_client: 'COD клиента (TMS_UNIVERS):',
   cart_invoice_ok: 'Счёт создан', cart_invoice_err: 'Ошибка создания счёта',
+  prod_price_date: 'Цены на дату', ph_title: 'История цен',
+  ph_from: 'С даты', ph_to: 'По дату', ph_del: 'Удалить период',
+  ph_select_hint: 'Кликните строку товара в гриде, чтобы увидеть историю его цен',
+  ph_rules_hint: 'Изменение цены дробит период на выбранную дату; удаление строки объединяет соседние периоды (диапазон дат остаётся без разрывов). Последнюю строку удалить нельзя.',
+  ph_confirm_del: 'Удалить период цены? Соседние периоды будут объединены.',
   cart_added: 'Добавлено позиций: {n}', cart_nothing: 'Укажите количество хотя бы для одной позиции',
   cart_copied: 'Скопировано в буфер обмена', cart_confirm_clear: 'Очистить корзину?',
   edit_row: 'Редактировать строку', card_edit: 'Редактировать атрибуты',
@@ -1181,6 +1209,11 @@ ro: {
   cart_copy_xml: 'Copiază XML', cart_clear: 'Golește', cart_empty: 'Coșul este gol',
   cart_invoice: 'Creează cont de plată', cart_invoice_client: 'COD client (TMS_UNIVERS):',
   cart_invoice_ok: 'Cont de plată creat', cart_invoice_err: 'Eroare la crearea contului',
+  prod_price_date: 'Prețuri la data', ph_title: 'Istoric prețuri',
+  ph_from: 'De la', ph_to: 'Până la', ph_del: 'Șterge perioada',
+  ph_select_hint: 'Clic pe un rând din grid pentru istoricul prețurilor produsului',
+  ph_rules_hint: 'Modificarea prețului divizează perioada la data aleasă; ștergerea unui rând unește perioadele vecine (diapazonul de date rămâne fără goluri). Ultimul rând nu poate fi șters.',
+  ph_confirm_del: 'Ștergeți perioada de preț? Perioadele vecine vor fi unite.',
   cart_added: 'Poziții adăugate: {n}', cart_nothing: 'Indicați cantitatea pentru cel puțin o poziție',
   cart_copied: 'Copiat în clipboard', cart_confirm_clear: 'Goliți coșul?',
   edit_row: 'Editează rândul', card_edit: 'Editează atributele',
@@ -1278,6 +1311,11 @@ en: {
   cart_copy_xml: 'Copy XML', cart_clear: 'Clear', cart_empty: 'Cart is empty',
   cart_invoice: 'Create payment invoice', cart_invoice_client: 'Client COD (TMS_UNIVERS):',
   cart_invoice_ok: 'Invoice created', cart_invoice_err: 'Invoice creation failed',
+  prod_price_date: 'Prices as of', ph_title: 'Price history',
+  ph_from: 'From', ph_to: 'To', ph_del: 'Delete period',
+  ph_select_hint: 'Click a product row in the grid to see its price history',
+  ph_rules_hint: 'A price change splits the period at the chosen date; deleting a row merges the neighbouring periods (the date range stays gap-free). The last row cannot be deleted.',
+  ph_confirm_del: 'Delete this price period? Neighbouring periods will be merged.',
   cart_added: 'Items added: {n}', cart_nothing: 'Enter a quantity for at least one item',
   cart_copied: 'Copied to clipboard', cart_confirm_clear: 'Clear the cart?',
   edit_row: 'Edit row', card_edit: 'Edit attributes',

@@ -5413,6 +5413,19 @@ def api_biro26_tree_rename():
 def api_biro26_tree_move():
     return _b26(Biro26Controller.tree_move)
 
+# ── price periods on Marfă/Stoc (split on change, merge on delete) ──
+@app.route('/api/biro26/products/price-history', methods=['GET'])
+def api_biro26_price_history():
+    return _b26(Biro26Controller.product_price_history)
+
+@app.route('/api/biro26/products/price', methods=['POST'])
+def api_biro26_price_set():
+    return _b26(Biro26Controller.product_price_set)
+
+@app.route('/api/biro26/products/price/delete', methods=['POST'])
+def api_biro26_price_delete():
+    return _b26(Biro26Controller.product_price_delete)
+
 
 # ── Biro26 web-shop: PUBLIC page + API (client self-registration,
 #    catalog browsing, invoice creation via package y_ai_BIRO26) ──
