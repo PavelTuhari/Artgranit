@@ -247,8 +247,11 @@ function renderChips() {
 
 /* ── catalog ─────────────────────────────────────────────── */
 function debSearch(){ clearTimeout(qTimer); qTimer = setTimeout(() => load(true), 400); }
+let loadSeq = 0;   // rapid facet clicks: the LATEST request wins, stale responses are dropped
 async function load(reset) {
-  if (busy) return; busy = true;
+  if (!reset && busy) return;              // only guard the "load more" path
+  const my = ++loadSeq;
+  busy = true;
   if (reset) { offset = 0; document.getElementById('grid').innerHTML = ''; }
   const qs = new URLSearchParams({limit, offset});
   const q = document.getElementById('q').value.trim();
@@ -258,7 +261,9 @@ async function load(reset) {
   if (F.brands.size) qs.set('brand', Array.from(F.brands).join(','));
   if (F.pmin != null) qs.set('price_min', F.pmin);
   if (F.pmax != null) qs.set('price_max', F.pmax);
-  const r = await j(API + '/products?' + qs); busy = false;
+  const r = await j(API + '/products?' + qs);
+  if (my !== loadSeq) return;              // superseded by a newer filter click
+  busy = false;
   if (!r.success) return;
   const rows = r.data || [];
   offset += rows.length;
