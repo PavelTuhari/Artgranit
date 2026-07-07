@@ -343,5 +343,26 @@ Endpoints: <code>GET /api/biro26/products/price-history?sc=</code>,
 angro, ionline}, <code>POST /api/biro26/products/price/delete</code>
 {sc, date 'DD.MM.YYYY'}. Цены публичного магазина
 (<code>shop_prices_for</code>) также читаются из прайс-листа на сегодня.</p>
+
+<h2>13. Варианты товаров (BIRO26_VARIANTS) / product variants</h2>
+<p>Источник — таблица <code>BIRO26_VARIANTS</code> (см.
+<code>BIRO26_VARIANTS_IMPLEMENTATION.md</code>): семья = <code>MASTER_COD</code>,
+у каждого варианта свой <code>COD_UNIVERS</code>, цена — одна на группу (из
+мастера), одиночки имеют <code>VARIANT IS NULL</code>.</p>
+<ul>
+<li><strong>Карточка товара (Nomenclator/Marfă):</strong> редактируемый блок
+«Variante (caracteristici)» — все строки семьи, построчное редактирование
+VARIANT/ARTICOL/FURNIZOR (💾 в строке); изменение VARIANT синхронно обновляет
+<code>TMS_MPT_BARCODE.COMENT</code> (подпись касс/этикеток); клик по COD
+открывает карточку этого варианта; текущий товар подсвечен.
+API: <code>GET /api/biro26/univers/&lt;cod&gt;/variants</code>,
+<code>PUT /api/biro26/variants/&lt;cod&gt;</code>.</li>
+<li><strong>Магазин:</strong> у товаров с семьёй &gt;1 записи на карточке —
+селектор характеристики (ленивая загрузка по фокусу,
+<code>GET /api/biro26/shop/variants?cod=</code>); в корзину и в строку счёта
+попадает <code>COD_UNIVERS</code> выбранного варианта с полным названием.</li>
+<li>Каталог (<code>/products</code>, <code>/shop/products</code>) отдаёт
+<code>variant</code>, <code>master_cod</code>, <code>var_cnt</code>.</li>
+</ul>
 </body>
 </html>
