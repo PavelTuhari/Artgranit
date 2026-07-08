@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Biro26 — Back-office</title>
+<title>{{ app_name }} — Back-office</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -333,7 +333,7 @@ html, body {
 <div class="menu-bar">
   <div class="menu-logo">
     <span class="logo-badge">B26</span>
-    <span id="t-app-title">Biro26 — Back-office</span>
+    <span id="t-app-title">{{ app_name }} — Back-office</span>
   </div>
   <span class="menu-profile" id="active-profile-indicator" style="display:none"></span>
   <div class="menu-right">
@@ -345,7 +345,7 @@ html, body {
       <button class="lang-btn" id="lang-ro" onclick="setLang('ro')">RO</button>
       <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
     </div>
-    <a class="menu-back" href="/UNA.md/orasldev/biro26">← <span id="t-back">Biro26</span></a>
+    <a class="menu-back" href="/UNA.md/orasldev/biro26">← <span id="t-back">{{ app_name }}</span></a>
   </div>
 </div>
 
@@ -951,7 +951,7 @@ html, body {
 <!-- ── STATUS BAR ─────────────────────────────────────────── -->
 <div class="status-bar">
   <span id="sb-status">—</span>
-  <span>Biro26</span>
+  <span>{{ app_name }}</span>
   <span class="sb-right" id="sb-panel">source</span>
 </div>
 
@@ -1056,7 +1056,7 @@ html, body {
    ===================================================================== */
 const I18N = {
 ru: {
-  app_title: 'Biro26 — Бэк-офис', back: 'Biro26',
+  app_title: '{{ app_name }} — Бэк-офис', back: '{{ app_name }}',
   tab_source: 'Источник', tab_dict: 'Номенклатура', tab_groups: 'Группы / Поставщики',
   tab_prices: 'Прайс-лист', tab_mapping: 'Сопоставление / Настройки',
   tab_wizard: 'Импорт (мастер)',
@@ -1160,7 +1160,7 @@ ru: {
   prompt_profile_name: 'Название нового профиля:', prompt_codprice: 'Код цены (codprice):',
 },
 ro: {
-  app_title: 'Biro26 — Back-office', back: 'Biro26',
+  app_title: '{{ app_name }} — Back-office', back: '{{ app_name }}',
   tab_source: 'Sursă', tab_dict: 'Nomenclator', tab_groups: 'Grupe / Furnizori',
   tab_prices: 'Listă de prețuri', tab_mapping: 'Mapare / Setări',
   tab_wizard: 'Import (asistent)',
@@ -1264,7 +1264,7 @@ ro: {
   prompt_profile_name: 'Denumirea noului profil:', prompt_codprice: 'Cod preț (codprice):',
 },
 en: {
-  app_title: 'Biro26 — Back-office', back: 'Biro26',
+  app_title: '{{ app_name }} — Back-office', back: '{{ app_name }}',
   tab_source: 'Source', tab_dict: 'Dictionary', tab_groups: 'Groups / Suppliers',
   tab_prices: 'Price list', tab_mapping: 'Mapping / Settings',
   tab_wizard: 'Import (wizard)',

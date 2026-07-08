@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Biro26 — Import nomenclator &amp; prețuri</title>
+  <title>{{ app_name }} — Import nomenclator &amp; prețuri</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -169,7 +169,7 @@
 <div class="menu-bar">
   <div class="menu-logo">
     <span class="logo-badge">B26</span>
-    Biro26 — Import nomenclator &amp; prețuri
+    {{ app_name }} — Import nomenclator &amp; prețuri
   </div>
   <div class="menu-right">
     <a class="menu-back" href="/UNA.md/orasldev">← SQL Dev</a>
@@ -183,7 +183,7 @@
   <div class="hero">
     <div class="hero-badge">📦</div>
     <div>
-      <h1>Biro26 — import marfă &amp; listă de prețuri</h1>
+      <h1>{{ app_name }} — import marfă &amp; listă de prețuri</h1>
       <p>
         Importă mărfuri din fluxul furnizorului (BIRO26_GOODS) în nomenclatorul ERP
         (TMS_UNIVERS) și construiește listele de prețuri, apelând pachetul Oracle dedicat.
@@ -201,7 +201,7 @@
   <div class="cards-grid">
     <a class="launch-card primary" href="/UNA.md/orasldev/biro26-backoffice">
       <div class="lc-icon">🗂️</div>
-      <div class="lc-title">Back-office Biro26</div>
+      <div class="lc-title">Back-office {{ app_name }}</div>
       <div class="lc-desc">
         Consola principală: sursă (BIRO26_GOODS), nomenclator, grupe/furnizori,
         listă de prețuri, mapare/setări. Interfață trilingvă RU / RO / EN.
@@ -231,14 +231,14 @@
   </div>
 
   <div class="alert">
-    <b>Despre modul.</b> Biro26 citește fluxul sursă <code>BIRO26_GOODS</code>, îl validează
+    <b>Despre modul.</b> {{ app_name }} citește fluxul sursă <code>BIRO26_GOODS</code>, îl validează
     și îl pregătește, atribuie chei (<code>cod_univers</code>) și importă în
     <code>TMS_UNIVERS</code> / <code>TMS_MPT</code>. Grupele de mărfuri și prețurile sunt
     gestionate per <code>codprice</code>, cu profiluri de mapare reutilizabile
     (<code>g_*</code> parametri) și jurnal de operații.
   </div>
 
-  <div class="footnote">Biro26 · Artgranit ERP bridge</div>
+  <div class="footnote">{{ app_name }} · Artgranit ERP bridge</div>
 </div>
 
 <script>

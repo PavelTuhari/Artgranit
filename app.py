@@ -5162,7 +5162,7 @@ def biro26_admin():
     """Biro26: launcher / landing."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('biro26_admin.html')
+    return render_template('biro26_admin.html', app_name=Config.BIRO26_APP_NAME)
 
 
 @app.route('/UNA.md/orasldev/biro26-backoffice')
@@ -5170,7 +5170,7 @@ def biro26_backoffice():
     """Biro26: main trilingual back-office (source, dictionary, groups, prices, mapping)."""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('biro26/backoffice.html')
+    return render_template('biro26/backoffice.html', app_name=Config.BIRO26_APP_NAME)
 
 
 @app.route('/UNA.md/orasldev/biro26-tz')
@@ -5441,7 +5441,7 @@ def api_biro26_variants_put(cod):
 @app.route('/UNA.md/orasldev/biro26-shop')
 def biro26_shop():
     """Public self-service Marfă/Stoc page for individual clients."""
-    return render_template('biro26/shop.html')
+    return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME)
 
 @app.route('/api/biro26/shop/register', methods=['POST'])
 def api_biro26_shop_register():
