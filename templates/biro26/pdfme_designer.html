@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — pdfme Designer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b;height:100vh;display:flex;flex-direction:column}
+.top{background:#0d0d1a;color:#e2e8f0;display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.top .logo{font-weight:700;color:#4f8ef7}
+.top a{color:#94a3b8;text-decoration:none;font-size:13px}
+.top .sp{flex:1}
+.top select{padding:5px 8px;border-radius:6px;border:none;font-size:13px}
+.btn{background:#1d4ed8;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.gray{background:#334155;color:#e2e8f0}
+#designer{flex:1;min-height:0}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:500;font-size:13px}
+.toast.err{background:#dc2626}
+.loading{padding:40px;text-align:center;color:#64748b}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">{{ app_name }} · pdfme Designer</span>
+  <select id="tpl" onchange="loadTemplate()">
+    <option value="pdfme_invoice.json">pdfme_invoice.json — Cont de plată</option>
+    <option value="pdfme_order.json">pdfme_order.json — Comanda cumpărătorului</option>
+  </select>
+  <button class="btn" onclick="saveTemplate()">💾 Salvează · Сохранить</button>
+  <button class="btn gray" onclick="previewPdf()">👁 PDF test</button>
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/biro26-report-templates">← Editor text</a>
+</div>
+
+<div id="designer"><div class="loading">Se încarcă pdfme Designer… · Загрузка…</div></div>
+
+<script type="module">
+// RO: Designer-ul pdfme se incarca din CDN (doar in browserul operatorului;
+//     serverul nu depinde de CDN). / EN: the pdfme Designer loads from a CDN
+//     in the operator's browser only; the server has no CDN dependency.
+import { Designer } from 'https://esm.sh/@pdfme/ui@6.1.11';
+import { text, table, line, rectangle, image, svg } from 'https://esm.sh/@pdfme/schemas@6.1.11';
+
+const API = '/api/biro26/report-templates';
+let designer = null;
+
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 3500);
+}
+
+async function fontData() {
+  const buf = await fetch('/static/biro26/fonts/DejaVuSans.ttf').then(r => r.arrayBuffer());
+  return { DejaVuSans: { data: buf, fallback: true } };
+}
+
+window.loadTemplate = async function () {
+  const name = document.getElementById('tpl').value;
+  const r = await fetch(API + '/' + name, {credentials: 'include'}).then(x => x.json());
+  if (!r.success) { toast(r.error || 'load error', true); return; }
+  const template = JSON.parse(r.data.content);
+  if (designer) { designer.updateTemplate(template); return; }
+  designer = new Designer({
+    domContainer: document.getElementById('designer'),
+    template,
+    plugins: { text, table, line, rectangle, image, svg },
+    options: { font: await fontData(), lang: 'en' },
+  });
+};
+
+window.saveTemplate = async function () {
+  if (!designer) return;
+  const name = document.getElementById('tpl').value;
+  const r = await fetch(API + '/' + name, {method: 'PUT', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({content: JSON.stringify(designer.getTemplate(), null, 2)})
+  }).then(x => x.json());
+  toast(r.success ? 'Salvat · Сохранено (' + r.data.backup + ')' : (r.error || 'save error'), !r.success);
+};
+
+window.previewPdf = async function () {
+  if (!designer) return;
+  const name = document.getElementById('tpl').value;
+  const resp = await fetch(API + '/preview', {method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, content: JSON.stringify(designer.getTemplate())})});
+  if (!resp.ok) {
+    const b = await resp.json().catch(() => ({}));
+    toast(b.error || ('HTTP ' + resp.status), true);
+    return;
+  }
+  const blob = await resp.blob();
+  window.open(URL.createObjectURL(blob), '_blank');
+};
+
+loadTemplate();
+</script>
+</body>
+</html>

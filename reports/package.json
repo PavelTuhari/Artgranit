@@ -8,6 +8,9 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@pdfme/common": "^6.1.11",
+    "@pdfme/generator": "^6.1.11",
+    "@pdfme/schemas": "^6.1.11",
     "jsreport": "^4.9.0"
   }
 }

@@ -351,7 +351,18 @@ class Biro26Controller:
         if not (d.get("content") or "").strip():
             return {"success": False, "error": "content is required"}
         cod = d.get("cod")
-        return Biro26Report.preview(d["content"], int(cod) if cod else None)
+        return Biro26Report.preview(d["content"], int(cod) if cod else None,
+                                    name=d.get("name"))
+
+    @staticmethod
+    def report_engines_get() -> Dict[str, Any]:
+        from models.biro26_report import Biro26Report
+        return Biro26Report.get_engines()
+
+    @staticmethod
+    def report_engines_set() -> Dict[str, Any]:
+        from models.biro26_report import Biro26Report
+        return Biro26Report.set_engines(request.get_json(silent=True) or {})
 
     # ── product variants (BIRO26_VARIANTS master/detail families) ──
     @staticmethod

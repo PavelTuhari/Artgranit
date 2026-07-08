@@ -5447,6 +5447,22 @@ def api_biro26_rtpl_get(name):
 def api_biro26_rtpl_save(name):
     return _b26(lambda: Biro26Controller.report_template_save(name))
 
+@app.route('/api/biro26/report-engines', methods=['GET'])
+def api_biro26_rtpl_engines_get():
+    return _b26(Biro26Controller.report_engines_get)
+
+@app.route('/api/biro26/report-engines', methods=['PUT'])
+def api_biro26_rtpl_engines_set():
+    return _b26(Biro26Controller.report_engines_set)
+
+@app.route('/UNA.md/orasldev/biro26-pdfme-designer')
+def biro26_pdfme_designer():
+    """Visual pdfme Designer for the pdfme_*.json templates."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/pdfme_designer.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
 @app.route('/api/biro26/report-templates/preview', methods=['POST'])
 def api_biro26_rtpl_preview():
     g = _biro26_api_guard()
