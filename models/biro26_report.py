@@ -25,6 +25,8 @@ _TPL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
                         "reports", "templates")
 
 REPORT_KINDS = {"invoice": "biro26_invoice.hbs", "order": "biro26_order.hbs"}
+PDFME_KINDS = {"invoice": "pdfme_invoice.json", "order": "pdfme_order.json"}
+ENGINES_FILE = "engines.json"          # {"invoice": "jsreport"|"pdfme", ...}
 
 _RO_MONTHS = ["", "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie",
               "iulie", "august", "septembrie", "octombrie", "noiembrie", "decembrie"]
@@ -33,6 +35,73 @@ _RO_MONTHS = ["", "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie",
 def _read(fname: str) -> str:
     with open(os.path.join(_TPL_DIR, fname), encoding="utf-8") as f:
         return f.read()
+
+
+def _fmt(v) -> str:
+    """1234.5 -> '1 234,50' (same as the JS helper)."""
+    s = f"{float(v or 0):,.2f}"
+    return s.replace(",", " ").replace(".", ",")
+
+
+# RO: suma in litere in romana — portul Python al helpers.js (pdfme nu are
+# helper-e, deci textul vine gata calculat in inputs).
+# EN: Romanian amount-in-words — Python port of helpers.js (pdfme has no
+# helpers, the text arrives precomputed in the inputs).
+def _ro_words(n_raw) -> str:
+    n = int(abs(float(n_raw or 0)))
+    if n == 0:
+        return "zero"
+    uni = ["", "unu", "doi", "trei", "patru", "cinci", "șase", "șapte", "opt", "nouă"]
+    spr = ["zece", "unsprezece", "doisprezece", "treisprezece", "paisprezece",
+           "cincisprezece", "șaisprezece", "șaptesprezece", "optsprezece", "nouăsprezece"]
+
+    def sub1000(x):
+        parts = []
+        h, r = divmod(x, 100)
+        if h == 1:
+            parts.append("o sută")
+        elif h == 2:
+            parts.append("două sute")
+        elif h > 2:
+            parts.append(uni[h] + " sute")
+        if 10 <= r <= 19:
+            parts.append(spr[r - 10])
+        else:
+            t, u = divmod(r, 10)
+            if t == 2:
+                parts.append("douăzeci și " + uni[u] if u else "douăzeci")
+            elif t > 2:
+                parts.append(uni[t] + "zeci și " + uni[u] if u else uni[t] + "zeci")
+            elif u:
+                parts.append(uni[u])
+        return " ".join(parts)
+
+    def scale(x, one, few, many):
+        if x == 1:
+            return one
+        if x == 2:
+            return "două " + few
+        if x < 20:
+            return sub1000(x) + " " + few
+        return sub1000(x) + " de " + many
+
+    out = []
+    mil, n = divmod(n, 1000000)
+    mii, n = divmod(n, 1000)
+    if mil:
+        out.append(scale(mil, "un milion", "milioane", "milioane"))
+    if mii:
+        out.append(scale(mii, "o mie", "mii", "mii"))
+    if n:
+        out.append(sub1000(n))
+    s = " ".join(out)
+    return s[:1].upper() + s[1:]
+
+
+def _ro_amount(total) -> str:
+    v = float(total or 0)
+    bani = round((v - int(v)) * 100)
+    return f"{_ro_words(v)}, {bani:02d} ({_fmt(v)}) lei"
 
 
 class Biro26Report:
@@ -134,13 +203,109 @@ class Biro26Report:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ── engine selection (jsreport | pdfme) per report kind ──
+
+    @staticmethod
+    def get_engines() -> Dict[str, Any]:
+        import json
+        try:
+            with open(os.path.join(_TPL_DIR, ENGINES_FILE), encoding="utf-8") as f:
+                eng = json.load(f)
+        except Exception:
+            eng = {}
+        return {"success": True,
+                "data": {k: (eng.get(k) if eng.get(k) in ("jsreport", "pdfme")
+                             else "jsreport") for k in REPORT_KINDS}}
+
+    @staticmethod
+    def set_engines(mapping: Dict[str, str]) -> Dict[str, Any]:
+        import json
+        cur = Biro26Report.get_engines()["data"]
+        for k, v in (mapping or {}).items():
+            if k in REPORT_KINDS and v in ("jsreport", "pdfme"):
+                cur[k] = v
+        with open(os.path.join(_TPL_DIR, ENGINES_FILE), "w", encoding="utf-8") as f:
+            json.dump(cur, f, indent=2)
+        return {"success": True, "data": cur}
+
+    # ── pdfme engine path ──
+
+    @staticmethod
+    def _pdfme_inputs(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Flatten the report data into pdfme text inputs; the items table
+        gets the totals appended as extra rows (so long item lists can never
+        overlap a fixed-position totals block)."""
+        import json
+        f, c = data["firm"], data["client"]
+        client_line = c["name"] + \
+            (f", tel.: {c['phone']}" if c.get("phone") else "")
+        if kind == "invoice":
+            rows = [[str(i + 1), it["name"], str(it["qty"]), it["um"],
+                     _fmt(it["price"]), _fmt(it["sum"])]
+                    for i, it in enumerate(data["items"])]
+            rows += [["", "", "", "", "Total (Итого):", _fmt(data["total"])],
+                     ["", "", "", "", "Suma TVA (НДС):", _fmt(data["tva"])],
+                     ["", "", "", "", "SPRE PLATA:", _fmt(data["total"])]]
+            return {
+                "furnizor_block":
+                    f"Furnizor: {f['name']}\nAdresa: {f['address']}\n"
+                    f"Cont de decontare nr.: {f['iban']}\n{f['bank']}\n"
+                    f"BRANCH: {f['branch']}\nCod fiscal: {f['fiscal_code']}"
+                    + (f"\nTelefon: {f['phone']}" if f.get("phone") else ""),
+                "title": f"CONT DE PLATĂ № {data['number']}",
+                "date_ro": data["date_ro"],
+                "platitor_block": "Platitor, adresa: " + client_line +
+                                  "\n(Плательщик и его адрес)",
+                "items": json.dumps(rows, ensure_ascii=False),
+                "spre_plata": "Spre plata / Всего к оплате: " + _ro_amount(data["total"]),
+            }
+        # order
+        rows = [[str(i + 1), it["name"], str(it["cod"]), str(it["qty"]),
+                 it["um"], _fmt(it["price"]), _fmt(it["sum"])]
+                for i, it in enumerate(data["items"])]
+        rows += [["", "", "", "", "", "Total:", _fmt(data["total"])],
+                 ["", "", "", "", "", "Incl. TVA:", _fmt(data["tva"])]]
+        return {
+            "title": f"Comanda cumpărătorului № {data['number']} din {data['date_ro']}",
+            "hr": "",
+            "executor_block": f"Executor: {f['name']}, Cod fiscal {f['fiscal_code']}, {f['address']}",
+            "client_block": "Client: " + client_line,
+            "items": json.dumps(rows, ensure_ascii=False),
+            "total_line": f"Total denumiri {len(data['items'])}, în sumă de "
+                          f"{_fmt(data['total'])} lei\n{_ro_amount(data['total'])}",
+        }
+
+    @staticmethod
+    def render_pdfme(kind: str, data: Dict[str, Any],
+                     template_json: Optional[str] = None) -> Dict[str, Any]:
+        """Render via the pdfme engine of the sidecar (POST /pdfme/generate)."""
+        import json
+        if kind not in PDFME_KINDS:
+            return {"success": False, "error": f"unknown report kind: {kind}"}
+        try:
+            template = json.loads(template_json or _read(PDFME_KINDS[kind]))
+            resp = requests.post(
+                Config.JSREPORT_URL.rstrip("/") + "/pdfme/generate",
+                json={"template": template,
+                      "inputs": [Biro26Report._pdfme_inputs(kind, data)]},
+                timeout=60)
+            if resp.status_code != 200:
+                return {"success": False,
+                        "error": f"pdfme HTTP {resp.status_code}: {resp.text[:400]}"}
+            return {"success": True, "pdf": resp.content}
+        except requests.ConnectionError:
+            return {"success": False,
+                    "error": "report service unavailable (jsreport not running)"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ── template admin (simple editor page in the backoffice) ──
 
     @staticmethod
     def _safe_tpl(name: str) -> Optional[str]:
         """Whitelist guard: plain file name inside reports/templates only."""
         import re
-        if not re.match(r"^[\w.-]+\.(hbs|js)$", name or ""):
+        if not re.match(r"^[\w.-]+\.(hbs|js|json)$", name or ""):
             return None
         p = os.path.join(_TPL_DIR, name)
         return p if os.path.normpath(p).startswith(_TPL_DIR) else None
@@ -150,7 +315,7 @@ class Biro26Report:
         try:
             out = []
             for f in sorted(os.listdir(_TPL_DIR)):
-                if f.endswith((".hbs", ".js")):
+                if f.endswith((".hbs", ".js", ".json")):
                     st = os.stat(os.path.join(_TPL_DIR, f))
                     out.append({"name": f, "size": st.st_size,
                                 "mtime": int(st.st_mtime)})
@@ -176,6 +341,12 @@ class Biro26Report:
             return {"success": False, "error": "template not found"}
         if not (content or "").strip():
             return {"success": False, "error": "empty content"}
+        if name.endswith(".json"):
+            import json
+            try:
+                json.loads(content)
+            except Exception as e:
+                return {"success": False, "error": f"invalid JSON: {e}"}
         try:
             import shutil
             shutil.copy2(p, p + ".bak")
@@ -186,9 +357,11 @@ class Biro26Report:
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def preview(content: str, cod: Optional[int] = None) -> Dict[str, Any]:
+    def preview(content: str, cod: Optional[int] = None,
+                name: Optional[str] = None) -> Dict[str, Any]:
         """Render arbitrary (possibly unsaved) template content with the data
-        of a real document (cod) or a built-in sample."""
+        of a real document (cod) or a built-in sample. pdfme_*.json content
+        goes through the pdfme engine, everything else through jsReport."""
         if cod:
             d = Biro26Report.doc_data(cod)
             if not d.get("success"):
@@ -211,6 +384,11 @@ class Biro26Report:
                 ],
                 "total": 665.0, "tva": 110.84,
             }
+        # RO: sabloanele pdfme_*.json merg prin motorul pdfme
+        # EN: pdfme_*.json templates go through the pdfme engine
+        if name and name.startswith("pdfme") and name.endswith(".json"):
+            kind = "order" if "order" in name else "invoice"
+            return Biro26Report.render_pdfme(kind, data, template_json=content)
         try:
             resp = requests.post(
                 Config.JSREPORT_URL.rstrip("/") + "/api/report",
@@ -242,4 +420,9 @@ class Biro26Report:
             return d
         if allowed_client_cod is not None and int(d["client_cod"]) != int(allowed_client_cod):
             return {"success": False, "error": "document belongs to another client"}
+        # RO: motorul activ per formular (engines.json, editabil in admin)
+        # EN: active engine per form kind (engines.json, editable in the admin)
+        engine = Biro26Report.get_engines()["data"].get(kind, "jsreport")
+        if engine == "pdfme":
+            return Biro26Report.render_pdfme(kind, d["data"])
         return Biro26Report.render(kind, d["data"])

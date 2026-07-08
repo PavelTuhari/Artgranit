@@ -46,7 +46,22 @@ iframe{flex:1;width:100%;border:none;background:#fff}
 
 <div class="lay">
   <div class="files">
-    <h4>reports/templates/</h4>
+    <h4>Motor activ · Активный движок</h4>
+    <div style="font-size:12.5px;margin-bottom:4px">
+      <div style="margin:4px 0">Cont de plată:
+        <select id="eng-invoice" style="width:100%;padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="jsreport">jsReport (Handlebars)</option>
+          <option value="pdfme">pdfme (Designer)</option>
+        </select></div>
+      <div style="margin:4px 0">Comandă:
+        <select id="eng-order" style="width:100%;padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="jsreport">jsReport (Handlebars)</option>
+          <option value="pdfme">pdfme (Designer)</option>
+        </select></div>
+      <button class="btn" style="width:100%;margin-top:4px" onclick="saveEngines()">Aplică motorul · Применить</button>
+      <a href="/UNA.md/orasldev/biro26-pdfme-designer" class="btn gray" style="display:block;text-align:center;text-decoration:none;margin-top:6px">🎨 pdfme Designer (vizual)</a>
+    </div>
+    <h4 style="margin-top:14px">reports/templates/</h4>
     <div id="flist"><span class="muted">…</span></div>
   </div>
 
@@ -119,11 +134,26 @@ async function doSave() {
   }
 }
 
+async function loadEngines() {
+  const r = await j('/api/biro26/report-engines');
+  if (!r.success) return;
+  document.getElementById('eng-invoice').value = r.data.invoice;
+  document.getElementById('eng-order').value = r.data.order;
+}
+async function saveEngines() {
+  const r = await j('/api/biro26/report-engines', {method: 'PUT', body: JSON.stringify({
+    invoice: document.getElementById('eng-invoice').value,
+    order: document.getElementById('eng-order').value})});
+  if (r.success) toast('Motor aplicat · Движок применён: invoice=' + r.data.invoice + ', order=' + r.data.order);
+}
+
 async function doPreview() {
   if (!current) return;
-  if (current.endsWith('.js')) { toast('helpers.js: previzualizați un .hbs · для просмотра откройте .hbs', true); return; }
+  if (current.endsWith('.js') || current === 'engines.json') {
+    toast('Previzualizați un șablon .hbs / pdfme_*.json · откройте шаблон', true); return;
+  }
   const cod = document.getElementById('prev-cod').value.trim();
-  const body = {content: document.getElementById('src').value};
+  const body = {content: document.getElementById('src').value, name: current};
   if (cod) body.cod = parseInt(cod, 10);
   const resp = await fetch(API + '/preview', {method: 'POST', credentials: 'include',
     headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
@@ -138,6 +168,7 @@ async function doPreview() {
 
 window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 loadList().then(() => openFile('biro26_invoice.hbs'));
+loadEngines();
 </script>
 </body>
 </html>
