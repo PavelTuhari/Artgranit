@@ -39,7 +39,8 @@
     <div><b>Cod fiscal:</b> {{firm.fiscal_code}} <span class="lbl">/ Фискальный код</span></div>
     {{#if firm.phone}}<div><b>Telefon:</b> {{firm.phone}} <span class="lbl">/ Телефон</span></div>{{/if}}
   </div>
-  <div class="grow" style="text-align:center; padding-top: 8px">
+  <div class="grow" style="text-align:center; padding-top: 2px">
+    {{#if logo}}<img src="{{logo}}" style="height:40px; margin-bottom:4px">{{/if}}
     <h1>CONT DE PLATĂ № {{number}}</h1>
     <h2>СЧЕТ ФАКТУРА</h2>
     <div><b>{{date_ro}}</b></div>

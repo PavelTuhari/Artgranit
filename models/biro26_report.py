@@ -98,6 +98,20 @@ def _ro_words(n_raw) -> str:
     return s[:1].upper() + s[1:]
 
 
+_LOGO_FILE = "logo.jpg"     # RO: logo-ul clientului / EN: the customer logo
+
+
+def _logo_data_uri() -> Optional[str]:
+    """Customer logo as a data URI (both engines embed it inline);
+    replace reports/templates/logo.jpg to change the logo everywhere."""
+    import base64
+    p = os.path.join(_TPL_DIR, _LOGO_FILE)
+    if not os.path.exists(p):
+        return None
+    with open(p, "rb") as fh:
+        return "data:image/jpeg;base64," + base64.b64encode(fh.read()).decode()
+
+
 def _ro_amount(total) -> str:
     v = float(total or 0)
     bani = round((v - int(v)) * 100)
@@ -169,6 +183,7 @@ class Biro26Report:
             "total": round(total, 2),
             # RO: TVA inclusa in pret / EN: VAT included in the price
             "tva": round(total * rate / (100 + rate), 2),
+            "logo": _logo_data_uri(),
         }
         return {"success": True, "data": data, "client_cod": h["client_cod"]}
 
@@ -258,6 +273,7 @@ class Biro26Report:
                                   "\n(Плательщик и его адрес)",
                 "items": json.dumps(rows, ensure_ascii=False),
                 "spre_plata": "Spre plata / Всего к оплате: " + _ro_amount(data["total"]),
+                "logo": data.get("logo") or "",
             }
         # order
         rows = [[str(i + 1), it["name"], str(it["cod"]), str(it["qty"]),
@@ -273,6 +289,7 @@ class Biro26Report:
             "items": json.dumps(rows, ensure_ascii=False),
             "total_line": f"Total denumiri {len(data['items'])}, în sumă de "
                           f"{_fmt(data['total'])} lei\n{_ro_amount(data['total'])}",
+            "logo": data.get("logo") or "",
         }
 
     @staticmethod
@@ -383,6 +400,7 @@ class Biro26Report:
                      "cod": "GO-00001647", "qty": 1, "um": "șt", "price": 115.0, "sum": 115.0},
                 ],
                 "total": 665.0, "tva": 110.84,
+                "logo": _logo_data_uri(),
             }
         # RO: sabloanele pdfme_*.json merg prin motorul pdfme
         # EN: pdfme_*.json templates go through the pdfme engine
