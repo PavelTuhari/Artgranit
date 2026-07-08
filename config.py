@@ -113,6 +113,23 @@ class Config:
     # RO/EN: display name of the module in all Biro26 UIs (title, header,
     # launcher). Change it in ONE place (here or via env) to rebrand.
     BIRO26_APP_NAME = os.environ.get('BIRO26_APP_NAME', 'OfficePlus')
+
+    # ── jsReport service (reports/ — node sidecar, localhost only) ──
+    # RO: PDF-urile "cont de plata" / "comanda" din cos se genereaza aici.
+    # EN: the cart's invoice/order PDFs are rendered by this service.
+    JSREPORT_URL = os.environ.get('JSREPORT_URL', 'http://127.0.0.1:5488')
+    # RO/EN: seller requisites printed on the forms (override via env)
+    BIRO26_FIRM_NAME = os.environ.get('BIRO26_FIRM_NAME', 'S.R.L. „GRECU OFFICE GROUP”')
+    BIRO26_FIRM_ADDRESS = os.environ.get('BIRO26_FIRM_ADDRESS',
+                                         'Bălţi, str. Libertăţii, 96, ap.(of.) 1')
+    BIRO26_FIRM_FISCAL = os.environ.get('BIRO26_FIRM_FISCAL', '1026602001837')
+    BIRO26_FIRM_IBAN = os.environ.get('BIRO26_FIRM_IBAN', '22517448478')
+    BIRO26_FIRM_BANK = os.environ.get('BIRO26_FIRM_BANK',
+                                      "BC'MOLDOVA-AGROINDBANK'S.A. fil.Balti")
+    BIRO26_FIRM_BRANCH = os.environ.get('BIRO26_FIRM_BRANCH', 'AGRNMD2X750')
+    BIRO26_FIRM_PHONE = os.environ.get('BIRO26_FIRM_PHONE', '')
+    BIRO26_FIRM_DIRECTOR = os.environ.get('BIRO26_FIRM_DIRECTOR', '')
+    BIRO26_TVA_RATE = float(os.environ.get('BIRO26_TVA_RATE', '20'))  # % inclusa in pret
     # Instant Client dir for thick mode (the 23_26 build connects to this 11g DB;
     # the 23_3 build raises ORA-28041). Override via env if installed elsewhere.
     # Permanent local home is ~/lib (never ~/Downloads — macOS TCC blocks shell

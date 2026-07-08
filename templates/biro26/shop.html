@@ -364,9 +364,15 @@ async function makeInvoice() {
   const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify({
     items: c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))})});
   if (r.success) {
+    // RO/EN: link-uri PDF (jsReport) pentru documentul creat
+    const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
     document.getElementById('inv-result').innerHTML =
       '<div class="ok-box">✅ Cont de plată creat · Счёт на оплату создан:<br>' +
-      '<b>Nr. ' + r.data.nrset + '</b> (document COD ' + r.data.cod + ')</div>';
+      '<b>Nr. ' + r.data.nrset + '</b> (document COD ' + r.data.cod + ')<br>' +
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<a class="btn" style="text-decoration:none" target="_blank" href="' + pdf('invoice') + '">⬇ Cont de plată (PDF)</a>' +
+      '<a class="btn gray" style="text-decoration:none" target="_blank" href="' + pdf('order') + '">⬇ Comandă (PDF)</a>' +
+      '</div></div>';
     saveCart([]); renderCart();
   }
 }

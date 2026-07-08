@@ -1,0 +1,13 @@
+{
+  "name": "artgranit-reports",
+  "version": "1.0.0",
+  "private": true,
+  "description": "jsReport service for Artgranit (Biro26 invoice/order PDFs). RO: serviciu de rapoarte / EN: reporting service.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "jsreport": "^4.9.0"
+  }
+}

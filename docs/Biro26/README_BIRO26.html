@@ -364,5 +364,33 @@ API: <code>GET /api/biro26/univers/&lt;cod&gt;/variants</code>,
 <li>Каталог (<code>/products</code>, <code>/shop/products</code>) отдаёт
 <code>variant</code>, <code>master_cod</code>, <code>var_cnt</code>.</li>
 </ul>
+
+<h2>14. Печатные формы (jsReport) / printable forms</h2>
+<p>В ядро платформы добавлен <strong>jsReport</strong> — отдельный Node.js-сервис
+(<code>reports/</code>, порт <code>127.0.0.1:5488</code>, systemd-юнит
+<code>jsreport.service</code>). Flask отправляет Handlebars-шаблон + данные inline
+в <code>POST /api/report</code> (recipe <code>chrome-pdf</code>) и получает PDF —
+store jsReport не используется, шаблоны версионируются в репозитории:</p>
+<ul>
+<li><code>reports/templates/biro26_invoice.hbs</code> — «Cont de plată / Счёт-фактура»
+(двуязычная, реквизиты продавца из <code>BIRO26_FIRM_*</code> в config/.env);</li>
+<li><code>reports/templates/biro26_order.hbs</code> — «Comanda cumpărătorului»;</li>
+<li><code>reports/templates/helpers.js</code> — формат денег + сумма прописью
+по-румынски (<code>roAmount</code>).</li>
+</ul>
+<p><strong>Корзина:</strong> после «Создать счёт на оплату» в магазине появляются
+кнопки «⬇ Cont de plată (PDF)» и «⬇ Comandă (PDF)»; в backoffice обе формы
+открываются автоматически. Endpoint:
+<code>GET /api/biro26/shop/report/&lt;invoice|order&gt;/&lt;cod&gt;</code> —
+клиент магазина видит только свои документы (DTDEP = его univers_cod),
+сессия backoffice — любые. Данные берутся из
+VMDB_ST201M/D + TMS_UNIVERS + YBIRO_CLIENT; НДС считается как включённый
+(<code>BIRO26_TVA_RATE</code>, по умолчанию 20%).</p>
+<p><strong>Запуск локально:</strong> <code>cd reports && npm install && node server.js</code>
+(Studio: http://127.0.0.1:5488). <strong>Сервер:</strong> Node 20 (NodeSource),
+зависимости Chromium через apt, юнит с <code>MemoryHigh=450M/MemoryMax=600M</code>
+(на машине &lt;1 GB RAM; 2 GB swap). Первый рендер ~20 с (холодный старт
+Chromium), дальше ~5–7 с. Если сервис лежит, API отвечает
+<code>report service unavailable</code> — счёт при этом создаётся как обычно.</p>
 </body>
 </html>

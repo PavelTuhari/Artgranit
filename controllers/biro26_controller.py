@@ -312,6 +312,21 @@ class Biro26Controller:
             angro=num("angro"), ionline=num("ionline"),
             codprice=int(d.get("codprice") or 1))
 
+    # ── printable reports (jsReport sidecar): cont de plata / comanda ──
+    @staticmethod
+    def shop_report(kind: str, cod: int) -> Dict[str, Any]:
+        """PDF of an ERP document. Public shop clients may only print their
+        own documents; a backoffice session may print any."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        c = session.get("biro26_client")
+        if c:
+            return Biro26Report.render_doc(kind, cod,
+                                           allowed_client_cod=c["univers_cod"])
+        if session.get("username") or session.get("authenticated"):
+            return Biro26Report.render_doc(kind, cod)
+        return {"success": False, "error": "login required"}
+
     # ── product variants (BIRO26_VARIANTS master/detail families) ──
     @staticmethod
     def get_variants(cod: int) -> Dict[str, Any]:

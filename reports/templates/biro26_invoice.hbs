@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5px; color: #000; padding: 24px 28px; }
+  .row { display: flex; gap: 14px; }
+  .grow { flex: 1; }
+  h1 { font-size: 15px; text-align: center; margin: 2px 0; }
+  h2 { font-size: 11px; text-align: center; font-weight: normal; margin-bottom: 8px; }
+  .req { border: 1px solid #000; padding: 6px 8px; margin-bottom: 8px; }
+  .req div { margin: 1.5px 0; }
+  .lbl { color: #333; font-size: 9px; }
+  table.items { width: 100%; border-collapse: collapse; margin: 10px 0 4px; }
+  table.items th, table.items td { border: 1px solid #000; padding: 4px 6px; }
+  table.items th { font-size: 9.5px; text-align: center; background: #f2f2f2; }
+  td.num { text-align: right; white-space: nowrap; }
+  td.ctr { text-align: center; }
+  .totals { width: 100%; border-collapse: collapse; }
+  .totals td { padding: 2px 6px; }
+  .totals .lab { text-align: right; font-weight: bold; }
+  .totals .val { text-align: right; width: 110px; font-weight: bold; }
+  .words { margin: 8px 0 14px; }
+  .sig { display: flex; justify-content: space-between; margin-top: 26px; }
+  .sig div { width: 46%; border-top: 1px solid #000; padding-top: 3px; font-size: 10px; }
+  .note { font-size: 9px; font-style: italic; margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<div class="row">
+  <div class="grow req">
+    <div><b>Furnizor:</b> {{firm.name}} <span class="lbl">/ Поставщик</span></div>
+    <div><b>Adresa:</b> {{firm.address}} <span class="lbl">/ адрес</span></div>
+    <div><b>Cont de decontare nr.:</b> {{firm.iban}} <span class="lbl">/ Расчетный счет</span></div>
+    <div><b>{{firm.bank}}</b></div>
+    <div><b>BRANCH:</b> {{firm.branch}}</div>
+    <div><b>Cod fiscal:</b> {{firm.fiscal_code}} <span class="lbl">/ Фискальный код</span></div>
+    {{#if firm.phone}}<div><b>Telefon:</b> {{firm.phone}} <span class="lbl">/ Телефон</span></div>{{/if}}
+  </div>
+  <div class="grow" style="text-align:center; padding-top: 8px">
+    <h1>CONT DE PLATĂ № {{number}}</h1>
+    <h2>СЧЕТ ФАКТУРА</h2>
+    <div><b>{{date_ro}}</b></div>
+  </div>
+</div>
+
+<div class="req">
+  <div><b>Platitor, adresa:</b> {{client.name}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, tel.: {{client.phone}}{{/if}}
+    <span class="lbl">/ Плательщик и его адрес</span></div>
+  {{#if client.fiscal_code}}<div><b>Cod fiscal:</b> {{client.fiscal_code}} <span class="lbl">/ Фискальный код</span></div>{{/if}}
+  {{#if client.iban}}<div><b>Cont de decontare nr.:</b> {{client.iban}} <span class="lbl">/ Расчетный счет</span></div>{{/if}}
+</div>
+
+<div class="note">Contul e valabil timp de TREI zile. Va multumim pentru achitarea la timp.<br>
+Данный счет действителен в течение ТРЕХ банковских дней. Заранее благодарны за своевременную оплату.</div>
+
+<table class="items">
+  <thead>
+    <tr>
+      <th style="width:26px">№</th>
+      <th>Denumirea / Предмет счета</th>
+      <th style="width:60px">Cant. / Кол-во</th>
+      <th style="width:58px">Un. de mas. / Ед.Изм.</th>
+      <th style="width:76px">Pretul / Цена</th>
+      <th style="width:86px">Suma / Сумма</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+    <tr>
+      <td class="ctr">{{inc @index}}</td>
+      <td>{{name}}</td>
+      <td class="num">{{qty}}</td>
+      <td class="ctr">{{um}}</td>
+      <td class="num">{{fmt price}}</td>
+      <td class="num">{{fmt sum}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<table class="totals">
+  <tr><td class="lab">Total (Итого):</td><td class="val">{{fmt total}}</td></tr>
+  <tr><td class="lab">Suma TVA (Сумма НДС):</td><td class="val">{{fmt tva}}</td></tr>
+  <tr><td class="lab">SPRE PLATA (ВСЕГО К ОПЛАТЕ):</td><td class="val">{{fmt total}}</td></tr>
+</table>
+
+<div class="words"><b>Spre plata:</b> {{roAmount total}} <span class="lbl">/ Всего к оплате</span></div>
+
+<div class="sig">
+  <div>Conducatorul <span class="lbl">/ Директор</span>{{#if firm.director}}: {{firm.director}}{{/if}}</div>
+  <div>Contabil Sef <span class="lbl">/ Главный бухгалтер</span> &nbsp;&nbsp; L.Ș. <span class="lbl">/ М.П.</span></div>
+</div>
+
+</body>
+</html>
