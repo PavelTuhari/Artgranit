@@ -199,6 +199,50 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/login   # → 200
 **Перезапуск — только `sudo systemctl restart artgranit`** (никогда pkill+nohup:
 процесс уйдёт из-под systemd и не поднимется после ребута).
 
+### 4.7a jsReport (печатные формы корзины: счёт на оплату + заказ)
+
+Отдельный Node.js-сервис `reports/` (порт `127.0.0.1:5488`); Flask ходит в него
+по `JSREPORT_URL` (по умолчанию `http://127.0.0.1:5488`). Шаблоны Handlebars —
+в `reports/templates/` (репозиторий), store jsReport не используется.
+
+```bash
+# Node 20 + зависимости Chromium (Ubuntu 24.04: имена пакетов с t64)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
+sudo apt-get install -y libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
+  libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 \
+  libpango-1.0-0 libcairo2 libasound2t64 fonts-dejavu-core
+# при <1.5 GB RAM обязателен swap 2GB (см. free -m; fallocate -l 2G /swapfile ...)
+
+cd /home/ubuntu/artgranit/reports && npm install --no-audit --no-fund
+
+sudo tee /etc/systemd/system/jsreport.service >/dev/null <<'EOF'
+[Unit]
+Description=jsReport service (Artgranit reports sidecar)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/artgranit/reports
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+MemoryHigh=450M
+MemoryMax=600M
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload && sudo systemctl enable --now jsreport
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5488/   # → 200 (старт ~20-30 c)
+```
+
+Реквизиты продавца на формах — env `BIRO26_FIRM_*` (см. `config.py`), НДС —
+`BIRO26_TVA_RATE` (включён в цену, по умолчанию 20). Проверка после миграции:
+`GET /api/biro26/shop/report/invoice/<cod>` с сессией клиента → `application/pdf`
+(первый рендер ~20 с — холодный старт Chromium). Если jsreport лежит, счёт всё
+равно создаётся; API вернёт `report service unavailable`.
+
 ### 4.8 nginx + SSL
 
 ```bash

@@ -1217,6 +1217,9 @@ async function cartInvoice() {
     const b = await r.json();
     if (b.success) {
       toast(t('cart_invoice_ok') + ': NRSET ' + b.data.nrset + ' (COD ' + b.data.cod + ')', 'ok');
+      // printable PDFs via the jsReport sidecar (invoice + order forms)
+      window.open('/api/biro26/shop/report/invoice/' + b.data.cod, '_blank');
+      window.open('/api/biro26/shop/report/order/' + b.data.cod, '_blank');
     } else {
       toast(t('cart_invoice_err') + ': ' + (b.error || ''), 'err');
     }

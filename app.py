@@ -5479,6 +5479,19 @@ def api_biro26_shop_variants():
     # public read-only variant family (choose a characteristic in the shop)
     return jsonify(Biro26Controller.shop_variants())
 
+@app.route('/api/biro26/shop/report/<kind>/<int:cod>', methods=['GET'])
+def api_biro26_shop_report(kind, cod):
+    # PDF via the jsReport sidecar; shop clients only for their own docs,
+    # backoffice sessions for any (see Biro26Controller.shop_report)
+    r = Biro26Controller.shop_report(kind, cod)
+    if not r.get('success'):
+        return jsonify(r), (401 if r.get('error') == 'login required' else 400)
+    names = {'invoice': 'Cont_de_plata', 'order': 'Comanda'}
+    resp = app.response_class(r['pdf'], mimetype='application/pdf')
+    resp.headers['Content-Disposition'] = \
+        f'inline; filename="{names.get(kind, kind)}_{cod}.pdf"'
+    return resp
+
 @app.route('/api/biro26/shop/invoice', methods=['POST'])
 def api_biro26_shop_invoice():
     return jsonify(Biro26Controller.shop_invoice())
