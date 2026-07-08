@@ -351,10 +351,11 @@ angro, ionline}, <code>POST /api/biro26/products/price/delete</code>
 <strong>fire-and-forget</strong> (фоновый поток; корзина не ждёт и не падает
 из-за уведомлений):</p>
 <ul>
-<li><strong>Email</strong> — SMTP-сервер и пароль настраиваются ТОЛЬКО в
-<code>.env</code> (<code>BIRO26_SMTP_HOST/PORT/USER/PASSWORD/FROM</code>,
-<code>BIRO26_SMTP_SSL=1</code> для SSL-порта 465); получатели (через запятую) —
-в админке;</li>
+<li><strong>Email</strong> — ВСЕ поля настраиваются в админке (host, port,
+user, пароль, from, SSL, получатели). Секреты при этом в БД не попадают:
+SMTP-поля админка записывает в <code>.env</code> на сервере
+(<code>BIRO26_SMTP_*</code>) и применяет сразу без рестарта; пароль обратно
+не показывается (пустое поле при сохранении = оставить прежний);</li>
 <li><strong>Telegram</strong> — токен бота (@BotFather) и chat_id — в админке;</li>
 <li><strong>WhatsApp</strong> — через бесплатный CallMeBot: добавить их номер в
 контакты, отправить «I allow callmebot to send me messages», полученный apikey

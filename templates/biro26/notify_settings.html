@@ -43,13 +43,25 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
 
   <div class="card">
     <h3>📧 Email <span id="smtp-badge" class="badge">SMTP: ?</span></h3>
-    <div class="hint">Serverul SMTP se configurează în <code>.env</code>
-      (BIRO26_SMTP_HOST / PORT / USER / PASSWORD / FROM, opțional BIRO26_SMTP_SSL=1) —
-      parolele nu se țin în DB. Aici doar destinatarii.
-      / SMTP-сервер задаётся в .env; здесь — только получатели.</div>
+    <div class="hint">Toate câmpurile se salvează de aici: setările SMTP se scriu în
+      <code>.env</code> pe server (parola nu ajunge în DB și nu se afișează înapoi)
+      și se aplică imediat, fără restart.
+      / Все поля сохраняются отсюда: SMTP пишется в .env на сервере (пароль не
+      попадает в БД и не показывается обратно), применяется сразу без рестарта.</div>
     <label class="sw"><input type="checkbox" id="f-email-en"> Activat · Включено</label>
     <label>Destinatari (virgulă) · Получатели (через запятую)</label>
     <input type="text" id="f-email-to" placeholder="office@firma.md, manager@firma.md">
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div><label>SMTP host</label><input type="text" id="f-smtp-host" placeholder="smtp.gmail.com"></div>
+      <div><label>Port</label><input type="text" id="f-smtp-port" placeholder="587"></div>
+    </div>
+    <label>SMTP user (login)</label>
+    <input type="text" id="f-smtp-user" placeholder="user@firma.md">
+    <label>SMTP parola · пароль <span id="pwd-hint" class="badge" style="display:none">setată ✓ (gol = nu se schimbă)</span></label>
+    <input type="password" id="f-smtp-password" placeholder="••••••••" autocomplete="new-password">
+    <label>From (expeditor; gol = user)</label>
+    <input type="text" id="f-smtp-from" placeholder="noreply@firma.md">
+    <label class="sw" style="margin-top:8px"><input type="checkbox" id="f-smtp-ssl"> SSL direct (port 465) · fără = STARTTLS (587)</label>
     <div class="acts"><button class="btn gray" onclick="test('email')">Trimite test · Тест</button></div>
   </div>
 
@@ -99,6 +111,8 @@ async function j(url, opts) {
 }
 const F = {
   notify_email_enabled: ['f-email-en', 1], notify_email_to: ['f-email-to', 0],
+  smtp_host: ['f-smtp-host', 0], smtp_port: ['f-smtp-port', 0],
+  smtp_user: ['f-smtp-user', 0], smtp_from: ['f-smtp-from', 0], smtp_ssl: ['f-smtp-ssl', 1],
   notify_tg_enabled: ['f-tg-en', 1], notify_tg_token: ['f-tg-token', 0], notify_tg_chat: ['f-tg-chat', 0],
   notify_wa_enabled: ['f-wa-en', 1], notify_wa_phone: ['f-wa-phone', 0], notify_wa_apikey: ['f-wa-apikey', 0],
 };
@@ -110,8 +124,11 @@ async function load() {
     if (isChk) el.checked = r.data[k] === '1'; else el.value = r.data[k] || '';
   }
   const b = document.getElementById('smtp-badge');
-  b.textContent = 'SMTP: ' + (r.data.smtp_configured ? 'configurat ✓' : 'neconfigurat (.env)');
+  b.textContent = 'SMTP: ' + (r.data.smtp_configured ? 'configurat ✓' : 'neconfigurat');
   b.className = 'badge' + (r.data.smtp_configured ? ' ok' : '');
+  const ph = document.getElementById('pwd-hint');
+  ph.style.display = r.data.smtp_has_password ? '' : 'none';
+  ph.className = 'badge ok';
 }
 async function save() {
   const body = {};
@@ -119,8 +136,15 @@ async function save() {
     const el = document.getElementById(id);
     body[k] = isChk ? (el.checked ? '1' : '0') : el.value.trim();
   }
+  // RO/EN: parola se trimite doar daca s-a introdus una noua
+  const pw = document.getElementById('f-smtp-password').value;
+  if (pw) body.smtp_password = pw;
   const r = await j(API, {method: 'PUT', body: JSON.stringify(body)});
-  if (r.success) toast('Salvat · Сохранено ✓');
+  if (r.success) {
+    toast('Salvat · Сохранено ✓ (SMTP → .env)');
+    document.getElementById('f-smtp-password').value = '';
+    load();
+  }
 }
 async function test(channel) {
   await save();

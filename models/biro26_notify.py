@@ -14,6 +14,7 @@ EN: Settings (recipients, toggles, messenger tokens) are edited in the
 """
 from __future__ import annotations
 
+import os
 import threading
 from typing import Any, Dict, Optional
 
@@ -30,6 +31,47 @@ KEYS = [
     "NOTIFY_WA_ENABLED", "NOTIFY_WA_PHONE", "NOTIFY_WA_APIKEY",
 ]
 
+# RO: campurile SMTP se editeaza tot in admin, dar se SCRIU in .env (regula
+# proiectului: secretele nu stau in DB) si se aplica imediat in proces.
+# EN: the SMTP fields are edited in the same admin page but are WRITTEN to
+# .env (project rule: secrets never live in the DB) and applied to the
+# running process immediately (no restart needed).
+SMTP_ENV = {
+    "smtp_host": "BIRO26_SMTP_HOST",
+    "smtp_port": "BIRO26_SMTP_PORT",
+    "smtp_user": "BIRO26_SMTP_USER",
+    "smtp_password": "BIRO26_SMTP_PASSWORD",
+    "smtp_from": "BIRO26_SMTP_FROM",
+    "smtp_ssl": "BIRO26_SMTP_SSL",
+}
+_ENV_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+
+
+def _update_env_file(pairs: Dict[str, str]) -> None:
+    """Update KEY=VALUE lines in .env preserving everything else (order,
+    comments); missing keys are appended at the end."""
+    lines = []
+    if os.path.exists(_ENV_FILE):
+        with open(_ENV_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    seen = set()
+    out = []
+    for ln in lines:
+        key = ln.split("=", 1)[0].strip() if "=" in ln and not ln.lstrip().startswith("#") else None
+        if key in pairs:
+            out.append(f"{key}={pairs[key]}")
+            seen.add(key)
+        else:
+            out.append(ln)
+    missing = [k for k in pairs if k not in seen]
+    if missing:
+        if out and out[-1].strip():
+            out.append("")
+        out.append("# Biro26 notifications SMTP (managed by the admin page)")
+        out.extend(f"{k}={pairs[k]}" for k in missing)
+    with open(_ENV_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+
 
 class Biro26Notify:
 
@@ -44,6 +86,14 @@ class Biro26Notify:
                 {f"k{i}": k for i, k in enumerate(KEYS)}))
             vals = {r["skey"].lower(): (r["sval"] or "") for r in rows}
             data = {k.lower(): vals.get(k.lower(), "") for k in KEYS}
+            # RO: campurile SMTP vin din config/.env; parola NU se intoarce
+            # EN: SMTP fields come from config/.env; the password is never echoed
+            data["smtp_host"] = Config.BIRO26_SMTP_HOST
+            data["smtp_port"] = str(Config.BIRO26_SMTP_PORT)
+            data["smtp_user"] = Config.BIRO26_SMTP_USER
+            data["smtp_from"] = Config.BIRO26_SMTP_FROM
+            data["smtp_ssl"] = "1" if Config.BIRO26_SMTP_SSL else "0"
+            data["smtp_has_password"] = bool(Config.BIRO26_SMTP_PASSWORD)
             data["smtp_configured"] = bool(Config.BIRO26_SMTP_HOST)
             return {"success": True, "data": data}
         except Exception as e:
@@ -52,6 +102,32 @@ class Biro26Notify:
     @staticmethod
     def save_settings(d: Dict[str, Any]) -> Dict[str, Any]:
         try:
+            # 1) SMTP -> .env (+ live update of the running process)
+            env_pairs: Dict[str, str] = {}
+            for fld, env_key in SMTP_ENV.items():
+                if fld not in d:
+                    continue
+                v = str(d[fld] or "").strip()
+                if fld == "smtp_password" and not v:
+                    continue          # empty password field = keep the current one
+                if fld == "smtp_port":
+                    v = v or "587"
+                if fld == "smtp_ssl":
+                    v = "1" if v in ("1", "true", "on") else "0"
+                env_pairs[env_key] = v
+            if env_pairs:
+                _update_env_file(env_pairs)
+                for env_key, v in env_pairs.items():
+                    os.environ[env_key] = v
+                Config.BIRO26_SMTP_HOST = os.environ.get("BIRO26_SMTP_HOST", Config.BIRO26_SMTP_HOST)
+                Config.BIRO26_SMTP_PORT = int(os.environ.get("BIRO26_SMTP_PORT", Config.BIRO26_SMTP_PORT) or 587)
+                Config.BIRO26_SMTP_USER = os.environ.get("BIRO26_SMTP_USER", Config.BIRO26_SMTP_USER)
+                if "BIRO26_SMTP_PASSWORD" in env_pairs:
+                    Config.BIRO26_SMTP_PASSWORD = env_pairs["BIRO26_SMTP_PASSWORD"]
+                Config.BIRO26_SMTP_FROM = os.environ.get("BIRO26_SMTP_FROM", "") or Config.BIRO26_SMTP_USER
+                Config.BIRO26_SMTP_SSL = os.environ.get("BIRO26_SMTP_SSL", "0") in ("1", "true", "yes")
+
+            # 2) everything else -> YBIRO_SETTINGS
             steps = []
             for k in KEYS:
                 if k.lower() in d:
@@ -59,11 +135,12 @@ class Biro26Notify:
                         "sql": "BEGIN y_ai_BIRO26.set_setting(:k, :v); END;",
                         "params": {"k": k, "v": str(d[k.lower()] or "")[:400]},
                         "kind": "dml"})
-            if not steps:
+            if steps:
+                r = Biro26DB().execute_script(steps)
+                if not r.get("success"):
+                    return {"success": False, "error": r.get("message")}
+            elif not env_pairs:
                 return {"success": False, "error": "nothing to save"}
-            r = Biro26DB().execute_script(steps)
-            if not r.get("success"):
-                return {"success": False, "error": r.get("message")}
             return Biro26Notify.get_settings()
         except Exception as e:
             return {"success": False, "error": str(e)}
