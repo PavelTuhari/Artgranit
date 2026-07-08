@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Șabloane rapoarte</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b;height:100vh;display:flex;flex-direction:column}
+.top{background:#0d0d1a;color:#e2e8f0;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.top .logo{font-weight:700;color:#4f8ef7}
+.top a{color:#94a3b8;text-decoration:none;font-size:13px}
+.top .sp{flex:1}
+.lay{flex:1;display:grid;grid-template-columns:230px 1fr 1fr;gap:0;min-height:0}
+.files{background:#fff;border-right:1px solid #e2e8f0;padding:10px;overflow-y:auto}
+.files h4{font-size:12px;color:#64748b;margin-bottom:8px}
+.file{display:block;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+.file:hover{background:#f1f5f9}
+.file.on{background:#dbeafe;color:#1d4ed8;font-weight:600}
+.file .meta{display:block;font-size:10px;color:#94a3b8;font-family:inherit}
+.ed{display:flex;flex-direction:column;min-width:0;border-right:1px solid #e2e8f0}
+.edbar{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#fff;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+.edbar .name{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:600}
+.edbar .sp{flex:1}
+.btn{background:#1d4ed8;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.gray{background:#e2e8f0;color:#1e293b}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+textarea{flex:1;width:100%;border:none;outline:none;resize:none;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;background:#0f172a;color:#e2e8f0;tab-size:2}
+.prev{display:flex;flex-direction:column;min-width:0;background:#e2e8f0}
+.prevbar{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#fff;border-bottom:1px solid #e2e8f0}
+.prevbar input{width:110px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px}
+iframe{flex:1;width:100%;border:none;background:#fff}
+.hint{font-size:11px;color:#64748b;padding:6px 10px;background:#fffbeb;border-top:1px solid #fde68a}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.muted{color:#64748b}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">{{ app_name }} · Șabloane rapoarte / Шаблоны отчётов</span>
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/biro26">← {{ app_name }}</a>
+</div>
+
+<div class="lay">
+  <div class="files">
+    <h4>reports/templates/</h4>
+    <div id="flist"><span class="muted">…</span></div>
+  </div>
+
+  <div class="ed">
+    <div class="edbar">
+      <span class="name" id="fname">—</span>
+      <span class="sp"></span>
+      <button class="btn gray" onclick="doPreview()">👁 Previzualizare · Просмотр</button>
+      <button class="btn" id="save-btn" onclick="doSave()" disabled>💾 Salvează · Сохранить</button>
+    </div>
+    <textarea id="src" spellcheck="false" oninput="dirty=true; document.getElementById('save-btn').disabled=false"></textarea>
+    <div class="hint">⚠ Modificările de pe server trăiesc până la următorul deploy — sincronizați în repo (reports/templates/).
+      La salvare versiunea anterioară merge în <b>&lt;nume&gt;.bak</b>.
+      / Правки на сервере живут до следующего деплоя — синхронизируйте в репозиторий; при сохранении прежняя версия уходит в .bak.</div>
+  </div>
+
+  <div class="prev">
+    <div class="prevbar">
+      <span style="font-size:12.5px">PDF cu date:</span>
+      <input id="prev-cod" type="number" placeholder="COD doc (gol = demo)">
+      <span class="muted" style="font-size:11px">gol = date demo · пусто = демо-данные</span>
+    </div>
+    <iframe id="pv" title="preview"></iframe>
+  </div>
+</div>
+
+<script>
+const API = '/api/biro26/report-templates';
+let current = null, dirty = false;
+
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 3500);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+
+async function loadList() {
+  const r = await j(API);
+  if (!r.success) return;
+  document.getElementById('flist').innerHTML = (r.data || []).map(f =>
+    '<span class="file' + (f.name === current ? ' on' : '') + '" onclick="openFile(\'' + f.name + '\')">' +
+    f.name + '<span class="meta">' + f.size + ' b · ' + new Date(f.mtime * 1000).toLocaleString() + '</span></span>').join('');
+}
+
+async function openFile(name) {
+  if (dirty && !confirm('Modificări nesalvate — continuați? · Есть несохранённые правки — продолжить?')) return;
+  const r = await j(API + '/' + encodeURIComponent(name));
+  if (!r.success) return;
+  current = name; dirty = false;
+  document.getElementById('fname').textContent = name;
+  document.getElementById('src').value = r.data.content;
+  document.getElementById('save-btn').disabled = true;
+  loadList();
+}
+
+async function doSave() {
+  if (!current) return;
+  const r = await j(API + '/' + encodeURIComponent(current),
+    {method: 'PUT', body: JSON.stringify({content: document.getElementById('src').value})});
+  if (r.success) {
+    dirty = false; document.getElementById('save-btn').disabled = true;
+    toast('Salvat · Сохранено (' + r.data.backup + ')');
+    loadList();
+  }
+}
+
+async function doPreview() {
+  if (!current) return;
+  if (current.endsWith('.js')) { toast('helpers.js: previzualizați un .hbs · для просмотра откройте .hbs', true); return; }
+  const cod = document.getElementById('prev-cod').value.trim();
+  const body = {content: document.getElementById('src').value};
+  if (cod) body.cod = parseInt(cod, 10);
+  const resp = await fetch(API + '/preview', {method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  if (!resp.ok) {
+    const b = await resp.json().catch(() => ({}));
+    toast(b.error || ('HTTP ' + resp.status), true);
+    return;
+  }
+  const blob = await resp.blob();
+  document.getElementById('pv').src = URL.createObjectURL(blob);
+}
+
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+loadList().then(() => openFile('biro26_invoice.hbs'));
+</script>
+</body>
+</html>

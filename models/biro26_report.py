@@ -134,6 +134,104 @@ class Biro26Report:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ── template admin (simple editor page in the backoffice) ──
+
+    @staticmethod
+    def _safe_tpl(name: str) -> Optional[str]:
+        """Whitelist guard: plain file name inside reports/templates only."""
+        import re
+        if not re.match(r"^[\w.-]+\.(hbs|js)$", name or ""):
+            return None
+        p = os.path.join(_TPL_DIR, name)
+        return p if os.path.normpath(p).startswith(_TPL_DIR) else None
+
+    @staticmethod
+    def list_templates() -> Dict[str, Any]:
+        try:
+            out = []
+            for f in sorted(os.listdir(_TPL_DIR)):
+                if f.endswith((".hbs", ".js")):
+                    st = os.stat(os.path.join(_TPL_DIR, f))
+                    out.append({"name": f, "size": st.st_size,
+                                "mtime": int(st.st_mtime)})
+            return {"success": True, "data": out}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def read_template(name: str) -> Dict[str, Any]:
+        p = Biro26Report._safe_tpl(name)
+        if not p or not os.path.exists(p):
+            return {"success": False, "error": "template not found"}
+        with open(p, encoding="utf-8") as f:
+            return {"success": True, "data": {"name": name, "content": f.read()}}
+
+    @staticmethod
+    def save_template(name: str, content: str) -> Dict[str, Any]:
+        """Overwrite a template; the previous version goes to <name>.bak.
+        NB: edits on the server live until the next code deploy — sync the
+        change back into the repo (reports/templates/) to keep it."""
+        p = Biro26Report._safe_tpl(name)
+        if not p or not os.path.exists(p):
+            return {"success": False, "error": "template not found"}
+        if not (content or "").strip():
+            return {"success": False, "error": "empty content"}
+        try:
+            import shutil
+            shutil.copy2(p, p + ".bak")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(content)
+            return {"success": True, "data": {"name": name, "backup": name + ".bak"}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def preview(content: str, cod: Optional[int] = None) -> Dict[str, Any]:
+        """Render arbitrary (possibly unsaved) template content with the data
+        of a real document (cod) or a built-in sample."""
+        if cod:
+            d = Biro26Report.doc_data(cod)
+            if not d.get("success"):
+                return d
+            data = d["data"]
+        else:
+            data = {
+                "number": 999, "date_short": "21.04.2026", "date_ro": "21 aprilie 2026",
+                "firm": {"name": Config.BIRO26_FIRM_NAME, "address": Config.BIRO26_FIRM_ADDRESS,
+                         "fiscal_code": Config.BIRO26_FIRM_FISCAL, "iban": Config.BIRO26_FIRM_IBAN,
+                         "bank": Config.BIRO26_FIRM_BANK, "branch": Config.BIRO26_FIRM_BRANCH,
+                         "phone": Config.BIRO26_FIRM_PHONE, "director": Config.BIRO26_FIRM_DIRECTOR},
+                "client": {"name": "Client de test S.R.L.", "cod": 0,
+                           "phone": "+373 690 00 000", "email": "client@test.md"},
+                "items": [
+                    {"name": "HELLO! Dosar din plastic cu clapă cu arc, verde",
+                     "cod": "GO-00001392", "qty": 10, "um": "șt", "price": 55.0, "sum": 550.0},
+                    {"name": "Folii A4 / 80 microni Class Super Clear (pachet de 50)",
+                     "cod": "GO-00001647", "qty": 1, "um": "șt", "price": 115.0, "sum": 115.0},
+                ],
+                "total": 665.0, "tva": 110.84,
+            }
+        try:
+            resp = requests.post(
+                Config.JSREPORT_URL.rstrip("/") + "/api/report",
+                json={"template": {"content": content, "engine": "handlebars",
+                                   "recipe": "chrome-pdf",
+                                   "helpers": _read("helpers.js"),
+                                   "chrome": {"format": "A4",
+                                              "marginTop": "8mm", "marginBottom": "10mm",
+                                              "marginLeft": "6mm", "marginRight": "6mm"}},
+                      "data": data},
+                timeout=90)
+            if resp.status_code != 200:
+                return {"success": False,
+                        "error": f"jsreport HTTP {resp.status_code}: {resp.text[:400]}"}
+            return {"success": True, "pdf": resp.content}
+        except requests.ConnectionError:
+            return {"success": False,
+                    "error": "report service unavailable (jsreport not running)"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     @staticmethod
     def render_doc(kind: str, cod: int,
                    allowed_client_cod: Optional[int] = None) -> Dict[str, Any]:

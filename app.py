@@ -5426,6 +5426,39 @@ def api_biro26_price_set():
 def api_biro26_price_delete():
     return _b26(Biro26Controller.product_price_delete)
 
+# ── report template admin (simple editor for reports/templates/*) ──
+@app.route('/UNA.md/orasldev/biro26-report-templates')
+def biro26_report_templates():
+    """Simple admin: edit the jsReport templates (invoice/order/helpers)."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/report_templates.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/report-templates', methods=['GET'])
+def api_biro26_rtpl_list():
+    return _b26(Biro26Controller.report_templates_list)
+
+@app.route('/api/biro26/report-templates/<name>', methods=['GET'])
+def api_biro26_rtpl_get(name):
+    return _b26(lambda: Biro26Controller.report_template_get(name))
+
+@app.route('/api/biro26/report-templates/<name>', methods=['PUT'])
+def api_biro26_rtpl_save(name):
+    return _b26(lambda: Biro26Controller.report_template_save(name))
+
+@app.route('/api/biro26/report-templates/preview', methods=['POST'])
+def api_biro26_rtpl_preview():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    r = Biro26Controller.report_template_preview()
+    if not r.get('success'):
+        return jsonify(r), 400
+    resp = app.response_class(r['pdf'], mimetype='application/pdf')
+    resp.headers['Content-Disposition'] = 'inline; filename="preview.pdf"'
+    return resp
+
 # ── product variants (BIRO26_VARIANTS): family detail + editing ──
 @app.route('/api/biro26/univers/<int:cod>/variants', methods=['GET'])
 def api_biro26_variants_get(cod):
