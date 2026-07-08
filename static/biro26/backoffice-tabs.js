@@ -390,35 +390,82 @@ function selectPriceGroup(codgrp, rowEl) {
   loadPrices();
 }
 
-async function loadPrices() {
+/* Listă de prețuri grid — infinite scroll (same pattern as Marfă/Stoc):
+   the first page loads on open, the rest streams in while scrolling. */
+const priceState = { offset: 0, limit: 200, hasMore: true, loading: false, seq: 0 };
+let priceScrollBound = false;
+
+function bindPricesScroll() {
+  if (priceScrollBound) return;
+  const wrap = el('price-table-wrap');
+  if (!wrap) return;
+  wrap.addEventListener('scroll', () => {
+    if (wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 200) {
+      loadPrices(false);
+    }
+  });
+  priceScrollBound = true;
+}
+
+function priceRowHtml(p, i) {
+  const k = 'price-' + i;
+  return '<tr>' +
+    imgCell(p.image) +
+    '<td class="mono">' + p.codgrp + '</td>' +
+    '<td class="mono" style="cursor:pointer" onclick="showItemCard(' + p.sc + ')">' + p.sc + '</td>' +
+    '<td style="cursor:pointer" onclick="showItemCard(' + p.sc + ')">' + escapeHtml(p.denumirea || '') + '</td>' +
+    '<td>' + escapeHtml(p.datastart || '') + '</td>' +
+    '<td class="num"><input class="edit-input" id="' + k + '-pretv" value="' + fmtNum(p.pretv) + '" style="width:78px"></td>' +
+    '<td class="num"><input class="edit-input" id="' + k + '-pretv1" value="' + fmtNum(p.pretv1) + '" style="width:78px"></td>' +
+    '<td class="num"><input class="edit-input" id="' + k + '-pretv2" value="' + fmtNum(p.pretv2) + '" style="width:78px"></td>' +
+    '<td class="td-actions"><button class="btn-sm" onclick="savePrice(' + p.codprice + ',' + p.codgrp + ',' + p.sc + ',\'' + escapeHtml(p.datastart) + '\',\'' + k + '\')">' + t('btn_save') + '</button></td>' +
+    '</tr>';
+}
+
+async function loadPrices(reset = true) {
+  bindPricesScroll();
+  if (!reset && (priceState.loading || !priceState.hasMore)) return;
+  const my = ++priceState.seq;              // a newer filter click wins
   const tbody = el('price-body');
-  tbody.innerHTML = emptyRow(tbody, 9, 'loading');
+  if (reset) {
+    priceState.offset = 0;
+    priceState.hasMore = true;
+    tbody.innerHTML = emptyRow(tbody, 9, 'loading');
+    if (el('price-end-row')) el('price-end-row').style.display = 'none';
+  }
+  priceState.loading = true;
+  if (el('price-more-row')) el('price-more-row').style.display = reset ? 'none' : '';
+
   const cp = numVal('price-codprice', 1);
   const qs = new URLSearchParams();
   qs.set('codprice', cp);
   if (val('price-codgrp')) qs.set('codgrp', val('price-codgrp'));
-  qs.set('limit', '500');
+  qs.set('limit', String(priceState.limit));
+  qs.set('offset', String(priceState.offset));
   const r = await apiGet(API + '/prices?' + qs.toString());
-  if (!r.success) { tbody.innerHTML = emptyRow(tbody, 9, 'no_data'); return; }
+  if (my !== priceState.seq) return;        // superseded
+  priceState.loading = false;
+  if (el('price-more-row')) el('price-more-row').style.display = 'none';
+  if (!r.success) {
+    if (reset) tbody.innerHTML = emptyRow(tbody, 9, 'no_data');
+    return;
+  }
   const rows = r.data || [];
-  el('price-count').textContent = rows.length;
+  priceState.hasMore = rows.length === priceState.limit;
+  const base = priceState.offset;           // unique input ids across pages
+  priceState.offset += rows.length;
+  el('price-count').textContent = priceState.offset;
   if (el('price-sel-info')) el('price-sel-info').textContent =
     'codprice=' + cp + (val('price-codgrp') ? (' · codgrp=' + val('price-codgrp')) : '');
-  if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 9, 'no_data'); return; }
-  tbody.innerHTML = rows.map((p, i) => {
-    const k = 'price-' + i;
-    return '<tr>' +
-      imgCell(p.image) +
-      '<td class="mono">' + p.codgrp + '</td>' +
-      '<td class="mono" style="cursor:pointer" onclick="showItemCard(' + p.sc + ')">' + p.sc + '</td>' +
-      '<td style="cursor:pointer" onclick="showItemCard(' + p.sc + ')">' + escapeHtml(p.denumirea || '') + '</td>' +
-      '<td>' + escapeHtml(p.datastart || '') + '</td>' +
-      '<td class="num"><input class="edit-input" id="' + k + '-pretv" value="' + fmtNum(p.pretv) + '" style="width:78px"></td>' +
-      '<td class="num"><input class="edit-input" id="' + k + '-pretv1" value="' + fmtNum(p.pretv1) + '" style="width:78px"></td>' +
-      '<td class="num"><input class="edit-input" id="' + k + '-pretv2" value="' + fmtNum(p.pretv2) + '" style="width:78px"></td>' +
-      '<td class="td-actions"><button class="btn-sm" onclick="savePrice(' + p.codprice + ',' + p.codgrp + ',' + p.sc + ',\'' + escapeHtml(p.datastart) + '\',\'' + k + '\')">' + t('btn_save') + '</button></td>' +
-      '</tr>';
-  }).join('');
+  if (reset) {
+    tbody.innerHTML = rows.length
+      ? rows.map((p, i) => priceRowHtml(p, base + i)).join('')
+      : emptyRow(tbody, 9, 'no_data');
+  } else if (rows.length) {
+    tbody.insertAdjacentHTML('beforeend', rows.map((p, i) => priceRowHtml(p, base + i)).join(''));
+  }
+  if (el('price-end-row')) el('price-end-row').style.display =
+    (!priceState.hasMore && priceState.offset) ? '' : 'none';
 }
 
 async function showItemCard(cod) {
