@@ -130,6 +130,18 @@ class Config:
     BIRO26_FIRM_PHONE = os.environ.get('BIRO26_FIRM_PHONE', '')
     BIRO26_FIRM_DIRECTOR = os.environ.get('BIRO26_FIRM_DIRECTOR', '')
     BIRO26_TVA_RATE = float(os.environ.get('BIRO26_TVA_RATE', '20'))  # % inclusa in pret
+
+    # ── notifications about new orders/invoices (module Biro26) ──
+    # RO/EN: SMTP secrets live ONLY here (.env, project rule); recipients,
+    # toggles and messenger tokens are edited in the admin page and stored
+    # in YBIRO_SETTINGS.
+    BIRO26_SMTP_HOST = os.environ.get('BIRO26_SMTP_HOST', '')
+    BIRO26_SMTP_PORT = int(os.environ.get('BIRO26_SMTP_PORT', '587'))
+    BIRO26_SMTP_USER = os.environ.get('BIRO26_SMTP_USER', '')
+    BIRO26_SMTP_PASSWORD = os.environ.get('BIRO26_SMTP_PASSWORD', '')
+    BIRO26_SMTP_FROM = os.environ.get('BIRO26_SMTP_FROM',
+                                      os.environ.get('BIRO26_SMTP_USER', ''))
+    BIRO26_SMTP_SSL = os.environ.get('BIRO26_SMTP_SSL', '0').strip() in ('1', 'true', 'yes')
     # Instant Client dir for thick mode (the 23_26 build connects to this 11g DB;
     # the 23_3 build raises ORA-28041). Override via env if installed elsewhere.
     # Permanent local home is ~/lib (never ~/Downloads — macOS TCC blocks shell

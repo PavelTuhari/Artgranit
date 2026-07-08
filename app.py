@@ -5426,6 +5426,27 @@ def api_biro26_price_set():
 def api_biro26_price_delete():
     return _b26(Biro26Controller.product_price_delete)
 
+# ── notification settings: email / Telegram / WhatsApp on new invoices ──
+@app.route('/UNA.md/orasldev/biro26-notify-settings')
+def biro26_notify_settings():
+    """Admin: notification channels for new orders/invoices."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/notify_settings.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/notify-settings', methods=['GET'])
+def api_biro26_notify_get():
+    return _b26(Biro26Controller.notify_settings_get)
+
+@app.route('/api/biro26/notify-settings', methods=['PUT'])
+def api_biro26_notify_save():
+    return _b26(Biro26Controller.notify_settings_save)
+
+@app.route('/api/biro26/notify-test', methods=['POST'])
+def api_biro26_notify_test():
+    return _b26(Biro26Controller.notify_test)
+
 # ── report template admin (simple editor for reports/templates/*) ──
 @app.route('/UNA.md/orasldev/biro26-report-templates')
 def biro26_report_templates():

@@ -344,6 +344,28 @@ angro, ionline}, <code>POST /api/biro26/products/price/delete</code>
 {sc, date 'DD.MM.YYYY'}. Цены публичного магазина
 (<code>shop_prices_for</code>) также читаются из прайс-листа на сегодня.</p>
 
+<h2>12А. Уведомления о новых счетах/заказах / notifications</h2>
+<p>Админка: <code>/UNA.md/orasldev/biro26-notify-settings</code> (карточка «🔔»
+на лаунчере). При создании счёта на оплату (магазин или backoffice)
+платформа шлёт уведомление «№, клиент, сумма» по включённым каналам —
+<strong>fire-and-forget</strong> (фоновый поток; корзина не ждёт и не падает
+из-за уведомлений):</p>
+<ul>
+<li><strong>Email</strong> — SMTP-сервер и пароль настраиваются ТОЛЬКО в
+<code>.env</code> (<code>BIRO26_SMTP_HOST/PORT/USER/PASSWORD/FROM</code>,
+<code>BIRO26_SMTP_SSL=1</code> для SSL-порта 465); получатели (через запятую) —
+в админке;</li>
+<li><strong>Telegram</strong> — токен бота (@BotFather) и chat_id — в админке;</li>
+<li><strong>WhatsApp</strong> — через бесплатный CallMeBot: добавить их номер в
+контакты, отправить «I allow callmebot to send me messages», полученный apikey
+и свой телефон — в админке.</li>
+</ul>
+<p>Настройки хранятся в <code>YBIRO_SETTINGS</code> (ключи <code>NOTIFY_*</code>,
+через <code>y_ai_BIRO26.set_setting</code>). На каждой карточке канала есть
+кнопка «Trimite test». API (за auth): <code>GET/PUT /api/biro26/notify-settings</code>,
+<code>POST /api/biro26/notify-test</code> {channel}. Код:
+<code>models/biro26_notify.py</code>.</p>
+
 <h2>13. Варианты товаров (BIRO26_VARIANTS) / product variants</h2>
 <p>Источник — таблица <code>BIRO26_VARIANTS</code> (см.
 <code>BIRO26_VARIANTS_IMPLEMENTATION.md</code>): семья = <code>MASTER_COD</code>,

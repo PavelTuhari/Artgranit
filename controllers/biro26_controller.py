@@ -327,6 +327,23 @@ class Biro26Controller:
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
 
+    # ── notification settings (email / Telegram / WhatsApp) ──
+    @staticmethod
+    def notify_settings_get() -> Dict[str, Any]:
+        from models.biro26_notify import Biro26Notify
+        return Biro26Notify.get_settings()
+
+    @staticmethod
+    def notify_settings_save() -> Dict[str, Any]:
+        from models.biro26_notify import Biro26Notify
+        return Biro26Notify.save_settings(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def notify_test() -> Dict[str, Any]:
+        from models.biro26_notify import Biro26Notify
+        d = request.get_json(silent=True) or {}
+        return Biro26Notify.test_channel(str(d.get("channel") or ""))
+
     # ── report template admin (edit reports/templates/* in the browser) ──
     @staticmethod
     def report_templates_list() -> Dict[str, Any]:
@@ -531,4 +548,13 @@ class Biro26Controller:
             for it in clean:
                 if c or it["price"] <= 0:
                     it["price"] = pr["data"].get(it["cod"], 0)
-        return Biro26Store.shop_create_invoice(client_cod, clean)
+        res = Biro26Store.shop_create_invoice(client_cod, clean)
+        if res.get("success"):
+            # RO/EN: notificari email/Telegram/WhatsApp — fire-and-forget
+            from models.biro26_notify import Biro26Notify
+            Biro26Notify.notify_new_doc(
+                res["data"]["cod"], res["data"]["nrset"],
+                (c or {}).get("name") or f"COD {client_cod}",
+                sum(it["qty"] * it["price"] for it in clean),
+                source="magazin" if c else "backoffice")
+        return res

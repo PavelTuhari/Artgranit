@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Notificări</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b}
+.top{background:#0d0d1a;color:#e2e8f0;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.top .logo{font-weight:700;color:#4f8ef7}
+.top a{color:#94a3b8;text-decoration:none;font-size:13px}
+.top .sp{flex:1}
+.wrap{max-width:760px;margin:20px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:14px}
+.card h3{font-size:15px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card .hint{font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.5}
+label{display:block;font-size:12px;color:#475569;margin:8px 0 3px}
+input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px}
+.sw{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600}
+.btn{background:#1d4ed8;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.gray{background:#e2e8f0;color:#1e293b}
+.acts{display:flex;gap:10px;margin-top:6px}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px;max-width:420px}
+.toast.err{background:#dc2626}
+.badge{font-size:11px;border-radius:10px;padding:2px 8px;background:#fee2e2;color:#991b1b}
+.badge.ok{background:#dcfce7;color:#166534}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">{{ app_name }} · Notificări · Уведомления</span>
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/biro26">← {{ app_name }}</a>
+</div>
+
+<div class="wrap">
+  <p class="hint" style="font-size:12.5px;color:#64748b;margin-bottom:14px">
+    Notificări la crearea conturilor de plată / comenzilor noi (magazin public și back-office).
+    Уведомления о новых счетах/заказах. Настройки хранятся в БД (YBIRO_SETTINGS).
+  </p>
+
+  <div class="card">
+    <h3>📧 Email <span id="smtp-badge" class="badge">SMTP: ?</span></h3>
+    <div class="hint">Serverul SMTP se configurează în <code>.env</code>
+      (BIRO26_SMTP_HOST / PORT / USER / PASSWORD / FROM, opțional BIRO26_SMTP_SSL=1) —
+      parolele nu se țin în DB. Aici doar destinatarii.
+      / SMTP-сервер задаётся в .env; здесь — только получатели.</div>
+    <label class="sw"><input type="checkbox" id="f-email-en"> Activat · Включено</label>
+    <label>Destinatari (virgulă) · Получатели (через запятую)</label>
+    <input type="text" id="f-email-to" placeholder="office@firma.md, manager@firma.md">
+    <div class="acts"><button class="btn gray" onclick="test('email')">Trimite test · Тест</button></div>
+  </div>
+
+  <div class="card">
+    <h3>✈️ Telegram</h3>
+    <div class="hint">Creați un bot la <b>@BotFather</b> → token; aflați chat_id scriind
+      botului și deschizând <code>api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>.
+      / Создайте бота у @BotFather, chat_id — через getUpdates.</div>
+    <label class="sw"><input type="checkbox" id="f-tg-en"> Activat · Включено</label>
+    <label>Bot token</label>
+    <input type="text" id="f-tg-token" placeholder="123456789:AA...">
+    <label>Chat ID (utilizator sau grup) · ID чата</label>
+    <input type="text" id="f-tg-chat" placeholder="-1001234567890">
+    <div class="acts"><button class="btn gray" onclick="test('telegram')">Trimite test · Тест</button></div>
+  </div>
+
+  <div class="card">
+    <h3>💬 WhatsApp <span style="font-size:11px;color:#64748b">(CallMeBot, gratuit)</span></h3>
+    <div class="hint">Adăugați în contacte <b>+34 621 331 709</b> și trimiteți-i pe WhatsApp mesajul
+      «I allow callmebot to send me messages» — primiți un <b>apikey</b> personal.
+      / Добавьте номер CallMeBot в контакты и отправьте ему это сообщение — получите apikey.</div>
+    <label class="sw"><input type="checkbox" id="f-wa-en"> Activat · Включено</label>
+    <label>Telefon (cu prefix) · Телефон (с кодом страны)</label>
+    <input type="text" id="f-wa-phone" placeholder="+37369000000">
+    <label>API key (CallMeBot)</label>
+    <input type="text" id="f-wa-apikey" placeholder="123456">
+    <div class="acts"><button class="btn gray" onclick="test('whatsapp')">Trimite test · Тест</button></div>
+  </div>
+
+  <div class="acts" style="margin-bottom:30px">
+    <button class="btn" onclick="save()">💾 Salvează tot · Сохранить всё</button>
+  </div>
+</div>
+
+<script>
+const API = '/api/biro26/notify-settings';
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const F = {
+  notify_email_enabled: ['f-email-en', 1], notify_email_to: ['f-email-to', 0],
+  notify_tg_enabled: ['f-tg-en', 1], notify_tg_token: ['f-tg-token', 0], notify_tg_chat: ['f-tg-chat', 0],
+  notify_wa_enabled: ['f-wa-en', 1], notify_wa_phone: ['f-wa-phone', 0], notify_wa_apikey: ['f-wa-apikey', 0],
+};
+async function load() {
+  const r = await j(API);
+  if (!r.success) return;
+  for (const [k, [id, isChk]] of Object.entries(F)) {
+    const el = document.getElementById(id);
+    if (isChk) el.checked = r.data[k] === '1'; else el.value = r.data[k] || '';
+  }
+  const b = document.getElementById('smtp-badge');
+  b.textContent = 'SMTP: ' + (r.data.smtp_configured ? 'configurat ✓' : 'neconfigurat (.env)');
+  b.className = 'badge' + (r.data.smtp_configured ? ' ok' : '');
+}
+async function save() {
+  const body = {};
+  for (const [k, [id, isChk]] of Object.entries(F)) {
+    const el = document.getElementById(id);
+    body[k] = isChk ? (el.checked ? '1' : '0') : el.value.trim();
+  }
+  const r = await j(API, {method: 'PUT', body: JSON.stringify(body)});
+  if (r.success) toast('Salvat · Сохранено ✓');
+}
+async function test(channel) {
+  await save();
+  toast('Se trimite testul… · Отправляю тест…');
+  const r = await j('/api/biro26/notify-test', {method: 'POST', body: JSON.stringify({channel})});
+  if (r.success) toast(channel + ': mesaj de test trimis ✓ · тест отправлен ✓');
+}
+load();
+</script>
+</body>
+</html>
