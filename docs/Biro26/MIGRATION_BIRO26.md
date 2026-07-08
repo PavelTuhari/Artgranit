@@ -206,8 +206,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/login   # → 200
 в `reports/templates/` (репозиторий), store jsReport не используется.
 
 ```bash
-# Node 20 + зависимости Chromium (Ubuntu 24.04: имена пакетов с t64)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
+# Node 22+ (jsreport >=4.10 требует >=22.18) + зависимости Chromium (Ubuntu 24.04: имена с t64)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get install -y nodejs
 sudo apt-get install -y libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 \
   libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libxkbcommon0 \
   libpango-1.0-0 libcairo2 libasound2t64 fonts-dejavu-core
@@ -236,6 +236,11 @@ EOF
 sudo systemctl daemon-reload && sudo systemctl enable --now jsreport
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5488/   # → 200 (старт ~20-30 c)
 ```
+
+Второй движок **pdfme** работает в том же сервисе (`POST /pdfme/generate`,
+без Chromium); активный движок per-форма — `reports/templates/engines.json`,
+переключается в админке шаблонов (`/UNA.md/orasldev/biro26-report-templates`),
+визуальный редактор — `/UNA.md/orasldev/biro26-pdfme-designer`.
 
 Реквизиты продавца на формах — env `BIRO26_FIRM_*` (см. `config.py`), НДС —
 `BIRO26_TVA_RATE` (включён в цену, по умолчанию 20). Проверка после миграции:
