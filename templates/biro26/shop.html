@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Biro26 — Magazin</title>
+<title>{{ app_name }} — Magazin</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b}
@@ -67,7 +67,7 @@ td.num,th.num{text-align:right}
 <body>
 
 <div class="top">
-  <span class="logo">Biro26 · Magazin</span>
+  <span class="logo">{{ app_name }} · Magazin</span>
   <span class="sp"></span>
   <span class="who" id="who" style="display:none"></span>
   <button id="btn-auth" onclick="openAuth()">Intrare / Înregistrare</button>
@@ -79,8 +79,6 @@ td.num,th.num{text-align:right}
     <aside class="side">
       <h4>Categorii · Категории</h4>
       <div id="f-tree"><span class="muted">…</span></div>
-      <h4>Brand</h4>
-      <div id="f-brands"><span class="muted">…</span></div>
       <h4>Preț (LEI) · Цена</h4>
       <div id="f-price"></div>
       <div class="prow">
@@ -158,17 +156,17 @@ async function j(url, opts) {
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ── facets (Amazon-style sidebar): grupa->categorie, brands, price ── */
-const F = { grupa: null, categorie: null, brands: new Set(), pmin: null, pmax: null };
+/* ── facets (Amazon-style sidebar): grupa->categorie, price ──
+   NB: fara fatetare pe BRAND — coloana contine furnizori, nu marci */
+const F = { grupa: null, categorie: null, pmin: null, pmax: null };
 const PRICE_PRESETS = [[null,50,'Până la 50 · До 50'],[50,100,'50 – 100'],
   [100,200,'100 – 200'],[200,500,'200 – 500'],[500,null,'Peste 500 · От 500']];
-let treeData = [], brandData = [], brandsExpanded = false;
+let treeData = [];
 
 async function loadFacets() {
-  const [tr, br] = await Promise.all([j(API + '/tree'), j(API + '/brands')]);
+  const tr = await j(API + '/tree');
   treeData = tr.success ? (tr.data || []) : [];
-  brandData = br.success ? (br.data || []) : [];
-  renderTree(); renderBrands(); renderPricePresets();
+  renderTree(); renderPricePresets();
 }
 
 function renderTree() {
@@ -193,19 +191,6 @@ function renderTree() {
   box.innerHTML = h;
 }
 
-function renderBrands() {
-  const box = document.getElementById('f-brands');
-  const list = brandsExpanded ? brandData : brandData.slice(0, 12);
-  box.innerHTML = list.map(b =>
-    '<label class="fac"><input type="checkbox"' + (F.brands.has(b.brand) ? ' checked' : '') +
-    ' onchange="toggleBrand(' + qarg(b.brand) + ')"> ' + esc(b.brand) +
-    ' <span class="cnt">(' + (b.cnt || 0) + ')</span></label>').join('') +
-    (brandData.length > 12
-      ? '<span class="clr" onclick="brandsExpanded=!brandsExpanded;renderBrands()">' +
-        (brandsExpanded ? '▲ Mai puțin · Меньше' : '▼ Mai multe · Больше (' + brandData.length + ')') + '</span>'
-      : '');
-}
-
 function renderPricePresets() {
   document.getElementById('f-price').innerHTML = PRICE_PRESETS.map((p, i) =>
     '<span class="plink' + (F.pmin === p[0] && F.pmax === p[1] ? ' on' : '') +
@@ -216,7 +201,6 @@ function renderPricePresets() {
 function qarg(s){ return s == null ? 'null' : "'" + String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + "'"; }
 
 function setGroup(g, c) { F.grupa = g; F.categorie = c; renderTree(); apply(); }
-function toggleBrand(b) { F.brands.has(b) ? F.brands.delete(b) : F.brands.add(b); apply(); }
 function setPrice(mn, mx) {
   F.pmin = mn; F.pmax = mx;
   document.getElementById('f-pmin').value = mn ?? '';
@@ -230,16 +214,15 @@ function applyPriceInputs() {
   renderPricePresets(); apply();
 }
 function resetFilters() {
-  F.grupa = F.categorie = F.pmin = F.pmax = null; F.brands.clear();
+  F.grupa = F.categorie = F.pmin = F.pmax = null;
   document.getElementById('f-pmin').value = ''; document.getElementById('f-pmax').value = '';
-  renderTree(); renderBrands(); renderPricePresets(); apply();
+  renderTree(); renderPricePresets(); apply();
 }
 function apply(){ renderChips(); load(true); }
 
 function renderChips() {
   const chips = [];
   if (F.grupa) chips.push(['📁 ' + F.grupa + (F.categorie ? ' › ' + F.categorie : ''), "setGroup(null,null)"]);
-  F.brands.forEach(b => chips.push([b, 'toggleBrand(' + qarg(b) + ');renderBrands()']));
   if (F.pmin != null || F.pmax != null)
     chips.push([(F.pmin ?? 0) + ' – ' + (F.pmax ?? '∞') + ' LEI', 'setPrice(null,null)']);
   document.getElementById('chips').innerHTML = chips.map(c =>
@@ -259,7 +242,6 @@ async function load(reset) {
   if (q) qs.set('search', q);
   if (F.grupa) qs.set('grupa', F.grupa);
   if (F.categorie) qs.set('categorie', F.categorie);
-  if (F.brands.size) qs.set('brand', Array.from(F.brands).join(','));
   if (F.pmin != null) qs.set('price_min', F.pmin);
   if (F.pmax != null) qs.set('price_max', F.pmax);
   const r = await j(API + '/products?' + qs);

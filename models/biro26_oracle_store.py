@@ -713,36 +713,29 @@ class Biro26Store:
                       "'^-?[0-9]+([.,][0-9]+)?$') THEN "
                       "TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.')) END)")
         try:
+            # RO: nucleu ieftin (doar u+g+pl: filtrele si sortarea), paginat cu
+            #     ROWNUM; join-urile scumpe (VMS_MPT_TVR view, stoc, barcode,
+            #     variante) se aplica DOAR pe pagina de <=200 randuri.
+            # EN: cheap core (u+g+pl only: all filters and the sort), ROWNUM
+            #     paged; the expensive joins (VMS_MPT_TVR view, stock, barcode,
+            #     variants) run ONLY over the <=200-row page. With filters like
+            #     GRUPA the old single-query form lost the ROWNUM stopkey and
+            #     evaluated the heavy joins across thousands of rows (minutes).
             inner = (
                 "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
-                "g.GRUPA, g.CATEGORIE, g.BRAND, "
+                "g.GRUPA, g.CATEGORIE, g.BRAND, g.PHOTO_URL, g.IMAGE_LINK, "
                 "NVL(pl.PRETV1, g.ANGRO) ANGRO, "
                 "NVL(pl.PRETV2, g.IONLINE) IONLINE, "
                 f"{price_expr} RETAIL1, "
-                "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA, "
-                "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL,g.IMAGE_LINK)) IMAGE, "
-                "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT, "
-                "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT "
+                "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA "
                 "FROM TMS_UNIVERS u "
                 # dedupe: the feed holds a few identical duplicate rows per product
                 "LEFT JOIN (SELECT gg.* FROM (SELECT g0.*, ROW_NUMBER() OVER "
                 "  (PARTITION BY g0.COD_UNIVERS ORDER BY g0.ID) RN0 "
                 "  FROM BIRO26_GOODS g0) gg WHERE gg.RN0 = 1) g ON g.COD_UNIVERS = u.COD "
-                "LEFT JOIN VMS_MPT_TVR m ON m.COD = u.COD "
                 # RO: pretul in vigoare la data ceruta / EN: price effective at the requested date
                 "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
                 "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
-                "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
-                "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
-                "  GROUP BY sc) s ON s.sc = u.COD "
-                "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
-                "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = u.COD "
-                # RO: familia de variante (BIRO26_VARIANTS) — cate variante are grupul
-                # EN: variant family (BIRO26_VARIANTS) — how many variants the group has
-                "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = u.COD "
-                "LEFT JOIN (SELECT MASTER_COD, COUNT(*) VCNT FROM BIRO26_VARIANTS "
-                "  WHERE MASTER_COD IS NOT NULL GROUP BY MASTER_COD) vg "
-                "  ON vg.MASTER_COD = vr.MASTER_COD "
                 "WHERE u.TIP='P'")
             params: Dict[str, Any] = {"pd": price_date}
             if search:
@@ -774,7 +767,27 @@ class Biro26Store:
             if price_max is not None:
                 inner += f" AND {price_expr} <= :pmax"; params["pmax"] = float(price_max)
             inner += " ORDER BY u.DENUMIREA"
-            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
+            outer = (
+                "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
+                "c.GRUPA, c.CATEGORIE, c.BRAND, c.ANGRO, c.IONLINE, c.RETAIL1, "
+                "c.ANGRO_FARA_TVA, "
+                "NVL(m.IE_LINKADRES, NVL(c.PHOTO_URL, c.IMAGE_LINK)) IMAGE, "
+                "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT, "
+                "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT "
+                f"FROM ({_page(inner, limit, offset)}) c "
+                "LEFT JOIN VMS_MPT_TVR m ON m.COD = c.COD "
+                "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
+                "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
+                "  GROUP BY sc) s ON s.sc = c.COD "
+                "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
+                "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = c.COD "
+                "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = c.COD "
+                "LEFT JOIN (SELECT MASTER_COD, COUNT(*) VCNT FROM BIRO26_VARIANTS "
+                "  WHERE MASTER_COD IS NOT NULL GROUP BY MASTER_COD) vg "
+                "  ON vg.MASTER_COD = vr.MASTER_COD "
+                "ORDER BY c.rn")
+            r = Biro26DB().execute_query(outer, params)
             return _result(r)
         except Exception as e:
             return {"success": False, "error": str(e)}

@@ -110,6 +110,9 @@ class Config:
     BIRO26_DB_DSN = os.environ.get('BIRO26_DB_DSN', 'orange.una.md:4024/cloudbd.world')
     BIRO26_NLS_LANGUAGE = os.environ.get('BIRO26_NLS_LANGUAGE', 'ENGLISH')
     BIRO26_NLS_TERRITORY = os.environ.get('BIRO26_NLS_TERRITORY', 'AMERICA')
+    # RO/EN: display name of the module in all Biro26 UIs (title, header,
+    # launcher). Change it in ONE place (here or via env) to rebrand.
+    BIRO26_APP_NAME = os.environ.get('BIRO26_APP_NAME', 'OfficePlus')
     # Instant Client dir for thick mode (the 23_26 build connects to this 11g DB;
     # the 23_3 build raises ORA-28041). Override via env if installed elsewhere.
     # Permanent local home is ~/lib (never ~/Downloads — macOS TCC blocks shell
