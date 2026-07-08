@@ -632,7 +632,7 @@ html, body {
               <span style="flex:1"></span>
               <button class="btn" onclick="loadPrices()" data-i18n="f_apply"></button>
             </div>
-            <div class="data-table-wrap" style="max-height:560px">
+            <div class="data-table-wrap" id="price-table-wrap" style="max-height:560px">
               <table class="data-table">
                 <thead><tr>
                   <th data-i18n="col_image"></th>
@@ -649,6 +649,8 @@ html, body {
                   <tr><td colspan="9"><div class="empty-state"><div class="es-icon">💲</div><p data-i18n="loading"></p></div></td></tr>
                 </tbody>
               </table>
+              <div id="price-more-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_loading_more"></div>
+              <div id="price-end-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_end_of_list"></div>
             </div>
           </div>
         </div>
