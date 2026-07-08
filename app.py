@@ -5523,6 +5523,12 @@ def api_biro26_shop_brands():
     # public read-only brand facet with counts
     return jsonify(Biro26Controller.get_product_brands())
 
+@app.route('/api/biro26/shop/services', methods=['GET'])
+def api_biro26_shop_services():
+    # public read-only: optional services for the cart (group from
+    # YBIRO_SETTINGS.SHOP_SERVICES_GRUPA)
+    return jsonify(Biro26Controller.shop_services())
+
 @app.route('/api/biro26/shop/variants', methods=['GET'])
 def api_biro26_shop_variants():
     # public read-only variant family (choose a characteristic in the shop)

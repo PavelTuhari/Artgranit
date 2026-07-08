@@ -31,6 +31,17 @@ BEGIN
 END;
 /
 
+-- RO: Setarile modulului (normalizate, prefix YBIRO_): ex. grupa de
+--     servicii afisata optional in cosul magazinului public.
+-- EN: Module settings (normalized, YBIRO_ prefix): e.g. the services
+--     group offered optionally in the public shop cart.
+CREATE TABLE YBIRO_SETTINGS (
+  skey       VARCHAR2(60) PRIMARY KEY,
+  sval       VARCHAR2(400),
+  descr      VARCHAR2(200),
+  updated_at TIMESTAMP DEFAULT SYSTIMESTAMP
+);
+
 -- =====================================================================
 -- Package y_ai_BIRO26
 -- =====================================================================
@@ -126,6 +137,41 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
                     p_data     IN DATE     DEFAULT TRUNC(SYSDATE),
                     p_which    IN VARCHAR2 DEFAULT 'V',
                     p_codprice IN NUMBER   DEFAULT NULL) RETURN NUMBER;
+
+  -- ===================================================================
+  -- Nomenclator: functie UNIVERSALA de creare pozitii + noduri de arbore
+  -- Universal product/tree creation
+  -- ===================================================================
+
+  -- RO: Creeaza o pozitie noua de nomenclator si, implicit, nodul/subnodul
+  --     de arbore: arborele Marfa/Stoc este derivat din valorile distincte
+  --     GRUPA -> CATEGORIE din BIRO26_GOODS, deci o GRUPA/CATEGORIE noua
+  --     apare in arbore imediat ce prima pozitie o foloseste. Face, in
+  --     ordine: TMS_UNIVERS (TIP='P'), BIRO26_GOODS (grupa/categorie/
+  --     preturi-feed) si perioada de pret in lista (set_price -> toate
+  --     trei coloanele PRETV/PRETV1/PRETV2). Intoarce COD-ul nou.
+  -- EN: Create a new nomenclature item and, implicitly, the tree
+  --     node/subnode: the Marfa/Stoc tree is derived from the distinct
+  --     GRUPA -> CATEGORIE values of BIRO26_GOODS, so a new GRUPA or
+  --     CATEGORIE appears in the tree as soon as its first item uses it.
+  --     Inserts TMS_UNIVERS (TIP='P'), BIRO26_GOODS and the price-list
+  --     period (set_price -> PRETV/PRETV1/PRETV2). Returns the new COD.
+  FUNCTION add_product(p_denumirea IN VARCHAR2,
+                       p_grupa     IN VARCHAR2,
+                       p_categorie IN VARCHAR2 DEFAULT NULL,
+                       p_retail    IN NUMBER   DEFAULT NULL,
+                       p_angro     IN NUMBER   DEFAULT NULL,
+                       p_online    IN NUMBER   DEFAULT NULL,
+                       p_um        IN VARCHAR2 DEFAULT 'buc.',
+                       p_brand     IN VARCHAR2 DEFAULT NULL,
+                       p_data      IN DATE     DEFAULT TRUNC(SYSDATE))
+    RETURN NUMBER;
+
+  -- RO: Setarile modulului (YBIRO_SETTINGS) — upsert / citire.
+  -- EN: Module settings (YBIRO_SETTINGS) — upsert / read.
+  PROCEDURE set_setting(p_key IN VARCHAR2, p_val IN VARCHAR2,
+                        p_descr IN VARCHAR2 DEFAULT NULL);
+  FUNCTION get_setting(p_key IN VARCHAR2) RETURN VARCHAR2;
 END y_ai_BIRO26;
 /
 
@@ -335,6 +381,74 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
   EXCEPTION WHEN NO_DATA_FOUND THEN
     RETURN NULL;
   END price_on;
+
+  -- ===================================================================
+  -- Nomenclator universal / universal product+tree creation
+  -- ===================================================================
+
+  FUNCTION add_product(p_denumirea IN VARCHAR2,
+                       p_grupa     IN VARCHAR2,
+                       p_categorie IN VARCHAR2 DEFAULT NULL,
+                       p_retail    IN NUMBER   DEFAULT NULL,
+                       p_angro     IN NUMBER   DEFAULT NULL,
+                       p_online    IN NUMBER   DEFAULT NULL,
+                       p_um        IN VARCHAR2 DEFAULT 'buc.',
+                       p_brand     IN VARCHAR2 DEFAULT NULL,
+                       p_data      IN DATE     DEFAULT TRUNC(SYSDATE))
+    RETURN NUMBER IS
+    v_cod NUMBER;
+    v_id  NUMBER;
+  BEGIN
+    IF p_denumirea IS NULL OR p_grupa IS NULL THEN
+      RAISE_APPLICATION_ERROR(-20263,
+        'Denumirea si grupa sunt obligatorii / name and group are required');
+    END IF;
+    -- RO: pozitia in nomenclatorul nativ / EN: native nomenclature row
+    SELECT ID_TMS_UNIVERS.NEXTVAL INTO v_cod FROM dual;
+    INSERT INTO TMS_UNIVERS (COD, DENUMIREA, TIP, UM, GR1, CACCESS)
+    VALUES (v_cod, SUBSTR(p_denumirea, 1, 250), 'P',
+            SUBSTR(p_um, 1, 10), 'TVR', g_caccess);
+    -- RO: randul de feed — GRUPA/CATEGORIE noi creeaza implicit nodul de
+    --     arbore / EN: feed row — new GRUPA/CATEGORIE implicitly creates
+    --     the tree node (the tree is derived from these columns)
+    SELECT NVL(MAX(ID), 0) + 1 INTO v_id FROM BIRO26_GOODS;
+    INSERT INTO BIRO26_GOODS (ID, COD_UNIVERS, DENUMIRE, GRUPA, CATEGORIE,
+                              UNIT, BRAND, ANGRO, IONLINE, RETAIL1)
+    VALUES (v_id, v_cod, SUBSTR(p_denumirea, 1, 500),
+            SUBSTR(p_grupa, 1, 200), SUBSTR(p_categorie, 1, 200),
+            SUBSTR(p_um, 1, 50), SUBSTR(p_brand, 1, 200),
+            NVL(p_angro, p_retail), NVL(p_online, p_retail),
+            TO_CHAR(p_retail, 'FM999999990.00'));
+    -- RO: perioada de pret in lista (toate trei coloanele)
+    -- EN: the price-list period (all three price columns)
+    IF p_retail IS NOT NULL THEN
+      set_price(p_sc => v_cod, p_data => p_data,
+                p_pretv  => p_retail,
+                p_pretv1 => NVL(p_angro, p_retail),
+                p_pretv2 => NVL(p_online, p_retail));
+    END IF;
+    RETURN v_cod;
+  END add_product;
+
+  PROCEDURE set_setting(p_key IN VARCHAR2, p_val IN VARCHAR2,
+                        p_descr IN VARCHAR2 DEFAULT NULL) IS
+  BEGIN
+    MERGE INTO YBIRO_SETTINGS s USING (SELECT p_key k FROM dual) d
+       ON (s.skey = d.k)
+     WHEN MATCHED THEN UPDATE SET s.sval = p_val,
+          s.descr = NVL(p_descr, s.descr), s.updated_at = SYSTIMESTAMP
+     WHEN NOT MATCHED THEN INSERT (skey, sval, descr)
+          VALUES (p_key, p_val, p_descr);
+  END set_setting;
+
+  FUNCTION get_setting(p_key IN VARCHAR2) RETURN VARCHAR2 IS
+    v VARCHAR2(400);
+  BEGIN
+    SELECT sval INTO v FROM YBIRO_SETTINGS WHERE skey = p_key;
+    RETURN v;
+  EXCEPTION WHEN NO_DATA_FOUND THEN
+    RETURN NULL;
+  END get_setting;
 
 END y_ai_BIRO26;
 /

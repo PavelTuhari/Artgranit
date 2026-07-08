@@ -377,6 +377,10 @@ class Biro26Controller:
             articol=d.get("articol"), furnizor=d.get("furnizor"))
 
     @staticmethod
+    def shop_services() -> Dict[str, Any]:
+        return Biro26Store.shop_services()
+
+    @staticmethod
     def shop_variants() -> Dict[str, Any]:
         cod = request.args.get("cod", type=int)
         if not cod:

@@ -1115,6 +1115,26 @@ END;""",
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    @staticmethod
+    def shop_services() -> Dict[str, Any]:
+        """Optional services offered in the public shop cart: all items of
+        the group named by the YBIRO_SETTINGS key SHOP_SERVICES_GRUPA
+        (created via y_ai_BIRO26.add_product), priced as of today from the
+        period price list."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT u.COD, u.DENUMIREA, u.UM, "
+                "NVL(pl.PRETV, TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.'))) PRICE "
+                "FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
+                "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
+                "  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
+                "WHERE u.TIP = 'P' AND g.GRUPA = "
+                "  (SELECT sval FROM YBIRO_SETTINGS WHERE skey = 'SHOP_SERVICES_GRUPA') "
+                "ORDER BY u.DENUMIREA"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ============================================================
     # PRODUCT VARIANTS — BIRO26_VARIANTS (master/detail families,
     # see docs BIRO26_VARIANTS_IMPLEMENTATION.md). Group key =
