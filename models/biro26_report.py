@@ -428,6 +428,39 @@ class Biro26Report:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ── native attachments (VMDB_DOCS_OLE / TMDB_DOCS_OLE) ──
+
+    @staticmethod
+    def attach_pdf(cod: int, kind: str, pdf: bytes) -> Dict[str, Any]:
+        """RO: ataseaza PDF-ul generat la document in VMDB_DOCS_OLE (ecranul
+        nativ de atasamente OfficePlus). Un atasament per (document, tip de
+        formular) — regenerarea inlocuieste fisierul, nu il dubleaza.
+        EN: attach the generated PDF to the document via VMDB_DOCS_OLE (the
+        native OfficePlus attachments screen). One attachment per (document,
+        form kind) — re-rendering replaces the file instead of duplicating."""
+        import base64
+        names = {"invoice": "Cont_de_plata", "order": "Comanda"}
+        fname = f"{names.get(kind, kind)}_{cod}.pdf"
+        comment = ("Cont de plata (web/PDF)" if kind == "invoice"
+                   else "Comanda cumparatorului (web/PDF)")
+        blob = {"__b64__": base64.b64encode(pdf).decode()}
+        try:
+            r = Biro26DB().execute_script([
+                {"sql": "DELETE FROM VMDB_DOCS_OLE WHERE NRDOC = :c AND PFILE = :f",
+                 "params": {"c": int(cod), "f": fname}, "kind": "dml"},
+                {"sql": "INSERT INTO VMDB_DOCS_OLE "
+                        "(NRDOC, NRDOC1, TXTCOMMENT, PFILE, OLEOBJ) "
+                        "SELECT :c, NVL(MAX(NRDOC1), 0) + 1, :cm, :f, :b "
+                        "FROM VMDB_DOCS_OLE WHERE NRDOC = :c2",
+                 "params": {"c": int(cod), "cm": comment, "f": fname,
+                            "b": blob, "c2": int(cod)}, "kind": "dml"},
+            ])
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": {"pfile": fname}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     @staticmethod
     def render_doc(kind: str, cod: int,
                    allowed_client_cod: Optional[int] = None) -> Dict[str, Any]:
@@ -441,6 +474,15 @@ class Biro26Report:
         # RO: motorul activ per formular (engines.json, editabil in admin)
         # EN: active engine per form kind (engines.json, editable in the admin)
         engine = Biro26Report.get_engines()["data"].get(kind, "jsreport")
-        if engine == "pdfme":
-            return Biro26Report.render_pdfme(kind, d["data"])
-        return Biro26Report.render(kind, d["data"])
+        res = (Biro26Report.render_pdfme(kind, d["data"]) if engine == "pdfme"
+               else Biro26Report.render(kind, d["data"]))
+        if res.get("success"):
+            # RO: PDF-ul se ataseaza la document (VMDB_DOCS_OLE) — best
+            #     effort: descarcarea nu esueaza daca atasarea da eroare
+            # EN: attach the PDF to the document (VMDB_DOCS_OLE) — best
+            #     effort: the download still works if attaching fails
+            att = Biro26Report.attach_pdf(cod, kind, res["pdf"])
+            res["attached"] = bool(att.get("success"))
+            if not att.get("success"):
+                res["attach_error"] = att.get("error")
+        return res
