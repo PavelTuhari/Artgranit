@@ -73,6 +73,28 @@ def _capture_dbms_output(cur):
     return lines
 
 
+def _exec(cur, sql, params):
+    """RO: executa cu suport pentru parametri binari prin JSON —
+    {"__b64__": "..."} devine bytes legat explicit ca BLOB (peste 32KB
+    Oracle l-ar lega altfel ca LONG -> ORA-01461); ex. atasarea PDF-urilor
+    in VMDB_DOCS_OLE.
+    EN: execute with binary-param support over the JSON contract —
+    {"__b64__": "..."} becomes bytes explicitly bound as BLOB (beyond 32KB
+    Oracle would otherwise bind LONG -> ORA-01461); e.g. attaching PDFs
+    into VMDB_DOCS_OLE."""
+    import base64
+    out, blob_keys = {}, {}
+    for k, v in (params or {}).items():
+        if isinstance(v, dict) and "__b64__" in v:
+            out[k] = base64.b64decode(v["__b64__"])
+            blob_keys[k] = oracledb.DB_TYPE_BLOB
+        else:
+            out[k] = v
+    if blob_keys:
+        cur.setinputsizes(**blob_keys)
+    cur.execute(sql, out)
+
+
 def _handle(conn, req):
     op = req.get("op")
     cur = conn.cursor()
@@ -85,12 +107,12 @@ def _handle(conn, req):
         return {"success": True, "version": row[0] if row else None}
 
     if op == "query":
-        cur.execute(req["sql"], req.get("params") or {})
+        _exec(cur, req["sql"], req.get("params"))
         cols, data = _fetch(cur)
         return {"success": True, "columns": cols, "data": data, "rowcount": len(data)}
 
     if op == "dml":
-        cur.execute(req["sql"], req.get("params") or {})
+        _exec(cur, req["sql"], req.get("params"))
         rc = cur.rowcount
         conn.commit()
         return {"success": True, "rowcount": rc}
@@ -98,7 +120,7 @@ def _handle(conn, req):
     if op == "plsql":
         if req.get("capture_output"):
             cur.callproc("DBMS_OUTPUT.ENABLE", [None])
-        cur.execute(req["plsql"], req.get("params") or {})
+        _exec(cur, req["plsql"], req.get("params"))
         lines = _capture_dbms_output(cur) if req.get("capture_output") else []
         conn.commit()
         return {"success": True, "output_lines": lines}
@@ -106,7 +128,7 @@ def _handle(conn, req):
     if op == "script":
         results = []
         for st in req.get("statements", []):
-            cur.execute(st["sql"], st.get("params") or {})
+            _exec(cur, st["sql"], st.get("params"))
             if st.get("kind") == "query" and cur.description:
                 cols, data = _fetch(cur)
                 results.append({"columns": cols, "data": data, "rowcount": len(data)})
