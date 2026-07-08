@@ -88,3 +88,4 @@ AccountingDemoXcode/AccountingDemoXcodeApp.xcodeproj/xcuserdata/
 # jsReport sidecar (reports/)
 reports/node_modules/
 reports/data/
+reports/templates/*.bak

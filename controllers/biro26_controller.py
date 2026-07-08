@@ -327,6 +327,32 @@ class Biro26Controller:
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
 
+    # ── report template admin (edit reports/templates/* in the browser) ──
+    @staticmethod
+    def report_templates_list() -> Dict[str, Any]:
+        from models.biro26_report import Biro26Report
+        return Biro26Report.list_templates()
+
+    @staticmethod
+    def report_template_get(name: str) -> Dict[str, Any]:
+        from models.biro26_report import Biro26Report
+        return Biro26Report.read_template(name)
+
+    @staticmethod
+    def report_template_save(name: str) -> Dict[str, Any]:
+        from models.biro26_report import Biro26Report
+        d = request.get_json(silent=True) or {}
+        return Biro26Report.save_template(name, d.get("content") or "")
+
+    @staticmethod
+    def report_template_preview() -> Dict[str, Any]:
+        from models.biro26_report import Biro26Report
+        d = request.get_json(silent=True) or {}
+        if not (d.get("content") or "").strip():
+            return {"success": False, "error": "content is required"}
+        cod = d.get("cod")
+        return Biro26Report.preview(d["content"], int(cod) if cod else None)
+
     # ── product variants (BIRO26_VARIANTS master/detail families) ──
     @staticmethod
     def get_variants(cod: int) -> Dict[str, Any]:
