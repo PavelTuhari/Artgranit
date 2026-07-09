@@ -327,6 +327,76 @@ class Biro26Controller:
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
 
+    # ── BIRO26PT universal file import (spec BIRO26PT_WEB_INTERFACE_SPEC) ──
+    @staticmethod
+    def pt_upload() -> Dict[str, Any]:
+        from models.biro26pt_store import Biro26PTStore
+        files = request.files.getlist("files")
+        if not files:
+            return {"success": False, "error": "no files"}
+        saved = Biro26PTStore.save_uploads(files)
+        if not saved.get("success"):
+            return saved
+        run = Biro26PTStore.run_loader(saved["data"]["session"])
+        if not run.get("success"):
+            return run
+        return {"success": True, "data": {
+            "session": saved["data"]["session"],
+            "files": saved["data"]["files"],
+            "loads": run["data"]["loads"]}}
+
+    @staticmethod
+    def pt_analyze() -> Dict[str, Any]:
+        from models.biro26pt_store import Biro26PTStore
+        d = request.get_json(silent=True) or {}
+        out = []
+        for lid in (d.get("load_ids") or [])[:20]:
+            r = Biro26PTStore.analyze(int(lid), d.get("grupa"),
+                                      int(d.get("codprice") or 1))
+            if not r.get("success"):
+                return r
+            out.append(r["data"])
+        if not out:
+            return {"success": False, "error": "load_ids is required"}
+        return {"success": True, "data": out}
+
+    @staticmethod
+    def pt_preview(load_id: int) -> Dict[str, Any]:
+        from models.biro26pt_store import Biro26PTStore
+        a = request.args
+        return Biro26PTStore.preview(load_id, a.get("offset", 0, type=int),
+                                     a.get("limit", 50, type=int))
+
+    @staticmethod
+    def pt_commit() -> Dict[str, Any]:
+        from models.biro26pt_store import Biro26PTStore
+        d = request.get_json(silent=True) or {}
+        out = []
+        for lid in (d.get("load_ids") or [])[:20]:
+            r = Biro26PTStore.commit(int(lid), d.get("grupa"),
+                                     int(d.get("codprice") or 1))
+            if not r.get("success"):
+                return r
+            out.append(r["data"])
+        if not out:
+            return {"success": False, "error": "load_ids is required"}
+        return {"success": True, "data": out}
+
+    @staticmethod
+    def pt_remap() -> Dict[str, Any]:
+        from models.biro26pt_store import Biro26PTStore
+        d = request.get_json(silent=True) or {}
+        if not d.get("load_id") or not d.get("field"):
+            return {"success": False, "error": "load_id and field are required"}
+        col = d.get("col_idx")
+        return Biro26PTStore.remap(int(d["load_id"]), str(d["field"]),
+                                   int(col) if col is not None and col != "" else None)
+
+    @staticmethod
+    def pt_help() -> Dict[str, Any]:
+        from models.biro26pt_store import Biro26PTStore
+        return Biro26PTStore.algo_md()
+
     # ── notification settings (email / Telegram / WhatsApp) ──
     @staticmethod
     def notify_settings_get() -> Dict[str, Any]:

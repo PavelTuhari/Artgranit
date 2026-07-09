@@ -5426,6 +5426,39 @@ def api_biro26_price_set():
 def api_biro26_price_delete():
     return _b26(Biro26Controller.product_price_delete)
 
+# ── BIRO26PT: universal file/zip import (2-phase: dry-run -> commit) ──
+@app.route('/UNA.md/orasldev/biro26-import-pt')
+def biro26_import_pt():
+    """Web UI over the BIRO26PT_importData package (upload -> analyze -> commit)."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/import_pt.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/pt/uploads', methods=['POST'])
+def api_biro26_pt_uploads():
+    return _b26(Biro26Controller.pt_upload)
+
+@app.route('/api/biro26/pt/analyze', methods=['POST'])
+def api_biro26_pt_analyze():
+    return _b26(Biro26Controller.pt_analyze)
+
+@app.route('/api/biro26/pt/preview/<int:load_id>', methods=['GET'])
+def api_biro26_pt_preview(load_id):
+    return _b26(lambda: Biro26Controller.pt_preview(load_id))
+
+@app.route('/api/biro26/pt/commit', methods=['POST'])
+def api_biro26_pt_commit():
+    return _b26(Biro26Controller.pt_commit)
+
+@app.route('/api/biro26/pt/remap', methods=['POST'])
+def api_biro26_pt_remap():
+    return _b26(Biro26Controller.pt_remap)
+
+@app.route('/api/biro26/pt/help', methods=['GET'])
+def api_biro26_pt_help():
+    return _b26(Biro26Controller.pt_help)
+
 # ── notification settings: email / Telegram / WhatsApp on new invoices ──
 @app.route('/UNA.md/orasldev/biro26-notify-settings')
 def biro26_notify_settings():
