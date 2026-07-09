@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Import fișiere (PT)</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b}
+.top{background:#0d0d1a;color:#e2e8f0;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.top .logo{font-weight:700;color:#4f8ef7}
+.top a{color:#94a3b8;text-decoration:none;font-size:13px}
+.top .sp{flex:1}
+.wrap{max-width:1080px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:14px}
+.card h3{font-size:15px;margin-bottom:8px}
+.hint{font-size:12px;color:#64748b;line-height:1.5;margin-bottom:10px}
+.drop{border:2px dashed #94a3b8;border-radius:10px;padding:34px;text-align:center;color:#64748b;cursor:pointer;transition:.15s}
+.drop.over{border-color:#1d4ed8;background:#eff6ff;color:#1d4ed8}
+.btn{background:#1d4ed8;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.gray{background:#e2e8f0;color:#1e293b}
+.btn.green{background:#15803d}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid #f1f5f9;text-align:left}
+th{font-size:11px;color:#475569;background:#f8fafc}
+.num{text-align:right}
+.badge{font-size:10.5px;border-radius:9px;padding:2px 8px;font-weight:700}
+.b-HEADER{background:#dcfce7;color:#166534}
+.b-CONTENT{background:#fef9c3;color:#854d0e}
+.b-LAYOUT{background:#dbeafe;color:#1e40af}
+.b-MANUAL{background:#ede9fe;color:#5b21b6}
+.cards4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+.stat{border:1px solid #e2e8f0;border-radius:8px;padding:10px;text-align:center}
+.stat .v{font-size:22px;font-weight:800}
+.stat .l{font-size:11px;color:#64748b}
+.stat.new .v{color:#15803d}.stat.exist .v{color:#1d4ed8}.stat.amb .v{color:#b45309}.stat.noart .v{color:#b91c1c}
+.st-NEW{color:#15803d;font-weight:600}.st-EXISTING{color:#1d4ed8}
+.st-AMBIGUOUS{background:#fef9c3}.st-NOARTICOL{background:#fee2e2}
+.frm{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin:8px 0}
+.frm label{display:block;font-size:11.5px;color:#475569;margin-bottom:3px}
+.frm input{padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px}
+select{padding:4px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px;max-width:460px}
+.toast.err{background:#dc2626}
+.muted{color:#64748b}
+.tbl-wrap{max-height:380px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px}
+details summary{cursor:pointer;font-weight:600;font-size:13px;margin:8px 0}
+pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;max-height:420px;overflow:auto}
+.step{display:inline-block;background:#1d4ed8;color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;font-size:12px;font-weight:700;margin-right:6px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">{{ app_name }} · Import fișiere (PT) · Импорт файлов</span>
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/biro26">← {{ app_name }}</a>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h3><span class="step">1</span>Fișiere · Файлы</h3>
+    <div class="hint">Trageți aici un grup de fișiere <b>.xlsx / .xls / .csv</b> sau un
+      <b>.zip</b> cu folderul (structura necunoscută e OK — detecția coloanelor o face
+      pachetul <code>BIRO26PT_importData</code> din DB). Alte extensii sunt ignorate.
+      · Перетащите файлы прайсов/остатков/штрихкодов или zip-архив папки.</div>
+    <div class="drop" id="drop" onclick="document.getElementById('fi').click()">
+      ⬆ Trageți fișierele aici sau click · Перетащите файлы или кликните
+      <input type="file" id="fi" multiple accept=".xlsx,.xls,.csv,.zip" style="display:none" onchange="upload(this.files)">
+    </div>
+    <div id="up-result" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" id="card-analyze" style="display:none">
+    <h3><span class="step">2</span>Analiză (dry-run) · Анализ</h3>
+    <div class="hint">Dry-run nu scrie NIMIC în producție — arată cum a înțeles sistemul
+      fișierele. · Ничего не пишет в базу: показывает маппинг и счётчики.</div>
+    <div class="frm">
+      <div><label>Grupa (gol = «IMPORT PT»)</label><input type="text" id="f-grupa" placeholder="Hartie colorata"></div>
+      <div><label>Cod preț · Код прайса</label><input type="number" id="f-codprice" value="1" style="width:90px"></div>
+      <button class="btn" id="btn-analyze" onclick="analyze()">🔍 Analizează · Анализ</button>
+    </div>
+    <div id="an-result"></div>
+  </div>
+
+  <div class="card" id="card-commit" style="display:none">
+    <h3><span class="step">3</span>Import · Импорт</h3>
+    <div class="hint" id="commit-summary"></div>
+    <button class="btn green" id="btn-commit" onclick="doCommit()">✅ Importă în DB · Импортировать</button>
+    <div id="ci-result" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <details><summary>ℹ️ Cum funcționează detecția (algo_md din pachet) · Справка</summary>
+      <pre class="help" id="help">…</pre>
+    </details>
+  </div>
+</div>
+
+<script>
+const API = '/api/biro26/pt';
+let LOADS = [], ANALYSES = [];
+
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 6000);
+}
+async function jj(url, opts) {
+  opts = opts || {}; opts.credentials = 'include';
+  if (opts.body && !(opts.body instanceof FormData))
+    opts.headers = {'Content-Type': 'application/json'};
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ── drag & drop ── */
+const drop = document.getElementById('drop');
+['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => {ev.preventDefault(); drop.classList.add('over');}));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => {ev.preventDefault(); drop.classList.remove('over');}));
+drop.addEventListener('drop', ev => upload(ev.dataTransfer.files));
+
+async function upload(files) {
+  if (!files || !files.length) return;
+  const fd = new FormData();
+  for (const f of files) fd.append('files', f);
+  document.getElementById('up-result').innerHTML = '<span class="muted">Se încarcă și se citește… · Загрузка…</span>';
+  const r = await jj(API + '/uploads', {method: 'POST', body: fd});
+  if (!r.success) { document.getElementById('up-result').innerHTML = ''; return; }
+  LOADS = r.data.loads;
+  document.getElementById('up-result').innerHTML =
+    '<table><thead><tr><th>load_id</th><th>Fișier</th><th>Foaie</th><th class="num">Rânduri</th><th class="num">Coloane</th></tr></thead><tbody>' +
+    LOADS.map(l => '<tr><td class="muted">#' + l.load_id + '</td><td>' + esc(l.file) + '</td><td>' + esc(l.sheet) +
+      '</td><td class="num">' + l.rows + '</td><td class="num">' + l.cols + '</td></tr>').join('') +
+    '</tbody></table>';
+  document.getElementById('card-analyze').style.display = '';
+  document.getElementById('card-commit').style.display = 'none';
+}
+
+/* ── analyze (dry-run) ── */
+async function analyze() {
+  if (!LOADS.length) return;
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  document.getElementById('an-result').innerHTML = '<span class="muted">Dry-run… (nu scrie nimic în DB)</span>';
+  const r = await jj(API + '/analyze', {method: 'POST', body: JSON.stringify({
+    load_ids: LOADS.map(l => l.load_id),
+    grupa: document.getElementById('f-grupa').value.trim() || null,
+    codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1})});
+  btn.disabled = false;
+  if (!r.success) { document.getElementById('an-result').innerHTML = ''; return; }
+  ANALYSES = r.data;
+  document.getElementById('an-result').innerHTML = ANALYSES.map(renderAnalysis).join('');
+  // commit summary
+  let nw = 0, pc = 0, skip = 0;
+  ANALYSES.forEach(a => { nw += a.counters.NEW || 0; pc += a.price_changed || 0;
+    skip += (a.counters.AMBIGUOUS || 0) + (a.counters.NOARTICOL || 0); });
+  document.getElementById('commit-summary').innerHTML =
+    'Va fi creat: <b>' + nw + '</b> poziții noi · prețuri diferite de fișier: <b>' + pc +
+    '</b> (se trec pe perioadă nouă la import) · sărite (AMBIGUOUS/NOARTICOL): <b>' + skip + '</b>. ' +
+    'Importul e idempotent — repetarea nu creează dubluri. · Будет создано ' + nw +
+    ' товаров, цен с расхождением ' + pc + ', пропущено ' + skip + '.';
+  document.getElementById('card-commit').style.display = '';
+}
+
+function renderAnalysis(a) {
+  const l = LOADS.find(x => x.load_id === a.load_id) || {};
+  const c = a.counters;
+  const fieldSel = (fld) => {
+    const cur = (a.mapping.find(m => m.logical_field === fld) || {}).col_idx;
+    return '<select onchange="remap(' + a.load_id + ',\'' + fld + '\', this.value)">' +
+      '<option value=""' + (cur == null ? ' selected' : '') + '>—</option>' +
+      a.headers.map(h => '<option value="' + h.col_idx + '"' + (h.col_idx === cur ? ' selected' : '') + '>c' +
+        h.col_idx + (h.header_text ? ' · ' + esc(String(h.header_text).slice(0, 22)) : '') + '</option>').join('') +
+      '</select>';
+  };
+  return '<div style="border-top:2px solid #e2e8f0;margin-top:14px;padding-top:10px">' +
+    '<b>#' + a.load_id + ' · ' + esc(l.file || '') + '</b> <span class="muted">(' + esc(l.sheet || '') + ')</span>' +
+    '<div class="cards4">' +
+    '<div class="stat new"><div class="v">' + (c.NEW || 0) + '</div><div class="l">NOI · новых</div></div>' +
+    '<div class="stat exist"><div class="v">' + (c.EXISTING || 0) + '</div><div class="l">EXISTENTE (' + (a.price_changed || 0) + ' preț diferit)</div></div>' +
+    '<div class="stat amb"><div class="v">' + (c.AMBIGUOUS || 0) + '</div><div class="l">AMBIGUE · неоднозн.</div></div>' +
+    '<div class="stat noart"><div class="v">' + (c.NOARTICOL || 0) + '</div><div class="l">FĂRĂ ARTICOL</div></div>' +
+    '</div>' +
+    '<table><thead><tr><th>Câmp logic</th><th>Coloană</th><th>Antet fișier</th><th>Strategie</th></tr></thead><tbody>' +
+    a.logical_fields.map(fld => {
+      const m = a.mapping.find(x => x.logical_field === fld);
+      return '<tr><td><b>' + fld + '</b></td><td>' + fieldSel(fld) + '</td>' +
+        '<td>' + esc(m ? (m.header_text || '') : '') + '</td>' +
+        '<td>' + (m ? '<span class="badge b-' + m.strategy + '">' + m.strategy + '</span>' : '<span class="muted">nedetectat</span>') + '</td></tr>';
+    }).join('') + '</tbody></table>' +
+    '<div style="margin-top:8px"><button class="btn gray" onclick="preview(' + a.load_id + ')">👁 Rânduri · Показать строки</button></div>' +
+    '<div id="pv-' + a.load_id + '" style="margin-top:8px"></div></div>';
+}
+
+/* manual mapping override -> re-run dry-run (spec §9) */
+async function remap(loadId, field, colIdx) {
+  const r = await jj(API + '/remap', {method: 'POST', body: JSON.stringify(
+    {load_id: loadId, field, col_idx: colIdx === '' ? null : parseInt(colIdx, 10)})});
+  if (r.success) { toast('Mapping MANUAL salvat — se reface analiza…'); analyze(); }
+}
+
+async function preview(loadId) {
+  const box = document.getElementById('pv-' + loadId);
+  box.innerHTML = '<span class="muted">…</span>';
+  const r = await jj(API + '/preview/' + loadId + '?offset=0&limit=100');
+  if (!r.success) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Status</th><th>Articol</th><th>Denumire</th>' +
+    '<th>Grupa</th><th class="num">Angro</th><th class="num">Online</th><th class="num">Retail</th><th>Barcode</th></tr></thead><tbody>' +
+    (r.data || []).map(x => '<tr class="st-' + x.status + '"><td class="muted">' + x.row_no + '</td>' +
+      '<td class="st-' + x.status + '">' + x.status + '</td><td>' + esc(x.articol) + '</td><td>' + esc(x.denumire) + '</td>' +
+      '<td>' + esc(x.grupa) + '</td><td class="num">' + esc(x.angro) + '</td><td class="num">' + esc(x.ionline) + '</td>' +
+      '<td class="num">' + esc(x.retail1) + '</td><td>' + esc(x.barcode) + '</td></tr>').join('') +
+    '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px">primele 100 rânduri · первые 100 строк; AMBIGUOUS/NOARTICOL vor fi sărite</div>';
+}
+
+/* ── commit ── */
+async function doCommit() {
+  if (!ANALYSES.length) return;
+  if (!confirm('Confirmați importul în baza de producție? · Подтвердить импорт в боевую БД?')) return;
+  const btn = document.getElementById('btn-commit');
+  btn.disabled = true;
+  document.getElementById('ci-result').innerHTML = '<span class="muted">Import…</span>';
+  const r = await jj(API + '/commit', {method: 'POST', body: JSON.stringify({
+    load_ids: ANALYSES.map(a => a.load_id),
+    grupa: document.getElementById('f-grupa').value.trim() || null,
+    codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1})});
+  btn.disabled = false;
+  if (!r.success) { document.getElementById('ci-result').innerHTML = ''; return; }
+  document.getElementById('ci-result').innerHTML = r.data.map(d =>
+    '<div style="margin-top:10px"><b>#' + d.load_id + '</b> — import finalizat ✅' +
+    '<details><summary>Jurnal (' + d.log.length + ' înregistrări) · Журнал</summary>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Faza</th><th>Câmp</th><th>Strategie</th><th>Notă</th><th>ts</th></tr></thead><tbody>' +
+    d.log.map(g => '<tr><td>' + esc(g.phase) + '</td><td>' + esc(g.logical_field) + '</td><td>' + esc(g.strategy) +
+      '</td><td>' + esc(g.note) + '</td><td class="muted">' + esc(g.ts) + '</td></tr>').join('') +
+    '</tbody></table></div></details></div>').join('');
+  toast('Import finalizat · Импорт завершён ✅');
+}
+
+jj(API + '/help').then(r => {
+  if (r.success) document.getElementById('help').textContent = r.data.md || '';
+});
+</script>
+</body>
+</html>

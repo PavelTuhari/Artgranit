@@ -344,6 +344,33 @@ angro, ionline}, <code>POST /api/biro26/products/price/delete</code>
 {sc, date 'DD.MM.YYYY'}. Цены публичного магазина
 (<code>shop_prices_for</code>) также читаются из прайс-листа на сегодня.</p>
 
+<h2>11А. Универсальный импорт файлов (BIRO26PT) / universal file import</h2>
+<p>Страница <code>/UNA.md/orasldev/biro26-import-pt</code> (карточка «📥» на
+лаунчере) — веб-интерфейс поверх PL/SQL-пакета <code>BIRO26PT_importData</code>
+(вся бизнес-логика в БД; веб только принимает файлы и читает таблицы
+результата). Поток в 2 фазы:</p>
+<ol>
+<li><strong>Загрузка:</strong> группа файлов .xlsx/.xls/.csv или один .zip
+(белый список расширений, защита от path-traversal, лимит 50 МБ, изолированная
+папка <code>uploads/biro26pt/&lt;uuid&gt;</code>, чистится после обработки) →
+<code>models/biro26pt_loader.py</code> (subprocess, thick; charset БД
+<strong>CL8MSWIN1251</strong> — кириллица корректна только через
+python-oracledb) → staging <code>BIRO26PT_RAW/HEADER/FILE</code>;</li>
+<li><strong>Dry-run → подтверждение:</strong> <code>import_file(p_commit=FALSE)</code>
+ничего не пишет в прод; UI показывает маппинг колонок (бейджи стратегий
+HEADER/CONTENT/LAYOUT/MANUAL, ручное переопределение с повторным dry-run —
+пишется в <code>BIRO26PT_MAP</code> как MANUAL), карточки-счётчики
+NEW/EXISTING(+цен с расхождением)/AMBIGUOUS/NOARTICOL и превью строк;
+затем явная кнопка «Importă» → <code>p_commit=TRUE</code> + журнал
+<code>BIRO26PT_LOG</code>. Импорт идемпотентен (повтор не создаёт дублей).</li>
+</ol>
+<p>API (за auth): <code>POST /api/biro26/pt/uploads|analyze|commit|remap</code>,
+<code>GET /api/biro26/pt/preview/&lt;load_id&gt;</code> (ROWNUM-пагинация — ERP
+это 11g), <code>GET /api/biro26/pt/help</code> (algo_md из пакета). Спека:
+<code>/BIRO26/BIRO26PT_WEB_INTERFACE_SPEC.md</code>. Проверено на
+<code>Set_data_import/3</code>: 407 строк, маппинг по русским заголовкам,
+повторный commit → +0 товаров/+0 периодов.</p>
+
 <h2>12А. Уведомления о новых счетах/заказах / notifications</h2>
 <p>Админка: <code>/UNA.md/orasldev/biro26-notify-settings</code> (карточка «🔔»
 на лаунчере). При создании счёта на оплату (магазин или backoffice)
