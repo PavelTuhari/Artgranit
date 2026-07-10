@@ -501,6 +501,10 @@ class Biro26Controller:
         return Biro26Store.shop_services()
 
     @staticmethod
+    def shop_transport() -> Dict[str, Any]:
+        return Biro26Store.shop_transport_tariffs()
+
+    @staticmethod
     def shop_variants() -> Dict[str, Any]:
         cod = request.args.get("cod", type=int)
         if not cod:
@@ -640,6 +644,33 @@ class Biro26Controller:
                 return {"success": False, "error": "qty must be > 0"}
             clean.append({"cod": cod, "qty": qty, "price": price,
                           "name": str(it.get("name") or "")[:180]})
+        # RO: transportul tur-retur este OBLIGATORIU pentru clientii
+        #     magazinului si se alege pe server dupa distanta comenzii
+        #     (TMS_MPT_DISTANTE): TUR -> qty 1, KM -> qty = km. Liniile de
+        #     transport trimise de client se ignora (anti-manipulare).
+        # EN: round-trip transport is MANDATORY for shop clients and is
+        #     picked server-side from the order distance: TUR -> qty 1,
+        #     KM -> qty = km. Client-sent transport lines are discarded.
+        if c:
+            try:
+                km = float(d.get("distance_km") or 0)
+            except (TypeError, ValueError):
+                km = 0
+            if km <= 0:
+                return {"success": False,
+                        "error": "distance_km is required (transport obligatoriu)"}
+            tr = Biro26Store.transport_for_km(km)
+            if not tr.get("success"):
+                return tr
+            t = tr["data"]
+            tariff_cods = {r["cod"] for r in
+                           (Biro26Store.shop_transport_tariffs().get("data") or [])}
+            clean = [it for it in clean if it["cod"] not in tariff_cods]
+            clean.append({"cod": int(t["cod"]),
+                          "qty": 1.0 if t["tarif_mode"] == "TUR" else km,
+                          "price": 0,
+                          "name": (t["denumirea"] or "Transport tur-retur")[:180]})
+
         # RO/EN: public client -> authoritative server-side prices only;
         #        operator -> server price fills items sent without a price
         need = [it["cod"] for it in clean] if c else \
