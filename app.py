@@ -5582,6 +5582,12 @@ def api_biro26_shop_transport():
     # public read-only: round-trip transport tariff grid (TMS_MPT_DISTANTE)
     return jsonify(Biro26Controller.shop_transport())
 
+@app.route('/api/biro26/shop/logistics', methods=['GET'])
+def api_biro26_shop_logistics():
+    # public read-only: ACTIVE logistics centers (TMS_MPT_CENTRE_LOG) —
+    # the transport distance is measured from the chosen center
+    return jsonify(Biro26Controller.shop_logistics())
+
 @app.route('/api/biro26/shop/services', methods=['GET'])
 def api_biro26_shop_services():
     # public read-only: optional services for the cart (group from

@@ -145,3 +145,26 @@ TMS_MPT_DISTANTE (cod PK -> TMS_UNIVERS.COD, km_min, km_max NULL=∞, tarif_mode
 
 Изменить тариф: цены — штатно через периоды (`set_price`); диапазоны — UPDATE
 `TMS_MPT_DISTANTE`; новый диапазон = `add_product` + INSERT в `TMS_MPT_DISTANTE`.
+
+
+## 7. Логистические центры (TMS_MPT_CENTRE_LOG)
+
+Транспорт тур-ретур считается **от логистического центра**; дистанция в корзине —
+«Distanța de la centru (km)». Справочник:
+
+```sql
+TMS_MPT_CENTRE_LOG (id PK, denumire UNIQUE, activ '1'/'0', nrord)
+-- (1,'mun. Balti','1')  (2,'Cahul','0')  (3,'Comrat','0')  (4,'Chisinau','0')
+```
+
+Сейчас активен только **mun. Bălți**; Cahul/Comrat/Chișinău заведены неактивными —
+включить: `UPDATE TMS_MPT_CENTRE_LOG SET activ='1' WHERE denumire='Cahul';`
+(в корзине автоматически появится выбор центра, когда активных станет >1).
+Имена в БД — ASCII (charset CL8MSWIN1251 не содержит румынских диакритик).
+
+- Публичный API: `GET /api/biro26/shop/logistics` — только активные центры.
+- В корзине: один активный → фиксированная подпись центра; несколько → select;
+  `POST /shop/invoice` принимает `center_id` (неактивный/неизвестный id
+  подменяется первым активным).
+- В строке счёта транспорт получает суффикс « din <центр>»
+  (напр. «Servicii de transport tur-retur 25-50 km din mun. Balti»).
