@@ -505,6 +505,10 @@ class Biro26Controller:
         return Biro26Store.shop_transport_tariffs()
 
     @staticmethod
+    def shop_logistics() -> Dict[str, Any]:
+        return Biro26Store.shop_logistics_centers()
+
+    @staticmethod
     def shop_variants() -> Dict[str, Any]:
         cod = request.args.get("cod", type=int)
         if not cod:
@@ -663,13 +667,24 @@ class Biro26Controller:
             if not tr.get("success"):
                 return tr
             t = tr["data"]
+            # RO: distanta se masoara DE LA centrul logistic; centrul ales
+            #     trebuie sa fie ACTIV (momentan doar mun. Balti)
+            # EN: the distance is measured FROM the logistics center; the
+            #     chosen center must be ACTIVE (only mun. Balti for now)
+            centers = Biro26Store.shop_logistics_centers().get("data") or []
+            if not centers:
+                return {"success": False, "error": "no active logistics center"}
+            center = next((x for x in centers
+                           if str(x["id"]) == str(d.get("center_id"))),
+                          centers[0])
             tariff_cods = {r["cod"] for r in
                            (Biro26Store.shop_transport_tariffs().get("data") or [])}
             clean = [it for it in clean if it["cod"] not in tariff_cods]
             clean.append({"cod": int(t["cod"]),
                           "qty": 1.0 if t["tarif_mode"] == "TUR" else km,
                           "price": 0,
-                          "name": (t["denumirea"] or "Transport tur-retur")[:180]})
+                          "name": ((t["denumirea"] or "Transport tur-retur")
+                                   + f" din {center['denumire']}")[:180]})
 
         # RO/EN: public client -> authoritative server-side prices only;
         #        operator -> server price fills items sent without a price

@@ -61,6 +61,25 @@ CREATE TABLE TMS_MPT_DISTANTE (
   CONSTRAINT ck_tms_mpt_dist_mode CHECK (tarif_mode IN ('TUR','KM'))
 );
 
+-- RO: Centrele logistice — transportul tur-retur se calculeaza DE LA
+--     centrul logistic (momentan activ doar mun. Balti; Cahul, Comrat si
+--     Chisinau sunt pregatite dar inactive). Nume ASCII: charset-ul bazei
+--     este CL8MSWIN1251 si nu contine diacritice romanesti.
+-- EN: Logistics centers — the round-trip transport is measured FROM the
+--     logistics center (currently only mun. Balti is active; Cahul,
+--     Comrat and Chisinau are seeded inactive). ASCII names: the DB
+--     charset is CL8MSWIN1251 (no Romanian diacritics).
+CREATE TABLE TMS_MPT_CENTRE_LOG (
+  id       NUMBER PRIMARY KEY,
+  denumire VARCHAR2(100) NOT NULL,
+  activ    CHAR(1) DEFAULT '1' NOT NULL,   -- '1' activ / '0' inactiv
+  nrord    NUMBER DEFAULT 0,
+  CONSTRAINT uq_tms_mpt_centre UNIQUE (denumire),
+  CONSTRAINT ck_tms_mpt_centre_act CHECK (activ IN ('0','1'))
+);
+-- seed: INSERT (1,'mun. Balti','1',1), (2,'Cahul','0',2),
+--              (3,'Comrat','0',3), (4,'Chisinau','0',4)
+
 -- =====================================================================
 -- Package y_ai_BIRO26
 -- =====================================================================

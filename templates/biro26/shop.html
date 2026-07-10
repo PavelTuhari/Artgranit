@@ -131,9 +131,11 @@ td.num,th.num{text-align:right}
         <th class="num" id="cart-total">0</th><th></th></tr></tfoot>
     </table>
     <div id="cart-transport" style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px">
-      <div style="font-weight:600;margin-bottom:4px">🚚 Transport tur-retur (obligatoriu) · Транспорт туда-обратно (обязательно)</div>
+      <div style="font-weight:600;margin-bottom:4px">🚚 Transport tur-retur din centrul logistic (obligatoriu) · Транспорт туда-обратно от логистического центра (обязательно)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:12.5px;margin:0">Distanța comenzii · Расстояние (km):</label>
+        <label style="font-size:12.5px;margin:0">Centrul logistic:</label>
+        <span id="tr-center" style="font-size:12.5px;font-weight:600"></span>
+        <label style="font-size:12.5px;margin:0">Distanța de la centru · Расстояние от центра (km):</label>
         <input type="number" id="tr-km" min="1" step="1" style="width:88px;padding:6px;border:1px solid #fed7aa;border-radius:6px"
                oninput="renderTransport()">
         <span id="tr-calc" class="muted" style="font-size:12.5px"></span>
@@ -351,11 +353,21 @@ function openCart(){ document.getElementById('inv-result').innerHTML = ''; rende
 /* ── MANDATORY round-trip transport (TMS_MPT_DISTANTE tariff grid) ──
    RO: tariful se alege automat dupa distanta; serverul il adauga in cont
    EN: the tariff is auto-picked by distance; the server adds the line   */
-let transportGrid = null;
+let transportGrid = null, logCenters = null;
 async function loadTransport() {
   if (transportGrid === null) {
-    const r = await j(API + '/transport');
+    const [r, lc] = await Promise.all([j(API + '/transport'), j(API + '/logistics')]);
     transportGrid = r.success ? (r.data || []) : [];
+    logCenters = lc.success ? (lc.data || []) : [];
+  }
+  // RO: un singur centru activ -> eticheta fixa; mai multe -> select
+  // EN: one active center -> fixed label; several -> a select
+  const box = document.getElementById('tr-center');
+  if (logCenters.length <= 1) {
+    box.textContent = logCenters.length ? logCenters[0].denumire : '—';
+  } else {
+    box.innerHTML = '<select id="tr-center-sel" style="padding:5px;border:1px solid #fed7aa;border-radius:6px;font-size:12.5px">' +
+      logCenters.map(c => '<option value="' + c.id + '">' + esc(c.denumire) + '</option>').join('') + '</select>';
   }
   document.getElementById('tr-grid').innerHTML =
     '<table style="width:100%">' + transportGrid.map(t =>
@@ -448,10 +460,14 @@ async function makeInvoice() {
     document.getElementById('tr-km').focus();
     return;
   }
+  const centerSel = document.getElementById('tr-center-sel');
+  const centerId = centerSel ? parseInt(centerSel.value, 10)
+                             : ((logCenters && logCenters[0]) ? logCenters[0].id : null);
   // RO/EN: serviciile optionale bifate intra in acelasi document
   const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
                  .concat(checkedServices().map(s => ({cod: s.cod, qty: s.qty, name: s.name})));
-  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify({items, distance_km: km})});
+  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(
+    {items, distance_km: km, center_id: centerId})});
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;

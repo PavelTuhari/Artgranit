@@ -1166,6 +1166,20 @@ END;""",
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def shop_logistics_centers(active_only: bool = True) -> Dict[str, Any]:
+        """RO: centrele logistice (transportul tur-retur pleaca DE LA centrul
+        logistic; activ momentan doar mun. Balti). / EN: logistics centers
+        (the round-trip transport starts FROM the center; only mun. Balti is
+        active for now)."""
+        try:
+            sql = ("SELECT id, denumire, activ FROM TMS_MPT_CENTRE_LOG "
+                   + ("WHERE activ = '1' " if active_only else "")
+                   + "ORDER BY nrord, id")
+            return _result(Biro26DB().execute_query(sql))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def transport_for_km(km: float) -> Dict[str, Any]:
         """The tariff row matching a distance (server-side authority for the
         MANDATORY transport line of shop invoices)."""
