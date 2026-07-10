@@ -77,7 +77,8 @@ td.num,th.num{text-align:right}
 <div class="wrap">
   <div class="shoplay">
     <aside class="side">
-      <h4>Categorii · Категории</h4>
+      <a class="fac" id="f-new" onclick="toggleNew()" style="font-weight:600">🆕 Produse noi · Новинки</a>
+      <h4 style="margin-top:10px">Categorii · Категории</h4>
       <div id="f-tree"><span class="muted">…</span></div>
       <h4>Preț (LEI) · Цена</h4>
       <div id="f-price"></div>
@@ -159,7 +160,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
 
 /* ── facets (Amazon-style sidebar): grupa->categorie, price ──
    NB: fara fatetare pe BRAND — coloana contine furnizori, nu marci */
-const F = { grupa: null, categorie: null, pmin: null, pmax: null };
+const F = { grupa: null, categorie: null, pmin: null, pmax: null, onlyNew: false };
 const PRICE_PRESETS = [[null,50,'Până la 50 · До 50'],[50,100,'50 – 100'],
   [100,200,'100 – 200'],[200,500,'200 – 500'],[500,null,'Peste 500 · От 500']];
 let treeData = [];
@@ -202,6 +203,11 @@ function renderPricePresets() {
 function qarg(s){ return s == null ? 'null' : "'" + String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + "'"; }
 
 function setGroup(g, c) { F.grupa = g; F.categorie = c; renderTree(); apply(); }
+function toggleNew() {
+  F.onlyNew = !F.onlyNew;
+  document.getElementById('f-new').classList.toggle('on', F.onlyNew);
+  apply();
+}
 function setPrice(mn, mx) {
   F.pmin = mn; F.pmax = mx;
   document.getElementById('f-pmin').value = mn ?? '';
@@ -215,7 +221,8 @@ function applyPriceInputs() {
   renderPricePresets(); apply();
 }
 function resetFilters() {
-  F.grupa = F.categorie = F.pmin = F.pmax = null;
+  F.grupa = F.categorie = F.pmin = F.pmax = null; F.onlyNew = false;
+  document.getElementById('f-new').classList.remove('on');
   document.getElementById('f-pmin').value = ''; document.getElementById('f-pmax').value = '';
   renderTree(); renderPricePresets(); apply();
 }
@@ -226,6 +233,7 @@ function renderChips() {
   if (F.grupa) chips.push(['📁 ' + F.grupa + (F.categorie ? ' › ' + F.categorie : ''), "setGroup(null,null)"]);
   if (F.pmin != null || F.pmax != null)
     chips.push([(F.pmin ?? 0) + ' – ' + (F.pmax ?? '∞') + ' LEI', 'setPrice(null,null)']);
+  if (F.onlyNew) chips.push(['🆕 Produse noi', 'toggleNew()']);
   document.getElementById('chips').innerHTML = chips.map(c =>
     '<span class="chip" onclick="' + c[1] + '">' + esc(c[0]) + ' ✕</span>').join('');
 }
@@ -245,6 +253,7 @@ async function load(reset) {
   if (F.categorie) qs.set('categorie', F.categorie);
   if (F.pmin != null) qs.set('price_min', F.pmin);
   if (F.pmax != null) qs.set('price_max', F.pmax);
+  if (F.onlyNew) qs.set('only_new', '1');
   const r = await j(API + '/products?' + qs);
   if (my !== loadSeq) return;              // superseded by a newer filter click
   busy = false;
@@ -261,7 +270,7 @@ async function load(reset) {
       : '';
     return '<div class="cardp">' +
       (p.image ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(p.image) + '" onerror="this.style.visibility=\'hidden\'">' : '<div style="height:130px"></div>') +
-      '<div class="nm">' + esc(p.denumirea || p.namerus || '') + '</div>' +
+      '<div class="nm">' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px">NOU</span>' : '') + esc(p.denumirea || p.namerus || '') + '</div>' +
       '<div class="muted" style="font-size:11px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
       varSel +
       '<div class="row"><span class="pr">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +

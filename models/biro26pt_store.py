@@ -137,22 +137,35 @@ class Biro26PTStore:
 
     @staticmethod
     def _run_import(load_id: int, grupa: Optional[str], codprice: int,
-                    commit: bool) -> Dict[str, Any]:
+                    commit: bool, mark_all_new: bool = True,
+                    price_date: Optional[str] = None) -> Dict[str, Any]:
+        # RO: p_mark_all_new => MATGR1=1 (filtrul "produse noi"); p_date =
+        #     data intrarii in vigoare a pretului (NULL = azi).
+        # EN: p_mark_all_new flags MATGR1=1 (the "new products" filter);
+        #     p_date = the price effective date (NULL = today).
+        date_expr = "TO_DATE(:d,'YYYY-MM-DD')" if price_date else "NULL"
+        params = {"l": int(load_id), "g": (grupa or None), "cp": int(codprice)}
+        if price_date:
+            params["d"] = price_date
         r = Biro26DB().execute_dml(
             "BEGIN BIRO26PT_importData.import_file("
             "p_load_id => :l, p_grupa => :g, p_codprice => :cp, "
-            "p_commit => " + ("TRUE" if commit else "FALSE") + "); END;",
-            {"l": int(load_id), "g": (grupa or None), "cp": int(codprice)})
+            "p_commit => " + ("TRUE" if commit else "FALSE") + ", "
+            "p_mark_all_new => " + ("TRUE" if mark_all_new else "FALSE") + ", "
+            f"p_date => {date_expr}); END;", params)
         if not r.get("success"):
             return {"success": False, "error": r.get("message")}
         return {"success": True}
 
     @staticmethod
     def analyze(load_id: int, grupa: Optional[str] = None,
-                codprice: int = 1) -> Dict[str, Any]:
+                codprice: int = 1, mark_all_new: bool = True,
+                price_date: Optional[str] = None) -> Dict[str, Any]:
         """DRY-RUN (p_commit=FALSE, nothing written to production) + read the
         detection results for the UI (spec §6.1—6.3)."""
-        run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=False)
+        run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=False,
+                                        mark_all_new=mark_all_new,
+                                        price_date=price_date)
         if not run["success"]:
             return run
         try:
@@ -213,9 +226,12 @@ class Biro26PTStore:
 
     @staticmethod
     def commit(load_id: int, grupa: Optional[str] = None,
-               codprice: int = 1) -> Dict[str, Any]:
+               codprice: int = 1, mark_all_new: bool = True,
+               price_date: Optional[str] = None) -> Dict[str, Any]:
         """Real import (p_commit=TRUE) + the log and final counters."""
-        run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=True)
+        run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=True,
+                                        mark_all_new=mark_all_new,
+                                        price_date=price_date)
         if not run["success"]:
             return run
         try:

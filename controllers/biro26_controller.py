@@ -280,6 +280,7 @@ class Biro26Controller:
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
             grupa=a.get("grupa"), price_date=a.get("price_date"),
+            only_new=a.get("only_new") == "1",
             price_min=a.get("price_min", type=float),
             price_max=a.get("price_max", type=float),
             limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
@@ -380,7 +381,9 @@ class Biro26Controller:
         out = []
         for lid in (d.get("load_ids") or [])[:20]:
             r = Biro26PTStore.analyze(int(lid), d.get("grupa"),
-                                      int(d.get("codprice") or 1))
+                                   int(d.get("codprice") or 1),
+                                   mark_all_new=d.get("mark_all_new", True),
+                                   price_date=d.get("price_effective") or None)
             if not r.get("success"):
                 return r
             out.append(r["data"])
@@ -402,7 +405,9 @@ class Biro26Controller:
         out = []
         for lid in (d.get("load_ids") or [])[:20]:
             r = Biro26PTStore.commit(int(lid), d.get("grupa"),
-                                     int(d.get("codprice") or 1))
+                                   int(d.get("codprice") or 1),
+                                   mark_all_new=d.get("mark_all_new", True),
+                                   price_date=d.get("price_effective") or None)
             if not r.get("success"):
                 return r
             out.append(r["data"])
