@@ -84,9 +84,11 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
         <input type="checkbox" id="f-marknew" checked> 🆕 Marchează toate ca «produse noi» (MATGR1=1)</label></div>
       <button class="btn" id="btn-analyze" onclick="analyze()">🔍 Analizează · Анализ</button>
     </div>
-    <div class="hint">Pozițiilor noi li se generează <b>EAN-13</b> (prefix 20) și intră în nodul
-      «PRODUSE NOI»; prețurile se actualizează cu regula <b>«nu se coboară»</b> (perioadă nouă doar
-      dacă prețul din fișier e mai mare). · Новым — EAN-13; цены по правилу «не понижать».</div>
+    <div class="hint">Pozițiilor noi li se generează <b>EAN-13</b> (prefix 20) și intră în
+      <b>nodurile lor REALE</b> din arbore (după GRUPA din fișier); «PRODUSE NOI» este un nod
+      <b>virtual</b> = filtrul MATGR1, nu un nod fizic. Prețurile — regula <b>«nu se coboară»</b>.
+      · Новые товары попадают в СВОИ реальные узлы дерева; «PRODUSE NOI» — виртуальный
+      (фильтр MATGR1); цены — «не понижать».</div>
     <div id="an-result"></div>
   </div>
 
