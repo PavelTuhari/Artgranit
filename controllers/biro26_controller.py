@@ -314,11 +314,25 @@ class Biro26Controller:
 
     # ── printable reports (jsReport sidecar): cont de plata / comanda ──
     @staticmethod
+    def _api_token_ok() -> bool:
+        """RO: acces masina-la-masina (una.md/desktop) prin X-API-Key.
+        EN: machine-to-machine access (una.md/desktop) via the X-API-Key
+        header (or ?api_key=); disabled while BIRO26_API_TOKEN is empty."""
+        import hmac
+        from config import Config
+        tok = (request.headers.get("X-API-Key")
+               or request.args.get("api_key") or "")
+        return bool(Config.BIRO26_API_TOKEN) and \
+            hmac.compare_digest(tok, Config.BIRO26_API_TOKEN)
+
+    @staticmethod
     def shop_report(kind: str, cod: int) -> Dict[str, Any]:
         """PDF of an ERP document. Public shop clients may only print their
-        own documents; a backoffice session may print any."""
+        own documents; a backoffice session or a valid API token — any."""
         from flask import session
         from models.biro26_report import Biro26Report
+        if Biro26Controller._api_token_ok():
+            return Biro26Report.render_doc(kind, cod)
         c = session.get("biro26_client")
         if c:
             return Biro26Report.render_doc(kind, cod,
@@ -326,6 +340,20 @@ class Biro26Controller:
         if session.get("username") or session.get("authenticated"):
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
+
+    @staticmethod
+    def doc_json(cod: int) -> Dict[str, Any]:
+        """Document data as JSON (number, client, items, totals) for
+        desktop/integration layers; API token or backoffice session."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        if not (Biro26Controller._api_token_ok()
+                or session.get("username") or session.get("authenticated")):
+            return {"success": False, "error": "login required"}
+        d = Biro26Report.doc_data(cod)
+        if not d.get("success"):
+            return d
+        return {"success": True, "data": d["data"]}
 
     # ── BIRO26PT universal file import (spec BIRO26PT_WEB_INTERFACE_SPEC) ──
     @staticmethod

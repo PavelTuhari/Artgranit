@@ -114,6 +114,11 @@ class Config:
     # launcher). Change it in ONE place (here or via env) to rebrand.
     BIRO26_APP_NAME = os.environ.get('BIRO26_APP_NAME', 'OfficePlus')
 
+    # RO/EN: API token for machine clients (una.md/desktop etc.) — grants
+    # access to the document PDFs/JSON without a browser session. Empty =
+    # the token path is disabled. Secret: .env only.
+    BIRO26_API_TOKEN = os.environ.get('BIRO26_API_TOKEN', '')
+
     # ── jsReport service (reports/ — node sidecar, localhost only) ──
     # RO: PDF-urile "cont de plata" / "comanda" din cos se genereaza aici.
     # EN: the cart's invoice/order PDFs are rendered by this service.
