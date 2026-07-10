@@ -5588,6 +5588,14 @@ def api_biro26_shop_variants():
     # public read-only variant family (choose a characteristic in the shop)
     return jsonify(Biro26Controller.shop_variants())
 
+@app.route('/api/biro26/doc/<int:cod>', methods=['GET'])
+def api_biro26_doc_json(cod):
+    # document data as JSON for desktop/integration layers
+    # (X-API-Key token or backoffice session)
+    r = Biro26Controller.doc_json(cod)
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
 @app.route('/api/biro26/shop/report/<kind>/<int:cod>', methods=['GET'])
 def api_biro26_shop_report(kind, cod):
     # PDF via the jsReport sidecar; shop clients only for their own docs,
