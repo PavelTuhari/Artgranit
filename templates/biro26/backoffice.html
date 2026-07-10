@@ -824,6 +824,9 @@ html, body {
           </select>
           <input type="hidden" id="prod-grupa" value="">
           <input type="hidden" id="prod-categorie" value="">
+          <label style="display:flex;align-items:center;gap:5px;margin:0">
+            <input type="checkbox" id="prod-only-new" onchange="loadProductsStock()">
+            <span data-i18n="prod_only_new"></span></label>
           <label data-i18n="prod_price_date"></label>
           <input type="date" class="f-input" id="prod-price-date" onchange="loadProductsStock()" style="width:150px">
           <button class="btn" onclick="clearProductFilters()" data-i18n="prod_clear_filters"></button>
@@ -1111,6 +1114,7 @@ ru: {
   cart_invoice_ok: 'Счёт создан', cart_invoice_err: 'Ошибка создания счёта',
   card_variants: 'Варианты (характеристики)', var_variant: 'Характеристика',
   var_furnizor: 'Поставщик', var_group_hint: 'цена одна на всю группу (из мастера)',
+  prod_only_new: '🆕 Только новинки',
   prod_price_date: 'Цены на дату', ph_title: 'История цен',
   ph_from: 'С даты', ph_to: 'По дату', ph_del: 'Удалить период',
   ph_select_hint: 'Кликните строку товара в гриде, чтобы увидеть историю его цен',
@@ -1215,6 +1219,7 @@ ro: {
   cart_invoice_ok: 'Cont de plată creat', cart_invoice_err: 'Eroare la crearea contului',
   card_variants: 'Variante (caracteristici)', var_variant: 'Caracteristică',
   var_furnizor: 'Furnizor', var_group_hint: 'prețul este pe întreg grupul (din master)',
+  prod_only_new: '🆕 Doar produse noi',
   prod_price_date: 'Prețuri la data', ph_title: 'Istoric prețuri',
   ph_from: 'De la', ph_to: 'Până la', ph_del: 'Șterge perioada',
   ph_select_hint: 'Clic pe un rând din grid pentru istoricul prețurilor produsului',
@@ -1319,6 +1324,7 @@ en: {
   cart_invoice_ok: 'Invoice created', cart_invoice_err: 'Invoice creation failed',
   card_variants: 'Variants (characteristics)', var_variant: 'Characteristic',
   var_furnizor: 'Supplier', var_group_hint: 'one price for the whole group (from the master)',
+  prod_only_new: '🆕 New products only',
   prod_price_date: 'Prices as of', ph_title: 'Price history',
   ph_from: 'From', ph_to: 'To', ph_del: 'Delete period',
   ph_select_hint: 'Click a product row in the grid to see its price history',

@@ -79,8 +79,14 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
     <div class="frm">
       <div><label>Grupa (gol = «IMPORT PT»)</label><input type="text" id="f-grupa" placeholder="Hartie colorata"></div>
       <div><label>Cod preț · Код прайса</label><input type="number" id="f-codprice" value="1" style="width:90px"></div>
+      <div><label>Data intrării prețului (gol = azi) · Дата цены</label><input type="date" id="f-pdate" style="width:150px"></div>
+      <div style="align-self:center;padding-top:14px"><label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:0">
+        <input type="checkbox" id="f-marknew" checked> 🆕 Marchează toate ca «produse noi» (MATGR1=1)</label></div>
       <button class="btn" id="btn-analyze" onclick="analyze()">🔍 Analizează · Анализ</button>
     </div>
+    <div class="hint">Pozițiilor noi li se generează <b>EAN-13</b> (prefix 20) și intră în nodul
+      «PRODUSE NOI»; prețurile se actualizează cu regula <b>«nu se coboară»</b> (perioadă nouă doar
+      dacă prețul din fișier e mai mare). · Новым — EAN-13; цены по правилу «не понижать».</div>
     <div id="an-result"></div>
   </div>
 
@@ -150,7 +156,9 @@ async function analyze() {
   const r = await jj(API + '/analyze', {method: 'POST', body: JSON.stringify({
     load_ids: LOADS.map(l => l.load_id),
     grupa: document.getElementById('f-grupa').value.trim() || null,
-    codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1})});
+    codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1,
+    mark_all_new: document.getElementById('f-marknew').checked,
+    price_effective: document.getElementById('f-pdate').value || null})});
   btn.disabled = false;
   if (!r.success) { document.getElementById('an-result').innerHTML = ''; return; }
   ANALYSES = r.data;
@@ -228,7 +236,9 @@ async function doCommit() {
   const r = await jj(API + '/commit', {method: 'POST', body: JSON.stringify({
     load_ids: ANALYSES.map(a => a.load_id),
     grupa: document.getElementById('f-grupa').value.trim() || null,
-    codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1})});
+    codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1,
+    mark_all_new: document.getElementById('f-marknew').checked,
+    price_effective: document.getElementById('f-pdate').value || null})});
   btn.disabled = false;
   if (!r.success) { document.getElementById('ci-result').innerHTML = ''; return; }
   document.getElementById('ci-result').innerHTML = r.data.map(d =>

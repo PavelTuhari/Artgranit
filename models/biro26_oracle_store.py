@@ -685,7 +685,8 @@ class Biro26Store:
                            limit: int = 200, offset: int = 0,
                            price_date: Optional[str] = None,
                            price_min: Optional[float] = None,
-                           price_max: Optional[float] = None) -> Dict[str, Any]:
+                           price_max: Optional[float] = None,
+                           only_new: bool = False) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
@@ -724,6 +725,9 @@ class Biro26Store:
             inner = (
                 "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
                 "g.GRUPA, g.CATEGORIE, g.BRAND, g.PHOTO_URL, g.IMAGE_LINK, "
+                # RO: marcajul "produse noi" pus de importul BIRO26PT
+                # EN: the "new products" flag set by the BIRO26PT import
+                "NVL(mp.MATGR1, 0) MATGR1, "
                 "NVL(pl.PRETV1, g.ANGRO) ANGRO, "
                 "NVL(pl.PRETV2, g.IONLINE) IONLINE, "
                 f"{price_expr} RETAIL1, "
@@ -736,6 +740,7 @@ class Biro26Store:
                 # RO: pretul in vigoare la data ceruta / EN: price effective at the requested date
                 "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
                 "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
+                "LEFT JOIN TMS_MPT mp ON mp.COD = u.COD "
                 "WHERE u.TIP='P'")
             params: Dict[str, Any] = {"pd": price_date}
             if search:
@@ -766,11 +771,15 @@ class Biro26Store:
                 inner += f" AND {price_expr} >= :pmin"; params["pmin"] = float(price_min)
             if price_max is not None:
                 inner += f" AND {price_expr} <= :pmax"; params["pmax"] = float(price_max)
+            if only_new:
+                # RO/EN: filtrul "produse noi" — SELECT ... WHERE matgr1 = 1
+                inner += " AND mp.MATGR1 = 1"
             inner += " ORDER BY u.DENUMIREA"
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
             outer = (
                 "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
-                "c.GRUPA, c.CATEGORIE, c.BRAND, c.ANGRO, c.IONLINE, c.RETAIL1, "
+                "c.GRUPA, c.CATEGORIE, c.BRAND, c.MATGR1, "
+                "c.ANGRO, c.IONLINE, c.RETAIL1, "
                 "c.ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(c.PHOTO_URL, c.IMAGE_LINK)) IMAGE, "
                 "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT, "

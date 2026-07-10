@@ -985,6 +985,7 @@ async function loadProductsStock(reset = true) {
   if (val('prod-grupa')) qs.set('grupa', val('prod-grupa'));
   if (val('prod-categorie')) qs.set('categorie', val('prod-categorie'));
   qs.set('price_date', prodPriceDate());
+  if (el('prod-only-new') && el('prod-only-new').checked) qs.set('only_new', '1');
   qs.set('limit', String(prodState.limit));
   qs.set('offset', String(prodState.offset));
 
@@ -1029,7 +1030,9 @@ function productRowHtml(p) {
     imgCell(p.image) +
     '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
     bcCell +
-    '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' + escapeHtml(dispName(p) || '') + '</td>' +
+    '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' +
+      (p.matgr1 == 1 ? '<span class="badge" style="background:#dcfce7;color:#166534;margin-right:4px">NOU</span>' : '') +
+      escapeHtml(dispName(p) || '') + '</td>' +
     '<td>' + escapeHtml(p.grupa || '') + '</td>' +
     '<td>' + escapeHtml(p.categorie || '') + '</td>' +
     '<td>' + escapeHtml(p.um || '') + '</td>' +
