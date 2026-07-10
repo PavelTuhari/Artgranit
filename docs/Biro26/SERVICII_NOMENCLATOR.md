@@ -117,3 +117,31 @@ SELECT y_ai_BIRO26.add_product('Servicii de livrare la etaj',
 Изменение цены услуги дальше — штатно через периоды
 (`y_ai_BIRO26.set_price`, вкладка Marfă/Stoc или Listă de prețuri);
 удаление периодов — `del_price` (правила слияния — README, раздел 12).
+
+
+## 6. Транспорт тур-ретур: тарифная сетка по дистанции (обновление)
+
+Структура (создана универсальными функциями `add_product` + новая таблица):
+
+- **Подгруппа «Servicii de transport per tur»** (фикс за рейс): 0–25 км → 150 MDL
+  (COD 288561, бывший «Servicii de transport», переименован), 26–50 км → 250 MDL (289179);
+- **Подгруппа «Servicii de transport per km»** (за км, кол-во строки счёта = км):
+  51–100 км → 6 MDL/km (289180), 101–200 км → 5.50 MDL/km (289181),
+  свыше 200 км → 5.00 MDL/km (289182).
+
+Все цены — в прайс-листе (периодные, все три колонки). Диапазоны — в новой таблице:
+
+```sql
+TMS_MPT_DISTANTE (cod PK -> TMS_UNIVERS.COD, km_min, km_max NULL=∞, tarif_mode 'TUR'|'KM')
+```
+
+**Корзина магазина:** блок «🚚 Transport tur-retur (obligatoriu)» — поле «Distanța (km)»
+обязательно; тариф подбирается автоматически и показывается живым расчётом; без
+дистанции счёт не создаётся. **Сервер сам добавляет** строку транспорта по
+`distance_km` (TUR → qty 1, KM → qty = км), присланные клиентом транспортные строки
+отбрасываются (анти-манипуляция); цена — из прайс-листа. Публичный API:
+`GET /api/biro26/shop/transport` (сетка); `POST /shop/invoice` требует `distance_km`.
+Из «Servicii opționale» тарифные позиции исключены.
+
+Изменить тариф: цены — штатно через периоды (`set_price`); диапазоны — UPDATE
+`TMS_MPT_DISTANTE`; новый диапазон = `add_product` + INSERT в `TMS_MPT_DISTANTE`.

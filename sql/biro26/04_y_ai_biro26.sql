@@ -42,6 +42,25 @@ CREATE TABLE YBIRO_SETTINGS (
   updated_at TIMESTAMP DEFAULT SYSTIMESTAMP
 );
 
+-- RO: Diapazoanele de km pentru serviciile de transport tur-retur din cos.
+--     Fiecare rand leaga un tarif (pozitie TMS_UNIVERS) de un interval de
+--     distanta; TARIF_MODE: 'TUR' = pret fix pe cursa, 'KM' = pret/km
+--     (cantitatea liniei din cont = km). Alegerea tarifului in cos este
+--     OBLIGATORIE si automata dupa distanta comenzii.
+-- EN: Km ranges for the round-trip transport services in the cart. Each
+--     row links a tariff (TMS_UNIVERS item) to a distance interval;
+--     TARIF_MODE: 'TUR' = flat per trip, 'KM' = price per km (invoice
+--     line qty = km). The cart picks the tariff automatically and
+--     mandatorily from the order distance.
+CREATE TABLE TMS_MPT_DISTANTE (
+  cod        NUMBER NOT NULL,      -- TMS_UNIVERS.COD al tarifului / tariff item
+  km_min     NUMBER NOT NULL,
+  km_max     NUMBER,               -- NULL = nelimitat / unlimited
+  tarif_mode VARCHAR2(3) NOT NULL, -- 'TUR' | 'KM'
+  CONSTRAINT pk_tms_mpt_distante PRIMARY KEY (cod),
+  CONSTRAINT ck_tms_mpt_dist_mode CHECK (tarif_mode IN ('TUR','KM'))
+);
+
 -- =====================================================================
 -- Package y_ai_BIRO26
 -- =====================================================================

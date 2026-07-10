@@ -1129,7 +1129,8 @@ END;""",
         """Optional services offered in the public shop cart: all items of
         the group named by the YBIRO_SETTINGS key SHOP_SERVICES_GRUPA
         (created via y_ai_BIRO26.add_product), priced as of today from the
-        period price list."""
+        period price list. Transport tariffs (TMS_MPT_DISTANTE) are handled
+        separately — mandatory, by order distance — so they are excluded."""
         try:
             return _result(Biro26DB().execute_query(
                 "SELECT u.COD, u.DENUMIREA, u.UM, "
@@ -1140,7 +1141,44 @@ END;""",
                 "  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
                 "WHERE u.TIP = 'P' AND g.GRUPA = "
                 "  (SELECT sval FROM YBIRO_SETTINGS WHERE skey = 'SHOP_SERVICES_GRUPA') "
+                "  AND NOT EXISTS (SELECT 1 FROM TMS_MPT_DISTANTE d WHERE d.cod = u.COD) "
                 "ORDER BY u.DENUMIREA"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_transport_tariffs() -> Dict[str, Any]:
+        """RO: grila de tarife transport tur-retur (TMS_MPT_DISTANTE) cu
+        pretul in vigoare azi — cosul o afiseaza si alege tariful automat
+        dupa distanta. / EN: the round-trip transport tariff grid with
+        today's price; the cart displays it and auto-picks by distance."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT d.cod, d.km_min, d.km_max, d.tarif_mode, "
+                "u.DENUMIREA, u.UM, "
+                "NVL(pl.PRETV, 0) PRICE "
+                "FROM TMS_MPT_DISTANTE d "
+                "JOIN TMS_UNIVERS u ON u.COD = d.cod "
+                "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = d.cod "
+                "  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
+                "ORDER BY d.km_min"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def transport_for_km(km: float) -> Dict[str, Any]:
+        """The tariff row matching a distance (server-side authority for the
+        MANDATORY transport line of shop invoices)."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT d.cod, d.km_min, d.km_max, d.tarif_mode, u.DENUMIREA "
+                "FROM TMS_MPT_DISTANTE d JOIN TMS_UNIVERS u ON u.COD = d.cod "
+                "WHERE :km >= d.km_min AND (:km2 <= d.km_max OR d.km_max IS NULL) "
+                "ORDER BY d.km_min", {"km": float(km), "km2": float(km)}))
+            if not rows:
+                return {"success": False,
+                        "error": f"no transport tariff for {km} km"}
+            return {"success": True, "data": rows[0]}
         except Exception as e:
             return {"success": False, "error": str(e)}
 

@@ -5577,6 +5577,11 @@ def api_biro26_shop_brands():
     # public read-only brand facet with counts
     return jsonify(Biro26Controller.get_product_brands())
 
+@app.route('/api/biro26/shop/transport', methods=['GET'])
+def api_biro26_shop_transport():
+    # public read-only: round-trip transport tariff grid (TMS_MPT_DISTANTE)
+    return jsonify(Biro26Controller.shop_transport())
+
 @app.route('/api/biro26/shop/services', methods=['GET'])
 def api_biro26_shop_services():
     # public read-only: optional services for the cart (group from

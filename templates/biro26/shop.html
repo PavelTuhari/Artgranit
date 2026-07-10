@@ -130,6 +130,18 @@ td.num,th.num{text-align:right}
       <tfoot><tr><th colspan="3" class="num">Total:</th>
         <th class="num" id="cart-total">0</th><th></th></tr></tfoot>
     </table>
+    <div id="cart-transport" style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px">
+      <div style="font-weight:600;margin-bottom:4px">🚚 Transport tur-retur (obligatoriu) · Транспорт туда-обратно (обязательно)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:12.5px;margin:0">Distanța comenzii · Расстояние (km):</label>
+        <input type="number" id="tr-km" min="1" step="1" style="width:88px;padding:6px;border:1px solid #fed7aa;border-radius:6px"
+               oninput="renderTransport()">
+        <span id="tr-calc" class="muted" style="font-size:12.5px"></span>
+      </div>
+      <details style="margin-top:6px"><summary style="font-size:11.5px;color:#9a3412;cursor:pointer">Grila de tarife · Тарифная сетка</summary>
+        <div id="tr-grid" style="font-size:11.5px;margin-top:4px"></div>
+      </details>
+    </div>
     <div id="cart-services" style="margin-top:10px"></div>
     <div id="inv-result"></div>
     <div class="acts">
@@ -333,8 +345,41 @@ function setQty(cod, v){ const c = cart(); const i = c.find(x => x.cod === cod);
 function delItem(cod){ saveCart(cart().filter(x => x.cod !== cod)); renderCart(); }
 function clearCart(){ saveCart([]); renderCart(); }
 function openCart(){ document.getElementById('inv-result').innerHTML = ''; renderCart();
-  loadCartServices();
+  loadCartServices(); loadTransport();
   document.getElementById('m-cart').classList.add('open'); }
+
+/* ── MANDATORY round-trip transport (TMS_MPT_DISTANTE tariff grid) ──
+   RO: tariful se alege automat dupa distanta; serverul il adauga in cont
+   EN: the tariff is auto-picked by distance; the server adds the line   */
+let transportGrid = null;
+async function loadTransport() {
+  if (transportGrid === null) {
+    const r = await j(API + '/transport');
+    transportGrid = r.success ? (r.data || []) : [];
+  }
+  document.getElementById('tr-grid').innerHTML =
+    '<table style="width:100%">' + transportGrid.map(t =>
+      '<tr><td>' + (t.km_max ? t.km_min + '–' + t.km_max + ' km' : 'peste ' + (t.km_min - 1) + ' km') + '</td>' +
+      '<td style="text-align:right">' + (Number(t.price) || 0).toFixed(2) +
+      (t.tarif_mode === 'KM' ? ' MDL/km' : ' MDL') + '</td></tr>').join('') + '</table>';
+  renderTransport();
+}
+function transportFor(km) {
+  return (transportGrid || []).find(t => km >= t.km_min && (t.km_max == null || km <= t.km_max));
+}
+function renderTransport() {
+  const el = document.getElementById('tr-calc');
+  const km = parseFloat(document.getElementById('tr-km').value);
+  if (!km || km <= 0) { el.textContent = '← introduceți distanța · укажите расстояние'; el.style.color = '#b45309'; return; }
+  const t = transportFor(km);
+  if (!t) { el.textContent = '—'; return; }
+  const price = Number(t.price) || 0;
+  const total = t.tarif_mode === 'KM' ? price * km : price;
+  el.style.color = '#166534';
+  el.textContent = '→ ' + t.denumirea + ': ' +
+    (t.tarif_mode === 'KM' ? price.toFixed(2) + ' MDL/km × ' + km + ' km = ' : '') +
+    total.toFixed(2) + ' MDL';
+}
 
 /* ── optional services in the cart (group from YBIRO_SETTINGS) ──────
    RO: serviciile bifate se adauga in contul de plata ca pozitii normale
@@ -395,10 +440,18 @@ async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast('Coșul este gol · Корзина пуста', true); return; }
   if (!me) { document.getElementById('m-cart').classList.remove('open'); openAuth(); return; }
+  // RO: distanta e OBLIGATORIE — serverul adauga automat linia de transport
+  // EN: the distance is MANDATORY — the server adds the transport line itself
+  const km = parseFloat(document.getElementById('tr-km').value);
+  if (!km || km <= 0) {
+    toast('Introduceți distanța comenzii (km) — transportul este obligatoriu · Укажите расстояние, транспорт обязателен', true);
+    document.getElementById('tr-km').focus();
+    return;
+  }
   // RO/EN: serviciile optionale bifate intra in acelasi document
   const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
                  .concat(checkedServices().map(s => ({cod: s.cod, qty: s.qty, name: s.name})));
-  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify({items})});
+  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify({items, distance_km: km})});
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
