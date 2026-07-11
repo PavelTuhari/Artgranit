@@ -90,3 +90,4 @@ reports/node_modules/
 reports/data/
 reports/templates/*.bak
 uploads/biro26pt/
+reports/lite/node_modules/
