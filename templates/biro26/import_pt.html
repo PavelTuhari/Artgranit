@@ -197,7 +197,7 @@ function renderAnalysis(a) {
     '<b>#' + a.load_id + ' · ' + esc(l.file || '') + '</b> <span class="muted">(' + esc(l.sheet || '') + ')</span>' +
     '<div class="cards4">' +
     '<div class="stat new"><div class="v">' + (c.NEW || 0) + '</div><div class="l">NOI · новых</div></div>' +
-    '<div class="stat exist"><div class="v">' + (c.EXISTING || 0) + '</div><div class="l">EXISTENTE (' + (a.price_changed || 0) + ' preț diferit)</div></div>' +
+    '<div class="stat exist"><div class="v">' + (c.EXISTING || 0) + '</div><div class="l">EXISTENTE (' + (a.price_changed || 0) + ' preț de actualizat)</div></div>' +
     '<div class="stat amb"><div class="v">' + (c.AMBIGUOUS || 0) + '</div><div class="l">AMBIGUE · неоднозн.</div></div>' +
     '<div class="stat noart"><div class="v">' + (c.NOARTICOL || 0) + '</div><div class="l">FĂRĂ ARTICOL</div></div>' +
     '</div>' +
@@ -225,11 +225,12 @@ async function preview(loadId) {
   const r = await jj(API + '/preview/' + loadId + '?offset=0&limit=100');
   if (!r.success) { box.innerHTML = ''; return; }
   box.innerHTML = '<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Status</th><th>Articol</th><th>Denumire</th>' +
-    '<th>Grupa</th><th class="num">Angro</th><th class="num">Online</th><th class="num">Retail</th><th>Barcode</th></tr></thead><tbody>' +
+    '<th>Grupa</th><th class="num">Angro</th><th class="num">Online</th><th class="num">Retail</th><th>Barcode</th><th>Img</th></tr></thead><tbody>' +
     (r.data || []).map(x => '<tr class="st-' + x.status + '"><td class="muted">' + x.row_no + '</td>' +
       '<td class="st-' + x.status + '">' + x.status + '</td><td>' + esc(x.articol) + '</td><td>' + esc(x.denumire) + '</td>' +
       '<td>' + esc(x.grupa) + '</td><td class="num">' + esc(x.angro) + '</td><td class="num">' + esc(x.ionline) + '</td>' +
-      '<td class="num">' + esc(x.retail1) + '</td><td>' + esc(x.barcode) + '</td></tr>').join('') +
+      '<td class="num">' + esc(x.retail1) + '</td><td>' + esc(x.barcode) + '</td>' +
+      '<td>' + (x.img_url ? '<a href="' + esc(x.img_url) + '" target="_blank" title="' + esc(x.img_url) + '">🖼</a>' : '') + '</td></tr>').join('') +
     '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px">primele 100 rânduri · первые 100 строк; AMBIGUOUS/NOARTICOL vor fi sărite</div>';
 }
 

@@ -217,7 +217,7 @@ class Biro26PTStore:
             return _result(Biro26DB().execute_query(
                 "SELECT * FROM (SELECT a.*, ROWNUM rn FROM ("
                 "  SELECT row_no, status, articol, denumire, grupa, "
-                "         angro, ionline, retail1, barcode "
+                "         angro, ionline, retail1, barcode, img_url "
                 "  FROM biro26pt_stg WHERE load_id = :l ORDER BY row_no"
                 ") a WHERE ROWNUM <= :hi) WHERE rn > :lo",
                 {"l": int(load_id), "hi": offset + limit, "lo": offset}))
