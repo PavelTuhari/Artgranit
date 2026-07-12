@@ -297,9 +297,16 @@
         nodul lor <b>real</b> din arbore, după GRUPĂ.</p>
       </div>
       <div class="op">
-        <div class="op-top"><h3>Actualizare preț</h3><span class="chip ok">suportat</span></div>
-        <p>Perioadă nouă de preț cu <b>regula „nu coborî"</b>: prețul se schimbă doar dacă în fișier e mai mare;
-        altfel se păstrează cel curent. Perioada veche se închide (istoric de prețuri).</p>
+        <div class="op-top"><h3>Actualizare preț</h3><span class="chip ok">automat</span></div>
+        <p>Prețurile se actualizează <b>automat</b>: dacă prețul din fișier diferă de cel curent (mai mare
+        <b>sau mai mic</b>), se deschide o perioadă nouă. Perioada veche se închide (istoric de prețuri).
+        Reimportul în aceeași zi actualizează valorile perioadei zilei.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Imagini din URL</h3><span class="chip ok">suportat</span></div>
+        <p>Coloana <span class="kbd">URL</span> (sau orice coloană cu linkuri <span class="kbd">http(s)://</span>)
+        se importă în cartela produsului (<span class="kbd">TMS_MPT_TVR.IE_LINKADRES</span>) — imaginea apare în
+        magazin și backoffice. Produse noi: întotdeauna; existente: doar dacă nu au deja imagine.</p>
       </div>
       <div class="op">
         <div class="op-top"><h3>Generare cod de bare</h3><span class="chip ok">EAN-13</span></div>
@@ -328,9 +335,10 @@
     <div class="sec-head"><span class="sec-tag">Preț</span><h2>Regulile de preț pe scurt</h2></div>
     <div class="grid">
       <div class="op">
-        <div class="op-top"><h3>Nu se coboară prețul</h3><span class="chip rec">regulă</span></div>
-        <p>Dacă prețul de raft din fișier e mai mic sau egal cu cel curent, produsul rămâne cu prețul curent.
-        Se aplică doar creșterile.</p>
+        <div class="op-top"><h3>Prețul din fișier câștigă</h3><span class="chip rec">regulă</span></div>
+        <p>Dacă prețul de raft din fișier diferă de cel curent (mai mare sau mai mic), se aplică
+        prețul din fișier — perioadă nouă de la data intrării în vigoare. Dacă articolul apare
+        de mai multe ori în fișier cu prețuri diferite, se ia prețul cel mai mare.</p>
       </div>
       <div class="op">
         <div class="op-top"><h3>Perioade, nu suprascriere</h3><span class="chip rec">istoric</span></div>
@@ -410,7 +418,8 @@
       <div class="example">
         <span class="lbl">Exemplu concret</span>
         Cod nou <code>288657</code> a primit codul de bare generat <code>2000000004068</code> (EAN-13 valid).
-        Regula „nu coborî": cod <code>165690</code> avea 42,41 în fișier &lt; 42,4137 curent → <b>nicio perioadă nouă</b>, preț păstrat.
+        <i>(La acel moment era în vigoare vechea regulă „nu coborî" — scăderile de preț se ignorau.
+        Regula actuală: prețul din fișier se aplică întotdeauna când diferă.)</i>
       </div>
     </div>
 
@@ -438,6 +447,25 @@
         <span class="lbl">Exemplu concret</span>
         Articolul <code>ZM80-B</code>: perioadă nouă de la 09.07.2026 cu prețul de raft <b>75,5</b> (era 80).
         Perioada veche s-a închis automat la 08.07.2026 — fără suprapunere.
+      </div>
+    </div>
+
+    <!-- Case: Set 3 re-import — images + auto price -->
+    <div class="case">
+      <div class="case-head">
+        <h3>Imagini din URL + actualizare automată</h3>
+        <span class="case-file">Price nou.xlsx · Set 3 · reimport 12.07.2026 · 407 rânduri</span>
+        <span class="chip ok">reușit</span>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Detectat</span><span class="v">antet (HEADER): <b>URL</b>, ARTICOL, DENUMIRE, ANGRO, ONLINE, RETAIL, VAT</span></div>
+        <div class="row"><span class="k">Imagini</span><span class="v"><b>68</b> linkuri scrise în cartele (IE_LINKADRES) — vizibile în magazin</span></div>
+        <div class="row"><span class="k">Prețuri</span><span class="v"><b>28</b> perioade noi + <b>33</b> perioade de aceeași zi actualizate (majorări și scăderi)</span></div>
+      </div>
+      <div class="example">
+        <span class="lbl">Exemplu concret</span>
+        Articolul <code>A4C100</code>: prețul de raft a devenit <b>24,00</b> (perioadă nouă de la 12.07.2026);
+        imaginea <code>radop.md/media/products/…jpg</code> a intrat în cartela produsului.
       </div>
     </div>
 
