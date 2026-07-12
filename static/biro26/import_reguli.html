@@ -1,0 +1,563 @@
+<meta charset="utf-8">
+<style>
+  :root{
+    --bg:#f5f7fa; --surface:#ffffff; --surface-2:#fbfcfe;
+    --ink:#141c28; --muted:#5a6675; --faint:#8794a4;
+    --border:#e3e7ee; --border-strong:#d2d8e2;
+    --accent:#2743c4; --accent-2:#4a63d8; --accent-soft:#eef1fd;
+    --ok:#1f8a54; --ok-soft:#e7f4ec;
+    --warn:#a96a12; --warn-soft:#fbf0da;
+    --stop:#bd352b; --stop-soft:#fbe8e6;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --maxw:840px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1219; --surface:#151c26; --surface-2:#111823;
+      --ink:#e7ecf3; --muted:#95a2b3; --faint:#6d7b8c;
+      --border:#222c39; --border-strong:#2c3846;
+      --accent:#8098f2; --accent-2:#6c86ee; --accent-soft:#182238;
+      --ok:#4fc78c; --ok-soft:#122619;
+      --warn:#d9a648; --warn-soft:#2a2110;
+      --stop:#ec7a6f; --stop-soft:#2b1512;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f7fa; --surface:#ffffff; --surface-2:#fbfcfe;
+    --ink:#141c28; --muted:#5a6675; --faint:#8794a4;
+    --border:#e3e7ee; --border-strong:#d2d8e2;
+    --accent:#2743c4; --accent-2:#4a63d8; --accent-soft:#eef1fd;
+    --ok:#1f8a54; --ok-soft:#e7f4ec; --warn:#a96a12; --warn-soft:#fbf0da;
+    --stop:#bd352b; --stop-soft:#fbe8e6;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1219; --surface:#151c26; --surface-2:#111823;
+    --ink:#e7ecf3; --muted:#95a2b3; --faint:#6d7b8c;
+    --border:#222c39; --border-strong:#2c3846;
+    --accent:#8098f2; --accent-2:#6c86ee; --accent-soft:#182238;
+    --ok:#4fc78c; --ok-soft:#122619; --warn:#d9a648; --warn-soft:#2a2110;
+    --stop:#ec7a6f; --stop-soft:#2b1512;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .page{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    padding:clamp(20px,5vw,64px) 20px 80px;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto}
+
+  /* ---- header ---- */
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); display:flex; align-items:center; gap:10px; margin:0 0 18px;
+  }
+  .eyebrow::before{content:""; width:26px; height:2px; background:var(--accent); display:inline-block}
+  h1{
+    font-size:clamp(28px,5vw,42px); line-height:1.1; letter-spacing:-.02em; font-weight:760;
+    margin:0 0 14px; text-wrap:balance;
+  }
+  .dek{font-size:clamp(16px,2.2vw,18px); color:var(--muted); max-width:64ch; margin:0}
+  .meta{
+    font-family:var(--mono); font-size:12.5px; color:var(--faint);
+    margin-top:22px; padding-top:16px; border-top:1px solid var(--border);
+    display:flex; flex-wrap:wrap; gap:6px 20px;
+  }
+  .meta b{color:var(--muted); font-weight:600}
+
+  /* ---- sections ---- */
+  section{margin-top:56px}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin:0 0 20px}
+  .sec-tag{
+    font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:600;
+    border:1px solid var(--border-strong); border-radius:6px; padding:3px 8px; white-space:nowrap;
+    background:var(--surface-2);
+  }
+  h2{font-size:clamp(20px,3vw,25px); letter-spacing:-.01em; font-weight:700; margin:0; text-wrap:balance}
+  p{margin:0 0 14px; max-width:68ch}
+  a{color:var(--accent); text-underline-offset:3px}
+
+  /* ---- chips ---- */
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
+    font-size:11.5px; font-weight:600; letter-spacing:.02em; padding:3px 9px; border-radius:999px;
+    border:1px solid transparent; white-space:nowrap;
+  }
+  .chip::before{content:""; width:6px; height:6px; border-radius:50%}
+  .chip.req{color:var(--stop); background:var(--stop-soft)}   .chip.req::before{background:var(--stop)}
+  .chip.rec{color:var(--accent); background:var(--accent-soft)}.chip.rec::before{background:var(--accent)}
+  .chip.opt{color:var(--muted); background:var(--surface-2); border-color:var(--border)} .chip.opt::before{background:var(--faint)}
+  .chip.ok{color:var(--ok); background:var(--ok-soft)}        .chip.ok::before{background:var(--ok)}
+
+  /* ---- table ---- */
+  .tablecard{border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface)}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse; width:100%; min-width:560px; font-size:14.5px}
+  th,td{text-align:left; padding:13px 16px; border-bottom:1px solid var(--border); vertical-align:top}
+  thead th{
+    font-family:var(--mono); font-size:11.5px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--faint); font-weight:600; background:var(--surface-2);
+  }
+  tbody tr:last-child td{border-bottom:none}
+  .field{font-family:var(--mono); font-weight:600; color:var(--ink)}
+  .syn{font-family:var(--mono); font-size:13px; color:var(--muted); line-height:1.9}
+  .syn code{background:var(--surface-2); border:1px solid var(--border); border-radius:5px; padding:1px 6px; white-space:nowrap}
+
+  /* ---- ops grid ---- */
+  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:16px}
+  @media (max-width:620px){.grid{grid-template-columns:1fr}}
+  .op{
+    border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:20px;
+    display:flex; flex-direction:column; gap:9px;
+  }
+  .op-top{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .op h3{margin:0; font-size:16.5px; letter-spacing:-.01em}
+  .op p{margin:0; font-size:14px; color:var(--muted)}
+  .op .kbd{font-family:var(--mono); font-size:12.5px; color:var(--accent)}
+
+  /* ---- strategy list ---- */
+  .steps{display:flex; flex-direction:column; gap:2px; counter-reset:s; border-left:2px solid var(--border); margin-left:6px}
+  .step{position:relative; padding:6px 0 18px 26px; counter-increment:s}
+  .step::before{
+    content:counter(s); position:absolute; left:-13px; top:4px; width:24px; height:24px;
+    display:grid; place-items:center; font-family:var(--mono); font-size:12px; font-weight:700;
+    color:var(--accent); background:var(--bg); border:2px solid var(--border); border-radius:50%;
+  }
+  .step h3{margin:0 0 4px; font-size:15.5px}
+  .step p{margin:0; font-size:14px; color:var(--muted)}
+
+  /* ---- callout ---- */
+  .callout{
+    border:1px solid var(--border); border-left:4px solid var(--warn); background:var(--warn-soft);
+    border-radius:10px; padding:18px 20px; margin-top:8px;
+  }
+  .callout.stop{border-left-color:var(--stop); background:var(--stop-soft)}
+  .callout h3{margin:0 0 8px; font-size:15.5px; display:flex; align-items:center; gap:9px}
+  .callout p{margin:0 0 8px; font-size:14.5px; color:var(--ink); opacity:.86}
+  .callout p:last-child{margin:0}
+  .num{font-variant-numeric:tabular-nums; font-family:var(--mono); font-weight:700; color:var(--stop)}
+
+  /* ---- case studies (anexa) ---- */
+  .case{border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:clamp(16px,3vw,24px); display:flex; flex-direction:column; gap:16px; margin-top:16px}
+  .case.blocked{border-color:var(--stop); box-shadow:inset 3px 0 0 var(--stop)}
+  .case-head{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .case-head h3{margin:0; font-size:18px; letter-spacing:-.01em; flex:1; min-width:170px}
+  .case-file{font-family:var(--mono); font-size:12px; color:var(--muted); background:var(--surface-2); border:1px solid var(--border); border-radius:6px; padding:3px 9px; white-space:nowrap}
+  .statrow{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
+  @media (max-width:560px){.statrow{grid-template-columns:repeat(2,1fr)}}
+  .stat{border:1px solid var(--border); border-radius:9px; background:var(--surface-2); padding:11px 10px; text-align:center}
+  .stat b{display:block; font-family:var(--mono); font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em; line-height:1.2}
+  .stat span{font-size:10.5px; color:var(--faint); text-transform:uppercase; letter-spacing:.05em; font-family:var(--mono)}
+  .stat.g b{color:var(--ok)} .stat.a b{color:var(--warn)} .stat.r b{color:var(--stop)}
+  .kv{display:flex; flex-direction:column; gap:9px; font-size:14px}
+  .kv .row{display:flex; gap:12px; align-items:baseline}
+  .kv .k{font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); min-width:104px; flex-shrink:0}
+  .kv .v{color:var(--ink); max-width:none}
+  .kv .v b{color:var(--accent); font-variant-numeric:tabular-nums}
+  .example{border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:0 8px 8px 0; padding:12px 15px; font-size:13.5px; color:var(--ink)}
+  .example.warn2{border-left-color:var(--stop); background:var(--stop-soft)}
+  .example .lbl{font-family:var(--mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); display:block; margin-bottom:5px}
+  .example.warn2 .lbl{color:var(--stop)}
+  .example code{font-family:var(--mono); font-size:12.5px; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:1px 6px}
+
+  /* ---- flow ---- */
+  .flow{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  @media (max-width:620px){.flow{grid-template-columns:1fr}}
+  .flow .op-top .chip{font-size:11px}
+
+  .rule{height:1px; background:var(--border); border:0; margin:56px 0 0}
+  footer{margin-top:30px; font-family:var(--mono); font-size:12.5px; color:var(--faint); line-height:1.8}
+
+  .toggle{
+    position:fixed; top:16px; right:16px; z-index:9; font-family:var(--mono); font-size:12px;
+    background:var(--surface); color:var(--muted); border:1px solid var(--border-strong);
+    border-radius:8px; padding:7px 11px; cursor:pointer;
+  }
+  .toggle:hover{color:var(--ink); border-color:var(--accent)}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<button class="toggle" id="tg" aria-label="Schimbă tema">◐ temă</button>
+
+<div class="page">
+<div class="wrap">
+
+  <p class="eyebrow">Biro26 · OfficePlus · Import date</p>
+  <h1>Regulile fișierelor de import și ce operațiuni execută deja logica</h1>
+  <p class="dek">Un ghid scurt pentru operatori: ce trebuie să conțină un fișier ca să poată fi importat corect,
+  cum sunt recunoscute coloanele, și ce face automat motorul de import în baza de date de producție.</p>
+  <div class="meta">
+    <span><b>Pachet:</b> BIRO26PT_importData</span>
+    <span><b>Formate:</b> .xlsx · .xls · .csv</span>
+    <span><b>Regim implicit:</b> dry-run (analiză, fără scriere)</span>
+  </div>
+
+  <!-- 1. FILE RULES -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Fișier</span><h2>Cum trebuie să arate fișierul</h2></div>
+    <p>Motorul nu are nevoie de o structură fixă — el <b>citește antetul (primul rând)</b> și recunoaște coloanele
+    după nume, în română, rusă sau engleză. Reguli de bază:</p>
+    <div class="grid">
+      <div class="op">
+        <div class="op-top"><h3>Primul rând = antet</h3><span class="chip req">obligatoriu</span></div>
+        <p>Prima linie conține numele coloanelor. Datele încep din rândul următor. Foile goale sunt ignorate.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>O coloană de articol</h3><span class="chip req">cheie</span></div>
+        <p>Codul/articolul produsului (<span class="kbd">Артикул / Articol / SKU</span>) este cheia sigură de potrivire.
+        Fără el, importul nu poate identifica produsele cu certitudine.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Cel puțin un preț</h3><span class="chip rec">recomandat</span></div>
+        <p>Preț de raft, angro sau online. Format numeric; sunt tolerate variante ca <span class="kbd">1.013.00</span>.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Formate acceptate</h3><span class="chip ok">.xlsx .xls .csv</span></div>
+        <p>Se poate încărca un grup de fișiere sau o arhivă <span class="kbd">.zip</span> a unei mape.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. RECOGNIZED COLUMNS -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Coloane</span><h2>Coloane recunoscute automat</h2></div>
+    <p>Antetul este comparat cu un dicționar de sinonime (RO / RU / EN). Coloanele nerecunoscute
+    (URL, „Полное название", FOR_SITE, PRODUCER) sunt ignorate fără eroare.</p>
+    <div class="tablecard"><div class="scroll"><table>
+      <thead><tr><th>Câmp logic</th><th>Anteturi recunoscute</th><th>Rol</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="field">ARTICOL</td>
+          <td class="syn"><code>Артикул</code> <code>Articol</code> <code>SKU</code> <code>Cod produs</code></td>
+          <td>Cheia de potrivire cu catalogul (CODVECHI)</td>
+          <td><span class="chip req">obligatoriu</span></td>
+        </tr>
+        <tr>
+          <td class="field">DENUMIRE</td>
+          <td class="syn"><code>Название в карточке</code> <code>Denumire</code></td>
+          <td>Numele produsului</td>
+          <td><span class="chip rec">recomandat</span></td>
+        </tr>
+        <tr>
+          <td class="field">ANGRO</td>
+          <td class="syn"><code>Цена закупки без НДС</code> <code>Angro</code></td>
+          <td>Preț en-gros</td>
+          <td><span class="chip opt">preț</span></td>
+        </tr>
+        <tr>
+          <td class="field">ONLINE</td>
+          <td class="syn"><code>PriceOnline</code> <code>Online</code></td>
+          <td>Preț online</td>
+          <td><span class="chip opt">preț</span></td>
+        </tr>
+        <tr>
+          <td class="field">RETAIL</td>
+          <td class="syn"><code>Розничная цена с НДС</code> <code>Retail</code> <code>Raft</code></td>
+          <td>Preț cu amănuntul (de raft)</td>
+          <td><span class="chip rec">recomandat</span></td>
+        </tr>
+        <tr>
+          <td class="field">BARCODE</td>
+          <td class="syn"><code>Штрихкод</code> <code>Barcode</code> <code>Cod de bare</code> <code>EAN</code></td>
+          <td>Cod de bare (dacă lipsește, se poate genera)</td>
+          <td><span class="chip opt">opțional</span></td>
+        </tr>
+        <tr>
+          <td class="field">VAT</td>
+          <td class="syn"><code>Ставка НДС</code> <code>TVA</code></td>
+          <td>Cota TVA (informativ)</td>
+          <td><span class="chip opt">opțional</span></td>
+        </tr>
+      </tbody>
+    </table></div></div>
+  </section>
+
+  <!-- 3. DETECTION -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Detecție</span><h2>Cum sunt găsite coloanele — 3 strategii</h2></div>
+    <p>Se aplică în ordine; câmpurile lipsă se completează la pasul următor. Fiecare decizie e jurnalizată,
+    iar analiza (dry-run) arată exact cum a fost înțeles fișierul.</p>
+    <div class="steps">
+      <div class="step"><h3>După numele coloanei</h3><p>Antetul se potrivește cu dicționarul de sinonime. Acoperă majoritatea fișierelor de la furnizori.</p></div>
+      <div class="step"><h3>După ordinea cunoscută</h3><p>Dacă antetul lipsește, se aplică o schemă poziţională cunoscută (ex. fișiere de coduri de bare).</p></div>
+      <div class="step"><h3>După conținut / produs cunoscut</h3><p>Se caută în date un articol care coincide cu catalogul (CODVECHI) sau un nume care coincide cu un produs existent — o „ancoră" care ajută la identificarea coloanelor.</p></div>
+    </div>
+  </section>
+
+  <!-- 4. OPERATIONS -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Operațiuni</span><h2>Ce execută deja logica de import</h2></div>
+    <div class="grid">
+      <div class="op">
+        <div class="op-top"><h3>Poziții noi</h3><span class="chip ok">suportat</span></div>
+        <p>Articolele care nu există se creează în catalog (TMS_UNIVERS) + cartelă (TMS_MPT) și se plasează în
+        nodul lor <b>real</b> din arbore, după GRUPĂ.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Actualizare preț</h3><span class="chip ok">suportat</span></div>
+        <p>Perioadă nouă de preț cu <b>regula „nu coborî"</b>: prețul se schimbă doar dacă în fișier e mai mare;
+        altfel se păstrează cel curent. Perioada veche se închide (istoric de prețuri).</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Generare cod de bare</h3><span class="chip ok">EAN-13</span></div>
+        <p>Pentru pozițiile noi fără cod se generează un <b>EAN-13</b> valid (prefix 20 + cifră de control).
+        Dacă fișierul are coloană de coduri, acestea se importă direct.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Marcaj „produse noi"</h3><span class="chip ok">MATGR1=1</span></div>
+        <p>Produsele se marchează cu atributul <span class="kbd">MATGR1=1</span> — filtrul virtual „Produse noi"
+        din magazin și backoffice. Nu se creează un nod fizic în arbore.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Data de intrare în vigoare</h3><span class="chip ok">suportat</span></div>
+        <p>Prețul nou intră în vigoare la <b>data încărcării</b> (implicit) sau la o dată indicată.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Idempotent, fără ștergeri</h3><span class="chip ok">sigur</span></div>
+        <p>Repetarea aceluiași fișier nu creează dubluri. Nu se șterge nimic — prețurile merg pe perioade,
+        codurile de bare se adaugă.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. PRICE RULES -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Preț</span><h2>Regulile de preț pe scurt</h2></div>
+    <div class="grid">
+      <div class="op">
+        <div class="op-top"><h3>Nu se coboară prețul</h3><span class="chip rec">regulă</span></div>
+        <p>Dacă prețul de raft din fișier e mai mic sau egal cu cel curent, produsul rămâne cu prețul curent.
+        Se aplică doar creșterile.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Perioade, nu suprascriere</h3><span class="chip rec">istoric</span></div>
+        <p>Fiecare schimbare e o perioadă nouă (de la data intrării în vigoare). Perioada anterioară se închide
+        automat — fără suprapuneri.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. LIMITS -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Limite</span><h2>Ce NU se poate importa sigur</h2></div>
+    <div class="callout stop">
+      <h3>⛔ Fișier fără coloana Articol</h3>
+      <p>Fără articol, singura potrivire posibilă e după nume — dar în catalog numele nu sunt unice
+      (multe produse au același „nume în cartelă", distinse doar prin articol).</p>
+      <p>Exemplu real (fișier <span class="kbd">PRISE NOU</span>, 10 430 rânduri): doar
+      <span class="num">1 735</span> nume potrivesc un singur produs, <span class="num">8 579</span> sunt
+      ambigue (mai multe produse), <span class="num">116</span> fără potrivire. Un asemenea fișier nu poate fi
+      importat corect — <b>trebuie re-exportat cu coloana articolului</b>.</p>
+    </div>
+    <div class="callout" style="margin-top:16px">
+      <h3>⚠️ Rânduri sărite (raportate, nu blocante)</h3>
+      <p>Rândurile <b>ambigue</b> (articol care duce la mai multe produse) și cele <b>fără articol</b> sunt sărite
+      și numărate în raport, fără a opri restul importului.</p>
+    </div>
+  </section>
+
+  <!-- 7. WORKFLOW -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Flux</span><h2>Fluxul de lucru</h2></div>
+    <div class="flow">
+      <div class="op">
+        <div class="op-top"><h3>1 · Încărcare</h3></div>
+        <p>Grup de fișiere sau o arhivă .zip a mapei. Sistemul le pune în zona de pregătire.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>2 · Analiză</h3><span class="chip rec">dry-run</span></div>
+        <p>Se arată maparea coloanelor și câte poziții sunt noi / existente / ambigue / fără articol. Nimic nu se scrie.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>3 · Import</h3><span class="chip ok">scriere</span></div>
+        <p>După confirmare, datele se scriu în producție: poziții noi, prețuri, coduri de bare, marcaj.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANEXA A -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Anexa A</span><h2>Importuri anterioare și rezultate</h2></div>
+    <p>Patru exemple reale, pas cu pas: ce conținea fișierul, cum au fost recunoscute coloanele,
+    ce a rezultat din clasificare și un caz concret din fiecare import.</p>
+
+    <!-- Case: Set 4 -->
+    <div class="case">
+      <div class="case-head">
+        <h3>Preț + produse noi</h3>
+        <span class="case-file">Price nou.xlsx · Set 4 · 935 rânduri · 10 coloane</span>
+        <span class="chip ok">reușit</span>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Detectat</span><span class="v">antet (HEADER): <b>ARTICOL</b>, DENUMIRE, ANGRO, ONLINE, RETAIL, VAT</span></div>
+      </div>
+      <div class="statrow">
+        <div class="stat g"><b>523</b><span>noi</span></div>
+        <div class="stat"><b>356</b><span>existente</span></div>
+        <div class="stat a"><b>30</b><span>ambigue</span></div>
+        <div class="stat a"><b>26</b><span>fără articol</span></div>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Catalog</span><span class="v"><b>+523</b> produse (TMS_UNIVERS 78 640 → 79 163) și +523 cartele</span></div>
+        <div class="row"><span class="k">Coduri</span><span class="v"><b>523</b> coduri EAN-13 generate (produse noi fără cod)</span></div>
+        <div class="row"><span class="k">Marcaj</span><span class="v"><b>875</b> produse marcate „noi" (MATGR1=1)</span></div>
+        <div class="row"><span class="k">Prețuri</span><span class="v"><b>552</b> perioade noi (523 inițiale + 29 majorări); <b>25</b> scăderi ignorate</span></div>
+        <div class="row"><span class="k">Arbore</span><span class="v">523 poziții plasate în nodul real „Articole din hirtie → Hartie colorata"</span></div>
+      </div>
+      <div class="example">
+        <span class="lbl">Exemplu concret</span>
+        Cod nou <code>288657</code> a primit codul de bare generat <code>2000000004068</code> (EAN-13 valid).
+        Regula „nu coborî": cod <code>165690</code> avea 42,41 în fișier &lt; 42,4137 curent → <b>nicio perioadă nouă</b>, preț păstrat.
+      </div>
+    </div>
+
+    <!-- Case: Set 3 -->
+    <div class="case">
+      <div class="case-head">
+        <h3>Actualizare preț</h3>
+        <span class="case-file">Price nou.xlsx · Set 3 · 407 rânduri · 10 coloane</span>
+        <span class="chip ok">reușit</span>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Detectat</span><span class="v">antet (HEADER): <b>ARTICOL</b>, DENUMIRE, ANGRO, ONLINE, RETAIL, VAT</span></div>
+      </div>
+      <div class="statrow">
+        <div class="stat g"><b>94</b><span>noi</span></div>
+        <div class="stat"><b>283</b><span>existente</span></div>
+        <div class="stat a"><b>4</b><span>ambigue</span></div>
+        <div class="stat a"><b>26</b><span>fără articol</span></div>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Catalog</span><span class="v"><b>+94</b> produse noi (78 546 → 78 640)</span></div>
+        <div class="row"><span class="k">Prețuri</span><span class="v"><b>+373</b> perioade (74 396 → 74 769); 239 prețuri modificate</span></div>
+      </div>
+      <div class="example">
+        <span class="lbl">Exemplu concret</span>
+        Articolul <code>ZM80-B</code>: perioadă nouă de la 09.07.2026 cu prețul de raft <b>75,5</b> (era 80).
+        Perioada veche s-a închis automat la 08.07.2026 — fără suprapunere.
+      </div>
+    </div>
+
+    <!-- Case: Set 5 blocked -->
+    <div class="case blocked">
+      <div class="case-head">
+        <h3>Preț fără coloana articol</h3>
+        <span class="case-file">PRISE NOU 11.07.2026.xlsx · Set 5 · 10 430 rânduri · 9 coloane</span>
+        <span class="chip req">blocat</span>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Detectat</span><span class="v">DENUMIRE, ANGRO, ONLINE, RETAIL, VAT — <b style="color:var(--stop)">ARTICOL lipsește</b></span></div>
+        <div class="row"><span class="k">Potrivire</span><span class="v">singura opțiune a fost după nume (nesigur)</span></div>
+      </div>
+      <div class="statrow">
+        <div class="stat"><b>1 735</b><span>nume unic</span></div>
+        <div class="stat r"><b>8 579</b><span>ambigue</span></div>
+        <div class="stat a"><b>116</b><span>fără potrivire</span></div>
+        <div class="stat r"><b>0</b><span>importate</span></div>
+      </div>
+      <div class="example warn2">
+        <span class="lbl">De ce nu merge</span>
+        Numele „Hartie colorata A4 IQ 80 g intensiv AB-48 (500 foi) aqua blue" duce la <b>2 produse diferite</b>:
+        cod <code>297201</code> (articol 2840) și cod <code>290025</code> (articol 10354). Fără articol nu se poate
+        alege corect — de aceea fișierul trebuie re-exportat cu coloana articolului.
+      </div>
+    </div>
+
+    <!-- Case: barcodes + nomenclature -->
+    <div class="case">
+      <div class="case-head">
+        <h3>Coduri de bare + nomenclator lipsă</h3>
+        <span class="case-file">fișiere pe categorii · ~75 000 rânduri</span>
+        <span class="chip ok">reușit</span>
+      </div>
+      <div class="kv">
+        <div class="row"><span class="k">Etapa 1</span><span class="v"><b>+6 066</b> coduri de bare atașate produselor existente (idempotent — repetarea nu dublează)</span></div>
+        <div class="row"><span class="k">Etapa 2</span><span class="v">articole fără produs în catalog → <b>+4 146</b> produse + 4 146 cartele + <b>4 393</b> coduri</span></div>
+      </div>
+      <div class="example">
+        <span class="lbl">Ce a deblocat</span>
+        După deduplicare, articolele care înainte duceau la 2 coduri au devenit unice → 6 066 coduri
+        „blocate" anterior au putut fi atașate corect.
+      </div>
+    </div>
+  </section>
+
+  <!-- ANEXA B -->
+  <section>
+    <div class="sec-head"><span class="sec-tag">Anexa B</span><h2>Corecții și reguli confirmate în practică</h2></div>
+    <div class="grid">
+      <div class="op">
+        <div class="op-top"><h3>Deduplicare catalog</h3><span class="chip ok">3 817 eliminate</span></div>
+        <p>Produse duplicate exacte (același articol + nume) eliminate, păstrând codul cel mai mic;
+        referințele au fost re-legate, fără referințe rupte.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Perioade de preț</h3><span class="chip ok">279 reparate</span></div>
+        <p>Suprapuneri de perioade corectate: la un preț nou, perioada veche se închide la
+        <span class="kbd">start_nou − 1</span>. Regula e acum automată la fiecare import.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>„Produse noi" = virtual</h3><span class="chip ok">523 mutate</span></div>
+        <p>Corecție: produsele noi intră în nodurile lor <b>reale</b> din arbore (după GRUPĂ), nu într-un nod fizic.
+        „Produse noi" e doar filtrul <span class="kbd">MATGR1=1</span>.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>Regula „nu coborî"</h3><span class="chip ok">verificată</span></div>
+        <p>La Set 4: 29 majorări de preț aplicate, iar 25 scăderi din fișier au fost <b>ignorate</b>
+        (produsele au păstrat prețul curent, mai mare).</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-tag">Interfața web</span><h2>Cum imporți din interfața web (GUI)</h2></div>
+    <p>Importul se face din pagina <b>Import fișiere (PT)</b>:
+    <span class="kbd">/UNA.md/orasldev/biro26-import-pt</span> (card pe launcher-ul modulului;
+    necesită autentificare). Trei pași, în aceeași ordine ca logica descrisă mai sus:</p>
+    <div class="ops">
+      <div class="op">
+        <div class="op-top"><h3>1 · Fișiere</h3><span class="chip ok">drag &amp; drop</span></div>
+        <p>Trageți fișierele <b>.xlsx / .xls / .csv</b> sau un <b>.zip</b> al mapei. Sistemul le citește
+        și arată pentru fiecare foaie: rânduri și coloane.</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>2 · Analiză (dry-run)</h3><span class="chip ok">fără scriere</span></div>
+        <p>Butonul <b>«Analizează»</b> rulează detecția și arată: maparea coloanelor (cu strategia
+        HEADER / CONTENT / LAYOUT și posibilitatea de a o <b>corecta manual</b>), contoarele
+        NOI / EXISTENTE / AMBIGUE / FĂRĂ ARTICOL și previzualizarea rândurilor. Tot aici se aleg:
+        <b>Grupa</b>, <b>Cod preț</b>, <b>data intrării prețului</b> și bifa
+        <b>«Marchează toate ca produse noi»</b> (MATGR1=1).</p>
+      </div>
+      <div class="op">
+        <div class="op-top"><h3>3 · Import</h3><span class="chip warn">confirmare explicită</span></div>
+        <p>Rezumatul («va fi creat X, prețuri diferite Y, sărite Z») + butonul <b>«Importă în DB»</b>.
+        Doar acest pas scrie în producție; jurnalul complet apare imediat după.</p>
+      </div>
+    </div>
+    <p style="margin-top:14px">Rezultatul se vede imediat: pozițiile noi — în <b>Marfă/Stoc</b> și în
+    magazin sub filtrul <b>«Produse noi»</b>; prețurile — în <b>Listă de prețuri</b> (perioade).</p>
+  </section>
+
+  <hr class="rule">
+  <footer>
+    Biro26 · OfficePlus — motor de import BIRO26PT_importData<br>
+    Regulă de aur: <b>un fișier bun are întotdeauna coloana articolului</b>. Restul se detectează automat.
+  </footer>
+
+</div>
+</div>
+
+<script>
+  (function(){
+    var btn=document.getElementById('tg');
+    btn.addEventListener('click',function(){
+      var r=document.documentElement;
+      var cur=r.getAttribute('data-theme');
+      if(!cur){cur=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+      r.setAttribute('data-theme', cur==='dark'?'light':'dark');
+    });
+  })();
+</script>

@@ -54,6 +54,8 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
 
 <div class="top">
   <span class="logo">{{ app_name }} · Import fișiere (PT) · Импорт файлов</span>
+  <a href="/static/biro26/import_reguli.html" target="_blank" rel="noopener"
+     style="color:#93c5fd;text-decoration:none;font-size:13px;border:1px solid #334155;border-radius:6px;padding:5px 10px">📖 Reguli fișiere de import</a>
   <span class="sp"></span>
   <a href="/UNA.md/orasldev/biro26">← {{ app_name }}</a>
 </div>
@@ -64,7 +66,10 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
     <div class="hint">Trageți aici un grup de fișiere <b>.xlsx / .xls / .csv</b> sau un
       <b>.zip</b> cu folderul (structura necunoscută e OK — detecția coloanelor o face
       pachetul <code>BIRO26PT_importData</code> din DB). Alte extensii sunt ignorate.
-      · Перетащите файлы прайсов/остатков/штрихкодов или zip-архив папки.</div>
+      · Перетащите файлы прайсов/остатков/штрихкодов или zip-архив папки.
+      Ce trebuie să conțină fișierul și ce face motorul —
+      <a href="/static/biro26/import_reguli.html" target="_blank" rel="noopener">📖 Regulile de import</a>
+      (regula de aur: fișierul bun are coloana <b>Articol</b>).</div>
     <div class="drop" id="drop" onclick="document.getElementById('fi').click()">
       ⬆ Trageți fișierele aici sau click · Перетащите файлы или кликните
       <input type="file" id="fi" multiple accept=".xlsx,.xls,.csv,.zip" style="display:none" onchange="upload(this.files)">
