@@ -7,10 +7,12 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b}
-.top{position:sticky;top:0;z-index:50;background:#0d0d1a;color:#e2e8f0;display:flex;align-items:center;gap:12px;padding:10px 16px}
-.top .logo{font-weight:700;color:#4f8ef7}
+.top{position:sticky;top:0;z-index:50;background:{{ topbar_bg }};color:{{ topbar_fg }};display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.top .logo{font-weight:700;color:{{ '#1d4ed8' if topbar_light else '#4f8ef7' }}}
 .top .sp{flex:1}
-.top button,.top .who{background:rgba(255,255,255,.08);border:none;color:#e2e8f0;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
+.top .nav{color:{{ topbar_fg }};text-decoration:none;font-size:13.5px;font-weight:600;padding:4px 8px;border-radius:6px}
+.top .nav:hover{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.10' }})}
+.top button,.top .who{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.08' }});border:none;color:{{ topbar_fg }};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
 .badge{background:#22c55e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700}
 .wrap{max-width:1280px;margin:16px auto;padding:0 14px}
 .shoplay{display:grid;grid-template-columns:250px 1fr;gap:18px;align-items:start}
@@ -68,6 +70,7 @@ td.num,th.num{text-align:right}
 
 <div class="top">
   <span class="logo">{{ app_name }} · Magazin</span>
+  {% for label, url in shop_nav %}<a class="nav" target="_top" href="{{ url }}">{{ label }}</a>{% endfor %}
   <span class="sp"></span>
   <span class="who" id="who" style="display:none"></span>
   <button id="btn-auth" onclick="openAuth()">Intrare / Înregistrare</button>

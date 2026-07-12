@@ -5544,7 +5544,20 @@ def api_biro26_variants_put(cod):
 @app.route('/UNA.md/orasldev/biro26-shop')
 def biro26_shop():
     """Public self-service Marfă/Stoc page for individual clients."""
-    return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME)
+    # topbar theming + nav links are per-deployment (.env); a light
+    # background flips the button styling inside the template
+    bg = Config.BIRO26_SHOP_TOPBAR_BG
+    try:
+        h = bg.lstrip('#')
+        lum = (0.299 * int(h[0:2], 16) + 0.587 * int(h[2:4], 16)
+               + 0.114 * int(h[4:6], 16))
+    except Exception:
+        lum = 0
+    nav = [tuple(p.split('|', 1)) for p in Config.BIRO26_SHOP_NAV.split(';')
+           if '|' in p]
+    return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME,
+                           topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
+                           topbar_light=(lum > 140), shop_nav=nav)
 
 @app.route('/api/biro26/shop/register', methods=['POST'])
 def api_biro26_shop_register():
