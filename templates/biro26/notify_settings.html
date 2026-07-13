@@ -117,6 +117,15 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
   <div class="acts" style="margin-bottom:30px">
     <button class="btn" onclick="save()">💾 Salvează tot · Сохранить всё</button>
   </div>
+
+  <div class="card">
+    <h3>🛒 Magazin · Магазин</h3>
+    <div class="hint">Cîte produse se afișează pe o pagină în magazinul public
+      (paginare numerotată). / Сколько товаров на странице в магазине.</div>
+    <label>Produse pe pagină · Товаров на странице (1–200)</label>
+    <input type="number" id="f-shop-pagesize" min="1" max="200" placeholder="24" style="width:120px">
+    <div class="acts"><button class="btn" onclick="saveShop()">💾 Salvează · Сохранить</button></div>
+  </div>
 </div>
 
 <script>
@@ -181,6 +190,18 @@ async function save() {
     load();
   }
 }
+/* RO: setari magazin (produse pe pagina) — YBIRO_SETTINGS SHOP_PAGE_SIZE
+   EN: shop settings (products per page) */
+async function loadShop() {
+  const r = await j('/api/biro26/shop-settings');
+  if (r.success) document.getElementById('f-shop-pagesize').value = r.data.shop_page_size || '24';
+}
+async function saveShop() {
+  const v = document.getElementById('f-shop-pagesize').value.trim();
+  const r = await j('/api/biro26/shop-settings', {method: 'PUT',
+    body: JSON.stringify({shop_page_size: v})});
+  if (r.success) toast('Salvat ✓ · Сохранено — magazinul folosește noua valoare la reîncărcare');
+}
 async function test(channel) {
   await save();
   toast('Se trimite testul… · Отправляю тест…');
@@ -188,6 +209,7 @@ async function test(channel) {
   if (r.success) toast(channel + ': mesaj de test trimis ✓ · тест отправлен ✓');
 }
 load();
+loadShop();
 </script>
 </body>
 </html>

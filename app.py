@@ -5605,11 +5605,28 @@ def biro26_shop():
     info_title = info_html = None
     if info_slug:
         info_title, info_html = _biro26_wp_page(info_slug)
+    # RO: produse pe pagina — setabil in admin (YBIRO_SETTINGS SHOP_PAGE_SIZE)
+    # EN: products per page — admin-configurable (SHOP_PAGE_SIZE setting)
+    try:
+        from models.biro26_oracle_store import Biro26Store
+        page_size = int(Biro26Store.get_setting('SHOP_PAGE_SIZE', '24'))
+        page_size = max(1, min(page_size, 200))
+    except Exception:
+        page_size = 24
     return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME,
                            topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
                            topbar_light=(lum > 140), shop_nav=nav,
                            info_slug=info_slug, info_title=info_title,
-                           info_html=info_html)
+                           info_html=info_html, page_size=page_size)
+
+# ── shop display settings (admin): products per page ──
+@app.route('/api/biro26/shop-settings', methods=['GET'])
+def api_biro26_shop_settings_get():
+    return _b26(Biro26Controller.shop_settings_get)
+
+@app.route('/api/biro26/shop-settings', methods=['PUT'])
+def api_biro26_shop_settings_put():
+    return _b26(Biro26Controller.shop_settings_put)
 
 # ── product window: description (public read) + client comments ──
 @app.route('/api/biro26/shop/product/<int:cod>', methods=['GET'])
