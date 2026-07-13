@@ -5619,6 +5619,55 @@ def biro26_shop():
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html, page_size=page_size)
 
+# ── online payments (MAIB card / MIA QR): shop + callbacks + admin ──
+@app.route('/api/biro26/shop/pay/methods', methods=['GET'])
+def api_biro26_pay_methods():
+    return jsonify(Biro26Controller.pay_methods())
+
+@app.route('/api/biro26/shop/pay/<method>', methods=['POST'])
+def api_biro26_pay_create(method):
+    # auth is enforced inside (shop client session or backoffice session)
+    return jsonify(Biro26Controller.pay_create(method))
+
+@app.route('/api/biro26/shop/pay/mia-status', methods=['GET'])
+def api_biro26_pay_mia_status():
+    return jsonify(Biro26Controller.pay_mia_check())
+
+@app.route('/api/biro26/pay/maib-callback', methods=['GET', 'POST'])
+def api_biro26_pay_maib_callback():
+    """RO: okUrl/failUrl/callbackUrl de la MAIB — statusul se verifica
+    server-side prin pay-info; browserul e intors in magazin.
+    EN: MAIB return/callback — verified server-side via pay-info."""
+    from models.biro26_pay import Biro26Pay
+    body = request.get_json(silent=True) or {}
+    order_key = request.args.get('orderKey') or body.get('orderId') or ''
+    pay_id = (request.args.get('payId') or request.form.get('payId')
+              or (body.get('result') or {}).get('payId')
+              or body.get('payId') or '')
+    typeurl = (request.args.get('typeurl') or 'callbackurl').lower()
+    r = Biro26Pay.maib_callback(order_key, pay_id, typeurl)
+    if request.method == 'POST' or typeurl == 'callbackurl':
+        return jsonify(r)
+    # browser return (okUrl/failUrl): back to the shop with the outcome flag
+    return redirect('/UNA.md/orasldev/biro26-shop?pay='
+                    + ('ok' if r.get('paid') else 'fail'))
+
+@app.route('/api/biro26/pay/mia-callback', methods=['GET', 'POST'])
+def api_biro26_pay_mia_callback():
+    """RO: callbackEchoUrl de la MIA — statusul se reverifica prin API.
+    EN: MIA echo callback — re-verified through the status API."""
+    from models.biro26_pay import Biro26Pay
+    order = request.args.get('orderKey') or ''
+    return jsonify(Biro26Pay.mia_check(order) if order else {"success": True})
+
+@app.route('/api/biro26/pay-settings', methods=['GET'])
+def api_biro26_pay_settings_get():
+    return _b26(Biro26Controller.pay_settings_get)
+
+@app.route('/api/biro26/pay-settings', methods=['PUT'])
+def api_biro26_pay_settings_put():
+    return _b26(Biro26Controller.pay_settings_put)
+
 # ── shop display settings (admin): products per page ──
 @app.route('/api/biro26/shop-settings', methods=['GET'])
 def api_biro26_shop_settings_get():
