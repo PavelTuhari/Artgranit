@@ -47,8 +47,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
    EN: near full-width layout — minimal side gutters */
 .wrap{max-width:1780px;margin:12px auto;padding:0 12px}
 .shoplay{display:grid;grid-template-columns:250px 1fr;gap:18px;align-items:start}
-@media(max-width:820px){.shoplay{grid-template-columns:1fr}}
 .side{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;position:sticky;top:60px;max-height:calc(100vh - 76px);overflow-y:auto}
+/* RO: buton "Filtre" + sertar lateral pe mobil (pattern Amazon: catalogul/
+   arborele se ascunde si se deschide peste continut, se inchide la aplicare)
+   EN: mobile "Filters" button + off-canvas drawer (Amazon-like show/hide) */
+.filter-toggle{display:none;border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:9px 12px;font-size:13.5px;font-weight:600;color:#334155;cursor:pointer;white-space:nowrap}
+.side-close{display:none;position:sticky;top:0;background:#fff;z-index:2;padding:4px 0 8px;margin:-4px 0 6px;border-bottom:1px solid #e2e8f0;justify-content:space-between;align-items:center;font-weight:700}
+.side-close button{border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer}
+.side-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:110}
+@media(max-width:820px){
+  .shoplay{grid-template-columns:1fr;gap:10px}
+  .filter-toggle{display:inline-flex;align-items:center;gap:6px}
+  .side{display:none;position:fixed;top:0;left:0;bottom:0;width:min(320px,86vw);max-height:none;height:100%;z-index:120;border-radius:0;box-shadow:4px 0 24px rgba(0,0,0,.25);padding-bottom:40px;overflow-y:auto}
+  .side.open{display:block}
+  .side-backdrop.open{display:block}
+  .side-close{display:flex}
+  .shoplay .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .shoplay .cardp img{height:110px}
+  .top{padding:8px 10px;gap:6px}
+  .top .logo{font-size:14px}
+  .wrap{margin:8px auto;padding:0 8px}
+  .modal{width:95vw !important}
+  .prodlay .pimg{flex:1 1 100%;max-width:none}
+}
 .side h4{font-size:13px;margin:12px 0 6px;color:#0f172a}
 .side h4:first-child{margin-top:0}
 .side .fac{display:block;padding:3px 4px;border-radius:5px;color:#334155;cursor:pointer;text-decoration:none}
@@ -127,7 +148,10 @@ td.num,th.num{text-align:right}
   </article>
   {% endif %}
   <div class="shoplay"{% if info_html %} style="display:none"{% endif %}>
-    <aside class="side">
+    <div class="side-backdrop" id="side-backdrop" onclick="closeFilters()"></div>
+    <aside class="side" id="side">
+      <div class="side-close"><span>Filtre · Фильтры</span>
+        <button onclick="closeFilters()" aria-label="Închide">✕</button></div>
       <a class="fac" id="f-new" onclick="toggleNew()" style="font-weight:600">🆕 Produse noi · Новинки</a>
       <h4 style="margin-top:10px">Categorii · Категории</h4>
       <div id="f-tree"><span class="muted">…</span></div>
@@ -142,8 +166,9 @@ td.num,th.num{text-align:right}
       <span class="clr" onclick="resetFilters()">✕ Resetează filtrele · Сбросить фильтры</span>
     </aside>
     <main>
-      <div class="bar">
-        <input id="q" placeholder="Căutare: denumire / articol / cod de bare · Поиск: название / артикул / штрихкод"
+      <div class="bar" style="display:flex;gap:8px">
+        <button class="filter-toggle" onclick="openFilters()">☰ Filtre</button>
+        <input id="q" style="flex:1" placeholder="Căutare: denumire / articol / cod de bare · Поиск: название / артикул / штрихкод"
                oninput="debSearch()">
       </div>
       <div class="chips" id="chips"></div>
@@ -324,13 +349,28 @@ function renderChips() {
 
 /* ── catalog ─────────────────────────────────────────────── */
 function debSearch(){ clearTimeout(qTimer); qTimer = setTimeout(() => load(true), 400); }
+/* RO: sertarul de filtre pe mobil (pattern Amazon): buton "Filtre" ->
+   arborele apare peste continut; aplicarea unui filtru il inchide.
+   EN: mobile filters drawer (Amazon-like): opens over the content,
+   applying any filter closes it. */
+function openFilters() {
+  document.getElementById('side').classList.add('open');
+  document.getElementById('side-backdrop').classList.add('open');
+}
+function closeFilters() {
+  document.getElementById('side').classList.remove('open');
+  document.getElementById('side-backdrop').classList.remove('open');
+}
+
 let loadSeq = 0;   // rapid facet clicks: the LATEST request wins, stale responses are dropped
 async function load(reset) {
   const my = ++loadSeq;
   busy = true;
-  // RO: reset = filtrele s-au schimbat -> pagina 1 + renumarare totala
-  // EN: reset = filters changed -> back to page 1 + recount the total
-  if (reset) { curPage = 1; needCount = true; }
+  // RO: reset = filtrele s-au schimbat -> pagina 1 + renumarare totala;
+  //     pe mobil inchide si sertarul de filtre (ca pe Amazon)
+  // EN: reset = filters changed -> page 1 + recount; on mobile this also
+  //     closes the filters drawer (Amazon behavior)
+  if (reset) { curPage = 1; needCount = true; closeFilters(); }
   document.getElementById('grid').innerHTML = '';
   const qs = new URLSearchParams({limit, offset: (curPage - 1) * limit});
   const q = document.getElementById('q').value.trim();
