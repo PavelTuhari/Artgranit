@@ -79,15 +79,38 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
   </div>
 
   <div class="card">
-    <h3>💬 WhatsApp <span style="font-size:11px;color:#64748b">(CallMeBot, gratuit)</span></h3>
-    <div class="hint">Adăugați în contacte <b>+34 621 331 709</b> și trimiteți-i pe WhatsApp mesajul
-      «I allow callmebot to send me messages» — primiți un <b>apikey</b> personal.
-      / Добавьте номер CallMeBot в контакты и отправьте ему это сообщение — получите apikey.</div>
+    <h3>💬 WhatsApp</h3>
     <label class="sw"><input type="checkbox" id="f-wa-en"> Activat · Включено</label>
-    <label>Telefon (cu prefix) · Телефон (с кодом страны)</label>
-    <input type="text" id="f-wa-phone" placeholder="+37369000000">
-    <label>API key (CallMeBot)</label>
-    <input type="text" id="f-wa-apikey" placeholder="123456">
+    <label>Mod de trimitere · Способ отправки</label>
+    <select id="f-wa-mode" onchange="waMode()">
+      <option value="callmebot">CallMeBot — gratuit, text + link PDF</option>
+      <option value="cloud">WhatsApp Cloud API — trimite și fișierul PDF 📎</option>
+    </select>
+    <div id="wa-callmebot">
+      <div class="hint">Adăugați în contacte <b>+34 621 331 709</b> și trimiteți-i pe WhatsApp mesajul
+        «I allow callmebot to send me messages» — primiți un <b>apikey</b> personal.
+        Mesajul va conține un <b>link</b> spre PDF (fișierul se deschide la o atingere).
+        / Добавьте номер CallMeBot в контакты и отправьте ему это сообщение — получите apikey.
+        Сообщение будет содержать ссылку на PDF.</div>
+      <label>Telefon (cu prefix) · Телефон (с кодом страны)</label>
+      <input type="text" id="f-wa-phone" placeholder="+37369000000">
+      <label>API key (CallMeBot)</label>
+      <input type="text" id="f-wa-apikey" placeholder="123456">
+    </div>
+    <div id="wa-cloud" style="display:none">
+      <div class="hint">Meta WhatsApp Business Cloud API (<b>developers.facebook.com</b> → app WhatsApp →
+        API Setup): copiați <b>Access token</b> permanent și <b>Phone number ID</b>. PDF-ul contului de plată
+        vine ca <b>document atașat</b> în chat. / Meta Cloud API: постоянный Access token + Phone number ID;
+        PDF счёта приходит как вложение.</div>
+      <label>Access token (permanent)</label>
+      <input type="text" id="f-wa-ctoken" placeholder="EAAG...">
+      <label>Phone number ID (expeditor)</label>
+      <input type="text" id="f-wa-cphoneid" placeholder="123456789012345">
+      <label>Destinatar (cu prefix, fără +) · Получатель</label>
+      <input type="text" id="f-wa-cto" placeholder="37369000000">
+    </div>
+    <label>URL public al site-ului (pentru linkurile PDF) · Публичный URL сайта</label>
+    <input type="text" id="f-public-base" placeholder="https://officeplus.md">
     <div class="acts"><button class="btn gray" onclick="test('whatsapp')">Trimite test · Тест</button></div>
   </div>
 
@@ -115,7 +138,17 @@ const F = {
   smtp_user: ['f-smtp-user', 0], smtp_from: ['f-smtp-from', 0], smtp_ssl: ['f-smtp-ssl', 1],
   notify_tg_enabled: ['f-tg-en', 1], notify_tg_token: ['f-tg-token', 0], notify_tg_chat: ['f-tg-chat', 0],
   notify_wa_enabled: ['f-wa-en', 1], notify_wa_phone: ['f-wa-phone', 0], notify_wa_apikey: ['f-wa-apikey', 0],
+  notify_wa_mode: ['f-wa-mode', 0], notify_wa_cloud_token: ['f-wa-ctoken', 0],
+  notify_wa_cloud_phone_id: ['f-wa-cphoneid', 0], notify_wa_cloud_to: ['f-wa-cto', 0],
+  notify_public_base: ['f-public-base', 0],
 };
+/* RO: comuta blocurile CallMeBot / Cloud API dupa mod
+   EN: toggle the CallMeBot / Cloud API blocks by mode */
+function waMode() {
+  const cloud = document.getElementById('f-wa-mode').value === 'cloud';
+  document.getElementById('wa-callmebot').style.display = cloud ? 'none' : '';
+  document.getElementById('wa-cloud').style.display = cloud ? '' : 'none';
+}
 async function load() {
   const r = await j(API);
   if (!r.success) return;
@@ -123,6 +156,8 @@ async function load() {
     const el = document.getElementById(id);
     if (isChk) el.checked = r.data[k] === '1'; else el.value = r.data[k] || '';
   }
+  if (!document.getElementById('f-wa-mode').value) document.getElementById('f-wa-mode').value = 'callmebot';
+  waMode();
   const b = document.getElementById('smtp-badge');
   b.textContent = 'SMTP: ' + (r.data.smtp_configured ? 'configurat ✓' : 'neconfigurat');
   b.className = 'badge' + (r.data.smtp_configured ? ' ok' : '');
