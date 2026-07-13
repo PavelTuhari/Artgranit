@@ -5541,6 +5541,38 @@ def api_biro26_variants_put(cod):
 
 # ── Biro26 web-shop: PUBLIC page + API (client self-registration,
 #    catalog browsing, invoice creation via package y_ai_BIRO26) ──
+
+# RO: cache-ul paginilor informative WP (slug -> (expira, titlu, html));
+#     redate in interiorul magazinului ca meniul sa ramana vizibil pe tot site-ul.
+# EN: WP info-page cache (slug -> (expiry, title, html)); pages render inside
+#     the shop so the top menu stays visible across the whole site.
+_BIRO26_WP_CACHE = {}
+_BIRO26_WP_TTL = 300  # seconds
+
+def _biro26_wp_page(slug):
+    """Fetch a WP page (title, rendered HTML) via REST; '' base = feature off."""
+    import re as _re, time as _time, json as _json
+    import urllib.request as _rq
+    if not Config.BIRO26_SHOP_WP_API or not _re.match(r'^[a-z0-9-]{1,80}$', slug):
+        return None, None
+    hit = _BIRO26_WP_CACHE.get(slug)
+    if hit and hit[0] > _time.time():
+        return hit[1], hit[2]
+    try:
+        url = (Config.BIRO26_SHOP_WP_API.rstrip('/')
+               + '/wp/v2/pages?slug=' + slug + '&_fields=title,content')
+        with _rq.urlopen(url, timeout=6) as resp:
+            pages = _json.loads(resp.read().decode('utf-8'))
+        if not pages:
+            return None, None
+        title = pages[0].get('title', {}).get('rendered') or slug
+        html = pages[0].get('content', {}).get('rendered') or ''
+        _BIRO26_WP_CACHE[slug] = (_time.time() + _BIRO26_WP_TTL, title, html)
+        return title, html
+    except Exception:
+        # RO: WP indisponibil -> cade inapoi pe catalog / EN: WP down -> catalog
+        return None, None
+
 @app.route('/UNA.md/orasldev/biro26-shop')
 def biro26_shop():
     """Public self-service Marfă/Stoc page for individual clients."""
@@ -5555,9 +5587,17 @@ def biro26_shop():
         lum = 0
     nav = [tuple(p.split('|', 1)) for p in Config.BIRO26_SHOP_NAV.split(';')
            if '|' in p]
+    # RO: pagina informativa in interiorul magazinului (nav "info:<slug>")
+    # EN: info page inside the shop (nav "info:<slug>")
+    info_slug = (request.args.get('info') or '').strip()
+    info_title = info_html = None
+    if info_slug:
+        info_title, info_html = _biro26_wp_page(info_slug)
     return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME,
                            topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
-                           topbar_light=(lum > 140), shop_nav=nav)
+                           topbar_light=(lum > 140), shop_nav=nav,
+                           info_slug=info_slug, info_title=info_title,
+                           info_html=info_html)
 
 @app.route('/api/biro26/shop/register', methods=['POST'])
 def api_biro26_shop_register():

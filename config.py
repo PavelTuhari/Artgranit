@@ -121,11 +121,17 @@ class Config:
 
     # RO/EN: shop top-bar theming + nav links (per deployment; e.g. the
     # officeplus.md embed uses the site's footer green and WP page links).
-    # NAV format: "Label|/url;Label2|/url2" (links open in _top — escape
-    # the WordPress iframe).
+    # NAV format: "Label|/url;Label2|/url2". URL kinds:
+    #   "info:<slug>" — WP page rendered INSIDE the shop (menu stays visible);
+    #   "?"           — the catalog itself (clears the info view);
+    #   anything else — normal link, opens in _top (escapes the iframe).
     BIRO26_SHOP_TOPBAR_BG = os.environ.get('BIRO26_SHOP_TOPBAR_BG', '#0d0d1a')
     BIRO26_SHOP_TOPBAR_FG = os.environ.get('BIRO26_SHOP_TOPBAR_FG', '#e2e8f0')
     BIRO26_SHOP_NAV = os.environ.get('BIRO26_SHOP_NAV', '')
+    # RO: baza WP REST API pentru paginile "info:<slug>" din nav,
+    #     ex. https://officeplus.md/wp-json; gol = functie oprita.
+    # EN: WP REST API base for the nav "info:<slug>" pages; empty = off.
+    BIRO26_SHOP_WP_API = os.environ.get('BIRO26_SHOP_WP_API', '')
 
     # ── jsReport service (reports/ — node sidecar, localhost only) ──
     # RO: PDF-urile "cont de plata" / "comanda" din cos se genereaza aici.

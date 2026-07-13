@@ -12,6 +12,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
 .top .sp{flex:1}
 .top .nav{color:{{ topbar_fg }};text-decoration:none;font-size:13.5px;font-weight:600;padding:4px 8px;border-radius:6px}
 .top .nav:hover{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.10' }})}
+.top .nav-on{background:rgba({{ '0,0,0,.10' if topbar_light else '255,255,255,.14' }})}
+.info-page{background:#fff;border:1px solid #e2e8f0;border-radius:10px;max-width:860px;margin:14px auto;padding:26px 32px;font-size:15px;line-height:1.65;color:#1e293b}
+.info-page h1{font-size:24px;margin:0 0 14px}
+.info-body h2,.info-body h3{margin:18px 0 8px}
+.info-body p{margin:8px 0}
+.info-body ul,.info-body ol{margin:8px 0;padding-left:22px}
+.info-body img{max-width:100%;height:auto;border-radius:8px}
+.info-body a{color:#1d4ed8}
 .top button,.top .who{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.08' }});border:none;color:{{ topbar_fg }};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
 .badge{background:#22c55e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700}
 .wrap{max-width:1280px;margin:16px auto;padding:0 14px}
@@ -70,7 +78,15 @@ td.num,th.num{text-align:right}
 
 <div class="top">
   <span class="logo">{{ app_name }} · Magazin</span>
-  {% for label, url in shop_nav %}<a class="nav" target="_top" href="{{ url }}">{{ label }}</a>{% endfor %}
+  {% for label, url in shop_nav %}
+    {%- if url.startswith('info:') -%}
+      <a class="nav{{ ' nav-on' if info_slug == url[5:] else '' }}" href="?info={{ url[5:] }}">{{ label }}</a>
+    {%- elif url == '?' -%}
+      <a class="nav{{ '' if info_html else ' nav-on' }}" href="?">{{ label }}</a>
+    {%- else -%}
+      <a class="nav" target="_top" href="{{ url }}">{{ label }}</a>
+    {%- endif -%}
+  {% endfor %}
   <span class="sp"></span>
   <span class="who" id="who" style="display:none"></span>
   <button id="btn-auth" onclick="openAuth()">Intrare / Înregistrare</button>
@@ -78,7 +94,16 @@ td.num,th.num{text-align:right}
 </div>
 
 <div class="wrap">
-  <div class="shoplay">
+  {% if info_html %}
+  <!-- RO: pagina informativa WP redata in interiorul magazinului (meniul ramane).
+       EN: WP info page rendered inside the shop (the menu stays visible). -->
+  <article class="info-page">
+    <h1>{{ info_title }}</h1>
+    <div class="info-body">{{ info_html|safe }}</div>
+    <a class="btn gray" href="?" style="display:inline-block;margin-top:16px;text-decoration:none">← Înapoi la catalog · Назад в каталог</a>
+  </article>
+  {% endif %}
+  <div class="shoplay"{% if info_html %} style="display:none"{% endif %}>
     <aside class="side">
       <a class="fac" id="f-new" onclick="toggleNew()" style="font-weight:600">🆕 Produse noi · Новинки</a>
       <h4 style="margin-top:10px">Categorii · Категории</h4>
