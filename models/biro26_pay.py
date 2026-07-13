@@ -1,0 +1,343 @@
+"""Biro26 online payments: MAIB e-commerce (card) + MIA instant payments (QR).
+
+RO: Plata online a "contului de plată" din magazinul public. Două metode:
+    - MAIB e-commerce (api.maibmerchants.md v1): pay -> payUrl (redirect),
+      confirmarea vine pe callback/okUrl și se VERIFICĂ server-side prin
+      pay-info (statusul, RRN) — nu ne încredem în parametrii din URL.
+    - MIA instant payments (QMoney, api.qiwi.md): create-qr-dynamic ->
+      QR (base64) + link; statusul se citește prin get-qr-extension-status
+      și prin callbackEchoUrl.
+    Setările needitabile-secrete stau în YBIRO_SETTINGS (PAY_*); secretele
+    (project secret / api secret) DOAR în .env (regula proiectului), editate
+    din admin exact ca SMTP-ul. Plățile se jurnalizează în YBIRO_PAYMENTS.
+EN: Online payment of the shop invoice. Two methods: MAIB e-commerce
+    (redirect to payUrl, server-side verification via pay-info) and MIA
+    instant payments (dynamic QR + status polling). Non-secret settings in
+    YBIRO_SETTINGS; secrets ONLY in .env (edited from the admin page like
+    SMTP). Payments are journaled in YBIRO_PAYMENTS.
+
+Sursa de referință / reference sources:
+github.com/Unisim-Soft-Com/Telegram-Bots/unisim_BileteGaraAutoBTA
+(MaibAPI.php, functions.php qiwiAuth/qiwiGenerateQr, maib_collback.php).
+"""
+from __future__ import annotations
+
+import os
+from typing import Any, Dict, Optional
+
+import requests
+
+from config import Config
+from models.biro26_db import Biro26DB
+from models.biro26_notify import Biro26Notify, _update_env_file
+from models.biro26_oracle_store import Biro26Store, _rows
+
+MAIB_API = "https://api.maibmerchants.md/v1/"
+MIA_API = "https://api.qiwi.md/"
+
+# RO: cheile YBIRO_SETTINGS (nesecrete) / EN: non-secret settings keys
+PAY_KEYS = ["PAY_ENABLED", "PAY_METHOD", "PAY_MERCHANT_NAME",
+            "PAY_MIA_IBAN", "PAY_MAIB_PROJECT_ID", "PAY_MIA_API_KEY"]
+
+# RO: secretele -> .env (ca SMTP) / EN: secrets -> .env (like SMTP)
+PAY_ENV = {
+    "maib_project_secret": "BIRO26_MAIB_PROJECT_SECRET",
+    "mia_api_secret": "BIRO26_MIA_API_SECRET",
+}
+
+
+class Biro26Pay:
+
+    # ── settings ──
+
+    @staticmethod
+    def get_settings() -> Dict[str, Any]:
+        try:
+            data = {k.lower(): Biro26Store.get_setting(k, "") for k in PAY_KEYS}
+            data["pay_method"] = data["pay_method"] or "mia"
+            data["maib_secret_set"] = bool(Config.BIRO26_MAIB_PROJECT_SECRET)
+            data["mia_secret_set"] = bool(Config.BIRO26_MIA_API_SECRET)
+            return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_settings(d: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            env_pairs: Dict[str, str] = {}
+            for fld, env_key in PAY_ENV.items():
+                v = str(d.get(fld) or "").strip()
+                if v:                       # empty = keep the current secret
+                    env_pairs[env_key] = v
+            if env_pairs:
+                _update_env_file(env_pairs)
+                for k, v in env_pairs.items():
+                    os.environ[k] = v
+                Config.BIRO26_MAIB_PROJECT_SECRET = os.environ.get(
+                    "BIRO26_MAIB_PROJECT_SECRET", Config.BIRO26_MAIB_PROJECT_SECRET)
+                Config.BIRO26_MIA_API_SECRET = os.environ.get(
+                    "BIRO26_MIA_API_SECRET", Config.BIRO26_MIA_API_SECRET)
+            for k in PAY_KEYS:
+                if k.lower() in d:
+                    r = Biro26Store.set_setting(k, str(d[k.lower()] or ""))
+                    if not r.get("success"):
+                        return r
+            return Biro26Pay.get_settings()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def public_methods() -> Dict[str, Any]:
+        """RO: ce vede magazinul (fara secrete) / EN: what the shop sees."""
+        s = (Biro26Pay.get_settings().get("data") or {})
+        enabled = s.get("pay_enabled") == "1"
+        methods = []
+        if enabled:
+            m = s.get("pay_method") or "mia"
+            if m in ("mia", "both") and s.get("pay_mia_api_key") and s.get("mia_secret_set"):
+                methods.append("mia")
+            if m in ("maib", "both") and s.get("pay_maib_project_id") and s.get("maib_secret_set"):
+                methods.append("maib")
+        return {"success": True, "data": {"enabled": bool(methods),
+                                          "methods": methods}}
+
+    # ── payment journal (YBIRO_PAYMENTS) ──
+
+    @staticmethod
+    def _record(doc_cod: int, method: str, order_id: str, pay_id: str,
+                amount: float) -> None:
+        Biro26DB().execute_dml(
+            "INSERT INTO YBIRO_PAYMENTS (ID, DOC_COD, METHOD, ORDER_ID, PAY_ID, AMOUNT) "
+            "VALUES (YBIRO_PAYMENTS_SEQ.NEXTVAL, :d, :m, :o, :p, :a)",
+            {"d": int(doc_cod), "m": method, "o": order_id[:60],
+             "p": (pay_id or "")[:80], "a": float(amount)})
+
+    @staticmethod
+    def _mark(order_id: str, status: str, rrn: str = "",
+              details: str = "") -> None:
+        Biro26DB().execute_dml(
+            "UPDATE YBIRO_PAYMENTS SET STATUS = :s, RRN = :r, "
+            "DETAILS = SUBSTR(:dt, 1, 1000), "
+            "CONFIRMED = CASE WHEN :s2 = 'PAID' THEN SYSDATE ELSE CONFIRMED END "
+            "WHERE ORDER_ID = :o",
+            {"s": status, "r": (rrn or "")[:40], "dt": details or "",
+             "s2": status, "o": order_id[:60]})
+
+    @staticmethod
+    def doc_status(doc_cod: int) -> Dict[str, Any]:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT * FROM (SELECT METHOD, ORDER_ID, STATUS, AMOUNT, RRN, "
+                "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') CREATED "
+                "FROM YBIRO_PAYMENTS WHERE DOC_COD = :d ORDER BY ID DESC) "
+                "WHERE ROWNUM <= 5", {"d": int(doc_cod)}))
+            return {"success": True, "data": rows}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def _doc_amount(doc_cod: int) -> Optional[float]:
+        from models.biro26_report import Biro26Report
+        d = Biro26Report.doc_data(int(doc_cod))
+        if not d.get("success"):
+            return None
+        return float((d["data"] or {}).get("total") or 0)
+
+    @staticmethod
+    def _callback_base() -> str:
+        s = Biro26Notify.get_settings().get("data") or {}
+        return (s.get("notify_public_base") or "").strip().rstrip("/")
+
+    @staticmethod
+    def _notify_paid(order_id: str, method: str, amount: float) -> None:
+        """RO: notificare fire-and-forget la plata reusita (canalele active).
+        EN: fire-and-forget notification on successful payment."""
+        import threading
+
+        def _run():
+            try:
+                Biro26Notify.send_all(
+                    f"Plată online primită — {order_id}",
+                    f"💳 Plată online primită ({method.upper()})\n"
+                    f"Comanda: {order_id}\nSuma: {amount:.2f} LEI")
+            except Exception:
+                pass
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── MAIB e-commerce ──
+
+    @staticmethod
+    def _maib_token(s: Dict[str, str]) -> Optional[str]:
+        try:
+            r = requests.post(MAIB_API + "generate-token", timeout=20, json={
+                "projectId": s.get("pay_maib_project_id") or "",
+                "projectSecret": Config.BIRO26_MAIB_PROJECT_SECRET})
+            return (r.json().get("result") or {}).get("accessToken")
+        except Exception:
+            return None
+
+    @staticmethod
+    def maib_create(doc_cod: int, client_ip: str,
+                    client: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        s = (Biro26Pay.get_settings().get("data") or {})
+        base = Biro26Pay._callback_base()
+        if not base:
+            return {"success": False,
+                    "error": "URL public nesetat (Setări → notificări)"}
+        amount = Biro26Pay._doc_amount(doc_cod)
+        if not amount or amount <= 0:
+            return {"success": False, "error": "suma documentului este 0"}
+        token = Biro26Pay._maib_token(s)
+        if not token:
+            return {"success": False,
+                    "error": "MAIB: autentificare eșuată (Project ID/Secret)"}
+        import time as _time
+        order_id = f"BIRO26-{int(doc_cod)}-{int(_time.time())}"
+        cb = (f"{base}/api/biro26/pay/maib-callback?orderKey={order_id}")
+        body = {
+            "amount": f"{amount:.2f}", "currency": "MDL",
+            "clientIp": client_ip or "127.0.0.1", "language": "ro",
+            "description": f"Cont de plată OfficePlus (doc {doc_cod})"[:124],
+            "orderId": order_id,
+            "callbackUrl": cb + "&typeurl=callbackurl",
+            "okUrl": cb + "&typeurl=okurl",
+            "failUrl": cb + "&typeurl=failurl",
+        }
+        if client:
+            body["clientName"] = (client.get("name") or "")[:100]
+            body["email"] = (client.get("email") or "")[:100]
+        try:
+            r = requests.post(MAIB_API + "pay", json=body, timeout=25,
+                              headers={"Authorization": f"Bearer {token}"})
+            res = (r.json() or {}).get("result") or {}
+        except Exception as e:
+            return {"success": False, "error": f"MAIB: {e}"}
+        if not res.get("payUrl") or not res.get("payId"):
+            return {"success": False,
+                    "error": f"MAIB: inițializare eșuată — {r.text[:200]}"}
+        Biro26Pay._record(doc_cod, "maib", order_id, res["payId"], amount)
+        return {"success": True, "data": {"pay_url": res["payUrl"],
+                                          "order_id": order_id}}
+
+    @staticmethod
+    def maib_callback(order_key: str, pay_id: str, typeurl: str) -> Dict[str, Any]:
+        """RO: confirmarea se VERIFICĂ prin pay-info (nu din parametri).
+        EN: the confirmation is VERIFIED via pay-info, never trusted."""
+        s = (Biro26Pay.get_settings().get("data") or {})
+        token = Biro26Pay._maib_token(s)
+        info: Dict[str, Any] = {}
+        if token and pay_id:
+            try:
+                r = requests.get(MAIB_API + "pay-info/" + pay_id, timeout=20,
+                                 headers={"Authorization": f"Bearer {token}"})
+                info = (r.json() or {}).get("result") or {}
+            except Exception:
+                info = {}
+        status = (info.get("status") or "").upper()
+        rrn = info.get("rrn") or ""
+        if status == "OK" and rrn:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT DOC_COD, AMOUNT, STATUS FROM YBIRO_PAYMENTS "
+                "WHERE ORDER_ID = :o", {"o": order_key[:60]}))
+            Biro26Pay._mark(order_key, "PAID", rrn, f"maib {typeurl}")
+            if rows and rows[0]["status"] != "PAID":
+                Biro26Pay._notify_paid(order_key, "maib",
+                                       float(rows[0]["amount"] or 0))
+            return {"success": True, "paid": True}
+        if typeurl == "failurl":
+            Biro26Pay._mark(order_key, "FAILED", rrn,
+                            f"maib fail status={status}")
+        return {"success": True, "paid": False}
+
+    # ── MIA instant payments (QMoney / api.qiwi.md) ──
+
+    @staticmethod
+    def _mia_token(s: Dict[str, str]) -> Optional[str]:
+        try:
+            r = requests.post(MIA_API + "v1/auth", timeout=20, json={
+                "apiKey": s.get("pay_mia_api_key") or "",
+                "apiSecret": Config.BIRO26_MIA_API_SECRET,
+                "lifetimeMinutes": 30})
+            return (r.json() or {}).get("token")
+        except Exception:
+            return None
+
+    @staticmethod
+    def mia_create(doc_cod: int) -> Dict[str, Any]:
+        s = (Biro26Pay.get_settings().get("data") or {})
+        base = Biro26Pay._callback_base()
+        iban = (s.get("pay_mia_iban") or "").strip()
+        if not iban:
+            return {"success": False, "error": "MIA: IBAN nesetat (Setări)"}
+        amount = Biro26Pay._doc_amount(doc_cod)
+        if not amount or amount <= 0:
+            return {"success": False, "error": "suma documentului este 0"}
+        token = Biro26Pay._mia_token(s)
+        if not token:
+            return {"success": False,
+                    "error": "MIA: autentificare eșuată (apiKey/apiSecret)"}
+        import time as _time
+        order_id = f"BIRO26-{int(doc_cod)}-{int(_time.time())}"
+        payload = {
+            "accountIBAN": iban,
+            "name": (s.get("pay_merchant_name") or "OfficePlus")[:100],
+            "amount": round(float(amount), 2),
+            "comment": f"Cont de plata OfficePlus (doc {doc_cod})"[:120],
+            "validSeconds": 900,
+            "redirectURL": base or "https://officeplus.md/",
+            "callbackEchoUrl": f"{base}/api/biro26/pay/mia-callback"
+                               f"?orderKey={order_id}" if base else "",
+            "merchantID": order_id, "end2EndID": order_id,
+            "reference": order_id,
+        }
+        try:
+            r = requests.post(MIA_API + "qr/create-qr-dynamic", json=payload,
+                              timeout=25,
+                              headers={"Authorization": f"Bearer {token}",
+                                       "Content-Type": "application/json"})
+            qr = r.json() or {}
+        except Exception as e:
+            return {"success": False, "error": f"MIA: {e}"}
+        if not qr.get("image") or not qr.get("text"):
+            return {"success": False,
+                    "error": f"MIA: generare QR eșuată — {str(qr)[:200]}"}
+        pay_id = qr.get("qrExtensionUUID") or qr.get("extensionGuid") or ""
+        Biro26Pay._record(doc_cod, "mia", order_id, pay_id, amount)
+        return {"success": True, "data": {
+            "order_id": order_id, "qr_image": qr["image"],
+            "qr_link": qr["text"], "valid_seconds": 900}}
+
+    @staticmethod
+    def mia_check(order_id: str) -> Dict[str, Any]:
+        """RO: polling din UI — verifica statusul QR la MIA si actualizeaza
+        jurnalul. EN: UI polling — live status check + journal update."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT DOC_COD, PAY_ID, AMOUNT, STATUS FROM YBIRO_PAYMENTS "
+                "WHERE ORDER_ID = :o", {"o": (order_id or "")[:60]}))
+            if not rows:
+                return {"success": False, "error": "plată necunoscută"}
+            row = rows[0]
+            if row["status"] == "PAID":
+                return {"success": True, "paid": True}
+            s = (Biro26Pay.get_settings().get("data") or {})
+            token = Biro26Pay._mia_token(s)
+            if token and row["pay_id"]:
+                r = requests.get(
+                    MIA_API + "qr/get-qr-extension-status?extensionGuid="
+                    + row["pay_id"], timeout=20,
+                    headers={"Authorization": f"Bearer {token}"})
+                st = (r.json() or {})
+                status = str(st.get("status") or st.get("state") or "").upper()
+                if status in ("PAID", "EXECUTED", "SUCCESS", "COMPLETED"):
+                    Biro26Pay._mark(order_id, "PAID", "", f"mia {status}")
+                    Biro26Pay._notify_paid(order_id, "mia",
+                                           float(row["amount"] or 0))
+                    return {"success": True, "paid": True}
+                if status in ("EXPIRED", "CANCELED", "CANCELLED"):
+                    Biro26Pay._mark(order_id, "FAILED", "", f"mia {status}")
+                    return {"success": True, "paid": False, "final": True}
+            return {"success": True, "paid": False}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

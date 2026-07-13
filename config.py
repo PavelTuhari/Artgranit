@@ -132,6 +132,14 @@ class Config:
     #     ex. https://officeplus.md/wp-json; gol = functie oprita.
     # EN: WP REST API base for the nav "info:<slug>" pages; empty = off.
     BIRO26_SHOP_WP_API = os.environ.get('BIRO26_SHOP_WP_API', '')
+    # RO: plati online in magazin — MAIB e-commerce + MIA instant payments.
+    #     SECRETELE stau DOAR aici (.env), editate din pagina de admin
+    #     (ca SMTP); ID-urile nesecrete stau in YBIRO_SETTINGS (PAY_*).
+    # EN: shop online payments — MAIB e-commerce + MIA instant payments.
+    #     SECRETS live ONLY here (.env), edited from the admin page.
+    BIRO26_MAIB_PROJECT_SECRET = os.environ.get('BIRO26_MAIB_PROJECT_SECRET', '')
+    BIRO26_MIA_API_SECRET = os.environ.get('BIRO26_MIA_API_SECRET', '')
+
     # RO: 'biro26' => pagina /login este EXCLUSIV OfficePlus (fara selectorul
     #     de proiecte Artgranit); dupa login se intra direct in backoffice.
     #     Pentru instalarile dedicate unui singur client (officeplus.md).

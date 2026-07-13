@@ -674,18 +674,72 @@ async function makeInvoice() {
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
+    // RO: butoane de plata online (MAIB card / MIA QR) — dupa metodele active
+    // EN: online pay buttons (MAIB card / MIA QR) — per the enabled methods
+    let payBtns = '';
+    if (PAY.enabled) {
+      if (PAY.methods.includes('mia'))
+        payBtns += '<button class="btn green" onclick="payMia(' + r.data.cod + ')">📱 Achită acum (MIA QR)</button>';
+      if (PAY.methods.includes('maib'))
+        payBtns += '<button class="btn" onclick="payMaib(' + r.data.cod + ')">💳 Achită cu cardul (MAIB)</button>';
+    }
     document.getElementById('inv-result').innerHTML =
       '<div class="ok-box">✅ Cont de plată creat · Счёт на оплату создан:<br>' +
       '<b>Nr. ' + r.data.nrset + '</b> (document COD ' + r.data.cod + ')<br>' +
-      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + payBtns +
       '<a class="btn" style="text-decoration:none" target="_blank" href="' + pdf('invoice') + '">⬇ Cont de plată (PDF)</a>' +
       '<a class="btn gray" style="text-decoration:none" target="_blank" href="' + pdf('order') + '">⬇ Comandă (PDF)</a>' +
-      '</div></div>';
+      '</div><div id="pay-box" style="margin-top:8px"></div></div>';
     saveCart([]); renderCart();
   }
 }
 
-saveCart(cart()); refreshMe(); load(true); loadFacets();
+/* ── RO: plata online — MIA (QR instant) si MAIB (card, redirect) ──
+   ── EN: online payment — MIA (instant QR) and MAIB (card redirect) ── */
+let PAY = {enabled: false, methods: []};
+let miaTimer = null;
+async function loadPayMethods() {
+  const r = await j(API + '/pay/methods');
+  if (r.success && r.data) PAY = r.data;
+}
+async function payMaib(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span class="muted">Se inițiază plata MAIB…</span>';
+  const r = await j(API + '/pay/maib', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; return; }
+  box.innerHTML = '<span class="muted">Redirecționare către pagina MAIB…</span>';
+  window.open(r.data.pay_url, '_blank');
+}
+async function payMia(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span class="muted">Se generează codul QR MIA…</span>';
+  const r = await j(API + '/pay/mia', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; return; }
+  const d = r.data;
+  box.innerHTML =
+    '<div style="text-align:center;border:1px solid #86efac;border-radius:8px;padding:10px;background:#fff">' +
+    '<b>Scanați QR-ul cu aplicația bancară (MIA)</b><br>' +
+    '<img src="data:image/png;base64,' + d.qr_image + '" style="max-width:240px;margin:8px 0"><br>' +
+    '<a target="_blank" href="' + esc(d.qr_link) + '">Deschide linkul de plată</a><br>' +
+    '<span class="muted" id="mia-status" style="font-size:12px">Valabil ' + Math.round(d.valid_seconds / 60) +
+    ' min · așteptăm confirmarea plății…</span></div>';
+  if (miaTimer) clearInterval(miaTimer);
+  miaTimer = setInterval(async () => {
+    const st = await j(API + '/pay/mia-status?order=' + encodeURIComponent(d.order_id));
+    if (st.success && st.paid) {
+      clearInterval(miaTimer);
+      document.getElementById('pay-box').innerHTML =
+        '<div class="ok-box">✅ Plata a fost primită! Mulțumim. · Оплата получена!</div>';
+      toast('Plată confirmată ✓');
+    } else if (st.success && st.final) {
+      clearInterval(miaTimer);
+      const el = document.getElementById('mia-status');
+      if (el) el.textContent = 'QR expirat — generați unul nou. · QR истёк.';
+    }
+  }, 5000);
+}
+
+saveCart(cart()); refreshMe(); load(true); loadFacets(); loadPayMethods();
 </script>
 </body>
 </html>

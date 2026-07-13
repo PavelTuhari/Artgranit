@@ -119,6 +119,36 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
   </div>
 
   <div class="card">
+    <h3>💳 Plăți online (MAIB / MIA) · Онлайн-оплата</h3>
+    <div class="hint">Plata contului direct din magazin. <b>MIA</b> — plăți instant prin QR
+      (QMoney, api.qiwi.md); <b>MAIB</b> — plata cu cardul (api.maibmerchants.md, Project ID/Secret
+      din maibmerchants). Secretele se salvează în .env, nu în bază.
+      / Оплата счёта из магазина: MIA — QR, MAIB — карта. Секреты хранятся в .env.</div>
+    <label class="sw"><input type="checkbox" id="f-pay-en"> Activat · Включено</label>
+    <label>Metoda implicită · Способ по умолчанию</label>
+    <select id="f-pay-method">
+      <option value="mia">MIA — plăți instant prin QR (implicit)</option>
+      <option value="maib">MAIB — plata cu cardul</option>
+      <option value="both">Ambele · Обе</option>
+    </select>
+    <label>Denumirea comerciantului · Название продавца</label>
+    <input type="text" id="f-pay-merchant" placeholder="OfficePlus / GRECU OFFICE PLUS SRL">
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MAIB e-commerce</b></div>
+    <label>Project ID</label>
+    <input type="text" id="f-pay-maib-id" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
+    <label>Project Secret <span id="maib-sec-hint" class="badge" style="display:none">setat ✓ (gol = nu se schimbă)</span></label>
+    <input type="password" id="f-pay-maib-secret" placeholder="••••••••" autocomplete="new-password">
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MIA instant payments (QMoney)</b></div>
+    <label>API Key</label>
+    <input type="text" id="f-pay-mia-key" placeholder="18">
+    <label>API Secret <span id="mia-sec-hint" class="badge" style="display:none">setat ✓ (gol = nu se schimbă)</span></label>
+    <input type="password" id="f-pay-mia-secret" placeholder="••••••••" autocomplete="new-password">
+    <label>IBAN (contul comerciantului)</label>
+    <input type="text" id="f-pay-mia-iban" placeholder="MD88...">
+    <div class="acts"><button class="btn" onclick="savePay()">💾 Salvează · Сохранить</button></div>
+  </div>
+
+  <div class="card">
     <h3>🛒 Magazin · Магазин</h3>
     <div class="hint">Cîte produse se afișează pe o pagină în magazinul public
       (paginare numerotată). / Сколько товаров на странице в магазине.</div>
@@ -190,6 +220,45 @@ async function save() {
     load();
   }
 }
+/* RO: plati online (MAIB/MIA) — nesecrete in YBIRO_SETTINGS, secrete in .env
+   EN: online payments (MAIB/MIA) — non-secrets in settings, secrets in .env */
+const PF = {
+  pay_enabled: ['f-pay-en', 1], pay_method: ['f-pay-method', 0],
+  pay_merchant_name: ['f-pay-merchant', 0],
+  pay_maib_project_id: ['f-pay-maib-id', 0], pay_mia_api_key: ['f-pay-mia-key', 0],
+  pay_mia_iban: ['f-pay-mia-iban', 0],
+};
+async function loadPay() {
+  const r = await j('/api/biro26/pay-settings');
+  if (!r.success) return;
+  for (const [k, [id, isChk]] of Object.entries(PF)) {
+    const el = document.getElementById(id);
+    if (isChk) el.checked = r.data[k] === '1'; else el.value = r.data[k] || '';
+  }
+  if (!document.getElementById('f-pay-method').value) document.getElementById('f-pay-method').value = 'mia';
+  document.getElementById('maib-sec-hint').style.display = r.data.maib_secret_set ? '' : 'none';
+  document.getElementById('mia-sec-hint').style.display = r.data.mia_secret_set ? '' : 'none';
+}
+async function savePay() {
+  const body = {};
+  for (const [k, [id, isChk]] of Object.entries(PF)) {
+    const el = document.getElementById(id);
+    body[k] = isChk ? (el.checked ? '1' : '0') : el.value.trim();
+  }
+  // RO/EN: secretele se trimit doar daca s-a introdus ceva nou
+  const ms = document.getElementById('f-pay-maib-secret').value;
+  const qs = document.getElementById('f-pay-mia-secret').value;
+  if (ms) body.maib_project_secret = ms;
+  if (qs) body.mia_api_secret = qs;
+  const r = await j('/api/biro26/pay-settings', {method: 'PUT', body: JSON.stringify(body)});
+  if (r.success) {
+    toast('Salvat · Сохранено ✓ (secretele → .env)');
+    document.getElementById('f-pay-maib-secret').value = '';
+    document.getElementById('f-pay-mia-secret').value = '';
+    loadPay();
+  }
+}
+
 /* RO: setari magazin (produse pe pagina) — YBIRO_SETTINGS SHOP_PAGE_SIZE
    EN: shop settings (products per page) */
 async function loadShop() {
@@ -210,6 +279,7 @@ async function test(channel) {
 }
 load();
 loadShop();
+loadPay();
 </script>
 </body>
 </html>

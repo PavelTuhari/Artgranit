@@ -374,6 +374,53 @@ class Biro26Controller:
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
 
+    # ── online payments: MAIB e-commerce + MIA instant payments ──
+
+    @staticmethod
+    def pay_methods() -> Dict[str, Any]:
+        """Public: enabled payment methods for the shop UI."""
+        from models.biro26_pay import Biro26Pay
+        return Biro26Pay.public_methods()
+
+    @staticmethod
+    def pay_create(method: str) -> Dict[str, Any]:
+        """RO: initiaza plata contului de plata — doar clientul autentificat
+        (sau backoffice). EN: start the invoice payment — logged-in only."""
+        from flask import session
+        from models.biro26_pay import Biro26Pay
+        c = session.get("biro26_client")
+        if not c and not (session.get("username") or session.get("authenticated")):
+            return {"success": False, "error": "login required"}
+        d = request.get_json(silent=True) or {}
+        try:
+            cod = int(d.get("cod") or 0)
+        except (TypeError, ValueError):
+            cod = 0
+        if not cod:
+            return {"success": False, "error": "cod is required"}
+        if method == "maib":
+            ip = (request.headers.get("X-Real-IP")
+                  or request.remote_addr or "127.0.0.1")
+            return Biro26Pay.maib_create(cod, ip, c)
+        if method == "mia":
+            return Biro26Pay.mia_create(cod)
+        return {"success": False, "error": f"unknown method: {method}"}
+
+    @staticmethod
+    def pay_mia_check() -> Dict[str, Any]:
+        from models.biro26_pay import Biro26Pay
+        return Biro26Pay.mia_check(request.args.get("order") or "")
+
+    @staticmethod
+    def pay_settings_get() -> Dict[str, Any]:
+        from models.biro26_pay import Biro26Pay
+        return Biro26Pay.get_settings()
+
+    @staticmethod
+    def pay_settings_put() -> Dict[str, Any]:
+        from models.biro26_pay import Biro26Pay
+        return Biro26Pay.save_settings(request.get_json(silent=True) or {})
+
     # ── product description + client comments (shop window / card) ──
 
     @staticmethod
