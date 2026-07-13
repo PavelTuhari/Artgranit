@@ -404,6 +404,8 @@ class Biro26Controller:
             return Biro26Pay.maib_create(cod, ip, c)
         if method == "mia":
             return Biro26Pay.mia_create(cod)
+        if method == "miap2p":
+            return Biro26Pay.miap2p_create(cod)
         return {"success": False, "error": f"unknown method: {method}"}
 
     @staticmethod

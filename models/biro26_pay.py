@@ -37,7 +37,12 @@ MIA_API = "https://api.qiwi.md/"
 
 # RO: cheile YBIRO_SETTINGS (nesecrete) / EN: non-secret settings keys
 PAY_KEYS = ["PAY_ENABLED", "PAY_METHOD", "PAY_MERCHANT_NAME",
-            "PAY_MIA_IBAN", "PAY_MAIB_PROJECT_ID", "PAY_MIA_API_KEY"]
+            "PAY_MIA_IBAN", "PAY_MAIB_PROJECT_ID", "PAY_MIA_API_KEY",
+            # RO: transfer MIA catre persoana fizica (numar de telefon) —
+            #     metoda manuala, functioneaza IN PARALEL cu QR/MAIB
+            # EN: MIA transfer to an individual's phone number — manual
+            #     method, usable IN PARALLEL with the QR/MAIB methods
+            "PAY_MIA_P2P_ENABLED", "PAY_MIA_P2P_PHONE"]
 
 # RO: secretele -> .env (ca SMTP) / EN: secrets -> .env (like SMTP)
 PAY_ENV = {
@@ -98,8 +103,13 @@ class Biro26Pay:
                 methods.append("mia")
             if m in ("maib", "both") and s.get("pay_maib_project_id") and s.get("maib_secret_set"):
                 methods.append("maib")
+            # RO: transferul MIA pe telefon e independent (paralel)
+            # EN: the MIA phone transfer is an independent (parallel) method
+            if s.get("pay_mia_p2p_enabled") == "1" and s.get("pay_mia_p2p_phone"):
+                methods.append("miap2p")
         return {"success": True, "data": {"enabled": bool(methods),
-                                          "methods": methods}}
+                                          "methods": methods,
+                                          "p2p_phone": s.get("pay_mia_p2p_phone") or ""}}
 
     # ── payment journal (YBIRO_PAYMENTS) ──
 
@@ -249,6 +259,32 @@ class Biro26Pay:
             Biro26Pay._mark(order_key, "FAILED", rrn,
                             f"maib fail status={status}")
         return {"success": True, "paid": False}
+
+    # ── MIA transfer la telefon (persoana fizica) — metoda manuala ──
+
+    @staticmethod
+    def miap2p_create(doc_cod: int) -> Dict[str, Any]:
+        """RO: fara API — cumparatorul face transfer MIA din aplicatia
+        bancii pe numarul de telefon setat; plata se inregistreaza PENDING
+        si se confirma manual de operator (jurnal YBIRO_PAYMENTS).
+        EN: no API — the buyer sends a MIA transfer from their banking app
+        to the configured phone number; recorded PENDING, confirmed
+        manually by the operator."""
+        s = (Biro26Pay.get_settings().get("data") or {})
+        phone = (s.get("pay_mia_p2p_phone") or "").strip()
+        if not phone:
+            return {"success": False,
+                    "error": "MIA transfer: numărul de telefon nu e setat"}
+        amount = Biro26Pay._doc_amount(doc_cod)
+        if not amount or amount <= 0:
+            return {"success": False, "error": "suma documentului este 0"}
+        import time as _time
+        order_id = f"BIRO26-{int(doc_cod)}-{int(_time.time())}"
+        Biro26Pay._record(doc_cod, "miap2p", order_id, "", amount)
+        return {"success": True, "data": {
+            "order_id": order_id, "phone": phone,
+            "amount": round(float(amount), 2),
+            "merchant": s.get("pay_merchant_name") or "OfficePlus"}}
 
     # ── MIA instant payments (QMoney / api.qiwi.md) ──
 

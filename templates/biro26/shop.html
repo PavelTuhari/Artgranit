@@ -682,6 +682,8 @@ async function makeInvoice() {
         payBtns += '<button class="btn green" onclick="payMia(' + r.data.cod + ')">📱 Achită acum (MIA QR)</button>';
       if (PAY.methods.includes('maib'))
         payBtns += '<button class="btn" onclick="payMaib(' + r.data.cod + ')">💳 Achită cu cardul (MAIB)</button>';
+      if (PAY.methods.includes('miap2p'))
+        payBtns += '<button class="btn gray" onclick="payMiaP2P(' + r.data.cod + ')">📲 Transfer MIA la telefon</button>';
     }
     document.getElementById('inv-result').innerHTML =
       '<div class="ok-box">✅ Cont de plată creat · Счёт на оплату создан:<br>' +
@@ -737,6 +739,25 @@ async function payMia(cod) {
       if (el) el.textContent = 'QR expirat — generați unul nou. · QR истёк.';
     }
   }, 5000);
+}
+
+/* RO: transfer MIA catre persoana fizica (numar de telefon) — instructiuni;
+   plata se confirma manual de operator. Functioneaza in paralel cu QR/MAIB.
+   EN: MIA transfer to a phone number — instructions box; confirmed manually. */
+async function payMiaP2P(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span class="muted">…</span>';
+  const r = await j(API + '/pay/miap2p', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; return; }
+  const d = r.data;
+  box.innerHTML =
+    '<div style="border:1px solid #86efac;border-radius:8px;padding:12px;background:#fff;font-size:14px;line-height:1.6">' +
+    '<b>📲 Transfer prin MIA (aplicația băncii dvs.)</b><br>' +
+    '1️⃣ Deschideți aplicația băncii → <b>MIA / Plăți instant</b> → transfer după <b>numărul de telefon</b><br>' +
+    '2️⃣ Numărul: <b style="font-size:17px">' + esc(d.phone) + '</b> (' + esc(d.merchant) + ')<br>' +
+    '3️⃣ Suma: <b style="font-size:17px">' + d.amount.toFixed(2) + ' LEI</b><br>' +
+    '4️⃣ La destinația/comentariul plății indicați: <b>' + esc(d.order_id) + '</b><br>' +
+    '<span class="muted" style="font-size:12px">Plata se confirmă manual de operator după recepționarea transferului. · Платёж подтверждается оператором после получения перевода.</span></div>';
 }
 
 saveCart(cart()); refreshMe(); load(true); loadFacets(); loadPayMethods();
