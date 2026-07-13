@@ -353,6 +353,40 @@ class Biro26Controller:
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
 
+    # ── product description + client comments (shop window / card) ──
+
+    @staticmethod
+    def shop_product_info(cod: int) -> Dict[str, Any]:
+        """Public: description + comments for the shop's product window."""
+        return Biro26Store.product_info(cod)
+
+    @staticmethod
+    def shop_product_comment(cod: int) -> Dict[str, Any]:
+        """RO: comentariu nou — doar clienti autentificati (sau backoffice);
+        autorul se ia din sesiune, nu din request (anti-spoof).
+        EN: new comment — logged-in shop clients (or backoffice) only;
+        the author comes from the session, never from the request."""
+        from flask import session
+        d = request.get_json() or {}
+        text = (d.get("txt") or "").strip()
+        c = session.get("biro26_client")
+        if c:
+            return Biro26Store.add_product_comment(
+                cod, c.get("name") or "client", c.get("univers_cod"), text)
+        if session.get("username") or session.get("authenticated"):
+            return Biro26Store.add_product_comment(
+                cod, session.get("username") or "operator", None, text)
+        return {"success": False, "error": "login required"}
+
+    @staticmethod
+    def set_product_desc(cod: int) -> Dict[str, Any]:
+        d = request.get_json() or {}
+        return Biro26Store.set_product_desc(cod, d.get("descriere") or "")
+
+    @staticmethod
+    def delete_product_comment(comment_id: int) -> Dict[str, Any]:
+        return Biro26Store.delete_product_comment(comment_id)
+
     @staticmethod
     def doc_json(cod: int) -> Dict[str, Any]:
         """Document data as JSON (number, client, items, totals) for

@@ -491,10 +491,54 @@ async function showItemCard(cod) {
     t('card_edit') + '</button></div>' +
     barcodesHtml(r.data.barcodes) +
     '<div id="card-variants"></div>' +
+    '<div id="card-prodinfo"></div>' +
     '<div class="detail-section-title">TMS_UNIVERS</div>' + fields(u) +
     (mpt ? '<div class="detail-section-title">TMS_MPT</div>' + fields(mpt)
          : '<div class="detail-section-title">TMS_MPT</div><p class="muted">' + t('no_data') + '</p>');
   loadCardVariants(cod);
+  loadCardProdInfo(cod);
+}
+
+/* ── RO: descrierea produsului (YBIRO_PROD_INFO) + comentariile
+        clientilor (YBIRO_PROD_COMMENTS) in fisa — descrierea apare in
+        fereastra mare de produs din magazin.
+   ── EN: product description + client comments in the card — the
+        description feeds the shop's large product window. ── */
+async function loadCardProdInfo(cod) {
+  const box = el('card-prodinfo');
+  if (!box) return;
+  const r = await apiGet('/api/biro26/shop/product/' + cod);
+  const d = (r.success && r.data) || {descriere: '', comments: []};
+  box.innerHTML =
+    '<div class="detail-section-title">Descriere (magazin) · Описание (магазин)</div>' +
+    '<textarea id="pd-desc-' + cod + '" style="width:100%;min-height:90px;padding:8px;' +
+    'border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:13px">' +
+    escapeHtml(d.descriere || '') + '</textarea>' +
+    '<div class="btn-row" style="margin:6px 0 10px"><button class="btn primary" ' +
+    'onclick="saveProdDesc(' + cod + ')">💾 Salvează descrierea</button></div>' +
+    '<div class="detail-section-title">Comentarii clienți (' + (d.comments || []).length + ')</div>' +
+    ((d.comments || []).length
+      ? d.comments.map(c =>
+          '<div style="background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;' +
+          'padding:7px 10px;margin-bottom:5px;font-size:12.5px">' +
+          '<b>' + escapeHtml(c.autor || '—') + '</b> <span class="muted" style="font-size:11px">' +
+          escapeHtml(c.created || '') + '</span>' +
+          '<button class="btn-sm" style="float:right" title="Șterge" ' +
+          'onclick="delProdComment(' + c.id + ',' + cod + ')">🗑</button>' +
+          '<div>' + escapeHtml(c.txt || '') + '</div></div>').join('')
+      : '<p class="muted" style="font-size:12px">Fără comentarii · Нет комментариев</p>');
+}
+
+async function saveProdDesc(cod) {
+  const ta = el('pd-desc-' + cod);
+  const r = await apiPut('/api/biro26/product-desc/' + cod, {descriere: ta ? ta.value : ''});
+  if (r.success) toast(t('saved'), 'ok');
+}
+
+async function delProdComment(id, cod) {
+  if (!confirm('Ștergeți comentariul? · Удалить комментарий?')) return;
+  const r = await apiDelete('/api/biro26/product-comment/' + id);
+  if (r.success) { toast(t('saved'), 'ok'); loadCardProdInfo(cod); }
 }
 
 /* \u2500\u2500 variants (BIRO26_VARIANTS): editable family detail in the card \u2500\u2500

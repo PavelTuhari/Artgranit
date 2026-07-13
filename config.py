@@ -132,6 +132,12 @@ class Config:
     #     ex. https://officeplus.md/wp-json; gol = functie oprita.
     # EN: WP REST API base for the nav "info:<slug>" pages; empty = off.
     BIRO26_SHOP_WP_API = os.environ.get('BIRO26_SHOP_WP_API', '')
+    # RO: 'biro26' => pagina /login este EXCLUSIV OfficePlus (fara selectorul
+    #     de proiecte Artgranit); dupa login se intra direct in backoffice.
+    #     Pentru instalarile dedicate unui singur client (officeplus.md).
+    # EN: 'biro26' => the /login page is OfficePlus-only (no Artgranit
+    #     project selector); login lands straight in the backoffice.
+    LOGIN_EXCLUSIVE = os.environ.get('LOGIN_EXCLUSIVE', '')
 
     # ── jsReport service (reports/ — node sidecar, localhost only) ──
     # RO: PDF-urile "cont de plata" / "comanda" din cos se genereaza aici.
