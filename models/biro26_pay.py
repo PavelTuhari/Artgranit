@@ -302,7 +302,11 @@ class Biro26Pay:
         if not qr.get("image") or not qr.get("text"):
             return {"success": False,
                     "error": f"MIA: generare QR eșuată — {str(qr)[:200]}"}
-        pay_id = qr.get("qrExtensionUUID") or qr.get("extensionGuid") or ""
+        # RO: cheia reala din raspunsul QMoney este extensionUUID (verificat
+        #     pe Test API); pastram fallback-urile istoric documentate.
+        # EN: the real QMoney response key is extensionUUID (verified).
+        pay_id = (qr.get("extensionUUID") or qr.get("qrExtensionUUID")
+                  or qr.get("extensionGuid") or "")
         Biro26Pay._record(doc_cod, "mia", order_id, pay_id, amount)
         return {"success": True, "data": {
             "order_id": order_id, "qr_image": qr["image"],
@@ -329,7 +333,8 @@ class Biro26Pay:
                     + row["pay_id"], timeout=20,
                     headers={"Authorization": f"Bearer {token}"})
                 st = (r.json() or {})
-                status = str(st.get("status") or st.get("state") or "").upper()
+                status = str(st.get("extensionStatus") or st.get("status")
+                             or st.get("state") or "").upper()
                 if status in ("PAID", "EXECUTED", "SUCCESS", "COMPLETED"):
                     Biro26Pay._mark(order_id, "PAID", "", f"mia {status}")
                     Biro26Pay._notify_paid(order_id, "mia",
