@@ -20,6 +20,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
 .info-body ul,.info-body ol{margin:8px 0;padding-left:22px}
 .info-body img{max-width:100%;height:auto;border-radius:8px}
 .info-body a{color:#1d4ed8}
+/* RO: fereastra mare de produs / EN: large product window */
+.prodlay{display:flex;gap:18px;flex-wrap:wrap}
+.prodlay .pimg{flex:0 0 280px;max-width:280px}
+.prodlay .pimg img{width:100%;max-height:300px;object-fit:contain;border-radius:8px;background:#f1f5f9;cursor:zoom-in}
+.prodlay .pinf{flex:1;min-width:260px}
+.prodlay h2{margin:0 0 6px;font-size:19px;line-height:1.3}
+.pdesc{margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;white-space:pre-wrap}
+.pcom{margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0}
+.pcom h4{margin:0 0 8px}
+.pcom .cm{background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px}
+.pcom .cm .a{font-weight:600;font-size:12px;color:#334155}
+.pcom .cm .d{color:#94a3b8;font-size:11px;margin-left:6px}
+.pcom textarea{width:100%;min-height:64px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:13px}
 .top button,.top .who{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.08' }});border:none;color:{{ topbar_fg }};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
 .badge{background:#22c55e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700}
 .wrap{max-width:1280px;margin:16px auto;padding:0 14px}
@@ -127,6 +140,14 @@ td.num,th.num{text-align:right}
       <div class="grid" id="grid"></div>
       <button class="btn gray more" id="more" onclick="loadMore()">Mai multe · Ещё</button>
     </main>
+  </div>
+</div>
+
+<!-- RO: fereastra mare de produs: descriere + comentarii
+     EN: large product window: description + comments -->
+<div class="modal-bg" id="m-prod" onclick="this.classList.remove('open')">
+  <div class="modal" style="width:780px;max-width:95vw;max-height:88vh;overflow:auto" onclick="event.stopPropagation()">
+    <div id="prod-body"><span class="muted">…</span></div>
   </div>
 </div>
 
@@ -303,6 +324,7 @@ async function load(reset) {
   const rows = r.data || [];
   offset += rows.length;
   document.getElementById('more').style.display = rows.length === limit ? '' : 'none';
+  rows.forEach(p => { prodCache[p.cod] = p; });
   document.getElementById('grid').insertAdjacentHTML('beforeend', rows.map(p => {
     const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
     // RO/EN: familii de variante — selector de caracteristică (culoare/material)
@@ -311,8 +333,8 @@ async function load(reset) {
         '<option value="' + p.cod + '">' + esc(p.variant || '—') + ' (' + p.var_cnt + ' variante ▾)</option></select>'
       : '';
     return '<div class="cardp">' +
-      (p.image ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(p.image) + '" onerror="this.style.visibility=\'hidden\'">' : '<div style="height:130px"></div>') +
-      '<div class="nm">' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px">NOU</span>' : '') + esc(p.denumirea || p.namerus || '') + '</div>' +
+      (p.image ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(p.image) + '" style="cursor:pointer" onclick="openProd(' + p.cod + ')" onerror="this.style.visibility=\'hidden\'">' : '<div style="height:130px;cursor:pointer" onclick="openProd(' + p.cod + ')"></div>') +
+      '<div class="nm" style="cursor:pointer" onclick="openProd(' + p.cod + ')">' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px">NOU</span>' : '') + esc(p.denumirea || p.namerus || '') + '</div>' +
       '<div class="muted" style="font-size:11px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
       varSel +
       '<div class="row"><span class="pr">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
@@ -327,6 +349,94 @@ function loadMore(){ load(false); }
 function cart(){ try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch(e){ return []; } }
 function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c));
   document.getElementById('cart-n').textContent = c.length; }
+/* ── RO: fereastra mare de produs (descriere + comentarii) ──
+   ── EN: large product window (description + comments) ────── */
+const prodCache = {};
+let prodOpen = null;
+async function openProd(cod) {
+  prodOpen = cod;
+  const p = prodCache[cod] || {};
+  const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const body = document.getElementById('prod-body');
+  document.getElementById('m-prod').classList.add('open');
+  body.innerHTML =
+    '<div class="prodlay">' +
+      '<div class="pimg">' + (p.image ? '<img referrerpolicy="no-referrer" src="' + esc(p.image) + '" onclick="window.open(this.src)" onerror="this.style.display=\'none\'">' : '') + '</div>' +
+      '<div class="pinf">' +
+        '<h2>' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:middle">NOU</span>' : '') + esc(p.denumirea || p.namerus || ('COD ' + cod)) + '</h2>' +
+        '<div class="muted" style="font-size:12px;margin-bottom:8px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
+        ((p.var_cnt || 1) > 1 ? '<select class="varsel" id="mv-' + cod + '" style="margin-bottom:8px"><option value="' + cod + '">' + esc(p.variant || '—') + '</option></select>' : '') +
+        '<div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px">' +
+          '<span class="pr" style="font-size:20px;font-weight:700">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
+          '<input type="number" min="1" value="1" id="mq-' + cod + '" style="width:70px;padding:7px;border:1px solid #e2e8f0;border-radius:6px">' +
+          '<button class="btn" onclick="addCartModal(' + cod + ')">+🛒 Adaugă în coș</button>' +
+        '</div>' +
+        '<div class="pdesc" id="p-desc"><span class="muted">…</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="pcom">' +
+      '<h4>💬 Comentarii · Комментарии</h4>' +
+      '<div id="p-comments"><span class="muted">…</span></div>' +
+      '<div id="p-comment-add" style="margin-top:8px"></div>' +
+    '</div>';
+  // variantele familiei (daca exista)
+  if ((p.var_cnt || 1) > 1) {
+    const rv = varCache[cod] || await j(API + '/variants?cod=' + cod);
+    varCache[cod] = rv;
+    const sel = document.getElementById('mv-' + cod);
+    if (sel && rv.success && (rv.data || []).length) {
+      sel.innerHTML = rv.data.map(v =>
+        '<option value="' + v.cod_univers + '" data-name="' + esc(v.full_name || v.base_name || '') + '"' +
+        (String(v.cod_univers) === String(cod) ? ' selected' : '') + '>' +
+        esc(v.variant || v.full_name || ('#' + v.cod_univers)) + '</option>').join('');
+    }
+  }
+  // descriere + comentarii
+  const r = await j(API + '/product/' + cod);
+  if (prodOpen !== cod) return;                 // a newer window superseded us
+  const d = (r.success && r.data) || {};
+  document.getElementById('p-desc').innerHTML = d.descriere
+    ? esc(d.descriere) : '<span class="muted">Fără descriere · Без описания</span>';
+  renderComments(d.comments || []);
+  document.getElementById('p-comment-add').innerHTML = me
+    ? '<textarea id="p-cm-txt" placeholder="Comentariul dvs. · Ваш комментарий"></textarea>' +
+      '<div style="text-align:right;margin-top:6px"><button class="btn" onclick="sendComment(' + cod + ')">Trimite · Отправить</button></div>'
+    : '<span class="muted" style="font-size:12.5px">Pentru a lăsa un comentariu, <a href="#" onclick="document.getElementById(\'m-prod\').classList.remove(\'open\');openAuth();return false">intrați în cont</a>. · Чтобы оставить комментарий, войдите.</span>';
+}
+function renderComments(list) {
+  document.getElementById('p-comments').innerHTML = list.length
+    ? list.map(c => '<div class="cm"><span class="a">' + esc(c.autor || '—') + '</span>' +
+        '<span class="d">' + esc(c.created || '') + '</span><div>' + esc(c.txt || '') + '</div></div>').join('')
+    : '<span class="muted" style="font-size:12.5px">Încă nu sunt comentarii · Пока нет комментариев</span>';
+}
+async function sendComment(cod) {
+  const ta = document.getElementById('p-cm-txt');
+  const txt = (ta.value || '').trim();
+  if (!txt) return;
+  const r = await j(API + '/product/' + cod + '/comment', {method: 'POST', body: JSON.stringify({txt})});
+  if (r.success) {
+    ta.value = '';
+    const r2 = await j(API + '/product/' + cod);
+    if (r2.success) renderComments((r2.data || {}).comments || []);
+    toast('Comentariu adăugat ✓ · Комментарий добавлен');
+  }
+}
+function addCartModal(cod) {
+  const p = prodCache[cod] || {};
+  const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const q = parseFloat((document.getElementById('mq-' + cod) || {}).value) || 1;
+  const sel = document.getElementById('mv-' + cod);
+  let realCod = cod, realName = p.denumirea || '';
+  if (sel) {
+    realCod = parseInt(sel.value, 10) || cod;
+    const opt = sel.options[sel.selectedIndex];
+    if (opt) realName = opt.dataset.name || realName;
+  }
+  const c = cart(); const ex = c.find(i => i.cod === realCod);
+  if (ex) ex.qty += q; else c.push({cod: realCod, name: realName, price, qty: q});
+  saveCart(c); toast('Adăugat · Добавлено: ' + q);
+}
+
 /* variant families: load the characteristic list on first focus */
 const varCache = {};
 async function loadVariants(cod) {

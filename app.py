@@ -219,10 +219,18 @@ def login():
     
     # GET запрос - показываем форму с предзаполненными данными (next — куда вернуться после входа)
     next_url = request.args.get('next', '')
-    return render_template('login.html', 
+    # RO: instalare dedicata (officeplus.md): login EXCLUSIV OfficePlus —
+    #     fara selectorul de proiecte, intrare direct in backoffice.
+    # EN: dedicated install: OfficePlus-only login — no project selector.
+    exclusive = (Config.LOGIN_EXCLUSIVE == 'biro26')
+    if exclusive and not next_url:
+        next_url = '/UNA.md/orasldev/biro26-backoffice'
+    return render_template('login.html',
                          default_username=Config.DEFAULT_USERNAME,
                          default_password=Config.DEFAULT_PASSWORD,
-                         next_url=next_url)
+                         next_url=next_url,
+                         login_exclusive=exclusive,
+                         exclusive_app_name=Config.BIRO26_APP_NAME)
 
 
 @app.route('/logout')
@@ -1512,7 +1520,11 @@ def api_login():
     
     if AuthController.login(username, password):
         AuthController.set_authenticated(True)
-        redirect_url = url_for('sqldeveloper')
+        # RO: pe instalarile dedicate destinatia implicita e backoffice-ul
+        # EN: dedicated installs land in the backoffice by default
+        redirect_url = ('/UNA.md/orasldev/biro26-backoffice'
+                        if Config.LOGIN_EXCLUSIVE == 'biro26'
+                        else url_for('sqldeveloper'))
         if next_path and _is_safe_redirect_url(next_path):
             redirect_url = next_path
         return jsonify({"success": True, "redirect": redirect_url})
@@ -5598,6 +5610,24 @@ def biro26_shop():
                            topbar_light=(lum > 140), shop_nav=nav,
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html)
+
+# ── product window: description (public read) + client comments ──
+@app.route('/api/biro26/shop/product/<int:cod>', methods=['GET'])
+def api_biro26_shop_product(cod):
+    return jsonify(Biro26Controller.shop_product_info(cod))
+
+@app.route('/api/biro26/shop/product/<int:cod>/comment', methods=['POST'])
+def api_biro26_shop_product_comment(cod):
+    # auth is enforced inside (shop client session or backoffice session)
+    return jsonify(Biro26Controller.shop_product_comment(cod))
+
+@app.route('/api/biro26/product-desc/<int:cod>', methods=['PUT'])
+def api_biro26_product_desc(cod):
+    return _b26(lambda: Biro26Controller.set_product_desc(cod))
+
+@app.route('/api/biro26/product-comment/<int:cid>', methods=['DELETE'])
+def api_biro26_product_comment_del(cid):
+    return _b26(lambda: Biro26Controller.delete_product_comment(cid))
 
 @app.route('/api/biro26/shop/register', methods=['POST'])
 def api_biro26_shop_register():

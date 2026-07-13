@@ -136,9 +136,15 @@
 <body>
     <div class="login-container">
         <div class="login-header">
+            {% if login_exclusive %}
+            <h1>{{ exclusive_app_name }}</h1>
+            <p style="font-size: 13px; color: #888; margin-top: 6px;">Back Office · Magazin</p>
+            <p style="margin-top: 14px;">{{ _('Login to system') }}</p>
+            {% else %}
             <h1>Artgranit OCI</h1>
             <p style="font-size: 13px; color: #888; margin-top: 6px;">Oracle SQL Developer · Dashboard · Nufarul (химчистка) · Кредиты · DIGI SM · Документация</p>
             <p style="margin-top: 14px;">{{ _('Login to system') }}</p>
+            {% endif %}
         </div>
         
         <div style="text-align: right; margin-bottom: 10px;">
@@ -162,7 +168,12 @@
                 <input type="password" id="password" name="password" value="{{ default_password }}" required autocomplete="current-password">
             </div>
             
-            <div class="form-group">
+            {# RO: pe instalarile dedicate (LOGIN_EXCLUSIVE=biro26) selectorul
+                   de proiecte Artgranit si campul next sunt ascunse — se intra
+                   direct in backoffice-ul OfficePlus.
+               EN: dedicated installs hide the Artgranit project selector and
+                   the next field — login lands straight in the backoffice. #}
+            <div class="form-group" {% if login_exclusive %}style="display:none"{% endif %}>
                 <label for="projectSelect">Проект / раздел</label>
                 <select id="projectSelect" class="form-select" style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: white;">
                     <option value="">— По ссылке (не менять) —</option>
@@ -189,7 +200,7 @@
                 <p style="font-size: 11px; color: #888; margin-top: 4px;">Выберите раздел — путь подставится ниже. Можно ввести свой.</p>
             </div>
             
-            <div class="form-group" id="nextUrlGroup">
+            <div class="form-group" id="nextUrlGroup" {% if login_exclusive %}style="display:none"{% endif %}>
                 <label for="nextUrl">Перейти после входа</label>
                 <input type="text" id="nextUrl" name="next" placeholder="/UNA.md/orasldev/docs/nufarul/docs_jpg/" value="{{ next_url|e }}" autocomplete="off" style="font-size: 12px;">
                 <p style="font-size: 11px; color: #888; margin-top: 4px;">Заполняется из ссылки или из списка выше. Пусто — откроется SQL Developer.</p>

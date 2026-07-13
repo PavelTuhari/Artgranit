@@ -1463,6 +1463,7 @@ async function fetchJSON(url, opts) {
 function apiGet(url) { return fetchJSON(url, {method:'GET'}); }
 function apiPost(url, body) { return fetchJSON(url, {method:'POST', body: JSON.stringify(body||{})}); }
 function apiPut(url, body) { return fetchJSON(url, {method:'PUT', body: JSON.stringify(body||{})}); }
+function apiDelete(url) { return fetchJSON(url, {method:'DELETE'}); }
 
 function confirmAction(msgKey) {
   return window.confirm(t(msgKey));

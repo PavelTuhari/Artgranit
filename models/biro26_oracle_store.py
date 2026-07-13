@@ -1197,6 +1197,80 @@ END;""",
             return {"success": False, "error": str(e)}
 
     # ============================================================
+    # PRODUCT INFO — YBIRO_PROD_INFO (descriere) + YBIRO_PROD_COMMENTS
+    # (comentariile clientilor). RO: alimenteaza fereastra mare de
+    # produs din magazin si fisa din backoffice. EN: backs the shop's
+    # large product window and the backoffice item card.
+    # ============================================================
+
+    @staticmethod
+    def product_info(cod: int) -> Dict[str, Any]:
+        """Description + comments for one product (public shop + card)."""
+        try:
+            db = Biro26DB()
+            desc = _rows(db.execute_query(
+                "SELECT DESCRIERE FROM YBIRO_PROD_INFO WHERE COD = :c",
+                {"c": int(cod)}))
+            comments = _rows(db.execute_query(
+                "SELECT * FROM (SELECT ID, AUTOR, TXT, "
+                "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') CREATED "
+                "FROM YBIRO_PROD_COMMENTS WHERE COD = :c "
+                "ORDER BY ID DESC) WHERE ROWNUM <= 100", {"c": int(cod)}))
+            return {"success": True, "data": {
+                "descriere": (desc[0]["descriere"] if desc else "") or "",
+                "comments": comments}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_product_desc(cod: int, text: str) -> Dict[str, Any]:
+        """Backoffice: create/replace the product description (MERGE)."""
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO YBIRO_PROD_INFO t USING "
+                "(SELECT :c COD FROM dual) s ON (t.COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.DESCRIERE = :d1, t.UPDATED = SYSDATE "
+                "WHEN NOT MATCHED THEN INSERT (COD, DESCRIERE) VALUES (:c2, :d2)",
+                {"c": int(cod), "d1": (text or "")[:4000],
+                 "c2": int(cod), "d2": (text or "")[:4000]})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def add_product_comment(cod: int, autor: str, client_cod: Optional[int],
+                            text: str) -> Dict[str, Any]:
+        try:
+            text = (text or "").strip()
+            if not text:
+                return {"success": False, "error": "empty comment"}
+            r = Biro26DB().execute_dml(
+                "INSERT INTO YBIRO_PROD_COMMENTS (ID, COD, AUTOR, CLIENT_COD, TXT) "
+                "VALUES (YBIRO_PROD_COMMENTS_SEQ.NEXTVAL, :c, :a, :cc, :t)",
+                {"c": int(cod), "a": (autor or "")[:200],
+                 "cc": int(client_cod) if client_cod else None,
+                 "t": text[:2000]})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_product_comment(comment_id: int) -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_dml(
+                "DELETE FROM YBIRO_PROD_COMMENTS WHERE ID = :i",
+                {"i": int(comment_id)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
     # PRODUCT VARIANTS — BIRO26_VARIANTS (master/detail families,
     # see docs BIRO26_VARIANTS_IMPLEMENTATION.md). Group key =
     # MASTER_COD; prices belong to the group (from the master row);
