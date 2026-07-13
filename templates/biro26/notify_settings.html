@@ -145,6 +145,13 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
     <input type="password" id="f-pay-mia-secret" placeholder="••••••••" autocomplete="new-password">
     <label>IBAN (contul comerciantului)</label>
     <input type="text" id="f-pay-mia-iban" placeholder="MD88...">
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MIA transfer la telefon (pers. fizică)</b></div>
+    <div class="hint">Metodă manuală, funcționează în paralel: cumpărătorul face transfer MIA
+      din aplicația băncii pe numărul de telefon; operatorul confirmă manual.
+      / Ручной способ (параллельно): перевод MIA по номеру телефона, подтверждается оператором.</div>
+    <label class="sw"><input type="checkbox" id="f-pay-p2p-en"> Activat · Включено</label>
+    <label>Număr de telefon (destinatar MIA)</label>
+    <input type="text" id="f-pay-p2p-phone" placeholder="062007211">
     <div class="acts"><button class="btn" onclick="savePay()">💾 Salvează · Сохранить</button></div>
   </div>
 
@@ -227,6 +234,7 @@ const PF = {
   pay_merchant_name: ['f-pay-merchant', 0],
   pay_maib_project_id: ['f-pay-maib-id', 0], pay_mia_api_key: ['f-pay-mia-key', 0],
   pay_mia_iban: ['f-pay-mia-iban', 0],
+  pay_mia_p2p_enabled: ['f-pay-p2p-en', 1], pay_mia_p2p_phone: ['f-pay-p2p-phone', 0],
 };
 async function loadPay() {
   const r = await j('/api/biro26/pay-settings');
