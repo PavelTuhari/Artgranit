@@ -29,6 +29,15 @@ KEYS = [
     "NOTIFY_EMAIL_ENABLED", "NOTIFY_EMAIL_TO",
     "NOTIFY_TG_ENABLED", "NOTIFY_TG_TOKEN", "NOTIFY_TG_CHAT",
     "NOTIFY_WA_ENABLED", "NOTIFY_WA_PHONE", "NOTIFY_WA_APIKEY",
+    # RO: mod WhatsApp: 'callmebot' (text + link PDF) sau 'cloud' (WhatsApp
+    #     Cloud API — trimite si FISIERUL PDF ca document).
+    # EN: WhatsApp mode: 'callmebot' (text + PDF link) or 'cloud' (WhatsApp
+    #     Cloud API — delivers the actual PDF as a document).
+    "NOTIFY_WA_MODE", "NOTIFY_WA_CLOUD_TOKEN", "NOTIFY_WA_CLOUD_PHONE_ID",
+    "NOTIFY_WA_CLOUD_TO",
+    # RO: URL-ul public al site-ului pentru linkurile PDF semnate
+    # EN: public site base URL for the signed PDF links
+    "NOTIFY_PUBLIC_BASE",
 ]
 
 # RO: campurile SMTP se editeaza tot in admin, dar se SCRIU in .env (regula
@@ -191,7 +200,43 @@ class Biro26Notify:
             return {"success": False, "error": f"telegram: {e}"}
 
     @staticmethod
-    def _send_whatsapp(s: Dict[str, str], text: str) -> Dict[str, Any]:
+    def _send_whatsapp(s: Dict[str, str], text: str,
+                       pdf_url: Optional[str] = None,
+                       pdf_name: Optional[str] = None) -> Dict[str, Any]:
+        """RO: mod 'cloud' (WhatsApp Cloud API) trimite si PDF-ul ca document;
+        mod 'callmebot' trimite doar text (linkul PDF e deja in text).
+        EN: 'cloud' mode (WhatsApp Cloud API) also delivers the PDF as a
+        document; 'callmebot' is text-only (the PDF link is in the text)."""
+        mode = (s.get("notify_wa_mode") or "callmebot").strip().lower()
+        if mode == "cloud":
+            token = (s.get("notify_wa_cloud_token") or "").strip()
+            phone_id = (s.get("notify_wa_cloud_phone_id") or "").strip()
+            to = ((s.get("notify_wa_cloud_to") or s.get("notify_wa_phone") or "")
+                  .strip().lstrip("+"))
+            if not token or not phone_id or not to:
+                return {"success": False,
+                        "error": "WhatsApp Cloud: token/phone_number_id/destinatar lipsesc"}
+            try:
+                if pdf_url:
+                    payload = {"messaging_product": "whatsapp", "to": to,
+                               "type": "document",
+                               "document": {"link": pdf_url,
+                                            "filename": pdf_name or "document.pdf",
+                                            "caption": text[:1000]}}
+                else:
+                    payload = {"messaging_product": "whatsapp", "to": to,
+                               "type": "text", "text": {"body": text}}
+                r = requests.post(
+                    f"https://graph.facebook.com/v20.0/{phone_id}/messages",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {token}"}, timeout=25)
+                b = r.json() if r.content else {}
+                if r.status_code != 200 or not b.get("messages"):
+                    err = (b.get("error") or {}).get("message") or r.text[:150]
+                    return {"success": False, "error": f"whatsapp cloud: {err}"}
+                return {"success": True}
+            except Exception as e:
+                return {"success": False, "error": f"whatsapp cloud: {e}"}
         phone = (s.get("notify_wa_phone") or "").strip()
         apikey = (s.get("notify_wa_apikey") or "").strip()
         if not phone or not apikey:
@@ -206,11 +251,33 @@ class Biro26Notify:
         except Exception as e:
             return {"success": False, "error": f"whatsapp: {e}"}
 
+    # ── signed public PDF links (WhatsApp/Telegram/email need no login) ──
+
+    @staticmethod
+    def pdf_sig(kind: str, cod: int) -> str:
+        """RO: semnatura HMAC pentru accesul public la UN singur document.
+        EN: HMAC signature granting public access to one document only."""
+        import hashlib
+        import hmac as _hmac
+        key = (Config.BIRO26_API_TOKEN or Config.SECRET_KEY).encode("utf-8")
+        return _hmac.new(key, f"{kind}:{int(cod)}".encode("utf-8"),
+                         hashlib.sha256).hexdigest()
+
+    @staticmethod
+    def pdf_link(s: Dict[str, str], kind: str, cod: int) -> Optional[str]:
+        base = (s.get("notify_public_base") or "").strip().rstrip("/")
+        if not base:
+            return None
+        return (f"{base}/api/biro26/shop/report/{kind}/{int(cod)}"
+                f"?sig={Biro26Notify.pdf_sig(kind, cod)}")
+
     # ── public API ──
 
     @staticmethod
     def send_all(subject: str, text: str,
-                 settings: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+                 settings: Optional[Dict[str, str]] = None,
+                 pdf_url: Optional[str] = None,
+                 pdf_name: Optional[str] = None) -> Dict[str, Any]:
         """Send through every ENABLED channel; per-channel results."""
         s = settings or (Biro26Notify.get_settings().get("data") or {})
         res = {}
@@ -219,7 +286,7 @@ class Biro26Notify:
         if s.get("notify_tg_enabled") == "1":
             res["telegram"] = Biro26Notify._send_telegram(s, text)
         if s.get("notify_wa_enabled") == "1":
-            res["whatsapp"] = Biro26Notify._send_whatsapp(s, text)
+            res["whatsapp"] = Biro26Notify._send_whatsapp(s, text, pdf_url, pdf_name)
         return {"success": True, "data": res}
 
     @staticmethod
@@ -247,7 +314,16 @@ class Biro26Notify:
 
         def _run():
             try:
-                Biro26Notify.send_all(subject, text)
+                s = Biro26Notify.get_settings().get("data") or {}
+                # RO: link PDF semnat (public, doar acest document); pe
+                #     WhatsApp Cloud pleaca si fisierul PDF ca document.
+                # EN: signed public PDF link (this document only); WhatsApp
+                #     Cloud mode also delivers the PDF file itself.
+                link = Biro26Notify.pdf_link(s, "invoice", cod)
+                body = text + (f"\nPDF: {link}" if link else "")
+                Biro26Notify.send_all(subject, body, settings=s,
+                                      pdf_url=link,
+                                      pdf_name=f"Cont_{nrset}.pdf")
             except Exception:
                 pass  # never disturb the request path
 
