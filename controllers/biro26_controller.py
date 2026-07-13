@@ -283,7 +283,28 @@ class Biro26Controller:
             only_new=a.get("only_new") == "1",
             price_min=a.get("price_min", type=float),
             price_max=a.get("price_max", type=float),
-            limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int))
+            limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int),
+            with_count=a.get("with_count") == "1")
+
+    # ── shop display settings (admin: products per page etc.) ──
+    @staticmethod
+    def shop_settings_get() -> Dict[str, Any]:
+        return {"success": True, "data": {
+            "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24")}}
+
+    @staticmethod
+    def shop_settings_put() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        try:
+            n = int(d.get("shop_page_size") or 24)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "shop_page_size must be a number"}
+        if not 1 <= n <= 200:
+            return {"success": False, "error": "shop_page_size: 1..200"}
+        r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
+        if not r.get("success"):
+            return r
+        return Biro26Controller.shop_settings_get()
 
     # ── price periods on Marfă/Stoc (y_ai_BIRO26.set_price/del_price) ──
     @staticmethod
@@ -626,19 +647,40 @@ class Biro26Controller:
 
     @staticmethod
     def shop_register() -> Dict[str, Any]:
+        import re
         from flask import session
         d = request.get_json(silent=True) or {}
         email = (d.get("email") or "").strip().lower()
         name = (d.get("full_name") or "").strip()
+        address = (d.get("address") or "").strip()
+        phone = (d.get("phone") or "").strip()
+        is_company = bool(d.get("is_company"))
+        idno = (d.get("idno") or "").strip()
         pwd = d.get("password") or ""
-        if not email or "@" not in email or not name or len(pwd) < 6:
+        # RO: cimpuri OBLIGATORII: Nume Prenume, adresa de livrare, e-mail,
+        #     telefon; IDNO (13 cifre) pentru persoane juridice.
+        # EN: MANDATORY fields: full name, delivery address, e-mail, phone;
+        #     IDNO (13 digits) for legal entities.
+        if not name:
+            return {"success": False, "error": "Nume Prenume este obligatoriu"}
+        if not address:
+            return {"success": False, "error": "Adresa de livrare este obligatorie"}
+        if not email or "@" not in email:
+            return {"success": False, "error": "E-mail valid este obligatoriu"}
+        if not phone:
+            return {"success": False, "error": "Numărul de telefon este obligatoriu"}
+        if is_company and not re.match(r"^\d{13}$", idno):
             return {"success": False,
-                    "error": "email, full_name and password (min 6) are required"}
+                    "error": "IDNO (13 cifre) este obligatoriu pentru persoane juridice"}
+        if len(pwd) < 6:
+            return {"success": False, "error": "Parola: minim 6 caractere"}
         exists = Biro26Store.shop_client_by_email(email)
         if exists.get("data"):
             return {"success": False, "error": "email already registered"}
         r = Biro26Store.shop_register_client(
-            email, name, d.get("phone") or "", Biro26Controller._hash_pwd(pwd))
+            email, name, phone, Biro26Controller._hash_pwd(pwd),
+            address=address, idno=idno if is_company else "",
+            is_company=is_company)
         if r.get("success"):
             session["biro26_client"] = {"id": r["data"]["client_id"],
                                         "univers_cod": r["data"]["univers_cod"],

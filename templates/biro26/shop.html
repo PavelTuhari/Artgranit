@@ -33,6 +33,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
 .pcom .cm .a{font-weight:600;font-size:12px;color:#334155}
 .pcom .cm .d{color:#94a3b8;font-size:11px;margin-left:6px}
 .pcom textarea{width:100%;min-height:64px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:13px}
+/* RO: paginare numerotata / EN: numbered pagination */
+.pager{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.pager .pg{min-width:34px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13.5px}
+.pager .pg:hover:not(:disabled){border-color:#93c5fd;background:#eff6ff}
+.pager .pg.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8;font-weight:700}
+.pager .pg:disabled{opacity:.4;cursor:default}
+.pager .pg-dots{color:#94a3b8;padding:0 2px}
+.pager .pg-info{color:#64748b;font-size:12px;margin-left:8px}
 .top button,.top .who{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.08' }});border:none;color:{{ topbar_fg }};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
 .badge{background:#22c55e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700}
 .wrap{max-width:1280px;margin:16px auto;padding:0 14px}
@@ -138,7 +146,7 @@ td.num,th.num{text-align:right}
       </div>
       <div class="chips" id="chips"></div>
       <div class="grid" id="grid"></div>
-      <button class="btn gray more" id="more" onclick="loadMore()">Mai multe · Ещё</button>
+      <div class="pager" id="pager"></div>
     </main>
   </div>
 </div>
@@ -156,10 +164,18 @@ td.num,th.num{text-align:right}
   <div class="modal" onclick="event.stopPropagation()">
     <h3 id="auth-title">Intrare · Вход</h3>
     <div id="reg-extra" style="display:none">
-      <label>Nume complet · ФИО</label><input id="a-name">
-      <label>Telefon · Телефон</label><input id="a-phone">
+      <label>Nume Prenume · Фамилия Имя <b style="color:#dc2626">*</b></label><input id="a-name">
+      <label>Adresa de livrare · Адрес доставки <b style="color:#dc2626">*</b></label><input id="a-address">
+      <label>Telefon · Телефон <b style="color:#dc2626">*</b></label><input id="a-phone" placeholder="+373...">
+      <label class="sw" style="display:flex;gap:6px;align-items:center;margin:8px 0 4px;font-size:13px">
+        <input type="checkbox" id="a-juridic" onchange="document.getElementById('a-idno-box').style.display=this.checked?'':'none'">
+        Persoană juridică · Юридическое лицо
+      </label>
+      <div id="a-idno-box" style="display:none">
+        <label>IDNO <b style="color:#dc2626">*</b> (13 cifre)</label><input id="a-idno" maxlength="13" placeholder="1002600000000">
+      </div>
     </div>
-    <label>Email</label><input id="a-email" type="email">
+    <label>Email <b id="a-email-req" style="color:#dc2626;display:none">*</b></label><input id="a-email" type="email">
     <label>Parola · Пароль (min 6)</label><input id="a-pwd" type="password">
     <div class="acts">
       <button class="btn gray" id="a-toggle" onclick="toggleReg()">Înregistrare nouă · Регистрация</button>
@@ -205,7 +221,10 @@ td.num,th.num{text-align:right}
 <script>
 const API = '/api/biro26/shop';
 const CART_KEY = 'biro26_shop_cart';
-let offset = 0, limit = 24, busy = false, qTimer = null, me = null;
+/* RO: marimea paginii vine din setarea SHOP_PAGE_SIZE (admin — Setări)
+   EN: page size comes from the SHOP_PAGE_SIZE setting (admin page) */
+let limit = {{ page_size|default(24) }}, curPage = 1, total = null, needCount = true;
+let busy = false, qTimer = null, me = null;
 
 function toast(m, err) {
   const d = document.createElement('div');
@@ -305,11 +324,13 @@ function renderChips() {
 function debSearch(){ clearTimeout(qTimer); qTimer = setTimeout(() => load(true), 400); }
 let loadSeq = 0;   // rapid facet clicks: the LATEST request wins, stale responses are dropped
 async function load(reset) {
-  if (!reset && busy) return;              // only guard the "load more" path
   const my = ++loadSeq;
   busy = true;
-  if (reset) { offset = 0; document.getElementById('grid').innerHTML = ''; }
-  const qs = new URLSearchParams({limit, offset});
+  // RO: reset = filtrele s-au schimbat -> pagina 1 + renumarare totala
+  // EN: reset = filters changed -> back to page 1 + recount the total
+  if (reset) { curPage = 1; needCount = true; }
+  document.getElementById('grid').innerHTML = '';
+  const qs = new URLSearchParams({limit, offset: (curPage - 1) * limit});
   const q = document.getElementById('q').value.trim();
   if (q) qs.set('search', q);
   if (F.grupa) qs.set('grupa', F.grupa);
@@ -317,13 +338,14 @@ async function load(reset) {
   if (F.pmin != null) qs.set('price_min', F.pmin);
   if (F.pmax != null) qs.set('price_max', F.pmax);
   if (F.onlyNew) qs.set('only_new', '1');
+  if (needCount) qs.set('with_count', '1');
   const r = await j(API + '/products?' + qs);
   if (my !== loadSeq) return;              // superseded by a newer filter click
   busy = false;
   if (!r.success) return;
   const rows = r.data || [];
-  offset += rows.length;
-  document.getElementById('more').style.display = rows.length === limit ? '' : 'none';
+  if (r.total != null) { total = r.total; needCount = false; }
+  renderPager();
   rows.forEach(p => { prodCache[p.cod] = p; });
   document.getElementById('grid').insertAdjacentHTML('beforeend', rows.map(p => {
     const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
@@ -343,7 +365,36 @@ async function load(reset) {
       '</div>';
   }).join(''));
 }
-function loadMore(){ load(false); }
+/* ── RO: paginare numerotata (« 1 2 3 … N ») in loc de "Mai multe"
+   ── EN: numbered pagination instead of the "load more" button ── */
+function gotoPage(n) {
+  const pages = Math.max(1, Math.ceil((total || 0) / limit));
+  n = Math.min(Math.max(1, n), pages);
+  if (n === curPage) return;
+  curPage = n;
+  load(false);
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+function renderPager() {
+  const box = document.getElementById('pager');
+  if (!box) return;
+  const pages = Math.max(1, Math.ceil((total || 0) / limit));
+  if (pages <= 1) { box.innerHTML = ''; return; }
+  // RO: fereastra de pagini: 1 … c-2 c-1 [c] c+1 c+2 … N
+  const want = new Set([1, 2, pages - 1, pages]);
+  for (let i = curPage - 2; i <= curPage + 2; i++) want.add(i);
+  const list = [...want].filter(x => x >= 1 && x <= pages).sort((a, b) => a - b);
+  let h = '<button class="pg" ' + (curPage === 1 ? 'disabled' : 'onclick="gotoPage(' + (curPage - 1) + ')"') + '>‹</button>';
+  let prev = 0;
+  for (const p of list) {
+    if (p - prev > 1) h += '<span class="pg-dots">…</span>';
+    h += '<button class="pg' + (p === curPage ? ' on' : '') + '" onclick="gotoPage(' + p + ')">' + p + '</button>';
+    prev = p;
+  }
+  h += '<button class="pg" ' + (curPage === pages ? 'disabled' : 'onclick="gotoPage(' + (curPage + 1) + ')"') + '>›</button>';
+  h += '<span class="pg-info">' + total + ' produse · pag. ' + curPage + '/' + pages + '</span>';
+  box.innerHTML = h;
+}
 
 /* ── cart (localStorage) ─────────────────────────────────── */
 function cart(){ try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch(e){ return []; } }
@@ -559,6 +610,7 @@ let regMode = false;
 function openAuth(){ document.getElementById('m-auth').classList.add('open'); }
 function toggleReg(){ regMode = !regMode;
   document.getElementById('reg-extra').style.display = regMode ? '' : 'none';
+  document.getElementById('a-email-req').style.display = regMode ? '' : 'none';
   document.getElementById('auth-title').textContent = regMode ? 'Înregistrare · Регистрация' : 'Intrare · Вход';
   document.getElementById('a-toggle').textContent = regMode ? '← Intrare · Вход' : 'Înregistrare nouă · Регистрация'; }
 async function doAuth() {
@@ -566,10 +618,21 @@ async function doAuth() {
   const pwd = document.getElementById('a-pwd').value;
   let r;
   if (regMode) {
+    // RO: cimpuri OBLIGATORII la inregistrare / EN: mandatory sign-up fields
+    const name = document.getElementById('a-name').value.trim();
+    const address = document.getElementById('a-address').value.trim();
+    const phone = document.getElementById('a-phone').value.trim();
+    const juridic = document.getElementById('a-juridic').checked;
+    const idno = document.getElementById('a-idno').value.trim();
+    if (!name) { toast('Introduceți Nume Prenume · Укажите ФИО', true); return; }
+    if (!address) { toast('Introduceți adresa de livrare · Укажите адрес доставки', true); return; }
+    if (!email || email.indexOf('@') < 0) { toast('Introduceți un e-mail valid · Укажите e-mail', true); return; }
+    if (!phone) { toast('Introduceți numărul de telefon · Укажите телефон', true); return; }
+    if (juridic && !/^\d{13}$/.test(idno)) { toast('IDNO: 13 cifre, obligatoriu pentru persoane juridice', true); return; }
+    if ((pwd || '').length < 6) { toast('Parola: minim 6 caractere · Пароль: мин. 6 символов', true); return; }
     r = await j(API + '/register', {method: 'POST', body: JSON.stringify({
-      email, password: pwd,
-      full_name: document.getElementById('a-name').value.trim(),
-      phone: document.getElementById('a-phone').value.trim()})});
+      email, password: pwd, full_name: name, phone,
+      address, is_company: juridic, idno: juridic ? idno : ''})});
   } else {
     r = await j(API + '/login', {method: 'POST', body: JSON.stringify({email, password: pwd})});
   }

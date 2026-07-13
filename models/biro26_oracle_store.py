@@ -686,7 +686,8 @@ class Biro26Store:
                            price_date: Optional[str] = None,
                            price_min: Optional[float] = None,
                            price_max: Optional[float] = None,
-                           only_new: bool = False) -> Dict[str, Any]:
+                           only_new: bool = False,
+                           with_count: bool = False) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
@@ -774,6 +775,11 @@ class Biro26Store:
             if only_new:
                 # RO/EN: filtrul "produse noi" — SELECT ... WHERE matgr1 = 1
                 inner += " AND mp.MATGR1 = 1"
+            # RO: totalul (paginarea numerotata) se numara pe nucleul ieftin,
+            #     INAINTE de ORDER BY — doar cind e cerut explicit.
+            # EN: the total (numbered pagination) is counted over the cheap
+            #     core, BEFORE the ORDER BY — only when explicitly asked.
+            count_sql = f"SELECT COUNT(*) CNT FROM ({inner})"
             inner += " ORDER BY u.DENUMIREA"
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
             outer = (
@@ -797,7 +803,34 @@ class Biro26Store:
                 "  ON vg.MASTER_COD = vr.MASTER_COD "
                 "ORDER BY c.rn")
             r = Biro26DB().execute_query(outer, params)
-            return _result(r)
+            res = _result(r)
+            if with_count and res.get("success"):
+                rc = _rows(Biro26DB().execute_query(count_sql, params))
+                res["total"] = int(rc[0]["cnt"]) if rc else 0
+            return res
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── module settings (YBIRO_SETTINGS via y_ai_BIRO26.set_setting) ──
+
+    @staticmethod
+    def get_setting(key: str, default: str = "") -> str:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT SVAL FROM YBIRO_SETTINGS WHERE SKEY = :k", {"k": key}))
+            return (rows[0]["sval"] if rows else None) or default
+        except Exception:
+            return default
+
+    @staticmethod
+    def set_setting(key: str, val: str) -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN y_ai_BIRO26.set_setting(:k, :v); END;",
+                {"k": key, "v": str(val or "")[:400]})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -963,18 +996,24 @@ class Biro26Store:
 
     @staticmethod
     def shop_register_client(email: str, full_name: str, phone: str,
-                             pwd_hash: str) -> Dict[str, Any]:
+                             pwd_hash: str, address: str = "",
+                             idno: str = "",
+                             is_company: bool = False) -> Dict[str, Any]:
         try:
             res = Biro26DB().execute_script([
                 {"sql": """DECLARE
   v_cod NUMBER;
 BEGIN
   v_cod := y_ai_BIRO26.register_client(p_name => :nm);
-  INSERT INTO YBIRO_CLIENT (univers_cod, email, full_name, phone, pwd_hash)
-  VALUES (v_cod, :em, :nm, :ph, :pw);
+  INSERT INTO YBIRO_CLIENT (univers_cod, email, full_name, phone, pwd_hash,
+                            address, idno, is_company)
+  VALUES (v_cod, :em, :nm, :ph, :pw, :ad, :idno, :isco);
 END;""",
                  "params": {"nm": full_name, "em": email.lower().strip(),
-                            "ph": phone or "", "pw": pwd_hash},
+                            "ph": phone or "", "pw": pwd_hash,
+                            "ad": (address or "")[:400],
+                            "idno": (idno or "")[:20],
+                            "isco": "1" if is_company else "0"},
                  "kind": "dml"},
                 {"sql": "SELECT id, univers_cod FROM YBIRO_CLIENT WHERE email = :em",
                  "params": {"em": email.lower().strip()}, "kind": "query"},
