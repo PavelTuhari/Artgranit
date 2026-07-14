@@ -5665,6 +5665,10 @@ def api_biro26_pay_mia_callback():
     order = request.args.get('orderKey') or ''
     return jsonify(Biro26Pay.mia_check(order) if order else {"success": True})
 
+@app.route('/api/biro26/pay/refund', methods=['POST'])
+def api_biro26_pay_refund():
+    return _b26(Biro26Controller.pay_refund)
+
 @app.route('/api/biro26/pay-settings', methods=['GET'])
 def api_biro26_pay_settings_get():
     return _b26(Biro26Controller.pay_settings_get)

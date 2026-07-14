@@ -428,6 +428,18 @@ class Biro26Controller:
         return Biro26Pay.mia_check(request.args.get("order") or "")
 
     @staticmethod
+    def pay_refund() -> Dict[str, Any]:
+        """Backoffice: refund a confirmed MAIB checkout payment."""
+        from models.biro26_pay import Biro26Pay
+        d = request.get_json(silent=True) or {}
+        if not d.get("order"):
+            return {"success": False, "error": "order is required"}
+        amt = d.get("amount")
+        return Biro26Pay.maib_refund(
+            str(d["order"]), float(amt) if amt else None,
+            (d.get("reason") or "Refund solicitat de comerciant"))
+
+    @staticmethod
     def pay_settings_get() -> Dict[str, Any]:
         from models.biro26_pay import Biro26Pay
         return Biro26Pay.get_settings()

@@ -133,11 +133,15 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
     </select>
     <label>Denumirea comerciantului · Название продавца</label>
     <input type="text" id="f-pay-merchant" placeholder="OfficePlus / GRECU OFFICE PLUS SRL">
-    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MAIB e-commerce</b></div>
-    <label>Project ID</label>
-    <input type="text" id="f-pay-maib-id" placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">
-    <label>Project Secret <span id="maib-sec-hint" class="badge" style="display:none">setat ✓ (gol = nu se schimbă)</span></label>
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MAIB Checkout</b>
+      <span style="font-size:11px;color:#64748b">(docs.maibmerchants.md/checkout)</span></div>
+    <label class="sw"><input type="checkbox" id="f-pay-maib-sandbox"> Sandbox (chei de TEST) · Тестовая среда</label>
+    <label>Client ID</label>
+    <input type="text" id="f-pay-maib-id" placeholder="merchants-payments-...">
+    <label>Client Secret <span id="maib-sec-hint" class="badge" style="display:none">setat ✓ (gol = nu se schimbă)</span></label>
     <input type="password" id="f-pay-maib-secret" placeholder="••••••••" autocomplete="new-password">
+    <label>Signature Key</label>
+    <input type="password" id="f-pay-maib-sigkey" placeholder="•••••••• (gol = nu se schimbă)" autocomplete="new-password">
     <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MIA instant payments (QMoney)</b></div>
     <label>API Key</label>
     <input type="text" id="f-pay-mia-key" placeholder="18">
@@ -232,7 +236,8 @@ async function save() {
 const PF = {
   pay_enabled: ['f-pay-en', 1], pay_method: ['f-pay-method', 0],
   pay_merchant_name: ['f-pay-merchant', 0],
-  pay_maib_project_id: ['f-pay-maib-id', 0], pay_mia_api_key: ['f-pay-mia-key', 0],
+  pay_maib_project_id: ['f-pay-maib-id', 0], pay_maib_sandbox: ['f-pay-maib-sandbox', 1],
+  pay_mia_api_key: ['f-pay-mia-key', 0],
   pay_mia_iban: ['f-pay-mia-iban', 0],
   pay_mia_p2p_enabled: ['f-pay-p2p-en', 1], pay_mia_p2p_phone: ['f-pay-p2p-phone', 0],
 };
@@ -255,8 +260,10 @@ async function savePay() {
   }
   // RO/EN: secretele se trimit doar daca s-a introdus ceva nou
   const ms = document.getElementById('f-pay-maib-secret').value;
+  const sk = document.getElementById('f-pay-maib-sigkey').value;
   const qs = document.getElementById('f-pay-mia-secret').value;
   if (ms) body.maib_project_secret = ms;
+  if (sk) body.maib_signature_key = sk;
   if (qs) body.mia_api_secret = qs;
   const r = await j('/api/biro26/pay-settings', {method: 'PUT', body: JSON.stringify(body)});
   if (r.success) {

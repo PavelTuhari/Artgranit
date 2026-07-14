@@ -32,12 +32,22 @@ from models.biro26_db import Biro26DB
 from models.biro26_notify import Biro26Notify, _update_env_file
 from models.biro26_oracle_store import Biro26Store, _rows
 
-MAIB_API = "https://api.maibmerchants.md/v1/"
+# RO: maib Checkout v2 (docs.maibmerchants.md/checkout): sesiune hosted
+#     -> checkoutUrl; confirmare prin GET /v2/checkouts/{id}; refund prin
+#     POST /v2/payments/{payId}/refund. Cheile: ClientId/ClientSecret
+#     (+ SignatureKey pentru callback-uri).
+# EN: maib Checkout v2 hosted session -> checkoutUrl; verified via
+#     GET /v2/checkouts/{id}; refunds via /v2/payments/{payId}/refund.
+MAIB_CHECKOUT_PROD = "https://api.maibmerchants.md"
+MAIB_CHECKOUT_SANDBOX = "https://sandbox.maibmerchants.md"
 MIA_API = "https://api.qiwi.md/"
 
 # RO: cheile YBIRO_SETTINGS (nesecrete) / EN: non-secret settings keys
 PAY_KEYS = ["PAY_ENABLED", "PAY_METHOD", "PAY_MERCHANT_NAME",
             "PAY_MIA_IBAN", "PAY_MAIB_PROJECT_ID", "PAY_MIA_API_KEY",
+            # RO: '1' => mediul de TEST maib (sandbox.maibmerchants.md)
+            # EN: '1' => maib sandbox environment
+            "PAY_MAIB_SANDBOX",
             # RO: transfer MIA catre persoana fizica (numar de telefon) —
             #     metoda manuala, functioneaza IN PARALEL cu QR/MAIB
             # EN: MIA transfer to an individual's phone number — manual
@@ -46,7 +56,8 @@ PAY_KEYS = ["PAY_ENABLED", "PAY_METHOD", "PAY_MERCHANT_NAME",
 
 # RO: secretele -> .env (ca SMTP) / EN: secrets -> .env (like SMTP)
 PAY_ENV = {
-    "maib_project_secret": "BIRO26_MAIB_PROJECT_SECRET",
+    "maib_project_secret": "BIRO26_MAIB_PROJECT_SECRET",   # ClientSecret
+    "maib_signature_key": "BIRO26_MAIB_SIGNATURE_KEY",
     "mia_api_secret": "BIRO26_MIA_API_SECRET",
 }
 
@@ -80,6 +91,8 @@ class Biro26Pay:
                     os.environ[k] = v
                 Config.BIRO26_MAIB_PROJECT_SECRET = os.environ.get(
                     "BIRO26_MAIB_PROJECT_SECRET", Config.BIRO26_MAIB_PROJECT_SECRET)
+                Config.BIRO26_MAIB_SIGNATURE_KEY = os.environ.get(
+                    "BIRO26_MAIB_SIGNATURE_KEY", Config.BIRO26_MAIB_SIGNATURE_KEY)
                 Config.BIRO26_MIA_API_SECRET = os.environ.get(
                     "BIRO26_MIA_API_SECRET", Config.BIRO26_MIA_API_SECRET)
             for k in PAY_KEYS:
@@ -175,14 +188,20 @@ class Biro26Pay:
 
         threading.Thread(target=_run, daemon=True).start()
 
-    # ── MAIB e-commerce ──
+    # ── MAIB e-commerce Checkout v2 (hosted checkout session) ──
+
+    @staticmethod
+    def _maib_base(s: Dict[str, str]) -> str:
+        return (MAIB_CHECKOUT_SANDBOX if s.get("pay_maib_sandbox") == "1"
+                else MAIB_CHECKOUT_PROD)
 
     @staticmethod
     def _maib_token(s: Dict[str, str]) -> Optional[str]:
         try:
-            r = requests.post(MAIB_API + "generate-token", timeout=20, json={
-                "projectId": s.get("pay_maib_project_id") or "",
-                "projectSecret": Config.BIRO26_MAIB_PROJECT_SECRET})
+            r = requests.post(Biro26Pay._maib_base(s) + "/v2/auth/token",
+                              timeout=20, json={
+                "clientId": s.get("pay_maib_project_id") or "",
+                "clientSecret": Config.BIRO26_MAIB_PROJECT_SECRET})
             return (r.json().get("result") or {}).get("accessToken")
         except Exception:
             return None
@@ -201,64 +220,113 @@ class Biro26Pay:
         token = Biro26Pay._maib_token(s)
         if not token:
             return {"success": False,
-                    "error": "MAIB: autentificare eșuată (Project ID/Secret)"}
+                    "error": "MAIB: autentificare eșuată (ClientId/ClientSecret)"}
         import time as _time
         order_id = f"BIRO26-{int(doc_cod)}-{int(_time.time())}"
-        cb = (f"{base}/api/biro26/pay/maib-callback?orderKey={order_id}")
+        cb = f"{base}/api/biro26/pay/maib-callback?orderKey={order_id}"
         body = {
-            "amount": f"{amount:.2f}", "currency": "MDL",
-            "clientIp": client_ip or "127.0.0.1", "language": "ro",
-            "description": f"Cont de plată OfficePlus (doc {doc_cod})"[:124],
-            "orderId": order_id,
+            "amount": round(float(amount), 2), "currency": "MDL",
+            "language": "ro",
+            "orderInfo": {
+                "id": order_id,
+                "description": f"Cont de plată OfficePlus (doc {doc_cod})"[:124],
+            },
+            "payerInfo": {"ip": client_ip or "127.0.0.1"},
             "callbackUrl": cb + "&typeurl=callbackurl",
-            "okUrl": cb + "&typeurl=okurl",
+            "successUrl": cb + "&typeurl=okurl",
             "failUrl": cb + "&typeurl=failurl",
         }
         if client:
-            body["clientName"] = (client.get("name") or "")[:100]
-            body["email"] = (client.get("email") or "")[:100]
+            body["payerInfo"]["name"] = (client.get("name") or "")[:100]
+            body["payerInfo"]["email"] = (client.get("email") or "")[:100]
         try:
-            r = requests.post(MAIB_API + "pay", json=body, timeout=25,
+            r = requests.post(Biro26Pay._maib_base(s) + "/v2/checkouts",
+                              json=body, timeout=25,
                               headers={"Authorization": f"Bearer {token}"})
             res = (r.json() or {}).get("result") or {}
         except Exception as e:
             return {"success": False, "error": f"MAIB: {e}"}
-        if not res.get("payUrl") or not res.get("payId"):
+        if not res.get("checkoutUrl") or not res.get("checkoutId"):
             return {"success": False,
                     "error": f"MAIB: inițializare eșuată — {r.text[:200]}"}
-        Biro26Pay._record(doc_cod, "maib", order_id, res["payId"], amount)
-        return {"success": True, "data": {"pay_url": res["payUrl"],
+        # RO: PAY_ID = checkoutId; PaymentId-ul (pt. refund) vine la confirmare
+        Biro26Pay._record(doc_cod, "maib", order_id, res["checkoutId"], amount)
+        return {"success": True, "data": {"pay_url": res["checkoutUrl"],
                                           "order_id": order_id}}
 
     @staticmethod
     def maib_callback(order_key: str, pay_id: str, typeurl: str) -> Dict[str, Any]:
-        """RO: confirmarea se VERIFICĂ prin pay-info (nu din parametri).
-        EN: the confirmation is VERIFIED via pay-info, never trusted."""
+        """RO: confirmarea se VERIFICĂ prin GET /v2/checkouts/{id} — nu ne
+        încredem în parametrii din URL/callback. PaymentId-ul (necesar la
+        refund) se salvează în coloana RRN.
+        EN: verified via GET /v2/checkouts/{id}; the PaymentId (needed for
+        refunds) is stored in the RRN column."""
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT DOC_COD, PAY_ID, AMOUNT, STATUS FROM YBIRO_PAYMENTS "
+            "WHERE ORDER_ID = :o", {"o": (order_key or "")[:60]}))
+        if not rows:
+            return {"success": False, "paid": False, "error": "unknown order"}
+        row = rows[0]
+        if row["status"] == "PAID":
+            return {"success": True, "paid": True}
         s = (Biro26Pay.get_settings().get("data") or {})
         token = Biro26Pay._maib_token(s)
         info: Dict[str, Any] = {}
-        if token and pay_id:
+        if token and row["pay_id"]:
             try:
-                r = requests.get(MAIB_API + "pay-info/" + pay_id, timeout=20,
-                                 headers={"Authorization": f"Bearer {token}"})
+                r = requests.get(
+                    Biro26Pay._maib_base(s) + "/v2/checkouts/" + row["pay_id"],
+                    timeout=20, headers={"Authorization": f"Bearer {token}"})
                 info = (r.json() or {}).get("result") or {}
             except Exception:
                 info = {}
-        status = (info.get("status") or "").upper()
-        rrn = info.get("rrn") or ""
-        if status == "OK" and rrn:
-            rows = _rows(Biro26DB().execute_query(
-                "SELECT DOC_COD, AMOUNT, STATUS FROM YBIRO_PAYMENTS "
-                "WHERE ORDER_ID = :o", {"o": order_key[:60]}))
-            Biro26Pay._mark(order_key, "PAID", rrn, f"maib {typeurl}")
-            if rows and rows[0]["status"] != "PAID":
-                Biro26Pay._notify_paid(order_key, "maib",
-                                       float(rows[0]["amount"] or 0))
+        status = (info.get("status") or "")
+        if status == "Completed":
+            payment = info.get("payment") or {}
+            payment_id = (payment.get("PaymentId") or payment.get("paymentId")
+                          or payment.get("id") or "")
+            Biro26Pay._mark(order_key, "PAID", str(payment_id)[:40],
+                            f"maib checkout {typeurl}")
+            Biro26Pay._notify_paid(order_key, "maib", float(row["amount"] or 0))
             return {"success": True, "paid": True}
-        if typeurl == "failurl":
-            Biro26Pay._mark(order_key, "FAILED", rrn,
-                            f"maib fail status={status}")
+        if status in ("Failed", "Expired", "Cancelled"):
+            Biro26Pay._mark(order_key, "FAILED", "", f"maib {status}")
         return {"success": True, "paid": False}
+
+    @staticmethod
+    def maib_refund(order_key: str, amount: Optional[float] = None,
+                    reason: str = "Refund solicitat de comerciant") -> Dict[str, Any]:
+        """RO: refund prin POST /v2/payments/{payId}/refund (payId = RRN
+        salvat la confirmare). EN: refund via the Checkout v2 API."""
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT DOC_COD, RRN, AMOUNT, STATUS FROM YBIRO_PAYMENTS "
+            "WHERE ORDER_ID = :o", {"o": (order_key or "")[:60]}))
+        if not rows:
+            return {"success": False, "error": "plată necunoscută"}
+        row = rows[0]
+        if row["status"] != "PAID" or not row["rrn"]:
+            return {"success": False,
+                    "error": f"plata nu e confirmată (status {row['status']})"}
+        s = (Biro26Pay.get_settings().get("data") or {})
+        token = Biro26Pay._maib_token(s)
+        if not token:
+            return {"success": False, "error": "MAIB: autentificare eșuată"}
+        try:
+            r = requests.post(
+                Biro26Pay._maib_base(s) + f"/v2/payments/{row['rrn']}/refund",
+                json={"amount": round(float(amount or row["amount"] or 0), 2),
+                      "reason": reason[:500]},
+                timeout=25, headers={"Authorization": f"Bearer {token}"})
+            b = r.json() or {}
+        except Exception as e:
+            return {"success": False, "error": f"MAIB refund: {e}"}
+        if not b.get("ok"):
+            return {"success": False,
+                    "error": f"MAIB refund: {str(b.get('errors'))[:200]}"}
+        res = b.get("result") or {}
+        Biro26Pay._mark(order_key, "REFUNDED", row["rrn"],
+                        f"refund {res.get('refundId')} {res.get('status')}")
+        return {"success": True, "data": res}
 
     # ── MIA transfer la telefon (persoana fizica) — metoda manuala ──
 
