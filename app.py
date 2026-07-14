@@ -5669,6 +5669,26 @@ def api_biro26_pay_mia_callback():
 def api_biro26_pay_refund():
     return _b26(Biro26Controller.pay_refund)
 
+# ── admin test page: create ad-hoc MAIB test links, verify, refund ──
+@app.route('/UNA.md/orasldev/biro26-pay-test')
+def biro26_pay_test():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/pay_test.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/pay/test-checkout', methods=['POST'])
+def api_biro26_pay_test_checkout():
+    return _b26(Biro26Controller.pay_test_create)
+
+@app.route('/api/biro26/pay/list', methods=['GET'])
+def api_biro26_pay_list():
+    return _b26(Biro26Controller.pay_list)
+
+@app.route('/api/biro26/pay/verify', methods=['POST'])
+def api_biro26_pay_verify():
+    return _b26(Biro26Controller.pay_verify)
+
 @app.route('/api/biro26/pay-settings', methods=['GET'])
 def api_biro26_pay_settings_get():
     return _b26(Biro26Controller.pay_settings_get)
