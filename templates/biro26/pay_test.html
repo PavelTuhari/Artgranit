@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} · Test plăți MAIB</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f6f8fb;color:#1e293b;font-size:14px}
+.top{background:#0d0d1a;color:#e2e8f0;padding:12px 18px;font-weight:700}
+.top a{color:#93c5fd;text-decoration:none;font-weight:400;margin-left:14px;font-size:13px}
+.wrap{max-width:980px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+h3{margin:0 0 10px}
+label{display:block;font-size:12.5px;color:#475569;margin:10px 0 4px}
+input{padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+.btn{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600;cursor:pointer}
+.btn.gray{background:#e2e8f0;color:#334155}
+.btn.red{background:#dc2626}
+.btn-sm{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+.ok-box{background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:12px;margin-top:12px;word-break:break-all}
+.ok-box a{font-size:15px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+th{color:#64748b;font-weight:600}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+.st{border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700}
+.st-PAID{background:#dcfce7;color:#166534}
+.st-PENDING{background:#fef9c3;color:#854d0e}
+.st-FAILED{background:#fee2e2;color:#991b1b}
+.st-REFUNDED{background:#e0e7ff;color:#3730a3}
+.muted{color:#64748b}
+.hint{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+</style>
+</head>
+<body>
+
+<div class="top">{{ app_name }} · Test plăți MAIB Checkout
+  <a href="/UNA.md/orasldev/biro26-backoffice">← Backoffice</a>
+  <a href="/UNA.md/orasldev/biro26-notify-settings">Setări plăți</a>
+  <span id="env-badge" style="float:right;font-size:12px;font-weight:400"></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h3>🔗 Creează link de plată de test</h3>
+    <div class="hint">Se creează o sesiune «hosted checkout» (linkul poate fi trimis oricui;
+      valabil ~25 min). Card de test sandbox: <b>Test Test · 5102 1800 6010 1124 · 06/28 · CVV 760</b>.
+      Mediul (sandbox/producție) se comută în Setări plăți.</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div><label>Suma (MDL)</label>
+        <input type="number" id="f-amount" value="2.00" min="0.01" step="0.01" style="width:120px"></div>
+      <div style="flex:1;min-width:220px"><label>Descriere (opțional)</label>
+        <input type="text" id="f-desc" placeholder="Test validare maib Checkout" style="width:100%"></div>
+      <button class="btn" onclick="createLink()">➕ Creează link</button>
+    </div>
+    <div id="result"></div>
+  </div>
+
+  <div class="card">
+    <h3>📒 Plăți recente <button class="btn-sm" style="float:right" onclick="loadList()">↻ Reîncarcă</button></h3>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>Creat</th><th>Order</th><th class="mono">Checkout / Payment</th>
+        <th>Suma</th><th>Status</th><th>Detalii</th><th></th></tr></thead>
+      <tbody id="list"><tr><td colspan="7" class="muted">…</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function createLink() {
+  const amount = document.getElementById('f-amount').value;
+  const description = document.getElementById('f-desc').value.trim();
+  document.getElementById('result').innerHTML = '<span class="muted">Se creează sesiunea…</span>';
+  const r = await j('/api/biro26/pay/test-checkout', {method: 'POST',
+    body: JSON.stringify({amount, description})});
+  if (!r.success) { document.getElementById('result').innerHTML = ''; return; }
+  const d = r.data;
+  document.getElementById('result').innerHTML =
+    '<div class="ok-box">✅ Link creat (' + d.amount.toFixed(2) + ' MDL' +
+    (d.sandbox ? ' · SANDBOX' : ' · PRODUCȚIE') + '):<br>' +
+    '<a href="' + esc(d.pay_url) + '" target="_blank">' + esc(d.pay_url) + '</a><br>' +
+    '<span class="muted mono">order: ' + esc(d.order_id) + '</span> ' +
+    '<button class="btn-sm" onclick="navigator.clipboard.writeText(\'' + esc(d.pay_url) + '\');toast(\'Link copiat ✓\')">📋 Copiază</button></div>';
+  loadList();
+}
+
+async function loadList() {
+  const r = await j('/api/biro26/pay/list?limit=30');
+  if (!r.success) return;
+  document.getElementById('list').innerHTML = (r.data || []).map(p =>
+    '<tr><td>' + esc(p.created) + '</td>' +
+    '<td class="mono">' + esc(p.order_id) + (p.doc_cod ? '<br><span class="muted">doc ' + p.doc_cod + '</span>' : '') + '</td>' +
+    '<td class="mono">' + esc(p.pay_id || '') + (p.rrn ? '<br>pay: ' + esc(p.rrn) : '') + '</td>' +
+    '<td>' + (Number(p.amount) || 0).toFixed(2) + '</td>' +
+    '<td><span class="st st-' + esc(p.status) + '">' + esc(p.status) + '</span></td>' +
+    '<td class="muted" style="max-width:180px">' + esc(p.details || '') + '</td>' +
+    '<td style="white-space:nowrap">' +
+      (p.method === 'maib' ? '<button class="btn-sm" onclick="verify(\'' + esc(p.order_id) + '\')">🔎 Verifică</button> ' : '') +
+      (p.method === 'maib' && p.status === 'PAID'
+        ? '<button class="btn-sm" style="color:#dc2626" onclick="refund(\'' + esc(p.order_id) + '\')">↩ Refund</button>' : '') +
+    '</td></tr>').join('') ||
+    '<tr><td colspan="7" class="muted">Nicio plată încă</td></tr>';
+}
+
+async function verify(order) {
+  const r = await j('/api/biro26/pay/verify', {method: 'POST', body: JSON.stringify({order})});
+  if (r.success) toast(r.paid ? '✅ Plată CONFIRMATĂ de bancă' : 'Neplătit / în așteptare · статус не подтверждён');
+  loadList();
+}
+
+async function refund(order) {
+  if (!confirm('Returnați integral plata ' + order + '?')) return;
+  const r = await j('/api/biro26/pay/refund', {method: 'POST',
+    body: JSON.stringify({order, reason: 'Test de validare a integrării'})});
+  if (r.success) toast('↩ Refund inițiat ✓ (' + ((r.data || {}).status || 'Created') + ')');
+  loadList();
+}
+
+async function envBadge() {
+  const r = await j('/api/biro26/pay-settings');
+  if (r.success) document.getElementById('env-badge').textContent =
+    (r.data.pay_maib_sandbox === '1' ? '🧪 SANDBOX' : '🟢 PRODUCȚIE') +
+    ' · ' + (r.data.pay_maib_project_id || '').slice(0, 28) + '…';
+}
+loadList(); envBadge();
+</script>
+</body>
+</html>

@@ -428,6 +428,29 @@ class Biro26Controller:
         return Biro26Pay.mia_check(request.args.get("order") or "")
 
     @staticmethod
+    def pay_test_create() -> Dict[str, Any]:
+        """Backoffice: ad-hoc MAIB test checkout link (admin test page)."""
+        from models.biro26_pay import Biro26Pay
+        d = request.get_json(silent=True) or {}
+        return Biro26Pay.maib_create_test(d.get("amount"),
+                                          (d.get("description") or "").strip())
+
+    @staticmethod
+    def pay_list() -> Dict[str, Any]:
+        from models.biro26_pay import Biro26Pay
+        return Biro26Pay.payments_list(request.args.get("limit", 30, type=int))
+
+    @staticmethod
+    def pay_verify() -> Dict[str, Any]:
+        """Backoffice: re-check one order's status against the bank API."""
+        from models.biro26_pay import Biro26Pay
+        d = request.get_json(silent=True) or {}
+        order = (d.get("order") or "").strip()
+        if not order:
+            return {"success": False, "error": "order is required"}
+        return Biro26Pay.maib_callback(order, "", "manual-check")
+
+    @staticmethod
     def pay_refund() -> Dict[str, Any]:
         """Backoffice: refund a confirmed MAIB checkout payment."""
         from models.biro26_pay import Biro26Pay

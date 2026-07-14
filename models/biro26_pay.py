@@ -294,6 +294,68 @@ class Biro26Pay:
         return {"success": True, "paid": False}
 
     @staticmethod
+    def maib_create_test(amount: float, description: str = "") -> Dict[str, Any]:
+        """RO: link de plata de TEST (pagina admin «Test plăți MAIB»):
+        checkout pe suma indicata, fara document ERP (DOC_COD=0 in jurnal).
+        EN: ad-hoc TEST checkout link (admin page), no ERP document."""
+        s = (Biro26Pay.get_settings().get("data") or {})
+        base = Biro26Pay._callback_base()
+        if not base:
+            return {"success": False,
+                    "error": "URL public nesetat (Setări → notificări)"}
+        try:
+            amount = round(float(amount), 2)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "sumă invalidă"}
+        if not 0 < amount <= 100000:
+            return {"success": False, "error": "suma: 0.01 .. 100000"}
+        token = Biro26Pay._maib_token(s)
+        if not token:
+            return {"success": False,
+                    "error": "MAIB: autentificare eșuată (ClientId/ClientSecret)"}
+        import time as _time
+        order_id = f"BIRO26-TEST-{int(_time.time())}"
+        cb = f"{base}/api/biro26/pay/maib-callback?orderKey={order_id}"
+        body = {
+            "amount": amount, "currency": "MDL", "language": "ro",
+            "orderInfo": {"id": order_id,
+                          "description": (description
+                                          or f"Test maib Checkout {amount:.2f} MDL")[:124]},
+            "callbackUrl": cb + "&typeurl=callbackurl",
+            "successUrl": cb + "&typeurl=okurl",
+            "failUrl": cb + "&typeurl=failurl",
+        }
+        try:
+            r = requests.post(Biro26Pay._maib_base(s) + "/v2/checkouts",
+                              json=body, timeout=25,
+                              headers={"Authorization": f"Bearer {token}"})
+            res = (r.json() or {}).get("result") or {}
+        except Exception as e:
+            return {"success": False, "error": f"MAIB: {e}"}
+        if not res.get("checkoutUrl") or not res.get("checkoutId"):
+            return {"success": False,
+                    "error": f"MAIB: inițializare eșuată — {r.text[:200]}"}
+        Biro26Pay._record(0, "maib", order_id, res["checkoutId"], amount)
+        return {"success": True, "data": {
+            "order_id": order_id, "pay_url": res["checkoutUrl"],
+            "checkout_id": res["checkoutId"], "amount": amount,
+            "sandbox": s.get("pay_maib_sandbox") == "1"}}
+
+    @staticmethod
+    def payments_list(limit: int = 30) -> Dict[str, Any]:
+        """Recent payment attempts (journal) for the admin test page."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT * FROM (SELECT ID, DOC_COD, METHOD, ORDER_ID, PAY_ID, "
+                "AMOUNT, STATUS, RRN, DETAILS, "
+                "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') CREATED "
+                "FROM YBIRO_PAYMENTS ORDER BY ID DESC) "
+                "WHERE ROWNUM <= :n", {"n": max(1, min(int(limit), 200))}))
+            return {"success": True, "data": rows}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def maib_refund(order_key: str, amount: Optional[float] = None,
                     reason: str = "Refund solicitat de comerciant") -> Dict[str, Any]:
         """RO: refund prin POST /v2/payments/{payId}/refund (payId = RRN
