@@ -687,7 +687,8 @@ class Biro26Store:
                            price_min: Optional[float] = None,
                            price_max: Optional[float] = None,
                            only_new: bool = False,
-                           with_count: bool = False) -> Dict[str, Any]:
+                           with_count: bool = False,
+                           archived: bool = False) -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
@@ -743,6 +744,15 @@ class Biro26Store:
                 "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
                 "LEFT JOIN TMS_MPT mp ON mp.COD = u.COD "
                 "WHERE u.TIP='P'")
+            # RO: soft-delete nativ OfficePlus: ISARHIV='2' = carte
+            #     dezactivata. Implicit se vad DOAR cele active; filtrul
+            #     special "Vizualizare marfa dezactivata" le arata pe cele
+            #     arhivate. Magazinul public nu vede niciodata arhiva.
+            # EN: native OfficePlus soft-delete: ISARHIV='2' = deactivated
+            #     card. Default shows ACTIVE only; the special filter shows
+            #     the archived ones. The public shop never sees them.
+            inner += (" AND u.ISARHIV = '2'" if archived
+                      else " AND NVL(u.ISARHIV,'0') <> '2'")
             params: Dict[str, Any] = {"pd": price_date}
             if search:
                 # pre-resolve the matching COD set (two cheap scans) instead of
@@ -808,6 +818,34 @@ class Biro26Store:
                 rc = _rows(Biro26DB().execute_query(count_sql, params))
                 res["total"] = int(rc[0]["cnt"]) if rc else 0
             return res
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_product_archived(cod: int, archived: bool) -> Dict[str, Any]:
+        """RO: 'stergere' ca in aplicatia de baza OfficePlus — soft-delete:
+        TMS_UNIVERS.ISARHIV='2' (dezactivat) / NULL (reactivat). Trigger-ele
+        native cer env-urile DOC_CHANGE_ISARHIV si PARAM_USERID (user din
+        grupul UNIVERS/DEL/ALLOW; 1 = admin) — le setam in acelasi bloc,
+        exact cum face aplicatia nativa; randul NU se sterge fizic.
+        EN: native OfficePlus soft-delete: ISARHIV='2' / NULL. The native
+        triggers require the DOC_CHANGE_ISARHIV + PARAM_USERID envs (a user
+        from the UNIVERS/DEL/ALLOW group; 1 = admin) — set in the same
+        block, exactly like the base application; no physical delete."""
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN "
+                "  un4public.set_env('DOC_CHANGE_ISARHIV','1'); "
+                "  un4public.set_env('PARAM_USERID','1'); "
+                "  UPDATE TMS_UNIVERS SET ISARHIV = "
+                "    CASE WHEN :a = '1' THEN '2' ELSE NULL END "
+                "  WHERE COD = :c AND TIP = 'P'; "
+                "  un4public.set_env('DOC_CHANGE_ISARHIV', NULL); "
+                "END;",
+                {"a": "1" if archived else "0", "c": int(cod)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
 

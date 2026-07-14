@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from flask import request
+from flask import request, session
 
 from models.biro26_oracle_store import Biro26Store, G_PARAMS
 from models.biro26_sources import Biro26Sources
@@ -284,7 +284,21 @@ class Biro26Controller:
             price_min=a.get("price_min", type=float),
             price_max=a.get("price_max", type=float),
             limit=a.get("limit", 200, type=int), offset=a.get("offset", 0, type=int),
-            with_count=a.get("with_count") == "1")
+            with_count=a.get("with_count") == "1",
+            # RO: arhiva (ISARHIV=2) e vizibila DOAR pentru sesiunile
+            #     backoffice — publicul (magazinul) vede mereu doar activele
+            # EN: the archive view is backoffice-only; the public shop
+            #     always sees active goods regardless of the parameter
+            archived=(a.get("archived") == "1"
+                      and bool(session.get("username")
+                               or session.get("authenticated"))))
+
+    @staticmethod
+    def product_archive(cod: int) -> Dict[str, Any]:
+        """RO: dezactivare/reactivare cartela (soft-delete nativ ISARHIV).
+        EN: deactivate/reactivate a card (native ISARHIV soft-delete)."""
+        d = request.get_json(silent=True) or {}
+        return Biro26Store.set_product_archived(cod, bool(d.get("archived", True)))
 
     # ── shop display settings (admin: products per page etc.) ──
     @staticmethod
