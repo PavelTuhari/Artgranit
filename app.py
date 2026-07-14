@@ -5777,6 +5777,31 @@ def api_biro26_shop_variants():
     # public read-only variant family (choose a characteristic in the shop)
     return jsonify(Biro26Controller.shop_variants())
 
+# ── external-app API: customer document list + PDFs by NUMBER (#NRSET) ──
+@app.route('/api/biro26/docs', methods=['GET'])
+def api_biro26_docs_list():
+    # ?client=<nume|cod|#nr>&limit= — X-API-Key token or backoffice session
+    r = Biro26Controller.docs_list()
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
+@app.route('/api/biro26/report-by-nr/<kind>/<path:nr>', methods=['GET'])
+def api_biro26_report_by_nr(kind, nr):
+    """RO: PDF dupa numarul documentului: /report-by-nr/invoice/%23338
+    (sau 338). Auth: X-API-Key, ?sig= sau sesiune backoffice.
+    EN: PDF by the document number (hashtag form supported)."""
+    r = Biro26Controller.report_by_nr(kind, nr)
+    if not r.get('success'):
+        return jsonify(r), (401 if r.get('error') == 'login required'
+                            else 404 if 'not found' in str(r.get('error'))
+                            else 400)
+    names = {'invoice': 'Cont_de_plata', 'order': 'Comanda'}
+    resp = app.response_class(r['pdf'], mimetype='application/pdf')
+    resp.headers['Content-Disposition'] = (
+        f'inline; filename="{names.get(kind, kind)}_'
+        f'{str(nr).lstrip("#")}.pdf"')
+    return resp
+
 @app.route('/api/biro26/doc/<int:cod>', methods=['GET'])
 def api_biro26_doc_json(cod):
     # document data as JSON for desktop/integration layers

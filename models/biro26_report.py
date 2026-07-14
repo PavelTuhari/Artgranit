@@ -121,6 +121,54 @@ def _ro_amount(total) -> str:
 class Biro26Report:
 
     @staticmethod
+    def docs_list(client: str = "", limit: int = 50) -> Dict[str, Any]:
+        """RO: lista documentelor (conturi de plata web, SYSFID=12280) pentru
+        aplicatiile EXTERNE (API): nr. documentului (#NRSET — numarul vizibil
+        in orice aplicatie nativa), data, clientul, totalul si COD-ul intern.
+        EN: document list for EXTERNAL apps: #NRSET (the number visible in
+        any native app), date, client, total and the internal COD."""
+        try:
+            sql = ("SELECT * FROM ("
+                   "SELECT d.COD, d.NRSET, "
+                   "TO_CHAR(d.DATAMANUAL,'DD.MM.YYYY') DDATE, "
+                   "m.DTDEP CLIENT_COD, u.DENUMIREA CLIENT_NAME, "
+                   "(SELECT ROUND(SUM(l.SUMA),2) FROM VMDB_ST201D l "
+                   " WHERE l.NRDOC = d.COD) TOTAL "
+                   "FROM TMDB_DOCS d "
+                   "JOIN VMDB_ST201M m ON m.NRDOC = d.COD "
+                   "LEFT JOIN TMS_UNIVERS u ON u.COD = m.DTDEP "
+                   "WHERE d.SYSFID = 12280")
+            params: Dict[str, Any] = {}
+            if client:
+                sql += (" AND (UPPER(u.DENUMIREA) LIKE UPPER(:cl) "
+                        "OR TO_CHAR(m.DTDEP) = :cl2 "
+                        "OR TO_CHAR(d.NRSET) = :cl3)")
+                params.update({"cl": f"%{client}%",
+                               "cl2": client.lstrip('#'),
+                               "cl3": client.lstrip('#')})
+            sql += " ORDER BY d.COD DESC) WHERE ROWNUM <= :n"
+            params["n"] = max(1, min(int(limit), 500))
+            rows = _rows(Biro26DB().execute_query(sql, params))
+            for r in rows:
+                r["nr"] = f"#{r['nrset']}"        # hashtag form (#338)
+            return {"success": True, "data": rows}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def resolve_nr(nr) -> Optional[int]:
+        """RO: '#338' / '338' -> COD-ul intern (cel mai recent document web cu
+        acest numar). EN: hashtag/number -> latest internal COD."""
+        try:
+            n = int(str(nr).strip().lstrip("#"))
+        except (TypeError, ValueError):
+            return None
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT MAX(COD) COD FROM TMDB_DOCS "
+            "WHERE SYSFID = 12280 AND NRSET = :n", {"n": n}))
+        return int(rows[0]["cod"]) if rows and rows[0]["cod"] else None
+
+    @staticmethod
     def doc_data(cod: int) -> Dict[str, Any]:
         """Collect everything the forms need for one document COD."""
         db = Biro26DB()
@@ -477,12 +525,25 @@ class Biro26Report:
         res = (Biro26Report.render_pdfme(kind, d["data"]) if engine == "pdfme"
                else Biro26Report.render(kind, d["data"]))
         if res.get("success"):
-            # RO: PDF-ul se ataseaza la document (VMDB_DOCS_OLE) — best
-            #     effort: descarcarea nu esueaza daca atasarea da eroare
-            # EN: attach the PDF to the document (VMDB_DOCS_OLE) — best
-            #     effort: the download still works if attaching fails
-            att = Biro26Report.attach_pdf(cod, kind, res["pdf"])
-            res["attached"] = bool(att.get("success"))
-            if not att.get("success"):
-                res["attach_error"] = att.get("error")
+            # RO: PDF-ul se ataseaza la document (VMDB_DOCS_OLE) in FUNDAL
+            #     (thread daemon, best effort). Atasarea sincrona bloca
+            #     raspunsul pina la 300s cind un utilizator al aplicatiei
+            #     native tinea rindul OLE blocat (enq: TX row lock) —
+            #     descarcarea PDF nu trebuie sa astepte arhivarea.
+            # EN: the PDF is attached to the document IN THE BACKGROUND
+            #     (daemon thread, best effort). The synchronous attach used
+            #     to block the response for up to 300s whenever a native-app
+            #     user held the OLE row locked — the download must never
+            #     wait for archival.
+            import threading
+            pdf = res["pdf"]
+
+            def _attach_bg():
+                try:
+                    Biro26Report.attach_pdf(cod, kind, pdf)
+                except Exception:
+                    pass
+
+            threading.Thread(target=_attach_bg, daemon=True).start()
+            res["attached"] = "background"
         return res

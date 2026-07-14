@@ -506,6 +506,53 @@ class Biro26Controller:
     def delete_product_comment(comment_id: int) -> Dict[str, Any]:
         return Biro26Store.delete_product_comment(comment_id)
 
+    # ── external-app API: document list + PDF by document NUMBER (#NRSET) ──
+
+    @staticmethod
+    def _sig_nr_ok(kind: str, nr) -> bool:
+        """RO: link semnat pe NUMARUL documentului (hashtag): HMAC peste
+        '<kind>-nr:<nr>'. EN: signed link keyed by the document number."""
+        import hmac
+        from models.biro26_notify import Biro26Notify
+        sig = request.args.get("sig") or ""
+        if not sig:
+            return False
+        try:
+            n = int(str(nr).strip().lstrip("#"))
+        except (TypeError, ValueError):
+            return False
+        return hmac.compare_digest(sig, Biro26Notify.pdf_sig(f"{kind}-nr", n))
+
+    @staticmethod
+    def docs_list() -> Dict[str, Any]:
+        """RO: lista documentelor clientului pentru aplicatii externe
+        (X-API-Key) sau sesiuni backoffice. EN: doc list for external apps."""
+        from models.biro26_report import Biro26Report
+        if not (Biro26Controller._api_token_ok()
+                or session.get("username") or session.get("authenticated")):
+            return {"success": False, "error": "login required"}
+        return Biro26Report.docs_list(
+            (request.args.get("client") or request.args.get("search") or "").strip(),
+            request.args.get("limit", 50, type=int))
+
+    @staticmethod
+    def report_by_nr(kind: str, nr: str) -> Dict[str, Any]:
+        """RO: PDF dupa NUMARUL documentului (#338) — numarul vizibil in
+        orice aplicatie nativa. Acces: X-API-Key, ?sig= (hash HMAC) sau
+        sesiune backoffice. EN: PDF by the document NUMBER (hashtag)."""
+        from models.biro26_report import Biro26Report
+        if not (Biro26Controller._api_token_ok()
+                or Biro26Controller._sig_nr_ok(kind, nr)
+                or session.get("username") or session.get("authenticated")):
+            return {"success": False, "error": "login required"}
+        cod = Biro26Report.resolve_nr(nr)
+        if not cod:
+            return {"success": False, "error": f"document {nr} not found"}
+        r = Biro26Report.render_doc(kind, cod)
+        if r.get("success"):
+            r["cod"] = cod
+        return r
+
     @staticmethod
     def doc_json(cod: int) -> Dict[str, Any]:
         """Document data as JSON (number, client, items, totals) for
