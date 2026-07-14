@@ -41,11 +41,26 @@ class Biro26DocsApi:
         self.key = api_key
 
     def _get(self, path: str):
+        # RO: token invalid (ex. placeholder ne-inlocuit) -> mesaj clar
+        # EN: invalid token (e.g. an unreplaced placeholder) -> clear message
+        try:
+            self.key.encode("latin-1")
+        except UnicodeEncodeError:
+            raise RuntimeError(
+                "Tokenul API contine caractere invalide — ati lasat "
+                "placeholder-ul? Setati BIRO26_API_KEY cu tokenul real "
+                "(BIRO26_API_TOKEN din .env de pe server).")
         req = urllib.request.Request(self.base + path,
                                      headers={"X-API-Key": self.key})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            body = resp.read()
-            ctype = resp.headers.get("Content-Type", "")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                body = resp.read()
+                ctype = resp.headers.get("Content-Type", "")
+        except urllib.error.HTTPError as e:
+            msgs = {401: "acces refuzat — token API gresit",
+                    404: "documentul nu a fost gasit"}
+            raise RuntimeError(f"HTTP {e.code}: "
+                               f"{msgs.get(e.code, e.reason)}") from None
         return body, ctype
 
     def docs(self, client: str = "", limit: int = 50):
@@ -139,20 +154,23 @@ def main():
         sys.exit("Lipseste tokenul API: --key sau env BIRO26_API_KEY "
                  "(= BIRO26_API_TOKEN de pe server)")
     api = Biro26DocsApi(a.url, a.key)
-    if not a.cmd:
-        interactive(api)
-    elif a.cmd == "list":
-        print_docs(api.docs(" ".join(a.args)))
-    elif a.cmd == "pdf":
-        if len(a.args) < 2:
-            sys.exit("pdf <invoice|order> <#NR>")
-        save_pdf(api, a.args[0], a.args[1], a.out)
-    elif a.cmd == "json":
-        rows = api.docs(a.args[0] if a.args else "")
-        if not rows:
-            sys.exit("document negasit")
-        print(json.dumps(api.doc_json(rows[0]["cod"]), indent=1,
-                         ensure_ascii=False))
+    try:
+        if not a.cmd:
+            interactive(api)
+        elif a.cmd == "list":
+            print_docs(api.docs(" ".join(a.args)))
+        elif a.cmd == "pdf":
+            if len(a.args) < 2:
+                sys.exit("pdf <invoice|order> <#NR>")
+            save_pdf(api, a.args[0], a.args[1], a.out)
+        elif a.cmd == "json":
+            rows = api.docs(a.args[0] if a.args else "")
+            if not rows:
+                sys.exit("document negasit")
+            print(json.dumps(api.doc_json(rows[0]["cod"]), indent=1,
+                             ensure_ascii=False))
+    except RuntimeError as e:
+        sys.exit(f"EROARE: {e}")
 
 
 if __name__ == "__main__":
