@@ -1030,6 +1030,9 @@ async function loadProductsStock(reset = true) {
   if (val('prod-categorie')) qs.set('categorie', val('prod-categorie'));
   qs.set('price_date', prodPriceDate());
   if (el('prod-only-new') && el('prod-only-new').checked) qs.set('only_new', '1');
+  // RO: filtrul special "Vizualizare marfa dezactivata" (ISARHIV=2)
+  // EN: the special "view deactivated goods" filter (native soft-delete)
+  if (el('prod-show-arhiv') && el('prod-show-arhiv').checked) qs.set('archived', '1');
   qs.set('limit', String(prodState.limit));
   qs.set('offset', String(prodState.offset));
 
@@ -1089,8 +1092,28 @@ function productRowHtml(p) {
     '<td class="num">20</td>' +
     qtyCell('prod', p.cod, dispName(p), p.um, p.barcode)
       .replace('</td>', ' <button class="btn-sm" title="' + t('edit_row') + '" ' +
-               'onclick="editProductRow(' + p.cod + ')">\u270e</button></td>') +
+               'onclick="editProductRow(' + p.cod + ')">\u270e</button>' +
+               (el('prod-show-arhiv') && el('prod-show-arhiv').checked
+                 ? ' <button class="btn-sm" title="Reactiveaz\u0103 \u00b7 \u0412\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c" ' +
+                   'onclick="event.stopPropagation();archiveProduct(' + p.cod + ',false)">\u267b</button>'
+                 : ' <button class="btn-sm" title="Dezactiveaz\u0103 (\u0219tergere ca \u00een aplica\u021bia de baz\u0103) \u00b7 \u0414\u0435\u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u0442\u044c" ' +
+                   'onclick="event.stopPropagation();archiveProduct(' + p.cod + ',true)">\ud83d\uddd1</button>') +
+               '</td>') +
     '</tr>';
+}
+
+/* RO: "stergerea" pozitiei = soft-delete nativ OfficePlus (ISARHIV=2);
+   implicit gridul si magazinul arata doar marfa ACTIVA. Reactivarea se
+   face din filtrul "Vizualizare marfa dezactivata".
+   EN: deleting a position = the native OfficePlus soft-delete (ISARHIV=2);
+   by default only ACTIVE goods are listed; restore from the archive view. */
+async function archiveProduct(cod, archive) {
+  const q = archive
+    ? 'Dezactiva\u021bi pozi\u021bia (cartela se marcheaz\u0103 ca \u0219tears\u0103, ca \u00een aplica\u021bia de baz\u0103)? \u00b7 \u0414\u0435\u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u0437\u0438\u0446\u0438\u044e?'
+    : 'Reactiva\u021bi pozi\u021bia? \u00b7 \u0412\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u043e\u0437\u0438\u0446\u0438\u044e?';
+  if (!confirm(q)) return;
+  const r = await apiPut(API + '/products/' + cod + '/archive', {archived: archive});
+  if (r.success) { toast(archive ? 'Dezactivat \u2713' : 'Reactivat \u2713', 'ok'); loadProductsStock(true); }
 }
 
 /* =====================================================================

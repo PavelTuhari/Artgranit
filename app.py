@@ -5619,6 +5619,11 @@ def biro26_shop():
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html, page_size=page_size)
 
+# ── soft-delete (native ISARHIV): deactivate/reactivate a product card ──
+@app.route('/api/biro26/products/<int:cod>/archive', methods=['PUT'])
+def api_biro26_product_archive(cod):
+    return _b26(lambda: Biro26Controller.product_archive(cod))
+
 # ── online payments (MAIB card / MIA QR): shop + callbacks + admin ──
 @app.route('/api/biro26/shop/pay/methods', methods=['GET'])
 def api_biro26_pay_methods():

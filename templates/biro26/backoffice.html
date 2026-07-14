@@ -827,6 +827,9 @@ html, body {
           <label style="display:flex;align-items:center;gap:5px;margin:0">
             <input type="checkbox" id="prod-only-new" onchange="loadProductsStock()">
             <span data-i18n="prod_only_new"></span></label>
+          <label style="display:flex;align-items:center;gap:5px;margin:0" title="ISARHIV=2 (soft-delete nativ)">
+            <input type="checkbox" id="prod-show-arhiv" onchange="loadProductsStock()">
+            <span>🗄 Vizualizare marfă dezactivată</span></label>
           <label data-i18n="prod_price_date"></label>
           <input type="date" class="f-input" id="prod-price-date" onchange="loadProductsStock()" style="width:150px">
           <button class="btn" onclick="clearProductFilters()" data-i18n="prod_clear_filters"></button>
