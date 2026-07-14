@@ -222,6 +222,16 @@ price_min/max/price_date/limit/offset/`with_count=1` — total для
 **платежи**: `pay/methods` (активные методы), `pay/<mia|maib>` (POST
 `{cod}`, сессия клиента → QR/base64 или `pay_url`), `pay/mia-status?order=`.
 
+**Для внешних приложений** (auth: заголовок `X-API-Key` = `BIRO26_API_TOKEN`):
+`GET /api/biro26/docs?client=<имя|код|#nr>&limit=` — список документов клиента
+(номер в hashtag-форме `#338` — тот, что виден в любом нативном приложении,
+дата, клиент, сумма, внутренний COD) · `GET /api/biro26/report-by-nr/
+<invoice|order>/%23338` — **PDF по НОМЕРУ документа** (hashtag; также `?sig=`
+HMAC-хэш для ссылок без токена) · `GET /api/biro26/doc/<cod>` — JSON.
+Демо внешнего приложения: `scripts/biro26_docs_demo.py` (stdlib, CLI+интерактив).
+Прикрепление PDF в `VMDB_DOCS_OLE` — фоновое (не блокирует ответ, даже если
+нативный клиент держит OLE-строку заблокированной).
+
 **Callback-и платежей** (публичные, верифицируются через API банка):
 `/api/biro26/pay/maib-callback` (ok/fail/callback от MAIB → pay-info),
 `/api/biro26/pay/mia-callback` (echo от MIA → status API).
