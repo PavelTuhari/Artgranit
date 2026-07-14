@@ -138,6 +138,7 @@ class Config:
     # EN: shop online payments — MAIB e-commerce + MIA instant payments.
     #     SECRETS live ONLY here (.env), edited from the admin page.
     BIRO26_MAIB_PROJECT_SECRET = os.environ.get('BIRO26_MAIB_PROJECT_SECRET', '')
+    BIRO26_MAIB_SIGNATURE_KEY = os.environ.get('BIRO26_MAIB_SIGNATURE_KEY', '')
     BIRO26_MIA_API_SECRET = os.environ.get('BIRO26_MIA_API_SECRET', '')
 
     # RO: 'biro26' => pagina /login este EXCLUSIV OfficePlus (fara selectorul
