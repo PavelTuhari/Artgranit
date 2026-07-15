@@ -207,6 +207,20 @@ class Biro26Report:
                 "sum": s,
             })
         rate = Config.BIRO26_TVA_RATE
+        # RO: modul TVA ales la generarea contului (YBIRO_DOC_META):
+        #     'inclus' (implicit, TVA inclusa in pret) / '0' / 'fara'.
+        # EN: the VAT mode chosen at generation time.
+        from models.biro26_oracle_store import Biro26Store
+        tva_mode = Biro26Store.get_doc_tva_mode(cod)
+        if tva_mode == "0":
+            tva_val, tva_label, tva_text = 0.0, "TVA 0% (НДС):", _fmt(0)
+        elif tva_mode == "fara":
+            tva_val, tva_label, tva_text = 0.0, "TVA:", "fără TVA / без НДС"
+        else:
+            tva_val = round(total * rate / (100 + rate), 2)
+            rate_txt = int(rate) if float(rate) == int(rate) else rate
+            tva_label = f"TVA {rate_txt}% inclus (НДС):"
+            tva_text = _fmt(tva_val)
         data = {
             "number": h["nrset"],
             "date_short": h["ddate"],
@@ -229,8 +243,12 @@ class Biro26Report:
             },
             "items": items,
             "total": round(total, 2),
-            # RO: TVA inclusa in pret / EN: VAT included in the price
-            "tva": round(total * rate / (100 + rate), 2),
+            # RO: TVA dupa modul ales la generare (vezi mai sus)
+            # EN: VAT according to the mode chosen at generation time
+            "tva": tva_val,
+            "tva_mode": tva_mode,
+            "tva_label": tva_label,
+            "tva_text": tva_text,
             "logo": _logo_data_uri(),
         }
         return {"success": True, "data": data, "client_cod": h["client_cod"]}
@@ -307,7 +325,9 @@ class Biro26Report:
                      _fmt(it["price"]), _fmt(it["sum"])]
                     for i, it in enumerate(data["items"])]
             rows += [["", "", "", "", "Total (Итого):", _fmt(data["total"])],
-                     ["", "", "", "", "Suma TVA (НДС):", _fmt(data["tva"])],
+                     ["", "", "", "",
+                      data.get("tva_label", "Suma TVA (НДС):"),
+                      data.get("tva_text", _fmt(data["tva"]))],
                      ["", "", "", "", "SPRE PLATA:", _fmt(data["total"])]]
             return {
                 "furnizor_block":
@@ -328,7 +348,9 @@ class Biro26Report:
                  it["um"], _fmt(it["price"]), _fmt(it["sum"])]
                 for i, it in enumerate(data["items"])]
         rows += [["", "", "", "", "", "Total:", _fmt(data["total"])],
-                 ["", "", "", "", "", "Incl. TVA:", _fmt(data["tva"])]]
+                 ["", "", "", "", "",
+                  data.get("tva_label", "Incl. TVA:"),
+                  data.get("tva_text", _fmt(data["tva"]))]]
         return {
             "title": f"Comanda cumpărătorului № {data['number']} din {data['date_ro']}",
             "hr": "",

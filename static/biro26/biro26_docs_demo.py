@@ -108,7 +108,7 @@ def save_pdf(api, kind, nr, out=None):
 
 
 def interactive(api):
-    print("=== Biro26 DEMO aplicatie externa ===")
+    print("=== %s DEMO aplicatie externa ===" % os.environ.get("BIRO26_APP_NAME", "OfficePlus"))
     print("Comenzi: list [client] | pdf invoice|order #NR | json #NR | quit")
     while True:
         try:

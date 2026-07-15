@@ -1328,7 +1328,9 @@ async function cartInvoice() {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         client_cod: parseInt(clientCod.trim(), 10),
-        items: items.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
+        items: items.map(i => ({cod: i.cod, qty: i.qty, name: i.name})),
+        // RO: modul TVA ales in cos (formularul PDF) / EN: invoice VAT mode
+        tva_mode: (el('cart-tva-mode') || {}).value || 'inclus'
       })
     });
     const b = await r.json();
