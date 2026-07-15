@@ -237,6 +237,16 @@ td.num,th.num{text-align:right}
       </details>
     </div>
     <div id="cart-services" style="margin-top:10px"></div>
+    <!-- RO: modul TVA al contului de plata (se aplica pe formularul PDF)
+         EN: the invoice VAT mode (applied on the PDF form) -->
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12.5px;margin:0;font-weight:600">TVA în cont · НДС в счёте:</label>
+      <select id="tva-mode" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px">
+        <option value="inclus">Preț cu TVA 20% inclus (implicit)</option>
+        <option value="0">Preț cu TVA 0%</option>
+        <option value="fara">Fără TVA · Без НДС</option>
+      </select>
+    </div>
     <div id="inv-result"></div>
     <div class="acts">
       <button class="btn gray" onclick="clearCart()">Golește · Очистить</button>
@@ -709,8 +719,10 @@ async function makeInvoice() {
   // RO/EN: serviciile optionale bifate intra in acelasi document
   const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
                  .concat(checkedServices().map(s => ({cod: s.cod, qty: s.qty, name: s.name})));
+  const tvaSel = document.getElementById('tva-mode');
   const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(
-    {items, distance_km: km, center_id: centerId})});
+    {items, distance_km: km, center_id: centerId,
+     tva_mode: tvaSel ? tvaSel.value : 'inclus'})});
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
@@ -799,6 +811,14 @@ async function payMiaP2P(cod) {
     '4️⃣ La destinația/comentariul plății indicați: <b>' + esc(d.order_id) + '</b><br>' +
     '<span class="muted" style="font-size:12px">Plata se confirmă manual de operator după recepționarea transferului. · Платёж подтверждается оператором после получения перевода.</span></div>';
 }
+
+/* RO: la intoarcerea de pe pagina bancii (successUrl/failUrl -> ?pay=ok|fail)
+   aratam clar rezultatul. EN: show the payment outcome after the bank redirect. */
+(function payReturnNotice() {
+  const p = new URLSearchParams(location.search).get('pay');
+  if (p === 'ok') toast('✅ Plata a fost efectuată cu succes! · Оплата прошла успешно!');
+  else if (p === 'fail') toast('❌ Plata NU a fost efectuată (refuzată sau anulată) · Оплата НЕ прошла', true);
+})();
 
 saveCart(cart()); refreshMe(); load(true); loadFacets(); loadPayMethods();
 </script>

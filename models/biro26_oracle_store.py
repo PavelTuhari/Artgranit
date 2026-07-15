@@ -849,6 +849,38 @@ class Biro26Store:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ── per-document metadata (YBIRO_DOC_META): TVA mode of the invoice ──
+
+    @staticmethod
+    def set_doc_tva_mode(doc_cod: int, mode: str) -> Dict[str, Any]:
+        """RO: modul TVA ales la generarea contului: 'inclus'/'0'/'fara'.
+        EN: the VAT mode chosen when the invoice was generated."""
+        if mode not in ("inclus", "0", "fara"):
+            mode = "inclus"
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO YBIRO_DOC_META t USING (SELECT :c COD FROM dual) s "
+                "ON (t.DOC_COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.TVA_MODE = :m1 "
+                "WHEN NOT MATCHED THEN INSERT (DOC_COD, TVA_MODE) VALUES (:c2, :m2)",
+                {"c": int(doc_cod), "m1": mode, "c2": int(doc_cod), "m2": mode})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_doc_tva_mode(doc_cod: int) -> str:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT TVA_MODE FROM YBIRO_DOC_META WHERE DOC_COD = :c",
+                {"c": int(doc_cod)}))
+            m = (rows[0]["tva_mode"] if rows else "") or "inclus"
+            return m if m in ("inclus", "0", "fara") else "inclus"
+        except Exception:
+            return "inclus"
+
     # ── module settings (YBIRO_SETTINGS via y_ai_BIRO26.set_setting) ──
 
     @staticmethod

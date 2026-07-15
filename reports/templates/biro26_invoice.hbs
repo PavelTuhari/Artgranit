@@ -84,7 +84,7 @@
 
 <table class="totals">
   <tr><td class="lab">Total (Итого):</td><td class="val">{{fmt total}}</td></tr>
-  <tr><td class="lab">Suma TVA (Сумма НДС):</td><td class="val">{{fmt tva}}</td></tr>
+  <tr><td class="lab">{{#if tva_label}}{{tva_label}}{{else}}Suma TVA (Сумма НДС):{{/if}}</td><td class="val">{{#if tva_text}}{{tva_text}}{{else}}{{fmt tva}}{{/if}}</td></tr>
   <tr><td class="lab">SPRE PLATA (ВСЕГО К ОПЛАТЕ):</td><td class="val">{{fmt total}}</td></tr>
 </table>
 

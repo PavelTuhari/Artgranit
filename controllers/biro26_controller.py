@@ -931,6 +931,13 @@ class Biro26Controller:
                     it["price"] = pr["data"].get(it["cod"], 0)
         res = Biro26Store.shop_create_invoice(client_cod, clean)
         if res.get("success"):
+            # RO: modul TVA ales la generare ('inclus' implicit / '0' /
+            #     'fara') — formularele PDF il citesc din YBIRO_DOC_META
+            # EN: the chosen VAT mode; the PDF forms read it from the meta
+            tva_mode = d.get("tva_mode") or "inclus"
+            if tva_mode not in ("inclus", "0", "fara"):
+                tva_mode = "inclus"
+            Biro26Store.set_doc_tva_mode(res["data"]["cod"], tva_mode)
             # RO/EN: notificari email/Telegram/WhatsApp — fire-and-forget
             from models.biro26_notify import Biro26Notify
             Biro26Notify.notify_new_doc(

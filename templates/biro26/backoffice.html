@@ -1046,7 +1046,14 @@ html, body {
     </div>
     <div class="modal-footer" style="justify-content:space-between">
       <button class="btn danger" onclick="cartClear()" data-i18n="cart_clear"></button>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <!-- RO: modul TVA al contului (formularul PDF) / EN: invoice VAT mode -->
+        <label style="margin:0;font-size:12px">TVA:</label>
+        <select id="cart-tva-mode" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+          <option value="inclus">20% inclus</option>
+          <option value="0">TVA 0%</option>
+          <option value="fara">Fără TVA</option>
+        </select>
         <button class="btn primary" onclick="cartCopy('csv')" data-i18n="cart_copy_csv"></button>
         <button class="btn primary" onclick="cartCopy('xml')" data-i18n="cart_copy_xml"></button>
         <button class="btn success" onclick="cartInvoice()" data-i18n="cart_invoice"></button>

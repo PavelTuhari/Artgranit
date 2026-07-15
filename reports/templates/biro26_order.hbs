@@ -59,7 +59,7 @@
 <b>{{roAmount total}}</b></div>
 
 <div class="totals"><b>Total:</b> &nbsp; {{fmt total}}</div>
-<div class="totals"><b>Inclusiv TVA:</b> &nbsp; {{fmt tva}}</div>
+<div class="totals"><b>{{#if tva_label}}{{tva_label}}{{else}}Inclusiv TVA:{{/if}}</b> &nbsp; {{#if tva_text}}{{tva_text}}{{else}}{{fmt tva}}{{/if}}</div>
 
 <div class="sig">
   <div>Executor</div>

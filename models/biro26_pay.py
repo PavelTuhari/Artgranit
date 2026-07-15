@@ -229,7 +229,7 @@ class Biro26Pay:
             "language": "ro",
             "orderInfo": {
                 "id": order_id,
-                "description": f"Cont de plată OfficePlus (doc {doc_cod})"[:124],
+                "description": f"Cont de plată {Config.BIRO26_APP_NAME} (doc {doc_cod})"[:124],
             },
             "payerInfo": {"ip": client_ip or "127.0.0.1"},
             "callbackUrl": cb + "&typeurl=callbackurl",
@@ -414,7 +414,7 @@ class Biro26Pay:
         return {"success": True, "data": {
             "order_id": order_id, "phone": phone,
             "amount": round(float(amount), 2),
-            "merchant": s.get("pay_merchant_name") or "OfficePlus"}}
+            "merchant": s.get("pay_merchant_name") or Config.BIRO26_APP_NAME}}
 
     # ── MIA instant payments (QMoney / api.qiwi.md) ──
 
@@ -447,9 +447,9 @@ class Biro26Pay:
         order_id = f"BIRO26-{int(doc_cod)}-{int(_time.time())}"
         payload = {
             "accountIBAN": iban,
-            "name": (s.get("pay_merchant_name") or "OfficePlus")[:100],
+            "name": (s.get("pay_merchant_name") or Config.BIRO26_APP_NAME)[:100],
             "amount": round(float(amount), 2),
-            "comment": f"Cont de plata OfficePlus (doc {doc_cod})"[:120],
+            "comment": f"Cont de plata {Config.BIRO26_APP_NAME} (doc {doc_cod})"[:120],
             "validSeconds": 900,
             "redirectURL": base or "https://officeplus.md/",
             "callbackEchoUrl": f"{base}/api/biro26/pay/mia-callback"

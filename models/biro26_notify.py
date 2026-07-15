@@ -293,9 +293,12 @@ class Biro26Notify:
     def test_channel(channel: str) -> Dict[str, Any]:
         """Synchronous test send from the admin page (ignores the toggles)."""
         s = Biro26Notify.get_settings().get("data") or {}
-        text = "Test Biro26/OfficePlus: canalul de notificari functioneaza ✔"
+        # RO: brandul vine dintr-un singur loc — Config.BIRO26_APP_NAME
+        # EN: the brand comes from one central place — BIRO26_APP_NAME
+        app = Config.BIRO26_APP_NAME
+        text = f"Test {app}: canalul de notificari functioneaza ✔"
         if channel == "email":
-            return Biro26Notify._send_email(s, "Biro26 — test notificare", text)
+            return Biro26Notify._send_email(s, f"{app} — test notificare", text)
         if channel == "telegram":
             return Biro26Notify._send_telegram(s, text)
         if channel == "whatsapp":
@@ -307,7 +310,7 @@ class Biro26Notify:
                        source: str = "magazin") -> None:
         """Fire-and-forget notification about a freshly created invoice."""
         subject = f"Cont de plată nou № {nrset} — {client_name}"
-        text = (f"🧾 Cont de plată nou (Biro26/{source})\n"
+        text = (f"🧾 Cont de plată nou ({Config.BIRO26_APP_NAME}/{source})\n"
                 f"Nr.: {nrset} (document COD {cod})\n"
                 f"Client: {client_name}\n"
                 f"Suma: {total:.2f} LEI")
