@@ -167,7 +167,7 @@ td.num,th.num{text-align:right}
     </aside>
     <main>
       <div class="bar" style="display:flex;gap:8px">
-        <button class="filter-toggle" onclick="openFilters()">☰ Filtre</button>
+        <button class="filter-toggle" onclick="openFilters()">☰ Filtre · Фильтры</button>
         <input id="q" style="flex:1" placeholder="Căutare: denumire / articol / cod de bare · Поиск: название / артикул / штрихкод"
                oninput="debSearch()">
       </div>
@@ -242,8 +242,8 @@ td.num,th.num{text-align:right}
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <label style="font-size:12.5px;margin:0;font-weight:600">TVA în cont · НДС в счёте:</label>
       <select id="tva-mode" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px">
-        <option value="inclus">Preț cu TVA 20% inclus (implicit)</option>
-        <option value="0">Preț cu TVA 0%</option>
+        <option value="inclus">Preț cu TVA 20% inclus · Цена с НДС 20% (implicit)</option>
+        <option value="0">Preț cu TVA 0% · Цена с НДС 0%</option>
         <option value="fara">Fără TVA · Без НДС</option>
       </select>
     </div>
@@ -276,6 +276,15 @@ async function j(url, opts) {
 }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* RO: interfata e bilingva RO+RU peste tot; la produse a doua limba vine
+   din TMS_UNIVERS: DENUMIREA = RO, NAMERUS = RU (cind difera).
+   EN: the UI is bilingual RO+RU everywhere; the product's second language
+   comes from TMS_UNIVERS (DENUMIREA=RO, NAMERUS=RU) when it differs. */
+function ruName(p) {
+  const ro = (p.denumirea || '').trim(), ru = (p.namerus || '').trim();
+  if (!ru || !ro || ru.toUpperCase() === ro.toUpperCase()) return '';
+  return '<span style="display:block;color:#64748b;font-size:11.5px;margin-top:2px">' + esc(ru) + '</span>';
+}
 
 /* ── facets (Amazon-style sidebar): grupa->categorie, price ──
    NB: fara fatetare pe BRAND — coloana contine furnizori, nu marci */
@@ -404,11 +413,11 @@ async function load(reset) {
     // RO/EN: familii de variante — selector de caracteristică (culoare/material)
     const varSel = (p.var_cnt || 1) > 1
       ? '<select class="varsel" id="v-' + p.cod + '" onfocus="loadVariants(' + p.cod + ')">' +
-        '<option value="' + p.cod + '">' + esc(p.variant || '—') + ' (' + p.var_cnt + ' variante ▾)</option></select>'
+        '<option value="' + p.cod + '">' + esc(p.variant || '—') + ' (' + p.var_cnt + ' variante · варианты ▾)</option></select>'
       : '';
     return '<div class="cardp">' +
       (p.image ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(p.image) + '" style="cursor:pointer" onclick="openProd(' + p.cod + ')" onerror="this.style.visibility=\'hidden\'">' : '<div style="height:130px;cursor:pointer" onclick="openProd(' + p.cod + ')"></div>') +
-      '<div class="nm" style="cursor:pointer" onclick="openProd(' + p.cod + ')">' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px">NOU</span>' : '') + esc(p.denumirea || p.namerus || '') + '</div>' +
+      '<div class="nm" style="cursor:pointer" onclick="openProd(' + p.cod + ')">' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px">NOU</span>' : '') + esc(p.denumirea || p.namerus || '') + ruName(p) + '</div>' +
       '<div class="muted" style="font-size:11px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
       varSel +
       '<div class="row"><span class="pr">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
@@ -444,7 +453,7 @@ function renderPager() {
     prev = p;
   }
   h += '<button class="pg" ' + (curPage === pages ? 'disabled' : 'onclick="gotoPage(' + (curPage + 1) + ')"') + '>›</button>';
-  h += '<span class="pg-info">' + total + ' produse · pag. ' + curPage + '/' + pages + '</span>';
+  h += '<span class="pg-info">' + total + ' produse · товаров — pag. · стр. ' + curPage + '/' + pages + '</span>';
   box.innerHTML = h;
 }
 
@@ -466,13 +475,13 @@ async function openProd(cod) {
     '<div class="prodlay">' +
       '<div class="pimg">' + (p.image ? '<img referrerpolicy="no-referrer" src="' + esc(p.image) + '" onclick="window.open(this.src)" onerror="this.style.display=\'none\'">' : '') + '</div>' +
       '<div class="pinf">' +
-        '<h2>' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:middle">NOU</span>' : '') + esc(p.denumirea || p.namerus || ('COD ' + cod)) + '</h2>' +
+        '<h2>' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:middle">NOU</span>' : '') + esc(p.denumirea || p.namerus || ('COD ' + cod)) + ruName(p) + '</h2>' +
         '<div class="muted" style="font-size:12px;margin-bottom:8px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
         ((p.var_cnt || 1) > 1 ? '<select class="varsel" id="mv-' + cod + '" style="margin-bottom:8px"><option value="' + cod + '">' + esc(p.variant || '—') + '</option></select>' : '') +
         '<div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px">' +
           '<span class="pr" style="font-size:20px;font-weight:700">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
           '<input type="number" min="1" value="1" id="mq-' + cod + '" style="width:70px;padding:7px;border:1px solid #e2e8f0;border-radius:6px">' +
-          '<button class="btn" onclick="addCartModal(' + cod + ')">+🛒 Adaugă în coș</button>' +
+          '<button class="btn" onclick="addCartModal(' + cod + ')">+🛒 Adaugă în coș · В корзину</button>' +
         '</div>' +
         '<div class="pdesc" id="p-desc"><span class="muted">…</span></div>' +
       '</div>' +
@@ -731,18 +740,18 @@ async function makeInvoice() {
     let payBtns = '';
     if (PAY.enabled) {
       if (PAY.methods.includes('mia'))
-        payBtns += '<button class="btn green" onclick="payMia(' + r.data.cod + ')">📱 Achită acum (MIA QR)</button>';
+        payBtns += '<button class="btn green" onclick="payMia(' + r.data.cod + ')">📱 Achită acum (MIA QR) · Оплатить</button>';
       if (PAY.methods.includes('maib'))
-        payBtns += '<button class="btn" onclick="payMaib(' + r.data.cod + ')">💳 Achită cu cardul (MAIB)</button>';
+        payBtns += '<button class="btn" onclick="payMaib(' + r.data.cod + ')">💳 Achită cu cardul (MAIB) · Картой</button>';
       if (PAY.methods.includes('miap2p'))
-        payBtns += '<button class="btn gray" onclick="payMiaP2P(' + r.data.cod + ')">📲 Transfer MIA la telefon</button>';
+        payBtns += '<button class="btn gray" onclick="payMiaP2P(' + r.data.cod + ')">📲 Transfer MIA la telefon · Перевод MIA</button>';
     }
     document.getElementById('inv-result').innerHTML =
       '<div class="ok-box">✅ Cont de plată creat · Счёт на оплату создан:<br>' +
       '<b>Nr. ' + r.data.nrset + '</b> (document COD ' + r.data.cod + ')<br>' +
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + payBtns +
-      '<a class="btn" style="text-decoration:none" target="_blank" href="' + pdf('invoice') + '">⬇ Cont de plată (PDF)</a>' +
-      '<a class="btn gray" style="text-decoration:none" target="_blank" href="' + pdf('order') + '">⬇ Comandă (PDF)</a>' +
+      '<a class="btn" style="text-decoration:none" target="_blank" href="' + pdf('invoice') + '">⬇ Cont de plată · Счёт (PDF)</a>' +
+      '<a class="btn gray" style="text-decoration:none" target="_blank" href="' + pdf('order') + '">⬇ Comandă · Заказ (PDF)</a>' +
       '</div><div id="pay-box" style="margin-top:8px"></div></div>';
     saveCart([]); renderCart();
   }
@@ -758,25 +767,26 @@ async function loadPayMethods() {
 }
 async function payMaib(cod) {
   const box = document.getElementById('pay-box');
-  box.innerHTML = '<span class="muted">Se inițiază plata MAIB…</span>';
+  box.innerHTML = '<span class="muted">Se inițiază plata MAIB… · Инициируем оплату MAIB…</span>';
   const r = await j(API + '/pay/maib', {method: 'POST', body: JSON.stringify({cod})});
   if (!r.success) { box.innerHTML = ''; return; }
-  box.innerHTML = '<span class="muted">Redirecționare către pagina MAIB…</span>';
+  box.innerHTML = '<span class="muted">Redirecționare către pagina MAIB… · Перенаправление на страницу MAIB…</span>';
   window.open(r.data.pay_url, '_blank');
 }
 async function payMia(cod) {
   const box = document.getElementById('pay-box');
-  box.innerHTML = '<span class="muted">Se generează codul QR MIA…</span>';
+  box.innerHTML = '<span class="muted">Se generează codul QR MIA… · Генерируем QR-код MIA…</span>';
   const r = await j(API + '/pay/mia', {method: 'POST', body: JSON.stringify({cod})});
   if (!r.success) { box.innerHTML = ''; return; }
   const d = r.data;
   box.innerHTML =
     '<div style="text-align:center;border:1px solid #86efac;border-radius:8px;padding:10px;background:#fff">' +
-    '<b>Scanați QR-ul cu aplicația bancară (MIA)</b><br>' +
+    '<b>Scanați QR-ul cu aplicația bancară (MIA) · Отсканируйте QR банковским приложением</b><br>' +
     '<img src="data:image/png;base64,' + d.qr_image + '" style="max-width:240px;margin:8px 0"><br>' +
-    '<a target="_blank" href="' + esc(d.qr_link) + '">Deschide linkul de plată</a><br>' +
+    '<a target="_blank" href="' + esc(d.qr_link) + '">Deschide linkul de plată · Открыть ссылку оплаты</a><br>' +
     '<span class="muted" id="mia-status" style="font-size:12px">Valabil ' + Math.round(d.valid_seconds / 60) +
-    ' min · așteptăm confirmarea plății…</span></div>';
+    ' min · așteptăm confirmarea plății… · Действителен ' + Math.round(d.valid_seconds / 60) +
+    ' мин, ждём подтверждения…</span></div>';
   if (miaTimer) clearInterval(miaTimer);
   miaTimer = setInterval(async () => {
     const st = await j(API + '/pay/mia-status?order=' + encodeURIComponent(d.order_id));
@@ -805,10 +815,10 @@ async function payMiaP2P(cod) {
   box.innerHTML =
     '<div style="border:1px solid #86efac;border-radius:8px;padding:12px;background:#fff;font-size:14px;line-height:1.6">' +
     '<b>📲 Transfer prin MIA (aplicația băncii dvs.)</b><br>' +
-    '1️⃣ Deschideți aplicația băncii → <b>MIA / Plăți instant</b> → transfer după <b>numărul de telefon</b><br>' +
-    '2️⃣ Numărul: <b style="font-size:17px">' + esc(d.phone) + '</b> (' + esc(d.merchant) + ')<br>' +
-    '3️⃣ Suma: <b style="font-size:17px">' + d.amount.toFixed(2) + ' LEI</b><br>' +
-    '4️⃣ La destinația/comentariul plății indicați: <b>' + esc(d.order_id) + '</b><br>' +
+    '1️⃣ Deschideți aplicația băncii → <b>MIA / Plăți instant</b> → transfer după <b>numărul de telefon</b> · Откройте приложение банка → MIA → перевод по номеру телефона<br>' +
+    '2️⃣ Numărul · Номер: <b style="font-size:17px">' + esc(d.phone) + '</b> (' + esc(d.merchant) + ')<br>' +
+    '3️⃣ Suma · Сумма: <b style="font-size:17px">' + d.amount.toFixed(2) + ' LEI</b><br>' +
+    '4️⃣ La destinația/comentariul plății indicați · В комментарии платежа укажите: <b>' + esc(d.order_id) + '</b><br>' +
     '<span class="muted" style="font-size:12px">Plata se confirmă manual de operator după recepționarea transferului. · Платёж подтверждается оператором после получения перевода.</span></div>';
 }
 
