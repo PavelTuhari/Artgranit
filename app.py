@@ -5602,9 +5602,20 @@ def biro26_shop():
     # RO: pagina informativa in interiorul magazinului (nav "info:<slug>")
     # EN: info page inside the shop (nav "info:<slug>")
     info_slug = (request.args.get('info') or '').strip()
+    # RO: limba paginilor informative: paginile traduse traiesc in WP cu
+    #     sufix de slug (<slug>-ru / <slug>-en, editabile in admin WP);
+    #     fara traducere -> fallback la varianta RO.
+    # EN: info-page language: translations live in WP as suffixed slugs
+    #     (<slug>-ru / <slug>-en); missing translation -> RO fallback.
+    lang = (request.args.get('lang') or '').strip().lower()
+    if lang not in ('ru', 'en'):
+        lang = ''
     info_title = info_html = None
     if info_slug:
-        info_title, info_html = _biro26_wp_page(info_slug)
+        if lang:
+            info_title, info_html = _biro26_wp_page(f"{info_slug}-{lang}")
+        if not info_html:
+            info_title, info_html = _biro26_wp_page(info_slug)
     # RO: produse pe pagina — setabil in admin (YBIRO_SETTINGS SHOP_PAGE_SIZE)
     # EN: products per page — admin-configurable (SHOP_PAGE_SIZE setting)
     try:
@@ -5617,7 +5628,8 @@ def biro26_shop():
                            topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
                            topbar_light=(lum > 140), shop_nav=nav,
                            info_slug=info_slug, info_title=info_title,
-                           info_html=info_html, page_size=page_size)
+                           info_html=info_html, page_size=page_size,
+                           cur_lang=(lang or 'ro'))
 
 # ── soft-delete (native ISARHIV): deactivate/reactivate a product card ──
 @app.route('/api/biro26/products/<int:cod>/archive', methods=['PUT'])
