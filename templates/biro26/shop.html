@@ -13,6 +13,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
 .top .nav{color:{{ topbar_fg }};text-decoration:none;font-size:13.5px;font-weight:600;padding:4px 8px;border-radius:6px}
 .top .nav:hover{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.10' }})}
 .top .nav-on{background:rgba({{ '0,0,0,.10' if topbar_light else '255,255,255,.14' }})}
+/* RO: comutator de limbi RO·RU·EN in bara de sus / EN: topbar language switch */
+.top .langs{display:flex;gap:2px;align-items:center;font-size:12px}
+.top .lang{color:{{ topbar_fg }};cursor:pointer;padding:3px 7px;border-radius:6px;font-weight:600;opacity:.75}
+.top .lang:hover{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.10' }});opacity:1}
+.top .lang.on{background:rgba({{ '0,0,0,.14' if topbar_light else '255,255,255,.18' }});opacity:1;text-decoration:underline}
 .info-page{background:#fff;border:1px solid #e2e8f0;border-radius:10px;max-width:860px;margin:14px auto;padding:26px 32px;font-size:15px;line-height:1.65;color:#1e293b}
 .info-page h1{font-size:24px;margin:0 0 14px}
 .info-body h2,.info-body h3{margin:18px 0 8px}
@@ -132,6 +137,15 @@ td.num,th.num{text-align:right}
     {%- endif -%}
   {% endfor %}
   <span class="sp"></span>
+  <!-- RO: comutator de limbi: paginile WP au variante -ru/-en, meniul se
+       traduce; alegerea se retine in browser.
+       EN: language switch: WP pages have -ru/-en variants, the menu labels
+       translate; the choice is remembered in the browser. -->
+  <span class="langs">
+    <a class="lang" data-lang="ro" onclick="setLang('ro')">RO</a>
+    <a class="lang" data-lang="ru" onclick="setLang('ru')">RU</a>
+    <a class="lang" data-lang="en" onclick="setLang('en')">EN</a>
+  </span>
   <span class="who" id="who" style="display:none"></span>
   <button id="btn-auth" onclick="openAuth()">Intrare / Înregistrare</button>
   <button onclick="openCart()">🛒 Coș <span class="badge" id="cart-n">0</span></button>
@@ -821,6 +835,55 @@ async function payMiaP2P(cod) {
     '4️⃣ La destinația/comentariul plății indicați · В комментарии платежа укажите: <b>' + esc(d.order_id) + '</b><br>' +
     '<span class="muted" style="font-size:12px">Plata se confirmă manual de operator după recepționarea transferului. · Платёж подтверждается оператором после получения перевода.</span></div>';
 }
+
+/* ── RO: comutatorul de limbi RO·RU·EN — traduce etichetele meniului si
+   incarca paginile informative WP in varianta -ru/-en (fallback RO).
+   ── EN: RO·RU·EN language switch — translates the nav labels and loads
+   the -ru/-en WP page variants (RO fallback). ─────────────────────── */
+const NAV_TR = {
+  'Catalog':       {ru: 'Каталог',         en: 'Catalog'},
+  'Despre noi':    {ru: 'О нас',           en: 'About us'},
+  'Contacte':      {ru: 'Контакты',        en: 'Contacts'},
+  'Livrare':       {ru: 'Доставка',        en: 'Delivery'},
+  'Retur produse': {ru: 'Возврат товаров', en: 'Product returns'},
+};
+function curLang() {
+  const l = localStorage.getItem('biro26_lang') || '{{ cur_lang|default("ro") }}';
+  return ['ro', 'ru', 'en'].includes(l) ? l : 'ro';
+}
+function setLang(l) {
+  localStorage.setItem('biro26_lang', l);
+  applyLang();
+  // RO: daca e deschisa o pagina informativa — o reincarcam in limba aleasa
+  const p = new URLSearchParams(location.search);
+  if (p.get('info')) {
+    if (l === 'ro') p.delete('lang'); else p.set('lang', l);
+    location.search = p.toString();
+  }
+}
+function applyLang() {
+  const l = curLang();
+  document.querySelectorAll('.top .lang').forEach(a =>
+    a.classList.toggle('on', a.dataset.lang === l));
+  document.querySelectorAll('.top .nav').forEach(a => {
+    if (!a.dataset.label) a.dataset.label = a.textContent.trim();
+    const tr = NAV_TR[a.dataset.label];
+    a.textContent = (l !== 'ro' && tr && tr[l]) ? tr[l] : a.dataset.label;
+    const href = a.getAttribute('href') || '';
+    if (href.startsWith('?')) {
+      const u = new URLSearchParams(href.slice(1));
+      if (l === 'ro') u.delete('lang'); else u.set('lang', l);
+      a.setAttribute('href', '?' + u.toString());
+    }
+  });
+}
+/* RO: limba din URL (?lang=) are prioritate si se retine
+   EN: the URL language wins and is remembered */
+(function () {
+  const ul = new URLSearchParams(location.search).get('lang');
+  if (ul === 'ru' || ul === 'en') localStorage.setItem('biro26_lang', ul);
+})();
+applyLang();
 
 /* RO: la intoarcerea de pe pagina bancii (successUrl/failUrl -> ?pay=ok|fail)
    aratam clar rezultatul. EN: show the payment outcome after the bank redirect. */
