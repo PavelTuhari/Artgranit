@@ -321,15 +321,24 @@ function renderTree() {
     groups[r.grupa].n += r.cnt || 0;
     groups[r.grupa].cats.push(r);
   });
+  /* RO: eticheta grupei/categoriei in limba curenta — traducerile vin ca
+     DATE din dictionarul YBIRO_GRP_I18N (fallback pe romana; principiul
+     una-shops-translations-guide). Cheile de filtrare ramin cele RO.
+     EN: grouping labels per current language from the editable dictionary. */
+  const gl = (ro, ru, en) => {
+    const l = curLang();
+    return (l === 'ru' && ru) ? ru : (l === 'en' && en) ? en : ro;
+  };
   let h = '<a class="fac' + (!F.grupa ? ' on' : '') + '" onclick="setGroup(null,null)">Toate · Все</a>';
   Object.keys(groups).sort().forEach(g => {
     const on = F.grupa === g;
+    const g0 = groups[g].cats[0] || {};
     h += '<a class="fac' + (on && !F.categorie ? ' on' : '') + '" onclick="setGroup(' + qarg(g) + ',null)">' +
-         (on ? '▾ ' : '▸ ') + esc(g) + ' <span class="cnt">(' + groups[g].n + ')</span></a>';
+         (on ? '▾ ' : '▸ ') + esc(gl(g, g0.grupa_ru, g0.grupa_en)) + ' <span class="cnt">(' + groups[g].n + ')</span></a>';
     if (on) groups[g].cats.forEach(c => {
       h += '<a class="fac sub' + (F.categorie === c.categorie ? ' on' : '') + '" ' +
            'onclick="setGroup(' + qarg(g) + ',' + qarg(c.categorie) + ')">' +
-           esc(c.categorie || '—') + ' <span class="cnt">(' + (c.cnt || 0) + ')</span></a>';
+           esc(gl(c.categorie || '—', c.cat_ru, c.cat_en)) + ' <span class="cnt">(' + (c.cnt || 0) + ')</span></a>';
     });
   });
   box.innerHTML = h;
@@ -876,6 +885,9 @@ function applyLang() {
       a.setAttribute('href', '?' + u.toString());
     }
   });
+  // RO: gruparea (arborele de categorii) se redeseneaza in limba aleasa
+  // EN: re-render the category tree in the chosen language
+  try { if (typeof treeData !== 'undefined' && treeData.length) renderTree(); } catch (e) {}
 }
 /* RO: limba din URL (?lang=) are prioritate si se retine
    EN: the URL language wins and is remembered */

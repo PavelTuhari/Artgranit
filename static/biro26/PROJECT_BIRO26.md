@@ -205,6 +205,20 @@ setările WordPress**. Fără plugin-uri multilingve (Polylang/WPML nu sunt nece
    (evenimentul `storage`). Numele/produsele: RO din `TMS_UNIVERS.DENUMIREA`,
    RU din `NAMERUS` (rând secundar în card).
 
+**Gruparea catalogului (grupa/categorie)** — tradusă după principiul
+una-shops (`unisimNginx/una-shops-translations-guide`): traducerile sunt
+**DATE editabile**, nu cod — dicționarul Oracle **`YBIRO_GRP_I18N`**
+(KIND `grupa`/`categorie`, cheia = textul RO, coloane NAME_RU/NAME_EN,
+fallback automat pe română). Toate cele 13 grupe sunt traduse RU+EN;
+categoriile (~607) se adaugă treptat, tot ca date:
+```sql
+INSERT INTO YBIRO_GRP_I18N (KIND, NAME_RO, NAME_RU, NAME_EN)
+VALUES ('categorie', 'Hartie printer', 'Бумага для принтера', 'Printer paper');
+-- кириллица — ТОЛЬКО через python-oracledb (CL8MSWIN1251!)
+```
+Arborele din magazin (`/shop/tree`) livrează numele traduse; filtrarea
+folosește în continuare cheile RO (nimic nu se strică fără traducere).
+
 **📘 Instrucțiune pentru client — cum traduceți mai departe (numai WP admin)**:
 1. Intrați în WordPress → **Pagini**. Găsiți pagina română (ex. `Livrare`).
 2. **Adăugați o pagină nouă**: titlul în limba țintă (ex. «Доставка»),
