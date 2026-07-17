@@ -32,7 +32,30 @@ ssh -i /Users/pt/Projects.AI/BIRO26/biro26_rsa ubuntu@89.168.115.20 \
 Conținutul canonic al primei pagini (iframe magazin + scriptul de limbi):
 `static/biro26/wp_page6_shop_canonical.html`.
 
-## Rulare locală (opțional)
+## Rulare locală — porturi grupa 6000 (configurată 17.07.2026)
+
+| Serviciu | Port | Link |
+|---|---|---|
+| Flask (magazin/backoffice) | 6001 | http://localhost:6001/UNA.md/orasldev/biro26-shop |
+| WordPress (site principal, magazin în iframe) | 6002 | http://localhost:6002/ |
+
+Pornire: `PORT=6001 ./venv/bin/python app.py` și
+`wp --path=wordpress_officeplus/public_html server --host=127.0.0.1 --port=6002`.
+Baza WP locală: MariaDB `officeplus_wp_local` (user `pt`); URL-urile și
+constantele WP_HOME/WP_SITEURL din wp-config.php sunt localizate la
+`http://localhost:6002`; iframe-ul primei pagini arată local spre
+`http://localhost:6001/...` (doar în copia locală). Flask-ul local folosește
+aceeași bază Oracle LIVE (documentele create local sunt reale).
+
+**Нюанс локального режима**: переключатель языков RO·RU·EN в магазине
+работает, переведённые страницы тоже (`/despre-noi-ru/` → 200), но
+синхронный перевод футера главной локально не срабатывает — магазин и WP
+на разных портах (разные origin, localStorage не общий); на проде они на
+одном домене, там всё синхронно.
+
+Остановить: `lsof -ti :6001 -ti :6002 | xargs kill`
+
+## Rulare locală din zero (opțional)
 Instalarea poate fi pornită local cu `wp server` sau MAMP/LocalWP:
 importați `db/officeplus_wp.sql.gz` într-un MySQL local, ajustați
 `wp-config.php` (DB_HOST/USER/PASSWORD) și `wp search-replace

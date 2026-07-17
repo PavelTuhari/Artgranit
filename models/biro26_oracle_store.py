@@ -907,12 +907,23 @@ class Biro26Store:
     @staticmethod
     def get_product_tree() -> Dict[str, Any]:
         """GRUPA -> CATEGORIE counts for the Marfă/Stoc left-panel tree
-        (same TIP='P' + BIRO26_GOODS scope as the grid; ~768 rows)."""
+        (same TIP='P' + BIRO26_GOODS scope as the grid; ~768 rows).
+        RO: numele RU/EN vin din dictionarul editabil YBIRO_GRP_I18N
+        (principiul una-shops: traduceri ca DATE, fallback pe romana).
+        EN: RU/EN names come from the editable YBIRO_GRP_I18N dictionary."""
         try:
             r = Biro26DB().execute_query(
-                "SELECT g.GRUPA, g.CATEGORIE, COUNT(*) CNT FROM TMS_UNIVERS u "
+                "SELECT g.GRUPA, g.CATEGORIE, COUNT(*) CNT, "
+                "MIN(gi.NAME_RU) GRUPA_RU, MIN(gi.NAME_EN) GRUPA_EN, "
+                "MIN(ci.NAME_RU) CAT_RU, MIN(ci.NAME_EN) CAT_EN "
+                "FROM TMS_UNIVERS u "
                 "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "LEFT JOIN YBIRO_GRP_I18N gi "
+                "  ON gi.KIND='grupa' AND gi.NAME_RO = g.GRUPA "
+                "LEFT JOIN YBIRO_GRP_I18N ci "
+                "  ON ci.KIND='categorie' AND ci.NAME_RO = g.CATEGORIE "
                 "WHERE u.TIP='P' AND g.GRUPA IS NOT NULL "
+                "AND NVL(u.ISARHIV,'0') <> '2' "
                 "GROUP BY g.GRUPA, g.CATEGORIE ORDER BY g.GRUPA, g.CATEGORIE")
             return _result(r)
         except Exception as e:
