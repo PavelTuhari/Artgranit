@@ -91,3 +91,7 @@ reports/data/
 reports/templates/*.bak
 uploads/biro26pt/
 reports/lite/node_modules/
+
+# RO: copia locala WordPress officeplus.md (120MB, date live) — doar README + scripturile stau in git
+wordpress_officeplus/public_html/
+wordpress_officeplus/db/
