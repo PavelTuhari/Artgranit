@@ -183,6 +183,17 @@ class Config:
     BIRO26_INSTANT_CLIENT = os.environ.get(
         'BIRO26_INSTANT_CLIENT', '/Users/pt/lib/instantclient_23_26')
 
+    # ── ServOuts26 module — CRM/SaaS servicii contabile (schema UNITEST,
+    # aceeasi baza Oracle 11g ca OfficePlus, alt user) ──
+    # RO: acces prin acelasi worker thick-mode (models/biro26_worker.py) cu
+    #     credentiale proprii transmise per-request (cheia "auth").
+    # EN: reuses the thick-mode subprocess worker with its own credentials
+    #     passed per request (the "auth" key); the main app stays thin.
+    SERVOUTS26_DB_USER = os.environ.get('SERVOUTS26_DB_USER', 'unitest')
+    SERVOUTS26_DB_PASSWORD = os.environ.get('SERVOUTS26_DB_PASSWORD', 'uni21ws09x')
+    SERVOUTS26_DB_DSN = os.environ.get('SERVOUTS26_DB_DSN', 'orange.una.md:4024/cloudbd.world')
+    SERVOUTS26_APP_NAME = os.environ.get('SERVOUTS26_APP_NAME', 'ServOuts26')
+
     # Version widget (fixed bottom-right popup)
     VERSION_WIDGET_ENABLED = os.environ.get('VERSION_WIDGET_ENABLED', '0').strip() in ('1', 'true', 'yes')
 
