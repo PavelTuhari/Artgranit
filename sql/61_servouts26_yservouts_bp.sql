@@ -482,6 +482,11 @@ CREATE OR REPLACE PACKAGE BODY YServOuts_BP AS
     DELETE FROM TPR01M_GROUPS
      WHERE CODPRICE = v_cp AND GRPNAME IS NOT NULL;
     v3 := SQL%ROWCOUNT;
+    -- RO: capul creat de modul se sterge doar daca a ramas gol
+    -- EN: the module-created header is removed only when left empty
+    DELETE FROM TPR0M_PRICES p
+     WHERE p.CODPRICE = v_cp AND p.PRICENAME = g_pricename
+       AND NOT EXISTS (SELECT 1 FROM TPR01M_GROUPS g WHERE g.CODPRICE = v_cp);
     log('rollback_pricelist','OK',
         'Sterse / removed: preturi/prices=' || v1 || ', perioade/periods=' || v2
         || ', grupe/groups=' || v3, v1 + v2 + v3);
