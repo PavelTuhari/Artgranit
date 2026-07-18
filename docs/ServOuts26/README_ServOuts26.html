@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServOuts26 — документация модуля</title>
+<style>
+  body { background:#1a1a2e; color:#e2e8f0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+         font-size:14px; line-height:1.6; margin:0; }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { color:#4f8ef7; } h2 { color:#7c6af7; margin-top:36px; border-bottom:1px solid #2d3a4f; padding-bottom:6px; }
+  h3 { color:#4f8ef7; margin-top:24px; }
+  code, pre { background:#0f3460; border-radius:6px; color:#c7d7f5; }
+  code { padding:1px 6px; font-size:12px; }
+  pre { padding:12px 16px; overflow:auto; font-size:12px; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; font-size:13px; }
+  th, td { border:1px solid #2d3a4f; padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:#16213e; }
+  a { color:#4f8ef7; }
+  .dim { color:#7c8ba0; }
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>🧾 ServOuts26 — CRM/SaaS servicii de contabilitate</h1>
+<p class="dim">Модуль платформы Artgranit · схема <b>UNITEST</b> (Oracle 11g, тот же сервер, что OfficePlus) ·
+трёхъязычный интерфейс RU/RO/EN · бизнес-логика в пакете <code>YServOuts_BP</code></p>
+
+<h2>1. Назначение</h2>
+<p>CRM-инструменты для бухгалтерской фирмы поверх существующей ERP-схемы UNITEST:
+справочник услуг и позиций, клиенты/организации, формирование цен на услуги
+(прайс-листы), конфигурируемый импорт фидов и журнал операций.
+Фаза 2 (перспектива, ТЗ §10): документы приходов/продаж <code>TMDB_*</code>,
+счета к оплате с отправкой на email, SMS о задолженностях.</p>
+
+<h2>2. Подключение</h2>
+<table>
+<tr><th>Параметр</th><th>Значение</th></tr>
+<tr><td>DSN</td><td><code>orange.una.md:4024/cloudbd.world</code></td></tr>
+<tr><td>Схема</td><td><code>unitest</code> (env <code>SERVOUTS26_DB_USER/PASSWORD/DSN</code>)</td></tr>
+<tr><td>Режим</td><td>Oracle 11g → только THICK (Instant Client 23_26); доступ через
+subprocess-worker <code>models/biro26_worker.py</code> с ключом <code>auth</code> в запросе —
+главный Flask-процесс остаётся thin (production nufarul.eminescu.md не затрагивается)</td></tr>
+<tr><td>NLS</td><td><code>NLS_DATE_FORMAT='DD.MM.RRRR'</code> per-request (view
+<code>VPR1D_PRDATE</code> содержит неявный литерал даты <code>'1.1.3001'</code>)</td></tr>
+</table>
+
+<h2>3. Объекты Oracle</h2>
+<h3>Собственные объекты модуля (префикс SRVO)</h3>
+<table>
+<tr><th>Объект</th><th>Роль</th></tr>
+<tr><td><code>SRVO_INPUT_GOODS</code></td><td>staging-таблица фида (ARTICOL, DENUMIRE, BRAND, RETAIL1, ANGRO, IONLINE, COD_UNIVERS, STATUS, ERR_MSG)</td></tr>
+<tr><td><code>SRVO_INPUT_SEQ</code></td><td>генератор ID staging</td></tr>
+<tr><td><code>SRVO_MAP_PROFILES</code></td><td>именованные профили маппинга (пары профиль/параметр/значение для переменных <code>g_*</code>)</td></tr>
+<tr><td><code>YSERVOUTS_BP</code></td><td>пакет бизнес-логики (см. §4)</td></tr>
+</table>
+<h3>Используемые объекты ERP (не изменяются структурно)</h3>
+<table>
+<tr><th>Объект</th><th>Роль</th></tr>
+<tr><td><code>TMS_UNIVERS</code> / <code>TMS_MPT</code> / <code>TMS_UM</code></td><td>справочник услуг/позиций; удаление запрещено триггером — только архив (<code>ISARHIV</code>)</td></tr>
+<tr><td><code>TMS_ORG</code> / <code>TMS_ORG_ACCOUNTS</code> / <code>TMS_ORG_PRICES</code></td><td>клиенты/организации + счета</td></tr>
+<tr><td><code>TPR0M_PRICES</code></td><td>шапки прайс-листов (FK-родитель групп); модуль по умолчанию использует <b>CODPRICE=26 «ServOuts26»</b> (1/2/4/6 заняты нативными данными)</td></tr>
+<tr><td><code>TPR01M_GROUPS</code> (view <code>VPR01M_GROUPS</code>)</td><td>группы прайса; импортированные группы имеют GRPNAME (нативные — NULL)</td></tr>
+<tr><td><code>TPR1D_PRDATE</code> (view <code>VPR1D_PRDATE</code>)</td><td>периоды; открытый конец выводится view через LEAD</td></tr>
+<tr><td><code>TPR1D_PERPRLIST</code> (view <code>VTPR1D_PERPRLIST</code> + INSTEAD OF)</td><td>строки цен, PK (CODPRICE, CODGRP, SC, DATASTART)</td></tr>
+<tr><td><code>XLOG</code></td><td>журнал; модуль пишет <code>IOBJECT='SERVOUTS'</code> автономной транзакцией</td></tr>
+</table>
+
+<h2>4. Пакет YServOuts_BP</h2>
+<p>Конфигурация — публичные переменные <code>g_*</code> (таблица/колонки источника,
+секвенция, CODPRICE, константы UM/GR1/TIP/CACCESS/CODTVA, даты, лимиты длин).
+Чтение/запись по имени: <code>get_conf(name)</code> / <code>set_conf(name, value)</code>;
+идентификаторы валидируются (<code>assert_idents</code>) перед динамическим SQL.</p>
+<p>Процедуры: <code>prepare_input → validate_input → assign_keys → import_univers →
+import_groups → import_dates → import_prices</code> (или всё сразу — <code>import_all</code>),
+<code>rollback_pricelist(cp)</code> (цены → периоды → именованные группы → пустая шапка; нативные
+данные не трогаются), <code>merge_groups(src, dst, cp)</code>,
+<code>archive_univers(cod, val)</code>, <code>fix_denumirea_confusables</code>
+(замена кириллических «обманок» С→C при ≤ <code>g_confus_max_cyr</code> кириллических символов),
+<code>parse_price</code> (форматы <code>1.013.00</code>, <code>950,50</code>).
+Все шаги идемпотентны (<code>NOT EXISTS</code>) и логируются в XLOG (START/OK/WARN/ERROR + число строк).</p>
+
+<h2>5. UI-маршруты</h2>
+<table>
+<tr><th>URL</th><th>Что</th></tr>
+<tr><td><code>/UNA.md/orasldev/servouts26</code> (и <code>-admin</code>)</td><td>трёхъязычная админка: дашборд, справочник (+карточка), группы (переименование/слияние), клиенты (+карточка со счетами), прайс-листы (редактирование PRETV*, rollback), импорт и профили маппинга, журнал XLOG</td></tr>
+<tr><td><code>/UNA.md/orasldev/servouts26-tz</code></td><td>техническое задание</td></tr>
+<tr><td><code>/UNA.md/orasldev/servouts26-docs</code></td><td>эта документация</td></tr>
+</table>
+
+<h2>6. API (все под <code>/api/servouts26/…</code>, сессионная авторизация)</h2>
+<pre>GET  connection/test | dashboard | univers[?tip&amp;gr1&amp;arhiv&amp;q] | univers/filters
+GET  univers/&lt;cod&gt;            POST univers/&lt;cod&gt;            POST univers/&lt;cod&gt;/archive
+GET  groups[?codprice]         POST groups/rename             POST groups/merge
+GET  systree | orgs[?q] | orgs/&lt;cod&gt; | pricelists | prices?codprice=&amp;codgrp=&amp;q=
+POST prices/update | pricelists/rollback
+GET  staging                   POST staging {rows,replace}    POST staging/clear
+GET  config | profiles         POST profiles | profiles/delete
+POST import/run {step, profile:{g_*}}          GET journal[?all=1&amp;q]</pre>
+
+<h2>7. Локальный запуск</h2>
+<pre>cd /Users/pt/Projects.AI/Artgranit
+venv/bin/python app.py            # порт 3003
+open http://localhost:3003/UNA.md/orasldev/servouts26</pre>
+
+<h2>8. Деплой Oracle-объектов</h2>
+<pre>venv/bin/python deploy_servouts26_oracle.py
+# выполняет sql/60_servouts26_srvo.sql и sql/61_servouts26_yservouts_bp.sql
+# в схему unitest; повторный запуск безопасен (ORA-00955 → SKIP)</pre>
+
+<h2>9. Checklist верификации после релиза</h2>
+<ol>
+<li><code>YSERVOUTS_BP</code> (PACKAGE + BODY) в статусе VALID в <code>USER_OBJECTS</code>;</li>
+<li><code>GET /api/servouts26/connection/test</code> → success + версия 11.2.0.4;</li>
+<li>дашборд показывает счётчики и последние операции XLOG;</li>
+<li><code>import_all</code> на тестовом фиде идемпотентен (повтор не создаёт дублей);</li>
+<li><code>rollback_pricelist</code> возвращает прайс модуля в ноль, не трогая нативные CODPRICE 1/2/4/6;</li>
+<li>production <code>https://nufarul.eminescu.md/login</code> отвечает 200 (главный инвариант платформы).</li>
+</ol>
+
+<p class="dim">2026-07-18 · ServOuts26 v1 (этапы 1, 3, 4, 5 по ТЗ §12; этап 8 — перспектива)</p>
+</div></body>
+</html>
