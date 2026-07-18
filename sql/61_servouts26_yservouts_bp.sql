@@ -236,6 +236,8 @@ CREATE OR REPLACE PACKAGE BODY YServOuts_BP AS
       WHEN 'col_retail'     THEN RETURN g_col_retail;
       WHEN 'seq_key'        THEN RETURN g_seq_key;
       WHEN 'codprice'       THEN RETURN TO_CHAR(g_codprice);
+      WHEN 'pricename'      THEN RETURN g_pricename;
+      WHEN 'currency'       THEN RETURN g_currency;
       WHEN 'um'             THEN RETURN g_um;
       WHEN 'gr1'            THEN RETURN g_gr1;
       WHEN 'tip'            THEN RETURN g_tip;
