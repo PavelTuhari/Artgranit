@@ -372,10 +372,15 @@ CREATE OR REPLACE PACKAGE BODY YServOuts_BP AS
     --     insereaza doar data de start.
     -- EN: the open end (01.01.3000) is derived by the view via LEAD — only
     --     the start date is inserted.
+    -- RO: doar grupele cu nume (cele importate) — grupele native fara
+    --     GRPNAME nu primesc perioade noi.
+    -- EN: named groups only (the imported ones) — native no-name groups
+    --     do not get new periods.
     INSERT INTO VPR1D_PRDATE (CODPRICE, CODGRP, DATA, NRDOC)
     SELECT g.CODPRICE, g.CODGRP, g_date_start, NULL
       FROM TPR01M_GROUPS g
      WHERE g.CODPRICE = g_codprice
+       AND g.GRPNAME IS NOT NULL
        AND NOT EXISTS (SELECT 1 FROM TPR1D_PRDATE d
                         WHERE d.CODPRICE = g.CODPRICE
                           AND d.CODGRP   = g.CODGRP
