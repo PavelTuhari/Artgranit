@@ -197,11 +197,11 @@ $SSH_CMD "$REMOTE_USER@$REMOTE_HOST" "bash -s" << REMOTEEOF
   cd $REMOTE_PATH
   [ -d venv ] || python3 -m venv venv
   venv/bin/python3 -m pip install -q -r requirements.txt
-  pkill -f 'app.py' 2>/dev/null || true
-  sleep 2
-  nohup venv/bin/python3 app.py >> app.log 2>&1 &
-  sleep 3
-  pgrep -af app.py >/dev/null && echo '  ✓ Зависимости установлены, приложение перезапущено' || echo '  ⚠ Приложение могло не запуститься — проверьте app.log'
+  # Перезапуск ТОЛЬКО через systemd (правило CLAUDE.md: pkill+nohup уводит
+  # процесс из-под systemd и приложение не поднимется после ребута сервера)
+  sudo systemctl restart artgranit
+  sleep 4
+  systemctl is-active --quiet artgranit && echo '  ✓ Зависимости установлены, artgranit перезапущен (systemd)' || echo '  ⚠ artgranit не active — проверьте journalctl -u artgranit'
 REMOTEEOF
 
 echo ""
