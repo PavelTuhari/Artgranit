@@ -5386,6 +5386,75 @@ def api_srvo_journal():
     return jsonify(ServOuts26Controller.get_journal())
 
 
+# ── ServOuts26 web-shop: PUBLIC front-office for accounting-outsourcing
+#    services (client self-registration, catalog, orders, personal cabinet) ──
+
+@app.route('/UNA.md/orasldev/servouts26-shop')
+def servouts26_shop():
+    """Public storefront: accounting outsourcing services + client cabinet."""
+    return render_template('servouts26/shop.html',
+                           app_name=Config.SERVOUTS26_APP_NAME)
+
+
+@app.route('/api/servouts26/shop/catalog', methods=['GET'])
+def api_srvo_shop_catalog():
+    # public read-only services catalog (module pricelist, today's prices)
+    return jsonify(ServOuts26Controller.shop_catalog())
+
+
+@app.route('/api/servouts26/shop/register', methods=['POST'])
+def api_srvo_shop_register():
+    return jsonify(ServOuts26Controller.shop_register())
+
+
+@app.route('/api/servouts26/shop/login', methods=['POST'])
+def api_srvo_shop_login():
+    return jsonify(ServOuts26Controller.shop_login())
+
+
+@app.route('/api/servouts26/shop/logout', methods=['POST'])
+def api_srvo_shop_logout():
+    return jsonify(ServOuts26Controller.shop_logout())
+
+
+@app.route('/api/servouts26/shop/me', methods=['GET'])
+def api_srvo_shop_me():
+    return jsonify(ServOuts26Controller.shop_me())
+
+
+@app.route('/api/servouts26/shop/order', methods=['POST'])
+def api_srvo_shop_order():
+    # auth enforced inside (shop client session)
+    return jsonify(ServOuts26Controller.shop_order())
+
+
+@app.route('/api/servouts26/shop/my-orders', methods=['GET'])
+def api_srvo_shop_my_orders():
+    return jsonify(ServOuts26Controller.shop_my_orders())
+
+
+@app.route('/api/servouts26/shop/order/<int:order_id>', methods=['GET'])
+def api_srvo_shop_order_detail(order_id):
+    # shop client sees only own orders; backoffice session sees any
+    return jsonify(ServOuts26Controller.shop_order_detail(order_id))
+
+
+# ── ServOuts26 orders (back-office) ──
+
+@app.route('/api/servouts26/orders', methods=['GET'])
+def api_srvo_orders_admin():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.orders_admin())
+
+
+@app.route('/api/servouts26/orders/status', methods=['POST'])
+def api_srvo_orders_status():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.order_set_status())
+
+
 # ---------------------------------------------------------------------------
 # Biro26 — Nomenclator / Listă de prețuri / Import (OfficePlus ERP, Oracle 11g)
 # Reaches officeplus via an isolated thick-mode subprocess worker; main app stays thin.
