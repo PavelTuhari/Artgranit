@@ -623,6 +623,249 @@ class ServOuts26Store:
             return {"success": False, "error": str(e)}
 
     # ================================================================
+    # SHOP — public catalog, clients, orders (SRVO_CLIENT / SRVO_ORDERS)
+    # ================================================================
+
+    @staticmethod
+    def shop_catalog() -> Dict[str, Any]:
+        """Active services of the module pricelist (today's period prices)."""
+        try:
+            with ServOuts26DB() as db:
+                cp = ServOuts26Store._current_codprice(db)
+                r = db.execute_query(
+                    """SELECT p.SC, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM,
+                              g.GRPNAME, p.PRETV, p.PRETV1, p.PRETV2
+                         FROM TPR1D_PERPRLIST p
+                         JOIN TMS_UNIVERS u ON u.COD = p.SC
+                         LEFT JOIN TPR01M_GROUPS g
+                                ON g.CODPRICE = p.CODPRICE AND g.CODGRP = p.CODGRP
+                        WHERE p.CODPRICE = :cp
+                          AND TRUNC(SYSDATE) BETWEEN p.DATASTART AND p.DATAEND
+                          AND NVL(u.ISARHIV,'0') <> '1'
+                        ORDER BY g.GRPNAME, u.DENUMIREA""",
+                    {"cp": cp})
+                return {"success": r.get("success", False), "codprice": cp,
+                        "data": _rows(r), "error": r.get("message")}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_prices_for(cods: List[int]) -> Dict[str, Any]:
+        """Authoritative server-side prices (the public client must not be
+        able to supply its own price)."""
+        if not cods:
+            return {"success": True, "data": {}}
+        try:
+            marks = ",".join(f":c{i}" for i in range(len(cods[:100])))
+            params = {f"c{i}": int(c) for i, c in enumerate(cods[:100])}
+            with ServOuts26DB() as db:
+                cp = ServOuts26Store._current_codprice(db)
+                params["cp"] = cp
+                r = db.execute_query(
+                    f"""SELECT p.SC, p.PRETV FROM TPR1D_PERPRLIST p
+                         WHERE p.CODPRICE = :cp
+                           AND TRUNC(SYSDATE) BETWEEN p.DATASTART AND p.DATAEND
+                           AND p.SC IN ({marks})""", params)
+                if not r.get("success"):
+                    return {"success": False, "error": r.get("message")}
+                return {"success": True,
+                        "data": {int(row[0]): float(row[1] or 0)
+                                 for row in r.get("data", [])}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_client_by_email(email: str) -> Dict[str, Any]:
+        try:
+            with ServOuts26DB() as db:
+                r = db.execute_query(
+                    """SELECT ID, EMAIL, FULL_NAME, PHONE, PWD_HASH, ADDRESS,
+                              IDNO, IS_COMPANY FROM SRVO_CLIENT
+                        WHERE EMAIL = :em""",
+                    {"em": (email or "").lower().strip()})
+                rows = _rows(r)
+                return {"success": True, "data": rows[0] if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_register_client(email: str, full_name: str, phone: str,
+                             pwd_hash: str, address: str = "", idno: str = "",
+                             is_company: bool = False) -> Dict[str, Any]:
+        try:
+            with ServOuts26DB() as db:
+                res = db.execute_script([
+                    {"sql": """INSERT INTO SRVO_CLIENT
+                                 (ID, EMAIL, FULL_NAME, PHONE, PWD_HASH,
+                                  ADDRESS, IDNO, IS_COMPANY)
+                               VALUES (SRVO_CLIENT_SEQ.NEXTVAL, :em, :nm, :ph,
+                                       :pw, :ad, :idno, :isco)""",
+                     "params": {"em": email.lower().strip(), "nm": full_name,
+                                "ph": phone or "", "pw": pwd_hash,
+                                "ad": (address or "")[:400],
+                                "idno": (idno or "")[:20],
+                                "isco": "1" if is_company else "0"},
+                     "kind": "dml"},
+                    {"sql": "SELECT ID FROM SRVO_CLIENT WHERE EMAIL = :em",
+                     "params": {"em": email.lower().strip()}, "kind": "query"},
+                ])
+                if not res.get("success"):
+                    return {"success": False, "error": res.get("message")}
+                cid = res["results"][-1]["data"][0][0]
+                db.call_proc(
+                    "BEGIN YServOuts_BP.log('shop_register','OK', :c, 1); END;",
+                    {"c": f"Client nou / new client: {full_name} <{email}>"})
+                return {"success": True, "data": {"client_id": cid}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_create_order(client_id: int,
+                          items: List[Dict[str, Any]],
+                          note: str = "") -> Dict[str, Any]:
+        """Create the order + lines in ONE transaction; returns {order_id, order_no}."""
+        if not items:
+            return {"success": False, "error": "empty cart"}
+        try:
+            total = round(sum(float(i["qty"]) * float(i["price"])
+                              for i in items), 2)
+            statements = [
+                {"sql": """INSERT INTO SRVO_ORDERS
+                             (ORDER_ID, ORDER_NO, CLIENT_ID, STATUS, TOTAL, NOTE)
+                           VALUES (SRVO_ORDERS_SEQ.NEXTVAL,
+                                   'SO-' || TO_CHAR(SRVO_ORDERS_SEQ.CURRVAL),
+                                   :cid, 'NEW', :tot, :note)""",
+                 "params": {"cid": int(client_id), "tot": total,
+                            "note": (note or "")[:500]},
+                 "kind": "dml"},
+            ]
+            for i, it in enumerate(items[:100], start=1):
+                statements.append({
+                    "sql": """INSERT INTO SRVO_ORDER_ITEMS
+                                (ORDER_ID, LINE_NO, SC, NAME, QTY, PRICE, SUMA)
+                              VALUES (SRVO_ORDERS_SEQ.CURRVAL, :ln, :sc, :nm,
+                                      :q, :p, :s)""",
+                    "params": {"ln": i, "sc": int(it["cod"]),
+                               "nm": (str(it.get("name") or ""))[:200],
+                               "q": float(it["qty"]), "p": float(it["price"]),
+                               "s": round(float(it["qty"]) * float(it["price"]), 2)},
+                    "kind": "dml"})
+            statements.append(
+                {"sql": """SELECT ORDER_ID, ORDER_NO, TOTAL FROM SRVO_ORDERS
+                            WHERE ORDER_ID = SRVO_ORDERS_SEQ.CURRVAL""",
+                 "kind": "query"})
+            with ServOuts26DB() as db:
+                res = db.execute_script(statements)
+                if not res.get("success"):
+                    return {"success": False, "error": res.get("message")}
+                row = res["results"][-1]["data"][0]
+                db.call_proc(
+                    "BEGIN YServOuts_BP.log('shop_order','OK', :c, :n); END;",
+                    {"c": f"Comanda / order {row[1]} total={row[2]}",
+                     "n": len(items)})
+                return {"success": True,
+                        "data": {"order_id": row[0], "order_no": row[1],
+                                 "total": row[2]}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_client_orders(client_id: int) -> Dict[str, Any]:
+        try:
+            with ServOuts26DB() as db:
+                r = db.execute_query(
+                    """SELECT ORDER_ID, ORDER_NO, STATUS, TOTAL, CURRENCY, NOTE,
+                              TO_CHAR(CREATED_AT,'DD.MM.YYYY HH24:MI') CREATED_AT
+                         FROM SRVO_ORDERS WHERE CLIENT_ID = :cid
+                        ORDER BY ORDER_ID DESC""", {"cid": int(client_id)})
+                return {"success": r.get("success", False),
+                        "data": _rows(r), "error": r.get("message")}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_order_detail(order_id: int,
+                          client_id: Optional[int] = None) -> Dict[str, Any]:
+        """Order header + lines (+client requisites for the printable invoice).
+        client_id given -> ownership is enforced (shop session)."""
+        try:
+            p: Dict[str, Any] = {"oid": int(order_id)}
+            own = ""
+            if client_id is not None:
+                own = " AND o.CLIENT_ID = :cid"
+                p["cid"] = int(client_id)
+            with ServOuts26DB() as db:
+                r = db.execute_script([
+                    {"sql": f"""SELECT o.ORDER_ID, o.ORDER_NO, o.STATUS, o.TOTAL,
+                                       o.CURRENCY, o.NOTE,
+                                       TO_CHAR(o.CREATED_AT,'DD.MM.YYYY HH24:MI') CREATED_AT,
+                                       c.FULL_NAME, c.EMAIL, c.PHONE, c.ADDRESS,
+                                       c.IDNO, c.IS_COMPANY
+                                  FROM SRVO_ORDERS o
+                                  JOIN SRVO_CLIENT c ON c.ID = o.CLIENT_ID
+                                 WHERE o.ORDER_ID = :oid{own}""",
+                     "params": p, "kind": "query"},
+                    {"sql": """SELECT LINE_NO, SC, NAME, QTY, PRICE, SUMA
+                                 FROM SRVO_ORDER_ITEMS WHERE ORDER_ID = :oid
+                                ORDER BY LINE_NO""",
+                     "params": {"oid": int(order_id)}, "kind": "query"},
+                ])
+                if not r.get("success"):
+                    return {"success": False, "error": r.get("message")}
+                head = _script_rows(r, 0)
+                if not head:
+                    return {"success": False, "error": "order not found"}
+                return {"success": True, "order": head[0],
+                        "items": _script_rows(r, 1)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_orders_admin(status: str = None, limit: int = 200) -> Dict[str, Any]:
+        try:
+            sql = """SELECT * FROM (
+                       SELECT o.ORDER_ID, o.ORDER_NO, o.STATUS, o.TOTAL,
+                              o.CURRENCY, o.NOTE,
+                              TO_CHAR(o.CREATED_AT,'DD.MM.YYYY HH24:MI') CREATED_AT,
+                              c.FULL_NAME, c.EMAIL, c.PHONE,
+                              (SELECT COUNT(*) FROM SRVO_ORDER_ITEMS i
+                                WHERE i.ORDER_ID = o.ORDER_ID) LINES
+                         FROM SRVO_ORDERS o
+                         JOIN SRVO_CLIENT c ON c.ID = o.CLIENT_ID WHERE 1=1"""
+            p: Dict[str, Any] = {}
+            if status:
+                sql += " AND o.STATUS = :st"
+                p["st"] = status
+            sql += " ORDER BY o.ORDER_ID DESC) WHERE ROWNUM <= :lim"
+            p["lim"] = min(int(limit or 200), 2000)
+            with ServOuts26DB() as db:
+                r = db.execute_query(sql, p)
+                return {"success": r.get("success", False),
+                        "data": _rows(r), "error": r.get("message")}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_order_set_status(order_id: int, status: str) -> Dict[str, Any]:
+        if status not in ("NEW", "CONFIRMED", "IN_WORK", "DONE", "CANCELED"):
+            return {"success": False, "error": f"bad status: {status}"}
+        try:
+            with ServOuts26DB() as db:
+                r = db.execute_dml(
+                    """UPDATE SRVO_ORDERS SET STATUS = :st, UPDATED_AT = SYSDATE
+                        WHERE ORDER_ID = :oid""",
+                    {"st": status, "oid": int(order_id)})
+                if r.get("success") and r.get("rowcount"):
+                    db.call_proc(
+                        "BEGIN YServOuts_BP.log('order_status','OK', :c, 1); END;",
+                        {"c": f"ORDER_ID={order_id} -> {status}"})
+                return {"success": r.get("success", False),
+                        "rowcount": r.get("rowcount", 0),
+                        "error": r.get("message")}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ================================================================
     # JOURNAL (XLOG)
     # ================================================================
 
