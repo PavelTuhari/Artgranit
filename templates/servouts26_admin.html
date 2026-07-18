@@ -991,6 +991,44 @@ async function deleteProfile() {
   if (j.success) loadProfiles(); else alert(j.error);
 }
 
+/* ============================== orders ============================== */
+const ORD_STATUSES = ['NEW','CONFIRMED','IN_WORK','DONE','CANCELED'];
+async function loadOrders() {
+  const stf = document.getElementById('ord-status').value;
+  const j = await api('/api/servouts26/orders' + (stf ? `?status=${stf}` : ''));
+  if (!j.success) return;
+  document.getElementById('ord-count').textContent = (j.data || []).length + ' rows';
+  document.getElementById('ord-body').innerHTML = (j.data || []).map(o => `
+    <tr><td><b>${esc(o.order_no)}</b></td><td>${esc(o.created_at)}</td>
+    <td>${esc(o.full_name)}</td>
+    <td>${esc(o.email)}<br><span class="hint">${esc(o.phone)}</span></td>
+    <td><select onchange="setOrderStatus(${o.order_id}, this.value)">
+      ${ORD_STATUSES.map(s =>
+        `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}
+    </select></td>
+    <td class="td-num">${o.lines}</td>
+    <td class="td-num">${(o.total ?? 0).toFixed(2)} ${esc(o.currency)}</td>
+    <td><button class="btn" onclick="viewOrder(${o.order_id})">${t('ord_view')}</button></td>
+    </tr>`).join('');
+}
+async function setOrderStatus(id, status) {
+  const j = await post('/api/servouts26/orders/status',
+                       {order_id: id, status: status});
+  if (!j.success) { alert(j.error); loadOrders(); }
+}
+async function viewOrder(id) {
+  const j = await api('/api/servouts26/shop/order/' + id);
+  if (!j.success) { alert(j.error); return; }
+  const o = j.order;
+  alert(`${o.order_no} · ${o.created_at} · ${o.status}\n`
+    + `${o.full_name} <${o.email}> ${o.phone || ''}\n`
+    + (o.address ? o.address + '\n' : '') + '\n'
+    + (j.items || []).map(i =>
+        `${i.line_no}. ${i.name}  ${i.qty} x ${i.price} = ${i.suma}`).join('\n')
+    + `\n\nTOTAL: ${o.total} ${o.currency}`
+    + (o.note ? `\n${o.note}` : ''));
+}
+
 /* ============================== journal ============================== */
 async function loadJournal() {
   const q = new URLSearchParams();
