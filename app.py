@@ -5156,6 +5156,237 @@ def api_aei_olap_loans():
 
 
 # ---------------------------------------------------------------------------
+# ServOuts26 — CRM/SaaS servicii contabile (schema UNITEST, Oracle 11g)
+# Same thick-mode subprocess worker pattern as Biro26; main app stays thin.
+# ---------------------------------------------------------------------------
+from controllers.servouts26_controller import ServOuts26Controller
+
+
+@app.route('/UNA.md/orasldev/servouts26')
+@app.route('/UNA.md/orasldev/servouts26-admin')
+def servouts26_admin():
+    """ServOuts26: trilingual (RU/RO/EN) admin — nomenclator, prices, import."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('servouts26_admin.html',
+                           app_name=Config.SERVOUTS26_APP_NAME)
+
+
+@app.route('/UNA.md/orasldev/servouts26-tz')
+def servouts26_tz():
+    """ServOuts26: Technical Specification (TZ) document."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    tz_path = os.path.join(os.path.dirname(__file__), 'docs', 'ServOuts26',
+                           'TZ_Servouts26_App.md')
+    with open(tz_path, 'r', encoding='utf-8') as f:
+        body = f.read()
+    from markupsafe import escape
+    return ('<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">'
+            '<title>ServOuts26 — TZ</title></head>'
+            '<body style="background:#1a1a2e;color:#e2e8f0;font-family:monospace">'
+            f'<pre style="white-space:pre-wrap;max-width:980px;margin:24px auto">'
+            f'{escape(body)}</pre></body></html>')
+
+
+@app.route('/UNA.md/orasldev/servouts26-docs')
+def servouts26_docs():
+    """ServOuts26: module documentation."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    import os
+    doc_path = os.path.join(os.path.dirname(__file__), 'docs', 'ServOuts26',
+                            'README_ServOuts26.html')
+    with open(doc_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+# ServOuts26 — API routes
+
+@app.route('/api/servouts26/connection/test', methods=['GET'])
+def api_srvo_conn_test():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.test_connection())
+
+
+@app.route('/api/servouts26/dashboard', methods=['GET'])
+def api_srvo_dashboard():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_dashboard())
+
+
+@app.route('/api/servouts26/univers', methods=['GET'])
+def api_srvo_univers():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_univers())
+
+
+@app.route('/api/servouts26/univers/filters', methods=['GET'])
+def api_srvo_univers_filters():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_univers_filters())
+
+
+@app.route('/api/servouts26/univers/<int:cod>', methods=['GET'])
+def api_srvo_univers_card(cod):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_univers_card(cod))
+
+
+@app.route('/api/servouts26/univers/<int:cod>', methods=['POST'])
+def api_srvo_univers_update(cod):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.update_univers(cod))
+
+
+@app.route('/api/servouts26/univers/<int:cod>/archive', methods=['POST'])
+def api_srvo_univers_archive(cod):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.archive_univers(cod))
+
+
+@app.route('/api/servouts26/groups', methods=['GET'])
+def api_srvo_groups():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_groups())
+
+
+@app.route('/api/servouts26/groups/rename', methods=['POST'])
+def api_srvo_groups_rename():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.rename_group())
+
+
+@app.route('/api/servouts26/groups/merge', methods=['POST'])
+def api_srvo_groups_merge():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.merge_groups())
+
+
+@app.route('/api/servouts26/systree', methods=['GET'])
+def api_srvo_systree():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_systree())
+
+
+@app.route('/api/servouts26/orgs', methods=['GET'])
+def api_srvo_orgs():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_orgs())
+
+
+@app.route('/api/servouts26/orgs/<int:cod>', methods=['GET'])
+def api_srvo_org_card(cod):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_org_card(cod))
+
+
+@app.route('/api/servouts26/pricelists', methods=['GET'])
+def api_srvo_pricelists():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_pricelists())
+
+
+@app.route('/api/servouts26/prices', methods=['GET'])
+def api_srvo_prices():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_prices())
+
+
+@app.route('/api/servouts26/prices/update', methods=['POST'])
+def api_srvo_prices_update():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.update_price())
+
+
+@app.route('/api/servouts26/pricelists/rollback', methods=['POST'])
+def api_srvo_pricelists_rollback():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.rollback_pricelist())
+
+
+@app.route('/api/servouts26/staging', methods=['GET'])
+def api_srvo_staging():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_staging())
+
+
+@app.route('/api/servouts26/staging', methods=['POST'])
+def api_srvo_staging_load():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.load_staging())
+
+
+@app.route('/api/servouts26/staging/clear', methods=['POST'])
+def api_srvo_staging_clear():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.clear_staging())
+
+
+@app.route('/api/servouts26/config', methods=['GET'])
+def api_srvo_config():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_config())
+
+
+@app.route('/api/servouts26/import/run', methods=['POST'])
+def api_srvo_import_run():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.run_step())
+
+
+@app.route('/api/servouts26/profiles', methods=['GET'])
+def api_srvo_profiles():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_profiles())
+
+
+@app.route('/api/servouts26/profiles', methods=['POST'])
+def api_srvo_profiles_save():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.save_profile())
+
+
+@app.route('/api/servouts26/profiles/delete', methods=['POST'])
+def api_srvo_profiles_delete():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.delete_profile())
+
+
+@app.route('/api/servouts26/journal', methods=['GET'])
+def api_srvo_journal():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "auth"}), 401
+    return jsonify(ServOuts26Controller.get_journal())
+
+
+# ---------------------------------------------------------------------------
 # Biro26 — Nomenclator / Listă de prețuri / Import (OfficePlus ERP, Oracle 11g)
 # Reaches officeplus via an isolated thick-mode subprocess worker; main app stays thin.
 # ---------------------------------------------------------------------------
