@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }} — CRM servicii contabile</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --menu-h: 32px; --sb-w: 236px; --status-h: 22px;
+      --bg: #1a1a2e; --bg2: #16213e; --bg3: #0f3460;
+      --accent: #4f8ef7; --accent2: #7c6af7;
+      --green: #22c55e; --yellow: #f59e0b; --red: #ef4444;
+      --text: #e2e8f0; --text-dim: #7c8ba0; --border: #2d3a4f;
+      --c-bg: #f8fafc; --c-text: #1e293b; --c-border: #e2e8f0;
+      --c-blue: #1d4ed8; --c-blue-lt: #dbeafe; --c-gray: #475569;
+      --c-green: #15803d; --c-green-lt: #dcfce7; --c-yellow-lt: #fefce8;
+    }
+    html, body { height: 100%; width: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px; background: var(--bg); color: var(--text); }
+
+    .menu-bar { height: var(--menu-h); background: #0d0d1a;
+      border-bottom: 1px solid var(--border); display: flex; align-items: center;
+      padding: 0 10px; gap: 8px; flex-shrink: 0; user-select: none; }
+    .menu-logo { display: flex; align-items: center; gap: 8px; margin-right: 8px;
+      font-weight: 700; font-size: 13px; color: var(--accent); white-space: nowrap; }
+    .menu-sub { color: var(--text-dim); font-weight: 400; font-size: 11px; }
+    .menu-spacer { flex: 1; }
+    .lang-sw { display: flex; gap: 2px; }
+    .lang-btn { border: 1px solid var(--border); background: transparent;
+      color: var(--text-dim); font-size: 11px; padding: 2px 8px; cursor: pointer;
+      border-radius: 4px; }
+    .lang-btn.active { color: #fff; background: var(--bg3); border-color: var(--accent); }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+    .conn-dot.ok { background: var(--green); }
+    .conn-dot.err { background: var(--red); }
+    .conn-lbl { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+    .layout { display: flex; height: calc(100% - var(--menu-h) - var(--status-h)); }
+    .sidebar { width: var(--sb-w); background: var(--bg2);
+      border-right: 1px solid var(--border); display: flex; flex-direction: column;
+      flex-shrink: 0; }
+    .nav-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+      cursor: pointer; color: var(--text-dim); font-size: 13px; user-select: none; }
+    .nav-item:hover { background: rgba(255,255,255,.05); color: var(--text); }
+    .nav-item.active { background: var(--bg3); color: #fff;
+      border-left: 3px solid var(--accent); padding-left: 11px; }
+    .nav-icon { width: 18px; text-align: center; }
+    .sb-foot { padding: 10px 14px; border-top: 1px solid var(--border);
+      font-size: 10px; color: var(--text-dim); line-height: 1.6; }
+    .sb-foot a { color: var(--accent); text-decoration: none; }
+
+    .content { flex: 1; overflow: auto; background: var(--c-bg); color: var(--c-text);
+      padding: 16px 20px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .p-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .p-sub { color: var(--c-gray); font-size: 12px; margin-bottom: 14px; }
+
+    .cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+    .card { background: #fff; border: 1px solid var(--c-border); border-radius: 10px;
+      padding: 14px 18px; min-width: 150px; flex: 1; }
+    .card .v { font-size: 22px; font-weight: 700; color: var(--c-blue); }
+    .card .l { font-size: 11px; color: var(--c-gray); margin-top: 2px; }
+
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 10px; }
+    .toolbar input[type=text], .toolbar select, .modal input[type=text],
+    .modal select, .modal textarea, .toolbar input[type=number] {
+      border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px;
+      font-size: 12px; background: #fff; color: var(--c-text); }
+    .btn { border: 1px solid #cbd5e1; background: #fff; color: var(--c-text);
+      border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+    .btn:hover { background: #f1f5f9; }
+    .btn.primary { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
+    .btn.primary:hover { background: #1e40af; }
+    .btn.danger { color: var(--red); border-color: #fecaca; }
+    .btn.danger:hover { background: #fef2f2; }
+    .btn.green { background: var(--c-green); color: #fff; border-color: var(--c-green); }
+    .btn:disabled { opacity: .5; cursor: default; }
+
+    .data-table-wrap { background: #fff; border: 1px solid var(--c-border);
+      border-radius: 10px; overflow: auto; max-height: calc(100vh - 260px); }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th { position: sticky; top: 0; background: #f1f5f9;
+      text-align: left; padding: 8px 10px; font-size: 11px; color: var(--c-gray);
+      border-bottom: 1px solid var(--c-border); white-space: nowrap; z-index: 2; }
+    .data-table td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9;
+      vertical-align: top; }
+    .data-table tr:hover td { background: #f8fafc; }
+    .td-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .badge { display: inline-block; padding: 1px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 600; }
+    .badge.gray { background: #e2e8f0; color: var(--c-gray); }
+    .badge.green { background: var(--c-green-lt); color: var(--c-green); }
+    .badge.red { background: #fee2e2; color: #b91c1c; }
+    .badge.yellow { background: var(--c-yellow-lt); color: #a16207; }
+    .badge.blue { background: var(--c-blue-lt); color: var(--c-blue); }
+    .lnk { color: var(--c-blue); cursor: pointer; text-decoration: none; }
+    .lnk:hover { text-decoration: underline; }
+
+    .status-bar { height: var(--status-h); background: #0d0d1a;
+      border-top: 1px solid var(--border); display: flex; align-items: center;
+      padding: 0 12px; gap: 16px; font-size: 11px; color: var(--text-dim); }
+    #st-msg.ok { color: var(--green); } #st-msg.err { color: var(--red); }
+
+    .modal-back { display: none; position: fixed; inset: 0;
+      background: rgba(2,6,23,.55); z-index: 500; align-items: center;
+      justify-content: center; }
+    .modal-back.show { display: flex; }
+    .modal { background: #fff; color: var(--c-text); border-radius: 12px;
+      width: min(860px, 94vw); max-height: 88vh; overflow: auto; padding: 20px; }
+    .modal h3 { font-size: 15px; margin-bottom: 12px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .form-grid label, .fld label { display: block; font-size: 11px;
+      color: var(--c-gray); margin-bottom: 3px; }
+    .form-grid input, .form-grid select { width: 100%; }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .kv { font-size: 12px; line-height: 1.8; }
+    .kv b { display: inline-block; min-width: 140px; color: var(--c-gray);
+      font-weight: 500; }
+    .spin { display: inline-block; width: 12px; height: 12px;
+      border: 2px solid #cbd5e1; border-top-color: var(--c-blue);
+      border-radius: 50%; animation: sp 1s linear infinite; vertical-align: -2px; }
+    @keyframes sp { to { transform: rotate(360deg); } }
+    textarea.paste { width: 100%; min-height: 140px; font-family: monospace;
+      font-size: 11px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; }
+    .steps { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+    .hint { font-size: 11px; color: var(--c-gray); margin: 6px 0; }
+    .conf-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .conf-grid .fld input { width: 100%; }
+  </style>
+</head>
+<body>
+
+<div class="menu-bar">
+  <div class="menu-logo">🧾 {{ app_name }}
+    <span class="menu-sub" data-i18n="subtitle"></span></div>
+  <div class="menu-spacer"></div>
+  <span class="conn-dot" id="conn-dot"></span>
+  <span class="conn-lbl" id="conn-lbl">UNITEST</span>
+  <div class="lang-sw">
+    <button class="lang-btn" data-lang="ro">RO</button>
+    <button class="lang-btn" data-lang="ru">RU</button>
+    <button class="lang-btn" data-lang="en">EN</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="nav-list">
+      <div class="nav-item active" id="nav-dashboard" onclick="showPanel('dashboard')">
+        <span class="nav-icon">📊</span> <span data-i18n="nav_dashboard"></span></div>
+      <div class="nav-item" id="nav-univers" onclick="showPanel('univers')">
+        <span class="nav-icon">📚</span> <span data-i18n="nav_univers"></span></div>
+      <div class="nav-item" id="nav-groups" onclick="showPanel('groups')">
+        <span class="nav-icon">🗂️</span> <span data-i18n="nav_groups"></span></div>
+      <div class="nav-item" id="nav-orgs" onclick="showPanel('orgs')">
+        <span class="nav-icon">🏢</span> <span data-i18n="nav_orgs"></span></div>
+      <div class="nav-item" id="nav-prices" onclick="showPanel('prices')">
+        <span class="nav-icon">💰</span> <span data-i18n="nav_prices"></span></div>
+      <div class="nav-item" id="nav-import" onclick="showPanel('import')">
+        <span class="nav-icon">📥</span> <span data-i18n="nav_import"></span></div>
+      <div class="nav-item" id="nav-journal" onclick="showPanel('journal')">
+        <span class="nav-icon">📜</span> <span data-i18n="nav_journal"></span></div>
+    </div>
+    <div class="sb-foot">
+      YServOuts_BP · UNITEST<br>
+      <a href="/UNA.md/orasldev/servouts26-tz" target="_blank">TZ</a> ·
+      <a href="/UNA.md/orasldev/servouts26-docs" target="_blank" data-i18n="docs"></a>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="p-title" data-i18n="dash_title"></div>
+      <div class="p-sub" data-i18n="dash_sub"></div>
+      <div class="cards">
+        <div class="card"><div class="v" id="d-services">—</div><div class="l" data-i18n="dash_services"></div></div>
+        <div class="card"><div class="v" id="d-orgs">—</div><div class="l" data-i18n="dash_orgs"></div></div>
+        <div class="card"><div class="v" id="d-groups">—</div><div class="l" data-i18n="dash_groups"></div></div>
+        <div class="card"><div class="v" id="d-prices">—</div><div class="l" data-i18n="dash_prices"></div></div>
+        <div class="card"><div class="v" id="d-staging">—</div><div class="l" data-i18n="dash_staging"></div></div>
+        <div class="card"><div class="v" id="d-archived">—</div><div class="l" data-i18n="dash_archived"></div></div>
+      </div>
+      <div class="p-title" style="font-size:14px" data-i18n="dash_lastops"></div>
+      <div class="data-table-wrap" style="max-height:340px">
+        <table class="data-table"><thead><tr>
+          <th data-i18n="j_time"></th><th data-i18n="j_step"></th>
+          <th data-i18n="j_event"></th><th data-i18n="j_rows"></th>
+          <th data-i18n="j_comment"></th>
+        </tr></thead><tbody id="d-journal"></tbody></table>
+      </div>
+    </div>
+
+    <!-- NOMENCLATOR -->
+    <div class="panel" id="panel-univers">
+      <div class="p-title" data-i18n="u_title"></div>
+      <div class="p-sub" data-i18n="u_sub"></div>
+      <div class="toolbar">
+        <input type="text" id="u-search" style="width:220px" data-i18n-ph="search">
+        <select id="u-tip"><option value="" data-i18n="all_tip"></option></select>
+        <select id="u-gr1"><option value="" data-i18n="all_gr1"></option></select>
+        <select id="u-arhiv">
+          <option value="" data-i18n="arh_all"></option>
+          <option value="0" data-i18n="arh_active"></option>
+          <option value="1" data-i18n="arh_archived"></option>
+        </select>
+        <button class="btn primary" onclick="loadUnivers()" data-i18n="refresh"></button>
+        <button class="btn" onclick="runFixConfus()" data-i18n="u_fixconfus"></button>
+        <span id="u-count" class="hint"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead><tr>
+          <th>COD</th><th data-i18n="u_articol"></th><th data-i18n="u_name_ro"></th>
+          <th data-i18n="u_name_ru"></th><th>UM</th><th>GR1</th><th>TIP</th>
+          <th data-i18n="u_status"></th><th></th>
+        </tr></thead><tbody id="u-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- GROUPS -->
+    <div class="panel" id="panel-groups">
+      <div class="p-title" data-i18n="g_title"></div>
+      <div class="p-sub" data-i18n="g_sub"></div>
+      <div class="toolbar">
+        <label data-i18n="pl_pricelist"></label>
+        <select id="g-codprice" onchange="loadGroups()"></select>
+        <button class="btn primary" onclick="loadGroups()" data-i18n="refresh"></button>
+        <button class="btn" onclick="openMerge()" data-i18n="g_merge"></button>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead><tr>
+          <th>CODGRP</th><th data-i18n="g_name"></th><th>TYPE_SC</th>
+          <th data-i18n="g_pricerows"></th><th data-i18n="g_periods"></th><th></th>
+        </tr></thead><tbody id="g-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- ORGS -->
+    <div class="panel" id="panel-orgs">
+      <div class="p-title" data-i18n="o_title"></div>
+      <div class="p-sub" data-i18n="o_sub"></div>
+      <div class="toolbar">
+        <input type="text" id="o-search" style="width:240px" data-i18n-ph="search">
+        <button class="btn primary" onclick="loadOrgs()" data-i18n="refresh"></button>
+        <span id="o-count" class="hint"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead><tr>
+          <th>COD</th><th data-i18n="o_name"></th><th data-i18n="o_fiscal"></th>
+          <th data-i18n="o_address"></th><th data-i18n="o_phone"></th>
+          <th data-i18n="o_contact"></th><th></th>
+        </tr></thead><tbody id="o-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- PRICES -->
+    <div class="panel" id="panel-prices">
+      <div class="p-title" data-i18n="p_title"></div>
+      <div class="p-sub" data-i18n="p_sub"></div>
+      <div class="toolbar">
+        <label data-i18n="pl_pricelist"></label>
+        <select id="p-codprice" onchange="loadPrices()"></select>
+        <input type="text" id="p-search" style="width:200px" data-i18n-ph="search">
+        <button class="btn primary" onclick="loadPrices()" data-i18n="refresh"></button>
+        <button class="btn danger" onclick="rollbackPricelist()" data-i18n="p_rollback"></button>
+        <span id="p-count" class="hint"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead><tr>
+          <th>SC</th><th data-i18n="u_articol"></th><th data-i18n="p_service"></th>
+          <th data-i18n="g_name"></th><th data-i18n="p_from"></th>
+          <th>PRETV</th><th>PRETV1</th><th>PRETV2</th><th></th>
+        </tr></thead><tbody id="p-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- IMPORT -->
+    <div class="panel" id="panel-import">
+      <div class="p-title" data-i18n="i_title"></div>
+      <div class="p-sub" data-i18n="i_sub"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div class="p-title" style="font-size:13px" data-i18n="i_feed"></div>
+          <div class="hint" data-i18n="i_feed_hint"></div>
+          <textarea class="paste" id="i-paste"
+            placeholder="ARTICOL;DENUMIRE;BRAND;RETAIL1;ANGRO;IONLINE"></textarea>
+          <div class="toolbar" style="margin-top:8px">
+            <label><input type="checkbox" id="i-replace" checked>
+              <span data-i18n="i_replace"></span></label>
+            <button class="btn primary" onclick="loadFeed()" data-i18n="i_load"></button>
+            <button class="btn danger" onclick="clearStaging()" data-i18n="i_clear"></button>
+            <span id="i-stgcount" class="hint"></span>
+          </div>
+          <div class="data-table-wrap" style="max-height:260px;margin-top:8px">
+            <table class="data-table"><thead><tr>
+              <th>ID</th><th data-i18n="u_articol"></th><th data-i18n="p_service"></th>
+              <th>BRAND</th><th>RETAIL1</th><th>COD</th><th data-i18n="u_status"></th>
+            </tr></thead><tbody id="i-stg"></tbody></table>
+          </div>
+        </div>
+        <div>
+          <div class="p-title" style="font-size:13px" data-i18n="i_mapping"></div>
+          <div class="toolbar">
+            <select id="i-profile"></select>
+            <button class="btn" onclick="applyProfileToForm()" data-i18n="i_prof_load"></button>
+            <input type="text" id="i-profname" style="width:130px" data-i18n-ph="i_prof_name">
+            <button class="btn" onclick="saveProfile()" data-i18n="i_prof_save"></button>
+            <button class="btn danger" onclick="deleteProfile()" data-i18n="del"></button>
+          </div>
+          <div class="conf-grid" id="i-conf"></div>
+          <div class="p-title" style="font-size:13px;margin-top:14px" data-i18n="i_steps"></div>
+          <div class="steps">
+            <button class="btn" onclick="runStep('prepare_input')">1. prepare_input</button>
+            <button class="btn" onclick="runStep('validate_input')">2. validate_input</button>
+            <button class="btn" onclick="runStep('assign_keys')">3. assign_keys</button>
+            <button class="btn" onclick="runStep('import_univers')">4. import_univers</button>
+            <button class="btn" onclick="runStep('import_groups')">5. import_groups</button>
+            <button class="btn" onclick="runStep('import_dates')">6. import_dates</button>
+            <button class="btn" onclick="runStep('import_prices')">7. import_prices</button>
+            <button class="btn green" onclick="runStep('import_all')" data-i18n="i_all"></button>
+          </div>
+          <div class="hint" id="i-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="panel" id="panel-journal">
+      <div class="p-title" data-i18n="j_title"></div>
+      <div class="p-sub" data-i18n="j_sub"></div>
+      <div class="toolbar">
+        <input type="text" id="j-search" style="width:220px" data-i18n-ph="search">
+        <label><input type="checkbox" id="j-all">
+          <span data-i18n="j_allobjects"></span></label>
+        <button class="btn primary" onclick="loadJournal()" data-i18n="refresh"></button>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead><tr>
+          <th data-i18n="j_time"></th><th>IOBJECT</th><th data-i18n="j_step"></th>
+          <th data-i18n="j_event"></th><th data-i18n="j_rows"></th>
+          <th data-i18n="j_comment"></th><th>OS_USER</th>
+        </tr></thead><tbody id="j-body"></tbody></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="status-bar">
+  <span id="st-msg" data-i18n="ready"></span>
+  <span class="menu-spacer"></span>
+  <span>unitest@orange.una.md:4024/cloudbd.world</span>
+</div>
+
+<!-- UNIVERS CARD MODAL -->
+<div class="modal-back" id="m-univers">
+  <div class="modal">
+    <h3><span data-i18n="u_card"></span> <span id="mu-cod"></span></h3>
+    <div class="form-grid">
+      <div><label data-i18n="u_name_ro"></label>
+        <input type="text" id="mu-denumirea" maxlength="160"></div>
+      <div><label data-i18n="u_name_ru"></label>
+        <input type="text" id="mu-namerus" maxlength="160"></div>
+      <div><label>UM</label><input type="text" id="mu-um" maxlength="15"></div>
+      <div><label>GR1</label><input type="text" id="mu-gr1" maxlength="5"></div>
+      <div><label>GR2</label><input type="text" id="mu-gr2" maxlength="5"></div>
+      <div><label>CODTVA</label><input type="text" id="mu-codtva" maxlength="1"></div>
+    </div>
+    <div class="kv" id="mu-info" style="margin-top:10px"></div>
+    <div class="p-title" style="font-size:13px;margin-top:10px" data-i18n="u_prices"></div>
+    <div class="data-table-wrap" style="max-height:200px">
+      <table class="data-table"><thead><tr>
+        <th data-i18n="pl_pricelist"></th><th data-i18n="g_name"></th>
+        <th data-i18n="p_from"></th><th data-i18n="p_to"></th>
+        <th>PRETV</th><th>PRETV1</th><th>PRETV2</th>
+      </tr></thead><tbody id="mu-prices"></tbody></table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" id="mu-arch" onclick="archiveFromCard()"></button>
+      <button class="btn" onclick="closeModal('m-univers')" data-i18n="close"></button>
+      <button class="btn primary" onclick="saveUniversCard()" data-i18n="save"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ORG CARD MODAL -->
+<div class="modal-back" id="m-org">
+  <div class="modal">
+    <h3><span data-i18n="o_card"></span> <span id="mo-cod"></span></h3>
+    <div class="kv" id="mo-info"></div>
+    <div class="p-title" style="font-size:13px;margin-top:10px" data-i18n="o_accounts"></div>
+    <div class="data-table-wrap" style="max-height:180px">
+      <table class="data-table"><thead><tr>
+        <th>TIPBANK</th><th data-i18n="o_currency"></th><th>ACCOUNT1</th>
+        <th>ACCOUNT2</th><th>REKVIZIT1</th>
+      </tr></thead><tbody id="mo-acc"></tbody></table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('m-org')" data-i18n="close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- MERGE GROUPS MODAL -->
+<div class="modal-back" id="m-merge">
+  <div class="modal" style="width:min(480px,94vw)">
+    <h3 data-i18n="g_merge"></h3>
+    <div class="hint" data-i18n="g_merge_hint"></div>
+    <div class="form-grid">
+      <div><label data-i18n="g_merge_src"></label><select id="mm-src"></select></div>
+      <div><label data-i18n="g_merge_dst"></label><select id="mm-dst"></select></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('m-merge')" data-i18n="cancel"></button>
+      <button class="btn primary" onclick="doMerge()" data-i18n="g_merge_do"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================== i18n ============================== */
+const I18N = {
+  subtitle: {ro:'CRM servicii de contabilitate', ru:'CRM бухгалтерских услуг', en:'Accounting services CRM'},
+  docs: {ro:'Documentație', ru:'Документация', en:'Docs'},
+  ready: {ro:'Gata', ru:'Готово', en:'Ready'},
+  refresh: {ro:'Actualizează', ru:'Обновить', en:'Refresh'},
+  search: {ro:'Căutare…', ru:'Поиск…', en:'Search…'},
+  save: {ro:'Salvează', ru:'Сохранить', en:'Save'},
+  close: {ro:'Închide', ru:'Закрыть', en:'Close'},
+  cancel: {ro:'Anulează', ru:'Отмена', en:'Cancel'},
+  del: {ro:'Șterge', ru:'Удалить', en:'Delete'},
+  nav_dashboard: {ro:'Panou general', ru:'Дашборд', en:'Dashboard'},
+  nav_univers: {ro:'Nomenclator servicii', ru:'Справочник услуг', en:'Service catalog'},
+  nav_groups: {ro:'Grupe preț', ru:'Группы прайса', en:'Price groups'},
+  nav_orgs: {ro:'Clienți / Organizații', ru:'Клиенты / Организации', en:'Clients / Orgs'},
+  nav_prices: {ro:'Liste de prețuri', ru:'Прайс-листы', en:'Price lists'},
+  nav_import: {ro:'Import & Mapare', ru:'Импорт и маппинг', en:'Import & Mapping'},
+  nav_journal: {ro:'Jurnal (XLOG)', ru:'Журнал (XLOG)', en:'Journal (XLOG)'},
+  dash_title: {ro:'Panou general', ru:'Дашборд', en:'Dashboard'},
+  dash_sub: {ro:'Starea datelor în schema UNITEST', ru:'Состояние данных в схеме UNITEST', en:'Data status in the UNITEST schema'},
+  dash_services: {ro:'Servicii/poziții active', ru:'Активные услуги/позиции', en:'Active services/items'},
+  dash_orgs: {ro:'Organizații (TMS_ORG)', ru:'Организации (TMS_ORG)', en:'Organizations (TMS_ORG)'},
+  dash_groups: {ro:'Grupe preț (modul)', ru:'Группы прайса (модуль)', en:'Price groups (module)'},
+  dash_prices: {ro:'Linii de preț (modul)', ru:'Строк цен (модуль)', en:'Price rows (module)'},
+  dash_staging: {ro:'Rânduri în staging', ru:'Строк в staging', en:'Staging rows'},
+  dash_archived: {ro:'Arhivate', ru:'В архиве', en:'Archived'},
+  dash_lastops: {ro:'Ultimele operații ale modulului', ru:'Последние операции модуля', en:'Recent module operations'},
+  u_title: {ro:'Nomenclator servicii și poziții', ru:'Справочник услуг и позиций', en:'Service & item catalog'},
+  u_sub: {ro:'TMS_UNIVERS + TMS_MPT · ștergerea este interzisă — doar arhivare', ru:'TMS_UNIVERS + TMS_MPT · удаление запрещено — только архив', en:'TMS_UNIVERS + TMS_MPT · deletion forbidden — archive only'},
+  u_articol: {ro:'Articol', ru:'Артикул', en:'Article'},
+  u_name_ro: {ro:'Denumire (RO)', ru:'Название (RO)', en:'Name (RO)'},
+  u_name_ru: {ro:'Denumire (RU)', ru:'Название (RU)', en:'Name (RU)'},
+  u_status: {ro:'Stare', ru:'Статус', en:'Status'},
+  u_card: {ro:'Fișa poziției', ru:'Карточка позиции', en:'Item card'},
+  u_prices: {ro:'Prețuri în liste', ru:'Цены в прайс-листах', en:'Prices in lists'},
+  u_fixconfus: {ro:'Curăță litere chirilice', ru:'Чистка кир. «обманок»', en:'Fix Cyrillic confusables'},
+  u_archive: {ro:'Arhivează', ru:'В архив', en:'Archive'},
+  u_unarchive: {ro:'Restaurează', ru:'Из архива', en:'Restore'},
+  all_tip: {ro:'Toate TIP', ru:'Все TIP', en:'All TIP'},
+  all_gr1: {ro:'Toate GR1', ru:'Все GR1', en:'All GR1'},
+  arh_all: {ro:'Toate', ru:'Все', en:'All'},
+  arh_active: {ro:'Active', ru:'Активные', en:'Active'},
+  arh_archived: {ro:'Arhivate', ru:'В архиве', en:'Archived'},
+  g_title: {ro:'Grupe ale listei de prețuri', ru:'Группы прайс-листа', en:'Pricelist groups'},
+  g_sub: {ro:'TPR01M_GROUPS · redenumire și unificare (fuziune) grupe', ru:'TPR01M_GROUPS · переименование и слияние групп', en:'TPR01M_GROUPS · rename and merge groups'},
+  g_name: {ro:'Grupă', ru:'Группа', en:'Group'},
+  g_pricerows: {ro:'Linii preț', ru:'Строк цен', en:'Price rows'},
+  g_periods: {ro:'Perioade', ru:'Периодов', en:'Periods'},
+  g_merge: {ro:'Unifică grupe', ru:'Слить группы', en:'Merge groups'},
+  g_merge_hint: {ro:'Prețurile și perioadele se mută în grupa destinație; grupa sursă se șterge.', ru:'Цены и периоды переносятся в группу-назначение; исходная группа удаляется.', en:'Prices and periods move to the destination group; the source group is dropped.'},
+  g_merge_src: {ro:'Sursă (se șterge)', ru:'Источник (удаляется)', en:'Source (dropped)'},
+  g_merge_dst: {ro:'Destinație', ru:'Назначение', en:'Destination'},
+  g_merge_do: {ro:'Unifică', ru:'Слить', en:'Merge'},
+  g_rename: {ro:'Redenumește', ru:'Переименовать', en:'Rename'},
+  o_title: {ro:'Clienți și organizații', ru:'Клиенты и организации', en:'Clients & organizations'},
+  o_sub: {ro:'TMS_ORG + conturi bancare (TMS_ORG_ACCOUNTS)', ru:'TMS_ORG + банковские счета (TMS_ORG_ACCOUNTS)', en:'TMS_ORG + bank accounts (TMS_ORG_ACCOUNTS)'},
+  o_name: {ro:'Denumire', ru:'Название', en:'Name'},
+  o_fiscal: {ro:'Cod fiscal', ru:'Фиск. код', en:'Fiscal code'},
+  o_address: {ro:'Adresă', ru:'Адрес', en:'Address'},
+  o_phone: {ro:'Telefon', ru:'Телефон', en:'Phone'},
+  o_contact: {ro:'Contact', ru:'Контакт', en:'Contact'},
+  o_card: {ro:'Fișa organizației', ru:'Карточка организации', en:'Organization card'},
+  o_accounts: {ro:'Conturi bancare', ru:'Банковские счета', en:'Bank accounts'},
+  o_currency: {ro:'Valută', ru:'Валюта', en:'Currency'},
+  p_title: {ro:'Liste de prețuri', ru:'Прайс-листы', en:'Price lists'},
+  p_sub: {ro:'TPR0M_PRICES → grupe → perioade → prețuri (VTPR1D_PERPRLIST)', ru:'TPR0M_PRICES → группы → периоды → цены (VTPR1D_PERPRLIST)', en:'TPR0M_PRICES → groups → periods → prices (VTPR1D_PERPRLIST)'},
+  p_service: {ro:'Serviciu / poziție', ru:'Услуга / позиция', en:'Service / item'},
+  p_from: {ro:'De la', ru:'С', en:'From'},
+  p_to: {ro:'Până la', ru:'По', en:'To'},
+  p_rollback: {ro:'Rollback pricelist', ru:'Откат прайс-листа', en:'Rollback pricelist'},
+  p_rollback_q: {ro:'Șterge TOATE prețurile, perioadele și grupele cu nume ale acestei liste?', ru:'Удалить ВСЕ цены, периоды и именованные группы этого прайс-листа?', en:'Delete ALL prices, periods and named groups of this pricelist?'},
+  p_edit: {ro:'Editează', ru:'Изменить', en:'Edit'},
+  pl_pricelist: {ro:'Listă', ru:'Прайс', en:'List'},
+  i_title: {ro:'Import & profil de mapare', ru:'Импорт и профиль маппинга', en:'Import & mapping profile'},
+  i_sub: {ro:'Feed → SRVO_INPUT_GOODS → YServOuts_BP (g_*) → TMS_UNIVERS / prețuri', ru:'Фид → SRVO_INPUT_GOODS → YServOuts_BP (g_*) → TMS_UNIVERS / цены', en:'Feed → SRVO_INPUT_GOODS → YServOuts_BP (g_*) → TMS_UNIVERS / prices'},
+  i_feed: {ro:'1 · Feed (staging)', ru:'1 · Фид (staging)', en:'1 · Feed (staging)'},
+  i_feed_hint: {ro:'Lipiți CSV/TSV: ARTICOL;DENUMIRE;BRAND;RETAIL1;ANGRO;IONLINE (separator ; sau TAB)', ru:'Вставьте CSV/TSV: ARTICOL;DENUMIRE;BRAND;RETAIL1;ANGRO;IONLINE (разделитель ; или TAB)', en:'Paste CSV/TSV: ARTICOL;DENUMIRE;BRAND;RETAIL1;ANGRO;IONLINE (separator ; or TAB)'},
+  i_replace: {ro:'Înlocuiește staging-ul', ru:'Заменить staging', en:'Replace staging'},
+  i_load: {ro:'Încarcă în staging', ru:'Загрузить в staging', en:'Load into staging'},
+  i_clear: {ro:'Golește staging', ru:'Очистить staging', en:'Clear staging'},
+  i_mapping: {ro:'2 · Profil de mapare (g_*)', ru:'2 · Профиль маппинга (g_*)', en:'2 · Mapping profile (g_*)'},
+  i_steps: {ro:'3 · Pași de import (idempotenți)', ru:'3 · Шаги импорта (идемпотентны)', en:'3 · Import steps (idempotent)'},
+  i_all: {ro:'▶ import_all', ru:'▶ import_all (всё)', en:'▶ import_all'},
+  i_prof_load: {ro:'Aplică', ru:'Применить', en:'Apply'},
+  i_prof_save: {ro:'Salvează profil', ru:'Сохранить профиль', en:'Save profile'},
+  i_prof_name: {ro:'nume profil', ru:'имя профиля', en:'profile name'},
+  i_running: {ro:'Se execută…', ru:'Выполняется…', en:'Running…'},
+  i_done: {ro:'Executat cu succes', ru:'Выполнено успешно', en:'Completed successfully'},
+  j_title: {ro:'Jurnal de operații', ru:'Журнал операций', en:'Operations journal'},
+  j_sub: {ro:'XLOG · înregistrare prin tranzacție autonomă din YServOuts_BP', ru:'XLOG · запись через автономную транзакцию из YServOuts_BP', en:'XLOG · written via autonomous transaction from YServOuts_BP'},
+  j_allobjects: {ro:'Toate obiectele (nu doar SERVOUTS)', ru:'Все объекты (не только SERVOUTS)', en:'All objects (not only SERVOUTS)'},
+  j_time: {ro:'Timp', ru:'Время', en:'Time'},
+  j_step: {ro:'Pas', ru:'Шаг', en:'Step'},
+  j_event: {ro:'Eveniment', ru:'Событие', en:'Event'},
+  j_rows: {ro:'Rânduri', ru:'Строк', en:'Rows'},
+  j_comment: {ro:'Comentariu', ru:'Комментарий', en:'Comment'},
+  conn_ok: {ro:'conectat', ru:'подключено', en:'connected'},
+  conn_err: {ro:'fără conexiune', ru:'нет связи', en:'no connection'},
+  confirm_arch: {ro:'Arhivăm poziția', ru:'Архивировать позицию', en:'Archive item'},
+};
+const CONF_LABELS = {
+  tbl_goods:'g_tbl_goods', col_key:'g_col_key', col_brand:'g_col_brand',
+  col_articol:'g_col_articol', col_denumire:'g_col_denumire',
+  col_retail:'g_col_retail', col_angro:'g_col_angro', col_ionline:'g_col_ionline',
+  seq_key:'g_seq_key', codprice:'g_codprice', pricename:'g_pricename',
+  currency:'g_currency', um:'g_um', gr1:'g_gr1', tip:'g_tip',
+  caccess:'g_caccess', codtva:'g_codtva', date_start:'g_date_start',
+  date_end:'g_date_end', group_type:'g_group_type', empty_brand:'g_empty_brand',
+  len_codvechi:'g_len_codvechi', len_denumire:'g_len_denumire',
+  confus_max_cyr:'g_confus_max_cyr',
+};
+
+let LANG = localStorage.getItem('srvo_lang') || 'ro';
+function t(k) { return (I18N[k] || {})[LANG] || (I18N[k] || {}).ro || k; }
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === LANG));
+}
+document.querySelectorAll('.lang-btn').forEach(b => b.onclick = () => {
+  LANG = b.dataset.lang; localStorage.setItem('srvo_lang', LANG); applyLang();
+});
+
+/* ============================== helpers ============================== */
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function st(msg, cls) {
+  const el = document.getElementById('st-msg');
+  el.textContent = msg; el.className = cls || '';
+}
+async function api(url, opts) {
+  st('⏳ ' + url.split('?')[0], '');
+  try {
+    const r = await fetch(url, opts);
+    const j = await r.json();
+    if (j.success) st(t('ready'), 'ok');
+    else st((j.error || 'error').slice(0, 180), 'err');
+    return j;
+  } catch (e) { st(String(e), 'err'); return {success:false, error:String(e)}; }
+}
+function post(url, body) {
+  return api(url, {method:'POST', headers:{'Content-Type':'application/json'},
+                   body: JSON.stringify(body || {})});
+}
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  ({dashboard: loadDashboard, univers: initUnivers, groups: loadGroups,
+    orgs: loadOrgs, prices: initPrices, import: initImport,
+    journal: loadJournal}[name] || (()=>{}))();
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+/* ============================== dashboard ============================== */
+async function loadDashboard() {
+  const j = await api('/api/servouts26/dashboard');
+  if (!j.success) return;
+  const d = j.data;
+  document.getElementById('d-services').textContent = d.services_active ?? 0;
+  document.getElementById('d-orgs').textContent = d.orgs ?? 0;
+  document.getElementById('d-groups').textContent = d.price_groups ?? 0;
+  document.getElementById('d-prices').textContent = d.price_rows ?? 0;
+  document.getElementById('d-staging').textContent = d.staging_rows ?? 0;
+  document.getElementById('d-archived').textContent = d.archived ?? 0;
+  document.getElementById('d-journal').innerHTML = (d.journal || []).map(r =>
+    `<tr><td>${esc(r.itime)}</td><td>${esc(r.iproperty)}</td>
+     <td>${evBadge(r.ievent)}</td><td class="td-num">${r.nrrec ?? ''}</td>
+     <td>${esc(r.coment)}</td></tr>`).join('');
+}
+function evBadge(ev) {
+  const cls = {OK:'green', ERROR:'red', WARN:'yellow', START:'gray', INFO:'blue'}[ev] || 'gray';
+  return `<span class="badge ${cls}">${esc(ev)}</span>`;
+}
+
+/* ============================== connection ============================== */
+async function checkConn() {
+  const j = await api('/api/servouts26/connection/test');
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-lbl');
+  dot.className = 'conn-dot ' + (j.success ? 'ok' : 'err');
+  lbl.textContent = 'UNITEST · ' + (j.success ? t('conn_ok') : t('conn_err'));
+}
+
+/* ============================== nomenclator ============================== */
+let uFiltersLoaded = false;
+async function initUnivers() {
+  if (!uFiltersLoaded) {
+    const j = await api('/api/servouts26/univers/filters');
+    if (j.success) {
+      uFiltersLoaded = true;
+      const selT = document.getElementById('u-tip');
+      (j.tips || []).forEach(r => selT.insertAdjacentHTML('beforeend',
+        `<option value="${esc(r.tip)}">${esc(r.tip || '—')} (${r.cnt})</option>`));
+      const selG = document.getElementById('u-gr1');
+      (j.gr1s || []).forEach(r => selG.insertAdjacentHTML('beforeend',
+        `<option value="${esc(r.gr1)}">${esc(r.gr1)} (${r.cnt})</option>`));
+    }
+  }
+  loadUnivers();
+}
+async function loadUnivers() {
+  const q = new URLSearchParams();
+  const s = document.getElementById('u-search').value.trim();
+  if (s) q.set('q', s);
+  ['tip','gr1','arhiv'].forEach(f => {
+    const v = document.getElementById('u-' + f).value;
+    if (v) q.set(f, v);
+  });
+  const j = await api('/api/servouts26/univers?' + q);
+  if (!j.success) return;
+  document.getElementById('u-count').textContent = (j.data || []).length + ' rows';
+  document.getElementById('u-body').innerHTML = (j.data || []).map(r => `
+    <tr>
+      <td><a class="lnk" onclick="openUniversCard(${r.cod})">${r.cod}</a></td>
+      <td>${esc(r.codvechi)}</td><td>${esc(r.denumirea)}</td>
+      <td>${esc(r.namerus)}</td><td>${esc(r.um)}</td><td>${esc(r.gr1)}</td>
+      <td>${esc(r.tip)}</td>
+      <td>${r.isarhiv === '1'
+            ? `<span class="badge gray">ARH</span>`
+            : `<span class="badge green">ACT</span>`}</td>
+      <td>${r.isarhiv === '1'
+            ? `<button class="btn" onclick="archiveItem(${r.cod},'0')">${t('u_unarchive')}</button>`
+            : `<button class="btn danger" onclick="archiveItem(${r.cod},'1')">${t('u_archive')}</button>`}</td>
+    </tr>`).join('');
+}
+document.getElementById('u-search').addEventListener('keydown',
+  e => { if (e.key === 'Enter') loadUnivers(); });
+
+async function archiveItem(cod, val) {
+  if (val === '1' && !confirm(`${t('confirm_arch')} COD=${cod}?`)) return;
+  const j = await post(`/api/servouts26/univers/${cod}/archive`, {value: val});
+  if (j.success) loadUnivers();
+  else alert(j.error);
+}
+async function runFixConfus() {
+  const j = await post('/api/servouts26/import/run', {step:'fix_denumirea_confusables'});
+  if (j.success) { loadUnivers(); }
+  else alert(j.error);
+}
+
+let CARD = null;
+async function openUniversCard(cod) {
+  const j = await api('/api/servouts26/univers/' + cod);
+  if (!j.success || !j.univers) { alert(j.error || 'not found'); return; }
+  CARD = j.univers;
+  document.getElementById('mu-cod').textContent =
+    `COD=${CARD.cod} · ${CARD.codvechi || ''}`;
+  ['denumirea','namerus','um','gr1','gr2','codtva'].forEach(f =>
+    document.getElementById('mu-' + f).value = CARD[f] || '');
+  const mpt = j.mpt || {};
+  document.getElementById('mu-info').innerHTML =
+    `<b>TIP</b> ${esc(CARD.tip)} · <b>CACCESS</b> ${esc(CARD.caccess)}
+     · <b>ISARHIV</b> ${esc(CARD.isarhiv || '0')}
+     ${mpt.cod ? `<br><b>TMS_MPT</b> MATPRET=${mpt.matpret ?? '—'}
+     · TOTPRET=${mpt.totpret ?? '—'} · ${esc(mpt.text1 || '')}` : ''}`;
+  document.getElementById('mu-prices').innerHTML = (j.prices || []).map(p => `
+    <tr><td>${p.codprice} ${esc(p.pricename)}</td><td>${esc(p.grpname)}</td>
+    <td>${esc(p.datastart)}</td><td>${esc(p.dataend)}</td>
+    <td class="td-num">${p.pretv ?? ''}</td>
+    <td class="td-num">${p.pretv1 ?? ''}</td>
+    <td class="td-num">${p.pretv2 ?? ''}</td></tr>`).join('');
+  const arch = document.getElementById('mu-arch');
+  arch.textContent = CARD.isarhiv === '1' ? t('u_unarchive') : t('u_archive');
+  document.getElementById('m-univers').classList.add('show');
+}
+async function saveUniversCard() {
+  if (!CARD) return;
+  const body = {};
+  ['denumirea','namerus','um','gr1','gr2','codtva'].forEach(f =>
+    body[f] = document.getElementById('mu-' + f).value.trim());
+  const j = await post('/api/servouts26/univers/' + CARD.cod, body);
+  if (j.success) { closeModal('m-univers'); loadUnivers(); }
+  else alert(j.error);
+}
+async function archiveFromCard() {
+  if (!CARD) return;
+  const val = CARD.isarhiv === '1' ? '0' : '1';
+  const j = await post(`/api/servouts26/univers/${CARD.cod}/archive`, {value: val});
+  if (j.success) { closeModal('m-univers'); loadUnivers(); }
+  else alert(j.error);
+}
+
+/* ============================== groups ============================== */
+let GROUPS = [];
+async function ensurePricelists(selId) {
+  const j = await api('/api/servouts26/pricelists');
+  if (!j.success) return [];
+  const sel = document.getElementById(selId);
+  const cur = sel.value;
+  sel.innerHTML = (j.data || []).map(p =>
+    `<option value="${p.codprice}">${p.codprice} · ${esc(p.pricename)} (${esc(p.val)}) — ${p.price_rows}</option>`).join('');
+  if (cur) sel.value = cur;
+  return j.data || [];
+}
+async function loadGroups() {
+  const sel = document.getElementById('g-codprice');
+  if (!sel.options.length) {
+    const pls = await ensurePricelists('g-codprice');
+    const srvo = pls.find(p => p.pricename === 'ServOuts26');
+    if (srvo) sel.value = srvo.codprice;
+  }
+  const cp = sel.value;
+  const j = await api('/api/servouts26/groups' + (cp ? `?codprice=${cp}` : ''));
+  if (!j.success) return;
+  GROUPS = j.data || [];
+  document.getElementById('g-body').innerHTML = GROUPS.map(g => `
+    <tr><td>${g.codgrp}</td>
+    <td>${esc(g.grpname) || '<span class="badge gray">—</span>'}</td>
+    <td>${esc(g.type_sc)}</td>
+    <td class="td-num">${g.price_rows}</td><td class="td-num">${g.periods}</td>
+    <td><button class="btn" onclick="renameGroup(${g.codprice},${g.codgrp},'${esc(g.grpname||'')}')">${t('g_rename')}</button></td>
+    </tr>`).join('');
+}
+async function renameGroup(cp, grp, old) {
+  const name = prompt(t('g_rename') + ` CODGRP=${grp}:`, old);
+  if (name === null) return;
+  const j = await post('/api/servouts26/groups/rename',
+                       {codprice: cp, codgrp: grp, grpname: name});
+  if (j.success) loadGroups(); else alert(j.error);
+}
+function openMerge() {
+  const named = GROUPS.filter(g => g.grpname);
+  const opts = named.map(g =>
+    `<option value="${g.codgrp}">${g.codgrp} · ${esc(g.grpname)}</option>`).join('');
+  document.getElementById('mm-src').innerHTML = opts;
+  document.getElementById('mm-dst').innerHTML = opts;
+  document.getElementById('m-merge').classList.add('show');
+}
+async function doMerge() {
+  const cp = document.getElementById('g-codprice').value;
+  const src = document.getElementById('mm-src').value;
+  const dst = document.getElementById('mm-dst').value;
+  if (src === dst) { alert('src = dst'); return; }
+  const j = await post('/api/servouts26/groups/merge',
+                       {codprice: cp, src: src, dst: dst});
+  if (j.success) { closeModal('m-merge'); loadGroups(); }
+  else alert(j.error);
+}
+
+/* ============================== orgs ============================== */
+async function loadOrgs() {
+  const s = document.getElementById('o-search').value.trim();
+  const j = await api('/api/servouts26/orgs' + (s ? `?q=${encodeURIComponent(s)}` : ''));
+  if (!j.success) return;
+  document.getElementById('o-count').textContent = (j.data || []).length + ' rows';
+  document.getElementById('o-body').innerHTML = (j.data || []).map(r => `
+    <tr><td><a class="lnk" onclick="openOrgCard(${r.cod})">${r.cod}</a></td>
+    <td>${esc(r.denumirea || r.namerus)}</td><td>${esc(r.codfiscal)}</td>
+    <td>${esc(r.adress)}</td><td>${esc(r.telefon)}</td><td>${esc(r.contact)}</td>
+    <td><button class="btn" onclick="openOrgCard(${r.cod})">→</button></td></tr>`).join('');
+}
+document.getElementById('o-search').addEventListener('keydown',
+  e => { if (e.key === 'Enter') loadOrgs(); });
+async function openOrgCard(cod) {
+  const j = await api('/api/servouts26/orgs/' + cod);
+  if (!j.success || !j.org) { alert(j.error || 'not found'); return; }
+  const o = j.org;
+  document.getElementById('mo-cod').textContent = `COD=${o.cod}`;
+  document.getElementById('mo-info').innerHTML = [
+    ['Denumire', o.denumirea], ['Name (RU)', o.namerus],
+    [t('o_fiscal'), o.codfiscal], ['OKPO', o.okpo],
+    [t('o_address'), o.adress], ['Addr. fact', o.addr_fact],
+    [t('o_phone'), [o.telefon, o.telprim].filter(Boolean).join(' / ')],
+    ['Fax', o.fax], [t('o_contact'), o.contact], ['Director', o.director],
+    ['Pers. decontr', [o.persdecontr, o.telefonpersdecontr].filter(Boolean).join(' · ')],
+    ['Banca', o.bank], ['MFO', o.mfo],
+    ['Cont', [o.account, o.account1, o.account2].filter(Boolean).join(' · ')],
+  ].filter(([,v]) => v).map(([k,v]) => `<b>${esc(k)}</b> ${esc(v)}<br>`).join('');
+  document.getElementById('mo-acc').innerHTML = (j.accounts || []).map(a => `
+    <tr><td>${esc(a.tipbank)}</td><td>${esc(a.valuta)}</td>
+    <td>${esc(a.account1)}</td><td>${esc(a.account2)}</td>
+    <td>${esc(a.rekvizit1)}</td></tr>`).join('');
+  document.getElementById('m-org').classList.add('show');
+}
+
+/* ============================== prices ============================== */
+async function initPrices() {
+  const sel = document.getElementById('p-codprice');
+  if (!sel.options.length) {
+    const pls = await ensurePricelists('p-codprice');
+    const srvo = pls.find(p => p.pricename === 'ServOuts26');
+    if (srvo) sel.value = srvo.codprice;
+  }
+  loadPrices();
+}
+async function loadPrices() {
+  const cp = document.getElementById('p-codprice').value;
+  if (!cp) return;
+  const q = new URLSearchParams({codprice: cp});
+  const s = document.getElementById('p-search').value.trim();
+  if (s) q.set('q', s);
+  const j = await api('/api/servouts26/prices?' + q);
+  if (!j.success) return;
+  document.getElementById('p-count').textContent = (j.data || []).length + ' rows';
+  document.getElementById('p-body').innerHTML = (j.data || []).map((r, i) => `
+    <tr><td>${r.sc}</td><td>${esc(r.clcsc)}</td><td>${esc(r.clcsct)}</td>
+    <td>${esc(r.grpname)}</td><td>${esc(r.datastart)}</td>
+    <td class="td-num">${r.pretv ?? ''}</td>
+    <td class="td-num">${r.pretv1 ?? ''}</td>
+    <td class="td-num">${r.pretv2 ?? ''}</td>
+    <td><button class="btn" onclick='editPrice(${JSON.stringify(r)})'>${t('p_edit')}</button></td>
+    </tr>`).join('');
+}
+document.getElementById('p-search').addEventListener('keydown',
+  e => { if (e.key === 'Enter') loadPrices(); });
+async function editPrice(r) {
+  const v = prompt(`PRETV / PRETV1 / PRETV2 (SC=${r.sc} ${r.clcsct || ''})`,
+    [r.pretv ?? '', r.pretv1 ?? '', r.pretv2 ?? ''].join(' / '));
+  if (v === null) return;
+  const parts = v.split('/').map(x => x.trim());
+  const j = await post('/api/servouts26/prices/update', {
+    codprice: r.codprice, codgrp: r.codgrp, sc: r.sc, datastart: r.datastart,
+    prices: {pretv: parts[0] || null, pretv1: parts[1] || null,
+             pretv2: parts[2] || null}});
+  if (j.success) loadPrices(); else alert(j.error);
+}
+async function rollbackPricelist() {
+  const cp = document.getElementById('p-codprice').value;
+  if (!cp) return;
+  if (!confirm(`${t('p_rollback_q')} (CODPRICE=${cp})`)) return;
+  const j = await post('/api/servouts26/pricelists/rollback', {codprice: cp});
+  if (j.success) {
+    document.getElementById('p-codprice').innerHTML = '';
+    document.getElementById('g-codprice').innerHTML = '';
+    initPrices();
+  } else alert(j.error);
+}
+
+/* ============================== import ============================== */
+let confLoaded = false;
+async function initImport() {
+  if (!confLoaded) {
+    const j = await api('/api/servouts26/config');
+    if (j.success) {
+      confLoaded = true;
+      const grid = document.getElementById('i-conf');
+      grid.innerHTML = Object.keys(CONF_LABELS).map(k => `
+        <div class="fld"><label>${CONF_LABELS[k]}</label>
+        <input type="text" id="cf-${k}" value="${esc(j.data[k] ?? '')}"></div>`).join('');
+    }
+    loadProfiles();
+  }
+  loadStagingGrid();
+}
+function currentProfile() {
+  const p = {};
+  Object.keys(CONF_LABELS).forEach(k => {
+    const el = document.getElementById('cf-' + k);
+    if (el && el.value.trim() !== '') p[k] = el.value.trim();
+  });
+  return p;
+}
+async function loadStagingGrid() {
+  const j = await api('/api/servouts26/staging');
+  if (!j.success) return;
+  document.getElementById('i-stgcount').textContent = (j.data || []).length + ' rows';
+  document.getElementById('i-stg').innerHTML = (j.data || []).map(r => `
+    <tr><td>${r.id}</td><td>${esc(r.articol)}</td><td>${esc(r.denumire)}</td>
+    <td>${esc(r.brand)}</td><td>${esc(r.retail1)}</td>
+    <td>${r.cod_univers ?? ''}</td>
+    <td>${r.status === 'ERR'
+      ? `<span class="badge red" title="${esc(r.err_msg)}">ERR</span>`
+      : `<span class="badge gray">${esc(r.status || '')}</span>`}</td></tr>`).join('');
+}
+async function loadFeed() {
+  const txt = document.getElementById('i-paste').value.trim();
+  if (!txt) return;
+  const rows = txt.split('\n').map(line => {
+    const c = line.includes('\t') ? line.split('\t') : line.split(';');
+    return {articol: c[0]?.trim(), denumire: c[1]?.trim(), brand: c[2]?.trim(),
+            retail1: c[3]?.trim(), angro: c[4]?.trim(), ionline: c[5]?.trim()};
+  }).filter(r => r.articol || r.denumire);
+  if (!rows.length) return;
+  const j = await post('/api/servouts26/staging',
+    {rows: rows, replace: document.getElementById('i-replace').checked});
+  if (j.success) { document.getElementById('i-paste').value = ''; loadStagingGrid(); }
+  else alert(j.error);
+}
+async function clearStaging() {
+  if (!confirm('DELETE FROM SRVO_INPUT_GOODS?')) return;
+  const j = await post('/api/servouts26/staging/clear');
+  if (j.success) loadStagingGrid(); else alert(j.error);
+}
+async function runStep(step) {
+  const res = document.getElementById('i-result');
+  res.innerHTML = `<span class="spin"></span> ${t('i_running')} ${step}`;
+  const j = await post('/api/servouts26/import/run',
+                       {step: step, profile: currentProfile()});
+  res.textContent = j.success
+    ? `✅ ${step}: ${t('i_done')}`
+    : `❌ ${step}: ${j.error || ''}`;
+  loadStagingGrid();
+}
+async function loadProfiles() {
+  const j = await api('/api/servouts26/profiles');
+  if (!j.success) return;
+  window.PROFILES = j.data || {};
+  const sel = document.getElementById('i-profile');
+  sel.innerHTML = Object.keys(window.PROFILES).map(n =>
+    `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+}
+function applyProfileToForm() {
+  const name = document.getElementById('i-profile').value;
+  const p = (window.PROFILES || {})[name] || {};
+  Object.keys(p).forEach(k => {
+    const el = document.getElementById('cf-' + k);
+    if (el) el.value = p[k];
+  });
+}
+async function saveProfile() {
+  const name = document.getElementById('i-profname').value.trim()
+            || document.getElementById('i-profile').value;
+  if (!name) { alert(t('i_prof_name')); return; }
+  const j = await post('/api/servouts26/profiles',
+                       {name: name, params: currentProfile()});
+  if (j.success) loadProfiles(); else alert(j.error);
+}
+async function deleteProfile() {
+  const name = document.getElementById('i-profile').value;
+  if (!name || !confirm(`${t('del')} "${name}"?`)) return;
+  const j = await post('/api/servouts26/profiles/delete', {name: name});
+  if (j.success) loadProfiles(); else alert(j.error);
+}
+
+/* ============================== journal ============================== */
+async function loadJournal() {
+  const q = new URLSearchParams();
+  const s = document.getElementById('j-search').value.trim();
+  if (s) q.set('q', s);
+  if (document.getElementById('j-all').checked) q.set('all', '1');
+  const j = await api('/api/servouts26/journal?' + q);
+  if (!j.success) return;
+  document.getElementById('j-body').innerHTML = (j.data || []).map(r => `
+    <tr><td>${esc(r.itime)}</td><td>${esc(r.iobject)}</td>
+    <td>${esc(r.iproperty)}</td><td>${evBadge(r.ievent)}</td>
+    <td class="td-num">${r.nrrec ?? ''}</td><td>${esc(r.coment)}</td>
+    <td>${esc(r.os_user)}</td></tr>`).join('');
+}
+document.getElementById('j-search').addEventListener('keydown',
+  e => { if (e.key === 'Enter') loadJournal(); });
+
+/* ============================== boot ============================== */
+applyLang();
+loadDashboard();
+checkConn();
+</script>
+</body>
+</html>
