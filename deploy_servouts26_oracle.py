@@ -26,6 +26,7 @@ from config import Config  # noqa: E402
 SQL_FILES = [
     "sql/60_servouts26_srvo.sql",
     "sql/61_servouts26_yservouts_bp.sql",
+    "sql/62_servouts26_shop.sql",
 ]
 
 
