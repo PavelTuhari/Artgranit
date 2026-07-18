@@ -38,6 +38,8 @@ CREATE OR REPLACE PACKAGE YServOuts_BP AS
   --     to the free 26)
   -- ------------------------------------------------------------------
   g_codprice       NUMBER       := 26;
+  g_pricename      VARCHAR2(25) := 'ServOuts26';
+  g_currency       VARCHAR2(3)  := 'LEI';
   g_um             VARCHAR2(15) := 'buc.';
   g_gr1            VARCHAR2(5)  := 'TVR';
   g_tip            VARCHAR2(1)  := 'P';
