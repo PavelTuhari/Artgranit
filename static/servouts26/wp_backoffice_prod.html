@@ -1,0 +1,30 @@
+<style>
+/* RO: back-office-ul ServOuts26 (admin trilingv) in iframe full-bleed;
+   autentificarea o cere aplicatia Flask insasi (pagina /login).
+   EN: the ServOuts26 back-office in a full-bleed iframe; authentication
+   is enforced by the Flask app itself (its /login page). */
+.wp-block-post-title, .entry-title { display: none !important; }
+.wp-site-blocks { padding-top: 0 !important; }
+.wp-block-post-content, .entry-content { margin-block-start: 0 !important;
+  margin-top: 0 !important; padding-top: 0 !important; }
+main { margin-top: 0 !important; }
+.shop-embed {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  margin-top: 0 !important;
+}
+.shop-full-iframe {
+  width: 100% !important;
+  height: calc(100vh - 120px);
+  min-height: 700px;
+  border: none !important;
+  display: block !important;
+}
+</style>
+<div class="shop-embed">
+  <iframe src="/UNA.md/orasldev/servouts26"
+          class="shop-full-iframe" title="ServOuts26 — Back-office"
+          loading="lazy"></iframe>
+</div>
