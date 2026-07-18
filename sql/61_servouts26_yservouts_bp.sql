@@ -31,11 +31,13 @@ CREATE OR REPLACE PACKAGE YServOuts_BP AS
 
   -- ------------------------------------------------------------------
   -- RO: constante configurabile de import
-  --     (CODPRICE=1 e folosit de datele native -> modulul foloseste 2)
+  --     (CODPRICE 1/2/4/6 sunt folosite de datele native -> modulul
+  --     foloseste implicit 26, liber)
   -- EN: configurable import constants
-  --     (CODPRICE=1 is used by native data -> the module defaults to 2)
+  --     (CODPRICE 1/2/4/6 are used by native data -> the module defaults
+  --     to the free 26)
   -- ------------------------------------------------------------------
-  g_codprice       NUMBER       := 2;
+  g_codprice       NUMBER       := 26;
   g_um             VARCHAR2(15) := 'buc.';
   g_gr1            VARCHAR2(5)  := 'TVR';
   g_tip            VARCHAR2(1)  := 'P';
