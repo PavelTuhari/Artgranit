@@ -11,6 +11,40 @@
 
 const API = '/api/biro26';
 
+/* ── RO: traducerile GRUPARII (dictionarul YBIRO_GRP_I18N) pentru afisare
+   in limba aleasa a backoffice-ului (LANG ro/ru/en). Cheile de date raman
+   RO — doar ETICHETELE se traduc. Incarcat din backoffice.html la boot
+   (loadGrpTr) si reafisat la schimbarea limbii (rerenderGrouping).
+   ── EN: grouping translations for display in the selected backoffice
+   language; data keys stay RO, only labels translate. ── */
+let GRP_TR = {grupa: {}, categorie: {}};
+async function loadGrpTr() {
+  try {
+    const r = await apiGet(API + '/i18n/groups');
+    (r.data || []).forEach(x => {
+      if (GRP_TR[x.kind]) GRP_TR[x.kind][x.name_ro] = {ru: x.name_ru, en: x.name_en};
+    });
+    rerenderGrouping();
+  } catch (e) {}
+}
+function grpT(kind, ro) {
+  if (!ro) return ro;
+  const m = (GRP_TR[kind] || {})[ro];
+  if (!m) return ro;
+  if (LANG === 'ru' && m.ru) return m.ru;
+  if (LANG === 'en' && m.en) return m.en;
+  return ro;
+}
+function rerenderGrouping() {
+  try { if (prodTreeData) renderProductTree(); } catch (e) {}
+  try {
+    const tb = el('prod-body');
+    if (tb && prodState.rows.length)
+      tb.innerHTML = prodState.rows.map(productRowHtml).join('');
+  } catch (e) {}
+  try { if (el('grp-body') && el('grp-body').dataset.loaded) loadGroups(); } catch (e) {}
+}
+
 function imgCell(url) {
   if (!url) return '<td></td>';
   const u = escapeHtml(url);
@@ -246,13 +280,20 @@ async function loadGroups() {
   if (!r.success) { tbody.innerHTML = emptyRow(tbody, 7, 'no_data'); return; }
   const rows = r.data || [];
   el('grp-count').textContent = rows.length;
+  el('grp-body').dataset.loaded = '1';
   if (!rows.length) { tbody.innerHTML = emptyRow(tbody, 7, 'no_data'); return; }
   tbody.innerHTML = rows.map(g => {
     const inputId = 'grpname-' + g.codprice + '-' + g.codgrp;
+    // RO: numele RO ramine editabil (cheia de date); sub el aratam
+    //     traducerea in limba aleasa (dictionarul YBIRO_GRP_I18N)
+    // EN: the RO name stays editable; the translation shows beneath it
+    const tr = grpT('grupa', g.grpname);
+    const trHint = (tr && tr !== g.grpname)
+      ? '<div class="muted" style="font-size:11px;margin-top:2px">↳ ' + escapeHtml(tr) + '</div>' : '';
     return '<tr>' +
       '<td class="mono">' + g.codprice + '</td>' +
       '<td class="mono">' + g.codgrp + '</td>' +
-      '<td><input class="edit-input" id="' + inputId + '" value="' + escapeHtml(g.grpname || '') + '"></td>' +
+      '<td><input class="edit-input" id="' + inputId + '" value="' + escapeHtml(g.grpname || '') + '">' + trHint + '</td>' +
       '<td>' + escapeHtml(g.type_sc || '') + '</td>' +
       '<td>' + escapeHtml(g.gr1_sc || '') + '</td>' +
       '<td class="td-actions"><button class="btn-sm" onclick="saveGroup(' + g.codprice + ',' + g.codgrp + ',\'' + inputId + '\')">' + t('btn_save') + '</button></td>' +
@@ -951,7 +992,7 @@ function renderProductTree() {
     const gEsc = escapeHtml(g).replace(/'/g, "\\'");
     html += '<div style="' + nodeStyle + (open && !selC ? ';' + selBg : '') + '" ' +
       'onclick="selectTreeNode(\'' + gEsc + '\',\'\')">' +
-      '<span>' + (open ? '▾' : '▸') + ' ' + escapeHtml(g) + '</span>' +
+      '<span>' + (open ? '▾' : '▸') + ' ' + escapeHtml(grpT('grupa', g)) + '</span>' +
       '<span class="muted" style="white-space:nowrap">' + gCnt +
       ' <a href="#" title="' + t('tree_rename') + '" style="text-decoration:none" ' +
       'onclick="event.preventDefault();event.stopPropagation();' +
@@ -962,7 +1003,7 @@ function renderProductTree() {
         html += '<div style="' + nodeStyle + ';padding-left:30px' +
           (selC === (k.categorie || '') ? ';' + selBg : '') + '" ' +
           'onclick="selectTreeNode(\'' + gEsc + '\',\'' + cEsc + '\')">' +
-          '<span>' + escapeHtml(k.categorie || '—') + '</span>' +
+          '<span>' + escapeHtml(grpT('categorie', k.categorie) || '—') + '</span>' +
           '<span class="muted" style="white-space:nowrap">' + k.cnt +
           ' <a href="#" title="' + t('tree_rename') + '" style="text-decoration:none" ' +
           'onclick="event.preventDefault();event.stopPropagation();' +
@@ -1080,8 +1121,8 @@ function productRowHtml(p) {
     '<td style="cursor:pointer" onclick="showItemCard(' + p.cod + ')">' +
       (p.matgr1 == 1 ? '<span class="badge" style="background:#dcfce7;color:#166534;margin-right:4px">NOU</span>' : '') +
       escapeHtml(dispName(p) || '') + '</td>' +
-    '<td>' + escapeHtml(p.grupa || '') + '</td>' +
-    '<td>' + escapeHtml(p.categorie || '') + '</td>' +
+    '<td>' + escapeHtml(grpT('grupa', p.grupa) || '') + '</td>' +
+    '<td>' + escapeHtml(grpT('categorie', p.categorie) || '') + '</td>' +
     '<td>' + escapeHtml(p.um || '') + '</td>' +
     qtyDisplayCell +
     '<td class="num">' + fmtNum(p.angro_fara_tva) + '</td>' +
@@ -1653,3 +1694,8 @@ async function treeMoveCategorie(grupa, categorie, cnt) {
   invalidateProductTree();
   loadProductsStock(true);
 }
+
+/* RO: incarca dictionarul traducerilor gruparii la pornire (dupa ce
+   backoffice.html a definit apiGet/el/LANG). EN: boot-load the grouping
+   translations dictionary. */
+loadGrpTr();
