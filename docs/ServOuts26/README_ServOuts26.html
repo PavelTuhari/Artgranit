@@ -98,6 +98,27 @@ GET  staging                   POST staging {rows,replace}    POST staging/clear
 GET  config | profiles         POST profiles | profiles/delete
 POST import/run {step, profile:{g_*}}          GET journal[?all=1&amp;q]</pre>
 
+<h2>6a. Фронт-офис (магазин услуг) и личный кабинет</h2>
+<p>Публичная страница <code>/UNA.md/orasldev/servouts26-shop</code> — по образцу
+магазина Biro26, но продаёт услуги аутсорсинга бухгалтерии: каталог из
+прайс-листа модуля (CODPRICE=26, цены на сегодня), корзина,
+саморегистрация клиентов (физ/юр лица, IDNO 13 цифр), заказы и личный
+кабинет (список заказов, печатный счёт). Цены — только серверные
+(анти-манипуляция). Данные — собственные нормализованные таблицы
+<code>SRVO_CLIENT</code> / <code>SRVO_ORDERS</code> /
+<code>SRVO_ORDER_ITEMS</code> (ядро ERP <code>TMDB_*</code> не
+затрагивается — ТЗ §10.3); пароли — PBKDF2-хеши. События
+(регистрация, заказ, смена статуса) пишутся в XLOG.</p>
+<pre>GET  /api/servouts26/shop/catalog                      # публичный каталог
+POST /api/servouts26/shop/register | login | logout    # клиент
+GET  /api/servouts26/shop/me | my-orders | order/&lt;id&gt;
+POST /api/servouts26/shop/order {items:[{cod,qty,name}], note}
+GET  /api/servouts26/orders[?status=]                  # back-office
+POST /api/servouts26/orders/status {order_id, status}  # NEW|CONFIRMED|IN_WORK|DONE|CANCELED</pre>
+<p>В админке — панель «Comenzi (magazin)» со сменой статусов.
+Сайт-обвязка WordPress: <code>wordpress/servouts26/</code>
+(локально порт 6003, магазин в iframe на главной; см. README там).</p>
+
 <h2>7. Локальный запуск</h2>
 <pre>cd /Users/pt/Projects.AI/Artgranit
 venv/bin/python app.py            # порт 3003
