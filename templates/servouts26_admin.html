@@ -616,7 +616,7 @@ function showPanel(name) {
   document.getElementById('nav-' + name).classList.add('active');
   ({dashboard: loadDashboard, univers: initUnivers, groups: loadGroups,
     orgs: loadOrgs, prices: initPrices, import: initImport,
-    journal: loadJournal}[name] || (()=>{}))();
+    orders: loadOrders, journal: loadJournal}[name] || (()=>{}))();
 }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
