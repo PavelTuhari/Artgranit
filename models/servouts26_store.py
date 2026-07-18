@@ -729,31 +729,38 @@ class ServOuts26Store:
         try:
             total = round(sum(float(i["qty"]) * float(i["price"])
                               for i in items), 2)
-            statements = [
-                {"sql": """INSERT INTO SRVO_ORDERS
-                             (ORDER_ID, ORDER_NO, CLIENT_ID, STATUS, TOTAL, NOTE)
-                           VALUES (SRVO_ORDERS_SEQ.NEXTVAL,
-                                   'SO-' || TO_CHAR(SRVO_ORDERS_SEQ.CURRVAL),
-                                   :cid, 'NEW', :tot, :note)""",
-                 "params": {"cid": int(client_id), "tot": total,
-                            "note": (note or "")[:500]},
-                 "kind": "dml"},
-            ]
+            # RO: totul intr-un singur bloc PL/SQL (o tranzactie); secventa
+            #     se citeste intr-o variabila (ORA-02287 in WHERE/expresii).
+            # EN: everything in ONE PL/SQL block (one transaction); the
+            #     sequence goes through a variable (ORA-02287 otherwise).
+            lines = []
+            params: Dict[str, Any] = {"cid": int(client_id), "tot": total,
+                                      "note": (note or "")[:500]}
             for i, it in enumerate(items[:100], start=1):
-                statements.append({
-                    "sql": """INSERT INTO SRVO_ORDER_ITEMS
-                                (ORDER_ID, LINE_NO, SC, NAME, QTY, PRICE, SUMA)
-                              VALUES (SRVO_ORDERS_SEQ.CURRVAL, :ln, :sc, :nm,
-                                      :q, :p, :s)""",
-                    "params": {"ln": i, "sc": int(it["cod"]),
-                               "nm": (str(it.get("name") or ""))[:200],
-                               "q": float(it["qty"]), "p": float(it["price"]),
-                               "s": round(float(it["qty"]) * float(it["price"]), 2)},
-                    "kind": "dml"})
-            statements.append(
-                {"sql": """SELECT ORDER_ID, ORDER_NO, TOTAL FROM SRVO_ORDERS
-                            WHERE ORDER_ID = SRVO_ORDERS_SEQ.CURRVAL""",
-                 "kind": "query"})
+                lines.append(
+                    "  INSERT INTO SRVO_ORDER_ITEMS"
+                    " (ORDER_ID, LINE_NO, SC, NAME, QTY, PRICE, SUMA)"
+                    f" VALUES (v_id, {i}, :sc{i}, :nm{i}, :q{i}, :p{i}, :s{i});")
+                params[f"sc{i}"] = int(it["cod"])
+                params[f"nm{i}"] = (str(it.get("name") or ""))[:200] or None
+                params[f"q{i}"] = float(it["qty"])
+                params[f"p{i}"] = float(it["price"])
+                params[f"s{i}"] = round(float(it["qty"]) * float(it["price"]), 2)
+            block = ("DECLARE\n  v_id NUMBER;\nBEGIN\n"
+                     "  SELECT SRVO_ORDERS_SEQ.NEXTVAL INTO v_id FROM dual;\n"
+                     "  INSERT INTO SRVO_ORDERS"
+                     " (ORDER_ID, ORDER_NO, CLIENT_ID, STATUS, TOTAL, NOTE)"
+                     " VALUES (v_id, 'SO-' || TO_CHAR(v_id), :cid, 'NEW',"
+                     " :tot, :note);\n"
+                     + "\n".join(lines) + "\nEND;")
+            statements = [
+                {"sql": block, "params": params, "kind": "dml"},
+                {"sql": """SELECT ORDER_ID, ORDER_NO, TOTAL FROM (
+                             SELECT ORDER_ID, ORDER_NO, TOTAL FROM SRVO_ORDERS
+                              WHERE CLIENT_ID = :cid ORDER BY ORDER_ID DESC)
+                            WHERE ROWNUM = 1""",
+                 "params": {"cid": int(client_id)}, "kind": "query"},
+            ]
             with ServOuts26DB() as db:
                 res = db.execute_script(statements)
                 if not res.get("success"):
