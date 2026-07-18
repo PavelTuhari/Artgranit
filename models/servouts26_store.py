@@ -116,7 +116,7 @@ class ServOuts26Store:
                 stg = _script_rows(r, 4)[0]
                 return {"success": True, "data": {
                     "codprice": cp,
-                    "services_active": u.get("sum(casewhentipin('p','t')andnvl(isarhiv,'0')<>'1'then1else0end)") or list(u.values())[0],
+                    "services_active": list(u.values())[0],
                     "orgs_in_univers": list(u.values())[1],
                     "archived": list(u.values())[2],
                     "univers_total": list(u.values())[3],
