@@ -445,14 +445,22 @@ CREATE OR REPLACE PACKAGE BODY YServOuts_BP AS
     v1 PLS_INTEGER; v2 PLS_INTEGER; v3 PLS_INTEGER;
   BEGIN
     log('rollback_pricelist','START','Rollback pricelist CODPRICE=' || v_cp);
-    DELETE FROM TPR1D_PERPRLIST WHERE CODPRICE = v_cp;
+    -- RO: se atinge DOAR ce a creat importul — grupele cu nume; preturile,
+    --     perioadele si grupele native (GRPNAME NULL) raman neatinse.
+    -- EN: touches ONLY what the import created — named groups; native
+    --     prices, periods and no-name groups are left untouched.
+    DELETE FROM TPR1D_PERPRLIST t
+     WHERE t.CODPRICE = v_cp
+       AND EXISTS (SELECT 1 FROM TPR01M_GROUPS g
+                    WHERE g.CODPRICE = v_cp AND g.CODGRP = t.CODGRP
+                      AND g.GRPNAME IS NOT NULL);
     v1 := SQL%ROWCOUNT;
-    DELETE FROM TPR1D_PRDATE WHERE CODPRICE = v_cp;
+    DELETE FROM TPR1D_PRDATE d
+     WHERE d.CODPRICE = v_cp
+       AND EXISTS (SELECT 1 FROM TPR01M_GROUPS g
+                    WHERE g.CODPRICE = v_cp AND g.CODGRP = d.CODGRP
+                      AND g.GRPNAME IS NOT NULL);
     v2 := SQL%ROWCOUNT;
-    -- RO: se sterg doar grupele cu nume (cele importate); grupele native fara
-    --     GRPNAME raman neatinse.
-    -- EN: only named groups (the imported ones) are removed; native no-name
-    --     groups are left untouched.
     DELETE FROM TPR01M_GROUPS
      WHERE CODPRICE = v_cp AND GRPNAME IS NOT NULL;
     v3 := SQL%ROWCOUNT;
