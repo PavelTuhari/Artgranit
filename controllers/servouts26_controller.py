@@ -173,6 +173,156 @@ class ServOuts26Controller:
             return {"success": False, "error": "name required"}
         return ServOuts26Store.delete_profile(d["name"])
 
+    # ---------------- shop (public front-office) ----------------
+
+    @staticmethod
+    def _hash_pwd(pwd: str) -> str:
+        import hashlib, os as _os, binascii
+        salt = _os.urandom(16)
+        dk = hashlib.pbkdf2_hmac("sha256", pwd.encode(), salt, 100000)
+        return ("pbkdf2$" + binascii.hexlify(salt).decode()
+                + "$" + binascii.hexlify(dk).decode())
+
+    @staticmethod
+    def _check_pwd(pwd: str, stored: str) -> bool:
+        import hashlib, binascii, hmac
+        try:
+            _, salt_hex, hash_hex = (stored or "").split("$")
+            dk = hashlib.pbkdf2_hmac("sha256", pwd.encode(),
+                                     binascii.unhexlify(salt_hex), 100000)
+            return hmac.compare_digest(binascii.hexlify(dk).decode(), hash_hex)
+        except Exception:
+            return False
+
+    @staticmethod
+    def shop_catalog() -> Dict[str, Any]:
+        return ServOuts26Store.shop_catalog()
+
+    @staticmethod
+    def shop_register() -> Dict[str, Any]:
+        import re
+        from flask import session
+        d = request.get_json(silent=True) or {}
+        email = (d.get("email") or "").strip().lower()
+        name = (d.get("full_name") or "").strip()
+        phone = (d.get("phone") or "").strip()
+        address = (d.get("address") or "").strip()
+        is_company = bool(d.get("is_company"))
+        idno = (d.get("idno") or "").strip()
+        pwd = d.get("password") or ""
+        if not name:
+            return {"success": False, "error": "Nume/Denumire este obligatoriu"}
+        if not email or "@" not in email:
+            return {"success": False, "error": "E-mail valid este obligatoriu"}
+        if not phone:
+            return {"success": False, "error": "Telefonul este obligatoriu"}
+        if is_company and not re.match(r"^\d{13}$", idno):
+            return {"success": False,
+                    "error": "IDNO (13 cifre) este obligatoriu pentru persoane juridice"}
+        if len(pwd) < 6:
+            return {"success": False, "error": "Parola: minim 6 caractere"}
+        if ServOuts26Store.shop_client_by_email(email).get("data"):
+            return {"success": False, "error": "email already registered"}
+        r = ServOuts26Store.shop_register_client(
+            email, name, phone, ServOuts26Controller._hash_pwd(pwd),
+            address=address, idno=idno if is_company else "",
+            is_company=is_company)
+        if r.get("success"):
+            session["srvo_client"] = {"id": r["data"]["client_id"],
+                                      "email": email, "name": name}
+        return r
+
+    @staticmethod
+    def shop_login() -> Dict[str, Any]:
+        from flask import session
+        d = request.get_json(silent=True) or {}
+        c = ServOuts26Store.shop_client_by_email(d.get("email") or "").get("data")
+        if not c or not ServOuts26Controller._check_pwd(
+                d.get("password") or "", c["pwd_hash"]):
+            return {"success": False, "error": "invalid email or password"}
+        session["srvo_client"] = {"id": c["id"], "email": c["email"],
+                                  "name": c["full_name"]}
+        return {"success": True,
+                "data": {"name": c["full_name"], "email": c["email"]}}
+
+    @staticmethod
+    def shop_logout() -> Dict[str, Any]:
+        from flask import session
+        session.pop("srvo_client", None)
+        return {"success": True}
+
+    @staticmethod
+    def shop_me() -> Dict[str, Any]:
+        from flask import session
+        c = session.get("srvo_client")
+        return {"success": True,
+                "data": {"name": c["name"], "email": c["email"]} if c else None}
+
+    @staticmethod
+    def shop_order() -> Dict[str, Any]:
+        from flask import session
+        c = session.get("srvo_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        d = request.get_json(silent=True) or {}
+        items = d.get("items") or []
+        clean = []
+        for it in items:
+            try:
+                cod, qty = int(it["cod"]), float(it.get("qty") or 1)
+            except Exception:
+                return {"success": False, "error": "bad item format"}
+            if qty <= 0:
+                return {"success": False, "error": "qty must be > 0"}
+            clean.append({"cod": cod, "qty": qty,
+                          "name": str(it.get("name") or "")[:200]})
+        if not clean:
+            return {"success": False, "error": "empty cart"}
+        # RO: preturile vin DOAR de pe server (anti-manipulare)
+        # EN: prices are server-side ONLY (anti-tampering)
+        pr = ServOuts26Store.shop_prices_for([i["cod"] for i in clean])
+        if not pr.get("success"):
+            return pr
+        for it in clean:
+            it["price"] = pr["data"].get(it["cod"], 0)
+        return ServOuts26Store.shop_create_order(
+            c["id"], clean, note=(d.get("note") or ""))
+
+    @staticmethod
+    def shop_my_orders() -> Dict[str, Any]:
+        from flask import session
+        c = session.get("srvo_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        return ServOuts26Store.shop_client_orders(c["id"])
+
+    @staticmethod
+    def shop_order_detail(order_id: int) -> Dict[str, Any]:
+        from flask import session
+        c = session.get("srvo_client")
+        if c:
+            return ServOuts26Store.shop_order_detail(order_id, client_id=c["id"])
+        if session.get("username"):
+            # RO/EN: back-office session may open any order
+            return ServOuts26Store.shop_order_detail(order_id)
+        return {"success": False, "error": "login required"}
+
+    # ---------------- orders (back-office) ----------------
+
+    @staticmethod
+    def orders_admin() -> Dict[str, Any]:
+        return ServOuts26Store.shop_orders_admin(
+            status=request.args.get("status"),
+            limit=request.args.get("limit", 200))
+
+    @staticmethod
+    def order_set_status() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        if not d.get("order_id") or not d.get("status"):
+            return {"success": False, "error": "order_id and status required"}
+        return ServOuts26Store.shop_order_set_status(
+            int(d["order_id"]), d["status"])
+
     # ---------------- journal ----------------
 
     @staticmethod
