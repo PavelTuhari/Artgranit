@@ -37,7 +37,20 @@ php -d memory_limit=512M /opt/homebrew/bin/wp \
 `http://localhost:6003/wp-admin/` · user `admin` · пароль `ServOuts26wp#`
 (локальная установка; при выносе на прод — сменить).
 
-## Публикация на прод (когда появится сервер)
-По аналогии с officeplus: rsync файлов + точечный перенос контента через
-wp-cli (`wp post update …`), дамп БД целиком на живой сервер не заливать.
-См. `wordpress_officeplus/README.md` и `scripts/wp_pull.sh`/`wp_push.sh`.
+## Production (развёрнуто 18.07.2026)
+
+**https://nufarul.eminescu.md/servouts/** (внимание: голый `eminescu.md`
+указывает на другой сервер — прод живёт на поддомене nufarul).
+
+| Компонент | Значение |
+|---|---|
+| Файлы | `/var/www/servouts` (nginx root-паттерн через symlink `/var/www/wproot/servouts`) |
+| БД | MariaDB `wordpress_servouts`, user `wp_servouts` (innodb_buffer_pool=64M — на сервере 1GB RAM) |
+| PHP | php8.3-fpm, sock `/run/php/php8.3-fpm.sock` |
+| Nginx | location `/servouts/` в `/etc/nginx/sites-enabled/nufarul.eminescu.md` (бэкап конфига в `/home/ubuntu/nginx_nufarul.bak.*`) |
+| Главная (page 4) | iframe `/UNA.md/orasldev/servouts26-shop` (относительный — тот же домен), канон: `static/servouts26/wp_front_shop_prod.html` |
+| Backoffice (page 9) | iframe `/UNA.md/orasldev/servouts26` (Flask сам требует /login), канон: `static/servouts26/wp_backoffice_prod.html` |
+| wp-cli на сервере | `sudo -u www-data wp --path=/var/www/servouts …` |
+
+Публикация контента — точечно через wp-cli (`wp post update …`); дамп БД
+целиком на живой сервер не заливать (по правилу officeplus).
