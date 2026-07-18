@@ -78,7 +78,14 @@
     *   Просмотр изображений товаров (миниатюры + лайтбокс), мастер импорта в стиле wisepim (4 шага), AI-маппинг любого read-only SELECT (материализуется во VIEW, таблица `YBIRO_SRC_DEF`, деплой `deploy_biro26_sources.py`; AI через `ai_helper` с эвристическим fallback).
     *   Документация: `docs/Biro26/README_BIRO26.html`, ТЗ — `docs/Biro26/TZ_BIRO26_App.md`. Профили маппинга — таблицы `YBIRO_MAP_*` (деплой: `deploy_biro26_app_tables.py`).
 
-7.  **Документация:**
+7.  **ServOuts26 (CRM/SaaS servicii contabile, схема UNITEST, Oracle 11g):** трёхъязычная (RU/RO/EN) CRM бухгалтерских услуг.
+    *   Маршруты `/UNA.md/orasldev/servouts26*` (дашборд, справочник услуг `TMS_UNIVERS`/`TMS_MPT` с карточкой и архивацией, группы прайса с переименованием/слиянием, клиенты `TMS_ORG` со счетами, прайс-листы `TPR0M_PRICES→TPR01M_GROUPS→TPR1D_PRDATE→VTPR1D_PERPRLIST` с редактированием и rollback, импорт фида + профили маппинга, журнал XLOG).
+    *   Бизнес-логика — пакет `YServOuts_BP` (конфигурация через публичные `g_*`, импорт idempotent, лог в XLOG автономной транзакцией). Собственные объекты модуля — префикс `SRVO_*` (staging `SRVO_INPUT_GOODS`, профили `SRVO_MAP_PROFILES`).
+    *   **Подключается к unitest** (`orange.una.md:4024/cloudbd.world`, env `SERVOUTS26_DB_*`) — та же Oracle 11g, что OfficePlus; доступ через тот же thick subprocess-воркер (ключ `auth` в запросе), основной thin-контур не затрагивается. Прайс модуля — `CODPRICE=26 «ServOuts26»` (1/2/4/6 заняты нативными данными).
+    *   Деплой Oracle-объектов: `venv/bin/python deploy_servouts26_oracle.py` (файлы `sql/60_servouts26_srvo.sql`, `sql/61_servouts26_yservouts_bp.sql`).
+    *   Документация: `docs/ServOuts26/README_ServOuts26.html`, ТЗ — `docs/ServOuts26/TZ_Servouts26_App.md`.
+
+8.  **Документация:**
     *   Индекс документации (`/UNA.md/orasldev/docs`), просмотр Markdown, ТЗ Nufarul.
     *   Материалы DECOR и HTML-конверсии (`/UNA.md/orasldev/docs/decor`).
     *   Материалы Nufarul: список файлов, просмотр XLSX/DOC/PDF, галерея JPG (`docs_jpg`) с описаниями по смыслу и OCR-таблицами, Registru Documente.
