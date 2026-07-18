@@ -1,0 +1,30 @@
+<style>
+/* RO: magazinul ServOuts26 in iframe full-bleed; pe productie WP si Flask
+   stau pe acelasi domeniu (nufarul.eminescu.md) -> src relativ.
+   EN: full-bleed storefront iframe; in production WP and Flask share the
+   domain -> relative src. */
+.wp-block-post-title, .entry-title { display: none !important; }
+.wp-site-blocks { padding-top: 0 !important; }
+.wp-block-post-content, .entry-content { margin-block-start: 0 !important;
+  margin-top: 0 !important; padding-top: 0 !important; }
+main { margin-top: 0 !important; }
+.shop-embed {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  margin-top: 0 !important;
+}
+.shop-full-iframe {
+  width: 100% !important;
+  height: calc(100vh - 120px);
+  min-height: 700px;
+  border: none !important;
+  display: block !important;
+}
+</style>
+<div class="shop-embed">
+  <iframe src="/UNA.md/orasldev/servouts26-shop"
+          class="shop-full-iframe" title="ServOuts26 — Outsourcing contabil"
+          loading="lazy"></iframe>
+</div>
