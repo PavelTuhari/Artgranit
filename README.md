@@ -83,6 +83,8 @@
     *   Бизнес-логика — пакет `YServOuts_BP` (конфигурация через публичные `g_*`, импорт idempotent, лог в XLOG автономной транзакцией). Собственные объекты модуля — префикс `SRVO_*` (staging `SRVO_INPUT_GOODS`, профили `SRVO_MAP_PROFILES`).
     *   **Подключается к unitest** (`orange.una.md:4024/cloudbd.world`, env `SERVOUTS26_DB_*`) — та же Oracle 11g, что OfficePlus; доступ через тот же thick subprocess-воркер (ключ `auth` в запросе), основной thin-контур не затрагивается. Прайс модуля — `CODPRICE=26 «ServOuts26»` (1/2/4/6 заняты нативными данными).
     *   Деплой Oracle-объектов: `venv/bin/python deploy_servouts26_oracle.py` (файлы `sql/60_servouts26_srvo.sql`, `sql/61_servouts26_yservouts_bp.sql`).
+    *   **Фронт-офис** `/UNA.md/orasldev/servouts26-shop` (по образцу магазина Biro26): публичный каталог услуг из прайса модуля, корзина, саморегистрация клиентов и личный кабинет (заказы + печатный счёт); заказы — в собственных таблицах `SRVO_CLIENT`/`SRVO_ORDERS`/`SRVO_ORDER_ITEMS` (ядро `TMDB_*` не затрагивается), панель «Comenzi» в админке.
+    *   **WordPress-обвязка**: `wordpress/servouts26/` (по образцу `wordpress_officeplus/`) — локальный сайт на порту 6003, магазин встроен в главную через iframe; БД MariaDB `servouts26_wp_local`.
     *   Документация: `docs/ServOuts26/README_ServOuts26.html`, ТЗ — `docs/ServOuts26/TZ_Servouts26_App.md`.
 
 8.  **Документация:**
