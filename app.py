@@ -5931,6 +5931,49 @@ def biro26_shop():
                            info_html=info_html, page_size=page_size,
                            cur_lang=(lang or 'ro'))
 
+# ── translations management page + API (grouping RU/EN dictionary) ──
+@app.route('/UNA.md/orasldev/biro26-translations')
+def biro26_translations():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    from models.biro26_i18n import Biro26I18n
+    return render_template('biro26/translations.html',
+                           app_name=Config.BIRO26_APP_NAME,
+                           last_job=Biro26I18n.last_job())
+
+@app.route('/api/biro26/i18n/groups', methods=['GET'])
+def api_biro26_i18n_groups():
+    return _b26(Biro26Controller.i18n_groups)
+
+@app.route('/api/biro26/i18n/groups', methods=['PUT'])
+def api_biro26_i18n_save():
+    return _b26(Biro26Controller.i18n_save)
+
+@app.route('/api/biro26/i18n/groups.csv', methods=['GET'])
+def api_biro26_i18n_export():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_i18n import Biro26I18n
+    only_missing = request.args.get('only_missing') == '1'
+    resp = app.response_class(Biro26I18n.export_csv(only_missing),
+                              mimetype='text/csv')
+    resp.headers['Content-Disposition'] = \
+        'attachment; filename="grupare_traduceri.csv"'
+    return resp
+
+@app.route('/api/biro26/i18n/import', methods=['POST'])
+def api_biro26_i18n_import():
+    return _b26(Biro26Controller.i18n_import)
+
+@app.route('/api/biro26/i18n/auto', methods=['POST'])
+def api_biro26_i18n_auto():
+    return _b26(Biro26Controller.i18n_auto_start)
+
+@app.route('/api/biro26/i18n/auto/<job_id>', methods=['GET'])
+def api_biro26_i18n_auto_status(job_id):
+    return _b26(lambda: Biro26Controller.i18n_auto_status(job_id))
+
 # ── soft-delete (native ISARHIV): deactivate/reactivate a product card ──
 @app.route('/api/biro26/products/<int:cod>/archive', methods=['PUT'])
 def api_biro26_product_archive(cod):

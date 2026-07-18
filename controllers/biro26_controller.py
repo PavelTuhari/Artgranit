@@ -472,6 +472,38 @@ class Biro26Controller:
         from models.biro26_pay import Biro26Pay
         return Biro26Pay.save_settings(request.get_json(silent=True) or {})
 
+    # ── translations management (catalog grouping RU/EN dictionary) ──
+
+    @staticmethod
+    def i18n_groups() -> Dict[str, Any]:
+        from models.biro26_i18n import Biro26I18n
+        return Biro26I18n.groups_list()
+
+    @staticmethod
+    def i18n_save() -> Dict[str, Any]:
+        from models.biro26_i18n import Biro26I18n
+        d = request.get_json(silent=True) or {}
+        return Biro26I18n.save_rows(d.get("rows") or [])
+
+    @staticmethod
+    def i18n_import() -> Dict[str, Any]:
+        from models.biro26_i18n import Biro26I18n
+        f = request.files.get("file")
+        if not f:
+            return {"success": False, "error": "no file"}
+        return Biro26I18n.import_csv(f.read().decode("utf-8-sig", "replace"))
+
+    @staticmethod
+    def i18n_auto_start() -> Dict[str, Any]:
+        from models.biro26_i18n import Biro26I18n
+        d = request.get_json(silent=True) or {}
+        return Biro26I18n.auto_start(bool(d.get("only_missing", True)))
+
+    @staticmethod
+    def i18n_auto_status(job_id: str) -> Dict[str, Any]:
+        from models.biro26_i18n import Biro26I18n
+        return Biro26I18n.auto_status(job_id)
+
     # ── product description + client comments (shop window / card) ──
 
     @staticmethod

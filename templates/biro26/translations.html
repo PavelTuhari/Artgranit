@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} · Traduceri</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f6f8fb;color:#1e293b;font-size:14px}
+.top{background:#0d0d1a;color:#e2e8f0;padding:12px 18px;font-weight:700}
+.top a{color:#93c5fd;text-decoration:none;font-weight:400;margin-left:14px;font-size:13px}
+.wrap{max-width:1100px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+h3{margin:0 0 10px}
+.hint{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.btn{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.gray{background:#e2e8f0;color:#334155}
+.btn.green{background:#15803d}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.badge{border-radius:10px;padding:2px 9px;font-size:12px;font-weight:700}
+.badge.ok{background:#dcfce7;color:#166534}
+.badge.warn{background:#fef9c3;color:#854d0e}
+.bar{background:#e2e8f0;border-radius:8px;height:18px;overflow:hidden;margin:8px 0}
+.bar>div{background:#1d4ed8;height:100%;width:0;transition:width .5s;color:#fff;font-size:11px;text-align:center;line-height:18px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:5px 6px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:middle}
+th{color:#64748b;font-weight:600;position:sticky;top:0;background:#fff}
+td input{width:100%;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;font-size:12.5px}
+td input.dirty{border-color:#f59e0b;background:#fffbeb}
+tr.miss td:first-child{border-left:3px solid #f59e0b}
+.muted{color:#64748b}
+.tbl{max-height:60vh;overflow:auto;border:1px solid #eef2f7;border-radius:8px}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.filters input[type=text]{padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;min-width:220px}
+</style>
+</head>
+<body>
+
+<div class="top">{{ app_name }} · Traduceri (gruparea catalogului)
+  <a href="/UNA.md/orasldev/biro26-backoffice">← Backoffice</a>
+  <a href="/UNA.md/orasldev/biro26-notify-settings">Setări</a>
+  <span id="stats" style="float:right;font-weight:400;font-size:12.5px"></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h3>🤖 Traducere automată · Автоперевод (RO → RU + EN)</h3>
+    <div class="hint">Rândurile fără traducere se trimit ca CSV la serviciul
+      <b>OCI Multi-Translate</b> (~0,5 s/rând); la final rezultatul se importă automat
+      în dicționarul <code>YBIRO_GRP_I18N</code>. Traducerile rămân <b>date editabile</b> —
+      corectați apoi orice rând manual în tabelul de mai jos.
+      / Непереведённые строки уходят CSV-файлом на сервис перевода, результат
+      импортируется автоматически; потом любую строку можно поправить вручную.</div>
+    <button class="btn green" id="btn-auto" onclick="autoStart()">▶ Tradu tot ce lipsește · Перевести всё недостающее</button>
+    <a class="btn gray" href="/api/biro26/i18n/groups.csv">⬇ Export CSV (tot)</a>
+    <a class="btn gray" href="/api/biro26/i18n/groups.csv?only_missing=1">⬇ Export CSV (doar netraduse)</a>
+    <label class="btn gray" style="cursor:pointer">⬆ Import CSV
+      <input type="file" id="f-import" accept=".csv" style="display:none" onchange="importCsv(this)"></label>
+    <div id="auto-box" style="display:none">
+      <div class="bar"><div id="auto-bar">0%</div></div>
+      <div class="muted" id="auto-msg" style="font-size:12.5px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>✏️ Editare manuală · Ручное редактирование</h3>
+    <div class="filters">
+      <input type="text" id="f-search" placeholder="Caută · Поиск…" oninput="renderTable()">
+      <label><input type="checkbox" id="f-missing" onchange="renderTable()"> doar netraduse · только непереведённые</label>
+      <span style="flex:1"></span>
+      <button class="btn" onclick="saveDirty()">💾 Salvează modificările · Сохранить</button>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th style="width:90px">Tip</th><th>Română (cheie)</th>
+        <th style="width:28%">Русский</th><th style="width:28%">English</th><th style="width:60px">Prod.</th></tr></thead>
+      <tbody id="tbody"><tr><td colspan="5" class="muted">…</td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+const LAST_JOB = '{{ last_job|e }}';
+let DATA = [];
+const dirty = new Map();   // key kind|ro -> row
+
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
+}
+async function j(url, opts) {
+  opts = opts || {};
+  if (!(opts.body instanceof FormData))
+    opts.headers = {'Content-Type': 'application/json'};
+  opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function load() {
+  const r = await j('/api/biro26/i18n/groups');
+  if (!r.success) return;
+  DATA = r.data || [];
+  document.getElementById('stats').textContent =
+    'total: ' + r.total + ' · netraduse: ' + r.missing;
+  renderTable();
+}
+
+function renderTable() {
+  const q = (document.getElementById('f-search').value || '').toLowerCase();
+  const onlyMiss = document.getElementById('f-missing').checked;
+  const rows = DATA.filter(r => {
+    if (onlyMiss && r.name_ru && r.name_en) return false;
+    if (q && !((r.name_ro || '').toLowerCase().includes(q) ||
+               (r.name_ru || '').toLowerCase().includes(q) ||
+               (r.name_en || '').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  document.getElementById('tbody').innerHTML = rows.map(r => {
+    const key = r.kind + '|' + r.name_ro;
+    const miss = !(r.name_ru && r.name_en);
+    return '<tr' + (miss ? ' class="miss"' : '') + '>' +
+      '<td>' + (r.kind === 'grupa' ? '<b>grupă</b>' : 'categorie') + '</td>' +
+      '<td>' + esc(r.name_ro) + '</td>' +
+      '<td><input value="' + esc(r.name_ru || '') + '" ' +
+        'oninput="markDirty(this,\'' + esc(key).replace(/'/g, "\\'") + '\',\'name_ru\')"></td>' +
+      '<td><input value="' + esc(r.name_en || '') + '" ' +
+        'oninput="markDirty(this,\'' + esc(key).replace(/'/g, "\\'") + '\',\'name_en\')"></td>' +
+      '<td class="muted">' + (r.cnt || 0) + '</td></tr>';
+  }).join('') || '<tr><td colspan="5" class="muted">nimic găsit</td></tr>';
+}
+
+function markDirty(inp, key, field) {
+  inp.classList.add('dirty');
+  const [kind, ...rest] = key.split('|');
+  const name_ro = rest.join('|');
+  const row = DATA.find(r => r.kind === kind && r.name_ro === name_ro);
+  if (!row) return;
+  row[field] = inp.value;
+  dirty.set(key, row);
+}
+
+async function saveDirty() {
+  if (!dirty.size) { toast('Nimic de salvat · Нечего сохранять'); return; }
+  const r = await j('/api/biro26/i18n/groups', {method: 'PUT',
+    body: JSON.stringify({rows: [...dirty.values()]})});
+  if (r.success) {
+    toast('Salvat ✓ (' + r.saved + ') — magazinul vede imediat · Сохранено');
+    dirty.clear(); load();
+  }
+}
+
+async function importCsv(inp) {
+  if (!inp.files.length) return;
+  const fd = new FormData(); fd.append('file', inp.files[0]);
+  const r = await j('/api/biro26/i18n/import', {method: 'POST', body: fd});
+  if (r.success) { toast('Importat ✓: ' + r.saved + ' rânduri'); load(); }
+  inp.value = '';
+}
+
+/* ── traducerea automata: start + polling cu bara de progres ── */
+let pollTimer = null;
+async function autoStart() {
+  document.getElementById('btn-auto').disabled = true;
+  const r = await j('/api/biro26/i18n/auto', {method: 'POST',
+    body: JSON.stringify({only_missing: true})});
+  if (!r.success) { document.getElementById('btn-auto').disabled = false; return; }
+  toast('Job pornit: ' + r.data.rows + ' rânduri · Задание запущено');
+  poll(r.data.job_id);
+}
+function poll(jobId) {
+  document.getElementById('auto-box').style.display = '';
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const s = await j('/api/biro26/i18n/auto/' + encodeURIComponent(jobId));
+    if (!s.success) { clearInterval(pollTimer); document.getElementById('btn-auto').disabled = false; return; }
+    const p = s.progress || {};
+    const pc = Math.round(p.percent || 0);
+    document.getElementById('auto-bar').style.width = pc + '%';
+    document.getElementById('auto-bar').textContent = pc + '%';
+    document.getElementById('auto-msg').textContent =
+      (s.status || '') + ' — ' + (p.message || '') +
+      (p.done != null ? ' (' + p.done + '/' + p.total + ')' : '');
+    if (s.status === 'completed') {
+      clearInterval(pollTimer);
+      document.getElementById('btn-auto').disabled = false;
+      toast('✅ Gata: importate ' + (s.imported || 0) + ' traduceri · Готово');
+      load();
+    } else if (s.status === 'failed') {
+      clearInterval(pollTimer);
+      document.getElementById('btn-auto').disabled = false;
+      toast('❌ Job eșuat: ' + (s.error || ''), true);
+    }
+  }, 3000);
+}
+
+load();
+// RO: daca exista un job neterminat (pagina redeschisa) — reluam polling-ul
+if (LAST_JOB) { toast('Reiau job-ul în curs… · Возобновляю задание'); poll(LAST_JOB); }
+</script>
+</body>
+</html>
