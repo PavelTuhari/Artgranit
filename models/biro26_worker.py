@@ -154,12 +154,17 @@ def main():
             print(json.dumps({"success": False, "message": f"thick init failed: {e}"}))
             return
 
+    # RO: "auth" optional in request — alte module (ex. ServOuts26/UNITEST)
+    #     refolosesc acelasi worker cu credentiale proprii.
+    # EN: optional "auth" in the request — other modules (e.g. ServOuts26/
+    #     UNITEST) reuse this worker with their own credentials.
+    auth = req.get("auth") or {}
     conn = None
     try:
         conn = oracledb.connect(
-            user=Config.BIRO26_DB_USER,
-            password=Config.BIRO26_DB_PASSWORD,
-            dsn=Config.BIRO26_DB_DSN,
+            user=auth.get("user") or Config.BIRO26_DB_USER,
+            password=auth.get("password") or Config.BIRO26_DB_PASSWORD,
+            dsn=auth.get("dsn") or Config.BIRO26_DB_DSN,
         )
         out = _handle(conn, req)
     except Exception as e:
