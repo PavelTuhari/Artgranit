@@ -23,6 +23,7 @@ class ServOuts26DB(Biro26DB):
 
     def _call(self, req: Dict[str, Any]) -> Dict[str, Any]:
         req = dict(req)
+        req["nls_date_format"] = "DD.MM.RRRR"
         req["auth"] = {
             "user": Config.SERVOUTS26_DB_USER,
             "password": Config.SERVOUTS26_DB_PASSWORD,
