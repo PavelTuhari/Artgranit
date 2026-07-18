@@ -282,6 +282,32 @@
       </div>
     </div>
 
+    <!-- ORDERS (front-office) -->
+    <div class="panel" id="panel-orders">
+      <div class="p-title" data-i18n="ord_title"></div>
+      <div class="p-sub" data-i18n="ord_sub"></div>
+      <div class="toolbar">
+        <select id="ord-status" onchange="loadOrders()">
+          <option value="" data-i18n="ord_all"></option>
+          <option value="NEW">NEW</option>
+          <option value="CONFIRMED">CONFIRMED</option>
+          <option value="IN_WORK">IN_WORK</option>
+          <option value="DONE">DONE</option>
+          <option value="CANCELED">CANCELED</option>
+        </select>
+        <button class="btn primary" onclick="loadOrders()" data-i18n="refresh"></button>
+        <span id="ord-count" class="hint"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead><tr>
+          <th data-i18n="ord_no"></th><th data-i18n="ord_date"></th>
+          <th data-i18n="ord_client"></th><th>Email / Tel</th>
+          <th data-i18n="ord_status"></th><th data-i18n="ord_lines"></th>
+          <th data-i18n="ord_total"></th><th></th>
+        </tr></thead><tbody id="ord-body"></tbody></table>
+      </div>
+    </div>
+
     <!-- IMPORT -->
     <div class="panel" id="panel-import">
       <div class="p-title" data-i18n="i_title"></div>
