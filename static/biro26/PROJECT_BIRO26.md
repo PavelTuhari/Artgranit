@@ -58,6 +58,7 @@
 | `/UNA.md/orasldev/biro26-pdfme-designer` | Визуальный drag&drop редактор pdfme-шаблонов |
 | `/UNA.md/orasldev/biro26-notify-settings` | Setări: уведомления (email/TG/WhatsApp) · **платежи MAIB/MIA** · товаров на странице |
 | `/UNA.md/orasldev/biro26-import-pt` | Импорт файлов BIRO26PT (dry-run → commit, картинки из URL, авто-цены) |
+| `/UNA.md/orasldev/biro26-translations` | **Traduceri**: словарь группировки RU/EN — ручная правка, CSV export/import, 🤖 автоперевод (OCI Multi-Translate) |
 | `/UNA.md/orasldev/biro26-tz`, `-docs` | ТЗ и HTML-документация модуля |
 
 ### Вкладки backoffice
@@ -218,6 +219,13 @@ VALUES ('categorie', 'Hartie printer', 'Бумага для принтера', '
 ```
 Arborele din magazin (`/shop/tree`) livrează numele traduse; filtrarea
 folosește în continuare cheile RO (nimic nu se strică fără traducere).
+**Administrare**: pagina `/UNA.md/orasldev/biro26-translations` —
+editare manuală inline, export/import CSV și **traducere automată**
+(butonul «Tradu tot ce lipsește»): rândurile netraduse pleacă CSV la
+serviciul **OCI Multi-Translate** (`BIRO26_TRANSLATE_API_URL`, cheia în
+.env `BIRO26_TRANSLATE_API_KEY`; doc: 130.61.111.57/TRANSLATE_API_FOR_AI.md),
+progresul se urmărește live (job resumabil — I18N_LAST_JOB), iar la
+final rezultatul se importă automat în dicționar.
 
 **📘 Instrucțiune pentru client — cum traduceți mai departe (numai WP admin)**:
 1. Intrați în WordPress → **Pagini**. Găsiți pagina română (ex. `Livrare`).

@@ -141,6 +141,15 @@ class Config:
     BIRO26_MAIB_SIGNATURE_KEY = os.environ.get('BIRO26_MAIB_SIGNATURE_KEY', '')
     BIRO26_MIA_API_SECRET = os.environ.get('BIRO26_MIA_API_SECRET', '')
 
+    # RO: serviciul de traducere automata OCI Multi-Translate (CSV -> RU/EN)
+    #     folosit de pagina admin «Traduceri» pentru gruparea catalogului.
+    #     Cheia — DOAR in .env (nu in repo public).
+    # EN: the OCI Multi-Translate service used by the admin Translations
+    #     page; the key lives ONLY in .env.
+    BIRO26_TRANSLATE_API_URL = os.environ.get(
+        'BIRO26_TRANSLATE_API_URL', 'http://130.61.111.57/api/translate')
+    BIRO26_TRANSLATE_API_KEY = os.environ.get('BIRO26_TRANSLATE_API_KEY', '')
+
     # RO: 'biro26' => pagina /login este EXCLUSIV OfficePlus (fara selectorul
     #     de proiecte Artgranit); dupa login se intra direct in backoffice.
     #     Pentru instalarile dedicate unui singur client (officeplus.md).
