@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServOuts26 — Contabilitate externalizată, digitalizată de la client până în ERP</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand: #0f766e; --brand-dark: #134e4a; --brand-deep: #0d1f1d;
+    --ink: #0f172a; --dim: #64748b; --line: #e2e8f0;
+    --bg: #f6f8fa; --card: #ffffff; --acc: #f59e0b;
+    --oracle: #c74634;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+         'Helvetica Neue', sans-serif; background: var(--bg); color: var(--ink);
+         font-size: 16px; line-height: 1.65; }
+
+  .hero { background: linear-gradient(135deg, var(--brand-deep) 0%, var(--brand-dark) 55%, var(--brand) 100%);
+    color: #ecfeff; padding: 72px 24px 84px; text-align: center; position: relative; overflow: hidden; }
+  .hero::after { content: '🧾'; position: absolute; font-size: 280px; opacity: .05;
+    right: -40px; bottom: -70px; transform: rotate(-12deg); }
+  .hero .kicker { display: inline-block; border: 1px solid #2dd4bf66; color: #5eead4;
+    border-radius: 20px; padding: 4px 16px; font-size: 13px; letter-spacing: .12em;
+    text-transform: uppercase; margin-bottom: 22px; }
+  .hero h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; max-width: 880px;
+    margin: 0 auto 18px; font-weight: 800; }
+  .hero h1 em { font-style: normal; color: #5eead4; }
+  .hero p { max-width: 760px; margin: 0 auto; color: #99f6e4; font-size: 18px; }
+  .hero .cta { margin-top: 30px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .hero .cta a { text-decoration: none; border-radius: 10px; padding: 12px 22px;
+    font-weight: 700; font-size: 15px; }
+  .hero .cta .main { background: #fff; color: var(--brand-dark); }
+  .hero .cta .ghost { border: 1px solid #2dd4bf88; color: #ccfbf1; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
+  section { padding: 56px 0; }
+  h2 { font-size: 28px; font-weight: 800; margin-bottom: 8px; color: var(--brand-dark); }
+  .sub { color: var(--dim); margin-bottom: 32px; max-width: 760px; }
+
+  .tasks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .task { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; }
+  .task .ico { font-size: 26px; margin-bottom: 10px; }
+  .task b { display: block; margin-bottom: 6px; font-size: 15px; }
+  .task span { color: var(--dim); font-size: 14px; }
+
+  .comp { display: grid; grid-template-columns: 64px 1fr; gap: 20px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 28px; margin-bottom: 20px; }
+  .comp .badge { width: 64px; height: 64px; border-radius: 16px; display: flex;
+    align-items: center; justify-content: center; font-size: 30px;
+    background: linear-gradient(135deg, var(--brand), var(--brand-dark)); }
+  .comp h3 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+  .comp .tag { display: inline-block; background: #ccfbf1; color: var(--brand-dark);
+    border-radius: 10px; padding: 1px 10px; font-size: 12px; font-weight: 700;
+    margin-left: 8px; vertical-align: middle; }
+  .comp p { color: #334155; font-size: 15px; margin-top: 8px; }
+  .comp ul { margin: 10px 0 0 18px; color: #334155; font-size: 14.5px; }
+  .comp li { margin-bottom: 4px; }
+  .comp code { background: #f1f5f9; border-radius: 6px; padding: 1px 7px;
+    font-size: 12.5px; color: var(--brand-dark); }
+
+  .erp { background: var(--brand-deep); color: #d7f5f0; border-radius: 24px;
+    padding: 44px 36px; }
+  .erp h2 { color: #5eead4; }
+  .erp .sub { color: #7fd6c9; }
+  .erp-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 36px; align-items: start; }
+  .erp p { font-size: 15.5px; margin-bottom: 14px; }
+  .erp b { color: #fff; }
+  .db-card { background: #11302c; border: 1px solid #1f4b45; border-radius: 16px; padding: 22px; }
+  .db-card .db-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    font-weight: 800; color: #fff; }
+  .db-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--oracle); }
+  .db-card table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .db-card td { padding: 6px 4px; border-bottom: 1px dashed #1f4b45; vertical-align: top; }
+  .db-card td:first-child { color: #5eead4; font-family: ui-monospace, Menlo, monospace;
+    white-space: nowrap; padding-right: 12px; font-size: 12px; }
+  .db-card td:last-child { color: #bfe9e2; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    justify-content: center; margin-top: 26px; font-size: 14px; }
+  .flow .node { background: #11302c; border: 1px solid #2dd4bf55; color: #ccfbf1;
+    border-radius: 10px; padding: 9px 16px; font-weight: 700; }
+  .flow .arr { color: #2dd4bf; font-size: 18px; }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-top: 10px; }
+  .fact { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px; text-align: center; }
+  .fact .v { font-size: 26px; font-weight: 800; color: var(--brand); }
+  .fact .l { color: var(--dim); font-size: 13px; margin-top: 2px; }
+
+  footer { background: var(--brand-deep); color: #7fd6c9; text-align: center;
+    padding: 30px 20px; font-size: 13px; }
+  footer a { color: #5eead4; }
+  @media (max-width: 760px) {
+    .erp-grid { grid-template-columns: 1fr; }
+    .comp { grid-template-columns: 1fr; }
+    .comp .badge { width: 52px; height: 52px; font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="kicker">ServOuts26 · CRM &amp; SaaS pentru servicii contabile</span>
+  <h1>Contabilitate externalizată, <em>digitalizată cap-coadă</em> —
+    de la vitrina clientului până în ERP-ul Oracle</h1>
+  <p>O platformă în trei componente care transformă un birou de contabilitate
+     într-un serviciu online: clienții aleg pachete și comandă singuri,
+     echipa gestionează nomenclatorul și prețurile, iar toate datele trăiesc
+     într-o bază Oracle cu un ERP întreg — inclusiv modulul de contabilitate —
+     deja în funcțiune.</p>
+  <div class="cta">
+    <a class="main" href="https://nufarul.eminescu.md/servouts/">Vezi site-ul live</a>
+    <a class="ghost" href="https://nufarul.eminescu.md/UNA.md/orasldev/servouts26-shop">Magazinul de servicii</a>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2>Ce sarcini rezolvă</h2>
+    <p class="sub">ServOuts26 acoperă întregul ciclu comercial al unui birou de
+      contabilitate care își vinde serviciile ca abonamente și pachete.</p>
+    <div class="tasks">
+      <div class="task"><div class="ico">📇</div><b>Evidența clienților</b>
+        <span>Persoane fizice și juridice (IDNO), date de contact, adrese,
+        conturi bancare — direct în registrele ERP existente.</span></div>
+      <div class="task"><div class="ico">🧾</div><b>Nomenclator de servicii</b>
+        <span>Pachete de contabilitate, salarizare, rapoarte, consultanță —
+        cu denumiri bilingve RO/RU și arhivare în loc de ștergere.</span></div>
+      <div class="task"><div class="ico">💰</div><b>Formarea prețurilor</b>
+        <span>Liste de prețuri pe perioade (retail / angro / online),
+        grupe pe brand, redenumire și fuziune de grupe, rollback complet.</span></div>
+      <div class="task"><div class="ico">🛒</div><b>Vânzare online</b>
+        <span>Clientul își alege serviciile, comandă și primește cont de
+        plată — prețurile sunt validate exclusiv pe server.</span></div>
+      <div class="task"><div class="ico">📥</div><b>Import configurabil</b>
+        <span>Feed-uri CSV/TSV mapate prin profiluri (fără recompilare),
+        pași idempotenți, jurnalizare în XLOG prin tranzacții autonome.</span></div>
+      <div class="task"><div class="ico">🌐</div><b>Trei limbi</b>
+        <span>RO · RU · EN în toate interfețele — comutare instantanee,
+        fallback inteligent al denumirilor.</span></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <h2>Trei componente, un singur produs</h2>
+    <p class="sub">Fiecare componentă e independentă ca interfață, dar toate
+      lucrează pe aceleași date Oracle — fără sincronizări, fără copii.</p>
+
+    <div class="comp">
+      <div class="badge">🏢</div>
+      <div>
+        <h3>1 · Back-office — CRM-ul echipei de contabili
+          <span class="tag">Flask · trilingv</span></h3>
+        <p>Panoul de administrare în care echipa vede și conduce tot:
+           dashboard cu starea datelor, nomenclatorul serviciilor cu fișă
+           detaliată, clienți și organizații cu rechizite bancare, liste de
+           prețuri cu editare directă, comenzile venite din magazin cu flux
+           de stări, importul de feed-uri și jurnalul complet al operațiilor.</p>
+        <ul>
+          <li>grile rapide cu filtre și căutare peste registrele ERP;</li>
+          <li>profiluri de mapare <code>g_*</code> salvate în bază — importul se
+              reconfigurează din interfață, nu din cod;</li>
+          <li>comenzile clienților trec prin stările
+              <code>NEW → CONFIRMED → IN_WORK → DONE</code>;</li>
+          <li>fiecare acțiune lasă urmă în jurnalul XLOG (cine, când, câte rânduri).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="comp">
+      <div class="badge">🛍️</div>
+      <div>
+        <h3>2 · Front-office — magazinul de servicii cu cont personal
+          <span class="tag">public · self-service</span></h3>
+        <p>Vitrina publică unde afacerea clientului își cumpără contabilitatea
+           ca pe un abonament: catalog de pachete cu prețuri la zi din lista
+           de prețuri, coș, înregistrare în doi pași și cabinet personal.</p>
+        <ul>
+          <li>înregistrare pentru persoane fizice și juridice (IDNO 13 cifre),
+              parole doar ca hash PBKDF2;</li>
+          <li>prețurile comenzii se iau <b>numai de pe server</b> —
+              manipularea din browser este imposibilă;</li>
+          <li>cabinet personal: istoricul comenzilor, stări, cont de plată
+              printabil pentru fiecare comandă;</li>
+          <li>aceeași interfață în RO / RU / EN, cu coșul păstrat între vizite.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="comp">
+      <div class="badge">🌐</div>
+      <div>
+        <h3>3 · Site-ul WordPress — ambalajul de prezentare
+          <span class="tag">nufarul.eminescu.md/servouts</span></h3>
+        <p>Obvâzka de marketing: un site WordPress clasic (pagini, meniuri,
+           SEO, editare vizuală) care încorporează magazinul chiar în prima
+           pagină și back-office-ul pe pagina „Backoffice” — totul pe același
+           domeniu, prin iframe-uri relative, fără CORS și fără dublarea
+           autentificării.</p>
+        <ul>
+          <li>conținutul (Despre noi, Contacte, condiții) se editează de
+              nespecialiști, direct din WP;</li>
+          <li>aceeași schemă funcționează local (porturi separate) și în
+              producție (un singur domeniu) — doar sursa iframe-ului diferă;</li>
+          <li>model verificat deja pe proiectul-frate OfficePlus / Biro26.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="erp">
+      <h2>Sub capotă: un ERP întreg în Oracle, cu contabilitate inclusă</h2>
+      <p class="sub">Diferența față de un „magazin cu bază de date” obișnuit.</p>
+      <div class="erp-grid">
+        <div>
+          <p>ServOuts26 nu și-a inventat o bază proprie de la zero. Componenta
+             sa de date este <b>schema unui ERP complet, real, aflat în
+             producție</b> pe Oracle Database — cu nomenclator universal,
+             registre de organizații, liste de prețuri pe perioade și, esențial,
+             cu <b>modulul de contabilitate inclus</b>: planul de conturi,
+             documentele și mișcările contabile (<code style="background:#11302c;color:#5eead4">TMDB_DOCS / TMDB_CM</code>),
+             registrele de vânzări și salarizare.</p>
+          <p>Asta înseamnă că orice comandă, client sau preț creat de platformă
+             este <b>de la bun început în limbajul contabilității</b>: aceleași
+             coduri de subconto, aceleași registre pe care le folosește
+             contabilul în aplicația ERP nativă. Nu există „export către
+             contabilitate” — datele deja sunt acolo.</p>
+          <p>Platforma respectă regulile ERP-ului, nu le ocolește: ștergerea
+             pozițiilor e interzisă de trigger-e (se folosește arhivarea),
+             scrierea prețurilor trece prin view-uri cu trigger-e INSTEAD OF,
+             iar logica de business e împachetată în pachetul PL/SQL
+             <b>YServOuts_BP</b> — configurabil, idempotent și cu jurnalizare
+             autonomă.</p>
+          <div class="flow">
+            <span class="node">Client · site WP</span><span class="arr">→</span>
+            <span class="node">Magazin (front-office)</span><span class="arr">→</span>
+            <span class="node">CRM (back-office)</span><span class="arr">→</span>
+            <span class="node" style="border-color:#c7463488">Oracle ERP + Contabilitate</span>
+          </div>
+        </div>
+        <div class="db-card">
+          <div class="db-head"><span class="db-dot"></span>Oracle Database · schema UNITEST</div>
+          <table>
+            <tr><td>TMS_UNIVERS</td><td>nomenclatorul universal: servicii, mărfuri, organizații, conturi</td></tr>
+            <tr><td>TMS_ORG</td><td>clienți și furnizori cu rechizite și conturi bancare</td></tr>
+            <tr><td>TPR0M_PRICES →<br>TPR1D_PERPRLIST</td><td>liste de prețuri pe perioade, cu istoric complet</td></tr>
+            <tr><td>TMDB_DOCS / TMDB_CM</td><td>documente și înregistrări contabile — nucleul modulului de contabilitate</td></tr>
+            <tr><td>YSERVOUTS_BP</td><td>pachetul PL/SQL al platformei: import, prețuri, arhivare, rollback</td></tr>
+            <tr><td>SRVO_*</td><td>obiectele proprii ale modulului: clienți web, comenzi, staging, profiluri</td></tr>
+            <tr><td>XLOG</td><td>jurnalul de audit al întregului ERP — folosit și de ServOuts26</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <h2>Pe scurt</h2>
+    <div class="facts">
+      <div class="fact"><div class="v">3</div><div class="l">componente: CRM, magazin, site WP</div></div>
+      <div class="fact"><div class="v">3</div><div class="l">limbi: RO · RU · EN</div></div>
+      <div class="fact"><div class="v">1</div><div class="l">sursă de adevăr: Oracle ERP</div></div>
+      <div class="fact"><div class="v">100%</div><div class="l">prețuri validate pe server</div></div>
+      <div class="fact"><div class="v">0</div><div class="l">exporturi manuale către contabilitate</div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  ServOuts26 · 2026 · platforma Artgranit —
+  <a href="https://nufarul.eminescu.md/servouts/">site</a> ·
+  <a href="https://nufarul.eminescu.md/UNA.md/orasldev/servouts26-shop">magazin</a> ·
+  <a href="https://nufarul.eminescu.md/UNA.md/orasldev/servouts26">back-office</a>
+</footer>
+
+</body>
+</html>
