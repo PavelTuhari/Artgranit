@@ -200,6 +200,8 @@ CREATE OR REPLACE PACKAGE BODY YServOuts_BP AS
       WHEN 'col_retail'     THEN g_col_retail     := p_value;
       WHEN 'seq_key'        THEN g_seq_key        := p_value;
       WHEN 'codprice'       THEN g_codprice       := TO_NUMBER(p_value);
+      WHEN 'pricename'      THEN g_pricename      := p_value;
+      WHEN 'currency'       THEN g_currency       := p_value;
       WHEN 'um'             THEN g_um             := p_value;
       WHEN 'gr1'            THEN g_gr1            := p_value;
       WHEN 'tip'            THEN g_tip            := p_value;
