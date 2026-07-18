@@ -106,7 +106,7 @@ def _exec(cur, sql, params):
 def _handle(conn, req):
     op = req.get("op")
     cur = conn.cursor()
-    for stmt in _nls_statements():
+    for stmt in _nls_statements(req):
         cur.execute(stmt)
 
     if op == "test":
