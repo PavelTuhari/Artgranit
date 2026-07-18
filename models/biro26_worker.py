@@ -35,12 +35,20 @@ import oracledb  # noqa: E402
 from config import Config  # noqa: E402
 
 
-def _nls_statements():
-    return [
+def _nls_statements(req=None):
+    stmts = [
         f"ALTER SESSION SET NLS_LANGUAGE='{Config.BIRO26_NLS_LANGUAGE}'",
         f"ALTER SESSION SET NLS_TERRITORY='{Config.BIRO26_NLS_TERRITORY}'",
         "ALTER SESSION SET NLS_NUMERIC_CHARACTERS='. '",
     ]
+    # RO: format de data optional per-request (ServOuts26/UNITEST are view-uri
+    #     cu literali de data impliciti, ex. '1.1.3001' in VPR1D_PRDATE).
+    # EN: optional per-request date format (ServOuts26/UNITEST views rely on
+    #     implicit date literals, e.g. '1.1.3001' in VPR1D_PRDATE).
+    fmt = (req or {}).get("nls_date_format")
+    if fmt and fmt.replace(".", "").replace("-", "").replace("/", "").replace(" ", "").isalnum():
+        stmts.append(f"ALTER SESSION SET NLS_DATE_FORMAT='{fmt}'")
+    return stmts
 
 
 def _cell(v):
