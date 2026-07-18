@@ -351,9 +351,21 @@ CREATE OR REPLACE PACKAGE BODY YServOuts_BP AS
   PROCEDURE import_groups IS
     v_cnt PLS_INTEGER;
     v_max NUMBER;
+    v_hdr PLS_INTEGER;
   BEGIN
     assert_idents;
     log('import_groups','START','Grupe din brand-uri / groups from brands, CODPRICE=' || g_codprice);
+    -- RO: capul pricelist-ului (TPR0M_PRICES) trebuie sa existe — FK-ul
+    --     TPR01M_GROUPS_FK; se creeaza automat daca lipseste.
+    -- EN: the pricelist header (TPR0M_PRICES) must exist — FK
+    --     TPR01M_GROUPS_FK; it is auto-created when missing.
+    SELECT COUNT(*) INTO v_hdr FROM TPR0M_PRICES WHERE CODPRICE = g_codprice;
+    IF v_hdr = 0 THEN
+      INSERT INTO TPR0M_PRICES (CODPRICE, PRICENAME, TYPE_SC, VAL)
+      VALUES (g_codprice, SUBSTR(g_pricename,1,25), g_group_type, g_currency);
+      log('import_groups','INFO','Cap pricelist creat / pricelist header created: '
+          || g_codprice || ' ' || g_pricename);
+    END IF;
     -- RO: numerotarea CODGRP continua de la maximul existent (global)
     -- EN: CODGRP numbering continues from the existing (global) maximum
     SELECT NVL(MAX(CODGRP),0) INTO v_max FROM TPR01M_GROUPS;
