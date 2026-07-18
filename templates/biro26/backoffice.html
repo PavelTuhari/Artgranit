@@ -1405,6 +1405,9 @@ function setLang(l) {
   localStorage.setItem('biro26_lang', l);
   ['ru','ro','en'].forEach(x => document.getElementById('lang-'+x).classList.toggle('active', x===l));
   renderI18n();
+  // RO: gruparea (arbore, grid, tab Grupe) se reafiseaza in limba aleasa
+  // EN: re-render the grouping labels in the chosen language
+  if (typeof rerenderGrouping === 'function') rerenderGrouping();
 }
 
 function renderI18n() {
