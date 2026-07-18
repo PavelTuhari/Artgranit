@@ -83,6 +83,13 @@ EXCLUDE_PATTERNS=(
     "--exclude=wallet_*"
     "--exclude=Wallet_*.zip"
     "--exclude=$PROJECT_NAME/venv"
+    "--exclude=$PROJECT_NAME/.venv_run"
+    "--exclude=$PROJECT_NAME/.playwright-mcp"
+    # WP-деревья живут отдельно (rsync в /var/www), в код-деплой не входят
+    "--exclude=$PROJECT_NAME/wordpress_officeplus/public_html"
+    "--exclude=$PROJECT_NAME/wordpress_officeplus/db"
+    "--exclude=$PROJECT_NAME/wordpress/servouts26/public_html"
+    "--exclude=$PROJECT_NAME/wordpress/servouts26/db"
 )
 
 tar -czf "$SCRIPT_DIR/$TEMP_ARCHIVE" \
