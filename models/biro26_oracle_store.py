@@ -791,7 +791,16 @@ class Biro26Store:
             # EN: the total (numbered pagination) is counted over the cheap
             #     core, BEFORE the ORDER BY — only when explicitly asked.
             count_sql = f"SELECT COUNT(*) CNT FROM ({inner})"
-            inner += " ORDER BY u.DENUMIREA"
+            # RO: sortare — alfabetic (implicit) sau dupa pretul efectiv
+            # EN: sorting — alphabetical (default) or by effective price
+            if sort == "price_asc":
+                inner += f" ORDER BY {price_expr} ASC NULLS LAST, u.DENUMIREA"
+            elif sort == "price_desc":
+                inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA"
+            elif sort == "name_desc":
+                inner += " ORDER BY u.DENUMIREA DESC"
+            else:
+                inner += " ORDER BY u.DENUMIREA"
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
             outer = (
                 "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
