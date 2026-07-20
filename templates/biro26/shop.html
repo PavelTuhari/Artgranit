@@ -817,6 +817,65 @@ async function makeInvoice() {
   }
 }
 
+/* ── RO: ACHITARE PRIN CREDIT (rate) — organizatii dinamice + simulare;
+   la credit preturile se majoreaza cu comisionul pachetului (server-side).
+   ── EN: CREDIT payment — dynamic organizations + live simulation. ── */
+let CREDIT_OFFERS = [];
+async function loadCreditOffers() {
+  const r = await j(API + '/credit/offers');
+  if (r.success) CREDIT_OFFERS = r.data || [];
+  const sel = document.getElementById('paym-sel');
+  if (sel && !CREDIT_OFFERS.length) sel.options[1].disabled = true;
+}
+function creditPlans() {
+  const out = [];
+  CREDIT_OFFERS.forEach(o => (o.plans || []).forEach(p => out.push({...p, org: o.name})));
+  return out;
+}
+function cartTotalForCredit() {
+  let s = cart().reduce((a, i) => a + i.qty * i.price, 0);
+  try { checkedServices().forEach(x => s += (x.price || 0) * (x.qty || 1)); } catch (e) {}
+  const km = parseFloat((document.getElementById('tr-km') || {}).value);
+  if (km > 0) { try { const t = transportFor(km);
+    if (t) { const p = Number(t.price) || 0; s += t.tarif_mode === 'KM' ? p * km : p; } } catch (e) {} }
+  return Math.round(s * 100) / 100;
+}
+async function creditUI() {
+  const on = (document.getElementById('paym-sel') || {}).value === 'credit';
+  document.getElementById('credit-box').style.display = on ? '' : 'none';
+  if (!on) return;
+  const sel = document.getElementById('credit-plan');
+  if (!sel.options.length) {
+    sel.innerHTML = creditPlans().map(p =>
+      '<option value="' + p.id + '" data-mmin="' + p.months_min + '" data-mmax="' + p.months_max + '">' +
+      esc(p.org + ' — ' + p.name) + '</option>').join('');
+  }
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt) return;
+  const mmin = parseInt(opt.dataset.mmin, 10), mmax = parseInt(opt.dataset.mmax, 10);
+  const mbox = document.getElementById('credit-months-box');
+  const mi = document.getElementById('credit-months');
+  mbox.style.display = mmin === mmax ? 'none' : '';
+  mi.min = mmin; mi.max = mmax;
+  if (!mi.value || mi.value < mmin || mi.value > mmax) mi.value = mmax;
+  const amount = cartTotalForCredit();
+  const simEl = document.getElementById('credit-sim');
+  if (amount <= 0) { simEl.textContent = 'Coșul este gol · Корзина пуста'; return; }
+  const r = await j(API + '/credit/calc', {method: 'POST', body: JSON.stringify({
+    amount, plan_id: parseInt(sel.value, 10),
+    months: parseInt(mi.value, 10) || null,
+    avans: parseFloat(document.getElementById('credit-avans').value) || 0})});
+  if (!r.success) { simEl.innerHTML = '<span style="color:#b91c1c">' + esc(r.error || '') + '</span>'; return; }
+  const d = r.data;
+  simEl.innerHTML =
+    'Total standard: <b>' + d.price.toFixed(2) + '</b> lei → la credit (+' + d.markup_pct + '%): ' +
+    '<b>' + d.credit_price.toFixed(2) + '</b> lei<br>' +
+    'Avans: <b>' + d.avans.toFixed(2) + '</b> · Finanțat: <b>' + d.financed.toFixed(2) + '</b> · ' +
+    d.months + ' luni' + (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
+    '<span style="font-size:16px">📅 Rata lunară · Ежемесячно: <b>' + d.monthly.toFixed(2) + ' lei</b></span> · ' +
+    'Total credit: <b>' + d.total.toFixed(2) + '</b> lei';
+}
+
 /* ── RO: plata online — MIA (QR instant) si MAIB (card, redirect) ──
    ── EN: online payment — MIA (instant QR) and MAIB (card redirect) ── */
 let PAY = {enabled: false, methods: []};
