@@ -1023,6 +1023,16 @@ class Biro26Controller:
             except (TypeError, ValueError):
                 credit_avans = 0.0
             mk = 1 + float(plan["markup_pct"] or 0) / 100
+            financed = round(sum(it["qty"] * it["price"] for it in clean) * mk
+                             - credit_avans, 2)
+            if financed < float(plan["amount_min"] or 0):
+                return {"success": False,
+                        "error": f"Credit: suma finanțată sub minim "
+                                 f"({plan['amount_min']:.0f} lei)"}
+            if financed > float(plan["amount_max"] or 1e12):
+                return {"success": False,
+                        "error": f"Credit: suma finanțată peste maxim "
+                                 f"({plan['amount_max']:.0f} lei)"}
             for it in clean:
                 it["price"] = round(it["price"] * mk, 2)
         res = Biro26Store.shop_create_invoice(client_cod, clean)
