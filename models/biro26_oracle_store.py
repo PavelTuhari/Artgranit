@@ -881,6 +881,29 @@ class Biro26Store:
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def set_doc_credit(doc_cod: int, plan_id: int, months: int,
+                       avans: float) -> Dict[str, Any]:
+        """RO: metadatele creditului pe document (plan/luni/avans).
+        EN: per-document credit metadata."""
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO YBIRO_DOC_META t USING (SELECT :c COD FROM dual) s "
+                "ON (t.DOC_COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.CREDIT_PLAN_ID = :p1, "
+                "  t.CREDIT_MONTHS = :m1, t.CREDIT_AVANS = :a1 "
+                "WHEN NOT MATCHED THEN INSERT "
+                "  (DOC_COD, CREDIT_PLAN_ID, CREDIT_MONTHS, CREDIT_AVANS) "
+                "  VALUES (:c2, :p2, :m2, :a2)",
+                {"c": int(doc_cod), "p1": int(plan_id), "m1": int(months),
+                 "a1": float(avans or 0), "c2": int(doc_cod),
+                 "p2": int(plan_id), "m2": int(months), "a2": float(avans or 0)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def get_doc_tva_mode(doc_cod: int) -> str:
         try:
             rows = _rows(Biro26DB().execute_query(
