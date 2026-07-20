@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} · Creditare</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f6f8fb;color:#1e293b;font-size:14px}
+.top{background:#0d0d1a;color:#e2e8f0;padding:12px 18px;font-weight:700}
+.top a{color:#93c5fd;text-decoration:none;font-weight:400;margin-left:14px;font-size:13px}
+.wrap{max-width:1150px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+h3{margin:0 0 10px}
+.hint{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.btn{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.btn.gray{background:#e2e8f0;color:#334155}
+.btn.green{background:#15803d}
+.btn-sm{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 7px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:middle}
+th{color:#64748b;font-weight:600}
+td input,td select{padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;font-size:12.5px;width:100%}
+td input.num{width:76px}
+.muted{color:#64748b}
+.badge{border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700}
+.badge.on{background:#dcfce7;color:#166534}
+.badge.off{background:#fee2e2;color:#991b1b}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.simbox{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="top">{{ app_name }} · Creditare — organizații & pachete
+  <a href="/UNA.md/orasldev/biro26-backoffice">← Backoffice</a>
+  <a href="/UNA.md/orasldev/biro26-notify-settings">Setări</a>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <h3>🏦 Organizații de creditare · Кредитные организации</h3>
+    <div class="hint">Listă DINAMICĂ: adăugați orice partener. <b>Mod manual</b> — condițiile
+      (pachetele) se setează mai jos; <b>mod API</b> — se salvează URL-ul API al partenerului,
+      iar adaptorul de integrare se activează per organizație (la cerere).
+      Doar organizațiile «Activ» apar în magazin.</div>
+    <table>
+      <thead><tr><th style="width:40px">ID</th><th>Denumire</th><th style="width:80px">Activ</th>
+        <th style="width:110px">Mod</th><th>API URL</th><th>Info (afișat clientului)</th>
+        <th style="width:56px">Ord.</th><th style="width:70px"></th></tr></thead>
+      <tbody id="orgs"></tbody>
+    </table>
+    <button class="btn gray" style="margin-top:8px" onclick="addOrgRow()">➕ Adaugă organizație</button>
+  </div>
+
+  <div class="card">
+    <h3>📦 Pachete de credit · Кредитные пакеты</h3>
+    <div class="hint"><b>Metoda de calcul la credit</b>: prețul mărfii se majorează cu
+      «Comision magazin %» (pachetele 0%); rata lunară = finanțat/luni + finanțat×(dobânda
+      anuală/12) + finanțat×comision lunar; total = avans + rate×luni + taxă emitere.
+      Sursa condițiilor: tabelul EasyCredit.</div>
+    <table>
+      <thead><tr><th>Organizație</th><th>Denumire pachet</th><th>Luni min–max</th>
+        <th>Sumă min–max</th><th>Comision magazin %</th><th>Dobândă an %</th>
+        <th>Comision lunar %</th><th>Taxă emitere</th><th>Avans min %</th>
+        <th>Activ</th><th style="width:96px"></th></tr></thead>
+      <tbody id="plans"></tbody>
+    </table>
+    <button class="btn gray" style="margin-top:8px" onclick="addPlanRow()">➕ Adaugă pachet</button>
+  </div>
+
+  <div class="card">
+    <h3>🧮 Simulator (verificare) · Симулятор</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div><label style="font-size:12px">Preț produs (lei)</label><br>
+        <input id="sim-amount" type="number" value="12000" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:120px"></div>
+      <div><label style="font-size:12px">Pachet</label><br><select id="sim-plan" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px"></select></div>
+      <div><label style="font-size:12px">Luni</label><br>
+        <input id="sim-months" type="number" value="" placeholder="max" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:70px"></div>
+      <div><label style="font-size:12px">Avans (lei)</label><br>
+        <input id="sim-avans" type="number" value="0" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:100px"></div>
+      <button class="btn green" onclick="simulate()">Calculează</button>
+    </div>
+    <div id="sim-out" class="simbox" style="margin-top:10px;display:none"></div>
+  </div>
+</div>
+
+<script>
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let ORGS = [], PLANS = [];
+
+function orgRow(o, i) {
+  return '<tr data-i="' + i + '">' +
+    '<td class="muted">' + (o.id || 'nou') + '</td>' +
+    '<td><input value="' + esc(o.name || '') + '" data-f="name"></td>' +
+    '<td><select data-f="enabled"><option value="1"' + (o.enabled === '1' ? ' selected' : '') + '>Activ</option>' +
+      '<option value="0"' + (o.enabled !== '1' ? ' selected' : '') + '>Oprit</option></select></td>' +
+    '<td><select data-f="org_mode"><option value="manual"' + (o.org_mode !== 'api' ? ' selected' : '') + '>manual</option>' +
+      '<option value="api"' + (o.org_mode === 'api' ? ' selected' : '') + '>API</option></select></td>' +
+    '<td><input value="' + esc(o.api_url || '') + '" data-f="api_url" placeholder="https://…"></td>' +
+    '<td><input value="' + esc(o.info || '') + '" data-f="info"></td>' +
+    '<td><input class="num" value="' + (o.ord || 0) + '" data-f="ord"></td>' +
+    '<td><button class="btn-sm" onclick="saveOrg(' + i + ')">💾</button></td></tr>';
+}
+function renderOrgs() {
+  document.getElementById('orgs').innerHTML = ORGS.map(orgRow).join('');
+}
+function addOrgRow() { ORGS.push({enabled: '1', org_mode: 'manual', ord: ORGS.length + 1}); renderOrgs(); }
+async function saveOrg(i) {
+  const tr = document.querySelector('#orgs tr[data-i="' + i + '"]');
+  const o = ORGS[i];
+  tr.querySelectorAll('[data-f]').forEach(el => o[el.dataset.f] = el.value);
+  const r = await j('/api/biro26/credit/orgs', {method: 'PUT', body: JSON.stringify(o)});
+  if (r.success) { toast('Salvat ✓'); load(); }
+}
+
+function planRow(p, i) {
+  const orgSel = ORGS.filter(o => o.id).map(o =>
+    '<option value="' + o.id + '"' + (p.org_id == o.id ? ' selected' : '') + '>' + esc(o.name) + '</option>').join('');
+  return '<tr data-i="' + i + '">' +
+    '<td><select data-f="org_id">' + orgSel + '</select></td>' +
+    '<td><input value="' + esc(p.name || '') + '" data-f="name"></td>' +
+    '<td><input class="num" value="' + (p.months_min || 1) + '" data-f="months_min" style="width:46px">–' +
+        '<input class="num" value="' + (p.months_max || 1) + '" data-f="months_max" style="width:46px"></td>' +
+    '<td><input class="num" value="' + (p.amount_min || 1000) + '" data-f="amount_min">–' +
+        '<input class="num" value="' + (p.amount_max || 100000) + '" data-f="amount_max"></td>' +
+    '<td><input class="num" value="' + (p.markup_pct || 0) + '" data-f="markup_pct"></td>' +
+    '<td><input class="num" value="' + (p.annual_pct || 0) + '" data-f="annual_pct"></td>' +
+    '<td><input class="num" value="' + (p.monthly_fee_pct || 0) + '" data-f="monthly_fee_pct"></td>' +
+    '<td><input class="num" value="' + (p.issue_fee || 0) + '" data-f="issue_fee"></td>' +
+    '<td><input class="num" value="' + (p.avans_min_pct || 0) + '" data-f="avans_min_pct"></td>' +
+    '<td><select data-f="enabled"><option value="1"' + (p.enabled === '1' ? ' selected' : '') + '>Da</option>' +
+      '<option value="0"' + (p.enabled !== '1' ? ' selected' : '') + '>Nu</option></select></td>' +
+    '<td><button class="btn-sm" onclick="savePlan(' + i + ')">💾</button> ' +
+        (p.id ? '<button class="btn-sm" style="color:#dc2626" onclick="delPlan(' + p.id + ')">🗑</button>' : '') +
+    '</td></tr>';
+}
+function renderPlans() {
+  document.getElementById('plans').innerHTML = PLANS.map(planRow).join('');
+  document.getElementById('sim-plan').innerHTML = PLANS.filter(p => p.id).map(p =>
+    '<option value="' + p.id + '">' + esc(p.org_name || '') + ' — ' + esc(p.name) + '</option>').join('');
+}
+function addPlanRow() {
+  PLANS.push({org_id: (ORGS[0] || {}).id, enabled: '1',
+              months_min: 6, months_max: 6, amount_min: 1000, amount_max: 100000});
+  renderPlans();
+}
+async function savePlan(i) {
+  const tr = document.querySelector('#plans tr[data-i="' + i + '"]');
+  const p = PLANS[i];
+  tr.querySelectorAll('[data-f]').forEach(el => p[el.dataset.f] = el.value);
+  const r = await j('/api/biro26/credit/plans', {method: 'PUT', body: JSON.stringify(p)});
+  if (r.success) { toast('Salvat ✓'); load(); }
+}
+async function delPlan(id) {
+  if (!confirm('Ștergeți pachetul?')) return;
+  const r = await j('/api/biro26/credit/plans/' + id, {method: 'DELETE'});
+  if (r.success) { toast('Șters ✓'); load(); }
+}
+
+async function simulate() {
+  const r = await j('/api/biro26/shop/credit/calc', {method: 'POST', body: JSON.stringify({
+    amount: parseFloat(document.getElementById('sim-amount').value) || 0,
+    plan_id: parseInt(document.getElementById('sim-plan').value, 10),
+    months: parseInt(document.getElementById('sim-months').value, 10) || null,
+    avans: parseFloat(document.getElementById('sim-avans').value) || 0})});
+  const box = document.getElementById('sim-out');
+  if (!r.success) { box.style.display = 'none'; return; }
+  const d = r.data;
+  box.style.display = '';
+  box.innerHTML = '<b>' + esc(d.org) + ' — ' + esc(d.plan) + '</b> · ' + d.months + ' luni<br>' +
+    'Preț standard: <b>' + d.price.toFixed(2) + '</b> lei · ' +
+    'Preț la credit (+' + d.markup_pct + '%): <b>' + d.credit_price.toFixed(2) + '</b> lei<br>' +
+    'Avans: ' + d.avans.toFixed(2) + ' · Finanțat: ' + d.financed.toFixed(2) +
+    (d.issue_fee ? ' · Taxă emitere: ' + d.issue_fee.toFixed(2) : '') + '<br>' +
+    '<span style="font-size:16px">Rata lunară: <b>' + d.monthly.toFixed(2) + ' lei</b></span> · ' +
+    'Total: <b>' + d.total.toFixed(2) + '</b> lei (supracost ' + d.overcost.toFixed(2) + ')' +
+    '<div class="muted" style="font-size:11.5px;margin-top:4px">Calcul estimativ — oferta fermă aparține organizației de creditare.</div>';
+}
+
+async function load() {
+  const ro = await j('/api/biro26/credit/orgs');
+  ORGS = ro.data || []; renderOrgs();
+  const rp = await j('/api/biro26/credit/plans');
+  PLANS = rp.data || []; renderPlans();
+}
+load();
+</script>
+</body>
+</html>
