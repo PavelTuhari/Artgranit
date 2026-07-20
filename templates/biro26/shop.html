@@ -259,6 +259,28 @@ td.num,th.num{text-align:right}
       </details>
     </div>
     <div id="cart-services" style="margin-top:10px"></div>
+    <!-- RO: metoda de achitare: standard sau CREDIT (rate) — la credit
+         preturile se majoreaza cu comisionul pachetului ales.
+         EN: payment method: standard or CREDIT — credit mode marks the
+         prices up with the chosen plan's store commission. -->
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12.5px;margin:0;font-weight:600">Metodă de achitare · Способ оплаты:</label>
+      <select id="paym-sel" onchange="creditUI()" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px">
+        <option value="standard">Achitare standard · Обычная оплата</option>
+        <option value="credit">💳 Credit / rate · Кредит / рассрочка</option>
+      </select>
+    </div>
+    <div id="credit-box" style="display:none;margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="credit-plan" onchange="creditUI()" style="padding:6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12.5px"></select>
+        <span id="credit-months-box" style="display:none;font-size:12.5px">Luni · Месяцев:
+          <input id="credit-months" type="number" style="width:60px;padding:5px;border:1px solid #c7d2fe;border-radius:6px" onchange="creditUI()"></span>
+        <span style="font-size:12.5px">Avans · Аванс (lei):
+          <input id="credit-avans" type="number" value="0" min="0" style="width:90px;padding:5px;border:1px solid #c7d2fe;border-radius:6px" onchange="creditUI()"></span>
+      </div>
+      <div id="credit-sim" style="margin-top:8px;font-size:13px"></div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">La achitarea în credit prețurile se majorează cu comisionul pachetului; calcul estimativ — oferta fermă aparține organizației de creditare. · При оплате в кредит цены увеличиваются на комиссию пакета; расчёт ориентировочный.</div>
+    </div>
     <!-- RO: modul TVA al contului de plata (se aplica pe formularul PDF)
          EN: the invoice VAT mode (applied on the PDF form) -->
     <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
