@@ -688,7 +688,8 @@ class Biro26Store:
                            price_max: Optional[float] = None,
                            only_new: bool = False,
                            with_count: bool = False,
-                           archived: bool = False) -> Dict[str, Any]:
+                           archived: bool = False,
+                           sort: str = "name") -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
         Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
