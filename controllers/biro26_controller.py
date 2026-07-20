@@ -291,7 +291,9 @@ class Biro26Controller:
             #     always sees active goods regardless of the parameter
             archived=(a.get("archived") == "1"
                       and bool(session.get("username")
-                               or session.get("authenticated"))))
+                               or session.get("authenticated"))),
+            sort=(a.get("sort") if a.get("sort") in
+                  ("name", "name_desc", "price_asc", "price_desc") else "name"))
 
     @staticmethod
     def product_archive(cod: int) -> Dict[str, Any]:
