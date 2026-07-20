@@ -5931,6 +5931,44 @@ def biro26_shop():
                            info_html=info_html, page_size=page_size,
                            cur_lang=(lang or 'ro'))
 
+# ── credit payment: admin page + orgs/plans API + public offers/calc ──
+@app.route('/UNA.md/orasldev/biro26-credit-admin')
+def biro26_credit_admin():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/credit_admin.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/shop/credit/offers', methods=['GET'])
+def api_biro26_credit_offers():
+    # public: enabled credit organizations + plans (shop cart / product page)
+    return jsonify(Biro26Controller.credit_offers())
+
+@app.route('/api/biro26/shop/credit/calc', methods=['POST'])
+def api_biro26_credit_calc():
+    # public: estimative simulation {amount, plan_id, months?, avans?}
+    return jsonify(Biro26Controller.credit_calc())
+
+@app.route('/api/biro26/credit/orgs', methods=['GET'])
+def api_biro26_credit_orgs():
+    return _b26(Biro26Controller.credit_orgs)
+
+@app.route('/api/biro26/credit/orgs', methods=['PUT'])
+def api_biro26_credit_org_save():
+    return _b26(Biro26Controller.credit_org_save)
+
+@app.route('/api/biro26/credit/plans', methods=['GET'])
+def api_biro26_credit_plans():
+    return _b26(Biro26Controller.credit_plans)
+
+@app.route('/api/biro26/credit/plans', methods=['PUT'])
+def api_biro26_credit_plan_save():
+    return _b26(Biro26Controller.credit_plan_save)
+
+@app.route('/api/biro26/credit/plans/<int:plan_id>', methods=['DELETE'])
+def api_biro26_credit_plan_delete(plan_id):
+    return _b26(lambda: Biro26Controller.credit_plan_delete(plan_id))
+
 # ── translations management page + API (grouping RU/EN dictionary) ──
 @app.route('/UNA.md/orasldev/biro26-translations')
 def biro26_translations():
