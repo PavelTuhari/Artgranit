@@ -474,6 +474,45 @@ class Biro26Controller:
         from models.biro26_pay import Biro26Pay
         return Biro26Pay.save_settings(request.get_json(silent=True) or {})
 
+    # ── credit payment: orgs/plans admin + public offers/calculator ──
+
+    @staticmethod
+    def credit_offers() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.public_offers()
+
+    @staticmethod
+    def credit_calc() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        d = request.get_json(silent=True) or {}
+        return Biro26Credit.calc(d.get("amount"), d.get("plan_id"),
+                                 d.get("months"), d.get("avans") or 0)
+
+    @staticmethod
+    def credit_orgs() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.orgs_list()
+
+    @staticmethod
+    def credit_org_save() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.org_save(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_plans() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.plans_list(request.args.get("org_id", type=int))
+
+    @staticmethod
+    def credit_plan_save() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.plan_save(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_plan_delete(plan_id: int) -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.plan_delete(plan_id)
+
     # ── translations management (catalog grouping RU/EN dictionary) ──
 
     @staticmethod
