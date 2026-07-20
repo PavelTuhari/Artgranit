@@ -789,9 +789,20 @@ async function makeInvoice() {
   const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
                  .concat(checkedServices().map(s => ({cod: s.cod, qty: s.qty, name: s.name})));
   const tvaSel = document.getElementById('tva-mode');
-  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(
-    {items, distance_km: km, center_id: centerId,
-     tva_mode: tvaSel ? tvaSel.value : 'inclus'})});
+  // RO: achitare prin credit — trimitem pachetul ales; serverul majoreaza
+  //     preturile cu comisionul si retine planul/lunile/avansul pe document
+  // EN: credit payment — the server reprices the lines and stores the plan
+  const body = {items, distance_km: km, center_id: centerId,
+                tva_mode: tvaSel ? tvaSel.value : 'inclus'};
+  if ((document.getElementById('paym-sel') || {}).value === 'credit') {
+    const cp = document.getElementById('credit-plan');
+    if (cp && cp.value) {
+      body.credit_plan_id = parseInt(cp.value, 10);
+      body.credit_months = parseInt(document.getElementById('credit-months').value, 10) || null;
+      body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
+    }
+  }
+  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
