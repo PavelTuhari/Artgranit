@@ -1002,7 +1002,33 @@ class Biro26Controller:
             for it in clean:
                 if c or it["price"] <= 0:
                     it["price"] = pr["data"].get(it["cod"], 0)
+        # RO: ACHITARE PRIN CREDIT — metoda de calcul avansata a preturilor:
+        #     la alegerea creditului, pretul FIECARUI rind se majoreaza cu
+        #     comisionul pachetului (MARKUP_PCT), conform conditiilor
+        #     organizatiei de creditare (vezi models/biro26_credit.py).
+        # EN: CREDIT payment — every line price is marked up with the
+        #     plan's store commission before the invoice is created.
+        credit_plan_id = d.get("credit_plan_id")
+        credit_months = credit_avans = None
+        if credit_plan_id:
+            from models.biro26_credit import Biro26Credit
+            plan = Biro26Credit.plan_get(int(credit_plan_id))
+            if not plan:
+                return {"success": False, "error": "pachet de credit invalid"}
+            credit_months = int(d.get("credit_months") or plan["months_max"])
+            credit_months = max(int(plan["months_min"]),
+                                min(credit_months, int(plan["months_max"])))
+            try:
+                credit_avans = max(0.0, float(d.get("credit_avans") or 0))
+            except (TypeError, ValueError):
+                credit_avans = 0.0
+            mk = 1 + float(plan["markup_pct"] or 0) / 100
+            for it in clean:
+                it["price"] = round(it["price"] * mk, 2)
         res = Biro26Store.shop_create_invoice(client_cod, clean)
+        if res.get("success") and credit_plan_id:
+            Biro26Store.set_doc_credit(res["data"]["cod"], int(credit_plan_id),
+                                       credit_months, credit_avans)
         if res.get("success"):
             # RO: modul TVA ales la generare ('inclus' implicit / '0' /
             #     'fara') — formularele PDF il citesc din YBIRO_DOC_META
