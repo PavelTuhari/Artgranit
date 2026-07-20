@@ -18,7 +18,7 @@ CREATE TABLE YBIRO_CREDIT_ORG (
   ID        NUMBER NOT NULL,
   NAME      VARCHAR2(100) NOT NULL,       -- ex. EasyCredit
   ENABLED   VARCHAR2(1) DEFAULT '1',
-  MODE      VARCHAR2(10) DEFAULT 'manual',-- 'manual' | 'api'
+  ORG_MODE  VARCHAR2(10) DEFAULT 'manual',-- 'manual' | 'api' (MODE e cuvint rezervat)
   API_URL   VARCHAR2(400),                -- pentru MODE='api'
   LOGO_URL  VARCHAR2(400),
   INFO      VARCHAR2(2000),               -- descriere/conditii afisate
