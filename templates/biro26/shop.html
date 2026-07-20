@@ -435,6 +435,8 @@ async function load(reset) {
   if (F.pmin != null) qs.set('price_min', F.pmin);
   if (F.pmax != null) qs.set('price_max', F.pmax);
   if (F.onlyNew) qs.set('only_new', '1');
+  const srt = (document.getElementById('sort') || {}).value;
+  if (srt && srt !== 'name') qs.set('sort', srt);
   if (needCount) qs.set('with_count', '1');
   const r = await j(API + '/products?' + qs);
   if (my !== loadSeq) return;              // superseded by a newer filter click
