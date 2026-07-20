@@ -833,6 +833,22 @@ async function makeInvoice() {
    la credit preturile se majoreaza cu comisionul pachetului (server-side).
    ── EN: CREDIT payment — dynamic organizations + live simulation. ── */
 let CREDIT_OFFERS = [];
+/* RO: «In rate de la X lei/luna» in fereastra produsului (estimativ,
+   pachетul cu rata minima). EN: minimal monthly-rate badge. */
+function creditBadge(price) {
+  let best = null;
+  creditPlans().forEach(p => {
+    const f = price * (1 + (p.markup_pct || 0) / 100);
+    if (f < (p.amount_min || 0) || f > (p.amount_max || 1e12)) return;
+    const m = p.months_max;
+    const monthly = f / m + f * (p.annual_pct || 0) / 12 / 100 + f * (p.monthly_fee_pct || 0) / 100;
+    if (!best || monthly < best) best = monthly;
+  });
+  if (!best) return '';
+  return '<div style="margin-top:6px;font-size:13px;color:#3730a3;background:#eef2ff;' +
+    'border-radius:8px;padding:5px 10px;display:inline-block">💳 În rate de la <b>' +
+    best.toFixed(2) + ' lei/lună</b> · В рассрочку от ' + best.toFixed(2) + ' лей/мес</div>';
+}
 async function loadCreditOffers() {
   const r = await j(API + '/credit/offers');
   if (r.success) CREDIT_OFFERS = r.data || [];
