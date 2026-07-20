@@ -59,6 +59,7 @@
 | `/UNA.md/orasldev/biro26-notify-settings` | Setări: уведомления (email/TG/WhatsApp) · **платежи MAIB/MIA** · товаров на странице |
 | `/UNA.md/orasldev/biro26-import-pt` | Импорт файлов BIRO26PT (dry-run → commit, картинки из URL, авто-цены) |
 | `/UNA.md/orasldev/biro26-translations` | **Traduceri**: словарь группировки RU/EN — ручная правка, CSV export/import, 🤖 автоперевод (OCI Multi-Translate) |
+| `/UNA.md/orasldev/biro26-credit-admin` | **Creditare**: организации (manual/API) + пакеты кредитования + симулятор |
 | `/UNA.md/orasldev/biro26-tz`, `-docs` | ТЗ и HTML-документация модуля |
 
 ### Вкладки backoffice
