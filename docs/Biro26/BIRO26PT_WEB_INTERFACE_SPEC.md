@@ -277,3 +277,26 @@ VALUES(:load_id,:field,:col_idx,'MANUAL',1);
 
 Связанные документы: `BIRO26PT_IMPORTDATA.md`, `IMPORT_TMS_UNIVERS.md`,
 `USING_GROUPED_RESULTS_FOR_PROD_DB.md`.
+
+---
+
+## 13. Инструкция пользователя + доступ из GUI
+
+**Инструкция для оператора** (пошагово, как загружать данные) — `INSTRUCTIUNE_INCARCARE_DATE.md`
+и HTML-версия `import_reguli.html`. Обе развёрнуты в `static/biro26/`, то есть доступны по HTTP:
+- `https://nufarul.eminescu.md/static/biro26/import_reguli.html`
+- `https://officeplus.md/static/biro26/import_reguli.html`
+
+**Что добавить в GUI (страница Import / asistent):**
+- Ссылка **«📖 Instrucțiune»** → `/static/biro26/import_reguli.html` (открыть инструкцию).
+- На шаге **Analizează** показывать распознавание новых колонок: `GRUPA`, `CATEGORIE`, `PRODUCER`
+  (furnizor) — с бейджем стратегии (HEADER/CONTENT).
+- В отчёте импорта показывать: сколько записано в `BIRO26_GOODS` (дерево/магазин), сколько
+  привязано к furnizor, сколько изображений.
+- Кнопка **«Corectează prețuri din feed»** (опционально) — точечное выравнивание списка цен
+  `TPR1D_PERPRLIST` из `BIRO26_GOODS` для выбранного furnizor (см. §9.15 в `GHID_IMPORT_ALTE_SCHEME.md`).
+
+**Новые логические поля** (детекция): `GRUPA` (грр. товара), `CATEG` (подкатегория),
+`FURNIZOR` (поставщик/производитель) — в дополнение к `ARTICOL/DENUMIRE/ANGRO/ONLINE/RETAIL/BARCODE/VAT/URL`.
+Пакет `do_writes` пишет и в `BIRO26_GOODS` (источник дерева/магазина), и в список цен, и ставит
+`DEP_PRODUCER`, и создаёт узлы дерева по `GRUPA > CATEGORIE`.
