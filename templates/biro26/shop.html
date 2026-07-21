@@ -525,6 +525,7 @@ async function load(reset) {
       '<div class="row"><span class="pr">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
       '<input type="number" min="1" value="1" id="q-' + p.cod + '">' +
       '<button class="btn" onclick="addCart(' + p.cod + ',\'' + esc(p.denumirea || '').replace(/'/g, '&#39;') + '\',' + price + ')">+🛒</button></div>' +
+      liberLine(price, true) +
       '</div>';
   }).join(''));
 }
