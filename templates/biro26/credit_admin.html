@@ -71,6 +71,18 @@ td input.num{width:76px}
   </div>
 
   <div class="card">
+    <h3>📨 Cereri de credit/rate · Заявки <button class="btn-sm" style="float:right" onclick="loadReqs()">↻</button></h3>
+    <div class="hint">Cererile din formularul «Solicitați un împrumut» de pe paginile produselor.
+      Nivelul de integrare per organizație: <b>manual</b> (minim — notificare, managerul sună) /
+      <b>API</b> (maxim — cererea se trimite și la API-ul organizației; coloana «API»).</div>
+    <table>
+      <thead><tr><th>Data</th><th>Client / Telefon</th><th>Produs</th><th>Sumă → credit</th>
+        <th>Pachet</th><th>Rata</th><th>API</th><th>Status</th><th></th></tr></thead>
+      <tbody id="reqs"><tr><td colspan="9" class="muted">…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h3>🧮 Simulator (verificare) · Симулятор</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
       <div><label style="font-size:12px">Preț produs (lei)</label><br>
