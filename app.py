@@ -5949,6 +5949,19 @@ def api_biro26_credit_calc():
     # public: estimative simulation {amount, plan_id, months?, avans?}
     return jsonify(Biro26Controller.credit_calc())
 
+@app.route('/api/biro26/shop/credit/request', methods=['POST'])
+def api_biro26_credit_request():
+    # public: the product-page loan request form (name+phone required)
+    return jsonify(Biro26Controller.credit_request())
+
+@app.route('/api/biro26/credit/requests', methods=['GET'])
+def api_biro26_credit_requests():
+    return _b26(Biro26Controller.credit_requests_list)
+
+@app.route('/api/biro26/credit/requests/<int:req_id>', methods=['PUT'])
+def api_biro26_credit_request_status(req_id):
+    return _b26(lambda: Biro26Controller.credit_request_status(req_id))
+
 @app.route('/api/biro26/credit/orgs', methods=['GET'])
 def api_biro26_credit_orgs():
     return _b26(Biro26Controller.credit_orgs)
