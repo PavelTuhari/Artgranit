@@ -571,7 +571,7 @@ async function openProd(cod) {
           '<input type="number" min="1" value="1" id="mq-' + cod + '" style="width:70px;padding:7px;border:1px solid #e2e8f0;border-radius:6px">' +
           '<button class="btn" onclick="addCartModal(' + cod + ')">+🛒 Adaugă în coș · В корзину</button>' +
         '</div>' +
-        creditBadge(price) +
+        creditBadge(price, cod) +
         '<div class="pdesc" id="p-desc"><span class="muted">…</span></div>' +
       '</div>' +
     '</div>' +
