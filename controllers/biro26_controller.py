@@ -489,6 +489,23 @@ class Biro26Controller:
                                  d.get("months"), d.get("avans") or 0)
 
     @staticmethod
+    def credit_request() -> Dict[str, Any]:
+        """Public: the «Solicitati un imprumut» form (bomba.md-style)."""
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.request_create(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_requests_list() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.requests_list(request.args.get("limit", 50, type=int))
+
+    @staticmethod
+    def credit_request_status(req_id: int) -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        d = request.get_json(silent=True) or {}
+        return Biro26Credit.request_status(req_id, d.get("status") or "PROCESSED")
+
+    @staticmethod
     def credit_orgs() -> Dict[str, Any]:
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.orgs_list()
