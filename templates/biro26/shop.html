@@ -962,7 +962,10 @@ function renderCreditModal() {
         '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('') + '</div>' +
       (t ? '<div class="crlunar">' + Math.ceil(t.monthly) + ' lei <span style="font-size:14px;color:#111827;font-weight:600">lunar · в месяц</span></div>' +
         '<div class="muted" style="font-size:12px">' + esc(t.plan.org + ' — ' + t.plan.name) +
-        ' · Costul bunurilor la credit: <b>' + (price * (1 + (t.plan.markup_pct || 0) / 100)).toFixed(2) + ' lei</b>' +
+        // RO: 0% -> «Pret in rate»; credit -> pretul standard (fara majorare afisata)
+        (crIs0(t.plan)
+          ? ' · Preț în rate: <b>' + (price * (1 + (t.plan.markup_pct || 0) / 100)).toFixed(2) + ' lei</b>'
+          : ' · Preț standard: <b>' + price.toFixed(2) + ' lei</b>') +
         (t.plan.issue_fee > 0 ? ' · taxă emitere ' + t.plan.issue_fee + ' lei' : '') + '</div>' : '') +
       '<div class="muted" style="font-size:11.5px;margin:6px 0">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită la depunerea cererii de credit și poate diferi ușor. · Данные носят информационный характер.</div>' +
       '<div class="crform">' +
