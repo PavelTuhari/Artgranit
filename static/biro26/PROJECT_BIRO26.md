@@ -156,6 +156,22 @@ X lei/lună». Выбор сохраняется на документе (`YBIRO
 `GET /shop/credit/offers`, `POST /shop/credit/calc`. Источник условий:
 `TaskDezvoltare/1 credite` (tabelul EASYCREDIT).
 
+**Отображение bomba.md-style (по требованию EasyCredit)**: в окне товара
+под базовой ценой — ДВЕ раздельные таблицы: «💳 Credit: X lei × N luni» и
+«⏱ Oferta în rate 0%: Y lei × M luni», плюс чёрная кнопка «Solicită în
+rate sau credit» → модал «Solicitați un împrumut»: плитки сроков (бейдж
+«0% dobândă»), кол-во, крупная рата «X lei lunar», дисклеймер и форма
+(Prenume/Nume/Telefon + 2 согласия) → `POST /shop/credit/request`.
+
+**Два уровня интеграции с организацией** (переключение — одна настройка,
+`YBIRO_CREDIT_ORG.ORG_MODE` в админке Creditare):
+- **`manual` (минимальный)** — заявка журналируется в `YBIRO_CREDIT_REQ`
+  + уведомление магазину (email/WhatsApp/TG); менеджер звонит клиенту;
+- **`api` (максимальный, как bomba.md)** — заявка дополнительно
+  отправляется JSON-ом на `API_URL` организации (адаптер per-партнёр;
+  результат в колонке API журнала). Заявки видны в админке Creditare
+  (секция «Cereri», статус NEW→PROCESSED).
+
 **MIA transfer la telefon (pers. fizică)** — ручной метод, работает
 **параллельно** с остальными: кнопка «📲 Transfer MIA la telefon» показывает
 инструкцию (перевод MIA из банковского приложения на номер из настроек,
