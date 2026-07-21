@@ -5924,6 +5924,14 @@ def biro26_shop():
         page_size = max(1, min(page_size, 200))
     except Exception:
         page_size = 24
+    # RO: "Pret oferta in rate" (Liber Card MAIB): +RATE_LIBER_PCT% aplicat
+    #     silentios la produsele de la RATE_LIBER_MIN lei — doar afisare.
+    # EN: the silent installment-offer price shown under the standard price.
+    try:
+        liber_pct = float(Biro26Store.get_setting('RATE_LIBER_PCT', '5'))
+        liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
+    except Exception:
+        liber_pct, liber_min = 5.0, 100.0
     return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME,
                            topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
                            topbar_light=(lum > 140), shop_nav=nav,
