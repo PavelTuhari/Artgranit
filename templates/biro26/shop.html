@@ -1001,41 +1001,47 @@ function cartTotalForCredit() {
     if (t) { const p = Number(t.price) || 0; s += t.tarif_mode === 'KM' ? p * km : p; } } catch (e) {} }
   return Math.round(s * 100) / 100;
 }
+/* RO: in cos — TABEL cu placi (ca la bomba.md): fiecare placa = pachet+
+   termen, cu beja «0% dobanda»; placa aleasa alimenteaza calculul live.
+   EN: bomba.md-style tile table in the cart. */
+let cartCR = {tile: 0};
 async function creditUI() {
   const on = (document.getElementById('paym-sel') || {}).value === 'credit';
   document.getElementById('credit-box').style.display = on ? '' : 'none';
   if (!on) return;
-  const sel = document.getElementById('credit-plan');
-  if (!sel.options.length) {
-    sel.innerHTML = creditPlans().map(p =>
-      '<option value="' + p.id + '" data-mmin="' + p.months_min + '" data-mmax="' + p.months_max + '">' +
-      esc(p.org + ' — ' + p.name) + '</option>').join('');
-  }
-  const opt = sel.options[sel.selectedIndex];
-  if (!opt) return;
-  const mmin = parseInt(opt.dataset.mmin, 10), mmax = parseInt(opt.dataset.mmax, 10);
-  const mbox = document.getElementById('credit-months-box');
-  const mi = document.getElementById('credit-months');
-  mbox.style.display = mmin === mmax ? 'none' : '';
-  mi.min = mmin; mi.max = mmax;
-  if (!mi.value || mi.value < mmin || mi.value > mmax) mi.value = mmax;
   const amount = cartTotalForCredit();
   const simEl = document.getElementById('credit-sim');
-  if (amount <= 0) { simEl.textContent = 'Coșul este gol · Корзина пуста'; return; }
+  if (amount <= 0) {
+    document.getElementById('cart-crtiles').innerHTML = '';
+    simEl.textContent = 'Coșul este gol · Корзина пуста'; return;
+  }
+  const tiles = crTiles(amount);
+  if (!tiles.length) {
+    document.getElementById('cart-crtiles').innerHTML = '';
+    simEl.innerHTML = '<span style="color:#b91c1c">Suma nu se încadrează în ofertele de credit (1 000 – 100 000 lei) · Сумма вне кредитных лимитов</span>';
+    return;
+  }
+  if (cartCR.tile >= tiles.length) cartCR.tile = 0;
+  document.getElementById('cart-crtiles').innerHTML = tiles.map((x, i) =>
+    '<div class="crtile' + (i === cartCR.tile ? ' on' : '') + '" onclick="cartCrPick(' + i + ')">' +
+    (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
+    '<div class="n">' + x.m + ' plăți</div>' +
+    '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('');
+  const t = tiles[cartCR.tile];
   const r = await j(API + '/credit/calc', {method: 'POST', body: JSON.stringify({
-    amount, plan_id: parseInt(sel.value, 10),
-    months: parseInt(mi.value, 10) || null,
+    amount, plan_id: t.plan.id, months: t.m,
     avans: parseFloat(document.getElementById('credit-avans').value) || 0})});
   if (!r.success) { simEl.innerHTML = '<span style="color:#b91c1c">' + esc(r.error || '') + '</span>'; return; }
   const d = r.data;
   simEl.innerHTML =
-    'Total standard: <b>' + d.price.toFixed(2) + '</b> lei → la credit (+' + d.markup_pct + '%): ' +
-    '<b>' + d.credit_price.toFixed(2) + '</b> lei<br>' +
-    'Avans: <b>' + d.avans.toFixed(2) + '</b> · Finanțat: <b>' + d.financed.toFixed(2) + '</b> · ' +
-    d.months + ' luni' + (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
-    '<span style="font-size:16px">📅 Rata lunară · Ежемесячно: <b>' + d.monthly.toFixed(2) + ' lei</b></span> · ' +
-    'Total credit: <b>' + d.total.toFixed(2) + '</b> lei';
+    '<span class="muted" style="font-size:12px">' + esc(d.org + ' — ' + d.plan) + '</span><br>' +
+    'Total standard: <b>' + d.price.toFixed(2) + '</b> → la credit (+' + d.markup_pct + '%): <b>' + d.credit_price.toFixed(2) + '</b> lei' +
+    (d.avans ? ' · avans <b>' + d.avans.toFixed(2) + '</b> · finanțat <b>' + d.financed.toFixed(2) + '</b>' : '') +
+    (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
+    '<span style="font-size:17px;color:#dc2626;font-weight:800">' + Math.ceil(d.monthly) + ' lei</span> <b>lunar · в месяц</b> × ' +
+    d.months + ' · Total credit: <b>' + d.total.toFixed(2) + '</b> lei';
 }
+function cartCrPick(i) { cartCR.tile = i; creditUI(); }
 
 /* ── RO: plata online — MIA (QR instant) si MAIB (card, redirect) ──
    ── EN: online payment — MIA (instant QR) and MAIB (card redirect) ── */
