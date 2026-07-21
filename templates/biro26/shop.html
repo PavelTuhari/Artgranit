@@ -1054,13 +1054,19 @@ async function creditUI() {
     avans: parseFloat(document.getElementById('credit-avans').value) || 0})});
   if (!r.success) { simEl.innerHTML = '<span style="color:#b91c1c">' + esc(r.error || '') + '</span>'; return; }
   const d = r.data;
+  // RO: regulile EasyCredit de afisare: la RATE 0% pretul devine automat
+  //     «Pret in rate»; la CREDIT ramine afisat pretul standard —
+  //     fara mentionarea majorarii/comisionului.
+  // EN: display rules: 0% tiles show the installment price; credit tiles
+  //     keep the standard price; no markup disclosure.
+  const is0 = crIs0(t.plan);
   simEl.innerHTML =
     '<span class="muted" style="font-size:12px">' + esc(d.org + ' — ' + d.plan) + '</span><br>' +
-    'Total standard: <b>' + d.price.toFixed(2) + '</b> → la credit (+' + d.markup_pct + '%): <b>' + d.credit_price.toFixed(2) + '</b> lei' +
-    (d.avans ? ' · avans <b>' + d.avans.toFixed(2) + '</b> · finanțat <b>' + d.financed.toFixed(2) + '</b>' : '') +
+    (is0 ? 'Preț în rate · Цена в рассрочку: <b>' + d.credit_price.toFixed(2) + ' lei</b>'
+         : 'Preț standard · Обычная цена: <b>' + d.price.toFixed(2) + ' lei</b>') +
+    (d.avans ? ' · avans <b>' + d.avans.toFixed(2) + '</b> lei' : '') +
     (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
-    '<span style="font-size:17px;color:#dc2626;font-weight:800">' + Math.ceil(d.monthly) + ' lei</span> <b>lunar · в месяц</b> × ' +
-    d.months + ' · Total credit: <b>' + d.total.toFixed(2) + '</b> lei';
+    '<span style="font-size:17px;color:#dc2626;font-weight:800">' + Math.ceil(d.monthly) + ' lei</span> <b>lunar · в месяц</b> × ' + d.months;
 }
 function cartCrPick(i) { cartCR.tile = i; creditUI(); }
 
