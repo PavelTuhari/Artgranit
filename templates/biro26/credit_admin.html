@@ -204,11 +204,34 @@ async function simulate() {
     '<div class="muted" style="font-size:11.5px;margin-top:4px">Calcul estimativ — oferta fermă aparține organizației de creditare.</div>';
 }
 
+async function loadReqs() {
+  const r = await j('/api/biro26/credit/requests?limit=50');
+  if (!r.success) return;
+  document.getElementById('reqs').innerHTML = (r.data || []).map(q =>
+    '<tr><td>' + esc(q.created) + '</td>' +
+    '<td><b>' + esc(q.client_name) + '</b><br>' + esc(q.phone) + '</td>' +
+    '<td style="max-width:220px">' + esc(q.product_name || '') + ' × ' + q.qty + '</td>' +
+    '<td>' + (q.amount || 0).toFixed(2) + ' → <b>' + (q.credit_price || 0).toFixed(2) + '</b></td>' +
+    '<td class="muted">' + esc(q.org_name || '') + ' · ' + q.months + ' luni</td>' +
+    '<td><b>' + (q.monthly || 0).toFixed(2) + '</b></td>' +
+    '<td>' + (q.api_sent === '1' ? '✅ ' + esc(q.api_result || '') : '—') + '</td>' +
+    '<td><span class="badge ' + (q.status === 'NEW' ? 'off' : 'on') + '">' + esc(q.status) + '</span></td>' +
+    '<td>' + (q.status === 'NEW'
+      ? '<button class="btn-sm" onclick="markReq(' + q.id + ')">✔ Procesat</button>' : '') + '</td></tr>'
+  ).join('') || '<tr><td colspan="9" class="muted">Nicio cerere încă</td></tr>';
+}
+async function markReq(id) {
+  const r = await j('/api/biro26/credit/requests/' + id, {method: 'PUT',
+    body: JSON.stringify({status: 'PROCESSED'})});
+  if (r.success) loadReqs();
+}
+
 async function load() {
   const ro = await j('/api/biro26/credit/orgs');
   ORGS = ro.data || []; renderOrgs();
   const rp = await j('/api/biro26/credit/plans');
   PLANS = rp.data || []; renderPlans();
+  loadReqs();
 }
 load();
 </script>
