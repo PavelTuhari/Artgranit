@@ -825,10 +825,13 @@ async function makeInvoice() {
   const body = {items, distance_km: km, center_id: centerId,
                 tva_mode: tvaSel ? tvaSel.value : 'inclus'};
   if ((document.getElementById('paym-sel') || {}).value === 'credit') {
-    const cp = document.getElementById('credit-plan');
-    if (cp && cp.value) {
-      body.credit_plan_id = parseInt(cp.value, 10);
-      body.credit_months = parseInt(document.getElementById('credit-months').value, 10) || null;
+    // RO: pachetul/termenul vin din placa aleasa in tabelul de oferte
+    // EN: the plan/term come from the selected offer tile
+    const tiles = crTiles(cartTotalForCredit());
+    const t = tiles[cartCR.tile];
+    if (t) {
+      body.credit_plan_id = t.plan.id;
+      body.credit_months = t.m;
       body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
     }
   }
