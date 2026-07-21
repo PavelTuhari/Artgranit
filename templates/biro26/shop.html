@@ -873,7 +873,10 @@ function crMonthly(p, price, m) {
   const f = price * (1 + (p.markup_pct || 0) / 100);
   return f / m + f * (p.annual_pct || 0) / 12 / 100 + f * (p.monthly_fee_pct || 0) / 100;
 }
-function crIs0(p) { return !(p.annual_pct > 0) && !(p.monthly_fee_pct > 0); }
+/* RO: beja «0% dobinda» doar pe pachetele de RATE 0% (dupa nume) — nu pe
+   pachetele de credit cu majorare (formulele bancii 8/10/12/24/36 luni).
+   EN: the 0% badge only marks the true 0% installment plans (by name). */
+function crIs0(p) { return /0\s*%/.test(p.name || ''); }
 function crFits(p, price) {
   const f = price * (1 + (p.markup_pct || 0) / 100);
   return f >= (p.amount_min || 0) && f <= (p.amount_max || 1e12);
