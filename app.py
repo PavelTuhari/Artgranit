@@ -5937,6 +5937,7 @@ def biro26_shop():
                            topbar_light=(lum > 140), shop_nav=nav,
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html, page_size=page_size,
+                           liber_pct=liber_pct, liber_min=liber_min,
                            cur_lang=(lang or 'ro'))
 
 # ── credit payment: admin page + orgs/plans API + public offers/calc ──
