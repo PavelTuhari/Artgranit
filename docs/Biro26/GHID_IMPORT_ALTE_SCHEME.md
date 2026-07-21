@@ -283,6 +283,16 @@ Back-office-ul (biro26-backoffice) construiește panoul „Grupe de marfă" / na
 (max 25) — ține grupa plină pentru `BIRO26_GOODS`, dar trunchiază la 25 pentru prețuri
 (coloana `GRUPA_PRET`, vezi §9.11).
 
+### 9.15 ⚠️ Actualizarea `BIRO26_GOODS` „pe lângă pachet" NU actualizează lista de prețuri
+Prețul afișat în grilă/magazin vine din **lista de prețuri** (`TPR1D_PERPRLIST`), nu din
+`BIRO26_GOODS`. Dacă corectezi doar `BIRO26_GOODS` (ex. un sync ad-hoc), grila rămâne cu
+prețul vechi → apare „retail = angro" sau valori vechi. Reguli:
+- Preferă **întotdeauna** re-importul prin pachet (`do_writes` scrie ȘI `BIRO26_GOODS`, ȘI lista de prețuri).
+- Corecție punctuală a listei din `BIRO26_GOODS` (set-based, rapid):
+  `MERGE INTO tpr1d_perprlist ... USING (SELECT cod_univers, parse_price(retail1) pv, angro pv1, ionline pv2 FROM biro26_goods WHERE furnizor=... GROUP BY cod_univers) ON (codprice=1 AND sc=cod AND dataend=DATE '3000-01-01') WHEN MATCHED THEN UPDATE SET pretv=pv, pretv1=pv1, pretv2=pv2`.
+- **Articolele ambigue** (un articol → mai multe produse) sunt sărite la import → prețul lor
+  rămâne vechi; se rezolvă prin dedup, nu prin re-import.
+
 ### 9.14 ⚠️ Diacriticele românești se pierd („?") — charset CL8MSWIN1251
 Baza e chirilică (win1251) și **nu are literele românești** `ă â î ș ț`. Textul cu diacritice
 se stochează ca `?` („Foto și Video" → „Foto ?i Video", „acțiune" → „ac?iune"), inclusiv în
