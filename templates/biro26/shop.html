@@ -853,21 +853,125 @@ async function makeInvoice() {
    la credit preturile se majoreaza cu comisionul pachetului (server-side).
    ── EN: CREDIT payment — dynamic organizations + live simulation. ── */
 let CREDIT_OFFERS = [];
-/* RO: «In rate de la X lei/luna» in fereastra produsului (estimativ,
-   pachетul cu rata minima). EN: minimal monthly-rate badge. */
-function creditBadge(price) {
-  let best = null;
+/* ── RO: ofertele credit/rate in fereastra produsului (stil bomba.md,
+   la cererea EasyCredit): «Oferta in rate 0%» in tabelul ei, oferta de
+   CREDIT in alt tabel, sub pretul de baza + butonul negru «Solicita».
+   ── EN: separate installment (0%) and credit offer tables + button. */
+function crMonthly(p, price, m) {
+  const f = price * (1 + (p.markup_pct || 0) / 100);
+  return f / m + f * (p.annual_pct || 0) / 12 / 100 + f * (p.monthly_fee_pct || 0) / 100;
+}
+function crIs0(p) { return !(p.annual_pct > 0) && !(p.monthly_fee_pct > 0); }
+function crFits(p, price) {
+  const f = price * (1 + (p.markup_pct || 0) / 100);
+  return f >= (p.amount_min || 0) && f <= (p.amount_max || 1e12);
+}
+function creditBadge(price, cod) {
+  let rate = null, credit = null;      // best 0% installment / best credit
   creditPlans().forEach(p => {
-    const f = price * (1 + (p.markup_pct || 0) / 100);
-    if (f < (p.amount_min || 0) || f > (p.amount_max || 1e12)) return;
-    const m = p.months_max;
-    const monthly = f / m + f * (p.annual_pct || 0) / 12 / 100 + f * (p.monthly_fee_pct || 0) / 100;
-    if (!best || monthly < best) best = monthly;
+    if (!crFits(p, price)) return;
+    const m = p.months_max, v = crMonthly(p, price, m);
+    if (crIs0(p)) { if (!rate || v < rate.v) rate = {v, m}; }
+    else { if (!credit || v < credit.v) credit = {v, m}; }
   });
-  if (!best) return '';
-  return '<div style="margin-top:6px;font-size:13px;color:#3730a3;background:#eef2ff;' +
-    'border-radius:8px;padding:5px 10px;display:inline-block">💳 În rate de la <b>' +
-    best.toFixed(2) + ' lei/lună</b> · В рассрочку от ' + best.toFixed(2) + ' лей/мес</div>';
+  if (!rate && !credit) return '';
+  let h = '<div class="croffer">';
+  if (credit) h += '<div class="cr-col"><div class="lbl">💳 Credit</div><b>' +
+    Math.ceil(credit.v) + ' lei × ' + credit.m + ' luni</b></div>';
+  if (rate) h += '<div class="cr-col"><div class="lbl">⏱ Oferta în rate · Рассрочка <span class="b0" style="position:static">0%</span></div><b>' +
+    Math.ceil(rate.v) + ' lei × ' + rate.m + ' luni</b></div>';
+  h += '</div><button class="cr-btn" onclick="openCreditModal(' + cod + ')">Solicită în rate sau credit · Оформить рассрочку или кредит</button>';
+  return h;
+}
+
+/* ── modalul «Solicitati un imprumut» (tiles + formular) ── */
+let CR = {cod: null, qty: 1, tile: null};
+function crTiles(price) {
+  const tiles = [];
+  creditPlans().forEach(p => {
+    if (!crFits(p, price)) return;
+    const terms = p.months_min === p.months_max ? [p.months_min]
+      : [6, 12, 24, 36].filter(m => m >= p.months_min && m <= p.months_max);
+    terms.forEach(m => tiles.push({plan: p, m, monthly: crMonthly(p, price, m)}));
+  });
+  tiles.sort((a, b) => a.m - b.m);
+  return tiles;
+}
+function openCreditModal(cod) {
+  document.getElementById('m-prod').classList.remove('open');
+  CR = {cod, qty: 1, tile: 0};
+  renderCreditModal();
+  document.getElementById('m-credit').classList.add('open');
+}
+function renderCreditModal() {
+  const p = prodCache[CR.cod] || {};
+  const base = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const price = Math.round(base * CR.qty * 100) / 100;
+  const tiles = crTiles(price);
+  if (CR.tile >= tiles.length) CR.tile = 0;
+  const t = tiles[CR.tile];
+  const body = document.getElementById('credit-body');
+  body.innerHTML =
+    '<div style="display:flex;gap:16px;flex-wrap:wrap">' +
+    '<div style="flex:0 0 220px;min-width:200px">' +
+      '<h3 style="margin:0 0 8px">Solicitați un împrumut · Заявка на кредит</h3>' +
+      (p.image ? '<img src="' + esc(p.image) + '" referrerpolicy="no-referrer" style="width:100%;max-height:150px;object-fit:contain;background:#f1f5f9;border-radius:8px">' : '') +
+      '<div style="font-size:13px;margin:6px 0">' + esc(p.denumirea || '') + '</div>' +
+      '<div style="font-size:12.5px;color:#64748b">Preț · Цена: <b style="color:#111827">' + base.toFixed(2) + ' lei</b></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin:8px 0">' +
+        '<button class="btn gray" onclick="crQty(-1)">−</button><b>' + CR.qty + '</b>' +
+        '<button class="btn gray" onclick="crQty(1)">+</button>' +
+        '<span class="muted" style="font-size:12px">Total: ' + price.toFixed(2) + ' lei</span></div>' +
+    '</div>' +
+    '<div style="flex:1;min-width:280px">' +
+      '<div style="font-size:13px;font-weight:600;margin-bottom:4px">Alege oferta potrivită · Выберите вариант</div>' +
+      '<div class="crtiles">' + tiles.map((x, i) =>
+        '<div class="crtile' + (i === CR.tile ? ' on' : '') + '" onclick="crPick(' + i + ')">' +
+        (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
+        '<div class="n">' + x.m + ' plăți</div>' +
+        '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('') + '</div>' +
+      (t ? '<div class="crlunar">' + Math.ceil(t.monthly) + ' lei <span style="font-size:14px;color:#111827;font-weight:600">lunar · в месяц</span></div>' +
+        '<div class="muted" style="font-size:12px">' + esc(t.plan.org + ' — ' + t.plan.name) +
+        ' · Costul bunurilor la credit: <b>' + (price * (1 + (t.plan.markup_pct || 0) / 100)).toFixed(2) + ' lei</b>' +
+        (t.plan.issue_fee > 0 ? ' · taxă emitere ' + t.plan.issue_fee + ' lei' : '') + '</div>' : '') +
+      '<div class="muted" style="font-size:11.5px;margin:6px 0">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită la depunerea cererii de credit și poate diferi ușor. · Данные носят информационный характер.</div>' +
+      '<div class="crform">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+          '<input type="text" id="cr-prenume" placeholder="Prenume · Имя *" style="flex:1;min-width:130px">' +
+          '<input type="text" id="cr-nume" placeholder="Nume · Фамилия *" style="flex:1;min-width:130px">' +
+          '<input type="tel" id="cr-tel" placeholder="+(373) Telefon *" style="flex:1;min-width:130px"></div>' +
+        '<label class="ck"><input type="checkbox" id="cr-ck1"> Accept <a href="/termeni-si-conditii/" target="_blank">Termeni și condiții</a></label>' +
+        '<label class="ck"><input type="checkbox" id="cr-ck2"> Accept <a href="/politica-de-confidentialitate/" target="_blank">Condițiile pentru stocarea și prelucrarea datelor cu caracter personal</a></label>' +
+        '<button class="cr-btn" style="max-width:220px" onclick="crSubmit()">Cumpără în credit · Купить в кредит</button>' +
+      '</div>' +
+    '</div></div>';
+}
+function crQty(d) { CR.qty = Math.max(1, CR.qty + d); renderCreditModal(); }
+function crPick(i) { CR.tile = i; renderCreditModal(); }
+async function crSubmit() {
+  const pren = document.getElementById('cr-prenume').value.trim();
+  const nume = document.getElementById('cr-nume').value.trim();
+  const tel = document.getElementById('cr-tel').value.trim();
+  if (!pren || !nume) { toast('Introduceți numele și prenumele · Укажите имя и фамилию', true); return; }
+  if (tel.replace(/\D/g, '').length < 8) { toast('Introduceți telefonul · Укажите телефон', true); return; }
+  if (!document.getElementById('cr-ck1').checked || !document.getElementById('cr-ck2').checked) {
+    toast('Bifați acordurile · Отметьте согласия', true); return; }
+  const p = prodCache[CR.cod] || {};
+  const base = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const t = crTiles(Math.round(base * CR.qty * 100) / 100)[CR.tile];
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: t.plan.id, months: t.m, qty: CR.qty,
+    amount: Math.round(base * CR.qty * 100) / 100,
+    product_cod: CR.cod, product_name: p.denumirea || '',
+    client_name: pren + ' ' + nume, phone: tel})});
+  if (r.success) {
+    document.getElementById('credit-body').innerHTML =
+      '<div class="ok-box" style="font-size:15px">✅ Cererea a fost înregistrată! ' +
+      'Un manager vă va contacta în scurt timp la telefonul indicat.<br>' +
+      'Заявка зарегистрирована — менеджер свяжется с вами.' +
+      '<div class="muted" style="font-size:12.5px;margin-top:6px">Rata estimativă: ' +
+      r.data.monthly.toFixed(2) + ' lei/lună × ' + r.data.months + ' luni (' + esc(r.data.org || '') + ')</div></div>';
+  }
 }
 async function loadCreditOffers() {
   const r = await j(API + '/credit/offers');
