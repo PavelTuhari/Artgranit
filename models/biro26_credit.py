@@ -177,6 +177,121 @@ class Biro26Credit:
             {"i": int(plan_id)}))
         return rows[0] if rows else None
 
+    # ── cereri de credit (flux bomba.md) — doua niveluri de integrare ──
+
+    @staticmethod
+    def request_create(d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: cererea din formularul «Solicitati un imprumut»:
+        1) se jurnalizeaza in YBIRO_CREDIT_REQ;
+        2) nivelul de integrare per organizatie (ORG_MODE):
+           'manual' (minim) — notificare magazinului (managerul suna);
+           'api' (maxim)    — cererea se trimite si la API_URL-ul
+                              organizatiei (JSON, best-effort).
+        EN: journal + notify (manual) or forward to the org API (api)."""
+        name = (d.get("client_name") or "").strip()
+        phone = (d.get("phone") or "").strip()
+        if not name or not phone:
+            return {"success": False,
+                    "error": "Numele și telefonul sunt obligatorii"}
+        try:
+            plan_id = int(d.get("plan_id") or 0)
+            qty = max(1, int(d.get("qty") or 1))
+            amount = round(float(d.get("amount") or 0), 2)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "date invalide"}
+        sim = Biro26Credit.calc(amount, plan_id, d.get("months"), 0)
+        if not sim.get("success"):
+            return sim
+        s = sim["data"]
+        p = Biro26Credit.plan_get(plan_id)
+        org_rows = _rows(Biro26DB().execute_query(
+            "SELECT ID, NAME, ORG_MODE, API_URL FROM YBIRO_CREDIT_ORG "
+            "WHERE ID = :i", {"i": int(p["org_id"])}))
+        org = org_rows[0] if org_rows else {}
+        # 1) jurnal
+        r = Biro26DB().execute_dml(
+            "INSERT INTO YBIRO_CREDIT_REQ (ID, ORG_ID, PLAN_ID, MONTHS, "
+            "PRODUCT_COD, PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, "
+            "CLIENT_NAME, PHONE) VALUES (YBIRO_CREDIT_REQ_SEQ.NEXTVAL, "
+            ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph)",
+            {"o": org.get("id"), "p": plan_id, "m": s["months"],
+             "pc": int(d.get("product_cod") or 0) or None,
+             "pn": (d.get("product_name") or "")[:300],
+             "q": qty, "a": amount, "cp": s["credit_price"],
+             "mo": s["monthly"], "cn": name[:200], "ph": phone[:40]})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        # 2a) nivel MAXIM: trimitere la API-ul organizatiei (daca e setat)
+        api_note = ""
+        if org.get("org_mode") == "api" and org.get("api_url"):
+            try:
+                import requests as _rq
+                resp = _rq.post(org["api_url"], timeout=20, json={
+                    "source": "officeplus.md", "client_name": name,
+                    "phone": phone, "product": d.get("product_name"),
+                    "qty": qty, "amount": amount,
+                    "credit_price": s["credit_price"], "plan": s["plan"],
+                    "months": s["months"], "monthly": s["monthly"]})
+                api_note = f"HTTP {resp.status_code}"
+                Biro26DB().execute_dml(
+                    "UPDATE YBIRO_CREDIT_REQ SET API_SENT = '1', "
+                    "API_RESULT = :r WHERE ID = "
+                    "(SELECT MAX(ID) FROM YBIRO_CREDIT_REQ)",
+                    {"r": api_note[:400]})
+            except Exception as e:
+                api_note = f"api error: {e}"
+        # 2b) nivel MINIM (mereu): notificare magazinului
+        try:
+            import threading
+            from models.biro26_notify import Biro26Notify
+
+            def _notify():
+                try:
+                    Biro26Notify.send_all(
+                        f"Cerere credit/rate — {name}",
+                        f"💳 Cerere NOUĂ de credit/rate ({org.get('name')})\n"
+                        f"Client: {name} · tel. {phone}\n"
+                        f"Produs: {d.get('product_name')} × {qty}\n"
+                        f"Preț: {amount:.2f} → la credit {s['credit_price']:.2f} lei\n"
+                        f"Pachet: {s['plan']} · {s['months']} luni · "
+                        f"rata {s['monthly']:.2f} lei/lună"
+                        + (f"\nAPI: {api_note}" if api_note else ""))
+                except Exception:
+                    pass
+
+            threading.Thread(target=_notify, daemon=True).start()
+        except Exception:
+            pass
+        return {"success": True, "data": {"monthly": s["monthly"],
+                                          "months": s["months"],
+                                          "org": org.get("name")}}
+
+    @staticmethod
+    def requests_list(limit: int = 50) -> Dict[str, Any]:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT * FROM (SELECT r.ID, o.NAME ORG_NAME, r.PRODUCT_NAME, "
+                "r.QTY, r.AMOUNT, r.CREDIT_PRICE, r.MONTHS, r.MONTHLY, "
+                "r.CLIENT_NAME, r.PHONE, r.STATUS, r.API_SENT, r.API_RESULT, "
+                "TO_CHAR(r.CREATED,'DD.MM.YYYY HH24:MI') CREATED "
+                "FROM YBIRO_CREDIT_REQ r "
+                "LEFT JOIN YBIRO_CREDIT_ORG o ON o.ID = r.ORG_ID "
+                "ORDER BY r.ID DESC) WHERE ROWNUM <= :n",
+                {"n": max(1, min(int(limit), 500))}))
+            return {"success": True, "data": rows}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def request_status(req_id: int, status: str) -> Dict[str, Any]:
+        if status not in ("NEW", "PROCESSED"):
+            status = "PROCESSED"
+        r = Biro26DB().execute_dml(
+            "UPDATE YBIRO_CREDIT_REQ SET STATUS = :s WHERE ID = :i",
+            {"s": status, "i": int(req_id)})
+        return ({"success": True} if r.get("success")
+                else {"success": False, "error": r.get("message")})
+
     @staticmethod
     def calc(amount: float, plan_id: int, months: Optional[int] = None,
              avans: float = 0) -> Dict[str, Any]:
