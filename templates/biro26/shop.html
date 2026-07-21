@@ -298,15 +298,16 @@ td.num,th.num{text-align:right}
         <option value="credit">💳 Credit / rate · Кредит / рассрочка</option>
       </select>
     </div>
+    <!-- RO: tabel de oferte cu placi, ca la bomba.md (nu dropdown)
+         EN: bomba.md-style tile table instead of a dropdown -->
     <div id="credit-box" style="display:none;margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <select id="credit-plan" onchange="creditUI()" style="padding:6px;border:1px solid #c7d2fe;border-radius:6px;font-size:12.5px"></select>
-        <span id="credit-months-box" style="display:none;font-size:12.5px">Luni · Месяцев:
-          <input id="credit-months" type="number" style="width:60px;padding:5px;border:1px solid #c7d2fe;border-radius:6px" onchange="creditUI()"></span>
+      <div style="font-size:13px;font-weight:600;margin-bottom:2px">Alege oferta potrivită · Выберите вариант</div>
+      <div class="crtiles" id="cart-crtiles"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span style="font-size:12.5px">Avans · Аванс (lei):
           <input id="credit-avans" type="number" value="0" min="0" style="width:90px;padding:5px;border:1px solid #c7d2fe;border-radius:6px" onchange="creditUI()"></span>
+        <div id="credit-sim" style="font-size:13px;flex:1;min-width:240px"></div>
       </div>
-      <div id="credit-sim" style="margin-top:8px;font-size:13px"></div>
       <div class="muted" style="font-size:11.5px;margin-top:4px">La achitarea în credit prețurile se majorează cu comisionul pachetului; calcul estimativ — oferta fermă aparține organizației de creditare. · При оплате в кредит цены увеличиваются на комиссию пакета; расчёт ориентировочный.</div>
     </div>
     <!-- RO: modul TVA al contului de plata (se aplica pe formularul PDF)
