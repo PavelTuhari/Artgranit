@@ -349,6 +349,19 @@ async function j(url, opts) {
 }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* RO: "Pret oferta in rate" (Liber Card MAIB) — afisat sub pretul
+   standard la produsele de la LIBER_MIN lei; +LIBER_PCT% aplicat
+   silentios (fara mentiuni de adaos). EN: silent installment-offer price
+   shown under the standard price. */
+const LIBER_PCT = {{ liber_pct|default(5) }};
+const LIBER_MIN = {{ liber_min|default(100) }};
+function liberLine(price, small) {
+  if (!price || price < LIBER_MIN) return '';
+  const v = (price * (1 + LIBER_PCT / 100)).toFixed(2);
+  return '<div style="font-size:' + (small ? '11px' : '13px') + ';color:#0369a1;margin-top:2px">' +
+    'Preț ofertă în rate · Цена в рассрочку: <b>' + v + ' LEI</b></div>';
+}
+
 /* RO: interfata e bilingva RO+RU peste tot; la produse a doua limba vine
    din TMS_UNIVERS: DENUMIREA = RO, NAMERUS = RU (cind difera).
    EN: the UI is bilingual RO+RU everywhere; the product's second language
