@@ -252,7 +252,8 @@ class Biro26Credit:
                         f"💳 Cerere NOUĂ de credit/rate ({org.get('name')})\n"
                         f"Client: {name} · tel. {phone}\n"
                         f"Produs: {d.get('product_name')} × {qty}\n"
-                        f"Preț: {amount:.2f} → la credit {s['credit_price']:.2f} lei\n"
+                        f"Preț standard: {amount:.2f} lei\n"
+                        f"Preț în rate: {s['credit_price']:.2f} lei\n"
                         f"Pachet: {s['plan']} · {s['months']} luni · "
                         f"rata {s['monthly']:.2f} lei/lună"
                         + (f"\nAPI: {api_note}" if api_note else ""))
