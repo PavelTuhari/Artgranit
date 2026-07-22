@@ -944,8 +944,19 @@ class Biro26Controller:
     def shop_me() -> Dict[str, Any]:
         from flask import session
         c = session.get("biro26_client")
+        if not c:
+            return {"success": True, "data": None}
+        # RO: telefonul e necesar cererii de credit din cos
+        # EN: the phone feeds the cart's credit-request button
+        phone = ""
+        try:
+            r = Biro26Store.shop_client_by_email(c["email"])
+            phone = (r.get("data") or {}).get("phone") or ""
+        except Exception:
+            pass
         return {"success": True,
-                "data": {"name": c["name"], "email": c["email"]} if c else None}
+                "data": {"name": c["name"], "email": c["email"],
+                         "phone": phone}}
 
     @staticmethod
     def shop_invoice() -> Dict[str, Any]:
