@@ -948,6 +948,9 @@ function renderCreditModal() {
       (p.image ? '<img src="' + esc(p.image) + '" referrerpolicy="no-referrer" style="width:100%;max-height:150px;object-fit:contain;background:#f1f5f9;border-radius:8px">' : '') +
       '<div style="font-size:13px;margin:6px 0">' + esc(p.denumirea || '') + '</div>' +
       '<div style="font-size:12.5px;color:#64748b">Preț · Цена: <b style="color:#111827">' + base.toFixed(2) + ' lei</b></div>' +
+      // RO: pretul in RATE — albastru, scris mai mare (+LIBER_PCT% impartit egal)
+      '<div style="font-size:17px;color:#1d4ed8;font-weight:800;margin:2px 0">Preț în rate · Цена в рассрочку: ' +
+        (base * (1 + LIBER_PCT / 100)).toFixed(2) + ' lei</div>' +
       '<div style="display:flex;gap:8px;align-items:center;margin:8px 0">' +
         '<button class="btn gray" onclick="crQty(-1)">−</button><b>' + CR.qty + '</b>' +
         '<button class="btn gray" onclick="crQty(1)">+</button>' +
