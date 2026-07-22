@@ -1088,6 +1088,21 @@ async function creditUI() {
 }
 function cartCrPick(i) { cartCR.tile = i; creditUI(); }
 
+/* RO: cererea de credit EasyCredit din cos (dupa crearea contului in
+   credit) — pleaca cu numarul contului; magazinul primeste notificarea
+   cu cererea + contul de plata. EN: cart-side EasyCredit credit request. */
+let cartCreditCtx = null;
+async function sendCartCreditReq() {
+  if (!cartCreditCtx) return;
+  const c = cartCreditCtx;
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: c.plan_id, months: c.months, qty: 1, amount: c.amount,
+    product_cod: c.cod,
+    product_name: 'Cont de plată Nr. ' + c.nrset + ' (COD ' + c.cod + ')',
+    client_name: (me && me.name) || 'client', phone: (me && me.phone) || ''})});
+  if (r.success) toast('📝 Cererea de credit a fost trimisă — veți fi contactat · Кредитная заявка отправлена');
+}
+
 /* ── RO: plata online — MIA (QR instant) si MAIB (card, redirect) ──
    ── EN: online payment — MIA (instant QR) and MAIB (card redirect) ── */
 let PAY = {enabled: false, methods: []};
