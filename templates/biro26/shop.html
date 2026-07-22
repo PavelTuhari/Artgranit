@@ -865,6 +865,18 @@ async function makeInvoice() {
       if (PAY.methods.includes('miap2p'))
         payBtns += '<button class="btn gray" onclick="payMiaP2P(' + r.data.cod + ')">📲 Transfer MIA la telefon · Перевод MIA</button>';
     }
+    // RO: la PROCURAREA IN CREDIT — doua butoane dedicate: (1) cererea de
+    //     credit EasyCredit (notificare cu cererea + contul de plata) si
+    //     (2) achitarea in rate cu Liber Card MAIB (notificare la plata).
+    // EN: credit purchases get the EasyCredit request button and the
+    //     Liber Card MAIB payment button, both with store notifications.
+    if (body.credit_plan_id) {
+      cartCreditCtx = {plan_id: body.credit_plan_id, months: body.credit_months,
+                       amount: cartTotalForCredit(), nrset: r.data.nrset, cod: r.data.cod};
+      payBtns += '<button class="btn" style="background:#111827" onclick="sendCartCreditReq()">📝 Cerere de credit EasyCredit · Кредитная заявка</button>';
+      if (PAY.methods.includes('maib'))
+        payBtns += '<button class="btn" style="background:#f59e0b;color:#111827" onclick="payMaib(' + r.data.cod + ')">💳 Liber Card (MAIB) în rate · Рассрочка Liber</button>';
+    }
     document.getElementById('inv-result').innerHTML =
       '<div class="ok-box">✅ Cont de plată creat · Счёт на оплату создан:<br>' +
       '<b>Nr. ' + r.data.nrset + '</b> (document COD ' + r.data.cod + ')<br>' +
