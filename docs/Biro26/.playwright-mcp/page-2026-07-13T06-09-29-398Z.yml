@@ -1,0 +1,164 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - link [ref=e9] [cursor=pointer]:
+            - /url: https://officeplus.md/
+            - img "OfficePlus" [ref=e10]
+          - paragraph [ref=e12]:
+            - link "OfficePlus" [ref=e13] [cursor=pointer]:
+              - /url: https://officeplus.md
+        - navigation [ref=e15]:
+          - list [ref=e20]:
+            - listitem [ref=e21]:
+              - link "Termeni și condiții" [ref=e22] [cursor=pointer]:
+                - /url: https://officeplus.md/termeni-si-conditii/
+            - listitem [ref=e23]:
+              - link "Politica de confidențialitate" [ref=e24] [cursor=pointer]:
+                - /url: https://officeplus.md/politica-de-confidentialitate/
+            - listitem [ref=e25]:
+              - link "Retur produse" [ref=e26] [cursor=pointer]:
+                - /url: https://officeplus.md/retur-produse/
+            - listitem [ref=e27]:
+              - link "Metode de plată" [ref=e28] [cursor=pointer]:
+                - /url: https://officeplus.md/metode-de-plata/
+    - main [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - heading "A commitment to innovation and sustainability" [level=1] [ref=e32]
+          - paragraph [ref=e34]: Études is a pioneering firm that seamlessly merges creativity and functionality to redefine architectural excellence.
+          - generic [ref=e36]: About us
+        - figure [ref=e40]:
+          - img "Building exterior in Toronto, Canada" [ref=e41]
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - heading "A passion for creating spaces" [level=2] [ref=e44]
+          - paragraph [ref=e45]: Our comprehensive suite of professional services caters to a diverse clientele, ranging from homeowners to commercial developers.
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - heading "Renovation and restoration" [level=3] [ref=e49]
+            - paragraph [ref=e50]: Experience the fusion of imagination and expertise with Études Architectural Solutions.
+          - generic [ref=e51]:
+            - heading "Continuous Support" [level=3] [ref=e52]
+            - paragraph [ref=e53]: Experience the fusion of imagination and expertise with Études Architectural Solutions.
+          - generic [ref=e54]:
+            - heading "App Access" [level=3] [ref=e55]
+            - paragraph [ref=e56]: Experience the fusion of imagination and expertise with Études Architectural Solutions.
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - heading "Consulting" [level=3] [ref=e60]
+            - paragraph [ref=e61]: Experience the fusion of imagination and expertise with Études Architectural Solutions.
+          - generic [ref=e62]:
+            - heading "Project Management" [level=3] [ref=e63]
+            - paragraph [ref=e64]: Experience the fusion of imagination and expertise with Études Architectural Solutions.
+          - generic [ref=e65]:
+            - heading "Architectural Solutions" [level=3] [ref=e66]
+            - paragraph [ref=e67]: Experience the fusion of imagination and expertise with Études Architectural Solutions.
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - heading "An array of resources" [level=2] [ref=e71]
+          - paragraph [ref=e72]: Our comprehensive suite of professional services caters to a diverse clientele, ranging from homeowners to commercial developers.
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - heading "Études Architect App" [level=3] [ref=e76]
+            - list [ref=e77]:
+              - listitem [ref=e78]: Collaborate with fellow architects.
+              - listitem [ref=e79]: Showcase your projects.
+              - listitem [ref=e80]: Experience the world of architecture.
+          - figure [ref=e82]:
+            - img "Tourist taking photo of a building" [ref=e83]
+        - generic [ref=e85]:
+          - figure [ref=e87]:
+            - img "Windows of a building in Nuremberg, Germany" [ref=e88]
+          - generic [ref=e89]:
+            - heading "Études Newsletter" [level=3] [ref=e90]
+            - list [ref=e91]:
+              - listitem [ref=e92]: A world of thought-provoking articles.
+              - listitem [ref=e93]: Case studies that celebrate architecture.
+              - listitem [ref=e94]: Exclusive access to design insights.
+      - generic [ref=e96]:
+        - paragraph [ref=e97]:
+          - emphasis [ref=e98]: “Études has saved us thousands of hours of work and has unlocked insights we never thought possible.”
+        - generic [ref=e100]:
+          - paragraph [ref=e101]: Annie Steiner
+          - paragraph [ref=e102]: CEO, Greenprint
+      - generic [ref=e103]:
+        - heading "Watch, Read, Listen" [level=2] [ref=e104]
+        - list [ref=e107]:
+          - listitem [ref=e108]:
+            - separator [ref=e109]
+            - generic [ref=e110]:
+              - heading [level=2] [ref=e112]:
+                - link "Hello world!" [ref=e113] [cursor=pointer]:
+                  - /url: https://officeplus.md/2026/07/11/hello-world/
+              - generic [ref=e117]:
+                - link [ref=e119] [cursor=pointer]:
+                  - /url: https://officeplus.md/2026/07/11/hello-world/
+                  - time [ref=e120]: Jul 11, 2026
+                - paragraph [ref=e121]: —
+                - paragraph [ref=e122]: by
+                - link "officeplus" [ref=e124] [cursor=pointer]:
+                  - /url: https://officeplus.md/author/officeplus/
+                - generic [ref=e125]:
+                  - text: in
+                  - link "Uncategorized" [ref=e126] [cursor=pointer]:
+                    - /url: https://officeplus.md/category/uncategorized/
+      - generic [ref=e129]:
+        - heading "Join 900+ subscribers" [level=2] [ref=e131]
+        - paragraph [ref=e132]: Stay in the loop with everything you need to know.
+        - generic [ref=e133]: Sign up
+    - contentinfo [ref=e137]:
+      - generic [ref=e140]:
+        - generic [ref=e142]:
+          - link [ref=e144] [cursor=pointer]:
+            - /url: https://officeplus.md/
+            - img "OfficePlus" [ref=e145]
+          - paragraph [ref=e146]:
+            - strong [ref=e147]:
+              - link "OFFICE PLUS" [ref=e148] [cursor=pointer]:
+                - /url: https://officeplus.md/
+          - paragraph [ref=e149]:
+            - strong [ref=e150]: © 2026 GRECU OFFICE PLUS SRLToate drepturile rezervate.
+        - generic [ref=e152]:
+          - generic [ref=e155]:
+            - heading "COMPANIE" [level=2] [ref=e156]
+            - navigation "About" [ref=e159]:
+              - list "About" [ref=e160]:
+                - listitem [ref=e161]:
+                  - link "Despre noi" [ref=e162] [cursor=pointer]:
+                    - /url: https://officeplus.md/despre-noi/
+                - listitem [ref=e163]:
+                  - link "Contacte" [ref=e164] [cursor=pointer]:
+                    - /url: https://officeplus.md/contacte/
+                - listitem [ref=e165]:
+                  - link "Livrare" [ref=e166] [cursor=pointer]:
+                    - /url: https://officeplus.md/livrare/
+          - generic [ref=e167]:
+            - heading "INFORMAȚII" [level=2] [ref=e168]
+            - navigation "Privacy" [ref=e169]:
+              - list "Privacy" [ref=e170]:
+                - listitem [ref=e171]:
+                  - link "Termeni și condiții" [ref=e172] [cursor=pointer]:
+                    - /url: https://officeplus.md/termeni-si-conditii/
+                - listitem [ref=e173]:
+                  - link "Politica de confidențialitate" [ref=e174] [cursor=pointer]:
+                    - /url: https://officeplus.md/politica-de-confidentialitate/
+                - listitem [ref=e175]:
+                  - link "Retur produse" [ref=e176] [cursor=pointer]:
+                    - /url: https://officeplus.md/retur-produse/
+                - listitem [ref=e177]:
+                  - link "Metode de plată" [ref=e178] [cursor=pointer]:
+                    - /url: https://officeplus.md/metode-de-plata/
+          - generic [ref=e179]:
+            - heading "CONTACT" [level=2] [ref=e180]
+            - navigation "Social Media" [ref=e181]:
+              - list "Social Media" [ref=e182]:
+                - listitem [ref=e183]:
+                  - link [ref=e184] [cursor=pointer]:
+                    - /url: "#"
+                    - generic [ref=e185]:
+                      - img "📍" [ref=e186]
+                      - text: mun. Bălți, str. Libertății 96, of.1☎ +373 620 07 211✉ officeplussrl@gmail.com

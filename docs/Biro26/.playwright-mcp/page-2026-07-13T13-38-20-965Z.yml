@@ -1,0 +1,88 @@
+- generic [active] [ref=f3e1]:
+  - link "Skip to content" [ref=f3e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=f3e3]:
+    - main [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - iframe [ref=f3e7]:
+          - generic [ref=f4e1]:
+            - generic [ref=f4e2]:
+              - generic [ref=f4e3]: OfficePlus · Magazin
+              - link "Catalog" [ref=f4e4] [cursor=pointer]:
+                - /url: "?"
+              - link "Despre noi" [ref=f4e5] [cursor=pointer]:
+                - /url: "?info=despre-noi"
+              - link "Contacte" [ref=f4e6] [cursor=pointer]:
+                - /url: "?info=contacte"
+              - link "Livrare" [ref=f4e7] [cursor=pointer]:
+                - /url: "?info=livrare"
+              - link "Retur produse" [ref=f4e8] [cursor=pointer]:
+                - /url: "?info=retur-produse"
+              - button "Intrare / Înregistrare" [ref=f4e9] [cursor=pointer]
+              - button "🛒 Coș 0" [ref=f4e10] [cursor=pointer]
+            - main [ref=f4e13]:
+              - generic [ref=f4e14]:
+                - button "☰ Filtre" [ref=f4e15] [cursor=pointer]
+                - 'textbox "Căutare: denumire / articol / cod de bare · Поиск: название / артикул / штрихкод" [ref=f4e16]'
+        - paragraph
+    - contentinfo [ref=f3e8]:
+      - generic [ref=f3e11]:
+        - generic [ref=f3e13]:
+          - link [ref=f3e15] [cursor=pointer]:
+            - /url: https://officeplus.md/
+            - img "OfficePlus" [ref=f3e16]
+          - paragraph [ref=f3e17]:
+            - strong [ref=f3e18]:
+              - link "OFFICE PLUS" [ref=f3e19] [cursor=pointer]:
+                - /url: https://officeplus.md/
+          - paragraph [ref=f3e20]:
+            - strong [ref=f3e21]:
+              - emphasis [ref=f3e22]: Totul de ce ai nevoie într-un singur loc!
+          - paragraph [ref=f3e23]:
+            - strong [ref=f3e24]: © 2026 GRECU OFFICE PLUS SRLToate drepturile rezervate.
+        - generic [ref=f3e26]:
+          - generic [ref=f3e29]:
+            - heading [level=2] [ref=f3e30]:
+              - strong [ref=f3e31]:
+                - emphasis [ref=f3e32]: COMPANIE
+            - navigation "About" [ref=f3e35]:
+              - list "About" [ref=f3e36]:
+                - listitem [ref=f3e37]:
+                  - link "Despre noi" [ref=f3e38] [cursor=pointer]:
+                    - /url: https://officeplus.md/despre-noi/
+                - listitem [ref=f3e39]:
+                  - link "Contacte" [ref=f3e40] [cursor=pointer]:
+                    - /url: https://officeplus.md/contacte/
+                - listitem [ref=f3e41]:
+                  - link "Livrare" [ref=f3e42] [cursor=pointer]:
+                    - /url: https://officeplus.md/livrare/
+          - generic [ref=f3e43]:
+            - heading [level=2] [ref=f3e44]:
+              - emphasis [ref=f3e45]:
+                - strong [ref=f3e46]: INFORMAȚII
+            - navigation "Privacy" [ref=f3e47]:
+              - list "Privacy" [ref=f3e48]:
+                - listitem [ref=f3e49]:
+                  - link "Termeni și condiții" [ref=f3e50] [cursor=pointer]:
+                    - /url: https://officeplus.md/termeni-si-conditii/
+                - listitem [ref=f3e51]:
+                  - link "Politica de confidențialitate" [ref=f3e52] [cursor=pointer]:
+                    - /url: https://officeplus.md/politica-de-confidentialitate/
+                - listitem [ref=f3e53]:
+                  - link "Retur produse" [ref=f3e54] [cursor=pointer]:
+                    - /url: https://officeplus.md/retur-produse/
+                - listitem [ref=f3e55]:
+                  - link "Metode de plată" [ref=f3e56] [cursor=pointer]:
+                    - /url: https://officeplus.md/metode-de-plata/
+          - generic [ref=f3e57]:
+            - heading [level=6] [ref=f3e58]:
+              - strong [ref=f3e59]:
+                - emphasis [ref=f3e60]: CONTACTE
+            - navigation "Social Media" [ref=f3e61]:
+              - list "Social Media" [ref=f3e62]:
+                - listitem [ref=f3e63]:
+                  - link [ref=f3e64] [cursor=pointer]:
+                    - /url: https://www.facebook.com/profile.php?id=61585553883926
+                    - generic [ref=f3e65]:
+                      - img "📍" [ref=f3e66]
+                      - text: mun. Bălți, str. Libertății 96, of.1☎ +373 620 07 211✉ officeplussrl@gmail.com

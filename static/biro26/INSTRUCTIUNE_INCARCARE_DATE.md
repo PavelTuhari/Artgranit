@@ -66,8 +66,18 @@ Sistemul recunoaște coloanele automat, după numele din antet (română / rusă
 | „Fără articol" pentru toate rândurile | Fișierul n-are coloana Articol | Re-exportă fișierul cu coloana Articol |
 | Multe „Ambigue" | Un articol duce la mai multe produse (variante/duplicate) | Se sar automat; rezolvă duplicatele separat |
 | Prețul afișat = ANGRO, nu retail | Coloana retail neclară sau articol ambiguu | Verifică antetul „Retail"; pentru ambigue — dedup |
-| Apar „?" în denumiri | Diacritice românești (baza nu are ș/ț) | Sistemul le convertește automat (s/t); re-încarcă |
+| Apar „?" în denumiri | Baza nu acceptă ș/ț/ă și nici ×, ², ‑ | Sistemul le convertește automat; cazurile vechi se descarcă din **Servicii → Carduri problematice** |
 | Categoriile noi nu apar în arbore | Produsele nu erau în tabelul-feed | Rezolvat — importul scrie automat în `BIRO26_GOODS` |
+
+## 6a. Modul „Servicii" (funcții de întreținere)
+
+Tab **Servicii** în back-office — listă dinamică de operațiuni de întreținere.
+Prima funcție: **„Carduri de marfă problematice"** — descarcă în CSV mărfurile al căror text a
+fost stricat de codificarea bazei (`car?i`, `?coala`) și care **nu** au putut fi reparate
+automat. Corectează-le manual sau cere furnizorului fișierul original și reîncarcă-l.
+
+> Lista se extinde fără programare: o funcție nouă = o înregistrare în `YBIRO_SERVICE_FUNCTIONS`
+> (detalii: `DIACRITICE_SI_SERVICII.md` §5).
 
 ## 7. După import — verificare
 

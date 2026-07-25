@@ -318,6 +318,10 @@ părți**. Un `?` la final de cuvânt/frază e semn de întrebare real („Кт�
 
 Curăță și **`BIRO26PT_RAW`** — altfel un re-import al unui `load_id` vechi readuce `?` în producție.
 
+📌 **Algoritmii Python completi** (cp1251_safe + cele 4 valuri de reparare + garda pentru
+URL-uri), **triggerul de protecție** `YBIRO_UNIVERS_CHK_DIACRITICE` și **modul „Servicii"**
+din back-office: vezi `DIACRITICE_SI_SERVICII.md`; scripturi rulabile în `scripts/diacritics/`.
+
 ---
 
 ## 10. Cum adaptezi motorul la o SCHEMĂ NOUĂ (checklist)

@@ -1,0 +1,64 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e3]:
+    - main [ref=e4]:
+      - heading "Интернет-магазин" [level=1] [ref=e7]
+      - generic [ref=e9]:
+        - iframe [ref=e11]: <br />:
+          - generic [ref=f1e3]:
+            - strong [ref=f1e4]: biro26.ru
+            - text: ’s server IP address could not be found.
+        - paragraph [ref=e12]:
+          - link "Открыть магазин в новом окне →" [ref=e13] [cursor=pointer]:
+            - /url: https://biro26.ru/
+    - contentinfo [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - paragraph [ref=e19]:
+            - link "OfficePlus" [ref=e20] [cursor=pointer]:
+              - /url: https://officeplus.md
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - heading "About" [level=2] [ref=e25]
+              - navigation "About" [ref=e27]:
+                - list "About" [ref=e28]:
+                  - listitem [ref=e29]:
+                    - link "Team" [ref=e30] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e31]:
+                    - link "History" [ref=e32] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e33]:
+                    - link "Careers" [ref=e34] [cursor=pointer]:
+                      - /url: "#"
+            - generic [ref=e35]:
+              - heading "Privacy" [level=2] [ref=e36]
+              - navigation "Privacy" [ref=e38]:
+                - list "Privacy" [ref=e39]:
+                  - listitem [ref=e40]:
+                    - link "Privacy Policy" [ref=e41] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e42]:
+                    - link "Terms and Conditions" [ref=e43] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e44]:
+                    - link "Contact Us" [ref=e45] [cursor=pointer]:
+                      - /url: "#"
+            - generic [ref=e46]:
+              - heading "Social" [level=2] [ref=e47]
+              - navigation "Social Media" [ref=e49]:
+                - list "Social Media" [ref=e50]:
+                  - listitem [ref=e51]:
+                    - link "Facebook" [ref=e52] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e53]:
+                    - link "Instagram" [ref=e54] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e55]:
+                    - link "Twitter/X" [ref=e56] [cursor=pointer]:
+                      - /url: "#"
+        - paragraph [ref=e58]:
+          - text: Designed with
+          - link "WordPress" [ref=e59] [cursor=pointer]:
+            - /url: https://wordpress.org

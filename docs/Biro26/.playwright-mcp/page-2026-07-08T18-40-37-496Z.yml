@@ -1,0 +1,47 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - heading "Artgranit OCI" [level=1] [ref=e4]
+    - paragraph [ref=e5]: Oracle SQL Developer · Dashboard · Nufarul (химчистка) · Кредиты · DIGI SM · Документация
+    - paragraph [ref=e6]: Login to system
+  - combobox [ref=e8]:
+    - option "Русский"
+    - option "Română"
+    - option "English" [selected]
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]: Username
+      - textbox "Username" [ref=e12]: ADMIN
+    - generic [ref=e13]:
+      - generic [ref=e14]: Password
+      - textbox "Password" [ref=e15]: ArtG2025UNAmd##
+    - generic [ref=e16]:
+      - generic [ref=e17]: Проект / раздел
+      - combobox "Проект / раздел" [ref=e18]:
+        - option "— По ссылке (не менять) —"
+        - option "SQL Developer" [selected]
+        - option "Dashboard"
+        - option "Документация"
+        - option "Nufarul — ТЗ и материалы"
+        - option "Nufarul — уточнение задач (docs_jpg)"
+        - option "Nufarul — ТЗ (TZ.html)"
+        - option "Nufarul — админка"
+        - option "Nufarul — оператор (приём заказов)"
+        - option "Кредиты — админка"
+        - option "Кредиты — оператор"
+        - option "Кредиты — портфолио Bomba"
+        - option "Кредиты — EasyCredit"
+        - option "Кредиты — Iute"
+        - option "DIGI SM — управление весами"
+        - option "AEÎ — Главная (депозиты и кредиты)"
+        - option "AEÎ — Администратор"
+        - option "AEÎ — Оператор кредитов"
+        - option "AEÎ — Бэкофис & BI"
+        - option "AEÎ — ТЗ / Документация"
+      - paragraph [ref=e19]: Выберите раздел — путь подставится ниже. Можно ввести свой.
+    - generic [ref=e20]:
+      - generic [ref=e21]: Перейти после входа
+      - textbox "Перейти после входа" [ref=e22]:
+        - /placeholder: /UNA.md/orasldev/docs/nufarul/docs_jpg/
+        - text: /UNA.md/orasldev/biro26-report-templates?
+      - paragraph [ref=e23]: Заполняется из ссылки или из списка выше. Пусто — откроется SQL Developer.
+    - button "Login" [ref=e24] [cursor=pointer]

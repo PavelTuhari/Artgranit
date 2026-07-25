@@ -300,3 +300,22 @@ VALUES(:load_id,:field,:col_idx,'MANUAL',1);
 `FURNIZOR` (поставщик/производитель) — в дополнение к `ARTICOL/DENUMIRE/ANGRO/ONLINE/RETAIL/BARCODE/VAT/URL`.
 Пакет `do_writes` пишет и в `BIRO26_GOODS` (источник дерева/магазина), и в список цен, и ставит
 `DEP_PRODUCER`, и создаёт узлы дерева по `GRUPA > CATEGORIE`.
+
+---
+
+## 14. Модуль «Сервисные функции» (динамический реестр)
+
+Вкладка **Servicii** в back-office. Список функций **не в коде** — читается из таблицы
+`YBIRO_SERVICE_FUNCTIONS` (новая функция = один `INSERT`, без правки кода и без деплоя).
+
+| Endpoint | Назначение |
+|---|---|
+| `GET /api/biro26/services?lang=ro` | список функций (name/descr на RO/RU/EN) |
+| `GET /api/biro26/services/<code>/count` | сколько строк вернёт функция |
+| `GET /api/biro26/services/<code>/csv` | скачать CSV (`;` + BOM, Excel RO/RU) |
+
+Безопасность: выполняются **только** `SELECT`-запросы из реестра (админятся в БД), проверка
+регулярками `_SELECT_ONLY` / `_FORBIDDEN`; все эндпоинты требуют аутентификации.
+
+Первая функция — `problem_cards`: выгрузка товаров с испорченным кодировкой текстом
+(view `YBIRO_V_PROBLEM_CARDS`). Подробности и алгоритмы — `DIACRITICE_SI_SERVICII.md`.

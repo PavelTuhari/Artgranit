@@ -1,0 +1,83 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e3]:
+    - main [ref=e4]:
+      - generic [ref=e5]:
+        - iframe [ref=e7]:
+          - generic [ref=f1e1]:
+            - generic [ref=f1e2]:
+              - generic [ref=f1e3]: OfficePlus · Magazin
+              - button "Intrare / Înregistrare" [ref=f1e4] [cursor=pointer]
+              - button "🛒 Coș 0" [ref=f1e5] [cursor=pointer]
+            - generic [ref=f1e7]:
+              - complementary [ref=f1e8]:
+                - generic [ref=f1e9] [cursor=pointer]: 🆕 Produse noi · Новинки
+                - heading "Categorii · Категории" [level=4] [ref=f1e10]
+                - generic [ref=f1e11]: …
+                - heading "Preț (LEI) · Цена" [level=4] [ref=f1e12]
+                - generic [ref=f1e13]:
+                  - spinbutton "Min" [ref=f1e14]
+                  - generic [ref=f1e15]: –
+                  - spinbutton "Max" [ref=f1e16]
+                  - button "OK" [ref=f1e17] [cursor=pointer]
+                - generic [ref=f1e18] [cursor=pointer]: ✕ Resetează filtrele · Сбросить фильтры
+              - main [ref=f1e19]:
+                - 'textbox "Căutare: denumire / articol / cod de bare · Поиск: название / артикул / штрихкод" [ref=f1e21]'
+                - button "Mai multe · Ещё" [ref=f1e22] [cursor=pointer]
+        - paragraph [ref=e8]:
+          - link "Открыть магазин в новом окне →" [ref=e9] [cursor=pointer]:
+            - /url: /biro26-shop
+          - text: ·
+          - link "Back Office" [ref=e10] [cursor=pointer]:
+            - /url: /biro26-backoffice
+    - contentinfo [ref=e11]:
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - paragraph [ref=e16]:
+            - link "OfficePlus" [ref=e17] [cursor=pointer]:
+              - /url: https://officeplus.md
+          - generic [ref=e20]:
+            - generic [ref=e21]:
+              - heading "About" [level=2] [ref=e22]
+              - navigation "About" [ref=e24]:
+                - list "About" [ref=e25]:
+                  - listitem [ref=e26]:
+                    - link "Team" [ref=e27] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e28]:
+                    - link "History" [ref=e29] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e30]:
+                    - link "Careers" [ref=e31] [cursor=pointer]:
+                      - /url: "#"
+            - generic [ref=e32]:
+              - heading "Privacy" [level=2] [ref=e33]
+              - navigation "Privacy" [ref=e35]:
+                - list "Privacy" [ref=e36]:
+                  - listitem [ref=e37]:
+                    - link "Privacy Policy" [ref=e38] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e39]:
+                    - link "Terms and Conditions" [ref=e40] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e41]:
+                    - link "Contact Us" [ref=e42] [cursor=pointer]:
+                      - /url: "#"
+            - generic [ref=e43]:
+              - heading "Social" [level=2] [ref=e44]
+              - navigation "Social Media" [ref=e46]:
+                - list "Social Media" [ref=e47]:
+                  - listitem [ref=e48]:
+                    - link "Facebook" [ref=e49] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e50]:
+                    - link "Instagram" [ref=e51] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e52]:
+                    - link "Twitter/X" [ref=e53] [cursor=pointer]:
+                      - /url: "#"
+        - paragraph [ref=e55]:
+          - text: Designed with
+          - link "WordPress" [ref=e56] [cursor=pointer]:
+            - /url: https://wordpress.org

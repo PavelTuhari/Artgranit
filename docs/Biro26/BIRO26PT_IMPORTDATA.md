@@ -231,3 +231,5 @@ SELECT BIRO26PT_importData.algo_md FROM dual;
 - Переиспользуемый импорт: `YBIRO_Import_Marfa.pkg.sql` (`IMPORT_TMS_UNIVERS.md`).
 - Модель данных: `USING_GROUPED_RESULTS_FOR_PROD_DB.md`, `BIRO26_VARIANTS_IMPLEMENTATION.md`.
 - Дедупликация: `BIRO26_DEDUP.md`.
+- Диакритика (алгоритмы Python), триггер-защита `YBIRO_UNIVERS_CHK_DIACRITICE`,
+  сервисный режим админки: `DIACRITICE_SI_SERVICII.md`, скрипты — `scripts/diacritics/`.

@@ -1,0 +1,447 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#wp--skip-link--target"
+  - generic [ref=e3]:
+    - main [ref=e4]:
+      - iframe [ref=e7]:
+        - generic [ref=f1e1]:
+          - button "Schimbă tema" [ref=f1e2] [cursor=pointer]: ◐ temă
+          - generic [ref=f1e4]:
+            - paragraph [ref=f1e5]: Biro26 · OfficePlus · Import date
+            - heading "Regulile fișierelor de import și ce operațiuni execută deja logica" [level=1] [ref=f1e6]
+            - paragraph [ref=f1e7]: "Un ghid scurt pentru operatori: ce trebuie să conțină un fișier ca să poată fi importat corect, cum sunt recunoscute coloanele, și ce face automat motorul de import în baza de date de producție."
+            - generic [ref=f1e8]:
+              - generic [ref=f1e9]: "Pachet: BIRO26PT_importData"
+              - generic [ref=f1e10]: "Formate: .xlsx · .xls · .csv"
+              - generic [ref=f1e11]: "Regim implicit: dry-run (analiză, fără scriere)"
+            - generic [ref=f1e12]:
+              - generic [ref=f1e13]:
+                - generic [ref=f1e14]: Fișier
+                - heading "Cum trebuie să arate fișierul" [level=2] [ref=f1e15]
+              - paragraph [ref=f1e16]: "Motorul nu are nevoie de o structură fixă — el citește antetul (primul rând) și recunoaște coloanele după nume, în română, rusă sau engleză. Reguli de bază:"
+              - generic [ref=f1e17]:
+                - generic [ref=f1e18]:
+                  - generic [ref=f1e19]:
+                    - heading "Primul rând = antet" [level=3] [ref=f1e20]
+                    - generic [ref=f1e21]: obligatoriu
+                  - paragraph [ref=f1e22]: Prima linie conține numele coloanelor. Datele încep din rândul următor. Foile goale sunt ignorate.
+                - generic [ref=f1e23]:
+                  - generic [ref=f1e24]:
+                    - heading "O coloană de articol" [level=3] [ref=f1e25]
+                    - generic [ref=f1e26]: cheie
+                  - paragraph [ref=f1e27]: Codul/articolul produsului (Артикул / Articol / SKU) este cheia sigură de potrivire. Fără el, importul nu poate identifica produsele cu certitudine.
+                - generic [ref=f1e28]:
+                  - generic [ref=f1e29]:
+                    - heading "Cel puțin un preț" [level=3] [ref=f1e30]
+                    - generic [ref=f1e31]: recomandat
+                  - paragraph [ref=f1e32]: Preț de raft, angro sau online. Format numeric; sunt tolerate variante ca 1.013.00.
+                - generic [ref=f1e33]:
+                  - generic [ref=f1e34]:
+                    - heading "Formate acceptate" [level=3] [ref=f1e35]
+                    - generic [ref=f1e36]: .xlsx .xls .csv
+                  - paragraph [ref=f1e37]: Se poate încărca un grup de fișiere sau o arhivă .zip a unei mape.
+            - generic [ref=f1e38]:
+              - generic [ref=f1e39]:
+                - generic [ref=f1e40]: Coloane
+                - heading "Coloane recunoscute automat" [level=2] [ref=f1e41]
+              - paragraph [ref=f1e42]: Antetul este comparat cu un dicționar de sinonime (RO / RU / EN). Coloanele nerecunoscute (URL, „Полное название", FOR_SITE, PRODUCER) sunt ignorate fără eroare.
+              - table [ref=f1e45]:
+                - rowgroup [ref=f1e46]:
+                  - row [ref=f1e47]:
+                    - columnheader "Câmp logic" [ref=f1e48]
+                    - columnheader "Anteturi recunoscute" [ref=f1e49]
+                    - columnheader "Rol" [ref=f1e50]
+                    - columnheader "Status" [ref=f1e51]
+                - rowgroup [ref=f1e52]:
+                  - row [ref=f1e53]:
+                    - cell "ARTICOL" [ref=f1e54]
+                    - cell [ref=f1e55]:
+                      - code [ref=f1e56]: Артикул
+                      - code [ref=f1e57]: Articol
+                      - code [ref=f1e58]: SKU
+                      - code [ref=f1e59]: Cod produs
+                    - cell "Cheia de potrivire cu catalogul (CODVECHI)" [ref=f1e60]
+                    - cell "obligatoriu" [ref=f1e61]
+                  - row [ref=f1e63]:
+                    - cell "DENUMIRE" [ref=f1e64]
+                    - cell [ref=f1e65]:
+                      - code [ref=f1e66]: Название в карточке
+                      - code [ref=f1e67]: Denumire
+                    - cell "Numele produsului" [ref=f1e68]
+                    - cell "recomandat" [ref=f1e69]
+                  - row [ref=f1e71]:
+                    - cell "ANGRO" [ref=f1e72]
+                    - cell [ref=f1e73]:
+                      - code [ref=f1e74]: Цена закупки без НДС
+                      - code [ref=f1e75]: Angro
+                    - cell "Preț en-gros" [ref=f1e76]
+                    - cell "preț" [ref=f1e77]
+                  - row [ref=f1e79]:
+                    - cell "ONLINE" [ref=f1e80]
+                    - cell [ref=f1e81]:
+                      - code [ref=f1e82]: PriceOnline
+                      - code [ref=f1e83]: Online
+                    - cell "Preț online" [ref=f1e84]
+                    - cell "preț" [ref=f1e85]
+                  - row [ref=f1e87]:
+                    - cell "RETAIL" [ref=f1e88]
+                    - cell [ref=f1e89]:
+                      - code [ref=f1e90]: Розничная цена с НДС
+                      - code [ref=f1e91]: Retail
+                      - code [ref=f1e92]: Raft
+                    - cell "Preț cu amănuntul (de raft)" [ref=f1e93]
+                    - cell "recomandat" [ref=f1e94]
+                  - row [ref=f1e96]:
+                    - cell "BARCODE" [ref=f1e97]
+                    - cell [ref=f1e98]:
+                      - code [ref=f1e99]: Штрихкод
+                      - code [ref=f1e100]: Barcode
+                      - code [ref=f1e101]: Cod de bare
+                      - code [ref=f1e102]: EAN
+                    - cell "Cod de bare (dacă lipsește, se poate genera)" [ref=f1e103]
+                    - cell "opțional" [ref=f1e104]
+                  - row [ref=f1e106]:
+                    - cell "VAT" [ref=f1e107]
+                    - cell [ref=f1e108]:
+                      - code [ref=f1e109]: Ставка НДС
+                      - code [ref=f1e110]: TVA
+                    - cell "Cota TVA (informativ)" [ref=f1e111]
+                    - cell "opțional" [ref=f1e112]
+            - generic [ref=f1e114]:
+              - generic [ref=f1e115]:
+                - generic [ref=f1e116]: Detecție
+                - heading "Cum sunt găsite coloanele — 3 strategii" [level=2] [ref=f1e117]
+              - paragraph [ref=f1e118]: Se aplică în ordine; câmpurile lipsă se completează la pasul următor. Fiecare decizie e jurnalizată, iar analiza (dry-run) arată exact cum a fost înțeles fișierul.
+              - generic [ref=f1e119]:
+                - generic [ref=f1e120]:
+                  - heading "După numele coloanei" [level=3] [ref=f1e121]
+                  - paragraph [ref=f1e122]: Antetul se potrivește cu dicționarul de sinonime. Acoperă majoritatea fișierelor de la furnizori.
+                - generic [ref=f1e123]:
+                  - heading "După ordinea cunoscută" [level=3] [ref=f1e124]
+                  - paragraph [ref=f1e125]: Dacă antetul lipsește, se aplică o schemă poziţională cunoscută (ex. fișiere de coduri de bare).
+                - generic [ref=f1e126]:
+                  - heading "După conținut / produs cunoscut" [level=3] [ref=f1e127]
+                  - paragraph [ref=f1e128]: Se caută în date un articol care coincide cu catalogul (CODVECHI) sau un nume care coincide cu un produs existent — o „ancoră" care ajută la identificarea coloanelor.
+            - generic [ref=f1e129]:
+              - generic [ref=f1e130]:
+                - generic [ref=f1e131]: Operațiuni
+                - heading "Ce execută deja logica de import" [level=2] [ref=f1e132]
+              - generic [ref=f1e133]:
+                - generic [ref=f1e134]:
+                  - generic [ref=f1e135]:
+                    - heading "Poziții noi" [level=3] [ref=f1e136]
+                    - generic [ref=f1e137]: suportat
+                  - paragraph [ref=f1e138]: Articolele care nu există se creează în catalog (TMS_UNIVERS) + cartelă (TMS_MPT) și se plasează în nodul lor real din arbore, după GRUPĂ.
+                - generic [ref=f1e139]:
+                  - generic [ref=f1e140]:
+                    - heading "Actualizare preț" [level=3] [ref=f1e141]
+                    - generic [ref=f1e142]: suportat
+                  - paragraph [ref=f1e143]: "Perioadă nouă de preț cu regula „nu coborî\": prețul se schimbă doar dacă în fișier e mai mare; altfel se păstrează cel curent. Perioada veche se închide (istoric de prețuri)."
+                - generic [ref=f1e144]:
+                  - generic [ref=f1e145]:
+                    - heading "Generare cod de bare" [level=3] [ref=f1e146]
+                    - generic [ref=f1e147]: EAN-13
+                  - paragraph [ref=f1e148]: Pentru pozițiile noi fără cod se generează un EAN-13 valid (prefix 20 + cifră de control). Dacă fișierul are coloană de coduri, acestea se importă direct.
+                - generic [ref=f1e149]:
+                  - generic [ref=f1e150]:
+                    - heading "Marcaj „produse noi\"" [level=3] [ref=f1e151]
+                    - generic [ref=f1e152]: MATGR1=1
+                  - paragraph [ref=f1e153]: Produsele se marchează cu atributul MATGR1=1 — filtrul virtual „Produse noi" din magazin și backoffice. Nu se creează un nod fizic în arbore.
+                - generic [ref=f1e154]:
+                  - generic [ref=f1e155]:
+                    - heading "Data de intrare în vigoare" [level=3] [ref=f1e156]
+                    - generic [ref=f1e157]: suportat
+                  - paragraph [ref=f1e158]: Prețul nou intră în vigoare la data încărcării (implicit) sau la o dată indicată.
+                - generic [ref=f1e159]:
+                  - generic [ref=f1e160]:
+                    - heading "Idempotent, fără ștergeri" [level=3] [ref=f1e161]
+                    - generic [ref=f1e162]: sigur
+                  - paragraph [ref=f1e163]: Repetarea aceluiași fișier nu creează dubluri. Nu se șterge nimic — prețurile merg pe perioade, codurile de bare se adaugă.
+            - generic [ref=f1e164]:
+              - generic [ref=f1e165]:
+                - generic [ref=f1e166]: Preț
+                - heading "Regulile de preț pe scurt" [level=2] [ref=f1e167]
+              - generic [ref=f1e168]:
+                - generic [ref=f1e169]:
+                  - generic [ref=f1e170]:
+                    - heading "Nu se coboară prețul" [level=3] [ref=f1e171]
+                    - generic [ref=f1e172]: regulă
+                  - paragraph [ref=f1e173]: Dacă prețul de raft din fișier e mai mic sau egal cu cel curent, produsul rămâne cu prețul curent. Se aplică doar creșterile.
+                - generic [ref=f1e174]:
+                  - generic [ref=f1e175]:
+                    - heading "Perioade, nu suprascriere" [level=3] [ref=f1e176]
+                    - generic [ref=f1e177]: istoric
+                  - paragraph [ref=f1e178]: Fiecare schimbare e o perioadă nouă (de la data intrării în vigoare). Perioada anterioară se închide automat — fără suprapuneri.
+            - generic [ref=f1e179]:
+              - generic [ref=f1e180]:
+                - generic [ref=f1e181]: Limite
+                - heading "Ce NU se poate importa sigur" [level=2] [ref=f1e182]
+              - generic [ref=f1e183]:
+                - heading "⛔ Fișier fără coloana Articol" [level=3] [ref=f1e184]
+                - paragraph [ref=f1e185]: Fără articol, singura potrivire posibilă e după nume — dar în catalog numele nu sunt unice (multe produse au același „nume în cartelă", distinse doar prin articol).
+                - paragraph [ref=f1e186]: "Exemplu real (fișier PRISE NOU, 10 430 rânduri): doar 1 735 nume potrivesc un singur produs, 8 579 sunt ambigue (mai multe produse), 116 fără potrivire. Un asemenea fișier nu poate fi importat corect — trebuie re-exportat cu coloana articolului."
+              - generic [ref=f1e187]:
+                - heading "⚠️ Rânduri sărite (raportate, nu blocante)" [level=3] [ref=f1e188]
+                - paragraph [ref=f1e189]: Rândurile ambigue (articol care duce la mai multe produse) și cele fără articol sunt sărite și numărate în raport, fără a opri restul importului.
+            - generic [ref=f1e190]:
+              - generic [ref=f1e191]:
+                - generic [ref=f1e192]: Flux
+                - heading "Fluxul de lucru" [level=2] [ref=f1e193]
+              - generic [ref=f1e194]:
+                - generic [ref=f1e195]:
+                  - heading "1 · Încărcare" [level=3] [ref=f1e197]
+                  - paragraph [ref=f1e198]: Grup de fișiere sau o arhivă .zip a mapei. Sistemul le pune în zona de pregătire.
+                - generic [ref=f1e199]:
+                  - generic [ref=f1e200]:
+                    - heading "2 · Analiză" [level=3] [ref=f1e201]
+                    - generic [ref=f1e202]: dry-run
+                  - paragraph [ref=f1e203]: Se arată maparea coloanelor și câte poziții sunt noi / existente / ambigue / fără articol. Nimic nu se scrie.
+                - generic [ref=f1e204]:
+                  - generic [ref=f1e205]:
+                    - heading "3 · Import" [level=3] [ref=f1e206]
+                    - generic [ref=f1e207]: scriere
+                  - paragraph [ref=f1e208]: "După confirmare, datele se scriu în producție: poziții noi, prețuri, coduri de bare, marcaj."
+            - generic [ref=f1e209]:
+              - generic [ref=f1e210]:
+                - generic [ref=f1e211]: Anexa A
+                - heading "Importuri anterioare și rezultate" [level=2] [ref=f1e212]
+              - paragraph [ref=f1e213]: "Patru exemple reale, pas cu pas: ce conținea fișierul, cum au fost recunoscute coloanele, ce a rezultat din clasificare și un caz concret din fiecare import."
+              - generic [ref=f1e214]:
+                - generic [ref=f1e215]:
+                  - heading "Preț + produse noi" [level=3] [ref=f1e216]
+                  - generic [ref=f1e217]: Price nou.xlsx · Set 4 · 935 rânduri · 10 coloane
+                  - generic [ref=f1e218]: reușit
+                - generic [ref=f1e220]:
+                  - generic [ref=f1e221]: Detectat
+                  - generic [ref=f1e222]: "antet (HEADER): ARTICOL, DENUMIRE, ANGRO, ONLINE, RETAIL, VAT"
+                - generic [ref=f1e223]:
+                  - generic [ref=f1e224]:
+                    - generic [ref=f1e225]: "523"
+                    - text: noi
+                  - generic [ref=f1e226]:
+                    - generic [ref=f1e227]: "356"
+                    - text: existente
+                  - generic [ref=f1e228]:
+                    - generic [ref=f1e229]: "30"
+                    - text: ambigue
+                  - generic [ref=f1e230]:
+                    - generic [ref=f1e231]: "26"
+                    - text: fără articol
+                - generic [ref=f1e232]:
+                  - generic [ref=f1e233]:
+                    - generic [ref=f1e234]: Catalog
+                    - generic [ref=f1e235]: +523 produse (TMS_UNIVERS 78 640 → 79 163) și +523 cartele
+                  - generic [ref=f1e236]:
+                    - generic [ref=f1e237]: Coduri
+                    - generic [ref=f1e238]: 523 coduri EAN-13 generate (produse noi fără cod)
+                  - generic [ref=f1e239]:
+                    - generic [ref=f1e240]: Marcaj
+                    - generic [ref=f1e241]: 875 produse marcate „noi" (MATGR1=1)
+                  - generic [ref=f1e242]:
+                    - generic [ref=f1e243]: Prețuri
+                    - generic [ref=f1e244]: 552 perioade noi (523 inițiale + 29 majorări); 25 scăderi ignorate
+                  - generic [ref=f1e245]:
+                    - generic [ref=f1e246]: Arbore
+                    - generic [ref=f1e247]: 523 poziții plasate în nodul real „Articole din hirtie → Hartie colorata"
+                - generic [ref=f1e248]:
+                  - generic [ref=f1e249]: Exemplu concret
+                  - text: Cod nou
+                  - code [ref=f1e250]: "288657"
+                  - text: a primit codul de bare generat
+                  - code [ref=f1e251]: "2000000004068"
+                  - text: "(EAN-13 valid). Regula „nu coborî\": cod"
+                  - code [ref=f1e252]: "165690"
+                  - text: avea 42,41 în fișier < 42,4137 curent → nicio perioadă nouă, preț păstrat.
+              - generic [ref=f1e253]:
+                - generic [ref=f1e254]:
+                  - heading "Actualizare preț" [level=3] [ref=f1e255]
+                  - generic [ref=f1e256]: Price nou.xlsx · Set 3 · 407 rânduri · 10 coloane
+                  - generic [ref=f1e257]: reușit
+                - generic [ref=f1e259]:
+                  - generic [ref=f1e260]: Detectat
+                  - generic [ref=f1e261]: "antet (HEADER): ARTICOL, DENUMIRE, ANGRO, ONLINE, RETAIL, VAT"
+                - generic [ref=f1e262]:
+                  - generic [ref=f1e263]:
+                    - generic [ref=f1e264]: "94"
+                    - text: noi
+                  - generic [ref=f1e265]:
+                    - generic [ref=f1e266]: "283"
+                    - text: existente
+                  - generic [ref=f1e267]:
+                    - generic [ref=f1e268]: "4"
+                    - text: ambigue
+                  - generic [ref=f1e269]:
+                    - generic [ref=f1e270]: "26"
+                    - text: fără articol
+                - generic [ref=f1e271]:
+                  - generic [ref=f1e272]:
+                    - generic [ref=f1e273]: Catalog
+                    - generic [ref=f1e274]: +94 produse noi (78 546 → 78 640)
+                  - generic [ref=f1e275]:
+                    - generic [ref=f1e276]: Prețuri
+                    - generic [ref=f1e277]: +373 perioade (74 396 → 74 769); 239 prețuri modificate
+                - generic [ref=f1e278]:
+                  - generic [ref=f1e279]: Exemplu concret
+                  - text: Articolul
+                  - code [ref=f1e280]: ZM80-B
+                  - text: ": perioadă nouă de la 09.07.2026 cu prețul de raft 75,5 (era 80). Perioada veche s-a închis automat la 08.07.2026 — fără suprapunere."
+              - generic [ref=f1e281]:
+                - generic [ref=f1e282]:
+                  - heading "Preț fără coloana articol" [level=3] [ref=f1e283]
+                  - generic [ref=f1e284]: PRISE NOU 11.07.2026.xlsx · Set 5 · 10 430 rânduri · 9 coloane
+                  - generic [ref=f1e285]: blocat
+                - generic [ref=f1e286]:
+                  - generic [ref=f1e287]:
+                    - generic [ref=f1e288]: Detectat
+                    - generic [ref=f1e289]: DENUMIRE, ANGRO, ONLINE, RETAIL, VAT — ARTICOL lipsește
+                  - generic [ref=f1e290]:
+                    - generic [ref=f1e291]: Potrivire
+                    - generic [ref=f1e292]: singura opțiune a fost după nume (nesigur)
+                - generic [ref=f1e293]:
+                  - generic [ref=f1e294]:
+                    - generic [ref=f1e295]: 1 735
+                    - text: nume unic
+                  - generic [ref=f1e296]:
+                    - generic [ref=f1e297]: 8 579
+                    - text: ambigue
+                  - generic [ref=f1e298]:
+                    - generic [ref=f1e299]: "116"
+                    - text: fără potrivire
+                  - generic [ref=f1e300]:
+                    - generic [ref=f1e301]: "0"
+                    - text: importate
+                - generic [ref=f1e302]:
+                  - generic [ref=f1e303]: De ce nu merge
+                  - text: "Numele „Hartie colorata A4 IQ 80 g intensiv AB-48 (500 foi) aqua blue\" duce la 2 produse diferite: cod"
+                  - code [ref=f1e304]: "297201"
+                  - text: (articol 2840) și cod
+                  - code [ref=f1e305]: "290025"
+                  - text: (articol 10354). Fără articol nu se poate alege corect — de aceea fișierul trebuie re-exportat cu coloana articolului.
+              - generic [ref=f1e306]:
+                - generic [ref=f1e307]:
+                  - heading "Coduri de bare + nomenclator lipsă" [level=3] [ref=f1e308]
+                  - generic [ref=f1e309]: fișiere pe categorii · ~75 000 rânduri
+                  - generic [ref=f1e310]: reușit
+                - generic [ref=f1e311]:
+                  - generic [ref=f1e312]:
+                    - generic [ref=f1e313]: Etapa 1
+                    - generic [ref=f1e314]: +6 066 coduri de bare atașate produselor existente (idempotent — repetarea nu dublează)
+                  - generic [ref=f1e315]:
+                    - generic [ref=f1e316]: Etapa 2
+                    - generic [ref=f1e317]: articole fără produs în catalog → +4 146 produse + 4 146 cartele + 4 393 coduri
+                - generic [ref=f1e318]:
+                  - generic [ref=f1e319]: Ce a deblocat
+                  - text: După deduplicare, articolele care înainte duceau la 2 coduri au devenit unice → 6 066 coduri „blocate" anterior au putut fi atașate corect.
+            - generic [ref=f1e320]:
+              - generic [ref=f1e321]:
+                - generic [ref=f1e322]: Anexa B
+                - heading "Corecții și reguli confirmate în practică" [level=2] [ref=f1e323]
+              - generic [ref=f1e324]:
+                - generic [ref=f1e325]:
+                  - generic [ref=f1e326]:
+                    - heading "Deduplicare catalog" [level=3] [ref=f1e327]
+                    - generic [ref=f1e328]: 3 817 eliminate
+                  - paragraph [ref=f1e329]: Produse duplicate exacte (același articol + nume) eliminate, păstrând codul cel mai mic; referințele au fost re-legate, fără referințe rupte.
+                - generic [ref=f1e330]:
+                  - generic [ref=f1e331]:
+                    - heading "Perioade de preț" [level=3] [ref=f1e332]
+                    - generic [ref=f1e333]: 279 reparate
+                  - paragraph [ref=f1e334]: "Suprapuneri de perioade corectate: la un preț nou, perioada veche se închide la start_nou − 1. Regula e acum automată la fiecare import."
+                - generic [ref=f1e335]:
+                  - generic [ref=f1e336]:
+                    - heading "„Produse noi\" = virtual" [level=3] [ref=f1e337]
+                    - generic [ref=f1e338]: 523 mutate
+                  - paragraph [ref=f1e339]: "Corecție: produsele noi intră în nodurile lor reale din arbore (după GRUPĂ), nu într-un nod fizic. „Produse noi\" e doar filtrul MATGR1=1."
+                - generic [ref=f1e340]:
+                  - generic [ref=f1e341]:
+                    - heading "Regula „nu coborî\"" [level=3] [ref=f1e342]
+                    - generic [ref=f1e343]: verificată
+                  - paragraph [ref=f1e344]: "La Set 4: 29 majorări de preț aplicate, iar 25 scăderi din fișier au fost ignorate (produsele au păstrat prețul curent, mai mare)."
+            - generic [ref=f1e345]:
+              - generic [ref=f1e346]:
+                - generic [ref=f1e347]: Interfața web
+                - heading "Cum imporți din interfața web (GUI)" [level=2] [ref=f1e348]
+              - paragraph [ref=f1e349]: "Importul se face din pagina Import fișiere (PT): /UNA.md/orasldev/biro26-import-pt (card pe launcher-ul modulului; necesită autentificare). Trei pași, în aceeași ordine ca logica descrisă mai sus:"
+              - generic [ref=f1e350]:
+                - generic [ref=f1e351]:
+                  - generic [ref=f1e352]:
+                    - heading "1 · Fișiere" [level=3] [ref=f1e353]
+                    - generic [ref=f1e354]: drag & drop
+                  - paragraph [ref=f1e355]: "Trageți fișierele .xlsx / .xls / .csv sau un .zip al mapei. Sistemul le citește și arată pentru fiecare foaie: rânduri și coloane."
+                - generic [ref=f1e356]:
+                  - generic [ref=f1e357]:
+                    - heading "2 · Analiză (dry-run)" [level=3] [ref=f1e358]
+                    - generic [ref=f1e359]: fără scriere
+                  - paragraph [ref=f1e360]: "Butonul «Analizează» rulează detecția și arată: maparea coloanelor (cu strategia HEADER / CONTENT / LAYOUT și posibilitatea de a o corecta manual), contoarele NOI / EXISTENTE / AMBIGUE / FĂRĂ ARTICOL și previzualizarea rândurilor. Tot aici se aleg: Grupa, Cod preț, data intrării prețului și bifa «Marchează toate ca produse noi» (MATGR1=1)."
+                - generic [ref=f1e361]:
+                  - generic [ref=f1e362]:
+                    - heading "3 · Import" [level=3] [ref=f1e363]
+                    - generic [ref=f1e364]: confirmare explicită
+                  - paragraph [ref=f1e365]: Rezumatul («va fi creat X, prețuri diferite Y, sărite Z») + butonul «Importă în DB». Doar acest pas scrie în producție; jurnalul complet apare imediat după.
+              - paragraph [ref=f1e366]: "Rezultatul se vede imediat: pozițiile noi — în Marfă/Stoc și în magazin sub filtrul «Produse noi»; prețurile — în Listă de prețuri (perioade)."
+            - separator [ref=f1e367]
+            - contentinfo [ref=f1e368]: "Biro26 · OfficePlus — motor de import BIRO26PT_importData Regulă de aur: un fișier bun are întotdeauna coloana articolului. Restul se detectează automat."
+    - contentinfo [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - link [ref=e14] [cursor=pointer]:
+              - /url: https://officeplus.md/
+              - img "OfficePlus" [ref=e15]
+            - generic [ref=e16]:
+              - paragraph [ref=e17]:
+                - link "OfficePlus" [ref=e18] [cursor=pointer]:
+                  - /url: https://officeplus.md
+              - paragraph [ref=e19]: Rechizite de birou și papetărie. Totul pentru birou și școală
+          - generic [ref=e22]:
+            - generic [ref=e23]:
+              - heading "COMPANIE" [level=2] [ref=e24]
+              - navigation "About" [ref=e26]:
+                - list "About" [ref=e27]:
+                  - listitem [ref=e28]:
+                    - link "Despre noi" [ref=e29] [cursor=pointer]:
+                      - /url: https://officeplus.md/despre-noi/
+                  - listitem [ref=e30]:
+                    - link "Contacte" [ref=e31] [cursor=pointer]:
+                      - /url: https://officeplus.md/contacte/
+                  - listitem [ref=e32]:
+                    - link "Livrare" [ref=e33] [cursor=pointer]:
+                      - /url: https://officeplus.md/livrare/
+            - generic [ref=e34]:
+              - heading "INFORMAȚII" [level=2] [ref=e35]
+              - navigation "Privacy" [ref=e37]:
+                - list "Privacy" [ref=e38]:
+                  - listitem [ref=e39]:
+                    - link "Termeni și condiții" [ref=e40] [cursor=pointer]:
+                      - /url: https://officeplus.md/termeni-si-conditii/
+                  - listitem [ref=e41]:
+                    - link "Politica de confidențialitate" [ref=e42] [cursor=pointer]:
+                      - /url: https://officeplus.md/politica-de-confidentialitate/
+                  - listitem [ref=e43]:
+                    - link "Retur produse" [ref=e44] [cursor=pointer]:
+                      - /url: https://officeplus.md/retur-produse/
+                  - listitem [ref=e45]:
+                    - link "Metode de plată" [ref=e46] [cursor=pointer]:
+                      - /url: https://officeplus.md/metode-de-plata/
+            - generic [ref=e47]:
+              - heading "CONTACT" [level=2] [ref=e48]
+              - navigation "Social Media" [ref=e50]:
+                - list "Social Media" [ref=e51]:
+                  - listitem [ref=e52]:
+                    - link [ref=e53] [cursor=pointer]:
+                      - /url: "#"
+                      - generic [ref=e54]:
+                        - img "📍" [ref=e55]
+                        - text: mun. Bălți, str. Libertății 96, of.1
+                  - listitem [ref=e56]:
+                    - link "☎ +373 620 07 211" [ref=e57] [cursor=pointer]:
+                      - /url: "#"
+                  - listitem [ref=e58]:
+                    - link "✉ officeplussrl@gmail.com" [ref=e59] [cursor=pointer]:
+                      - /url: "#"
+        - generic [ref=e60]:
+          - paragraph
+          - generic [ref=e61]:
+            - paragraph [ref=e62]: © 2026 GRECU OFFICE PLUS SRL
+            - paragraph [ref=e63]: IDNO 1026602001837
+            - paragraph [ref=e64]: Toate drepturile rezervate.

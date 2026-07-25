@@ -1,0 +1,4 @@
+- generic [ref=e6]:
+  - img "Logo" [ref=e12]
+  - heading "Choose a payment method" [level=2] [ref=e19]
+  - generic [ref=e20]: Initializing checkout...
