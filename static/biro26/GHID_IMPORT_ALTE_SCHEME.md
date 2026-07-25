@@ -293,13 +293,30 @@ prețul vechi → apare „retail = angro" sau valori vechi. Reguli:
 - **Articolele ambigue** (un articol → mai multe produse) sunt sărite la import → prețul lor
   rămâne vechi; se rezolvă prin dedup, nu prin re-import.
 
-### 9.14 ⚠️ Diacriticele românești se pierd („?") — charset CL8MSWIN1251
-Baza e chirilică (win1251) și **nu are literele românești** `ă â î ș ț`. Textul cu diacritice
-se stochează ca `?` („Foto și Video" → „Foto ?i Video", „acțiune" → „ac?iune"), inclusiv în
-denumirile produselor → apare `?` pe carduri în magazin. Remediu: **transliterare RO→ASCII**
-în loader (`ă→a, â→a, î→i, ș/ş→s, ț/ţ→t`), înainte de stocare. Chirilica (rusa) rămâne neatinsă
-(win1251 o are). Datele deja stricate se repară re-citind fișierul-sursă (xlsx, care are
-diacriticele corecte) + transliterare + UPDATE.
+### 9.14 ⚠️ Text stricat („?") — charset CL8MSWIN1251 (NU doar diacritice românești)
+Baza e chirilică (win1251): **orice** caracter care nu încape în cp1251 se stochează ca `?` —
+nu doar `ă â î ș ț`, ci și semne tipografice: `×` (22×10×32 → `22?10?32`), `²` (g/m² → `g/m?`),
+`‑` non-breaking hyphen (Wi‑Fi → `Wi?Fi`), `′ ″ – — ½ ﬁ œ ß …`.
+
+**Remediu în cod (obligatoriu în TOATE loaderele):** funcția `cp1251_safe()` —
+tabel de transliterare (RO + semne tipografice) + fallback `unicodedata.NFKD` (scoate semnele
+de pe orice literă), aplicată la **celule, numele foii** (devine GRUPA) **și numele fișierului**.
+Chirilica rămâne neatinsă. ⚠️ Trebuie reparate **ambele** loadere: cel local
+(`biro26pt_loader.py`) ȘI cel al aplicației web (`models/biro26pt_loader.py` din Artgranit) —
+importul din GUI folosește copia lui, deci corectarea doar a unuia lasă bug-ul activ.
+
+**Repararea datelor deja stricate** (3 valuri, în ordine, fiecare cu dry-run întâi):
+1. **Din fișierele sursă** — pentru fiecare text din xlsx/csv se calculează varianta „stricată"
+   (roundtrip cp1251) și cea corectă; potrivire exactă cu valorile din BD.
+2. **Potrivire prin mască** — `?` = orice caracter, comparat cu textele deja CURATE (din fișiere
+   și din BD). Se aplică doar când potrivirea e **unică**.
+3. **La nivel de cuvânt** — corpus de cuvinte curate; „car?i" → „carti" dacă un candidat domină.
+
+⚠️ **Regula de aur:** tratează drept stricat **doar `?` încadrat de litere/cifre pe ambele
+părți**. Un `?` la final de cuvânt/frază e semn de întrebare real („Кто испек пирог?") — dacă îl
+„repari", strici datele. (Am prins exact acest caz la audit: `Откуда берутся дети?` → `дети.`)
+
+Curăță și **`BIRO26PT_RAW`** — altfel un re-import al unui `load_id` vechi readuce `?` în producție.
 
 ---
 
