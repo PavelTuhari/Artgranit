@@ -57,9 +57,22 @@ def get_locale():
 # Инициализируем Babel с приложением
 babel.init_app(app, locale_selector=get_locale)
 
-# Rate limiting (только для /api/*)
+# Rate limiting (только для /api/*; BIRO26 и auth — exempt)
+# IMPORTANT: behind nginx/gunicorn all connections look like 127.0.0.1 if we use
+# get_remote_address alone — shop, backoffice and sync share one bucket → mass 429.
+# Prefer X-Real-IP (set by nginx from $remote_addr), then X-Forwarded-For.
+def _client_ip_for_limiter():
+    xri = (request.headers.get('X-Real-IP') or '').strip()
+    if xri:
+        return xri
+    xff = (request.headers.get('X-Forwarded-For') or '').split(',')[0].strip()
+    if xff:
+        return xff
+    return get_remote_address()
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=_client_ip_for_limiter,
     app=app,
     default_limits=[Config.RATELIMIT_DEFAULT] if Config.RATELIMIT_ENABLED else [],
     storage_uri=Config.RATELIMIT_STORAGE_URI,
@@ -69,18 +82,38 @@ limiter = Limiter(
 
 @limiter.request_filter
 def _skip_limit_for_non_api():
-    """Применять rate limit только к /api/*"""
-    return not request.path.startswith('/api/')
+    """Skip rate limit for non-API, BIRO26, and authenticated sessions.
+
+    RO: BIRO26 (shop + backoffice) face sute de GET pe sesiune (grid, price-history,
+    sync catalog) — 200/oră dă 429 false-positive. Auth e pe rute.
+    EN: BIRO26 (shop + backoffice) issues hundreds of GETs per session; a low
+    shared limit caused false 429s. Route-level auth still applies.
+    """
+    path = request.path or ''
+    if not path.startswith('/api/'):
+        return True
+    # BIRO26: high-volume legitimate UI + catalog sync; never rate-limit here
+    if path.startswith('/api/biro26/'):
+        return True
+    try:
+        if AuthController.is_authenticated():
+            return True
+    except Exception:
+        pass
+    return False
 
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
     """Ответ при превышении лимита запросов"""
-    return jsonify({
+    resp = jsonify({
         "success": False,
         "error": "Rate limit exceeded",
         "message": "Слишком много запросов. Попробуйте позже.",
-    }), 429
+    })
+    resp.status_code = 429
+    resp.headers['Retry-After'] = '60'
+    return resp
 
 
 # Инициализация SocketIO для WebSockets
@@ -5839,6 +5872,8 @@ def api_biro26_rtpl_preview():
         return jsonify(r), 400
     resp = app.response_class(r['pdf'], mimetype='application/pdf')
     resp.headers['Content-Disposition'] = 'inline; filename="preview.pdf"'
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
     return resp
 
 # ── product variants (BIRO26_VARIANTS): family detail + editing ──
@@ -6192,7 +6227,7 @@ def api_biro26_shop_variants():
     # public read-only variant family (choose a characteristic in the shop)
     return jsonify(Biro26Controller.shop_variants())
 
-# ── external-app API: customer document list + PDFs by NUMBER (#NRSET) ──
+# ── external-app API: customer document list + PDFs by NUMBER (#NRMANUAL) ──
 @app.route('/api/biro26/docs', methods=['GET'])
 def api_biro26_docs_list():
     # ?client=<nume|cod|#nr>&limit= — X-API-Key token or backoffice session
@@ -6215,6 +6250,9 @@ def api_biro26_report_by_nr(kind, nr):
     resp.headers['Content-Disposition'] = (
         f'inline; filename="{names.get(kind, kind)}_'
         f'{str(nr).lstrip("#")}.pdf"')
+    # RO/EN: avoid CDN/browser serving a stale PDF after NRMANUAL fix
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
     return resp
 
 @app.route('/api/biro26/doc/<int:cod>', methods=['GET'])
@@ -6236,11 +6274,50 @@ def api_biro26_shop_report(kind, cod):
     resp = app.response_class(r['pdf'], mimetype='application/pdf')
     resp.headers['Content-Disposition'] = \
         f'inline; filename="{names.get(kind, kind)}_{cod}.pdf"'
+    # RO/EN: avoid CDN/browser serving a stale PDF after NRMANUAL fix
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
     return resp
 
 @app.route('/api/biro26/shop/invoice', methods=['POST'])
 def api_biro26_shop_invoice():
     return jsonify(Biro26Controller.shop_invoice())
+
+
+# ── Biro26: service (maintenance) functions — dynamic registry ─────────────
+# RO: lista vine din YBIRO_SERVICE_FUNCTIONS; o functie noua = un simplu INSERT.
+# EN: the list comes from YBIRO_SERVICE_FUNCTIONS; a new function = one INSERT.
+
+@app.route('/api/biro26/services', methods=['GET'])
+def api_biro26_services():
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_services import Biro26Services
+    return jsonify(Biro26Services.list_functions(request.args.get('lang', 'ro')))
+
+
+@app.route('/api/biro26/services/<code>/count', methods=['GET'])
+def api_biro26_services_count(code):
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_services import Biro26Services
+    return jsonify(Biro26Services.count(code))
+
+
+@app.route('/api/biro26/services/<code>/csv', methods=['GET'])
+def api_biro26_services_csv(code):
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_services import Biro26Services
+    res = Biro26Services.to_csv(code)
+    if not res.get('success'):
+        return jsonify(res), 400
+    # RO: BOM => Excel (RO/RU) recunoaste UTF-8 / EN: BOM so Excel detects UTF-8
+    return Response(
+        '﻿' + res['csv'],
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition':
+                 f'attachment; filename="{res["file_name"]}"'})
 
 
 if __name__ == '__main__':

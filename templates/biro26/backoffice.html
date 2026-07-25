@@ -362,6 +362,7 @@ html, body {
     <div class="tab-btn" id="tab-wizard" onclick="showTab('wizard')" data-i18n="tab_wizard"></div>
     <div class="tab-btn" id="tab-products" onclick="showTab('products')" data-i18n="tab_products"></div>
     <div class="tab-btn" id="tab-stock" onclick="showTab('stock')" data-i18n="tab_stock"></div>
+    <div class="tab-btn" id="tab-services" onclick="showTab('services')" data-i18n="tab_services"></div>
   </div>
 
   <div class="main-area">
@@ -952,6 +953,24 @@ html, body {
         </div>
       </div>
 
+      <!-- ══════════════════════════════════════════════════ -->
+      <!-- TAB 9: SERVICII — functii de serviciu (registru dinamic) -->
+      <!-- RO: lista vine din YBIRO_SERVICE_FUNCTIONS (INSERT = functie noua) -->
+      <!-- EN: list comes from YBIRO_SERVICE_FUNCTIONS (INSERT = new function) -->
+      <!-- ══════════════════════════════════════════════════ -->
+      <div class="panel" id="panel-services">
+        <div class="sec-header">
+          <h2 data-i18n="svc_title"></h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn" onclick="loadServices()" data-i18n="svc_refresh"></button>
+          </div>
+        </div>
+        <p class="hint" data-i18n="svc_hint" style="margin:0 0 12px"></p>
+        <div id="services-list">
+          <div class="empty-state"><p data-i18n="loading"></p></div>
+        </div>
+      </div>
+
     </div><!-- /content-area -->
   </div><!-- /main-area -->
 </div><!-- /app-shell -->
@@ -1111,7 +1130,10 @@ ru: {
   act_import_dates: 'Импорт дат', act_import_prices: 'Импорт цен', act_rollback: 'Откатить лист',
   price_periods_title: 'Периоды', col_data: 'Дата', col_nrdoc: '№ документа',
   price_lists_title: 'Прайс-листы', col_pricename: 'Название',
-  tab_products: 'Товар / Остатки', tab_stock: 'Остатки (расчёт)',
+  tab_products: 'Товар / Остатки', tab_stock: 'Остатки (расчёт)', tab_services: 'Сервис',
+  svc_title: 'Сервисные функции', svc_refresh: 'Обновить',
+  svc_hint: 'Служебные операции обслуживания данных. Список динамический — задаётся в таблице YBIRO_SERVICE_FUNCTIONS (новая функция = одна запись, без правки кода).',
+  svc_download: 'Выгрузить CSV', svc_rows: 'строк', svc_counting: 'считаю…', svc_empty: 'Функции не настроены',
   prod_title: 'Товар и остатки', prod_const_label: 'Константа (если нет остатка):',
   prod_group_ph: 'Группа товара...', prod_clear_filters: 'Сбросить фильтры',
   prod_loading_more: 'Загрузка следующей порции...', prod_end_of_list: 'Показаны все товары',
@@ -1216,7 +1238,10 @@ ro: {
   act_import_dates: 'Import date', act_import_prices: 'Import prețuri', act_rollback: 'Anulează lista',
   price_periods_title: 'Perioade', col_data: 'Data', col_nrdoc: 'Nr. document',
   price_lists_title: 'Liste de prețuri', col_pricename: 'Denumire',
-  tab_products: 'Marfă / Stoc', tab_stock: 'Stoc (calcul)',
+  tab_products: 'Marfă / Stoc', tab_stock: 'Stoc (calcul)', tab_services: 'Servicii',
+  svc_title: 'Funcții de serviciu', svc_refresh: 'Reîmprospătează',
+  svc_hint: 'Operațiuni de întreținere a datelor. Lista este dinamică — se definește în tabelul YBIRO_SERVICE_FUNCTIONS (o funcție nouă = o înregistrare, fără modificări de cod).',
+  svc_download: 'Descarcă CSV', svc_rows: 'rânduri', svc_counting: 'se numără…', svc_empty: 'Nicio funcție configurată',
   prod_title: 'Marfă și stoc', prod_const_label: 'Constantă (dacă nu există stoc):',
   prod_group_ph: 'Grupă marfă...', prod_clear_filters: 'Resetează filtrele',
   prod_loading_more: 'Se încarcă mai multe...', prod_end_of_list: 'Toate produsele afișate',
@@ -1321,7 +1346,10 @@ en: {
   act_import_dates: 'Import dates', act_import_prices: 'Import prices', act_rollback: 'Rollback list',
   price_periods_title: 'Periods', col_data: 'Date', col_nrdoc: 'Doc no.',
   price_lists_title: 'Price lists', col_pricename: 'Name',
-  tab_products: 'Goods / Stock', tab_stock: 'Stock (calculate)',
+  tab_products: 'Goods / Stock', tab_stock: 'Stock (calculate)', tab_services: 'Services',
+  svc_title: 'Service functions', svc_refresh: 'Refresh',
+  svc_hint: 'Data-maintenance operations. The list is dynamic — defined in the YBIRO_SERVICE_FUNCTIONS table (a new function = one row, no code change).',
+  svc_download: 'Download CSV', svc_rows: 'rows', svc_counting: 'counting…', svc_empty: 'No functions configured',
   prod_title: 'Goods and stock', prod_const_label: 'Constant (when no stock):',
   prod_group_ph: 'Product group...', prod_clear_filters: 'Clear filters',
   prod_loading_more: 'Loading more...', prod_end_of_list: 'All products shown',
@@ -1429,7 +1457,7 @@ function renderI18n() {
 /* =====================================================================
    TABS
    ===================================================================== */
-const TABS = ['source','dict','groups','prices','mapping','wizard','products','stock'];
+const TABS = ['source','dict','groups','prices','mapping','wizard','products','stock','services'];
 
 function showTab(id) {
   TABS.forEach(x => {
@@ -1442,6 +1470,7 @@ function showTab(id) {
   document.getElementById('sb-panel').textContent = id;
   setStatus('—');
 
+  if (id === 'services'){ loadServices(); }
   if (id === 'source')  { loadBrands(); loadFurnizoriFilter(); loadGoods(); }
   if (id === 'dict')    { loadUnivers(); }
   if (id === 'groups')  { loadGroups(); loadSuppliers(); loadFurnizori(); loadCategories(); }
@@ -1450,6 +1479,52 @@ function showTab(id) {
   if (id === 'wizard')  { wizardInit(); }
   if (id === 'products'){ loadStockConst(); loadProductBrandsFilter(); loadProductTree(); loadProductsStock(true); }
   if (id === 'stock')   { loadLatestStockCalc(); loadStockItems(); }
+}
+
+/* =====================================================================
+   SERVICII / SERVICE FUNCTIONS  (registru dinamic din YBIRO_SERVICE_FUNCTIONS)
+   RO: lista se incarca din BD -> o functie noua apare fara modificari de cod.
+   EN: the list is loaded from the DB -> a new function shows up with no code change.
+   ===================================================================== */
+async function loadServices() {
+  const box = document.getElementById('services-list');
+  box.innerHTML = '<div class="empty-state"><p>' + t('loading') + '</p></div>';
+  const r = await apiGet('/api/biro26/services?lang=' + LANG);
+  const items = (r && r.success && r.data) ? r.data : [];
+  if (!items.length) {
+    box.innerHTML = '<div class="empty-state"><p>' + t('svc_empty') + '</p></div>';
+    return;
+  }
+  box.innerHTML = items.map(function (f) {
+    return '' +
+      '<div class="card" style="padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff">' +
+        '<div style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap">' +
+          '<div style="flex:1;min-width:260px">' +
+            '<div style="font-weight:600;color:#1e293b;margin-bottom:4px">' + escapeHtml(f.name) + '</div>' +
+            '<div style="font-size:12px;color:#64748b;line-height:1.5">' + escapeHtml(f.descr || '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;align-items:center;white-space:nowrap">' +
+            '<span id="svc-cnt-' + f.code + '" style="font-size:12px;color:#64748b">' + t('svc_counting') + '</span>' +
+            '<button class="btn primary" onclick="downloadService(\'' + f.code + '\')">' + t('svc_download') + '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }).join('');
+  // RO: numaratoarea se face separat, ca lista sa apara imediat
+  // EN: counts are fetched separately so the list renders immediately
+  items.forEach(async function (f) {
+    const c = await apiGet(f.count_url);
+    const el = document.getElementById('svc-cnt-' + f.code);
+    if (el) el.textContent = (c && c.success && c.data)
+      ? (c.data.count + ' ' + t('svc_rows')) : '—';
+  });
+}
+
+function downloadService(code) {
+  // RO: descarcare directa (endpoint-ul trimite CSV cu BOM) / EN: direct download
+  setStatus(t('loading'));
+  window.location = '/api/biro26/services/' + encodeURIComponent(code) + '/csv';
+  setTimeout(function () { setStatus('—'); }, 1500);
 }
 
 /* =====================================================================
