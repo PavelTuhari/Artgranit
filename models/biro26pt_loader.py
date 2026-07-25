@@ -26,10 +26,57 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+import unicodedata  # noqa: E402
+
 import oracledb  # noqa: E402
 from config import Config  # noqa: E402
 
 MAXCOL = 16  # c0..c15
+
+# RO: Baza e CL8MSWIN1251 (chirilic) si NU are diacritice romanesti (ă â î ș ț) sau
+#     semne tipografice (× — ‑ ² ½ …): Oracle le stocheaza ca '?'. Transliteram tot ce
+#     nu incape in cp1251 INAINTE de scriere. Chirilica ramane neatinsa.
+# EN: The DB is CL8MSWIN1251 (Cyrillic) and has NO Romanian diacritics (ă â î ș ț) or
+#     typographic signs (× — ‑ ² ½ …): Oracle stores them as '?'. We transliterate
+#     everything that does not fit cp1251 BEFORE writing. Cyrillic is untouched.
+_TRANSLIT = {
+    "ă": "a", "Ă": "A", "â": "a", "Â": "A", "î": "i", "Î": "I",
+    "ș": "s", "Ș": "S", "ş": "s", "Ş": "S",
+    "ț": "t", "Ț": "T", "ţ": "t", "Ţ": "T",
+    "×": "x", "÷": ":", "−": "-", "‐": "-", "‑": "-", "‒": "-", "―": "-",
+    "≤": "<=", "≥": ">=", "≈": "~", "≠": "!=", "′": "'", "″": '"', "ʼ": "'",
+    "½": "1/2", "¼": "1/4", "¾": "3/4", "⁄": "/", "·": ".", "∙": ".",
+    "ﬁ": "fi", "ﬂ": "fl", "œ": "oe", "Œ": "OE", "æ": "ae", "Æ": "AE",
+    "ß": "ss", "ø": "o", "Ø": "O", "đ": "d", "Đ": "D", "ł": "l", "Ł": "L",
+    "​": "", "‌": "", "‍": "", "﻿": "", "­": "",
+    " ": " ", " ": " ", " ": " ", " ": " ",
+}
+
+
+def cp1251_safe(s: str) -> str:
+    """RO: text care incape garantat in CL8MSWIN1251 / EN: guaranteed cp1251-safe text."""
+    out = []
+    for ch in s:
+        repl = _TRANSLIT.get(ch)
+        if repl is not None:
+            out.append(repl)
+            continue
+        try:
+            ch.encode("cp1251")
+            out.append(ch)
+            continue
+        except UnicodeEncodeError:
+            pass
+        # RO: descompunere Unicode: litera de baza fara semne / EN: strip combining marks
+        dec = unicodedata.normalize("NFKD", ch)
+        dec = "".join(c for c in dec if not unicodedata.combining(c))
+        dec = "".join(_TRANSLIT.get(c, c) for c in dec)
+        try:
+            dec.encode("cp1251")
+            out.append(dec)
+        except UnicodeEncodeError:
+            out.append("")  # RO: nerecuperabil (emoji etc.) / EN: unrecoverable
+    return "".join(out)
 
 
 def cells(row):
@@ -38,7 +85,7 @@ def cells(row):
         if v is None:
             out.append(None)
         else:
-            s = str(v).strip()
+            s = cp1251_safe(str(v).strip())
             out.append(s[:1000] if s != "" else None)
     return out
 
@@ -51,7 +98,9 @@ def read_xlsx(path):
         rows = [cells(r) for r in ws.iter_rows(values_only=True)]
         rows = [r for r in rows if any(x is not None for x in r)]
         if rows:
-            yield sh, rows
+            # RO: numele foii devine GRUPA -> trebuie si el cp1251-safe
+            # EN: the sheet name becomes GRUPA -> must be cp1251-safe too
+            yield cp1251_safe(sh), rows
 
 
 def read_csv(path):
@@ -62,7 +111,7 @@ def read_csv(path):
         rows = [cells(r) for r in csv.reader(f, delimiter=delim)]
     rows = [r for r in rows if any(x is not None for x in r)]
     if rows:
-        yield os.path.basename(path), rows
+        yield cp1251_safe(os.path.basename(path)), rows
 
 
 def main():
@@ -90,7 +139,7 @@ def main():
     load_id = cur.fetchone()[0]
 
     for path in files:
-        base = os.path.basename(path)[:200]
+        base = cp1251_safe(os.path.basename(path))[:200]
         reader = read_csv if path.lower().endswith(".csv") else read_xlsx
         for sheet, rows in reader(path):
             load_id += 1
