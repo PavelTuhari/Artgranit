@@ -1,0 +1,256 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Coș{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> › <span data-t="cartTitle">Coșul meu</span></p>
+          <h1 class="page-h1" style="font-size:32px;margin-bottom:22px" data-t="cartTitle">Coșul meu</h1>
+          <div class="cart-lay">
+            <div class="cart-main">
+              <table class="cart-tbl" id="cart-tbl">
+                <thead><tr><th data-t="product">Produs</th><th style="width:110px" data-t="price">Preț</th>
+                  <th style="width:100px" data-t="qty">Cantitate</th><th style="width:110px" data-t="total">Total</th>
+                  <th style="width:50px"></th></tr></thead>
+                <tbody id="cart-body"></tbody>
+              </table>
+              <div style="margin-top:14px;display:flex;gap:10px">
+                <a class="fchip" href="/catalog" data-t="goCatalog">Mergi la catalog</a>
+                <span class="fchip" onclick="clearCart()" data-t="clearCart">Golește coșul</span>
+              </div>
+              <div class="okbox" id="okbox" style="display:none"></div>
+              <div id="pay-box" style="margin-top:12px"></div>
+            </div>
+
+            <aside class="cart-side">
+              <div class="ck-box" id="auth-note" style="display:none;border-color:#fcd34d;background:#fffbeb">
+                <b data-t="needLogin">Pentru comandă autentificați-vă sau înregistrați-vă</b><br>
+                <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px;padding:0 26px" href="/cont" data-t="account">Contul meu</a>
+              </div>
+
+              <div class="ck-box">
+                <h3 data-t="transport">Transport (obligatoriu)</h3>
+                <label data-t="center">Centrul logistic</label>
+                <select id="tr-center"></select>
+                <label data-t="distance">Distanța, km</label>
+                <input id="tr-km" type="number" min="1" value="">
+              </div>
+
+              <div class="ck-box" id="srv-box" style="display:none">
+                <h3 data-t="services">Servicii opționale</h3>
+                <div id="srv-list"></div>
+              </div>
+
+              <div class="ck-box">
+                <h3 data-t="payMethod">Metoda de achitare</h3>
+                <div class="paym">
+                  <button id="pm-std" class="on" onclick="setPm('standard')" data-t="payStd">Standard (factură)</button>
+                  <button id="pm-cr" onclick="setPm('credit')" data-t="payCredit">Rate / credit</button>
+                </div>
+                <div id="credit-box" style="display:none">
+                  <label data-t="ratesTiles">Alegeți termenul</label>
+                  <div class="cr-tiles" id="cr-tiles"></div>
+                  <div id="cr-sim" style="font-size:13.5px;margin-top:8px"></div>
+                  <label data-t="avans">Avans, lei</label>
+                  <input id="credit-avans" type="number" min="0" value="0">
+                </div>
+                <label data-t="tvaMode">TVA</label>
+                <select id="tva-mode">
+                  <option value="inclus">TVA 20% inclus · НДС 20% включён</option>
+                  <option value="0">TVA 0% · НДС 0%</option>
+                  <option value="fara">Fără TVA · Без НДС</option>
+                </select>
+              </div>
+
+              <div class="ck-box">
+                <div class="ck-total"><span data-t="total">Total</span>: <span id="cart-total">0</span></div>
+                <button class="btn-big" style="width:100%" onclick="makeInvoice()" data-t="checkout">Plasează comanda</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: cos + checkout pe API-urile EXISTENTE Biro26 (/shop/invoice,
+   /shop/pay/*, /shop/credit/*) — acelasi cos localStorage ca magazinul. */
+let ME = null, CENTERS = [], SRV = [], OFFERS = [], TILES = [], tileSel = 0;
+let payMethod = 'standard', PAY = {enabled: false, methods: []}, miaTimer = null;
+
+function cartTotal() { return cart().reduce((s, i) => s + i.qty * i.price, 0); }
+function renderCart() {
+  const c = cart(); let total = 0;
+  document.getElementById('cart-body').innerHTML = c.map(i => {
+    const s = i.qty * i.price; total += s;
+    return '<tr><td>' + esc(i.name) + '</td><td>' + i.price.toFixed(2) + '</td>' +
+      '<td><input type="number" min="0" value="' + i.qty +
+      '" onchange="setQty(' + i.cod + ',this.value)"></td>' +
+      '<td><b>' + s.toFixed(2) + '</b></td>' +
+      '<td><button class="cart-x" onclick="delItem(' + i.cod + ')">×</button></td></tr>';
+  }).join('') || '<tr><td colspan="5" style="color:#808080">' + tr('cartEmpty') + '</td></tr>';
+  document.getElementById('cart-total').textContent = fmtLei(total);
+  renderTiles();
+}
+function setQty(cod, v) { const c = cart(); const i = c.find(x => x.cod === cod);
+  if (i) { i.qty = parseFloat(v) || 0; saveCartLS(c); } }
+function delItem(cod) { saveCartLS(cart().filter(x => x.cod !== cod)); }
+function clearCart() { saveCartLS([]); }
+window.onCartChange = renderCart;
+
+function setPm(m) {
+  payMethod = m;
+  document.getElementById('pm-std').classList.toggle('on', m === 'standard');
+  document.getElementById('pm-cr').classList.toggle('on', m === 'credit');
+  document.getElementById('credit-box').style.display = m === 'credit' ? '' : 'none';
+  renderTiles();
+}
+function crIs0(p) { return /0\s*%/.test(p.name || ''); }
+function crTiles(base) {
+  const tiles = [];
+  OFFERS.forEach(o => (o.plans || []).forEach(pl => {
+    if (base < (pl.amount_min || 0) || base > (pl.amount_max || 1e9)) return;
+    for (let m = pl.months_min; m <= pl.months_max; m++) {
+      const cp = base * (1 + (pl.markup_pct || 0) / 100);
+      const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
+        cp * (pl.monthly_fee_pct || 0) / 100;
+      tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
+    }
+  }));
+  return tiles.sort((a, b) => a.m - b.m);
+}
+function renderTiles() {
+  if (payMethod !== 'credit') return;
+  const base = cartTotal();
+  TILES = crTiles(base);
+  const box = document.getElementById('cr-tiles');
+  if (!TILES.length) {
+    box.innerHTML = '<span style="font-size:12.5px;color:#808080">Suma trebuie să fie între 1 000 și 100 000 lei</span>';
+    document.getElementById('cr-sim').innerHTML = ''; return;
+  }
+  if (tileSel >= TILES.length) tileSel = 0;
+  box.innerHTML = TILES.map((t, i) =>
+    '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
+    ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
+    '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
+  const t = TILES[tileSel], is0 = crIs0(t.plan);
+  document.getElementById('cr-sim').innerHTML = is0
+    ? '<span style="color:#1d4ed8;font-weight:800">' + tr('cartRate') + ': ' +
+      fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' + Math.ceil(t.monthly) + ' lei'
+    : tr('stdPrice') + ': <b>' + fmtLei(cartTotal()) + '</b> · ' + t.m + ' × ' +
+      Math.ceil(t.monthly) + ' lei (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')';
+}
+
+async function makeInvoice() {
+  const c = cart().filter(i => i.qty > 0);
+  if (!c.length) { toast(tr('cartEmpty'), true); return; }
+  if (!ME) { toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return; }
+  const km = parseFloat(document.getElementById('tr-km').value);
+  if (!km || km <= 0) { toast(tr('transport'), true);
+    document.getElementById('tr-km').focus(); return; }
+  const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
+    .concat(SRV.filter(s => document.getElementById('sv-' + s.cod) &&
+      document.getElementById('sv-' + s.cod).checked)
+      .map(s => ({cod: s.cod, qty: 1, name: s.denumire || s.name})));
+  const body = {items, distance_km: km,
+    center_id: parseInt(document.getElementById('tr-center').value, 10) || null,
+    tva_mode: document.getElementById('tva-mode').value};
+  if (payMethod === 'credit') {
+    const t = TILES[tileSel];
+    if (!t) { toast('Alegeți termenul de rate', true); return; }
+    body.credit_plan_id = t.plan.id; body.credit_months = t.m;
+    body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
+  }
+  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  const cod = r.data.cod, nr = r.data.nrset || r.data.nr || cod;
+  saveCartLS([]);
+  const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
+  let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
+    '<br><a target="_blank" href="' + pdf('invoice') + '">' + tr('pdfInvoice') + '</a>' +
+    '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>';
+  if (PAY.enabled && payMethod !== 'credit') {
+    if (PAY.methods.includes('mia'))
+      h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
+    if (PAY.methods.includes('maib'))
+      h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 MAIB card</button>';
+    if (PAY.methods.includes('p2p'))
+      h += '<button class="pay" onclick="payP2P()">📲 MIA P2P</button>';
+  }
+  if (payMethod === 'credit') {
+    h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
+      '\')">📝 Cerere de credit EasyCredit</button>' +
+      '<button class="pay" onclick="payMaib(' + cod + ')">💳 Liber Card (MAIB) în rate</button>';
+  }
+  const ok = document.getElementById('okbox');
+  ok.style.display = ''; ok.innerHTML = h;
+  ok.scrollIntoView({behavior: 'smooth'});
+}
+
+async function sendCartCreditReq(cod, nr) {
+  const t = TILES[tileSel]; if (!t) return;
+  let phone = (ME && ME.phone) || '';
+  if (!phone) phone = prompt('Telefon · Телефон:') || '';
+  if (!phone) return;
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: t.plan.id, months: t.m, qty: 1, amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
+    product_cod: 0, product_name: 'Cont de plată Nr. ' + nr + ' (COD ' + cod + ')',
+    client_name: (ME && ME.name) || '', phone})});
+  toast(r.success ? '✅ Cererea a fost trimisă!' : (r.error || 'Eroare'), !r.success);
+}
+
+async function payMaib(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span style="color:#676767">Se inițiază plata MAIB…</span>';
+  const r = await j(API + '/pay/maib', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; toast(r.error || 'Eroare', true); return; }
+  window.open(r.data.pay_url, '_blank');
+  box.innerHTML = '<span style="color:#676767">Continuați plata în fereastra MAIB…</span>';
+}
+async function payMia(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span style="color:#676767">Se generează codul QR MIA…</span>';
+  const r = await j(API + '/pay/mia', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; toast(r.error || 'Eroare', true); return; }
+  const d = r.data;
+  box.innerHTML = '<div style="text-align:center;border:1px solid #86efac;border-radius:12px;padding:14px;background:#fff">' +
+    '<b>Scanați QR-ul cu aplicația bancară (MIA)</b><br>' +
+    '<img src="data:image/png;base64,' + d.qr_image + '" style="max-width:240px;margin:8px 0"><br>' +
+    '<a target="_blank" href="' + esc(d.qr_link) + '">Deschide linkul de plată</a><br>' +
+    '<span id="mia-status" style="font-size:12px;color:#676767">Așteptăm confirmarea plății…</span></div>';
+  if (miaTimer) clearInterval(miaTimer);
+  miaTimer = setInterval(async () => {
+    const st = await j(API + '/pay/mia-status?order=' + encodeURIComponent(d.order_id));
+    if (st.success && st.paid) { clearInterval(miaTimer);
+      document.getElementById('mia-status').innerHTML = '<b style="color:#15803d">✅ Plata confirmată!</b>'; }
+  }, 4000);
+}
+function payP2P() {
+  document.getElementById('pay-box').innerHTML =
+    '<div style="border:1px solid #86efac;border-radius:12px;padding:14px;background:#fff;font-size:14px">' +
+    '📲 <b>MIA P2P:</b> transferați suma pe numărul <b>062 007 211</b> din aplicația ' +
+    'bancară (MIA transfer la telefon) și indicați numărul contului în comentariu.</div>';
+}
+
+window.onLangChange = renderCart;
+
+(async function init() {
+  renderCart();
+  const [me, log, srv, pay, offers] = await Promise.all([
+    j(API + '/me'), j(API + '/logistics'), j(API + '/services'),
+    j(API + '/pay/methods'), j(API + '/credit/offers')]);
+  ME = (me.success && me.data && me.data.email) ? me.data : null;
+  document.getElementById('auth-note').style.display = ME ? 'none' : '';
+  CENTERS = log.data || [];
+  document.getElementById('tr-center').innerHTML = CENTERS.map(c =>
+    '<option value="' + c.id + '">' + esc(c.denumire) + '</option>').join('');
+  SRV = srv.data || [];
+  if (SRV.length) {
+    document.getElementById('srv-box').style.display = '';
+    document.getElementById('srv-list').innerHTML = SRV.map(s =>
+      '<label style="display:block;font-size:13px;margin:6px 0;color:#232323">' +
+      '<input type="checkbox" id="sv-' + s.cod + '"> ' + esc(s.denumire || s.name || '') +
+      (s.pret ? ' — ' + s.pret + ' lei' : '') + '</label>').join('');
+  }
+  if (pay.success && pay.data) PAY = pay.data;
+  OFFERS = offers.data || [];
+})();
+</script>
+{% endblock %}
