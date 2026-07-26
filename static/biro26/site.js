@@ -187,7 +187,9 @@ function cardHtml(p) {
   const price = pprice(p);
   const inStock = (p.real_cant || 0) > 0;
   return '<article class="product-card">' +
-    '<button class="wish" type="button" aria-label="Favorite">♡</button>' +
+    '<button class="wish' + (favHas(p.cod) ? ' on' : '') +
+      '" type="button" aria-label="Favorite" onclick="favToggle(this,' + p.cod + ')">' +
+      (favHas(p.cod) ? '❤' : '♡') + '</button>' +
     (p.image
       ? '<div class="product-img live" style="background-image:url(\'' + esc(p.image) +
         '\')" onclick="openProd(' + p.cod + ')"></div>'
