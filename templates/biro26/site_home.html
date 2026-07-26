@@ -545,6 +545,10 @@ function goSearch() {
   if (q) location.href = SHOP + '?q=' + encodeURIComponent(q);
   return false;
 }
+/* RO: variantele aceluiasi produs apar o singura data pe vitrina */
+function uniq(rows) { const seen = new Set(); return rows.filter(p => {
+  const k = p.master_cod || p.denumirea; if (seen.has(k)) return false;
+  seen.add(k); return true; }); }
 function subscribe() {
   const e = document.getElementById('nl-email').value.trim();
   if (e) { try {
