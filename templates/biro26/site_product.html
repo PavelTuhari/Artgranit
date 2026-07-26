@@ -119,6 +119,9 @@ async function crSubmit() {
   else toast(r.error || 'Eroare', true);
 }
 
+function pdpCmp() { cmpToggle(COD);
+  if (cmpHas(COD) && lsList('biro26_cmp').length > 1) location.href = '/compara'; }
+
 async function sendComment() {
   const txt = document.getElementById('c-txt').value.trim();
   if (!txt) return;
