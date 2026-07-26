@@ -179,6 +179,24 @@ E2E проверено: регистрация → счёт №15 (COD 260) → 
 
 Осталось из ТЗ: Phase 6 (soft launch → cutover на прод-домен) — по решению владельца после приёмки shop1.
 
+**Обновление 2026-07-26 (пакет «3 new landing 2507», 8 задач владельца):**
+
+| Задача | Реализация |
+|---|---|
+| Убрать Back-office с первой страницы | Ссылка удалена из футера (вместо неё — «Branduri») |
+| Реальные контакты из WP-админки | Блок «Contactați-ne» теперь HTML (не PNG): email/телефон/адрес/карта из WP-страницы **site-contact** (формат `Cheie: valoare`), правится не-админом |
+| «О компании» в 2 языках через WP | Блок about теперь HTML: контент (фото+текст) из WP-страниц **site-about** (RO) / **site-about-ru** (RU), переключается вместе с языком сайта |
+| «Pe categorii» — настройка + выкл по умолчанию | Секция tabs выключена по умолчанию (YBIRO_SITE_SECTION), включается галкой в limited admin |
+| Список «Cele mai populare» из backoffice | Таблица **YBIRO_SITE_FEATURED** (DDL 14), форма в limited admin (COD-ы по порядку, до 50); пустая = автоподборка |
+| Ссылки футера в верхней панели | Topbar-меню: Despre companie · Contacte · Retur produse · Branduri · Favorite · Compară (десктоп; на мобильном скрыто) |
+| Типы оплат — настройка в WP | WP-страница **site-plati** (список через запятую) → бейджи VISA/Mastercard/…/Liber Card в футере на всех страницах |
+| Бренды с картинками из WP + меню | 1842 бренда из xlsx импортированы в WP-страницу **site-branduri** («Brand \| URL-лого»); секция брендов на главной показывает логотипы; новая страница **/branduri** (поиск + пагинация, клик → каталог); пункт «Branduri» в topbar и футере |
+
+WP-страницы-источники (slug `site-*`, редактируются в WP Admin без кода):
+`site-contact`, `site-about`, `site-about-ru`, `site-plati`, `site-branduri`.
+API: `/api/biro26/site/info/<slug>` (кэш 5 мин), `/api/biro26/site/brands` (кэш 10 мин),
+`/api/biro26/site/featured` (admin). BIRO26_SHOP_WP_API на shop1 переключён на shop1 WP.
+
 ---
 
 ## 4. Целевая архитектура (to-be)
