@@ -175,6 +175,21 @@ async function saveSec(code, on) {
   if (r.success) toast('Salvat ✓');
 }
 
+async function loadFeat() {
+  const r = await j('/api/biro26/site/featured');
+  document.getElementById('feat').value = (r.data || [])
+    .map(x => x.product_cod).join('\n');
+  document.getElementById('feat-info').textContent =
+    (r.data || []).length + ' produse în listă';
+}
+async function saveFeat() {
+  const cods = document.getElementById('feat').value.split(/[\s,;]+/)
+    .map(s => s.trim()).filter(s => /^\d+$/.test(s));
+  const r = await j('/api/biro26/site/featured', {method: 'POST',
+    body: JSON.stringify({cods})});
+  if (r.success) { toast('Salvat ✓ (' + r.data.count + ')'); loadFeat(); }
+}
+
 async function loadSubs() {
   const r = await j('/api/biro26/site/subscribers');
   const rows = r.data || [];
