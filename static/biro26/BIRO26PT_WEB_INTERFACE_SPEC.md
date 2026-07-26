@@ -319,3 +319,29 @@ VALUES(:load_id,:field,:col_idx,'MANUAL',1);
 
 Первая функция — `problem_cards`: выгрузка товаров с испорченным кодировкой текстом
 (view `YBIRO_V_PROBLEM_CARDS`). Подробности и алгоритмы — `DIACRITICE_SI_SERVICII.md`.
+
+---
+
+## 15. Веб-атрибуты товара — `TMS_MPT_WEBATTR`
+
+Описание товара из файлов поставщиков (`DESCRIERE`, «Полное название продукта») пишется в
+таблицу-сателлит **`TMS_MPT_WEBATTR`**. Схема ключа — как у `TMS_MPT`: `COD` одновременно
+**PK и FK** на master-таблицу `TMS_UNIVERS` (связь 1:1).
+
+```sql
+-- карточка товара с описанием (для магазина / карточки в back-office)
+SELECT u.cod, u.denumirea, w.descriere, w.denumire_full, w.src
+FROM   tms_univers u
+LEFT   JOIN tms_mpt_webattr w ON w.cod = u.cod
+WHERE  u.cod = :cod;
+```
+
+| Поле | Что показывать |
+|---|---|
+| `DESCRIERE` | краткие характеристики (`6.78" \| LTPS IPS \| 120 Hz \| 5000 mAh`) — под названием товара |
+| `DENUMIRE_FULL` | полное название от поставщика — в карточке/тултипе |
+| `SRC`, `LOAD_ID`, `UPDATED_AT` | служебные: откуда и когда пришло |
+
+Импорт: `MERGE` по `COD`; **`NULL` не затирает** существующее значение — файл без колонки
+описания не удаляет ранее импортированные описания. Данные (set 8): **30 004** товара,
+из них **19 702** с описанием.

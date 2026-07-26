@@ -69,10 +69,46 @@ detecția și importul rămân în DB (o singură logică, testabilă, auditabil
 | `ID_TMS_UNIVERS` (sequence) | generatorul de `COD` | secvența de chei noi |
 | `TMS_MPT` (COD, MATGR1, DEP_PRODUCER) | cartela produsului | tabela-cartelă; `MATGR1` = flag „produse noi" |
 | `TMS_MPT_BARCODE` (COD, BARCODE, COMENT) | coduri de bare | tabela de coduri |
+| `TMS_MPT_WEBATTR` (COD, DESCRIERE, DENUMIRE_FULL, SRC) | atribute web (descriere) | tabelă-satelit proprie, vezi §3.4 |
 | `VPR01M_GROUPS` / `VPR1D_PRDATE` / `VTPR1D_PERPRLIST`(view) → `TPR1D_PERPRLIST`(bază) | lista de prețuri | grupuri → perioade → prețuri |
 | `TRG_VTPR1D_PERPRLIST_M_ALL` | trigger INSTEAD OF pe view-ul de preț | ⚠️ vezi §9.3 (bug NLS) |
 | `TMS_SYSGR` / `TMS_SYSGRPH` / `TMS_SYSGRP` | arborele de marfă (rădăcini / noduri / plasări) | arborele de categorii |
 | `TR_TMS_SYSGRP_B` | trigger pe plasare (interzice UPDATE la câmpuri-cheie) | ⚠️ vezi §9.4 |
+
+### 3.4 Modelul „master + sateliți" (cum se leagă tabelele)
+
+Toate tabelele de marfă se leagă de **master-tabelul `TMS_UNIVERS`** prin aceeași cheie:
+coloana `COD`. Sateliții folosesc `COD` **și ca PK, și ca FK** (relație 1:1), iar tabelele
+de tip listă (coduri de bare) au `COD` doar ca FK (1:N).
+
+```
+TMS_UNIVERS  (master · COD = cheia stabilă a mărfii · TIP='P')
+   │
+   ├─ TMS_MPT          COD PK/FK   1:1   cartela (MATGR1, DEP_PRODUCER)
+   ├─ TMS_MPT_TVR      COD PK/FK   1:1   imagine (IE_LINKADRES), dimensiuni
+   ├─ TMS_MPT_WEBATTR  COD PK/FK   1:1   descriere web + denumire completă   ← adăugată
+   ├─ TMS_MPT_BARCODE  COD FK      1:N   coduri de bare
+   ├─ TPR1D_PERPRLIST  SC  FK      1:N   perioade de preț
+   ├─ TMS_SYSGRP       SC  FK      1:N   plasarea în arbore
+   └─ BIRO26_GOODS     COD_UNIVERS 1:1   feed-ul care alimentează arborele + magazinul
+```
+
+**Regula pentru un satelit nou** (ex. `TMS_MPT_WEBATTR`): se copiază schema de cheie de la
+`TMS_MPT` — `COD NUMBER NOT NULL`, `PRIMARY KEY (COD)`, `FOREIGN KEY (COD) REFERENCES
+TMS_UNIVERS (COD)`. Așa moștenește integritatea (nu pot exista atribute fără marfă) și se
+alătură direct oricărei interogări prin `JOIN ... ON x.cod = u.cod`.
+
+`TMS_MPT_WEBATTR`:
+
+| Coloană | Tip | Rol |
+|---|---|---|
+| `COD` | NUMBER, PK+FK | = `TMS_UNIVERS.COD` |
+| `DESCRIERE` | VARCHAR2(2000) | descriere / caracteristici tehnice pentru magazin |
+| `DENUMIRE_FULL` | VARCHAR2(1000) | denumirea completă din fișierul furnizorului |
+| `SRC` | VARCHAR2(60) | furnizorul / fișierul-sursă |
+| `LOAD_ID`, `UPDATED_AT` | NUMBER, DATE | trasabilitate: ce încărcare a scris rândul |
+
+DDL: `TMS_MPT_WEBATTR.tab.sql`.
 
 ### 3.3 Variabile de configurare (în pachete — de rescris per schemă)
 
@@ -141,6 +177,9 @@ fiecare furnizor nou, adaugi anteturile lui o dată și apoi se recunosc automat
    **virtual** (doar `MATGR1`), NU un nod fizic.
 5. **Generare EAN-13** pentru pozițiile noi fără cod (prefix `20` + secvență + cifră de control).
    Dacă fișierul are coloană de coduri → se importă acelea.
+6. **Atribute web** (`DESCRIERE`, `DENUM_FULL`) → `TMS_MPT_WEBATTR` prin `MERGE` pe `COD`.
+   Regulă: **`NULL` nu șterge** valoarea existentă (`NVL(u.nou, t.vechi)`) — un fișier parțial
+   (fără coloana descriere) nu pierde descrierile deja importate din alt fișier.
 
 ---
 

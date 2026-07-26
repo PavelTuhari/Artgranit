@@ -27,6 +27,8 @@ Sistemul recunoaște coloanele automat, după numele din antet (română / rusă
 | Grupă (categorie de sus) | Opțional | `GRUPA`, `Категория`, `Group` |
 | Categorie (subgrupă) | Opțional | `CATEGORIE`, `Category` |
 | Furnizor / producător | Opțional | `PRODUCER`, `Furnizor`, `Producător` |
+| Descriere / caracteristici | Opțional | `DESCRIERE`, `Описание`, `Description`, `Характеристики` |
+| Denumire completă | Opțional | `Полное название продукта`, `Denumire completă`, `Full name` |
 | TVA | Opțional | `Ставка НДС`, `TVA` |
 
 > ⚠️ **Cel mai important:** fișierul TREBUIE să aibă coloana **Articol**. Fără ea, produsele
@@ -51,6 +53,9 @@ Sistemul recunoaște coloanele automat, după numele din antet (română / rusă
 - **„Produse noi"** → produsele importate apar sub filtrul **🆕 Produse noi** (magazin + back-office).
 - **Furnizor** → se leagă producătorul/furnizorul din fișier (ex. ULTRA, CRAFTI).
 - **Imagini** → dacă fișierul are coloană URL, imaginea se preia pe cartelă.
+- **Descriere** → dacă fișierul are coloana descriere / denumire completă, textul se salvează
+  ca atribut web al mărfii (`TMS_MPT_WEBATTR`) și poate fi afișat în magazin. Un fișier fără
+  aceste coloane **nu șterge** descrierile existente.
 
 ## 5. Reguli de preț
 
