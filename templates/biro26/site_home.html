@@ -534,7 +534,7 @@ async function pickTab(i) {
   document.getElementById('row-tab').innerHTML =
     '<article class="product-card skel"></article>'.repeat(5);
   const r = await j(API + '/products?limit=40&categorie=' + encodeURIComponent(TABS[i].categorie));
-  const rows = (r.data || []);
+  const rows = uniq(r.data || []);
   ROWS.tab.items = rows.filter(p => p.image).concat(rows.filter(p => !p.image)).slice(0, 25);
   ROWS.tab.page = 0; renderRow('tab');
 }
