@@ -9,9 +9,14 @@
               <h1 class="pdp-name" id="p-name">…</h1>
               <div class="pdp-code" id="p-code"></div>
               <span class="stock in" id="p-stock"></span>
+              <div id="p-vars"></div>
+
+              <!-- RO: pretul si «Rate și credit» stau pe ACEEASI linie
+                   orizontala (creditul in dreapta pretului) -->
+              <div class="pdp-cols">
+              <div class="pdp-buy">
               <div class="pdp-price" id="p-price"></div>
               <div id="p-liber"></div>
-              <div id="p-vars"></div>
               <div class="pdp-qty">
                 <span data-t="qty">Cantitate</span>
                 <input id="p-qty" type="number" min="1" value="1">
@@ -21,8 +26,9 @@
                 <span class="fchip" id="p-fav" onclick="pdpFav()">♡ Favorite</span>
                 <span class="fchip" id="p-cmp" onclick="pdpCmp()" data-t="cmpBtn">⚖ Compară</span>
               </div>
+              </div>
 
-              <div class="pdp-sec" id="p-credit" style="display:none">
+              <div class="pdp-sec pdp-credit" id="p-credit" style="display:none">
                 <h3 data-t="creditH">Rate și credit</h3>
                 <div id="p-rate-price" style="font-size:17px;color:#1d4ed8;font-weight:800;margin-bottom:10px"></div>
                 <div class="cr-tiles" id="p-tiles"></div>
