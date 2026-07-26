@@ -37,6 +37,7 @@
   .plp { flex-direction: column; }
   /* RO: pe tableta/mobil filtrele stau ascunse dupa butonul "Filtre"
      (stil Amazon, ca in magazinul clasic) */
+  .plp-ftoggle { display: block; }
   .plp-side { width: 100%; display: none; }
   .plp-side.open { display: flex; }
   .ftree { max-height: 260px; }
