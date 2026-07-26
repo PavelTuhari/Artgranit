@@ -605,8 +605,21 @@ class Biro26Controller:
 
     @staticmethod
     def shop_product_info(cod: int) -> Dict[str, Any]:
-        """Public: description + comments for the shop's product window."""
-        return Biro26Store.product_info(cod)
+        """Public: description + comments for the shop's product window.
+        RO: ?lang=ro|ru|en — descrierea din TMS_MPT_WEBATTR (BLOB, cu
+        diacritice) cu intoarcere pe RO."""
+        return Biro26Store.product_info(cod, request.args.get("lang", "ro"))
+
+    @staticmethod
+    def webattr_get(cod: int) -> Dict[str, Any]:
+        """Backoffice: valorile RO/RU/EN pentru editorul «Atribute web»."""
+        return Biro26Store.get_webattr(cod)
+
+    @staticmethod
+    def webattr_save(cod: int) -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        return Biro26Store.save_webattr(
+            cod, d.get("lang") or "", d.get("descriere"), d.get("denum_full"))
 
     @staticmethod
     def shop_product_comment(cod: int) -> Dict[str, Any]:
