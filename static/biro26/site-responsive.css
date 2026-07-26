@@ -32,7 +32,8 @@
   .deal-card { width: 100%; min-height: auto; }
   .deal-image { min-height: 200px; }
   .categories { grid-template-columns: repeat(4, 1fr); }
-  .product-grid, .product-grid.five { grid-template-columns: repeat(3, 1fr); }
+  .product-grid, .product-grid.five,
+  .plp .product-grid { grid-template-columns: repeat(3, 1fr); }
   .brands { grid-template-columns: repeat(4, 1fr); }
   .plp { flex-direction: column; }
   /* RO: pe tableta/mobil filtrele stau ascunse dupa butonul "Filtre"
