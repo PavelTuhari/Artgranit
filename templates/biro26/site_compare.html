@@ -1,0 +1,54 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Comparare{% endblock %}
+{% block css %}
+    .cmp-tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid #ececec;border-radius:14px;overflow:hidden}
+    .cmp-tbl th,.cmp-tbl td{padding:12px;border:1px solid #f0f0f0;font-size:14px;text-align:center;vertical-align:top}
+    .cmp-tbl th:first-child,.cmp-tbl td:first-child{text-align:left;color:#676767;font-size:13px;width:160px;background:#fafafa}
+    .cmp-img{height:130px;background:#fff center/contain no-repeat;border-radius:10px;cursor:pointer}
+{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> › <span data-t="compare">Compară produse</span></p>
+          <h1 class="page-h1" style="font-size:32px;margin-bottom:22px">⚖ <span data-t="compare">Compară produse</span></h1>
+          <div style="overflow-x:auto"><table class="cmp-tbl" id="tbl" style="display:none"></table></div>
+          <p id="empty" style="display:none;color:#676767"></p>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: compararea (max 4 produse; COD-urile in localStorage, datele din API) */
+function rmCmp(cod) { cmpToggle(cod); loadCmp(); }
+async function loadCmp() {
+  const cods = lsList('biro26_cmp');
+  const tbl = document.getElementById('tbl');
+  const empty = document.getElementById('empty');
+  if (!cods.length) { tbl.style.display = 'none';
+    empty.style.display = ''; empty.textContent = tr('cmpEmpty'); return; }
+  empty.style.display = 'none'; tbl.style.display = '';
+  const rows = (await Promise.all(cods.slice(0, 4).map(c =>
+    j(API + '/products?cod=' + c + '&limit=1')
+      .then(r => (r.data || [])[0]).catch(() => null)))).filter(Boolean);
+  const attr = (label, fn) => '<tr><td>' + label + '</td>' +
+    rows.map(p => '<td>' + fn(p) + '</td>').join('') + '</tr>';
+  tbl.innerHTML =
+    '<tr><th>' + tr('characteristics') + '</th>' + rows.map(p =>
+      '<th><div class="cmp-img" style="background-image:url(\'' + esc(p.image || '') +
+      '\')" onclick="openProd(' + p.cod + ')"></div>' +
+      '<div style="font-weight:600;font-size:13.5px;margin-top:6px;cursor:pointer" ' +
+      'onclick="openProd(' + p.cod + ')">' + esc(pname(p)) + '</div>' +
+      '<button class="fchip" onclick="rmCmp(' + p.cod + ')">×</button></th>').join('') + '</tr>' +
+    attr(tr('price'), p => '<b>' + fmtLei(pprice(p)) + '</b>') +
+    attr('Brand', p => esc(p.brand || '—')) +
+    attr(tr('inStock'), p => (p.real_cant || 0) > 0 ? '✅' : '⏳') +
+    attr(tr('code'), p => esc(p.codvechi || p.cod)) +
+    attr('Grupa', p => esc(p.grupa || '—')) +
+    attr('Categorie', p => esc(p.categorie || '—')) +
+    attr('UM', p => esc(p.um || '—')) +
+    attr('', p => '<button class="btn-buy-sm" style="padding:0 18px;height:38px" ' +
+      'onclick="addToCart(' + p.cod + ',\'' + esc(p.denumirea || '').replace(/'/g, '&#39;') +
+      '\',' + pprice(p) + ')">' + tr('buy') + '</button>');
+}
+window.onLangChange = loadCmp;
+loadCmp();
+</script>
+{% endblock %}
