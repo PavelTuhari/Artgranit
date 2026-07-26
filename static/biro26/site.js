@@ -127,6 +127,17 @@ const T = {
   phoneF:     {ro: 'Telefon', ru: 'Телефон'},
   idno:       {ro: 'IDNO (pers. juridice)', ru: 'IDNO (для юрлиц)'},
   welcome:    {ro: 'Bine ați venit', ru: 'Добро пожаловать'},
+  /* favorite & comparare */
+  favorites:  {ro: 'Favorite', ru: 'Избранное'},
+  compare:    {ro: 'Compară produse', ru: 'Сравнить товары'},
+  favAdded:   {ro: 'Adăugat la favorite', ru: 'Добавлено в избранное'},
+  favRemoved: {ro: 'Scos din favorite', ru: 'Удалено из избранного'},
+  cmpAdded:   {ro: 'Adăugat la comparare', ru: 'Добавлено к сравнению'},
+  cmpRemoved: {ro: 'Scos din comparare', ru: 'Убрано из сравнения'},
+  favEmpty:   {ro: 'Nu aveți produse favorite încă — apăsați ♡ pe carduri', ru: 'Пока нет избранных товаров — нажмите ♡ на карточках'},
+  cmpEmpty:   {ro: 'Alegeți produse pentru comparare de pe fișele lor (max 4)', ru: 'Добавьте товары к сравнению со страниц товаров (макс. 4)'},
+  cmpBtn:     {ro: '⚖ Compară', ru: '⚖ Сравнить'},
+  characteristics: {ro: 'Caracteristici', ru: 'Характеристики'},
 };
 function curLang() {
   const l = localStorage.getItem('biro26_lang') || 'ro';
