@@ -167,6 +167,18 @@
 API-расширение: `/api/biro26/shop/products?cod=` (одна карточка для PDP).
 E2E проверено: регистрация → счёт №15 (COD 260) → PDF 57 KB. Прод officeplus.md не тронут.
 
+**Обновление 2026-07-26 (ночь): пакет «доводка по ТЗ» реализован на shop1.**
+
+| Что | Реализация |
+|---|---|
+| Newsletter backend | Oracle `YBIRO_SITE_SUBSCRIBER` (DDL `13_ybiro_site_subscribers.sql`), POST `/api/biro26/site/subscribe` (валидация email, дедуп, повторная подписка реактивирует), список подписчиков в limited admin |
+| Избранное | ♡ на карточках работают (❤ toggle, localStorage `biro26_fav`), страница `/favorite` с карточками избранного, кнопка на PDP, ссылка в футере |
+| Сравнение | до 4 товаров (`biro26_cmp`), кнопка «⚖ Compară» на PDP, страница `/compara` — таблица: фото, цена, бренд, наличие, код, группа/категория, UM, «Купить»; ссылка в футере |
+| Адаптив (ТЗ §5.2) | `static/biro26/site-responsive.css`: fluid ≤1459, tablet ≤1024 (hero стек, 3-кол. гриды, PLP/PDP/coș в столбец), mobile ≤640/375 (2-кол. гриды, компактный topbar, поиск на всю ширину, фильтры каталога свёрнуты за кнопку «Filtre» Amazon-style). Проверено на 375px: без горизонтального скролла |
+| SEO (ТЗ §11) | meta description, canonical, hreflang ro/ru, OG title/image, favicon — во всех страницах через `site_base.html` |
+
+Осталось из ТЗ: Phase 6 (soft launch → cutover на прод-домен) — по решению владельца после приёмки shop1.
+
 ---
 
 ## 4. Целевая архитектура (to-be)
