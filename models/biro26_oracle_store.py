@@ -1393,7 +1393,6 @@ END;""",
     # large product window and the backoffice item card.
     # ============================================================
 
-    @staticmethod
     # RO: coloanele BLOB din TMS_MPT_WEBATTR se citesc DIRECT ca text —
     #     worker-ul are fetch_lobs=False si decodeaza bytes -> UTF-8, deci
     #     diacriticele ajung intacte in aplicatie (TZ WEBATTR §3).
