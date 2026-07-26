@@ -626,12 +626,27 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                             AND b.col_idx = v_col_dfull),
                         YBIRO_TEXT_UTIL.nclob_to_blob(TO_NCLOB(s.denumire_full)) ) dfull_blob,
                    NVL(s.furnizor, s.src_file) src,
-                   ROW_NUMBER() OVER (PARTITION BY s.cod_univers ORDER BY s.id) rn
+                   -- RO: ATENTIE - acelasi articol poate aparea in fisier la produse
+                   --     DIFERITE (eroare a furnizorului: pe o foaie "Smartphone", pe alta
+                   --     "Imprimanta"). Alegem randul a carui DENUMIRE se potriveste cu
+                   --     numele din catalog; altfel am scrie descrierea altui produs.
+                   -- EN: CAREFUL - the same article may appear for DIFFERENT products in the
+                   --     file (supplier error). Pick the row whose NAME matches the catalog
+                   --     name, otherwise we would attach another product's description.
+                   ROW_NUMBER() OVER (PARTITION BY s.cod_univers
+                     ORDER BY CASE WHEN UPPER(TRIM(SUBSTR(s.denumire,1,60)))
+                                        = UPPER(TRIM(SUBSTR(u.denumirea,1,60))) THEN 0
+                                   WHEN UPPER(TRIM(SUBSTR(s.denumire,1,25)))
+                                        = UPPER(TRIM(SUBSTR(u.denumirea,1,25))) THEN 1
+                                   ELSE 2 END, s.id) rn,
+                   CASE WHEN UPPER(TRIM(SUBSTR(s.denumire,1,25)))
+                             = UPPER(TRIM(SUBSTR(u.denumirea,1,25))) THEN 1 ELSE 0 END name_ok
             FROM biro26pt_stg s
+            JOIN tms_univers u ON u.cod = s.cod_univers
             WHERE s.load_id = p_load_id AND s.cod_univers IS NOT NULL
               AND s.status IN ('NEW','EXISTING')
               AND (s.descriere IS NOT NULL OR s.denumire_full IS NOT NULL)
-          ) d WHERE d.rn = 1
+          ) d WHERE d.rn = 1 AND d.name_ok = 1   -- RO: doar potriviri sigure / EN: safe matches only
         ) u ON (t.cod = u.cod)
         WHEN MATCHED THEN UPDATE SET
           t.descriere_ro          = NVL(u.descr_blob, t.descriere_ro),
