@@ -194,7 +194,7 @@ window.onLangChange = renderP;
   P = (pr.data || [])[0];
   OFFERS = offers.data || [];
   if (!P) { document.getElementById('p-name').textContent = 'Produs indisponibil (COD ' + COD + ')'; return; }
-  renderP(); loadInfo();
+  renderP(); loadInfo(); pdpFavPaint();
   document.getElementById('p-qty').addEventListener('change', renderTiles);
   // variante (culoare/marime) — in cos intra COD-ul variantei alese
   if ((P.var_cnt || 1) > 1) {
