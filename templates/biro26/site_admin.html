@@ -67,6 +67,21 @@ label.sw{display:inline-flex;align-items:center;gap:8px;margin:6px 16px 6px 0;fo
   </div>
 
   <div class="card">
+    <h3>⭐ «Cele mai populare» — lista de mărfuri</h3>
+    <div class="hint">Introduceți COD-urile produselor (unul pe rând, în ordinea afișării,
+      max 50). Lista goală = secțiunea alege automat un eșantion din catalog.
+      COD-ul se vede în backoffice (Marfă/Stoc) sau în URL-ul fișei produsului
+      (<code>/produs/&lt;COD&gt;</code>).</div>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <textarea id="feat" rows="8" style="width:260px;padding:8px;border:1px solid #cbd5e1;border-radius:8px;font:12.5px monospace" placeholder="225712&#10;183094"></textarea>
+      <div>
+        <button class="btn" onclick="saveFeat()">💾 Salvează lista</button>
+        <div class="muted" id="feat-info" style="margin-top:8px;font-size:12px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <h3>🧩 Secțiunile paginii principale</h3>
     <div id="secs"></div>
   </div>
