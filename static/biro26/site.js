@@ -138,6 +138,9 @@ const T = {
   cmpEmpty:   {ro: 'Alegeți produse pentru comparare de pe fișele lor (max 4)', ru: 'Добавьте товары к сравнению со страниц товаров (макс. 4)'},
   cmpBtn:     {ro: '⚖ Compară', ru: '⚖ Сравнить'},
   characteristics: {ro: 'Caracteristici', ru: 'Характеристики'},
+  contactUs:  {ro: 'Contactați-ne', ru: 'Свяжитесь с нами'},
+  addr:       {ro: 'Adresa', ru: 'Адрес'},
+  brandSearch:{ro: 'Caută brand…', ru: 'Найти бренд…'},
 };
 function curLang() {
   const l = localStorage.getItem('biro26_lang') || 'ro';
