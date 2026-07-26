@@ -1235,6 +1235,19 @@ applyLang();
   else if (p === 'fail') toast('❌ Plata NU a fost efectuată (refuzată sau anulată) · Оплата НЕ прошла', true);
 })();
 
+/* RO: deep-link din pagina principala Figma (biro26-site):
+   ?q= cautare, ?grupa=/&categorie=/&brand= filtre, ?sort=, ?cart=1 deschide
+   cosul. EN: deep-link support for the Figma homepage. */
+(function deepLink() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('q')) document.getElementById('q').value = p.get('q');
+  if (p.get('grupa')) F.grupa = p.get('grupa');
+  if (p.get('categorie')) F.categorie = p.get('categorie');
+  if (p.get('brand')) F.brand = p.get('brand');
+  const s = p.get('sort'), sel = document.getElementById('sort');
+  if (s && sel && [...sel.options].some(o => o.value === s)) sel.value = s;
+  if (p.get('cart') === '1') setTimeout(openCart, 300);
+})();
 saveCart(cart()); refreshMe(); load(true); loadFacets(); loadPayMethods(); loadCreditOffers();
 </script>
 </body>
