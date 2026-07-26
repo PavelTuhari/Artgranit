@@ -129,16 +129,33 @@
           </div>
         </section>
 
-        <!-- ===== About / Contact (exported frames; text complet: WP) ===== -->
-        <section class="section about-section" data-sec="about">
-          <a href="/despre-noi" aria-label="Despre noi">
-            <img class="about-export" src="/static/biro26/landing/assets/about.png" alt="Despre OfficePlus">
-          </a>
+        <!-- ===== About: continutul (text+foto, RO/RU) vine din paginile WP
+             «site-about» / «site-about-ru» — editabile de non-admin ===== -->
+        <section class="section" data-sec="about">
+          <div class="about-live" id="about-live" style="display:none">
+            <div class="about-img" id="about-img"></div>
+            <div class="about-txt">
+              <p class="section-tag">OFFICEPLUS.MD</p>
+              <div id="about-html"></div>
+              <a class="btn-orange" href="/catalog" data-t="goCatalog" style="margin-top:18px">Mergi la catalog</a>
+            </div>
+          </div>
         </section>
-        <section class="section contact-section" data-sec="contact">
-          <a href="/contacte" aria-label="Contacte">
-            <img class="contact-export" src="/static/biro26/landing/assets/contact.png" alt="Contactați-ne">
-          </a>
+
+        <!-- ===== Contact: datele vin din pagina WP «site-contact» ===== -->
+        <section class="section" data-sec="contact">
+          <div class="contact-live" id="contact-live" style="display:none">
+            <h2 class="section-title" style="margin-bottom:22px" data-t="contactUs">Contactați-ne</h2>
+            <div class="contact-cols">
+              <div class="contact-col"><div class="contact-ico">✉️</div>
+                <b>Email</b><a id="ct-email" href="#"></a></div>
+              <div class="contact-col"><div class="contact-ico">📞</div>
+                <b data-t="phone">Telefon</b><a id="ct-tel" href="#"></a></div>
+              <div class="contact-col"><div class="contact-ico">📍</div>
+                <b data-t="address">Adresa</b><span id="ct-adr"></span></div>
+            </div>
+            <div class="contact-map" id="ct-map"></div>
+          </div>
         </section>
 {% endblock %}
 {% block js %}
