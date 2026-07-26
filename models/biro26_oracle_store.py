@@ -1394,20 +1394,101 @@ END;""",
     # ============================================================
 
     @staticmethod
-    def product_info(cod: int) -> Dict[str, Any]:
-        """Description + comments for one product (public shop + card)."""
+    # RO: coloanele BLOB din TMS_MPT_WEBATTR se citesc DIRECT ca text —
+    #     worker-ul are fetch_lobs=False si decodeaza bytes -> UTF-8, deci
+    #     diacriticele ajung intacte in aplicatie (TZ WEBATTR §3).
+    _WEBATTR_LANGS = ("RO", "RU", "EN")
+
+    @staticmethod
+    def _webattr_row(cod: int) -> Optional[Dict[str, Any]]:
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT DESCRIERE_RO, DESCRIERE_RU, DESCRIERE_EN, "
+            "DENUMIRE_FULL_BLOB_RO, DENUMIRE_FULL_BLOB_RU, "
+            "DENUMIRE_FULL_BLOB_EN "
+            "FROM TMS_MPT_WEBATTR WHERE COD = :c", {"c": int(cod)}))
+        return rows[0] if rows else None
+
+    @staticmethod
+    def _webattr_pick(row: Optional[Dict[str, Any]], lang: str,
+                      base: str) -> Optional[str]:
+        """RO: alege limba ceruta cu intoarcere pe RO (limba de baza)."""
+        if not row:
+            return None
+        for L in ((lang or "ro").upper(), "RO"):
+            if L in Biro26Store._WEBATTR_LANGS:
+                v = row.get(f"{base}_{L}".lower())
+                if v:
+                    return v
+        return None
+
+    @staticmethod
+    def get_webattr(cod: int) -> Dict[str, Any]:
+        """RO: toate valorile pe limbi — pentru editorul din backoffice."""
+        try:
+            row = Biro26Store._webattr_row(cod) or {}
+            return {"success": True, "data": {
+                L.lower(): {
+                    "descriere": row.get(f"descriere_{L.lower()}") or "",
+                    "denum_full": row.get(f"denumire_full_blob_{L.lower()}") or "",
+                } for L in Biro26Store._WEBATTR_LANGS}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_webattr(cod: int, lang: str, descr: Optional[str],
+                     full: Optional[str]) -> Dict[str, Any]:
+        """RO: scrie DOAR coloanele BLOB (originalul UTF-8) — copiile fara
+        diacritice le regenereaza triggerul TMS_MPT_WEBATTR_BIU. Textul
+        pleaca la worker ca bytes ({"__b64__"}) legat explicit ca BLOB, ca
+        sa nu treaca prin conversia de charset a sesiunii (TZ WEBATTR §5).
+        EN: BLOB-only write; the trigger rebuilds the search copies."""
+        import base64
+        L = (lang or "").upper()
+        if L not in Biro26Store._WEBATTR_LANGS:      # numele coloanei intra
+            return {"success": False, "error": "lang invalid"}   # in SQL!
+        def b64(t):
+            return ({"__b64__": base64.b64encode(
+                t.encode("utf-8")).decode("ascii")} if t else None)
+        try:
+            r = Biro26DB().execute_dml(
+                f"MERGE INTO TMS_MPT_WEBATTR t "
+                f"USING (SELECT :c COD FROM dual) s ON (t.COD = s.COD) "
+                f"WHEN MATCHED THEN UPDATE SET "
+                f"  t.DESCRIERE_{L} = :d, t.DENUMIRE_FULL_BLOB_{L} = :f "
+                f"WHEN NOT MATCHED THEN "
+                f"  INSERT (COD, DESCRIERE_{L}, DENUMIRE_FULL_BLOB_{L}, SRC) "
+                f"  VALUES (:c2, :d2, :f2, 'BACKOFFICE')",
+                {"c": int(cod), "d": b64(descr), "f": b64(full),
+                 "c2": int(cod), "d2": b64(descr), "f2": b64(full)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def product_info(cod: int, lang: str = "ro") -> Dict[str, Any]:
+        """Description + comments for one product (public shop + card).
+        RO: descrierea vine din TMS_MPT_WEBATTR (BLOB — cu diacritice),
+        cu intoarcere limba->RO->YBIRO_PROD_INFO (mostenirea veche)."""
         try:
             db = Biro26DB()
-            desc = _rows(db.execute_query(
-                "SELECT DESCRIERE FROM YBIRO_PROD_INFO WHERE COD = :c",
-                {"c": int(cod)}))
+            wa = Biro26Store._webattr_row(cod)
+            descr = Biro26Store._webattr_pick(wa, lang, "DESCRIERE")
+            full = Biro26Store._webattr_pick(wa, lang, "DENUMIRE_FULL_BLOB")
+            if not descr:
+                legacy = _rows(db.execute_query(
+                    "SELECT DESCRIERE FROM YBIRO_PROD_INFO WHERE COD = :c",
+                    {"c": int(cod)}))
+                descr = (legacy[0]["descriere"] if legacy else "") or ""
             comments = _rows(db.execute_query(
                 "SELECT * FROM (SELECT ID, AUTOR, TXT, "
                 "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') CREATED "
                 "FROM YBIRO_PROD_COMMENTS WHERE COD = :c "
                 "ORDER BY ID DESC) WHERE ROWNUM <= 100", {"c": int(cod)}))
             return {"success": True, "data": {
-                "descriere": (desc[0]["descriere"] if desc else "") or "",
+                "descriere": descr or "",
+                "denum_full": full or "",
                 "comments": comments}}
         except Exception as e:
             return {"success": False, "error": str(e)}
