@@ -1,110 +1,13 @@
-<!DOCTYPE html>
-<html lang="ro">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ app_name }} — Magazin online</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/biro26/landing/styles.css">
-  <style>
-    /* RO: completari LIVE peste CSS-ul prototipului Figma (landingfigma1) —
-       imagini reale de produs, input de cautare real, toast. Nu se schimba
-       tokens/spatii/umbre: vizualul ramane strict cel din prototip. */
-    .search-input{flex:1;border:0;outline:none;background:transparent;
-      font-weight:400;font-size:20px;color:#1a1a1a;min-width:0}
-    .search-input::placeholder{color:#808080}
-    .product-img.live{background:#fff center/contain no-repeat;cursor:pointer}
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Magazin online{% endblock %}
+{% block css %}
     .deal-image.live{background:#fff center/contain no-repeat;min-height:220px;cursor:pointer}
     .category-img{background-position:center;background-size:cover;position:relative;overflow:hidden}
     .category-emoji{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;opacity:.9}
-    .product-card{cursor:default}
-    .product-name{cursor:pointer}
-    .product-name:hover{color:#194681}
-    .lang-item{cursor:pointer}
-    .toast{position:fixed;bottom:24px;right:24px;background:#194681;color:#fff;
-      padding:12px 20px;border-radius:10px;font-weight:600;font-size:14px;z-index:99;
-      box-shadow:0 8px 24px rgba(0,0,0,.25)}
-    .skel{opacity:.45;animation:sk 1.1s infinite alternate}
-    @keyframes sk{to{opacity:.2}}
     .hero-slide-visual.s2{background:linear-gradient(135deg,#355c1a 0%,#58ba13 55%,#7ed321 100%)}
     .hero-slide-visual.s3{background:linear-gradient(135deg,#a34d0e 0%,#ea6f21 55%,#ffb800 100%)}
-  </style>
-</head>
-<body>
-  <div class="page-shell">
-    <div class="homepage">
-
-      <!-- ===== HEADER / MENIU (Frame 1984078992) ===== -->
-      <header class="header">
-        <div class="topbar">
-          <div class="topbar-inner">
-            <div class="topbar-left">
-              <span class="topbar-icon clock" aria-hidden="true"></span>
-              <span class="topbar-text" data-t="hours">Astăzi lucrăm de la 09:00 până la 19:00</span>
-              <a class="topbar-link" href="/biro26-shop?info=livrare" data-t="delivery">Livrare</a>
-            </div>
-            <div class="topbar-right">
-              <a class="topbar-phone" href="tel:+37362007211">
-                <span class="topbar-icon phone" aria-hidden="true"></span>
-                +(373) 620-07-211
-              </a>
-              <div class="lang">
-                <span class="lang-item" data-lang="ro" onclick="setLang('ro')">RO</span>
-                <span class="lang-item" data-lang="ru" onclick="setLang('ru')">RU</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="navbar">
-          <a class="logo" href="/" aria-label="{{ app_name }}">
-            <img src="/static/biro26/landing/assets/logo.png" alt="{{ app_name }}" width="227" height="80">
-          </a>
-
-          <div class="search">
-            <form class="search-field" onsubmit="return goSearch()">
-              <input class="search-input" id="q" type="text" placeholder="Caută produse…" data-p="search" aria-label="Căutare">
-              <button class="search-btn" type="submit" aria-label="Căutare">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" stroke="#194681" stroke-width="2"/>
-                  <path d="M20 20L16.5 16.5" stroke="#194681" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </form>
-            <button class="catalog-btn" type="button" onclick="location.href='/biro26-shop'">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <rect x="1" y="1" width="6" height="6" rx="1" fill="#FFD23A"/>
-                <rect x="9" y="1" width="6" height="6" rx="1" fill="#FFD23A"/>
-                <rect x="1" y="9" width="6" height="6" rx="1" fill="#FFD23A"/>
-                <rect x="9" y="9" width="6" height="6" rx="1" fill="#FFD23A"/>
-              </svg>
-              <span data-t="catalog">Catalog</span>
-            </button>
-          </div>
-
-          <div class="nav-actions">
-            <button class="icon-btn" type="button" aria-label="Coș" onclick="location.href='/biro26-shop?cart=1'">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M6 6h15l-1.5 9h-12L6 6z" stroke="#194681" stroke-width="1.8" stroke-linejoin="round"/>
-                <path d="M6 6L5 3H2" stroke="#194681" stroke-width="1.8" stroke-linecap="round"/>
-                <circle cx="9" cy="20" r="1.4" fill="#194681"/>
-                <circle cx="18" cy="20" r="1.4" fill="#194681"/>
-              </svg>
-              <span class="badge" id="cart-badge" style="display:none">0</span>
-            </button>
-            <button class="icon-btn user" type="button" aria-label="Cont" onclick="location.href='/biro26-shop'">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" stroke="#194681" stroke-width="1.8"/>
-                <path d="M4 20c1.5-3.5 4.2-5 8-5s6.5 1.5 8 5" stroke="#194681" stroke-width="1.8" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main class="main">
+{% endblock %}
+{% block content %}
         <!-- ===== HERO: slider + product of the day ===== -->
         <section class="hero">
           <div class="hero-slider">
@@ -114,7 +17,7 @@
                   <p class="hero-kicker"></p>
                   <h2 class="hero-title"></h2>
                   <p class="hero-sub"></p>
-                  <a class="btn-orange" href="/biro26-shop" data-t="seeOffer">Vezi oferta</a>
+                  <a class="btn-orange" href="/catalog" data-t="seeOffer">Vezi oferta</a>
                 </div>
                 <div class="hero-slide-art" aria-hidden="true"></div>
               </div>
@@ -154,7 +57,7 @@
         </section>
 
         <!-- ===== H1 + categories ===== -->
-        <section class="section categories-section">
+        <section class="section categories-section" data-sec="categories">
           <h1 class="page-h1" data-t="h1">Magazin online de birotică și papetărie în Moldova</h1>
           <div class="categories" id="cats"></div>
           <div class="row-nav">
@@ -165,14 +68,14 @@
         </section>
 
         <!-- ===== Best products row ===== -->
-        <section class="section products-section">
+        <section class="section products-section" data-sec="best">
           <div class="section-head">
             <div>
               <p class="section-tag" data-t="tag">Oferte OfficePlus</p>
               <h2 class="section-title" data-t="best">Cei mai buni</h2>
               <p class="section-sub" data-t="bestSub">Reduceri actuale la produsele populare pentru birou și studii</p>
             </div>
-            <a class="see-all" href="/biro26-shop?sort=price_desc" data-t="seeAll">Vezi toate <span aria-hidden="true">→</span></a>
+            <a class="see-all" href="/catalog?sort=price_desc" data-t="seeAll">Vezi toate <span aria-hidden="true">→</span></a>
           </div>
           <div class="product-grid" id="row-best"></div>
           <div class="row-nav">
@@ -183,14 +86,14 @@
         </section>
 
         <!-- ===== Popular products ===== -->
-        <section class="section products-section">
+        <section class="section products-section" data-sec="popular">
           <div class="section-head">
             <div>
               <p class="section-tag" data-t="tag">Oferte OfficePlus</p>
               <h2 class="section-title" data-t="popular">Cele mai populare</h2>
               <p class="section-sub" data-t="popularSub">Produse populare, alese cel mai des de clienții noștri</p>
             </div>
-            <a class="see-all" href="/biro26-shop" data-t="seeAll">Vezi toate <span aria-hidden="true">→</span></a>
+            <a class="see-all" href="/catalog" data-t="seeAll">Vezi toate <span aria-hidden="true">→</span></a>
           </div>
           <div class="product-grid" id="row-pop"></div>
           <div class="row-nav">
@@ -201,16 +104,16 @@
         </section>
 
         <!-- ===== Brands ===== -->
-        <section class="section brands-section">
+        <section class="section brands-section" data-sec="brands">
           <div class="section-head compact">
             <h2 class="section-title brands-title" data-t="brands">Branduri populare</h2>
-            <a class="see-all" href="/biro26-shop" data-t="all">Toate</a>
+            <a class="see-all" href="/catalog" data-t="all">Toate</a>
           </div>
           <div class="brands" id="brands"></div>
         </section>
 
         <!-- ===== Category tabs + products ===== -->
-        <section class="section tab-products">
+        <section class="section tab-products" data-sec="tabs">
           <div class="section-head">
             <div>
               <p class="section-tag" data-t="tag">Oferte OfficePlus</p>
@@ -226,202 +129,25 @@
           </div>
         </section>
 
-        <!-- ===== About (exported frame; text complet: WP «Despre noi») ===== -->
-        <section class="section about-section">
-          <a href="/biro26-shop?info=despre-noi" aria-label="Despre noi">
+        <!-- ===== About / Contact (exported frames; text complet: WP) ===== -->
+        <section class="section about-section" data-sec="about">
+          <a href="/despre-noi" aria-label="Despre noi">
             <img class="about-export" src="/static/biro26/landing/assets/about.png" alt="Despre OfficePlus">
           </a>
         </section>
-
-        <!-- ===== Contact (exported frame; text complet: WP «Contacte») ===== -->
-        <section class="section contact-section">
-          <a href="/biro26-shop?info=contacte" aria-label="Contacte">
+        <section class="section contact-section" data-sec="contact">
+          <a href="/contacte" aria-label="Contacte">
             <img class="contact-export" src="/static/biro26/landing/assets/contact.png" alt="Contactați-ne">
           </a>
         </section>
-      </main>
-
-      <!-- ===== FOOTER ===== -->
-      <footer class="footer">
-        <div class="newsletter">
-          <div class="newsletter-inner">
-            <div class="newsletter-copy">
-              <h2 class="newsletter-title" data-t="nlTitle">Abonează-te la newsletter</h2>
-              <p class="newsletter-text" data-t="nlText">Abonează-te pentru noutăți: fii la curent cu cele mai noi produse, oferte și promoții, abonându-te la newsletter-ul nostru.</p>
-            </div>
-            <form class="newsletter-form" onsubmit="return subscribe()">
-              <input class="newsletter-input" id="nl-email" type="email" placeholder="Email" aria-label="Email" required>
-              <button class="newsletter-btn" type="submit" data-t="subscribe">Abonează-te</button>
-            </form>
-          </div>
-        </div>
-
-        <div class="footer-main">
-          <div class="footer-grid">
-            <div class="footer-brand">
-              <img src="/static/biro26/landing/assets/logo.png" alt="{{ app_name }}" class="footer-logo" width="180" height="64">
-              <p class="footer-desc" data-t="footDesc">Magazin online de papetărie și birotică cu livrare în toată Moldova. Sortiment orientat spre birouri, studenți și proiecte creative.</p>
-            </div>
-
-            <div class="footer-col">
-              <h3 class="footer-heading" data-t="forClients">Pentru clienți:</h3>
-              <ul class="footer-links">
-                <li><a href="/" data-t="home">Pagina principală</a></li>
-                <li><a href="/biro26-shop?info=despre-noi" data-t="about">Despre companie</a></li>
-                <li><a href="/biro26-shop?info=livrare" data-t="delivery">Livrare</a></li>
-                <li><a href="/biro26-shop?info=contacte" data-t="contacts">Contacte</a></li>
-                <li><a href="/biro26-shop?info=retur-produse" data-t="returns">Retur produse</a></li>
-                <li><a href="/biro26-shop?cart=1" data-t="cart">Coș</a></li>
-                <li><a href="/biro26-shop" data-t="catalog">Catalog</a></li>
-              </ul>
-            </div>
-
-            <div class="footer-col">
-              <h3 class="footer-heading" data-t="useful">Utile:</h3>
-              <ul class="footer-links">
-                <li><a href="/biro26-shop?info=termeni-si-conditii" data-t="terms">Termeni și condiții</a></li>
-                <li><a href="/biro26-shop?info=livrare" data-t="payDelivery">Plată și livrare</a></li>
-                <li><a href="/biro26-shop?info=politica-de-confidentialitate" data-t="privacy">Politica de confidențialitate</a></li>
-                <li><a href="/biro26-backoffice" data-t="backoffice">Back-office</a></li>
-              </ul>
-            </div>
-
-            <div class="footer-col">
-              <h3 class="footer-heading">Contact</h3>
-              <ul class="footer-links">
-                <li><span class="muted" data-t="phone">Telefon</span><br><a href="tel:+37362007211">+373 620 07 211</a></li>
-                <li><span class="muted">E-mail</span><br><a href="mailto:officeplussrl@gmail.com">officeplussrl@gmail.com</a></li>
-              </ul>
-              <div class="socials" aria-label="Social">
-                <span class="social"></span>
-                <span class="social"></span>
-                <span class="social"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="footer-bottom">
-            <p>© 2026 Office Plus. <span data-t="rights">Toate drepturile rezervate.</span></p>
-          </div>
-        </div>
-      </footer>
-
-    </div>
-  </div>
-
+{% endblock %}
+{% block js %}
 <script>
 /* =====================================================================
-   RO: Pagina principala LIVE dupa Figma/landingfigma1 — datele vin din
-       API-ul Biro26 (/api/biro26/shop/*), cosul este ACELASI localStorage
-       ('biro26_shop_cart') ca in magazinul /biro26-shop.
-   EN: Live Figma homepage — Biro26 shop API + shared localStorage cart.
+   RO: Pagina principala LIVE — datele din API Biro26 + configuratia
+       vitrinei din limited admin (/api/biro26/site/config): hero slides,
+       "produsul zilei" (override), sectiuni activate/dezactivate.
    ===================================================================== */
-const API = '/api/biro26/shop';
-const SHOP = '/biro26-shop';
-const CART_KEY = 'biro26_shop_cart';
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
-  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-async function j(url) { const r = await fetch(url); return r.json().catch(() => ({})); }
-function toast(m) { const d = document.createElement('div'); d.className = 'toast';
-  d.textContent = m; document.body.appendChild(d); setTimeout(() => d.remove(), 3200); }
-
-/* ── i18n RO/RU (comutator ca in Figma; partajat cu magazinul) ───────── */
-const T = {
-  hours:      {ro: 'Astăzi lucrăm de la 09:00 până la 19:00', ru: 'Сегодня работаем с 09:00 до 19:00'},
-  delivery:   {ro: 'Livrare', ru: 'Доставка'},
-  catalog:    {ro: 'Catalog', ru: 'Каталог'},
-  search:     {ro: 'Caută produse…', ru: 'Найти товары…'},
-  seeOffer:   {ro: 'Vezi oferta', ru: 'Смотреть предложение'},
-  dealOfDay:  {ro: 'Produsul zilei', ru: 'Товар дня'},
-  limited:    {ro: 'Stoc limitat', ru: 'Ограниченное наличие'},
-  buy:        {ro: 'Cumpără', ru: 'Купить'},
-  h1:         {ro: 'Magazin online de birotică și papetărie în Moldova', ru: 'Интернет-магазин канцтоваров и офисной техники в Молдове'},
-  tag:        {ro: 'Oferte OfficePlus', ru: 'Предложения OfficePlus'},
-  best:       {ro: 'Cei mai buni', ru: 'Лучшие товары'},
-  bestSub:    {ro: 'Reduceri actuale la produsele populare pentru birou și studii', ru: 'Актуальные скидки на популярные товары для офиса и учебы'},
-  popular:    {ro: 'Cele mai populare', ru: 'Самые популярные'},
-  popularSub: {ro: 'Produse populare, alese cel mai des de clienții noștri', ru: 'Популярные товары, которые выбирают чаще всего'},
-  seeAll:     {ro: 'Vezi toate →', ru: 'Смотреть все →'},
-  brands:     {ro: 'Branduri populare', ru: 'Популярные бренды'},
-  all:        {ro: 'Toate', ru: 'Все'},
-  byCat:      {ro: 'Pe categorii', ru: 'По категориям'},
-  nlTitle:    {ro: 'Abonează-te la newsletter', ru: 'Подпишитесь на рассылку'},
-  nlText:     {ro: 'Abonează-te pentru noutăți: fii la curent cu cele mai noi produse, oferte și promoții, abonându-te la newsletter-ul nostru.', ru: 'Подпишитесь на новости: будьте в курсе новых товаров, предложений и акций.'},
-  subscribe:  {ro: 'Abonează-te', ru: 'Подписаться'},
-  footDesc:   {ro: 'Magazin online de papetărie și birotică cu livrare în toată Moldova. Sortiment orientat spre birouri, studenți și proiecte creative.', ru: 'Интернет-магазин канцелярских товаров с доставкой по всей Молдове. Ассортимент ориентирован на офисы, студентов и творческие задачи.'},
-  forClients: {ro: 'Pentru clienți:', ru: 'Для клиентов:'},
-  home:       {ro: 'Pagina principală', ru: 'Главная'},
-  about:      {ro: 'Despre companie', ru: 'О компании'},
-  contacts:   {ro: 'Contacte', ru: 'Контакты'},
-  returns:    {ro: 'Retur produse', ru: 'Возврат товаров'},
-  cart:       {ro: 'Coș', ru: 'Корзина'},
-  useful:     {ro: 'Utile:', ru: 'Полезное:'},
-  terms:      {ro: 'Termeni și condiții', ru: 'Условия использования'},
-  payDelivery:{ro: 'Plată și livrare', ru: 'Оплата и доставка'},
-  privacy:    {ro: 'Politica de confidențialitate', ru: 'Политика конфиденциальности'},
-  backoffice: {ro: 'Back-office', ru: 'Бэк-офис'},
-  phone:      {ro: 'Telefon', ru: 'Телефон'},
-  rights:     {ro: 'Toate drepturile rezervate.', ru: 'Все права защищены.'},
-  inStock:    {ro: 'În stoc', ru: 'В наличии'},
-  onOrder:    {ro: 'La comandă', ru: 'Под заказ'},
-  added:      {ro: 'Adăugat în coș', ru: 'Добавлено в корзину'},
-  subscribed: {ro: 'Mulțumim! V-ați abonat.', ru: 'Спасибо! Вы подписались.'},
-};
-function curLang() { const l = localStorage.getItem('biro26_lang') || 'ro';
-  return l === 'ru' ? 'ru' : 'ro'; }
-function tr(k) { const e = T[k]; return e ? (e[curLang()] || e.ro) : ''; }
-function setLang(l) { localStorage.setItem('biro26_lang', l); applyLang(); renderAll(); }
-function applyLang() {
-  const l = curLang();
-  document.querySelectorAll('.lang-item').forEach(e =>
-    e.classList.toggle('is-active', e.dataset.lang === l));
-  document.querySelectorAll('[data-t]').forEach(e => {
-    const v = tr(e.dataset.t); if (v) e.textContent = v; });
-  document.querySelectorAll('[data-p]').forEach(e => {
-    const v = tr(e.dataset.p); if (v) e.placeholder = v; });
-}
-
-/* ── cos partajat cu magazinul ───────────────────────────────────────── */
-function cart() { try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
-  catch (e) { return []; } }
-function cartBadge() {
-  const n = cart().reduce((s, i) => s + (i.qty || 0), 0);
-  const b = document.getElementById('cart-badge');
-  b.style.display = n ? '' : 'none'; b.textContent = n;
-}
-window.addEventListener('storage', cartBadge);
-function addToCart(cod, name, price, qty) {
-  const c = cart(); const ex = c.find(i => i.cod === cod);
-  if (ex) ex.qty += (qty || 1); else c.push({cod, name, price, qty: qty || 1});
-  localStorage.setItem(CART_KEY, JSON.stringify(c));
-  cartBadge(); toast('🛒 ' + tr('added'));
-}
-
-/* ── produse: helperi ────────────────────────────────────────────────── */
-function pname(p) { return (curLang() === 'ru' && p.namerus) ? p.namerus : (p.denumirea || p.namerus || ''); }
-function pprice(p) { return parseFloat(String(p.retail1 || '').replace(',', '.')) || 0; }
-function fmtLei(v) { return v.toLocaleString('ro-MD', {maximumFractionDigits: 2}) + ' lei'; }
-/* RO: deschidem produsul in magazin prin cautare dupa denumire (fisa se
-   deschide acolo cu tot functionalul: variante, credit, comentarii). */
-const PMAP = {};
-function openProd(cod) { const p = PMAP[cod] || {};
-  location.href = SHOP + '?q=' + encodeURIComponent(p.denumirea || ''); }
-function cardHtml(p) {
-  PMAP[p.cod] = p;
-  const price = pprice(p);
-  const inStock = (p.real_cant || 0) > 0;
-  return '<article class="product-card">' +
-    '<button class="wish" type="button" aria-label="Favorite">♡</button>' +
-    (p.image
-      ? '<div class="product-img live" style="background-image:url(\'' + esc(p.image) + '\')" onclick="openProd(' + p.cod + ')"></div>'
-      : '<div class="product-img p-markers" onclick="openProd(' + p.cod + ')"></div>') +
-    '<span class="stock ' + (inStock ? 'in' : 'order') + '">' + tr(inStock ? 'inStock' : 'onOrder') + '</span>' +
-    '<h3 class="product-name" onclick="openProd(' + p.cod + ')">' + esc(pname(p)) + '</h3>' +
-    '<div class="product-prices"><span class="price">' + fmtLei(price) + '</span></div>' +
-    '<button class="btn-buy-sm" type="button" onclick="addToCart(' + p.cod + ',\'' +
-      esc(p.denumirea || '').replace(/'/g, '&#39;') + '\',' + price + ')">' + tr('buy') + '</button>' +
-    '</article>';
-}
 
 /* ── randuri paginate (5 pe pagina, ca in Figma) ─────────────────────── */
 const ROWS = {best: {items: [], page: 0}, pop: {items: [], page: 0}, tab: {items: [], page: 0}};
@@ -436,30 +162,31 @@ function renderRow(key) {
 }
 function rowGo(key, d) { ROWS[key].page += d; renderRow(key); }
 
-/* ── HERO slider (3 sliduri promo; continutul se muta ulterior in
-     admin-ul limitat al vitrinei — vezi TZ §6) ─────────────────────── */
-const SLIDES = [
+/* ── HERO slider: implicit 3 sliduri; limited admin le poate inlocui ── */
+let SLIDES = [
   {cls: '', kicker: {ro: 'Promoție de vară', ru: 'Летняя акция'},
    title: {ro: 'Gadgeturi și tehnică<br>pentru birou și casă', ru: 'Гаджеты и техника<br>для офиса и дома'},
    sub: {ro: 'Livrare rapidă în toată Moldova · Plată comodă · Garanție', ru: 'Быстрая доставка по всей Молдове · Удобная оплата · Гарантия'},
-   href: SHOP + '?grupa=' + encodeURIComponent('Accesorii IT')},
+   href: '/catalog?grupa=' + encodeURIComponent('Accesorii IT')},
   {cls: 's2', kicker: {ro: 'Totul pentru școală', ru: 'Всё для школы'},
    title: {ro: 'Papetărie și rechizite<br>la prețuri accesibile', ru: 'Канцтовары и принадлежности<br>по доступным ценам'},
    sub: {ro: 'Caiete, pixuri, ghiozdane — tot ce trebuie pentru studii', ru: 'Тетради, ручки, рюкзаки — всё для учёбы'},
-   href: SHOP},
+   href: '/catalog'},
   {cls: 's3', kicker: {ro: 'Plată în rate', ru: 'Оплата в рассрочку'},
    title: {ro: 'Cumpără acum,<br>achită în rate 0%', ru: 'Покупай сейчас,<br>плати в рассрочку 0%'},
    sub: {ro: 'Rate 0% la 4 și 6 luni · EasyCredit · Liber Card MAIB', ru: 'Рассрочка 0% на 4 и 6 месяцев · EasyCredit · Liber Card MAIB'},
-   href: SHOP}];
+   href: '/catalog'}];
 let heroI = 0, heroTimer = null;
 function renderHero() {
   const l = curLang(), s = SLIDES[heroI];
+  if (!s) return;
   const v = document.getElementById('hero-visual');
-  v.className = 'hero-slide-visual ' + s.cls;
-  v.querySelector('.hero-kicker').textContent = s.kicker[l] || s.kicker.ro;
-  v.querySelector('.hero-title').innerHTML = s.title[l] || s.title.ro;
-  v.querySelector('.hero-sub').textContent = s.sub[l] || s.sub.ro;
-  v.querySelector('.btn-orange').href = s.href;
+  v.className = 'hero-slide-visual ' + (s.cls || '');
+  if (s.bg) v.style.background = s.bg; else v.style.background = '';
+  v.querySelector('.hero-kicker').textContent = (s.kicker[l] || s.kicker.ro || '');
+  v.querySelector('.hero-title').innerHTML = (s.title[l] || s.title.ro || '');
+  v.querySelector('.hero-sub').textContent = (s.sub[l] || s.sub.ro || '');
+  v.querySelector('.btn-orange').href = s.href || '/catalog';
   document.getElementById('hero-count').textContent = (heroI + 1) + ' / ' + SLIDES.length;
   document.getElementById('hero-dots').innerHTML = SLIDES.map((_, i) =>
     '<span class="dot' + (i === heroI ? ' is-active' : '') + '"></span>').join('');
@@ -467,26 +194,27 @@ function renderHero() {
 function heroGo(d) { heroI = ((heroI + d) % SLIDES.length + SLIDES.length) % SLIDES.length;
   renderHero(); clearInterval(heroTimer); heroTimer = setInterval(() => heroGo(1), 7000); }
 
-/* ── Produsul zilei: ales determinist dupa data (se schimba zilnic) ──── */
-let DEAL = null;
+/* ── Produsul zilei ──────────────────────────────────────────────────── */
+let DEAL = null, DEAL_END = null;
 function renderDeal() {
   if (!DEAL) return;
   const p = DEAL, price = pprice(p);
+  PMAP[p.cod] = p;
   const img = document.getElementById('deal-img');
   img.classList.remove('skel');
-  PMAP[p.cod] = p;
   if (p.image) { img.className = 'deal-image live'; img.innerHTML = '';
     img.style.backgroundImage = "url('" + p.image + "')"; }
   img.onclick = () => openProd(p.cod);
   document.getElementById('deal-name').textContent = pname(p);
   document.getElementById('deal-price').textContent = fmtLei(price);
-  document.getElementById('deal-bar').style.width =
-    (20 + (p.cod % 60)) + '%';
+  document.getElementById('deal-bar').style.width = (20 + (p.cod % 60)) + '%';
   document.getElementById('deal-buy').onclick = () =>
     addToCart(p.cod, p.denumirea || '', price);
 }
 function tickTimer() {
-  const now = new Date(); const end = new Date(now); end.setHours(23, 59, 59, 999);
+  const now = new Date();
+  let end = DEAL_END ? new Date(DEAL_END) : null;
+  if (!end || isNaN(end) || end < now) { end = new Date(now); end.setHours(23, 59, 59, 999); }
   let s = Math.max(0, Math.floor((end - now) / 1000));
   const h = Math.floor(s / 3600); s -= h * 3600;
   const m = Math.floor(s / 60); s -= m * 60;
@@ -497,15 +225,15 @@ function tickTimer() {
 }
 setInterval(tickTimer, 1000); tickTimer();
 
-/* ── Categorii (7 carduri; top grupe dupa numarul de produse) ────────── */
+/* ── Categorii (7 carduri) ───────────────────────────────────────────── */
 let CATS = [], catsPage = 0;
 function renderCats() {
   const per = 7, pages = Math.max(1, Math.ceil(CATS.length / per));
   catsPage = ((catsPage % pages) + pages) % pages;
   document.getElementById('cats').innerHTML =
     CATS.slice(catsPage * per, catsPage * per + per).map((c, i) =>
-      '<article class="category-card" onclick="location.href=\'' + SHOP +
-        '?grupa=' + encodeURIComponent(c.grupa) + '\'">' +
+      '<article class="category-card" onclick="location.href=\'/catalog?grupa=' +
+        encodeURIComponent(c.grupa) + '\'">' +
       '<div class="category-img c' + ((i % 7) + 1) + '">' +
         '<span class="category-emoji">' + c.emoji + '</span></div>' +
       '<h2 class="category-title">' + esc(c.label()) + '</h2></article>').join('');
@@ -539,50 +267,43 @@ async function pickTab(i) {
   ROWS.tab.page = 0; renderRow('tab');
 }
 
-/* ── cautare + newsletter ────────────────────────────────────────────── */
-function goSearch() {
-  const q = document.getElementById('q').value.trim();
-  if (q) location.href = SHOP + '?q=' + encodeURIComponent(q);
-  return false;
-}
-/* RO: variantele aceluiasi produs apar o singura data pe vitrina */
-function uniq(rows) { const seen = new Set(); return rows.filter(p => {
-  const k = p.master_cod || p.denumirea; if (seen.has(k)) return false;
-  seen.add(k); return true; }); }
-function subscribe() {
-  const e = document.getElementById('nl-email').value.trim();
-  if (e) { try {
-      const l = JSON.parse(localStorage.getItem('biro26_newsletter') || '[]');
-      if (!l.includes(e)) l.push(e);
-      localStorage.setItem('biro26_newsletter', JSON.stringify(l));
-    } catch (er) {}
-    toast('✉️ ' + tr('subscribed'));
-    document.getElementById('nl-email').value = ''; }
-  return false;
-}
-
 /* ── redare completa (si la schimbarea limbii) ───────────────────────── */
-function renderAll() { renderHero(); renderDeal(); renderCats(); renderTabs();
-  renderRow('best'); renderRow('pop'); }
+window.onLangChange = function () { renderHero(); renderDeal(); renderCats();
+  renderTabs(); renderRow('best'); renderRow('pop'); };
 
-/* ── init: date live din API ─────────────────────────────────────────── */
+/* ── init: config vitrina (limited admin) + date live din API ────────── */
 (async function init() {
-  applyLang(); cartBadge(); renderHero();
+  renderHero();
   heroTimer = setInterval(() => heroGo(1), 7000);
   document.getElementById('row-best').innerHTML =
     document.getElementById('row-pop').innerHTML =
     '<article class="product-card skel"></article>'.repeat(5);
 
-  // arbore grupe -> categorii + branduri (paralel)
-  const [tree, brands, best] = await Promise.all([
-    j(API + '/tree'), j(API + '/brands'),
+  const [cfg, tree, brands, best] = await Promise.all([
+    j('/api/biro26/site/config'), j(API + '/tree'), j(API + '/brands'),
     j(API + '/products?limit=100&sort=price_desc&price_min=100&price_max=20000')]);
+
+  // RO: sectiuni oprite din limited admin -> ascunse
+  const C = (cfg && cfg.data) || {};
+  (C.sections || []).forEach(s => {
+    if (s.enabled !== '1') document.querySelectorAll(
+      '[data-sec="' + s.code + '"]').forEach(e => e.style.display = 'none');
+  });
+  // RO: hero slides din admin (daca exista) inlocuiesc slidurile implicite
+  if ((C.hero || []).length) {
+    SLIDES = C.hero.map(h => ({
+      cls: '', bg: h.bg || '',
+      kicker: {ro: h.kicker_ro || '', ru: h.kicker_ru || h.kicker_ro || ''},
+      title: {ro: h.title_ro || '', ru: h.title_ru || h.title_ro || ''},
+      sub: {ro: h.sub_ro || '', ru: h.sub_ru || h.sub_ro || ''},
+      href: h.cta_url || '/catalog'}));
+    heroI = 0; renderHero();
+  }
 
   // categorii: agregam pe grupa, top dupa numar produse
   const byG = {};
   (tree.data || []).forEach(t => {
-    const g = byG[t.grupa] = byG[t.grupa] ||
-      {grupa: t.grupa, ru: t.grupa_ru, cnt: 0};
+    const g = byG[t.grupa] = byG[t.grupa] || {grupa: t.grupa, ru: t.grupa_ru, cnt: 0};
     g.cnt += (t.cnt || 0); if (!g.ru && t.grupa_ru) g.ru = t.grupa_ru;
   });
   CATS = Object.values(byG).sort((a, b) => b.cnt - a.cnt).slice(0, 21)
@@ -590,35 +311,36 @@ function renderAll() { renderHero(); renderDeal(); renderCats(); renderTabs();
       label() { return (curLang() === 'ru' && this.ru) ? this.ru : this.grupa; }}));
   renderCats();
 
-  // branduri (fara NULL), 14 celule ca in Figma
+  // branduri (fara NULL)
   const bs = (brands.data || []).filter(b => b.brand && b.brand !== 'NULL')
     .sort((a, b) => b.cnt - a.cnt).slice(0, 14);
   document.getElementById('brands').innerHTML = bs.map(b =>
-    '<a class="brand" href="' + SHOP + '?brand=' + encodeURIComponent(b.brand) + '">' +
+    '<a class="brand" href="/catalog?brand=' + encodeURIComponent(b.brand) + '">' +
     esc(b.brand) + '</a>').join('');
 
   // "Cei mai buni": scumpe cu imagine
   const bestRows = uniq((best.data || []).filter(p => p.image));
   ROWS.best.items = bestRows.slice(0, 25); renderRow('best');
 
-  // populare: alt esantion (dupa nume, cu imagini)
+  // populare: alt esantion
   const pop = await j(API + '/products?limit=120&price_min=20');
   ROWS.pop.items = uniq((pop.data || []).filter(p => p.image)).slice(0, 25); renderRow('pop');
 
-  // produsul zilei: determinist dupa ziua anului (se schimba zilnic)
+  // produsul zilei: override din limited admin sau determinist dupa zi
   const pool = ROWS.pop.items.length ? ROWS.pop.items : bestRows;
-  if (pool.length) {
+  if (C.deal && C.deal.product) {
+    DEAL = C.deal.product; DEAL_END = C.deal.ends_at || null; renderDeal();
+  } else if (pool.length) {
     const day = Math.floor(Date.now() / 86400000);
     DEAL = pool[day % pool.length]; renderDeal();
   }
 
-  // tabs: top categorii dupa numar produse
-  const cats = (tree.data || []).filter(t => t.categorie)
+  // tabs: top categorii
+  TABS = (tree.data || []).filter(t => t.categorie)
     .sort((a, b) => (b.cnt || 0) - (a.cnt || 0)).slice(0, 8)
     .map(t => ({categorie: t.categorie, ru: t.cat_ru,
       label() { return (curLang() === 'ru' && this.ru) ? this.ru : this.categorie; }}));
-  TABS = cats; renderTabs(); if (TABS.length) pickTab(0);
+  renderTabs(); if (TABS.length) pickTab(0);
 })();
 </script>
-</body>
-</html>
+{% endblock %}
