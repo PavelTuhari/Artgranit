@@ -304,9 +304,45 @@ async function pickTab(i) {
   ROWS.tab.page = 0; renderRow('tab');
 }
 
+/* ── About & Contact: continut LIVE din paginile WP «site-*» ─────────── */
+async function loadAbout() {
+  const slug = curLang() === 'ru' ? 'site-about-ru' : 'site-about';
+  let r = await j('/api/biro26/site/info/' + slug);
+  if (!r.success && slug !== 'site-about') r = await j('/api/biro26/site/info/site-about');
+  if (!r.success) return;
+  const box = document.getElementById('about-live');
+  box.style.display = '';
+  // RO: prima imagine din pagina -> colajul din stinga; restul -> text
+  const tmp = document.createElement('div'); tmp.innerHTML = r.data.html || '';
+  const img = tmp.querySelector('img');
+  document.getElementById('about-img').innerHTML = img ? img.outerHTML : '';
+  if (img) img.remove();
+  document.getElementById('about-html').innerHTML = tmp.innerHTML;
+}
+async function loadContact() {
+  const r = await j('/api/biro26/site/info/site-contact');
+  if (!r.success) return;
+  const text = (r.data.html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '\n');
+  const d = {};
+  text.split('\n').forEach(l => {
+    const m = l.match(/^\s*(email|telefon|adresa|harta)\s*:\s*(.+)$/i);
+    if (m) d[m[1].toLowerCase()] = m[2].trim();
+  });
+  if (!d.email && !d.telefon) return;
+  document.getElementById('contact-live').style.display = '';
+  const em = document.getElementById('ct-email');
+  em.textContent = d.email || ''; em.href = 'mailto:' + (d.email || '');
+  const tl = document.getElementById('ct-tel');
+  tl.textContent = d.telefon || ''; tl.href = 'tel:' + (d.telefon || '').replace(/[^+0-9]/g, '');
+  document.getElementById('ct-adr').textContent = d.adresa || '';
+  if (d.harta) document.getElementById('ct-map').innerHTML =
+    '<iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="' +
+    d.harta.replace(/&#0?38;/g, '&').replace(/&amp;/g, '&') + '"></iframe>';
+}
+
 /* ── redare completa (si la schimbarea limbii) ───────────────────────── */
 window.onLangChange = function () { renderHero(); renderDeal(); renderCats();
-  renderTabs(); renderRow('best'); renderRow('pop'); };
+  renderTabs(); renderRow('best'); renderRow('pop'); loadAbout(); };
 
 /* ── init: config vitrina (limited admin) + date live din API ────────── */
 (async function init() {
