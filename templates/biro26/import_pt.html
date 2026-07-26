@@ -251,6 +251,8 @@ async function doCommit() {
   if (!r.success) { document.getElementById('ci-result').innerHTML = ''; return; }
   document.getElementById('ci-result').innerHTML = r.data.map(d =>
     '<div style="margin-top:10px"><b>#' + d.load_id + '</b> — import finalizat ✅' +
+    (d.webattr_written ? '<div style="font-size:12.5px;margin:4px 0">atribute web scrise ' +
+      '(TMS_MPT_WEBATTR): <b>' + d.webattr_written + '</b> · веб-атрибутов записано</div>' : '') +
     '<details><summary>Jurnal (' + d.log.length + ' înregistrări) · Журнал</summary>' +
     '<div class="tbl-wrap"><table><thead><tr><th>Faza</th><th>Câmp</th><th>Strategie</th><th>Notă</th><th>ts</th></tr></thead><tbody>' +
     d.log.map(g => '<tr><td>' + esc(g.phase) + '</td><td>' + esc(g.logical_field) + '</td><td>' + esc(g.strategy) +
