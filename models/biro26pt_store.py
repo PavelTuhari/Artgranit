@@ -33,7 +33,12 @@ MAX_UPLOAD_MB = 50
 # RO: numele canonice ale campurilor logice — cum le foloseste pachetul
 #     (dictionar BIRO26PT_COLMAP, UPPERCASE). / EN: canonical logical field
 #     names as the package uses them (BIRO26PT_COLMAP dictionary, UPPERCASE).
-LOGICAL_FIELDS = ["ARTICOL", "DENUMIRE", "ANGRO", "ONLINE", "RETAIL",
+# RO: + GRUPA/CATEG/FURNIZOR/DESCRIERE/DENUM_FULL — pachetul le detecteaza
+#     de mult (BIRO26PT_COLMAP), acum se vad si se pot remapa manual in UI;
+#     DESCRIERE/DENUM_FULL ajung in TMS_MPT_WEBATTR (BLOB, cu diacritice).
+LOGICAL_FIELDS = ["ARTICOL", "DENUMIRE", "DENUM_FULL", "DESCRIERE",
+                  "GRUPA", "CATEG", "FURNIZOR",
+                  "ANGRO", "ONLINE", "RETAIL",
                   "VAT", "BARCODE", "URL", "IGNORE"]
 
 
