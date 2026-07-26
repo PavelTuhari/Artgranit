@@ -80,14 +80,21 @@ def cp1251_safe(s: str) -> str:
 
 
 def cells(row):
-    out = []
-    for v in row:
+    """RO: intoarce (valori transliterate, originale). Originalul se pastreaza DOAR
+    unde transliterarea a schimbat ceva (diacritice / semne non-cp1251).
+    EN: returns (transliterated values, originals); the original is kept ONLY where
+    transliteration actually changed something."""
+    out, orig = [], {}
+    for i, v in enumerate(row):
         if v is None:
             out.append(None)
-        else:
-            s = cp1251_safe(str(v).strip())
-            out.append(s[:1000] if s != "" else None)
-    return out
+            continue
+        raw = str(v).strip()
+        s = cp1251_safe(raw)
+        out.append(s[:1000] if s != "" else None)
+        if raw and s != raw:
+            orig[i] = raw[:4000]
+    return out, orig
 
 
 def read_xlsx(path):
@@ -150,15 +157,24 @@ def main():
                 "VALUES(:1,:2,:3,:4)",
                 [(load_id, base, i, (header[i] if i < len(header) else None))
                  for i in range(n_cols)])
-            buf = []
-            for rno, r in enumerate(rows[1:], start=1):
+            buf, blobs = [], []
+            for rno, (rvals, rorig) in enumerate(rows[1:], start=1):
                 vals = [load_id, base, sheet[:120], rno] + \
-                       [(r[i] if i < len(r) else None) for i in range(MAXCOL)]
+                       [(rvals[i] if i < len(rvals) else None) for i in range(MAXCOL)]
                 buf.append(tuple(vals))
+                # RO: originalul UTF-8 doar unde transliterarea a schimbat ceva
+                # EN: UTF-8 original only where transliteration changed something
+                for ci, ov in rorig.items():
+                    if ci < MAXCOL:
+                        blobs.append((load_id, rno, ci, ov.encode("utf-8")))
             ph = ",".join(":%d" % i for i in range(1, 4 + MAXCOL + 1))
             cur.executemany(
                 "INSERT INTO biro26pt_raw(load_id,src_file,sheet,row_no," +
                 ",".join("c%d" % i for i in range(MAXCOL)) + ") VALUES(" + ph + ")", buf)
+            if blobs:
+                cur.executemany(
+                    "INSERT INTO biro26pt_raw_blob(load_id,row_no,col_idx,val_blob) "
+                    "VALUES(:1,:2,:3,:4)", blobs)
             cur.execute(
                 "INSERT INTO biro26pt_file(load_id,src_file,sheet,n_rows,n_cols) "
                 "VALUES(:1,:2,:3,:4,:5)",
