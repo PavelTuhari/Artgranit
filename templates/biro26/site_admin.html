@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} · Vitrina site (limited admin)</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f6f8fb;color:#1e293b;font-size:14px}
+.top{background:#0d0d1a;color:#e2e8f0;padding:12px 18px;font-weight:700}
+.top a{color:#93c5fd;text-decoration:none;font-weight:400;margin-left:14px;font-size:13px}
+.wrap{max-width:1150px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+h3{margin:0 0 10px}
+.hint{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.btn{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.btn.gray{background:#e2e8f0;color:#334155}
+.btn-sm{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 7px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:middle}
+th{color:#64748b;font-weight:600}
+td input,td select{padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;font-size:12.5px;width:100%}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.muted{color:#64748b}
+label.sw{display:inline-flex;align-items:center;gap:8px;margin:6px 16px 6px 0;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="top">{{ app_name }} · Vitrina noului site — limited admin
+  <a href="/UNA.md/orasldev/biro26-backoffice">← Backoffice</a>
+  <a href="/" target="_blank">Vezi site-ul ↗</a>
+</div>
+
+<div class="wrap">
+  <div class="hint" style="margin-top:14px">Aici se administrează DOAR vitrina paginii
+    principale (TZ §6): hero slides, «Produsul zilei», secțiunile afișate.
+    Marfa și prețurile — în ERP/backoffice; textele informative — în WordPress.</div>
+
+  <div class="card">
+    <h3>🎠 Hero slides <span class="muted" style="font-size:12px">(gol = slidurile implicite din șablon)</span></h3>
+    <table>
+      <thead><tr><th style="width:36px">ID</th><th>Kicker RO / RU</th><th>Titlu RO / RU (poate conține &lt;br&gt;)</th>
+        <th>Subtitlu RO / RU</th><th style="width:130px">CTA URL</th><th style="width:130px">BG (CSS)</th>
+        <th style="width:44px">Ord</th><th style="width:64px">Activ</th><th style="width:88px"></th></tr></thead>
+      <tbody id="hero"></tbody>
+    </table>
+    <button class="btn gray" style="margin-top:8px" onclick="addHero()">➕ Adaugă slide</button>
+  </div>
+
+  <div class="card">
+    <h3>⏰ Produsul zilei (override)</h3>
+    <div class="hint">Gol/oprit = produsul se alege automat (determinist, se schimbă zilnic).
+      COD = codul produsului din ERP; termenul — până când numără cronometrul.</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div><label style="font-size:12px">COD produs</label><br>
+        <input id="deal-cod" type="number" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:130px"></div>
+      <div><label style="font-size:12px">Până la (YYYY-MM-DD HH:MM)</label><br>
+        <input id="deal-ends" placeholder="2026-07-30 23:59" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:180px"></div>
+      <div><label style="font-size:12px">Activ</label><br>
+        <select id="deal-en" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px">
+          <option value="1">Da</option><option value="0">Nu</option></select></div>
+      <button class="btn" onclick="saveDeal()">💾 Salvează</button>
+      <span class="muted" id="deal-info"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🧩 Secțiunile paginii principale</h3>
+    <div id="secs"></div>
+  </div>
+</div>
+
+<script>
+function toast(m, err) { const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 4000); }
+async function j(url, opts) { opts = opts || {};
+  opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true); return b; }
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let HERO = [];
+const SEC_NAMES = {categories: 'H1 + categorii', best: '«Cei mai buni»',
+  popular: '«Cele mai populare»', brands: 'Branduri', tabs: 'Tabs pe categorii',
+  about: 'Despre (frame)', contact: 'Contact (frame)'};
+
+function heroRow(h, i) {
+  return '<tr data-i="' + i + '">' +
+    '<td class="muted">' + (h.id || 'nou') + '</td>' +
+    '<td><input value="' + esc(h.kicker_ro || '') + '" data-f="kicker_ro" placeholder="RO">' +
+        '<input value="' + esc(h.kicker_ru || '') + '" data-f="kicker_ru" placeholder="RU" style="margin-top:3px"></td>' +
+    '<td><input value="' + esc(h.title_ro || '') + '" data-f="title_ro" placeholder="RO">' +
+        '<input value="' + esc(h.title_ru || '') + '" data-f="title_ru" placeholder="RU" style="margin-top:3px"></td>' +
+    '<td><input value="' + esc(h.sub_ro || '') + '" data-f="sub_ro" placeholder="RO">' +
+        '<input value="' + esc(h.sub_ru || '') + '" data-f="sub_ru" placeholder="RU" style="margin-top:3px"></td>' +
+    '<td><input value="' + esc(h.cta_url || '/catalog') + '" data-f="cta_url"></td>' +
+    '<td><input value="' + esc(h.bg || '') + '" data-f="bg" placeholder="linear-gradient(...)"></td>' +
+    '<td><input value="' + (h.ord || 0) + '" data-f="ord"></td>' +
+    '<td><select data-f="enabled"><option value="1"' + (h.enabled !== '0' ? ' selected' : '') +
+      '>Da</option><option value="0"' + (h.enabled === '0' ? ' selected' : '') + '>Nu</option></select></td>' +
+    '<td><button class="btn-sm" onclick="saveHero(' + i + ')">💾</button> ' +
+    (h.id ? '<button class="btn-sm" onclick="delHero(' + h.id + ')">🗑</button>' : '') + '</td></tr>';
+}
+function renderHero() { document.getElementById('hero').innerHTML = HERO.map(heroRow).join(''); }
+function addHero() { HERO.push({enabled: '1', ord: HERO.length + 1}); renderHero(); }
+async function saveHero(i) {
+  const tr = document.querySelector('#hero tr[data-i="' + i + '"]');
+  const h = HERO[i];
+  tr.querySelectorAll('[data-f]').forEach(el => h[el.dataset.f] = el.value);
+  const r = await j('/api/biro26/site/hero', {method: 'POST', body: JSON.stringify(h)});
+  if (r.success) { toast('Salvat ✓'); loadHero(); }
+}
+async function delHero(id) {
+  const r = await j('/api/biro26/site/hero/' + id, {method: 'DELETE'});
+  if (r.success) { toast('Șters'); loadHero(); }
+}
+async function loadHero() { const r = await j('/api/biro26/site/hero');
+  HERO = r.data || []; renderHero(); }
+
+async function loadDeal() {
+  const r = await j('/api/biro26/site/deal');
+  const d = r.data;
+  if (d) { document.getElementById('deal-cod').value = d.product_cod || '';
+    document.getElementById('deal-ends').value = d.ends_at || '';
+    document.getElementById('deal-en').value = d.enabled === '0' ? '0' : '1'; }
+}
+async function saveDeal() {
+  const r = await j('/api/biro26/site/deal', {method: 'POST', body: JSON.stringify({
+    product_cod: document.getElementById('deal-cod').value,
+    ends_at: document.getElementById('deal-ends').value,
+    enabled: document.getElementById('deal-en').value})});
+  if (r.success) toast('Salvat ✓');
+}
+
+async function loadSecs() {
+  const r = await j('/api/biro26/site/config');
+  const secs = (r.data && r.data.sections) || [];
+  document.getElementById('secs').innerHTML = secs.map(s =>
+    '<label class="sw"><input type="checkbox"' + (s.enabled === '1' ? ' checked' : '') +
+    ' onchange="saveSec(\'' + s.code + '\', this.checked)"> ' +
+    (SEC_NAMES[s.code] || s.code) + '</label>').join('');
+}
+async function saveSec(code, on) {
+  const r = await j('/api/biro26/site/section', {method: 'POST',
+    body: JSON.stringify({code, enabled: on ? '1' : '0'})});
+  if (r.success) toast('Salvat ✓');
+}
+
+loadHero(); loadDeal(); loadSecs();
+</script>
+</body>
+</html>
