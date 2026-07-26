@@ -5920,13 +5920,109 @@ def _biro26_wp_page(slug):
         # RO: WP indisponibil -> cade inapoi pe catalog / EN: WP down -> catalog
         return None, None
 
+def _biro26_site_ctx():
+    """RO: contextul comun al paginilor noului site Figma (rata Liber Card
+    din YBIRO_SETTINGS). EN: shared context for the new-site pages."""
+    try:
+        liber_pct = float(Biro26Store.get_setting('RATE_LIBER_PCT', '5'))
+        liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
+    except Exception:
+        liber_pct, liber_min = 5.0, 100.0
+    return {'app_name': Config.BIRO26_APP_NAME,
+            'liber_pct': liber_pct, 'liber_min': liber_min}
+
 @app.route('/UNA.md/orasldev/biro26-site')
 def biro26_site():
     """RO: pagina principala LIVE dupa Figma (landingfigma1) — vitrina noului
     site (TZ OFFICEPLUS_AI_SITE_PROJECT.md); pe shop1 nginx o serveste la '/'.
     EN: live Figma homepage for the new site; shop1 nginx maps it to '/'."""
-    return render_template('biro26/site_home.html',
+    return render_template('biro26/site_home.html', **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/catalog')
+def biro26_site_catalog():
+    # RO: catalog (PLP) in stilul Figma; filtrele vin din URL (deep-link)
+    return render_template('biro26/site_catalog.html', **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/product/<int:cod>')
+def biro26_site_product(cod):
+    # RO: fisa produsului (PDP) — datele se incarca client-side dupa COD
+    return render_template('biro26/site_product.html', cod=cod,
+                           **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/cart')
+def biro26_site_cart():
+    # RO: cos + checkout pe API-urile existente /api/biro26/shop/*
+    return render_template('biro26/site_cart.html', **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/account')
+def biro26_site_account():
+    return render_template('biro26/site_account.html', **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/page/<slug>')
+def biro26_site_page(slug):
+    """RO: pagina informativa din WordPress REST, redata in chrome-ul noului
+    site (WP ramine DOAR CMS de continut — TZ §7). ?lang=ru|en -> slug-ru."""
+    lang = request.args.get('lang')
+    real = slug + ('-' + lang if lang in ('ru', 'en') else '')
+    title, html = _biro26_wp_page(real)
+    if html is None and lang:                       # RO: fallback pe RO
+        title, html = _biro26_wp_page(slug)
+    if html is None:
+        return redirect('/UNA.md/orasldev/biro26-site')
+    return render_template('biro26/site_page.html', slug=slug,
+                           page_title=title, page_html=html,
+                           **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site-admin')
+def biro26_site_admin():
+    """RO: LIMITED ADMIN al vitrinei (TZ §6): hero, produsul zilei, sectiuni.
+    Marfa/preturile ramin in ERP; textele informative ramin in WordPress."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/site_admin.html',
                            app_name=Config.BIRO26_APP_NAME)
+
+# ── API-ul vitrinei noului site (config public + admin CRUD) ──────────
+@app.route('/api/biro26/site/config', methods=['GET'])
+def api_biro26_site_config():
+    from models.biro26_site import Biro26Site
+    return jsonify(Biro26Site.config())
+
+@app.route('/api/biro26/site/hero', methods=['GET', 'POST'])
+def api_biro26_site_hero():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_site import Biro26Site
+    if request.method == 'GET':
+        return jsonify(Biro26Site.hero_list())
+    return jsonify(Biro26Site.hero_save(request.get_json(silent=True) or {}))
+
+@app.route('/api/biro26/site/hero/<int:hid>', methods=['DELETE'])
+def api_biro26_site_hero_del(hid):
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_site import Biro26Site
+    return jsonify(Biro26Site.hero_delete(hid))
+
+@app.route('/api/biro26/site/deal', methods=['GET', 'POST'])
+def api_biro26_site_deal():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_site import Biro26Site
+    if request.method == 'GET':
+        return jsonify(Biro26Site.deal_get())
+    return jsonify(Biro26Site.deal_save(request.get_json(silent=True) or {}))
+
+@app.route('/api/biro26/site/section', methods=['POST'])
+def api_biro26_site_section():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_site import Biro26Site
+    return jsonify(Biro26Site.section_save(request.get_json(silent=True) or {}))
 
 @app.route('/UNA.md/orasldev/biro26-shop')
 def biro26_shop():
