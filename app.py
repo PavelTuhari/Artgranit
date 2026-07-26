@@ -6040,6 +6040,55 @@ def biro26_site_compare():
     # RO: compararea produselor (max 4, alese de pe fisele PDP)
     return render_template('biro26/site_compare.html', **_biro26_site_ctx())
 
+@app.route('/api/biro26/site/info/<slug>', methods=['GET'])
+def api_biro26_site_info(slug):
+    """RO: continutul paginilor WP "site-*" pentru blocurile vitrinei
+    (contact, despre, tipuri de plata) — sursa de adevar editabila SIMPLU
+    de non-admin in WP Admin (TZ §7). EN: WP-sourced storefront blocks."""
+    if not slug.startswith('site-'):
+        return jsonify({'success': False, 'error': 'slug invalid'}), 400
+    title, html = _biro26_wp_page(slug)
+    if html is None:
+        return jsonify({'success': False, 'error': 'pagina lipseste'}), 404
+    return jsonify({'success': True, 'data': {'title': title, 'html': html}})
+
+# RO: lista de branduri (nume | logo) vine din pagina WP "site-branduri";
+#     cache 10 min (pagina are ~1800 rinduri)
+_BIRO26_BRANDS_CACHE = {'exp': 0, 'data': []}
+
+@app.route('/api/biro26/site/brands', methods=['GET'])
+def api_biro26_site_brands():
+    import time as _t, re as _re, html as _h
+    if _BIRO26_BRANDS_CACHE['exp'] > _t.time():
+        return jsonify({'success': True, 'data': _BIRO26_BRANDS_CACHE['data']})
+    title, html = _biro26_wp_page('site-branduri')
+    rows = []
+    if html:
+        text = _re.sub(r'<br\s*/?>', '\n', html)
+        text = _re.sub(r'<[^>]+>', '\n', text)
+        for line in _h.unescape(text).splitlines():
+            if '|' in line:
+                name, url = line.split('|', 1)
+                if name.strip() and url.strip().startswith('http'):
+                    rows.append({'brand': name.strip(), 'img': url.strip()})
+    _BIRO26_BRANDS_CACHE.update(exp=_t.time() + 600, data=rows)
+    return jsonify({'success': True, 'data': rows})
+
+@app.route('/UNA.md/orasldev/biro26-site/brands')
+def biro26_site_brands():
+    # RO: pagina "Branduri" din meniul magazinului (lista + logo din WP)
+    return render_template('biro26/site_brands.html', **_biro26_site_ctx())
+
+@app.route('/api/biro26/site/featured', methods=['GET', 'POST'])
+def api_biro26_site_featured():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_site import Biro26Site
+    if request.method == 'GET':
+        return jsonify(Biro26Site.featured_list())
+    return jsonify(Biro26Site.featured_save(request.get_json(silent=True) or {}))
+
 @app.route('/api/biro26/site/section', methods=['POST'])
 def api_biro26_site_section():
     g = _biro26_api_guard()
