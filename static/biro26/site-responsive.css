@@ -1,0 +1,92 @@
+/* =====================================================================
+   OfficePlus — noul site Figma: ADAPTIV (TZ par.5.2)
+   RO: prototipul landingfigma1 este fix 1440px; aceste media-query-uri il
+   fac fluid pe tablet (<=1024) si mobil (<=640), pastrind tokens/culorile.
+   Breakpoints: 1440 -> fluid, 1024 -> tableta, 640 -> mobil (375 ok).
+   ===================================================================== */
+
+@media (max-width: 1459px) {
+  .homepage, .header, .main, .footer, .newsletter, .footer-main { width: 100%; }
+  .homepage { min-height: auto; }
+  .topbar-inner, .navbar, .section, .hero, .newsletter-inner,
+  .footer-grid, .footer-bottom p {
+    width: auto;
+    max-width: 1260px;
+    padding-left: 16px;
+    padding-right: 16px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .hero { box-sizing: border-box; }
+  .hero-slider { flex: 1 1 auto; width: auto; min-width: 0; }
+  .hero-slide-visual { width: 100%; }
+  .products-export img { width: 100%; height: auto; }
+}
+
+@media (max-width: 1024px) {
+  .page-shell { padding: 0 0 32px; }
+  .hero { flex-direction: column; gap: 24px; }
+  .deal-card { width: 100%; min-height: auto; }
+  .deal-image { min-height: 200px; }
+  .categories { grid-template-columns: repeat(4, 1fr); }
+  .product-grid, .product-grid.five { grid-template-columns: repeat(3, 1fr); }
+  .brands { grid-template-columns: repeat(4, 1fr); }
+  .plp { flex-direction: column; }
+  .plp-side { width: 100%; }
+  .ftree { max-height: 260px; }
+  .pdp { flex-direction: column; }
+  .pdp-img { width: 100%; min-height: 320px; }
+  .cart-lay { flex-direction: column; }
+  .cart-side { width: 100%; }
+  .newsletter-inner { flex-direction: column; align-items: stretch; gap: 18px; }
+  .newsletter-form { min-width: 0; width: 100%; }
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
+  .hero-title { font-size: 34px; }
+  .page-h1 { font-size: 30px; line-height: 1.2; }
+  .section-title { font-size: 28px; }
+}
+
+@media (max-width: 640px) {
+  .topbar { height: auto; padding: 6px 0; }
+  .topbar-inner { height: auto; flex-wrap: wrap; gap: 6px 14px; }
+  .topbar-text { display: none; }           /* orarul — prea lung pe 375px */
+  .navbar { height: auto; flex-wrap: wrap; gap: 10px 14px; padding: 10px 16px 14px; }
+  .logo, .logo img { width: 150px; height: auto; }
+  .search { order: 3; flex-basis: 100%; }
+  .search-field { height: 44px; padding: 0 10px 0 14px; }
+  .search-input, .search-placeholder { font-size: 15px; }
+  .catalog-btn { height: 44px; min-width: 0; padding: 0 12px; font-size: 13.5px; }
+  .nav-actions { gap: 8px; margin-left: auto; }
+  .hero-slide-visual { height: 400px; }
+  .hero-slide-content { left: 22px; top: 26px; right: 22px; max-width: none; }
+  .hero-title { font-size: 26px; }
+  .hero-sub { font-size: 14px; }
+  .hero-slide-art { width: 300px; height: 300px; right: -80px; bottom: -80px; }
+  .categories { grid-template-columns: repeat(2, 1fr); }
+  .product-grid, .product-grid.five { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .product-card { min-height: 0; padding: 10px 10px 12px; }
+  .product-img { height: 120px; }
+  .product-name { font-size: 13.5px; min-height: 0; }
+  .price { font-size: 15px; }
+  .btn-cart, .btn-buy-sm { height: 38px; font-size: 13.5px; }
+  .brands { grid-template-columns: repeat(2, 1fr); }
+  .tabs { gap: 6px; }
+  .tab { height: 34px; padding: 0 12px; font-size: 12.5px; }
+  .page-h1 { font-size: 22px; margin-bottom: 20px; }
+  .section-title { font-size: 22px; }
+  .section { margin-bottom: 34px; }
+  .pdp-name { font-size: 21px; }
+  .pdp-price { font-size: 26px; }
+  .pdp-img { min-height: 220px; }
+  .pdp-qty { flex-wrap: wrap; }
+  .btn-big { width: 100%; }
+  .wp-page { padding: 22px 16px; }
+  .wp-page h1 { font-size: 24px; }
+  .footer-grid { grid-template-columns: 1fr; gap: 22px; }
+  .newsletter-title { font-size: 22px; }
+  .newsletter-form { padding: 4px 4px 4px 12px; }
+  .newsletter-btn { padding: 0 16px; font-size: 14px; }
+  .cart-tbl th, .cart-tbl td { padding: 8px 6px; font-size: 12.5px; }
+  .cart-tbl input { width: 54px; }
+  .acc-box { min-width: 0; }
+}
