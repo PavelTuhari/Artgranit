@@ -10,7 +10,8 @@ from typing import Any, Dict
 
 from flask import request, session
 
-from models.biro26_oracle_store import Biro26Store, G_PARAMS
+from models.biro26_db import Biro26DB
+from models.biro26_oracle_store import Biro26Store, G_PARAMS, _rows
 from models.biro26_sources import Biro26Sources
 from models import biro26_ai
 
@@ -279,7 +280,8 @@ class Biro26Controller:
         return Biro26Store.get_products_stock(
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
-            grupa=a.get("grupa"), price_date=a.get("price_date"),
+            grupa=a.get("grupa"), cod=a.get("cod", type=int),
+            price_date=a.get("price_date"),
             only_new=a.get("only_new") == "1",
             price_min=a.get("price_min", type=float),
             price_max=a.get("price_max", type=float),
@@ -302,24 +304,61 @@ class Biro26Controller:
         d = request.get_json(silent=True) or {}
         return Biro26Store.set_product_archived(cod, bool(d.get("archived", True)))
 
-    # ── shop display settings (admin: products per page etc.) ──
+    # ── shop display settings (admin: products per page, invoice start nr) ──
     @staticmethod
     def shop_settings_get() -> Dict[str, Any]:
+        # RO/EN: next invoice = counter INVOICE_NR_START (package next_invoice_nr)
+        next_nr = None
+        max_nr = None
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT y_ai_BIRO26.next_invoice_nr AS n FROM dual"))
+            if rows and rows[0].get("n") is not None:
+                next_nr = int(rows[0]["n"])
+        except Exception:
+            next_nr = None
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT MAX(CASE WHEN REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$') "
+                "THEN TO_NUMBER(TRIM(NRMANUAL)) END) AS m "
+                "FROM TMDB_DOCS WHERE SYSFID = 12280"))
+            if rows and rows[0].get("m") is not None:
+                max_nr = int(rows[0]["m"])
+        except Exception:
+            max_nr = None
         return {"success": True, "data": {
-            "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24")}}
+            "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24"),
+            # RO/EN: counter = next NRMANUAL to issue (not max+1 floor)
+            "invoice_nr_start": Biro26Store.get_setting("INVOICE_NR_START", "1"),
+            "invoice_nr_max": max_nr,
+            "invoice_nr_next": next_nr,
+        }}
 
     @staticmethod
     def shop_settings_put() -> Dict[str, Any]:
         d = request.get_json(silent=True) or {}
-        try:
-            n = int(d.get("shop_page_size") or 24)
-        except (TypeError, ValueError):
-            return {"success": False, "error": "shop_page_size must be a number"}
-        if not 1 <= n <= 200:
-            return {"success": False, "error": "shop_page_size: 1..200"}
-        r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
-        if not r.get("success"):
-            return r
+        # products per page (optional in payload)
+        if "shop_page_size" in d:
+            try:
+                n = int(d.get("shop_page_size") or 24)
+            except (TypeError, ValueError):
+                return {"success": False, "error": "shop_page_size must be a number"}
+            if not 1 <= n <= 200:
+                return {"success": False, "error": "shop_page_size: 1..200"}
+            r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
+            if not r.get("success"):
+                return r
+        # invoice counter (next NRMANUAL to issue) · счётчик следующего № счёта
+        if "invoice_nr_start" in d:
+            try:
+                start = int(str(d.get("invoice_nr_start")).strip())
+            except (TypeError, ValueError):
+                return {"success": False, "error": "invoice_nr_start must be a number"}
+            if not 1 <= start <= 999999999:
+                return {"success": False, "error": "invoice_nr_start: 1..999999999"}
+            r = Biro26Store.set_setting("INVOICE_NR_START", str(start))
+            if not r.get("success"):
+                return r
         return Biro26Controller.shop_settings_get()
 
     # ── price periods on Marfă/Stoc (y_ai_BIRO26.set_price/del_price) ──
@@ -596,7 +635,7 @@ class Biro26Controller:
     def delete_product_comment(comment_id: int) -> Dict[str, Any]:
         return Biro26Store.delete_product_comment(comment_id)
 
-    # ── external-app API: document list + PDF by document NUMBER (#NRSET) ──
+    # ── external-app API: document list + PDF by document NUMBER (#NRMANUAL) ──
 
     @staticmethod
     def _sig_nr_ok(kind: str, nr) -> bool:
@@ -1078,7 +1117,8 @@ class Biro26Controller:
             # RO/EN: notificari email/Telegram/WhatsApp — fire-and-forget
             from models.biro26_notify import Biro26Notify
             Biro26Notify.notify_new_doc(
-                res["data"]["cod"], res["data"]["nrset"],
+                res["data"]["cod"],
+                res["data"].get("nrmanual") or res["data"].get("nrset"),
                 (c or {}).get("name") or f"COD {client_cod}",
                 sum(it["qty"] * it["price"] for it in clean),
                 source="magazin" if c else "backoffice")
