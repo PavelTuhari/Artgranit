@@ -196,10 +196,45 @@ function liberHtml(price, small) {
   return '<div style="font-size:' + (small ? 11.5 : 13) + 'px;color:#1d4ed8;' +
     'font-weight:700">' + tr('ratePrice') + ': ' + fmtLei(v) + '</div>';
 }
+/* RO: familii de variante (culoare/marime — BIRO26_VARIANTS): selectorul
+   apare pe card cind produsul are variante; lista se incarca lenes la
+   focus, iar in cos intra COD-ul variantei alese (ca in magazinul clasic). */
+const VARC = {};
+async function loadVariants(cod) {
+  const sel = document.getElementById('v-' + cod);
+  if (!sel || sel.dataset.loaded) return;
+  sel.dataset.loaded = '1';
+  const r = VARC[cod] || await j(API + '/variants?cod=' + cod);
+  VARC[cod] = r;
+  if (!r.success || !(r.data || []).length) return;
+  const cur = sel.value;
+  sel.innerHTML = r.data.map(v =>
+    '<option value="' + v.cod_univers + '" data-name="' +
+    esc(v.full_name || v.base_name || '') + '"' +
+    (String(v.cod_univers) === String(cur) ? ' selected' : '') + '>' +
+    esc(v.variant || v.full_name || ('#' + v.cod_univers)) + '</option>').join('');
+}
+function cardBuy(cod) {
+  const p = PMAP[cod] || {};
+  let realCod = cod, name = p.denumirea || '';
+  const sel = document.getElementById('v-' + cod);
+  if (sel && sel.dataset.loaded) {
+    realCod = parseInt(sel.value, 10) || cod;
+    const o = sel.options[sel.selectedIndex];
+    if (o && o.dataset.name) name = o.dataset.name;
+  }
+  addToCart(realCod, name, pprice(p));
+}
 function cardHtml(p) {
   PMAP[p.cod] = p;
   const price = pprice(p);
   const inStock = (p.real_cant || 0) > 0;
+  const varSel = (p.var_cnt || 1) > 1
+    ? '<select class="varsel-sm" id="v-' + p.cod + '" ' +
+      'onfocus="loadVariants(' + p.cod + ')" onclick="event.stopPropagation()">' +
+      '<option value="' + p.cod + '">' + esc(p.variant || '—') + ' (' +
+      p.var_cnt + ' variante ▾)</option></select>'
+    : '';
   return '<article class="product-card">' +
     '<button class="wish' + (favHas(p.cod) ? ' on' : '') +
       '" type="button" aria-label="Favorite" onclick="favToggle(this,' + p.cod + ')">' +
@@ -211,10 +246,10 @@ function cardHtml(p) {
     '<span class="stock ' + (inStock ? 'in' : 'order') + '">' +
       tr(inStock ? 'inStock' : 'onOrder') + '</span>' +
     '<h3 class="product-name" onclick="openProd(' + p.cod + ')">' + esc(pname(p)) + '</h3>' +
+    varSel +
     '<div class="product-prices"><span class="price">' + fmtLei(price) + '</span></div>' +
     liberHtml(price, true) +
-    '<button class="btn-buy-sm" type="button" onclick="addToCart(' + p.cod + ',\'' +
-      esc(p.denumirea || '').replace(/'/g, '&#39;') + '\',' + price + ')">' +
+    '<button class="btn-buy-sm" type="button" onclick="cardBuy(' + p.cod + ')">' +
       tr('buy') + '</button>' +
     '</article>';
 }
