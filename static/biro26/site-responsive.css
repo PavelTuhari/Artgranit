@@ -5,6 +5,9 @@
    Breakpoints: 1440 -> fluid, 1024 -> tableta, 640 -> mobil (375 ok).
    ===================================================================== */
 
+/* butonul "Filtre" exista doar pe tableta/mobil */
+.plp-ftoggle { display: none; }
+
 @media (max-width: 1459px) {
   .homepage, .header, .main, .footer, .newsletter, .footer-main { width: 100%; }
   .homepage { min-height: auto; }
