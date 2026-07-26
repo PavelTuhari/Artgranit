@@ -188,7 +188,8 @@ function renderSide() {
     }
     return h;
   }).join('');
-  document.getElementById('fbrands').innerHTML = BRANDS.map(b =>
+  const fb = document.getElementById('fbrands');
+  if (fb) fb.innerHTML = BRANDS.map(b =>
     '<span class="fchip' + (F.brand === b.brand ? ' on' : '') +
     '" onclick="pickBrand(\'' + esc(b.brand).replace(/'/g, '&#39;') + '\')">' +
     esc(b.brand) + '</span>').join('');
