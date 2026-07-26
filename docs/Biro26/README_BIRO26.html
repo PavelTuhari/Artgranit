@@ -514,5 +514,58 @@ Endpoint генерации в сайдкаре: <code>POST /pdfme/generate</cod
 (на машине &lt;1 GB RAM; 2 GB swap). Первый рендер ~20 с (холодный старт
 Chromium), дальше ~5–7 с. Если сервис лежит, API отвечает
 <code>report service unavailable</code> — счёт при этом создаётся как обычно.</p>
+<h2>15. Noul site Figma (shop1) + noutăți iulie 2026 / new Figma site &amp; July 2026 updates</h2>
+
+<p><b>Mediu de dezvoltare:</b> <code>https://shop1.officeplus.md/</code> — copie completă a
+prodului (WP + Flask <code>artgranit_shop1</code>, port 8020, unit <code>artgranit-shop1</code>);
+produl <code>officeplus.md</code> rămâne neatins până la acceptare
+(TZ: <code>/static/biro26/OFFICEPLUS_AI_SITE_PROJECT.md</code>).</p>
+
+<p><b>Noul site (vitrina Figma, LIVE pe rădăcina shop1):</b> pagini
+<code>/ (home) · /catalog · /produs/&lt;COD&gt; · /cos · /cont · /favorite · /compara ·
+/branduri</code> + paginile informative WP redate în chrome-ul site-ului
+(<code>/despre-noi /contacte /livrare /retur-produse /termeni-si-conditii
+/politica-de-confidentialitate</code>). Șabloane: <code>templates/biro26/site_*.html</code>
+(bază comună <code>site_base.html</code>), JS comun <code>static/biro26/site.js</code>,
+adaptiv <code>site-responsive.css</code> (fluid la orice lățime/zoom; mobil 375px).
+Coșul este ACELAȘI localStorage (<code>biro26_shop_cart</code>) ca magazinul clasic;
+checkout/plăți/credit — API-urile existente <code>/api/biro26/shop/*</code>.
+Variantele de produs (culoare/mărime) au selector și pe cardurile noului site
+(la fel ca în magazinul clasic); pe fișa produsului blocul «Rate și credit»
+stă în dreapta prețului (pe aceeași linie orizontală).</p>
+
+<p><b>Limited admin al vitrinei</b> — <code>/UNA.md/orasldev/biro26-site-admin</code>
+(tabele Oracle <code>YBIRO_SITE_HERO / DEAL / SECTION / FEATURED / SUBSCRIBER</code>,
+DDL <code>sql/biro26/12–14</code>): hero slides RO/RU, «Produsul zilei» (COD + termen),
+secțiunile paginii principale on/off, lista «Cele mai populare» (COD-uri),
+abonații newsletter. Config public: <code>GET /api/biro26/site/config</code>.</p>
+
+<p><b>Conținut din adminka standard WordPress</b> (editabil de non-admin,
+cache 5 min, API <code>GET /api/biro26/site/info/&lt;slug&gt;</code>): paginile
+<code>site-contact</code> (Email/Telefon/Adresa/Harta), <code>site-about</code> /
+<code>site-about-ru</code> / <code>site-about-en</code> (blocul «Despre companie» —
+text + imagine, pe 3 limbi), <code>site-plati</code> (tipurile de plată din footer),
+<code>site-branduri</code> (≈1800 branduri «Nume | URL logo» —
+<code>GET /api/biro26/site/brands</code>, pagina <code>/branduri</code>).</p>
+
+<p><b>Setare nouă (backoffice → Setări → Magazin):</b> «Filtru după brand în
+catalogul noului site» — <code>YBIRO_SETTINGS.SHOP_BRAND_FILTER</code>
+(<b>implicit 0 = oprit</b>; caseta «Branduri» din sidebar-ul <code>/catalog</code>
+apare doar cu 1). API: <code>GET/PUT /api/biro26/shop-settings</code>
+(câmpul <code>brand_filter</code>).</p>
+
+<p><b>Atribute web multilingve (TMS_MPT_WEBATTR)</b> — descrieri/denumiri complete
+cu diacritice (original UTF-8 în BLOB; copiile fără diacritice pentru căutare le
+întreține triggerul). Editare: fișa din backoffice, blocul «Atribute web» cu
+taburi RO/RU/EN (<code>GET/PUT /api/biro26/webattr/&lt;COD&gt;</code>). Căutarea
+normalizează interogarea («carti» = «cărți»). Detalii:
+<code>TZ_WEB_TMS_MPT_WEBATTR.md</code>.</p>
+
+<p><b>Module de plată/credit (magazin):</b> MAIB Checkout v2 (card, test+refund),
+MIA QR (QMoney) + MIA P2P; credit/rate — organizații dinamice
+(<code>YBIRO_CREDIT_ORG/PLAN/REQ</code>, admin <code>biro26-credit-admin</code>),
+rate 0% la 4/6 luni (+5% împărțit egal), formulele băncii de la 8 luni în sus,
+«Preț ofertă în rate» (Liber Card, +5% de la 100 lei).</p>
+
 </body>
 </html>
