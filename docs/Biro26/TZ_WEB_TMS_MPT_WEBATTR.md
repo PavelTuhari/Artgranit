@@ -1,5 +1,21 @@
 # ТЗ для веб-команды: адаптация под `TMS_MPT_WEBATTR`
 
+> ✅ **СТАТУС: РЕАЛИЗОВАНО 2026-07-26** на обеих системах (officeplus.md + shop1.officeplus.md).
+> Задача 1 (показ): `get_products_stock()` — `LEFT JOIN tms_mpt_webattr` (в сетке `DENUM_FULL`,
+> VARCHAR2-копия); `product_info(cod, lang)` читает BLOB с откатом lang→RO→YBIRO_PROD_INFO;
+> worker: `oracledb.defaults.fetch_lobs = False` (BLOB→bytes→UTF-8 — диакритика доходит).
+> Задача 2 (поиск): запрос нормализуется `cp1251_safe()`, ищет и по `DENUMIRE_FULL_RO/RU`
+> + `DBMS_LOB.INSTR` по `DESCRIERE_NON_DIACR_RO`. Проверено: «carti» = «cărți» = 1114 позиций.
+> Задача 3 (редактирование): backoffice-карточка — блок «Atribute web» с вкладками RO/RU/EN
+> (Denumire completă + Descriere), API `GET/PUT /api/biro26/webattr/<cod>`; запись ТОЛЬКО в BLOB
+> (`{"__b64__"}` → bytes → `DB_TYPE_BLOB`, мимо charset-конверсии), `lang` — белый список.
+> Проверено: `Ștampilă pătrată` → BLOB точный, `DENUMIRE_FULL_*` = `Stampila patrata` (триггер).
+> Задача 4 (импорт): loader задеплоен на оба контура; `LOGICAL_FIELDS` +=
+> `DENUM_FULL, DESCRIERE, GRUPA, CATEG, FURNIZOR` (видны и переназначаются в «Analizează»);
+> в отчёте импорта — строка «atribute web scrise (TMS_MPT_WEBATTR): N».
+> Задача 5 (индексация) — не делалась (опциональная).
+> Магазин/PDP передают `?lang=` и показывают `denum_full` + описание с диакритикой.
+
 > **Кому:** команда/ИИ, сопровождающая `Artgranit` (back-office `biro26-backoffice`, магазин `shop`,
 > мастер импорта `import_pt`).
 > **От кого:** сторона импорта данных (пакет `BIRO26PT_importData`).
