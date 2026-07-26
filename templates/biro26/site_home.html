@@ -401,8 +401,13 @@ function addToCart(cod, name, price, qty) {
 function pname(p) { return (curLang() === 'ru' && p.namerus) ? p.namerus : (p.denumirea || p.namerus || ''); }
 function pprice(p) { return parseFloat(String(p.retail1 || '').replace(',', '.')) || 0; }
 function fmtLei(v) { return v.toLocaleString('ro-MD', {maximumFractionDigits: 2}) + ' lei'; }
-function openProd(cod) { location.href = SHOP + '?prod=' + cod; }
+/* RO: deschidem produsul in magazin prin cautare dupa denumire (fisa se
+   deschide acolo cu tot functionalul: variante, credit, comentarii). */
+const PMAP = {};
+function openProd(cod) { const p = PMAP[cod] || {};
+  location.href = SHOP + '?q=' + encodeURIComponent(p.denumirea || ''); }
 function cardHtml(p) {
+  PMAP[p.cod] = p;
   const price = pprice(p);
   const inStock = (p.real_cant || 0) > 0;
   return '<article class="product-card">' +
