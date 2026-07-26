@@ -306,7 +306,11 @@ async function pickTab(i) {
 
 /* ── About & Contact: continut LIVE din paginile WP «site-*» ─────────── */
 async function loadAbout() {
-  const slug = curLang() === 'ru' ? 'site-about-ru' : 'site-about';
+  // RO: textele + imaginea vin din adminka standard WordPress — paginile
+  //     «site-about» (RO) / «site-about-ru» (RU) / «site-about-en» (EN)
+  const l = localStorage.getItem('biro26_lang') || 'ro';
+  const slug = l === 'ru' ? 'site-about-ru'
+             : l === 'en' ? 'site-about-en' : 'site-about';
   let r = await j('/api/biro26/site/info/' + slug);
   if (!r.success && slug !== 'site-about') r = await j('/api/biro26/site/info/site-about');
   if (!r.success) return;
