@@ -441,6 +441,8 @@ Menu(items → slug/url)
 
 ```text
 Ты разрабатываешь новый сайт OfficePlus.
+Вся разработка — ТОЛЬКО на https://shop1.officeplus.md/ (полная копия прода: WP + Flask
+/home/ubuntu/artgranit_shop1, unit artgranit-shop1, порт 8020). Прод officeplus.md не трогать.
 Визуал и UX: строго по Figma и прототипу https://officeplus.md/landingfigma1/
 E-commerce: только API Biro26 (Artgranit), не WooCommerce.
 Инфо-страницы (контакты, доставка, о нас, политики): только WordPress REST/контент officeplus.md;
