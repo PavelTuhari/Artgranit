@@ -6347,6 +6347,16 @@ def api_biro26_shop_product_comment(cod):
 def api_biro26_product_desc(cod):
     return _b26(lambda: Biro26Controller.set_product_desc(cod))
 
+# ── TMS_MPT_WEBATTR: atribute web multilingve (BLOB = original cu
+#    diacritice; copiile de cautare le intretine triggerul) ──
+@app.route('/api/biro26/webattr/<int:cod>', methods=['GET'])
+def api_biro26_webattr_get(cod):
+    return _b26(lambda: Biro26Controller.webattr_get(cod))
+
+@app.route('/api/biro26/webattr/<int:cod>', methods=['PUT'])
+def api_biro26_webattr_put(cod):
+    return _b26(lambda: Biro26Controller.webattr_save(cod))
+
 @app.route('/api/biro26/product-comment/<int:cid>', methods=['DELETE'])
 def api_biro26_product_comment_del(cid):
     return _b26(lambda: Biro26Controller.delete_product_comment(cid))
