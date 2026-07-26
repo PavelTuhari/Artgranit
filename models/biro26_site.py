@@ -119,6 +119,59 @@ class Biro26Site:
         return r if r.get("success") else {"success": False,
                                            "error": r.get("message")}
 
+    # ── "Cele mai populare": lista de COD-uri setata in backoffice ─────
+    _featured_cache = {"exp": 0.0, "rows": []}
+
+    @staticmethod
+    def featured_list() -> Dict[str, Any]:
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT ID, PRODUCT_COD, ORD FROM YBIRO_SITE_FEATURED "
+            "ORDER BY ORD, ID"))
+        return {"success": True,
+                "data": [{k.lower(): v for k, v in r.items()} for r in rows]}
+
+    @staticmethod
+    def featured_save(d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: inlocuieste intreaga lista (COD-uri in ordinea dorita)."""
+        try:
+            cods = [int(c) for c in (d.get("cods") or []) if str(c).strip()][:50]
+        except (TypeError, ValueError):
+            return {"success": False, "error": "COD invalid"}
+        db = Biro26DB()
+        db.execute_dml("DELETE FROM YBIRO_SITE_FEATURED")
+        for i, c in enumerate(cods, 1):
+            r = db.execute_dml(
+                "INSERT INTO YBIRO_SITE_FEATURED (ID, PRODUCT_COD, ORD) "
+                "VALUES (YBIRO_SITE_FEATURED_SEQ.NEXTVAL, :c, :o)",
+                {"c": c, "o": i})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+        Biro26Site._featured_cache["exp"] = 0.0    # invalidate
+        return {"success": True, "data": {"count": len(cods)}}
+
+    @staticmethod
+    def featured_products() -> list:
+        """RO: fisele produselor din lista (cache 120s — pagina publica)."""
+        import time as _t
+        c = Biro26Site._featured_cache
+        if c["exp"] > _t.time():
+            return c["rows"]
+        rows = []
+        try:
+            from models.biro26_oracle_store import Biro26Store
+            ids = _rows(Biro26DB().execute_query(
+                "SELECT PRODUCT_COD FROM YBIRO_SITE_FEATURED ORDER BY ORD, ID"))
+            for r in ids[:25]:
+                pr = Biro26Store.get_products_stock(
+                    cod=int(r["product_cod"]), limit=1)
+                got = pr.get("data") or []
+                if got:
+                    rows.append(got[0])
+        except Exception:
+            rows = []
+        c.update(exp=_t.time() + 120, rows=rows)
+        return rows
+
     # ── newsletter: abonare publica + lista pentru admin ───────────────
     @staticmethod
     def subscribe(d: Dict[str, Any]) -> Dict[str, Any]:
