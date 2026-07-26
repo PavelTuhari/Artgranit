@@ -350,6 +350,12 @@ class Biro26Controller:
             r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
             if not r.get("success"):
                 return r
+        # RO: filtrul dupa brand in catalog (optiune, implicit oprit)
+        if "brand_filter" in d:
+            v = "1" if str(d.get("brand_filter")) in ("1", "true", "True") else "0"
+            r = Biro26Store.set_setting("SHOP_BRAND_FILTER", v)
+            if not r.get("success"):
+                return r
         # invoice counter (next NRMANUAL to issue) · счётчик следующего № счёта
         if "invoice_nr_start" in d:
             try:
