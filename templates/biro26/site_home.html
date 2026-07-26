@@ -598,12 +598,12 @@ function renderAll() { renderHero(); renderDeal(); renderCats(); renderTabs();
     esc(b.brand) + '</a>').join('');
 
   // "Cei mai buni": scumpe cu imagine
-  const bestRows = (best.data || []).filter(p => p.image);
+  const bestRows = uniq((best.data || []).filter(p => p.image));
   ROWS.best.items = bestRows.slice(0, 25); renderRow('best');
 
   // populare: alt esantion (dupa nume, cu imagini)
   const pop = await j(API + '/products?limit=120&price_min=20');
-  ROWS.pop.items = (pop.data || []).filter(p => p.image).slice(0, 25); renderRow('pop');
+  ROWS.pop.items = uniq((pop.data || []).filter(p => p.image)).slice(0, 25); renderRow('pop');
 
   // produsul zilei: determinist dupa ziua anului (se schimba zilnic)
   const pool = ROWS.pop.items.length ? ROWS.pop.items : bestRows;
