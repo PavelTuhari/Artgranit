@@ -424,7 +424,9 @@ Menu(items → slug/url)
 
 | Артефакт | URL / путь |
 |---|---|
-| WP сайт | https://officeplus.md/ |
+| WP сайт (прод, не трогать) | https://officeplus.md/ |
+| **Dev-среда (вся разработка тут)** | **https://shop1.officeplus.md/** |
+| Dev shop / backoffice | https://shop1.officeplus.md/biro26-shop · /biro26-backoffice |
 | Figma landing live | https://officeplus.md/landingfigma1/ |
 | Biro26 shop | https://officeplus.md/biro26-shop |
 | Biro26 backoffice | https://officeplus.md/biro26-backoffice |
