@@ -767,6 +767,9 @@ class Biro26Store:
                           "UNION "
                           "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s)")
                 params["s"] = f"%{search}%"
+            if cod:
+                # RO: fisa unui singur produs (pagina PDP a noului site)
+                inner += " AND u.COD=:cod"; params["cod"] = int(cod)
             if gr1:
                 inner += " AND u.GR1=:gr1"; params["gr1"] = gr1
             if brand:
