@@ -474,6 +474,7 @@ function renderDeal() {
   const p = DEAL, price = pprice(p);
   const img = document.getElementById('deal-img');
   img.classList.remove('skel');
+  PMAP[p.cod] = p;
   if (p.image) { img.className = 'deal-image live'; img.innerHTML = '';
     img.style.backgroundImage = "url('" + p.image + "')"; }
   img.onclick = () => openProd(p.cod);
