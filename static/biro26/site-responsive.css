@@ -59,6 +59,7 @@
   .topbar { height: auto; padding: 6px 0; }
   .topbar-inner { height: auto; flex-wrap: wrap; gap: 6px 14px; }
   .topbar-text { display: none; }           /* orarul — prea lung pe 375px */
+  .topbar-nav { display: none; }            /* meniul de sus — doar desktop */
   .navbar { height: auto; flex-wrap: wrap; gap: 10px 14px; padding: 10px 16px 14px; }
   .logo, .logo img { width: 150px; height: auto; }
   .search { order: 3; flex-basis: 100%; }
