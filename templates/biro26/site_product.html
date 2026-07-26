@@ -1,0 +1,208 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Produs{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs" id="crumbs"><a href="/" data-t="home">Pagina principală</a> › <a href="/catalog" data-t="catalog">Catalog</a></p>
+          <div class="pdp" id="pdp">
+            <div class="pdp-img" id="p-img"><span style="font-size:64px">🛍️</span></div>
+            <div class="pdp-info">
+              <h1 class="pdp-name" id="p-name">…</h1>
+              <div class="pdp-code" id="p-code"></div>
+              <span class="stock in" id="p-stock"></span>
+              <div class="pdp-price" id="p-price"></div>
+              <div id="p-liber"></div>
+              <div id="p-vars"></div>
+              <div class="pdp-qty">
+                <span data-t="qty">Cantitate</span>
+                <input id="p-qty" type="number" min="1" value="1">
+                <button class="btn-big" id="p-add" data-t="addCart">Adaugă în coș</button>
+              </div>
+
+              <div class="pdp-sec" id="p-credit" style="display:none">
+                <h3 data-t="creditH">Rate și credit</h3>
+                <div id="p-rate-price" style="font-size:17px;color:#1d4ed8;font-weight:800;margin-bottom:10px"></div>
+                <div class="cr-tiles" id="p-tiles"></div>
+                <div id="p-req" style="margin-top:14px">
+                  <div class="ck-row">
+                    <input id="cr-prenume" placeholder="Prenume · Имя" style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;flex:1">
+                    <input id="cr-nume" placeholder="Nume · Фамилия" style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;flex:1">
+                    <input id="cr-tel" placeholder="Telefon · Телефон" style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;flex:1">
+                  </div>
+                  <label style="display:block;font-size:12.5px;margin-top:8px">
+                    <input type="checkbox" id="cr-ck1"> Accept <a href="/termeni-si-conditii" target="_blank" style="color:#194681;text-decoration:underline">Termenii și condițiile</a></label>
+                  <label style="display:block;font-size:12.5px">
+                    <input type="checkbox" id="cr-ck2"> Accept <a href="/politica-de-confidentialitate" target="_blank" style="color:#194681;text-decoration:underline">Politica de confidențialitate</a></label>
+                  <button class="btn-blue" onclick="crSubmit()">Solicită în rate sau credit · Оформить рассрочку</button>
+                  <p style="font-size:11.5px;color:#808080;margin:10px 0 0">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită în momentul depunerii cererii de credit și poate diferi ușor.</p>
+                </div>
+              </div>
+
+              <div class="pdp-sec" id="p-descr-box" style="display:none">
+                <h3 data-t="descr">Descriere</h3>
+                <div id="p-descr" style="font-size:14.5px;line-height:1.6;white-space:pre-line"></div>
+              </div>
+
+              <div class="pdp-sec">
+                <h3 data-t="comments">Comentarii</h3>
+                <div id="p-comments"></div>
+                <div class="ck-row" style="margin-top:10px">
+                  <input id="c-txt" data-p="yourComment" placeholder="Comentariul dvs.…" style="flex:1;padding:10px;border:1px solid #d1d1d1;border-radius:10px">
+                  <button class="btn-blue" style="margin-top:0" onclick="sendComment()" data-t="sendComment">Trimite</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:44px;width:auto">
+            <div class="section-head">
+              <h2 class="section-title" data-t="related" style="font-size:26px">Produse similare</h2>
+            </div>
+            <div class="product-grid" id="p-related"></div>
+          </div>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: fisa produsului (PDP) — rindul de produs vine din
+   /shop/products?cod=, descrierea+comentariile din /shop/product/<cod>,
+   variantele din /shop/variants, ofertele de rate din /shop/credit/offers. */
+const COD = {{ cod }};
+let P = null, OFFERS = [], tileSel = 0, TILES = [];
+
+function crIs0(p) { return /0\s*%/.test(p.name || ''); }
+function crTiles(base) {
+  const tiles = [];
+  OFFERS.forEach(o => (o.plans || []).forEach(pl => {
+    if (base < (pl.amount_min || 0) || base > (pl.amount_max || 1e9)) return;
+    for (let m = pl.months_min; m <= pl.months_max; m++) {
+      const cp = base * (1 + (pl.markup_pct || 0) / 100);
+      const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
+        cp * (pl.monthly_fee_pct || 0) / 100;
+      tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
+    }
+  }));
+  return tiles.sort((a, b) => a.m - b.m);
+}
+function renderTiles() {
+  const base = pprice(P) * (parseFloat(document.getElementById('p-qty').value) || 1);
+  TILES = crTiles(base);
+  if (!TILES.length) { document.getElementById('p-credit').style.display = 'none'; return; }
+  document.getElementById('p-credit').style.display = '';
+  if (tileSel >= TILES.length) tileSel = 0;
+  document.getElementById('p-tiles').innerHTML = TILES.map((t, i) =>
+    '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
+    ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
+    '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
+  const t = TILES[tileSel];
+  document.getElementById('p-rate-price').textContent =
+    tr('cartRate') + ': ' + fmtLei(t.credit_price);
+}
+async function crSubmit() {
+  const pren = document.getElementById('cr-prenume').value.trim();
+  const nume = document.getElementById('cr-nume').value.trim();
+  const tel = document.getElementById('cr-tel').value.trim();
+  if (!pren || !nume || !tel) { toast('Completați numele și telefonul', true); return; }
+  if (!document.getElementById('cr-ck1').checked ||
+      !document.getElementById('cr-ck2').checked) {
+    toast('Bifați acordul cu termenii și politica', true); return; }
+  const t = TILES[tileSel]; if (!t) return;
+  const qty = parseFloat(document.getElementById('p-qty').value) || 1;
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: t.plan.id, months: t.m, qty,
+    amount: pprice(P) * qty, product_cod: COD, product_name: P.denumirea || '',
+    client_name: pren + ' ' + nume, phone: tel})});
+  if (r.success) toast('✅ Cererea a fost trimisă! Managerul vă va contacta.');
+  else toast(r.error || 'Eroare', true);
+}
+
+async function sendComment() {
+  const txt = document.getElementById('c-txt').value.trim();
+  if (!txt) return;
+  const r = await j(API + '/product/' + COD + '/comment',
+    {method: 'POST', body: JSON.stringify({txt})});
+  if (r.success) { document.getElementById('c-txt').value = ''; loadInfo(); }
+  else toast(r.error || 'Autentificați-vă pentru comentarii', true);
+}
+
+async function loadInfo() {
+  const r = await j(API + '/product/' + COD);
+  const d = (r.data || {});
+  if (d.descriere) {
+    document.getElementById('p-descr-box').style.display = '';
+    document.getElementById('p-descr').textContent = d.descriere;
+  }
+  document.getElementById('p-comments').innerHTML = (d.comments || []).map(c =>
+    '<div class="comment"><div class="who">' + esc(c.autor || '') +
+    ' · ' + esc(c.created || '') + '</div>' + esc(c.txt || '') + '</div>').join('')
+    || '<p style="color:#808080;font-size:13px">—</p>';
+}
+
+function renderP() {
+  if (!P) return;
+  const price = pprice(P);
+  document.title = pname(P) + ' — {{ app_name }}';
+  document.getElementById('p-name').textContent = pname(P);
+  document.getElementById('p-code').textContent =
+    tr('code') + ': ' + (P.codvechi || P.cod) + (P.barcode ? ' · ' + P.barcode : '') +
+    (P.brand ? ' · ' + P.brand : '');
+  const inStock = (P.real_cant || 0) > 0;
+  const st = document.getElementById('p-stock');
+  st.className = 'stock ' + (inStock ? 'in' : 'order');
+  st.textContent = tr(inStock ? 'inStock' : 'onOrder');
+  document.getElementById('p-price').textContent = fmtLei(price);
+  document.getElementById('p-liber').innerHTML = liberHtml(price, false);
+  const img = document.getElementById('p-img');
+  if (P.image) img.innerHTML = '<img referrerpolicy="no-referrer" src="' + esc(P.image) +
+    '" onclick="window.open(this.src)" onerror="this.style.display=\'none\'">';
+  document.getElementById('crumbs').innerHTML =
+    '<a href="/" data-t="home">' + tr('home') + '</a> › ' +
+    '<a href="/catalog" data-t="catalog">' + tr('catalog') + '</a>' +
+    (P.grupa ? ' › <a href="/catalog?grupa=' + encodeURIComponent(P.grupa) + '">' +
+      esc(P.grupa) + '</a>' : '') +
+    (P.categorie ? ' › <a href="/catalog?grupa=' + encodeURIComponent(P.grupa || '') +
+      '&categorie=' + encodeURIComponent(P.categorie) + '">' + esc(P.categorie) + '</a>' : '');
+  document.getElementById('p-add').onclick = () => {
+    let cod = COD, name = P.denumirea || '';
+    const sel = document.getElementById('varsel');
+    if (sel) { cod = parseInt(sel.value, 10) || COD;
+      const o = sel.options[sel.selectedIndex];
+      if (o && o.dataset.name) name = o.dataset.name; }
+    addToCart(cod, name, price, parseFloat(document.getElementById('p-qty').value) || 1);
+  };
+  renderTiles();
+}
+
+window.onLangChange = renderP;
+
+(async function init() {
+  const [pr, offers] = await Promise.all([
+    j(API + '/products?cod=' + COD + '&limit=1'), j(API + '/credit/offers')]);
+  P = (pr.data || [])[0];
+  OFFERS = offers.data || [];
+  if (!P) { document.getElementById('p-name').textContent = 'Produs indisponibil (COD ' + COD + ')'; return; }
+  renderP(); loadInfo();
+  document.getElementById('p-qty').addEventListener('change', renderTiles);
+  // variante (culoare/marime) — in cos intra COD-ul variantei alese
+  if ((P.var_cnt || 1) > 1) {
+    const v = await j(API + '/variants?cod=' + COD);
+    if ((v.data || []).length > 1) {
+      document.getElementById('p-vars').innerHTML =
+        '<label style="font-size:12.5px;color:#676767">' + tr('variants') + '</label>' +
+        '<select class="varsel" id="varsel">' + v.data.map(x =>
+          '<option value="' + x.cod_univers + '" data-name="' +
+          esc(x.full_name || x.base_name || '') + '"' +
+          (String(x.cod_univers) === String(COD) ? ' selected' : '') + '>' +
+          esc(x.variant || x.full_name || ('#' + x.cod_univers)) + '</option>').join('') +
+        '</select>';
+    }
+  }
+  // similare: aceeasi categorie
+  if (P.categorie) {
+    const rel = await j(API + '/products?limit=20&categorie=' + encodeURIComponent(P.categorie));
+    document.getElementById('p-related').innerHTML =
+      uniq((rel.data || []).filter(x => x.cod !== COD && x.image)).slice(0, 4)
+        .map(cardHtml).join('');
+  }
+})();
+</script>
+{% endblock %}
