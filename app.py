@@ -5920,6 +5920,14 @@ def _biro26_wp_page(slug):
         # RO: WP indisponibil -> cade inapoi pe catalog / EN: WP down -> catalog
         return None, None
 
+@app.route('/UNA.md/orasldev/biro26-site')
+def biro26_site():
+    """RO: pagina principala LIVE dupa Figma (landingfigma1) — vitrina noului
+    site (TZ OFFICEPLUS_AI_SITE_PROJECT.md); pe shop1 nginx o serveste la '/'.
+    EN: live Figma homepage for the new site; shop1 nginx maps it to '/'."""
+    return render_template('biro26/site_home.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
 @app.route('/UNA.md/orasldev/biro26-shop')
 def biro26_shop():
     """Public self-service Marfă/Stoc page for individual clients."""
