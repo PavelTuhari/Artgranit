@@ -832,8 +832,12 @@ class Biro26Store:
                 "c.ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(c.PHOTO_URL, c.IMAGE_LINK)) IMAGE, "
                 "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT, "
-                "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT "
+                "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT, "
+                # RO: denumirea completa din TMS_MPT_WEBATTR — copia VARCHAR2
+                #     (ieftina) pentru grila/tooltip; BLOB-ul DOAR in fisa
+                "w.DENUMIRE_FULL_RO DENUM_FULL, w.DENUMIRE_FULL_RU DENUM_FULL_RU "
                 f"FROM ({_page(inner, limit, offset)}) c "
+                "LEFT JOIN TMS_MPT_WEBATTR w ON w.COD = c.COD "
                 "LEFT JOIN VMS_MPT_TVR m ON m.COD = c.COD "
                 "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
                 "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
