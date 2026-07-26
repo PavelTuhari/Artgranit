@@ -70,6 +70,16 @@ label.sw{display:inline-flex;align-items:center;gap:8px;margin:6px 16px 6px 0;fo
     <h3>🧩 Secțiunile paginii principale</h3>
     <div id="secs"></div>
   </div>
+
+  <div class="card">
+    <h3>✉️ Abonați newsletter <span class="muted" id="sub-cnt"></span>
+      <button class="btn-sm" style="float:right" onclick="loadSubs()">↻</button></h3>
+    <table>
+      <thead><tr><th style="width:40px">ID</th><th>Email</th><th style="width:60px">Limba</th>
+        <th style="width:140px">Data</th><th style="width:70px">Activ</th></tr></thead>
+      <tbody id="subs"><tr><td colspan="5" class="muted">…</td></tr></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
