@@ -20,10 +20,15 @@
                 </div>
                 <div style="margin-top:10px" id="pprese"></div>
               </div>
+              {% if brand_filter == '1' %}
+              <!-- RO: filtrul dupa brand — OPTIUNE (implicit oprita);
+                   se activeaza in backoffice: Setari -> Magazin
+                   (YBIRO_SETTINGS.SHOP_BRAND_FILTER = 1) -->
               <div class="fbox">
                 <h3 data-t="brandsF">Branduri</h3>
                 <div id="fbrands"></div>
               </div>
+              {% endif %}
               <button class="btn-blue" style="width:100%" onclick="resetF()" data-t="reset">Resetează</button>
             </aside>
             <div class="plp-main">
