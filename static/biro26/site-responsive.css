@@ -38,8 +38,9 @@
   /* RO: pe tableta/mobil filtrele stau ascunse dupa butonul "Filtre"
      (stil Amazon, ca in magazinul clasic) */
   .plp-ftoggle { display: block; }
-  .plp-side { width: 100%; display: none; }
-  .plp-side.open { display: flex; }
+  .plp-side { width: 100%; }
+  /* :not(.open) bate regula inline din site_base (specificitate mai mare) */
+  .plp-side:not(.open) { display: none; }
   .ftree { max-height: 260px; }
   .pdp { flex-direction: column; }
   .pdp-img { width: 100%; min-height: 320px; }
