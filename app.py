@@ -6016,6 +6016,30 @@ def api_biro26_site_deal():
         return jsonify(Biro26Site.deal_get())
     return jsonify(Biro26Site.deal_save(request.get_json(silent=True) or {}))
 
+@app.route('/api/biro26/site/subscribe', methods=['POST'])
+def api_biro26_site_subscribe():
+    # RO: abonare newsletter (public) — stocata in YBIRO_SITE_SUBSCRIBER
+    from models.biro26_site import Biro26Site
+    return jsonify(Biro26Site.subscribe(request.get_json(silent=True) or {}))
+
+@app.route('/api/biro26/site/subscribers', methods=['GET'])
+def api_biro26_site_subscribers():
+    g = _biro26_api_guard()
+    if g is not None:
+        return g
+    from models.biro26_site import Biro26Site
+    return jsonify(Biro26Site.subscribers_list())
+
+@app.route('/UNA.md/orasldev/biro26-site/favorites')
+def biro26_site_favorites():
+    # RO: lista de produse favorite (inimioarele de pe carduri)
+    return render_template('biro26/site_favorites.html', **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/compare')
+def biro26_site_compare():
+    # RO: compararea produselor (max 4, alese de pe fisele PDP)
+    return render_template('biro26/site_compare.html', **_biro26_site_ctx())
+
 @app.route('/api/biro26/site/section', methods=['POST'])
 def api_biro26_site_section():
     g = _biro26_api_guard()
