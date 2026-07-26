@@ -1,0 +1,34 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Favorite{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> › <span data-t="favorites">Favorite</span></p>
+          <h1 class="page-h1" style="font-size:32px;margin-bottom:22px">❤ <span data-t="favorites">Favorite</span></h1>
+          <div class="product-grid" id="grid"></div>
+          <p id="empty" style="display:none;color:#676767"></p>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: favoritele (inimioarele) — lista de COD-uri din localStorage;
+   fisele se incarca din API dupa cod. */
+async function loadFav() {
+  const cods = lsList('biro26_fav');
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+  if (!cods.length) { grid.innerHTML = '';
+    empty.style.display = ''; empty.textContent = tr('favEmpty'); return; }
+  empty.style.display = 'none';
+  grid.innerHTML = '<article class="product-card skel"></article>'.repeat(
+    Math.min(cods.length, 8));
+  const rows = (await Promise.all(cods.slice(0, 24).map(c =>
+    j(API + '/products?cod=' + c + '&limit=1')
+      .then(r => (r.data || [])[0]).catch(() => null)))).filter(Boolean);
+  grid.innerHTML = rows.map(cardHtml).join('') ||
+    '<p style="grid-column:1/-1;color:#676767">' + tr('favEmpty') + '</p>';
+}
+window.onLangChange = loadFav;
+window.addEventListener('storage', e => { if (e.key === 'biro26_fav') loadFav(); });
+loadFav();
+</script>
+{% endblock %}
