@@ -593,10 +593,34 @@ async function loadCardProdInfo(cod) {
       : '<p class="muted" style="font-size:12px">Fără comentarii · Нет комментариев</p>');
 }
 
-async function saveProdDesc(cod) {
-  const ta = el('pd-desc-' + cod);
-  const r = await apiPut('/api/biro26/product-desc/' + cod, {descriere: ta ? ta.value : ''});
-  if (r.success) toast(t('saved'), 'ok');
+function waTab(cod, L) {
+  // RO: comutare limba — intii pastram in memorie ce e in campuri
+  const wa = window['WA_' + cod] || {};
+  const cur = el('wa-lang-' + cod).dataset.l;
+  wa[cur] = {descriere: el('wa-desc-' + cod).value,
+             denum_full: el('wa-full-' + cod).value};
+  el('wa-desc-' + cod).value = (wa[L] || {}).descriere || '';
+  el('wa-full-' + cod).value = (wa[L] || {}).denum_full || '';
+  el('wa-lang-' + cod).dataset.l = L;
+  el('wa-lang-' + cod).textContent = 'limba: ' + L.toUpperCase();
+  document.querySelectorAll('.wa-tab-' + cod).forEach(b => {
+    const on = b.dataset.l === L;
+    b.style.background = on ? '#1d4ed8' : '';
+    b.style.color = on ? '#fff' : '';
+    b.style.borderColor = on ? '#1d4ed8' : '';
+  });
+}
+
+async function saveWebattr(cod) {
+  const L = el('wa-lang-' + cod).dataset.l;
+  const descriere = el('wa-desc-' + cod).value;
+  const denum_full = el('wa-full-' + cod).value;
+  const r = await apiPut('/api/biro26/webattr/' + cod,
+                         {lang: L, descriere, denum_full});
+  if (r.success) {
+    (window['WA_' + cod] = window['WA_' + cod] || {})[L] = {descriere, denum_full};
+    toast(t('saved') + ' (' + L.toUpperCase() + ')', 'ok');
+  }
 }
 
 async function delProdComment(id, cod) {
