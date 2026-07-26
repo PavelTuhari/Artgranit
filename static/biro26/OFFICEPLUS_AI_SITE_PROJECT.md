@@ -457,7 +457,7 @@ E-commerce: только API Biro26 (Artgranit), не WooCommerce.
 
 ## 16. Открытые решения (зафиксировать до Phase 2)
 
-1. Домен: path (`officeplus.md/app`) vs subdomain (`shop.` / `www2.`)?  
+1. ~~Домен: path vs subdomain?~~ **Решено (2026-07-26): dev = поддомен `shop1.officeplus.md` (§3.5); финальный прод-домен решается на Phase 6.**  
 2. Стек фронта: Nuxt / Next / Vue SPA / enhanced static?  
 3. Limited admin storage: APEX vs WP CPT vs SQLite/Postgres?  
 4. SEO cutover: когда новый homepage заменяет WP homepage?  
