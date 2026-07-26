@@ -5928,8 +5928,13 @@ def _biro26_site_ctx():
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
     except Exception:
         liber_pct, liber_min = 5.0, 100.0
+    try:
+        brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
+    except Exception:
+        brand_filter = '0'
     return {'app_name': Config.BIRO26_APP_NAME,
-            'liber_pct': liber_pct, 'liber_min': liber_min}
+            'liber_pct': liber_pct, 'liber_min': liber_min,
+            'brand_filter': brand_filter}
 
 @app.route('/UNA.md/orasldev/biro26-site')
 def biro26_site():
