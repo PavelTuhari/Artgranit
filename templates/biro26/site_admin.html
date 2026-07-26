@@ -160,7 +160,18 @@ async function saveSec(code, on) {
   if (r.success) toast('Salvat ✓');
 }
 
-loadHero(); loadDeal(); loadSecs();
+async function loadSubs() {
+  const r = await j('/api/biro26/site/subscribers');
+  const rows = r.data || [];
+  document.getElementById('sub-cnt').textContent = '(' + rows.length + ')';
+  document.getElementById('subs').innerHTML = rows.map(s =>
+    '<tr><td class="muted">' + s.id + '</td><td>' + esc(s.email) + '</td>' +
+    '<td>' + esc(s.lang || '') + '</td><td>' + esc(s.created || '') + '</td>' +
+    '<td>' + (s.enabled === '1' ? '✅' : '—') + '</td></tr>').join('') ||
+    '<tr><td colspan="5" class="muted">Nimeni încă</td></tr>';
+}
+
+loadHero(); loadDeal(); loadSecs(); loadSubs();
 </script>
 </body>
 </html>
