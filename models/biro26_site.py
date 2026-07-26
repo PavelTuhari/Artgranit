@@ -119,6 +119,37 @@ class Biro26Site:
         return r if r.get("success") else {"success": False,
                                            "error": r.get("message")}
 
+    # ── newsletter: abonare publica + lista pentru admin ───────────────
+    @staticmethod
+    def subscribe(d: Dict[str, Any]) -> Dict[str, Any]:
+        import re
+        email = (d.get("email") or "").strip().lower()[:200]
+        lang = (d.get("lang") or "ro")[:4]
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[a-z0-9-]{2,}$", email, re.I):
+            return {"success": False, "error": "Email invalid"}
+        db = Biro26DB()
+        ex = _rows(db.execute_query(
+            "SELECT ID FROM YBIRO_SITE_SUBSCRIBER WHERE EMAIL = :e",
+            {"e": email}))
+        if ex:
+            db.execute_dml("UPDATE YBIRO_SITE_SUBSCRIBER SET ENABLED='1' "
+                           "WHERE EMAIL = :e", {"e": email})
+            return {"success": True, "data": {"already": True}}
+        r = db.execute_dml(
+            "INSERT INTO YBIRO_SITE_SUBSCRIBER (ID, EMAIL, LANG) VALUES "
+            "(YBIRO_SITE_SUBSCRIBER_SEQ.NEXTVAL, :e, :l)",
+            {"e": email, "l": lang})
+        return r if r.get("success") else {"success": False,
+                                           "error": r.get("message")}
+
+    @staticmethod
+    def subscribers_list() -> Dict[str, Any]:
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT ID, EMAIL, LANG, TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') "
+            "CREATED, ENABLED FROM YBIRO_SITE_SUBSCRIBER ORDER BY ID DESC"))
+        return {"success": True,
+                "data": [{k.lower(): v for k, v in r.items()} for r in rows]}
+
     # ── admin: sectiunile paginii principale on/off ────────────────────
     @staticmethod
     def section_save(d: Dict[str, Any]) -> Dict[str, Any]:
