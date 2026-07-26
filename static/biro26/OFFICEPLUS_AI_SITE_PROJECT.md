@@ -129,6 +129,27 @@
 - После **любого** деплоя проверять, что прод жив:
   `curl -I https://officeplus.md/` и `curl -I https://officeplus.md/biro26-shop` → 200.
 
+### 3.5.4 Статус реализации (2026-07-26)
+
+**Главная по Figma запущена LIVE на https://shop1.officeplus.md/** (root):
+
+1. Flask-маршрут `/UNA.md/orasldev/biro26-site` (шаблон `templates/biro26/site_home.html`),
+   nginx shop1 отдаёт его на `location = /`; **WordPress на shop1 остался только
+   админкой/источником контента** (`/wp-admin`, `/wp-json` работают).
+2. Вёрстка — строго по прототипу `landingfigma1` (тот же `styles.css`, tokens, блоки:
+   topbar, navbar+поиск+Каталог, hero-слайдер 3 слайда, «Товар дня» с таймером,
+   H1+7 категорий, 2 ряда товаров, бренды, табы категорий, about/contact, newsletter, футер).
+3. Данные живые из Biro26 API: товары (retail1, наличие), «товар дня» (детерминированно
+   по дню, меняется ежедневно), категории/табы из `/shop/tree`, бренды из `/shop/brands`.
+4. **Корзина общая** с магазином (`localStorage biro26_shop_cart`) — покупка с главной
+   попадает в корзину `/biro26-shop`, checkout/оплата/кредит — существующие.
+5. Deep-links в магазин: `?q=` (поиск), `?grupa=`, `?categorie=`, `?brand=`, `?sort=`,
+   `?cart=1` (открыть корзину) — добавлены в `shop.html`.
+6. i18n RO/RU переключатель (общий `biro26_lang`); тексты инфо-страниц — WP
+   (`/biro26-shop?info=<slug>`).
+7. Следующие фазы (§10): PLP/PDP в стиле Figma, WP REST bridge в chrome нового сайта,
+   limited admin (hero/deal/секции), newsletter backend.
+
 ---
 
 ## 4. Целевая архитектура (to-be)
