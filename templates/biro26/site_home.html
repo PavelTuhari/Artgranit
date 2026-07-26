@@ -6,6 +6,26 @@
     .category-emoji{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;opacity:.9}
     .hero-slide-visual.s2{background:linear-gradient(135deg,#355c1a 0%,#58ba13 55%,#7ed321 100%)}
     .hero-slide-visual.s3{background:linear-gradient(135deg,#a34d0e 0%,#ea6f21 55%,#ffb800 100%)}
+    /* About & Contact LIVE (stil Figma, date din WP) */
+    .about-live{display:flex;gap:44px;align-items:center;background:#fff;border-radius:20px;
+      box-shadow:0 12px 40px rgba(0,0,0,.08);padding:40px}
+    .about-img{width:46%;flex:none}
+    .about-img img{border-radius:14px;width:100%;height:auto}
+    .about-txt{flex:1;min-width:0}
+    .about-txt h2{font-size:32px;margin:4px 0 14px;font-weight:700}
+    .about-txt p{font-size:14.5px;line-height:1.6;color:#444}
+    .contact-live{background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,.08);
+      padding:40px;max-width:860px;margin:0 auto}
+    .contact-cols{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:24px}
+    .contact-col{flex:1;min-width:180px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+    .contact-col b{font-size:16px}
+    .contact-col a{color:#194681}
+    .contact-ico{width:44px;height:44px;border-radius:12px;border:1.5px solid #194681;
+      display:grid;place-items:center;font-size:20px}
+    .contact-map iframe{width:100%;height:300px;border:0;border-radius:12px}
+    .brand img{max-height:44px;max-width:80%;object-fit:contain}
+    @media (max-width:1024px){.about-live{flex-direction:column;padding:22px}
+      .about-img{width:100%}}
 {% endblock %}
 {% block content %}
         <!-- ===== HERO: slider + product of the day ===== -->
