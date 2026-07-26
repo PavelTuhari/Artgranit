@@ -8,23 +8,26 @@
 /* butonul "Filtre" exista doar pe tableta/mobil */
 .plp-ftoggle { display: none; }
 
-@media (max-width: 1459px) {
-  .homepage, .header, .main, .footer, .newsletter, .footer-main { width: 100%; }
-  .homepage { min-height: auto; }
-  .topbar-inner, .navbar, .section, .hero, .newsletter-inner,
-  .footer-grid, .footer-bottom p {
-    width: auto;
-    max-width: 1260px;
-    padding-left: 16px;
-    padding-right: 16px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  .hero { box-sizing: border-box; }
-  .hero-slider { flex: 1 1 auto; width: auto; min-width: 0; }
-  .hero-slide-visual { width: 100%; }
-  .products-export img { width: 100%; height: auto; }
+/* ── FLUID mereu (aliniat la fereastra): prototipul era fix 1440px;
+   acum fundalul alb umple TOATA fereastra la orice latime/zoom, iar
+   continutul sta centrat pe max-width 1260. ── */
+html, body { background: #ffffff; }
+.page-shell { padding: 0; }
+.homepage, .header, .main, .footer, .newsletter, .footer-main { width: 100%; }
+.homepage { min-height: auto; box-shadow: none; }
+.topbar-inner, .navbar, .section, .hero, .newsletter-inner,
+.footer-grid, .footer-bottom p {
+  width: auto;
+  max-width: 1260px;
+  padding-left: 16px;
+  padding-right: 16px;
+  margin-left: auto;
+  margin-right: auto;
 }
+.hero { box-sizing: border-box; }
+.hero-slider { flex: 1 1 auto; width: auto; min-width: 0; }
+.hero-slide-visual { width: 100%; }
+.products-export img { width: 100%; height: auto; }
 
 @media (max-width: 1024px) {
   .page-shell { padding: 0 0 32px; }
