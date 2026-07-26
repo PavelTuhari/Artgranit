@@ -258,4 +258,17 @@ function cmpToggle(cod) {
   return on;
 }
 
+/* ── tipurile de plata din WP «site-plati» (footer, toate paginile) ──── */
+(async function payBadges() {
+  const box = document.getElementById('paybadges');
+  if (!box) return;
+  try {
+    const r = await j('/api/biro26/site/info/site-plati');
+    if (!r.success) return;
+    const text = (r.data.html || '').replace(/<[^>]+>/g, ' ');
+    box.innerHTML = text.split(',').map(s => s.trim()).filter(Boolean)
+      .map(n => '<span class="paybadge">' + esc(n) + '</span>').join('');
+  } catch (e) {}
+})();
+
 applyLang(); cartBadge();
