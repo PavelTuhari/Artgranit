@@ -6,10 +6,7 @@ EN: storefront limited-admin storage for the new Figma site homepage."""
 from typing import Any, Dict
 
 from models.biro26_db import Biro26DB
-
-
-def _rows(res):
-    return res.get("rows", []) if isinstance(res, dict) else (res or [])
+from models.biro26_oracle_store import _rows
 
 
 class Biro26Site:
