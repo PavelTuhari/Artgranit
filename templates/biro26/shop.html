@@ -609,12 +609,16 @@ async function openProd(cod) {
         esc(v.variant || v.full_name || ('#' + v.cod_univers)) + '</option>').join('');
     }
   }
-  // descriere + comentarii
-  const r = await j(API + '/product/' + cod);
+  // RO: descriere + comentarii — descrierea vine din TMS_MPT_WEBATTR
+  //     (BLOB, cu diacritice) in limba aleasa, cu intoarcere pe RO
+  const r = await j(API + '/product/' + cod + '?lang=' + curLang());
   if (prodOpen !== cod) return;                 // a newer window superseded us
   const d = (r.success && r.data) || {};
-  document.getElementById('p-desc').innerHTML = d.descriere
-    ? esc(d.descriere) : '<span class="muted">Fără descriere · Без описания</span>';
+  document.getElementById('p-desc').innerHTML =
+    (d.denum_full ? '<div style="font-weight:700;margin-bottom:6px">' +
+      esc(d.denum_full) + '</div>' : '') +
+    (d.descriere ? esc(d.descriere)
+                 : '<span class="muted">Fără descriere · Без описания</span>');
   renderComments(d.comments || []);
   document.getElementById('p-comment-add').innerHTML = me
     ? '<textarea id="p-cm-txt" placeholder="Comentariul dvs. · Ваш комментарий"></textarea>' +
