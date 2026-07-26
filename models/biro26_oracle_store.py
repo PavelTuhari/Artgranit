@@ -756,7 +756,18 @@ class Biro26Store:
                       else " AND NVL(u.ISARHIV,'0') <> '2'")
             params: Dict[str, Any] = {"pd": price_date}
             if search:
-                # pre-resolve the matching COD set (two cheap scans) instead of
+                # RO: interogarea se NORMALIZEAZA (cp1251_safe: 'cărți'->'carti')
+                #     — DENUMIREA din DB e deja transliterata, iar copiile
+                #     TMS_MPT_WEBATTR sint fara diacritice, deci 'carti',
+                #     'cărți' si 'CARTI' dau acelasi rezultat (TZ WEBATTR §4).
+                # EN: normalize the query with the SAME function the importer
+                #     uses; search also covers the TMS_MPT_WEBATTR copies.
+                try:
+                    from models.biro26pt_loader import cp1251_safe
+                    q_norm = cp1251_safe(str(search)).strip()
+                except Exception:
+                    q_norm = str(search).strip()
+                # pre-resolve the matching COD set (cheap scans) instead of
                 # OR/EXISTS predicates inside the heavy join — with the VMS_MPT_TVR
                 # view and the ROW_NUMBER feed dedupe in play, the OR form made
                 # Oracle evaluate the whole join row-by-row (minutes, not seconds)
@@ -765,8 +776,17 @@ class Biro26Store:
                           "  UPPER(DENUMIREA) LIKE UPPER(:s) "
                           "  OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s) "
                           "UNION "
-                          "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s)")
-                params["s"] = f"%{search}%"
+                          "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s "
+                          # RO: denumirea completa + descrierea (copii fara
+                          #     diacritice; LIKE pe CLOB nu merge -> DBMS_LOB.INSTR)
+                          "UNION "
+                          "SELECT COD FROM TMS_MPT_WEBATTR WHERE "
+                          "  UPPER(DENUMIRE_FULL_RO) LIKE UPPER(:s) "
+                          "  OR UPPER(DENUMIRE_FULL_RU) LIKE UPPER(:s) "
+                          "  OR DBMS_LOB.INSTR(UPPER(DESCRIERE_NON_DIACR_RO), "
+                          "                    UPPER(:sq)) > 0)")
+                params["s"] = f"%{q_norm}%"
+                params["sq"] = q_norm
             if cod:
                 # RO: fisa unui singur produs (pagina PDP a noului site)
                 inner += " AND u.COD=:cod"; params["cod"] = int(cod)
