@@ -1,0 +1,97 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Contul meu{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> › <span data-t="account">Contul meu</span></p>
+          <h1 class="page-h1" style="font-size:32px;margin-bottom:22px" data-t="account">Contul meu</h1>
+
+          <div id="me-box" style="display:none" class="acc-box">
+            <h3><span data-t="welcome">Bine ați venit</span>, <span id="me-name"></span> 👋</h3>
+            <p style="font-size:14.5px;color:#555" id="me-info"></p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px" href="/catalog" data-t="goCatalog">Mergi la catalog</a>
+              <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px;background:#ea6f21" href="/cos" data-t="cart">Coș</a>
+              <button class="btn-blue" style="background:#676767" onclick="doLogout()" data-t="logout">Ieșire</button>
+            </div>
+          </div>
+
+          <div class="acc-lay" id="auth-lay">
+            <div class="acc-box">
+              <h3 data-t="login">Autentificare</h3>
+              <label data-t="email">Email</label>
+              <input id="l-email" type="email" autocomplete="email">
+              <label data-t="password">Parola</label>
+              <input id="l-pwd" type="password" autocomplete="current-password">
+              <button class="btn-blue" onclick="doLogin()" data-t="login">Autentificare</button>
+            </div>
+            <div class="acc-box">
+              <h3 data-t="register">Înregistrare</h3>
+              <label data-t="name">Nume Prenume *</label>
+              <input id="r-name">
+              <label data-t="address">Adresa de livrare *</label>
+              <input id="r-address">
+              <label data-t="email">Email *</label>
+              <input id="r-email" type="email" autocomplete="email">
+              <label data-t="phoneF">Telefon *</label>
+              <input id="r-phone">
+              <label style="margin-top:12px"><input type="checkbox" id="r-juridic" style="width:auto"> Persoană juridică · Юрлицо</label>
+              <div id="r-idno-box" style="display:none">
+                <label data-t="idno">IDNO (pers. juridice)</label>
+                <input id="r-idno" maxlength="13">
+              </div>
+              <label data-t="password">Parola * (min. 6)</label>
+              <input id="r-pwd" type="password" autocomplete="new-password">
+              <button class="btn-blue" onclick="doRegister()" data-t="register">Înregistrare</button>
+            </div>
+          </div>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: cont client — API-urile existente /shop/register, /shop/login,
+   /shop/me, /shop/logout (sesiune cookie, partajata cu /biro26-shop). */
+function nextURL() {
+  const n = new URLSearchParams(location.search).get('next');
+  return (n && n.startsWith('/')) ? n : null;
+}
+async function refresh() {
+  const r = await j(API + '/me');
+  const me = (r.success && r.data && r.data.email) ? r.data : null;
+  document.getElementById('me-box').style.display = me ? '' : 'none';
+  document.getElementById('auth-lay').style.display = me ? 'none' : '';
+  if (me) {
+    document.getElementById('me-name').textContent = me.name || me.email;
+    document.getElementById('me-info').textContent =
+      me.email + (me.phone ? ' · ' + me.phone : '') +
+      (me.address ? ' · ' + me.address : '');
+  }
+  return me;
+}
+async function doLogin() {
+  const r = await j(API + '/login', {method: 'POST', body: JSON.stringify({
+    email: document.getElementById('l-email').value.trim(),
+    password: document.getElementById('l-pwd').value})});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  toast('✅ ' + tr('welcome') + '!');
+  const n = nextURL(); if (n) location.href = n; else refresh();
+}
+async function doRegister() {
+  const juridic = document.getElementById('r-juridic').checked;
+  const r = await j(API + '/register', {method: 'POST', body: JSON.stringify({
+    email: document.getElementById('r-email').value.trim(),
+    password: document.getElementById('r-pwd').value,
+    full_name: document.getElementById('r-name').value.trim(),
+    address: document.getElementById('r-address').value.trim(),
+    phone: document.getElementById('r-phone').value.trim(),
+    is_company: juridic,
+    idno: juridic ? document.getElementById('r-idno').value.trim() : ''})});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  toast('✅ Cont creat!');
+  const n = nextURL(); if (n) location.href = n; else refresh();
+}
+async function doLogout() { await j(API + '/logout', {method: 'POST'}); refresh(); }
+document.getElementById('r-juridic').addEventListener('change', e =>
+  document.getElementById('r-idno-box').style.display = e.target.checked ? '' : 'none');
+refresh();
+</script>
+{% endblock %}
