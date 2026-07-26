@@ -209,18 +209,40 @@ function goSearch() {
   if (q) location.href = '/catalog?q=' + encodeURIComponent(q);
   return false;
 }
-function subscribe() {
+async function subscribe() {
   const e = document.getElementById('nl-email').value.trim();
   if (e) {
-    try {
-      const l = JSON.parse(localStorage.getItem('biro26_newsletter') || '[]');
-      if (!l.includes(e)) l.push(e);
-      localStorage.setItem('biro26_newsletter', JSON.stringify(l));
-    } catch (er) {}
-    toast('✉️ ' + tr('subscribed'));
-    document.getElementById('nl-email').value = '';
+    // RO: abonatii se stocheaza in Oracle (YBIRO_SITE_SUBSCRIBER)
+    const r = await j('/api/biro26/site/subscribe', {method: 'POST',
+      body: JSON.stringify({email: e, lang: curLang()})});
+    if (r.success) { toast('✉️ ' + tr('subscribed'));
+      document.getElementById('nl-email').value = ''; }
+    else toast(r.error || 'Eroare', true);
   }
   return false;
+}
+
+/* ── favorite & comparare (localStorage, ca si cosul) ────────────────── */
+function lsList(k) { try { return JSON.parse(localStorage.getItem(k) || '[]'); }
+  catch (e) { return []; } }
+function lsToggle(k, cod, max) {
+  let l = lsList(k);
+  if (l.includes(cod)) l = l.filter(x => x !== cod);
+  else { if (max && l.length >= max) l.shift(); l.push(cod); }
+  localStorage.setItem(k, JSON.stringify(l));
+  return l.includes(cod);
+}
+function favHas(cod) { return lsList('biro26_fav').includes(cod); }
+function favToggle(btn, cod) {
+  const on = lsToggle('biro26_fav', cod);
+  btn.classList.toggle('on', on); btn.textContent = on ? '❤' : '♡';
+  toast(on ? '❤ ' + tr('favAdded') : tr('favRemoved'));
+}
+function cmpHas(cod) { return lsList('biro26_cmp').includes(cod); }
+function cmpToggle(cod) {
+  const on = lsToggle('biro26_cmp', cod, 4);
+  toast(on ? '⚖ ' + tr('cmpAdded') : tr('cmpRemoved'));
+  return on;
 }
 
 applyLang(); cartBadge();
