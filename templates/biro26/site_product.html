@@ -189,7 +189,7 @@ function renderP() {
   renderTiles();
 }
 
-window.onLangChange = renderP;
+window.onLangChange = function () { renderP(); loadInfo(); };
 
 (async function init() {
   const [pr, offers] = await Promise.all([
