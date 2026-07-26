@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }} — Magazin online{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/biro26/landing/styles.css">
+  <style>
+    /* RO: completari LIVE peste CSS-ul prototipului Figma — comune tuturor
+       paginilor noului site (PLP/PDP/cos/cont). Tokens neschimbate. */
+    .homepage{min-height:auto}
+    .search-input{flex:1;border:0;outline:none;background:transparent;
+      font-weight:400;font-size:20px;color:#1a1a1a;min-width:0}
+    .search-input::placeholder{color:#808080}
+    .product-img.live{background:#fff center/contain no-repeat;cursor:pointer}
+    .product-name{cursor:pointer}
+    .product-name:hover{color:#194681}
+    .lang-item{cursor:pointer}
+    .toast{position:fixed;bottom:24px;right:24px;background:#194681;color:#fff;
+      padding:12px 20px;border-radius:10px;font-weight:600;font-size:14px;z-index:99;
+      box-shadow:0 8px 24px rgba(0,0,0,.25)}
+    .toast.err{background:#d32f2f}
+    .skel{opacity:.45;animation:sk 1.1s infinite alternate}
+    @keyframes sk{to{opacity:.2}}
+    /* ── PLP: sidebar filtre + grila ── */
+    .plp{display:flex;gap:24px;align-items:flex-start}
+    .plp-side{width:280px;flex:none;display:flex;flex-direction:column;gap:16px}
+    .fbox{background:#fff;border:1px solid #ececec;border-radius:14px;
+      padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+    .fbox h3{margin:0 0 10px;font-size:16px;font-weight:700;color:#194681}
+    .ftree{display:flex;flex-direction:column;gap:2px;max-height:420px;overflow:auto}
+    .ftree a{display:block;padding:5px 8px;border-radius:8px;font-size:13.5px;color:#232323}
+    .ftree a:hover{background:#f6f6f6;color:#194681}
+    .ftree a.on{background:#194681;color:#fff;font-weight:700}
+    .ftree .cat{padding-left:22px;font-size:13px;color:#555}
+    .fchip{display:inline-block;margin:0 6px 6px 0;padding:6px 12px;border:1px solid #d1d1d1;
+      border-radius:999px;font-size:12.5px;cursor:pointer;color:#232323}
+    .fchip.on,.fchip:hover{border-color:#194681;color:#194681}
+    .fchip.on{background:#194681;color:#fff}
+    .fprice{display:flex;gap:8px;align-items:center}
+    .fprice input{width:90px;padding:7px;border:1px solid #d1d1d1;border-radius:8px;font-size:13px}
+    .plp-main{flex:1;min-width:0}
+    .plp-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+    .plp-count{font-size:14px;color:#676767}
+    .plp-sort{padding:9px 12px;border:1px solid #d1d1d1;border-radius:10px;font-size:14px;background:#fff}
+    .plp .product-grid{grid-template-columns:repeat(4,1fr)}
+    .pager{display:flex;gap:6px;justify-content:center;margin-top:26px;flex-wrap:wrap;align-items:center}
+    .pg{min-width:38px;height:38px;border:1px solid #d1d1d1;border-radius:10px;background:#fff;
+      font-weight:600;cursor:pointer;font-size:14px}
+    .pg.on{background:#194681;border-color:#194681;color:#fff}
+    .pg:disabled{opacity:.4;cursor:default}
+    .pg-dots{align-self:center;color:#808080}
+    /* ── PDP ── */
+    .pdp{display:flex;gap:36px;align-items:flex-start}
+    .pdp-img{width:520px;flex:none;background:#fff;border:1px solid #ececec;border-radius:16px;
+      min-height:420px;display:grid;place-items:center;padding:18px;cursor:zoom-in}
+    .pdp-img img{max-height:520px;object-fit:contain}
+    .pdp-info{flex:1;min-width:0}
+    .pdp-name{margin:0 0 8px;font-size:28px;font-weight:700;line-height:1.2}
+    .pdp-code{font-size:13px;color:#808080;margin-bottom:14px}
+    .pdp-price{font-size:32px;font-weight:800;margin:10px 0 4px}
+    .pdp-qty{display:flex;align-items:center;gap:14px;margin:18px 0}
+    .pdp-qty input{width:80px;height:44px;text-align:center;border:1px solid #d1d1d1;
+      border-radius:10px;font-size:16px;font-weight:600}
+    .btn-big{height:52px;padding:0 34px;border:0;border-radius:999px;background:#ea6f21;
+      color:#fff;font-weight:800;font-size:17px;cursor:pointer}
+    .btn-big:hover{filter:brightness(1.06)}
+    .pdp-sec{margin-top:26px;background:#fff;border:1px solid #ececec;border-radius:14px;padding:18px}
+    .pdp-sec h3{margin:0 0 10px;font-size:18px;color:#194681}
+    .cr-tiles{display:flex;gap:10px;flex-wrap:wrap}
+    .cr-tile{border:1.5px solid #d1d1d1;border-radius:12px;padding:10px 14px;cursor:pointer;
+      text-align:center;min-width:96px;background:#fff}
+    .cr-tile:hover{border-color:#194681}
+    .cr-tile.on{border-color:#194681;background:#eef4ff}
+    .cr-tile b{display:block;font-size:15px}
+    .cr-tile span{font-size:12px;color:#676767}
+    .comment{border-top:1px solid #f0f0f0;padding:10px 0;font-size:14px}
+    .comment .who{font-weight:700;font-size:12.5px;color:#194681}
+    .varsel{width:100%;max-width:420px;padding:10px;border:1px solid #d1d1d1;border-radius:10px;
+      font-size:14px;margin:8px 0}
+    /* ── cos / checkout ── */
+    .cart-lay{display:flex;gap:24px;align-items:flex-start}
+    .cart-main{flex:1;min-width:0}
+    .cart-side{width:360px;flex:none}
+    .cart-tbl{width:100%;border-collapse:collapse;background:#fff;border:1px solid #ececec;
+      border-radius:14px;overflow:hidden}
+    .cart-tbl th{background:#f6f6f6;text-align:left;padding:12px;font-size:13px;color:#676767}
+    .cart-tbl td{padding:12px;border-top:1px solid #f0f0f0;font-size:14px;vertical-align:middle}
+    .cart-tbl input{width:70px;padding:8px;border:1px solid #d1d1d1;border-radius:8px;text-align:center}
+    .cart-x{border:0;background:#f6f6f6;width:32px;height:32px;border-radius:8px;cursor:pointer;color:#d32f2f}
+    .ck-box{background:#fff;border:1px solid #ececec;border-radius:14px;padding:18px;margin-bottom:16px}
+    .ck-box h3{margin:0 0 12px;font-size:16px;color:#194681}
+    .ck-box label{font-size:12.5px;color:#676767;display:block;margin:8px 0 4px}
+    .ck-box input,.ck-box select{width:100%;padding:10px;border:1px solid #d1d1d1;border-radius:10px;font-size:14px}
+    .ck-row{display:flex;gap:10px}
+    .ck-total{font-size:22px;font-weight:800;margin:12px 0}
+    .paym{display:flex;gap:10px;margin:6px 0}
+    .paym button{flex:1;padding:12px;border:1.5px solid #d1d1d1;border-radius:12px;background:#fff;
+      font-weight:700;font-size:13.5px;cursor:pointer}
+    .paym button.on{border-color:#194681;background:#eef4ff;color:#194681}
+    .okbox{background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:18px;margin-top:16px}
+    .okbox a,.okbox button{display:inline-block;margin:6px 8px 0 0;padding:10px 16px;border-radius:10px;
+      background:#194681;color:#fff;font-weight:700;font-size:13.5px;border:0;cursor:pointer;text-decoration:none}
+    .okbox .pay{background:#ea6f21}
+    /* ── cont ── */
+    .acc-lay{display:flex;gap:24px;flex-wrap:wrap}
+    .acc-box{flex:1;min-width:320px;background:#fff;border:1px solid #ececec;border-radius:14px;padding:22px}
+    .acc-box h3{margin:0 0 14px;color:#194681}
+    .acc-box label{font-size:12.5px;color:#676767;display:block;margin:10px 0 4px}
+    .acc-box input{width:100%;padding:11px;border:1px solid #d1d1d1;border-radius:10px;font-size:14px}
+    .btn-blue{height:46px;padding:0 26px;border:0;border-radius:10px;background:#194681;color:#fff;
+      font-weight:700;font-size:15px;cursor:pointer;margin-top:14px}
+    /* ── pagina informativa (WP) ── */
+    .wp-page{background:#fff;border:1px solid #ececec;border-radius:16px;padding:36px 40px;
+      font-size:15.5px;line-height:1.65}
+    .wp-page h1{font-size:32px;margin-top:0}
+    .wp-page img{max-width:100%;height:auto;border-radius:10px}
+    .breadcrumbs{font-size:13px;color:#808080;margin:0 0 18px}
+    .breadcrumbs a{color:#194681}
+    {% block css %}{% endblock %}
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <div class="homepage">
+
+      <header class="header">
+        <div class="topbar">
+          <div class="topbar-inner">
+            <div class="topbar-left">
+              <span class="topbar-icon clock" aria-hidden="true"></span>
+              <span class="topbar-text" data-t="hours">Astăzi lucrăm de la 09:00 până la 19:00</span>
+              <a class="topbar-link" href="/livrare" data-t="delivery">Livrare</a>
+            </div>
+            <div class="topbar-right">
+              <a class="topbar-phone" href="tel:+37362007211">
+                <span class="topbar-icon phone" aria-hidden="true"></span>
+                +(373) 620-07-211
+              </a>
+              <div class="lang">
+                <span class="lang-item" data-lang="ro" onclick="setLang('ro')">RO</span>
+                <span class="lang-item" data-lang="ru" onclick="setLang('ru')">RU</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="navbar">
+          <a class="logo" href="/" aria-label="{{ app_name }}">
+            <img src="/static/biro26/landing/assets/logo.png" alt="{{ app_name }}" width="227" height="80">
+          </a>
+          <div class="search">
+            <form class="search-field" onsubmit="return goSearch()">
+              <input class="search-input" id="q" type="text" placeholder="Caută produse…" data-p="search" aria-label="Căutare">
+              <button class="search-btn" type="submit" aria-label="Căutare">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" stroke="#194681" stroke-width="2"/>
+                  <path d="M20 20L16.5 16.5" stroke="#194681" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </form>
+            <button class="catalog-btn" type="button" onclick="location.href='/catalog'">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="6" height="6" rx="1" fill="#FFD23A"/>
+                <rect x="9" y="1" width="6" height="6" rx="1" fill="#FFD23A"/>
+                <rect x="1" y="9" width="6" height="6" rx="1" fill="#FFD23A"/>
+                <rect x="9" y="9" width="6" height="6" rx="1" fill="#FFD23A"/>
+              </svg>
+              <span data-t="catalog">Catalog</span>
+            </button>
+          </div>
+          <div class="nav-actions">
+            <button class="icon-btn" type="button" aria-label="Coș" onclick="location.href='/cos'">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6h15l-1.5 9h-12L6 6z" stroke="#194681" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M6 6L5 3H2" stroke="#194681" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="9" cy="20" r="1.4" fill="#194681"/>
+                <circle cx="18" cy="20" r="1.4" fill="#194681"/>
+              </svg>
+              <span class="badge" id="cart-badge" style="display:none">0</span>
+            </button>
+            <button class="icon-btn user" type="button" aria-label="Cont" onclick="location.href='/cont'">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" stroke="#194681" stroke-width="1.8"/>
+                <path d="M4 20c1.5-3.5 4.2-5 8-5s6.5 1.5 8 5" stroke="#194681" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="main">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="footer">
+        <div class="newsletter">
+          <div class="newsletter-inner">
+            <div class="newsletter-copy">
+              <h2 class="newsletter-title" data-t="nlTitle">Abonează-te la newsletter</h2>
+              <p class="newsletter-text" data-t="nlText">Abonează-te pentru noutăți: fii la curent cu cele mai noi produse, oferte și promoții, abonându-te la newsletter-ul nostru.</p>
+            </div>
+            <form class="newsletter-form" onsubmit="return subscribe()">
+              <input class="newsletter-input" id="nl-email" type="email" placeholder="Email" aria-label="Email" required>
+              <button class="newsletter-btn" type="submit" data-t="subscribe">Abonează-te</button>
+            </form>
+          </div>
+        </div>
+        <div class="footer-main">
+          <div class="footer-grid">
+            <div class="footer-brand">
+              <img src="/static/biro26/landing/assets/logo.png" alt="{{ app_name }}" class="footer-logo" width="180" height="64">
+              <p class="footer-desc" data-t="footDesc">Magazin online de papetărie și birotică cu livrare în toată Moldova. Sortiment orientat spre birouri, studenți și proiecte creative.</p>
+            </div>
+            <div class="footer-col">
+              <h3 class="footer-heading" data-t="forClients">Pentru clienți:</h3>
+              <ul class="footer-links">
+                <li><a href="/" data-t="home">Pagina principală</a></li>
+                <li><a href="/despre-noi" data-t="about">Despre companie</a></li>
+                <li><a href="/livrare" data-t="delivery">Livrare</a></li>
+                <li><a href="/contacte" data-t="contacts">Contacte</a></li>
+                <li><a href="/retur-produse" data-t="returns">Retur produse</a></li>
+                <li><a href="/cos" data-t="cart">Coș</a></li>
+                <li><a href="/catalog" data-t="catalog">Catalog</a></li>
+              </ul>
+            </div>
+            <div class="footer-col">
+              <h3 class="footer-heading" data-t="useful">Utile:</h3>
+              <ul class="footer-links">
+                <li><a href="/termeni-si-conditii" data-t="terms">Termeni și condiții</a></li>
+                <li><a href="/livrare" data-t="payDelivery">Plată și livrare</a></li>
+                <li><a href="/politica-de-confidentialitate" data-t="privacy">Politica de confidențialitate</a></li>
+                <li><a href="/biro26-backoffice" data-t="backoffice">Back-office</a></li>
+              </ul>
+            </div>
+            <div class="footer-col">
+              <h3 class="footer-heading">Contact</h3>
+              <ul class="footer-links">
+                <li><span class="muted" data-t="phone">Telefon</span><br><a href="tel:+37362007211">+373 620 07 211</a></li>
+                <li><span class="muted">E-mail</span><br><a href="mailto:officeplussrl@gmail.com">officeplussrl@gmail.com</a></li>
+              </ul>
+              <div class="socials" aria-label="Social">
+                <span class="social"></span><span class="social"></span><span class="social"></span>
+              </div>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <p>© 2026 Office Plus. <span data-t="rights">Toate drepturile rezervate.</span></p>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+<script>
+window.LIBER_PCT = {{ liber_pct|default(0) }};
+window.LIBER_MIN = {{ liber_min|default(0) }};
+</script>
+<script src="/static/biro26/site.js"></script>
+{% block js %}{% endblock %}
+</body>
+</html>
