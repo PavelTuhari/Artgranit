@@ -1,0 +1,22 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ page_title }} — {{ app_name }}{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> › {{ page_title }}</p>
+          <!-- RO: continutul vine LIVE din WordPress REST (WP = doar CMS de
+               continut / admin); cache server-side 5 min. -->
+          <article class="wp-page">
+            <h1>{{ page_title }}</h1>
+            {{ page_html|safe }}
+          </article>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: la schimbarea limbii reincarcam varianta -ru a paginii WP */
+window.onLangChange = function () {
+  const l = curLang();
+  location.href = '/{{ slug }}' + (l !== 'ro' ? '?lang=' + l : '');
+};
+</script>
+{% endblock %}
