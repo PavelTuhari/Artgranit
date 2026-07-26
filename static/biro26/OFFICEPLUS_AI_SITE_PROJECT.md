@@ -397,7 +397,7 @@ Menu(items → slug/url)
 
 ## 12. Инварианты (нельзя нарушать)
 
-1. **Не ломать** https://officeplus.md/ (WP) и Biro26 shop/backoffice.  
+1. **Не ломать** https://officeplus.md/ (WP) и Biro26 shop/backoffice; вся разработка нового сайта — только на **shop1.officeplus.md** (§3.5).  
 2. **Не** переносить master-товары в WP или limited admin.  
 3. **Не** дублировать тексты инфо-страниц в limited admin.  
 4. Figma-лендинг — **визуальный контракт**; API — **функциональный контракт**.  
