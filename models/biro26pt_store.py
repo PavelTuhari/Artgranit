@@ -249,9 +249,15 @@ class Biro26PTStore:
             counters = _rows(db.execute_query(
                 "SELECT status, COUNT(*) cnt FROM biro26pt_stg "
                 "WHERE load_id = :l GROUP BY status", {"l": int(load_id)}))
+            # RO: atribute web scrise (TMS_MPT_WEBATTR) la acest import —
+            #     descrieri/denumiri complete cu diacritice (BLOB)
+            webattr = _rows(db.execute_query(
+                "SELECT COUNT(*) cnt FROM tms_mpt_webattr "
+                "WHERE load_id = :l", {"l": int(load_id)}))
             return {"success": True, "data": {
                 "load_id": int(load_id),
                 "log": log,
+                "webattr_written": (int(webattr[0]["cnt"]) if webattr else 0),
                 "counters": {c["status"]: c["cnt"] for c in counters}}}
         except Exception as e:
             return {"success": False, "error": str(e)}
