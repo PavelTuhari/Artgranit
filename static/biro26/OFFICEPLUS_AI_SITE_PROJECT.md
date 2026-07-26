@@ -78,6 +78,59 @@
 
 ---
 
+## 3.5 Среда разработки: **shop1.officeplus.md** (обязательные требования)
+
+**Решение зафиксировано 2026-07-26** (закрывает вопрос №1 из §16): развитие проекта ведётся
+на поддомене **https://shop1.officeplus.md/**.
+
+### 3.5.1 Правила
+
+1. **Прод не трогаем.** Работающий сайт https://officeplus.md/ (WP + Biro26 shop) на весь период
+   развития остаётся **нетронутым**: его файлы, БД `wordpress`, каталог `/home/ubuntu/artgranit`,
+   сервис `artgranit` (:8000) и nginx-конфиги officeplus.md не изменяются под задачи нового сайта.
+2. **shop1 = полная копия корневого сайта.** На shop1 скопировано всё с officeplus.md
+   (WP-оболочка + Flask/Biro26), и **весь существующий код используется по максимуму** —
+   новый Figma-фронт строится поверх этой копии, а не с нуля.
+3. Все Phase 1–5 из §10 разрабатываются и принимаются **на shop1**; на прод переносится
+   только принятый результат (Phase 6 cutover).
+4. shop1 закрыт от индексации: заголовок `X-Robots-Tag: noindex, nofollow` + `blog_public=0`;
+   маркер среды — заголовок `X-Env: shop1-dev`.
+5. ⚠️ **Общая ERP.** Oracle 11g officeplus — **один и тот же** для прода и shop1 (товары, цены,
+   клиенты — живые). Заказы/счета, созданные на shop1, попадают в реальную ERP — тестовые
+   документы помечать/удалять через backoffice. Отдельная тестовая схема ERP не создаётся.
+
+### 3.5.2 Конфигурация shop1 (as-built, 2026-07-26)
+
+| Компонент | Прод officeplus.md | Dev shop1.officeplus.md |
+|---|---|---|
+| DNS | @ / www → 89.168.115.20 | shop1 → 89.168.115.20 (nic.md) |
+| Hestia web domain | officeplus.md | shop1.officeplus.md (user admin) |
+| SSL | Let's Encrypt | Let's Encrypt (Hestia) |
+| WP файлы | `/home/admin/web/officeplus.md/public_html` | `/home/admin/web/shop1.officeplus.md/public_html` |
+| WP БД (MariaDB) | `wordpress` | `wordpress_shop1` (user `wpuser`) |
+| WP URL | WP_HOME/WP_SITEURL + search-replace `https://officeplus.md` → | `https://shop1.officeplus.md` |
+| Flask/Biro26 код | `/home/ubuntu/artgranit` | `/home/ubuntu/artgranit_shop1` |
+| systemd unit | `artgranit` → gunicorn `127.0.0.1:8000` (2 workers) | `artgranit-shop1` → gunicorn `127.0.0.1:8020` (1 worker, MemoryMax=500M) |
+| nginx Biro26 proxy | `/home/admin/conf/web/officeplus.md/nginx*.conf_biro26` → :8000 | `/home/admin/conf/web/shop1.officeplus.md/nginx*.conf_biro26` → :8020 |
+| Oracle ERP | общий: `officeplus@orange.una.md:4024` | тот же (⚠️ живые данные) |
+| pdfme sidecar | общий `127.0.0.1:5488` (`pdfme.service`) | тот же |
+| Порт 8010 | — | занят `op-micro`, **не использовать** |
+
+Перезапуск dev-приложения: `sudo systemctl restart artgranit-shop1` (никогда pkill+nohup).
+
+### 3.5.3 Deploy-цикл разработки
+
+```text
+локально (Mac, :6001/:6002) → shop1.officeplus.md (приёмка) → officeplus.md (только принятое)
+```
+
+- Код Flask/шаблоны деплоятся в `/home/ubuntu/artgranit_shop1` + `restart artgranit-shop1`.
+- WP-правки — local-first (wordpress_officeplus/), публикация на shop1; на прод — после приёмки.
+- После **любого** деплоя проверять, что прод жив:
+  `curl -I https://officeplus.md/` и `curl -I https://officeplus.md/biro26-shop` → 200.
+
+---
+
 ## 4. Целевая архитектура (to-be)
 
 ```
