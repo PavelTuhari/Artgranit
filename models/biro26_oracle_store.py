@@ -681,7 +681,7 @@ class Biro26Store:
     @staticmethod
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
                            brand: Optional[str] = None, categorie: Optional[str] = None,
-                           grupa: Optional[str] = None,
+                           grupa: Optional[str] = None, cod: Optional[int] = None,
                            limit: int = 200, offset: int = 0,
                            price_date: Optional[str] = None,
                            price_min: Optional[float] = None,
@@ -1155,7 +1155,9 @@ END;""",
     def shop_create_invoice(client_cod: int, items: List[Dict[str, Any]],
                             coment: str = "") -> Dict[str, Any]:
         """Create the invoice + all lines in ONE session/transaction, then
-        return {cod, nrset}. items: [{cod, qty, price, name?}]."""
+        return {cod, nrmanual, nrset}. items: [{cod, qty, price, name?}].
+        RO: nrmanual = numarul vizibil al contului; nrset = subset intern.
+        EN: nrmanual = visible invoice number; nrset = internal subset."""
         try:
             if not items:
                 return {"success": False, "error": "empty cart"}
@@ -1179,9 +1181,17 @@ END;""",
                 return {"success": False, "error": res.get("message")}
             cod = res["results"][-1]["data"][0][0]
             nr = _rows(Biro26DB().execute_query(
-                "SELECT NRSET FROM TMDB_DOCS WHERE COD = :c", {"c": cod}))
+                "SELECT NRMANUAL, NRSET FROM TMDB_DOCS WHERE COD = :c",
+                {"c": cod}))
+            nrmanual = nr[0].get("nrmanual") if nr else None
+            nrset = nr[0].get("nrset") if nr else None
             return {"success": True,
-                    "data": {"cod": cod, "nrset": nr[0]["nrset"] if nr else None}}
+                    "data": {
+                        "cod": cod,
+                        "nrmanual": nrmanual,
+                        # RO/EN: compat — UI vechi asteapta "nrset" ca numar afisat
+                        "nrset": nrmanual if nrmanual not in (None, "") else nrset,
+                    }}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
