@@ -15,6 +15,15 @@
 > в отчёте импорта — строка «atribute web scrise (TMS_MPT_WEBATTR): N».
 > Задача 5 (индексация) — не делалась (опциональная).
 > Магазин/PDP передают `?lang=` и показывают `denum_full` + описание с диакритикой.
+>
+> ⚠️ **Находка для стороны импорта (данные set 8):** 1 274 из 30 004 строк
+> `TMS_MPT_WEBATTR` не совпадают по названию с `TMS_UNIVERS` (пример: COD 303284 —
+> в UNIVERS «Smartphone Xiaomi 12T Pro», в WEBATTR «Imprimanta laser HP LaserJet Pro
+> 3003dn») — похоже на сдвиг блока строк при загрузке. Проверка:
+> `SELECT u.cod FROM tms_univers u JOIN tms_mpt_webattr w ON w.cod=u.cod
+> WHERE UPPER(SUBSTR(u.denumirea,1,15)) <> UPPER(SUBSTR(w.denumire_full_ro,1,15))`.
+> Просьба перепроверить/перегрузить эти строки — на витрине у таких товаров
+> сейчас показывается чужое описание.
 
 > **Кому:** команда/ИИ, сопровождающая `Artgranit` (back-office `biro26-backoffice`, магазин `shop`,
 > мастер импорта `import_pt`).
