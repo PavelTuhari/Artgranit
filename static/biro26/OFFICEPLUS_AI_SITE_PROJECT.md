@@ -150,6 +150,23 @@
 7. Следующие фазы (§10): PLP/PDP в стиле Figma, WP REST bridge в chrome нового сайта,
    limited admin (hero/deal/секции), newsletter backend.
 
+**Обновление 2026-07-26 (вечер): Phase 2–5 реализованы на shop1.**
+
+| Фаза | Что сделано | URL |
+|---|---|---|
+| Phase 2 PLP | Каталог Figma-стиль: дерево групп/категорий с счётчиками, пресеты цен, бренды-чипы, сортировка, нумерованная пагинация, deep-links в URL | `/catalog` (`?q=&grupa=&categorie=&brand=&sort=&page=`) |
+| Phase 2 PDP | Фиша товара: фото, цена+«Preț ofertă în rate», варианты, кол-во, описание+комментарии (чтение/добавление), похожие товары, breadcrumbs | `/produs/<cod>` |
+| Phase 2/3 | Рассрочка на PDP: плитки 0%/кредит (от 1000 lei) + форма «Solicită în rate» (заявка EasyCredit с уведомлением) | на `/produs/<cod>` |
+| Phase 3 | Coș+checkout: правка позиций, транспорт (центр+км, обяз.), услуги, TVA, метод Standard/Credit (плитки, аванс), создание счёта, PDF-ки, оплата MAIB/MIA QR/P2P; для кредита — кнопки «Cerere EasyCredit»+«Liber Card» | `/cos` |
+| Phase 3 ЛК | Вход/регистрация (обязательные поля + IDNO юрлиц), профиль, logout; та же сессия что /biro26-shop | `/cont` (`?next=` redirect) |
+| Phase 4 | WP REST bridge: инфо-страницы рендерятся сервер-сайд в chrome нового сайта (кэш 5 мин, `?lang=ru`→слаг `-ru`); WP = только админка контента | `/despre-noi /contacte /livrare /retur-produse /termeni-si-conditii /politica-de-confidentialitate` |
+| Phase 5 | Limited admin витрины: Oracle-таблицы `YBIRO_SITE_HERO/DEAL/SECTION` (DDL `sql/biro26/12_ybiro_site.sql`), API `/api/biro26/site/*` (config публичный, CRUD под backoffice-auth), UI: hero-слайды RO/RU, «товар дня» override (COD+дедлайн), вкл/выкл секций главной | `/UNA.md/orasldev/biro26-site-admin` |
+
+Архитектура фронта: Jinja-база `site_base.html` (общий chrome по Figma) + `static/biro26/site.js`
+(общий JS: корзина, i18n, карточки); страницы `site_home/catalog/product/cart/account/page.html`.
+API-расширение: `/api/biro26/shop/products?cod=` (одна карточка для PDP).
+E2E проверено: регистрация → счёт №15 (COD 260) → PDF 57 KB. Прод officeplus.md не тронут.
+
 ---
 
 ## 4. Целевая архитектура (to-be)
