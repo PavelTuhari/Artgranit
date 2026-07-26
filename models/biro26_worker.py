@@ -34,6 +34,12 @@ if _PROJECT_ROOT not in sys.path:
 import oracledb  # noqa: E402
 from config import Config  # noqa: E402
 
+# RO: LOB-urile se citesc direct ca str/bytes (nu obiecte LOB) — BLOB vine
+#     bytes si _cell il decodeaza UTF-8 (diacriticele din TMS_MPT_WEBATTR
+#     supravietuiesc), CLOB vine str. Fara asta json.dumps ar strica LOB-ul.
+# EN: fetch LOBs as str/bytes so BLOB->utf-8 text survives the JSON contract.
+oracledb.defaults.fetch_lobs = False
+
 
 def _nls_statements(req=None):
     stmts = [
