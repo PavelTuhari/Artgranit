@@ -1,0 +1,210 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Catalog{% endblock %}
+{% block content %}
+        <section class="section">
+          <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> › <span data-t="catalog">Catalog</span></p>
+          <div class="plp">
+            <aside class="plp-side">
+              <div class="fbox">
+                <h3 data-t="categories">Categorii</h3>
+                <div class="ftree" id="ftree"></div>
+              </div>
+              <div class="fbox">
+                <h3 data-t="price">Preț, lei</h3>
+                <div class="fprice">
+                  <input id="pmin" type="number" min="0" placeholder="min">
+                  <span>—</span>
+                  <input id="pmax" type="number" min="0" placeholder="max">
+                </div>
+                <div style="margin-top:10px" id="pprese"></div>
+              </div>
+              <div class="fbox">
+                <h3 data-t="brandsF">Branduri</h3>
+                <div id="fbrands"></div>
+              </div>
+              <button class="btn-blue" style="width:100%" onclick="resetF()" data-t="reset">Resetează</button>
+            </aside>
+            <div class="plp-main">
+              <div class="plp-top">
+                <span class="plp-count" id="pcount">…</span>
+                <select class="plp-sort" id="sort" onchange="F.page=1;load()">
+                  <option value="name" data-t="sortName">Alfabetic A–Z</option>
+                  <option value="name_desc" data-t="sortNameD">Alfabetic Z–A</option>
+                  <option value="price_asc" data-t="sortUp">Preț crescător</option>
+                  <option value="price_desc" data-t="sortDown">Preț descrescător</option>
+                </select>
+              </div>
+              <div class="product-grid" id="grid"></div>
+              <div class="pager" id="pager"></div>
+            </div>
+          </div>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: catalog (PLP) pe API-ul Biro26 — filtre grupa/categorie/brand/pret,
+   sortare, paginare numerotata. Starea vine din URL (deep-link). */
+const LIMIT = 24;
+const F = {q: null, grupa: null, categorie: null, brand: null,
+           pmin: null, pmax: null, sort: 'name', page: 1};
+let TREE = [], BRANDS = [], total = 0, needCount = true, seq = 0;
+const PRESETS = [[0, 500], [500, 1000], [1000, 2500], [2500, 5000], [5000, 10000],
+                 [10000, 20000], [20000, 40000], [40000, null]];
+
+(function fromURL() {
+  const p = new URLSearchParams(location.search);
+  F.q = p.get('q'); F.grupa = p.get('grupa'); F.categorie = p.get('categorie');
+  F.brand = p.get('brand');
+  if (p.get('price_min')) F.pmin = parseFloat(p.get('price_min'));
+  if (p.get('price_max')) F.pmax = parseFloat(p.get('price_max'));
+  if (p.get('sort')) F.sort = p.get('sort');
+  if (p.get('page')) F.page = parseInt(p.get('page'), 10) || 1;
+})();
+
+function pushURL() {
+  const p = new URLSearchParams();
+  if (F.q) p.set('q', F.q);
+  if (F.grupa) p.set('grupa', F.grupa);
+  if (F.categorie) p.set('categorie', F.categorie);
+  if (F.brand) p.set('brand', F.brand);
+  if (F.pmin != null) p.set('price_min', F.pmin);
+  if (F.pmax != null) p.set('price_max', F.pmax);
+  if (F.sort !== 'name') p.set('sort', F.sort);
+  if (F.page > 1) p.set('page', F.page);
+  history.replaceState(null, '', '/catalog' + (p.toString() ? '?' + p : ''));
+}
+
+async function load(recount) {
+  const my = ++seq;
+  if (recount !== false) needCount = true;
+  pushURL();
+  document.getElementById('grid').innerHTML =
+    '<article class="product-card skel"></article>'.repeat(8);
+  const qs = new URLSearchParams({limit: LIMIT, offset: (F.page - 1) * LIMIT});
+  if (F.q) qs.set('search', F.q);
+  if (F.grupa) qs.set('grupa', F.grupa);
+  if (F.categorie) qs.set('categorie', F.categorie);
+  if (F.brand) qs.set('brand', F.brand);
+  if (F.pmin != null) qs.set('price_min', F.pmin);
+  if (F.pmax != null) qs.set('price_max', F.pmax);
+  const s = document.getElementById('sort').value;
+  if (s !== 'name') qs.set('sort', s);
+  if (needCount) qs.set('with_count', '1');
+  const r = await j(API + '/products?' + qs);
+  if (my !== seq) return;
+  const rows = r.data || [];
+  if (r.total != null) { total = r.total; needCount = false; }
+  document.getElementById('pcount').textContent = total + ' ' + tr('results');
+  document.getElementById('grid').innerHTML = rows.length
+    ? rows.map(cardHtml).join('')
+    : '<p style="grid-column:1/-1;color:#676767">' + tr('noResults') + '</p>';
+  renderPager();
+  renderSide();
+}
+
+function gotoPage(n) {
+  const pages = Math.max(1, Math.ceil(total / LIMIT));
+  F.page = Math.min(Math.max(1, n), pages);
+  load(false); window.scrollTo({top: 0, behavior: 'smooth'});
+}
+function renderPager() {
+  const box = document.getElementById('pager');
+  const pages = Math.max(1, Math.ceil(total / LIMIT));
+  if (pages <= 1) { box.innerHTML = ''; return; }
+  const want = new Set([1, 2, pages - 1, pages]);
+  for (let i = F.page - 2; i <= F.page + 2; i++) want.add(i);
+  const list = [...want].filter(x => x >= 1 && x <= pages).sort((a, b) => a - b);
+  let h = '<button class="pg" ' + (F.page === 1 ? 'disabled' :
+    'onclick="gotoPage(' + (F.page - 1) + ')"') + '>‹</button>';
+  let prev = 0;
+  for (const p of list) {
+    if (p - prev > 1) h += '<span class="pg-dots">…</span>';
+    h += '<button class="pg' + (p === F.page ? ' on' : '') +
+      '" onclick="gotoPage(' + p + ')">' + p + '</button>';
+    prev = p;
+  }
+  h += '<button class="pg" ' + (F.page === pages ? 'disabled' :
+    'onclick="gotoPage(' + (F.page + 1) + ')"') + '>›</button>';
+  box.innerHTML = h;
+}
+
+/* ── sidebar: arbore grupe/categorii + branduri + presete pret ───────── */
+function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
+  F.categorie = null; F.page = 1; load(); }
+function pickCat(g, c) { F.grupa = g;
+  F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); }
+function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); }
+function pickPreset(mn, mx) {
+  if (F.pmin === mn && F.pmax === mx) { F.pmin = F.pmax = null; }
+  else { F.pmin = mn; F.pmax = mx; }
+  document.getElementById('pmin').value = F.pmin == null ? '' : F.pmin;
+  document.getElementById('pmax').value = F.pmax == null ? '' : F.pmax;
+  F.page = 1; load();
+}
+function applyPrice() {
+  const mn = parseFloat(document.getElementById('pmin').value);
+  const mx = parseFloat(document.getElementById('pmax').value);
+  F.pmin = isNaN(mn) ? null : mn; F.pmax = isNaN(mx) ? null : mx;
+  F.page = 1; load();
+}
+function resetF() { F.q = F.grupa = F.categorie = F.brand = F.pmin = F.pmax = null;
+  F.sort = 'name'; F.page = 1;
+  document.getElementById('sort').value = 'name';
+  document.getElementById('pmin').value = document.getElementById('pmax').value = '';
+  document.getElementById('q').value = ''; load(); }
+
+function renderSide() {
+  const l = curLang();
+  // arbore: grupele; grupa activa isi arata categoriile
+  const byG = {};
+  TREE.forEach(t => {
+    const g = byG[t.grupa] = byG[t.grupa] ||
+      {grupa: t.grupa, ru: t.grupa_ru, cnt: 0, cats: []};
+    g.cnt += (t.cnt || 0);
+    if (t.categorie) g.cats.push(t);
+  });
+  const gs = Object.values(byG).sort((a, b) => b.cnt - a.cnt);
+  document.getElementById('ftree').innerHTML = gs.map(g => {
+    const gl = (l === 'ru' && g.ru) ? g.ru : g.grupa;
+    let h = '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
+      '" onclick="pickGrupa(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\')">' +
+      esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>';
+    if (F.grupa === g.grupa) {
+      h += g.cats.sort((a, b) => (b.cnt || 0) - (a.cnt || 0)).map(c => {
+        const cl = (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
+        return '<a href="javascript:void(0)" class="cat ' +
+          (F.categorie === c.categorie ? 'on' : '') +
+          '" onclick="pickCat(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\',\'' +
+          esc(c.categorie).replace(/'/g, '&#39;') + '\')">' + esc(cl) +
+          ' <span style="opacity:.55">(' + (c.cnt || 0) + ')</span></a>';
+      }).join('');
+    }
+    return h;
+  }).join('');
+  document.getElementById('fbrands').innerHTML = BRANDS.map(b =>
+    '<span class="fchip' + (F.brand === b.brand ? ' on' : '') +
+    '" onclick="pickBrand(\'' + esc(b.brand).replace(/'/g, '&#39;') + '\')">' +
+    esc(b.brand) + '</span>').join('');
+  document.getElementById('pprese').innerHTML = PRESETS.map(([mn, mx]) =>
+    '<span class="fchip' + (F.pmin === mn && F.pmax === mx ? ' on' : '') +
+    '" onclick="pickPreset(' + mn + ',' + (mx == null ? 'null' : mx) + ')">' +
+    mn + (mx ? '–' + mx : '+') + '</span>').join('');
+}
+
+window.onLangChange = function () { load(false); };
+
+(async function init() {
+  document.getElementById('sort').value = F.sort;
+  document.getElementById('pmin').value = F.pmin == null ? '' : F.pmin;
+  document.getElementById('pmax').value = F.pmax == null ? '' : F.pmax;
+  if (F.q) document.getElementById('q').value = F.q;
+  document.getElementById('pmin').addEventListener('change', applyPrice);
+  document.getElementById('pmax').addEventListener('change', applyPrice);
+  const [tree, brands] = await Promise.all([j(API + '/tree'), j(API + '/brands')]);
+  TREE = tree.data || [];
+  BRANDS = (brands.data || []).filter(b => b.brand && b.brand !== 'NULL')
+    .sort((a, b) => b.cnt - a.cnt).slice(0, 20);
+  load();
+})();
+</script>
+{% endblock %}
