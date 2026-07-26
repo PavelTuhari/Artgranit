@@ -40,6 +40,7 @@ class Biro26Site:
         return {"success": True, "data": {
             "hero": [{k.lower(): v for k, v in h.items()} for h in hero],
             "sections": [{k.lower(): v for k, v in s.items()} for s in sections],
+            "featured": Biro26Site.featured_products(),
             "deal": deal}}
 
     # ── admin: hero slides CRUD ────────────────────────────────────────
