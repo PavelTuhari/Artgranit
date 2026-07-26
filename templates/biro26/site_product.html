@@ -119,6 +119,13 @@ async function crSubmit() {
   else toast(r.error || 'Eroare', true);
 }
 
+function pdpFavPaint() {
+  const b = document.getElementById('p-fav'), on = favHas(COD);
+  b.classList.toggle('on', on);
+  b.innerHTML = (on ? '❤' : '♡') + ' ' + tr('favorites');
+}
+function pdpFav() { lsToggle('biro26_fav', COD); pdpFavPaint();
+  toast(favHas(COD) ? '❤ ' + tr('favAdded') : tr('favRemoved')); }
 function pdpCmp() { cmpToggle(COD);
   if (cmpHas(COD) && lsList('biro26_cmp').length > 1) location.href = '/compara'; }
 
