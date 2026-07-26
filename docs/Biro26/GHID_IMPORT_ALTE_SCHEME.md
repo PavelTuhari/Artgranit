@@ -69,7 +69,7 @@ detecția și importul rămân în DB (o singură logică, testabilă, auditabil
 | `ID_TMS_UNIVERS` (sequence) | generatorul de `COD` | secvența de chei noi |
 | `TMS_MPT` (COD, MATGR1, DEP_PRODUCER) | cartela produsului | tabela-cartelă; `MATGR1` = flag „produse noi" |
 | `TMS_MPT_BARCODE` (COD, BARCODE, COMENT) | coduri de bare | tabela de coduri |
-| `TMS_MPT_WEBATTR` (COD, DESCRIERE, DENUMIRE_FULL, SRC) | atribute web (descriere) | tabelă-satelit proprie, vezi §3.4 |
+| `TMS_MPT_WEBATTR` (COD, DESCRIERE_*/BLOB + copii text) | atribute web multilingve (descriere) | tabelă-satelit proprie, vezi §3.4 |
 | `VPR01M_GROUPS` / `VPR1D_PRDATE` / `VTPR1D_PERPRLIST`(view) → `TPR1D_PERPRLIST`(bază) | lista de prețuri | grupuri → perioade → prețuri |
 | `TRG_VTPR1D_PERPRLIST_M_ALL` | trigger INSTEAD OF pe view-ul de preț | ⚠️ vezi §9.3 (bug NLS) |
 | `TMS_SYSGR` / `TMS_SYSGRPH` / `TMS_SYSGRP` | arborele de marfă (rădăcini / noduri / plasări) | arborele de categorii |
@@ -98,15 +98,37 @@ TMS_UNIVERS  (master · COD = cheia stabilă a mărfii · TIP='P')
 TMS_UNIVERS (COD)`. Așa moștenește integritatea (nu pot exista atribute fără marfă) și se
 alătură direct oricărei interogări prin `JOIN ... ON x.cod = u.cod`.
 
-`TMS_MPT_WEBATTR`:
+`TMS_MPT_WEBATTR` — **multilingv (RO/RU/EN), cu originalul in BLOB**:
 
-| Coloană | Tip | Rol |
-|---|---|---|
-| `COD` | NUMBER, PK+FK | = `TMS_UNIVERS.COD` |
-| `DESCRIERE` | VARCHAR2(2000) | descriere / caracteristici tehnice pentru magazin |
-| `DENUMIRE_FULL` | VARCHAR2(1000) | denumirea completă din fișierul furnizorului |
-| `SRC` | VARCHAR2(60) | furnizorul / fișierul-sursă |
-| `LOAD_ID`, `UPDATED_AT` | NUMBER, DATE | trasabilitate: ce încărcare a scris rândul |
+| Coloana | Tip | Cine scrie | Rol |
+|---|---|---|---|
+| `COD` | NUMBER, PK+FK | import | = `TMS_UNIVERS.COD` |
+| `DESCRIERE_RO/RU/EN` | **BLOB** | **se editeaza** | ORIGINALUL (octeti UTF-8) — pastreaza diacriticele |
+| `DENUMIRE_FULL_BLOB_RO/RU/EN` | **BLOB** | **se editeaza** | ORIGINALUL denumirii complete |
+| `DESCRIERE_NON_DIACR_RO/RU/EN` | CLOB | **trigger** | copie fara diacritice — cautare / index vectorial |
+| `DENUMIRE_FULL_RO/RU/EN` | VARCHAR2(4000) | **trigger** | dublura fara diacritice — cautare / index |
+| `SRC`, `LOAD_ID`, `UPDATED_AT` | | import | trasabilitate |
+
+**De ce BLOB.** Baza e `CL8MSWIN1251` (un octet): orice text scris intr-o coloana TEXT
+pierde diacriticele (`ș` -> `?`). Un **BLOB pastreaza octetii asa cum sint**, deci textul
+original supravietuieste indiferent de charset-ul bazei — problema e rezolvata la radacina,
+nu prin transliterare.
+
+**Regula de aur:** se editeaza **doar** coloanele BLOB. Copiile de cautare le completeaza
+**automat** triggerul `TMS_MPT_WEBATTR_BIU` (nu le scrieti manual). Astfel:
+- afisarea in magazin foloseste BLOB-ul -> diacritice corecte;
+- cautarea/indexarea folosesc copiile text -> rapide si insensibile la diacritice
+  („carti" gaseste „cărți").
+
+**Cum se face conversia** (pachetul `YBIRO_TEXT_UTIL`): `BLOB (UTF-8) -> NCLOB` prin
+`DBMS_LOB.CONVERTTOCLOB(..., 873, ...)`. Charset-ul national e `AL16UTF16` (Unicode complet),
+deci diacriticele supravietuiesc; abia apoi se transliterreaza (`TRANSLATE` 1:1 +
+`REPLACE` pentru `²`->`2`, `½`->`1/2`) si rezultatul ASCII coboara in charset-ul bazei.
+
+**Stagin pentru original:** `BIRO26PT_RAW_BLOB (load_id, row_no, col_idx, val_blob)` —
+loader-ul scrie octetii originali **doar** pentru celulele unde transliterarea a schimbat
+ceva (volum mic: 45 509 celule la set 8). Importul ia originalul de acolo; daca celula
+n-avea caractere speciale, textul din STG **este** originalul.
 
 DDL: `TMS_MPT_WEBATTR.tab.sql`.
 

@@ -56,6 +56,9 @@ Sistemul recunoaște coloanele automat, după numele din antet (română / rusă
 - **Descriere** → dacă fișierul are coloana descriere / denumire completă, textul se salvează
   ca atribut web al mărfii (`TMS_MPT_WEBATTR`) și poate fi afișat în magazin. Un fișier fără
   aceste coloane **nu șterge** descrierile existente.
+  **Diacriticele se păstrează integral** (`Caiet cu spiră A4+ pătrățele`) — textul original se
+  ține în format binar, pe care baza nu-l poate strica. În paralel se creează automat o copie
+  fără diacritice, ca să poți căuta scriind simplu: „carti" găsește „cărți".
 
 ## 5. Reguli de preț
 

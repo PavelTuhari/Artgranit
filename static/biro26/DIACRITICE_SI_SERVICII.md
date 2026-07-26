@@ -182,6 +182,34 @@ Restul (~170 carduri) nu are sursă de recuperare — se exportă din modul „S
 
 ---
 
+## 3b. Soluția definitivă pentru câmpuri noi: originalul în BLOB
+
+Transliterarea (§2) salvează datele, dar **pierde** diacriticele. Pentru câmpurile noi
+(descrieri web) folosim soluția care nu pierde nimic: **originalul se ține în BLOB**.
+
+Baza nu transcodează niciodată octeții unui BLOB, deci `Cărți educaționale` rămâne exact așa,
+chiar dacă `NLS_CHARACTERSET` e `CL8MSWIN1251`. Copiile pentru căutare (fără diacritice) se
+generează automat, prin trigger.
+
+```
+scriere:   text UTF-8 ──► BLOB (octeți, neatinși)
+                            │  trigger TMS_MPT_WEBATTR_BIU
+                            ▼
+citire:    BLOB ──► NCLOB (AL16UTF16, Unicode) ──► TRANSLATE + REPLACE ──► CLOB/VARCHAR2
+           (afișare cu diacritice)                 (căutare/index, fără diacritice)
+```
+
+Cheia tehnică — charset-ul **național** `AL16UTF16` suportă Unicode complet, deci pasul
+`BLOB → NCLOB` (`DBMS_LOB.CONVERTTOCLOB(..., 873, ...)`, 873 = AL32UTF8) păstrează diacriticele;
+abia după transliterare textul (deja ASCII) coboară în charset-ul bazei.
+
+Implementare: pachetul `YBIRO_TEXT_UTIL` (`blob_to_nclob`, `strip_diacritics`, `blob_to_plain`,
+`nclob_to_blob`) + tabela `TMS_MPT_WEBATTR` cu triggerul ei. Detalii: `GHID_IMPORT_ALTE_SCHEME.md` §3.4.
+
+**Când se folosește ce:**
+- câmp nou, unde diacriticele contează (descriere, denumire completă) → **BLOB + trigger**;
+- câmpuri ERP existente (`TMS_UNIVERS.DENUMIREA` etc.) → transliterare (§2) + trigger de pază (§4).
+
 ## 4. Protecția în bază: trigger `YBIRO_UNIVERS_CHK_DIACRITICE`
 
 Blochează scrierea de text stricat în `TMS_UNIVERS` (`DENUMIREA`, `NAMERUS`, `GR2`), ca

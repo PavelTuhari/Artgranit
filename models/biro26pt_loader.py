@@ -96,7 +96,7 @@ def read_xlsx(path):
     for sh in wb.sheetnames:
         ws = wb[sh]
         rows = [cells(r) for r in ws.iter_rows(values_only=True)]
-        rows = [r for r in rows if any(x is not None for x in r)]
+        rows = [r for r in rows if any(x is not None for x in r[0])]
         if rows:
             # RO: numele foii devine GRUPA -> trebuie si el cp1251-safe
             # EN: the sheet name becomes GRUPA -> must be cp1251-safe too
@@ -109,7 +109,7 @@ def read_csv(path):
         sample = f.read(4096); f.seek(0)
         delim = ";" if sample.count(";") >= sample.count(",") else ","
         rows = [cells(r) for r in csv.reader(f, delimiter=delim)]
-    rows = [r for r in rows if any(x is not None for x in r)]
+    rows = [r for r in rows if any(x is not None for x in r[0])]
     if rows:
         yield cp1251_safe(os.path.basename(path)), rows
 
@@ -143,8 +143,8 @@ def main():
         reader = read_csv if path.lower().endswith(".csv") else read_xlsx
         for sheet, rows in reader(path):
             load_id += 1
-            header = rows[0]
-            n_cols = min(max(len(r) for r in rows), MAXCOL)
+            header = rows[0][0]
+            n_cols = min(max(len(r[0]) for r in rows), MAXCOL)
             cur.executemany(
                 "INSERT INTO biro26pt_header(load_id,src_file,col_idx,header_text) "
                 "VALUES(:1,:2,:3,:4)",

@@ -322,26 +322,38 @@ VALUES(:load_id,:field,:col_idx,'MANUAL',1);
 
 ---
 
-## 15. Веб-атрибуты товара — `TMS_MPT_WEBATTR`
+## 15. Веб-атрибуты товара — `TMS_MPT_WEBATTR` (BLOB + поисковые копии)
 
-Описание товара из файлов поставщиков (`DESCRIERE`, «Полное название продукта») пишется в
-таблицу-сателлит **`TMS_MPT_WEBATTR`**. Схема ключа — как у `TMS_MPT`: `COD` одновременно
-**PK и FK** на master-таблицу `TMS_UNIVERS` (связь 1:1).
+Таблица-сателлит: `COD` = **PK и FK** на `TMS_UNIVERS` (1:1), как у `TMS_MPT`.
+Мультиязычная (RO/RU/EN).
+
+**Оригинал хранится в BLOB** — база `CL8MSWIN1251` (однобайтовая) portит любую диакритику
+в текстовых полях, а BLOB хранит **байты как есть** (UTF-8). Поисковые дубликаты без
+диакритики заполняет **триггер** `TMS_MPT_WEBATTR_BIU`.
+
+| Группа | Колонки | Кто пишет |
+|---|---|---|
+| Оригинал (показ в магазине) | `DESCRIERE_RO/RU/EN`, `DENUMIRE_FULL_BLOB_RO/RU/EN` — **BLOB** | приложение / импорт |
+| Поиск и индексация | `DESCRIERE_NON_DIACR_RO/RU/EN` (CLOB), `DENUMIRE_FULL_RO/RU/EN` (VARCHAR2 4000) | **триггер, автоматически** |
 
 ```sql
--- карточка товара с описанием (для магазина / карточки в back-office)
-SELECT u.cod, u.denumirea, w.descriere, w.denumire_full, w.src
-FROM   tms_univers u
-LEFT   JOIN tms_mpt_webattr w ON w.cod = u.cod
+-- 1) ПОКАЗ: оригинал с диакритикой (BLOB -> отдать как UTF-8)
+SELECT u.cod, u.denumirea,
+       w.descriere_ro            AS descr_blob,      -- в приложении: .decode('utf-8')
+       w.denumire_full_blob_ro   AS full_blob
+FROM   tms_univers u LEFT JOIN tms_mpt_webattr w ON w.cod = u.cod
 WHERE  u.cod = :cod;
+
+-- 2) ПОИСК: по копии без диакритики — "carti" найдёт "cărți"
+SELECT cod FROM tms_mpt_webattr
+WHERE  UPPER(denumire_full_ro) LIKE UPPER('%' || :q || '%');
+
+-- 3) ЗАПИСЬ: пишем ТОЛЬКО BLOB, остальное сделает триггер
+UPDATE tms_mpt_webattr SET descriere_ro = :blob_utf8 WHERE cod = :cod;
 ```
 
-| Поле | Что показывать |
-|---|---|
-| `DESCRIERE` | краткие характеристики (`6.78" \| LTPS IPS \| 120 Hz \| 5000 mAh`) — под названием товара |
-| `DENUMIRE_FULL` | полное название от поставщика — в карточке/тултипе |
-| `SRC`, `LOAD_ID`, `UPDATED_AT` | служебные: откуда и когда пришло |
+⚠️ **Не пишите** в `*_NON_DIACR_*` / `DENUMIRE_FULL_*` вручную — они перезаписываются
+триггером при каждом изменении соответствующего BLOB.
 
-Импорт: `MERGE` по `COD`; **`NULL` не затирает** существующее значение — файл без колонки
-описания не удаляет ранее импортированные описания. Данные (set 8): **30 004** товара,
-из них **19 702** с описанием.
+Данные (set 8): **30 004** товара · **19 702** с описанием · оригиналы с диакритикой
+(`Caiet cu spiră A4+ 80 foi pătrățele`) + поисковые копии (`Caiet cu spira...`).

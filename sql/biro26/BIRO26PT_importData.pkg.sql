@@ -596,33 +596,55 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     say('RO: coduri de bare EAN-13 generate / EN: EAN-13 barcodes generated: ' || v_ean);
     COMMIT;
 
-    -- RO: ATRIBUTE WEB (descriere / denumire completa) -> TMS_MPT_WEBATTR.
-    --     Tabela-satelit cu aceeasi cheie ca TMS_MPT: COD = TMS_UNIVERS.COD (1:1).
-    --     Nu stergem valori existente cu NULL (fisierele partiale nu pierd descrierea).
-    -- EN: WEB attributes (description / full name) -> TMS_MPT_WEBATTR, satellite table
-    --     keyed like TMS_MPT (COD = TMS_UNIVERS.COD). NULLs never wipe existing values.
-    MERGE INTO tms_mpt_webattr t
-    USING (
-      SELECT d.cod, d.descr, d.dfull, d.src FROM (
-        SELECT s.cod_univers cod, s.descriere descr, s.denumire_full dfull,
-               NVL(s.furnizor, s.src_file) src,
-               ROW_NUMBER() OVER (PARTITION BY s.cod_univers ORDER BY s.id) rn
-        FROM biro26pt_stg s
-        WHERE s.load_id = p_load_id AND s.cod_univers IS NOT NULL
-          AND s.status IN ('NEW','EXISTING')
-          AND (s.descriere IS NOT NULL OR s.denumire_full IS NOT NULL)
-      ) d WHERE d.rn = 1
-    ) u ON (t.cod = u.cod)
-    WHEN MATCHED THEN UPDATE SET
-      t.descriere     = NVL(u.descr, t.descriere),
-      t.denumire_full = NVL(u.dfull, t.denumire_full),
-      t.src           = NVL(u.src, t.src),
-      t.load_id       = p_load_id,
-      t.updated_at    = SYSDATE
-    WHEN NOT MATCHED THEN
-      INSERT (cod, descriere, denumire_full, src, load_id, updated_at)
-      VALUES (u.cod, u.descr, u.dfull, u.src, p_load_id, SYSDATE);
-    say('RO: atribute web scrise (TMS_MPT_WEBATTR) / EN: web attributes written: ' || SQL%ROWCOUNT);
+    -- RO: ATRIBUTE WEB -> TMS_MPT_WEBATTR (satelit 1:1, cheia ca la TMS_MPT).
+    --     ORIGINALUL cu diacritice se ia din BIRO26PT_RAW_BLOB (octeti UTF-8, pe care
+    --     baza CL8MSWIN1251 nu-i strica); daca celula n-avea caractere speciale,
+    --     originalul == textul din STG si se converteste la BLOB pe loc.
+    --     Copiile de cautare (CLOB/VARCHAR2 fara diacritice) le face triggerul
+    --     TMS_MPT_WEBATTR_BIU — nu le scriem aici.
+    -- EN: WEB attributes -> TMS_MPT_WEBATTR (1:1 satellite, TMS_MPT key schema).
+    --     The ORIGINAL with diacritics comes from BIRO26PT_RAW_BLOB (UTF-8 bytes the
+    --     CL8MSWIN1251 DB cannot mangle); when the cell had no special chars the STG
+    --     text IS the original and is converted to BLOB inline. Search copies are
+    --     produced by the TMS_MPT_WEBATTR_BIU trigger.
+    DECLARE
+      v_col_desc  NUMBER := TO_NUMBER(SUBSTR(NVL(col_of(p_load_id,'DESCRIERE'),'c-1'), 2));
+      v_col_dfull NUMBER := TO_NUMBER(SUBSTR(NVL(col_of(p_load_id,'DENUM_FULL'),'c-1'), 2));
+      v_cnt NUMBER := 0;
+    BEGIN
+      IF v_col_desc >= 0 OR v_col_dfull >= 0 THEN
+        MERGE INTO tms_mpt_webattr t
+        USING (
+          SELECT d.cod, d.descr_blob, d.dfull_blob, d.src FROM (
+            SELECT s.cod_univers cod,
+                   NVL( (SELECT b.val_blob FROM biro26pt_raw_blob b
+                          WHERE b.load_id = s.load_id AND b.row_no = s.row_no
+                            AND b.col_idx = v_col_desc),
+                        YBIRO_TEXT_UTIL.nclob_to_blob(TO_NCLOB(s.descriere)) ) descr_blob,
+                   NVL( (SELECT b.val_blob FROM biro26pt_raw_blob b
+                          WHERE b.load_id = s.load_id AND b.row_no = s.row_no
+                            AND b.col_idx = v_col_dfull),
+                        YBIRO_TEXT_UTIL.nclob_to_blob(TO_NCLOB(s.denumire_full)) ) dfull_blob,
+                   NVL(s.furnizor, s.src_file) src,
+                   ROW_NUMBER() OVER (PARTITION BY s.cod_univers ORDER BY s.id) rn
+            FROM biro26pt_stg s
+            WHERE s.load_id = p_load_id AND s.cod_univers IS NOT NULL
+              AND s.status IN ('NEW','EXISTING')
+              AND (s.descriere IS NOT NULL OR s.denumire_full IS NOT NULL)
+          ) d WHERE d.rn = 1
+        ) u ON (t.cod = u.cod)
+        WHEN MATCHED THEN UPDATE SET
+          t.descriere_ro          = NVL(u.descr_blob, t.descriere_ro),
+          t.denumire_full_blob_ro = NVL(u.dfull_blob, t.denumire_full_blob_ro),
+          t.src                   = NVL(u.src, t.src),
+          t.load_id               = p_load_id
+        WHEN NOT MATCHED THEN
+          INSERT (cod, descriere_ro, denumire_full_blob_ro, src, load_id)
+          VALUES (u.cod, u.descr_blob, u.dfull_blob, u.src, p_load_id);
+        v_cnt := SQL%ROWCOUNT;
+      END IF;
+      say('RO: atribute web scrise (TMS_MPT_WEBATTR) / EN: web attributes written: ' || v_cnt);
+    END;
     COMMIT;
 
     -- RO: SINCRONIZARE BIRO26_GOODS - sursa arborelui "Grupe de marfa" + magazin (grupa/categorie).
