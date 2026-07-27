@@ -179,6 +179,20 @@ E2E проверено: регистрация → счёт №15 (COD 260) → 
 
 Осталось из ТЗ: Phase 6 (soft launch → cutover на прод-домен) — по решению владельца после приёмки shop1.
 
+**✅ Phase 6 CUTOVER выполнен 27.07.2026 (по решению владельца):**
+
+| Домен | Что отдаёт |
+|---|---|
+| **officeplus.md** | **Новый Figma-сайт** (Flask :8000): `/` = главная, `/catalog /produs/N /cos /cont /favorite /compara /branduri` + инфо-страницы в chrome сайта; WP остаётся админкой (`/wp-admin`, `/wp-json`); `/biro26-shop` и backoffice работают как раньше; индексация разрешена (без noindex) |
+| **shop2.officeplus.md** | **Старый сайт** (полная копия: WP `wordpress_shop2` + iframe /biro26-shop → :8000) — rollback-путь и архив |
+| **shop1.officeplus.md** | Остаётся **dev-контуром** (noindex, Flask :8020, WP `wordpress_shop1`) |
+
+Детали cutover: 6 WP-страниц `site-*` + медиа импортированы в прод-WP (ID 190–195);
+canonical/hreflang/OG переведены на `request.host`; nginx officeplus.md — добавлены
+site-локации на :8000 (бэкап старого конфига: `/home/ubuntu/nginx*.conf_biro26.bak-precutover`
+— откат = восстановить его и reload nginx). Проверено: все URL прода 200,
+wp-admin 302 (логин), shop2 = старый сайт, nufarul жив.
+
 **Обновление 2026-07-26 (пакет «3 new landing 2507», 8 задач владельца):**
 
 | Задача | Реализация |
