@@ -6352,6 +6352,54 @@ def api_biro26_shop_product_comment(cod):
 def api_biro26_product_desc(cod):
     return _b26(lambda: Biro26Controller.set_product_desc(cod))
 
+# ── Arhivele SITE-ului (saptaminal, surse+metadate, fara marfa ERP) ──
+@app.route('/UNA.md/orasldev/biro26-backups')
+def biro26_backups():
+    """RO: pagina «Arhive site» — descarcare arhive + setari FTP/SFTP."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/backup_admin.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/backup/archives', methods=['GET'])
+def api_biro26_backup_archives():
+    from models.biro26_backup import Biro26Backup
+    return _b26(lambda: Biro26Backup.archives())
+
+@app.route('/api/biro26/backup/download/<name>', methods=['GET'])
+def api_biro26_backup_download(name):
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    from models.biro26_backup import Biro26Backup
+    p = Biro26Backup.archive_path(name)
+    if not p:
+        return jsonify({'success': False, 'error': 'arhiva inexistenta'}), 404
+    from flask import send_file
+    return send_file(p, as_attachment=True, download_name=name)
+
+@app.route('/api/biro26/backup/run', methods=['POST'])
+def api_biro26_backup_run():
+    from models.biro26_backup import Biro26Backup
+    return _b26(lambda: Biro26Backup.run_now())
+
+@app.route('/api/biro26/backup/dest', methods=['GET', 'POST'])
+def api_biro26_backup_dest():
+    from models.biro26_backup import Biro26Backup
+    if request.method == 'GET':
+        return _b26(lambda: Biro26Backup.dest_list())
+    return _b26(lambda: Biro26Backup.dest_save(
+        request.get_json(silent=True) or {}))
+
+@app.route('/api/biro26/backup/dest/<int:did>', methods=['DELETE'])
+def api_biro26_backup_dest_del(did):
+    from models.biro26_backup import Biro26Backup
+    return _b26(lambda: Biro26Backup.dest_delete(did))
+
+@app.route('/api/biro26/backup/log', methods=['GET'])
+def api_biro26_backup_log():
+    from models.biro26_backup import Biro26Backup
+    return _b26(lambda: Biro26Backup.log_list())
+
 # ── TMS_MPT_WEBATTR: atribute web multilingve (BLOB = original cu
 #    diacritice; copiile de cautare le intretine triggerul) ──
 @app.route('/api/biro26/webattr/<int:cod>', methods=['GET'])
