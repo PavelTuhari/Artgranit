@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="description" content="{{ app_name }} — magazin online de birotică și papetărie în Moldova: catalog live, coș, achitare online (MAIB/MIA), rate și credit.">
-  <link rel="canonical" href="https://shop1.officeplus.md{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
-  <link rel="alternate" hreflang="ro" href="https://shop1.officeplus.md{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
-  <link rel="alternate" hreflang="ru" href="https://shop1.officeplus.md{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}?lang=ru">
+  <link rel="canonical" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
+  <link rel="alternate" hreflang="ro" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
+  <link rel="alternate" hreflang="ru" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}?lang=ru">
   <meta property="og:title" content="{{ self.title() }}">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://shop1.officeplus.md/static/biro26/landing/assets/logo.png">
+  <meta property="og:image" content="https://{{ request.host }}/static/biro26/landing/assets/logo.png">
   <link rel="icon" href="/static/biro26/landing/assets/logo.png">
   <link rel="stylesheet" href="/static/biro26/landing/styles.css">
   <link rel="stylesheet" href="/static/biro26/site-responsive.css">
@@ -282,7 +282,8 @@
             </div>
           </div>
           <div class="footer-bottom">
-            <p>© 2026 Office Plus. <span data-t="rights">Toate drepturile rezervate.</span></p>
+            <p>© 2026 Office Plus. <span data-t="rights">Toate drepturile rezervate.</span>
+              <span style="opacity:.8"> · UNA.md and ORACLE OCI based</span></p>
           </div>
         </div>
       </footer>
