@@ -299,7 +299,14 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     v_sql :=
       'INSERT INTO biro26pt_stg (id, load_id, src_file, row_no, cod_univers, articol, denumire, grupa, grupa_pret, categ, furnizor, angro, ionline, retail1, barcode, vat, img_url, descriere, denumire_full, cod_univ_producer, status)' ||
       ' SELECT r.row_no, r.load_id, r.src_file, r.row_no, NULL,' ||
-      '  SUBSTR(' || e(v_art) || ',1,60),' ||
+      -- RO: CURATA prefixele din articol ("SKU: X", "Articol: X", "Cod: X").
+      --     Fisierele furnizorilor le pun uneori in celula; daca ajung in CODVECHI,
+      --     potrivirea nu gaseste produsul existent si se creeaza DUBLURI
+      --     (5 113 carduri arhivate din acest motiv - vezi YBIRO_PREFIX_DEDUP).
+      -- EN: STRIP article prefixes; if they reach CODVECHI the match fails and
+      --     duplicates are created (5,113 cards had to be archived).
+      '  SUBSTR(TRIM(REGEXP_REPLACE(' || e(v_art) ||
+      '    , ''^(SKU|Articol|Article|Cod|Code|Art)[[:space:]]*:[[:space:]]*'', '''', 1, 1, ''i'')),1,60),' ||
       '  SUBSTR(' || e(v_den) || ',1,400),' ||
       '  NVL(SUBSTR(' || e(v_grp) || ',1,60), :grp),' ||         -- grupa plina / full grupa
       '  NVL(SUBSTR(' || e(v_grp) || ',1,25), :grpp),' ||        -- grupa_pret <=25

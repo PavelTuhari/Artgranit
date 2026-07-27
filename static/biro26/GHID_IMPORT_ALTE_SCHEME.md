@@ -332,6 +332,32 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.17 ⛔ Prefixe in articol ("SKU:", "Articol:", "Cod:") = dubluri
+
+Fisierele furnizorilor pun uneori eticheta in celula: `SKU: CM600`, `Articol: 1035A`.
+Daca prefixul ajunge in `CODVECHI`, potrivirea nu mai gaseste produsul existent (`CM600`)
+si se creeaza un **card-dublura**, fara cod de bare. Efect real: **5 113 dubluri** arhivate.
+
+**Prevenire (in `build_stg`)** — prefixul se taie inainte de potrivire:
+```sql
+SUBSTR(TRIM(REGEXP_REPLACE(<col_articol>,
+  '^(SKU|Articol|Article|Cod|Code|Art)[[:space:]]*:[[:space:]]*', '', 1, 1, 'i')), 1, 60)
+```
+Testat: `SKU: CM600` -> `CM600` -> status **EXISTING** (nu mai creeaza dublura).
+
+**Curatarea celor existente** (facuta): dublurile cu prefix care aveau un ORIGINAL ACTIV
+(potrivire dupa articolul curatat sau dupa denumire) au fost **arhivate** (`ISARHIV='2'`);
+cele **fara** original (produse unice cu articol murdar) au primit doar articolul curatat —
+nu se arhiveaza, altfel s-ar pierde marfa. Jurnal reversibil: `YBIRO_PREFIX_DEDUP`
+(`DUP_COD`, `DUP_ARTICOL`, `CLEAN_ARTICOL`, `ORIG_COD`, `MATCH_BY`, `ACTION`).
+
+**Arhivarea nativa** cere doua conditii (altfel triggerele o blocheaza):
+```sql
+SET_ENV('param_userid', '<user din grupa UNIVERS/DEL/ALLOW>');
+SET_ENV('DOC_CHANGE_ISARHIV', '1');
+UPDATE tms_univers SET isarhiv='2' WHERE cod = :cod;
+```
+
 ### 9.16 ⛔ Fișier FĂRĂ coloană de cod de bare = fabrică de dubluri (incidentul GOG)
 
 **Ce s-a întâmplat.** Un fișier de 37 717 rânduri (load 164) a fost importat **fără coloana
