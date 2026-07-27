@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OfficePlus — Magazin online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <div class="homepage">
+
+      <!-- ===== HEADER / MENIU (Frame 1984078992) ===== -->
+      <header class="header">
+        <div class="topbar">
+          <div class="topbar-inner">
+            <div class="topbar-left">
+              <span class="topbar-icon clock" aria-hidden="true"></span>
+              <span class="topbar-text">Astăzi lucrăm de la 09:00 până la 19:00</span>
+              <a class="topbar-link" href="#">Livrare</a>
+            </div>
+            <div class="topbar-right">
+              <a class="topbar-phone" href="tel:+37300000000">
+                <span class="topbar-icon phone" aria-hidden="true"></span>
+                +(373) 00-00-00-00
+              </a>
+              <div class="lang">
+                <span class="lang-item">RO</span>
+                <span class="lang-item is-active">RU</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="navbar">
+          <a class="logo" href="#" aria-label="OfficePlus">
+            <img src="assets/logo.png" alt="OfficePlus" width="227" height="80">
+          </a>
+
+          <div class="search">
+            <div class="search-field">
+              <span class="search-placeholder">Найти товары…</span>
+              <button class="search-btn" type="button" aria-label="Поиск">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" stroke="#194681" stroke-width="2"/>
+                  <path d="M20 20L16.5 16.5" stroke="#194681" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <button class="catalog-btn" type="button">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <rect x="1" y="1" width="6" height="6" rx="1" fill="#FFD23A"/>
+                <rect x="9" y="1" width="6" height="6" rx="1" fill="#FFD23A"/>
+                <rect x="1" y="9" width="6" height="6" rx="1" fill="#FFD23A"/>
+                <rect x="9" y="9" width="6" height="6" rx="1" fill="#FFD23A"/>
+              </svg>
+              Каталог
+            </button>
+          </div>
+
+          <div class="nav-actions">
+            <button class="icon-btn" type="button" aria-label="Корзина">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6h15l-1.5 9h-12L6 6z" stroke="#194681" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M6 6L5 3H2" stroke="#194681" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="9" cy="20" r="1.4" fill="#194681"/>
+                <circle cx="18" cy="20" r="1.4" fill="#194681"/>
+              </svg>
+              <span class="badge">12</span>
+            </button>
+            <button class="icon-btn user" type="button" aria-label="Аккаунт">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" stroke="#194681" stroke-width="1.8"/>
+                <path d="M4 20c1.5-3.5 4.2-5 8-5s6.5 1.5 8 5" stroke="#194681" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="main">
+        <!-- ===== HERO: slider + product of the day ===== -->
+        <section class="hero">
+          <div class="hero-slider">
+            <div class="hero-slide">
+              <div class="hero-slide-visual">
+                <div class="hero-slide-content">
+                  <p class="hero-kicker">Promoție de primăvară</p>
+                  <h2 class="hero-title">Gadgeturi și tehnică<br>pentru birou și casă</h2>
+                  <p class="hero-sub">Livrare rapidă în toată Moldova · Plată comodă · Garanție</p>
+                  <a class="btn-orange" href="#">Vezi oferta</a>
+                </div>
+                <div class="hero-slide-art" aria-hidden="true"></div>
+              </div>
+              <div class="slider-controls">
+                <button class="slider-arrow" type="button" aria-label="Previous">‹</button>
+                <span class="slider-count">5 / 39</span>
+                <button class="slider-arrow" type="button" aria-label="Next">›</button>
+              </div>
+              <div class="slider-dots" aria-hidden="true">
+                <span class="dot is-active"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+            </div>
+          </div>
+
+          <aside class="deal-card">
+            <div class="deal-head">
+              <span class="deal-label">Товар дня</span>
+              <div class="deal-timer">
+                <span>08H :</span>
+                <span>22M :</span>
+                <span>14S</span>
+              </div>
+            </div>
+            <div class="deal-stock">
+              <span class="deal-stock-text">Ограниченное наличие</span>
+              <div class="deal-stock-bar"><i style="width:42%"></i></div>
+            </div>
+            <div class="deal-image" aria-hidden="true">
+              <div class="deal-image-placeholder">📱</div>
+            </div>
+            <p class="deal-name">Планшет для заметок с электронными чернилами</p>
+            <p class="deal-price">1 290 lei</p>
+            <button class="btn-buy" type="button">
+              Купить
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6h15l-1.5 9h-12L6 6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M6 6L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </aside>
+        </section>
+
+        <!-- ===== H1 + categories ===== -->
+        <section class="section categories-section">
+          <h1 class="page-h1">Magazin online de electrocasnice și gadgeturi în Moldova</h1>
+
+          <div class="categories">
+            <article class="category-card">
+              <div class="category-img c1"></div>
+              <h2 class="category-title">Tehnică de bucătărie</h2>
+            </article>
+            <article class="category-card">
+              <div class="category-img c2"></div>
+              <h2 class="category-title">Tehnică de birou</h2>
+            </article>
+            <article class="category-card">
+              <div class="category-img c3"></div>
+              <h2 class="category-title">Papetărie</h2>
+            </article>
+            <article class="category-card">
+              <div class="category-img c4"></div>
+              <h2 class="category-title">Gadgeturi</h2>
+            </article>
+            <article class="category-card">
+              <div class="category-img c5"></div>
+              <h2 class="category-title">Școală</h2>
+            </article>
+            <article class="category-card">
+              <div class="category-img c6"></div>
+              <h2 class="category-title">Organizare</h2>
+            </article>
+            <article class="category-card">
+              <div class="category-img c7"></div>
+              <h2 class="category-title">Accesorii</h2>
+            </article>
+          </div>
+
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous">‹</button>
+            <span class="row-count">1 / 13</span>
+            <button class="nav-pill" type="button" aria-label="Next">›</button>
+          </div>
+        </section>
+
+        <!-- ===== Best products row (exported frame) ===== -->
+        <section class="section products-section">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Cashback bombastic</p>
+              <h2 class="section-title">Cei mai buni</h2>
+              <p class="section-sub">Актуальные скидки на популярные товары для офиса и учебы</p>
+            </div>
+            <a class="see-all" href="#">Смотреть все <span aria-hidden="true">→</span></a>
+          </div>
+
+          <div class="products-export">
+            <img src="assets/products-row.png" alt="Cei mai buni produse" width="1281" height="549">
+          </div>
+        </section>
+
+        <!-- ===== Popular products (HTML cards) ===== -->
+        <section class="section products-section">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Cashback bombastic</p>
+              <h2 class="section-title">Cei mai buni</h2>
+              <p class="section-sub">Популярные товары, которые выбирают чаще всего</p>
+            </div>
+            <a class="see-all" href="#">Vezi toate <span aria-hidden="true">→</span></a>
+          </div>
+
+          <div class="product-grid">
+            <article class="product-card">
+              <span class="badge-sale">−15%</span>
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-markers"></div>
+              <span class="stock in">В наличии</span>
+              <h3 class="product-name">Набор гелевых ручек, 10 цветов</h3>
+              <div class="product-prices">
+                <span class="price">129 lei</span>
+                <span class="old">200</span>
+                <span class="disc">−79</span>
+              </div>
+              <button class="btn-cart" type="button">В корзине</button>
+            </article>
+            <article class="product-card">
+              <span class="badge-sale">−15%</span>
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-markers"></div>
+              <span class="stock in">В наличии</span>
+              <h3 class="product-name">Набор гелевых ручек, 10 цветов</h3>
+              <div class="product-prices">
+                <span class="price">129 lei</span>
+                <span class="old">200</span>
+                <span class="disc">−79</span>
+              </div>
+              <button class="btn-cart" type="button">В корзине</button>
+            </article>
+            <article class="product-card">
+              <span class="badge-sale">−15%</span>
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock in">В наличии</span>
+              <h3 class="product-name">Набор гелевых ручек, 10 цветов</h3>
+              <div class="product-prices">
+                <span class="price">129 lei</span>
+                <span class="old">200</span>
+                <span class="disc">−79</span>
+              </div>
+              <button class="btn-cart" type="button">В корзине</button>
+            </article>
+            <article class="product-card">
+              <span class="badge-sale">−15%</span>
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock in">В наличии</span>
+              <h3 class="product-name">Набор гелевых ручек, 10 цветов</h3>
+              <div class="product-prices">
+                <span class="price">129 lei</span>
+                <span class="old">200</span>
+                <span class="disc">−79</span>
+              </div>
+              <button class="btn-cart" type="button">В корзине</button>
+            </article>
+            <article class="product-card">
+              <span class="badge-sale">−15%</span>
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-markers"></div>
+              <span class="stock in">В наличии</span>
+              <h3 class="product-name">Набор гелевых ручек, 10 цветов</h3>
+              <div class="product-prices">
+                <span class="price">129 lei</span>
+                <span class="old">200</span>
+                <span class="disc">−79</span>
+              </div>
+              <button class="btn-cart" type="button">В корзине</button>
+            </article>
+          </div>
+
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous">‹</button>
+            <span class="row-count">1 / 13</span>
+            <button class="nav-pill" type="button" aria-label="Next">›</button>
+          </div>
+        </section>
+
+        <!-- ===== Brands ===== -->
+        <section class="section brands-section">
+          <div class="section-head compact">
+            <h2 class="section-title brands-title">Branduri populare</h2>
+            <a class="see-all" href="#">Все</a>
+          </div>
+          <div class="brands">
+            <a class="brand" href="#">Adidas</a>
+            <a class="brand" href="#">Apple</a>
+            <a class="brand" href="#">Arctic</a>
+            <a class="brand" href="#">ASUS</a>
+            <a class="brand" href="#">Beko</a>
+            <a class="brand" href="#">Bosch</a>
+            <a class="brand" href="#">Candy</a>
+            <a class="brand" href="#">Eurolux</a>
+            <a class="brand" href="#">Giant</a>
+            <a class="brand" href="#">Haier</a>
+            <a class="brand" href="#">Hotpoint</a>
+            <a class="brand" href="#">HP</a>
+            <a class="brand" href="#">Indesit</a>
+            <a class="brand" href="#">JBL</a>
+          </div>
+        </section>
+
+        <!-- ===== Category tabs + products ===== -->
+        <section class="section tab-products">
+          <div class="section-head">
+            <div>
+              <p class="section-tag">Cashback bombastic</p>
+              <h2 class="section-title">Cei mai buni</h2>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist">
+            <button class="tab is-active" type="button">Бумага</button>
+            <button class="tab" type="button">Ручки</button>
+            <button class="tab" type="button">Организация</button>
+            <button class="tab" type="button">Техника</button>
+            <button class="tab" type="button">RAZER</button>
+            <button class="tab" type="button">Samsung</button>
+            <button class="tab" type="button">Sony</button>
+            <button class="tab" type="button">Школа</button>
+          </div>
+
+          <div class="product-grid five">
+            <article class="product-card">
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock order">Под заказ</span>
+              <h3 class="product-name">Ламинатор офисный Формат A4, быстрый прогрев</h3>
+              <div class="product-prices">
+                <span class="price">1 999 lei</span>
+                <span class="old">10 799</span>
+                <span class="disc">−800</span>
+              </div>
+              <button class="btn-buy-sm" type="button">Купить</button>
+            </article>
+            <article class="product-card">
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock order">Под заказ</span>
+              <h3 class="product-name">Ламинатор офисный Формат A4, быстрый прогрев</h3>
+              <div class="product-prices">
+                <span class="price">1 999 lei</span>
+                <span class="old">10 799</span>
+                <span class="disc">−800</span>
+              </div>
+              <button class="btn-buy-sm" type="button">Купить</button>
+            </article>
+            <article class="product-card">
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock order">Под заказ</span>
+              <h3 class="product-name">Ламинатор офисный Формат A4, быстрый прогрев</h3>
+              <div class="product-prices">
+                <span class="price">1 999 lei</span>
+                <span class="old">10 799</span>
+                <span class="disc">−800</span>
+              </div>
+              <button class="btn-buy-sm" type="button">Купить</button>
+            </article>
+            <article class="product-card">
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock order">Под заказ</span>
+              <h3 class="product-name">Ламинатор офисный Формат A4, быстрый прогрев</h3>
+              <div class="product-prices">
+                <span class="price">1 999 lei</span>
+                <span class="old">10 799</span>
+                <span class="disc">−800</span>
+              </div>
+              <button class="btn-buy-sm" type="button">Купить</button>
+            </article>
+            <article class="product-card">
+              <button class="wish" type="button" aria-label="Favorite">♡</button>
+              <div class="product-img p-laminator"></div>
+              <span class="stock order">Под заказ</span>
+              <h3 class="product-name">Ламинатор офисный Формат A4, быстрый прогрев</h3>
+              <div class="product-prices">
+                <span class="price">1 999 lei</span>
+                <span class="old">10 799</span>
+                <span class="disc">−800</span>
+              </div>
+              <button class="btn-buy-sm" type="button">Купить</button>
+            </article>
+          </div>
+
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous">‹</button>
+            <span class="row-count">1 / 13</span>
+            <button class="nav-pill" type="button" aria-label="Next">›</button>
+          </div>
+        </section>
+
+        <!-- ===== About (exported) ===== -->
+        <section class="section about-section">
+          <img class="about-export" src="assets/about.png" alt="О компании OfficePlus">
+        </section>
+
+        <!-- ===== Contact (exported) ===== -->
+        <section class="section contact-section">
+          <img class="contact-export" src="assets/contact.png" alt="Свяжитесь с нами">
+        </section>
+      </main>
+
+      <!-- ===== FOOTER ===== -->
+      <footer class="footer">
+        <div class="newsletter">
+          <div class="newsletter-inner">
+            <div class="newsletter-copy">
+              <h2 class="newsletter-title">Abonează-te la newsletter</h2>
+              <p class="newsletter-text">Abonează-te pentru noutăți: fii la curent cu cele mai noi produse, oferte și promoții, abonându-te la newsletter-ul nostru.</p>
+            </div>
+            <form class="newsletter-form" action="#" method="get" onsubmit="return false;">
+              <input class="newsletter-input" type="email" placeholder="Ваш email" aria-label="Email">
+              <button class="newsletter-btn" type="submit">Подписаться</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="footer-main">
+          <div class="footer-grid">
+            <div class="footer-brand">
+              <img src="assets/logo.png" alt="OfficePlus" class="footer-logo" width="180" height="64">
+              <p class="footer-desc">Интернет-магазин канцелярских товаров с доставкой по всей Молдове. Ассортимент ориентирован на офисы, студентов и творческие задачи.</p>
+            </div>
+
+            <div class="footer-col">
+              <h3 class="footer-heading">Для клиентов:</h3>
+              <ul class="footer-links">
+                <li><a href="#">Главная</a></li>
+                <li><a href="#">О компании</a></li>
+                <li><a href="#">Доставка</a></li>
+                <li><a href="#">Контакты</a></li>
+                <li><a href="#">Избранное</a></li>
+                <li><a href="#">Корзина</a></li>
+                <li><a href="#">Сравнить товары</a></li>
+              </ul>
+            </div>
+
+            <div class="footer-col">
+              <h3 class="footer-heading">Полезное:</h3>
+              <ul class="footer-links">
+                <li><a href="#">Условия использования</a></li>
+                <li><a href="#">Оплата и доставка</a></li>
+                <li><a href="#">Политика конфиденциальности</a></li>
+                <li><a href="#">Pagina principală</a></li>
+              </ul>
+            </div>
+
+            <div class="footer-col">
+              <h3 class="footer-heading">Contact</h3>
+              <ul class="footer-links">
+                <li><span class="muted">Telefon</span><br>0123456789</li>
+                <li><span class="muted">E-mail</span><br>exemplu@gmail.com</li>
+              </ul>
+              <div class="socials" aria-label="Social">
+                <span class="social"></span>
+                <span class="social"></span>
+                <span class="social"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer-bottom">
+            <p>© 2026 Office Plus. Toate drepturile rezervate. Creat de <a href="#">Sykors Media</a></p>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,411 @@
+# OfficePlus — проект ИИ: новый сайт-магазин по Figma + работающий прототип
+
+**Версия:** 1.0  
+**Дата:** 2026-07-25  
+**Статус:** бриф / ТЗ для разработки с ИИ  
+**Языки UI:** RO · RU · EN (как на текущем officeplus.md)
+
+---
+
+## 1. Цель проекта
+
+Собрать **новый полноценный онлайн-магазин OfficePlus**, который:
+
+1. **Визуально и UX** соответствует **Figma** (макеты + прототип) и уже развёрнутому **Figma-лендингу**.
+2. **Функционально** работает как e-commerce: каталог, карточка, поиск, корзина, регистрация/ЛК, заказ, оплата (существующие интеграции Biro26).
+3. **Не выкидывает** текущий WordPress-сайт: WP остаётся **оболочкой-источником информационных страниц** (контакты, доставка, о нас, политика и т.д.).
+4. У нового сайта есть **своя ограниченная админка** (витрина/магазин/контент-блоки лендинга), а **простые текстовые страницы** берутся из **админки WordPress**.
+
+**Критерий готовности:** посетитель на новом сайте видит Figma-витрину, может купить как в текущем магазине Biro26, а инфо-страницы синхронизированы с WP и не дублируются вручную в двух CMS.
+
+---
+
+## 2. Источники правды (Source of Truth)
+
+| Область | Источник | Кто правит | Куда отдаёт |
+|---|---|---|---|
+| **Визуал лендинга / UI kit** | Figma + прототип | дизайн | новый фронт |
+| **Прототип HTML** | `officeplus-standalone` / live **https://officeplus.md/landingfigma1/** | дизайн → dev | эталон вёрстки |
+| **Товары, группы, цены, остатки, заказы** | ERP OfficePlus + **Biro26 API** (Artgranit) | ERP / backoffice Biro26 | новый магазин (API) |
+| **Инфо-страницы (текст)** | **WordPress** `officeplus.md` | WP Admin | новый сайт (REST / embed / proxy) |
+| **Меню инфо-страниц, контакты, политика** | WordPress pages + меню | WP Admin | новый сайт |
+| **Ограниченная админка нового сайта** | своя (см. §6) | контент-менеджер витрины | блоки лендинга, баннеры, «товар дня», SEO витрины |
+| **Зеркало справочников (backup/отчёты)** | APEX `OP_*` / OPVIEW (опционально) | sync | не primary для витрины |
+
+**Запрещено:** делать WordPress primary store (WooCommerce не источник товаров). Товары — **только** Biro26/ERP.
+
+---
+
+## 3. Что уже есть (as-is)
+
+### 3.1 WordPress — оболочка и инфо-контент
+
+| | |
+|---|---|
+| URL | https://officeplus.md/ |
+| Путь | `/home/admin/web/officeplus.md/public_html` |
+| CMS | WordPress (Hestia), тема Twenty Twenty-Four |
+| Роль сейчас | Главная с iframe магазина, инфо-страницы RO/RU/EN |
+| Примеры страниц | Despre noi, Contacte, Livrare, Termeni, Politica, Metode de plată, Retur… |
+| Админка | стандартный WP Admin |
+
+### 3.2 Рабочий магазин Biro26 (логика e-commerce)
+
+| | |
+|---|---|
+| UI | `/biro26-shop`, `/UNA.md/orasldev/biro26-shop` |
+| Backoffice | `/biro26-backoffice` |
+| API | `/api/biro26/shop/*`, `/api/biro26/*` |
+| Backend | Artgranit Flask + gunicorn `127.0.0.1:8000` |
+| Данные | Oracle 11g officeplus (ERP), thick worker |
+| Уже умеет | каталог, дерево групп, фильтры, корзина, регистрация, счета, оплата, i18n |
+
+### 3.3 Figma-лендинг (визуальный прототип)
+
+| | |
+|---|---|
+| Live | **https://officeplus.md/landingfigma1/** |
+| Пакет | `officeplus-standalone.zip` → static HTML/CSS/PNG |
+| Содержимое | header/topbar, поиск, каталог-кнопка, hero slider, «товар дня», категории, блоки брендов, about, contact, newsletter, footer |
+| Ограничение | **статика**: кнопки `#`, нет API, нет корзины, нет WP-страниц |
+
+### 3.4 Инфра (контекст)
+
+- Always Free Ubuntu: `mail.officeplus.md` / `89.168.115.20`
+- Nginx: WP + proxy Biro26 + static landing
+- Rate limit API: 200/hour; IP через `X-Real-IP` (после фикса 2026-07-24)
+- APEX mirror OPVIEW — backup/отчёты, **не** замена shop API
+
+---
+
+## 4. Целевая архитектура (to-be)
+
+```
+                    ┌─────────────────────────────┐
+   Посетитель ───►  │  Новый сайт (Figma UI)       │
+                    │  SPA / SSR / hybrid          │
+                    └──────────┬──────────────────┘
+           ┌───────────────────┼───────────────────┐
+           ▼                   ▼                   ▼
+   ┌───────────────┐  ┌─────────────────┐  ┌──────────────────┐
+   │ Biro26 Shop   │  │ WordPress REST  │  │ Admin витрины    │
+   │ API (товары,  │  │ /wp-json/       │  │ (ограниченная)   │
+   │ корзина, ЛК)  │  │ pages, menus    │  │ баннеры, hero,   │
+   └───────┬───────┘  └────────┬────────┘  │ «товар дня»…     │
+           │                   │           └────────┬─────────┘
+           ▼                   ▼                    │
+   Oracle ERP 11g        WP MariaDB                 │
+   officeplus            wordpress                  │
+                                                    ▼
+                                           своя БД/таблица
+                                           (не ERP, не WP)
+```
+
+### Принцип «две CMS — разные зоны»
+
+| Зона | Система | Примеры |
+|---|---|---|
+| **Витрина + e-commerce** | Новый фронт + Biro26 API + **limited admin** | home Figma, PLP, PDP, cart, checkout, account |
+| **Информационный контент** | **WordPress only** | /contacte, /livrare, /despre-noi, политики, тексты RO/RU/EN |
+| **ERP master data** | OfficePlus / Biro26 backoffice | номенклатура, цены, группы, клиенты ERP |
+
+Новый сайт **не копирует** длинные тексты в свою админку — **читает** WP (или iframe/проксирует канонический URL WP, если так проще на первом этапе).
+
+---
+
+## 5. Визуал и Figma: обязательные блоки лендинга
+
+Ориентир: прототип `landingfigma1` + полный Figma file (frames из макета).
+
+### 5.1 Обязательные UI-блоки (из прототипа)
+
+1. **Topbar** — часы работы, ссылка Livrare, телефон, переключатель RO/RU (и EN).
+2. **Navbar** — логотип, поиск «Найти товары…», кнопка **Каталог**, корзина (badge), аккаунт.
+3. **Hero** — слайдер промо + CTA.
+4. **Товар дня** — таймер, наличие, цена, «Купить».
+5. **H1 + категории** — карточки категорий (иконки/фото).
+6. **Подборки** — «лучшие / популярные» (ряды товаров, «смотреть все»).
+7. **Бренды** — полоса брендов.
+8. **About** — блок о компании (короткий + ссылка на WP «Despre noi»).
+9. **Contact / newsletter** — визуал + форма/ссылка (контактные тексты/адрес — из WP).
+10. **Footer** — ссылки на инфо-страницы WP, соцсети, копирайт.
+
+### 5.2 Правила соответствия Figma
+
+- Пиксельная близость: отступы, типографика (Inter / system), цвета, радиусы, состояния hover/active.
+- Адаптив: desktop → tablet → mobile (breakpoints из Figma; если нет — 1280 / 768 / 375).
+- Все изображения из design system / assets; не оставлять emoji-placeholder на проде.
+- i18n: строки UI в словаре RO/RU/EN; **не** хранить переводы инфо-страниц в limited admin.
+
+### 5.3 Связь «прототип → прод»
+
+| Прототип (static) | Прод |
+|---|---|
+| `href="#"` / mock badge 12 | реальные маршруты + API cart count |
+| CSS-классы `.homepage`… | сохранить семантику или design tokens |
+| PNG assets | CDN/static; lazy-load |
+| Нет JS-логики магазина | подключить Biro26 shop API / BFF |
+
+---
+
+## 6. Ограниченная админка нового сайта
+
+**Назначение:** править **только** то, чего нет в WP и что не должно идти в ERP.
+
+### 6.1 В scope limited admin
+
+- Баннеры / hero slides (картинка, title, CTA, порядок, период показа).
+- «Товар дня» (COD товара из ERP **или** ручной override + таймер).
+- Блоки главной: порядок секций, вкл/выкл, заголовки секций.
+- Featured product lists (выбор COD / правило: «топ продаж» / «новинки»).
+- SEO витрины (title/description homepage, OG image) — опционально.
+- Feature flags (показать/скрыть блок).
+
+### 6.2 Вне scope limited admin
+
+- Полный CRUD номенклатуры, цен, групп → **Biro26 backoffice / ERP**.
+- Тексты «Контакты», «Доставка», «О нас», политики → **WordPress**.
+- Пользователи ERP, счета, платежи → **Biro26**.
+
+### 6.3 Роли
+
+| Роль | Доступ |
+|---|---|
+| `vitrine_editor` | limited admin витрины |
+| `wp_editor` | только WP (как сейчас) |
+| `shop_operator` | Biro26 backoffice |
+| `admin` | всё |
+
+### 6.4 Технические варианты (на выбор реализации)
+
+**A (рекомендуется):** маленькое API + UI (FastAPI/Flask) + таблицы `VT_*` в APEX Always Free или отдельная schema;  
+**B:** кастомные post types в WP только для баннеров (не для товаров);  
+**C:** JSON-конфиг в git + CI (плохо для контент-менеджера).
+
+Предпочтение: **A** или **B**, не смешивать товары с WP.
+
+---
+
+## 7. WordPress как источник информационных страниц
+
+### 7.1 Что потребляет новый сайт из WP
+
+- Список опубликованных pages (slug, title, content HTML, language variant).
+- Меню (footer / info menu).
+- Опции: телефон, email, адрес (если в options/ACF; иначе хардкод из Figma + override в limited admin).
+- Мультиязычие: текущие slug `*-ru`, `*-en` или polylang/WPML — **использовать as-is**, не ломать.
+
+### 7.2 Способы интеграции (приоритет)
+
+1. **WordPress REST API** ` /wp-json/wp/v2/pages?slug=contacte` — предпочтительно.  
+2. **Server-side fetch** в BFF нового сайта (кэш 5–15 мин).  
+3. **Iframe** только как временный fallback (хуже SEO/UX).  
+4. **Не** полный SQL dump WP в новую БД как primary.
+
+### 7.3 Маршрутизация инфо-страниц на новом сайте
+
+Пример:
+
+```text
+https://shop.officeplus.md/contacte     → контент WP page "contacte"
+https://shop.officeplus.md/livrare      → WP "livrare"
+https://shop.officeplus.md/despre-noi   → WP "despre-noi"
+```
+
+Либо поддомен / path prefix `/info/*`.  
+Канонический URL: решить SEO (один canonical — либо WP, либо новый сайт).
+
+### 7.4 Что WP **не** должен делать
+
+- Не быть checkout.
+- Не хранить корзину/заказы магазина.
+- Не дублировать каталог товаров.
+
+---
+
+## 8. E-commerce: опора на Biro26
+
+Новый фронт **обязан** использовать существующие контракты API (не изобретать ERP):
+
+| Функция | API / модуль (ориентир) |
+|---|---|
+| Список товаров | `GET /api/biro26/shop/products` |
+| Дерево/фасеты | `GET /api/biro26/shop/tree`, brands |
+| Карточка | product by cod + `shop/product` info |
+| Корзина / checkout | shop session + create invoice |
+| Регистрация / login клиента | shop register/login |
+| Прайс/остатки | как в текущем shop |
+
+### 8.1 BFF (рекомендуется)
+
+Слой между Figma-фронтом и Biro26:
+
+- агрегирует ответы под UI-карточки Figma;
+- кэш read-only каталога;
+- **не** обходит rate limit бесконтрольно (учесть `200/hour`, X-Real-IP);
+- internal sync/admin calls — отдельный key / exempt localhost.
+
+### 8.2 Rate limit (инвариант)
+
+- Публичные клиенты — по реальному IP (`X-Real-IP`).
+- Полный dump каталога — **не** с браузера; batch/ночь/internal.
+- Не поднимать лимит «в космос» без необходимости.
+
+---
+
+## 9. Информационная модель (упрощённо)
+
+### 9.1 Сущности витрины (limited admin)
+
+```text
+VT_HERO_SLIDE     (id, lang, title, subtitle, cta_label, cta_url, image_url, sort, active_from, active_to)
+VT_DEAL_OF_DAY    (id, product_cod, ends_at, stock_percent, active)
+VT_HOME_SECTION   (id, code, title_ro/ru/en, enabled, sort)
+VT_FEATURED_ITEM  (section_id, product_cod, sort)
+VT_BANNER         (...)
+```
+
+### 9.2 Сущности магазина (read from Biro26)
+
+```text
+Product, Group/Category, Brand, Price, Stock, Client, Cart, Order/Invoice
+```
+
+### 9.3 Сущности контента (read from WP)
+
+```text
+Page(slug, lang, title, html, updated_at)
+Menu(items → slug/url)
+```
+
+---
+
+## 10. Этапы разработки (для ИИ / команды)
+
+### Phase 0 — Контракты и инвентарь (1–2 дня)
+
+- [ ] Зафиксировать Figma frames ↔ блоки `landingfigma1`.
+- [ ] Список WP pages + slug RO/RU/EN.
+- [ ] OpenAPI/таблица shop API Biro26 (используемые endpoints).
+- [ ] Решение: path/domain нового сайта.
+
+### Phase 1 — Каркас UI = Figma (статика → компоненты)
+
+- [ ] Перенести `landingfigma1` в компонентную систему (React/Vue/Nuxt/… или enhanced static).
+- [ ] Design tokens из CSS.
+- [ ] i18n RO/RU/EN для chrome UI.
+- [ ] Адаптив.
+
+### Phase 2 — Каталог live
+
+- [ ] Поиск, каталог, PLP, PDP на Biro26 API.
+- [ ] Корзина + badge.
+- [ ] «Товар дня» / featured — COD из API + admin override.
+
+### Phase 3 — Checkout / ЛК
+
+- [ ] Регистрация, login, заказ, печать счёта (как shop).
+- [ ] Платежи — существующие интеграции.
+
+### Phase 4 — WP content bridge
+
+- [ ] REST client + кэш.
+- [ ] Страницы footer/menu из WP.
+- [ ] Не ломать текущий WP URL (или 301 strategy).
+
+### Phase 5 — Limited admin
+
+- [ ] Auth ролей.
+- [ ] CRUD баннеров/секций/deal.
+- [ ] Preview homepage.
+
+### Phase 6 — Soft launch
+
+- [ ] `/landingfigma1` или beta host.
+- [ ] Параллельно WP+iframe shop.
+- [ ] Cutover: новый сайт = main, WP = content CMS only.
+
+---
+
+## 11. Нефункциональные требования
+
+| Тема | Требование |
+|---|---|
+| Performance | LCP < 2.5s mobile на homepage (сжатые PNG/WebP) |
+| SEO | SSR или prerender homepage + PLP; canonical; hreflang RO/RU/EN |
+| A11y | keyboard, aria, contrast как минимум WCAG AA для текста |
+| Security | не светить ERP credentials; WP Application Passwords / readonly user |
+| i18n | URL strategy согласовать с WP |
+| Observability | логи 429, latency Biro26, ошибки WP REST |
+| Deploy | static + BFF; **не** ломать `officeplus.md` WP и `/api/biro26` |
+| Hosting | тот же Always Free Ubuntu / nginx path или поддомен |
+
+---
+
+## 12. Инварианты (нельзя нарушать)
+
+1. **Не ломать** https://officeplus.md/ (WP) и Biro26 shop/backoffice.  
+2. **Не** переносить master-товары в WP или limited admin.  
+3. **Не** дублировать тексты инфо-страниц в limited admin.  
+4. Figma-лендинг — **визуальный контракт**; API — **функциональный контракт**.  
+5. Rate limit и ERP нагрузка — уважать; полный catalog sync не с фронта.  
+6. Пароли/секреты — keychain / env, не в git и не в HTML.
+
+---
+
+## 13. Definition of Done (DoD)
+
+Новый сайт считается готовым, если:
+
+1. Homepage **визуально** соответствует Figma/прототипу `landingfigma1` (review дизайна).  
+2. Можно найти товар, добавить в корзину, оформить заказ (как на текущем shop).  
+3. Страницы «Контакты / Доставка / О нас / …» показывают **актуальный** контент из WP после правки в WP Admin **без** деплоя фронта.  
+4. Limited admin меняет hero/deal **без** деплоя и **без** WP.  
+5. Старый WP+shop остаются работоспособны (rollback path).  
+6. RO/RU/EN переключение UI + контент.  
+7. Мобильная вёрстка без поломки корзины/меню.
+
+---
+
+## 14. Артефакты и ссылки (as-is)
+
+| Артефакт | URL / путь |
+|---|---|
+| WP сайт | https://officeplus.md/ |
+| Figma landing live | https://officeplus.md/landingfigma1/ |
+| Biro26 shop | https://officeplus.md/biro26-shop |
+| Biro26 backoffice | https://officeplus.md/biro26-backoffice |
+| Docs APEX/microservices | https://officeplus.md/static/biro26/OFFICEPLUS_APEX_MICROSERVICES.html |
+| Standalone zip | `officeplus-standalone.zip` |
+| Landing files on server | `public_html/landingfigma1/` |
+| Этот документ | `docs/OFFICEPLUS_AI_SITE_PROJECT.md` |
+
+---
+
+## 15. Промпт-якорь для ИИ-агента (копировать в задачу)
+
+```text
+Ты разрабатываешь новый сайт OfficePlus.
+Визуал и UX: строго по Figma и прототипу https://officeplus.md/landingfigma1/
+E-commerce: только API Biro26 (Artgranit), не WooCommerce.
+Инфо-страницы (контакты, доставка, о нас, политики): только WordPress REST/контент officeplus.md;
+не дублировать эти тексты во второй CMS.
+Ограниченная админка нового сайта: только витрина (hero, баннеры, товар дня, секции главной).
+Не ломать существующий WordPress и /api/biro26.
+Учитывай rate limit API и proxy X-Real-IP.
+Цель: полноценный онлайн-магазин = Figma landing + live catalog/cart/checkout + WP content.
+```
+
+---
+
+## 16. Открытые решения (зафиксировать до Phase 2)
+
+1. Домен: path (`officeplus.md/app`) vs subdomain (`shop.` / `www2.`)?  
+2. Стек фронта: Nuxt / Next / Vue SPA / enhanced static?  
+3. Limited admin storage: APEX vs WP CPT vs SQLite/Postgres?  
+4. SEO cutover: когда новый homepage заменяет WP homepage?  
+5. Figma file link + ответственный дизайнер (доступ для dev).
+
+---
+
+*Документ для ИИ и людей. Не содержит секретов. Обновлять при смене API/Figma frames.*

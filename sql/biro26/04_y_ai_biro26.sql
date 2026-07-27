@@ -103,6 +103,12 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
   g_client_gr1 VARCHAR2(5):= 'E';    -- RO: grupa clientilor / EN: clients group
   g_caccess  VARCHAR2(5)  := '11100';
   g_codprice NUMBER       := 1;      -- RO: lista de preturi implicita (BIRO) / EN: default price list
+  -- RO: NRSET implicit pe cont de plata (subset ca la alte documente).
+  -- EN: default NRSET for invoices (subset like other documents).
+  g_nrset_default NUMBER  := 201;
+  -- RO: cheia YBIRO_SETTINGS pentru numarul de start (NRMANUAL).
+  -- EN: YBIRO_SETTINGS key for invoice start number (NRMANUAL).
+  g_invoice_nr_start_key VARCHAR2(60) := 'INVOICE_NR_START';
 
   -- RO: Inregistreaza un client nou in TMS_UNIVERS (TIP='O'); intoarce COD.
   -- EN: Register a new client in TMS_UNIVERS (TIP='O'); returns COD.
@@ -125,8 +131,19 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
                      p_pret   IN NUMBER,
                      p_coment IN VARCHAR2 DEFAULT NULL);
 
-  -- RO: Numarul de ordine (NRSET) al documentului. / EN: document NRSET.
+  -- RO: Numarul documentului din NRMANUAL (numeric). Compat: numele get_nrset.
+  -- EN: Document number from NRMANUAL (numeric). Compat name get_nrset.
   FUNCTION get_nrset(p_nrdoc IN NUMBER) RETURN NUMBER;
+
+  -- RO: Numarul afisat (TMDB_DOCS.NRMANUAL).
+  -- EN: Display document number (TMDB_DOCS.NRMANUAL).
+  FUNCTION get_nrmanual(p_nrdoc IN NUMBER) RETURN VARCHAR2;
+
+  -- RO: Urmatorul NRMANUAL = contorul YBIRO_SETTINGS.INVOICE_NR_START
+  --     (dupa emitere se incrementeaza automat).
+  -- EN: Next NRMANUAL = counter YBIRO_SETTINGS.INVOICE_NR_START
+  --     (auto-incremented after each invoice).
+  FUNCTION next_invoice_nr RETURN NUMBER;
 
   -- RO: COD-ul ultimului document creat in ACEASTA sesiune (stare pachet).
   -- EN: COD of the last document created in THIS session (package state).
@@ -226,22 +243,60 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
     RETURN v_cod;
   END register_client;
 
+  FUNCTION next_invoice_nr RETURN NUMBER IS
+    v_start NUMBER := 1;
+    v_raw   VARCHAR2(400);
+    v_max   NUMBER;
+  BEGIN
+    -- RO: INVOICE_NR_START = urmatorul numar de emis (contor).
+    --     Daca lipsește setarea, fallback = max(NRMANUAL)+1 pe SYSFID.
+    -- EN: INVOICE_NR_START = next number to issue (counter).
+    --     If unset, fallback = max(NRMANUAL)+1 for the form SYSFID.
+    BEGIN
+      v_raw := get_setting(g_invoice_nr_start_key);
+      IF v_raw IS NOT NULL AND REGEXP_LIKE(TRIM(v_raw), '^[0-9]+$') THEN
+        RETURN TO_NUMBER(TRIM(v_raw));
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+    SELECT NVL(MAX(
+             CASE
+               WHEN REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$')
+               THEN TO_NUMBER(TRIM(NRMANUAL))
+               ELSE NULL
+             END
+           ), 0) + 1
+      INTO v_max
+      FROM TMDB_DOCS
+     WHERE SYSFID = g_sysfid;
+    RETURN NVL(v_max, 1);
+  END next_invoice_nr;
+
   FUNCTION create_invoice(p_client_cod IN NUMBER,
                           p_data       IN DATE DEFAULT TRUNC(SYSDATE))
     RETURN NUMBER IS
-    v_cod   NUMBER;
-    v_nrset NUMBER;
+    v_cod      NUMBER;
+    v_nr_num   NUMBER;
+    v_nrmanual VARCHAR2(25);
   BEGIN
     SELECT ID_TMDB_DOCS.NEXTVAL INTO v_cod FROM dual;
-    -- RO: numerotare per formular (suficient la volumul curent)
-    -- EN: per-form numbering (adequate at current volume)
-    SELECT NVL(MAX(NRSET), 0) + 1 INTO v_nrset
-      FROM TMDB_DOCS WHERE SYSFID = g_sysfid;
+    -- RO: NRMANUAL = numar vizibil; NRSET = subset (g_nrset_default=201).
+    --     Start: YBIRO_SETTINGS.INVOICE_NR_START (admin web).
+    -- EN: NRMANUAL = visible number; NRSET = subset (g_nrset_default=201).
+    --     Start floor: YBIRO_SETTINGS.INVOICE_NR_START (web admin).
+    v_nr_num   := next_invoice_nr;
+    v_nrmanual := TO_CHAR(v_nr_num);
+
+    -- RO: incrementeaza contorul (urmatorul cont va primi nr+1)
+    -- EN: bump counter (next invoice gets nr+1)
+    set_setting(g_invoice_nr_start_key, TO_CHAR(v_nr_num + 1),
+      'RO: urmatorul NRMANUAL de emis / EN: next NRMANUAL to issue');
 
     INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA,
-                           NRSET, ISGFC, DOCCOLOR, CODF, AT2, AT3)
+                           NRMANUAL, NRSET, ISGFC, DOCCOLOR, CODF, AT2, AT3)
     VALUES (v_cod, g_tip, g_sysfid, UID, p_data, g_valuta,
-            v_nrset, 0, g_doccolor, 0, g_at2, 0);
+            v_nrmanual, g_nrset_default, 0, g_doccolor, 0, g_at2, 0);
 
     -- RO: antetul contabil, prin vederea nativa / EN: posting header via the native view
     INSERT INTO VMDB_ST201M (NRDOC, DT, CT, DTDEP, CTDEP,
@@ -273,9 +328,24 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
   FUNCTION get_nrset(p_nrdoc IN NUMBER) RETURN NUMBER IS
     v NUMBER;
   BEGIN
-    SELECT NRSET INTO v FROM TMDB_DOCS WHERE COD = p_nrdoc;
+    -- RO: compat — numar din NRMANUAL / EN: compat — number from NRMANUAL
+    SELECT CASE
+             WHEN REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$')
+             THEN TO_NUMBER(TRIM(NRMANUAL))
+             ELSE NULL
+           END
+      INTO v
+      FROM TMDB_DOCS
+     WHERE COD = p_nrdoc;
     RETURN v;
   END get_nrset;
+
+  FUNCTION get_nrmanual(p_nrdoc IN NUMBER) RETURN VARCHAR2 IS
+    v VARCHAR2(25);
+  BEGIN
+    SELECT NRMANUAL INTO v FROM TMDB_DOCS WHERE COD = p_nrdoc;
+    RETURN v;
+  END get_nrmanual;
 
   FUNCTION last_doc RETURN NUMBER IS
   BEGIN

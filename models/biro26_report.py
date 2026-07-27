@@ -25,7 +25,12 @@ _TPL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
                         "reports", "templates")
 
 REPORT_KINDS = {"invoice": "biro26_invoice.hbs", "order": "biro26_order.hbs"}
-PDFME_KINDS = {"invoice": "pdfme_invoice.json", "order": "pdfme_order.json"}
+# RO: al 3-lea sablon pdfme (curat) — camp invoice_nr pentru numarul contului
+# EN: 3rd pdfme template (clean) — invoice_nr field for the invoice number
+PDFME_KINDS = {
+    "invoice": "pdfme_cont_plata.json",
+    "order": "pdfme_order.json",
+}
 ENGINES_FILE = "engines.json"          # {"invoice": "jsreport"|"pdfme", ...}
 
 _RO_MONTHS = ["", "ianuarie", "februarie", "martie", "aprilie", "mai", "iunie",
@@ -123,13 +128,13 @@ class Biro26Report:
     @staticmethod
     def docs_list(client: str = "", limit: int = 50) -> Dict[str, Any]:
         """RO: lista documentelor (conturi de plata web, SYSFID=12280) pentru
-        aplicatiile EXTERNE (API): nr. documentului (#NRSET — numarul vizibil
-        in orice aplicatie nativa), data, clientul, totalul si COD-ul intern.
-        EN: document list for EXTERNAL apps: #NRSET (the number visible in
-        any native app), date, client, total and the internal COD."""
+        aplicatiile EXTERNE (API): nr. documentului (#NRMANUAL — numarul
+        vizibil), data, clientul, totalul si COD-ul intern.
+        EN: document list for EXTERNAL apps: #NRMANUAL (visible number),
+        date, client, total and the internal COD."""
         try:
             sql = ("SELECT * FROM ("
-                   "SELECT d.COD, d.NRSET, "
+                   "SELECT d.COD, d.NRMANUAL, d.NRSET, "
                    "TO_CHAR(d.DATAMANUAL,'DD.MM.YYYY') DDATE, "
                    "m.DTDEP CLIENT_COD, u.DENUMIREA CLIENT_NAME, "
                    "(SELECT ROUND(SUM(l.SUMA),2) FROM VMDB_ST201D l "
@@ -142,6 +147,7 @@ class Biro26Report:
             if client:
                 sql += (" AND (UPPER(u.DENUMIREA) LIKE UPPER(:cl) "
                         "OR TO_CHAR(m.DTDEP) = :cl2 "
+                        "OR TRIM(d.NRMANUAL) = :cl3 "
                         "OR TO_CHAR(d.NRSET) = :cl3)")
                 params.update({"cl": f"%{client}%",
                                "cl2": client.lstrip('#'),
@@ -150,7 +156,9 @@ class Biro26Report:
             params["n"] = max(1, min(int(limit), 500))
             rows = _rows(Biro26DB().execute_query(sql, params))
             for r in rows:
-                r["nr"] = f"#{r['nrset']}"        # hashtag form (#338)
+                # RO/EN: visible invoice number is NRMANUAL (not NRSET subset)
+                vis = r.get("nrmanual") or r.get("nrset")
+                r["nr"] = f"#{vis}" if vis is not None and vis != "" else ""
             return {"success": True, "data": rows}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -158,22 +166,40 @@ class Biro26Report:
     @staticmethod
     def resolve_nr(nr) -> Optional[int]:
         """RO: '#338' / '338' -> COD-ul intern (cel mai recent document web cu
-        acest numar). EN: hashtag/number -> latest internal COD."""
+        acest NRMANUAL). EN: hashtag/number -> latest internal COD by NRMANUAL."""
         try:
             n = int(str(nr).strip().lstrip("#"))
         except (TypeError, ValueError):
             return None
         rows = _rows(Biro26DB().execute_query(
             "SELECT MAX(COD) COD FROM TMDB_DOCS "
-            "WHERE SYSFID = 12280 AND NRSET = :n", {"n": n}))
+            "WHERE SYSFID = 12280 "
+            "AND (TRIM(NRMANUAL) = :s "
+            "     OR (REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$') "
+            "         AND TO_NUMBER(TRIM(NRMANUAL)) = :n))",
+            {"s": str(n), "n": n}))
         return int(rows[0]["cod"]) if rows and rows[0]["cod"] else None
 
     @staticmethod
     def doc_data(cod: int) -> Dict[str, Any]:
-        """Collect everything the forms need for one document COD."""
+        """Collect everything the forms need for one document COD.
+
+        RO: Numarul contului vine DIN pachetul y_ai_BIRO26.get_nrmanual
+            (TMDB_DOCS.NRMANUAL) — recompilarea pachetului schimba imediat
+            sursa numarului, fara restart app.
+        EN: Invoice number comes FROM package y_ai_BIRO26.get_nrmanual
+            (TMDB_DOCS.NRMANUAL) — recompile package to change the source
+            immediately, no app restart.
+        """
         db = Biro26DB()
+        # RO: DOAR coloana NRMANUAL (simplu, fara dependenta de pachet in SELECT).
+        #     Niciodata NRSET (subset=201).
+        # EN: ONLY column NRMANUAL (simple; no package call in SELECT).
+        #     Never NRSET (subset=201).
         head = _rows(db.execute_query(
-            "SELECT d.COD, d.NRSET, TO_CHAR(d.DATAMANUAL,'DD.MM.YYYY') DDATE, "
+            "SELECT d.COD, "
+            "TRIM(d.NRMANUAL) AS NRMANUAL, "
+            "TO_CHAR(d.DATAMANUAL,'DD.MM.YYYY') DDATE, "
             "TO_CHAR(d.DATAMANUAL,'DD') DD, TO_CHAR(d.DATAMANUAL,'MM') MM, "
             "TO_CHAR(d.DATAMANUAL,'YYYY') YY, m.DTDEP CLIENT_COD, "
             "u.DENUMIREA CLIENT_NAME "
@@ -221,8 +247,16 @@ class Biro26Report:
             rate_txt = int(rate) if float(rate) == int(rate) else rate
             tva_label = f"TVA {rate_txt}% inclus (НДС):"
             tva_text = _fmt(tva_val)
+        # RO: numai NRMANUAL. NU NRSET.
+        # EN: NRMANUAL only. NEVER NRSET.
+        vis_nr = str(h.get("nrmanual") or "").strip()
+        if vis_nr.lower() in ("none", "null"):
+            vis_nr = ""
         data = {
-            "number": h["nrset"],
+            # RO/EN: raw number for logic; pdfme header fields filled in _pdfme_inputs
+            "cont_number": vis_nr,
+            "nrmanual": vis_nr,
+            "number": vis_nr,
             "date_short": h["ddate"],
             "date_ro": f"{h['dd']} {_RO_MONTHS[int(h['mm'])]} {h['yy']}",
             "firm": {
@@ -315,11 +349,27 @@ class Biro26Report:
     def _pdfme_inputs(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """Flatten the report data into pdfme text inputs; the items table
         gets the totals appended as extra rows (so long item lists can never
-        overlap a fixed-position totals block)."""
+        overlap a fixed-position totals block).
+
+        RO: Sablon activ pdfme_cont_plata.json — campul "invoice_nr"
+            = text "CONT DE PLATA № {NRMANUAL}" (NU din NRSET).
+        EN: Active template pdfme_cont_plata.json — field "invoice_nr"
+            = text "CONT DE PLATA № {NRMANUAL}" (NOT from NRSET).
+        """
         import json
+        import re
         f, c = data["firm"], data["client"]
         client_line = c["name"] + \
             (f", tel.: {c['phone']}" if c.get("phone") else "")
+        # RO/EN: bare number from NRMANUAL only
+        _nr = str(data.get("nrmanual") or data.get("number")
+                  or data.get("cont_number") or data.get("invoice_nr") or "").strip()
+        m = re.search(r"(\d+)\s*$", _nr)
+        if m and not _nr.isdigit():
+            # strip accidental full-label prefixes
+            _nr = m.group(1)
+        if _nr.lower() in ("none", "null"):
+            _nr = ""
         if kind == "invoice":
             rows = [[str(i + 1), it["name"], str(it["qty"]), it["um"],
                      _fmt(it["price"]), _fmt(it["sum"])]
@@ -329,13 +379,20 @@ class Biro26Report:
                       data.get("tva_label", "Suma TVA (НДС):"),
                       data.get("tva_text", _fmt(data["tva"]))],
                      ["", "", "", "", "SPRE PLATA:", _fmt(data["total"])]]
+            _label = f"CONT DE PLATĂ № {_nr}" if _nr else "CONT DE PLATĂ"
             return {
                 "furnizor_block":
                     f"Furnizor: {f['name']}\nAdresa: {f['address']}\n"
                     f"Cont de decontare nr.: {f['iban']}\n{f['bank']}\n"
                     f"BRANCH: {f['branch']}\nCod fiscal: {f['fiscal_code']}"
                     + (f"\nTelefon: {f['phone']}" if f.get("phone") else ""),
-                "title": f"CONT DE PLATĂ № {data['number']}",
+                # primary field for pdfme_cont_plata.json
+                "invoice_nr": _label,
+                # aliases for older templates (pdfme_invoice.json)
+                "cont_number": _label,
+                "title": _label,
+                "nrmanual": _nr,
+                "number": _nr,
                 "date_ro": data["date_ro"],
                 "platitor_block": "Platitor, adresa: " + client_line +
                                   "\n(Плательщик и его адрес)",
@@ -351,8 +408,14 @@ class Biro26Report:
                  ["", "", "", "", "",
                   data.get("tva_label", "Incl. TVA:"),
                   data.get("tva_text", _fmt(data["tva"]))]]
+        _label = (f"Comanda cumpărătorului № {_nr} din {data['date_ro']}"
+                  if _nr else f"Comanda cumpărătorului din {data['date_ro']}")
         return {
-            "title": f"Comanda cumpărătorului № {data['number']} din {data['date_ro']}",
+            "invoice_nr": _label,
+            "cont_number": _label,
+            "title": _label,
+            "nrmanual": _nr,
+            "number": _nr,
             "hr": "",
             "executor_block": f"Executor: {f['name']}, Cod fiscal {f['fiscal_code']}, {f['address']}",
             "client_block": "Client: " + client_line,
@@ -362,7 +425,6 @@ class Biro26Report:
             "logo": data.get("logo") or "",
         }
 
-    @staticmethod
     def render_pdfme(kind: str, data: Dict[str, Any],
                      template_json: Optional[str] = None) -> Dict[str, Any]:
         """Render via the pdfme engine of the sidecar (POST /pdfme/generate)."""
@@ -456,7 +518,10 @@ class Biro26Report:
             data = d["data"]
         else:
             data = {
-                "number": 999, "date_short": "21.04.2026", "date_ro": "21 aprilie 2026",
+                # RO/EN: sample keys for pdfme_cont_plata (invoice_nr) + legacy
+                "invoice_nr": "999", "cont_number": "999",
+                "nrmanual": "999", "number": "999",
+                "date_short": "21.04.2026", "date_ro": "21 aprilie 2026",
                 "firm": {"name": Config.BIRO26_FIRM_NAME, "address": Config.BIRO26_FIRM_ADDRESS,
                          "fiscal_code": Config.BIRO26_FIRM_FISCAL, "iban": Config.BIRO26_FIRM_IBAN,
                          "bank": Config.BIRO26_FIRM_BANK, "branch": Config.BIRO26_FIRM_BRANCH,
@@ -470,6 +535,7 @@ class Biro26Report:
                      "cod": "GO-00001647", "qty": 1, "um": "șt", "price": 115.0, "sum": 115.0},
                 ],
                 "total": 665.0, "tva": 110.84,
+                "tva_label": "TVA 20% inclus (НДС):", "tva_text": "110,84",
                 "logo": _logo_data_uri(),
             }
         # RO: sabloanele pdfme_*.json merg prin motorul pdfme

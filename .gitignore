@@ -95,3 +95,8 @@ reports/lite/node_modules/
 # RO: copia locala WordPress officeplus.md (120MB, date live) — doar README + scripturile stau in git
 wordpress_officeplus/public_html/
 wordpress_officeplus/db/
+
+# ServOuts26 WP local install (only README is tracked)
+wordpress/servouts26/public_html/
+wordpress/servouts26/db/
+.playwright-mcp/

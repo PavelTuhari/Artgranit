@@ -25,7 +25,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;f
 <div class="top">
   <span class="logo">{{ app_name }} · pdfme Designer</span>
   <select id="tpl" onchange="loadTemplate()">
-    <option value="pdfme_invoice.json">pdfme_invoice.json — Cont de plată</option>
+    <option value="pdfme_cont_plata.json">pdfme_cont_plata.json — Cont de plată (v3, invoice_nr)</option>
+    <option value="pdfme_invoice.json">pdfme_invoice.json — Cont de plată (legacy)</option>
     <option value="pdfme_order.json">pdfme_order.json — Comanda cumpărătorului</option>
   </select>
   <button class="btn" onclick="saveTemplate()">💾 Salvează · Сохранить</button>

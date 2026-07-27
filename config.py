@@ -294,8 +294,9 @@ class Config:
         o = _load_iute_overrides()
         return o.get('salesman_identifier') or cls.IUTE_SALESMAN_IDENTIFIER
 
-    # Rate limiting
-    RATELIMIT_DEFAULT = os.environ.get('RATELIMIT_DEFAULT', '200 per hour')
+    # Rate limiting (anonymous non-BIRO26 /api only; BIRO26 + auth are exempt in app.py)
+    # 120/min burst + 5000/hour ceiling — UI-friendly, still stops simple floods
+    RATELIMIT_DEFAULT = os.environ.get('RATELIMIT_DEFAULT', '120 per minute; 5000 per hour')
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
     RATELIMIT_ENABLED = os.environ.get('RATELIMIT_ENABLED', 'true').lower() == 'true'
 

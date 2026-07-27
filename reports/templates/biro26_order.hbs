@@ -23,7 +23,7 @@
 <body>
 
 {{#if logo}}<div style="text-align:right; margin-bottom:4px"><img src="{{logo}}" style="height:38px"></div>{{/if}}
-<h1>Comanda cumpărătorului № {{number}} din {{date_ro}}</h1>
+<h1>Comanda cumpărătorului № {{nrmanual}} din {{date_ro}}</h1>
 
 <div class="who"><b>Executor:</b> {{firm.name}}, Cod fiscal {{firm.fiscal_code}}, {{firm.address}}</div>
 <div class="who"><b>Client:</b> {{client.name}}{{#if client.fiscal_code}}, Cod fiscal {{client.fiscal_code}}{{/if}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, tel.: {{client.phone}}{{/if}}</div>
