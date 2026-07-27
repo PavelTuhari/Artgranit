@@ -561,6 +561,16 @@ taburi RO/RU/EN (<code>GET/PUT /api/biro26/webattr/&lt;COD&gt;</code>). Căutare
 normalizează interogarea («carti» = «cărți»). Detalii:
 <code>TZ_WEB_TMS_MPT_WEBATTR.md</code>.</p>
 
+<p><b>Deduplicare GOG (26.07.2026):</b> importul load 164 (fișier GOG fără coloana
+BARCODE) a creat ~37,7k carduri-dublură cu <code>CODVECHI=GOG*</code> și barcode-uri
+interne generate cu prefix «2» (interval EAN de uz intern). Remediat: perechile
+dublură→original identificate prin barcode-ul real (loads 172/228) sunt jurnalizate în
+<code>YBIRO_GOG_DEDUP</code> (37 697, reversibil), articolul GOG a fost mutat pe cardul
+ORIGINAL, dublurile arhivate soft (<code>ISARHIV='2'</code>). Prevenție: în pachetul
+<code>BIRO26PT_importData.classify()</code> potrivirea se face acum <b>întâi după
+BARCODE</b> (un singur card activ), apoi după ARTICOL — un fișier fără barcode nu mai
+«lipește» importurile viitoare de dubluri.</p>
+
 <p><b>Module de plată/credit (magazin):</b> MAIB Checkout v2 (card, test+refund),
 MIA QR (QMoney) + MIA P2P; credit/rate — organizații dinamice
 (<code>YBIRO_CREDIT_ORG/PLAN/REQ</code>, admin <code>biro26-credit-admin</code>),
