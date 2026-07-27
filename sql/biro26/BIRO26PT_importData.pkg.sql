@@ -14,6 +14,15 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   g_new_matgr     NUMBER       := 1;            -- RO: TMS_MPT.MATGR1=1 => produs NOU / EN: MATGR1=1 => NEW product
   g_new_group     VARCHAR2(60) := 'PRODUSE NOI';-- RO: nod nou in arbore / EN: new tree node
   g_ean_prefix    VARCHAR2(4)  := '20';         -- RO: prefix EAN intern (uz in-store) / EN: internal EAN prefix
+  -- RO: PAZA anti-dubluri (incidentul GOG, load 164): un fisier FARA coloana de cod
+  --     de bare, potrivit doar dupa ARTICOL, a creat ~37,7k carduri-dublura.
+  --     Daca fisierul n-are BARCODE si ar crea mai mult de g_max_new_nobc pozitii
+  --     NOI, importul se OPRESTE (se poate forta explicit cu p_force => TRUE).
+  -- EN: anti-duplicate GUARD (GOG incident, load 164): a file WITHOUT a barcode
+  --     column, matched by ARTICLE only, created ~37.7k duplicate cards. If a file
+  --     has no BARCODE and would create more than g_max_new_nobc NEW positions the
+  --     import STOPS (override explicitly with p_force => TRUE).
+  g_max_new_nobc  PLS_INTEGER  := 200;         -- RO: prag pozitii NOI fara barcode / EN: NEW-rows threshold w/o barcode
 
   -- RO: detecteaza coloanele pentru un fisier (load_id) / EN: detect columns for a file (load_id)
   PROCEDURE detect_columns(p_load_id IN NUMBER, p_verbose IN BOOLEAN DEFAULT TRUE);
@@ -37,14 +46,16 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
                         p_codprice    IN NUMBER   DEFAULT NULL,
                         p_commit      IN BOOLEAN  DEFAULT FALSE,
                         p_mark_all_new IN BOOLEAN DEFAULT TRUE,
-                        p_date        IN DATE     DEFAULT NULL);
+                        p_date        IN DATE     DEFAULT NULL,
+                        p_force       IN BOOLEAN  DEFAULT FALSE);
 
   -- RO: proceseaza toate fisierele neimportate / EN: process all not-yet-imported files
   PROCEDURE import_folder(p_grupa       IN VARCHAR2 DEFAULT NULL,
                           p_codprice    IN NUMBER   DEFAULT NULL,
                           p_commit      IN BOOLEAN  DEFAULT FALSE,
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
-                          p_date        IN DATE     DEFAULT NULL);
+                          p_date        IN DATE     DEFAULT NULL,
+                          p_force       IN BOOLEAN  DEFAULT FALSE);
 
   -- RO: descrierea algoritmului in Markdown (RO+EN) / EN: algorithm description in Markdown (RO+EN)
   FUNCTION  algo_md RETURN CLOB;
@@ -337,14 +348,14 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     UPDATE biro26pt_stg s SET s.status =
       CASE
         WHEN s.articol IS NULL THEN 'NOARTICOL'
-        WHEN (SELECT COUNT(*) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi)) = 0 THEN 'NEW'
-        WHEN (SELECT COUNT(*) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi)) = 1 THEN 'EXISTING'
+        WHEN (SELECT COUNT(*) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi) AND NVL(u.isarhiv,'0')<>'2') = 0 THEN 'NEW'
+        WHEN (SELECT COUNT(*) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi) AND NVL(u.isarhiv,'0')<>'2') = 1 THEN 'EXISTING'
         ELSE 'AMBIGUOUS'
       END
     WHERE s.load_id = p_load_id AND s.cod_univers IS NULL;
     -- RO: leaga codul pentru cele existente / EN: bind cod for existing ones
     UPDATE biro26pt_stg s
-       SET s.cod_univers = (SELECT MIN(u.cod) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi))
+       SET s.cod_univers = (SELECT MIN(u.cod) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi) AND NVL(u.isarhiv,'0')<>'2')
      WHERE s.load_id = p_load_id AND s.status = 'EXISTING'
        AND s.cod_univers IS NULL;
     COMMIT;
@@ -736,8 +747,10 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                         p_codprice    IN NUMBER   DEFAULT NULL,
                         p_commit      IN BOOLEAN  DEFAULT FALSE,
                         p_mark_all_new IN BOOLEAN DEFAULT TRUE,
-                        p_date        IN DATE     DEFAULT NULL) IS
-    v_cp NUMBER := NVL(p_codprice, g_codprice);
+                        p_date        IN DATE     DEFAULT NULL,
+                        p_force       IN BOOLEAN  DEFAULT FALSE) IS
+    v_cp   NUMBER := NVL(p_codprice, g_codprice);
+    v_new  NUMBER;
   BEGIN
     detect_columns(p_load_id, TRUE);
     IF col_of(p_load_id,'ARTICOL') IS NULL AND col_of(p_load_id,'DENUMIRE') IS NULL THEN
@@ -745,6 +758,24 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     END IF;
     build_stg(p_load_id, p_grupa);
     classify(p_load_id);
+
+    -- RO: PAZA anti-dubluri: fisier fara coloana de cod de bare + multe pozitii NOI.
+    --     Asa s-au nascut cele ~37,7k dubluri GOG (load 164): potrivirea mergea doar
+    --     dupa ARTICOL, cardurile vechi n-aveau articol, deci totul a devenit NOU.
+    -- EN: anti-duplicate GUARD: no barcode column + many NEW rows. This is exactly how
+    --     the ~37.7k GOG duplicates appeared (load 164).
+    SELECT COUNT(*) INTO v_new FROM biro26pt_stg
+     WHERE load_id = p_load_id AND status = 'NEW';
+    IF col_of(p_load_id,'BARCODE') IS NULL AND v_new > g_max_new_nobc AND NOT p_force THEN
+      say('  RO: *** OPRIT *** fisierul NU are coloana COD DE BARE si ar crea ' || v_new ||
+          ' pozitii NOI (prag ' || g_max_new_nobc || ').');
+      say('  RO: Riscul: dubluri de marfa (vezi incidentul GOG / load 164). Cereti furnizorului');
+      say('      coloana de coduri de bare, SAU rulati explicit cu p_force => TRUE daca sinteti sigur.');
+      say('  EN: *** STOPPED *** no BARCODE column and ' || v_new || ' NEW rows would be created;');
+      say('      ask the supplier for barcodes, or re-run with p_force => TRUE.');
+      RETURN;
+    END IF;
+
     IF p_commit THEN
       say('  RO: >>> COMMIT: se scrie in productie / EN: >>> COMMIT: writing to production');
       do_writes(p_load_id, v_cp, p_mark_all_new, p_date);
@@ -759,10 +790,11 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                           p_codprice    IN NUMBER   DEFAULT NULL,
                           p_commit      IN BOOLEAN  DEFAULT FALSE,
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
-                          p_date        IN DATE     DEFAULT NULL) IS
+                          p_date        IN DATE     DEFAULT NULL,
+                          p_force       IN BOOLEAN  DEFAULT FALSE) IS
   BEGIN
     FOR r IN (SELECT load_id FROM biro26pt_file ORDER BY load_id) LOOP
-      import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date);
+      import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date, p_force);
     END LOOP;
   END import_folder;
 

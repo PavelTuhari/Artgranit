@@ -332,6 +332,41 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.16 ⛔ Fișier FĂRĂ coloană de cod de bare = fabrică de dubluri (incidentul GOG)
+
+**Ce s-a întâmplat.** Un fișier de 37 717 rânduri (load 164) a fost importat **fără coloana
+BARCODE**. Potrivirea mergea doar după `ARTICOL` → cardurile vechi n-aveau articol
+(`CODVECHI IS NULL`) → **toate rândurile au devenit NEW** → ~37,7k carduri-dublură cu articol
+`GOG*` și cod de bare intern generat `2000000…`. Mai rău: încărcările **următoare**, care
+aveau coduri de bare reale, se potriveau tot după articol și „se lipeau" de dublură.
+
+**Regula.** Codul de bare real e **cheia primară de potrivire**, articolul — a doua:
+
+```sql
+-- PRIORITATE 1: barcode real, un singur card ACTIV
+UPDATE biro26pt_stg s SET s.status='EXISTING',
+       s.cod_univers = (SELECT MIN(b.cod) FROM tms_mpt_barcode b
+                        JOIN tms_univers u ON u.cod=b.cod AND u.tip='P'
+                        WHERE b.barcode=s.barcode AND NVL(u.isarhiv,'0')<>'2')
+ WHERE s.load_id=:l AND s.barcode IS NOT NULL AND (...COUNT(DISTINCT b.cod)...) = 1;
+-- PRIORITATE 2: după articol, doar rândurile nepotrivite mai sus
+```
+
+**Pază în pachet** (`g_max_new_nobc`, implicit 200): dacă fișierul **nu are** coloană de cod
+de bare **și** ar crea mai mult de 200 de poziții NOI, `import_file` se **oprește** cu mesaj
+explicit. Se poate forța conștient: `p_force => TRUE`. Testat: 300 poziții fără barcode →
+import oprit; cu `p_force` → trece.
+
+**Alte reguli deduse din incident:**
+- **Nu emiteți serii noi de articole** pentru marfă care există deja — după deduplicare
+  articolele `GOG*` stau pe cardurile ORIGINALE; folosiți-le pe acelea.
+- Codurile interne `2000000…` (prefix EAN „2" = uz intern) **nu sunt** coduri de producător —
+  nu le trimiteți în fișiere noi ca EAN reale.
+- **Cardurile arhivate** (`ISARHIV='2'`) sînt excluse din potrivire (și după barcode, și după
+  articol) — nu se mai scrie în dubluri. Lista: `SELECT dup_cod FROM YBIRO_GOG_DEDUP`.
+- Curățarea e **reversibilă**: `YBIRO_GOG_DEDUP` păstrează 37 697 perechi
+  `DUP_COD → ORIG_COD` cu articol și barcode.
+
 ### 9.13 ⚠️ Arborele „Grupe de marfă" se citește din `BIRO26_GOODS`, NU din arborele nativ
 Back-office-ul (biro26-backoffice) construiește panoul „Grupe de marfă" / navigarea magazinului
 **exclusiv din tabelul-feed `BIRO26_GOODS`** (coloanele text `GRUPA` + `CATEGORIE`, join
