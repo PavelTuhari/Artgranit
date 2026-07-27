@@ -310,7 +310,30 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
   PROCEDURE classify(p_load_id IN NUMBER) IS
     v_new NUMBER; v_exist NUMBER; v_amb NUMBER; v_noart NUMBER; v_pchg NUMBER; v_bc NUMBER;
   BEGIN
-    -- RO: nr. de coduri univers per articol / EN: number of univers codes per article
+    -- RO: PRIORITATE 1 — potrivirea dupa BARCODE (cod de bare REAL din
+    --     fisier, un singur card ACTIV in baza). Fara aceasta prioritate,
+    --     un fisier fara barcode a creat ~39.7k dubluri GOG* (load 164):
+    --     articolul nou nu se gasea si totul devenea NEW; incarcarile
+    --     urmatoare CU barcode se lipeau tot de dublura (articolul
+    --     cistiga). EN: PRIORITY 1 — match by real file BARCODE first
+    --     (single ACTIVE card); prevents duplicate cards when the article
+    --     is new but the product already exists under another article.
+    UPDATE biro26pt_stg s
+       SET s.status = 'EXISTING',
+           s.cod_univers = (SELECT MIN(b.cod)
+                              FROM tms_mpt_barcode b
+                              JOIN tms_univers u ON u.cod = b.cod AND u.tip = g_tip
+                             WHERE b.barcode = s.barcode
+                               AND NVL(u.isarhiv,'0') <> '2')
+     WHERE s.load_id = p_load_id
+       AND s.barcode IS NOT NULL
+       AND (SELECT COUNT(DISTINCT b.cod)
+              FROM tms_mpt_barcode b
+              JOIN tms_univers u ON u.cod = b.cod AND u.tip = g_tip
+             WHERE b.barcode = s.barcode
+               AND NVL(u.isarhiv,'0') <> '2') = 1;
+    -- RO: PRIORITATE 2 — dupa ARTICOL (doar rindurile nepotrivite mai sus)
+    -- EN: PRIORITY 2 — by article, only for rows not matched by barcode
     UPDATE biro26pt_stg s SET s.status =
       CASE
         WHEN s.articol IS NULL THEN 'NOARTICOL'
@@ -318,11 +341,12 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
         WHEN (SELECT COUNT(*) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi)) = 1 THEN 'EXISTING'
         ELSE 'AMBIGUOUS'
       END
-    WHERE s.load_id = p_load_id;
+    WHERE s.load_id = p_load_id AND s.cod_univers IS NULL;
     -- RO: leaga codul pentru cele existente / EN: bind cod for existing ones
     UPDATE biro26pt_stg s
        SET s.cod_univers = (SELECT MIN(u.cod) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi))
-     WHERE s.load_id = p_load_id AND s.status = 'EXISTING';
+     WHERE s.load_id = p_load_id AND s.status = 'EXISTING'
+       AND s.cod_univers IS NULL;
     COMMIT;
 
     SELECT
