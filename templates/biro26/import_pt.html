@@ -125,8 +125,33 @@ async function jj(url, opts) {
   if (opts.body && !(opts.body instanceof FormData))
     opts.headers = {'Content-Type': 'application/json'};
   const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
-  if (!b.success && b.error) toast(b.error, true);
+  if (!b.success && b.error) { toast(b.error, true); showFullError(b.error); }
   return b;
+}
+/* RO: eroarea Oracle se afiseaza INTEGRAL si persistent (nu doar toast) —
+   valoarea problematica din mesaj (ex. ORA-20077) e cheia diagnosticului
+   (cerinta echipei de import, RAPORT_IMPORT_SET9_SCOPE_FIX.md §3). */
+function showFullError(msg) {
+  let box = document.getElementById('err-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'err-box';
+    box.style.cssText = 'position:sticky;top:0;z-index:150;background:#fef2f2;' +
+      'border:1px solid #fecaca;border-radius:8px;padding:10px 36px 10px 12px;' +
+      'margin:10px 0;color:#991b1b;font-size:12.5px;white-space:pre-wrap;' +
+      'word-break:break-word;font-family:ui-monospace,Menlo,monospace';
+    const x = document.createElement('button');
+    x.textContent = '×';
+    x.style.cssText = 'position:absolute;top:6px;right:8px;border:0;background:none;' +
+      'font-size:18px;cursor:pointer;color:#991b1b';
+    x.onclick = () => box.remove();
+    box.appendChild(x);
+    const wrap = document.querySelector('.wrap') || document.body;
+    wrap.insertBefore(box, wrap.firstChild);
+  }
+  const t = document.createElement('div');
+  t.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+  box.appendChild(t);
 }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
