@@ -24,6 +24,13 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   --     import STOPS (override explicitly with p_force => TRUE).
   g_max_new_nobc  PLS_INTEGER  := 200;         -- RO: prag pozitii NOI fara barcode / EN: NEW-rows threshold w/o barcode
 
+  -- RO: load_id-ul incarcarii curente — folosit de view-ul BIRO26PT_STG_CUR ca sa
+  --     limiteze importul DOAR la fisierul curent (altfel YBIRO_Import_Marfa ar lua
+  --     TOATE randurile din stagin, inclusiv ale altor incarcari!).
+  -- EN: current load id — used by the BIRO26PT_STG_CUR view to scope the import to
+  --     the CURRENT file only (otherwise YBIRO_Import_Marfa would take ALL staging rows).
+  FUNCTION  cur_load RETURN NUMBER;
+
   -- RO: detecteaza coloanele pentru un fisier (load_id) / EN: detect columns for a file (load_id)
   PROCEDURE detect_columns(p_load_id IN NUMBER, p_verbose IN BOOLEAN DEFAULT TRUE);
 
@@ -63,6 +70,12 @@ END BIRO26PT_importData;
 /
 
 CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
+
+  -- RO: incarcarea curenta (vezi cur_load) / EN: current load (see cur_load)
+  g_cur_load NUMBER := -1;
+
+  FUNCTION cur_load RETURN NUMBER IS
+  BEGIN RETURN g_cur_load; END;
 
   PROCEDURE say(p IN VARCHAR2) IS
   BEGIN DBMS_OUTPUT.PUT_LINE(p); END;
@@ -452,11 +465,22 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     --     ('31.12.3000') per NLS_DATE_FORMAT; month-name sessions (e.g. the web app) raise ORA-01843.
     EXECUTE IMMEDIATE 'ALTER SESSION SET NLS_DATE_FORMAT=''DD.MM.YYYY''';
     -- RO: aloca cod nou pozitiilor NOI / EN: assign new cod to NEW positions
+    -- RO: NU dam cod randurilor fara denumire — import_univers le sare (DENUMIREA e
+    --     obligatorie), iar apoi pasii urmatori ar referi un COD inexistent (ORA-02291).
+    -- EN: do NOT assign a COD to rows without a name — import_univers skips them and the
+    --     later steps would reference a non-existent COD (ORA-02291).
     UPDATE biro26pt_stg SET cod_univers = ID_TMS_UNIVERS.NEXTVAL
-     WHERE load_id = p_load_id AND status = 'NEW';
+     WHERE load_id = p_load_id AND status = 'NEW' AND denumire IS NOT NULL;
     COMMIT;
     -- RO: pointeaza pachetul reutilizat catre STG / EN: point the reused package to STG
-    YBIRO_Import_Marfa.g_tbl_goods  := 'BIRO26PT_STG';
+    -- RO: IMPORTANT — pachetul reutilizat citeste TOATA tabela indicata. Il legam la
+    --     view-ul filtrat pe incarcarea curenta, altfel ar insera randuri din ALTE
+    --     fisiere ramase in stagin (73k randuri straine la un moment dat!).
+    -- EN: IMPORTANT — the reused package reads the WHOLE table it is pointed at. We bind
+    --     it to the view scoped to the current load, otherwise rows from OTHER files
+    --     still sitting in staging would be imported too.
+    g_cur_load := p_load_id;
+    YBIRO_Import_Marfa.g_tbl_goods  := 'BIRO26PT_STG_CUR';
     YBIRO_Import_Marfa.g_col_key    := 'COD_UNIVERS';
     YBIRO_Import_Marfa.g_col_articol:= 'ARTICOL';
     YBIRO_Import_Marfa.g_col_denumire := 'DENUMIRE';
@@ -572,6 +596,7 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       WHERE h.id0 = 1 AND h.id1 = v_nid1
         AND s.load_id = p_load_id AND s.status = 'NEW' AND s.cod_univers IS NOT NULL
         AND NVL(TRIM(s.grupa), 'IMPORT PT') = g.grupa
+        AND EXISTS (SELECT 1 FROM tms_univers u2 WHERE u2.cod = s.cod_univers)
         AND NOT EXISTS (SELECT 1 FROM tms_sysgrp x WHERE x.id0 = 1 AND x.sc = s.cod_univers);
       v_cnt := v_cnt + SQL%ROWCOUNT;
     END LOOP;

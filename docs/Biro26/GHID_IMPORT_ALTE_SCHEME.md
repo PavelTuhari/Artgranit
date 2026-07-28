@@ -332,6 +332,46 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.18 ⛔ Un import trebuie sa vada DOAR incarcarea lui (stagin cumulativ)
+
+`BIRO26PT_STG` / `BIRO26PT_RAW` sint **cumulative** — pastreaza randurile tuturor
+incarcarilor. Iar `YBIRO_Import_Marfa.import_univers` citeste **toata tabela** pe care e
+configurat (`g_tbl_goods`), **fara filtru pe `load_id`**:
+
+```sql
+SELECT g.cod_univers, ... FROM BIRO26PT_STG g          -- toata tabela!
+ WHERE g.cod_univers IS NOT NULL AND g.denumire IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM tms_univers t WHERE t.cod = g.cod_univers)
+```
+
+**Efect real:** la importul set 9 stagin-ul avea **204 incarcari / 616 210 randuri**, din
+care **73 146** ar fi fost inserate desi apartineau ALTOR fisiere. Importul a picat cu
+`ORA-20077` pe un text stricat dintr-un feed complet diferit (RADOP), desi fisierul curent
+era curat.
+
+**Regula:** legati pachetul reutilizat la un **view filtrat pe incarcarea curenta**:
+
+```sql
+FUNCTION cur_load RETURN NUMBER;                       -- in pachet, intoarce g_cur_load
+
+CREATE OR REPLACE VIEW BIRO26PT_STG_CUR AS
+  SELECT * FROM biro26pt_stg WHERE load_id = BIRO26PT_importData.cur_load;
+```
+```plsql
+g_cur_load := p_load_id;
+YBIRO_Import_Marfa.g_tbl_goods := 'BIRO26PT_STG_CUR';
+```
+
+**Regula-sora (ORA-02291):** randurile **fara denumire** nu primesc `COD` — `import_univers`
+le sare oricum (numele e obligatoriu), iar pasii urmatori ar refera un produs inexistent.
+In plus, inserarea in arbore verifica explicit `EXISTS (SELECT 1 FROM tms_univers ...)`.
+
+**Intretinere:** stergeti periodic stagin-ul vechi, altfel creste la nesfirsit:
+```sql
+DELETE FROM biro26pt_stg WHERE load_id IN (
+  SELECT load_id FROM biro26pt_file WHERE loaded_at < SYSDATE - 30);
+```
+
 ### 9.17 ⛔ Prefixe in articol ("SKU:", "Articol:", "Cod:") = dubluri
 
 Fisierele furnizorilor pun uneori eticheta in celula: `SKU: CM600`, `Articol: 1035A`.
