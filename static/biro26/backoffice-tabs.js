@@ -982,7 +982,7 @@ function onStockConstChange() {
   // re-render every already-loaded row with the new constant (no re-fetch)
   const tbody = el('prod-body');
   if (tbody) tbody.innerHTML = prodState.rows.map(productRowHtml).join('') ||
-    emptyRow(tbody, 15, 'no_data');
+    emptyRow(tbody, 16, 'no_data');
 }
 
 /* infinite-scroll state for the product+stock grid */
@@ -1104,7 +1104,7 @@ async function loadProductsStock(reset = true) {
     prodState.hasMore = true;
     prodState.rows = [];
     const tbody = el('prod-body');
-    tbody.innerHTML = emptyRow(tbody, 15, 'loading');
+    tbody.innerHTML = emptyRow(tbody, 16, 'loading');
     if (el('prod-end-row')) el('prod-end-row').style.display = 'none';
   }
 
@@ -1140,7 +1140,7 @@ async function loadProductsStock(reset = true) {
 
   const tbody = el('prod-body');
   if (reset) {
-    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 15, 'no_data');
+    tbody.innerHTML = batch.length ? batch.map(productRowHtml).join('') : emptyRow(tbody, 16, 'no_data');
   } else if (batch.length) {
     tbody.insertAdjacentHTML('beforeend', batch.map(productRowHtml).join(''));
   }
@@ -1162,6 +1162,8 @@ function productRowHtml(p) {
       (p.bc_cnt > 1 ? ' <span class="badge badge-default" title="' + p.bc_cnt + '">+' + (p.bc_cnt - 1) + '</span>' : '') + '</td>'
     : '<td></td>';
   return '<tr id="prow-' + p.cod + '" onclick="selectProdForHistory(' + p.cod + ')">' +
+    '<td class="mono num" style="cursor:pointer" title="Cod UNA.Univers — deschide fisa" ' +
+      'onclick="showItemCard(' + p.cod + ')">' + p.cod + '</td>' +
     imgCell(p.image) +
     '<td class="mono">' + escapeHtml(p.codvechi || '') + '</td>' +
     bcCell +
@@ -1748,3 +1750,99 @@ async function treeMoveCategorie(grupa, categorie, cnt) {
    backoffice.html a definit apiGet/el/LANG). EN: boot-load the grouping
    translations dictionary. */
 loadGrpTr();
+
+/* =====================================================================
+   RO: GRID DE BAZA interactiv — se aplica AUTOMAT tuturor tabelelor
+   .data-table din backoffice (Marfa/Stoc, Nomenclator, Lista de preturi,
+   Stoc calc, variante etc.):
+     1) click pe titlul coloanei = sortare asc/desc (numeric-aware,
+        peste rindurile incarcate in grila);
+     2) rind de filtre sub antet — cautare/filtrare valoare per coloana
+        (contine, fara majuscule; se re-aplica si dupa reincarcarea grilei).
+   EN: base interactive grid: header-click sorting + per-column filters,
+   auto-attached to every .data-table (also dynamically created ones).
+   ===================================================================== */
+function guxCellVal(tr, i) {
+  const c = tr.cells[i];
+  return c ? c.textContent.trim() : '';
+}
+function guxNum(v) {
+  const n = parseFloat(String(v).replace(/[\s ]/g, '').replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+function guxSort(tbl, idx, th) {
+  const tb = tbl.tBodies[0];
+  if (!tb) return;
+  const dir = th.dataset.sdir === 'asc' ? 'desc' : 'asc';
+  [...tbl.tHead.rows[0].cells].forEach(c => {
+    delete c.dataset.sdir; c.classList.remove('gux-asc', 'gux-desc');
+  });
+  th.dataset.sdir = dir;
+  th.classList.add(dir === 'asc' ? 'gux-asc' : 'gux-desc');
+  const rows = [...tb.rows].filter(r => r.cells.length > 1);   // fara empty-state
+  const numeric = rows.length &&
+    rows.every(r => { const v = guxCellVal(r, idx); return v === '' || guxNum(v) !== null; });
+  rows.sort((a, b) => {
+    const x = guxCellVal(a, idx), y = guxCellVal(b, idx);
+    if (numeric) {
+      const nx = guxNum(x), ny = guxNum(y);
+      const vx = nx === null ? -Infinity : nx, vy = ny === null ? -Infinity : ny;
+      return dir === 'asc' ? vx - vy : vy - vx;
+    }
+    return dir === 'asc' ? x.localeCompare(y, 'ro') : y.localeCompare(x, 'ro');
+  });
+  rows.forEach(r => tb.appendChild(r));
+}
+function guxApplyFilters(tbl) {
+  const fr = tbl.tHead && tbl.tHead.querySelector('.gux-filter');
+  const tb = tbl.tBodies[0];
+  if (!fr || !tb) return;
+  const flt = [...fr.cells].map(td => {
+    const i = td.querySelector('input');
+    return i ? i.value.trim().toLowerCase() : '';
+  });
+  const active = flt.some(Boolean);
+  [...tb.rows].forEach(r => {
+    if (r.cells.length <= 1) return;                            // empty-state
+    r.style.display = (!active || flt.every((f, i) =>
+      !f || guxCellVal(r, i).toLowerCase().includes(f))) ? '' : 'none';
+  });
+}
+function guxSetup(tbl) {
+  if (tbl.dataset.gux || !tbl.tHead || !tbl.tHead.rows.length) return;
+  tbl.dataset.gux = '1';
+  const hrow = tbl.tHead.rows[0];
+  [...hrow.cells].forEach((th, idx) => {
+    th.style.cursor = 'pointer';
+    if (!th.title) th.title = 'Sortează · Сортировка (click)';
+    th.addEventListener('click', () => guxSort(tbl, idx, th));
+  });
+  const fr = tbl.tHead.insertRow(-1);
+  fr.className = 'gux-filter';
+  [...hrow.cells].forEach(() => {
+    const td = document.createElement('th');
+    const inp = document.createElement('input');
+    inp.type = 'search';
+    inp.placeholder = '🔍';
+    inp.className = 'gux-f';
+    inp.addEventListener('input', () => guxApplyFilters(tbl));
+    inp.addEventListener('click', e => e.stopPropagation());
+    td.appendChild(inp);
+    fr.appendChild(td);
+  });
+  // RO: dupa reincarcarea tbody-ului filtrele active se re-aplica
+  if (tbl.tBodies[0]) {
+    new MutationObserver(() => guxApplyFilters(tbl))
+      .observe(tbl.tBodies[0], {childList: true});
+  }
+}
+function initGridUX() {
+  document.querySelectorAll('table.data-table').forEach(guxSetup);
+}
+initGridUX();
+// RO: tabelele create dinamic (fisa cu variante etc.) se echipeaza si ele
+let guxTimer = null;
+new MutationObserver(() => {
+  clearTimeout(guxTimer);
+  guxTimer = setTimeout(initGridUX, 400);
+}).observe(document.body, {childList: true, subtree: true});
