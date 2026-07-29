@@ -325,6 +325,13 @@ html, body {
 .mono { font-family: 'SF Mono', Consolas, Menlo, monospace; }
 .muted { color: var(--c-gray); }
 .req { color: var(--c-red); }
+/* RO: grid de baza interactiv — sortare pe click + filtre per coloana */
+.data-table th.gux-asc::after{content:' ▲';font-size:9px;color:#1d4ed8}
+.data-table th.gux-desc::after{content:' ▼';font-size:9px;color:#1d4ed8}
+.gux-filter th{padding:2px 4px !important;background:#f8fafc;position:sticky;top:28px}
+.gux-f{width:100%;min-width:34px;padding:2px 5px;border:1px solid #e2e8f0;
+  border-radius:5px;font-size:11px;background:#fff;box-sizing:border-box}
+.gux-f:focus{outline:none;border-color:#93c5fd}
 </style>
 </head>
 <body>
@@ -853,6 +860,7 @@ html, body {
           <div class="data-table-wrap" id="prod-table-wrap" style="max-height:640px">
             <table class="data-table">
               <thead><tr>
+                <th class="num">Cod UNA.Univers</th>
                 <th data-i18n="col_image"></th>
                 <th data-i18n="col_articol"></th>
                 <th data-i18n="col_barcode"></th>
@@ -870,7 +878,7 @@ html, body {
                 <th class="num" data-i18n="cart_qty_col"></th>
               </tr></thead>
               <tbody id="prod-body">
-                <tr><td colspan="15"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
+                <tr><td colspan="16"><div class="empty-state"><div class="es-icon">📦</div><p data-i18n="loading"></p></div></td></tr>
               </tbody>
             </table>
             <div id="prod-more-row" class="muted" style="text-align:center;padding:10px;display:none" data-i18n="prod_loading_more"></div>
@@ -1117,7 +1125,7 @@ ru: {
   col_codunivers: 'Код словаря', col_status: 'Статус',
   dict_title: 'Номенклатура (TMS_UNIVERS)',
   act_import_dict: 'Импорт номенклатуры', act_archive: 'Архивировать', act_fixconfus: 'Исправить похожие символы',
-  col_cod: 'Код', col_codvechi: 'Старый код', col_denumirea: 'Наименование', col_gr1: 'Группа',
+  col_cod: 'Cod UNA.Univers', col_codvechi: 'Старый код', col_denumirea: 'Наименование', col_gr1: 'Группа',
   col_um: 'Ед.изм.', col_isarhiv: 'Архив',
   dict_detail_title: 'Карточка товара', dict_detail_empty: 'Выберите строку в таблице слева',
   grp_title: 'Группы / Поставщики',
@@ -1170,7 +1178,7 @@ ru: {
   stock_run: 'Рассчитать остатки', stock_items_title: 'Результат последнего расчёта',
   stock_no_calc: 'Ещё не рассчитано', stock_last_run: 'Последний расчёт',
   confirm_stock_calc: 'Запустить расчёт остатков? Это выполнит реальный запрос к ERP.',
-  col_sc: 'SC', col_datastart: 'Дата начала', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
+  col_sc: 'Cod UNA.Univers', col_datastart: 'Дата начала', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Сопоставление / Настройки', map_conn_title: 'Подключение к Oracle',
   act_test_conn: 'Проверить подключение',
@@ -1225,7 +1233,7 @@ ro: {
   col_codunivers: 'Cod univers', col_status: 'Status',
   dict_title: 'Nomenclator (TMS_UNIVERS)',
   act_import_dict: 'Import nomenclator', act_archive: 'Arhivare', act_fixconfus: 'Corectează confundabile',
-  col_cod: 'Cod', col_codvechi: 'Cod vechi', col_denumirea: 'Denumire', col_gr1: 'Grupă',
+  col_cod: 'Cod UNA.Univers', col_codvechi: 'Cod vechi', col_denumirea: 'Denumire', col_gr1: 'Grupă',
   col_um: 'U.M.', col_isarhiv: 'Arhivat',
   dict_detail_title: 'Fișă produs', dict_detail_empty: 'Selectați un rând din tabel',
   grp_title: 'Grupe / Furnizori',
@@ -1278,7 +1286,7 @@ ro: {
   stock_run: 'Calculează stocul', stock_items_title: 'Rezultatul ultimului calcul',
   stock_no_calc: 'Încă necalculat', stock_last_run: 'Ultimul calcul',
   confirm_stock_calc: 'Rulați calculul de stoc? Aceasta interoghează ERP-ul live.',
-  col_sc: 'SC', col_datastart: 'Data start', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
+  col_sc: 'Cod UNA.Univers', col_datastart: 'Data start', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Mapare / Setări', map_conn_title: 'Conexiune Oracle',
   act_test_conn: 'Testează conexiunea',
@@ -1333,7 +1341,7 @@ en: {
   col_codunivers: 'Dict code', col_status: 'Status',
   dict_title: 'Dictionary (TMS_UNIVERS)',
   act_import_dict: 'Import dictionary', act_archive: 'Archive', act_fixconfus: 'Fix confusables',
-  col_cod: 'Code', col_codvechi: 'Old code', col_denumirea: 'Name', col_gr1: 'Group',
+  col_cod: 'Cod UNA.Univers', col_codvechi: 'Old code', col_denumirea: 'Name', col_gr1: 'Group',
   col_um: 'Unit', col_isarhiv: 'Archived',
   dict_detail_title: 'Item card', dict_detail_empty: 'Select a row from the table',
   grp_title: 'Groups / Suppliers',
@@ -1386,7 +1394,7 @@ en: {
   stock_run: 'Calculate stock', stock_items_title: 'Latest calculation result',
   stock_no_calc: 'Not calculated yet', stock_last_run: 'Last run',
   confirm_stock_calc: 'Run the stock calculation? This queries the live ERP.',
-  col_sc: 'SC', col_datastart: 'Start date', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
+  col_sc: 'Cod UNA.Univers', col_datastart: 'Start date', col_pretv: 'PRETV', col_pretv1: 'PRETV1',
   col_pretv2: 'PRETV2', col_pretv3: 'PRETV3',
   map_title: 'Mapping / Settings', map_conn_title: 'Oracle connection',
   act_test_conn: 'Test connection',
