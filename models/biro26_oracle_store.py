@@ -999,9 +999,10 @@ class Biro26Store:
         lead to an empty result)."""
         try:
             r = Biro26DB().execute_query(
-                "SELECT g.BRAND, COUNT(*) CNT FROM TMS_UNIVERS u "
+                "SELECT g.BRAND, COUNT(DISTINCT u.COD) CNT FROM TMS_UNIVERS u "
                 "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
                 "WHERE u.TIP='P' AND g.BRAND IS NOT NULL "
+                "AND NVL(u.ISARHIV,'0') <> '2' "
                 "GROUP BY g.BRAND ORDER BY g.BRAND")
             return _result(r)
         except Exception as e:
