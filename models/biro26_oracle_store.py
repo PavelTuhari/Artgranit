@@ -972,8 +972,11 @@ class Biro26Store:
         (principiul una-shops: traduceri ca DATE, fallback pe romana).
         EN: RU/EN names come from the editable YBIRO_GRP_I18N dictionary."""
         try:
+            # RO: COUNT(DISTINCT u.COD) — feed-ul BIRO26_GOODS contine rinduri
+            #     duplicate per produs (grila le dedupe prin ROW_NUMBER);
+            #     fara DISTINCT arborele arata 333 unde grila arata 168.
             r = Biro26DB().execute_query(
-                "SELECT g.GRUPA, g.CATEGORIE, COUNT(*) CNT, "
+                "SELECT g.GRUPA, g.CATEGORIE, COUNT(DISTINCT u.COD) CNT, "
                 "MIN(gi.NAME_RU) GRUPA_RU, MIN(gi.NAME_EN) GRUPA_EN, "
                 "MIN(ci.NAME_RU) CAT_RU, MIN(ci.NAME_EN) CAT_EN "
                 "FROM TMS_UNIVERS u "
