@@ -5932,9 +5932,15 @@ def _biro26_site_ctx():
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
     except Exception:
         brand_filter = '0'
+    try:
+        fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
+        fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
+    except Exception:
+        fmt_html, fmt_xlsx = '1', '1'
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
-            'brand_filter': brand_filter}
+            'brand_filter': brand_filter,
+            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx}
 
 @app.route('/UNA.md/orasldev/biro26-site')
 def biro26_site():
