@@ -288,6 +288,142 @@ class Biro26Report:
         return {"success": True, "data": data, "client_cod": h["client_cod"]}
 
     @staticmethod
+    def render_doc_xlsx(cod: int,
+                        allowed_client_cod: Optional[int] = None) -> Dict[str, Any]:
+        """RO: echivalentul EXCEL al contului de plata (bifa «si Excel»):
+        - tabelul pozitiilor este TABEL Excel adevarat (ListObject);
+        - Suma per rind = FORMULA =Cant*Pret;
+        - TOTAL = FORMULA =SUM(...);
+        - logo-ul (reports/templates/logo.jpg) la locul lui, ca in PDF.
+        EN: XLSX twin of the invoice: real Excel table, =qty*price row
+        formulas, =SUM total, embedded logo."""
+        d = Biro26Report.doc_data(cod)
+        if not d.get("success"):
+            return d
+        if (allowed_client_cod is not None
+                and int(d["client_cod"]) != int(allowed_client_cod)):
+            return {"success": False, "error": "document belongs to another client"}
+        try:
+            return {"success": True,
+                    "xlsx": Biro26Report._build_invoice_xlsx(d["data"])}
+        except Exception as e:
+            return {"success": False, "error": f"xlsx: {e}"}
+
+    @staticmethod
+    def _build_invoice_xlsx(data: Dict[str, Any]) -> bytes:
+        import io
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Border, Font, Side
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.table import Table, TableStyleInfo
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Cont de plata"
+        widths = {"A": 5, "B": 15, "C": 48, "D": 9, "E": 9, "F": 12, "G": 14}
+        for col, w in widths.items():
+            ws.column_dimensions[col].width = w
+
+        # ── logo la locul lui (stinga sus, ca in PDF) ──
+        logo_path = os.path.join(_TPL_DIR, _LOGO_FILE)
+        if os.path.exists(logo_path):
+            try:
+                from openpyxl.drawing.image import Image as XLImage
+                img = XLImage(logo_path)
+                scale = 52.0 / img.height if img.height else 1
+                img.height = int(img.height * scale)
+                img.width = int(img.width * scale)
+                ws.add_image(img, "A1")
+                ws.row_dimensions[1].height = 44
+            except Exception:
+                pass
+
+        bold = Font(bold=True)
+        big = Font(bold=True, size=14)
+        firm, client = data["firm"], data["client"]
+
+        ws["E1"] = f"Cont de plată Nr. {data['number']}"
+        ws["E1"].font = big
+        ws["E2"] = f"din {data['date_ro']} · СЧЕТ НА ОПЛАТУ"
+        ws["E2"].font = Font(italic=True)
+
+        r = 3
+        def put(label, value):
+            nonlocal r
+            ws.cell(row=r, column=1, value=label).font = bold
+            ws.cell(row=r, column=3, value=value)
+            r += 1
+        put("Furnizor · Поставщик:", firm.get("name"))
+        put("Adresa · Адрес:", firm.get("address"))
+        put("Cod fiscal:", firm.get("fiscal_code"))
+        put("IBAN:", f"{firm.get('iban') or ''}  {firm.get('bank') or ''} "
+                     f"{firm.get('branch') or ''}".strip())
+        put("Telefon:", firm.get("phone"))
+        cl = client.get("name") or ""
+        if client.get("phone"):
+            cl += f" · tel. {client['phone']}"
+        if client.get("email"):
+            cl += f" · {client['email']}"
+        put("Plătitor · Плательщик:", cl)
+
+        # ── tabelul pozitiilor (TABEL Excel + formule) ──
+        head_row = r + 1
+        headers = ["Nr", "Cod", "Denumirea · Наименование", "Cant.",
+                   "U.M.", "Preț", "Suma"]
+        for i, htxt in enumerate(headers, 1):
+            c = ws.cell(row=head_row, column=i, value=htxt)
+            c.font = bold
+            c.alignment = Alignment(horizontal="center")
+        first = head_row + 1
+        thin = Border(*(Side(style="thin", color="D9D9D9"),) * 4)
+        for i, it in enumerate(data["items"]):
+            rr = first + i
+            ws.cell(row=rr, column=1, value=i + 1)
+            ws.cell(row=rr, column=2, value=str(it.get("cod") or ""))
+            ws.cell(row=rr, column=3, value=it.get("name") or "")
+            ws.cell(row=rr, column=4, value=it.get("qty"))
+            ws.cell(row=rr, column=5, value=it.get("um") or "buc.")
+            ws.cell(row=rr, column=6, value=round(float(it.get("price") or 0), 2))
+            # RO: suma = FORMULA cant × pret (cerinta: nu valoare "moarta")
+            ws.cell(row=rr, column=7, value=f"=D{rr}*F{rr}")
+            for cidx in range(1, 8):
+                cell = ws.cell(row=rr, column=cidx)
+                cell.border = thin
+                if cidx in (6, 7):
+                    cell.number_format = "#,##0.00"
+        last = first + len(data["items"]) - 1
+        tbl = Table(displayName="Pozitii",
+                    ref=f"A{head_row}:G{last}")
+        tbl.tableStyleInfo = TableStyleInfo(
+            name="TableStyleMedium9", showRowStripes=True,
+            showFirstColumn=False, showLastColumn=False,
+            showColumnStripes=False)
+        ws.add_table(tbl)
+
+        # ── TOTAL = FORMULA SUM peste coloana Suma ──
+        tr = last + 1
+        ws.cell(row=tr, column=6, value="TOTAL (ИТОГО):").font = big
+        tc = ws.cell(row=tr, column=7, value=f"=SUM(G{first}:G{last})")
+        tc.font = big
+        tc.number_format = "#,##0.00"
+        tvr = tr + 1
+        ws.cell(row=tvr, column=6, value=data.get("tva_label") or "TVA:").font = bold
+        if data.get("tva_mode") == "fara":
+            ws.cell(row=tvr, column=7, value=data.get("tva_text"))
+        else:
+            tv = ws.cell(row=tvr, column=7, value=round(float(data.get("tva") or 0), 2))
+            tv.number_format = "#,##0.00"
+        ws.cell(row=tvr + 2, column=1,
+                value="Director: " + (firm.get("director") or "_____________"))
+        ws.cell(row=tvr + 3, column=1,
+                value="Contul este valabil 3 zile · Счёт действителен 3 дня. "
+                      "Vă mulțumim pentru achitarea la timp!")
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    @staticmethod
     def render(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """POST the template + data to jsReport; returns {'pdf': bytes}."""
         if kind not in REPORT_KINDS:
