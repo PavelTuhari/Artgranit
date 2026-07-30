@@ -1,7 +1,7 @@
 """Biro26/OfficePlus — achitare prin CREDITARE (rate).
 
-RO: Lista DINAMICA a organizatiilor de creditare (YBIRO_CREDIT_ORG) si
-    pachetele lor (YBIRO_CREDIT_PLAN), administrate in pagina
+RO: Lista DINAMICA a organizatiilor de creditare (TMS_CREDITE_ORG) si
+    pachetele lor (TMS_CREDITE_PLAN), administrate in pagina
     /UNA.md/orasldev/biro26-credit-admin. ORG_MODE='manual' (conditiile
     se seteaza in admin) sau 'api' (integrare cu organizatia — API_URL;
     adaptorul per organizatie se adauga cind partenerul ofera API).
@@ -39,9 +39,9 @@ class Biro26Credit:
             rows = _rows(Biro26DB().execute_query(
                 f"SELECT o.ID, o.NAME, o.ENABLED, o.ORG_MODE, o.API_URL, "
                 f"o.LOGO_URL, o.INFO, o.ORD, "
-                f"(SELECT COUNT(*) FROM YBIRO_CREDIT_PLAN p "
+                f"(SELECT COUNT(*) FROM TMS_CREDITE_PLAN p "
                 f" WHERE p.ORG_ID = o.ID) PLANS "
-                f"FROM YBIRO_CREDIT_ORG o {w} ORDER BY o.ORD, o.ID"))
+                f"FROM TMS_CREDITE_ORG o {w} ORDER BY o.ORD, o.ID"))
             return {"success": True, "data": rows}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -62,14 +62,14 @@ class Biro26Credit:
             if d.get("id"):
                 params["id"] = int(d["id"])
                 r = db.execute_dml(
-                    "UPDATE YBIRO_CREDIT_ORG SET NAME=:n, ENABLED=:en, "
+                    "UPDATE TMS_CREDITE_ORG SET NAME=:n, ENABLED=:en, "
                     "ORG_MODE=:m, API_URL=:au, LOGO_URL=:lu, INFO=:inf, ORD=:o "
                     "WHERE ID=:id", params)
             else:
                 r = db.execute_dml(
-                    "INSERT INTO YBIRO_CREDIT_ORG "
+                    "INSERT INTO TMS_CREDITE_ORG "
                     "(ID, NAME, ENABLED, ORG_MODE, API_URL, LOGO_URL, INFO, ORD) "
-                    "VALUES (YBIRO_CREDIT_ORG_SEQ.NEXTVAL, :n, :en, :m, :au, :lu, :inf, :o)",
+                    "VALUES (TMS_CREDITE_ORG_SEQ.NEXTVAL, :n, :en, :m, :au, :lu, :inf, :o)",
                     params)
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
@@ -86,8 +86,8 @@ class Biro26Credit:
             if org_id:
                 w, params = "WHERE p.ORG_ID = :o", {"o": int(org_id)}
             rows = _rows(Biro26DB().execute_query(
-                f"SELECT p.*, o.NAME ORG_NAME FROM YBIRO_CREDIT_PLAN p "
-                f"JOIN YBIRO_CREDIT_ORG o ON o.ID = p.ORG_ID {w} "
+                f"SELECT p.*, o.NAME ORG_NAME FROM TMS_CREDITE_PLAN p "
+                f"JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID {w} "
                 f"ORDER BY p.ORG_ID, p.MONTHS_MIN, p.ID", params))
             return {"success": True, "data": rows}
         except Exception as e:
@@ -117,17 +117,17 @@ class Biro26Credit:
             if d.get("id"):
                 params["id"] = int(d["id"])
                 r = db.execute_dml(
-                    "UPDATE YBIRO_CREDIT_PLAN SET ORG_ID=:org, NAME=:n, "
+                    "UPDATE TMS_CREDITE_PLAN SET ORG_ID=:org, NAME=:n, "
                     "MONTHS_MIN=:m1, MONTHS_MAX=:m2, AMOUNT_MIN=:a1, AMOUNT_MAX=:a2, "
                     "MARKUP_PCT=:mk, ANNUAL_PCT=:an, MONTHLY_FEE_PCT=:mf, "
                     "ISSUE_FEE=:isf, AVANS_MIN_PCT=:av, ENABLED=:en, INFO=:inf "
                     "WHERE ID=:id", params)
             else:
                 r = db.execute_dml(
-                    "INSERT INTO YBIRO_CREDIT_PLAN (ID, ORG_ID, NAME, MONTHS_MIN, "
+                    "INSERT INTO TMS_CREDITE_PLAN (ID, ORG_ID, NAME, MONTHS_MIN, "
                     "MONTHS_MAX, AMOUNT_MIN, AMOUNT_MAX, MARKUP_PCT, ANNUAL_PCT, "
                     "MONTHLY_FEE_PCT, ISSUE_FEE, AVANS_MIN_PCT, ENABLED, INFO) "
-                    "VALUES (YBIRO_CREDIT_PLAN_SEQ.NEXTVAL, :org, :n, :m1, :m2, "
+                    "VALUES (TMS_CREDITE_PLAN_SEQ.NEXTVAL, :org, :n, :m1, :m2, "
                     ":a1, :a2, :mk, :an, :mf, :isf, :av, :en, :inf)", params)
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
@@ -139,7 +139,7 @@ class Biro26Credit:
     def plan_delete(plan_id: int) -> Dict[str, Any]:
         try:
             r = Biro26DB().execute_dml(
-                "DELETE FROM YBIRO_CREDIT_PLAN WHERE ID = :i", {"i": int(plan_id)})
+                "DELETE FROM TMS_CREDITE_PLAN WHERE ID = :i", {"i": int(plan_id)})
             return ({"success": True} if r.get("success")
                     else {"success": False, "error": r.get("message")})
         except Exception as e:
@@ -153,13 +153,13 @@ class Biro26Credit:
         EN: enabled orgs with enabled plans, for the public shop."""
         try:
             orgs = _rows(Biro26DB().execute_query(
-                "SELECT ID, NAME, ORG_MODE, LOGO_URL, INFO FROM YBIRO_CREDIT_ORG "
+                "SELECT ID, NAME, ORG_MODE, LOGO_URL, INFO FROM TMS_CREDITE_ORG "
                 "WHERE ENABLED = '1' ORDER BY ORD, ID"))
             plans = _rows(Biro26DB().execute_query(
                 "SELECT p.ID, p.ORG_ID, p.NAME, p.MONTHS_MIN, p.MONTHS_MAX, "
                 "p.AMOUNT_MIN, p.AMOUNT_MAX, p.MARKUP_PCT, p.ANNUAL_PCT, "
                 "p.MONTHLY_FEE_PCT, p.ISSUE_FEE, p.AVANS_MIN_PCT "
-                "FROM YBIRO_CREDIT_PLAN p JOIN YBIRO_CREDIT_ORG o ON o.ID = p.ORG_ID "
+                "FROM TMS_CREDITE_PLAN p JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID "
                 "WHERE p.ENABLED = '1' AND o.ENABLED = '1' "
                 "ORDER BY p.ORG_ID, p.MONTHS_MIN"))
             for o in orgs:
@@ -171,8 +171,8 @@ class Biro26Credit:
     @staticmethod
     def plan_get(plan_id: int) -> Optional[Dict[str, Any]]:
         rows = _rows(Biro26DB().execute_query(
-            "SELECT p.*, o.NAME ORG_NAME FROM YBIRO_CREDIT_PLAN p "
-            "JOIN YBIRO_CREDIT_ORG o ON o.ID = p.ORG_ID "
+            "SELECT p.*, o.NAME ORG_NAME FROM TMS_CREDITE_PLAN p "
+            "JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID "
             "WHERE p.ID = :i AND p.ENABLED = '1' AND o.ENABLED = '1'",
             {"i": int(plan_id)}))
         return rows[0] if rows else None
@@ -182,7 +182,7 @@ class Biro26Credit:
     @staticmethod
     def request_create(d: Dict[str, Any]) -> Dict[str, Any]:
         """RO: cererea din formularul «Solicitati un imprumut»:
-        1) se jurnalizeaza in YBIRO_CREDIT_REQ;
+        1) se jurnalizeaza in TMS_CREDITE_REQ;
         2) nivelul de integrare per organizatie (ORG_MODE):
            'manual' (minim) — notificare magazinului (managerul suna);
            'api' (maxim)    — cererea se trimite si la API_URL-ul
@@ -205,14 +205,14 @@ class Biro26Credit:
         s = sim["data"]
         p = Biro26Credit.plan_get(plan_id)
         org_rows = _rows(Biro26DB().execute_query(
-            "SELECT ID, NAME, ORG_MODE, API_URL FROM YBIRO_CREDIT_ORG "
+            "SELECT ID, NAME, ORG_MODE, API_URL FROM TMS_CREDITE_ORG "
             "WHERE ID = :i", {"i": int(p["org_id"])}))
         org = org_rows[0] if org_rows else {}
         # 1) jurnal
         r = Biro26DB().execute_dml(
-            "INSERT INTO YBIRO_CREDIT_REQ (ID, ORG_ID, PLAN_ID, MONTHS, "
+            "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, "
             "PRODUCT_COD, PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, "
-            "CLIENT_NAME, PHONE) VALUES (YBIRO_CREDIT_REQ_SEQ.NEXTVAL, "
+            "CLIENT_NAME, PHONE) VALUES (TMS_CREDITE_REQ_SEQ.NEXTVAL, "
             ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph)",
             {"o": org.get("id"), "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None,
@@ -234,9 +234,9 @@ class Biro26Credit:
                     "months": s["months"], "monthly": s["monthly"]})
                 api_note = f"HTTP {resp.status_code}"
                 Biro26DB().execute_dml(
-                    "UPDATE YBIRO_CREDIT_REQ SET API_SENT = '1', "
+                    "UPDATE TMS_CREDITE_REQ SET API_SENT = '1', "
                     "API_RESULT = :r WHERE ID = "
-                    "(SELECT MAX(ID) FROM YBIRO_CREDIT_REQ)",
+                    "(SELECT MAX(ID) FROM TMS_CREDITE_REQ)",
                     {"r": api_note[:400]})
             except Exception as e:
                 api_note = f"api error: {e}"
@@ -275,8 +275,8 @@ class Biro26Credit:
                 "r.QTY, r.AMOUNT, r.CREDIT_PRICE, r.MONTHS, r.MONTHLY, "
                 "r.CLIENT_NAME, r.PHONE, r.STATUS, r.API_SENT, r.API_RESULT, "
                 "TO_CHAR(r.CREATED,'DD.MM.YYYY HH24:MI') CREATED "
-                "FROM YBIRO_CREDIT_REQ r "
-                "LEFT JOIN YBIRO_CREDIT_ORG o ON o.ID = r.ORG_ID "
+                "FROM TMS_CREDITE_REQ r "
+                "LEFT JOIN TMS_CREDITE_ORG o ON o.ID = r.ORG_ID "
                 "ORDER BY r.ID DESC) WHERE ROWNUM <= :n",
                 {"n": max(1, min(int(limit), 500))}))
             return {"success": True, "data": rows}
@@ -288,7 +288,7 @@ class Biro26Credit:
         if status not in ("NEW", "PROCESSED"):
             status = "PROCESSED"
         r = Biro26DB().execute_dml(
-            "UPDATE YBIRO_CREDIT_REQ SET STATUS = :s WHERE ID = :i",
+            "UPDATE TMS_CREDITE_REQ SET STATUS = :s WHERE ID = :i",
             {"s": status, "i": int(req_id)})
         return ({"success": True} if r.get("success")
                 else {"success": False, "error": r.get("message")})
@@ -331,3 +331,278 @@ class Biro26Credit:
             "monthly": monthly, "issue_fee": float(p["issue_fee"] or 0),
             "total": total,
             "overcost": round(total - amount, 2)}}
+
+    # ── провайдеры API (TMS_CREDITE_PROVIDER, настройки Biro26/11g) ──
+
+    @staticmethod
+    def _registry():
+        """Реестр провайдеров с настройками из Oracle 11g (Biro26)."""
+        from integrations import build_registry
+        from models.credite_settings import biro26_settings
+        return build_registry(biro26_settings())
+
+    @staticmethod
+    def providers_list() -> Dict[str, Any]:
+        """RO: providerii API cu setari mascate (pentru admin).
+        EN: API providers with masked secrets (admin page)."""
+        try:
+            from models.credite_settings import PROVIDER_DEFS, biro26_settings
+            st = biro26_settings()
+            out = []
+            for code in sorted(PROVIDER_DEFS, key=lambda c: PROVIDER_DEFS[c]["ord"]):
+                d = st.masked(code)
+                if d is None:
+                    spec = PROVIDER_DEFS[code]
+                    d = {"code": code, "name": spec["name"], "enabled": False,
+                         "env": "sandbox",
+                         "base_url": spec["default_base_url"]["sandbox"],
+                         "icon": spec["icon"], "color": spec["color"],
+                         "params": {n: "" for n, _ in spec["params"]},
+                         "secrets": [n for n, s in spec["params"] if s],
+                         "configured": False}
+                d["param_defs"] = [{"name": n, "secret": s}
+                                   for n, s in PROVIDER_DEFS[code]["params"]]
+                out.append(d)
+            return {"success": True, "data": out}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def provider_save(d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: salveaza setarile providerului. Secret gol = «nu schimba»."""
+        from models.credite_settings import PROVIDER_DEFS, biro26_settings
+        code = (d.get("code") or "").strip().lower()
+        if code not in PROVIDER_DEFS:
+            return {"success": False, "error": f"provider necunoscut: {code}"}
+        params = {n: (d.get("params") or {}).get(n) or ""
+                  for n, _ in PROVIDER_DEFS[code]["params"]}
+        return biro26_settings().save(
+            code,
+            enabled=d.get("enabled") in (True, "1", 1, "true"),
+            env=(d.get("env") or "sandbox"),
+            base_url=(d.get("base_url") or ""),
+            params=params)
+
+    @staticmethod
+    def provider_test(code: str) -> Dict[str, Any]:
+        """RO: test de conexiune la provider (check_auth / preapproved de proba)."""
+        import time as _t
+        prov = Biro26Credit._registry().get((code or "").strip().lower())
+        if prov is None:
+            return {"success": False, "error": f"provider necunoscut: {code}"}
+        if not prov.is_configured():
+            return {"success": False, "error": "providerul nu e configurat"}
+        t0 = _t.time()
+        if "check_auth" in prov.capabilities:
+            res = prov.check_auth()
+        else:
+            res = prov.preapproved(uin="2000000000001", amount=1000)
+        ms = int((_t.time() - t0) * 1000)
+        Biro26Credit._log_event(None, code, "check_auth", res, ms, {})
+        return {"success": bool(res.get("success")),
+                "data": {"duration_ms": ms, "result": res.get("data") or {}},
+                "error": res.get("error")}
+
+    # ── jurnal apeluri API ──
+
+    @staticmethod
+    def _mask_idnp(idnp: str) -> str:
+        s = (idnp or "").strip()
+        return f"{s[:2]}{'*' * max(0, len(s) - 4)}{s[-2:]}" if len(s) > 4 else "*" * len(s)
+
+    @staticmethod
+    def _log_event(req_id: Optional[int], provider_code: str, op: str,
+                   result: Dict[str, Any], duration_ms: int,
+                   payload: Dict[str, Any]) -> None:
+        """RO: scrie un rind in TMS_CREDITE_REQ_EVENT (best-effort, nu arunca)."""
+        import json as _j
+        try:
+            safe = dict(payload or {})
+            if "idnp" in safe:
+                safe["idnp"] = Biro26Credit._mask_idnp(safe["idnp"])
+            if "phone" in safe and safe["phone"]:
+                safe["phone"] = str(safe["phone"])[:5] + "***"
+            Biro26DB().execute_dml(
+                "INSERT INTO TMS_CREDITE_REQ_EVENT (REQ_ID, PROVIDER_CODE, OP, "
+                "HTTP_CODE, DURATION_MS, PAYLOAD, RESULT, IS_ERROR) "
+                "VALUES (:r, :p, :o, :h, :d, :pl, :res, :e)",
+                {"r": req_id, "p": (provider_code or "")[:30], "o": (op or "")[:30],
+                 "h": result.get("http_code"), "d": duration_ms,
+                 "pl": _j.dumps(safe, ensure_ascii=False)[:3900],
+                 "res": _j.dumps(result, ensure_ascii=False, default=str)[:3900],
+                 "e": "0" if result.get("success") else "1"})
+        except Exception:
+            pass
+
+    @staticmethod
+    def request_events(req_id: int) -> Dict[str, Any]:
+        """RO: jurnalul apelurilor API pentru o cerere."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT ID, PROVIDER_CODE, OP, HTTP_CODE, DURATION_MS, IS_ERROR, "
+                "PAYLOAD, RESULT, TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI:SS') CREATED "
+                "FROM TMS_CREDITE_REQ_EVENT WHERE REQ_ID = :i ORDER BY ID",
+                {"i": int(req_id)}))
+            return {"success": True, "data": rows}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── fluxul API al clientului: preapproved -> submit -> status ──
+
+    @staticmethod
+    def _org_provider(org_id: int) -> Optional[Dict[str, Any]]:
+        """RO: providerul legat de organizatie, sau None."""
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT o.ID ORG_ID, o.NAME ORG_NAME, p.CODE PROVIDER_CODE "
+            "FROM TMS_CREDITE_ORG o JOIN TMS_CREDITE_PROVIDER p "
+            "  ON p.ID = o.PROVIDER_ID "
+            "WHERE o.ID = :i AND o.ENABLED = '1' AND p.ENABLED = '1'",
+            {"i": int(org_id)}))
+        return rows[0] if rows else None
+
+    @staticmethod
+    def api_preapproved(d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: verifica suma preaprobata la providerul organizatiei."""
+        import time as _t
+        try:
+            org_id = int(d.get("org_id") or 0)
+            amount = round(float(d.get("amount") or 0), 2)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "date invalide"}
+        idnp = (d.get("idnp") or "").strip()
+        if len(idnp) < 10:
+            return {"success": False, "error": "IDNP invalid"}
+        link = Biro26Credit._org_provider(org_id)
+        if not link:
+            return {"success": False,
+                    "error": "organizația nu are provider API configurat"}
+        code = link["provider_code"]
+        prov = Biro26Credit._registry().get(code)
+        if prov is None or not prov.is_configured():
+            return {"success": False, "error": f"providerul {code} nu e configurat"}
+        t0 = _t.time()
+        res = prov.preapproved(uin=idnp, amount=int(amount),
+                               phone=(d.get("phone") or "").strip())
+        ms = int((_t.time() - t0) * 1000)
+        Biro26Credit._log_event(None, code, "preapproved", res, ms,
+                                {"idnp": idnp, "amount": amount, "org_id": org_id})
+        if not res.get("success"):
+            return {"success": False, "error": res.get("error") or "eroare provider"}
+        data = res.get("data") or {}
+        return {"success": True, "data": {
+            "preapproved": bool(data.get("preapproved")),
+            "max_amount": float(data.get("max_amount") or 0),
+            "message": data.get("message") or ""}}
+
+    @staticmethod
+    def api_submit(d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: creeaza cererea in TMS_CREDITE_REQ si o trimite la provider."""
+        import time as _t
+        name = (d.get("client_name") or "").strip()
+        phone = (d.get("phone") or "").strip()
+        idnp = (d.get("idnp") or "").strip()
+        if not name or not phone:
+            return {"success": False, "error": "Numele și telefonul sunt obligatorii"}
+        if len(idnp) < 10:
+            return {"success": False, "error": "IDNP invalid"}
+        try:
+            org_id = int(d.get("org_id") or 0)
+            plan_id = int(d.get("plan_id") or 0)
+            qty = max(1, int(d.get("qty") or 1))
+            amount = round(float(d.get("amount") or 0), 2)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "date invalide"}
+        link = Biro26Credit._org_provider(org_id)
+        if not link:
+            return {"success": False,
+                    "error": "organizația nu are provider API configurat"}
+        code = link["provider_code"]
+        prov = Biro26Credit._registry().get(code)
+        if prov is None or not prov.is_configured():
+            return {"success": False, "error": f"providerul {code} nu e configurat"}
+        sim = Biro26Credit.calc(amount, plan_id, d.get("months"), 0)
+        if not sim.get("success"):
+            return sim
+        s = sim["data"]
+        product_name = (d.get("product_name") or "Comandă OfficePlus")[:300]
+        # RO: rezervam ID-ul din secventa INAINTE de INSERT — subprocess worker-ul
+        #     nu suporta bind-uri OUT, iar SELECT MAX(ID) ar fi supus unei curse
+        #     la cereri concurente. NEXTVAL e atomic.
+        seq = _rows(Biro26DB().execute_query(
+            "SELECT TMS_CREDITE_REQ_SEQ.NEXTVAL ID FROM dual"))
+        if not seq:
+            return {"success": False, "error": "nu s-a putut aloca ID-ul cererii"}
+        req_id = int(seq[0]["id"])
+        ins = Biro26DB().execute_dml(
+            "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
+            "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
+            "PROVIDER_CODE, IDNP_MASKED, API_STATUS) VALUES (:id, :o, :p, :m, :pc, "
+            ":pn, :q, :a, :cp, :mo, :cn, :ph, :prc, :idm, 'SENDING')",
+            {"id": req_id, "o": org_id, "p": plan_id, "m": s["months"],
+             "pc": int(d.get("product_cod") or 0) or None, "pn": product_name,
+             "q": qty, "a": amount, "cp": s["credit_price"], "mo": s["monthly"],
+             "cn": name[:200], "ph": phone[:40], "prc": code[:30],
+             "idm": Biro26Credit._mask_idnp(idnp)[:20]})
+        if not ins.get("success"):
+            return {"success": False, "error": ins.get("message")}
+        kwargs = {"fio": name, "phone": phone, "uin": idnp,
+                  "amount": int(round(s["credit_price"])),
+                  "goods_price": int(round(s["credit_price"])),
+                  "product_name": product_name,
+                  "program_name": f"0-0-{s['months']}",
+                  "order_id": f"OP-{req_id}", "user_pin": idnp,
+                  "currency": "MDL"}
+        t0 = _t.time()
+        res = prov.submit(**kwargs)
+        ms = int((_t.time() - t0) * 1000)
+        Biro26Credit._log_event(req_id, code, "submit", res, ms,
+                                {"idnp": idnp, "phone": phone, "amount": amount,
+                                 "plan_id": plan_id, "months": s["months"]})
+        data = res.get("data") or {}
+        ext_ref = (data.get("urn") or data.get("order_id")
+                   or kwargs["order_id"]) if res.get("success") else None
+        api_status = ("SENT" if res.get("success") else "ERROR")
+        Biro26DB().execute_dml(
+            "UPDATE TMS_CREDITE_REQ SET EXT_REF = :x, API_STATUS = :s, "
+            "LAST_CHECK = SYSDATE WHERE ID = :i",
+            {"x": (ext_ref or "")[:120] or None, "s": api_status, "i": req_id})
+        if not res.get("success"):
+            return {"success": False, "error": res.get("error") or "eroare provider",
+                    "data": {"req_id": req_id}}
+        return {"success": True, "data": {"req_id": req_id, "ext_ref": ext_ref,
+                                          "status": api_status,
+                                          "monthly": s["monthly"],
+                                          "months": s["months"],
+                                          "org": link["org_name"]}}
+
+    @staticmethod
+    def api_status(req_id: int) -> Dict[str, Any]:
+        """RO: reinterogheaza statusul cererii la provider si il salveaza."""
+        import time as _t
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT ID, PROVIDER_CODE, EXT_REF, API_STATUS FROM TMS_CREDITE_REQ "
+            "WHERE ID = :i", {"i": int(req_id)}))
+        if not rows:
+            return {"success": False, "error": "cerere inexistentă"}
+        r = rows[0]
+        code, ext = r.get("provider_code"), r.get("ext_ref")
+        if not code or not ext:
+            return {"success": True, "data": {"status": r.get("api_status") or "",
+                                              "ext_ref": ext or ""}}
+        prov = Biro26Credit._registry().get(code)
+        if prov is None or not prov.is_configured():
+            return {"success": True, "data": {"status": r.get("api_status") or "",
+                                              "ext_ref": ext}}
+        t0 = _t.time()
+        res = prov.check_status(urn=ext, order_id=ext)
+        ms = int((_t.time() - t0) * 1000)
+        Biro26Credit._log_event(int(req_id), code, "status", res, ms, {"ext_ref": ext})
+        if not res.get("success"):
+            return {"success": False, "error": res.get("error") or "eroare provider",
+                    "data": {"status": r.get("api_status") or "", "ext_ref": ext}}
+        st = ((res.get("data") or {}).get("status")
+              or (res.get("data") or {}).get("state") or "")
+        Biro26DB().execute_dml(
+            "UPDATE TMS_CREDITE_REQ SET API_STATUS = :s, LAST_CHECK = SYSDATE "
+            "WHERE ID = :i", {"s": (st or "")[:60] or None, "i": int(req_id)})
+        return {"success": True, "data": {"status": st, "ext_ref": ext}}
