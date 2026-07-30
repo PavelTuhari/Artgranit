@@ -677,7 +677,8 @@ class Biro26Credit:
                     "data": {"status": r.get("api_status") or "", "ext_ref": ext}}
         st = ((res.get("data") or {}).get("status")
               or (res.get("data") or {}).get("state") or "")
-        Biro26DB().execute_dml(
+        upd = Biro26DB().execute_dml(
             "UPDATE TMS_CREDITE_REQ SET API_STATUS = :s, LAST_CHECK = SYSDATE "
             "WHERE ID = :i", {"s": (st or "")[:60] or None, "i": int(req_id)})
-        return {"success": True, "data": {"status": st, "ext_ref": ext}}
+        return {"success": True, "data": {"status": st, "ext_ref": ext,
+                                          "saved": bool(upd.get("success"))}}
