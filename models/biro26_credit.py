@@ -149,12 +149,17 @@ class Biro26Credit:
 
     @staticmethod
     def public_offers() -> Dict[str, Any]:
-        """RO: organizatiile active cu pachetele active (pentru magazin).
-        EN: enabled orgs with enabled plans, for the public shop."""
+        """RO: organizatiile active cu pachetele active + providerul API legat.
+        EN: enabled orgs with enabled plans and the linked API provider."""
         try:
+            from models.credite_settings import biro26_settings
             orgs = _rows(Biro26DB().execute_query(
-                "SELECT ID, NAME, ORG_MODE, LOGO_URL, INFO FROM TMS_CREDITE_ORG "
-                "WHERE ENABLED = '1' ORDER BY ORD, ID"))
+                "SELECT o.ID, o.NAME, o.ORG_MODE, o.LOGO_URL, o.INFO, "
+                "p.CODE PROVIDER_CODE, p.NAME PROVIDER_NAME, p.ICON PROVIDER_ICON "
+                "FROM TMS_CREDITE_ORG o "
+                "LEFT JOIN TMS_CREDITE_PROVIDER p "
+                "  ON p.ID = o.PROVIDER_ID AND p.ENABLED = '1' "
+                "WHERE o.ENABLED = '1' ORDER BY o.ORD, o.ID"))
             plans = _rows(Biro26DB().execute_query(
                 "SELECT p.ID, p.ORG_ID, p.NAME, p.MONTHS_MIN, p.MONTHS_MAX, "
                 "p.AMOUNT_MIN, p.AMOUNT_MAX, p.MARKUP_PCT, p.ANNUAL_PCT, "
@@ -162,8 +167,17 @@ class Biro26Credit:
                 "FROM TMS_CREDITE_PLAN p JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID "
                 "WHERE p.ENABLED = '1' AND o.ENABLED = '1' "
                 "ORDER BY p.ORG_ID, p.MONTHS_MIN"))
+            st = biro26_settings()
             for o in orgs:
                 o["plans"] = [p for p in plans if p["org_id"] == o["id"]]
+                code = o.pop("provider_code", None)
+                o["provider"] = None if not code else {
+                    "code": code,
+                    "name": o.get("provider_name") or code,
+                    "icon": o.get("provider_icon") or "🏦",
+                    "configured": st.is_configured(code)}
+                o.pop("provider_name", None)
+                o.pop("provider_icon", None)
             return {"success": True, "data": [o for o in orgs if o["plans"]]}
         except Exception as e:
             return {"success": False, "error": str(e)}
