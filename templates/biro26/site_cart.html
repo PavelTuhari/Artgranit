@@ -199,6 +199,26 @@ async function makeInvoice() {
   ok.scrollIntoView({behavior: 'smooth'});
 }
 
+/* RO: UN SINGUR buton + combobox de formate: genereaza tot setul activat
+   (HTML implicit; PDF si Excel activabile) pentru contul de plata. */
+function fmtList() {
+  const l = [...document.querySelectorAll('.fmt:checked')].map(c => c.value);
+  return l.length ? l : ['html'];
+}
+function fmtSum() {
+  document.getElementById('fmt-sum').textContent =
+    fmtList().join(' + ').toUpperCase() + ' ▾';
+}
+function genDocSet(cod) {
+  const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
+                pdf: '/api/biro26/shop/report/invoice/' + cod,
+                xlsx: '/api/biro26/shop/report-xlsx/invoice/' + cod};
+  fmtList().forEach((f, i) => setTimeout(() => {
+    if (f === 'xlsx') location.href = urls.xlsx;      // descarcare
+    else window.open(urls[f], '_blank');              // vizualizare
+  }, i * 500));
+}
+
 async function sendCartCreditReq(cod, nr) {
   const t = TILES[tileSel]; if (!t) return;
   let phone = (ME && ME.phone) || '';
