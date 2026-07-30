@@ -242,6 +242,33 @@ def t_provider_settings_source() -> List[str]:
     return fails
 
 
+def t_source_is_authoritative() -> List[str]:
+    """Источник настроек авторитетен: пустые креды в нём НЕ подменяются значениями из Config."""
+    from integrations import build_registry
+    from models.credite_settings import CrediteSettings
+
+    st = CrediteSettings(FakeBackend())
+    st.save("easycredit", enabled=True, env="sandbox",
+            base_url="https://only-here.example", params={"api_user": "", "api_password": ""})
+    ec = build_registry(st).get("easycredit")
+    fails = []
+    if ec._user():
+        fails.append(f"api_user подхвачен из Config: {ec._user()!r}")
+    if ec._password():
+        fails.append(f"api_password подхвачен из Config: {ec._password()!r}")
+    if ec.is_configured():
+        fails.append("is_configured() = True при пустых кредах в источнике")
+    if ec._base_url() != "https://only-here.example":
+        fails.append(f"base_url={ec._base_url()!r}, ожидался из источника")
+
+    from integrations.easycredit_provider import EasyCreditProvider
+    from config import Config
+    plain = EasyCreditProvider()
+    if plain._user() != Config.easycredit_api_user():
+        fails.append("провайдер без источника перестал читать Config")
+    return fails
+
+
 TESTS = [
     ("save + get", t_save_and_get),
     ("пустой секрет не затирает", t_empty_secret_keeps_previous),
@@ -251,6 +278,7 @@ TESTS = [
     ("живой roundtrip", t_live_roundtrip),
     ("Config читает Oracle", t_config_reads_oracle),
     ("provider settings_source", t_provider_settings_source),
+    ("источник авторитетен (нет утечки в Config)", t_source_is_authoritative),
 ]
 
 
