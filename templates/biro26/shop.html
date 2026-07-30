@@ -832,6 +832,26 @@ async function refreshMe() {
 }
 
 /* ── invoice ("cont de plata") ───────────────────────────── */
+/* RO: setul de formate (combobox linga TVA): HTML implicit, PDF/Excel
+   activabile; genDocSet deschide/descarca toate formatele alese. */
+function fmtList() {
+  const l = [...document.querySelectorAll('.fmt:checked')].map(c => c.value);
+  return l.length ? l : ['html'];
+}
+function fmtSum() {
+  document.getElementById('fmt-sum').textContent =
+    fmtList().join('+').toUpperCase() + ' ▾';
+}
+function genDocSet(cod) {
+  const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
+                pdf: '/api/biro26/shop/report/invoice/' + cod,
+                xlsx: '/api/biro26/shop/report-xlsx/invoice/' + cod};
+  fmtList().forEach((f, i) => setTimeout(() => {
+    if (f === 'xlsx') location.href = urls.xlsx;
+    else window.open(urls[f], '_blank');
+  }, i * 500));
+}
+
 async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast('Coșul este gol · Корзина пуста', true); return; }
