@@ -387,7 +387,9 @@ class Biro26Credit:
                          "icon": spec["icon"], "color": spec["color"],
                          "params": {n: "" for n, _ in spec["params"]},
                          "secrets": [n for n, s in spec["params"] if s],
-                         "configured": False}
+                         "configured": False,
+                         "id": None, "info": "", "ord": spec["ord"],
+                         "has_secret": {}}
                 d["param_defs"] = [{"name": n, "secret": s}
                                    for n, s in PROVIDER_DEFS[code]["params"]]
                 out.append(d)
