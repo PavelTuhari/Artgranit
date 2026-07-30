@@ -659,14 +659,17 @@ class Biro26Credit:
             "UPDATE TMS_CREDITE_REQ SET EXT_REF = :x, API_STATUS = :s, "
             "LAST_CHECK = SYSDATE WHERE ID = :i",
             {"x": (ext_ref or "")[:120] or None, "s": api_status, "i": req_id})
-        if not upd.get("success"):
+        if not upd.get("success") and res.get("success"):
             return {"success": False,
                     "error": f"cererea a fost trimisă, dar statusul nu s-a salvat: "
                              f"{upd.get('message')}",
                     "data": {"req_id": req_id, "ext_ref": ext_ref}}
         if not res.get("success"):
+            data = {"req_id": req_id}
+            if not upd.get("success"):
+                data["status_saved"] = False
             return {"success": False, "error": res.get("error") or "eroare provider",
-                    "data": {"req_id": req_id}}
+                    "data": data}
         return {"success": True, "data": {"req_id": req_id, "ext_ref": ext_ref,
                                           "status": api_status,
                                           "monthly": s["monthly"],
