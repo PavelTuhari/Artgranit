@@ -50,40 +50,26 @@ def _oracle(code: str) -> dict:
 
 
 def save_easycredit_settings(env: str, base_url: str, api_user: str, api_password: str) -> None:
-    """Сохраняет настройки EasyCredit в data/easycredit_settings.json.
-    Если api_password пустой, сохраняем существующий (не перезаписываем)."""
-    EASYCREDIT_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    prev = _load_easycredit_overrides()
-    pwd = (api_password or "").strip()
-    if not pwd and prev:
-        pwd = prev.get("api_password") or ""
-    payload = {
-        "env": (env or "sandbox").lower(),
-        "base_url": (base_url or "").strip(),
-        "api_user": (api_user or "").strip(),
-        "api_password": pwd,
-    }
-    with open(EASYCREDIT_SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+    """Сохраняет настройки EasyCredit в TMS_CREDITE_PROVIDER (ADB).
+    Пустой api_password означает «не менять» (см. CrediteSettings.save)."""
+    from models.credite_settings import adb_settings
+    r = adb_settings().save("easycredit", enabled=True, env=env, base_url=base_url,
+                            params={"api_user": api_user, "api_password": api_password})
+    if not r.get("success"):
+        raise RuntimeError(r.get("error") or "не удалось сохранить настройки EasyCredit")
 
 
-def save_iute_settings(env: str, base_url: str, api_key: str, pos_identifier: str, salesman_identifier: str) -> None:
-    """Сохраняет настройки Iute в data/iute_settings.json.
-    Если api_key пустой, сохраняем существующий (не перезаписываем)."""
-    IUTE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    prev = _load_iute_overrides()
-    key = (api_key or "").strip()
-    if not key and prev:
-        key = prev.get("api_key") or ""
-    payload = {
-        "env": (env or "sandbox").lower(),
-        "base_url": (base_url or "").strip(),
-        "api_key": key,
-        "pos_identifier": (pos_identifier or "").strip(),
-        "salesman_identifier": (salesman_identifier or "").strip(),
-    }
-    with open(IUTE_SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+def save_iute_settings(env: str, base_url: str, api_key: str, pos_identifier: str,
+                       salesman_identifier: str) -> None:
+    """Сохраняет настройки Iute в TMS_CREDITE_PROVIDER (ADB).
+    Пустой api_key означает «не менять»."""
+    from models.credite_settings import adb_settings
+    r = adb_settings().save("iute", enabled=True, env=env, base_url=base_url,
+                            params={"api_key": api_key,
+                                    "pos_identifier": pos_identifier,
+                                    "salesman_identifier": salesman_identifier})
+    if not r.get("success"):
+        raise RuntimeError(r.get("error") or "не удалось сохранить настройки Iute")
 
 
 class Config:
