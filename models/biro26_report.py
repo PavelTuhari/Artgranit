@@ -514,6 +514,21 @@ class Biro26Report:
         f, c = data["firm"], data["client"]
         client_line = c["name"] + \
             (f", tel.: {c['phone']}" if c.get("phone") else "")
+        # RO: rechizitele plătitorului (ca in formularul nativ UNA.md si in
+        #     modelul «PRIMARIA JAPCA»): cont de decontare, banca, BIC,
+        #     cod fiscal — doar cele completate in cartela.
+        # EN: payer requisites block (only the filled-in ones).
+        payer_req = ""
+        if c.get("address"):
+            payer_req += f", {c['address']}"
+        if c.get("iban"):
+            payer_req += f"\nCont de decontare nr.: {c['iban']} (Расчетный счет)"
+        if c.get("bank"):
+            payer_req += f"\n{c['bank']}"
+        if c.get("bic"):
+            payer_req += f"\nBIC: {c['bic']}"
+        if c.get("fiscal_code"):
+            payer_req += f"\nCod fiscal: {c['fiscal_code']} (Фискальный код)"
         # RO/EN: bare number from NRMANUAL only
         _nr = str(data.get("nrmanual") or data.get("number")
                   or data.get("cont_number") or data.get("invoice_nr") or "").strip()
