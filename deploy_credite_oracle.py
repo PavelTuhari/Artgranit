@@ -106,11 +106,16 @@ def migrate_legacy(be: CrediteBackend) -> None:
                "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
                "STATUS, CREATED FROM YBIRO_CREDIT_REQ")
     for tab in ("ORG", "PLAN", "REQ"):
-        rows = be.query(f"SELECT NVL(MAX(ID), 0) + 1 NX FROM TMS_CREDITE_{tab}")
-        nxt = int(rows[0]["nx"])
-        be.dml(f"DROP SEQUENCE TMS_CREDITE_{tab}_SEQ")
-        be.dml(f"CREATE SEQUENCE TMS_CREDITE_{tab}_SEQ START WITH {nxt} NOCACHE")
-        print(f"  ~ TMS_CREDITE_{tab}_SEQ -> START WITH {nxt}")
+        seq = f"TMS_CREDITE_{tab}_SEQ"
+        target = int(be.query(f"SELECT NVL(MAX(ID), 0) + 1 NX FROM TMS_CREDITE_{tab}")[0]["nx"])
+        cur = int(be.query(f"SELECT {seq}.NEXTVAL NV FROM dual")[0]["nv"])
+        delta = target - cur - 1
+        if delta > 0:
+            # RO: mutam secventa fara a o sterge — DROP+CREATE nu e atomic
+            be.dml(f"ALTER SEQUENCE {seq} INCREMENT BY {delta}")
+            be.query(f"SELECT {seq}.NEXTVAL NV FROM dual")
+            be.dml(f"ALTER SEQUENCE {seq} INCREMENT BY 1")
+        print(f"  ~ {seq} -> next {max(target, cur + 1)}")
     print("  + данные перенесены из YBIRO_CREDIT_*")
 
 
