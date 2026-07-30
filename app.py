@@ -6519,6 +6519,15 @@ def api_biro26_shop_report(kind, cod):
     resp.headers['Pragma'] = 'no-cache'
     return resp
 
+@app.route('/api/biro26/gen-docs-by-nr/<path:nr>', methods=['GET', 'POST'])
+def api_biro26_gen_docs_by_nr(nr):
+    """RO: genereaza + ataseaza contul de plata si comanda la un document
+    EXISTENT (dupa NRMANUAL) — apelabil din Oracle (y_ai_BIRO26.gen_conturi,
+    UTL_HTTP pe http://officeplus.md) sau desktop (?api_key=)."""
+    r = Biro26Controller.gen_docs_by_nr(nr)
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
 @app.route('/api/biro26/shop/report-xlsx/invoice/<int:cod>', methods=['GET'])
 def api_biro26_shop_report_xlsx(cod):
     """RO: contul de plata in EXCEL (bifa «si Excel» din cos): tabel Excel
