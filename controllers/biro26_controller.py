@@ -438,6 +438,21 @@ class Biro26Controller:
         return {"success": False, "error": "login required"}
 
     @staticmethod
+    def shop_report_html(kind: str, cod: int) -> Dict[str, Any]:
+        """RO: formularul in HTML (aceeasi paza ca la PDF)."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        if Biro26Controller._api_token_ok():
+            return Biro26Report.render_doc_html(kind, cod)
+        c = session.get("biro26_client")
+        if c:
+            return Biro26Report.render_doc_html(
+                kind, cod, allowed_client_cod=c["univers_cod"])
+        if session.get("username") or session.get("authenticated"):
+            return Biro26Report.render_doc_html(kind, cod)
+        return {"success": False, "error": "login required"}
+
+    @staticmethod
     def shop_report_xlsx(cod: int) -> Dict[str, Any]:
         """RO: echivalentul EXCEL al contului (aceeasi paza ca la PDF):
         clientii publici doar documentele proprii; backoffice/API — orice."""
