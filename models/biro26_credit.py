@@ -581,6 +581,10 @@ class Biro26Credit:
         prov = Biro26Credit._registry().get(code)
         if prov is None or not prov.is_configured():
             return {"success": False, "error": f"providerul {code} nu e configurat"}
+        plan = Biro26Credit.plan_get(plan_id)
+        if not plan or int(plan["org_id"]) != org_id:
+            return {"success": False,
+                    "error": "pachetul nu aparține organizației alese"}
         sim = Biro26Credit.calc(amount, plan_id, d.get("months"), 0)
         if not sim.get("success"):
             return sim
