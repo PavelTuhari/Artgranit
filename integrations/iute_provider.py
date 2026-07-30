@@ -64,7 +64,7 @@ class IuteProvider(CreditProvider):
         }
 
     def is_configured(self) -> bool:
-        return bool(self._api_key())
+        return bool(self._base_url() and self._api_key())
 
     # --- Тестовые клиенты ---
 
