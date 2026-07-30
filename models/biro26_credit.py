@@ -155,20 +155,25 @@ class Biro26Credit:
         EN: enabled orgs with enabled plans and the linked API provider."""
         try:
             from models.credite_settings import biro26_settings
-            orgs = _rows(Biro26DB().execute_query(
+            orgs_res = _result(Biro26DB().execute_query(
                 "SELECT o.ID, o.NAME, o.ORG_MODE, o.LOGO_URL, o.INFO, "
                 "p.CODE PROVIDER_CODE, p.NAME PROVIDER_NAME, p.ICON PROVIDER_ICON "
                 "FROM TMS_CREDITE_ORG o "
                 "LEFT JOIN TMS_CREDITE_PROVIDER p "
                 "  ON p.ID = o.PROVIDER_ID AND p.ENABLED = '1' "
                 "WHERE o.ENABLED = '1' ORDER BY o.ORD, o.ID"))
-            plans = _rows(Biro26DB().execute_query(
+            if not orgs_res.get("success"):
+                return {"success": False, "error": orgs_res.get("error")}
+            plans_res = _result(Biro26DB().execute_query(
                 "SELECT p.ID, p.ORG_ID, p.NAME, p.MONTHS_MIN, p.MONTHS_MAX, "
                 "p.AMOUNT_MIN, p.AMOUNT_MAX, p.MARKUP_PCT, p.ANNUAL_PCT, "
                 "p.MONTHLY_FEE_PCT, p.ISSUE_FEE, p.AVANS_MIN_PCT "
                 "FROM TMS_CREDITE_PLAN p JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID "
                 "WHERE p.ENABLED = '1' AND o.ENABLED = '1' "
                 "ORDER BY p.ORG_ID, p.MONTHS_MIN"))
+            if not plans_res.get("success"):
+                return {"success": False, "error": plans_res.get("error")}
+            orgs, plans = orgs_res["data"], plans_res["data"]
             st = biro26_settings()
             for o in orgs:
                 o["plans"] = [p for p in plans if p["org_id"] == o["id"]]
