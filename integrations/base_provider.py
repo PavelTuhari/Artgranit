@@ -145,16 +145,15 @@ class CreditProvider(ABC):
 
 
 class ProviderRegistry:
-    """Реестр доступных кредитных провайдеров (Singleton-паттерн)."""
+    """Реестр доступных кредитных провайдеров.
 
-    _instance: ProviderRegistry | None = None
-    _providers: dict[str, CreditProvider]
+    Глобальный экземпляр `registry` обслуживает основной проект (настройки ADB
+    через Config). Для отдельного контура (например, Biro26 с настройками в
+    Oracle 11g) создаётся свой экземпляр — см. integrations.build_registry.
+    """
 
-    def __new__(cls) -> ProviderRegistry:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._providers = {}
-        return cls._instance
+    def __init__(self) -> None:
+        self._providers: dict[str, CreditProvider] = {}
 
     def register(self, provider: CreditProvider) -> None:
         """Зарегистрировать провайдера."""
