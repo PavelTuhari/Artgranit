@@ -56,20 +56,24 @@ class Biro26Credit:
                       "au": (d.get("api_url") or "")[:400] or None,
                       "lu": (d.get("logo_url") or "")[:400] or None,
                       "inf": (d.get("info") or "")[:2000] or None,
-                      "o": int(d.get("ord") or 0)}
+                      "o": int(d.get("ord") or 0),
+                      "pid": int(d["provider_id"]) if d.get("provider_id") else None}
             if not params["n"]:
                 return {"success": False, "error": "numele este obligatoriu"}
             if d.get("id"):
                 params["id"] = int(d["id"])
                 r = db.execute_dml(
                     "UPDATE TMS_CREDITE_ORG SET NAME=:n, ENABLED=:en, "
-                    "ORG_MODE=:m, API_URL=:au, LOGO_URL=:lu, INFO=:inf, ORD=:o "
+                    "ORG_MODE=:m, API_URL=:au, LOGO_URL=:lu, INFO=:inf, "
+                    "PROVIDER_ID=:pid, ORD=:o "
                     "WHERE ID=:id", params)
             else:
                 r = db.execute_dml(
                     "INSERT INTO TMS_CREDITE_ORG "
-                    "(ID, NAME, ENABLED, ORG_MODE, API_URL, LOGO_URL, INFO, ORD) "
-                    "VALUES (TMS_CREDITE_ORG_SEQ.NEXTVAL, :n, :en, :m, :au, :lu, :inf, :o)",
+                    "(ID, NAME, ENABLED, ORG_MODE, API_URL, LOGO_URL, INFO, "
+                    "PROVIDER_ID, ORD) "
+                    "VALUES (TMS_CREDITE_ORG_SEQ.NEXTVAL, :n, :en, :m, :au, :lu, "
+                    ":inf, :pid, :o)",
                     params)
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
