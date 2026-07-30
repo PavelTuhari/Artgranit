@@ -866,7 +866,7 @@ def docs_easycredit():
     if not AuthController.is_authenticated():
         return _login_redirect()
     from pathlib import Path
-    p = Path(__file__).parent / "docs" / "project_easycredit.html"
+    p = Path(__file__).parent / "docs" / "CREDITE" / "project_easycredit.html"
     if not p.exists():
         return "<h1>Документация не найдена</h1>", 404
     return p.read_text(encoding='utf-8')
