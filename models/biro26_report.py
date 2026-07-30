@@ -280,8 +280,17 @@ class Biro26Report:
             "client": {
                 "name": h["client_name"] or f"#{h['client_cod']}",
                 "cod": h["client_cod"],
-                "phone": (extra[0]["phone"] if extra else None),
+                "phone": ((extra[0]["phone"] if extra else None)
+                          or org.get("telefon")),
                 "email": (extra[0]["email"] if extra else None),
+                # RO: rechizitele plătitorului (cartela nativă / magazin)
+                "fiscal_code": (org.get("codfiscal")
+                                or (extra[0]["idno"] if extra else None)),
+                "iban": org.get("account"),
+                "bank": org.get("bank"),
+                "bic": org.get("mfo"),
+                "address": (org.get("adress") or org.get("oras")
+                            or (extra[0]["address"] if extra else None)),
             },
             "items": items,
             "total": round(total, 2),
