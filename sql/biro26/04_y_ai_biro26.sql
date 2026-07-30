@@ -291,20 +291,38 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
     RETURN NUMBER IS
     v_cod      NUMBER;
     v_nr_num   NUMBER;
+    v_serie    VARCHAR2(4);
     v_nrmanual VARCHAR2(25);
   BEGIN
     SELECT ID_TMDB_DOCS.NEXTVAL INTO v_cod FROM dual;
-    -- RO: NRMANUAL = numar vizibil; NRSET = subset (g_nrset_default=201).
-    --     Start: YBIRO_SETTINGS.INVOICE_NR_START (admin web).
-    -- EN: NRMANUAL = visible number; NRSET = subset (g_nrset_default=201).
-    --     Start floor: YBIRO_SETTINGS.INVOICE_NR_START (web admin).
-    v_nr_num   := next_invoice_nr;
-    v_nrmanual := TO_CHAR(v_nr_num);
+    -- RO: NRMANUAL = SERIE-NUMAR (ex. 'A-23'): seria incepe cu 'A';
+    --     cind numarul trece de 999, seria trece AUTOMAT la litera
+    --     urmatoare (B, C, D...) si numerotarea reincepe de la 1.
+    --     Contorul numeric: YBIRO_SETTINGS.INVOICE_NR_START (admin web);
+    --     seria: YBIRO_SETTINGS.INVOICE_SERIES.
+    -- EN: NRMANUAL = SERIES-NUMBER; at >999 the series letter advances
+    --     automatically and numbering restarts at 1.
+    v_nr_num := next_invoice_nr;
+    v_serie  := UPPER(SUBSTR(NVL(get_setting('INVOICE_SERIES'), 'A'), 1, 1));
+    IF v_serie IS NULL OR v_serie < 'A' OR v_serie > 'Z' THEN
+      v_serie := 'A';
+    END IF;
+    IF v_nr_num > 999 THEN
+      v_serie  := CHR(LEAST(ASCII(v_serie) + 1, ASCII('Z')));
+      v_nr_num := 1;
+      set_setting('INVOICE_SERIES', v_serie,
+        'RO: seria curenta a contului (A..Z) / EN: current invoice series');
+    END IF;
+    v_nrmanual := v_serie || '-' || TO_CHAR(v_nr_num);
 
     -- RO: incrementeaza contorul (urmatorul cont va primi nr+1)
     -- EN: bump counter (next invoice gets nr+1)
     set_setting(g_invoice_nr_start_key, TO_CHAR(v_nr_num + 1),
       'RO: urmatorul NRMANUAL de emis / EN: next NRMANUAL to issue');
+    IF get_setting('INVOICE_SERIES') IS NULL THEN
+      set_setting('INVOICE_SERIES', v_serie,
+        'RO: seria curenta a contului (A..Z) / EN: current invoice series');
+    END IF;
 
     INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA,
                            NRMANUAL, NRSET, ISGFC, DOCCOLOR, CODF, AT2, AT3)
