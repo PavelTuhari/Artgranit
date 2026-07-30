@@ -486,18 +486,46 @@ class Biro26Controller:
         if not d.get("success"):
             return d
         engines = Biro26Report.get_engines()["data"]
-        out: Dict[str, Any] = {"cod": cod, "nr": d["data"].get("number")}
-        for kind in ("invoice", "order"):
-            eng = engines.get(kind, "jsreport")
-            res = (Biro26Report.render_pdfme(kind, d["data"])
-                   if eng == "pdfme" else Biro26Report.render(kind, d["data"]))
+        # RO: ?formats=pdf,html,xlsx — ORICE combinatie; implicit doar PDF.
+        #     Fiecare format cerut se genereaza si se ATASEAZA la document
+        #     (VMDB_DOCS_OLE): PDF/HTML pentru ambele formulare, XLSX doar
+        #     pentru cont (echivalentul Excel cu formule).
+        # EN: any combination of formats, each attached to the document.
+        fmts = [f.strip().lower() for f in
+                (request.args.get("formats") or "pdf").split(",")
+                if f.strip().lower() in ("pdf", "html", "xlsx")] or ["pdf"]
+        out: Dict[str, Any] = {"cod": cod, "nr": d["data"].get("number"),
+                               "formats": ",".join(fmts)}
+        results = []
+        def step(label, res_key, res, ext):
             if not res.get("success"):
-                out[kind] = "RENDER_ERR: " + str(res.get("error"))[:200]
-                continue
-            att = Biro26Report.attach_pdf(cod, kind, res["pdf"])
-            out[kind] = ("OK" if att.get("success")
-                         else "ATTACH_ERR: " + str(att.get("error"))[:200])
-        out["success"] = (out.get("invoice") == "OK" and out.get("order") == "OK")
+                out[label] = "RENDER_ERR: " + str(res.get("error"))[:200]
+                results.append(False)
+                return
+            att = Biro26Report.attach_pdf(cod, label.split("_")[0],
+                                          res[res_key], ext=ext)
+            out[label] = ("OK" if att.get("success")
+                          else "ATTACH_ERR: " + str(att.get("error"))[:200])
+            results.append(att.get("success") is True)
+        for kind in ("invoice", "order"):
+            if "pdf" in fmts:
+                eng = engines.get(kind, "jsreport")
+                res = (Biro26Report.render_pdfme(kind, d["data"])
+                       if eng == "pdfme"
+                       else Biro26Report.render(kind, d["data"]))
+                step(f"{kind}_pdf" if len(fmts) > 1 else kind,
+                     "pdf", res, "pdf")
+            if "html" in fmts:
+                step(f"{kind}_html", "html",
+                     Biro26Report.render_html(kind, d["data"]), "html")
+        if "xlsx" in fmts:
+            try:
+                xlsx = Biro26Report._build_invoice_xlsx(d["data"])
+                step("invoice_xlsx", "x", {"success": True, "x": xlsx}, "xlsx")
+            except Exception as e:
+                out["invoice_xlsx"] = f"RENDER_ERR: {e}"
+                results.append(False)
+        out["success"] = bool(results) and all(results)
         return out
 
     # ── online payments: MAIB e-commerce + MIA instant payments ──
