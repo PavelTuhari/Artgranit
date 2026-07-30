@@ -437,6 +437,22 @@ class Biro26Controller:
             return Biro26Report.render_doc(kind, cod)
         return {"success": False, "error": "login required"}
 
+    @staticmethod
+    def shop_report_xlsx(cod: int) -> Dict[str, Any]:
+        """RO: echivalentul EXCEL al contului (aceeasi paza ca la PDF):
+        clientii publici doar documentele proprii; backoffice/API — orice."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        if Biro26Controller._api_token_ok():
+            return Biro26Report.render_doc_xlsx(cod)
+        c = session.get("biro26_client")
+        if c:
+            return Biro26Report.render_doc_xlsx(
+                cod, allowed_client_cod=c["univers_cod"])
+        if session.get("username") or session.get("authenticated"):
+            return Biro26Report.render_doc_xlsx(cod)
+        return {"success": False, "error": "login required"}
+
     # ── online payments: MAIB e-commerce + MIA instant payments ──
 
     @staticmethod
