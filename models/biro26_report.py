@@ -585,8 +585,11 @@ class Biro26Report:
             "nrmanual": _nr,
             "number": _nr,
             "hr": "",
-            "executor_block": f"Executor: {f['name']}, Cod fiscal {f['fiscal_code']}, {f['address']}",
-            "client_block": "Client: " + client_line,
+            "executor_block": (f"Executor: {f['name']}, Cod fiscal "
+                               f"{f['fiscal_code']}, {f['address']}"
+                               f"\nIBAN: {f['iban']}  {f['bank']}"
+                               + (f" {f['branch']}" if f.get("branch") else "")),
+            "client_block": "Client: " + client_line + payer_req,
             "items": json.dumps(rows, ensure_ascii=False),
             "total_line": f"Total denumiri {len(data['items'])}, în sumă de "
                           f"{_fmt(data['total'])} lei\n{_ro_amount(data['total'])}",
