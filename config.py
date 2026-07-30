@@ -166,7 +166,10 @@ class Config:
     BIRO26_FIRM_ADDRESS = os.environ.get('BIRO26_FIRM_ADDRESS',
                                          'Bălţi, str. Libertăţii, 96, ap.(of.) 1')
     BIRO26_FIRM_FISCAL = os.environ.get('BIRO26_FIRM_FISCAL', '1026602001837')
-    BIRO26_FIRM_IBAN = os.environ.get('BIRO26_FIRM_IBAN', '22517448478')
+    # RO: IBAN COMPLET (format MD, 24 caractere) — pe documente trebuie
+    #     contul deplin, nu doar numarul scurt (cerinta 30.07.2026)
+    BIRO26_FIRM_IBAN = os.environ.get('BIRO26_FIRM_IBAN',
+                                      'MD21AG000000022517448478')
     BIRO26_FIRM_BANK = os.environ.get('BIRO26_FIRM_BANK',
                                       "BC'MOLDOVA-AGROINDBANK'S.A. fil.Balti")
     BIRO26_FIRM_BRANCH = os.environ.get('BIRO26_FIRM_BRANCH', 'AGRNMD2X750')
