@@ -323,6 +323,8 @@ async function loadShop() {
   if (!r.success) return;
   document.getElementById('f-shop-pagesize').value = r.data.shop_page_size || '24';
   document.getElementById('f-brand-filter').checked = r.data.brand_filter === '1';
+  document.getElementById('f-fmt-html').checked = r.data.fmt_html === '1';
+  document.getElementById('f-fmt-xlsx').checked = r.data.fmt_xlsx === '1';
   document.getElementById('f-invoice-nr-start').value =
     r.data.invoice_nr_start || '1';
   fillInvoiceNrInfo(r.data);
