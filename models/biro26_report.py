@@ -213,8 +213,16 @@ class Biro26Report:
         # RO: telefon/email daca clientul e din magazinul public
         # EN: phone/email when the client came from the public shop
         extra = _rows(db.execute_query(
-            "SELECT phone, email FROM YBIRO_CLIENT WHERE univers_cod = :c",
-            {"c": h["client_cod"]}))
+            "SELECT phone, email, address, idno FROM YBIRO_CLIENT "
+            "WHERE univers_cod = :c", {"c": h["client_cod"]}))
+        # RO: rechizitele plătitorului din cartela nativă a contragentului
+        #     (TMS_ORG via VMS_UNIV_ORG): cont de decontare (IBAN), banca,
+        #     BIC (MFO), cod fiscal, adresa — ca în formularul UNA.md.
+        # EN: payer requisites from the native partner card (TMS_ORG).
+        org_rows = _rows(db.execute_query(
+            "SELECT CODFISCAL, ACCOUNT, BANK, MFO, ADRESS, ORAS, TELEFON "
+            "FROM VMS_UNIV_ORG WHERE COD = :c", {"c": h["client_cod"]}))
+        org = org_rows[0] if org_rows else {}
         lines = _rows(db.execute_query(
             "SELECT l.CTSC, l.CANT, l.SUMA, l.PRET, u.DENUMIREA, u.UM, u.CODVECHI "
             "FROM VMDB_ST201D l LEFT JOIN TMS_UNIVERS u ON u.COD = l.CTSC "
