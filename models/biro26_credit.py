@@ -624,13 +624,23 @@ class Biro26Credit:
                                 {"idnp": idnp, "phone": phone, "amount": amount,
                                  "plan_id": plan_id, "months": s["months"]})
         data = res.get("data") or {}
-        ext_ref = (data.get("urn") or data.get("order_id")
-                   or kwargs["order_id"]) if res.get("success") else None
+        if code == "iute":
+            ext_ref = data.get("order_id") or kwargs["order_id"]
+        else:
+            ext_ref = data.get("urn") or ""
+        if res.get("success") and not ext_ref:
+            res = {"success": False,
+                   "error": "providerul nu a returnat referința cererii"}
         api_status = ("SENT" if res.get("success") else "ERROR")
-        Biro26DB().execute_dml(
+        upd = Biro26DB().execute_dml(
             "UPDATE TMS_CREDITE_REQ SET EXT_REF = :x, API_STATUS = :s, "
             "LAST_CHECK = SYSDATE WHERE ID = :i",
             {"x": (ext_ref or "")[:120] or None, "s": api_status, "i": req_id})
+        if not upd.get("success"):
+            return {"success": False,
+                    "error": f"cererea a fost trimisă, dar statusul nu s-a salvat: "
+                             f"{upd.get('message')}",
+                    "data": {"req_id": req_id, "ext_ref": ext_ref}}
         if not res.get("success"):
             return {"success": False, "error": res.get("error") or "eroare provider",
                     "data": {"req_id": req_id}}
