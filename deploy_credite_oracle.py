@@ -167,14 +167,15 @@ def seed_providers(be: CrediteBackend) -> None:
         print(f"  + провайдер {code} создан (ENABLED='0')")
 
 
-def run(target: str) -> int:
+def run(target: str, rename: bool = False) -> int:
     be: CrediteBackend = AdbBackend() if target == "adb" else Biro26Backend()
     print(f"\n=== {target} ===")
     try:
         create_objects(be, DDL_PATH[target])
         migrate_legacy(be)
         seed_providers(be)
-        rename_legacy(be)
+        if rename:
+            rename_legacy(be)
     except Exception as e:
         print(f"  FAIL: {e}")
         return 1
@@ -189,9 +190,12 @@ def run(target: str) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", choices=["adb", "biro26", "both"], default="both")
+    ap.add_argument("--rename-legacy", action="store_true",
+                    help="переименовать YBIRO_CREDIT_* -> *_OLD (отложено до Task 10, "
+                         "пока remote-приложение читает старые таблицы)")
     a = ap.parse_args()
     targets = ["adb", "biro26"] if a.target == "both" else [a.target]
-    return max(run(t) for t in targets)
+    return max(run(t, rename=a.rename_legacy) for t in targets)
 
 
 if __name__ == "__main__":
