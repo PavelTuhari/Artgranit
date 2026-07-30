@@ -165,10 +165,21 @@ class Biro26Report:
 
     @staticmethod
     def resolve_nr(nr) -> Optional[int]:
-        """RO: '#338' / '338' -> COD-ul intern (cel mai recent document web cu
-        acest NRMANUAL). EN: hashtag/number -> latest internal COD by NRMANUAL."""
+        """RO: '#338' / '338' / 'A-23' -> COD-ul intern (cel mai recent
+        document cu acest NRMANUAL). Suporta numerele cu SERIE (A-1..Z-999).
+        EN: hashtag/number/series-number -> latest internal COD."""
+        import re
+        s = str(nr or "").strip().lstrip("#").strip()
+        m = re.fullmatch(r"([A-Za-z])\s*-\s*(\d+)", s)
+        if m:
+            # RO: numar cu serie — potrivire exacta 'A-23'
+            key = f"{m.group(1).upper()}-{int(m.group(2))}"
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT MAX(COD) COD FROM TMDB_DOCS WHERE SYSFID = 12280 "
+                "AND UPPER(TRIM(NRMANUAL)) = :s", {"s": key}))
+            return int(rows[0]["cod"]) if rows and rows[0]["cod"] else None
         try:
-            n = int(str(nr).strip().lstrip("#"))
+            n = int(s)
         except (TypeError, ValueError):
             return None
         rows = _rows(Biro26DB().execute_query(
