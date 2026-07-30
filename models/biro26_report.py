@@ -553,10 +553,12 @@ class Biro26Report:
         # RO/EN: bare number from NRMANUAL only
         _nr = str(data.get("nrmanual") or data.get("number")
                   or data.get("cont_number") or data.get("invoice_nr") or "").strip()
-        m = re.search(r"(\d+)\s*$", _nr)
-        if m and not _nr.isdigit():
-            # strip accidental full-label prefixes
-            _nr = m.group(1)
+        # RO: numerele cu SERIE ('A-23') se pastreaza intregi; doar
+        #     etichetele accidentale ('CONT DE PLATA № 23') se reduc la numar
+        if not re.fullmatch(r"[A-Za-z]-\d+", _nr):
+            m = re.search(r"([A-Za-z]-\d+|\d+)\s*$", _nr)
+            if m and not _nr.isdigit():
+                _nr = m.group(1)
         if _nr.lower() in ("none", "null"):
             _nr = ""
         if kind == "invoice":
