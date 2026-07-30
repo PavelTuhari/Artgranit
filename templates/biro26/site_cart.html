@@ -52,19 +52,24 @@
                   <label data-t="avans">Avans, lei</label>
                   <input id="credit-avans" type="number" min="0" value="0">
                 </div>
+                {% if fmt_html == '1' or fmt_xlsx == '1' %}
+                <!-- RO: combobox de formate — IMPLICIT PDF la toti; alegerea
+                     se salveaza ca CONSTANTA in cabinetul clientului si se
+                     refoloseste la conturile urmatoare. HTML/XLSX apar doar
+                     daca adminul le-a activat (Setari backoffice); cu o
+                     singura optiune selectorul dispare complet. -->
                 <label style="margin-top:10px">Formate documente · Форматы документов</label>
-                <!-- RO: combobox multi-format — implicit HTML; PDF/Excel se
-                     activeaza din lista; UN SINGUR buton genereaza tot setul -->
                 <details id="fmt-dd" style="position:relative">
                   <summary style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;
-                    cursor:pointer;list-style:none;background:#fff" id="fmt-sum">HTML ▾</summary>
+                    cursor:pointer;list-style:none;background:#fff" id="fmt-sum">PDF ▾</summary>
                   <div style="position:absolute;z-index:20;background:#fff;border:1px solid #d1d1d1;
                     border-radius:10px;padding:10px 14px;box-shadow:0 8px 22px rgba(0,0,0,.12);width:100%">
-                    <label style="display:block;margin:4px 0"><input type="checkbox" class="fmt" value="html" checked onchange="fmtSum()"> HTML (pagină web)</label>
-                    <label style="display:block;margin:4px 0"><input type="checkbox" class="fmt" value="pdf" onchange="fmtSum()"> PDF</label>
-                    <label style="display:block;margin:4px 0"><input type="checkbox" class="fmt" value="xlsx" onchange="fmtSum()"> Excel (XLSX)</label>
+                    <label style="display:block;margin:4px 0"><input type="checkbox" class="fmt" value="pdf" checked onchange="fmtChanged()"> PDF</label>
+                    {% if fmt_html == '1' %}<label style="display:block;margin:4px 0"><input type="checkbox" class="fmt" value="html" onchange="fmtChanged()"> HTML (pagină web)</label>{% endif %}
+                    {% if fmt_xlsx == '1' %}<label style="display:block;margin:4px 0"><input type="checkbox" class="fmt" value="xlsx" onchange="fmtChanged()"> Excel (XLSX)</label>{% endif %}
                   </div>
                 </details>
+                {% endif %}
                 <label data-t="tvaMode">TVA</label>
                 <select id="tva-mode">
                   <option value="inclus">TVA 20% inclus · НДС 20% включён</option>
