@@ -66,10 +66,13 @@ def t_providers_list() -> list[str]:
 def t_calc_unchanged() -> list[str]:
     """calc() продолжает считать по прежней формуле для существующего пакета."""
     plans = Biro26Credit.plans_list()
-    if not plans.get("success") or not plans["data"]:
-        print("  [skip] нет пакетов кредита")
+    if not plans.get("success"):
+        return [f"plans_list: {plans.get('error')}"]
+    enabled = [p for p in plans["data"] if p.get("enabled") == "1"]
+    if not enabled:
+        print("  [skip] нет включённых пакетов кредита")
         return []
-    p = plans["data"][0]
+    p = enabled[0]
     r = Biro26Credit.calc(10000, p["id"], p["months_min"], 0)
     if not r.get("success"):
         return [f"calc: {r.get('error')}"]
