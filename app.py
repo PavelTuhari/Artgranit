@@ -878,7 +878,7 @@ def docs_iute():
     if not AuthController.is_authenticated():
         return _login_redirect()
     from pathlib import Path
-    p = Path(__file__).parent / "docs" / "project_iute.html"
+    p = Path(__file__).parent / "docs" / "CREDITE" / "project_iute.html"
     if not p.exists():
         return "<h1>Документация Iute не найдена</h1><p><a href='/UNA.md/orasldev/docs'>Назад</a></p>", 404
     return p.read_text(encoding='utf-8')
