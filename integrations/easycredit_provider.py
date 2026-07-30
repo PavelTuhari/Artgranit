@@ -63,7 +63,7 @@ class EasyCreditProvider(CreditProvider):
         }
 
     def is_configured(self) -> bool:
-        return bool(self._user() and self._password())
+        return bool(self._base_url() and self._user() and self._password())
 
     # --- Тестовые клиенты ---
 
