@@ -50,8 +50,9 @@
 <div class="req">
   <div><b>Platitor, adresa:</b> {{client.name}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, tel.: {{client.phone}}{{/if}}
     <span class="lbl">/ Плательщик и его адрес</span></div>
-  {{#if client.fiscal_code}}<div><b>Cod fiscal:</b> {{client.fiscal_code}} <span class="lbl">/ Фискальный код</span></div>{{/if}}
   {{#if client.iban}}<div><b>Cont de decontare nr.:</b> {{client.iban}} <span class="lbl">/ Расчетный счет</span></div>{{/if}}
+  {{#if client.bank}}<div>{{client.bank}}{{#if client.bic}} &nbsp; <b>BIC:</b> {{client.bic}}{{/if}}</div>{{/if}}
+  {{#if client.fiscal_code}}<div><b>Cod fiscal:</b> {{client.fiscal_code}} <span class="lbl">/ Фискальный код</span></div>{{/if}}
 </div>
 
 <div class="note">Contul e valabil timp de TREI zile. Va multumim pentru achitarea la timp.<br>
