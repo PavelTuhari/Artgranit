@@ -502,12 +502,11 @@ class Biro26Credit:
     def request_events(req_id: int) -> Dict[str, Any]:
         """RO: jurnalul apelurilor API pentru o cerere."""
         try:
-            rows = _rows(Biro26DB().execute_query(
+            return _result(Biro26DB().execute_query(
                 "SELECT ID, PROVIDER_CODE, OP, HTTP_CODE, DURATION_MS, IS_ERROR, "
                 "PAYLOAD, RESULT, TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI:SS') CREATED "
                 "FROM TMS_CREDITE_REQ_EVENT WHERE REQ_ID = :i ORDER BY ID",
                 {"i": int(req_id)}))
-            return {"success": True, "data": rows}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
