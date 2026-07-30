@@ -689,6 +689,7 @@ class Biro26Report:
             return template                       # sablon atipic -> neatins
         return tpl
 
+    @staticmethod
     def render_pdfme(kind: str, data: Dict[str, Any],
                      template_json: Optional[str] = None) -> Dict[str, Any]:
         """Render via the pdfme engine of the sidecar (POST /pdfme/generate)."""
