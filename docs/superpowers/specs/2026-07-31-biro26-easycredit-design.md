@@ -234,7 +234,7 @@ GET    /api/biro26/credit/requests/<id>/events    — лог событий за
 ## 9. Деплой
 
 - `sql/50_credite_tables.sql` — DDL для ADB, включается в порядок выполнения `deploy_oracle_objects.py`.
-- `sql/biro26/11_tms_credite.sql` — DDL для 11g.
+- `sql/biro26/12_tms_credite.sql` — DDL для 11g (номера 10 и 11 заняты `10_ybiro_credit.sql` и `11_ybiro_credit_req.sql`).
 - `deploy_credite_oracle.py --target adb|biro26|both` — идемпотентный DDL + миграция + seed, по образцу `deploy_biro26_app_tables.py`.
 - `deploy_to_remote.sh` переносит только код; DDL запускается отдельно.
 
