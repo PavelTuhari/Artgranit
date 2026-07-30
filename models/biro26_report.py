@@ -876,7 +876,8 @@ class Biro26Report:
     # ── native attachments (VMDB_DOCS_OLE / TMDB_DOCS_OLE) ──
 
     @staticmethod
-    def attach_pdf(cod: int, kind: str, pdf: bytes) -> Dict[str, Any]:
+    def attach_pdf(cod: int, kind: str, pdf: bytes,
+                   ext: str = "pdf") -> Dict[str, Any]:
         """RO: ataseaza PDF-ul generat la document in VMDB_DOCS_OLE (ecranul
         nativ de atasamente OfficePlus). Un atasament per (document, tip de
         formular) — regenerarea inlocuieste fisierul, nu il dubleaza.
