@@ -5923,6 +5923,7 @@ def _biro26_wp_page(slug):
 def _biro26_site_ctx():
     """RO: contextul comun al paginilor noului site Figma (rata Liber Card
     din YBIRO_SETTINGS). EN: shared context for the new-site pages."""
+    from models.biro26_oracle_store import Biro26Store
     try:
         liber_pct = float(Biro26Store.get_setting('RATE_LIBER_PCT', '5'))
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
