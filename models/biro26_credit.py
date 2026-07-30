@@ -503,9 +503,8 @@ class Biro26Credit:
                 safe["idnp"] = Biro26Credit._mask_idnp(safe["idnp"])
             if "phone" in safe and safe["phone"]:
                 safe["phone"] = str(safe["phone"])[:5] + "***"
-            for k, v in list(safe.items()):
-                if isinstance(v, str):
-                    safe[k] = Biro26Credit._scrub(v)
+            safe = {k: Biro26Credit._scrub_value(v) if k not in ("idnp", "phone") else v
+                    for k, v in safe.items()}
             Biro26DB().execute_dml(
                 "INSERT INTO TMS_CREDITE_REQ_EVENT (REQ_ID, PROVIDER_CODE, OP, "
                 "HTTP_CODE, DURATION_MS, PAYLOAD, RESULT, IS_ERROR) "
