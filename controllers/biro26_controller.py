@@ -330,6 +330,11 @@ class Biro26Controller:
             "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24"),
             # RO: filtrul dupa brand in catalogul noului site (OFF implicit)
             "brand_filter": Biro26Store.get_setting("SHOP_BRAND_FILTER", "0"),
+            # RO: formatele de cont disponibile clientilor (PDF mereu;
+            #     HTML/XLSX activabile aici); o singura optiune =>
+            #     selectorul dispare din front-office
+            "fmt_html": Biro26Store.get_setting("SHOP_FMT_HTML", "1"),
+            "fmt_xlsx": Biro26Store.get_setting("SHOP_FMT_XLSX", "1"),
             # RO/EN: counter = next NRMANUAL to issue (not max+1 floor)
             "invoice_nr_start": Biro26Store.get_setting("INVOICE_NR_START", "1"),
             "invoice_nr_max": max_nr,
