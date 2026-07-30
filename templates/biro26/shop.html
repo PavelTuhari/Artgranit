@@ -904,6 +904,7 @@ async function makeInvoice() {
       '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + payBtns +
       '<a class="btn" style="text-decoration:none" target="_blank" href="' + pdf('invoice') + '">⬇ Cont de plată · Счёт (PDF)</a>' +
       '<a class="btn gray" style="text-decoration:none" target="_blank" href="' + pdf('order') + '">⬇ Comandă · Заказ (PDF)</a>' +
+      xlsxBtn +
       '</div><div id="pay-box" style="margin-top:8px"></div></div>';
     saveCart([]); renderCart();
   }
