@@ -453,21 +453,42 @@ class Biro26Credit:
 
     @staticmethod
     def _scrub(text: str) -> str:
-        """RO: ascunde secventele lungi de cifre (IDNP, telefon) din text."""
+        """RO: ascunde secventele lungi de cifre (IDNP, telefon), inclusiv cu separatori."""
         import re as _re
-        return _re.sub(r"\d{7,}", lambda m: m.group(0)[:2] + "*" * (len(m.group(0)) - 2), text or "")
+
+        def _hide(m):
+            s = m.group(0)
+            digits = [i for i, c in enumerate(s) if c.isdigit()]
+            keep = set(digits[:2])
+            return "".join(c if i in keep or not c.isdigit() else "*"
+                           for i, c in enumerate(s))
+
+        return _re.sub(r"\d(?:[\s\-]?\d){6,}", _hide, text or "")
+
+    @staticmethod
+    def _scrub_value(v: Any) -> Any:
+        """RO: curata recursiv orice structura — string, lista, dictionar."""
+        if isinstance(v, str):
+            return Biro26Credit._scrub(v)[:400]
+        if isinstance(v, dict):
+            return {k: Biro26Credit._scrub_value(x) for k, x in v.items()
+                    if k in Biro26Credit._EVENT_SAFE_KEYS}
+        if isinstance(v, (list, tuple)):
+            return [Biro26Credit._scrub_value(x) for x in v][:20]
+        if isinstance(v, (int, float, bool)) or v is None:
+            return v
+        return Biro26Credit._scrub(str(v))[:400]
 
     @staticmethod
     def _safe_result(result: Dict[str, Any]) -> Dict[str, Any]:
-        """RO: doar cimpurile din allowlist, cu cifrele lungi mascate."""
+        """RO: doar cimpurile din allowlist, cu cifrele lungi mascate (recursiv)."""
         src = dict(result or {})
         data = src.get("data") or {}
         out: Dict[str, Any] = {}
         for k in Biro26Credit._EVENT_SAFE_KEYS:
             for holder in (src, data if isinstance(data, dict) else {}):
                 if k in holder and k not in out:
-                    v = holder[k]
-                    out[k] = Biro26Credit._scrub(v)[:400] if isinstance(v, str) else v
+                    out[k] = Biro26Credit._scrub_value(holder[k])
         return out
 
     @staticmethod
