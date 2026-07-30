@@ -433,10 +433,37 @@ class Biro26Credit:
 
     # ── jurnal apeluri API ──
 
+    _TEST_IDNP = "2000000000001"  # RO: IDNP de proba pentru testul de conexiune
+
+    # RO: cimpurile permise in jurnal — restul (nume, data nasterii, IDNP) se taie.
+    _EVENT_SAFE_KEYS = {"success", "preapproved", "max_amount", "status", "state",
+                        "urn", "order_id", "message", "http_code", "error"}
+
     @staticmethod
     def _mask_idnp(idnp: str) -> str:
         s = (idnp or "").strip()
-        return f"{s[:2]}{'*' * max(0, len(s) - 4)}{s[-2:]}" if len(s) > 4 else "*" * len(s)
+        if len(s) <= 6:
+            return "*" * len(s)
+        return f"{s[:2]}{'*' * (len(s) - 4)}{s[-2:]}"
+
+    @staticmethod
+    def _scrub(text: str) -> str:
+        """RO: ascunde secventele lungi de cifre (IDNP, telefon) din text."""
+        import re as _re
+        return _re.sub(r"\d{7,}", lambda m: m.group(0)[:2] + "*" * (len(m.group(0)) - 2), text or "")
+
+    @staticmethod
+    def _safe_result(result: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: doar cimpurile din allowlist, cu cifrele lungi mascate."""
+        src = dict(result or {})
+        data = src.get("data") or {}
+        out: Dict[str, Any] = {}
+        for k in Biro26Credit._EVENT_SAFE_KEYS:
+            for holder in (src, data if isinstance(data, dict) else {}):
+                if k in holder and k not in out:
+                    v = holder[k]
+                    out[k] = Biro26Credit._scrub(v)[:400] if isinstance(v, str) else v
+        return out
 
     @staticmethod
     def _log_event(req_id: Optional[int], provider_code: str, op: str,
@@ -450,6 +477,9 @@ class Biro26Credit:
                 safe["idnp"] = Biro26Credit._mask_idnp(safe["idnp"])
             if "phone" in safe and safe["phone"]:
                 safe["phone"] = str(safe["phone"])[:5] + "***"
+            for k, v in list(safe.items()):
+                if isinstance(v, str):
+                    safe[k] = Biro26Credit._scrub(v)
             Biro26DB().execute_dml(
                 "INSERT INTO TMS_CREDITE_REQ_EVENT (REQ_ID, PROVIDER_CODE, OP, "
                 "HTTP_CODE, DURATION_MS, PAYLOAD, RESULT, IS_ERROR) "
@@ -457,7 +487,8 @@ class Biro26Credit:
                 {"r": req_id, "p": (provider_code or "")[:30], "o": (op or "")[:30],
                  "h": result.get("http_code"), "d": duration_ms,
                  "pl": _j.dumps(safe, ensure_ascii=False)[:3900],
-                 "res": _j.dumps(result, ensure_ascii=False, default=str)[:3900],
+                 "res": _j.dumps(Biro26Credit._safe_result(result),
+                                 ensure_ascii=False, default=str)[:3900],
                  "e": "0" if result.get("success") else "1"})
         except Exception:
             pass
