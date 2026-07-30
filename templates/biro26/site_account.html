@@ -8,6 +8,19 @@
           <div id="me-box" style="display:none" class="acc-box">
             <h3><span data-t="welcome">Bine ați venit</span>, <span id="me-name"></span> 👋</h3>
             <p style="font-size:14.5px;color:#555" id="me-info"></p>
+            {% if fmt_html == '1' or fmt_xlsx == '1' %}
+            <!-- RO: CONSTANTA personala: formatele contului de plata
+                 (implicit PDF); se aplica automat la conturile urmatoare -->
+            <div style="border:1px solid #ececec;border-radius:12px;padding:12px 14px;margin:10px 0">
+              <b style="font-size:14px">Formate cont de plată · Форматы счёта</b>
+              <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">
+                <label style="font-size:14px"><input type="checkbox" class="fmt" value="pdf" checked onchange="fmtChanged()"> PDF</label>
+                {% if fmt_html == '1' %}<label style="font-size:14px"><input type="checkbox" class="fmt" value="html" onchange="fmtChanged()"> HTML</label>{% endif %}
+                {% if fmt_xlsx == '1' %}<label style="font-size:14px"><input type="checkbox" class="fmt" value="xlsx" onchange="fmtChanged()"> Excel (XLSX)</label>{% endif %}
+              </div>
+              <p style="font-size:12px;color:#808080;margin:6px 0 0">Se salvează automat și se folosește la fiecare cont nou · Сохраняется и применяется к следующим счетам</p>
+            </div>
+            {% endif %}
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px" href="/catalog" data-t="goCatalog">Mergi la catalog</a>
               <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px;background:#ea6f21" href="/cos" data-t="cart">Coș</a>
