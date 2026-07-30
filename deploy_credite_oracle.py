@@ -8,9 +8,11 @@ Steps per target:
   1. create tables/sequences/triggers that do not exist yet
   2. migrate data from YBIRO_CREDIT_* (if present and not migrated yet)
   3. seed TMS_CREDITE_PROVIDER from data/*.json + .env (if empty)
-  4. rename YBIRO_CREDIT_* -> *_OLD
+  4. rename YBIRO_CREDIT_* -> *_OLD — ONLY with --rename-legacy (off by default:
+     remote still reads YBIRO_CREDIT_* until the new code ships, see Task 10)
 
 Usage: ./venv/bin/python deploy_credite_oracle.py --target both
+       ./venv/bin/python deploy_credite_oracle.py --target both --rename-legacy
 """
 from __future__ import annotations
 
