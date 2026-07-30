@@ -1125,13 +1125,19 @@ cd /Users/pt/Projects.AI/Artgranit && ./venv/bin/python test_credite_settings.py
 
 Ожидается: `6/6 passed`. Живой тест печатает `[skip]`, если таблицы ещё не развёрнуты — это нормально до Task 2 deploy.
 
-- [ ] **Step 5: Развернуть таблицы в обеих БД**
+- [ ] **Step 5: Развернуть таблицы в обеих БД (без переименования legacy)**
+
+⚠️ Обе БД — общие с production: локальная разработка и remote-приложение ходят в одни и те же
+Oracle ADB и OfficePlus 11g. Работающий на remote код пока обращается к `YBIRO_CREDIT_*`,
+поэтому переименование в `*_OLD` откладывается до Task 10 — после того, как новый код уедет
+на сервер. Добавить в `deploy_credite_oracle.py` флаг `--rename-legacy` (по умолчанию выключен)
+и вызывать `rename_legacy(be)` только при нём.
 
 ```bash
 cd /Users/pt/Projects.AI/Artgranit && ./venv/bin/python deploy_credite_oracle.py --target both
 ```
 
-Ожидается: для каждого target — строки `+ CREATE TABLE TMS_CREDITE_...`, `+ провайдер easycredit создан`, `+ провайдер iute создан`, `~ YBIRO_CREDIT_ORG -> YBIRO_CREDIT_ORG_OLD` и финальное `OK: все 6 таблиц на месте`.
+Ожидается: для каждого target — строки `+ CREATE TABLE TMS_CREDITE_...`, `+ провайдер easycredit создан`, `+ провайдер iute создан` и финальное `OK: все 6 таблиц на месте`. Строк `~ YBIRO_CREDIT_ORG -> ...` быть НЕ должно.
 
 - [ ] **Step 6: Проверить идемпотентность**
 
