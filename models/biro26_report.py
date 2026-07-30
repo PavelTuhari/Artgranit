@@ -562,15 +562,32 @@ class Biro26Report:
         if _nr.lower() in ("none", "null"):
             _nr = ""
         if kind == "invoice":
-            rows = [[str(i + 1), it["name"], str(it["qty"]), it["um"],
+            # RO: coloana Cod (articol) + FARA rinduri de total in tabel —
+            #     totalurile stau SUB tabel (campul totals_block, pozitionat
+            #     dinamic dupa inaltimea reala a tabelului).
+            rows = [[str(i + 1), str(it.get("cod") or ""), it["name"],
+                     str(it["qty"]), it["um"],
                      _fmt(it["price"]), _fmt(it["sum"])]
                     for i, it in enumerate(data["items"])]
-            rows += [["", "", "", "", "Total (Итого):", _fmt(data["total"])],
-                     ["", "", "", "",
-                      data.get("tva_label", "Suma TVA (НДС):"),
-                      data.get("tva_text", _fmt(data["tva"]))],
-                     ["", "", "", "", "SPRE PLATA:", _fmt(data["total"])]]
             _label = f"CONT DE PLATĂ № {_nr}" if _nr else "CONT DE PLATĂ"
+            # RO: subtitrarile ruse pe rind separat, SUB textul romanesc
+            platitor = ("Platitor, adresa: " + client_line
+                        + (f", {c['address']}" if c.get("address") else "")
+                        + "\n(Плательщик и его адрес)")
+            if c.get("iban"):
+                platitor += (f"\nCont de decontare nr.: {c['iban']}"
+                             "\n(Расчетный счет)")
+            if c.get("bank") or c.get("bic"):
+                platitor += "\n" + (c.get("bank") or "")
+                if c.get("bic"):
+                    platitor += f"  BIC: {c['bic']}"
+            if c.get("fiscal_code"):
+                platitor += (f"\nCod fiscal: {c['fiscal_code']}"
+                             "\n(Фискальный код)")
+            totals = (f"Total (Итого):  {_fmt(data['total'])}\n"
+                      f"{data.get('tva_label', 'Suma TVA (НДС):')}  "
+                      f"{data.get('tva_text', _fmt(data['tva']))}\n"
+                      f"SPRE PLATA:  {_fmt(data['total'])}")
             return {
                 "furnizor_block":
                     f"Furnizor: {f['name']}\nAdresa: {f['address']}\n"
@@ -585,9 +602,9 @@ class Biro26Report:
                 "nrmanual": _nr,
                 "number": _nr,
                 "date_ro": data["date_ro"],
-                "platitor_block": "Platitor, adresa: " + client_line +
-                                  " (Плательщик и его адрес)" + payer_req,
+                "platitor_block": platitor,
                 "items": json.dumps(rows, ensure_ascii=False),
+                "totals_block": totals,
                 "spre_plata": "Spre plata / Всего к оплате: " + _ro_amount(data["total"]),
                 "logo": data.get("logo") or "",
             }
