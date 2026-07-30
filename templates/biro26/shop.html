@@ -1312,6 +1312,8 @@ applyLang();
   if (p.get('cart') === '1') setTimeout(openCart, 300);
 })();
 saveCart(cart()); refreshMe(); load(true); loadFacets(); loadPayMethods(); loadCreditOffers();
+/* RO: constanta personala de formate (dupa ce refreshMe aduce clientul) */
+setTimeout(() => fmtApplyPref(typeof me !== 'undefined' && me && me.invoice_fmt), 1200);
 </script>
 </body>
 </html>
