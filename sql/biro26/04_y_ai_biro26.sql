@@ -571,5 +571,50 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
     RETURN NULL;
   END get_setting;
 
+  -- RO: contul de plata + comanda pentru un document deja introdus:
+  --     Oracle -> UTL_HTTP -> API-ul web -> PDF-urile se ataseaza la
+  --     document (VMDB_DOCS_OLE); aplicatia nativa le vede la «Object».
+  -- EN: Oracle-side trigger of the web generation for an existing doc.
+  FUNCTION gen_conturi(p_nr IN VARCHAR2) RETURN VARCHAR2 IS
+    v_key   VARCHAR2(200);
+    v_url   VARCHAR2(1000);
+    v_req   UTL_HTTP.REQ;
+    v_resp  UTL_HTTP.RESP;
+    v_chunk VARCHAR2(2000);
+    v_out   VARCHAR2(4000) := '';
+    v_open  BOOLEAN := FALSE;
+  BEGIN
+    v_key := get_setting('API_GEN_KEY');
+    IF v_key IS NULL THEN
+      RETURN 'ERR: lipseste YBIRO_SETTINGS.API_GEN_KEY '
+             || '(= BIRO26_API_TOKEN din .env)';
+    END IF;
+    -- HTTP (nu HTTPS): Oracle 11g nu are wallet TLS pe acest server;
+    -- endpoint-ul e protejat de cheia API, iar :80 nu redirecteaza API-ul.
+    v_url := 'http://officeplus.md/api/biro26/gen-docs-by-nr/'
+             || UTL_URL.ESCAPE(TRIM(REPLACE(p_nr, '#', '')))
+             || '?api_key=' || UTL_URL.ESCAPE(v_key, TRUE);
+    UTL_HTTP.SET_TRANSFER_TIMEOUT(180);
+    v_req  := UTL_HTTP.BEGIN_REQUEST(v_url, 'GET', 'HTTP/1.1');
+    UTL_HTTP.SET_HEADER(v_req, 'User-Agent', 'y_ai_BIRO26.gen_conturi');
+    v_resp := UTL_HTTP.GET_RESPONSE(v_req);
+    v_open := TRUE;
+    BEGIN
+      LOOP
+        UTL_HTTP.READ_TEXT(v_resp, v_chunk, 2000);
+        v_out := SUBSTR(v_out || v_chunk, 1, 3900);
+      END LOOP;
+    EXCEPTION WHEN UTL_HTTP.END_OF_BODY THEN NULL;
+    END;
+    UTL_HTTP.END_RESPONSE(v_resp);
+    RETURN SUBSTR('HTTP ' || v_resp.status_code || ': ' || v_out, 1, 4000);
+  EXCEPTION WHEN OTHERS THEN
+    IF v_open THEN
+      BEGIN UTL_HTTP.END_RESPONSE(v_resp);
+      EXCEPTION WHEN OTHERS THEN NULL; END;
+    END IF;
+    RETURN 'ERR: ' || SUBSTR(SQLERRM, 1, 3900);
+  END gen_conturi;
+
 END y_ai_BIRO26;
 /
