@@ -77,8 +77,28 @@ async function refresh() {
     document.getElementById('me-info').textContent =
       me.email + (me.phone ? ' · ' + me.phone : '') +
       (me.address ? ' · ' + me.address : '');
+    fmtApplyPref(me.invoice_fmt);
   }
+  window.ME_ACC = me;
   return me;
+}
+/* RO: constanta personala de formate (implicit PDF) */
+function fmtApplyPref(pref) {
+  const list = String(pref || localStorage.getItem('biro26_fmt') || 'pdf')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const boxes = [...document.querySelectorAll('.fmt')];
+  if (!boxes.length) return;
+  let any = false;
+  boxes.forEach(b => { b.checked = list.includes(b.value); any = any || b.checked; });
+  if (!any) (boxes.find(b => b.value === 'pdf') || boxes[0]).checked = true;
+}
+async function fmtChanged() {
+  const v = [...document.querySelectorAll('.fmt:checked')]
+    .map(c => c.value).join(',') || 'pdf';
+  localStorage.setItem('biro26_fmt', v);
+  const r = await j(API + '/me/fmt', {method: 'PUT',
+    body: JSON.stringify({invoice_fmt: v})});
+  if (r.success) toast('✅ Salvat: ' + v.toUpperCase());
 }
 async function doLogin() {
   const r = await j(API + '/login', {method: 'POST', body: JSON.stringify({
