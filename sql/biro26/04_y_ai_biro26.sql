@@ -617,7 +617,8 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
     -- endpoint-ul e protejat de cheia API, iar :80 nu redirecteaza API-ul.
     v_url := 'http://officeplus.md/api/biro26/gen-docs-by-nr/'
              || UTL_URL.ESCAPE(TRIM(REPLACE(p_nr, '#', '')))
-             || '?api_key=' || UTL_URL.ESCAPE(v_key, TRUE);
+             || '?api_key=' || UTL_URL.ESCAPE(v_key, TRUE)
+             || '&formats=' || UTL_URL.ESCAPE(NVL(p_formats, 'pdf'), TRUE);
     UTL_HTTP.SET_TRANSFER_TIMEOUT(180);
     v_req  := UTL_HTTP.BEGIN_REQUEST(v_url, 'GET', 'HTTP/1.1');
     UTL_HTTP.SET_HEADER(v_req, 'User-Agent', 'y_ai_BIRO26.gen_conturi');
