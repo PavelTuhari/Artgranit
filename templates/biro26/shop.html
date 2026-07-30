@@ -863,6 +863,15 @@ async function makeInvoice() {
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
+    // RO: bifa «si Excel» — genereaza simultan si XLSX (tabel Excel real,
+    //     Suma = formula cant*pret, TOTAL = formula SUM, logo inclus)
+    let xlsxBtn = '';
+    if ((document.getElementById('xlsx-too') || {}).checked) {
+      const xurl = '/api/biro26/shop/report-xlsx/invoice/' + r.data.cod;
+      xlsxBtn = '<a class="btn gray" target="_blank" href="' + xurl +
+                '">📊 Excel (XLSX)</a>';
+      setTimeout(() => { location.href = xurl; }, 800);
+    }
     // RO: butoane de plata online (MAIB card / MIA QR) — dupa metodele active
     // EN: online pay buttons (MAIB card / MIA QR) — per the enabled methods
     let payBtns = '';
