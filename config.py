@@ -267,7 +267,7 @@ class Config:
 
     @classmethod
     def iute_base_url(cls) -> str:
-        o = _load_iute_overrides()
+        o = _oracle('iute')
         base = o.get('base_url') or cls.IUTE_BASE_URL
         if base:
             return base.rstrip('/')
@@ -276,23 +276,19 @@ class Config:
 
     @classmethod
     def iute_env(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('env') or cls.IUTE_ENV
+        return _oracle('iute').get('env') or cls.IUTE_ENV
 
     @classmethod
     def iute_api_key(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('api_key') or cls.IUTE_API_KEY
+        return _oracle('iute').get('api_key') or cls.IUTE_API_KEY
 
     @classmethod
     def iute_pos_identifier(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('pos_identifier') or cls.IUTE_POS_IDENTIFIER
+        return _oracle('iute').get('pos_identifier') or cls.IUTE_POS_IDENTIFIER
 
     @classmethod
     def iute_salesman_identifier(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('salesman_identifier') or cls.IUTE_SALESMAN_IDENTIFIER
+        return _oracle('iute').get('salesman_identifier') or cls.IUTE_SALESMAN_IDENTIFIER
 
     # Rate limiting (anonymous non-BIRO26 /api only; BIRO26 + auth are exempt in app.py)
     # 120/min burst + 5000/hour ceiling — UI-friendly, still stops simple floods
