@@ -463,7 +463,7 @@ class Biro26Credit:
             return "".join(c if i in keep or not c.isdigit() else "*"
                            for i, c in enumerate(s))
 
-        return _re.sub(r"\d(?:[\s\-]?\d){6,}", _hide, text or "")
+        return _re.sub(r"\d(?:[\s\-./]?\d){6,}", _hide, text or "")
 
     @staticmethod
     def _scrub_value(v: Any) -> Any:
