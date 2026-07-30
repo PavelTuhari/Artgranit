@@ -461,6 +461,48 @@ class Biro26Report:
         wb.save(buf)
         return buf.getvalue()
 
+    # RO: varianta HTML a formularelor (stil site, modelul aprobat
+    #     «Primaria_Japca») — acelasi Core de rapoarte, recipe 'html'
+    HTML_KINDS = {"invoice": "biro26_invoice_html.hbs",
+                  "order": "biro26_order_html.hbs"}
+
+    @staticmethod
+    def render_html(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: formularul in HTML (jsReport, recipe 'html' — fara Chrome):
+        aceeasi date/Core ca PDF-ul, dar iese pagina HTML «ca pe site»."""
+        if kind not in Biro26Report.HTML_KINDS:
+            return {"success": False, "error": f"unknown report kind: {kind}"}
+        try:
+            resp = requests.post(
+                Config.JSREPORT_URL.rstrip("/") + "/api/report",
+                json={"template": {
+                        "content": _read(Biro26Report.HTML_KINDS[kind]),
+                        "engine": "handlebars",
+                        "recipe": "html",
+                        "helpers": _read("helpers.js")},
+                      "data": data},
+                timeout=60)
+            if resp.status_code != 200:
+                return {"success": False,
+                        "error": f"jsreport HTTP {resp.status_code}: {resp.text[:300]}"}
+            return {"success": True, "html": resp.content}
+        except requests.ConnectionError:
+            return {"success": False,
+                    "error": "report service unavailable (jsreport not running)"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def render_doc_html(kind: str, cod: int,
+                        allowed_client_cod: Optional[int] = None) -> Dict[str, Any]:
+        d = Biro26Report.doc_data(cod)
+        if not d.get("success"):
+            return d
+        if (allowed_client_cod is not None
+                and int(d["client_cod"]) != int(allowed_client_cod)):
+            return {"success": False, "error": "document belongs to another client"}
+        return Biro26Report.render_html(kind, d["data"])
+
     @staticmethod
     def render(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """POST the template + data to jsReport; returns {'pdf': bytes}."""
