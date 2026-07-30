@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cont de plată Nr. {{nrmanual}}</title>
+<title>Comanda cumpărătorului Nr. {{nrmanual}}</title>
 <style>
   /* RO: varianta HTML a contului — dupa modelul aprobat
      «Primaria_Japca_Cont_de_plata.html» (stil site / una.md). */
@@ -70,14 +70,14 @@
 <div class="invoice">
   <div class="header">
     <div class="header-left">
-      <div class="party-title"><span class="bold-label">Furnizor:</span> {{firm.name}}</div>
+      <div class="party-title"><span class="bold-label">Executor:</span> {{firm.name}}</div>
       <div class="party-info">
         <span class="bold-label">Adresa:</span> {{firm.address}}{{#if firm.phone}}, {{firm.phone}}{{/if}}<br>
         <span class="bold-label">Cont de decontare nr.: {{firm.iban}}</span><br>
         {{firm.bank}}{{#if firm.branch}} &nbsp;|&nbsp; BIC: {{firm.branch}}{{/if}}<br>
         <span class="bold-label">Cod fiscal: {{firm.fiscal_code}}</span>
       </div>
-      <div class="party-title"><span class="bold-label">Plătitor:</span></div>
+      <div class="party-title"><span class="bold-label">Client:</span></div>
       <div class="party-info" style="margin-bottom:0;">
         <span class="bold-label">{{client.name}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, Tel: {{client.phone}}{{/if}}</span><br>
         {{#if client.iban}}<span class="bold-label">Cont de decontare nr.: {{client.iban}}</span><br>{{/if}}
@@ -88,16 +88,11 @@
     <div class="header-right">
       {{#if logo}}<img src="{{logo}}" alt="OfficePlus" class="logo-img">{{/if}}
       <div class="invoice-meta">
-        <strong>CONT DE PLATĂ</strong>
+        <strong>COMANDA<br>CUMPĂRĂTORULUI</strong>
         <span class="invoice-nr">Nr. {{nrmanual}}</span>
         <span class="invoice-date">din {{date_ro}}</span>
       </div>
     </div>
-  </div>
-
-  <div class="validity-note">
-    Contul e valabil timp de <strong>TREI</strong> zile.<br>
-    Vă mulțumim pentru achitarea la timp.
   </div>
 
   <table>
@@ -141,12 +136,12 @@
 
   <div class="signatures">
     <div class="sig-block">
-      <div class="sig-label">Conducătorul</div>
-      <div class="sig-line">Director{{#if firm.director}}: {{firm.director}}{{/if}}</div>
+      <div class="sig-label">Executor</div>
+      <div class="sig-line">Executor</div>
     </div>
     <div class="sig-block">
-      <div class="sig-label">Contabil Șef</div>
-      <div class="sig-line">Contabil șef</div>
+      <div class="sig-label">Cumpărător</div>
+      <div class="sig-line">Cumpărător</div>
     </div>
   </div>
 </div>
