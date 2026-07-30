@@ -125,8 +125,8 @@ def t_masked_hides_secrets() -> List[str]:
         fails.append(f"маска пароля: {m['params']['api_password']!r}")
     if m["params"]["api_user"] != "operator":
         fails.append(f"несекретный параметр замаскирован: {m['params']['api_user']!r}")
-    if m["params"].get("has_api_password") is not None:
-        pass
+    if m.get("has_secret", {}).get("api_password") is not True:
+        fails.append("has_secret['api_password'] должен быть True при заданном пароле")
     return fails
 
 
