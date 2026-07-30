@@ -288,16 +288,20 @@ class Biro26Credit:
     @staticmethod
     def requests_list(limit: int = 50) -> Dict[str, Any]:
         try:
-            rows = _rows(Biro26DB().execute_query(
+            r = Biro26DB().execute_query(
                 "SELECT * FROM (SELECT r.ID, o.NAME ORG_NAME, r.PRODUCT_NAME, "
                 "r.QTY, r.AMOUNT, r.CREDIT_PRICE, r.MONTHS, r.MONTHLY, "
-                "r.CLIENT_NAME, r.PHONE, r.STATUS, r.API_SENT, r.API_RESULT, "
+                "r.CLIENT_NAME, r.PHONE, r.STATUS, r.PROVIDER_CODE, r.EXT_REF, "
+                "r.API_STATUS, r.IDNP_MASKED, "
+                "TO_CHAR(r.LAST_CHECK,'DD.MM.YYYY HH24:MI') LAST_CHECK, "
                 "TO_CHAR(r.CREATED,'DD.MM.YYYY HH24:MI') CREATED "
                 "FROM TMS_CREDITE_REQ r "
                 "LEFT JOIN TMS_CREDITE_ORG o ON o.ID = r.ORG_ID "
                 "ORDER BY r.ID DESC) WHERE ROWNUM <= :n",
-                {"n": max(1, min(int(limit), 500))}))
-            return {"success": True, "data": rows}
+                {"n": max(1, min(int(limit), 500))})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": _rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
