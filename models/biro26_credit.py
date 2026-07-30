@@ -88,11 +88,10 @@ class Biro26Credit:
             w, params = "", {}
             if org_id:
                 w, params = "WHERE p.ORG_ID = :o", {"o": int(org_id)}
-            rows = _rows(Biro26DB().execute_query(
+            return _result(Biro26DB().execute_query(
                 f"SELECT p.*, o.NAME ORG_NAME FROM TMS_CREDITE_PLAN p "
                 f"JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID {w} "
                 f"ORDER BY p.ORG_ID, p.MONTHS_MIN, p.ID", params))
-            return {"success": True, "data": rows}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
