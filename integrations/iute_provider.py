@@ -39,21 +39,24 @@ class IuteProvider(CreditProvider):
     # --- Настройки ---
 
     def _base_url(self) -> str:
-        return Config.iute_base_url()
+        return self._cfg().get("base_url") or Config.iute_base_url()
+
+    def _env(self) -> str:
+        return self._cfg().get("env") or Config.iute_env()
 
     def _api_key(self) -> str:
-        return Config.iute_api_key()
+        return self._cfg_param("api_key") or Config.iute_api_key()
 
     def _pos_identifier(self) -> str:
-        return Config.iute_pos_identifier()
+        return self._cfg_param("pos_identifier") or Config.iute_pos_identifier()
 
     def _salesman_identifier(self) -> str:
-        return Config.iute_salesman_identifier()
+        return self._cfg_param("salesman_identifier") or Config.iute_salesman_identifier()
 
     def get_settings(self) -> dict[str, Any]:
         key = self._api_key()
         return {
-            "env": Config.iute_env(),
+            "env": self._env(),
             "base_url": self._base_url(),
             "api_key": (key[:8] + "***") if key else "",
             "pos_identifier": self._pos_identifier(),
