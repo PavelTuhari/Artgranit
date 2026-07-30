@@ -295,6 +295,7 @@ window.onLangChange = renderCart;
     j(API + '/pay/methods'), j(API + '/credit/offers')]);
   ME = (me.success && me.data && me.data.email) ? me.data : null;
   document.getElementById('auth-note').style.display = ME ? 'none' : '';
+  fmtApplyPref(ME && ME.invoice_fmt);   // constanta personala (implicit pdf)
   CENTERS = log.data || [];
   document.getElementById('tr-center').innerHTML = CENTERS.map(c =>
     '<option value="' + c.id + '">' + esc(c.denumire) + '</option>').join('');
