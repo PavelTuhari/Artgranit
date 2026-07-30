@@ -36,13 +36,12 @@ class Biro26Credit:
     def orgs_list(include_disabled: bool = True) -> Dict[str, Any]:
         try:
             w = "" if include_disabled else "WHERE o.ENABLED = '1'"
-            rows = _rows(Biro26DB().execute_query(
+            return _result(Biro26DB().execute_query(
                 f"SELECT o.ID, o.NAME, o.ENABLED, o.ORG_MODE, o.API_URL, "
                 f"o.LOGO_URL, o.INFO, o.ORD, o.PROVIDER_ID, "
                 f"(SELECT COUNT(*) FROM TMS_CREDITE_PLAN p "
                 f" WHERE p.ORG_ID = o.ID) PLANS "
                 f"FROM TMS_CREDITE_ORG o {w} ORDER BY o.ORD, o.ID"))
-            return {"success": True, "data": rows}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
