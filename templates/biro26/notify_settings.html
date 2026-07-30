@@ -333,7 +333,9 @@ async function saveShop() {
   const v = document.getElementById('f-shop-pagesize').value.trim();
   const r = await j('/api/biro26/shop-settings', {method: 'PUT',
     body: JSON.stringify({shop_page_size: v,
-      brand_filter: document.getElementById('f-brand-filter').checked ? '1' : '0'})});
+      brand_filter: document.getElementById('f-brand-filter').checked ? '1' : '0',
+      fmt_html: document.getElementById('f-fmt-html').checked ? '1' : '0',
+      fmt_xlsx: document.getElementById('f-fmt-xlsx').checked ? '1' : '0'})});
   if (r.success) toast('Salvat ✓ · Сохранено — magazinul folosește noua valoare la reîncărcare');
 }
 /* RO: numar start cont de plata (YBIRO_SETTINGS INVOICE_NR_START)
