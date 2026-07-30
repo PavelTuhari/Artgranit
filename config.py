@@ -13,26 +13,40 @@ EASYCREDIT_SETTINGS_PATH = Path(__file__).resolve().parent / "data" / "easycredi
 IUTE_SETTINGS_PATH = Path(__file__).resolve().parent / "data" / "iute_settings.json"
 
 
-def _load_easycredit_overrides():
-    """Читает data/easycredit_settings.json (переопределения к .env). Без секретов в репо."""
-    if not EASYCREDIT_SETTINGS_PATH.exists():
+def _json_overrides(path: Path) -> dict:
+    """Читает data/*_settings.json. Используется ТОЛЬКО как seed при деплое
+    (deploy_credite_oracle.py) — авторитетное хранилище теперь Oracle."""
+    if not path.exists():
         return {}
     try:
-        with open(EASYCREDIT_SETTINGS_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
+
+
+def _load_easycredit_overrides():
+    """Seed-источник EasyCredit. Не читается в рантайме — см. _oracle('easycredit')."""
+    return _json_overrides(EASYCREDIT_SETTINGS_PATH)
 
 
 def _load_iute_overrides():
-    """Читает data/iute_settings.json (переопределения к .env). Без секретов в репо."""
-    if not IUTE_SETTINGS_PATH.exists():
-        return {}
+    """Seed-источник Iute. Не читается в рантайме — см. _oracle('iute')."""
+    return _json_overrides(IUTE_SETTINGS_PATH)
+
+
+def _oracle(code: str) -> dict:
+    """Настройки провайдера из TMS_CREDITE_PROVIDER (ADB). {} при недоступности."""
     try:
-        with open(IUTE_SETTINGS_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+        from models.credite_settings import adb_settings
+        d = adb_settings().get(code)
     except Exception:
         return {}
+    if not d:
+        return {}
+    out = {"env": d["env"], "base_url": d["base_url"]}
+    out.update(d["params"])
+    return out
 
 
 def save_easycredit_settings(env: str, base_url: str, api_user: str, api_password: str) -> None:
