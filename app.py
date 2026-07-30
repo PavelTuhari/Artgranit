@@ -92,7 +92,15 @@ def _skip_limit_for_non_api():
     path = request.path or ''
     if not path.startswith('/api/'):
         return True
-    # BIRO26: high-volume legitimate UI + catalog sync; never rate-limit here
+    # BIRO26: high-volume legitimate UI + catalog sync; never rate-limit here.
+    # EXCEPTION: the public, unauthenticated credit-flow endpoints under
+    # /api/biro26/shop/credit/api/* carry their own explicit @limiter.limit(...)
+    # decorators (anti-abuse for anonymous requests) — request_filter exempts
+    # ALL limits (default_limits AND per-route decorators, see
+    # flask_limiter._extension.Limiter.__check_all_limits_exempt), so those
+    # paths must be carved out here or the decorators would be silently inert.
+    if path.startswith('/api/biro26/shop/credit/api/'):
+        return False
     if path.startswith('/api/biro26/'):
         return True
     try:
