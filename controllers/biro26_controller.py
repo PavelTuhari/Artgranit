@@ -1099,15 +1099,43 @@ class Biro26Controller:
             return {"success": True, "data": None}
         # RO: telefonul e necesar cererii de credit din cos
         # EN: the phone feeds the cart's credit-request button
-        phone = ""
+        phone, inv_fmt = "", ""
         try:
             r = Biro26Store.shop_client_by_email(c["email"])
-            phone = (r.get("data") or {}).get("phone") or ""
+            row = r.get("data") or {}
+            phone = row.get("phone") or ""
+            inv_fmt = row.get("invoice_fmt") or ""
         except Exception:
             pass
         return {"success": True,
                 "data": {"name": c["name"], "email": c["email"],
-                         "phone": phone}}
+                         "phone": phone,
+                         # RO: constanta personala — formatele contului
+                         #     (implicit 'pdf' la toti)
+                         "invoice_fmt": inv_fmt or "pdf"}}
+
+    @staticmethod
+    def shop_set_invoice_fmt() -> Dict[str, Any]:
+        """RO: salveaza in cabinetul clientului formatele alese pentru
+        cont (pdf/html/xlsx) — se refolosesc la conturile urmatoare.
+        Se accepta DOAR formatele activate de admin (SHOP_FMT_*)."""
+        from flask import session
+        c = session.get("biro26_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        d = request.get_json(silent=True) or {}
+        allowed = {"pdf"}
+        if Biro26Store.get_setting("SHOP_FMT_HTML", "1") == "1":
+            allowed.add("html")
+        if Biro26Store.get_setting("SHOP_FMT_XLSX", "1") == "1":
+            allowed.add("xlsx")
+        fmts = [f.strip().lower() for f in
+                str(d.get("invoice_fmt") or "").split(",")
+                if f.strip().lower() in allowed]
+        fmt = ",".join(dict.fromkeys(fmts)) or "pdf"
+        r = Biro26Store.set_client_invoice_fmt(c["univers_cod"], fmt)
+        return (r if not r.get("success")
+                else {"success": True, "data": {"invoice_fmt": fmt}})
 
     @staticmethod
     def shop_invoice() -> Dict[str, Any]:
