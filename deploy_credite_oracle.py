@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Any, Dict, List
+from typing import List
 
 from models.credite_settings import AdbBackend, Biro26Backend, CrediteBackend, PROVIDER_DEFS
 
