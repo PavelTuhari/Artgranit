@@ -886,9 +886,11 @@ class Biro26Report:
         form kind) — re-rendering replaces the file instead of duplicating."""
         import base64
         names = {"invoice": "Cont_de_plata", "order": "Comanda"}
-        fname = f"{names.get(kind, kind)}_{cod}.pdf"
-        comment = ("Cont de plata (web/PDF)" if kind == "invoice"
-                   else "Comanda cumparatorului (web/PDF)")
+        ext = (ext or "pdf").lower().lstrip(".")
+        fname = f"{names.get(kind, kind)}_{cod}.{ext}"
+        base = ("Cont de plata" if kind == "invoice"
+                else "Comanda cumparatorului")
+        comment = f"{base} (web/{ext.upper()})"
         blob = {"__b64__": base64.b64encode(pdf).decode()}
         try:
             r = Biro26DB().execute_script([
