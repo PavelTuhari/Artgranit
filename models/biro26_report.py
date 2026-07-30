@@ -636,6 +636,59 @@ class Biro26Report:
             "logo": data.get("logo") or "",
         }
 
+    @staticmethod
+    def _pdfme_invoice_layout(template: Dict[str, Any],
+                              data: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: ajusteaza sablonul contului la RULARE (fisierul din designer
+        ramine neschimbat): tabelul primeste coloana Cod (7 coloane), iar
+        totalurile / «Spre plata» / semnaturile se pozitioneaza DINAMIC
+        imediat SUB tabel (inaltimea reala dupa numarul de rinduri) — cerinta
+        «asta sub tabel» + «sa incape tot». La liste foarte lungi (tabelul
+        trece de pagina) se pastreaza asezarea fixa din sablon.
+        EN: runtime layout: 7-col table + totals/signatures right below it."""
+        import copy
+        import math
+        tpl = copy.deepcopy(template)
+        try:
+            schemas = tpl["schemas"][0]
+            items = next(s for s in schemas if s.get("name") == "items")
+            items["head"] = ["№", "Cod / Артикул", "Denumirea / Предмет счета",
+                            "Cant. / Кол-во", "Un. / Ед.",
+                            "Pretul / Цена", "Suma / Сумма"]
+            items["headWidthPercentages"] = [4, 12, 41, 8, 8, 13, 14]
+            items.setdefault("columnStyles", {})["alignment"] = {
+                "0": "center", "1": "center", "3": "center",
+                "4": "center", "5": "right", "6": "right"}
+            # RO: estimarea inaltimii: rind ~6.4mm + 4.3mm per linie extra
+            #     (Denumirea are ~44 caractere pe linie la 41% din 190mm)
+            y0 = float(items["position"]["y"])
+            h = 7.5
+            for it in data.get("items", []):
+                lines = max(1, math.ceil(len(str(it.get("name") or "")) / 44))
+                h += 6.4 + (lines - 1) * 4.3
+            bottom = y0 + h + 2
+            if bottom <= 236:                    # incape pe pagina -> dinamic
+                proto = next((s for s in schemas
+                              if s.get("name") == "spre_plata"), None)
+                totals = copy.deepcopy(proto) if proto else {
+                    "type": "text", "position": {}, "width": 80, "height": 18}
+                totals.update({
+                    "name": "totals_block",
+                    "position": {"x": 120, "y": bottom},
+                    "width": 80, "height": 18,
+                    "alignment": "right", "fontSize": 9.5,
+                    "fontName": "DejaVuSans", "lineHeight": 1.45,
+                    "content": ""})
+                schemas.append(totals)
+                for nm, yy in (("spre_plata", bottom + 21),
+                               ("sig1", bottom + 32), ("sig2", bottom + 32)):
+                    fld = next((s for s in schemas if s.get("name") == nm), None)
+                    if fld:
+                        fld["position"]["y"] = yy
+        except (KeyError, StopIteration, TypeError, ValueError):
+            return template                       # sablon atipic -> neatins
+        return tpl
+
     def render_pdfme(kind: str, data: Dict[str, Any],
                      template_json: Optional[str] = None) -> Dict[str, Any]:
         """Render via the pdfme engine of the sidecar (POST /pdfme/generate)."""
@@ -644,6 +697,8 @@ class Biro26Report:
             return {"success": False, "error": f"unknown report kind: {kind}"}
         try:
             template = json.loads(template_json or _read(PDFME_KINDS[kind]))
+            if kind == "invoice" and not template_json:
+                template = Biro26Report._pdfme_invoice_layout(template, data)
             resp = requests.post(
                 Config.JSREPORT_URL.rstrip("/") + "/pdfme/generate",
                 json={"template": template,
