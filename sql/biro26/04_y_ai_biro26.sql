@@ -598,7 +598,8 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26 AS
   --     Oracle -> UTL_HTTP -> API-ul web -> PDF-urile se ataseaza la
   --     document (VMDB_DOCS_OLE); aplicatia nativa le vede la «Object».
   -- EN: Oracle-side trigger of the web generation for an existing doc.
-  FUNCTION gen_conturi(p_nr IN VARCHAR2) RETURN VARCHAR2 IS
+  FUNCTION gen_conturi(p_nr      IN VARCHAR2,
+                       p_formats IN VARCHAR2 DEFAULT 'pdf') RETURN VARCHAR2 IS
     v_key   VARCHAR2(200);
     v_url   VARCHAR2(1000);
     v_req   UTL_HTTP.REQ;
