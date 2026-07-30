@@ -453,6 +453,38 @@ class Biro26Controller:
             return Biro26Report.render_doc_xlsx(cod)
         return {"success": False, "error": "login required"}
 
+    @staticmethod
+    def gen_docs_by_nr(nr: str) -> Dict[str, Any]:
+        """RO: genereaza SI ataseaza la document (VMDB_DOCS_OLE, ecranul
+        «Object» din aplicatia nativa) contul de plata + comanda
+        cumparatorului, dupa NUMARUL documentului (NRMANUAL, cu sau fara #).
+        Apelat din interiorul Oracle de y_ai_BIRO26.gen_conturi (UTL_HTTP)
+        sau de aplicatii desktop (X-API-Key / ?api_key=).
+        EN: render + attach both forms for an existing document by number."""
+        if not Biro26Controller._api_token_ok():
+            return {"success": False, "error": "login required"}
+        from models.biro26_report import Biro26Report
+        cod = Biro26Report.resolve_nr(nr)
+        if not cod:
+            return {"success": False, "error": f"document '{nr}' not found"}
+        d = Biro26Report.doc_data(cod)
+        if not d.get("success"):
+            return d
+        engines = Biro26Report.get_engines()["data"]
+        out: Dict[str, Any] = {"cod": cod, "nr": d["data"].get("number")}
+        for kind in ("invoice", "order"):
+            eng = engines.get(kind, "jsreport")
+            res = (Biro26Report.render_pdfme(kind, d["data"])
+                   if eng == "pdfme" else Biro26Report.render(kind, d["data"]))
+            if not res.get("success"):
+                out[kind] = "RENDER_ERR: " + str(res.get("error"))[:200]
+                continue
+            att = Biro26Report.attach_pdf(cod, kind, res["pdf"])
+            out[kind] = ("OK" if att.get("success")
+                         else "ATTACH_ERR: " + str(att.get("error"))[:200])
+        out["success"] = (out.get("invoice") == "OK" and out.get("order") == "OK")
+        return out
+
     # ── online payments: MAIB e-commerce + MIA instant payments ──
 
     @staticmethod
