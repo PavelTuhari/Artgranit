@@ -29,10 +29,6 @@ class CreditProvider(ABC):
             return {}
         return d or {}
 
-    def _cfg_param(self, name: str) -> str:
-        """Значение параметра из settings_source ('' если нет)."""
-        return (self._cfg().get("params") or {}).get(name) or ""
-
     def _setting(self, name: str, fallback: Any) -> str:
         """Значение настройки: источник авторитетен, если в нём есть запись о провайдере.
 
