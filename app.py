@@ -6528,6 +6528,17 @@ def api_biro26_gen_docs_by_nr(nr):
     return jsonify(r), (200 if r.get('success')
                         else 401 if r.get('error') == 'login required' else 400)
 
+@app.route('/api/biro26/shop/report-html/<kind>/<int:cod>', methods=['GET'])
+def api_biro26_shop_report_html(kind, cod):
+    """RO: formularul in varianta HTML (stil site/una.md, modelul aprobat) —
+    aceeasi paza ca la PDF; se deschide direct in browser."""
+    r = Biro26Controller.shop_report_html(kind, cod)
+    if not r.get('success'):
+        return jsonify(r), (401 if r.get('error') == 'login required' else 400)
+    resp = app.response_class(r['html'], mimetype='text/html')
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return resp
+
 @app.route('/api/biro26/shop/report-xlsx/invoice/<int:cod>', methods=['GET'])
 def api_biro26_shop_report_xlsx(cod):
     """RO: contul de plata in EXCEL (bifa «si Excel» din cos): tabel Excel
