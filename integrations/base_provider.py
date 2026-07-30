@@ -14,6 +14,25 @@ from typing import Any
 class CreditProvider(ABC):
     """Абстрактный базовый класс для всех кредитных провайдеров."""
 
+    def __init__(self, settings_source: Any = None) -> None:
+        """settings_source — объект с методом get(code) -> dict | None
+        (обычно models.credite_settings.CrediteSettings). None = читать Config."""
+        self._settings_source = settings_source
+
+    def _cfg(self) -> dict[str, Any]:
+        """Настройки этого провайдера из settings_source. {} если источника нет."""
+        if self._settings_source is None:
+            return {}
+        try:
+            d = self._settings_source.get(self.id)
+        except Exception:
+            return {}
+        return d or {}
+
+    def _cfg_param(self, name: str) -> str:
+        """Значение параметра из settings_source ('' если нет)."""
+        return (self._cfg().get("params") or {}).get(name) or ""
+
     # --- Метаданные (переопределяются в подклассах) ---
 
     @property
