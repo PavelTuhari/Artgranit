@@ -563,7 +563,7 @@ class Biro26Report:
                 "number": _nr,
                 "date_ro": data["date_ro"],
                 "platitor_block": "Platitor, adresa: " + client_line +
-                                  "\n(Плательщик и его адрес)",
+                                  " (Плательщик и его адрес)" + payer_req,
                 "items": json.dumps(rows, ensure_ascii=False),
                 "spre_plata": "Spre plata / Всего к оплате: " + _ro_amount(data["total"]),
                 "logo": data.get("logo") or "",
