@@ -95,49 +95,82 @@ def t_api_without_provider_degrades() -> list[str]:
 
 
 def t_requests_list_reads() -> list[str]:
-    """requests_list() реально читает заявки, а не глотает ошибку SQL."""
+    """requests_list() читает заявки и не прячет ошибку SQL под пустой успех."""
+    fails = []
     r = Biro26Credit.requests_list(50)
     if not r.get("success"):
         return [f"requests_list: {r.get('error')}"]
     rows = r["data"]
     cnt = Biro26DB().execute_query("SELECT COUNT(*) FROM TMS_CREDITE_REQ")
     total = int(cnt["data"][0][0]) if cnt.get("success") and cnt["data"] else 0
+    if total == 0:
+        fails.append("в TMS_CREDITE_REQ нет строк — тест ничего не проверяет")
     if total and not rows:
-        return [f"в TMS_CREDITE_REQ {total} строк, а requests_list вернул 0"]
-    if rows and not {"ext_ref", "api_status"} <= set(rows[0]):
-        return [f"нет колонок ext_ref/api_status: {sorted(rows[0])}"]
-    return []
+        fails.append(f"в TMS_CREDITE_REQ {total} строк, а requests_list вернул 0")
+    if rows and not {"ext_ref", "api_status", "provider_code"} <= set(rows[0]):
+        fails.append(f"нет ожидаемых колонок: {sorted(rows[0])}")
+    # ошибка SQL обязана всплыть как success=False, а не как пустой успех
+    bad = Biro26DB().execute_query("SELECT NO_SUCH_COLUMN FROM TMS_CREDITE_REQ")
+    if bad.get("success"):
+        fails.append("заведомо неверный запрос отчитался успехом — проверка невалидна")
+    return fails
+
+
+def t_reads_surface_sql_errors() -> list[str]:
+    """Методы чтения не отдают пустой успех при ошибке SQL."""
+    import inspect
+    src = inspect.getsource(Biro26Credit)
+    fails = []
+    if '"success": True, "data": rows' in src or "'success': True, 'data': rows" in src:
+        fails.append("остался паттерн success=True с необработанной ошибкой запроса")
+    for name in ("orgs_list", "plans_list", "public_offers", "request_events"):
+        body = inspect.getsource(getattr(Biro26Credit, name))
+        if "_result(" not in body and "success" in body and "_rows(" in body:
+            fails.append(f"{name} всё ещё возвращает _rows() без проверки успеха")
+    return fails
 
 
 def t_mask_idnp() -> list[str]:
-    """_mask_idnp не раскрывает больше 4 символов и безопасен на коротких строках."""
+    """_mask_idnp сохраняет длину, раскрывает не более 2+2 символов и не течёт на коротких."""
     fails = []
-    for src in ("2000000000001", "12345", "123", ""):
+    cases = ["2000000000001", "1234567", "123456", "12", "1", ""]
+    for src in cases:
         m = Biro26Credit._mask_idnp(src)
-        if src and src in m:
-            fails.append(f"_mask_idnp({src!r}) вернул исходное значение: {m!r}")
-        visible = sum(1 for a, b in zip(src, m) if a == b and a.isdigit())
-        if len(src) > 6 and visible > 4:
-            fails.append(f"_mask_idnp({src!r})={m!r}: открыто {visible} символов")
-        if 0 < len(src) <= 6 and any(c.isdigit() for c in m):
-            fails.append(f"_mask_idnp({src!r})={m!r}: короткая строка не замаскирована")
+        if len(m) != len(src):
+            fails.append(f"_mask_idnp({src!r})={m!r}: длина {len(m)} != {len(src)}")
+            continue
+        if src and src == m:
+            fails.append(f"_mask_idnp({src!r}) вернул исходное значение")
+        if len(src) > 6:
+            if m[:2] != src[:2] or m[-2:] != src[-2:]:
+                fails.append(f"_mask_idnp({src!r})={m!r}: края должны быть открыты")
+            if any(c.isdigit() for c in m[2:-2]):
+                fails.append(f"_mask_idnp({src!r})={m!r}: середина не замаскирована")
+        elif src:
+            if any(c.isdigit() for c in m):
+                fails.append(f"_mask_idnp({src!r})={m!r}: короткая строка не замаскирована")
     return fails
 
 
 def t_safe_result_drops_pii() -> list[str]:
-    """_safe_result оставляет только разрешённые поля и маскирует длинные цифры."""
+    """_safe_result оставляет только allowlist и чистит PII, включая вложенные структуры."""
     raw = {"success": True,
            "data": {"preapproved": True, "max_amount": 15000,
                     "first_name": "Ион", "last_name": "Попеску",
-                    "birth_date": "1990-01-01", "message": "OK"},
-           "error": "userPin=2000000000001 invalid"}
+                    "birth_date": "1990-01-01", "message": "OK",
+                    "status": {"first_name": "Ion", "idnp": "2000000000001",
+                               "state": "NEW"},
+                    "history": [{"first_name": "Ana", "message": "tel 069 123 456 789"}]},
+           "error": "userPin=2000-000-000-001 invalid"}
     out = Biro26Credit._safe_result(raw)
+    flat = str(out)
     fails = []
-    for banned in ("first_name", "last_name", "birth_date"):
-        if banned in out:
-            fails.append(f"поле {banned} попало в лог")
-    if "2000000000001" in str(out):
-        fails.append(f"полный IDNP остался в логе: {out}")
+    for banned in ("first_name", "last_name", "birth_date", "Ион", "Попеску", "Ion", "Ana"):
+        if banned in flat:
+            fails.append(f"PII {banned!r} попало в лог: {flat[:200]}")
+    for banned in ("2000000000001", "2000-000-000-001", "069 123 456 789"):
+        if banned in flat:
+            fails.append(f"незамаскированные цифры {banned!r}: {flat[:200]}")
     if out.get("max_amount") != 15000 or out.get("preapproved") is not True:
         fails.append(f"полезные поля потерялись: {out}")
     return fails
@@ -151,6 +184,7 @@ TESTS = [
     ("calc() не изменился", t_calc_unchanged),
     ("api без провайдера деградирует", t_api_without_provider_degrades),
     ("requests_list реально читает заявки", t_requests_list_reads),
+    ("методы чтения не прячут ошибки SQL", t_reads_surface_sql_errors),
     ("_mask_idnp безопасен", t_mask_idnp),
     ("_safe_result вырезает PII", t_safe_result_drops_pii),
 ]
