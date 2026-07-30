@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""Тесты слоя настроек кредитных провайдеров (models/credite_settings.py).
+
+Часть тестов работает на подставном бэкенде (без БД), часть — живые,
+против ADB и Biro26; живые пропускаются, если БД недоступна.
+
+Usage: ./venv/bin/python test_credite_settings.py
+"""
+from __future__ import annotations
+
+import sys
+from typing import Any, Dict, List
+
+from models.credite_settings import (PROVIDER_DEFS, CrediteBackend, CrediteSettings,
+                                     CrediteBackendError)
+
+
+class FakeBackend(CrediteBackend):
+    """Бэкенд в памяти: имитирует TMS_CREDITE_PROVIDER(_PARAM)."""
+
+    id = "fake"
+
+    def __init__(self) -> None:
+        self.providers: List[Dict[str, Any]] = []
+        self.params: List[Dict[str, Any]] = []
+        self._next = 1
+
+    def query(self, sql: str, params: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+        p = params or {}
+        s = " ".join(sql.split()).upper()
+        if "FROM TMS_CREDITE_PROVIDER_PARAM" in s:
+            return [dict(r) for r in self.params if r["provider_id"] == p.get("p")]
+        if "FROM TMS_CREDITE_PROVIDER" in s:
+            rows = self.providers
+            if ":C" in s:
+                rows = [r for r in rows if r["code"] == p.get("c")]
+            return [dict(r) for r in rows]
+        raise AssertionError(f"неожиданный SQL: {sql}")
+
+    def dml(self, sql: str, params: Dict[str, Any] | None = None) -> None:
+        p = params or {}
+        s = " ".join(sql.split()).upper()
+        if s.startswith("INSERT INTO TMS_CREDITE_PROVIDER_PARAM"):
+            self.params.append({"provider_id": p["p"], "param_name": p["n"],
+                                "param_value": p["v"], "is_secret": p["s"]})
+        elif s.startswith("INSERT INTO TMS_CREDITE_PROVIDER"):
+            self.providers.append({"id": self._next, "code": p["c"], "name": p["n"],
+                                   "enabled": p.get("en", "0"), "env": p.get("e", "sandbox"),
+                                   "base_url": p.get("b"), "icon": p.get("i"),
+                                   "color": p.get("col"), "ord": p.get("o", 0)})
+            self._next += 1
+        elif s.startswith("UPDATE TMS_CREDITE_PROVIDER_PARAM"):
+            for r in self.params:
+                if r["provider_id"] == p["p"] and r["param_name"] == p["n"]:
+                    r["param_value"] = p["v"]
+        elif s.startswith("UPDATE TMS_CREDITE_PROVIDER"):
+            for r in self.providers:
+                if r["code"] == p["c"]:
+                    r.update({"enabled": p["en"], "env": p["e"], "base_url": p["b"]})
+        else:
+            raise AssertionError(f"неожиданный DML: {sql}")
+
+
+class DeadBackend(CrediteBackend):
+    """Бэкенд, имитирующий недоступную БД."""
+
+    id = "dead"
+
+    def query(self, sql, params=None):
+        raise CrediteBackendError("ORA-12541: TNS:no listener")
+
+    def dml(self, sql, params=None):
+        raise CrediteBackendError("ORA-12541: TNS:no listener")
+
+
+def t_save_and_get() -> List[str]:
+    """save() создаёт строку, get() возвращает её с параметрами."""
+    fails = []
+    st = CrediteSettings(FakeBackend())
+    st.save("easycredit", enabled=True, env="sandbox",
+            base_url="https://tst.ecmoldova.cloud:8082",
+            params={"api_user": "u1", "api_password": "p1"})
+    d = st.get("easycredit")
+    if d is None:
+        return ["get() вернул None после save()"]
+    if d["enabled"] is not True:
+        fails.append(f"enabled={d['enabled']!r}, ожидалось True")
+    if d["env"] != "sandbox":
+        fails.append(f"env={d['env']!r}")
+    if d["params"].get("api_user") != "u1":
+        fails.append(f"api_user={d['params'].get('api_user')!r}")
+    if d["params"].get("api_password") != "p1":
+        fails.append(f"api_password={d['params'].get('api_password')!r}")
+    return fails
+
+
+def t_empty_secret_keeps_previous() -> List[str]:
+    """Пустое значение секретного параметра не затирает сохранённое."""
+    st = CrediteSettings(FakeBackend())
+    st.save("easycredit", enabled=True, env="sandbox", base_url="https://a",
+            params={"api_user": "u1", "api_password": "secret"})
+    st.save("easycredit", enabled=True, env="production", base_url="https://b",
+            params={"api_user": "u2", "api_password": ""})
+    d = st.get("easycredit")
+    fails = []
+    if d["params"].get("api_password") != "secret":
+        fails.append(f"пароль затёрт: {d['params'].get('api_password')!r}")
+    if d["params"].get("api_user") != "u2":
+        fails.append(f"несекретный параметр не обновился: {d['params'].get('api_user')!r}")
+    if d["env"] != "production":
+        fails.append(f"env не обновился: {d['env']!r}")
+    return fails
+
+
+def t_masked_hides_secrets() -> List[str]:
+    """masked() отдаёт секреты маской, несекретные — как есть."""
+    st = CrediteSettings(FakeBackend())
+    st.save("easycredit", enabled=True, env="sandbox", base_url="https://a",
+            params={"api_user": "operator", "api_password": "sup3rsecret"})
+    m = st.masked("easycredit")
+    fails = []
+    if m["params"]["api_password"] == "sup3rsecret":
+        fails.append("пароль отдан в открытом виде")
+    if not m["params"]["api_password"].endswith("***"):
+        fails.append(f"маска пароля: {m['params']['api_password']!r}")
+    if m["params"]["api_user"] != "operator":
+        fails.append(f"несекретный параметр замаскирован: {m['params']['api_user']!r}")
+    if m["params"].get("has_api_password") is not None:
+        pass
+    return fails
+
+
+def t_dead_backend_returns_none() -> List[str]:
+    """Недоступная БД → get() отдаёт None, а не исключение (фолбэк на .env)."""
+    st = CrediteSettings(DeadBackend())
+    try:
+        d = st.get("easycredit")
+    except Exception as e:
+        return [f"get() бросил исключение вместо None: {e}"]
+    return [] if d is None else [f"ожидался None, получено {d!r}"]
+
+
+def t_provider_defs() -> List[str]:
+    """PROVIDER_DEFS описывает оба провайдера с нужными параметрами."""
+    fails = []
+    for code, need in (("easycredit", {"api_user", "api_password"}),
+                       ("iute", {"api_key", "pos_identifier", "salesman_identifier"})):
+        spec = PROVIDER_DEFS.get(code)
+        if not spec:
+            fails.append(f"нет описания провайдера {code}")
+            continue
+        names = {n for n, _ in spec["params"]}
+        if names != need:
+            fails.append(f"{code}: параметры {names}, ожидались {need}")
+        secrets = {n for n, s in spec["params"] if s}
+        expected_secret = {"api_password"} if code == "easycredit" else {"api_key"}
+        if secrets != expected_secret:
+            fails.append(f"{code}: секретные {secrets}, ожидались {expected_secret}")
+    return fails
+
+
+def t_live_roundtrip() -> List[str]:
+    """Живой roundtrip против обеих БД (пропускается, если БД недоступна)."""
+    from models.credite_settings import adb_settings, biro26_settings
+    fails = []
+    for label, factory in (("adb", adb_settings), ("biro26", biro26_settings)):
+        st = factory()
+        d = st.get("easycredit")
+        if d is None:
+            print(f"  [skip] {label}: БД недоступна или TMS_CREDITE_PROVIDER пуста")
+            continue
+        if d["code"] != "easycredit":
+            fails.append(f"{label}: code={d['code']!r}")
+        if "params" not in d:
+            fails.append(f"{label}: нет ключа params")
+        print(f"  [live] {label}: enabled={d['enabled']} env={d['env']}")
+    return fails
+
+
+TESTS = [
+    ("save + get", t_save_and_get),
+    ("пустой секрет не затирает", t_empty_secret_keeps_previous),
+    ("masked() скрывает секреты", t_masked_hides_secrets),
+    ("недоступная БД -> None", t_dead_backend_returns_none),
+    ("PROVIDER_DEFS", t_provider_defs),
+    ("живой roundtrip", t_live_roundtrip),
+]
+
+
+def main() -> int:
+    bad = 0
+    for name, fn in TESTS:
+        try:
+            fails = fn()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            fails = [f"исключение: {e}"]
+        if fails:
+            bad += 1
+            print(f"[FAIL] {name}")
+            for f in fails:
+                print(f"        {f}")
+        else:
+            print(f"[ok]   {name}")
+    print(f"\n{len(TESTS) - bad}/{len(TESTS)} passed")
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
