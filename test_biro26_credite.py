@@ -94,6 +94,55 @@ def t_api_without_provider_degrades() -> list[str]:
     return []
 
 
+def t_requests_list_reads() -> list[str]:
+    """requests_list() реально читает заявки, а не глотает ошибку SQL."""
+    r = Biro26Credit.requests_list(50)
+    if not r.get("success"):
+        return [f"requests_list: {r.get('error')}"]
+    rows = r["data"]
+    cnt = Biro26DB().execute_query("SELECT COUNT(*) FROM TMS_CREDITE_REQ")
+    total = int(cnt["data"][0][0]) if cnt.get("success") and cnt["data"] else 0
+    if total and not rows:
+        return [f"в TMS_CREDITE_REQ {total} строк, а requests_list вернул 0"]
+    if rows and not {"ext_ref", "api_status"} <= set(rows[0]):
+        return [f"нет колонок ext_ref/api_status: {sorted(rows[0])}"]
+    return []
+
+
+def t_mask_idnp() -> list[str]:
+    """_mask_idnp не раскрывает больше 4 символов и безопасен на коротких строках."""
+    fails = []
+    for src in ("2000000000001", "12345", "123", ""):
+        m = Biro26Credit._mask_idnp(src)
+        if src and src in m:
+            fails.append(f"_mask_idnp({src!r}) вернул исходное значение: {m!r}")
+        visible = sum(1 for a, b in zip(src, m) if a == b and a.isdigit())
+        if len(src) > 6 and visible > 4:
+            fails.append(f"_mask_idnp({src!r})={m!r}: открыто {visible} символов")
+        if 0 < len(src) <= 6 and any(c.isdigit() for c in m):
+            fails.append(f"_mask_idnp({src!r})={m!r}: короткая строка не замаскирована")
+    return fails
+
+
+def t_safe_result_drops_pii() -> list[str]:
+    """_safe_result оставляет только разрешённые поля и маскирует длинные цифры."""
+    raw = {"success": True,
+           "data": {"preapproved": True, "max_amount": 15000,
+                    "first_name": "Ион", "last_name": "Попеску",
+                    "birth_date": "1990-01-01", "message": "OK"},
+           "error": "userPin=2000000000001 invalid"}
+    out = Biro26Credit._safe_result(raw)
+    fails = []
+    for banned in ("first_name", "last_name", "birth_date"):
+        if banned in out:
+            fails.append(f"поле {banned} попало в лог")
+    if "2000000000001" in str(out):
+        fails.append(f"полный IDNP остался в логе: {out}")
+    if out.get("max_amount") != 15000 or out.get("preapproved") is not True:
+        fails.append(f"полезные поля потерялись: {out}")
+    return fails
+
+
 TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
@@ -101,6 +150,9 @@ TESTS = [
     ("providers_list маскирует секреты", t_providers_list),
     ("calc() не изменился", t_calc_unchanged),
     ("api без провайдера деградирует", t_api_without_provider_degrades),
+    ("requests_list реально читает заявки", t_requests_list_reads),
+    ("_mask_idnp безопасен", t_mask_idnp),
+    ("_safe_result вырезает PII", t_safe_result_drops_pii),
 ]
 
 
