@@ -170,6 +170,13 @@ async function makeInvoice() {
   let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
     '<br><a target="_blank" href="' + pdf('invoice') + '">' + tr('pdfInvoice') + '</a>' +
     '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>';
+  // RO: bifa «si Excel» — genereaza simultan si XLSX (tabel + formule + logo)
+  if (document.getElementById('xlsx-too') &&
+      document.getElementById('xlsx-too').checked) {
+    const xurl = '/api/biro26/shop/report-xlsx/invoice/' + cod;
+    h += '<a href="' + xurl + '">📊 Excel (XLSX)</a>';
+    setTimeout(() => { location.href = xurl; }, 800);   // descarcare automata
+  }
   if (PAY.enabled && payMethod !== 'credit') {
     if (PAY.methods.includes('mia'))
       h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
