@@ -382,6 +382,16 @@ class Biro26Report:
         if client.get("email"):
             cl += f" · {client['email']}"
         put("Plătitor · Плательщик:", cl)
+        # RO: rechizitele plătitorului — ca in modelul «PRIMARIA JAPCA»
+        if client.get("address"):
+            put("Adresa plătitor:", client["address"])
+        if client.get("iban"):
+            put("Cont de decontare nr.:", client["iban"])
+        if client.get("bank") or client.get("bic"):
+            put("Banca / BIC:", f"{client.get('bank') or ''}  "
+                                f"{('BIC: ' + client['bic']) if client.get('bic') else ''}".strip())
+        if client.get("fiscal_code"):
+            put("Cod fiscal plătitor:", client["fiscal_code"])
 
         # ── tabelul pozitiilor (TABEL Excel + formule) ──
         head_row = r + 1
