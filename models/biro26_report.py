@@ -467,30 +467,83 @@ class Biro26Report:
                   "order": "biro26_order_html.hbs"}
 
     @staticmethod
+    def _hbs_lite(src: str, root: Dict[str, Any]) -> str:
+        """RO: mini-motor handlebars in Core (sidecar-ul e «lite», doar
+        pdfme — fara /api/report): suporta {{var}}, {{a.b}}, {{#if}} (cu
+        imbricare), {{#each items}} si helperii fmt / inc / roAmount —
+        exact ce folosesc sabloanele biro26_*_html.hbs.
+        EN: minimal handlebars subset renderer for the HTML variants."""
+        import re
+        def lookup(ctx, path):
+            if path == "@index":
+                return ctx.get("@index") if isinstance(ctx, dict) else None
+            cur = ctx
+            for part in path.split("."):
+                if isinstance(cur, dict):
+                    cur = cur.get(part)
+                else:
+                    return None
+                if cur is None:
+                    return None
+            return cur
+        tokens = re.split(r"({{[^}]+}})", src)
+
+        def parse(pos, ctx, stop=None):
+            out, i = [], pos
+            while i < len(tokens):
+                t = tokens[i]
+                if t.startswith("{{") and t.endswith("}}"):
+                    inner = t[2:-2].strip()
+                    if stop and inner == stop:
+                        return "".join(out), i
+                    if inner.startswith("#if "):
+                        val = lookup(ctx, inner[4:].strip())
+                        rendered, j = parse(i + 1, ctx, "/if")
+                        out.append(rendered if val else "")
+                        i = j + 1
+                        continue
+                    if inner.startswith("#each "):
+                        items = lookup(ctx, inner[6:].strip()) or []
+                        _, j = parse(i + 1, ctx, "/each")   # doar delimitarea
+                        for idx, item in enumerate(items):
+                            ictx = dict(item) if isinstance(item, dict) \
+                                else {"this": item}
+                            ictx["@index"] = idx
+                            r, _ = parse(i + 1, ictx, "/each")
+                            out.append(r)
+                        i = j + 1
+                        continue
+                    if inner in ("/if", "/each"):
+                        i += 1
+                        continue
+                    parts = inner.split()
+                    if parts[0] == "fmt" and len(parts) > 1:
+                        out.append(_fmt(float(lookup(ctx, parts[1]) or 0)))
+                    elif parts[0] == "inc" and len(parts) > 1:
+                        out.append(str(int(lookup(ctx, parts[1]) or 0) + 1))
+                    elif parts[0] == "roAmount" and len(parts) > 1:
+                        out.append(_ro_amount(float(lookup(ctx, parts[1]) or 0)))
+                    else:
+                        v = lookup(ctx, inner)
+                        out.append("" if v is None else str(v))
+                else:
+                    out.append(t)
+                i += 1
+            return "".join(out), i
+        return parse(0, root)[0]
+
+    @staticmethod
     def render_html(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """RO: formularul in HTML (jsReport, recipe 'html' — fara Chrome):
-        aceeasi date/Core ca PDF-ul, dar iese pagina HTML «ca pe site»."""
+        """RO: formularul in varianta HTML («ca pe site», modelul aprobat
+        Primaria_Japca) — randat direct in Core (fara sidecar)."""
         if kind not in Biro26Report.HTML_KINDS:
             return {"success": False, "error": f"unknown report kind: {kind}"}
         try:
-            resp = requests.post(
-                Config.JSREPORT_URL.rstrip("/") + "/api/report",
-                json={"template": {
-                        "content": _read(Biro26Report.HTML_KINDS[kind]),
-                        "engine": "handlebars",
-                        "recipe": "html",
-                        "helpers": _read("helpers.js")},
-                      "data": data},
-                timeout=60)
-            if resp.status_code != 200:
-                return {"success": False,
-                        "error": f"jsreport HTTP {resp.status_code}: {resp.text[:300]}"}
-            return {"success": True, "html": resp.content}
-        except requests.ConnectionError:
-            return {"success": False,
-                    "error": "report service unavailable (jsreport not running)"}
+            html = Biro26Report._hbs_lite(
+                _read(Biro26Report.HTML_KINDS[kind]), data)
+            return {"success": True, "html": html.encode("utf-8")}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": f"html: {e}"}
 
     @staticmethod
     def render_doc_html(kind: str, cod: int,
