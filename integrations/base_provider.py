@@ -33,6 +33,25 @@ class CreditProvider(ABC):
         """Значение параметра из settings_source ('' если нет)."""
         return (self._cfg().get("params") or {}).get(name) or ""
 
+    def _setting(self, name: str, fallback: Any) -> str:
+        """Значение настройки: источник авторитетен, если в нём есть запись о провайдере.
+
+        Если settings_source задан и содержит запись о провайдере (get(code)
+        вернул непустой dict), значение берётся ИСКЛЮЧИТЕЛЬНО оттуда — пустая
+        строка в источнике НЕ подменяется значением из Config. Фолбэк на
+        `fallback()` срабатывает только когда источника нет вовсе, либо в нём
+        нет записи для этого провайдера (get(code) вернул None/{}).
+
+        `name` — 'base_url' / 'env' (поля верхнего уровня) либо имя параметра.
+        `fallback` — вызываемое, дающее значение из Config, когда источника нет.
+        """
+        cfg = self._cfg()
+        if cfg:
+            if name in ("base_url", "env"):
+                return cfg.get(name) or ""
+            return (cfg.get("params") or {}).get(name) or ""
+        return fallback()
+
     # --- Метаданные (переопределяются в подклассах) ---
 
     @property
