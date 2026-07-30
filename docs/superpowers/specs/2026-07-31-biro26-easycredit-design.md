@@ -23,7 +23,7 @@
 
 ### Biro26 / OfficePlus (Oracle 11g, thick-mode subprocess worker, CL8MSWIN1251)
 
-- `sql/biro26/10_ybiro_credit.sql` — `YBIRO_CREDIT_ORG`, `YBIRO_CREDIT_PLAN`; `YBIRO_DOC_META` расширена `CREDIT_PLAN_ID/MONTHS/AVANS`. `YBIRO_CREDIT_REQ` создана отдельно.
+- `sql/biro26/10_ybiro_credit.sql` — `YBIRO_CREDIT_ORG`, `YBIRO_CREDIT_PLAN`; `YBIRO_DOC_META` расширена `CREDIT_PLAN_ID/MONTHS/AVANS`. `sql/biro26/11_ybiro_credit_req.sql` — `YBIRO_CREDIT_REQ`.
 - `models/biro26_credit.py` — CRUD организаций/пакетов, `calc()` (оценочный расчёт рассрочки), `request_create()`.
 - Админка `/UNA.md/orasldev/biro26-credit-admin` (`templates/biro26/credit_admin.html`), API `/api/biro26/credit/*`.
 - `ORG_MODE='api'` существует, но реального адаптера нет: `request_create()` делает безусловный `POST` произвольного JSON на `API_URL`.
