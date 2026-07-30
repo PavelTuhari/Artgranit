@@ -1994,21 +1994,26 @@ cd /Users/pt/Projects.AI/Artgranit && grep -c "YBIRO_CREDIT_" models/biro26_cred
             return sim
         s = sim["data"]
         product_name = (d.get("product_name") or "Comandă OfficePlus")[:300]
+        # RO: rezervam ID-ul din secventa INAINTE de INSERT — subprocess worker-ul
+        #     nu suporta bind-uri OUT, iar SELECT MAX(ID) ar fi supus unei curse
+        #     la cereri concurente. NEXTVAL e atomic.
+        seq = _rows(Biro26DB().execute_query(
+            "SELECT TMS_CREDITE_REQ_SEQ.NEXTVAL ID FROM dual"))
+        if not seq:
+            return {"success": False, "error": "nu s-a putut aloca ID-ul cererii"}
+        req_id = int(seq[0]["id"])
         ins = Biro26DB().execute_dml(
-            "INSERT INTO TMS_CREDITE_REQ (ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
+            "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
             "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
-            "PROVIDER_CODE, IDNP_MASKED, API_STATUS) VALUES (:o, :p, :m, :pc, :pn, "
-            ":q, :a, :cp, :mo, :cn, :ph, :prc, :idm, 'SENDING')",
-            {"o": org_id, "p": plan_id, "m": s["months"],
+            "PROVIDER_CODE, IDNP_MASKED, API_STATUS) VALUES (:id, :o, :p, :m, :pc, "
+            ":pn, :q, :a, :cp, :mo, :cn, :ph, :prc, :idm, 'SENDING')",
+            {"id": req_id, "o": org_id, "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None, "pn": product_name,
              "q": qty, "a": amount, "cp": s["credit_price"], "mo": s["monthly"],
              "cn": name[:200], "ph": phone[:40], "prc": code[:30],
              "idm": Biro26Credit._mask_idnp(idnp)[:20]})
         if not ins.get("success"):
             return {"success": False, "error": ins.get("message")}
-        rid_rows = _rows(Biro26DB().execute_query(
-            "SELECT MAX(ID) ID FROM TMS_CREDITE_REQ"))
-        req_id = int(rid_rows[0]["id"]) if rid_rows and rid_rows[0]["id"] else 0
         kwargs = {"fio": name, "phone": phone, "uin": idnp,
                   "amount": int(round(s["credit_price"])),
                   "goods_price": int(round(s["credit_price"])),
