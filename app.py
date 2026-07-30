@@ -6519,6 +6519,22 @@ def api_biro26_shop_report(kind, cod):
     resp.headers['Pragma'] = 'no-cache'
     return resp
 
+@app.route('/api/biro26/shop/report-xlsx/invoice/<int:cod>', methods=['GET'])
+def api_biro26_shop_report_xlsx(cod):
+    """RO: contul de plata in EXCEL (bifa «si Excel» din cos): tabel Excel
+    adevarat, Suma=formula cant*pret, TOTAL=formula SUM, logo inclus."""
+    r = Biro26Controller.shop_report_xlsx(cod)
+    if not r.get('success'):
+        return jsonify(r), (401 if r.get('error') == 'login required' else 400)
+    resp = app.response_class(
+        r['xlsx'],
+        mimetype='application/vnd.openxmlformats-officedocument.'
+                 'spreadsheetml.sheet')
+    resp.headers['Content-Disposition'] = \
+        f'attachment; filename="Cont_de_plata_{cod}.xlsx"'
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    return resp
+
 @app.route('/api/biro26/shop/invoice', methods=['POST'])
 def api_biro26_shop_invoice():
     return jsonify(Biro26Controller.shop_invoice())
