@@ -194,7 +194,7 @@ GET    /api/biro26/credit/api/status
 GET    /api/biro26/credit/requests/<id>/events    — лог событий заявки
 ```
 
-Админские роуты требуют авторизации, публичные (`/api/biro26/credit/api/*`) — нет, но с rate-limit по IP и без выдачи кредов наружу.
+Админские роуты требуют авторизации. Публичные (`/api/biro26/credit/api/*`) — без авторизации, но под существующим `flask_limiter` (`limiter`, `app.py:74`) с лимитом по IP и без выдачи кредов наружу.
 
 Фикс: `docs_easycredit()` и `docs_iute()` читают `docs/CREDITE/project_*.html`.
 
