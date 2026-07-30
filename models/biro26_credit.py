@@ -227,12 +227,20 @@ class Biro26Credit:
             "WHERE ID = :i", {"i": int(p["org_id"])}))
         org = org_rows[0] if org_rows else {}
         # 1) jurnal
+        # RO: rezervam ID-ul din secventa INAINTE de INSERT — subprocess worker-ul
+        #     nu suporta bind-uri OUT, iar SELECT MAX(ID) ar fi supus unei curse
+        #     la cereri concurente. NEXTVAL e atomic.
+        seq = _rows(Biro26DB().execute_query(
+            "SELECT TMS_CREDITE_REQ_SEQ.NEXTVAL ID FROM dual"))
+        if not seq:
+            return {"success": False, "error": "nu s-a putut aloca ID-ul cererii"}
+        req_id = int(seq[0]["id"])
         r = Biro26DB().execute_dml(
             "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, "
             "PRODUCT_COD, PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, "
-            "CLIENT_NAME, PHONE) VALUES (TMS_CREDITE_REQ_SEQ.NEXTVAL, "
+            "CLIENT_NAME, PHONE) VALUES (:id, "
             ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph)",
-            {"o": org.get("id"), "p": plan_id, "m": s["months"],
+            {"id": req_id, "o": org.get("id"), "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None,
              "pn": (d.get("product_name") or "")[:300],
              "q": qty, "a": amount, "cp": s["credit_price"],
@@ -251,13 +259,11 @@ class Biro26Credit:
                     "credit_price": s["credit_price"], "plan": s["plan"],
                     "months": s["months"], "monthly": s["monthly"]})
                 api_note = f"HTTP {resp.status_code}"
-                Biro26DB().execute_dml(
-                    "UPDATE TMS_CREDITE_REQ SET API_SENT = '1', "
-                    "API_RESULT = :r WHERE ID = "
-                    "(SELECT MAX(ID) FROM TMS_CREDITE_REQ)",
-                    {"r": api_note[:400]})
             except Exception as e:
                 api_note = f"api error: {e}"
+            Biro26DB().execute_dml(
+                "UPDATE TMS_CREDITE_REQ SET API_STATUS = :s, LAST_CHECK = SYSDATE "
+                "WHERE ID = :i", {"s": api_note[:60], "i": req_id})
         # 2b) nivel MINIM (mereu): notificare magazinului
         try:
             import threading
