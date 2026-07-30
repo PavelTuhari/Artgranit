@@ -424,9 +424,9 @@ class Biro26Credit:
         if "check_auth" in prov.capabilities:
             res = prov.check_auth()
         else:
-            res = prov.preapproved(uin="2000000000001", amount=1000)
+            res = prov.preapproved(uin=Biro26Credit._TEST_IDNP, amount=1000)
         ms = int((_t.time() - t0) * 1000)
-        Biro26Credit._log_event(None, code, "check_auth", res, ms, {})
+        Biro26Credit._log_event(None, code, "provider_test", res, ms, {})
         return {"success": bool(res.get("success")),
                 "data": {"duration_ms": ms, "result": res.get("data") or {}},
                 "error": res.get("error")}
