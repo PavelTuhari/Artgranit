@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from models.biro26_db import Biro26DB
-from models.biro26_oracle_store import _rows
+from models.biro26_oracle_store import _result, _rows
 
 
 class Biro26Credit:
