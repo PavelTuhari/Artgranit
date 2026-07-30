@@ -6221,6 +6221,39 @@ def api_biro26_credit_plan_save():
 def api_biro26_credit_plan_delete(plan_id):
     return _b26(lambda: Biro26Controller.credit_plan_delete(plan_id))
 
+# ── credit: provideri API (admin, auth) ──
+@app.route('/api/biro26/credit/providers', methods=['GET'])
+def api_biro26_credit_providers():
+    return _b26(Biro26Controller.credit_providers)
+
+@app.route('/api/biro26/credit/providers', methods=['PUT'])
+def api_biro26_credit_provider_save():
+    return _b26(Biro26Controller.credit_provider_save)
+
+@app.route('/api/biro26/credit/providers/<code>/test', methods=['POST'])
+def api_biro26_credit_provider_test(code):
+    return _b26(lambda: Biro26Controller.credit_provider_test(code))
+
+@app.route('/api/biro26/credit/requests/<int:req_id>/events', methods=['GET'])
+def api_biro26_credit_request_events(req_id):
+    return _b26(lambda: Biro26Controller.credit_request_events(req_id))
+
+# ── credit: fluxul API al clientului (public, rate-limited) ──
+@app.route('/api/biro26/shop/credit/api/preapproved', methods=['POST'])
+@limiter.limit("10 per minute")
+def api_biro26_shop_credit_preapproved():
+    return jsonify(Biro26Controller.credit_api_preapproved())
+
+@app.route('/api/biro26/shop/credit/api/submit', methods=['POST'])
+@limiter.limit("5 per minute")
+def api_biro26_shop_credit_submit():
+    return jsonify(Biro26Controller.credit_api_submit())
+
+@app.route('/api/biro26/shop/credit/api/status', methods=['GET'])
+@limiter.limit("60 per minute")
+def api_biro26_shop_credit_api_status():
+    return jsonify(Biro26Controller.credit_api_status())
+
 # ── translations management page + API (grouping RU/EN dictionary) ──
 @app.route('/UNA.md/orasldev/biro26-translations')
 def biro26_translations():
