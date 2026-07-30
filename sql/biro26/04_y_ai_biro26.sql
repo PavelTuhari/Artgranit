@@ -236,10 +236,15 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
   --     Cheia API se citeste din YBIRO_SETTINGS('API_GEN_KEY')
   --     (= BIRO26_API_TOKEN din .env-ul aplicatiei web).
   --     Intoarce raspunsul serverului ('HTTP 200: {..."invoice":"OK"...}').
-  --     Exemplu: SELECT y_ai_BIRO26.gen_conturi('21') FROM dual;
-  -- EN: render + attach both printable forms for an existing document,
+  --     p_formats = ORICE combinatie din 'pdf,html,xlsx' (implicit 'pdf'):
+  --       pdf/html -> ambele formulare; xlsx -> echivalentul Excel al
+  --       contului (tabel real + formule). Toate se ataseaza la document.
+  --     Exemple: SELECT y_ai_BIRO26.gen_conturi('21') FROM dual;
+  --              SELECT y_ai_BIRO26.gen_conturi('A-25','pdf,html,xlsx') FROM dual;
+  -- EN: render + attach the requested format set for an existing document,
   --     called from INSIDE Oracle via UTL_HTTP against the web API.
-  FUNCTION gen_conturi(p_nr IN VARCHAR2) RETURN VARCHAR2;
+  FUNCTION gen_conturi(p_nr      IN VARCHAR2,
+                       p_formats IN VARCHAR2 DEFAULT 'pdf') RETURN VARCHAR2;
 END y_ai_BIRO26;
 /
 
