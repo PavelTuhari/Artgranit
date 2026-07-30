@@ -238,7 +238,7 @@ class Config:
 
     @classmethod
     def easycredit_base_url(cls) -> str:
-        o = _load_easycredit_overrides()
+        o = _oracle('easycredit')
         base = o.get('base_url') or cls.EASYCREDIT_BASE_URL
         if base:
             return base.rstrip('/')
@@ -248,18 +248,15 @@ class Config:
 
     @classmethod
     def easycredit_env(cls) -> str:
-        o = _load_easycredit_overrides()
-        return o.get('env') or cls.EASYCREDIT_ENV
+        return _oracle('easycredit').get('env') or cls.EASYCREDIT_ENV
 
     @classmethod
     def easycredit_api_user(cls) -> str:
-        o = _load_easycredit_overrides()
-        return o.get('api_user') or cls.EASYCREDIT_API_USER
+        return _oracle('easycredit').get('api_user') or cls.EASYCREDIT_API_USER
 
     @classmethod
     def easycredit_api_password(cls) -> str:
-        o = _load_easycredit_overrides()
-        return o.get('api_password') or cls.EASYCREDIT_API_PASSWORD
+        return _oracle('easycredit').get('api_password') or cls.EASYCREDIT_API_PASSWORD
 
     # Iute API (sandbox/production). См. https://iute-core-partner-gateway.iute.eu/docs/public/guide.html
     IUTE_ENV = os.environ.get('IUTE_ENV', 'sandbox').lower()  # sandbox | production
