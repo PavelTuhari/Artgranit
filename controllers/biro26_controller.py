@@ -355,6 +355,14 @@ class Biro26Controller:
             r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
             if not r.get("success"):
                 return r
+        # RO: formatele HTML/XLSX disponibile clientilor (PDF mereu activ)
+        for key, skey in (("fmt_html", "SHOP_FMT_HTML"),
+                          ("fmt_xlsx", "SHOP_FMT_XLSX")):
+            if key in d:
+                v = "1" if str(d.get(key)) in ("1", "true", "True") else "0"
+                r = Biro26Store.set_setting(skey, v)
+                if not r.get("success"):
+                    return r
         # RO: filtrul dupa brand in catalog (optiune, implicit oprit)
         if "brand_filter" in d:
             v = "1" if str(d.get("brand_filter")) in ("1", "true", "True") else "0"
