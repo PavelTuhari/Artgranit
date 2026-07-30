@@ -39,19 +39,19 @@ class EasyCreditProvider(CreditProvider):
     # --- Настройки ---
 
     def _base_url(self) -> str:
-        return self._cfg().get("base_url") or Config.easycredit_base_url()
+        return self._setting("base_url", Config.easycredit_base_url)
 
     def _user(self) -> str:
-        return self._cfg_param("api_user") or Config.easycredit_api_user()
+        return self._setting("api_user", Config.easycredit_api_user)
 
     def _password(self) -> str:
-        return self._cfg_param("api_password") or Config.easycredit_api_password()
+        return self._setting("api_password", Config.easycredit_api_password)
 
     def _verify_ssl(self) -> bool:
         return self._env() == "production"
 
     def _env(self) -> str:
-        return self._cfg().get("env") or Config.easycredit_env()
+        return self._setting("env", Config.easycredit_env) or "sandbox"
 
     def get_settings(self) -> dict[str, Any]:
         user = self._user()
