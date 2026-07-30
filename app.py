@@ -6155,12 +6155,18 @@ def biro26_shop():
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
     except Exception:
         liber_pct, liber_min = 5.0, 100.0
+    try:
+        fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
+        fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
+    except Exception:
+        fmt_html, fmt_xlsx = '1', '1'
     return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME,
                            topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
                            topbar_light=(lum > 140), shop_nav=nav,
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html, page_size=page_size,
                            liber_pct=liber_pct, liber_min=liber_min,
+                           fmt_html=fmt_html, fmt_xlsx=fmt_xlsx,
                            cur_lang=(lang or 'ro'))
 
 # ── credit payment: admin page + orgs/plans API + public offers/calc ──
