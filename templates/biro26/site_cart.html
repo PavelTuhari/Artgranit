@@ -204,15 +204,32 @@ async function makeInvoice() {
   ok.scrollIntoView({behavior: 'smooth'});
 }
 
-/* RO: UN SINGUR buton + combobox de formate: genereaza tot setul activat
-   (HTML implicit; PDF si Excel activabile) pentru contul de plata. */
+/* RO: formate documente — IMPLICIT PDF; alegerea se salveaza ca CONSTANTA
+   (cabinetul clientului + localStorage) si se refoloseste data viitoare. */
 function fmtList() {
   const l = [...document.querySelectorAll('.fmt:checked')].map(c => c.value);
-  return l.length ? l : ['html'];
+  return l.length ? l : ['pdf'];
 }
 function fmtSum() {
-  document.getElementById('fmt-sum').textContent =
-    fmtList().join(' + ').toUpperCase() + ' ▾';
+  const el = document.getElementById('fmt-sum');
+  if (el) el.textContent = fmtList().join(' + ').toUpperCase() + ' ▾';
+}
+function fmtApplyPref(pref) {
+  const list = String(pref || localStorage.getItem('biro26_fmt') || 'pdf')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const boxes = [...document.querySelectorAll('.fmt')];
+  if (!boxes.length) return;
+  let any = false;
+  boxes.forEach(b => { b.checked = list.includes(b.value); any = any || b.checked; });
+  if (!any) boxes.find(b => b.value === 'pdf').checked = true;
+  fmtSum();
+}
+async function fmtChanged() {
+  fmtSum();
+  const v = fmtList().join(',');
+  localStorage.setItem('biro26_fmt', v);
+  if (ME) await j(API + '/me/fmt', {method: 'PUT',
+    body: JSON.stringify({invoice_fmt: v})});
 }
 function genDocSet(cod) {
   const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
