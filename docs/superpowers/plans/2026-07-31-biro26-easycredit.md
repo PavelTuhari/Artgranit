@@ -2863,10 +2863,10 @@ cd /Users/pt/Projects.AI/Artgranit && ./deploy_to_remote.sh
 
 ```bash
 ssh -i ~/.ssh/artgranit-oci.key ubuntu@92.5.3.187 \
-  'cd /home/ubuntu/artgranit && ./venv/bin/python deploy_credite_oracle.py --target both'
+  'cd /home/ubuntu/artgranit && ./venv/bin/python deploy_credite_oracle.py --target both --rename-legacy'
 ```
 
-Ожидается: `OK: все 6 таблиц на месте` для обоих target.
+Ожидается: `OK: все 6 таблиц на месте` для обоих target, плюс строки `~ YBIRO_CREDIT_ORG -> YBIRO_CREDIT_ORG_OLD` и т.д. Переименование выполняется именно здесь — только после того, как новый код уже на сервере и перестал обращаться к `YBIRO_CREDIT_*`.
 
 - [ ] **Step 10: Верификация production**
 
