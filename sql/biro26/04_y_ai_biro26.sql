@@ -227,6 +227,19 @@ CREATE OR REPLACE PACKAGE y_ai_BIRO26 AS
   PROCEDURE set_setting(p_key IN VARCHAR2, p_val IN VARCHAR2,
                         p_descr IN VARCHAR2 DEFAULT NULL);
   FUNCTION get_setting(p_key IN VARCHAR2) RETURN VARCHAR2;
+
+  -- RO: genereaza SI ataseaza la documentul EXISTENT (ecranul «Object» /
+  --     VMDB_DOCS_OLE) contul de plata + comanda cumparatorului: functia
+  --     apeleaza DIN INTERIORUL Oracle (UTL_HTTP) API-ul web
+  --     http://officeplus.md/api/biro26/gen-docs-by-nr/<nr>.
+  --     p_nr = NUMARUL documentului (NRMANUAL, cu sau fara '#').
+  --     Cheia API se citeste din YBIRO_SETTINGS('API_GEN_KEY')
+  --     (= BIRO26_API_TOKEN din .env-ul aplicatiei web).
+  --     Intoarce raspunsul serverului ('HTTP 200: {..."invoice":"OK"...}').
+  --     Exemplu: SELECT y_ai_BIRO26.gen_conturi('21') FROM dual;
+  -- EN: render + attach both printable forms for an existing document,
+  --     called from INSIDE Oracle via UTL_HTTP against the web API.
+  FUNCTION gen_conturi(p_nr IN VARCHAR2) RETURN VARCHAR2;
 END y_ai_BIRO26;
 /
 
