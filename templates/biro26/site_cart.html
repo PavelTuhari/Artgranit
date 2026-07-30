@@ -177,15 +177,10 @@ async function makeInvoice() {
   saveCartLS([]);
   const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
   let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
-    '<br><a target="_blank" href="' + pdf('invoice') + '">' + tr('pdfInvoice') + '</a>' +
+    '<br><button onclick="genDocSet(' + cod + ')">📄 Generează documentele (' +
+    fmtList().join(' + ').toUpperCase() + ')</button>' +
     '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>';
-  // RO: bifa «si Excel» — genereaza simultan si XLSX (tabel + formule + logo)
-  if (document.getElementById('xlsx-too') &&
-      document.getElementById('xlsx-too').checked) {
-    const xurl = '/api/biro26/shop/report-xlsx/invoice/' + cod;
-    h += '<a href="' + xurl + '">📊 Excel (XLSX)</a>';
-    setTimeout(() => { location.href = xurl; }, 800);   // descarcare automata
-  }
+  setTimeout(() => genDocSet(cod), 600);   // setul ales se deschide automat
   if (PAY.enabled && payMethod !== 'credit') {
     if (PAY.methods.includes('mia'))
       h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
