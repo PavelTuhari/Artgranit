@@ -177,6 +177,28 @@ def t_live_roundtrip() -> List[str]:
     return fails
 
 
+def t_config_reads_oracle() -> List[str]:
+    """Config.easycredit_* берёт значения из Oracle, если провайдер там есть."""
+    from config import Config
+    from models.credite_settings import adb_settings
+
+    st = adb_settings()
+    d = st.get("easycredit")
+    if d is None:
+        print("  [skip] TMS_CREDITE_PROVIDER недоступна")
+        return []
+    fails = []
+    if d["params"].get("api_user") and Config.easycredit_api_user() != d["params"]["api_user"]:
+        fails.append(f"api_user: Config={Config.easycredit_api_user()!r}, "
+                     f"Oracle={d['params']['api_user']!r}")
+    if Config.easycredit_env() != d["env"]:
+        fails.append(f"env: Config={Config.easycredit_env()!r}, Oracle={d['env']!r}")
+    if Config.easycredit_base_url() != d["base_url"]:
+        fails.append(f"base_url: Config={Config.easycredit_base_url()!r}, "
+                     f"Oracle={d['base_url']!r}")
+    return fails
+
+
 TESTS = [
     ("save + get", t_save_and_get),
     ("пустой секрет не затирает", t_empty_secret_keeps_previous),
@@ -184,6 +206,7 @@ TESTS = [
     ("недоступная БД -> None", t_dead_backend_returns_none),
     ("PROVIDER_DEFS", t_provider_defs),
     ("живой roundtrip", t_live_roundtrip),
+    ("Config читает Oracle", t_config_reads_oracle),
 ]
 
 
