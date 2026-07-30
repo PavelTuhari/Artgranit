@@ -681,6 +681,49 @@ class Biro26Controller:
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.plan_delete(plan_id)
 
+    # ── credit: provideri API + fluxul clientului ──
+
+    @staticmethod
+    def credit_providers() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.providers_list()
+
+    @staticmethod
+    def credit_provider_save() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.provider_save(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_provider_test(code: str) -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.provider_test(code)
+
+    @staticmethod
+    def credit_request_events(req_id: int) -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.request_events(req_id)
+
+    @staticmethod
+    def credit_api_preapproved() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.api_preapproved(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_api_submit() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.api_submit(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_api_status() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        try:
+            req_id = int(request.args.get('req_id') or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "req_id invalid"}
+        if not req_id:
+            return {"success": False, "error": "req_id lipsește"}
+        return Biro26Credit.api_status(req_id)
+
     # ── translations management (catalog grouping RU/EN dictionary) ──
 
     @staticmethod
