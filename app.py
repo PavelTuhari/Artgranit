@@ -6426,6 +6426,11 @@ def api_biro26_shop_login():
 def api_biro26_shop_logout():
     return jsonify(Biro26Controller.shop_logout())
 
+@app.route('/api/biro26/shop/me/fmt', methods=['PUT'])
+def api_biro26_shop_me_fmt():
+    # RO: constanta personala — formatele contului (pdf/html/xlsx)
+    return jsonify(Biro26Controller.shop_set_invoice_fmt())
+
 @app.route('/api/biro26/shop/me', methods=['GET'])
 def api_biro26_shop_me():
     return jsonify(Biro26Controller.shop_me())
