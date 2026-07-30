@@ -25,8 +25,9 @@
 {{#if logo}}<div style="text-align:right; margin-bottom:4px"><img src="{{logo}}" style="height:38px"></div>{{/if}}
 <h1>Comanda cumpărătorului № {{nrmanual}} din {{date_ro}}</h1>
 
-<div class="who"><b>Executor:</b> {{firm.name}}, Cod fiscal {{firm.fiscal_code}}, {{firm.address}}</div>
-<div class="who"><b>Client:</b> {{client.name}}{{#if client.fiscal_code}}, Cod fiscal {{client.fiscal_code}}{{/if}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, tel.: {{client.phone}}{{/if}}</div>
+<div class="who"><b>Executor:</b> {{firm.name}}, Cod fiscal {{firm.fiscal_code}}, {{firm.address}}<br>
+  <b>IBAN:</b> {{firm.iban}} &nbsp; {{firm.bank}}{{#if firm.branch}} {{firm.branch}}{{/if}}</div>
+<div class="who"><b>Client:</b> {{client.name}}{{#if client.fiscal_code}}, Cod fiscal {{client.fiscal_code}}{{/if}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, tel.: {{client.phone}}{{/if}}{{#if client.iban}}<br><b>IBAN:</b> {{client.iban}}{{#if client.bank}} &nbsp; {{client.bank}}{{/if}}{{#if client.bic}} &nbsp; BIC: {{client.bic}}{{/if}}{{/if}}</div>
 
 <table class="items">
   <thead>
