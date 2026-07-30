@@ -199,6 +199,49 @@ def t_config_reads_oracle() -> List[str]:
     return fails
 
 
+def t_provider_settings_source() -> List[str]:
+    """Провайдер, созданный с settings_source, читает настройки оттуда, а не из Config."""
+    from integrations import build_registry
+    from models.credite_settings import CrediteSettings
+
+    st = CrediteSettings(FakeBackend())
+    st.save("easycredit", enabled=True, env="production",
+            base_url="https://fake-ec.example",
+            params={"api_user": "fake_user", "api_password": "fake_pass"})
+    st.save("iute", enabled=True, env="sandbox", base_url="https://fake-iute.example",
+            params={"api_key": "fake_key", "pos_identifier": "POS1",
+                    "salesman_identifier": "S1"})
+
+    reg = build_registry(st)
+    fails = []
+    ec = reg.get("easycredit")
+    if ec is None:
+        return ["build_registry не зарегистрировал easycredit"]
+    if ec._base_url() != "https://fake-ec.example":
+        fails.append(f"base_url={ec._base_url()!r}")
+    if ec._user() != "fake_user":
+        fails.append(f"user={ec._user()!r}")
+    if ec._password() != "fake_pass":
+        fails.append(f"password={ec._password()!r}")
+    if not ec.is_configured():
+        fails.append("is_configured() = False при заполненных кредах")
+    if ec.get_settings().get("user") == "fake_user":
+        fails.append("get_settings() отдаёт логин без маски")
+
+    iu = reg.get("iute")
+    if iu is None:
+        return fails + ["build_registry не зарегистрировал iute"]
+    if iu._api_key() != "fake_key":
+        fails.append(f"iute api_key={iu._api_key()!r}")
+    if iu._pos_identifier() != "POS1":
+        fails.append(f"iute pos={iu._pos_identifier()!r}")
+
+    from integrations import registry as global_reg
+    if global_reg.get("easycredit") is ec:
+        fails.append("build_registry вернул глобальный singleton вместо нового реестра")
+    return fails
+
+
 TESTS = [
     ("save + get", t_save_and_get),
     ("пустой секрет не затирает", t_empty_secret_keeps_previous),
@@ -207,6 +250,7 @@ TESTS = [
     ("PROVIDER_DEFS", t_provider_defs),
     ("живой roundtrip", t_live_roundtrip),
     ("Config читает Oracle", t_config_reads_oracle),
+    ("provider settings_source", t_provider_settings_source),
 ]
 
 
