@@ -253,25 +253,25 @@ class Config:
 
     @classmethod
     def easycredit_base_url(cls) -> str:
-        o = _oracle('easycredit')
-        base = o.get('base_url') or cls.EASYCREDIT_BASE_URL
+        base = _oracle_field('easycredit', 'base_url', cls.EASYCREDIT_BASE_URL)
         if base:
             return base.rstrip('/')
-        if (o.get('env') or cls.EASYCREDIT_ENV) == 'production':
+        # base_url пуст в обоих источниках — дефолт по окружению
+        if cls.easycredit_env() == 'production':
             return 'https://w81.ecredit.md:8082'
         return 'https://tst.ecmoldova.cloud:8082'
 
     @classmethod
     def easycredit_env(cls) -> str:
-        return _oracle('easycredit').get('env') or cls.EASYCREDIT_ENV
+        return _oracle_field('easycredit', 'env', cls.EASYCREDIT_ENV)
 
     @classmethod
     def easycredit_api_user(cls) -> str:
-        return _oracle('easycredit').get('api_user') or cls.EASYCREDIT_API_USER
+        return _oracle_field('easycredit', 'api_user', cls.EASYCREDIT_API_USER)
 
     @classmethod
     def easycredit_api_password(cls) -> str:
-        return _oracle('easycredit').get('api_password') or cls.EASYCREDIT_API_PASSWORD
+        return _oracle_field('easycredit', 'api_password', cls.EASYCREDIT_API_PASSWORD)
 
     # Iute API (sandbox/production). См. https://iute-core-partner-gateway.iute.eu/docs/public/guide.html
     IUTE_ENV = os.environ.get('IUTE_ENV', 'sandbox').lower()  # sandbox | production
