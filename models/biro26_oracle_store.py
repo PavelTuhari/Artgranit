@@ -1241,22 +1241,74 @@ END;""",
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def shop_prices_for(cods: List[int]) -> Dict[str, Any]:
-        """Authoritative retail prices for the shop invoice (server-side —
-        the public client must not be able to supply its own price). Reads
-        the period price list (codprice=1) as of today, falling back to the
-        BIRO26_GOODS feed value for items not in the price list yet."""
+    # RO: coloanele de pret dupa tipul clientului (setare in backoffice):
+    #     'retail1' = pret cu amanuntul (PRETV), 'ionline' = pret online
+    #     (PRETV2), 'angro' = pret angro (PRETV1). Implicit: pers. FIZICE ->
+    #     retail1, pers. JURIDICE -> ionline; fallback mereu pe retail.
+    _PRICE_FIELDS = {"retail1": ("PRETV", "RETAIL1"),
+                     "ionline": ("PRETV2", "IONLINE"),
+                     "angro": ("PRETV1", "ANGRO")}
+
+    @staticmethod
+    def client_price_field(univers_cod) -> str:
+        """RO: cimpul de pret al clientului — dupa tipul din cabinet
+        (IS_COMPANY) si setarile SHOP_PRICE_FIZ / SHOP_PRICE_JUR."""
+        is_company = False
         try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT IS_COMPANY FROM YBIRO_CLIENT WHERE univers_cod = :c",
+                {"c": int(univers_cod)}))
+            is_company = bool(rows and str(rows[0]["is_company"]) in ("1", "Y"))
+        except Exception:
+            pass
+        key = "SHOP_PRICE_JUR" if is_company else "SHOP_PRICE_FIZ"
+        default = "ionline" if is_company else "retail1"
+        f = Biro26Store.get_setting(key, default)
+        return f if f in Biro26Store._PRICE_FIELDS else default
+
+    @staticmethod
+    def set_client_type(univers_cod: int, is_company: bool,
+                        idno: str = "") -> Dict[str, Any]:
+        """RO: tipul clientului (fizica/juridica) din cabinet — schimba
+        automat preturile afisate si cele din conturile viitoare."""
+        try:
+            r = Biro26DB().execute_dml(
+                "UPDATE YBIRO_CLIENT SET is_company = :ic, "
+                "idno = CASE WHEN :ic2 = 1 THEN :idno ELSE idno END "
+                "WHERE univers_cod = :c",
+                {"ic": 1 if is_company else 0, "ic2": 1 if is_company else 0,
+                 "idno": (idno or "")[:20] or None, "c": int(univers_cod)})
+            return (r if r.get("success")
+                    else {"success": False, "error": r.get("message")})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_prices_for(cods: List[int],
+                        price_field: str = "retail1") -> Dict[str, Any]:
+        """Authoritative prices for the shop invoice (server-side — the
+        public client must not supply its own price). price_field alege
+        coloana dupa tipul clientului (fizica/juridica); daca valoarea
+        aleasa lipseste, cade inapoi pe pretul cu amanuntul. Reads the
+        period price list (codprice=1) as of today, falling back to the
+        BIRO26_GOODS feed values."""
+        try:
+            col_pl, col_g = Biro26Store._PRICE_FIELDS.get(
+                price_field, Biro26Store._PRICE_FIELDS["retail1"])
             cods = [int(c) for c in cods][:200]
             if not cods:
                 return {"success": True, "data": {}}
             marks = ",".join(f":c{i}" for i in range(len(cods)))
             params = {f"c{i}": c for i, c in enumerate(cods)}
+            retail_num = ("MAX(CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
+                          "'^-?[0-9]+([.,][0-9]+)?$') THEN "
+                          "TO_NUMBER(REPLACE(TRIM(g.RETAIL1), ',', '.')) END)")
+            chosen = (f"COALESCE(MAX(pl.{col_pl}), MAX(g.{col_g}), "
+                      f"MAX(pl.PRETV), {retail_num})"
+                      if price_field != "retail1"
+                      else f"NVL(MAX(pl.PRETV), {retail_num})")
             rows = _rows(Biro26DB().execute_query(
-                f"SELECT g.COD_UNIVERS COD, "
-                f"NVL(MAX(pl.PRETV), MAX(CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
-                f"'^-?[0-9]+([.,][0-9]+)?$') THEN "
-                f"TO_NUMBER(REPLACE(TRIM(g.RETAIL1), ',', '.')) END)) PRICE "
+                f"SELECT g.COD_UNIVERS COD, {chosen} PRICE "
                 f"FROM BIRO26_GOODS g "
                 f"LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 "
                 f"  AND pl.SC = g.COD_UNIVERS "
