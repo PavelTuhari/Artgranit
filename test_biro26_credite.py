@@ -354,6 +354,9 @@ TESTS = [
     ("_safe_result вырезает PII", t_safe_result_drops_pii),
     ("публичный статус требует ref", t_status_requires_ref),
     ("публичный calc не падает с 500 на мусоре", t_calc_bad_input_no_500),
+    ("provider_test распознаёт отказ авторизации", t_provider_test_detects_auth_failure),
+    ("публичные ошибки нейтральны (без утечек)", t_public_errors_are_neutral),
+    ("публичный credit требует входа клиента", t_public_credit_requires_client_login),
 ]
 
 
