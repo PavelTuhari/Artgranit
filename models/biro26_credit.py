@@ -395,7 +395,13 @@ class Biro26Credit:
         return {"success": True, "data": {
             "plan_id": p["id"], "plan": p["name"], "org": p["org_name"],
             "months": m, "price": amount, "credit_price": credit_price,
-            "markup_pct": float(p["markup_pct"] or 0),
+            # RO: markup_pct = naceta ACTIVA (ce vede clientul); plan_markup_pct
+            #     si transport_markup_pct arata din ce s-a compus.
+            # EN: markup_pct = the EFFECTIVE markup (client-facing); the other
+            #     two show what it's made of.
+            "markup_pct": effective_markup_pct,
+            "plan_markup_pct": plan_markup_pct,
+            "transport_markup_pct": transport_markup_pct,
             "avans": avans, "financed": financed,
             "monthly": monthly, "issue_fee": float(p["issue_fee"] or 0),
             "total": total,
