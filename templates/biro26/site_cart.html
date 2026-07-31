@@ -359,7 +359,7 @@ async function ecSubmit() {
   ecOut('…');
   var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
     org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
-    amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
+    amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
     qty: 1, client_name: fio, phone: phone, idnp: idnp,
     product_name: 'Coș OfficePlus'})});
   if (r.auth_required) {
