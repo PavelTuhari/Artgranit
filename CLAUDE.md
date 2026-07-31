@@ -119,6 +119,8 @@
 3. `deploy_to_remote.sh` разворачивает код в `/home/ubuntu/artgranit`.
 4. Production Oracle wallet хранится вне каталога деплоя: `/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q`.
 5. Remote root URL может редиректить на `/login`; это нормальное поведение. Рабочий модульный URL: `/UNA.md/orasldev/...`.
+6. Кредитование Biro26 живёт в `TMS_CREDITE_*` (провайдеры, организации, пакеты, заявки, лог вызовов API), развёрнутых в **обеих** БД — ADB основного проекта и OfficePlus 11g. DDL ставится отдельно от кода: `python deploy_credite_oracle.py --target adb|biro26|both`.
+7. **Цена в кредит считается по ДЕЙСТВУЮЩЕЙ наценке**: `TMS_CREDITE_PLAN.MARKUP_PCT` + `TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT`. Надбавка организации заменяет неоказанный транспорт: при оплате в рассрочку транспорт не выставляется в счёт (`shop_invoice` пропускает блок при наличии `credit_plan_id`). Эта наценка обязана совпадать во всех четырёх местах: `models/biro26_credit.py` (`calc`), `controllers/biro26_controller.py` (`shop_invoice`) и три шаблона витрины — `site_cart.html`, `shop.html`, `site_product.html`. Расхождение = клиент видит одну цену, платит другую.
 
 ## Production infrastructure — точная конфигурация сервера
 
