@@ -703,13 +703,25 @@ class Biro26Controller:
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.request_events(req_id)
 
+    # RO: preapproved/submit sunt un oracol IDNP->suma preaprobata, respectiv
+    #     depunerea unei cereri reale de credit — la fel ca la comanda din cos
+    #     (makeInvoice), se cere clientul autentificat al magazinului.
+    _AUTH_REQUIRED_ERR = ("Autentificați-vă pentru a solicita creditul · "
+                          "Войдите, чтобы оформить кредит")
+
     @staticmethod
     def credit_api_preapproved() -> Dict[str, Any]:
+        if not session.get("biro26_client"):
+            return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
+                    "auth_required": True}
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.api_preapproved(request.get_json(silent=True) or {})
 
     @staticmethod
     def credit_api_submit() -> Dict[str, Any]:
+        if not session.get("biro26_client"):
+            return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
+                    "auth_required": True}
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.api_submit(request.get_json(silent=True) or {})
 
