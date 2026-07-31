@@ -168,6 +168,17 @@ $SSH_CMD "$REMOTE_USER@$REMOTE_HOST" << EOF
         echo "  ⚠ Директория создана, но архив не распакован правильно"
     fi
     
+    # venv возвращаем ПЕРВЫМ: без него Шаг 7 пересоберёт окружение с нуля.
+    if [ -n "\$VENV_BAK" ] && [ -d "\$VENV_BAK" ]; then
+        rm -rf "$REMOTE_PATH/venv"
+        if mv "\$VENV_BAK" "$REMOTE_PATH/venv"; then
+            echo "  ✓ Восстановлен venv (не пересобирался)"
+        else
+            echo "  ✗ venv не восстановлен, он лежит в \$VENV_BAK — верните вручную"
+            exit 1
+        fi
+    fi
+
     if [ -f "\$ENV_BAK" ]; then
         cp "\$ENV_BAK" "$REMOTE_PATH/.env" && echo "  ✓ Восстановлен .env (wallet не тронут)"
         rm -f "\$ENV_BAK"
