@@ -319,10 +319,21 @@ def t_public_errors_are_neutral() -> list[str]:
 
 
 def t_public_credit_requires_client_login() -> list[str]:
-    """Публичные preapproved/submit требуют входа клиента магазина."""
+    """Публичные preapproved/submit требуют входа клиента магазина.
+
+    Finding 5: раньше при 429 на обоих эндпоинтах тест проходил вырожденно,
+    ничего не проверив. Теперь сначала сбрасываем счётчики лимитера (если
+    установленная версия flask-limiter это поддерживает), а если оба вызова
+    всё равно упёрлись в лимит — явно проваливаем тест, а не тихо проходим.
+    """
     import app as _app
     c = _app.app.test_client()
+    try:
+        _app.limiter.reset()
+    except Exception:
+        pass
     fails = []
+    checked = 0
     for path, body in (('/api/biro26/shop/credit/api/preapproved',
                         {"org_id": 1, "idnp": "2000000000001", "amount": 10000}),
                        ('/api/biro26/shop/credit/api/submit',
@@ -331,12 +342,17 @@ def t_public_credit_requires_client_login() -> list[str]:
                          "idnp": "2000000000001"})):
         r = c.post(path, json=body)
         if r.status_code == 429:
-            continue
+            continue  # rate-limited, not a proof of anything — see checked==0 below
+        checked += 1
         d = r.get_json() or {}
         if d.get("success"):
             fails.append(f"{path}: доступен без входа клиента")
         if not d.get("auth_required"):
             fails.append(f"{path}: нет признака auth_required, ответ {d}")
+    if checked == 0:
+        fails.append("оба эндпоинта ответили 429 — тест не проверил ничего "
+                     "(лимитер не сброшен/не сбрасывается); подождите сброса "
+                     "окна лимита (10/min и 5/min) и перезапустите")
     return fails
 
 
