@@ -19,6 +19,21 @@ din mediul virtual au DISPĂRUT fișiere de pachete (șterse parțial de un proc
 Reparat prin: `./venv/bin/python -m pip install --force-reinstall markupsafe jinja2
 werkzeug flask itsdangerous click blinker babel flask-babel` + `sudo systemctl restart artgranit`.
 
+## ✅ CAUZA IDENTIFICATĂ (31.07.2026, mai târziu în aceeași zi)
+
+**NU a fost un „curățător" extern.** Vinovatul: propriul `deploy_to_remote.sh`, care făcea
+`rm -rf /home/ubuntu/artgranit` (venv-ul locuiește ÎNĂUNTRU, dar în arhivă NU intră) și
+apoi reconstruia venv-ul de la zero — **~2 minute de 500 la fiecare deploy**. Procesul
+care rula ținea fișierele vechi deschise, de aceea a „murit" abia la importurile leneșe
+(`jinja2.debug`, `babel/locale-data`) — de unde iluzia ștergerii selective.
+
+**Remediat definitiv în aceeași zi:** `deploy_to_remote.sh` acum MUTĂ venv-ul deoparte
+înainte de `rm -rf` și îl PUNE LA LOC imediat după dezarhivare (la fel cum se păstrează
+`.env` și wallet-ul); pasul `python3 -m venv` rămâne doar fallback pentru instalări noi.
+Deploy-ul nu mai reconstruiește mediul și nu mai produce downtime.
+
+Regulile de mai jos rămân valabile pentru ORICE alt script/agent care ar atinge serverul.
+
 ## Reguli OBLIGATORII (rules for automated cleaners / AI agents)
 
 1. **NU ștergeți NIMIC din `/home/ubuntu/artgranit/venv/`** — nici „fișiere neutilizate",
