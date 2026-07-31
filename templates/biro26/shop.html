@@ -309,6 +309,30 @@ td.num,th.num{text-align:right}
         <div id="credit-sim" style="font-size:13px;flex:1;min-width:240px"></div>
       </div>
       <div class="muted" style="font-size:11.5px;margin-top:4px">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită în momentul depunerii cererii de credit și poate diferi ușor. · Данные носят информационный характер и не являются офертой; ежемесячный платёж будет установлен при подаче кредитной заявки.</div>
+      <div id="ec-flow" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">
+          <span id="ec-org-label"></span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <input id="ec-fio" placeholder="Nume Prenume · ФИО"
+                 style="flex:1;min-width:170px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
+          <input id="ec-phone" placeholder="+373 …"
+                 style="width:150px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
+          <input id="ec-idnp" placeholder="IDNP" maxlength="13"
+                 style="width:150px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button id="ec-pre" onclick="ecPreapproved()"
+                  style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer">
+            🔍 Verifică preaprobarea · Проверить предодобрение
+          </button>
+          <button id="ec-sub" onclick="ecSubmit()" disabled
+                  style="flex:1;padding:8px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:not-allowed">
+            📨 Trimite cererea · Отправить заявку
+          </button>
+        </div>
+        <div id="ec-out" style="font-size:12.5px;margin-top:8px"></div>
+      </div>
     </div>
     <!-- RO: modul TVA al contului de plata (se aplica pe formularul PDF)
          EN: the invoice VAT mode (applied on the PDF form) -->
