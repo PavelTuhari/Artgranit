@@ -962,7 +962,9 @@ async function makeInvoice() {
                        amount: cartTotalForCredit(),
                        nrset: (r.data.nrmanual != null ? r.data.nrmanual : r.data.nrset),
                        cod: r.data.cod};
-      payBtns += '<button class="btn" style="background:#111827" onclick="sendCartCreditReq()">📝 Cerere de credit EasyCredit · Кредитная заявка</button>';
+      if (!ecOrgOf(currentTile())) {
+        payBtns += '<button class="btn" style="background:#111827" onclick="sendCartCreditReq()">📝 Cerere de credit EasyCredit · Кредитная заявка</button>';
+      }
       if (PAY.methods.includes('maib'))
         payBtns += '<button class="btn" style="background:#f59e0b;color:#111827" onclick="payMaib(' + r.data.cod + ')">💳 Liber Card (MAIB) în rate · Рассрочка Liber</button>';
     }
