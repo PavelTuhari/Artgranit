@@ -39,28 +39,31 @@ class EasyCreditProvider(CreditProvider):
     # --- Настройки ---
 
     def _base_url(self) -> str:
-        return Config.easycredit_base_url()
+        return self._setting("base_url", Config.easycredit_base_url)
 
     def _user(self) -> str:
-        return Config.easycredit_api_user()
+        return self._setting("api_user", Config.easycredit_api_user)
 
     def _password(self) -> str:
-        return Config.easycredit_api_password()
+        return self._setting("api_password", Config.easycredit_api_password)
 
     def _verify_ssl(self) -> bool:
-        return Config.easycredit_env() == "production"
+        return self._env() == "production"
+
+    def _env(self) -> str:
+        return self._setting("env", Config.easycredit_env) or "sandbox"
 
     def get_settings(self) -> dict[str, Any]:
         user = self._user()
         return {
-            "env": Config.easycredit_env(),
+            "env": self._env(),
             "base_url": self._base_url(),
             "user": (user[:3] + "***") if user else "",
             "has_password": bool(self._password()),
         }
 
     def is_configured(self) -> bool:
-        return bool(self._user() and self._password())
+        return bool(self._base_url() and self._user() and self._password())
 
     # --- Тестовые клиенты ---
 

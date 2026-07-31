@@ -13,63 +13,78 @@ EASYCREDIT_SETTINGS_PATH = Path(__file__).resolve().parent / "data" / "easycredi
 IUTE_SETTINGS_PATH = Path(__file__).resolve().parent / "data" / "iute_settings.json"
 
 
-def _load_easycredit_overrides():
-    """Читает data/easycredit_settings.json (переопределения к .env). Без секретов в репо."""
-    if not EASYCREDIT_SETTINGS_PATH.exists():
+def _json_overrides(path: Path) -> dict:
+    """Читает data/*_settings.json. Используется ТОЛЬКО как seed при деплое
+    (deploy_credite_oracle.py) — авторитетное хранилище теперь Oracle."""
+    if not path.exists():
         return {}
     try:
-        with open(EASYCREDIT_SETTINGS_PATH, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
+
+
+def _load_easycredit_overrides():
+    """Seed-источник EasyCredit. Не читается в рантайме — см. _oracle('easycredit')."""
+    return _json_overrides(EASYCREDIT_SETTINGS_PATH)
 
 
 def _load_iute_overrides():
-    """Читает data/iute_settings.json (переопределения к .env). Без секретов в репо."""
-    if not IUTE_SETTINGS_PATH.exists():
-        return {}
+    """Seed-источник Iute. Не читается в рантайме — см. _oracle('iute')."""
+    return _json_overrides(IUTE_SETTINGS_PATH)
+
+
+def _oracle(code: str) -> dict:
+    """Настройки провайдера из TMS_CREDITE_PROVIDER (ADB). {} при недоступности."""
     try:
-        with open(IUTE_SETTINGS_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
+        from models.credite_settings import adb_settings
+        d = adb_settings().get(code)
     except Exception:
         return {}
+    if not d:
+        return {}
+    out = {"env": d["env"], "base_url": d["base_url"]}
+    out.update(d["params"])
+    return out
+
+
+def _oracle_field(code: str, field: str, fallback: str) -> str:
+    """Значение одного поля провайдера: источник авторитетен, если запись есть.
+
+    Если _oracle(code) вернул непустой словарь (запись в TMS_CREDITE_PROVIDER
+    существует), значение берётся ИСКЛЮЧИТЕЛЬНО оттуда — пустая строка,
+    намеренно сохранённая в Oracle, НЕ подменяется значением из .env (тот же
+    принцип, что и в integrations/base_provider.py:_setting). Фолбэк на
+    `fallback` — только когда записи нет вовсе (БД недоступна или провайдер
+    не заведён)."""
+    o = _oracle(code)
+    if o:
+        return o.get(field) or ""
+    return fallback
 
 
 def save_easycredit_settings(env: str, base_url: str, api_user: str, api_password: str) -> None:
-    """Сохраняет настройки EasyCredit в data/easycredit_settings.json.
-    Если api_password пустой, сохраняем существующий (не перезаписываем)."""
-    EASYCREDIT_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    prev = _load_easycredit_overrides()
-    pwd = (api_password or "").strip()
-    if not pwd and prev:
-        pwd = prev.get("api_password") or ""
-    payload = {
-        "env": (env or "sandbox").lower(),
-        "base_url": (base_url or "").strip(),
-        "api_user": (api_user or "").strip(),
-        "api_password": pwd,
-    }
-    with open(EASYCREDIT_SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+    """Сохраняет настройки EasyCredit в TMS_CREDITE_PROVIDER (ADB).
+    Пустой api_password означает «не менять» (см. CrediteSettings.save)."""
+    from models.credite_settings import adb_settings
+    r = adb_settings().save("easycredit", enabled=True, env=env, base_url=base_url,
+                            params={"api_user": api_user, "api_password": api_password})
+    if not r.get("success"):
+        raise RuntimeError(r.get("error") or "не удалось сохранить настройки EasyCredit")
 
 
-def save_iute_settings(env: str, base_url: str, api_key: str, pos_identifier: str, salesman_identifier: str) -> None:
-    """Сохраняет настройки Iute в data/iute_settings.json.
-    Если api_key пустой, сохраняем существующий (не перезаписываем)."""
-    IUTE_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    prev = _load_iute_overrides()
-    key = (api_key or "").strip()
-    if not key and prev:
-        key = prev.get("api_key") or ""
-    payload = {
-        "env": (env or "sandbox").lower(),
-        "base_url": (base_url or "").strip(),
-        "api_key": key,
-        "pos_identifier": (pos_identifier or "").strip(),
-        "salesman_identifier": (salesman_identifier or "").strip(),
-    }
-    with open(IUTE_SETTINGS_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
+def save_iute_settings(env: str, base_url: str, api_key: str, pos_identifier: str,
+                       salesman_identifier: str) -> None:
+    """Сохраняет настройки Iute в TMS_CREDITE_PROVIDER (ADB).
+    Пустой api_key означает «не менять»."""
+    from models.credite_settings import adb_settings
+    r = adb_settings().save("iute", enabled=True, env=env, base_url=base_url,
+                            params={"api_key": api_key,
+                                    "pos_identifier": pos_identifier,
+                                    "salesman_identifier": salesman_identifier})
+    if not r.get("success"):
+        raise RuntimeError(r.get("error") or "не удалось сохранить настройки Iute")
 
 
 class Config:
@@ -238,28 +253,25 @@ class Config:
 
     @classmethod
     def easycredit_base_url(cls) -> str:
-        o = _load_easycredit_overrides()
-        base = o.get('base_url') or cls.EASYCREDIT_BASE_URL
+        base = _oracle_field('easycredit', 'base_url', cls.EASYCREDIT_BASE_URL)
         if base:
             return base.rstrip('/')
-        if (o.get('env') or cls.EASYCREDIT_ENV) == 'production':
+        # base_url пуст в обоих источниках — дефолт по окружению
+        if cls.easycredit_env() == 'production':
             return 'https://w81.ecredit.md:8082'
         return 'https://tst.ecmoldova.cloud:8082'
 
     @classmethod
     def easycredit_env(cls) -> str:
-        o = _load_easycredit_overrides()
-        return o.get('env') or cls.EASYCREDIT_ENV
+        return _oracle_field('easycredit', 'env', cls.EASYCREDIT_ENV)
 
     @classmethod
     def easycredit_api_user(cls) -> str:
-        o = _load_easycredit_overrides()
-        return o.get('api_user') or cls.EASYCREDIT_API_USER
+        return _oracle_field('easycredit', 'api_user', cls.EASYCREDIT_API_USER)
 
     @classmethod
     def easycredit_api_password(cls) -> str:
-        o = _load_easycredit_overrides()
-        return o.get('api_password') or cls.EASYCREDIT_API_PASSWORD
+        return _oracle_field('easycredit', 'api_password', cls.EASYCREDIT_API_PASSWORD)
 
     # Iute API (sandbox/production). См. https://iute-core-partner-gateway.iute.eu/docs/public/guide.html
     IUTE_ENV = os.environ.get('IUTE_ENV', 'sandbox').lower()  # sandbox | production
@@ -270,32 +282,27 @@ class Config:
 
     @classmethod
     def iute_base_url(cls) -> str:
-        o = _load_iute_overrides()
-        base = o.get('base_url') or cls.IUTE_BASE_URL
+        base = _oracle_field('iute', 'base_url', cls.IUTE_BASE_URL)
         if base:
             return base.rstrip('/')
-        # По умолчанию production URL
+        # base_url пуст в обоих источниках — дефолт production URL
         return 'https://iute-core-partner-gateway.iute.eu'
 
     @classmethod
     def iute_env(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('env') or cls.IUTE_ENV
+        return _oracle_field('iute', 'env', cls.IUTE_ENV)
 
     @classmethod
     def iute_api_key(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('api_key') or cls.IUTE_API_KEY
+        return _oracle_field('iute', 'api_key', cls.IUTE_API_KEY)
 
     @classmethod
     def iute_pos_identifier(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('pos_identifier') or cls.IUTE_POS_IDENTIFIER
+        return _oracle_field('iute', 'pos_identifier', cls.IUTE_POS_IDENTIFIER)
 
     @classmethod
     def iute_salesman_identifier(cls) -> str:
-        o = _load_iute_overrides()
-        return o.get('salesman_identifier') or cls.IUTE_SALESMAN_IDENTIFIER
+        return _oracle_field('iute', 'salesman_identifier', cls.IUTE_SALESMAN_IDENTIFIER)
 
     # Rate limiting (anonymous non-BIRO26 /api only; BIRO26 + auth are exempt in app.py)
     # 120/min burst + 5000/hour ceiling — UI-friendly, still stops simple floods

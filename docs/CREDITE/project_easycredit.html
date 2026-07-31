@@ -24,6 +24,8 @@
             padding: 24px;
         }
         .container { max-width: 1000px; margin: 0 auto; }
+        .back-link { display: inline-block; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+        .back-link a { color: var(--primary); }
         h1 { font-size: 28px; margin-bottom: 8px; color: var(--primary); }
         h2 { font-size: 20px; margin: 32px 0 16px; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 8px; }
         h3 { font-size: 16px; margin: 24px 0 12px; color: var(--primary); }
@@ -97,6 +99,14 @@
             margin: 16px 0;
             font-size: 14px;
         }
+        .warn {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 14px;
+        }
         .toc {
             background: #f8fafc;
             padding: 16px 20px;
@@ -110,26 +120,31 @@
 </head>
 <body>
     <div class="container">
+        <p class="back-link">← <a href="/UNA.md/orasldev/docs">Документация</a></p>
         <h1>🏦 Интеграция EasyCredit SOAP API</h1>
-        <p class="subtitle">Oracle SQL Developer Web — Модуль кредитования</p>
+        <p class="subtitle">Oracle SQL Developer Web — Модуль кредитования (основной проект + Biro26/OfficePlus)</p>
 
         <div class="toc">
             <strong>📋 Содержание</strong>
             <ul>
-                <li><a href="#overview">Обзор проекта</a></li>
-                <li><a href="#architecture">Архитектура</a></li>
-                <li><a href="#soap-client">SOAP клиент</a></li>
-                <li><a href="#services">API сервисы</a></li>
-                <li><a href="#wsdl">Локальные WSDL</a></li>
-                <li><a href="#config">Конфигурация</a></li>
-                <li><a href="#testing">Тестирование</a></li>
-                <li><a href="#security">Безопасность</a></li>
+                <li><a href="#overview">1. Обзор</a></li>
+                <li><a href="#services">2. SOAP-операции</a></li>
+                <li><a href="#architecture">3. Архитектура интеграции</a></li>
+                <li><a href="#config">4. Хранение настроек</a></li>
+                <li><a href="#schema">5. Схема TMS_CREDITE_*</a></li>
+                <li><a href="#admin">6. Настройка в бэк-офисе Biro26</a></li>
+                <li><a href="#flow">7. Флоу на витрине</a></li>
+                <li><a href="#api">8. API</a></li>
+                <li><a href="#deploy">9. Деплой</a></li>
+                <li><a href="#checklist">10. Checklist верификации</a></li>
             </ul>
         </div>
 
-        <h2 id="overview">📌 Обзор проекта</h2>
+        <h2 id="overview">📌 1. Обзор</h2>
         <div class="card">
-            <p>Интеграция с EasyCredit (EC Moldova) для оформления кредитов через SOAP API.</p>
+            <p>Интеграция с EasyCredit (EC Moldova) для оформления кредитов через SOAP API.
+            Клиент реализован вручную на Python (<code>integrations/easycredit_client.py</code>),
+            без WSDL-based библиотек (zeep, suds).</p>
             <div class="grid" style="margin-top: 16px;">
                 <div>
                     <span class="badge badge-blue">Технология</span> Python + Flask + SOAP
@@ -137,207 +152,408 @@
                 <div>
                     <span class="badge badge-green">Окружение</span> Sandbox / Production
                 </div>
-                <div>
-                    <span class="badge badge-yellow">Статус</span> В разработке
-                </div>
             </div>
+            <p style="margin-top:16px"><strong>Две независимые точки применения</strong>, каждая со
+            своим экземпляром <code>EasyCreditProvider</code> и своим набором настроек в Oracle
+            (см. <a href="#config">§4</a>):</p>
+            <table>
+                <tr><th>Точка применения</th><th>Маршрут</th><th>Настройки провайдера</th></tr>
+                <tr><td>Основной проект — демо/оператор</td>
+                    <td><code>/UNA.md/orasldev/credit-easycredit</code>
+                        (админка: <code>/UNA.md/orasldev/credit-admin</code>)</td>
+                    <td><code>TMS_CREDITE_PROVIDER</code> в Oracle ADB</td></tr>
+                <tr><td>Biro26 — бэк-офис и витрина</td>
+                    <td><code>/UNA.md/orasldev/biro26-credit-admin</code>
+                        (витрина: <code>biro26-shop</code> / <code>biro26-site/cart</code>)</td>
+                    <td><code>TMS_CREDITE_PROVIDER</code> в Oracle 11g OfficePlus</td></tr>
+            </table>
+            <table>
+                <tr><th>Параметр</th><th>Sandbox (тест)</th><th>Production</th></tr>
+                <tr><td>Base URL</td><td><code>https://tst.ecmoldova.cloud:8082</code></td><td><code>https://w81.ecredit.md:8082</code></td></tr>
+                <tr><td>SSL проверка</td><td>Отключена (сертификат истёк)</td><td>Включена</td></tr>
+                <tr><td>WSDL доступ</td><td>Доступен online</td><td>Только локальные файлы (<code>wsdl/easycredit/</code>)</td></tr>
+            </table>
         </div>
 
-        <table>
-            <tr><th>Параметр</th><th>Sandbox (тест)</th><th>Production</th></tr>
-            <tr><td>Base URL</td><td><code>https://tst.ecmoldova.cloud:8082</code></td><td><code>https://w81.ecredit.md:8082</code></td></tr>
-            <tr><td>SSL проверка</td><td>Отключена (сертификат истёк)</td><td>Включена</td></tr>
-            <tr><td>WSDL доступ</td><td>Доступен online</td><td>Только локальные файлы</td></tr>
-            <tr><td>Учётные данные</td><td>MTadmin / Parola007</td><td>Выдаются отдельно</td></tr>
-        </table>
-
-        <h2 id="architecture">🏗️ Архитектура</h2>
+        <h2 id="services">📡 2. SOAP-операции</h2>
         <div class="card">
+            <p>Реализованы в <code>integrations/easycredit_client.py</code>, каждая функция
+            собирает SOAP-конверт вручную и парсит ответ через <code>xml.etree.ElementTree</code>.</p>
+            <table>
+                <tr><th>Операция</th><th>Endpoint (<code>.svc</code>)</th><th>SOAPAction</th><th>Назначение</th><th>Ключевые поля</th></tr>
+                <tr>
+                    <td><code>Preapproved_v2.1</code></td>
+                    <td><code>/Preapproved_v2.1.svc</code></td>
+                    <td><code>http://tempuri.org/IPreapproved_v2_1/Preapproved</code></td>
+                    <td>Проверка предодобренной суммы по IDNP</td>
+                    <td><code>Login, Password, UIN, Phone</code> (опц.)</td>
+                </tr>
+                <tr>
+                    <td><code>Request_v4_PJ</code></td>
+                    <td><code>/Request_v4_PJ.svc</code></td>
+                    <td><code>http://tempuri.org/Request_v4_PJ_I/InsertRequest</code></td>
+                    <td>Подача заявки, возвращает URN</td>
+                    <td><code>Login, Password, UIN, GUFirstName/LastName, GUMobile,
+                        GoodsName, GoodsPrice, CreditAmount, Product</code></td>
+                </tr>
+                <tr>
+                    <td><code>URNStatus_v2</code></td>
+                    <td><code>/URNStatus_v2.svc</code></td>
+                    <td><code>http://tempuri.org/URNStatus_v2_I/GetUrnStatus</code></td>
+                    <td>Статус заявки по URN</td>
+                    <td><code>Login, Password, URN</code></td>
+                </tr>
+                <tr>
+                    <td><code>eShopClientInfo_v3</code> (<code>ClientInfo</code>)</td>
+                    <td><code>/eShopClientInfo_v3.svc</code></td>
+                    <td><code>http://tempuri.org/eShopClientInfo_v3_I/eShopClientInfo_v3</code></td>
+                    <td>Данные клиента и его займы по IDNP</td>
+                    <td><code>Login, Password, UIN</code></td>
+                </tr>
+            </table>
+            <p class="comment" style="color:var(--muted);font-size:13px">Дополнительно доступны
+            <code>ECM_GetClientInfoByPhone</code> (поиск по телефону) и
+            <code>ECM_GetUrnPerUin_V2</code> (список URN клиента) — используются служебными
+            эндпоинтами основного проекта (<code>/api/credit-easycredit/client-by-phone</code>,
+            <code>/api/credit-easycredit/urns</code>), не участвуют во флоу Biro26.</p>
+        </div>
+
+        <h2 id="architecture">🏗️ 3. Архитектура интеграции</h2>
+        <div class="card">
+            <h3>Слои</h3>
+            <ul>
+                <li><code>integrations/base_provider.py</code> — абстрактный <code>CreditProvider</code>
+                    (единый интерфейс: <code>preapproved/submit/check_status/check_auth</code>,
+                    <code>is_configured/get_settings</code>) и <code>ProviderRegistry</code>.</li>
+                <li><code>integrations/easycredit_provider.py</code> — <code>EasyCreditProvider</code>,
+                    обёртка над <code>easycredit_client.py</code> с единым интерфейсом.</li>
+                <li><code>integrations/__init__.py</code> — глобальный <code>registry</code>
+                    (настройки читаются из <code>Config</code>, основной проект) и
+                    <code>build_registry(settings_source)</code> — новый реестр, читающий настройки
+                    из произвольного источника (см. <a href="#config">§4</a>).</li>
+            </ul>
+            <h3>Путь запроса на витрине Biro26</h3>
+            <pre><code>клиент витрины (shop.html / site_cart.html)
+  → POST/GET /api/biro26/shop/credit/api/{preapproved,submit,status}
+  → Biro26Controller.credit_api_*()               (controllers/biro26_controller.py)
+  → Biro26Credit.api_preapproved/api_submit/api_status()   (models/biro26_credit.py)
+  → Biro26Credit._registry() = build_registry(biro26_settings())
+  → EasyCreditProvider(settings_source=biro26_settings())
+  → integrations/easycredit_client.py               (SOAP)</code></pre>
+            <p><code>biro26_settings()</code> возвращает <code>CrediteSettings</code> поверх
+            <code>Biro26Backend</code> (Oracle 11g); в основном проекте вместо неё используется
+            глобальный <code>registry</code>, читающий <code>Config.easycredit_*</code>
+            (те, в свою очередь, читают <code>adb_settings()</code> — Oracle ADB).</p>
             <h3>Структура файлов</h3>
             <pre><code>Artgranit/
 ├── integrations/
-│   └── <span class="highlight">easycredit_client.py</span>    # SOAP клиент (ручная реализация)
-├── wsdl/
-│   └── easycredit/              # Локальные WSDL файлы
-│       ├── Preapproved_v2.1.wsdl
-│       ├── Request_v4_PJ.wsdl
-│       ├── URNStatus_v2.wsdl
-│       ├── eShopClientInfo_v3.wsdl
-│       ├── ECM_GetClientInfoByPhone.wsdl
-│       └── ECM_GetUrnPerUin_V2.wsdl
-├── data/
-│   └── easycredit_settings.json # Конфигурация (в .gitignore)
+│   ├── base_provider.py         # CreditProvider, ProviderRegistry
+│   ├── <span class="highlight">easycredit_client.py</span>    # SOAP клиент (ручная реализация)
+│   └── easycredit_provider.py   # EasyCreditProvider(settings_source)
+├── models/
+│   ├── credite_settings.py      # CrediteSettings, AdbBackend, Biro26Backend
+│   └── biro26_credit.py         # Biro26Credit — org/plan/req + провайдеры API
+├── wsdl/easycredit/              # Локальные WSDL (production URL недоступны)
+├── sql/50_credite_tables.sql     # DDL TMS_CREDITE_* (Oracle ADB)
+├── sql/biro26/12_tms_credite.sql # тот же DDL (Oracle 11g OfficePlus)
+├── deploy_credite_oracle.py      # деплой DDL + миграция + seed (оба контура)
 ├── templates/
-│   ├── credit_admin.html        # Админка кредитов
-│   └── credit_easycredit.html   # Форма оформления
-├── app.py                       # Flask API endpoints
-└── config.py                    # Настройки приложения</code></pre>
+│   ├── credit_admin.html         # Админка кредитов (основной проект)
+│   ├── credit_easycredit.html    # Форма оформления (основной проект)
+│   └── biro26/credit_admin.html  # Бэк-офис Biro26 — вкладка «Provideri API»
+├── app.py                        # Flask API endpoints (оба контура)
+└── config.py                     # Config.easycredit_* — Oracle ADB + фолбэк .env</code></pre>
         </div>
 
-        <h2 id="soap-client">🔧 SOAP клиент</h2>
+        <h2 id="config">⚙️ 4. Хранение настроек</h2>
         <div class="card">
-            <h3>Тип реализации</h3>
-            <p><span class="badge badge-blue">Ручная реализация</span> Клиент написан вручную на Python с использованием библиотеки <code>requests</code> без WSDL-based библиотек (zeep, suds).</p>
-            
+            <p>Настройки провайдеров хранятся в Oracle, в двух нормализованных таблицах
+            (одна и та же схема развёрнута в обеих БД — см. <a href="#schema">§5</a>):</p>
+            <ul>
+                <li><code>TMS_CREDITE_PROVIDER</code> — по одной строке на провайдера
+                    (<code>CODE='easycredit'</code>): <code>ENABLED, ENV, BASE_URL, ICON, COLOR, ORD</code>.</li>
+                <li><code>TMS_CREDITE_PROVIDER_PARAM</code> — параметры и креды, ключ-значение
+                    на провайдера: для EasyCredit это <code>api_user</code> (обычный) и
+                    <code>api_password</code> (<code>IS_SECRET='1'</code>).</li>
+            </ul>
             <div class="note">
-                <strong>⚠️ Требование EasyCredit:</strong> С 20.10.2025 production WSDL недоступны по URL. Необходимо использовать локальные файлы WSDL.
+                <strong>⚠️ Правило «пустой секрет = не менять»:</strong> при сохранении настроек
+                (<code>CrediteSettings.save()</code>) пустое значение секретного параметра НЕ
+                затирает уже сохранённое — так UI может отправлять форму, не зная текущий пароль
+                (только его маску, см. <code>masked()</code>).
             </div>
+            <p><strong>Два независимых контура</strong> — у каждого свой <code>CrediteSettings</code>
+            и своя запись в своей БД, значения не синхронизируются автоматически:</p>
+            <ul>
+                <li><code>adb_settings()</code> → <code>AdbBackend</code> → Oracle ADB основного проекта
+                    (через <code>models/database.py</code>).</li>
+                <li><code>biro26_settings()</code> → <code>Biro26Backend</code> → Oracle 11g OfficePlus
+                    (через thick subprocess-воркер, <code>models/biro26_db.py</code>).</li>
+            </ul>
+            <p><strong>Фолбэк на <code>.env</code>:</strong> если источник настроек недоступен
+            (БД не отвечает) или в нём вовсе нет записи для провайдера, значение берётся из
+            переменных окружения (<code>EASYCREDIT_BASE_URL/API_USER/API_PASSWORD</code>). Но если
+            запись в Oracle ЕСТЬ, она авторитетна целиком — пустое значение в ней НЕ подменяется
+            значением из <code>.env</code> (см. <code>CreditProvider._setting()</code>).</p>
+            <div class="warn">
+                <strong>🚫 <code>data/easycredit_settings.json</code> — больше не хранилище.</strong>
+                Файл используется только как одноразовый seed-источник при первом деплое
+                (<code>deploy_credite_oracle.py</code> читает его вместе с <code>.env</code> и
+                заполняет <code>TMS_CREDITE_PROVIDER</code>, если строки для провайдера ещё нет).
+                В рантайме файл не читается — <code>save_easycredit_settings()</code> пишет прямо
+                в Oracle ADB.
+            </div>
+            <div class="warn">
+                <strong>⚠️ Демо-креды после первого деплоя.</strong> Если в <code>.env</code>
+                (или файле-seed) не заданы реальные <code>EASYCREDIT_API_USER/API_PASSWORD</code>,
+                действуют дефолты кода — <code>demo</code>/<code>demo</code>
+                (см. <code>Config.EASYCREDIT_API_USER/PASSWORD</code>). Seed создаёт провайдера с
+                <code>ENABLED='0'</code>, но <code>api_user/api_password</code> при этом заполнены
+                этими демо-значениями — в бэк-офисе провайдер покажется «configurat», хотя реальный
+                вызов к EasyCredit вернёт ошибку авторизации (<code>Invalid User Name / Password</code>).
+                Оператор обязан ввести настоящие креды через бэк-офис (<a href="#admin">§6</a>) —
+                «configurat» здесь означает «заполнены поля», а не «проверено на реальном API».
+            </div>
+        </div>
 
-            <h3>Как работает</h3>
+        <h2 id="schema">🗄️ 5. Схема TMS_CREDITE_*</h2>
+        <div class="card">
+            <p>Один и тот же DDL развёрнут в обеих БД: <code>sql/50_credite_tables.sql</code> (Oracle
+            ADB) и <code>sql/biro26/12_tms_credite.sql</code> (Oracle 11g OfficePlus, копия того же
+            текста). Без identity-колонок — последовательность + триггер <code>BEFORE INSERT</code>.</p>
+            <table>
+                <tr><th>Таблица</th><th>Назначение</th><th>Ключевые колонки</th></tr>
+                <tr>
+                    <td><code>TMS_CREDITE_PROVIDER</code></td>
+                    <td>Реестр API-провайдеров (easycredit, iute)</td>
+                    <td><code>CODE, NAME, ENABLED, ENV, BASE_URL, ICON, COLOR, INFO, ORD, UPDATED</code></td>
+                </tr>
+                <tr>
+                    <td><code>TMS_CREDITE_PROVIDER_PARAM</code></td>
+                    <td>Параметры и креды провайдера (PK: <code>PROVIDER_ID+PARAM_NAME</code>)</td>
+                    <td><code>PROVIDER_ID (FK), PARAM_NAME, PARAM_VALUE, IS_SECRET</code></td>
+                </tr>
+                <tr>
+                    <td><code>TMS_CREDITE_ORG</code></td>
+                    <td>Организации кредитования (магазинные условия рассрочки)</td>
+                    <td><code>NAME, ENABLED, ORG_MODE (manual/api), PROVIDER_ID (FK, NULL=ручной
+                        режим), API_URL, LOGO_URL, INFO, ORD</code></td>
+                </tr>
+                <tr>
+                    <td><code>TMS_CREDITE_PLAN</code></td>
+                    <td>Пакеты рассрочки организации (формула расчёта не менялась)</td>
+                    <td><code>ORG_ID (FK), NAME, MONTHS_MIN/MAX, AMOUNT_MIN/MAX, MARKUP_PCT,
+                        ANNUAL_PCT, MONTHLY_FEE_PCT, ISSUE_FEE, AVANS_MIN_PCT, ENABLED, INFO</code></td>
+                </tr>
+                <tr>
+                    <td><code>TMS_CREDITE_REQ</code></td>
+                    <td>Заявки на кредит/рассрочку (журнал + API-статус)</td>
+                    <td><code>ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD/NAME, QTY, AMOUNT, CREDIT_PRICE,
+                        MONTHLY, CLIENT_NAME, PHONE, STATUS, PROVIDER_CODE, EXT_REF, API_STATUS,
+                        PREAPPROVED_AMOUNT, IDNP_MASKED, LAST_CHECK, CREATED</code></td>
+                </tr>
+                <tr>
+                    <td><code>TMS_CREDITE_REQ_EVENT</code></td>
+                    <td>Append-only лог вызовов API (без PII)</td>
+                    <td><code>REQ_ID, PROVIDER_CODE, OP, HTTP_CODE, DURATION_MS, PAYLOAD, RESULT,
+                        IS_ERROR, CREATED</code></td>
+                </tr>
+            </table>
+            <div class="note">
+                <strong>PII в логе:</strong> перед записью в <code>TMS_CREDITE_REQ_EVENT</code>
+                IDNP маскируется (<code>_mask_idnp</code>, видны первые/последние 2 символа),
+                телефон обрезается, а длинные числовые последовательности (13+ цифр, включая с
+                разделителями) вычищаются регэкспом (<code>_scrub</code>). Разрешённые поля
+                результата — allowlist (<code>_EVENT_SAFE_KEYS</code>): <code>success, preapproved,
+                max_amount, status, state, urn, order_id, message, http_code, error</code>.
+            </div>
+            <div class="note">
+                <strong>ID без <code>RETURNING ... INTO</code>:</strong> subprocess-воркер
+                (<code>models/biro26_worker.py</code>) не поддерживает OUT-бинды, поэтому
+                <code>api_submit()</code> резервирует ID заявки через
+                <code>SELECT TMS_CREDITE_REQ_SEQ.NEXTVAL FROM dual</code> до INSERT.
+                <code>request_create()</code> (старый флоу без API) пока использует
+                <code>SELECT MAX(ID)</code> — менять не требовалось в рамках этой работы.
+            </div>
+            <p>Данные из <code>YBIRO_CREDIT_ORG/PLAN/REQ</code> (старые таблицы Biro26) перенесены
+            скриптом деплоя; сами старые таблицы пока не переименованы — переименование в
+            <code>*_OLD</code> выполняется отдельным флагом деплоя на сервере (см. <a href="#deploy">§9</a>).</p>
+        </div>
+
+        <h2 id="admin">🛠️ 6. Настройка в бэк-офисе Biro26</h2>
+        <div class="card">
+            <p>Страница <code>/UNA.md/orasldev/biro26-credit-admin</code>, вкладка/секция
+            «Provideri API» (вверху страницы, до таблиц организаций и пакетов).</p>
             <ol>
-                <li>XML SOAP envelope формируется вручную по структуре из WSDL</li>
-                <li>Запрос отправляется через <code>requests.post()</code></li>
-                <li>Ответ парсится через <code>xml.etree.ElementTree</code></li>
+                <li>Отметить чекбокс <strong>activ / включён</strong> для EasyCredit.</li>
+                <li>Выбрать <strong>env</strong>: <code>sandbox</code> или <code>production</code>.</li>
+                <li>Проверить/поправить <strong>base_url</strong> (по умолчанию подставляется URL
+                    по выбранному env).</li>
+                <li>Ввести <strong>api_user</strong> и <strong>api_password</strong> (секретное поле,
+                    пустое при сохранении = не менять текущее значение).</li>
+                <li>Нажать <strong>«Salvează»</strong> — <code>PUT /api/biro26/credit/providers</code>.</li>
+                <li>Нажать <strong>«Test conexiune»</strong> — <code>POST
+                    /api/biro26/credit/providers/easycredit/test</code>; для EasyCredit нет
+                    отдельного <code>check_auth</code>, поэтому тест выполняет пробный
+                    <code>preapproved</code> на тестовом IDNP <code>2000000000001</code> и пишет
+                    результат в <code>TMS_CREDITE_REQ_EVENT</code> (<code>OP='provider_test'</code>).</li>
+                <li>В таблице «Organizații de creditare» у нужной организации выбрать
+                    EasyCredit в колонке «Provider API» и сохранить строку — только после этого
+                    у организации появляется кнопка оформления заявки через API на витрине.</li>
             </ol>
-
-            <h3>Преимущества текущей реализации</h3>
-            <ul>
-                <li>✅ Не требует runtime доступа к WSDL</li>
-                <li>✅ Минимальные зависимости</li>
-                <li>✅ Полный контроль над XML структурой</li>
-            </ul>
-
-            <h3>Пример кода</h3>
-            <pre><code><span class="comment"># integrations/easycredit_client.py</span>
-<span class="highlight">def</span> preapproved(base_url, user, passwd, idn, verify_ssl=<span class="highlight">True</span>):
-    url = base_url + <span class="string">"/Preapproved_v2.1.svc"</span>
-    action = <span class="string">"http://tempuri.org/IPreapproved_v2_1/Preapproved"</span>
-    
-    body = <span class="string">'''
-    &lt;Preapproved xmlns="http://tempuri.org/"&gt;
-        &lt;Login&gt;{user}&lt;/Login&gt;
-        &lt;Password&gt;{passwd}&lt;/Password&gt;
-        &lt;UIN&gt;{idn}&lt;/UIN&gt;
-    &lt;/Preapproved&gt;
-    '''</span>
-    
-    <span class="highlight">return</span> _soap_post(url, action, body, verify_ssl)</code></pre>
+            <p>Карточка провайдера показывает статус <code>configurat</code>/<code>neconfigurat</code>
+            — это <code>CrediteSettings.is_configured()</code>: заполнены ли обязательные секретные
+            поля (для EasyCredit — <code>api_user</code> и <code>api_password</code>). Статус не
+            подтверждает, что креды рабочие — см. предупреждение в <a href="#config">§4</a>;
+            для проверки реальной работоспособности используйте «Test conexiune».</p>
         </div>
 
-        <h2 id="services">📡 API сервисы</h2>
-
+        <h2 id="flow">🛒 7. Флоу на витрине</h2>
         <div class="card">
-            <h3>Preapproved_v2.1</h3>
-            <p>Проверка предодобренной суммы кредита по IDNP клиента.</p>
-            <table>
-                <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
-                <tr><td>Login</td><td>string</td><td>Логин API</td></tr>
-                <tr><td>Password</td><td>string</td><td>Пароль API</td></tr>
-                <tr><td>UIN</td><td>string</td><td>IDNP клиента (13 цифр)</td></tr>
-                <tr><td>BirthDate</td><td>string</td><td>Дата рождения (опц.)</td></tr>
-                <tr><td>Phone</td><td>string</td><td>Телефон (опц.)</td></tr>
-                <tr><td>cardid</td><td>string</td><td>ID карты (опц.)</td></tr>
-            </table>
-            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/IPreapproved_v2_1/Preapproved</code></p>
-        </div>
-
-        <div class="card">
-            <h3>Request_v4_PJ</h3>
-            <p>Отправка заявки на кредит.</p>
-            <table>
-                <tr><th>Ключевые поля</th><th>Описание</th></tr>
-                <tr><td>Login, Password</td><td>Авторизация API</td></tr>
-                <tr><td>Product</td><td>ID продукта (long)</td></tr>
-                <tr><td>UIN</td><td>IDNP клиента</td></tr>
-                <tr><td>GUFirstName, GULastName, GUFatherName</td><td>ФИО клиента</td></tr>
-                <tr><td>GUMobile</td><td>Телефон клиента</td></tr>
-                <tr><td>GoodsName, GoodsPrice</td><td>Товар и цена</td></tr>
-                <tr><td>CreditAmount</td><td>Сумма кредита</td></tr>
-            </table>
-            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/Request_v4_PJ_I/InsertRequest</code></p>
-        </div>
-
-        <div class="card">
-            <h3>URNStatus_v2</h3>
-            <p>Проверка статуса заявки по URN.</p>
-            <table>
-                <tr><th>Параметр</th><th>Описание</th></tr>
-                <tr><td>Login, Password</td><td>Авторизация API</td></tr>
-                <tr><td>URN</td><td>Номер заявки (например: 001198450)</td></tr>
-            </table>
-            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/URNStatus_v2_I/GetUrnStatus</code></p>
-        </div>
-
-        <div class="card">
-            <h3>eShopClientInfo_v3</h3>
-            <p>Информация о клиенте и его займах по IDNP.</p>
-            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/eShopClientInfo_v3_I/eShopClientInfo_v3</code></p>
-            <p><strong>Возвращает:</strong> ФИО, дата рождения, email, список займов (URN, сумма, статус, продукт)</p>
-        </div>
-
-        <div class="card">
-            <h3>ECM_GetClientInfoByPhone</h3>
-            <p>Поиск клиента по номеру телефона.</p>
-            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/ECM_GetClientInfoByPhone_I/GetClientInfoByPhone</code></p>
-        </div>
-
-        <div class="card">
-            <h3>ECM_GetUrnPerUin_V2</h3>
-            <p>Список всех заявок (URN) клиента по IDNP.</p>
-            <p><strong>SOAPAction:</strong> <code>http://tempuri.org/ECM_GetUrnPerUin_V2_I/ECM_GetUrnPerUin</code></p>
-        </div>
-
-        <h2 id="wsdl">📁 Локальные WSDL</h2>
-        <div class="card">
-            <div class="success">
-                <strong>✅ WSDL файлы скачаны и сохранены локально</strong> в директории <code>wsdl/easycredit/</code>
+            <p>В корзине магазина Biro26 (<code>shop.html</code> — модалка корзины,
+            <code>site_cart.html</code> — новая витрина) при выборе оплаты «в кредит» блок
+            <code>#ec-flow</code> появляется, только если у выбранной организации привязан
+            <strong>включённый</strong> провайдер (<code>org.provider.configured</code>).
+            Иначе показывается прежняя форма «Cerere de credit» (журналируется в
+            <code>TMS_CREDITE_REQ</code> без обращения к API — <code>request_create()</code>).</p>
+            <ol>
+                <li><strong>Форма</strong> — ФИО, телефон, IDNP (ровно 13 цифр).</li>
+                <li><strong>Preapproved</strong> — <code>POST /credit/api/preapproved</code>; если
+                    <code>preapproved=true</code>, показывается предодобренная сумма, кнопка
+                    отправки активируется. Если провайдер вернул отказ, форма всё равно позволяет
+                    отправить заявку — решение принимает кредитор.</li>
+                <li><strong>Submit</strong> — <code>POST /credit/api/submit</code>: создаёт запись в
+                    <code>TMS_CREDITE_REQ</code> (<code>API_STATUS='SENDING'</code>), затем вызывает
+                    <code>prov.submit()</code>; при успехе сохраняет <code>EXT_REF</code> (URN) и
+                    <code>API_STATUS='SENT'</code>.</li>
+                <li><strong>Опрос статуса</strong> — <code>GET /credit/api/status</code> каждые 5
+                    секунд, до 24 попыток (2 минуты), пока статус не станет финальным
+                    (<code>APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL</code> по регэкспу) или не
+                    истечёт лимит попыток — тогда UI предлагает «менеджер свяжется позже».</li>
+            </ol>
+            <div class="note">
+                <strong>Дисклеймер об оценочности:</strong> расчёт рассрочки (наценка, ставка,
+                комиссии, взнос — см. <code>Biro26Credit.calc()</code>) — ЕСТИМАТИВНЫЙ; окончательное
+                решение о сумме и условиях принимает кредитор через <code>Preapproved</code>/
+                <code>Request_v4_PJ</code>.
             </div>
+        </div>
+
+        <h2 id="api">🔌 8. API</h2>
+        <div class="card">
+            <h3>Бэк-офис Biro26 (auth required)</h3>
             <table>
-                <tr><th>Файл</th><th>Сервис</th></tr>
-                <tr><td><code>Preapproved_v2.1.wsdl</code></td><td>Preapproved_v2.1.svc</td></tr>
-                <tr><td><code>Request_v4_PJ.wsdl</code></td><td>Request_v4_PJ.svc</td></tr>
-                <tr><td><code>URNStatus_v2.wsdl</code></td><td>URNStatus_v2.svc</td></tr>
-                <tr><td><code>eShopClientInfo_v3.wsdl</code></td><td>eShopClientInfo_v3.svc</td></tr>
-                <tr><td><code>ECM_GetClientInfoByPhone.wsdl</code></td><td>ECM_GetClientInfoByPhone.svc</td></tr>
-                <tr><td><code>ECM_GetUrnPerUin_V2.wsdl</code></td><td>ECM_GetUrnPerUin_V2.svc</td></tr>
+                <tr><th>Роут</th><th>Тело / параметры</th><th>Ответ</th></tr>
+                <tr>
+                    <td><code>GET /api/biro26/credit/providers</code></td>
+                    <td>—</td>
+                    <td><code>{success, data: [{code, name, enabled, env, base_url, icon, color,
+                        params (маскированы), secrets, has_secret, configured, param_defs}]}</code></td>
+                </tr>
+                <tr>
+                    <td><code>PUT /api/biro26/credit/providers</code></td>
+                    <td><code>{code, enabled, env, base_url, params: {api_user, api_password}}</code></td>
+                    <td><code>{success}</code> / <code>{success:false, error}</code></td>
+                </tr>
+                <tr>
+                    <td><code>POST /api/biro26/credit/providers/&lt;code&gt;/test</code></td>
+                    <td>—</td>
+                    <td><code>{success, data:{duration_ms, result}, error?}</code></td>
+                </tr>
+                <tr>
+                    <td><code>GET /api/biro26/credit/requests/&lt;id&gt;/events</code></td>
+                    <td>—</td>
+                    <td><code>{success, data:[{id, provider_code, op, http_code, duration_ms,
+                        is_error, payload, result, created}]}</code></td>
+                </tr>
+                <tr>
+                    <td><code>POST /api/biro26/credit/requests/&lt;id&gt;/refresh</code></td>
+                    <td>—</td>
+                    <td><code>{success, data:{status, ext_ref, saved?}}</code> — переопрос статуса
+                        без проверки владения (уже авторизованный вызов из бэк-офиса);
+                        <code>saved</code> есть только если провайдер реально был опрошен</td>
+                </tr>
+            </table>
+            <h3>Витрина (public, rate-limited по IP)</h3>
+            <table>
+                <tr><th>Роут</th><th>Лимит</th><th>Тело / параметры</th><th>Ответ</th></tr>
+                <tr>
+                    <td><code>POST /api/biro26/shop/credit/api/preapproved</code></td>
+                    <td>10/мин</td>
+                    <td><code>{org_id, idnp, amount, phone?}</code></td>
+                    <td><code>{success, data:{preapproved, max_amount, message}}</code></td>
+                </tr>
+                <tr>
+                    <td><code>POST /api/biro26/shop/credit/api/submit</code></td>
+                    <td>5/мин</td>
+                    <td><code>{org_id, plan_id, months, amount, qty, client_name, phone, idnp,
+                        product_name?, product_cod?}</code></td>
+                    <td><code>{success, data:{req_id, ext_ref, status, monthly, months, org}}</code></td>
+                </tr>
+                <tr>
+                    <td><code>GET /api/biro26/shop/credit/api/status?req_id=N&amp;ref=&lt;ext_ref&gt;</code></td>
+                    <td>60/мин</td>
+                    <td><code>req_id</code>, <code>ref</code> — оба обязательны</td>
+                    <td><code>{success, data:{status, ext_ref, saved?}}</code> — <code>saved</code>
+                        есть только если провайдер реально был опрошен (не если заявка ещё не
+                        привязана к провайдеру/референсу)</td>
+                </tr>
             </table>
             <div class="note">
-                При изменении структуры сервисов EasyCredit необходимо скачать новые версии WSDL.
+                <strong>Параметр <code>ref</code> обязателен.</strong> Публичный
+                <code>GET .../status</code> подтверждает владение заявкой сравнением переданного
+                <code>ref</code> с сохранённым <code>EXT_REF</code> — без него запрос отклоняется
+                (<code>«cerere inexistentă»</code>), заявку нельзя опросить по одному только
+                <code>req_id</code>.
             </div>
         </div>
 
-        <h2 id="config">⚙️ Конфигурация</h2>
+        <h2 id="deploy">🚀 9. Деплой</h2>
         <div class="card">
-            <h3>Файл настроек</h3>
-            <p>Настройки хранятся в <code>data/easycredit_settings.json</code> (добавлен в <code>.gitignore</code>):</p>
-            <pre><code>{
-    <span class="string">"env"</span>: <span class="string">"sandbox"</span>,
-    <span class="string">"base_url"</span>: <span class="string">"https://tst.ecmoldova.cloud:8082"</span>,
-    <span class="string">"api_user"</span>: <span class="string">"MTadmin"</span>,
-    <span class="string">"api_password"</span>: <span class="string">"********"</span>
-}</code></pre>
-
-            <h3>Переключение окружения</h3>
-            <p>Админка: <a href="/UNA.md/orasldev/credit-admin">/UNA.md/orasldev/credit-admin</a> → Настройки</p>
+            <pre><code>./venv/bin/python deploy_credite_oracle.py --target both</code></pre>
+            <p>Для каждой БД (<code>adb</code>, <code>biro26</code>) скрипт идемпотентно:</p>
+            <ol>
+                <li>создаёт объекты из соответствующего DDL, если их ещё нет (по имени в
+                    <code>USER_OBJECTS</code>);</li>
+                <li>переносит данные из <code>YBIRO_CREDIT_ORG/PLAN/REQ</code> в
+                    <code>TMS_CREDITE_*</code>, если старые таблицы есть и целевые ещё пустые;</li>
+                <li>сеет <code>TMS_CREDITE_PROVIDER</code> значениями из <code>data/*.json</code> +
+                    <code>.env</code>, только если строки для провайдера ещё нет (создаётся с
+                    <code>ENABLED='0'</code> — см. предупреждение в <a href="#config">§4</a>).</li>
+            </ol>
+            <p>Переименование <code>YBIRO_CREDIT_* → *_OLD</code> — отдельный флаг
+            <code>--rename-legacy</code>, выполняется на сервере ПОСЛЕ того, как новый код уже
+            развёрнут и перестал обращаться к старым таблицам:</p>
+            <pre><code>./venv/bin/python deploy_credite_oracle.py --target both --rename-legacy</code></pre>
+            <div class="warn">
+                <strong><code>deploy_to_remote.sh</code> не создаёт Oracle-объекты.</strong> Он
+                переносит только код. Если релиз меняет схему Oracle, DDL нужно применить отдельно —
+                <code>deploy_credite_oracle.py</code> локально или на сервере (см. общее правило в
+                корневом <code>CLAUDE.md</code>).
+            </div>
         </div>
 
-        <h2 id="testing">🧪 Тестирование</h2>
+        <h2 id="checklist">✅ 10. Checklist верификации</h2>
         <div class="card">
-            <h3>Тестовый клиент в EasyCredit</h3>
-            <table>
-                <tr><th>Параметр</th><th>Значение</th></tr>
-                <tr><td>IDNP (UIN)</td><td><code>2000000000001</code></td></tr>
-                <tr><td>Имя</td><td>Test Test</td></tr>
-                <tr><td>URN заявки</td><td><code>001198450</code></td></tr>
-                <tr><td>Продукт</td><td>Shop-12 (eSimplu)</td></tr>
-            </table>
-
-            <h3>Интерфейсы тестирования</h3>
-            <ul>
-                <li><a href="/UNA.md/orasldev/credit-admin">Админка</a> → вкладка "🧪 Тест EasyCredit"</li>
-                <li><a href="/UNA.md/orasldev/credit-easycredit">Форма оформления кредита</a></li>
-            </ul>
-        </div>
-
-        <h2 id="security">🔒 Безопасность</h2>
-        <div class="card">
-            <ul>
-                <li>✅ API ключи хранятся в <code>data/*.json</code> (в .gitignore)</li>
-                <li>✅ Пароли не передаются в frontend — только маски</li>
-                <li>✅ SSL проверка включена для production</li>
-                <li>✅ IDNP маскируется в логах (***1234)</li>
-                <li>✅ Все операции логируются в виджет "Output"</li>
-            </ul>
+            <ol>
+                <li><code>./venv/bin/python test_credite_settings.py</code> — CRUD настроек
+                    (fake backend + живые ADB/Biro26, если БД доступны).</li>
+                <li><code>./venv/bin/python test_biro26_credite.py</code> — org/plan/req поверх
+                    <code>TMS_CREDITE_*</code>.</li>
+                <li><code>./venv/bin/python test_biro26_smoke.py</code> — все шесть
+                    <code>TMS_CREDITE_*</code> объектов присутствуют в OfficePlus.</li>
+                <li><code>/UNA.md/orasldev/docs/easycredit</code>,
+                    <code>/UNA.md/orasldev/docs/iute</code>,
+                    <code>/UNA.md/orasldev/biro26-credit-admin</code> отвечают 200/302 (не 404).</li>
+                <li>В бэк-офисе Biro26 карточка EasyCredit сохраняется и «Test conexiune» либо
+                    проходит, либо возвращает содержательную ошибку API (не 500/исключение).</li>
+                <li>После деплоя на сервер (вне рамок этой задачи, см. отдельный шаг) —
+                    <code>deploy_credite_oracle.py --target both</code> печатает <code>OK: все 6
+                    таблиц на месте</code> для обеих БД.</li>
+                <li><code>curl -I https://nufarul.eminescu.md/login</code> — продакшн
+                    основного проекта не затронут (эта интеграция его не касается, но правило
+                    обязательное для любого деплоя, см. корневой <code>CLAUDE.md</code>).</li>
+            </ol>
         </div>
 
         <h2>📞 Контакты</h2>
@@ -347,7 +563,7 @@
         </div>
 
         <div class="footer">
-            <p>📅 Документ создан: 30.01.2026 | Версия: 1.0</p>
+            <p>📅 Документ обновлён: 31.07.2026 | Версия: 2.0 (TMS_CREDITE_*, бэк-офис Biro26, флоу витрины)</p>
             <p>Oracle SQL Developer Web — Artgranit Project</p>
         </div>
     </div>

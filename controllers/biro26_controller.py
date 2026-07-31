@@ -330,6 +330,11 @@ class Biro26Controller:
             "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24"),
             # RO: filtrul dupa brand in catalogul noului site (OFF implicit)
             "brand_filter": Biro26Store.get_setting("SHOP_BRAND_FILTER", "0"),
+            # RO: formatele de cont disponibile clientilor (PDF mereu;
+            #     HTML/XLSX activabile aici); o singura optiune =>
+            #     selectorul dispare din front-office
+            "fmt_html": Biro26Store.get_setting("SHOP_FMT_HTML", "1"),
+            "fmt_xlsx": Biro26Store.get_setting("SHOP_FMT_XLSX", "1"),
             # RO/EN: counter = next NRMANUAL to issue (not max+1 floor)
             "invoice_nr_start": Biro26Store.get_setting("INVOICE_NR_START", "1"),
             "invoice_nr_max": max_nr,
@@ -350,6 +355,14 @@ class Biro26Controller:
             r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
             if not r.get("success"):
                 return r
+        # RO: formatele HTML/XLSX disponibile clientilor (PDF mereu activ)
+        for key, skey in (("fmt_html", "SHOP_FMT_HTML"),
+                          ("fmt_xlsx", "SHOP_FMT_XLSX")):
+            if key in d:
+                v = "1" if str(d.get(key)) in ("1", "true", "True") else "0"
+                r = Biro26Store.set_setting(skey, v)
+                if not r.get("success"):
+                    return r
         # RO: filtrul dupa brand in catalog (optiune, implicit oprit)
         if "brand_filter" in d:
             v = "1" if str(d.get("brand_filter")) in ("1", "true", "True") else "0"
@@ -667,6 +680,71 @@ class Biro26Controller:
     def credit_plan_delete(plan_id: int) -> Dict[str, Any]:
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.plan_delete(plan_id)
+
+    # ── credit: provideri API + fluxul clientului ──
+
+    @staticmethod
+    def credit_providers() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.providers_list()
+
+    @staticmethod
+    def credit_provider_save() -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.provider_save(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_provider_test(code: str) -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.provider_test(code)
+
+    @staticmethod
+    def credit_request_events(req_id: int) -> Dict[str, Any]:
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.request_events(req_id)
+
+    # RO: preapproved/submit sunt un oracol IDNP->suma preaprobata, respectiv
+    #     depunerea unei cereri reale de credit — la fel ca la comanda din cos
+    #     (makeInvoice), se cere clientul autentificat al magazinului.
+    _AUTH_REQUIRED_ERR = ("Autentificați-vă pentru a solicita creditul · "
+                          "Войдите, чтобы оформить кредит")
+
+    @staticmethod
+    def credit_api_preapproved() -> Dict[str, Any]:
+        if not session.get("biro26_client"):
+            return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
+                    "auth_required": True}
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.api_preapproved(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_api_submit() -> Dict[str, Any]:
+        if not session.get("biro26_client"):
+            return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
+                    "auth_required": True}
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.api_submit(request.get_json(silent=True) or {})
+
+    @staticmethod
+    def credit_api_status() -> Dict[str, Any]:
+        """Public: витрина проверяет статус только своей заявки (по ext_ref)."""
+        from models.biro26_credit import Biro26Credit
+        try:
+            req_id = int(request.args.get('req_id') or 0)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "req_id invalid"}
+        if not req_id:
+            return {"success": False, "error": "req_id lipsește"}
+        ref = (request.args.get('ref') or "").strip()
+        if not ref:
+            return {"success": False, "error": "ref lipsește"}
+        return Biro26Credit.api_status(req_id, ref)
+
+    @staticmethod
+    def credit_request_refresh(req_id: int) -> Dict[str, Any]:
+        """RO: reinterogare status din back-office (fara verificarea referintei)."""
+        from models.biro26_credit import Biro26Credit
+        return Biro26Credit.api_status(req_id)
 
     # ── translations management (catalog grouping RU/EN dictionary) ──
 
@@ -1099,15 +1177,43 @@ class Biro26Controller:
             return {"success": True, "data": None}
         # RO: telefonul e necesar cererii de credit din cos
         # EN: the phone feeds the cart's credit-request button
-        phone = ""
+        phone, inv_fmt = "", ""
         try:
             r = Biro26Store.shop_client_by_email(c["email"])
-            phone = (r.get("data") or {}).get("phone") or ""
+            row = r.get("data") or {}
+            phone = row.get("phone") or ""
+            inv_fmt = row.get("invoice_fmt") or ""
         except Exception:
             pass
         return {"success": True,
                 "data": {"name": c["name"], "email": c["email"],
-                         "phone": phone}}
+                         "phone": phone,
+                         # RO: constanta personala — formatele contului
+                         #     (implicit 'pdf' la toti)
+                         "invoice_fmt": inv_fmt or "pdf"}}
+
+    @staticmethod
+    def shop_set_invoice_fmt() -> Dict[str, Any]:
+        """RO: salveaza in cabinetul clientului formatele alese pentru
+        cont (pdf/html/xlsx) — se refolosesc la conturile urmatoare.
+        Se accepta DOAR formatele activate de admin (SHOP_FMT_*)."""
+        from flask import session
+        c = session.get("biro26_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        d = request.get_json(silent=True) or {}
+        allowed = {"pdf"}
+        if Biro26Store.get_setting("SHOP_FMT_HTML", "1") == "1":
+            allowed.add("html")
+        if Biro26Store.get_setting("SHOP_FMT_XLSX", "1") == "1":
+            allowed.add("xlsx")
+        fmts = [f.strip().lower() for f in
+                str(d.get("invoice_fmt") or "").split(",")
+                if f.strip().lower() in allowed]
+        fmt = ",".join(dict.fromkeys(fmts)) or "pdf"
+        r = Biro26Store.set_client_invoice_fmt(c["univers_cod"], fmt)
+        return (r if not r.get("success")
+                else {"success": True, "data": {"invoice_fmt": fmt}})
 
     @staticmethod
     def shop_invoice() -> Dict[str, Any]:

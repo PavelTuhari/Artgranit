@@ -1172,11 +1172,25 @@ END;""",
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def set_client_invoice_fmt(univers_cod: int, fmt: str) -> Dict[str, Any]:
+        """RO: constanta personala a clientului — formatele contului
+        (ex. 'pdf' / 'pdf,html'); se refoloseste la conturile urmatoare."""
+        try:
+            r = Biro26DB().execute_dml(
+                "UPDATE YBIRO_CLIENT SET invoice_fmt = :f "
+                "WHERE univers_cod = :c",
+                {"f": (fmt or "pdf")[:20], "c": int(univers_cod)})
+            return (r if r.get("success")
+                    else {"success": False, "error": r.get("message")})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def shop_client_by_email(email: str) -> Dict[str, Any]:
         try:
             rows = _rows(Biro26DB().execute_query(
-                "SELECT id, univers_cod, email, full_name, phone, pwd_hash "
-                "FROM YBIRO_CLIENT WHERE email = :em",
+                "SELECT id, univers_cod, email, full_name, phone, pwd_hash, "
+                "invoice_fmt FROM YBIRO_CLIENT WHERE email = :em",
                 {"em": (email or "").lower().strip()}))
             return {"success": True, "data": rows[0] if rows else None}
         except Exception as e:

@@ -1125,13 +1125,19 @@ cd /Users/pt/Projects.AI/Artgranit && ./venv/bin/python test_credite_settings.py
 
 Ожидается: `6/6 passed`. Живой тест печатает `[skip]`, если таблицы ещё не развёрнуты — это нормально до Task 2 deploy.
 
-- [ ] **Step 5: Развернуть таблицы в обеих БД**
+- [ ] **Step 5: Развернуть таблицы в обеих БД (без переименования legacy)**
+
+⚠️ Обе БД — общие с production: локальная разработка и remote-приложение ходят в одни и те же
+Oracle ADB и OfficePlus 11g. Работающий на remote код пока обращается к `YBIRO_CREDIT_*`,
+поэтому переименование в `*_OLD` откладывается до Task 10 — после того, как новый код уедет
+на сервер. Добавить в `deploy_credite_oracle.py` флаг `--rename-legacy` (по умолчанию выключен)
+и вызывать `rename_legacy(be)` только при нём.
 
 ```bash
 cd /Users/pt/Projects.AI/Artgranit && ./venv/bin/python deploy_credite_oracle.py --target both
 ```
 
-Ожидается: для каждого target — строки `+ CREATE TABLE TMS_CREDITE_...`, `+ провайдер easycredit создан`, `+ провайдер iute создан`, `~ YBIRO_CREDIT_ORG -> YBIRO_CREDIT_ORG_OLD` и финальное `OK: все 6 таблиц на месте`.
+Ожидается: для каждого target — строки `+ CREATE TABLE TMS_CREDITE_...`, `+ провайдер easycredit создан`, `+ провайдер iute создан` и финальное `OK: все 6 таблиц на месте`. Строк `~ YBIRO_CREDIT_ORG -> ...` быть НЕ должно.
 
 - [ ] **Step 6: Проверить идемпотентность**
 
@@ -1994,21 +2000,26 @@ cd /Users/pt/Projects.AI/Artgranit && grep -c "YBIRO_CREDIT_" models/biro26_cred
             return sim
         s = sim["data"]
         product_name = (d.get("product_name") or "Comandă OfficePlus")[:300]
+        # RO: rezervam ID-ul din secventa INAINTE de INSERT — subprocess worker-ul
+        #     nu suporta bind-uri OUT, iar SELECT MAX(ID) ar fi supus unei curse
+        #     la cereri concurente. NEXTVAL e atomic.
+        seq = _rows(Biro26DB().execute_query(
+            "SELECT TMS_CREDITE_REQ_SEQ.NEXTVAL ID FROM dual"))
+        if not seq:
+            return {"success": False, "error": "nu s-a putut aloca ID-ul cererii"}
+        req_id = int(seq[0]["id"])
         ins = Biro26DB().execute_dml(
-            "INSERT INTO TMS_CREDITE_REQ (ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
+            "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
             "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
-            "PROVIDER_CODE, IDNP_MASKED, API_STATUS) VALUES (:o, :p, :m, :pc, :pn, "
-            ":q, :a, :cp, :mo, :cn, :ph, :prc, :idm, 'SENDING')",
-            {"o": org_id, "p": plan_id, "m": s["months"],
+            "PROVIDER_CODE, IDNP_MASKED, API_STATUS) VALUES (:id, :o, :p, :m, :pc, "
+            ":pn, :q, :a, :cp, :mo, :cn, :ph, :prc, :idm, 'SENDING')",
+            {"id": req_id, "o": org_id, "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None, "pn": product_name,
              "q": qty, "a": amount, "cp": s["credit_price"], "mo": s["monthly"],
              "cn": name[:200], "ph": phone[:40], "prc": code[:30],
              "idm": Biro26Credit._mask_idnp(idnp)[:20]})
         if not ins.get("success"):
             return {"success": False, "error": ins.get("message")}
-        rid_rows = _rows(Biro26DB().execute_query(
-            "SELECT MAX(ID) ID FROM TMS_CREDITE_REQ"))
-        req_id = int(rid_rows[0]["id"]) if rid_rows and rid_rows[0]["id"] else 0
         kwargs = {"fio": name, "phone": phone, "uin": idnp,
                   "amount": int(round(s["credit_price"])),
                   "goods_price": int(round(s["credit_price"])),
@@ -2852,10 +2863,10 @@ cd /Users/pt/Projects.AI/Artgranit && ./deploy_to_remote.sh
 
 ```bash
 ssh -i ~/.ssh/artgranit-oci.key ubuntu@92.5.3.187 \
-  'cd /home/ubuntu/artgranit && ./venv/bin/python deploy_credite_oracle.py --target both'
+  'cd /home/ubuntu/artgranit && ./venv/bin/python deploy_credite_oracle.py --target both --rename-legacy'
 ```
 
-Ожидается: `OK: все 6 таблиц на месте` для обоих target.
+Ожидается: `OK: все 6 таблиц на месте` для обоих target, плюс строки `~ YBIRO_CREDIT_ORG -> YBIRO_CREDIT_ORG_OLD` и т.д. Переименование выполняется именно здесь — только после того, как новый код уже на сервере и перестал обращаться к `YBIRO_CREDIT_*`.
 
 - [ ] **Step 10: Верификация production**
 
@@ -2892,4 +2903,4 @@ curl -s -o /dev/null -w 'docs/easycredit: %{http_code}\n' https://nufarul.emines
 
 **Согласованность имён:** `CrediteSettings.get/save/masked/is_configured/invalidate`, `CrediteBackend.query/dml`, `build_registry`, `Biro26Credit.providers_list/provider_save/provider_test/api_preapproved/api_submit/api_status/request_events` — используются одинаково во всех задачах, где встречаются.
 
-**Известное ограничение:** в Task 6 `api_submit` определяет `req_id` через `SELECT MAX(ID)`, повторяя существующий приём из `request_create`. При одновременных заявках это может дать чужой ID. Приемлемо для текущей нагрузки витрины и согласуется с уже работающим кодом; если понадобится строгость — заменить на `RETURNING ID INTO` через `Biro26DB.call_proc`.
+**Решение по получению ID заявки:** `api_submit` резервирует ID через `SELECT TMS_CREDITE_REQ_SEQ.NEXTVAL FROM dual` до INSERT и вставляет его явно. `RETURNING ID INTO` использовать нельзя — subprocess-worker (`models/biro26_worker.py`) не поддерживает OUT-бинды. Существующий `request_create` продолжает использовать `SELECT MAX(ID)`; менять его в рамках этой работы не требуется, но при следующем касании его стоит перевести на тот же приём.

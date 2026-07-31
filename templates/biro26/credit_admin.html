@@ -39,6 +39,16 @@ td input.num{width:76px}
 </div>
 
 <div class="wrap">
+  <section style="margin-bottom:18px">
+    <h2 style="font-size:15px;margin:0 0 4px">Provideri API · API-провайдеры</h2>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">
+      Setările se păstrează în TMS_CREDITE_PROVIDER (OfficePlus). Cîmpul unui secret
+      lăsat gol înseamnă «nu schimba». ·
+      Настройки хранятся в TMS_CREDITE_PROVIDER; пустое поле секрета — «не менять».
+    </div>
+    <div id="providers" style="display:flex;flex-wrap:wrap;gap:12px"></div>
+  </section>
+
   <div class="card">
     <h3>🏦 Organizații de creditare · Кредитные организации</h3>
     <div class="hint">Listă DINAMICĂ: adăugați orice partener. <b>Mod manual</b> — condițiile
@@ -47,7 +57,7 @@ td input.num{width:76px}
       Doar organizațiile «Activ» apar în magazin.</div>
     <table>
       <thead><tr><th style="width:40px">ID</th><th>Denumire</th><th style="width:80px">Activ</th>
-        <th style="width:110px">Mod</th><th>API URL</th><th>Info (afișat clientului)</th>
+        <th style="width:110px">Mod</th><th>Provider API</th><th>API URL</th><th>Info (afișat clientului)</th>
         <th style="width:56px">Ord.</th><th style="width:70px"></th></tr></thead>
       <tbody id="orgs"></tbody>
     </table>
@@ -74,11 +84,11 @@ td input.num{width:76px}
     <h3>📨 Cereri de credit/rate · Заявки <button class="btn-sm" style="float:right" onclick="loadReqs()">↻</button></h3>
     <div class="hint">Cererile din formularul «Solicitați un împrumut» de pe paginile produselor.
       Nivelul de integrare per organizație: <b>manual</b> (minim — notificare, managerul sună) /
-      <b>API</b> (maxim — cererea se trimite și la API-ul organizației; coloana «API»).</div>
+      <b>API</b> (maxim — cererea se trimite și la API-ul organizației; coloanele «Provider / Ref / Status API»).</div>
     <table>
       <thead><tr><th>Data</th><th>Client / Telefon</th><th>Produs</th><th>Sumă → credit</th>
-        <th>Pachet</th><th>Rata</th><th>API</th><th>Status</th><th></th></tr></thead>
-      <tbody id="reqs"><tr><td colspan="9" class="muted">…</td></tr></tbody>
+        <th>Pachet</th><th>Rata</th><th>Provider</th><th>Ref</th><th>Status API</th><th>Status</th><th></th></tr></thead>
+      <tbody id="reqs"><tr><td colspan="11" class="muted">…</td></tr></tbody>
     </table>
   </div>
 
@@ -113,6 +123,124 @@ async function j(url, opts) {
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+var PROVIDERS = [];
+
+function provCard(p, i) {
+  var fields = (p.param_defs || []).map(function (d) {
+    var v = (p.params || {})[d.name] || '';
+    return '<label style="display:block;font-size:11.5px;margin-top:6px">' + esc(d.name) +
+      (d.secret ? ' <span class="muted">(secret)</span>' : '') +
+      '<input data-prov="' + i + '" data-param="' + esc(d.name) + '" value="' +
+      (d.secret ? '' : esc(v)) + '" placeholder="' +
+      (d.secret && v ? esc(v) : '') +
+      '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px"></label>';
+  }).join('');
+  return '<div style="border:1px solid #e2e8f0;border-left:4px solid ' + esc(p.color || '#0066CC') +
+    ';border-radius:8px;padding:10px;width:290px">' +
+    '<div style="font-weight:700;font-size:13.5px">' + esc(p.icon || '') + ' ' + esc(p.name) +
+    ' <span style="font-weight:400;font-size:11.5px;color:' +
+    (p.configured ? '#059669' : '#b91c1c') + '">' +
+    (p.configured ? 'configurat' : 'neconfigurat') + '</span></div>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">' +
+    '<input type="checkbox" data-prov="' + i + '" data-field="enabled"' +
+    (p.enabled ? ' checked' : '') + '> activ / включён</label>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">env' +
+    '<select data-prov="' + i + '" data-field="env" onchange="onProvEnvChange(' + i + ')" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px">' +
+    '<option value="sandbox"' + (p.env === 'sandbox' ? ' selected' : '') + '>sandbox</option>' +
+    '<option value="production"' + (p.env === 'production' ? ' selected' : '') + '>production</option>' +
+    '</select></label>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">base_url' +
+    '<input data-prov="' + i + '" data-field="base_url" oninput="onProvBaseUrlInput(' + i + ')" value="' +
+    esc(p.base_url || '') +
+    '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px"></label>' +
+    '<div id="base-url-warn-' + i + '" style="display:none;color:#b91c1c;font-size:11px;margin-top:2px">' +
+    '⚠ URL nu corespunde mediului selectat · URL не соответствует выбранному окружению</div>' +
+    fields +
+    '<div style="margin-top:9px;display:flex;gap:6px">' +
+    '<button onclick="saveProv(' + i + ')" style="flex:1;padding:6px;border:0;border-radius:6px;background:#111827;color:#fff;font-size:12px;cursor:pointer">Salvează</button>' +
+    '<button onclick="testProv(' + i + ')" style="flex:1;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;font-size:12px;cursor:pointer">Test conexiune</button>' +
+    '</div><div id="prov-res-' + i + '" class="muted" style="font-size:11.5px;margin-top:5px"></div></div>';
+}
+
+function renderProviders() {
+  document.getElementById('providers').innerHTML =
+    PROVIDERS.map(function (p, i) { return provCard(p, i); }).join('');
+  // Finding 4: verifica imediat dupa randare (nu doar la change/input), ca sa
+  // se vada si o discrepanta env/base_url deja salvata la incarcarea paginii.
+  PROVIDERS.forEach(function (p, i) { onProvBaseUrlInput(i); });
+}
+
+function provPayload(i) {
+  var p = PROVIDERS[i], out = {code: p.code, params: {}};
+  document.querySelectorAll('[data-prov="' + i + '"]').forEach(function (el) {
+    if (el.dataset.field === 'enabled') out.enabled = el.checked;
+    else if (el.dataset.field) out[el.dataset.field] = el.value;
+    else if (el.dataset.param) out.params[el.dataset.param] = el.value;
+  });
+  return out;
+}
+
+function provUrlEl(i) {
+  return document.querySelector('[data-prov="' + i + '"][data-field="base_url"]');
+}
+function provWarnEl(i) {
+  return document.getElementById('base-url-warn-' + i);
+}
+function norm(u) { return (u || '').trim().replace(/\/+$/, ''); }
+
+// Finding 2: la schimbarea env, completeaza base_url cu dezfaultul mediului
+// nou DACA cimpul e gol sau contine dezfaultul CELUILALT mediu (nu atingem
+// un URL introdus manual de operator — doar afisam un avertisment).
+function onProvEnvChange(i) {
+  var p = PROVIDERS[i], urlEl = provUrlEl(i);
+  if (!urlEl) return;
+  var envEl = document.querySelector('[data-prov="' + i + '"][data-field="env"]');
+  var newEnv = envEl ? envEl.value : p.env;
+  var defaults = p.default_base_url || {};
+  var otherEnv = newEnv === 'production' ? 'sandbox' : 'production';
+  var cur = norm(urlEl.value);
+  var matchesOther = defaults[otherEnv] && cur === norm(defaults[otherEnv]);
+  if (!cur || matchesOther) {
+    urlEl.value = defaults[newEnv] || '';
+  }
+  onProvBaseUrlInput(i);
+}
+function onProvBaseUrlInput(i) {
+  var p = PROVIDERS[i], urlEl = provUrlEl(i), warnEl = provWarnEl(i);
+  if (!urlEl || !warnEl) return;
+  var envEl = document.querySelector('[data-prov="' + i + '"][data-field="env"]');
+  var env = envEl ? envEl.value : p.env;
+  var defaults = p.default_base_url || {};
+  var cur = norm(urlEl.value);
+  var mismatch = cur && defaults[env] && cur !== norm(defaults[env]);
+  warnEl.style.display = mismatch ? '' : 'none';
+}
+
+async function saveProv(i) {
+  var r = await j('/api/biro26/credit/providers',
+    {method: 'PUT', body: JSON.stringify(provPayload(i))});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  toast('Salvat');
+  await loadProviders();
+}
+
+async function testProv(i) {
+  var out = document.getElementById('prov-res-' + i);
+  out.textContent = '…';
+  var r = await j('/api/biro26/credit/providers/' + PROVIDERS[i].code + '/test',
+    {method: 'POST'});
+  out.textContent = r.success
+    ? '✅ OK · ' + ((r.data || {}).duration_ms || 0) + ' ms'
+    : '❌ ' + (r.error || 'eroare');
+  out.style.color = r.success ? '#059669' : '#b91c1c';
+}
+
+async function loadProviders() {
+  var r = await j('/api/biro26/credit/providers');
+  PROVIDERS = (r && r.success) ? r.data : [];
+  renderProviders();
+}
+
 let ORGS = [], PLANS = [];
 
 function orgRow(o, i) {
@@ -123,6 +251,13 @@ function orgRow(o, i) {
       '<option value="0"' + (o.enabled !== '1' ? ' selected' : '') + '>Oprit</option></select></td>' +
     '<td><select data-f="org_mode"><option value="manual"' + (o.org_mode !== 'api' ? ' selected' : '') + '>manual</option>' +
       '<option value="api"' + (o.org_mode === 'api' ? ' selected' : '') + '>API</option></select></td>' +
+    '<td><select data-org="' + i + '" data-f="provider_id" style="padding:4px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px">' +
+    '<option value="">— manual —</option>' +
+    PROVIDERS.map(function (p) {
+      return '<option value="' + esc(p.id || '') + '"' +
+        (String(o.provider_id || '') === String(p.id) ? ' selected' : '') + '>' +
+        esc(p.icon) + ' ' + esc(p.name) + (p.enabled ? '' : ' (dezactivat)') + '</option>';
+    }).join('') + '</select></td>' +
     '<td><input value="' + esc(o.api_url || '') + '" data-f="api_url" placeholder="https://…"></td>' +
     '<td><input value="' + esc(o.info || '') + '" data-f="info"></td>' +
     '<td><input class="num" value="' + (o.ord || 0) + '" data-f="ord"></td>' +
@@ -136,6 +271,8 @@ async function saveOrg(i) {
   const tr = document.querySelector('#orgs tr[data-i="' + i + '"]');
   const o = ORGS[i];
   tr.querySelectorAll('[data-f]').forEach(el => o[el.dataset.f] = el.value);
+  var sel = document.querySelector('[data-org="' + i + '"][data-f="provider_id"]');
+  o.provider_id = sel && sel.value ? parseInt(sel.value, 10) : null;
   const r = await j('/api/biro26/credit/orgs', {method: 'PUT', body: JSON.stringify(o)});
   if (r.success) { toast('Salvat ✓'); load(); }
 }
@@ -214,11 +351,32 @@ async function loadReqs() {
     '<td>' + (q.amount || 0).toFixed(2) + ' → <b>' + (q.credit_price || 0).toFixed(2) + '</b></td>' +
     '<td class="muted">' + esc(q.org_name || '') + ' · ' + q.months + ' luni</td>' +
     '<td><b>' + (q.monthly || 0).toFixed(2) + '</b></td>' +
-    '<td>' + (q.api_sent === '1' ? '✅ ' + esc(q.api_result || '') : '—') + '</td>' +
+    '<td class="muted">' + esc(q.provider_code || '—') + '</td>' +
+    '<td style="font-size:11.5px">' + esc(q.ext_ref || '—') + '</td>' +
+    '<td style="font-size:11.5px">' + esc(q.api_status || '—') +
+    (q.ext_ref ? ' <button onclick="refreshReq(' + q.id + ')" style="border:0;background:none;cursor:pointer" title="Actualizează statusul">🔄</button>' +
+      ' <button onclick="showEvents(' + q.id + ')" style="border:0;background:none;cursor:pointer" title="Jurnal API">📋</button>' : '') +
+    '</td>' +
     '<td><span class="badge ' + (q.status === 'NEW' ? 'off' : 'on') + '">' + esc(q.status) + '</span></td>' +
     '<td>' + (q.status === 'NEW'
       ? '<button class="btn-sm" onclick="markReq(' + q.id + ')">✔ Procesat</button>' : '') + '</td></tr>'
-  ).join('') || '<tr><td colspan="9" class="muted">Nicio cerere încă</td></tr>';
+  ).join('') || '<tr><td colspan="11" class="muted">Nicio cerere încă</td></tr>';
+}
+
+async function refreshReq(id) {
+  var r = await j('/api/biro26/credit/requests/' + id + '/refresh', {method: 'POST'});
+  toast(r.success ? ('Status: ' + ((r.data || {}).status || '—')) : (r.error || 'Eroare'), !r.success);
+  await loadReqs();
+}
+
+async function showEvents(id) {
+  var r = await j('/api/biro26/credit/requests/' + id + '/events');
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  var lines = (r.data || []).map(function (e) {
+    return e.created + ' · ' + e.op + ' · ' + (e.is_error === '1' ? 'EROARE' : 'OK') +
+      ' · ' + (e.duration_ms || 0) + ' ms\n    ' + (e.result || '').slice(0, 300);
+  }).join('\n');
+  alert(lines || 'Fără evenimente API');
 }
 async function markReq(id) {
   const r = await j('/api/biro26/credit/requests/' + id, {method: 'PUT',
@@ -227,6 +385,7 @@ async function markReq(id) {
 }
 
 async function load() {
+  await loadProviders();
   const ro = await j('/api/biro26/credit/orgs');
   ORGS = ro.data || []; renderOrgs();
   const rp = await j('/api/biro26/credit/plans');

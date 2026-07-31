@@ -14,6 +14,40 @@ from typing import Any
 class CreditProvider(ABC):
     """Абстрактный базовый класс для всех кредитных провайдеров."""
 
+    def __init__(self, settings_source: Any = None) -> None:
+        """settings_source — объект с методом get(code) -> dict | None
+        (обычно models.credite_settings.CrediteSettings). None = читать Config."""
+        self._settings_source = settings_source
+
+    def _cfg(self) -> dict[str, Any]:
+        """Настройки этого провайдера из settings_source. {} если источника нет."""
+        if self._settings_source is None:
+            return {}
+        try:
+            d = self._settings_source.get(self.id)
+        except Exception:
+            return {}
+        return d or {}
+
+    def _setting(self, name: str, fallback: Any) -> str:
+        """Значение настройки: источник авторитетен, если в нём есть запись о провайдере.
+
+        Если settings_source задан и содержит запись о провайдере (get(code)
+        вернул непустой dict), значение берётся ИСКЛЮЧИТЕЛЬНО оттуда — пустая
+        строка в источнике НЕ подменяется значением из Config. Фолбэк на
+        `fallback()` срабатывает только когда источника нет вовсе, либо в нём
+        нет записи для этого провайдера (get(code) вернул None/{}).
+
+        `name` — 'base_url' / 'env' (поля верхнего уровня) либо имя параметра.
+        `fallback` — вызываемое, дающее значение из Config, когда источника нет.
+        """
+        cfg = self._cfg()
+        if cfg:
+            if name in ("base_url", "env"):
+                return cfg.get(name) or ""
+            return (cfg.get("params") or {}).get(name) or ""
+        return fallback()
+
     # --- Метаданные (переопределяются в подклассах) ---
 
     @property
@@ -126,16 +160,15 @@ class CreditProvider(ABC):
 
 
 class ProviderRegistry:
-    """Реестр доступных кредитных провайдеров (Singleton-паттерн)."""
+    """Реестр доступных кредитных провайдеров.
 
-    _instance: ProviderRegistry | None = None
-    _providers: dict[str, CreditProvider]
+    Глобальный экземпляр `registry` обслуживает основной проект (настройки ADB
+    через Config). Для отдельного контура (например, Biro26 с настройками в
+    Oracle 11g) создаётся свой экземпляр — см. integrations.build_registry.
+    """
 
-    def __new__(cls) -> ProviderRegistry:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._providers = {}
-        return cls._instance
+    def __init__(self) -> None:
+        self._providers: dict[str, CreditProvider] = {}
 
     def register(self, provider: CreditProvider) -> None:
         """Зарегистрировать провайдера."""

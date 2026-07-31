@@ -92,7 +92,15 @@ def _skip_limit_for_non_api():
     path = request.path or ''
     if not path.startswith('/api/'):
         return True
-    # BIRO26: high-volume legitimate UI + catalog sync; never rate-limit here
+    # BIRO26: high-volume legitimate UI + catalog sync; never rate-limit here.
+    # EXCEPTION: the public, unauthenticated credit-flow endpoints under
+    # /api/biro26/shop/credit/api/* carry their own explicit @limiter.limit(...)
+    # decorators (anti-abuse for anonymous requests) — request_filter exempts
+    # ALL limits (default_limits AND per-route decorators, see
+    # flask_limiter._extension.Limiter.__check_all_limits_exempt), so those
+    # paths must be carved out here or the decorators would be silently inert.
+    if path.startswith('/api/biro26/shop/credit/api/'):
+        return False
     if path.startswith('/api/biro26/'):
         return True
     try:
@@ -866,7 +874,7 @@ def docs_easycredit():
     if not AuthController.is_authenticated():
         return _login_redirect()
     from pathlib import Path
-    p = Path(__file__).parent / "docs" / "project_easycredit.html"
+    p = Path(__file__).parent / "docs" / "CREDITE" / "project_easycredit.html"
     if not p.exists():
         return "<h1>Документация не найдена</h1>", 404
     return p.read_text(encoding='utf-8')
@@ -878,7 +886,7 @@ def docs_iute():
     if not AuthController.is_authenticated():
         return _login_redirect()
     from pathlib import Path
-    p = Path(__file__).parent / "docs" / "project_iute.html"
+    p = Path(__file__).parent / "docs" / "CREDITE" / "project_iute.html"
     if not p.exists():
         return "<h1>Документация Iute не найдена</h1><p><a href='/UNA.md/orasldev/docs'>Назад</a></p>", 404
     return p.read_text(encoding='utf-8')
@@ -5923,6 +5931,7 @@ def _biro26_wp_page(slug):
 def _biro26_site_ctx():
     """RO: contextul comun al paginilor noului site Figma (rata Liber Card
     din YBIRO_SETTINGS). EN: shared context for the new-site pages."""
+    from models.biro26_oracle_store import Biro26Store
     try:
         liber_pct = float(Biro26Store.get_setting('RATE_LIBER_PCT', '5'))
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
@@ -5932,9 +5941,15 @@ def _biro26_site_ctx():
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
     except Exception:
         brand_filter = '0'
+    try:
+        fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
+        fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
+    except Exception:
+        fmt_html, fmt_xlsx = '1', '1'
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
-            'brand_filter': brand_filter}
+            'brand_filter': brand_filter,
+            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx}
 
 @app.route('/UNA.md/orasldev/biro26-site')
 def biro26_site():
@@ -6149,12 +6164,18 @@ def biro26_shop():
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
     except Exception:
         liber_pct, liber_min = 5.0, 100.0
+    try:
+        fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
+        fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
+    except Exception:
+        fmt_html, fmt_xlsx = '1', '1'
     return render_template('biro26/shop.html', app_name=Config.BIRO26_APP_NAME,
                            topbar_bg=bg, topbar_fg=Config.BIRO26_SHOP_TOPBAR_FG,
                            topbar_light=(lum > 140), shop_nav=nav,
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html, page_size=page_size,
                            liber_pct=liber_pct, liber_min=liber_min,
+                           fmt_html=fmt_html, fmt_xlsx=fmt_xlsx,
                            cur_lang=(lang or 'ro'))
 
 # ── credit payment: admin page + orgs/plans API + public offers/calc ──
@@ -6207,6 +6228,43 @@ def api_biro26_credit_plan_save():
 @app.route('/api/biro26/credit/plans/<int:plan_id>', methods=['DELETE'])
 def api_biro26_credit_plan_delete(plan_id):
     return _b26(lambda: Biro26Controller.credit_plan_delete(plan_id))
+
+# ── credit: provideri API (admin, auth) ──
+@app.route('/api/biro26/credit/providers', methods=['GET'])
+def api_biro26_credit_providers():
+    return _b26(Biro26Controller.credit_providers)
+
+@app.route('/api/biro26/credit/providers', methods=['PUT'])
+def api_biro26_credit_provider_save():
+    return _b26(Biro26Controller.credit_provider_save)
+
+@app.route('/api/biro26/credit/providers/<code>/test', methods=['POST'])
+def api_biro26_credit_provider_test(code):
+    return _b26(lambda: Biro26Controller.credit_provider_test(code))
+
+@app.route('/api/biro26/credit/requests/<int:req_id>/events', methods=['GET'])
+def api_biro26_credit_request_events(req_id):
+    return _b26(lambda: Biro26Controller.credit_request_events(req_id))
+
+@app.route('/api/biro26/credit/requests/<int:req_id>/refresh', methods=['POST'])
+def api_biro26_credit_request_refresh(req_id):
+    return _b26(lambda: Biro26Controller.credit_request_refresh(req_id))
+
+# ── credit: fluxul API al clientului (public, rate-limited) ──
+@app.route('/api/biro26/shop/credit/api/preapproved', methods=['POST'])
+@limiter.limit("10 per minute")
+def api_biro26_shop_credit_preapproved():
+    return jsonify(Biro26Controller.credit_api_preapproved())
+
+@app.route('/api/biro26/shop/credit/api/submit', methods=['POST'])
+@limiter.limit("5 per minute")
+def api_biro26_shop_credit_submit():
+    return jsonify(Biro26Controller.credit_api_submit())
+
+@app.route('/api/biro26/shop/credit/api/status', methods=['GET'])
+@limiter.limit("60 per minute")
+def api_biro26_shop_credit_api_status():
+    return jsonify(Biro26Controller.credit_api_status())
 
 # ── translations management page + API (grouping RU/EN dictionary) ──
 @app.route('/UNA.md/orasldev/biro26-translations')
@@ -6425,6 +6483,11 @@ def api_biro26_shop_login():
 @app.route('/api/biro26/shop/logout', methods=['POST'])
 def api_biro26_shop_logout():
     return jsonify(Biro26Controller.shop_logout())
+
+@app.route('/api/biro26/shop/me/fmt', methods=['PUT'])
+def api_biro26_shop_me_fmt():
+    # RO: constanta personala — formatele contului (pdf/html/xlsx)
+    return jsonify(Biro26Controller.shop_set_invoice_fmt())
 
 @app.route('/api/biro26/shop/me', methods=['GET'])
 def api_biro26_shop_me():

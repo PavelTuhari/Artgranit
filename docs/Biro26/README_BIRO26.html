@@ -18,6 +18,14 @@
   th { background: #f8fafc; }
   .warn { background: #fefce8; border-left: 4px solid #ca8a04; padding: 10px 14px; border-radius: 6px; }
   .ok { background: #dcfce7; border-left: 4px solid #15803d; padding: 10px 14px; border-radius: 6px; }
+  .hub { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 16px; margin: 1.2em 0 1.6em; }
+  .hub h2 { margin-top: 0; border: 0; color: #1d4ed8; }
+  .hub a { color: #1d4ed8; word-break: break-all; }
+  .hub a:hover { color: #ea6f21; }
+  .hub .zone { font-weight: 700; color: #0f172a; white-space: nowrap; }
+  .hub td:first-child { width: 140px; background: #f8fafc; }
+  .muted { color: #64748b; font-size: .88em; }
+  nav.toc a { margin-right: .6em; }
 </style>
 </head>
 <body>
@@ -26,6 +34,139 @@
 nomenclatorul ERP <code>TMS_UNIVERS</code> și construirea listelor de prețuri (OfficePlus).
 <strong>RU:</strong> Модуль импорта товаров из фида <code>BIRO26_GOODS</code> в справочник ERP
 <code>TMS_UNIVERS</code> и построения прайс-листов (OfficePlus). Фазы ТЗ 1–5.</p>
+
+<!-- ===== LIVE LINKS HUB (prod officeplus.md) ===== -->
+<div class="hub" id="live-links">
+<h2>0. Каталог prod-ссылок / Live systems map</h2>
+<p class="muted">База: <a href="https://officeplus.md/">https://officeplus.md</a> ·
+DNS <code>89.168.115.20</code> · вход UNA:
+<a href="https://officeplus.md/login">/login</a>.
+Обновлено: 2026-07-30. Все ссылки ниже — кликабельные.</p>
+
+<table>
+<tr><th>Зона</th><th>Рабочие ссылки</th></tr>
+
+<tr>
+  <td class="zone">Docs</td>
+  <td>
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-docs">BIRO26 docs (этот хаб)</a><br>
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-tz">BIRO26 ТЗ</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs">UNA docs hub</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/nufarul/">Nufarul docs</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/decor/">DECOR docs</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/developer-guide">Developer guide</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/api">API docs</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/deployment">Deployment</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/sql">SQL docs</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/easycredit">EasyCredit docs</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/docs/iute">Iute docs</a>
+  </td>
+</tr>
+
+<tr>
+  <td class="zone">Audit</td>
+  <td>
+    <a href="https://officeplus.md/audit">https://officeplus.md/audit</a>
+    <span class="muted">— HTTP Basic Auth (realm: Infrastructure Audit Documentation)</span>
+  </td>
+</tr>
+
+<tr>
+  <td class="zone">WordPress</td>
+  <td>
+    <a href="https://officeplus.md/">Home</a> ·
+    <a href="https://officeplus.md/wp-admin/">wp-admin</a> ·
+    <a href="https://officeplus.md/wp-login.php">wp-login</a> ·
+    <a href="https://officeplus.md/catalog">/catalog</a> ·
+    <a href="https://officeplus.md/wp-json/">wp-json</a> ·
+    <a href="https://officeplus.md/wp-json/wp/v2/pages?per_page=20&amp;_fields=link,title,slug">pages API</a> ·
+    <a href="https://officeplus.md/wp-content/">wp-content</a><br>
+    <span class="muted">Страницы:</span>
+    <a href="https://officeplus.md/site-about/">site-about</a> ·
+    <a href="https://officeplus.md/site-about-ru/">about-ru</a> ·
+    <a href="https://officeplus.md/site-contact/">contact</a> ·
+    <a href="https://officeplus.md/site-branduri/">branduri</a> ·
+    <a href="https://officeplus.md/site-plati/">plăți</a> ·
+    <a href="https://officeplus.md/cumpara-in-rate-sau-credit/">rate/credit</a> ·
+    <a href="https://officeplus.md/documentatie-apex-microservicii/">APEX/microservicii</a> ·
+    <a href="https://officeplus.md/static/biro26/wp_page6_shop_canonical.html">shop canonical HTML</a>
+  </td>
+</tr>
+
+<tr>
+  <td class="zone">BIRO UI</td>
+  <td>
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26">launcher</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-backoffice"><strong>backoffice</strong></a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-import-pt">import-pt</a> ·
+    <a href="https://officeplus.md/static/biro26/import_reguli.html">import reguli</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-pdfme-designer">pdfme designer</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-report-templates">report templates</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-notify-settings">notify / nr. cont</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-translations">translations</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-credit-admin">credit-admin</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-backups">backups</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-pay-test">pay-test</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-site-admin">site-admin</a><br>
+    <span class="muted">Витрина (Artgranit):</span>
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-shop">shop</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-site">site home</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-site/catalog">site catalog</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-site/cart">cart</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/biro26-site/brands">brands</a> ·
+    <a href="https://officeplus.md/UNA.md/orasldev/dashboard">dashboard</a>
+  </td>
+</tr>
+
+<tr>
+  <td class="zone">API</td>
+  <td>
+    <span class="muted">Префикс</span> <code>/api/biro26/…</code> (нужна UNA-сессия):<br>
+    <a href="https://officeplus.md/api/biro26/connection/test">connection/test</a> ·
+    <a href="https://officeplus.md/api/biro26/goods">goods</a> ·
+    <a href="https://officeplus.md/api/biro26/univers">univers</a> ·
+    <a href="https://officeplus.md/api/biro26/groups">groups</a> ·
+    <a href="https://officeplus.md/api/biro26/prices">prices</a> ·
+    <a href="https://officeplus.md/api/biro26/products/tree">products/tree</a> ·
+    <a href="https://officeplus.md/api/biro26/pt/help">pt/help</a> ·
+    <a href="https://officeplus.md/api/biro26/notify-settings">notify-settings</a> ·
+    <a href="https://officeplus.md/api/biro26/report-templates">report-templates</a> ·
+    <a href="https://officeplus.md/api/biro26/shop/report/invoice/250"><strong>PDF invoice #250</strong></a>
+  </td>
+</tr>
+
+<tr>
+  <td class="zone">Figma + standalone</td>
+  <td>
+    <a href="https://www.figma.com/design/0dvUpJCkkrQF18FRVOIPw8/OfficePlus?node-id=0-1&amp;m=dev">Figma OfficePlus (макет)</a><br>
+    <span class="muted">Локальный автономный пакет (без Python, для cPanel / file://):</span>
+    <code>Projects.AI/BIRO26/Landing.figma/officeplus-standalone/</code>
+    → открыть <code>index.html</code>. Документы:
+    <code>DEPLOY.md</code>, <code>SYSTEMS.md</code>.
+  </td>
+</tr>
+
+<tr>
+  <td class="zone">Инфра</td>
+  <td>
+    <strong>Prod host:</strong> <code>ubuntu@89.168.115.20</code>
+    (<code>mail.officeplus.md</code> / DNS officeplus.md)<br>
+    <strong>App path:</strong> <code>/home/ubuntu/artgranit</code> · services:
+    <code>artgranit</code>, <code>pdfme</code><br>
+    <strong>OCI dev:</strong> <code>ubuntu@92.5.3.187</code> ·
+    <code>/home/ubuntu/artgranit</code><br>
+    <strong>Oracle:</strong> <code>officeplus@//orange.una.md:4024/cloudbd.world</code><br>
+    <strong>SSH key (prod):</strong> <code>BIRO26/biro26_rsa</code> ·
+    runbook: <code>BIRO26/DEPLOY_BIRO26_SERVERS.md</code>
+  </td>
+</tr>
+</table>
+
+<p class="muted"><strong>Auth:</strong> UNA/BIRO UI + API →
+<a href="https://officeplus.md/login">login cookie</a>;
+WordPress CMS → <a href="https://officeplus.md/wp-login.php">wp-login</a>;
+Audit → Basic Auth. WordPress public + /catalog — без UNA-login.</p>
+</div>
 
 <h2>1. База данных и подключение (важно) / DB &amp; connection</h2>
 <div class="warn">
@@ -74,11 +215,16 @@ officeplus через <strong>изолированный subprocess-воркер
 </table>
 
 <h2>4. UI-маршруты / routes</h2>
+<p class="muted">Полный каталог кликабельных prod-URL — в <a href="#live-links">§0 Live systems map</a>.</p>
 <ul>
-<li><code>/UNA.md/orasldev/biro26</code> — лендинг (launcher).</li>
-<li><code>/UNA.md/orasldev/biro26-backoffice</code> — основной интерфейс (5 вкладок).</li>
-<li><code>/UNA.md/orasldev/biro26-tz</code> — ТЗ (Markdown → HTML).</li>
-<li><code>/UNA.md/orasldev/biro26-docs</code> — этот документ.</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26"><code>/UNA.md/orasldev/biro26</code></a> — лендинг (launcher).</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-backoffice"><code>/UNA.md/orasldev/biro26-backoffice</code></a> — основной интерфейс (5 вкладок).</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-tz"><code>/UNA.md/orasldev/biro26-tz</code></a> — ТЗ (Markdown → HTML).</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-docs"><code>/UNA.md/orasldev/biro26-docs</code></a> — этот документ.</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-import-pt"><code>/UNA.md/orasldev/biro26-import-pt</code></a> — import PT.</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-pdfme-designer"><code>/UNA.md/orasldev/biro26-pdfme-designer</code></a> — pdfme designer.</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-notify-settings"><code>/UNA.md/orasldev/biro26-notify-settings</code></a> — notify / nr. cont.</li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/biro26-translations"><code>/UNA.md/orasldev/biro26-translations</code></a> — translations.</li>
 </ul>
 <p>Вкладки: <strong>Sursă</strong> (фид + validate/prepare/assign), <strong>Nomenclator</strong>
 (справочник + карточка + import/archive/fix-confusables), <strong>Grupe/Furnizori</strong>
@@ -573,9 +719,60 @@ BARCODE</b> (un singur card activ), apoi după ARTICOL — un fișier fără bar
 
 <p><b>Module de plată/credit (magazin):</b> MAIB Checkout v2 (card, test+refund),
 MIA QR (QMoney) + MIA P2P; credit/rate — organizații dinamice
-(<code>YBIRO_CREDIT_ORG/PLAN/REQ</code>, admin <code>biro26-credit-admin</code>),
+(<code>TMS_CREDITE_ORG/PLAN/REQ</code>, vezi §16, admin <code>biro26-credit-admin</code>),
 rate 0% la 4/6 luni (+5% împărțit egal), formulele băncii de la 8 luni în sus,
 «Preț ofertă în rate» (Liber Card, +5% de la 100 lei).</p>
+
+<h2 id="creditare">16. Creditare / Кредитование (<code>TMS_CREDITE_*</code>)</h2>
+<p><b>RO:</b> Schema normalizată <code>TMS_CREDITE_*</code> înlocuiește vechile tabele
+<code>YBIRO_CREDIT_ORG/PLAN/REQ</code> (datele au fost migrate, tabelele vechi rămân până
+la <code>--rename-legacy</code> la deploy pe server). Același DDL e activ în DOUĂ baze:
+Oracle 11g OfficePlus (acest modul) și Oracle ADB a proiectului principal — fiecare cu
+setările proprii de provider, nesincronizate automat. <b>RU:</b> Нормализованная схема
+<code>TMS_CREDITE_*</code> заменяет старые таблицы <code>YBIRO_CREDIT_ORG/PLAN/REQ</code>
+(данные перенесены, старые таблицы остаются до <code>--rename-legacy</code> при деплое на
+сервер). Один и тот же DDL развёрнут в ДВУХ базах: Oracle 11g OfficePlus (этот модуль) и
+Oracle ADB основного проекта — у каждой свои настройки провайдера, без автосинхронизации.</p>
+<table>
+<tr><th>Таблица</th><th>Назначение</th></tr>
+<tr><td><code>TMS_CREDITE_PROVIDER</code></td><td>реестр API-провайдеров (easycredit, iute):
+enabled/env/base_url</td></tr>
+<tr><td><code>TMS_CREDITE_PROVIDER_PARAM</code></td><td>параметры и креды провайдера
+(секреты маскируются в API-ответах)</td></tr>
+<tr><td><code>TMS_CREDITE_ORG</code></td><td>организации кредитования магазина, привязка к
+провайдеру (<code>PROVIDER_ID</code>, NULL = ручной режим без API)</td></tr>
+<tr><td><code>TMS_CREDITE_PLAN</code></td><td>пакеты рассрочки организации (формула расчёта
+не менялась)</td></tr>
+<tr><td><code>TMS_CREDITE_REQ</code></td><td>заявки на кредит/рассрочку + API-статус
+(<code>PROVIDER_CODE, EXT_REF, API_STATUS, PREAPPROVED_AMOUNT, IDNP_MASKED</code>)</td></tr>
+<tr><td><code>TMS_CREDITE_REQ_EVENT</code></td><td>append-only лог вызовов API, без PII
+(IDNP/телефон маскируются перед записью)</td></tr>
+</table>
+<p><b>Бэк-офис:</b> <code>/UNA.md/orasldev/biro26-credit-admin</code>, секция «Provideri API» —
+включить провайдера, выбрать env (sandbox/production), задать base_url и креды,
+«Test conexiune» (проверка живого API); ниже — привязка провайдера к организации кредитования
+в таблице «Organizații de creditare». <b>Витрина</b> (<code>biro26-shop</code>,
+<code>biro26-site/cart</code>): при включённом и привязанном провайдере — флоу
+форма → preapproved → submit → опрос статуса (<code>/api/biro26/shop/credit/api/*</code>,
+rate-limited по IP); иначе — прежняя форма «Cerere de credit» (только журнал, без API).</p>
+<div class="warn"><b>Демо-креды после деплоя:</b> при первом деплое
+(<code>deploy_credite_oracle.py</code>) провайдеры сеются значениями из <code>.env</code> —
+для EasyCredit это по умолчанию <code>demo</code>/<code>demo</code>, если реальные креды не
+заданы. В бэк-офисе такой провайдер может показываться как «configurat» (поля заполнены), хотя
+живой вызов вернёт ошибку авторизации. Оператор обязан ввести настоящие креды в бэк-офисе.
+<b>Известное ограничение Iute:</b> <code>IuteProvider</code> не реализует
+<code>preapproved()</code> (наследует «Not supported» из базового класса) — витрина всегда
+начинает флоу с этого шага, поэтому для организации с привязанным Iute-провайдером подача
+заявки через API сейчас не проходит первый шаг; тестовое подключение («Test conexiune»,
+через <code>check_auth</code>) при этом работает.</div>
+<p><b>Деплой схемы:</b> <code>./venv/bin/python deploy_credite_oracle.py --target both</code>
+(идемпотентно; на сервере — с <code>--rename-legacy</code>, ПОСЛЕ того как новый код уже
+развёрнут и не обращается к <code>YBIRO_CREDIT_*</code>; DDL не входит в обычный
+<code>deploy_to_remote.sh</code>). <b>Полная документация архитектуры, SOAP/REST API и
+чек-лист верификации:</b>
+<a href="https://officeplus.md/UNA.md/orasldev/docs/easycredit">/UNA.md/orasldev/docs/easycredit</a>
+(EasyCredit — общая архитектура провайдеров) и
+<a href="https://officeplus.md/UNA.md/orasldev/docs/iute">/UNA.md/orasldev/docs/iute</a> (Iute).</p>
 
 </body>
 </html>
