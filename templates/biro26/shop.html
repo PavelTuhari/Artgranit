@@ -1223,6 +1223,35 @@ function cartCrPick(i) { cartCR.tile = i; creditUI(); }
    EN: credit-provider API flow inside the shop cart modal — same ids as
    site_cart.html, shown only when the org has a configured provider. */
 var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null, polling: false};
+// RO: modul ales de client cind providerul e configurat — 'online' (cerere
+// automata prin API, implicit) sau 'manual' (butonul vechi de cerere ramine
+// vizibil si managerul suna clientul). Persista intre schimbari de placa/
+// organizatie; se ignora automat cind organizatia nu are provider configurat
+// (atunci comportamentul e oricum manual, vezi ecOrgOf()/makeInvoice()).
+// EN: client-chosen mode when a provider is configured — 'online' (API
+// request flow, default) or 'manual' (legacy request button + callback).
+// Persists across tile/org changes; irrelevant when the org has no provider.
+var ecMode = 'online';
+
+function ecSetMode(m) {
+  if (m !== 'online' && m !== 'manual') return;
+  if (ecMode === m) return;
+  ecMode = m;
+  if (m === 'manual') {
+    // RO: trecerea pe manual opreste opro-sul de status si sterge rezultatul
+    // de preaprobare afisat — altfel raman vizibile pe ecran dupa ce clientul
+    // a ales explicit calea manuala.
+    // EN: switching to manual stops the status poll and clears any displayed
+    // preapproval result — otherwise stale state would linger on screen.
+    ecStop();
+    ecCtx.reqId = null; ecCtx.ref = null; ecCtx.selKey = null;
+    var out = document.getElementById('ec-out');
+    if (out) out.innerHTML = '';
+    var btn = document.getElementById('ec-sub');
+    if (btn) { btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed'; }
+  }
+  ecUI();
+}
 
 function currentTile() {
   if ((document.getElementById('paym-sel') || {}).value !== 'credit') return null;
