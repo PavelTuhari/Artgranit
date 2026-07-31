@@ -339,9 +339,10 @@ class Biro26Credit:
         try:
             amount = round(float(amount), 2)
             avans = max(0.0, round(float(avans or 0), 2))
+            m = int(months or p["months_max"])
         except (TypeError, ValueError):
-            return {"success": False, "error": "sume invalide"}
-        m = int(months or p["months_max"])
+            return {"success": False, "error": "sume invalide" if "avans" in str(avans)
+                    else "luni invalide"}
         m = max(int(p["months_min"]), min(m, int(p["months_max"])))
         credit_price = round(amount * (1 + float(p["markup_pct"] or 0) / 100), 2)
         avans_min = round(credit_price * float(p["avans_min_pct"] or 0) / 100, 2)
