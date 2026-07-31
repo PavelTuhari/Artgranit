@@ -741,9 +741,15 @@ class Biro26Credit:
             "LAST_CHECK = SYSDATE WHERE ID = :i",
             {"x": (ext_ref or "")[:120] or None, "s": api_status, "i": req_id})
         if not upd.get("success") and res.get("success"):
+            # RO: providerul A ACCEPTAT cererea — doar salvarea locala a
+            #     statusului a esuat. Textul brut al erorii Oracle (upd.message)
+            #     ramine DOAR in jurnal; clientului i se arata mesaj neutru.
+            Biro26Credit._log_event(
+                req_id, code, "status_save",
+                {"success": False, "error": upd.get("message")}, ms,
+                {"ext_ref": ext_ref})
             return {"success": False,
-                    "error": f"cererea a fost trimisă, dar statusul nu s-a salvat: "
-                             f"{upd.get('message')}",
+                    "error": Biro26Credit._public_status_error(),
                     "data": {"req_id": req_id, "ext_ref": ext_ref}}
         if not res.get("success"):
             data = {"req_id": req_id}
