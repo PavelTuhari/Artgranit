@@ -986,8 +986,15 @@ let CREDIT_OFFERS = [];
    la cererea EasyCredit): «Oferta in rate 0%» in tabelul ei, oferta de
    CREDIT in alt tabel, sub pretul de baza + butonul negru «Solicita».
    ── EN: separate installment (0%) and credit offer tables + button. */
+// RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei care
+//     inlocuieste transportul neprestat la credit (transport-markup-brief.md).
+//     p.transport_markup_pct e adaugat de creditPlans() din datele organizatiei.
+// EN: EFFECTIVE markup = plan commission + the org's markup replacing the
+//     undelivered transport on credit payments; p.transport_markup_pct is
+//     stitched in by creditPlans() from the org data.
+function crEffMarkup(p) { return (p.markup_pct || 0) + (p.transport_markup_pct || 0); }
 function crMonthly(p, price, m) {
-  const f = price * (1 + (p.markup_pct || 0) / 100);
+  const f = price * (1 + crEffMarkup(p) / 100);
   return f / m + f * (p.annual_pct || 0) / 12 / 100 + f * (p.monthly_fee_pct || 0) / 100;
 }
 /* RO: beja «0% dobinda» doar pe pachetele de RATE 0% (dupa nume) — nu pe
@@ -995,7 +1002,7 @@ function crMonthly(p, price, m) {
    EN: the 0% badge only marks the true 0% installment plans (by name). */
 function crIs0(p) { return /0\s*%/.test(p.name || ''); }
 function crFits(p, price) {
-  const f = price * (1 + (p.markup_pct || 0) / 100);
+  const f = price * (1 + crEffMarkup(p) / 100);
   return f >= (p.amount_min || 0) && f <= (p.amount_max || 1e12);
 }
 function creditBadge(price, cod) {
