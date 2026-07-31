@@ -39,7 +39,7 @@ class Biro26Credit:
             w = "" if include_disabled else "WHERE o.ENABLED = '1'"
             return _result(Biro26DB().execute_query(
                 f"SELECT o.ID, o.NAME, o.ENABLED, o.ORG_MODE, o.API_URL, "
-                f"o.LOGO_URL, o.INFO, o.ORD, o.PROVIDER_ID, "
+                f"o.LOGO_URL, o.INFO, o.ORD, o.PROVIDER_ID, o.TRANSPORT_MARKUP_PCT, "
                 f"(SELECT COUNT(*) FROM TMS_CREDITE_PLAN p "
                 f" WHERE p.ORG_ID = o.ID) PLANS "
                 f"FROM TMS_CREDITE_ORG o {w} ORDER BY o.ORD, o.ID"))
