@@ -172,6 +172,24 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
       <code>SHOP_BRAND_FILTER</code> în <code>YBIRO_SETTINGS</code>)
     </label>
     <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+      <b>Prețuri după tipul clientului · Цены по типу клиента</b>
+      <div style="font-size:12px;color:#64748b;margin:2px 0 6px">Coloana de preț folosită în catalog
+        și în conturile de plată; tipul (fizică/juridică) clientul și-l setează în cabinet.
+        Dacă valoarea aleasă lipsește la un produs, se folosește retail.</div>
+      <label style="margin-right:16px">Pers. FIZICE:
+        <select id="f-price-fiz" style="padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="retail1">Retail cu TVA (PRETV)</option>
+          <option value="ionline">Preț online (PRETV2)</option>
+          <option value="angro">Angro (PRETV1)</option>
+        </select></label>
+      <label>Pers. JURIDICE:
+        <select id="f-price-jur" style="padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="retail1">Retail cu TVA (PRETV)</option>
+          <option value="ionline">Preț online (PRETV2)</option>
+          <option value="angro">Angro (PRETV1)</option>
+        </select></label>
+    </div>
+    <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
       <b>Formate cont de plată disponibile clienților · Доступные клиентам форматы счёта</b>
       <div style="font-size:12px;color:#64748b;margin:2px 0 6px">PDF e mereu activ (implicit la toți).
         Dacă rămâne o singură opțiune, selectorul de formate DISPARE din front-office.
