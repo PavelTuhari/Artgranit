@@ -1138,46 +1138,174 @@ let cartCR = {tile: 0};
 async function creditUI() {
   const on = (document.getElementById('paym-sel') || {}).value === 'credit';
   document.getElementById('credit-box').style.display = on ? '' : 'none';
-  if (!on) return;
-  const amount = cartTotalForCredit();
-  const simEl = document.getElementById('credit-sim');
-  if (amount <= 0) {
-    document.getElementById('cart-crtiles').innerHTML = '';
-    simEl.textContent = 'Coșul este gol · Корзина пуста'; return;
+  try {
+    if (!on) return;
+    const amount = cartTotalForCredit();
+    const simEl = document.getElementById('credit-sim');
+    if (amount <= 0) {
+      document.getElementById('cart-crtiles').innerHTML = '';
+      simEl.textContent = 'Coșul este gol · Корзина пуста'; return;
+    }
+    const tiles = crTiles(amount);
+    if (!tiles.length) {
+      document.getElementById('cart-crtiles').innerHTML = '';
+      simEl.innerHTML = '<span style="color:#b91c1c">Suma nu se încadrează în ofertele de credit (1 000 – 100 000 lei) · Сумма вне кредитных лимитов</span>';
+      return;
+    }
+    if (cartCR.tile >= tiles.length) cartCR.tile = 0;
+    document.getElementById('cart-crtiles').innerHTML = tiles.map((x, i) =>
+      '<div class="crtile' + (i === cartCR.tile ? ' on' : '') + '" onclick="cartCrPick(' + i + ')">' +
+      (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
+      '<div class="n">' + x.m + ' plăți</div>' +
+      '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('');
+    const t = tiles[cartCR.tile];
+    const r = await j(API + '/credit/calc', {method: 'POST', body: JSON.stringify({
+      amount, plan_id: t.plan.id, months: t.m,
+      avans: parseFloat(document.getElementById('credit-avans').value) || 0})});
+    if (!r.success) { simEl.innerHTML = '<span style="color:#b91c1c">' + esc(r.error || '') + '</span>'; return; }
+    const d = r.data;
+    // RO: regulile EasyCredit de afisare: la RATE 0% pretul devine automat
+    //     «Pret in rate»; la CREDIT ramine afisat pretul standard —
+    //     fara mentionarea majorarii/comisionului.
+    // EN: display rules: 0% tiles show the installment price; credit tiles
+    //     keep the standard price; no markup disclosure.
+    const is0 = crIs0(t.plan);
+    simEl.innerHTML =
+      '<span class="muted" style="font-size:12px">' + esc(d.org + ' — ' + d.plan) + '</span><br>' +
+      (is0 ? 'Preț în rate · Цена в рассрочку: <b>' + d.credit_price.toFixed(2) + ' lei</b>'
+           : 'Preț standard · Обычная цена: <b>' + d.price.toFixed(2) + ' lei</b>') +
+      (d.avans ? ' · avans <b>' + d.avans.toFixed(2) + '</b> lei' : '') +
+      (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
+      '<span style="font-size:17px;color:#dc2626;font-weight:800">' + Math.ceil(d.monthly) + ' lei</span> <b>lunar · в месяц</b> × ' + d.months;
+  } finally {
+    ecUI();
   }
-  const tiles = crTiles(amount);
-  if (!tiles.length) {
-    document.getElementById('cart-crtiles').innerHTML = '';
-    simEl.innerHTML = '<span style="color:#b91c1c">Suma nu se încadrează în ofertele de credit (1 000 – 100 000 lei) · Сумма вне кредитных лимитов</span>';
-    return;
-  }
-  if (cartCR.tile >= tiles.length) cartCR.tile = 0;
-  document.getElementById('cart-crtiles').innerHTML = tiles.map((x, i) =>
-    '<div class="crtile' + (i === cartCR.tile ? ' on' : '') + '" onclick="cartCrPick(' + i + ')">' +
-    (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
-    '<div class="n">' + x.m + ' plăți</div>' +
-    '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('');
-  const t = tiles[cartCR.tile];
-  const r = await j(API + '/credit/calc', {method: 'POST', body: JSON.stringify({
-    amount, plan_id: t.plan.id, months: t.m,
-    avans: parseFloat(document.getElementById('credit-avans').value) || 0})});
-  if (!r.success) { simEl.innerHTML = '<span style="color:#b91c1c">' + esc(r.error || '') + '</span>'; return; }
-  const d = r.data;
-  // RO: regulile EasyCredit de afisare: la RATE 0% pretul devine automat
-  //     «Pret in rate»; la CREDIT ramine afisat pretul standard —
-  //     fara mentionarea majorarii/comisionului.
-  // EN: display rules: 0% tiles show the installment price; credit tiles
-  //     keep the standard price; no markup disclosure.
-  const is0 = crIs0(t.plan);
-  simEl.innerHTML =
-    '<span class="muted" style="font-size:12px">' + esc(d.org + ' — ' + d.plan) + '</span><br>' +
-    (is0 ? 'Preț în rate · Цена в рассрочку: <b>' + d.credit_price.toFixed(2) + ' lei</b>'
-         : 'Preț standard · Обычная цена: <b>' + d.price.toFixed(2) + ' lei</b>') +
-    (d.avans ? ' · avans <b>' + d.avans.toFixed(2) + '</b> lei' : '') +
-    (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
-    '<span style="font-size:17px;color:#dc2626;font-weight:800">' + Math.ceil(d.monthly) + ' lei</span> <b>lunar · в месяц</b> × ' + d.months;
 }
 function cartCrPick(i) { cartCR.tile = i; creditUI(); }
+
+/* RO: fluxul API al organizatiei de creditare (preapproved -> submit -> status),
+   in cosul din shop.html — foloseste aceleasi id-uri ca site_cart.html.
+   Se afiseaza doar daca organizatia are provider API configurat in back-office.
+   EN: credit-provider API flow inside the shop cart modal — same ids as
+   site_cart.html, shown only when the org has a configured provider. */
+var ecCtx = {org: null, reqId: null, ref: null, poll: null};
+
+function currentTile() {
+  if ((document.getElementById('paym-sel') || {}).value !== 'credit') return null;
+  const amount = cartTotalForCredit();
+  if (amount <= 0) return null;
+  const tiles = crTiles(amount);
+  if (!tiles.length) return null;
+  if (cartCR.tile >= tiles.length) cartCR.tile = 0;
+  const t = tiles[cartCR.tile];
+  if (!t) return null;
+  const cp = amount * (1 + (t.plan.markup_pct || 0) / 100);
+  return {plan: t.plan, m: t.m, monthly: t.monthly, credit_price: cp};
+}
+
+function ecOrgOf(tile) {
+  if (!tile) return null;
+  const o = CREDIT_OFFERS.find(function (x) {
+    return (x.plans || []).some(function (p) { return p.id === tile.plan.id; });
+  });
+  return (o && o.provider && o.provider.configured) ? o : null;
+}
+
+function ecStop() {
+  if (ecCtx.poll) { clearTimeout(ecCtx.poll); ecCtx.poll = null; }
+}
+
+function ecUI() {
+  var box = document.getElementById('ec-flow');
+  if (!box) return;
+  var t = currentTile();
+  var org = ecOrgOf(t);
+  if (!org) ecStop();
+  ecCtx.org = org;
+  box.style.display = org ? '' : 'none';
+  if (org) {
+    document.getElementById('ec-org-label').textContent =
+      (org.provider.icon || '') + ' ' + org.provider.name +
+      ' — cerere online · онлайн-заявка';
+  }
+}
+
+function ecOut(html, color) {
+  var el = document.getElementById('ec-out');
+  el.innerHTML = html;
+  el.style.color = color || '#334155';
+}
+
+async function ecPreapproved() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (idnp.length < 10) { ecOut('IDNP invalid · Неверный IDNP', '#b91c1c'); return; }
+  ecOut('…');
+  var r = await j(API + '/credit/api/preapproved', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, idnp: idnp, amount: Math.round(t.credit_price),
+    phone: document.getElementById('ec-phone').value.trim()})});
+  var btn = document.getElementById('ec-sub');
+  if (!r.success) {
+    ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c');
+    btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
+    return;
+  }
+  var d = r.data || {};
+  if (d.preapproved) {
+    ecOut('✅ Preaprobat pînă la <b>' + Math.round(d.max_amount) +
+      ' lei</b> · Предодобрено до ' + Math.round(d.max_amount) + ' лей', '#059669');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  } else {
+    ecOut('⚠️ ' + esc(d.message || 'Fără preaprobare · Без предодобрения') +
+      '<br>Puteți trimite cererea — decizia o ia creditorul.', '#b45309');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  }
+}
+
+async function ecSubmit() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var fio = document.getElementById('ec-fio').value.trim();
+  var phone = document.getElementById('ec-phone').value.trim();
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (!fio || !phone) { ecOut('Numele și telefonul sunt obligatorii', '#b91c1c'); return; }
+  ecOut('…');
+  var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
+    amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
+    qty: 1, client_name: fio, phone: phone, idnp: idnp,
+    product_name: 'Coș OfficePlus'})});
+  if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c'); return; }
+  ecCtx.reqId = r.data.req_id;
+  ecCtx.ref = r.data.ext_ref || null;
+  if (!ecCtx.ref) {
+    ecOut('📨 Cerere trimisă · Заявка отправлена<br>Un manager vă va contacta în scurt timp · Менеджер свяжется с вами.', '#0f766e');
+    return;
+  }
+  ecOut('📨 Cerere trimisă · Заявка отправлена<br>Referință: <b>' +
+    esc(ecCtx.ref) + '</b><br><span id="ec-st">Se verifică statusul…</span>', '#0f766e');
+  ecPoll(0);
+}
+
+function ecPoll(n) {
+  ecStop();
+  if (n > 24 || !ecCtx.reqId || !ecCtx.ref) {                       // 24 × 5 c = 2 минуты
+    var el0 = document.getElementById('ec-st');
+    if (el0) el0.textContent = 'Verificați statusul mai tîrziu — managerul vă va contacta.';
+    return;
+  }
+  ecCtx.poll = setTimeout(async function () {
+    var r = await j(API + '/credit/api/status?req_id=' + ecCtx.reqId +
+                    '&ref=' + encodeURIComponent(ecCtx.ref || ''));
+    var el = document.getElementById('ec-st');
+    var st = (r.data || {}).status || '';
+    if (el) el.textContent = 'Status: ' + esc(st || '—');
+    var done = /APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL/i.test(st);
+    if (!done) ecPoll(n + 1);
+  }, 5000);
+}
+window.addEventListener('pagehide', ecStop);
 
 /* RO: cererea de credit EasyCredit din cos (dupa crearea contului in
    credit) — pleaca cu numarul contului; magazinul primeste notificarea
