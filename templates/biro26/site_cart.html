@@ -220,12 +220,24 @@ function ecUI() {
   // EN: reset the stale preapproval result on selection/amount change, but not
   // while a status poll is actively in flight (keep the ext_ref reference
   // visible until it finishes).
+  // RO: preaprobarea e o operatie optionala — o afisam doar daca providerul
+  // organizatiei o suporta cu adevarat (nu toti gateway-urile o au, ex. Iute).
+  // EN: preapproval is optional — only show it when the org's provider
+  // actually implements it (not every gateway does, e.g. Iute).
+  var hasPre = !!(org && org.provider && org.provider.capabilities &&
+                  org.provider.capabilities.indexOf('preapproved') !== -1);
   var selKey = org ? (org.id + ':' + t.plan.id + ':' + t.m + ':' + Math.round(t.credit_price)) : null;
   if (selKey !== ecCtx.selKey && !ecCtx.polling) {
     var out = document.getElementById('ec-out');
     if (out) out.innerHTML = '';
     var btn = document.getElementById('ec-sub');
-    if (btn) { btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed'; }
+    if (btn) {
+      if (hasPre) {
+        btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
+      } else {
+        btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+      }
+    }
     // RO: cererea veche nu mai e relevanta pentru noua selectie/suma — o uitam,
     // ca sa nu se amestece intr-un poll viitor pornit pentru alta cerere.
     // EN: the old request no longer matches the new selection/amount — forget
@@ -236,6 +248,10 @@ function ecUI() {
   ecCtx.selKey = selKey;
   ecCtx.org = org;
   box.style.display = org ? '' : 'none';
+  var preBtn = document.getElementById('ec-pre');
+  if (preBtn) preBtn.style.display = hasPre ? '' : 'none';
+  var note = document.getElementById('ec-note');
+  if (note) note.style.display = (org && !hasPre) ? '' : 'none';
   if (org) {
     document.getElementById('ec-org-label').textContent =
       (org.provider.icon || '') + ' ' + org.provider.name +
