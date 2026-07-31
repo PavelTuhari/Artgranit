@@ -339,6 +339,10 @@ async function makeInvoice() {
   const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
   if (!r.success) { toast(r.error || 'Eroare', true); return; }
   const cod = r.data.cod, nr = r.data.nrset || r.data.nr || cod;
+  // RO: calculam ecOrg INAINTE de a goli cosul — saveCartLS([]) declanseaza
+  // onCartChange->renderCart->renderTiles, care reseteaza TILES si ar face
+  // currentTile() sa returneze null mai jos.
+  const ecOrg = ecOrgOf(currentTile());
   saveCartLS([]);
   const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
   let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
