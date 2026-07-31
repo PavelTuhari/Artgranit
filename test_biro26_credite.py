@@ -467,8 +467,9 @@ def t_request_create_insert_failure_is_neutral() -> list[str]:
             s = " ".join(sql.split()).upper()
             if "TMS_CREDITE_REQ_SEQ.NEXTVAL" in s:
                 return {"success": True, "columns": ["ID"], "data": [[999999997]]}
-            if "TMS_CREDITE_ORG" in s and "ID = :i" in s:
-                return {"success": True, "columns": ["ID", "NAME", "ORG_MODE", "API_URL"],
+            if "FROM TMS_CREDITE_ORG" in s:
+                return {"success": True,
+                        "columns": ["ID", "NAME", "ORG_MODE", "API_URL"],
                         "data": [[1, "Test Org", "manual", None]]}
             raise AssertionError(f"neasteptat query in test: {sql}")
 
