@@ -177,6 +177,42 @@ function provPayload(i) {
   return out;
 }
 
+function provUrlEl(i) {
+  return document.querySelector('[data-prov="' + i + '"][data-field="base_url"]');
+}
+function provWarnEl(i) {
+  return document.getElementById('base-url-warn-' + i);
+}
+function norm(u) { return (u || '').trim().replace(/\/+$/, ''); }
+
+// Finding 2: la schimbarea env, completeaza base_url cu dezfaultul mediului
+// nou DACA cimpul e gol sau contine dezfaultul CELUILALT mediu (nu atingem
+// un URL introdus manual de operator — doar afisam un avertisment).
+function onProvEnvChange(i) {
+  var p = PROVIDERS[i], urlEl = provUrlEl(i);
+  if (!urlEl) return;
+  var envEl = document.querySelector('[data-prov="' + i + '"][data-field="env"]');
+  var newEnv = envEl ? envEl.value : p.env;
+  var defaults = p.default_base_url || {};
+  var otherEnv = newEnv === 'production' ? 'sandbox' : 'production';
+  var cur = norm(urlEl.value);
+  var matchesOther = defaults[otherEnv] && cur === norm(defaults[otherEnv]);
+  if (!cur || matchesOther) {
+    urlEl.value = defaults[newEnv] || '';
+  }
+  onProvBaseUrlInput(i);
+}
+function onProvBaseUrlInput(i) {
+  var p = PROVIDERS[i], urlEl = provUrlEl(i), warnEl = provWarnEl(i);
+  if (!urlEl || !warnEl) return;
+  var envEl = document.querySelector('[data-prov="' + i + '"][data-field="env"]');
+  var env = envEl ? envEl.value : p.env;
+  var defaults = p.default_base_url || {};
+  var cur = norm(urlEl.value);
+  var mismatch = cur && defaults[env] && cur !== norm(defaults[env]);
+  warnEl.style.display = mismatch ? '' : 'none';
+}
+
 async function saveProv(i) {
   var r = await j('/api/biro26/credit/providers',
     {method: 'PUT', body: JSON.stringify(provPayload(i))});
