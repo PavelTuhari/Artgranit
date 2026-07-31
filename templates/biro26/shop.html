@@ -1126,7 +1126,8 @@ async function loadCreditOffers() {
 }
 function creditPlans() {
   const out = [];
-  CREDIT_OFFERS.forEach(o => (o.plans || []).forEach(p => out.push({...p, org: o.name})));
+  CREDIT_OFFERS.forEach(o => (o.plans || []).forEach(p =>
+    out.push({...p, org: o.name, transport_markup_pct: o.transport_markup_pct || 0})));
   return out;
 }
 function cartTotalForCredit() {
