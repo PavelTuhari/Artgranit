@@ -121,6 +121,49 @@ def migrate_legacy(be: CrediteBackend) -> None:
     print("  + данные перенесены из YBIRO_CREDIT_*")
 
 
+def resync_legacy(be: CrediteBackend) -> None:
+    """Docoreste TMS_CREDITE_REQ cu rindurile noi din YBIRO_CREDIT_REQ.
+
+    RO: migrate_legacy() ruleaza o singura data (sare daca TMS_CREDITE_REQ nu
+    e goala). Intre aplicarea DDL si deploy-ul codului nou pe server, codul
+    vechi de acolo poate continua sa scrie in YBIRO_CREDIT_REQ — acele rinduri
+    nu ajung niciodata in TMS_CREDITE_REQ. resync_legacy() transfera DOAR
+    rindurile cu ID > MAX(ID) curent din TMS_CREDITE_REQ, fara sa atinga cele
+    deja migrate (evita coliziuni de PK). Idempotent — poate rula de mai multe
+    ori; daca nu sint rinduri noi, nu face nimic.
+    EN: one-shot migrate_legacy() only ever runs once; this catches rows the
+    still-running legacy code wrote to YBIRO_CREDIT_REQ afterwards, copying
+    only ID > current MAX(ID) in TMS_CREDITE_REQ (no PK collisions). Safe to
+    re-run; no-op when there is nothing new."""
+    if not _exists(be, "YBIRO_CREDIT_REQ"):
+        print("  = YBIRO_CREDIT_REQ отсутствует — resync не нужен")
+        return
+    max_id = int(be.query("SELECT NVL(MAX(ID), 0) CNT FROM TMS_CREDITE_REQ")[0]["cnt"])
+    cnt_rows = be.query(
+        "SELECT COUNT(*) CNT FROM YBIRO_CREDIT_REQ WHERE ID > :m", {"m": max_id})
+    n = int(cnt_rows[0]["cnt"]) if cnt_rows else 0
+    if n == 0:
+        print(f"  = новых строк в YBIRO_CREDIT_REQ (ID > {max_id}) нет — resync не нужен")
+        return
+    be.dml(
+        "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
+        "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
+        "STATUS, CREATED) SELECT ID, ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
+        "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
+        "STATUS, CREATED FROM YBIRO_CREDIT_REQ WHERE ID > :m", {"m": max_id})
+    seq = "TMS_CREDITE_REQ_SEQ"
+    target = int(be.query("SELECT NVL(MAX(ID), 0) + 1 NX FROM TMS_CREDITE_REQ")[0]["nx"])
+    cur = int(be.query(f"SELECT {seq}.NEXTVAL NV FROM dual")[0]["nv"])
+    delta = target - cur - 1
+    if delta > 0:
+        # RO: mutam secventa fara a o sterge — DROP+CREATE nu e atomic
+        be.dml(f"ALTER SEQUENCE {seq} INCREMENT BY {delta}")
+        be.query(f"SELECT {seq}.NEXTVAL NV FROM dual")
+        be.dml(f"ALTER SEQUENCE {seq} INCREMENT BY 1")
+    print(f"  + resync: перенесено {n} новых строк из YBIRO_CREDIT_REQ (ID > {max_id})")
+    print(f"  ~ {seq} -> next {max(target, cur + 1)}")
+
+
 def rename_legacy(be: CrediteBackend) -> None:
     for tab in ("YBIRO_CREDIT_ORG", "YBIRO_CREDIT_PLAN", "YBIRO_CREDIT_REQ"):
         if _exists(be, tab) and not _exists(be, tab + "_OLD"):
