@@ -601,7 +601,87 @@ def t_api_submit_insert_failure_is_neutral() -> list[str]:
     return fails
 
 
+def t_effective_markup_includes_transport() -> list[str]:
+    """Действующая наценка = наценка пакета + надбавка организации за транспорт."""
+    offers = Biro26Credit.public_offers()
+    if not offers.get("success") or not offers["data"]:
+        print("  [skip] нет активных организаций с пакетами")
+        return []
+    org = offers["data"][0]
+    # надбавку читаем из БД, а не хардкодим: тест не должен ломаться при её смене
+    tm = float(org.get("transport_markup_pct") or 0)
+    plans = [p for p in (org.get("plans") or [])]
+    if not plans:
+        print("  [skip] у организации нет активных пакетов")
+        return []
+    fails = []
+    for p in plans[:3]:
+        plan_markup = float(p.get("markup_pct") or 0)
+        r = Biro26Credit.calc(10000, p["id"], p["months_min"], 0)
+        if not r.get("success"):
+            fails.append(f"calc({p['id']}): {r.get('error')}")
+            continue
+        d = r["data"]
+        expect_price = round(10000 * (1 + (plan_markup + tm) / 100), 2)
+        if abs(d["credit_price"] - expect_price) > 0.01:
+            fails.append(f"пакет {p['id']}: credit_price={d['credit_price']}, "
+                         f"ожидалось {expect_price} ({plan_markup}+{tm}%)")
+        if abs(float(d.get("plan_markup_pct", -1)) - plan_markup) > 0.01:
+            fails.append(f"пакет {p['id']}: plan_markup_pct={d.get('plan_markup_pct')}, "
+                         f"ожидалось {plan_markup}")
+        if abs(float(d.get("transport_markup_pct", -1)) - tm) > 0.01:
+            fails.append(f"пакет {p['id']}: transport_markup_pct="
+                         f"{d.get('transport_markup_pct')}, ожидалось {tm}")
+        if abs(float(d.get("markup_pct", -1)) - (plan_markup + tm)) > 0.01:
+            fails.append(f"пакет {p['id']}: markup_pct={d.get('markup_pct')} "
+                         f"не равен сумме {plan_markup}+{tm}")
+    if tm == 0:
+        print("  [note] надбавка сейчас 0 — проверена только формула, не эффект")
+    return fails
+
+
+def t_offers_carry_transport_markup() -> list[str]:
+    """public_offers() отдаёт у организации числовое поле transport_markup_pct."""
+    r = Biro26Credit.public_offers()
+    if not r.get("success"):
+        return [f"public_offers: {r.get('error')}"]
+    fails = []
+    for o in r["data"]:
+        v = o.get("transport_markup_pct")
+        if not isinstance(v, (int, float)):
+            fails.append(f"{o.get('name')!r}: transport_markup_pct={v!r} не число")
+    return fails
+
+
+def t_invoice_transport_rule() -> list[str]:
+    """Транспорт обязателен для обычного заказа и не требуется для кредитного.
+
+    Заказ НЕ создаётся: без клиентской сессии роут отклоняет запрос раньше,
+    чем дойдёт до записи, поэтому проверяем правило на уровне контроллера —
+    что блок транспорта пропускается ровно при наличии credit_plan_id.
+    """
+    import inspect
+    from controllers.biro26_controller import Biro26Controller
+    src = inspect.getsource(Biro26Controller.shop_invoice)
+    fails = []
+    if "distance_km is required" not in src:
+        fails.append("проверка обязательного транспорта исчезла из shop_invoice")
+    if "credit_plan_id" not in src.split("distance_km is required")[0]:
+        fails.append("блок транспорта не знает про credit_plan_id — "
+                     "кредитный заказ по-прежнему потребует км")
+    # и роут действительно не создаёт заказ без входа клиента
+    import app as _app
+    c = _app.app.test_client()
+    r = c.post('/api/biro26/shop/invoice', json={"items": [{"cod": 1, "qty": 1}]})
+    if r.status_code < 500 and (r.get_json() or {}).get("success"):
+        fails.append("заказ создан без входа клиента")
+    return fails
+
+
 TESTS = [
+    ("действующая наценка = пакет + транспорт", t_effective_markup_includes_transport),
+    ("offers несут transport_markup_pct", t_offers_carry_transport_markup),
+    ("правило транспорта при кредите", t_invoice_transport_rule),
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
     ("offers содержат provider", t_offers_carry_provider),
