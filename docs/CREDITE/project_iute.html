@@ -160,32 +160,61 @@ Headers: Authorization: {API_KEY}</code></pre>
 
         <h2>⚙️ Конфигурация</h2>
         <div class="card">
-            <p>Настройки в <code>data/iute_settings.json</code> (в .gitignore):</p>
-            <pre><code>{
-  <span class="string">"env"</span>: <span class="string">"sandbox"</span>,
-  <span class="string">"base_url"</span>: <span class="string">"https://iute-core-partner-gateway.iute.eu"</span>,
-  <span class="string">"api_key"</span>: <span class="string">"••••••••"</span>,
-  <span class="string">"pos_identifier"</span>: <span class="string">"••••••••"</span>,
-  <span class="string">"salesman_identifier"</span>: <span class="string">"••••••••"</span>
-}</code></pre>
+            <p>Настройки больше не хранятся в <code>data/iute_settings.json</code> — этот файл
+            используется только как одноразовый seed при первом деплое
+            (<code>deploy_credite_oracle.py</code>). Авторитетное хранилище — Oracle, таблицы
+            <code>TMS_CREDITE_PROVIDER</code> (<code>CODE='iute'</code>: <code>ENABLED, ENV,
+            BASE_URL</code>) и <code>TMS_CREDITE_PROVIDER_PARAM</code> с параметрами:</p>
+            <table>
+                <tr><th>Параметр</th><th>Секретный</th><th>Назначение</th></tr>
+                <tr><td><code>api_key</code></td><td>да</td><td>ключ авторизации, заголовок <code>Authorization</code></td></tr>
+                <tr><td><code>pos_identifier</code></td><td>нет</td><td>идентификатор точки продаж</td></tr>
+                <tr><td><code>salesman_identifier</code></td><td>нет</td><td>идентификатор продавца</td></tr>
+            </table>
+            <p>Как и для EasyCredit, у Iute — два независимых контура: <code>TMS_CREDITE_PROVIDER</code>
+            в Oracle ADB основного проекта (<code>/UNA.md/orasldev/credit-admin</code>) и та же схема
+            в Oracle 11g OfficePlus (<code>/UNA.md/orasldev/biro26-credit-admin</code>, вкладка
+            «Provideri API»). Пустое значение <code>api_key</code> при сохранении — «не менять».
+            Подробности архитектуры (<code>CrediteSettings</code>, <code>build_registry</code>,
+            правило «пустой секрет = не менять», фолбэк на <code>.env</code>, демо-креды после
+            деплоя) — общие для всех провайдеров, см.
+            <a href="/UNA.md/orasldev/docs/easycredit">документацию EasyCredit, §4</a>.</p>
             <div class="note">
-                <strong>⚠️ Безопасность:</strong> API ключи скрыты в интерфейсе (type="password"). 
-                Реальные значения НЕ передаются в frontend.
+                <strong>⚠️ Безопасность:</strong> API ключи скрыты в интерфейсе бэк-офиса
+                (маска <code>xxx***</code>), реальные значения НЕ передаются в frontend
+                (<code>CrediteSettings.masked()</code>).
             </div>
         </div>
 
-        <h2>🔒 Безопасность</h2>
+        <h2>🛒 Витрина Biro26</h2>
         <div class="card">
-            <ul>
-                <li>✅ API ключи хранятся в <code>data/iute_settings.json</code> (в .gitignore)</li>
-                <li>✅ Пароли маскируются в UI (••••••••)</li>
-                <li>✅ API не возвращает реальные значения секретов</li>
-                <li>✅ Все операции логируются</li>
-            </ul>
+            <p>Iute доступен в корзине магазина Biro26 (<code>shop.html</code>,
+            <code>site_cart.html</code>) наравне с EasyCredit — тот же UI, те же маршруты
+            <code>/api/biro26/shop/credit/api/{preapproved,submit,status}</code>, тот же реестр
+            <code>build_registry(biro26_settings())</code>. Условие показа то же: провайдер включён
+            И привязан к организации (<code>TMS_CREDITE_ORG.PROVIDER_ID</code>) в бэк-офисе.</p>
+            <div class="note">
+                <strong>⚠️ Известное ограничение:</strong> <code>IuteProvider</code>
+                (<code>integrations/iute_provider.py</code>) реализует только
+                <code>check_auth / create_order / order_status</code> (замаппленные на
+                <code>submit()</code> / <code>check_status()</code>). Метод <code>preapproved()</code>
+                не переопределён и наследуется от базового класса, который возвращает
+                <code>{"success": false, "error": "Not supported"}</code>. Витрина всегда начинает
+                флоу с шага «Preapproved» (<a href="/UNA.md/orasldev/docs/easycredit#flow">см. §7
+                EasyCredit</a>), поэтому для организации, привязанной к Iute, первый шаг сейчас
+                завершится этой ошибкой и кнопка отправки заявки останется заблокированной — заявку
+                через API отправить нельзя, пока в <code>IuteProvider</code> не появится
+                <code>preapproved()</code> (например, как заглушка «всегда допустить к подаче»,
+                раз у Iute нет отдельного эндпоинта предодобрения) или пока флоу на витрине не
+                научится пропускать этот шаг для провайдеров без capability <code>preapproved</code>.
+                Тестовое подключение в бэк-офисе («Test conexiune») этой проблемы не имеет — оно
+                использует <code>check_auth</code>, который у Iute реализован.
+            </div>
         </div>
 
         <div class="footer">
-            <p>📅 Документ создан: 30.01.2026 | Версия: 1.0</p>
+            <p>📅 Документ обновлён: 31.07.2026 | Версия: 2.0 (TMS_CREDITE_*, витрина Biro26,
+            известное ограничение preapproved)</p>
             <p>Oracle SQL Developer Web — Artgranit Project</p>
         </div>
     </div>
