@@ -369,7 +369,15 @@ class Biro26Credit:
         except (TypeError, ValueError):
             return {"success": False, "error": "luni invalide"}
         m = max(int(p["months_min"]), min(m, int(p["months_max"])))
-        credit_price = round(amount * (1 + float(p["markup_pct"] or 0) / 100), 2)
+        # RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei
+        #     pentru transportul care NU se mai presteaza la achitarea in
+        #     credit (vezi .superpowers/sdd/transport-markup-brief.md).
+        # EN: the EFFECTIVE markup = plan commission + the org's markup that
+        #     replaces the transport service which is not delivered on credit.
+        plan_markup_pct = float(p["markup_pct"] or 0)
+        transport_markup_pct = float(p.get("transport_markup_pct") or 0)
+        effective_markup_pct = plan_markup_pct + transport_markup_pct
+        credit_price = round(amount * (1 + effective_markup_pct / 100), 2)
         avans_min = round(credit_price * float(p["avans_min_pct"] or 0) / 100, 2)
         if avans < avans_min:
             avans = avans_min
