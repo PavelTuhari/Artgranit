@@ -590,6 +590,11 @@ window.onLangChange = renderCart;
   }
   if (pay.success && pay.data) PAY = pay.data;
   OFFERS = offers.data || [];
+  // RO: ofertele vin asincron — daca clientul a apucat sa aleaga «Rate/credit»
+  //     mai devreme, placile s-au randat pe o lista goala si nu se mai reface.
+  // EN: offers arrive async — if the client switched to credit before they
+  //     landed, tiles rendered against an empty list and never refreshed.
+  if (payMethod === 'credit') { renderTiles(); ecUI(); }
 })();
 </script>
 {% endblock %}
