@@ -1204,7 +1204,7 @@ function cartCrPick(i) { cartCR.tile = i; creditUI(); }
    Se afiseaza doar daca organizatia are provider API configurat in back-office.
    EN: credit-provider API flow inside the shop cart modal — same ids as
    site_cart.html, shown only when the org has a configured provider. */
-var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null};
+var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null, polling: false};
 
 function currentTile() {
   if ((document.getElementById('paym-sel') || {}).value !== 'credit') return null;
