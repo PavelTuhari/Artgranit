@@ -301,12 +301,15 @@ function ecPoll(n) {
     if (el0) el0.textContent = 'Verificați statusul mai tîrziu — managerul vă va contacta.';
     return;
   }
+  var myGen = ecCtx.gen;   // RO: fereastra de generatie — daca ecStop() a mai
+                            // fost apelat intre timp, raspunsul intirziat e ignorat.
   ecCtx.poll = setTimeout(async function () {
     var r = await j(API + '/credit/api/status?req_id=' + ecCtx.reqId +
                     '&ref=' + encodeURIComponent(ecCtx.ref || ''));
+    if (ecCtx.gen !== myGen) return;   // opos anulat/inlocuit in timpul await
     var el = document.getElementById('ec-st');
     var st = (r.data || {}).status || '';
-    if (el) el.textContent = 'Status: ' + esc(st || '—');
+    if (el) el.textContent = 'Status: ' + (st || '—');
     var done = /APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL/i.test(st);
     if (!done) ecPoll(n + 1);
   }, 5000);
