@@ -273,6 +273,9 @@ async function ecSubmit() {
   var phone = document.getElementById('ec-phone').value.trim();
   var idnp = document.getElementById('ec-idnp').value.trim();
   if (!fio || !phone) { ecOut('Numele și telefonul sunt obligatorii', '#b91c1c'); return; }
+  if (!/^\d{13}$/.test(idnp)) {
+    ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
+  }
   ecOut('…');
   var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
     org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
