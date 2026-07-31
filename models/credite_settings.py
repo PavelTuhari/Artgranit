@@ -245,11 +245,13 @@ class CrediteSettings:
                     {"en": "1" if enabled else "0", "e": env, "b": base_url, "c": code})
             else:
                 self.backend.dml(
+                    # RO: ICON nu se mai scrie — e constanta de cod (PROVIDER_DEFS),
+                    #     iar OfficePlus (CL8MSWIN1251) ar stoca emoji-ul ca '?'.
                     "INSERT INTO TMS_CREDITE_PROVIDER (CODE, NAME, ENABLED, ENV, "
-                    "BASE_URL, ICON, COLOR, ORD) "
-                    "VALUES (:c, :n, :en, :e, :b, :i, :col, :o)",
+                    "BASE_URL, COLOR, ORD) "
+                    "VALUES (:c, :n, :en, :e, :b, :col, :o)",
                     {"c": code, "n": spec["name"], "en": "1" if enabled else "0",
-                     "e": env, "b": base_url, "i": spec["icon"],
+                     "e": env, "b": base_url,
                      "col": spec["color"], "o": spec["ord"]})
                 pid = int(self.backend.query(
                     "SELECT ID FROM TMS_CREDITE_PROVIDER WHERE CODE = :c",
