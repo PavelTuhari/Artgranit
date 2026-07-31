@@ -333,9 +333,11 @@ async function makeInvoice() {
       h += '<button class="pay" onclick="payP2P()">📲 MIA P2P</button>';
   }
   if (payMethod === 'credit') {
-    h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
-      '\')">📝 Cerere de credit EasyCredit</button>' +
-      '<button class="pay" onclick="payMaib(' + cod + ')">💳 Liber Card (MAIB) în rate</button>';
+    if (!ecOrgOf(currentTile())) {
+      h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
+        '\')">📝 Cerere de credit EasyCredit</button>';
+    }
+    h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 Liber Card (MAIB) în rate</button>';
   }
   const ok = document.getElementById('okbox');
   ok.style.display = ''; ok.innerHTML = h;
