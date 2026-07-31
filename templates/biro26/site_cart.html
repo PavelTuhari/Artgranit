@@ -405,16 +405,26 @@ async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast(tr('cartEmpty'), true); return; }
   if (!ME) { toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return; }
-  const km = parseFloat(document.getElementById('tr-km').value);
-  if (!km || km <= 0) { toast(tr('transport'), true);
-    document.getElementById('tr-km').focus(); return; }
+  // RO: la credit transportul nu se presteaza — km/centrul nu se mai cer
+  //     si nu se trimit la server (vezi si controllers/biro26_controller.py
+  //     shop_invoice, blocul sarit cind exista credit_plan_id).
+  // EN: on credit, transport isn't delivered — km/center aren't required
+  //     and aren't sent (mirrors the skipped block in shop_invoice).
+  let km = null;
+  if (payMethod !== 'credit') {
+    km = parseFloat(document.getElementById('tr-km').value);
+    if (!km || km <= 0) { toast(tr('transport'), true);
+      document.getElementById('tr-km').focus(); return; }
+  }
   const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
     .concat(SRV.filter(s => document.getElementById('sv-' + s.cod) &&
       document.getElementById('sv-' + s.cod).checked)
       .map(s => ({cod: s.cod, qty: 1, name: s.denumire || s.name})));
-  const body = {items, distance_km: km,
-    center_id: parseInt(document.getElementById('tr-center').value, 10) || null,
-    tva_mode: document.getElementById('tva-mode').value};
+  const body = {items, tva_mode: document.getElementById('tva-mode').value};
+  if (payMethod !== 'credit') {
+    body.distance_km = km;
+    body.center_id = parseInt(document.getElementById('tr-center').value, 10) || null;
+  }
   if (payMethod === 'credit') {
     const t = TILES[tileSel];
     if (!t) { toast('Alegeți termenul de rate', true); return; }
