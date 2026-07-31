@@ -310,6 +310,7 @@ td.num,th.num{text-align:right}
     <div id="credit-box" style="display:none;margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px">
       <div style="font-size:13px;font-weight:600;margin-bottom:2px">Alege oferta potrivită · Выберите вариант</div>
       <div class="crtiles" id="cart-crtiles"></div>
+      <div style="font-size:11.5px;color:#64748b;margin:2px 0 8px">La achitarea în rate/credit transportul nu se prestează — costul e deja inclus în preț · При оплате в рассрочку/кредит доставка не осуществляется — её стоимость уже включена в цену</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span style="font-size:12.5px">Avans · Аванс (lei):
           <input id="credit-avans" type="number" value="0" min="0" style="width:90px;padding:5px;border:1px solid #c7d2fe;border-radius:6px" onchange="creditUI()"></span>
@@ -1076,7 +1077,7 @@ function renderCreditModal() {
         '<div class="muted" style="font-size:12px">' + esc(t.plan.org + ' — ' + t.plan.name) +
         // RO: 0% -> «Pret in rate»; credit -> pretul standard (fara majorare afisata)
         (crIs0(t.plan)
-          ? ' · Preț în rate: <b>' + (price * (1 + (t.plan.markup_pct || 0) / 100)).toFixed(2) + ' lei</b>'
+          ? ' · Preț în rate: <b>' + (price * (1 + crEffMarkup(t.plan) / 100)).toFixed(2) + ' lei</b>'
           : ' · Preț standard: <b>' + price.toFixed(2) + ' lei</b>') +
         (t.plan.issue_fee > 0 ? ' · taxă emitere ' + t.plan.issue_fee + ' lei' : '') + '</div>' : '') +
       '<div class="muted" style="font-size:11.5px;margin:6px 0">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită la depunerea cererii de credit și poate diferi ușor. · Данные носят информационный характер.</div>' +
@@ -1248,7 +1249,7 @@ function currentTile() {
   const idx = cartCR.tile < tiles.length ? cartCR.tile : 0;
   const t = tiles[idx];
   if (!t) return null;
-  const cp = amount * (1 + (t.plan.markup_pct || 0) / 100);
+  const cp = amount * (1 + crEffMarkup(t.plan) / 100);
   return {plan: t.plan, m: t.m, monthly: t.monthly, credit_price: cp};
 }
 
@@ -1383,7 +1384,7 @@ async function ecSubmit() {
   ecOut('…');
   var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
     org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
-    amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
+    amount: t.credit_price / (1 + crEffMarkup(t.plan) / 100),
     qty: 1, client_name: fio, phone: phone, idnp: idnp,
     product_name: 'Coș OfficePlus'})});
   if (r.auth_required) {
