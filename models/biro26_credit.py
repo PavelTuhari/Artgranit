@@ -816,7 +816,11 @@ class Biro26Credit:
         ms = int((_t.time() - t0) * 1000)
         Biro26Credit._log_event(int(req_id), code, "status", res, ms, {"ext_ref": ext})
         if not res.get("success"):
-            return {"success": False, "error": res.get("error") or "eroare provider",
+            # RO: `api_status` e apelata si din back-office (credit_request_refresh,
+            #     deja autorizat) si din vitrina publica (fara verbose param, ca sa
+            #     nu atingem controllerul) — mesajul ramine neutru in ambele cazuri;
+            #     detaliile brute ale providerului raman doar in jurnal.
+            return {"success": False, "error": Biro26Credit._public_error(res),
                     "data": {"status": r.get("api_status") or "", "ext_ref": ext}}
         st = ((res.get("data") or {}).get("status")
               or (res.get("data") or {}).get("state") or "")
