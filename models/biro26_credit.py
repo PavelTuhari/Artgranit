@@ -409,6 +409,9 @@ class Biro26Credit:
                          "has_secret": {}}
                 d["param_defs"] = [{"name": n, "secret": s}
                                    for n, s in PROVIDER_DEFS[code]["params"]]
+                # RO: default_base_url pe mediu — admin-ul il foloseste ca sa
+                #     completeze cimpul base_url la schimbarea env (Finding 2).
+                d["default_base_url"] = PROVIDER_DEFS[code]["default_base_url"]
                 out.append(d)
             return {"success": True, "data": out}
         except Exception as e:
