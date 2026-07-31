@@ -489,7 +489,7 @@ async function sendCartCreditReq(cod, nr) {
   if (!phone) phone = prompt('Telefon · Телефон:') || '';
   if (!phone) return;
   const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
-    plan_id: t.plan.id, months: t.m, qty: 1, amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
+    plan_id: t.plan.id, months: t.m, qty: 1, amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
     product_cod: 0, product_name: 'Cont de plată Nr. ' + nr + ' (COD ' + cod + ')',
     client_name: (ME && ME.name) || '', phone})});
   toast(r.success ? '✅ Cererea a fost trimisă!' : (r.error || 'Eroare'), !r.success);
