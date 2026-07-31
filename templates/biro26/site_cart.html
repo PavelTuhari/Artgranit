@@ -109,7 +109,8 @@
                      ticked before payment. -->
                 <label id="agree-box" style="display:flex;gap:8px;align-items:flex-start;
                        margin:0 0 12px;font-size:12.5px;line-height:1.4;cursor:pointer">
-                  <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none">
+                  <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none"
+                         onchange="this.closest('#agree-box').style.outline='none'">
                   <span>Sunt de acord cu
                     <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>
                     · Согласен с
