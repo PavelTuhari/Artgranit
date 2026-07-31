@@ -183,6 +183,76 @@ class Biro26Notify:
             return {"success": False, "error": f"smtp: {e}"}
 
     @staticmethod
+    def _send_email_to(to_addr: str, subject: str, body: str) -> Dict[str, Any]:
+        """RO: email catre UN destinatar anume (clientul magazinului), nu catre
+        lista interna NOTIFY_EMAIL_TO. Foloseste acelasi SMTP.
+        EN: e-mail to a single explicit recipient (the shop customer), same SMTP."""
+        import smtplib
+        from email.mime.text import MIMEText
+        to_addr = (to_addr or "").strip()
+        if not Config.BIRO26_SMTP_HOST:
+            return {"success": False, "error": "SMTP is not configured"}
+        if "@" not in to_addr:
+            return {"success": False, "error": "invalid recipient"}
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = Config.BIRO26_SMTP_FROM or Config.BIRO26_SMTP_USER
+        msg["To"] = to_addr
+        try:
+            cls = smtplib.SMTP_SSL if Config.BIRO26_SMTP_SSL else smtplib.SMTP
+            with cls(Config.BIRO26_SMTP_HOST, Config.BIRO26_SMTP_PORT, timeout=20) as sm:
+                if not Config.BIRO26_SMTP_SSL:
+                    sm.starttls()
+                if Config.BIRO26_SMTP_USER:
+                    sm.login(Config.BIRO26_SMTP_USER, Config.BIRO26_SMTP_PASSWORD)
+                sm.sendmail(msg["From"], [to_addr], msg.as_string())
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": f"smtp: {e}"}
+
+    @staticmethod
+    def notify_client_order(email: str, client_name: str, cod: int, nrset,
+                            total: float, items: List[Dict[str, Any]]) -> None:
+        """RO: confirmarea comenzii catre CLIENT — cerinta maib pentru e-commerce
+        (numar comanda, data, suma, descrierea marfurilor). Fire-and-forget.
+        EN: order confirmation e-mail to the CUSTOMER — mandatory maib requirement
+        (order number, date, amount and item description)."""
+        from datetime import datetime
+
+        def _run():
+            try:
+                lines = []
+                for it in (items or [])[:60]:
+                    qty = float(it.get("qty") or 0)
+                    price = float(it.get("price") or 0)
+                    lines.append(f"  · {str(it.get('name') or '')[:70]} — "
+                                 f"{qty:g} × {price:.2f} = {qty * price:.2f} LEI")
+                body = (
+                    f"Bună ziua, {client_name}!\n"
+                    f"Vă mulțumim pentru comanda plasată pe officeplus.md.\n\n"
+                    f"Comanda nr.: {nrset}\n"
+                    f"Data: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
+                    f"Suma totală: {total:.2f} LEI\n\n"
+                    f"Produse:\n" + ("\n".join(lines) or "  —") + "\n\n"
+                    f"Vânzător: GRECU OFFICE GROUP SRL, IDNO 1026602001837\n"
+                    f"mun. Bălți, str. Libertății 96, of. 1\n"
+                    f"Tel.: +373 620 07 211 · officeplussrl@gmail.com\n\n"
+                    f"— — —\n"
+                    f"Здравствуйте, {client_name}!\n"
+                    f"Спасибо за заказ на officeplus.md.\n"
+                    f"Заказ № {nrset}, сумма {total:.2f} LEI.\n")
+                s = Biro26Notify.get_settings().get("data") or {}
+                link = Biro26Notify.pdf_link(s, "invoice", cod)
+                if link:
+                    body += f"\nCont de plată (PDF): {link}\n"
+                Biro26Notify._send_email_to(
+                    email, f"Comanda nr. {nrset} · officeplus.md", body)
+            except Exception:
+                pass  # niciodata nu deranjam fluxul comenzii
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    @staticmethod
     def _send_telegram(s: Dict[str, str], text: str) -> Dict[str, Any]:
         token = (s.get("notify_tg_token") or "").strip()
         chat = (s.get("notify_tg_chat") or "").strip()
