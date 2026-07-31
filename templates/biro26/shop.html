@@ -1336,12 +1336,13 @@ async function ecSubmit() {
 }
 
 function ecPoll(n) {
-  ecStop();
+  ecStop();                                          // opreste (si polling=false) orice poll anterior
   if (n > 24 || !ecCtx.reqId || !ecCtx.ref) {                       // 24 × 5 c = 2 минуты
     var el0 = document.getElementById('ec-st');
     if (el0) el0.textContent = 'Verificați statusul mai tîrziu — managerul vă va contacta.';
-    return;
+    return;                                          // polling ramine false (epuizat)
   }
+  ecCtx.polling = true;                              // opreste in mod real
   var myGen = ecCtx.gen;   // RO: fereastra de generatie — daca ecStop() a mai
                             // fost apelat intre timp, raspunsul intirziat e ignorat.
   ecCtx.poll = setTimeout(async function () {
@@ -1352,7 +1353,8 @@ function ecPoll(n) {
     var st = (r.data || {}).status || '';
     if (el) el.textContent = 'Status: ' + (st || '—');
     var done = /APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL/i.test(st);
-    if (!done) ecPoll(n + 1);
+    if (done) { ecCtx.polling = false; }             // status final — se poate reseta la urmatoarea selectie
+    else ecPoll(n + 1);
   }, 5000);
 }
 window.addEventListener('pagehide', ecStop);
