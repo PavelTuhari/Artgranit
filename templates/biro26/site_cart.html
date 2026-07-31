@@ -143,6 +143,7 @@ function setPm(m) {
   document.getElementById('pm-cr').classList.toggle('on', m === 'credit');
   document.getElementById('credit-box').style.display = m === 'credit' ? '' : 'none';
   renderTiles();
+  ecUI();
 }
 function crIs0(p) { return /0\s*%/.test(p.name || ''); }
 function crTiles(base) {
