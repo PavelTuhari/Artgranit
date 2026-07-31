@@ -155,7 +155,7 @@ class Biro26Credit:
         """RO: organizatiile active cu pachetele active + providerul API legat.
         EN: enabled orgs with enabled plans and the linked API provider."""
         try:
-            from models.credite_settings import biro26_settings
+            from models.credite_settings import PROVIDER_DEFS, biro26_settings
             orgs_res = _result(Biro26DB().execute_query(
                 "SELECT o.ID, o.NAME, o.ORG_MODE, o.LOGO_URL, o.INFO, "
                 "p.CODE PROVIDER_CODE, p.NAME PROVIDER_NAME, p.ICON PROVIDER_ICON "
