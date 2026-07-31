@@ -430,9 +430,40 @@ class Biro26Credit:
             base_url=(d.get("base_url") or ""),
             params=params)
 
+    # RO: providerul poate raspunde 200 cu un mesaj de autentificare esuata —
+    #     nu tratam un astfel de raspuns drept conexiune reusita.
+    _AUTH_FAIL_MARKERS = ("invalid user", "invalid password", "unauthor", "not authenticated",
+                          "authentication", "401", "403", "50000")
+
+    @staticmethod
+    def _is_auth_failure(res: Dict[str, Any]) -> bool:
+        """RO: cauta markerii de esec de autentificare DOAR in cimpurile
+        textuale de status/mesaj (status, state, message, error) din res
+        si din res["data"] — niciodata in cimpuri numerice (ex. max_amount),
+        ca sa nu declansam fals-pozitive pe sume care contin «50000»."""
+        data = res.get("data") if isinstance(res.get("data"), dict) else {}
+        parts = []
+        for holder in (res, data):
+            for k in ("status", "state", "message", "error"):
+                v = holder.get(k)
+                if isinstance(v, str) and v:
+                    parts.append(v.lower())
+        text = " ".join(parts)
+        return any(m in text for m in Biro26Credit._AUTH_FAIL_MARKERS)
+
+    @staticmethod
+    def _public_error(res: Dict[str, Any]) -> str:
+        """RO: mesaj neutru pentru client — detaliile ramin in jurnal."""
+        return ("Serviciul de creditare nu este disponibil momentan · "
+                "Сервис кредитования временно недоступен")
+
     @staticmethod
     def provider_test(code: str) -> Dict[str, Any]:
-        """RO: test de conexiune la provider (check_auth / preapproved de proba)."""
+        """RO: test de conexiune la provider (check_auth / preapproved de proba).
+        Succesul e valid DOAR daca raspunsul nu contine markeri de esec de
+        autentificare — unii provideri (ex. EasyCredit) raspund 200 cu
+        Status = «Invalid User Name / Password - 50000», ceea ce NU e o
+        conexiune reusita."""
         import time as _t
         prov = Biro26Credit._registry().get((code or "").strip().lower())
         if prov is None:
@@ -445,9 +476,22 @@ class Biro26Credit:
         else:
             res = prov.preapproved(uin=Biro26Credit._TEST_IDNP, amount=1000)
         ms = int((_t.time() - t0) * 1000)
-        Biro26Credit._log_event(None, code, "provider_test", res, ms, {})
-        return {"success": bool(res.get("success")),
-                "data": {"duration_ms": ms, "result": res.get("data") or {}},
+        auth_fail = Biro26Credit._is_auth_failure(res)
+        data = res.get("data") if isinstance(res.get("data"), dict) else {}
+        reply_text = (res.get("error") or data.get("message")
+                      or data.get("status") or data.get("state") or "")
+        ok = bool(res.get("success")) and not auth_fail
+        log_res = dict(res)
+        if auth_fail:
+            log_res["success"] = False
+            log_res.setdefault("error", reply_text)
+        Biro26Credit._log_event(None, code, "provider_test", log_res, ms, {})
+        if not ok:
+            return {"success": False,
+                    "error": reply_text or res.get("error") or "conexiune eșuată",
+                    "data": {"duration_ms": ms, "result": data}}
+        return {"success": True,
+                "data": {"duration_ms": ms, "result": data},
                 "error": res.get("error")}
 
     # ── jurnal apeluri API ──
