@@ -1208,6 +1208,7 @@ var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null
 
 function currentTile() {
   if ((document.getElementById('paym-sel') || {}).value !== 'credit') return null;
+  if (!cartHasItems()) return null;
   const amount = cartTotalForCredit();
   if (amount <= 0) return null;
   const tiles = crTiles(amount);
