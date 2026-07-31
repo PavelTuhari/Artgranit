@@ -1345,6 +1345,9 @@ async function ecSubmit() {
     amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
     qty: 1, client_name: fio, phone: phone, idnp: idnp,
     product_name: 'Coș OfficePlus'})});
+  if (r.auth_required) {
+    document.getElementById('m-cart').classList.remove('open'); ecStop(); openAuth(); return;
+  }
   if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c'); return; }
   ecCtx.reqId = r.data.req_id;
   ecCtx.ref = r.data.ext_ref || null;
