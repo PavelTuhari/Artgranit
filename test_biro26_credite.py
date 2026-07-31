@@ -663,27 +663,40 @@ def t_offers_carry_transport_markup() -> list[str]:
 
 
 def t_invoice_transport_rule() -> list[str]:
-    """Транспорт обязателен для обычного заказа и не требуется для кредитного.
+    """Транспорт обязателен для обычного заказа и пропускается для кредитного.
 
-    Заказ НЕ создаётся: без клиентской сессии роут отклоняет запрос раньше,
-    чем дойдёт до записи, поэтому проверяем правило на уровне контроллера —
-    что блок транспорта пропускается ровно при наличии credit_plan_id.
+    Проверка поведенческая, но заказ НЕ создаётся: оба запроса отклоняются
+    раньше записи — обычный на отсутствии км, кредитный на несуществующем
+    пакете. Именно РАЗНЫЕ тексты ошибок доказывают, что гейт транспорта
+    привязан к credit_plan_id, а не к чему-то другому.
     """
-    import inspect
-    from controllers.biro26_controller import Biro26Controller
-    src = inspect.getsource(Biro26Controller.shop_invoice)
-    fails = []
-    if "distance_km is required" not in src:
-        fails.append("проверка обязательного транспорта исчезла из shop_invoice")
-    if "credit_plan_id" not in src.split("distance_km is required")[0]:
-        fails.append("блок транспорта не знает про credit_plan_id — "
-                     "кредитный заказ по-прежнему потребует км")
-    # и роут действительно не создаёт заказ без входа клиента
     import app as _app
-    c = _app.app.test_client()
-    r = c.post('/api/biro26/shop/invoice', json={"items": [{"cod": 1, "qty": 1}]})
-    if r.status_code < 500 and (r.get_json() or {}).get("success"):
-        fails.append("заказ создан без входа клиента")
+    fails = []
+    with _app.app.test_client() as c:
+        with c.session_transaction() as s:
+            s["biro26_client"] = {"id": 1, "univers_cod": 1,
+                                  "email": "t@t", "name": "T"}
+        base = {"items": [{"cod": 1, "qty": 1}], "tva_mode": "inclus"}
+
+        r1 = (c.post('/api/biro26/shop/invoice', json=base).get_json() or {})
+        if r1.get("success"):
+            fails.append("обычный заказ создан без distance_km")
+        elif "distance_km" not in str(r1.get("error") or ""):
+            fails.append(f"ожидалась ошибка про distance_km, получено: "
+                         f"{r1.get('error')!r}")
+
+        r2 = (c.post('/api/biro26/shop/invoice',
+                     json={**base, "credit_plan_id": 99999999}).get_json() or {})
+        if r2.get("success"):
+            fails.append("кредитный заказ с несуществующим пакетом создан")
+        elif "distance_km" in str(r2.get("error") or ""):
+            fails.append("кредитный заказ всё ещё требует distance_km — "
+                         "гейт транспорта не пропускается при credit_plan_id")
+
+        r3 = (c.post('/api/biro26/shop/invoice',
+                     json={**base, "credit_plan_id": "abc"}).get_json() or {})
+        if r3.get("success"):
+            fails.append("заказ с нечисловым credit_plan_id создан")
     return fails
 
 
