@@ -715,6 +715,7 @@ class Biro26Controller:
 
     @staticmethod
     def credit_api_status() -> Dict[str, Any]:
+        """Public: витрина проверяет статус только своей заявки (по ext_ref)."""
         from models.biro26_credit import Biro26Credit
         try:
             req_id = int(request.args.get('req_id') or 0)
@@ -722,6 +723,15 @@ class Biro26Controller:
             return {"success": False, "error": "req_id invalid"}
         if not req_id:
             return {"success": False, "error": "req_id lipsește"}
+        ref = (request.args.get('ref') or "").strip()
+        if not ref:
+            return {"success": False, "error": "ref lipsește"}
+        return Biro26Credit.api_status(req_id, ref)
+
+    @staticmethod
+    def credit_request_refresh(req_id: int) -> Dict[str, Any]:
+        """RO: reinterogare status din back-office (fara verificarea referintei)."""
+        from models.biro26_credit import Biro26Credit
         return Biro26Credit.api_status(req_id)
 
     # ── translations management (catalog grouping RU/EN dictionary) ──
