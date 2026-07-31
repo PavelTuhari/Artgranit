@@ -335,6 +335,9 @@ class Biro26Controller:
             #     selectorul dispare din front-office
             "fmt_html": Biro26Store.get_setting("SHOP_FMT_HTML", "1"),
             "fmt_xlsx": Biro26Store.get_setting("SHOP_FMT_XLSX", "1"),
+            # RO: coloana de pret per tip de client (retail1/ionline/angro)
+            "price_fiz": Biro26Store.get_setting("SHOP_PRICE_FIZ", "retail1"),
+            "price_jur": Biro26Store.get_setting("SHOP_PRICE_JUR", "ionline"),
             # RO/EN: counter = next NRMANUAL to issue (not max+1 floor)
             "invoice_nr_start": Biro26Store.get_setting("INVOICE_NR_START", "1"),
             "invoice_nr_max": max_nr,
@@ -355,6 +358,17 @@ class Biro26Controller:
             r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
             if not r.get("success"):
                 return r
+        # RO: coloana de pret pentru fizice / juridice
+        for key, skey in (("price_fiz", "SHOP_PRICE_FIZ"),
+                          ("price_jur", "SHOP_PRICE_JUR")):
+            if key in d:
+                v = str(d.get(key))
+                if v not in ("retail1", "ionline", "angro"):
+                    return {"success": False,
+                            "error": f"{key}: retail1 | ionline | angro"}
+                r = Biro26Store.set_setting(skey, v)
+                if not r.get("success"):
+                    return r
         # RO: formatele HTML/XLSX disponibile clientilor (PDF mereu activ)
         for key, skey in (("fmt_html", "SHOP_FMT_HTML"),
                           ("fmt_xlsx", "SHOP_FMT_XLSX")):
@@ -1174,12 +1188,14 @@ class Biro26Controller:
             return {"success": True, "data": None}
         # RO: telefonul e necesar cererii de credit din cos
         # EN: the phone feeds the cart's credit-request button
-        phone, inv_fmt = "", ""
+        phone, inv_fmt, is_company, idno = "", "", False, ""
         try:
             r = Biro26Store.shop_client_by_email(c["email"])
             row = r.get("data") or {}
             phone = row.get("phone") or ""
             inv_fmt = row.get("invoice_fmt") or ""
+            is_company = str(row.get("is_company")) in ("1", "Y", "True")
+            idno = row.get("idno") or ""
         except Exception:
             pass
         return {"success": True,
@@ -1187,7 +1203,35 @@ class Biro26Controller:
                          "phone": phone,
                          # RO: constanta personala — formatele contului
                          #     (implicit 'pdf' la toti)
-                         "invoice_fmt": inv_fmt or "pdf"}}
+                         "invoice_fmt": inv_fmt or "pdf",
+                         # RO: tipul clientului decide COLOANA de pret
+                         "is_company": is_company, "idno": idno,
+                         "price_field": Biro26Store.client_price_field(
+                             c["univers_cod"])}}
+
+    @staticmethod
+    def shop_set_client_type() -> Dict[str, Any]:
+        """RO: setarea din cabinet: pers. FIZICA / JURIDICA — schimba
+        automat preturile afisate si cele din conturile viitoare.
+        Juridica cere IDNO (13 cifre)."""
+        import re
+        from flask import session
+        cl = session.get("biro26_client")
+        if not cl:
+            return {"success": False, "error": "login required"}
+        d = request.get_json(silent=True) or {}
+        is_company = str(d.get("is_company")) in ("1", "true", "True")
+        idno = (d.get("idno") or "").strip()
+        if is_company and not re.match(r"^\d{13}$", idno):
+            return {"success": False,
+                    "error": "IDNO (13 cifre) este obligatoriu pentru "
+                             "persoane juridice"}
+        r = Biro26Store.set_client_type(cl["univers_cod"], is_company, idno)
+        if not r.get("success"):
+            return r
+        return {"success": True, "data": {
+            "is_company": is_company,
+            "price_field": Biro26Store.client_price_field(cl["univers_cod"])}}
 
     @staticmethod
     def shop_set_invoice_fmt() -> Dict[str, Any]:
@@ -1302,7 +1346,11 @@ class Biro26Controller:
         need = [it["cod"] for it in clean] if c else \
                [it["cod"] for it in clean if it["price"] <= 0]
         if need:
-            pr = Biro26Store.shop_prices_for(need)
+            # RO: coloana de pret dupa TIPUL clientului din cabinet
+            #     (pers. fizica -> SHOP_PRICE_FIZ, juridica -> SHOP_PRICE_JUR)
+            pf = (Biro26Store.client_price_field(c["univers_cod"])
+                  if c else "retail1")
+            pr = Biro26Store.shop_prices_for(need, pf)
             if not pr.get("success"):
                 return pr
             for it in clean:
@@ -1326,20 +1374,20 @@ class Biro26Controller:
             # EN: public input — a non-numeric plan id must not raise a 500.
             try:
                 credit_plan_id = int(credit_plan_id)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 return {"success": False, "error": "pachet de credit invalid"}
             plan = Biro26Credit.plan_get(credit_plan_id)
             if not plan:
                 return {"success": False, "error": "pachet de credit invalid"}
             try:
                 credit_months = int(d.get("credit_months") or plan["months_max"])
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 credit_months = int(plan["months_max"])
             credit_months = max(int(plan["months_min"]),
                                 min(credit_months, int(plan["months_max"])))
             try:
                 credit_avans = max(0.0, float(d.get("credit_avans") or 0))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 credit_avans = 0.0
             mk = 1 + (float(plan["markup_pct"] or 0)
                       + float(plan.get("transport_markup_pct") or 0)) / 100
@@ -1369,10 +1417,19 @@ class Biro26Controller:
             Biro26Store.set_doc_tva_mode(res["data"]["cod"], tva_mode)
             # RO/EN: notificari email/Telegram/WhatsApp — fire-and-forget
             from models.biro26_notify import Biro26Notify
+            nr = res["data"].get("nrmanual") or res["data"].get("nrset")
+            total = sum(it["qty"] * it["price"] for it in clean)
             Biro26Notify.notify_new_doc(
-                res["data"]["cod"],
-                res["data"].get("nrmanual") or res["data"].get("nrset"),
+                res["data"]["cod"], nr,
                 (c or {}).get("name") or f"COD {client_cod}",
-                sum(it["qty"] * it["price"] for it in clean),
-                source="magazin" if c else "backoffice")
+                total, source="magazin" if c else "backoffice")
+            # RO: confirmarea comenzii catre CLIENT (numar, data, suma, marfuri)
+            #     — cerinta maib pentru e-commerce. Doar pentru comenzile din
+            #     magazin, unde stim adresa clientului din cabinetul lui.
+            # EN: order confirmation to the CUSTOMER — mandatory maib requirement;
+            #     only for shop orders, where the client's e-mail is known.
+            if c and c.get("email"):
+                Biro26Notify.notify_client_order(
+                    c["email"], c.get("name") or "", res["data"]["cod"], nr,
+                    total, clean)
         return res
