@@ -176,6 +176,43 @@ def t_safe_result_drops_pii() -> list[str]:
     return fails
 
 
+def t_status_requires_ref() -> list[str]:
+    """Публичный статус не отдаётся без совпадающей ссылки, ответ неразличим от «нет такой»."""
+    import app as _app
+    c = _app.app.test_client()
+    fails = []
+    r1 = c.get('/api/biro26/shop/credit/api/status?req_id=1')
+    d1 = r1.get_json() or {}
+    if d1.get("success"):
+        fails.append("статус отдан без параметра ref")
+    r2 = c.get('/api/biro26/shop/credit/api/status?req_id=1&ref=NOPE-000')
+    d2 = r2.get_json() or {}
+    if d2.get("success"):
+        fails.append("статус отдан по неверной ссылке")
+    r3 = c.get('/api/biro26/shop/credit/api/status?req_id=99999999&ref=NOPE-000')
+    d3 = r3.get_json() or {}
+    if (d3.get("error") or "") != (d2.get("error") or ""):
+        fails.append(f"ответы различимы: несуществующая={d3.get('error')!r}, "
+                     f"чужая={d2.get('error')!r}")
+    return fails
+
+
+def t_calc_bad_input_no_500() -> list[str]:
+    """Публичный calc не отдаёт 500 на пустом или мусорном теле."""
+    import app as _app
+    c = _app.app.test_client()
+    fails = []
+    for body in (None, {}, {"amount": "abc"}, {"plan_id": "x", "amount": 1000}):
+        r = c.post('/api/biro26/shop/credit/calc', json=body)
+        if r.status_code == 429:
+            continue  # rate-limited, not a 500 — acceptable under repeated runs
+        if r.status_code >= 500:
+            fails.append(f"body={body!r} -> HTTP {r.status_code}")
+        elif (r.get_json() or {}).get("success"):
+            fails.append(f"body={body!r} принято как валидное")
+    return fails
+
+
 TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
@@ -187,6 +224,8 @@ TESTS = [
     ("методы чтения не прячут ошибки SQL", t_reads_surface_sql_errors),
     ("_mask_idnp безопасен", t_mask_idnp),
     ("_safe_result вырезает PII", t_safe_result_drops_pii),
+    ("публичный статус требует ref", t_status_requires_ref),
+    ("публичный calc не падает с 500 на мусоре", t_calc_bad_input_no_500),
 ]
 
 
