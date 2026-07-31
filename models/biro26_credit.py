@@ -209,7 +209,8 @@ class Biro26Credit:
     @staticmethod
     def plan_get(plan_id: int) -> Optional[Dict[str, Any]]:
         rows = _rows(Biro26DB().execute_query(
-            "SELECT p.*, o.NAME ORG_NAME FROM TMS_CREDITE_PLAN p "
+            "SELECT p.*, o.NAME ORG_NAME, o.TRANSPORT_MARKUP_PCT "
+            "FROM TMS_CREDITE_PLAN p "
             "JOIN TMS_CREDITE_ORG o ON o.ID = p.ORG_ID "
             "WHERE p.ID = :i AND p.ENABLED = '1' AND o.ENABLED = '1'",
             {"i": int(plan_id)}))
