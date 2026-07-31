@@ -1141,11 +1141,21 @@ function cartTotalForCredit() {
    termen, cu beja «0% dobanda»; placa aleasa alimenteaza calculul live.
    EN: bomba.md-style tile table in the cart. */
 let cartCR = {tile: 0};
+/* RO: cosul e "gol" pentru credit daca nu are nicio pozitie cu qty > 0 —
+   NU dupa cartTotalForCredit(), care dupa saveCart([]) (post-comanda) mai
+   include transportul/serviciile bifate ramase in formular si ar calcula
+   credit pentru o suma fantoma.
+   EN: "empty" for credit purposes means no cart line with qty > 0 — NOT
+   cartTotalForCredit(), which still counts leftover transport/services
+   after saveCart([]) (post-checkout) and would price a phantom amount. */
+function cartHasItems() { return cart().some(i => i.qty > 0); }
 async function creditUI() {
   const on = (document.getElementById('paym-sel') || {}).value === 'credit';
-  document.getElementById('credit-box').style.display = on ? '' : 'none';
+  const box = document.getElementById('credit-box');
+  const applicable = on && cartHasItems();
+  box.style.display = applicable ? '' : 'none';
   try {
-    if (!on) return;
+    if (!applicable) return;
     const amount = cartTotalForCredit();
     const simEl = document.getElementById('credit-sim');
     if (amount <= 0) {
