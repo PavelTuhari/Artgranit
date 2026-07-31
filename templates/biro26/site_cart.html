@@ -450,41 +450,25 @@ async function makeInvoice() {
   ok.scrollIntoView({behavior: 'smooth'});
 }
 
-/* RO: formate documente — IMPLICIT PDF; alegerea se salveaza ca CONSTANTA
-   (cabinetul clientului + localStorage) si se refoloseste data viitoare. */
-function fmtList() {
-  const l = [...document.querySelectorAll('.fmt:checked')].map(c => c.value);
-  return l.length ? l : ['pdf'];
+/* RO: IMPLICIT totul in PDF. Formatele alternative (HTML/XLS) se activeaza
+   DOAR in cabinetul clientului (/cont, constanta invoice_fmt); daca-s
+   activate, dupa crearea contului apar butonase MICI de descarcare. */
+const ALLOW_HTML = {{ 'true' if fmt_html == '1' else 'false' }};
+const ALLOW_XLSX = {{ 'true' if fmt_xlsx == '1' else 'false' }};
+function fmtExtras() {
+  const pref = String((ME && ME.invoice_fmt) ||
+    localStorage.getItem('biro26_fmt') || 'pdf');
+  return pref.split(',').map(s => s.trim())
+    .filter(f => (f === 'html' && ALLOW_HTML) || (f === 'xlsx' && ALLOW_XLSX));
 }
-function fmtSum() {
-  const el = document.getElementById('fmt-sum');
-  if (el) el.textContent = fmtList().join(' + ').toUpperCase() + ' ▾';
-}
-function fmtApplyPref(pref) {
-  const list = String(pref || localStorage.getItem('biro26_fmt') || 'pdf')
-    .split(',').map(s => s.trim()).filter(Boolean);
-  const boxes = [...document.querySelectorAll('.fmt')];
-  if (!boxes.length) return;
-  let any = false;
-  boxes.forEach(b => { b.checked = list.includes(b.value); any = any || b.checked; });
-  if (!any) boxes.find(b => b.value === 'pdf').checked = true;
-  fmtSum();
-}
-async function fmtChanged() {
-  fmtSum();
-  const v = fmtList().join(',');
-  localStorage.setItem('biro26_fmt', v);
-  if (ME) await j(API + '/me/fmt', {method: 'PUT',
-    body: JSON.stringify({invoice_fmt: v})});
-}
-function genDocSet(cod) {
+function fmtExtraBtns(cod) {
   const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
-                pdf: '/api/biro26/shop/report/invoice/' + cod,
                 xlsx: '/api/biro26/shop/report-xlsx/invoice/' + cod};
-  fmtList().forEach((f, i) => setTimeout(() => {
-    if (f === 'xlsx') location.href = urls.xlsx;      // descarcare
-    else window.open(urls[f], '_blank');              // vizualizare
-  }, i * 500));
+  const lbl = {html: '🌐 HTML', xlsx: '📊 XLS'};
+  return fmtExtras().map(f =>
+    '<a target="_blank" href="' + urls[f] + '" style="font-size:11.5px;' +
+    'padding:5px 10px;background:#eef4fb;color:#1a5fb4;border:1px solid #bfd6f2">' +
+    lbl[f] + '</a>').join('');
 }
 
 async function sendCartCreditReq(cod, nr) {
