@@ -68,6 +68,19 @@
     *   **Первичные документы (печать):** Bon de Comandă, Comandă (заказ), Jurnal Registru (журнал регистраций) — генерация HTML по шаблонам из данных заказа.
 
 4.  **Кредиты:** админка программ/банков/матрицы, оператор оформления заявок, интеграции EasyCredit и Iute, портфель «Бомба», настраиваемые отчёты.
+    *   **Кредитование (`TMS_CREDITE_*`):** нормализованное Oracle-хранилище настроек кредитных
+        провайдеров (EasyCredit, Iute) и заявок — общий DDL для двух независимых контуров:
+        Oracle ADB основного проекта и Oracle 11g OfficePlus (Biro26). Таблицы:
+        `TMS_CREDITE_PROVIDER` (реестр провайдеров: enabled/env/base_url),
+        `TMS_CREDITE_PROVIDER_PARAM` (креды и параметры, секреты маскируются в API),
+        `TMS_CREDITE_ORG` (организации кредитования, привязка к провайдеру),
+        `TMS_CREDITE_PLAN` (пакеты рассрочки), `TMS_CREDITE_REQ` (заявки, включая API-статус),
+        `TMS_CREDITE_REQ_EVENT` (append-only лог вызовов API, без PII).
+        `data/*_settings.json` — только seed при первом деплое, не рантайм-хранилище.
+        Документация: `/UNA.md/orasldev/docs/easycredit` (архитектура, схема, API, деплой) и
+        `/UNA.md/orasldev/docs/iute`. Бэк-офис Biro26: `/UNA.md/orasldev/biro26-credit-admin`
+        (вкладка «Provideri API»). Деплой схемы:
+        `./venv/bin/python deploy_credite_oracle.py --target both`.
 
 5.  **DECOR:** оператор, админка, расчёт заказов, печатные документы, нормализованное хранение материалов, настроек, заказов и раздвижных систем в Oracle.
 
