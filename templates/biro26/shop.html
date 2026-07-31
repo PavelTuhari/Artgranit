@@ -865,41 +865,25 @@ async function refreshMe() {
 }
 
 /* ── invoice ("cont de plata") ───────────────────────────── */
-/* RO: formate documente — IMPLICIT PDF la toti; alegerea = CONSTANTA
-   personala (cabinetul clientului + localStorage), refolosita ulterior. */
-function fmtList() {
-  const l = [...document.querySelectorAll('.fmt:checked')].map(c => c.value);
-  return l.length ? l : ['pdf'];
+/* RO: IMPLICIT totul in PDF; formatele alternative (HTML/XLS) se activeaza
+   DOAR in cabinetul clientului (constanta invoice_fmt) — aici doar apar
+   butonase mici de descarcare pentru cele activate. */
+const ALLOW_HTML = {{ 'true' if fmt_html == '1' else 'false' }};
+const ALLOW_XLSX = {{ 'true' if fmt_xlsx == '1' else 'false' }};
+function fmtExtras() {
+  const pref = String((me && me.invoice_fmt) ||
+    localStorage.getItem('biro26_fmt') || 'pdf');
+  return pref.split(',').map(s => s.trim())
+    .filter(f => (f === 'html' && ALLOW_HTML) || (f === 'xlsx' && ALLOW_XLSX));
 }
-function fmtSum() {
-  const el = document.getElementById('fmt-sum');
-  if (el) el.textContent = fmtList().join('+').toUpperCase() + ' ▾';
-}
-function fmtApplyPref(pref) {
-  const list = String(pref || localStorage.getItem('biro26_fmt') || 'pdf')
-    .split(',').map(s => s.trim()).filter(Boolean);
-  const boxes = [...document.querySelectorAll('.fmt')];
-  if (!boxes.length) return;
-  let any = false;
-  boxes.forEach(b => { b.checked = list.includes(b.value); any = any || b.checked; });
-  if (!any) (boxes.find(b => b.value === 'pdf') || boxes[0]).checked = true;
-  fmtSum();
-}
-async function fmtChanged() {
-  fmtSum();
-  const v = fmtList().join(',');
-  localStorage.setItem('biro26_fmt', v);
-  if (me) await j(API + '/me/fmt', {method: 'PUT',
-    body: JSON.stringify({invoice_fmt: v})});
-}
-function genDocSet(cod) {
+function fmtExtraBtns(cod) {
   const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
-                pdf: '/api/biro26/shop/report/invoice/' + cod,
                 xlsx: '/api/biro26/shop/report-xlsx/invoice/' + cod};
-  fmtList().forEach((f, i) => setTimeout(() => {
-    if (f === 'xlsx') location.href = urls.xlsx;
-    else window.open(urls[f], '_blank');
-  }, i * 500));
+  const lbl = {html: '🌐 HTML', xlsx: '📊 XLS'};
+  return fmtExtras().map(f =>
+    '<a target="_blank" href="' + urls[f] + '" style="font-size:11px;' +
+    'padding:4px 8px;border-radius:6px;background:#eef4fb;color:#1a5fb4;' +
+    'border:1px solid #bfd6f2;text-decoration:none">' + lbl[f] + '</a>').join('');
 }
 
 async function makeInvoice() {
