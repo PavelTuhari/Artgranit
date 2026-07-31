@@ -259,6 +259,7 @@ TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
     ("offers содержат provider", t_offers_carry_provider),
+    ("offers несут capabilities провайдера", t_offers_carry_capabilities),
     ("providers_list маскирует секреты", t_providers_list),
     ("calc() не изменился", t_calc_unchanged),
     ("api без провайдера деградирует", t_api_without_provider_degrades),
