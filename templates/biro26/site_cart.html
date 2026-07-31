@@ -428,8 +428,15 @@ async function makeInvoice() {
   const cod = r.data.cod, nr = r.data.nrset || r.data.nr || cod;
   // RO: calculam ecOrg INAINTE de a goli cosul — saveCartLS([]) declanseaza
   // onCartChange->renderCart->renderTiles, care reseteaza TILES si ar face
-  // currentTile() sa returneze null mai jos.
+  // currentTile() sa returneze null mai jos. Modul ales (online/manual) e
+  // o variabila globala independenta de TILES, dar il capturam aici, la
+  // fel ca ecOrg, ca sa nu depinda de ordinea codului de mai jos.
+  // EN: compute ecOrg BEFORE clearing the cart — saveCartLS([]) triggers
+  // onCartChange->renderCart->renderTiles, which resets TILES and would
+  // make currentTile() return null below. ecMode is a plain global unaf-
+  // fected by TILES, but we snapshot it here too, for the same reason.
   const ecOrg = ecOrgOf(currentTile());
+  const modeAtSubmit = ecMode;
   saveCartLS([]);
   const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
   let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
