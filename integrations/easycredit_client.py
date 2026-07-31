@@ -16,7 +16,17 @@ NS_DATA = "http://schemas.datacontract.org/2004/07/"
 TIMEOUT = 30
 
 
-def _soap_post(url: str, action: str, body_el: str, verify_ssl: bool = True) -> requests.Response:
+def _soap_post(url: str, action: str, body_el: str, verify_ssl: bool = True,
+               basic_auth: tuple[str, str] | None = None) -> requests.Response:
+    """POST SOAP.
+
+    RO: gateway-ul EasyCredit (api.ecredit.md) cere DOUA nivele de autentificare:
+        HTTP Basic pe cerere (`basic_auth`) SI perechea Login/Password din corpul
+        SOAP. Basic e optional — endpoint-urile vechi merg fara el.
+    EN: the EasyCredit gateway needs BOTH HTTP Basic on the request and the
+        Login/Password pair inside the SOAP body; Basic is optional for the
+        older endpoints.
+    """
     envelope = (
         '<?xml version="1.0" encoding="utf-8"?>'
         '<s:Envelope xmlns:s="' + NS_SOAP + '">'
@@ -27,7 +37,9 @@ def _soap_post(url: str, action: str, body_el: str, verify_ssl: bool = True) -> 
         "Content-Type": "text/xml; charset=utf-8",
         "SOAPAction": '"' + action + '"',
     }
-    return requests.post(url, data=envelope.encode("utf-8"), headers=headers, timeout=TIMEOUT, verify=verify_ssl)
+    return requests.post(url, data=envelope.encode("utf-8"), headers=headers,
+                         timeout=TIMEOUT, verify=verify_ssl,
+                         auth=basic_auth or None)
 
 
 def _el(tag: str, text: str | None = None) -> str:
