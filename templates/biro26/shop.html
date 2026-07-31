@@ -1162,6 +1162,12 @@ async function creditUI() {
   const box = document.getElementById('credit-box');
   const applicable = on && cartHasItems();
   box.style.display = applicable ? '' : 'none';
+  // RO: la credit transportul nu se presteaza — blocul devine ascuns si
+  //     neobligatoriu (vezi makeInvoice()); la standard revine obligatoriu.
+  // EN: on credit, transport isn't delivered — the block is hidden and no
+  //     longer required (see makeInvoice()); back on standard it's required.
+  const trBox = document.getElementById('cart-transport');
+  if (trBox) trBox.style.display = on ? 'none' : '';
   try {
     if (!applicable) return;
     const amount = cartTotalForCredit();
