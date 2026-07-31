@@ -210,6 +210,13 @@ function orgRow(o, i) {
       '<option value="0"' + (o.enabled !== '1' ? ' selected' : '') + '>Oprit</option></select></td>' +
     '<td><select data-f="org_mode"><option value="manual"' + (o.org_mode !== 'api' ? ' selected' : '') + '>manual</option>' +
       '<option value="api"' + (o.org_mode === 'api' ? ' selected' : '') + '>API</option></select></td>' +
+    '<td><select data-org="' + i + '" data-f="provider_id" style="padding:4px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px">' +
+    '<option value="">— manual —</option>' +
+    PROVIDERS.filter(function (p) { return p.enabled; }).map(function (p) {
+      return '<option value="' + esc(p.id || '') + '"' +
+        (String(o.provider_id || '') === String(p.id) ? ' selected' : '') + '>' +
+        esc(p.icon) + ' ' + esc(p.name) + '</option>';
+    }).join('') + '</select></td>' +
     '<td><input value="' + esc(o.api_url || '') + '" data-f="api_url" placeholder="https://…"></td>' +
     '<td><input value="' + esc(o.info || '') + '" data-f="info"></td>' +
     '<td><input class="num" value="' + (o.ord || 0) + '" data-f="ord"></td>' +
