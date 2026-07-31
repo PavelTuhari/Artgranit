@@ -188,7 +188,7 @@ function renderTiles() {
 /* RO: fluxul API al organizatiei de creditare (preapproved -> submit -> status).
    Se afiseaza doar daca organizatia are provider API configurat in back-office.
    EN: credit-provider API flow, shown only when the org has a configured provider. */
-var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null};
+var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null, polling: false};
 
 function currentTile() { return TILES[tileSel] || null; }
 
@@ -200,6 +200,7 @@ function ecOrgOf(tile) {
 
 function ecStop() {
   ecCtx.gen++;
+  ecCtx.polling = false;
   if (ecCtx.poll) { clearTimeout(ecCtx.poll); ecCtx.poll = null; }
 }
 
@@ -209,17 +210,25 @@ function ecUI() {
   var t = (payMethod === 'credit') ? currentTile() : null;
   var org = ecOrgOf(t);
   if (!org) ecStop();
-  // RO: la schimbarea placii/organizatiei, rezultatul de preaprobare vechi
-  // devine invalid — il stergem, DAR nu si atunci cind o cerere e deja
-  // trimisa (ecCtx.reqId), ca sa nu se piarda referinta ext_ref din vedere.
-  // EN: reset the stale preapproval result on selection change, but not
-  // once a request has been submitted (keep the ext_ref reference visible).
-  var selKey = org ? (org.id + ':' + t.plan.id + ':' + t.m) : null;
-  if (selKey !== ecCtx.selKey && !ecCtx.reqId) {
+  // RO: la schimbarea placii/organizatiei SAU a sumei (credit_price), rezultatul
+  // de preaprobare vechi devine invalid — il stergem, DAR nu si cit timp opro-
+  // sul de status e activ (ecCtx.polling), ca sa nu se piarda referinta ext_ref
+  // din vedere in timp ce raspunsul e asteptat.
+  // EN: reset the stale preapproval result on selection/amount change, but not
+  // while a status poll is actively in flight (keep the ext_ref reference
+  // visible until it finishes).
+  var selKey = org ? (org.id + ':' + t.plan.id + ':' + t.m + ':' + Math.round(t.credit_price)) : null;
+  if (selKey !== ecCtx.selKey && !ecCtx.polling) {
     var out = document.getElementById('ec-out');
     if (out) out.innerHTML = '';
     var btn = document.getElementById('ec-sub');
     if (btn) { btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed'; }
+    // RO: cererea veche nu mai e relevanta pentru noua selectie/suma — o uitam,
+    // ca sa nu se amestece intr-un poll viitor pornit pentru alta cerere.
+    // EN: the old request no longer matches the new selection/amount — forget
+    // it so it can't bleed into a future poll for a different request.
+    ecCtx.reqId = null;
+    ecCtx.ref = null;
   }
   ecCtx.selKey = selKey;
   ecCtx.org = org;
