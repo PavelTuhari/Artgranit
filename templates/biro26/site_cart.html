@@ -51,6 +51,14 @@
                   <div id="cr-sim" style="font-size:13.5px;margin-top:8px"></div>
                   <label data-t="avans">Avans, lei</label>
                   <input id="credit-avans" type="number" min="0" value="0">
+                  <div id="ec-mode-box" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
+                    <label style="margin-top:0" data-t="ecModeLabel">Modul de solicitare · Способ оформления</label>
+                    <div class="paym">
+                      <button id="ec-mode-online" class="on" onclick="ecSetMode('online')">Cerere online · Онлайн-заявка</button>
+                      <button id="ec-mode-manual" onclick="ecSetMode('manual')">Vă sunăm noi · Перезвонит manager</button>
+                    </div>
+                    <div id="ec-mode-hint" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
+                  </div>
                   <div id="ec-flow" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
                     <div style="font-weight:700;font-size:13px;margin-bottom:6px">
                       <span id="ec-org-label"></span>
