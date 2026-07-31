@@ -329,6 +329,10 @@ class Biro26Credit:
              avans: float = 0) -> Dict[str, Any]:
         """RO: simulare ESTIMATIVA (vezi formula in docstring-ul modulului).
         EN: estimative credit simulation for one plan."""
+        try:
+            plan_id = int(plan_id)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "pachet de credit inexistent"}
         p = Biro26Credit.plan_get(plan_id)
         if not p:
             return {"success": False, "error": "pachet de credit inexistent"}
