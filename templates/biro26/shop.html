@@ -367,6 +367,19 @@ td.num,th.num{text-align:right}
            mici apar in caseta de succes doar pentru formatele activate. -->
     </div>
     <div id="inv-result"></div>
+    <!-- RO: cerinta obligatorie maib — bifa cu link ACTIV la Termeni si conditii,
+         marcata INAINTE de plata (docs.maibmerchants.md/main/ro/integration/requirements).
+         EN: mandatory maib requirement — terms checkbox with an active link. -->
+    <label id="agree-box" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0;
+           font-size:12.5px;line-height:1.4;cursor:pointer">
+      <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none"
+             onchange="this.closest('#agree-box').style.outline='none'">
+      <span>Sunt de acord cu
+        <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>
+        · Согласен с
+        <a href="/termeni-si-conditii" target="_blank" rel="noopener">Условиями и положениями</a>
+      </span>
+    </label>
     <div class="acts">
       <button class="btn gray" onclick="clearCart()">Golește · Очистить</button>
       <button class="btn green" onclick="makeInvoice()">Creează cont de plată · Создать счёт на оплату</button>
@@ -377,6 +390,13 @@ td.num,th.num{text-align:right}
 <script>
 const API = '/api/biro26/shop';
 const CART_KEY = 'biro26_shop_cart';
+/* RO: coloana de pret dupa tipul clientului (setarea din cabinet) */
+window.PRICE_FIELD = '{{ price_field|default("retail1") }}';
+function priceOf(p) {
+  const f = window.PRICE_FIELD || 'retail1';
+  const v = parseFloat(String(p[f] != null ? p[f] : '').replace(',', '.'));
+  return (v > 0 ? v : parseFloat(String(p.retail1 || '').replace(',', '.'))) || 0;
+}
 /* RO: marimea paginii vine din setarea SHOP_PAGE_SIZE (admin — Setări)
    EN: page size comes from the SHOP_PAGE_SIZE setting (admin page) */
 let limit = {{ page_size|default(24) }}, curPage = 1, total = null, needCount = true;
@@ -558,7 +578,7 @@ async function load(reset) {
   renderPager();
   rows.forEach(p => { prodCache[p.cod] = p; });
   document.getElementById('grid').insertAdjacentHTML('beforeend', rows.map(p => {
-    const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+    const price = priceOf(p);
     // RO/EN: familii de variante — selector de caracteristică (culoare/material)
     const varSel = (p.var_cnt || 1) > 1
       ? '<select class="varsel" id="v-' + p.cod + '" onfocus="loadVariants(' + p.cod + ')">' +
@@ -618,7 +638,7 @@ let prodOpen = null;
 async function openProd(cod) {
   prodOpen = cod;
   const p = prodCache[cod] || {};
-  const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const price = priceOf(p);
   const body = document.getElementById('prod-body');
   document.getElementById('m-prod').classList.add('open');
   body.innerHTML =
@@ -691,7 +711,7 @@ async function sendComment(cod) {
 }
 function addCartModal(cod) {
   const p = prodCache[cod] || {};
-  const price = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const price = priceOf(p);
   const q = parseFloat((document.getElementById('mq-' + cod) || {}).value) || 1;
   const sel = document.getElementById('mv-' + cod);
   let realCod = cod, realName = p.denumirea || '';
@@ -1061,7 +1081,7 @@ function openCreditModal(cod) {
 }
 function renderCreditModal() {
   const p = prodCache[CR.cod] || {};
-  const base = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const base = priceOf(p);
   const price = Math.round(base * CR.qty * 100) / 100;
   const tiles = crTiles(price);
   if (CR.tile >= tiles.length) CR.tile = 0;
@@ -1119,7 +1139,7 @@ async function crSubmit() {
   if (!document.getElementById('cr-ck1').checked || !document.getElementById('cr-ck2').checked) {
     toast('Bifați acordurile · Отметьте согласия', true); return; }
   const p = prodCache[CR.cod] || {};
-  const base = parseFloat(String(p.retail1 || '').replace(',', '.')) || 0;
+  const base = priceOf(p);
   const t = crTiles(Math.round(base * CR.qty * 100) / 100)[CR.tile];
   const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
     plan_id: t.plan.id, months: t.m, qty: CR.qty,
