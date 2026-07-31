@@ -453,7 +453,7 @@ async function makeInvoice() {
       h += '<button class="pay" onclick="payP2P()">📲 MIA P2P</button>';
   }
   if (payMethod === 'credit') {
-    if (!ecOrg) {
+    if (!ecOrg || modeAtSubmit === 'manual') {
       h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
         '\')">📝 Cerere de credit EasyCredit</button>';
     }
