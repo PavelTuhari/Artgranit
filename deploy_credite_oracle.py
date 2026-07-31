@@ -129,24 +129,30 @@ def rename_legacy(be: CrediteBackend) -> None:
 
 
 def seed_providers(be: CrediteBackend) -> None:
-    """Seed TMS_CREDITE_PROVIDER from data/*.json + .env — once."""
+    """Seed TMS_CREDITE_PROVIDER from data/*.json (приоритет) с фолбэком на
+    .env (Config.*) — once."""
     from config import Config, _load_easycredit_overrides, _load_iute_overrides
 
+    ec_over = _load_easycredit_overrides()
+    iute_over = _load_iute_overrides()
     src = {
         "easycredit": {
-            "over": _load_easycredit_overrides(),
-            "env": Config.easycredit_env(),
-            "base_url": Config.easycredit_base_url(),
-            "params": {"api_user": Config.easycredit_api_user(),
-                       "api_password": Config.easycredit_api_password()},
+            "env": ec_over.get("env") or Config.easycredit_env(),
+            "base_url": ec_over.get("base_url") or Config.easycredit_base_url(),
+            "params": {"api_user": ec_over.get("api_user")
+                                   or Config.easycredit_api_user(),
+                       "api_password": ec_over.get("api_password")
+                                      or Config.easycredit_api_password()},
         },
         "iute": {
-            "over": _load_iute_overrides(),
-            "env": Config.iute_env(),
-            "base_url": Config.iute_base_url(),
-            "params": {"api_key": Config.iute_api_key(),
-                       "pos_identifier": Config.iute_pos_identifier(),
-                       "salesman_identifier": Config.iute_salesman_identifier()},
+            "env": iute_over.get("env") or Config.iute_env(),
+            "base_url": iute_over.get("base_url") or Config.iute_base_url(),
+            "params": {"api_key": iute_over.get("api_key")
+                                  or Config.iute_api_key(),
+                       "pos_identifier": iute_over.get("pos_identifier")
+                                        or Config.iute_pos_identifier(),
+                       "salesman_identifier": iute_over.get("salesman_identifier")
+                                              or Config.iute_salesman_identifier()},
         },
     }
     for code, spec in PROVIDER_DEFS.items():
