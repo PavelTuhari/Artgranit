@@ -102,6 +102,20 @@
 
               <div class="ck-box">
                 <div class="ck-total"><span data-t="total">Total</span>: <span id="cart-total">0</span></div>
+                <!-- RO: cerinta obligatorie maib pentru e-commerce — bifa cu link ACTIV
+                     la Termeni si conditii, pe care clientul o marcheaza INAINTE de plata
+                     (https://docs.maibmerchants.md/main/ro/integration/requirements).
+                     EN: mandatory maib requirement — a terms checkbox with an active link,
+                     ticked before payment. -->
+                <label id="agree-box" style="display:flex;gap:8px;align-items:flex-start;
+                       margin:0 0 12px;font-size:12.5px;line-height:1.4;cursor:pointer">
+                  <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none">
+                  <span>Sunt de acord cu
+                    <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>
+                    · Согласен с
+                    <a href="/termeni-si-conditii" target="_blank" rel="noopener">Условиями и положениями</a>
+                  </span>
+                </label>
                 <button class="btn-big" style="width:100%" onclick="makeInvoice()" data-t="checkout">Plasează comanda</button>
               </div>
             </aside>
