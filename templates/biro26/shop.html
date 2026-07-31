@@ -743,9 +743,9 @@ function renderCart() {
   document.getElementById('cart-total').textContent = total.toFixed(2) + ' LEI';
 }
 function setQty(cod, v){ const c = cart(); const i = c.find(x => x.cod === cod);
-  if (i) { i.qty = parseFloat(v) || 0; saveCart(c); renderCart(); } }
-function delItem(cod){ saveCart(cart().filter(x => x.cod !== cod)); renderCart(); }
-function clearCart(){ saveCart([]); renderCart(); }
+  if (i) { i.qty = parseFloat(v) || 0; saveCart(c); renderCart(); creditUI(); } }
+function delItem(cod){ saveCart(cart().filter(x => x.cod !== cod)); renderCart(); creditUI(); }
+function clearCart(){ saveCart([]); renderCart(); creditUI(); }
 function openCart(){ document.getElementById('inv-result').innerHTML = ''; renderCart();
   loadCartServices(); loadTransport();
   document.getElementById('m-cart').classList.add('open'); }
