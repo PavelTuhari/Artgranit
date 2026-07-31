@@ -64,7 +64,12 @@ def t_providers_list() -> list[str]:
 
 
 def t_calc_unchanged() -> list[str]:
-    """calc() продолжает считать по прежней формуле для существующего пакета."""
+    """calc() считает по прежней формуле, но по ДЕЙСТВУЮЩЕЙ наценке.
+
+    Формула `credit_price = pret * (1 + naceta/100)` не менялась; изменилось
+    лишь то, что наценка теперь складывается из комиссии пакета и надбавки
+    организации за неоказанный транспорт.
+    """
     plans = Biro26Credit.plans_list()
     if not plans.get("success"):
         return [f"plans_list: {plans.get('error')}"]
@@ -73,13 +78,17 @@ def t_calc_unchanged() -> list[str]:
         print("  [skip] нет включённых пакетов кредита")
         return []
     p = enabled[0]
+    full = Biro26Credit.plan_get(p["id"]) or {}
+    eff = (float(p["markup_pct"] or 0)
+           + float(full.get("transport_markup_pct") or 0))
     r = Biro26Credit.calc(10000, p["id"], p["months_min"], 0)
     if not r.get("success"):
         return [f"calc: {r.get('error')}"]
     d = r["data"]
-    expected_price = round(10000 * (1 + float(p["markup_pct"] or 0) / 100), 2)
+    expected_price = round(10000 * (1 + eff / 100), 2)
     if abs(d["credit_price"] - expected_price) > 0.01:
-        return [f"credit_price={d['credit_price']}, ожидалось {expected_price}"]
+        return [f"credit_price={d['credit_price']}, ожидалось {expected_price} "
+                f"(наценка {eff}%)"]
     return []
 
 
