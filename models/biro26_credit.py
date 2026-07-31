@@ -628,12 +628,22 @@ class Biro26Credit:
         Biro26Credit._log_event(None, code, "preapproved", res, ms,
                                 {"idnp": idnp, "amount": amount, "org_id": org_id})
         if not res.get("success"):
-            return {"success": False, "error": res.get("error") or "eroare provider"}
+            # RO: eroare de la provider/configurare — detaliile raman in jurnal,
+            #     clientului i se arata doar un mesaj neutru.
+            return {"success": False, "error": Biro26Credit._public_error(res)}
         data = res.get("data") or {}
+        # RO: preapproved:false e un raspuns LEGITIM al providerului, dar
+        #     data["message"] poate contine detalii interne (ex. un mesaj de
+        #     autentificare esuata a magazinului) — curatam si, daca e cazul,
+        #     inlocuim cu mesajul neutru, ca sa nu para o decizie pe cererea
+        #     clientului.
+        msg = Biro26Credit._scrub(data.get("message") or "")
+        if Biro26Credit._is_auth_failure(res):
+            msg = Biro26Credit._public_error(res)
         return {"success": True, "data": {
             "preapproved": bool(data.get("preapproved")),
             "max_amount": float(data.get("max_amount") or 0),
-            "message": data.get("message") or ""}}
+            "message": msg}}
 
     @staticmethod
     def api_submit(d: Dict[str, Any]) -> Dict[str, Any]:
