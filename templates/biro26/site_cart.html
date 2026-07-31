@@ -425,6 +425,15 @@ async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast(tr('cartEmpty'), true); return; }
   if (!ME) { toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return; }
+  // RO/EN: cerinta maib — fara bifa la Termeni si conditii nu se plaseaza comanda
+  const agree = document.getElementById('agree-terms');
+  if (agree && !agree.checked) {
+    toast('Confirmați Termenii și condițiile · Подтвердите Условия и положения', true);
+    const box = document.getElementById('agree-box');
+    if (box) { box.style.outline = '2px solid #dc2626'; box.style.outlineOffset = '4px'; }
+    agree.focus();
+    return;
+  }
   // RO: la credit transportul nu se presteaza — km/centrul nu se mai cer
   //     si nu se trimit la server (vezi si controllers/biro26_controller.py
   //     shop_invoice, blocul sarit cind exista credit_plan_id).
