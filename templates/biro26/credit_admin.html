@@ -344,6 +344,7 @@ async function markReq(id) {
 }
 
 async function load() {
+  await loadProviders();
   const ro = await j('/api/biro26/credit/orgs');
   ORGS = ro.data || []; renderOrgs();
   const rp = await j('/api/biro26/credit/plans');
