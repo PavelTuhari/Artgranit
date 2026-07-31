@@ -6246,6 +6246,10 @@ def api_biro26_credit_provider_test(code):
 def api_biro26_credit_request_events(req_id):
     return _b26(lambda: Biro26Controller.credit_request_events(req_id))
 
+@app.route('/api/biro26/credit/requests/<int:req_id>/refresh', methods=['POST'])
+def api_biro26_credit_request_refresh(req_id):
+    return _b26(lambda: Biro26Controller.credit_request_refresh(req_id))
+
 # ── credit: fluxul API al clientului (public, rate-limited) ──
 @app.route('/api/biro26/shop/credit/api/preapproved', methods=['POST'])
 @limiter.limit("10 per minute")
