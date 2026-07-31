@@ -1308,10 +1308,20 @@ class Biro26Controller:
         credit_months = credit_avans = None
         if credit_plan_id:
             from models.biro26_credit import Biro26Credit
-            plan = Biro26Credit.plan_get(int(credit_plan_id))
+            # RO: valoare publica — un plan_id nenumeric nu trebuie sa dea 500
+            #     (si nici sa sara peste gardul de transport de mai sus).
+            # EN: public input — a non-numeric plan id must not raise a 500.
+            try:
+                credit_plan_id = int(credit_plan_id)
+            except (TypeError, ValueError):
+                return {"success": False, "error": "pachet de credit invalid"}
+            plan = Biro26Credit.plan_get(credit_plan_id)
             if not plan:
                 return {"success": False, "error": "pachet de credit invalid"}
-            credit_months = int(d.get("credit_months") or plan["months_max"])
+            try:
+                credit_months = int(d.get("credit_months") or plan["months_max"])
+            except (TypeError, ValueError):
+                credit_months = int(plan["months_max"])
             credit_months = max(int(plan["months_min"]),
                                 min(credit_months, int(plan["months_max"])))
             try:
