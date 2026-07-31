@@ -461,6 +461,17 @@ class Biro26Credit:
                 "Сервис кредитования временно недоступен")
 
     @staticmethod
+    def _public_status_error() -> str:
+        """RO: mesaj neutru pentru cazul cind providerul a acceptat cererea,
+        dar UPDATE-ul statusului local a esuat — nu expunem textul brut al
+        erorii Oracle. Detaliile raman in TMS_CREDITE_REQ_EVENT.
+        EN: neutral message for provider-accepted-but-local-status-save-failed;
+        raw Oracle error text stays in the event journal only."""
+        return ("Cererea a fost trimisă cu succes, dar statusul nu este "
+                "disponibil momentan · "
+                "Заявка успешно отправлена, но статус временно недоступен")
+
+    @staticmethod
     def provider_test(code: str) -> Dict[str, Any]:
         """RO: test de conexiune la provider (check_auth / preapproved de proba).
         Succesul e valid DOAR daca raspunsul nu contine markeri de esec de
