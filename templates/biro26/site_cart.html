@@ -160,26 +160,139 @@ function crTiles(base) {
   return tiles.sort((a, b) => a.m - b.m);
 }
 function renderTiles() {
-  if (payMethod !== 'credit') return;
-  const base = cartTotal();
-  TILES = crTiles(base);
-  const box = document.getElementById('cr-tiles');
-  if (!TILES.length) {
-    box.innerHTML = '<span style="font-size:12.5px;color:#808080">Suma trebuie să fie între 1 000 și 100 000 lei</span>';
-    document.getElementById('cr-sim').innerHTML = ''; return;
+  try {
+    if (payMethod !== 'credit') return;
+    const base = cartTotal();
+    TILES = crTiles(base);
+    const box = document.getElementById('cr-tiles');
+    if (!TILES.length) {
+      box.innerHTML = '<span style="font-size:12.5px;color:#808080">Suma trebuie să fie între 1 000 și 100 000 lei</span>';
+      document.getElementById('cr-sim').innerHTML = ''; return;
+    }
+    if (tileSel >= TILES.length) tileSel = 0;
+    box.innerHTML = TILES.map((t, i) =>
+      '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
+      ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
+      '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
+    const t = TILES[tileSel], is0 = crIs0(t.plan);
+    document.getElementById('cr-sim').innerHTML = is0
+      ? '<span style="color:#1d4ed8;font-weight:800">' + tr('cartRate') + ': ' +
+        fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' + Math.ceil(t.monthly) + ' lei'
+      : tr('stdPrice') + ': <b>' + fmtLei(cartTotal()) + '</b> · ' + t.m + ' × ' +
+        Math.ceil(t.monthly) + ' lei (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')';
+  } finally {
+    ecUI();
   }
-  if (tileSel >= TILES.length) tileSel = 0;
-  box.innerHTML = TILES.map((t, i) =>
-    '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
-    ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
-    '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
-  const t = TILES[tileSel], is0 = crIs0(t.plan);
-  document.getElementById('cr-sim').innerHTML = is0
-    ? '<span style="color:#1d4ed8;font-weight:800">' + tr('cartRate') + ': ' +
-      fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' + Math.ceil(t.monthly) + ' lei'
-    : tr('stdPrice') + ': <b>' + fmtLei(cartTotal()) + '</b> · ' + t.m + ' × ' +
-      Math.ceil(t.monthly) + ' lei (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')';
 }
+
+/* RO: fluxul API al organizatiei de creditare (preapproved -> submit -> status).
+   Se afiseaza doar daca organizatia are provider API configurat in back-office.
+   EN: credit-provider API flow, shown only when the org has a configured provider. */
+var ecCtx = {org: null, reqId: null, ref: null, poll: null};
+
+function currentTile() { return TILES[tileSel] || null; }
+
+function ecOrgOf(tile) {
+  if (!tile) return null;
+  var o = OFFERS.find(function (x) { return x.id === tile.org.id; });
+  return (o && o.provider && o.provider.configured) ? o : null;
+}
+
+function ecStop() {
+  if (ecCtx.poll) { clearTimeout(ecCtx.poll); ecCtx.poll = null; }
+}
+
+function ecUI() {
+  var box = document.getElementById('ec-flow');
+  if (!box) return;
+  var t = (payMethod === 'credit') ? currentTile() : null;
+  var org = ecOrgOf(t);
+  if (!org) ecStop();
+  ecCtx.org = org;
+  box.style.display = org ? '' : 'none';
+  if (org) {
+    document.getElementById('ec-org-label').textContent =
+      (org.provider.icon || '') + ' ' + org.provider.name +
+      ' — cerere online · онлайн-заявка';
+  }
+}
+
+function ecOut(html, color) {
+  var el = document.getElementById('ec-out');
+  el.innerHTML = html;
+  el.style.color = color || '#334155';
+}
+
+async function ecPreapproved() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (idnp.length < 10) { ecOut('IDNP invalid · Неверный IDNP', '#b91c1c'); return; }
+  ecOut('…');
+  var r = await j(API + '/credit/api/preapproved', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, idnp: idnp, amount: Math.round(t.credit_price),
+    phone: document.getElementById('ec-phone').value.trim()})});
+  var btn = document.getElementById('ec-sub');
+  if (!r.success) {
+    ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c');
+    btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
+    return;
+  }
+  var d = r.data || {};
+  if (d.preapproved) {
+    ecOut('✅ Preaprobat pînă la <b>' + Math.round(d.max_amount) +
+      ' lei</b> · Предодобрено до ' + Math.round(d.max_amount) + ' лей', '#059669');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  } else {
+    ecOut('⚠️ ' + esc(d.message || 'Fără preaprobare · Без предодобрения') +
+      '<br>Puteți trimite cererea — decizia o ia creditorul.', '#b45309');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  }
+}
+
+async function ecSubmit() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var fio = document.getElementById('ec-fio').value.trim();
+  var phone = document.getElementById('ec-phone').value.trim();
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (!fio || !phone) { ecOut('Numele și telefonul sunt obligatorii', '#b91c1c'); return; }
+  ecOut('…');
+  var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
+    amount: t.credit_price / (1 + (t.plan.markup_pct || 0) / 100),
+    qty: 1, client_name: fio, phone: phone, idnp: idnp,
+    product_name: 'Coș OfficePlus'})});
+  if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c'); return; }
+  ecCtx.reqId = r.data.req_id;
+  ecCtx.ref = r.data.ext_ref || null;
+  if (!ecCtx.ref) {
+    ecOut('📨 Cerere trimisă · Заявка отправлена<br>Un manager vă va contacta în scurt timp · Менеджер свяжется с вами.', '#0f766e');
+    return;
+  }
+  ecOut('📨 Cerere trimisă · Заявка отправлена<br>Referință: <b>' +
+    esc(ecCtx.ref) + '</b><br><span id="ec-st">Se verifică statusul…</span>', '#0f766e');
+  ecPoll(0);
+}
+
+function ecPoll(n) {
+  ecStop();
+  if (n > 24 || !ecCtx.reqId || !ecCtx.ref) {                       // 24 × 5 c = 2 минуты
+    var el0 = document.getElementById('ec-st');
+    if (el0) el0.textContent = 'Verificați statusul mai tîrziu — managerul vă va contacta.';
+    return;
+  }
+  ecCtx.poll = setTimeout(async function () {
+    var r = await j(API + '/credit/api/status?req_id=' + ecCtx.reqId +
+                    '&ref=' + encodeURIComponent(ecCtx.ref || ''));
+    var el = document.getElementById('ec-st');
+    var st = (r.data || {}).status || '';
+    if (el) el.textContent = 'Status: ' + esc(st || '—');
+    var done = /APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL/i.test(st);
+    if (!done) ecPoll(n + 1);
+  }, 5000);
+}
+window.addEventListener('pagehide', ecStop);
 
 async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
