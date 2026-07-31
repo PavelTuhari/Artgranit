@@ -1134,9 +1134,15 @@ function creditPlans() {
 function cartTotalForCredit() {
   let s = cart().reduce((a, i) => a + i.qty * i.price, 0);
   try { checkedServices().forEach(x => s += (x.price || 0) * (x.qty || 1)); } catch (e) {}
-  const km = parseFloat((document.getElementById('tr-km') || {}).value);
-  if (km > 0) { try { const t = transportFor(km);
-    if (t) { const p = Number(t.price) || 0; s += t.tarif_mode === 'KM' ? p * km : p; } } catch (e) {} }
+  // RO: la achitarea in credit transportul nu se presteaza — nu intra in
+  //     suma supusa nacetei (vezi transport-markup-brief.md).
+  // EN: on credit, transport isn't delivered — it's excluded from the
+  //     amount subject to the markup.
+  if ((document.getElementById('paym-sel') || {}).value !== 'credit') {
+    const km = parseFloat((document.getElementById('tr-km') || {}).value);
+    if (km > 0) { try { const t = transportFor(km);
+      if (t) { const p = Number(t.price) || 0; s += t.tarif_mode === 'KM' ? p * km : p; } } catch (e) {} }
+  }
   return Math.round(s * 100) / 100;
 }
 /* RO: in cos — TABEL cu placi (ca la bomba.md): fiecare placa = pachet+
