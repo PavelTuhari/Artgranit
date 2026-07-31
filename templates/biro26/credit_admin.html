@@ -263,6 +263,7 @@ function orgRow(o, i) {
     '<td><input value="' + esc(o.api_url || '') + '" data-f="api_url" placeholder="https://…"></td>' +
     '<td><input value="' + esc(o.info || '') + '" data-f="info"></td>' +
     '<td><input class="num" value="' + (o.ord || 0) + '" data-f="ord"></td>' +
+    '<td><input class="num" value="' + (o.transport_markup_pct || 0) + '" data-f="transport_markup_pct"></td>' +
     '<td><button class="btn-sm" onclick="saveOrg(' + i + ')">💾</button></td></tr>';
 }
 function renderOrgs() {
