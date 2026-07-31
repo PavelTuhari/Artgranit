@@ -49,6 +49,21 @@ def _oracle(code: str) -> dict:
     return out
 
 
+def _oracle_field(code: str, field: str, fallback: str) -> str:
+    """Значение одного поля провайдера: источник авторитетен, если запись есть.
+
+    Если _oracle(code) вернул непустой словарь (запись в TMS_CREDITE_PROVIDER
+    существует), значение берётся ИСКЛЮЧИТЕЛЬНО оттуда — пустая строка,
+    намеренно сохранённая в Oracle, НЕ подменяется значением из .env (тот же
+    принцип, что и в integrations/base_provider.py:_setting). Фолбэк на
+    `fallback` — только когда записи нет вовсе (БД недоступна или провайдер
+    не заведён)."""
+    o = _oracle(code)
+    if o:
+        return o.get(field) or ""
+    return fallback
+
+
 def save_easycredit_settings(env: str, base_url: str, api_user: str, api_password: str) -> None:
     """Сохраняет настройки EasyCredit в TMS_CREDITE_PROVIDER (ADB).
     Пустой api_password означает «не менять» (см. CrediteSettings.save)."""
