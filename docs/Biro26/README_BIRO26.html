@@ -717,9 +717,60 @@ BARCODE</b> (un singur card activ), apoi după ARTICOL — un fișier fără bar
 
 <p><b>Module de plată/credit (magazin):</b> MAIB Checkout v2 (card, test+refund),
 MIA QR (QMoney) + MIA P2P; credit/rate — organizații dinamice
-(<code>YBIRO_CREDIT_ORG/PLAN/REQ</code>, admin <code>biro26-credit-admin</code>),
+(<code>TMS_CREDITE_ORG/PLAN/REQ</code>, vezi §16, admin <code>biro26-credit-admin</code>),
 rate 0% la 4/6 luni (+5% împărțit egal), formulele băncii de la 8 luni în sus,
 «Preț ofertă în rate» (Liber Card, +5% de la 100 lei).</p>
+
+<h2 id="creditare">16. Creditare / Кредитование (<code>TMS_CREDITE_*</code>)</h2>
+<p><b>RO:</b> Schema normalizată <code>TMS_CREDITE_*</code> înlocuiește vechile tabele
+<code>YBIRO_CREDIT_ORG/PLAN/REQ</code> (datele au fost migrate, tabelele vechi rămân până
+la <code>--rename-legacy</code> la deploy pe server). Același DDL e activ în DOUĂ baze:
+Oracle 11g OfficePlus (acest modul) și Oracle ADB a proiectului principal — fiecare cu
+setările proprii de provider, nesincronizate automat. <b>RU:</b> Нормализованная схема
+<code>TMS_CREDITE_*</code> заменяет старые таблицы <code>YBIRO_CREDIT_ORG/PLAN/REQ</code>
+(данные перенесены, старые таблицы остаются до <code>--rename-legacy</code> при деплое на
+сервер). Один и тот же DDL развёрнут в ДВУХ базах: Oracle 11g OfficePlus (этот модуль) и
+Oracle ADB основного проекта — у каждой свои настройки провайдера, без автосинхронизации.</p>
+<table>
+<tr><th>Таблица</th><th>Назначение</th></tr>
+<tr><td><code>TMS_CREDITE_PROVIDER</code></td><td>реестр API-провайдеров (easycredit, iute):
+enabled/env/base_url</td></tr>
+<tr><td><code>TMS_CREDITE_PROVIDER_PARAM</code></td><td>параметры и креды провайдера
+(секреты маскируются в API-ответах)</td></tr>
+<tr><td><code>TMS_CREDITE_ORG</code></td><td>организации кредитования магазина, привязка к
+провайдеру (<code>PROVIDER_ID</code>, NULL = ручной режим без API)</td></tr>
+<tr><td><code>TMS_CREDITE_PLAN</code></td><td>пакеты рассрочки организации (формула расчёта
+не менялась)</td></tr>
+<tr><td><code>TMS_CREDITE_REQ</code></td><td>заявки на кредит/рассрочку + API-статус
+(<code>PROVIDER_CODE, EXT_REF, API_STATUS, PREAPPROVED_AMOUNT, IDNP_MASKED</code>)</td></tr>
+<tr><td><code>TMS_CREDITE_REQ_EVENT</code></td><td>append-only лог вызовов API, без PII
+(IDNP/телефон маскируются перед записью)</td></tr>
+</table>
+<p><b>Бэк-офис:</b> <code>/UNA.md/orasldev/biro26-credit-admin</code>, секция «Provideri API» —
+включить провайдера, выбрать env (sandbox/production), задать base_url и креды,
+«Test conexiune» (проверка живого API); ниже — привязка провайдера к организации кредитования
+в таблице «Organizații de creditare». <b>Витрина</b> (<code>biro26-shop</code>,
+<code>biro26-site/cart</code>): при включённом и привязанном провайдере — флоу
+форма → preapproved → submit → опрос статуса (<code>/api/biro26/shop/credit/api/*</code>,
+rate-limited по IP); иначе — прежняя форма «Cerere de credit» (только журнал, без API).</p>
+<div class="warn"><b>Демо-креды после деплоя:</b> при первом деплое
+(<code>deploy_credite_oracle.py</code>) провайдеры сеются значениями из <code>.env</code> —
+для EasyCredit это по умолчанию <code>demo</code>/<code>demo</code>, если реальные креды не
+заданы. В бэк-офисе такой провайдер может показываться как «configurat» (поля заполнены), хотя
+живой вызов вернёт ошибку авторизации. Оператор обязан ввести настоящие креды в бэк-офисе.
+<b>Известное ограничение Iute:</b> <code>IuteProvider</code> не реализует
+<code>preapproved()</code> (наследует «Not supported» из базового класса) — витрина всегда
+начинает флоу с этого шага, поэтому для организации с привязанным Iute-провайдером подача
+заявки через API сейчас не проходит первый шаг; тестовое подключение («Test conexiune»,
+через <code>check_auth</code>) при этом работает.</div>
+<p><b>Деплой схемы:</b> <code>./venv/bin/python deploy_credite_oracle.py --target both</code>
+(идемпотентно; на сервере — с <code>--rename-legacy</code>, ПОСЛЕ того как новый код уже
+развёрнут и не обращается к <code>YBIRO_CREDIT_*</code>; DDL не входит в обычный
+<code>deploy_to_remote.sh</code>). <b>Полная документация архитектуры, SOAP/REST API и
+чек-лист верификации:</b>
+<a href="https://officeplus.md/UNA.md/orasldev/docs/easycredit">/UNA.md/orasldev/docs/easycredit</a>
+(EasyCredit — общая архитектура провайдеров) и
+<a href="https://officeplus.md/UNA.md/orasldev/docs/iute">/UNA.md/orasldev/docs/iute</a> (Iute).</p>
 
 </body>
 </html>
