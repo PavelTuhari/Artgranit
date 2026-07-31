@@ -1222,17 +1222,30 @@ class Biro26Controller:
             client_cod = c["univers_cod"]
         elif d.get("client_cod") and session.get("username"):
             # RO/EN: back-office operator may issue for an explicit client COD
-            client_cod = int(d["client_cod"])
+            try:
+                client_cod = int(d["client_cod"])
+            except (TypeError, ValueError, OverflowError):
+                return {"success": False, "error": "client_cod invalid"}
         else:
             return {"success": False, "error": "login required"}
+        # RO/EN: intrare publica — `items` trebuie sa fie o LISTA, altfel
+        #        iterarea peste un numar/dict ar da 500 in loc de un raspuns.
+        if not isinstance(items, list):
+            return {"success": False, "error": "items must be a list"}
         clean = []
         for it in items:
             try:
+                if not isinstance(it, dict):
+                    raise TypeError("item must be an object")
                 cod, qty, price = int(it["cod"]), float(it["qty"]), float(it.get("price") or 0)
             except Exception:
                 return {"success": False, "error": "bad item format"}
-            if qty <= 0:
+            # RO/EN: NaN/inf trec de "qty <= 0" si strica toate verificarile
+            #        de suma mai jos — le respingem explicit.
+            if not (qty > 0) or qty != qty or qty in (float("inf"), float("-inf")):
                 return {"success": False, "error": "qty must be > 0"}
+            if price != price or price in (float("inf"), float("-inf")):
+                return {"success": False, "error": "bad item format"}
             clean.append({"cod": cod, "qty": qty, "price": price,
                           "name": str(it.get("name") or "")[:180]})
         # RO: transportul tur-retur este OBLIGATORIU pentru clientii
