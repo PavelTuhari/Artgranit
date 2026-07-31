@@ -8,6 +8,19 @@
           <div id="me-box" style="display:none" class="acc-box">
             <h3><span data-t="welcome">Bine ați venit</span>, <span id="me-name"></span> 👋</h3>
             <p style="font-size:14.5px;color:#555" id="me-info"></p>
+            <!-- RO: TIPUL clientului — schimba automat COLOANA de pret
+                 (pers. fizice si juridice vad preturi diferite) -->
+            <div style="border:1px solid #ececec;border-radius:12px;padding:12px 14px;margin:10px 0">
+              <b style="font-size:14px">Tip client · Тип клиента</b>
+              <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;align-items:center">
+                <label style="font-size:14px"><input type="radio" name="ctype" value="0" onchange="typeUI()"> Persoană fizică</label>
+                <label style="font-size:14px"><input type="radio" name="ctype" value="1" onchange="typeUI()"> Persoană juridică</label>
+                <input id="t-idno" placeholder="IDNO (13 cifre)" maxlength="13"
+                       style="display:none;width:170px;padding:8px;border:1px solid #d1d1d1;border-radius:8px">
+                <button class="btn-blue" style="margin-top:0;height:38px;padding:0 18px" onclick="saveType()">💾 Salvează</button>
+              </div>
+              <p style="font-size:12px;color:#808080;margin:6px 0 0">Prețurile din catalog și din conturile de plată se aplică după tipul ales · Цены применяются по выбранному типу</p>
+            </div>
             {% if fmt_html == '1' or fmt_xlsx == '1' %}
             <!-- RO: CONSTANTA personala: formatele contului de plata
                  (implicit PDF); se aplica automat la conturile urmatoare -->
