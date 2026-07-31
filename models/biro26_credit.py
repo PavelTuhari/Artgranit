@@ -191,6 +191,9 @@ class Biro26Credit:
             reg = Biro26Credit._registry()
             for o in orgs:
                 o["plans"] = [p for p in plans if p["org_id"] == o["id"]]
+                # RO: numar, ca vitrina sa calculeze placile identic cu serverul.
+                # EN: number, so the storefront computes tiles the same way.
+                o["transport_markup_pct"] = float(o.get("transport_markup_pct") or 0)
                 code = o.pop("provider_code", None)
                 prov = reg.get(code) if code else None
                 o["provider"] = None if not code else {
