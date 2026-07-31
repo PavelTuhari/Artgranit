@@ -230,6 +230,8 @@ async function saveOrg(i) {
   const tr = document.querySelector('#orgs tr[data-i="' + i + '"]');
   const o = ORGS[i];
   tr.querySelectorAll('[data-f]').forEach(el => o[el.dataset.f] = el.value);
+  var sel = document.querySelector('[data-org="' + i + '"][data-f="provider_id"]');
+  o.provider_id = sel && sel.value ? parseInt(sel.value, 10) : null;
   const r = await j('/api/biro26/credit/orgs', {method: 'PUT', body: JSON.stringify(o)});
   if (r.success) { toast('Salvat ✓'); load(); }
 }
