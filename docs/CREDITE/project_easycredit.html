@@ -494,7 +494,9 @@
                     <td><code>GET /api/biro26/shop/credit/api/status?req_id=N&amp;ref=&lt;ext_ref&gt;</code></td>
                     <td>60/мин</td>
                     <td><code>req_id</code>, <code>ref</code> — оба обязательны</td>
-                    <td><code>{success, data:{status, ext_ref, saved}}</code></td>
+                    <td><code>{success, data:{status, ext_ref, saved?}}</code> — <code>saved</code>
+                        есть только если провайдер реально был опрошен (не если заявка ещё не
+                        привязана к провайдеру/референсу)</td>
                 </tr>
             </table>
             <div class="note">
