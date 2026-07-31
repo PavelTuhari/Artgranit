@@ -361,22 +361,9 @@ td.num,th.num{text-align:right}
         <option value="0">Preț cu TVA 0% · Цена с НДС 0%</option>
         <option value="fara">Fără TVA · Без НДС</option>
       </select>
-      {% if fmt_html == '1' or fmt_xlsx == '1' %}
-      <!-- RO: formate documente — IMPLICIT PDF; alegerea clientului se
-           salveaza ca CONSTANTA (cabinet) si se refoloseste; HTML/XLSX
-           apar doar daca-s activate in Setari; o singura optiune =>
-           selectorul e ascuns complet -->
-      <details id="fmt-dd" style="display:inline-block;position:relative;margin-left:10px;vertical-align:middle">
-        <summary style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;
-          list-style:none;font-size:12.5px;background:#fff" id="fmt-sum">PDF ▾</summary>
-        <div style="position:absolute;z-index:60;background:#fff;border:1px solid #e2e8f0;border-radius:8px;
-          padding:8px 12px;box-shadow:0 8px 22px rgba(0,0,0,.15);white-space:nowrap">
-          <label style="display:block;font-size:12.5px"><input type="checkbox" class="fmt" value="pdf" checked onchange="fmtChanged()"> PDF</label>
-          {% if fmt_html == '1' %}<label style="display:block;font-size:12.5px"><input type="checkbox" class="fmt" value="html" onchange="fmtChanged()"> HTML</label>{% endif %}
-          {% if fmt_xlsx == '1' %}<label style="display:block;font-size:12.5px"><input type="checkbox" class="fmt" value="xlsx" onchange="fmtChanged()"> Excel (XLSX)</label>{% endif %}
-        </div>
-      </details>
-      {% endif %}
+      <!-- RO: formatele alternative (HTML/XLS) se activeaza DOAR in
+           cabinetul clientului; implicit totul iese in PDF. Butonasele
+           mici apar in caseta de succes doar pentru formatele activate. -->
     </div>
     <div id="inv-result"></div>
     <div class="acts">
