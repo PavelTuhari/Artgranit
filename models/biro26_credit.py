@@ -257,7 +257,12 @@ class Biro26Credit:
              "q": qty, "a": amount, "cp": s["credit_price"],
              "mo": s["monthly"], "cn": name[:200], "ph": phone[:40]})
         if not r.get("success"):
-            return {"success": False, "error": r.get("message")}
+            # RO: eroare Oracle la INSERT (poate contine text brut, ex. ORA-12154
+            #     cu calea catre wallet-ul Oracle) — nu se arata clientului, doar in jurnal.
+            Biro26Credit._log_event(
+                req_id, "", "insert",
+                {"success": False, "error": r.get("message")}, 0, {})
+            return {"success": False, "error": Biro26Credit._public_error({})}
         # 2a) nivel MAXIM: trimitere la API-ul organizatiei (daca e setat)
         api_note = ""
         if org.get("org_mode") == "api" and org.get("api_url"):
