@@ -165,6 +165,9 @@ function provCard(p, i) {
 function renderProviders() {
   document.getElementById('providers').innerHTML =
     PROVIDERS.map(function (p, i) { return provCard(p, i); }).join('');
+  // Finding 4: verifica imediat dupa randare (nu doar la change/input), ca sa
+  // se vada si o discrepanta env/base_url deja salvata la incarcarea paginii.
+  PROVIDERS.forEach(function (p, i) { onProvBaseUrlInput(i); });
 }
 
 function provPayload(i) {
