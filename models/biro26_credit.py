@@ -735,7 +735,9 @@ class Biro26Credit:
             data = {"req_id": req_id}
             if not upd.get("success"):
                 data["status_saved"] = False
-            return {"success": False, "error": res.get("error") or "eroare provider",
+            # RO: eroare de la provider/configurare — mesaj neutru catre client,
+            #     detaliile raman in TMS_CREDITE_REQ_EVENT.
+            return {"success": False, "error": Biro26Credit._public_error(res),
                     "data": data}
         return {"success": True, "data": {"req_id": req_id, "ext_ref": ext_ref,
                                           "status": api_status,
