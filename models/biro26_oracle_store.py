@@ -1240,7 +1240,6 @@ END;""",
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    @staticmethod
     # RO: coloanele de pret dupa tipul clientului (setare in backoffice):
     #     'retail1' = pret cu amanuntul (PRETV), 'ionline' = pret online
     #     (PRETV2), 'angro' = pret angro (PRETV1). Implicit: pers. FIZICE ->
