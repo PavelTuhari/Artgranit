@@ -79,11 +79,16 @@ def preapproved(
     basic_password: str = "",
 ) -> dict[str, Any]:
     """Preapproved_v2_1 — suma preaprobata. `amount` nu e cerut de gateway."""
-    d, err = _post(base_url, "Preapproved_v2_1", {
-        "Login": user, "Password": passwd, "UIN": idn or "",
-        "BirthDate": birth_date or "", "Phone": phone or "",
-        "cardid": card_id or "",
-    }, basic_user, basic_password, verify_ssl)
+    # RO: cimpurile optionale NU se trimit goale — gateway-ul valideaza
+    #     lungimea (ex. `cardid` cere minim 16 caractere) si respinge "".
+    # EN: never send empty optional fields — the gateway validates their
+    #     length and rejects an empty string.
+    payload = {"Login": user, "Password": passwd, "UIN": idn or "",
+               "BirthDate": birth_date or "", "Phone": phone or ""}
+    if card_id:
+        payload["cardid"] = card_id
+    d, err = _post(base_url, "Preapproved_v2_1", payload,
+                   basic_user, basic_password, verify_ssl)
     if err:
         return {"success": False,
                 "data": {"preapproved": False, "max_amount": 0, "message": err},
