@@ -157,10 +157,16 @@ function crEffMarkup(pl, o) { return (pl.markup_pct || 0) + (o.transport_markup_
 function crTiles(base) {
   const tiles = [];
   OFFERS.forEach(o => (o.plans || []).forEach(pl => {
-    if (base < (pl.amount_min || 0) || base > (pl.amount_max || 1e9)) return;
+    // RO: limitele pachetului se verifica pe suma FINANTATA (pretul in rate),
+    //     exact ca pe server (Biro26Credit.calc); altfel aratam o placa care
+    //     apoi pica la plasarea comenzii cu «suma finanțată peste maxim».
+    // EN: plan limits apply to the FINANCED amount, matching the server —
+    //     otherwise we show a tile the checkout will later reject.
     const eff = crEffMarkup(pl, o);
+    const cp0 = base * (1 + eff / 100);
+    if (cp0 < (pl.amount_min || 0) || cp0 > (pl.amount_max || 1e12)) return;
     for (let m = pl.months_min; m <= pl.months_max; m++) {
-      const cp = base * (1 + eff / 100);
+      const cp = cp0;
       const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
         cp * (pl.monthly_fee_pct || 0) / 100;
       tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
