@@ -247,6 +247,7 @@ def run(target: str, rename: bool = False, resync: bool = False) -> int:
     print(f"\n=== {target} ===")
     try:
         create_objects(be, DDL_PATH[target])
+        add_transport_markup_column(be)
         migrate_legacy(be)
         if resync:
             resync_legacy(be)
