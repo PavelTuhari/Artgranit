@@ -168,7 +168,9 @@ class CrediteSettings:
             "enabled": (row.get("enabled") or "0") == "1",
             "env": env,
             "base_url": base,
-            "icon": row.get("icon") or spec.get("icon", "🏦"),
+            # RO: iconita e o constanta de cod, NU se citeste din DB — OfficePlus
+            #     e CL8MSWIN1251 si transforma emoji-ul stocat in '?'.
+            "icon": spec.get("icon", "🏦"),
             "color": row.get("color") or spec.get("color", "#0066CC"),
             "info": row.get("info") or "",
             "ord": int(row.get("ord") or 0),
