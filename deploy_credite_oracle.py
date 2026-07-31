@@ -7,12 +7,16 @@ Biro26 — OfficePlus Oracle 11g (thick subprocess worker), models/biro26_db.py
 Steps per target:
   1. create tables/sequences/triggers that do not exist yet
   2. migrate data from YBIRO_CREDIT_* (if present and not migrated yet)
+  2b. resync new YBIRO_CREDIT_REQ rows (ID > current MAX) — ONLY with
+      --resync-legacy (off by default; use when old code kept writing to
+      YBIRO_CREDIT_REQ between the DDL apply and the new-code deploy)
   3. seed TMS_CREDITE_PROVIDER from data/*.json + .env (if empty)
   4. rename YBIRO_CREDIT_* -> *_OLD — ONLY with --rename-legacy (off by default:
      remote still reads YBIRO_CREDIT_* until the new code ships, see Task 10)
 
 Usage: ./venv/bin/python deploy_credite_oracle.py --target both
        ./venv/bin/python deploy_credite_oracle.py --target both --rename-legacy
+       ./venv/bin/python deploy_credite_oracle.py --target both --resync-legacy
 """
 from __future__ import annotations
 
