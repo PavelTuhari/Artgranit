@@ -327,14 +327,34 @@ function payBadgeHtml(name) {
 (async function payBadges() {
   const box = document.getElementById('paybadges');
   if (!box) return;
-  let names = [];
+  let html = '';
   try {
     const r = await j('/api/biro26/site/info/site-plati');
-    if (r.success) {
-      names = (r.data.html || '').replace(/<[^>]+>/g, ' ')
-        .split(',').map(s => s.trim()).filter(Boolean);
-    }
+    if (r.success) html = r.data.html || '';
   } catch (e) {}
+
+  // RO: daca in pagina WP «site-plati» au fost inserate IMAGINI din galerie,
+  //     le folosim ca atare — asa siglele se administreaza din WordPress, fara
+  //     deploy. Reconstruim <img>-urile curat (doar src/alt), nu injectam HTML.
+  // EN: if the WP page contains gallery images, use them — logos are then
+  //     managed from WordPress; the <img> tags are rebuilt from src/alt only.
+  let imgs = [];
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    imgs = [...doc.querySelectorAll('img')]
+      .map(im => ({src: im.getAttribute('src') || '', alt: im.getAttribute('alt') || ''}))
+      .filter(o => /^(https?:)?\/\//.test(o.src) || o.src.startsWith('/'));
+  } catch (e) {}
+  if (imgs.length) {
+    box.innerHTML = imgs.map(o =>
+      '<img class="paylogo" src="' + esc(o.src) + '" alt="' + esc(o.alt) +
+      '" title="' + esc(o.alt) + '" loading="lazy">').join('');
+    return;
+  }
+
+  // altfel: denumirile din pagina -> sigle din /static/biro26/pay/ -> badge text
+  const names = html.replace(/<[^>]+>/g, ' ')
+    .split(',').map(s => s.trim()).filter(Boolean);
   // maib se afiseaza mereu primul — e cerinta bancii, nu optiune editoriala
   if (!names.some(n => paySlug(n) === 'maib')) names.unshift('maib');
   box.innerHTML = names.map(payBadgeHtml).join('');
