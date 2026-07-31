@@ -255,6 +255,91 @@ def t_offers_carry_capabilities() -> list[str]:
     return fails
 
 
+def t_provider_test_detects_auth_failure() -> list[str]:
+    """provider_test не считает успехом ответ провайдера об отказе авторизации."""
+    import models.biro26_credit as bc
+
+    class _FakeProv:
+        capabilities = ["preapproved"]
+        def is_configured(self): return True
+        def preapproved(self, **kw):
+            return {"success": True, "data": {"preapproved": False, "max_amount": 50000,
+                                              "status": "Invalid User Name / Password - 50000",
+                                              "message": ""}}
+
+    class _FakeReg:
+        def get(self, code): return _FakeProv()
+
+    orig_reg, orig_log = bc.Biro26Credit._registry, bc.Biro26Credit._log_event
+    bc.Biro26Credit._registry = staticmethod(lambda: _FakeReg())
+    bc.Biro26Credit._log_event = staticmethod(lambda *a, **k: None)
+    try:
+        r = bc.Biro26Credit.provider_test("easycredit")
+    finally:
+        bc.Biro26Credit._registry = orig_reg
+        bc.Biro26Credit._log_event = orig_log
+    return [] if not r.get("success") else [f"provider_test отчитался успехом: {r}"]
+
+
+def t_public_errors_are_neutral() -> list[str]:
+    """Внутренние детали провайдера не уходят публичному клиенту."""
+    import models.biro26_credit as bc
+
+    class _FailProv:
+        capabilities = ["preapproved"]
+        def is_configured(self): return True
+        def preapproved(self, **kw):
+            return {"success": False,
+                    "error": "401 https://partner-api-dev.iute.md/api/v1/orders"}
+
+    class _FakeReg:
+        def get(self, code): return _FailProv()
+
+    orig_reg, orig_log, orig_link = (bc.Biro26Credit._registry, bc.Biro26Credit._log_event,
+                                     bc.Biro26Credit._org_provider)
+    bc.Biro26Credit._registry = staticmethod(lambda: _FakeReg())
+    bc.Biro26Credit._log_event = staticmethod(lambda *a, **k: None)
+    bc.Biro26Credit._org_provider = staticmethod(
+        lambda org_id: {"org_id": org_id, "org_name": "T", "provider_code": "iute"})
+    try:
+        r = bc.Biro26Credit.api_preapproved({"org_id": 1, "idnp": "2000000000001",
+                                             "amount": 10000, "phone": ""})
+    finally:
+        bc.Biro26Credit._registry = orig_reg
+        bc.Biro26Credit._log_event = orig_log
+        bc.Biro26Credit._org_provider = orig_link
+    err = str(r.get("error") or "")
+    fails = []
+    if r.get("success"):
+        fails.append("ошибка провайдера отдана как успех")
+    for leak in ("partner-api-dev", "iute.md", "401", "http"):
+        if leak in err.lower():
+            fails.append(f"утечка внутренней детали {leak!r} в публичном ответе: {err!r}")
+    return fails
+
+
+def t_public_credit_requires_client_login() -> list[str]:
+    """Публичные preapproved/submit требуют входа клиента магазина."""
+    import app as _app
+    c = _app.app.test_client()
+    fails = []
+    for path, body in (('/api/biro26/shop/credit/api/preapproved',
+                        {"org_id": 1, "idnp": "2000000000001", "amount": 10000}),
+                       ('/api/biro26/shop/credit/api/submit',
+                        {"org_id": 1, "plan_id": 1, "amount": 10000,
+                         "client_name": "T", "phone": "+37360000000",
+                         "idnp": "2000000000001"})):
+        r = c.post(path, json=body)
+        if r.status_code == 429:
+            continue
+        d = r.get_json() or {}
+        if d.get("success"):
+            fails.append(f"{path}: доступен без входа клиента")
+        if not d.get("auth_required"):
+            fails.append(f"{path}: нет признака auth_required, ответ {d}")
+    return fails
+
+
 TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
