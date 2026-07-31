@@ -676,8 +676,11 @@ class Biro26Credit:
                                           "org": link["org_name"]}}
 
     @staticmethod
-    def api_status(req_id: int) -> Dict[str, Any]:
-        """RO: reinterogheaza statusul cererii la provider si il salveaza."""
+    def api_status(req_id: int, ext_ref: Optional[str] = None) -> Dict[str, Any]:
+        """RO: reinterogheaza statusul cererii la provider si il salveaza.
+        `ext_ref` != None inseamna acces public: se verifica detinerea cererii
+        prin referinta primita la depunere (api_submit). None = apel din
+        back-office (deja autorizat), fara verificare de detinere."""
         import time as _t
         rows = _rows(Biro26DB().execute_query(
             "SELECT ID, PROVIDER_CODE, EXT_REF, API_STATUS FROM TMS_CREDITE_REQ "
@@ -685,6 +688,9 @@ class Biro26Credit:
         if not rows:
             return {"success": False, "error": "cerere inexistentă"}
         r = rows[0]
+        # RO: acces public — cererea se identifica prin referinta primita la depunere.
+        if ext_ref is not None and (r.get("ext_ref") or "") != ext_ref:
+            return {"success": False, "error": "cerere inexistentă"}
         code, ext = r.get("provider_code"), r.get("ext_ref")
         if not code or not ext:
             return {"success": True, "data": {"status": r.get("api_status") or "",
