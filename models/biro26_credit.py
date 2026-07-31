@@ -175,14 +175,21 @@ class Biro26Credit:
                 return {"success": False, "error": plans_res.get("error")}
             orgs, plans = orgs_res["data"], plans_res["data"]
             st = biro26_settings()
+            # RO: reteaua de provideri se construieste O SINGURA data per apel —
+            #     nu la fiecare organizatie — ca sa nu multiplicam accesul la
+            #     setari (Biro26Credit._registry() nu bate in DB per-provider,
+            #     dar tot ramine un cost de construit obiectele).
+            reg = Biro26Credit._registry()
             for o in orgs:
                 o["plans"] = [p for p in plans if p["org_id"] == o["id"]]
                 code = o.pop("provider_code", None)
+                prov = reg.get(code) if code else None
                 o["provider"] = None if not code else {
                     "code": code,
                     "name": o.get("provider_name") or code,
                     "icon": o.get("provider_icon") or "🏦",
-                    "configured": st.is_configured(code)}
+                    "configured": st.is_configured(code),
+                    "capabilities": list(prov.capabilities) if prov is not None else []}
                 o.pop("provider_name", None)
                 o.pop("provider_icon", None)
             return {"success": True, "data": [o for o in orgs if o["plans"]]}
