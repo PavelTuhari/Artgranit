@@ -925,11 +925,9 @@ async function makeInvoice() {
   if (r.success) {
     // RO/EN: link-uri PDF (jsReport) pentru documentul creat
     const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
-    // RO: UN SINGUR buton — genereaza tot setul de formate activat in
-    //     combobox (HTML implicit; PDF / Excel activabile)
-    const xlsxBtn = '<button class="btn" onclick="genDocSet(' + r.data.cod +
-      ')">📄 Documente (' + fmtList().join('+').toUpperCase() + ')</button>';
-    setTimeout(() => genDocSet(r.data.cod), 600);
+    // RO: implicit PDF; butonase MICI pentru formatele activate in cabinet
+    const xlsxBtn = fmtExtraBtns(r.data.cod);
+    setTimeout(() => window.open(pdf('invoice'), '_blank'), 600);
     // RO: butoane de plata online (MAIB card / MIA QR) — dupa metodele active
     // EN: online pay buttons (MAIB card / MIA QR) — per the enabled methods
     let payBtns = '';
