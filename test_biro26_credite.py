@@ -429,6 +429,105 @@ def t_api_submit_status_save_failure_is_neutral() -> list[str]:
     return fails
 
 
+def t_auth_failure_markers_precise() -> list[str]:
+    """Finding 3: распознавание отказа авторизации не задевает легитимные тексты."""
+    from models.biro26_credit import Biro26Credit as B
+    should_match = [
+        "Invalid User Name / Password - 50000",
+        "401 Client Error: Unauthorized for url: https://partner-api-dev.iute.md/api/v1/x",
+        "HTTP 403 Forbidden",
+    ]
+    should_not_match = [
+        "Предодобрено до 50000 лей",
+        "Two-factor authentication sent",
+        "max_amount: 50000",
+        "Cerere aprobata, suma 50000",
+    ]
+    fails = []
+    for t in should_match:
+        if not B._is_auth_failure({"data": {"status": t}}):
+            fails.append(f"не распознан отказ авторизации: {t!r}")
+    for t in should_not_match:
+        if B._is_auth_failure({"data": {"message": t}}):
+            fails.append(f"ложное срабатывание на: {t!r}")
+    return fails
+
+
+def t_api_submit_insert_failure_is_neutral() -> list[str]:
+    """Finding 1: cind INSERT-ul cererii in TMS_CREDITE_REQ esueaza (ex. ORA-12154
+    cu calea catre wallet-ul Oracle), textul brut nu trebuie sa ajunga in
+    raspunsul public — doar in jurnalul TMS_CREDITE_REQ_EVENT."""
+    import models.biro26_credit as bc
+
+    class _FakeDB:
+        """Nu atinge Oracle: INSERT-ul cererii "esueaza" cu un mesaj Oracle brut
+        (calea wallet-ului), ca sa verificam ca nu se scurge in raspunsul public."""
+
+        def execute_query(self, sql, params=None):
+            s = " ".join(sql.split()).upper()
+            if "TMS_CREDITE_REQ_SEQ.NEXTVAL" in s:
+                return {"success": True, "columns": ["ID"], "data": [[999999998]]}
+            raise AssertionError(f"neasteptat query in test: {sql}")
+
+        def execute_dml(self, sql, params=None):
+            s = " ".join(sql.split()).upper()
+            if s.startswith("INSERT INTO TMS_CREDITE_REQ ("):
+                return {"success": False,
+                        "message": ("ORA-12154: TNS:could not resolve the connect "
+                                   "identifier /home/ubuntu/oracle_wallets/wallet_X")}
+            raise AssertionError(f"neasteptat dml in test: {sql}")
+
+    class _FakeProv:
+        capabilities = ["submit"]
+        def is_configured(self): return True
+        def submit(self, **kw):
+            raise AssertionError("submit nu trebuie apelat cind INSERT a esuat")
+
+    class _FakeReg:
+        def get(self, code): return _FakeProv()
+
+    fake_plan = {"id": 1, "name": "Test", "org_id": 1, "org_name": "T",
+                "months_min": 6, "months_max": 12, "amount_min": 1000,
+                "amount_max": 100000, "markup_pct": 0, "annual_pct": 0,
+                "monthly_fee_pct": 0, "issue_fee": 0, "avans_min_pct": 0}
+
+    logged = []
+    orig_db = bc.Biro26DB
+    orig_reg = bc.Biro26Credit._registry
+    orig_log = bc.Biro26Credit._log_event
+    orig_org_provider = bc.Biro26Credit._org_provider
+    orig_plan_get = bc.Biro26Credit.plan_get
+    bc.Biro26DB = _FakeDB
+    bc.Biro26Credit._registry = staticmethod(lambda: _FakeReg())
+    bc.Biro26Credit._log_event = staticmethod(lambda *a, **k: logged.append((a, k)))
+    bc.Biro26Credit._org_provider = staticmethod(
+        lambda org_id: {"org_id": org_id, "org_name": "T", "provider_code": "easycredit"})
+    bc.Biro26Credit.plan_get = staticmethod(lambda plan_id: dict(fake_plan))
+    try:
+        r = bc.Biro26Credit.api_submit({
+            "org_id": 1, "plan_id": 1, "amount": 10000,
+            "client_name": "Test Testov", "phone": "+37369000000",
+            "idnp": "2000000000001"})
+    finally:
+        bc.Biro26DB = orig_db
+        bc.Biro26Credit._registry = orig_reg
+        bc.Biro26Credit._log_event = orig_log
+        bc.Biro26Credit._org_provider = orig_org_provider
+        bc.Biro26Credit.plan_get = orig_plan_get
+
+    fails = []
+    if r.get("success"):
+        fails.append("ожидался success=False (INSERT-ul cererii a esuat)")
+    err = str(r.get("error") or "")
+    if "ORA-" in err.upper() or "wallet" in err.lower():
+        fails.append(f"textul brut al erorii Oracle s-a scurs in raspunsul public: {err!r}")
+    if not err:
+        fails.append("raspunsul public nu are deloc mesaj de eroare")
+    if not logged:
+        fails.append("eroarea Oracle bruta nu a fost jurnalizata (_log_event neapelat)")
+    return fails
+
+
 TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
