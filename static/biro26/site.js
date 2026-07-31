@@ -181,7 +181,13 @@ function addToCart(cod, name, price, qty) {
 /* ── produse ─────────────────────────────────────────────────────────── */
 function pname(p) { return (curLang() === 'ru' && p.namerus)
   ? p.namerus : (p.denumirea || p.namerus || ''); }
-function pprice(p) { return parseFloat(String(p.retail1 || '').replace(',', '.')) || 0; }
+function pprice(p) {
+  // RO: coloana de pret dupa TIPUL clientului (fizica/juridica) —
+  //     window.PRICE_FIELD vine din server; fallback pe retail
+  const f = window.PRICE_FIELD || 'retail1';
+  const v = parseFloat(String(p[f] != null ? p[f] : '').replace(',', '.'));
+  return (v > 0 ? v : parseFloat(String(p.retail1 || '').replace(',', '.'))) || 0;
+}
 function fmtLei(v) { return v.toLocaleString('ro-MD', {maximumFractionDigits: 2}) + ' lei'; }
 function openProd(cod) { location.href = '/produs/' + cod; }
 function uniq(rows) { const seen = new Set(); return (rows || []).filter(p => {
@@ -296,17 +302,42 @@ function cmpToggle(cod) {
   return on;
 }
 
-/* ── tipurile de plata din WP «site-plati» (footer, toate paginile) ──── */
+/* ── tipurile de plata din WP «site-plati» (footer, toate paginile) ────
+   RO: maib cere siglele bancii si ale sistemelor internationale de plata in
+   subsolul site-ului. Punem fisierele OFICIALE in /static/biro26/pay/<slug>.svg
+   (sau .png); daca un fisier lipseste, <img> cade inapoi pe badge-ul text, deci
+   subsolul arata corect si pina la primirea siglelor de la banca.
+   EN: maib requires bank + card-scheme logos in the footer; official files go to
+   /static/biro26/pay/, and a missing file gracefully falls back to a text badge. */
+function paySlug(name) {
+  return String(name).toLowerCase()
+    .replace(/[ăâ]/g, 'a').replace(/[îi]/g, 'i').replace(/[șş]/g, 's')
+    .replace(/[țţ]/g, 't').replace(/[^a-z0-9]/g, '');
+}
+function payBadgeHtml(name) {
+  const slug = paySlug(name);
+  if (!slug) return '';
+  const alt = esc(name);
+  // onerror: fisierul lipseste -> inlocuim <img> cu badge-ul text
+  return '<img class="paylogo" src="/static/biro26/pay/' + slug + '.svg" alt="' + alt +
+         '" title="' + alt + '" loading="lazy"' +
+         ' onerror="this.onerror=null;this.outerHTML=\'<span class=&quot;paybadge&quot;>' +
+         alt.replace(/'/g, '') + '</span>\'">';
+}
 (async function payBadges() {
   const box = document.getElementById('paybadges');
   if (!box) return;
+  let names = [];
   try {
     const r = await j('/api/biro26/site/info/site-plati');
-    if (!r.success) return;
-    const text = (r.data.html || '').replace(/<[^>]+>/g, ' ');
-    box.innerHTML = text.split(',').map(s => s.trim()).filter(Boolean)
-      .map(n => '<span class="paybadge">' + esc(n) + '</span>').join('');
+    if (r.success) {
+      names = (r.data.html || '').replace(/<[^>]+>/g, ' ')
+        .split(',').map(s => s.trim()).filter(Boolean);
+    }
   } catch (e) {}
+  // maib se afiseaza mereu primul — e cerinta bancii, nu optiune editoriala
+  if (!names.some(n => paySlug(n) === 'maib')) names.unshift('maib');
+  box.innerHTML = names.map(payBadgeHtml).join('');
 })();
 
 applyLang(); cartBadge();
