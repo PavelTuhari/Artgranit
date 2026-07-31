@@ -5946,10 +5946,21 @@ def _biro26_site_ctx():
         fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
     except Exception:
         fmt_html, fmt_xlsx = '1', '1'
+    # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
+    #     vizitatorii vad preturile pentru persoane fizice
+    try:
+        from flask import session as _s
+        _cl = _s.get('biro26_client')
+        price_field = (Biro26Store.client_price_field(_cl['univers_cod'])
+                       if _cl else Biro26Store.get_setting('SHOP_PRICE_FIZ',
+                                                           'retail1'))
+    except Exception:
+        price_field = 'retail1'
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
             'brand_filter': brand_filter,
-            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx}
+            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
+            'price_field': price_field}
 
 @app.route('/UNA.md/orasldev/biro26-site')
 def biro26_site():
@@ -5973,6 +5984,13 @@ def biro26_site_product(cod):
 def biro26_site_cart():
     # RO: cos + checkout pe API-urile existente /api/biro26/shop/*
     return render_template('biro26/site_cart.html', **_biro26_site_ctx())
+
+@app.route('/UNA.md/orasldev/biro26-site/payment-result')
+def biro26_site_payment_result():
+    """RO: pagina de retur dupa plata, cu detaliile comenzii — cerinta maib
+    (docs.maibmerchants.md/main/ro/integration/requirements).
+    EN: post-payment return page with the order details (maib requirement)."""
+    return render_template('biro26/site_payment_result.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/account')
 def biro26_site_account():
@@ -6176,6 +6194,11 @@ def biro26_shop():
                            info_html=info_html, page_size=page_size,
                            liber_pct=liber_pct, liber_min=liber_min,
                            fmt_html=fmt_html, fmt_xlsx=fmt_xlsx,
+                           price_field=(Biro26Store.client_price_field(
+                               session['biro26_client']['univers_cod'])
+                               if session.get('biro26_client')
+                               else Biro26Store.get_setting('SHOP_PRICE_FIZ',
+                                                            'retail1')),
                            cur_lang=(lang or 'ro'))
 
 # ── credit payment: admin page + orgs/plans API + public offers/calc ──
@@ -6483,6 +6506,11 @@ def api_biro26_shop_login():
 @app.route('/api/biro26/shop/logout', methods=['POST'])
 def api_biro26_shop_logout():
     return jsonify(Biro26Controller.shop_logout())
+
+@app.route('/api/biro26/shop/me/type', methods=['PUT'])
+def api_biro26_shop_me_type():
+    # RO: tip client (fizica/juridica) din cabinet -> schimba preturile
+    return jsonify(Biro26Controller.shop_set_client_type())
 
 @app.route('/api/biro26/shop/me/fmt', methods=['PUT'])
 def api_biro26_shop_me_fmt():
