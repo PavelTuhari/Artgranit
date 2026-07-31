@@ -133,12 +133,30 @@ $SSH_CMD "$REMOTE_USER@$REMOTE_HOST" << EOF
     fi
     
     mkdir -p "$(dirname $REMOTE_PATH)"
-    
+
+    # venv ЖИВЁТ ВНУТРИ каталога проекта, а в архив не входит (--exclude .../venv).
+    # Раньше "rm -rf \$REMOTE_PATH" сносил его вместе с проектом, и Шаг 7
+    # пересобирал окружение с нуля: ~2 минуты прод отдавал 500, а работающий
+    # процесс падал на ленивых импортах из уже удалённых файлов
+    # (ModuleNotFoundError: jinja2.debug, babel/locale-data и т.п.).
+    # Инцидент 31.07.2026. Теперь venv переносится в сторону и возвращается.
+    VENV_BAK=""
+    if [ -d "$REMOTE_PATH/venv" ]; then
+        VENV_BAK="$(dirname $REMOTE_PATH)/.venv_deploy_bak.\$\$"
+        rm -rf "\$VENV_BAK"
+        if mv "$REMOTE_PATH/venv" "\$VENV_BAK"; then
+            echo "  Сохранён venv (перенесён в сторону, не пересобирается)"
+        else
+            echo "  ✗ Не удалось сохранить venv — деплой прерван, прод не тронут"
+            exit 1
+        fi
+    fi
+
     if [ -d "$REMOTE_PATH" ]; then
         echo "  Удаление старой версии..."
         rm -rf "$REMOTE_PATH"
     fi
-    
+
     echo "  Распаковка архива..."
     cd "$(dirname $REMOTE_PATH)"
     tar -xzf "$TEMP_REMOTE_PATH"
