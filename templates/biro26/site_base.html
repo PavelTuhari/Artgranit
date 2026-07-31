@@ -281,6 +281,15 @@
               <div class="paybadges" id="paybadges"></div>
             </div>
           </div>
+          <!-- RO: datele juridice ale vinzatorului — cerinta maib pentru
+               e-commerce (denumire legala, IDNO, adresa, contacte).
+               EN: seller's legal details — mandatory maib e-commerce requirement. -->
+          <div class="footer-legal">
+            <p><b>GRECU OFFICE GROUP SRL</b> · IDNO <b>1026602001837</b></p>
+            <p>mun. Bălți, str. Libertății 96, of. 1, Republica Moldova</p>
+            <p>Tel. / WhatsApp: <a href="tel:+37362007211">+373 620 07 211</a> ·
+               E-mail: <a href="mailto:officeplussrl@gmail.com">officeplussrl@gmail.com</a></p>
+          </div>
           <div class="footer-bottom">
             <p>© 2026 Office Plus. <span data-t="rights">Toate drepturile rezervate.</span>
               <span style="opacity:.8"> · UNA.md and ORACLE OCI based</span></p>
@@ -292,6 +301,7 @@
   </div>
 <script>
 window.LIBER_PCT = {{ liber_pct|default(0) }};
+window.PRICE_FIELD = '{{ price_field|default("retail1") }}';
 window.LIBER_MIN = {{ liber_min|default(0) }};
 </script>
 <script src="/static/biro26/site.js"></script>
