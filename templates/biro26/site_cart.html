@@ -276,6 +276,9 @@ async function ecPreapproved() {
   var r = await j(API + '/credit/api/preapproved', {method: 'POST', body: JSON.stringify({
     org_id: ecCtx.org.id, idnp: idnp, amount: Math.round(t.credit_price),
     phone: document.getElementById('ec-phone').value.trim()})});
+  if (r.auth_required) {
+    ecStop(); toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return;
+  }
   var btn = document.getElementById('ec-sub');
   if (!r.success) {
     ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c');
