@@ -6,11 +6,6 @@
       "runtimeExecutable": "venv/bin/python",
       "runtimeArgs": ["app.py"],
       "port": 3003
-    },
-    {
-      "name": "artgranit-attach",
-      "port": 3003,
-      "url": "http://localhost:3003"
     }
   ]
 }
