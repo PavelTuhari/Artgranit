@@ -188,7 +188,9 @@ class Biro26Credit:
                 o["provider"] = None if not code else {
                     "code": code,
                     "name": o.get("provider_name") or code,
-                    "icon": o.get("provider_icon") or "🏦",
+                    # RO: iconita din PROVIDER_DEFS, nu din DB — CL8MSWIN1251
+                    #     stocheaza emoji-ul ca '?'.
+                    "icon": (PROVIDER_DEFS.get(code) or {}).get("icon", "🏦"),
                     "configured": st.is_configured(code),
                     "capabilities": list(prov.capabilities) if prov is not None else []}
                 o.pop("provider_name", None)
