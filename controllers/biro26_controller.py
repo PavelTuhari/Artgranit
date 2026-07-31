@@ -1297,11 +1297,14 @@ class Biro26Controller:
                     it["price"] = pr["data"].get(it["cod"], 0)
         # RO: ACHITARE PRIN CREDIT — metoda de calcul avansata a preturilor:
         #     la alegerea creditului, pretul FIECARUI rind se majoreaza cu
-        #     comisionul pachetului (MARKUP_PCT), conform conditiilor
-        #     organizatiei de creditare (vezi models/biro26_credit.py).
+        #     naceta ACTIVA (comisionul pachetului MARKUP_PCT + majorarea
+        #     organizatiei TRANSPORT_MARKUP_PCT care inlocuieste transportul
+        #     neprestat), conform conditiilor organizatiei de creditare
+        #     (vezi models/biro26_credit.py si transport-markup-brief.md).
         # EN: CREDIT payment — every line price is marked up with the
-        #     plan's store commission before the invoice is created.
-        credit_plan_id = d.get("credit_plan_id")
+        #     EFFECTIVE markup (plan commission + the org's markup that
+        #     replaces the undelivered transport) before the invoice is
+        #     created.
         credit_months = credit_avans = None
         if credit_plan_id:
             from models.biro26_credit import Biro26Credit
@@ -1315,7 +1318,8 @@ class Biro26Controller:
                 credit_avans = max(0.0, float(d.get("credit_avans") or 0))
             except (TypeError, ValueError):
                 credit_avans = 0.0
-            mk = 1 + float(plan["markup_pct"] or 0) / 100
+            mk = 1 + (float(plan["markup_pct"] or 0)
+                      + float(plan.get("transport_markup_pct") or 0)) / 100
             financed = round(sum(it["qty"] * it["price"] for it in clean) * mk
                              - credit_avans, 2)
             if financed < float(plan["amount_min"] or 0):
