@@ -1,0 +1,75 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Rezultatul plății{% endblock %}
+{% block content %}
+{# RO: pagina de retur dupa plata, cu detaliile comenzii — cerinta maib
+   (https://docs.maibmerchants.md/main/ro/integration/requirements).
+   EN: post-payment return page with the order details (maib requirement). #}
+<section class="section">
+  <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> ›
+    <span>Rezultatul plății</span></p>
+
+  <div class="ck-box" id="pay-status" style="max-width:760px;margin-bottom:16px">
+    <h1 class="page-h1" id="pay-title" style="font-size:26px;margin-bottom:8px">…</h1>
+    <p id="pay-text" style="margin:0;color:#475569"></p>
+  </div>
+
+  <div class="ck-box" id="order-box" style="max-width:760px;display:none">
+    <h2 style="font-size:18px;margin-bottom:10px">Detaliile comenzii · Детали заказа</h2>
+    <div id="order-head" style="font-size:14px;line-height:1.7;margin-bottom:12px"></div>
+    <table class="cart-tbl" style="width:100%">
+      <thead><tr><th>Produs</th><th style="width:90px">Cant.</th>
+        <th style="width:110px">Preț</th><th style="width:120px">Sumă</th></tr></thead>
+      <tbody id="order-lines"></tbody>
+    </table>
+    <div class="ck-total" style="margin-top:12px">Total: <span id="order-total">—</span></div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+      <a class="fchip" id="pdf-link" href="#" target="_blank" rel="noopener">🧾 Cont de plată (PDF)</a>
+      <a class="fchip" href="/catalog" data-t="goCatalog">Mergi la catalog</a>
+      <a class="fchip" href="/contacte" data-t="contacts">Contacte</a>
+    </div>
+  </div>
+
+  <div class="ck-box" style="max-width:760px;margin-top:16px;font-size:13px;line-height:1.7">
+    <b>GRECU OFFICE GROUP SRL</b> · IDNO 1026602001837<br>
+    mun. Bălți, str. Libertății 96, of. 1<br>
+    Tel. / WhatsApp: <a href="tel:+37362007211">+373 620 07 211</a> ·
+    <a href="mailto:officeplussrl@gmail.com">officeplussrl@gmail.com</a><br>
+    <a href="/termeni-si-conditii" data-t="terms">Termeni și condiții</a> ·
+    <a href="/retur-produse" data-t="returns">Retur produse</a>
+  </div>
+</section>
+{% endblock %}
+{% block js %}
+<script>
+(async function () {
+  const q = new URLSearchParams(location.search);
+  const paid = q.get('pay') === 'ok';
+  const cod = parseInt(q.get('cod') || '0', 10);
+
+  document.getElementById('pay-title').textContent = paid
+    ? '✅ Plata a fost efectuată · Оплата прошла'
+    : '⚠️ Plata nu a fost finalizată · Оплата не завершена';
+  document.getElementById('pay-text').textContent = paid
+    ? 'Vă mulțumim! Confirmarea a fost expediată pe e-mail. · Спасибо! Подтверждение отправлено на почту.'
+    : 'Plata nu a fost înregistrată. Puteți încerca din nou sau ne puteți contacta. · Платёж не зарегистрирован; попробуйте ещё раз или свяжитесь с нами.';
+
+  if (!cod) return;
+  const r = await j('/api/biro26/shop/order/' + cod);
+  if (!r || !r.success) return;          // nu suntem logati / comanda straina
+  const d = r.data;
+  document.getElementById('order-box').style.display = '';
+  document.getElementById('order-head').innerHTML =
+    'Comanda nr. <b>' + esc(String(d.nr || cod)) + '</b><br>' +
+    (d.date ? 'Data: ' + esc(String(d.date)) + '<br>' : '') +
+    'Suma: <b>' + fmtLei(Number(d.total) || 0) + '</b>';
+  document.getElementById('order-lines').innerHTML = (d.items || []).map(function (i) {
+    return '<tr><td>' + esc(String(i.name || '')) + '</td>' +
+      '<td>' + esc(String(i.qty)) + ' ' + esc(String(i.um || '')) + '</td>' +
+      '<td>' + (Number(i.price) || 0).toFixed(2) + '</td>' +
+      '<td><b>' + (Number(i.sum != null ? i.sum : i.suma) || 0).toFixed(2) + '</b></td></tr>';
+  }).join('');
+  document.getElementById('order-total').textContent = fmtLei(Number(d.total) || 0);
+  document.getElementById('pdf-link').href = '/api/biro26/shop/report/invoice/' + cod;
+})();
+</script>
+{% endblock %}
