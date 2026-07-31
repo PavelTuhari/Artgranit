@@ -469,8 +469,9 @@
                 <tr>
                     <td><code>POST /api/biro26/credit/requests/&lt;id&gt;/refresh</code></td>
                     <td>—</td>
-                    <td><code>{success, data:{status, ext_ref, saved}}</code> — переопрос статуса
-                        без проверки владения (уже авторизованный вызов из бэк-офиса)</td>
+                    <td><code>{success, data:{status, ext_ref, saved?}}</code> — переопрос статуса
+                        без проверки владения (уже авторизованный вызов из бэк-офиса);
+                        <code>saved</code> есть только если провайдер реально был опрошен</td>
                 </tr>
             </table>
             <h3>Витрина (public, rate-limited по IP)</h3>
