@@ -165,6 +165,7 @@ class Biro26Credit:
             from models.credite_settings import PROVIDER_DEFS, biro26_settings
             orgs_res = _result(Biro26DB().execute_query(
                 "SELECT o.ID, o.NAME, o.ORG_MODE, o.LOGO_URL, o.INFO, "
+                "o.TRANSPORT_MARKUP_PCT, "
                 "p.CODE PROVIDER_CODE, p.NAME PROVIDER_NAME, p.ICON PROVIDER_ICON "
                 "FROM TMS_CREDITE_ORG o "
                 "LEFT JOIN TMS_CREDITE_PROVIDER p "
