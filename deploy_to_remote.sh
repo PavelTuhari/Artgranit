@@ -193,8 +193,10 @@ $SSH_CMD "$REMOTE_USER@$REMOTE_HOST" << EOF
     rm -f "$TEMP_REMOTE_PATH"
     
     if [ -d "$REMOTE_PATH" ]; then
-        chmod -R 755 "$REMOTE_PATH"
-        echo "  ✓ Проект развернут в $REMOTE_PATH"
+        # venv исключён: его права выставлены при создании окружения, а
+        # рекурсивный chmod по ~180 МБ и тысячам файлов только тратит время.
+        find "$REMOTE_PATH" -path "$REMOTE_PATH/venv" -prune -o -exec chmod 755 {} +
+        echo "  ✓ Проект развернут в $REMOTE_PATH (venv сохранён)"
     else
         echo "  ✗ Ошибка: директория $REMOTE_PATH не создана"
         exit 1
