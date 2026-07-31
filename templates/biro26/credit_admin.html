@@ -123,6 +123,83 @@ async function j(url, opts) {
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+var PROVIDERS = [];
+
+function provCard(p, i) {
+  var fields = (p.param_defs || []).map(function (d) {
+    var v = (p.params || {})[d.name] || '';
+    return '<label style="display:block;font-size:11.5px;margin-top:6px">' + esc(d.name) +
+      (d.secret ? ' <span class="muted">(secret)</span>' : '') +
+      '<input data-prov="' + i + '" data-param="' + esc(d.name) + '" value="' +
+      (d.secret ? '' : esc(v)) + '" placeholder="' +
+      (d.secret && v ? esc(v) : '') +
+      '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px"></label>';
+  }).join('');
+  return '<div style="border:1px solid #e2e8f0;border-left:4px solid ' + esc(p.color || '#0066CC') +
+    ';border-radius:8px;padding:10px;width:290px">' +
+    '<div style="font-weight:700;font-size:13.5px">' + esc(p.icon || '') + ' ' + esc(p.name) +
+    ' <span style="font-weight:400;font-size:11.5px;color:' +
+    (p.configured ? '#059669' : '#b91c1c') + '">' +
+    (p.configured ? 'configurat' : 'neconfigurat') + '</span></div>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">' +
+    '<input type="checkbox" data-prov="' + i + '" data-field="enabled"' +
+    (p.enabled ? ' checked' : '') + '> activ / включён</label>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">env' +
+    '<select data-prov="' + i + '" data-field="env" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px">' +
+    '<option value="sandbox"' + (p.env === 'sandbox' ? ' selected' : '') + '>sandbox</option>' +
+    '<option value="production"' + (p.env === 'production' ? ' selected' : '') + '>production</option>' +
+    '</select></label>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">base_url' +
+    '<input data-prov="' + i + '" data-field="base_url" value="' +
+    esc(p.base_url || '') +
+    '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px"></label>' +
+    fields +
+    '<div style="margin-top:9px;display:flex;gap:6px">' +
+    '<button onclick="saveProv(' + i + ')" style="flex:1;padding:6px;border:0;border-radius:6px;background:#111827;color:#fff;font-size:12px;cursor:pointer">Salvează</button>' +
+    '<button onclick="testProv(' + i + ')" style="flex:1;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;font-size:12px;cursor:pointer">Test conexiune</button>' +
+    '</div><div id="prov-res-' + i + '" class="muted" style="font-size:11.5px;margin-top:5px"></div></div>';
+}
+
+function renderProviders() {
+  document.getElementById('providers').innerHTML =
+    PROVIDERS.map(function (p, i) { return provCard(p, i); }).join('');
+}
+
+function provPayload(i) {
+  var p = PROVIDERS[i], out = {code: p.code, params: {}};
+  document.querySelectorAll('[data-prov="' + i + '"]').forEach(function (el) {
+    if (el.dataset.field === 'enabled') out.enabled = el.checked;
+    else if (el.dataset.field) out[el.dataset.field] = el.value;
+    else if (el.dataset.param) out.params[el.dataset.param] = el.value;
+  });
+  return out;
+}
+
+async function saveProv(i) {
+  var r = await j('/api/biro26/credit/providers',
+    {method: 'PUT', body: JSON.stringify(provPayload(i))});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  toast('Salvat');
+  await loadProviders();
+}
+
+async function testProv(i) {
+  var out = document.getElementById('prov-res-' + i);
+  out.textContent = '…';
+  var r = await j('/api/biro26/credit/providers/' + PROVIDERS[i].code + '/test',
+    {method: 'POST'});
+  out.textContent = r.success
+    ? '✅ OK · ' + ((r.data || {}).duration_ms || 0) + ' ms'
+    : '❌ ' + (r.error || 'eroare');
+  out.style.color = r.success ? '#059669' : '#b91c1c';
+}
+
+async function loadProviders() {
+  var r = await j('/api/biro26/credit/providers');
+  PROVIDERS = (r && r.success) ? r.data : [];
+  renderProviders();
+}
+
 let ORGS = [], PLANS = [];
 
 function orgRow(o, i) {
