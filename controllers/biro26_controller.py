@@ -522,10 +522,7 @@ class Biro26Controller:
             results.append(att.get("success") is True)
         for kind in ("invoice", "order"):
             if "pdf" in fmts:
-                eng = engines.get(kind, "jsreport")
-                res = (Biro26Report.render_pdfme(kind, d["data"])
-                       if eng == "pdfme"
-                       else Biro26Report.render(kind, d["data"]))
+                res = Biro26Report.render_pdf_by_engine(kind, d["data"])
                 step(f"{kind}_pdf" if len(fmts) > 1 else kind,
                      "pdf", res, "pdf")
             if "html" in fmts:

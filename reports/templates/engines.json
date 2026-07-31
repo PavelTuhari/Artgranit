@@ -1,5 +1,4 @@
 {
-  "invoice": "pdfme",
-  "order": "pdfme"
+  "invoice": "htmlpdf",
+  "order": "htmlpdf"
 }
-

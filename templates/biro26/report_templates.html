@@ -50,13 +50,15 @@ iframe{flex:1;width:100%;border:none;background:#fff}
     <div style="font-size:12.5px;margin-bottom:4px">
       <div style="margin:4px 0">Cont de plată:
         <select id="eng-invoice" style="width:100%;padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="htmlpdf">PDF pe șablonul HTML (nou, implicit)</option>
           <option value="jsreport">jsReport (Handlebars)</option>
-          <option value="pdfme">pdfme (Designer)</option>
+          <option value="pdfme">pdfme (Designer) — arhivă</option>
         </select></div>
       <div style="margin:4px 0">Comandă:
         <select id="eng-order" style="width:100%;padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="htmlpdf">PDF pe șablonul HTML (nou, implicit)</option>
           <option value="jsreport">jsReport (Handlebars)</option>
-          <option value="pdfme">pdfme (Designer)</option>
+          <option value="pdfme">pdfme (Designer) — arhivă</option>
         </select></div>
       <button class="btn" style="width:100%;margin-top:4px" onclick="saveEngines()">Aplică motorul · Применить</button>
       <a href="/UNA.md/orasldev/biro26-pdfme-designer" class="btn gray" style="display:block;text-align:center;text-decoration:none;margin-top:6px">🎨 pdfme Designer (vizual)</a>

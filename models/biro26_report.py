@@ -1007,9 +1007,7 @@ class Biro26Report:
             return {"success": False, "error": "document belongs to another client"}
         # RO: motorul activ per formular (engines.json, editabil in admin)
         # EN: active engine per form kind (engines.json, editable in the admin)
-        engine = Biro26Report.get_engines()["data"].get(kind, "jsreport")
-        res = (Biro26Report.render_pdfme(kind, d["data"]) if engine == "pdfme"
-               else Biro26Report.render(kind, d["data"]))
+        res = Biro26Report.render_pdf_by_engine(kind, d["data"])
         if res.get("success"):
             # RO: PDF-ul se ataseaza la document (VMDB_DOCS_OLE) in FUNDAL
             #     (thread daemon, best effort). Atasarea sincrona bloca
