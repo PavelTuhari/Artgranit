@@ -891,27 +891,36 @@ async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast('Coșul este gol · Корзина пуста', true); return; }
   if (!me) { document.getElementById('m-cart').classList.remove('open'); ecStop(); openAuth(); return; }
-  // RO: distanta e OBLIGATORIE — serverul adauga automat linia de transport
-  // EN: the distance is MANDATORY — the server adds the transport line itself
-  const km = parseFloat(document.getElementById('tr-km').value);
-  if (!km || km <= 0) {
-    toast('Introduceți distanța comenzii (km) — transportul este obligatoriu · Укажите расстояние, транспорт обязателен', true);
-    document.getElementById('tr-km').focus();
-    return;
+  const isCredit = (document.getElementById('paym-sel') || {}).value === 'credit';
+  // RO: distanta e OBLIGATORIE doar la achitarea standard — la credit
+  //     transportul nu se mai presteaza (vezi transport-markup-brief.md),
+  //     serverul sare peste blocul de transport cind vine credit_plan_id.
+  // EN: distance is MANDATORY only for standard payment — on credit,
+  //     transport isn't delivered; the server skips the transport block
+  //     whenever credit_plan_id is present.
+  let km = null, centerId = null;
+  if (!isCredit) {
+    km = parseFloat(document.getElementById('tr-km').value);
+    if (!km || km <= 0) {
+      toast('Introduceți distanța comenzii (km) — transportul este obligatoriu · Укажите расстояние, транспорт обязателен', true);
+      document.getElementById('tr-km').focus();
+      return;
+    }
+    const centerSel = document.getElementById('tr-center-sel');
+    centerId = centerSel ? parseInt(centerSel.value, 10)
+                         : ((logCenters && logCenters[0]) ? logCenters[0].id : null);
   }
-  const centerSel = document.getElementById('tr-center-sel');
-  const centerId = centerSel ? parseInt(centerSel.value, 10)
-                             : ((logCenters && logCenters[0]) ? logCenters[0].id : null);
   // RO/EN: serviciile optionale bifate intra in acelasi document
   const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
                  .concat(checkedServices().map(s => ({cod: s.cod, qty: s.qty, name: s.name})));
   const tvaSel = document.getElementById('tva-mode');
   // RO: achitare prin credit — trimitem pachetul ales; serverul majoreaza
-  //     preturile cu comisionul si retine planul/lunile/avansul pe document
-  // EN: credit payment — the server reprices the lines and stores the plan
-  const body = {items, distance_km: km, center_id: centerId,
-                tva_mode: tvaSel ? tvaSel.value : 'inclus'};
-  if ((document.getElementById('paym-sel') || {}).value === 'credit') {
+  //     preturile cu naceta ACTIVA si retine planul/lunile/avansul pe document
+  // EN: credit payment — the server reprices the lines with the EFFECTIVE
+  //     markup and stores the plan/months/advance on the document
+  const body = {items, tva_mode: tvaSel ? tvaSel.value : 'inclus'};
+  if (!isCredit) { body.distance_km = km; body.center_id = centerId; }
+  if (isCredit) {
     // RO: pachetul/termenul vin din placa aleasa in tabelul de oferte
     // EN: the plan/term come from the selected offer tile
     const tiles = crTiles(cartTotalForCredit());
