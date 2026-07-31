@@ -218,12 +218,14 @@ def seed_providers(be: CrediteBackend) -> None:
         print(f"  + провайдер {code} создан (ENABLED='0')")
 
 
-def run(target: str, rename: bool = False) -> int:
+def run(target: str, rename: bool = False, resync: bool = False) -> int:
     be: CrediteBackend = AdbBackend() if target == "adb" else Biro26Backend()
     print(f"\n=== {target} ===")
     try:
         create_objects(be, DDL_PATH[target])
         migrate_legacy(be)
+        if resync:
+            resync_legacy(be)
         seed_providers(be)
         if rename:
             rename_legacy(be)
@@ -244,9 +246,15 @@ def main() -> int:
     ap.add_argument("--rename-legacy", action="store_true",
                     help="переименовать YBIRO_CREDIT_* -> *_OLD (отложено до Task 10, "
                          "пока remote-приложение читает старые таблицы)")
+    ap.add_argument("--resync-legacy", action="store_true",
+                    help="перенести из YBIRO_CREDIT_REQ только строки с "
+                         "ID > MAX(ID) из TMS_CREDITE_REQ (по умолчанию выключено; "
+                         "нужно, если старый код дописал в YBIRO_CREDIT_REQ уже "
+                         "после однократной migrate_legacy() — идемпотентно, "
+                         "не зависит от --rename-legacy)")
     a = ap.parse_args()
     targets = ["adb", "biro26"] if a.target == "both" else [a.target]
-    return max(run(t, rename=a.rename_legacy) for t in targets)
+    return max(run(t, rename=a.rename_legacy, resync=a.resync_legacy) for t in targets)
 
 
 if __name__ == "__main__":
