@@ -436,8 +436,16 @@ class Biro26Credit:
 
     # RO: providerul poate raspunde 200 cu un mesaj de autentificare esuata —
     #     nu tratam un astfel de raspuns drept conexiune reusita.
-    _AUTH_FAIL_MARKERS = ("invalid user", "invalid password", "unauthor", "not authenticated",
-                          "authentication", "401", "403", "50000")
+    # Markerii sunt fraze EXACTE de esec de autorizare, alese sa nu se
+    # suprapuna cu texte legitime (ex. «Предодобрено до 50000 лей»,
+    # «Two-factor authentication sent», «max_amount: 50000»).
+    _AUTH_FAIL_MARKERS = ("invalid user", "invalid password", "unauthorized",
+                          "not authorized", "not authenticated",
+                          "authentication failed", "auth failed",
+                          "http 401", "http 403")
+    # RO: 401/403 ca TOKEN de sine statator (nu subsir dintr-un numar mai mare,
+    # ex. «50401» nu trebuie sa declanseze fals-pozitiv).
+    _AUTH_FAIL_CODE_RE = re.compile(r"(?<!\d)(?:401|403)(?!\d)")
 
     @staticmethod
     def _is_auth_failure(res: Dict[str, Any]) -> bool:
@@ -447,13 +455,21 @@ class Biro26Credit:
         ca sa nu declansam fals-pozitive pe sume care contin «50000»."""
         data = res.get("data") if isinstance(res.get("data"), dict) else {}
         parts = []
+        codes = []
         for holder in (res, data):
             for k in ("status", "state", "message", "error"):
                 v = holder.get(k)
                 if isinstance(v, str) and v:
                     parts.append(v.lower())
+            hc = holder.get("http_code")
+            if hc is not None:
+                codes.append(str(hc).strip())
         text = " ".join(parts)
-        return any(m in text for m in Biro26Credit._AUTH_FAIL_MARKERS)
+        if any(m in text for m in Biro26Credit._AUTH_FAIL_MARKERS):
+            return True
+        if Biro26Credit._AUTH_FAIL_CODE_RE.search(text):
+            return True
+        return any(c in ("401", "403") for c in codes)
 
     @staticmethod
     def _public_error(res: Dict[str, Any]) -> str:
