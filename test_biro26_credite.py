@@ -619,6 +619,7 @@ TESTS = [
     ("публичный credit требует входа клиента", t_public_credit_requires_client_login),
     ("api_submit: ошибка UPDATE статуса не течёт клиенту", t_api_submit_status_save_failure_is_neutral),
     ("api_submit: ошибка INSERT не течёт клиенту", t_api_submit_insert_failure_is_neutral),
+    ("request_create: ошибка INSERT не течёт клиенту", t_request_create_insert_failure_is_neutral),
     ("маркеры отказа авторизации точны (без ложных срабатываний)", t_auth_failure_markers_precise),
 ]
 
