@@ -980,7 +980,13 @@ async function makeInvoice() {
                        amount: cartTotalForCredit(),
                        nrset: (r.data.nrmanual != null ? r.data.nrmanual : r.data.nrset),
                        cod: r.data.cod};
-      if (!ecOrgOf(currentTile())) {
+      // RO: calculam AICI, inainte de saveCart([]) mai jos, la fel ca ecOrg —
+      // ecMode e o variabila globala, dar o capturam pentru aceeasi ordine
+      // predictibila ca la ecOrg.
+      // EN: computed HERE, before saveCart([]) below, same as ecOrg — ecMode
+      // is a plain global, snapshotted for the same predictable ordering.
+      const modeAtSubmit = ecMode;
+      if (!ecOrgOf(currentTile()) || modeAtSubmit === 'manual') {
         payBtns += '<button class="btn" style="background:#111827" onclick="sendCartCreditReq()">📝 Cerere de credit EasyCredit · Кредитная заявка</button>';
       }
       if (PAY.methods.includes('maib'))
