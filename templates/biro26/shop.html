@@ -1202,8 +1202,10 @@ function currentTile() {
   if (amount <= 0) return null;
   const tiles = crTiles(amount);
   if (!tiles.length) return null;
-  if (cartCR.tile >= tiles.length) cartCR.tile = 0;
-  const t = tiles[cartCR.tile];
+  // RO: NU scriem inapoi in cartCR.tile de aici — e un getter, nu trebuie sa
+  // aiba efecte secundare; creditUI() isi face propria clama la afisare.
+  const idx = cartCR.tile < tiles.length ? cartCR.tile : 0;
+  const t = tiles[idx];
   if (!t) return null;
   const cp = amount * (1 + (t.plan.markup_pct || 0) / 100);
   return {plan: t.plan, m: t.m, monthly: t.monthly, credit_price: cp};
