@@ -900,7 +900,7 @@ function genDocSet(cod) {
 async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast('Coșul este gol · Корзина пуста', true); return; }
-  if (!me) { document.getElementById('m-cart').classList.remove('open'); openAuth(); return; }
+  if (!me) { document.getElementById('m-cart').classList.remove('open'); ecStop(); openAuth(); return; }
   // RO: distanta e OBLIGATORIE — serverul adauga automat linia de transport
   // EN: the distance is MANDATORY — the server adds the transport line itself
   const km = parseFloat(document.getElementById('tr-km').value);
