@@ -81,12 +81,19 @@ const COD = {{ cod }};
 let P = null, OFFERS = [], tileSel = 0, TILES = [];
 
 function crIs0(p) { return /0\s*%/.test(p.name || ''); }
+// RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei care
+//     inlocuieste transportul neprestat la credit. TREBUIE sa coincida cu
+//     cosul, cu magazinul si cu serverul (models/biro26_credit.py calc()),
+//     altfel clientul vede un pret pe fisa produsului si plateste altul.
+// EN: EFFECTIVE markup = plan commission + the org's no-transport markup;
+//     must match the cart, the shop modal and the server calculation.
+function crEffMarkup(pl, o) { return (pl.markup_pct || 0) + (o.transport_markup_pct || 0); }
 function crTiles(base) {
   const tiles = [];
   OFFERS.forEach(o => (o.plans || []).forEach(pl => {
     if (base < (pl.amount_min || 0) || base > (pl.amount_max || 1e9)) return;
     for (let m = pl.months_min; m <= pl.months_max; m++) {
-      const cp = base * (1 + (pl.markup_pct || 0) / 100);
+      const cp = base * (1 + crEffMarkup(pl, o) / 100);
       const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
         cp * (pl.monthly_fee_pct || 0) / 100;
       tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
