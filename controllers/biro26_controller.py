@@ -1238,40 +1238,51 @@ class Biro26Controller:
         # RO: transportul tur-retur este OBLIGATORIU pentru clientii
         #     magazinului si se alege pe server dupa distanta comenzii
         #     (TMS_MPT_DISTANTE): TUR -> qty 1, KM -> qty = km. Liniile de
-        #     transport trimise de client se ignora (anti-manipulare).
+        #     transport trimise de client se ignora INTOTDEAUNA (anti-manipulare).
+        #     La achitarea PRIN CREDIT transportul nu se mai presteaza (vezi
+        #     .superpowers/sdd/transport-markup-brief.md): blocul de mai jos
+        #     e SARIT complet — km nu e obligatoriu, nicio linie de transport
+        #     nu se adauga; costul e acoperit de naceta organizatiei (blocul
+        #     de credit, mai jos).
         # EN: round-trip transport is MANDATORY for shop clients and is
         #     picked server-side from the order distance: TUR -> qty 1,
-        #     KM -> qty = km. Client-sent transport lines are discarded.
+        #     KM -> qty = km. Client-sent transport lines are ALWAYS discarded.
+        #     On CREDIT payment transport is not delivered (see the brief
+        #     above): the block below is SKIPPED entirely — km is not
+        #     required and no transport line is added; the org's markup
+        #     covers the cost instead (credit block below).
+        credit_plan_id = d.get("credit_plan_id")
         if c:
-            try:
-                km = float(d.get("distance_km") or 0)
-            except (TypeError, ValueError):
-                km = 0
-            if km <= 0:
-                return {"success": False,
-                        "error": "distance_km is required (transport obligatoriu)"}
-            tr = Biro26Store.transport_for_km(km)
-            if not tr.get("success"):
-                return tr
-            t = tr["data"]
-            # RO: distanta se masoara DE LA centrul logistic; centrul ales
-            #     trebuie sa fie ACTIV (momentan doar mun. Balti)
-            # EN: the distance is measured FROM the logistics center; the
-            #     chosen center must be ACTIVE (only mun. Balti for now)
-            centers = Biro26Store.shop_logistics_centers().get("data") or []
-            if not centers:
-                return {"success": False, "error": "no active logistics center"}
-            center = next((x for x in centers
-                           if str(x["id"]) == str(d.get("center_id"))),
-                          centers[0])
             tariff_cods = {r["cod"] for r in
                            (Biro26Store.shop_transport_tariffs().get("data") or [])}
             clean = [it for it in clean if it["cod"] not in tariff_cods]
-            clean.append({"cod": int(t["cod"]),
-                          "qty": 1.0 if t["tarif_mode"] == "TUR" else km,
-                          "price": 0,
-                          "name": ((t["denumirea"] or "Transport tur-retur")
-                                   + f" din {center['denumire']}")[:180]})
+            if not credit_plan_id:
+                try:
+                    km = float(d.get("distance_km") or 0)
+                except (TypeError, ValueError):
+                    km = 0
+                if km <= 0:
+                    return {"success": False,
+                            "error": "distance_km is required (transport obligatoriu)"}
+                tr = Biro26Store.transport_for_km(km)
+                if not tr.get("success"):
+                    return tr
+                t = tr["data"]
+                # RO: distanta se masoara DE LA centrul logistic; centrul ales
+                #     trebuie sa fie ACTIV (momentan doar mun. Balti)
+                # EN: the distance is measured FROM the logistics center; the
+                #     chosen center must be ACTIVE (only mun. Balti for now)
+                centers = Biro26Store.shop_logistics_centers().get("data") or []
+                if not centers:
+                    return {"success": False, "error": "no active logistics center"}
+                center = next((x for x in centers
+                               if str(x["id"]) == str(d.get("center_id"))),
+                              centers[0])
+                clean.append({"cod": int(t["cod"]),
+                              "qty": 1.0 if t["tarif_mode"] == "TUR" else km,
+                              "price": 0,
+                              "name": ((t["denumirea"] or "Transport tur-retur")
+                                       + f" din {center['denumire']}")[:180]})
 
         # RO/EN: public client -> authoritative server-side prices only;
         #        operator -> server price fills items sent without a price
