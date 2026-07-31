@@ -50,6 +50,12 @@ class Biro26Credit:
     def org_save(d: Dict[str, Any]) -> Dict[str, Any]:
         try:
             db = Biro26DB()
+            try:
+                tm = float(d.get("transport_markup_pct") or 0)
+            except (TypeError, ValueError):
+                tm = 0.0
+            if tm < 0:
+                tm = 0.0
             params = {"n": (d.get("name") or "").strip()[:100],
                       "en": "1" if d.get("enabled") in (True, "1", 1) else "0",
                       "m": (d.get("org_mode") or "manual")[:10],
@@ -57,6 +63,7 @@ class Biro26Credit:
                       "lu": (d.get("logo_url") or "")[:400] or None,
                       "inf": (d.get("info") or "")[:2000] or None,
                       "o": int(d.get("ord") or 0),
+                      "tm": tm,
                       "pid": int(d["provider_id"]) if d.get("provider_id") else None}
             if not params["n"]:
                 return {"success": False, "error": "numele este obligatoriu"}
@@ -65,15 +72,15 @@ class Biro26Credit:
                 r = db.execute_dml(
                     "UPDATE TMS_CREDITE_ORG SET NAME=:n, ENABLED=:en, "
                     "ORG_MODE=:m, API_URL=:au, LOGO_URL=:lu, INFO=:inf, "
-                    "PROVIDER_ID=:pid, ORD=:o "
+                    "PROVIDER_ID=:pid, ORD=:o, TRANSPORT_MARKUP_PCT=:tm "
                     "WHERE ID=:id", params)
             else:
                 r = db.execute_dml(
                     "INSERT INTO TMS_CREDITE_ORG "
                     "(ID, NAME, ENABLED, ORG_MODE, API_URL, LOGO_URL, INFO, "
-                    "PROVIDER_ID, ORD) "
+                    "PROVIDER_ID, ORD, TRANSPORT_MARKUP_PCT) "
                     "VALUES (TMS_CREDITE_ORG_SEQ.NEXTVAL, :n, :en, :m, :au, :lu, "
-                    ":inf, :pid, :o)",
+                    ":inf, :pid, :o, :tm)",
                     params)
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
