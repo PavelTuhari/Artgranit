@@ -430,6 +430,7 @@ TESTS = [
     ("provider_test распознаёт отказ авторизации", t_provider_test_detects_auth_failure),
     ("публичные ошибки нейтральны (без утечек)", t_public_errors_are_neutral),
     ("публичный credit требует входа клиента", t_public_credit_requires_client_login),
+    ("api_submit: ошибка UPDATE статуса не течёт клиенту", t_api_submit_status_save_failure_is_neutral),
 ]
 
 
