@@ -730,7 +730,12 @@ class Biro26Credit:
              "cn": name[:200], "ph": phone[:40], "prc": code[:30],
              "idm": Biro26Credit._mask_idnp(idnp)[:20]})
         if not ins.get("success"):
-            return {"success": False, "error": ins.get("message")}
+            # RO: eroare Oracle la INSERT (poate contine text brut, ex. ORA-12154
+            #     cu calea catre wallet) — nu se arata clientului, doar in jurnal.
+            Biro26Credit._log_event(
+                req_id, code, "insert",
+                {"success": False, "error": ins.get("message")}, 0, {})
+            return {"success": False, "error": Biro26Credit._public_error({})}
         kwargs = {"fio": name, "phone": phone, "uin": idnp,
                   "amount": int(round(s["credit_price"])),
                   "goods_price": int(round(s["credit_price"])),
