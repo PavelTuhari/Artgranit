@@ -546,6 +546,39 @@ class Biro26Report:
             return {"success": False, "error": f"html: {e}"}
 
     @staticmethod
+    def render_htmlpdf(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: PDF-ul NOU — pe baza SABLONULUI HTML (modelul aprobat
+        Primaria_Japca), convertit cu WeasyPrint (fara browser). Vechiul
+        PDF (pdfme) ramine in ARHIVA — selectabil oricind in admin-ul de
+        sabloane. EN: new PDF rendered from the HTML template."""
+        h = Biro26Report.render_html(kind, data)
+        if not h.get("success"):
+            return h
+        try:
+            import weasyprint
+        except ImportError:
+            return {"success": False,
+                    "error": "weasyprint lipseste (pip install weasyprint)"}
+        try:
+            pdf = weasyprint.HTML(
+                string=h["html"].decode("utf-8")).write_pdf()
+            return {"success": True, "pdf": pdf}
+        except Exception as e:
+            return {"success": False, "error": f"htmlpdf: {e}"}
+
+    @staticmethod
+    def render_pdf_by_engine(kind: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: dispecerul PDF dupa motorul activ per formular (engines.json):
+        'htmlpdf' (implicit, pe sablonul HTML) / 'pdfme' (arhiva) /
+        'jsreport' (doar pe serverul cu jsReport complet)."""
+        eng = Biro26Report.get_engines()["data"].get(kind, "jsreport")
+        if eng == "pdfme":
+            return Biro26Report.render_pdfme(kind, data)
+        if eng == "htmlpdf":
+            return Biro26Report.render_htmlpdf(kind, data)
+        return Biro26Report.render(kind, data)
+
+    @staticmethod
     def render_doc_html(kind: str, cod: int,
                         allowed_client_cod: Optional[int] = None) -> Dict[str, Any]:
         d = Biro26Report.doc_data(cod)
@@ -598,7 +631,7 @@ class Biro26Report:
         except Exception:
             eng = {}
         return {"success": True,
-                "data": {k: (eng.get(k) if eng.get(k) in ("jsreport", "pdfme")
+                "data": {k: (eng.get(k) if eng.get(k) in ("jsreport", "pdfme", "htmlpdf")
                              else "jsreport") for k in REPORT_KINDS}}
 
     @staticmethod
@@ -606,7 +639,7 @@ class Biro26Report:
         import json
         cur = Biro26Report.get_engines()["data"]
         for k, v in (mapping or {}).items():
-            if k in REPORT_KINDS and v in ("jsreport", "pdfme"):
+            if k in REPORT_KINDS and v in ("jsreport", "pdfme", "htmlpdf"):
                 cur[k] = v
         with open(os.path.join(_TPL_DIR, ENGINES_FILE), "w", encoding="utf-8") as f:
             json.dump(cur, f, indent=2)
