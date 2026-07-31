@@ -426,10 +426,10 @@ async function makeInvoice() {
   saveCartLS([]);
   const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
   let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
-    '<br><button onclick="genDocSet(' + cod + ')">📄 Generează documentele (' +
-    fmtList().join(' + ').toUpperCase() + ')</button>' +
-    '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>';
-  setTimeout(() => genDocSet(cod), 600);   // setul ales se deschide automat
+    '<br><a target="_blank" href="' + pdf('invoice') + '">' + tr('pdfInvoice') + '</a>' +
+    '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>' +
+    fmtExtraBtns(cod);
+  setTimeout(() => window.open(pdf('invoice'), '_blank'), 600);  // implicit PDF
   if (PAY.enabled && payMethod !== 'credit') {
     if (PAY.methods.includes('mia'))
       h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
