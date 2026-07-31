@@ -188,7 +188,7 @@ function renderTiles() {
 /* RO: fluxul API al organizatiei de creditare (preapproved -> submit -> status).
    Se afiseaza doar daca organizatia are provider API configurat in back-office.
    EN: credit-provider API flow, shown only when the org has a configured provider. */
-var ecCtx = {org: null, reqId: null, ref: null, poll: null};
+var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null};
 
 function currentTile() { return TILES[tileSel] || null; }
 
@@ -199,6 +199,7 @@ function ecOrgOf(tile) {
 }
 
 function ecStop() {
+  ecCtx.gen++;
   if (ecCtx.poll) { clearTimeout(ecCtx.poll); ecCtx.poll = null; }
 }
 
@@ -208,6 +209,19 @@ function ecUI() {
   var t = (payMethod === 'credit') ? currentTile() : null;
   var org = ecOrgOf(t);
   if (!org) ecStop();
+  // RO: la schimbarea placii/organizatiei, rezultatul de preaprobare vechi
+  // devine invalid — il stergem, DAR nu si atunci cind o cerere e deja
+  // trimisa (ecCtx.reqId), ca sa nu se piarda referinta ext_ref din vedere.
+  // EN: reset the stale preapproval result on selection change, but not
+  // once a request has been submitted (keep the ext_ref reference visible).
+  var selKey = org ? (org.id + ':' + t.plan.id + ':' + t.m) : null;
+  if (selKey !== ecCtx.selKey && !ecCtx.reqId) {
+    var out = document.getElementById('ec-out');
+    if (out) out.innerHTML = '';
+    var btn = document.getElementById('ec-sub');
+    if (btn) { btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed'; }
+  }
+  ecCtx.selKey = selKey;
   ecCtx.org = org;
   box.style.display = org ? '' : 'none';
   if (org) {
