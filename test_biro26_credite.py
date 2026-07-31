@@ -202,6 +202,7 @@ def t_calc_bad_input_no_500() -> list[str]:
     import app as _app
     c = _app.app.test_client()
     fails = []
+    # Базовые случаи мусора без плана
     for body in (None, {}, {"amount": "abc"}, {"plan_id": "x", "amount": 1000}):
         r = c.post('/api/biro26/shop/credit/calc', json=body)
         if r.status_code == 429:
@@ -209,7 +210,22 @@ def t_calc_bad_input_no_500() -> list[str]:
         if r.status_code >= 500:
             fails.append(f"body={body!r} -> HTTP {r.status_code}")
         elif (r.get_json() or {}).get("success"):
-            fails.append(f"body={body!r} принято как валидное")
+            fails.append(f"body={body!r} принято як валидное")
+    # Случаи с реальным включённым пакетом, но мусорными months и avans
+    plans = Biro26Credit.plans_list()
+    if plans.get("success"):
+        enabled = [p for p in plans["data"] if p.get("enabled") == "1"]
+        if enabled:
+            pid = enabled[0]["id"]
+            for body in ({"plan_id": pid, "amount": 10000, "months": "abc"},
+                         {"plan_id": pid, "amount": 10000, "avans": "abc"}):
+                r = c.post('/api/biro26/shop/credit/calc', json=body)
+                if r.status_code == 429:
+                    continue  # rate-limited, acceptable
+                if r.status_code >= 500:
+                    fails.append(f"body={body!r} -> HTTP {r.status_code}")
+                elif (r.get_json() or {}).get("success"):
+                    fails.append(f"body={body!r} принято как валидное")
     return fails
 
 
