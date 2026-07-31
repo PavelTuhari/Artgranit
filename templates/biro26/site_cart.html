@@ -204,12 +204,17 @@ function renderTiles() {
       '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
       ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
       '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
+    // RO: in rezumat se arata pretul IN RATE (albastru), nu cel standard —
+    //     clientul plateste exact aceasta suma. La fel pentru TOATE pachetele,
+    //     nu doar la cele «0%».
+    // EN: the summary shows the INSTALMENT price (blue), never the standard
+    //     one — that is what the customer actually pays, for every plan.
     const t = TILES[tileSel], is0 = crIs0(t.plan);
-    document.getElementById('cr-sim').innerHTML = is0
-      ? '<span style="color:#1d4ed8;font-weight:800">' + tr('cartRate') + ': ' +
-        fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' + Math.ceil(t.monthly) + ' lei'
-      : tr('stdPrice') + ': <b>' + fmtLei(cartTotal()) + '</b> · ' + t.m + ' × ' +
-        Math.ceil(t.monthly) + ' lei (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')';
+    document.getElementById('cr-sim').innerHTML =
+      '<span style="color:#1d4ed8;font-weight:800">' + tr('cartRate') + ': ' +
+      fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' +
+      Math.ceil(t.monthly) + ' lei' +
+      (is0 ? '' : ' (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')');
   } finally {
     ecUI();
   }
