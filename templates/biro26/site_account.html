@@ -91,9 +91,30 @@ async function refresh() {
       me.email + (me.phone ? ' · ' + me.phone : '') +
       (me.address ? ' · ' + me.address : '');
     fmtApplyPref(me.invoice_fmt);
+    const r0 = document.querySelector('input[name="ctype"][value="' +
+      (me.is_company ? '1' : '0') + '"]');
+    if (r0) r0.checked = true;
+    const idn = document.getElementById('t-idno');
+    if (idn && me.idno) idn.value = me.idno;
+    typeUI();
   }
   window.ME_ACC = me;
   return me;
+}
+/* RO: tip client (fizica/juridica) — schimba preturile */
+function typeUI() {
+  const jur = (document.querySelector('input[name="ctype"]:checked') || {}).value === '1';
+  const idn = document.getElementById('t-idno');
+  if (idn) idn.style.display = jur ? '' : 'none';
+}
+async function saveType() {
+  const jur = (document.querySelector('input[name="ctype"]:checked') || {}).value === '1';
+  const r = await j(API + '/me/type', {method: 'PUT', body: JSON.stringify({
+    is_company: jur, idno: document.getElementById('t-idno').value.trim()})});
+  if (r.success) {
+    toast('✅ Salvat — prețurile se aplică după tipul ales');
+    setTimeout(() => location.reload(), 900);   // preturile noi peste tot
+  }
 }
 /* RO: constanta personala de formate (implicit PDF) */
 function fmtApplyPref(pref) {
