@@ -87,6 +87,26 @@ def create_objects(be: CrediteBackend, ddl_file: str) -> int:
     return created
 
 
+def add_transport_markup_column(be: CrediteBackend) -> None:
+    """RO: TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT — pas idempotent SEPARAT de
+    create_objects(), pentru ca CREATE TABLE e sarit (ORA-00955) pe tabelele
+    deja existente in ambele baze; coloana se adauga o singura data, verificat
+    prin USER_TAB_COLUMNS. Vezi .superpowers/sdd/transport-markup-brief.md.
+    EN: idempotent step SEPARATE from create_objects() — CREATE TABLE is a
+    no-op (ORA-00955) on already-existing tables, so the new column is added
+    only once, checked via USER_TAB_COLUMNS.
+    """
+    rows = be.query(
+        "SELECT COUNT(*) CNT FROM USER_TAB_COLUMNS "
+        "WHERE TABLE_NAME = 'TMS_CREDITE_ORG' "
+        "AND COLUMN_NAME = 'TRANSPORT_MARKUP_PCT'")
+    if rows and int(rows[0]["cnt"]) > 0:
+        print("  = TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT уже есть")
+        return
+    be.dml("ALTER TABLE TMS_CREDITE_ORG ADD TRANSPORT_MARKUP_PCT NUMBER DEFAULT 0")
+    print("  + TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT добавлена")
+
+
 def migrate_legacy(be: CrediteBackend) -> None:
     """Copy YBIRO_CREDIT_* into TMS_CREDITE_* preserving IDs. Idempotent."""
     if not _exists(be, "YBIRO_CREDIT_ORG"):
