@@ -978,6 +978,10 @@ async function makeInvoice() {
       xlsxBtn +
       '</div><div id="pay-box" style="margin-top:8px"></div></div>';
     saveCart([]); renderCart();
+    // RO: cosul e gol dupa comanda — sincronizam blocul de credit
+    // (#credit-box/#ec-flow), altfel raman active cu currentTile()==null
+    // si butoanele de acolo nu mai fac nimic.
+    creditUI();
   }
 }
 
