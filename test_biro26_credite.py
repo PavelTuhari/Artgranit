@@ -340,6 +340,79 @@ def t_public_credit_requires_client_login() -> list[str]:
     return fails
 
 
+def t_api_submit_status_save_failure_is_neutral() -> list[str]:
+    """Finding 5: cind providerul accepta cererea, dar UPDATE-ul statusului
+    local esueaza, textul brut al erorii Oracle (ORA-...) nu trebuie sa
+    ajunga in raspunsul public — detaliile raman doar in jurnal."""
+    import models.biro26_credit as bc
+
+    class _FakeDB:
+        """Nu atinge Oracle: INSERT-ul cererii "reuseste", UPDATE-ul statusului
+        "esueaza" cu un mesaj Oracle brut, ca sa verificam ca nu se scurge."""
+
+        def execute_query(self, sql, params=None):
+            s = " ".join(sql.split()).upper()
+            if "TMS_CREDITE_REQ_SEQ.NEXTVAL" in s:
+                return {"success": True, "columns": ["ID"], "data": [[999999999]]}
+            raise AssertionError(f"neasteptat query in test: {sql}")
+
+        def execute_dml(self, sql, params=None):
+            s = " ".join(sql.split()).upper()
+            if s.startswith("INSERT INTO TMS_CREDITE_REQ ("):
+                return {"success": True}
+            if s.startswith("UPDATE TMS_CREDITE_REQ SET EXT_REF"):
+                return {"success": False,
+                        "message": "ORA-00001: unique constraint (X.PK_TMS) violated"}
+            raise AssertionError(f"neasteptat dml in test: {sql}")
+
+    class _FakeProv:
+        capabilities = ["submit"]
+        def is_configured(self): return True
+        def submit(self, **kw):
+            return {"success": True, "data": {"urn": "URN-TEST-1"}}
+
+    class _FakeReg:
+        def get(self, code): return _FakeProv()
+
+    fake_plan = {"id": 1, "name": "Test", "org_id": 1, "org_name": "T",
+                "months_min": 6, "months_max": 12, "amount_min": 1000,
+                "amount_max": 100000, "markup_pct": 0, "annual_pct": 0,
+                "monthly_fee_pct": 0, "issue_fee": 0, "avans_min_pct": 0}
+
+    orig_db = bc.Biro26DB
+    orig_reg = bc.Biro26Credit._registry
+    orig_log = bc.Biro26Credit._log_event
+    orig_org_provider = bc.Biro26Credit._org_provider
+    orig_plan_get = bc.Biro26Credit.plan_get
+    bc.Biro26DB = _FakeDB
+    bc.Biro26Credit._registry = staticmethod(lambda: _FakeReg())
+    bc.Biro26Credit._log_event = staticmethod(lambda *a, **k: None)
+    bc.Biro26Credit._org_provider = staticmethod(
+        lambda org_id: {"org_id": org_id, "org_name": "T", "provider_code": "easycredit"})
+    bc.Biro26Credit.plan_get = staticmethod(lambda plan_id: dict(fake_plan))
+    try:
+        r = bc.Biro26Credit.api_submit({
+            "org_id": 1, "plan_id": 1, "amount": 10000,
+            "client_name": "Test Testov", "phone": "+37369000000",
+            "idnp": "2000000000001"})
+    finally:
+        bc.Biro26DB = orig_db
+        bc.Biro26Credit._registry = orig_reg
+        bc.Biro26Credit._log_event = orig_log
+        bc.Biro26Credit._org_provider = orig_org_provider
+        bc.Biro26Credit.plan_get = orig_plan_get
+
+    fails = []
+    if r.get("success"):
+        fails.append("ожidat success=False (UPDATE-ul statusului a esuat)")
+    err = str(r.get("error") or "")
+    if "ORA-" in err.upper():
+        fails.append(f"textul brut al erorii Oracle s-a scurs in raspunsul public: {err!r}")
+    if not err:
+        fails.append("raspunsul public nu are deloc mesaj de eroare")
+    return fails
+
+
 TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
