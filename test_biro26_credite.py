@@ -229,6 +229,32 @@ def t_calc_bad_input_no_500() -> list[str]:
     return fails
 
 
+def t_offers_carry_capabilities() -> list[str]:
+    """provider в offers несёт список возможностей, согласованный с реестром провайдеров."""
+    r = Biro26Credit.public_offers()
+    if not r.get("success"):
+        return [f"public_offers: {r.get('error')}"]
+    reg = Biro26Credit._registry()
+    fails = []
+    for o in r["data"]:
+        p = o.get("provider")
+        if p is None:
+            continue
+        if not isinstance(p.get("capabilities"), list):
+            fails.append(f"{o.get('name')!r}: capabilities не список: {p.get('capabilities')!r}")
+            continue
+        prov = reg.get(p["code"])
+        if prov is not None and set(p["capabilities"]) != set(prov.capabilities):
+            fails.append(f"{p['code']}: {p['capabilities']} != {prov.capabilities}")
+    # контракт провайдеров: easycredit умеет preapproved, iute — нет
+    ec, iu = reg.get("easycredit"), reg.get("iute")
+    if ec is not None and "preapproved" not in ec.capabilities:
+        fails.append("easycredit потерял preapproved")
+    if iu is not None and "preapproved" in iu.capabilities:
+        fails.append("iute заявил preapproved, хотя метод не реализован — обнови витрину")
+    return fails
+
+
 TESTS = [
     ("таблицы TMS_CREDITE_* существуют", t_tables_exist),
     ("нет YBIRO_CREDIT_* в коде", t_no_legacy_names_in_code),
