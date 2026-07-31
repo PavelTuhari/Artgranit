@@ -199,6 +199,26 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
       <label><input type="checkbox" id="f-fmt-xlsx" style="width:auto;vertical-align:middle">
         Excel/XLSX (<code>SHOP_FMT_XLSX</code>)</label>
     </div>
+    <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+      <b>Prețul afișat după tipul clientului · Цена по типу клиента</b>
+      <div style="font-size:12px;color:#64748b;margin:2px 0 6px">
+        Tipul se ia din cabinetul clientului (persoană fizică / juridică).
+        Prețul ales se aplică peste tot: catalog, fișa produsului, coș și contul de plată. ·
+        Тип берётся из кабинета клиента; выбранная цена применяется в каталоге,
+        карточке товара, корзине и в счёте.</div>
+      <label style="margin-right:16px">Persoane fizice · Физлица (<code>SHOP_PRICE_FIZ</code>)<br>
+        <select id="f-price-fiz" style="width:220px">
+          <option value="retail1">Cu amănuntul · Розничная (PRETV)</option>
+          <option value="ionline">Online (PRETV2)</option>
+          <option value="angro">Angro · Оптовая (PRETV1)</option>
+        </select></label>
+      <label>Persoane juridice · Юрлица (<code>SHOP_PRICE_JUR</code>)<br>
+        <select id="f-price-jur" style="width:220px">
+          <option value="retail1">Cu amănuntul · Розничная (PRETV)</option>
+          <option value="ionline">Online (PRETV2)</option>
+          <option value="angro">Angro · Оптовая (PRETV1)</option>
+        </select></label>
+    </div>
     <div class="acts"><button class="btn" onclick="saveShop()">💾 Salvează · Сохранить</button></div>
   </div>
 
