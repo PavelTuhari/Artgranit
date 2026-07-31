@@ -363,6 +363,8 @@ async function loadShop() {
   document.getElementById('f-brand-filter').checked = r.data.brand_filter === '1';
   document.getElementById('f-fmt-html').checked = r.data.fmt_html === '1';
   document.getElementById('f-fmt-xlsx').checked = r.data.fmt_xlsx === '1';
+  document.getElementById('f-price-fiz').value = r.data.price_fiz || 'retail1';
+  document.getElementById('f-price-jur').value = r.data.price_jur || 'ionline';
   document.getElementById('f-invoice-nr-start').value =
     r.data.invoice_nr_start || '1';
   fillInvoiceNrInfo(r.data);
