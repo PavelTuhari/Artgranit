@@ -35,6 +35,15 @@
     .paybadges{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
     .paybadge{background:#fff;color:#194681;border-radius:6px;padding:3px 9px;
       font-size:11px;font-weight:800;letter-spacing:.02em}
+    /* RO: siglele sistemelor de plata (maib, VISA, Mastercard…) — cerinta maib.
+       Fisierele oficiale se pun in /static/biro26/pay/; daca lipsesc, ramine
+       bagdge-ul text de mai sus. EN: payment-system logos, text badge fallback. */
+    .paylogo{height:24px;width:auto;background:#fff;border-radius:6px;
+      padding:3px 7px;display:block;object-fit:contain}
+    .footer-legal{border-top:1px solid rgba(255,255,255,.16);margin-top:18px;
+      padding-top:14px;font-size:12.5px;line-height:1.6;opacity:.92}
+    .footer-legal p{margin:0}
+    .footer-legal a{color:inherit;text-decoration:underline}
     .lang-item{cursor:pointer}
     .toast{position:fixed;bottom:24px;right:24px;background:#194681;color:#fff;
       padding:12px 20px;border-radius:10px;font-weight:600;font-size:14px;z-index:99;
