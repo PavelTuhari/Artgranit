@@ -269,6 +269,46 @@ def t_source_is_authoritative() -> List[str]:
     return fails
 
 
+def t_config_oracle_authoritative_even_if_empty() -> List[str]:
+    """Finding 4: config._oracle() авторитетен, если запись есть — пустой
+    пароль в Oracle НЕ подменяется значением из .env (по умолчанию 'demo'
+    для EasyCredit); а если записи нет вовсе (_oracle вернул {}), фолбэк на
+    .env по-прежнему работает."""
+    import config as cfg
+
+    fails = []
+    orig_oracle = cfg._oracle
+
+    # 1) запись есть, пароль намеренно пуст -> Config должен вернуть "", не "demo"
+    cfg._oracle = lambda code: (
+        {"env": "sandbox", "base_url": "https://tst.ecmoldova.cloud:8082",
+         "api_user": "operator", "api_password": ""}
+        if code == "easycredit" else {})
+    try:
+        pw = cfg.Config.easycredit_api_password()
+        user = cfg.Config.easycredit_api_user()
+    finally:
+        cfg._oracle = orig_oracle
+    if pw != "":
+        fails.append(f"easycredit_api_password()={pw!r}, ожидалась '' "
+                     f"(запись в Oracle есть, пароль в ней пуст)")
+    if pw == "demo":
+        fails.append("пустой пароль в Oracle подменён дефолтом .env ('demo')")
+    if user != "operator":
+        fails.append(f"easycredit_api_user()={user!r}, ожидался 'operator' из Oracle")
+
+    # 2) записи нет вовсе (_oracle -> {}) -> фолбэк на .env по-прежнему работает
+    cfg._oracle = lambda code: {}
+    try:
+        pw2 = cfg.Config.easycredit_api_password()
+    finally:
+        cfg._oracle = orig_oracle
+    if pw2 != cfg.Config.EASYCREDIT_API_PASSWORD:
+        fails.append(f"без записи в Oracle фолбэк на .env не сработал: "
+                     f"{pw2!r} != {cfg.Config.EASYCREDIT_API_PASSWORD!r}")
+    return fails
+
+
 TESTS = [
     ("save + get", t_save_and_get),
     ("пустой секрет не затирает", t_empty_secret_keeps_previous),
@@ -279,6 +319,7 @@ TESTS = [
     ("Config читает Oracle", t_config_reads_oracle),
     ("provider settings_source", t_provider_settings_source),
     ("источник авторитетен (нет утечки в Config)", t_source_is_authoritative),
+    ("config._oracle авторитетен даже при пустом значении", t_config_oracle_authoritative_even_if_empty),
 ]
 
 
