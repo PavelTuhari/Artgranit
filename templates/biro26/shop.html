@@ -1323,7 +1323,21 @@ function ecUI() {
   }
   ecCtx.selKey = selKey;
   ecCtx.org = org;
-  box.style.display = org ? '' : 'none';
+  // RO: comutatorul online/manual apare doar cind organizatia are provider
+  // configurat; formularul #ec-flow se afiseaza doar in modul 'online'.
+  // EN: the online/manual switcher only shows when the org has a configured
+  // provider; the #ec-flow form only renders in 'online' mode.
+  var modeBox = document.getElementById('ec-mode-box');
+  if (modeBox) modeBox.style.display = org ? '' : 'none';
+  var btnOn = document.getElementById('ec-mode-online');
+  var btnMan = document.getElementById('ec-mode-manual');
+  if (btnOn) btnOn.classList.toggle('on', ecMode === 'online');
+  if (btnMan) btnMan.classList.toggle('on', ecMode === 'manual');
+  var hint = document.getElementById('ec-mode-hint');
+  if (hint) hint.textContent = ecMode === 'online'
+    ? 'Online: decizie în cîteva minute · Онлайн: решение за несколько минут'
+    : 'Manual: vă contactează un manager · Вручную: с вами свяжется менеджер';
+  box.style.display = (org && ecMode === 'online') ? '' : 'none';
   var preBtn = document.getElementById('ec-pre');
   if (preBtn) preBtn.style.display = hasPre ? '' : 'none';
   var note = document.getElementById('ec-note');
