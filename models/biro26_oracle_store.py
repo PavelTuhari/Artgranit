@@ -953,6 +953,33 @@ class Biro26Store:
             return default
 
     @staticmethod
+    def get_settings_many(keys: List[str]) -> Dict[str, str]:
+        """RO: mai multe setari INTR-O SINGURA interogare.
+
+        Fiecare `get_setting` porneste un worker-subproces (Oracle thick) —
+        ~2 secunde. Noua chei citite pe rind insemnau ~20 s la deschiderea
+        cosului. Aici se citeste tot dintr-un foc; cheile lipsa vin ca ''.
+        EN: read several settings in ONE query — each separate get_setting
+        spawns a subprocess worker (~2 s), so N keys cost N × 2 s.
+        """
+        out = {k: "" for k in keys}
+        if not keys:
+            return out
+        binds = {f"k{i}": k for i, k in enumerate(keys)}
+        names = ", ".join(f":k{i}" for i in range(len(keys)))
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                f"SELECT SKEY, SVAL FROM YBIRO_SETTINGS WHERE SKEY IN ({names})",
+                binds))
+        except Exception:                              # noqa: BLE001
+            return out
+        for r in rows:
+            k = r.get("skey")
+            if k in out:
+                out[k] = r.get("sval") or ""
+        return out
+
+    @staticmethod
     def set_setting(key: str, val: str) -> Dict[str, Any]:
         try:
             r = Biro26DB().execute_dml(
