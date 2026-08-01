@@ -148,6 +148,37 @@ async function fmtChanged() {
     body: JSON.stringify({invoice_fmt: v})});
   if (r.success) toast('✅ Salvat: ' + v.toUpperCase());
 }
+/* RO: bifa «Memorează datele formularului de credit». Oprirea sterge datele
+   deja memorate — de aceea se cere o confirmare, iar pornirea nu cere nimic.
+   EN: the toggle that stops remembering the credit form; switching it off
+   deletes what was stored, so it asks for confirmation. */
+function crSaveUI(on, p) {
+  const cb = document.getElementById('cr-save');
+  if (!cb) return;
+  cb.checked = !!on;
+  const has = [p.nnp, p.idnp, p.address, p.birth_date, p.phone].filter(Boolean).length;
+  document.getElementById('cr-save-hint').textContent = on
+    ? (has ? 'Datele memorate se completează automat la următoarea cerere de credit · '
+             + 'Сохранённые данные подставятся автоматически при следующей заявке'
+           : 'Datele se vor memora la prima cerere de credit · '
+             + 'Данные сохранятся при первой заявке на кредит')
+    : 'Memorarea este oprită — formularul de credit se completează de fiecare dată · '
+      + 'Запоминание выключено — форму нужно заполнять каждый раз';
+}
+async function saveCreditPref() {
+  const cb = document.getElementById('cr-save');
+  if (!cb.checked && !confirm(
+      'Datele memorate pentru credit vor fi șterse. Continuați? · ' +
+      'Сохранённые данные для кредита будут удалены. Продолжить?')) {
+    cb.checked = true; return;
+  }
+  const r = await j(API + '/me/credit-save', {method: 'PUT',
+    body: JSON.stringify({save: cb.checked ? '1' : '0'})});
+  if (!r.success) { toast(r.error || 'Eroare', true); cb.checked = !cb.checked; return; }
+  crSaveUI(cb.checked, {});
+  toast(cb.checked ? '✅ Datele se vor memora' : '✅ Memorarea oprită');
+}
+
 async function doLogin() {
   const r = await j(API + '/login', {method: 'POST', body: JSON.stringify({
     email: document.getElementById('l-email').value.trim(),
