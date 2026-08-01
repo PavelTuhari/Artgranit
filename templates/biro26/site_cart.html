@@ -41,64 +41,226 @@
 
               <div class="ck-box">
                 <h3 data-t="payMethod">Metoda de achitare</h3>
-                <div class="paym">
-                  <button id="pm-std" class="on" onclick="setPm('standard')" data-t="payStd">Standard (factură)</button>
-                  <button id="pm-cr" onclick="setPm('credit')" data-t="payCredit">Rate / credit</button>
-                </div>
-                <div id="credit-box" style="display:none">
-                  <label data-t="ratesTiles">Alegeți termenul</label>
-                  <div class="cr-tiles" id="cr-tiles"></div>
-                  <div style="font-size:11.5px;color:#64748b;margin:4px 0 8px">La achitarea în rate/credit transportul nu se prestează — costul e deja inclus în preț · При оплате в рассрочку/кредит доставка не осуществляется — её стоимость уже включена в цену</div>
-                  <div id="cr-sim" style="font-size:13.5px;margin-top:8px"></div>
-                  <label data-t="avans">Avans, lei</label>
-                  <input id="credit-avans" type="number" min="0" value="0">
-                  <div id="ec-mode-box" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
-                    <label style="margin-top:0">Modul de solicitare · Способ оформления</label>
-                    <div class="paym">
-                      <button id="ec-mode-online" class="on" onclick="ecSetMode('online')">Cerere online · Онлайн-заявка</button>
-                      <button id="ec-mode-manual" onclick="ecSetMode('manual')">Vă sunăm noi · Перезвонит менеджер</button>
-                    </div>
-                    <div id="ec-mode-hint" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
-                  </div>
-                  <div id="ec-flow" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
-                    <div style="font-weight:700;font-size:13px;margin-bottom:6px">
-                      <span id="ec-org-label"></span>
-                    </div>
-                    <div style="display:flex;flex-wrap:wrap;gap:6px">
-                      <input id="ec-fio" placeholder="Nume Prenume · ФИО"
-                             style="flex:1;min-width:170px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
-                      <input id="ec-phone" placeholder="+373 …"
-                             style="width:150px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
-                      <input id="ec-idnp" placeholder="IDNP" maxlength="13"
-                             style="width:150px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
-                    </div>
-                    <div style="display:flex;gap:6px;margin-top:8px">
-                      <button id="ec-pre" onclick="ecPreapproved()"
-                              style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer">
-                        🔍 Verifică preaprobarea · Проверить предодобрение
-                      </button>
-                      <button id="ec-sub" onclick="ecSubmit()" disabled
-                              style="flex:1;padding:8px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:not-allowed">
-                        📨 Trimite cererea · Отправить заявку
-                      </button>
-                    </div>
-                    <div id="ec-note" style="display:none;font-size:11.5px;color:#64748b;margin-top:6px">
-                      Decizia se ia după depunerea cererii · Решение принимается после подачи заявки
-                    </div>
-                    <div id="ec-out" style="font-size:12.5px;margin-top:8px"></div>
-                  </div>
-                </div>
+                <p style="font-size:12.5px;color:#64748b;margin:0 0 10px" data-t="payMethodHint">Alege tipul de credit / rate sau plata standard · Выберите способ оплаты</p>
+                <div class="pm-entry" id="pm-entry"></div>
                 <!-- RO: formatele alternative (HTML/XLS) NU se aleg aici —
                      activarea lor se face DOAR in cabinetul clientului
                      (/cont); implicit totul iese in PDF. Dupa crearea
                      contului apar butonase mici pentru formatele activate. -->
-                <label data-t="tvaMode">TVA</label>
-                <select id="tva-mode">
+                <!-- RO: select-ul original ramine, ASCUNS — este citit direct
+                     de makeInvoice() la trimiterea comenzii; butoanele TVA
+                     din modala Standard doar ii schimba valoarea.
+                     EN: the original select stays, HIDDEN — makeInvoice()
+                     reads it directly on submit; the Standard modal's TVA
+                     buttons only change its value. -->
+                <select id="tva-mode" style="display:none">
                   <option value="inclus">TVA 20% inclus · НДС 20% включён</option>
                   <option value="0">TVA 0% · НДС 0%</option>
                   <option value="fara">Fără TVA · Без НДС</option>
                 </select>
               </div>
+
+              <!-- ===== Modala Credit / Rate (pe org din OFFERS) ===== -->
+              <div class="pm-modal-overlay" id="credit-modal">
+                <div class="pm-modal">
+                  <div class="pm-modal-header">
+                    <h3 id="cm-title-text">Credit</h3>
+                    <button type="button" class="pm-modal-close" onclick="closeCreditModal()">×</button>
+                  </div>
+                  <div class="pm-modal-body">
+                    <div id="cm-step1">
+                      <label class="pm-modal-label" data-t="ratesTiles">Alegeți termenul</label>
+                      <div class="cr-tiles" id="cr-tiles"></div>
+                      <div style="font-size:11.5px;color:#64748b;margin:4px 0 8px">La achitarea în rate/credit transportul nu se prestează — costul e deja inclus în preț · При оплате в рассрочку/кредит доставка не осуществляется — её стоимость уже включена в цену</div>
+                      <div class="pm-summary" id="cr-sim">Selectați un termen pentru a vedea detaliile · Выберите срок, чтобы увидеть детали</div>
+                      <label data-t="avans">Avans, lei</label>
+                      <input id="credit-avans" type="number" min="0" value="0">
+                      <button type="button" class="pm-action-btn" id="cm-continue-btn" onclick="cmGoToForm()" disabled style="margin-top:14px">
+                        Continuă
+                      </button>
+                    </div>
+
+                    <div id="cm-step2" style="display:none">
+                      <p class="pm-modal-label" style="margin-bottom:14px">Completați datele pentru a aplica cererea de credit · Заполните данные для заявки на кредит</p>
+                      <div class="pm-form-group">
+                        <label for="ec-fio">NNP *</label>
+                        <input type="text" id="ec-fio" placeholder="Nume Prenume · ФИО">
+                      </div>
+                      <div class="pm-form-group">
+                        <label for="ec-idnp">IDNP / IDNO *</label>
+                        <input type="text" id="ec-idnp" placeholder="Ex: 2000123456789" maxlength="13">
+                      </div>
+                      <div class="pm-form-group">
+                        <!-- RO: adresa e ceruta doar vizual, dupa macheta — API-ul
+                             EasyCredit (eShopRequest_V5) NU are camp pentru ea, deci
+                             NU se trimite nicaieri, doar se valideaza ca obligatorie. -->
+                        <label for="cr-address">Adresa de domiciliu sau juridică *</label>
+                        <textarea id="cr-address" placeholder="Ex: str. Ștefan cel Mare 123, Chișinău"></textarea>
+                      </div>
+                      <div class="pm-form-group">
+                        <label for="ec-phone">Număr de contact *</label>
+                        <input type="tel" id="ec-phone" placeholder="+373 XX XXX XXX" value="+373 ">
+                      </div>
+
+                      <div class="pm-summary" id="cm-final-summary" style="margin-bottom:16px"></div>
+
+                      <div id="ec-mode-box" style="display:none;margin-bottom:10px">
+                        <label style="margin-top:0">Modul de solicitare · Способ оформления</label>
+                        <div class="paym">
+                          <button id="ec-mode-online" class="on" onclick="ecSetMode('online')">Cerere online · Онлайн-заявка</button>
+                          <button id="ec-mode-manual" onclick="ecSetMode('manual')">Vă sunăm noi · Перезвонит менеджер</button>
+                        </div>
+                        <div id="ec-mode-hint" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
+                      </div>
+                      <div id="ec-flow" style="display:none;margin-bottom:10px">
+                        <div style="font-weight:700;font-size:13px;margin-bottom:6px">
+                          <span id="ec-org-label"></span>
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:8px">
+                          <button id="ec-pre" onclick="ecPreapproved()"
+                                  style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer">
+                            🔍 Verifică preaprobarea · Проверить предодобрение
+                          </button>
+                        </div>
+                        <div id="ec-note" style="display:none;font-size:11.5px;color:#64748b;margin-top:6px">
+                          Decizia se ia după depunerea cererii · Решение принимается после подачи заявки
+                        </div>
+                        <div id="ec-out" style="font-size:12.5px;margin-top:8px"></div>
+                      </div>
+                      <div id="cm-no-provider-note" style="display:none;font-size:11.5px;color:#64748b;margin-bottom:10px">
+                        Pentru acest creditor cererea se depune după plasarea comenzii, folosind butonul de sub factură · Для этого кредитора заявка подаётся после оформления заказа, кнопкой под счётом
+                      </div>
+
+                      <div class="pm-checkbox-group">
+                        <input type="checkbox" id="cr-agree-terms">
+                        <label for="cr-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a> *</label>
+                      </div>
+                      <div class="pm-checkbox-group">
+                        <input type="checkbox" id="cr-agree-privacy">
+                        <label for="cr-agree-privacy">Am citit și sunt de acord cu <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a> *</label>
+                      </div>
+
+                      <button type="button" class="pm-action-btn" id="ec-sub" style="margin-top:6px" onclick="cmSubmitCreditRequest()">
+                        📨 Aplică cererea de credit · Отправить заявку
+                      </button>
+                      <button type="button" class="pm-action-btn pm-action-btn-secondary" style="margin-top:10px" onclick="cmBackToPeriods()">
+                        ← Înapoi la perioade
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ===== Modala Standard (factură) ===== -->
+              <div class="pm-modal-overlay" id="std-modal">
+                <div class="pm-modal">
+                  <div class="pm-modal-header">
+                    <h3 data-t="payStd">Standard (factură)</h3>
+                    <button type="button" class="pm-modal-close" onclick="closeStdModal()">×</button>
+                  </div>
+                  <div class="pm-modal-body">
+                    <div class="pm-std-price-box">
+                      <div class="pm-price-label">Total comandă · Итого заказ</div>
+                      <div class="pm-price-value" id="std-price-value">0 lei</div>
+                    </div>
+
+                    <p class="pm-modal-label" data-t="tvaMode">Alegeți tipul de TVA · Выберите тип НДС</p>
+                    <div class="tva-options" id="std-tva-options">
+                      <button type="button" class="tva-btn on" data-tva="inclus" onclick="stdSelectTva(this,'inclus')">
+                        TVA 20%
+                        <span class="tva-label">inclus · включён</span>
+                      </button>
+                      <button type="button" class="tva-btn" data-tva="0" onclick="stdSelectTva(this,'0')">
+                        TVA 0%
+                        <span class="tva-label">zero · нулевой</span>
+                      </button>
+                      <button type="button" class="tva-btn" data-tva="fara" onclick="stdSelectTva(this,'fara')">
+                        Fără TVA
+                        <span class="tva-label">neimpozabil · без НДС</span>
+                      </button>
+                    </div>
+
+                    <div class="pm-summary" id="std-summary" style="margin-top:16px">
+                      Completați transportul obligatoriu în coloana din dreapta, apoi apăsați «Plasează comanda» · Заполните обязательную доставку справа, затем нажмите «Оформить заказ»
+                    </div>
+
+                    <div class="pm-checkbox-group">
+                      <input type="checkbox" id="std-agree-terms">
+                      <label for="std-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a> *</label>
+                    </div>
+                    <div class="pm-checkbox-group">
+                      <input type="checkbox" id="std-agree-privacy">
+                      <label for="std-agree-privacy">Am citit și sunt de acord cu <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a> *</label>
+                    </div>
+
+                    <button type="button" class="pm-action-btn" id="std-action-btn" style="margin-top:6px" onclick="stdContinue()">
+                      Continuă la plată
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <style>
+                .pm-entry{display:flex;flex-direction:column;gap:10px}
+                .pm-btn{display:flex;align-items:center;justify-content:center;gap:10px;
+                  padding:14px 16px;border:none;border-radius:10px;font-size:14.5px;
+                  font-weight:700;cursor:pointer;color:#fff;min-height:52px;
+                  transition:transform .15s ease,box-shadow .15s ease}
+                .pm-btn:hover{transform:translateY(-1px)}
+                .pm-btn-easy{background:linear-gradient(135deg,#ff6b00,#ff8c00)}
+                .pm-btn-easy:hover{box-shadow:0 6px 16px rgba(255,107,0,.35)}
+                .pm-btn-maib{background:linear-gradient(135deg,#0055a5,#0077cc)}
+                .pm-btn-maib:hover{box-shadow:0 6px 16px rgba(0,85,165,.35)}
+                .pm-btn-generic{background:linear-gradient(135deg,#334155,#475569)}
+                .pm-btn-generic:hover{box-shadow:0 6px 16px rgba(51,65,85,.35)}
+                .pm-btn-standard{background:linear-gradient(135deg,#059669,#10b981)}
+                .pm-btn-standard:hover{box-shadow:0 6px 16px rgba(5,150,105,.35)}
+
+                .pm-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);
+                  display:flex;align-items:center;justify-content:center;z-index:1000;
+                  opacity:0;visibility:hidden;transition:opacity .2s ease;padding:16px}
+                .pm-modal-overlay.active{opacity:1;visibility:visible}
+                .pm-modal{background:#fff;border-radius:16px;width:100%;max-width:480px;
+                  max-height:90vh;overflow-y:auto;box-shadow:0 25px 50px rgba(0,0,0,.25)}
+                .pm-modal-header{padding:18px 22px 14px;border-bottom:1px solid #eee;
+                  display:flex;justify-content:space-between;align-items:center}
+                .pm-modal-header h3{font-size:18px;color:#1a1a1a;margin:0}
+                .pm-modal-close{background:#f0f0f0;border:none;width:32px;height:32px;
+                  border-radius:50%;font-size:18px;cursor:pointer;color:#555}
+                .pm-modal-close:hover{background:#e0e0e0}
+                .pm-modal-body{padding:18px 22px 26px}
+                .pm-modal-label{font-size:13.5px;color:#555;margin:0 0 10px;font-weight:600}
+                .pm-summary{background:#f8f9fa;border-radius:10px;padding:12px 14px;
+                  margin:8px 0 14px;font-size:13.5px;line-height:1.5}
+                .pm-summary .price-red{color:#e11d48;font-weight:800}
+                .pm-action-btn{width:100%;padding:13px;border:none;border-radius:10px;
+                  font-size:14.5px;font-weight:700;color:#fff;cursor:pointer;background:#111827}
+                .pm-action-btn:disabled{opacity:.5;cursor:not-allowed}
+                .pm-action-btn-secondary{background:#6b7280}
+                .pm-form-group{margin-bottom:14px}
+                .pm-form-group label{display:block;font-size:13px;font-weight:600;
+                  color:#374151;margin-bottom:5px}
+                .pm-form-group input,.pm-form-group textarea{width:100%;padding:10px 12px;
+                  border:1.5px solid #d1d5db;border-radius:8px;font-size:14px}
+                .pm-form-group textarea{resize:vertical;min-height:70px}
+                .pm-checkbox-group{margin-bottom:10px;display:flex;align-items:flex-start;gap:8px}
+                .pm-checkbox-group input[type=checkbox]{width:17px;height:17px;margin-top:2px}
+                .pm-checkbox-group label{font-size:12.5px;color:#374151;line-height:1.4}
+                .pm-checkbox-group a{color:#0055a5}
+                .tva-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+                .tva-btn{border:2px solid #e0e0e0;background:#fff;border-radius:10px;
+                  padding:10px 6px;cursor:pointer;text-align:center;font-size:12.5px;
+                  font-weight:700;color:#1a1a1a}
+                .tva-btn .tva-label{display:block;font-size:11px;font-weight:500;
+                  color:#6b7280;margin-top:3px}
+                .tva-btn.on{border-color:#7c3aed;background:#f5f3ff;color:#7c3aed}
+                .tva-btn.on .tva-label{color:#7c3aed}
+                .pm-std-price-box{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);
+                  border:2px solid #86efac;border-radius:10px;padding:14px;margin-bottom:16px;text-align:center}
+                .pm-price-label{font-size:12px;color:#059669;font-weight:700;
+                  text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+                .pm-price-value{font-size:24px;font-weight:800;color:#065f46}
+              </style>
 
               <div class="ck-box">
                 <div class="ck-total"><span data-t="total">Total</span>: <span id="cart-total">0</span></div>
@@ -293,11 +455,11 @@ function ecUI() {
     if (out) out.innerHTML = '';
     var btn = document.getElementById('ec-sub');
     if (btn) {
-      if (hasPre) {
-        btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
-      } else {
-        btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
-      }
+      // RO: preaprobarea e OPTIONALA — butonul de trimitere ramine activ,
+      //     altfel clientul nu intelege de ce e gri. Datele se valideaza la
+      //     trimitere (IDNP 13 cifre, nume, telefon).
+      // EN: preapproval is optional; the submit button stays enabled.
+      btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
     }
     // RO: cererea veche nu mai e relevanta pentru noua selectie/suma — o uitam,
     // ca sa nu se amestece intr-un poll viitor pornit pentru alta cerere.
