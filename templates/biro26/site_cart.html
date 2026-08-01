@@ -162,6 +162,21 @@
                       <div class="pm-price-value" id="std-price-value">0 lei</div>
                     </div>
 
+                    <!-- RO: transportul se cere DOAR aici, la achitarea Standard.
+                         La rate/credit transportul nu se prestează, deci in coloana
+                         din dreapta blocul nu mai are ce cauta (cerinta din 02.08.2026).
+                         EN: transport is asked only inside the Standard modal —
+                         on credit it isn't delivered at all. -->
+                    <p class="pm-modal-label" data-t="transport">Transport (obligatoriu) · Доставка (обязательно)</p>
+                    <div class="pm-form-group">
+                      <label for="tr-center" data-t="center">Centrul logistic</label>
+                      <select id="tr-center"></select>
+                    </div>
+                    <div class="pm-form-group">
+                      <label for="tr-km" data-t="distance">Distanța, km</label>
+                      <input id="tr-km" type="number" min="1" value="">
+                    </div>
+
                     <p class="pm-modal-label" data-t="tvaMode">Alegeți tipul de TVA · Выберите тип НДС</p>
                     <div class="tva-options" id="std-tva-options">
                       <button type="button" class="tva-btn on" data-tva="inclus" onclick="stdSelectTva(this,'inclus')">
