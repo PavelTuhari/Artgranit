@@ -72,16 +72,17 @@ CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26_credite AS
     v_cod NUMBER;
     v_nr  NUMBER;
   BEGIN
-    -- RO: COD-ul documentului — urmatorul liber in TMDB_DOCS
-    SELECT NVL(MAX(COD), 0) + 1 INTO v_cod FROM TMDB_DOCS;
-    -- RO: numarul documentului de credit, propriu seriei CR
-    SELECT NVL(MAX(TO_NUMBER(REGEXP_SUBSTR(NRMANUAL, '\d+'))), 0) + 1
+    -- RO: COD-ul documentului — din aceeasi secventa ca toate documentele
+    SELECT ID_TMDB_DOCS.NEXTVAL INTO v_cod FROM dual;
+    -- RO: numarul documentului de credit, serie proprie 'CR'
+    SELECT NVL(MAX(TO_NUMBER(SUBSTR(NRMANUAL, 4))), 0) + 1
       INTO v_nr FROM TMDB_DOCS
-     WHERE NRSET = 201 AND NRMANUAL LIKE 'CR-%'
-       AND REGEXP_LIKE(NRMANUAL, '^CR-\d+$');
+     WHERE NRSET = g_nrset AND REGEXP_LIKE(NRMANUAL, '^CR-[0-9]+$');
 
-    INSERT INTO TMDB_DOCS (COD, TIP, TIPDOC, DATAMANUAL, NRMANUAL, NRSET, STATUS)
-    VALUES (v_cod, 'D', 0, SYSDATE, 'CR-' || v_nr, 201, 0);
+    INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA,
+                           NRMANUAL, NRSET, ISGFC, DOCCOLOR, CODF, AT2, AT3)
+    VALUES (v_cod, g_tip, g_sysfid, UID, SYSDATE, g_valuta,
+            'CR-' || v_nr, g_nrset, 0, g_doccolor, 0, g_at2, 0);
 
     INSERT INTO TMDB_CREDITE_M (
       COD, DOC_COD_ORDER, CLIENT_COD, NNP, IDNP, PHONE, ADRESA, BIRTH_DATE,
