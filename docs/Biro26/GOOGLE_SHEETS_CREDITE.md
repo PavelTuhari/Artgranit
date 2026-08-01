@@ -109,3 +109,18 @@ GSHEET_PROJECT_ID       = <project_id из JSON>
    по `NRDOC`.
 4. `curl -I https://nufarul.eminescu.md/login` → `200` (обязательная проверка
    production после любых изменений, см. `CLAUDE.md`).
+
+## result
+
+https://aistudio.google.com/apps/7e61c522-b6ba-4e30-8fb5-9931555e3dc7?showPreview=true&showAssistant=true
+
+https://ai.studio/apps/7e61c522-b6ba-4e30-8fb5-9931555e3dc7
+
+
+GSHEET_SPREADSHEET_ID   = 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms
+GSHEET_SHEET_MASTER     = Credite
+GSHEET_SHEET_DETAIL     = Credite_linii
+GSHEET_SA_EMAIL         = biro26-credite@officeplus-erp.iam.gserviceaccount.com
+GSHEET_SA_PRIVATE_KEY   = -----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC8x1...\n-----END PRIVATE KEY-----
+GSHEET_SA_KEY_ID        = 9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c
+GSHEET_PROJECT_ID       = officeplus-erp
