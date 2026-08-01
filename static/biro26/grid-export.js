@@ -229,8 +229,11 @@
       if (t.__exportWired) return;
       t.__exportWired = true;
       var name = t.getAttribute('data-export') || 'export';
-      var bar = d.querySelector('[data-export-bar="' + name + '"]') ||
-                d.querySelector('[data-export-bar]');
+      // RO: bara se leaga DUPA NUME. Fara asta, pe o pagina cu doua grid-uri
+      //     (master + detail) ambele si-ar pune butonul in aceeasi bara.
+      // EN: bind the bar BY NAME — otherwise master+detail grids on one page
+      //     both drop their button into the first bar found.
+      var bar = d.querySelector('[data-export-bar="' + name + '"]');
       if (!bar) {
         bar = d.createElement('div');
         bar.style.margin = '0 0 8px';
