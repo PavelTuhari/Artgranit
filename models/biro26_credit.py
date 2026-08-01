@@ -806,7 +806,16 @@ class Biro26Credit:
         except Exception as ex:
             out.append({"kind": "pay", "when": "", "channel": "—", "op": "read-error",
                         "error": True, "response": str(ex)[:300]})
-        out.sort(key=lambda x: x.get("when") or "", reverse=True)
+        # RO: `when` e 'DD.MM.YYYY HH24:MI:SS' — sortarea pe text ar ordona dupa
+        #     ZI, amestecind lunile. Cheia se rescrie in 'YYYYMMDD HH:MI:SS'
+        #     ca cele DOUA surse (creditare + plati) sa se imbine corect,
+        #     de la cea mai NOUA inregistrare spre cele vechi.
+        # EN: `when` is DD.MM.YYYY — sort on a rebuilt YYYYMMDD key so both
+        #     sources interleave correctly, newest first.
+        def _k(x: Dict[str, Any]) -> str:
+            s = str(x.get("when") or "")
+            return (s[6:10] + s[3:5] + s[0:2] + s[10:]) if len(s) >= 10 else ""
+        out.sort(key=_k, reverse=True)
         return {"success": True, "data": out[:max(1, min(int(limit), 500))]}
 
     # ── fluxul API al clientului: preapproved -> submit -> status ──
