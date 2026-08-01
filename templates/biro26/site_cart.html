@@ -319,9 +319,6 @@ window.onCartChange = renderCart;
 
 function setPm(m) {
   payMethod = m;
-  document.getElementById('pm-std').classList.toggle('on', m === 'standard');
-  document.getElementById('pm-cr').classList.toggle('on', m === 'credit');
-  document.getElementById('credit-box').style.display = m === 'credit' ? '' : 'none';
   // RO: la credit transportul nu se presteaza — blocul devine ascuns si
   //     neobligatoriu (vezi makeInvoice()); la Standard revine obligatoriu.
   // EN: on credit, transport isn't delivered — the block is hidden and no
@@ -330,6 +327,119 @@ function setPm(m) {
   renderTiles();
   ecUI();
 }
+
+/* RO: intrarile de plata (butoanele din macheta owner-ului) — cate unul pe
+   fiecare organizatie de creditare din OFFERS + un buton unic Standard
+   (tipul de client fizic/juridic vine din cabinet, nu se alege aici).
+   EN: payment entry buttons (per owner mockup) — one per credit org from
+   OFFERS + a single Standard button (client type comes from the account). */
+function pmBtnClass(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.indexOf('easy') !== -1) return 'pm-btn-easy';
+  if (n.indexOf('maib') !== -1 || n.indexOf('liber') !== -1) return 'pm-btn-maib';
+  return 'pm-btn-generic';
+}
+function renderPmEntry() {
+  const box = document.getElementById('pm-entry');
+  if (!box) return;
+  let html = OFFERS.map(o =>
+    '<button type="button" class="pm-btn ' + pmBtnClass(o.name) + '" onclick="openCreditModal(' +
+    o.id + ')">' + esc(o.name) + '</button>').join('');
+  html += '<button type="button" class="pm-btn pm-btn-standard" onclick="openStdModal()" data-t="payStd">Standard (factură)</button>';
+  box.innerHTML = html;
+}
+
+function openCreditModal(orgId) {
+  const org = OFFERS.find(o => o.id === orgId);
+  if (!org) return;
+  selOrgId = orgId;
+  tileSel = 0;
+  setPm('credit');
+  document.getElementById('cm-title-text').textContent = org.name;
+  document.getElementById('cm-step1').style.display = '';
+  document.getElementById('cm-step2').style.display = 'none';
+  document.getElementById('cm-continue-btn').disabled = true;
+  document.getElementById('ec-fio').value = '';
+  document.getElementById('ec-idnp').value = '';
+  document.getElementById('cr-address').value = '';
+  document.getElementById('ec-phone').value = '+373 ';
+  document.getElementById('cr-agree-terms').checked = false;
+  document.getElementById('cr-agree-privacy').checked = false;
+  document.getElementById('credit-modal').classList.add('active');
+}
+function closeCreditModal() {
+  document.getElementById('credit-modal').classList.remove('active');
+}
+function cmGoToForm() {
+  const t = currentTile();
+  if (!t) return;
+  document.getElementById('cm-step1').style.display = 'none';
+  document.getElementById('cm-step2').style.display = '';
+  document.getElementById('cm-final-summary').innerHTML =
+    '<strong>' + esc(t.org.name) + '</strong><br>' +
+    t.m + ' plăți × <span class="price-red">' + Math.ceil(t.monthly) + ' lei</span><br>' +
+    tr('cartRate') + ': <span class="price-red">' + fmtLei(t.credit_price) + '</span>';
+  ecUI();
+}
+function cmBackToPeriods() {
+  document.getElementById('cm-step2').style.display = 'none';
+  document.getElementById('cm-step1').style.display = '';
+}
+function cmSubmitCreditRequest() {
+  const addr = document.getElementById('cr-address').value.trim();
+  if (!addr) { ecOut('Adresa este obligatorie · Адрес обязателен', '#b91c1c'); return; }
+  const t1 = document.getElementById('cr-agree-terms').checked;
+  const t2 = document.getElementById('cr-agree-privacy').checked;
+  if (!t1 || !t2) {
+    ecOut('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate · Необходимо принять условия и политику конфиденциальности', '#b91c1c');
+    return;
+  }
+  const mainAgree = document.getElementById('agree-terms');
+  if (mainAgree) mainAgree.checked = true;
+  if (!ecCtx.org || ecMode !== 'online') {
+    ecOut('📨 Datele sînt validate. Finalizați cu butonul «Plasează comanda» din dreapta — cererea de credit se depune imediat după · ' +
+      'Данные проверены. Завершите кнопкой «Оформить заказ» справа — заявка на кредит подаётся сразу после.', '#0f766e');
+    return;
+  }
+  ecSubmit();
+}
+
+function openStdModal() {
+  selOrgId = null;
+  setPm('standard');
+  document.getElementById('std-agree-terms').checked = false;
+  document.getElementById('std-agree-privacy').checked = false;
+  updateStdSummary();
+  document.getElementById('std-modal').classList.add('active');
+}
+function closeStdModal() {
+  document.getElementById('std-modal').classList.remove('active');
+}
+function stdSelectTva(btn, v) {
+  document.querySelectorAll('#std-tva-options .tva-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tva-mode').value = v;
+  updateStdSummary();
+}
+function updateStdSummary() {
+  const total = cartTotal();
+  document.getElementById('std-price-value').textContent = fmtLei(total);
+}
+function stdContinue() {
+  const t1 = document.getElementById('std-agree-terms').checked;
+  const t2 = document.getElementById('std-agree-privacy').checked;
+  if (!t1 || !t2) {
+    toast('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate · Необходимо принять условия и политику конфиденциальности', true);
+    return;
+  }
+  const mainAgree = document.getElementById('agree-terms');
+  if (mainAgree) mainAgree.checked = true;
+  closeStdModal();
+  toast('Completați transportul din dreapta și apăsați «Plasează comanda» · Заполните доставку справа и нажмите «Оформить заказ»');
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeCreditModal(); closeStdModal(); }
+});
 function crIs0(p) { return /0\s*%/.test(p.name || ''); }
 // RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei care
 //     inlocuieste transportul neprestat la credit (transport-markup-brief.md).
