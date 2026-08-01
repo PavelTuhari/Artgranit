@@ -6304,6 +6304,16 @@ def api_biro26_credite_docs():
         org = None
     return _b26(lambda: Biro26Credit.documents(org))
 
+@app.route('/api/biro26/credite-docs/gsheets', methods=['GET'])
+def api_biro26_credite_gsheets_status():
+    from models.biro26_gsheets import Biro26GSheets
+    return _b26(Biro26GSheets.status)
+
+@app.route('/api/biro26/credite-docs/gsheets', methods=['POST'])
+def api_biro26_credite_gsheets_sync():
+    from models.biro26_gsheets import Biro26GSheets
+    return _b26(Biro26GSheets.sync)
+
 @app.route('/api/biro26/credite-docs/<int:cod>/lines', methods=['GET'])
 def api_biro26_credite_doc_lines(cod):
     from models.biro26_credit import Biro26Credit
