@@ -463,6 +463,16 @@ function updateStdSummary() {
     'TVA: <strong>' + esc(tvaLbl) + '</strong>';
 }
 function stdContinue() {
+  // RO: transportul se verifica AICI, cit modala e inca deschisa — altfel
+  //     mesajul ar aparea dupa inchidere, iar cimpul gol ar ramine invizibil.
+  // EN: check transport while the modal is still open, so the empty field
+  //     the message talks about is actually on screen.
+  const km = parseFloat(document.getElementById('tr-km').value);
+  if (!km || km <= 0) {
+    toast(tr('transport'), true);
+    document.getElementById('tr-km').focus();
+    return;
+  }
   const t1 = document.getElementById('std-agree-terms').checked;
   const t2 = document.getElementById('std-agree-privacy').checked;
   if (!t1 || !t2) {
