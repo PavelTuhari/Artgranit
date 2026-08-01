@@ -985,33 +985,52 @@ document.getElementById('std-modal').addEventListener('click', function (e) {
   if (e.target === this) closeStdModal();
 });
 
-(async function init() {
+/* RO: pornire PARALELA, dar FARA asteptare comuna. Inainte era un
+   Promise.all peste cinci cereri, deci butoanele de creditare apareau abia
+   dupa cea mai LENTA dintre ele (/pay/methods) — de aici «apar dupa 2 min».
+   Acum fiecare raspuns isi actualizeaza singur bucata de interfata, iar
+   ofertele de credit se deseneaza imediat ce sosesc.
+   EN: start all requests in parallel but never wait on the slowest — each
+   response updates its own part of the UI; the credit buttons render as
+   soon as /credit/offers lands, not after /pay/methods. */
+(function init() {
   renderCart();
   renderPmEntry();  // afiseaza macar butonul Standard cit se incarca OFFERS
-  const [me, log, srv, pay, offers] = await Promise.all([
-    j(API + '/me'), j(API + '/logistics'), j(API + '/services'),
-    j(API + '/pay/methods'), j(API + '/credit/offers')]);
-  ME = (me.success && me.data && me.data.email) ? me.data : null;
-  document.getElementById('auth-note').style.display = ME ? 'none' : '';
-  CENTERS = log.data || [];
-  document.getElementById('tr-center').innerHTML = CENTERS.map(c =>
-    '<option value="' + c.id + '">' + esc(c.denumire) + '</option>').join('');
-  SRV = srv.data || [];
-  if (SRV.length) {
+
+  j(API + '/credit/offers').then(offers => {
+    OFFERS = (offers && offers.data) || [];
+    renderPmEntry();
+    // RO: daca clientul a apucat sa aleaga «Rate/credit» inainte ca ofertele
+    //     sa soseasca, placile s-au randat pe o lista goala — le refacem.
+    if (payMethod === 'credit') { renderTiles(); ecUI(); }
+  });
+
+  j(API + '/me').then(me => {
+    ME = (me.success && me.data && me.data.email) ? me.data : null;
+    document.getElementById('auth-note').style.display = ME ? 'none' : '';
+  });
+
+  j(API + '/logistics').then(log => {
+    CENTERS = (log && log.data) || [];
+    document.getElementById('tr-center').innerHTML = CENTERS.map(c =>
+      '<option value="' + c.id + '">' + esc(c.denumire) + '</option>').join('');
+  });
+
+  j(API + '/services').then(srv => {
+    SRV = (srv && srv.data) || [];
+    if (!SRV.length) return;
     document.getElementById('srv-box').style.display = '';
     document.getElementById('srv-list').innerHTML = SRV.map(s =>
       '<label style="display:block;font-size:13px;margin:6px 0;color:#232323">' +
       '<input type="checkbox" id="sv-' + s.cod + '"> ' + esc(s.denumire || s.name || '') +
       (s.pret ? ' — ' + s.pret + ' lei' : '') + '</label>').join('');
-  }
-  if (pay.success && pay.data) PAY = pay.data;
-  OFFERS = offers.data || [];
-  renderPmEntry();
-  // RO: ofertele vin asincron — daca clientul a apucat sa aleaga «Rate/credit»
-  //     mai devreme, placile s-au randat pe o lista goala si nu se mai reface.
-  // EN: offers arrive async — if the client switched to credit before they
-  //     landed, tiles rendered against an empty list and never refreshed.
-  if (payMethod === 'credit') { renderTiles(); ecUI(); }
+  });
+
+  // RO: metodele de plata sint cele mai lente — dar de ele depinde DOAR
+  //     lista de butoane de dupa crearea contului, nu intrarea in plata.
+  j(API + '/pay/methods').then(pay => {
+    if (pay && pay.success && pay.data) PAY = pay.data;
+  });
 })();
 </script>
 {% endblock %}
