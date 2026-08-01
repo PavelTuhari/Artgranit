@@ -333,11 +333,9 @@ window.onCartChange = renderCart;
 
 function setPm(m) {
   payMethod = m;
-  // RO: la credit transportul nu se presteaza — blocul devine ascuns si
-  //     neobligatoriu (vezi makeInvoice()); la Standard revine obligatoriu.
-  // EN: on credit, transport isn't delivered — the block is hidden and no
-  //     longer required (see makeInvoice()); back on Standard it's required.
-  document.getElementById('transport-box').style.display = m === 'credit' ? 'none' : '';
+  // RO: transportul se cere doar in modala Standard (la credit nu se presteaza),
+  //     deci aici nu mai e nimic de ascuns — vezi blocul din #std-modal.
+  // EN: transport lives inside the Standard modal only; nothing to toggle here.
   renderTiles();
   ecUI();
 }
