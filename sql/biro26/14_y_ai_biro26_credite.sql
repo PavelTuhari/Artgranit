@@ -48,6 +48,17 @@ END y_ai_BIRO26_credite;
 
 CREATE OR REPLACE PACKAGE BODY y_ai_BIRO26_credite AS
 
+  -- RO: ACELEASI constante ca y_ai_BIRO26 — trigger-ele native pe TMDB_DOCS
+  --     resping randul daca lipsesc SYSFID/USERID/VALUTA (ORA-20101).
+  -- EN: same constants as y_ai_BIRO26; the native TMDB_DOCS triggers reject
+  --     rows without SYSFID/USERID/VALUTA.
+  g_sysfid   NUMBER      := 12280;
+  g_tip      VARCHAR2(1) := 'H';
+  g_valuta   VARCHAR2(6) := 'LEI';
+  g_at2      NUMBER      := 2;
+  g_doccolor VARCHAR2(1) := '`';
+  g_nrset    NUMBER      := 201;   -- RO: stratul managerial (301 = contabil)
+
   g_last_doc NUMBER;
 
   FUNCTION create_credit(
