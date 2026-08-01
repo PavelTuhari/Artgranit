@@ -430,6 +430,35 @@ class Biro26Credit:
         return {"success": True, "data": rows[0] if rows else {}}
 
     @staticmethod
+    def documents(org_id: Optional[int] = None, limit: int = 500) -> Dict[str, Any]:
+        """RO: capetele documentelor de credit pentru grid-ul master."""
+        sql = ("SELECT COD, NRMANUAL, DATAMANUAL, ORDER_NRMANUAL, DOC_COD_ORDER, "
+               "CLIENT_COD, CLIENT_NAME, NNP, IDNP, PHONE, ADRESA, BIRTH_DATE, "
+               "ORG_ID, ORG_NAME, PLAN_NAME, MONTHS, AVANS, AMOUNT, CREDIT_PRICE, "
+               "MONTHLY, PROVIDER_CODE, EXT_REF, API_STATUS, REQ_ID, LINES, CREATED "
+               "FROM VMDB_CREDITE_M ")
+        p: Dict[str, Any] = {}
+        if org_id:
+            sql += "WHERE ORG_ID = :o "
+            p["o"] = int(org_id)
+        sql += "ORDER BY COD DESC"
+        r = Biro26DB().execute_query(sql, p)
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        return {"success": True, "data": _rows(r)[:max(1, int(limit or 500))]}
+
+    @staticmethod
+    def document_lines(cod: int) -> Dict[str, Any]:
+        """RO: rindurile unui document de credit (grid-ul detail)."""
+        r = Biro26DB().execute_query(
+            "SELECT COD1, SC, CODVECHI, DENUMIREA, UM, CANT, PRET, PRET_CREDIT, "
+            "SUMA, TXTCOMENT FROM VMDB_CREDITE_D WHERE NRDOC = :c ORDER BY COD1",
+            {"c": int(cod)})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        return {"success": True, "data": _rows(r)}
+
+    @staticmethod
     def calc(amount: float, plan_id: int, months: Optional[int] = None,
              avans: float = 0) -> Dict[str, Any]:
         """RO: simulare ESTIMATIVA (vezi formula in docstring-ul modulului).
