@@ -735,8 +735,21 @@ class Biro26Controller:
             return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
                     "auth_required": True}
         from models.biro26_credit import Biro26Credit
-        return Biro26Controller._with_admin_debug(
-            Biro26Credit.api_submit(request.get_json(silent=True) or {}))
+        d = request.get_json(silent=True) or {}
+        # RO: datele introduse se memoreaza TACIT in cabinet (daca clientul nu a
+        #     oprit memorarea) — la urmatoarea cerere formularul e deja completat,
+        #     iar orice modificare suprascrie valorile vechi, fara intrebari.
+        # EN: silently remember the form in the cabinet unless the client
+        #     switched it off; edits overwrite the stored values.
+        try:
+            Biro26Store.shop_credit_profile_save(
+                session["biro26_client"]["univers_cod"],
+                {"nnp": d.get("client_name"), "idnp": d.get("idnp"),
+                 "address": d.get("address"), "phone": d.get("phone"),
+                 "birth_date": d.get("birth_date")})
+        except Exception:                              # noqa: BLE001
+            pass
+        return Biro26Controller._with_admin_debug(Biro26Credit.api_submit(d))
 
     @staticmethod
     def _client_is_admin() -> bool:
