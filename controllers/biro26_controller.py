@@ -726,7 +726,8 @@ class Biro26Controller:
             return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
                     "auth_required": True}
         from models.biro26_credit import Biro26Credit
-        return Biro26Credit.api_preapproved(request.get_json(silent=True) or {})
+        return Biro26Controller._with_admin_debug(
+            Biro26Credit.api_preapproved(request.get_json(silent=True) or {}))
 
     @staticmethod
     def credit_api_submit() -> Dict[str, Any]:
@@ -734,7 +735,39 @@ class Biro26Controller:
             return {"success": False, "error": Biro26Controller._AUTH_REQUIRED_ERR,
                     "auth_required": True}
         from models.biro26_credit import Biro26Credit
-        return Biro26Credit.api_submit(request.get_json(silent=True) or {})
+        return Biro26Controller._with_admin_debug(
+            Biro26Credit.api_submit(request.get_json(silent=True) or {}))
+
+    @staticmethod
+    def _client_is_admin() -> bool:
+        """RO: clientul autentificat in magazin e marcat 'admin' in back-office?
+        Doar el vede detaliile tehnice ale erorilor de creditare (vezi
+        YBIRO_CLIENT.CLIENT_MARK, pagina /UNA.md/orasldev/biro26-clients)."""
+        c = session.get("biro26_client") or {}
+        if not c.get("univers_cod"):
+            return False
+        try:
+            return Biro26Store.shop_client_mark(c["univers_cod"]) == "admin"
+        except Exception:                              # noqa: BLE001
+            return False
+
+    @staticmethod
+    def _with_admin_debug(res: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: la eroare, pentru clientul-admin atasam ultimele apeluri din
+        jurnalul tehnic — ca sa vada cauza direct in cos, fara back-office.
+        EN: on error, attach the last technical calls for admin-marked clients."""
+        if res.get("success") or not Biro26Controller._client_is_admin():
+            return res
+        try:
+            from models.biro26_credit import Biro26Credit
+            ev = [e for e in (Biro26Credit.integration_log(10).get("data") or [])
+                  if e.get("kind") == "credit"][:3]
+        except Exception:                              # noqa: BLE001
+            return res
+        if not isinstance(res.get("data"), dict):
+            res["data"] = {}
+        res["data"]["debug"] = ev
+        return res
 
     @staticmethod
     def credit_api_status() -> Dict[str, Any]:
