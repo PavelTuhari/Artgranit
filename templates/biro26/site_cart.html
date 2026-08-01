@@ -354,17 +354,16 @@ function openCreditModal(orgId) {
   if (!org) return;
   selOrgId = orgId;
   tileSel = 0;
-  setPm('credit');
   document.getElementById('cm-title-text').textContent = org.name;
   document.getElementById('cm-step1').style.display = '';
   document.getElementById('cm-step2').style.display = 'none';
-  document.getElementById('cm-continue-btn').disabled = true;
   document.getElementById('ec-fio').value = '';
   document.getElementById('ec-idnp').value = '';
   document.getElementById('cr-address').value = '';
   document.getElementById('ec-phone').value = '+373 ';
   document.getElementById('cr-agree-terms').checked = false;
   document.getElementById('cr-agree-privacy').checked = false;
+  setPm('credit');  // randeaza placile si activeaza «Continuă» daca exista termene
   document.getElementById('credit-modal').classList.add('active');
 }
 function closeCreditModal() {
