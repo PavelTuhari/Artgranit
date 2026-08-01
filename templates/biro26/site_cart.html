@@ -867,8 +867,16 @@ function payP2P() {
 
 window.onLangChange = renderCart;
 
+document.getElementById('credit-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeCreditModal();
+});
+document.getElementById('std-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeStdModal();
+});
+
 (async function init() {
   renderCart();
+  renderPmEntry();  // afiseaza macar butonul Standard cit se incarca OFFERS
   const [me, log, srv, pay, offers] = await Promise.all([
     j(API + '/me'), j(API + '/logistics'), j(API + '/services'),
     j(API + '/pay/methods'), j(API + '/credit/offers')]);
