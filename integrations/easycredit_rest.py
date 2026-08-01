@@ -77,6 +77,17 @@ def _post(base_url: str, op: str, payload: dict[str, Any],
     return j, None
 
 
+def _preapproved_message(status: str, approved: bool) -> str:
+    """RO: statusul tehnic al gateway-ului -> text pentru client."""
+    s = (status or "").lower()
+    if "wrong customer" in s:
+        # RO: IDNP-ul nu e in baza EasyCredit — nu e o defectiune tehnica
+        return "Clientul nu a fost găsit la EasyCredit. / Клиент не найден в базе EasyCredit."
+    if "wrong" in s or "error" in s:
+        return status
+    return status or ("Предодобрено." if approved else "Не предодобрено.")
+
+
 def preapproved(
     base_url: str,
     user: str,
