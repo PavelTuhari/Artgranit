@@ -451,32 +451,36 @@ function crTiles(base, orgId) {
   OFFERS.forEach(o => {
     if (orgId != null && o.id !== orgId) return;
     (o.plans || []).forEach(pl => {
-    // RO: limitele pachetului se verifica pe suma FINANTATA (pretul in rate),
-    //     exact ca pe server (Biro26Credit.calc); altfel aratam o placa care
-    //     apoi pica la plasarea comenzii cu «suma finanțată peste maxim».
-    // EN: plan limits apply to the FINANCED amount, matching the server —
-    //     otherwise we show a tile the checkout will later reject.
-    const eff = crEffMarkup(pl, o);
-    const cp0 = base * (1 + eff / 100);
-    if (cp0 < (pl.amount_min || 0) || cp0 > (pl.amount_max || 1e12)) return;
-    for (let m = pl.months_min; m <= pl.months_max; m++) {
-      const cp = cp0;
-      const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
-        cp * (pl.monthly_fee_pct || 0) / 100;
-      tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
-    }
-  }));
+      // RO: limitele pachetului se verifica pe suma FINANTATA (pretul in rate),
+      //     exact ca pe server (Biro26Credit.calc); altfel aratam o placa care
+      //     apoi pica la plasarea comenzii cu «suma finanțată peste maxim».
+      // EN: plan limits apply to the FINANCED amount, matching the server —
+      //     otherwise we show a tile the checkout will later reject.
+      const eff = crEffMarkup(pl, o);
+      const cp0 = base * (1 + eff / 100);
+      if (cp0 < (pl.amount_min || 0) || cp0 > (pl.amount_max || 1e12)) return;
+      for (let m = pl.months_min; m <= pl.months_max; m++) {
+        const cp = cp0;
+        const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
+          cp * (pl.monthly_fee_pct || 0) / 100;
+        tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
+      }
+    });
+  });
   return tiles.sort((a, b) => a.m - b.m);
 }
 function renderTiles() {
   try {
     if (payMethod !== 'credit') return;
     const base = cartTotal();
-    TILES = crTiles(base);
+    TILES = crTiles(base, selOrgId);
     const box = document.getElementById('cr-tiles');
+    const contBtn = document.getElementById('cm-continue-btn');
     if (!TILES.length) {
       box.innerHTML = '<span style="font-size:12.5px;color:#808080">Suma trebuie să fie între 1 000 și 100 000 lei</span>';
-      document.getElementById('cr-sim').innerHTML = ''; return;
+      document.getElementById('cr-sim').innerHTML = 'Selectați un termen pentru a vedea detaliile · Выберите срок, чтобы увидеть детали';
+      if (contBtn) contBtn.disabled = true;
+      return;
     }
     if (tileSel >= TILES.length) tileSel = 0;
     box.innerHTML = TILES.map((t, i) =>
@@ -490,10 +494,11 @@ function renderTiles() {
     //     one — that is what the customer actually pays, for every plan.
     const t = TILES[tileSel], is0 = crIs0(t.plan);
     document.getElementById('cr-sim').innerHTML =
-      '<span style="color:#1d4ed8;font-weight:800">' + tr('cartRate') + ': ' +
+      '<span class="price-red">' + tr('cartRate') + ': ' +
       fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' +
       Math.ceil(t.monthly) + ' lei' +
       (is0 ? '' : ' (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')');
+    if (contBtn) contBtn.disabled = false;
   } finally {
     ecUI();
   }
