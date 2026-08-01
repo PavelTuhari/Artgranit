@@ -143,6 +143,26 @@
 
 После 2026-08-05 — обсудить с владельцем, прежде чем возвращаться к теме.
 
+### Деплой до 2026-08-05 — ТОЛЬКО точечный накат
+
+Указание владельца от 2026-08-01: **никаких больших архивов, только точечные
+изменения.** `deploy_to_remote.sh` собирает и шлёт 36 МБ и делает резервные копии —
+до среды его НЕ запускать.
+
+Вместо него — патч из изменённых файлов (обычно 100–300 КБ):
+
+```bash
+cd /Users/pt/Projects.AI/Artgranit
+tar -czf /tmp/patch.tar.gz <только изменённые файлы>
+scp -i <ключ> /tmp/patch.tar.gz <user@host>:/tmp/patch.tar.gz
+ssh -i <ключ> <user@host> 'cd /home/ubuntu/artgranit && tar -xzf /tmp/patch.tar.gz \
+  && rm -f /tmp/patch.tar.gz && sudo systemctl restart artgranit'
+```
+
+Распаковка поверх каталога не трогает `venv/`, `.env` и wallet — их сохранять
+отдельно не нужно. Оба контура (см. ниже) обновлять одинаково, после каждого —
+`curl -I https://nufarul.eminescu.md/login` и `curl -s -o /dev/null -w '%{http_code}' https://officeplus.md/cos`.
+
 ## Production infrastructure — точная конфигурация сервера
 
 Зафиксировано по состоянию на 2026-04. Менять эти параметры можно только синхронно, с проверкой `https://nufarul.eminescu.md/` после каждого изменения.
