@@ -6581,6 +6581,11 @@ def api_biro26_shop_me_type():
     # RO: tip client (fizica/juridica) din cabinet -> schimba preturile
     return jsonify(Biro26Controller.shop_set_client_type())
 
+@app.route('/api/biro26/shop/me/credit-save', methods=['PUT'])
+def api_biro26_shop_me_credit_save():
+    # RO: memorarea datelor formularului de credit — pornita/oprita din cabinet
+    return jsonify(Biro26Controller.shop_credit_profile_set())
+
 @app.route('/api/biro26/shop/me/fmt', methods=['PUT'])
 def api_biro26_shop_me_fmt():
     # RO: constanta personala — formatele contului (pdf/html/xlsx)
