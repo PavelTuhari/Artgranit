@@ -607,6 +607,14 @@ function ecUI() {
     ? 'Online: decizie în cîteva minute · Онлайн: решение за несколько минут'
     : 'Manual: vă contactează un manager · Вручную: с вами свяжется менеджер';
   box.style.display = (org && ecMode === 'online') ? '' : 'none';
+  // RO: cind organizatia nu are provider API configurat (sau clientul a ales
+  // modul manual), formularul de mai sus nu are unde trimite cererea direct —
+  // aratam nota ca cererea se depune dupa plasarea comenzii (sendCartCreditReq).
+  // EN: when the org has no configured API provider (or manual mode is
+  // chosen), there's nowhere to submit directly — show a note that the
+  // request is filed after the order is placed (sendCartCreditReq).
+  var noProviderNote = document.getElementById('cm-no-provider-note');
+  if (noProviderNote) noProviderNote.style.display = (org && ecMode === 'online') ? 'none' : '';
   var preBtn = document.getElementById('ec-pre');
   if (preBtn) preBtn.style.display = hasPre ? '' : 'none';
   var note = document.getElementById('ec-note');
