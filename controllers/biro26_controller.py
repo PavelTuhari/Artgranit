@@ -1234,6 +1234,52 @@ class Biro26Controller:
             "price_field": Biro26Store.client_price_field(cl["univers_cod"])}}
 
     @staticmethod
+    def shop_clients() -> Dict[str, Any]:
+        """RO: lista clientilor magazinului (pagina de marcare din back-office)."""
+        return Biro26Store.shop_clients_list(
+            search=request.args.get("search", ""),
+            limit=request.args.get("limit", 200, type=int))
+
+    @staticmethod
+    def shop_client_mark_set() -> Dict[str, Any]:
+        """RO: pune/scoate marcajul unui client (admin/test/trusted)."""
+        d = request.get_json(silent=True) or {}
+        return Biro26Store.shop_client_set_mark(d.get("univers_cod"), d.get("mark") or "")
+
+    @staticmethod
+    def shop_order_view(cod: int) -> Dict[str, Any]:
+        """RO: detaliile comenzii pentru pagina de retur dupa plata — cerinta
+        maib (numar, data, suma, marfurile). Vede DOAR clientul caruia ii
+        apartine documentul; pentru strain raspunsul e identic cu «inexistenta».
+        EN: order details for the post-payment return page (maib requirement),
+        visible only to the owning client; a stranger gets the same answer as
+        for a missing document."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        from models.biro26_pay import Biro26Pay
+        c = session.get("biro26_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        try:
+            cod = int(cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "comandă inexistentă"}
+        r = Biro26Report.doc_data(cod)
+        if not r.get("success"):
+            return {"success": False, "error": "comandă inexistentă"}
+        if int(r.get("client_cod") or 0) != int(c["univers_cod"]):
+            return {"success": False, "error": "comandă inexistentă"}
+        d = r.get("data") or {}
+        pay = Biro26Pay.doc_status(cod)
+        return {"success": True, "data": {
+            "cod": cod,
+            "nr": d.get("nrmanual") or d.get("nr") or "",
+            "date": d.get("date_ro") or d.get("date_short") or "",
+            "total": d.get("total") or 0,
+            "items": d.get("items") or [],
+            "payments": (pay.get("data") or []) if isinstance(pay, dict) else []}}
+
+    @staticmethod
     def shop_set_invoice_fmt() -> Dict[str, Any]:
         """RO: salveaza in cabinetul clientului formatele alese pentru
         cont (pdf/html/xlsx) — se refolosesc la conturile urmatoare.
@@ -1407,6 +1453,24 @@ class Biro26Controller:
         if res.get("success") and credit_plan_id:
             Biro26Store.set_doc_credit(res["data"]["cod"], int(credit_plan_id),
                                        credit_months, credit_avans)
+            # RO: pe linga marcajul comenzii se creeaza si DOCUMENTUL de credit
+            #     (TMDB_CREDITE_M/D, serie 'CR'), legat prin DOC_COD_ORDER.
+            #     Un esec aici nu anuleaza comanda — clientul si-a plasat-o deja.
+            # EN: also create the ERP credit document linked to this order;
+            #     a failure here must never void the order itself.
+            try:
+                doc = Biro26Credit.create_document(
+                    res["data"]["cod"], client_cod, plan, credit_months,
+                    credit_avans, clean,
+                    client={"name": (c or {}).get("name") or "",
+                            "phone": (c or {}).get("phone") or "",
+                            "address": (d.get("address") or "").strip(),
+                            "birth_date": (d.get("birth_date") or "").strip()},
+                    req_id=d.get("credit_req_id"))
+                if not doc.get("success"):
+                    print(f"[credit-doc] cod={res['data']['cod']}: {doc.get('error')}")
+            except Exception as e:                     # noqa: BLE001
+                print(f"[credit-doc] cod={res['data']['cod']}: {e}")
         if res.get("success"):
             # RO: modul TVA ales la generare ('inclus' implicit / '0' /
             #     'fara') — formularele PDF il citesc din YBIRO_DOC_META
