@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Documente de credit</title>
+<!-- RO: Master-detail peste VMDB_CREDITE_M / VMDB_CREDITE_D. Tab-urile
+     (Toate / EasyCredit / Liber Card) filtreaza dupa organizatie. Butonul
+     «⬇ Excel» apare automat pe fiecare tabel cu data-export (grid-export.js).
+     EN: master-detail grid over the credit document views; one tab per credit
+     organisation; the Excel button is added automatically by grid-export.js. -->
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:13px;background:#f8fafc;color:#1e293b;padding:18px}
+  h1{font-size:19px;margin-bottom:4px}
+  h2{font-size:14px;margin:18px 0 8px}
+  .hint{color:#64748b;font-size:12.5px;margin-bottom:14px;line-height:1.5}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bar a,.bar button,.bar input{padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;
+    background:#fff;font-size:12.5px;cursor:pointer;text-decoration:none;color:#1e293b}
+  .bar input{cursor:text;min-width:200px}
+  .bar button.on{background:#111827;color:#fff;border-color:#111827}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{padding:7px 9px;border-bottom:1px solid #e2e8f0;text-align:left;white-space:nowrap}
+  th{background:#f1f5f9;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:#475569}
+  tbody tr{cursor:pointer}
+  tbody tr.sel td{background:#eef2ff}
+  .num{text-align:right}
+  .muted{color:#94a3b8}
+  .wrap{overflow-x:auto}
+  .st{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700;
+    background:#f1f5f9;color:#475569}
+  .st.ok{background:#dcfce7;color:#166534}
+  .st.bad{background:#fee2e2;color:#b91c1c}
+</style>
+</head>
+<body>
+<div class="bar"><a href="/UNA.md/orasldev/biro26">← Biro26</a>
+  <a href="/UNA.md/orasldev/biro26-credit-admin">Creditare</a>
+  <a href="/UNA.md/orasldev/biro26-integration-log">Jurnal integrări</a></div>
+
+<h1>💳 Documente de credit · Кредитные документы</h1>
+<p class="hint">
+  Fiecare cerere de credit plasată în magazin devine un document propriu
+  (serie <b>CR</b>, strat managerial NRSET 201), legat de contul/comanda din care
+  provine. Sus — antetul cu datele clientului (NNP, IDNP/IDNO, telefon, adresa),
+  jos — mărfurile documentului selectat. ·
+  Каждая заявка на кредит становится отдельным документом, связанным со счётом
+  заказа. Сверху — шапка с данными клиента, снизу — товары выбранного документа.
+</p>
+
+<div class="bar" data-export-bar="credite-documente">
+  <button id="t-0" class="on" onclick="setOrg(0)">Toate · Все</button>
+  <span id="org-tabs"></span>
+  <input id="q" type="search" placeholder="Caută: NNP, IDNP, telefon, nr…" oninput="render()">
+  <button onclick="load()">↻ Reîncarcă · Обновить</button>
+  <span id="cnt" class="muted"></span>
+</div>
+
+<div class="wrap">
+<table data-export="credite-documente">
+  <thead><tr>
+    <th>Nr.</th><th>Data</th><th>Comanda</th><th>NNP</th><th>IDNP / IDNO</th>
+    <th>Telefon</th><th>Adresa</th><th>Data nașterii</th><th>Organizația</th>
+    <th>Pachet</th><th class="num">Luni</th><th class="num">Avans</th>
+    <th class="num">Preț standard</th><th class="num">Preț în rate</th>
+    <th class="num">Lunar</th><th>Referință</th><th>Status API</th>
+    <th class="num">Rînduri</th>
+  </tr></thead>
+  <tbody id="rows"><tr><td colspan="18" class="muted">…</td></tr></tbody>
+</table>
+</div>
+
+<h2 id="dtitle">Mărfurile documentului · Товары документа</h2>
+<div class="wrap">
+<table data-export="credite-rinduri">
+  <thead><tr>
+    <th class="num">#</th><th>Cod</th><th>Denumirea</th><th>UM</th>
+    <th class="num">Cant.</th><th class="num">Preț standard</th>
+    <th class="num">Preț în rate</th><th class="num">Suma</th>
+  </tr></thead>
+  <tbody id="lines"><tr><td colspan="8" class="muted">Selectați un document · Выберите документ</td></tr></tbody>
+</table>
+</div>
+
+<script>
+let DATA = [], ORG = 0, SEL = null;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function n2(v){return v==null||v===''?'<span class="muted">—</span>':Number(v).toFixed(2);}
+function dt(v){return v?esc(String(v).slice(0,10).split('-').reverse().join('.')):'<span class="muted">—</span>';}
+
+function setOrg(id){
+  ORG = id;
+  document.querySelectorAll('.bar button[id^="t-"]').forEach(b =>
+    b.classList.toggle('on', b.id === 't-' + id));
+  render();
+}
+/* RO: tab-urile se construiesc din organizatiile chiar prezente in date —
+   asa apar automat si EasyCredit, si Liber Card, fara lista fixa in cod. */
+function orgTabs(){
+  const seen = new Map();
+  DATA.forEach(r => { if (r.org_id) seen.set(r.org_id, r.org_name || ('#' + r.org_id)); });
+  document.getElementById('org-tabs').innerHTML = [...seen].map(([id, nm]) =>
+    '<button id="t-' + id + '" onclick="setOrg(' + id + ')">' + esc(nm) + '</button>').join('');
+}
+
+function render(){
+  const q = (document.getElementById('q').value || '').toLowerCase().trim();
+  const rows = DATA.filter(r =>
+    (!ORG || r.org_id === ORG) &&
+    (!q || [r.nrmanual, r.nnp, r.client_name, r.idnp, r.phone, r.adresa, r.ext_ref]
+      .some(v => String(v || '').toLowerCase().includes(q))));
+  document.getElementById('cnt').textContent = rows.length + ' / ' + DATA.length;
+  document.getElementById('rows').innerHTML = rows.length ? rows.map(r =>
+    '<tr onclick="pick(' + r.cod + ')" id="r' + r.cod + '"' +
+      (SEL === r.cod ? ' class="sel"' : '') + '>' +
+    '<td><b>' + esc(r.nrmanual || r.cod) + '</b></td>' +
+    '<td>' + dt(r.datamanual || r.created) + '</td>' +
+    '<td>' + (r.order_nrmanual ? esc(r.order_nrmanual) : '<span class="muted">—</span>') + '</td>' +
+    '<td>' + esc(r.nnp || r.client_name || '') + '</td>' +
+    '<td>' + esc(r.idnp || '') + '</td>' +
+    '<td>' + esc(r.phone || '') + '</td>' +
+    '<td>' + esc(r.adresa || '') + '</td>' +
+    '<td>' + dt(r.birth_date) + '</td>' +
+    '<td>' + esc(r.org_name || '') + '</td>' +
+    '<td>' + esc(r.plan_name || '') + '</td>' +
+    '<td class="num">' + esc(r.months == null ? '' : r.months) + '</td>' +
+    '<td class="num">' + n2(r.avans) + '</td>' +
+    '<td class="num">' + n2(r.amount) + '</td>' +
+    '<td class="num"><b>' + n2(r.credit_price) + '</b></td>' +
+    '<td class="num">' + n2(r.monthly) + '</td>' +
+    '<td>' + esc(r.ext_ref || '') + '</td>' +
+    '<td><span class="st ' + stCls(r.api_status) + '">' +
+      esc(r.api_status || '—') + '</span></td>' +
+    '<td class="num">' + esc(r.lines == null ? '' : r.lines) + '</td></tr>').join('')
+    : '<tr><td colspan="18" class="muted">Nimic de afișat · Нет документов</td></tr>';
+  orgTabs();
+  document.querySelectorAll('.bar button[id^="t-"]').forEach(b =>
+    b.classList.toggle('on', b.id === 't-' + ORG));
+}
+function stCls(s){
+  s = String(s || '').toUpperCase();
+  if (s === 'ERROR') return 'bad';
+  if (s === 'SENT' || s.includes('APPROV')) return 'ok';
+  return '';
+}
+
+async function pick(cod){
+  SEL = cod;
+  document.querySelectorAll('#rows tr').forEach(t => t.classList.remove('sel'));
+  const tr = document.getElementById('r' + cod); if (tr) tr.classList.add('sel');
+  const d = (DATA.find(x => x.cod === cod) || {});
+  document.getElementById('dtitle').textContent =
+    'Mărfurile documentului ' + (d.nrmanual || cod) + ' · Товары документа';
+  const r = await fetch('/api/biro26/credite-docs/' + cod + '/lines')
+    .then(x => x.json()).catch(() => ({}));
+  const L = (r && r.success) ? r.data : [];
+  document.getElementById('lines').innerHTML = L.length ? L.map(l =>
+    '<tr><td class="num">' + esc(l.cod1) + '</td>' +
+    '<td>' + esc(l.codvechi || l.sc || '') + '</td>' +
+    '<td>' + esc(l.denumirea || '') + '</td>' +
+    '<td>' + esc(l.um || '') + '</td>' +
+    '<td class="num">' + n2(l.cant) + '</td>' +
+    '<td class="num">' + n2(l.pret) + '</td>' +
+    '<td class="num"><b>' + n2(l.pret_credit) + '</b></td>' +
+    '<td class="num">' + n2(l.suma) + '</td></tr>').join('')
+    : '<tr><td colspan="8" class="muted">Documentul nu are rînduri · В документе нет строк</td></tr>';
+}
+
+async function load(){
+  const r = await fetch('/api/biro26/credite-docs').then(x => x.json()).catch(() => ({}));
+  DATA = (r && r.success) ? r.data : [];
+  render();
+  if (DATA.length && SEL == null) pick(DATA[0].cod);
+}
+load();
+</script>
+<script src="/static/biro26/grid-export.js"></script>
+</body>
+</html>
