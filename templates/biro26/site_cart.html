@@ -385,7 +385,28 @@ function cmGoToForm() {
     '<strong>' + esc(t.org.name) + '</strong><br>' +
     t.m + ' plăți × <span class="price-red">' + Math.ceil(t.monthly) + ' lei</span><br>' +
     tr('cartRate') + ': <span class="price-red">' + fmtLei(t.credit_price) + '</span>';
+  crPrefill();
   ecUI();
+}
+
+/* RO: datele completate data trecuta sint MEMORATE in cabinet si se pun
+   automat in formular. Nu suprascriem ce a scris deja clientul acum.
+   Oprirea memorarii se face din cabinet (/cont) — atunci ME.credit e gol.
+   EN: prefill the credit form from the values remembered in the cabinet,
+   never overwriting what the client has already typed in this session. */
+function crPrefill() {
+  const p = (ME && ME.credit) || {};
+  const put = (id, v) => {
+    const el = document.getElementById(id);
+    if (el && !el.value.trim() && v) el.value = v;
+  };
+  put('ec-fio', p.nnp || (ME && ME.name) || '');
+  put('ec-idnp', p.idnp || (ME && ME.idno) || '');
+  put('cr-address', p.address || '');
+  put('ec-birth', p.birth_date || '');
+  const ph = document.getElementById('ec-phone');
+  if (ph && (!ph.value.trim() || ph.value.trim() === '+373') && (p.phone || (ME && ME.phone)))
+    ph.value = p.phone || ME.phone;
 }
 function cmBackToPeriods() {
   document.getElementById('cm-step2').style.display = 'none';
@@ -696,7 +717,7 @@ async function ecPreapproved() {
   }
   var btn = document.getElementById('ec-sub');
   if (!r.success) {
-    ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c');
+    ecOut('❌ ' + esc(r.error || 'eroare') + ecDebugHtml(r.data), '#b91c1c');
     btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
     return;
   }
@@ -741,7 +762,7 @@ async function ecSubmit() {
   if (r.auth_required) {
     ecStop(); toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return;
   }
-  if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c'); return; }
+  if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare') + ecDebugHtml(r.data), '#b91c1c'); return; }
   ecCtx.reqId = r.data.req_id;
   ecCtx.ref = r.data.ext_ref || null;
   // RO: la depunerea cererii de credit se genereaza IMEDIAT si Contul de plata
