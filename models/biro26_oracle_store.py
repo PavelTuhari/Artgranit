@@ -1185,6 +1185,126 @@ END;""",
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # RO: marcajele permise pentru clientii magazinului. 'admin' vede detaliile
+    #     tehnice ale erorilor pe vitrina; 'test'/'trusted' sint doar etichete
+    #     pentru operator. EN: allowed client marks.
+    CLIENT_MARKS = ("admin", "test", "trusted")
+
+    @staticmethod
+    def shop_clients_list(search: str = "", limit: int = 200) -> Dict[str, Any]:
+        """RO: lista clientilor magazinului pentru pagina de marcare din back-office."""
+        try:
+            w, params = "", {"n": max(1, min(int(limit), 500))}
+            if (search or "").strip():
+                w = ("WHERE UPPER(EMAIL) LIKE :q OR UPPER(FULL_NAME) LIKE :q "
+                     "OR PHONE LIKE :q OR TO_CHAR(UNIVERS_COD) LIKE :q ")
+                params["q"] = f"%{search.strip().upper()}%"
+            return _result(Biro26DB().execute_query(
+                f"SELECT * FROM (SELECT ID, UNIVERS_COD, EMAIL, FULL_NAME, PHONE, "
+                f"IDNO, IS_COMPANY, CLIENT_MARK, INVOICE_FMT, "
+                f"TO_CHAR(CREATED_AT,'DD.MM.YYYY HH24:MI') CREATED_AT "
+                f"FROM YBIRO_CLIENT {w} ORDER BY ID DESC) WHERE ROWNUM <= :n", params))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_client_set_mark(univers_cod, mark: str) -> Dict[str, Any]:
+        """RO: pune/scoate marcajul clientului. Sir gol = fara marcaj."""
+        m = (mark or "").strip().lower()
+        if m and m not in Biro26Store.CLIENT_MARKS:
+            return {"success": False,
+                    "error": "marcaj permis: " + " | ".join(Biro26Store.CLIENT_MARKS)}
+        try:
+            cod = int(univers_cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "client invalid"}
+        r = Biro26DB().execute_dml(
+            "UPDATE YBIRO_CLIENT SET CLIENT_MARK = :m WHERE UNIVERS_COD = :c",
+            {"m": m or None, "c": cod})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        if not r.get("rowcount"):
+            return {"success": False, "error": "client inexistent"}
+        return {"success": True, "data": {"univers_cod": cod, "mark": m}}
+
+    @staticmethod
+    def shop_client_mark(univers_cod) -> str:
+        """RO: marcajul clientului ('' daca nu are) — folosit pe vitrina."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT CLIENT_MARK FROM YBIRO_CLIENT WHERE UNIVERS_COD = :c",
+                {"c": int(univers_cod)}))
+        except Exception:
+            return ""
+        return (rows[0].get("client_mark") or "") if rows else ""
+
+    # ── datele formularului de credit memorate in cabinet ──
+
+    @staticmethod
+    def shop_credit_profile(univers_cod) -> Dict[str, Any]:
+        """RO: datele memorate ale formularului de credit (pentru precompletare).
+        `save` = '0' inseamna ca clientul a oprit memorarea — cimpurile sint goale."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT CREDIT_NNP, CREDIT_IDNP, CREDIT_ADDRESS, CREDIT_PHONE, "
+                "TO_CHAR(CREDIT_BIRTH,'YYYY-MM-DD') CREDIT_BIRTH, CREDIT_SAVE "
+                "FROM YBIRO_CLIENT WHERE UNIVERS_COD = :c", {"c": int(univers_cod)}))
+        except Exception:                              # noqa: BLE001
+            return {"save": True}
+        if not rows:
+            return {"save": True}
+        r = rows[0]
+        save = str(r.get("credit_save") or "1") != "0"
+        return {"save": save,
+                "nnp": (r.get("credit_nnp") or "") if save else "",
+                "idnp": (r.get("credit_idnp") or "") if save else "",
+                "address": (r.get("credit_address") or "") if save else "",
+                "birth_date": (r.get("credit_birth") or "") if save else "",
+                "phone": (r.get("credit_phone") or "") if save else ""}
+
+    @staticmethod
+    def shop_credit_profile_save(univers_cod, d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: salveaza TACIT datele formularului — orice modificare le suprascrie.
+        Nu face nimic daca clientul a oprit memorarea (CREDIT_SAVE = '0')."""
+        try:
+            cod = int(univers_cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "client invalid"}
+        if not Biro26Store.shop_credit_profile(cod).get("save", True):
+            return {"success": True, "data": {"saved": False}}
+        b = (d.get("birth_date") or "").strip()[:10]
+        r = Biro26DB().execute_dml(
+            "UPDATE YBIRO_CLIENT SET CREDIT_NNP = :n, CREDIT_IDNP = :i, "
+            "CREDIT_ADDRESS = :a, CREDIT_PHONE = :p, CREDIT_BIRTH = "
+            + ("TO_DATE(:b,'YYYY-MM-DD')" if b else "NULL")
+            + " WHERE UNIVERS_COD = :c",
+            {"n": (d.get("nnp") or "").strip()[:200] or None,
+             "i": (d.get("idnp") or "").strip()[:20] or None,
+             "a": (d.get("address") or "").strip()[:400] or None,
+             "p": (d.get("phone") or "").strip()[:40] or None,
+             "c": cod, **({"b": b} if b else {})})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        return {"success": True, "data": {"saved": True}}
+
+    @staticmethod
+    def shop_credit_profile_set_save(univers_cod, save: bool) -> Dict[str, Any]:
+        """RO: butonul din cabinet — memorare pornita/oprita. La oprire datele
+        deja memorate se STERG, ca sa nu ramina in baza fara acordul clientului."""
+        try:
+            cod = int(univers_cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "client invalid"}
+        sql = "UPDATE YBIRO_CLIENT SET CREDIT_SAVE = :s"
+        if not save:
+            sql += (", CREDIT_NNP = NULL, CREDIT_IDNP = NULL, CREDIT_ADDRESS = NULL, "
+                    "CREDIT_PHONE = NULL, CREDIT_BIRTH = NULL")
+        r = Biro26DB().execute_dml(sql + " WHERE UNIVERS_COD = :c",
+                                   {"s": "1" if save else "0", "c": cod})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        return {"success": True, "data": {"save": bool(save)}}
+
     @staticmethod
     def shop_client_by_email(email: str) -> Dict[str, Any]:
         try:
