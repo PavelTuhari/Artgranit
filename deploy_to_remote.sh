@@ -84,6 +84,15 @@ EXCLUDE_PATTERNS=(
     "--exclude=Wallet_*.zip"
     "--exclude=$PROJECT_NAME/venv"
     "--exclude=$PROJECT_NAME/.venv_run"
+    # RO/EN: venv-uri vechi/stricate nu au ce cauta in arhiva de deploy
+    "--exclude=$PROJECT_NAME/venv.broken.*"
+    "--exclude=$PROJECT_NAME/venv.*"
+    # RO/EN: balast care nu ruleaza pe server — arhiva trecuse de 480 MB si
+    #        scp-ul cadea cu timeout (incident 31.07.2026)
+    "--exclude=$PROJECT_NAME/AccountingDemoXcode"
+    "--exclude=$PROJECT_NAME/AccountingDemoXcode.zip"
+    "--exclude=$PROJECT_NAME/.claude"
+    "--exclude=$PROJECT_NAME/.superpowers"
     "--exclude=$PROJECT_NAME/.playwright-mcp"
     # WP-деревья живут отдельно (rsync в /var/www), в код-деплой не входят
     "--exclude=$PROJECT_NAME/wordpress_officeplus/public_html"

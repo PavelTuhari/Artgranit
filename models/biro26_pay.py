@@ -267,8 +267,9 @@ class Biro26Pay:
         if not rows:
             return {"success": False, "paid": False, "error": "unknown order"}
         row = rows[0]
+        doc_cod = int(row["doc_cod"] or 0)
         if row["status"] == "PAID":
-            return {"success": True, "paid": True}
+            return {"success": True, "paid": True, "doc_cod": doc_cod}
         s = (Biro26Pay.get_settings().get("data") or {})
         token = Biro26Pay._maib_token(s)
         info: Dict[str, Any] = {}
@@ -288,10 +289,10 @@ class Biro26Pay:
             Biro26Pay._mark(order_key, "PAID", str(payment_id)[:40],
                             f"maib checkout {typeurl}")
             Biro26Pay._notify_paid(order_key, "maib", float(row["amount"] or 0))
-            return {"success": True, "paid": True}
+            return {"success": True, "paid": True, "doc_cod": doc_cod}
         if status in ("Failed", "Expired", "Cancelled"):
             Biro26Pay._mark(order_key, "FAILED", "", f"maib {status}")
-        return {"success": True, "paid": False}
+        return {"success": True, "paid": False, "doc_cod": doc_cod}
 
     @staticmethod
     def maib_create_test(amount: float, description: str = "") -> Dict[str, Any]:

@@ -342,8 +342,8 @@ td.num,th.num{text-align:right}
                   style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer">
             🔍 Verifică preaprobarea · Проверить предодобрение
           </button>
-          <button id="ec-sub" onclick="ecSubmit()" disabled
-                  style="flex:1;padding:8px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:not-allowed">
+          <button id="ec-sub" onclick="ecSubmit()"
+                  style="flex:1;padding:8px;border:0;border-radius:6px;background:#111827;color:#fff;cursor:pointer">
             📨 Trimite cererea · Отправить заявку
           </button>
         </div>
@@ -1349,11 +1349,11 @@ function ecUI() {
     if (out) out.innerHTML = '';
     var btn = document.getElementById('ec-sub');
     if (btn) {
-      if (hasPre) {
-        btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
-      } else {
-        btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
-      }
+      // RO: preaprobarea e OPTIONALA — butonul de trimitere ramine activ,
+      //     altfel clientul nu intelege de ce e gri. Datele se valideaza la
+      //     trimitere (IDNP 13 cifre, nume, telefon).
+      // EN: preapproval is optional; the submit button stays enabled.
+      btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
     }
     // RO: cererea veche nu mai e relevanta pentru noua selectie/suma — o uitam,
     // ca sa nu se amestece intr-un poll viitor pornit pentru alta cerere.

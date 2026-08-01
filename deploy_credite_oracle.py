@@ -107,6 +107,22 @@ def add_transport_markup_column(be: CrediteBackend) -> None:
     print("  + TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT добавлена")
 
 
+def add_client_address_column(be: CrediteBackend) -> None:
+    """RO: TMS_CREDITE_REQ.CLIENT_ADDRESS — adresa din formularul de credit.
+    Providerul (eShopRequest_V5) NU are cimp pentru adresa, dar managerul
+    magazinului are nevoie de ea, deci o pastram la noi. Pas idempotent.
+    EN: address from the credit form; the provider has no field for it, the
+    shop manager does — kept on our side. Idempotent step."""
+    rows = be.query(
+        "SELECT COUNT(*) CNT FROM USER_TAB_COLUMNS "
+        "WHERE TABLE_NAME = 'TMS_CREDITE_REQ' AND COLUMN_NAME = 'CLIENT_ADDRESS'")
+    if rows and int(rows[0]["cnt"]) > 0:
+        print("  = TMS_CREDITE_REQ.CLIENT_ADDRESS уже есть")
+        return
+    be.dml("ALTER TABLE TMS_CREDITE_REQ ADD CLIENT_ADDRESS VARCHAR2(300)")
+    print("  + TMS_CREDITE_REQ.CLIENT_ADDRESS добавлена")
+
+
 def migrate_legacy(be: CrediteBackend) -> None:
     """Copy YBIRO_CREDIT_* into TMS_CREDITE_* preserving IDs. Idempotent."""
     if not _exists(be, "YBIRO_CREDIT_ORG"):
@@ -248,6 +264,7 @@ def run(target: str, rename: bool = False, resync: bool = False) -> int:
     try:
         create_objects(be, DDL_PATH[target])
         add_transport_markup_column(be)
+        add_client_address_column(be)
         migrate_legacy(be)
         if resync:
             resync_legacy(be)

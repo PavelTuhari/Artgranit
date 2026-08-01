@@ -47,7 +47,28 @@ class EasyCreditProvider(CreditProvider):
     def _password(self) -> str:
         return self._setting("api_password", Config.easycredit_api_password)
 
+    def _basic_user(self) -> str:
+        return self._setting("basic_user", Config.easycredit_basic_user)
+
+    def _basic_password(self) -> str:
+        return self._setting("basic_password", Config.easycredit_basic_password)
+
+    def _api(self):
+        """RO: gateway-ul nou (api.ecredit.md) e REST; cel vechi ramine SOAP.
+        EN: the new gateway is REST/JSON; the legacy one stays SOAP."""
+        if "api.ecredit.md" in (self._base_url() or ""):
+            from integrations import easycredit_rest as api
+        else:
+            from integrations import easycredit_client as api
+        return api
+
     def _verify_ssl(self) -> bool:
+        """RO: gateway-ul nou (api.ecredit.md) are certificat valid — verificam
+        TLS mereu. Doar serviciul vechi de test are certificat self-signed.
+        EN: the new gateway has a valid certificate, so always verify TLS;
+        only the legacy test service needs the exception."""
+        if "api.ecredit.md" in (self._base_url() or ""):
+            return True
         return self._env() == "production"
 
     def _env(self) -> str:
@@ -104,10 +125,11 @@ class EasyCreditProvider(CreditProvider):
             return {"success": False, "error": "EasyCredit не настроен (нет user/password)"}
 
         try:
-            from integrations.easycredit_client import get_client_info
-            return get_client_info(
+            return self._api().get_client_info(
                 self._base_url(), self._user(), self._password(),
-                uin=uin, verify_ssl=self._verify_ssl()
+                uin=uin, verify_ssl=self._verify_ssl(),
+                basic_user=self._basic_user(),
+                basic_password=self._basic_password()
             )
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -121,13 +143,14 @@ class EasyCreditProvider(CreditProvider):
             return {"success": False, "error": "EasyCredit не настроен"}
 
         try:
-            from integrations.easycredit_client import preapproved as ec_preapproved
-            return ec_preapproved(
+            return self._api().preapproved(
                 self._base_url(), self._user(), self._password(),
                 idn=uin, amount=amount,
                 phone=kwargs.get("phone", ""),
                 birth_date=kwargs.get("birth_date", ""),
-                verify_ssl=self._verify_ssl()
+                verify_ssl=self._verify_ssl(),
+                basic_user=self._basic_user(),
+                basic_password=self._basic_password()
             )
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -138,8 +161,7 @@ class EasyCreditProvider(CreditProvider):
             return {"success": False, "error": "EasyCredit не настроен"}
 
         try:
-            from integrations.easycredit_client import submit_request as ec_submit
-            return ec_submit(
+            return self._api().submit_request(
                 self._base_url(), self._user(), self._password(),
                 amount=int(kwargs.get("amount", 10000)),
                 fio=kwargs.get("fio", "Тест Тестович Тестов"),
@@ -149,6 +171,8 @@ class EasyCreditProvider(CreditProvider):
                 program_name=kwargs.get("program_name", "0-0-12"),
                 goods_price=int(kwargs.get("goods_price", kwargs.get("amount", 10000))),
                 verify_ssl=self._verify_ssl(),
+                basic_user=self._basic_user(),
+                basic_password=self._basic_password(),
             )
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -163,10 +187,11 @@ class EasyCreditProvider(CreditProvider):
             return {"success": False, "error": "EasyCredit не настроен"}
 
         try:
-            from integrations.easycredit_client import status as ec_status
-            return ec_status(
+            return self._api().status(
                 self._base_url(), self._user(), self._password(),
-                urn=urn, verify_ssl=self._verify_ssl()
+                urn=urn, verify_ssl=self._verify_ssl(),
+                basic_user=self._basic_user(),
+                basic_password=self._basic_password()
             )
         except Exception as e:
             return {"success": False, "error": str(e)}

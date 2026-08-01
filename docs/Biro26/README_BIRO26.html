@@ -723,55 +723,165 @@ MIA QR (QMoney) + MIA P2P; credit/rate — organizații dinamice
 rate 0% la 4/6 luni (+5% împărțit egal), formulele băncii de la 8 luni în sus,
 «Preț ofertă în rate» (Liber Card, +5% de la 100 lei).</p>
 
-<h2 id="creditare">16. Creditare / Кредитование (<code>TMS_CREDITE_*</code>)</h2>
-<p><b>RO:</b> Schema normalizată <code>TMS_CREDITE_*</code> înlocuiește vechile tabele
-<code>YBIRO_CREDIT_ORG/PLAN/REQ</code> (datele au fost migrate, tabelele vechi rămân până
-la <code>--rename-legacy</code> la deploy pe server). Același DDL e activ în DOUĂ baze:
-Oracle 11g OfficePlus (acest modul) și Oracle ADB a proiectului principal — fiecare cu
-setările proprii de provider, nesincronizate automat. <b>RU:</b> Нормализованная схема
-<code>TMS_CREDITE_*</code> заменяет старые таблицы <code>YBIRO_CREDIT_ORG/PLAN/REQ</code>
-(данные перенесены, старые таблицы остаются до <code>--rename-legacy</code> при деплое на
-сервер). Один и тот же DDL развёрнут в ДВУХ базах: Oracle 11g OfficePlus (этот модуль) и
-Oracle ADB основного проекта — у каждой свои настройки провайдера, без автосинхронизации.</p>
+<h2 id="creditare">16. Интеграции с кредитными организациями (<code>TMS_CREDITE_*</code>)</h2>
+
+<p><b>RO:</b> Modulul acoperă achitarea în rate/credit: organizații de creditare cu pachetele
+lor, integrare API cu creditorul, fluxul clientului pe vitrină și jurnalul apelurilor.
+<b>RU:</b> Модуль закрывает оплату в рассрочку/кредит: организации кредитования с их пакетами,
+интеграция с API кредитора, клиентский флоу на витрине и журнал вызовов.</p>
+
+<p>Схема <code>TMS_CREDITE_*</code> заменила прежние <code>YBIRO_CREDIT_ORG/PLAN/REQ</code>
+(данные перенесены, старые таблицы переименованы в <code>*_OLD</code> — не удалять, это откат).
+Один и тот же DDL развёрнут в <b>двух</b> базах: Oracle 11g OfficePlus (этот модуль) и Oracle ADB
+основного проекта. Настройки провайдеров у них <b>независимые</b> и не синхронизируются: у
+бэк-офиса магазина может быть свой договор и свои креды.</p>
+
+<h3>16.1. Таблицы</h3>
 <table>
 <tr><th>Таблица</th><th>Назначение</th></tr>
-<tr><td><code>TMS_CREDITE_PROVIDER</code></td><td>реестр API-провайдеров (easycredit, iute):
-enabled/env/base_url</td></tr>
-<tr><td><code>TMS_CREDITE_PROVIDER_PARAM</code></td><td>параметры и креды провайдера
-(секреты маскируются в API-ответах)</td></tr>
-<tr><td><code>TMS_CREDITE_ORG</code></td><td>организации кредитования магазина, привязка к
-провайдеру (<code>PROVIDER_ID</code>, NULL = ручной режим без API)</td></tr>
-<tr><td><code>TMS_CREDITE_PLAN</code></td><td>пакеты рассрочки организации (формула расчёта
-не менялась)</td></tr>
-<tr><td><code>TMS_CREDITE_REQ</code></td><td>заявки на кредит/рассрочку + API-статус
-(<code>PROVIDER_CODE, EXT_REF, API_STATUS, PREAPPROVED_AMOUNT, IDNP_MASKED</code>)</td></tr>
-<tr><td><code>TMS_CREDITE_REQ_EVENT</code></td><td>append-only лог вызовов API, без PII
-(IDNP/телефон маскируются перед записью)</td></tr>
+<tr><td><code>TMS_CREDITE_PROVIDER</code></td><td>реестр API-провайдеров (<code>easycredit</code>,
+<code>iute</code>): <code>ENABLED</code>, <code>ENV</code> (sandbox/production),
+<code>BASE_URL</code></td></tr>
+<tr><td><code>TMS_CREDITE_PROVIDER_PARAM</code></td><td>параметры и креды провайдера;
+секретные (<code>IS_SECRET='1'</code>) маскируются в API-ответах</td></tr>
+<tr><td><code>TMS_CREDITE_ORG</code></td><td>организации кредитования магазина:
+<code>PROVIDER_ID</code> (NULL = ручной режим без API) и
+<code>TRANSPORT_MARKUP_PCT</code> — надбавка за неоказанный транспорт</td></tr>
+<tr><td><code>TMS_CREDITE_PLAN</code></td><td>пакеты рассрочки организации (сроки, суммы,
+<code>MARKUP_PCT</code>, комиссии)</td></tr>
+<tr><td><code>TMS_CREDITE_REQ</code></td><td>заявки: <code>PROVIDER_CODE</code>,
+<code>EXT_REF</code> (URN), <code>API_STATUS</code>, <code>PREAPPROVED_AMOUNT</code>,
+<code>IDNP_MASKED</code>, <code>LAST_CHECK</code></td></tr>
+<tr><td><code>TMS_CREDITE_REQ_EVENT</code></td><td>append-only лог вызовов API: операция,
+длительность, HTTP-код, очищенные payload и результат</td></tr>
 </table>
-<p><b>Бэк-офис:</b> <code>/UNA.md/orasldev/biro26-credit-admin</code>, секция «Provideri API» —
-включить провайдера, выбрать env (sandbox/production), задать base_url и креды,
-«Test conexiune» (проверка живого API); ниже — привязка провайдера к организации кредитования
-в таблице «Organizații de creditare». <b>Витрина</b> (<code>biro26-shop</code>,
-<code>biro26-site/cart</code>): при включённом и привязанном провайдере — флоу
-форма → preapproved → submit → опрос статуса (<code>/api/biro26/shop/credit/api/*</code>,
-rate-limited по IP); иначе — прежняя форма «Cerere de credit» (только журнал, без API).</p>
-<div class="warn"><b>Демо-креды после деплоя:</b> при первом деплое
-(<code>deploy_credite_oracle.py</code>) провайдеры сеются значениями из <code>.env</code> —
-для EasyCredit это по умолчанию <code>demo</code>/<code>demo</code>, если реальные креды не
-заданы. В бэк-офисе такой провайдер может показываться как «configurat» (поля заполнены), хотя
-живой вызов вернёт ошибку авторизации. Оператор обязан ввести настоящие креды в бэк-офисе.
-<b>Известное ограничение Iute:</b> <code>IuteProvider</code> не реализует
-<code>preapproved()</code> (наследует «Not supported» из базового класса) — витрина всегда
-начинает флоу с этого шага, поэтому для организации с привязанным Iute-провайдером подача
-заявки через API сейчас не проходит первый шаг; тестовое подключение («Test conexiune»,
-через <code>check_auth</code>) при этом работает.</div>
-<p><b>Деплой схемы:</b> <code>./venv/bin/python deploy_credite_oracle.py --target both</code>
-(идемпотентно; на сервере — с <code>--rename-legacy</code>, ПОСЛЕ того как новый код уже
-развёрнут и не обращается к <code>YBIRO_CREDIT_*</code>; DDL не входит в обычный
-<code>deploy_to_remote.sh</code>). <b>Полная документация архитектуры, SOAP/REST API и
-чек-лист верификации:</b>
+
+<h3>16.2. Ценообразование: действующая наценка</h3>
+<div class="warn"><b>Правило EasyCredit (с 31.07.2026):</b> при оплате в рассрочку транспорт
+<b>не оказывается и не выставляется в счёт</b>, а взамен к наценке пакета добавляется надбавка
+организации.
+<pre>действующая наценка = TMS_CREDITE_PLAN.MARKUP_PCT + TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT
+цена в кредит       = цена * (1 + действующая наценка / 100)</pre>
+При надбавке 10% пакеты «Special 0%» дают итог <b>15%</b> к стандартной цене вместо 5%.
+Эта наценка обязана совпадать в <b>четырёх</b> местах: <code>models/biro26_credit.py</code>
+(<code>calc()</code>), <code>controllers/biro26_controller.py</code> (<code>shop_invoice</code>)
+и три шаблона витрины — <code>site_cart.html</code>, <code>shop.html</code>,
+<code>site_product.html</code>. Расхождение означает, что клиент видит одну цену, а платит
+другую. Лимиты пакета (<code>AMOUNT_MIN/MAX</code>) проверяются по <b>профинансированной</b>
+сумме, а не по базовой — и на витрине, и на сервере.</div>
+
+<h3>16.3. Провайдеры</h3>
+<table>
+<tr><th>Провайдер</th><th>Протокол и адрес</th><th>Аутентификация</th><th>Возможности</th></tr>
+<tr><td><b>EasyCredit</b></td>
+    <td>REST/JSON (FastAPI), <code>https://api.ecredit.md/{TEST|PRODUCTION}/</code>.
+    Схема: <code>/openapi.json</code>. Старый SOAP-контур
+    (<code>tst.ecmoldova.cloud:8082</code>) поддерживается кодом для совместимости</td>
+    <td><b>Две ступени:</b> HTTP Basic на запрос (<code>basic_user</code>/<code>basic_password</code>)
+    <b>и</b> <code>Login</code>/<code>Password</code> в теле JSON
+    (<code>api_user</code>/<code>api_password</code>)</td>
+    <td><code>preapproved</code>, <code>submit</code>, <code>status</code>,
+    <code>search_client</code></td></tr>
+<tr><td><b>Iute Credit</b></td>
+    <td>REST, <code>https://partner-api-dev.iute.md</code></td>
+    <td><code>api_key</code> + <code>pos_identifier</code>, <code>salesman_identifier</code></td>
+    <td><code>check_auth</code>, <code>submit</code> (create_order), <code>status</code>;
+    <b>без <code>preapproved</code></b></td></tr>
+</table>
+<p>Витрина читает <code>provider.capabilities</code> из <code>/api/biro26/shop/credit/offers</code>
+и <b>сама скрывает шаг предодобрения</b> у провайдеров, которые его не умеют — покупатель
+сразу отправляет заявку. Поэтому Iute не «застревает» на первом шаге.</p>
+<div class="warn"><b>EasyCredit: какой эндпоинт для кого.</b>
+<code>eShopRequest_V5</code> — заявка для <b>физических</b> лиц (4 обязательных поля), именно он
+используется магазином. <code>Request_v4_PJ</code> — для <b>юридических</b> лиц: 19 обязательных
+полей (название фирмы, дата регистрации, директор, данные учредителя), которые витрина не
+собирает. Шлюз строго валидирует ввод: IDNP проверяется по контрольной сумме,
+<code>BirthDate</code> обязателен, а пустые необязательные поля отправлять нельзя
+(например <code>cardid</code> требует минимум 16 символов).</div>
+
+<h3>16.4. Бэк-офис</h3>
+<p><code>/UNA.md/orasldev/biro26-credit-admin</code>:</p>
+<ul>
+<li><b>Provideri API</b> — карточка на провайдера: вкл/выкл, <code>env</code>, <code>base_url</code>
+(подставляется по умолчанию при смене окружения), поля кредов. Секреты показываются маской;
+<b>пустое поле секрета = «не менять»</b>. Кнопка <b>«Test conexiune»</b> делает живой вызов и
+распознаёт отказ авторизации, даже если шлюз ответил HTTP 200 с текстом ошибки внутри.</li>
+<li><b>Organizații de creditare</b> — селект «Provider API» (пусто = ручной режим; выключенные
+провайдеры остаются в списке, чтобы сохранение не рвало привязку) и поле
+<b>«Majorare fără transport, %»</b>.</li>
+<li><b>Cereri</b> — колонки <code>Provider</code>, <code>Ref</code>, <code>Status API</code>,
+кнопка обновления статуса (<code>POST .../requests/&lt;id&gt;/refresh</code>, под авторизацией)
+и журнал вызовов.</li>
+</ul>
+
+<h3>16.5. Витрина</h3>
+<p>Плитки сроков показываются всегда. Если у организации есть <b>включённый и настроенный</b>
+провайдер, появляется переключатель способа оформления:</p>
+<ul>
+<li><b>Cerere online · Онлайн-заявка</b> (по умолчанию) — форма ФИО / телефон / IDNP (ровно
+13 цифр) → <code>preapproved</code> → <code>submit</code> → опрос статуса раз в 5 с до 2 минут.</li>
+<li><b>Vă sunăm noi · Перезвонит менеджер</b> — прежний флоу: заявка уходит уведомлением
+магазину, менеджер перезванивает.</li>
+</ul>
+<p>Если провайдера нет или он не настроен, переключатель не показывается и работает только
+ручной вариант — поведение витрины при этом ровно такое, каким было до интеграции.</p>
+
+<h3>16.6. API</h3>
+<table>
+<tr><th>Метод</th><th>Роут</th><th>Доступ</th></tr>
+<tr><td>GET / PUT</td><td><code>/api/biro26/credit/providers</code></td><td>бэк-офис</td></tr>
+<tr><td>POST</td><td><code>/api/biro26/credit/providers/&lt;code&gt;/test</code></td><td>бэк-офис</td></tr>
+<tr><td>GET</td><td><code>/api/biro26/credit/requests/&lt;id&gt;/events</code></td><td>бэк-офис</td></tr>
+<tr><td>POST</td><td><code>/api/biro26/credit/requests/&lt;id&gt;/refresh</code></td><td>бэк-офис</td></tr>
+<tr><td>GET</td><td><code>/api/biro26/shop/credit/offers</code></td><td>публичный</td></tr>
+<tr><td>POST</td><td><code>/api/biro26/shop/credit/api/preapproved</code></td><td>вход клиента, 10/мин на IP</td></tr>
+<tr><td>POST</td><td><code>/api/biro26/shop/credit/api/submit</code></td><td>вход клиента, 5/мин на IP</td></tr>
+<tr><td>GET</td><td><code>/api/biro26/shop/credit/api/status?req_id=N&amp;ref=&lt;ext_ref&gt;</code></td><td>публичный, 60/мин</td></tr>
+</table>
+
+<h3>16.7. Безопасность и персональные данные</h3>
+<ul>
+<li><b>Полный IDNP не хранится</b> — только <code>IDNP_MASKED</code>. В журнале длинные
+последовательности цифр маскируются, включая записанные через пробел, дефис, точку или слэш.</li>
+<li>В <code>RESULT</code> журнала попадают только поля из allowlist — ФИО, дата рождения и эхо
+IDNP из ответа провайдера отсекаются рекурсивно, вместе с вложенными структурами.</li>
+<li>Наружу клиенту уходит <b>нейтральное</b> сообщение: ни текст ошибки Oracle, ни внутренние
+адреса шлюза не показываются. Подробности остаются в журнале.</li>
+<li><code>preapproved</code> и <code>submit</code> требуют <b>входа клиента магазина</b>
+(<code>session["biro26_client"]</code>) — иначе это был бы анонимный оракул «IDNP → одобренная
+сумма» и возможность подать заявку на чужое имя.</li>
+<li>Статус заявки запрашивается только с параметром <code>ref</code> (тот самый
+<code>EXT_REF</code>, что вернул <code>submit</code>). Ответы «нет такой» и «есть, но не твоя»
+<b>текстуально неразличимы</b> — перебрать чужие заявки по <code>req_id</code> нельзя.</li>
+</ul>
+
+<h3>16.8. Деплой и проверка</h3>
+<pre>./venv/bin/python deploy_credite_oracle.py --target both      # DDL, идемпотентно
+# на сервере, ПОСЛЕ выката нового кода:
+./venv/bin/python deploy_credite_oracle.py --target both --resync-legacy
+./venv/bin/python deploy_credite_oracle.py --target biro26 --rename-legacy</pre>
+<p>DDL <b>не входит</b> в обычный <code>deploy_to_remote.sh</code>. Порядок обязателен:
+код → <code>systemctl restart artgranit</code> → проверка → <code>--resync-legacy</code>
+(донести заявки, которые старый код успел записать в <code>YBIRO_CREDIT_REQ</code>) →
+<code>--rename-legacy</code>. Переименование <b>до</b> выката кода мгновенно ломает работающий
+магазин: <code>ORA-00942</code> на публичном <code>/shop/credit/offers</code>.</p>
+<p><b>Checklist после релиза:</b> <code>curl -I https://nufarul.eminescu.md/login</code> → 200;
+шесть таблиц <code>TMS_CREDITE_*</code> видны в <code>USER_OBJECTS</code> обеих БД;
+«Test conexiune» в бэк-офисе отвечает; на витрине при включённом провайдере доступен
+переключатель, при выключенном — прежняя кнопка; тесты
+<code>test_biro26_credite.py</code> и <code>test_credite_settings.py</code> зелёные.</p>
+
+<div class="warn"><b>Демо-креды после первого деплоя:</b> seed берёт значения из
+<code>data/*.json</code>, а при их отсутствии — из <code>.env</code>, где для EasyCredit по
+умолчанию стоит <code>demo</code>/<code>demo</code>. Провайдер при этом выглядит как
+«configurat», хотя живой вызов вернёт отказ авторизации. Настоящие креды вводит оператор в
+бэк-офисе. <b>Внимание при программном сохранении:</b> правило «пустое = не менять» действует
+только для <b>секретных</b> параметров; пустое значение несекретного поля (например
+<code>api_user</code>) затирает сохранённое.</div>
+
+<p><b>Подробная документация провайдеров:</b>
 <a href="https://officeplus.md/UNA.md/orasldev/docs/easycredit">/UNA.md/orasldev/docs/easycredit</a>
-(EasyCredit — общая архитектура провайдеров) и
+(EasyCredit и общая архитектура <code>CreditProvider</code>) ·
 <a href="https://officeplus.md/UNA.md/orasldev/docs/iute">/UNA.md/orasldev/docs/iute</a> (Iute).</p>
 
 </body>

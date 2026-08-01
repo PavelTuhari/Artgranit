@@ -44,7 +44,7 @@
   маскируются при записи, остальные технические детали сохраняются полностью.
 </p>
 
-<div class="bar">
+<div class="bar" data-export-bar="jurnal-integrari">
   <button id="f-all" class="on" onclick="setF('')">Toate · Все</button>
   <button id="f-credit" onclick="setF('credit')">Creditare</button>
   <button id="f-pay" onclick="setF('pay')">Plăți</button>
@@ -57,7 +57,7 @@
   <span id="cnt" class="muted"></span>
 </div>
 
-<table>
+<table data-export="jurnal-integrari">
   <thead><tr>
     <th style="width:140px">Data</th><th style="width:70px">Tip</th>
     <th style="width:90px">Canal</th><th style="width:120px">Operație</th>
@@ -100,5 +100,6 @@ async function load(){
 }
 load();
 </script>
+<script src="/static/biro26/grid-export.js"></script>
 </body>
 </html>

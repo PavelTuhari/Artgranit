@@ -31,8 +31,12 @@ PROVIDER_DEFS: Dict[str, Dict[str, Any]] = {
         "icon": "💳",
         "color": "#667eea",
         "ord": 1,
-        "params": [("api_user", False), ("api_password", True)],
-        "default_base_url": {"sandbox": "https://tst.ecmoldova.cloud:8082",
+        # RO: gateway-ul cere DOUA nivele: HTTP Basic pe cerere (basic_*) SI
+        #     Login/Password in corpul SOAP (api_*). Basic e optional —
+        #     endpoint-urile vechi (tst.ecmoldova.cloud) merg fara el.
+        "params": [("api_user", False), ("api_password", True),
+                   ("basic_user", False), ("basic_password", True)],
+        "default_base_url": {"sandbox": "https://api.ecredit.md/TEST/",
                              "production": "https://w81.ecredit.md:8082"},
     },
     "iute": {

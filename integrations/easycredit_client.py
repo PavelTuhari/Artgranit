@@ -100,6 +100,8 @@ def preapproved(
     birth_date: str = "",
     card_id: str = "",
     verify_ssl: bool = True,
+    basic_user: str = "",
+    basic_password: str = "",
 ) -> dict[str, Any]:
     """
     Preapproved_v2.1: проверка предодобренной суммы.
@@ -124,7 +126,9 @@ def preapproved(
     )
     
     try:
-        r = _soap_post(url, action, body, verify_ssl=verify_ssl)
+        r = _soap_post(url, action, body, verify_ssl=verify_ssl,
+                       basic_auth=((basic_user, basic_password)
+                                   if basic_user else None))
         r.raise_for_status()
         
         parsed = _parse_soap_response(r.text, "PreapprovedResult")
@@ -177,6 +181,8 @@ def submit_request(
     product_id: int = 0,
     goods_price: int | float = 0,
     verify_ssl: bool = True,
+    basic_user: str = "",
+    basic_password: str = "",
 ) -> dict[str, Any]:
     """
     Request_v4_PJ: отправка заявки на кредит.
@@ -299,7 +305,9 @@ def submit_request(
     )
     
     try:
-        r = _soap_post(url, action, body, verify_ssl=verify_ssl)
+        r = _soap_post(url, action, body, verify_ssl=verify_ssl,
+                       basic_auth=((basic_user, basic_password)
+                                   if basic_user else None))
         r.raise_for_status()
         
         parsed = _parse_soap_response(r.text, "InsertRequestResult")
@@ -325,6 +333,8 @@ def status(
     passwd: str,
     urn: str,
     verify_ssl: bool = True,
+    basic_user: str = "",
+    basic_password: str = "",
 ) -> dict[str, Any]:
     """
     URNStatus_v2: статус заявки по URN.
@@ -349,7 +359,9 @@ def status(
     )
     
     try:
-        r = _soap_post(url, action, body, verify_ssl=verify_ssl)
+        r = _soap_post(url, action, body, verify_ssl=verify_ssl,
+                       basic_auth=((basic_user, basic_password)
+                                   if basic_user else None))
         r.raise_for_status()
         
         parsed = _parse_soap_response(r.text, "GetUrnStatusResult")
@@ -373,6 +385,8 @@ def get_client_info_by_phone(
     passwd: str,
     phone: str,
     verify_ssl: bool = True,
+    basic_user: str = "",
+    basic_password: str = "",
 ) -> dict[str, Any]:
     """
     ECM_GetClientInfoByPhone: получить информацию о клиенте по телефону.
@@ -397,7 +411,9 @@ def get_client_info_by_phone(
     )
     
     try:
-        r = _soap_post(url, action, body, verify_ssl=verify_ssl)
+        r = _soap_post(url, action, body, verify_ssl=verify_ssl,
+                       basic_auth=((basic_user, basic_password)
+                                   if basic_user else None))
         r.raise_for_status()
         
         parsed = _parse_soap_response(r.text, "GetClientInfoByPhoneResult")
@@ -445,6 +461,8 @@ def get_client_info(
     passwd: str,
     uin: str,
     verify_ssl: bool = True,
+    basic_user: str = "",
+    basic_password: str = "",
 ) -> dict[str, Any]:
     """
     eShopClientInfo_v3: получить информацию о клиенте по UIN (IDNP).
@@ -472,7 +490,9 @@ def get_client_info(
     )
     
     try:
-        r = _soap_post(url, action, body, verify_ssl=verify_ssl)
+        r = _soap_post(url, action, body, verify_ssl=verify_ssl,
+                       basic_auth=((basic_user, basic_password)
+                                   if basic_user else None))
         r.raise_for_status()
         
         parsed = _parse_soap_response(r.text, "eShopClientInfo_v3Result")
@@ -504,6 +524,8 @@ def get_urns_per_uin(
     status_filter: str = "",
     mode: str = "",
     verify_ssl: bool = True,
+    basic_user: str = "",
+    basic_password: str = "",
 ) -> dict[str, Any]:
     """
     ECM_GetUrnPerUin_V2: получить список заявок (URN) клиента по UIN.
@@ -531,7 +553,9 @@ def get_urns_per_uin(
     )
     
     try:
-        r = _soap_post(url, action, body, verify_ssl=verify_ssl)
+        r = _soap_post(url, action, body, verify_ssl=verify_ssl,
+                       basic_auth=((basic_user, basic_password)
+                                   if basic_user else None))
         r.raise_for_status()
         
         parsed = _parse_soap_response(r.text, "ECM_GetUrnPerUinResult")

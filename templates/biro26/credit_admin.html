@@ -55,7 +55,7 @@ td input.num{width:76px}
       (pachetele) se setează mai jos; <b>mod API</b> — se salvează URL-ul API al partenerului,
       iar adaptorul de integrare se activează per organizație (la cerere).
       Doar organizațiile «Activ» apar în magazin.</div>
-    <table>
+    <table data-export="organizatii-creditare">
       <thead><tr><th style="width:40px">ID</th><th>Denumire</th><th style="width:80px">Activ</th>
         <th style="width:110px">Mod</th><th>Provider API</th><th>API URL</th><th>Info (afișat clientului)</th>
         <th style="width:56px">Ord.</th>
@@ -72,7 +72,7 @@ td input.num{width:76px}
       «Comision magazin %» (pachetele 0%); rata lunară = finanțat/luni + finanțat×(dobânda
       anuală/12) + finanțat×comision lunar; total = avans + rate×luni + taxă emitere.
       Sursa condițiilor: tabelul EasyCredit.</div>
-    <table>
+    <table data-export="pachete-rate">
       <thead><tr><th>Organizație</th><th>Denumire pachet</th><th>Luni min–max</th>
         <th>Sumă min–max</th><th>Comision magazin %</th><th>Dobândă an %</th>
         <th>Comision lunar %</th><th>Taxă emitere</th><th>Avans min %</th>
@@ -87,7 +87,7 @@ td input.num{width:76px}
     <div class="hint">Cererile din formularul «Solicitați un împrumut» de pe paginile produselor.
       Nivelul de integrare per organizație: <b>manual</b> (minim — notificare, managerul sună) /
       <b>API</b> (maxim — cererea se trimite și la API-ul organizației; coloanele «Provider / Ref / Status API»).</div>
-    <table>
+    <table data-export="cereri-credit">
       <thead><tr><th>Data</th><th>Client / Telefon</th><th>Produs</th><th>Sumă → credit</th>
         <th>Pachet</th><th>Rata</th><th>Provider</th><th>Ref</th><th>Status API</th><th>Status</th><th></th></tr></thead>
       <tbody id="reqs"><tr><td colspan="11" class="muted">…</td></tr></tbody>
@@ -397,5 +397,6 @@ async function load() {
 }
 load();
 </script>
+<script src="/static/biro26/grid-export.js"></script>
 </body>
 </html>

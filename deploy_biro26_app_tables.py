@@ -74,6 +74,21 @@ def _run(db, label, sql, capture=False):
     return ok
 
 
+def add_client_mark_column(db) -> None:
+    """RO: YBIRO_CLIENT.CLIENT_MARK — marcajul clientului (admin/test/trusted),
+    setat in pagina «Clienți magazin» din back-office. Pas idempotent.
+    EN: client mark (admin/test/trusted) set from the back-office page."""
+    r = db.execute_query(
+        "SELECT COUNT(*) FROM USER_TAB_COLUMNS "
+        "WHERE TABLE_NAME = 'YBIRO_CLIENT' AND COLUMN_NAME = 'CLIENT_MARK'")
+    if r.get("success") and r["data"] and int(r["data"][0][0]) > 0:
+        print("  = YBIRO_CLIENT.CLIENT_MARK уже есть")
+        return
+    d = db.execute_dml("ALTER TABLE YBIRO_CLIENT ADD CLIENT_MARK VARCHAR2(20)")
+    print("  + YBIRO_CLIENT.CLIENT_MARK добавлена" if d.get("success")
+          else f"  ! CLIENT_MARK: {d.get('message')}")
+
+
 def main() -> int:
     db = Biro26DB()
     r = db.execute_query(

@@ -143,7 +143,9 @@ def t_dead_backend_returns_none() -> List[str]:
 def t_provider_defs() -> List[str]:
     """PROVIDER_DEFS описывает оба провайдера с нужными параметрами."""
     fails = []
-    for code, need in (("easycredit", {"api_user", "api_password"}),
+    # easycredit: Login/Password в теле + HTTP Basic для шлюза api.ecredit.md
+    for code, need in (("easycredit", {"api_user", "api_password",
+                                       "basic_user", "basic_password"}),
                        ("iute", {"api_key", "pos_identifier", "salesman_identifier"})):
         spec = PROVIDER_DEFS.get(code)
         if not spec:
@@ -153,7 +155,8 @@ def t_provider_defs() -> List[str]:
         if names != need:
             fails.append(f"{code}: параметры {names}, ожидались {need}")
         secrets = {n for n, s in spec["params"] if s}
-        expected_secret = {"api_password"} if code == "easycredit" else {"api_key"}
+        expected_secret = ({"api_password", "basic_password"}
+                           if code == "easycredit" else {"api_key"})
         if secrets != expected_secret:
             fails.append(f"{code}: секретные {secrets}, ожидались {expected_secret}")
     return fails

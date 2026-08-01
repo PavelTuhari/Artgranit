@@ -270,6 +270,15 @@ class Config:
         return _oracle_field('easycredit', 'api_user', cls.EASYCREDIT_API_USER)
 
     @classmethod
+    def easycredit_basic_user(cls) -> str:
+        """HTTP Basic для шлюза EasyCredit (api.ecredit.md). Пусто = без Basic."""
+        return _oracle_field('easycredit', 'basic_user', '')
+
+    @classmethod
+    def easycredit_basic_password(cls) -> str:
+        return _oracle_field('easycredit', 'basic_password', '')
+
+    @classmethod
     def easycredit_api_password(cls) -> str:
         return _oracle_field('easycredit', 'api_password', cls.EASYCREDIT_API_PASSWORD)
 
