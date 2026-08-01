@@ -648,6 +648,30 @@ function ecOut(html, color) {
   el.style.color = color || '#334155';
 }
 
+/* RO: DOAR pentru clientul marcat «admin» in back-office: sub mesajul neutru
+   de eroare apare butonul «🔧 Log tehnic», care arata ultimele apeluri catre
+   creditor (cerere + raspuns brut). Clientul obisnuit nu primeste nimic —
+   serverul nici nu trimite cimpul `debug` (vezi _with_admin_debug).
+   EN: admin-marked shop clients get a «technical log» toggle under the
+   neutral error; ordinary clients never receive the `debug` field at all. */
+function ecDebugHtml(data) {
+  var ev = (data || {}).debug;
+  if (!ev || !ev.length) return '';
+  var body = ev.map(function (e) {
+    return '<div style="margin:6px 0;padding:6px;background:#0f172a;color:#e2e8f0;' +
+      'border-radius:6px;font:11px/1.45 ui-monospace,Menlo,monospace;' +
+      'white-space:pre-wrap;word-break:break-all">' +
+      esc((e.when || '') + '  ' + (e.channel || '') + '  ' + (e.op || '') +
+          (e.http ? '  HTTP ' + e.http : '') + (e.ms ? '  ' + e.ms + ' ms' : '')) +
+      '\n' + esc(e.request || '') + '\n' + esc(e.response || '') + '</div>';
+  }).join('');
+  return '<div style="margin-top:8px"><button type="button" onclick="' +
+    'var d=this.nextElementSibling;d.style.display=d.style.display?\'\':\'none\'" ' +
+    'style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;' +
+    'border-radius:6px;background:#f8fafc;cursor:pointer">🔧 Log tehnic · ' +
+    'Технический лог</button><div style="display:none">' + body + '</div></div>';
+}
+
 async function ecPreapproved() {
   var t = currentTile();
   if (!ecCtx.org || !t) return;
