@@ -107,6 +107,7 @@ def preapproved(
                 "error": err}
     status = str(d.get("Status") or "")
     mx_reuseste = int(float(d.get("MaxAutoApproveAmountForReuseste") or 0))
+
     mx_esimplu = int(float(d.get("MaxAutoApproveAmountForeSimplu") or 0))
     max_amount = max(mx_reuseste, mx_esimplu)
     is_approved = max_amount > 0 and "Wrong" not in status
