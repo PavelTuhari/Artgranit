@@ -895,6 +895,7 @@ document.getElementById('std-modal').addEventListener('click', function (e) {
   }
   if (pay.success && pay.data) PAY = pay.data;
   OFFERS = offers.data || [];
+  renderPmEntry();
   // RO: ofertele vin asincron — daca clientul a apucat sa aleaga «Rate/credit»
   //     mai devreme, placile s-au randat pe o lista goala si nu se mai reface.
   // EN: offers arrive async — if the client switched to credit before they
