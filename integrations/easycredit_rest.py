@@ -52,17 +52,29 @@ def _post(base_url: str, op: str, payload: dict[str, Any],
                           auth=(basic_user, basic_password) if basic_user else None)
     except requests.RequestException as e:
         return None, str(e)
-    if r.status_code >= 400:
-        # RO: corpul de eroare al gateway-ului e JSON ({"detail": ...})
-        try:
-            detail = r.json().get("detail")
-        except Exception:
-            detail = (r.text or "")[:200]
-        return None, f"HTTP {r.status_code}: {detail}"
     try:
-        return r.json(), None
+        j = r.json()
     except ValueError:
-        return None, f"raspuns care nu e JSON: {(r.text or '')[:200]}"
+        return None, (f"HTTP {r.status_code}: {(r.text or '')[:200]}" if r.status_code >= 400
+                      else f"raspuns care nu e JSON: {(r.text or '')[:200]}")
+    if r.status_code >= 400 and not (isinstance(j, dict) and "response" in j):
+        # RO: eroare adevarata de transport — corpul e {"detail": ...}
+        detail = j.get("detail") if isinstance(j, dict) else None
+        return None, f"HTTP {r.status_code}: {detail if detail is not None else (r.text or '')[:200]}"
+    # RO: ATENTIE — gateway-ul raspunde 404 si cind clientul pur si simplu nu e
+    #     gasit ("Wrong Customer - 50000"), dar corpul e plicul normal. Asta NU
+    #     e o eroare tehnica: se despacheteaza si se citeste Status ca de obicei.
+    # EN: the gateway answers 404 for "client not found" too, with the normal
+    #     envelope — unwrap it instead of reporting a transport error.
+    # RO: gateway-ul intoarce un PLIC {"request": {...}, "response": {...}} —
+    #     cimpurile utile (Status, URN, MaxAutoApprove...) sint in "response".
+    #     Fara despachetare totul pare gol: preapproved 0, URN lipsa.
+    # EN: the gateway wraps everything in {"request", "response"}; the useful
+    #     fields live under "response" — unwrap or everything reads as empty.
+    if isinstance(j, dict) and "response" in j:
+        inner = j.get("response")
+        return (inner if isinstance(inner, dict) else {"value": inner}), None
+    return j, None
 
 
 def preapproved(
