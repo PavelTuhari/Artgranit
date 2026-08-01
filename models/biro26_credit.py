@@ -157,10 +157,35 @@ class Biro26Credit:
 
     # ── public: oferte + calcul ──
 
+    # RO: ofertele sint IDENTICE pentru toti clientii si se schimba doar cind
+    #     adminul editeaza organizatii/pachete/provideri. Fiecare apel costa
+    #     citeva interogari Oracle prin worker-subproces (~9 s la cos!), asa
+    #     ca le tinem in memorie si le invalidam EXPLICIT la salvare.
+    # EN: offers are the same for every client and change only on admin edits;
+    #     each rebuild costs several subprocess round-trips, so cache them and
+    #     invalidate explicitly on save/delete.
+    _OFFERS_TTL = 300.0
+    _offers_cache: Optional[tuple[float, Dict[str, Any]]] = None
+
+    @staticmethod
+    def invalidate_offers() -> None:
+        Biro26Credit._offers_cache = None
+
     @staticmethod
     def public_offers() -> Dict[str, Any]:
         """RO: organizatiile active cu pachetele active + providerul API legat.
         EN: enabled orgs with enabled plans and the linked API provider."""
+        import time as _t
+        hit = Biro26Credit._offers_cache
+        if hit and _t.time() - hit[0] < Biro26Credit._OFFERS_TTL:
+            return hit[1]
+        res = Biro26Credit._build_offers()
+        if res.get("success"):
+            Biro26Credit._offers_cache = (_t.time(), res)
+        return res
+
+    @staticmethod
+    def _build_offers() -> Dict[str, Any]:
         try:
             from models.credite_settings import PROVIDER_DEFS, biro26_settings
             orgs_res = _result(Biro26DB().execute_query(
