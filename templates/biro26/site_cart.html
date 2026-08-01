@@ -446,9 +446,11 @@ function crIs0(p) { return /0\s*%/.test(p.name || ''); }
 // EN: EFFECTIVE markup = plan commission + the org's markup replacing the
 //     undelivered transport on credit payments.
 function crEffMarkup(pl, o) { return (pl.markup_pct || 0) + (o.transport_markup_pct || 0); }
-function crTiles(base) {
+function crTiles(base, orgId) {
   const tiles = [];
-  OFFERS.forEach(o => (o.plans || []).forEach(pl => {
+  OFFERS.forEach(o => {
+    if (orgId != null && o.id !== orgId) return;
+    (o.plans || []).forEach(pl => {
     // RO: limitele pachetului se verifica pe suma FINANTATA (pretul in rate),
     //     exact ca pe server (Biro26Credit.calc); altfel aratam o placa care
     //     apoi pica la plasarea comenzii cu «suma finanțată peste maxim».
