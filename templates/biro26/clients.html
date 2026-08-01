@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Clienți magazin</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:13px;background:#f8fafc;color:#1e293b;padding:18px}
+  h1{font-size:19px;margin-bottom:4px}
+  .hint{color:#64748b;font-size:12.5px;margin-bottom:14px;line-height:1.55;max-width:900px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bar a,.bar button,.bar input,.bar select{padding:7px 12px;border:1px solid #cbd5e1;
+    border-radius:8px;background:#fff;font-size:12.5px;color:#1e293b;text-decoration:none}
+  .bar button{cursor:pointer}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:left}
+  th{background:#f1f5f9;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:#475569}
+  select.mark{padding:5px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .tag.admin{background:#fee2e2;color:#b91c1c}
+  .tag.test{background:#fef3c7;color:#b45309}
+  .tag.trusted{background:#dcfce7;color:#15803d}
+  .muted{color:#94a3b8}
+  .toast{position:fixed;bottom:20px;right:20px;background:#111827;color:#fff;padding:10px 16px;
+    border-radius:8px;font-size:12.5px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.on{opacity:1}
+  .toast.err{background:#b91c1c}
+</style>
+</head>
+<body>
+<div class="bar"><a href="/UNA.md/orasldev/biro26">← Biro26</a>
+  <a href="/UNA.md/orasldev/biro26-integration-log">Jurnal integrări</a></div>
+
+<h1>👥 Clienți magazin · Клиенты магазина</h1>
+<p class="hint">
+  Toți clienții înregistrați pe site. Marcajul se salvează imediat la schimbarea
+  selectorului. <b>admin</b> — cont de serviciu (vede detaliile tehnice ale erorilor pe
+  vitrină); <b>test</b> — cont de testare, comenzile lui nu se iau în calcul;
+  <b>trusted</b> — client de încredere. ·
+  Все зарегистрированные клиенты. Метка сохраняется сразу: <b>admin</b> — служебный
+  (видит технические детали ошибок на витрине), <b>test</b> — тестовый,
+  <b>trusted</b> — доверенный.
+</p>
+
+<div class="bar">
+  <input id="q" placeholder="Caută: email, nume, telefon, COD · Поиск" style="width:280px"
+         onkeydown="if(event.key==='Enter')load()">
+  <button onclick="load()">🔍 Caută · Найти</button>
+  <button onclick="document.getElementById('q').value='';load()">Reset</button>
+  <span id="cnt" class="muted"></span>
+</div>
+
+<table>
+  <thead><tr>
+    <th style="width:80px">COD</th><th>Email</th><th>Nume</th>
+    <th style="width:130px">Telefon</th><th style="width:70px">Tip</th>
+    <th style="width:120px">IDNO</th><th style="width:140px">Înregistrat</th>
+    <th style="width:150px">Marcaj · Метка</th>
+  </tr></thead>
+  <tbody id="rows"><tr><td colspan="8" class="muted">…</td></tr></tbody>
+</table>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(m,err){const t=document.getElementById('toast');t.textContent=m;
+  t.className='toast on'+(err?' err':'');setTimeout(()=>t.className='toast',2600);}
+const MARKS=[['','— fără marcaj —'],['admin','admin'],['test','test'],['trusted','trusted']];
+async function load(){
+  const q=encodeURIComponent(document.getElementById('q').value.trim());
+  const r=await fetch('/api/biro26/shop-clients?limit=300&search='+q).then(x=>x.json()).catch(()=>({}));
+  const rows=(r&&r.success)?r.data:[];
+  document.getElementById('cnt').textContent=rows.length+' clienți';
+  document.getElementById('rows').innerHTML = rows.length ? rows.map(c => {
+    const mk=(c.client_mark||'');
+    return '<tr><td>'+esc(c.univers_cod)+'</td>'+
+      '<td>'+esc(c.email)+'</td>'+
+      '<td>'+esc(c.full_name||'')+'</td>'+
+      '<td>'+esc(c.phone||'')+'</td>'+
+      '<td>'+(c.is_company==='1'?'juridic':'fizic')+'</td>'+
+      '<td>'+esc(c.idno||'')+'</td>'+
+      '<td class="muted">'+esc(c.created_at||'')+'</td>'+
+      '<td>'+(mk?'<span class="tag '+esc(mk)+'">'+esc(mk)+'</span> ':'')+
+        '<select class="mark" onchange="setMark('+Number(c.univers_cod)+',this.value,this)">'+
+        MARKS.map(([v,l])=>'<option value="'+v+'"'+(v===mk?' selected':'')+'>'+esc(l)+'</option>').join('')+
+        '</select></td></tr>';
+  }).join('') : '<tr><td colspan="8" class="muted">Niciun client · Нет клиентов</td></tr>';
+}
+async function setMark(cod,mark,el){
+  el.disabled=true;
+  const r=await fetch('/api/biro26/shop-clients/mark',{method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({univers_cod:cod,mark:mark})}).then(x=>x.json()).catch(()=>({}));
+  el.disabled=false;
+  if(r&&r.success){toast('Salvat ✓ · Сохранено');load();}
+  else toast((r&&r.error)||'Eroare',true);
+}
+load();
+</script>
+</body>
+</html>
