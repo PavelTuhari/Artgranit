@@ -69,7 +69,10 @@ class Biro26Pay:
     @staticmethod
     def get_settings() -> Dict[str, Any]:
         try:
-            data = {k.lower(): Biro26Store.get_setting(k, "") for k in PAY_KEYS}
+            # RO: TOATE cheile intr-o singura interogare — pe rind costau
+            #     ~2 s fiecare (worker-subproces), adica ~20 s la /pay/methods.
+            raw = Biro26Store.get_settings_many(PAY_KEYS)
+            data = {k.lower(): raw.get(k, "") for k in PAY_KEYS}
             data["pay_method"] = data["pay_method"] or "mia"
             data["maib_secret_set"] = bool(Config.BIRO26_MAIB_PROJECT_SECRET)
             data["mia_secret_set"] = bool(Config.BIRO26_MIA_API_SECRET)
