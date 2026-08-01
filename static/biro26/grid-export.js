@@ -124,6 +124,104 @@
     return b;
   }
 
+  /* ── SORTARE + CAUTARE (nivel de CORE, ca la orice grid) ──────────────
+   * RO: fiecare <table data-export> capata automat:
+   *   - sortare la CLICK pe orice antet (asc / desc / fara), cu recunoasterea
+   *     numerelor si a datelor dd.mm.yyyy — nu pe text brut;
+   *   - o casuta de cautare care ascunde randurile ce nu se potrivesc
+   *     (exportul in Excel ia doar randurile VIZIBILE, deci filtrul se aplica
+   *     si la descarcare).
+   * Grid-urile isi redeseneaza <tbody> prin innerHTML; un MutationObserver
+   * reaplica sortarea si filtrul dupa fiecare redesenare.
+   * EN: click-to-sort on any header + a search box, re-applied after the page
+   *     re-renders the tbody. Excel export follows the visible rows.
+   */
+  var DMY = /^(\d{2})[.\/-](\d{2})[.\/-](\d{4})(.*)$/;
+
+  function sortKey(txt) {
+    var s = (txt || '').trim();
+    var m = DMY.exec(s);
+    if (m) return m[3] + m[2] + m[1] + m[4];           // dd.mm.yyyy -> yyyymmdd
+    var n = s.replace(/\s/g, '').replace(',', '.');
+    if (NUM_RE.test(n)) return parseFloat(n);
+    return s.toLowerCase();
+  }
+
+  function applySort(t) {
+    var st = t.__sort;
+    var tb = t.tBodies[0];
+    if (!st || st.dir === 0 || !tb) return;
+    var rows = Array.prototype.slice.call(tb.rows);
+    if (rows.length < 2) return;
+    rows.sort(function (a, b) {
+      var x = sortKey(a.cells[st.i] ? cellText(a.cells[st.i]) : '');
+      var y = sortKey(b.cells[st.i] ? cellText(b.cells[st.i]) : '');
+      if (typeof x === 'number' && typeof y === 'number') return (x - y) * st.dir;
+      return String(x).localeCompare(String(y), 'ro', {numeric: true}) * st.dir;
+    });
+    t.__busy = true;
+    rows.forEach(function (r) { tb.appendChild(r); });
+    t.__busy = false;
+  }
+
+  function applyFilter(t) {
+    var q = (t.__q || '').toLowerCase().trim();
+    var tb = t.tBodies[0];
+    if (!tb) return;
+    t.__busy = true;
+    Array.prototype.forEach.call(tb.rows, function (r) {
+      r.style.display = (!q || r.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+    });
+    t.__busy = false;
+  }
+
+  function refresh(t) { applySort(t); applyFilter(t); }
+
+  function wireSort(t) {
+    var head = t.tHead && t.tHead.rows[0];
+    if (!head) return;
+    Array.prototype.forEach.call(head.cells, function (th, i) {
+      if (th.hasAttribute('data-nosort')) return;
+      th.style.cursor = 'pointer';
+      th.title = 'Sortează după această coloană · Сортировать по столбцу';
+      th.addEventListener('click', function () {
+        var st = t.__sort || {i: -1, dir: 0};
+        // RO: acelasi antet -> asc, desc, apoi inapoi la ordinea serverului
+        t.__sort = (st.i === i)
+          ? {i: i, dir: st.dir === 1 ? -1 : (st.dir === -1 ? 0 : 1)}
+          : {i: i, dir: 1};
+        Array.prototype.forEach.call(head.cells, function (h) {
+          h.textContent = h.textContent.replace(/[ ]?[▲▼]$/, '');
+        });
+        if (t.__sort.dir) th.textContent += t.__sort.dir === 1 ? ' ▲' : ' ▼';
+        refresh(t);
+      });
+    });
+  }
+
+  function addFilter(container, t) {
+    var inp = d.createElement('input');
+    inp.type = 'search';
+    inp.className = 'grid-filter-inp';
+    inp.placeholder = 'Caută în tabel · Поиск в таблице';
+    inp.addEventListener('input', function () { t.__q = inp.value; applyFilter(t); });
+    container.appendChild(inp);
+    return inp;
+  }
+
+  function wireGrid(t, bar) {
+    wireSort(t);
+    // RO: casuta proprie doar daca pagina nu are deja una a ei
+    if (bar && !bar.querySelector('input[type="search"]')) addFilter(bar, t);
+    var tb = t.tBodies[0];
+    if (tb && w.MutationObserver) {
+      new MutationObserver(function () {
+        if (t.__busy) return;
+        refresh(t);
+      }).observe(tb, {childList: true});
+    }
+  }
+
   // RO: auto-wiring — orice <table data-export="nume"> primeste butonul singur.
   //     Butonul se pune in [data-export-bar] daca exista, altfel inainte de tabel.
   function autowire() {
@@ -133,11 +231,15 @@
       var name = t.getAttribute('data-export') || 'export';
       var bar = d.querySelector('[data-export-bar="' + name + '"]') ||
                 d.querySelector('[data-export-bar]');
-      if (bar) { addButton(bar, t, name); return; }
-      var holder = d.createElement('div');
-      holder.style.margin = '0 0 8px';
-      t.parentNode.insertBefore(holder, t);
-      addButton(holder, t, name);
+      if (!bar) {
+        bar = d.createElement('div');
+        bar.style.margin = '0 0 8px';
+        bar.style.display = 'flex';
+        bar.style.gap = '8px';
+        t.parentNode.insertBefore(bar, t);
+      }
+      addButton(bar, t, name);
+      wireGrid(t, bar);
     });
   }
 
