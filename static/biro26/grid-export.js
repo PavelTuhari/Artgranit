@@ -248,7 +248,9 @@
     st.id = 'grid-export-css';
     st.textContent = '.grid-export-btn{padding:7px 12px;border:1px solid #cbd5e1;' +
       'border-radius:8px;background:#fff;font-size:12.5px;cursor:pointer;color:#1e293b}' +
-      '.grid-export-btn:hover{background:#f1f5f9}';
+      '.grid-export-btn:hover{background:#f1f5f9}' +
+      '.grid-filter-inp{padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;' +
+      'background:#fff;font-size:12.5px;color:#1e293b;min-width:200px}';
     d.head.appendChild(st);
   }
 
