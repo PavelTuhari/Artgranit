@@ -291,6 +291,11 @@
    /shop/pay/*, /shop/credit/*) — acelasi cos localStorage ca magazinul. */
 let ME = null, CENTERS = [], SRV = [], OFFERS = [], TILES = [], tileSel = 0;
 let payMethod = 'standard', PAY = {enabled: false, methods: []}, miaTimer = null;
+// RO: organizatia de credit aleasa (modala redeschisa per-organizatie, dupa
+//     macheta owner-ului) — null cind e activa plata Standard.
+// EN: currently selected credit org (modal opens per-org, per owner mockup)
+//     — null while Standard payment is active.
+let selOrgId = null;
 
 function cartTotal() { return cart().reduce((s, i) => s + i.qty * i.price, 0); }
 function renderCart() {
