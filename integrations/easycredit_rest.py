@@ -117,7 +117,7 @@ def preapproved(
         "max_reuseste": mx_reuseste,
         "max_esimplu": mx_esimplu,
         "status": status,
-        "message": status or ("Предодобрено." if is_approved else "Не предодобрено."),
+        "message": _preapproved_message(status, is_approved),
         "first_name": d.get("FirstName"),
         "last_name": d.get("LastName"),
         "father_name": d.get("FatherName"),
