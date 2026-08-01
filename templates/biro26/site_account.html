@@ -109,6 +109,7 @@ async function refresh() {
     if (r0) r0.checked = true;
     const idn = document.getElementById('t-idno');
     if (idn && me.idno) idn.value = me.idno;
+    crSaveUI((me.credit || {}).save !== false, me.credit || {});
     typeUI();
   }
   window.ME_ACC = me;
