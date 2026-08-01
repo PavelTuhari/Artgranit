@@ -424,6 +424,11 @@ function stdSelectTva(btn, v) {
 function updateStdSummary() {
   const total = cartTotal();
   document.getElementById('std-price-value').textContent = fmtLei(total);
+  const tvaLbl = {inclus: 'TVA 20% inclus · НДС 20% включён',
+    '0': 'TVA 0% · НДС 0%', fara: 'Fără TVA · Без НДС'}[document.getElementById('tva-mode').value];
+  document.getElementById('std-summary').innerHTML =
+    '<strong>' + tr('total') + ':</strong> <span class="price-red">' + fmtLei(total) + '</span><br>' +
+    'TVA: <strong>' + esc(tvaLbl) + '</strong>';
 }
 function stdContinue() {
   const t1 = document.getElementById('std-agree-terms').checked;
