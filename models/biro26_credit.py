@@ -263,13 +263,14 @@ class Biro26Credit:
         r = Biro26DB().execute_dml(
             "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, "
             "PRODUCT_COD, PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, "
-            "CLIENT_NAME, PHONE) VALUES (:id, "
-            ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph)",
+            "CLIENT_NAME, PHONE, CLIENT_ADDRESS) VALUES (:id, "
+            ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph, :adr)",
             {"id": req_id, "o": org.get("id"), "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None,
              "pn": (d.get("product_name") or "")[:300],
              "q": qty, "a": amount, "cp": s["credit_price"],
-             "mo": s["monthly"], "cn": name[:200], "ph": phone[:40]})
+             "mo": s["monthly"], "cn": name[:200], "ph": phone[:40],
+             "adr": (d.get("address") or "").strip()[:300] or None})
         if not r.get("success"):
             # RO: eroare Oracle la INSERT (poate contine text brut, ex. ORA-12154
             #     cu calea catre wallet-ul Oracle) — nu se arata clientului, doar in jurnal.
@@ -328,7 +329,7 @@ class Biro26Credit:
                 "SELECT * FROM (SELECT r.ID, o.NAME ORG_NAME, r.PRODUCT_NAME, "
                 "r.QTY, r.AMOUNT, r.CREDIT_PRICE, r.MONTHS, r.MONTHLY, "
                 "r.CLIENT_NAME, r.PHONE, r.STATUS, r.PROVIDER_CODE, r.EXT_REF, "
-                "r.API_STATUS, r.IDNP_MASKED, "
+                "r.API_STATUS, r.IDNP_MASKED, r.CLIENT_ADDRESS, "
                 "TO_CHAR(r.LAST_CHECK,'DD.MM.YYYY HH24:MI') LAST_CHECK, "
                 "TO_CHAR(r.CREATED,'DD.MM.YYYY HH24:MI') CREATED "
                 "FROM TMS_CREDITE_REQ r "
@@ -350,6 +351,83 @@ class Biro26Credit:
             {"s": status, "i": int(req_id)})
         return ({"success": True} if r.get("success")
                 else {"success": False, "error": r.get("message")})
+
+    # ── documentul de credit in ERP (TMDB_CREDITE_M/D) ──
+
+    @staticmethod
+    def create_document(order_cod: int, client_cod: Optional[int], plan: Dict[str, Any],
+                        months: int, avans: float, lines: List[Dict[str, Any]],
+                        client: Optional[Dict[str, Any]] = None,
+                        req_id: Optional[int] = None) -> Dict[str, Any]:
+        """RO: creeaza DOCUMENTUL de credit legat de comanda `order_cod`.
+
+        Documentul intra in TMDB_DOCS (NRSET 201, serie 'CR') prin pachetul
+        y_ai_BIRO26_credite; datele clientului vin din cererea tehnica
+        TMS_CREDITE_REQ (daca fluxul a fost prin API) sau din `client`.
+        Esecul aici NU trebuie sa anuleze comanda — apelantul doar loghează.
+
+        EN: creates the ERP credit document linked to the order; never fatal
+        for the order itself.
+        """
+        req: Dict[str, Any] = {}
+        if req_id:
+            rr = _rows(Biro26DB().execute_query(
+                "SELECT CLIENT_NAME, PHONE, IDNP_MASKED, CLIENT_ADDRESS, "
+                "PROVIDER_CODE, EXT_REF, API_STATUS FROM TMS_CREDITE_REQ "
+                "WHERE ID = :i", {"i": int(req_id)}))
+            req = rr[0] if rr else {}
+        cl = client or {}
+        # RO: preturile din `lines` sint DEJA majorate cu naceta activa
+        credit_price = round(sum(float(x["qty"]) * float(x["price"]) for x in lines), 2)
+        mk = 1 + (float(plan.get("markup_pct") or 0)
+                  + float(plan.get("transport_markup_pct") or 0)) / 100
+        amount = round(credit_price / mk, 2) if mk else credit_price
+        n = max(1, int(months or 1))
+        monthly = round(max(0.0, credit_price - float(avans or 0)) / n, 2)
+        sql = ("DECLARE v NUMBER; BEGIN "
+               " v := y_ai_BIRO26_credite.create_credit(:ord, :cli, :nnp, :idnp, "
+               "      :ph, :adr, :bd, :oid, :onm, :pid, :pnm, :mn, :av, :am, "
+               "      :cp, :mo, :prv, :ref, :st, :rid);\n")
+        p: Dict[str, Any] = {
+            "ord": int(order_cod), "cli": int(client_cod) if client_cod else None,
+            "nnp": (req.get("client_name") or cl.get("name") or "")[:200] or None,
+            "idnp": (req.get("idnp_masked") or cl.get("idnp") or "")[:20] or None,
+            "ph": (req.get("phone") or cl.get("phone") or "")[:40] or None,
+            "adr": (req.get("client_address") or cl.get("address") or "")[:300] or None,
+            "bd": (cl.get("birth_date") or None),
+            "oid": int(plan.get("org_id") or 0) or None,
+            "onm": (plan.get("org_name") or "")[:100] or None,
+            "pid": int(plan.get("id") or 0) or None,
+            "pnm": (plan.get("name") or "")[:120] or None,
+            "mn": n, "av": round(float(avans or 0), 2),
+            "am": amount, "cp": credit_price, "mo": monthly,
+            "prv": (req.get("provider_code") or "")[:30] or None,
+            "ref": (req.get("ext_ref") or "")[:120] or None,
+            "st": (req.get("api_status") or "MANUAL")[:60],
+            "rid": int(req_id) if req_id else None}
+        for i, x in enumerate(lines):
+            sql += (f" y_ai_BIRO26_credite.add_line(v, :sc{i}, :dn{i}, :um{i}, "
+                    f"     :q{i}, :pr{i}, :pc{i});\n")
+            pr = round(float(x["price"]) / mk, 2) if mk else float(x["price"])
+            p.update({f"sc{i}": int(x.get("cod") or 0) or None,
+                      f"dn{i}": str(x.get("name") or "")[:300],
+                      f"um{i}": str(x.get("um") or "buc")[:20],
+                      f"q{i}": float(x["qty"]), f"pr{i}": pr,
+                      f"pc{i}": round(float(x["price"]), 2)})
+        sql += "END;"
+        # RO: data nasterii ca DATE, nu text — o convertim in bind-ul SQL
+        if p["bd"]:
+            sql = sql.replace(":bd,", "TO_DATE(:bd,'YYYY-MM-DD'),", 1)
+        else:
+            sql = sql.replace(":bd,", "NULL,", 1)
+            p.pop("bd")
+        r = Biro26DB().execute_dml(sql, p)
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT COD, NRMANUAL FROM VMDB_CREDITE_M WHERE DOC_COD_ORDER = :o "
+            "ORDER BY COD DESC", {"o": int(order_cod)}))
+        return {"success": True, "data": rows[0] if rows else {}}
 
     @staticmethod
     def calc(amount: float, plan_id: int, months: Optional[int] = None,
@@ -538,7 +616,9 @@ class Biro26Credit:
         if "check_auth" in prov.capabilities:
             res = prov.check_auth()
         else:
-            res = prov.preapproved(uin=Biro26Credit._TEST_IDNP, amount=1000)
+            res = prov.preapproved(uin=Biro26Credit._TEST_IDNP, amount=1000,
+                                   birth_date="1990-01-01",
+                                   phone="+37369000001")
         ms = int((_t.time() - t0) * 1000)
         auth_fail = Biro26Credit._is_auth_failure(res)
         data = res.get("data") if isinstance(res.get("data"), dict) else {}
@@ -560,7 +640,7 @@ class Biro26Credit:
 
     # ── jurnal apeluri API ──
 
-    _TEST_IDNP = "2000000000001"  # RO: IDNP de proba pentru testul de conexiune
+    _TEST_IDNP = "2000000000004"  # RO: IDNP de proba pentru testul de conexiune
 
     # RO: cimpurile permise in jurnal — restul (nume, data nasterii, IDNP) se taie.
     _EVENT_SAFE_KEYS = {"success", "preapproved", "max_amount", "status", "state",
@@ -652,6 +732,54 @@ class Biro26Credit:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    @staticmethod
+    def integration_log(limit: int = 200) -> Dict[str, Any]:
+        """RO: jurnalul TEHNIC al comunicarii cu EasyCredit/Iute (apeluri API) si
+        cu maib/MIA (plati) — pentru pagina de diagnostic din back-office.
+        EN: technical log of provider API calls and payment attempts."""
+        out = []
+        try:
+            for e in _rows(Biro26DB().execute_query(
+                    "SELECT * FROM (SELECT ID, REQ_ID, PROVIDER_CODE, OP, HTTP_CODE, "
+                    "DURATION_MS, IS_ERROR, PAYLOAD, RESULT, "
+                    "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI:SS') CREATED "
+                    "FROM TMS_CREDITE_REQ_EVENT ORDER BY ID DESC) WHERE ROWNUM <= :n",
+                    {"n": max(1, min(int(limit), 500))})):
+                out.append({"kind": "credit", "id": e["id"], "when": e["created"],
+                            "channel": e.get("provider_code") or "—",
+                            "op": e.get("op"), "http": e.get("http_code"),
+                            "ms": e.get("duration_ms"),
+                            "error": (e.get("is_error") == "1"),
+                            "ref": e.get("req_id"),
+                            "request": e.get("payload"), "response": e.get("result")})
+        except Exception as ex:
+            out.append({"kind": "credit", "when": "", "channel": "—", "op": "read-error",
+                        "error": True, "response": str(ex)[:300]})
+        try:
+            for p in _rows(Biro26DB().execute_query(
+                    "SELECT * FROM (SELECT ID, DOC_COD, METHOD, ORDER_ID, PAY_ID, "
+                    "AMOUNT, STATUS, RRN, DETAILS, "
+                    "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI:SS') CREATED, "
+                    "TO_CHAR(CONFIRMED,'DD.MM.YYYY HH24:MI:SS') CONFIRMED "
+                    "FROM YBIRO_PAYMENTS ORDER BY ID DESC) WHERE ROWNUM <= :n",
+                    {"n": max(1, min(int(limit), 500))})):
+                out.append({"kind": "pay", "id": p["id"], "when": p["created"],
+                            "channel": p.get("method") or "—",
+                            "op": p.get("status"), "http": None, "ms": None,
+                            "error": (p.get("status") in ("FAILED", "ERROR")),
+                            "ref": p.get("doc_cod"),
+                            "request": (f"order_id={p.get('order_id')} "
+                                        f"pay_id={p.get('pay_id')} "
+                                        f"amount={p.get('amount')} RRN={p.get('rrn')}"),
+                            "response": (f"{p.get('details') or ''}"
+                                         + (f" · confirmat: {p['confirmed']}"
+                                            if p.get("confirmed") else ""))})
+        except Exception as ex:
+            out.append({"kind": "pay", "when": "", "channel": "—", "op": "read-error",
+                        "error": True, "response": str(ex)[:300]})
+        out.sort(key=lambda x: x.get("when") or "", reverse=True)
+        return {"success": True, "data": out[:max(1, min(int(limit), 500))]}
+
     # ── fluxul API al clientului: preapproved -> submit -> status ──
 
     @staticmethod
@@ -686,11 +814,15 @@ class Biro26Credit:
         if prov is None or not prov.is_configured():
             return {"success": False, "error": f"providerul {code} nu e configurat"}
         t0 = _t.time()
+        # RO: data nasterii e OBLIGATORIE la Preapproved_v2_1 (gateway-ul
+        #     raspunde 422 fara ea) — vine din formularul din cos.
         res = prov.preapproved(uin=idnp, amount=int(amount),
-                               phone=(d.get("phone") or "").strip())
+                               phone=(d.get("phone") or "").strip(),
+                               birth_date=(d.get("birth_date") or "").strip())
         ms = int((_t.time() - t0) * 1000)
         Biro26Credit._log_event(None, code, "preapproved", res, ms,
-                                {"idnp": idnp, "amount": amount, "org_id": org_id})
+                                {"idnp": idnp, "amount": amount, "org_id": org_id,
+                                 "birth_date": (d.get("birth_date") or "") or "(gol)"})
         if not res.get("success"):
             # RO: eroare de la provider/configurare — detaliile raman in jurnal,
             #     clientului i se arata doar un mesaj neutru.
@@ -755,13 +887,17 @@ class Biro26Credit:
         ins = Biro26DB().execute_dml(
             "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, PRODUCT_COD, "
             "PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, CLIENT_NAME, PHONE, "
-            "PROVIDER_CODE, IDNP_MASKED, API_STATUS) VALUES (:id, :o, :p, :m, :pc, "
-            ":pn, :q, :a, :cp, :mo, :cn, :ph, :prc, :idm, 'SENDING')",
+            "PROVIDER_CODE, IDNP_MASKED, CLIENT_ADDRESS, API_STATUS) "
+            "VALUES (:id, :o, :p, :m, :pc, "
+            ":pn, :q, :a, :cp, :mo, :cn, :ph, :prc, :idm, :adr, 'SENDING')",
             {"id": req_id, "o": org_id, "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None, "pn": product_name,
              "q": qty, "a": amount, "cp": s["credit_price"], "mo": s["monthly"],
              "cn": name[:200], "ph": phone[:40], "prc": code[:30],
-             "idm": Biro26Credit._mask_idnp(idnp)[:20]})
+             "idm": Biro26Credit._mask_idnp(idnp)[:20],
+             # RO: adresa nu pleaca la provider (eShopRequest_V5 nu are cimp),
+             #     dar ramine la noi pentru managerul magazinului.
+             "adr": (d.get("address") or "").strip()[:300] or None})
         if not ins.get("success"):
             # RO: eroare Oracle la INSERT (poate contine text brut, ex. ORA-12154
             #     cu calea catre wallet) — nu se arata clientului, doar in jurnal.
