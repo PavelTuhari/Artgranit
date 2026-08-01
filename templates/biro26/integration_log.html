@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Jurnal integrări</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:13px;background:#f8fafc;color:#1e293b;padding:18px}
+  h1{font-size:19px;margin-bottom:4px}
+  .hint{color:#64748b;font-size:12.5px;margin-bottom:14px;line-height:1.5}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bar a,.bar button,.bar select{padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;
+    background:#fff;font-size:12.5px;cursor:pointer;text-decoration:none;color:#1e293b}
+  .bar button.on{background:#111827;color:#fff;border-color:#111827}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{padding:7px 9px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}
+  th{background:#f1f5f9;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:#475569}
+  tr.err td{background:#fef2f2}
+  .tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:700}
+  .tag.credit{background:#ede9fe;color:#6d28d9}
+  .tag.pay{background:#dbeafe;color:#1d4ed8}
+  .ok{color:#15803d;font-weight:700}
+  .bad{color:#b91c1c;font-weight:700}
+  pre{white-space:pre-wrap;word-break:break-word;font-size:11.5px;background:#0f172a;color:#e2e8f0;
+    padding:9px;border-radius:8px;margin:5px 0 0;max-height:280px;overflow:auto}
+  .det{cursor:pointer;color:#1d4ed8;font-size:11.5px;text-decoration:underline}
+  .muted{color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="bar"><a href="/UNA.md/orasldev/biro26">← Biro26</a>
+  <a href="/UNA.md/orasldev/biro26-credit-admin">Creditare</a></div>
+
+<h1>🧾 Jurnal integrări · Журнал интеграций</h1>
+<p class="hint">
+  Toată comunicarea tehnică cu organizațiile de creditare (EasyCredit, Iute) și cu
+  plățile (maib, MIA): operația, codul HTTP, durata, corpul cererii și răspunsul.
+  Datele personale (IDNP, telefon) sunt mascate la scriere — restul detaliilor tehnice
+  se păstrează integral. ·
+  Вся техническая переписка с кредитными организациями и платёжными сервисами:
+  операция, HTTP-код, длительность, тело запроса и ответ. Персональные данные
+  маскируются при записи, остальные технические детали сохраняются полностью.
+</p>
+
+<div class="bar">
+  <button id="f-all" class="on" onclick="setF('')">Toate · Все</button>
+  <button id="f-credit" onclick="setF('credit')">Creditare</button>
+  <button id="f-pay" onclick="setF('pay')">Plăți</button>
+  <button id="f-err" onclick="setF('err')">Doar erori · Только ошибки</button>
+  <select id="lim" onchange="load()">
+    <option value="100">100</option><option value="200" selected>200</option>
+    <option value="500">500</option>
+  </select>
+  <button onclick="load()">↻ Reîncarcă · Обновить</button>
+  <span id="cnt" class="muted"></span>
+</div>
+
+<table>
+  <thead><tr>
+    <th style="width:140px">Data</th><th style="width:70px">Tip</th>
+    <th style="width:90px">Canal</th><th style="width:120px">Operație</th>
+    <th style="width:60px">HTTP</th><th style="width:60px">ms</th>
+    <th style="width:60px">Ref</th><th>Detalii tehnice</th>
+  </tr></thead>
+  <tbody id="rows"><tr><td colspan="8" class="muted">…</td></tr></tbody>
+</table>
+
+<script>
+let DATA = [], F = '';
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function setF(f){F=f;['all','credit','pay','err'].forEach(k=>
+  document.getElementById('f-'+k).classList.toggle('on',(k==='all'?'':k)===f));render();}
+function toggle(i){const d=document.getElementById('d'+i);d.style.display=d.style.display==='none'?'':'none';}
+function render(){
+  const rows = DATA.filter(e => !F ? true : (F==='err' ? e.error : e.kind===F));
+  document.getElementById('cnt').textContent = rows.length + ' / ' + DATA.length;
+  document.getElementById('rows').innerHTML = rows.length ? rows.map((e,i) =>
+    '<tr class="' + (e.error?'err':'') + '">' +
+    '<td>' + esc(e.when) + '</td>' +
+    '<td><span class="tag ' + e.kind + '">' + (e.kind==='credit'?'credit':'plată') + '</span></td>' +
+    '<td>' + esc(e.channel) + '</td>' +
+    '<td>' + esc(e.op) + '</td>' +
+    '<td>' + (e.http==null?'<span class="muted">—</span>':esc(e.http)) + '</td>' +
+    '<td>' + (e.ms==null?'<span class="muted">—</span>':esc(e.ms)) + '</td>' +
+    '<td>' + (e.ref==null?'<span class="muted">—</span>':esc(e.ref)) + '</td>' +
+    '<td><span class="' + (e.error?'bad':'ok') + '">' + (e.error?'EROARE':'OK') + '</span> · ' +
+      '<span class="det" onclick="toggle(' + i + ')">arată/ascunde · показать</span>' +
+      '<div id="d' + i + '" style="display:none">' +
+        '<pre>REQUEST\n' + esc(e.request || '—') + '\n\nRESPONSE\n' + esc(e.response || '—') + '</pre>' +
+      '</div></td></tr>').join('')
+    : '<tr><td colspan="8" class="muted">Nimic de afișat · Нет записей</td></tr>';
+}
+async function load(){
+  const n = document.getElementById('lim').value;
+  const r = await fetch('/api/biro26/integration-log?limit=' + n).then(x=>x.json()).catch(()=>({}));
+  DATA = (r && r.success) ? r.data : [];
+  render();
+}
+load();
+</script>
+</body>
+</html>
