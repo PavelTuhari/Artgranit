@@ -84,6 +84,7 @@ class Biro26Credit:
                     params)
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
+            Biro26Credit.invalidate_offers()
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -141,6 +142,7 @@ class Biro26Credit:
                     ":a1, :a2, :mk, :an, :mf, :isf, :av, :en, :inf)", params)
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
+            Biro26Credit.invalidate_offers()
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -150,6 +152,7 @@ class Biro26Credit:
         try:
             r = Biro26DB().execute_dml(
                 "DELETE FROM TMS_CREDITE_PLAN WHERE ID = :i", {"i": int(plan_id)})
+            Biro26Credit.invalidate_offers()
             return ({"success": True} if r.get("success")
                     else {"success": False, "error": r.get("message")})
         except Exception as e:
@@ -592,12 +595,16 @@ class Biro26Credit:
             return {"success": False, "error": f"provider necunoscut: {code}"}
         params = {n: (d.get("params") or {}).get(n) or ""
                   for n, _ in PROVIDER_DEFS[code]["params"]}
-        return biro26_settings().save(
+        res = biro26_settings().save(
             code,
             enabled=d.get("enabled") in (True, "1", 1, "true"),
             env=(d.get("env") or "sandbox"),
             base_url=(d.get("base_url") or ""),
             params=params)
+        # RO: ofertele publice poarta providerul (icon, mod online/manual) —
+        #     dupa salvare cache-ul lor nu mai e valid.
+        Biro26Credit.invalidate_offers()
+        return res
 
     # RO: providerul poate raspunde 200 cu un mesaj de autentificare esuata —
     #     nu tratam un astfel de raspuns drept conexiune reusita.
