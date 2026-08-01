@@ -169,6 +169,7 @@ class Biro26Credit:
     #     invalidate explicitly on save/delete.
     _OFFERS_TTL = 300.0
     _offers_cache: Optional[tuple[float, Dict[str, Any]]] = None
+    _offers_busy = False
 
     @staticmethod
     def invalidate_offers() -> None:
@@ -177,15 +178,38 @@ class Biro26Credit:
     @staticmethod
     def public_offers() -> Dict[str, Any]:
         """RO: organizatiile active cu pachetele active + providerul API legat.
-        EN: enabled orgs with enabled plans and the linked API provider."""
+
+        Cind cache-ul a expirat se intoarce IMEDIAT valoarea veche, iar
+        reconstructia pleaca in fundal: doar primul client de dupa pornirea
+        aplicatiei asteapta cele citeva secunde, nu si cei de dupa expirare.
+        EN: stale-while-revalidate — only the very first caller ever waits.
+        """
+        import threading
         import time as _t
         hit = Biro26Credit._offers_cache
-        if hit and _t.time() - hit[0] < Biro26Credit._OFFERS_TTL:
+        if hit:
+            if _t.time() - hit[0] >= Biro26Credit._OFFERS_TTL \
+                    and not Biro26Credit._offers_busy:
+                Biro26Credit._offers_busy = True
+                threading.Thread(target=Biro26Credit._refresh_offers,
+                                 daemon=True).start()
             return hit[1]
         res = Biro26Credit._build_offers()
         if res.get("success"):
             Biro26Credit._offers_cache = (_t.time(), res)
         return res
+
+    @staticmethod
+    def _refresh_offers() -> None:
+        import time as _t
+        try:
+            res = Biro26Credit._build_offers()
+            if res.get("success"):
+                Biro26Credit._offers_cache = (_t.time(), res)
+        except Exception:                              # noqa: BLE001
+            pass
+        finally:
+            Biro26Credit._offers_busy = False
 
     @staticmethod
     def _build_offers() -> Dict[str, Any]:
