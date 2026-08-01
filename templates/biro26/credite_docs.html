@@ -170,6 +170,33 @@ async function pick(cod){
     : '<tr><td colspan="8" class="muted">Documentul nu are rînduri · В документе нет строк</td></tr>';
 }
 
+/* RO: sincronizarea cu Google Sheets — o singura directie, ERP -> foaie.
+   Butonul spune de ce NU merge, daca reqvizitele lipsesc (vezi
+   docs/Biro26/GOOGLE_SHEETS_CREDITE.md), ca sa nu para o eroare de retea.
+   EN: one-way sync; the button explains a missing/!invalid service account. */
+async function gsStatus(){
+  const r = await fetch('/api/biro26/credite-docs/gsheets').then(x=>x.json()).catch(()=>({}));
+  const d = (r && r.data) || {};
+  const b = document.getElementById('gs-btn');
+  const m = document.getElementById('gs-msg');
+  if (!d.configured) {
+    b.disabled = true; b.style.opacity = .55; b.style.cursor = 'not-allowed';
+    m.textContent = 'Google Sheets: ' + (d.reason || 'neconfigurat');
+  } else {
+    m.textContent = 'Google Sheets: ' + (d.account || '');
+  }
+}
+async function gsSync(){
+  const b = document.getElementById('gs-btn'), m = document.getElementById('gs-msg');
+  b.disabled = true; m.textContent = 'Se sincronizează…';
+  const r = await fetch('/api/biro26/credite-docs/gsheets', {method:'POST'})
+    .then(x=>x.json()).catch(()=>({success:false,error:'network'}));
+  b.disabled = false;
+  m.textContent = r.success
+    ? '✅ ' + r.data.master + ' documente / ' + r.data.detail + ' rînduri'
+    : '❌ ' + (r.error || 'eroare');
+}
+
 async function load(){
   const r = await fetch('/api/biro26/credite-docs').then(x => x.json()).catch(() => ({}));
   DATA = (r && r.success) ? r.data : [];
