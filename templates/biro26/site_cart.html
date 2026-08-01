@@ -98,6 +98,12 @@
                         <textarea id="cr-address" placeholder="Ex: str. Ștefan cel Mare 123, Chișinău"></textarea>
                       </div>
                       <div class="pm-form-group">
+                        <!-- RO: gateway-ul EasyCredit CERE data nasterii la
+                             Preapproved_v2_1 — fara ea raspunde 422. -->
+                        <label for="ec-birth">Data nașterii *</label>
+                        <input type="date" id="ec-birth">
+                      </div>
+                      <div class="pm-form-group">
                         <label for="ec-phone">Număr de contact *</label>
                         <input type="tel" id="ec-phone" placeholder="+373 XX XXX XXX" value="+373 ">
                       </div>
@@ -133,7 +139,7 @@
 
                       <div class="pm-checkbox-group">
                         <input type="checkbox" id="cr-agree-terms">
-                        <label for="cr-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a> *</label>
+                        <label for="cr-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>, <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a> și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> *</label>
                       </div>
                       <div class="pm-checkbox-group">
                         <input type="checkbox" id="cr-agree-privacy">
@@ -186,7 +192,7 @@
 
                     <div class="pm-checkbox-group">
                       <input type="checkbox" id="std-agree-terms">
-                      <label for="std-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a> *</label>
+                      <label for="std-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>, <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a> și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> *</label>
                     </div>
                     <div class="pm-checkbox-group">
                       <input type="checkbox" id="std-agree-privacy">
@@ -273,10 +279,11 @@
                        margin:0 0 12px;font-size:12.5px;line-height:1.4;cursor:pointer">
                   <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none"
                          onchange="this.closest('#agree-box').style.outline='none'">
-                  <span>Sunt de acord cu
-                    <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>
-                    · Согласен с
-                    <a href="/termeni-si-conditii" target="_blank" rel="noopener">Условиями и положениями</a>
+                  <span>Am citit și sunt de acord cu
+                    <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>,
+                    <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a>
+                    și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a>
+                    · Согласен с условиями, доставкой/оплатой и возвратом
                   </span>
                 </label>
                 <button class="btn-big" style="width:100%" onclick="makeInvoice()" data-t="checkout">Plasează comanda</button>
@@ -436,10 +443,15 @@ function stdContinue() {
     toast('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate · Необходимо принять условия и политику конфиденциальности', true);
     return;
   }
+  // RO: o SINGURA actiune — bifa principala (cerinta maib) se pune automat,
+  //     modala se inchide si comanda se plaseaza imediat. Verificarile din
+  //     makeInvoice() (cos gol, autentificare, transport, bifa) raman valabile.
+  // EN: ONE action — tick the main maib checkbox, close the modal and place
+  //     the order right away; makeInvoice()'s own checks still apply.
   const mainAgree = document.getElementById('agree-terms');
   if (mainAgree) mainAgree.checked = true;
   closeStdModal();
-  toast('Completați transportul din dreapta și apăsați «Plasează comanda» · Заполните доставку справа и нажмите «Оформить заказ»');
+  makeInvoice();
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeCreditModal(); closeStdModal(); }
@@ -643,9 +655,17 @@ async function ecPreapproved() {
   if (!/^\d{13}$/.test(idnp)) {
     ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
   }
+  // RO: data nasterii e OBLIGATORIE la gateway (Preapproved_v2_1) — fara ea
+  //     raspunsul e 422, iar clientul vede doar un mesaj neutru. Verificam aici.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test((document.getElementById('ec-birth') || {}).value || '')) {
+    ecOut('Indicați data nașterii · Укажите дату рождения', '#b91c1c');
+    var _b = document.getElementById('ec-birth'); if (_b) _b.focus();
+    return;
+  }
   ecOut('…');
   var r = await j(API + '/credit/api/preapproved', {method: 'POST', body: JSON.stringify({
     org_id: ecCtx.org.id, idnp: idnp, amount: Math.round(t.credit_price),
+    birth_date: (document.getElementById('ec-birth') || {}).value || '',
     phone: document.getElementById('ec-phone').value.trim()})});
   if (r.auth_required) {
     ecStop(); toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return;
@@ -678,11 +698,21 @@ async function ecSubmit() {
   if (!/^\d{13}$/.test(idnp)) {
     ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
   }
+  // RO: data nasterii e OBLIGATORIE la gateway (Preapproved_v2_1) — fara ea
+  //     raspunsul e 422, iar clientul vede doar un mesaj neutru. Verificam aici.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test((document.getElementById('ec-birth') || {}).value || '')) {
+    ecOut('Indicați data nașterii · Укажите дату рождения', '#b91c1c');
+    var _b = document.getElementById('ec-birth'); if (_b) _b.focus();
+    return;
+  }
   ecOut('…');
   var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
     org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
     amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
     qty: 1, client_name: fio, phone: phone, idnp: idnp,
+    // RO: adresa nu are cimp la provider, dar se pastreaza in cererea noastra
+    address: (document.getElementById('cr-address') || {}).value || '',
+    birth_date: (document.getElementById('ec-birth') || {}).value || '',
     product_name: 'Coș OfficePlus'})});
   if (r.auth_required) {
     ecStop(); toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return;
@@ -690,6 +720,15 @@ async function ecSubmit() {
   if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c'); return; }
   ecCtx.reqId = r.data.req_id;
   ecCtx.ref = r.data.ext_ref || null;
+  // RO: la depunerea cererii de credit se genereaza IMEDIAT si Contul de plata
+  //     (comanda). makeInvoice() trimite credit_plan_id, deci documentul e marcat
+  //     ca «in rate», transportul nu se factureaza, iar notificarile (email /
+  //     WhatsApp / Telegram) pleaca automat din notify_new_doc.
+  // EN: placing a credit request also creates the invoice/order right away;
+  //     notifications (incl. WhatsApp) fire from notify_new_doc.
+  const agree = document.getElementById('agree-terms');
+  if (agree) agree.checked = true;
+  makeInvoice();
   if (!ecCtx.ref) {
     ecOut('📨 Cerere trimisă · Заявка отправлена<br>Un manager vă va contacta în scurt timp · Менеджер свяжется с вами.', '#0f766e');
     return;
@@ -761,6 +800,13 @@ async function makeInvoice() {
     if (!t) { toast('Alegeți termenul de rate', true); return; }
     body.credit_plan_id = t.plan.id; body.credit_months = t.m;
     body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
+    // RO: datele pentru DOCUMENTUL de credit (TMDB_CREDITE_M): cererea deja
+    //     trimisa la provider (daca a fost) plus adresa si data nasterii.
+    // EN: data for the ERP credit document: the already-sent request id (if
+    //     any) plus the address and date of birth captured in the form.
+    if (ecCtx && ecCtx.reqId) body.credit_req_id = ecCtx.reqId;
+    body.address = (document.getElementById('cr-address') || {}).value || '';
+    body.birth_date = (document.getElementById('ec-birth') || {}).value || '';
   }
   const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
   if (!r.success) { toast(r.error || 'Eroare', true); return; }
@@ -832,7 +878,8 @@ async function sendCartCreditReq(cod, nr) {
   const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
     plan_id: t.plan.id, months: t.m, qty: 1, amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
     product_cod: 0, product_name: 'Cont de plată Nr. ' + nr + ' (COD ' + cod + ')',
-    client_name: (ME && ME.name) || '', phone})});
+    client_name: (ME && ME.name) || '', phone,
+    address: (document.getElementById('cr-address') || {}).value || ''})});
   toast(r.success ? '✅ Cererea a fost trimisă!' : (r.error || 'Eroare'), !r.success);
 }
 
