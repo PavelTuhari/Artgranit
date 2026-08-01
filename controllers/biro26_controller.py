@@ -1239,8 +1239,22 @@ class Biro26Controller:
                          "invoice_fmt": inv_fmt or "pdf",
                          # RO: tipul clientului decide COLOANA de pret
                          "is_company": is_company, "idno": idno,
+                         # RO: datele formularului de credit memorate in cabinet —
+                         #     cosul le precompleteaza la urmatoarea cerere
+                         "credit": Biro26Store.shop_credit_profile(c["univers_cod"]),
                          "price_field": Biro26Store.client_price_field(
                              c["univers_cod"])}}
+
+    @staticmethod
+    def shop_credit_profile_set() -> Dict[str, Any]:
+        """RO: butonul din cabinet — memorarea datelor de credit pornita/oprita."""
+        from flask import session
+        cl = session.get("biro26_client")
+        if not cl:
+            return {"success": False, "error": "login required"}
+        d = request.get_json(silent=True) or {}
+        return Biro26Store.shop_credit_profile_set_save(
+            cl["univers_cod"], str(d.get("save")) in ("1", "true", "True"))
 
     @staticmethod
     def shop_set_client_type() -> Dict[str, Any]:
