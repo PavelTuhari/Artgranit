@@ -6253,6 +6253,62 @@ def api_biro26_credit_plan_delete(plan_id):
     return _b26(lambda: Biro26Controller.credit_plan_delete(plan_id))
 
 # ── credit: provideri API (admin, auth) ──
+@app.route('/UNA.md/orasldev/biro26-clients')
+def biro26_clients_page():
+    """RO: clientii magazinului + marcajul lor (admin/test/trusted)."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/clients.html', app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/shop-clients', methods=['GET'])
+def api_biro26_shop_clients():
+    return _b26(Biro26Controller.shop_clients)
+
+@app.route('/api/biro26/shop-clients/mark', methods=['PUT'])
+def api_biro26_shop_client_mark():
+    return _b26(Biro26Controller.shop_client_mark_set)
+
+@app.route('/UNA.md/orasldev/biro26-integration-log')
+def biro26_integration_log():
+    """RO: jurnal TEHNIC al integrarilor (creditare + plati) — diagnostic.
+    EN: technical integration log (credit providers + payments)."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/integration_log.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/integration-log', methods=['GET'])
+def api_biro26_integration_log():
+    from models.biro26_credit import Biro26Credit
+    try:
+        n = int(request.args.get('limit') or 200)
+    except (TypeError, ValueError):
+        n = 200
+    return _b26(lambda: Biro26Credit.integration_log(n))
+
+@app.route('/UNA.md/orasldev/biro26-credite-docs')
+def biro26_credite_docs_page():
+    """RO: documentele de credit (TMDB_CREDITE_M/D) — master + detail,
+    cite un tab per organizatie de creditare (EasyCredit / Liber Card)."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/credite_docs.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/credite-docs', methods=['GET'])
+def api_biro26_credite_docs():
+    from models.biro26_credit import Biro26Credit
+    try:
+        org = int(request.args.get('org_id') or 0) or None
+    except (TypeError, ValueError):
+        org = None
+    return _b26(lambda: Biro26Credit.documents(org))
+
+@app.route('/api/biro26/credite-docs/<int:cod>/lines', methods=['GET'])
+def api_biro26_credite_doc_lines(cod):
+    from models.biro26_credit import Biro26Credit
+    return _b26(lambda: Biro26Credit.document_lines(cod))
+
 @app.route('/api/biro26/credit/providers', methods=['GET'])
 def api_biro26_credit_providers():
     return _b26(Biro26Controller.credit_providers)
@@ -6351,6 +6407,11 @@ def api_biro26_pay_create(method):
 def api_biro26_pay_mia_status():
     return jsonify(Biro26Controller.pay_mia_check())
 
+@app.route('/api/biro26/shop/order/<int:cod>', methods=['GET'])
+def api_biro26_shop_order_view(cod):
+    # RO/EN: detaliile comenzii pentru pagina de retur dupa plata (maib)
+    return jsonify(Biro26Controller.shop_order_view(cod))
+
 @app.route('/api/biro26/pay/maib-callback', methods=['GET', 'POST'])
 def api_biro26_pay_maib_callback():
     """RO: okUrl/failUrl/callbackUrl de la MAIB — statusul se verifica
@@ -6366,9 +6427,17 @@ def api_biro26_pay_maib_callback():
     r = Biro26Pay.maib_callback(order_key, pay_id, typeurl)
     if request.method == 'POST' or typeurl == 'callbackurl':
         return jsonify(r)
-    # browser return (okUrl/failUrl): back to the shop with the outcome flag
-    return redirect('/UNA.md/orasldev/biro26-shop?pay='
-                    + ('ok' if r.get('paid') else 'fail'))
+    # RO: retur in browser (okUrl/failUrl) -> pagina cu DETALIILE comenzii,
+    #     nu doar un flag; e cerinta maib pentru e-commerce.
+    # EN: browser return -> order-details page, not just a flag (maib rule).
+    # RO: caile scurte (/cos, /catalog) le mapeaza nginx-ul de pe officeplus.md;
+    #     folosim calea completa, care e deja proxata pe ambele contururi —
+    #     un alias /plata-rezultat se poate adauga ulterior in nginx.
+    # EN: short paths are nginx-mapped on officeplus.md; use the full path,
+    #     already proxied on both contours.
+    return redirect('/UNA.md/orasldev/biro26-site/payment-result?pay='
+                    + ('ok' if r.get('paid') else 'fail')
+                    + '&cod=' + str(r.get('doc_cod') or 0))
 
 @app.route('/api/biro26/pay/mia-callback', methods=['GET', 'POST'])
 def api_biro26_pay_mia_callback():
