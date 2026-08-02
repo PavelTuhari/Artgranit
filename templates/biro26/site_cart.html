@@ -1016,6 +1016,10 @@ document.getElementById('std-modal').addEventListener('click', function (e) {
     // RO: daca clientul a apucat sa aleaga «Rate/credit» inainte ca ofertele
     //     sa soseasca, placile s-au randat pe o lista goala — le refacem.
     if (payMethod === 'credit') { renderTiles(); ecUI(); }
+    // RO: venit de pe fisa produsului cu ?credit=<org> — deschidem direct
+    //     modala organizatiei alese (butoanele de pe PDP sint «ca in cos»).
+    const co = parseInt(new URLSearchParams(location.search).get('credit'), 10);
+    if (co && OFFERS.some(o => o.id === co)) openCreditModal(co);
   });
 
   j(API + '/me').then(me => {
