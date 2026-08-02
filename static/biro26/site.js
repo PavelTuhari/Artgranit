@@ -40,6 +40,7 @@ const T = {
   popularSub: {ro: 'Produse populare, alese cel mai des de clienții noștri', ru: 'Популярные товары, которые выбирают чаще всего'},
   seeAll:     {ro: 'Vezi toate →', ru: 'Смотреть все →'},
   brands:     {ro: 'Branduri populare', ru: 'Популярные бренды'},
+  credits:    {ro: 'Credite', ru: 'Кредиты'},
   all:        {ro: 'Toate', ru: 'Все'},
   byCat:      {ro: 'Pe categorii', ru: 'По категориям'},
   nlTitle:    {ro: 'Abonează-te la newsletter', ru: 'Подпишитесь на рассылку'},
