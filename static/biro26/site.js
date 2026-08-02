@@ -102,6 +102,7 @@ const T = {
   center:     {ro: 'Centrul logistic', ru: 'Логистический центр'},
   services:   {ro: 'Servicii opționale', ru: 'Дополнительные услуги'},
   payMethod:  {ro: 'Metoda de achitare', ru: 'Способ оплаты'},
+  payMethodHint: {ro: 'Alege tipul de credit / rate sau plata standard', ru: 'Выберите тип кредита / рассрочки или обычную оплату'},
   payStd:     {ro: 'Standard (factură)', ru: 'Стандартно (счёт)'},
   payCredit:  {ro: 'Rate / credit', ru: 'Рассрочка / кредит'},
   tvaMode:    {ro: 'TVA', ru: 'НДС'},
