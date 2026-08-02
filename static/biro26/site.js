@@ -147,6 +147,11 @@ function curLang() {
   return l === 'ru' ? 'ru' : 'ro';
 }
 function tr(k) { const e = T[k]; return e ? (e[curLang()] || e.ro) : ''; }
+/* RO: text bilingv «RO · RU» — bl() alege dupa limba curenta, biS() taie o
+   string gata scrisa in ambele limbi (separator « · », RO inainte, RU dupa). */
+function bl(ro, ru) { return curLang() === 'ru' ? ru : ro; }
+function biS(s) { s = String(s); const i = s.indexOf(' · ');
+  return i < 0 ? s : (curLang() === 'ru' ? s.slice(i + 3) : s.slice(0, i)); }
 function setLang(l) {
   localStorage.setItem('biro26_lang', l); applyLang();
   if (window.onLangChange) window.onLangChange();
