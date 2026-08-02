@@ -56,6 +56,65 @@
               </style>
               </div><!-- /.pdp-cols -->
 
+              <!-- RO: calculator de credit MAIB Espresso — DOAR la produsele
+                   de la 5.000 lei (cerinta owner 03.08.2026, macheta
+                   calculator-credit.html). Calcul ORIENTATIV. -->
+              <div class="pdp-sec" id="p-calc-box" style="display:none">
+                <h3 data-bi>Calculator credit (MAIB Espresso) · Кредитный калькулятор (MAIB Espresso)</h3>
+                <div class="cc-grid">
+                  <div>
+                    <label class="cc-lb" data-bi>Suma credit (MDL) · Сумма кредита (MDL)</label>
+                    <input type="range" id="cc-amount" min="5000" max="400000" step="1000" style="width:100%">
+                    <div class="cc-val"><span id="cc-amount-v">50 000</span> MDL</div>
+                  </div>
+                  <div>
+                    <label class="cc-lb" data-bi>Perioada creditului · Срок кредита</label>
+                    <input type="range" id="cc-months" min="12" max="60" value="36" style="width:100%">
+                    <div class="cc-val"><span id="cc-months-v">36</span> <span data-bi>luni · мес.</span></div>
+                  </div>
+                  <div>
+                    <label class="cc-lb" data-bi>Dobânda anuală % · Годовая ставка %</label>
+                    <input type="number" id="cc-interest" value="9.3" step="0.01" class="cc-in">
+                  </div>
+                  <div></div>
+                  <div>
+                    <label class="cc-lb" data-bi>Venit lunar (salariu/pensie) MDL · Месячный доход (зарплата/пенсия) MDL</label>
+                    <input type="number" id="cc-income" value="10000" class="cc-in">
+                  </div>
+                  <div>
+                    <label class="cc-lb" data-bi>Alte credite lunare MDL · Другие ежемесячные кредиты MDL</label>
+                    <input type="number" id="cc-other" value="0" class="cc-in">
+                  </div>
+                </div>
+                <div class="cc-res">
+                  <div class="cc-card"><span data-bi>Rata lunară · Ежемесячный платёж</span><b id="cc-payment">0 MDL</b></div>
+                  <div class="cc-card"><span data-bi>Grad îndatorare · Долговая нагрузка</span><b id="cc-ratio">0 %</b></div>
+                  <div class="cc-card"><span>Status</span><b id="cc-status">–</b></div>
+                </div>
+                <button type="button" class="btn-blue" style="width:100%" onclick="ccTable()" data-bi>Vezi grafic rambursare · Показать график погашения</button>
+                <div style="overflow-x:auto"><table class="cc-tbl" id="cc-tbl-wrap" style="display:none">
+                  <thead><tr><th data-bi>Luna · Месяц</th><th data-bi>Sold · Остаток</th><th data-bi>Dobândă · Проценты</th><th>Principal</th><th data-bi>Rată · Платёж</th></tr></thead>
+                  <tbody id="cc-tbl"></tbody>
+                </table></div>
+                <p style="font-size:12px;color:#b45309;margin:10px 0 0" data-bi>⚠ Suma afișată este orientativă și nu reprezintă aprobarea creditului. Suma corectă va fi stabilită în contractul de credit. · ⚠ Показанная сумма ориентировочная и не означает одобрения кредита. Точная сумма будет установлена в кредитном договоре.</p>
+              </div>
+              <style>
+                .cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-top:8px}
+                @media(max-width:700px){.cc-grid{grid-template-columns:1fr}}
+                .cc-lb{font-weight:700;font-size:13px;display:block;margin-bottom:6px}
+                .cc-val{font-size:18px;color:#00874e;font-weight:800;margin-top:4px}
+                .cc-in{width:100%;padding:10px;border:1px solid #d1d1d1;border-radius:8px;font-size:15px}
+                .cc-res{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+                  background:#00874e;padding:16px;border-radius:12px;color:#fff;margin:16px 0 4px}
+                @media(max-width:700px){.cc-res{grid-template-columns:1fr}}
+                .cc-card{text-align:center;font-size:12.5px}
+                .cc-card b{display:block;font-size:19px;margin-top:6px}
+                .cc-ok{color:#00ff99}.cc-warn{color:#ffd166}
+                .cc-tbl{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+                .cc-tbl th{background:#00874e;color:#fff;padding:8px}
+                .cc-tbl td{padding:7px;border-bottom:1px solid #ddd;text-align:center}
+              </style>
+
               <div class="pdp-sec" id="p-descr-box" style="display:none">
                 <h3 data-t="descr">Descriere</h3>
                 <div id="p-descr" style="font-size:14.5px;line-height:1.6;white-space:pre-line"></div>
