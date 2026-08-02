@@ -164,6 +164,18 @@ function applyLang() {
     const v = tr(e.dataset.t); if (v) e.textContent = v; });
   document.querySelectorAll('[data-p]').forEach(e => {
     const v = tr(e.dataset.p); if (v) e.placeholder = v; });
+  // RO: elemente marcate data-bi — continutul original tine ambele limbi
+  //     («RO · RU», poate contine si linkuri); afisam doar jumatatea limbii.
+  document.querySelectorAll('[data-bi]').forEach(e => {
+    if (!e.dataset.biOrig) e.dataset.biOrig = e.innerHTML;
+    const s = e.dataset.biOrig, i = s.indexOf(' · ');
+    if (i >= 0) e.innerHTML = l === 'ru' ? s.slice(i + 3) : s.slice(0, i);
+  });
+  document.querySelectorAll('[data-bp]').forEach(e => {   // placeholder bilingv
+    if (!e.dataset.bpOrig) e.dataset.bpOrig = e.placeholder;
+    const s = e.dataset.bpOrig, i = s.indexOf(' · ');
+    if (i >= 0) e.placeholder = l === 'ru' ? s.slice(i + 3) : s.slice(0, i);
+  });
 }
 
 /* ── cos ─────────────────────────────────────────────────────────────── */
