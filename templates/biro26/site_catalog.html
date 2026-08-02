@@ -11,6 +11,21 @@
                 <h3 data-t="categories">Categorii</h3>
                 <div class="ftree" id="ftree"></div>
               </div>
+              <!-- RO: arbore stil ultra.md — sageata deschide/inchide grupa
+                   fara a filtra; grupa DESCHISA are fundal verde -->
+              <style>
+                .grp-row{display:flex;align-items:center;gap:6px;border-radius:8px;
+                  padding-right:4px;transition:background .15s}
+                .grp-row > a{flex:1}
+                .grp-row.open{background:#e9f6df}
+                .grp-row.open > a{color:#3f8c0d;font-weight:700}
+                .grp-arrow{cursor:pointer;width:26px;height:26px;display:flex;
+                  align-items:center;justify-content:center;border-radius:6px;
+                  color:#808080;font-size:12px;flex:none;user-select:none;
+                  transition:transform .15s,color .15s}
+                .grp-row.open .grp-arrow{transform:rotate(90deg);color:#ea6f21}
+                .grp-arrow:hover{background:#fff;color:#ea6f21}
+              </style>
               <div class="fbox">
                 <h3 data-t="price">Preț, lei</h3>
                 <div class="fprice">
