@@ -326,6 +326,7 @@ function renderP() {
     addToCart(cod, name, price, parseFloat(document.getElementById('p-qty').value) || 1);
   };
   renderTiles();
+  ccInit(price);
 }
 
 window.onLangChange = function () { renderP(); loadInfo(); };
