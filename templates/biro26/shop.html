@@ -1116,7 +1116,7 @@ function renderCreditModal() {
       '<div class="crtiles">' + tiles.map((x, i) =>
         '<div class="crtile' + (i === CR.tile ? ' on' : '') + '" onclick="crPick(' + i + ')">' +
         (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
-        '<div class="n">' + x.m + ' plăți</div>' +
+        '<div class="n">' + x.m + ' rate</div>' +
         '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('') + '</div>' +
       (t ? '<div class="crlunar">' + Math.ceil(t.monthly) + ' lei <span style="font-size:14px;color:#111827;font-weight:600">lunar · в месяц</span></div>' +
         '<div class="muted" style="font-size:12px">' + esc(t.plan.org + ' — ' + t.plan.name) +
@@ -1231,7 +1231,7 @@ async function creditUI() {
     document.getElementById('cart-crtiles').innerHTML = tiles.map((x, i) =>
       '<div class="crtile' + (i === cartCR.tile ? ' on' : '') + '" onclick="cartCrPick(' + i + ')">' +
       (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
-      '<div class="n">' + x.m + ' plăți</div>' +
+      '<div class="n">' + x.m + ' rate</div>' +
       '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('');
     const t = tiles[cartCR.tile];
     const r = await j(API + '/credit/calc', {method: 'POST', body: JSON.stringify({
