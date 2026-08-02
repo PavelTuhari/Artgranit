@@ -63,20 +63,20 @@
                     <div id="cm-step1">
                       <label class="pm-modal-label" data-t="ratesTiles">Alegeți termenul</label>
                       <div class="cr-tiles" id="cr-tiles"></div>
-                      <div style="font-size:11.5px;color:#64748b;margin:4px 0 8px">La achitarea în rate/credit transportul nu se prestează — costul e deja inclus în preț · При оплате в рассрочку/кредит доставка не осуществляется — её стоимость уже включена в цену</div>
-                      <div class="pm-summary" id="cr-sim">Selectați un termen pentru a vedea detaliile · Выберите срок, чтобы увидеть детали</div>
+                      <div style="font-size:11.5px;color:#64748b;margin:4px 0 8px" data-bi>La achitarea în rate/credit transportul nu se prestează — costul e deja inclus în preț · При оплате в рассрочку/кредит доставка не осуществляется — её стоимость уже включена в цену</div>
+                      <div class="pm-summary" id="cr-sim" data-bi>Selectați un termen pentru a vedea detaliile · Выберите срок, чтобы увидеть детали</div>
                       <label data-t="avans">Avans, lei</label>
                       <input id="credit-avans" type="number" min="0" value="0">
-                      <button type="button" class="pm-action-btn" id="cm-continue-btn" onclick="cmGoToForm()" disabled style="margin-top:14px">
-                        Continuă
+                      <button type="button" class="pm-action-btn" id="cm-continue-btn" onclick="cmGoToForm()" disabled style="margin-top:14px" data-bi>
+                        Continuă · Продолжить
                       </button>
                     </div>
 
                     <div id="cm-step2" style="display:none">
-                      <p class="pm-modal-label" style="margin-bottom:14px">Completați datele pentru a aplica cererea de credit · Заполните данные для заявки на кредит</p>
+                      <p class="pm-modal-label" style="margin-bottom:14px" data-bi>Completați datele pentru a aplica cererea de credit · Заполните данные для заявки на кредит</p>
                       <div class="pm-form-group">
                         <label for="ec-fio">NNP *</label>
-                        <input type="text" id="ec-fio" placeholder="Nume Prenume · ФИО">
+                        <input type="text" id="ec-fio" data-bp placeholder="Nume Prenume · ФИО">
                       </div>
                       <div class="pm-form-group">
                         <label for="ec-idnp">IDNP / IDNO *</label>
@@ -86,27 +86,27 @@
                         <!-- RO: adresa e ceruta doar vizual, dupa macheta — API-ul
                              EasyCredit (eShopRequest_V5) NU are camp pentru ea, deci
                              NU se trimite nicaieri, doar se valideaza ca obligatorie. -->
-                        <label for="cr-address">Adresa de domiciliu sau juridică *</label>
-                        <textarea id="cr-address" placeholder="Ex: str. Ștefan cel Mare 123, Chișinău"></textarea>
+                        <label for="cr-address" data-bi>Adresa de domiciliu sau juridică * · Адрес проживания или юридический *</label>
+                        <textarea id="cr-address" data-bp placeholder="Ex: str. Ștefan cel Mare 123, Chișinău · Напр.: ул. Штефан чел Маре 123, Кишинёв"></textarea>
                       </div>
                       <div class="pm-form-group">
                         <!-- RO: gateway-ul EasyCredit CERE data nasterii la
                              Preapproved_v2_1 — fara ea raspunde 422. -->
-                        <label for="ec-birth">Data nașterii *</label>
+                        <label for="ec-birth" data-bi>Data nașterii * · Дата рождения *</label>
                         <input type="date" id="ec-birth">
                       </div>
                       <div class="pm-form-group">
-                        <label for="ec-phone">Număr de contact *</label>
+                        <label for="ec-phone" data-bi>Număr de contact * · Контактный телефон *</label>
                         <input type="tel" id="ec-phone" placeholder="+373 XX XXX XXX" value="+373 ">
                       </div>
 
                       <div class="pm-summary" id="cm-final-summary" style="margin-bottom:16px"></div>
 
                       <div id="ec-mode-box" style="display:none;margin-bottom:10px">
-                        <label style="margin-top:0">Modul de solicitare · Способ оформления</label>
+                        <label style="margin-top:0" data-bi>Modul de solicitare · Способ оформления</label>
                         <div class="paym">
-                          <button id="ec-mode-online" class="on" onclick="ecSetMode('online')">Cerere online · Онлайн-заявка</button>
-                          <button id="ec-mode-manual" onclick="ecSetMode('manual')">Vă sunăm noi · Перезвонит менеджер</button>
+                          <button id="ec-mode-online" class="on" onclick="ecSetMode('online')" data-bi>Cerere online · Онлайн-заявка</button>
+                          <button id="ec-mode-manual" onclick="ecSetMode('manual')" data-bi>Vă sunăm noi · Перезвонит менеджер</button>
                         </div>
                         <div id="ec-mode-hint" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
                       </div>
@@ -116,33 +116,33 @@
                         </div>
                         <div style="display:flex;gap:6px;margin-top:8px">
                           <button id="ec-pre" onclick="ecPreapproved()"
-                                  style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer">
-                            🔍 Verifică preaprobarea · Проверить предодобрение
+                                  style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer" data-bi>
+                            🔍 Verifică preaprobarea · 🔍 Проверить предодобрение
                           </button>
                         </div>
-                        <div id="ec-note" style="display:none;font-size:11.5px;color:#64748b;margin-top:6px">
+                        <div id="ec-note" style="display:none;font-size:11.5px;color:#64748b;margin-top:6px" data-bi>
                           Decizia se ia după depunerea cererii · Решение принимается после подачи заявки
                         </div>
                         <div id="ec-out" style="font-size:12.5px;margin-top:8px"></div>
                       </div>
-                      <div id="cm-no-provider-note" style="display:none;font-size:11.5px;color:#64748b;margin-bottom:10px">
+                      <div id="cm-no-provider-note" style="display:none;font-size:11.5px;color:#64748b;margin-bottom:10px" data-bi>
                         Pentru acest creditor cererea se depune după plasarea comenzii, folosind butonul de sub factură · Для этого кредитора заявка подаётся после оформления заказа, кнопкой под счётом
                       </div>
 
                       <div class="pm-checkbox-group">
                         <input type="checkbox" id="cr-agree-terms">
-                        <label for="cr-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>, <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a> și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> *</label>
+                        <label for="cr-agree-terms" data-bi>Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>, <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a> și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> * · Я прочитал(а) и согласен(на) с <a href="/termeni-si-conditii" target="_blank" rel="noopener">Условиями</a>, <a href="/livrare" target="_blank" rel="noopener">условиями доставки/оплаты</a> и <a href="/retur-produse" target="_blank" rel="noopener">условиями возврата/отмены</a> *</label>
                       </div>
                       <div class="pm-checkbox-group">
                         <input type="checkbox" id="cr-agree-privacy">
-                        <label for="cr-agree-privacy">Am citit și sunt de acord cu <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a> *</label>
+                        <label for="cr-agree-privacy" data-bi>Am citit și sunt de acord cu <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a> * · Я прочитал(а) и согласен(на) с <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Политикой конфиденциальности</a> *</label>
                       </div>
 
-                      <button type="button" class="pm-action-btn" id="ec-sub" style="margin-top:6px" onclick="cmSubmitCreditRequest()">
-                        📨 Aplică cererea de credit · Отправить заявку
+                      <button type="button" class="pm-action-btn" id="ec-sub" style="margin-top:6px" onclick="cmSubmitCreditRequest()" data-bi>
+                        📨 Aplică cererea de credit · 📨 Отправить заявку
                       </button>
-                      <button type="button" class="pm-action-btn pm-action-btn-secondary" style="margin-top:10px" onclick="cmBackToPeriods()">
-                        ← Înapoi la perioade
+                      <button type="button" class="pm-action-btn pm-action-btn-secondary" style="margin-top:10px" onclick="cmBackToPeriods()" data-bi>
+                        ← Înapoi la perioade · ← Назад к срокам
                       </button>
                     </div>
                   </div>
@@ -158,7 +158,7 @@
                   </div>
                   <div class="pm-modal-body">
                     <div class="pm-std-price-box">
-                      <div class="pm-price-label">Total comandă · Итого заказ</div>
+                      <div class="pm-price-label" data-bi>Total comandă · Итого заказ</div>
                       <div class="pm-price-value" id="std-price-value">0 lei</div>
                     </div>
 
@@ -181,33 +181,33 @@
                     <div class="tva-options" id="std-tva-options">
                       <button type="button" class="tva-btn on" data-tva="inclus" onclick="stdSelectTva(this,'inclus')">
                         TVA 20%
-                        <span class="tva-label">inclus · включён</span>
+                        <span class="tva-label" data-bi>inclus · включён</span>
                       </button>
                       <button type="button" class="tva-btn" data-tva="0" onclick="stdSelectTva(this,'0')">
                         TVA 0%
-                        <span class="tva-label">zero · нулевой</span>
+                        <span class="tva-label" data-bi>zero · нулевой</span>
                       </button>
                       <button type="button" class="tva-btn" data-tva="fara" onclick="stdSelectTva(this,'fara')">
                         Fără TVA
-                        <span class="tva-label">neimpozabil · без НДС</span>
+                        <span class="tva-label" data-bi>neimpozabil · без НДС</span>
                       </button>
                     </div>
 
-                    <div class="pm-summary" id="std-summary" style="margin-top:16px">
+                    <div class="pm-summary" id="std-summary" style="margin-top:16px" data-bi>
                       Completați transportul, alegeți TVA și apăsați «Continuă la plată» · Укажите доставку, выберите НДС и нажмите «Продолжить»
                     </div>
 
                     <div class="pm-checkbox-group">
                       <input type="checkbox" id="std-agree-terms">
-                      <label for="std-agree-terms">Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>, <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a> și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> *</label>
+                      <label for="std-agree-terms" data-bi>Am citit și sunt de acord cu <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>, <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a> și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> * · Я прочитал(а) и согласен(на) с <a href="/termeni-si-conditii" target="_blank" rel="noopener">Условиями</a>, <a href="/livrare" target="_blank" rel="noopener">условиями доставки/оплаты</a> и <a href="/retur-produse" target="_blank" rel="noopener">условиями возврата/отмены</a> *</label>
                     </div>
                     <div class="pm-checkbox-group">
                       <input type="checkbox" id="std-agree-privacy">
-                      <label for="std-agree-privacy">Am citit și sunt de acord cu <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a> *</label>
+                      <label for="std-agree-privacy" data-bi>Am citit și sunt de acord cu <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Politica de confidențialitate</a> * · Я прочитал(а) и согласен(на) с <a href="/politica-de-confidentialitate" target="_blank" rel="noopener">Политикой конфиденциальности</a> *</label>
                     </div>
 
-                    <button type="button" class="pm-action-btn" id="std-action-btn" style="margin-top:6px" onclick="stdContinue()">
-                      Continuă la plată
+                    <button type="button" class="pm-action-btn" id="std-action-btn" style="margin-top:6px" onclick="stdContinue()" data-bi>
+                      Continuă la plată · Продолжить к оплате
                     </button>
                   </div>
                 </div>
@@ -286,11 +286,10 @@
                        margin:0 0 12px;font-size:12.5px;line-height:1.4;cursor:pointer">
                   <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none"
                          onchange="this.closest('#agree-box').style.outline='none'">
-                  <span>Am citit și sunt de acord cu
+                  <span data-bi>Am citit și sunt de acord cu
                     <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>,
                     <a href="/livrare" target="_blank" rel="noopener">condițiile de livrare/achitare</a>
-                    și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a>
-                    · Согласен с условиями, доставкой/оплатой и возвратом
+                    și <a href="/retur-produse" target="_blank" rel="noopener">condițiile de returnare/anulare</a> · Согласен(на) с <a href="/termeni-si-conditii" target="_blank" rel="noopener">условиями</a>, <a href="/livrare" target="_blank" rel="noopener">доставкой/оплатой</a> и <a href="/retur-produse" target="_blank" rel="noopener">возвратом</a>
                   </span>
                 </label>
                 <button class="btn-big" style="width:100%" onclick="makeInvoice()" data-t="checkout">Plasează comanda</button>
@@ -388,7 +387,7 @@ function cmGoToForm() {
   document.getElementById('cm-step2').style.display = '';
   document.getElementById('cm-final-summary').innerHTML =
     '<strong>' + esc(t.org.name) + '</strong><br>' +
-    t.m + ' plăți × <span class="price-red">' + Math.ceil(t.monthly) + ' lei</span><br>' +
+    t.m + ' ' + plWord(t.m) + ' × <span class="price-red">' + Math.ceil(t.monthly) + ' ' + bl('lei', 'лей') + '</span><br>' +
     tr('cartRate') + ': <span class="price-red">' + fmtLei(t.credit_price) + '</span>';
   crPrefill();
   ecUI();
@@ -419,18 +418,18 @@ function cmBackToPeriods() {
 }
 function cmSubmitCreditRequest() {
   const addr = document.getElementById('cr-address').value.trim();
-  if (!addr) { ecOut('Adresa este obligatorie · Адрес обязателен', '#b91c1c'); return; }
+  if (!addr) { ecOut(bl('Adresa este obligatorie', 'Адрес обязателен'), '#b91c1c'); return; }
   const t1 = document.getElementById('cr-agree-terms').checked;
   const t2 = document.getElementById('cr-agree-privacy').checked;
   if (!t1 || !t2) {
-    ecOut('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate · Необходимо принять условия и политику конфиденциальности', '#b91c1c');
+    ecOut(bl('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate', 'Необходимо принять условия и политику конфиденциальности'), '#b91c1c');
     return;
   }
   const mainAgree = document.getElementById('agree-terms');
   if (mainAgree) mainAgree.checked = true;
   if (!ecCtx.org || ecMode !== 'online') {
-    ecOut('📨 Datele sînt validate. Finalizați cu butonul «Plasează comanda» din dreapta — cererea de credit se depune imediat după · ' +
-      'Данные проверены. Завершите кнопкой «Оформить заказ» справа — заявка на кредит подаётся сразу после.', '#0f766e');
+    ecOut(bl('📨 Datele sînt validate. Finalizați cu butonul «Plasează comanda» din dreapta — cererea de credit se depune imediat după.',
+      '📨 Данные проверены. Завершите кнопкой «Оформить заказ» справа — заявка на кредит подаётся сразу после.'), '#0f766e');
     return;
   }
   ecSubmit();
@@ -456,11 +455,11 @@ function stdSelectTva(btn, v) {
 function updateStdSummary() {
   const total = cartTotal();
   document.getElementById('std-price-value').textContent = fmtLei(total);
-  const tvaLbl = {inclus: 'TVA 20% inclus · НДС 20% включён',
-    '0': 'TVA 0% · НДС 0%', fara: 'Fără TVA · Без НДС'}[document.getElementById('tva-mode').value];
+  const tvaLbl = biS({inclus: 'TVA 20% inclus · НДС 20% включён',
+    '0': 'TVA 0% · НДС 0%', fara: 'Fără TVA · Без НДС'}[document.getElementById('tva-mode').value]);
   document.getElementById('std-summary').innerHTML =
     '<strong>' + tr('total') + ':</strong> <span class="price-red">' + fmtLei(total) + '</span><br>' +
-    'TVA: <strong>' + esc(tvaLbl) + '</strong>';
+    bl('TVA', 'НДС') + ': <strong>' + esc(tvaLbl) + '</strong>';
 }
 function stdContinue() {
   // RO: transportul se verifica AICI, cit modala e inca deschisa — altfel
@@ -476,7 +475,7 @@ function stdContinue() {
   const t1 = document.getElementById('std-agree-terms').checked;
   const t2 = document.getElementById('std-agree-privacy').checked;
   if (!t1 || !t2) {
-    toast('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate · Необходимо принять условия и политику конфиденциальности', true);
+    toast(bl('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate', 'Необходимо принять условия и политику конфиденциальности'), true);
     return;
   }
   // RO: o SINGURA actiune — bifa principala (cerinta maib) se pune automat,
@@ -529,8 +528,8 @@ function renderTiles() {
     const box = document.getElementById('cr-tiles');
     const contBtn = document.getElementById('cm-continue-btn');
     if (!TILES.length) {
-      box.innerHTML = '<span style="font-size:12.5px;color:#808080">Suma trebuie să fie între 1 000 și 100 000 lei</span>';
-      document.getElementById('cr-sim').innerHTML = 'Selectați un termen pentru a vedea detaliile · Выберите срок, чтобы увидеть детали';
+      box.innerHTML = '<span style="font-size:12.5px;color:#808080">' + bl('Suma trebuie să fie între 1 000 și 100 000 lei', 'Сумма должна быть от 1 000 до 100 000 леев') + '</span>';
+      document.getElementById('cr-sim').innerHTML = bl('Selectați un termen pentru a vedea detaliile', 'Выберите срок, чтобы увидеть детали');
       if (contBtn) contBtn.disabled = true;
       return;
     }
@@ -538,7 +537,7 @@ function renderTiles() {
     box.innerHTML = TILES.map((t, i) =>
       '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
       ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
-      '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
+      '<b>' + t.m + ' ' + plWord(t.m) + '</b><span>' + Math.ceil(t.monthly) + ' ' + bl('lei/lună', 'лей/мес') + '</span></div>').join('');
     // RO: in rezumat se arata pretul IN RATE (albastru), nu cel standard —
     //     clientul plateste exact aceasta suma. La fel pentru TOATE pachetele,
     //     nu doar la cele «0%».
@@ -571,6 +570,14 @@ var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null
 var ecMode = 'online';
 
 function currentTile() { return TILES[tileSel] || null; }
+// RO: forma corecta de plural pentru «N plăți» in ambele limbi
+function plWord(n) {
+  if (curLang() !== 'ru') return 'plăți';
+  const d = n % 10, h = n % 100;
+  if (d === 1 && h !== 11) return 'платёж';
+  if (d >= 2 && d <= 4 && (h < 10 || h >= 20)) return 'платежа';
+  return 'платежей';
+}
 
 function ecSetMode(m) {
   if (m !== 'online' && m !== 'manual') return;
@@ -656,8 +663,8 @@ function ecUI() {
   if (btnMan) btnMan.classList.toggle('on', ecMode === 'manual');
   var hint = document.getElementById('ec-mode-hint');
   if (hint) hint.textContent = ecMode === 'online'
-    ? 'Online: decizie în cîteva minute · Онлайн: решение за несколько минут'
-    : 'Manual: vă contactează un manager · Вручную: с вами свяжется менеджер';
+    ? bl('Online: decizie în cîteva minute', 'Онлайн: решение за несколько минут')
+    : bl('Manual: vă contactează un manager', 'Вручную: с вами свяжется менеджер');
   box.style.display = (org && ecMode === 'online') ? '' : 'none';
   // RO: cind organizatia nu are provider API configurat (sau clientul a ales
   // modul manual), formularul de mai sus nu are unde trimite cererea direct —
@@ -674,7 +681,7 @@ function ecUI() {
   if (org) {
     document.getElementById('ec-org-label').textContent =
       (org.provider.icon || '') + ' ' + org.provider.name +
-      ' — cerere online · онлайн-заявка';
+      ' — ' + bl('cerere online', 'онлайн-заявка');
   }
 }
 
@@ -704,8 +711,8 @@ function ecDebugHtml(data) {
   return '<div style="margin-top:8px"><button type="button" onclick="' +
     'var d=this.nextElementSibling;d.style.display=d.style.display?\'\':\'none\'" ' +
     'style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;' +
-    'border-radius:6px;background:#f8fafc;cursor:pointer">🔧 Log tehnic · ' +
-    'Технический лог</button><div style="display:none">' + body + '</div></div>';
+    'border-radius:6px;background:#f8fafc;cursor:pointer">🔧 ' +
+    bl('Log tehnic', 'Технический лог') + '</button><div style="display:none">' + body + '</div></div>';
 }
 
 async function ecPreapproved() {
@@ -713,12 +720,12 @@ async function ecPreapproved() {
   if (!ecCtx.org || !t) return;
   var idnp = document.getElementById('ec-idnp').value.trim();
   if (!/^\d{13}$/.test(idnp)) {
-    ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
+    ecOut(bl('IDNP trebuie să conțină 13 cifre', 'IDNP должен содержать 13 цифр'), '#b91c1c'); return;
   }
   // RO: data nasterii e OBLIGATORIE la gateway (Preapproved_v2_1) — fara ea
   //     raspunsul e 422, iar clientul vede doar un mesaj neutru. Verificam aici.
   if (!/^\d{4}-\d{2}-\d{2}$/.test((document.getElementById('ec-birth') || {}).value || '')) {
-    ecOut('Indicați data nașterii · Укажите дату рождения', '#b91c1c');
+    ecOut(bl('Indicați data nașterii', 'Укажите дату рождения'), '#b91c1c');
     var _b = document.getElementById('ec-birth'); if (_b) _b.focus();
     return;
   }
@@ -738,12 +745,13 @@ async function ecPreapproved() {
   }
   var d = r.data || {};
   if (d.preapproved) {
-    ecOut('✅ Preaprobat pînă la <b>' + Math.round(d.max_amount) +
-      ' lei</b> · Предодобрено до ' + Math.round(d.max_amount) + ' лей', '#059669');
+    ecOut('✅ ' + bl('Preaprobat pînă la', 'Предодобрено до') + ' <b>' +
+      Math.round(d.max_amount) + ' ' + bl('lei', 'лей') + '</b>', '#059669');
     btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
   } else {
-    ecOut('⚠️ ' + esc(d.message || 'Fără preaprobare · Без предодобрения') +
-      '<br>Puteți trimite cererea — decizia o ia creditorul.', '#b45309');
+    ecOut('⚠️ ' + esc(biS(d.message || 'Fără preaprobare · Без предодобрения')) +
+      '<br>' + bl('Puteți trimite cererea — decizia o ia creditorul.',
+                  'Вы можете отправить заявку — решение принимает кредитор.'), '#b45309');
     btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
   }
 }
@@ -754,14 +762,14 @@ async function ecSubmit() {
   var fio = document.getElementById('ec-fio').value.trim();
   var phone = document.getElementById('ec-phone').value.trim();
   var idnp = document.getElementById('ec-idnp').value.trim();
-  if (!fio || !phone) { ecOut('Numele și telefonul sunt obligatorii', '#b91c1c'); return; }
+  if (!fio || !phone) { ecOut(bl('Numele și telefonul sunt obligatorii', 'Имя и телефон обязательны'), '#b91c1c'); return; }
   if (!/^\d{13}$/.test(idnp)) {
-    ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
+    ecOut(bl('IDNP trebuie să conțină 13 cifre', 'IDNP должен содержать 13 цифр'), '#b91c1c'); return;
   }
   // RO: data nasterii e OBLIGATORIE la gateway (Preapproved_v2_1) — fara ea
   //     raspunsul e 422, iar clientul vede doar un mesaj neutru. Verificam aici.
   if (!/^\d{4}-\d{2}-\d{2}$/.test((document.getElementById('ec-birth') || {}).value || '')) {
-    ecOut('Indicați data nașterii · Укажите дату рождения', '#b91c1c');
+    ecOut(bl('Indicați data nașterii', 'Укажите дату рождения'), '#b91c1c');
     var _b = document.getElementById('ec-birth'); if (_b) _b.focus();
     return;
   }
@@ -790,11 +798,12 @@ async function ecSubmit() {
   if (agree) agree.checked = true;
   makeInvoice();
   if (!ecCtx.ref) {
-    ecOut('📨 Cerere trimisă · Заявка отправлена<br>Un manager vă va contacta în scurt timp · Менеджер свяжется с вами.', '#0f766e');
+    ecOut('📨 ' + bl('Cerere trimisă', 'Заявка отправлена') + '<br>' + bl('Un manager vă va contacta în scurt timp.', 'Менеджер свяжется с вами в ближайшее время.'), '#0f766e');
     return;
   }
-  ecOut('📨 Cerere trimisă · Заявка отправлена<br>Referință: <b>' +
-    esc(ecCtx.ref) + '</b><br><span id="ec-st">Se verifică statusul…</span>', '#0f766e');
+  ecOut('📨 ' + bl('Cerere trimisă', 'Заявка отправлена') + '<br>' +
+    bl('Referință', 'Референс') + ': <b>' + esc(ecCtx.ref) + '</b><br><span id="ec-st">' +
+    bl('Se verifică statusul…', 'Проверяем статус…') + '</span>', '#0f766e');
   ecPoll(0);
 }
 
@@ -802,7 +811,7 @@ function ecPoll(n) {
   ecStop();                                          // opreste (si polling=false) orice poll anterior
   if (n > 24 || !ecCtx.reqId || !ecCtx.ref) {                       // 24 × 5 c = 2 минуты
     var el0 = document.getElementById('ec-st');
-    if (el0) el0.textContent = 'Verificați statusul mai tîrziu — managerul vă va contacta.';
+    if (el0) el0.textContent = bl('Verificați statusul mai tîrziu — managerul vă va contacta.', 'Проверьте статус позже — менеджер свяжется с вами.');
     return;                                          // polling ramine false (epuizat)
   }
   ecCtx.polling = true;                              // opreste in mod real
@@ -829,7 +838,7 @@ async function makeInvoice() {
   // RO/EN: cerinta maib — fara bifa la Termeni si conditii nu se plaseaza comanda
   const agree = document.getElementById('agree-terms');
   if (agree && !agree.checked) {
-    toast('Confirmați Termenii și condițiile · Подтвердите Условия и положения', true);
+    toast(bl('Confirmați Termenii și condițiile', 'Подтвердите Условия и положения'), true);
     const box = document.getElementById('agree-box');
     if (box) { box.style.outline = '2px solid #dc2626'; box.style.outlineOffset = '4px'; }
     agree.focus();
@@ -857,7 +866,7 @@ async function makeInvoice() {
   }
   if (payMethod === 'credit') {
     const t = TILES[tileSel];
-    if (!t) { toast('Alegeți termenul de rate', true); return; }
+    if (!t) { toast(bl('Alegeți termenul de rate', 'Выберите срок рассрочки'), true); return; }
     body.credit_plan_id = t.plan.id; body.credit_months = t.m;
     body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
     // RO: datele pentru DOCUMENTUL de credit (TMDB_CREDITE_M): cererea deja
@@ -889,9 +898,11 @@ async function makeInvoice() {
     '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>' +
     fmtExtraBtns(cod);
   setTimeout(() => window.open(pdf('invoice'), '_blank'), 600);  // implicit PDF
+  // RO: MIA e OBLIGATORIU la plata standard (cerinta owner 02.08.2026) —
+  //     butonul apare mereu, indiferent de lista /pay/methods.
+  if (payMethod !== 'credit')
+    h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
   if (PAY.enabled && payMethod !== 'credit') {
-    if (PAY.methods.includes('mia'))
-      h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
     if (PAY.methods.includes('maib'))
       h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 MAIB card</button>';
     if (PAY.methods.includes('p2p'))
@@ -900,9 +911,9 @@ async function makeInvoice() {
   if (payMethod === 'credit') {
     if (!ecOrg || modeAtSubmit === 'manual') {
       h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
-        '\')">📝 Cerere de credit EasyCredit</button>';
+        '\')">📝 ' + bl('Cerere de credit EasyCredit', 'Заявка на кредит EasyCredit') + '</button>';
     }
-    h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 Liber Card (MAIB) în rate</button>';
+    h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 ' + bl('Liber Card (MAIB) în rate', 'Liber Card (MAIB) в рассрочку') + '</button>';
   }
   const ok = document.getElementById('okbox');
   ok.style.display = ''; ok.innerHTML = h;
@@ -933,47 +944,49 @@ function fmtExtraBtns(cod) {
 async function sendCartCreditReq(cod, nr) {
   const t = TILES[tileSel]; if (!t) return;
   let phone = (ME && ME.phone) || '';
-  if (!phone) phone = prompt('Telefon · Телефон:') || '';
+  if (!phone) phone = prompt(bl('Telefon:', 'Телефон:')) || '';
   if (!phone) return;
   const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
     plan_id: t.plan.id, months: t.m, qty: 1, amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
     product_cod: 0, product_name: 'Cont de plată Nr. ' + nr + ' (COD ' + cod + ')',
     client_name: (ME && ME.name) || '', phone,
     address: (document.getElementById('cr-address') || {}).value || ''})});
-  toast(r.success ? '✅ Cererea a fost trimisă!' : (r.error || 'Eroare'), !r.success);
+  toast(r.success ? bl('✅ Cererea a fost trimisă!', '✅ Заявка отправлена!') : (r.error || 'Eroare'), !r.success);
 }
 
 async function payMaib(cod) {
   const box = document.getElementById('pay-box');
-  box.innerHTML = '<span style="color:#676767">Se inițiază plata MAIB…</span>';
+  box.innerHTML = '<span style="color:#676767">' + bl('Se inițiază plata MAIB…', 'Инициируем оплату MAIB…') + '</span>';
   const r = await j(API + '/pay/maib', {method: 'POST', body: JSON.stringify({cod})});
   if (!r.success) { box.innerHTML = ''; toast(r.error || 'Eroare', true); return; }
   window.open(r.data.pay_url, '_blank');
-  box.innerHTML = '<span style="color:#676767">Continuați plata în fereastra MAIB…</span>';
+  box.innerHTML = '<span style="color:#676767">' + bl('Continuați plata în fereastra MAIB…', 'Продолжите оплату в окне MAIB…') + '</span>';
 }
 async function payMia(cod) {
   const box = document.getElementById('pay-box');
-  box.innerHTML = '<span style="color:#676767">Se generează codul QR MIA…</span>';
+  box.innerHTML = '<span style="color:#676767">' + bl('Se generează codul QR MIA…', 'Генерируем QR-код MIA…') + '</span>';
   const r = await j(API + '/pay/mia', {method: 'POST', body: JSON.stringify({cod})});
   if (!r.success) { box.innerHTML = ''; toast(r.error || 'Eroare', true); return; }
   const d = r.data;
   box.innerHTML = '<div style="text-align:center;border:1px solid #86efac;border-radius:12px;padding:14px;background:#fff">' +
-    '<b>Scanați QR-ul cu aplicația bancară (MIA)</b><br>' +
+    '<b>' + bl('Scanați QR-ul cu aplicația bancară (MIA)', 'Отсканируйте QR банковским приложением (MIA)') + '</b><br>' +
     '<img src="data:image/png;base64,' + d.qr_image + '" style="max-width:240px;margin:8px 0"><br>' +
-    '<a target="_blank" href="' + esc(d.qr_link) + '">Deschide linkul de plată</a><br>' +
-    '<span id="mia-status" style="font-size:12px;color:#676767">Așteptăm confirmarea plății…</span></div>';
+    '<a target="_blank" href="' + esc(d.qr_link) + '">' + bl('Deschide linkul de plată', 'Открыть ссылку на оплату') + '</a><br>' +
+    '<span id="mia-status" style="font-size:12px;color:#676767">' + bl('Așteptăm confirmarea plății…', 'Ожидаем подтверждение оплаты…') + '</span></div>';
   if (miaTimer) clearInterval(miaTimer);
   miaTimer = setInterval(async () => {
     const st = await j(API + '/pay/mia-status?order=' + encodeURIComponent(d.order_id));
     if (st.success && st.paid) { clearInterval(miaTimer);
-      document.getElementById('mia-status').innerHTML = '<b style="color:#15803d">✅ Plata confirmată!</b>'; }
+      document.getElementById('mia-status').innerHTML = '<b style="color:#15803d">✅ ' + bl('Plata confirmată!', 'Оплата подтверждена!') + '</b>'; }
   }, 4000);
 }
 function payP2P() {
   document.getElementById('pay-box').innerHTML =
     '<div style="border:1px solid #86efac;border-radius:12px;padding:14px;background:#fff;font-size:14px">' +
-    '📲 <b>MIA P2P:</b> transferați suma pe numărul <b>062 007 211</b> din aplicația ' +
-    'bancară (MIA transfer la telefon) și indicați numărul contului în comentariu.</div>';
+    '📲 <b>MIA P2P:</b> ' + bl('transferați suma pe numărul <b>062 007 211</b> din aplicația ' +
+    'bancară (MIA transfer la telefon) și indicați numărul contului în comentariu.',
+    'переведите сумму на номер <b>062 007 211</b> из банковского приложения ' +
+    '(MIA перевод по телефону) и укажите номер счёта в комментарии.') + '</div>';
 }
 
 window.onLangChange = renderCart;
