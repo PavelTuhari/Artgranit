@@ -188,10 +188,17 @@ function renderSide() {
   const gs = Object.values(byG).sort((a, b) => b.cnt - a.cnt);
   document.getElementById('ftree').innerHTML = gs.map(g => {
     const gl = (l === 'ru' && g.ru) ? g.ru : g.grupa;
-    let h = '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
-      '" onclick="pickGrupa(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\')">' +
-      esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>';
-    if (F.grupa === g.grupa) {
+    const gq = esc(g.grupa).replace(/'/g, '&#39;');
+    // RO: ca la ultra.md — sageata DESCHIDE grupa (fara filtrare), numele
+    //     filtreaza; grupa deschisa/activa e evidentiata cu fundal verde
+    const isOpen = OPEN.has(g.grupa) || F.grupa === g.grupa;
+    let h = '<div class="grp-row' + (isOpen ? ' open' : '') + '">' +
+      '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
+      '" onclick="pickGrupa(\'' + gq + '\')">' +
+      esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>' +
+      (g.cats.length ? '<span class="grp-arrow" onclick="toggleGrp(\'' + gq +
+        '\')">▶</span>' : '') + '</div>';
+    if (isOpen) {
       h += g.cats.sort((a, b) => (b.cnt || 0) - (a.cnt || 0)).map(c => {
         const cl = (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
         return '<a href="javascript:void(0)" class="cat ' +
