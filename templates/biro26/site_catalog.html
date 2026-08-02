@@ -151,7 +151,14 @@ function renderPager() {
 }
 
 /* ── sidebar: arbore grupe/categorii + branduri + presete pret ───────── */
+// RO: grupele DESCHISE manual din sageata (independent de filtrul activ)
+const OPEN = new Set();
+function toggleGrp(g) {
+  if (OPEN.has(g)) OPEN.delete(g); else OPEN.add(g);
+  renderSide();
+}
 function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
+  if (F.grupa) OPEN.add(g);
   F.categorie = null; F.page = 1; load(); }
 function pickCat(g, c) { F.grupa = g;
   F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); }
