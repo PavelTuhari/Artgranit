@@ -207,6 +207,57 @@ function pdpPay(orgId) {
   location.href = '/cos' + (orgId ? '?credit=' + orgId : '');
 }
 
+/* RO: calculator de credit MAIB Espresso (macheta calculator-credit.html) —
+   anuitate clasica; ORIENTATIV, decizia si suma finala apartin bancii. */
+function ccFmt(n) { return new Intl.NumberFormat('ro-RO', {maximumFractionDigits: 0}).format(n); }
+function ccPay(a, m, an) { const r = an / 100 / 12;
+  return r ? a * r * Math.pow(1 + r, m) / (Math.pow(1 + r, m) - 1) : a / m; }
+function ccCalc() {
+  const a = +document.getElementById('cc-amount').value,
+        m = +document.getElementById('cc-months').value,
+        an = +document.getElementById('cc-interest').value || 0,
+        inc = +document.getElementById('cc-income').value || 0,
+        oth = +document.getElementById('cc-other').value || 0,
+        pay = ccPay(a, m, an), ratio = inc > 0 ? (pay + oth) / inc * 100 : 0;
+  document.getElementById('cc-amount-v').textContent = ccFmt(a);
+  document.getElementById('cc-months-v').textContent = m;
+  document.getElementById('cc-payment').textContent = ccFmt(pay) + ' MDL';
+  document.getElementById('cc-ratio').textContent = ratio.toFixed(1) + ' %';
+  const st = document.getElementById('cc-status');
+  st.textContent = ratio <= 40 ? bl('Eligibil', 'Проходит') : bl('Analiză', 'Анализ');
+  st.className = ratio <= 40 ? 'cc-ok' : 'cc-warn';
+  document.getElementById('cc-tbl-wrap').style.display = 'none';
+}
+function ccTable() {
+  const a = +document.getElementById('cc-amount').value,
+        m = +document.getElementById('cc-months').value,
+        an = +document.getElementById('cc-interest').value || 0,
+        pay = ccPay(a, m, an), r = an / 100 / 12;
+  let bal = a, h = '';
+  for (let i = 1; i <= m; i++) {
+    const d = bal * r, p = pay - d; bal -= p;
+    h += '<tr><td>' + i + '</td><td>' + ccFmt(Math.max(bal, 0)) + '</td><td>' +
+      ccFmt(d) + '</td><td>' + ccFmt(p) + '</td><td>' + ccFmt(pay) + '</td></tr>';
+  }
+  document.getElementById('cc-tbl').innerHTML = h;
+  document.getElementById('cc-tbl-wrap').style.display = '';
+}
+function ccInit(price) {
+  const box = document.getElementById('p-calc-box');
+  if (price < 5000) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  // RO: suma prestabilita = pretul produsului in credit (+15%), in limitele 5.000-400.000
+  const el = document.getElementById('cc-amount');
+  if (!el.dataset.touched)
+    el.value = Math.min(400000, Math.max(5000, Math.round(price * 1.15 / 1000) * 1000));
+  ['cc-amount', 'cc-months', 'cc-interest', 'cc-income', 'cc-other'].forEach(id => {
+    const e = document.getElementById(id);
+    if (!e.dataset.wired) { e.dataset.wired = '1';
+      e.addEventListener('input', () => { e.dataset.touched = '1'; ccCalc(); }); }
+  });
+  ccCalc();
+}
+
 function pdpFavPaint() {
   const b = document.getElementById('p-fav'), on = favHas(COD);
   b.classList.toggle('on', on);
