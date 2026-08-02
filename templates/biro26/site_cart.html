@@ -528,7 +528,23 @@ function renderTiles() {
     const box = document.getElementById('cr-tiles');
     const contBtn = document.getElementById('cm-continue-btn');
     if (!TILES.length) {
-      box.innerHTML = '<span style="font-size:12.5px;color:#808080">' + bl('Suma trebuie să fie între 1 000 și 100 000 lei', 'Сумма должна быть от 1 000 до 100 000 леев') + '</span>';
+      // RO: limitele REALE ale organizatiei alese, exprimate in pret STANDARD
+      //     (limitele pachetelor sint pe suma finantata = pret x naceta) —
+      //     altfel «MAIB Credit de consum» parea disponibil de la 1.000 lei.
+      // EN: the selected org's REAL limits, converted back to standard-price
+      //     terms (plan limits apply to the financed amount).
+      let lo = Infinity, hi = 0;
+      OFFERS.filter(o => selOrgId == null || o.id === selOrgId).forEach(o =>
+        (o.plans || []).forEach(pl => {
+          const k = 1 + crEffMarkup(pl, o) / 100;
+          lo = Math.min(lo, (pl.amount_min || 0) / k);
+          hi = Math.max(hi, (pl.amount_max || 0) / k);
+        }));
+      const lim = (isFinite(lo) && hi)
+        ? bl('Disponibil pentru comenzi între ' + fmtLei(Math.ceil(lo)) + ' și ' + fmtLei(Math.floor(hi)),
+             'Доступно для заказов от ' + fmtLei(Math.ceil(lo)) + ' до ' + fmtLei(Math.floor(hi)))
+        : bl('Nu există termene disponibile pentru această sumă', 'Для этой суммы нет доступных сроков');
+      box.innerHTML = '<span style="font-size:12.5px;color:#808080">' + lim + '</span>';
       document.getElementById('cr-sim').innerHTML = bl('Selectați un termen pentru a vedea detaliile', 'Выберите срок, чтобы увидеть детали');
       if (contBtn) contBtn.disabled = true;
       return;
