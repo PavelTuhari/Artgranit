@@ -112,36 +112,40 @@ function crTiles(base) {
   }));
   return tiles.sort((a, b) => a.m - b.m);
 }
+/* RO: butoanele de modalitate de achitare — ca in cos (renderPmEntry din
+   site_cart.html): un buton pe fiecare organizatie din OFFERS care ARE
+   termene valabile pentru pretul curent + butonul Standard. Apasarea pune
+   produsul in cos si deschide /cos (?credit=<org> deschide direct modala). */
+function pmBtnClass(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.indexOf('easy') !== -1) return 'pm-btn-easy';
+  if (n.indexOf('maib') !== -1 || n.indexOf('liber') !== -1) return 'pm-btn-maib';
+  return 'pm-btn-generic';
+}
 function renderTiles() {
   const base = pprice(P) * (parseFloat(document.getElementById('p-qty').value) || 1);
   TILES = crTiles(base);
-  if (!TILES.length) { document.getElementById('p-credit').style.display = 'none'; return; }
   document.getElementById('p-credit').style.display = '';
-  if (tileSel >= TILES.length) tileSel = 0;
-  document.getElementById('p-tiles').innerHTML = TILES.map((t, i) =>
-    '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
-    ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
-    '<b>' + t.m + ' plăți</b><span>' + Math.ceil(t.monthly) + ' lei/lună</span></div>').join('');
-  const t = TILES[tileSel];
+  const orgIds = [...new Set(TILES.map(t => t.org.id))];
+  document.getElementById('p-paybtns').innerHTML = orgIds.map(id => {
+    const o = OFFERS.find(x => x.id === id);
+    return '<button type="button" class="pm-btn ' + pmBtnClass(o.name) +
+      '" onclick="pdpPay(' + id + ')">' + esc(o.name) + '</button>';
+  }).join('') + '<button type="button" class="pm-btn pm-btn-standard" onclick="pdpPay(0)">' +
+    esc(biS('Standard (factură) · Standard (счёт)')) + '</button>';
+  // RO: pretul in rate = cea mai ieftina oferta de credit pentru pretul curent
+  const minCp = TILES.length ? Math.min(...TILES.map(t => t.credit_price)) : 0;
   document.getElementById('p-rate-price').textContent =
-    tr('cartRate') + ': ' + fmtLei(t.credit_price);
+    minCp ? tr('cartRate') + ': ' + fmtLei(minCp) : '';
 }
-async function crSubmit() {
-  const pren = document.getElementById('cr-prenume').value.trim();
-  const nume = document.getElementById('cr-nume').value.trim();
-  const tel = document.getElementById('cr-tel').value.trim();
-  if (!pren || !nume || !tel) { toast('Completați numele și telefonul', true); return; }
-  if (!document.getElementById('cr-ck1').checked ||
-      !document.getElementById('cr-ck2').checked) {
-    toast('Bifați acordul cu termenii și politica', true); return; }
-  const t = TILES[tileSel]; if (!t) return;
-  const qty = parseFloat(document.getElementById('p-qty').value) || 1;
-  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
-    plan_id: t.plan.id, months: t.m, qty,
-    amount: pprice(P) * qty, product_cod: COD, product_name: P.denumirea || '',
-    client_name: pren + ' ' + nume, phone: tel})});
-  if (r.success) toast('✅ Cererea a fost trimisă! Managerul vă va contacta.');
-  else toast(r.error || 'Eroare', true);
+function pdpPay(orgId) {
+  let cod = COD, name = P.denumirea || '';
+  const sel = document.getElementById('varsel');
+  if (sel) { cod = parseInt(sel.value, 10) || COD;
+    const o = sel.options[sel.selectedIndex];
+    if (o && o.dataset.name) name = o.dataset.name; }
+  addToCart(cod, name, pprice(P), parseFloat(document.getElementById('p-qty').value) || 1);
+  location.href = '/cos' + (orgId ? '?credit=' + orgId : '');
 }
 
 function pdpFavPaint() {
