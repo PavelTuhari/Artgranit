@@ -378,4 +378,17 @@ function payBadgeHtml(name) {
   box.innerHTML = names.map(payBadgeHtml).join('');
 })();
 
+/* RO: datele juridice din subsol (rechizite) — sursa de adevar e pagina WP
+   «site-rechizite», editabila din WP Admin fara deploy; daca pagina lipseste
+   sau e goala, ramine textul implicit din template. */
+(async function footLegal() {
+  const box = document.querySelector('.footer-legal');
+  if (!box) return;
+  try {
+    const r = await j('/api/biro26/site/info/site-rechizite');
+    const html = (r && r.success && r.data && r.data.html) || '';
+    if (html.replace(/<[^>]+>/g, '').trim()) box.innerHTML = html;
+  } catch (e) {}
+})();
+
 applyLang(); cartBadge();
