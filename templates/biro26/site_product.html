@@ -28,24 +28,32 @@
               </div>
               </div>
 
+              <!-- RO: ca in COS — butoane de alegere a modalitatii de achitare
+                   (cate unul pe organizatia de creditare + Standard); apasarea
+                   pune produsul in cos si deschide /cos cu modala respectiva. -->
               <div class="pdp-sec pdp-credit" id="p-credit" style="display:none">
                 <h3 data-t="creditH">Rate și credit</h3>
-                <div id="p-rate-price" style="font-size:17px;color:#1d4ed8;font-weight:800;margin-bottom:10px"></div>
-                <div class="cr-tiles" id="p-tiles"></div>
-                <div id="p-req" style="margin-top:14px">
-                  <div class="ck-row">
-                    <input id="cr-prenume" placeholder="Prenume · Имя" style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;flex:1">
-                    <input id="cr-nume" placeholder="Nume · Фамилия" style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;flex:1">
-                    <input id="cr-tel" placeholder="Telefon · Телефон" style="padding:10px;border:1px solid #d1d1d1;border-radius:10px;flex:1">
-                  </div>
-                  <label style="display:block;font-size:12.5px;margin-top:8px">
-                    <input type="checkbox" id="cr-ck1"> Accept <a href="/termeni-si-conditii" target="_blank" style="color:#194681;text-decoration:underline">Termenii și condițiile</a></label>
-                  <label style="display:block;font-size:12.5px">
-                    <input type="checkbox" id="cr-ck2"> Accept <a href="/politica-de-confidentialitate" target="_blank" style="color:#194681;text-decoration:underline">Politica de confidențialitate</a></label>
-                  <button class="btn-blue" onclick="crSubmit()">Solicită în rate sau credit · Оформить рассрочку</button>
-                  <p style="font-size:11.5px;color:#808080;margin:10px 0 0">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită în momentul depunerii cererii de credit și poate diferi ușor.</p>
-                </div>
+                <div id="p-rate-price" style="font-size:17px;color:#1d4ed8;font-weight:800;margin-bottom:6px"></div>
+                <p style="font-size:12.5px;color:#64748b;margin:0 0 10px" data-bi>Alege tipul de credit / rate sau plata standard · Выберите тип кредита / рассрочки или обычную оплату</p>
+                <div class="pm-entry" id="p-paybtns"></div>
+                <p style="font-size:11.5px;color:#808080;margin:10px 0 0" data-bi>* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită în momentul depunerii cererii de credit. · * Данные носят информативный характер и не являются офертой. Ежемесячный платёж будет установлен при подаче кредитной заявки.</p>
               </div>
+              <style>
+                .pm-entry{display:flex;flex-direction:column;gap:10px}
+                .pm-btn{display:flex;align-items:center;justify-content:center;gap:10px;
+                  padding:14px 16px;border:none;border-radius:10px;font-size:14.5px;
+                  font-weight:700;cursor:pointer;color:#fff;min-height:52px;
+                  transition:transform .15s ease,box-shadow .15s ease}
+                .pm-btn:hover{transform:translateY(-1px)}
+                .pm-btn-easy{background:linear-gradient(135deg,#ff6b00,#ff8c00)}
+                .pm-btn-easy:hover{box-shadow:0 6px 16px rgba(255,107,0,.35)}
+                .pm-btn-maib{background:linear-gradient(135deg,#0055a5,#0077cc)}
+                .pm-btn-maib:hover{box-shadow:0 6px 16px rgba(0,85,165,.35)}
+                .pm-btn-generic{background:linear-gradient(135deg,#334155,#475569)}
+                .pm-btn-generic:hover{box-shadow:0 6px 16px rgba(51,65,85,.35)}
+                .pm-btn-standard{background:linear-gradient(135deg,#059669,#10b981)}
+                .pm-btn-standard:hover{box-shadow:0 6px 16px rgba(5,150,105,.35)}
+              </style>
               </div><!-- /.pdp-cols -->
 
               <div class="pdp-sec" id="p-descr-box" style="display:none">
