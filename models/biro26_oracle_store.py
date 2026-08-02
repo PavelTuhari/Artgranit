@@ -1337,7 +1337,8 @@ END;""",
         try:
             rows = _rows(Biro26DB().execute_query(
                 "SELECT id, univers_cod, email, full_name, phone, pwd_hash, "
-                "invoice_fmt FROM YBIRO_CLIENT WHERE email = :em",
+                "invoice_fmt, is_company, idno "
+                "FROM YBIRO_CLIENT WHERE email = :em",
                 {"em": (email or "").lower().strip()}))
             return {"success": True, "data": rows[0] if rows else None}
         except Exception as e:
