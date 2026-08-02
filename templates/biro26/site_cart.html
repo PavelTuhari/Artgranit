@@ -586,9 +586,10 @@ var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null
 var ecMode = 'online';
 
 function currentTile() { return TILES[tileSel] || null; }
-// RO: forma corecta de plural pentru «N plăți» in ambele limbi
+// RO: forma corecta de plural pentru «N rate» in ambele limbi
+//     (owner 03.08.2026: «corect este rate, dar nu plăți»)
 function plWord(n) {
-  if (curLang() !== 'ru') return 'plăți';
+  if (curLang() !== 'ru') return 'rate';
   const d = n % 10, h = n % 100;
   if (d === 1 && h !== 11) return 'платёж';
   if (d >= 2 && d <= 4 && (h < 10 || h >= 20)) return 'платежа';
