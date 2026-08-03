@@ -210,8 +210,10 @@ function renderSide() {
       (g.cats.length ? '<span class="grp-arrow" onclick="toggleGrp(\'' + gq +
         '\')">▶</span>' : '') + '</div>';
     if (isOpen) {
-      h += g.cats.sort((a, b) => (b.cnt || 0) - (a.cnt || 0)).map(c => {
-        const cl = (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
+      const clbl = c => (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
+      h += g.cats.sort((a, b) =>
+        clbl(a).localeCompare(clbl(b), l === 'ru' ? 'ru' : 'ro')).map(c => {
+        const cl = clbl(c);
         return '<a href="javascript:void(0)" class="cat ' +
           (F.categorie === c.categorie ? 'on' : '') +
           '" onclick="pickCat(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\',\'' +
