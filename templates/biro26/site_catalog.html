@@ -192,7 +192,11 @@ function renderSide() {
     g.cnt += (t.cnt || 0);
     if (t.categorie) g.cats.push(t);
   });
-  const gs = Object.values(byG).sort((a, b) => b.cnt - a.cnt);
+  // RO: ordine ALFABETICA (dupa numele afisat in limba curenta) —
+  //     cerinta owner 03.08.2026; inainte era dupa numarul de produse
+  const lbl = g => (l === 'ru' && g.ru) ? g.ru : g.grupa;
+  const gs = Object.values(byG).sort((a, b) =>
+    lbl(a).localeCompare(lbl(b), l === 'ru' ? 'ru' : 'ro'));
   document.getElementById('ftree').innerHTML = gs.map(g => {
     const gl = (l === 'ru' && g.ru) ? g.ru : g.grupa;
     const gq = esc(g.grupa).replace(/'/g, '&#39;');
