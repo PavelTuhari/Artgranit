@@ -258,6 +258,22 @@ class Biro26Credit:
                     "capabilities": list(prov.capabilities) if prov is not None else []}
                 o.pop("provider_name", None)
                 o.pop("provider_icon", None)
+            # RO: ascundere PER-INSTANTA (ambele contururi impart aceeasi
+            #     Oracle, deci ENABLED din admin e comun; diferentele pe
+            #     site se fac din .env). BIRO26_CREDIT_HIDE_ORGS = lista
+            #     separata prin virgula de ID-uri sau fragmente de nume,
+            #     de ex. "MAIB Credit de consum" sau "3".
+            # EN: per-instance hide list — both contours share one Oracle,
+            #     so site-level differences come from .env, not from ENABLED.
+            import os
+            toks = [t.strip().lower() for t in
+                    os.environ.get("BIRO26_CREDIT_HIDE_ORGS", "").split(",")
+                    if t.strip()]
+            if toks:
+                orgs = [o for o in orgs
+                        if str(o["id"]) not in toks
+                        and not any(t in str(o["name"] or "").lower()
+                                    for t in toks if not t.isdigit())]
             return {"success": True, "data": [o for o in orgs if o["plans"]]}
         except Exception as e:
             return {"success": False, "error": str(e)}
