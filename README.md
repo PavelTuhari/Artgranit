@@ -244,10 +244,10 @@ Artgranit/
         libpangoft2-1.0-0 libharfbuzz-subset0
     ```
     Сам пакет `weasyprint` ставится через `requirements.txt` (см. ниже).
-    Установлено на обоих контурах: nufarul (92.5.3.187, добавлено 2026-08-05)
-    и officeplus (89.168.115.20). Полный sidecar отчётов (jsReport + pdfme,
-    node >= 22.18, порт 127.0.0.1:5488) — отдельная служба `jsreport.service`,
-    нужна только там, где включён движок `jsreport`.
+    На nufarul (92.5.3.187) установлено 2026-08-05 (weasyprint 69.0).
+    Полный sidecar отчётов (jsReport + pdfme, node >= 22.18, порт
+    127.0.0.1:5488, служба `jsreport.service`) нужен только там, где для
+    формуляра включён движок `jsreport` (сейчас — контур officeplus).
 
 ### Установка
 
