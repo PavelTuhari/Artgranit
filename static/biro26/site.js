@@ -208,7 +208,37 @@ function pprice(p) {
   return (v > 0 ? v : parseFloat(String(p.retail1 || '').replace(',', '.'))) || 0;
 }
 function fmtLei(v) { return v.toLocaleString('ro-MD', {maximumFractionDigits: 2}) + ' lei'; }
-function openProd(cod) { location.href = '/produs/' + cod; }
+
+/* ── URL-uri: pretty (officeplus.md, prin nginx) sau cu prefix Flask ────
+   RO: pe officeplus.md nginx traduce /catalog, /cos... in rutele Flask.
+   Pe instantele FARA rewrites (ex. nufarul, /UNA.md/orasldev/biro26-1shop)
+   aceleasi legaturi se traduc AICI, client-side: siteURL() mapeaza pretty →
+   ruta reala, iar interceptorul de click rescrie <a href="/..."> din mers.
+   EN: pretty links stay as-is behind nginx; under a /UNA.md prefix they are
+   translated client-side to the real Flask routes. */
+const SITE_PREFIX = (location.pathname.match(/^\/UNA\.md\/orasldev\/biro26-[^\/]+/) || [''])[0];
+function siteURL(p) {
+  if (!SITE_PREFIX || !p || p[0] !== '/' || p.startsWith('//') ||
+      p.startsWith('/UNA.md') || p.startsWith('/static') || p.startsWith('/api'))
+    return p;
+  const qi = p.indexOf('?');
+  const qs = qi < 0 ? '' : p.slice(qi), path = qi < 0 ? p : p.slice(0, qi);
+  const map = {'/': '', '/catalog': '/catalog', '/cos': '/cart',
+    '/cont': '/account', '/favorite': '/favorites', '/compara': '/compare',
+    '/branduri': '/brands', '/payment-result': '/payment-result'};
+  if (path in map) return SITE_PREFIX + map[path] + qs;
+  const m = path.match(/^\/produs\/(\d+)$/);
+  if (m) return SITE_PREFIX + '/product/' + m[1] + qs;
+  return SITE_PREFIX + '/page' + path + qs;   // /livrare, /credite, ...
+}
+if (SITE_PREFIX) document.addEventListener('click', function (e) {
+  // RO: rescriem href-ul IN LOC (nu preventDefault) — target=_blank ramine
+  const a = e.target.closest ? e.target.closest('a[href^="/"]') : null;
+  if (!a) return;
+  const h = a.getAttribute('href'), m = siteURL(h);
+  if (m !== h) a.setAttribute('href', m);
+}, true);
+function openProd(cod) { location.href = siteURL('/produs/' + cod); }
 function uniq(rows) { const seen = new Set(); return (rows || []).filter(p => {
   const k = p.master_cod || p.denumirea; if (seen.has(k)) return false;
   seen.add(k); return true; }); }
