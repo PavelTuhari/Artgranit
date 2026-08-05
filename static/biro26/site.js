@@ -312,7 +312,7 @@ function cardHtml(p) {
 /* ── header: cautare + newsletter ────────────────────────────────────── */
 function goSearch() {
   const q = document.getElementById('q').value.trim();
-  if (q) location.href = '/catalog?q=' + encodeURIComponent(q);
+  if (q) location.href = siteURL('/catalog?q=' + encodeURIComponent(q));
   return false;
 }
 async function subscribe() {
