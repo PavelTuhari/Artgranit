@@ -146,7 +146,7 @@ ssh -i <ключ> <user@host> 'cd /home/ubuntu/artgranit && tar -xzf /tmp/patch.
 ```
 
 Распаковка поверх каталога не трогает `venv/`, `.env` и wallet — их сохранять
-отдельно не нужно. Оба контура (см. ниже) обновлять одинаково, после каждого —
+отдельно не нужно. После КАЖДОГО обновления любого контура —
 `curl -I https://nufarul.eminescu.md/login` и `curl -s -o /dev/null -w '%{http_code}' https://officeplus.md/cos`.
 
 ## Production infrastructure — точная конфигурация сервера
