@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biro26 на nufarul — два магазина + копия WordPress</title>
+<style>
+  body { max-width: 960px; margin: 2rem auto; padding: 0 1.2rem;
+         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         line-height: 1.6; color: #1e293b; }
+  h1 { color: #1d4ed8; border-bottom: 2px solid #dbeafe; padding-bottom: .3em; }
+  h2 { color: #1e40af; margin-top: 1.8em; border-bottom: 1px solid #e2e8f0; padding-bottom: .2em; }
+  h3 { color: #334155; margin-top: 1.2em; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: .92em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: .85em; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .92em; }
+  th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; }
+  th { background: #f8fafc; }
+  .warn { background: #fefce8; border-left: 4px solid #ca8a04; padding: 10px 14px; border-radius: 6px; }
+  .danger { background: #fef2f2; border-left: 4px solid #b91c1c; padding: 10px 14px; border-radius: 6px; }
+  .ok { background: #dcfce7; border-left: 4px solid #15803d; padding: 10px 14px; border-radius: 6px; }
+  .hub { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 16px; margin: 1.2em 0 1.6em; }
+  .hub h2 { margin-top: 0; border: 0; color: #1d4ed8; }
+  .hub a { color: #1d4ed8; word-break: break-all; }
+  .muted { color: #64748b; font-size: .88em; }
+</style>
+</head>
+<body>
+
+<h1>Biro26 на nufarul: два варианта магазина + локальная копия WordPress</h1>
+<p class="muted">Дата: 2026-08-06 · Сервер: nufarul (92.5.3.187, nufarul.eminescu.md) ·
+Источник: архив <code>/Users/pt/Projects.AI/BIRO26/Backups/WP/260805</code>
+(Hestia-бэкап officeplus + phpMyAdmin-дамп <code>officeplus_wp_localhost.sql</code>)</p>
+
+<div class="hub">
+<h2>Быстрые ссылки</h2>
+<table>
+<tr><td>Хаб Biro26</td><td><a href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26">/UNA.md/orasldev/biro26</a></td></tr>
+<tr><td>Магазин «shop1» (цельный сайт)</td><td><a href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-1shop">/UNA.md/orasldev/biro26-1shop</a></td></tr>
+<tr><td>Магазин «shop» (WP + iframe)</td><td><a href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-wp/">/UNA.md/orasldev/biro26-wp/</a></td></tr>
+<tr><td>wp-admin</td><td><a href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-wp/wp-admin/">/UNA.md/orasldev/biro26-wp/wp-admin/</a> — пользователь <code>officeplus</code> (пароль у владельца)</td></tr>
+<tr><td>Старый магазин (внутри iframe)</td><td><a href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-shop">/UNA.md/orasldev/biro26-shop</a></td></tr>
+</table>
+</div>
+
+<h2>1. Два варианта магазина</h2>
+<table>
+<tr><th>Вариант</th><th>URL</th><th>Что это</th></tr>
+<tr><td><b>shop</b></td><td><code>/UNA.md/orasldev/biro26-wp/</code></td>
+<td>Стандартный шаблон WordPress (тема twentytwentyfour, копия <b>shop2.officeplus.md</b>);
+магазин внутри — <b>iframe</b> на <code>/UNA.md/orasldev/biro26-shop</code></td></tr>
+<tr><td><b>shop1</b></td><td><code>/UNA.md/orasldev/biro26-1shop</code></td>
+<td><b>Цельный сайт</b> магазина (актуальный Figma-дизайн officeplus.md);
+настройки, страницы и картинки берёт из локальной WP-админки</td></tr>
+</table>
+<p>Обе плитки — на распределительной странице (шаблон <code>templates/biro26_admin.html</code>).</p>
+
+<h2>2. Маршрут biro26-1shop</h2>
+<ul>
+<li>В <code>app.py</code> у каждого маршрута <code>biro26-site/*</code> добавлен алиас
+<code>/UNA.md/orasldev/biro26-1shop[/...]</code> — те же view-функции и <code>static/biro26/*</code>.</li>
+<li>Красивые ссылки (<code>/catalog</code>, <code>/cos</code>, <code>/produs/N</code>…) существуют только
+за nginx officeplus.md. На nufarul их переводит клиентский шим в <code>static/biro26/site.js</code>:
+<code>SITE_PREFIX</code> + <code>siteURL()</code> (маппинг pretty → Flask: /cos→/cart, /cont→/account,
+/produs/N→/product/N, /favorite→/favorites, /compara→/compare, /branduri→/brands,
+прочее→/page/&lt;slug&gt;) + перехватчик кликов, переписывающий <code>href</code> на лету.</li>
+</ul>
+
+<h2>3. Копия WordPress (biro26-wp)</h2>
+<h3>Файлы</h3>
+<ul>
+<li><code>/var/www/officeplus/</code> — <code>public_html</code> из
+<code>web/shop2.officeplus.md/domain_data.tar.zst</code>; наш <code>wp-config.php</code> сохранён поверх (chmod 640).</li>
+<li>Симлинк <code>/var/www/wpuna/UNA.md/orasldev/biro26-wp → /var/www/officeplus</code> —
+путь на диске совпадает с URI.</li>
+<li>Откат: файлы <code>/var/www/officeplus.main/</code> (копия ОСНОВНОГО WP officeplus.md),
+БД <code>/home/ubuntu/officeplus_wp_main_backup.sql.gz</code>.</li>
+</ul>
+
+<h3>База данных</h3>
+<ul>
+<li>MariaDB <code>officeplus_wp</code> (utf8mb4/unicode_520_ci), пользователь
+<code>officeplus_wp@localhost</code>; пароль — только в <code>wp-config.php</code>.</li>
+<li>Импортирована секция <code>wordpress_shop2</code> дампа.</li>
+</ul>
+<div class="warn"><b>Грабли дампа.</b> Дамп — мульти-БД
+(<code>CREATE DATABASE wordpress / wordpress_shop1 / wordpress_shop2</code> + <code>USE</code>):
+при импорте секцию нужно вырезать и удалить <code>CREATE DATABASE</code>/<code>USE</code>,
+иначе данные молча уходят в другую БД. Импорт строго с
+<code>--default-character-set=utf8mb4</code> — иначе эмодзи в контенте валят импорт
+(<code>Incorrect string value</code>).</div>
+<p>Служебные страницы витрины shop1 (<code>site-rechizite</code>, <code>site-plati</code>,
+<code>site-branduri</code>, <code>site-about[-ru/-en]</code>, <code>site-contact</code>,
+<code>credite</code>, <code>credite-ru</code>) в shop2-БД отсутствовали — перенесены из
+бэкапа основной БД (<code>wp_posts</code>/<code>wp_postmeta</code>, офсет ID +10000).</p>
+
+<h3>Замены URL в БД (wp search-replace, --all-tables)</h3>
+<ol>
+<li><code>https://shop2.officeplus.md</code> → <code>https://nufarul.eminescu.md/UNA.md/orasldev/biro26-wp</code></li>
+<li><code>src="/biro26-shop"</code> → <code>src="/UNA.md/orasldev/biro26-shop"</code> (iframe магазина)</li>
+<li><code>href="/biro26-shop"</code> → аналогично</li>
+<li><code>"/biro26-backoffice"</code> → <code>"/UNA.md/orasldev/biro26-backoffice"</code></li>
+</ol>
+<p class="muted">Корневые <code>/biro26-*</code> пути работали только через nginx-rewrite на
+officeplus; на nufarul корень уходит во Flask → «Not Found» внутри iframe.</p>
+
+<h3>nginx (/etc/nginx/sites-enabled/nufarul.eminescu.md)</h3>
+<pre><code>location = /UNA.md/orasldev/biro26-wp { return 301 /UNA.md/orasldev/biro26-wp/; }
+location ^~ /UNA.md/orasldev/biro26-wp/ {
+    root /var/www/wpuna;
+    index index.php;
+    try_files $uri $uri/ /UNA.md/orasldev/biro26-wp/index.php?$args;
+    client_max_body_size 16M;
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    }
+}</code></pre>
+<p class="muted">Блок стоит ДО <code>location /</code> (proxy на Flask :8000).</p>
+
+<h2>4. Переменные .env на nufarul</h2>
+<table>
+<tr><th>Ключ</th><th>Значение</th><th>Зачем</th></tr>
+<tr><td><code>BIRO26_SHOP_WP_API</code></td>
+<td><code>https://nufarul.eminescu.md/UNA.md/orasldev/biro26-wp/wp-json</code></td>
+<td>витрина shop1 читает WP-контент из локальной копии</td></tr>
+<tr><td><code>BIRO26_SHOP_TOPBAR_BG / _FG</code></td><td><code>#b1c5a4</code> / <code>#1e293b</code></td>
+<td>верхняя панель старого магазина — как на shop2</td></tr>
+<tr><td><code>BIRO26_SHOP_NAV</code></td>
+<td><code>Catalog|?;Despre noi|info:despre-noi;Contacte|info:contacte;Livrare|info:livrare;Retur produse|info:retur-produse</code></td>
+<td>пункты меню; формат <b>info:&lt;slug&gt;</b> обязателен — прямые <code>?info=</code> URL
+рендерятся с <code>target="_top"</code> и выбрасывают из WP-обёртки (пропадает нижнее меню)</td></tr>
+<tr><td><code>BIRO26_CREDIT_HIDE_ORGS</code></td><td>(не задан)</td>
+<td>на officeplus скрывает «MAIB Credit de consum»; на nufarul видны все</td></tr>
+</table>
+
+<h2>5. Безопасность — компрометация живых WP</h2>
+<div class="danger">
+В БД из архива найдены <b>бэкдор-администраторы</b>: основная БД — 7 ×
+<code>wp2_*@wp2shell.invalid</code>; shop2 — <b>45</b> (те же <code>wp2_*</code> +
+<code>bob_*@bobresearchlabs.com</code>). В локальной копии все удалены, остался только
+<code>officeplus</code>; PHP-файлов в <code>uploads/</code> нет.
+<b>Живые officeplus.md / shop1 / shop2 заражены теми же аккаунтами</b> — после
+восстановления доступа обязательна чистка (или перезаливка из этой вычищенной копии).
+Возможная причина внезапного SSH-бана officeplus — активность бэкдоров.
+</div>
+
+<h2>6. Чек-лист после любых работ</h2>
+<pre><code>curl -I  https://nufarul.eminescu.md/login                                  # 200
+curl -sI https://nufarul.eminescu.md/UNA.md/orasldev/biro26-wp/ | head -1   # 200
+curl -sI https://nufarul.eminescu.md/UNA.md/orasldev/biro26-1shop | head -1 # 200
+curl -s  https://nufarul.eminescu.md/api/biro26/site/info/site-rechizite | head -c 80</code></pre>
+<p class="ok">Эталон для «shop»: страницы должны побайтово совпадать с
+<code>https://shop2.officeplus.md/biro26-shop</code> (после фикса формата NAV дифф — 0 строк).</p>
+
+<h2>7. Откат на копию основного WP</h2>
+<pre><code>sudo mv /var/www/officeplus /var/www/officeplus.shop2
+sudo mv /var/www/officeplus.main /var/www/officeplus
+zcat /home/ubuntu/officeplus_wp_main_backup.sql.gz | \
+  sudo mysql --default-character-set=utf8mb4 --database=officeplus_wp</code></pre>
+
+</body>
+</html>
