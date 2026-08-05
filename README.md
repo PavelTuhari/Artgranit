@@ -235,6 +235,19 @@ Artgranit/
 *   Python 3.12+ на remote
 *   Python 3.9+ для локального окружения проекта
 *   Oracle Wallet (ZIP архив)
+*   **Ядро отчётности (WeasyPrint, HTML → PDF)** — системные библиотеки Pango/Cairo
+    для рендеринга PDF без браузера (используется `models/biro26_report.py`,
+    движок `htmlpdf`; без него API отчётов отвечает
+    `{"error":"weasyprint lipseste (pip install weasyprint)"}`):
+    ```bash
+    sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 \
+        libpangoft2-1.0-0 libharfbuzz-subset0
+    ```
+    Сам пакет `weasyprint` ставится через `requirements.txt` (см. ниже).
+    Установлено на обоих контурах: nufarul (92.5.3.187, добавлено 2026-08-05)
+    и officeplus (89.168.115.20). Полный sidecar отчётов (jsReport + pdfme,
+    node >= 22.18, порт 127.0.0.1:5488) — отдельная служба `jsreport.service`,
+    нужна только там, где включён движок `jsreport`.
 
 ### Установка
 
