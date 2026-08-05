@@ -5963,6 +5963,9 @@ def _biro26_site_ctx():
             'price_field': price_field}
 
 @app.route('/UNA.md/orasldev/biro26-site')
+# RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
+#     (ex. nufarul); navigarea e tradusa client-side de siteURL() din site.js.
+@app.route('/UNA.md/orasldev/biro26-1shop')
 def biro26_site():
     """RO: pagina principala LIVE dupa Figma (landingfigma1) — vitrina noului
     site (TZ OFFICEPLUS_AI_SITE_PROJECT.md); pe shop1 nginx o serveste la '/'.
@@ -5970,22 +5973,26 @@ def biro26_site():
     return render_template('biro26/site_home.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/catalog')
+@app.route('/UNA.md/orasldev/biro26-1shop/catalog')
 def biro26_site_catalog():
     # RO: catalog (PLP) in stilul Figma; filtrele vin din URL (deep-link)
     return render_template('biro26/site_catalog.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/product/<int:cod>')
+@app.route('/UNA.md/orasldev/biro26-1shop/product/<int:cod>')
 def biro26_site_product(cod):
     # RO: fisa produsului (PDP) — datele se incarca client-side dupa COD
     return render_template('biro26/site_product.html', cod=cod,
                            **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/cart')
+@app.route('/UNA.md/orasldev/biro26-1shop/cart')
 def biro26_site_cart():
     # RO: cos + checkout pe API-urile existente /api/biro26/shop/*
     return render_template('biro26/site_cart.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/payment-result')
+@app.route('/UNA.md/orasldev/biro26-1shop/payment-result')
 def biro26_site_payment_result():
     """RO: pagina de retur dupa plata, cu detaliile comenzii — cerinta maib
     (docs.maibmerchants.md/main/ro/integration/requirements).
@@ -5993,10 +6000,12 @@ def biro26_site_payment_result():
     return render_template('biro26/site_payment_result.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/account')
+@app.route('/UNA.md/orasldev/biro26-1shop/account')
 def biro26_site_account():
     return render_template('biro26/site_account.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/page/<slug>')
+@app.route('/UNA.md/orasldev/biro26-1shop/page/<slug>')
 def biro26_site_page(slug):
     """RO: pagina informativa din WordPress REST, redata in chrome-ul noului
     site (WP ramine DOAR CMS de continut — TZ §7). ?lang=ru|en -> slug-ru."""
@@ -6069,11 +6078,13 @@ def api_biro26_site_subscribers():
     return jsonify(Biro26Site.subscribers_list())
 
 @app.route('/UNA.md/orasldev/biro26-site/favorites')
+@app.route('/UNA.md/orasldev/biro26-1shop/favorites')
 def biro26_site_favorites():
     # RO: lista de produse favorite (inimioarele de pe carduri)
     return render_template('biro26/site_favorites.html', **_biro26_site_ctx())
 
 @app.route('/UNA.md/orasldev/biro26-site/compare')
+@app.route('/UNA.md/orasldev/biro26-1shop/compare')
 def biro26_site_compare():
     # RO: compararea produselor (max 4, alese de pe fisele PDP)
     return render_template('biro26/site_compare.html', **_biro26_site_ctx())
@@ -6113,6 +6124,7 @@ def api_biro26_site_brands():
     return jsonify({'success': True, 'data': rows})
 
 @app.route('/UNA.md/orasldev/biro26-site/brands')
+@app.route('/UNA.md/orasldev/biro26-1shop/brands')
 def biro26_site_brands():
     # RO: pagina "Branduri" din meniul magazinului (lista + logo din WP)
     return render_template('biro26/site_brands.html', **_biro26_site_ctx())

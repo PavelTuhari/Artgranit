@@ -752,7 +752,7 @@ async function ecPreapproved() {
     birth_date: (document.getElementById('ec-birth') || {}).value || '',
     phone: document.getElementById('ec-phone').value.trim()})});
   if (r.auth_required) {
-    ecStop(); toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return;
+    ecStop(); toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return;
   }
   var btn = document.getElementById('ec-sub');
   if (!r.success) {
@@ -800,7 +800,7 @@ async function ecSubmit() {
     birth_date: (document.getElementById('ec-birth') || {}).value || '',
     product_name: 'Coș OfficePlus'})});
   if (r.auth_required) {
-    ecStop(); toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return;
+    ecStop(); toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return;
   }
   if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare') + ecDebugHtml(r.data), '#b91c1c'); return; }
   ecCtx.reqId = r.data.req_id;
@@ -851,7 +851,7 @@ window.addEventListener('pagehide', ecStop);
 async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast(tr('cartEmpty'), true); return; }
-  if (!ME) { toast(tr('needLogin'), true); location.href = '/cont?next=/cos'; return; }
+  if (!ME) { toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return; }
   // RO/EN: cerinta maib — fara bifa la Termeni si conditii nu se plaseaza comanda
   const agree = document.getElementById('agree-terms');
   if (agree && !agree.checked) {

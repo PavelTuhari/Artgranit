@@ -16,7 +16,7 @@
 /* RO: la schimbarea limbii reincarcam varianta -ru a paginii WP */
 window.onLangChange = function () {
   const l = curLang();
-  location.href = '/{{ slug }}' + (l !== 'ro' ? '?lang=' + l : '');
+  location.href = siteURL('/{{ slug }}' + (l !== 'ro' ? '?lang=' + l : ''));
 };
 </script>
 {% endblock %}

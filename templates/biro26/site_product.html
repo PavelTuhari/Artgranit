@@ -204,7 +204,7 @@ function pdpPay(orgId) {
     const o = sel.options[sel.selectedIndex];
     if (o && o.dataset.name) name = o.dataset.name; }
   addToCart(cod, name, pprice(P), parseFloat(document.getElementById('p-qty').value) || 1);
-  location.href = '/cos' + (orgId ? '?credit=' + orgId : '');
+  location.href = siteURL('/cos' + (orgId ? '?credit=' + orgId : ''));
 }
 
 /* RO: calculator de credit MAIB Espresso (macheta calculator-credit.html) —
@@ -266,7 +266,7 @@ function pdpFavPaint() {
 function pdpFav() { lsToggle('biro26_fav', COD); pdpFavPaint();
   toast(favHas(COD) ? '❤ ' + tr('favAdded') : tr('favRemoved')); }
 function pdpCmp() { cmpToggle(COD);
-  if (cmpHas(COD) && lsList('biro26_cmp').length > 1) location.href = '/compara'; }
+  if (cmpHas(COD) && lsList('biro26_cmp').length > 1) location.href = siteURL('/compara'); }
 
 async function sendComment() {
   const txt = document.getElementById('c-txt').value.trim();
