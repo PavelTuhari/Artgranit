@@ -1,70 +1,55 @@
-# EasyCredit TEST — «Invalid Product or Product Not Found»
+# EasyCredit — партнёрский аккаунт: нужен ShopID
 
-Диагностика от 2026-08-02. Кратко: **наша сторона исчерпана, нужен ответ
-EasyCredit.** Процедура `InsertEShopRequest` не находит продукт ни при каком
-`ProductId`, поэтому нужно узнать у них идентификаторы, действительные именно
-для нашего магазина.
+Уточнение владельца 2026-08-07: **семейство `eShopRequest_*` не для
+партнёров.** Для нашего аккаунта правильный сервис — **`Request_v4`**.
+Код переведён на него.
 
-## Что видно из их же API
+## Как менялась ошибка по мере уточнения
 
-| Операция | Результат |
+| Что вызывали | Ответ |
 |---|---|
-| `ECM_ShopProducts` | **OK** — отдаёт 3 продукта (54, 55, 56) |
-| `eShopRequest_V5` | `From SQL Exeqution dbo.InsertEShopRequest/130/Invalid Product or Product Not Found - 50000` |
-| `eShopRequest_V4` | `From SQL Exeqution Invalid Product or Product Not Found - 50000` |
-| `eShopGetRequests` | **OK** — 48 заявок, созданных пользователем `MTadmin`, с `ProductID` 54 и 56 |
+| `eShopRequest_V5` / `_V4` | `Invalid Product or Product Not Found - 50000` — тупик, сервис не для партнёров |
+| `Request_v4` без `ShopID` | `Process Failed! (Missing Shop!)` |
+| `Request_v4` с `ShopID` 1 / 2 / 892 | `Process Failed! (Invalid Shop for User MTadmin)` |
 
-Заявки раньше создавались успешно (48 штук, `CreatedUser: MTadmin`), сейчас не
-проходит ни одна.
+Последняя формулировка и есть ответ: сервис выбран верно, не хватает
+**идентификатора магазина, закреплённого за пользователем `MTadmin`**.
 
-**Наиболее вероятная причина:** `ECM_ShopProducts` без `ShopGroupID` отдаёт,
-судя по всему, не каталог НАШЕГО магазина, а общий список — тогда 54/55/56
-просто не наши идентификаторы. С `ShopGroupID=1` ответ не меняется, значит
-либо параметр игнорируется, либо единица — не наш магазин.
+## Что уже сделано в коде
 
-(Вызов `ECM_Shops` с теми же реквизитами отвечает `Invalid User Name /
-Password`, но это НЕ доказательство: сервис, вероятно, рассчитан на
-партнёрскую учётку другого уровня. В интеграции он не используется.)
-
-## Что проверено с нашей стороны (всё исключено)
-
-- `ProductId` = 54, 55, 56, а также `ProductGroupID` 41002 и `ProductClassID`
-  51018 — одинаковая ошибка;
-- вообще без `ProductId` — та же ошибка;
-- срок 6, 12, 13 месяцев — каждый в своём продукте по их же каталогу;
-- сумма целым числом и с копейками; повтор точной суммы ранее успешной
-  заявки (14999 при продукте 54) — та же ошибка;
-- версии `eShopRequest_V5` и `V4` — обе упираются в тот же продукт, хотя идут
-  через **разные** хранимые процедуры (`InsertEShopRequest` и
-  `InsertEShopRequest_V2`).
-
-Последнее и доказывает, что дело не в теле запроса: две независимые процедуры
-не находят продукт для этого пользователя.
+- `submit` переведён на `Request_v4` (`integrations/easycredit_rest.py`);
+- обязательные поля: `ProductID`, `UIN`, `CreditAmount`,
+  `NumberOfInstallments`, `FirstInstallmentDate` (считается как сегодня + N
+  дней, по умолчанию 31);
+- данные заявителя наконец передаются: `ApFirstName`, `ApLastName`,
+  `ApFatherName`, `ApDateOfBirth`, `CaMobile`, `GoodsName`, `GoodsPrice` —
+  раньше, на `eShopRequest_V5`, к кредитору уходил только телефон;
+- `ShopID`, `ProductID` и `first_installment_days` вынесены в настройки
+  провайдера (бэк-офис → **Provideri API**), потому что их назначает
+  EasyCredit и вывести их из API нельзя;
+- пока они не заполнены, оператор видит понятный текст, а не код кредитора.
 
 ## Что просить у EasyCredit
 
 > Contul `MTadmin` (partener `partener.ecredit.md`), mediul **TEST**.
-> `eShopRequest_V5` și `eShopRequest_V4` răspund
-> `Invalid Product or Product Not Found - 50000` pentru ORICE ProductId și
-> orice număr de rate — deși anterior, cu același cont, s-au creat 48 de cereri
-> (vizibile în `eShopGetRequests`, ProductID 54 și 56).
+> Folosim serviciul `Request_v4`. Fără `ShopID` primim
+> `Process Failed! (Missing Shop!)`, iar cu ShopID 1 / 2 / 892 —
+> `Process Failed! (Invalid Shop for User MTadmin)`.
 >
-> Vă rugăm să ne comunicați:
-> 1. **ShopGroupID-ul magazinului nostru** în TEST;
-> 2. **ProductId-urile valide pentru acel magazin** (produsele 54 / 55 / 56
->    întoarse de `ECM_ShopProducts` fără ShopGroupID par să nu fie ale noastre);
-> 3. dacă `eShopRequest_V5` mai cere vreun câmp suplimentar pentru a lega
->    cererea de magazin.
+> Vă rugăm să ne comunicați pentru contul `MTadmin`:
+> 1. **ShopID**-ul magazinului nostru;
+> 2. **ProductID**-urile valide pentru acest magazin (cu intervalele de rate
+>    și sume);
+> 3. aceleași valori pentru mediul **PRODUCTION**.
 
 ## Отдельно: сроки рассрочки в бэк-офисе
 
-Каталог EasyCredit в TEST предлагает только **6–11, 12 и 13–18** месяцев.
-Пакет «Special 0% / 4 luni» в `TMS_CREDITE_PLAN` ни одному продукту не
-соответствует — заявка на 4 месяца не может быть принята в принципе.
+`ECM_ShopProducts` (без `ShopGroupID`) отдаёт продукты 54 / 55 / 56 со сроками
+**6–11, 12 и 13–18** месяцев. Наш ли это каталог — вопрос открытый, он входит
+в список к EasyCredit выше. Но если да, то пакет «Special 0% / 4 luni» в
+`TMS_CREDITE_PLAN` ни одному продукту не соответствует, и заявка на 4 месяца
+не пройдёт никогда.
 
-Витрина теперь говорит об этом прямо («EasyCredit nu oferă 4 rate. Termene
-disponibile: 6-11, 12, 13-18 luni»), но правильнее убрать или отключить этот
-пакет в `/UNA.md/orasldev/biro26-credit-admin`, чтобы клиент не выбирал срок,
-который заведомо не пройдёт. Для боевой среды список продуктов будет свой —
-проверить его тем же вызовом `ECM_ShopProducts` после переключения на
-`PRODUCTION`.
+Сроки в `/UNA.md/orasldev/biro26-credit-admin` нужно согласовать с тем
+списком продуктов, который EasyCredit подтвердит для нашего `ShopID`. Для
+боевой среды набор будет свой — запросить отдельно.
