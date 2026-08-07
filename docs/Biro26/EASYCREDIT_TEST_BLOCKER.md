@@ -1,22 +1,30 @@
 # EasyCredit TEST — «Invalid Product or Product Not Found»
 
 Диагностика от 2026-08-02. Кратко: **наша сторона исчерпана, нужен ответ
-EasyCredit.** Учётная запись `MTadmin` в среде TEST не привязана к магазину,
-поэтому процедура `InsertEShopRequest` не находит продукт.
+EasyCredit.** Процедура `InsertEShopRequest` не находит продукт ни при каком
+`ProductId`, поэтому нужно узнать у них идентификаторы, действительные именно
+для нашего магазина.
 
 ## Что видно из их же API
 
 | Операция | Результат |
 |---|---|
 | `ECM_ShopProducts` | **OK** — отдаёт 3 продукта (54, 55, 56) |
-| `ECM_Shops` | **`Invalid User Name / Password - 50000`** — с теми же логином и паролем |
 | `eShopRequest_V5` | `From SQL Exeqution dbo.InsertEShopRequest/130/Invalid Product or Product Not Found - 50000` |
 | `eShopRequest_V4` | `From SQL Exeqution Invalid Product or Product Not Found - 50000` |
 | `eShopGetRequests` | **OK** — 48 заявок, созданных пользователем `MTadmin`, с `ProductID` 54 и 56 |
 
-Ключевое противоречие: список продуктов магазина отдаётся, а список магазинов
-для того же пользователя — нет. Заявки раньше создавались успешно (48 штук,
-`CreatedUser: MTadmin`), сейчас не создаются ни одна.
+Заявки раньше создавались успешно (48 штук, `CreatedUser: MTadmin`), сейчас не
+проходит ни одна.
+
+**Наиболее вероятная причина:** `ECM_ShopProducts` без `ShopGroupID` отдаёт,
+судя по всему, не каталог НАШЕГО магазина, а общий список — тогда 54/55/56
+просто не наши идентификаторы. С `ShopGroupID=1` ответ не меняется, значит
+либо параметр игнорируется, либо единица — не наш магазин.
+
+(Вызов `ECM_Shops` с теми же реквизитами отвечает `Invalid User Name /
+Password`, но это НЕ доказательство: сервис, вероятно, рассчитан на
+партнёрскую учётку другого уровня. В интеграции он не используется.)
 
 ## Что проверено с нашей стороны (всё исключено)
 
@@ -35,14 +43,18 @@ EasyCredit.** Учётная запись `MTadmin` в среде TEST не пр
 
 ## Что просить у EasyCredit
 
-> Contul `MTadmin` (partener `partener.ecredit.md`) în mediul **TEST**:
-> `ECM_ShopProducts` întoarce corect produsele 54 / 55 / 56, dar `ECM_Shops`
-> răspunde `Invalid User Name / Password`, iar `eShopRequest_V5` și `_V4`
-> răspund `Invalid Product or Product Not Found` pentru orice ProductId și
-> orice număr de rate. Anterior, cu același cont, s-au creat 48 de cereri
+> Contul `MTadmin` (partener `partener.ecredit.md`), mediul **TEST**.
+> `eShopRequest_V5` și `eShopRequest_V4` răspund
+> `Invalid Product or Product Not Found - 50000` pentru ORICE ProductId și
+> orice număr de rate — deși anterior, cu același cont, s-au creat 48 de cereri
 > (vizibile în `eShopGetRequests`, ProductID 54 și 56).
-> Vă rugăm să verificați **legătura contului cu magazinul (shop)** în TEST și
-> produsele active pe acel magazin.
+>
+> Vă rugăm să ne comunicați:
+> 1. **ShopGroupID-ul magazinului nostru** în TEST;
+> 2. **ProductId-urile valide pentru acel magazin** (produsele 54 / 55 / 56
+>    întoarse de `ECM_ShopProducts` fără ShopGroupID par să nu fie ale noastre);
+> 3. dacă `eShopRequest_V5` mai cere vreun câmp suplimentar pentru a lega
+>    cererea de magazin.
 
 ## Отдельно: сроки рассрочки в бэк-офисе
 
