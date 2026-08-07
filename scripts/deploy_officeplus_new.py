@@ -42,7 +42,8 @@ def step_base():
 sudo apt-get update -q
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
   nginx php8.3-fpm php8.3-mysql php8.3-curl php8.3-gd php8.3-xml php8.3-mbstring \
-  php8.3-zip php8.3-intl mariadb-server python3-venv python3-pip unzip zstd libaio1t64
+  php8.3-zip php8.3-intl mariadb-server python3-venv python3-pip unzip zstd libaio1t64 \
+  libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
 swapon --show | grep -q swapfile || { sudo fallocate -l 2G /swapfile &&
   sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile &&
   echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab; }
