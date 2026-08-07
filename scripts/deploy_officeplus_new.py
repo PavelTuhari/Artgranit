@@ -95,6 +95,10 @@ mkdir -p /home/ubuntu/artgranit && tar -xzf /tmp/code.tar.gz -C /home/ubuntu/art
 cp /tmp/env /home/ubuntu/artgranit/.env && chmod 600 /home/ubuntu/artgranit/.env
 sudo tar -xzf /tmp/wallets.tar.gz -C /home/ubuntu && sudo chown -R ubuntu /home/ubuntu/oracle_wallets
 sudo tar -xzf /tmp/ic.tar.gz -C /opt
+# Ubuntu 24.04: instant client требует ldconfig-запись и libaio.so.1 (пакет t64)
+echo /opt/oracle/instantclient_19_28 | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf >/dev/null
+sudo ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
+sudo ldconfig
 # инстансные отличия нового дома: WP-контент читаем локально (тот же сервер)
 sed -i "s|^BIRO26_SHOP_WP_API=.*|BIRO26_SHOP_WP_API=https://{DOMAIN}/wp-json|" /home/ubuntu/artgranit/.env
 grep -q "^BIRO26_CREDIT_HIDE_ORGS=" /home/ubuntu/artgranit/.env ||
