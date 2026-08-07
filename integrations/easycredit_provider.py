@@ -174,26 +174,33 @@ class EasyCreditProvider(CreditProvider):
         if not self.is_configured():
             return {"success": False, "error": "EasyCredit не настроен"}
 
+        api = self._api()
+        args: dict[str, Any] = {
+            "amount": int(kwargs.get("amount", 10000)),
+            "fio": kwargs.get("fio", "Тест Тестович Тестов"),
+            "phone": kwargs.get("phone", "+37369123456"),
+            "idn": kwargs.get("uin", "12345678901234"),
+            "product_name": kwargs.get("product_name", "Тестовый товар"),
+            "program_name": kwargs.get("program_name", "0-0-12"),
+            "goods_price": int(kwargs.get("goods_price", kwargs.get("amount", 10000))),
+            "verify_ssl": self._verify_ssl(),
+            "basic_user": self._basic_user(),
+            "basic_password": self._basic_password(),
+        }
+        # RO: parametrii ceruti de Request_v4 exista DOAR in clientul REST;
+        #     clientul SOAP vechi nu-i cunoaste si ar da TypeError.
+        # EN: Request_v4-only arguments exist in the REST client alone.
+        if getattr(api, "__name__", "").endswith("easycredit_rest"):
+            args.update({
+                "birth_date": kwargs.get("birth_date", ""),
+                "product_id": self._product_id(),
+                "shop_id": self._shop_id(),
+                "first_installment_days": self._first_installment_days(),
+                "months": int(kwargs.get("months") or 0),
+            })
         try:
-            return self._api().submit_request(
-                self._base_url(), self._user(), self._password(),
-                amount=int(kwargs.get("amount", 10000)),
-                fio=kwargs.get("fio", "Тест Тестович Тестов"),
-                phone=kwargs.get("phone", "+37369123456"),
-                idn=kwargs.get("uin", "12345678901234"),
-                birth_date=kwargs.get("birth_date", ""),
-                product_name=kwargs.get("product_name", "Тестовый товар"),
-                program_name=kwargs.get("program_name", "0-0-12"),
-                goods_price=int(kwargs.get("goods_price", kwargs.get("amount", 10000))),
-                # RO: Request_v4 (cont de partener) cere ProductID + ShopID
-                product_id=self._product_id(),
-                shop_id=self._shop_id(),
-                first_installment_days=self._first_installment_days(),
-                months=int(kwargs.get("months") or 0),
-                verify_ssl=self._verify_ssl(),
-                basic_user=self._basic_user(),
-                basic_password=self._basic_password(),
-            )
+            return api.submit_request(
+                self._base_url(), self._user(), self._password(), **args)
         except Exception as e:
             return {"success": False, "error": str(e)}
 
