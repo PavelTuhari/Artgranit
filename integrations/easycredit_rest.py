@@ -234,15 +234,40 @@ def submit_request(
     if n <= 0:
         return {"success": False, "data": {"urn": "", "message": "numar de rate lipsa"},
                 "error": "NumberOfInstallments is required"}
+    sum_ = float(amount or goods_price or 0)
     payload: dict[str, Any] = {
         "Login": user, "Password": passwd,
-        "CreditAmount": float(amount or goods_price or 0),
+        "CreditAmount": sum_,
         "NumberOfInstallments": n,
     }
     if phone:
         payload["Mobile"] = phone
+    # RO: produsul se ia din CATALOGUL creditorului dupa numarul de rate si
+    #     suma. Fara el gateway-ul raspunde «Invalid Product or Product Not
+    #     Found» — exact ce se intimpla la termene pe care EasyCredit nu le are
+    #     (de ex. 4 luni, cind catalogul incepe de la 6).
     if product_id:
         payload["ProductId"] = str(product_id)
+    else:
+        cat = products(base_url, user, passwd, verify_ssl,
+                       basic_user, basic_password)
+        prod = pick_product(cat, n, sum_) if cat else None
+        if prod:
+            payload["ProductId"] = prod["id"]
+        elif cat:
+            # RO: cererea nu se potriveste niciunui produs — spunem CE se poate,
+            #     in loc sa lasam creditorul sa raspunda cu un cod tehnic.
+            fit_n = [p for p in cat if p["months_min"] <= n <= p["months_max"]]
+            if not fit_n:
+                msg = (f"EasyCredit nu oferă {n} rate. Termene disponibile: "
+                       f"{terms_hint(cat)} luni.")
+            else:
+                lo = min(p["amount_min"] for p in fit_n)
+                hi = max(p["amount_max"] for p in fit_n)
+                msg = (f"Pentru {n} rate EasyCredit acceptă sume între "
+                       f"{lo:.0f} și {hi:.0f} lei (cerut: {sum_:.0f}).")
+            return {"success": False, "data": {"urn": "", "message": msg},
+                    "error": msg}
     d, err = _post(base_url, "eShopRequest_V5", payload,
                    basic_user, basic_password, verify_ssl)
     if err:
