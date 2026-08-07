@@ -302,7 +302,12 @@
           </div>
           <div class="footer-bottom">
             <p>© 2026 Office Plus. <span data-t="rights">Toate drepturile rezervate.</span>
-              <span style="opacity:.8"> · UNA.md and ORACLE OCI based</span></p>
+              <!-- RO: numarul de versiune = DATA lansarii, din TMS_WEBAPPVERS
+                   (Oracle), oglindit in MySQL. Se schimba doar prin
+                   scripts/set_app_version.py — vezi
+                   docs/Biro26/WEB_APP_VERSIONING.md -->
+              <span style="opacity:.8"> · UNA.md and ORACLE OCI based{% if app_version %}
+                <span title="Versiunea aplicației · Версия приложения">v{{ app_version }}</span>{% endif %}</span></p>
           </div>
         </div>
       </footer>
