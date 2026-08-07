@@ -685,7 +685,20 @@ class Biro26Credit:
 
     @staticmethod
     def _public_error(res: Dict[str, Any]) -> str:
-        """RO: mesaj neutru pentru client — detaliile ramin in jurnal."""
+        """RO: mesaj pentru client — detaliile tehnice ramin in jurnal.
+
+        Exceptie: `client_error` marcheaza un motiv de BUSINESS, formulat deja
+        pentru client (ex. «EasyCredit nu oferă 4 rate»). Acolo mesajul neutru
+        ar induce in eroare — clientul ar astepta ca «serviciul sa revina»,
+        desi trebuie doar sa aleaga alt termen.
+        EN: pass through business reasons already phrased for the customer;
+        hiding them behind «service unavailable» would be misleading.
+        """
+        if res.get("client_error"):
+            msg = (res.get("error")
+                   or (res.get("data") or {}).get("message") or "").strip()
+            if msg:
+                return msg
         return ("Serviciul de creditare nu este disponibil momentan · "
                 "Сервис кредитования временно недоступен")
 
