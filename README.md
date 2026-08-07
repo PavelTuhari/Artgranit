@@ -100,7 +100,14 @@
     *   **WordPress-обвязка**: `wordpress/servouts26/` (по образцу `wordpress_officeplus/`) — локальный сайт на порту 6003, магазин встроен в главную через iframe; БД MariaDB `servouts26_wp_local`.
     *   Документация: `docs/ServOuts26/README_ServOuts26.html`, ТЗ — `docs/ServOuts26/TZ_Servouts26_App.md`.
 
-8.  **Документация:**
+8.  **TBControl (эксплуатация Front Office / POS / Self-Service / Android):** operations-центр торговой сети по ТЗ `docs/TBControl/TECHNICAL-OPS.md` — «мониторим не компьютер, а способность магазина продавать».
+    *   Маршрут `/UNA.md/orasldev/tbcontrol`, API `/api/tbc/*`. Интерфейс — NOC-консоль в стилистике Cisco/Unify: обзор сети со STORE_HEALTH-плитками (OK/DEGRADED/CRITICAL), магазины, устройства (POS/SCO/Android/серверы/сеть, техпаспорт раздела 9 ТЗ), приложения, контроль версий (Expected vs Current, OUTDATED), изменения/deployment с verification и rollback, события P1–P4 с корреляцией (root cause → suppressed downstream), инциденты с RCA-полями, SLA, журнал аудита.
+    *   Oracle-объекты — префикс `TBC_*` (17 таблиц, 7 представлений `V_TBC_*`): `TBC_STORES`, `TBC_DEVICES`, `TBC_APPLICATIONS`+`TBC_DEVICE_APPS`, `TBC_HEALTH_CHECKS` (append-only), `TBC_EVENTS`, `TBC_INCIDENTS`, `TBC_CHANGES`+`TBC_CHANGE_STORES`+`TBC_DEPLOY_CHECKS`, `TBC_SLA_TARGETS`, `TBC_EVENT_LOG` (аудит), справочники `TBC_REF_*`.
+    *   **Agent Heartbeat API** `POST /api/tbc/agent/heartbeat` — приём метрик от Zabbix Agent 2 / Android Monitoring Agent с автregistрацией устройства по коду `MD-CHS-001-AND-01` и сверкой версии ПО с ожидаемой.
+    *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
+    *   Документация: `docs/TBControl/TBCONTROL_MODULE.md`, ТЗ — `docs/TBControl/TECHNICAL-OPS.md`.
+
+9.  **Документация:**
     *   Индекс документации (`/UNA.md/orasldev/docs`), просмотр Markdown, ТЗ Nufarul.
     *   Материалы DECOR и HTML-конверсии (`/UNA.md/orasldev/docs/decor`).
     *   Материалы Nufarul: список файлов, просмотр XLSX/DOC/PDF, галерея JPG (`docs_jpg`) с описаниями по смыслу и OCR-таблицами, Registru Documente.
