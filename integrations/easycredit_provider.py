@@ -53,11 +53,9 @@ class EasyCreditProvider(CreditProvider):
     def _basic_password(self) -> str:
         return self._setting("basic_password", Config.easycredit_basic_password)
 
-    # RO: identificatorii pe care ii atribuie EasyCredit contului de partener.
-    #     Nu au valori implicite rezonabile — se introduc in back-office.
-    def _shop_id(self) -> str:
-        return self._setting("shop_id", "")
-
+    # RO: produsul pe care il atribuie EasyCredit magazinului nostru.
+    #     Nu are o valoare implicita rezonabila — se introduce in back-office.
+    #     Magazinul NU se transmite: Request_v3 il deduce din Login.
     def _product_id(self) -> str:
         return self._setting("product_id", "")
 
@@ -187,14 +185,13 @@ class EasyCreditProvider(CreditProvider):
             "basic_user": self._basic_user(),
             "basic_password": self._basic_password(),
         }
-        # RO: parametrii ceruti de Request_v4 exista DOAR in clientul REST;
+        # RO: parametrii ceruti de Request_v3 exista DOAR in clientul REST;
         #     clientul SOAP vechi nu-i cunoaste si ar da TypeError.
-        # EN: Request_v4-only arguments exist in the REST client alone.
+        # EN: Request_v3-only arguments exist in the REST client alone.
         if getattr(api, "__name__", "").endswith("easycredit_rest"):
             args.update({
                 "birth_date": kwargs.get("birth_date", ""),
                 "product_id": self._product_id(),
-                "shop_id": self._shop_id(),
                 "first_installment_days": self._first_installment_days(),
                 "months": int(kwargs.get("months") or 0),
             })
