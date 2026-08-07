@@ -146,6 +146,29 @@ location ^~ /UNA.md/orasldev/biro26-wp/ {
 Возможная причина внезапного SSH-бана officeplus — активность бэкдоров.
 </div>
 
+<h2>5a. Liber Card: настройки через админку (инструкция для клиента)</h2>
+<div class="ok">Действующая конфигурация (2026-08-06): <b>только «Liber Card / 6 rate»</b>
+(наценка 8% + 10% организации), 3/4/5 rate выключены, <b>максимум 50 000 лей</b>
+(лимит карты MAIB Liber).</div>
+<p>Всё меняется без программиста в кредит-админке
+<a href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-credit-admin">/UNA.md/orasldev/biro26-credit-admin</a>
+→ организация <b>Liber Card MAIB</b>. БД общая — изменение действует сразу
+на officeplus.md и nufarul.</p>
+<ol>
+<li><b>Включить/выключить срок</b> — галочка <i>Activ</i> у пакета
+«Liber Card / N rate». Выключенные пакеты не удаляются — их можно вернуть.</li>
+<li><b>Лимиты</b> — поля <i>Suma min / Suma max</i>. ВАЖНО: проверяются по
+ФИНАНСИРУЕМОЙ сумме (цена × наценка): «до 50 000 финансируемых» ≈ до ~46 300 лей
+стандартной цены при 8%+10%.</li>
+<li><b>Наценка</b> — <i>Markup %</i> пакета + <i>Transport markup %</i> организации
+(действующая цена в кредит = сумма двух). После изменения сверить витрины
+(CLAUDE.md, правило 7).</li>
+<li>Изменения подхватываются в течение 5 минут (кэш офферов); мгновенно —
+<code>sudo systemctl restart artgranit</code>.</li>
+<li>Организация пропала совсем → не осталось ни одного активного пакета
+(инцидент 2026-08-06) либо скрыта через <code>BIRO26_CREDIT_HIDE_ORGS</code> в <code>.env</code>.</li>
+</ol>
+
 <h2>6. Чек-лист после любых работ</h2>
 <pre><code>curl -I  https://nufarul.eminescu.md/login                                  # 200
 curl -sI https://nufarul.eminescu.md/UNA.md/orasldev/biro26-wp/ | head -1   # 200
