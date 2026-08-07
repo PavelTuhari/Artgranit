@@ -328,3 +328,32 @@ tar czf - app.py controllers/biro26_controller.py models/biro26_oracle_store.py 
 ---
 *Файл: `docs/Biro26/MIGRATION_BIRO26.md`. Актуален на 2026-07-07
 (коммиты по PR #12/#13: цены по периодам, публичный магазин, фасетные фильтры).*
+
+## Ядро отчётности (обязательный компонент при миграции)
+
+PDF счетов/заказов (`/api/biro26/shop/report/invoice|order/<cod>`, движок
+`htmlpdf` в `reports/templates/engines.json`) рендерит WeasyPrint. На новом
+сервере он обязан работать сразу:
+
+```bash
+sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
+# сам weasyprint приходит из requirements.txt при сборке venv
+```
+
+Проверка после миграции (не требует логина — прямой рендер):
+
+```bash
+cd /home/ubuntu/artgranit && ./venv/bin/python - <<'PY'
+from app import app
+with app.app_context():
+    from models.biro26_report import Biro26Report
+    r = Biro26Report.render_doc("invoice", 250)
+    print(r.get("success"), len(r.get("pdf") or b""), r.get("error"))
+PY
+```
+
+Симптомы отсутствия: API отвечает `{"error":"weasyprint lipseste"}` или 400,
+в логах `OSError: cannot load library 'libpango-1.0-0'` (Ubuntu Minimal).
+HTTP 401 на этом API — НЕ поломка: документ отдаётся только владельцу,
+бэкофис-сессии или по подписанной ссылке `?sig=` (Biro26Notify.pdf_sig).
