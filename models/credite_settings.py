@@ -34,17 +34,16 @@ PROVIDER_DEFS: Dict[str, Dict[str, Any]] = {
         # RO: gateway-ul cere DOUA nivele: HTTP Basic pe cerere (basic_*) SI
         #     Login/Password in corpul SOAP (api_*). Basic e optional —
         #     endpoint-urile vechi (tst.ecmoldova.cloud) merg fara el.
-        # RO: `shop_id` si `product_id` sint OBLIGATORII pentru contul de
-        #     PARTENER (serviciul Request_v4): creditorul le atribuie fiecarui
-        #     magazin, nu se pot ghici. Fara ele gateway-ul raspunde
-        #     «Process Failed! (Missing Shop!)» / «Invalid Shop for User ...».
+        # RO: `product_id` e OBLIGATORIU pentru contul de PARTENER (serviciul
+        #     Request_v3): creditorul atribuie produsul magazinului, iar el
+        #     decide si termenele acceptate. Magazinul NU se indica — se alege
+        #     automat dupa Login (de aceea v3, nu v4, care ar cere ShopID).
         #     `first_installment_days` — peste cite zile e prima rata (implicit 31).
-        # EN: partner accounts (Request_v4) need the lender-assigned ShopID and
-        #     ProductID; they cannot be guessed and must be entered here.
+        # EN: partner accounts (Request_v3) need the lender-assigned Product;
+        #     the shop itself is resolved from the Login, so no ShopID here.
         "params": [("api_user", False), ("api_password", True),
                    ("basic_user", False), ("basic_password", True),
-                   ("shop_id", False), ("product_id", False),
-                   ("first_installment_days", False)],
+                   ("product_id", False), ("first_installment_days", False)],
         "default_base_url": {"sandbox": "https://api.ecredit.md/TEST/",
                              "production": "https://w81.ecredit.md:8082"},
     },
