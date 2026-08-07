@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TBControl — Operations Center</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0d1621;
+            --panel: #121e2d;
+            --panel2: #16263a;
+            --border: #1e3752;
+            --accent: #049fd9;      /* Cisco blue */
+            --accent2: #00bceb;
+            --ok: #6abf4b;          /* Cisco green */
+            --warn: #fbab18;
+            --crit: #e2231a;        /* Cisco red */
+            --info: #64bbe3;
+            --text: #dbe5ef;
+            --muted: #7e93a8;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ===== Top Bar ===== */
+        .top-bar {
+            background: linear-gradient(90deg, #0c1c2c, #10283e);
+            border-bottom: 2px solid var(--accent);
+            height: 50px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 10px;
+        }
+        .top-bar .logo { font-weight: 700; font-size: 16px; letter-spacing: 1px; color: #fff; white-space: nowrap; }
+        .top-bar .logo b { color: var(--accent2); }
+        .top-bar .logo small { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 11px; }
+        .top-bar .spacer { flex: 1; }
+        .health-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;
+            background: var(--panel2); border: 1px solid var(--border);
+        }
+        .health-pill .dot { width: 9px; height: 9px; border-radius: 50%; }
+        .back-link { color: var(--muted); text-decoration: none; font-size: 13px; }
+        .back-link:hover { color: var(--accent2); }
+
+        /* ===== Layout ===== */
+        .main-layout { display: flex; height: calc(100vh - 50px); }
+
+        /* ===== Sidebar ===== */
+        .sidebar {
+            width: 232px; background: var(--panel); border-right: 1px solid var(--border);
+            overflow-y: auto; flex-shrink: 0; padding-bottom: 20px;
+        }
+        .sidebar-header {
+            padding: 12px 14px 6px; font-size: 10px; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--muted); font-weight: 700;
+        }
+        .sidebar-item {
+            padding: 8px 14px 8px 22px; font-size: 13px; cursor: pointer;
+            display: flex; align-items: center; gap: 9px; color: #a9bccd;
+            border-left: 3px solid transparent; transition: all .15s; white-space: nowrap;
+        }
+        .sidebar-item:hover { background: var(--panel2); color: #fff; }
+        .sidebar-item.active { background: var(--panel2); color: #fff; border-left-color: var(--accent); }
+        .sidebar-item .badge {
+            margin-left: auto; font-size: 10px; padding: 1px 7px; border-radius: 9px;
+            background: var(--border); color: var(--text); font-weight: 600;
+        }
+        .sidebar-item .badge.crit { background: var(--crit); color: #fff; }
+
+        /* ===== Content ===== */
+        .content-area { flex: 1; overflow-y: auto; padding: 18px 22px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .panel-title { font-size: 17px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+        .panel-title .btn { margin-left: auto; }
+
+        /* ===== Stat Cards ===== */
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .stat-card {
+            background: var(--panel); border: 1px solid var(--border);
+            border-top: 3px solid var(--accent); border-radius: 6px; padding: 12px 14px;
+        }
+        .stat-card.green { border-top-color: var(--ok); }
+        .stat-card.red { border-top-color: var(--crit); }
+        .stat-card.yellow { border-top-color: var(--warn); }
+        .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+        .stat-value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+        .stat-value.green { color: var(--ok); } .stat-value.red { color: var(--crit); }
+        .stat-value.yellow { color: var(--warn); } .stat-value.blue { color: var(--accent2); }
+        .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        /* ===== Store Health Tiles ===== */
+        .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .store-tile {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+            padding: 12px 14px; cursor: pointer; border-left: 4px solid var(--ok); transition: all .15s;
+        }
+        .store-tile:hover { background: var(--panel2); }
+        .store-tile.DEGRADED { border-left-color: var(--warn); }
+        .store-tile.CRITICAL { border-left-color: var(--crit); animation: blink 1.6s infinite; }
+        @keyframes blink { 50% { border-left-color: #7a1410; } }
+        .store-tile .st-code { font-size: 11px; color: var(--muted); font-family: monospace; }
+        .store-tile .st-name { font-weight: 600; font-size: 14px; margin: 2px 0 8px; }
+        .store-tile .st-row { display: flex; gap: 10px; font-size: 11px; color: var(--muted); flex-wrap: wrap; }
+        .store-tile .st-health { float: right; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 9px; }
+        .st-health.OK { background: rgba(106,191,75,.15); color: var(--ok); }
+        .st-health.DEGRADED { background: rgba(251,171,24,.15); color: var(--warn); }
+        .st-health.CRITICAL { background: rgba(226,35,26,.2); color: var(--crit); }
+
+        /* ===== Cards / Tables ===== */
+        .card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 16px; overflow: hidden; }
+        .card-header {
+            padding: 10px 14px; background: var(--panel2); font-weight: 600; font-size: 13px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .card-header .btn { margin-left: auto; }
+        .card-body { padding: 14px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .data-table th {
+            background: var(--panel2); padding: 7px 10px; text-align: left; font-weight: 600;
+            font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px;
+        }
+        .data-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .data-table tr:hover td { background: rgba(4,159,217,.05); }
+        .data-table .mono { font-family: monospace; font-size: 12px; }
+        .muted { color: var(--muted); }
+
+        /* ===== Status badges ===== */
+        .badge-st { display: inline-block; padding: 2px 9px; border-radius: 9px; font-size: 10.5px; font-weight: 700; }
+        .bg-ok { background: rgba(106,191,75,.15); color: var(--ok); }
+        .bg-warn { background: rgba(251,171,24,.15); color: var(--warn); }
+        .bg-crit { background: rgba(226,35,26,.18); color: #ff6b64; }
+        .bg-info { background: rgba(100,187,227,.15); color: var(--info); }
+        .bg-mut { background: var(--border); color: var(--muted); }
+        .sev { display: inline-block; min-width: 30px; text-align: center; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; color: #fff; }
+
+        /* ===== Buttons / Forms ===== */
+        .btn {
+            padding: 7px 15px; border: none; border-radius: 4px; font-size: 12.5px; font-weight: 600;
+            cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: #0489bb; }
+        .btn-secondary { background: var(--border); color: var(--text); }
+        .btn-secondary:hover:not(:disabled) { background: #2a4a6d; }
+        .btn-success { background: #4b8f34; color: #fff; }
+        .btn-danger { background: var(--crit); color: #fff; }
+        .btn-warning { background: var(--warn); color: #1a1a1a; }
+        .btn-sm { padding: 3px 9px; font-size: 11.5px; }
+        .btn-group { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+        .form-control {
+            width: 100%; padding: 7px 11px; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text); font-size: 13px;
+        }
+        .form-control:focus { outline: none; border-color: var(--accent); }
+        select.form-control { cursor: pointer; }
+        textarea.form-control { resize: vertical; min-height: 54px; font-family: inherit; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+        /* ===== Filter bar / tabs ===== */
+        .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+        .filter-bar .form-control { width: auto; min-width: 140px; }
+        .tab-chip {
+            padding: 5px 13px; border-radius: 14px; font-size: 12px; cursor: pointer;
+            background: var(--panel); border: 1px solid var(--border); color: var(--muted); font-weight: 600;
+        }
+        .tab-chip:hover { color: #fff; }
+        .tab-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(2,8,14,.72);
+            z-index: 100; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--accent);
+            border-radius: 6px; width: 100%; max-width: 640px; padding: 18px 20px;
+        }
+        .modal.wide { max-width: 860px; }
+        .modal h3 { font-size: 15px; margin-bottom: 14px; }
+        .modal .close-x { float: right; cursor: pointer; color: var(--muted); font-size: 18px; }
+        .modal .close-x:hover { color: var(--crit); }
+
+        /* ===== Diag / progress ===== */
+        .diag-flow { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+        .diag-step {
+            padding: 5px 11px; border-radius: 4px; font-size: 11.5px; font-family: monospace;
+            background: var(--panel2); border: 1px solid var(--border);
+        }
+        .diag-step.OK { border-color: var(--ok); color: var(--ok); }
+        .diag-step.WARN { border-color: var(--warn); color: var(--warn); }
+        .diag-step.FAIL { border-color: var(--crit); color: var(--crit); }
+        .sla-bar { height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; min-width: 120px; }
+        .sla-bar > div { height: 100%; border-radius: 4px; }
+
+        .toast {
+            position: fixed; bottom: 18px; right: 18px; z-index: 200; padding: 11px 18px;
+            border-radius: 6px; font-size: 13px; font-weight: 600; display: none;
+            background: var(--panel2); border: 1px solid var(--accent); color: var(--text);
+        }
+        .toast.error { border-color: var(--crit); }
+        .toast.open { display: block; }
+        .empty-note { color: var(--muted); font-size: 13px; padding: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">TB<b>Control</b><small>Front Office · POS · Self-Service · Android — Operations Center</small></div>
+    <div class="spacer"></div>
+    <div class="health-pill" id="globalHealth"><span class="dot" style="background:var(--muted)"></span><span>—</span></div>
+    <button class="btn btn-secondary btn-sm" onclick="initDemo()">⚙ Инициализация</button>
+    <a href="/UNA.md/orasldev/" class="back-link">← Портал</a>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <div class="sidebar-header">Мониторинг</div>
+        <div class="sidebar-item active" data-panel="dashboard" onclick="showPanel('dashboard')">📊 Обзор сети</div>
+        <div class="sidebar-item" data-panel="stores" onclick="showPanel('stores')">🏬 Магазины</div>
+        <div class="sidebar-item" data-panel="devices" onclick="showPanel('devices')">🖥️ Устройства</div>
+        <div class="sidebar-header">Софт</div>
+        <div class="sidebar-item" data-panel="apps" onclick="showPanel('apps')">📦 Приложения</div>
+        <div class="sidebar-item" data-panel="versions" onclick="showPanel('versions')">🔢 Версии ПО <span class="badge" id="badgeOutdated">0</span></div>
+        <div class="sidebar-item" data-panel="changes" onclick="showPanel('changes')">🚀 Изменения / Deploy</div>
+        <div class="sidebar-header">Эксплуатация</div>
+        <div class="sidebar-item" data-panel="events" onclick="showPanel('events')">⚡ События <span class="badge" id="badgeP1">0</span></div>
+        <div class="sidebar-item" data-panel="incidents" onclick="showPanel('incidents')">🎫 Инциденты <span class="badge" id="badgeInc">0</span></div>
+        <div class="sidebar-item" data-panel="sla" onclick="showPanel('sla')">📈 SLA</div>
+        <div class="sidebar-item" data-panel="audit" onclick="showPanel('audit')">📜 Журнал аудита</div>
+    </div>
+
+    <div class="content-area">
+
+        <!-- ===== Dashboard ===== -->
+        <div class="panel active" id="panel-dashboard">
+            <div class="panel-title">Обзор торговой сети <span class="muted" style="font-size:12px;font-weight:400">Can the store sell?</span></div>
+            <div class="stat-grid" id="statGrid"></div>
+            <div class="card">
+                <div class="card-header">🏬 Store Health <span class="muted" style="font-weight:400">— агрегированный STORE_HEALTH по каждому магазину</span></div>
+                <div class="card-body"><div class="store-grid" id="storeHealthGrid"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header">🔥 Активные события P1 / P2</div>
+                <div class="card-body" style="padding:0"><table class="data-table" id="topEventsTable"><tbody></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- ===== Stores ===== -->
+        <div class="panel" id="panel-stores">
+            <div class="panel-title">Магазины <button class="btn btn-primary btn-sm" onclick="openStoreModal()">+ Магазин</button></div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Код</th><th>Название</th><th>Город</th><th>Статус</th><th>Устройств</th><th>Maintenance window</th><th></th>
+                </tr></thead><tbody id="storesTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Devices ===== -->
+        <div class="panel" id="panel-devices">
+            <div class="panel-title">Устройства <button class="btn btn-primary btn-sm" onclick="openDeviceModal()">+ Устройство</button></div>
+            <div class="filter-bar" id="devTypeChips">
+                <span class="tab-chip active" data-t="" onclick="setDevType(this)">Все</span>
+                <span class="tab-chip" data-t="POS" onclick="setDevType(this)">POS</span>
+                <span class="tab-chip" data-t="SCO" onclick="setDevType(this)">Self-Service</span>
+                <span class="tab-chip" data-t="AND" onclick="setDevType(this)">Android</span>
+                <span class="tab-chip" data-t="SRV" onclick="setDevType(this)">Серверы</span>
+                <span class="tab-chip" data-t="NET" onclick="setDevType(this)">Сеть</span>
+                <select class="form-control" id="devStoreFilter" onchange="loadDevices()"><option value="">Все магазины</option></select>
+                <select class="form-control" id="devStatusFilter" onchange="loadDevices()">
+                    <option value="">Любой статус</option><option value="online">online</option>
+                    <option value="degraded">degraded</option><option value="offline">offline</option>
+                </select>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Device ID</th><th>Тип</th><th>Магазин</th><th>Статус</th><th>IP</th>
+                    <th>CPU/RAM/Disk</th><th>Софт</th><th>Last seen</th><th></th>
+                </tr></thead><tbody id="devicesTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Applications ===== -->
+        <div class="panel" id="panel-apps">
+            <div class="panel-title">Приложения <button class="btn btn-primary btn-sm" onclick="openAppModal()">+ Приложение</button></div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Код</th><th>Название</th><th>Тип</th><th>Expected version</th><th>Канал</th>
+                    <th>Установок</th><th>Устаревших</th><th>Health API</th><th></th>
+                </tr></thead><tbody id="appsTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Versions ===== -->
+        <div class="panel" id="panel-versions">
+            <div class="panel-title">Контроль версий ПО</div>
+            <div class="filter-bar">
+                <select class="form-control" id="verAppFilter" onchange="loadVersions()"><option value="">Все приложения</option></select>
+                <span class="tab-chip" data-v="" onclick="setVerStatus(this)">Все</span>
+                <span class="tab-chip" data-v="OUTDATED" onclick="setVerStatus(this)">OUTDATED</span>
+                <span class="tab-chip" data-v="OK" onclick="setVerStatus(this)">OK</span>
+                <span class="tab-chip" data-v="FAILED" onclick="setVerStatus(this)">FAILED</span>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Устройство</th><th>Магазин</th><th>Приложение</th><th>Текущая</th>
+                    <th>Ожидаемая</th><th>Статус</th><th>Deploy</th><th>Проверено</th>
+                </tr></thead><tbody id="versionsTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Changes ===== -->
+        <div class="panel" id="panel-changes">
+            <div class="panel-title">Изменения и deployment <button class="btn btn-primary btn-sm" onclick="openChangeModal()">+ Изменение</button></div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Change ID</th><th>Приложение</th><th>Версия</th><th>Rollback</th><th>Канал</th>
+                    <th>Окно</th><th>Магазинов</th><th>Статус</th><th>Validation</th><th></th>
+                </tr></thead><tbody id="changesTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Events ===== -->
+        <div class="panel" id="panel-events">
+            <div class="panel-title">События <button class="btn btn-primary btn-sm" onclick="openEventModal()">+ Событие</button></div>
+            <div class="filter-bar">
+                <span class="tab-chip active" data-e="active" onclick="setEvStatus(this)">Активные</span>
+                <span class="tab-chip" data-e="suppressed" onclick="setEvStatus(this)">Suppressed</span>
+                <span class="tab-chip" data-e="resolved" onclick="setEvStatus(this)">Resolved</span>
+                <span class="tab-chip" data-e="" onclick="setEvStatus(this)">Все</span>
+                <select class="form-control" id="evSevFilter" onchange="loadEvents()">
+                    <option value="">Любой приоритет</option><option>P1</option><option>P2</option><option>P3</option><option>P4</option>
+                </select>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Prio</th><th>Магазин</th><th>Устройство</th><th>Сервис</th><th>Проблема</th>
+                    <th>Статус</th><th>Corr</th><th>Создано</th><th></th>
+                </tr></thead><tbody id="eventsTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Incidents ===== -->
+        <div class="panel" id="panel-incidents">
+            <div class="panel-title">Инциденты Service Desk</div>
+            <div class="filter-bar">
+                <span class="tab-chip active" data-i="active" onclick="setIncStatus(this)">Открытые</span>
+                <span class="tab-chip" data-i="closed" onclick="setIncStatus(this)">Закрытые</span>
+                <span class="tab-chip" data-i="" onclick="setIncStatus(this)">Все</span>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Incident ID</th><th>Prio</th><th>Магазин</th><th>Заголовок</th><th>Группа</th>
+                    <th>Исполнитель</th><th>Статус</th><th>SLA до</th><th></th>
+                </tr></thead><tbody id="incidentsTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== SLA ===== -->
+        <div class="panel" id="panel-sla">
+            <div class="panel-title">SLA по сервисам</div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Сервис</th><th>Цель</th><th>Факт</th><th></th><th>Статус</th><th></th>
+                </tr></thead><tbody id="slaTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <!-- ===== Audit ===== -->
+        <div class="panel" id="panel-audit">
+            <div class="panel-title">Журнал аудита действий</div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Время</th><th>Пользователь</th><th>Действие</th><th>Объект</th><th>Детали</th>
+                </tr></thead><tbody id="auditTbody"></tbody></table>
+            </div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Modals ===== -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalBox"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/tbc';
+let REFS = {device_types: [], severities: [], channels: [], support_groups: [], services: []};
+let STORES = [], APPS = [];
+let devTypeSel = '', verStatusSel = '', evStatusSel = 'active', incStatusSel = 'active';
+
+async function api(path, method = 'GET', body = null) {
+    const opts = {method, headers: {'Content-Type': 'application/json'}};
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(API + path, opts);
+    return r.json();
+}
+function toast(msg, isErr = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast open' + (isErr ? ' error' : '');
+    setTimeout(() => t.classList.remove('open'), 3500);
+}
+function esc(s) { return (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtTs(ts) { if (!ts) return '—'; return String(ts).replace('T', ' ').substring(0, 16); }
+function sevBadge(sev, color) {
+    const colors = {P1: 'var(--crit)', P2: '#ff8c42', P3: 'var(--warn)', P4: 'var(--info)'};
+    return `<span class="sev" style="background:${color || colors[sev] || 'var(--muted)'}">${esc(sev)}</span>`;
+}
+function stBadge(st) {
+    const map = {online: 'bg-ok', OK: 'bg-ok', success: 'bg-ok', closed: 'bg-ok', resolved: 'bg-ok', active: 'bg-ok',
+        degraded: 'bg-warn', OUTDATED: 'bg-warn', ack: 'bg-warn', in_progress: 'bg-warn', planned: 'bg-info',
+        offline: 'bg-crit', FAILED: 'bg-crit', FAIL: 'bg-crit', failed: 'bg-crit', open: 'bg-crit', rolled_back: 'bg-crit',
+        suppressed: 'bg-mut', UNKNOWN: 'bg-mut', maintenance: 'bg-info', new: 'bg-crit', assigned: 'bg-info',
+        diagnosing: 'bg-warn', resolving: 'bg-warn', verification: 'bg-info', inactive: 'bg-mut'};
+    return `<span class="badge-st ${map[st] || 'bg-mut'}">${esc(st)}</span>`;
+}
+function showPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.toggle('active', i.dataset.panel === name));
+    document.getElementById('panel-' + name).classList.add('active');
+    const loaders = {dashboard: loadDashboard, stores: loadStores, devices: loadDevices, apps: loadApps,
+        versions: loadVersions, changes: loadChanges, events: loadEvents, incidents: loadIncidents,
+        sla: loadSla, audit: loadAudit};
+    (loaders[name] || (() => {}))();
+}
+function openModal(html) {
+    document.getElementById('modalBox').innerHTML = '<span class="close-x" onclick="closeModal()">✕</span>' + html;
+    document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+// ===== Init =====
+async function boot() {
+    const [refs, stores, apps] = await Promise.all([api('/refs'), api('/stores'), api('/applications')]);
+    if (refs.success) REFS = refs.data;
+    if (stores.success) STORES = stores.data;
+    if (apps.success) APPS = apps.data;
+    fillSelect('devStoreFilter', STORES, 'id', s => `${s.code} ${s.name}`, 'Все магазины');
+    fillSelect('verAppFilter', APPS, 'id', a => a.name, 'Все приложения');
+    loadDashboard();
+}
+function fillSelect(id, items, valKey, labelFn, firstLabel) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = (firstLabel ? `<option value="">${firstLabel}</option>` : '') +
+        items.map(i => `<option value="${i[valKey]}">${esc(labelFn(i))}</option>`).join('');
+}
+async function initDemo() {
+    toast('Инициализация Oracle-объектов TBC_*…');
+    const r = await api('/init-demo', 'POST');
+    toast(r.success ? (r.message || 'Готово') : r.error, !r.success);
+    if (r.success) { STORES = (await api('/stores')).data || []; APPS = (await api('/applications')).data || []; boot(); }
+}
+
+// ===== Dashboard =====
+async function loadDashboard() {
+    const [st, hl, ev] = await Promise.all([api('/stats'), api('/store-health'), api('/events?status=active')]);
+    if (st.success) {
+        const d = st.data;
+        document.getElementById('statGrid').innerHTML = `
+            <div class="stat-card"><div class="stat-label">Магазины</div><div class="stat-value blue">${d.stores.total}</div>
+                <div class="stat-sub">OK ${d.stores.ok} · Degraded ${d.stores.degraded} · Critical ${d.stores.critical}</div></div>
+            <div class="stat-card green"><div class="stat-label">POS Availability</div>
+                <div class="stat-value ${d.pos.online < d.pos.total ? 'yellow' : 'green'}">${d.pos.online}/${d.pos.total}</div><div class="stat-sub">online</div></div>
+            <div class="stat-card green"><div class="stat-label">SCO Availability</div>
+                <div class="stat-value ${d.sco.online < d.sco.total ? 'yellow' : 'green'}">${d.sco.online}/${d.sco.total}</div><div class="stat-sub">online</div></div>
+            <div class="stat-card green"><div class="stat-label">Android</div>
+                <div class="stat-value ${d.android.online < d.android.total ? 'yellow' : 'green'}">${d.android.online}/${d.android.total}</div><div class="stat-sub">online</div></div>
+            <div class="stat-card red"><div class="stat-label">P1 / P2 события</div>
+                <div class="stat-value ${d.events.p1 + d.events.p2 > 0 ? 'red' : 'green'}">${d.events.p1} / ${d.events.p2}</div>
+                <div class="stat-sub">P3: ${d.events.p3} · P4: ${d.events.p4}</div></div>
+            <div class="stat-card yellow"><div class="stat-label">Инциденты</div>
+                <div class="stat-value ${d.incidents_open > 0 ? 'yellow' : 'green'}">${d.incidents_open}</div><div class="stat-sub">открыто</div></div>
+            <div class="stat-card yellow"><div class="stat-label">Устаревшее ПО</div>
+                <div class="stat-value ${d.outdated_apps > 0 ? 'yellow' : 'green'}">${d.outdated_apps}</div>
+                <div class="stat-sub">changes в работе: ${d.pending_changes}</div></div>`;
+        document.getElementById('badgeP1').textContent = d.events.p1 + d.events.p2;
+        document.getElementById('badgeP1').className = 'badge' + (d.events.p1 > 0 ? ' crit' : '');
+        document.getElementById('badgeInc').textContent = d.incidents_open;
+        document.getElementById('badgeOutdated').textContent = d.outdated_apps;
+        const gh = document.getElementById('globalHealth');
+        const state = d.stores.critical > 0 ? ['CRITICAL', 'var(--crit)'] :
+                      d.stores.degraded > 0 ? ['DEGRADED', 'var(--warn)'] : ['ALL OK', 'var(--ok)'];
+        gh.innerHTML = `<span class="dot" style="background:${state[1]}"></span><span>${state[0]}</span>`;
+    }
+    if (hl.success) {
+        document.getElementById('storeHealthGrid').innerHTML = hl.data.map(s => `
+            <div class="store-tile ${s.health}" onclick="showPanel('devices');selectStoreFilter(${s.id})">
+                <span class="st-health ${s.health}">${s.health}</span>
+                <div class="st-code">${esc(s.code)}</div>
+                <div class="st-name">${esc(s.name)}</div>
+                <div class="st-row">
+                    <span>POS ${s.pos_online}/${s.pos_total}</span><span>SCO ${s.sco_online}/${s.sco_total}</span>
+                    <span>AND ${s.and_online}/${s.and_total}</span>
+                    ${s.p1_open ? `<span style="color:var(--crit)">P1:${s.p1_open}</span>` : ''}
+                    ${s.p2_open + s.p3_open ? `<span style="color:var(--warn)">P2/P3:${s.p2_open + s.p3_open}</span>` : ''}
+                </div>
+            </div>`).join('') || '<div class="empty-note">Нет магазинов — выполните Инициализацию</div>';
+    }
+    if (ev.success) {
+        const top = ev.data.filter(e => e.severity === 'P1' || e.severity === 'P2');
+        document.querySelector('#topEventsTable tbody').innerHTML = top.map(e => `
+            <tr><td>${sevBadge(e.severity, e.severity_color)}</td>
+            <td class="mono">${esc(e.store_code || '—')}</td><td class="mono">${esc(e.device_code || '—')}</td>
+            <td>${esc(e.service_name || '')}</td><td>${esc(e.problem)}</td><td>${stBadge(e.status)}</td>
+            <td class="muted">${fmtTs(e.created_at)}</td></tr>`).join('') ||
+            '<tr><td class="empty-note">Активных P1/P2 нет — сеть работает штатно ✅</td></tr>';
+    }
+}
+function selectStoreFilter(id) { const el = document.getElementById('devStoreFilter'); el.value = id; loadDevices(); }
+
+// ===== Stores =====
+async function loadStores() {
+    const r = await api('/stores');
+    if (!r.success) return toast(r.error, true);
+    STORES = r.data;
+    const dows = ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    document.getElementById('storesTbody').innerHTML = r.data.map(s => `
+        <tr><td class="mono">${esc(s.code)}</td><td>${esc(s.name)}</td><td>${esc(s.city || '')}</td>
+        <td>${stBadge(s.status)}</td><td>${s.device_count}</td>
+        <td class="muted">${s.maint_dow ? `${dows[s.maint_dow]} ${esc(s.maint_time_from)}–${esc(s.maint_time_to)}` : '—'}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='openStoreModal(${JSON.stringify(s)})'>✎</button>
+            <button class="btn btn-danger btn-sm" onclick="delStore(${s.id})">🗑</button></td></tr>`).join('');
+}
+function openStoreModal(s) {
+    s = s || {};
+    openModal(`<h3>${s.id ? 'Магазин ' + esc(s.code) : 'Новый магазин'}</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Код (MD-CHS-001)</label><input class="form-control" id="f_code" value="${esc(s.code || '')}"></div>
+            <div class="form-group"><label>Название</label><input class="form-control" id="f_name" value="${esc(s.name || '')}"></div>
+        </div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Страна</label><input class="form-control" id="f_country" value="${esc(s.country || 'MD')}"></div>
+            <div class="form-group"><label>Город</label><input class="form-control" id="f_city" value="${esc(s.city || '')}"></div>
+            <div class="form-group"><label>Статус</label><select class="form-control" id="f_status">
+                ${['active', 'inactive', 'maintenance'].map(x => `<option ${s.status === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-group"><label>Адрес</label><input class="form-control" id="f_address" value="${esc(s.address || '')}"></div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Maintenance день (1-7)</label><input class="form-control" id="f_mdow" type="number" min="1" max="7" value="${s.maint_dow || ''}"></div>
+            <div class="form-group"><label>С</label><input class="form-control" id="f_mfrom" value="${esc(s.maint_time_from || '02:00')}"></div>
+            <div class="form-group"><label>До</label><input class="form-control" id="f_mto" value="${esc(s.maint_time_to || '04:00')}"></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveStore(${s.id || 'null'})">Сохранить</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveStore(id) {
+    const data = {code: gv('f_code'), name: gv('f_name'), country: gv('f_country'), city: gv('f_city'),
+        address: gv('f_address'), status: gv('f_status'), maint_dow: gv('f_mdow'),
+        maint_time_from: gv('f_mfrom'), maint_time_to: gv('f_mto')};
+    const r = id ? await api('/stores/' + id, 'PUT', data) : await api('/stores', 'POST', data);
+    toast(r.success ? 'Сохранено' : r.error, !r.success);
+    if (r.success) { closeModal(); loadStores(); }
+}
+async function delStore(id) {
+    if (!confirm('Удалить магазин?')) return;
+    const r = await api('/stores/' + id, 'DELETE');
+    toast(r.success ? 'Удалено' : r.error, !r.success);
+    if (r.success) loadStores();
+}
+function gv(id) { return document.getElementById(id).value.trim(); }
+
+// ===== Devices =====
+function setDevType(el) {
+    document.querySelectorAll('#devTypeChips .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); devTypeSel = el.dataset.t; loadDevices();
+}
+async function loadDevices() {
+    let q = [];
+    if (devTypeSel) q.push('device_type=' + devTypeSel);
+    const sf = gv('devStoreFilter'); if (sf) q.push('store_id=' + sf);
+    const stf = gv('devStatusFilter'); if (stf) q.push('status=' + stf);
+    const r = await api('/devices' + (q.length ? '?' + q.join('&') : ''));
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('devicesTbody').innerHTML = r.data.map(d => `
+        <tr><td class="mono" style="cursor:pointer;color:var(--accent2)" onclick="openDeviceDetail(${d.id})">${esc(d.code)}</td>
+        <td>${d.device_icon || ''} ${esc(d.device_type)}</td>
+        <td class="muted">${esc(d.store_code)}</td><td>${stBadge(d.status)}</td>
+        <td class="mono muted">${esc(d.ip_address || '')}</td>
+        <td class="muted">${d.device_type === 'AND'
+            ? `🔋${d.battery_pct != null ? d.battery_pct + '%' : '—'} · ${d.storage_free_mb != null ? Math.round(d.storage_free_mb / 1024) + 'GB free' : '—'}${d.pending_ops ? ' · ⏳' + d.pending_ops : ''}`
+            : `${d.cpu_pct != null ? d.cpu_pct + '/' + d.ram_pct + '/' + d.disk_pct + '%' : '—'}`}</td>
+        <td>${d.outdated_count > 0 ? '<span class="badge-st bg-warn">OUTDATED</span>' : (d.app_count > 0 ? '<span class="badge-st bg-ok">OK</span>' : '<span class="muted">—</span>')}</td>
+        <td class="muted">${fmtTs(d.last_seen)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="runDiag(${d.id})" title="Диагностика">🩺</button>
+            <button class="btn btn-danger btn-sm" onclick="delDevice(${d.id})">🗑</button></td></tr>`).join('') ||
+        '<tr><td colspan="9" class="empty-note">Устройств нет</td></tr>';
+}
+function openDeviceModal() {
+    openModal(`<h3>Регистрация устройства</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Device ID (MD-CHS-001-POS-01)</label><input class="form-control" id="d_code"></div>
+            <div class="form-group"><label>Магазин</label><select class="form-control" id="d_store">
+                ${STORES.map(s => `<option value="${s.id}">${esc(s.code)} ${esc(s.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Тип</label><select class="form-control" id="d_type">
+                ${REFS.device_types.map(t => `<option value="${t.code}">${esc(t.name)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Hostname</label><input class="form-control" id="d_host"></div>
+            <div class="form-group"><label>Serial</label><input class="form-control" id="d_sn"></div>
+        </div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Производитель</label><input class="form-control" id="d_manuf"></div>
+            <div class="form-group"><label>Модель</label><input class="form-control" id="d_model"></div>
+            <div class="form-group"><label>Asset ID</label><input class="form-control" id="d_asset"></div>
+        </div>
+        <div class="form-row-3">
+            <div class="form-group"><label>ОС</label><input class="form-control" id="d_os"></div>
+            <div class="form-group"><label>Версия ОС</label><input class="form-control" id="d_osv"></div>
+            <div class="form-group"><label>IP</label><input class="form-control" id="d_ip"></div>
+        </div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Владелец</label><select class="form-control" id="d_owner">
+                <option value="customer">customer</option><option value="developer">developer</option></select></div>
+            <div class="form-group"><label>Support group</label><select class="form-control" id="d_grp">
+                ${REFS.support_groups.map(g => `<option value="${g.code}">${esc(g.name)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Критичность</label><select class="form-control" id="d_crit">
+                <option>high</option><option selected>medium</option><option>low</option></select></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveDevice()">Зарегистрировать</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveDevice() {
+    const r = await api('/devices', 'POST', {code: gv('d_code'), store_id: gv('d_store'), device_type: gv('d_type'),
+        hostname: gv('d_host'), serial_number: gv('d_sn'), manufacturer: gv('d_manuf'), model: gv('d_model'),
+        asset_id: gv('d_asset'), os: gv('d_os'), os_version: gv('d_osv'), ip_address: gv('d_ip'),
+        owner_side: gv('d_owner'), support_group: gv('d_grp'), criticality: gv('d_crit')});
+    toast(r.success ? 'Устройство зарегистрировано' : r.error, !r.success);
+    if (r.success) { closeModal(); loadDevices(); }
+}
+async function delDevice(id) {
+    if (!confirm('Удалить устройство?')) return;
+    const r = await api('/devices/' + id, 'DELETE');
+    toast(r.success ? 'Удалено' : r.error, !r.success);
+    if (r.success) loadDevices();
+}
+async function openDeviceDetail(id) {
+    const r = await api('/devices/' + id);
+    if (!r.success) return toast(r.error, true);
+    const d = r.data;
+    openModal(`<h3>${d.device_icon || ''} ${esc(d.code)} ${stBadge(d.status)}</h3>
+        <table class="data-table">
+            <tr><td class="muted">Магазин</td><td>${esc(d.store_code)} ${esc(d.store_name)}</td>
+                <td class="muted">Тип</td><td>${esc(d.device_type_name)}</td></tr>
+            <tr><td class="muted">Hostname / Serial</td><td class="mono">${esc(d.hostname || '—')} / ${esc(d.serial_number || '—')}</td>
+                <td class="muted">Asset</td><td class="mono">${esc(d.asset_id || '—')}</td></tr>
+            <tr><td class="muted">Модель</td><td>${esc(d.manufacturer || '')} ${esc(d.model || '')}</td>
+                <td class="muted">ОС</td><td>${esc(d.os || '')} ${esc(d.os_version || '')}</td></tr>
+            <tr><td class="muted">IP / MAC</td><td class="mono">${esc(d.ip_address || '—')} / ${esc(d.mac_address || '—')}</td>
+                <td class="muted">Критичность</td><td>${esc(d.criticality)}</td></tr>
+            <tr><td class="muted">Ответственность</td><td>${esc(d.owner_side)} · ${esc(d.support_group_name || '')}</td>
+                <td class="muted">Last seen / sync</td><td class="muted">${fmtTs(d.last_seen)} / ${fmtTs(d.last_sync)}</td></tr>
+        </table>
+        <h3 style="margin-top:14px">Софт</h3>
+        <table class="data-table"><thead><tr><th>Приложение</th><th>Версия</th><th>Ожидаемая</th><th>Статус</th><th>Проверено</th></tr></thead>
+        <tbody>${(d.apps || []).map(a => `<tr><td>${esc(a.app_name)}</td><td class="mono">${esc(a.current_version || '—')}</td>
+            <td class="mono">${esc(a.expected_version || '—')}</td><td>${stBadge(a.status)}</td>
+            <td class="muted">${fmtTs(a.last_check)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty-note">Нет данных</td></tr>'}</tbody></table>
+        <h3 style="margin-top:14px">Последняя диагностика</h3>
+        <div class="diag-flow">${(d.health_checks || []).slice(0, 12).map(h =>
+            `<span class="diag-step ${h.status}">${esc(h.component)}${h.latency_ms ? ' ' + h.latency_ms + 'ms' : ''}</span>`).join('') || '<span class="muted">Нет проверок</span>'}</div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runDiag(${d.id}, true)">🩺 Запустить диагностику</button>
+            <button class="btn btn-secondary" onclick="closeModal()">Закрыть</button>
+        </div>`);
+}
+async function runDiag(id, reopen) {
+    toast('Диагностика запущена…');
+    const r = await api('/devices/' + id + '/diagnostics', 'POST');
+    if (!r.success) return toast(r.error, true);
+    const rep = r.data;
+    const failed = Object.entries(rep).filter(([k, v]) => v === 'FAIL' || v === 'WARN');
+    toast(failed.length ? `Диагностика: проблемы — ${failed.map(f => f[0]).join(', ')}` : 'Диагностика: все компоненты OK', failed.length > 0);
+    if (reopen) openDeviceDetail(id);
+}
+
+// ===== Applications =====
+async function loadApps() {
+    const r = await api('/applications');
+    if (!r.success) return toast(r.error, true);
+    APPS = r.data;
+    document.getElementById('appsTbody').innerHTML = r.data.map(a => `
+        <tr><td class="mono">${esc(a.code)}</td><td>${esc(a.name)}</td><td class="muted">${esc(a.app_type)}</td>
+        <td class="mono">${esc(a.expected_version || '—')} <span class="muted">${esc(a.expected_build || '')}</span></td>
+        <td>${stBadge(a.release_channel)}</td><td>${a.install_count}</td>
+        <td>${a.outdated_count > 0 ? `<span class="badge-st bg-warn">${a.outdated_count}</span>` : '0'}</td>
+        <td class="mono muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${esc(a.health_url || '—')}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='openAppModal(${JSON.stringify(a)})'>✎</button>
+            <button class="btn btn-danger btn-sm" onclick="delApp(${a.id})">🗑</button></td></tr>`).join('');
+}
+function openAppModal(a) {
+    a = a || {};
+    openModal(`<h3>${a.id ? 'Приложение ' + esc(a.code) : 'Новое приложение'}</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Код</label><input class="form-control" id="a_code" value="${esc(a.code || '')}"></div>
+            <div class="form-group"><label>Название</label><input class="form-control" id="a_name" value="${esc(a.name || '')}"></div>
+        </div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Тип</label><select class="form-control" id="a_type">
+                ${['frontoffice', 'pos', 'sco', 'android', 'store_app'].map(x => `<option ${a.app_type === x ? 'selected' : ''}>${x}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Expected version</label><input class="form-control" id="a_ver" value="${esc(a.expected_version || '')}"></div>
+            <div class="form-group"><label>Expected build</label><input class="form-control" id="a_build" value="${esc(a.expected_build || '')}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Release channel</label><select class="form-control" id="a_channel">
+                ${REFS.channels.map(c => `<option value="${c.code}" ${a.release_channel === c.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Health API URL</label><input class="form-control" id="a_url" value="${esc(a.health_url || '')}"></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveApp(${a.id || 'null'})">Сохранить</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveApp(id) {
+    const data = {code: gv('a_code'), name: gv('a_name'), app_type: gv('a_type'), expected_version: gv('a_ver'),
+        expected_build: gv('a_build'), release_channel: gv('a_channel'), health_url: gv('a_url')};
+    const r = id ? await api('/applications/' + id, 'PUT', data) : await api('/applications', 'POST', data);
+    toast(r.success ? 'Сохранено' : r.error, !r.success);
+    if (r.success) { closeModal(); loadApps(); }
+}
+async function delApp(id) {
+    if (!confirm('Удалить приложение?')) return;
+    const r = await api('/applications/' + id, 'DELETE');
+    toast(r.success ? 'Удалено' : r.error, !r.success);
+    if (r.success) loadApps();
+}
+
+// ===== Versions =====
+function setVerStatus(el) {
+    document.querySelectorAll('#panel-versions .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); verStatusSel = el.dataset.v; loadVersions();
+}
+async function loadVersions() {
+    let q = [];
+    const af = gv('verAppFilter'); if (af) q.push('app_id=' + af);
+    if (verStatusSel) q.push('status=' + verStatusSel);
+    const r = await api('/versions' + (q.length ? '?' + q.join('&') : ''));
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('versionsTbody').innerHTML = r.data.map(v => `
+        <tr><td class="mono">${esc(v.device_code)}</td><td class="muted">${esc(v.store_code)}</td>
+        <td>${esc(v.app_name)}</td><td class="mono">${esc(v.current_version || '—')}</td>
+        <td class="mono muted">${esc(v.expected_version || '—')}</td><td>${stBadge(v.status)}</td>
+        <td class="muted">${fmtTs(v.deployed_at)}</td><td class="muted">${fmtTs(v.last_check)}</td></tr>`).join('') ||
+        '<tr><td colspan="8" class="empty-note">Нет данных</td></tr>';
+}
+
+// ===== Changes =====
+async function loadChanges() {
+    const r = await api('/changes');
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('changesTbody').innerHTML = r.data.map(c => `
+        <tr><td class="mono" style="cursor:pointer;color:var(--accent2)" onclick="openChangeDetail(${c.id})">${esc(c.code)}</td>
+        <td>${esc(c.app_name)}</td><td class="mono">${esc(c.version)}</td>
+        <td class="mono muted">${esc(c.rollback_version || '—')}</td><td>${stBadge(c.release_channel)}</td>
+        <td class="muted">${fmtTs(c.window_start)}</td><td>${c.store_count}</td>
+        <td>${stBadge(c.status)}</td>
+        <td>${c.validation_result ? stBadge(c.validation_result === 'SUCCESS' ? 'OK' : 'FAIL') : '—'}</td>
+        <td>${c.status === 'planned' || c.status === 'failed' ? `<button class="btn btn-success btn-sm" onclick="deployChange(${c.id})">▶ Deploy</button>` : ''}
+            ${c.status === 'success' || c.status === 'failed' ? `<button class="btn btn-warning btn-sm" onclick="rollbackChange(${c.id})">↩</button>` : ''}</td></tr>`).join('') ||
+        '<tr><td colspan="10" class="empty-note">Изменений нет</td></tr>';
+}
+function openChangeModal() {
+    openModal(`<h3>Новое изменение (Change)</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Приложение</label><select class="form-control" id="c_app">
+                ${APPS.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Канал</label><select class="form-control" id="c_channel">
+                ${REFS.channels.map(c => `<option value="${c.code}" ${c.code === 'PILOT' ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Новая версия</label><input class="form-control" id="c_ver"></div>
+            <div class="form-group"><label>Rollback версия</label><input class="form-control" id="c_rollback"></div>
+        </div>
+        <div class="form-group"><label>Описание</label><textarea class="form-control" id="c_descr"></textarea></div>
+        <div class="form-row">
+            <div class="form-group"><label>Причина</label><input class="form-control" id="c_reason"></div>
+            <div class="form-group"><label>Owner</label><input class="form-control" id="c_owner"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Окно: начало</label><input class="form-control" id="c_wstart" type="datetime-local"></div>
+            <div class="form-group"><label>Окно: конец</label><input class="form-control" id="c_wend" type="datetime-local"></div>
+        </div>
+        <div class="form-group"><label>Магазины (Ctrl+клик — несколько)</label>
+            <select class="form-control" id="c_stores" multiple size="5">
+                ${STORES.map(s => `<option value="${s.id}">${esc(s.code)} ${esc(s.name)}</option>`).join('')}</select></div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveChange()">Создать</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveChange() {
+    const stores = Array.from(document.getElementById('c_stores').selectedOptions).map(o => o.value);
+    const r = await api('/changes', 'POST', {app_id: gv('c_app'), version: gv('c_ver'),
+        rollback_version: gv('c_rollback'), description: gv('c_descr'), reason: gv('c_reason'),
+        owner: gv('c_owner'), release_channel: gv('c_channel'), window_start: gv('c_wstart'),
+        window_end: gv('c_wend'), store_ids: stores});
+    toast(r.success ? 'Изменение создано' : r.error, !r.success);
+    if (r.success) { closeModal(); loadChanges(); }
+}
+async function deployChange(id) {
+    if (!confirm('Запустить deployment с автоматической verification?')) return;
+    toast('Deployment запущен…');
+    const r = await api('/changes/' + id + '/deploy', 'POST');
+    if (r.success) toast(`DEPLOYMENT = ${r.data.result} (${r.data.devices} устройств, сбоев: ${r.data.failed})`, r.data.result !== 'SUCCESS');
+    else toast(r.error, true);
+    loadChanges();
+}
+async function rollbackChange(id) {
+    if (!confirm('Выполнить rollback на предыдущую версию?')) return;
+    const r = await api('/changes/' + id + '/rollback', 'POST');
+    toast(r.success ? 'Rollback выполнен' : r.error, !r.success);
+    loadChanges();
+}
+async function openChangeDetail(id) {
+    const r = await api('/changes/' + id);
+    if (!r.success) return toast(r.error, true);
+    const c = r.data;
+    openModal(`<h3>${esc(c.code)} — ${esc(c.app_name)} ${esc(c.version)} ${stBadge(c.status)}</h3>
+        <table class="data-table">
+            <tr><td class="muted">Описание</td><td>${esc(c.description || '—')}</td></tr>
+            <tr><td class="muted">Причина</td><td>${esc(c.reason || '—')}</td></tr>
+            <tr><td class="muted">Rollback plan</td><td class="mono">${esc(c.rollback_version || '—')}</td></tr>
+            <tr><td class="muted">Deployment window</td><td>${fmtTs(c.window_start)} — ${fmtTs(c.window_end)}</td></tr>
+            <tr><td class="muted">Магазины</td><td>${(c.stores || []).map(s => esc(s.code)).join(', ') || '—'}</td></tr>
+            <tr><td class="muted">Validation</td><td>${c.validation_result ? stBadge(c.validation_result === 'SUCCESS' ? 'OK' : 'FAIL') : '—'}</td></tr>
+        </table>
+        <h3 style="margin-top:14px">Deployment verification (${(c.checks || []).length})</h3>
+        <table class="data-table"><thead><tr><th>Устройство</th><th>Проверка</th><th>Статус</th><th>Детали</th></tr></thead>
+        <tbody>${(c.checks || []).slice(0, 40).map(k => `<tr><td class="mono">${esc(k.device_code)}</td>
+            <td>${esc(k.check_type)}</td><td>${stBadge(k.status)}</td><td class="muted">${esc(k.details || '')}</td></tr>`).join('') ||
+            '<tr><td colspan="4" class="empty-note">Проверок ещё нет</td></tr>'}</tbody></table>
+        <div class="btn-group"><button class="btn btn-secondary" onclick="closeModal()">Закрыть</button></div>`);
+}
+
+// ===== Events =====
+function setEvStatus(el) {
+    document.querySelectorAll('#panel-events .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); evStatusSel = el.dataset.e; loadEvents();
+}
+async function loadEvents() {
+    let q = [];
+    if (evStatusSel) q.push('status=' + evStatusSel);
+    const sf = gv('evSevFilter'); if (sf) q.push('severity=' + sf);
+    const r = await api('/events' + (q.length ? '?' + q.join('&') : ''));
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('eventsTbody').innerHTML = r.data.map(e => `
+        <tr><td>${sevBadge(e.severity, e.severity_color)}</td>
+        <td class="mono muted">${esc(e.store_code || '—')}</td><td class="mono muted">${esc(e.device_code || '—')}</td>
+        <td>${esc(e.service_name || '—')}</td>
+        <td>${esc(e.problem)}${e.parent_event_id ? ' <span class="badge-st bg-mut">↳ dependent</span>' : ''}${e.child_count > 0 ? ` <span class="badge-st bg-info">root +${e.child_count}</span>` : ''}</td>
+        <td>${stBadge(e.status)}</td><td class="mono muted">${esc(e.correlation_id || '')}</td>
+        <td class="muted">${fmtTs(e.created_at)}</td>
+        <td style="white-space:nowrap">
+            ${e.status === 'open' ? `<button class="btn btn-secondary btn-sm" onclick="evAction(${e.id}, 'ack')" title="Подтвердить">✓</button>` : ''}
+            ${e.status === 'open' || e.status === 'ack' ? `<button class="btn btn-success btn-sm" onclick="evAction(${e.id}, 'resolve')" title="Разрешить">✔✔</button>
+            <button class="btn btn-warning btn-sm" onclick="evToIncident(${e.id})" title="Создать инцидент">🎫</button>` : ''}
+        </td></tr>`).join('') || '<tr><td colspan="9" class="empty-note">Событий нет</td></tr>';
+}
+async function evAction(id, action) {
+    const r = await api(`/events/${id}/${action}`, 'POST');
+    toast(r.success ? 'Готово' : r.error, !r.success);
+    loadEvents(); loadDashboard();
+}
+async function evToIncident(id) {
+    const r = await api(`/events/${id}/incident`, 'POST', {});
+    toast(r.success ? 'Инцидент создан и назначен ответственной группе' : r.error, !r.success);
+    loadEvents();
+}
+function openEventModal() {
+    openModal(`<h3>Новое событие (ручная регистрация)</h3>
+        <div class="form-row-3">
+            <div class="form-group"><label>Приоритет</label><select class="form-control" id="e_sev">
+                ${REFS.severities.map(s => `<option value="${s.code}" ${s.code === 'P3' ? 'selected' : ''}>${s.code} — ${esc(s.name)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Магазин</label><select class="form-control" id="e_store">
+                <option value="">—</option>${STORES.map(s => `<option value="${s.id}">${esc(s.code)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Сервис</label><select class="form-control" id="e_svc">
+                <option value="">—</option>${REFS.services.map(s => `<option value="${s.code}">${esc(s.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-group"><label>Проблема</label><textarea class="form-control" id="e_problem"></textarea></div>
+        <div class="form-group"><label>Correlation ID</label><input class="form-control" id="e_corr"></div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveEvent()">Создать</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveEvent() {
+    const r = await api('/events', 'POST', {severity: gv('e_sev'), store_id: gv('e_store'),
+        service_code: gv('e_svc'), problem: gv('e_problem'), correlation_id: gv('e_corr'), source: 'manual'});
+    toast(r.success ? 'Событие создано' : r.error, !r.success);
+    if (r.success) { closeModal(); loadEvents(); loadDashboard(); }
+}
+
+// ===== Incidents =====
+function setIncStatus(el) {
+    document.querySelectorAll('#panel-incidents .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); incStatusSel = el.dataset.i; loadIncidents();
+}
+async function loadIncidents() {
+    const r = await api('/incidents' + (incStatusSel ? '?status=' + incStatusSel : ''));
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('incidentsTbody').innerHTML = r.data.map(i => `
+        <tr><td class="mono" style="cursor:pointer;color:var(--accent2)" onclick='openIncidentModal(${JSON.stringify(i)})'>${esc(i.code)}</td>
+        <td>${sevBadge(i.severity, i.severity_color)}</td><td class="mono muted">${esc(i.store_code || '—')}</td>
+        <td>${esc(i.title)}</td><td class="muted">${esc(i.assigned_group_name || '—')}</td>
+        <td class="muted">${esc(i.assignee || '—')}</td><td>${stBadge(i.status)}</td>
+        <td class="muted">${fmtTs(i.sla_deadline)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick='openIncidentModal(${JSON.stringify(i)})'>✎</button></td></tr>`).join('') ||
+        '<tr><td colspan="9" class="empty-note">Инцидентов нет</td></tr>';
+}
+function openIncidentModal(i) {
+    const statuses = ['new', 'assigned', 'diagnosing', 'resolving', 'verification', 'closed'];
+    openModal(`<h3>${esc(i.code)} ${sevBadge(i.severity, i.severity_color)} — жизненный цикл инцидента</h3>
+        <div class="form-group"><label>Заголовок</label><input class="form-control" id="i_title" value="${esc(i.title)}"></div>
+        <div class="form-group"><label>Описание</label><textarea class="form-control" id="i_descr">${esc(i.description || '')}</textarea></div>
+        <div class="form-row-3">
+            <div class="form-group"><label>Статус</label><select class="form-control" id="i_status">
+                ${statuses.map(s => `<option ${i.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Группа</label><select class="form-control" id="i_grp">
+                ${REFS.support_groups.map(g => `<option value="${g.code}" ${i.assigned_group === g.code ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Исполнитель</label><input class="form-control" id="i_assignee" value="${esc(i.assignee || '')}"></div>
+        </div>
+        <h3 style="margin-top:10px;font-size:13px">Root Cause Analysis (обязателен для P1/P2)</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Root cause</label><textarea class="form-control" id="i_root">${esc(i.root_cause || '')}</textarea></div>
+            <div class="form-group"><label>Technical cause</label><textarea class="form-control" id="i_tech">${esc(i.tech_cause || '')}</textarea></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Business impact</label><textarea class="form-control" id="i_impact">${esc(i.business_impact || '')}</textarea></div>
+            <div class="form-group"><label>Resolution</label><textarea class="form-control" id="i_resolution">${esc(i.resolution || '')}</textarea></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Corrective action</label><textarea class="form-control" id="i_corrective">${esc(i.corrective_action || '')}</textarea></div>
+            <div class="form-group"><label>Preventive action</label><textarea class="form-control" id="i_preventive">${esc(i.preventive_action || '')}</textarea></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveIncident(${i.id})">Сохранить</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+    document.getElementById('modalBox').classList.add('wide');
+}
+async function saveIncident(id) {
+    const r = await api('/incidents/' + id, 'PUT', {title: gv('i_title'), description: gv('i_descr'),
+        status: gv('i_status'), assigned_group: gv('i_grp'), assignee: gv('i_assignee'),
+        root_cause: gv('i_root'), tech_cause: gv('i_tech'), business_impact: gv('i_impact'),
+        resolution: gv('i_resolution'), corrective_action: gv('i_corrective'), preventive_action: gv('i_preventive')});
+    toast(r.success ? 'Сохранено' : r.error, !r.success);
+    if (r.success) { closeModal(); loadIncidents(); loadDashboard(); }
+}
+
+// ===== SLA =====
+async function loadSla() {
+    const r = await api('/sla');
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('slaTbody').innerHTML = r.data.map(s => {
+        const ok = s.current_pct != null && s.current_pct >= s.target_pct;
+        const width = s.current_pct != null ? Math.max(4, (s.current_pct - 99) * 100) : 0;
+        return `<tr><td>${esc(s.service_name)}</td>
+        <td class="mono">≥ ${s.target_pct}%</td>
+        <td class="mono" style="color:${ok ? 'var(--ok)' : 'var(--crit)'}">${s.current_pct != null ? s.current_pct + '%' : '—'}</td>
+        <td><div class="sla-bar"><div style="width:${Math.min(100, width)}%;background:${ok ? 'var(--ok)' : 'var(--crit)'}"></div></div></td>
+        <td>${ok ? '<span class="badge-st bg-ok">SLA met</span>' : '<span class="badge-st bg-crit">SLA breach</span>'}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="editSla(${s.id}, ${s.target_pct}, ${s.current_pct})">✎</button></td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty-note">Нет данных</td></tr>';
+}
+function editSla(id, target, current) {
+    openModal(`<h3>SLA</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Целевой %</label><input class="form-control" id="s_target" type="number" step="0.01" value="${target}"></div>
+            <div class="form-group"><label>Фактический %</label><input class="form-control" id="s_current" type="number" step="0.01" value="${current || ''}"></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveSla(${id})">Сохранить</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveSla(id) {
+    const r = await api('/sla/' + id, 'PUT', {target_pct: gv('s_target'), current_pct: gv('s_current')});
+    toast(r.success ? 'Сохранено' : r.error, !r.success);
+    if (r.success) { closeModal(); loadSla(); }
+}
+
+// ===== Audit =====
+async function loadAudit() {
+    const r = await api('/audit');
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('auditTbody').innerHTML = r.data.map(a => `
+        <tr><td class="muted">${fmtTs(a.created_at)}</td><td>${esc(a.username || '')}</td>
+        <td><span class="badge-st bg-info">${esc(a.action)}</span></td>
+        <td class="muted">${esc(a.entity_type)} #${a.entity_id || ''}</td><td>${esc(a.details || '')}</td></tr>`).join('') ||
+        '<tr><td colspan="5" class="empty-note">Журнал пуст</td></tr>';
+}
+
+boot();
+setInterval(() => { if (document.getElementById('panel-dashboard').classList.contains('active')) loadDashboard(); }, 30000);
+</script>
+</body>
+</html>
