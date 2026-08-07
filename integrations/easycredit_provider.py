@@ -53,6 +53,20 @@ class EasyCreditProvider(CreditProvider):
     def _basic_password(self) -> str:
         return self._setting("basic_password", Config.easycredit_basic_password)
 
+    # RO: identificatorii pe care ii atribuie EasyCredit contului de partener.
+    #     Nu au valori implicite rezonabile — se introduc in back-office.
+    def _shop_id(self) -> str:
+        return self._setting("shop_id", "")
+
+    def _product_id(self) -> str:
+        return self._setting("product_id", "")
+
+    def _first_installment_days(self) -> int:
+        try:
+            return int(self._setting("first_installment_days", "") or 31)
+        except (TypeError, ValueError):
+            return 31
+
     def _api(self):
         """RO: gateway-ul nou (api.ecredit.md) e REST; cel vechi ramine SOAP.
         EN: the new gateway is REST/JSON; the legacy one stays SOAP."""
