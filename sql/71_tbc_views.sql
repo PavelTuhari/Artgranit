@@ -22,8 +22,8 @@ JOIN TBC_REF_DEVICE_TYPES dt ON dt.CODE = d.DEVICE_TYPE
 LEFT JOIN TBC_REF_SUPPORT_GROUPS sg ON sg.CODE = d.SUPPORT_GROUP;
 
 -- Business Health магазина (разделы 20-21 ТЗ):
--- CRITICAL: открытое P1 или все POS offline; DEGRADED: открытые P2/P3
--- или часть устройств offline/degraded; иначе OK.
+-- CRITICAL: открытое P1 или все POS offline. DEGRADED: открытые P2/P3
+-- или часть устройств offline/degraded. Иначе OK.
 CREATE OR REPLACE VIEW V_TBC_STORE_HEALTH AS
 SELECT
   s.ID, s.CODE, s.NAME, s.COUNTRY, s.CITY, s.STATUS AS STORE_STATUS,
