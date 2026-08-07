@@ -5,7 +5,8 @@
       "name": "artgranit",
       "runtimeExecutable": "venv/bin/python",
       "runtimeArgs": ["app.py"],
-      "port": 3003
+      "port": 3003,
+      "autoPort": true
     }
   ]
 }
