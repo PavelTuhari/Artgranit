@@ -729,16 +729,16 @@ class TBControlController:
                     "INSERT INTO TBC_CHANGES (CODE, APP_ID, VERSION, ROLLBACK_VERSION, DESCRIPTION, REASON, "
                     "OWNER, RELEASE_CHANNEL, WINDOW_START, WINDOW_END, STATUS, CREATED_BY) "
                     "VALUES ('CHG-' || TO_CHAR(SYSDATE, 'YYYY') || '-' || LPAD(TBC_CHANGE_NUM_SEQ.NEXTVAL, 4, '0'), "
-                    ":app_id, :version, :rollback, :descr, :reason, :owner, :channel, "
+                    ":app_id, :version, :rb_ver, :descr, :reason, :owner, :channel, "
                     "TO_TIMESTAMP(:wstart, 'YYYY-MM-DD\"T\"HH24:MI'), TO_TIMESTAMP(:wend, 'YYYY-MM-DD\"T\"HH24:MI'), "
-                    "'planned', :by)",
+                    "'planned', :usr)",
                     {"app_id": int(data.get("app_id", 0)), "version": data.get("version", ""),
-                     "rollback": data.get("rollback_version"), "descr": data.get("description"),
+                     "rb_ver": data.get("rollback_version"), "descr": data.get("description"),
                      "reason": data.get("reason"), "owner": data.get("owner"),
                      "channel": data.get("release_channel", "PILOT"),
                      "wstart": (data.get("window_start") or "")[:16] or None,
                      "wend": (data.get("window_end") or "")[:16] or None,
-                     "by": TBControlController._username()})
+                     "usr": TBControlController._username()})
                 db.connection.commit()
                 r = db.execute_query("SELECT MAX(ID) AS ID FROM TBC_CHANGES")
                 row = TBControlController._first_row(r)
