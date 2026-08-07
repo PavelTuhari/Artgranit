@@ -105,7 +105,15 @@ def wp_config(path: Optional[str] = None) -> Dict[str, str]:
     for p in paths:
         if not p or not os.path.exists(p):
             continue
-        txt = Path(p).read_text(encoding="utf-8", errors="replace")
+        try:
+            txt = Path(p).read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            # RO: wp-config.php e citibil doar de www-data/root — nu e o
+            #     eroare de program, ci lipsa de drepturi. Spunem CE sa faca.
+            print(f"   {p}: {e.strerror}. Запустите через sudo -E "
+                  f"или задайте WP_DB_NAME/WP_DB_USER/WP_DB_PASSWORD.",
+                  file=sys.stderr)
+            continue
         out = {}
         for key, name in (("DB_NAME", "name"), ("DB_USER", "user"),
                           ("DB_PASSWORD", "password"), ("DB_HOST", "host")):
