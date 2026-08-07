@@ -242,10 +242,16 @@ def submit_request(
     }
     if phone:
         payload["Mobile"] = phone
-    # RO: produsul se ia din CATALOGUL creditorului dupa numarul de rate si
-    #     suma. Fara el gateway-ul raspunde «Invalid Product or Product Not
-    #     Found» — exact ce se intimpla la termene pe care EasyCredit nu le are
-    #     (de ex. 4 luni, cind catalogul incepe de la 6).
+    # RO: catalogul creditorului (ECM_ShopProducts) doar AJUTA: daca gaseste un
+    #     produs pentru numarul de rate si suma ceruta, il trimitem explicit.
+    #     Daca NU gaseste, cererea pleaca oricum — catalogul returnat fara
+    #     ShopGroupID s-ar putea sa nu fie al magazinului nostru, si ar fi gresit
+    #     sa refuzam clientul pe baza unor date care poate nu ne apartin.
+    #     Verdictul il da creditorul; noi doar explicam mai clar refuzul lui.
+    # EN: the catalogue only ASSISTS — we never reject the customer on its
+    #     basis (it may not be our shop's catalogue); we let the lender decide
+    #     and use the catalogue to phrase its refusal in human terms.
+    hint = ""
     if product_id:
         payload["ProductId"] = str(product_id)
     else:
@@ -255,19 +261,15 @@ def submit_request(
         if prod:
             payload["ProductId"] = prod["id"]
         elif cat:
-            # RO: cererea nu se potriveste niciunui produs — spunem CE se poate,
-            #     in loc sa lasam creditorul sa raspunda cu un cod tehnic.
             fit_n = [p for p in cat if p["months_min"] <= n <= p["months_max"]]
             if not fit_n:
-                msg = (f"EasyCredit nu oferă {n} rate. Termene disponibile: "
-                       f"{terms_hint(cat)} luni.")
+                hint = (f"EasyCredit nu oferă {n} rate. Termene disponibile: "
+                        f"{terms_hint(cat)} luni.")
             else:
                 lo = min(p["amount_min"] for p in fit_n)
                 hi = max(p["amount_max"] for p in fit_n)
-                msg = (f"Pentru {n} rate EasyCredit acceptă sume între "
-                       f"{lo:.0f} și {hi:.0f} lei (cerut: {sum_:.0f}).")
-            return {"success": False, "data": {"urn": "", "message": msg},
-                    "error": msg}
+                hint = (f"Pentru {n} rate EasyCredit acceptă sume între "
+                        f"{lo:.0f} și {hi:.0f} lei (cerut: {sum_:.0f}).")
     d, err = _post(base_url, "eShopRequest_V5", payload,
                    basic_user, basic_password, verify_ssl)
     if err:
