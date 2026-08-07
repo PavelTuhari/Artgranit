@@ -133,6 +133,17 @@ def inject_gettext():
     return dict(_=_, get_locale=get_locale, languages=Config.LANGUAGES, supported_languages=Config.SUPPORTED_LANGUAGES)
 
 
+@app.context_processor
+def inject_app_version():
+    """RO: versiunea din TMS_WEBAPPVERS — se afiseaza in subsolul site-ului.
+    EN: the release version shown in the site footer."""
+    from models.biro26_version import current
+    try:
+        return {"app_version": current()}
+    except Exception:                                  # noqa: BLE001
+        return {"app_version": ""}
+
+
 def _version_widget_snippet() -> str:
     return """
 <!-- UNA_VERSION_WIDGET -->
