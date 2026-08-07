@@ -77,6 +77,9 @@ def _post(base_url: str, op: str, payload: dict[str, Any],
     return j, None
 
 
+« PRODUCTS_PLACEHOLDER »
+
+
 def _preapproved_message(status: str, approved: bool) -> str:
     """RO: statusul tehnic al gateway-ului -> text pentru client."""
     s = (status or "").lower()
