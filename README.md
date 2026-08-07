@@ -244,7 +244,13 @@ Artgranit/
         libpangoft2-1.0-0 libharfbuzz-subset0
     ```
     Сам пакет `weasyprint` ставится через `requirements.txt` (см. ниже).
-    На nufarul (92.5.3.187) установлено 2026-08-05 (weasyprint 69.0).
+    ⚠ На Ubuntu **Minimal** (новые OCI-образы) Pango НЕ предустановлен —
+    без apt-пакетов выше `import weasyprint` падает с
+    `OSError: cannot load library 'libpango-1.0-0'`, и API отчётов
+    (`/api/biro26/shop/report/<kind>/<cod>`) отвечает 400. Добавьте и
+    `fonts-dejavu-core` — иначе PDF рендерится без шрифтов.
+    Установлено: nufarul (92.5.3.187, 2026-08-05) и officeplus 92.5.130.1
+    (2026-08-08); в `scripts/deploy_officeplus_new.py` пакеты входят в шаг `base`.
     Полный sidecar отчётов (jsReport + pdfme, node >= 22.18, порт
     127.0.0.1:5488, служба `jsreport.service`) нужен только там, где для
     формуляра включён движок `jsreport` (сейчас — контур officeplus).
