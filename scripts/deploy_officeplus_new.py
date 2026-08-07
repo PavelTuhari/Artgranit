@@ -175,8 +175,38 @@ echo "Shop:  $(curl -s -o /dev/null -w %{{http_code}} -H 'Host: {DOMAIN}' http:/
    sudo apt-get install -y certbot python3-certbot-nginx && sudo certbot --nginx -d {DOMAIN} -d www.{DOMAIN}
 Пароль БД WordPress записан только в wp-config.php на новом сервере.""")
 
+def step_harden():
+    """WP свежий + анти-бэкдор: запреты в nginx, fail2ban, wp-config, чистка."""
+    new("""set -e
+W="sudo -u www-data wp --path=/var/www/officeplus"
+$W core update && $W core update-db && $W core verify-checksums
+sudo rm -rf /var/www/officeplus/wp-content/plugins/wp-file-manager*
+$W plugin delete hello akismet 2>/dev/null || true
+$W config set DISALLOW_FILE_EDIT true --raw
+$W config set FORCE_SSL_ADMIN true --raw
+$W config shuffle-salts
+$W option update users_can_register 0
+sudo find /var/www/officeplus -type d -exec chmod 755 {} +
+sudo find /var/www/officeplus -type f -exec chmod 644 {} +
+sudo chmod 640 /var/www/officeplus/wp-config.php
+sudo tee /etc/nginx/snippets/wp-harden.conf >/dev/null <<'CONF'
+location ~* /wp-content/uploads/.*\\.ph(p|tml|ar)?$ { deny all; }
+location = /xmlrpc.php { deny all; }
+location ~ /\\.(?!well-known) { deny all; }
+location ~* /(wp-config\\.php|readme\\.html|license\\.txt)$ { deny all; }
+location = /wp-login.php { limit_req zone=wplogin burst=5 nodelay;
+    include snippets/fastcgi-php.conf; fastcgi_pass unix:/run/php/php8.3-fpm.sock; }
+CONF
+grep -q zone=wplogin /etc/nginx/nginx.conf || sudo sed -i '/http {/a\\\tlimit_req_zone $binary_remote_addr zone=wplogin:10m rate=15r/m;' /etc/nginx/nginx.conf
+sudo grep -q wp-harden /etc/nginx/sites-available/officeplus || sudo sed -i 's|    location / { try_files|    include snippets/wp-harden.conf;\\n    location / { try_files|' /etc/nginx/sites-available/officeplus
+sudo nginx -t && sudo systemctl reload nginx
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q fail2ban unattended-upgrades >/dev/null
+printf '[Definition]\\nfailregex = ^<HOST> .* "POST /wp-login\\\\.php\\n' | sudo tee /etc/fail2ban/filter.d/wp-login.conf >/dev/null
+printf '[DEFAULT]\\nbantime = 1h\\nfindtime = 10m\\n[sshd]\\nenabled = true\\n[wp-login]\\nenabled = true\\nfilter = wp-login\\nlogpath = /var/log/nginx/access.log\\nmaxretry = 8\\nport = http,https\\n' | sudo tee /etc/fail2ban/jail.local >/dev/null
+sudo systemctl enable --now fail2ban && sudo systemctl restart fail2ban""")
+
 STEPS = {"base": step_base, "wp": step_wp, "flask": step_flask,
-         "nginx": step_nginx, "check": step_check}
+         "nginx": step_nginx, "harden": step_harden, "check": step_check}
 
 if __name__ == "__main__":
     names = sys.argv[1:] or list(STEPS)
