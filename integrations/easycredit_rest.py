@@ -212,20 +212,30 @@ def submit_request(
     fio: str = "",
     phone: str = "",
     idn: str = "",
+    birth_date: str = "",
     product_name: str = "",
     program_name: str = "",
     product_id: int | str = 0,
+    shop_id: int | str = 0,
+    first_installment_days: int = 31,
     goods_price: int | float = 0,
     months: int = 0,
     verify_ssl: bool = True,
     basic_user: str = "",
     basic_password: str = "",
 ) -> dict[str, Any]:
-    """eShopRequest_V5 — cererea de credit pentru persoane fizice.
+    """Request_v4 — cererea de credit pentru conturile de PARTENER.
 
-    RO: gateway-ul cere doar suma si numarul de rate; `Mobile`/`ProductId`
-        sint optionale. Numarul de rate se ia din `months`, iar daca lipseste,
-        din coada lui `program_name` ("0-0-12" -> 12).
+    RO: familia `eShopRequest_*` NU e pentru parteneri (raspunde mereu
+        «Invalid Product or Product Not Found») — pentru contul nostru
+        serviciul corect este `Request_v4`.
+        Cimpuri obligatorii: Login, Password, ProductID, UIN, CreditAmount,
+        NumberOfInstallments, FirstInstallmentDate. In plus, creditorul cere
+        `ShopID` — fara el: «Process Failed! (Missing Shop!)».
+        `ProductID` si `ShopID` le atribuie EasyCredit fiecarui magazin si se
+        introduc in back-office (nu se pot deduce din API).
+    EN: partner accounts must use Request_v4, not the eShopRequest_* family;
+        ProductID and ShopID are lender-assigned and configured in back-office.
     """
     n = int(months or 0)
     if n <= 0:
@@ -234,55 +244,68 @@ def submit_request(
     if n <= 0:
         return {"success": False, "data": {"urn": "", "message": "numar de rate lipsa"},
                 "error": "NumberOfInstallments is required"}
-    sum_ = float(amount or goods_price or 0)
+    if not str(idn or "").strip():
+        return {"success": False, "data": {"urn": "", "message": "IDNP lipsa"},
+                "error": "UIN is required"}
+    try:
+        pid = int(product_id or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    if not pid:
+        msg = ("Nu este configurat ProductID de la EasyCredit "
+               "(back-office → Provideri API).")
+        return {"success": False, "data": {"urn": "", "message": msg}, "error": msg}
+
+    # RO: prima rata — peste N zile de la depunere (produsul EasyCredit are
+    #     propriul «FirstPaymentAfter»; implicit 31, reglabil in back-office).
+    from datetime import date, timedelta
+    first = (date.today() + timedelta(days=max(1, int(first_installment_days or 31)))
+             ).strftime("%Y-%m-%d")
+
     payload: dict[str, Any] = {
         "Login": user, "Password": passwd,
-        "CreditAmount": sum_,
+        "ProductID": pid,
+        "UIN": str(idn).strip(),
+        "CreditAmount": float(amount or goods_price or 0),
         "NumberOfInstallments": n,
+        "FirstInstallmentDate": first,
     }
+    try:
+        if int(shop_id or 0):
+            payload["ShopID"] = int(shop_id)
+    except (TypeError, ValueError):
+        pass
+    # RO: numele se despart din FIO doar daca sint doua bucati — altfel lasam
+    #     creditorul sa completeze din IDNP, ca sa nu trimitem date gresite.
+    parts = [x for x in str(fio or "").split() if x]
+    if len(parts) >= 2:
+        payload["ApFirstName"], payload["ApLastName"] = parts[0], parts[1]
+    if len(parts) >= 3:
+        payload["ApFatherName"] = parts[2]
+    if birth_date:
+        payload["ApDateOfBirth"] = birth_date
     if phone:
-        payload["Mobile"] = phone
-    # RO: catalogul creditorului (ECM_ShopProducts) doar AJUTA: daca gaseste un
-    #     produs pentru numarul de rate si suma ceruta, il trimitem explicit.
-    #     Daca NU gaseste, cererea pleaca oricum — catalogul returnat fara
-    #     ShopGroupID s-ar putea sa nu fie al magazinului nostru, si ar fi gresit
-    #     sa refuzam clientul pe baza unor date care poate nu ne apartin.
-    #     Verdictul il da creditorul; noi doar explicam mai clar refuzul lui.
-    # EN: the catalogue only ASSISTS — we never reject the customer on its
-    #     basis (it may not be our shop's catalogue); we let the lender decide
-    #     and use the catalogue to phrase its refusal in human terms.
-    hint = ""
-    if product_id:
-        payload["ProductId"] = str(product_id)
-    else:
-        cat = products(base_url, user, passwd, verify_ssl,
-                       basic_user, basic_password)
-        prod = pick_product(cat, n, sum_) if cat else None
-        if prod:
-            payload["ProductId"] = prod["id"]
-        elif cat:
-            fit_n = [p for p in cat if p["months_min"] <= n <= p["months_max"]]
-            if not fit_n:
-                hint = (f"EasyCredit nu oferă {n} rate. Termene disponibile: "
-                        f"{terms_hint(cat)} luni.")
-            else:
-                lo = min(p["amount_min"] for p in fit_n)
-                hi = max(p["amount_max"] for p in fit_n)
-                hint = (f"Pentru {n} rate EasyCredit acceptă sume între "
-                        f"{lo:.0f} și {hi:.0f} lei (cerut: {sum_:.0f}).")
-    d, err = _post(base_url, "eShopRequest_V5", payload,
+        payload["CaMobile"] = phone
+    if product_name:
+        payload["GoodsName"] = product_name[:200]
+    if goods_price:
+        payload["GoodsPrice"] = float(goods_price)
+
+    d, err = _post(base_url, "Request_v4", payload,
                    basic_user, basic_password, verify_ssl)
     if err:
         return {"success": False, "data": {"urn": "", "message": err}, "error": err}
     urn = str(d.get("URN") or "")
     status = str(d.get("Status") or "")
     if not urn:
-        # RO: creditorul a refuzat pe motiv de PRODUS, iar catalogul ne spune
-        #     de ce — inlocuim codul tehnic cu explicatia pentru client.
-        if hint and "invalid product" in status.lower():
-            return {"success": False, "client_error": True,
-                    "data": {"urn": "", "status": status, "message": hint},
-                    "error": hint}
+        low = status.lower()
+        # RO: lipsa magazinului e o eroare de CONFIGURARE, nu una a clientului —
+        #     o spunem explicit operatorului in loc de codul brut al creditorului.
+        if "shop" in low:
+            msg = ("EasyCredit: magazinul (ShopID) nu este configurat corect — "
+                   "verificați ShopID/ProductID în back-office → Provideri API.")
+            return {"success": False, "data": {"urn": "", "status": status,
+                                               "message": msg}, "error": msg}
         return {"success": False, "data": {"urn": "", "status": status, "message": status},
                 "error": status or "gateway-ul nu a returnat URN"}
     return {"success": True, "data": {"urn": urn, "status": status,
