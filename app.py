@@ -20,6 +20,7 @@ from controllers.nufarul_controller import NufarulController
 from controllers.documentation_controller import DocumentationController
 from controllers.shell_controller import ShellController
 from controllers.digi_marketing_controller import DigiMarketingController
+from controllers.tbcontrol_controller import TBControlController
 from controllers.colass_controller import ColassController
 import threading
 import time
