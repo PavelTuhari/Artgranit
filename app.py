@@ -2166,6 +2166,209 @@ def api_digi_roles():
     return jsonify(DigiMarketingController.get_roles())
 
 
+# ========== TBControl (Front Office / POS / SCO / Android Operations) Routes ==========
+
+@app.route('/UNA.md/orasldev/tbcontrol')
+@app.route('/UNA.md/orasldev/tbcontrol/')
+def tbcontrol():
+    """Модуль TBControl — платформа контроля софта и оборудования магазинов"""
+    if not AuthController.is_authenticated():
+        return redirect(url_for('login'))
+    return render_template('tbcontrol.html')
+
+
+# --- Dashboard & refs ---
+@app.route('/api/tbc/stats', methods=['GET'])
+def api_tbc_stats():
+    return jsonify(TBControlController.get_dashboard_stats())
+
+
+@app.route('/api/tbc/store-health', methods=['GET'])
+def api_tbc_store_health():
+    return jsonify(TBControlController.get_store_health())
+
+
+@app.route('/api/tbc/refs', methods=['GET'])
+def api_tbc_refs():
+    return jsonify(TBControlController.get_refs())
+
+
+@app.route('/api/tbc/init-demo', methods=['POST'])
+def api_tbc_init_demo():
+    return jsonify(TBControlController.init_demo_data())
+
+
+@app.route('/api/tbc/audit', methods=['GET'])
+def api_tbc_audit():
+    limit = request.args.get('limit', 100, type=int)
+    entity_type = request.args.get('entity_type', None)
+    return jsonify(TBControlController.get_audit_log(limit, entity_type))
+
+
+# --- Stores ---
+@app.route('/api/tbc/stores', methods=['GET'])
+def api_tbc_stores():
+    return jsonify(TBControlController.get_stores())
+
+
+@app.route('/api/tbc/stores', methods=['POST'])
+def api_tbc_create_store():
+    return jsonify(TBControlController.create_store(request.get_json() or {}))
+
+
+@app.route('/api/tbc/stores/<store_id>', methods=['PUT'])
+def api_tbc_update_store(store_id):
+    return jsonify(TBControlController.update_store(store_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/stores/<store_id>', methods=['DELETE'])
+def api_tbc_delete_store(store_id):
+    return jsonify(TBControlController.delete_store(store_id))
+
+
+# --- Devices ---
+@app.route('/api/tbc/devices', methods=['GET'])
+def api_tbc_devices():
+    return jsonify(TBControlController.get_devices(
+        request.args.get('store_id'), request.args.get('device_type'), request.args.get('status')))
+
+
+@app.route('/api/tbc/devices/<device_id>', methods=['GET'])
+def api_tbc_device(device_id):
+    return jsonify(TBControlController.get_device(device_id))
+
+
+@app.route('/api/tbc/devices', methods=['POST'])
+def api_tbc_register_device():
+    return jsonify(TBControlController.register_device(request.get_json() or {}))
+
+
+@app.route('/api/tbc/devices/<device_id>', methods=['PUT'])
+def api_tbc_update_device(device_id):
+    return jsonify(TBControlController.update_device(device_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/devices/<device_id>', methods=['DELETE'])
+def api_tbc_delete_device(device_id):
+    return jsonify(TBControlController.delete_device(device_id))
+
+
+@app.route('/api/tbc/devices/<device_id>/diagnostics', methods=['POST'])
+def api_tbc_device_diagnostics(device_id):
+    return jsonify(TBControlController.run_diagnostics(device_id))
+
+
+# --- Agent Heartbeat (Zabbix Agent 2 / Android Monitoring Agent) ---
+@app.route('/api/tbc/agent/heartbeat', methods=['POST'])
+def api_tbc_agent_heartbeat():
+    return jsonify(TBControlController.agent_heartbeat(request.get_json() or {}))
+
+
+# --- Applications & versions ---
+@app.route('/api/tbc/applications', methods=['GET'])
+def api_tbc_applications():
+    return jsonify(TBControlController.get_applications())
+
+
+@app.route('/api/tbc/applications', methods=['POST'])
+def api_tbc_create_application():
+    return jsonify(TBControlController.create_application(request.get_json() or {}))
+
+
+@app.route('/api/tbc/applications/<app_id>', methods=['PUT'])
+def api_tbc_update_application(app_id):
+    return jsonify(TBControlController.update_application(app_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/applications/<app_id>', methods=['DELETE'])
+def api_tbc_delete_application(app_id):
+    return jsonify(TBControlController.delete_application(app_id))
+
+
+@app.route('/api/tbc/versions', methods=['GET'])
+def api_tbc_versions():
+    return jsonify(TBControlController.get_versions(
+        request.args.get('app_id'), request.args.get('status')))
+
+
+# --- Events ---
+@app.route('/api/tbc/events', methods=['GET'])
+def api_tbc_events():
+    return jsonify(TBControlController.get_events(
+        request.args.get('status'), request.args.get('severity'),
+        request.args.get('store_id'), request.args.get('limit', 200, type=int)))
+
+
+@app.route('/api/tbc/events', methods=['POST'])
+def api_tbc_create_event():
+    return jsonify(TBControlController.create_event(request.get_json() or {}))
+
+
+@app.route('/api/tbc/events/<event_id>/ack', methods=['POST'])
+def api_tbc_ack_event(event_id):
+    return jsonify(TBControlController.set_event_status(event_id, 'ack'))
+
+
+@app.route('/api/tbc/events/<event_id>/resolve', methods=['POST'])
+def api_tbc_resolve_event(event_id):
+    return jsonify(TBControlController.set_event_status(event_id, 'resolved'))
+
+
+@app.route('/api/tbc/events/<event_id>/incident', methods=['POST'])
+def api_tbc_event_to_incident(event_id):
+    return jsonify(TBControlController.create_incident_from_event(event_id, request.get_json() or {}))
+
+
+# --- Incidents ---
+@app.route('/api/tbc/incidents', methods=['GET'])
+def api_tbc_incidents():
+    return jsonify(TBControlController.get_incidents(
+        request.args.get('status'), request.args.get('severity'),
+        request.args.get('limit', 200, type=int)))
+
+
+@app.route('/api/tbc/incidents/<incident_id>', methods=['PUT'])
+def api_tbc_update_incident(incident_id):
+    return jsonify(TBControlController.update_incident(incident_id, request.get_json() or {}))
+
+
+# --- Changes / deployment ---
+@app.route('/api/tbc/changes', methods=['GET'])
+def api_tbc_changes():
+    return jsonify(TBControlController.get_changes(request.args.get('status')))
+
+
+@app.route('/api/tbc/changes/<change_id>', methods=['GET'])
+def api_tbc_change(change_id):
+    return jsonify(TBControlController.get_change(change_id))
+
+
+@app.route('/api/tbc/changes', methods=['POST'])
+def api_tbc_create_change():
+    return jsonify(TBControlController.create_change(request.get_json() or {}))
+
+
+@app.route('/api/tbc/changes/<change_id>/deploy', methods=['POST'])
+def api_tbc_deploy_change(change_id):
+    return jsonify(TBControlController.deploy_change(change_id))
+
+
+@app.route('/api/tbc/changes/<change_id>/rollback', methods=['POST'])
+def api_tbc_rollback_change(change_id):
+    return jsonify(TBControlController.rollback_change(change_id))
+
+
+# --- SLA ---
+@app.route('/api/tbc/sla', methods=['GET'])
+def api_tbc_sla():
+    return jsonify(TBControlController.get_sla())
+
+
+@app.route('/api/tbc/sla/<sla_id>', methods=['PUT'])
+def api_tbc_update_sla(sla_id):
+    return jsonify(TBControlController.update_sla(sla_id, request.get_json() or {}))
+
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
