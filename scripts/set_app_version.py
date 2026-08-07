@@ -44,7 +44,22 @@ HASH_SKIP = ("venv", ".venv", "__pycache__", ".git", "backups",
 # ── версия ──
 
 def today_version() -> str:
-    return date.today().strftime("%Y.%m.%d")
+    """RO: data de AZI la ora Moldovei — nu a masinii pe care rulam.
+
+    Serverul e in UTC, laptopul in EEST: pornit seara, acelasi script ar fi
+    scris «08» in Oracle si «07» in MySQL, adica o desincronizare inventata
+    din nimic. Fusul se fixeaza explicit, ca rezultatul sa nu depinda de locul
+    rularii.
+    EN: today's date in Moldova time, not in the runner's timezone — the
+    server runs UTC and the laptop EEST, which would otherwise produce two
+    different "today"s and a fake mismatch between the databases.
+    """
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Chisinau")).strftime("%Y.%m.%d")
+    except Exception:                                  # noqa: BLE001
+        return date.today().strftime("%Y.%m.%d")
 
 
 def source_hash() -> str:
