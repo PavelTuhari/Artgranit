@@ -155,7 +155,7 @@ VALUES ('INC-2026-10452', 1, 3, 15, 'P1', 'Магазин 003: сеть недо
 INSERT INTO TBC_INCIDENTS (CODE, EVENT_ID, STORE_ID, DEVICE_ID, SEVERITY, TITLE, DESCRIPTION, ASSIGNED_GROUP, ASSIGNEE, STATUS, SLA_DEADLINE)
 VALUES ('INC-2026-10453', 5, 1, 3, 'P3', 'POS-03: таймаут платёжного терминала', 'Payment timeout, сеть OK. Диагностика: терминал недоступен.', 'customer_it', 'p.rusu', 'assigned', SYSTIMESTAMP + INTERVAL '8' HOUR);
 INSERT INTO TBC_INCIDENTS (CODE, STORE_ID, DEVICE_ID, SEVERITY, TITLE, DESCRIPTION, ASSIGNED_GROUP, STATUS, ROOT_CAUSE, TECH_CAUSE, BUSINESS_IMPACT, RESOLUTION, CORRECTIVE_ACTION, PREVENTIVE_ACTION, OPENED_AT, CLOSED_AT)
-VALUES ('INC-2026-10401', 2, NULL, 'P2', 'Магазин 002: остановка синхронизации', 'Sync delay > 30 минут', 'developer', 'closed', 'Переполнение очереди synchronization после релиза 7.4.11', 'Утечка соединений в sync-модуле', 'Задержка обновления остатков 40 мин, продажи не блокированы', 'Патч 7.4.12, перезапуск sync-службы', 'Hotfix в 7.4.12', 'Автотест на leak в CI; мониторинг queue size', SYSTIMESTAMP - 3, SYSTIMESTAMP - 2);
+VALUES ('INC-2026-10401', 2, NULL, 'P2', 'Магазин 002: остановка синхронизации', 'Sync delay > 30 минут', 'developer', 'closed', 'Переполнение очереди synchronization после релиза 7.4.11', 'Утечка соединений в sync-модуле', 'Задержка обновления остатков 40 мин, продажи не блокированы', 'Патч 7.4.12, перезапуск sync-службы', 'Hotfix в 7.4.12', 'Автотест на leak в CI, мониторинг queue size', SYSTIMESTAMP - 3, SYSTIMESTAMP - 2);
 
 -- ===== Изменения / deployment =====
 
