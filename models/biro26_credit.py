@@ -1033,6 +1033,10 @@ class Biro26Credit:
                   "goods_price": int(round(s["credit_price"])),
                   "product_name": product_name,
                   "program_name": f"0-0-{s['months']}",
+                  # RO: Request_v4 (contul de partener EasyCredit) transmite si
+                  #     datele solicitantului — exact cele cerute in formular.
+                  "months": s["months"],
+                  "birth_date": (d.get("birth_date") or "").strip(),
                   "order_id": f"OP-{req_id}", "user_pin": idnp,
                   "currency": "MDL"}
         t0 = _t.time()
