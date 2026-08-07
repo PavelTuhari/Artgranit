@@ -277,6 +277,12 @@ def submit_request(
     urn = str(d.get("URN") or "")
     status = str(d.get("Status") or "")
     if not urn:
+        # RO: creditorul a refuzat pe motiv de PRODUS, iar catalogul ne spune
+        #     de ce — inlocuim codul tehnic cu explicatia pentru client.
+        if hint and "invalid product" in status.lower():
+            return {"success": False, "client_error": True,
+                    "data": {"urn": "", "status": status, "message": hint},
+                    "error": hint}
         return {"success": False, "data": {"urn": "", "status": status, "message": status},
                 "error": status or "gateway-ul nu a returnat URN"}
     return {"success": True, "data": {"urn": urn, "status": status,
