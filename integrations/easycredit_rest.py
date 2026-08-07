@@ -22,7 +22,7 @@ straturile de deasupra (provider, models/biro26_credit.py) sa nu se schimbe.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import requests
 
@@ -77,7 +77,70 @@ def _post(base_url: str, op: str, payload: dict[str, Any],
     return j, None
 
 
-« PRODUCTS_PLACEHOLDER »
+# RO: CATALOGUL creditorului (ECM_ShopProducts). EasyCredit nu accepta un
+#     numar arbitrar de rate: fiecare produs are propriul interval de luni si
+#     de sume. Daca cererea nu se potriveste NICIUNUI produs, gateway-ul
+#     raspunde «Invalid Product or Product Not Found» — de aceea produsul se
+#     alege AICI, dupa catalogul viu, si nu se codifica in sursa (mediul TEST
+#     si cel de PRODUCTIE au produse diferite).
+# EN: the lender's catalogue — each product has its own installment/amount
+#     range; pick the matching ProductId from the live catalogue instead of
+#     hardcoding it, otherwise the gateway rejects the request.
+_PRODUCTS_TTL = 600.0
+_products_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+
+
+def products(base_url: str, user: str, passwd: str, verify_ssl: bool = True,
+             basic_user: str = "", basic_password: str = "",
+             use_cache: bool = True) -> list[dict[str, Any]]:
+    """ECM_ShopProducts — produsele disponibile magazinului nostru."""
+    import time as _t
+    key = f"{base_url}|{user}"
+    hit = _products_cache.get(key)
+    if use_cache and hit and _t.time() - hit[0] < _PRODUCTS_TTL:
+        return hit[1]
+    d, err = _post(base_url, "ECM_ShopProducts", {"Login": user, "Password": passwd},
+                   basic_user, basic_password, verify_ssl)
+    if err or not isinstance(d, dict):
+        return hit[1] if hit else []
+    try:
+        raw = d["Info"]["ProductInfo"]["Product"]
+    except (KeyError, TypeError):
+        return hit[1] if hit else []
+    if isinstance(raw, dict):                      # un singur produs -> nu e lista
+        raw = [raw]
+    out = []
+    for p in raw:
+        try:
+            out.append({
+                "id": str(p.get("ProductID") or ""),
+                "name": str(p.get("ProductName") or ""),
+                "months_min": int(float(p.get("MinInstallments") or 0)),
+                "months_max": int(float(p.get("MaxInstallments") or 0)),
+                "amount_min": float(p.get("MinAmount") or 0),
+                "amount_max": float(p.get("MaxAmount") or 0),
+                "group": str(p.get("ProductGroup") or "")})
+        except (TypeError, ValueError):
+            continue
+    if out:
+        _products_cache[key] = (_t.time(), out)
+    return out
+
+
+def pick_product(items: list[dict[str, Any]], months: int,
+                 amount: float) -> Optional[dict[str, Any]]:
+    """RO: produsul care acopera si numarul de rate, si suma ceruta."""
+    fit = [p for p in items
+           if p["months_min"] <= months <= p["months_max"]
+           and p["amount_min"] <= amount <= p["amount_max"]]
+    # RO: la egalitate alegem intervalul cel mai STRIMT — cel mai potrivit
+    return min(fit, key=lambda p: p["months_max"] - p["months_min"]) if fit else None
+
+
+def terms_hint(items: list[dict[str, Any]]) -> str:
+    """RO: termenele pe care creditorul chiar le ofera — pentru mesajul de eroare."""
+    rng = sorted({(p["months_min"], p["months_max"]) for p in items})
+    return ", ".join(f"{a}" if a == b else f"{a}-{b}" for a, b in rng)
 
 
 def _preapproved_message(status: str, approved: bool) -> str:
