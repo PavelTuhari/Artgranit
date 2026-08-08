@@ -1283,6 +1283,89 @@ class TBControlController:
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def env_report(data):
+        """Приём климат/UPS-телеметрии от агентов (или эмулятора).
+        {samples: [{store_code|node_code, metric, value}, ...]}"""
+        samples = data.get("samples") or []
+        if not samples:
+            return {"success": False, "error": "samples пуст"}
+        try:
+            with DatabaseModel() as db:
+                ok = 0
+                for smp in samples[:500]:
+                    store_id = node_id = None
+                    if smp.get("store_code"):
+                        r = db.execute_query("SELECT ID FROM TBC_STORES WHERE CODE = :c",
+                                             {"c": smp["store_code"]})
+                        row = TBControlController._first_row(r)
+                        store_id = row["id"] if row else None
+                    if smp.get("node_code"):
+                        r = db.execute_query("SELECT ID FROM TBC_NODES WHERE CODE = :c",
+                                             {"c": smp["node_code"]})
+                        row = TBControlController._first_row(r)
+                        node_id = row["id"] if row else None
+                    if not store_id and not node_id:
+                        continue
+                    db.execute_query(
+                        "INSERT INTO TBC_ENV_SAMPLES (STORE_ID, NODE_ID, METRIC, NUM_VALUE) "
+                        "VALUES (:sid, :nid, :metric, :val)",
+                        {"sid": store_id, "nid": node_id,
+                         "metric": smp.get("metric", ""), "val": smp.get("value", 0)})
+                    ok += 1
+                db.connection.commit()
+                return {"success": True, "data": {"accepted": ok}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ========== Настройки модуля ==========
+
+    @staticmethod
+    def get_settings():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT PARAM_CODE, PARAM_VALUE FROM TBC_SETTINGS")
+                rows = TBControlController._rows_to_dicts(r)
+                out = {row["param_code"]: row["param_value"] for row in rows}
+                # Токен наружу не отдаём целиком
+                if out.get("zabbix_token"):
+                    out["zabbix_token"] = out["zabbix_token"][:4] + "***"
+                return {"success": True, "data": out}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_settings(data):
+        allowed = ('emulator_interval', 'zabbix_url', 'zabbix_token')
+        try:
+            with DatabaseModel() as db:
+                for key in allowed:
+                    if key in data and data[key] is not None:
+                        if key == 'zabbix_token' and data[key].endswith('***'):
+                            continue  # маскированное значение не перезаписываем
+                        db.execute_query(
+                            "MERGE INTO TBC_SETTINGS s USING (SELECT :c AS C FROM DUAL) src "
+                            "ON (s.PARAM_CODE = src.C) "
+                            "WHEN MATCHED THEN UPDATE SET s.PARAM_VALUE = :v, s.UPDATED_AT = SYSTIMESTAMP "
+                            "WHEN NOT MATCHED THEN INSERT (PARAM_CODE, PARAM_VALUE) VALUES (:c2, :v2)",
+                            {"c": key, "v": str(data[key]), "c2": key, "v2": str(data[key])})
+                db.connection.commit()
+                TBControlController._add_audit("update", "settings", None, "Настройки модуля обновлены")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_setting_raw(key):
+        """Внутреннее чтение настройки без маскирования (для рантайма)."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT PARAM_VALUE FROM TBC_SETTINGS WHERE PARAM_CODE = :c", {"c": key})
+                row = TBControlController._first_row(r)
+                return row["param_value"] if row else None
+        except Exception:
+            return None
+
+    @staticmethod
     def report_ops(days=14):
         """Отчёт «Динамика операций»: события по дням, очереди на кассах,
         действия персонала (вкл. ненужные перезагрузки), обращения в
