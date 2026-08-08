@@ -594,7 +594,7 @@ async function loadDashboard() {
         document.getElementById('storeHealthGrid').innerHTML = hl.data.map(s => `
             <div class="store-tile ${s.health}" onclick="showPanel('devices');selectStoreFilter(${s.id})">
                 <span class="st-health ${s.health}">${s.health}</span>
-                <div class="st-code">${esc(s.code)}</div>
+                <div class="st-code">${esc(s.code)}${s.brand ? ' · <b style="color:var(--accent2)">' + esc(s.brand) + '</b>' : ''}${s.store_format ? ' <span>' + esc(s.store_format) + '</span>' : ''}</div>
                 <div class="st-name">${esc(s.name)}</div>
                 <div class="st-row">
                     <span>POS ${s.pos_online}/${s.pos_total}</span><span>SCO ${s.sco_online}/${s.sco_total}</span>
