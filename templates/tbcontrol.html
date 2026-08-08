@@ -1074,6 +1074,213 @@ async function saveSla(id) {
     if (r.success) { closeModal(); loadSla(); }
 }
 
+// ===== Monitoring Center =====
+let monTypeSel = '', monDeviceId = null, monPeriod = 'today';
+function setMonType(el) {
+    document.querySelectorAll('#panel-monitor .filter-bar .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); monTypeSel = el.dataset.mt; loadMonitor();
+}
+async function loadMonitor() {
+    let q = [];
+    const sf = gv('monStoreFilter'); if (sf) q.push('store_id=' + sf);
+    if (monTypeSel) q.push('device_type=' + monTypeSel);
+    const r = await api('/monitor/overview' + (q.length ? '?' + q.join('&') : ''));
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('monitorTbody').innerHTML = r.data.map(d => `
+        <tr><td class="mono" style="cursor:pointer;color:var(--accent2)" onclick="openMonDetail(${d.id}, '${esc(d.code)}')">${esc(d.code)}</td>
+        <td>${stBadge(d.status)}</td>
+        <td style="border-left:1px solid var(--border)">${pct(d.cpu_pct)}</td><td>${pct(d.ram_pct)}</td><td>${pct(d.disk_pct)}</td>
+        <td style="border-left:1px solid var(--border)" class="muted">${d.cpu_avg_today != null ? d.cpu_avg_today + ' / ' + d.cpu_max_today + '%' : '—'}</td>
+        <td class="muted">${d.lat_avg_today != null ? d.lat_avg_today + ' мс' : '—'}</td>
+        <td class="muted">${d.tx_today != null ? d.tx_today + ' / ' + (d.err_today || 0) : '—'}</td>
+        <td style="border-left:1px solid var(--border)" class="muted">${d.cpu_avg_week != null ? d.cpu_avg_week + ' / ' + d.cpu_max_week + '%' : '—'}</td>
+        <td class="muted">${d.lat_avg_week != null ? d.lat_avg_week + ' мс' : '—'}</td>
+        <td class="muted">${d.tx_week != null ? d.tx_week + ' / ' + (d.err_week || 0) : '—'}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="openMonDetail(${d.id}, '${esc(d.code)}')">📈</button></td></tr>`).join('') ||
+        '<tr><td colspan="12" class="empty-note">Нет касс</td></tr>';
+}
+function pct(v) {
+    if (v == null) return '<span class="muted">—</span>';
+    const c = v >= 90 ? 'var(--crit)' : v >= 75 ? 'var(--warn)' : 'var(--ok)';
+    return `<span style="color:${c};font-weight:600">${v}%</span>`;
+}
+function openMonDetail(id, code) {
+    monDeviceId = id;
+    document.getElementById('monDetailCard').style.display = '';
+    document.getElementById('monDetailTitle').textContent = '📈 ' + code;
+    loadMonSeries();
+    document.getElementById('monDetailCard').scrollIntoView({behavior: 'smooth'});
+}
+function setMonPeriod(el) {
+    document.querySelectorAll('#monPeriodChips .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); monPeriod = el.dataset.p;
+    const custom = monPeriod === 'custom';
+    document.getElementById('monFrom').style.display = custom ? '' : 'none';
+    document.getElementById('monTo').style.display = custom ? '' : 'none';
+    if (!custom) loadMonSeries();
+}
+async function loadMonSeries() {
+    if (!monDeviceId) return;
+    let q = 'bucket=hour';
+    const today = new Date().toISOString().slice(0, 10);
+    if (monPeriod === 'today') q += '&from=' + today;
+    else if (monPeriod === 'custom') {
+        const f = gv('monFrom'), t = gv('monTo');
+        if (!f) return;
+        q += '&from=' + f + (t ? '&to=' + t : '');
+        const days = t ? (new Date(t) - new Date(f)) / 864e5 : 7;
+        if (days > 3) q = q.replace('bucket=hour', 'bucket=day');
+    } else q = 'bucket=hour';   // week: 7 дней по часам
+    const [hw, app] = await Promise.all([
+        api(`/monitor/series/${monDeviceId}?scope=hw&` + q),
+        api(`/monitor/series/${monDeviceId}?scope=app&` + q)]);
+    renderCharts('monChartsHw', hw.success ? hw.data : {}, {cpu: 'CPU %', ram: 'RAM %', disk: 'Disk %', battery: 'Battery %'});
+    renderCharts('monChartsApp', app.success ? app.data : {}, {app_latency: 'Latency, мс', tx_count: 'Чеки/час', app_errors: 'Ошибки FO'});
+}
+function renderCharts(containerId, series, labels) {
+    const el = document.getElementById(containerId);
+    const keys = Object.keys(labels).filter(k => series[k] && series[k].length);
+    if (!keys.length) { el.innerHTML = '<div class="empty-note">Нет данных за период</div>'; return; }
+    el.innerHTML = keys.map(k => sparkline(labels[k], series[k])).join('');
+}
+function sparkline(label, points) {
+    const W = 460, H = 64, PAD = 4;
+    const vals = points.map(p => p.v || 0);
+    const max = Math.max(...vals, 1), min = Math.min(...vals, 0);
+    const x = i => PAD + i * (W - 2 * PAD) / Math.max(1, points.length - 1);
+    const y = v => H - PAD - (v - min) * (H - 2 * PAD) / Math.max(1, max - min);
+    const path = vals.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
+    const last = vals[vals.length - 1];
+    const first = points[0], lastP = points[points.length - 1];
+    return `<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
+            <span>${label}</span><span>min ${min} · max ${max} · now <b style="color:var(--accent2)">${last}</b></span></div>
+        <svg width="100%" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="background:var(--bg);border:1px solid var(--border);border-radius:4px">
+            <path d="${path} L${x(points.length - 1).toFixed(1)},${H - PAD} L${PAD},${H - PAD} Z" fill="rgba(4,159,217,.12)" stroke="none"/>
+            <path d="${path}" fill="none" stroke="var(--accent2)" stroke-width="1.6"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)">
+            <span>${esc(first.t)}</span><span>${esc(lastP.t)}</span></div>
+    </div>`;
+}
+
+// ===== Processing Center =====
+let flowFilterSel = '';
+async function loadProcessing() {
+    const [st, nodes, flows] = await Promise.all([api('/proc/stats'), api('/nodes'),
+        api('/flows' + (flowFilterSel ? '?status=' + flowFilterSel : ''))]);
+    if (st.success) {
+        const d = st.data;
+        document.getElementById('procStatGrid').innerHTML = `
+            <div class="stat-card"><div class="stat-label">Потоки</div><div class="stat-value blue">${d.flows_total}</div>
+                <div class="stat-sub">OK: ${d.flows_ok}</div></div>
+            <div class="stat-card yellow"><div class="stat-label">Lagging / Stalled</div>
+                <div class="stat-value ${d.flows_lagging + d.flows_stalled > 0 ? 'yellow' : 'green'}">${d.flows_lagging} / ${d.flows_stalled}</div>
+                <div class="stat-sub">FAIL: ${d.flows_fail}</div></div>
+            <div class="stat-card red"><div class="stat-label">Накоплено строк</div>
+                <div class="stat-value ${d.pending_total > 0 ? 'red' : 'green'}">${(d.pending_total || 0).toLocaleString()}</div>
+                <div class="stat-sub">max lag: ${d.max_lag_min} мин</div></div>
+            <div class="stat-card"><div class="stat-label">Узлы</div>
+                <div class="stat-value ${d.nodes_offline > 0 ? 'yellow' : 'green'}">${d.nodes_online}/${d.nodes_total}</div>
+                <div class="stat-sub">online · БД FAIL: ${d.nodes_db_fail}</div></div>
+            <div class="stat-card yellow"><div class="stat-label">Сбои батчей 24ч</div>
+                <div class="stat-value ${d.batch_fails_24h > 0 ? 'yellow' : 'green'}">${d.batch_fails_24h}</div></div>
+            <div class="stat-card"><div class="stat-label">AI-досье</div>
+                <div class="stat-value blue">${d.dossiers_total}</div><div class="stat-sub">новых: ${d.dossiers_new}</div></div>`;
+        const probl = d.flows_lagging + d.flows_stalled + d.flows_fail;
+        const b = document.getElementById('badgeFlows');
+        b.textContent = probl; b.className = 'badge' + (d.flows_fail + d.flows_stalled > 0 ? ' crit' : '');
+    }
+    if (nodes.success) {
+        const engineIcon = {oracle: '🔴', sqlite: '📦', mssql: '🟦', mysql: '🐬', postgres: '🐘'};
+        document.getElementById('nodesTbody').innerHTML = nodes.data.map(n => `
+            <tr><td class="mono">${esc(n.code)}</td>
+            <td>${n.node_type === 'central' ? '🏢 центральный' : n.node_type === 'backoffice' ? '🗄️ бэк-офис' : '🏬 магазин'}</td>
+            <td class="muted">${esc(n.store_code || '—')}</td><td>${stBadge(n.status)}</td>
+            <td class="muted">${n.cpu_pct != null ? n.cpu_pct + '/' + n.ram_pct + '/' + n.disk_pct + '%' : '—'}</td>
+            <td>${esc(n.app_name || '')} <span class="muted">${esc(n.app_version || '')}</span> ${stBadge(n.app_status)}</td>
+            <td>${engineIcon[n.db_engine] || ''} ${esc(n.db_engine || '')} <span class="muted">${esc(n.db_version || '')}</span> ${stBadge(n.db_status)}</td>
+            <td class="muted">${n.db_size_mb != null ? Math.round(n.db_size_mb / 1024 * 10) / 10 + ' GB' : '—'} / ${n.db_connections != null ? n.db_connections : '—'}</td>
+            <td>${n.flow_problems > 0 ? `<span class="badge-st bg-crit">${n.flow_problems}/${n.flow_count}</span>` : `<span class="badge-st bg-ok">${n.flow_count}</span>`}</td>
+            <td class="muted">${fmtTs(n.last_seen)}</td></tr>`).join('') ||
+            '<tr><td colspan="10" class="empty-note">Узлов нет</td></tr>';
+    }
+    if (flows.success) {
+        document.getElementById('flowsTbody').innerHTML = flows.data.map(f => `
+            <tr><td class="mono" style="cursor:pointer;color:var(--accent2)" onclick="openFlowLog(${f.id}, '${esc(f.code)}')">${esc(f.code)}</td>
+            <td class="mono muted">${esc(f.src_code)} → ${esc(f.dst_node_code)}</td>
+            <td class="muted">${esc(f.flow_type)}</td><td>${stBadge(f.status)}</td>
+            <td style="color:${f.lag_min > 60 ? 'var(--crit)' : f.lag_min > 30 ? 'var(--warn)' : 'var(--muted)'}">${f.lag_min}</td>
+            <td>${f.pending_rows > 0 ? `<b style="color:var(--warn)">${f.pending_rows.toLocaleString()}</b>` : '0'}</td>
+            <td class="muted">${fmtTs(f.last_ok_at)}</td>
+            <td class="muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(f.last_error || '')}">${esc(f.last_error || '')}</td>
+            <td style="white-space:nowrap">
+                ${f.status !== 'OK' ? `<button class="btn btn-success btn-sm" onclick="retryFlow(${f.id})" title="Повторить передачу">↻</button>
+                <button class="btn btn-warning btn-sm" onclick="genDossier('flow', ${f.id})" title="AI-досье">🤖</button>` : ''}
+            </td></tr>`).join('') || '<tr><td colspan="9" class="empty-note">Потоков нет</td></tr>';
+    }
+}
+function setFlowFilter(el) {
+    document.querySelectorAll('#panel-processing .card-header .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); flowFilterSel = el.dataset.f; loadProcessing();
+}
+async function retryFlow(id) {
+    if (!confirm('Повторить передачу накопленных данных?')) return;
+    const r = await api(`/flows/${id}/retry`, 'POST');
+    toast(r.success ? `Передано строк: ${r.data.rows}` : r.error, !r.success);
+    loadProcessing();
+}
+async function openFlowLog(id, code) {
+    const r = await api(`/flows/${id}/log`);
+    if (!r.success) return toast(r.error, true);
+    openModal(`<h3>Журнал батчей — ${esc(code)}</h3>
+        <table class="data-table"><thead><tr><th>Батч</th><th>Отправлено</th><th>Принято</th><th>Статус</th><th>Ошибка</th><th>Когда</th></tr></thead>
+        <tbody>${r.data.map(l => `<tr><td class="mono">${esc(l.batch_code || '')}</td>
+            <td>${l.rows_sent}</td><td>${l.rows_accepted}</td><td>${stBadge(l.status)}</td>
+            <td class="muted">${esc(l.error_msg || '')}</td><td class="muted">${fmtTs(l.started_at)}</td></tr>`).join('') ||
+            '<tr><td colspan="6" class="empty-note">Журнал пуст</td></tr>'}</tbody></table>
+        <div class="btn-group"><button class="btn btn-secondary" onclick="closeModal()">Закрыть</button></div>`);
+}
+
+// ===== AI Dossiers =====
+async function loadDossiers() {
+    const r = await api('/ai/dossiers');
+    if (!r.success) return toast(r.error, true);
+    document.getElementById('dossiersTbody').innerHTML = r.data.map(d => `
+        <tr><td class="mono" style="cursor:pointer;color:var(--accent2)" onclick="openDossier('${esc(d.code)}')">${esc(d.code)}</td>
+        <td>${d.severity ? sevBadge(d.severity) : '—'}</td>
+        <td class="muted">${esc(d.source_type)} #${d.ref_id}</td>
+        <td>${esc(d.title)}</td><td>${stBadge(d.status)}</td>
+        <td class="muted">${d.reads_count || 0}</td><td class="muted">${fmtTs(d.created_at)}</td>
+        <td><button class="btn btn-secondary btn-sm" onclick="openDossier('${esc(d.code)}')">📄 MD</button>
+            ${d.status !== 'resolved' ? `<button class="btn btn-success btn-sm" onclick="setDossierStatus(${d.id}, 'resolved')" title="Отметить решённым">✔</button>` : ''}</td></tr>`).join('') ||
+        '<tr><td colspan="8" class="empty-note">Досье ещё не генерировались — используйте кнопку 🤖 у события, инцидента или потока</td></tr>';
+}
+async function openDossier(code) {
+    const resp = await fetch(`${API}/ai/dossier/${code}.md`);
+    if (!resp.ok) return toast('Ошибка чтения досье', true);
+    const md = await resp.text();
+    openModal(`<h3>🤖 ${esc(code)}</h3>
+        <div class="muted" style="font-size:11px;margin-bottom:8px">Внешний AI-провайдер получает этот документ по URL
+        <span class="mono">/api/tbc/ai/dossier/${esc(code)}.md?token=&lt;ACCESS_TOKEN&gt;</span></div>
+        <pre style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:12px;max-height:55vh;overflow:auto;font-size:11.5px;white-space:pre-wrap">${esc(md)}</pre>
+        <div class="btn-group"><button class="btn btn-secondary" onclick="closeModal()">Закрыть</button></div>`);
+    document.getElementById('modalBox').classList.add('wide');
+    loadDossiers();
+}
+async function setDossierStatus(id, status) {
+    const r = await api(`/ai/dossiers/${id}`, 'PUT', {status});
+    toast(r.success ? 'Обновлено' : r.error, !r.success);
+    loadDossiers();
+}
+async function genDossier(sourceType, refId) {
+    toast('Генерация AI-досье…');
+    const r = await api('/ai/dossiers/generate', 'POST', {source_type: sourceType, ref_id: refId});
+    if (!r.success) return toast(r.error, true);
+    toast(`Досье ${r.data.code} создано`);
+    openDossier(r.data.code);
+}
+
 // ===== Audit =====
 async function loadAudit() {
     const r = await api('/audit');
