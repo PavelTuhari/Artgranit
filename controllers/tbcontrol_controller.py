@@ -1725,6 +1725,8 @@ class TBControlController:
                     ('72_tbc_demo_data.sql', 'Demo data'),
                     ('73_tbc_processing.sql', 'Processing DDL'),
                     ('74_tbc_processing_demo.sql', 'Processing demo'),
+                    ('75_tbc_ops.sql', 'Ops DDL'),
+                    ('76_tbc_ops_demo.sql', 'Ops demo'),
                 ]
                 for filename, desc in files:
                     filepath = os.path.join(sql_dir, filename)
