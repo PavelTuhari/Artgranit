@@ -1562,3 +1562,35 @@ class Biro26Controller:
                     c["email"], c.get("name") or "", res["data"]["cod"], nr,
                     total, clean)
         return res
+
+    @staticmethod
+    def b2b_order() -> Dict[str, Any]:
+        """RO: comanda B2B (angajati/integrari cu X-API-Key sau clienti
+        autentificati) — plaseaza comanda si intoarce direct MOSTRA contului:
+        numarul, totalul si linkurile semnate spre PDF si JSON.
+        EN: B2B order — place it and return the invoice sample links."""
+        res = Biro26Controller.shop_invoice()
+        if not res.get("success"):
+            return res
+        from models.biro26_notify import Biro26Notify
+        cod = res["data"]["cod"]
+        sig = Biro26Notify.pdf_sig("invoice", cod)
+        res["data"]["invoice_pdf"] = \
+            f"/api/biro26/shop/report/invoice/{cod}?sig={sig}"
+        res["data"]["invoice_html"] = \
+            f"/api/biro26/shop/report-html/invoice/{cod}?sig={sig}"
+        res["data"]["doc_json"] = f"/api/biro26/doc/{cod}"
+        return res
+
+    @staticmethod
+    def shop_my_invoices() -> Dict[str, Any]:
+        """RO: cabinetul clientului — LISTA propriilor conturi de plata
+        (nr, data, total) pentru sectiunea «Comenzile mele».
+        EN: the client's own web invoices for the cabinet."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        c = session.get("biro26_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        return Biro26Report.docs_list(str(c["univers_cod"]),
+                                      request.args.get("limit", 50, type=int))
