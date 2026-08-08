@@ -162,6 +162,8 @@ def main() -> None:
         "72_tbc_demo_data.sql",
         "73_tbc_processing.sql",
         "74_tbc_processing_demo.sql",
+        "75_tbc_ops.sql",
+        "76_tbc_ops_demo.sql",
     ]
     if not args.drop:
         order = [f for f in order if f != "00_drop.sql"]
