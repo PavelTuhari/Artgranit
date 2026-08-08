@@ -1005,7 +1005,8 @@ async function loadIncidents() {
         <td>${esc(i.title)}</td><td class="muted">${esc(i.assigned_group_name || '—')}</td>
         <td class="muted">${esc(i.assignee || '—')}</td><td>${stBadge(i.status)}</td>
         <td class="muted">${fmtTs(i.sla_deadline)}</td>
-        <td><button class="btn btn-secondary btn-sm" onclick='openIncidentModal(${JSON.stringify(i)})'>✎</button></td></tr>`).join('') ||
+        <td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick='openIncidentModal(${JSON.stringify(i)})'>✎</button>
+            <button class="btn btn-secondary btn-sm" onclick="genDossier('incident', ${i.id})" title="AI-досье">🤖</button></td></tr>`).join('') ||
         '<tr><td colspan="9" class="empty-note">Инцидентов нет</td></tr>';
 }
 function openIncidentModal(i) {
