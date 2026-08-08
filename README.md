@@ -107,8 +107,9 @@
     *   **Monitoring Center**: телеметрия каждой кассы двумя контурами — HW (касса как компьютер: CPU/RAM/Disk) и APP (Front Office: latency/чеки/ошибки) — сейчас / за день / за 7 дней / за произвольный период (append-only `TBC_METRIC_SAMPLES`, SVG-графики без внешних библиотек).
     *   **Processing Center**: контроль цепочки POS (SQLite) → промежуточные серверы магазина (1..N) → центральный сервер → бэк-офис. Потоки `TBC_FLOWS` (OK/LAGGING/STALLED/FAIL, lag, pending), журнал батчей `TBC_FLOW_LOG`, узлы `TBC_NODES` c мониторингом HW + приложения + БД (oracle/sqlite/mssql/mysql/postgres).
     *   **AI-досье сбоев** (`TBC_AI_DOSSIERS`): исчерпывающий MD-документ по событию/инциденту/потоку (паспорт, метрики, health, версии, потоки, журналы, инструкция для AI); выдаётся внешним AI-провайдерам по `GET /api/tbc/ai/dossier/<code>.md?token=…` (per-документ ACCESS_TOKEN, секреты не включаются); автогенерация при P1/P2-инцидентах.
-    *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql`, `73_tbc_processing.sql`, `74_tbc_processing_demo.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
-    *   Документация: `docs/TBControl/TBCONTROL_MODULE.md`, ТЗ — `docs/TBControl/TECHNICAL-OPS.md` (разделы 72–75), презентация — `docs/TBControl/PRESENTATION_GOOGLE_LM.md`.
+    *   **Операционный контур сети франшизы** (Bonus / Super Bonus / Local / Local Expres / Foxi, 11 магазинов): отчёт «Динамика» — события по дням, **очереди на кассах** (`queue_len`), **действия персонала** с фиксацией ненужных перезагрузок касс, **обращения** в техподдержку/банки/MEV/электросети/ISP с временем первой реакции, **климат/UPS** (`TBC_ENV_SAMPLES`: температура серверных, напряжение сети, батарея UPS) — сценарии: `docs/TBControl/SCENARIOS.md`.
+    *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql`, `73_tbc_processing.sql`, `74_tbc_processing_demo.sql`, `75_tbc_ops.sql`, `76_tbc_ops_demo.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
+    *   Документация: `docs/TBControl/TBCONTROL_MODULE.md`, ТЗ — `docs/TBControl/TECHNICAL-OPS.md` (разделы 72–75), презентация — `docs/TBControl/PRESENTATION_GOOGLE_LM.md`, сценарии — `docs/TBControl/SCENARIOS.md`.
 
 9.  **Документация:**
     *   Индекс документации (`/UNA.md/orasldev/docs`), просмотр Markdown, ТЗ Nufarul.
