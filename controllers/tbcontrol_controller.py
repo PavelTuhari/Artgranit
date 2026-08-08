@@ -8,6 +8,7 @@ Oracle-объекты: префикс TBC_ (sql/70_tbc_tables.sql, 71_tbc_views.
 import sys
 import os
 import random
+import secrets
 from typing import Dict, List, Optional
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
