@@ -2445,6 +2445,64 @@ def api_tbc_update_ticket(ticket_id):
     return jsonify(TBControlController.update_ticket(ticket_id, request.get_json() or {}))
 
 
+@app.route('/api/tbc/env/report', methods=['POST'])
+def api_tbc_env_report():
+    return jsonify(TBControlController.env_report(request.get_json() or {}))
+
+
+@app.route('/api/tbc/settings', methods=['GET'])
+def api_tbc_settings():
+    return jsonify(TBControlController.get_settings())
+
+
+@app.route('/api/tbc/settings', methods=['PUT'])
+def api_tbc_save_settings():
+    return jsonify(TBControlController.save_settings(request.get_json() or {}))
+
+
+# --- Эмулятор сценариев / Zabbix-коннектор (tbc_emulator.py) ---
+@app.route('/api/tbc/emulator/status', methods=['GET'])
+def api_tbc_emulator_status():
+    from tbc_emulator import RUNTIME
+    return jsonify({"success": True, "data": RUNTIME.status()})
+
+
+@app.route('/api/tbc/emulator/start', methods=['POST'])
+def api_tbc_emulator_start():
+    from tbc_emulator import RUNTIME
+    data = request.get_json() or {}
+    mode = data.get('mode', 'emulator')
+    interval = int(data.get('interval') or TBControlController.get_setting_raw('emulator_interval') or 60)
+    zbx_url = data.get('zabbix_url') or ''
+    zbx_token = data.get('zabbix_token') or ''
+    # Сохраняем конфигурацию (маскированный токен не перезапишется)
+    TBControlController.save_settings({'emulator_interval': interval,
+                                       'zabbix_url': zbx_url or None,
+                                       'zabbix_token': zbx_token or None})
+    if mode == 'zabbix':
+        zbx_url = (zbx_url or TBControlController.get_setting_raw('zabbix_url') or '').strip()
+        if zbx_token.endswith('***') or not zbx_token:
+            zbx_token = TBControlController.get_setting_raw('zabbix_token') or ''
+        if not zbx_url or not zbx_token:
+            return jsonify({"success": False, "error": "Укажите Zabbix URL и API token"})
+    result = RUNTIME.start(
+        mode=mode,
+        base_url=f'http://127.0.0.1:{Config.SERVER_PORT}',
+        username=Config.DEFAULT_USERNAME, password=Config.DEFAULT_PASSWORD,
+        interval=max(15, interval), zabbix_url=zbx_url, zabbix_token=zbx_token)
+    if result.get('success'):
+        TBControlController._add_audit('start', 'emulator', None, f'Запущен режим {mode}, интервал {interval}с')
+    return jsonify(result)
+
+
+@app.route('/api/tbc/emulator/stop', methods=['POST'])
+def api_tbc_emulator_stop():
+    from tbc_emulator import RUNTIME
+    result = RUNTIME.stop()
+    TBControlController._add_audit('stop', 'emulator', None, 'Эмулятор/коннектор остановлен')
+    return jsonify(result)
+
+
 @app.route('/api/tbc/env/series', methods=['GET'])
 def api_tbc_env_series():
     return jsonify(TBControlController.env_series(
