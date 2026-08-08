@@ -211,10 +211,19 @@ SELECT 'TSK-2026-5007', s.ID, 'power_company', 'Premier Energy', (SELECT MAX(ID)
 FROM TBC_STORES s WHERE s.CODE = 'MD-CHS-013';
 
 -- ===== Очереди на кассах (metric queue_len, scope app, чел. в очереди) =====
--- Bonus Дачия: нормальный день, пики обед/вечер (4 POS)
+-- Все POS/SCO сети, 7 дней почасово. Пики обед/вечер; в магазине MD-CHS-001
+-- SCO-02 не работает — очереди заметно длиннее (польза мониторинга очередей).
 INSERT INTO TBC_METRIC_SAMPLES (DEVICE_ID, SCOPE, METRIC, NUM_VALUE, SAMPLED_AT)
-SELECT d.ID, 'app', 'queue_len', GREATEST(0, ROUND(2 + 3 * SIN((MOD(LEVEL, 24) - 5) / 2.5) + DBMS_RANDOM.VALUE(0, 2))), SYSTIMESTAMP - NUMTODSINTERVAL(LEVEL, 'HOUR')
-FROM TBC_DEVICES d CONNECT BY LEVEL <= 168 AND PRIOR d.ID = d.ID AND PRIOR DBMS_RANDOM.VALUE IS NOT NULL;
+SELECT d.ID, 'app', 'queue_len',
+       GREATEST(0, ROUND(
+         (CASE WHEN s.CODE = 'MD-CHS-001' THEN 4.5 ELSE 1.5 END)
+         + 3 * ABS(SIN((MOD(h.LVL, 24) - 5) / 2.5))
+         + DBMS_RANDOM.VALUE(0, 2))),
+       SYSTIMESTAMP - NUMTODSINTERVAL(h.LVL, 'HOUR')
+FROM (SELECT LEVEL AS LVL FROM DUAL CONNECT BY LEVEL <= 168) h
+CROSS JOIN TBC_DEVICES d
+JOIN TBC_STORES s ON s.ID = d.STORE_ID
+WHERE d.DEVICE_TYPE IN ('POS', 'SCO') AND d.STATUS <> 'offline';
 
 -- ===== Климат / питание / UPS =====
 -- Жара: Super Bonus, воздух на улице до +38
