@@ -1747,7 +1747,8 @@ class TBControlController:
                         except Exception as e:
                             err_str = str(e)
                             ignorable = ['ORA-00955', 'ORA-02261', 'ORA-01408', 'ORA-04081',
-                                         'ORA-00001', 'ORA-02264', 'ORA-02275', 'ORA-00972']
+                                         'ORA-00001', 'ORA-02264', 'ORA-02275', 'ORA-00972',
+                                         'ORA-01430']  # column being added already exists
                             if any(code in err_str for code in ignorable):
                                 skip_count += 1
                             else:
