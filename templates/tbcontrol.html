@@ -541,6 +541,7 @@ async function boot() {
     if (stores.success) STORES = stores.data;
     if (apps.success) APPS = apps.data;
     fillSelect('devStoreFilter', STORES, 'id', s => `${s.code} ${s.name}`, 'Все магазины');
+    fillSelect('monStoreFilter', STORES, 'id', s => `${s.code} ${s.name}`, 'Все магазины');
     fillSelect('verAppFilter', APPS, 'id', a => a.name, 'Все приложения');
     loadDashboard();
 }
