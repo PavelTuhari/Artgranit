@@ -458,7 +458,13 @@ class EmulatorRuntime:
     def start(self, mode, base_url, username, password, interval=60,
               zabbix_url=None, zabbix_token=None):
         if self._thread and self._thread.is_alive():
-            return {'success': False, 'error': 'Уже запущен — сначала остановите'}
+            if self._stop.is_set():
+                # Остановка запрошена — даём потоку дозавершить текущий цикл
+                self._thread.join(timeout=5)
+            if self._thread.is_alive():
+                return {'success': False,
+                        'error': 'Предыдущий запуск ещё завершается — повторите через несколько секунд'
+                                 if self._stop.is_set() else 'Уже запущен — сначала остановите'}
         self._stop.clear()
         self.state.update({'running': True, 'mode': mode, 'cycle': 0, 'log': [], 'error': None})
 
