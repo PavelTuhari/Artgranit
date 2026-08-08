@@ -186,6 +186,30 @@ async function saveCreditPref() {
   toast(cb.checked ? '✅ Datele se vor memora' : '✅ Memorarea oprită');
 }
 
+/* RO: «Comenzile mele» — conturile de plata proprii (plasate pe site, prin
+   API-ul B2B sau de un operator), cu PDF-ul contului intr-un click. */
+async function loadMyOrders() {
+  const box = document.getElementById('my-orders');
+  if (!box) return;
+  try {
+    const r = await j(API + '/my-invoices?limit=20');
+    const rows = (r.success && r.data) || [];
+    if (!rows.length) { box.textContent = bl('Încă nu aveți comenzi', 'Заказов пока нет'); return; }
+    box.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
+      rows.map(d =>
+        '<tr style="border-bottom:1px solid #f1f1f1">' +
+        '<td style="padding:5px 4px"><b>' + esc(d.nr || ('#' + d.nrmanual)) + '</b></td>' +
+        '<td style="padding:5px 4px">' + esc(d.ddate || '') + '</td>' +
+        '<td style="padding:5px 4px;text-align:right"><b>' + fmtLei(d.total || 0) + '</b></td>' +
+        '<td style="padding:5px 4px;text-align:right">' +
+        '<a target="_blank" href="' + API + '/report/invoice/' + d.cod + '" ' +
+        'style="color:#194681;text-decoration:underline">PDF</a> · ' +
+        '<a target="_blank" href="' + API + '/report-html/invoice/' + d.cod + '" ' +
+        'style="color:#194681;text-decoration:underline">HTML</a></td></tr>').join('') +
+      '</table>';
+  } catch (e) { box.textContent = '—'; }
+}
+
 async function doLogin() {
   const r = await j(API + '/login', {method: 'POST', body: JSON.stringify({
     email: document.getElementById('l-email').value.trim(),
