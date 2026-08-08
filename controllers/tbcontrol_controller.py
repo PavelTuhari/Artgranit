@@ -354,7 +354,8 @@ class TBControlController:
                            ('hw', 'disk', data.get("disk")), ('hw', 'battery', data.get("battery")),
                            ('app', 'app_latency', data.get("app_latency")),
                            ('app', 'tx_count', data.get("tx_count")),
-                           ('app', 'app_errors', data.get("app_errors"))]
+                           ('app', 'app_errors', data.get("app_errors")),
+                           ('app', 'queue_len', data.get("queue_len"))]
                 for scope, metric, value in samples:
                     if value is not None:
                         db.execute_query(
@@ -1258,7 +1259,7 @@ class TBControlController:
             with DatabaseModel() as db:
                 sql = ("SELECT METRIC, TO_CHAR(SAMPLED_AT, 'YYYY-MM-DD HH24') || 'h' AS BUCKET_TS, "
                        "ROUND(AVG(NUM_VALUE), 1) AS AVG_V, MIN(NUM_VALUE) AS MIN_V, MAX(NUM_VALUE) AS MAX_V "
-                       "FROM TBC_ENV_SAMPLES WHERE SAMPLED_AT >= SYSTIMESTAMP - NUMTODSINTERVAL(:hrs, 'HOUR')")
+                       "FROM TBC_ENV_SAMPLES WHERE SAMPLED_AT >= CAST(SYSTIMESTAMP AS TIMESTAMP) - NUMTODSINTERVAL(:hrs, 'HOUR')")
                 params = {"hrs": int(hours)}
                 if store_id:
                     sql += " AND STORE_ID = :sid"
@@ -1336,7 +1337,7 @@ class TBControlController:
                 r = db.execute_query(
                     "SELECT NVL(s.CODE, n.CODE) AS OBJ_CODE, s.BRAND, e.METRIC, "
                     "ROUND(MAX(e.NUM_VALUE), 1) AS MAX_V, ROUND(MIN(e.NUM_VALUE), 1) AS MIN_V, "
-                    "ROUND(AVG(CASE WHEN e.SAMPLED_AT >= SYSTIMESTAMP - INTERVAL '2' HOUR THEN e.NUM_VALUE END), 1) AS NOW_V "
+                    "ROUND(AVG(CASE WHEN e.SAMPLED_AT >= CAST(SYSTIMESTAMP AS TIMESTAMP) - INTERVAL '2' HOUR THEN e.NUM_VALUE END), 1) AS NOW_V "
                     "FROM TBC_ENV_SAMPLES e "
                     "LEFT JOIN TBC_STORES s ON s.ID = e.STORE_ID "
                     "LEFT JOIN TBC_NODES n ON n.ID = e.NODE_ID "
@@ -1348,7 +1349,7 @@ class TBControlController:
                     "SELECT DISTINCT s.CODE, s.BRAND FROM TBC_ENV_SAMPLES e "
                     "JOIN TBC_STORES s ON s.ID = e.STORE_ID "
                     "WHERE e.METRIC = 'on_ups' AND e.NUM_VALUE = 1 "
-                    "AND e.SAMPLED_AT >= SYSTIMESTAMP - INTERVAL '30' MINUTE")
+                    "AND e.SAMPLED_AT >= CAST(SYSTIMESTAMP AS TIMESTAMP) - INTERVAL '30' MINUTE")
                 out["stores_on_ups"] = TBControlController._rows_to_dicts(r)
                 return {"success": True, "data": out}
         except Exception as e:
