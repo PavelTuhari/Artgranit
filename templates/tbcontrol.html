@@ -267,6 +267,89 @@
             </div>
         </div>
 
+        <!-- ===== Monitoring Center ===== -->
+        <div class="panel" id="panel-monitor">
+            <div class="panel-title">Мониторинг касс <span class="muted" style="font-size:12px;font-weight:400">— касса как компьютер + Front Office внутри</span></div>
+            <div class="filter-bar">
+                <select class="form-control" id="monStoreFilter" onchange="loadMonitor()"><option value="">Все магазины</option></select>
+                <span class="tab-chip active" data-mt="" onclick="setMonType(this)">POS + SCO</span>
+                <span class="tab-chip" data-mt="POS" onclick="setMonType(this)">POS</span>
+                <span class="tab-chip" data-mt="SCO" onclick="setMonType(this)">Self-Service</span>
+            </div>
+            <div class="card"><div class="card-header">Сводка: сейчас · сегодня · 7 дней</div>
+            <div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th rowspan="2">Касса</th><th rowspan="2">Статус</th>
+                    <th colspan="3" style="text-align:center;border-left:1px solid var(--border)">Сейчас (HW)</th>
+                    <th colspan="3" style="text-align:center;border-left:1px solid var(--border)">Сегодня</th>
+                    <th colspan="3" style="text-align:center;border-left:1px solid var(--border)">7 дней</th>
+                    <th rowspan="2"></th>
+                </tr><tr>
+                    <th style="border-left:1px solid var(--border)">CPU</th><th>RAM</th><th>Disk</th>
+                    <th style="border-left:1px solid var(--border)">CPU avg/max</th><th>FO latency</th><th>Чеки / ошибки</th>
+                    <th style="border-left:1px solid var(--border)">CPU avg/max</th><th>FO latency</th><th>Чеки / ошибки</th>
+                </tr></thead><tbody id="monitorTbody"></tbody></table>
+            </div></div>
+            <div class="card" id="monDetailCard" style="display:none">
+                <div class="card-header"><span id="monDetailTitle">Касса</span>
+                    <span style="margin-left:14px;display:inline-flex;gap:6px" id="monPeriodChips">
+                        <span class="tab-chip active" data-p="today" onclick="setMonPeriod(this)">Сегодня</span>
+                        <span class="tab-chip" data-p="week" onclick="setMonPeriod(this)">7 дней</span>
+                        <span class="tab-chip" data-p="custom" onclick="setMonPeriod(this)">Период</span>
+                    </span>
+                    <input type="date" class="form-control" id="monFrom" style="width:auto;display:none" onchange="loadMonSeries()">
+                    <input type="date" class="form-control" id="monTo" style="width:auto;display:none" onchange="loadMonSeries()">
+                </div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                        <div><div style="font-weight:600;font-size:13px;margin-bottom:6px">🖥️ Касса как компьютер (HW)</div><div id="monChartsHw"></div></div>
+                        <div><div style="font-weight:600;font-size:13px;margin-bottom:6px">🧾 Front Office (APP)</div><div id="monChartsApp"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== Processing Center ===== -->
+        <div class="panel" id="panel-processing">
+            <div class="panel-title">Processing центр <span class="muted" style="font-size:12px;font-weight:400">— POS (SQLite) → серверы магазина → центральный → бэк-офис</span></div>
+            <div class="stat-grid" id="procStatGrid"></div>
+            <div class="card">
+                <div class="card-header">🗄️ Узлы обработки (HW · приложение · БД)</div>
+                <div class="card-body" style="padding:0">
+                    <table class="data-table"><thead><tr>
+                        <th>Узел</th><th>Тип</th><th>Магазин</th><th>Статус</th><th>CPU/RAM/Disk</th>
+                        <th>Приложение</th><th>БД</th><th>Размер / conn</th><th>Потоки</th><th>Last seen</th>
+                    </tr></thead><tbody id="nodesTbody"></tbody></table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">🔄 Потоки обмена
+                    <span style="margin-left:14px;display:inline-flex;gap:6px">
+                        <span class="tab-chip active" data-f="" onclick="setFlowFilter(this)">Все</span>
+                        <span class="tab-chip" data-f="problems" onclick="setFlowFilter(this)">Проблемные</span>
+                        <span class="tab-chip" data-f="OK" onclick="setFlowFilter(this)">OK</span>
+                    </span>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <table class="data-table"><thead><tr>
+                        <th>Поток</th><th>Маршрут</th><th>Тип</th><th>Статус</th><th>Lag, мин</th>
+                        <th>Pending</th><th>Последний OK</th><th>Ошибка</th><th></th>
+                    </tr></thead><tbody id="flowsTbody"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== AI Dossiers ===== -->
+        <div class="panel" id="panel-dossiers">
+            <div class="panel-title">AI-досье сбоев <span class="muted" style="font-size:12px;font-weight:400">— MD-документы для внешних AI-провайдеров (доступ по токену)</span></div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Код</th><th>Prio</th><th>Источник</th><th>Заголовок</th><th>Статус</th>
+                    <th>Прочтений</th><th>Создано</th><th></th>
+                </tr></thead><tbody id="dossiersTbody"></tbody></table>
+            </div></div>
+        </div>
+
         <!-- ===== Stores ===== -->
         <div class="panel" id="panel-stores">
             <div class="panel-title">Магазины <button class="btn btn-primary btn-sm" onclick="openStoreModal()">+ Магазин</button></div>
