@@ -466,7 +466,7 @@ class EmulatorRuntime:
         if self._thread and self._thread.is_alive():
             if self._stop.is_set():
                 # Остановка запрошена — даём потоку дозавершить текущий цикл
-                self._thread.join(timeout=5)
+                self._thread.join(timeout=10)
             if self._thread.is_alive():
                 return {'success': False,
                         'error': 'Предыдущий запуск ещё завершается — повторите через несколько секунд'
