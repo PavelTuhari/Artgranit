@@ -211,7 +211,7 @@ SELECT 'TSK-2026-5007', s.ID, 'power_company', 'Premier Energy', (SELECT MAX(ID)
 FROM TBC_STORES s WHERE s.CODE = 'MD-CHS-013';
 
 -- ===== Очереди на кассах (metric queue_len, scope app, чел. в очереди) =====
--- Все POS/SCO сети, 7 дней почасово. Пики обед/вечер; в магазине MD-CHS-001
+-- Все POS/SCO сети, 7 дней почасово. Пики обед/вечер. В магазине MD-CHS-001
 -- SCO-02 не работает — очереди заметно длиннее (польза мониторинга очередей).
 INSERT INTO TBC_METRIC_SAMPLES (DEVICE_ID, SCOPE, METRIC, NUM_VALUE, SAMPLED_AT)
 SELECT d.ID, 'app', 'queue_len',
