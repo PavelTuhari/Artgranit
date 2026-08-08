@@ -7149,6 +7149,23 @@ def api_biro26_shop_report_xlsx(cod):
 def api_biro26_shop_invoice():
     return jsonify(Biro26Controller.shop_invoice())
 
+@app.route('/api/biro26/b2b/order', methods=['POST'])
+def api_biro26_b2b_order():
+    """RO: comanda B2B — clienti autentificati SAU integrari/angajati cu
+    cheie de incredere (X-API-Key + client_cod). Raspunsul include mostra
+    contului: linkuri semnate PDF/HTML + JSON-ul documentului.
+    EN: B2B order placement; the reply carries the invoice sample links."""
+    r = Biro26Controller.b2b_order()
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
+@app.route('/api/biro26/shop/my-invoices', methods=['GET'])
+def api_biro26_shop_my_invoices():
+    """RO: cabinet client — lista propriilor conturi («Comenzile mele»)."""
+    r = Biro26Controller.shop_my_invoices()
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
 
 # ── Biro26: service (maintenance) functions — dynamic registry ─────────────
 # RO: lista vine din YBIRO_SERVICE_FUNCTIONS; o functie noua = un simplu INSERT.
