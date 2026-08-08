@@ -1297,6 +1297,123 @@ async function openFlowLog(id, code) {
         <div class="btn-group"><button class="btn btn-secondary" onclick="closeModal()">Закрыть</button></div>`);
 }
 
+// ===== Ops Report =====
+let repDays = 14;
+function setRepDays(el) {
+    document.querySelectorAll('#repPeriodChips .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); repDays = el.dataset.d; loadReport();
+}
+async function loadReport() {
+    const r = await api('/report/ops?days=' + repDays);
+    if (!r.success) return toast(r.error, true);
+    const d = r.data;
+
+    // 1. События по дням
+    const byDay = {};
+    let maxTotal = 1;
+    d.events_by_day.forEach(e => {
+        byDay[e.d] = byDay[e.d] || {P1: 0, P2: 0, P3: 0, P4: 0};
+        byDay[e.d][e.severity] = e.cnt;
+    });
+    Object.values(byDay).forEach(v => maxTotal = Math.max(maxTotal, v.P1 + v.P2 + v.P3 + v.P4));
+    const sevColors = {P1: 'var(--crit)', P2: '#ff8c42', P3: 'var(--warn)', P4: 'var(--info)'};
+    document.getElementById('repEventsTbody').innerHTML = Object.keys(byDay).sort().reverse().map(day => {
+        const v = byDay[day];
+        const total = v.P1 + v.P2 + v.P3 + v.P4;
+        const bar = ['P1', 'P2', 'P3', 'P4'].map(sv => v[sv] ?
+            `<span style="display:inline-block;height:12px;width:${Math.max(2, v[sv] / maxTotal * 100 / (total / (v[sv] || 1)) * total)}px;background:${sevColors[sv]}"></span>` : '').join('');
+        return `<tr><td class="mono">${day}</td>
+            <td style="color:var(--crit);font-weight:${v.P1 ? 700 : 400}">${v.P1 || ''}</td>
+            <td style="color:#ff8c42">${v.P2 || ''}</td><td style="color:var(--warn)">${v.P3 || ''}</td>
+            <td style="color:var(--info)">${v.P4 || ''}</td><td><b>${total}</b></td>
+            <td><div style="display:flex;gap:1px;align-items:center">${bar}</div></td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="empty-note">Событий за период нет</td></tr>';
+
+    // 2. Очереди
+    document.getElementById('repQueuesTbody').innerHTML = d.queues.map(q => {
+        const warn = (q.q_max_today || 0) >= 7 || (q.q_avg_today || 0) >= 5;
+        return `<tr><td class="mono">${esc(q.code)}</td><td><b style="color:var(--accent2)">${esc(q.brand || '')}</b></td>
+        <td class="muted">${esc(q.store_format || '')}</td>
+        <td>${q.q_avg_today != null ? q.q_avg_today : '—'}</td>
+        <td style="color:${warn ? 'var(--crit)' : 'var(--ok)'};font-weight:600">${q.q_max_today != null ? q.q_max_today : '—'}</td>
+        <td class="muted">${q.q_avg_week != null ? q.q_avg_week : '—'}</td><td class="muted">${q.q_max_week != null ? q.q_max_week : '—'}</td>
+        <td>${warn ? '<span class="badge-st bg-crit">очереди растут — проверьте кассы/SCO</span>' : '<span class="badge-st bg-ok">норма</span>'}</td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty-note">Нет данных об очередях</td></tr>';
+
+    // 3. Климат / UPS
+    document.getElementById('repUpsBadges').innerHTML = (d.stores_on_ups || []).map(s =>
+        `<span class="badge-st bg-warn">🔋 ${esc(s.code)} (${esc(s.brand || '')}) на UPS</span>`).join(' ');
+    document.getElementById('repEnvTbody').innerHTML = (d.env_summary || []).map(e => {
+        const isTemp = e.metric.startsWith('temp');
+        const hot = isTemp && e.max_v >= 32, cold = isTemp && e.min_v <= -10;
+        const lowV = e.metric === 'grid_voltage' && e.min_v < 205;
+        const lowB = e.metric === 'ups_battery_pct' && e.min_v < 40;
+        return `<tr><td class="mono">${esc(e.obj_code)}</td><td class="muted">${esc(e.brand || '')}</td>
+        <td>${esc(e.metric)}</td><td><b>${e.now_v != null ? e.now_v : '—'}</b></td>
+        <td style="color:${cold || lowV || lowB ? 'var(--crit)' : 'var(--muted)'}">${e.min_v}</td>
+        <td style="color:${hot ? 'var(--crit)' : 'var(--muted)'}">${e.max_v}</td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty-note">Нет климат-телеметрии</td></tr>';
+
+    // Графики: Super Bonus (store 011), центральная серверная + UPS Local Expres (013)
+    const s011 = STORES.find(s => s.code === 'MD-CHS-011');
+    const s013 = STORES.find(s => s.code === 'MD-CHS-013');
+    const nodes = await api('/nodes?node_type=central');
+    const central = nodes.success && nodes.data.length ? nodes.data[0] : null;
+    if (s011) {
+        const env = await api('/env/series?store_id=' + s011.id);
+        renderCharts('repEnvCharts1', env.success ? env.data : {},
+            {temp_server_room: 'Серверная, °C', temp_air: 'Воздух на улице, °C', grid_voltage: 'Напряжение сети, V'});
+    }
+    let charts2 = {};
+    if (central) {
+        const env = await api('/env/series?node_id=' + central.id);
+        if (env.success) charts2 = {...env.data};
+    }
+    if (s013) {
+        const env = await api('/env/series?store_id=' + s013.id + '&hours=3');
+        if (env.success) Object.assign(charts2, env.data);
+    }
+    renderCharts('repEnvCharts2', charts2,
+        {temp_server_room: 'Центральная серверная, °C', ups_load_pct: 'UPS-нагрузка централи, %',
+         ups_battery_pct: 'Батарея UPS Local Expres, %', ups_runtime_min: 'Остаток работы UPS, мин'});
+
+    // 4. Действия персонала
+    const totalActions = (d.actions_summary || []).reduce((a, x) => a + x.cnt, 0);
+    const unjust = (d.actions_summary || []).reduce((a, x) => a + (x.unjustified || 0), 0);
+    const noEff = (d.actions_summary || []).reduce((a, x) => a + (x.no_effect || 0), 0);
+    document.getElementById('repActionChips').innerHTML =
+        `<span class="badge-st bg-info">всего: ${totalActions}</span> ` +
+        `<span class="badge-st ${unjust ? 'bg-crit' : 'bg-ok'}">ненужных перезагрузок: ${unjust}</span> ` +
+        `<span class="badge-st ${noEff ? 'bg-warn' : 'bg-ok'}">без эффекта: ${noEff}</span>`;
+    const atNames = {restart_pos: 'перезагрузка кассы', restart_router: 'перезагрузка роутера',
+        restart_server: 'перезагрузка сервера', switch_ups: 'переход на UPS', generator_on: 'запуск генератора',
+        call_support: 'звонок в поддержку', call_bank: 'звонок в банк', call_mev: 'обращение MEV', other: 'другое'};
+    document.getElementById('repActionsTbody').innerHTML = (d.actions || []).map(a => `
+        <tr><td class="muted">${fmtTs(a.started_at)}</td>
+        <td class="mono">${esc(a.store_code)} <span class="muted">${esc(a.brand || '')}</span></td>
+        <td class="mono muted">${esc(a.device_code || '—')}</td>
+        <td>${esc(atNames[a.action_type] || a.action_type)}</td><td class="muted">${esc(a.performed_by || '')}</td>
+        <td class="muted" style="max-width:280px">${esc(a.note || '')}</td>
+        <td>${a.is_justified === 'N' ? '<span class="badge-st bg-crit">НЕТ</span>' : '<span class="badge-st bg-ok">да</span>'}</td>
+        <td>${stBadge(a.result === 'fixed' ? 'OK' : a.result === 'no_effect' ? 'FAIL' : 'ack')} <span class="muted">${esc(a.result)}</span></td></tr>`).join('') ||
+        '<tr><td colspan="8" class="empty-note">Действий за период нет</td></tr>';
+
+    // 5. Обращения
+    const tgtNames = {network_support: 'Техподдержка сети', bank: 'Банк', mev: 'MEV (SFS)',
+        power_company: 'Электросети', isp: 'Интернет-провайдер'};
+    document.getElementById('repTicketChips').innerHTML = (d.tickets_summary || []).map(t =>
+        `<span class="badge-st ${t.delayed ? 'bg-warn' : 'bg-ok'}">${tgtNames[t.target] || t.target}: ${t.cnt} · сред. реакция ${t.avg_response_min != null ? t.avg_response_min + ' мин' : '—'}${t.delayed ? ' · задержек: ' + t.delayed : ''}</span>`).join(' ');
+    document.getElementById('repTicketsTbody').innerHTML = (d.tickets || []).map(t => `
+        <tr><td class="mono">${esc(t.ticket_no)}</td>
+        <td class="mono">${esc(t.store_code)} <span class="muted">${esc(t.brand || '')}</span></td>
+        <td>${esc(tgtNames[t.target] || t.target)} <span class="muted">${esc(t.provider_name || '')}</span></td>
+        <td>${esc(t.subject)}</td><td class="muted">${esc(t.opened_by || '')}</td>
+        <td style="font-weight:700;color:${t.response_min == null ? 'var(--crit)' : t.response_min > 60 ? 'var(--crit)' : t.response_min > 30 ? 'var(--warn)' : 'var(--ok)'}">${t.response_min != null ? t.response_min : 'нет ответа'}</td>
+        <td>${stBadge(t.status === 'resolved' ? 'OK' : t.status === 'answered' ? 'ack' : 'open')} <span class="muted">${esc(t.status)}</span></td>
+        <td class="muted" style="max-width:260px">${esc(t.resolution || '')}</td></tr>`).join('') ||
+        '<tr><td colspan="8" class="empty-note">Обращений за период нет</td></tr>';
+}
+
 // ===== AI Dossiers =====
 async function loadDossiers() {
     const r = await api('/ai/dossiers');
