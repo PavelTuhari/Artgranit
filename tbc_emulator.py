@@ -343,6 +343,9 @@ class TBCEmulator:
         for fn in (self.s1_power_ups, self.s2_power_no_ups, self.s3_isp_outage,
                    self.s4_bank_host, self.s5_mev, self.s6_heat, self.s7_frost,
                    self.s8_queues, self.s9_support_delay, self.s10_flows_and_dossier):
+            if self.stop_event is not None and self.stop_event.is_set():
+                self.log('Цикл прерван по запросу остановки')
+                break
             try:
                 fn(fault)
             except Exception as e:
