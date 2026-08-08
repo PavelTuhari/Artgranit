@@ -2358,6 +2358,94 @@ def api_tbc_rollback_change(change_id):
     return jsonify(TBControlController.rollback_change(change_id))
 
 
+# --- Monitoring Center (раздел 72 ТЗ) ---
+@app.route('/api/tbc/monitor/overview', methods=['GET'])
+def api_tbc_monitor_overview():
+    return jsonify(TBControlController.monitor_overview(
+        request.args.get('store_id'), request.args.get('device_type')))
+
+
+@app.route('/api/tbc/monitor/series/<device_id>', methods=['GET'])
+def api_tbc_monitor_series(device_id):
+    return jsonify(TBControlController.monitor_series(
+        device_id, request.args.get('scope', 'hw'),
+        request.args.get('from'), request.args.get('to'),
+        request.args.get('bucket', 'hour')))
+
+
+# --- Processing Center (раздел 73 ТЗ) ---
+@app.route('/api/tbc/proc/stats', methods=['GET'])
+def api_tbc_proc_stats():
+    return jsonify(TBControlController.get_proc_stats())
+
+
+@app.route('/api/tbc/nodes', methods=['GET'])
+def api_tbc_nodes():
+    return jsonify(TBControlController.get_nodes(request.args.get('node_type')))
+
+
+@app.route('/api/tbc/nodes', methods=['POST'])
+def api_tbc_create_node():
+    return jsonify(TBControlController.create_node(request.get_json() or {}))
+
+
+@app.route('/api/tbc/nodes/heartbeat', methods=['POST'])
+def api_tbc_node_heartbeat():
+    return jsonify(TBControlController.node_heartbeat(request.get_json() or {}))
+
+
+@app.route('/api/tbc/flows', methods=['GET'])
+def api_tbc_flows():
+    return jsonify(TBControlController.get_flows(
+        request.args.get('status'), request.args.get('store_id')))
+
+
+@app.route('/api/tbc/flows/<flow_id>/log', methods=['GET'])
+def api_tbc_flow_log(flow_id):
+    return jsonify(TBControlController.get_flow_log(flow_id, request.args.get('limit', 50, type=int)))
+
+
+@app.route('/api/tbc/flows/<flow_id>/report', methods=['POST'])
+def api_tbc_flow_report(flow_id):
+    return jsonify(TBControlController.flow_report(flow_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/flows/<flow_id>/retry', methods=['POST'])
+def api_tbc_flow_retry(flow_id):
+    return jsonify(TBControlController.retry_flow(flow_id))
+
+
+# --- AI Diagnostic Dossiers (раздел 74 ТЗ) ---
+@app.route('/api/tbc/ai/dossiers', methods=['GET'])
+def api_tbc_dossiers():
+    return jsonify(TBControlController.get_dossiers(request.args.get('limit', 100, type=int)))
+
+
+@app.route('/api/tbc/ai/dossiers/generate', methods=['POST'])
+def api_tbc_generate_dossier():
+    data = request.get_json() or {}
+    return jsonify(TBControlController.generate_dossier(
+        data.get('source_type', 'event'), data.get('ref_id', 0)))
+
+
+@app.route('/api/tbc/ai/dossiers/<dossier_id>', methods=['PUT'])
+def api_tbc_update_dossier(dossier_id):
+    return jsonify(TBControlController.update_dossier(dossier_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/ai/dossier/<code>.md', methods=['GET'])
+def api_tbc_dossier_md(code):
+    """Выдача MD-досье внешнему AI-провайдеру по секретному токену
+    (или авторизованному пользователю UI)."""
+    result = TBControlController.get_dossier_md(
+        code, request.args.get('token'),
+        authenticated=AuthController.is_authenticated())
+    if not result.get('success'):
+        return jsonify(result), result.get('status', 400)
+    from flask import Response
+    return Response(result['md'], mimetype='text/markdown; charset=utf-8')
+
+
 # --- SLA ---
 @app.route('/api/tbc/sla', methods=['GET'])
 def api_tbc_sla():
