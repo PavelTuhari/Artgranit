@@ -557,11 +557,12 @@ class TBControlController:
     @staticmethod
     def create_event(data):
         try:
+            status = data.get("status") if data.get("status") in ('open', 'ack', 'suppressed') else 'open'
             with DatabaseModel() as db:
                 db.execute_query(
                     "INSERT INTO TBC_EVENTS (SEVERITY, STORE_ID, DEVICE_ID, SERVICE_CODE, PROBLEM, "
-                    "STATUS, SOURCE, CORRELATION_ID, PARENT_EVENT_ID) "
-                    "VALUES (:sev, :sid, :did, :svc, :problem, 'open', :source, :corr, :parent)",
+                    f"STATUS, SOURCE, CORRELATION_ID, PARENT_EVENT_ID) "
+                    f"VALUES (:sev, :sid, :did, :svc, :problem, '{status}', :source, :corr, :parent)",
                     {"sev": data.get("severity", "P4"),
                      "sid": int(data["store_id"]) if data.get("store_id") else None,
                      "did": int(data["device_id"]) if data.get("device_id") else None,
