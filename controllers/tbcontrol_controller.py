@@ -958,8 +958,7 @@ class TBControlController:
                 if date_to:
                     sql += " AND SAMPLED_AT < TO_TIMESTAMP(:dto, 'YYYY-MM-DD') + 1"
                     params["dto"] = date_to[:10]
-                sql += " GROUP BY METRIC, TO_CHAR(SAMPLED_AT, :fmt2) ORDER BY 2"
-                params["fmt2"] = fmt
+                sql += f" GROUP BY METRIC, TO_CHAR(SAMPLED_AT, '{fmt}') ORDER BY 2"
                 r = db.execute_query(sql, params)
                 rows = TBControlController._rows_to_dicts(r)
                 series = {}
