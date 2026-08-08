@@ -2415,6 +2415,48 @@ def api_tbc_flow_retry(flow_id):
     return jsonify(TBControlController.retry_flow(flow_id))
 
 
+# --- Действия персонала / тикеты / климат / отчёт ---
+@app.route('/api/tbc/actions', methods=['GET'])
+def api_tbc_actions():
+    return jsonify(TBControlController.get_actions(
+        request.args.get('store_id'), request.args.get('unjustified'),
+        request.args.get('limit', 200, type=int)))
+
+
+@app.route('/api/tbc/actions', methods=['POST'])
+def api_tbc_create_action():
+    return jsonify(TBControlController.create_action(request.get_json() or {}))
+
+
+@app.route('/api/tbc/tickets', methods=['GET'])
+def api_tbc_tickets():
+    return jsonify(TBControlController.get_tickets(
+        request.args.get('target'), request.args.get('status'),
+        request.args.get('limit', 200, type=int)))
+
+
+@app.route('/api/tbc/tickets', methods=['POST'])
+def api_tbc_create_ticket():
+    return jsonify(TBControlController.create_ticket(request.get_json() or {}))
+
+
+@app.route('/api/tbc/tickets/<ticket_id>', methods=['PUT'])
+def api_tbc_update_ticket(ticket_id):
+    return jsonify(TBControlController.update_ticket(ticket_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/env/series', methods=['GET'])
+def api_tbc_env_series():
+    return jsonify(TBControlController.env_series(
+        request.args.get('store_id'), request.args.get('node_id'),
+        request.args.get('metric'), request.args.get('hours', 48, type=int)))
+
+
+@app.route('/api/tbc/report/ops', methods=['GET'])
+def api_tbc_report_ops():
+    return jsonify(TBControlController.report_ops(request.args.get('days', 14, type=int)))
+
+
 # --- AI Diagnostic Dossiers (раздел 74 ТЗ) ---
 @app.route('/api/tbc/ai/dossiers', methods=['GET'])
 def api_tbc_dossiers():
