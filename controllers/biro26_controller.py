@@ -471,6 +471,13 @@ class Biro26Controller:
         from models.biro26_report import Biro26Report
         if Biro26Controller._api_token_ok():
             return Biro26Report.render_doc_html(kind, cod)
+        # RO/EN: link semnat (HMAC pe kind:cod) — ca la PDF (vezi shop_report)
+        sig = request.args.get("sig") or ""
+        if sig:
+            import hmac
+            from models.biro26_notify import Biro26Notify
+            if hmac.compare_digest(sig, Biro26Notify.pdf_sig(kind, cod)):
+                return Biro26Report.render_doc_html(kind, cod)
         c = session.get("biro26_client")
         if c:
             return Biro26Report.render_doc_html(
