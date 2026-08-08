@@ -340,6 +340,56 @@
             </div>
         </div>
 
+        <!-- ===== Ops Report ===== -->
+        <div class="panel" id="panel-report">
+            <div class="panel-title">Отчёт: динамика инфраструктуры и операций
+                <span style="margin-left:14px;display:inline-flex;gap:6px" id="repPeriodChips">
+                    <span class="tab-chip" data-d="7" onclick="setRepDays(this)">7 дней</span>
+                    <span class="tab-chip active" data-d="14" onclick="setRepDays(this)">14 дней</span>
+                    <span class="tab-chip" data-d="30" onclick="setRepDays(this)">30 дней</span>
+                </span>
+            </div>
+            <div class="card">
+                <div class="card-header">⚡ Динамика событий инфраструктуры по дням</div>
+                <div class="card-body" style="padding:0"><table class="data-table"><thead><tr>
+                    <th>Дата</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>Всего</th><th style="width:40%"></th>
+                </tr></thead><tbody id="repEventsTbody"></tbody></table></div>
+            </div>
+            <div class="card">
+                <div class="card-header">🛒 Очереди на кассах по магазинам <span class="muted" style="font-weight:400">— человек в очереди (avg / max)</span></div>
+                <div class="card-body" style="padding:0"><table class="data-table"><thead><tr>
+                    <th>Магазин</th><th>Бренд</th><th>Формат</th><th>Сегодня avg</th><th>Сегодня max</th>
+                    <th>Неделя avg</th><th>Неделя max</th><th></th>
+                </tr></thead><tbody id="repQueuesTbody"></tbody></table></div>
+            </div>
+            <div class="card">
+                <div class="card-header">🌡️ Климат · электропитание · UPS <span id="repUpsBadges" style="margin-left:10px"></span></div>
+                <div class="card-body">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px">
+                        <div><div style="font-weight:600;font-size:13px;margin-bottom:6px">Серверная Super Bonus Мунчешть + напряжение сети</div><div id="repEnvCharts1"></div></div>
+                        <div><div style="font-weight:600;font-size:13px;margin-bottom:6px">Центральная серверная + UPS Local Expres</div><div id="repEnvCharts2"></div></div>
+                    </div>
+                    <table class="data-table"><thead><tr>
+                        <th>Объект</th><th>Бренд</th><th>Метрика</th><th>Сейчас</th><th>Мин 48ч</th><th>Макс 48ч</th>
+                    </tr></thead><tbody id="repEnvTbody"></tbody></table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">🧑‍🔧 Действия персонала магазинов <span id="repActionChips" style="margin-left:10px"></span></div>
+                <div class="card-body" style="padding:0"><table class="data-table"><thead><tr>
+                    <th>Когда</th><th>Магазин</th><th>Устройство</th><th>Действие</th><th>Кто</th>
+                    <th>Комментарий</th><th>Оправдано</th><th>Результат</th>
+                </tr></thead><tbody id="repActionsTbody"></tbody></table></div>
+            </div>
+            <div class="card">
+                <div class="card-header">📞 Обращения: техподдержка сети · банки · MEV · электросети · ISP <span id="repTicketChips" style="margin-left:10px"></span></div>
+                <div class="card-body" style="padding:0"><table class="data-table"><thead><tr>
+                    <th>Тикет</th><th>Магазин</th><th>Адресат</th><th>Тема</th><th>Открыл</th>
+                    <th>Реакция, мин</th><th>Статус</th><th>Решение</th>
+                </tr></thead><tbody id="repTicketsTbody"></tbody></table></div>
+            </div>
+        </div>
+
         <!-- ===== AI Dossiers ===== -->
         <div class="panel" id="panel-dossiers">
             <div class="panel-title">AI-досье сбоев <span class="muted" style="font-size:12px;font-weight:400">— MD-документы для внешних AI-провайдеров (доступ по токену)</span></div>
