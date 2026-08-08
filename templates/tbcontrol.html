@@ -234,8 +234,12 @@
     <div class="sidebar">
         <div class="sidebar-header">Мониторинг</div>
         <div class="sidebar-item active" data-panel="dashboard" onclick="showPanel('dashboard')">📊 Обзор сети</div>
+        <div class="sidebar-item" data-panel="monitor" onclick="showPanel('monitor')">📈 Мониторинг касс</div>
         <div class="sidebar-item" data-panel="stores" onclick="showPanel('stores')">🏬 Магазины</div>
         <div class="sidebar-item" data-panel="devices" onclick="showPanel('devices')">🖥️ Устройства</div>
+        <div class="sidebar-header">Processing</div>
+        <div class="sidebar-item" data-panel="processing" onclick="showPanel('processing')">🔄 Processing центр <span class="badge" id="badgeFlows">0</span></div>
+        <div class="sidebar-item" data-panel="dossiers" onclick="showPanel('dossiers')">🤖 AI-досье</div>
         <div class="sidebar-header">Софт</div>
         <div class="sidebar-item" data-panel="apps" onclick="showPanel('apps')">📦 Приложения</div>
         <div class="sidebar-item" data-panel="versions" onclick="showPanel('versions')">🔢 Версии ПО <span class="badge" id="badgeOutdated">0</span></div>
