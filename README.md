@@ -104,8 +104,11 @@
     *   Маршрут `/UNA.md/orasldev/tbcontrol`, API `/api/tbc/*`. Интерфейс — NOC-консоль в стилистике Cisco/Unify: обзор сети со STORE_HEALTH-плитками (OK/DEGRADED/CRITICAL), магазины, устройства (POS/SCO/Android/серверы/сеть, техпаспорт раздела 9 ТЗ), приложения, контроль версий (Expected vs Current, OUTDATED), изменения/deployment с verification и rollback, события P1–P4 с корреляцией (root cause → suppressed downstream), инциденты с RCA-полями, SLA, журнал аудита.
     *   Oracle-объекты — префикс `TBC_*` (17 таблиц, 7 представлений `V_TBC_*`): `TBC_STORES`, `TBC_DEVICES`, `TBC_APPLICATIONS`+`TBC_DEVICE_APPS`, `TBC_HEALTH_CHECKS` (append-only), `TBC_EVENTS`, `TBC_INCIDENTS`, `TBC_CHANGES`+`TBC_CHANGE_STORES`+`TBC_DEPLOY_CHECKS`, `TBC_SLA_TARGETS`, `TBC_EVENT_LOG` (аудит), справочники `TBC_REF_*`.
     *   **Agent Heartbeat API** `POST /api/tbc/agent/heartbeat` — приём метрик от Zabbix Agent 2 / Android Monitoring Agent с автregistрацией устройства по коду `MD-CHS-001-AND-01` и сверкой версии ПО с ожидаемой.
-    *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
-    *   Документация: `docs/TBControl/TBCONTROL_MODULE.md`, ТЗ — `docs/TBControl/TECHNICAL-OPS.md`.
+    *   **Monitoring Center**: телеметрия каждой кассы двумя контурами — HW (касса как компьютер: CPU/RAM/Disk) и APP (Front Office: latency/чеки/ошибки) — сейчас / за день / за 7 дней / за произвольный период (append-only `TBC_METRIC_SAMPLES`, SVG-графики без внешних библиотек).
+    *   **Processing Center**: контроль цепочки POS (SQLite) → промежуточные серверы магазина (1..N) → центральный сервер → бэк-офис. Потоки `TBC_FLOWS` (OK/LAGGING/STALLED/FAIL, lag, pending), журнал батчей `TBC_FLOW_LOG`, узлы `TBC_NODES` c мониторингом HW + приложения + БД (oracle/sqlite/mssql/mysql/postgres).
+    *   **AI-досье сбоев** (`TBC_AI_DOSSIERS`): исчерпывающий MD-документ по событию/инциденту/потоку (паспорт, метрики, health, версии, потоки, журналы, инструкция для AI); выдаётся внешним AI-провайдерам по `GET /api/tbc/ai/dossier/<code>.md?token=…` (per-документ ACCESS_TOKEN, секреты не включаются); автогенерация при P1/P2-инцидентах.
+    *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql`, `73_tbc_processing.sql`, `74_tbc_processing_demo.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
+    *   Документация: `docs/TBControl/TBCONTROL_MODULE.md`, ТЗ — `docs/TBControl/TECHNICAL-OPS.md` (разделы 72–75), презентация — `docs/TBControl/PRESENTATION_GOOGLE_LM.md`.
 
 9.  **Документация:**
     *   Индекс документации (`/UNA.md/orasldev/docs`), просмотр Markdown, ТЗ Nufarul.
