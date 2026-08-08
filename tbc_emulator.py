@@ -122,6 +122,8 @@ class TBCEmulator:
     def baseline_telemetry(self, fault_phase):
         rnd = random.Random(self.cycle)
         for code, d in self.devices.items():
+            if self.stop_event is not None and self.stop_event.is_set():
+                return
             if d['device_type'] not in ('POS', 'SCO', 'AND'):
                 continue
             if d['status'] == 'offline':
