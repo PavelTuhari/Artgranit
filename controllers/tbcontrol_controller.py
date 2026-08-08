@@ -640,7 +640,13 @@ class TBControlController:
                 inc_id = row["id"] if row else None
                 TBControlController._add_audit("create", "incident", inc_id,
                                                f"Инцидент из события #{event_id} → {group}")
-                return {"success": True, "data": {"id": inc_id}}
+                # P1/P2 → автоматическое AI-досье (раздел 74.3 ТЗ)
+                dossier = None
+                if inc_id and ev.get("severity") in ('P1', 'P2'):
+                    dr = TBControlController.generate_dossier('incident', inc_id)
+                    if dr.get("success"):
+                        dossier = dr["data"]["code"]
+                return {"success": True, "data": {"id": inc_id, "dossier": dossier}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
