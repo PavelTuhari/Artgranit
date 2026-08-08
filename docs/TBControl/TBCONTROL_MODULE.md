@@ -40,11 +40,22 @@ DDL: `sql/70_tbc_tables.sql`, представления: `sql/71_tbc_views.sql`
 | `TBC_SLA_TARGETS` | Целевые и фактические SLA по сервисам (раздел 51) |
 | `TBC_EVENT_LOG` | Append-only аудит действий пользователей модуля (раздел 38) |
 
+### Monitoring / Processing / AI (разделы 72–75 ТЗ, DDL `sql/73_tbc_processing.sql`, демо `74_tbc_processing_demo.sql`)
+
+| Таблица | Назначение |
+|---|---|
+| `TBC_METRIC_SAMPLES` | Append-only time series телеметрии касс: `SCOPE` hw (касса-компьютер) / app (Front Office), метрики cpu/ram/disk/battery и app_latency/tx_count/app_errors. Источник — heartbeat агентов |
+| `TBC_NODES` | Узлы обработки: промежуточные серверы магазинов (1..N на магазин), центральный сервер, бэк-офис. Три уровня контроля: HW (CPU/RAM/Disk), приложение обмена (версия/статус), БД (`DB_ENGINE`: oracle/sqlite/mssql/mysql/postgres + версия/статус/размер/соединения) |
+| `TBC_FLOWS` | Потоки обмена: касса (SQLite) → сервер магазина → центральный → бэк-офис. Статусы OK/LAGGING/STALLED/FAIL, lag в минутах, накопленные pending-строки, последняя ошибка |
+| `TBC_FLOW_LOG` | Append-only журнал батчей (отправлено/принято/статус/ошибка) |
+| `TBC_AI_DOSSIERS` | MD-досье сбоев для внешних AI-провайдеров: CLOB + per-документ `ACCESS_TOKEN`, счётчик прочтений, статус new/sent/analyzed/resolved |
+
 ### Представления
 
 `V_TBC_DEVICES`, `V_TBC_STORE_HEALTH` (агрегированный STORE_HEALTH =
 OK/DEGRADED/CRITICAL по правилам раздела 20), `V_TBC_VERSIONS`,
-`V_TBC_EVENTS`, `V_TBC_INCIDENTS`, `V_TBC_CHANGES`, `V_TBC_DASHBOARD_STATS`.
+`V_TBC_EVENTS`, `V_TBC_INCIDENTS`, `V_TBC_CHANGES`, `V_TBC_DASHBOARD_STATS`,
+`V_TBC_NODES`, `V_TBC_FLOWS`, `V_TBC_PROC_STATS`.
 
 ## UI-маршруты
 
