@@ -84,6 +84,29 @@ OK/DEGRADED/CRITICAL по правилам раздела 20), `V_TBC_VERSIONS`,
 | `/sla`, `/sla/<id>` | GET/PUT | SLA по сервисам |
 | `/audit` | GET | Журнал аудита |
 | `/init-demo` | POST | Создание TBC_*-объектов и загрузка демо-данных |
+| `/monitor/overview` | GET | Сводка по кассам: NOW + агрегаты за сегодня и 7 дней, HW и APP раздельно (фильтры store_id, device_type) |
+| `/monitor/series/<device_id>` | GET | Временные ряды: `scope=hw\|app`, `from`/`to` (произвольный период), `bucket=hour\|day` |
+| `/proc/stats` | GET | Сводка Processing-центра (потоки по статусам, pending, узлы, сбои батчей за 24ч) |
+| `/nodes` | GET/POST | Узлы обработки (фильтр node_type) |
+| `/nodes/heartbeat` | POST | Heartbeat узла: HW + статус приложения + статус/размер/соединения БД |
+| `/flows` | GET | Потоки (фильтр status=problems/OK/…, store_id) |
+| `/flows/<id>/log` | GET | Журнал батчей потока |
+| `/flows/<id>/report` | POST | Отчёт агента о батче: OK/FAIL/PARTIAL → пересчёт статуса потока по правилам 73.2 |
+| `/flows/<id>/retry` | POST | Ручной повтор передачи накопленного pending |
+| `/ai/dossiers` | GET | Список AI-досье |
+| `/ai/dossiers/generate` | POST | Генерация досье: `{source_type: event\|incident\|flow\|node\|device, ref_id}` |
+| `/ai/dossiers/<id>` | PUT | Статус досье (analyzed/resolved) |
+| `/ai/dossier/<code>.md` | GET | **Выдача MD внешнему AI**: `?token=<ACCESS_TOKEN>` без сессии (или из UI с сессией); text/markdown |
+
+### AI-досье (раздел 74 ТЗ)
+
+Досье генерируется автоматически при создании инцидента из P1/P2-события и
+вручную кнопкой 🤖 у события/инцидента/потока. Содержимое: контекст сбоя,
+паспорт устройства/узла, метрики NOW + телеметрия 24ч, health checks,
+версии ПО, потоки обмена с журналом батчей, STORE_HEALTH магазина, открытые
+события и инструкция для AI-агента (порядок диагностики + whitelist-действия
+через API). Секреты и credentials в документ не включаются — сервисный
+токен для активных действий выдаётся отдельно через Secret Store.
 
 ### Формат heartbeat (раздел 8 ТЗ)
 
