@@ -117,6 +117,7 @@ async function refresh() {
     if (idn && me.idno) idn.value = me.idno;
     crSaveUI((me.credit || {}).save !== false, me.credit || {});
     typeUI();
+    loadMyOrders();
   }
   window.ME_ACC = me;
   return me;
