@@ -1149,6 +1149,211 @@ class TBControlController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ========== Действия персонала / тикеты / климат / отчёт ==========
+
+    @staticmethod
+    def get_actions(store_id=None, unjustified=None, limit=200):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_TBC_ACTIONS WHERE 1=1"
+                params = {}
+                if store_id:
+                    sql += " AND STORE_ID = :sid"
+                    params["sid"] = int(store_id)
+                if unjustified:
+                    sql += " AND IS_JUSTIFIED = 'N'"
+                sql += f" ORDER BY STARTED_AT DESC FETCH FIRST {int(limit)} ROWS ONLY"
+                r = db.execute_query(sql, params if params else None)
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_action(data):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO TBC_ACTIONS (STORE_ID, DEVICE_ID, EVENT_ID, ACTION_TYPE, PERFORMED_BY, "
+                    "NOTE, IS_JUSTIFIED, RESULT, FINISHED_AT) "
+                    "VALUES (:sid, :did, :eid, :atype, :who, :note, :just, :res, SYSTIMESTAMP)",
+                    {"sid": int(data.get("store_id", 0)),
+                     "did": int(data["device_id"]) if data.get("device_id") else None,
+                     "eid": int(data["event_id"]) if data.get("event_id") else None,
+                     "atype": data.get("action_type", "other"), "who": data.get("performed_by"),
+                     "note": data.get("note"), "just": data.get("is_justified", "Y"),
+                     "res": data.get("result", "fixed")})
+                db.connection.commit()
+                TBControlController._add_audit("create", "action", None,
+                                               f"Действие {data.get('action_type')} магазин {data.get('store_id')}")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_tickets(target=None, status=None, limit=200):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_TBC_TICKETS WHERE 1=1"
+                params = {}
+                if target:
+                    sql += " AND TARGET = :tgt"
+                    params["tgt"] = target
+                if status:
+                    sql += " AND STATUS = :status"
+                    params["status"] = status
+                sql += f" ORDER BY OPENED_AT DESC FETCH FIRST {int(limit)} ROWS ONLY"
+                r = db.execute_query(sql, params if params else None)
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_ticket(data):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO TBC_SUPPORT_TICKETS (TICKET_NO, STORE_ID, TARGET, PROVIDER_NAME, "
+                    "RELATED_EVENT_ID, SUBJECT, DESCRIPTION, OPENED_BY) "
+                    "VALUES ('TSK-' || TO_CHAR(SYSDATE, 'YYYY') || '-' || TBC_TICKET_NUM_SEQ.NEXTVAL, "
+                    ":sid, :tgt, :prov, :eid, :subj, :descr, :who)",
+                    {"sid": int(data.get("store_id", 0)), "tgt": data.get("target", "network_support"),
+                     "prov": data.get("provider_name"),
+                     "eid": int(data["related_event_id"]) if data.get("related_event_id") else None,
+                     "subj": data.get("subject", ""), "descr": data.get("description"),
+                     "who": data.get("opened_by") or TBControlController._username()})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_ticket(ticket_id, data):
+        try:
+            with DatabaseModel() as db:
+                sets, params = [], {"id": int(ticket_id)}
+                if data.get("status") == 'answered':
+                    sets.append("STATUS = 'answered'")
+                    sets.append("FIRST_RESPONSE_AT = NVL(FIRST_RESPONSE_AT, SYSTIMESTAMP)")
+                elif data.get("status") == 'resolved':
+                    sets.append("STATUS = 'resolved'")
+                    sets.append("FIRST_RESPONSE_AT = NVL(FIRST_RESPONSE_AT, SYSTIMESTAMP)")
+                    sets.append("RESOLVED_AT = SYSTIMESTAMP")
+                if "resolution" in data:
+                    sets.append("RESOLUTION = :res")
+                    params["res"] = data["resolution"]
+                if not sets:
+                    return {"success": False, "error": "Нет данных"}
+                db.execute_query(f"UPDATE TBC_SUPPORT_TICKETS SET {', '.join(sets)} WHERE ID = :id", params)
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def env_series(store_id=None, node_id=None, metric=None, hours=48):
+        """Ряды климат/питание/UPS по магазину или узлу."""
+        try:
+            with DatabaseModel() as db:
+                sql = ("SELECT METRIC, TO_CHAR(SAMPLED_AT, 'YYYY-MM-DD HH24') || 'h' AS BUCKET_TS, "
+                       "ROUND(AVG(NUM_VALUE), 1) AS AVG_V, MIN(NUM_VALUE) AS MIN_V, MAX(NUM_VALUE) AS MAX_V "
+                       "FROM TBC_ENV_SAMPLES WHERE SAMPLED_AT >= SYSTIMESTAMP - NUMTODSINTERVAL(:hrs, 'HOUR')")
+                params = {"hrs": int(hours)}
+                if store_id:
+                    sql += " AND STORE_ID = :sid"
+                    params["sid"] = int(store_id)
+                if node_id:
+                    sql += " AND NODE_ID = :nid"
+                    params["nid"] = int(node_id)
+                if metric:
+                    sql += " AND METRIC = :metric"
+                    params["metric"] = metric
+                sql += " GROUP BY METRIC, TO_CHAR(SAMPLED_AT, 'YYYY-MM-DD HH24') ORDER BY 2"
+                r = db.execute_query(sql, params)
+                rows = TBControlController._rows_to_dicts(r)
+                series = {}
+                for row in rows:
+                    series.setdefault(row["metric"], []).append(
+                        {"t": row["bucket_ts"], "v": row["avg_v"], "min": row["min_v"], "max": row["max_v"]})
+                return {"success": True, "data": series}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def report_ops(days=14):
+        """Отчёт «Динамика операций»: события по дням, очереди на кассах,
+        действия персонала (вкл. ненужные перезагрузки), обращения в
+        поддержку/банк/MEV с временем реакции, климат/UPS-сводка."""
+        try:
+            with DatabaseModel() as db:
+                out = {}
+                days = int(days)
+                # 1. Динамика событий по дням и приоритетам
+                r = db.execute_query(
+                    "SELECT TO_CHAR(CREATED_AT, 'YYYY-MM-DD') AS D, SEVERITY, COUNT(*) AS CNT "
+                    "FROM TBC_EVENTS WHERE CREATED_AT >= TRUNC(SYSDATE) - :d "
+                    "GROUP BY TO_CHAR(CREATED_AT, 'YYYY-MM-DD'), SEVERITY ORDER BY 1", {"d": days})
+                out["events_by_day"] = TBControlController._rows_to_dicts(r)
+                # 2. Очереди на кассах: по магазинам за сегодня и максимум за неделю
+                r = db.execute_query(
+                    "SELECT s.ID AS STORE_ID, s.CODE, s.BRAND, s.STORE_FORMAT, "
+                    "ROUND(AVG(CASE WHEN m.SAMPLED_AT >= TRUNC(SYSDATE) THEN m.NUM_VALUE END), 1) AS Q_AVG_TODAY, "
+                    "MAX(CASE WHEN m.SAMPLED_AT >= TRUNC(SYSDATE) THEN m.NUM_VALUE END) AS Q_MAX_TODAY, "
+                    "ROUND(AVG(m.NUM_VALUE), 1) AS Q_AVG_WEEK, MAX(m.NUM_VALUE) AS Q_MAX_WEEK "
+                    "FROM TBC_METRIC_SAMPLES m "
+                    "JOIN TBC_DEVICES d ON d.ID = m.DEVICE_ID "
+                    "JOIN TBC_STORES s ON s.ID = d.STORE_ID "
+                    "WHERE m.METRIC = 'queue_len' AND m.SAMPLED_AT >= SYSTIMESTAMP - 7 "
+                    "GROUP BY s.ID, s.CODE, s.BRAND, s.STORE_FORMAT ORDER BY Q_MAX_WEEK DESC NULLS LAST")
+                out["queues"] = TBControlController._rows_to_dicts(r)
+                # 3. Действия персонала: сводка + ненужные перезагрузки
+                r = db.execute_query(
+                    "SELECT ACTION_TYPE, COUNT(*) AS CNT, "
+                    "SUM(CASE WHEN IS_JUSTIFIED = 'N' THEN 1 ELSE 0 END) AS UNJUSTIFIED, "
+                    "SUM(CASE WHEN RESULT = 'no_effect' THEN 1 ELSE 0 END) AS NO_EFFECT "
+                    "FROM TBC_ACTIONS WHERE STARTED_AT >= TRUNC(SYSDATE) - :d "
+                    "GROUP BY ACTION_TYPE ORDER BY CNT DESC", {"d": days})
+                out["actions_summary"] = TBControlController._rows_to_dicts(r)
+                r = db.execute_query(
+                    "SELECT * FROM V_TBC_ACTIONS WHERE STARTED_AT >= TRUNC(SYSDATE) - :d "
+                    "ORDER BY STARTED_AT DESC FETCH FIRST 50 ROWS ONLY", {"d": days})
+                out["actions"] = TBControlController._rows_to_dicts(r)
+                # 4. Обращения: время реакции по адресатам
+                r = db.execute_query(
+                    "SELECT TARGET, COUNT(*) AS CNT, ROUND(AVG(RESPONSE_MIN)) AS AVG_RESPONSE_MIN, "
+                    "MAX(RESPONSE_MIN) AS MAX_RESPONSE_MIN, "
+                    "SUM(CASE WHEN RESPONSE_MIN > 60 THEN 1 ELSE 0 END) AS DELAYED, "
+                    "SUM(CASE WHEN STATUS = 'open' THEN 1 ELSE 0 END) AS STILL_OPEN "
+                    "FROM V_TBC_TICKETS WHERE OPENED_AT >= TRUNC(SYSDATE) - :d "
+                    "GROUP BY TARGET ORDER BY CNT DESC", {"d": days})
+                out["tickets_summary"] = TBControlController._rows_to_dicts(r)
+                r = db.execute_query(
+                    "SELECT * FROM V_TBC_TICKETS WHERE OPENED_AT >= TRUNC(SYSDATE) - :d "
+                    "ORDER BY OPENED_AT DESC FETCH FIRST 50 ROWS ONLY", {"d": days})
+                out["tickets"] = TBControlController._rows_to_dicts(r)
+                # 5. Климат/питание: текущие экстремумы
+                r = db.execute_query(
+                    "SELECT NVL(s.CODE, n.CODE) AS OBJ_CODE, s.BRAND, e.METRIC, "
+                    "ROUND(MAX(e.NUM_VALUE), 1) AS MAX_V, ROUND(MIN(e.NUM_VALUE), 1) AS MIN_V, "
+                    "ROUND(AVG(CASE WHEN e.SAMPLED_AT >= SYSTIMESTAMP - INTERVAL '2' HOUR THEN e.NUM_VALUE END), 1) AS NOW_V "
+                    "FROM TBC_ENV_SAMPLES e "
+                    "LEFT JOIN TBC_STORES s ON s.ID = e.STORE_ID "
+                    "LEFT JOIN TBC_NODES n ON n.ID = e.NODE_ID "
+                    "WHERE e.SAMPLED_AT >= SYSTIMESTAMP - 2 "
+                    "GROUP BY NVL(s.CODE, n.CODE), s.BRAND, e.METRIC ORDER BY 1, 3")
+                out["env_summary"] = TBControlController._rows_to_dicts(r)
+                # 6. Магазины на UPS прямо сейчас
+                r = db.execute_query(
+                    "SELECT DISTINCT s.CODE, s.BRAND FROM TBC_ENV_SAMPLES e "
+                    "JOIN TBC_STORES s ON s.ID = e.STORE_ID "
+                    "WHERE e.METRIC = 'on_ups' AND e.NUM_VALUE = 1 "
+                    "AND e.SAMPLED_AT >= SYSTIMESTAMP - INTERVAL '30' MINUTE")
+                out["stores_on_ups"] = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": out}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ========== AI Diagnostic Dossiers (раздел 74 ТЗ) ==========
 
     @staticmethod
