@@ -162,7 +162,7 @@ SELECT s.ID, (SELECT MAX(ID) FROM TBC_EVENTS WHERE CORRELATION_ID = 'pw13a1'), '
 FROM TBC_STORES s WHERE s.CODE = 'MD-CHS-013';
 -- ISP-авария: перезагрузка роутера (оправданная попытка), затем звонок провайдеру
 INSERT INTO TBC_ACTIONS (STORE_ID, DEVICE_ID, EVENT_ID, ACTION_TYPE, PERFORMED_BY, NOTE, IS_JUSTIFIED, RESULT, STARTED_AT, FINISHED_AT)
-SELECT s.ID, d.ID, (SELECT MAX(e.ID) FROM TBC_EVENTS e WHERE e.CORRELATION_ID = 'isp102' AND e.SERVICE_CODE = 'isp'), 'restart_router', 'админ А.倒Гуцу', 'Перезагрузка роутера — линк не поднялся, авария на линии провайдера', 'Y', 'no_effect', SYSTIMESTAMP - INTERVAL '70' MINUTE, SYSTIMESTAMP - INTERVAL '66' MINUTE
+SELECT s.ID, d.ID, (SELECT MAX(e.ID) FROM TBC_EVENTS e WHERE e.CORRELATION_ID = 'isp102' AND e.SERVICE_CODE = 'isp'), 'restart_router', 'админ А.Гуцу', 'Перезагрузка роутера — линк не поднялся, авария на линии провайдера', 'Y', 'no_effect', SYSTIMESTAMP - INTERVAL '70' MINUTE, SYSTIMESTAMP - INTERVAL '66' MINUTE
 FROM TBC_STORES s JOIN TBC_DEVICES d ON d.CODE = 'MD-BLT-102-NET-01' WHERE s.CODE = 'MD-BLT-102';
 -- Перегрев: включение резервного кондиционера
 INSERT INTO TBC_ACTIONS (STORE_ID, DEVICE_ID, EVENT_ID, ACTION_TYPE, PERFORMED_BY, NOTE, IS_JUSTIFIED, RESULT, STARTED_AT)
