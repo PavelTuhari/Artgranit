@@ -41,6 +41,7 @@ const T = {
   seeAll:     {ro: 'Vezi toate →', ru: 'Смотреть все →'},
   brands:     {ro: 'Branduri populare', ru: 'Популярные бренды'},
   credits:    {ro: 'Credite', ru: 'Кредиты'},
+  b2b:        {ro: 'B2B și API', ru: 'B2B и API'},
   all:        {ro: 'Toate', ru: 'Все'},
   byCat:      {ro: 'Pe categorii', ru: 'По категориям'},
   nlTitle:    {ro: 'Abonează-te la newsletter', ru: 'Подпишитесь на рассылку'},
