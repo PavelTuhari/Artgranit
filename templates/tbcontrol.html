@@ -955,7 +955,8 @@ async function loadEvents() {
         <td style="white-space:nowrap">
             ${e.status === 'open' ? `<button class="btn btn-secondary btn-sm" onclick="evAction(${e.id}, 'ack')" title="Подтвердить">✓</button>` : ''}
             ${e.status === 'open' || e.status === 'ack' ? `<button class="btn btn-success btn-sm" onclick="evAction(${e.id}, 'resolve')" title="Разрешить">✔✔</button>
-            <button class="btn btn-warning btn-sm" onclick="evToIncident(${e.id})" title="Создать инцидент">🎫</button>` : ''}
+            <button class="btn btn-warning btn-sm" onclick="evToIncident(${e.id})" title="Создать инцидент">🎫</button>
+            <button class="btn btn-secondary btn-sm" onclick="genDossier('event', ${e.id})" title="AI-досье">🤖</button>` : ''}
         </td></tr>`).join('') || '<tr><td colspan="9" class="empty-note">Событий нет</td></tr>';
 }
 async function evAction(id, action) {
