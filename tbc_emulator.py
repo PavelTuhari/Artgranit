@@ -57,10 +57,11 @@ class TBCEmulator:
 
     SRC = 'emulator'
 
-    def __init__(self, client: TBCClient, log=None):
+    def __init__(self, client: TBCClient, log=None, stop_event=None):
         self.c = client
         self.cycle = 0
         self.log = log or (lambda m: print(f'[emu] {m}', flush=True))
+        self.stop_event = stop_event
         self.stores = {}
         self.devices = {}
         self.flows = {}
