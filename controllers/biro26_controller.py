@@ -1370,8 +1370,13 @@ class Biro26Controller:
         c = session.get("biro26_client")
         if c:
             client_cod = c["univers_cod"]
-        elif d.get("client_cod") and session.get("username"):
-            # RO/EN: back-office operator may issue for an explicit client COD
+        elif d.get("client_cod") and (session.get("username")
+                                      or Biro26Controller._api_token_ok()):
+            # RO: operatorul din back-office SAU o integrare B2B cu cheie de
+            #     incredere (X-API-Key) — angajati/aplicatii externe pot
+            #     plasa comenzi pe un COD de client explicit.
+            # EN: back-office operator OR a trusted-key (X-API-Key) B2B
+            #     integration may issue for an explicit client COD
             try:
                 client_cod = int(d["client_cod"])
             except (TypeError, ValueError, OverflowError):
