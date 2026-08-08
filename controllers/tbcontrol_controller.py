@@ -874,6 +874,533 @@ class TBControlController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ========== Monitoring Center (раздел 72 ТЗ) ==========
+
+    @staticmethod
+    def monitor_overview(store_id=None, device_type=None):
+        """Сводка по кассам: NOW + агрегаты за сегодня и за 7 дней,
+        раздельно по HW-контуру и APP-контуру (Front Office)."""
+        try:
+            with DatabaseModel() as db:
+                sql = ("SELECT d.ID, d.CODE, d.DEVICE_TYPE, d.STATUS, d.STORE_ID, s.CODE AS STORE_CODE, "
+                       "d.CPU_PCT, d.RAM_PCT, d.DISK_PCT, d.LAST_SEEN, d.LAST_SYNC, "
+                       "t.CPU_AVG_TODAY, t.CPU_MAX_TODAY, t.LAT_AVG_TODAY, t.TX_TODAY, t.ERR_TODAY, "
+                       "w.CPU_AVG_WEEK, w.CPU_MAX_WEEK, w.LAT_AVG_WEEK, w.TX_WEEK, w.ERR_WEEK "
+                       "FROM TBC_DEVICES d "
+                       "JOIN TBC_STORES s ON s.ID = d.STORE_ID "
+                       "LEFT JOIN (SELECT DEVICE_ID, "
+                       "  ROUND(AVG(CASE WHEN SCOPE='hw' AND METRIC='cpu' THEN NUM_VALUE END), 1) AS CPU_AVG_TODAY, "
+                       "  MAX(CASE WHEN SCOPE='hw' AND METRIC='cpu' THEN NUM_VALUE END) AS CPU_MAX_TODAY, "
+                       "  ROUND(AVG(CASE WHEN SCOPE='app' AND METRIC='app_latency' THEN NUM_VALUE END), 1) AS LAT_AVG_TODAY, "
+                       "  SUM(CASE WHEN SCOPE='app' AND METRIC='tx_count' THEN NUM_VALUE END) AS TX_TODAY, "
+                       "  SUM(CASE WHEN SCOPE='app' AND METRIC='app_errors' THEN NUM_VALUE END) AS ERR_TODAY "
+                       "  FROM TBC_METRIC_SAMPLES WHERE SAMPLED_AT >= TRUNC(SYSDATE) GROUP BY DEVICE_ID) t "
+                       "ON t.DEVICE_ID = d.ID "
+                       "LEFT JOIN (SELECT DEVICE_ID, "
+                       "  ROUND(AVG(CASE WHEN SCOPE='hw' AND METRIC='cpu' THEN NUM_VALUE END), 1) AS CPU_AVG_WEEK, "
+                       "  MAX(CASE WHEN SCOPE='hw' AND METRIC='cpu' THEN NUM_VALUE END) AS CPU_MAX_WEEK, "
+                       "  ROUND(AVG(CASE WHEN SCOPE='app' AND METRIC='app_latency' THEN NUM_VALUE END), 1) AS LAT_AVG_WEEK, "
+                       "  SUM(CASE WHEN SCOPE='app' AND METRIC='tx_count' THEN NUM_VALUE END) AS TX_WEEK, "
+                       "  SUM(CASE WHEN SCOPE='app' AND METRIC='app_errors' THEN NUM_VALUE END) AS ERR_WEEK "
+                       "  FROM TBC_METRIC_SAMPLES WHERE SAMPLED_AT >= SYSTIMESTAMP - 7 GROUP BY DEVICE_ID) w "
+                       "ON w.DEVICE_ID = d.ID "
+                       "WHERE d.DEVICE_TYPE IN ('POS','SCO')")
+                params = {}
+                if store_id:
+                    sql += " AND d.STORE_ID = :store_id"
+                    params["store_id"] = int(store_id)
+                if device_type:
+                    sql += " AND d.DEVICE_TYPE = :dtype"
+                    params["dtype"] = device_type
+                sql += " ORDER BY d.CODE"
+                r = db.execute_query(sql, params if params else None)
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def monitor_series(device_id, scope='hw', date_from=None, date_to=None, bucket='hour'):
+        """Временные ряды метрик кассы за произвольный период.
+        bucket: hour|day. Возвращает {metric: [{t, v}...]}."""
+        try:
+            with DatabaseModel() as db:
+                fmt = 'YYYY-MM-DD HH24:00' if bucket == 'hour' else 'YYYY-MM-DD'
+                sql = ("SELECT METRIC, TO_CHAR(SAMPLED_AT, :fmt) AS BUCKET_TS, "
+                       "ROUND(AVG(NUM_VALUE), 1) AS AVG_V, MAX(NUM_VALUE) AS MAX_V, "
+                       "SUM(NUM_VALUE) AS SUM_V "
+                       "FROM TBC_METRIC_SAMPLES WHERE DEVICE_ID = :did AND SCOPE = :scope")
+                params = {"fmt": fmt, "did": int(device_id), "scope": scope}
+                if date_from:
+                    sql += " AND SAMPLED_AT >= TO_TIMESTAMP(:dfrom, 'YYYY-MM-DD')"
+                    params["dfrom"] = date_from[:10]
+                else:
+                    sql += " AND SAMPLED_AT >= SYSTIMESTAMP - 7"
+                if date_to:
+                    sql += " AND SAMPLED_AT < TO_TIMESTAMP(:dto, 'YYYY-MM-DD') + 1"
+                    params["dto"] = date_to[:10]
+                sql += " GROUP BY METRIC, TO_CHAR(SAMPLED_AT, :fmt2) ORDER BY 2"
+                params["fmt2"] = fmt
+                r = db.execute_query(sql, params)
+                rows = TBControlController._rows_to_dicts(r)
+                series = {}
+                for row in rows:
+                    m = row["metric"]
+                    # tx_count/app_errors — суммируем, остальные усредняем
+                    v = row["sum_v"] if m in ('tx_count', 'app_errors') else row["avg_v"]
+                    series.setdefault(m, []).append({"t": row["bucket_ts"], "v": v, "max": row["max_v"]})
+                return {"success": True, "data": series}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ========== Processing Center (раздел 73 ТЗ) ==========
+
+    @staticmethod
+    def get_proc_stats():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_TBC_PROC_STATS")
+                row = TBControlController._first_row(r) or {}
+                return {"success": True, "data": row}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_nodes(node_type=None):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_TBC_NODES WHERE 1=1"
+                params = {}
+                if node_type:
+                    sql += " AND NODE_TYPE = :ntype"
+                    params["ntype"] = node_type
+                sql += " ORDER BY CASE NODE_TYPE WHEN 'backoffice' THEN 3 WHEN 'central' THEN 2 ELSE 1 END, CODE"
+                r = db.execute_query(sql, params if params else None)
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_node(data):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "INSERT INTO TBC_NODES (CODE, NAME, NODE_TYPE, STORE_ID, HOSTNAME, IP_ADDRESS, OS, "
+                    "STATUS, APP_NAME, APP_VERSION, DB_ENGINE, DB_VERSION) "
+                    "VALUES (:code, :name, :ntype, :sid, :host, :ip, :os, :status, :app, :appv, :eng, :dbv)",
+                    {"code": data.get("code", ""), "name": data.get("name", ""),
+                     "ntype": data.get("node_type", "store_srv"),
+                     "sid": int(data["store_id"]) if data.get("store_id") else None,
+                     "host": data.get("hostname"), "ip": data.get("ip_address"), "os": data.get("os"),
+                     "status": data.get("status", "offline"), "app": data.get("app_name"),
+                     "appv": data.get("app_version"), "eng": data.get("db_engine", "sqlite"),
+                     "dbv": data.get("db_version")})
+                db.connection.commit()
+                r = db.execute_query("SELECT ID FROM TBC_NODES WHERE CODE = :c", {"c": data.get("code", "")})
+                row = TBControlController._first_row(r)
+                node_id = row["id"] if row else None
+                TBControlController._add_audit("create", "node", node_id, f"Узел {data.get('code')}")
+                return {"success": True, "data": {"id": node_id}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def node_heartbeat(data):
+        """Heartbeat узла обработки: HW + приложение + БД (раздел 73.3)."""
+        code = (data.get("node_id") or data.get("code") or "").strip()
+        if not code:
+            return {"success": False, "error": "node_id обязателен"}
+        try:
+            with DatabaseModel() as db:
+                status = 'online' if (data.get("status", "OK") or "OK").upper() in ("OK", "ONLINE") else 'degraded'
+                r = db.execute_query(
+                    "UPDATE TBC_NODES SET STATUS = :status, LAST_SEEN = SYSTIMESTAMP, "
+                    "CPU_PCT = NVL(:cpu, CPU_PCT), RAM_PCT = NVL(:ram, RAM_PCT), DISK_PCT = NVL(:disk, DISK_PCT), "
+                    "APP_STATUS = NVL(:appst, APP_STATUS), APP_VERSION = NVL(:appv, APP_VERSION), "
+                    "DB_STATUS = NVL(:dbst, DB_STATUS), DB_SIZE_MB = NVL(:dbsz, DB_SIZE_MB), "
+                    "DB_CONNECTIONS = NVL(:dbcon, DB_CONNECTIONS) WHERE CODE = :code",
+                    {"status": status, "cpu": data.get("cpu"), "ram": data.get("ram"),
+                     "disk": data.get("disk"), "appst": data.get("app_status"),
+                     "appv": data.get("app_version"), "dbst": data.get("db_status"),
+                     "dbsz": data.get("db_size_mb"), "dbcon": data.get("db_connections"),
+                     "code": code})
+                db.connection.commit()
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False, "error": f"Узел {code} не зарегистрирован"}
+                return {"success": True, "data": {"code": code, "status": status}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_flows(status=None, store_id=None):
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_TBC_FLOWS WHERE 1=1"
+                params = {}
+                if status:
+                    if status == 'problems':
+                        sql += " AND STATUS IN ('LAGGING','STALLED','FAIL')"
+                    else:
+                        sql += " AND STATUS = :status"
+                        params["status"] = status
+                if store_id:
+                    sql += " AND STORE_CODE = (SELECT CODE FROM TBC_STORES WHERE ID = :sid)"
+                    params["sid"] = int(store_id)
+                sql += (" ORDER BY CASE STATUS WHEN 'FAIL' THEN 1 WHEN 'STALLED' THEN 2 "
+                        "WHEN 'LAGGING' THEN 3 ELSE 4 END, CODE")
+                r = db.execute_query(sql, params if params else None)
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_flow_log(flow_id, limit=50):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, BATCH_CODE, ROWS_SENT, ROWS_ACCEPTED, STATUS, ERROR_MSG, STARTED_AT, FINISHED_AT "
+                    f"FROM TBC_FLOW_LOG WHERE FLOW_ID = :fid ORDER BY STARTED_AT DESC FETCH FIRST {int(limit)} ROWS ONLY",
+                    {"fid": int(flow_id)})
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def flow_report(flow_id, data):
+        """Отчёт агента о передаче батча: обновляет статус/lag/pending потока
+        и пишет журнал. Правила статусов — раздел 73.2 ТЗ."""
+        try:
+            with DatabaseModel() as db:
+                status = (data.get("status") or "OK").upper()
+                if status not in ('OK', 'FAIL', 'PARTIAL'):
+                    return {"success": False, "error": "status: OK/FAIL/PARTIAL"}
+                db.execute_query(
+                    "INSERT INTO TBC_FLOW_LOG (FLOW_ID, BATCH_CODE, ROWS_SENT, ROWS_ACCEPTED, STATUS, "
+                    "ERROR_MSG, FINISHED_AT) VALUES (:fid, :batch, :sent, :acc, :status, :err, SYSTIMESTAMP)",
+                    {"fid": int(flow_id), "batch": data.get("batch_code"),
+                     "sent": data.get("rows_sent", 0), "acc": data.get("rows_accepted", 0),
+                     "status": status, "err": (data.get("error") or "")[:500] or None})
+                if status == 'OK':
+                    db.execute_query(
+                        "UPDATE TBC_FLOWS SET STATUS = 'OK', LAG_MIN = 0, "
+                        "PENDING_ROWS = GREATEST(0, NVL(:pending, 0)), LAST_OK_AT = SYSTIMESTAMP, "
+                        "LAST_ERROR = NULL WHERE ID = :fid",
+                        {"pending": data.get("pending_rows"), "fid": int(flow_id)})
+                else:
+                    db.execute_query(
+                        "UPDATE TBC_FLOWS SET "
+                        "LAG_MIN = ROUND(NVL((CAST(SYSTIMESTAMP AS DATE) - CAST(LAST_OK_AT AS DATE)) * 1440, 9999)), "
+                        "PENDING_ROWS = NVL(:pending, PENDING_ROWS), LAST_ERROR = :err, "
+                        "STATUS = CASE "
+                        "  WHEN :st = 'FAIL' THEN 'FAIL' "
+                        "  WHEN NVL((CAST(SYSTIMESTAMP AS DATE) - CAST(LAST_OK_AT AS DATE)) * 1440, 9999) > SCHEDULE_MIN * 6 THEN 'STALLED' "
+                        "  WHEN NVL((CAST(SYSTIMESTAMP AS DATE) - CAST(LAST_OK_AT AS DATE)) * 1440, 9999) > SCHEDULE_MIN * 2 THEN 'LAGGING' "
+                        "  ELSE STATUS END "
+                        "WHERE ID = :fid",
+                        {"pending": data.get("pending_rows"), "err": (data.get("error") or "")[:500] or None,
+                         "st": status, "fid": int(flow_id)})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def retry_flow(flow_id):
+        """Ручной повтор передачи: имитирует успешный батч на весь pending."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT PENDING_ROWS FROM TBC_FLOWS WHERE ID = :id", {"id": int(flow_id)})
+                row = TBControlController._first_row(r)
+                if not row:
+                    return {"success": False, "error": "Поток не найден"}
+                pending = row.get("pending_rows") or 0
+                db.execute_query(
+                    "INSERT INTO TBC_FLOW_LOG (FLOW_ID, BATCH_CODE, ROWS_SENT, ROWS_ACCEPTED, STATUS, FINISHED_AT) "
+                    "VALUES (:fid, 'RETRY-' || TO_CHAR(SYSDATE, 'HH24MISS'), :rows_cnt, :rows_cnt2, 'OK', SYSTIMESTAMP)",
+                    {"fid": int(flow_id), "rows_cnt": pending, "rows_cnt2": pending})
+                db.execute_query(
+                    "UPDATE TBC_FLOWS SET STATUS = 'OK', LAG_MIN = 0, PENDING_ROWS = 0, "
+                    "LAST_OK_AT = SYSTIMESTAMP, LAST_ERROR = NULL WHERE ID = :id", {"id": int(flow_id)})
+                db.connection.commit()
+                TBControlController._add_audit("retry", "flow", int(flow_id), f"Повтор передачи, {pending} строк")
+                return {"success": True, "data": {"rows": pending}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ========== AI Diagnostic Dossiers (раздел 74 ТЗ) ==========
+
+    @staticmethod
+    def _md_table(rows, cols):
+        """rows: список dict, cols: [(key, title), ...] → markdown-таблица"""
+        if not rows:
+            return "_нет данных_\n"
+        head = "| " + " | ".join(t for _, t in cols) + " |\n"
+        head += "|" + "---|" * len(cols) + "\n"
+        body = ""
+        for r in rows:
+            body += "| " + " | ".join(str(r.get(k, '') if r.get(k) is not None else '—') for k, _ in cols) + " |\n"
+        return head + body
+
+    @staticmethod
+    def generate_dossier(source_type, ref_id):
+        """Генерирует исчерпывающее MD-досье сбоя для внешних AI-провайдеров
+        (раздел 74 ТЗ): контекст сбоя, паспорт объекта, метрики, health,
+        версии, потоки обмена, журналы, рекомендуемый workflow."""
+        try:
+            with DatabaseModel() as db:
+                md = []
+                title = ""
+                severity = None
+                device_id = node_id = store_id = None
+
+                if source_type == 'event':
+                    r = db.execute_query("SELECT * FROM V_TBC_EVENTS WHERE ID = :id", {"id": int(ref_id)})
+                    obj = TBControlController._first_row(r)
+                    if not obj:
+                        return {"success": False, "error": "Событие не найдено"}
+                    title = f"{obj['severity']}: {obj['problem']}"
+                    severity, device_id, store_id = obj.get("severity"), obj.get("device_id"), obj.get("store_id")
+                    md.append(f"## Событие #{obj['id']}\n")
+                    md.append(f"- **Приоритет:** {obj['severity']} ({obj.get('severity_name')})\n"
+                              f"- **Проблема:** {obj['problem']}\n"
+                              f"- **Сервис:** {obj.get('service_name') or '—'}\n"
+                              f"- **Статус:** {obj['status']} · Источник: {obj.get('source')}\n"
+                              f"- **Correlation ID:** {obj.get('correlation_id') or '—'}\n"
+                              f"- **Создано:** {obj.get('created_at')}\n")
+                    if obj.get("parent_event_id"):
+                        md.append(f"- **Зависимое от root cause:** событие #{obj['parent_event_id']}\n")
+                    if obj.get("child_count"):
+                        md.append(f"- **Root cause для:** {obj['child_count']} подавленных событий\n")
+                elif source_type == 'incident':
+                    r = db.execute_query("SELECT * FROM V_TBC_INCIDENTS WHERE ID = :id", {"id": int(ref_id)})
+                    obj = TBControlController._first_row(r)
+                    if not obj:
+                        return {"success": False, "error": "Инцидент не найден"}
+                    title = f"{obj['code']}: {obj['title']}"
+                    severity, device_id, store_id = obj.get("severity"), obj.get("device_id"), obj.get("store_id")
+                    md.append(f"## Инцидент {obj['code']}\n")
+                    md.append(f"- **Приоритет:** {obj['severity']}\n- **Заголовок:** {obj['title']}\n"
+                              f"- **Описание:** {obj.get('description') or '—'}\n"
+                              f"- **Группа:** {obj.get('assigned_group_name') or '—'} · Исполнитель: {obj.get('assignee') or '—'}\n"
+                              f"- **Статус:** {obj['status']} · SLA до: {obj.get('sla_deadline')}\n"
+                              f"- **Открыт:** {obj.get('opened_at')}\n")
+                elif source_type == 'flow':
+                    r = db.execute_query("SELECT * FROM V_TBC_FLOWS WHERE ID = :id", {"id": int(ref_id)})
+                    obj = TBControlController._first_row(r)
+                    if not obj:
+                        return {"success": False, "error": "Поток не найден"}
+                    title = f"Поток {obj['code']}: {obj['status']}"
+                    severity = 'P2' if obj['status'] in ('FAIL', 'STALLED') else 'P3'
+                    device_id = obj.get("src_device_id")
+                    node_id = obj.get("src_node_id")
+                    md.append(f"## Поток обмена {obj['code']}\n")
+                    md.append(f"- **Маршрут:** {obj.get('src_code')} → {obj.get('dst_node_code')} ({obj.get('flow_type')})\n"
+                              f"- **Статус:** {obj['status']} · Отставание: {obj.get('lag_min')} мин · "
+                              f"Накоплено: {obj.get('pending_rows')} строк\n"
+                              f"- **Последняя успешная передача:** {obj.get('last_ok_at') or 'никогда'}\n"
+                              f"- **Последняя ошибка:** `{obj.get('last_error') or '—'}`\n"
+                              f"- **Периодичность:** каждые {obj.get('schedule_min')} мин · Сбоев за 24ч: {obj.get('fails_24h')}\n")
+                elif source_type == 'node':
+                    node_id = int(ref_id)
+                else:
+                    device_id = int(ref_id)
+
+                # --- Паспорт устройства + метрики ---
+                if device_id:
+                    r = db.execute_query("SELECT * FROM V_TBC_DEVICES WHERE ID = :id", {"id": device_id})
+                    d = TBControlController._first_row(r)
+                    if d:
+                        store_id = store_id or d.get("store_id")
+                        if not title:
+                            title = f"Устройство {d['code']}"
+                        md.append(f"\n## Устройство {d['code']}\n")
+                        md.append(f"- **Тип:** {d.get('device_type_name')} · Статус: **{d['status']}** · "
+                                  f"Критичность: {d.get('criticality')}\n"
+                                  f"- **Магазин:** {d.get('store_code')} {d.get('store_name')}\n"
+                                  f"- **HW:** {d.get('manufacturer') or ''} {d.get('model') or ''} · "
+                                  f"SN {d.get('serial_number') or '—'} · Asset {d.get('asset_id') or '—'}\n"
+                                  f"- **ОС:** {d.get('os') or ''} {d.get('os_version') or ''} · "
+                                  f"IP {d.get('ip_address') or '—'} · MAC {d.get('mac_address') or '—'}\n"
+                                  f"- **Метрики NOW:** CPU {d.get('cpu_pct')}% · RAM {d.get('ram_pct')}% · "
+                                  f"Disk {d.get('disk_pct')}%"
+                                  + (f" · Battery {d.get('battery_pct')}% · Free {d.get('storage_free_mb')}MB · "
+                                     f"Pending ops {d.get('pending_ops')}" if d.get('device_type') == 'AND' else "") + "\n"
+                                  f"- **Last seen:** {d.get('last_seen')} · Last sync: {d.get('last_sync')}\n"
+                                  f"- **Ответственность:** {d.get('owner_side')} / {d.get('support_group_name')}\n")
+                        r2 = db.execute_query("SELECT * FROM V_TBC_VERSIONS WHERE DEVICE_ID = :id", {"id": device_id})
+                        md.append("\n### Софт на устройстве\n")
+                        md.append(TBControlController._md_table(
+                            TBControlController._rows_to_dicts(r2),
+                            [("app_name", "Приложение"), ("current_version", "Текущая"),
+                             ("expected_version", "Ожидаемая"), ("status", "Статус"), ("last_check", "Проверено")]))
+                        r3 = db.execute_query(
+                            "SELECT COMPONENT, STATUS, LATENCY_MS, DETAILS, CHECKED_AT FROM TBC_HEALTH_CHECKS "
+                            "WHERE DEVICE_ID = :id ORDER BY CHECKED_AT DESC FETCH FIRST 15 ROWS ONLY", {"id": device_id})
+                        md.append("\n### Последние health checks\n")
+                        md.append(TBControlController._md_table(
+                            TBControlController._rows_to_dicts(r3),
+                            [("component", "Компонент"), ("status", "Статус"), ("latency_ms", "мс"),
+                             ("details", "Детали"), ("checked_at", "Когда")]))
+                        r4 = db.execute_query(
+                            "SELECT SCOPE, METRIC, ROUND(AVG(NUM_VALUE),1) AS AVG_V, MAX(NUM_VALUE) AS MAX_V "
+                            "FROM TBC_METRIC_SAMPLES WHERE DEVICE_ID = :id AND SAMPLED_AT >= SYSTIMESTAMP - 1 "
+                            "GROUP BY SCOPE, METRIC ORDER BY SCOPE, METRIC", {"id": device_id})
+                        md.append("\n### Телеметрия за 24 часа (hw = касса-компьютер, app = Front Office)\n")
+                        md.append(TBControlController._md_table(
+                            TBControlController._rows_to_dicts(r4),
+                            [("scope", "Контур"), ("metric", "Метрика"), ("avg_v", "Среднее"), ("max_v", "Максимум")]))
+                        r5 = db.execute_query("SELECT * FROM V_TBC_FLOWS WHERE SRC_DEVICE_ID = :id", {"id": device_id})
+                        md.append("\n### Потоки обмена устройства\n")
+                        md.append(TBControlController._md_table(
+                            TBControlController._rows_to_dicts(r5),
+                            [("code", "Поток"), ("dst_node_code", "Приёмник"), ("status", "Статус"),
+                             ("lag_min", "Lag, мин"), ("pending_rows", "Pending"), ("last_error", "Ошибка")]))
+
+                # --- Узел обработки ---
+                if node_id:
+                    r = db.execute_query("SELECT * FROM V_TBC_NODES WHERE ID = :id", {"id": node_id})
+                    n = TBControlController._first_row(r)
+                    if n:
+                        if not title:
+                            title = f"Узел {n['code']}"
+                        md.append(f"\n## Узел обработки {n['code']}\n")
+                        md.append(f"- **Тип:** {n['node_type']} · Магазин: {n.get('store_code') or 'центр.офис'} · "
+                                  f"Статус: **{n['status']}**\n"
+                                  f"- **HW:** CPU {n.get('cpu_pct')}% · RAM {n.get('ram_pct')}% · Disk {n.get('disk_pct')}%\n"
+                                  f"- **Приложение:** {n.get('app_name')} {n.get('app_version')} — {n.get('app_status')}\n"
+                                  f"- **БД:** {n.get('db_engine')} {n.get('db_version')} — **{n.get('db_status')}** · "
+                                  f"{n.get('db_size_mb')} MB · {n.get('db_connections')} соединений\n"
+                                  f"- **Last seen:** {n.get('last_seen')}\n")
+                        r2 = db.execute_query(
+                            "SELECT * FROM V_TBC_FLOWS WHERE SRC_NODE_ID = :id OR DST_NODE_ID = :id2",
+                            {"id": node_id, "id2": node_id})
+                        md.append("\n### Потоки узла\n")
+                        md.append(TBControlController._md_table(
+                            TBControlController._rows_to_dicts(r2),
+                            [("code", "Поток"), ("src_code", "Источник"), ("dst_node_code", "Приёмник"),
+                             ("status", "Статус"), ("lag_min", "Lag, мин"), ("pending_rows", "Pending"),
+                             ("last_error", "Ошибка")]))
+
+                # --- Контекст магазина ---
+                if store_id:
+                    r = db.execute_query("SELECT * FROM V_TBC_STORE_HEALTH WHERE ID = :id", {"id": store_id})
+                    sh = TBControlController._first_row(r)
+                    if sh:
+                        md.append(f"\n## Магазин {sh['code']} — {sh['name']}\n")
+                        md.append(f"- **STORE_HEALTH:** {sh['health']}\n"
+                                  f"- POS online: {sh['pos_online']}/{sh['pos_total']} · "
+                                  f"SCO: {sh['sco_online']}/{sh['sco_total']} · "
+                                  f"Android: {sh['and_online']}/{sh['and_total']}\n"
+                                  f"- Открытые события: P1={sh['p1_open']} P2={sh['p2_open']} "
+                                  f"P3={sh['p3_open']} P4={sh['p4_open']}\n"
+                                  f"- Maintenance window: день {sh.get('maint_dow')}, "
+                                  f"{sh.get('maint_time_from')}–{sh.get('maint_time_to')}\n")
+                        r2 = db.execute_query(
+                            "SELECT * FROM V_TBC_EVENTS WHERE STORE_ID = :id AND STATUS IN ('open','ack') "
+                            "ORDER BY CREATED_AT DESC FETCH FIRST 10 ROWS ONLY", {"id": store_id})
+                        md.append("\n### Открытые события магазина\n")
+                        md.append(TBControlController._md_table(
+                            TBControlController._rows_to_dicts(r2),
+                            [("severity", "Prio"), ("device_code", "Устройство"), ("problem", "Проблема"),
+                             ("status", "Статус"), ("created_at", "Создано")]))
+
+                # --- Журнал последних передач при сбоях потоков ---
+                if source_type == 'flow':
+                    r = db.execute_query(
+                        "SELECT BATCH_CODE, ROWS_SENT, ROWS_ACCEPTED, STATUS, ERROR_MSG, STARTED_AT "
+                        "FROM TBC_FLOW_LOG WHERE FLOW_ID = :id ORDER BY STARTED_AT DESC FETCH FIRST 15 ROWS ONLY",
+                        {"id": int(ref_id)})
+                    md.append("\n### Журнал последних батчей\n")
+                    md.append(TBControlController._md_table(
+                        TBControlController._rows_to_dicts(r),
+                        [("batch_code", "Батч"), ("rows_sent", "Отправлено"), ("rows_accepted", "Принято"),
+                         ("status", "Статус"), ("error_msg", "Ошибка"), ("started_at", "Когда")]))
+
+                # --- Рекомендации для AI-агента ---
+                md.append("\n## Инструкция для AI-диагностики\n")
+                md.append("Рекомендуемый порядок (раздел 39 ТЗ): network → dns → gateway → agent → "
+                          "process → database → api → payment → fiscal → peripheral.\n\n"
+                          "Доступные действия через API модуля (требуется сервисный токен, "
+                          "выдаётся отдельно через Secret Store — в досье не включён):\n\n"
+                          "- `POST /api/tbc/devices/<id>/diagnostics` — запустить диагностику;\n"
+                          "- `POST /api/tbc/flows/<id>/retry` — повторить передачу потока;\n"
+                          "- `POST /api/tbc/events/<id>/resolve` — закрыть событие после устранения;\n"
+                          "- `PUT /api/tbc/incidents/<id>` — обновить инцидент (RCA-поля).\n\n"
+                          "Разрешены только whitelist-действия (раздел 61-62 ТЗ): без изменения "
+                          "финансовых данных, production-конфигурации и security controls.\n")
+
+                md_text = f"# AI Diagnostic Dossier — {title}\n\n" \
+                          f"_Сгенерировано TBControl. Секреты и credentials в документ не включаются._\n\n" \
+                          + "".join(md)
+                token = secrets.token_urlsafe(32)
+                db.execute_query(
+                    "INSERT INTO TBC_AI_DOSSIERS (CODE, SOURCE_TYPE, REF_ID, TITLE, SEVERITY, MD_CONTENT, ACCESS_TOKEN) "
+                    "VALUES ('DSR-' || TO_CHAR(SYSDATE, 'YYYY') || '-' || LPAD(TBC_DOSSIERS_SEQ.NEXTVAL, 6, '0'), "
+                    ":stype, :rid, :title, :sev, :md, :token)",
+                    {"stype": source_type, "rid": int(ref_id), "title": title[:300],
+                     "sev": severity, "md": md_text, "token": token})
+                db.connection.commit()
+                r = db.execute_query("SELECT ID, CODE FROM TBC_AI_DOSSIERS ORDER BY ID DESC FETCH FIRST 1 ROW ONLY")
+                row = TBControlController._first_row(r)
+                TBControlController._add_audit("generate", "dossier", row["id"] if row else None,
+                                               f"AI-досье {row['code'] if row else ''}: {title[:120]}")
+                return {"success": True, "data": {"id": row["id"], "code": row["code"],
+                                                  "token": token, "md": md_text}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_dossiers(limit=100):
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, CODE, SOURCE_TYPE, REF_ID, TITLE, SEVERITY, STATUS, READS_COUNT, "
+                    f"CREATED_AT, UPDATED_AT FROM TBC_AI_DOSSIERS ORDER BY CREATED_AT DESC FETCH FIRST {int(limit)} ROWS ONLY")
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_dossier_md(code, token, authenticated=False):
+        """Выдача MD-досье. Для внешних AI — только по ACCESS_TOKEN."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, MD_CONTENT, ACCESS_TOKEN FROM TBC_AI_DOSSIERS WHERE CODE = :code", {"code": code})
+                row = TBControlController._first_row(r)
+                if not row:
+                    return {"success": False, "error": "Досье не найдено", "status": 404}
+                if not authenticated and (not token or token != row.get("access_token")):
+                    return {"success": False, "error": "Недействительный токен", "status": 403}
+                md = row.get("md_content")
+                if hasattr(md, 'read'):
+                    md = md.read()
+                db.execute_query(
+                    "UPDATE TBC_AI_DOSSIERS SET READS_COUNT = NVL(READS_COUNT, 0) + 1, "
+                    "STATUS = CASE WHEN STATUS = 'new' THEN 'sent' ELSE STATUS END WHERE ID = :id",
+                    {"id": row["id"]})
+                db.connection.commit()
+                return {"success": True, "md": md}
+        except Exception as e:
+            return {"success": False, "error": str(e), "status": 500}
+
+    @staticmethod
+    def update_dossier(dossier_id, data):
+        try:
+            with DatabaseModel() as db:
+                if data.get("status") not in ('new', 'sent', 'analyzed', 'resolved'):
+                    return {"success": False, "error": "Недопустимый статус"}
+                db.execute_query("UPDATE TBC_AI_DOSSIERS SET STATUS = :st WHERE ID = :id",
+                                 {"st": data["status"], "id": int(dossier_id)})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ========== Справочники и журнал ==========
 
     @staticmethod
