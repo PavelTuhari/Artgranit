@@ -944,7 +944,8 @@ class TBControlController:
         bucket: hour|day. Возвращает {metric: [{t, v}...]}."""
         try:
             with DatabaseModel() as db:
-                fmt = 'YYYY-MM-DD HH24:00' if bucket == 'hour' else 'YYYY-MM-DD'
+                # Двоеточие в литерале нельзя: oracledb примет ':00' за bind-переменную
+                fmt = 'YYYY-MM-DD HH24' if bucket == 'hour' else 'YYYY-MM-DD'
                 sql = (f"SELECT METRIC, TO_CHAR(SAMPLED_AT, '{fmt}') AS BUCKET_TS, "
                        "ROUND(AVG(NUM_VALUE), 1) AS AVG_V, MAX(NUM_VALUE) AS MAX_V, "
                        "SUM(NUM_VALUE) AS SUM_V "
