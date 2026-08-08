@@ -945,11 +945,11 @@ class TBControlController:
         try:
             with DatabaseModel() as db:
                 fmt = 'YYYY-MM-DD HH24:00' if bucket == 'hour' else 'YYYY-MM-DD'
-                sql = ("SELECT METRIC, TO_CHAR(SAMPLED_AT, :fmt) AS BUCKET_TS, "
+                sql = (f"SELECT METRIC, TO_CHAR(SAMPLED_AT, '{fmt}') AS BUCKET_TS, "
                        "ROUND(AVG(NUM_VALUE), 1) AS AVG_V, MAX(NUM_VALUE) AS MAX_V, "
                        "SUM(NUM_VALUE) AS SUM_V "
                        "FROM TBC_METRIC_SAMPLES WHERE DEVICE_ID = :did AND SCOPE = :scope")
-                params = {"fmt": fmt, "did": int(device_id), "scope": scope}
+                params = {"did": int(device_id), "scope": scope}
                 if date_from:
                     sql += " AND SAMPLED_AT >= TO_TIMESTAMP(:dfrom, 'YYYY-MM-DD')"
                     params["dfrom"] = date_from[:10]
