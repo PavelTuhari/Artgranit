@@ -349,6 +349,19 @@ class TBControlController:
                      "storage": data.get("storage_free_mb"), "pending": data.get("pending_operations"),
                      "last_sync": (data.get("last_sync") or "")[:19] or None, "id": dev_id})
 
+                # Материализация телеметрии в time series (раздел 72 ТЗ)
+                samples = [('hw', 'cpu', data.get("cpu")), ('hw', 'ram', data.get("ram")),
+                           ('hw', 'disk', data.get("disk")), ('hw', 'battery', data.get("battery")),
+                           ('app', 'app_latency', data.get("app_latency")),
+                           ('app', 'tx_count', data.get("tx_count")),
+                           ('app', 'app_errors', data.get("app_errors"))]
+                for scope, metric, value in samples:
+                    if value is not None:
+                        db.execute_query(
+                            "INSERT INTO TBC_METRIC_SAMPLES (DEVICE_ID, SCOPE, METRIC, NUM_VALUE) "
+                            "VALUES (:did, :scope, :metric, :val)",
+                            {"did": dev_id, "scope": scope, "metric": metric, "val": value})
+
                 # Версия приложения: сверка с ожидаемой (раздел 30 ТЗ)
                 app_code = data.get("application")
                 version = data.get("version")
