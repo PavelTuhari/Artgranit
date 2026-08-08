@@ -576,7 +576,8 @@ function showPanel(name) {
     document.getElementById('panel-' + name).classList.add('active');
     const loaders = {dashboard: loadDashboard, stores: loadStores, devices: loadDevices, apps: loadApps,
         versions: loadVersions, changes: loadChanges, events: loadEvents, incidents: loadIncidents,
-        sla: loadSla, audit: loadAudit, monitor: loadMonitor, processing: loadProcessing, dossiers: loadDossiers};
+        sla: loadSla, audit: loadAudit, monitor: loadMonitor, processing: loadProcessing,
+        dossiers: loadDossiers, report: loadReport};
     (loaders[name] || (() => {}))();
 }
 function openModal(html) {
