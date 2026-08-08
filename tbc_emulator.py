@@ -487,7 +487,7 @@ class EmulatorRuntime:
                             self._log(f'ошибка sync: {e}')
                         self._stop.wait(interval)
                 else:
-                    emu = TBCEmulator(client, log=self._log)
+                    emu = TBCEmulator(client, log=self._log, stop_event=self._stop)
                     while not self._stop.is_set():
                         emu.run_cycle()
                         self.state['cycle'] = emu.cycle
