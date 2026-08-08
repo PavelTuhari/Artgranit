@@ -1465,8 +1465,79 @@ async function loadAudit() {
         '<tr><td colspan="5" class="empty-note">Журнал пуст</td></tr>';
 }
 
+// ===== Эмулятор сценариев / Zabbix-коннектор =====
+let emuPollTimer = null;
+async function openEmulatorModal() {
+    const [st, cfg] = await Promise.all([api('/emulator/status'), api('/settings')]);
+    const s = st.success ? st.data : {};
+    const c = cfg.success ? cfg.data : {};
+    openModal(`<h3>🧪 Источник событий: эмулятор сценариев / реальный Zabbix</h3>
+        <div class="muted" style="font-size:12px;margin-bottom:10px">
+            Режим «Эмулятор» по кругу генерирует все 10 сценариев из
+            <span class="mono">docs/TBControl/SCENARIOS.md</span>: нечётный цикл — сбои
+            (свет/интернет/банк/MEV/жара/очереди/потоки), чётный — восстановление.
+            Режим «Zabbix» подключается к реальному Zabbix API и синхронизирует его
+            проблемы в события TBControl (severity → P1–P4, хост → устройство).
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Режим</label><select class="form-control" id="em_mode" onchange="emModeChanged()">
+                <option value="emulator">Эмулятор 10 сценариев (по кругу)</option>
+                <option value="zabbix">Реальный Zabbix (JSON-RPC API)</option></select></div>
+            <div class="form-group"><label>Интервал цикла, сек</label>
+                <input class="form-control" id="em_interval" type="number" min="15" value="${esc(c.emulator_interval || '60')}"></div>
+        </div>
+        <div id="em_zbx" style="display:none">
+            <div class="form-group"><label>Zabbix URL (api_jsonrpc.php)</label>
+                <input class="form-control" id="em_zurl" placeholder="https://zabbix.example.md/api_jsonrpc.php" value="${esc(c.zabbix_url || '')}"></div>
+            <div class="form-group"><label>Zabbix API token</label>
+                <input class="form-control" id="em_ztoken" placeholder="токен API" value="${esc(c.zabbix_token || '')}"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-success" id="em_start" onclick="startEmulator()">▶ Запустить</button>
+            <button class="btn btn-danger" id="em_stop" onclick="stopEmulator()">⏹ Остановить</button>
+            <button class="btn btn-secondary" onclick="closeModal();clearInterval(emuPollTimer)">Закрыть</button>
+        </div>
+        <div style="margin-top:12px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:4px">Статус: <span id="em_state">—</span></div>
+            <pre id="em_log" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:10px;max-height:220px;overflow:auto;font-size:11px;white-space:pre-wrap"></pre>
+        </div>`);
+    renderEmuStatus(s);
+    clearInterval(emuPollTimer);
+    emuPollTimer = setInterval(async () => {
+        const r = await api('/emulator/status');
+        if (r.success) renderEmuStatus(r.data);
+    }, 4000);
+}
+function emModeChanged() {
+    document.getElementById('em_zbx').style.display = gv('em_mode') === 'zabbix' ? '' : 'none';
+}
+function renderEmuStatus(s) {
+    const el = document.getElementById('em_state');
+    if (!el) return;
+    el.innerHTML = s.running
+        ? `<span class="badge-st bg-ok">работает</span> режим: <b>${esc(s.mode)}</b> · циклов: ${s.cycle}`
+        : `<span class="badge-st bg-mut">остановлен</span>${s.error ? ' <span class="badge-st bg-crit">' + esc(s.error) + '</span>' : ''}`;
+    document.getElementById('em_log').textContent = (s.log || []).slice().reverse().join('\n') || '—';
+    const btn = document.getElementById('emuBtn');
+    if (btn) btn.innerHTML = s.running ? '🧪 Эмулятор <span style="color:var(--ok)">●</span>' : '🧪 Эмулятор';
+}
+async function startEmulator() {
+    const payload = {mode: gv('em_mode'), interval: gv('em_interval')};
+    if (payload.mode === 'zabbix') {
+        payload.zabbix_url = gv('em_zurl');
+        payload.zabbix_token = gv('em_ztoken');
+    }
+    const r = await api('/emulator/start', 'POST', payload);
+    toast(r.success ? 'Запущено' : r.error, !r.success);
+}
+async function stopEmulator() {
+    const r = await api('/emulator/stop', 'POST');
+    toast(r.success ? 'Остановлено' : r.error, !r.success);
+}
+
 boot();
 setInterval(() => { if (document.getElementById('panel-dashboard').classList.contains('active')) loadDashboard(); }, 30000);
+api('/emulator/status').then(r => { if (r.success) renderEmuStatus(r.data); });
 </script>
 </body>
 </html>
