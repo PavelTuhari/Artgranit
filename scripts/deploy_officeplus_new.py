@@ -135,6 +135,13 @@ NGINX = f"""server {{
         proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-Proto $scheme; }}
     location /api/    {{ proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host; }}
     location /static/ {{ proxy_pass http://127.0.0.1:8000; }}
+    # RO: autentificarea BACK-OFFICE (Flask). La radacina sta WordPress, deci
+    #     fara aceste doua linii /login ajunge la wp-login.php si operatorul
+    #     nu mai poate intra in Biro26 (dupa stergerea cookie-urilor).
+    # EN: back-office login must reach Flask, not the WP root.
+    location = /login  {{ proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-Proto $scheme; }}
+    location = /logout {{ proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host; }}
     location = /biro26-shop {{ proxy_pass http://127.0.0.1:8000/UNA.md/orasldev/biro26-shop$is_args$args; }}
     location = /biro26-backoffice {{ proxy_pass http://127.0.0.1:8000/UNA.md/orasldev/biro26-backoffice$is_args$args; }}
     # витрина: красивые URL -> Flask biro26-site
