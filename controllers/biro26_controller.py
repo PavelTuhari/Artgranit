@@ -687,8 +687,18 @@ class Biro26Controller:
     @staticmethod
     def credit_request() -> Dict[str, Any]:
         """Public: the «Solicitati un imprumut» form (bomba.md-style)."""
+        from flask import session
         from models.biro26_credit import Biro26Credit
-        return Biro26Credit.request_create(request.get_json(silent=True) or {})
+        d = request.get_json(silent=True) or {}
+        # RO: codul clientului se ia DOAR din sesiune — altfel oricine ar putea
+        #     cere ca la notificare sa se ataseze actele ALTUI client.
+        # EN: take the client code ONLY from the session; never from the body,
+        #     or anyone could have someone else's ID scans attached.
+        d.pop("client_cod", None)
+        c = session.get("biro26_client")
+        if c:
+            d["client_cod"] = c["univers_cod"]
+        return Biro26Credit.request_create(d)
 
     @staticmethod
     def credit_requests_list() -> Dict[str, Any]:
