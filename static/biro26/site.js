@@ -368,6 +368,14 @@ function payBadgeHtml(name) {
   const slug = paySlug(name);
   if (!slug) return '';
   const alt = esc(name);
+  // RO: cerem imaginea DOAR daca fisierul exista pe server (lista vine din
+  //     backend). Siglele oficiale lipsa raman badge text — fara 404 in
+  //     consola si fara sigle „aproximative" (marcile sint protejate).
+  // EN: only request the logo when the file really exists; otherwise show the
+  //     text badge — no 404 noise, no look-alike trademarks.
+  const have = window.PAY_LOGOS;
+  if (Array.isArray(have) && have.indexOf(slug) === -1)
+    return '<span class="paybadge">' + alt + '</span>';
   // onerror: fisierul lipseste -> inlocuim <img> cu badge-ul text
   return '<img class="paylogo" src="/static/biro26/pay/' + slug + '.svg" alt="' + alt +
          '" title="' + alt + '" loading="lazy"' +

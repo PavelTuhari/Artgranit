@@ -6373,11 +6373,26 @@ def _biro26_site_ctx():
                                                            'retail1'))
     except Exception:
         price_field = 'retail1'
+    # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
+    #     pentru ele, restul raman badge text. Altfel browserul incerca sa
+    #     incarce fisiere inexistente si consola se umplea de 404
+    #     (siglele oficiale se adauga in /static/biro26/pay/ sau din WP).
+    # EN: which payment logos actually exist, so the footer never requests a
+    #     missing file (404 noise); the rest fall back to a text badge.
+    try:
+        _paydir = os.path.join(app.static_folder, 'biro26', 'pay')
+        pay_logos = sorted(f.rsplit('.', 1)[0].lower()
+                           for f in os.listdir(_paydir)
+                           if f.lower().endswith(('.svg', '.png'))
+                           and not f.startswith(('.', '_')))
+    except Exception:
+        pay_logos = []
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
             'brand_filter': brand_filter,
             'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
-            'price_field': price_field}
+            'price_field': price_field,
+            'pay_logos': pay_logos}
 
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs

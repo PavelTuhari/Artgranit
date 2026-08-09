@@ -276,6 +276,7 @@
                 <li><a href="/politica-de-confidentialitate" data-t="privacy">Politica de confidențialitate</a></li>
                 <li><a href="/branduri" data-t="brands">Branduri</a></li>
                 <li><a href="/credite" data-t="credits">Credite</a></li>
+                <li><a href="/b2b-api" data-t="b2b">B2B și API</a></li>
               </ul>
             </div>
             <div class="footer-col">
@@ -315,6 +316,9 @@
     </div>
   </div>
 <script>
+// RO: siglele de plata existente pe server — evita cererile 404 catre
+// fisiere inexistente (vezi static/biro26/pay/README.md).
+window.PAY_LOGOS = {{ pay_logos|default([])|tojson }};
 window.LIBER_PCT = {{ liber_pct|default(0) }};
 window.PRICE_FIELD = '{{ price_field|default("retail1") }}';
 window.LIBER_MIN = {{ liber_min|default(0) }};
