@@ -183,11 +183,17 @@ class Biro26Report:
         except (TypeError, ValueError):
             return None
         rows = _rows(Biro26DB().execute_query(
+            # RO: TO_NUMBER se aplica DOAR pe randuri numerice — printr-un CASE,
+            #     nu printr-un AND: Oracle poate evalua predicatele in orice
+            #     ordine, deci TO_NUMBER('A-69') arunca ORA-01722 chiar cu
+            #     REGEXP_LIKE inainte. CASE garanteaza ordinea (NULL nu se
+            #     potriveste). EN: guard TO_NUMBER via CASE — an AND guard is
+            #     not enough, Oracle may evaluate TO_NUMBER first (ORA-01722).
             "SELECT MAX(COD) COD FROM TMDB_DOCS "
             "WHERE SYSFID = 12280 "
             "AND (TRIM(NRMANUAL) = :s "
-            "     OR (REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$') "
-            "         AND TO_NUMBER(TRIM(NRMANUAL)) = :n))",
+            "     OR CASE WHEN REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$') "
+            "             THEN TO_NUMBER(TRIM(NRMANUAL)) END = :n)",
             {"s": str(n), "n": n}))
         return int(rows[0]["cod"]) if rows and rows[0]["cod"] else None
 
