@@ -706,6 +706,15 @@ function ecOut(html, color) {
   var el = document.getElementById('ec-out');
   el.innerHTML = html;
   el.style.color = color || '#334155';
+  // RO: la creditorii FARA API (#ec-flow e ascuns) mesajul ar ramine
+  //     invizibil — clientul apasa butonul si nu se intimpla «nimic».
+  //     De aceea, cind zona nu se vede, dublam mesajul printr-un toast.
+  // EN: when #ec-flow is hidden (lenders without an API) the message would be
+  //     invisible — mirror it in a toast so nothing ever fails silently.
+  if (!el.offsetParent) {
+    var txt = el.textContent.trim();
+    if (txt) toast(txt, (color || '') === '#b91c1c');
+  }
 }
 
 /* RO: DOAR pentru clientul marcat «admin» in back-office: sub mesajul neutru
