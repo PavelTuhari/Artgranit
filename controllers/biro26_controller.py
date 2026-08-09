@@ -701,6 +701,97 @@ class Biro26Controller:
         return Biro26Credit.request_create(d)
 
     @staticmethod
+    def credit_apply() -> Dict[str, Any]:
+        """RO: formularul complet de cerere (macheta owner): datele creditului,
+        datele personale SI copiile buletinului, intr-un singur pas de trimitere.
+        Se foloseste la creditorii FARA API (Microinvest): cererea + actele ajung
+        la operator, care le depune mai departe la creditor.
+
+        Solicitantul devine automat CLIENT (persoana fizica) daca nu are cont —
+        asa actele au unde sa fie pastrate (TMS_MUNC_ADDFILES) si clientul le
+        vede/sterge apoi in cabinet. Daca e-mailul apartine unui cont EXISTENT,
+        cerem autentificarea: altfel un strain ar incarca acte in dosarul altuia.
+        EN: one-shot credit application (data + ID scans); the applicant becomes
+        a client so the documents have an owner; existing e-mail requires login.
+        """
+        import re as _re
+        from flask import session
+        from models.biro26_client_files import Biro26ClientFiles
+        from models.biro26_credit import Biro26Credit
+        from models.biro26_journal import Biro26Journal
+        from models.biro26_oracle_store import Biro26Store
+
+        f = request.form
+        name = " ".join(x for x in ((f.get("nume") or "").strip(),
+                                    (f.get("prenume") or "").strip()) if x).strip()
+        email = (f.get("email") or "").strip().lower()
+        phone = (f.get("phone") or "").strip()
+        idnp = _re.sub(r"\D", "", f.get("idnp") or "")
+        if not name:
+            return {"success": False, "error": "Numele și prenumele sunt obligatorii"}
+        if len(phone.replace(" ", "")) < 9:
+            return {"success": False, "error": "Număr de telefon invalid"}
+        if "@" not in email:
+            return {"success": False, "error": "E-mail invalid"}
+        if len(idnp) != 13:
+            return {"success": False, "error": "IDNP trebuie să aibă 13 cifre"}
+        if not (f.get("acord_gdpr") and f.get("acord_istoric")):
+            return {"success": False,
+                    "error": "Acordurile obligatorii nu au fost bifate"}
+
+        c = session.get("biro26_client")
+        if c:
+            cod = int(c["univers_cod"])
+        else:
+            ex = (Biro26Store.shop_client_by_email(email) or {}).get("data")
+            if ex:
+                return {"success": False, "error": "login_required",
+                        "message": "Acest e-mail are deja cont. Autentificați-vă "
+                                   "în cabinet și repetați cererea."}
+            reg = Biro26Journal.client_quick_add(
+                name, is_company=False, phone=phone, email=email,
+                address=(f.get("adresa") or "").strip())
+            if not reg.get("success"):
+                return reg
+            cod = int(reg["data"]["univers_cod"])
+
+        # actele de identitate (obligatorii pentru dosar)
+        saved = []
+        for field, kind in (("buletin_fata", "buletin_fata"),
+                            ("buletin_verso", "buletin_verso")):
+            up = request.files.get(field)
+            if not up:
+                continue
+            r = Biro26ClientFiles.add(
+                cod, kind, up.filename or f"{kind}.jpg", up.read(),
+                mime=up.mimetype or "", who=f"cerere-credit:{email}",
+                ip=request.headers.get("X-Real-IP") or request.remote_addr or "")
+            if not r.get("success"):
+                return r
+            saved.append(kind)
+
+        # cererea propriu-zisa (notificarea pleaca cu actele atasate)
+        det = (f"Scop: {f.get('scop') or '-'} · Venit: {f.get('venit') or '-'} lei · "
+               f"Alte rate: {f.get('alte_credite') or '0'} lei · "
+               f"Angajator: {f.get('angajator') or '-'} · "
+               f"Act: {f.get('act_serie') or '-'} din {f.get('act_data') or '-'} "
+               f"({f.get('act_oficiu') or '-'}) · "
+               f"Localitate: {f.get('localitate') or '-'}")
+        res = Biro26Credit.request_create({
+            "plan_id": f.get("plan_id"), "months": f.get("months"),
+            "qty": 1, "amount": f.get("amount"),
+            "product_cod": 0,
+            "product_name": (f.get("product_name") or "Cerere de credit")[:180],
+            "client_name": name, "phone": phone, "idnp": idnp,
+            "birth_date": f.get("data_nasterii") or "",
+            "address": ((f.get("adresa") or "") + " · " + det)[:400],
+            "client_cod": cod})
+        if res.get("success"):
+            res["data"]["files"] = saved
+            res["data"]["client_cod"] = cod
+        return res
+
+    @staticmethod
     def credit_requests_list() -> Dict[str, Any]:
         from models.biro26_credit import Biro26Credit
         return Biro26Credit.requests_list(request.args.get("limit", 50, type=int))
