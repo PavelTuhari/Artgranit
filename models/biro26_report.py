@@ -206,6 +206,28 @@ class Biro26Report:
         return int(rows[0]["cod"]) if rows else None
 
     @staticmethod
+    def assign_nrmanual(cod: int, timeout: int = 25) -> Optional[str]:
+        """RO: atribuie NRMANUAL documentului daca lipseste — prin
+        y_ai_BIRO26.ensure_nrmanual (aceleasi reguli ca la emiterea unui
+        cont: seria INVOICE_SERIES + contorul INVOICE_NR_START). Functia
+        din pachet ruleaza in tranzactie autonoma si comite imediat, deci
+        randul NU ramine blocat pe durata generarii formularelor.
+        Asteptarea e limitata (`timeout`): un document deschis in alta
+        sesiune nu trebuie sa tina cererea web minute intregi.
+        EN: assign the missing document number via the package helper;
+        bounded wait, autonomous+committed, so the row is freed at once."""
+        db = Biro26DB()
+        r = db.execute_dml(
+            "BEGIN :nr := y_ai_BIRO26.ensure_nrmanual(:c); END;",
+            {"nr": None, "c": int(cod)}, timeout=timeout)
+        if not r.get("success"):
+            return None
+        rows = _rows(db.execute_query(
+            "SELECT NRMANUAL FROM TMDB_DOCS WHERE COD = :c", {"c": int(cod)}))
+        nr = (rows[0].get("nrmanual") if rows else None) or ""
+        return str(nr).strip() or None
+
+    @staticmethod
     def doc_data(cod: int) -> Dict[str, Any]:
         """Collect everything the forms need for one document COD.
 
