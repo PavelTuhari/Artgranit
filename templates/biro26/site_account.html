@@ -144,6 +144,7 @@ async function refresh() {
     crSaveUI((me.credit || {}).save !== false, me.credit || {});
     typeUI();
     loadMyOrders();
+    loadMyDocs();
   }
   window.ME_ACC = me;
   return me;

@@ -58,8 +58,9 @@
     <th style="width:130px">Telefon</th><th style="width:70px">Tip</th>
     <th style="width:120px">IDNO</th><th style="width:140px">Înregistrat</th>
     <th style="width:150px">Marcaj · Метка</th>
+    <th style="width:110px">Acte · Документы</th>
   </tr></thead>
-  <tbody id="rows"><tr><td colspan="8" class="muted">…</td></tr></tbody>
+  <tbody id="rows"><tr><td colspan="9" class="muted">…</td></tr></tbody>
 </table>
 
 <div class="toast" id="toast"></div>
@@ -86,8 +87,31 @@ async function load(){
       '<td>'+(mk?'<span class="tag '+esc(mk)+'">'+esc(mk)+'</span> ':'')+
         '<select class="mark" onchange="setMark('+Number(c.univers_cod)+',this.value,this)">'+
         MARKS.map(([v,l])=>'<option value="'+v+'"'+(v===mk?' selected':'')+'>'+esc(l)+'</option>').join('')+
-        '</select></td></tr>';
-  }).join('') : '<tr><td colspan="8" class="muted">Niciun client · Нет клиентов</td></tr>';
+        '</select></td>'+
+      // RO: dosarul clientului (buletin fata/verso) — de aici operatorul il
+      //     transmite creditorului (Microinvest nu are API). Fiecare
+      //     deschidere se scrie in TMS_MUNC_ADDFILES_LOG.
+      '<td><button class="mark" onclick="docs('+Number(c.univers_cod)+')">📎 acte</button></td></tr>';
+  }).join('') : '<tr><td colspan="9" class="muted">Niciun client · Нет клиентов</td></tr>';
+}
+/* RO: actele personale ale clientului (TMS_MUNC_ADDFILES) — vizibile
+   operatorului pentru a le transmite creditorului. Date PERSONALE:
+   accesul se jurnalizeaza, nu se pastreaza copii pe disc. */
+async function docs(cod){
+  const r=await fetch('/api/biro26/shop/my-files?cod='+cod).then(x=>x.json()).catch(()=>({}));
+  const rows=(r&&r.success)?r.data:[];
+  const w=window.open('','_blank','width=760,height=620');
+  if(!w){toast('Permiteți ferestrele pop-up',true);return;}
+  const li=rows.length?rows.map(f=>
+    '<li><b>'+esc(f.kind_label||f.doc_kind)+'</b> — '+esc(f.file_name)+
+    ' ('+Math.round((f.file_size||0)/1024)+' KB, '+esc(f.created||'')+') '+
+    '<a target="_blank" href="/api/biro26/shop/my-files/'+f.id+'?cod='+cod+'">deschide</a></li>').join('')
+    : '<li>Clientul nu a încărcat documente · Клиент не загрузил документы</li>';
+  w.document.write('<meta charset="utf-8"><title>Acte client '+cod+'</title>'+
+    '<body style="font:14px system-ui;padding:18px"><h3>Acte client COD '+cod+'</h3><ul>'+li+'</ul>'+
+    '<p style="color:#64748b;font-size:12.5px">Date cu caracter personal (Legea 133/2011): '+
+    'folosiți-le doar pentru dosarul de credit; fiecare deschidere este jurnalizată.</p></body>');
+  w.document.close();
 }
 async function setMark(cod,mark,el){
   el.disabled=true;

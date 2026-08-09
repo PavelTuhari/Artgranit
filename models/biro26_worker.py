@@ -20,6 +20,7 @@ Messages/comments in DB code stay RO+EN per project rule; this is app code (RU/E
 """
 from __future__ import annotations
 
+import base64
 import datetime
 import decimal
 import json
@@ -65,7 +66,16 @@ def _cell(v):
     if isinstance(v, (datetime.datetime, datetime.date)):
         return v.isoformat()
     if isinstance(v, bytes):
-        return v.decode("utf-8", "replace")
+        # RO: BLOB-urile de TEXT (descrieri din TMS_MPT_WEBATTR) trebuie sa
+        #     ramina text; cele BINARE (scanuri, PDF-uri) NU pot trece prin
+        #     decodare UTF-8 fara sa se strice — le trimitem in base64,
+        #     marcate cu {"__b64__": ...}, exact ca la scriere.
+        # EN: text BLOBs stay text; binary ones travel as base64 so the bytes
+        #     survive the JSON contract intact.
+        try:
+            return v.decode("utf-8")
+        except UnicodeDecodeError:
+            return {"__b64__": base64.b64encode(v).decode()}
     return v
 
 

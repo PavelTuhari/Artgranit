@@ -368,12 +368,21 @@ class Biro26Notify:
     def send_all(subject: str, text: str,
                  settings: Optional[Dict[str, str]] = None,
                  pdf_url: Optional[str] = None,
-                 pdf_name: Optional[str] = None) -> Dict[str, Any]:
-        """Send through every ENABLED channel; per-channel results."""
+                 pdf_name: Optional[str] = None,
+                 attachments: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """Send through every ENABLED channel; per-channel results.
+
+        RO: `attachments` (copiile actelor clientului) pleaca DOAR pe e-mail —
+            canalul in care operatorul le poate salva si trimite mai departe
+            creditorului. Pe Telegram/WhatsApp se scrie doar cite fisiere sint.
+        EN: attachments go by e-mail only; chat channels get a short note."""
         s = settings or (Biro26Notify.get_settings().get("data") or {})
         res = {}
+        if attachments:
+            text = (text + "\n📎 Acte atașate: "
+                    + ", ".join(str(a.get("name") or "?") for a in attachments))
         if s.get("notify_email_enabled") == "1":
-            res["email"] = Biro26Notify._send_email(s, subject, text)
+            res["email"] = Biro26Notify._send_email(s, subject, text, attachments)
         if s.get("notify_tg_enabled") == "1":
             res["telegram"] = Biro26Notify._send_telegram(s, text)
         if s.get("notify_wa_enabled") == "1":

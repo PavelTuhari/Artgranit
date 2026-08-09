@@ -221,3 +221,39 @@ systemctl is-active artgranit jsreport                          # на серв�
 
 Онлайн-копии: `https://nufarul.eminescu.md/static/biro26/MIGRATION_BIRO26.md`,
 `.../static/biro26/PROJECT_BIRO26.md`.
+
+## Microinvest + документы клиента (2026-08-09)
+
+**Кредитор Microinvest** (acord de parteneriat nr. 554/2026, без API).
+Тарифы заведены в `TMS_CREDITE_ORG`/`TMS_CREDITE_PLAN` (org 4, наценка к
+СТАНДАРТНОЙ цене; `TRANSPORT_MARKUP_PCT=0` — надбавка магазина уже в плане):
+
+| План | Месяцы | Наценка | Годовая | Сумма |
+|---|---|---|---|---|
+| 0% 4 luni plus | 4 | 16% (6 комиссия + 10 магазин) | 0 | 1 000–500 000 |
+| 0% 6 luni plus | 6 | 18% (8 + 10) | 0 | 1 000–500 000 |
+| Standard 6-48 luni | 7–48 | 5% | 39% | 1 000–500 000 |
+
+Standard начинается с 7 месяцев намеренно: на 6 месяцах он всегда дороже
+плана «0% 6 luni plus», две одинаковые плитки «6 rate» только путали бы.
+
+**Документы клиента** — новая таблица `TMS_MUNC_ADDFILES` (BLOB, 1:N к
+`TMS_UNIVERS`) + журнал доступа `TMS_MUNC_ADDFILES_LOG`. DDL:
+`sql/80_tms_munc_addfiles.sql`. Модель: `models/biro26_client_files.py`.
+
+* Кабинет `/cont` → «Documentele mele»: загрузка buletin față/verso и прочих
+  (JPG/PNG/PDF, до 8 МБ), просмотр, удаление (физическое).
+* API: `GET|POST /api/biro26/shop/my-files`, `GET|DELETE …/my-files/<id>`;
+  оператор работает с чужим досье через `?cod=<univers_cod>`.
+* Бэк-офис `/biro26-clients` → кнопка «📎 acte» открывает досье клиента.
+* Заявка на кредит от авторизованного клиента **автоматически прикладывает
+  сканы к e-mail-уведомлению** оператору (у Microinvest нет API — заявку
+  подаёт оператор). Код клиента берётся ТОЛЬКО из сессии.
+
+⚠ Транспорт BLOB: воркер отдаёт двоичные LOB как `{"__b64__": …}` — текстовые
+BLOB (описания товаров) по-прежнему приходят строкой. Без этого сканы
+портились при чтении.
+
+Аудит GDPR/безопасности: `docs/Biro26/AUDIT_GDPR_SECURITATE.html`
+(риски R1–R7 и план действий; часть мер уже применена — cookie
+HttpOnly/SameSite/Secure, лимит тела запроса 12 МБ).
