@@ -7238,6 +7238,17 @@ def api_biro26_journal_client_add():
         d.get('phone', ''), d.get('email', ''), d.get('address', ''))
     return jsonify(r), (200 if r.get('success') else 400)
 
+@app.route('/UNA.md/orasldev/biro26-site/credit-form')
+@app.route('/UNA.md/orasldev/biro26-1shop/credit-form')
+def biro26_site_credit_form():
+    """RO: cererea de credit dupa macheta owner-ului (2 pasi + acte)."""
+    return render_template('biro26/site_credit_form.html', **_biro26_site_ctx())
+
+@app.route('/api/biro26/shop/credit/apply', methods=['POST'])
+def api_biro26_credit_apply():
+    r = Biro26Controller.credit_apply()
+    return jsonify(r), (200 if r.get('success') else 400)
+
 @app.route('/api/biro26/shop/my-files', methods=['GET'])
 def api_biro26_client_files_list():
     """RO: actele personale ale clientului (cabinet) / dosarul unui client (operator)."""

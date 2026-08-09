@@ -102,9 +102,12 @@
     @media (max-width:1024px){.pdp-cols{flex-direction:column}
       .pdp-sec.pdp-credit{max-width:none;width:100%}}
     .pdp-sec h3{margin:0 0 10px;font-size:18px;color:#194681}
-    .cr-tiles{display:flex;gap:10px;flex-wrap:wrap}
+    /* RO: termenele — CITE 5 pe rind (cerinta owner 09.08.2026): la creditele
+       pe 48 de luni lista devenea o coloana lunga de 3 pe rind. */
+    .cr-tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    @media (max-width:640px){.cr-tiles{grid-template-columns:repeat(3,1fr)}}
     .cr-tile{border:1.5px solid #d1d1d1;border-radius:12px;padding:10px 14px;cursor:pointer;
-      text-align:center;min-width:96px;background:#fff}
+      text-align:center;min-width:0;background:#fff;padding:8px 6px}
     .cr-tile:hover{border-color:#194681}
     .cr-tile.on{border-color:#194681;background:#eef4ff}
     .cr-tile b{display:block;font-size:15px}
