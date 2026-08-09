@@ -36,6 +36,20 @@ app = Flask(__name__)
 app.config.from_object(Config)
 Config.init_app(app)
 
+# RO: protectia sesiunii si a incarcarilor — cerinta auditului GDPR/securitate
+#     (documentele personale ale clientilor: buletin fata/verso in
+#     TMS_MUNC_ADDFILES). Cookie-ul merge doar pe HTTPS, nu e vizibil din
+#     JavaScript si nu pleaca la cereri cross-site (protectie CSRF de baza);
+#     corpul cererii e plafonat ca o incarcare uriasa sa nu epuizeze memoria.
+# EN: session/upload hardening required by the GDPR & security audit —
+#     HTTPS-only, HttpOnly, SameSite=Lax cookies and a hard body-size cap.
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=(os.environ.get('ENVIRONMENT', '').upper() == 'REMOTE'),
+    MAX_CONTENT_LENGTH=12 * 1024 * 1024,          # 12 MB (fisier max 8 MB)
+)
+
 # Инициализация Babel для интернационализации
 babel = Babel()
 
