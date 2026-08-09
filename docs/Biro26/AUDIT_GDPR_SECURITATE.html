@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit GDPR și securitate — documente personale și credite (officeplus.md)</title>
+<style>
+  body { max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem;
+         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         line-height: 1.6; color: #1e293b; }
+  h1 { color: #1d4ed8; border-bottom: 2px solid #dbeafe; padding-bottom: .3em; }
+  h2 { color: #1e40af; margin-top: 1.8em; border-bottom: 1px solid #e2e8f0; padding-bottom: .2em; }
+  h3 { color: #334155; margin-top: 1.2em; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: .92em; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: .85em; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: .92em; }
+  th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f8fafc; }
+  .ok   { background: #dcfce7; border-left: 4px solid #15803d; padding: 10px 14px; border-radius: 6px; }
+  .warn { background: #fefce8; border-left: 4px solid #ca8a04; padding: 10px 14px; border-radius: 6px; }
+  .danger { background: #fef2f2; border-left: 4px solid #b91c1c; padding: 10px 14px; border-radius: 6px; }
+  .muted { color: #64748b; font-size: .88em; }
+  .b-ok   { color:#15803d; font-weight:700 }
+  .b-todo { color:#b45309; font-weight:700 }
+  .b-risk { color:#b91c1c; font-weight:700 }
+</style>
+</head>
+<body>
+
+<h1>Audit GDPR și securitate — documentele personale ale clienților și fluxul de credit</h1>
+<p class="muted">Contur: <b>officeplus.md</b> (92.5.130.1) și copia <b>nufarul.eminescu.md</b> ·
+Data: 2026-08-09 · Obiect: încărcarea actelor de identitate în cabinetul clientului
+(<code>TMS_MUNC_ADDFILES</code>), transmiterea lor către creditor (Microinvest — fără API)
+și fluxul cererilor de credit.</p>
+
+<div class="warn"><b>Cadru legal aplicabil.</b> Legea 133/2011 privind protecția datelor cu
+caracter personal (RM), Legea 284/2004 (comerț electronic), Legea 202/2013 (credite pentru
+consumatori), Regulamentul (UE) 2016/679 (GDPR) — aplicabil pentru clienți din UE.
+Copia unui act de identitate conține date de identificare directă (nume, IDNP, imagine
+facială): temeiul prelucrării este <b>executarea contractului / demersuri precontractuale</b>
+(art. 6(1)(b) GDPR) pentru dosarul de credit, nu consimțământul generic la marketing.</p></div>
+
+<h2>1. Ce s-a implementat (și cum este protejat)</h2>
+<table>
+<tr><th>Element</th><th>Implementare</th><th>Stare</th></tr>
+<tr><td>Stocarea actelor</td>
+    <td>Oracle <code>TMS_MUNC_ADDFILES</code> (BLOB), 1:N la <code>TMS_UNIVERS</code>.
+        Fără copii pe disc, fără CDN, fără servicii terțe.</td><td class="b-ok">OK</td></tr>
+<tr><td>Minimizarea datelor</td>
+    <td>Doar tipurile necesare: <code>buletin_fata</code>, <code>buletin_verso</code>,
+        <code>extras_venit</code>, <code>other</code>. Un singur fișier per tip de buletin
+        (reîncărcarea îl <i>înlocuiește</i>, nu acumulează).</td><td class="b-ok">OK</td></tr>
+<tr><td>Controlul accesului</td>
+    <td>Clientul vede <b>doar</b> dosarul propriu (cod din sesiune, nu din cerere);
+        operatorul back-office — orice dosar, doar autentificat.</td><td class="b-ok">OK</td></tr>
+<tr><td>Jurnal de acces</td>
+    <td><code>TMS_MUNC_ADDFILES_LOG</code>: upload / download / delete / send,
+        cine, când, IP. Verificat live pe cererea Microinvest.</td><td class="b-ok">OK</td></tr>
+<tr><td>Dreptul la ștergere</td>
+    <td>Ștergere <b>fizică</b> din cabinet (buton ×), nu marcaj logic.</td><td class="b-ok">OK</td></tr>
+<tr><td>Validarea încărcării</td>
+    <td>Doar JPG/PNG/PDF, max. 8 MB/fișier; corpul cererii plafonat la 12 MB
+        (<code>MAX_CONTENT_LENGTH</code>).</td><td class="b-ok">OK</td></tr>
+<tr><td>Transport</td>
+    <td>HTTPS obligatoriu (Let's Encrypt, redirect 80→443). Excepție documentată:
+        <code>/api/biro26/</code> acceptă HTTP pentru <code>UTL_HTTP</code> din Oracle 11g
+        — vezi riscul R3.</td><td class="b-todo">parțial</td></tr>
+<tr><td>Cookie de sesiune</td>
+    <td><code>HttpOnly</code>, <code>SameSite=Lax</code>, <code>Secure</code> pe contururile
+        REMOTE — aplicat în cadrul acestui audit.</td><td class="b-ok">OK</td></tr>
+<tr><td>Anti-substituire</td>
+    <td>La cererea de credit, codul clientului se ia <b>numai din sesiune</b>; câmpul
+        <code>client_cod</code> din corpul cererii este ignorat — altfel un vizitator ar
+        putea cere atașarea actelor <i>altui</i> client.</td><td class="b-ok">OK</td></tr>
+<tr><td>Fără cache</td>
+    <td>Răspunsul cu fișierul: <code>Cache-Control: no-store, private</code>.</td><td class="b-ok">OK</td></tr>
+</table>
+
+<h2>2. Fluxul datelor (cine vede ce)</h2>
+<pre>Client (cabinet /cont)
+   └─ încarcă buletin față/verso  ──►  Oracle TMS_MUNC_ADDFILES (BLOB)
+                                        │  jurnal: upload (cine, când, IP)
+Cerere de credit pe site  ─────────────►│
+   └─ notificare către operator ────────┴─►  e-mail cu actele ATAȘATE
+                                            jurnal: download + send
+Operator back-office (/biro26-clients → «📎 acte»)
+   └─ deschide dosarul  ──► jurnal: download
+   └─ depune cererea la Microinvest (manual — creditorul NU are API)</pre>
+
+<h2>3. Riscuri identificate și tratamentul lor</h2>
+
+<h3>R1. Actele pleacă prin e-mail (necriptat end-to-end) <span class="b-risk">RIDICAT</span></h3>
+<div class="danger">Notificarea către operator conține copiile actelor ca atașamente.
+SMTP-ul este securizat pe transport (TLS/SSL), dar mesajul rămâne <b>necriptat în cutia
+poștală</b> a destinatarului și poate ajunge la un furnizor terț (Gmail).
+<b>Recomandare:</b> (a) destinatar pe domeniu propriu, nu Gmail; sau (b) în locul
+atașamentelor — <b>link semnat cu durată limitată</b> către dosar (mecanismul
+<code>?sig=</code> există deja pentru PDF-uri) care cere autentificare de operator.
+Varianta (b) elimină complet copiile din e-mail.</div>
+
+<h3>R2. Lipsa unei politici de retenție <span class="b-risk">RIDICAT</span></h3>
+<div class="danger">Actele rămân în bază pe termen nelimitat. GDPR/Legea 133 cer o durată
+determinată. <b>Recomandare:</b> ștergere automată a copiilor la <b>90 de zile</b> după
+finalizarea/refuzul dosarului de credit (job programat pe
+<code>TMS_MUNC_ADDFILES.CREATED_AT</code>), cu excepția cazurilor în care contractul de
+credit impune păstrarea — atunci copia rămâne la <b>creditor</b>, nu la magazin.</div>
+
+<h3>R3. <code>/api/biro26/</code> accesibil pe HTTP simplu <span class="b-todo">MEDIU</span></h3>
+<div class="warn">Necesar pentru <code>UTL_HTTP</code> din Oracle 11g (nu are wallet TLS).
+Cheia API circulă în clar în rețea. <b>Recomandare:</b> limitarea acestui <code>location</code>
+la <b>IP-ul serverului Oracle</b> (<code>allow &lt;ip&gt;; deny all;</code>) — 3 linii în nginx.
+Prin acest canal nu trec documente personale, doar generarea formularelor.</div>
+
+<h3>R4. Fără CSRF token pe API-urile POST cu sesiune <span class="b-todo">MEDIU</span></h3>
+<div class="warn">Autentificarea este pe cookie de sesiune. <code>SameSite=Lax</code>
+(aplicat acum) blochează cererile cross-site POST din browser — riscul practic scade
+substanțial. <b>Recomandare:</b> token CSRF pentru formularele de cabinet și back-office
+la următoarea iterație.</div>
+
+<h3>R5. Informarea persoanei vizate <span class="b-todo">MEDIU</span></h3>
+<div class="warn">Pagina <code>/politica-de-confidentialitate</code> există (WordPress), dar
+<b>nu descrie</b> încă: ce acte se încarcă, temeiul juridic, destinatarul
+(OCN „MICROINVEST” SRL, IDNO 1003600053518), durata păstrării și drepturile
+(acces, rectificare, ștergere, opoziție). <b>Recomandare:</b> secțiune nouă în politică +
+bifă explicită la încărcare: „Sunt de acord ca actele să fie transmise creditorului ales
+pentru evaluarea cererii”. Se editează din WP, fără deploy.</div>
+
+<h3>R6. Backup-urile conțin date personale <span class="b-todo">MEDIU</span></h3>
+<div class="warn">Copiile de siguranță ale bazei includ <code>TMS_MUNC_ADDFILES</code>.
+<b>Recomandare:</b> arhivele să fie criptate și păstrate cu aceeași durată ca datele
+originale (90 de zile), nu „pentru totdeauna”.</div>
+
+<h3>R7. Igiena conturilor WordPress <span class="b-risk">ISTORIC — tratat</span></h3>
+<div class="ok">În arhivele contururilor vechi s-au găsit <b>7 + 45 conturi de administrator
+de tip backdoor</b> (<code>wp2_*@wp2shell.invalid</code>, <code>bob_*@bobresearchlabs.com</code>)
+și pluginul vulnerabil <code>wp-file-manager</code>. În copia curentă: conturile șterse,
+pluginul eliminat, WP actualizat 7.0.3, editorul de fișiere dezactivat, PHP blocat în
+<code>uploads/</code>, <code>xmlrpc.php</code> închis, fail2ban activ.
+<b>De verificat:</b> aceleași curățări pe orice instanță WordPress rămasă în producție.</div>
+
+<h2>4. Plan de acțiune (prioritizat)</h2>
+<table>
+<tr><th>#</th><th>Acțiune</th><th>Efort</th><th>Efect</th></tr>
+<tr><td>1</td><td>Politica de confidențialitate: secțiune despre actele de identitate,
+    destinatar Microinvest, retenție, drepturi (R5)</td><td>1 oră, în WP</td><td>conformitate de bază</td></tr>
+<tr><td>2</td><td>Ștergere automată la 90 de zile + criptarea arhivelor (R2, R6)</td><td>0,5 zile</td><td>limitarea păstrării</td></tr>
+<tr><td>3</td><td>Link semnat în locul atașamentelor de e-mail (R1)</td><td>0,5 zile</td><td>elimină copiile din poștă</td></tr>
+<tr><td>4</td><td><code>allow &lt;IP Oracle&gt;; deny all;</code> pe <code>/api/biro26/</code> HTTP (R3)</td><td>15 min</td><td>închide canalul clar</td></tr>
+<tr><td>5</td><td>Token CSRF pe formularele cu sesiune (R4)</td><td>1 zi</td><td>apărare în adâncime</td></tr>
+</table>
+
+<h2>5. Verificări efectuate în timpul auditului</h2>
+<pre>✔ încărcare JPG din cabinet            → 200, fișier în TMS_MUNC_ADDFILES
+✔ integritate binară la citire         → octeții identici (BLOB base64-safe)
+✔ acces străin la dosar                → clientul primește doar dosarul propriu
+✔ cerere credit Microinvest (5 000 lei) → 1 450 lei/lună (5 000 × 1,16 ÷ 4) ✔ contract
+✔ actele atașate automat la notificare → jurnal: download ×2 + send
+✔ ștergere din cabinet                 → DELETE fizic, jurnal: delete</pre>
+
+<p class="muted">Notă: acest audit acoperă componenta „documente personale + credite”.
+Nu înlocuiește un audit de securitate complet al infrastructurii (pentesting, revizuirea
+drepturilor Oracle, jurnalizarea centralizată).</p>
+
+</body>
+</html>
