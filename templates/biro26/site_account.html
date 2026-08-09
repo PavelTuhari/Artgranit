@@ -47,6 +47,32 @@
               <p style="font-size:12px;color:#808080;margin:6px 0 0">Se salvează automat și se folosește la fiecare cont nou · Сохраняется и применяется к следующим счетам</p>
             </div>
             {% endif %}
+            <!-- RO: DOSARUL clientului — copiile actelor cerute de creditori
+                 (Microinvest nu are API: cererea o depune operatorul, cu
+                 aceste copii). Date PERSONALE: se vad doar in contul propriu
+                 si de catre operator; se pot sterge oricind. -->
+            <div style="border:1px solid #ececec;border-radius:12px;padding:12px 14px;margin:10px 0">
+              <b style="font-size:14px" data-bi>Documentele mele (pentru credit) · Мои документы (для кредита)</b>
+              <p style="font-size:12px;color:#808080;margin:6px 0 10px" data-bi>
+                Buletinul de identitate — față și verso (JPG, PNG sau PDF, max. 8 MB). Necesare la cererea de credit; le puteți șterge oricând. ·
+                Удостоверение личности — лицевая и оборотная сторона (JPG, PNG или PDF, до 8 МБ). Нужны для заявки на кредит; можно удалить в любой момент.</p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <label class="btn-blue" style="line-height:38px;height:38px;padding:0 14px;font-size:13px;cursor:pointer;margin:0">
+                  📷 <span data-bi>Buletin — față · Паспорт — лицевая</span>
+                  <input type="file" accept="image/*,application/pdf" style="display:none"
+                         onchange="upDoc(this,'buletin_fata')"></label>
+                <label class="btn-blue" style="line-height:38px;height:38px;padding:0 14px;font-size:13px;cursor:pointer;margin:0">
+                  📷 <span data-bi>Buletin — verso · Паспорт — оборот</span>
+                  <input type="file" accept="image/*,application/pdf" style="display:none"
+                         onchange="upDoc(this,'buletin_verso')"></label>
+                <label class="btn-blue" style="line-height:38px;height:38px;padding:0 14px;font-size:13px;cursor:pointer;margin:0;background:#676767">
+                  📎 <span data-bi>Alt document · Другой документ</span>
+                  <input type="file" accept="image/*,application/pdf" style="display:none"
+                         onchange="upDoc(this,'other')"></label>
+              </div>
+              <div id="my-docs" style="margin-top:10px;font-size:13.5px;color:#808080">…</div>
+            </div>
+
             <!-- RO: B2B/cabinet — comenzile plasate de client (site, API sau
                  operator) cu link direct spre contul de plata PDF/HTML -->
             <div style="border:1px solid #ececec;border-radius:12px;padding:12px 14px;margin:10px 0">
