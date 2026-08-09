@@ -212,6 +212,51 @@ async function saveCreditPref() {
   toast(cb.checked ? '✅ Datele se vor memora' : '✅ Memorarea oprită');
 }
 
+/* RO: DOSARUL clientului — actele pentru creditori (buletin fata/verso).
+   Datele sint PERSONALE: raspunsurile nu se cacheaza, iar stergerea din
+   cabinet este definitiva (dreptul la stergere, Legea 133/2011). */
+async function loadMyDocs() {
+  const box = document.getElementById('my-docs');
+  if (!box) return;
+  try {
+    const r = await j(API + '/my-files');
+    const rows = (r.success && r.data) || [];
+    if (!rows.length) {
+      box.textContent = bl('Încă nu ați încărcat documente', 'Документы пока не загружены');
+      return;
+    }
+    box.innerHTML = rows.map(f =>
+      '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #f1f1f1">' +
+      '<span style="flex:1">' + esc(f.kind_label || f.doc_kind) +
+      ' <span style="color:#808080">· ' + esc(f.file_name) + ' · ' +
+      Math.round((f.file_size || 0) / 1024) + ' KB · ' + esc(f.created || '') + '</span></span>' +
+      '<a target="_blank" href="' + API + '/my-files/' + f.id + '" ' +
+      'style="color:#194681;text-decoration:underline">' + bl('vezi', 'открыть') + '</a>' +
+      '<button onclick="delDoc(' + f.id + ')" style="border:0;background:none;color:#d32f2f;' +
+      'cursor:pointer;font-size:16px" title="' + bl('Șterge', 'Удалить') + '">×</button></div>').join('');
+  } catch (e) { box.textContent = '—'; }
+}
+async function upDoc(input, kind) {
+  const f = input.files && input.files[0];
+  input.value = '';
+  if (!f) return;
+  if (f.size > 8 * 1024 * 1024) {
+    toast(bl('Fișier prea mare (max 8 MB)', 'Файл слишком большой (макс. 8 МБ)'), true); return;
+  }
+  const fd = new FormData();
+  fd.append('file', f); fd.append('kind', kind);
+  const r = await fetch(API + '/my-files', {method: 'POST', body: fd, credentials: 'include'})
+    .then(x => x.json()).catch(() => ({}));
+  if (r.success) { toast('✅ ' + bl('Document încărcat', 'Документ загружен')); loadMyDocs(); }
+  else toast(r.error || bl('Eroare la încărcare', 'Ошибка загрузки'), true);
+}
+async function delDoc(id) {
+  if (!confirm(bl('Ștergeți documentul definitiv?', 'Удалить документ безвозвратно?'))) return;
+  const r = await j(API + '/my-files/' + id, {method: 'DELETE'});
+  if (r.success) { toast('✅ ' + bl('Șters', 'Удалено')); loadMyDocs(); }
+  else toast(r.error || 'Eroare', true);
+}
+
 /* RO: «Comenzile mele» — conturile de plata proprii (plasate pe site, prin
    API-ul B2B sau de un operator), cu PDF-ul contului intr-un click. */
 async function loadMyOrders() {
