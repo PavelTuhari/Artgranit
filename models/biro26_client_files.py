@@ -145,8 +145,11 @@ class Biro26ClientFiles:
                 return {"success": False, "error": "document inexistent"}
             r = rows[0]
             raw = r.get("content")
-            if isinstance(raw, str):
-                raw = raw.encode("utf-8", "surrogateescape")
+            # RO/EN: continut binar — vine ca {"__b64__": ...} de la worker
+            if isinstance(raw, dict) and "__b64__" in raw:
+                raw = base64.b64decode(raw["__b64__"])
+            elif isinstance(raw, str):
+                raw = raw.encode("utf-8")
             Biro26ClientFiles.log("download", int(file_id), who, ip,
                                   r.get("file_name") or "")
             return {"success": True, "data": {
