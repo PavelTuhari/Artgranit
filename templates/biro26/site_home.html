@@ -211,8 +211,18 @@ let SLIDES = [
    href: '/catalog'},
   {cls: 's3', kicker: {ro: 'Plată în rate', ru: 'Оплата в рассрочку'},
    title: {ro: 'Cumpără acum,<br>achită în rate 0%', ru: 'Покупай сейчас,<br>плати в рассрочку 0%'},
-   sub: {ro: 'Rate 0% la 4 și 6 luni · EasyCredit · Liber Card MAIB', ru: 'Рассрочка 0% на 4 и 6 месяцев · EasyCredit · Liber Card MAIB'},
-   href: '/catalog'}];
+   sub: {ro: 'Rate 0% la 4 și 6 luni · EasyCredit · Liber Card MAIB · Microinvest',
+         ru: 'Рассрочка 0% на 4 и 6 месяцев · EasyCredit · Liber Card MAIB · Microinvest'},
+   href: '/catalog'},
+  // RO: bannerul partenerului de creditare Microinvest (acord nr. 554/2026):
+  //     duce direct la formularul de cerere (2 pasi + acte).
+  // EN: Microinvest lending-partner banner → the 2-step application form.
+  {cls: 's4', kicker: {ro: 'Credit de la Microinvest', ru: 'Кредит от Microinvest'},
+   title: {ro: 'Credit până la<br>500 000 lei, 4–48 luni',
+           ru: 'Кредит до<br>500 000 леев, 4–48 месяцев'},
+   sub: {ro: 'Rate 0% la 4 și 6 luni · cererea online, doar buletinul · răspuns rapid',
+         ru: 'Рассрочка 0% на 4 и 6 месяцев · заявка онлайн, нужен только паспорт · быстрый ответ'},
+   href: '/cerere-credit'}];
 let heroI = 0, heroTimer = null;
 function renderHero() {
   const l = curLang(), s = SLIDES[heroI];
