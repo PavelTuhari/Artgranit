@@ -7159,6 +7159,56 @@ def api_biro26_b2b_order():
     return jsonify(r), (200 if r.get('success')
                         else 401 if r.get('error') == 'login required' else 400)
 
+# ── Biro26: JURNAL UNIVERSAL (back-office) ─────────────────────────────────
+# RO: o singura forma pentru documente — filtre, grila master si patru file
+#     (contari / marfuri / fisiere / LOG). Doar tabele Oracle EXISTENTE.
+
+@app.route('/UNA.md/orasldev/biro26-journal')
+def biro26_journal_page():
+    """RO: jurnalul universal de documente + casa de operator."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('biro26/journal.html',
+                           app_name=Config.BIRO26_APP_NAME)
+
+@app.route('/api/biro26/journal/docs', methods=['GET'])
+def api_biro26_journal_docs():
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_journal import Biro26Journal
+    return jsonify(Biro26Journal.docs(
+        request.args.get('from', ''), request.args.get('to', ''),
+        request.args.get('q', ''), request.args.get('limit', 200, type=int)))
+
+@app.route('/api/biro26/journal/doc/<int:cod>', methods=['GET'])
+def api_biro26_journal_detail(cod):
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_journal import Biro26Journal
+    return jsonify(Biro26Journal.detail(cod))
+
+@app.route('/api/biro26/journal/clients', methods=['GET'])
+def api_biro26_journal_clients():
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_journal import Biro26Journal
+    return jsonify(Biro26Journal.clients(request.args.get('q', ''),
+                                         request.args.get('limit', 30, type=int)))
+
+@app.route('/api/biro26/journal/client', methods=['POST'])
+def api_biro26_journal_client_add():
+    """RO: inregistrare RAPIDA a clientului de catre operator (minim:
+    denumirea + tipul fizica/juridica). Ajunge in aceleasi tabele ca
+    inregistrarea din cabinetul clientului."""
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'auth required'}), 401
+    from models.biro26_journal import Biro26Journal
+    d = request.get_json(silent=True) or {}
+    r = Biro26Journal.client_quick_add(
+        d.get('name', ''), bool(d.get('is_company')), d.get('idno', ''),
+        d.get('phone', ''), d.get('email', ''), d.get('address', ''))
+    return jsonify(r), (200 if r.get('success') else 400)
+
 @app.route('/api/biro26/shop/my-invoices', methods=['GET'])
 def api_biro26_shop_my_invoices():
     """RO: cabinet client — lista propriilor conturi («Comenzile mele»)."""
