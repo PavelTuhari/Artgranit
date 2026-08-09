@@ -157,7 +157,13 @@ class Biro26Notify:
     # ── channels (each returns {'success', 'error'?}) ──
 
     @staticmethod
-    def _send_email(s: Dict[str, str], subject: str, body: str) -> Dict[str, Any]:
+    def _send_email(s: Dict[str, str], subject: str, body: str,
+                    attachments: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """RO: `attachments` = [{name, mime, content(bytes)}] — copiile actelor
+        clientului care insotesc cererea de credit (Microinvest nu are API:
+        operatorul le transmite mai departe creditorului).
+        EN: optional attachments — the client's ID scans that travel with the
+        credit request so the operator can forward them to the lender."""
         import smtplib
         from email.mime.text import MIMEText
         if not Config.BIRO26_SMTP_HOST:
@@ -166,7 +172,22 @@ class Biro26Notify:
         to = [a.strip() for a in (s.get("notify_email_to") or "").split(",") if a.strip()]
         if not to:
             return {"success": False, "error": "no recipients (NOTIFY_EMAIL_TO)"}
-        msg = MIMEText(body, "plain", "utf-8")
+        if attachments:
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.application import MIMEApplication
+            msg = MIMEMultipart()
+            msg.attach(MIMEText(body, "plain", "utf-8"))
+            for a in attachments:
+                try:
+                    sub = (a.get("mime") or "application/octet-stream").split("/")[-1]
+                    part = MIMEApplication(a["content"], _subtype=sub)
+                    part.add_header("Content-Disposition", "attachment",
+                                    filename=str(a.get("name") or "document"))
+                    msg.attach(part)
+                except Exception:                            # noqa: BLE001
+                    continue
+        else:
+            msg = MIMEText(body, "plain", "utf-8")
         msg["Subject"] = subject
         msg["From"] = Config.BIRO26_SMTP_FROM or Config.BIRO26_SMTP_USER
         msg["To"] = ", ".join(to)
