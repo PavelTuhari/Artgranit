@@ -195,7 +195,15 @@ class Biro26Report:
             "     OR CASE WHEN REGEXP_LIKE(TRIM(NRMANUAL), '^[0-9]+$') "
             "             THEN TO_NUMBER(TRIM(NRMANUAL)) END = :n)",
             {"s": str(n), "n": n}))
-        return int(rows[0]["cod"]) if rows and rows[0]["cod"] else None
+        if rows and rows[0]["cod"]:
+            return int(rows[0]["cod"])
+        # RO: rezerva — numarul primit poate fi COD-ul INTERN al documentului
+        #     (asa apeleaza pachetul Oracle documentele fara NRMANUAL).
+        # EN: fallback — the value may be the document's internal COD.
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT COD FROM TMDB_DOCS WHERE COD = :n AND SYSFID = 12280",
+            {"n": n}))
+        return int(rows[0]["cod"]) if rows else None
 
     @staticmethod
     def doc_data(cod: int) -> Dict[str, Any]:
