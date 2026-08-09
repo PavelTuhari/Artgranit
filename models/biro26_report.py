@@ -218,8 +218,9 @@ class Biro26Report:
         bounded wait, autonomous+committed, so the row is freed at once."""
         db = Biro26DB()
         r = db.execute_dml(
-            "BEGIN :nr := y_ai_BIRO26.ensure_nrmanual(:c); END;",
-            {"nr": None, "c": int(cod)}, timeout=timeout)
+            "DECLARE v VARCHAR2(25); BEGIN "
+            "  v := y_ai_BIRO26.ensure_nrmanual(:c); END;",
+            {"c": int(cod)}, timeout=timeout)
         if not r.get("success"):
             return None
         rows = _rows(db.execute_query(
