@@ -1,0 +1,311 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Cerere de credit{% endblock %}
+{% block content %}
+<!-- RO: formularul de cerere dupa MACHETA owner-ului (2 pasi): detaliile
+     creditului -> datele personale + copiile buletinului + acorduri.
+     Creditorii FARA API (Microinvest): cererea si actele ajung la operator,
+     care le depune mai departe. EN: 2-step credit application per mockup. -->
+<section class="section">
+  <p class="breadcrumbs"><a href="/" data-t="home">Pagina principală</a> ›
+    <span data-bi>Cerere de credit · Заявка на кредит</span></p>
+
+  <div class="cf-wrap">
+    <div class="cf-head">
+      <h1 data-bi>Cerere de Credit · Заявка на кредит</h1>
+      <p data-bi>Completează în 2 pași simpli · Заполните за 2 простых шага</p>
+    </div>
+
+    <div class="cf-progress">
+      <span class="step-num active" id="sn1">1</span>
+      <span data-bi>Credit · Кредит</span>
+      <span class="cf-line"></span>
+      <span class="step-num" id="sn2">2</span>
+      <span data-bi>Date personale · Личные данные</span>
+    </div>
+
+    <div class="cf-card">
+      <!-- ── PASUL 1 ── -->
+      <div class="cf-step active" id="cf1">
+        <div class="cf-title">📊 <span data-bi>Detalii credit · Детали кредита</span></div>
+
+        <div class="cf-group">
+          <label data-bi>Suma creditului · Сумма кредита</label>
+          <input type="range" id="cf-amount" min="1000" max="500000" step="500" value="20000">
+          <div class="cf-val"><span id="cf-amount-v">20 000</span> MDL</div>
+        </div>
+
+        <div class="cf-group">
+          <label data-bi>Termen (luni) · Срок (месяцев)</label>
+          <input type="range" id="cf-months" min="4" max="48" value="12">
+          <div class="cf-val"><span id="cf-months-v">12</span> <span data-bi>luni · мес.</span></div>
+        </div>
+
+        <div class="cf-rate">
+          <span data-bi>Rata lunară estimată · Ежемесячный платёж</span>
+          <b id="cf-monthly">—</b>
+          <small id="cf-plan"></small>
+        </div>
+
+        <div class="cf-grid">
+          <div class="cf-group">
+            <label data-bi>Scop credit * · Цель кредита *</label>
+            <select id="cf-scop">
+              <option value="">— <span data-bi>Selectează</span> —</option>
+              <option>Consum personal</option><option>Refinanțare</option>
+              <option>Renovare locuință</option><option>Achiziție auto</option>
+              <option>Educație</option><option>Medical</option><option>Altul</option>
+            </select>
+          </div>
+          <div class="cf-group">
+            <label data-bi>Venit lunar net (MDL) * · Чистый доход (MDL) *</label>
+            <input type="number" id="cf-venit" min="0" data-bp placeholder="Introdu venitul · Укажите доход">
+          </div>
+          <div class="cf-group">
+            <label data-bi>Alte credite (rate lunare) · Другие кредиты (платежи)</label>
+            <input type="number" id="cf-alte" min="0" value="0">
+          </div>
+          <div class="cf-group">
+            <label data-bi>Angajator * · Работодатель *</label>
+            <input id="cf-angajator" data-bp placeholder="Introdu angajatorul · Укажите работодателя">
+          </div>
+          <div class="cf-group">
+            <label data-bi>Telefon mobil * · Мобильный телефон *</label>
+            <input id="cf-phone" type="tel" value="+373 ">
+          </div>
+        </div>
+
+        <button class="cf-btn" onclick="cfNext()" data-bi>Continuă → · Продолжить →</button>
+      </div>
+
+      <!-- ── PASUL 2 ── -->
+      <div class="cf-step" id="cf2">
+        <div class="cf-title">👤 <span data-bi>Date personale · Личные данные</span></div>
+        <div class="cf-grid">
+          <div class="cf-group"><label data-bi>Nume * · Фамилия *</label><input id="cf-nume"></div>
+          <div class="cf-group"><label data-bi>Prenume * · Имя *</label><input id="cf-prenume"></div>
+          <div class="cf-group"><label>IDNP *</label><input id="cf-idnp" maxlength="13" inputmode="numeric"></div>
+          <div class="cf-group"><label data-bi>Data nașterii * · Дата рождения *</label><input type="date" id="cf-nastere"></div>
+          <div class="cf-group"><label data-bi>Seria și nr. act * · Серия и № документа *</label><input id="cf-act"></div>
+          <div class="cf-group"><label data-bi>Data eliberării * · Дата выдачи *</label><input type="date" id="cf-actdata"></div>
+          <div class="cf-group"><label data-bi>Oficiul emitent * · Кем выдан *</label><input id="cf-oficiu"></div>
+          <div class="cf-group"><label data-bi>Localitate * · Населённый пункт *</label><input id="cf-localitate"></div>
+          <div class="cf-group" style="grid-column:1/-1"><label data-bi>Adresă * · Адрес *</label><input id="cf-adresa"></div>
+          <div class="cf-group" style="grid-column:1/-1"><label>Email *</label><input type="email" id="cf-email"></div>
+        </div>
+
+        <div class="cf-title" style="margin-top:8px">📷 <span data-bi>Buletin · Удостоверение личности</span></div>
+        <div class="cf-grid">
+          <div class="cf-up" id="up-fata">
+            <b data-bi>Față * · Лицевая *</b>
+            <label class="cf-uplab">📷 <span data-bi>Încarcă față · Загрузить лицевую</span>
+              <input type="file" accept="image/*,application/pdf" style="display:none"
+                     onchange="cfPick(this,'fata')"></label>
+            <span class="cf-upname" id="nm-fata"></span>
+          </div>
+          <div class="cf-up" id="up-verso">
+            <b data-bi>Verso * · Оборот *</b>
+            <label class="cf-uplab">📷 <span data-bi>Încarcă verso · Загрузить оборот</span>
+              <input type="file" accept="image/*,application/pdf" style="display:none"
+                     onchange="cfPick(this,'verso')"></label>
+            <span class="cf-upname" id="nm-verso"></span>
+          </div>
+        </div>
+
+        <div class="cf-title" style="margin-top:8px">✅ <span data-bi>Acorduri · Согласия</span></div>
+        <label class="cf-ck"><input type="checkbox" id="ck-gdpr"> <span data-bi>Accept
+          <a href="/politica-de-confidentialitate" target="_blank">politica de confidențialitate</a> și transmiterea actelor către creditorul ales * ·
+          Принимаю <a href="/politica-de-confidentialitate" target="_blank">политику конфиденциальности</a> и передачу документов выбранному кредитору *</span></label>
+        <label class="cf-ck"><input type="checkbox" id="ck-istoric"> <span data-bi>Accept verificarea istoriei de credit * · Согласен на проверку кредитной истории *</span></label>
+        <label class="cf-ck"><input type="checkbox" id="ck-mkt"> <span data-bi>Accept comunicări de marketing · Согласен на маркетинговые сообщения</span></label>
+
+        <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+          <button class="cf-btn cf-btn-ghost" onclick="cfBack()" data-bi>← Înapoi · ← Назад</button>
+          <button class="cf-btn" id="cf-send" onclick="cfSend()" data-bi>Trimite cererea · Отправить заявку</button>
+        </div>
+      </div>
+
+      <!-- ── SUCCES ── -->
+      <div class="cf-step" id="cf3">
+        <div class="cf-ok">✓</div>
+        <h2 style="text-align:center" data-bi>Cererea a fost trimisă! · Заявка отправлена!</h2>
+        <p style="text-align:center;color:#64748b" data-bi>Un consultant vă va contacta în curând. · Консультант свяжется с вами в ближайшее время.</p>
+        <p style="text-align:center;margin-top:14px">
+          <a class="cf-btn" style="display:inline-block;text-decoration:none;width:auto;padding:0 26px" href="/cont" data-bi>Contul meu · Мой кабинет</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cf-wrap{max-width:680px;margin:0 auto}
+  .cf-head{text-align:center;margin-bottom:20px}
+  .cf-head h1{font-size:27px;margin:0 0 6px}
+  .cf-head p{color:#64748b;font-size:15px;margin:0}
+  .cf-progress{display:flex;justify-content:center;align-items:center;gap:10px;
+    margin-bottom:20px;font-size:14px;font-weight:600;color:#64748b;flex-wrap:wrap}
+  .step-num{width:30px;height:30px;border-radius:50%;background:#e2e8f0;display:flex;
+    align-items:center;justify-content:center;color:#64748b;flex:none}
+  .step-num.active{background:#0f766e;color:#fff}
+  .step-num.done{background:#10b981;color:#fff}
+  .cf-line{width:40px;height:2px;background:#e2e8f0}
+  .cf-card{background:#fff;border-radius:16px;padding:24px;
+    box-shadow:0 10px 30px rgba(15,118,110,.12)}
+  .cf-step{display:none}
+  .cf-step.active{display:block}
+  .cf-title{font-size:17px;font-weight:700;margin-bottom:16px}
+  .cf-group{margin-bottom:16px}
+  .cf-group label{display:block;font-size:13.5px;font-weight:600;margin-bottom:6px}
+  .cf-group input,.cf-group select{width:100%;padding:11px 13px;border:1.5px solid #e2e8f0;
+    border-radius:10px;font-size:15px;background:#fff}
+  .cf-group input[type=range]{padding:0;border:0}
+  .cf-group input:focus,.cf-group select:focus{outline:none;border-color:#0f766e}
+  .cf-val{font-size:19px;font-weight:800;color:#0f766e;margin-top:4px}
+  .cf-rate{background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:14px;
+    text-align:center;margin-bottom:18px}
+  .cf-rate b{display:block;font-size:24px;color:#0f766e;margin-top:4px}
+  .cf-rate small{display:block;color:#64748b;margin-top:4px}
+  .cf-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  @media (max-width:640px){.cf-grid{grid-template-columns:1fr}}
+  .cf-btn{width:100%;height:48px;border:0;border-radius:10px;background:#0f766e;color:#fff;
+    font-weight:700;font-size:16px;cursor:pointer;margin-top:8px}
+  .cf-btn:hover{filter:brightness(1.08)}
+  .cf-btn:disabled{opacity:.6;cursor:default}
+  .cf-btn-ghost{background:#e2e8f0;color:#0f172a;flex:0 0 auto;width:auto;padding:0 22px}
+  .cf-up{border:1.5px dashed #cbd5e1;border-radius:12px;padding:14px;text-align:center;
+    margin-bottom:16px}
+  .cf-up.ok{border-color:#10b981;background:#f0fdf4}
+  .cf-uplab{display:block;margin-top:8px;color:#0f766e;font-weight:600;cursor:pointer;font-size:14px}
+  .cf-upname{display:block;font-size:12px;color:#64748b;margin-top:4px}
+  .cf-ck{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;margin-bottom:10px}
+  .cf-ck input{width:auto;margin-top:3px}
+  .cf-ok{width:64px;height:64px;border-radius:50%;background:#10b981;color:#fff;font-size:34px;
+    display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+</style>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: cererea de credit dupa macheta: pasul 1 (bani) + pasul 2 (persoana si
+   actele). Termenele si preturile vin din OFERTELE reale ale creditorului
+   (/shop/credit/offers) — nimic nu e „orientativ" inventat in pagina. */
+var OFFERS = [], CF = {fata: null, verso: null};
+const ORG_NAME = 'Microinvest';
+
+function cfPlan(months, amount) {
+  // RO: pachetul potrivit pentru termenul ales — cel mai IEFTIN pentru client
+  var best = null;
+  OFFERS.filter(o => o.name.indexOf(ORG_NAME) !== -1).forEach(o =>
+    (o.plans || []).forEach(pl => {
+      if (months < pl.months_min || months > pl.months_max) return;
+      var mk = (pl.markup_pct || 0) + (o.transport_markup_pct || 0);
+      var cp = amount * (1 + mk / 100);
+      if (cp < (pl.amount_min || 0) || cp > (pl.amount_max || 1e12)) return;
+      var monthly = cp / months + cp * (pl.annual_pct || 0) / 12 / 100;
+      if (!best || monthly < best.monthly)
+        best = {plan: pl, org: o, monthly: monthly, credit_price: cp};
+    }));
+  return best;
+}
+function cfCalc() {
+  var a = +document.getElementById('cf-amount').value;
+  var m = +document.getElementById('cf-months').value;
+  document.getElementById('cf-amount-v').textContent =
+    new Intl.NumberFormat('ro-RO').format(a);
+  document.getElementById('cf-months-v').textContent = m;
+  var b = cfPlan(m, a);
+  document.getElementById('cf-monthly').textContent =
+    b ? Math.ceil(b.monthly) + ' MDL' : '—';
+  document.getElementById('cf-plan').textContent = b
+    ? b.plan.name + ' · ' + bl('preț în rate', 'цена в рассрочку') + ': ' + fmtLei(b.credit_price)
+    : bl('Pentru această sumă/termen nu există ofertă', 'Для этой суммы/срока предложения нет');
+  CF.best = b;
+}
+function cfStep(n) {
+  ['cf1', 'cf2', 'cf3'].forEach((id, i) =>
+    document.getElementById(id).classList.toggle('active', i === n - 1));
+  document.getElementById('sn1').className = 'step-num ' + (n > 1 ? 'done' : 'active');
+  document.getElementById('sn2').className = 'step-num ' + (n > 2 ? 'done' : (n === 2 ? 'active' : ''));
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+function cfNext() {
+  if (!CF.best) { toast(bl('Alegeți o sumă și un termen disponibile', 'Выберите доступную сумму и срок'), true); return; }
+  if (!document.getElementById('cf-scop').value) { toast(bl('Selectați scopul', 'Укажите цель'), true); return; }
+  if (!(+document.getElementById('cf-venit').value > 0)) { toast(bl('Indicați venitul lunar', 'Укажите ежемесячный доход'), true); return; }
+  if (!document.getElementById('cf-angajator').value.trim()) { toast(bl('Indicați angajatorul', 'Укажите работодателя'), true); return; }
+  if (document.getElementById('cf-phone').value.replace(/\D/g, '').length < 9) { toast(bl('Telefon invalid', 'Неверный телефон'), true); return; }
+  cfStep(2);
+}
+function cfBack() { cfStep(1); }
+function cfPick(input, which) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  if (f.size > 8 * 1024 * 1024) {
+    input.value = ''; toast(bl('Fișier prea mare (max 8 MB)', 'Файл больше 8 МБ'), true); return;
+  }
+  CF[which] = f;
+  document.getElementById('nm-' + which).textContent = f.name;
+  document.getElementById('up-' + which).classList.add('ok');
+}
+async function cfSend() {
+  var v = id => (document.getElementById(id) || {}).value || '';
+  if (!v('cf-nume').trim() || !v('cf-prenume').trim()) { toast(bl('Nume și prenume', 'Фамилия и имя'), true); return; }
+  if (v('cf-idnp').replace(/\D/g, '').length !== 13) { toast(bl('IDNP: 13 cifre', 'IDNP: 13 цифр'), true); return; }
+  if (!v('cf-adresa').trim() || !v('cf-localitate').trim()) { toast(bl('Completați adresa', 'Заполните адрес'), true); return; }
+  if (v('cf-email').indexOf('@') < 0) { toast(bl('E-mail invalid', 'Неверный e-mail'), true); return; }
+  if (!CF.fata || !CF.verso) { toast(bl('Încărcați ambele fețe ale buletinului', 'Загрузите обе стороны удостоверения'), true); return; }
+  if (!document.getElementById('ck-gdpr').checked || !document.getElementById('ck-istoric').checked) {
+    toast(bl('Bifați acordurile obligatorii', 'Отметьте обязательные согласия'), true); return;
+  }
+  var b = CF.best;
+  if (!b) { toast(bl('Reveniți la pasul 1', 'Вернитесь к шагу 1'), true); return; }
+  var btn = document.getElementById('cf-send');
+  btn.disabled = true; btn.textContent = bl('Se trimite…', 'Отправляем…');
+
+  var fd = new FormData();
+  fd.append('plan_id', b.plan.id);
+  fd.append('months', document.getElementById('cf-months').value);
+  fd.append('amount', document.getElementById('cf-amount').value);
+  fd.append('product_name', 'Cerere de credit ' + b.org.name);
+  [['nume', 'cf-nume'], ['prenume', 'cf-prenume'], ['idnp', 'cf-idnp'],
+   ['data_nasterii', 'cf-nastere'], ['act_serie', 'cf-act'], ['act_data', 'cf-actdata'],
+   ['act_oficiu', 'cf-oficiu'], ['localitate', 'cf-localitate'], ['adresa', 'cf-adresa'],
+   ['email', 'cf-email'], ['phone', 'cf-phone'], ['scop', 'cf-scop'],
+   ['venit', 'cf-venit'], ['alte_credite', 'cf-alte'], ['angajator', 'cf-angajator']
+  ].forEach(([k, id]) => fd.append(k, v(id)));
+  fd.append('acord_gdpr', '1');
+  fd.append('acord_istoric', '1');
+  if (document.getElementById('ck-mkt').checked) fd.append('acord_marketing', '1');
+  fd.append('buletin_fata', CF.fata);
+  fd.append('buletin_verso', CF.verso);
+
+  var r = await fetch(API + '/credit/apply', {method: 'POST', body: fd, credentials: 'include'})
+    .then(x => x.json()).catch(() => ({}));
+  btn.disabled = false;
+  btn.innerHTML = biS('Trimite cererea · Отправить заявку');
+  if (!r.success) {
+    toast(r.message || r.error || bl('Eroare la trimitere', 'Ошибка отправки'), true);
+    return;
+  }
+  cfStep(3);
+}
+
+window.onLangChange = function () { cfCalc(); };
+
+(async function cfInit() {
+  var o = await j(API + '/credit/offers');
+  OFFERS = (o && o.data) || [];
+  ['cf-amount', 'cf-months'].forEach(id =>
+    document.getElementById(id).addEventListener('input', cfCalc));
+  // datele cunoscute din cabinet se pun singure
+  var me = await j(API + '/me');
+  if (me.success && me.data && me.data.email) {
+    var d = me.data, nm = (d.name || '').split(' ');
+    document.getElementById('cf-email').value = d.email || '';
+    document.getElementById('cf-phone').value = d.phone || '+373 ';
+    document.getElementById('cf-nume').value = nm[0] || '';
+    document.getElementById('cf-prenume').value = nm.slice(1).join(' ');
+    if (d.address) document.getElementById('cf-adresa').value = d.address;
+  }
+  cfCalc();
+})();
+</script>
+{% endblock %}
