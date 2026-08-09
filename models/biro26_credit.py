@@ -368,6 +368,21 @@ class Biro26Credit:
             import threading
             from models.biro26_notify import Biro26Notify
 
+            # RO: DOSARUL clientului pleaca ODATA cu notificarea — la creditorii
+            #     FARA API (Microinvest) operatorul depune cererea manual si are
+            #     nevoie de copiile actelor (buletin fata/verso) chiar in e-mail.
+            # EN: the client's ID scans travel WITH the notification: for
+            #     lenders without an API the operator files the request by hand.
+            att = []
+            try:
+                cc = d.get("client_cod")
+                if cc:
+                    from models.biro26_client_files import Biro26ClientFiles
+                    att = Biro26ClientFiles.bundle(
+                        int(cc), who=f"credit-request:{org.get('name')}")
+            except Exception:                               # noqa: BLE001
+                att = []
+
             def _notify():
                 try:
                     Biro26Notify.send_all(
@@ -379,7 +394,8 @@ class Biro26Credit:
                         f"Preț în rate: {s['credit_price']:.2f} lei\n"
                         f"Pachet: {s['plan']} · {s['months']} luni · "
                         f"rata {s['monthly']:.2f} lei/lună"
-                        + (f"\nAPI: {api_note}" if api_note else ""))
+                        + (f"\nAPI: {api_note}" if api_note else ""),
+                        attachments=att or None)
                 except Exception:
                     pass
 
