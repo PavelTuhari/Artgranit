@@ -7209,6 +7209,37 @@ def api_biro26_journal_client_add():
         d.get('phone', ''), d.get('email', ''), d.get('address', ''))
     return jsonify(r), (200 if r.get('success') else 400)
 
+@app.route('/api/biro26/shop/my-files', methods=['GET'])
+def api_biro26_client_files_list():
+    """RO: actele personale ale clientului (cabinet) / dosarul unui client (operator)."""
+    r = Biro26Controller.client_files_list()
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
+@app.route('/api/biro26/shop/my-files', methods=['POST'])
+def api_biro26_client_files_upload():
+    r = Biro26Controller.client_files_upload()
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
+@app.route('/api/biro26/shop/my-files/<int:file_id>', methods=['GET'])
+def api_biro26_client_file_get(file_id):
+    r = Biro26Controller.client_files_get(file_id)
+    if not r.get('success'):
+        return jsonify(r), (401 if r.get('error') == 'login required' else 404)
+    d = r['data']
+    resp = app.response_class(d['content'], mimetype=d['mime'])
+    # RO/EN: date personale — fara cache in browser/CDN
+    resp.headers['Content-Disposition'] = f'inline; filename="{d["file_name"]}"'
+    resp.headers['Cache-Control'] = 'no-store, private, max-age=0'
+    return resp
+
+@app.route('/api/biro26/shop/my-files/<int:file_id>', methods=['DELETE'])
+def api_biro26_client_file_delete(file_id):
+    r = Biro26Controller.client_files_delete(file_id)
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'login required' else 400)
+
 @app.route('/api/biro26/shop/my-invoices', methods=['GET'])
 def api_biro26_shop_my_invoices():
     """RO: cabinet client — lista propriilor conturi («Comenzile mele»)."""
