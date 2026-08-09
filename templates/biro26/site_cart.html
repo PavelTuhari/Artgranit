@@ -982,9 +982,14 @@ async function makeInvoice() {
       h += '<button class="pay" onclick="payP2P()">📲 MIA P2P</button>';
   }
   if (payMethod === 'credit') {
-    if (!ecOrg || modeAtSubmit === 'manual') {
+    // RO: butonul apare doar daca cererea NU a fost deja depusa din modala
+    //     (crSubmitManual) — altfel operatorul ar primi cererea de doua ori.
+    // EN: only when the request was not already filed from the modal.
+    if ((!ecOrg || modeAtSubmit === 'manual') && !crReqSent) {
+      const t0 = currentTile();
+      const orgNm = (t0 && t0.org && t0.org.name) || 'credit';
       h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
-        '\')">📝 ' + bl('Cerere de credit EasyCredit', 'Заявка на кредит EasyCredit') + '</button>';
+        '\')">📝 ' + bl('Cerere de credit ', 'Заявка на кредит ') + esc(orgNm) + '</button>';
     }
     h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 ' + bl('Liber Card (MAIB) în rate', 'Liber Card (MAIB) в рассрочку') + '</button>';
   }
