@@ -40,7 +40,15 @@ class Biro26DB:
         return False
 
     # -- transport ----------------------------------------------------
-    def _call(self, req: Dict[str, Any]) -> Dict[str, Any]:
+    def _call(self, req: Dict[str, Any],
+              timeout: Optional[int] = None) -> Dict[str, Any]:
+        # RO/EN: `timeout` scurt = plasa de siguranta pentru operatiile care
+        #        pot astepta un lock tinut de alta sesiune (ex. atribuirea
+        #        NRMANUAL pe un document deschis in aplicatia nativa):
+        #        procesul-lucrator e oprit, sesiunea Oracle cade si face
+        #        rollback, iar apelantul primeste un mesaj clar in loc sa
+        #        astepte minute intregi.
+        tmo = int(timeout or _TIMEOUT)
         try:
             proc = subprocess.run(
                 [sys.executable, _WORKER],
@@ -48,10 +56,10 @@ class Biro26DB:
                 capture_output=True,
                 text=True,
                 cwd=_PROJECT_ROOT,
-                timeout=_TIMEOUT,
+                timeout=tmo,
             )
         except subprocess.TimeoutExpired:
-            return {"success": False, "message": f"worker timeout after {_TIMEOUT}s"}
+            return {"success": False, "message": f"worker timeout after {tmo}s"}
         except Exception as e:
             return {"success": False, "message": f"worker spawn failed: {e}"}
         if proc.returncode != 0:
@@ -65,8 +73,9 @@ class Biro26DB:
                                f"{(proc.stderr or '')[:300]}"}
 
     # -- queries ------------------------------------------------------
-    def execute_query(self, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        r = self._call({"op": "query", "sql": sql, "params": params or {}})
+    def execute_query(self, sql: str, params: Optional[Dict[str, Any]] = None,
+                      timeout: Optional[int] = None) -> Dict[str, Any]:
+        r = self._call({"op": "query", "sql": sql, "params": params or {}}, timeout)
         return {
             "success": r.get("success", False),
             "columns": r.get("columns", []),
@@ -75,8 +84,9 @@ class Biro26DB:
             "message": r.get("message", ""),
         }
 
-    def execute_dml(self, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        r = self._call({"op": "dml", "sql": sql, "params": params or {}})
+    def execute_dml(self, sql: str, params: Optional[Dict[str, Any]] = None,
+                    timeout: Optional[int] = None) -> Dict[str, Any]:
+        r = self._call({"op": "dml", "sql": sql, "params": params or {}}, timeout)
         return {"success": r.get("success", False),
                 "rowcount": r.get("rowcount", 0),
                 "message": r.get("message", "")}
