@@ -428,11 +428,58 @@ function cmSubmitCreditRequest() {
   const mainAgree = document.getElementById('agree-terms');
   if (mainAgree) mainAgree.checked = true;
   if (!ecCtx.org || ecMode !== 'online') {
-    ecOut(bl('📨 Datele sînt validate. Finalizați cu butonul «Plasează comanda» din dreapta — cererea de credit se depune imediat după.',
-      '📨 Данные проверены. Завершите кнопкой «Оформить заказ» справа — заявка на кредит подаётся сразу после.'), '#0f766e');
+    // RO: creditorul NU are API (ex. Microinvest) — cererea se depune CHIAR
+    //     ACUM: se scrie in jurnalul cererilor, iar operatorul primeste
+    //     notificarea cu actele clientului atasate si o depune mai departe.
+    //     Inainte aici doar se afisa un text intr-o zona ascunsa, deci
+    //     butonul parea «mort».
+    // EN: lender without an API — file the request right away; the operator
+    //     gets it (with the client's ID scans) and files it with the lender.
+    crSubmitManual();
     return;
   }
   ecSubmit();
+}
+
+/* RO: depunerea cererii la creditorii FARA API (Microinvest & co). */
+var crReqSent = false;
+async function crSubmitManual() {
+  const t = currentTile();
+  if (!t) { toast(bl('Alegeți termenul', 'Выберите срок'), true); return; }
+  const btn = document.getElementById('ec-sub');
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const name = val('ec-fio').trim() || (ME && ME.name) || '';
+  const phone = val('ec-phone').trim() || (ME && ME.phone) || '';
+  if (!name || phone.replace(/\D/g, '').length < 8) {
+    toast(bl('Completați numele și telefonul', 'Укажите имя и телефон'), true); return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = bl('Se trimite…', 'Отправляем…'); }
+  const items = cart().map(i => i.name).join(', ').slice(0, 180);
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: t.plan.id, months: t.m, qty: 1, amount: cartTotal(),
+    product_cod: (cart()[0] || {}).cod || 0,
+    product_name: items || 'Coș OfficePlus',
+    client_name: name, phone,
+    idnp: val('ec-idnp').trim(),
+    birth_date: val('ec-birth'),
+    address: val('cr-address').trim()})});
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = biS('📨 Aplică cererea de credit · 📨 Отправить заявку');
+  }
+  if (!r.success) { toast(r.error || bl('Eroare', 'Ошибка'), true); return; }
+  crReqSent = true;
+  toast('✅ ' + bl('Cererea a fost trimisă! Vă contactăm în cel mai scurt timp.',
+                   'Заявка отправлена! Мы свяжемся с вами в ближайшее время.'));
+  closeCreditModal();
+  // RO/EN: pasul urmator, vizibil: plasarea comenzii
+  const box = document.getElementById('pay-box');
+  if (box) box.innerHTML =
+    '<div class="ok-box">' + esc(bl(
+      'Cererea de credit a fost înregistrată (' + t.org.name + ', ' + t.m + ' rate). ' +
+      'Finalizați cu «Plasează comanda» — vă contactăm pentru semnarea contractului.',
+      'Заявка на кредит зарегистрирована (' + t.org.name + ', ' + t.m + ' платежей). ' +
+      'Завершите кнопкой «Оформить заказ» — мы свяжемся для подписания договора.')) + '</div>';
 }
 
 function openStdModal() {
