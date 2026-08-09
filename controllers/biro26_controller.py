@@ -1616,6 +1616,77 @@ class Biro26Controller:
         res["data"]["doc_json"] = f"/api/biro26/doc/{cod}"
         return res
 
+    # ── documentele personale ale clientului (TMS_MUNC_ADDFILES) ─────────
+
+    @staticmethod
+    def _client_or_operator():
+        """RO: (univers_cod, cine) — clientul vede DOAR dosarul sau; operatorul
+        back-office (sesiune) poate lucra cu dosarul oricarui client (?cod=).
+        EN: cabinet client sees only own files; back-office operator — any."""
+        from flask import session
+        c = session.get("biro26_client")
+        if c:
+            return int(c["univers_cod"]), f"client:{c.get('email') or c['univers_cod']}"
+        if session.get("username") or session.get("authenticated"):
+            cod = request.args.get("cod") or (
+                (request.get_json(silent=True) or {}).get("cod")
+                if request.is_json else None) or request.form.get("cod")
+            if cod and str(cod).isdigit():
+                return int(cod), f"operator:{session.get('username') or 'backoffice'}"
+        return None, ""
+
+    @staticmethod
+    def client_files_list() -> Dict[str, Any]:
+        from models.biro26_client_files import Biro26ClientFiles, DOC_KINDS
+        cod, _who = Biro26Controller._client_or_operator()
+        if not cod:
+            return {"success": False, "error": "login required"}
+        r = Biro26ClientFiles.list(cod)
+        if r.get("success"):
+            r["kinds"] = DOC_KINDS
+        return r
+
+    @staticmethod
+    def client_files_upload() -> Dict[str, Any]:
+        """RO: incarcarea unui act din cabinet (buletin fata/verso, alt act)."""
+        from models.biro26_client_files import Biro26ClientFiles
+        cod, who = Biro26Controller._client_or_operator()
+        if not cod:
+            return {"success": False, "error": "login required"}
+        f = request.files.get("file")
+        if not f:
+            return {"success": False, "error": "lipsește fișierul"}
+        return Biro26ClientFiles.add(
+            cod, request.form.get("kind") or "other",
+            f.filename or "document", f.read(),
+            mime=f.mimetype or "", who=who,
+            ip=request.headers.get("X-Real-IP") or request.remote_addr or "",
+            note=(request.form.get("note") or "")[:400])
+
+    @staticmethod
+    def client_files_get(file_id: int):
+        from models.biro26_client_files import Biro26ClientFiles
+        cod, who = Biro26Controller._client_or_operator()
+        if not cod:
+            return {"success": False, "error": "login required"}
+        from flask import session
+        # RO/EN: operatorul poate deschide orice dosar; clientul — doar al sau
+        limit = None if (session.get("username")
+                         and not session.get("biro26_client")) else cod
+        return Biro26ClientFiles.get(
+            int(file_id), limit, who=who,
+            ip=request.headers.get("X-Real-IP") or request.remote_addr or "")
+
+    @staticmethod
+    def client_files_delete(file_id: int) -> Dict[str, Any]:
+        from models.biro26_client_files import Biro26ClientFiles
+        cod, who = Biro26Controller._client_or_operator()
+        if not cod:
+            return {"success": False, "error": "login required"}
+        return Biro26ClientFiles.delete(
+            int(file_id), cod, who=who,
+            ip=request.headers.get("X-Real-IP") or request.remote_addr or "")
+
     @staticmethod
     def shop_my_invoices() -> Dict[str, Any]:
         """RO: cabinetul clientului — LISTA propriilor conturi de plata
