@@ -357,3 +357,27 @@ PY
 в логах `OSError: cannot load library 'libpango-1.0-0'` (Ubuntu Minimal).
 HTTP 401 на этом API — НЕ поломка: документ отдаётся только владельцу,
 бэкофис-сессии или по подписанной ссылке `?sig=` (Biro26Notify.pdf_sig).
+
+## Вызовы из Oracle (UTL_HTTP) — HTTP без редиректа
+
+Пакеты Oracle 11g (`y_ai_BIRO26.gen_conturi_pr` и т.п.) дергают сайт через
+`UTL_HTTP` по ПРОСТОМУ HTTP (`http://officeplus.md/api/biro26/...`): 11g не
+умеет HTTPS без wallet. Поэтому в nginx путь `/api/biro26/` НЕ редиректится
+на HTTPS (остальной `:80` — редиректит). Авторизация не теряется: ключ
+`api_key`/`X-API-Key` обязателен в самом запросе (`BIRO26_API_TOKEN`).
+
+Если апелл из Oracle падает `ORA-20000 ... http://officeplus.md/...` —
+это HTTP-ответ не-200 (обычно 301 редирект). Проверка:
+
+```sql
+BEGIN y_ai_BIRO26.gen_conturi_pr(327); END;   -- по внутреннему COD или NRMANUAL
+```
+```bash
+curl "http://officeplus.md/api/biro26/gen-docs-by-nr/327?api_key=<TOKEN>&formats=pdf"
+# ждём {"success":true,"invoice":"OK","order":"OK"}; НЕ 301
+```
+
+Разбор номера (`resolve_nr`) принимает и внутренний `COD`, и видимый
+`NRMANUAL` (`327`, `#327`, `A-69`). Числовое сравнение обёрнуто в CASE —
+без него Oracle мог вычислить `TO_NUMBER('A-69')` раньше REGEXP-защиты и
+уронить весь запрос через ORA-01722 (тогда номер «не находился»).
