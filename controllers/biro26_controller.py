@@ -531,6 +531,21 @@ class Biro26Controller:
         if nr_over and not str(d["data"].get("number") or "").strip():
             for k in ("number", "cont_number", "nrmanual"):
                 d["data"][k] = nr_over
+        # RO: documentul chiar nu are numar (creat de alta aplicatie) — il
+        #     atribuim automat prin y_ai_BIRO26.ensure_nrmanual (aceleasi
+        #     reguli ca la emiterea unui cont nou). Asteptare LIMITATA: daca
+        #     documentul e deschis in alta sesiune, raspundem clar si repede.
+        # EN: assign the missing number via the package (same rules), with a
+        #     bounded wait so a doc opened elsewhere fails fast and clearly.
+        if not str(d["data"].get("number") or "").strip():
+            nr_new = Biro26Report.assign_nrmanual(cod)
+            if not nr_new:
+                return {"success": False, "cod": cod,
+                        "error": f"documentul COD={cod} nu are NRMANUAL si nu "
+                                 f"poate fi numerotat acum (este deschis in "
+                                 f"alta sesiune?)"}
+            for k in ("number", "cont_number", "nrmanual"):
+                d["data"][k] = nr_new
         engines = Biro26Report.get_engines()["data"]
         # RO: ?formats=pdf,html,xlsx — ORICE combinatie; implicit doar PDF.
         #     Fiecare format cerut se genereaza si se ATASEAZA la document
