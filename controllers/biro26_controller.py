@@ -513,12 +513,24 @@ class Biro26Controller:
         if not Biro26Controller._api_token_ok():
             return {"success": False, "error": "login required"}
         from models.biro26_report import Biro26Report
-        cod = Biro26Report.resolve_nr(nr)
+        # RO: ?cod= — COD-ul INTERN al documentului, trimis de pachetul Oracle
+        #     (mereu comis, spre deosebire de NRMANUAL care poate fi tocmai
+        #     atribuit in tranzactia necomisa a aplicatiei native).
+        # EN: ?cod= — internal document COD sent by the Oracle package.
+        cod_param = (request.args.get("cod") or "").strip()
+        cod = int(cod_param) if cod_param.isdigit() else Biro26Report.resolve_nr(nr)
         if not cod:
             return {"success": False, "error": f"document '{nr}' not found"}
         d = Biro26Report.doc_data(cod)
         if not d.get("success"):
             return d
+        # RO: ?nr= — numarul atribuit de y_ai_BIRO26.ensure_nrmanual, inca
+        #     necomis in sesiunea apelantului: formularele l-ar tipari gol.
+        # EN: ?nr= — the number just assigned by the caller, still uncommitted.
+        nr_over = (request.args.get("nr") or "").strip().lstrip("#")
+        if nr_over and not str(d["data"].get("number") or "").strip():
+            for k in ("number", "cont_number", "nrmanual"):
+                d["data"][k] = nr_over
         engines = Biro26Report.get_engines()["data"]
         # RO: ?formats=pdf,html,xlsx — ORICE combinatie; implicit doar PDF.
         #     Fiecare format cerut se genereaza si se ATASEAZA la document
