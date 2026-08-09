@@ -135,7 +135,8 @@ class Biro26Journal:
                 "  UNION ALL "
                 "  SELECT u.COD, u.DENUMIREA, NULL, NULL, NULL, NULL, 'erp' "
                 "  FROM TMS_UNIVERS u "
-                "  WHERE u.TIP = 2 AND UPPER(u.DENUMIREA) LIKE :q "
+                # RO/EN: TIP='O' = organizatii/persoane (contragenti) in TMS_UNIVERS
+                "  WHERE u.TIP = 'O' AND UPPER(u.DENUMIREA) LIKE :q "
                 "    AND NOT EXISTS (SELECT 1 FROM YBIRO_CLIENT c2 "
                 "                    WHERE c2.UNIVERS_COD = u.COD) "
                 ") WHERE ROWNUM <= :n", p))
