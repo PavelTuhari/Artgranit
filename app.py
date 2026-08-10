@@ -6756,6 +6756,12 @@ def api_biro26_credite_docs():
         org = None
     return _b26(lambda: Biro26Credit.documents(org))
 
+@app.route('/api/biro26/credite-docs/anketa/<int:req_id>', methods=['GET'])
+def api_biro26_credite_anketa(req_id):
+    """RO: ancheta completa a cererii (pentru copiere in cererea la banca)."""
+    from models.biro26_credit import Biro26Credit
+    return _b26(lambda: Biro26Credit.request_anketa(req_id))
+
 @app.route('/api/biro26/credite-docs/gsheets', methods=['GET'])
 def api_biro26_credite_gsheets_status():
     from models.biro26_gsheets import Biro26GSheets

@@ -74,6 +74,16 @@
 </table>
 </div>
 
+<!-- RO: ANCHETA completa a cererii — de aici operatorul copiaza datele in
+     cererea depusa la BANCA (Microinvest nu are API). Include si linkurile
+     semnate catre copiile buletinului. Date PERSONALE: fiecare deschidere de
+     act se jurnalizeaza (TMS_MUNC_ADDFILES_LOG).
+     EN: the full application behind the selected document, ready to copy. -->
+<h2 id="atitle">Ancheta cererii de credit · Анкета заявки</h2>
+<div class="wrap" id="anketa-box">
+  <p class="muted" style="padding:10px">Selectați un document · Выберите документ</p>
+</div>
+
 <h2 id="dtitle">Mărfurile documentului · Товары документа</h2>
 <div class="wrap">
 <table data-export="credite-rinduri">
@@ -148,6 +158,81 @@ function stCls(s){
   return '';
 }
 
+/* RO: ancheta cererii — toate datele completate de client, cu buton de
+   COPIERE (in cererea la banca) si linkuri semnate catre acte.
+   EN: the application data with a copy-to-clipboard button and signed links. */
+const A_FIELDS = [
+  ['client_name', 'Nume, prenume · ФИО'],
+  ['idnp', 'IDNP'],
+  ['birth_date', 'Data nașterii · Дата рождения'],
+  ['act_serie', 'Seria și nr. act · Серия и № документа'],
+  ['act_data', 'Data eliberării · Дата выдачи'],
+  ['act_oficiu', 'Oficiul emitent · Кем выдан'],
+  ['localitate', 'Localitate · Населённый пункт'],
+  ['client_address', 'Adresa · Адрес'],
+  ['phone', 'Telefon · Телефон'],
+  ['email', 'E-mail'],
+  ['scop', 'Scopul creditului · Цель кредита'],
+  ['venit', 'Venit lunar net · Чистый доход'],
+  ['alte_rate', 'Alte credite (rate) · Другие кредиты'],
+  ['angajator', 'Angajator · Работодатель'],
+  ['months', 'Termen, luni · Срок, мес.'],
+  ['amount', 'Suma standard · Стандартная сумма'],
+  ['credit_price', 'Preț în rate · Цена в рассрочку'],
+  ['monthly', 'Rata lunară · Ежемесячный платёж'],
+  ['created', 'Depusă la · Подана']
+];
+let ANKETA = null;
+async function loadAnketa(d){
+  const box = document.getElementById('anketa-box');
+  document.getElementById('atitle').textContent =
+    'Ancheta cererii de credit ' + (d.nrmanual || '') + ' · Анкета заявки';
+  if (!d.req_id) {
+    ANKETA = null;
+    box.innerHTML = '<p class="muted" style="padding:10px">Documentul nu are cerere' +
+      ' asociată (creat din coș) · У документа нет связанной заявки</p>';
+    return;
+  }
+  box.innerHTML = '<p class="muted" style="padding:10px">…</p>';
+  const r = await fetch('/api/biro26/credite-docs/anketa/' + d.req_id)
+    .then(x => x.json()).catch(() => ({}));
+  if (!(r && r.success)) {
+    box.innerHTML = '<p class="muted" style="padding:10px">' +
+      esc((r && r.error) || 'Eroare') + '</p>';
+    return;
+  }
+  ANKETA = r.data;
+  const rows = A_FIELDS
+    .filter(([k]) => ANKETA[k] !== null && ANKETA[k] !== undefined && ANKETA[k] !== '')
+    .map(([k, lbl]) => '<tr><td class="muted" style="width:280px">' + esc(lbl) +
+      '</td><td><b>' + esc(String(ANKETA[k])) + '</b></td></tr>').join('');
+  const files = (ANKETA.files || []).map(f =>
+    '<a href="' + esc(f.url) + '" target="_blank" style="margin-right:14px">📎 ' +
+    esc(f.kind) + '</a>').join('') ||
+    '<span class="muted">Fără acte încărcate · Документы не загружены</span>';
+  box.innerHTML =
+    '<div style="padding:10px"><button class="btn" onclick="copyAnketa()">' +
+    '📋 Copiază datele · Скопировать данные</button> ' +
+    '<span class="muted">— pentru cererea la bancă · для заявки в банк</span></div>' +
+    '<table><tbody>' + rows + '</tbody></table>' +
+    '<div style="padding:10px">' + files + '</div>';
+}
+function copyAnketa(){
+  if (!ANKETA) return;
+  const txt = A_FIELDS
+    .filter(([k]) => ANKETA[k] !== null && ANKETA[k] !== undefined && ANKETA[k] !== '')
+    .map(([k, lbl]) => lbl.split(' · ')[0] + ': ' + ANKETA[k]).join('\n');
+  // RO/EN: pagina nu are toast propriu — confirmam pe buton
+  const btn = document.querySelector('#anketa-box .btn');
+  const done = ok => {
+    if (!btn) return;
+    const t = btn.textContent;
+    btn.textContent = ok ? '✓ Copiat · Скопировано' : '✗ Nu s-a putut copia';
+    setTimeout(() => { btn.textContent = t; }, 2000);
+  };
+  navigator.clipboard.writeText(txt).then(() => done(true)).catch(() => done(false));
+}
+
 async function pick(cod){
   SEL = cod;
   document.querySelectorAll('#rows tr').forEach(t => t.classList.remove('sel'));
@@ -155,6 +240,7 @@ async function pick(cod){
   const d = (DATA.find(x => x.cod === cod) || {});
   document.getElementById('dtitle').textContent =
     'Mărfurile documentului ' + (d.nrmanual || cod) + ' · Товары документа';
+  loadAnketa(d);
   const r = await fetch('/api/biro26/credite-docs/' + cod + '/lines')
     .then(x => x.json()).catch(() => ({}));
   const L = (r && r.success) ? r.data : [];

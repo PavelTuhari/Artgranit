@@ -328,17 +328,47 @@ class Biro26Credit:
         if not seq:
             return {"success": False, "error": "nu s-a putut aloca ID-ul cererii"}
         req_id = int(seq[0]["id"])
+        # RO: se pastreaza ANCHETA COMPLETA — fiecare cimp in coloana lui,
+        #     ca operatorul sa poata copia datele direct in cererea depusa la
+        #     BANCA (Microinvest nu are API). Inainte o parte din date erau
+        #     ingramadite ca text in CLIENT_ADDRESS.
+        # EN: store the FULL application, one column per field, so the operator
+        #     can copy it into the lender's own form.
+        def _num(v):
+            try:
+                return float(str(v).replace(",", ".")) if str(v or "").strip() else None
+            except (TypeError, ValueError):
+                return None
+
+        def _s(v, n):
+            return (str(v or "").strip()[:n]) or None
+
         r = Biro26DB().execute_dml(
             "INSERT INTO TMS_CREDITE_REQ (ID, ORG_ID, PLAN_ID, MONTHS, "
             "PRODUCT_COD, PRODUCT_NAME, QTY, AMOUNT, CREDIT_PRICE, MONTHLY, "
-            "CLIENT_NAME, PHONE, CLIENT_ADDRESS) VALUES (:id, "
-            ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph, :adr)",
+            "CLIENT_NAME, PHONE, CLIENT_ADDRESS, CLIENT_COD, EMAIL, IDNP, "
+            "BIRTH_DATE, ACT_SERIE, ACT_DATA, ACT_OFICIU, LOCALITATE, SCOP, "
+            "VENIT, ALTE_RATE, ANGAJATOR, ACORD_MKT, IDNP_MASKED) VALUES (:id, "
+            ":o, :p, :m, :pc, :pn, :q, :a, :cp, :mo, :cn, :ph, :adr, :cc, :em, "
+            ":idnp, :bd, :asr, :adt, :aof, :loc, :scop, :ven, :alte, :ang, "
+            ":mkt, :idm)",
             {"id": req_id, "o": org.get("id"), "p": plan_id, "m": s["months"],
              "pc": int(d.get("product_cod") or 0) or None,
              "pn": (d.get("product_name") or "")[:300],
              "q": qty, "a": amount, "cp": s["credit_price"],
              "mo": s["monthly"], "cn": name[:200], "ph": phone[:40],
-             "adr": (d.get("address") or "").strip()[:300] or None})
+             "adr": (d.get("address") or "").strip()[:300] or None,
+             "cc": int(d["client_cod"]) if d.get("client_cod") else None,
+             "em": _s(d.get("email"), 160), "idnp": _s(d.get("idnp"), 13),
+             "bd": _s(d.get("birth_date"), 10), "asr": _s(d.get("act_serie"), 40),
+             "adt": _s(d.get("act_data"), 10), "aof": _s(d.get("act_oficiu"), 120),
+             "loc": _s(d.get("localitate"), 120), "scop": _s(d.get("scop"), 60),
+             "ven": _num(d.get("venit")), "alte": _num(d.get("alte_credite")),
+             "ang": _s(d.get("angajator"), 160),
+             "mkt": "1" if d.get("acord_marketing") else "0",
+             # RO/EN: forma mascata ramine pentru afisarea publica
+             "idm": (lambda x: (x[:4] + "*****" + x[-4:]) if len(x) == 13 else None)(
+                 "".join(ch for ch in str(d.get("idnp") or "") if ch.isdigit()))})
         if not r.get("success"):
             # RO: eroare Oracle la INSERT (poate contine text brut, ex. ORA-12154
             #     cu calea catre wallet-ul Oracle) — nu se arata clientului, doar in jurnal.
@@ -530,6 +560,39 @@ class Biro26Credit:
         if not r.get("success"):
             return {"success": False, "error": r.get("message")}
         return {"success": True, "data": _rows(r)[:max(1, int(limit or 500))]}
+
+    @staticmethod
+    def request_anketa(req_id: int) -> Dict[str, Any]:
+        """RO: ANCHETA completa a cererii — tot ce a completat clientul, plus
+        linkurile semnate catre copiile actelor. De aici operatorul copiaza
+        datele in cererea depusa la BANCA (creditorul nu are API).
+        EN: the full application behind a credit document, with signed links
+        to the ID scans, ready to be copied into the lender's own form."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT ID, CLIENT_COD, CLIENT_NAME, PHONE, EMAIL, IDNP, "
+                "BIRTH_DATE, ACT_SERIE, ACT_DATA, ACT_OFICIU, LOCALITATE, "
+                "CLIENT_ADDRESS, SCOP, VENIT, ALTE_RATE, ANGAJATOR, ACORD_MKT, "
+                "MONTHS, AMOUNT, CREDIT_PRICE, MONTHLY, PRODUCT_NAME, "
+                "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') CREATED "
+                "FROM TMS_CREDITE_REQ WHERE ID = :i", {"i": int(req_id)}))
+            if not rows:
+                return {"success": False, "error": "cererea nu a fost găsită"}
+            a = rows[0]
+            files = []
+            if a.get("client_cod"):
+                from models.biro26_client_files import Biro26ClientFiles
+                from models.biro26_notify import Biro26Notify
+                for f in (Biro26ClientFiles.list(a["client_cod"]).get("data") or []):
+                    files.append({
+                        "id": f["id"], "kind": f.get("kind_label") or f["doc_kind"],
+                        "name": f["file_name"],
+                        "url": Biro26Notify.file_link(f["id"]) or
+                               f"/api/biro26/shop/my-files/{f['id']}?cod={a['client_cod']}"})
+            a["files"] = files
+            return {"success": True, "data": a}
+        except Exception as e:                              # noqa: BLE001
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def document_lines(cod: int) -> Dict[str, Any]:

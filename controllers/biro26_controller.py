@@ -787,12 +787,9 @@ class Biro26Controller:
             saved.append(kind)
 
         # cererea propriu-zisa (notificarea pleaca cu actele atasate)
-        det = (f"Scop: {f.get('scop') or '-'} · Venit: {f.get('venit') or '-'} lei · "
-               f"Alte rate: {f.get('alte_credite') or '0'} lei · "
-               f"Angajator: {f.get('angajator') or '-'} · "
-               f"Act: {f.get('act_serie') or '-'} din {f.get('act_data') or '-'} "
-               f"({f.get('act_oficiu') or '-'}) · "
-               f"Localitate: {f.get('localitate') or '-'}")
+        # RO: ancheta se salveaza pe CIMPURI (TMS_CREDITE_REQ), nu ca text —
+        #     operatorul le copiaza de acolo in cererea depusa la banca.
+        # EN: the application is stored field by field, not as free text.
         res = Biro26Credit.request_create({
             "plan_id": f.get("plan_id"), "months": f.get("months"),
             "qty": 1, "amount": f.get("amount"),
@@ -800,7 +797,14 @@ class Biro26Controller:
             "product_name": (f.get("product_name") or "Cerere de credit")[:180],
             "client_name": name, "phone": phone, "idnp": idnp,
             "birth_date": f.get("data_nasterii") or "",
-            "address": ((f.get("adresa") or "") + " · " + det)[:400],
+            "address": (f.get("adresa") or "").strip(),
+            "email": email,
+            "act_serie": f.get("act_serie"), "act_data": f.get("act_data"),
+            "act_oficiu": f.get("act_oficiu"),
+            "localitate": f.get("localitate"), "scop": f.get("scop"),
+            "venit": f.get("venit"), "alte_credite": f.get("alte_credite"),
+            "angajator": f.get("angajator"),
+            "acord_marketing": bool(f.get("acord_marketing")),
             "client_cod": cod})
         if res.get("success"):
             res["data"]["files"] = saved

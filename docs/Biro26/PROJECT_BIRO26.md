@@ -278,3 +278,20 @@ HttpOnly/SameSite/Secure, лимит тела запроса 12 МБ).
 * Бэк-офис, вкладка «Цены»: галочка **«Doar în baza Articolelor» / «Только по
   Артикулам» / «By Articles only»** рядом с кнопкой импорта — состояние
   подгружается из настройки и сохраняется сразу при переключении.
+
+### Полная анкета заявки в кредитных документах (2026-08-10)
+
+Раньше часть анкеты (цель, доход, работодатель, данные документа) склеивалась
+текстом в `CLIENT_ADDRESS`. Теперь каждое поле — своя колонка в
+`TMS_CREDITE_REQ` (DDL: `sql/81_credite_req_anketa.sql`):
+`CLIENT_COD, EMAIL, IDNP, BIRTH_DATE, ACT_SERIE, ACT_DATA, ACT_OFICIU,
+LOCALITATE, SCOP, VENIT, ALTE_RATE, ANGAJATOR, ACORD_MKT`.
+
+* API: `GET /api/biro26/credite-docs/anketa/<req_id>` — вся анкета + **подписанные
+  ссылки на сканы буletin** (`Biro26Credit.request_anketa`).
+* Страница `/UNA.md/orasldev/biro26-credite-docs`: под гридом документов —
+  блок **«Ancheta cererii de credit»** с кнопкой **«📋 Copiază datele»**
+  (копирует всё в буфер «поле: значение» — вставляется в заявку банка) и
+  ссылками на копии документов.
+* Полный IDNP хранится в заявке (нужен банку); в публичных местах
+  по-прежнему используется `IDNP_MASKED`.
