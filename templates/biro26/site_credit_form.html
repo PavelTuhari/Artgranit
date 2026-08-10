@@ -188,12 +188,21 @@
    actele). Termenele si preturile vin din OFERTELE reale ale creditorului
    (/shop/credit/offers) — nimic nu e „orientativ" inventat in pagina. */
 var OFFERS = [], CF = {fata: null, verso: null};
+const Q = new URLSearchParams(location.search);
+// RO: creditorul vine din cos (?org=) — implicit Microinvest, care nu are API
+//     si de aceea cererea se completeaza aici, cu tot cu copiile actelor.
+// EN: lender comes from the cart (?org=); Microinvest by default.
+const ORG_ID = parseInt(Q.get('org'), 10) || 0;
 const ORG_NAME = 'Microinvest';
+function cfOrgs() {
+  return OFFERS.filter(o => ORG_ID ? o.id === ORG_ID
+                                   : o.name.indexOf(ORG_NAME) !== -1);
+}
 
 function cfPlan(months, amount) {
   // RO: pachetul potrivit pentru termenul ales — cel mai IEFTIN pentru client
   var best = null;
-  OFFERS.filter(o => o.name.indexOf(ORG_NAME) !== -1).forEach(o =>
+  cfOrgs().forEach(o =>
     (o.plans || []).forEach(pl => {
       if (months < pl.months_min || months > pl.months_max) return;
       var mk = (pl.markup_pct || 0) + (o.transport_markup_pct || 0);
@@ -293,17 +302,33 @@ window.onLangChange = function () { cfCalc(); };
 (async function cfInit() {
   var o = await j(API + '/credit/offers');
   OFFERS = (o && o.data) || [];
+  // RO/EN: contextul din cos — suma, termenul si datele deja completate
+  var setv = (id, v) => { if (v) document.getElementById(id).value = v; };
+  var amt = parseFloat(Q.get('amount'));
+  if (amt > 0) document.getElementById('cf-amount').value =
+    Math.min(500000, Math.max(1000, Math.round(amt)));
+  var mo = parseInt(Q.get('months'), 10);
+  if (mo > 0) document.getElementById('cf-months').value = Math.min(48, Math.max(4, mo));
+  var nnp = (Q.get('nnp') || '').trim().split(' ');
+  setv('cf-nume', nnp[0] || ''); setv('cf-prenume', nnp.slice(1).join(' '));
+  setv('cf-idnp', Q.get('idnp')); setv('cf-phone', Q.get('phone'));
+  setv('cf-adresa', Q.get('adresa')); setv('cf-nastere', Q.get('nastere'));
+  var org0 = cfOrgs()[0];
+  if (org0) document.querySelector('.cf-head h1').textContent =
+    biS('Cerere de credit · Заявка на кредит') + ' — ' + org0.name;
   ['cf-amount', 'cf-months'].forEach(id =>
     document.getElementById(id).addEventListener('input', cfCalc));
   // datele cunoscute din cabinet se pun singure
   var me = await j(API + '/me');
   if (me.success && me.data && me.data.email) {
     var d = me.data, nm = (d.name || '').split(' ');
-    document.getElementById('cf-email').value = d.email || '';
-    document.getElementById('cf-phone').value = d.phone || '+373 ';
-    document.getElementById('cf-nume').value = nm[0] || '';
-    document.getElementById('cf-prenume').value = nm.slice(1).join(' ');
-    if (d.address) document.getElementById('cf-adresa').value = d.address;
+    var put = (id, v) => {
+      var el = document.getElementById(id);
+      if (el && v && !el.value.trim()) el.value = v;
+    };
+    put('cf-email', d.email); put('cf-nume', nm[0]);
+    put('cf-prenume', nm.slice(1).join(' ')); put('cf-adresa', d.address);
+    if (d.phone) put('cf-phone', d.phone);
   }
   cfCalc();
 })();
