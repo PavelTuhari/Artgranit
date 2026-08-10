@@ -359,11 +359,9 @@ function renderPmEntry() {
   OFFERS.forEach(o => {
     const cls = pmBtnClass(o.name);
     // RO: Microinvest are DOUA intrari (cerinta owner 10.08.2026):
-    //   «Microinvest»           -> CEREREA de credit (formularul complet cu
-    //                              acte, /cerere-credit) — creditul clasic;
-    //   «Microinvest 4-6 rate»  -> rate 0% direct in cos, ca la ceilalti.
-    // EN: Microinvest gets two entries — full application form vs. the 0%
-    //     in-cart instalments.
+    //   «Microinvest — cerere de credit» -> FORMULARUL complet (/cerere-credit);
+    //   «Microinvest 4-6 rate 0%»        -> ratele fara dobinda, direct in cos.
+    // EN: two Microinvest entries — full application form vs. 0% instalments.
     if (/microinvest/i.test(o.name)) {
       html += '<button type="button" class="pm-btn ' + cls +
         '" onclick="goCreditForm(' + o.id + ')">' + esc(o.name) + ' — ' +
@@ -385,8 +383,7 @@ function renderPmEntry() {
   box.innerHTML = html;
 }
 
-/* RO: trecerea la FORMULARUL de cerere (macheta: 2 pasi + copiile actelor),
-   cu suma cosului si creditorul deja alese. EN: go to the application form. */
+/* RO: trecerea la formularul de cerere, cu creditorul si suma cosului. */
 function goCreditForm(orgId) {
   const q = new URLSearchParams({org: orgId, amount: Math.round(cartTotal())});
   location.href = '/cerere-credit?' + q.toString();
@@ -396,7 +393,7 @@ function openCreditModal(orgId, monthsOnly) {
   const org = OFFERS.find(o => o.id === orgId);
   if (!org) return;
   selOrgId = orgId;
-  // RO/EN: lista de termene permise (ex. doar 4 si 6 rate 0%); null = toate
+  // RO/EN: termenele permise (ex. doar 4 si 6 rate 0%); null = toate
   selMonths = (monthsOnly && monthsOnly.length) ? monthsOnly : null;
   tileSel = 0;
   document.getElementById('cm-title-text').textContent = org.name;
@@ -476,22 +473,571 @@ function cmSubmitCreditRequest() {
 }
 
 /* RO: la creditorii FARA API cererea se completeaza in FORMULARUL complet
-   (macheta owner: 2 pasi + copiile buletinului) — butonul duce acolo, cu
-   pachetul, termenul si suma deja alese in cos.
-   EN: lenders without an API → the full application form, prefilled. */
+   (macheta owner: 2 pasi + copiile buletinului) — trecem acolo cu pachetul,
+   termenul, suma si datele deja introduse in cos.
+   EN: lenders without an API → open the full application form, prefilled. */
 var crReqSent = false;
 function crSubmitManual() {
   const t = currentTile();
   if (!t) { toast(bl('Alegeți termenul', 'Выберите срок'), true); return; }
+  const v = id => (document.getElementById(id) || {}).value || '';
   const q = new URLSearchParams({
     org: t.org.id, plan: t.plan.id, months: t.m,
     amount: Math.round(cartTotal()),
-    nnp: (document.getElementById('ec-fio') || {}).value || '',
-    idnp: (document.getElementById('ec-idnp') || {}).value || '',
-    phone: (document.getElementById('ec-phone') || {}).value || '',
-    adresa: (document.getElementById('cr-address') || {}).value || '',
-    nastere: (document.getElementById('ec-birth') || {}).value || ''});
+    nnp: v('ec-fio'), idnp: v('ec-idnp'), phone: v('ec-phone'),
+    adresa: v('cr-address'), nastere: v('ec-birth')});
   location.href = '/cerere-credit?' + q.toString();
+}
+
+function openStdModal() {
+  selOrgId = null;
+  setPm('standard');
+  document.getElementById('std-agree-terms').checked = false;
+  document.getElementById('std-agree-privacy').checked = false;
+  updateStdSummary();
+  document.getElementById('std-modal').classList.add('active');
+}
+function closeStdModal() {
+  document.getElementById('std-modal').classList.remove('active');
+}
+function stdSelectTva(btn, v) {
+  document.querySelectorAll('#std-tva-options .tva-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('tva-mode').value = v;
+  updateStdSummary();
+}
+function updateStdSummary() {
+  const total = cartTotal();
+  document.getElementById('std-price-value').textContent = fmtLei(total);
+  const tvaLbl = biS({inclus: 'TVA 20% inclus · НДС 20% включён',
+    '0': 'TVA 0% · НДС 0%', fara: 'Fără TVA · Без НДС'}[document.getElementById('tva-mode').value]);
+  document.getElementById('std-summary').innerHTML =
+    '<strong>' + tr('total') + ':</strong> <span class="price-red">' + fmtLei(total) + '</span><br>' +
+    bl('TVA', 'НДС') + ': <strong>' + esc(tvaLbl) + '</strong>';
+}
+function stdContinue() {
+  // RO: transportul se verifica AICI, cit modala e inca deschisa — altfel
+  //     mesajul ar aparea dupa inchidere, iar cimpul gol ar ramine invizibil.
+  // EN: check transport while the modal is still open, so the empty field
+  //     the message talks about is actually on screen.
+  const km = parseFloat(document.getElementById('tr-km').value);
+  if (!km || km <= 0) {
+    toast(tr('transport'), true);
+    document.getElementById('tr-km').focus();
+    return;
+  }
+  const t1 = document.getElementById('std-agree-terms').checked;
+  const t2 = document.getElementById('std-agree-privacy').checked;
+  if (!t1 || !t2) {
+    toast(bl('Trebuie să accepți Termenii și condițiile și Politica de confidențialitate', 'Необходимо принять условия и политику конфиденциальности'), true);
+    return;
+  }
+  // RO: o SINGURA actiune — bifa principala (cerinta maib) se pune automat,
+  //     modala se inchide si comanda se plaseaza imediat. Verificarile din
+  //     makeInvoice() (cos gol, autentificare, transport, bifa) raman valabile.
+  // EN: ONE action — tick the main maib checkbox, close the modal and place
+  //     the order right away; makeInvoice()'s own checks still apply.
+  const mainAgree = document.getElementById('agree-terms');
+  if (mainAgree) mainAgree.checked = true;
+  closeStdModal();
+  makeInvoice();
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeCreditModal(); closeStdModal(); }
+});
+function crIs0(p) { return /0\s*%/.test(p.name || ''); }
+// RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei care
+//     inlocuieste transportul neprestat la credit (transport-markup-brief.md).
+// EN: EFFECTIVE markup = plan commission + the org's markup replacing the
+//     undelivered transport on credit payments.
+function crEffMarkup(pl, o) { return (pl.markup_pct || 0) + (o.transport_markup_pct || 0); }
+function crTiles(base, orgId) {
+  const tiles = [];
+  OFFERS.forEach(o => {
+    if (orgId != null && o.id !== orgId) return;
+    (o.plans || []).forEach(pl => {
+      // RO: limitele pachetului se verifica pe suma FINANTATA (pretul in rate),
+      //     exact ca pe server (Biro26Credit.calc); altfel aratam o placa care
+      //     apoi pica la plasarea comenzii cu «suma finanțată peste maxim».
+      // EN: plan limits apply to the FINANCED amount, matching the server —
+      //     otherwise we show a tile the checkout will later reject.
+      const eff = crEffMarkup(pl, o);
+      const cp0 = base * (1 + eff / 100);
+      if (cp0 < (pl.amount_min || 0) || cp0 > (pl.amount_max || 1e12)) return;
+      for (let m = pl.months_min; m <= pl.months_max; m++) {
+        if (selMonths && selMonths.indexOf(m) === -1) continue;
+        const cp = cp0;
+        const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
+          cp * (pl.monthly_fee_pct || 0) / 100;
+        tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
+      }
+    });
+  });
+  return tiles.sort((a, b) => a.m - b.m);
+}
+function renderTiles() {
+  try {
+    if (payMethod !== 'credit') return;
+    const base = cartTotal();
+    TILES = crTiles(base, selOrgId);
+    const box = document.getElementById('cr-tiles');
+    const contBtn = document.getElementById('cm-continue-btn');
+    if (!TILES.length) {
+      // RO: limitele REALE ale organizatiei alese, exprimate in pret STANDARD
+      //     (limitele pachetelor sint pe suma finantata = pret x naceta) —
+      //     altfel «MAIB Credit de consum» parea disponibil de la 1.000 lei.
+      // EN: the selected org's REAL limits, converted back to standard-price
+      //     terms (plan limits apply to the financed amount).
+      let lo = Infinity, hi = 0;
+      OFFERS.filter(o => selOrgId == null || o.id === selOrgId).forEach(o =>
+        (o.plans || []).forEach(pl => {
+          const k = 1 + crEffMarkup(pl, o) / 100;
+          lo = Math.min(lo, (pl.amount_min || 0) / k);
+          hi = Math.max(hi, (pl.amount_max || 0) / k);
+        }));
+      const lim = (isFinite(lo) && hi)
+        ? bl('Disponibil pentru comenzi între ' + fmtLei(Math.ceil(lo)) + ' și ' + fmtLei(Math.floor(hi)),
+             'Доступно для заказов от ' + fmtLei(Math.ceil(lo)) + ' до ' + fmtLei(Math.floor(hi)))
+        : bl('Nu există termene disponibile pentru această sumă', 'Для этой суммы нет доступных сроков');
+      box.innerHTML = '<span style="font-size:12.5px;color:#808080">' + lim + '</span>';
+      document.getElementById('cr-sim').innerHTML = bl('Selectați un termen pentru a vedea detaliile', 'Выберите срок, чтобы увидеть детали');
+      if (contBtn) contBtn.disabled = true;
+      return;
+    }
+    if (tileSel >= TILES.length) tileSel = 0;
+    box.innerHTML = TILES.map((t, i) =>
+      '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
+      ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
+      '<b>' + t.m + ' ' + plWord(t.m) + '</b><span>' + Math.ceil(t.monthly) + ' ' + bl('lei/lună', 'лей/мес') + '</span></div>').join('');
+    // RO: in rezumat se arata pretul IN RATE (albastru), nu cel standard —
+    //     clientul plateste exact aceasta suma. La fel pentru TOATE pachetele,
+    //     nu doar la cele «0%».
+    // EN: the summary shows the INSTALMENT price (blue), never the standard
+    //     one — that is what the customer actually pays, for every plan.
+    const t = TILES[tileSel], is0 = crIs0(t.plan);
+    document.getElementById('cr-sim').innerHTML =
+      '<span class="price-red">' + tr('cartRate') + ': ' +
+      fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' +
+      Math.ceil(t.monthly) + ' lei' +
+      (is0 ? '' : ' (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')');
+    if (contBtn) contBtn.disabled = false;
+  } finally {
+    ecUI();
+  }
+}
+
+/* RO: fluxul API al organizatiei de creditare (preapproved -> submit -> status).
+   Se afiseaza doar daca organizatia are provider API configurat in back-office.
+   EN: credit-provider API flow, shown only when the org has a configured provider. */
+var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null, polling: false};
+// RO: modul ales de client cind providerul e configurat — 'online' (cerere
+// automata prin API, implicit) sau 'manual' (butonul vechi de cerere ramine
+// vizibil si managerul suna clientul). Persista intre schimbari de placa/
+// organizatie; se ignora automat cind organizatia nu are provider configurat
+// (atunci comportamentul e oricum manual, vezi ecOrgOf()/makeInvoice()).
+// EN: client-chosen mode when a provider is configured — 'online' (API
+// request flow, default) or 'manual' (legacy request button + callback).
+// Persists across tile/org changes; irrelevant when the org has no provider.
+var ecMode = 'online';
+
+function currentTile() { return TILES[tileSel] || null; }
+// RO: forma corecta de plural pentru «N rate» in ambele limbi
+//     (owner 03.08.2026: «corect este rate, dar nu plăți»)
+function plWord(n) {
+  if (curLang() !== 'ru') return 'rate';
+  const d = n % 10, h = n % 100;
+  if (d === 1 && h !== 11) return 'платёж';
+  if (d >= 2 && d <= 4 && (h < 10 || h >= 20)) return 'платежа';
+  return 'платежей';
+}
+
+function ecSetMode(m) {
+  if (m !== 'online' && m !== 'manual') return;
+  if (ecMode === m) return;
+  ecMode = m;
+  if (m === 'manual') {
+    // RO: trecerea pe manual opreste opro-sul de status si sterge rezultatul
+    // de preaprobare afisat — altfel raman vizibile pe ecran dupa ce clientul
+    // a ales explicit calea manuala.
+    // EN: switching to manual stops the status poll and clears any displayed
+    // preapproval result — otherwise stale state would linger on screen.
+    ecStop();
+    ecCtx.reqId = null; ecCtx.ref = null; ecCtx.selKey = null;
+    var out = document.getElementById('ec-out');
+    if (out) out.innerHTML = '';
+    var btn = document.getElementById('ec-sub');
+    if (btn) { btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed'; }
+  }
+  ecUI();
+}
+
+function ecOrgOf(tile) {
+  if (!tile) return null;
+  var o = OFFERS.find(function (x) { return x.id === tile.org.id; });
+  return (o && o.provider && o.provider.configured) ? o : null;
+}
+
+function ecStop() {
+  ecCtx.gen++;
+  ecCtx.polling = false;
+  if (ecCtx.poll) { clearTimeout(ecCtx.poll); ecCtx.poll = null; }
+}
+
+function ecUI() {
+  var box = document.getElementById('ec-flow');
+  if (!box) return;
+  var t = (payMethod === 'credit') ? currentTile() : null;
+  var org = ecOrgOf(t);
+  if (!org) ecStop();
+  // RO: la schimbarea placii/organizatiei SAU a sumei (credit_price), rezultatul
+  // de preaprobare vechi devine invalid — il stergem, DAR nu si cit timp opro-
+  // sul de status e activ (ecCtx.polling), ca sa nu se piarda referinta ext_ref
+  // din vedere in timp ce raspunsul e asteptat.
+  // EN: reset the stale preapproval result on selection/amount change, but not
+  // while a status poll is actively in flight (keep the ext_ref reference
+  // visible until it finishes).
+  // RO: preaprobarea e o operatie optionala — o afisam doar daca providerul
+  // organizatiei o suporta cu adevarat (nu toti gateway-urile o au, ex. Iute).
+  // EN: preapproval is optional — only show it when the org's provider
+  // actually implements it (not every gateway does, e.g. Iute).
+  var hasPre = !!(org && org.provider && org.provider.capabilities &&
+                  org.provider.capabilities.indexOf('preapproved') !== -1);
+  var selKey = org ? (org.id + ':' + t.plan.id + ':' + t.m + ':' + Math.round(t.credit_price)) : null;
+  if (selKey !== ecCtx.selKey && !ecCtx.polling) {
+    var out = document.getElementById('ec-out');
+    if (out) out.innerHTML = '';
+    var btn = document.getElementById('ec-sub');
+    if (btn) {
+      // RO: preaprobarea e OPTIONALA — butonul de trimitere ramine activ,
+      //     altfel clientul nu intelege de ce e gri. Datele se valideaza la
+      //     trimitere (IDNP 13 cifre, nume, telefon).
+      // EN: preapproval is optional; the submit button stays enabled.
+      btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+    }
+    // RO: cererea veche nu mai e relevanta pentru noua selectie/suma — o uitam,
+    // ca sa nu se amestece intr-un poll viitor pornit pentru alta cerere.
+    // EN: the old request no longer matches the new selection/amount — forget
+    // it so it can't bleed into a future poll for a different request.
+    ecCtx.reqId = null;
+    ecCtx.ref = null;
+  }
+  ecCtx.selKey = selKey;
+  ecCtx.org = org;
+  // RO: comutatorul online/manual apare doar cind organizatia are provider
+  // configurat; formularul #ec-flow se afiseaza doar in modul 'online'.
+  // EN: the online/manual switcher only shows when the org has a configured
+  // provider; the #ec-flow form only renders in 'online' mode.
+  var modeBox = document.getElementById('ec-mode-box');
+  if (modeBox) modeBox.style.display = org ? '' : 'none';
+  var btnOn = document.getElementById('ec-mode-online');
+  var btnMan = document.getElementById('ec-mode-manual');
+  if (btnOn) btnOn.classList.toggle('on', ecMode === 'online');
+  if (btnMan) btnMan.classList.toggle('on', ecMode === 'manual');
+  var hint = document.getElementById('ec-mode-hint');
+  if (hint) hint.textContent = ecMode === 'online'
+    ? bl('Online: decizie în cîteva minute', 'Онлайн: решение за несколько минут')
+    : bl('Manual: vă contactează un manager', 'Вручную: с вами свяжется менеджер');
+  box.style.display = (org && ecMode === 'online') ? '' : 'none';
+  // RO: cind organizatia nu are provider API configurat (sau clientul a ales
+  // modul manual), formularul de mai sus nu are unde trimite cererea direct —
+  // aratam nota ca cererea se depune dupa plasarea comenzii (sendCartCreditReq).
+  // EN: when the org has no configured API provider (or manual mode is
+  // chosen), there's nowhere to submit directly — show a note that the
+  // request is filed after the order is placed (sendCartCreditReq).
+  var noProviderNote = document.getElementById('cm-no-provider-note');
+  if (noProviderNote) noProviderNote.style.display = (org && ecMode === 'online') ? 'none' : '';
+  var preBtn = document.getElementById('ec-pre');
+  if (preBtn) preBtn.style.display = hasPre ? '' : 'none';
+  var note = document.getElementById('ec-note');
+  if (note) note.style.display = (org && !hasPre) ? '' : 'none';
+  if (org) {
+    document.getElementById('ec-org-label').textContent =
+      (org.provider.icon || '') + ' ' + org.provider.name +
+      ' — ' + bl('cerere online', 'онлайн-заявка');
+  }
+}
+
+function ecOut(html, color) {
+  var el = document.getElementById('ec-out');
+  el.innerHTML = html;
+  el.style.color = color || '#334155';
+  // RO: la creditorii FARA API (#ec-flow e ascuns) mesajul ar ramine
+  //     invizibil — clientul apasa butonul si nu se intimpla «nimic».
+  //     De aceea, cind zona nu se vede, dublam mesajul printr-un toast.
+  // EN: when #ec-flow is hidden (lenders without an API) the message would be
+  //     invisible — mirror it in a toast so nothing ever fails silently.
+  if (!el.offsetParent) {
+    var txt = el.textContent.trim();
+    if (txt) toast(txt, (color || '') === '#b91c1c');
+  }
+}
+
+/* RO: DOAR pentru clientul marcat «admin» in back-office: sub mesajul neutru
+   de eroare apare butonul «🔧 Log tehnic», care arata ultimele apeluri catre
+   creditor (cerere + raspuns brut). Clientul obisnuit nu primeste nimic —
+   serverul nici nu trimite cimpul `debug` (vezi _with_admin_debug).
+   EN: admin-marked shop clients get a «technical log» toggle under the
+   neutral error; ordinary clients never receive the `debug` field at all. */
+function ecDebugHtml(data) {
+  var ev = (data || {}).debug;
+  if (!ev || !ev.length) return '';
+  var body = ev.map(function (e) {
+    return '<div style="margin:6px 0;padding:6px;background:#0f172a;color:#e2e8f0;' +
+      'border-radius:6px;font:11px/1.45 ui-monospace,Menlo,monospace;' +
+      'white-space:pre-wrap;word-break:break-all">' +
+      esc((e.when || '') + '  ' + (e.channel || '') + '  ' + (e.op || '') +
+          (e.http ? '  HTTP ' + e.http : '') + (e.ms ? '  ' + e.ms + ' ms' : '')) +
+      '\n' + esc(e.request || '') + '\n' + esc(e.response || '') + '</div>';
+  }).join('');
+  return '<div style="margin-top:8px"><button type="button" onclick="' +
+    'var d=this.nextElementSibling;d.style.display=d.style.display?\'\':\'none\'" ' +
+    'style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;' +
+    'border-radius:6px;background:#f8fafc;cursor:pointer">🔧 ' +
+    bl('Log tehnic', 'Технический лог') + '</button><div style="display:none">' + body + '</div></div>';
+}
+
+async function ecPreapproved() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (!/^\d{13}$/.test(idnp)) {
+    ecOut(bl('IDNP trebuie să conțină 13 cifre', 'IDNP должен содержать 13 цифр'), '#b91c1c'); return;
+  }
+  // RO: data nasterii e OBLIGATORIE la gateway (Preapproved_v2_1) — fara ea
+  //     raspunsul e 422, iar clientul vede doar un mesaj neutru. Verificam aici.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test((document.getElementById('ec-birth') || {}).value || '')) {
+    ecOut(bl('Indicați data nașterii', 'Укажите дату рождения'), '#b91c1c');
+    var _b = document.getElementById('ec-birth'); if (_b) _b.focus();
+    return;
+  }
+  ecOut('…');
+  var r = await j(API + '/credit/api/preapproved', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, idnp: idnp, amount: Math.round(t.credit_price),
+    birth_date: (document.getElementById('ec-birth') || {}).value || '',
+    phone: document.getElementById('ec-phone').value.trim()})});
+  if (r.auth_required) {
+    ecStop(); toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return;
+  }
+  var btn = document.getElementById('ec-sub');
+  if (!r.success) {
+    ecOut('❌ ' + esc(r.error || 'eroare') + ecDebugHtml(r.data), '#b91c1c');
+    btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
+    return;
+  }
+  var d = r.data || {};
+  if (d.preapproved) {
+    ecOut('✅ ' + bl('Preaprobat pînă la', 'Предодобрено до') + ' <b>' +
+      Math.round(d.max_amount) + ' ' + bl('lei', 'лей') + '</b>', '#059669');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  } else {
+    ecOut('⚠️ ' + esc(biS(d.message || 'Fără preaprobare · Без предодобрения')) +
+      '<br>' + bl('Puteți trimite cererea — decizia o ia creditorul.',
+                  'Вы можете отправить заявку — решение принимает кредитор.'), '#b45309');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  }
+}
+
+async function ecSubmit() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var fio = document.getElementById('ec-fio').value.trim();
+  var phone = document.getElementById('ec-phone').value.trim();
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (!fio || !phone) { ecOut(bl('Numele și telefonul sunt obligatorii', 'Имя и телефон обязательны'), '#b91c1c'); return; }
+  if (!/^\d{13}$/.test(idnp)) {
+    ecOut(bl('IDNP trebuie să conțină 13 cifre', 'IDNP должен содержать 13 цифр'), '#b91c1c'); return;
+  }
+  // RO: data nasterii e OBLIGATORIE la gateway (Preapproved_v2_1) — fara ea
+  //     raspunsul e 422, iar clientul vede doar un mesaj neutru. Verificam aici.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test((document.getElementById('ec-birth') || {}).value || '')) {
+    ecOut(bl('Indicați data nașterii', 'Укажите дату рождения'), '#b91c1c');
+    var _b = document.getElementById('ec-birth'); if (_b) _b.focus();
+    return;
+  }
+  ecOut('…');
+  var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
+    amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
+    qty: 1, client_name: fio, phone: phone, idnp: idnp,
+    // RO: adresa nu are cimp la provider, dar se pastreaza in cererea noastra
+    address: (document.getElementById('cr-address') || {}).value || '',
+    birth_date: (document.getElementById('ec-birth') || {}).value || '',
+    product_name: 'Coș OfficePlus'})});
+  if (r.auth_required) {
+    ecStop(); toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return;
+  }
+  if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare') + ecDebugHtml(r.data), '#b91c1c'); return; }
+  ecCtx.reqId = r.data.req_id;
+  ecCtx.ref = r.data.ext_ref || null;
+  // RO: la depunerea cererii de credit se genereaza IMEDIAT si Contul de plata
+  //     (comanda). makeInvoice() trimite credit_plan_id, deci documentul e marcat
+  //     ca «in rate», transportul nu se factureaza, iar notificarile (email /
+  //     WhatsApp / Telegram) pleaca automat din notify_new_doc.
+  // EN: placing a credit request also creates the invoice/order right away;
+  //     notifications (incl. WhatsApp) fire from notify_new_doc.
+  const agree = document.getElementById('agree-terms');
+  if (agree) agree.checked = true;
+  makeInvoice();
+  if (!ecCtx.ref) {
+    ecOut('📨 ' + bl('Cerere trimisă', 'Заявка отправлена') + '<br>' + bl('Un manager vă va contacta în scurt timp.', 'Менеджер свяжется с вами в ближайшее время.'), '#0f766e');
+    return;
+  }
+  ecOut('📨 ' + bl('Cerere trimisă', 'Заявка отправлена') + '<br>' +
+    bl('Referință', 'Референс') + ': <b>' + esc(ecCtx.ref) + '</b><br><span id="ec-st">' +
+    bl('Se verifică statusul…', 'Проверяем статус…') + '</span>', '#0f766e');
+  ecPoll(0);
+}
+
+function ecPoll(n) {
+  ecStop();                                          // opreste (si polling=false) orice poll anterior
+  if (n > 24 || !ecCtx.reqId || !ecCtx.ref) {                       // 24 × 5 c = 2 минуты
+    var el0 = document.getElementById('ec-st');
+    if (el0) el0.textContent = bl('Verificați statusul mai tîrziu — managerul vă va contacta.', 'Проверьте статус позже — менеджер свяжется с вами.');
+    return;                                          // polling ramine false (epuizat)
+  }
+  ecCtx.polling = true;                              // opreste in mod real
+  var myGen = ecCtx.gen;   // RO: fereastra de generatie — daca ecStop() a mai
+                            // fost apelat intre timp, raspunsul intirziat e ignorat.
+  ecCtx.poll = setTimeout(async function () {
+    var r = await j(API + '/credit/api/status?req_id=' + ecCtx.reqId +
+                    '&ref=' + encodeURIComponent(ecCtx.ref || ''));
+    if (ecCtx.gen !== myGen) return;   // poll anulat/inlocuit in timpul await
+    var el = document.getElementById('ec-st');
+    var st = (r.data || {}).status || '';
+    if (el) el.textContent = 'Status: ' + (st || '—');
+    var done = /APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL/i.test(st);
+    if (done) { ecCtx.polling = false; }             // status final — se poate reseta la urmatoarea selectie
+    else ecPoll(n + 1);
+  }, 5000);
+}
+window.addEventListener('pagehide', ecStop);
+
+async function makeInvoice() {
+  const c = cart().filter(i => i.qty > 0);
+  if (!c.length) { toast(tr('cartEmpty'), true); return; }
+  if (!ME) { toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return; }
+  // RO/EN: cerinta maib — fara bifa la Termeni si conditii nu se plaseaza comanda
+  const agree = document.getElementById('agree-terms');
+  if (agree && !agree.checked) {
+    toast(bl('Confirmați Termenii și condițiile', 'Подтвердите Условия и положения'), true);
+    const box = document.getElementById('agree-box');
+    if (box) { box.style.outline = '2px solid #dc2626'; box.style.outlineOffset = '4px'; }
+    agree.focus();
+    return;
+  }
+  // RO: la credit transportul nu se presteaza — km/centrul nu se mai cer
+  //     si nu se trimit la server (vezi si controllers/biro26_controller.py
+  //     shop_invoice, blocul sarit cind exista credit_plan_id).
+  // EN: on credit, transport isn't delivered — km/center aren't required
+  //     and aren't sent (mirrors the skipped block in shop_invoice).
+  let km = null;
+  if (payMethod !== 'credit') {
+    km = parseFloat(document.getElementById('tr-km').value);
+    if (!km || km <= 0) { toast(tr('transport'), true);
+      document.getElementById('tr-km').focus(); return; }
+  }
+  const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
+    .concat(SRV.filter(s => document.getElementById('sv-' + s.cod) &&
+      document.getElementById('sv-' + s.cod).checked)
+      .map(s => ({cod: s.cod, qty: 1, name: s.denumire || s.name})));
+  const body = {items, tva_mode: document.getElementById('tva-mode').value};
+  if (payMethod !== 'credit') {
+    body.distance_km = km;
+    body.center_id = parseInt(document.getElementById('tr-center').value, 10) || null;
+  }
+  if (payMethod === 'credit') {
+    const t = TILES[tileSel];
+    if (!t) { toast(bl('Alegeți termenul de rate', 'Выберите срок рассрочки'), true); return; }
+    body.credit_plan_id = t.plan.id; body.credit_months = t.m;
+    body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
+    // RO: datele pentru DOCUMENTUL de credit (TMDB_CREDITE_M): cererea deja
+    //     trimisa la provider (daca a fost) plus adresa si data nasterii.
+    // EN: data for the ERP credit document: the already-sent request id (if
+    //     any) plus the address and date of birth captured in the form.
+    if (ecCtx && ecCtx.reqId) body.credit_req_id = ecCtx.reqId;
+    body.address = (document.getElementById('cr-address') || {}).value || '';
+    body.birth_date = (document.getElementById('ec-birth') || {}).value || '';
+  }
+  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  const cod = r.data.cod, nr = r.data.nrset || r.data.nr || cod;
+  // RO: calculam ecOrg INAINTE de a goli cosul — saveCartLS([]) declanseaza
+  // onCartChange->renderCart->renderTiles, care reseteaza TILES si ar face
+  // currentTile() sa returneze null mai jos. Modul ales (online/manual) e
+  // o variabila globala independenta de TILES, dar il capturam aici, la
+  // fel ca ecOrg, ca sa nu depinda de ordinea codului de mai jos.
+  // EN: compute ecOrg BEFORE clearing the cart — saveCartLS([]) triggers
+  // onCartChange->renderCart->renderTiles, which resets TILES and would
+  // make currentTile() return null below. ecMode is a plain global unaf-
+  // fected by TILES, but we snapshot it here too, for the same reason.
+  const ecOrg = ecOrgOf(currentTile());
+  const modeAtSubmit = ecMode;
+  saveCartLS([]);
+  const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
+  let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
+    '<br><a target="_blank" href="' + pdf('invoice') + '">' + tr('pdfInvoice') + '</a>' +
+    '<a target="_blank" href="' + pdf('order') + '">' + tr('pdfOrder') + '</a>' +
+    fmtExtraBtns(cod);
+  setTimeout(() => window.open(pdf('invoice'), '_blank'), 600);  // implicit PDF
+  // RO: MIA e OBLIGATORIU la plata standard (cerinta owner 02.08.2026) —
+  //     butonul apare mereu, indiferent de lista /pay/methods.
+  if (payMethod !== 'credit')
+    h += '<button class="pay" onclick="payMia(' + cod + ')">📱 MIA QR</button>';
+  if (PAY.enabled && payMethod !== 'credit') {
+    if (PAY.methods.includes('maib'))
+      h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 MAIB card</button>';
+    if (PAY.methods.includes('p2p'))
+      h += '<button class="pay" onclick="payP2P()">📲 MIA P2P</button>';
+  }
+  if (payMethod === 'credit') {
+    // RO: butonul apare doar daca cererea NU a fost deja depusa din modala
+    //     (crSubmitManual) — altfel operatorul ar primi cererea de doua ori.
+    // EN: only when the request was not already filed from the modal.
+    if ((!ecOrg || modeAtSubmit === 'manual') && !crReqSent) {
+      const t0 = currentTile();
+      const orgNm = (t0 && t0.org && t0.org.name) || 'credit';
+      h += '<button onclick="sendCartCreditReq(' + cod + ',\'' + esc(String(nr)) +
+        '\')">📝 ' + bl('Cerere de credit ', 'Заявка на кредит ') + esc(orgNm) + '</button>';
+    }
+    h += '<button class="pay" onclick="payMaib(' + cod + ')">💳 ' + bl('Liber Card (MAIB) în rate', 'Liber Card (MAIB) в рассрочку') + '</button>';
+  }
+  const ok = document.getElementById('okbox');
+  ok.style.display = ''; ok.innerHTML = h;
+  ok.scrollIntoView({behavior: 'smooth'});
+}
+
+/* RO: IMPLICIT totul in PDF. Formatele alternative (HTML/XLS) se activeaza
+   DOAR in cabinetul clientului (/cont, constanta invoice_fmt); daca-s
+   activate, dupa crearea contului apar butonase MICI de descarcare. */
+const ALLOW_HTML = {{ 'true' if fmt_html == '1' else 'false' }};
+const ALLOW_XLSX = {{ 'true' if fmt_xlsx == '1' else 'false' }};
+function fmtExtras() {
+  const pref = String((ME && ME.invoice_fmt) ||
+    localStorage.getItem('biro26_fmt') || 'pdf');
+  return pref.split(',').map(s => s.trim())
+    .filter(f => (f === 'html' && ALLOW_HTML) || (f === 'xlsx' && ALLOW_XLSX));
+}
+function fmtExtraBtns(cod) {
+  const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
+                xlsx: '/api/biro26/shop/report-xlsx/invoice/' + cod};
+  const lbl = {html: '🌐 HTML', xlsx: '📊 XLS'};
+  return fmtExtras().map(f =>
+    '<a target="_blank" href="' + urls[f] + '" style="font-size:11.5px;' +
+    'padding:5px 10px;background:#eef4fb;color:#1a5fb4;border:1px solid #bfd6f2">' +
+    lbl[f] + '</a>').join('');
+}
+
+async function sendCartCreditReq(cod, nr) {
+  const t = TILES[tileSel]; if (!t) return;
+  let phone = (ME && ME.phone) || '';
+  if (!phone) phone = prompt(bl('Telefon:', 'Телефон:')) || '';
+  if (!phone) return;
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: t.plan.id, months: t.m, qty: 1, amount: t.credit_price / (1 + crEffMarkup(t.plan, t.org) / 100),
+    product_cod: 0, product_name: 'Cont de plată Nr. ' + nr + ' (COD ' + cod + ')',
+    client_name: (ME && ME.name) || '', phone,
+    address: (document.getElementById('cr-address') || {}).value || ''})});
+  toast(r.success ? bl('✅ Cererea a fost trimisă!', '✅ Заявка отправлена!') : (r.error || 'Eroare'), !r.success);
 }
 
 async function payMaib(cod) {
