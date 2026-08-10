@@ -1782,7 +1782,24 @@ class Biro26Controller:
 
     @staticmethod
     def client_files_get(file_id: int):
+        import hmac
+        import time
         from models.biro26_client_files import Biro26ClientFiles
+        from models.biro26_notify import Biro26Notify
+        # RO: LINK SEMNAT (?exp=&sig=) — actul se deschide direct din
+        #     notificarea WhatsApp/Telegram, fara login, DAR: doar acel
+        #     fisier, doar pina la expirare, si accesul se jurnalizeaza.
+        # EN: signed, time-limited link so the document opens straight from
+        #     the chat notification — one file only, logged like any access.
+        sig = (request.args.get("sig") or "").strip()
+        exp = (request.args.get("exp") or "").strip()
+        if sig and exp.isdigit():
+            if int(exp) < int(time.time()):
+                return {"success": False, "error": "link expirat"}
+            if hmac.compare_digest(sig, Biro26Notify.file_sig(int(file_id), int(exp))):
+                return Biro26ClientFiles.get(
+                    int(file_id), None, who="link-semnat",
+                    ip=request.headers.get("X-Real-IP") or request.remote_addr or "")
         cod, who = Biro26Controller._client_or_operator()
         if not cod:
             return {"success": False, "error": "login required"}

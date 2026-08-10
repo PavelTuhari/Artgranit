@@ -193,7 +193,8 @@ class Biro26ClientFiles:
                 continue
             g = Biro26ClientFiles.get(f["id"], univers_cod, who=who, ip=ip)
             if g.get("success") and g["data"]["content"]:
-                out.append({"name": g["data"]["file_name"],
+                out.append({"id": g["data"]["id"],
+                            "name": g["data"]["file_name"],
                             "mime": g["data"]["mime"],
                             "content": g["data"]["content"],
                             "kind": g["data"]["kind"]})

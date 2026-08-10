@@ -163,3 +163,15 @@ drepturilor Oracle, jurnalizarea centralizată).</p>
 
 </body>
 </html>
+<!-- addendum 2026-08-10 -->
+<h2>Addendum (2026-08-10): linkuri semnate în locul numelor de fișiere</h2>
+<div class="ok"><b>R1 — tratat parțial.</b> În notificările de chat
+(WhatsApp / Telegram) actele nu mai apar ca simplu text: fiecare document
+primește un <b>link semnat HMAC, cu expirare</b> (implicit 7 zile), care
+deschide <b>exact acel fișier</b> și scrie accesul în
+<code>TMS_MUNC_ADDFILES_LOG</code> (<code>who = link-semnat</code>).
+Verificat live: link valid → 200 (JPEG original); fără semnătură → 401;
+semnătura altui fișier → 401; link expirat → refuz.
+E-mailul primește în continuare fișierele ca atașamente — pentru transmiterea
+către creditor. Cheia semnăturii este <code>BIRO26_API_TOKEN</code>;
+revocarea ei invalidează instantaneu toate linkurile emise.</div>

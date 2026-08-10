@@ -355,6 +355,34 @@ class Biro26Notify:
                          hashlib.sha256).hexdigest()
 
     @staticmethod
+    def file_sig(file_id: int, exp: int) -> str:
+        """RO: semnatura HMAC pentru UN singur act al clientului, valabila pina
+        la momentul `exp` (UNIX). Actele sint date PERSONALE: linkul deschide
+        exact acel fisier, doar pina la expirare, si fiecare deschidere se
+        scrie in TMS_MUNC_ADDFILES_LOG.
+        EN: time-limited HMAC signature for ONE client document (personal
+        data): opens that file only, until it expires, and every open is logged."""
+        import hashlib
+        import hmac as _hmac
+        key = (Config.BIRO26_API_TOKEN or Config.SECRET_KEY).encode("utf-8")
+        return _hmac.new(key, f"file:{int(file_id)}:{int(exp)}".encode("utf-8"),
+                         hashlib.sha256).hexdigest()
+
+    @staticmethod
+    def file_link(file_id: int, base: str = "", days: int = 7) -> Optional[str]:
+        """RO: link SEMNAT catre un act al clientului (pentru notificari)."""
+        import time as _t
+        base = (base or "").strip().rstrip("/")
+        if not base:
+            s = Biro26Notify.get_settings().get("data") or {}
+            base = (s.get("notify_public_base") or "").strip().rstrip("/")
+        if not base:
+            return None
+        exp = int(_t.time()) + max(1, int(days)) * 86400
+        return (f"{base}/api/biro26/shop/my-files/{int(file_id)}"
+                f"?exp={exp}&sig={Biro26Notify.file_sig(file_id, exp)}")
+
+    @staticmethod
     def pdf_link(s: Dict[str, str], kind: str, cod: int) -> Optional[str]:
         base = (s.get("notify_public_base") or "").strip().rstrip("/")
         if not base:
@@ -379,8 +407,17 @@ class Biro26Notify:
         s = settings or (Biro26Notify.get_settings().get("data") or {})
         res = {}
         if attachments:
-            text = (text + "\n📎 Acte atașate: "
-                    + ", ".join(str(a.get("name") or "?") for a in attachments))
+            # RO: in mesaje (WhatsApp/Telegram) punem LINKURI SEMNATE catre
+            #     fiecare act — se deschid direct din chat, fara login, doar
+            #     ele si doar pina la expirare. E-mailul primeste fisierele.
+            # EN: chat channels get time-limited signed links per document.
+            lines = []
+            for a in attachments:
+                nm = str(a.get("name") or "document")
+                ln = (Biro26Notify.file_link(a["id"], base=(s.get("notify_public_base") or ""))
+                      if a.get("id") else None)
+                lines.append(f"• {nm}: {ln}" if ln else f"• {nm}")
+            text = text + "\n📎 Acte (link securizat):\n" + "\n".join(lines)
         if s.get("notify_email_enabled") == "1":
             res["email"] = Biro26Notify._send_email(s, subject, text, attachments)
         if s.get("notify_tg_enabled") == "1":
