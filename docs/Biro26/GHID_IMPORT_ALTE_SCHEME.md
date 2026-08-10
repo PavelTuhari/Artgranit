@@ -332,6 +332,40 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.19 Formatul datelor din fisier: virgula zecimala si articol "reformatat"
+
+Doua capcane descoperite la setul 10 (CRAFTI) — ambele **tacute**: importul „reuseste",
+dar nu face ce trebuie.
+
+**a) Virgula zecimala.** `YBIRO_Import_Marfa.parse_price` intelege DOAR punctul:
+`parse_price('224.93') = 224.93`, dar `parse_price('69,66') = NULL`. Pretul de raft e
+pastrat ca TEXT si parsat mai tirziu, deci un fisier cu virgula duce la **0 preturi
+actualizate**, fara nicio eroare. La setul 10 asta ar fi blocat ~6 600 actualizari.
+Normalizare in `build_stg` (doar daca nu exista deja punct — poate fi separator de mii):
+
+```sql
+CASE WHEN INSTR(col, '.') = 0 THEN REPLACE(col, ',', '.') ELSE col END
+```
+
+**b) Articol „reformatat" de furnizor.** Acelasi produs, alt format al articolului:
+fisier `T4gr120 12476` vs catalog `T4gr12012476` (un spatiu in plus). Potrivirea exacta
+esueaza -> produsul devine NOU -> **dublura**. La setul 10: **277** dubluri evitate.
+Solutie — PRIORITATE 3 in `classify()`, dupa barcode si articol exact:
+
+```sql
+REPLACE(REPLACE(UPPER(u.codvechi),' ',''),'.','')
+  = REPLACE(REPLACE(UPPER(s.articol),' ',''),'.','')
+```
+Se aplica DOAR cind potrivirea normalizata e **unica** si cardul e activ.
+
+**c) Paza pe coduri de bare — verificati DATELE, nu antetul.** Un fisier poate avea coloana
+`Barcode` complet **goala**; e la fel de periculos ca lipsa ei. Paza `g_max_new_nobc`
+numara acum randurile cu barcode completat, nu prezenta coloanei.
+
+> **Regula generala:** dupa dry-run comparati `preturi cu pret schimbat` (din clasificare)
+> cu `preturi noi inserate` (din import). Daca al doilea e mult mai mic — pretul nu s-a
+> parsat (format) sau grupa de pret lipseste.
+
 ### 9.18 ⛔ Un import trebuie sa vada DOAR incarcarea lui (stagin cumulativ)
 
 `BIRO26PT_STG` / `BIRO26PT_RAW` sint **cumulative** — pastreaza randurile tuturor

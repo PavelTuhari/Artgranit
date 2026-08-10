@@ -326,7 +326,15 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       '  SUBSTR(' || e(v_cat) || ',1,260),' ||                   -- categorie
       '  SUBSTR(' || e(v_fz)  || ',1,260),' ||                   -- furnizor/producator
       '  ' || e(v_ang, TRUE) || ', ' || e(v_onl, TRUE) || ',' ||
-      '  SUBSTR(' || e(v_ret) || ',1,60),' ||
+      -- RO: pretul de raft ramine TEXT (parse_price il converteste mai tirziu), dar
+      --     normalizam separatorul: "69,66" -> "69.66". parse_price NU intelege virgula
+      --     si intoarce NULL => preturile nu s-ar actualiza deloc (set 10: 6 600 randuri).
+      --     Daca valoarea are DEJA punct, o lasam asa (poate fi separator de mii).
+      -- EN: keep retail as TEXT but normalize the decimal separator: parse_price does not
+      --     understand a comma and returns NULL, so prices would silently not update.
+      '  SUBSTR(CASE WHEN INSTR(' || e(v_ret) || ', ''.'') = 0' ||
+      '              THEN REPLACE(' || e(v_ret) || ', '','', ''.'')' ||
+      '              ELSE ' || e(v_ret) || ' END, 1, 60),' ||
       '  SUBSTR(' || e(v_bc)  || ',1,30),' ||
       '  SUBSTR(' || e(v_vat) || ',1,20),' ||
       '  SUBSTR(' || e(v_url) || ',1,1000),' ||
@@ -373,6 +381,26 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
         ELSE 'AMBIGUOUS'
       END
     WHERE s.load_id = p_load_id AND s.cod_univers IS NULL;
+    -- RO: PRIORITATE 3 — ARTICOL NORMALIZAT (fara spatii/puncte). Furnizorii schimba
+    --     uneori formatul: in fisier "T4gr120 12476", in catalog "T4gr12012476".
+    --     Fara acest pas s-ar crea dubluri (251 la setul CRAFTI). Se aplica DOAR cind
+    --     potrivirea normalizata e UNICA si cardul e activ.
+    -- EN: PRIORITY 3 — NORMALIZED article (spaces/dots removed). Suppliers sometimes
+    --     change formatting ("T4gr120 12476" vs "T4gr12012476"); without this we would
+    --     create duplicates. Applied only when the normalized match is UNIQUE and active.
+    UPDATE biro26pt_stg s
+       SET s.status = 'EXISTING',
+           s.cod_univers = (SELECT MIN(u.cod) FROM tms_univers u
+                             WHERE u.tip = g_tip AND NVL(u.isarhiv,'0') <> '2'
+                               AND TRANSLATE(UPPER(u.codvechi), ' .-', '   ') IS NOT NULL
+                               AND REPLACE(REPLACE(UPPER(u.codvechi),' ',''),'.','')
+                                 = REPLACE(REPLACE(UPPER(SUBSTR(s.articol,1,g_len_codvechi)),' ',''),'.',''))
+     WHERE s.load_id = p_load_id AND s.status = 'NEW' AND s.articol IS NOT NULL
+       AND (SELECT COUNT(*) FROM tms_univers u
+             WHERE u.tip = g_tip AND NVL(u.isarhiv,'0') <> '2'
+               AND REPLACE(REPLACE(UPPER(u.codvechi),' ',''),'.','')
+                 = REPLACE(REPLACE(UPPER(SUBSTR(s.articol,1,g_len_codvechi)),' ',''),'.','')) = 1;
+
     -- RO: leaga codul pentru cele existente / EN: bind cod for existing ones
     UPDATE biro26pt_stg s
        SET s.cod_univers = (SELECT MIN(u.cod) FROM tms_univers u WHERE u.tip=g_tip AND u.codvechi=SUBSTR(s.articol,1,g_len_codvechi) AND NVL(u.isarhiv,'0')<>'2')
@@ -783,6 +811,7 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                         p_force       IN BOOLEAN  DEFAULT FALSE) IS
     v_cp   NUMBER := NVL(p_codprice, g_codprice);
     v_new  NUMBER;
+    v_bc_filled NUMBER;
   BEGIN
     detect_columns(p_load_id, TRUE);
     IF col_of(p_load_id,'ARTICOL') IS NULL AND col_of(p_load_id,'DENUMIRE') IS NULL THEN
@@ -798,12 +827,18 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     --     the ~37.7k GOG duplicates appeared (load 164).
     SELECT COUNT(*) INTO v_new FROM biro26pt_stg
      WHERE load_id = p_load_id AND status = 'NEW';
-    IF col_of(p_load_id,'BARCODE') IS NULL AND v_new > g_max_new_nobc AND NOT p_force THEN
-      say('  RO: *** OPRIT *** fisierul NU are coloana COD DE BARE si ar crea ' || v_new ||
+    -- RO: nu e destul ca ANTETUL sa aiba coloana de cod de bare — conteaza sa fie si
+    --     DATE in ea. Un fisier cu coloana goala e la fel de periculos ca unul fara.
+    -- EN: having the barcode COLUMN is not enough — it must actually contain DATA.
+    --     An empty barcode column is just as dangerous as a missing one.
+    SELECT COUNT(*) INTO v_bc_filled FROM biro26pt_stg
+     WHERE load_id = p_load_id AND barcode IS NOT NULL;
+    IF v_bc_filled = 0 AND v_new > g_max_new_nobc AND NOT p_force THEN
+      say('  RO: *** OPRIT *** fisierul nu are coduri de bare (coloana lipsa sau GOALA) si ar crea ' || v_new ||
           ' pozitii NOI (prag ' || g_max_new_nobc || ').');
       say('  RO: Riscul: dubluri de marfa (vezi incidentul GOG / load 164). Cereti furnizorului');
       say('      coloana de coduri de bare, SAU rulati explicit cu p_force => TRUE daca sinteti sigur.');
-      say('  EN: *** STOPPED *** no BARCODE column and ' || v_new || ' NEW rows would be created;');
+      say('  EN: *** STOPPED *** no barcode DATA (missing or empty column) and ' || v_new || ' NEW rows;');
       say('      ask the supplier for barcodes, or re-run with p_force => TRUE.');
       RETURN;
     END IF;
