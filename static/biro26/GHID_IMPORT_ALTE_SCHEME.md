@@ -332,6 +332,30 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.20 ANGRO = pret de achizitie **CU TVA** (nu fara)
+
+Confirmat de client (10.08.2026): in OfficePlus **ANGRO se tine CU TVA**. Dictionarul
+`BIRO26PT_COLMAP` trata `Цена закупки с НДС` ca `IGNORE` — deci la fisierele care au DOAR
+coloana cu TVA (cazul CRAFTI, set 10) pretul de achizitie **nu se importa deloc**, tacut.
+
+Maparea corecta (prioritate mica = cistiga):
+
+| Antet | Cimp | Prio |
+|---|---|---|
+| `%цена закупки с ндс%` | `ANGRO` | 5 |
+| `%закупки с ндс%` | `ANGRO` | 6 |
+| `%angro%` | `ANGRO` | 10 |
+| `%опт%` | `ANGRO` | 20 |
+| `%закупки без ндс%` / `%цена закупки без%` | `ANGRO` | **30** (rezerva) |
+
+Varianta fara TVA ramine, dar **retrogradata**: daca fisierul are ambele coloane cistiga
+cea **cu TVA**; daca are doar varianta fara TVA, tot se importa ceva in loc de nimic.
+
+> **Lectie generala:** o intrare `IGNORE` in dictionar e la fel de periculoasa ca o mapare
+> gresita — nu produce nicio eroare, doar o coloana lipsa in rezultat. La un fisier nou,
+> comparati lista coloanelor din antet cu `BIRO26PT_MAP`: fiecare coloana de pret NEmapata
+> trebuie sa fie o decizie constienta, nu o scapare.
+
 ### 9.19 Formatul datelor din fisier: virgula zecimala si articol "reformatat"
 
 Doua capcane descoperite la setul 10 (CRAFTI) — ambele **tacute**: importul „reuseste",

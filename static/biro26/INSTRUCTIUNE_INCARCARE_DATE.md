@@ -22,7 +22,7 @@ Sistemul recunoaște coloanele automat, după numele din antet (română / rusă
 | Denumire | Recomandat | `Название в карточке`, `Denumire` |
 | Preț cu amănuntul (retail) | Recomandat | `Retail cu TVA`, `Розничная цена с НДС` |
 | Preț online | Opțional | `Preț online`, `Price Online` |
-| Preț angro / achiziție | Opțional | `ANGRO`, `Цена закупки без НДС` |
+| Preț angro / achiziție (**cu TVA**) | Opțional | `ANGRO`, `Цена закупки с НДС`, `Цена закупки без НДС` |
 | Cod de bare | Opțional | `Barcode`, `Штрихкод`, `Cod de bare`, `EAN` |
 | Grupă (categorie de sus) | Opțional | `GRUPA`, `Категория`, `Group` |
 | Categorie (subgrupă) | Opțional | `CATEGORIE`, `Category` |
@@ -64,6 +64,8 @@ Sistemul recunoaște coloanele automat, după numele din antet (română / rusă
 
 - Prețul din fișier **înlocuiește** prețul curent (perioadă nouă, la data încărcării).
 - Perioadele nu se suprapun — cea veche se închide automat.
+- **ANGRO = prețul de achiziție CU TVA.** Dacă fișierul are și coloana cu НДС, și cea
+  fără НДС, se ia automat cea **cu TVA**.
 - **Verifică maparea prețurilor** la pasul *Analizează*: prețul de **raft** trebuie să vină din
   coloana „Retail / Розничная", nu din „ANGRO". (La fișiere cu ambele, asigură-te că antetul e clar.)
 

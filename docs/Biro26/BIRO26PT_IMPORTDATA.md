@@ -54,7 +54,7 @@ PL/SQL не читает xlsx, поэтому ответственность р�
 `LOWER(header) LIKE pattern` по `BIRO26PT_COLMAP`; меньший `prio` выигрывает.
 Двойная редукция: каждая колонка берёт одно лучшее поле, затем каждое поле — одну
 лучшую колонку. Пример синонимов: `артикул|articol→ARTICOL`,
-`название|denumire→DENUMIRE`, `закупки без ндс|angro→ANGRO`, `priceonline|online→ONLINE`,
+`название|denumire→DENUMIRE`, `закупки с ндс|закупки без ндс|angro→ANGRO`, `priceonline|online→ONLINE`,
 `розничная|retail|raft→RETAIL`, `штрих|barcode|cod de bare→BARCODE`.
 
 **Стратегия 3 — по содержимому / якорю-товару** (fallback, если после шапки нет
@@ -167,7 +167,7 @@ SELECT BIRO26PT_importData.algo_md FROM dual;
 |---|---|---|
 | c1 | Название в карточке | `DENUMIRE` |
 | c3 | Артикул | `ARTICOL` |
-| c4 | Цена закупки без НДС | `ANGRO` |
+| c4 | Цена закупки без НДС | `ANGRO` (rezervă — varianta **cu TVA** are prioritate) |
 | c6 | PriceOnline | `ONLINE` |
 | c7 | Розничная цена с НДС | `RETAIL` |
 | c8 | Ставка НДС % | `VAT` |
