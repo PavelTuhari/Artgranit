@@ -604,7 +604,18 @@ html, body {
           <span class="muted">|</span>
           <input type="date" class="f-input w-date" id="price-start-date" data-i18n-ph="f_datestart">
           <input type="date" class="f-input w-date" id="price-end-date" data-i18n-ph="f_dateend">
-          <button class="btn primary" onclick="confirmAndRun('price_import','/api/biro26/prices/import',()=>({codprice:Number(document.getElementById('price-codprice').value||1), date_start: document.getElementById('price-start-date').value || undefined, date_end: document.getElementById('price-end-date').value || undefined}),'price-report')" data-i18n="act_import_prices"></button>
+          <button class="btn primary" onclick="confirmAndRun('price_import','/api/biro26/prices/import',()=>({codprice:Number(document.getElementById('price-codprice').value||1), date_start: document.getElementById('price-start-date').value || undefined, date_end: document.getElementById('price-end-date').value || undefined, only_articol: document.getElementById('price-by-articol').checked}),'price-report')" data-i18n="act_import_prices"></button>
+          <span class="muted">|</span>
+          <!-- RO: reinnoirea preturilor DOAR in baza Articolelor — ACTIVA
+               implicit: pretul ajunge doar la marfa al carei ARTICOL din ERP
+               coincide cu Articolul din sursa (YBIRO_SETTINGS.PRICE_UPDATE_BY_ARTICLE).
+               EN: refresh prices by ARTICLE only — ON by default. -->
+          <label class="muted" style="display:inline-flex;align-items:center;gap:6px"
+                 title="Prețurile se reînnoiesc doar pentru mărfurile identificate după Articol">
+            <input type="checkbox" id="price-by-articol" checked
+                   onchange="setPriceByArticol(this)">
+            <span data-i18n="opt_by_articol"></span>
+          </label>
           <span class="muted">|</span>
           <button class="btn danger solid" onclick="rollbackPriceList()" data-i18n="act_rollback"></button>
         </div>
@@ -1135,7 +1146,7 @@ ru: {
   sup_title: 'Поставщики (справочник)', furn_title: 'Поставщики (из фида)', cat_title: 'Категории',
   col_name: 'Название', col_cnt: 'Кол-во', col_id0: 'ID', col_label: 'Метка', col_tip: 'Тип',
   price_title: 'Прайс-лист',
-  act_import_dates: 'Импорт дат', act_import_prices: 'Импорт цен', act_rollback: 'Откатить лист',
+  act_import_dates: 'Импорт дат', act_import_prices: 'Импорт цен', opt_by_articol: 'Только по Артикулам', act_rollback: 'Откатить лист',
   price_periods_title: 'Периоды', col_data: 'Дата', col_nrdoc: '№ документа',
   price_lists_title: 'Прайс-листы', col_pricename: 'Название',
   tab_products: 'Товар / Остатки', tab_stock: 'Остатки (расчёт)', tab_services: 'Сервис',
@@ -1243,7 +1254,7 @@ ro: {
   sup_title: 'Furnizori (nomenclator)', furn_title: 'Furnizori (din flux)', cat_title: 'Categorii',
   col_name: 'Denumire', col_cnt: 'Nr.', col_id0: 'ID', col_label: 'Etichetă', col_tip: 'Tip',
   price_title: 'Listă de prețuri',
-  act_import_dates: 'Import date', act_import_prices: 'Import prețuri', act_rollback: 'Anulează lista',
+  act_import_dates: 'Import date', act_import_prices: 'Import prețuri', opt_by_articol: 'Doar în baza Articolelor', act_rollback: 'Anulează lista',
   price_periods_title: 'Perioade', col_data: 'Data', col_nrdoc: 'Nr. document',
   price_lists_title: 'Liste de prețuri', col_pricename: 'Denumire',
   tab_products: 'Marfă / Stoc', tab_stock: 'Stoc (calcul)', tab_services: 'Servicii',
@@ -1351,7 +1362,7 @@ en: {
   sup_title: 'Suppliers (dictionary)', furn_title: 'Suppliers (from feed)', cat_title: 'Categories',
   col_name: 'Name', col_cnt: 'Count', col_id0: 'ID', col_label: 'Label', col_tip: 'Type',
   price_title: 'Price list',
-  act_import_dates: 'Import dates', act_import_prices: 'Import prices', act_rollback: 'Rollback list',
+  act_import_dates: 'Import dates', act_import_prices: 'Import prices', opt_by_articol: 'By Articles only', act_rollback: 'Rollback list',
   price_periods_title: 'Periods', col_data: 'Date', col_nrdoc: 'Doc no.',
   price_lists_title: 'Price lists', col_pricename: 'Name',
   tab_products: 'Goods / Stock', tab_stock: 'Stock (calculate)', tab_services: 'Services',

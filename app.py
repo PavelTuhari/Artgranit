@@ -6119,6 +6119,14 @@ def api_biro26_prices_dates():
 def api_biro26_prices_import():
     return _b26(Biro26Controller.import_prices)
 
+@app.route('/api/biro26/prices/by-article', methods=['GET'])
+def api_biro26_price_by_article_get():
+    return _b26(Biro26Controller.price_by_article_get)
+
+@app.route('/api/biro26/prices/by-article', methods=['PUT'])
+def api_biro26_price_by_article_set():
+    return _b26(Biro26Controller.price_by_article_set)
+
 @app.route('/api/biro26/prices/rollback', methods=['POST'])
 def api_biro26_prices_rollback():
     return _b26(Biro26Controller.rollback_pricelist)

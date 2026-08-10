@@ -257,3 +257,24 @@ BLOB (описания товаров) по-прежнему приходят с
 Аудит GDPR/безопасности: `docs/Biro26/AUDIT_GDPR_SECURITATE.html`
 (риски R1–R7 и план действий; часть мер уже применена — cookie
 HttpOnly/SameSite/Secure, лимит тела запроса 12 МБ).
+
+## Обновление цен только по Артикулам (2026-08-10)
+
+Опция **`YBIRO_SETTINGS.PRICE_UPDATE_BY_ARTICLE`**, по умолчанию **включена** (`'1'`).
+
+Смысл: цена из источника попадает на товар, только если **АРТИКУЛ товара в ERP**
+(`TMS_UNIVERS.CODVECHI`) совпадает с полем «Articol» строки источника. Строки без
+совпадения по артикулу пропускаются — отсутствующий или неверный артикул больше
+не может изменить цену чужой позиции.
+
+* Oracle: `YBIRO_Import_Marfa.import_prices(..., p_only_articol IN NUMBER DEFAULT 1)`
+  добавляет к JOIN условие `UPPER(TRIM(tu.codvechi)) = UPPER(TRIM(g.<articol>))`;
+  `import_all` передаёт флаг дальше. `p_only_articol => 0` — прежнее поведение
+  (по назначенному ключу). В отчёт (`say`) добавлена пометка, каким способом шёл импорт.
+* Python: `Biro26Store.import_prices(..., only_articol=None)` — при `None` берёт
+  значение настройки; `price_by_article()` / `set_price_by_article()`.
+* API: `GET|PUT /api/biro26/prices/by-article` (`{"on": true|false}`);
+  `POST /api/biro26/prices/import` принимает `only_articol`.
+* Бэк-офис, вкладка «Цены»: галочка **«Doar în baza Articolelor» / «Только по
+  Артикулам» / «By Articles only»** рядом с кнопкой импорта — состояние
+  подгружается из настройки и сохраняется сразу при переключении.

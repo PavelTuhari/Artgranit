@@ -245,9 +245,25 @@ class Biro26Controller:
 
     @staticmethod
     def import_prices() -> Dict[str, Any]:
+        """RO: `only_articol` (implicit din setare, ACTIVA): preturile se
+        reinnoiesc DOAR pentru marfurile identificate dupa ARTICOL."""
         d = request.get_json(silent=True) or {}
+        oa = d.get("only_articol")
         return Biro26Store.import_prices(
-            d.get("codprice", 1), d.get("date_start"), d.get("date_end"))
+            d.get("codprice", 1), d.get("date_start"), d.get("date_end"),
+            only_articol=None if oa is None else bool(oa))
+
+    @staticmethod
+    def price_by_article_get() -> Dict[str, Any]:
+        return {"success": True, "data": {"on": Biro26Store.price_by_article()}}
+
+    @staticmethod
+    def price_by_article_set() -> Dict[str, Any]:
+        d = request.get_json(silent=True) or {}
+        r = Biro26Store.set_price_by_article(bool(d.get("on")))
+        if not r.get("success"):
+            return r
+        return {"success": True, "data": {"on": Biro26Store.price_by_article()}}
 
     @staticmethod
     def rollback_pricelist() -> Dict[str, Any]:

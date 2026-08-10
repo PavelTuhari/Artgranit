@@ -572,14 +572,35 @@ class Biro26Store:
             arg += f", p_data => DATE {_q(data)}"
         return Biro26Store._run_pkg(f"import_dates({arg});", capture=True)
 
+    # RO: cheia setarii — reinnoirea preturilor DOAR in baza Articolelor.
+    #     Implicit ACTIVA ('1'): pretul se scrie doar marfii al carei ARTICOL
+    #     din ERP (TMS_UNIVERS.CODVECHI) coincide cu Articolul din sursa, deci
+    #     un articol lipsa sau gresit nu mai poate schimba pretul altei marfi.
+    # EN: refresh prices by ARTICLE only — ON by default.
+    PRICE_BY_ARTICLE_KEY = "PRICE_UPDATE_BY_ARTICLE"
+
+    @staticmethod
+    def price_by_article() -> bool:
+        return Biro26Store.get_setting(
+            Biro26Store.PRICE_BY_ARTICLE_KEY, "1") != "0"
+
+    @staticmethod
+    def set_price_by_article(on: bool) -> Dict[str, Any]:
+        return Biro26Store.set_setting(
+            Biro26Store.PRICE_BY_ARTICLE_KEY, "1" if on else "0")
+
     @staticmethod
     def import_prices(codprice: int = 1, date_start: Optional[str] = None,
-                      date_end: Optional[str] = None) -> Dict[str, Any]:
+                      date_end: Optional[str] = None,
+                      only_articol: Optional[bool] = None) -> Dict[str, Any]:
+        if only_articol is None:
+            only_articol = Biro26Store.price_by_article()
         arg = f"p_codprice => {int(codprice)}"
         if date_start:
             arg += f", p_date_start => DATE {_q(date_start)}"
         if date_end:
             arg += f", p_date_end => DATE {_q(date_end)}"
+        arg += f", p_only_articol => {1 if only_articol else 0}"
         return Biro26Store._run_pkg(f"import_prices({arg});", capture=True)
 
     @staticmethod

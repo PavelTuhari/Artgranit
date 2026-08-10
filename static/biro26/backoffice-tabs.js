@@ -464,6 +464,7 @@ function priceRowHtml(p, i) {
 }
 
 async function loadPrices(reset = true) {
+  loadPriceByArticol();   // RO/EN: starea optiunii «doar Articole»
   bindPricesScroll();
   if (!reset && (priceState.loading || !priceState.hasMore)) return;
   const my = ++priceState.seq;              // a newer filter click wins
@@ -702,6 +703,26 @@ async function loadPriceDates() {
     '<td>' + escapeHtml(d.data || '') + '</td>' +
     '<td>' + fmtNum(d.nrdoc) + '</td>' +
     '</tr>').join('');
+}
+
+/* RO: optiunea «doar in baza Articolelor» (implicit ACTIVA) — pretul se
+   reinnoieste doar pentru marfa al carei ARTICOL din ERP coincide cu
+   Articolul din sursa. Se pastreaza in YBIRO_SETTINGS.
+   EN: the «by ARTICLE only» price-refresh option, persisted in settings. */
+async function loadPriceByArticol() {
+  const el = document.getElementById('price-by-articol');
+  if (!el) return;
+  const r = await fetch('/api/biro26/prices/by-article')
+    .then(x => x.json()).catch(() => ({}));
+  if (r && r.success && r.data) el.checked = !!r.data.on;
+}
+async function setPriceByArticol(el) {
+  el.disabled = true;
+  const r = await fetch('/api/biro26/prices/by-article', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({on: el.checked})}).then(x => x.json()).catch(() => ({}));
+  el.disabled = false;
+  if (!(r && r.success)) el.checked = !el.checked;
 }
 
 async function rollbackPriceList() {
