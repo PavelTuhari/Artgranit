@@ -163,11 +163,22 @@ async function govHealth(){
 async function govReady(){
   const el = document.getElementById('nc-gov'); if(!el) return;
   const h = await govHealth();
+  const msg = document.getElementById('nc-msg');
   el.disabled = false;
   el.title = h
     ? 'Contragenti activ (' + (h.db_count||0) + ' înregistrări în bază locală)'
-    : 'Utilitarul Contragenti nu rulează pe acest calculator — porniți-l sau completați manual';
+    : 'Utilitarul Contragenti nu rulează pe acest calculator';
   el.style.opacity = h ? '1' : '.6';
+  // RO: daca utilitarul nu raspunde — dam operatorului LINKUL DE DESCARCARE
+  //     (copia utilitarului este pastrata in proiect: tools/contragenti).
+  // EN: when the helper is down, offer the download link right away.
+  if(!h && msg && !msg.dataset.dl){
+    msg.dataset.dl = '1';
+    msg.innerHTML = 'Utilitarul <b>Contragenti</b> nu rulează pe acest calculator. ' +
+      '<a href="/UNA.md/orasldev/biro26-contragenti.zip">⤓ Descarcă utilitarul</a> ' +
+      '(dezarhivați și rulați <code>run.sh</code>), apoi reîncărcați pagina. ' +
+      'Fără el, datele se introduc manual.';
+  }
 }
 function govText(x, tag){
   const n = x.getElementsByTagName(tag)[0];
@@ -196,13 +207,47 @@ async function pickFromGov(){
       (govText(xml,'inregistrare') ? ' · înregistrată ' + govText(xml,'inregistrare') : '') +
       (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
   }catch(e){
-    // RO/EN: pagina e pe HTTPS, utilitarul pe http://127.0.0.1 — unele browsere
-    //        blocheaza apelul; atunci deschidem fereastra utilitarului direct.
-    msg.innerHTML = 'Nu s-a putut apela utilitarul din pagină. ' +
-      '<a href="' + url.replace('format=xml','format=html') + '" target="_blank">' +
-      'Deschideți Contragenti într-o filă nouă</a> și copiați datele.';
+    // RO: pagina e pe HTTPS, utilitarul pe http://127.0.0.1 — unele browsere
+    //     blocheaza apelul din pagina. Atunci deschidem utilitarul intr-o
+    //     fereastra cu `return_to`: dupa alegere el ne trimite datele INAPOI
+    //     (302 -> pagina noastra de intoarcere -> postMessage), deci fluxul NU
+    //     se mai opreste pe pagina utilitarului.
+    // EN: fall back to a popup with return_to so the data comes BACK to us.
+    govPopup(q);
   }
 }
+
+/* RO: intoarcerea datelor prin fereastra + postMessage (vezi gov_return.html).
+   EN: popup round-trip; the utility redirects back to our return page. */
+let GOV_WIN = null, GOV_STATE = '';
+function govPopup(q){
+  const msg = document.getElementById('nc-msg');
+  GOV_STATE = 'g' + Date.now();
+  const back = location.origin + '/UNA.md/orasldev/biro26-gov-return';
+  const url = GOV_BASE + '/pick?q=' + encodeURIComponent(q) +
+    '&lang=ro&timeout=300&state=' + GOV_STATE +
+    '&return_to=' + encodeURIComponent(back);
+  GOV_WIN = window.open(url, 'contragenti', 'width=1100,height=720');
+  msg.textContent = GOV_WIN
+    ? 'Alegeți compania în fereastra Contragenti — datele revin automat aici.'
+    : 'Permiteți ferestrele pop-up pentru acest site.';
+}
+window.addEventListener('message', function(ev){
+  if(ev.origin !== location.origin) return;
+  const p = ev.data || {};
+  if(p.source !== 'contragenti' || !p.data) return;
+  const d = p.data, msg = document.getElementById('nc-msg');
+  if(GOV_STATE && d.state && d.state !== GOV_STATE) return;
+  if(d.status === 'cancelled'){ msg.textContent = 'Selecție anulată de operator.'; return; }
+  if(d.status === 'timeout'){ msg.textContent = 'A expirat timpul de selecție.'; return; }
+  const set = (id,v)=>{ if(v) document.getElementById(id).value = v; };
+  set('nc-name', d.denumire); set('nc-idno', d.idno); set('nc-addr', d.adresa);
+  if(d.idno) document.getElementById('nc-type').value = '1';
+  msg.textContent = 'Preluat din date.gov.md: ' + (d.denumire || '—') +
+    (d.inregistrare ? ' · înregistrată ' + d.inregistrare : '') +
+    (d.lichidata && d.lichidata.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
+  if(GOV_WIN && !GOV_WIN.closed) GOV_WIN.close();
+});
 async function addClient(){
   const msg = document.getElementById('nc-msg');
   const body = {

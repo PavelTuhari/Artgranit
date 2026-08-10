@@ -6716,6 +6716,37 @@ def biro26_clients_page():
 def api_biro26_shop_clients():
     return _b26(Biro26Controller.shop_clients)
 
+@app.route('/UNA.md/orasldev/biro26-contragenti.zip')
+def biro26_contragenti_download():
+    """RO: utilitarul LOCAL «Contragenti» (preluarea datelor din date.gov.md),
+    impachetat la cerere din tools/contragenti — operatorul il descarca direct
+    din back-office cind nu ruleaza pe calculatorul lui."""
+    import io
+    import zipfile
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       'tools', 'contragenti')
+    if not os.path.isdir(src):
+        return jsonify({'success': False, 'error': 'utilitarul nu este în proiect'}), 404
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for name in sorted(os.listdir(src)):
+            f = os.path.join(src, name)
+            if os.path.isfile(f) and not name.startswith('.'):
+                z.write(f, f'contragenti/{name}')
+    buf.seek(0)
+    resp = app.response_class(buf.read(), mimetype='application/zip')
+    resp.headers['Content-Disposition'] = 'attachment; filename="contragenti.zip"'
+    return resp
+
+@app.route('/UNA.md/orasldev/biro26-gov-return')
+def biro26_gov_return():
+    """RO: pagina de INTOARCERE pentru utilitarul Contragenti: primeste datele
+    prin query (302 din utilitar), le trimite ferestrei-parinte si se inchide.
+    Asa fluxul nu se mai opreste pe pagina utilitarului."""
+    return render_template('biro26/gov_return.html')
+
 @app.route('/api/biro26/shop-clients', methods=['POST'])
 def api_biro26_shop_client_add():
     """RO: client NOU inregistrat de operator (minim: denumire + tip)."""

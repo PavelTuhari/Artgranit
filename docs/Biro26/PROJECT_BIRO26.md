@@ -320,3 +320,25 @@ API: `POST /api/biro26/shop-clients` → `Biro26Journal.client_quick_add` —
   «Deschideți Contragenti într-o filă nouă» (`format=html`) для ручного копирования;
 * адрес утилиты меняется в localStorage: `contragenti_base` (по умолчанию
   `http://127.0.0.1:9393`).
+
+#### Доработки Contragenti (2026-08-11)
+
+1. **Возврат данных в вызывающую систему.** У `/pick` появился параметр
+   `return_to=<URL>`: после выбора компании утилита делает **302 обратно**
+   в систему-инициатор с данными в query (`status, idno, denumire, adresa,
+   inregistrare, forma_juridica, lichidata, administratori, state`).
+   Раньше при переходе из браузера возвращалась HTML-карточка, и поток
+   останавливался на странице утилиты. **Демо-режим сохранён** как отдельный:
+   `format=html`. Статусы: `ok` / `cancelled` / `timeout`; `state` возвращается
+   без изменений (корреляция запроса).
+2. **Страница возврата** `/UNA.md/orasldev/biro26-gov-return` принимает данные
+   из query и передаёт их окну бэк-офиса через `postMessage` (проверяется
+   `origin` и `state`), после чего закрывается.
+3. **Скачивание утилиты.** Копия лежит в `tools/contragenti/`; маршрут
+   `/UNA.md/orasldev/biro26-contragenti.zip` собирает архив на лету (доступен
+   только авторизованному оператору). Если `GET /health` не отвечает, на
+   странице «Клиенты» сразу появляется ссылка «⤓ Descarcă utilitarul».
+
+Порядок работы кнопки «🏛 Date.gov.md»: `fetch` (быстро, Chrome) → при
+блокировке `http://127.0.0.1` со страницы HTTPS — окно с `return_to`
+(данные всё равно возвращаются) → если и окно закрыто, работа вручную.
