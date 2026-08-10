@@ -1757,6 +1757,26 @@ class Biro26Controller:
         return None, ""
 
     @staticmethod
+    def client_quick_add() -> Dict[str, Any]:
+        """RO: inregistrarea RAPIDA a unui client de catre OPERATOR (casier):
+        minim = denumirea + tipul (fizica/juridica). Datele pot veni si din
+        utilitarul local «Contragenti» (date.gov.md) — vezi butonul din pagina.
+        Clientul ajunge in ACELEASI tabele ca inregistrarile de pe site.
+        EN: operator-side quick client registration (same tables as sign-up)."""
+        from flask import session
+        from models.biro26_journal import Biro26Journal
+        if not (session.get("username") or session.get("authenticated")):
+            return {"success": False, "error": "auth required"}
+        d = request.get_json(silent=True) or {}
+        return Biro26Journal.client_quick_add(
+            (d.get("name") or "").strip(),
+            is_company=bool(d.get("is_company")),
+            idno=(d.get("idno") or "").strip(),
+            phone=(d.get("phone") or "").strip(),
+            email=(d.get("email") or "").strip(),
+            address=(d.get("address") or "").strip())
+
+    @staticmethod
     def client_files_list() -> Dict[str, Any]:
         from models.biro26_client_files import Biro26ClientFiles, DOC_KINDS
         cod, _who = Biro26Controller._client_or_operator()

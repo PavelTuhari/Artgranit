@@ -52,6 +52,36 @@
   <span id="cnt" class="muted"></span>
 </div>
 
+<!-- RO: CLIENT NOU — inregistrare rapida de catre operator (casier).
+     Minimul: denumirea + tipul. Datele pot fi PRELUATE din utilitarul local
+     «Contragenti» (date.gov.md), care ruleaza pe calculatorul operatorului
+     (http://127.0.0.1:9393) — integrare OPTIONALA: daca utilitarul nu ruleaza,
+     formularul se completeaza manual, nimic nu se blocheaza.
+     EN: operator-side new-client form with OPTIONAL lookup from the local
+     «Contragenti» utility (state registry date.gov.md). -->
+<div class="wrap" style="margin-bottom:14px">
+  <div style="padding:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div><label class="muted" style="display:block;font-size:12px">Denumire / NNP *</label>
+      <input class="f-input" id="nc-name" style="width:260px" placeholder="SRL Exemplu sau Ion Popescu"></div>
+    <div><label class="muted" style="display:block;font-size:12px">Tip</label>
+      <select class="f-input" id="nc-type" style="width:130px">
+        <option value="0">fizică</option><option value="1">juridică</option></select></div>
+    <div><label class="muted" style="display:block;font-size:12px">IDNO / IDNP</label>
+      <input class="f-input" id="nc-idno" style="width:150px" maxlength="13"></div>
+    <div><label class="muted" style="display:block;font-size:12px">Telefon</label>
+      <input class="f-input" id="nc-phone" style="width:140px"></div>
+    <div><label class="muted" style="display:block;font-size:12px">E-mail</label>
+      <input class="f-input" id="nc-email" style="width:190px" placeholder="opțional"></div>
+    <div style="flex:1;min-width:220px"><label class="muted" style="display:block;font-size:12px">Adresa</label>
+      <input class="f-input" id="nc-addr" style="width:100%"></div>
+    <button class="btn" id="nc-gov" onclick="pickFromGov()"
+            title="Preia datele din registrul de stat (utilitarul local Contragenti)">
+      🏛 Date.gov.md</button>
+    <button class="btn primary" onclick="addClient()">➕ Adaugă client · Добавить</button>
+  </div>
+  <div class="muted" id="nc-msg" style="padding:0 12px 10px"></div>
+</div>
+
 <table data-export="shop-clients">
   <thead><tr>
     <th style="width:80px">COD</th><th>Email</th><th>Nume</th>
@@ -113,6 +143,88 @@ async function docs(cod){
     'folosiți-le doar pentru dosarul de credit; fiecare deschidere este jurnalizată.</p></body>');
   w.document.close();
 }
+/* ── CLIENT NOU + integrarea OPTIONALA cu utilitarul «Contragenti» ──────
+   RO: utilitarul ruleaza LOCAL la operator (http://127.0.0.1:9393) si permite
+   CORS, deci il apeleaza chiar browserul: /pick deschide fereastra utilitarului,
+   operatorul alege compania, iar noi primim XML-ul cartelei si completam
+   formularul. Daca utilitarul nu ruleaza, butonul spune asta si munca continua
+   manual — integrarea nu este obligatorie nicaieri.
+   EN: the Contragenti helper runs on the operator's own machine; the browser
+   calls it directly and fills the form from the returned XML card. */
+const GOV_BASE = localStorage.getItem('contragenti_base') || 'http://127.0.0.1:9393';
+
+async function govHealth(){
+  try{
+    const c = new AbortController(); setTimeout(()=>c.abort(), 1500);
+    const r = await fetch(GOV_BASE + '/health', {signal:c.signal});
+    return r.ok ? await r.json() : null;
+  }catch(e){ return null; }
+}
+async function govReady(){
+  const el = document.getElementById('nc-gov'); if(!el) return;
+  const h = await govHealth();
+  el.disabled = false;
+  el.title = h
+    ? 'Contragenti activ (' + (h.db_count||0) + ' înregistrări în bază locală)'
+    : 'Utilitarul Contragenti nu rulează pe acest calculator — porniți-l sau completați manual';
+  el.style.opacity = h ? '1' : '.6';
+}
+function govText(x, tag){
+  const n = x.getElementsByTagName(tag)[0];
+  return n && n.textContent ? n.textContent.trim() : '';
+}
+async function pickFromGov(){
+  const msg = document.getElementById('nc-msg');
+  const q = (document.getElementById('nc-idno').value.trim() ||
+             document.getElementById('nc-name').value.trim());
+  if(!q){ msg.textContent = 'Introduceți denumirea sau IDNO pentru căutare'; return; }
+  msg.textContent = 'Se deschide utilitarul Contragenti… alegeți compania și apăsați «Vernuti contragentul».';
+  const url = GOV_BASE + '/pick?q=' + encodeURIComponent(q) + '&lang=ro&timeout=300&format=xml';
+  try{
+    const r = await fetch(url, {headers:{'Accept':'application/xml'}});
+    if(r.status === 204){ msg.textContent = 'Selecție anulată de operator.'; return; }
+    if(r.status === 504){ msg.textContent = 'A expirat timpul de selecție.'; return; }
+    if(!r.ok){ msg.textContent = 'Utilitarul a răspuns cu codul ' + r.status; return; }
+    const xml = new DOMParser().parseFromString(await r.text(), 'application/xml');
+    const set = (id,v)=>{ if(v) document.getElementById(id).value = v; };
+    set('nc-name', govText(xml,'denumire'));
+    set('nc-idno', govText(xml,'idno'));
+    set('nc-addr', govText(xml,'adresa'));
+    document.getElementById('nc-type').value = '1';   // registrul = persoane juridice
+    const lich = govText(xml,'lichidata');
+    msg.textContent = 'Preluat din date.gov.md: ' + (govText(xml,'denumire') || '—') +
+      (govText(xml,'inregistrare') ? ' · înregistrată ' + govText(xml,'inregistrare') : '') +
+      (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
+  }catch(e){
+    // RO/EN: pagina e pe HTTPS, utilitarul pe http://127.0.0.1 — unele browsere
+    //        blocheaza apelul; atunci deschidem fereastra utilitarului direct.
+    msg.innerHTML = 'Nu s-a putut apela utilitarul din pagină. ' +
+      '<a href="' + url.replace('format=xml','format=html') + '" target="_blank">' +
+      'Deschideți Contragenti într-o filă nouă</a> și copiați datele.';
+  }
+}
+async function addClient(){
+  const msg = document.getElementById('nc-msg');
+  const body = {
+    name: document.getElementById('nc-name').value.trim(),
+    is_company: document.getElementById('nc-type').value === '1',
+    idno: document.getElementById('nc-idno').value.trim(),
+    phone: document.getElementById('nc-phone').value.trim(),
+    email: document.getElementById('nc-email').value.trim(),
+    address: document.getElementById('nc-addr').value.trim()};
+  if(body.name.length < 3){ msg.textContent = 'Denumirea este obligatorie'; return; }
+  const r = await fetch('/api/biro26/shop-clients',{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+    .then(x=>x.json()).catch(()=>({}));
+  if(r && r.success){
+    msg.textContent = 'Client înregistrat: COD ' + r.data.univers_cod + ' · ' + r.data.email;
+    ['nc-name','nc-idno','nc-phone','nc-email','nc-addr'].forEach(i=>document.getElementById(i).value='');
+    toast('Client adăugat ✓ · Клиент добавлен'); load();
+  } else {
+    msg.textContent = (r && r.error) || 'Eroare la înregistrare';
+  }
+}
+
 async function setMark(cod,mark,el){
   el.disabled=true;
   const r=await fetch('/api/biro26/shop-clients/mark',{method:'PUT',
@@ -123,6 +235,7 @@ async function setMark(cod,mark,el){
   else toast((r&&r.error)||'Eroare',true);
 }
 load();
+govReady();   // RO/EN: verifica daca utilitarul Contragenti ruleaza local
 </script>
 <script src="/static/biro26/grid-export.js"></script>
 </body>

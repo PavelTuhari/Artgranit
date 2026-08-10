@@ -6716,6 +6716,13 @@ def biro26_clients_page():
 def api_biro26_shop_clients():
     return _b26(Biro26Controller.shop_clients)
 
+@app.route('/api/biro26/shop-clients', methods=['POST'])
+def api_biro26_shop_client_add():
+    """RO: client NOU inregistrat de operator (minim: denumire + tip)."""
+    r = Biro26Controller.client_quick_add()
+    return jsonify(r), (200 if r.get('success')
+                        else 401 if r.get('error') == 'auth required' else 400)
+
 @app.route('/api/biro26/shop-clients/mark', methods=['PUT'])
 def api_biro26_shop_client_mark():
     return _b26(Biro26Controller.shop_client_mark_set)
