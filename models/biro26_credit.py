@@ -413,7 +413,30 @@ class Biro26Credit:
             except Exception:                               # noqa: BLE001
                 att = []
 
+            # RO: cererile de TEST (clienti cu e-mail @officeplus.test sau
+            #     marcati 'test' in back-office) NU trimit notificari — altfel
+            #     verificarile tehnice ajung in WhatsApp-ul proprietarului.
+            # EN: test applications never notify the owner's channels.
+            is_test = False
+            try:
+                em = str(d.get("email") or "").lower()
+                if em.endswith("@officeplus.test"):
+                    is_test = True
+                elif d.get("client_cod"):
+                    from models.biro26_oracle_store import _rows as _r
+                    row = _r(Biro26DB().execute_query(
+                        "SELECT EMAIL, CLIENT_MARK FROM YBIRO_CLIENT "
+                        "WHERE UNIVERS_COD = :c", {"c": int(d["client_cod"])}))
+                    if row:
+                        is_test = (str(row[0].get("email") or "").lower()
+                                   .endswith("@officeplus.test")
+                                   or str(row[0].get("client_mark") or "") == "test")
+            except Exception:                               # noqa: BLE001
+                is_test = False
+
             def _notify():
+                if is_test:
+                    return
                 try:
                     Biro26Notify.send_all(
                         f"Cerere credit/rate — {name}",
