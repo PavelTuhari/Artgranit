@@ -1,0 +1,27 @@
+/* =====================================================================
+   Butonul OFICIAL «0% în N rate cu maib liber» — stilurile primite de la
+   banca (TaskDezvoltare/10 MAIB, maib liber button html), adaptate:
+   * fara @font-face catre fonts.gstatic.com (site-ul incarca deja Inter);
+     se pastreaza Roboto daca exista in sistem, altfel fontul site-ului;
+   * scara redusa la marimea blocurilor noastre (butonul original e urias).
+   Sigla si proportiile SVG NU se modifica.
+   EN: official maib liber button styles, fonts localised, logo untouched.
+   ===================================================================== */
+.maib-liber{--maib-light-bg:#ffffff;--maib-ink:#253746;--maib-accent:#fcb534;
+  font-family:Roboto,Inter,system-ui,-apple-system,sans-serif;line-height:1;
+  display:inline-flex;flex-direction:column;align-items:flex-start;gap:6px}
+.maib-liber .ml-btn{display:inline-flex;align-items:center;gap:10px;
+  padding:10px 18px 10px 14px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--maib-ink);background:var(--maib-light-bg);
+  transition:.3s ease-in-out;text-decoration:none}
+.maib-liber .ml-btn:hover{box-shadow:0 6px 16px rgba(37,55,70,.18)}
+.maib-liber.dark .ml-btn{background:var(--maib-ink)}
+.maib-liber .ml-zero{font-weight:700;font-size:30px;color:var(--maib-accent)}
+.maib-liber .ml-right{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.maib-liber .ml-text{font-weight:900;font-size:17px;color:var(--maib-ink)}
+.maib-liber.dark .ml-text{color:#fff}
+.maib-liber .ml-logo{height:16px;width:auto;display:block}
+.maib-liber .ml-link{font-size:12.5px;color:#64748b;text-decoration:underline}
+.maib-liber .ml-link:hover{color:#0055a5}
+@media (max-width:640px){.maib-liber .ml-zero{font-size:24px}
+  .maib-liber .ml-text{font-size:15px}}

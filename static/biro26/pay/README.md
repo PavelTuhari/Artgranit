@@ -58,3 +58,21 @@ afișează fără siglă — nimic nu se strică.
 
 Conform contractului de parteneriat, rata Liber Card este de **6 plăți**
 (pachetul activ: „Liber Card / 6 rate", 0% dobândă, până la 50 000 lei).
+
+### ✔ Liber Card — siglele OFICIALE sunt instalate (2026-08-11)
+
+Sursa: materialele băncii din `TaskDezvoltare/10 MAIB`
+(`maib liber button html`, `Logo_horizontal blue gray.jpg`, imaginile campaniei).
+
+| Fișier în proiect | Ce este |
+|---|---|
+| `pay/libercard.svg` | sigla oficială «maib liber», extrasă din butonul furnizat de bancă (SVG neschimbat) |
+| `maib/maib-liber-banner.png` | imaginea de campanie 1536×969 |
+| `maib/liber-card-fata.png` | fața cardului Liber |
+| `maib/maib-logo-horizontal.jpg` | logo maib orizontal |
+| `maib/button/maibliber-{light,dark}.html` | butoanele originale, păstrate ca referință |
+| `../maib-liber.css` | stilurile butonului oficial, adaptate la site |
+
+Butonul «0% în 6 rate cu maib liber» apare pe fișa produsului și în coș
+(`templates/biro26/_maib_liber.html`), cu link către
+`https://libercard.md/#want-card`. Numărul de rate — **6**, conform contractului.
