@@ -8,6 +8,10 @@
     .hero-slide-visual.s3{background:linear-gradient(135deg,#a34d0e 0%,#ea6f21 55%,#ffb800 100%)}
     /* RO: bannerul Microinvest — verde-petrol, ca in formularul de cerere */
     .hero-slide-visual.s4{background:linear-gradient(135deg,#0b3d3a 0%,#0f766e 55%,#14b8a6 100%)}
+    /* RO: bannerul Liber Card — albastrul maib */
+    .hero-slide-visual.s5{background:linear-gradient(135deg,#062a5a 0%,#0055a5 55%,#3b9ae1 100%)}
+    .hero-partner-logo{max-height:38px;margin-top:14px;background:#fff;border-radius:8px;
+      padding:5px 10px;display:none}
     /* About & Contact LIVE (stil Figma, date din WP) */
     .about-live{display:flex;gap:44px;align-items:center;background:#fff;border-radius:20px;
       box-shadow:0 12px 40px rgba(0,0,0,.08);padding:40px}
@@ -40,6 +44,7 @@
                   <h2 class="hero-title"></h2>
                   <p class="hero-sub"></p>
                   <a class="btn-orange" href="/catalog" data-t="seeOffer">Vezi oferta</a>
+                  <img class="hero-partner-logo" id="hero-logo" alt="">
                 </div>
                 <div class="hero-slide-art" aria-hidden="true"></div>
               </div>
@@ -224,7 +229,17 @@ let SLIDES = [
            ru: 'Кредит до<br>500 000 леев, 4–48 месяцев'},
    sub: {ro: 'Rate 0% la 4 și 6 luni · cererea online, doar buletinul · răspuns rapid',
          ru: 'Рассрочка 0% на 4 и 6 месяцев · заявка онлайн, нужен только паспорт · быстрый ответ'},
-   href: '/cerere-credit'}];
+   href: '/cerere-credit'},
+  // RO: parteneriatul Liber Card MAIB — conform contractului, rata este de 6.
+  //     Sigla oficiala se ridica automat din /static/biro26/pay/libercard.svg
+  //     imediat ce fisierul primit de la banca este pus acolo.
+  // EN: Liber Card MAIB partnership slide (6 instalments per the contract).
+  {cls: 's5', kicker: {ro: 'Liber Card de la maib', ru: 'Liber Card от maib'},
+   title: {ro: 'Cumpără în <b>6 rate</b><br>fără dobândă',
+           ru: 'Покупай в <b>6 платежей</b><br>без процентов'},
+   sub: {ro: 'Cu cardul Liber de la maib · 0% dobândă · fără comisioane ascunse',
+         ru: 'С картой Liber от maib · 0% годовых · без скрытых комиссий'},
+   logo: 'libercard', href: '/cos'}];
 let heroI = 0, heroTimer = null;
 function renderHero() {
   const l = curLang(), s = SLIDES[heroI];
@@ -236,6 +251,18 @@ function renderHero() {
   v.querySelector('.hero-title').innerHTML = (s.title[l] || s.title.ro || '');
   v.querySelector('.hero-sub').textContent = (s.sub[l] || s.sub.ro || '');
   v.querySelector('.btn-orange').href = s.href || '/catalog';
+  // RO: sigla partenerului (Liber Card / maib) apare DOAR daca fisierul
+  //     oficial exista pe server — lista window.PAY_LOGOS vine din backend.
+  //     Nu desenam sigle „aproximative": marcile sint protejate.
+  // EN: the partner logo shows only when the official file is present.
+  const lg = document.getElementById('hero-logo');
+  if (lg) {
+    const have = Array.isArray(window.PAY_LOGOS) ? window.PAY_LOGOS : [];
+    if (s.logo && have.indexOf(s.logo) !== -1) {
+      lg.src = '/static/biro26/pay/' + s.logo + '.svg';
+      lg.alt = s.logo; lg.style.display = 'block';
+    } else { lg.style.display = 'none'; lg.removeAttribute('src'); }
+  }
   document.getElementById('hero-count').textContent = (heroI + 1) + ' / ' + SLIDES.length;
   document.getElementById('hero-dots').innerHTML = SLIDES.map((_, i) =>
     '<span class="dot' + (i === heroI ? ' is-active' : '') + '"></span>').join('');

@@ -41,3 +41,20 @@ fișierele oficiale furnizate de bancă și de sistemele de plată.
 ca să existe ceva în subsol imediat. Pentru conformitate, înlocuiți-le cu
 fișierele OFICIALE din pachetul de logo-uri primit de la maib (sau din brand
 center-ul Visa / Mastercard).
+
+## Liber Card (maib) — unde ajung siglele primite de la bancă
+
+Puneți fișierele oficiale primite de la maib exact aici:
+
+| Fișier | Unde apare automat |
+|---|---|
+| `libercard.svg` (sau `.png` → schimbați extensia în `payBadgeHtml()`) | subsolul site-ului (badge de plată) **și** bannerul „Cumpără în 6 rate" de pe prima pagină |
+| `maib.svg` | subsol (deja pus) |
+
+Nu este nevoie de nicio modificare de cod: backend-ul trimite în pagină lista
+fișierelor existente (`window.PAY_LOGOS`), iar sigla apare imediat după deploy.
+Cât timp fișierul lipsește, în subsol rămâne badge-ul text, iar bannerul se
+afișează fără siglă — nimic nu se strică.
+
+Conform contractului de parteneriat, rata Liber Card este de **6 plăți**
+(pachetul activ: „Liber Card / 6 rate", 0% dobândă, până la 50 000 lei).

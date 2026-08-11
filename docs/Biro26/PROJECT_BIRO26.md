@@ -342,3 +342,32 @@ API: `POST /api/biro26/shop-clients` → `Biro26Journal.client_quick_add` —
 Порядок работы кнопки «🏛 Date.gov.md»: `fetch` (быстро, Chrome) → при
 блокировке `http://127.0.0.1` со страницы HTTPS — окно с `return_to`
 (данные всё равно возвращаются) → если и окно закрыто, работа вручную.
+
+### MAIB Checkout — PRODUCTION (2026-08-11)
+
+Контур **officeplus.md** переведён на боевой MAIB Checkout
+(`https://api.maibmerchants.md`), банк подтвердил соответствие сайта.
+
+* `YBIRO_SETTINGS`: `PAY_MAIB_PROJECT_ID` = боевой ClientId,
+  `PAY_MAIB_SANDBOX` = `0`, `PAY_MERCHANT_NAME` = `OfficePlus` (убрано «DEMO»).
+* Секреты (`ClientSecret`, `SignatureKey`) — ТОЛЬКО в `/home/ubuntu/artgranit/.env`
+  на 92.5.130.1 (`BIRO26_MAIB_PROJECT_SECRET`, `BIRO26_MAIB_SIGNATURE_KEY`,
+  chmod 600). В репозиторий и в Oracle секреты не попадают. Резервная копия
+  прежнего `.env` — рядом (`.env.bak.<timestamp>`).
+* Проверено вживую: токен от боевого API получен; тестовый checkout создан —
+  `https://checkout.maib.md/…` (списаний нет).
+* Callback/success/fail идут на `notify_public_base` = `https://officeplus.md`.
+
+⚠ `YBIRO_SETTINGS` общий для обоих контуров: копия nufarul тоже увидит боевой
+ClientId, но БЕЗ секрета в своём `.env` — оплата там просто не инициируется.
+Реальные списания с тестовой копии невозможны.
+
+### Liber Card — размещение логотипов
+
+Партнёрская рассрочка — **6 плат��жей** (активный пакет «Liber Card / 6 rate»,
+0%, до 50 000 лей). На главной добавлен баннер «Cumpără în 6 rate fără dobândă»
+(синий maib, ведёт в корзину). Официальные файлы логотипов кладутся в
+`static/biro26/pay/libercard.svg` — после этого логотип появляется сам и в
+подвале, и на баннере (backend отдаёт список существующих файлов через
+`window.PAY_LOGOS`). Пока файла нет — баннер показывается без логотипа,
+в подвале остаётся текстовый бейдж.
