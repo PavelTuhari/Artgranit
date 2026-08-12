@@ -362,51 +362,107 @@ class TBCEmulator:
 class ZabbixConnector:
     """Опрашивает реальный Zabbix и синхронизирует проблемы в TBControl.
 
+    Поддерживает Zabbix 3.x–7.x:
+      - аутентификация: API-token (Bearer, 5.4+) ИЛИ логин/пароль
+        (user.login → session auth, обязательно для 3.x/4.x);
+      - выборка проблем: problem.get (4.0+, есть severity) ИЛИ
+        trigger.get value=1 (3.x, severity = priority триггера).
+
     severity Zabbix → приоритет TBC: 5 Disaster→P1, 4 High→P2,
     3 Average→P3, 2 Warning→P3, 1 Info/0→P4.
-    Привязка: имя хоста Zabbix == код устройства (MD-CHS-001-POS-01);
-    если хост неизвестен — событие без устройства.
-    Correlation ID события = 'zbx-<eventid>' — по нему закрываем решённые."""
+    Привязка: имя хоста Zabbix == код устройства TBC (MD-CHS-001-POS-01);
+    неизвестный хост — событие без устройства, хост в тексте.
+    Correlation ID = 'zbx-<eventid|t<triggerid>>' — по нему закрываем решённые."""
 
     SEV_MAP = {5: 'P1', 4: 'P2', 3: 'P3', 2: 'P3', 1: 'P4', 0: 'P4'}
 
-    def __init__(self, client: TBCClient, zabbix_url, zabbix_token, log=None):
+    def __init__(self, client: TBCClient, zabbix_url, zabbix_token=None,
+                 zabbix_user=None, zabbix_password=None, log=None):
         self.c = client
         self.url = zabbix_url
-        self.token = zabbix_token
+        self.token = (zabbix_token or '').strip() or None
+        self.user = (zabbix_user or '').strip() or None
+        self.password = zabbix_password or None
         self.log = log or (lambda m: print(f'[zbx] {m}', flush=True))
+        self.version = (0, 0)
+        self._auth = None       # session token (user.login) либо API-token через auth-параметр
+        self._bearer = False    # токен через заголовок Authorization (5.4+)
 
-    def _rpc(self, method, params):
-        r = requests.post(self.url, json={
-            'jsonrpc': '2.0', 'method': method, 'params': params, 'id': 1},
-            headers={'Authorization': f'Bearer {self.token}',
-                     'Content-Type': 'application/json-rpc'}, timeout=30)
+    def _rpc(self, method, params, with_auth=True):
+        body = {'jsonrpc': '2.0', 'method': method, 'params': params, 'id': 1}
+        headers = {'Content-Type': 'application/json-rpc'}
+        if with_auth:
+            if self._bearer and self.token:
+                headers['Authorization'] = f'Bearer {self.token}'
+            elif self._auth:
+                body['auth'] = self._auth
+        r = requests.post(self.url, json=body, headers=headers, timeout=30)
         data = r.json()
         if 'error' in data:
             raise RuntimeError(f"Zabbix API: {data['error'].get('data') or data['error'].get('message')}")
         return data['result']
 
-    def test(self):
-        ver = requests.post(self.url, json={'jsonrpc': '2.0', 'method': 'apiinfo.version',
-                                            'params': {}, 'id': 1}, timeout=15).json()
-        return ver.get('result', 'unknown')
+    def connect(self):
+        """Определяет версию и аутентифицируется. Возвращает строку версии."""
+        ver = self._rpc('apiinfo.version', {}, with_auth=False)
+        try:
+            self.version = tuple(int(x) for x in ver.split('.')[:2])
+        except ValueError:
+            self.version = (0, 0)
+        if self.user and self.password:
+            # user.login: параметр 'user' до 5.4, 'username' с 5.4 (в 6.4 'user' удалён)
+            try:
+                self._auth = self._rpc('user.login', {'user': self.user, 'password': self.password},
+                                       with_auth=False)
+            except RuntimeError:
+                self._auth = self._rpc('user.login', {'username': self.user, 'password': self.password},
+                                       with_auth=False)
+        elif self.token:
+            if self.version >= (5, 4):
+                self._bearer = True
+            else:
+                raise RuntimeError(f'Zabbix {ver}: API-токенов нет — укажите логин/пароль')
+        else:
+            raise RuntimeError('Не заданы ни API-token, ни логин/пароль Zabbix')
+        return ver
+
+    def fetch_problems(self):
+        """Список активных проблем в едином виде:
+        [{corr, name, severity(int), host}]"""
+        out = []
+        if self.version >= (4, 0):
+            problems = self._rpc('problem.get', {
+                'output': ['eventid', 'name', 'severity', 'clock'],
+                'recent': False, 'limit': 500})
+            ev_ids = [p['eventid'] for p in problems]
+            hosts_by_event = {}
+            if ev_ids:
+                events = self._rpc('event.get', {'eventids': ev_ids, 'output': ['eventid'],
+                                                 'selectHosts': ['host']})
+                for e in events:
+                    hs = e.get('hosts') or []
+                    if hs:
+                        hosts_by_event[e['eventid']] = hs[0]['host']
+            for p in problems:
+                out.append({'corr': f"zbx-{p['eventid']}", 'name': p['name'],
+                            'severity': int(p.get('severity', 0)),
+                            'host': hosts_by_event.get(p['eventid'], '')})
+        else:
+            # Zabbix 3.x: активные проблемы = триггеры в состоянии PROBLEM
+            triggers = self._rpc('trigger.get', {
+                'output': ['triggerid', 'description', 'priority'],
+                'filter': {'value': 1}, 'monitored': True, 'active': True,
+                'expandDescription': True, 'selectHosts': ['host'], 'limit': 500})
+            for t in triggers:
+                hs = t.get('hosts') or []
+                out.append({'corr': f"zbx-t{t['triggerid']}", 'name': t['description'],
+                            'severity': int(t.get('priority', 0)),
+                            'host': hs[0]['host'] if hs else ''})
+        return out
 
     def sync(self):
         """Один проход синхронизации. Возвращает (created, resolved)."""
-        problems = self._rpc('problem.get', {
-            'output': ['eventid', 'name', 'severity', 'clock'],
-            'selectTags': 'extend', 'recent': False, 'limit': 500})
-        # Хосты проблем — отдельным запросом событий
-        ev_ids = [p['eventid'] for p in problems]
-        hosts_by_event = {}
-        if ev_ids:
-            events = self._rpc('event.get', {'eventids': ev_ids, 'output': ['eventid'],
-                                             'selectHosts': ['host']})
-            for e in events:
-                hs = e.get('hosts') or []
-                if hs:
-                    hosts_by_event[e['eventid']] = hs[0]['host']
-
+        problems = self.fetch_problems()
         devices = {d['code']: d for d in (self.c.get('/devices').get('data') or [])}
         active = {e.get('correlation_id'): e for e in
                   (self.c.get('/events?status=active&limit=500').get('data') or [])
@@ -415,23 +471,18 @@ class ZabbixConnector:
         created = resolved = 0
         seen = set()
         for p in problems:
-            corr = f"zbx-{p['eventid']}"
+            corr = p['corr']
             seen.add(corr)
             if corr in active:
                 continue
-            host = hosts_by_event.get(p['eventid'], '')
-            dev = devices.get(host)
-            sev = self.SEV_MAP.get(int(p.get('severity', 0)), 'P4')
-            service = None
-            for tag in (p.get('tags') or []):
-                if tag.get('tag') == 'service':
-                    service = tag.get('value')
+            dev = devices.get(p['host'])
+            sev = self.SEV_MAP.get(p['severity'], 'P4')
             self.c.post('/events', {
                 'severity': sev,
                 'store_id': dev.get('store_id') if dev else None,
                 'device_id': dev.get('id') if dev else None,
-                'service_code': service,
-                'problem': f"Zabbix: {p['name']}" + (f" [{host}]" if host and not dev else ''),
+                'service_code': None,
+                'problem': f"Zabbix: {p['name']}" + (f" [{p['host']}]" if p['host'] and not dev else ''),
                 'source': 'zabbix', 'correlation_id': corr})
             created += 1
         # Закрываем события, которых больше нет среди проблем Zabbix
