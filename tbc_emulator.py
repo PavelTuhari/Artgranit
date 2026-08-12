@@ -604,11 +604,13 @@ def main():
 
     client = TBCClient(args.url, user, pwd)
     if args.mode == 'zabbix':
-        if not args.zabbix_url or not args.zabbix_token:
-            print('Для режима zabbix нужны --zabbix-url и --zabbix-token', file=sys.stderr)
+        if not args.zabbix_url or not (args.zabbix_token or (args.zabbix_user and args.zabbix_password)):
+            print('Для режима zabbix нужны --zabbix-url и (--zabbix-token ИЛИ --zabbix-user/--zabbix-password)',
+                  file=sys.stderr)
             sys.exit(2)
-        conn = ZabbixConnector(client, args.zabbix_url, args.zabbix_token)
-        print(f'Zabbix API version: {conn.test()}')
+        conn = ZabbixConnector(client, args.zabbix_url, args.zabbix_token,
+                               args.zabbix_user, args.zabbix_password)
+        print(f'Zabbix API version: {conn.connect()}')
         n = 0
         while args.cycles == 0 or n < args.cycles:
             conn.sync()
