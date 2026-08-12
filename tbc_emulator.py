@@ -584,7 +584,9 @@ def main():
     ap.add_argument('--interval', type=int, default=60, help='Пауза между циклами, сек')
     ap.add_argument('--cycles', type=int, default=0, help='Число циклов (0 = бесконечно)')
     ap.add_argument('--zabbix-url', default=None, help='Zabbix api_jsonrpc.php')
-    ap.add_argument('--zabbix-token', default=None, help='Zabbix API token')
+    ap.add_argument('--zabbix-token', default=None, help='Zabbix API token (5.4+)')
+    ap.add_argument('--zabbix-user', default=None, help='Логин Zabbix (для 3.x/4.x обязателен)')
+    ap.add_argument('--zabbix-password', default=None, help='Пароль Zabbix')
     args = ap.parse_args()
 
     user, pwd = args.username, args.password
