@@ -1532,6 +1532,8 @@ async function startEmulator() {
     if (payload.mode === 'zabbix') {
         payload.zabbix_url = gv('em_zurl');
         payload.zabbix_token = gv('em_ztoken');
+        payload.zabbix_user = gv('em_zuser');
+        payload.zabbix_password = gv('em_zpass');
     }
     const r = await api('/emulator/start', 'POST', payload);
     toast(r.success ? 'Запущено' : r.error, !r.success);
