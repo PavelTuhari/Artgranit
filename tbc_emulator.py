@@ -513,7 +513,7 @@ class EmulatorRuntime:
             self.state['log'] = (self.state['log'] + [f"{time.strftime('%H:%M:%S')} {msg}"])[-40:]
 
     def start(self, mode, base_url, username, password, interval=60,
-              zabbix_url=None, zabbix_token=None):
+              zabbix_url=None, zabbix_token=None, zabbix_user=None, zabbix_password=None):
         if self._thread and self._thread.is_alive():
             if self._stop.is_set():
                 # Остановка запрошена — даём потоку дозавершить текущий цикл
