@@ -167,11 +167,24 @@ MD-досье со всем контекстом (паспорт, метрики
   цикл — фаза восстановления (resolve событий, retry потоков, ответы
   поддержки, нормализация климата). Плюс фоновая телеметрия heartbeat
   всех касс (CPU/RAM/latency/чеки/очереди).
-- **Режим «Zabbix»** — подключение к реальному Zabbix (JSON-RPC API,
-  Bearer-token): активные проблемы `problem.get` превращаются в события
-  TBControl (severity 5..0 → P1..P4, имя хоста = код устройства
-  `MD-CHS-001-POS-01`, тег `service` → сервис), исчезнувшие проблемы
-  автоматически закрывают события (correlation `zbx-<eventid>`).
+- **Режим «Zabbix»** — подключение к реальному Zabbix любой версии 3.x–7.x:
+  аутентификация Bearer-token (5.4+) **или** логин/пароль через `user.login`
+  (обязательно для 3.x/4.x); проблемы читаются через `problem.get` (4.0+)
+  или `trigger.get value=1` (3.x). Severity 5..0 → P1..P4, имя хоста =
+  код устройства TBC (неизвестный хост — событие без устройства, хост в
+  тексте), исчезнувшие проблемы автоматически закрывают события
+  (correlation `zbx-<eventid|t<triggerid>>`).
+
+  **Подключён реальный Zabbix 3.4.15 сети Unisim** (`zabbix34`, LXC CT 101
+  на PROXMOX3): `http://192.168.0.110/zabbix/api_jsonrpc.php`, логин
+  `Admin`, пароль — macOS Keychain (`security find-generic-password -a
+  Admin -s zabbix-web -w`); описание инфраструктуры —
+  `/Users/pt/cursorsprojects/UnisimProxm/Proxmox/zabbix/`. Синхронизирует
+  ~18 активных проблем (cloudbd `/mnt/md3` < 3% → P1, PROXMOX3 `/storage`
+  → P2, SSL tnme.md, Oracle Wine Stores OFFLINE и т.д.). Zabbix в
+  локальной сети 192.168.0.0/24 — коннектор работает с локального
+  инстанса; prod-контур (OCI) до него не дотягивается, но события видит
+  через общую Oracle ADB.
 
 Управление — кнопка **«🧪 Эмулятор»** в top-bar TBControl (выбор режима,
 интервал, Zabbix URL/token, живой лог, старт/стоп фонового потока;
