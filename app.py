@@ -2489,21 +2489,30 @@ def api_tbc_emulator_start():
     interval = int(data.get('interval') or TBControlController.get_setting_raw('emulator_interval') or 60)
     zbx_url = data.get('zabbix_url') or ''
     zbx_token = data.get('zabbix_token') or ''
-    # Сохраняем конфигурацию (маскированный токен не перезапишется)
+    zbx_user = data.get('zabbix_user') or ''
+    zbx_password = data.get('zabbix_password') or ''
+    # Сохраняем конфигурацию (маскированные секреты не перезапишутся)
     TBControlController.save_settings({'emulator_interval': interval,
                                        'zabbix_url': zbx_url or None,
-                                       'zabbix_token': zbx_token or None})
+                                       'zabbix_token': zbx_token or None,
+                                       'zabbix_user': zbx_user or None,
+                                       'zabbix_password': zbx_password or None})
     if mode == 'zabbix':
         zbx_url = (zbx_url or TBControlController.get_setting_raw('zabbix_url') or '').strip()
         if zbx_token.endswith('***') or not zbx_token:
             zbx_token = TBControlController.get_setting_raw('zabbix_token') or ''
-        if not zbx_url or not zbx_token:
-            return jsonify({"success": False, "error": "Укажите Zabbix URL и API token"})
+        if zbx_password.endswith('***') or not zbx_password:
+            zbx_password = TBControlController.get_setting_raw('zabbix_password') or ''
+        zbx_user = zbx_user or TBControlController.get_setting_raw('zabbix_user') or ''
+        if not zbx_url or not (zbx_token or (zbx_user and zbx_password)):
+            return jsonify({"success": False,
+                            "error": "Укажите Zabbix URL и API token (5.4+) либо логин/пароль (3.x/4.x)"})
     result = RUNTIME.start(
         mode=mode,
         base_url=f'http://127.0.0.1:{Config.SERVER_PORT}',
         username=Config.DEFAULT_USERNAME, password=Config.DEFAULT_PASSWORD,
-        interval=max(15, interval), zabbix_url=zbx_url, zabbix_token=zbx_token)
+        interval=max(15, interval), zabbix_url=zbx_url, zabbix_token=zbx_token,
+        zabbix_user=zbx_user, zabbix_password=zbx_password)
     if result.get('success'):
         TBControlController._add_audit('start', 'emulator', None, f'Запущен режим {mode}, интервал {interval}с')
     return jsonify(result)
