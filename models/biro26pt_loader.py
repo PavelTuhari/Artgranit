@@ -31,7 +31,7 @@ import unicodedata  # noqa: E402
 import oracledb  # noqa: E402
 from config import Config  # noqa: E402
 
-MAXCOL = 16  # c0..c15
+MAXCOL = 32  # c0..c31
 
 # RO: Baza e CL8MSWIN1251 (chirilic) si NU are diacritice romanesti (ă â î ș ț) sau
 #     semne tipografice (× — ‑ ² ½ …): Oracle le stocheaza ca '?'. Transliteram tot ce
@@ -150,7 +150,18 @@ def main():
         reader = read_csv if path.lower().endswith(".csv") else read_xlsx
         for sheet, rows in reader(path):
             load_id += 1
-            header = rows[0][0]
+            # RO: randul de antet nu e mereu primul — unele exporturi pun un titlu
+            #     pe randul 1 ("all_products"). Antetul e primul rand cu cel putin
+            #     3 celule completate.
+            # EN: the header row is not always the first one — some exports put a
+            #     title on row 1. The header is the first row with at least 3
+            #     non-empty cells.
+            hidx = 0
+            for i, (rv, _o) in enumerate(rows[:5]):
+                if sum(1 for v in rv if v not in (None, "")) >= 3:
+                    hidx = i
+                    break
+            header = rows[hidx][0]
             n_cols = min(max(len(r[0]) for r in rows), MAXCOL)
             cur.executemany(
                 "INSERT INTO biro26pt_header(load_id,src_file,col_idx,header_text) "
@@ -158,7 +169,7 @@ def main():
                 [(load_id, base, i, (header[i] if i < len(header) else None))
                  for i in range(n_cols)])
             buf, blobs = [], []
-            for rno, (rvals, rorig) in enumerate(rows[1:], start=1):
+            for rno, (rvals, rorig) in enumerate(rows[hidx + 1:], start=1):
                 vals = [load_id, base, sheet[:120], rno] + \
                        [(rvals[i] if i < len(rvals) else None) for i in range(MAXCOL)]
                 buf.append(tuple(vals))
@@ -178,10 +189,10 @@ def main():
             cur.execute(
                 "INSERT INTO biro26pt_file(load_id,src_file,sheet,n_rows,n_cols) "
                 "VALUES(:1,:2,:3,:4,:5)",
-                (load_id, base, sheet[:120], len(rows) - 1, n_cols))
+                (load_id, base, sheet[:120], len(rows) - 1 - hidx, n_cols))
             con.commit()
             print(f"load_id={load_id} file='{base}' sheet='{sheet}' "
-                  f"rows={len(rows)-1} cols={n_cols}", flush=True)
+                  f"rows={len(rows)-1-hidx} cols={n_cols}", flush=True)
     con.close()
 
 

@@ -332,6 +332,42 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.21 Fisiere LARGI (export de site): 3 capcane tacute — set 11
+
+Setul 11 (`all_products`, export de pe birovits.md) e primul fisier care nu vine de la un
+furnizor, ci de pe un site: **12 423 rinduri x 25 de coloane**. A scos la iveala trei
+limite pe care nu le atinsese niciun fisier de pina acum. Toate esueaza **tacut**.
+
+**a) Limita de 16 coloane.** `BIRO26PT_RAW` avea `c0..c15`, iar loader-ul `MAXCOL = 16`.
+Fisierul are 25 de coloane, deci `image_main` (c22) si `description` (c24) **cadeau in afara
+stagin-ului** — importul ar fi "reusit", fara imagini si fara descrieri, fara nicio eroare.
+Stagin-ul e acum `c0..c31` (`g_max_cols = 32`, `MAXCOL = 32`); DDL:
+`BIRO26PT_set11_25col.sql`.
+
+**b) Rindul de antet nu e mereu primul.** Exportul pune pe rindul 1 un titlu
+(`all_products`, restul celulelor goale), iar antetul real e pe rindul 2. Loader-ul lua
+orbeste `rows[0]`, deci antetul devenea `all_products` + 24 de `NULL` -> **nicio coloana
+detectata**. Regula noua: antetul e **primul rind (din primele 5) cu cel putin 3 celule
+completate**; datele incep dupa el.
+
+**c) Un antet nemapat nu e neutru.** Exportul are coloane care seamana cu altele:
+`product_url` si `images_all` s-ar fi luat drept `URL` in locul lui `image_main`;
+`category_path` (un slug: `akciya/goryacie-predlozeniya`) s-ar fi luat drept `CATEG` in
+locul lui `group2`. Toate coloanele de zgomot sint acum **explicit `IGNORE`** — o intrare
+`IGNORE` intentionata e documentatie, absenta ei e o loterie.
+
+#### Paza 4 in `classify()`: nume identic = AMBIGUU, nu NOU
+
+Cind un rind "nou" are un **nume identic** cu o cartela ACTIVA, furnizorul a schimbat de
+fapt articolul (`DLEH379` in loc de `DLEH378`, `DLE38144-BL` in loc de `DLE5001-03`), iar
+crearea rindului ar produce o dublura perfecta pe nume. Nu se poate decide automat care
+cartela e cea buna, deci rindul devine `AMBIGUOUS` si se sare.
+
+La setul 11: **3 417 -> 3 365** pozitii noi, adica 52 de dubluri evitate.
+
+> Aceasta paza completeaza prioritatea 3 din §9.19 (articol normalizat): acolo prindem
+> reformatarea articolului, aici prindem **inlocuirea** lui.
+
 ### 9.20 ANGRO = pret de achizitie **CU TVA** (nu fara)
 
 Confirmat de client (10.08.2026): in OfficePlus **ANGRO se tine CU TVA**. Dictionarul

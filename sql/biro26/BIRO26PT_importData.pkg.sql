@@ -3,7 +3,7 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   g_tip           VARCHAR2(1)  := 'P';
   g_len_codvechi  PLS_INTEGER  := 20;
   g_len_denumire  PLS_INTEGER  := 160;
-  g_max_cols      PLS_INTEGER  := 16;       -- c0..c15
+  g_max_cols      PLS_INTEGER  := 32;       -- c0..c31
   g_sample_rows   PLS_INTEGER  := 80;       -- RO: randuri pt. analiza continut / EN: rows for content analysis
   g_min_anchor    PLS_INTEGER  := 3;        -- RO: minim potriviri produs pt. ancora / EN: min product hits for anchor
   g_default_grupa VARCHAR2(60) := 'IMPORT PT';
@@ -400,6 +400,23 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
              WHERE u.tip = g_tip AND NVL(u.isarhiv,'0') <> '2'
                AND REPLACE(REPLACE(UPPER(u.codvechi),' ',''),'.','')
                  = REPLACE(REPLACE(UPPER(SUBSTR(s.articol,1,g_len_codvechi)),' ',''),'.','')) = 1;
+
+    -- RO: PAZA 4 — pozitie "noua" al carei NUME exista deja pe o cartela ACTIVA.
+    --     Furnizorul schimba uneori articolul ("DLEH379" in loc de "DLEH378",
+    --     "DLE38144-BL" in loc de "DLE5001-03"); daca am crea-o, ar aparea o dublura
+    --     perfecta pe nume. Nu putem decide automat care cartela e cea buna, deci o
+    --     marcam AMBIGUA (se sare) si ramine pentru revizie manuala.
+    -- EN: GUARD 4 — a "new" row whose NAME already exists on an ACTIVE card. Suppliers
+    --     sometimes change the article code; creating the row would make a perfect
+    --     name duplicate. We cannot pick the right card automatically, so the row is
+    --     marked AMBIGUOUS (skipped) and left for manual review.
+    UPDATE biro26pt_stg s
+       SET s.status = 'AMBIGUOUS'
+     WHERE s.load_id = p_load_id AND s.status = 'NEW' AND s.denumire IS NOT NULL
+       AND EXISTS (SELECT 1 FROM tms_univers u
+                    WHERE u.tip = g_tip AND NVL(u.isarhiv,'0') <> '2'
+                      AND UPPER(TRIM(u.denumirea)) = UPPER(TRIM(s.denumire)));
+    COMMIT;
 
     -- RO: leaga codul pentru cele existente / EN: bind cod for existing ones
     UPDATE biro26pt_stg s
