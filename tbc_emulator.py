@@ -529,9 +529,11 @@ class EmulatorRuntime:
             try:
                 client = TBCClient(base_url, username, password)
                 if mode == 'zabbix':
-                    conn = ZabbixConnector(client, zabbix_url, zabbix_token, log=self._log)
-                    ver = conn.test()
-                    self._log(f'Zabbix API {ver}: подключение установлено')
+                    conn = ZabbixConnector(client, zabbix_url, zabbix_token,
+                                           zabbix_user, zabbix_password, log=self._log)
+                    ver = conn.connect()
+                    auth_kind = 'логин/пароль' if conn._auth else 'API-token'
+                    self._log(f'Zabbix API {ver}: подключение установлено ({auth_kind})')
                     while not self._stop.is_set():
                         try:
                             conn.sync()
