@@ -1337,12 +1337,12 @@ class TBControlController:
 
     @staticmethod
     def save_settings(data):
-        allowed = ('emulator_interval', 'zabbix_url', 'zabbix_token')
+        allowed = ('emulator_interval', 'zabbix_url', 'zabbix_token', 'zabbix_user', 'zabbix_password')
         try:
             with DatabaseModel() as db:
                 for key in allowed:
                     if key in data and data[key] is not None:
-                        if key == 'zabbix_token' and data[key].endswith('***'):
+                        if key in ('zabbix_token', 'zabbix_password') and str(data[key]).endswith('***'):
                             continue  # маскированное значение не перезаписываем
                         db.execute_query(
                             "MERGE INTO TBC_SETTINGS s USING (SELECT :c AS C FROM DUAL) src "
