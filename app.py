@@ -6371,6 +6371,29 @@ def _biro26_site_ctx():
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
     except Exception:
         liber_pct, liber_min = 5.0, 100.0
+    # RO: «Preț ofertă în rate» de pe carduri/fisa produsului trebuie sa arate
+    #     EXACT pretul pe care clientul il vede in modala de credit. De aceea
+    #     procentul se ia din PACHETUL REAL cel mai ieftin al Liber Card
+    #     (comisionul pachetului + majorarea organizatiei), nu dintr-o setare
+    #     separata care ramine in urma cind se schimba tarifele.
+    #     Setarea RATE_LIBER_PCT ramine doar ca rezerva, daca ofertele lipsesc.
+    # EN: the card badge must match the credit modal — derive the percentage
+    #     from the cheapest ACTIVE Liber plan instead of a stale setting.
+    try:
+        from models.biro26_credit import Biro26Credit
+        best = None
+        for o in (Biro26Credit.public_offers().get("data") or []):
+            if 'liber' not in str(o.get('name') or '').lower():
+                continue
+            tm = float(o.get('transport_markup_pct') or 0)
+            for pl in (o.get('plans') or []):
+                eff = float(pl.get('markup_pct') or 0) + tm
+                if best is None or eff < best:
+                    best = eff
+        if best is not None:
+            liber_pct = best
+    except Exception:                                        # noqa: BLE001
+        pass
     try:
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
     except Exception:
