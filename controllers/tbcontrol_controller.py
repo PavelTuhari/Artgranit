@@ -1326,9 +1326,11 @@ class TBControlController:
                 r = db.execute_query("SELECT PARAM_CODE, PARAM_VALUE FROM TBC_SETTINGS")
                 rows = TBControlController._rows_to_dicts(r)
                 out = {row["param_code"]: row["param_value"] for row in rows}
-                # Токен наружу не отдаём целиком
+                # Секреты наружу не отдаём целиком
                 if out.get("zabbix_token"):
                     out["zabbix_token"] = out["zabbix_token"][:4] + "***"
+                if out.get("zabbix_password"):
+                    out["zabbix_password"] = "***"
                 return {"success": True, "data": out}
         except Exception as e:
             return {"success": False, "error": str(e)}
