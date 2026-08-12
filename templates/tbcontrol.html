@@ -1488,8 +1488,14 @@ async function openEmulatorModal() {
         </div>
         <div id="em_zbx" style="display:none">
             <div class="form-group"><label>Zabbix URL (api_jsonrpc.php)</label>
-                <input class="form-control" id="em_zurl" placeholder="https://zabbix.example.md/api_jsonrpc.php" value="${esc(c.zabbix_url || '')}"></div>
-            <div class="form-group"><label>Zabbix API token</label>
+                <input class="form-control" id="em_zurl" placeholder="http://192.168.0.110/zabbix/api_jsonrpc.php" value="${esc(c.zabbix_url || '')}"></div>
+            <div class="form-row">
+                <div class="form-group"><label>Логин (Zabbix 3.x/4.x)</label>
+                    <input class="form-control" id="em_zuser" placeholder="Admin" value="${esc(c.zabbix_user || '')}"></div>
+                <div class="form-group"><label>Пароль</label>
+                    <input class="form-control" id="em_zpass" type="password" placeholder="пароль" value="${esc(c.zabbix_password || '')}"></div>
+            </div>
+            <div class="form-group"><label>ИЛИ API token (Zabbix 5.4+)</label>
                 <input class="form-control" id="em_ztoken" placeholder="токен API" value="${esc(c.zabbix_token || '')}"></div>
         </div>
         <div class="btn-group">
