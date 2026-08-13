@@ -70,6 +70,8 @@ const LIMIT = 24;
 const F = {q: null, grupa: null, categorie: null, brand: null,
            pmin: null, pmax: null, sort: 'name', page: 1};
 let TREE = [], BRANDS = [], total = 0, needCount = true, seq = 0;
+// RO: grupele DESCHISE in arbore — unica sursa a starii (sageata o comuta)
+const OPEN = new Set();
 const PRESETS = [[0, 500], [500, 1000], [1000, 2500], [2500, 5000], [5000, 10000],
                  [10000, 20000], [20000, 40000], [40000, null]];
 
