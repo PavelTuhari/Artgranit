@@ -244,11 +244,31 @@ function uniq(rows) { const seen = new Set(); return (rows || []).filter(p => {
   const k = p.master_cod || p.denumirea; if (seen.has(k)) return false;
   seen.add(k); return true; }); }
 const PMAP = {};
-/* RO: rata Liber Card (+X% silentios) — valorile vin din YBIRO_SETTINGS
-   prin variabilele globale LIBER_PCT/LIBER_MIN setate de sablon. */
+/* RO: «Preț în rate» — SURSA UNICA pentru card, fisa produsului si cos.
+   Se ia cel mai mic pret finantat dintre pachetele FARA dobinda care accepta
+   suma (window.RATE_PLANS, pus de sablon din _biro26_site_ctx). Pachetele cu
+   dobinda (Microinvest Standard 39%, MAIB Credit de consum 10,5%) au un pret
+   finantat mai mic, dar in total costa mai mult — nu pot fi rezumate printr-un
+   singur numar, deci nu intra in eticheta. Limita superioara conteaza: la un
+   televizor de 19.999 lei Liber Card (max 50.000 pe suma finantata) inca
+   intra, iar un pachet care nu intra nu are voie sa dea pretul afisat.
+   Rezerva, daca lista lipseste: LIBER_PCT/LIBER_MIN din YBIRO_SETTINGS. */
+function rateBest(price) {
+  if (!(price > 0)) return 0;
+  let best = 0;
+  (window.RATE_PLANS || []).forEach(pl => {
+    const cp = price * (1 + (pl.p || 0) / 100);
+    if (cp < (pl.mn || 0) || cp > (pl.mx || 1e12)) return;
+    if (!best || cp < best) best = cp;
+  });
+  if (!best && window.LIBER_PCT > 0 && price >= (window.LIBER_MIN || 0)) {
+    best = price * (1 + window.LIBER_PCT / 100);
+  }
+  return best;
+}
 function liberHtml(price, small) {
-  if (!(window.LIBER_PCT > 0) || price < (window.LIBER_MIN || 0)) return '';
-  const v = price * (1 + window.LIBER_PCT / 100);
+  const v = rateBest(price);
+  if (!v) return '';
   return '<div style="font-size:' + (small ? 11.5 : 13) + 'px;color:#1d4ed8;' +
     'font-weight:700">' + tr('ratePrice') + ': ' + fmtLei(v) + '</div>';
 }
