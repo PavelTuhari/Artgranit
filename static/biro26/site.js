@@ -302,6 +302,10 @@ function cardHtml(p) {
     '<span class="stock ' + (inStock ? 'in' : 'order') + '">' +
       tr(inStock ? 'inStock' : 'onOrder') + '</span>' +
     '<h3 class="product-name" onclick="openProd(' + p.cod + ')">' + esc(pname(p)) + '</h3>' +
+    // RO: articolul (CODVECHI) + codul de bare direct pe card — clientii le
+    //     cauta ca sa compare oferta. EN: article + barcode on the card.
+    '<div class="product-code">' + esc(p.codvechi || p.cod) +
+      (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
     varSel +
     '<div class="product-prices"><span class="price">' + fmtLei(price) + '</span></div>' +
     liberHtml(price, true) +
