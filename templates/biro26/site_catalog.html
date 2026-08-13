@@ -201,8 +201,11 @@ function renderSide() {
     const gl = (l === 'ru' && g.ru) ? g.ru : g.grupa;
     const gq = esc(g.grupa).replace(/'/g, '&#39;');
     // RO: ca la ultra.md — sageata DESCHIDE grupa (fara filtrare), numele
-    //     filtreaza; grupa deschisa/activa e evidentiata cu fundal verde
-    const isOpen = OPEN.has(g.grupa) || F.grupa === g.grupa;
+    //     filtreaza; grupa deschisa/activa e evidentiata cu fundal verde.
+    //     Starea o tine DOAR setul OPEN: cind aici era si «|| F.grupa === g»,
+    //     grupa dupa care se filtreaza nu se mai putea INCHIDE din sageata
+    //     (toggleGrp o scotea din OPEN, iar filtrul o redeschidea imediat).
+    const isOpen = OPEN.has(g.grupa);
     let h = '<div class="grp-row' + (isOpen ? ' open' : '') + '">' +
       '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
       '" onclick="pickGrupa(\'' + gq + '\')">' +
