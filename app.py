@@ -6370,32 +6370,27 @@ def _biro26_wp_page(slug):
         # RO: WP indisponibil -> cade inapoi pe catalog / EN: WP down -> catalog
         return None, None
 
-def _biro26_site_ctx():
-    """RO: contextul comun al paginilor noului site Figma (rata Liber Card
-    din YBIRO_SETTINGS). EN: shared context for the new-site pages."""
+def _biro26_rate_plans():
+    """RO: pachetele de rate FARA dobinda, pentru eticheta «Preț în rate».
+
+    Un singur numar poate rezuma corect DOAR un pachet fara dobinda: acolo
+    pretul finantat este tot ce plateste clientul. Pachetele cu dobinda
+    (Microinvest Standard — 39% anual, MAIB Credit de consum — 10,5%) au un
+    pret finantat MAI MIC, dar in total costa mai mult; daca intra in minimul
+    afisat, clientul vede un numar pe care nu-l plateste nimeni. Limitele de
+    suma se verifica pe suma FINANTATA, exact ca in crTiles() si in
+    models/biro26_credit.py calc().
+
+    Intoarce (liber_pct, liber_min, rate_plans) — procentul si minimul raman
+    ca rezerva pentru cazul in care ofertele nu se pot citi.
+    EN: only 0%-interest plans can be summarised by a single "rate price".
+    """
     from models.biro26_oracle_store import Biro26Store
     try:
         liber_pct = float(Biro26Store.get_setting('RATE_LIBER_PCT', '5'))
         liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
-    except Exception:
+    except Exception:                                        # noqa: BLE001
         liber_pct, liber_min = 5.0, 100.0
-    # RO: «Preț ofertă în rate» de pe carduri/fisa produsului trebuie sa arate
-    #     EXACT pretul pe care clientul il vede in modala de credit. De aceea
-    #     procentul se ia din PACHETUL REAL cel mai ieftin al Liber Card
-    #     (comisionul pachetului + majorarea organizatiei), nu dintr-o setare
-    #     separata care ramine in urma cind se schimba tarifele.
-    #     Setarea RATE_LIBER_PCT ramine doar ca rezerva, daca ofertele lipsesc.
-    # EN: the card badge must match the credit modal — derive the percentage
-    #     from the cheapest ACTIVE Liber plan instead of a stale setting.
-    # RO: rate_plans = pachetele FARA dobinda (annual_pct = 0), singurele care
-    #     pot fi rezumate corect printr-un singur numar «Preț în rate»: acolo
-    #     pretul afisat este tot ce plateste clientul. Pachetele cu dobinda
-    #     (Microinvest Standard 39%, MAIB Credit de consum 10,5%) au un pret
-    #     finantat mai mic, dar costa mai mult in total — daca intra in
-    #     minimul afisat, eticheta arata un numar pe care nimeni nu-l
-    #     plateste. Limitele de suma se verifica pe suma FINANTATA, ca in
-    #     crTiles() si in models/biro26_credit.py calc().
-    # EN: only 0%-interest plans can be summed up by one "price in rates".
     rate_plans = []
     try:
         from models.biro26_credit import Biro26Credit
@@ -6403,19 +6398,28 @@ def _biro26_site_ctx():
         for o in (Biro26Credit.public_offers().get("data") or []):
             tm = float(o.get('transport_markup_pct') or 0)
             for pl in (o.get('plans') or []):
+                if (float(pl.get('annual_pct') or 0) != 0
+                        or float(pl.get('monthly_fee_pct') or 0) != 0):
+                    continue
                 eff = float(pl.get('markup_pct') or 0) + tm
-                if (float(pl.get('annual_pct') or 0) == 0
-                        and float(pl.get('monthly_fee_pct') or 0) == 0):
-                    rate_plans.append({
-                        'p': eff,
-                        'mn': float(pl.get('amount_min') or 0),
-                        'mx': float(pl.get('amount_max') or 0) or 1e12})
-                    if best is None or eff < best:
-                        best = eff
+                rate_plans.append({
+                    'p': eff,
+                    'mn': float(pl.get('amount_min') or 0),
+                    'mx': float(pl.get('amount_max') or 0) or 1e12})
+                if best is None or eff < best:
+                    best = eff
         if best is not None:
             liber_pct = best
     except Exception:                                        # noqa: BLE001
         rate_plans = []
+    return liber_pct, liber_min, rate_plans
+
+
+def _biro26_site_ctx():
+    """RO: contextul comun al paginilor noului site Figma.
+    EN: shared context for the new-site pages."""
+    from models.biro26_oracle_store import Biro26Store
+    liber_pct, liber_min, rate_plans = _biro26_rate_plans()
     try:
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
     except Exception:
