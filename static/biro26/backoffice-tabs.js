@@ -166,8 +166,12 @@ async function loadGoods() {
     imgCell(g.photo_url || g.image_link) +
     '<td class="mono">' + escapeHtml(g.articol) + '</td>' +
     '<td>' + escapeHtml(g.denumire || '') + '</td>' +
-    '<td>' + escapeHtml(g.brand || '') + '</td>' +
-    '<td>' + escapeHtml(g.furnizor || '') + '</td>' +
+    // RO: in BIRO26_GOODS continutul coloanelor este invers fata de nume:
+    //     BRAND = furnizorul-intermediar (Birovits, Crafti), FURNIZOR =
+    //     marca reala a produsului (DELI, OfficeSpace). Le afisam la locul
+    //     lor, sub antetul corect. EN: source columns are swapped by name.
+    '<td>' + escapeHtml(g.furnizor || '') + '</td>' +   // BRAND
+    '<td>' + escapeHtml(g.brand || '') + '</td>' +      // FURNIZOR
     '<td class="num">' + fmtNum(g.angro) + '</td>' +
     '<td class="num">' + fmtNum(g.ionline) + '</td>' +
     '<td class="num">' + fmtNum(g.retail1) + '</td>' +
