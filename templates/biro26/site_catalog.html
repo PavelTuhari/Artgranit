@@ -185,8 +185,29 @@ function resetF() { F.q = F.grupa = F.categorie = F.brand = F.pmin = F.pmax = nu
   document.getElementById('pmin').value = document.getElementById('pmax').value = '';
   document.getElementById('q').value = ''; load(); }
 
+/* RO: firimiturile arata unde se afla clientul: Catalog / grupa / categorie.
+   Numele se traduc din arbore (grupa_ru / cat_ru); grupa din firimituri
+   duce inapoi la grupa intreaga, fara categoria aleasa. */
+function renderCrumbs() {
+  const box = document.getElementById('crumbs');
+  if (!box) return;
+  const l = curLang();
+  let h = '<a href="' + siteURL('/') + '">' + tr('home') + '</a> › ';
+  if (!F.grupa) { box.innerHTML = h + '<span>' + tr('catalog') + '</span>'; return; }
+  h += '<a href="javascript:void(0)" onclick="resetF()">' + tr('catalog') + '</a> › ';
+  const node = TREE.find(t => t.grupa === F.grupa) || {};
+  const gl = (l === 'ru' && node.grupa_ru) ? node.grupa_ru : F.grupa;
+  if (!F.categorie) { box.innerHTML = h + '<span>' + esc(gl) + '</span>'; return; }
+  h += '<a href="javascript:void(0)" onclick="pickGrupa(\'' +
+       esc(F.grupa).replace(/'/g, '&#39;') + '\')">' + esc(gl) + '</a> › ';
+  const cn = TREE.find(t => t.grupa === F.grupa && t.categorie === F.categorie) || {};
+  const cl = (l === 'ru' && cn.cat_ru) ? cn.cat_ru : F.categorie;
+  box.innerHTML = h + '<span>' + esc(cl) + '</span>';
+}
+
 function renderSide() {
   const l = curLang();
+  renderCrumbs();
   // arbore: grupele; grupa activa isi arata categoriile
   const byG = {};
   TREE.forEach(t => {
