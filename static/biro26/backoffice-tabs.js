@@ -120,8 +120,25 @@ function debounceLoadGoods() {
   goodsDebounceTimer = setTimeout(loadGoods, 350);
 }
 
+/* RO: filtrul «Brand» citeste coloana FURNIZOR (acolo sta marca reala),
+   iar filtrul «Furnizor» citeste coloana BRAND (intermediarul) — vezi nota
+   din loadGoods(). API-ul pastreaza numele fizice ale coloanelor. */
 async function loadBrands() {
   const sel = el('src-brand');
+  if (!sel || sel.dataset.loaded) return;
+  const r = await apiGet(API + '/suppliers/furnizori');
+  if (r.success) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">' + t('f_all') + '</option>' +
+      (r.data || []).map(f => '<option value="' + escapeHtml(f.furnizor) + '">' +
+        escapeHtml(f.furnizor) + ' (' + f.cnt + ')</option>').join('');
+    sel.value = cur;
+    sel.dataset.loaded = '1';
+  }
+}
+
+async function loadFurnizoriFilter() {
+  const sel = el('src-furnizor');
   if (!sel || sel.dataset.loaded) return;
   const r = await apiGet(API + '/goods/brands');
   if (r.success) {
