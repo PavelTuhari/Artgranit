@@ -4,6 +4,12 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   g_len_codvechi  PLS_INTEGER  := 20;
   g_len_denumire  PLS_INTEGER  := 160;
   g_max_cols      PLS_INTEGER  := 32;       -- c0..c31
+  -- RO: articol prea SLAB ca sa fie cheie: sub atitea caractere SAU pur numeric.
+  --     Codurile scurte/numerice se ciocnesc intre furnizori ("248", "670", "2917"
+  --     inseamna produse diferite la fiecare) — vezi incidentul officeshop / load 285.
+  -- EN: article too WEAK to be a key: shorter than this OR purely numeric. Short and
+  --     numeric codes collide across suppliers — see the officeshop incident (load 285).
+  g_min_articol_len PLS_INTEGER := 6;
   g_sample_rows   PLS_INTEGER  := 80;       -- RO: randuri pt. analiza continut / EN: rows for content analysis
   g_min_anchor    PLS_INTEGER  := 3;        -- RO: minim potriviri produs pt. ancora / EN: min product hits for anchor
   g_default_grupa VARCHAR2(60) := 'IMPORT PT';
@@ -63,6 +69,18 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                           p_date        IN DATE     DEFAULT NULL,
                           p_force       IN BOOLEAN  DEFAULT FALSE);
+
+  -- RO: importa IMAGINILE SUPLIMENTARE (galeria) dintr-o foaie de tip "Images":
+  --     coloanele articul + image_index + image_url -> TMS_MPT_WEBIMG.
+  --     Marfa se identifica dupa ARTICOL (nu creeaza marfa noua niciodata).
+  --     Imaginea principala (index 1) se sare — ea sta in TMS_MPT_TVR.IE_LINKADRES.
+  -- EN: imports ADDITIONAL (gallery) images from an "Images"-style sheet:
+  --     articul + image_index + image_url -> TMS_MPT_WEBIMG. Goods are matched by
+  --     ARTICLE only (never creates goods). Index 1 (main image) is skipped — it
+  --     lives in TMS_MPT_TVR.IE_LINKADRES.
+  PROCEDURE import_images(p_load_id IN NUMBER,
+                          p_src     IN VARCHAR2 DEFAULT NULL,
+                          p_commit  IN BOOLEAN  DEFAULT FALSE);
 
   -- RO: descrierea algoritmului in Markdown (RO+EN) / EN: algorithm description in Markdown (RO+EN)
   FUNCTION  algo_md RETURN CLOB;
@@ -400,6 +418,23 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
              WHERE u.tip = g_tip AND NVL(u.isarhiv,'0') <> '2'
                AND REPLACE(REPLACE(UPPER(u.codvechi),' ',''),'.','')
                  = REPLACE(REPLACE(UPPER(SUBSTR(s.articol,1,g_len_codvechi)),' ',''),'.','')) = 1;
+
+    -- RO: PAZA 5 — ARTICOL PREA SLAB ca sa fie cheie. Un cod scurt sau pur numeric
+    --     ("248", "670", "1841", "2917") inseamna produse DIFERITE la fiecare furnizor:
+    --     la load 285 (officeshop) 629 de randuri s-au potrivit astfel cu marfuri
+    --     complet nelegate ("Joc de masa Octopus Party" -> "Carnet A6 40 foi").
+    --     Astfel de randuri nu se potrivesc SI nu se creeaza — se sar.
+    -- EN: GUARD 5 — ARTICLE TOO WEAK to be a key. A short or purely numeric code means
+    --     a DIFFERENT product at each supplier; on load 285 (officeshop) 629 rows matched
+    --     completely unrelated goods this way. Such rows are neither matched nor created.
+    UPDATE biro26pt_stg s
+       SET s.status = 'AMBIGUOUS', s.cod_univers = NULL
+     WHERE s.load_id = p_load_id
+       AND s.status IN ('NEW', 'EXISTING')
+       AND s.articol IS NOT NULL
+       AND (   LENGTH(TRIM(s.articol)) < g_min_articol_len
+            OR REGEXP_LIKE(TRIM(s.articol), '^[0-9]+$') );
+    COMMIT;
 
     -- RO: PAZA 4 — pozitie "noua" al carei NUME exista deja pe o cartela ACTIVA.
     --     Furnizorul schimba uneori articolul ("DLEH379" in loc de "DLEH378",
@@ -881,6 +916,84 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date, p_force);
     END LOOP;
   END import_folder;
+
+  -- =================================================================
+  -- RO: IMAGINI SUPLIMENTARE (galerie) -> TMS_MPT_WEBIMG
+  -- EN: ADDITIONAL (gallery) images -> TMS_MPT_WEBIMG
+  -- =================================================================
+  PROCEDURE import_images(p_load_id IN NUMBER,
+                          p_src     IN VARCHAR2 DEFAULT NULL,
+                          p_commit  IN BOOLEAN  DEFAULT FALSE) IS
+    v_art   VARCHAR2(10);
+    v_idx   VARCHAR2(10);
+    v_url   VARCHAR2(10);
+    v_src   VARCHAR2(60) := NVL(p_src, 'site');
+    v_rows  NUMBER := 0;
+    v_ok    NUMBER := 0;
+  BEGIN
+    detect_columns(p_load_id, FALSE);
+    -- RO: foaia de imagini nu are antete "logice" — le luam direct dupa nume.
+    -- EN: the images sheet has no "logical" headers — take them by raw name.
+    BEGIN
+      SELECT MAX(CASE WHEN LOWER(header_text) LIKE '%artic%'      THEN 'c'||col_idx END),
+             MAX(CASE WHEN LOWER(header_text) LIKE '%image_index%' THEN 'c'||col_idx END),
+             MAX(CASE WHEN LOWER(header_text) LIKE '%image_url%'   THEN 'c'||col_idx END)
+        INTO v_art, v_idx, v_url
+        FROM biro26pt_header WHERE load_id = p_load_id;
+    EXCEPTION WHEN NO_DATA_FOUND THEN NULL;
+    END;
+
+    IF v_art IS NULL OR v_idx IS NULL OR v_url IS NULL THEN
+      say('RO: foaia nu are coloanele articul/image_index/image_url — se sare.');
+      say('EN: sheet lacks articul/image_index/image_url columns — skipped.');
+      RETURN;
+    END IF;
+
+    SELECT COUNT(*) INTO v_rows FROM biro26pt_raw WHERE load_id = p_load_id;
+    say('=== RO: Imagini suplimentare / EN: additional images (load_id=' || p_load_id || ') ===');
+    say('  RO: randuri in foaie / EN: rows in sheet: ' || v_rows);
+
+    IF NOT p_commit THEN
+      -- RO: dry-run: doar cite s-ar potrivi / EN: dry-run: how many would match
+      EXECUTE IMMEDIATE '
+        SELECT COUNT(*) FROM biro26pt_raw r
+         WHERE r.load_id = :1 AND TO_NUMBER(REGEXP_SUBSTR(r.' || v_idx || ', ''^\d+$'')) > 1
+           AND EXISTS (SELECT 1 FROM tms_univers u
+                        WHERE u.tip = ''' || g_tip || ''' AND NVL(u.isarhiv,''0'') <> ''2''
+                          AND u.codvechi = SUBSTR(r.' || v_art || ', 1, ' || g_len_codvechi || '))'
+        INTO v_ok USING p_load_id;
+      say('  RO: s-ar importa / EN: would import: ' || v_ok || ' (dry-run)');
+      RETURN;
+    END IF;
+
+    -- RO: MERGE dupa (COD, IMAGE_INDEX): reincarcarea aceluiasi export nu dubleaza.
+    -- EN: MERGE on (COD, IMAGE_INDEX): re-loading the same export does not duplicate.
+    EXECUTE IMMEDIATE '
+      MERGE INTO tms_mpt_webimg t
+      USING (
+        SELECT u.cod,
+               TO_NUMBER(REGEXP_SUBSTR(r.' || v_idx || ', ''^\d+$'')) image_index,
+               MIN(SUBSTR(r.' || v_url || ', 1, 1000)) image_url
+          FROM biro26pt_raw r
+          JOIN tms_univers u
+            ON u.tip = ''' || g_tip || ''' AND NVL(u.isarhiv,''0'') <> ''2''
+           AND u.codvechi = SUBSTR(r.' || v_art || ', 1, ' || g_len_codvechi || ')
+         WHERE r.load_id = :1
+           AND TO_NUMBER(REGEXP_SUBSTR(r.' || v_idx || ', ''^\d+$'')) > 1
+           AND r.' || v_url || ' IS NOT NULL
+         GROUP BY u.cod, TO_NUMBER(REGEXP_SUBSTR(r.' || v_idx || ', ''^\d+$''))
+      ) s
+      ON (t.cod = s.cod AND t.image_index = s.image_index)
+      WHEN MATCHED THEN UPDATE SET t.image_url = s.image_url,
+                                   t.src = :2, t.load_id = :3, t.updated_at = SYSDATE
+      WHEN NOT MATCHED THEN
+        INSERT (cod, image_index, image_url, src, load_id)
+        VALUES (s.cod, s.image_index, s.image_url, :4, :5)'
+      USING p_load_id, v_src, p_load_id, v_src, p_load_id;
+    v_ok := SQL%ROWCOUNT;
+    COMMIT;
+    say('RO: imagini suplimentare scrise (TMS_MPT_WEBIMG) / EN: gallery images written: ' || v_ok);
+  END import_images;
 
   FUNCTION algo_md RETURN CLOB IS
     c CLOB;

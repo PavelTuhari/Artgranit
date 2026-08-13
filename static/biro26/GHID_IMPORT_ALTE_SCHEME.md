@@ -332,6 +332,57 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.22 Articolul scurt/numeric NU e cheie — incidentul officeshop (load 285)
+
+Cel mai costisitor incident de pina acum, si primul in care **potrivirea a fost gresita,
+nu lipsa**. Exportul officeshop are multe articole scurte, pur numerice (`248`, `670`,
+`1841`, `2917`). Astfel de coduri inseamna **produse diferite la fiecare furnizor**:
+
+| Fisier officeshop | S-a potrivit cu (catalog) |
+|---|---|
+| Whiteboard magnetic Basy 120x180 | Hartie pentru tehnica de birou A3 |
+| Joc de masa „Octopus Party" Trefl | Carnet A6 40 foi cu spirala |
+| Husa pentru stampila R40 | Mine pentru creion mecanic Koh-I-Noor |
+| Carte de colorat „Dinozauri" | Set de semne Meshu Meow Paw |
+
+Din 1 162 de potriviri „existente": 163 bune, 356 indoielnice, **643 cu nume complet
+diferit**. Aproape toate aveau articol de 3–5 caractere.
+
+**Ce a ajuns in productie** pe 629 de cartele nelegate: 389 de perioade de pret, 458 de
+imagini principale, 185 de imagini de galerie, plus **denumirea si articolul suprascrise**
+in `BIRO26_GOODS` (adica in ce vede clientul in magazin).
+
+#### De ce nu l-au prins pazele existente
+
+Pazele acopereau alte forme ale aceleiasi probleme:
+- §9.19 prioritatea 3 — articol **reformatat** (`T4gr120 12476` vs `T4gr12012476`);
+- §9.21 paza 4 — articol **inlocuit** (nume identic, articol nou).
+
+Aici e cazul invers: **articolul coincide, dar produsul e altul**. Nicio verificare nu se
+uita la nume atunci cind articolul se potrivea exact.
+
+#### Paza 5: articol prea slab ca sa fie cheie
+
+```sql
+LENGTH(TRIM(articol)) < g_min_articol_len   -- implicit 6
+OR REGEXP_LIKE(TRIM(articol), '^[0-9]+$')   -- pur numeric
+```
+Randul nu se potriveste **si** nu se creeaza — devine `AMBIGUOUS`. Pragul e o constanta
+(`g_min_articol_len`), deci se poate ajusta per schema.
+
+Efect pe setul officeshop: 4 075 pozitii „noi" + 1 162 „existente" -> **2 391 sarite**.
+
+#### Reparatia — flashback, nu ghicit
+
+`BIRO26_GOODS` a fost readus **exact** la starea de dinainte, prin
+`AS OF TIMESTAMP (SYSTIMESTAMP - INTERVAL '12' HOUR)`: 468 de randuri inserate gresit
+sterse, 182 restaurate. Preturile: cele 389 de perioade de azi sterse, 102 perioade
+anterioare redeschise (`DATAEND` inapoi la `01.01.3000` — marcajul de perioada deschisa).
+
+> **Lectie:** inainte de orice import mare, verificati **distributia lungimii articolului**
+> in fisier. Daca o parte insemnata are sub 6 caractere sau e numerica, cheia nu e sigura —
+> cereti codul de bare sau articolul complet al furnizorului.
+
 ### 9.21 Fisiere LARGI (export de site): 3 capcane tacute — set 11
 
 Setul 11 (`all_products`, export de pe birovits.md) e primul fisier care nu vine de la un
