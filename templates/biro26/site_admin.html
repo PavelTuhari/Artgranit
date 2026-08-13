@@ -52,10 +52,19 @@ label.sw{display:inline-flex;align-items:center;gap:8px;margin:6px 16px 6px 0;fo
   <div class="card">
     <h3>⏰ Produsul zilei (override)</h3>
     <div class="hint">Gol/oprit = produsul se alege automat (determinist, se schimbă zilnic).
-      COD = codul produsului din ERP; termenul — până când numără cronometrul.</div>
+      Căutați marfa după denumire, articol sau cod de bare și apăsați pe rezultat —
+      COD-ul se completează singur. Termenul — până când numără cronometrul.</div>
+    <div style="margin-bottom:10px;position:relative;max-width:520px">
+      <input id="deal-q" placeholder="🔎 Caută produsul zilei (denumire / articol / barcod)"
+             autocomplete="off" oninput="dealSearch()"
+             style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;width:100%">
+      <div id="deal-res" style="display:none;position:absolute;z-index:20;left:0;right:0;
+           background:#fff;border:1px solid #cbd5e1;border-top:0;border-radius:0 0 8px 8px;
+           max-height:260px;overflow:auto;box-shadow:0 8px 20px rgba(0,0,0,.12)"></div>
+    </div>
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
       <div><label style="font-size:12px">COD produs</label><br>
-        <input id="deal-cod" type="number" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:130px"></div>
+        <input id="deal-cod" type="number" onchange="dealPreview()" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:130px"></div>
       <div><label style="font-size:12px">Până la (YYYY-MM-DD HH:MM)</label><br>
         <input id="deal-ends" placeholder="2026-07-30 23:59" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:180px"></div>
       <div><label style="font-size:12px">Activ</label><br>
