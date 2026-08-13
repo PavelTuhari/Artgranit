@@ -156,8 +156,9 @@ async function loadGoods() {
   tbody.innerHTML = emptyRow(tbody, 11, 'loading');
   const qs = new URLSearchParams();
   if (val('src-search')) qs.set('search', val('src-search'));
-  if (val('src-brand')) qs.set('brand', val('src-brand'));
-  if (val('src-furnizor')) qs.set('furnizor', val('src-furnizor'));
+  // select-ul «Brand» -> coloana FURNIZOR, «Furnizor» -> coloana BRAND
+  if (val('src-brand')) qs.set('furnizor', val('src-brand'));
+  if (val('src-furnizor')) qs.set('brand', val('src-furnizor'));
   if (val('src-status')) qs.set('status', val('src-status'));
   qs.set('limit', '300');
   const r = await apiGet(API + '/goods?' + qs.toString());
