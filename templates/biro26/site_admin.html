@@ -160,8 +160,51 @@ async function loadDeal() {
   const d = r.data;
   if (d) { document.getElementById('deal-cod').value = d.product_cod || '';
     document.getElementById('deal-ends').value = d.ends_at || '';
-    document.getElementById('deal-en').value = d.enabled === '0' ? '0' : '1'; }
+    document.getElementById('deal-en').value = d.enabled === '0' ? '0' : '1';
+    dealPreview(); }
 }
+
+/* ── cautarea produsului zilei (fara a sti COD-ul pe de rost) ────────── */
+let dealTimer = null;
+function dealSearch() {
+  clearTimeout(dealTimer);
+  dealTimer = setTimeout(async () => {
+    const q = document.getElementById('deal-q').value.trim();
+    const box = document.getElementById('deal-res');
+    if (q.length < 2) { box.style.display = 'none'; return; }
+    const r = await j('/api/biro26/shop/products?limit=12&search=' +
+                      encodeURIComponent(q));
+    const rows = (r && r.data) || [];
+    if (!rows.length) {
+      box.innerHTML = '<div style="padding:8px;color:#64748b">Nimic găsit</div>';
+    } else {
+      box.innerHTML = rows.map(p =>
+        '<div onclick="dealPick(' + p.cod + ')" style="padding:7px 9px;cursor:pointer;' +
+        'border-bottom:1px solid #eef2f7" onmouseover="this.style.background=\'#f1f5f9\'"' +
+        ' onmouseout="this.style.background=\'\'">' +
+        '<b>' + (p.cod) + '</b> · ' + esc(p.denumirea || '') +
+        '<span style="color:#94a3b8"> · ' + esc(p.codvechi || '') + '</span></div>').join('');
+    }
+    box.style.display = 'block';
+  }, 300);
+}
+function dealPick(cod) {
+  document.getElementById('deal-cod').value = cod;
+  document.getElementById('deal-res').style.display = 'none';
+  document.getElementById('deal-q').value = '';
+  dealPreview();
+}
+async function dealPreview() {
+  const cod = document.getElementById('deal-cod').value;
+  const info = document.getElementById('deal-info');
+  if (!cod) { info.textContent = ''; return; }
+  const r = await j('/api/biro26/shop/products?limit=1&cod=' + encodeURIComponent(cod));
+  const p = ((r && r.data) || [])[0];
+  info.textContent = p ? ('→ ' + (p.denumirea || '') + ' · ' + (p.retail1 || '') + ' lei')
+                       : '→ COD inexistent';
+}
+function esc(s) { return String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 async function saveDeal() {
   const r = await j('/api/biro26/site/deal', {method: 'POST', body: JSON.stringify({
     product_cod: document.getElementById('deal-cod').value,
