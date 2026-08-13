@@ -193,8 +193,13 @@ function renderTiles() {
       '" onclick="pdpPay(' + id + ')">' + esc(o.name) + '</button>';
   }).join('') + '<button type="button" class="pm-btn pm-btn-standard" onclick="pdpPay(0)">' +
     esc(biS('Standard (factură) · Standard (счёт)')) + '</button>';
-  // RO: pretul in rate = cea mai ieftina oferta de credit pentru pretul curent
-  const minCp = TILES.length ? Math.min(...TILES.map(t => t.credit_price)) : 0;
+  // RO: pretul in rate — ACELASI calcul ca eticheta de sub pret si ca in cos
+  //     (rateBest din site.js): minimul pachetelor FARA dobinda. Inainte se
+  //     lua minimul peste TOATE pachetele si cistiga Microinvest Standard
+  //     (naceta 5%, dar 39% anual) — fisa arata 20.998,95 lei, eticheta
+  //     23.598,82 lei, iar suma reala de plata era si mai mare decit ambele.
+  const minCp = rateBest(pprice(P) *
+    (parseFloat(document.getElementById('p-qty').value) || 1));
   document.getElementById('p-rate-price').textContent =
     minCp ? tr('cartRate') + ': ' + fmtLei(minCp) : '';
 }
