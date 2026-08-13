@@ -6700,6 +6700,7 @@ def biro26_shop():
                            info_slug=info_slug, info_title=info_title,
                            info_html=info_html, page_size=page_size,
                            liber_pct=liber_pct, liber_min=liber_min,
+                           rate_plans=rate_plans,
                            fmt_html=fmt_html, fmt_xlsx=fmt_xlsx,
                            price_field=(Biro26Store.client_price_field(
                                session['biro26_client']['univers_cod'])
