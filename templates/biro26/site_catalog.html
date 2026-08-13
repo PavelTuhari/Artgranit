@@ -156,8 +156,6 @@ function renderPager() {
 }
 
 /* ── sidebar: arbore grupe/categorii + branduri + presete pret ───────── */
-// RO: grupele DESCHISE manual din sageata (independent de filtrul activ)
-const OPEN = new Set();
 function toggleGrp(g) {
   if (OPEN.has(g)) OPEN.delete(g); else OPEN.add(g);
   renderSide();
