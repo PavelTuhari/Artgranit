@@ -203,8 +203,6 @@ async function dealPreview() {
   info.textContent = p ? ('→ ' + (p.denumirea || '') + ' · ' + (p.retail1 || '') + ' lei')
                        : '→ COD inexistent';
 }
-function esc(s) { return String(s == null ? '' : s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 async function saveDeal() {
   const r = await j('/api/biro26/site/deal', {method: 'POST', body: JSON.stringify({
     product_cod: document.getElementById('deal-cod').value,
