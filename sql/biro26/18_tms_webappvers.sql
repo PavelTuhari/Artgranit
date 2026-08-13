@@ -37,12 +37,16 @@ BEGIN
 END;
 /
 
--- RO: o singura versiune curenta per aplicatie. Indexul UNIC pe expresia
---     CASE lasa NULL pentru randurile vechi (Oracle nu indexeaza NULL-urile),
---     deci istoricul se pastreaza, dar doua «curente» nu pot exista.
--- EN: at most one current row per app; NULLs are not indexed in Oracle.
+-- RO: o singura versiune curenta per aplicatie. APP_CODE trebuie sa fie
+--     INAUNTRUL expresiei CASE: Oracle sare peste intrarea de index doar
+--     cind TOATE coloanele cheii sint NULL, deci varianta compusa
+--     (APP_CODE, CASE ...) permitea o singura versiune ISTORICA per
+--     aplicatie si pica cu ORA-00001 la a doua retrogradare.
+-- EN: APP_CODE must live INSIDE the CASE — a composite index is skipped
+--     only when every key column is NULL, so the old form allowed just one
+--     historical row per app and raised ORA-00001 on the second demote.
 CREATE UNIQUE INDEX UX_TMS_WEBAPPVERS_CUR ON TMS_WEBAPPVERS (
-  APP_CODE, CASE WHEN IS_CURRENT = '1' THEN '1' END);
+  CASE WHEN IS_CURRENT = '1' THEN APP_CODE END);
 
 CREATE OR REPLACE VIEW VMS_WEBAPPVERS AS
 SELECT APP_CODE, VERS, SRC_HASH, NOTE, RELEASED, CREATED
