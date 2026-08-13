@@ -163,7 +163,7 @@ function toggleGrp(g) {
 function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
   if (F.grupa) OPEN.add(g);
   F.categorie = null; F.page = 1; load(); }
-function pickCat(g, c) { F.grupa = g;
+function pickCat(g, c) { F.grupa = g; OPEN.add(g);
   F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); }
 function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); }
 function pickPreset(mn, mx) {
