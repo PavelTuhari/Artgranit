@@ -6451,6 +6451,7 @@ def _biro26_site_ctx():
         pay_logos = []
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
+            'rate_plans': rate_plans,
             'brand_filter': brand_filter,
             'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
             'price_field': price_field,
