@@ -332,6 +332,46 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.24 Export B2B: o coloana numita „retail" care nu e pretul de raft
+
+Setul officeshop-angro (`all_products angro 1-217.xlsx`, 5 413 randuri x 20 coloane) aduce
+`price_angro_mdl` — pretul de achizitie care lipsea. Dar are si o coloana `price_retail`
+care **pare** pretul de vinzare si nu este:
+
+| Articol | price_angro_mdl | price_retail | pretul nostru |
+|---|---|---|---|
+| `PF025/16` | 90.86 | **90.86** | 80.10 |
+| `MX61947` | 41.28 | **41.28** | 36.90 |
+| `1897/1559` | 53.17 | 75.96 | 66.47 |
+
+La multe randuri `price_retail` e **identica** cu pretul angro, iar in **1 348 din 1 369**
+comparatii pretul nostru era mai mare. Este pretul de baza din zona B2B, nu cel de raft.
+
+Importat ca `RETAIL`, ar fi pus produsele noi la vinzare **la pretul de achizitie**. Pe cele
+existente regula „nu coborim pretul" le-ar fi protejat — deci paguba ar fi fost invizibila
+la o verificare superficiala si vizibila abia in marja.
+
+Coloana e mapata pe `IGNORE`; din acest fisier se ia **doar** `price_angro_mdl -> ANGRO`.
+Sursa e inregistrata separat ca `OFFICESHOP_B2B` (tip `B2B`), cu capcana scrisa in `NOTES`.
+
+> **Regula:** la un fisier de la un portal B2B, nu va increti in numele coloanei de pret.
+> Comparati-o cu pretul curent pe citeva sute de randuri: daca al nostru e sistematic mai
+> mare, coloana nu e pretul de raft.
+
+#### Cit de mult a ajutat prefixarea (§9.23)
+
+Acelasi furnizor, aceeasi lipsa de coduri de bare, dar cu prefixarea activa:
+
+| | officeshop (fara prefix) | officeshop-angro (cu prefix) |
+|---|---|---|
+| Potriviri cu **nume complet diferit** | **643** din 1 162 | **21** din 2 810 |
+| Reparatie necesara | 629 de cartele | niciuna |
+
+Cele 21 ramase s-au dovedit, la verificare manuala, **potriviri corecte** — acelasi produs
+scris altfel („Plic patrat Daco Invitas" vs „Plic 140x140mm/120gr patrat (Albastru)").
+Similaritatea de text e o masura slaba cind cuvintele sint reordonate: foloseste-o ca semnal
+de **triere**, nu ca verdict.
+
 ### 9.23 Prefixul de articol si registrul surselor de import
 
 Solutia de fond la §9.22: in loc sa **respingem** articolele slabe, le facem **unice**.

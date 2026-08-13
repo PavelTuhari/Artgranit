@@ -28,6 +28,7 @@ e format numai din cifre.
 
 | Cod | Denumire | Tip | Prefix | Algoritm | Doar articol | Produse NOI |
 |---|---|---|---|---|---|---|
+| `OFFICESHOP_B2B` | officeshop.md - export B2B cu preturi ANGRO | B2B | `OS` | UNIVERSAL | da | doar cele noi |
 | `BIROLUX` | Birolux MT SRL | EMAIL | `BLX` | UNIVERSAL | da | doar cele noi |
 | `BNN` | BNN | EMAIL | `BNN` | UNIVERSAL | da | doar cele noi |
 | `CRAFTI` | CRAFTI BUSSINES SRL | EMAIL | `CRF` | UNIVERSAL | da | doar cele noi |
@@ -40,6 +41,19 @@ e format numai din cifre.
 | `ULTRA` | ULTRA.md | SCRAPING | `ULT` | UNIVERSAL | da | doar cele noi |
 
 ## Detalii per sursa
+
+### OFFICESHOP_B2B — officeshop.md - export B2B cu preturi ANGRO
+
+- **Tip:** Portal B2B pentru parteneri
+- **Locatie:** https://officeshop.md (zona pentru parteneri)
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `OS` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; foaia goods (20 col) + foaia Images_2 (galerie)
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> CAPCANA: coloana price_retail NU este pretul de raft - la multe randuri e identica cu price_angro_mdl, iar in 1348 din 1369 cazuri pretul nostru era mai mare. Este mapata pe IGNORE: din acest fisier se ia DOAR price_angro_mdl -> ANGRO. Coloanele price_opt_base, sale_price, sale_percent, stock_qty, id_1c sint zgomot (IGNORE). Rand 1 = nota, antetul e pe randul 2. Coloana barcode exista dar e GOALA. Produsele noi de aici raman FARA pret de raft - trebuie pretuite separat.
 
 ### BIROLUX — Birolux MT SRL
 
@@ -179,6 +193,7 @@ e format numai din cifre.
 | `Birolux MT SRL.xlsx` | 26 | 42338 | 251–276 | 06.08.2026 |
 | `CRAFTI.xlsx` | 6 | 8020 | 278–283 | 10.08.2026 |
 | `all_products 2.xlsx` | 3 | 22453 | 284–286 | 12.08.2026 |
+| `all_products angro 1-217.xlsx` | 2 | 12950 | 287–288 | 14.08.2026 |
 
 > ⚠️ Fisierele **birovits** si **officeshop** se numesc amindoua `all_products 2.xlsx`.
 > Numele fisierului NU identifica sursa — de aceea sursa se alege explicit la incarcare.
