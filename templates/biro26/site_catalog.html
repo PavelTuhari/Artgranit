@@ -81,6 +81,9 @@ const PRESETS = [[0, 500], [500, 1000], [1000, 2500], [2500, 5000], [5000, 10000
   if (p.get('price_max')) F.pmax = parseFloat(p.get('price_max'));
   if (p.get('sort')) F.sort = p.get('sort');
   if (p.get('page')) F.page = parseInt(p.get('page'), 10) || 1;
+  // RO: grupa venita din link (deep-link) porneste DESCHISA, dar poate fi
+  //     inchisa din sageata — starea o tine numai setul OPEN.
+  if (F.grupa) OPEN.add(F.grupa);
 })();
 
 function pushURL() {
