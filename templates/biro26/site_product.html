@@ -299,9 +299,11 @@ function renderP() {
   const price = pprice(P);
   document.title = pname(P) + ' — {{ app_name }}';
   document.getElementById('p-name').textContent = pname(P);
+  // RO: NU afisam BIRO26_GOODS.BRAND — acolo sta furnizorul-intermediar
+  //     (Crafti, Birovits, Biblion), nu marca produsului. Ramin articolul
+  //     si codul de bare. EN: BRAND column holds the intermediary supplier.
   document.getElementById('p-code').textContent =
-    tr('code') + ': ' + (P.codvechi || P.cod) + (P.barcode ? ' · ' + P.barcode : '') +
-    (P.brand ? ' · ' + P.brand : '');
+    tr('code') + ': ' + (P.codvechi || P.cod) + (P.barcode ? ' · ' + P.barcode : '');
   const inStock = (P.real_cant || 0) > 0;
   const st = document.getElementById('p-stock');
   st.className = 'stock ' + (inStock ? 'in' : 'order');
