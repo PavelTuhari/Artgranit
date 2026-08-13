@@ -1,0 +1,11 @@
+﻿SRC_CODE;SRC_NAME;SRC_TYPE;SRC_LOCATION;ALGO_CODE;ART_PREFIX;ART_MIN_LEN;FILE_FORMAT;MARK_NEW;ONLY_ARTICOL;ACTIVE;COD_ORG;NOTES
+BIROLUX;Birolux MT SRL;EMAIL;fisier pe e-mail;UNIVERSAL;BLX;6;"xlsx; 26 foi";0;1;1;;
+BNN;BNN;EMAIL;fisier pe e-mail;UNIVERSAL;BNN;6;xlsx;0;1;1;161242;
+CRAFTI;CRAFTI BUSSINES SRL;EMAIL;fisier lunar pe e-mail;UNIVERSAL;CRF;6;"xlsx; mai multe foi = categorii";0;1;1;161245;Preturi cu VIRGULA zecimala -> se normalizeaza la punct. Articole reformatate (spatii in plus). ANGRO = pretul de achizitie CU TVA. Fara coloana de coduri de bare.
+RADOP;RADOP;EMAIL;fisier pe e-mail;PRICES_ONLY;RDP;6;"xlsx; 2 foi";0;1;1;;Lista de preturi noi.
+RICHI;RICHI-TICHI;EMAIL;fisier pe e-mail;UNIVERSAL;RCH;6;"xlsx; 15 foi";0;1;1;;
+TEHELAN;Tehelan (articole de menaj);EMAIL;fisier pe e-mail;UNIVERSAL;THL;6;"xlsx; 3 foi";0;1;1;;
+OFFICEPLUS;Administrator OfficePlus (intern);MANUAL;export intern;UNIVERSAL;;6;"xlsx; 12 foi";0;1;1;;Export intern, articolele sint deja cele din catalog.
+BIROVITS;birovits.md (scraping catalog);SCRAPING;https://birovits.md;UNIVERSAL;BRV;6;"xlsx; o foaie, 25 coloane";0;1;1;;"Rand 1 = titlu ""all_products"", antetul e pe randul 2. Fara coduri de bare. images_all = galerie in aceeasi celula, separator "" | "". Coloana is_new = marcaj de site, NU produs nou la noi. category_path e slug, nu denumire."
+OFFICESHOP;officeshop.md (scraping catalog);SCRAPING;https://officeshop.md;UNIVERSAL;OS;6;"xlsx; Products (18 col) + Images_2 (galerie)";0;1;1;;Rand 1 = nota, antetul e pe randul 2. Articole scurte/numerice frecvente -> prefix obligatoriu. Coloana barcode exista dar e GOALA. 25% din randuri nu au articol deloc (se sar). Galeria se importa separat cu import_images(). ATENTIE: fisierul se numeste la fel ca la birovits.
+ULTRA;ULTRA.md;SCRAPING;https://ultra.md;UNIVERSAL;ULT;6;"xlsx; foarte multe foi (136)";0;1;1;;Acelasi articol apare pe foi diferite cu produse diferite -> randul se alege verificind NUMELE. RETAIL vs ANGRO se confunda usor, verificati antetul.

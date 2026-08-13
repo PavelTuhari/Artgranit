@@ -49,6 +49,15 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   -- RO: clasifica randurile (NOU/EXISTENT/AMBIGUU) + raport / EN: classify rows + report
   PROCEDURE classify(p_load_id IN NUMBER);
 
+  -- RO: PREFIXAREA articolelor slabe. Un cod scurt sau pur numeric ("248") inseamna
+  --     produse diferite la fiecare furnizor. Il facem unic adaugind un prefix, ales
+  --     in ordinea: BRAND-ul randului -> ART_PREFIX-ul sursei (TMS_ORG_IMPSRC).
+  --     Rezultat: "248" -> "ARK-248", iar daca randul n-are brand -> "OS-248".
+  -- EN: PREFIX weak articles. A short or purely numeric code means a different product
+  --     at each supplier; a prefix makes it unique. Prefix priority: the row's BRAND,
+  --     then the source's ART_PREFIX (TMS_ORG_IMPSRC).
+  PROCEDURE apply_article_prefix(p_load_id IN NUMBER, p_src IN VARCHAR2 DEFAULT NULL);
+
   -- RO: proceseaza un fisier (dry-run implicit) / EN: process one file (dry-run by default)
   --   p_mark_all_new: TRUE => toate randurile fisierului -> MATGR1=1 (produse noi);
   --                   FALSE => doar pozitiile NOI. / EN: TRUE => all rows flagged NEW; FALSE => only new positions.
@@ -60,7 +69,8 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
                         p_commit      IN BOOLEAN  DEFAULT FALSE,
                         p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                         p_date        IN DATE     DEFAULT NULL,
-                        p_force       IN BOOLEAN  DEFAULT FALSE);
+                        p_force       IN BOOLEAN  DEFAULT FALSE,
+                        p_src         IN VARCHAR2 DEFAULT NULL);
 
   -- RO: proceseaza toate fisierele neimportate / EN: process all not-yet-imported files
   PROCEDURE import_folder(p_grupa       IN VARCHAR2 DEFAULT NULL,
@@ -68,7 +78,8 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
                           p_commit      IN BOOLEAN  DEFAULT FALSE,
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                           p_date        IN DATE     DEFAULT NULL,
-                          p_force       IN BOOLEAN  DEFAULT FALSE);
+                          p_force       IN BOOLEAN  DEFAULT FALSE,
+                          p_src         IN VARCHAR2 DEFAULT NULL);
 
   -- RO: importa IMAGINILE SUPLIMENTARE (galeria) dintr-o foaie de tip "Images":
   --     coloanele articul + image_index + image_url -> TMS_MPT_WEBIMG.
@@ -854,13 +865,57 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     COMMIT;
   END do_writes;
 
+  -- =================================================================
+  -- RO: PREFIXAREA articolelor slabe (scurte sau pur numerice)
+  -- EN: PREFIXING weak articles (short or purely numeric)
+  -- =================================================================
+  PROCEDURE apply_article_prefix(p_load_id IN NUMBER, p_src IN VARCHAR2 DEFAULT NULL) IS
+    v_prefix   VARCHAR2(10);
+    v_min_len  NUMBER := g_min_articol_len;
+    v_cnt      NUMBER;
+  BEGIN
+    IF p_src IS NOT NULL THEN
+      BEGIN
+        SELECT art_prefix, NVL(art_min_len, g_min_articol_len)
+          INTO v_prefix, v_min_len
+          FROM tms_org_impsrc WHERE src_code = UPPER(p_src);
+      EXCEPTION WHEN NO_DATA_FOUND THEN
+        say('  RO: sursa necunoscuta in TMS_ORG_IMPSRC: ' || p_src ||
+            ' / EN: unknown source, prefix skipped');
+      END;
+    END IF;
+
+    -- RO: prefixul randului: BRAND-ul (curatat, max 6 caractere) daca exista,
+    --     altfel prefixul sursei. Fara niciunul, randul ramine neatins si va fi
+    --     oprit mai tirziu de paza 5.
+    -- EN: row prefix: the BRAND (cleaned, max 6 chars) if present, else the source
+    --     prefix. With neither, the row is left alone and guard 5 will stop it.
+    UPDATE biro26pt_stg s
+       SET s.articol =
+             NVL( NULLIF(SUBSTR(REGEXP_REPLACE(UPPER(TRIM(s.furnizor)), '[^A-Z0-9]', ''), 1, 6), ''),
+                  v_prefix ) || '-' || TRIM(s.articol)
+     WHERE s.load_id = p_load_id
+       AND s.articol IS NOT NULL
+       AND (   LENGTH(TRIM(s.articol)) < v_min_len
+            OR REGEXP_LIKE(TRIM(s.articol), '^[0-9]+$') )
+       AND (   TRIM(s.furnizor) IS NOT NULL OR v_prefix IS NOT NULL );
+    v_cnt := SQL%ROWCOUNT;
+    COMMIT;
+
+    IF v_cnt > 0 THEN
+      say('  RO: articole slabe prefixate / EN: weak articles prefixed: ' || v_cnt ||
+          CASE WHEN v_prefix IS NOT NULL THEN ' (prefix sursa: ' || v_prefix || ')' END);
+    END IF;
+  END apply_article_prefix;
+
   PROCEDURE import_file(p_load_id     IN NUMBER,
                         p_grupa       IN VARCHAR2 DEFAULT NULL,
                         p_codprice    IN NUMBER   DEFAULT NULL,
                         p_commit      IN BOOLEAN  DEFAULT FALSE,
                         p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                         p_date        IN DATE     DEFAULT NULL,
-                        p_force       IN BOOLEAN  DEFAULT FALSE) IS
+                        p_force       IN BOOLEAN  DEFAULT FALSE,
+                        p_src         IN VARCHAR2 DEFAULT NULL) IS
     v_cp   NUMBER := NVL(p_codprice, g_codprice);
     v_new  NUMBER;
     v_bc_filled NUMBER;
@@ -870,6 +925,11 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       say('  RO: fisier nerecunoscut - se sare / EN: unrecognized file - skipped'); RETURN;
     END IF;
     build_stg(p_load_id, p_grupa);
+    -- RO: prefixarea articolelor slabe TREBUIE sa se faca INAINTE de clasificare,
+    --     altfel potrivirea s-ar face pe codul scurt si ar da dubluri/false.
+    -- EN: weak-article prefixing MUST run BEFORE classification, otherwise matching
+    --     would still use the short code and produce false matches.
+    apply_article_prefix(p_load_id, p_src);
     classify(p_load_id);
 
     -- RO: PAZA anti-dubluri: fisier fara coloana de cod de bare + multe pozitii NOI.
@@ -910,10 +970,11 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                           p_commit      IN BOOLEAN  DEFAULT FALSE,
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                           p_date        IN DATE     DEFAULT NULL,
-                          p_force       IN BOOLEAN  DEFAULT FALSE) IS
+                          p_force       IN BOOLEAN  DEFAULT FALSE,
+                          p_src         IN VARCHAR2 DEFAULT NULL) IS
   BEGIN
     FOR r IN (SELECT load_id FROM biro26pt_file ORDER BY load_id) LOOP
-      import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date, p_force);
+      import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date, p_force, p_src);
     END LOOP;
   END import_folder;
 

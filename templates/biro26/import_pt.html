@@ -82,6 +82,10 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
     <div class="hint">Dry-run nu scrie NIMIC în producție — arată cum a înțeles sistemul
       fișierele. · Ничего не пишет в базу: показывает маппинг и счётчики.</div>
     <div class="frm">
+      <div><label>Sursa / algoritm · Источник</label>
+        <select id="f-src" onchange="onSrcChange()" style="min-width:210px">
+          <option value="">— fără sursă (generic) —</option>
+        </select></div>
       <div><label>Grupa (gol = «IMPORT PT»)</label><input type="text" id="f-grupa" placeholder="Hartie colorata"></div>
       <div><label>Cod preț · Код прайса</label><input type="number" id="f-codprice" value="1" style="width:90px"></div>
       <div><label>Data intrării prețului (gol = azi) · Дата цены</label><input type="date" id="f-pdate" style="width:150px"></div>
@@ -94,6 +98,7 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
       <b>virtual</b> = filtrul MATGR1, nu un nod fizic. Prețurile — regula <b>«nu se coboară»</b>.
       · Новые товары попадают в СВОИ реальные узлы дерева; «PRODUSE NOI» — виртуальный
       (фильтр MATGR1); цены — «не понижать».</div>
+    <div id="src-info" class="hint" style="display:none;border-left:3px solid #888;padding-left:10px"></div>
     <div id="an-result"></div>
   </div>
 
@@ -180,6 +185,42 @@ async function upload(files) {
 }
 
 /* ── analyze (dry-run) ── */
+// RO: sursele de import (TMS_ORG_IMPSRC) — aduc algoritmul, prefixul de articol
+//     si particularitatile fisierului. EN: import sources carry the algorithm,
+//     the article prefix and the file quirks.
+let SOURCES = {};
+async function loadSources() {
+  try {
+    const r = await (await fetch('/api/biro26/pt/sources')).json();
+    if (!r.success) return;
+    const sel = document.getElementById('f-src');
+    (r.data.sources || []).forEach(s => {
+      SOURCES[s.SRC_CODE] = s;
+      const o = document.createElement('option');
+      o.value = s.SRC_CODE;
+      o.textContent = s.SRC_NAME + '  [' + s.ALGO_CODE + ']';
+      sel.appendChild(o);
+    });
+  } catch (e) { /* RO: lipsa surselor nu blocheaza importul generic */ }
+}
+function onSrcChange() {
+  const code = document.getElementById('f-src').value;
+  const box = document.getElementById('src-info');
+  const s = SOURCES[code];
+  if (!s) { box.style.display = 'none'; return; }
+  const TIP = {SCRAPING:'scraping de pe site', EMAIL:'fișier pe e-mail',
+               B2B:'portal B2B', MANUAL:'încărcare manuală'};
+  let h = '<b>' + s.SRC_NAME + '</b> — ' + (TIP[s.SRC_TYPE] || s.SRC_TYPE)
+        + ' · algoritm <code>' + s.ALGO_CODE + '</code>'
+        + ' · prefix articol <code>' + (s.ART_PREFIX || '—') + '</code>'
+        + ' (articol slab sub ' + s.ART_MIN_LEN + ' caractere sau pur numeric)';
+  if (s.FILE_FORMAT) h += '<br>Format: ' + s.FILE_FORMAT;
+  if (s.NOTES) h += '<br>⚠️ ' + s.NOTES;
+  if (s.FILES_CNT) h += '<br>📁 fișiere păstrate în baza de date: <b>' + s.FILES_CNT + '</b>';
+  box.innerHTML = h; box.style.display = '';
+}
+document.addEventListener('DOMContentLoaded', loadSources);
+
 async function analyze() {
   if (!LOADS.length) return;
   const btn = document.getElementById('btn-analyze');
@@ -190,7 +231,8 @@ async function analyze() {
     grupa: document.getElementById('f-grupa').value.trim() || null,
     codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1,
     mark_all_new: document.getElementById('f-marknew').checked,
-    price_effective: document.getElementById('f-pdate').value || null})});
+    price_effective: document.getElementById('f-pdate').value || null,
+    src: document.getElementById('f-src').value || null})});
   btn.disabled = false;
   if (!r.success) { document.getElementById('an-result').innerHTML = ''; return; }
   ANALYSES = r.data;
@@ -271,7 +313,8 @@ async function doCommit() {
     grupa: document.getElementById('f-grupa').value.trim() || null,
     codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1,
     mark_all_new: document.getElementById('f-marknew').checked,
-    price_effective: document.getElementById('f-pdate').value || null})});
+    price_effective: document.getElementById('f-pdate').value || null,
+    src: document.getElementById('f-src').value || null})});
   btn.disabled = false;
   if (!r.success) { document.getElementById('ci-result').innerHTML = ''; return; }
   document.getElementById('ci-result').innerHTML = r.data.map(d =>

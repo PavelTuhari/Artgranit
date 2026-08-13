@@ -143,7 +143,8 @@ class Biro26PTStore:
     @staticmethod
     def _run_import(load_id: int, grupa: Optional[str], codprice: int,
                     commit: bool, mark_all_new: bool = True,
-                    price_date: Optional[str] = None) -> Dict[str, Any]:
+                    price_date: Optional[str] = None,
+                    src: Optional[str] = None) -> Dict[str, Any]:
         # RO: p_mark_all_new => MATGR1=1 (filtrul "produse noi"); p_date =
         #     data intrarii in vigoare a pretului (NULL = azi).
         # EN: p_mark_all_new flags MATGR1=1 (the "new products" filter);
@@ -152,12 +153,18 @@ class Biro26PTStore:
         params = {"l": int(load_id), "g": (grupa or None), "cp": int(codprice)}
         if price_date:
             params["d"] = price_date
+        # RO: sursa (TMS_ORG_IMPSRC.SRC_CODE) da prefixul de articol si pragul
+        #     de la care articolul e considerat prea slab ca sa fie cheie.
+        # EN: the source supplies the article prefix and the weak-article threshold.
+        src_expr = ":s" if src else "NULL"
+        if src:
+            params["s"] = str(src).upper()
         r = Biro26DB().execute_dml(
             "BEGIN BIRO26PT_importData.import_file("
             "p_load_id => :l, p_grupa => :g, p_codprice => :cp, "
             "p_commit => " + ("TRUE" if commit else "FALSE") + ", "
             "p_mark_all_new => " + ("TRUE" if mark_all_new else "FALSE") + ", "
-            f"p_date => {date_expr}); END;", params)
+            f"p_date => {date_expr}, p_src => {src_expr}); END;", params)
         if not r.get("success"):
             return {"success": False, "error": r.get("message")}
         return {"success": True}
@@ -165,12 +172,13 @@ class Biro26PTStore:
     @staticmethod
     def analyze(load_id: int, grupa: Optional[str] = None,
                 codprice: int = 1, mark_all_new: bool = True,
-                price_date: Optional[str] = None) -> Dict[str, Any]:
+                price_date: Optional[str] = None,
+                src: Optional[str] = None) -> Dict[str, Any]:
         """DRY-RUN (p_commit=FALSE, nothing written to production) + read the
         detection results for the UI (spec §6.1—6.3)."""
         run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=False,
                                         mark_all_new=mark_all_new,
-                                        price_date=price_date)
+                                        price_date=price_date, src=src)
         if not run["success"]:
             return run
         try:
@@ -232,11 +240,12 @@ class Biro26PTStore:
     @staticmethod
     def commit(load_id: int, grupa: Optional[str] = None,
                codprice: int = 1, mark_all_new: bool = True,
-               price_date: Optional[str] = None) -> Dict[str, Any]:
+               price_date: Optional[str] = None,
+                src: Optional[str] = None) -> Dict[str, Any]:
         """Real import (p_commit=TRUE) + the log and final counters."""
         run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=True,
                                         mark_all_new=mark_all_new,
-                                        price_date=price_date)
+                                        price_date=price_date, src=src)
         if not run["success"]:
             return run
         try:
@@ -285,6 +294,45 @@ class Biro26PTStore:
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
             return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── surse de import (TMS_ORG_IMPSRC) ──
+
+    @staticmethod
+    def sources(active_only: bool = True) -> Dict[str, Any]:
+        """RO: lista surselor de import pentru selectorul din back-office.
+        Fiecare sursa aduce cu ea algoritmul, prefixul de articol si
+        particularitatile fisierului.
+        EN: import sources for the back-office selector; each one carries its
+        algorithm, article prefix and file quirks."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT s.src_code, s.src_name, s.src_type, s.src_location, "
+                "       s.algo_code, s.art_prefix, s.art_min_len, s.file_format, "
+                "       s.mark_new, s.only_articol, s.notes, s.cod_org, "
+                "       (SELECT COUNT(*) FROM tms_org_impfile f "
+                "         WHERE f.src_code = s.src_code) files_cnt "
+                "  FROM tms_org_impsrc s "
+                + ("WHERE s.active = 1 " if active_only else "")
+                + "ORDER BY s.src_type, s.src_code"))
+            return {"success": True, "data": {"sources": rows}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def source_files(src_code: str, limit: int = 50) -> Dict[str, Any]:
+        """RO: fisierele pastrate in baza pentru o sursa (fara continutul BLOB).
+        EN: the files kept in the DB for one source (BLOB content excluded)."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT file_id, file_name, file_size, sheet_info, load_id, "
+                "       n_rows, imported, uploaded_by, "
+                "       TO_CHAR(uploaded_at,'DD.MM.YYYY HH24:MI') uploaded_at "
+                "  FROM tms_org_impfile WHERE src_code = :s "
+                " ORDER BY uploaded_at DESC, file_id DESC",
+                {"s": str(src_code).upper()}))
+            return {"success": True, "data": {"files": rows[:int(limit)]}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 

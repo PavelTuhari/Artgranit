@@ -332,6 +332,51 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.23 Prefixul de articol si registrul surselor de import
+
+Solutia de fond la §9.22: in loc sa **respingem** articolele slabe, le facem **unice**.
+
+**Prefixul**, ales in ordinea: BRAND-ul randului -> `ART_PREFIX`-ul sursei -> nimic
+(atunci paza 5 opreste randul).
+
+| In fisier | Brand | Devine |
+|---|---|---|
+| `2080` | Trefl | `TREFL-2080` |
+| `59895` | Spree | `SPREE-59895` |
+| `1841` | (lipsa) | `OS-1841` |
+
+Prefixarea ruleaza in `apply_article_prefix()`, **intre `build_stg` si `classify`** — daca
+ar rula dupa, potrivirea s-ar face tot pe codul scurt si am avea aceleasi potriviri false.
+
+#### Registrul surselor: TMS_ORG_IMPSRC / TMS_ORG_IMPFILE
+
+Fiecare sursa de date isi are acum cartela ei, legata de furnizor:
+
+```
+TMS_UNIVERS (TIP='O') -> TMS_ORG -> TMS_ORG_IMPSRC -> TMS_ORG_IMPFILE
+```
+
+`TMS_ORG_IMPSRC` tine tipul sursei (`SCRAPING` / `EMAIL` / `B2B` / `MANUAL`), algoritmul
+de incarcare, prefixul de articol, pragul `ART_MIN_LEN` si — cel mai util — **capcanele
+fisierului** in `NOTES`. `TMS_ORG_IMPFILE` pastreaza fisierul original ca BLOB, cu amprenta
+SHA-256, legatura cu stagin-ul si raportul importului.
+
+Sursa se alege in back-office (`import_pt.html`, selectorul "Sursa / algoritm") si ajunge
+la pachet ca `p_src`. Fara sursa, importul merge ca inainte — generic, fara prefix.
+
+Documentatia generata din tabela: `IMPORT_SURSE.md` + `IMPORT_SURSE.csv`
+(regenerare: `python3 scripts/gen_import_surse.py`).
+
+> **De ce conteaza:** numele fisierului NU identifica sursa — birovits si officeshop trimit
+> amindoua un fisier numit `all_products 2.xlsx`. Sursa trebuie aleasa explicit.
+
+#### Corectia retroactiva
+
+Cele **3 139** de produse deja create cu articol slab (1 673 birovits + 1 466 officeshop)
+au primit prefixul lor in `TMS_UNIVERS.CODVECHI` si `BIRO26_GOODS.ARTICOL`. Produsele mai
+vechi din catalog **nu** au fost atinse: articolele lor circula de ani in documente.
+Delimitarea s-a facut dupa `COD > 453493` (reperul obtinut prin flashback).
+
 ### 9.22 Articolul scurt/numeric NU e cheie — incidentul officeshop (load 285)
 
 Cel mai costisitor incident de pina acum, si primul in care **potrivirea a fost gresita,

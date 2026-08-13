@@ -1125,7 +1125,8 @@ class Biro26Controller:
             r = Biro26PTStore.analyze(int(lid), d.get("grupa"),
                                    int(d.get("codprice") or 1),
                                    mark_all_new=d.get("mark_all_new", True),
-                                   price_date=d.get("price_effective") or None)
+                                   price_date=d.get("price_effective") or None,
+                                   src=d.get("src") or None)
             if not r.get("success"):
                 return r
             out.append(r["data"])
@@ -1149,7 +1150,8 @@ class Biro26Controller:
             r = Biro26PTStore.commit(int(lid), d.get("grupa"),
                                    int(d.get("codprice") or 1),
                                    mark_all_new=d.get("mark_all_new", True),
-                                   price_date=d.get("price_effective") or None)
+                                   price_date=d.get("price_effective") or None,
+                                   src=d.get("src") or None)
             if not r.get("success"):
                 return r
             out.append(r["data"])
@@ -1166,6 +1168,22 @@ class Biro26Controller:
         col = d.get("col_idx")
         return Biro26PTStore.remap(int(d["load_id"]), str(d["field"]),
                                    int(col) if col is not None and col != "" else None)
+
+    @staticmethod
+    def pt_sources() -> Dict[str, Any]:
+        """RO: sursele de import pentru selectorul de algoritm din back-office.
+        EN: import sources for the back-office algorithm selector."""
+        from models.biro26pt_store import Biro26PTStore
+        return Biro26PTStore.sources(
+            active_only=(request.args.get("all") != "1"))
+
+    @staticmethod
+    def pt_source_files(src_code: str) -> Dict[str, Any]:
+        """RO: fisierele pastrate in baza pentru sursa aleasa.
+        EN: the files kept in the DB for the chosen source."""
+        from models.biro26pt_store import Biro26PTStore
+        return Biro26PTStore.source_files(
+            src_code, request.args.get("limit", 50, type=int))
 
     @staticmethod
     def pt_help() -> Dict[str, Any]:

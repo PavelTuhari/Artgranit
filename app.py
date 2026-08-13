@@ -6242,6 +6242,14 @@ def api_biro26_pt_commit():
 def api_biro26_pt_remap():
     return _b26(Biro26Controller.pt_remap)
 
+@app.route('/api/biro26/pt/sources', methods=['GET'])
+def api_biro26_pt_sources():
+    return _b26(Biro26Controller.pt_sources)
+
+@app.route('/api/biro26/pt/sources/<src_code>/files', methods=['GET'])
+def api_biro26_pt_source_files(src_code):
+    return _b26(lambda: Biro26Controller.pt_source_files(src_code))
+
 @app.route('/api/biro26/pt/help', methods=['GET'])
 def api_biro26_pt_help():
     return _b26(Biro26Controller.pt_help)
