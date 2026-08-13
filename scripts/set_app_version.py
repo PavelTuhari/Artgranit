@@ -84,15 +84,19 @@ def oracle_set(app: str, vers: str, src_hash: Optional[str],
                note: str) -> Dict[str, Any]:
     from models.biro26_db import Biro26DB
     db = Biro26DB()
+    # RO: retrogradarea versiunii curente si inserarea celei noi TREBUIE sa
+    #     fie in acelasi bloc — indexul unic UX_TMS_WEBAPPVERS_CUR (un singur
+    #     IS_CURRENT='1' pe APP_CODE) pica daca UPDATE-ul ramine necomis.
+    # EN: demote + insert in ONE block, else the unique index rejects it.
     r = db.execute_dml(
-        "UPDATE TMS_WEBAPPVERS SET IS_CURRENT = '0' "
-        "WHERE APP_CODE = :a AND IS_CURRENT = '1'", {"a": app})
-    if not r.get("success"):
-        return {"success": False, "error": r.get("message")}
-    r = db.execute_dml(
-        "INSERT INTO TMS_WEBAPPVERS (APP_CODE, VERS, IS_CURRENT, SRC_HASH, NOTE) "
-        "VALUES (:a, :v, '1', :h, :n)",
-        {"a": app, "v": vers, "h": src_hash, "n": note[:400] or None})
+        "BEGIN "
+        "  UPDATE TMS_WEBAPPVERS SET IS_CURRENT = '0' "
+        "   WHERE APP_CODE = :a AND IS_CURRENT = '1'; "
+        "  INSERT INTO TMS_WEBAPPVERS (APP_CODE, VERS, IS_CURRENT, SRC_HASH, NOTE) "
+        "  VALUES (:a2, :v, '1', :h, :n); "
+        "END;",
+        {"a": app, "a2": app, "v": vers, "h": src_hash,
+         "n": note[:400] or None})
     if not r.get("success"):
         return {"success": False, "error": r.get("message")}
     return {"success": True}
