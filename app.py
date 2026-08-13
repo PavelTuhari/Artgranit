@@ -6685,14 +6685,10 @@ def biro26_shop():
         page_size = max(1, min(page_size, 200))
     except Exception:
         page_size = 24
-    # RO: "Pret oferta in rate" (Liber Card MAIB): +RATE_LIBER_PCT% aplicat
-    #     silentios la produsele de la RATE_LIBER_MIN lei — doar afisare.
-    # EN: the silent installment-offer price shown under the standard price.
-    try:
-        liber_pct = float(Biro26Store.get_setting('RATE_LIBER_PCT', '5'))
-        liber_min = float(Biro26Store.get_setting('RATE_LIBER_MIN', '100'))
-    except Exception:
-        liber_pct, liber_min = 5.0, 100.0
+    # RO: "Pret oferta in rate" — acelasi calcul ca pe noul site: pachetele
+    #     de rate FARA dobinda, cu limitele lor de suma (vezi
+    #     _biro26_rate_plans). EN: same rate-price source as the new site.
+    liber_pct, liber_min, rate_plans = _biro26_rate_plans()
     try:
         fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
         fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
