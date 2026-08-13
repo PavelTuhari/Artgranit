@@ -151,20 +151,6 @@ async function loadFurnizoriFilter() {
   }
 }
 
-async function loadFurnizoriFilter() {
-  const sel = el('src-furnizor');
-  if (!sel || sel.dataset.loaded) return;
-  const r = await apiGet(API + '/suppliers/furnizori');
-  if (r.success) {
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">' + t('f_all') + '</option>' +
-      (r.data || []).map(f => '<option value="' + escapeHtml(f.furnizor) + '">' +
-        escapeHtml(f.furnizor) + ' (' + f.cnt + ')</option>').join('');
-    sel.value = cur;
-    sel.dataset.loaded = '1';
-  }
-}
-
 async function loadGoods() {
   const tbody = el('src-body');
   tbody.innerHTML = emptyRow(tbody, 11, 'loading');
