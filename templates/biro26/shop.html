@@ -421,9 +421,27 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
    shown under the standard price. */
 const LIBER_PCT = {{ liber_pct|default(5) }};
 const LIBER_MIN = {{ liber_min|default(100) }};
+// RO: pachetele FARA dobinda + limitele lor de suma — aceeasi sursa ca pe
+// noul site (rateBest din site.js); vezi _biro26_rate_plans() in app.py.
+const RATE_PLANS = {{ rate_plans|default([])|tojson }};
+function rateBest(price) {
+  if (!(price > 0)) return 0;
+  let best = 0;
+  RATE_PLANS.forEach(pl => {
+    const cp = price * (1 + (pl.p || 0) / 100);
+    if (cp < (pl.mn || 0) || cp > (pl.mx || 1e12)) return;
+    if (!best || cp < best) best = cp;
+  });
+  if (!best && LIBER_PCT > 0 && price >= LIBER_MIN) {
+    best = price * (1 + LIBER_PCT / 100);
+  }
+  return best;
+}
 function liberLine(price, small) {
   if (!price || price < LIBER_MIN) return '';
-  const v = (price * (1 + LIBER_PCT / 100)).toFixed(2);
+  const b = rateBest(price);
+  if (!b) return '';
+  const v = b.toFixed(2);
   return '<div style="font-size:' + (small ? '11px' : '13px') + ';color:#0369a1;margin-top:2px">' +
     'Preț ofertă în rate · Цена в рассрочку: <b>' + v + ' LEI</b></div>';
 }
