@@ -6387,21 +6387,35 @@ def _biro26_site_ctx():
     #     Setarea RATE_LIBER_PCT ramine doar ca rezerva, daca ofertele lipsesc.
     # EN: the card badge must match the credit modal — derive the percentage
     #     from the cheapest ACTIVE Liber plan instead of a stale setting.
+    # RO: rate_plans = pachetele FARA dobinda (annual_pct = 0), singurele care
+    #     pot fi rezumate corect printr-un singur numar «Preț în rate»: acolo
+    #     pretul afisat este tot ce plateste clientul. Pachetele cu dobinda
+    #     (Microinvest Standard 39%, MAIB Credit de consum 10,5%) au un pret
+    #     finantat mai mic, dar costa mai mult in total — daca intra in
+    #     minimul afisat, eticheta arata un numar pe care nimeni nu-l
+    #     plateste. Limitele de suma se verifica pe suma FINANTATA, ca in
+    #     crTiles() si in models/biro26_credit.py calc().
+    # EN: only 0%-interest plans can be summed up by one "price in rates".
+    rate_plans = []
     try:
         from models.biro26_credit import Biro26Credit
         best = None
         for o in (Biro26Credit.public_offers().get("data") or []):
-            if 'liber' not in str(o.get('name') or '').lower():
-                continue
             tm = float(o.get('transport_markup_pct') or 0)
             for pl in (o.get('plans') or []):
                 eff = float(pl.get('markup_pct') or 0) + tm
-                if best is None or eff < best:
-                    best = eff
+                if (float(pl.get('annual_pct') or 0) == 0
+                        and float(pl.get('monthly_fee_pct') or 0) == 0):
+                    rate_plans.append({
+                        'p': eff,
+                        'mn': float(pl.get('amount_min') or 0),
+                        'mx': float(pl.get('amount_max') or 0) or 1e12})
+                    if best is None or eff < best:
+                        best = eff
         if best is not None:
             liber_pct = best
     except Exception:                                        # noqa: BLE001
-        pass
+        rate_plans = []
     try:
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
     except Exception:
