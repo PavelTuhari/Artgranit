@@ -455,4 +455,23 @@ function payBadgeHtml(name) {
   } catch (e) {}
 })();
 
+/* RO: igiena URL-ului dupa captarea atributiei — serverul a citit deja
+   fbclid/gclid/utm_* si le-a scris in cookie + baza WordPress, deci
+   parametrii de tracking se scot din bara de adrese (ca la marile
+   magazine): linkul ramane curat la copiere/partajare, iar filtrele
+   functionale (grupa, categorie, q...) nu sint atinse. */
+(function stripTrackingParams() {
+  try {
+    const TP = ['fbclid', 'gclid', 'gbraid', 'wbraid', 'ttclid', 'twclid',
+                'msclkid', 'yclid', 'li_fat_id', 'igshid', 'igsh', 'ScCid',
+                'epik', 'mc_eid', 'vk_ref', 'utm_source', 'utm_medium',
+                'utm_campaign', 'utm_content', 'utm_term'];
+    const u = new URL(location.href);
+    let hit = false;
+    TP.forEach(p => { if (u.searchParams.has(p)) { u.searchParams.delete(p); hit = true; } });
+    if (hit) history.replaceState(null, '', u.pathname +
+      (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
+  } catch (e) {}
+})();
+
 applyLang(); cartBadge();
