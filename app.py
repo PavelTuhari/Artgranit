@@ -7352,6 +7352,7 @@ def api_biro26_b2b_order():
     contului: linkuri semnate PDF/HTML + JSON-ul documentului.
     EN: B2B order placement; the reply carries the invoice sample links."""
     r = Biro26Controller.b2b_order()
+    _biro26_social_conv('b2b', r)
     return jsonify(r), (200 if r.get('success')
                         else 401 if r.get('error') == 'login required' else 400)
 
