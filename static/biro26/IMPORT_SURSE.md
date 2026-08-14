@@ -171,7 +171,7 @@ e format numai din cifre.
 
 **Particularitati / capcane:**
 
-> Scraping impreso.md. Antetul e pe randul 2 (randul 1 = titlu 'all_products'). Grupe pe 3 niveluri (group1..group3) + crumb_path (calea afisata pe site) + categories.csv cu arborele complet. Are coloana barcode dar e goala. price_mdl = pretul de raft. product_id = cheia stabila a site-ului, folosita ca SRC_PID pentru reincarcari idempotente. part_number si name_short sunt informative (IGNORE).
+> Scraping impreso.md. Antetul e pe randul 2 (randul 1 = titlu 'all_products'). Grupe pe 3 niveluri (group1..group3) + crumb_path + categories.csv cu arborele complet. Coloana barcode exista dar e goala. price_mdl = pretul de raft. product_id = SRC_PID (cheia pentru reincarcari idempotente). part_number si name_short sunt informative. IMAGINI: site-ul NU are HTTPS (https esueaza complet, nu e eroare de certificat) - URL-urile http sint trecute automat prin /api/biro26/img, altfel browserul le blocheaza ca mixed content. ATENTIE: img/product/noimage_b.jpg este stub-ul 'fara imagine' al site-ului, un JPEG real de 57 KB - se sterge la import, nu se pastreaza ca poza.
 
 ### OFFICESHOP — officeshop.md (scraping catalog)
 

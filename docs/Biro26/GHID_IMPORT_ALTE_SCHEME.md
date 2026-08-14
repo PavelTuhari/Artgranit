@@ -332,6 +332,47 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.27 Sursa fara HTTPS: imaginile se importa, dar nu se vad
+
+La impreso.md imaginile pareau "neimportate". Nu erau: toate cele 2 662 de URL-uri erau
+in baza si corecte. Problema e alta si nu se vede din baza:
+
+```
+200  image/jpeg  47 693 octeti   <-  http://www.impreso.md/product/5634/image-1B.jpg
+000  conexiune esuata            <-  https://www.impreso.md/product/5634/image-1B.jpg
+```
+
+Site-ul **nu are HTTPS deloc** — nu e o eroare de certificat, nu asculta nimic pe 443.
+Magazinul ruleaza pe https, iar browserul refuza continut mixt: `<img src="http://...">`
+pe o pagina https nu se incarca. In baza totul arata corect; doar in browser lipseste poza.
+
+**Solutia: proxy, nu rescrierea URL-urilor.** `models/biro26_imgproxy.py` + ruta
+`/api/biro26/img?u=<url>`: serverul aduce imaginea prin http si o serveste pe https.
+Rescrierea se face central, in store, deci sablonul nu se atinge.
+
+Un proxy care descarca orice URL primit e o **gaura SSRF** — ar putea fi folosit ca sa
+ceara adrese interne prin serverul nostru. De aceea:
+
+| Aparare | De ce |
+|---|---|
+| lista alba de gazde | doar impreso.md; restul nici nu intra in proxy |
+| fara urmarirea redirectarilor | o redirectare ar putea scoate cererea din lista |
+| doar raspunsuri `image/*` | nu servim HTML sau JSON de pe alt server |
+| limita de 8 MB | o poza de produs e sub 1 MB |
+
+Verificat: `http://evil.example.com/x.jpg` si `http://127.0.0.1:8080/admin` sint respinse.
+
+#### Capcana alaturata: stub-ul "fara imagine"
+
+319 produse aveau ca poza `img/product/noimage_b.jpg` — stub-ul site-ului, un JPEG **real**
+de 57 KB. Importul l-a luat ca imagine valida, deci produsele pareau ca au poza. E mai rau
+decit lipsa imaginii: interfata nu mai stie ca poza lipseste. Sters (`NULL`).
+
+> **De verificat la orice sursa noua:** (1) imaginile se servesc pe https? (2) exista un
+> URL-stub pentru "fara imagine" care se repeta la sute de produse? Amindoua se vad
+> imediat: `curl -o /dev/null -w "%{http_code} %{content_type} %{size_download}"` pe
+> citeva URL-uri, si un `GROUP BY` pe URL ca sa iasa la iveala cel repetat.
+
 ### 9.26 Import REGLEMENTAT: sursa marcata, grupe urmarite, anulare pregatita
 
 Setul impreso.md e primul importat dupa **regulamentul complet** — nu ca exceptie, ci ca

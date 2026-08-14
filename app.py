@@ -6282,6 +6282,23 @@ def api_biro26_pt_commit():
 def api_biro26_pt_remap():
     return _b26(Biro26Controller.pt_remap)
 
+@app.route('/api/biro26/img', methods=['GET'])
+def api_biro26_img():
+    """RO: serveste pe HTTPS o imagine gazduita doar pe HTTP (impreso.md).
+    Fara asta, browserul o blocheaza ca "mixed content" si produsul apare
+    fara poza, desi URL-ul din baza e corect.
+    EN: re-serve an HTTP-only image over HTTPS; without this the browser blocks
+    it as mixed content."""
+    from models.biro26_imgproxy import fetch
+    u = request.args.get('u', '')
+    try:
+        data, ctype = fetch(u)
+    except Exception as e:
+        return (str(e), 400)
+    # RO: imaginile de produs nu se schimba des / EN: product images rarely change
+    return Response(data, mimetype=ctype,
+                    headers={'Cache-Control': 'public, max-age=86400'})
+
 @app.route('/api/biro26/pt/sources', methods=['GET'])
 def api_biro26_pt_sources():
     return _b26(Biro26Controller.pt_sources)

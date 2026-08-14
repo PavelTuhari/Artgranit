@@ -340,7 +340,10 @@ class Biro26Store:
                 inner += " AND ISARHIV IS NOT NULL AND ISARHIV<>'0'"
             inner += " ORDER BY DENUMIREA"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
-            return _result(r)
+            res = _result(r)
+            from models.biro26_imgproxy import rewrite_rows
+            rewrite_rows(res.get("data") or res.get("rows"), "IMAGE")
+            return res
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -366,11 +369,12 @@ class Biro26Store:
             goods = _rows(db.execute_query(
                 "SELECT BRAND, GRUPA, CATEGORIE, ANGRO, IONLINE, RETAIL1 "
                 "FROM BIRO26_GOODS WHERE COD_UNIVERS=:c AND ROWNUM=1", {"c": cod}))
+            from models.biro26_imgproxy import proxy_url
             return {"success": True,
                     "data": {"univers": u[0], "mpt": mpt[0] if mpt else None,
-                             "photo_url": ie or photo.get("photo_url"),
-                             "image_link": photo.get("image_link"),
-                             "ie_linkadres": ie,
+                             "photo_url": proxy_url(ie or photo.get("photo_url")),
+                             "image_link": proxy_url(photo.get("image_link")),
+                             "ie_linkadres": proxy_url(ie),
                              "barcodes": barcodes,
                              "goods": goods[0] if goods else None}}
         except Exception as e:
@@ -872,6 +876,11 @@ class Biro26Store:
                 "ORDER BY c.rn")
             r = Biro26DB().execute_query(outer, params)
             res = _result(r)
+            # RO: sursele fara HTTPS (impreso.md) trec prin proxy, altfel browserul
+            #     le blocheaza ca "mixed content" pe o pagina https.
+            # EN: non-HTTPS sources go through the proxy, else the browser blocks them.
+            from models.biro26_imgproxy import rewrite_rows
+            rewrite_rows(res.get("data") or res.get("rows"), "IMAGE")
             if with_count and res.get("success"):
                 rc = _rows(Biro26DB().execute_query(count_sql, params))
                 res["total"] = int(rc[0]["cnt"]) if rc else 0
