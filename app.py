@@ -6770,7 +6770,9 @@ def api_biro26_credit_calc():
 @app.route('/api/biro26/shop/credit/request', methods=['POST'])
 def api_biro26_credit_request():
     # public: the product-page loan request form (name+phone required)
-    return jsonify(Biro26Controller.credit_request())
+    r = Biro26Controller.credit_request()
+    _biro26_social_conv('credit_req', r)
+    return jsonify(r)
 
 @app.route('/api/biro26/credit/requests', methods=['GET'])
 def api_biro26_credit_requests():
