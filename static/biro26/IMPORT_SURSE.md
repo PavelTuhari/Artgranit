@@ -38,6 +38,7 @@ e format numai din cifre.
 | `TEHELAN` | Tehelan (articole de menaj) | EMAIL | `THL` | UNIVERSAL | da | doar cele noi |
 | `OFFICEPLUS` | Administrator OfficePlus (intern) | MANUAL | `—` | UNIVERSAL | da | doar cele noi |
 | `BIROVITS` | birovits.md (scraping catalog) | SCRAPING | `BRV` | UNIVERSAL | da | doar cele noi |
+| `IMPRESO` | impreso.md (scraping catalog) | SCRAPING | `IMP` | UNIVERSAL | da | doar cele noi |
 | `OFFICESHOP` | officeshop.md (scraping catalog) | SCRAPING | `OS` | UNIVERSAL | da | doar cele noi |
 | `ULTRA` | ULTRA.md | SCRAPING | `ULT` | UNIVERSAL | da | doar cele noi |
 
@@ -159,6 +160,19 @@ e format numai din cifre.
 
 > Rand 1 = titlu "all_products", antetul e pe randul 2. Fara coduri de bare. images_all = galerie in aceeasi celula, separator " | ". Coloana is_new = marcaj de site, NU produs nou la noi. category_path e slug, nu denumire.
 
+### IMPRESO — impreso.md (scraping catalog)
+
+- **Tip:** Scraping de pe site
+- **Locatie:** http://www.impreso.md
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `IMP` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; o foaie (20 col) + categories.csv separat
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Scraping impreso.md. Antetul e pe randul 2 (randul 1 = titlu 'all_products'). Grupe pe 3 niveluri (group1..group3) + crumb_path (calea afisata pe site) + categories.csv cu arborele complet. Are coloana barcode dar e goala. price_mdl = pretul de raft. product_id = cheia stabila a site-ului, folosita ca SRC_PID pentru reincarcari idempotente. part_number si name_short sunt informative (IGNORE).
+
 ### OFFICESHOP — officeshop.md (scraping catalog)
 
 - **Tip:** Scraping de pe site
@@ -209,6 +223,7 @@ e format numai din cifre.
 | `all_products 2.xlsx` | 3 | 22453 | 284–286 | 12.08.2026 |
 | `all_products angro 1-217.xlsx` | 2 | 12950 | 287–288 | 14.08.2026 |
 | `officeshop_prices_retail+angro.SVERKA.xlsx` | 4 | 15486 | 289–292 | 14.08.2026 |
+| `all_products 2.SVERKA.xlsx` | 1 | 2662 | 293–293 | 14.08.2026 |
 
 > ⚠️ Fisierele **birovits** si **officeshop** se numesc amindoua `all_products 2.xlsx`.
 > Numele fisierului NU identifica sursa — de aceea sursa se alege explicit la incarcare.

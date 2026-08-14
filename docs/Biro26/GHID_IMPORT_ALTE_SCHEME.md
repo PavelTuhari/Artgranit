@@ -332,6 +332,53 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.26 Import REGLEMENTAT: sursa marcata, grupe urmarite, anulare pregatita
+
+Setul impreso.md e primul importat dupa **regulamentul complet** — nu ca exceptie, ci ca
+procedura standard. Cinci pasi, in ordine:
+
+1. **Inregistreaza sursa** in `TMS_ORG_IMPSRC` (aici: `IMPRESO`, prefix `IMP`), cu
+   capcanele fisierului scrise in `NOTES`.
+2. **Sverka inainte de import** (§9.25): `target_key` scris inapoi in Excel. A aratat
+   dinainte ca 2 645 din 2 662 de rinduri sint marfa noua si doar 17 se suprapun — deci
+   nu era un import de preturi, ci de catalog.
+3. **Deschide jurnalul** (`YBIRO_IMPORT_LOG`), importa, **inchide-l** cu contoarele reale.
+4. **Marcheaza fiecare cartela** in `TMS_MPT_IMPSRC`: sursa, rularea, `SRC_PID`
+   (`product_id` de pe site) — cheia pentru reincarcari idempotente.
+5. **Inregistreaza grupele** in `YBIRO_IMPORT_GROUPS` si exporta-le ca fisiere.
+
+#### Grupele ca fisiere: de unde a aparut si cum o scot
+
+Grupele intrau tacut: un fisier nou aducea zeci de categorii si peste o luna nimeni nu mai
+stia care de unde a venit, nici ce se strica daca le scoti. Acum fiecare import produce
+doua fisiere in `grupe_import/`:
+
+| Fisier | Ce contine |
+|---|---|
+| `<SURSA>_<import_id>_<data>.csv` | fiecare grupa, cele 3 niveluri, `CREATED`/`EXISTING`, cite marfuri a pus **acest import** si cite are grupa **acum** |
+| `<SURSA>_<import_id>_<data>.rollback.sql` | scriptul de anulare, **integral comentat** |
+
+Distinctia `CREATED` / `EXISTING` e cea care conteaza: impreso a adus **24 de grupe, toate
+noi**; officeshop-consolidat a adus 256, **niciuna noua** (existau din importurile
+anterioare ale aceleiasi surse). Prima situatie e reversibila, a doua nu — nu poti sterge
+o grupa pe care o folosesc si alte importuri.
+
+Scriptul de anulare e comentat linie cu linie **intentionat**: il citesti, te uiti in CSV
+cite marfuri atirna ACUM de fiecare grupa, si decomentezi doar ce vrei sa anulezi. Ordinea
+lui: arhiveaza marfa (nu o sterge) -> scoate grupele ramase goale -> curata nodurile de
+arbore fara marfa -> sterge marcajele si evidenta.
+
+Generare (oricind, si retroactiv): `python3 scripts/gen_import_groups.py --all`.
+
+#### Reincarcarea aceleiasi surse
+
+`SRC_PID` face reimportul idempotent: aceeasi marfa de pe site se regaseste dupa ID-ul ei,
+nu dupa nume sau articol. Verificare: 2 662 de rinduri IMPRESO -> 2 662 de `SRC_PID` unice.
+
+> **De acum, orice sursa noua trece prin cei cinci pasi.** Costa zece minute in plus si
+> raspunde la intrebarile care pina acum n-aveau raspuns: de unde a venit cartela asta,
+> ce a adus rularea de marti, si cum dau inapoi.
+
 ### 9.25 Fisierul CU PASAPORT: regulile impuse de furnizorul de date
 
 Setul `officeshop_prices_retail+angro.xlsx` a venit cu un **pasaport** scris pentru

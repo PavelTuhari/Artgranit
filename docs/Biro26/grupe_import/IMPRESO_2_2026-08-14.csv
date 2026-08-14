@@ -1,0 +1,25 @@
+﻿GROUP_PATH;GROUP1;GROUP2;GROUP3;ACTION;N_PRODUCTS_THIS_IMPORT;N_PRODUCTS_TOTAL_NOW
+Cartus Cerneala / Banda > Cartus Matricial > Banda de Transfer;Cartus Cerneala / Banda;Cartus Matricial;Banda de Transfer;CREATED;308;317
+Cartus Cerneala / Banda > Cartus Matricial;Cartus Cerneala / Banda;Cartus Matricial;;CREATED;9;317
+Cartus Toner > Cartus Monochrom > Cartus Color;Cartus Toner;Cartus Monochrom;Cartus Color;CREATED;294;525
+Cartus Toner > Cartus Monochrom > HP;Cartus Toner;Cartus Monochrom;HP;CREATED;69;525
+Cartus Toner > Cartus Monochrom;Cartus Toner;Cartus Monochrom;;CREATED;162;525
+Cartus Toner;Cartus Toner;;;CREATED;1;1
+Cerneala > Universala > Pigment;Cerneala;Universala;Pigment;CREATED;131;149
+Cerneala > Universala;Cerneala;Universala;;CREATED;18;149
+Hirtie Foto > Mata > Lucioasa;Hirtie Foto;Mata;Lucioasa;CREATED;42;52
+Hirtie Foto > Mata;Hirtie Foto;Mata;;CREATED;2;52
+Imprimanta > Laser Monochrome > Cu jet de cerneala;Imprimanta;Laser Monochrome;Cu jet de cerneala;CREATED;7;11
+Imprimanta > Laser Monochrome;Imprimanta;Laser Monochrome;;CREATED;4;11
+Multifunctionala > Laser Monochrome > Cu jet de cerneala;Multifunctionala;Laser Monochrome;Cu jet de cerneala;CREATED;17;24
+Multifunctionala > Laser Monochrome;Multifunctionala;Laser Monochrome;;CREATED;5;24
+Piese Cartus > Cip > Lamela de curatare;Piese Cartus;Cip;Lamela de curatare;CREATED;311;952
+Piese Cartus > Cip;Piese Cartus;Cip;;CREATED;641;952
+Piese Imprimanta > Piese > Canon;Piese Imprimanta;Piese;Canon;CREATED;133;521
+Piese Imprimanta > Piese > Diverse;Piese Imprimanta;Piese;Diverse;CREATED;374;521
+Piese Imprimanta > Piese;Piese Imprimanta;Piese;;CREATED;14;521
+SACC > Canon > Epson;SACC;Canon;Epson;CREATED;11;14
+SACC > Canon;SACC;Canon;;CREATED;3;14
+Toner > Toner Color > Toner Monochrom;Toner;Toner Color;Toner Monochrom;CREATED;39;97
+Toner > Toner Color;Toner;Toner Color;;CREATED;58;97
+Toner;Toner;;;CREATED;9;9
