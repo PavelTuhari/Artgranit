@@ -332,6 +332,64 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.25 Fisierul CU PASAPORT: regulile impuse de furnizorul de date
+
+Setul `officeshop_prices_retail+angro.xlsx` a venit cu un **pasaport** scris pentru
+importator (`README-for-AI.md`): provenienta, structura celor 4 foi si un **regulament
+obligatoriu**. E primul fisier care spune singur cum trebuie importat, si a schimbat
+regulile jocului.
+
+#### Ce a confirmat pasaportul
+
+Doua lucruri pe care le descoperisem pe cont propriu, cu pret:
+
+- coloana `price` din API-ul angro e **dublul lui `price_opt`, nu pretul de raft** —
+  exact capcana din §9.24, gasita dupa ce comparasem 1 369 de preturi;
+- **site-ul nu publica coduri de bare nicaieri** — de aceea paza `g_max_new_nobc` se
+  declanseaza mereu la aceasta sursa; nu are rost sa cerem coduri, nu exista.
+
+Si unul nou, care ne-ar fi costat: **articolul din scraping-ul de retail e euristic**
+(extras din coada denumirii, ~95% exact). Doar articolul din API-ul angro e exact.
+
+#### Cele patru reguli, si cum le-am implementat
+
+| Regula (pasaport) | Implementare |
+|---|---|
+| §3.1 jurnal de importuri | `YBIRO_IMPORT_LOG` — o linie per rulare, cu contoare |
+| §3.2 sverka **inainte** de import | coloana `target_key` scrisa in Excel |
+| §3.3 marcaj de sursa pe fiecare cartela | `TMS_MPT_IMPSRC` (satelit 1:1) |
+| §3.4 nu amesteca sursele | potrivire in cadrul sursei; intre surse doar cod de bare **sau** brand+articol exact |
+
+**Sverka pre-import (§3.2) e cea mai valoroasa idee din pasaport.** Inainte de a scrie
+ceva, calculezi pentru fiecare rind daca marfa exista deja si scrii raspunsul **inapoi in
+Excel**: `target_key` completat = UPDATE, gol = INSERT. Fisierul devine un act de sverka pe
+care un om il poate verifica **cu ochii, inainte** de import. La setul acesta a aratat
+imediat esentialul: din 7 268 de rinduri, **6 469 existau deja** — deci nu era un import de
+marfa noua, ci o **actualizare de preturi**. Fara sverka am fi rulat orbeste.
+
+#### Grupele: 3 niveluri intr-un arbore de 2
+
+Sursa are `group1..group3` (1 197 de rinduri folosesc al treilea nivel), dar arborele din
+back-office citeste `BIRO26_GOODS` cu doua coloane (GRUPA + CATEGORIE). Calea completa se
+pastreaza in doua locuri, ca sa nu se piarda:
+
+- `TMS_MPT_IMPSRC.SRC_GROUP_PATH` — sursa de adevar, pentru orice reconstructie;
+- `BIRO26_GOODS.PRODUCT_TYPE` — cimpul standard Google feed pentru calea de categorii
+  (`Rechizite de birou > Pixuri si mine > Pix ulei si semi-gel`), deci merge si in feed.
+
+Cind echipa web va vrea arbore pe 3 niveluri, datele sint deja acolo.
+
+#### Imaginile: preferati versiunea fara filigran
+
+Scraping-ul de retail da URL-uri `images_1c_watermark`, API-ul angro da `images_1c` —
+acelasi fisier, fara filigran (`id_1c` = numele fisierului, faptul §1.4 din pasaport).
+Am inlocuit filigranul **doar** unde stim ca versiunea curata exista, adica la marfa cu
+`match_status IN ('both','angro_only')`: 2 553 de imagini principale si 412 din galerie.
+Cele 835 ramase sint `retail_only` — acolo versiunea curata chiar nu exista.
+
+> **Ce sa ceri de acum de la orice furnizor de date:** un pasaport ca acesta. Zece minute
+> de citit au inlocuit doua zile de arheologie si un incident.
+
 ### 9.24 Export B2B: o coloana numita „retail" care nu e pretul de raft
 
 Setul officeshop-angro (`all_products angro 1-217.xlsx`, 5 413 randuri x 20 coloane) aduce

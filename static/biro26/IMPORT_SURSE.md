@@ -29,6 +29,7 @@ e format numai din cifre.
 | Cod | Denumire | Tip | Prefix | Algoritm | Doar articol | Produse NOI |
 |---|---|---|---|---|---|---|
 | `OFFICESHOP_B2B` | officeshop.md - export B2B cu preturi ANGRO | B2B | `OS` | UNIVERSAL | da | doar cele noi |
+| `OFFICESHOP_MERGED` | officeshop.md - consolidat retail+angro (recomandat) | B2B | `OS` | UNIVERSAL | da | doar cele noi |
 | `BIROLUX` | Birolux MT SRL | EMAIL | `BLX` | UNIVERSAL | da | doar cele noi |
 | `BNN` | BNN | EMAIL | `BNN` | UNIVERSAL | da | doar cele noi |
 | `CRAFTI` | CRAFTI BUSSINES SRL | EMAIL | `CRF` | UNIVERSAL | da | doar cele noi |
@@ -54,6 +55,19 @@ e format numai din cifre.
 **Particularitati / capcane:**
 
 > CAPCANA: coloana price_retail NU este pretul de raft - la multe randuri e identica cu price_angro_mdl, iar in 1348 din 1369 cazuri pretul nostru era mai mare. Este mapata pe IGNORE: din acest fisier se ia DOAR price_angro_mdl -> ANGRO. Coloanele price_opt_base, sale_price, sale_percent, stock_qty, id_1c sint zgomot (IGNORE). Rand 1 = nota, antetul e pe randul 2. Coloana barcode exista dar e GOALA. Produsele noi de aici raman FARA pret de raft - trebuie pretuite separat.
+
+### OFFICESHOP_MERGED — officeshop.md - consolidat retail+angro (recomandat)
+
+- **Tip:** Portal B2B pentru parteneri
+- **Locatie:** https://officeshop.md (retail SSR + API angro, consolidate)
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `OS` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; goods_merged (27 col) + Images_2 + summary + README
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Fisierul CONSOLIDAT (retail + angro), varianta recomandata - are pasaport propriu: officeshop_prices_retail+angro.README-for-AI.md. Foaia goods_merged (27 col) + Images_2 (galerie). price_retail_site = pretul de raft REAL (din scraping-ul de retail); price_angro = pretul angro efectiv (sale_price daca >0, altfel price_opt). NU folositi articul_retail ca cheie - e euristic (~95%); cheia exacta e articul (din API-ul angro). Site-ul NU publica coduri de bare nicaieri. Grupele au 3 niveluri (group1..group3) - calea completa merge in TMS_MPT_IMPSRC.SRC_GROUP_PATH si in BIRO26_GOODS.PRODUCT_TYPE. Imaginile: preferati URL-urile angro (images_1c), cele retail au filigran (images_1c_watermark). discount_pct poate fi NEGATIV - nu e eroare.
 
 ### BIROLUX — Birolux MT SRL
 
@@ -194,6 +208,7 @@ e format numai din cifre.
 | `CRAFTI.xlsx` | 6 | 8020 | 278–283 | 10.08.2026 |
 | `all_products 2.xlsx` | 3 | 22453 | 284–286 | 12.08.2026 |
 | `all_products angro 1-217.xlsx` | 2 | 12950 | 287–288 | 14.08.2026 |
+| `officeshop_prices_retail+angro.SVERKA.xlsx` | 4 | 15486 | 289–292 | 14.08.2026 |
 
 > ⚠️ Fisierele **birovits** si **officeshop** se numesc amindoua `all_products 2.xlsx`.
 > Numele fisierului NU identifica sursa — de aceea sursa se alege explicit la incarcare.
