@@ -7322,9 +7322,28 @@ def api_biro26_shop_report_xlsx(cod):
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return resp
 
+def _biro26_social_conv(kind, r, amount=None):
+    """RO: inregistreaza conversia in atributia sociala (fail-silent);
+    suma se calculeaza best-effort din payload cind nu e data explicit."""
+    try:
+        if not (r or {}).get('success'):
+            return
+        if amount is None:
+            items = (request.get_json(silent=True) or {}).get('items') or []
+            amount = sum(float(i.get('qty') or 0) * float(i.get('price') or 0)
+                         for i in items if isinstance(i, dict)) or None
+        doc = ((r.get('data') or {}).get('cod')
+               if isinstance(r.get('data'), dict) else None)
+        from models.biro26_social import Biro26Social
+        Biro26Social.conversion(request, kind, doc=doc, amount=amount)
+    except Exception:                                        # noqa: BLE001
+        pass
+
 @app.route('/api/biro26/shop/invoice', methods=['POST'])
 def api_biro26_shop_invoice():
-    return jsonify(Biro26Controller.shop_invoice())
+    r = Biro26Controller.shop_invoice()
+    _biro26_social_conv('invoice', r)
+    return jsonify(r)
 
 @app.route('/api/biro26/b2b/order', methods=['POST'])
 def api_biro26_b2b_order():
