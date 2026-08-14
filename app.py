@@ -242,6 +242,46 @@ def _inject_version_widget(response):
     return response
 
 
+# ── atributia traficului social (fbclid/gclid/utm/referrer) ───────────────
+# RO: nucleul site-ului prinde click-ID-urile TUTUROR retelelor pe paginile
+#     vitrinei, tine prima/ultima atingere in cookie si scrie vizitele
+#     atribuite + conversiile in baza WordPress (wp_op_social_*), unde le
+#     analizeaza pluginul WP «OfficePlus Social Analytics».
+#     Vezi models/biro26_social.py; fail-silent daca MySQL lipseste.
+# EN: social attribution capture on storefront pages; data lands in the
+#     WordPress MySQL schema, analysed by the WP admin plugin.
+_SOCIAL_PREFIXES = ('/UNA.md/orasldev/biro26-site',
+                    '/UNA.md/orasldev/biro26-1shop',
+                    '/UNA.md/orasldev/biro26-shop')
+
+@app.before_request
+def _biro26_social_capture():
+    try:
+        if request.method != 'GET':
+            return
+        if not request.path.startswith(_SOCIAL_PREFIXES):
+            return
+        from models.biro26_social import Biro26Social
+        g._op_social = Biro26Social.on_request(request)
+    except Exception:                                        # noqa: BLE001
+        pass
+
+@app.after_request
+def _biro26_social_cookies(response):
+    try:
+        res = getattr(g, '_op_social', None)
+        if res and res.get('set_cookies'):
+            from models.biro26_social import COOKIE_DAYS
+            for name, val in res['set_cookies'].items():
+                response.set_cookie(
+                    name, val, max_age=COOKIE_DAYS * 86400,
+                    samesite='Lax', secure=request.is_secure,
+                    httponly=True, path='/')
+    except Exception:                                        # noqa: BLE001
+        pass
+    return response
+
+
 def _login_redirect():
     """Редирект на логин с сохранением текущего URL в next= для возврата после входа."""
     next_path = (request.full_path or request.path or "").strip()
