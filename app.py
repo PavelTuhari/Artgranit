@@ -7415,6 +7415,7 @@ def biro26_site_credit_form():
 @app.route('/api/biro26/shop/credit/apply', methods=['POST'])
 def api_biro26_credit_apply():
     r = Biro26Controller.credit_apply()
+    _biro26_social_conv('credit', r)
     return jsonify(r), (200 if r.get('success') else 400)
 
 @app.route('/api/biro26/shop/my-files', methods=['GET'])
