@@ -469,3 +469,53 @@ PL/SQL-блоком.
 переводятся из дерева (`grupa_ru` / `cat_ru`), «Catalog» сбрасывает фильтры,
 группа возвращает к группе целиком. Перерисовываются вместе с сайдбаром, в
 том числе при переключении языка (`onLangChange`).
+
+### Атрибуция соцсетей → WordPress + плагин Social Analytics (2026-08-14)
+
+Контур «как в лучших e-commerce» (WooCommerce Order Attribution / Matomo):
+
+**1. Захват — ядро сайта** (`models/biro26_social.py` + хуки в `app.py`).
+На каждой GET-странице витрины (`biro26-site`, `biro26-1shop`, `biro26-shop`)
+ловятся клик-ID всех платформ: `fbclid` (Meta), `gclid`/`gbraid`/`wbraid`
+(Google Ads), `ttclid` (TikTok), `twclid` (X), `msclkid` (Bing), `yclid`
+(Яндекс), `li_fat_id` (LinkedIn), `igshid`/`igsh` (Instagram), `ScCid`
+(Snapchat), `epik` (Pinterest), `mc_eid` (Mailchimp) — плюс все `utm_*` и
+классификация по referrer (organic из facebook/instagram/t.me/vk/ok/tiktok/
+youtube/google/yandex...). `fbclid` + referrer instagram = канал Instagram.
+
+**2. Cookie атрибуции** — first-party, 90 дней (стандарт Meta/Google):
+`op_vid` (анонимный ID посетителя) и `op_attr` (первое и последнее касание —
+канал, utm_source, кампания, время). IP хранится только как короткий
+солёный SHA-256 (без персональных данных).
+
+**3. Хранение — в WordPress**, как будто WP стоит на приёме внешнего
+трафика: таблицы `wp_op_social_visit` (атрибутированные визиты) и
+`wp_op_social_conv` (конверсии) в MySQL `officeplus_wp`. Пишет Flask через
+pymysql **асинхронно** (очередь + daemon-поток, fail-silent): если MySQL
+недоступен — сайт не замедляется и не падает. Креды в `.env`
+(`WP_DB_NAME/USER/PASSWORD/HOST`, извлечены из `wp-config.php` на сервере,
+в репозиторий не попадают).
+
+**4. Конверсии** пишутся на четырёх точках: `/api/biro26/shop/invoice`
+(счёт из корзины), `/api/biro26/b2b/order`, `/api/biro26/shop/credit/apply`
+(анкета Microinvest) и `/api/biro26/shop/credit/request` — с first/last
+каналом, кампанией, суммой и номером документа; без атрибуции канал
+`direct` (базовая линия для сравнения).
+
+**5. Анализ — WP-плагин `officeplus-social-analytics`** (активирован на
+обоих контурах, меню «Social Analytics» в админке WP + виджет на Dashboard):
+по каналам — клики, посетители, конверсии, конверсия %, сумма; топ-кампании
+по `utm_campaign`; последние конверсии. Периоды 7/30/90/365 дней.
+Активация плагина сама создаёт таблицы (dbDelta), Flask-сторона делает то
+же через `CREATE TABLE IF NOT EXISTS` — кто первый.
+
+**6. Гигиена URL**: после захвата `site.js` убирает трекинг-параметры из
+адресной строки (`history.replaceState`), функциональные (`grupa`, `q`...)
+не трогаются — ссылка при копировании чистая.
+
+Развёрнуто на обоих контурах: officeplus (WP `/var/www/officeplus`) и
+nufarul (WP `/var/www/wpuna/.../biro26-wp`). Проверено сквозняком: заход с
+реальным fbclid из Facebook → строка в `wp_op_social_visit` (канал
+facebook), `utm_source=tg` → telegram, `gclid` → google-ads; cookie
+корректно читается обратно при конверсии (экранирование Werkzeug учтено).
+Тестовые строки удалены. `pymysql` добавлен в `requirements.txt`.

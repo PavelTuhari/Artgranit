@@ -17,3 +17,4 @@ mammoth>=1.6.0
 pdfminer.six>=20221105
 
 weasyprint>=61.0          # ядро отчётности: HTML -> PDF (rapoarte Biro26, без браузера)
+pymysql>=1.1
