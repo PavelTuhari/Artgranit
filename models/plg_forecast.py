@@ -414,19 +414,28 @@ class ForecastEngine:
             self._check_cancel()
             self._progress(f"store {store_id}", int(si / len(stores) * 100))
 
-            # Индекс проходимости зоны для promo_reg
+            # Индекс проходимости зоны для promo_reg.
+            #
+            # Индекс — это ИЗМЕНЕНИЕ трафика зоны (последняя неделя против всего
+            # окна истории), а не его абсолютный уровень. Абсолютный уровень уже
+            # «зашит» в базовую линию SKU, и умножение на него double-count'ит:
+            # категории с большим трафиком держат и больше SKU, поэтому средний
+            # по товарам индекс уезжает выше единицы и прогноз systematically завышается.
             traffic_by_cat: Dict[int, float] = {}
             if algorithm == 'promo_reg' and params.get('use_traffic'):
-                for (cid, pct) in self._fetch(
-                        "SELECT z.CATEGORY_ID, AVG(t.TRAFFIC_PCT) FROM PLG_ZONES z "
-                        "JOIN PLG_ZONE_TRAFFIC t ON t.ZONE_ID = z.ID "
+                for (cid, recent, overall) in self._fetch(
+                        "SELECT z.CATEGORY_ID, "
+                        "  AVG(CASE WHEN t.METRIC_DATE > :p_recent THEN t.TRAFFIC_PCT END), "
+                        "  AVG(t.TRAFFIC_PCT) "
+                        "FROM PLG_ZONES z JOIN PLG_ZONE_TRAFFIC t ON t.ZONE_ID = z.ID "
                         "WHERE z.STORE_ID = :p_st AND z.CATEGORY_ID IS NOT NULL "
-                        "GROUP BY z.CATEGORY_ID", {"p_st": store_id}):
-                    traffic_by_cat[int(cid)] = float(pct or 60)
-                if traffic_by_cat:
-                    avg_traffic = sum(traffic_by_cat.values()) / len(traffic_by_cat)
-                    traffic_by_cat = {k: (v / avg_traffic if avg_traffic else 1.0)
-                                      for k, v in traffic_by_cat.items()}
+                        "AND t.METRIC_DATE <= :p_origin GROUP BY z.CATEGORY_ID",
+                        {"p_st": store_id, "p_recent": origin - timedelta(days=7),
+                         "p_origin": origin}):
+                    if not recent or not overall:
+                        continue
+                    # Ограничение: трафик — вспомогательный сигнал, а не главный
+                    traffic_by_cat[int(cid)] = min(1.25, max(0.80, float(recent) / float(overall)))
 
             # Плановые акции на горизонте (по SKU)
             future_promo: Dict[int, set] = {}
