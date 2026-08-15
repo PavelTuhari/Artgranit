@@ -2714,7 +2714,9 @@ class PlanogramController:
                     "ROUND(SUM(WASTE_FORECAST),2) AS WASTE_QTY, "
                     "ROUND(SUM(WASTE_AMOUNT),2) AS WASTE_AMOUNT, "
                     "SUM(SHELF_LIMITED) AS SHELF_LIMITED "
-                    f"FROM V_PLG_FRESH_ORDER WHERE RUN_ID IN ({in_list}) GROUP BY ROUTE")
+                    f"FROM V_PLG_FRESH_ORDER WHERE RUN_ID IN ({in_list})"
+                    + (" AND STORE_ID = :p_st" if store_id else "")
+                    + " GROUP BY ROUTE", params)
             return {"success": True, "lang": lang, "run_id": run_ids[0],
                     "run_ids": run_ids, "data": data,
                     "summary": PlanogramController._rows(summary)}
