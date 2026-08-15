@@ -85,6 +85,15 @@ CREATE INDEX IX_PLG_PRODUCTS_DS ON PLG_PRODUCTS (DATASET_ID);
 -- Формат магазина нужен генератору сети (гипер / супер / дискаунтер / у дома)
 ALTER TABLE PLG_STORES ADD (STORE_FORMAT VARCHAR2(20) DEFAULT 'super');
 
+-- Логистические атрибуты товара — без них прогноз не превращается в заказ
+ALTER TABLE PLG_PRODUCTS ADD (
+  ABC_CLASS       VARCHAR2(1),          -- A / B / C по вкладу в оборот
+  ORDER_MULTIPLE  NUMBER DEFAULT 1,     -- кратность заказа (короб)
+  LEAD_TIME_DAYS  NUMBER DEFAULT 2,     -- срок поставки
+  SHELF_LIFE_DAYS NUMBER,               -- срок годности
+  SUPPLIER        VARCHAR2(150)
+);
+
 -- ==================== Факт продаж (основа прогноза заказов) ====================
 
 CREATE TABLE PLG_SALES_DAILY (
