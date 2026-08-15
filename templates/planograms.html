@@ -858,7 +858,7 @@ const DEMO_MSG = 'Демо-режим: просмотр без изменени�
 // Только изменяющие действия. Просмотровые (go, navClick, setLang, setPeriod,
 // openPlanogramDetail, openSupplierCard, showProcess, compareModels) остаются
 // рабочими — иначе демонстрировать было бы нечего.
-const WRITE_RE = /^(save[A-Z]|delete[A-Z]|cancelGen|cancelFct|doImport|markRead|markAllRead|runForecast|startGeneration|setPlgStatus|openProcessImport|open[A-Za-z]*Modal)\b/;
+const WRITE_RE = /^(save[A-Z]|delete[A-Z]|cancelGen|cancelFct|doImport|markRead|markAllRead|runForecast|startGeneration|setPlgStatus|openProcessImport|open[A-Za-z]*Modal)/;
 
 function demoGuard() {
     if (!DEMO) return;
