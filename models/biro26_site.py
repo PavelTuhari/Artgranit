@@ -54,11 +54,13 @@ class Biro26Site:
                     deal["product"] = rows[0]
             except Exception:
                 deal = None
-        return {"success": True, "data": {
+        res = {"success": True, "data": {
             "hero": [{k.lower(): v for k, v in h.items()} for h in hero],
             "sections": [{k.lower(): v for k, v in s.items()} for s in sections],
             "featured": Biro26Site.featured_products(),
             "deal": deal}}
+        c.update(exp=_t.time() + 60, data=res)
+        return res
 
     # ── admin: hero slides CRUD ────────────────────────────────────────
     @staticmethod
