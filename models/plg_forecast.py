@@ -501,8 +501,11 @@ def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
         elif step > 0:
             order = math.ceil(order / step) * step
 
-    # Ожидаемое списание: сколько из партии не успеет продаться за usable_days
-    sell_days = min(usable_days, coverage_days) if shelf_life else coverage_days
+    # Ожидаемое списание: сколько из партии не успеет продаться ЗА СВОЙ СРОК,
+    # а не за окно поставки. Партия живёт usable_days и всё это время продаётся;
+    # считать её потерянной на границе следующего завоза — та же ошибка, что и
+    # с полной стоимостью списания выше.
+    sell_days = min(usable_days, 14.0) if shelf_life else coverage_days
     mu_sell = demand_between(d1, int(math.ceil(sell_days))) if sell_days > 0 else mu
     sigma_sell = sigma_daily * math.sqrt(max(1.0, sell_days))
     available = order + max(0.0, stock - mu_until_arrival)
