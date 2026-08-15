@@ -24,13 +24,40 @@ class Biro26Site:
         Biro26Site._config_cache["exp"] = 0.0
         Biro26Site._featured_cache["exp"] = 0.0
 
+    _config_refreshing = False
+
     # ── public: configuratia vitrinei pentru pagina principala ─────────
     @staticmethod
     def config() -> Dict[str, Any]:
+        """RO: stale-while-revalidate — dupa expirare se intoarce IMEDIAT
+        copia veche, iar reimprospatarea (3-4 interogari prin subprocesul
+        Oracle, ~15s la rece) ruleaza intr-un fir de fundal. Doar primul
+        apel dupa pornire plateste pretul intreg.
+        EN: serve stale instantly, refresh in a background thread."""
+        import threading as _th
         import time as _t
         c = Biro26Site._config_cache
-        if c["data"] is not None and c["exp"] > _t.time():
+        if c["data"] is not None:
+            if c["exp"] <= _t.time() and not Biro26Site._config_refreshing:
+                Biro26Site._config_refreshing = True
+                _th.Thread(target=Biro26Site._config_refresh,
+                           daemon=True).start()
             return c["data"]
+        return Biro26Site._config_load()
+
+    @staticmethod
+    def _config_refresh() -> None:
+        try:
+            Biro26Site._config_load()
+        except Exception:                                    # noqa: BLE001
+            pass
+        finally:
+            Biro26Site._config_refreshing = False
+
+    @staticmethod
+    def _config_load() -> Dict[str, Any]:
+        import time as _t
+        c = Biro26Site._config_cache
         db = Biro26DB()
         hero = _rows(db.execute_query(
             "SELECT ID, KICKER_RO, KICKER_RU, TITLE_RO, TITLE_RU, SUB_RO, "
