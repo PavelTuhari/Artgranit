@@ -656,6 +656,83 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 </div>
             </section>
 
+            <!-- ===== Фреш: маршруты, профили категорий, заказ ===== -->
+            <section class="panel" id="panel-fresh">
+                <div class="cards" id="freshStats"></div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fr.routesTitle">Маршруты поставки фреш</div>
+                            <div class="sub" data-i18n="fr.routesSub">Через распределительный центр либо прямой поставкой. Календарь: пн-вс</div>
+                        </div>
+                        <select class="ctl" id="freshRouteFilter" onchange="loadFresh()"></select>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="freshRoutesTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fr.profilesTitle">Профили категорий</div>
+                            <div class="sub" data-i18n="fr.profilesSub">Срок годности, презентационный минимум и целевой уровень списаний</div>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="freshProfTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fr.orderTitle">Рекомендуемый заказ фреш</div>
+                            <div class="sub" data-i18n="fr.orderSub">Покрытие до следующей поставки и ожидаемое списание по каждой позиции</div>
+                        </div>
+                        <div id="freshRunInfo" class="small muted"></div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="freshOrderTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Заказы из торгового зала (мобильное приложение) ===== -->
+            <section class="panel" id="panel-floor-orders">
+                <div class="cards" id="floorStats"></div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fo.ordersTitle">Заказы из зала</div>
+                            <div class="sub" data-i18n="fo.ordersSub">Надиктованы с телефона у полки, ждут решения категорийного менеджера</div>
+                        </div>
+                        <select class="ctl" id="floorStatusFilter" onchange="loadFloorOrders()"></select>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="floorOrdersTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fo.devicesTitle">Устройства</div>
+                            <div class="sub" data-i18n="fo.devicesSub">Доступ по токену устройства; отзыв мгновенный</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="openDeviceModal()" data-i18n="fo.newDevice">Новое устройство</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="devicesTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fo.voiceTitle">Журнал распознавания</div>
+                            <div class="sub" data-i18n="fo.voiceSub">Что сказали у полки и как система это поняла</div>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="voiceLogTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fo.synTitle">Речевой словарь</div>
+                            <div class="sub" data-i18n="fo.synSub">Как товар называют в зале. Пополняется вручную и из подтверждённых правок</div>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="synTbl"></table></div>
+                </div>
+            </section>
+
             <!-- ===== Бизнес-процессы (схемы draw.io) ===== -->
             <section class="panel" id="panel-processes">
                 <div class="card">
