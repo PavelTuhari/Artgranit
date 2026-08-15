@@ -6336,6 +6336,20 @@ if _missing_refs:
           'in Biro26Controller (fisiere din commit-uri diferite?): '
           + ', '.join(_missing_refs))
 
+# RO: incalzirea cache-ului /api/biro26/site/config in fundal la pornire —
+#     altfel PRIMUL vizitator dupa restart astepta ~15s (3-4 interogari prin
+#     subprocesul Oracle thick). Dupa incalzire raspunsul e din cache (<0.3s),
+#     iar expirarile se reimprospateaza tot in fundal (stale-while-revalidate).
+# EN: warm the site-config cache at boot so the first visitor never pays.
+def _biro26_warm_site_config():
+    try:
+        from models.biro26_site import Biro26Site
+        Biro26Site.config()
+    except Exception:                                        # noqa: BLE001
+        pass
+
+threading.Thread(target=_biro26_warm_site_config, daemon=True).start()
+
 @app.route('/api/biro26/img', methods=['GET'])
 def api_biro26_img():
     """RO: serveste pe HTTPS o imagine gazduita doar pe HTTP (impreso.md).
