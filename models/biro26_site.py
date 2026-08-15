@@ -139,6 +139,7 @@ class Biro26Site:
                 "VALUES (YBIRO_SITE_DEAL_SEQ.NEXTVAL, :c, CASE WHEN :d IS NULL "
                 "THEN NULL ELSE TO_DATE(:d,'YYYY-MM-DD HH24:MI') END, :e)",
                 {"c": cod, "d": ends, "e": enabled})
+        Biro26Site._invalidate()
         return r if r.get("success") else {"success": False,
                                            "error": r.get("message")}
 
