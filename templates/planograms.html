@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Планограммы — Artgranit</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg: #f2f4f8;
+    --card: #ffffff;
+    --sidebar: #131c2e;
+    --sidebar-fg: #c8d8f0;
+    --sidebar-active: #1f3050;
+    --border: #e3e8ef;
+    --fg: #14213d;
+    --muted: #6b7a90;
+    --accent: #2563eb;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --crit: #ef4444;
+    --map-bg: #0d1626;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg); color: var(--fg); height: 100vh; overflow: hidden;
+    font-size: 13px;
+}
+
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ===== Sidebar ===== */
+.sidebar {
+    width: 214px; flex-shrink: 0; background: var(--sidebar);
+    display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,.05);
+}
+.sb-logo { padding: 14px 14px 12px; border-bottom: 1px solid rgba(255,255,255,.07);
+    display: flex; align-items: center; gap: 10px; }
+.sb-logo .mark { width: 36px; height: 36px; border-radius: 8px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.sb-logo .t1 { color: #fff; font-weight: 700; font-size: 13px; line-height: 1.2; }
+.sb-logo .t2 { color: var(--sidebar-fg); font-size: 10px; opacity: .7; }
+
+.sb-nav { flex: 1; padding: 8px; overflow-y: auto; }
+.nav-item {
+    width: 100%; display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+    border-radius: 6px; border: none; cursor: pointer; background: transparent;
+    color: var(--sidebar-fg); font-size: 12.5px; margin-bottom: 1px; text-align: left;
+    font-family: inherit; transition: background .15s;
+}
+.nav-item:hover { background: rgba(255,255,255,.06); }
+.nav-item.active { background: var(--sidebar-active); color: #fff; font-weight: 600; }
+.nav-item .ic { font-size: 14px; width: 16px; text-align: center; }
+.nav-item .lbl { flex: 1; }
+.nav-item .badge { background: var(--crit); color: #fff; font-size: 9px; font-weight: 700;
+    border-radius: 10px; padding: 1px 5px; line-height: 14px; }
+.nav-item .caret { font-size: 10px; opacity: .6; }
+.nav-children { padding-left: 16px; margin-bottom: 4px; }
+.nav-child {
+    width: 100%; display: block; padding: 5px 10px; border-radius: 5px; border: none;
+    cursor: pointer; background: transparent; color: rgba(200,216,240,.65); font-size: 11.5px;
+    text-align: left; margin-bottom: 1px; font-family: inherit;
+    border-left: 2px solid transparent;
+}
+.nav-child:hover { color: #fff; }
+.nav-child.active { background: rgba(37,99,235,.25); color: #93c5fd; border-left-color: #3b82f6; }
+
+.sb-foot { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.07); }
+.lang-switch { display: flex; gap: 4px; margin-bottom: 10px; }
+.lang-btn {
+    flex: 1; padding: 4px 0; border-radius: 5px; border: 1px solid rgba(255,255,255,.12);
+    background: transparent; color: var(--sidebar-fg); font-size: 11px; cursor: pointer;
+    font-family: inherit; text-transform: uppercase; letter-spacing: .5px;
+}
+.lang-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.sb-user { display: flex; align-items: center; gap: 10px; }
+.sb-user .ava { width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; color: #fff;
+    font-size: 12px; font-weight: 600; flex-shrink: 0; }
+.sb-user .nm { color: #fff; font-size: 12px; font-weight: 600; }
+.sb-user .rl { color: var(--sidebar-fg); font-size: 10px; opacity: .7; }
+.sb-user a { margin-left: auto; color: rgba(200,216,240,.5); text-decoration: none; font-size: 14px; }
+
+/* ===== Main ===== */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar {
+    background: #fff; border-bottom: 1px solid var(--border); padding: 0 20px; height: 52px;
+    display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.searchbox { display: flex; align-items: center; gap: 8px; background: var(--bg);
+    border-radius: 8px; padding: 6px 12px; max-width: 380px; flex: 1; }
+.searchbox input { border: none; background: none; outline: none; font-size: 12.5px;
+    color: var(--fg); width: 100%; font-family: inherit; }
+.icon-btn { position: relative; background: var(--bg); border: none; border-radius: 8px;
+    width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 15px; }
+.icon-btn .dot { position: absolute; top: 4px; right: 4px; background: var(--crit); color: #fff;
+    font-size: 8px; font-weight: 700; border-radius: 8px; padding: 0 3px; line-height: 12px; }
+
+.content { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex;
+    flex-direction: column; gap: 14px; }
+.panel { display: none; flex-direction: column; gap: 14px; }
+.panel.active { display: flex; }
+
+.page-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.page-head h1 { font-size: 21px; font-weight: 700; }
+.crumbs { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.toolbar .spacer { margin-left: auto; }
+select.ctl, input.ctl {
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12.5px;
+    background: #fff; color: var(--fg); font-family: inherit; outline: none;
+}
+.btn { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-ghost { background: #fff; border: 1px solid var(--border); color: var(--fg); font-weight: 500; }
+.btn-danger { background: var(--crit); color: #fff; }
+.btn-sm { padding: 3px 9px; font-size: 11px; border-radius: 6px; }
+.upd { text-align: right; font-size: 10px; color: var(--muted); }
+.upd b { display: block; font-size: 11px; color: var(--fg); font-weight: 500; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.card-h { padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.card-h .ttl { font-size: 14px; font-weight: 600; }
+.card-h .sub { font-size: 11px; color: var(--muted); }
+.card-b { padding: 14px 16px; }
+
+.grid-main { display: grid; grid-template-columns: minmax(0,1fr) 288px; gap: 14px; align-items: start; }
+@media (max-width: 1180px) { .grid-main { grid-template-columns: 1fr; } }
+.side-col { display: flex; flex-direction: column; gap: 12px; }
+
+.legend { display: flex; gap: 9px; font-size: 10px; align-items: center; flex-wrap: wrap; }
+.legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 3px; }
+.legend span { color: var(--muted); }
+
+.map-wrap { padding: 10px; background: var(--map-bg); border-radius: 0 0 12px 12px; }
+
+.kv-row { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.kv-row + .kv-row { margin-top: 5px; }
+.kv-row .lb { font-size: 10.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.kv-row .lb i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.kv-row .vl { font-size: 11px; font-weight: 600; }
+
+.cat-row { display: flex; align-items: center; gap: 6px; }
+.cat-row + .cat-row { margin-top: 6px; }
+.cat-row .rk { width: 14px; font-size: 10px; color: var(--muted); text-align: center; }
+.cat-row .nm { flex: 1; font-size: 11px; }
+.cat-row .ct { font-size: 11px; color: var(--muted); }
+.cat-row .dl { font-size: 10px; font-weight: 600; min-width: 36px; text-align: right; }
+
+.promo-row { display: flex; align-items: center; gap: 8px; }
+.promo-row + .promo-row { margin-top: 8px; }
+.promo-row .lb { width: 30px; height: 28px; border-radius: 6px; display: flex; align-items: center;
+    justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+.promo-row .nm { font-size: 11.5px; font-weight: 500; }
+.promo-row .ex { font-size: 10px; color: var(--muted); }
+.pill { font-size: 9px; font-weight: 600; border-radius: 4px; padding: 2px 6px; white-space: nowrap; }
+.pill.ok { color: #15803d; background: #dcfce7; }
+.pill.warn { color: #92400e; background: #fef3c7; }
+.pill.crit { color: #991b1b; background: #fee2e2; }
+.pill.info { color: #1e40af; background: #dbeafe; }
+.pill.mute { color: #475569; background: #e2e8f0; }
+
+.notif-row { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.notif-row + .notif-row { margin-top: 8px; }
+.notif-row .dt { width: 6px; height: 6px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.notif-row .tx { font-size: 11px; line-height: 1.35; }
+.notif-row .tm { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 1024px) { .metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.metric { background: var(--bg); border-radius: 10px; padding: 12px 14px; }
+.metric .lb { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.metric .vl { font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+.metric .dl { font-size: 11px; font-weight: 600; margin: 2px 0 8px; }
+.metric .dl.up { color: var(--ok); } .metric .dl.down { color: var(--crit); }
+
+table.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.tbl th { text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 600; }
+table.tbl td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.tbl tr:last-child td { border-bottom: none; }
+table.tbl tbody tr:hover { background: #f8fafc; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+.muted { color: var(--muted); }
+.empty { text-align: center; color: var(--muted); padding: 22px; font-size: 12px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; border-top: 3px solid var(--accent); }
+.stat.g { border-top-color: var(--ok); } .stat.w { border-top-color: var(--warn); }
+.stat.r { border-top-color: var(--crit); }
+.stat .lb { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+.stat .vl { font-size: 24px; font-weight: 700; margin-top: 3px; }
+.stat .sb { font-size: 11px; color: var(--muted); }
+
+/* ===== Modal / toast ===== */
+.overlay { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: none;
+    align-items: center; justify-content: center; z-index: 900; padding: 20px; }
+.overlay.on { display: flex; }
+.modal { background: #fff; border-radius: 12px; width: 100%; max-width: 760px;
+    max-height: 88vh; overflow-y: auto; padding: 20px 22px; }
+.modal h3 { font-size: 16px; margin-bottom: 14px; }
+.frow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
+.frow3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+.fg label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.fg input, .fg select, .fg textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 7px; padding: 7px 9px;
+    font-size: 12.5px; font-family: inherit; outline: none; background: #fff; color: var(--fg);
+}
+.fg textarea { min-height: 64px; resize: vertical; }
+.btn-row { display: flex; gap: 8px; margin-top: 14px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #14213d; color: #fff;
+    padding: 11px 16px; border-radius: 9px; font-size: 12.5px; z-index: 950;
+    opacity: 0; transform: translateY(8px); transition: all .2s; max-width: 380px; }
+.toast.on { opacity: 1; transform: translateY(0); }
+.toast.err { background: var(--crit); }
+
+.zone-tip { position: fixed; background: #0f172a; color: #fff; padding: 6px 9px; border-radius: 6px;
+    font-size: 11px; pointer-events: none; z-index: 800; display: none; line-height: 1.4; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar">
+        <div class="sb-logo">
+            <div class="mark">🏪</div>
+            <div>
+                <div class="t1" id="sbStoreName">—</div>
+                <div class="t2" data-i18n="app.subtitle">Внутренний портал</div>
+            </div>
+        </div>
+        <nav class="sb-nav" id="sbNav"></nav>
+        <div class="sb-foot">
+            <div class="lang-switch" id="langSwitch"></div>
+            <div class="sb-user">
+                <div class="ava" id="userAva">—</div>
+                <div style="flex:1;min-width:0">
+                    <div class="nm" id="userName">{{ session.get('username', 'user') }}</div>
+                    <div class="rl" data-i18n="app.title">Планограммы</div>
+                </div>
+                <a href="/UNA.md/orasldev/" title="modules">⎋</a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ===== Main ===== -->
+    <div class="main">
+        <header class="topbar">
+            <div class="searchbox">
+                <span class="muted">🔍</span>
+                <input id="globalSearch" data-i18n-ph="ui.search" placeholder="Поиск…">
+            </div>
+            <div class="spacer" style="flex:1"></div>
+            <button class="icon-btn" onclick="go('notifications')">🔔<span class="dot" id="notifDot" style="display:none">0</span></button>
+            <button class="icon-btn" onclick="go('settings')">⚙</button>
+        </header>
+
+        <div class="content">
+
+            <div class="page-head">
+                <div>
+                    <h1 id="pageTitle">—</h1>
+                    <div class="crumbs" id="pageCrumbs">—</div>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <span class="muted" data-i18n="ui.store">Магазин:</span>
+                <select class="ctl" id="storeSel" onchange="onStoreChange()"></select>
+                <div class="spacer"></div>
+                <div class="upd">
+                    <span data-i18n="ui.updated">Данные обновлены</span>
+                    <b id="lastUpd">—</b>
+                </div>
+                <button class="btn btn-ghost" onclick="reloadActive()" title="refresh">🔄</button>
+                <button class="btn btn-primary" id="refreshBtn" onclick="reloadActive()" data-i18n="ui.refresh">Обновить данные</button>
+            </div>
+
+            <!-- ===== Обзор ===== -->
+            <section class="panel active" id="panel-overview">
+                <div class="grid-main">
+                    <div class="card">
+                        <div class="card-h">
+                            <div>
+                                <div class="ttl" data-i18n="map.title">Карта магазина</div>
+                                <div class="sub" data-i18n="map.subtitle">Актуальная планограмма и проходимость</div>
+                            </div>
+                            <div class="legend" id="mapLegend"></div>
+                        </div>
+                        <div class="map-wrap" id="mapHost"></div>
+                    </div>
+                    <div class="side-col">
+                        <div class="card"><div class="card-b">
+                            <div class="ttl" style="font-weight:600;font-size:13px" data-i18n="donut.title">Проходимость</div>
+                            <div class="sub" style="font-size:11px;color:var(--muted);margin-bottom:10px" data-i18n="donut.subtitle">Текущая проходимость</div>
+                            <div style="display:flex;align-items:center;gap:12px">
+                                <div id="donutHost" style="width:92px;flex-shrink:0"></div>
+                                <div style="flex:1" id="donutLegend"></div>
+                            </div>
+                        </div></div>
+                        <div class="card"><div class="card-b">
+                            <div style="font-weight:600;font-size:13px" data-i18n="cat.title">Топ категории</div>
+                            <div style="font-size:11px;color:var(--muted);margin-bottom:10px" data-i18n="cat.subtitle">По проходимости</div>
+                            <div id="catHost"></div>
+                        </div></div>
+                        <div class="card"><div class="card-b">
+                            <div style="font-weight:600;font-size:13px" data-i18n="promo.title">Активные акции</div>
+                            <div style="font-size:11px;color:var(--muted);margin-bottom:10px" data-i18n="promo.subtitle">Сейчас в магазине</div>
+                            <div id="promoHost"></div>
+                        </div></div>
+                        <div class="card"><div class="card-b">
+                            <div style="font-weight:600;font-size:13px" data-i18n="notify.title">Уведомления</div>
+                            <div style="font-size:11px;color:var(--muted);margin-bottom:10px" id="notifSub">—</div>
+                            <div id="notifHost"></div>
+                            <button class="btn btn-ghost btn-sm" style="margin-top:10px;border:none;color:var(--accent);padding:0;background:none"
+                                    onclick="go('notifications')" data-i18n="notify.viewAll">Смотреть все →</button>
+                        </div></div>
+                    </div>
+                </div>
+
+                <div class="card"><div class="card-b">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <div>
+                            <div style="font-weight:600;font-size:13px" data-i18n="metrics.title">Динамика показателей</div>
+                            <div style="font-size:11px;color:var(--muted)" id="metricsSub">—</div>
+                        </div>
+                        <div style="display:flex;gap:4px" id="periodBtns"></div>
+                    </div>
+                    <div class="metric-grid" id="metricHost"></div>
+                </div></div>
+            </section>
+
+            <!-- ===== План магазина ===== -->
+            <section class="panel" id="panel-storemap">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="map.title">Карта магазина</div>
+                            <div class="sub" id="mapFullSub">—</div>
+                        </div>
+                        <div class="legend" id="mapLegend2"></div>
+                    </div>
+                    <div class="map-wrap" id="mapHost2"></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="an.byZone">Проходимость по зонам</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="zoneTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Список планограмм ===== -->
+            <section class="panel" id="panel-plglist">
+                <div class="toolbar">
+                    <select class="ctl" id="plgStatusFilter" onchange="loadPlanograms()"></select>
+                    <div class="spacer"></div>
+                    <button class="btn btn-primary" onclick="openPlanogramModal()" data-i18n="plg.new">Новая планограмма</button>
+                </div>
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="plgTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== История изменений ===== -->
+            <section class="panel" id="panel-history">
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="histTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Аналитика ===== -->
+            <section class="panel" id="panel-analytics">
+                <div class="stat-grid" id="anStats"></div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="an.byZone">Проходимость по зонам</div></div>
+                    <div class="card-b" id="anZones"></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="an.byCategory">Показатели по категориям</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="anCatTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Товары ===== -->
+            <section class="panel" id="panel-products">
+                <div class="toolbar">
+                    <select class="ctl" id="prodCatFilter" onchange="loadProducts()"></select>
+                    <input class="ctl" id="prodSearch" data-i18n-ph="ui.search" placeholder="…" oninput="debounce(loadProducts)">
+                    <div class="spacer"></div>
+                    <button class="btn btn-primary" onclick="openProductModal()" data-i18n="prod.new">Новый товар</button>
+                </div>
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="prodTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Акции ===== -->
+            <section class="panel" id="panel-promos">
+                <div class="toolbar">
+                    <div class="spacer"></div>
+                    <button class="btn btn-primary" onclick="openPromoModal()" data-i18n="pr.new">Новая акция</button>
+                </div>
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="promoTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Оборудование ===== -->
+            <section class="panel" id="panel-equipment">
+                <div class="toolbar">
+                    <div class="spacer"></div>
+                    <button class="btn btn-primary" onclick="openFixtureModal()" data-i18n="eq.new">Новое оборудование</button>
+                </div>
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="fixtTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Задачи ===== -->
+            <section class="panel" id="panel-tasks">
+                <div class="toolbar">
+                    <select class="ctl" id="taskStatusFilter" onchange="loadTasks()"></select>
+                    <div class="spacer"></div>
+                    <button class="btn btn-primary" onclick="openTaskModal()" data-i18n="task.new">Новая задача</button>
+                </div>
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="taskTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Документы ===== -->
+            <section class="panel" id="panel-docs">
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="docTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Уведомления ===== -->
+            <section class="panel" id="panel-notifications">
+                <div class="toolbar">
+                    <div class="spacer"></div>
+                    <button class="btn btn-ghost" onclick="markAllRead()" data-i18n="notify.markRead">Отметить прочитанным</button>
+                </div>
+                <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
+                    <table class="tbl" id="notifTbl"></table>
+                </div></div>
+            </section>
+
+            <!-- ===== Настройки ===== -->
+            <section class="panel" id="panel-settings">
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="set.title">Настройки модуля</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="setTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="set.audit">Журнал действий</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="auditTbl"></table></div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+    <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="zone-tip" id="zoneTip"></div>
+
+<script>
+// ==================== Состояние ====================
+const API = '/api/plg';
+let LANG = localStorage.getItem('plg_lang') || 'ru';
+let STORE_ID = null;
+let I18N = {};
+let REFS = {};
+let STORES = [];
+let MAP = {store: null, zones: [], fixtures: []};
+let DASH = null;
+let PERIOD = 7;
+let ACTIVE = 'overview';
+let PLG_OPEN = true;
+let debounceTimer = null;
+
+const NAV = [
+    {id: 'overview',      icon: '⌂', key: 'nav.home'},
+    {id: 'planograms',    icon: '▦', key: 'nav.planograms', children: [
+        {id: 'overview',  key: 'nav.overview'},
+        {id: 'storemap',  key: 'nav.storemap'},
+        {id: 'plglist',   key: 'nav.plglist'},
+        {id: 'history',   key: 'nav.history'},
+    ]},
+    {id: 'analytics',     icon: '◈', key: 'nav.analytics'},
+    {id: 'products',      icon: '⊟', key: 'nav.products'},
+    {id: 'promos',        icon: '◎', key: 'nav.promos'},
+    {id: 'equipment',     icon: '⊞', key: 'nav.equipment'},
+    {id: 'tasks',         icon: '✓', key: 'nav.tasks'},
+    {id: 'docs',          icon: '☰', key: 'nav.docs'},
+    {id: 'notifications', icon: '🔔', key: 'nav.notifications', badge: true},
+    {id: 'settings',      icon: '⚙', key: 'nav.settings'},
+];
+
+const CRUMB = {
+    overview: ['nav.planograms', 'nav.overview'],
+    storemap: ['nav.planograms', 'nav.storemap'],
+    plglist:  ['nav.planograms', 'nav.plglist'],
+    history:  ['nav.planograms', 'nav.history'],
+};
+
+// ==================== Утилиты ====================
+function t(key, fallback) { return I18N[key] || fallback || key; }
+function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function num(n) {
+    if (n === null || n === undefined || n === '') return '—';
+    return Number(n).toLocaleString(LANG === 'en' ? 'en-US' : LANG === 'ro' ? 'ro-RO' : 'ru-RU');
+}
+function money(n) {
+    if (n === null || n === undefined || n === '') return '—';
+    return num(Math.round(Number(n))) + ' ' + (DASH?.stats?.currency || 'MDL');
+}
+function fmtDate(v) {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d)) return String(v).slice(0, 10);
+    return d.toLocaleDateString(LANG === 'en' ? 'en-GB' : LANG === 'ro' ? 'ro-RO' : 'ru-RU');
+}
+function fmtTs(v) {
+    if (!v) return '—';
+    const d = new Date(v);
+    if (isNaN(d)) return String(v);
+    const loc = LANG === 'en' ? 'en-GB' : LANG === 'ro' ? 'ro-RO' : 'ru-RU';
+    return d.toLocaleDateString(loc) + ' ' + d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
+}
+function pct(n) { return (n === null || n === undefined) ? '—' : Number(n).toFixed(1) + '%'; }
+function debounce(fn) { clearTimeout(debounceTimer); debounceTimer = setTimeout(fn, 320); }
+
+function toast(msg, isErr) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast on' + (isErr ? ' err' : '');
+    setTimeout(() => { el.className = 'toast' + (isErr ? ' err' : ''); }, 3200);
+}
+function openModal(html) {
+    document.getElementById('modal').innerHTML = html;
+    document.getElementById('overlay').classList.add('on');
+}
+function closeModal() { document.getElementById('overlay').classList.remove('on'); }
+function gv(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function gn(id) { const v = gv(id); return v === '' ? null : Number(v); }
+
+async function api(path, method, body) {
+    const sep = path.includes('?') ? '&' : '?';
+    const opts = {method: method || 'GET', headers: {'Content-Type': 'application/json'}};
+    if (body) opts.body = JSON.stringify(body);
+    try {
+        const res = await fetch(API + path + sep + 'lang=' + LANG, opts);
+        return await res.json();
+    } catch (e) {
+        return {success: false, error: String(e)};
+    }
+}
+
+// ==================== i18n ====================
+function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n, el.textContent);
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        el.placeholder = t(el.dataset.i18nPh, el.placeholder);
+    });
+    document.documentElement.lang = LANG;
+    renderNav();
+    renderLangSwitch();
+    renderPageHead();
+    renderLegend();
+    renderPeriodBtns();
+    fillFilters();
+}
+
+function renderLangSwitch() {
+    const list = (REFS.langs || []).map(l => l.code);
+    const codes = list.length ? list : ['ru', 'ro', 'en'];
+    document.getElementById('langSwitch').innerHTML = codes.map(c =>
+        `<button class="lang-btn ${c === LANG ? 'active' : ''}" onclick="setLang('${c}')">${esc(c)}</button>`
+    ).join('');
+}
+
+async function setLang(code) {
+    if (code === LANG) return;
+    LANG = code;
+    localStorage.setItem('plg_lang', code);
+    const r = await api('/i18n');
+    if (r.success) I18N = r.data;
+    const refs = await api('/refs');
+    if (refs.success) REFS = refs.data;
+    await loadStores();
+    applyI18n();
+    await loadMap();
+    reloadActive();
+}
+
+// ==================== Навигация ====================
+function renderNav() {
+    document.getElementById('sbNav').innerHTML = NAV.map(item => {
+        const isParent = !!item.children;
+        const active = isParent
+            ? (item.children.some(c => c.id === ACTIVE))
+            : ACTIVE === item.id;
+        let html = `<div><button class="nav-item ${active ? 'active' : ''}" onclick="navClick('${item.id}')">
+            <span class="ic">${item.icon}</span><span class="lbl">${esc(t(item.key))}</span>
+            ${item.badge ? `<span class="badge" id="navBadge" style="display:none">0</span>` : ''}
+            ${isParent ? `<span class="caret">${PLG_OPEN ? '▾' : '▸'}</span>` : ''}
+        </button>`;
+        if (isParent && PLG_OPEN) {
+            html += '<div class="nav-children">' + item.children.map(c =>
+                `<button class="nav-child ${ACTIVE === c.id ? 'active' : ''}" onclick="go('${c.id}')">${esc(t(c.key))}</button>`
+            ).join('') + '</div>';
+        }
+        return html + '</div>';
+    }).join('');
+    updateBadges();
+}
+
+function navClick(id) {
+    if (id === 'planograms') { PLG_OPEN = !PLG_OPEN; renderNav(); return; }
+    go(id);
+}
+
+function go(id) {
+    ACTIVE = id;
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + id);
+    if (panel) panel.classList.add('active');
+    renderNav();
+    renderPageHead();
+    reloadActive();
+}
+
+function renderPageHead() {
+    const crumb = CRUMB[ACTIVE];
+    let title, path;
+    if (crumb) {
+        title = t('app.title');
+        path = [t('nav.home'), t(crumb[0]), t(crumb[1])].join(' / ');
+    } else {
+        const item = NAV.find(n => n.id === ACTIVE);
+        title = item ? t(item.key) : t('app.title');
+        path = [t('nav.home'), title].join(' / ');
+    }
+    document.getElementById('pageTitle').textContent = title;
+    document.getElementById('pageCrumbs').textContent = path;
+}
+
+function renderLegend() {
+    const html = [['#22c55e', 'traffic.low'], ['#eab308', 'traffic.medium'],
+                  ['#f97316', 'traffic.high'], ['#ef4444', 'traffic.peak']]
+        .map(([c, k]) => `<div><i style="background:${c}"></i><span>${esc(t(k))}</span></div>`).join('');
+    document.getElementById('mapLegend').innerHTML = html;
+    document.getElementById('mapLegend2').innerHTML = html;
+}
+
+function renderPeriodBtns() {
+    const suffix = LANG === 'ru' ? 'д' : LANG === 'ro' ? 'z' : 'd';
+    document.getElementById('periodBtns').innerHTML = [7, 14, 30].map(p =>
+        `<button class="btn btn-sm ${p === PERIOD ? 'btn-primary' : 'btn-ghost'}"
+                 onclick="setPeriod(${p})">${p}${suffix}</button>`).join('');
+    document.getElementById('metricsSub').textContent =
+        t('metrics.subtitle') + ' (' + PERIOD + ')';
+}
+function setPeriod(p) { PERIOD = p; renderPeriodBtns(); loadDashboard(); }
+
+// ==================== Загрузка ====================
+async function boot() {
+    const [i18n, refs] = await Promise.all([api('/i18n'), api('/refs')]);
+    if (i18n.success) I18N = i18n.data; else toast(i18n.error || 'i18n', true);
+    if (refs.success) REFS = refs.data; else toast(refs.error || 'refs', true);
+    const user = document.getElementById('userName').textContent.trim();
+    document.getElementById('userAva').textContent = (user || '?').slice(0, 2).toUpperCase();
+    await loadStores();
+    applyI18n();
+    await loadMap();
+    reloadActive();
+}
+
+async function loadStores() {
+    const r = await api('/stores');
+    if (!r.success) { toast(r.error, true); return; }
+    STORES = r.data || [];
+    if (!STORE_ID && STORES.length) STORE_ID = STORES[0].id;
+    document.getElementById('storeSel').innerHTML = STORES.map(s =>
+        `<option value="${s.id}" ${s.id === STORE_ID ? 'selected' : ''}>${esc(s.name)} (${esc(s.address || s.city || s.code)})</option>`
+    ).join('');
+    const cur = STORES.find(s => s.id === STORE_ID);
+    document.getElementById('sbStoreName').textContent = cur ? cur.name : '—';
+}
+
+async function onStoreChange() {
+    STORE_ID = Number(document.getElementById('storeSel').value);
+    const cur = STORES.find(s => s.id === STORE_ID);
+    document.getElementById('sbStoreName').textContent = cur ? cur.name : '—';
+    await loadMap();
+    reloadActive();
+}
+
+function reloadActive() {
+    document.getElementById('lastUpd').textContent = fmtTs(new Date());
+    const loaders = {
+        overview: loadDashboard, storemap: renderStoreMapPanel, plglist: loadPlanograms,
+        history: loadHistory, analytics: loadAnalytics, products: loadProducts,
+        promos: loadPromos, equipment: loadFixtures, tasks: loadTasks,
+        docs: loadDocuments, notifications: loadNotifications, settings: loadSettings,
+    };
+    (loaders[ACTIVE] || loadDashboard)();
+}
+
+async function loadMap() {
+    const r = await api('/map?store_id=' + (STORE_ID || ''));
+    if (!r.success) { toast(r.error, true); return; }
+    MAP = r.data;
+    drawMap('mapHost');
+    drawMap('mapHost2');
+}
+
+// ==================== Карта магазина (SVG) ====================
+function trafficColor(p) {
+    if (p >= 80) return '#ef4444';
+    if (p >= 60) return '#f97316';
+    if (p >= 40) return '#eab308';
+    return '#22c55e';
+}
+function trafficShade(p) { return 0.15 + (Number(p || 0) / 100) * 0.45; }
+
+function drawMap(hostId) {
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    if (!MAP.store) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
+
+    const W = MAP.store.map_width || 780;
+    const H = MAP.store.map_height || 460;
+    const parts = [];
+
+    parts.push(`<defs>
+        <marker id="plgArrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="#4fc3f7"/></marker>
+        <filter id="plgGlow"><feGaussianBlur stdDeviation="3" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <radialGradient id="plgCheckout" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#f97316" stop-opacity="0.30"/>
+            <stop offset="100%" stop-color="#f97316" stop-opacity="0.08"/></radialGradient>
+    </defs>`);
+
+    parts.push(`<rect width="${W}" height="${H}" rx="8" fill="#111827"/>`);
+    parts.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="7" fill="#141f30"/>`);
+
+    // Сетка пола
+    for (let y = 70; y < H; y += 8) parts.push(`<line x1="155" y1="${y}" x2="${W - 25}" y2="${y}" stroke="#1e2d42" stroke-width="0.4"/>`);
+    for (let x = 155; x < W - 25; x += 8) parts.push(`<line x1="${x}" y1="70" x2="${x}" y2="${H}" stroke="#1e2d42" stroke-width="0.4"/>`);
+
+    // Оборудование под зонами-отделами
+    (MAP.fixtures || []).forEach(f => {
+        const x = f.pos_x, y = f.pos_y, w = f.width, h = f.height;
+        if (f.fixture_type === 'island') return;
+        parts.push(`<g class="fx" data-id="${f.id}">
+            <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="#2a3d5e" stroke="#4a6080" stroke-width="0.8"/>`);
+        const shelves = Math.min(Number(f.shelf_count || 3), 4);
+        for (let i = 0; i < shelves - 1; i++) {
+            parts.push(`<rect x="${x + 4}" y="${y + 4 + i * 10}" width="${Math.max(2, w - 8)}" height="7" rx="1"
+                fill="hsl(${210 + i * 30}, 40%, ${35 + i * 5}%)" opacity="0.9"/>`);
+        }
+        parts.push(`</g>`);
+    });
+
+    // Зоны
+    (MAP.zones || []).forEach(z => {
+        const x = z.pos_x, y = z.pos_y, w = z.width, h = z.height;
+        const tr = Number(z.traffic_pct || 0);
+        const tip = `${z.name} — ${t('map.legend')}: ${tr.toFixed(0)}%`;
+        if (z.zone_type === 'dept' || z.zone_type === 'promo_island') {
+            parts.push(`<g class="zn" data-tip="${esc(tip)}">
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${z.color || '#2563eb'}" opacity="0.9"/>
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="black" opacity="${trafficShade(tr)}"/>
+                ${wrapLabel(z.name, x + w / 2, y + h / 2 - 5, w)}
+                <text x="${x + w / 2}" y="${y + h / 2 + 12}" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="6">${tr.toFixed(0)}%</text>
+                <rect x="${x}" y="${y + h - 3}" width="${w * Math.min(tr, 100) / 100}" height="3" rx="1.5" fill="${trafficColor(tr)}"/>
+            </g>`);
+        } else if (z.zone_type === 'checkout') {
+            parts.push(`<g class="zn" data-tip="${esc(tip)}">
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#f97316" opacity="0.12" stroke="#f97316" stroke-width="1.5"/>
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="url(#plgCheckout)"/>
+                <text x="${x + w / 2}" y="${y + 27}" text-anchor="middle" fill="#f97316" font-size="11"
+                      font-weight="700" filter="url(#plgGlow)">${esc(t('map.checkout'))}</text>
+            </g>`);
+            const desks = Number(MAP.store.checkout_qty || 6);
+            const step = w / (desks + 0.4);
+            for (let i = 0; i < desks; i++) {
+                const dx = x + 10 + i * step;
+                parts.push(`<g>
+                    <rect x="${dx}" y="${y + 38}" width="${Math.min(30, step - 8)}" height="42" rx="4" fill="#1e3a5a" stroke="#2563eb" stroke-width="1"/>
+                    <rect x="${dx + 2}" y="${y + 40}" width="${Math.min(26, step - 12)}" height="14" rx="2" fill="#1d4ed8" opacity="0.8"/>
+                    <text x="${dx + Math.min(30, step - 8) / 2}" y="${y + 68}" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="600">${i + 1}</text>
+                </g>`);
+            }
+        } else if (z.zone_type === 'entrance') {
+            parts.push(`<g class="zn" data-tip="${esc(tip)}">
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#16a34a" opacity="0.9"/>
+                <text x="${x + w / 2}" y="${y + h / 2 + 3}" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">${esc(t('map.entrance'))}</text>
+                <path d="M ${x + w / 2} ${y - 3} L ${x + w / 2} ${y - 11}" stroke="#16a34a" stroke-width="2" marker-end="url(#plgArrow)"/>
+            </g>`);
+        } else {
+            parts.push(`<g class="zn" data-tip="${esc(tip)}">
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="#1a2a40" stroke="#2d3d55" stroke-width="1"/>
+                ${wrapLabel(z.name, x + w / 2, y + h / 2, w, '#94a3b8')}
+            </g>`);
+        }
+    });
+
+    // Островная витрина акций поверх зоны
+    (MAP.fixtures || []).filter(f => f.fixture_type === 'island').forEach(f => {
+        parts.push(`<ellipse cx="${f.pos_x + f.width / 2}" cy="${f.pos_y + f.height / 2}"
+            rx="${f.width / 2 - 4}" ry="${f.height / 2 - 6}" fill="#fb923c" opacity="0.35"/>`);
+    });
+
+    // Стрелки основного потока между рядами
+    [[210, 143, 152], [210, 215, 224], [210, 287, 296], [320, 143, 152], [320, 215, 224],
+     [430, 143, 152], [430, 215, 224], [540, 143, 152], [540, 215, 224]].forEach(([x, y1, y2]) => {
+        parts.push(`<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#4fc3f7" stroke-width="1.5"
+            stroke-dasharray="6 3" marker-end="url(#plgArrow)" opacity="0.7"/>`);
+    });
+
+    const svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">${parts.join('')}</svg>`;
+    host.innerHTML = svg;
+    host.querySelectorAll('.zn').forEach(g => {
+        g.addEventListener('mousemove', ev => showTip(ev, g.dataset.tip));
+        g.addEventListener('mouseleave', hideTip);
+    });
+}
+
+function wrapLabel(text, cx, cy, w, fill) {
+    const color = fill || '#fff';
+    const words = String(text || '').split(' ');
+    const lines = [];
+    let cur = '';
+    const maxChars = Math.max(6, Math.floor(w / 4.2));
+    words.forEach(word => {
+        if ((cur + ' ' + word).trim().length > maxChars) { if (cur) lines.push(cur); cur = word; }
+        else cur = (cur + ' ' + word).trim();
+    });
+    if (cur) lines.push(cur);
+    const top = cy - (lines.length - 1) * 4;
+    return lines.slice(0, 3).map((ln, i) =>
+        `<text x="${cx}" y="${top + i * 8}" text-anchor="middle" fill="${color}" font-size="7" font-weight="600">${esc(ln)}</text>`
+    ).join('');
+}
+
+function showTip(ev, text) {
+    const el = document.getElementById('zoneTip');
+    el.textContent = text || '';
+    el.style.display = 'block';
+    el.style.left = (ev.clientX + 12) + 'px';
+    el.style.top = (ev.clientY + 12) + 'px';
+}
+function hideTip() { document.getElementById('zoneTip').style.display = 'none'; }
+
+// ==================== Панель «Обзор» ====================
+async function loadDashboard() {
+    const r = await api('/dashboard?store_id=' + (STORE_ID || '') + '&days=' + PERIOD);
+    if (!r.success) { toast(r.error, true); return; }
+    DASH = r.data;
+    renderDonut();
+    renderCategories();
+    renderPromos();
+    renderNotificationsCard();
+    renderMetrics();
+    updateBadges();
+}
+
+const DONUT_COLORS = ['#22c55e', '#6366f1', '#a855f7', '#f59e0b'];
+
+function renderDonut() {
+    const s = DASH.stats || {};
+    const rows = [
+        {label: t('metric.traffic'),    value: num(s.traffic),          raw: Number(s.traffic || 0)},
+        {label: t('metric.buyers'),     value: num(s.buyers),           raw: Number(s.buyers || 0)},
+        {label: t('metric.conversion'), value: pct(s.conversion_pct),   raw: Number(s.conversion_pct || 0) * 40},
+        {label: t('metric.avgCheck'),   value: money(s.avg_check),      raw: Number(s.avg_check || 0)},
+    ];
+    const total = rows.reduce((a, b) => a + b.raw, 0) || 1;
+    let angle = -90;
+    const arcs = rows.map((row, i) => {
+        const sweep = row.raw / total * 360;
+        const path = arcPath(46, 46, 28, 42, angle, angle + sweep);
+        angle += sweep;
+        return `<path d="${path}" fill="${DONUT_COLORS[i]}"/>`;
+    }).join('');
+    document.getElementById('donutHost').innerHTML = `
+        <div style="position:relative;width:92px;height:92px">
+            <svg viewBox="0 0 92 92" width="92" height="92">${arcs}</svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <div style="font-size:14px;font-weight:700;line-height:1">${pct(DASH.stats?.conversion_pct)}</div>
+                <div style="font-size:8px;color:var(--muted)">${esc(t('metric.conversion'))}</div>
+            </div>
+        </div>`;
+    document.getElementById('donutLegend').innerHTML = rows.map((row, i) => `
+        <div class="kv-row"><div class="lb"><i style="background:${DONUT_COLORS[i]}"></i>${esc(row.label)}</div>
+        <div class="vl">${esc(row.value)}</div></div>`).join('');
+}
+
+function arcPath(cx, cy, rIn, rOut, a1, a2) {
+    const rad = a => (a * Math.PI) / 180;
+    if (a2 - a1 >= 359.9) a2 = a1 + 359.9;
+    const large = (a2 - a1) > 180 ? 1 : 0;
+    const x1 = cx + rOut * Math.cos(rad(a1)), y1 = cy + rOut * Math.sin(rad(a1));
+    const x2 = cx + rOut * Math.cos(rad(a2)), y2 = cy + rOut * Math.sin(rad(a2));
+    const x3 = cx + rIn * Math.cos(rad(a2)),  y3 = cy + rIn * Math.sin(rad(a2));
+    const x4 = cx + rIn * Math.cos(rad(a1)),  y4 = cy + rIn * Math.sin(rad(a1));
+    return `M ${x1} ${y1} A ${rOut} ${rOut} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${rIn} ${rIn} 0 ${large} 0 ${x4} ${y4} Z`;
+}
+
+function renderCategories() {
+    const rows = DASH.categories || [];
+    document.getElementById('catHost').innerHTML = rows.length ? rows.map(c => `
+        <div class="cat-row">
+            <span class="rk">${c.rank_no}</span>
+            <span class="nm">${esc(c.name)}</span>
+            <span class="ct">${num(c.visits)} (${c.share_pct || 0}%)</span>
+            <span class="dl" style="color:${Number(c.delta_pct) < 0 ? 'var(--crit)' : 'var(--ok)'}">
+                ${Number(c.delta_pct) < 0 ? '↓' : '↑'} ${Math.abs(Number(c.delta_pct || 0)).toFixed(1)}%</span>
+        </div>`).join('') : `<div class="empty">${esc(t('ui.empty'))}</div>`;
+}
+
+function renderPromos() {
+    const rows = DASH.promos || [];
+    document.getElementById('promoHost').innerHTML = rows.length ? rows.map(p => `
+        <div class="promo-row">
+            <div class="lb" style="background:${(p.color || '#2563eb')}22;color:${p.color || '#2563eb'}">${esc(p.label || '%')}</div>
+            <div style="flex:1;min-width:0">
+                <div class="nm">${esc(p.name)}</div>
+                <div class="ex">${esc(t('promo.until'))} ${fmtDate(p.date_to)}</div>
+            </div>
+            <span class="pill ok">${esc(t('st.active'))}</span>
+        </div>`).join('') : `<div class="empty">${esc(t('ui.empty'))}</div>`;
+}
+
+function renderNotificationsCard() {
+    const rows = (DASH.notifications || []).filter(n => !Number(n.is_read)).slice(0, 4);
+    const unread = (DASH.notifications || []).filter(n => !Number(n.is_read)).length;
+    document.getElementById('notifSub').textContent = unread + ' ' + t('notify.unread');
+    const color = lv => lv === 'alert' ? '#ef4444' : lv === 'warn' ? '#f97316' : '#eab308';
+    document.getElementById('notifHost').innerHTML = rows.length ? rows.map(n => `
+        <div class="notif-row" onclick="markRead(${n.id})">
+            <div class="dt" style="background:${color(n.level_code)}"></div>
+            <div style="flex:1"><div class="tx">${esc(n.text)}</div><div class="tm">${fmtTs(n.created_at)}</div></div>
+        </div>`).join('') : `<div class="empty">${esc(t('ui.empty'))}</div>`;
+}
+
+function renderMetrics() {
+    const series = DASH.metrics || [];
+    const last = series[series.length - 1] || {};
+    const defs = [
+        {key: 'traffic',        label: t('metric.traffic'),    color: '#6366f1', value: num(last.traffic),        delta: last.traffic_delta_pct},
+        {key: 'buyers',         label: t('metric.buyers'),     color: '#22c55e', value: num(last.buyers),         delta: last.buyers_delta_pct},
+        {key: 'conversion_pct', label: t('metric.conversion'), color: '#a855f7', value: pct(last.conversion_pct), delta: last.conv_delta_pct},
+        {key: 'avg_check',      label: t('metric.avgCheck'),   color: '#f59e0b', value: money(last.avg_check),    delta: last.check_delta_pct},
+        {key: 'revenue',        label: t('metric.revenue'),    color: '#06b6d4', value: money(last.revenue),      delta: last.revenue_delta_pct},
+    ];
+    document.getElementById('metricHost').innerHTML = defs.map(d => {
+        const vals = series.map(m => Number(m[d.key] || 0));
+        const up = Number(d.delta || 0) >= 0;
+        return `<div class="metric">
+            <div class="lb">${esc(d.label)}</div>
+            <div class="vl">${esc(d.value)}</div>
+            <div class="dl ${up ? 'up' : 'down'}">${up ? '↑' : '↓'} ${Math.abs(Number(d.delta || 0)).toFixed(1)}%</div>
+            <div style="height:36px">${sparkline(vals, d.color)}</div>
+        </div>`;
+    }).join('');
+}
+
+function sparkline(values, color) {
+    if (!values.length) return '';
+    const w = 120, h = 36;
+    const min = Math.min(...values), max = Math.max(...values);
+    const span = (max - min) || 1;
+    const pts = values.map((v, i) => [
+        (i / Math.max(1, values.length - 1)) * w,
+        h - 2 - ((v - min) / span) * (h - 6)
+    ]);
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+    const area = line + ` L ${w} ${h} L 0 ${h} Z`;
+    const gid = 'sg' + color.replace('#', '');
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="36" preserveAspectRatio="none">
+        <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stop-color="${color}" stop-opacity="0.3"/>
+            <stop offset="95%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+        <path d="${area}" fill="url(#${gid})"/>
+        <path d="${line}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+
+function updateBadges() {
+    const unread = (DASH?.stats?.notify_unread) || 0;
+    const badge = document.getElementById('navBadge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread ? '' : 'none'; }
+    const dot = document.getElementById('notifDot');
+    dot.textContent = unread; dot.style.display = unread ? '' : 'none';
+}
+
+// ==================== План магазина ====================
+function renderStoreMapPanel() {
+    drawMap('mapHost2');
+    const s = MAP.store || {};
+    document.getElementById('mapFullSub').textContent =
+        [s.code, s.address, s.area_sqm ? s.area_sqm + ' m²' : null].filter(Boolean).join(' · ');
+    const zones = (MAP.zones || []).filter(z => z.is_selling);
+    document.getElementById('zoneTbl').innerHTML = `
+        <thead><tr>
+            <th>${esc(t('plg.code'))}</th><th>${esc(t('map.zoneInfo'))}</th><th>${esc(t('prod.category'))}</th>
+            <th>${esc(t('map.legend'))}</th><th>${esc(t('an.visits'))}</th><th>${esc(t('an.dwell'))}</th>
+            <th>${esc(t('an.pickups'))}</th><th>${esc(t('eq.type'))}</th>
+        </tr></thead><tbody>` + (zones.length ? zones.map(z => `
+            <tr>
+                <td class="mono">${esc(z.code)}</td>
+                <td>${esc(z.name)}</td>
+                <td class="muted">${esc(z.category || '—')}</td>
+                <td><span class="pill" style="background:${trafficColor(z.traffic_pct)}22;color:${trafficColor(z.traffic_pct)}">
+                    ${Number(z.traffic_pct || 0).toFixed(0)}%</span></td>
+                <td>${num(z.visitors)}</td>
+                <td class="muted">${num(z.dwell_sec)}</td>
+                <td class="muted">${num(z.pickups)}</td>
+                <td class="muted">${esc(z.zone_type_name || z.zone_type)}</td>
+            </tr>`).join('') : `<tr><td colspan="8" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+// ==================== Планограммы ====================
+async function loadPlanograms() {
+    const status = gv('plgStatusFilter');
+    const r = await api('/planograms?store_id=' + (STORE_ID || '') + (status ? '&status=' + status : ''));
+    if (!r.success) { toast(r.error, true); return; }
+    document.getElementById('plgTbl').innerHTML = `
+        <thead><tr>
+            <th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th><th>${esc(t('plg.zone'))}</th>
+            <th>${esc(t('plg.version'))}</th><th>${esc(t('plg.status'))}</th><th>${esc(t('plg.items'))}</th>
+            <th>${esc(t('plg.facings'))}</th><th>${esc(t('plg.validFrom'))}</th><th>${esc(t('plg.author'))}</th><th></th>
+        </tr></thead><tbody>` + ((r.data || []).length ? r.data.map(p => `
+            <tr>
+                <td class="mono">${esc(p.code)}</td>
+                <td><a href="#" onclick="openPlanogramDetail(${p.id});return false" style="color:var(--accent);text-decoration:none">${esc(p.name)}</a></td>
+                <td class="muted">${esc(p.zone || '—')}</td>
+                <td>v${p.version_no}</td>
+                <td><span class="pill" style="background:${p.status_color}22;color:${p.status_color}">${esc(p.status_name || p.status)}</span></td>
+                <td>${num(p.item_count)}</td>
+                <td>${num(p.facing_count)}</td>
+                <td class="muted">${fmtDate(p.valid_from)}</td>
+                <td class="muted">${esc(p.author || '—')}</td>
+                <td style="white-space:nowrap">
+                    <button class="btn btn-ghost btn-sm" onclick="openPlanogramModal(${p.id})">✎</button>
+                    <button class="btn btn-danger btn-sm" onclick="deletePlanogram(${p.id})">🗑</button>
+                </td>
+            </tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+async function openPlanogramDetail(id) {
+    const r = await api('/planograms/' + id);
+    if (!r.success) { toast(r.error, true); return; }
+    const p = r.data;
+    const statuses = (REFS.plg_statuses || []).map(s =>
+        `<button class="btn btn-ghost btn-sm" onclick="setPlgStatus(${p.id}, '${s.code}')">${esc(s.name)}</button>`).join(' ');
+    openModal(`
+        <h3>${esc(p.code)} — ${esc(p.name)}</h3>
+        <table class="tbl">
+            <tr><td class="muted">${esc(t('plg.zone'))}</td><td>${esc(p.zone || '—')}</td>
+                <td class="muted">${esc(t('plg.status'))}</td><td>${esc(p.status_name || p.status)}</td></tr>
+            <tr><td class="muted">${esc(t('plg.version'))}</td><td>v${p.version_no}</td>
+                <td class="muted">${esc(t('plg.shelfShare'))}</td><td>${p.shelf_share_pct || '—'}</td></tr>
+            <tr><td class="muted">${esc(t('plg.validFrom'))}</td><td>${fmtDate(p.valid_from)}</td>
+                <td class="muted">${esc(t('plg.validTo'))}</td><td>${fmtDate(p.valid_to)}</td></tr>
+            <tr><td class="muted">${esc(t('plg.author'))}</td><td>${esc(p.author || '—')}</td>
+                <td class="muted">${esc(t('plg.approvedBy'))}</td><td>${esc(p.approved_by || '—')}</td></tr>
+        </table>
+        <h3 style="margin-top:14px">${esc(t('plg.itemsTitle'))}</h3>
+        <table class="tbl">
+            <thead><tr><th>${esc(t('eq.type'))}</th><th>${esc(t('plg.shelf'))}</th><th>${esc(t('plg.position'))}</th>
+            <th>${esc(t('plg.name'))}</th><th>${esc(t('plg.facings'))}</th><th>${esc(t('prod.price'))}</th></tr></thead>
+            <tbody>${(p.items || []).map(i => `<tr>
+                <td class="mono">${esc(i.fixture_code || '—')}</td><td>${i.shelf_no}</td><td>${i.position_no}</td>
+                <td>${esc(i.product)}${Number(i.is_promo) ? ' <span class="pill warn">%</span>' : ''}</td>
+                <td>${i.facings}</td><td>${money(i.price)}</td></tr>`).join('')
+                || `<tr><td colspan="6" class="empty">${esc(t('ui.empty'))}</td></tr>`}</tbody>
+        </table>
+        <h3 style="margin-top:14px">${esc(t('nav.history'))}</h3>
+        <table class="tbl">
+            <thead><tr><th>${esc(t('hist.at'))}</th><th>${esc(t('hist.action'))}</th><th>${esc(t('plg.version'))}</th>
+            <th>${esc(t('hist.by'))}</th></tr></thead>
+            <tbody>${(p.history || []).slice(0, 12).map(h => `<tr>
+                <td class="muted">${fmtTs(h.changed_at)}</td><td>${esc(h.summary || h.action)}</td>
+                <td>v${h.version_no || '—'}</td><td class="muted">${esc(h.changed_by || '—')}</td></tr>`).join('')
+                || `<tr><td colspan="4" class="empty">${esc(t('ui.empty'))}</td></tr>`}</tbody>
+        </table>
+        <div class="btn-row" style="flex-wrap:wrap">${statuses}
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.close'))}</button></div>`);
+}
+
+async function setPlgStatus(id, status) {
+    const r = await api('/planograms/' + id + '/status', 'POST', {status});
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadPlanograms(); }
+}
+
+function openPlanogramModal(id) {
+    const zones = (MAP.zones || []).filter(z => z.is_selling);
+    const statuses = REFS.plg_statuses || [];
+    openModal(`<h3>${esc(id ? t('ui.edit') : t('plg.new'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="pl_name_ru"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="pl_name_ro"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="pl_name_en"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.zone'))}</label><select id="pl_zone">
+                <option value=""></option>${zones.map(z => `<option value="${z.id}">${esc(z.name)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('plg.status'))}</label><select id="pl_status">
+                ${statuses.map(s => `<option value="${s.code}">${esc(s.name)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('plg.shelfShare'))}</label><input id="pl_share" type="number" step="0.1"></div>
+        </div>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.validFrom'))}</label><input id="pl_from" type="date"></div>
+            <div class="fg"><label>${esc(t('plg.validTo'))}</label><input id="pl_to" type="date"></div>
+        </div>
+        <div class="fg"><label>${esc(t('plg.author'))}</label><input id="pl_author"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="savePlanogram(${id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button>
+        </div>`);
+}
+
+async function savePlanogram(id) {
+    const body = {
+        store_id: STORE_ID, zone_id: gn('pl_zone'), status: gv('pl_status'),
+        name_ru: gv('pl_name_ru'), name_ro: gv('pl_name_ro'), name_en: gv('pl_name_en'),
+        valid_from: gv('pl_from') || null, valid_to: gv('pl_to') || null,
+        author: gv('pl_author'), shelf_share_pct: gn('pl_share'),
+    };
+    const r = id ? await api('/planograms/' + id, 'PUT', body) : await api('/planograms', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadPlanograms(); }
+}
+
+async function deletePlanogram(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/planograms/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadPlanograms();
+}
+
+// ==================== История ====================
+async function loadHistory() {
+    const r = await api('/history?store_id=' + (STORE_ID || ''));
+    if (!r.success) { toast(r.error, true); return; }
+    document.getElementById('histTbl').innerHTML = `
+        <thead><tr><th>${esc(t('hist.at'))}</th><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th>
+        <th>${esc(t('hist.action'))}</th><th>${esc(t('hist.field'))}</th><th>${esc(t('hist.oldValue'))}</th>
+        <th>${esc(t('hist.newValue'))}</th><th>${esc(t('hist.by'))}</th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(h => `<tr>
+            <td class="muted">${fmtTs(h.changed_at)}</td>
+            <td class="mono">${esc(h.planogram_code)}</td>
+            <td>${esc(h.planogram)}</td>
+            <td>${esc(h.summary || h.action)}</td>
+            <td class="mono muted">${esc(h.field_name || '—')}</td>
+            <td class="muted">${esc(h.old_value || '—')}</td>
+            <td>${esc(h.new_value || '—')}</td>
+            <td class="muted">${esc(h.changed_by || '—')}</td>
+        </tr>`).join('') : `<tr><td colspan="8" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+// ==================== Аналитика ====================
+async function loadAnalytics() {
+    const r = await api('/analytics?store_id=' + (STORE_ID || '') + '&days=' + PERIOD);
+    if (!r.success) { toast(r.error, true); return; }
+    const {zones, categories, metrics} = r.data;
+    const last = metrics[metrics.length - 1] || {};
+    document.getElementById('anStats').innerHTML = [
+        {lb: t('metric.traffic'), vl: num(last.traffic), cls: ''},
+        {lb: t('metric.buyers'), vl: num(last.buyers), cls: 'g'},
+        {lb: t('metric.conversion'), vl: pct(last.conversion_pct), cls: ''},
+        {lb: t('metric.avgCheck'), vl: money(last.avg_check), cls: 'w'},
+        {lb: t('metric.revenue'), vl: money(last.revenue), cls: 'g'},
+    ].map(s => `<div class="stat ${s.cls}"><div class="lb">${esc(s.lb)}</div>
+        <div class="vl">${esc(s.vl)}</div><div class="sb">${fmtDate(last.metric_date)}</div></div>`).join('');
+
+    // Агрегируем последнюю точку по каждой зоне
+    const byZone = {};
+    zones.forEach(z => { byZone[z.zone_id] = z; });
+    const zrows = Object.values(byZone).sort((a, b) => b.traffic_pct - a.traffic_pct);
+    const maxTr = Math.max(1, ...zrows.map(z => Number(z.traffic_pct || 0)));
+    document.getElementById('anZones').innerHTML = zrows.length ? zrows.map(z => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="width:150px;font-size:11.5px">${esc(z.name)}</span>
+            <div style="flex:1;height:14px;background:var(--bg);border-radius:7px;overflow:hidden">
+                <div style="height:100%;width:${(Number(z.traffic_pct || 0) / maxTr * 100).toFixed(1)}%;
+                    background:${trafficColor(z.traffic_pct)};border-radius:7px"></div>
+            </div>
+            <span style="width:46px;text-align:right;font-size:11px;font-weight:600">${Number(z.traffic_pct || 0).toFixed(0)}%</span>
+        </div>`).join('') : `<div class="empty">${esc(t('ui.empty'))}</div>`;
+
+    const byCat = {};
+    categories.forEach(c => {
+        const cur = byCat[c.category_id] || {name: c.name, visits: 0, qty: 0, amt: 0};
+        cur.visits += Number(c.visits || 0);
+        cur.qty += Number(c.sales_qty || 0);
+        cur.amt += Number(c.sales_amt || 0);
+        byCat[c.category_id] = cur;
+    });
+    const crows = Object.values(byCat).sort((a, b) => b.visits - a.visits);
+    document.getElementById('anCatTbl').innerHTML = `
+        <thead><tr><th>${esc(t('prod.category'))}</th><th>${esc(t('an.visits'))}</th>
+        <th>${esc(t('an.sales'))}</th><th>${esc(t('metric.revenue'))}</th></tr></thead><tbody>` +
+        (crows.length ? crows.map(c => `<tr><td>${esc(c.name)}</td><td>${num(c.visits)}</td>
+            <td>${num(c.qty)}</td><td>${money(c.amt)}</td></tr>`).join('')
+            : `<tr><td colspan="4" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+// ==================== Товары ====================
+async function loadProducts() {
+    const cat = gv('prodCatFilter'), q = gv('prodSearch');
+    const r = await api('/products?' + (cat ? 'category_id=' + cat + '&' : '') + (q ? 'q=' + encodeURIComponent(q) : ''));
+    if (!r.success) { toast(r.error, true); return; }
+    document.getElementById('prodTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th><th>${esc(t('prod.category'))}</th>
+        <th>${esc(t('prod.brand'))}</th><th>${esc(t('prod.barcode'))}</th><th>${esc(t('prod.price'))}</th>
+        <th>${esc(t('prod.size'))}</th><th>${esc(t('prod.placements'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(p => `<tr>
+            <td class="mono">${esc(p.code)}</td><td>${esc(p.name)}</td>
+            <td><span class="pill" style="background:${(p.category_color || '#94a3b8')}22;color:${p.category_color || '#475569'}">${esc(p.category || '—')}</span></td>
+            <td class="muted">${esc(p.brand || '—')}</td><td class="mono muted">${esc(p.barcode || '—')}</td>
+            <td>${money(p.price)}</td>
+            <td class="muted mono">${p.width_mm}×${p.height_mm}×${p.depth_mm}</td>
+            <td>${num(p.placement_count)}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openProductModal(${JSON.stringify(p)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openProductModal(p) {
+    p = p || {};
+    const cats = REFS.categories || [];
+    openModal(`<h3>${esc(p.id ? t('ui.edit') : t('prod.new'))}</h3>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="pr_code" value="${esc(p.code || '')}"></div>
+            <div class="fg"><label>${esc(t('prod.category'))}</label><select id="pr_cat"><option value=""></option>
+                ${cats.map(c => `<option value="${c.id}" ${c.id === p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="pr_name_ru" value="${esc(p.name_ru || p.name || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="pr_name_ro" value="${esc(p.name_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="pr_name_en" value="${esc(p.name_en || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('prod.brand'))}</label><input id="pr_brand" value="${esc(p.brand || '')}"></div>
+            <div class="fg"><label>${esc(t('prod.barcode'))}</label><input id="pr_barcode" value="${esc(p.barcode || '')}"></div>
+            <div class="fg"><label>${esc(t('prod.price'))}</label><input id="pr_price" type="number" step="0.01" value="${p.price || ''}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>W, mm</label><input id="pr_w" type="number" value="${p.width_mm || 80}"></div>
+            <div class="fg"><label>H, mm</label><input id="pr_h" type="number" value="${p.height_mm || 200}"></div>
+            <div class="fg"><label>D, mm</label><input id="pr_d" type="number" value="${p.depth_mm || 60}"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveProduct(${p.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveProduct(id) {
+    const body = {
+        code: gv('pr_code'), category_id: gn('pr_cat'),
+        name_ru: gv('pr_name_ru'), name_ro: gv('pr_name_ro'), name_en: gv('pr_name_en'),
+        brand: gv('pr_brand'), barcode: gv('pr_barcode'), price: gn('pr_price'),
+        width_mm: gn('pr_w'), height_mm: gn('pr_h'), depth_mm: gn('pr_d'),
+    };
+    const r = id ? await api('/products/' + id, 'PUT', body) : await api('/products', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadProducts(); }
+}
+
+async function deleteProduct(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/products/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadProducts();
+}
+
+// ==================== Акции ====================
+async function loadPromos() {
+    const r = await api('/promos?store_id=' + (STORE_ID || ''));
+    if (!r.success) { toast(r.error, true); return; }
+    const pillCls = s => s === 'active' ? 'ok' : s === 'planned' ? 'info' : s === 'cancelled' ? 'crit' : 'mute';
+    document.getElementById('promoTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th><th>${esc(t('pr.type'))}</th>
+        <th>${esc(t('pr.discount'))}</th><th>${esc(t('pr.period'))}</th><th>${esc(t('pr.daysLeft'))}</th>
+        <th>${esc(t('pr.products'))}</th><th>${esc(t('plg.status'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(p => `<tr>
+            <td class="mono">${esc(p.code)}</td>
+            <td><span class="pill" style="background:${(p.color || '#2563eb')}22;color:${p.color || '#2563eb'}">${esc(p.label || '%')}</span>
+                ${esc(p.name)}</td>
+            <td class="muted">${esc(p.promo_type_name || p.promo_type)}</td>
+            <td>${p.discount_pct ? p.discount_pct + '%' : '—'}</td>
+            <td class="muted">${fmtDate(p.date_from)} — ${fmtDate(p.date_to)}</td>
+            <td>${Number(p.days_left) >= 0 ? Math.round(p.days_left) : '—'}</td>
+            <td>${num(p.product_count)}</td>
+            <td><span class="pill ${pillCls(p.effective_status)}">${esc(t('st.' + p.effective_status, p.effective_status))}</span></td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openPromoModal(${JSON.stringify(p)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deletePromo(${p.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openPromoModal(p) {
+    p = p || {};
+    const types = REFS.promo_types || [];
+    const d = v => v ? String(v).slice(0, 10) : '';
+    openModal(`<h3>${esc(p.id ? t('ui.edit') : t('pr.new'))}</h3>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="pm_code" value="${esc(p.code || '')}"></div>
+            <div class="fg"><label>${esc(t('pr.type'))}</label><select id="pm_type">
+                ${types.map(x => `<option value="${x.code}" ${x.code === p.promo_type ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="pm_name_ru" value="${esc(p.name_ru || p.name || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="pm_name_ro" value="${esc(p.name_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="pm_name_en" value="${esc(p.name_en || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>Label</label><input id="pm_label" value="${esc(p.label || '')}"></div>
+            <div class="fg"><label>${esc(t('pr.discount'))}</label><input id="pm_disc" type="number" step="0.1" value="${p.discount_pct || ''}"></div>
+            <div class="fg"><label>${esc(t('plg.status'))}</label><select id="pm_status">
+                ${['planned', 'active', 'finished', 'cancelled'].map(s =>
+                    `<option value="${s}" ${s === p.status ? 'selected' : ''}>${esc(t('st.' + s, s))}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.validFrom'))}</label><input id="pm_from" type="date" value="${d(p.date_from)}"></div>
+            <div class="fg"><label>${esc(t('plg.validTo'))}</label><input id="pm_to" type="date" value="${d(p.date_to)}"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="savePromo(${p.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function savePromo(id) {
+    const body = {
+        store_id: STORE_ID, code: gv('pm_code'), promo_type: gv('pm_type'),
+        name_ru: gv('pm_name_ru'), name_ro: gv('pm_name_ro'), name_en: gv('pm_name_en'),
+        label: gv('pm_label'), discount_pct: gn('pm_disc'), status: gv('pm_status'),
+        date_from: gv('pm_from'), date_to: gv('pm_to'),
+    };
+    const r = id ? await api('/promos/' + id, 'PUT', body) : await api('/promos', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadPromos(); }
+}
+
+async function deletePromo(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/promos/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadPromos();
+}
+
+// ==================== Оборудование ====================
+async function loadFixtures() {
+    const r = await api('/fixtures?store_id=' + (STORE_ID || ''));
+    if (!r.success) { toast(r.error, true); return; }
+    document.getElementById('fixtTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('eq.type'))}</th><th>${esc(t('plg.zone'))}</th>
+        <th>${esc(t('eq.shelves'))}</th><th>${esc(t('prod.size'))}</th><th>${esc(t('plg.items'))}</th>
+        <th>${esc(t('plg.facings'))}</th><th>${esc(t('eq.serial'))}</th><th>${esc(t('plg.status'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(f => `<tr>
+            <td class="mono">${esc(f.code)}</td>
+            <td>${esc(f.icon || '')} ${esc(f.fixture_type_name || f.fixture_type)}</td>
+            <td class="muted">${esc(f.zone || '—')}</td>
+            <td>${f.shelf_count}</td>
+            <td class="muted mono">${f.width_mm}×${f.height_mm}×${f.depth_mm}</td>
+            <td>${num(f.item_count)}</td><td>${num(f.facing_count)}</td>
+            <td class="mono muted">${esc(f.serial_number || '—')}</td>
+            <td><span class="pill ${f.status === 'active' ? 'ok' : f.status === 'repair' ? 'warn' : 'mute'}">${esc(f.status)}</span></td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openFixtureModal(${JSON.stringify(f)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteFixture(${f.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openFixtureModal(f) {
+    f = f || {};
+    const types = REFS.fixture_types || [];
+    const zones = (MAP.zones || []);
+    openModal(`<h3>${esc(f.id ? t('ui.edit') : t('eq.new'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="fx_code" value="${esc(f.code || '')}"></div>
+            <div class="fg"><label>${esc(t('eq.type'))}</label><select id="fx_type">
+                ${types.map(x => `<option value="${x.code}" ${x.code === f.fixture_type ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('plg.zone'))}</label><select id="fx_zone"><option value=""></option>
+                ${zones.map(z => `<option value="${z.id}" ${z.id === f.zone_id ? 'selected' : ''}>${esc(z.name)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="fx_name_ru" value="${esc(f.name_ru || f.name || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="fx_name_ro" value="${esc(f.name_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="fx_name_en" value="${esc(f.name_en || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>X</label><input id="fx_x" type="number" value="${f.pos_x || 0}"></div>
+            <div class="fg"><label>Y</label><input id="fx_y" type="number" value="${f.pos_y || 0}"></div>
+            <div class="fg"><label>${esc(t('eq.shelves'))}</label><input id="fx_shelves" type="number" value="${f.shelf_count || 4}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>W (map)</label><input id="fx_w" type="number" value="${f.width || 80}"></div>
+            <div class="fg"><label>H (map)</label><input id="fx_h" type="number" value="${f.height || 42}"></div>
+            <div class="fg"><label>${esc(t('eq.serial'))}</label><input id="fx_serial" value="${esc(f.serial_number || '')}"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveFixture(${f.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveFixture(id) {
+    const body = {
+        store_id: STORE_ID, zone_id: gn('fx_zone'), code: gv('fx_code'), fixture_type: gv('fx_type'),
+        name_ru: gv('fx_name_ru'), name_ro: gv('fx_name_ro'), name_en: gv('fx_name_en'),
+        pos_x: gn('fx_x'), pos_y: gn('fx_y'), width: gn('fx_w'), height: gn('fx_h'),
+        shelf_count: gn('fx_shelves'), serial_number: gv('fx_serial'),
+    };
+    const r = id ? await api('/fixtures/' + id, 'PUT', body) : await api('/fixtures', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); await loadMap(); loadFixtures(); }
+}
+
+async function deleteFixture(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/fixtures/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) { await loadMap(); loadFixtures(); }
+}
+
+// ==================== Задачи ====================
+async function loadTasks() {
+    const status = gv('taskStatusFilter');
+    const r = await api('/tasks?store_id=' + (STORE_ID || '') + (status ? '&status=' + status : ''));
+    if (!r.success) { toast(r.error, true); return; }
+    const prioCls = p => p === 'high' ? 'crit' : p === 'medium' ? 'warn' : 'mute';
+    document.getElementById('taskTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('task.type'))}</th><th>${esc(t('plg.name'))}</th>
+        <th>${esc(t('plg.zone'))}</th><th>${esc(t('task.priority'))}</th><th>${esc(t('task.assignee'))}</th>
+        <th>${esc(t('task.due'))}</th><th>${esc(t('plg.status'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(x => `<tr>
+            <td class="mono">${esc(x.code)}</td>
+            <td>${esc(x.icon || '')} ${esc(x.task_type_name || x.task_type)}</td>
+            <td>${esc(x.title)}</td>
+            <td class="muted">${esc(x.zone || '—')}</td>
+            <td><span class="pill ${prioCls(x.priority)}">${esc(t('prio.' + x.priority, x.priority))}</span></td>
+            <td class="muted">${esc(x.assignee || '—')}</td>
+            <td class="${Number(x.is_overdue) ? '' : 'muted'}" ${Number(x.is_overdue) ? 'style="color:var(--crit);font-weight:600"' : ''}>
+                ${fmtDate(x.due_date)}${Number(x.is_overdue) ? ' ⚠' : ''}</td>
+            <td><span class="pill ${x.status === 'done' ? 'ok' : x.status === 'cancelled' ? 'mute' : 'info'}">${esc(t('st.' + x.status, x.status))}</span></td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openTaskModal(${JSON.stringify(x)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteTask(${x.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openTaskModal(x) {
+    x = x || {};
+    const types = REFS.task_types || [];
+    const zones = MAP.zones || [];
+    openModal(`<h3>${esc(x.id ? t('ui.edit') : t('task.new'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('task.type'))}</label><select id="tk_type">
+                ${types.map(tt => `<option value="${tt.code}" ${tt.code === x.task_type ? 'selected' : ''}>${esc(tt.name)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('plg.zone'))}</label><select id="tk_zone"><option value=""></option>
+                ${zones.map(z => `<option value="${z.id}" ${z.id === x.zone_id ? 'selected' : ''}>${esc(z.name)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('task.priority'))}</label><select id="tk_prio">
+                ${['high', 'medium', 'low'].map(p => `<option value="${p}" ${p === x.priority ? 'selected' : ''}>${esc(t('prio.' + p, p))}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="tk_title_ru" value="${esc(x.title_ru || x.title || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="tk_title_ro" value="${esc(x.title_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="tk_title_en" value="${esc(x.title_en || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('task.assignee'))}</label><input id="tk_assignee" value="${esc(x.assignee || '')}"></div>
+            <div class="fg"><label>${esc(t('task.due'))}</label><input id="tk_due" type="date" value="${x.due_date ? String(x.due_date).slice(0, 10) : ''}"></div>
+            <div class="fg"><label>${esc(t('plg.status'))}</label><select id="tk_status">
+                ${['new', 'in_progress', 'review', 'done', 'cancelled'].map(s =>
+                    `<option value="${s}" ${s === x.status ? 'selected' : ''}>${esc(t('st.' + s, s))}</option>`).join('')}</select></div>
+        </div>
+        <div class="fg"><label>${esc(t('set.descr'))}</label><textarea id="tk_descr">${esc(x.description || '')}</textarea></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveTask(${x.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveTask(id) {
+    const body = {
+        store_id: STORE_ID, zone_id: gn('tk_zone'), task_type: gv('tk_type'),
+        title_ru: gv('tk_title_ru'), title_ro: gv('tk_title_ro'), title_en: gv('tk_title_en'),
+        priority: gv('tk_prio'), status: gv('tk_status'), assignee: gv('tk_assignee'),
+        due_date: gv('tk_due') || null, description: gv('tk_descr'),
+    };
+    const r = id ? await api('/tasks/' + id, 'PUT', body) : await api('/tasks', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadTasks(); }
+}
+
+async function deleteTask(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/tasks/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadTasks();
+}
+
+// ==================== Документы ====================
+async function loadDocuments() {
+    const r = await api('/documents?store_id=' + (STORE_ID || ''));
+    if (!r.success) { toast(r.error, true); return; }
+    document.getElementById('docTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('doc.type'))}</th><th>${esc(t('plg.name'))}</th>
+        <th>${esc(t('doc.file'))}</th><th>${esc(t('doc.size'))}</th><th>${esc(t('plg.version'))}</th>
+        <th>${esc(t('doc.author'))}</th><th>${esc(t('hist.at'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(d => `<tr>
+            <td class="mono">${esc(d.code)}</td>
+            <td>${esc(d.icon || '')} ${esc(d.doc_type_name || d.doc_type)}</td>
+            <td>${esc(d.title)}</td>
+            <td class="mono muted">${esc(d.file_name || '—')}</td>
+            <td class="muted">${d.file_size_kb ? num(d.file_size_kb) + ' KB' : '—'}</td>
+            <td>v${d.version_no || 1}</td>
+            <td class="muted">${esc(d.created_by || '—')}</td>
+            <td class="muted">${fmtTs(d.created_at)}</td>
+            <td>${d.file_url ? `<a class="btn btn-ghost btn-sm" href="${esc(d.file_url)}" target="_blank">${esc(t('doc.open'))}</a>` : ''}</td>
+        </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+// ==================== Уведомления ====================
+async function loadNotifications() {
+    const r = await api('/notifications?store_id=' + (STORE_ID || ''));
+    if (!r.success) { toast(r.error, true); return; }
+    const cls = lv => lv === 'alert' ? 'crit' : lv === 'warn' ? 'warn' : 'info';
+    document.getElementById('notifTbl').innerHTML = `
+        <thead><tr><th></th><th>${esc(t('notify.title'))}</th><th>${esc(t('hist.at'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(n => `<tr style="${Number(n.is_read) ? 'opacity:.55' : ''}">
+            <td><span class="pill ${cls(n.level_code)}">${esc(n.level_code)}</span></td>
+            <td>${esc(n.text)}</td>
+            <td class="muted">${fmtTs(n.created_at)}</td>
+            <td>${Number(n.is_read) ? '' : `<button class="btn btn-ghost btn-sm" onclick="markRead(${n.id})">✓</button>`}</td>
+        </tr>`).join('') : `<tr><td colspan="4" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+async function markRead(id) {
+    const r = await api('/notifications/' + id + '/read', 'POST');
+    if (!r.success) { toast(r.error, true); return; }
+    if (ACTIVE === 'notifications') loadNotifications(); else loadDashboard();
+}
+
+async function markAllRead() {
+    const r = await api('/notifications/read-all?store_id=' + (STORE_ID || ''), 'POST');
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) loadNotifications();
+}
+
+// ==================== Настройки ====================
+async function loadSettings() {
+    const [s, a] = await Promise.all([api('/settings'), api('/audit')]);
+    if (s.success) {
+        document.getElementById('setTbl').innerHTML = `
+            <thead><tr><th>${esc(t('set.param'))}</th><th>${esc(t('set.value'))}</th>
+            <th>${esc(t('set.descr'))}</th><th></th></tr></thead><tbody>` +
+            (s.data || []).map(p => `<tr>
+                <td class="mono">${esc(p.param_code)}</td>
+                <td><input class="ctl" style="width:140px" id="st_${esc(p.param_code)}" value="${esc(p.param_value || '')}"></td>
+                <td class="muted">${esc(p.descr || '')}</td>
+                <td><button class="btn btn-ghost btn-sm" onclick="saveSetting('${esc(p.param_code)}')">${esc(t('ui.save'))}</button></td>
+            </tr>`).join('') + '</tbody>';
+    }
+    if (a.success) {
+        document.getElementById('auditTbl').innerHTML = `
+            <thead><tr><th>${esc(t('hist.at'))}</th><th>${esc(t('hist.action'))}</th><th>${esc(t('eq.type'))}</th>
+            <th>ID</th><th>${esc(t('set.descr'))}</th><th>${esc(t('hist.by'))}</th></tr></thead><tbody>` +
+            ((a.data || []).length ? a.data.slice(0, 100).map(e => `<tr>
+                <td class="muted">${fmtTs(e.created_at)}</td><td>${esc(e.action)}</td>
+                <td class="muted">${esc(e.entity_type)}</td><td class="mono">${e.entity_id || '—'}</td>
+                <td class="muted">${esc(e.details || '')}</td><td>${esc(e.username || '—')}</td>
+            </tr>`).join('') : `<tr><td colspan="6" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+    }
+}
+
+async function saveSetting(code) {
+    const el = document.getElementById('st_' + code);
+    const r = await api('/settings', 'POST', {param_code: code, param_value: el ? el.value : ''});
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+}
+
+// ==================== Фильтры ====================
+function fillFilters() {
+    const anyOpt = `<option value="">${esc(t('ui.all'))}</option>`;
+    const plgSel = document.getElementById('plgStatusFilter');
+    if (plgSel) plgSel.innerHTML = anyOpt + (REFS.plg_statuses || []).map(s =>
+        `<option value="${s.code}">${esc(s.name)}</option>`).join('');
+    const catSel = document.getElementById('prodCatFilter');
+    if (catSel) catSel.innerHTML = anyOpt + (REFS.categories || []).map(c =>
+        `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    const taskSel = document.getElementById('taskStatusFilter');
+    if (taskSel) taskSel.innerHTML = anyOpt + ['open', 'new', 'in_progress', 'review', 'done', 'cancelled'].map(s =>
+        `<option value="${s}">${esc(t('st.' + s, s))}</option>`).join('');
+}
+
+document.getElementById('globalSearch').addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter') return;
+    const q = ev.target.value.trim();
+    if (!q) return;
+    go('products');
+    const el = document.getElementById('prodSearch');
+    if (el) { el.value = q; loadProducts(); }
+});
+
+boot();
+</script>
+</body>
+</html>
