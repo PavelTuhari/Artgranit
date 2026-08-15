@@ -112,7 +112,15 @@
     *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql`, `73_tbc_processing.sql`, `74_tbc_processing_demo.sql`, `75_tbc_ops.sql`, `76_tbc_ops_demo.sql`, `77_tbc_settings.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
     *   Документация: `docs/TBControl/TBCONTROL_MODULE.md`, ТЗ — `docs/TBControl/TECHNICAL-OPS.md` (разделы 72–75), презентация — `docs/TBControl/PRESENTATION_GOOGLE_LM.md`, сценарии — `docs/TBControl/SCENARIOS.md`.
 
-9.  **Документация:**
+9.  **Планограммы (Planograms):** управление выкладкой товара и торговым пространством магазина — трёхъязычный модуль (**RU / RO / EN**).
+    *   Маршрут `/UNA.md/orasldev/planograms`, API `/api/plg/*`, Oracle-объекты с префиксом `PLG_`.
+    *   Разделы: Обзор (SVG-карта зала с тепловой картой проходимости, донат, топ категорий, акции, уведомления, динамика показателей со спарклайнами), План магазина, Список планограмм с жизненным циклом `draft → review → approved → active → archived`, История изменений, Аналитика, Товары, Акции, Оборудование, Задачи мерчандайзинга, Документы, Уведомления, Настройки.
+    *   Карта зала строится из данных Oracle: зоны и оборудование позиционируются по координатам в сетке `MAP_WIDTH × MAP_HEIGHT` магазина, тепловая карта — из `PLG_ZONE_TRAFFIC`.
+    *   Мультиязычность: справочники и master-data хранят `NAME_RU/NAME_RO/NAME_EN`, строки интерфейса — в словаре `PLG_I18N`, реестр языков — `PLG_REF_LANGS`.
+    *   DDL: `sql/80_plg_tables.sql`, `81_plg_views.sql`, `82_plg_demo_data.sql`, `83_plg_i18n.sql`; ставится отдельно: `python deploy_oracle_objects.py --only plg_`.
+    *   Документация: `docs/Planograms/PLANOGRAMS_MODULE.md`.
+
+10. **Документация:**
     *   Индекс документации (`/UNA.md/orasldev/docs`), просмотр Markdown, ТЗ Nufarul.
     *   Материалы DECOR и HTML-конверсии (`/UNA.md/orasldev/docs/decor`).
     *   Материалы Nufarul: список файлов, просмотр XLSX/DOC/PDF, галерея JPG (`docs_jpg`) с описаниями по смыслу и OCR-таблицами, Registru Documente.
