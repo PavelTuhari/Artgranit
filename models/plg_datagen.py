@@ -552,14 +552,17 @@ class DataGenerator:
                 abc = 'A' if roll < abc_split[0] else ('B' if roll < abc_split[0] + abc_split[1] else 'C')
                 price = round(self.rnd.uniform(*prof['price']), 2)
                 pack = self.rnd.choice([1, 1, 6, 6, 8, 12, 12, 24])
+                cat_id = cats[ccode]
+                sup_pool = sup_by_cat.get(cat_id) or []
+                sup_id = sup_pool[n % len(sup_pool)] if sup_pool else None
                 cur.execute(
                     "INSERT INTO PLG_PRODUCTS (CODE, CATEGORY_ID, NAME_RU, NAME_RO, NAME_EN, "
                     "BARCODE, BRAND, UOM, PRICE, CURRENCY, WIDTH_MM, HEIGHT_MM, DEPTH_MM, "
                     "MIN_FACINGS, STATUS, DATASET_ID, ABC_CLASS, ORDER_MULTIPLE, LEAD_TIME_DAYS, "
-                    "SHELF_LIFE_DAYS, SUPPLIER) "
+                    "SHELF_LIFE_DAYS, SUPPLIER, SUPPLIER_ID) "
                     "VALUES (:p_code, :p_cat, :p_ru, :p_ro, :p_en, :p_bc, :p_brand, 'pcs', "
                     ":p_price, 'MDL', :p_w, :p_h, :p_d, :p_mf, 'active', :p_ds, :p_abc, "
-                    ":p_pack, :p_lead, :p_life, :p_sup)",
+                    ":p_pack, :p_lead, :p_life, :p_sup, :p_sup_id)",
                     {"p_code": f"D{self.dataset_id}-{ccode[:3].upper()}-{n + 1:04d}",
                      "p_cat": cats[ccode],
                      "p_ru": f"{base[0]} {brand}, {variant[0]}",
@@ -572,7 +575,8 @@ class DataGenerator:
                      "p_mf": 3 if abc == 'A' else (2 if abc == 'B' else 1),
                      "p_ds": self.dataset_id, "p_abc": abc, "p_pack": pack,
                      "p_lead": self.rnd.choice([1, 1, 2, 2, 3, 5]),
-                     "p_life": prof['shelf_life'], "p_sup": self.rnd.choice(SUPPLIERS)})
+                     "p_life": prof['shelf_life'], "p_sup": self.rnd.choice(SUPPLIERS),
+                     "p_sup_id": sup_id})
                 self.rows += 1
                 if made % 100 == 0:
                     self.conn.commit()
@@ -1319,21 +1323,29 @@ class DataGenerator:
             self._flush_shipments(ship_rows, products, lrnd)
 
     def _flush_shipments(self, rows: List[Tuple], products: List[Tuple], lrnd: random.Random):
-        """Пишет рейсы пачкой и добирает по 2-6 позиций состава на каждый."""
+        """
+        Пишет рейсы пачкой и добирает по 2-6 позиций состава на каждый.
+
+        ID берём из последовательности ЗАРАНЕЕ блоком: `RETURNING ... INTO`
+        в связке с executemany отдаёт значения в формате, который зависит от
+        версии драйвера, а нам нужны id рейсов, чтобы тут же вставить их состав.
+        """
         cur = self.conn.cursor()
-        id_var = cur.var(int, arraysize=len(rows))
-        cur.setinputsizes(None, None, None, None, None, None, None, None,
-                          None, None, None, None, None, None, None, None, None, None, id_var)
+        cur.execute("SELECT PLG_SHIPMENTS_SEQ.NEXTVAL FROM DUAL "
+                    "CONNECT BY LEVEL <= :p_n", {"p_n": len(rows)})
+        ids = [int(r[0]) for r in cur.fetchall()]
+
         cur.executemany(
-            "INSERT INTO PLG_SHIPMENTS (SHIPMENT_TYPE, SUPPLIER_ID, DC_ID, STORE_ID, VEHICLE_ID, "
+            "INSERT INTO PLG_SHIPMENTS (ID, SHIPMENT_TYPE, SUPPLIER_ID, DC_ID, STORE_ID, VEHICLE_ID, "
             "DOCK_NO, PLANNED_START, PLANNED_END, ACTUAL_START, ACTUAL_END, STATUS, TEMP_MODE, "
             "PALLETS, WEIGHT_KG, VOLUME_M3, AMOUNT, DISTANCE_KM, DELAY_MIN) "
-            "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14, :15, :16, :17, :18) "
-            "RETURNING ID INTO :19", rows)
+            "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14, :15, :16, :17, :18, :19)",
+            [(ids[i],) + row for i, row in enumerate(rows)])
         self.conn.commit()
         self.rows += len(rows)
 
-        ids = [int(v[0]) for v in id_var.getvalue()] if products else []
+        if not products:
+            return
         lines = []
         for ship_id in ids:
             for prod in lrnd.sample(products, min(len(products), lrnd.randint(2, 6))):
