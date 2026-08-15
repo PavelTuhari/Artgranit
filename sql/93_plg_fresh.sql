@@ -32,14 +32,17 @@ CREATE TABLE PLG_REF_TEMP_REGIMES (
   CONSTRAINT PK_PLG_REF_TEMP PRIMARY KEY (CODE)
 );
 
-INSERT INTO PLG_REF_TEMP_REGIMES (CODE, NAME_RU, NAME_RO, NAME_EN, TEMP_MIN, TEMP_MAX, COLOR, SORT_ORDER)
-VALUES ('ambient', 'Сухой склад', 'Depozit uscat', 'Ambient', 10, 25, '#9ca3af', 1);
-INSERT INTO PLG_REF_TEMP_REGIMES (CODE, NAME_RU, NAME_RO, NAME_EN, TEMP_MIN, TEMP_MAX, COLOR, SORT_ORDER)
-VALUES ('chilled', 'Охлаждённый', 'Refrigerat', 'Chilled', 0, 6, '#3b82f6', 2);
-INSERT INTO PLG_REF_TEMP_REGIMES (CODE, NAME_RU, NAME_RO, NAME_EN, TEMP_MIN, TEMP_MAX, COLOR, SORT_ORDER)
-VALUES ('ultrafresh', 'Ультрафреш', 'Ultra-proaspăt', 'Ultra-fresh', 0, 4, '#16a34a', 3);
-INSERT INTO PLG_REF_TEMP_REGIMES (CODE, NAME_RU, NAME_RO, NAME_EN, TEMP_MIN, TEMP_MAX, COLOR, SORT_ORDER)
-VALUES ('frozen', 'Заморозка', 'Congelat', 'Frozen', -24, -18, '#0ea5e9', 4);
+MERGE INTO PLG_REF_TEMP_REGIMES t USING (
+  SELECT 'ambient' CODE, 'Сухой склад' RU, 'Depozit uscat' RO, 'Ambient' EN,
+         10 TMIN, 25 TMAX, '#9ca3af' COL, 1 SRT FROM DUAL UNION ALL
+  SELECT 'chilled', 'Охлаждённый', 'Refrigerat', 'Chilled', 0, 6, '#3b82f6', 2 FROM DUAL UNION ALL
+  SELECT 'ultrafresh', 'Ультрафреш', 'Ultra-proaspăt', 'Ultra-fresh', 0, 4, '#16a34a', 3 FROM DUAL UNION ALL
+  SELECT 'frozen', 'Заморозка', 'Congelat', 'Frozen', -24, -18, '#0ea5e9', 4 FROM DUAL
+) s ON (t.CODE = s.CODE)
+WHEN MATCHED THEN UPDATE SET NAME_RU = s.RU, NAME_RO = s.RO, NAME_EN = s.EN,
+     TEMP_MIN = s.TMIN, TEMP_MAX = s.TMAX, COLOR = s.COL, SORT_ORDER = s.SRT
+WHEN NOT MATCHED THEN INSERT (CODE, NAME_RU, NAME_RO, NAME_EN, TEMP_MIN, TEMP_MAX, COLOR, SORT_ORDER)
+     VALUES (s.CODE, s.RU, s.RO, s.EN, s.TMIN, s.TMAX, s.COL, s.SRT);
 
 COMMIT;
 
