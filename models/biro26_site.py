@@ -11,9 +11,26 @@ from models.biro26_oracle_store import _rows
 
 class Biro26Site:
 
+    # RO: cache-ul intregii configuratii publice. Fiecare interogare trece
+    #     printr-un subproces Oracle thick (~1s+), iar config() face 3-4 —
+    #     endpoint-ul raspundea in ~5s LA FIECARE pagina. Configuratia se
+    #     schimba doar din admin, deci 60s de cache nu se simt; orice save
+    #     din admin o invalideaza imediat prin _invalidate().
+    # EN: whole-config cache (60s TTL); every admin save invalidates it.
+    _config_cache: Dict[str, Any] = {"exp": 0.0, "data": None}
+
+    @staticmethod
+    def _invalidate() -> None:
+        Biro26Site._config_cache["exp"] = 0.0
+        Biro26Site._featured_cache["exp"] = 0.0
+
     # ── public: configuratia vitrinei pentru pagina principala ─────────
     @staticmethod
     def config() -> Dict[str, Any]:
+        import time as _t
+        c = Biro26Site._config_cache
+        if c["data"] is not None and c["exp"] > _t.time():
+            return c["data"]
         db = Biro26DB()
         hero = _rows(db.execute_query(
             "SELECT ID, KICKER_RO, KICKER_RU, TITLE_RO, TITLE_RU, SUB_RO, "
