@@ -450,12 +450,26 @@ def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
     # Спрос до прихода партии закрывается текущим остатком, а не заказом
     mu_until_arrival = demand_between(origin + timedelta(days=1), max(0, (d1 - origin).days))
 
-    # Критическое отношение
+    # Критическое отношение.
+    #
+    # Классический newsvendor предполагает, что остаток в конце периода
+    # обесценивается полностью. Для фреша это верно только когда срок годности
+    # сопоставим с интервалом поставки: булка, не проданная сегодня, завтра
+    # уценка. Молоко со сроком девять дней при ежедневном завозе спокойно
+    # доживает до следующего дня, и списывать на него полную стоимость нельзя —
+    # иначе модель систематически недозаказывает длинный фреш.
+    #
+    # Поэтому стоимость перезаказа умножается на долю партии, реально рискующую
+    # испортиться: отношение окна поставки к остаточному сроку годности.
     price = float(economics.get('price') or 0)
     cost = float(economics.get('cost') or 0) or price * 0.72
     salvage = cost * float(economics.get('salvage_pct') or 0) / 100.0
-    waste_cost = cost * float(params.get('waste_cost_pct') or 100) / 100.0 - salvage
-    cu = max(0.01, price - cost)
+    perish_share = min(1.0, coverage_days / max(0.5, usable_days))
+    waste_cost = (cost * float(params.get('waste_cost_pct') or 100) / 100.0 - salvage) * perish_share
+    # Упущенная продажа стоит дороже своей маржи: покупатель уходит за товаром
+    # в другую сеть и уносит всю корзину. Коэффициент настраивается.
+    lost_factor = float(params.get('lost_sale_factor') or 1.5)
+    cu = max(0.01, (price - cost) * lost_factor)
     co = max(0.01, waste_cost)
     cr = cu / (cu + co)
     cr = min(float(params.get('max_cr') or 0.97), max(float(params.get('min_cr') or 0.70), cr))
