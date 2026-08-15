@@ -508,18 +508,21 @@ def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
     #
     # Партия приходит d1 и живёт usable_days. Спрос ей достаётся не весь:
     # по FIFO сначала уходит то, что уже лежит на полке.
+    # Сравнивается УРОВЕНЬ ЗАПАСА после прихода партии со спросом за срок
+    # годности. Сравнивать сам заказ с «остаточным» спросом нельзя: при
+    # ежедневном завозе партия продаётся не одна, за ней стоит очередь
+    # следующих, и такой счёт приписывал сегодняшнему заказу чужие остатки —
+    # списание выходило под 90 % от заказа там, где его фактически нет.
     sell_days = min(usable_days, 14.0) if shelf_life else coverage_days
     mu_sell = demand_between(d1, int(math.ceil(sell_days))) if sell_days > 0 else mu
-    carried = max(0.0, stock - mu_until_arrival)
-    mu_batch = max(0.0, mu_sell - carried)
     sigma_sell = sigma_daily * math.sqrt(max(1.0, sell_days))
     if order <= 0:
         waste = 0.0
     elif sigma_sell > 0:
-        k = (order - mu_batch) / sigma_sell
-        waste = (order - mu_batch) * _norm_cdf(k) + sigma_sell * _norm_pdf(k)
+        k = (target - mu_sell) / sigma_sell
+        waste = (target - mu_sell) * _norm_cdf(k) + sigma_sell * _norm_pdf(k)
     else:
-        waste = max(0.0, order - mu_batch)
+        waste = max(0.0, target - mu_sell)
     waste = min(max(0.0, waste), order)
 
     return {
