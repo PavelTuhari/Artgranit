@@ -186,6 +186,34 @@ def similarity(a: str, b: str) -> float:
     return 2.0 * len(ta & tb) / (len(ta) + len(tb))
 
 
+def _common_prefix(a: str, b: str) -> int:
+    n = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
+def words_match(spoken: str, name_word: str) -> bool:
+    """
+    Совпадает ли слово из фразы со словом из названия товара.
+
+    Одних триграмм мало для русского и румынского: «картошки» и «картофель»
+    расходятся уже на пятой букве, а «белого» и «белый» — на четвёртой,
+    хотя для человека это очевидно одно и то же. Поэтому к триграммам
+    добавлено сравнение по общей основе: четыре и более совпавших символа
+    в начале при коротком расхождении считаются совпадением.
+    """
+    if spoken == name_word:
+        return True
+    if similarity(spoken, name_word) >= 0.50:
+        return True
+    pref = _common_prefix(spoken, name_word)
+    shortest = min(len(spoken), len(name_word))
+    return pref >= 4 and shortest and pref >= 0.55 * shortest
+
+
 # ==================== Разбор фразы ====================
 
 def detect_intent(text: str, lang: str) -> str:
