@@ -6282,6 +6282,50 @@ def api_biro26_pt_commit():
 def api_biro26_pt_remap():
     return _b26(Biro26Controller.pt_remap)
 
+# ── health: ce versiune ruleaza REAL pe server ────────────────────────────
+# RO: raspunsul la intrebarea "ce commit e desfasurat?" dintr-un singur curl.
+#     Commit-ul vine din fisierul DEPLOY_COMMIT scris de deploy (serverul nu
+#     e un checkout git); local se citeste din git. route_check listeaza
+#     referintele Biro26Controller.<metoda> din app.py care NU exista in
+#     controller — exact rasincronul care a dat 500 in loc de 401 la
+#     /api/biro26/pt/sources (fisiere din commit-uri diferite pe server).
+# EN: deployment health — running commit + controller-reference smoke test;
+#     a file/commit mismatch shows up here instead of as a prod 500.
+_HEALTH_STARTED = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+
+def _biro26_route_check():
+    import re as _re
+    try:
+        src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                'app.py'), encoding='utf-8').read()
+        missing = sorted({m for m in _re.findall(
+            r'Biro26Controller\.(\w+)', src)
+            if not hasattr(Biro26Controller, m)})
+        return missing
+    except Exception:                                        # noqa: BLE001
+        return []
+
+@app.route('/api/biro26/health', methods=['GET'])
+def api_biro26_health():
+    base = os.path.dirname(os.path.abspath(__file__))
+    commit = None
+    try:
+        with open(os.path.join(base, 'DEPLOY_COMMIT'), encoding='utf-8') as f:
+            commit = f.read().strip()[:40] or None
+    except OSError:
+        try:
+            import subprocess as _sp
+            commit = _sp.run(['git', 'rev-parse', '--short', 'HEAD'],
+                             cwd=base, capture_output=True, text=True,
+                             timeout=3).stdout.strip() or None
+        except Exception:                                    # noqa: BLE001
+            commit = None
+    missing = _biro26_route_check()
+    return jsonify({'commit': commit, 'started_at': _HEALTH_STARTED,
+                    'routes': len(list(app.url_map.iter_rules())),
+                    'missing_controller_refs': missing,
+                    'ok': not missing})
+
 @app.route('/api/biro26/img', methods=['GET'])
 def api_biro26_img():
     """RO: serveste pe HTTPS o imagine gazduita doar pe HTTP (impreso.md).
