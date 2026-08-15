@@ -1041,6 +1041,15 @@ async function boot() {
     await loadStores();
     applyI18n();
     await loadMap();
+    // Разделы дорисовываются асинхронно, поэтому кнопки записи в демо-режиме
+    // гасим наблюдателем, а не разовым вызовом после загрузки.
+    if (DEMO) {
+        document.getElementById('userName').textContent = 'Гость';
+        document.getElementById('userAva').textContent = 'ГД';
+        new MutationObserver(demoGuard).observe(document.body,
+            {childList: true, subtree: true});
+        demoGuard();
+    }
     // Раздел берём из адреса: ссылка вида #logistics открывает нужный экран
     const start = sectionFromHash();
     if (start) go(start, {silent: true}); else reloadActive();
