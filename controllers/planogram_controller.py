@@ -1177,9 +1177,16 @@ class PlanogramController:
                     return {"success": False,
                             "error": f"Набор {row.get('code')} защищён от удаления"}
                 steps = [
+                    # Планограммы не каскадируются от магазина — только явно
                     "DELETE FROM PLG_PLANOGRAMS WHERE STORE_ID IN "
                     "(SELECT ID FROM PLG_STORES WHERE DATASET_ID = :p_id)",
+                    # Транспорт держит FK на набор, рейсы уйдут каскадом от РЦ/магазина/поставщика
+                    "DELETE FROM PLG_VEHICLES WHERE DATASET_ID = :p_id",
+                    "DELETE FROM PLG_DC WHERE DATASET_ID = :p_id",
                     "DELETE FROM PLG_STORES WHERE DATASET_ID = :p_id",
+                    "DELETE FROM PLG_COMPETITORS WHERE DATASET_ID = :p_id",
+                    "DELETE FROM PLG_MARKETS WHERE DATASET_ID = :p_id",
+                    "DELETE FROM PLG_SUPPLIERS WHERE DATASET_ID = :p_id",
                     "DELETE FROM PLG_PRODUCTS WHERE DATASET_ID = :p_id",
                     "DELETE FROM PLG_DATASETS WHERE ID = :p_id",
                 ]
