@@ -1097,7 +1097,7 @@ class PlanogramController:
         "PLG_PLANOGRAM_ITEMS", "PLG_PROMOS", "PLG_TASKS", "PLG_DOCUMENTS",
         "PLG_DC", "PLG_VEHICLES", "PLG_SHIPMENTS", "PLG_SUPPLIERS",
         "PLG_SUPPLIER_CONTACTS", "PLG_CONTRACTS", "PLG_COMPETITORS",
-        "PLG_MARKETS", "PLG_MARKET_CHAINS",
+        "PLG_MARKETS", "PLG_MARKET_CHAINS", "PLG_PROCESSES",
     }
 
     @staticmethod
@@ -2564,3 +2564,264 @@ class PlanogramController:
             "chains": chains["data"],
             "markets": markets.get("data", []),
             "ours": our_point}}
+
+    # ==================== Фреш: маршруты и профили категорий ====================
+
+    @staticmethod
+    def get_fresh_routes(lang: str = DEFAULT_LANG, store_id: Optional[int] = None) -> Dict:
+        """Маршруты поставки скоропортящегося товара по магазину."""
+        sql = "SELECT * FROM V_PLG_FRESH_ROUTES"
+        params: Dict[str, Any] = {}
+        if store_id:
+            sql += " WHERE STORE_ID = :p_st"
+            params["p_st"] = store_id
+        sql += " ORDER BY STORE_CODE, PRIORITY, CATEGORY_NAME_RU"
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql, params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "lang": lang,
+                        "data": PlanogramController._localized(r, lang)}
+        except Exception as e:                                   # noqa: BLE001
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_fresh_route(route_id: int, payload: Dict) -> Dict:
+        """
+        Правка маршрута. Календари проверяем строго: маска не из семи нулей
+        и единиц молча превратила бы график поставок в «каждый день»,
+        и заказ поехал бы по несуществующему расписанию.
+        """
+        for key in ("order_days", "delivery_days"):
+            val = payload.get(key)
+            if val is not None and (len(str(val)) != 7 or set(str(val)) - {"0", "1"}):
+                return {"success": False,
+                        "error": f"Календарь {key}: нужны семь символов из 0 и 1"}
+        if payload.get("delivery_days") == "0000000":
+            return {"success": False, "error": "Нельзя оставить маршрут без дней поставки"}
+        fields = {
+            "ROUTE": payload.get("route"), "LEAD_TIME_DAYS": payload.get("lead_time_days"),
+            "TRANSIT_DAYS": payload.get("transit_days"), "ORDER_DAYS": payload.get("order_days"),
+            "DELIVERY_DAYS": payload.get("delivery_days"), "CUTOFF_TIME": payload.get("cutoff_time"),
+            "MIN_ORDER_QTY": payload.get("min_order_qty"),
+            "MIN_ORDER_AMOUNT": payload.get("min_order_amount"),
+            "RECEIPT_SHELF_PCT": payload.get("receipt_shelf_pct"),
+            "SUPPLIER_ID": payload.get("supplier_id"), "DC_ID": payload.get("dc_id"),
+            "IS_ACTIVE": payload.get("is_active"), "NOTES": payload.get("notes"),
+        }
+        sets, params = [], {"p_id": route_id}
+        for i, (col, val) in enumerate(f for f in fields.items() if f[1] is not None):
+            sets.append(f"{col} = :p_{i}")
+            params[f"p_{i}"] = val
+        if not sets:
+            return {"success": False, "error": "Нечего менять"}
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    f"UPDATE PLG_FRESH_ROUTES SET {', '.join(sets)} WHERE ID = :p_id", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+            PlanogramController._log("update", "fresh_route", route_id, str(payload)[:2000])
+            return {"success": True}
+        except Exception as e:                                   # noqa: BLE001
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_fresh_profiles(lang: str = DEFAULT_LANG) -> Dict:
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT * FROM V_PLG_FRESH_PROFILES ORDER BY SHELF_LIFE_DAYS, CATEGORY_CODE")
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "lang": lang,
+                        "data": PlanogramController._localized(r, lang)}
+        except Exception as e:                                   # noqa: BLE001
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_fresh_profile(profile_id: int, payload: Dict) -> Dict:
+        fields = {
+            "TEMP_REGIME": payload.get("temp_regime"),
+            "SHELF_LIFE_DAYS": payload.get("shelf_life_days"),
+            "RECEIPT_SHELF_PCT": payload.get("receipt_shelf_pct"),
+            "PRESENTATION_MIN": payload.get("presentation_min"),
+            "SALVAGE_PCT": payload.get("salvage_pct"),
+            "WASTE_TARGET_PCT": payload.get("waste_target_pct"),
+            "MARGIN_PCT": payload.get("margin_pct"),
+            "ROUND_STEP": payload.get("round_step"),
+            "IS_ACTIVE": payload.get("is_active"),
+        }
+        sets, params = [], {"p_id": profile_id}
+        for i, (col, val) in enumerate(f for f in fields.items() if f[1] is not None):
+            sets.append(f"{col} = :p_{i}")
+            params[f"p_{i}"] = val
+        if not sets:
+            return {"success": False, "error": "Нечего менять"}
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    f"UPDATE PLG_FRESH_PROFILES SET {', '.join(sets)} WHERE ID = :p_id", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+            PlanogramController._log("update", "fresh_profile", profile_id, str(payload)[:2000])
+            return {"success": True}
+        except Exception as e:                                   # noqa: BLE001
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_fresh_order(lang: str = DEFAULT_LANG, run_id: Optional[int] = None,
+                        store_id: Optional[int] = None) -> Dict:
+        """
+        Рекомендуемый заказ фреш. Без run_id берётся последний завершённый
+        прогон фреш-модели: оператор открывает раздел и сразу видит цифры,
+        а не пустой экран с просьбой выбрать прогон.
+        """
+        try:
+            with DatabaseModel() as db:
+                if not run_id:
+                    r = db.execute_query(
+                        "SELECT MAX(r.ID) AS ID FROM PLG_FCT_RUNS r "
+                        "JOIN PLG_FCT_MODELS m ON m.ID = r.MODEL_ID "
+                        "WHERE m.ALGORITHM = 'fresh' AND r.STATUS = 'done'")
+                    rows = PlanogramController._rows(r)
+                    run_id = rows[0].get("id") if rows else None
+                if not run_id:
+                    return {"success": True, "lang": lang, "data": [], "run_id": None,
+                            "message": "Прогонов фреш-модели ещё не было"}
+                sql = "SELECT * FROM V_PLG_FRESH_ORDER WHERE RUN_ID = :p_run"
+                params: Dict[str, Any] = {"p_run": run_id}
+                if store_id:
+                    sql += " AND STORE_ID = :p_st"
+                    params["p_st"] = store_id
+                sql += " ORDER BY ORDER_AMOUNT DESC NULLS LAST"
+                res = db.execute_query(sql, params)
+                if not res.get("success"):
+                    return PlanogramController._fail(res)
+                data = PlanogramController._localized(res, lang)
+                summary = db.execute_query(
+                    "SELECT ROUTE, COUNT(*) AS SKU_COUNT, ROUND(SUM(ORDER_QTY),2) AS ORDER_QTY, "
+                    "ROUND(SUM(ORDER_AMOUNT),2) AS ORDER_AMOUNT, "
+                    "ROUND(SUM(WASTE_FORECAST),2) AS WASTE_QTY, "
+                    "ROUND(SUM(WASTE_AMOUNT),2) AS WASTE_AMOUNT, "
+                    "SUM(SHELF_LIMITED) AS SHELF_LIMITED "
+                    "FROM V_PLG_FRESH_ORDER WHERE RUN_ID = :p_run GROUP BY ROUTE",
+                    {"p_run": run_id})
+            return {"success": True, "lang": lang, "run_id": run_id, "data": data,
+                    "summary": PlanogramController._rows(summary)}
+        except Exception as e:                                   # noqa: BLE001
+            return {"success": False, "error": str(e)}
+
+    # ==================== Бизнес-процессы (схемы draw.io) ====================
+
+    @staticmethod
+    def get_processes(lang: str = DEFAULT_LANG, with_xml: bool = False) -> Dict:
+        """
+        Список бизнес-процессов модуля. XML схемы по умолчанию не отдаём —
+        он весит килобайты и в списке не нужен.
+        """
+        lang = PlanogramController.lang(lang)
+        cols = ("ID, CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, "
+                "NODE_COUNT, SORT_ORDER, STATUS, UPDATED_BY, UPDATED_AT")
+        if with_xml:
+            cols += ", DIAGRAM_XML"
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    f"SELECT {cols} FROM PLG_PROCESSES WHERE STATUS <> 'archived' "
+                    "ORDER BY SORT_ORDER, CODE")
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang),
+                        "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_process(code: str, lang: str = DEFAULT_LANG) -> Dict:
+        """Один процесс вместе со схемой в формате draw.io."""
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                row = PlanogramController._first(db.execute_query(
+                    "SELECT ID, CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, "
+                    "DIAGRAM_XML, NODE_COUNT, SORT_ORDER, STATUS, UPDATED_BY, UPDATED_AT "
+                    "FROM PLG_PROCESSES WHERE CODE = :p_code OR TO_CHAR(ID) = :p_code",
+                    {"p_code": str(code)}))
+                if not row:
+                    return {"success": False, "error": "Процесс не найден"}
+                return {"success": True, "data": PlanogramController._localize([row], lang)[0],
+                        "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_process(data: Dict, process_id: Optional[int] = None) -> Dict:
+        """
+        Создание или правка процесса. XML принимается как есть — это выгрузка
+        из draw.io; проверяем только, что он разбирается и содержит mxGraphModel,
+        иначе просмотрщик получит мусор и раздел «сломается» без объяснения.
+        """
+        import xml.etree.ElementTree as ET
+
+        xml = (data.get("diagram_xml") or "").strip()
+        if xml:
+            try:
+                root = ET.fromstring(xml)
+            except ET.ParseError as e:
+                return {"success": False, "error": f"Схема не разбирается как XML: {e}"}
+            model = root if root.tag == 'mxGraphModel' else root.find('.//mxGraphModel')
+            if model is None:
+                return {"success": False,
+                        "error": "В файле нет mxGraphModel — это не схема draw.io. "
+                                 "Экспортируйте из diagrams.net как .drawio или XML."}
+            xml = ET.tostring(model, encoding='unicode')
+            nodes = len([c for c in model.findall('.//mxCell') if c.get('vertex') == '1'])
+        else:
+            nodes = 0
+
+        params = {
+            "p_code": (data.get("code") or "").strip(),
+            "p_descr_ru": data.get("descr_ru") or data.get("description"),
+            "p_descr_ro": data.get("descr_ro"),
+            "p_descr_en": data.get("descr_en"),
+            "p_nodes": nodes,
+            "p_sort": data.get("sort_order") or 0,
+            "p_status": data.get("status") or "active",
+            "p_user": PlanogramController._username(),
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        if not params["p_code"] or not params["p_name_ru"]:
+            return {"success": False, "error": "Код и название процесса обязательны"}
+
+        try:
+            with DatabaseModel() as db:
+                cur = db.connection.cursor()
+                if process_id:
+                    cur.execute(
+                        "UPDATE PLG_PROCESSES SET CODE = :p_code, NAME_RU = :p_name_ru, "
+                        "NAME_RO = :p_name_ro, NAME_EN = :p_name_en, DESCR_RU = :p_descr_ru, "
+                        "DESCR_RO = :p_descr_ro, DESCR_EN = :p_descr_en, "
+                        "DIAGRAM_XML = NVL(:p_xml, DIAGRAM_XML), NODE_COUNT = :p_nodes, "
+                        "SORT_ORDER = :p_sort, STATUS = :p_status, UPDATED_BY = :p_user "
+                        "WHERE ID = :p_id",
+                        {**params, "p_xml": xml or None, "p_id": int(process_id)})
+                else:
+                    cur.execute(
+                        "INSERT INTO PLG_PROCESSES (CODE, NAME_RU, NAME_RO, NAME_EN, "
+                        "DESCR_RU, DESCR_RO, DESCR_EN, DIAGRAM_XML, NODE_COUNT, "
+                        "SORT_ORDER, STATUS, UPDATED_BY) "
+                        "VALUES (:p_code, :p_name_ru, :p_name_ro, :p_name_en, :p_descr_ru, "
+                        ":p_descr_ro, :p_descr_en, :p_xml, :p_nodes, :p_sort, :p_status, :p_user)",
+                        {**params, "p_xml": xml or None})
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if process_id else "create", "process",
+                                   process_id, params["p_code"])
+        return {"success": True, "nodes": nodes}
+
+    @staticmethod
+    def delete_process(process_id: int) -> Dict:
+        return PlanogramController._delete("PLG_PROCESSES", process_id, "process")
