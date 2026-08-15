@@ -782,6 +782,7 @@ function reloadActive() {
         history: loadHistory, analytics: loadAnalytics, products: loadProducts,
         promos: loadPromos, equipment: loadFixtures, tasks: loadTasks,
         docs: loadDocuments, notifications: loadNotifications, settings: loadSettings,
+        forecast: loadForecast, testdata: loadTestdata,
     };
     (loaders[ACTIVE] || loadDashboard)();
 }
