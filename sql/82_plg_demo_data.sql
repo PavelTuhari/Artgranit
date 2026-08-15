@@ -342,7 +342,7 @@ BEGIN
   -- Архивная версия выкладки снеков
   new_planogram('snacks', 'Снеки — выкладка Q2 (архив)', 'Gustări — expunere Q2 (arhivă)',
                 'Snacks — Q2 layout (archived)', 'archived', 4, 'Мария Урсу', 9.8, v_plg);
-  SELECT ID INTO v_fixt FROM PLG_FIXTURES WHERE STORE_ID = v_store AND CODE = 'ST-24-B02';
+  SELECT ID INTO v_fixt FROM PLG_FIXTURES WHERE STORE_ID = v_store AND CODE = 'ST-24-B04';
   add_item(v_plg, v_fixt, 'P-CHP-01', 1, 1, 6, 0);
   add_item(v_plg, v_fixt, 'P-CHO-01', 2, 1, 8, 0);
 
