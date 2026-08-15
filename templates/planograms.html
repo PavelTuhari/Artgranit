@@ -2344,12 +2344,17 @@ function drawGantt() {
     }
     const groups = GANTT.groups.slice(0, 40);
     const keys = new Set(groups.map(g => g.key));
-    const bars = GANTT.bars.filter(b => keys.has(b.group));
+    // Даты приходят в RFC-822 («Fri, 08 Aug 2026 09:13:00 GMT») — сравнивать их
+    // как строки нельзя, поэтому сразу переводим в миллисекунды.
+    const bars = GANTT.bars.filter(b => keys.has(b.group))
+        .map(b => Object.assign({}, b, {ms: +new Date(b.start), msEnd: +new Date(b.end)}))
+        .filter(b => !isNaN(b.ms) && !isNaN(b.msEnd));
+    if (!bars.length) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
 
     // Окно строим по суткам: от 00:00 первого дня до 24:00 последнего
-    const t0 = new Date(bars.reduce((m, b) => b.start < m ? b.start : m, bars[0].start));
+    const t0 = new Date(Math.min(...bars.map(b => b.ms)));
     t0.setHours(0, 0, 0, 0);
-    const tEnd = new Date(bars.reduce((m, b) => b.end > m ? b.end : m, bars[0].end));
+    const tEnd = new Date(Math.max(...bars.map(b => b.msEnd)));
     tEnd.setHours(24, 0, 0, 0);
     const totalMin = Math.max(60, (tEnd - t0) / 60000);
 
