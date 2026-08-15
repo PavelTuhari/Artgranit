@@ -71,8 +71,12 @@ def needs_proxy(url: Optional[str]) -> bool:
 
 
 def proxy_url(url: Optional[str]) -> Optional[str]:
-    """RO: intoarce URL-ul de afisat: prin proxy daca e nevoie, altfel neschimbat.
-    EN: the URL to render: proxied when needed, unchanged otherwise."""
+    """RO: intoarce URL-ul de afisat: prin proxy daca e nevoie, altfel neschimbat;
+    stub-urile 'fara imagine' devin None (UI-ul isi arata placeholder-ul propriu).
+    EN: the URL to render: proxied when needed, unchanged otherwise; no-image
+    stubs collapse to None so the UI shows its own placeholder."""
+    if is_stub(url):
+        return None
     if not needs_proxy(url):
         return url
     return PROXY_PATH + "?u=" + urllib.parse.quote(url, safe="")
