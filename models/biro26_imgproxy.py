@@ -31,6 +31,25 @@ ALLOWED_HOSTS = frozenset({
     "impreso.md", "www.impreso.md",
 })
 
+# RO: stub-urile "fara imagine" ale site-urilor sursa — JPEG-uri reale care spun
+#     "no photo" (impreso: noimage_b.jpg, 57 KB, la 319 produse). Mai rau decit
+#     lipsa pozei: interfata crede ca poza exista si nu mai arata placeholder-ul,
+#     iar filtrul "produse fara foto" nu le gaseste. Aproape fiecare sursa are
+#     un asemenea stub, cu nume diferite.
+# EN: source-site "no image" stubs — real JPEGs meaning "no photo"; worse than
+#     a missing image because the UI thinks a photo exists.
+STUB_MARKERS = ("noimage", "no-image", "no_image", "placeholder",
+                "img/default.jpg", "/default.jpg")
+
+
+def is_stub(url) -> bool:
+    """RO: True daca URL-ul e stub-ul 'fara imagine' al unei surse.
+    EN: True when the URL is a source-site no-image stub."""
+    if not url or not isinstance(url, str):
+        return False
+    low = url.lower()
+    return any(m in low for m in STUB_MARKERS)
+
 PROXY_PATH = "/api/biro26/img"
 MAX_BYTES = 8 * 1024 * 1024          # RO: 8 MB — o poza de produs e sub 1 MB
 TIMEOUT_S = 15
