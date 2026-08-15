@@ -244,7 +244,10 @@ class DataGenerator:
                 "VALUES (:p_ds, :p_algo, :p_params, 'running', :p_stage, :p_user) "
                 "RETURNING ID INTO :p_id",
                 {"p_ds": dataset_id,
-                 "p_algo": 'full' if len(stages) == len(DataGenerator.STAGES) else ','.join(stages),
+                 # Список этапов пишем усечённым: полный набор из девяти кодов
+                 # не влезает в колонку, а прогон должен стартовать в любом случае.
+                 "p_algo": ('full' if len(stages) == len(DataGenerator.STAGES)
+                            else ','.join(stages))[:200],
                  "p_params": json.dumps(params, ensure_ascii=False)[:2000],
                  "p_stage": stages[0], "p_user": username[:150], "p_id": run_id_var})
             conn.commit()
@@ -1265,13 +1268,15 @@ class DataGenerator:
                     continue
                 dur = lrnd.choice([60, 90, 90, 120])
                 for _ in range(12):
-                    hour = lrnd.uniform(6, 14)
+                    # Бронируем ровно тот интервал, который потом запишем:
+                    # сначала округляем время до минут, затем считаем «дробный час».
+                    start = datetime_at(day, lrnd.uniform(6, 14))
+                    hour = start.hour + start.minute / 60.0
                     dock = lrnd.randint(1, max(1, dock_count // 2))
                     vid = lrnd.choice(pool)
                     if free_slot(dock_busy, dock, hour, dur / 60) and free_slot(veh_busy, vid, hour, dur / 60):
                         occupy(dock_busy, dock, hour, dur / 60)
                         occupy(veh_busy, vid, hour, dur / 60)
-                        start = datetime_at(day, hour)
                         add_shipment('inbound', sup[0], None, vid, dock, start, dur,
                                      lrnd.choice(['ambient', 'ambient', 'chilled', 'frozen']),
                                      lrnd.randint(8, 33), round(lrnd.uniform(20, 320), 1))
@@ -1292,12 +1297,13 @@ class DataGenerator:
                     continue
                 dur = lrnd.choice([45, 60, 60, 75])
                 for _ in range(12):
-                    hour = lrnd.uniform(5.5, 12)
+                    start = datetime_at(day, lrnd.uniform(5.5, 12))
+                    hour = start.hour + start.minute / 60.0
                     vid = lrnd.choice(pool)
                     if free_slot(veh_busy, vid, hour, dur / 60 + 1.0):
                         occupy(veh_busy, vid, hour, dur / 60 + 1.0)
                         add_shipment('transfer', None, st_id, vid, None,
-                                     datetime_at(day, hour), dur,
+                                     start, dur,
                                      lrnd.choice(['ambient', 'ambient', 'chilled']),
                                      lrnd.randint(3, 14), float(dow_row[0][1] or 20))
                         break
@@ -1313,12 +1319,13 @@ class DataGenerator:
                         continue
                     dur = lrnd.choice([20, 25, 30])
                     for _ in range(10):
-                        hour = lrnd.uniform(5, 9)
+                        start = datetime_at(day, lrnd.uniform(5, 9))
+                        hour = start.hour + start.minute / 60.0
                         vid = lrnd.choice(pool)
                         if free_slot(veh_busy, vid, hour, dur / 60 + 0.5):
                             occupy(veh_busy, vid, hour, dur / 60 + 0.5)
                             add_shipment('direct', sup[0], st_id, vid, None,
-                                         datetime_at(day, hour), dur,
+                                         start, dur,
                                          lrnd.choice(['chilled', 'chilled', 'ambient']),
                                          lrnd.randint(1, 5), round(lrnd.uniform(2, 60), 1))
                             break
