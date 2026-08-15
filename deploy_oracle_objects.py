@@ -175,6 +175,10 @@ def main() -> None:
         "84_plg_testdata.sql",
         "85_plg_forecast.sql",
         "86_plg_i18n_gen.sql",
+        "87_plg_logistics.sql",
+        "88_plg_partners.sql",
+        "89_plg_partner_views.sql",
+        "90_plg_i18n_partners.sql",
     ]
     if not args.drop:
         order = [f for f in order if f != "00_drop.sql"]
