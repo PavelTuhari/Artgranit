@@ -521,6 +521,7 @@ function esc(s) {
     if (s === null || s === undefined) return '';
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function jattr(o) { return esc(JSON.stringify(o)); }
 function num(n) {
     if (n === null || n === undefined || n === '') return '—';
     return Number(n).toLocaleString(LANG === 'en' ? 'en-US' : LANG === 'ro' ? 'ro-RO' : 'ru-RU');
@@ -580,6 +581,7 @@ function applyI18n() {
         el.placeholder = t(el.dataset.i18nPh, el.placeholder);
     });
     document.documentElement.lang = LANG;
+    document.title = t('app.title') + ' — Artgranit';
     renderNav();
     renderLangSwitch();
     renderPageHead();
@@ -1245,7 +1247,7 @@ async function loadProducts() {
             <td class="muted mono">${p.width_mm}×${p.height_mm}×${p.depth_mm}</td>
             <td>${num(p.placement_count)}</td>
             <td style="white-space:nowrap">
-                <button class="btn btn-ghost btn-sm" onclick='openProductModal(${JSON.stringify(p)})'>✎</button>
+                <button class="btn btn-ghost btn-sm" onclick='openProductModal(${jattr(p)})'>✎</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id})">🗑</button></td>
         </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
 }
@@ -1318,7 +1320,7 @@ async function loadPromos() {
             <td>${num(p.product_count)}</td>
             <td><span class="pill ${pillCls(p.effective_status)}">${esc(t('st.' + p.effective_status, p.effective_status))}</span></td>
             <td style="white-space:nowrap">
-                <button class="btn btn-ghost btn-sm" onclick='openPromoModal(${JSON.stringify(p)})'>✎</button>
+                <button class="btn btn-ghost btn-sm" onclick='openPromoModal(${jattr(p)})'>✎</button>
                 <button class="btn btn-danger btn-sm" onclick="deletePromo(${p.id})">🗑</button></td>
         </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
 }
@@ -1391,7 +1393,7 @@ async function loadFixtures() {
             <td class="mono muted">${esc(f.serial_number || '—')}</td>
             <td><span class="pill ${f.status === 'active' ? 'ok' : f.status === 'repair' ? 'warn' : 'mute'}">${esc(f.status)}</span></td>
             <td style="white-space:nowrap">
-                <button class="btn btn-ghost btn-sm" onclick='openFixtureModal(${JSON.stringify(f)})'>✎</button>
+                <button class="btn btn-ghost btn-sm" onclick='openFixtureModal(${jattr(f)})'>✎</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteFixture(${f.id})">🗑</button></td>
         </tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
 }
@@ -1468,7 +1470,7 @@ async function loadTasks() {
                 ${fmtDate(x.due_date)}${Number(x.is_overdue) ? ' ⚠' : ''}</td>
             <td><span class="pill ${x.status === 'done' ? 'ok' : x.status === 'cancelled' ? 'mute' : 'info'}">${esc(t('st.' + x.status, x.status))}</span></td>
             <td style="white-space:nowrap">
-                <button class="btn btn-ghost btn-sm" onclick='openTaskModal(${JSON.stringify(x)})'>✎</button>
+                <button class="btn btn-ghost btn-sm" onclick='openTaskModal(${jattr(x)})'>✎</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteTask(${x.id})">🗑</button></td>
         </tr>`).join('') : `<tr><td colspan="9" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
 }
