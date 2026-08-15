@@ -1095,6 +1095,9 @@ class PlanogramController:
     _DELETABLE = {
         "PLG_ZONES", "PLG_FIXTURES", "PLG_PRODUCTS", "PLG_PLANOGRAMS",
         "PLG_PLANOGRAM_ITEMS", "PLG_PROMOS", "PLG_TASKS", "PLG_DOCUMENTS",
+        "PLG_DC", "PLG_VEHICLES", "PLG_SHIPMENTS", "PLG_SUPPLIERS",
+        "PLG_SUPPLIER_CONTACTS", "PLG_CONTRACTS", "PLG_COMPETITORS",
+        "PLG_MARKETS", "PLG_MARKET_CHAINS",
     }
 
     @staticmethod
@@ -1516,3 +1519,1048 @@ class PlanogramController:
                 return {"success": True, "data": rows, "totals": totals, "lang": lang}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ==================== Логистика: РЦ, транспорт, рейсы ====================
+
+    @staticmethod
+    def get_dc(dataset_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_DC WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY CODE", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_dc(data: Dict, dc_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_ds": data.get("dataset_id"),
+            "p_code": (data.get("code") or "").strip(),
+            "p_city": data.get("city"),
+            "p_area": data.get("area_sqm"),
+            "p_docks": data.get("dock_count") or 12,
+            "p_slots": data.get("pallet_slots") or 8000,
+            "p_from": data.get("work_from") or "06:00",
+            "p_to": data.get("work_to") or "22:00",
+            "p_fresh": 1 if data.get("has_fresh", 1) else 0,
+            "p_mgr": data.get("manager_name"),
+            "p_status": data.get("status") or "active",
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        params.update(PlanogramController._multilang_params(data, "address", "p_addr"))
+        if not params["p_code"] or not params["p_name_ru"]:
+            return {"success": False, "error": "Код и название РЦ обязательны"}
+        try:
+            with DatabaseModel() as db:
+                if dc_id:
+                    params["p_id"] = int(dc_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_DC SET CODE = :p_code, NAME_RU = :p_name_ru, NAME_RO = :p_name_ro, "
+                        "NAME_EN = :p_name_en, CITY = :p_city, ADDRESS_RU = :p_addr_ru, "
+                        "ADDRESS_RO = :p_addr_ro, ADDRESS_EN = :p_addr_en, AREA_SQM = :p_area, "
+                        "DOCK_COUNT = :p_docks, PALLET_SLOTS = :p_slots, WORK_FROM = :p_from, "
+                        "WORK_TO = :p_to, HAS_FRESH = :p_fresh, MANAGER_NAME = :p_mgr, "
+                        "STATUS = :p_status WHERE ID = :p_id",
+                        {k: v for k, v in params.items() if k != "p_ds"})
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_DC (DATASET_ID, CODE, NAME_RU, NAME_RO, NAME_EN, CITY, "
+                        "ADDRESS_RU, ADDRESS_RO, ADDRESS_EN, AREA_SQM, DOCK_COUNT, PALLET_SLOTS, "
+                        "WORK_FROM, WORK_TO, HAS_FRESH, MANAGER_NAME, STATUS) "
+                        "VALUES (:p_ds, :p_code, :p_name_ru, :p_name_ro, :p_name_en, :p_city, "
+                        ":p_addr_ru, :p_addr_ro, :p_addr_en, :p_area, :p_docks, :p_slots, "
+                        ":p_from, :p_to, :p_fresh, :p_mgr, :p_status)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if dc_id else "create", "dc", dc_id, params["p_code"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_dc(dc_id: int) -> Dict:
+        return PlanogramController._delete("PLG_DC", dc_id, "dc")
+
+    @staticmethod
+    def get_vehicles(dataset_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_VEHICLES WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY VEHICLE_TYPE, CODE", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_vehicle(data: Dict, vehicle_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_ds": data.get("dataset_id"),
+            "p_code": (data.get("code") or "").strip(),
+            "p_plate": data.get("plate_no"),
+            "p_type": data.get("vehicle_type") or "midi",
+            "p_carrier": data.get("carrier"),
+            "p_own": 1 if data.get("is_own", 1) else 0,
+            "p_driver": data.get("driver_name"),
+            "p_dc": data.get("home_dc_id") or None,
+            "p_cap": data.get("capacity_kg"),
+            "p_vol": data.get("volume_m3"),
+            "p_slots": data.get("pallet_slots"),
+            "p_status": data.get("status") or "active",
+        }
+        if not params["p_code"]:
+            return {"success": False, "error": "Не указан код машины"}
+        try:
+            with DatabaseModel() as db:
+                if vehicle_id:
+                    params["p_id"] = int(vehicle_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_VEHICLES SET CODE = :p_code, PLATE_NO = :p_plate, "
+                        "VEHICLE_TYPE = :p_type, CARRIER = :p_carrier, IS_OWN = :p_own, "
+                        "DRIVER_NAME = :p_driver, HOME_DC_ID = :p_dc, CAPACITY_KG = :p_cap, "
+                        "VOLUME_M3 = :p_vol, PALLET_SLOTS = :p_slots, STATUS = :p_status "
+                        "WHERE ID = :p_id", {k: v for k, v in params.items() if k != "p_ds"})
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_VEHICLES (DATASET_ID, CODE, PLATE_NO, VEHICLE_TYPE, CARRIER, "
+                        "IS_OWN, DRIVER_NAME, HOME_DC_ID, CAPACITY_KG, VOLUME_M3, PALLET_SLOTS, STATUS) "
+                        "VALUES (:p_ds, :p_code, :p_plate, :p_type, :p_carrier, :p_own, :p_driver, "
+                        ":p_dc, :p_cap, :p_vol, :p_slots, :p_status)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if vehicle_id else "create", "vehicle",
+                                   vehicle_id, params["p_code"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_vehicle(vehicle_id: int) -> Dict:
+        return PlanogramController._delete("PLG_VEHICLES", vehicle_id, "vehicle")
+
+    @staticmethod
+    def get_shipments(dataset_id: Optional[int] = None, date_from: Optional[str] = None,
+                      days: int = 7, store_id: Optional[int] = None,
+                      shipment_type: Optional[str] = None, limit: int = 1000,
+                      lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            days = max(1, min(int(days or 7), 60))
+            limit = max(1, min(int(limit or 1000), 5000))
+        except (TypeError, ValueError):
+            days, limit = 7, 1000
+        sql = ("SELECT * FROM V_PLG_SHIPMENTS WHERE PLANNED_START >= "
+               "NVL(TO_DATE(:p_from, 'YYYY-MM-DD'), TRUNC(SYSDATE) - :p_days) "
+               "AND PLANNED_START < NVL(TO_DATE(:p_from, 'YYYY-MM-DD'), TRUNC(SYSDATE) - :p_days) "
+               "+ :p_days + 1")
+        params: Dict[str, Any] = {"p_from": date_from, "p_days": days}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        if store_id:
+            sql += " AND STORE_ID = :p_st"
+            params["p_st"] = int(store_id)
+        if shipment_type:
+            sql += " AND SHIPMENT_TYPE = :p_type"
+            params["p_type"] = shipment_type
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    sql + f" ORDER BY PLANNED_START FETCH FIRST {limit} ROWS ONLY", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_gantt(dataset_id: Optional[int] = None, date_from: Optional[str] = None,
+                  days: int = 3, group_by: str = 'vehicle', lang: str = DEFAULT_LANG) -> Dict:
+        """
+        Готовит данные диаграммы Ганта: строки-ресурсы и полосы-рейсы
+        со смещением в минутах от начала окна. Всю арифметику делаем здесь,
+        чтобы шаблон только рисовал прямоугольники.
+        """
+        lang = PlanogramController.lang(lang)
+        group_by = group_by if group_by in ('vehicle', 'store', 'dock', 'supplier') else 'vehicle'
+        try:
+            days = max(1, min(int(days or 3), 14))
+        except (TypeError, ValueError):
+            days = 3
+
+        res = PlanogramController.get_shipments(dataset_id, date_from, days, None, None, 5000, lang)
+        if not res.get("success"):
+            return res
+        rows = res["data"]
+
+        key_field = {'vehicle': 'vehicle_code', 'store': 'store_code',
+                     'dock': 'dock_no', 'supplier': 'supplier_code'}[group_by]
+        label_field = {'vehicle': 'plate_no', 'store': 'store',
+                       'dock': 'dock_no', 'supplier': 'supplier'}[group_by]
+
+        groups: Dict[str, Dict[str, Any]] = {}
+        bars: List[Dict[str, Any]] = []
+        t_min = t_max = None
+        for row in rows:
+            key = row.get(key_field)
+            if key is None:
+                key = '—'
+            key = str(key)
+            grp = groups.setdefault(key, {
+                "key": key,
+                "label": str(row.get(label_field) or key),
+                "sub": row.get('vehicle_type_name') if group_by == 'vehicle' else row.get('store_code'),
+                "color": row.get('vehicle_color') or '#64748b',
+                "count": 0, "pallets": 0.0, "late": 0,
+            })
+            grp["count"] += 1
+            grp["pallets"] += float(row.get('pallets') or 0)
+            grp["late"] += int(row.get('is_late') or 0)
+
+            start, end = row.get('planned_start'), row.get('planned_end')
+            if not start or not end:
+                continue
+            t_min = start if t_min is None or start < t_min else t_min
+            t_max = end if t_max is None or end > t_max else t_max
+            bars.append({
+                "group": key, "id": row.get('id'), "code": row.get('code'),
+                "type": row.get('shipment_type'), "type_name": row.get('shipment_type_name'),
+                "color": row.get('type_color') or '#2563eb',
+                "start": start, "end": end,
+                "actual_start": row.get('actual_start'), "actual_end": row.get('actual_end'),
+                "status": row.get('status'), "delay": row.get('delay_min') or 0,
+                "is_late": row.get('is_late') or 0,
+                "pallets": row.get('pallets'), "dock": row.get('dock_no'),
+                "temp": row.get('temp_mode'),
+                "from": row.get('supplier') or row.get('dc') or '—',
+                "to": row.get('store') or row.get('dc') or '—',
+            })
+
+        order = sorted(groups.values(), key=lambda g: (-g["count"], g["label"]))
+        return {"success": True, "lang": lang, "group_by": group_by,
+                "data": {"groups": order, "bars": bars,
+                         "from": t_min, "to": t_max, "days": days,
+                         "total": len(bars),
+                         "late": sum(1 for b in bars if b["is_late"]),
+                         "pallets": round(sum(float(b["pallets"] or 0) for b in bars), 1)}}
+
+    @staticmethod
+    def save_shipment(data: Dict, shipment_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_type": data.get("shipment_type") or "transfer",
+            "p_sup": data.get("supplier_id") or None,
+            "p_dc": data.get("dc_id") or None,
+            "p_store": data.get("store_id") or None,
+            "p_veh": data.get("vehicle_id") or None,
+            "p_dock": data.get("dock_no") or None,
+            "p_start": data.get("planned_start"),
+            "p_end": data.get("planned_end"),
+            "p_status": data.get("status") or "planned",
+            "p_temp": data.get("temp_mode") or "ambient",
+            "p_pallets": data.get("pallets") or 0,
+            "p_weight": data.get("weight_kg") or 0,
+            "p_amount": data.get("amount") or 0,
+            "p_dist": data.get("distance_km"),
+            "p_notes": data.get("notes"),
+        }
+        if not params["p_start"] or not params["p_end"]:
+            return {"success": False, "error": "Окно разгрузки обязательно (начало и конец)"}
+        fmt = "'YYYY-MM-DD\"T\"HH24:MI'"
+        try:
+            with DatabaseModel() as db:
+                if shipment_id:
+                    params["p_id"] = int(shipment_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_SHIPMENTS SET SHIPMENT_TYPE = :p_type, SUPPLIER_ID = :p_sup, "
+                        "DC_ID = :p_dc, STORE_ID = :p_store, VEHICLE_ID = :p_veh, DOCK_NO = :p_dock, "
+                        f"PLANNED_START = TO_DATE(:p_start, {fmt}), PLANNED_END = TO_DATE(:p_end, {fmt}), "
+                        "STATUS = :p_status, TEMP_MODE = :p_temp, PALLETS = :p_pallets, "
+                        "WEIGHT_KG = :p_weight, AMOUNT = :p_amount, DISTANCE_KM = :p_dist, "
+                        "NOTES = :p_notes WHERE ID = :p_id", params)
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_SHIPMENTS (SHIPMENT_TYPE, SUPPLIER_ID, DC_ID, STORE_ID, "
+                        "VEHICLE_ID, DOCK_NO, PLANNED_START, PLANNED_END, STATUS, TEMP_MODE, "
+                        "PALLETS, WEIGHT_KG, AMOUNT, DISTANCE_KM, NOTES) "
+                        "VALUES (:p_type, :p_sup, :p_dc, :p_store, :p_veh, :p_dock, "
+                        f"TO_DATE(:p_start, {fmt}), TO_DATE(:p_end, {fmt}), :p_status, :p_temp, "
+                        ":p_pallets, :p_weight, :p_amount, :p_dist, :p_notes)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if shipment_id else "create", "shipment",
+                                   shipment_id, params["p_type"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_shipment(shipment_id: int) -> Dict:
+        return PlanogramController._delete("PLG_SHIPMENTS", shipment_id, "shipment")
+
+    @staticmethod
+    def get_logistics_stats(dataset_id: Optional[int] = None, days: int = 7,
+                            lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            days = max(1, min(int(days or 7), 90))
+        except (TypeError, ValueError):
+            days = 7
+        sql = ("SELECT SHIPMENT_TYPE, SHIPMENT_TYPE_NAME_RU, SHIPMENT_TYPE_NAME_RO, "
+               "SHIPMENT_TYPE_NAME_EN, TYPE_COLOR, COUNT(*) AS TRIPS, "
+               "ROUND(AVG(PLANNED_MIN)) AS AVG_MIN, SUM(IS_LATE) AS LATE_TRIPS, "
+               "ROUND(SUM(PALLETS), 1) AS PALLETS, ROUND(SUM(AMOUNT), 2) AS AMOUNT, "
+               "ROUND(AVG(DELAY_MIN), 1) AS AVG_DELAY, ROUND(SUM(DISTANCE_KM), 1) AS DISTANCE "
+               "FROM V_PLG_SHIPMENTS WHERE PLANNED_START >= TRUNC(SYSDATE) - :p_days")
+        params: Dict[str, Any] = {"p_days": days}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        sql += (" GROUP BY SHIPMENT_TYPE, SHIPMENT_TYPE_NAME_RU, SHIPMENT_TYPE_NAME_RO, "
+                "SHIPMENT_TYPE_NAME_EN, TYPE_COLOR ORDER BY TRIPS DESC")
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql, params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang),
+                        "days": days, "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ==================== Поставщики: карточка, контакты, контракты ====================
+
+    @staticmethod
+    def get_suppliers(dataset_id: Optional[int] = None, search: Optional[str] = None,
+                      lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_SUPPLIERS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        if search:
+            sql += (" AND (UPPER(CODE) LIKE :p_q OR UPPER(NAME_RU) LIKE :p_q "
+                    "OR UPPER(NAME_RO) LIKE :p_q OR UPPER(NAME_EN) LIKE :p_q)")
+            params["p_q"] = f"%{search.strip().upper()}%"
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY IS_KEY DESC, ANNUAL_TURNOVER DESC NULLS LAST", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_supplier(supplier_id: int, lang: str = DEFAULT_LANG) -> Dict:
+        """Карточка поставщика: реквизиты, контакты, контракты, товарные группы."""
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                head = PlanogramController._first(db.execute_query(
+                    "SELECT * FROM V_PLG_SUPPLIERS WHERE ID = :p_id", {"p_id": int(supplier_id)}))
+                if not head:
+                    return {"success": False, "error": "Поставщик не найден"}
+                data = PlanogramController._localize([head], lang)[0]
+                data["contacts"] = PlanogramController._localized(db.execute_query(
+                    "SELECT * FROM V_PLG_SUPPLIER_CONTACTS WHERE SUPPLIER_ID = :p_id "
+                    "ORDER BY IS_PRIMARY DESC, FULL_NAME", {"p_id": int(supplier_id)}), lang)
+                data["contracts"] = PlanogramController._localized(db.execute_query(
+                    "SELECT * FROM V_PLG_CONTRACTS WHERE SUPPLIER_ID = :p_id "
+                    "ORDER BY DATE_FROM DESC", {"p_id": int(supplier_id)}), lang)
+                data["categories"] = PlanogramController._localized(db.execute_query(
+                    "SELECT * FROM V_PLG_SUPPLIER_CATEGORIES WHERE SUPPLIER_ID = :p_id "
+                    "ORDER BY TURNOVER DESC NULLS LAST", {"p_id": int(supplier_id)}), lang)
+                data["shipments"] = PlanogramController._localized(db.execute_query(
+                    "SELECT * FROM V_PLG_SHIPMENTS WHERE SUPPLIER_ID = :p_id "
+                    "ORDER BY PLANNED_START DESC FETCH FIRST 15 ROWS ONLY",
+                    {"p_id": int(supplier_id)}), lang)
+                return {"success": True, "data": data, "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_supplier(data: Dict, supplier_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_ds": data.get("dataset_id"),
+            "p_code": (data.get("code") or "").strip(),
+            "p_type": data.get("supplier_type") or "distributor",
+            "p_country": data.get("country") or "MD",
+            "p_city": data.get("city"),
+            "p_addr": data.get("address"),
+            "p_idno": data.get("idno"),
+            "p_web": data.get("website"),
+            "p_phone": data.get("phone"),
+            "p_email": data.get("email"),
+            "p_rating": data.get("rating"),
+            "p_otif": data.get("otif_pct"),
+            "p_turn": data.get("annual_turnover"),
+            "p_key": 1 if data.get("is_key") else 0,
+            "p_del": data.get("delivers_to") or "dc",
+            "p_status": data.get("status") or "active",
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        if not params["p_code"] or not params["p_name_ru"]:
+            return {"success": False, "error": "Код и название поставщика обязательны"}
+        try:
+            with DatabaseModel() as db:
+                if supplier_id:
+                    params["p_id"] = int(supplier_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_SUPPLIERS SET CODE = :p_code, NAME_RU = :p_name_ru, "
+                        "NAME_RO = :p_name_ro, NAME_EN = :p_name_en, SUPPLIER_TYPE = :p_type, "
+                        "COUNTRY = :p_country, CITY = :p_city, ADDRESS = :p_addr, IDNO = :p_idno, "
+                        "WEBSITE = :p_web, PHONE = :p_phone, EMAIL = :p_email, RATING = :p_rating, "
+                        "OTIF_PCT = :p_otif, ANNUAL_TURNOVER = :p_turn, IS_KEY = :p_key, "
+                        "DELIVERS_TO = :p_del, STATUS = :p_status WHERE ID = :p_id",
+                        {k: v for k, v in params.items() if k != "p_ds"})
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_SUPPLIERS (DATASET_ID, CODE, NAME_RU, NAME_RO, NAME_EN, "
+                        "SUPPLIER_TYPE, COUNTRY, CITY, ADDRESS, IDNO, WEBSITE, PHONE, EMAIL, "
+                        "RATING, OTIF_PCT, ANNUAL_TURNOVER, IS_KEY, DELIVERS_TO, STATUS) "
+                        "VALUES (:p_ds, :p_code, :p_name_ru, :p_name_ro, :p_name_en, :p_type, "
+                        ":p_country, :p_city, :p_addr, :p_idno, :p_web, :p_phone, :p_email, "
+                        ":p_rating, :p_otif, :p_turn, :p_key, :p_del, :p_status)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if supplier_id else "create", "supplier",
+                                   supplier_id, params["p_code"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_supplier(supplier_id: int) -> Dict:
+        return PlanogramController._delete("PLG_SUPPLIERS", supplier_id, "supplier")
+
+    @staticmethod
+    def save_contact(supplier_id: int, data: Dict, contact_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_sup": int(supplier_id),
+            "p_name": (data.get("full_name") or "").strip(),
+            "p_role": data.get("role_code") or None,
+            "p_pos": data.get("position_tx"),
+            "p_phone": data.get("phone"),
+            "p_mob": data.get("mobile"),
+            "p_mail": data.get("email"),
+            "p_msg": data.get("messenger"),
+            "p_prim": 1 if data.get("is_primary") else 0,
+            "p_notes": data.get("notes"),
+        }
+        if not params["p_name"]:
+            return {"success": False, "error": "Не указано имя контактного лица"}
+        try:
+            with DatabaseModel() as db:
+                if contact_id:
+                    params["p_id"] = int(contact_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_SUPPLIER_CONTACTS SET FULL_NAME = :p_name, ROLE_CODE = :p_role, "
+                        "POSITION_TX = :p_pos, PHONE = :p_phone, MOBILE = :p_mob, EMAIL = :p_mail, "
+                        "MESSENGER = :p_msg, IS_PRIMARY = :p_prim, NOTES = :p_notes WHERE ID = :p_id",
+                        params)
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_SUPPLIER_CONTACTS (SUPPLIER_ID, FULL_NAME, ROLE_CODE, "
+                        "POSITION_TX, PHONE, MOBILE, EMAIL, MESSENGER, IS_PRIMARY, NOTES) "
+                        "VALUES (:p_sup, :p_name, :p_role, :p_pos, :p_phone, :p_mob, :p_mail, "
+                        ":p_msg, :p_prim, :p_notes)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                if params["p_prim"]:
+                    # Основной контакт у поставщика должен быть один
+                    db.execute_query(
+                        "UPDATE PLG_SUPPLIER_CONTACTS SET IS_PRIMARY = 0 "
+                        "WHERE SUPPLIER_ID = :p_sup AND FULL_NAME <> :p_name",
+                        {"p_sup": int(supplier_id), "p_name": params["p_name"]})
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if contact_id else "create", "contact",
+                                   contact_id, params["p_name"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_contact(contact_id: int) -> Dict:
+        return PlanogramController._delete("PLG_SUPPLIER_CONTACTS", contact_id, "contact")
+
+    @staticmethod
+    def get_contracts(dataset_id: Optional[int] = None, supplier_id: Optional[int] = None,
+                      expiring: bool = False, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_CONTRACTS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        if supplier_id:
+            sql += " AND SUPPLIER_ID = :p_sup"
+            params["p_sup"] = int(supplier_id)
+        if expiring:
+            sql += " AND EXPIRING_SOON = 1"
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY DATE_TO NULLS LAST, DATE_FROM DESC", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_contract(supplier_id: int, data: Dict, contract_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_sup": int(supplier_id),
+            "p_code": (data.get("code") or "").strip() or None,
+            "p_type": data.get("contract_type") or "supply",
+            "p_from": data.get("date_from"),
+            "p_to": data.get("date_to") or None,
+            "p_curr": data.get("currency") or "MDL",
+            "p_pay": data.get("payment_days") or 30,
+            "p_retro": data.get("retro_bonus_pct") or 0,
+            "p_disc": data.get("discount_pct") or 0,
+            "p_mkt": data.get("marketing_fee") or 0,
+            "p_min": data.get("min_order_amt"),
+            "p_inco": data.get("incoterms") or "DDP",
+            "p_lead": data.get("lead_time_days") or 2,
+            "p_renew": 1 if data.get("auto_renew") else 0,
+            "p_status": data.get("status") or "active",
+            "p_signed": data.get("signed_by"),
+            "p_file": data.get("file_url"),
+            "p_notes": data.get("notes"),
+        }
+        params.update(PlanogramController._multilang_params(data, "title", "p_title"))
+        if not params["p_from"]:
+            return {"success": False, "error": "Не указана дата начала контракта"}
+        try:
+            with DatabaseModel() as db:
+                if contract_id:
+                    params["p_id"] = int(contract_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_CONTRACTS SET CONTRACT_TYPE = :p_type, TITLE_RU = :p_title_ru, "
+                        "TITLE_RO = :p_title_ro, TITLE_EN = :p_title_en, "
+                        "DATE_FROM = TO_DATE(:p_from, 'YYYY-MM-DD'), "
+                        "DATE_TO = TO_DATE(:p_to, 'YYYY-MM-DD'), CURRENCY = :p_curr, "
+                        "PAYMENT_DAYS = :p_pay, RETRO_BONUS_PCT = :p_retro, DISCOUNT_PCT = :p_disc, "
+                        "MARKETING_FEE = :p_mkt, MIN_ORDER_AMT = :p_min, INCOTERMS = :p_inco, "
+                        "LEAD_TIME_DAYS = :p_lead, AUTO_RENEW = :p_renew, STATUS = :p_status, "
+                        "SIGNED_BY = :p_signed, FILE_URL = :p_file, NOTES = :p_notes WHERE ID = :p_id",
+                        {k: v for k, v in params.items() if k != "p_code"})
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_CONTRACTS (SUPPLIER_ID, CODE, CONTRACT_TYPE, TITLE_RU, "
+                        "TITLE_RO, TITLE_EN, DATE_FROM, DATE_TO, CURRENCY, PAYMENT_DAYS, "
+                        "RETRO_BONUS_PCT, DISCOUNT_PCT, MARKETING_FEE, MIN_ORDER_AMT, INCOTERMS, "
+                        "LEAD_TIME_DAYS, AUTO_RENEW, STATUS, SIGNED_BY, FILE_URL, NOTES) "
+                        "VALUES (:p_sup, :p_code, :p_type, :p_title_ru, :p_title_ro, :p_title_en, "
+                        "TO_DATE(:p_from, 'YYYY-MM-DD'), TO_DATE(:p_to, 'YYYY-MM-DD'), :p_curr, "
+                        ":p_pay, :p_retro, :p_disc, :p_mkt, :p_min, :p_inco, :p_lead, :p_renew, "
+                        ":p_status, :p_signed, :p_file, :p_notes)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if contract_id else "create", "contract",
+                                   contract_id, str(params["p_code"] or ''))
+        return {"success": True}
+
+    @staticmethod
+    def delete_contract(contract_id: int) -> Dict:
+        return PlanogramController._delete("PLG_CONTRACTS", contract_id, "contract")
+
+    @staticmethod
+    def get_supplier_graph(dataset_id: Optional[int] = None, top: int = 18,
+                           lang: str = DEFAULT_LANG) -> Dict:
+        """
+        Двудольный граф «поставщик ↔ товарная группа» для визуализации.
+        Возвращает узлы обеих долей и рёбра с весом = годовой оборот.
+        """
+        lang = PlanogramController.lang(lang)
+        try:
+            top = max(3, min(int(top or 18), 60))
+        except (TypeError, ValueError):
+            top = 18
+        sql = "SELECT * FROM V_PLG_SUPPLIER_CATEGORIES WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY TURNOVER DESC NULLS LAST", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                rows = PlanogramController._localized(r, lang)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+        # Оставляем top поставщиков по суммарному обороту — иначе граф нечитаем
+        totals: Dict[int, float] = {}
+        for row in rows:
+            totals[row["supplier_id"]] = totals.get(row["supplier_id"], 0.0) + float(row.get("turnover") or 0)
+        keep = {sid for sid, _ in sorted(totals.items(), key=lambda x: -x[1])[:top]}
+        rows = [r2 for r2 in rows if r2["supplier_id"] in keep]
+
+        suppliers: Dict[int, Dict] = {}
+        categories: Dict[int, Dict] = {}
+        edges = []
+        for row in rows:
+            sid, cid = row["supplier_id"], row["category_id"]
+            suppliers.setdefault(sid, {
+                "id": sid, "code": row.get("supplier_code"), "name": row.get("supplier"),
+                "type": row.get("supplier_type"), "is_key": row.get("is_key"),
+                "rating": row.get("rating"), "turnover": round(totals.get(sid, 0), 2), "links": 0})
+            categories.setdefault(cid, {
+                "id": cid, "code": row.get("category_code"), "name": row.get("category"),
+                "color": row.get("category_color") or '#64748b', "turnover": 0.0, "links": 0})
+            suppliers[sid]["links"] += 1
+            categories[cid]["links"] += 1
+            categories[cid]["turnover"] += float(row.get("turnover") or 0)
+            edges.append({"supplier_id": sid, "category_id": cid,
+                          "turnover": float(row.get("turnover") or 0),
+                          "share": row.get("share_pct"), "sku": row.get("sku_count"),
+                          "margin": row.get("margin_pct"),
+                          "is_primary": row.get("is_primary"),
+                          "color": row.get("category_color") or '#64748b'})
+        for c in categories.values():
+            c["turnover"] = round(c["turnover"], 2)
+        return {"success": True, "lang": lang, "data": {
+            "suppliers": sorted(suppliers.values(), key=lambda s: -s["turnover"]),
+            "categories": sorted(categories.values(), key=lambda c: -c["turnover"]),
+            "edges": edges,
+            "max_turnover": round(max([e["turnover"] for e in edges], default=0), 2)}}
+
+    # ==================== Конкуренты ====================
+
+    @staticmethod
+    def get_competitors(dataset_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_COMPETITORS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY MARKET_SHARE DESC NULLS LAST", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_competitor(data: Dict, competitor_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_ds": data.get("dataset_id"),
+            "p_code": (data.get("code") or "").strip(),
+            "p_country": data.get("country") or "MD",
+            "p_fmt": data.get("format_mix"),
+            "p_stores": data.get("store_count"),
+            "p_pos": data.get("positioning") or "mid",
+            "p_idx": data.get("price_index"),
+            "p_share": data.get("market_share"),
+            "p_rev": data.get("annual_revenue"),
+            "p_pl": data.get("private_label_pct"),
+            "p_web": data.get("website"),
+            "p_color": data.get("color"),
+            "p_status": data.get("status") or "active",
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        if not params["p_code"] or not params["p_name_ru"]:
+            return {"success": False, "error": "Код и название конкурента обязательны"}
+        try:
+            with DatabaseModel() as db:
+                if competitor_id:
+                    params["p_id"] = int(competitor_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_COMPETITORS SET CODE = :p_code, NAME_RU = :p_name_ru, "
+                        "NAME_RO = :p_name_ro, NAME_EN = :p_name_en, COUNTRY = :p_country, "
+                        "FORMAT_MIX = :p_fmt, STORE_COUNT = :p_stores, POSITIONING = :p_pos, "
+                        "PRICE_INDEX = :p_idx, MARKET_SHARE = :p_share, ANNUAL_REVENUE = :p_rev, "
+                        "PRIVATE_LABEL_PCT = :p_pl, WEBSITE = :p_web, COLOR = :p_color, "
+                        "STATUS = :p_status WHERE ID = :p_id",
+                        {k: v for k, v in params.items() if k != "p_ds"})
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_COMPETITORS (DATASET_ID, CODE, NAME_RU, NAME_RO, NAME_EN, "
+                        "COUNTRY, FORMAT_MIX, STORE_COUNT, POSITIONING, PRICE_INDEX, MARKET_SHARE, "
+                        "ANNUAL_REVENUE, PRIVATE_LABEL_PCT, WEBSITE, COLOR, STATUS) "
+                        "VALUES (:p_ds, :p_code, :p_name_ru, :p_name_ro, :p_name_en, :p_country, "
+                        ":p_fmt, :p_stores, :p_pos, :p_idx, :p_share, :p_rev, :p_pl, :p_web, "
+                        ":p_color, :p_status)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if competitor_id else "create", "competitor",
+                                   competitor_id, params["p_code"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_competitor(competitor_id: int) -> Dict:
+        return PlanogramController._delete("PLG_COMPETITORS", competitor_id, "competitor")
+
+    @staticmethod
+    def get_price_index(dataset_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
+        """Матрица ценового индекса «конкурент × товарная группа» для тепловой шкалы."""
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_PRICE_INDEX_CAT WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY COMPETITOR_CODE, CATEGORY_RU", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_price_compare(dataset_id: Optional[int] = None, competitor_id: Optional[int] = None,
+                          category_id: Optional[int] = None, position: Optional[str] = None,
+                          limit: int = 300, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            limit = max(1, min(int(limit or 300), 2000))
+        except (TypeError, ValueError):
+            limit = 300
+        sql = "SELECT * FROM V_PLG_PRICE_COMPARE WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        if competitor_id:
+            sql += " AND COMPETITOR_ID = :p_c"
+            params["p_c"] = int(competitor_id)
+        if category_id:
+            sql += " AND CATEGORY_ID = :p_cat"
+            params["p_cat"] = int(category_id)
+        if position:
+            sql += " AND POSITION_CODE = :p_pos"
+            params["p_pos"] = position
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    sql + f" ORDER BY ABS(PRICE_INDEX - 100) DESC FETCH FIRST {limit} ROWS ONLY", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_competitor_suppliers(dataset_id: Optional[int] = None,
+                                 competitor_id: Optional[int] = None,
+                                 lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_COMPETITOR_SUPPLIERS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        if competitor_id:
+            sql += " AND COMPETITOR_ID = :p_c"
+            params["p_c"] = int(competitor_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    sql + " ORDER BY IS_SHARED DESC, EST_SHARE_PCT DESC NULLS LAST", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_competitor_prices(csv_text: str, dataset_id: Optional[int] = None) -> Dict:
+        """
+        Импорт замеров цен из CSV: код_конкурента;код_товара;дата;цена;промо
+        Разделитель — ';' или ','. Первая строка может быть заголовком.
+        Существующий замер за ту же дату перезаписывается.
+        """
+        import csv as _csv
+        import io as _io
+        if not (csv_text or '').strip():
+            return {"success": False, "error": "Пустой файл импорта"}
+
+        sample = csv_text[:2000]
+        delim = ';' if sample.count(';') >= sample.count(',') else ','
+        reader = _csv.reader(_io.StringIO(csv_text), delimiter=delim)
+        rows = [r for r in reader if any((c or '').strip() for c in r)]
+        if not rows:
+            return {"success": False, "error": "В файле нет строк"}
+        head = [c.strip().lower() for c in rows[0]]
+        if not head[0].replace('-', '').replace('_', '').isalnum() or 'code' in head[0] or 'код' in head[0]:
+            rows = rows[1:]
+
+        imported = skipped = 0
+        errors: List[str] = []
+        try:
+            with DatabaseModel() as db:
+                comp_sql = "SELECT ID, CODE FROM PLG_COMPETITORS WHERE 1 = 1"
+                prod_sql = "SELECT ID, CODE, PRICE FROM PLG_PRODUCTS WHERE 1 = 1"
+                params: Dict[str, Any] = {}
+                if dataset_id:
+                    comp_sql += " AND DATASET_ID = :p_ds"
+                    prod_sql += " AND DATASET_ID = :p_ds"
+                    params["p_ds"] = int(dataset_id)
+                comps = {c[1]: int(c[0]) for c in db.execute_query(comp_sql, params).get("data", [])}
+                prods = {p[1]: (int(p[0]), float(p[2] or 0))
+                         for p in db.execute_query(prod_sql, params).get("data", [])}
+
+                for i, row in enumerate(rows, start=1):
+                    if len(row) < 4:
+                        skipped += 1
+                        continue
+                    ccode, pcode, cdate, price = (row[0].strip(), row[1].strip(),
+                                                  row[2].strip(), row[3].strip())
+                    promo = 1 if len(row) > 4 and row[4].strip().lower() in ('1', 'y', 'yes', 'да', 'true') else 0
+                    if ccode not in comps or pcode not in prods:
+                        skipped += 1
+                        if len(errors) < 5:
+                            errors.append(f"строка {i}: неизвестный код {ccode}/{pcode}")
+                        continue
+                    try:
+                        price_v = float(price.replace(',', '.'))
+                    except ValueError:
+                        skipped += 1
+                        if len(errors) < 5:
+                            errors.append(f"строка {i}: некорректная цена «{price}»")
+                        continue
+                    prod_id, our_price = prods[pcode]
+                    r = db.execute_query(
+                        "MERGE INTO PLG_COMPETITOR_PRICES t USING (SELECT :p_c AS C, :p_p AS P, "
+                        "TO_DATE(:p_d, 'YYYY-MM-DD') AS D FROM DUAL) s "
+                        "ON (t.COMPETITOR_ID = s.C AND t.PRODUCT_ID = s.P AND t.CHECK_DATE = s.D) "
+                        "WHEN MATCHED THEN UPDATE SET t.PRICE = :p_price, t.OUR_PRICE = :p_our, "
+                        "t.IS_PROMO = :p_promo, t.SOURCE = 'manual' "
+                        "WHEN NOT MATCHED THEN INSERT (COMPETITOR_ID, PRODUCT_ID, CHECK_DATE, PRICE, "
+                        "OUR_PRICE, IS_PROMO, SOURCE) VALUES (s.C, s.P, s.D, :p_price, :p_our, "
+                        ":p_promo, 'manual')",
+                        {"p_c": comps[ccode], "p_p": prod_id, "p_d": cdate,
+                         "p_price": price_v, "p_our": our_price, "p_promo": promo})
+                    if r.get("success"):
+                        imported += 1
+                    else:
+                        skipped += 1
+                        if len(errors) < 5:
+                            errors.append(f"строка {i}: {r.get('message', '')[:80]}")
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("import", "competitor_prices", None,
+                                   f"imported={imported} skipped={skipped}")
+        return {"success": True, "imported": imported, "skipped": skipped, "errors": errors}
+
+    # ==================== Рынки других стран ====================
+
+    @staticmethod
+    def get_markets(dataset_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_MARKETS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY RETAIL_VOLUME_MLN DESC NULLS LAST", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_market(data: Dict, market_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_ds": data.get("dataset_id"),
+            "p_code": (data.get("country_code") or "").strip().upper(),
+            "p_pop": data.get("population_mln"),
+            "p_gdp": data.get("gdp_per_capita"),
+            "p_curr": data.get("currency"),
+            "p_retail": data.get("retail_volume_mln"),
+            "p_modern": data.get("modern_trade_pct"),
+            "p_top5": data.get("top5_share_pct"),
+            "p_check": data.get("avg_check"),
+            "p_check_eur": data.get("avg_check_eur"),
+            "p_per100k": data.get("stores_per_100k"),
+            "p_pl": data.get("private_label_pct"),
+            "p_notes": data.get("notes"),
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        if not params["p_code"] or not params["p_name_ru"]:
+            return {"success": False, "error": "Код страны и название рынка обязательны"}
+        try:
+            with DatabaseModel() as db:
+                if market_id:
+                    params["p_id"] = int(market_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_MARKETS SET COUNTRY_CODE = :p_code, NAME_RU = :p_name_ru, "
+                        "NAME_RO = :p_name_ro, NAME_EN = :p_name_en, POPULATION_MLN = :p_pop, "
+                        "GDP_PER_CAPITA = :p_gdp, CURRENCY = :p_curr, RETAIL_VOLUME_MLN = :p_retail, "
+                        "MODERN_TRADE_PCT = :p_modern, TOP5_SHARE_PCT = :p_top5, AVG_CHECK = :p_check, "
+                        "AVG_CHECK_EUR = :p_check_eur, STORES_PER_100K = :p_per100k, "
+                        "PRIVATE_LABEL_PCT = :p_pl, NOTES = :p_notes WHERE ID = :p_id",
+                        {k: v for k, v in params.items() if k != "p_ds"})
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_MARKETS (DATASET_ID, COUNTRY_CODE, NAME_RU, NAME_RO, NAME_EN, "
+                        "POPULATION_MLN, GDP_PER_CAPITA, CURRENCY, RETAIL_VOLUME_MLN, MODERN_TRADE_PCT, "
+                        "TOP5_SHARE_PCT, AVG_CHECK, AVG_CHECK_EUR, STORES_PER_100K, PRIVATE_LABEL_PCT, NOTES) "
+                        "VALUES (:p_ds, :p_code, :p_name_ru, :p_name_ro, :p_name_en, :p_pop, :p_gdp, "
+                        ":p_curr, :p_retail, :p_modern, :p_top5, :p_check, :p_check_eur, :p_per100k, "
+                        ":p_pl, :p_notes)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if market_id else "create", "market",
+                                   market_id, params["p_code"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_market(market_id: int) -> Dict:
+        return PlanogramController._delete("PLG_MARKETS", market_id, "market")
+
+    @staticmethod
+    def get_market_chains(dataset_id: Optional[int] = None, market_id: Optional[int] = None,
+                          lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        sql = "SELECT * FROM V_PLG_MARKET_CHAINS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        if market_id:
+            sql += " AND MARKET_ID = :p_m"
+            params["p_m"] = int(market_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql + " ORDER BY REVENUE_MLN DESC NULLS LAST", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_market_chain(market_id: int, data: Dict, chain_id: Optional[int] = None) -> Dict:
+        params = {
+            "p_m": int(market_id),
+            "p_name": (data.get("name") or "").strip(),
+            "p_owner": data.get("owner_group"),
+            "p_fmt": data.get("format_mix"),
+            "p_stores": data.get("store_count"),
+            "p_rev": data.get("revenue_mln"),
+            "p_share": data.get("market_share_pct"),
+            "p_sqm": data.get("avg_store_sqm"),
+            "p_sku": data.get("sku_count"),
+            "p_pl": data.get("private_label_pct"),
+            "p_chk": data.get("avg_check_eur"),
+            "p_online": data.get("online_share_pct"),
+            "p_loy": 1 if data.get("loyalty_program", 1) else 0,
+            "p_bench": 1 if data.get("is_benchmark") else 0,
+            "p_notes": data.get("notes"),
+        }
+        if not params["p_name"]:
+            return {"success": False, "error": "Не указано название сети"}
+        try:
+            with DatabaseModel() as db:
+                if chain_id:
+                    params["p_id"] = int(chain_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_MARKET_CHAINS SET NAME = :p_name, OWNER_GROUP = :p_owner, "
+                        "FORMAT_MIX = :p_fmt, STORE_COUNT = :p_stores, REVENUE_MLN = :p_rev, "
+                        "MARKET_SHARE_PCT = :p_share, AVG_STORE_SQM = :p_sqm, SKU_COUNT = :p_sku, "
+                        "PRIVATE_LABEL_PCT = :p_pl, AVG_CHECK_EUR = :p_chk, "
+                        "ONLINE_SHARE_PCT = :p_online, LOYALTY_PROGRAM = :p_loy, "
+                        "IS_BENCHMARK = :p_bench, NOTES = :p_notes WHERE ID = :p_id", params)
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_MARKET_CHAINS (MARKET_ID, NAME, OWNER_GROUP, FORMAT_MIX, "
+                        "STORE_COUNT, REVENUE_MLN, MARKET_SHARE_PCT, AVG_STORE_SQM, SKU_COUNT, "
+                        "PRIVATE_LABEL_PCT, AVG_CHECK_EUR, ONLINE_SHARE_PCT, LOYALTY_PROGRAM, "
+                        "IS_BENCHMARK, NOTES) "
+                        "VALUES (:p_m, :p_name, :p_owner, :p_fmt, :p_stores, :p_rev, :p_share, "
+                        ":p_sqm, :p_sku, :p_pl, :p_chk, :p_online, :p_loy, :p_bench, :p_notes)",
+                        params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if chain_id else "create", "market_chain",
+                                   chain_id, params["p_name"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_market_chain(chain_id: int) -> Dict:
+        return PlanogramController._delete("PLG_MARKET_CHAINS", chain_id, "market_chain")
+
+    @staticmethod
+    def get_market_benchmark(dataset_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
+        """
+        Данные пузырьковой диаграммы: сети других стран плюс точка «наша сеть»,
+        посчитанная из фактических магазинов и метрик набора.
+        """
+        lang = PlanogramController.lang(lang)
+        chains = PlanogramController.get_market_chains(dataset_id, None, lang)
+        if not chains.get("success"):
+            return chains
+        markets = PlanogramController.get_markets(dataset_id, lang)
+        try:
+            with DatabaseModel() as db:
+                sql = ("SELECT COUNT(DISTINCT s.ID) AS STORE_COUNT, "
+                       "ROUND(AVG(s.AREA_SQM), 1) AS AVG_SQM, "
+                       "ROUND(SUM(m.REVENUE) / 1000000, 3) AS REVENUE_MLN, "
+                       "ROUND(AVG(m.AVG_CHECK), 2) AS AVG_CHECK "
+                       "FROM PLG_STORES s LEFT JOIN PLG_STORE_METRICS m ON m.STORE_ID = s.ID "
+                       "AND m.METRIC_DATE >= TRUNC(SYSDATE) - 365 WHERE 1 = 1")
+                params: Dict[str, Any] = {}
+                if dataset_id:
+                    sql += " AND s.DATASET_ID = :p_ds"
+                    params["p_ds"] = int(dataset_id)
+                ours = PlanogramController._first(db.execute_query(sql, params)) or {}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+        # Средний чек приводим к евро по курсу MDL/EUR, иначе точки несопоставимы
+        mdl_eur = 19.4
+        our_point = {
+            "name": "—", "is_ours": 1, "country_code": "MD",
+            "store_count": ours.get("store_count") or 0,
+            "avg_store_sqm": ours.get("avg_sqm"),
+            "revenue_mln": ours.get("revenue_mln"),
+            "avg_check_eur": round(float(ours.get("avg_check") or 0) / mdl_eur, 2),
+            "market_share_pct": None, "private_label_pct": None,
+        }
+        return {"success": True, "lang": lang, "data": {
+            "chains": chains["data"],
+            "markets": markets.get("data", []),
+            "ours": our_point}}
