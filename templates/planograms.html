@@ -847,7 +847,41 @@ function closeModal() { document.getElementById('overlay').classList.remove('on'
 function gv(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
 function gn(id) { const v = gv(id); return v === '' ? null : Number(v); }
 
+// Демо-режим включается сервером, когда модуль открыт без входа.
+// Сервер всё равно отклоняет запись (before_request в app.py) — здесь мы лишь
+// не даём пользователю нажать кнопку и получить непонятную ошибку.
+const DEMO = {{ 'true' if plg_demo else 'false' }};
+const DEMO_MSG = 'Демо-режим: просмотр без изменений. Войдите, чтобы редактировать';
+
+// Кнопки записи гасим по имени обработчика: перечислять их поимённо
+// в тридцати местах пришлось бы заново после каждой правки разметки.
+const WRITE_RE = /^(save|del|delete|remove|create|add|start|run|import|set[A-Z]|open[A-Za-z]*Modal|markRead|markAll)/;
+
+function demoGuard() {
+    if (!DEMO) return;
+    document.querySelectorAll('[onclick]').forEach(el => {
+        if (el.dataset.demoChecked) return;
+        el.dataset.demoChecked = '1';
+        const fn = (el.getAttribute('onclick') || '').trim();
+        if (WRITE_RE.test(fn)) el.classList.add('demo-off');
+    });
+}
+
+if (DEMO) {
+    document.addEventListener('click', ev => {
+        const el = ev.target.closest('.demo-off');
+        if (!el) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        toast(DEMO_MSG, true);
+    }, true);
+}
+
 async function api(path, method, body) {
+    if (DEMO && method && method !== 'GET') {
+        toast(DEMO_MSG, true);
+        return {success: false, demo: true, error: DEMO_MSG};
+    }
     const sep = path.includes('?') ? '&' : '?';
     const opts = {method: method || 'GET', headers: {'Content-Type': 'application/json'}};
     if (body) opts.body = JSON.stringify(body);
