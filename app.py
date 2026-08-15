@@ -2655,6 +2655,10 @@ def _plg_block_anonymous_writes():
         return None
     if not request.path.startswith('/api/plg/'):
         return None
+    if request.path.startswith('/api/plg/mobile/'):
+        # У мобильного контура своя авторизация — токен устройства.
+        # Проверяет её сам маршрут, здесь пропускаем.
+        return None
     if AuthController.is_authenticated():
         return None
     return jsonify({
