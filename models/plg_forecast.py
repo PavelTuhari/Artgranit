@@ -717,8 +717,10 @@ class ForecastEngine:
         history_from = origin - timedelta(days=history_needed)
 
         result_sql = ("INSERT INTO PLG_FCT_RESULTS (ID, RUN_ID, STORE_ID, PRODUCT_ID, FCT_DATE, "
-                      "QTY_FORECAST, QTY_ACTUAL, ABS_ERROR, SAFETY_STOCK, STOCK_ON_HAND, ORDER_QTY) "
-                      "VALUES (PLG_FCT_RESULTS_SEQ.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10)")
+                      "QTY_FORECAST, QTY_ACTUAL, ABS_ERROR, SAFETY_STOCK, STOCK_ON_HAND, ORDER_QTY, "
+                      "ROUTE, COVERAGE_DAYS, WASTE_FORECAST, SHELF_LIMITED, NEXT_DELIVERY) "
+                      "VALUES (PLG_FCT_RESULTS_SEQ.NEXTVAL, :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, "
+                      ":11, :12, :13, :14, :15)")
         buffer: List[Tuple] = []
 
         for si, store_id in enumerate(stores):
