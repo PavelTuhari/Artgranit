@@ -170,7 +170,7 @@ class Biro26Site:
                 {"c": c, "o": i})
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
-        Biro26Site._featured_cache["exp"] = 0.0    # invalidate
+        Biro26Site._invalidate()
         return {"success": True, "data": {"count": len(cods)}}
 
     @staticmethod
