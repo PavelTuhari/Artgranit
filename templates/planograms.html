@@ -2401,8 +2401,8 @@ function drawGantt() {
     bars.forEach(b => {
         const i = idx[b.group];
         if (i === undefined) return;
-        const s = (new Date(b.start) - t0) / 60000;
-        const e = (new Date(b.end) - t0) / 60000;
+        const s = (b.ms - t0) / 60000;
+        const e = (b.msEnd - t0) / 60000;
         const y = TOP + i * ROW;
         const bx = x(s), bw = Math.max(3, x(e) - x(s));
         const cancelled = b.status === 'cancelled';
