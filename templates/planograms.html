@@ -453,6 +453,64 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 </div></div>
             </section>
 
+            <!-- ===== Прогноз заказов ===== -->
+            <section class="panel" id="panel-forecast">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fct.title">Модели прогноза заказов</div>
+                            <div class="sub" data-i18n="fct.subtitle">Модель = алгоритм + конфигурация</div>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button class="btn btn-ghost" onclick="compareModels()" data-i18n="fct.compare">Сравнить на backtest</button>
+                            <button class="btn btn-primary" onclick="openModelModal()" data-i18n="fct.newModel">Новая модель</button>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="modelTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div class="ttl" data-i18n="fct.runs">Прогоны прогноза</div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select class="ctl" id="fctDatasetSel"></select>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fctRunTbl"></table></div>
+                </div>
+                <div class="card" id="orderCard" style="display:none">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="ord.title">Рекомендуемый заказ</div>
+                            <div class="sub" id="orderTotals">—</div>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('orderCard').style.display='none'" data-i18n="ui.close">Закрыть</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="orderTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Генератор тестовых данных ===== -->
+            <section class="panel" id="panel-testdata">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="ds.title">Наборы тестовых данных</div>
+                            <div class="sub" data-i18n="ds.subtitle">Тестовые данные изолированы в наборах</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="openGenModal()" data-i18n="ds.new">Сгенерировать сеть</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="dsTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="gen.runs">Журнал прогонов</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="genRunTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="gen.title">Алгоритмы генерации</div></div>
+                    <div class="card-b" id="genAlgoHost"></div>
+                </div>
+            </section>
+
             <!-- ===== Настройки ===== -->
             <section class="panel" id="panel-settings">
                 <div class="card">
