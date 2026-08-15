@@ -924,7 +924,11 @@ class DataGenerator:
                 d = d.date() if hasattr(d, 'date') else d
                 amount = float(amount or 0)
                 conv = srnd.uniform(conv_min, conv_max)
-                avg_check = max(45.0, srnd.gauss(amount / max(1.0, float(qty or 1)) * 6.5, 30))
+                # Средний чек держим в реальном для рынка диапазоне (~7-9 € по курсу
+                # 19.4 MDL/EUR). Раньше он считался как «средняя цена × 6.5» и давал
+                # ~660 MDL — на бенчмарке с зарубежными сетями наша точка улетала
+                # за пределы облака и сравнение теряло смысл.
+                avg_check = min(280.0, max(90.0, srnd.gauss(148.0, 26.0)))
                 buyers = max(1, int(amount / avg_check))
                 traffic = max(buyers, int(buyers / (conv / 100.0)))
                 metric_rows.append((int(store_id), d, traffic, buyers, round(conv, 2),
