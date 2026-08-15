@@ -362,7 +362,9 @@ class DataGenerator:
             city = self.rnd.choice(CITIES)
             street = self.rnd.choice(STREETS)
             house = self.rnd.randint(1, 180)
-            code = f"{city[4]}-{fmt[:3].upper()}-{i + 1:03d}"
+            # Код магазина уникален глобально, поэтому включает номер набора:
+            # иначе второй тестовый набор столкнётся с первым на UQ_PLG_STORES_CODE.
+            code = f"D{self.dataset_id}-{city[4]}-{fmt[:3].upper()}-{i + 1:03d}"
             area = round(self.rnd.uniform(*prof['area']), 1)
             checkouts = self.rnd.randint(*prof['checkouts'])
 
