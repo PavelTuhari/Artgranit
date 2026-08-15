@@ -261,11 +261,22 @@ table.tbl tbody tr:hover { background: #f8fafc; }
             <div class="spacer" style="flex:1"></div>
             <button class="icon-btn" onclick="go('notifications')">🔔<span class="dot" id="notifDot" style="display:none">0</span></button>
             <a class="icon-btn" href="/UNA.md/orasldev/planograms/docs" target="_blank"
-               style="text-decoration:none" title="Документация модуля">📘</a>
+               style="text-decoration:none" id="lnkDocs" title="Документация модуля">📘</a>
+            <a class="icon-btn" href="/UNA.md/orasldev/planograms/presentation" target="_blank"
+               style="text-decoration:none" id="lnkPres" title="Презентация модуля">◧</a>
             <button class="icon-btn" onclick="go('settings')">⚙</button>
         </header>
 
         <div class="content">
+
+            {% if plg_demo %}
+            <div class="demo-bar">
+                <span class="badge">Демо</span>
+                <span>Открытый просмотр: все разделы и данные видны, изменение
+                      данных доступно после входа в систему.</span>
+                <a href="/login?next=/UNA.md/orasldev/planograms">Войти →</a>
+            </div>
+            {% endif %}
 
             <div class="page-head">
                 <div>
@@ -635,6 +646,36 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 </div>
             </section>
 
+            <!-- ===== Бизнес-процессы (схемы draw.io) ===== -->
+            <section class="panel" id="panel-processes">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="bp.title">Бизнес-процессы</div>
+                            <div class="sub" data-i18n="bp.subtitle">Схемы в нотации BPMN, формат draw.io</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <select class="ctl" id="bpSelect" onchange="loadProcess()"></select>
+                            <button class="btn btn-ghost" onclick="openProcessImport()" data-i18n="bp.import">Импорт .drawio</button>
+                            <a class="btn btn-ghost" id="bpDownload" href="#" data-i18n="bp.export">Скачать .drawio</a>
+                            <a class="btn btn-ghost" id="bpDrawio" href="#" target="_blank" rel="noopener"
+                               data-i18n="bp.openDrawio">Открыть в draw.io</a>
+                        </div>
+                    </div>
+                    <div class="card-b">
+                        <div id="bpDescr" style="font-size:13.5px;color:var(--muted);line-height:1.55;margin-bottom:10px"></div>
+                        <div style="background:var(--map-bg);border-radius:10px;padding:10px;overflow-x:auto">
+                            <div id="bpDiagram"></div>
+                        </div>
+                        <div class="legend" id="bpLegend" style="margin-top:10px"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="bp.all">Все процессы</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="bpTbl"></table></div>
+                </div>
+            </section>
+
             <!-- ===== Генератор тестовых данных ===== -->
             <section class="panel" id="panel-testdata">
                 <div class="card">
@@ -666,6 +707,31 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 <div class="card">
                     <div class="card-h"><div class="ttl" data-i18n="set.audit">Журнал действий</div></div>
                     <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="auditTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="ui.docs">Документация</div></div>
+                    <div class="card-b">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+                            <a class="card" style="text-decoration:none;color:inherit;border-left:3px solid var(--ok)"
+                               href="/UNA.md/orasldev/planograms/docs" target="_blank">
+                                <div style="font-size:20px;margin-bottom:6px">📘</div>
+                                <div style="font-weight:600;font-size:13.5px" data-i18n="ui.docs">Документация</div>
+                                <div style="font-size:11.5px;color:var(--muted);margin-top:3px">
+                                    /UNA.md/orasldev/planograms/docs</div></a>
+                            <a class="card" style="text-decoration:none;color:inherit;border-left:3px solid var(--accent)"
+                               href="/UNA.md/orasldev/planograms/presentation" target="_blank">
+                                <div style="font-size:20px;margin-bottom:6px">◧</div>
+                                <div style="font-weight:600;font-size:13.5px" data-i18n="ui.presentation">Презентация</div>
+                                <div style="font-size:11.5px;color:var(--muted);margin-top:3px">
+                                    /UNA.md/orasldev/planograms/presentation</div></a>
+                            <a class="card" style="text-decoration:none;color:inherit;border-left:3px solid var(--warn)"
+                               href="#processes" onclick="go('processes')">
+                                <div style="font-size:20px;margin-bottom:6px">⧉</div>
+                                <div style="font-weight:600;font-size:13.5px" data-i18n="bp.title">Бизнес-процессы</div>
+                                <div style="font-size:11.5px;color:var(--muted);margin-top:3px">
+                                    BPMN · draw.io</div></a>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -708,6 +774,7 @@ const NAV = [
     {id: 'suppliers',     icon: '⇄', key: 'nav.suppliers'},
     {id: 'competitors',   icon: '⚖', key: 'nav.competitors'},
     {id: 'markets',       icon: '🌍', key: 'nav.markets'},
+    {id: 'processes',     icon: '⧉', key: 'nav.processes'},
     {id: 'testdata',      icon: '⚗', key: 'nav.testdata'},
     {id: 'products',      icon: '⊟', key: 'nav.products'},
     {id: 'promos',        icon: '◎', key: 'nav.promos'},
@@ -849,7 +916,7 @@ function navClick(id) {
     go(id);
 }
 
-function go(id) {
+function go(id, opts) {
     ACTIVE = id;
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     const panel = document.getElementById('panel-' + id);
@@ -857,7 +924,35 @@ function go(id) {
     renderNav();
     renderPageHead();
     reloadActive();
+    // Адрес отражает раздел: на модуль можно дать прямую ссылку из презентации,
+    // документации или переписки, и она откроет именно нужный экран.
+    if (!(opts && opts.silent) && location.hash !== '#' + id) {
+        history.replaceState(null, '', '#' + id);
+    }
+    document.querySelector('.content').scrollTop = 0;
 }
+
+// Разделы, на которые можно ссылаться извне. Синонимы оставлены для
+// устойчивости ссылок: адрес в презентации не должен ломаться от переименования.
+const SECTION_ALIASES = {
+    map: 'storemap', plan: 'storemap', list: 'plglist', planograms: 'overview',
+    gantt: 'logistics', shipments: 'logistics', supplier: 'suppliers',
+    competitor: 'competitors', market: 'markets', price: 'competitors',
+    forecast_orders: 'forecast', orders: 'forecast', generator: 'testdata',
+    processes: 'processes',
+};
+
+function sectionFromHash() {
+    const raw = decodeURIComponent((location.hash || '').replace(/^#/, '')).trim();
+    if (!raw) return null;
+    const id = SECTION_ALIASES[raw] || raw;
+    return document.getElementById('panel-' + id) ? id : null;
+}
+
+window.addEventListener('hashchange', () => {
+    const id = sectionFromHash();
+    if (id && id !== ACTIVE) go(id, {silent: true});
+});
 
 function renderPageHead() {
     const crumb = CRUMB[ACTIVE];
@@ -902,7 +997,9 @@ async function boot() {
     await loadStores();
     applyI18n();
     await loadMap();
-    reloadActive();
+    // Раздел берём из адреса: ссылка вида #logistics открывает нужный экран
+    const start = sectionFromHash();
+    if (start) go(start, {silent: true}); else reloadActive();
 }
 
 async function loadStores() {
@@ -934,7 +1031,7 @@ function reloadActive() {
         docs: loadDocuments, notifications: loadNotifications, settings: loadSettings,
         forecast: loadForecast, testdata: loadTestdata,
         logistics: loadLogistics, suppliers: loadSuppliers,
-        competitors: loadCompetitors, markets: loadMarkets,
+        competitors: loadCompetitors, markets: loadMarkets, processes: loadProcesses,
     };
     (loaders[ACTIVE] || loadDashboard)();
 }
@@ -3158,6 +3255,251 @@ async function deleteChain(id) {
     const r = await api('/chains/' + id, 'DELETE');
     toast(r.success ? t('ui.deleted') : r.error, !r.success);
     if (r.success) loadMarkets();
+}
+
+// ==================== Бизнес-процессы: просмотрщик схем draw.io ====================
+let PROCESSES = [], CUR_PROCESS = null;
+
+async function loadProcesses() {
+    const r = await api('/processes');
+    if (!r.success) { toast(r.error, true); return; }
+    PROCESSES = r.data || [];
+    const sel = document.getElementById('bpSelect');
+    const cur = sel.value;
+    sel.innerHTML = PROCESSES.map(p => `<option value="${esc(p.code)}">${esc(p.name)}</option>`).join('');
+    if (cur && PROCESSES.some(p => p.code === cur)) sel.value = cur;
+    renderProcessTable();
+    loadProcess();
+}
+
+function renderProcessTable() {
+    document.getElementById('bpTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th>
+        <th>${esc(t('set.descr'))}</th><th>${esc(t('bp.nodes'))}</th>
+        <th>${esc(t('plg.status'))}</th><th>${esc(t('hist.by'))}</th><th></th></tr></thead><tbody>` +
+        (PROCESSES.length ? PROCESSES.map(p => `<tr>
+            <td class="mono">${esc(p.code)}</td>
+            <td><a href="#" onclick="showProcess('${esc(p.code)}');return false"
+                   style="color:var(--accent);text-decoration:none"><b>${esc(p.name)}</b></a></td>
+            <td class="muted" style="max-width:420px">${esc(p.descr || '')}</td>
+            <td>${p.node_count}</td>
+            <td><span class="pill ${p.status === 'active' ? 'ok' : 'mute'}">${esc(t('st.' + p.status, p.status))}</span></td>
+            <td class="muted">${esc(p.updated_by || '—')}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteProcess(${p.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="7" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function showProcess(code) {
+    document.getElementById('bpSelect').value = code;
+    loadProcess();
+}
+
+async function loadProcess() {
+    const code = gv('bpSelect');
+    if (!code) return;
+    const r = await api('/processes/' + encodeURIComponent(code));
+    if (!r.success) { toast(r.error, true); return; }
+    CUR_PROCESS = r.data;
+    document.getElementById('bpDescr').textContent = CUR_PROCESS.descr || '';
+    document.getElementById('bpDownload').href = API + '/processes/' + encodeURIComponent(code) + '/drawio';
+    // diagrams.net открывает схему из адреса: #R<url-encoded xml>
+    document.getElementById('bpDrawio').href =
+        'https://app.diagrams.net/?title=' + encodeURIComponent(code + '.drawio') +
+        '#R' + encodeURIComponent(CUR_PROCESS.diagram_xml || '');
+    drawProcess(CUR_PROCESS.diagram_xml || '');
+}
+
+// Разбор стиля draw.io: "rounded=1;fillColor=#123;..." → объект
+function mxStyle(str) {
+    const out = {};
+    (str || '').split(';').forEach(part => {
+        if (!part) return;
+        const i = part.indexOf('=');
+        if (i < 0) out[part] = true; else out[part.slice(0, i)] = part.slice(i + 1);
+    });
+    return out;
+}
+
+// Точка на границе прямоугольника по направлению к цели — чтобы стрелка
+// упиралась в фигуру, а не в её центр
+function borderPoint(box, tx, ty) {
+    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    const dx = tx - cx, dy = ty - cy;
+    if (!dx && !dy) return {x: cx, y: cy};
+    const sx = dx ? (box.w / 2) / Math.abs(dx) : Infinity;
+    const sy = dy ? (box.h / 2) / Math.abs(dy) : Infinity;
+    const k = Math.min(sx, sy);
+    return {x: cx + dx * k, y: cy + dy * k};
+}
+
+function drawProcess(xml) {
+    const host = document.getElementById('bpDiagram');
+    if (!xml) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
+
+    let doc;
+    try { doc = new DOMParser().parseFromString(xml, 'application/xml'); }
+    catch (e) { host.innerHTML = `<div class="empty">${esc(t('ui.error'))}: ${esc(String(e))}</div>`; return; }
+    if (doc.querySelector('parsererror')) {
+        host.innerHTML = `<div class="empty">${esc(t('bp.badXml'))}</div>`; return;
+    }
+
+    // Собираем вершины: и обычные mxCell, и обёрнутые в UserObject (у них ссылка)
+    const nodes = {}, edges = [];
+    doc.querySelectorAll('mxCell').forEach(c => {
+        const geo = c.querySelector('mxGeometry');
+        const parent = c.parentNode;
+        const wrapped = parent && parent.nodeName === 'UserObject';
+        const id = wrapped ? parent.getAttribute('id') : c.getAttribute('id');
+        const label = wrapped ? parent.getAttribute('label') : (c.getAttribute('value') || '');
+        const link = wrapped ? parent.getAttribute('link') : null;
+        if (c.getAttribute('vertex') === '1' && geo) {
+            nodes[id] = {
+                id, label, link, style: mxStyle(c.getAttribute('style')),
+                x: +geo.getAttribute('x') || 0, y: +geo.getAttribute('y') || 0,
+                w: +geo.getAttribute('width') || 100, h: +geo.getAttribute('height') || 40,
+            };
+        } else if (c.getAttribute('edge') === '1') {
+            edges.push({label, source: c.getAttribute('source'), target: c.getAttribute('target'),
+                        style: mxStyle(c.getAttribute('style'))});
+        }
+    });
+    const list = Object.values(nodes);
+    if (!list.length) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
+
+    const PAD = 26;
+    const maxX = Math.max(...list.map(n => n.x + n.w)) + PAD;
+    const maxY = Math.max(...list.map(n => n.y + n.h)) + PAD;
+    const minX = Math.min(...list.map(n => n.x)) - PAD;
+    const minY = Math.min(...list.map(n => n.y)) - PAD;
+    const W = maxX - minX, H = maxY - minY;
+    const p = [];
+
+    p.push(`<defs><marker id="bpArrow" markerWidth="9" markerHeight="9" refX="8" refY="3"
+        orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs>`);
+    p.push(`<rect x="${minX}" y="${minY}" width="${W}" height="${H}" fill="#111827" rx="8"/>`);
+
+    // Связи рисуем первыми, чтобы фигуры легли поверх
+    edges.forEach(e => {
+        const a = nodes[e.source], b = nodes[e.target];
+        if (!a || !b) return;
+        const ac = {x: a.x + a.w / 2, y: a.y + a.h / 2};
+        const bc = {x: b.x + b.w / 2, y: b.y + b.h / 2};
+        const s = borderPoint(a, bc.x, bc.y), t2 = borderPoint(b, ac.x, ac.y);
+        // Ортогональная трассировка: сначала по доминирующей оси
+        let d, mid;
+        if (Math.abs(bc.x - ac.x) >= Math.abs(bc.y - ac.y)) {
+            mid = (s.x + t2.x) / 2;
+            d = `M ${s.x} ${s.y} L ${mid} ${s.y} L ${mid} ${t2.y} L ${t2.x} ${t2.y}`;
+        } else {
+            mid = (s.y + t2.y) / 2;
+            d = `M ${s.x} ${s.y} L ${s.x} ${mid} L ${t2.x} ${mid} L ${t2.x} ${t2.y}`;
+        }
+        p.push(`<path d="${d}" fill="none" stroke="${e.style.strokeColor || '#64748b'}"
+                 stroke-width="1.6" marker-end="url(#bpArrow)"/>`);
+        if (e.label) {
+            const lx = (s.x + t2.x) / 2, ly = (s.y + t2.y) / 2;
+            p.push(`<rect x="${lx - e.label.length * 3.1 - 4}" y="${ly - 9}"
+                     width="${e.label.length * 6.2 + 8}" height="15" rx="3" fill="#111827" opacity=".92"/>`);
+            p.push(`<text x="${lx}" y="${ly + 2}" text-anchor="middle" fill="#94a3b8"
+                     font-size="10">${esc(e.label)}</text>`);
+        }
+    });
+
+    list.forEach(n => {
+        const st = n.style;
+        const fill = st.fillColor || '#1e3a5f', stroke = st.strokeColor || '#3b82f6';
+        const fc = st.fontColor || '#e8eef7', sw = st.strokeWidth || 1.6;
+        let shape;
+        if (st.rhombus) {
+            const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+            shape = `<polygon points="${cx},${n.y} ${n.x + n.w},${cy} ${cx},${n.y + n.h} ${n.x},${cy}"
+                      fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+        } else if (st.ellipse) {
+            shape = `<ellipse cx="${n.x + n.w / 2}" cy="${n.y + n.h / 2}" rx="${n.w / 2}"
+                      ry="${n.h / 2}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+        } else {
+            const r = st.rounded === '1' ? (+st.arcSize || 12) : 0;
+            shape = `<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="${r}"
+                      fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+        }
+        // Подпись переносим по словам под ширину фигуры
+        const maxChars = Math.max(8, Math.floor(n.w / 6.1));
+        const words = String(n.label || '').split(' ');
+        const lines = []; let cur = '';
+        words.forEach(w => {
+            if ((cur + ' ' + w).trim().length > maxChars) { if (cur) lines.push(cur); cur = w; }
+            else cur = (cur + ' ' + w).trim();
+        });
+        if (cur) lines.push(cur);
+        const fs = st.fontSize ? +st.fontSize : 12;
+        const top = n.y + n.h / 2 - (lines.length - 1) * (fs * 0.58);
+        const text = lines.slice(0, 4).map((ln, i) =>
+            `<text x="${n.x + n.w / 2}" y="${top + i * (fs + 2)}" text-anchor="middle"
+              fill="${fc}" font-size="${fs}" font-weight="500">${esc(ln)}</text>`).join('');
+
+        const tip = n.link ? `${n.label} · ${t('bp.goto')}` : n.label;
+        const body = `<g class="bpn" data-tip="${esc(tip)}">${shape}${text}</g>`;
+        p.push(n.link
+            ? `<a href="${esc(n.link)}" style="cursor:pointer">${body}</a>`
+            : body);
+    });
+
+    host.innerHTML = `<svg viewBox="${minX} ${minY} ${W} ${H}" width="100%"
+        style="display:block;min-width:${Math.min(W, 1180)}px">${p.join('')}</svg>`;
+    host.querySelectorAll('.bpn').forEach(g => {
+        g.addEventListener('mousemove', ev => showTip(ev, g.dataset.tip));
+        g.addEventListener('mouseleave', hideTip);
+    });
+    document.getElementById('bpLegend').innerHTML = [
+        ['#22c55e', 'bp.event'], ['#3b82f6', 'bp.task'],
+        ['#f59e0b', 'bp.gateway'], ['#ef4444', 'bp.end'],
+    ].map(([c, k]) => `<div><i style="background:${c}"></i><span>${esc(t(k))}</span></div>`).join('') +
+      `<div style="margin-left:auto">${esc(t('bp.clickHint'))}</div>`;
+}
+
+function openProcessImport() {
+    openModal(`<h3>${esc(t('bp.import'))}</h3>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${esc(t('bp.importHint'))}</div>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="bp_code"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="bp_name_ru"></div>
+        </div>
+        <div class="fg"><label>${esc(t('set.descr'))}</label><textarea id="bp_descr" style="min-height:56px"></textarea></div>
+        <div class="fg"><label>XML (.drawio)</label>
+            <textarea id="bp_xml" style="min-height:170px;font-family:ui-monospace,monospace;font-size:11.5px"
+                      placeholder="&lt;mxGraphModel ...&gt;"></textarea></div>
+        <div class="fg"><label>${esc(t('bp.orFile'))}</label>
+            <input type="file" id="bp_file" accept=".drawio,.xml" onchange="readProcessFile(this)"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveProcess()">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+function readProcessFile(input) {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+        document.getElementById('bp_xml').value = rd.result;
+        if (!gv('bp_code')) document.getElementById('bp_code').value = f.name.replace(/\.(drawio|xml)$/i, '');
+        if (!gv('bp_name_ru')) document.getElementById('bp_name_ru').value = f.name.replace(/\.(drawio|xml)$/i, '');
+    };
+    rd.readAsText(f);
+}
+
+async function saveProcess() {
+    const r = await api('/processes', 'POST', {
+        code: gv('bp_code'), name_ru: gv('bp_name_ru'),
+        descr_ru: gv('bp_descr'), diagram_xml: document.getElementById('bp_xml').value});
+    toast(r.success ? `${t('ui.saved')} · ${t('bp.nodes')}: ${r.nodes}` : r.error, !r.success);
+    if (r.success) { closeModal(); loadProcesses(); }
+}
+
+async function deleteProcess(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/processes/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadProcesses();
 }
 
 document.getElementById('globalSearch').addEventListener('keydown', ev => {
