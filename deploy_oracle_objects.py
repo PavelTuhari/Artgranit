@@ -104,6 +104,9 @@ def main() -> None:
     ap.add_argument("--drop", action="store_true", help="Сначала выполнить 00_drop.sql")
     ap.add_argument("--dry-run", action="store_true", help="Не выполнять, только вывести команды")
     ap.add_argument("--sql-dir", type=Path, default=ROOT / "sql", help="Каталог с SQL-файлами")
+    ap.add_argument("--only", nargs="+", metavar="SUBSTR",
+                    help="Выполнить только файлы, содержащие одну из подстрок "
+                         "(например: --only plg_ — развернуть только модуль планограмм)")
     args = ap.parse_args()
 
     sql_dir = args.sql_dir
