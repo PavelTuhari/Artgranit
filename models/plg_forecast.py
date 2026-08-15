@@ -348,8 +348,17 @@ class ForecastEngine:
         origin = None
         try:
             origin = self._execute()
-            self._finish('done', f"Рядов посчитано: {self.series_count}, пропущено: {self.skipped}",
-                         origin)
+            msg = f"Рядов посчитано: {self.series_count}, пропущено: {self.skipped}"
+            if self.series_count == 0 and self.skipped:
+                # Частый случай: истории меньше, чем требует алгоритм. Без явного
+                # объяснения прогон выглядит как успешный, но пустой.
+                min_history = self._fetch(
+                    "SELECT MIN_HISTORY FROM PLG_FCT_ALGORITHMS WHERE CODE = :p_c",
+                    {"p_c": self.model['algorithm']})
+                need = min_history[0][0] if min_history else '?'
+                msg += (f". Ни один ряд не прошёл порог истории: алгоритму "
+                        f"{self.model['algorithm']} нужно минимум {need} дней продаж")
+            self._finish('done', msg, origin)
         except ForecastCancelled:
             self._finish('cancelled', 'Прогон остановлен оператором', origin)
         except Exception as e:
