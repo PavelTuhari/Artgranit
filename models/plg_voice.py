@@ -355,7 +355,7 @@ class ProductMatcher:
             return None, 0.0, []
         scored: Dict[int, Tuple[float, Dict[str, Any]]] = {}
         for product, norm_name, name_words, weight in self.index:
-            overlap = sum(1 for w in words if any(similarity(w, nw) > 0.6 for nw in name_words))
+            overlap = sum(1 for w in words if any(words_match(w, nw) for nw in name_words))
             cover = overlap / len(words)
             sim = similarity(' '.join(words), norm_name)
             score = (0.65 * cover + 0.35 * sim) * 100 * weight
