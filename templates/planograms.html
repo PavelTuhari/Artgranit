@@ -1680,6 +1680,395 @@ function fillFilters() {
         `<option value="${s}">${esc(t('st.' + s, s))}</option>`).join('');
 }
 
+// ==================== Генератор тестовых данных ====================
+let DATASETS = [], GEN_ALGOS = [], FCT_ALGOS = [], FCT_MODELS = [];
+let genPollTimer = null, fctPollTimer = null;
+
+const RUN_PILL = {running: 'info', done: 'ok', failed: 'crit', cancelled: 'mute',
+                  building: 'warn', ready: 'ok', archived: 'mute'};
+
+function progressBar(pct, status) {
+    const p = Math.max(0, Math.min(100, Number(pct || 0)));
+    const color = status === 'failed' ? 'var(--crit)' : status === 'done' ? 'var(--ok)' : 'var(--accent)';
+    return `<div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;min-width:60px;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${p}%;background:${color};border-radius:4px;transition:width .3s"></div>
+        </div><span style="font-size:10.5px;color:var(--muted);min-width:30px">${p}%</span></div>`;
+}
+
+async function loadTestdata() {
+    const [ds, algos, runs] = await Promise.all([
+        api('/datasets'), api('/gen/algorithms'), api('/gen/runs')]);
+    if (ds.success) { DATASETS = ds.data || []; renderDatasets(); }
+    if (algos.success) { GEN_ALGOS = algos.data || []; renderGenAlgos(); }
+    if (runs.success) renderGenRuns(runs.data || []);
+    scheduleGenPoll(runs.success ? runs.data : []);
+}
+
+function renderDatasets() {
+    document.getElementById('dsTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th><th>${esc(t('ds.kind'))}</th>
+        <th>${esc(t('plg.status'))}</th><th>${esc(t('ds.stores'))}</th><th>${esc(t('ds.sku'))}</th>
+        <th>${esc(t('ds.salesRows'))}</th><th>${esc(t('ds.period'))}</th><th>${esc(t('ds.seed'))}</th><th></th>
+        </tr></thead><tbody>` + (DATASETS.length ? DATASETS.map(d => `<tr>
+            <td class="mono">${esc(d.code)}${Number(d.is_protected) ? ' 🔒' : ''}</td>
+            <td>${esc(d.name)}</td>
+            <td><span class="pill mute">${esc(t('st.' + d.kind, d.kind))}</span></td>
+            <td><span class="pill ${RUN_PILL[d.status] || 'mute'}">${esc(t('st.' + d.status, d.status))}</span></td>
+            <td>${num(d.actual_stores)}</td><td>${num(d.actual_sku)}</td>
+            <td>${num(d.sales_rows)}</td>
+            <td class="muted">${d.sales_from ? fmtDate(d.sales_from) + ' — ' + fmtDate(d.sales_to) : '—'}</td>
+            <td class="mono muted">${d.seed || '—'}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick="openGenModal(${d.id})">▶</button>
+                ${Number(d.is_protected) ? '' :
+                  `<button class="btn btn-danger btn-sm" onclick="deleteDataset(${d.id})">🗑</button>`}
+            </td></tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function renderGenAlgos() {
+    document.getElementById('genAlgoHost').innerHTML = GEN_ALGOS.map(a => `
+        <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+            <div style="width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;
+                        display:flex;align-items:center;justify-content:center;font-size:11px;
+                        font-weight:700;flex-shrink:0">${a.stage_order}</div>
+            <div>
+                <div style="font-weight:600;font-size:12.5px">${esc(a.name)} <span class="mono muted" style="font-weight:400">${esc(a.code)}</span></div>
+                <div style="font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px">${esc(a.descr)}</div>
+            </div>
+        </div>`).join('') || `<div class="empty">${esc(t('ui.empty'))}</div>`;
+}
+
+function renderGenRuns(runs) {
+    document.getElementById('genRunTbl').innerHTML = `
+        <thead><tr><th>#</th><th>${esc(t('ds.dataset'))}</th><th>${esc(t('fct.algorithm'))}</th>
+        <th>${esc(t('gen.stage'))}</th><th style="width:150px">${esc(t('gen.progress'))}</th>
+        <th>${esc(t('gen.rows'))}</th><th>${esc(t('gen.duration'))}</th><th>${esc(t('plg.status'))}</th>
+        <th>${esc(t('hist.at'))}</th><th></th></tr></thead><tbody>` +
+        (runs.length ? runs.map(r => `<tr>
+            <td class="mono">${r.id}</td>
+            <td>${esc(r.dataset_code || '—')}</td>
+            <td class="mono muted">${esc(r.algorithm)}</td>
+            <td class="muted">${esc(r.stage || '—')}</td>
+            <td>${progressBar(r.progress_pct, r.status)}</td>
+            <td>${num(r.rows_written)}</td>
+            <td class="muted">${r.duration_sec || '—'}</td>
+            <td><span class="pill ${RUN_PILL[r.status] || 'mute'}">${esc(t('st.' + r.status, r.status))}</span></td>
+            <td class="muted">${fmtTs(r.started_at)}</td>
+            <td>${r.status === 'running'
+                ? `<button class="btn btn-danger btn-sm" onclick="cancelGen(${r.id})">${esc(t('gen.cancel'))}</button>`
+                : (r.message ? `<button class="btn btn-ghost btn-sm" title="${esc(r.message)}">ⓘ</button>` : '')}</td>
+        </tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function scheduleGenPoll(runs) {
+    clearTimeout(genPollTimer);
+    if ((runs || []).some(r => r.status === 'running') && ACTIVE === 'testdata') {
+        genPollTimer = setTimeout(loadTestdata, 2500);
+    }
+}
+
+function openGenModal(datasetId) {
+    const ds = DATASETS.find(d => d.id === datasetId);
+    const stages = GEN_ALGOS.map(a => `
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0">
+            <input type="checkbox" class="gen-stage" value="${esc(a.code)}" checked>
+            <span>${a.stage_order}. ${esc(a.name)}</span></label>`).join('');
+    openModal(`<h3>${esc(ds ? t('gen.run') + ' — ' + ds.code : t('ds.new'))}</h3>
+        ${ds ? '' : `<div class="frow">
+            <div class="fg"><label>${esc(t('plg.name'))}</label><input id="g_name" value="Тестовая сеть"></div>
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="g_code" placeholder="auto"></div>
+        </div>`}
+        <div style="font-weight:600;font-size:12px;margin:6px 0 4px">${esc(t('gen.subtitle'))}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px;margin-bottom:12px">${stages}</div>
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px">${esc(t('gen.params'))}</div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('gen.storeCount'))}</label><input id="g_stores" type="number" min="1" max="100" value="${ds ? (ds.planned_stores || 10) : 10}" oninput="genEstimate()"></div>
+            <div class="fg"><label>${esc(t('gen.skuCount'))}</label><input id="g_sku" type="number" min="10" max="5000" value="${ds ? (ds.planned_sku || 400) : 400}" oninput="genEstimate()"></div>
+            <div class="fg"><label>${esc(t('gen.daysDepth'))}</label><input id="g_days" type="number" min="14" max="1095" value="${ds ? (ds.days_depth || 365) : 365}" oninput="genEstimate()"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('gen.noise'))}</label><input id="g_noise" type="number" step="1" value="18"></div>
+            <div class="fg"><label>${esc(t('gen.trend'))}</label><input id="g_trend" type="number" step="1" value="6"></div>
+            <div class="fg"><label>${esc(t('ds.seed'))}</label><input id="g_seed" type="number" value="${ds ? (ds.seed || 20260815) : 20260815}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('gen.weekly'))}</label><input id="g_weekly" type="number" step="0.05" value="0.35"></div>
+            <div class="fg"><label>${esc(t('gen.yearly'))}</label><input id="g_yearly" type="number" step="0.05" value="0.20"></div>
+            <div class="fg"><label>${esc(t('gen.oos'))}</label><input id="g_oos" type="number" step="0.005" value="0.015"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:4px" id="genEst">—</div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="startGeneration(${datasetId || 'null'})">${esc(t('gen.run'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button>
+        </div>`);
+    genEstimate();
+}
+
+function genEstimate() {
+    const s = Number(gv('g_stores') || 0), k = Number(gv('g_sku') || 0), d = Number(gv('g_days') || 0);
+    // Средняя доля матрицы по форматам сети ≈ 0.6
+    const rows = Math.round(s * k * 0.6 * d);
+    const el = document.getElementById('genEst');
+    if (el) el.textContent = `${t('gen.estimate')}: ≈ ${num(rows)} ${t('ds.salesRows').toLowerCase()}`;
+}
+
+async function startGeneration(datasetId) {
+    const stages = Array.from(document.querySelectorAll('.gen-stage:checked')).map(c => c.value);
+    if (!stages.length) return toast(t('gen.subtitle'), true);
+    const body = {
+        dataset_id: datasetId || null,
+        name: gv('g_name') || undefined, code: gv('g_code') || undefined,
+        store_count: gn('g_stores'), sku_count: gn('g_sku'), days: gn('g_days'),
+        seed: gn('g_seed'), noise_pct: gn('g_noise'), trend_pct_year: gn('g_trend'),
+        weekly_amplitude: gn('g_weekly'), yearly_amplitude: gn('g_yearly'), oos_rate: gn('g_oos'),
+        stages,
+    };
+    const r = await api('/gen/start', 'POST', body);
+    toast(r.success ? t('gen.running') : r.error, !r.success);
+    if (r.success) { closeModal(); loadTestdata(); }
+}
+
+async function cancelGen(runId) {
+    const r = await api('/gen/runs/' + runId + '/cancel', 'POST');
+    toast(r.success ? t('gen.cancel') : r.error, !r.success);
+    loadTestdata();
+}
+
+async function deleteDataset(id) {
+    if (!confirm(t('ds.deleteWarn'))) return;
+    const r = await api('/datasets/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) { await loadStores(); loadTestdata(); }
+}
+
+// ==================== Прогноз заказов ====================
+
+async function loadForecast() {
+    const [models, algos, ds] = await Promise.all([
+        api('/forecast/models'), api('/forecast/algorithms'), api('/datasets')]);
+    if (algos.success) FCT_ALGOS = algos.data || [];
+    if (ds.success) {
+        DATASETS = ds.data || [];
+        const sel = document.getElementById('fctDatasetSel');
+        const cur = sel.value;
+        sel.innerHTML = `<option value="">${esc(t('ui.all'))}</option>` + DATASETS.map(d =>
+            `<option value="${d.id}">${esc(d.code)} — ${esc(d.name)}</option>`).join('');
+        sel.value = cur;
+        sel.onchange = loadFctRuns;
+    }
+    if (models.success) { FCT_MODELS = models.data || []; renderModels(); }
+    loadFctRuns();
+}
+
+function renderModels() {
+    document.getElementById('modelTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('fct.algorithm'))}</th><th>${esc(t('plg.name'))}</th>
+        <th>${esc(t('fct.horizon'))}</th><th>${esc(t('fct.serviceLevel'))}</th><th>${esc(t('fct.leadTime'))}</th>
+        <th>${esc(t('fct.mape'))}</th><th>${esc(t('fct.bias'))}</th><th>${esc(t('fct.lastRun'))}</th><th></th>
+        </tr></thead><tbody>` + (FCT_MODELS.length ? FCT_MODELS.map(m => `<tr>
+            <td class="mono">${esc(m.code)}${Number(m.is_default) ? ' ★' : ''}</td>
+            <td><span class="pill info">${esc(m.algorithm_name)}</span></td>
+            <td>${esc(m.name)}</td>
+            <td>${m.horizon_days}</td>
+            <td>${m.service_level}</td>
+            <td>${m.lead_time_days}</td>
+            <td>${m.last_mape !== null && m.last_mape !== undefined ? Number(m.last_mape).toFixed(1) : '—'}</td>
+            <td>${m.last_bias_pct !== null && m.last_bias_pct !== undefined ? Number(m.last_bias_pct).toFixed(1) : '—'}</td>
+            <td class="muted">${m.last_run_at ? fmtTs(m.last_run_at) : '—'}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-primary btn-sm" onclick="runForecast(${m.id},'forecast')">${esc(t('fct.run'))}</button>
+                <button class="btn btn-ghost btn-sm" onclick="runForecast(${m.id},'backtest')">${esc(t('fct.backtest'))}</button>
+                <button class="btn btn-ghost btn-sm" onclick="openModelModal(${m.id})">✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteModel(${m.id})">🗑</button>
+            </td></tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openModelModal(id) {
+    const m = FCT_MODELS.find(x => x.id === id) || {};
+    const algo = FCT_ALGOS.find(a => a.code === m.algorithm) || FCT_ALGOS[0] || {};
+    openModal(`<h3>${esc(id ? t('ui.edit') + ' — ' + m.code : t('fct.newModel'))}</h3>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="m_code" value="${esc(m.code || '')}"></div>
+            <div class="fg"><label>${esc(t('fct.algorithm'))}</label><select id="m_algo" onchange="renderAlgoParams()">
+                ${FCT_ALGOS.map(a => `<option value="${esc(a.code)}" ${a.code === (m.algorithm || algo.code) ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}
+            </select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="m_name_ru" value="${esc(m.name_ru || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="m_name_ro" value="${esc(m.name_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="m_name_en" value="${esc(m.name_en || '')}"></div>
+        </div>
+        <div id="algoDescr" style="font-size:11.5px;color:var(--muted);line-height:1.5;
+             background:var(--bg);border-radius:8px;padding:9px 11px;margin-bottom:10px"></div>
+        <div style="font-weight:600;font-size:12px;margin-bottom:6px">${esc(t('fct.params'))}</div>
+        <div id="algoParams" class="frow3"></div>
+        <div style="font-weight:600;font-size:12px;margin:8px 0 6px">${esc(t('ord.title'))}</div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('fct.horizon'))}</label><input id="m_horizon" type="number" min="1" max="90" value="${m.horizon_days || 7}"></div>
+            <div class="fg"><label>${esc(t('fct.serviceLevel'))}</label><input id="m_sl" type="number" step="0.5" min="50" max="99.9" value="${m.service_level || 95}"></div>
+            <div class="fg"><label>${esc(t('fct.leadTime'))}</label><input id="m_lead" type="number" min="0" max="30" value="${m.lead_time_days || 2}"></div>
+        </div>
+        <div class="frow">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+                <input type="checkbox" id="m_pack" ${m.round_to_pack === 0 ? '' : 'checked'}> ${esc(t('fct.roundToPack'))}</label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+                <input type="checkbox" id="m_default" ${Number(m.is_default) ? 'checked' : ''}> ${esc(t('fct.isDefault'))}</label>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveModel(${id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button>
+        </div>`);
+    renderAlgoParams(m.params_json);
+}
+
+function renderAlgoParams(existingJson) {
+    const code = gv('m_algo');
+    const algo = FCT_ALGOS.find(a => a.code === code);
+    const host = document.getElementById('algoParams');
+    const descr = document.getElementById('algoDescr');
+    if (!algo || !host) return;
+    descr.innerHTML = `${esc(algo.descr)}<br><b>${esc(t('fct.minHistory'))}:</b> ${algo.min_history}`;
+    let schema = [];
+    try { schema = JSON.parse(algo.params_schema || '[]'); } catch (e) { schema = []; }
+    let values = {};
+    try { values = JSON.parse(existingJson || algo.params_json || '{}'); } catch (e) { values = {}; }
+    host.innerHTML = schema.map(p => {
+        const label = p['label_' + LANG] || p.label_ru || p.key;
+        const val = values[p.key] !== undefined ? values[p.key] : p.default;
+        if (p.type === 'bool') {
+            return `<div class="fg"><label>${esc(label)}</label>
+                <select class="ap" data-key="${esc(p.key)}" data-type="bool">
+                    <option value="1" ${Number(val) ? 'selected' : ''}>${esc(t('ui.all') === 'All' ? 'Yes' : 'Да')}</option>
+                    <option value="0" ${Number(val) ? '' : 'selected'}>${esc(t('ui.all') === 'All' ? 'No' : 'Нет')}</option>
+                </select></div>`;
+        }
+        const step = p.step || (p.type === 'float' ? 0.01 : 1);
+        return `<div class="fg"><label>${esc(label)}</label>
+            <input class="ap" data-key="${esc(p.key)}" data-type="${esc(p.type)}" type="number"
+                   step="${step}" ${p.min !== undefined ? `min="${p.min}"` : ''}
+                   ${p.max !== undefined ? `max="${p.max}"` : ''} value="${val}"></div>`;
+    }).join('');
+}
+
+function collectAlgoParams() {
+    const out = {};
+    document.querySelectorAll('#algoParams .ap').forEach(el => {
+        const key = el.dataset.key, type = el.dataset.type;
+        out[key] = type === 'bool' ? Number(el.value) : (type === 'float' ? parseFloat(el.value) : parseInt(el.value, 10));
+    });
+    return out;
+}
+
+async function saveModel(id) {
+    const body = {
+        code: gv('m_code'), algorithm: gv('m_algo'),
+        name_ru: gv('m_name_ru'), name_ro: gv('m_name_ro'), name_en: gv('m_name_en'),
+        params: collectAlgoParams(),
+        horizon_days: gn('m_horizon'), service_level: gn('m_sl'), lead_time_days: gn('m_lead'),
+        round_to_pack: document.getElementById('m_pack').checked ? 1 : 0,
+        is_default: document.getElementById('m_default').checked ? 1 : 0,
+    };
+    const r = id ? await api('/forecast/models/' + id, 'PUT', body)
+                 : await api('/forecast/models', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadForecast(); }
+}
+
+async function deleteModel(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/forecast/models/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadForecast();
+}
+
+async function runForecast(modelId, mode) {
+    const ds = gv('fctDatasetSel');
+    const r = await api('/forecast/start', 'POST',
+        {model_id: modelId, dataset_id: ds ? Number(ds) : null, mode});
+    toast(r.success ? t('gen.running') : r.error, !r.success);
+    if (r.success) loadFctRuns();
+}
+
+async function compareModels() {
+    const ds = gv('fctDatasetSel');
+    for (const m of FCT_MODELS) {
+        await api('/forecast/start', 'POST',
+            {model_id: m.id, dataset_id: ds ? Number(ds) : null, mode: 'backtest'});
+    }
+    toast(t('gen.running'));
+    loadFctRuns();
+}
+
+async function loadFctRuns() {
+    const ds = gv('fctDatasetSel');
+    const r = await api('/forecast/runs' + (ds ? '?dataset_id=' + ds : ''));
+    if (!r.success) { toast(r.error, true); return; }
+    const runs = r.data || [];
+    document.getElementById('fctRunTbl').innerHTML = `
+        <thead><tr><th>#</th><th>${esc(t('fct.model'))}</th><th>${esc(t('fct.mode'))}</th>
+        <th>${esc(t('ds.dataset'))}</th><th>${esc(t('fct.origin'))}</th><th style="width:130px">${esc(t('gen.progress'))}</th>
+        <th>${esc(t('fct.series'))}</th><th>${esc(t('fct.mape'))}</th><th>${esc(t('fct.mae'))}</th>
+        <th>${esc(t('fct.rmse'))}</th><th>${esc(t('fct.bias'))}</th><th>${esc(t('plg.status'))}</th><th></th>
+        </tr></thead><tbody>` + (runs.length ? runs.map(r2 => `<tr>
+            <td class="mono">${r2.id}</td>
+            <td>${esc(r2.model)} <span class="mono muted">${esc(r2.algorithm)}</span></td>
+            <td><span class="pill ${r2.run_mode === 'backtest' ? 'warn' : 'info'}">${esc(t('fct.' + (r2.run_mode === 'backtest' ? 'backtest' : 'run')))}</span></td>
+            <td class="muted">${esc(r2.dataset_code || '—')}</td>
+            <td class="muted">${fmtDate(r2.origin_date)}</td>
+            <td>${progressBar(r2.progress_pct, r2.status)}</td>
+            <td>${num(r2.series_count)}</td>
+            <td>${r2.mape !== null && r2.mape !== undefined ? Number(r2.mape).toFixed(1) : '—'}</td>
+            <td>${r2.mae !== null && r2.mae !== undefined ? Number(r2.mae).toFixed(2) : '—'}</td>
+            <td>${r2.rmse !== null && r2.rmse !== undefined ? Number(r2.rmse).toFixed(2) : '—'}</td>
+            <td>${r2.bias_pct !== null && r2.bias_pct !== undefined ? Number(r2.bias_pct).toFixed(1) : '—'}</td>
+            <td><span class="pill ${RUN_PILL[r2.status] || 'mute'}">${esc(t('st.' + r2.status, r2.status))}</span></td>
+            <td style="white-space:nowrap">
+                ${r2.status === 'running'
+                    ? `<button class="btn btn-danger btn-sm" onclick="cancelFct(${r2.id})">${esc(t('gen.cancel'))}</button>`
+                    : `<button class="btn btn-ghost btn-sm" onclick="loadOrders(${r2.id})">${esc(t('ord.title'))}</button>`}
+            </td></tr>`).join('') : `<tr><td colspan="13" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+
+    clearTimeout(fctPollTimer);
+    if (runs.some(x => x.status === 'running') && ACTIVE === 'forecast') {
+        fctPollTimer = setTimeout(loadForecast, 2500);
+    }
+}
+
+async function cancelFct(runId) {
+    const r = await api('/forecast/runs/' + runId + '/cancel', 'POST');
+    toast(r.success ? t('gen.cancel') : r.error, !r.success);
+    loadFctRuns();
+}
+
+async function loadOrders(runId) {
+    const r = await api('/forecast/runs/' + runId + '/orders');
+    if (!r.success) { toast(r.error, true); return; }
+    document.getElementById('orderCard').style.display = '';
+    const tot = r.totals || {};
+    document.getElementById('orderTotals').textContent =
+        `#${runId} · ${t('ord.total')}: ${num(tot.sku_count)} SKU · ${num(tot.qty_total)} · ${money(tot.amount_total)}`;
+    document.getElementById('orderTbl').innerHTML = `
+        <thead><tr><th>${esc(t('ui.store'))}</th><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th>
+        <th>${esc(t('prod.category'))}</th><th>${esc(t('ord.abc'))}</th><th>${esc(t('ord.forecast'))}</th>
+        <th>${esc(t('ord.safety'))}</th><th>${esc(t('ord.stock'))}</th><th>${esc(t('ord.pack'))}</th>
+        <th>${esc(t('ord.qty'))}</th><th>${esc(t('ord.amount'))}</th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(o => `<tr>
+            <td class="muted">${esc(o.store_code)}</td>
+            <td class="mono">${esc(o.product_code)}</td>
+            <td>${esc(o.product)}</td>
+            <td class="muted">${esc(o.category || '—')}</td>
+            <td><span class="pill ${o.abc_class === 'A' ? 'ok' : o.abc_class === 'B' ? 'warn' : 'mute'}">${esc(o.abc_class || '—')}</span></td>
+            <td>${Number(o.qty_forecast || 0).toFixed(1)}</td>
+            <td class="muted">${Number(o.safety_stock || 0).toFixed(1)}</td>
+            <td class="muted">${Number(o.stock_on_hand || 0).toFixed(1)}</td>
+            <td class="muted">${o.order_multiple}</td>
+            <td style="font-weight:700">${Number(o.order_qty || 0).toFixed(0)}</td>
+            <td>${money(o.order_amount)}</td>
+        </tr>`).join('') : `<tr><td colspan="11" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+    document.getElementById('orderCard').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
 document.getElementById('globalSearch').addEventListener('keydown', ev => {
     if (ev.key !== 'Enter') return;
     const q = ev.target.value.trim();
