@@ -757,7 +757,8 @@ class DataGenerator:
         for (pid, store_id, d_from, d_to, disc, prod_id) in self._fetch(
                 "SELECT pr.ID, pr.STORE_ID, pr.DATE_FROM, pr.DATE_TO, NVL(pr.DISCOUNT_PCT,0), pp.PRODUCT_ID "
                 "FROM PLG_PROMOS pr JOIN PLG_PROMO_PRODUCTS pp ON pp.PROMO_ID = pr.ID "
-                "JOIN PLG_STORES s ON s.ID = pr.STORE_ID WHERE s.DATASET_ID = :p_ds",
+                "JOIN PLG_STORES s ON s.ID = pr.STORE_ID WHERE s.DATASET_ID = :p_ds "
+                "ORDER BY pr.ID",
                 {"p_ds": self.dataset_id}):
             key = (int(store_id), int(prod_id))
             bucket = promo_map.setdefault(key, {})
