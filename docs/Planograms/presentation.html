@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Планограммы — презентация модуля</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root{
+  --bg:#0d1626; --panel:#141f30; --panel2:#1a2740; --border:#25344f;
+  --fg:#e8eef7; --muted:#8ea2bd; --accent:#3b82f6; --accent2:#60a5fa;
+  --ok:#22c55e; --warn:#f59e0b; --crit:#ef4444; --violet:#a855f7;
+}
+body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  background:#070c15; color:var(--fg); }
+
+.deck{ max-width:1180px; margin:0 auto; padding:18px; }
+.slide{ background:var(--bg); border:1px solid var(--border); border-radius:16px;
+  padding:44px 52px; margin-bottom:22px; min-height:640px; position:relative;
+  display:flex; flex-direction:column; page-break-after:always; }
+.slide .num{ position:absolute; right:26px; bottom:20px; font-size:12px; color:#4a5b76; }
+.kicker{ font-size:12px; letter-spacing:1.6px; text-transform:uppercase;
+  color:var(--accent2); font-weight:700; margin-bottom:12px; }
+h1{ font-size:44px; line-height:1.12; letter-spacing:-.02em; margin-bottom:16px; }
+h2{ font-size:30px; line-height:1.2; letter-spacing:-.015em; margin-bottom:20px; }
+h3{ font-size:16px; margin-bottom:8px; }
+p{ font-size:16.5px; line-height:1.62; color:#cdd9e8; margin-bottom:14px; }
+p.lead{ font-size:20px; color:var(--fg); }
+.muted{ color:var(--muted); }
+.small{ font-size:13.5px; line-height:1.55; }
+
+.title-slide{ justify-content:center; align-items:flex-start;
+  background:linear-gradient(140deg,#0d1626 0%,#132241 60%,#0d1626 100%); }
+.title-slide h1{ font-size:58px; max-width:900px; }
+.title-meta{ display:flex; gap:28px; margin-top:34px; flex-wrap:wrap; }
+.title-meta div{ font-size:13.5px; color:var(--muted); }
+.title-meta b{ display:block; color:var(--fg); font-size:19px; font-weight:700; margin-bottom:2px; }
+
+.cols{ display:grid; grid-template-columns:1fr 1fr; gap:30px; flex:1; }
+.cols3{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.cols4{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+
+.card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px; }
+.card.accent{ border-left:3px solid var(--accent); }
+.card.ok{ border-left:3px solid var(--ok); }
+.card.warn{ border-left:3px solid var(--warn); }
+.card.crit{ border-left:3px solid var(--crit); }
+.card h3{ font-size:15px; margin-bottom:6px; }
+.card p{ font-size:13.5px; margin-bottom:0; line-height:1.5; }
+
+.stat{ background:var(--panel); border:1px solid var(--border); border-radius:12px;
+  padding:16px 18px; border-top:3px solid var(--accent); }
+.stat .v{ font-size:32px; font-weight:800; letter-spacing:-.02em; line-height:1.05; }
+.stat .l{ font-size:11px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin-top:5px; }
+.stat.g{ border-top-color:var(--ok); } .stat.w{ border-top-color:var(--warn); }
+.stat.r{ border-top-color:var(--crit); } .stat.v{ border-top-color:var(--violet); }
+
+ul.clean{ list-style:none; }
+ul.clean li{ font-size:15.5px; line-height:1.6; padding-left:26px; position:relative; margin-bottom:11px; color:#cdd9e8; }
+ul.clean li:before{ content:'▸'; position:absolute; left:6px; color:var(--accent2); }
+ul.pain li:before{ content:'✕'; color:var(--crit); }
+ul.win li:before{ content:'✓'; color:var(--ok); }
+
+table{ width:100%; border-collapse:collapse; font-size:14px; }
+th{ text-align:left; padding:9px 12px; font-size:11px; text-transform:uppercase;
+  letter-spacing:.6px; color:var(--muted); border-bottom:1px solid var(--border); }
+td{ padding:9px 12px; border-bottom:1px solid #1d2a40; }
+tr:last-child td{ border-bottom:none; }
+td.n{ text-align:right; font-variant-numeric:tabular-nums; }
+.win-row{ background:rgba(34,197,94,.09); }
+.pill{ display:inline-block; font-size:11px; font-weight:700; border-radius:5px; padding:2px 8px; }
+.pill.ok{ background:rgba(34,197,94,.16); color:#4ade80; }
+.pill.warn{ background:rgba(245,158,11,.16); color:#fbbf24; }
+.pill.crit{ background:rgba(239,68,68,.16); color:#f87171; }
+.pill.info{ background:rgba(59,130,246,.16); color:var(--accent2); }
+.pill.mute{ background:rgba(148,163,184,.14); color:#94a3b8; }
+
+.viz{ background:#0f1a2c; border:1px solid var(--border); border-radius:10px; padding:12px; }
+.legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--muted); margin-top:10px; }
+.legend i{ width:9px; height:9px; border-radius:2px; display:inline-block; margin-right:5px; }
+
+.quote{ border-left:3px solid var(--accent); padding:6px 0 6px 20px; margin:6px 0 18px;
+  font-size:18px; line-height:1.55; color:#dae4f2; }
+.foot{ margin-top:auto; padding-top:20px; border-top:1px solid var(--border);
+  font-size:13px; color:var(--muted); }
+.demo{ display:inline-block; background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4);
+  color:var(--accent2); font-size:11.5px; font-weight:700; border-radius:6px;
+  padding:4px 10px; letter-spacing:.4px; }
+.steps{ counter-reset:s; }
+.steps .step{ counter-increment:s; position:relative; padding-left:52px; margin-bottom:20px; }
+.steps .step:before{ content:counter(s); position:absolute; left:0; top:-2px;
+  width:34px; height:34px; border-radius:9px; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; }
+.steps .step h3{ font-size:17px; margin-bottom:4px; }
+.steps .step p{ font-size:14px; margin-bottom:0; }
+
+@media print{
+  body{ background:#fff; } .deck{ padding:0; max-width:none; }
+  .slide{ margin:0; border-radius:0; border:none; min-height:100vh; }
+}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 1 -->
+<section class="slide title-slide">
+  <div class="kicker">Внутренний модуль сети · Artgranit</div>
+  <h1>Планограммы</h1>
+  <p class="lead" style="max-width:760px">Полка, поставщик, машина и цена конкурента —
+     в одной системе. От выкладки товара до расчёта заказа.</p>
+  <div class="title-meta">
+    <div><b>4</b>рабочих контура</div>
+    <div><b>RU / RO / EN</b>с первого релиза</div>
+    <div><b>918 тыс.</b>строк в тестовой сети</div>
+    <div><b>0</b>новых зависимостей</div>
+  </div>
+  <div class="num">1</div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="kicker">Проблема</div>
+  <h2>Четыре задачи, четыре разных места, ни одной связи</h2>
+  <div class="cols">
+    <div>
+      <ul class="clean pain">
+        <li><b>Планограмма живёт в Excel.</b> Актуальную версию знает один человек,
+            история правок не сохраняется, согласование — по почте.</li>
+        <li><b>Заказ считается «по опыту».</b> Ошибка становится видна постфактум:
+            либо списания, либо пустая полка.</li>
+        <li><b>График завоза согласуется по телефону.</b> Срыв окна разгрузки
+            нигде не фиксируется, машины простаивают у ворот.</li>
+        <li><b>Цены конкурентов собираются вручную</b> и устаревают за неделю.
+            Решение о цене принимается на старых данных.</li>
+      </ul>
+    </div>
+    <div style="display:flex; flex-direction:column; justify-content:center">
+      <div class="quote">Все четыре задачи опираются на одни и те же данные —
+        товар, магазин, поставщик, дата. Разведены по разным местам они
+        просто исторически.</div>
+      <div class="card crit">
+        <h3>Цена разрыва</h3>
+        <p>Категорийный менеджер не видит, что поставщик сорвал завоз.
+           Логист не знает, что по этой группе мы уже дороже конкурента.
+           Закупщик заказывает без учёта запланированной акции.</p>
+      </div>
+    </div>
+  </div>
+  <div class="num">2</div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <div class="kicker">Решение</div>
+  <h2>Одна модель данных — четыре рабочих места</h2>
+  <div class="cols4" style="margin-bottom:26px">
+    <div class="card accent"><h3>▦ Выкладка</h3>
+      <p>Карта зала из данных, планограммы с версиями, согласованием и историей изменений.</p></div>
+    <div class="card ok"><h3>∿ Заказ</h3>
+      <p>Четыре модели прогноза, точность измерена на backtest, заказ с округлением до короба.</p></div>
+    <div class="card warn"><h3>▬ Завоз</h3>
+      <p>Диаграмма Ганта по трём плечам доставки, окна разгрузки, фиксация срывов.</p></div>
+    <div class="card" style="border-left:3px solid var(--violet)"><h3>⚖ Рынок</h3>
+      <p>Поставщики и контракты, ценовой индекс конкурентов, бенчмарк зарубежных сетей.</p></div>
+  </div>
+  <div class="cols">
+    <div>
+      <h3 style="color:var(--accent2); margin-bottom:10px">Что связывает контуры</h3>
+      <ul class="clean small">
+        <li>Каждый SKU знает своего поставщика, свою полку и свою цену у конкурента</li>
+        <li>Прогноз заказа учитывает <b>запланированные</b> акции из того же модуля</li>
+        <li>Рейс завоза связан с магазином, поставщиком и составом товара</li>
+        <li>Проходимость зоны влияет на прогноз спроса по её категории</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:var(--accent2); margin-bottom:10px">На чём построено</h3>
+      <ul class="clean small">
+        <li>Нормализованные таблицы Oracle, префикс <code>PLG_</code> — 54 таблицы, 30 представлений</li>
+        <li>Три языка заложены в схему: у каждой сущности три названия</li>
+        <li>Все графики нарисованы своими средствами — ни одной внешней библиотеки</li>
+        <li>Та же база, тот же сервер, тот же процесс развёртывания</li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">3</div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <div class="kicker">Выкладка · демонстрация</div>
+  <h2>Карта торгового зала строится из данных</h2>
+  <p>Не картинка и не чертёж: каждая зона стоит на своих координатах, цвет —
+     её категория, затемнение и полоса снизу — фактическая проходимость.</p>
+  <div class="viz">
+    <svg viewBox="0 0 1000 250" width="100%" style="display:block">
+      <rect width="1000" height="250" rx="8" fill="#111827"/>
+      <g>
+        <rect x="20" y="30" width="150" height="52" rx="5" fill="#c2410c" opacity=".9"/>
+        <rect x="20" y="30" width="150" height="52" rx="5" fill="#000" opacity=".42"/>
+        <text x="95" y="54" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">ПЕКАРНЯ</text>
+        <text x="95" y="70" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="11">88 %</text>
+        <rect x="20" y="79" width="132" height="4" rx="2" fill="#ef4444"/>
+      </g>
+      <g>
+        <rect x="20" y="96" width="150" height="52" rx="5" fill="#0369a1" opacity=".9"/>
+        <rect x="20" y="96" width="150" height="52" rx="5" fill="#000" opacity=".33"/>
+        <text x="95" y="120" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">МОЛОЧНЫЕ</text>
+        <text x="95" y="136" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="11">64 %</text>
+        <rect x="20" y="145" width="96" height="4" rx="2" fill="#f97316"/>
+      </g>
+      <g>
+        <rect x="20" y="162" width="150" height="52" rx="5" fill="#4338ca" opacity=".9"/>
+        <rect x="20" y="162" width="150" height="52" rx="5" fill="#000" opacity=".24"/>
+        <text x="95" y="186" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">ЗАМОРОЖЕННЫЕ</text>
+        <text x="95" y="202" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="11">41 %</text>
+        <rect x="20" y="211" width="62" height="4" rx="2" fill="#eab308"/>
+      </g>
+      <!-- центральные стеллажи -->
+      <g>
+        <script type="application/x-ignore"></script>
+      </g>
+      <g fill="#2a3d5e" stroke="#4a6080" stroke-width=".8">
+        <rect x="210" y="34" width="110" height="40" rx="4"/><rect x="345" y="34" width="110" height="40" rx="4"/>
+        <rect x="480" y="34" width="110" height="40" rx="4"/><rect x="615" y="34" width="110" height="40" rx="4"/>
+        <rect x="210" y="100" width="110" height="40" rx="4"/><rect x="345" y="100" width="110" height="40" rx="4"/>
+        <rect x="480" y="100" width="110" height="40" rx="4"/><rect x="615" y="100" width="110" height="40" rx="4"/>
+        <rect x="210" y="166" width="110" height="40" rx="4"/><rect x="345" y="166" width="110" height="40" rx="4"/>
+      </g>
+      <g fill="#3f5f8f" opacity=".85">
+        <rect x="216" y="40" width="98" height="8" rx="1"/><rect x="216" y="52" width="98" height="8" rx="1"/>
+        <rect x="351" y="40" width="98" height="8" rx="1"/><rect x="351" y="52" width="98" height="8" rx="1"/>
+        <rect x="486" y="40" width="98" height="8" rx="1"/><rect x="486" y="52" width="98" height="8" rx="1"/>
+        <rect x="621" y="40" width="98" height="8" rx="1"/><rect x="621" y="52" width="98" height="8" rx="1"/>
+        <rect x="216" y="106" width="98" height="8" rx="1"/><rect x="351" y="106" width="98" height="8" rx="1"/>
+        <rect x="486" y="106" width="98" height="8" rx="1"/><rect x="621" y="106" width="98" height="8" rx="1"/>
+        <rect x="216" y="172" width="98" height="8" rx="1"/><rect x="351" y="172" width="98" height="8" rx="1"/>
+      </g>
+      <!-- касса -->
+      <rect x="500" y="160" width="290" height="76" rx="6" fill="#f97316" opacity=".13" stroke="#f97316" stroke-width="1.4"/>
+      <text x="645" y="186" text-anchor="middle" fill="#fb923c" font-size="14" font-weight="800">100 % ПРОХОДИМОСТЬ</text>
+      <g fill="#1e3a5a" stroke="#2563eb" stroke-width="1">
+        <rect x="516" y="196" width="34" height="30" rx="4"/><rect x="562" y="196" width="34" height="30" rx="4"/>
+        <rect x="608" y="196" width="34" height="30" rx="4"/><rect x="654" y="196" width="34" height="30" rx="4"/>
+        <rect x="700" y="196" width="34" height="30" rx="4"/><rect x="746" y="196" width="34" height="30" rx="4"/>
+      </g>
+      <!-- склад -->
+      <rect x="820" y="30" width="150" height="80" rx="5" fill="#1a2a40" stroke="#2d3d55"/>
+      <text x="895" y="75" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="600">СКЛАД</text>
+      <rect x="820" y="126" width="150" height="88" rx="5" fill="#1a2233" stroke="#4c1d95"/>
+      <text x="895" y="175" text-anchor="middle" fill="#c4b5fd" font-size="12" font-weight="600">АЛКОГОЛЬ</text>
+      <!-- вход -->
+      <rect x="215" y="212" width="72" height="24" rx="4" fill="#16a34a" opacity=".9"/>
+      <text x="251" y="228" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">ВХОД</text>
+    </svg>
+    <div class="legend">
+      <div><i style="background:#22c55e"></i>низкая</div>
+      <div><i style="background:#eab308"></i>средняя</div>
+      <div><i style="background:#f97316"></i>высокая</div>
+      <div><i style="background:#ef4444"></i>пиковая проходимость</div>
+    </div>
+  </div>
+  <div class="foot"><span class="demo">ПОКАЗАТЬ ВЖИВУЮ</span> &nbsp; навести курсор на зоны · переключить язык RU → RO → EN</div>
+  <div class="num">4</div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <div class="kicker">Выкладка</div>
+  <h2>Планограмма — документ, а не картинка</h2>
+  <div class="cols">
+    <div>
+      <p>У каждой выкладки есть версия, автор, срок действия и жизненный цикл.
+         Любое изменение автоматически попадает в историю — вручную журнал
+         вести не нужно.</p>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:22px 0">
+        <span class="pill mute">Черновик</span><span class="muted">→</span>
+        <span class="pill warn">На согласовании</span><span class="muted">→</span>
+        <span class="pill info">Утверждена</span><span class="muted">→</span>
+        <span class="pill ok">Действующая</span><span class="muted">→</span>
+        <span class="pill mute">В архиве</span>
+      </div>
+      <ul class="clean win small">
+        <li>Видно, кто утвердил выкладку и когда</li>
+        <li>Видно, что именно изменилось между версиями</li>
+        <li>Архивные версии не теряются — можно вернуться</li>
+        <li>Позиции выкладки привязаны к конкретной полке оборудования</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card" style="padding:0; overflow:hidden">
+        <table>
+          <thead><tr><th>Когда</th><th>Что</th><th>Кто</th></tr></thead>
+          <tbody>
+            <tr><td class="muted">10.08 09:53</td><td>Планограмма утверждена <span class="pill ok">v3</span></td><td class="muted">Иван Петров</td></tr>
+            <tr><td class="muted">03.08 09:53</td><td>Изменено количество фейсингов</td><td class="muted">Сергей Ротару</td></tr>
+            <tr><td class="muted">28.07 09:53</td><td>Изменено количество фейсингов <span class="pill mute">v2</span></td><td class="muted">Сергей Ротару</td></tr>
+            <tr><td class="muted">16.07 09:53</td><td>Планограмма создана <span class="pill mute">v1</span></td><td class="muted">Мария Урсу</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small muted" style="margin-top:12px">История изменений планограммы «Напитки — основная выкладка»</p>
+    </div>
+  </div>
+  <div class="num">5</div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <div class="kicker">Заказ</div>
+  <h2>Четыре модели прогноза, а не одна «правильная»</h2>
+  <p>Разные товары ведут себя по-разному. Вместо одной формулы — четыре метода
+     нарастающей сложности, между которыми можно выбирать осознанно.</p>
+  <div class="cols" style="gap:18px; margin-top:6px">
+    <div>
+      <div class="card accent" style="margin-bottom:14px">
+        <h3>Скользящее среднее <span class="pill mute">21 день истории</span></h3>
+        <p class="muted">Среднее за N дней, свежие дни можно взвесить тяжелее.
+           Устойчиво к шуму, но запаздывает на тренде и не видит сезонности.</p>
+      </div>
+      <div class="card accent">
+        <h3>Экспоненциальное сглаживание <span class="pill mute">28 дней</span></h3>
+        <p class="muted">Уровень пересчитывается с коэффициентом alpha.
+           Быстро реагирует на смену уровня спроса.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card ok" style="margin-bottom:14px">
+        <h3>Holt-Winters <span class="pill mute">42 дня</span></h3>
+        <p class="muted">Уровень + тренд + недельный сезонный профиль.
+           Ловит провал вторника и пик субботы.</p>
+      </div>
+      <div class="card ok">
+        <h3>Регрессия с promo-uplift <span class="pill mute">35 дней</span></h3>
+        <p class="muted">Базовая линия строится по дням <b>без</b> акций, затем
+           умножается на исторический аплифт этого SKU. Единственная модель,
+           которая заранее знает про запланированные акции.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot">Все четыре — чистый расчёт на нашей стороне. Внешних библиотек и сервисов нет.</div>
+  <div class="num">6</div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <div class="kicker">Заказ</div>
+  <h2>Точность не заявляется — она измеряется</h2>
+  <p>Режим <b>backtest</b> прячет последнюю неделю продаж, прогнозирует её
+     и сравнивает с фактом. Все модели считаются на одних и тех же данных.</p>
+  <div class="card" style="padding:0; overflow:hidden; margin:8px 0 18px">
+    <table>
+      <thead><tr><th>Модель</th><th>Алгоритм</th><th class="n">MAPE, %</th><th class="n">MAE</th><th class="n">RMSE</th><th class="n">Смещение, %</th></tr></thead>
+      <tbody>
+        <tr class="win-row"><td><b>PROMO-REG</b> <span class="pill ok">лучшая</span></td>
+            <td class="muted">регрессия с promo-uplift</td>
+            <td class="n"><b>20.97</b></td><td class="n">0.95</td><td class="n">2.18</td><td class="n">−12.61</td></tr>
+        <tr><td>HW-W7</td><td class="muted">Holt-Winters</td>
+            <td class="n">24.24</td><td class="n">1.09</td><td class="n">2.63</td><td class="n">8.17</td></tr>
+        <tr><td>SMA-14</td><td class="muted">скользящее среднее</td>
+            <td class="n">27.47</td><td class="n">1.22</td><td class="n">2.80</td><td class="n">19.99</td></tr>
+        <tr><td>SES-03</td><td class="muted">эксп. сглаживание</td>
+            <td class="n">31.93</td><td class="n">1.37</td><td class="n">3.06</td><td class="n">45.43</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cols">
+    <div class="quote" style="margin:0">Модель с ошибкой 25 % и нулевым смещением
+      закупает правильный объём — промахи гасят друг друга. Модель с той же
+      ошибкой и смещением +40 % каждую неделю завозит лишнее.</div>
+    <div>
+      <ul class="clean small">
+        <li><b>MAPE</b> — средняя ошибка в процентах от факта</li>
+        <li><b>MAE / RMSE</b> — ошибка в штуках; RMSE сильнее наказывает крупные промахи</li>
+        <li><b>Смещение</b> — систематический перекос. Плюс: переоцениваем спрос</li>
+      </ul>
+      <p class="small muted">2332 ряда «магазин × SKU», горизонт 7 дней, ~95 секунд на модель.</p>
+    </div>
+  </div>
+  <div class="num">7</div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <div class="kicker">Заказ</div>
+  <h2>Из прогноза — в конкретный заказ</h2>
+  <div class="cols" style="margin-bottom:22px">
+    <div>
+      <div class="card" style="font-family:ui-monospace,Menlo,monospace; font-size:13.5px; line-height:1.9">
+        <div class="muted">страховой запас =</div>
+        <div>z(уровень сервиса) × разброс × √(срок поставки)</div>
+        <div class="muted" style="margin-top:12px">к заказу =</div>
+        <div>прогноз(горизонт + поставка) + запас − остаток</div>
+        <div class="muted" style="margin-top:12px">↳ округление вверх до кратности короба</div>
+      </div>
+    </div>
+    <div>
+      <ul class="clean small">
+        <li><b>Уровень сервиса</b> настраивается: 95 % — обычный товар, 99 % — трафикообразующий</li>
+        <li><b>Срок поставки</b> берётся из карточки товара, а не усредняется по всем</li>
+        <li><b>Кратность короба</b> — заказ сразу в том виде, в каком его примет поставщик</li>
+        <li>Текущий остаток вычитается — не заказываем то, что уже на полке</li>
+      </ul>
+    </div>
+  </div>
+  <div class="cols3">
+    <div class="stat"><div class="v">1 978</div><div class="l">позиций к заказу</div></div>
+    <div class="stat g"><div class="v">67 625</div><div class="l">единиц товара</div></div>
+    <div class="stat w"><div class="v">5,74 млн</div><div class="l">MDL сумма заказа</div></div>
+  </div>
+  <div class="foot">Результат одного прогона модели PROMO-REG по сети из 10 магазинов</div>
+  <div class="num">8</div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <div class="kicker">Завоз · демонстрация</div>
+  <h2>Диаграмма Ганта: кто, куда и в какое окно</h2>
+  <p>Схема сети — распределительный центр плюс прямые поставки. Три плеча,
+     у каждого свой ритм и свои машины.</p>
+  <div class="viz">
+    <svg viewBox="0 0 1000 190" width="100%" style="display:block">
+      <rect width="1000" height="190" rx="8" fill="#111827"/>
+      <line x1="150" y1="14" x2="150" y2="182" stroke="#31456a"/>
+      <g fill="#64748b" font-size="10">
+        <text x="176" y="18">06</text><text x="286" y="18">08</text><text x="396" y="18">10</text>
+        <text x="506" y="18">12</text><text x="616" y="18">14</text><text x="726" y="18">16</text>
+        <text x="836" y="18">18</text><text x="946" y="18">20</text>
+      </g>
+      <g stroke="#1e2d42" stroke-width=".6">
+        <line x1="175" y1="24" x2="175" y2="182"/><line x1="285" y1="24" x2="285" y2="182"/>
+        <line x1="395" y1="24" x2="395" y2="182"/><line x1="505" y1="24" x2="505" y2="182"/>
+        <line x1="615" y1="24" x2="615" y2="182"/><line x1="725" y1="24" x2="725" y2="182"/>
+        <line x1="835" y1="24" x2="835" y2="182"/><line x1="945" y1="24" x2="945" y2="182"/>
+      </g>
+      <g fill="#e2e8f0" font-size="11.5" font-weight="600">
+        <text x="12" y="42">NK655 BLZ</text><text x="12" y="76">RR906 MD</text>
+        <text x="12" y="110">AP280 BLZ</text><text x="12" y="144">KS157 MD</text>
+      </g>
+      <g fill="#64748b" font-size="9">
+        <text x="12" y="53">Фура (тент)</text><text x="12" y="87">Рефрижератор</text>
+        <text x="12" y="121">Фургон</text><text x="12" y="155">Среднетоннажник</text>
+      </g>
+      <!-- inbound -->
+      <rect x="340" y="32" width="132" height="17" rx="3" fill="#2563eb" opacity=".92"/>
+      <text x="346" y="44" fill="#fff" font-size="9.5">Orhei-Vit → РЦ</text>
+      <rect x="340" y="51" width="146" height="3.5" rx="2" fill="#22c55e"/>
+      <rect x="700" y="32" width="132" height="17" rx="3" fill="#2563eb" opacity=".92"/>
+      <text x="706" y="44" fill="#fff" font-size="9.5">Barilla → РЦ</text>
+      <rect x="700" y="51" width="140" height="3.5" rx="2" fill="#22c55e"/>
+      <!-- inbound late -->
+      <rect x="420" y="66" width="132" height="17" rx="3" fill="#2563eb" opacity=".92"/>
+      <rect x="420" y="66" width="3.5" height="17" fill="#ef4444"/>
+      <text x="428" y="78" fill="#fff" font-size="9.5">Nestlé → РЦ</text>
+      <rect x="455" y="85" width="150" height="3.5" rx="2" fill="#ef4444"/>
+      <!-- direct -->
+      <rect x="196" y="100" width="34" height="17" rx="3" fill="#d97706" opacity=".92"/>
+      <rect x="196" y="119" width="38" height="3.5" rx="2" fill="#22c55e"/>
+      <rect x="252" y="100" width="34" height="17" rx="3" fill="#d97706" opacity=".92"/>
+      <rect x="252" y="119" width="36" height="3.5" rx="2" fill="#22c55e"/>
+      <rect x="318" y="100" width="40" height="17" rx="3" fill="#d97706" opacity=".92"/>
+      <text x="324" y="112" fill="#fff" font-size="9.5">JLC</text>
+      <rect x="318" y="119" width="44" height="3.5" rx="2" fill="#22c55e"/>
+      <rect x="560" y="100" width="34" height="17" rx="3" fill="#d97706" opacity=".25" stroke="#94a3b8" stroke-dasharray="3 2"/>
+      <!-- transfer -->
+      <rect x="430" y="134" width="96" height="17" rx="3" fill="#16a34a" opacity=".92"/>
+      <text x="436" y="146" fill="#fff" font-size="9.5">РЦ → М-24</text>
+      <rect x="430" y="153" width="104" height="3.5" rx="2" fill="#22c55e"/>
+      <rect x="640" y="134" width="96" height="17" rx="3" fill="#16a34a" opacity=".92"/>
+      <text x="646" y="146" fill="#fff" font-size="9.5">РЦ → М-12</text>
+      <rect x="640" y="153" width="92" height="3.5" rx="2" fill="#22c55e"/>
+    </svg>
+    <div class="legend">
+      <div><i style="background:#2563eb"></i>поставщик → РЦ</div>
+      <div><i style="background:#16a34a"></i>РЦ → магазин</div>
+      <div><i style="background:#d97706"></i>прямой завоз фреша</div>
+      <div><i style="background:#ef4444"></i>срыв окна</div>
+      <div><i style="background:#94a3b8"></i>отменён</div>
+    </div>
+  </div>
+  <div class="cols4" style="margin-top:16px">
+    <div class="stat"><div class="v">543</div><div class="l">рейса за 3 недели</div></div>
+    <div class="stat r"><div class="v">64</div><div class="l">с опозданием · 11.8 %</div></div>
+    <div class="stat g"><div class="v">148 / 93 / 302</div><div class="l">РЦ / развозка / фреш</div></div>
+    <div class="stat v"><div class="v">14</div><div class="l">машин в парке</div></div>
+  </div>
+  <div class="foot"><span class="demo">ПОКАЗАТЬ ВЖИВУЮ</span> &nbsp; переключить строки «по машинам» → «по докам РЦ» · навести на срыв окна</div>
+  <div class="num">9</div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <div class="kicker">Рынок · демонстрация</div>
+  <h2>Поставщики: кто что везёт и на какие деньги</h2>
+  <div class="cols">
+    <div class="viz">
+      <svg viewBox="0 0 420 260" width="100%" style="display:block">
+        <rect width="420" height="260" rx="8" fill="#111827"/>
+        <text x="105" y="18" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">ПОСТАВЩИКИ</text>
+        <text x="320" y="18" text-anchor="middle" fill="#94a3b8" font-size="9.5" font-weight="700">ТОВАРНЫЕ ГРУППЫ</text>
+        <g fill="none">
+          <path d="M 130 42 C 210 42, 210 60, 290 60" stroke="#d97706" stroke-width="6" opacity=".75"/>
+          <path d="M 130 72 C 210 72, 210 130, 290 130" stroke="#1d4ed8" stroke-width="4.9" opacity=".75"/>
+          <path d="M 130 102 C 210 102, 210 160, 290 160" stroke="#6d28d9" stroke-width="4.5" opacity=".75"/>
+          <path d="M 130 132 C 210 132, 210 90, 290 90" stroke="#0369a1" stroke-width="4.4" opacity=".75"/>
+          <path d="M 130 162 C 210 162, 210 190, 290 190" stroke="#991b1b" stroke-width="4.1" opacity=".75"/>
+          <path d="M 130 192 C 210 192, 210 90, 290 90" stroke="#0369a1" stroke-width="3.7" opacity=".55"/>
+          <path d="M 130 222 C 210 222, 210 220, 290 220" stroke="#16a34a" stroke-width="3.5" opacity=".75"/>
+          <path d="M 130 42 C 210 42, 210 220, 290 220" stroke="#16a34a" stroke-width="2.4" opacity=".4"/>
+        </g>
+        <g>
+          <circle cx="130" cy="42" r="6" fill="#f59e0b"/><text x="118" y="46" text-anchor="end" fill="#e2e8f0" font-size="10" font-weight="700">Bucuria</text>
+          <circle cx="130" cy="72" r="6" fill="#f59e0b"/><text x="118" y="76" text-anchor="end" fill="#e2e8f0" font-size="10" font-weight="700">Nord Fish</text>
+          <circle cx="130" cy="102" r="6" fill="#f59e0b"/><text x="118" y="106" text-anchor="end" fill="#e2e8f0" font-size="10" font-weight="700">Purcari</text>
+          <circle cx="130" cy="132" r="6" fill="#f59e0b"/><text x="118" y="136" text-anchor="end" fill="#e2e8f0" font-size="10" font-weight="700">Lactalis</text>
+          <circle cx="130" cy="162" r="6" fill="#f59e0b"/><text x="118" y="166" text-anchor="end" fill="#e2e8f0" font-size="10" font-weight="700">Rogob</text>
+          <circle cx="130" cy="192" r="4.5" fill="#60a5fa"/><text x="118" y="196" text-anchor="end" fill="#e2e8f0" font-size="10">JLC Group</text>
+          <circle cx="130" cy="222" r="4.5" fill="#60a5fa"/><text x="118" y="226" text-anchor="end" fill="#e2e8f0" font-size="10">Fructe Codru</text>
+        </g>
+        <g>
+          <rect x="285" y="55" width="10" height="10" rx="2" fill="#d97706"/><text x="304" y="64" fill="#e2e8f0" font-size="10">Снеки</text>
+          <rect x="285" y="85" width="10" height="10" rx="2" fill="#0369a1"/><text x="304" y="94" fill="#e2e8f0" font-size="10">Молочные</text>
+          <rect x="285" y="125" width="10" height="10" rx="2" fill="#1d4ed8"/><text x="304" y="134" fill="#e2e8f0" font-size="10">Рыба</text>
+          <rect x="285" y="155" width="10" height="10" rx="2" fill="#6d28d9"/><text x="304" y="164" fill="#e2e8f0" font-size="10">Алкоголь</text>
+          <rect x="285" y="185" width="10" height="10" rx="2" fill="#991b1b"/><text x="304" y="194" fill="#e2e8f0" font-size="10">Мясо</text>
+          <rect x="285" y="215" width="10" height="10" rx="2" fill="#16a34a"/><text x="304" y="224" fill="#e2e8f0" font-size="10">Овощи и фрукты</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <div><i style="background:#f59e0b; border-radius:50%"></i>ключевой поставщик</div>
+        <div>толщина связи = годовой оборот по группе</div>
+      </div>
+    </div>
+    <div>
+      <p>Граф отвечает на вопросы, которые обычно требуют выгрузки и сводной
+         таблицы: кто у нас монополист по группе, кто размазан по трём
+         категориям, где риск зависимости от одного поставщика.</p>
+      <h3 style="color:var(--accent2); margin:18px 0 8px">В карточке поставщика</h3>
+      <ul class="clean small">
+        <li><b>Контакты по ролям</b> — менеджер по сети, логист, бухгалтерия, качество</li>
+        <li><b>Контракты</b> — отсрочка платежа, ретро-бонус, маркетинговый взнос, Incoterms</li>
+        <li><b>Товарные группы</b> — SKU, оборот, доля в закупке группы, маржа</li>
+        <li><b>Рейтинг и OTIF</b> — надёжность поставок в цифрах</li>
+      </ul>
+      <div class="card warn" style="margin-top:16px">
+        <h3>Практическая польза</h3>
+        <p>Флажок «Истекает» в списке контрактов оставляет договоры,
+           заканчивающиеся в ближайшие 60 дней. Это готовый список
+           на перезаключение.</p>
+      </div>
+    </div>
+  </div>
+  <div class="num">10</div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <div class="kicker">Рынок · демонстрация</div>
+  <h2>Где мы дороже конкурентов — по группам, а не «в среднем»</h2>
+  <p>Ценовой индекс = цена конкурента ÷ наша цена × 100. Ниже 100 — конкурент
+     дешевле нас. Средняя цифра по сети бесполезна: перекос всегда сидит
+     в конкретных категориях.</p>
+  <div class="viz" style="margin-bottom:16px">
+    <svg viewBox="0 0 1000 200" width="100%" style="display:block">
+      <g fill="#8ea2bd" font-size="10.5">
+        <text x="176" y="20" transform="rotate(-22 176 20)">Алкоголь</text>
+        <text x="296" y="20" transform="rotate(-22 296 20)">Бакалея</text>
+        <text x="416" y="20" transform="rotate(-22 416 20)">Молочные</text>
+        <text x="536" y="20" transform="rotate(-22 536 20)">Напитки</text>
+        <text x="656" y="20" transform="rotate(-22 656 20)">Овощи</text>
+        <text x="776" y="20" transform="rotate(-22 776 20)">Снеки</text>
+        <text x="896" y="20" transform="rotate(-22 896 20)">Мясо</text>
+      </g>
+      <g fill="#e8eef7" font-size="12" font-weight="600">
+        <text x="8" y="52">Local Market</text><text x="8" y="86">Nr.1</text>
+        <text x="8" y="120">Linella</text><text x="8" y="154">Kaufland</text>
+        <text x="8" y="188">Green Hills</text>
+      </g>
+      <g>
+        <!-- row 1: discount -->
+        <rect x="150" y="36" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="206" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">83</text>
+        <rect x="270" y="36" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="326" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">83</text>
+        <rect x="390" y="36" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="446" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">94</text>
+        <rect x="510" y="36" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="566" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">86</text>
+        <rect x="630" y="36" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="686" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">92</text>
+        <rect x="750" y="36" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="806" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">81</text>
+        <rect x="870" y="36" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="926" y="53" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">95</text>
+        <!-- row 2 -->
+        <rect x="150" y="70" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="206" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">84</text>
+        <rect x="270" y="70" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="326" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">93</text>
+        <rect x="390" y="70" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="446" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">99</text>
+        <rect x="510" y="70" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="566" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">90</text>
+        <rect x="630" y="70" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="686" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">87</text>
+        <rect x="750" y="70" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="806" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">91</text>
+        <rect x="870" y="70" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="926" y="87" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">98</text>
+        <!-- row 3 -->
+        <rect x="150" y="104" width="112" height="24" rx="4" fill="#ef4444" opacity=".85"/><text x="206" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">77</text>
+        <rect x="270" y="104" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="326" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">88</text>
+        <rect x="390" y="104" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="446" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">101</text>
+        <rect x="510" y="104" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="566" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">104</text>
+        <rect x="630" y="104" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="686" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">100</text>
+        <rect x="750" y="104" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="806" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">95</text>
+        <rect x="870" y="104" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="926" y="121" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">106</text>
+        <!-- row 4 -->
+        <rect x="150" y="138" width="112" height="24" rx="4" fill="#f97316" opacity=".85"/><text x="206" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">87</text>
+        <rect x="270" y="138" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="326" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">106</text>
+        <rect x="390" y="138" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="446" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">100</text>
+        <rect x="510" y="138" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="566" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">98</text>
+        <rect x="630" y="138" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="686" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">103</text>
+        <rect x="750" y="138" width="112" height="24" rx="4" fill="#eab308" opacity=".85"/><text x="806" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">99</text>
+        <rect x="870" y="138" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="926" y="155" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">105</text>
+        <!-- row 5 -->
+        <rect x="150" y="172" width="112" height="24" rx="4" fill="#22c55e" opacity=".85"/><text x="206" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">109</text>
+        <rect x="270" y="172" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="326" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">103</text>
+        <rect x="390" y="172" width="112" height="24" rx="4" fill="#22c55e" opacity=".85"/><text x="446" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">115</text>
+        <rect x="510" y="172" width="112" height="24" rx="4" fill="#22c55e" opacity=".85"/><text x="566" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">112</text>
+        <rect x="630" y="172" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="686" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">107</text>
+        <rect x="750" y="172" width="112" height="24" rx="4" fill="#22c55e" opacity=".85"/><text x="806" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">118</text>
+        <rect x="870" y="172" width="112" height="24" rx="4" fill="#84cc16" opacity=".85"/><text x="926" y="189" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">104</text>
+      </g>
+    </svg>
+    <div class="legend">
+      <div><i style="background:#ef4444"></i>мы заметно дороже</div>
+      <div><i style="background:#f97316"></i>мы дороже</div>
+      <div><i style="background:#eab308"></i>паритет</div>
+      <div><i style="background:#84cc16"></i>мы дешевле</div>
+      <div><i style="background:#22c55e"></i>мы заметно дешевле</div>
+    </div>
+  </div>
+  <div class="cols">
+    <div><ul class="clean small">
+      <li>3 840 замеров цен по 160 SKU у шести сетей</li>
+      <li>Мониторинг грузится файлом CSV прямо в интерфейсе</li>
+      <li>Отдельно виден список <b>их</b> поставщиков и пересечение с нашими</li>
+    </ul></div>
+    <div class="card crit"><h3>Что делать с красной строкой</h3>
+      <p>Клик по ячейке разворачивает список конкретных SKU с наибольшим отрывом —
+         это готовое задание категорийному менеджеру на пересмотр цены
+         или переговоры с поставщиком.</p></div>
+  </div>
+  <div class="foot"><span class="demo">ПОКАЗАТЬ ВЖИВУЮ</span> &nbsp; навести на красную ячейку · прокрутить к «Расхождения по SKU»</div>
+  <div class="num">11</div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <div class="kicker">Рынок</div>
+  <h2>Где сеть стоит относительно соседних рынков</h2>
+  <div class="cols">
+    <div class="viz">
+      <svg viewBox="0 0 460 280" width="100%" style="display:block">
+        <rect width="460" height="280" rx="8" fill="#111827"/>
+        <g stroke="#1e2d42" stroke-width=".6">
+          <line x1="46" y1="40" x2="440" y2="40"/><line x1="46" y1="90" x2="440" y2="90"/>
+          <line x1="46" y1="140" x2="440" y2="140"/><line x1="46" y1="190" x2="440" y2="190"/>
+          <line x1="46" y1="240" x2="440" y2="240"/>
+        </g>
+        <g fill="#64748b" font-size="9">
+          <text x="38" y="43" text-anchor="end">16 €</text><text x="38" y="93" text-anchor="end">12 €</text>
+          <text x="38" y="143" text-anchor="end">8 €</text><text x="38" y="193" text-anchor="end">4 €</text>
+          <text x="60" y="256">10</text><text x="150" y="256">100</text>
+          <text x="270" y="256">1 000</text><text x="390" y="256">3 000</text>
+        </g>
+        <text x="240" y="272" text-anchor="middle" fill="#8ea2bd" font-size="10">число магазинов</text>
+        <text x="16" y="26" fill="#8ea2bd" font-size="10">средний чек</text>
+        <!-- пузырьки -->
+        <circle cx="128" cy="78" r="20" fill="#e11d48" opacity=".55"/><text x="128" y="82" text-anchor="middle" fill="#fff" font-size="9" font-weight="600">Kaufland</text>
+        <circle cx="215" cy="132" r="14" fill="#e11d48" opacity=".55"/>
+        <circle cx="252" cy="168" r="11" fill="#e11d48" opacity=".55"/>
+        <circle cx="300" cy="98" r="26" fill="#2563eb" opacity=".55"/><text x="300" y="102" text-anchor="middle" fill="#fff" font-size="9" font-weight="600">Kaufland RO</text>
+        <circle cx="330" cy="118" r="22" fill="#2563eb" opacity=".55"/>
+        <circle cx="352" cy="140" r="17" fill="#2563eb" opacity=".55"/><text x="352" y="144" text-anchor="middle" fill="#fff" font-size="9">Profi</text>
+        <circle cx="300" cy="160" r="13" fill="#eab308" opacity=".55"/>
+        <circle cx="345" cy="176" r="16" fill="#eab308" opacity=".55"/><text x="345" y="180" text-anchor="middle" fill="#fff" font-size="9">ATB</text>
+        <circle cx="392" cy="112" r="30" fill="#16a34a" opacity=".55"/><text x="392" y="116" text-anchor="middle" fill="#fff" font-size="9" font-weight="600">Biedronka</text>
+        <circle cx="358" cy="90" r="20" fill="#16a34a" opacity=".55"/>
+        <circle cx="188" cy="86" r="16" fill="#7c3aed" opacity=".55"/>
+        <circle cx="150" cy="150" r="10" fill="#0891b2" opacity=".55"/>
+        <!-- наша сеть -->
+        <circle cx="118" cy="145" r="13" fill="#f59e0b" opacity=".95" stroke="#fff" stroke-width="2" stroke-dasharray="3 2"/>
+        <text x="118" y="149" text-anchor="middle" fill="#fff" font-size="8.5" font-weight="700">НАША</text>
+      </svg>
+      <div class="legend">
+        <div><i style="background:#e11d48"></i>MD</div><div><i style="background:#2563eb"></i>RO</div>
+        <div><i style="background:#eab308"></i>UA</div><div><i style="background:#16a34a"></i>PL</div>
+        <div><i style="background:#7c3aed"></i>BG</div><div><i style="background:#0891b2"></i>GE</div>
+        <div><i style="background:#f59e0b"></i>наша сеть</div>
+      </div>
+    </div>
+    <div>
+      <p>Шесть рынков, 22 сети. По горизонтали — число магазинов
+         (шкала логарифмическая), по вертикали — средний чек в евро,
+         размер пузырька — годовая выручка.</p>
+      <div class="card accent" style="margin:16px 0">
+        <h3>Наша сеть: 10 магазинов, чек 7,62 €</h3>
+        <p>В коридоре молдавского рынка: Linella — 6,4 €, Fidesco — 7,9 €,
+           Kaufland — 12,8 €. Формат подтверждается, вопрос — в масштабировании.</p>
+      </div>
+      <ul class="clean small">
+        <li>Считаются производные показатели: <b>выручка на магазин</b>
+            и <b>выручка с м²</b> — единственно сопоставимые между сетями разного размера</li>
+        <li>Доля СТМ по рынкам: Молдова 11 %, Румыния 24 %, Польша 32 % —
+            наглядный ориентир, куда движется рынок</li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">12</div>
+</section>
+
+<!-- 13 -->
+<section class="slide">
+  <div class="kicker">Внедрение</div>
+  <h2>Всё показанное можно проверить до реальных данных</h2>
+  <div class="cols">
+    <div>
+      <p>Модуль умеет создавать <b>тестовую сеть любого размера</b>: магазины
+         четырёх форматов, ассортимент, годовую историю спроса с недельной
+         и сезонной волной, промо, логистику, конкурентов, рынки.</p>
+      <ul class="clean win small">
+        <li><b>Воспроизводимость.</b> Одинаковый seed и параметры дают
+            идентичные данные — результаты сравнимы между прогонами</li>
+        <li><b>Изоляция.</b> Тестовые данные живут в именованном наборе
+            и удаляются одной кнопкой, боевые не затрагиваются</li>
+        <li><b>Реализм.</b> Модель спроса: базовый уровень × сезонность категории
+            × недельный профиль × тренд × промо-аплифт × шум, поверх —
+            out-of-stock и политика пополнения запаса</li>
+      </ul>
+      <div class="quote" style="margin-top:18px">Данные сгенерированы намеренно:
+        проверить логику нужно <b>до</b> того, как в систему пойдут реальные продажи.</div>
+    </div>
+    <div>
+      <div class="cols" style="grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px">
+        <div class="stat"><div class="v">918 тыс.</div><div class="l">строк в наборе</div></div>
+        <div class="stat g"><div class="v">7 мин</div><div class="l">полная генерация</div></div>
+        <div class="stat w"><div class="v">10 × 400</div><div class="l">магазинов × SKU</div></div>
+        <div class="stat v"><div class="v">365</div><div class="l">дней истории</div></div>
+      </div>
+      <h3 style="color:var(--accent2); margin-bottom:10px">Как подключаются реальные данные</h3>
+      <ul class="clean small">
+        <li><b>Продажи</b> — выгрузка из кассовой системы в таблицу фактов</li>
+        <li><b>Цены конкурентов</b> — импорт CSV прямо в интерфейсе</li>
+        <li><b>Поставщики, контракты, рейсы</b> — заводятся в интерфейсе</li>
+      </ul>
+      <p class="small muted" style="margin-top:14px">Переделывать при переходе на реальные
+        данные ничего не нужно: структура одна и та же.</p>
+    </div>
+  </div>
+  <div class="num">13</div>
+</section>
+
+<!-- 14 -->
+<section class="slide">
+  <div class="kicker">Дальше</div>
+  <h2>Пилот на три недели</h2>
+  <div class="steps" style="margin-top:10px">
+    <div class="step">
+      <h3>Реальный спрос одного магазина</h3>
+      <p>Выгрузить продажи за год в тестовый набор и прогнать backtest всех четырёх
+         моделей. На выходе — честная цифра точности на нашем спросе, а не на синтетике.</p>
+    </div>
+    <div class="step">
+      <h3>Одна товарная группа целиком</h3>
+      <p>Завести реальных поставщиков и контракты по группе, собрать первый
+         мониторинг цен по 100 SKU. Проверить, что процесс живой, а не разовый.</p>
+    </div>
+    <div class="step">
+      <h3>Сравнить заказ с человеческим</h3>
+      <p>Сформировать рекомендуемый заказ по категории и сопоставить с тем,
+         что заказал бы закупщик. Разница — и есть ответ о полезности.</p>
+    </div>
+  </div>
+  <div class="card accent" style="margin-top:8px">
+    <h3>Решение, которое нужно сегодня</h3>
+    <p style="font-size:15px">Какой магазин и какая товарная группа берутся в пилот.</p>
+  </div>
+  <div class="foot">
+    Модуль развёрнут и работает: <b>nufarul.eminescu.md/UNA.md/orasldev/planograms</b> ·
+    документация — <span class="muted">docs/Planograms/</span>
+  </div>
+  <div class="num">14</div>
+</section>
+
+</div>
+
+<script>
+// Листание стрелками и пробелом — по слайдам
+(function(){
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  function go(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides[i].scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)) { e.preventDefault(); go(i+1); }
+    if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); go(i-1); }
+    if (e.key === 'Home') { e.preventDefault(); go(0); }
+    if (e.key === 'End')  { e.preventDefault(); go(slides.length-1); }
+  });
+  // Синхронизируем счётчик при ручной прокрутке
+  const io = new IntersectionObserver(es => {
+    es.forEach(en => { if (en.isIntersecting) i = slides.indexOf(en.target); });
+  }, {threshold:.5});
+  slides.forEach(s => io.observe(s));
+})();
+</script>
+</body>
+</html>
