@@ -479,9 +479,21 @@ def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
     sigma = sigma_daily * math.sqrt(max(1.0, coverage_days))
     safety = z * sigma
 
+    # Спрос за срок годности партии — понадобится и для презентационного
+    # минимума, и для оценки списаний
+    sell_days = min(usable_days, 14.0) if shelf_life else coverage_days
+    mu_sell = demand_between(d1, int(math.ceil(sell_days))) if sell_days > 0 else mu
+
     target = mu + safety
     if params.get('use_presentation'):
-        target = max(target, float(economics.get('presentation_min') or 0))
+        # Презентационный минимум ограничен тем, что физически успевает
+        # продаться за срок годности. Держать восемь единиц медленного SKU
+        # с пятидневным сроком при спросе одна штука в день — это не «красивая
+        # полка», а плановое списание: на медленных позициях фейсинги сужают,
+        # а не набивают. Без этого ограничения минимум выкладки давал 26 %
+        # ожидаемых списаний по овощам на ровном месте.
+        presentation = min(float(economics.get('presentation_min') or 0), mu_sell)
+        target = max(target, presentation)
 
     stock = float(economics.get('stock_on_hand') or 0)
     order = target - max(0.0, stock - mu_until_arrival)
