@@ -366,6 +366,10 @@ DECLARE
 BEGIN
   DBMS_LOB.CREATETEMPORARY(v_xml, TRUE);
 {appends}
+  -- Файл рассчитан на повторный запуск: схема перезаписывается целиком.
+  -- Правки, сделанные оператором в бэк-офисе, при повторном деплое
+  -- этого файла теряются — так и задумано, эталон схемы лежит в генераторе.
+  DELETE FROM PLG_PROCESSES WHERE CODE = q'[{code}]';
   INSERT INTO PLG_PROCESSES (CODE, NAME_RU, NAME_RO, NAME_EN,
                              DESCR_RU, DESCR_RO, DESCR_EN,
                              DIAGRAM_XML, NODE_COUNT, SORT_ORDER, UPDATED_BY)
