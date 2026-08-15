@@ -790,6 +790,45 @@ class ForecastEngine:
                 "(SELECT DISTINCT PRODUCT_ID FROM PLG_SALES_DAILY WHERE STORE_ID = :p_st)",
                 {"p_lead": lead, "p_st": store_id})}
 
+            # Фреш: маршрут поставки, профиль категории и экономика SKU.
+            # Читается один раз на магазин — на 400 SKU это 3 запроса вместо 1200.
+            fresh_routes, fresh_profiles, fresh_econ = {}, {}, {}
+            if algorithm == 'fresh':
+                want = params.get('route') or 'auto'
+                for (cat_id, route, lead_d, transit, odays, ddays, moq, receipt) in self._fetch(
+                        "SELECT CATEGORY_ID, ROUTE, LEAD_TIME_DAYS, TRANSIT_DAYS, ORDER_DAYS, "
+                        "DELIVERY_DAYS, MIN_ORDER_QTY, RECEIPT_SHELF_PCT FROM PLG_FRESH_ROUTES "
+                        "WHERE STORE_ID = :p_st AND IS_ACTIVE = 1 ORDER BY PRIORITY, ID",
+                        {"p_st": store_id}):
+                    if want in ('dc', 'direct') and route != want:
+                        continue
+                    fresh_routes[int(cat_id) if cat_id else None] = {
+                        'route': route, 'lead_time_days': float(lead_d or 1),
+                        'transit_days': float(transit or 0), 'order_days': odays,
+                        'delivery_days': ddays, 'min_order_qty': float(moq or 0),
+                        'receipt_shelf_pct': float(receipt) if receipt is not None else None,
+                    }
+                for (cat_id, shelf, receipt, present, salvage, step) in self._fetch(
+                        "SELECT CATEGORY_ID, SHELF_LIFE_DAYS, RECEIPT_SHELF_PCT, PRESENTATION_MIN, "
+                        "SALVAGE_PCT, ROUND_STEP FROM PLG_FRESH_PROFILES WHERE IS_ACTIVE = 1"):
+                    fresh_profiles[int(cat_id)] = {
+                        'shelf_life_days': float(shelf or 0),
+                        'receipt_shelf_pct': float(receipt or 80),
+                        'presentation_min': float(present or 0),
+                        'salvage_pct': float(salvage or 0),
+                        'round_step': float(step or 0),
+                    }
+                for (pid, price, cost, shelf, salvage) in self._fetch(
+                        "SELECT p.ID, p.PRICE, p.COST_PRICE, p.SHELF_LIFE_DAYS, p.SALVAGE_PCT "
+                        "FROM PLG_PRODUCTS p WHERE NVL(p.IS_FRESH,0) = 1 AND p.ID IN "
+                        "(SELECT DISTINCT PRODUCT_ID FROM PLG_SALES_DAILY WHERE STORE_ID = :p_st)",
+                        {"p_st": store_id}):
+                    fresh_econ[int(pid)] = {
+                        'price': float(price or 0), 'cost': float(cost or 0),
+                        'shelf_life_days': float(shelf or 0),
+                        'salvage_pct': float(salvage) if salvage is not None else None,
+                    }
+
             # Группируем строки в ряды по SKU
             current_pid = None
             series: List[float] = []
