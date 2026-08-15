@@ -489,6 +489,150 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 </div>
             </section>
 
+            <!-- ===== Логистика завоза: диаграмма Ганта ===== -->
+            <section class="panel" id="panel-logistics">
+                <div class="stat-grid" id="lgStats"></div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="lg.gantt">График завоза</div>
+                            <div class="sub" data-i18n="lg.ganttSub">Окна разгрузки по машинам</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <span class="muted" data-i18n="lg.groupBy">Строки</span>
+                            <select class="ctl" id="ganttGroupBy" onchange="loadGantt()"></select>
+                            <input class="ctl" id="ganttFrom" type="date" onchange="loadGantt()">
+                            <select class="ctl" id="ganttDays" onchange="loadGantt()">
+                                <option value="1">1</option><option value="2">2</option>
+                                <option value="3" selected>3</option><option value="5">5</option>
+                                <option value="7">7</option>
+                            </select>
+                            <div class="legend" id="ganttLegend"></div>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:10px;background:var(--map-bg);border-radius:0 0 12px 12px;overflow-x:auto">
+                        <div id="ganttHost"></div>
+                    </div>
+                </div>
+                <div class="grid-main">
+                    <div class="card">
+                        <div class="card-h">
+                            <div class="ttl" data-i18n="lg.shipments">Рейсы завоза</div>
+                            <button class="btn btn-primary btn-sm" onclick="openShipmentModal()" data-i18n="lg.newShipment">Новый рейс</button>
+                        </div>
+                        <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="shipTbl"></table></div>
+                    </div>
+                    <div class="side-col">
+                        <div class="card">
+                            <div class="card-h"><div class="ttl" data-i18n="lg.dcs">Логистические центры</div></div>
+                            <div class="card-b" id="dcHost"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-h">
+                                <div class="ttl" data-i18n="lg.utilization">Загрузка парка</div>
+                                <button class="btn btn-ghost btn-sm" onclick="openVehicleModal()">+</button>
+                            </div>
+                            <div class="card-b" id="fleetHost"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== Поставщики: граф связей, контакты, контракты ===== -->
+            <section class="panel" id="panel-suppliers">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="sp.title">Взаимоотношения с поставщиками</div>
+                            <div class="sub" data-i18n="sp.graphSub">Толщина связи — годовой оборот</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input class="ctl" id="supSearch" data-i18n-ph="ui.search" placeholder="…" oninput="debounce(loadSuppliers)">
+                            <button class="btn btn-primary" onclick="openSupplierModal()" data-i18n="sp.newSupplier">Новый поставщик</button>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:10px;background:var(--map-bg);border-radius:0;overflow-x:auto">
+                        <div id="supGraphHost"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="sp.supplier">Поставщики</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="supTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div class="ttl" data-i18n="sp.contracts">Контракты</div>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+                            <input type="checkbox" id="ctrExpiring" onchange="loadContracts()">
+                            <span data-i18n="sp.expiring">Истекает</span></label>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="ctrTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Конкуренты ===== -->
+            <section class="panel" id="panel-competitors">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="cp.title">Анализ конкурентов</div>
+                            <div class="sub" data-i18n="cp.indexSub">Ценовой индекс</div>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button class="btn btn-ghost" onclick="openImportModal()" data-i18n="cp.importPrices">Импорт цен</button>
+                            <button class="btn btn-primary" onclick="openCompetitorModal()" data-i18n="cp.newCompetitor">Новый конкурент</button>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="compTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="cp.priceIndex">Ценовой индекс</div></div>
+                    <div class="card-b" style="overflow-x:auto"><div id="priceIndexHost"></div></div>
+                </div>
+                <div class="grid-main">
+                    <div class="card">
+                        <div class="card-h">
+                            <div class="ttl" data-i18n="cp.diff">Расхождения по SKU</div>
+                            <select class="ctl" id="cpCompFilter" onchange="loadPriceCompare()"></select>
+                        </div>
+                        <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="priceTbl"></table></div>
+                    </div>
+                    <div class="side-col">
+                        <div class="card">
+                            <div class="card-h"><div class="ttl" data-i18n="cp.theirSuppliers">Поставщики конкурента</div></div>
+                            <div class="card-b" id="compSupHost" style="max-height:520px;overflow-y:auto"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== Рынки других стран ===== -->
+            <section class="panel" id="panel-markets">
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="mk.title">Рынки других стран</div>
+                            <div class="sub" data-i18n="mk.bubbleSub">Сети на карте</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="openMarketModal()" data-i18n="mk.newMarket">Новый рынок</button>
+                    </div>
+                    <div class="card-b" style="padding:10px;background:var(--map-bg);border-radius:0;overflow-x:auto">
+                        <div id="bubbleHost"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="mk.market">Рынок</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="mktTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div class="ttl" data-i18n="mk.chains">Схожие сети</div>
+                        <select class="ctl" id="mktFilter" onchange="loadMarketChains()"></select>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="chainTbl"></table></div>
+                </div>
+            </section>
+
             <!-- ===== Генератор тестовых данных ===== -->
             <section class="panel" id="panel-testdata">
                 <div class="card">
