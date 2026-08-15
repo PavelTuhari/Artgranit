@@ -843,6 +843,11 @@ class ForecastEngine:
                 if len(series) < min_history:
                     self.skipped += 1
                     return
+                if algorithm == 'fresh' and current_pid not in fresh_econ:
+                    # Модель фреша не должна выдавать рекомендации по бакалее:
+                    # прогон остаётся честным — сухой ассортимент считают другие модели.
+                    self.skipped += 1
+                    return
                 m = meta.get(current_pid)
                 pack = int(m[1]) if m else 1
                 sku_lead = int(m[2]) if m else lead
