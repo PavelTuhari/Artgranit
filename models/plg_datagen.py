@@ -959,6 +959,520 @@ class DataGenerator:
 
             progress((si + 1) / len(stores))
 
+    # ==================== 6. Поставщики ====================
+
+    def _gen_suppliers(self, progress):
+        """
+        Поставщики, их контакты, контракты и товарные группы работы.
+
+        Запускается ДО ассортимента и спроса: каждый SKU получает поставщика,
+        а прямой завоз фреша в магазины строится по признаку DELIVERS_TO.
+        """
+        cats = self._categories()
+        cur = self.conn.cursor()
+        total = len(SUPPLIER_BRANDS)
+
+        for idx, (brand, stype, ccodes, country) in enumerate(SUPPLIER_BRANDS):
+            self._check_cancel()
+            srnd = random.Random(self.seed * 6151 + idx)
+            city = 'Chișinău' if country == 'MD' else {'RO': 'București', 'IT': 'Milano',
+                                                       'LV': 'Rīga', 'PL': 'Warszawa'}.get(country, '—')
+            # Фреш возят напрямую в магазины, длинный срок — через РЦ
+            fresh = {'bakery', 'dairy', 'meat', 'fish', 'produce'}
+            delivers = 'store' if set(ccodes) & fresh and stype in ('producer', 'farm') else (
+                'both' if srnd.random() < 0.3 else 'dc')
+            is_key = 1 if srnd.random() < 0.35 else 0
+            turnover = round(srnd.uniform(1.2e6, 4.8e7) * (2.2 if is_key else 1.0), 2)
+
+            sup_var = cur.var(int)
+            cur.execute(
+                "INSERT INTO PLG_SUPPLIERS (DATASET_ID, CODE, NAME_RU, NAME_RO, NAME_EN, "
+                "SUPPLIER_TYPE, COUNTRY, CITY, ADDRESS, IDNO, WEBSITE, PHONE, EMAIL, "
+                "RATING, OTIF_PCT, ANNUAL_TURNOVER, IS_KEY, DELIVERS_TO, STATUS) "
+                "VALUES (:p_ds, :p_code, :p_ru, :p_ro, :p_en, :p_type, :p_country, :p_city, "
+                ":p_addr, :p_idno, :p_web, :p_phone, :p_email, :p_rating, :p_otif, "
+                ":p_turn, :p_key, :p_del, :p_status) RETURNING ID INTO :p_id",
+                {"p_ds": self.dataset_id,
+                 "p_code": f"D{self.dataset_id}-SUP-{idx + 1:03d}",
+                 "p_ru": brand, "p_ro": brand, "p_en": brand,
+                 "p_type": stype, "p_country": country, "p_city": city,
+                 "p_addr": f"{city}, str. {srnd.choice(['Industrială', 'Uzinelor', 'Calea Basarabiei', 'Muncești'])} {srnd.randint(1, 120)}",
+                 "p_idno": f"10{srnd.randrange(10 ** 11):011d}",
+                 "p_web": f"www.{brand.split()[0].lower().replace('ă','a').replace('î','i')}.md",
+                 "p_phone": f"+373 22 {srnd.randint(100000, 999999)}",
+                 "p_email": f"office@{brand.split()[0].lower().replace('ă','a').replace('î','i')}.md",
+                 "p_rating": round(srnd.uniform(5.5, 9.8), 1),
+                 "p_otif": round(srnd.uniform(78, 99), 2),
+                 "p_turn": turnover, "p_key": is_key, "p_del": delivers,
+                 "p_status": 'active' if srnd.random() < 0.9 else srnd.choice(['on_hold', 'prospect']),
+                 "p_id": sup_var})
+            sup_id = int(sup_var.getvalue()[0])
+            self.rows += 1
+
+            # --- Контакты: КАМ обязателен, остальные по случаю
+            roles = ['kam'] + srnd.sample(['logistics', 'finance', 'quality', 'director'],
+                                          srnd.randint(1, 3))
+            for ri, role in enumerate(roles):
+                name = f"{srnd.choice(FIRST_NAMES)} {srnd.choice(LAST_NAMES)}"
+                cur.execute(
+                    "INSERT INTO PLG_SUPPLIER_CONTACTS (SUPPLIER_ID, FULL_NAME, ROLE_CODE, "
+                    "POSITION_TX, PHONE, MOBILE, EMAIL, MESSENGER, IS_PRIMARY) "
+                    "VALUES (:p_sup, :p_name, :p_role, :p_pos, :p_phone, :p_mob, :p_mail, :p_msg, :p_prim)",
+                    {"p_sup": sup_id, "p_name": name, "p_role": role,
+                     "p_pos": {'kam': 'Key Account Manager', 'logistics': 'Менеджер по логистике',
+                               'finance': 'Главный бухгалтер', 'quality': 'Менеджер по качеству',
+                               'director': 'Коммерческий директор'}[role],
+                     "p_phone": f"+373 22 {srnd.randint(100000, 999999)}",
+                     "p_mob": f"+373 6{srnd.randint(1000000, 9999999)}",
+                     "p_mail": f"{role}@{brand.split()[0].lower().replace('ă','a').replace('î','i')}.md",
+                     "p_msg": f"@{role}_{brand.split()[0].lower()[:6]}",
+                     "p_prim": 1 if ri == 0 else 0})
+                self.rows += 1
+
+            # --- Контракты: договор поставки + иногда маркетинг/СТМ
+            ctypes = ['supply'] + (['marketing'] if srnd.random() < 0.55 else []) + \
+                     (['private_label'] if stype == 'private_label' or srnd.random() < 0.12 else [])
+            for ci, ctype in enumerate(ctypes):
+                start = date.today() - timedelta(days=srnd.randint(60, 900))
+                end = start + timedelta(days=srnd.choice([365, 365, 730, 1095]))
+                status = 'active' if end >= date.today() else 'expired'
+                cur.execute(
+                    "INSERT INTO PLG_CONTRACTS (SUPPLIER_ID, CONTRACT_TYPE, TITLE_RU, TITLE_RO, TITLE_EN, "
+                    "DATE_FROM, DATE_TO, CURRENCY, PAYMENT_DAYS, RETRO_BONUS_PCT, DISCOUNT_PCT, "
+                    "MARKETING_FEE, MIN_ORDER_AMT, INCOTERMS, LEAD_TIME_DAYS, AUTO_RENEW, "
+                    "STATUS, SIGNED_BY) "
+                    "VALUES (:p_sup, :p_type, :p_tru, :p_tro, :p_ten, :p_from, :p_to, 'MDL', "
+                    ":p_pay, :p_retro, :p_disc, :p_mkt, :p_min, :p_inco, :p_lead, :p_renew, "
+                    ":p_status, :p_signed)",
+                    {"p_sup": sup_id, "p_type": ctype,
+                     "p_tru": f"{brand}: {'договор поставки' if ctype == 'supply' else ('маркетинговое соглашение' if ctype == 'marketing' else 'производство СТМ')}",
+                     "p_tro": f"{brand}: {'contract de furnizare' if ctype == 'supply' else ('acord de marketing' if ctype == 'marketing' else 'producție marcă proprie')}",
+                     "p_ten": f"{brand}: {'supply agreement' if ctype == 'supply' else ('marketing agreement' if ctype == 'marketing' else 'private label production')}",
+                     "p_from": start, "p_to": end,
+                     "p_pay": srnd.choice([14, 21, 30, 30, 45, 60]),
+                     "p_retro": round(srnd.uniform(0, 8), 2) if ctype == 'supply' else 0,
+                     "p_disc": round(srnd.uniform(0, 12), 2),
+                     "p_mkt": round(srnd.uniform(0, 180000), 2) if ctype == 'marketing' else 0,
+                     "p_min": round(srnd.uniform(5000, 90000), 2),
+                     "p_inco": srnd.choice(['DDP', 'DDP', 'FCA', 'EXW', 'CPT']),
+                     "p_lead": srnd.choice([1, 1, 2, 2, 3, 5, 7]),
+                     "p_renew": 1 if srnd.random() < 0.4 else 0,
+                     "p_status": status,
+                     "p_signed": f"{srnd.choice(FIRST_NAMES)} {srnd.choice(LAST_NAMES)}"})
+                self.rows += 1
+
+            # --- Товарные группы работы
+            groups = [c for c in ccodes if c in cats]
+            if not groups:
+                groups = [srnd.choice(list(cats))]
+            for gi, ccode in enumerate(groups):
+                cur.execute(
+                    "INSERT INTO PLG_SUPPLIER_CATEGORIES (SUPPLIER_ID, CATEGORY_ID, SKU_COUNT, "
+                    "TURNOVER, SHARE_PCT, IS_PRIMARY, MARGIN_PCT) "
+                    "VALUES (:p_sup, :p_cat, :p_sku, :p_turn, :p_share, :p_prim, :p_margin)",
+                    {"p_sup": sup_id, "p_cat": cats[ccode],
+                     "p_sku": srnd.randint(4, 60),
+                     "p_turn": round(turnover / len(groups) * srnd.uniform(0.7, 1.3), 2),
+                     "p_share": round(srnd.uniform(4, 55), 2),
+                     "p_prim": 1 if gi == 0 else 0,
+                     "p_margin": round(srnd.uniform(8, 34), 2)})
+                self.rows += 1
+
+            self.conn.commit()
+            progress((idx + 1) / total)
+
+    # ==================== 7. Логистика: РЦ, парк, рейсы ====================
+
+    def _gen_logistics(self, progress):
+        """
+        Строит логистический контур и расписание завоза.
+
+        Три плеча: поставщик → РЦ (крупные фуры, паллетный завоз),
+        РЦ → магазин (развозка по дням маршрута), поставщик → магазин
+        (фреш напрямую, каждое утро). Окна разгрузки распределяются по
+        докам РЦ так, чтобы на одном доке машины не пересекались.
+        """
+        days = int(self.params.get('days') or 365)
+        gantt_days = min(int(self.params.get('gantt_days') or 21), days)
+        stores = self._fetch(
+            "SELECT ID, CODE, CITY, STORE_FORMAT FROM PLG_STORES WHERE DATASET_ID = :p_ds ORDER BY ID",
+            {"p_ds": self.dataset_id})
+        suppliers = self._fetch(
+            "SELECT ID, CODE, DELIVERS_TO FROM PLG_SUPPLIERS WHERE DATASET_ID = :p_ds ORDER BY ID",
+            {"p_ds": self.dataset_id})
+        products = self._fetch(
+            "SELECT ID, PRICE FROM PLG_PRODUCTS WHERE DATASET_ID = :p_ds ORDER BY ID",
+            {"p_ds": self.dataset_id})
+        if not stores:
+            return
+        cur = self.conn.cursor()
+        lrnd = random.Random(self.seed * 15485863)
+
+        # --- Один центральный РЦ на сеть (схема «РЦ + прямые поставки»)
+        dc_var = cur.var(int)
+        cur.execute(
+            "INSERT INTO PLG_DC (DATASET_ID, CODE, NAME_RU, NAME_RO, NAME_EN, CITY, "
+            "ADDRESS_RU, ADDRESS_RO, ADDRESS_EN, AREA_SQM, DOCK_COUNT, PALLET_SLOTS, "
+            "WORK_FROM, WORK_TO, HAS_FRESH, MANAGER_NAME) "
+            "VALUES (:p_ds, :p_code, :p_ru, :p_ro, :p_en, 'Chișinău', "
+            ":p_aru, :p_aro, :p_aen, :p_area, :p_docks, :p_slots, '06:00', '22:00', 1, :p_mgr) "
+            "RETURNING ID INTO :p_id",
+            {"p_ds": self.dataset_id, "p_code": f"D{self.dataset_id}-DC-01",
+             "p_ru": 'Распределительный центр Кишинёв',
+             "p_ro": 'Centrul de distribuție Chișinău',
+             "p_en": 'Chisinau distribution centre',
+             "p_aru": 'ул. Индустриальная, 44', "p_aro": 'str. Industrială, 44',
+             "p_aen": '44 Industriala St.',
+             "p_area": round(lrnd.uniform(9000, 16000), 1),
+             "p_docks": lrnd.randint(10, 16), "p_slots": lrnd.randint(6000, 12000),
+             "p_mgr": f"{lrnd.choice(FIRST_NAMES)} {lrnd.choice(LAST_NAMES)}",
+             "p_id": dc_var})
+        dc_id = int(dc_var.getvalue()[0])
+        dock_count = int(self._fetch("SELECT DOCK_COUNT FROM PLG_DC WHERE ID = :p", {"p": dc_id})[0][0])
+        self.rows += 1
+
+        # --- Закрепление магазинов за РЦ с расстоянием и днями развозки
+        for st_id, st_code, city, fmt in stores:
+            dist = round(lrnd.uniform(3, 28) if city == 'Chișinău' else lrnd.uniform(45, 210), 1)
+            dow = {'hyper': '1,2,3,4,5,6', 'super': '1,3,5', 'discounter': '2,4,6',
+                   'convenience': '1,4'}.get(fmt, '1,3,5')
+            cur.execute(
+                "INSERT INTO PLG_DC_STORES (DC_ID, STORE_ID, DISTANCE_KM, DRIVE_MIN, DELIVERY_DOW) "
+                "VALUES (:p_dc, :p_st, :p_dist, :p_min, :p_dow)",
+                {"p_dc": dc_id, "p_st": st_id, "p_dist": dist,
+                 "p_min": int(dist * lrnd.uniform(1.1, 1.9)), "p_dow": dow})
+            self.rows += 1
+
+        # --- Парк машин: фуры под inbound, средние и фургоны под развозку
+        fleet = []
+        plan = ([('truck', max(2, len(stores) // 4))] + [('reefer', max(1, len(stores) // 5))] +
+                [('midi', max(2, len(stores) // 2))] + [('van', max(2, len(stores) // 3))] +
+                [('van_fresh', max(1, len(stores) // 4))])
+        vi = 0
+        for vtype, count in plan:
+            for _ in range(count):
+                vi += 1
+                own = 1 if lrnd.random() < 0.7 else 0
+                v_var = cur.var(int)
+                cur.execute(
+                    "INSERT INTO PLG_VEHICLES (DATASET_ID, CODE, PLATE_NO, VEHICLE_TYPE, CARRIER, "
+                    "IS_OWN, DRIVER_NAME, HOME_DC_ID, STATUS) "
+                    "VALUES (:p_ds, :p_code, :p_plate, :p_type, :p_carrier, :p_own, :p_driver, "
+                    ":p_dc, 'active') RETURNING ID INTO :p_id",
+                    {"p_ds": self.dataset_id, "p_code": f"D{self.dataset_id}-VEH-{vi:03d}",
+                     "p_plate": f"{lrnd.choice('ABCKMNOPRST')}{lrnd.choice('ABCKMNOPRST')}{lrnd.randint(100, 999)} {lrnd.choice(['MD','CHS','BLZ'])}",
+                     "p_type": vtype,
+                     "p_carrier": 'Собственный парк' if own else lrnd.choice(
+                         ['Trans Logistic SRL', 'Moldova Cargo', 'Fast Delivery SRL']),
+                     "p_own": own,
+                     "p_driver": f"{lrnd.choice(FIRST_NAMES)} {lrnd.choice(LAST_NAMES)}",
+                     "p_dc": dc_id, "p_id": v_var})
+                fleet.append((int(v_var.getvalue()[0]), vtype))
+                self.rows += 1
+        self.conn.commit()
+
+        by_type = {}
+        for vid, vtype in fleet:
+            by_type.setdefault(vtype, []).append(vid)
+
+        dc_suppliers = [s for s in suppliers if s[2] in ('dc', 'both')] or suppliers
+        direct_suppliers = [s for s in suppliers if s[2] in ('store', 'both')] or suppliers
+
+        # Занятость доков и машин: (dock/vehicle) -> список занятых интервалов
+        dock_busy: Dict[int, List[Tuple[float, float]]] = {}
+        veh_busy: Dict[int, List[Tuple[float, float]]] = {}
+
+        def free_slot(busy: Dict[int, List[Tuple[float, float]]], key: int,
+                      start: float, dur: float) -> bool:
+            for (s, e) in busy.get(key, []):
+                if start < e and s < start + dur:
+                    return False
+            return True
+
+        def occupy(busy, key, start, dur):
+            busy.setdefault(key, []).append((start, start + dur))
+
+        today = date.today()
+        first_day = today - timedelta(days=gantt_days - 1)
+        ship_rows: List[Tuple] = []
+        line_rows: List[Tuple] = []
+
+        def add_shipment(stype, sup_id, store_id, vehicle_id, dock, start_dt, dur_min,
+                         temp, pallets, dist):
+            nonlocal ship_rows, line_rows
+            planned_start = start_dt
+            planned_end = start_dt + timedelta(minutes=dur_min)
+            # Факт: часть рейсов опаздывает, часть отменяется
+            roll = lrnd.random()
+            if planned_start.date() > today:
+                status, actual_s, actual_e, delay = 'planned', None, None, 0
+            elif roll < 0.04:
+                status, actual_s, actual_e, delay = 'cancelled', None, None, 0
+            else:
+                delay = 0 if lrnd.random() < 0.72 else int(lrnd.expovariate(1 / 35.0))
+                actual_s = planned_start + timedelta(minutes=delay)
+                actual_e = actual_s + timedelta(minutes=int(dur_min * lrnd.uniform(0.85, 1.35)))
+                status = 'delayed' if delay > 30 else 'done'
+            weight = round(pallets * lrnd.uniform(240, 620), 2)
+            amount = round(weight * lrnd.uniform(9, 46), 2)
+            ship_rows.append((stype, sup_id, dc_id if stype != 'direct' else None,
+                              store_id, vehicle_id, dock, planned_start, planned_end,
+                              actual_s, actual_e, status, temp, pallets, weight,
+                              round(pallets * 1.8, 2), amount, dist, delay))
+
+        for d in range(gantt_days):
+            self._check_cancel()
+            day = first_day + timedelta(days=d)
+            dow = day.isoweekday()
+            dock_busy.clear()
+            veh_busy.clear()
+
+            # --- Плечо 1: поставщик → РЦ (утро, крупные машины)
+            inbound_count = max(2, int(len(dc_suppliers) * lrnd.uniform(0.25, 0.5)))
+            for sup in lrnd.sample(dc_suppliers, min(inbound_count, len(dc_suppliers))):
+                pool = by_type.get('truck', []) + by_type.get('reefer', [])
+                if not pool:
+                    continue
+                dur = lrnd.choice([60, 90, 90, 120])
+                for _ in range(12):
+                    hour = lrnd.uniform(6, 14)
+                    dock = lrnd.randint(1, max(1, dock_count // 2))
+                    vid = lrnd.choice(pool)
+                    if free_slot(dock_busy, dock, hour, dur / 60) and free_slot(veh_busy, vid, hour, dur / 60):
+                        occupy(dock_busy, dock, hour, dur / 60)
+                        occupy(veh_busy, vid, hour, dur / 60)
+                        start = datetime_at(day, hour)
+                        add_shipment('inbound', sup[0], None, vid, dock, start, dur,
+                                     lrnd.choice(['ambient', 'ambient', 'chilled', 'frozen']),
+                                     lrnd.randint(8, 33), round(lrnd.uniform(20, 320), 1))
+                        break
+
+            # --- Плечо 2: РЦ → магазин (по дням маршрута)
+            for st_id, st_code, city, fmt in stores:
+                dow_row = self._fetch(
+                    "SELECT DELIVERY_DOW, DISTANCE_KM FROM PLG_DC_STORES "
+                    "WHERE DC_ID = :p_dc AND STORE_ID = :p_st", {"p_dc": dc_id, "p_st": st_id})
+                if not dow_row:
+                    continue
+                dows = {int(x) for x in str(dow_row[0][0] or '').split(',') if x.strip().isdigit()}
+                if dow not in dows:
+                    continue
+                pool = by_type.get('midi', []) + by_type.get('van', [])
+                if not pool:
+                    continue
+                dur = lrnd.choice([45, 60, 60, 75])
+                for _ in range(12):
+                    hour = lrnd.uniform(5.5, 12)
+                    vid = lrnd.choice(pool)
+                    if free_slot(veh_busy, vid, hour, dur / 60 + 1.0):
+                        occupy(veh_busy, vid, hour, dur / 60 + 1.0)
+                        add_shipment('transfer', None, st_id, vid, None,
+                                     datetime_at(day, hour), dur,
+                                     lrnd.choice(['ambient', 'ambient', 'chilled']),
+                                     lrnd.randint(3, 14), float(dow_row[0][1] or 20))
+                        break
+
+            # --- Плечо 3: прямой завоз фреша (каждое утро, малые машины)
+            for st_id, st_code, city, fmt in stores:
+                if fmt == 'convenience' and lrnd.random() < 0.4:
+                    continue
+                for sup in lrnd.sample(direct_suppliers, min(len(direct_suppliers),
+                                                             lrnd.randint(1, 3))):
+                    pool = by_type.get('van_fresh', []) + by_type.get('van', [])
+                    if not pool:
+                        continue
+                    dur = lrnd.choice([20, 25, 30])
+                    for _ in range(10):
+                        hour = lrnd.uniform(5, 9)
+                        vid = lrnd.choice(pool)
+                        if free_slot(veh_busy, vid, hour, dur / 60 + 0.5):
+                            occupy(veh_busy, vid, hour, dur / 60 + 0.5)
+                            add_shipment('direct', sup[0], st_id, vid, None,
+                                         datetime_at(day, hour), dur,
+                                         lrnd.choice(['chilled', 'chilled', 'ambient']),
+                                         lrnd.randint(1, 5), round(lrnd.uniform(2, 60), 1))
+                            break
+
+            if len(ship_rows) >= 2000:
+                self._flush_shipments(ship_rows, products, lrnd)
+                ship_rows = []
+            progress((d + 1) / gantt_days)
+
+        if ship_rows:
+            self._flush_shipments(ship_rows, products, lrnd)
+
+    def _flush_shipments(self, rows: List[Tuple], products: List[Tuple], lrnd: random.Random):
+        """Пишет рейсы пачкой и добирает по 2-6 позиций состава на каждый."""
+        cur = self.conn.cursor()
+        id_var = cur.var(int, arraysize=len(rows))
+        cur.setinputsizes(None, None, None, None, None, None, None, None,
+                          None, None, None, None, None, None, None, None, None, None, id_var)
+        cur.executemany(
+            "INSERT INTO PLG_SHIPMENTS (SHIPMENT_TYPE, SUPPLIER_ID, DC_ID, STORE_ID, VEHICLE_ID, "
+            "DOCK_NO, PLANNED_START, PLANNED_END, ACTUAL_START, ACTUAL_END, STATUS, TEMP_MODE, "
+            "PALLETS, WEIGHT_KG, VOLUME_M3, AMOUNT, DISTANCE_KM, DELAY_MIN) "
+            "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14, :15, :16, :17, :18) "
+            "RETURNING ID INTO :19", rows)
+        self.conn.commit()
+        self.rows += len(rows)
+
+        ids = [int(v[0]) for v in id_var.getvalue()] if products else []
+        lines = []
+        for ship_id in ids:
+            for prod in lrnd.sample(products, min(len(products), lrnd.randint(2, 6))):
+                qty = round(lrnd.uniform(6, 400), 3)
+                lines.append((ship_id, int(prod[0]), qty, round(qty / 120.0, 2),
+                              round(qty * float(prod[1] or 10), 2)))
+        if lines:
+            cur.executemany(
+                "INSERT INTO PLG_SHIPMENT_LINES (SHIPMENT_ID, PRODUCT_ID, QTY, PALLETS, AMOUNT) "
+                "VALUES (:1, :2, :3, :4, :5)", lines)
+            self.conn.commit()
+            self.rows += len(lines)
+
+    # ==================== 8. Конкуренты ====================
+
+    def _gen_competitors(self, progress):
+        """
+        Сети-конкуренты, мониторинг их цен по нашим SKU и их поставщики.
+
+        Цена конкурента строится от НАШЕЙ цены через позиционирование
+        (дискаунтер дешевле, премиум дороже) плюс шум по каждому SKU —
+        так ценовой индекс получается правдоподобно неоднородным по категориям.
+        """
+        products = self._fetch(
+            "SELECT p.ID, p.PRICE, p.CATEGORY_ID FROM PLG_PRODUCTS p "
+            "WHERE p.DATASET_ID = :p_ds ORDER BY p.ID", {"p_ds": self.dataset_id})
+        suppliers = self._fetch(
+            "SELECT ID, NAME_RU FROM PLG_SUPPLIERS WHERE DATASET_ID = :p_ds ORDER BY ID",
+            {"p_ds": self.dataset_id})
+        cats = self._categories()
+        if not products:
+            return
+        cur = self.conn.cursor()
+        checks_per_comp = min(len(products), int(self.params.get('price_checks') or 160))
+        check_rounds = int(self.params.get('price_rounds') or 4)
+        today = date.today()
+
+        base_idx = {'discount': 0.88, 'mid': 1.0, 'premium': 1.14}
+        for ci, (name, positioning, share, store_count, color) in enumerate(COMPETITOR_CHAINS):
+            self._check_cancel()
+            crnd = random.Random(self.seed * 2654435761 + ci)
+            c_var = cur.var(int)
+            cur.execute(
+                "INSERT INTO PLG_COMPETITORS (DATASET_ID, CODE, NAME_RU, NAME_RO, NAME_EN, "
+                "COUNTRY, FORMAT_MIX, STORE_COUNT, POSITIONING, PRICE_INDEX, MARKET_SHARE, "
+                "ANNUAL_REVENUE, PRIVATE_LABEL_PCT, WEBSITE, COLOR, STATUS) "
+                "VALUES (:p_ds, :p_code, :p_ru, :p_ro, :p_en, 'MD', :p_fmt, :p_stores, :p_pos, "
+                ":p_idx, :p_share, :p_rev, :p_pl, :p_web, :p_color, 'active') RETURNING ID INTO :p_id",
+                {"p_ds": self.dataset_id, "p_code": f"D{self.dataset_id}-CMP-{ci + 1:02d}",
+                 "p_ru": name, "p_ro": name, "p_en": name,
+                 "p_fmt": crnd.choice(['super,convenience', 'hyper,super', 'super', 'discounter,convenience']),
+                 "p_stores": store_count, "p_pos": positioning,
+                 "p_idx": round(base_idx[positioning] * 100 + crnd.uniform(-3, 3), 2),
+                 "p_share": round(share * 100, 2),
+                 "p_rev": round(share * 100 * crnd.uniform(28, 52) * 1e6, 2),
+                 "p_pl": round(crnd.uniform(4, 26), 2),
+                 "p_web": f"www.{name.split()[0].lower()}.md",
+                 "p_color": color, "p_id": c_var})
+            comp_id = int(c_var.getvalue()[0])
+            self.rows += 1
+
+            # --- Мониторинг цен: несколько раундов замеров
+            monitored = crnd.sample(products, checks_per_comp)
+            price_rows = []
+            for prod_id, our_price, cat_id in monitored:
+                our_price = float(our_price or 10)
+                # Сдвиг по SKU постоянен между раундами — это «политика» конкурента
+                sku_bias = crnd.gauss(base_idx[positioning], 0.09)
+                for r in range(check_rounds):
+                    d = today - timedelta(days=r * 7)
+                    promo = 1 if crnd.random() < 0.14 else 0
+                    price = our_price * sku_bias * (0.78 if promo else 1.0) * crnd.uniform(0.97, 1.03)
+                    price_rows.append((comp_id, int(prod_id), d, round(max(0.5, price), 2),
+                                       round(our_price, 2), promo,
+                                       1 if crnd.random() < 0.94 else 0,
+                                       crnd.choice(['audit', 'audit', 'parsing', 'receipt']),
+                                       crnd.choice(['Chișinău', 'Bălți', 'Cahul'])))
+            self._executemany(
+                "INSERT INTO PLG_COMPETITOR_PRICES (COMPETITOR_ID, PRODUCT_ID, CHECK_DATE, PRICE, "
+                "OUR_PRICE, IS_PROMO, IN_STOCK, SOURCE, CITY) "
+                "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9)", price_rows)
+
+            # --- Поставщики конкурента: часть — наши же
+            pool = list(suppliers)
+            crnd.shuffle(pool)
+            shared = pool[:max(1, len(pool) // 3)]
+            for sup_id, sup_name in shared:
+                cur.execute(
+                    "INSERT INTO PLG_COMPETITOR_SUPPLIERS (COMPETITOR_ID, SUPPLIER_NAME, "
+                    "SUPPLIER_ID, CATEGORY_ID, IS_EXCLUSIVE, EST_SHARE_PCT, SOURCE) "
+                    "VALUES (:p_c, :p_name, :p_sup, :p_cat, 0, :p_share, :p_src)",
+                    {"p_c": comp_id, "p_name": sup_name, "p_sup": sup_id,
+                     "p_cat": cats.get(crnd.choice(list(cats))),
+                     "p_share": round(crnd.uniform(3, 40), 2),
+                     "p_src": crnd.choice(['полевой аудит', 'открытые источники', 'этикетка товара'])})
+                self.rows += 1
+            # Эксклюзивные поставщики конкурента, которых нет у нас
+            for ex in crnd.sample(['Alfa Trade SRL', 'Vega Import', 'Sud Agro', 'Nord Distribution',
+                                   'Prima Food', 'Est Logistic'], crnd.randint(1, 3)):
+                cur.execute(
+                    "INSERT INTO PLG_COMPETITOR_SUPPLIERS (COMPETITOR_ID, SUPPLIER_NAME, "
+                    "SUPPLIER_ID, CATEGORY_ID, IS_EXCLUSIVE, EST_SHARE_PCT, SOURCE) "
+                    "VALUES (:p_c, :p_name, NULL, :p_cat, 1, :p_share, 'открытые источники')",
+                    {"p_c": comp_id, "p_name": ex,
+                     "p_cat": cats.get(crnd.choice(list(cats))),
+                     "p_share": round(crnd.uniform(2, 25), 2)})
+                self.rows += 1
+
+            self.conn.commit()
+            progress((ci + 1) / len(COMPETITOR_CHAINS))
+
+    # ==================== 9. Рынки других стран ====================
+
+    def _gen_markets(self, progress):
+        """Страны-рынки и схожие торговые сети для бенчмарка."""
+        cur = self.conn.cursor()
+        for mi, (code, ru, ro, en, pop, gdp, curr, retail, modern,
+                 top5, check_eur, per100k, pl) in enumerate(MARKET_DATA):
+            self._check_cancel()
+            mrnd = random.Random(self.seed * 97 + mi)
+            m_var = cur.var(int)
+            cur.execute(
+                "INSERT INTO PLG_MARKETS (DATASET_ID, COUNTRY_CODE, NAME_RU, NAME_RO, NAME_EN, "
+                "POPULATION_MLN, GDP_PER_CAPITA, CURRENCY, RETAIL_VOLUME_MLN, MODERN_TRADE_PCT, "
+                "TOP5_SHARE_PCT, AVG_CHECK, AVG_CHECK_EUR, STORES_PER_100K, PRIVATE_LABEL_PCT, NOTES) "
+                "VALUES (:p_ds, :p_code, :p_ru, :p_ro, :p_en, :p_pop, :p_gdp, :p_curr, :p_retail, "
+                ":p_modern, :p_top5, :p_check, :p_check_eur, :p_per100k, :p_pl, :p_notes) "
+                "RETURNING ID INTO :p_id",
+                {"p_ds": self.dataset_id, "p_code": code, "p_ru": ru, "p_ro": ro, "p_en": en,
+                 "p_pop": pop, "p_gdp": gdp, "p_curr": curr, "p_retail": retail,
+                 "p_modern": modern, "p_top5": top5,
+                 "p_check": round(check_eur * (19.4 if curr == 'MDL' else 5.0), 2),
+                 "p_check_eur": check_eur, "p_per100k": per100k, "p_pl": pl,
+                 "p_notes": None, "p_id": m_var})
+            market_id = int(m_var.getvalue()[0])
+            self.rows += 1
+
+            for (name, owner, stores_n, revenue, share, sqm, sku,
+                 pl_pct, chk, online) in MARKET_CHAINS.get(code, []):
+                cur.execute(
+                    "INSERT INTO PLG_MARKET_CHAINS (MARKET_ID, NAME, OWNER_GROUP, FORMAT_MIX, "
+                    "STORE_COUNT, REVENUE_MLN, MARKET_SHARE_PCT, AVG_STORE_SQM, SKU_COUNT, "
+                    "PRIVATE_LABEL_PCT, AVG_CHECK_EUR, ONLINE_SHARE_PCT, LOYALTY_PROGRAM, IS_BENCHMARK) "
+                    "VALUES (:p_m, :p_name, :p_owner, :p_fmt, :p_stores, :p_rev, :p_share, "
+                    ":p_sqm, :p_sku, :p_pl, :p_chk, :p_online, :p_loy, :p_bench)",
+                    {"p_m": market_id, "p_name": name, "p_owner": owner,
+                     "p_fmt": mrnd.choice(['super', 'super,convenience', 'hyper,super',
+                                           'discounter', 'hyper,super,convenience']),
+                     "p_stores": stores_n, "p_rev": revenue, "p_share": share,
+                     "p_sqm": sqm, "p_sku": sku, "p_pl": pl_pct, "p_chk": chk,
+                     "p_online": online, "p_loy": 1 if mrnd.random() < 0.8 else 0,
+                     "p_bench": 1 if code == 'MD' or mrnd.random() < 0.25 else 0})
+                self.rows += 1
+            self.conn.commit()
+            progress((mi + 1) / len(MARKET_DATA))
+
 
 # ==================== Справочные данные партнёрского контура ====================
 
