@@ -180,10 +180,12 @@ class PlanogramController:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    "SELECT ID, CODE, NAME_RU, NAME_RO, NAME_EN, CITY, "
-                    "ADDRESS_RU, ADDRESS_RO, ADDRESS_EN, AREA_SQM, MAP_WIDTH, MAP_HEIGHT, "
-                    "CHECKOUT_QTY, MANAGER_NAME, STATUS "
-                    "FROM PLG_STORES WHERE STATUS <> 'inactive' ORDER BY CODE"
+                    "SELECT s.ID, s.CODE, s.NAME_RU, s.NAME_RO, s.NAME_EN, s.CITY, "
+                    "s.ADDRESS_RU, s.ADDRESS_RO, s.ADDRESS_EN, s.AREA_SQM, s.MAP_WIDTH, s.MAP_HEIGHT, "
+                    "s.CHECKOUT_QTY, s.MANAGER_NAME, s.STATUS, "
+                    "(SELECT COUNT(*) FROM PLG_ZONES z WHERE z.STORE_ID = s.ID) AS ZONE_COUNT "
+                    "FROM PLG_STORES s WHERE s.STATUS <> 'inactive' "
+                    "ORDER BY ZONE_COUNT DESC, s.CODE"
                 )
                 if not r.get("success"):
                     return PlanogramController._fail(r)
