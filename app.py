@@ -2637,6 +2637,95 @@ def planograms():
     return render_template('planograms.html')
 
 
+# --- Публичная документация модуля ---
+#
+# Реестр документов. Флаг public=True открывает документ без входа в систему.
+# Руководство пользователя и презентация показывают только работу с интерфейсом
+# и потому открыты. Техническое описание и инструкция по установке содержат
+# пути на сервере, размещение wallet, имя systemd-юнита и перечень ключей
+# окружения — их анонимный доступ был бы разведданными для атакующего,
+# поэтому они закрыты входом. Чтобы открыть их тоже, достаточно поставить
+# 'public': True в соответствующей строке.
+PLG_DOCS = [
+    {'slug': 'user-guide', 'file': 'USER_GUIDE.md', 'public': True,
+     'icon': '📘', 'cls': 'g', 'title': 'Руководство пользователя',
+     'audience': 'для сотрудников сети',
+     'descr': 'Как работать в модуле: карта зала, планограммы и согласование, '
+              'прогноз заказов, диаграмма Ганта, поставщики, конкуренты, рынки. '
+              'Пять типовых сценариев и пояснения, как читать цвета и метрики.'},
+    {'slug': 'module', 'file': 'PLANOGRAMS_MODULE.md', 'public': False,
+     'icon': '⚙', 'cls': '', 'title': 'Техническое описание',
+     'audience': 'для разработчиков',
+     'descr': 'Модель данных, представления, API, алгоритмы генерации и прогноза, '
+              'инженерные решения и найденные при тестировании дефекты.'},
+    {'slug': 'install', 'file': 'INSTALL.md', 'public': False,
+     'icon': '⬇', 'cls': 'c', 'title': 'Установка и развёртывание',
+     'audience': 'для администраторов',
+     'descr': 'Все скрипты установки, порядок SQL-файлов, флаги деплоя, '
+              'конфигурация окружения и обязательные проверки после релиза.'},
+    {'slug': 'presentation-plan', 'file': 'PRESENTATION_PLAN.md', 'public': True,
+     'icon': '◐', 'cls': 'w', 'title': 'План презентации',
+     'audience': 'для докладчика',
+     'descr': 'Сценарий показа на 25 минут: структура слайдов с таймингом, '
+              'что демонстрировать вживую, ожидаемые вопросы и план пилота.'},
+]
+
+PLG_DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs', 'Planograms')
+
+
+def _plg_doc_by_slug(slug):
+    return next((d for d in PLG_DOCS if d['slug'] == slug), None)
+
+
+@app.route('/UNA.md/orasldev/planograms/docs')
+@app.route('/UNA.md/orasldev/planograms/docs/')
+def planograms_docs_index():
+    """Хаб документации модуля — открыт без входа."""
+    return render_template('planograms_docs.html', docs=PLG_DOCS, doc=None,
+                           page_title='Планограммы — документация модуля')
+
+
+@app.route('/UNA.md/orasldev/planograms/docs/<slug>')
+def planograms_doc(slug):
+    """Отдельный документ модуля, отрендеренный из Markdown."""
+    doc = _plg_doc_by_slug(slug)
+    if not doc:
+        return render_template('planograms_docs.html', docs=PLG_DOCS, doc=None,
+                               page_title='Документ не найден'), 404
+    if not doc['public'] and not AuthController.is_authenticated():
+        return redirect(url_for('login'))
+
+    path = os.path.join(PLG_DOCS_DIR, doc['file'])
+    if not os.path.isfile(path):
+        return render_template('planograms_docs.html', docs=PLG_DOCS, doc=None,
+                               page_title='Документ не найден'), 404
+    with open(path, 'r', encoding='utf-8') as f:
+        source = f.read()
+
+    # Ссылки между файлами переписываем на маршруты приложения,
+    # иначе из браузера они ведут в никуда.
+    for other in PLG_DOCS:
+        source = source.replace(f"]({other['file']})",
+                                f"](/UNA.md/orasldev/planograms/docs/{other['slug']})")
+    source = source.replace('](presentation.html)',
+                            '](/UNA.md/orasldev/planograms/presentation)')
+
+    return render_template('planograms_docs.html', docs=PLG_DOCS, doc=doc,
+                           content=_docs_md_to_html(source),
+                           page_title=f"{doc['title']} — Планограммы")
+
+
+@app.route('/UNA.md/orasldev/planograms/presentation')
+def planograms_presentation():
+    """Презентация модуля — самостоятельная HTML-страница, открыта без входа."""
+    path = os.path.join(PLG_DOCS_DIR, 'presentation.html')
+    if not os.path.isfile(path):
+        return '<h1>Презентация не найдена</h1>', 404
+    from flask import Response
+    with open(path, 'r', encoding='utf-8') as f:
+        return Response(f.read(), mimetype='text/html; charset=utf-8')
+
+
 # --- Язык, словарь, справочники ---
 @app.route('/api/plg/langs', methods=['GET'])
 def api_plg_langs():
@@ -3012,6 +3101,258 @@ def api_plg_order_proposal(run_id):
     return jsonify(PlanogramController.get_order_proposal(
         run_id, request.args.get('store_id', type=int),
         request.args.get('limit', 200, type=int), _plg_lang()))
+
+
+# --- Логистика: РЦ, транспорт, рейсы, Гант ---
+@app.route('/api/plg/dc', methods=['GET'])
+def api_plg_dc():
+    return jsonify(PlanogramController.get_dc(
+        request.args.get('dataset_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/dc', methods=['POST'])
+def api_plg_create_dc():
+    return jsonify(PlanogramController.save_dc(request.get_json() or {}))
+
+
+@app.route('/api/plg/dc/<int:dc_id>', methods=['PUT'])
+def api_plg_update_dc(dc_id):
+    return jsonify(PlanogramController.save_dc(request.get_json() or {}, dc_id))
+
+
+@app.route('/api/plg/dc/<int:dc_id>', methods=['DELETE'])
+def api_plg_delete_dc(dc_id):
+    return jsonify(PlanogramController.delete_dc(dc_id))
+
+
+@app.route('/api/plg/vehicles', methods=['GET'])
+def api_plg_vehicles():
+    return jsonify(PlanogramController.get_vehicles(
+        request.args.get('dataset_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/vehicles', methods=['POST'])
+def api_plg_create_vehicle():
+    return jsonify(PlanogramController.save_vehicle(request.get_json() or {}))
+
+
+@app.route('/api/plg/vehicles/<int:vehicle_id>', methods=['PUT'])
+def api_plg_update_vehicle(vehicle_id):
+    return jsonify(PlanogramController.save_vehicle(request.get_json() or {}, vehicle_id))
+
+
+@app.route('/api/plg/vehicles/<int:vehicle_id>', methods=['DELETE'])
+def api_plg_delete_vehicle(vehicle_id):
+    return jsonify(PlanogramController.delete_vehicle(vehicle_id))
+
+
+@app.route('/api/plg/shipments', methods=['GET'])
+def api_plg_shipments():
+    return jsonify(PlanogramController.get_shipments(
+        request.args.get('dataset_id', type=int), request.args.get('date_from'),
+        request.args.get('days', 7, type=int), request.args.get('store_id', type=int),
+        request.args.get('type'), request.args.get('limit', 1000, type=int), _plg_lang()))
+
+
+@app.route('/api/plg/shipments', methods=['POST'])
+def api_plg_create_shipment():
+    return jsonify(PlanogramController.save_shipment(request.get_json() or {}))
+
+
+@app.route('/api/plg/shipments/<int:shipment_id>', methods=['PUT'])
+def api_plg_update_shipment(shipment_id):
+    return jsonify(PlanogramController.save_shipment(request.get_json() or {}, shipment_id))
+
+
+@app.route('/api/plg/shipments/<int:shipment_id>', methods=['DELETE'])
+def api_plg_delete_shipment(shipment_id):
+    return jsonify(PlanogramController.delete_shipment(shipment_id))
+
+
+@app.route('/api/plg/gantt', methods=['GET'])
+def api_plg_gantt():
+    return jsonify(PlanogramController.get_gantt(
+        request.args.get('dataset_id', type=int), request.args.get('date_from'),
+        request.args.get('days', 3, type=int), request.args.get('group_by', 'vehicle'),
+        _plg_lang()))
+
+
+@app.route('/api/plg/logistics/stats', methods=['GET'])
+def api_plg_logistics_stats():
+    return jsonify(PlanogramController.get_logistics_stats(
+        request.args.get('dataset_id', type=int),
+        request.args.get('days', 7, type=int), _plg_lang()))
+
+
+# --- Поставщики: карточка, контакты, контракты, граф связей ---
+@app.route('/api/plg/suppliers', methods=['GET'])
+def api_plg_suppliers():
+    return jsonify(PlanogramController.get_suppliers(
+        request.args.get('dataset_id', type=int), request.args.get('q'), _plg_lang()))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>', methods=['GET'])
+def api_plg_supplier(supplier_id):
+    return jsonify(PlanogramController.get_supplier(supplier_id, _plg_lang()))
+
+
+@app.route('/api/plg/suppliers', methods=['POST'])
+def api_plg_create_supplier():
+    return jsonify(PlanogramController.save_supplier(request.get_json() or {}))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>', methods=['PUT'])
+def api_plg_update_supplier(supplier_id):
+    return jsonify(PlanogramController.save_supplier(request.get_json() or {}, supplier_id))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>', methods=['DELETE'])
+def api_plg_delete_supplier(supplier_id):
+    return jsonify(PlanogramController.delete_supplier(supplier_id))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>/contacts', methods=['POST'])
+def api_plg_create_contact(supplier_id):
+    return jsonify(PlanogramController.save_contact(supplier_id, request.get_json() or {}))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>/contacts/<int:contact_id>', methods=['PUT'])
+def api_plg_update_contact(supplier_id, contact_id):
+    return jsonify(PlanogramController.save_contact(supplier_id, request.get_json() or {}, contact_id))
+
+
+@app.route('/api/plg/contacts/<int:contact_id>', methods=['DELETE'])
+def api_plg_delete_contact(contact_id):
+    return jsonify(PlanogramController.delete_contact(contact_id))
+
+
+@app.route('/api/plg/contracts', methods=['GET'])
+def api_plg_contracts():
+    return jsonify(PlanogramController.get_contracts(
+        request.args.get('dataset_id', type=int), request.args.get('supplier_id', type=int),
+        request.args.get('expiring') == '1', _plg_lang()))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>/contracts', methods=['POST'])
+def api_plg_create_contract(supplier_id):
+    return jsonify(PlanogramController.save_contract(supplier_id, request.get_json() or {}))
+
+
+@app.route('/api/plg/suppliers/<int:supplier_id>/contracts/<int:contract_id>', methods=['PUT'])
+def api_plg_update_contract(supplier_id, contract_id):
+    return jsonify(PlanogramController.save_contract(supplier_id, request.get_json() or {}, contract_id))
+
+
+@app.route('/api/plg/contracts/<int:contract_id>', methods=['DELETE'])
+def api_plg_delete_contract(contract_id):
+    return jsonify(PlanogramController.delete_contract(contract_id))
+
+
+@app.route('/api/plg/suppliers/graph', methods=['GET'])
+def api_plg_supplier_graph():
+    return jsonify(PlanogramController.get_supplier_graph(
+        request.args.get('dataset_id', type=int),
+        request.args.get('top', 18, type=int), _plg_lang()))
+
+
+# --- Конкуренты ---
+@app.route('/api/plg/competitors', methods=['GET'])
+def api_plg_competitors():
+    return jsonify(PlanogramController.get_competitors(
+        request.args.get('dataset_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/competitors', methods=['POST'])
+def api_plg_create_competitor():
+    return jsonify(PlanogramController.save_competitor(request.get_json() or {}))
+
+
+@app.route('/api/plg/competitors/<int:competitor_id>', methods=['PUT'])
+def api_plg_update_competitor(competitor_id):
+    return jsonify(PlanogramController.save_competitor(request.get_json() or {}, competitor_id))
+
+
+@app.route('/api/plg/competitors/<int:competitor_id>', methods=['DELETE'])
+def api_plg_delete_competitor(competitor_id):
+    return jsonify(PlanogramController.delete_competitor(competitor_id))
+
+
+@app.route('/api/plg/competitors/price-index', methods=['GET'])
+def api_plg_price_index():
+    return jsonify(PlanogramController.get_price_index(
+        request.args.get('dataset_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/competitors/prices', methods=['GET'])
+def api_plg_price_compare():
+    return jsonify(PlanogramController.get_price_compare(
+        request.args.get('dataset_id', type=int), request.args.get('competitor_id', type=int),
+        request.args.get('category_id', type=int), request.args.get('position'),
+        request.args.get('limit', 300, type=int), _plg_lang()))
+
+
+@app.route('/api/plg/competitors/suppliers', methods=['GET'])
+def api_plg_competitor_suppliers():
+    return jsonify(PlanogramController.get_competitor_suppliers(
+        request.args.get('dataset_id', type=int),
+        request.args.get('competitor_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/competitors/prices/import', methods=['POST'])
+def api_plg_import_prices():
+    data = request.get_json() or {}
+    return jsonify(PlanogramController.import_competitor_prices(
+        data.get('csv', ''), data.get('dataset_id')))
+
+
+# --- Рынки других стран ---
+@app.route('/api/plg/markets', methods=['GET'])
+def api_plg_markets():
+    return jsonify(PlanogramController.get_markets(
+        request.args.get('dataset_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/markets', methods=['POST'])
+def api_plg_create_market():
+    return jsonify(PlanogramController.save_market(request.get_json() or {}))
+
+
+@app.route('/api/plg/markets/<int:market_id>', methods=['PUT'])
+def api_plg_update_market(market_id):
+    return jsonify(PlanogramController.save_market(request.get_json() or {}, market_id))
+
+
+@app.route('/api/plg/markets/<int:market_id>', methods=['DELETE'])
+def api_plg_delete_market(market_id):
+    return jsonify(PlanogramController.delete_market(market_id))
+
+
+@app.route('/api/plg/markets/chains', methods=['GET'])
+def api_plg_market_chains():
+    return jsonify(PlanogramController.get_market_chains(
+        request.args.get('dataset_id', type=int),
+        request.args.get('market_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/markets/<int:market_id>/chains', methods=['POST'])
+def api_plg_create_chain(market_id):
+    return jsonify(PlanogramController.save_market_chain(market_id, request.get_json() or {}))
+
+
+@app.route('/api/plg/markets/<int:market_id>/chains/<int:chain_id>', methods=['PUT'])
+def api_plg_update_chain(market_id, chain_id):
+    return jsonify(PlanogramController.save_market_chain(market_id, request.get_json() or {}, chain_id))
+
+
+@app.route('/api/plg/chains/<int:chain_id>', methods=['DELETE'])
+def api_plg_delete_chain(chain_id):
+    return jsonify(PlanogramController.delete_market_chain(chain_id))
+
+
+@app.route('/api/plg/markets/benchmark', methods=['GET'])
+def api_plg_market_benchmark():
+    return jsonify(PlanogramController.get_market_benchmark(
+        request.args.get('dataset_id', type=int), _plg_lang()))
 
 
 # WebSocket Events
