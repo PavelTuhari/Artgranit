@@ -97,13 +97,16 @@ class Biro26Site:
                 "TITLE_RO, TITLE_RU, SUB_RO, SUB_RU, CTA_URL, BG, ORD, ENABLED) "
                 "VALUES (YBIRO_SITE_HERO_SEQ.NEXTVAL, :kr, :ku, :tr, :tu, "
                 ":sr, :su, :cta, :bg, :o, :e)", p)
+        Biro26Site._invalidate()
         return r if r.get("success") else {"success": False,
                                            "error": r.get("message")}
 
     @staticmethod
     def hero_delete(hid: int) -> Dict[str, Any]:
-        return Biro26DB().execute_dml(
+        r = Biro26DB().execute_dml(
             "DELETE FROM YBIRO_SITE_HERO WHERE ID = :i", {"i": int(hid)})
+        Biro26Site._invalidate()
+        return r
 
     # ── admin: produsul zilei (override) ───────────────────────────────
     @staticmethod
