@@ -55,15 +55,16 @@ class PlanogramController:
     @staticmethod
     def _localize(rows: List[Dict], lang: str) -> List[Dict]:
         """
-        Сворачивает тройки колонок `<base>_ru/_ro/_en` в один ключ `<base>`
+        Добавляет к тройкам колонок `<base>_ru/_ro/_en` сводный ключ `<base>`
         на выбранном языке. Если перевода нет — подставляет русский вариант.
-        Остальные колонки не трогает.
+        Исходные языковые колонки сохраняются: они нужны формам редактирования,
+        где оператор правит все три языка сразу.
         """
         suffixes = tuple('_' + code for code in PlanogramController.LANGS)
         out = []
         for row in rows:
             bases = {k[:-3] for k in row if k.endswith(suffixes)}
-            new = {k: v for k, v in row.items() if not k.endswith(suffixes)}
+            new = dict(row)
             for base in bases:
                 value = row.get(base + '_' + lang)
                 if value in (None, ''):
