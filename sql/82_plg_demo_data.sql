@@ -237,7 +237,7 @@ DECLARE
     INSERT INTO PLG_PRODUCTS (CODE, CATEGORY_ID, NAME_RU, NAME_RO, NAME_EN, BARCODE, BRAND,
                               UOM, PRICE, CURRENCY, WIDTH_MM, HEIGHT_MM, DEPTH_MM, MIN_FACINGS)
     VALUES (p_code, v_cat, p_ru, p_ro, p_en,
-            '484' || LPAD(ABS(DBMS_RANDOM.RANDOM) MOD 10000000, 10, '0'), p_brand,
+            '484' || LPAD(MOD(ABS(DBMS_RANDOM.RANDOM), 10000000), 10, '0'), p_brand,
             'pcs', p_price, 'MDL', p_w, p_h, p_d, 2);
   END;
 BEGIN
