@@ -194,13 +194,24 @@ CREATE INDEX IX_PLG_FRESH_ROUTES_ST ON PLG_FRESH_ROUTES (STORE_ID, CATEGORY_ID, 
 -- маршрутом считалось, на сколько дней хватит и сколько из этого, по расчёту,
 -- уйдёт в списание. Иначе рекомендация не проверяется и ей не доверяют.
 
-ALTER TABLE PLG_FCT_RESULTS ADD (
-  ROUTE          VARCHAR2(10),
-  COVERAGE_DAYS  NUMBER(6,2),      -- на сколько дней рассчитан заказ
-  WASTE_FORECAST NUMBER(14,3),     -- ожидаемое списание из этой партии
-  SHELF_LIMITED  NUMBER(1) DEFAULT 0,  -- заказ урезан сроком годности, а не спросом
-  NEXT_DELIVERY  DATE              -- ближайшая дата поставки по календарю маршрута
-);
+DECLARE
+  PROCEDURE add_col(p_col VARCHAR2, p_def VARCHAR2) IS
+    v_n NUMBER;
+  BEGIN
+    SELECT COUNT(*) INTO v_n FROM USER_TAB_COLUMNS
+     WHERE TABLE_NAME = 'PLG_FCT_RESULTS' AND COLUMN_NAME = p_col;
+    IF v_n = 0 THEN
+      EXECUTE IMMEDIATE 'ALTER TABLE PLG_FCT_RESULTS ADD (' || p_col || ' ' || p_def || ')';
+    END IF;
+  END;
+BEGIN
+  add_col('ROUTE',          'VARCHAR2(10)');
+  add_col('COVERAGE_DAYS',  'NUMBER(6,2)');        -- на сколько дней рассчитан заказ
+  add_col('WASTE_FORECAST', 'NUMBER(14,3)');       -- ожидаемое списание из партии
+  add_col('SHELF_LIMITED',  'NUMBER(1) DEFAULT 0');-- заказ урезан сроком, а не спросом
+  add_col('NEXT_DELIVERY',  'DATE');               -- ближайшая поставка по календарю
+END;
+/
 
 -- ==================== Представления ====================
 
