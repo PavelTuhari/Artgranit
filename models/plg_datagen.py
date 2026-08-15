@@ -198,7 +198,8 @@ class DataGenerator:
     _active: Dict[int, "DataGenerator"] = {}
     _lock = threading.Lock()
 
-    STAGES = ['network', 'assortment', 'events', 'demand', 'traffic']
+    STAGES = ['network', 'assortment', 'suppliers', 'events', 'demand', 'traffic',
+              'logistics', 'competitors', 'markets']
 
     def __init__(self, run_id: int, dataset_id: int, params: Dict[str, Any], stages: List[str]):
         self.run_id = run_id
@@ -955,3 +956,86 @@ class DataGenerator:
                 traffic_rows)
 
             progress((si + 1) / len(stores))
+
+
+# ==================== Справочные данные партнёрского контура ====================
+
+SUPPLIER_BRANDS = [
+    ('Lactalis Moldova', 'producer', ['dairy'], 'MD'),
+    ('JLC Group', 'producer', ['dairy'], 'MD'),
+    ('Franzeluța', 'producer', ['bakery'], 'MD'),
+    ('Bucuria', 'producer', ['snacks'], 'MD'),
+    ('Orhei-Vit', 'producer', ['drinks', 'grocery'], 'MD'),
+    ('Natur Bravo', 'producer', ['grocery', 'produce'], 'MD'),
+    ('Trans-Oil Logistic', 'producer', ['grocery'], 'MD'),
+    ('Vinaria Cricova', 'producer', ['alcohol'], 'MD'),
+    ('Purcari Wineries', 'producer', ['alcohol'], 'MD'),
+    ('Vitanta Intravest', 'producer', ['alcohol', 'drinks'], 'MD'),
+    ('Rogob Distribution', 'distributor', ['meat'], 'MD'),
+    ('Carmez', 'producer', ['meat'], 'MD'),
+    ('Nord Fish Import', 'importer', ['fish'], 'MD'),
+    ('Metro Cash & Carry', 'distributor', ['grocery', 'chem', 'snacks'], 'MD'),
+    ('Coca-Cola Îmbuteliere', 'producer', ['drinks'], 'MD'),
+    ('PepsiCo Moldova', 'distributor', ['drinks', 'snacks'], 'MD'),
+    ('Procter & Gamble Dist.', 'distributor', ['chem', 'kids'], 'RO'),
+    ('Henkel Romania', 'distributor', ['chem'], 'RO'),
+    ('Nestlé Adriatic', 'importer', ['coffee', 'kids', 'snacks'], 'RO'),
+    ('Lavazza Import', 'importer', ['coffee'], 'IT'),
+    ('Barilla Distribution', 'importer', ['grocery'], 'IT'),
+    ('Dr. Oetker Romania', 'importer', ['frozen', 'grocery'], 'RO'),
+    ('AgroStoc Cooperative', 'farm', ['produce'], 'MD'),
+    ('Fructe Codru', 'farm', ['produce'], 'MD'),
+    ('Ferma Verde', 'farm', ['produce', 'health'], 'MD'),
+    ('Baltic Food Trade', 'importer', ['frozen', 'fish'], 'LV'),
+    ('Health Line Import', 'importer', ['health'], 'PL'),
+    ('PrivateLabel Solutions', 'private_label', ['grocery', 'chem'], 'MD'),
+]
+
+FIRST_NAMES = ['Ион', 'Мария', 'Сергей', 'Виктория', 'Андрей', 'Елена', 'Дмитрий',
+               'Наталья', 'Влад', 'Кристина', 'Олег', 'Анна']
+LAST_NAMES = ['Урсу', 'Ротару', 'Мунтяну', 'Кожокару', 'Петров', 'Балан', 'Чеботарь',
+              'Гуцу', 'Лунгу', 'Морару', 'Синицару', 'Дьякону']
+
+COMPETITOR_CHAINS = [
+    ('Linella', 'mid', 0.30, 180, '#e11d48'),
+    ('Kaufland Moldova', 'mid', 0.22, 8, '#dc2626'),
+    ('Nr.1', 'discount', 0.14, 95, '#f59e0b'),
+    ('Fidesco', 'mid', 0.10, 42, '#0891b2'),
+    ('Green Hills', 'premium', 0.07, 18, '#16a34a'),
+    ('Local Market', 'discount', 0.05, 60, '#7c3aed'),
+]
+
+MARKET_DATA = [
+    # country, ru, ro, en, pop_mln, gdp, currency, retail_mln, modern%, top5%, check_eur, per100k, pl%
+    ('MD', 'Молдова',  'Republica Moldova', 'Moldova',  2.51, 6800,  'MDL',  2400, 58, 62, 6.8,  38, 11),
+    ('RO', 'Румыния',  'România',           'Romania',  19.05, 19500, 'RON', 42000, 78, 71, 9.4,  52, 24),
+    ('UA', 'Украина',  'Ucraina',           'Ukraine',  36.70, 5500,  'UAH', 28000, 64, 48, 5.9,  44, 18),
+    ('PL', 'Польша',   'Polonia',           'Poland',   36.80, 22000, 'PLN', 78000, 86, 66, 11.2, 61, 32),
+    ('BG', 'Болгария', 'Bulgaria',          'Bulgaria', 6.45, 15800,  'BGN', 12500, 74, 69, 8.7,  49, 21),
+    ('GE', 'Грузия',   'Georgia',           'Georgia',  3.69, 8100,   'GEL',  5200, 55, 57, 6.1,  41, 9),
+]
+
+MARKET_CHAINS = {
+    'MD': [('Linella', 'Linella Group', 180, 420, 30.0, 620, 9000, 12, 6.4, 1.5),
+           ('Kaufland Moldova', 'Schwarz Gruppe', 8, 310, 22.0, 3400, 18000, 28, 12.8, 0.0),
+           ('Nr.1', 'Nr.1 Retail', 95, 195, 14.0, 380, 5500, 8, 5.1, 0.5),
+           ('Fidesco', 'Fidesco SRL', 42, 140, 10.0, 780, 11000, 10, 7.9, 1.0)],
+    'RO': [('Profi', 'MidEuropa', 1650, 2600, 12.0, 380, 6500, 26, 7.2, 2.0),
+           ('Mega Image', 'Ahold Delhaize', 960, 2100, 9.6, 420, 9500, 24, 9.8, 6.5),
+           ('Kaufland România', 'Schwarz Gruppe', 165, 4300, 19.8, 3600, 22000, 31, 15.4, 1.8),
+           ('Lidl România', 'Schwarz Gruppe', 350, 3900, 17.9, 1300, 2200, 78, 13.1, 0.9),
+           ('Carrefour România', 'Carrefour', 420, 2400, 11.0, 1500, 16000, 22, 11.7, 8.2)],
+    'UA': [('ATB-Market', 'ATB Corporation', 1330, 4200, 17.5, 620, 5800, 34, 5.4, 1.2),
+           ('Silpo', 'Fozzy Group', 320, 2900, 12.1, 1450, 21000, 19, 8.9, 7.4),
+           ('Novus', 'Novus Ukraine', 95, 780, 3.2, 1800, 17000, 15, 8.1, 4.0)],
+    'PL': [('Biedronka', 'Jerónimo Martins', 3600, 19000, 24.4, 700, 3200, 62, 10.4, 1.0),
+           ('Lidl Polska', 'Schwarz Gruppe', 900, 8200, 10.5, 1250, 2400, 74, 12.6, 1.5),
+           ('Dino', 'Dino Polska', 2400, 6100, 7.8, 400, 5200, 24, 8.3, 0.0),
+           ('Kaufland Polska', 'Schwarz Gruppe', 240, 5400, 6.9, 3200, 20000, 29, 15.9, 1.2)],
+    'BG': [('Lidl Bulgaria', 'Schwarz Gruppe', 120, 1100, 8.8, 1200, 2300, 71, 11.4, 1.0),
+           ('Kaufland Bulgaria', 'Schwarz Gruppe', 62, 1400, 11.2, 3300, 19000, 27, 14.2, 1.4),
+           ('Fantastico', 'Fantastico Group', 45, 620, 5.0, 1400, 15000, 12, 9.6, 0.6)],
+    'GE': [('Carrefour Georgia', 'Majid Al Futtaim', 22, 340, 6.5, 1600, 14000, 14, 7.4, 2.5),
+           ('Nikora', 'Nikora Trade', 310, 290, 5.6, 220, 4200, 9, 4.8, 0.4),
+           ('Goodwill', 'Goodwill Georgia', 12, 180, 3.5, 2400, 17000, 11, 10.2, 1.1)],
+}
