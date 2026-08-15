@@ -3421,6 +3421,215 @@ def api_plg_process_drawio(code):
                              f'attachment; filename="{code}.drawio"'})
 
 
+# ========== Мобильное приложение и голосовой заказ ==========
+#
+# Авторизация здесь — по токену устройства в заголовке X-PLG-Device-Token,
+# а не по сессии браузера: телефон менеджера в зале не должен переспрашивать
+# пароль у полки. Демо-блокировка записи (_plg_block_anonymous_writes) эти
+# маршруты пропускает — доступ закрывает сам токен.
+
+def _plg_device():
+    """Устройство по токену запроса. None = доступа нет."""
+    token = (request.headers.get('X-PLG-Device-Token')
+             or request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+             or request.args.get('token'))
+    return PlgMobileController.device_by_token(token)
+
+
+def _plg_device_or_401():
+    device = _plg_device()
+    if not device:
+        return None, (jsonify({'success': False,
+                               'error': 'Устройство не авторизовано'}), 401)
+    return device, None
+
+
+@app.route('/api/plg/mobile/pair', methods=['POST'])
+def api_plg_mobile_pair():
+    """Обмен кода сопряжения на токен. Единственный маршрут без токена."""
+    result = PlgMobileController.pair(request.get_json() or {})
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/mobile/session', methods=['GET'])
+def api_plg_mobile_session():
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    return jsonify(PlgMobileController.session(device))
+
+
+@app.route('/api/plg/mobile/catalog', methods=['GET'])
+def api_plg_mobile_catalog():
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    return jsonify(PlgMobileController.catalog(
+        int(device['store_id']),
+        request.args.get('lang') or device.get('lang') or 'ru',
+        request.args.get('q', ''), request.args.get('limit', 50, type=int)))
+
+
+@app.route('/api/plg/mobile/voice', methods=['POST'])
+def api_plg_mobile_voice():
+    """Распознанная на устройстве фраза → разбор → черновик заказа."""
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    result = PlgMobileController.voice(device, request.get_json() or {})
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/mobile/orders', methods=['GET'])
+def api_plg_mobile_orders():
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    return jsonify(PlgMobileController.list_orders(device, request.args.get('status')))
+
+
+@app.route('/api/plg/mobile/orders', methods=['POST'])
+def api_plg_mobile_create_order():
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    result = PlgMobileController.create_order(device, request.get_json() or {})
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/mobile/orders/<int:order_id>', methods=['GET'])
+def api_plg_mobile_get_order(order_id):
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    result = PlgMobileController.get_order(device, order_id)
+    return jsonify(result), (200 if result.get('success') else result.get('status', 404))
+
+
+@app.route('/api/plg/mobile/orders/<int:order_id>/items/<int:item_id>', methods=['PUT'])
+def api_plg_mobile_update_item(order_id, item_id):
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    result = PlgMobileController.update_item(device, order_id, item_id,
+                                             request.get_json() or {})
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/mobile/orders/<int:order_id>/items/<int:item_id>', methods=['DELETE'])
+def api_plg_mobile_delete_item(order_id, item_id):
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    return jsonify(PlgMobileController.remove_item(device, order_id, item_id))
+
+
+@app.route('/api/plg/mobile/orders/<int:order_id>/submit', methods=['POST'])
+def api_plg_mobile_submit(order_id):
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    result = PlgMobileController.submit_order(device, order_id)
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/mobile/orders/<int:order_id>/cancel', methods=['POST'])
+def api_plg_mobile_cancel(order_id):
+    device, err = _plg_device_or_401()
+    if err:
+        return err
+    return jsonify(PlgMobileController.cancel_order(device, order_id))
+
+
+# --- Бэк-офис: устройства, приёмка заказов из зала, словарь и журнал ---
+
+@app.route('/api/plg/devices', methods=['GET'])
+def api_plg_devices():
+    return jsonify(PlgMobileController.list_devices(
+        request.args.get('store_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/devices', methods=['POST'])
+def api_plg_create_device():
+    result = PlgMobileController.create_device(request.get_json() or {},
+                                               session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else 400)
+
+
+@app.route('/api/plg/devices/<int:device_id>/revoke', methods=['POST'])
+def api_plg_revoke_device(device_id):
+    return jsonify(PlgMobileController.revoke_device(device_id))
+
+
+@app.route('/api/plg/floor-orders', methods=['GET'])
+def api_plg_floor_orders():
+    return jsonify(PlgMobileController.office_orders(
+        request.args.get('store_id', type=int), request.args.get('status'), _plg_lang()))
+
+
+@app.route('/api/plg/floor-orders/<int:order_id>/review', methods=['POST'])
+def api_plg_review_floor_order(order_id):
+    body = request.get_json() or {}
+    result = PlgMobileController.review_order(order_id, body.get('decision'),
+                                              body.get('note'), session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/voice/log', methods=['GET'])
+def api_plg_voice_log():
+    return jsonify(PlgMobileController.voice_log(
+        request.args.get('store_id', type=int), _plg_lang(),
+        request.args.get('limit', 200, type=int)))
+
+
+@app.route('/api/plg/voice/synonyms', methods=['GET'])
+def api_plg_voice_synonyms():
+    return jsonify(PlgMobileController.synonyms(request.args.get('lang')))
+
+
+@app.route('/api/plg/voice/synonyms', methods=['POST'])
+def api_plg_add_voice_synonym():
+    result = PlgMobileController.save_synonym(request.get_json() or {},
+                                              session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/voice/synonyms/<int:syn_id>', methods=['DELETE'])
+def api_plg_delete_voice_synonym(syn_id):
+    return jsonify(PlgMobileController.delete_synonym(syn_id))
+
+
+# --- Фреш: маршруты поставки и профили категорий ---
+
+@app.route('/api/plg/fresh/routes', methods=['GET'])
+def api_plg_fresh_routes():
+    return jsonify(PlanogramController.get_fresh_routes(
+        _plg_lang(), request.args.get('store_id', type=int)))
+
+
+@app.route('/api/plg/fresh/routes/<int:route_id>', methods=['PUT'])
+def api_plg_update_fresh_route(route_id):
+    return jsonify(PlanogramController.save_fresh_route(route_id, request.get_json() or {}))
+
+
+@app.route('/api/plg/fresh/profiles', methods=['GET'])
+def api_plg_fresh_profiles():
+    return jsonify(PlanogramController.get_fresh_profiles(_plg_lang()))
+
+
+@app.route('/api/plg/fresh/profiles/<int:profile_id>', methods=['PUT'])
+def api_plg_update_fresh_profile(profile_id):
+    return jsonify(PlanogramController.save_fresh_profile(profile_id, request.get_json() or {}))
+
+
+@app.route('/api/plg/fresh/order', methods=['GET'])
+def api_plg_fresh_order():
+    """Рекомендуемый заказ фреш по прогону: маршрут, покрытие, ожидаемое списание."""
+    return jsonify(PlanogramController.get_fresh_order(
+        _plg_lang(), request.args.get('run_id', type=int),
+        request.args.get('store_id', type=int)))
+
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
