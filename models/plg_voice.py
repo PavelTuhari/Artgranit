@@ -408,8 +408,8 @@ def parse_order(text: str, lang: str, matcher: ProductMatcher) -> Dict[str, Any]
         tokens = seg.split()
         if not tokens:
             continue
-        qty, unit, is_pack, used = parse_quantity(tokens, lang)
-        rest = ' '.join(tokens[used:]).strip()
+        qty, unit, is_pack, rest_tokens = parse_quantity(tokens, lang)
+        rest = ' '.join(rest_tokens).strip()
         if not rest:
             # «два ящика» без товара — количество без предмета, пропускаем:
             # додумывать, к чему оно относилось, нельзя
