@@ -927,7 +927,12 @@ class ForecastEngine:
                                    round(actual, 3) if actual is not None else None,
                                    round(abs_err, 3) if abs_err is not None else None,
                                    round(safety, 3), round(stock_on_hand, 3),
-                                   round(order, 3) if h == 0 else 0.0))
+                                   round(order, 3) if h == 0 else 0.0,
+                                   route_code if h == 0 else None,
+                                   coverage if h == 0 else None,
+                                   round(waste_qty, 3) if (h == 0 and waste_qty is not None) else None,
+                                   shelf_limited if h == 0 else 0,
+                                   next_delivery if h == 0 else None))
                 self.series_count += 1
 
             oos_flags: List[int] = []
