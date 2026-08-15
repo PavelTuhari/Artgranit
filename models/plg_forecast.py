@@ -491,7 +491,7 @@ class ForecastEngine:
                 if exclude_oos:
                     # Дни out-of-stock — не спрос, а его отсутствие: заменяем медианой,
                     # иначе модель систематически занижает уровень.
-                    ordered = sorted(v for v, f in zip(series, promo_flags) if v > 0) or [0.0]
+                    ordered = sorted(v for v in series if v > 0) or [0.0]
                     median = ordered[len(ordered) // 2]
                     clean = [v if not oos else median for v, oos in zip(series, oos_flags)]
 
