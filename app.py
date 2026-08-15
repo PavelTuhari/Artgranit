@@ -2655,7 +2655,8 @@ def api_plg_refs():
 
 @app.route('/api/plg/stores', methods=['GET'])
 def api_plg_stores():
-    return jsonify(PlanogramController.get_stores(_plg_lang()))
+    return jsonify(PlanogramController.get_stores(
+        _plg_lang(), request.args.get('dataset_id', type=int)))
 
 
 # --- Дашборд и карта ---
