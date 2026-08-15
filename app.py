@@ -2631,10 +2631,36 @@ def _plg_lang():
 @app.route('/UNA.md/orasldev/planograms')
 @app.route('/UNA.md/orasldev/planograms/')
 def planograms():
-    """Модуль «Планограммы» — выкладка товара, зоны зала, проходимость"""
-    if not AuthController.is_authenticated():
-        return redirect(url_for('login'))
-    return render_template('planograms.html')
+    """Модуль «Планограммы» — выкладка товара, зоны зала, проходимость.
+
+    Без входа модуль открывается в демо-режиме: все разделы видны, но любые
+    изменения запрещены (см. _plg_block_anonymous_writes). Это нужно, чтобы
+    живые ссылки из презентации и документации вели в работающую систему,
+    а не на форму входа. Данные модуля — синтетический тестовый набор.
+    """
+    return render_template('planograms.html',
+                           plg_demo=not AuthController.is_authenticated())
+
+
+@app.before_request
+def _plg_block_anonymous_writes():
+    """Демо-режим модуля планограмм — только чтение.
+
+    Страница модуля открыта анонимно, поэтому запись должна быть закрыта на
+    сервере, а не только скрытием кнопок в интерфейсе: иначе демо-набор
+    испортит любой, кто отправит POST руками.
+    """
+    if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        return None
+    if not request.path.startswith('/api/plg/'):
+        return None
+    if AuthController.is_authenticated():
+        return None
+    return jsonify({
+        'success': False,
+        'demo': True,
+        'error': 'Демо-режим: изменение данных доступно после входа в систему',
+    }), 403
 
 
 # --- Публичная документация модуля ---
@@ -3353,6 +3379,46 @@ def api_plg_delete_chain(chain_id):
 def api_plg_market_benchmark():
     return jsonify(PlanogramController.get_market_benchmark(
         request.args.get('dataset_id', type=int), _plg_lang()))
+
+
+# --- Бизнес-процессы модуля (схемы draw.io) ---
+@app.route('/api/plg/processes', methods=['GET'])
+def api_plg_processes():
+    return jsonify(PlanogramController.get_processes(_plg_lang()))
+
+
+@app.route('/api/plg/processes/<code>', methods=['GET'])
+def api_plg_process(code):
+    return jsonify(PlanogramController.get_process(code, _plg_lang()))
+
+
+@app.route('/api/plg/processes', methods=['POST'])
+def api_plg_create_process():
+    return jsonify(PlanogramController.save_process(request.get_json() or {}))
+
+
+@app.route('/api/plg/processes/<int:process_id>', methods=['PUT'])
+def api_plg_update_process(process_id):
+    return jsonify(PlanogramController.save_process(request.get_json() or {}, process_id))
+
+
+@app.route('/api/plg/processes/<int:process_id>', methods=['DELETE'])
+def api_plg_delete_process(process_id):
+    return jsonify(PlanogramController.delete_process(process_id))
+
+
+@app.route('/api/plg/processes/<code>/drawio', methods=['GET'])
+def api_plg_process_drawio(code):
+    """Выгрузка схемы файлом .drawio — открывается в diagrams.net как есть."""
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется вход"}), 401
+    result = PlanogramController.get_process(code, 'ru')
+    if not result.get('success'):
+        return jsonify(result), 404
+    xml = result['data'].get('diagram_xml') or ''
+    return Response(xml, mimetype='application/xml; charset=utf-8',
+                    headers={'Content-Disposition':
+                             f'attachment; filename="{code}.drawio"'})
 
 
 # WebSocket Events
