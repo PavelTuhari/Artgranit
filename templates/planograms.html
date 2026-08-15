@@ -931,6 +931,8 @@ function reloadActive() {
         promos: loadPromos, equipment: loadFixtures, tasks: loadTasks,
         docs: loadDocuments, notifications: loadNotifications, settings: loadSettings,
         forecast: loadForecast, testdata: loadTestdata,
+        logistics: loadLogistics, suppliers: loadSuppliers,
+        competitors: loadCompetitors, markets: loadMarkets,
     };
     (loaders[ACTIVE] || loadDashboard)();
 }
