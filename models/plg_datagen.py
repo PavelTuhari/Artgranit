@@ -40,10 +40,15 @@ BATCH = 20000
 
 
 def datetime_at(day: date, hour_float: float) -> datetime:
-    """Собирает timestamp из даты и «дробного часа» (9.5 → 09:30)."""
-    hour = int(hour_float) % 24
-    minute = int(round((hour_float - int(hour_float)) * 60)) % 60
-    return datetime.combine(day, dtime(hour, minute))
+    """
+    Собирает timestamp из даты и «дробного часа» (9.5 → 09:30).
+
+    Считаем через timedelta от полуночи: при поминутном округлении по частям
+    59.7 минуты превращались в 60 → 0, а час не переносился, и время уезжало
+    на час назад — из-за этого пара рейсов вставала на одну машину внахлёст.
+    """
+    minutes = int(round(hour_float * 60))
+    return datetime.combine(day, dtime(0, 0)) + timedelta(minutes=minutes)
 
 # ==================== Профили форматов магазина ====================
 # area — площадь зала, traffic — базовый суточный трафик,
