@@ -6327,6 +6327,15 @@ def api_biro26_health():
                     'missing_controller_refs': missing,
                     'ok': not missing})
 
+# RO: smoke-test la pornire — un rasincron de fisiere se vede in journalctl
+#     imediat, nu ca 500 in productie cind cineva atinge endpoint-ul.
+# EN: startup smoke test — file desync shows in the log at boot, not as a 500.
+_missing_refs = _biro26_route_check()
+if _missing_refs:
+    print('[biro26-health] AVERTISMENT: app.py foloseste metode inexistente '
+          'in Biro26Controller (fisiere din commit-uri diferite?): '
+          + ', '.join(_missing_refs))
+
 @app.route('/api/biro26/img', methods=['GET'])
 def api_biro26_img():
     """RO: serveste pe HTTPS o imagine gazduita doar pe HTTP (impreso.md).
