@@ -301,7 +301,9 @@ class DataGenerator:
                 DataGenerator._active.pop(self.run_id, None)
             return
         try:
-            weights = {'network': 5, 'assortment': 8, 'events': 12, 'demand': 60, 'traffic': 15}
+            weights = {'network': 5, 'assortment': 8, 'suppliers': 6, 'events': 12,
+                       'demand': 48, 'traffic': 12, 'logistics': 12,
+                       'competitors': 6, 'markets': 2}
             total_weight = sum(weights[s] for s in self.stages) or 1
             done_weight = 0
             for stage in self.stages:
