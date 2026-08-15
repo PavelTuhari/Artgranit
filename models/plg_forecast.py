@@ -190,11 +190,95 @@ def forecast_promo_reg(series: Sequence[float], horizon: int, params: Dict,
     return out
 
 
+def forecast_fresh(series: Sequence[float], horizon: int, params: Dict,
+                   ctx: Optional[Dict] = None) -> List[float]:
+    """
+    Спрос на скоропортящийся товар.
+
+    Отличий от сухого ассортимента три, и все три здесь учтены.
+
+    1. Уровень спроса на фреш меняется быстрее, поэтому окно короткое (35 дней
+       против 56 у promo_reg), а вместо среднего берётся МЕДИАНА: одна суббота
+       с завозом на банкет не должна поднять профиль всей недели.
+    2. Недельный профиль у фреша выражен сильнее, чем сезонность года: хлеб и
+       мясо в пятницу-субботу расходятся кратно сильнее вторника. Профиль
+       считается по каждому дню недели отдельно.
+    3. Свежий уровень последних дней важнее старой истории (погода, стройка
+       рядом, ушедший конкурент). Поправка ограничена коридором ±30 %:
+       без ограничения одна неделя аномалии ломает заказ на всю следующую.
+    """
+    ctx = ctx or {}
+    window = max(14, int(params.get('window') or 35))
+    lvl_window = max(3, int(params.get('level_window') or 7))
+    uplift_cap = float(params.get('uplift_cap') or 3.0)
+
+    data = [float(v) for v in series][-window:]
+    if not data:
+        return [0.0] * horizon
+    flags = list(ctx.get('promo_flags') or [])[-window:]
+    wds = list(ctx.get('weekdays') or [])[-window:]
+    future_promo = ctx.get('future_promo') or []
+    future_weekdays = ctx.get('future_weekdays') or []
+
+    def median(values: Sequence[float]) -> float:
+        s = sorted(values)
+        n = len(s)
+        if not n:
+            return 0.0
+        return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+
+    # База — медиана дней без акций
+    plain = [v for v, f in zip(data, flags) if not f] if len(flags) == len(data) else list(data)
+    if not plain:
+        plain = list(data)
+    base = median(plain)
+    if base <= 0:
+        base = median(data)
+
+    # Недельный профиль: коэффициент к базе по каждому дню недели
+    profile: Dict[int, float] = {}
+    if len(wds) == len(data) and base > 0:
+        buckets: Dict[int, List[float]] = {}
+        for v, wd, f in zip(data, wds, flags if len(flags) == len(data) else [0] * len(data)):
+            if f:
+                continue
+            buckets.setdefault(int(wd), []).append(v)
+        for wd, vals in buckets.items():
+            if len(vals) >= 2:
+                # Коридор оставлен широким: у пекарни суббота реально вдвое выше вторника
+                profile[wd] = min(2.5, max(0.35, median(vals) / base))
+
+    # Поправка на свежий уровень: последние дни против ожидания профиля
+    level_k = 1.0
+    if len(data) >= lvl_window and base > 0:
+        recent = data[-lvl_window:]
+        recent_wds = wds[-lvl_window:] if len(wds) == len(data) else []
+        expected = sum(base * profile.get(int(wd), 1.0) for wd in recent_wds) if recent_wds \
+            else base * lvl_window
+        if expected > 0:
+            level_k = min(1.30, max(0.70, sum(recent) / expected))
+
+    # Промо-аплифт этого SKU по фактической истории
+    promo_points = [v for v, f in zip(data, flags) if f] if len(flags) == len(data) else []
+    uplift = 1.0
+    if promo_points and base > 0:
+        uplift = min(uplift_cap, max(1.0, median(promo_points) / base))
+
+    out = []
+    for h in range(horizon):
+        k = profile.get(int(future_weekdays[h]), 1.0) if h < len(future_weekdays) else 1.0
+        promo_k = uplift if (params.get('use_promo') and h < len(future_promo)
+                             and future_promo[h]) else 1.0
+        out.append(max(0.0, base * k * level_k * promo_k))
+    return out
+
+
 ALGORITHMS = {
     'sma': forecast_sma,
     'ses': forecast_ses,
     'holt_winters': forecast_holt_winters,
     'promo_reg': forecast_promo_reg,
+    'fresh': forecast_fresh,
 }
 
 
