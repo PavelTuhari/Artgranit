@@ -229,40 +229,57 @@ def detect_intent(text: str, lang: str) -> str:
     return 'add' if norm else 'unknown'
 
 
-def parse_quantity(tokens: Sequence[str], lang: str) -> Tuple[Optional[float], Optional[str], bool, int]:
+def parse_quantity(tokens: Sequence[str], lang: str) -> Tuple[Optional[float], Optional[str], bool, List[str]]:
     """
-    Ищет количество и единицу измерения в начале сегмента.
+    Достаёт количество и единицу измерения из сегмента — где бы они ни стояли.
 
-    Возвращает (количество, код единицы, признак «упаковка», сколько токенов съедено).
-    Числительные складываются: «двадцать пять» → 25, «сто двадцать» → 120.
+    Возвращает (количество, код единицы, признак «упаковка», оставшиеся слова).
+
+    Позиция числа не фиксирована сознательно: в зале говорят и «два ящика
+    помидоров», и «молоко домашнее двенадцать штук», и «огурцы, пять кило».
+    Требовать один порядок слов — значит требовать от продавца говорить
+    как программист.
+
+    Числительные складываются: «двадцать пять» → 25; сотни умножаются:
+    «сто двадцать» → 120.
     """
     words = NUMBER_WORDS.get(lang, {})
     units = UNITS.get(lang, {})
     qty: Optional[float] = None
-    used = 0
-    for i, tok in enumerate(tokens):
+    unit_code: Optional[str] = None
+    is_pack = False
+    rest: List[str] = []
+    i = 0
+    while i < len(tokens):
+        tok = tokens[i]
         cleaned = tok.replace(',', '.')
-        if re.fullmatch(r'\d+(\.\d+)?', cleaned):
-            qty = (qty or 0) + float(cleaned)
-            used = i + 1
-            continue
-        if tok in words:
-            val = words[tok]
-            # «сто двадцать» — сотни умножаются, единицы складываются
-            if qty and val >= 100:
+        is_number = bool(re.fullmatch(r'\d+(\.\d+)?', cleaned)) or tok in words
+        if is_number and qty is None or (is_number and unit_code is None and qty is not None
+                                         and i > 0 and _was_number(tokens[i - 1], words)):
+            val = float(cleaned) if re.fullmatch(r'\d+(\.\d+)?', cleaned) else float(words[tok])
+            if qty is not None and val >= 100:
                 qty *= val
             else:
                 qty = (qty or 0) + val
-            used = i + 1
+            i += 1
+            # Единица измерения — сразу за числом
+            if i < len(tokens) and tokens[i] in units and unit_code is None:
+                unit_code, is_pack = units[tokens[i]]
+                i += 1
             continue
-        break
-    unit_code, is_pack = None, False
-    if used < len(tokens):
-        u = units.get(tokens[used])
-        if u:
-            unit_code, is_pack = u
-            used += 1
-    return qty, unit_code, is_pack, used
+        # Единица без числа («закажи ящик томатов») — количество 1
+        if tok in units and unit_code is None and qty is None:
+            unit_code, is_pack = units[tok]
+            qty = 1.0
+            i += 1
+            continue
+        rest.append(tok)
+        i += 1
+    return qty, unit_code, is_pack, rest
+
+
+def _was_number(token: str, words: Dict[str, float]) -> bool:
+    return bool(re.fullmatch(r'\d+(\.\d+)?', token.replace(',', '.'))) or token in words
 
 
 def split_segments(text: str, lang: str) -> List[str]:
