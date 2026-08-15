@@ -501,19 +501,26 @@ def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
         elif step > 0:
             order = math.ceil(order / step) * step
 
-    # Ожидаемое списание: сколько из партии не успеет продаться ЗА СВОЙ СРОК,
-    # а не за окно поставки. Партия живёт usable_days и всё это время продаётся;
-    # считать её потерянной на границе следующего завоза — та же ошибка, что и
-    # с полной стоимостью списания выше.
+    # Ожидаемое списание — ТОЛЬКО из заказанной партии, а не из всего, что лежит
+    # на полке. Иначе цифра теряет смысл: остаток на начало периода списывается
+    # (или нет) по своим срокам, и приписывать его сегодняшней рекомендации
+    # нечестно — так «списание» выходило кратно больше самого заказа.
+    #
+    # Партия приходит d1 и живёт usable_days. Спрос ей достаётся не весь:
+    # по FIFO сначала уходит то, что уже лежит на полке.
     sell_days = min(usable_days, 14.0) if shelf_life else coverage_days
     mu_sell = demand_between(d1, int(math.ceil(sell_days))) if sell_days > 0 else mu
+    carried = max(0.0, stock - mu_until_arrival)
+    mu_batch = max(0.0, mu_sell - carried)
     sigma_sell = sigma_daily * math.sqrt(max(1.0, sell_days))
-    available = order + max(0.0, stock - mu_until_arrival)
-    if sigma_sell > 0:
-        k = (available - mu_sell) / sigma_sell
-        waste = (available - mu_sell) * _norm_cdf(k) + sigma_sell * _norm_pdf(k)
+    if order <= 0:
+        waste = 0.0
+    elif sigma_sell > 0:
+        k = (order - mu_batch) / sigma_sell
+        waste = (order - mu_batch) * _norm_cdf(k) + sigma_sell * _norm_pdf(k)
     else:
-        waste = max(0.0, available - mu_sell)
+        waste = max(0.0, order - mu_batch)
+    waste = min(max(0.0, waste), order)
 
     return {
         'order': round(order, 3),
