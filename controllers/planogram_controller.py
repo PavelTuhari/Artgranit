@@ -175,18 +175,20 @@ class PlanogramController:
     # ==================== Магазины ====================
 
     @staticmethod
-    def get_stores(lang: str = DEFAULT_LANG) -> Dict:
+    def get_stores(lang: str = DEFAULT_LANG, dataset_id: Optional[int] = None) -> Dict:
         lang = PlanogramController.lang(lang)
+        sql = ("SELECT s.ID, s.CODE, s.NAME_RU, s.NAME_RO, s.NAME_EN, s.CITY, "
+               "s.ADDRESS_RU, s.ADDRESS_RO, s.ADDRESS_EN, s.AREA_SQM, s.MAP_WIDTH, s.MAP_HEIGHT, "
+               "s.CHECKOUT_QTY, s.MANAGER_NAME, s.STATUS, s.STORE_FORMAT, s.DATASET_ID, "
+               "(SELECT COUNT(*) FROM PLG_ZONES z WHERE z.STORE_ID = s.ID) AS ZONE_COUNT "
+               "FROM PLG_STORES s WHERE s.STATUS <> 'inactive'")
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND s.DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
-                    "SELECT s.ID, s.CODE, s.NAME_RU, s.NAME_RO, s.NAME_EN, s.CITY, "
-                    "s.ADDRESS_RU, s.ADDRESS_RO, s.ADDRESS_EN, s.AREA_SQM, s.MAP_WIDTH, s.MAP_HEIGHT, "
-                    "s.CHECKOUT_QTY, s.MANAGER_NAME, s.STATUS, "
-                    "(SELECT COUNT(*) FROM PLG_ZONES z WHERE z.STORE_ID = s.ID) AS ZONE_COUNT "
-                    "FROM PLG_STORES s WHERE s.STATUS <> 'inactive' "
-                    "ORDER BY ZONE_COUNT DESC, s.CODE"
-                )
+                r = db.execute_query(sql + " ORDER BY ZONE_COUNT DESC, s.CODE", params)
                 if not r.get("success"):
                     return PlanogramController._fail(r)
                 return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
