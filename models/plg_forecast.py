@@ -525,8 +525,6 @@ def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
     # ежедневном завозе партия продаётся не одна, за ней стоит очередь
     # следующих, и такой счёт приписывал сегодняшнему заказу чужие остатки —
     # списание выходило под 90 % от заказа там, где его фактически нет.
-    sell_days = min(usable_days, 14.0) if shelf_life else coverage_days
-    mu_sell = demand_between(d1, int(math.ceil(sell_days))) if sell_days > 0 else mu
     sigma_sell = sigma_daily * math.sqrt(max(1.0, sell_days))
     if order <= 0:
         waste = 0.0
