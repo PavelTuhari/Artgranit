@@ -2219,6 +2219,940 @@ async function loadOrders(runId) {
     document.getElementById('orderCard').scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
+// ==================== Логистика: диаграмма Ганта ====================
+let GANTT = null, COMPETITORS = [], MARKETS = [], SUPPLIERS = [];
+
+// Раздел работает в разрезе набора данных выбранного магазина
+function datasetId() {
+    const st = STORES.find(s => s.id === STORE_ID);
+    return st && st.dataset_id ? st.dataset_id : '';
+}
+
+function fmtHM(v) {
+    if (!v) return '—';
+    const d = new Date(v);
+    return isNaN(d) ? String(v) : String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+async function loadLogistics() {
+    const ds = datasetId();
+    const gb = document.getElementById('ganttGroupBy');
+    if (!gb.options.length) {
+        gb.innerHTML = [['vehicle', 'lg.byVehicle'], ['store', 'lg.byStore'],
+                        ['dock', 'lg.byDock'], ['supplier', 'lg.bySupplier']]
+            .map(([v, k]) => `<option value="${v}">${esc(t(k))}</option>`).join('');
+    }
+    const [stats, ships, dcs, vehs] = await Promise.all([
+        api('/logistics/stats?dataset_id=' + ds + '&days=7'),
+        api('/shipments?dataset_id=' + ds + '&days=7&limit=400'),
+        api('/dc?dataset_id=' + ds),
+        api('/vehicles?dataset_id=' + ds)]);
+
+    if (stats.success) {
+        const rows = stats.data || [];
+        const total = rows.reduce((a, b) => a + Number(b.trips || 0), 0);
+        const late = rows.reduce((a, b) => a + Number(b.late_trips || 0), 0);
+        const pallets = rows.reduce((a, b) => a + Number(b.pallets || 0), 0);
+        document.getElementById('lgStats').innerHTML =
+            `<div class="stat"><div class="lb">${esc(t('lg.trips'))}</div><div class="vl">${num(total)}</div>
+                <div class="sb">${stats.days} ${esc(t('lg.day')).toLowerCase()}</div></div>
+             <div class="stat ${late ? 'r' : 'g'}"><div class="lb">${esc(t('lg.late'))}</div>
+                <div class="vl">${num(late)}</div>
+                <div class="sb">${total ? (late / total * 100).toFixed(1) : 0}%</div></div>
+             <div class="stat w"><div class="lb">${esc(t('lg.pallets'))}</div>
+                <div class="vl">${num(Math.round(pallets))}</div><div class="sb">—</div></div>` +
+            rows.map(r => `<div class="stat" style="border-top-color:${r.type_color}">
+                <div class="lb">${esc(r.shipment_type_name)}</div>
+                <div class="vl">${num(r.trips)}</div>
+                <div class="sb">${esc(t('lg.window'))}: ${r.avg_min} ${LANG === 'ru' ? 'мин' : 'min'}</div></div>`).join('');
+    }
+    if (dcs.success) {
+        document.getElementById('dcHost').innerHTML = (dcs.data || []).map(d => `
+            <div style="padding:6px 0;border-bottom:1px solid var(--border)">
+                <div style="font-weight:600;font-size:12.5px">${esc(d.name)}</div>
+                <div style="font-size:11px;color:var(--muted)">${esc(d.city || '')} · ${num(d.area_sqm)} m² ·
+                    ${d.dock_count} ${esc(t('lg.docks')).toLowerCase()}</div>
+                <div style="display:flex;gap:10px;margin-top:4px;font-size:11px">
+                    <span>${esc(t('ui.store'))}: <b>${d.store_count}</b></span>
+                    <span>${esc(t('lg.vehicles'))}: <b>${d.vehicle_count}</b></span>
+                    <span>${esc(t('lg.pallets'))}: <b>${num(d.pallets_7d)}</b></span>
+                </div></div>`).join('') || `<div class="empty">${esc(t('ui.empty'))}</div>`;
+    }
+    if (vehs.success) {
+        const maxH = Math.max(1, ...(vehs.data || []).map(v => Number(v.hours_7d || 0)));
+        document.getElementById('fleetHost').innerHTML = (vehs.data || []).map(v => `
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+                <span style="width:16px;text-align:center">${esc(v.icon || '')}</span>
+                <span style="width:96px;font-size:11px" title="${esc(v.vehicle_type_name)}">${esc(v.plate_no || v.code)}</span>
+                <div style="flex:1;height:12px;background:var(--bg);border-radius:6px;overflow:hidden">
+                    <div style="height:100%;width:${(Number(v.hours_7d || 0) / maxH * 100).toFixed(1)}%;
+                         background:${v.color};border-radius:6px"></div></div>
+                <span style="width:52px;text-align:right;font-size:10.5px;color:var(--muted)">
+                    ${Number(v.hours_7d || 0).toFixed(0)} ч / ${v.trips_7d}</span>
+            </div>`).join('') || `<div class="empty">${esc(t('ui.empty'))}</div>`;
+    }
+    if (ships.success) renderShipments(ships.data || []);
+    loadGantt();
+}
+
+function renderShipments(rows) {
+    const stCls = s => s === 'done' ? 'ok' : s === 'delayed' ? 'crit' :
+                       s === 'cancelled' ? 'mute' : s === 'in_transit' ? 'info' : 'warn';
+    document.getElementById('shipTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('lg.shipment'))}</th>
+        <th>${esc(t('lg.window'))}</th><th>${esc(t('lg.vehicle'))}</th><th>${esc(t('lg.dock'))}</th>
+        <th>${esc(t('lg.pallets'))}</th><th>${esc(t('lg.temp'))}</th><th>${esc(t('lg.delay'))}</th>
+        <th>${esc(t('plg.status'))}</th><th></th></tr></thead><tbody>` +
+        (rows.length ? rows.slice(0, 200).map(s => `<tr>
+            <td class="mono">${esc(s.code)}</td>
+            <td><span class="pill" style="background:${s.type_color}22;color:${s.type_color}">${esc(s.shipment_type_name)}</span>
+                <div style="font-size:10.5px;color:var(--muted)">${esc(s.supplier || s.dc || '—')} → ${esc(s.store || s.dc || '—')}</div></td>
+            <td class="mono">${fmtDate(s.planned_start)} ${fmtHM(s.planned_start)}–${fmtHM(s.planned_end)}</td>
+            <td class="muted">${esc(s.plate_no || s.vehicle_code || '—')}</td>
+            <td class="muted">${s.dock_no || '—'}</td>
+            <td>${Number(s.pallets || 0).toFixed(0)}</td>
+            <td class="muted">${esc(t('lg.' + s.temp_mode, s.temp_mode))}</td>
+            <td class="${Number(s.delay_min) > 30 ? '' : 'muted'}"
+                ${Number(s.delay_min) > 30 ? 'style="color:var(--crit);font-weight:600"' : ''}>${s.delay_min || 0}</td>
+            <td><span class="pill ${stCls(s.status)}">${esc(t('st.' + s.status, s.status))}</span></td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openShipmentModal(${jattr(s)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteShipment(${s.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+async function loadGantt() {
+    const ds = datasetId();
+    const gb = gv('ganttGroupBy') || 'vehicle';
+    const days = gv('ganttDays') || 3;
+    const from = gv('ganttFrom');
+    const r = await api('/gantt?dataset_id=' + ds + '&group_by=' + gb + '&days=' + days +
+                        (from ? '&date_from=' + from : ''));
+    if (!r.success) { toast(r.error, true); return; }
+    GANTT = r.data;
+    document.getElementById('ganttLegend').innerHTML =
+        [...new Map((GANTT.bars || []).map(b => [b.type, b])).values()]
+        .map(b => `<div><i style="background:${b.color}"></i><span>${esc(b.type_name)}</span></div>`).join('');
+    drawGantt();
+}
+
+function drawGantt() {
+    const host = document.getElementById('ganttHost');
+    if (!GANTT || !GANTT.groups.length || !GANTT.bars.length) {
+        host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`;
+        return;
+    }
+    const groups = GANTT.groups.slice(0, 40);
+    const keys = new Set(groups.map(g => g.key));
+    const bars = GANTT.bars.filter(b => keys.has(b.group));
+
+    // Окно строим по суткам: от 00:00 первого дня до 24:00 последнего
+    const t0 = new Date(bars.reduce((m, b) => b.start < m ? b.start : m, bars[0].start));
+    t0.setHours(0, 0, 0, 0);
+    const tEnd = new Date(bars.reduce((m, b) => b.end > m ? b.end : m, bars[0].end));
+    tEnd.setHours(24, 0, 0, 0);
+    const totalMin = Math.max(60, (tEnd - t0) / 60000);
+
+    const LAB = 168, ROW = 26, TOP = 46, PAD = 12;
+    const W = Math.max(900, Math.min(2600, totalMin * 1.1));
+    const H = TOP + groups.length * ROW + PAD;
+    const x = min => LAB + (min / totalMin) * (W - LAB - PAD);
+    const p = [];
+
+    p.push(`<rect width="${W}" height="${H}" rx="8" fill="#111827"/>`);
+    p.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="7" fill="#141f30"/>`);
+
+    // Шкала времени: сутки и часовые деления
+    const dayCount = Math.ceil(totalMin / 1440);
+    for (let d = 0; d < dayCount; d++) {
+        const dm = d * 1440;
+        const dx = x(dm);
+        p.push(`<line x1="${dx}" y1="20" x2="${dx}" y2="${H - 6}" stroke="#31456a" stroke-width="1.2"/>`);
+        const dt = new Date(t0.getTime() + dm * 60000);
+        p.push(`<text x="${dx + 6}" y="16" fill="#cbd5e1" font-size="11" font-weight="600">${esc(fmtDate(dt))}</text>`);
+        if (d % 2 === 1) {
+            p.push(`<rect x="${dx}" y="${TOP - 8}" width="${x(dm + 1440) - dx}" height="${groups.length * ROW + 6}"
+                     fill="#ffffff" opacity="0.02"/>`);
+        }
+        for (let h = 0; h <= 24; h += 3) {
+            const hx = x(dm + h * 60);
+            if (hx > W - PAD) break;
+            p.push(`<line x1="${hx}" y1="${TOP - 10}" x2="${hx}" y2="${H - 6}" stroke="#1e2d42" stroke-width="0.6"/>`);
+            if (h < 24) p.push(`<text x="${hx + 2}" y="${TOP - 14}" fill="#64748b" font-size="8.5">${String(h).padStart(2, '0')}</text>`);
+        }
+    }
+
+    groups.forEach((g, i) => {
+        const y = TOP + i * ROW;
+        if (i % 2 === 0) p.push(`<rect x="0" y="${y - 3}" width="${W}" height="${ROW}" fill="#ffffff" opacity="0.02"/>`);
+        p.push(`<text x="10" y="${y + 11}" fill="#e2e8f0" font-size="11" font-weight="600">${esc(String(g.label).slice(0, 22))}</text>`);
+        p.push(`<text x="10" y="${y + 21}" fill="#64748b" font-size="8.5">${esc(String(g.sub || '').slice(0, 26))} · ${g.count}</text>`);
+        p.push(`<line x1="0" y1="${y + ROW - 3}" x2="${W}" y2="${y + ROW - 3}" stroke="#1e2d42" stroke-width="0.5"/>`);
+    });
+    p.push(`<line x1="${LAB - 4}" y1="20" x2="${LAB - 4}" y2="${H - 6}" stroke="#31456a" stroke-width="1"/>`);
+
+    const idx = {};
+    groups.forEach((g, i) => { idx[g.key] = i; });
+    bars.forEach(b => {
+        const i = idx[b.group];
+        if (i === undefined) return;
+        const s = (new Date(b.start) - t0) / 60000;
+        const e = (new Date(b.end) - t0) / 60000;
+        const y = TOP + i * ROW;
+        const bx = x(s), bw = Math.max(3, x(e) - x(s));
+        const cancelled = b.status === 'cancelled';
+        const tip = `${b.code} · ${b.type_name}\n${b.from} → ${b.to}\n${fmtHM(b.start)}–${fmtHM(b.end)}` +
+                    (b.dock ? `\n${t('lg.dock')} ${b.dock}` : '') +
+                    `\n${t('lg.pallets')}: ${Number(b.pallets || 0).toFixed(0)}` +
+                    (b.delay ? `\n${t('lg.delay')}: ${b.delay}` : '');
+        p.push(`<g class="gb" data-tip="${esc(tip)}">
+            <rect x="${bx}" y="${y}" width="${bw}" height="15" rx="3" fill="${b.color}"
+                  opacity="${cancelled ? 0.25 : 0.92}" ${cancelled ? 'stroke="#94a3b8" stroke-dasharray="3 2"' : ''}/>
+            ${b.is_late ? `<rect x="${bx}" y="${y}" width="3" height="15" fill="#ef4444"/>` : ''}
+            ${bw > 42 ? `<text x="${bx + 4}" y="${y + 11}" fill="#fff" font-size="8.5" opacity="0.95">${esc(String(b.to).slice(0, Math.floor(bw / 5.2)))}</text>` : ''}
+        </g>`);
+        // Фактическое окно — тонкой линией под плановым
+        if (b.actual_start && b.actual_end) {
+            const as = (new Date(b.actual_start) - t0) / 60000;
+            const ae = (new Date(b.actual_end) - t0) / 60000;
+            p.push(`<rect x="${x(as)}" y="${y + 16}" width="${Math.max(2, x(ae) - x(as))}" height="3" rx="1.5"
+                     fill="${b.is_late ? '#ef4444' : '#22c55e'}" opacity="0.8"/>`);
+        }
+    });
+
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block">${p.join('')}</svg>`;
+    host.querySelectorAll('.gb').forEach(g => {
+        g.addEventListener('mousemove', ev => showTip(ev, g.dataset.tip));
+        g.addEventListener('mouseleave', hideTip);
+    });
+}
+
+function openShipmentModal(s) {
+    s = s || {};
+    const iso = v => v ? String(v).slice(0, 16) : '';
+    openModal(`<h3>${esc(s.id ? t('ui.edit') + ' — ' + s.code : t('lg.newShipment'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('lg.shipment'))}</label><select id="sh_type">
+                ${['inbound', 'transfer', 'direct', 'return'].map(x =>
+                    `<option value="${x}" ${x === s.shipment_type ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('ui.store'))}</label><select id="sh_store"><option value=""></option>
+                ${STORES.map(x => `<option value="${x.id}" ${x.id === s.store_id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('lg.dock'))}</label><input id="sh_dock" type="number" value="${s.dock_no || ''}"></div>
+        </div>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('lg.window'))} — ${esc(t('plg.validFrom'))}</label>
+                <input id="sh_start" type="datetime-local" value="${iso(s.planned_start)}"></div>
+            <div class="fg"><label>${esc(t('lg.window'))} — ${esc(t('plg.validTo'))}</label>
+                <input id="sh_end" type="datetime-local" value="${iso(s.planned_end)}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('lg.pallets'))}</label><input id="sh_pallets" type="number" step="0.1" value="${s.pallets || 0}"></div>
+            <div class="fg"><label>${esc(t('lg.temp'))}</label><select id="sh_temp">
+                ${['ambient', 'chilled', 'frozen'].map(x =>
+                    `<option value="${x}" ${x === s.temp_mode ? 'selected' : ''}>${esc(t('lg.' + x, x))}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('plg.status'))}</label><select id="sh_status">
+                ${['planned', 'in_transit', 'unloading', 'done', 'delayed', 'cancelled'].map(x =>
+                    `<option value="${x}" ${x === s.status ? 'selected' : ''}>${esc(t('st.' + x, x))}</option>`).join('')}</select></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveShipment(${s.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveShipment(id) {
+    const body = {shipment_type: gv('sh_type'), store_id: gn('sh_store'), dock_no: gn('sh_dock'),
+                  planned_start: gv('sh_start'), planned_end: gv('sh_end'),
+                  pallets: gn('sh_pallets'), temp_mode: gv('sh_temp'), status: gv('sh_status')};
+    const r = id ? await api('/shipments/' + id, 'PUT', body) : await api('/shipments', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadLogistics(); }
+}
+
+async function deleteShipment(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/shipments/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadLogistics();
+}
+
+function openVehicleModal(v) {
+    v = v || {};
+    openModal(`<h3>${esc(t('lg.newVehicle'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="vh_code" value="${esc(v.code || '')}"></div>
+            <div class="fg"><label>${esc(t('lg.plate'))}</label><input id="vh_plate" value="${esc(v.plate_no || '')}"></div>
+            <div class="fg"><label>${esc(t('eq.type'))}</label><select id="vh_type">
+                ${['truck', 'reefer', 'midi', 'van', 'van_fresh'].map(x =>
+                    `<option value="${x}" ${x === v.vehicle_type ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('lg.carrier'))}</label><input id="vh_carrier" value="${esc(v.carrier || '')}"></div>
+            <div class="fg"><label>${esc(t('lg.driver'))}</label><input id="vh_driver" value="${esc(v.driver_name || '')}"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveVehicle(${v.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveVehicle(id) {
+    const body = {dataset_id: datasetId() || null, code: gv('vh_code'), plate_no: gv('vh_plate'),
+                  vehicle_type: gv('vh_type'), carrier: gv('vh_carrier'), driver_name: gv('vh_driver')};
+    const r = id ? await api('/vehicles/' + id, 'PUT', body) : await api('/vehicles', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadLogistics(); }
+}
+
+// ==================== Поставщики: граф взаимоотношений ====================
+
+async function loadSuppliers() {
+    const ds = datasetId(), q = gv('supSearch');
+    const [sup, graph] = await Promise.all([
+        api('/suppliers?dataset_id=' + ds + (q ? '&q=' + encodeURIComponent(q) : '')),
+        api('/suppliers/graph?dataset_id=' + ds + '&top=18')]);
+    if (sup.success) { SUPPLIERS = sup.data || []; renderSupplierTable(); }
+    if (graph.success) drawSupplierGraph(graph.data);
+    loadContracts();
+}
+
+function renderSupplierTable() {
+    document.getElementById('supTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('sp.supplier'))}</th><th>${esc(t('sp.type'))}</th>
+        <th>${esc(t('sp.rating'))}</th><th>${esc(t('sp.otif'))}</th><th>${esc(t('sp.turnover'))}</th>
+        <th>${esc(t('sp.groups'))}</th><th>${esc(t('sp.contacts'))}</th><th>${esc(t('sp.contracts'))}</th>
+        <th>${esc(t('sp.deliversTo'))}</th><th>${esc(t('plg.status'))}</th><th></th></tr></thead><tbody>` +
+        (SUPPLIERS.length ? SUPPLIERS.map(s => `<tr>
+            <td class="mono">${esc(s.code)}${Number(s.is_key) ? ' ★' : ''}</td>
+            <td><a href="#" onclick="openSupplierCard(${s.id});return false" style="color:var(--accent);text-decoration:none">${esc(s.name)}</a>
+                <div style="font-size:10.5px;color:var(--muted)">${esc(s.city || '')} ${esc(s.country || '')}</div></td>
+            <td><span class="pill" style="background:${s.type_color}22;color:${s.type_color}">${esc(s.supplier_type_name)}</span></td>
+            <td>${s.rating != null ? Number(s.rating).toFixed(1) : '—'}</td>
+            <td>${s.otif_pct != null ? Number(s.otif_pct).toFixed(0) + '%' : '—'}</td>
+            <td>${money(s.annual_turnover)}</td>
+            <td>${s.category_count}</td><td>${s.contact_count}</td>
+            <td>${s.contract_active}/${s.contract_count}</td>
+            <td class="muted">${esc(s.delivers_to)}</td>
+            <td><span class="pill ${s.status === 'active' ? 'ok' : s.status === 'prospect' ? 'info' : 'mute'}">${esc(t('st.' + s.status, s.status))}</span></td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openSupplierModal(${jattr(s)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteSupplier(${s.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="12" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function drawSupplierGraph(g) {
+    const host = document.getElementById('supGraphHost');
+    const sups = g.suppliers || [], cats = g.categories || [], edges = g.edges || [];
+    if (!sups.length) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
+
+    const ROW = 26, PAD = 26;
+    const H = Math.max(sups.length, cats.length) * ROW + PAD * 2;
+    const W = 900, LX = 250, RX = W - 250;
+    const sy = i => PAD + i * ROW + (H - PAD * 2 - sups.length * ROW) / 2 + ROW / 2;
+    const cy = i => PAD + i * ROW + (H - PAD * 2 - cats.length * ROW) / 2 + ROW / 2;
+    const sIdx = {}, cIdx = {};
+    sups.forEach((s, i) => { sIdx[s.id] = i; });
+    cats.forEach((c, i) => { cIdx[c.id] = i; });
+    const maxT = g.max_turnover || 1;
+    const p = [];
+
+    p.push(`<rect width="${W}" height="${H}" rx="8" fill="#111827"/>`);
+    p.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="7" fill="#141f30"/>`);
+
+    // Рёбра рисуем первыми, чтобы узлы легли поверх
+    edges.forEach(e => {
+        const i = sIdx[e.supplier_id], j = cIdx[e.category_id];
+        if (i === undefined || j === undefined) return;
+        const y1 = sy(i), y2 = cy(j);
+        const w = 0.7 + (e.turnover / maxT) * 5.5;
+        const mx = (LX + RX) / 2;
+        p.push(`<path d="M ${LX} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${RX} ${y2}"
+                 stroke="${e.color}" stroke-width="${w.toFixed(2)}" fill="none"
+                 opacity="${e.is_primary ? 0.75 : 0.4}"/>`);
+    });
+
+    sups.forEach((s, i) => {
+        const y = sy(i);
+        p.push(`<g class="gn" data-tip="${esc(s.name + ' · ' + t('sp.turnover') + ': ' + Math.round(s.turnover / 1000) + 'k · ' + t('sp.groups') + ': ' + s.links)}">
+            <circle cx="${LX}" cy="${y}" r="${Number(s.is_key) ? 6 : 4.5}"
+                    fill="${Number(s.is_key) ? '#f59e0b' : '#60a5fa'}"/>
+            <text x="${LX - 12}" y="${y + 3.5}" text-anchor="end" fill="#e2e8f0" font-size="10.5"
+                  font-weight="${Number(s.is_key) ? 700 : 400}">${esc(String(s.name).slice(0, 28))}</text>
+        </g>`);
+    });
+    cats.forEach((c, i) => {
+        const y = cy(i);
+        p.push(`<g class="gn" data-tip="${esc(c.name + ' · ' + t('sp.turnover') + ': ' + Math.round(c.turnover / 1000) + 'k · ' + t('sp.supplier') + ': ' + c.links)}">
+            <rect x="${RX - 5}" y="${y - 5}" width="10" height="10" rx="2" fill="${c.color}"/>
+            <text x="${RX + 14}" y="${y + 3.5}" fill="#e2e8f0" font-size="10.5">${esc(String(c.name).slice(0, 26))}</text>
+        </g>`);
+    });
+    p.push(`<text x="${LX}" y="14" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">${esc(t('sp.supplier').toUpperCase())}</text>`);
+    p.push(`<text x="${RX}" y="14" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">${esc(t('sp.groups').toUpperCase())}</text>`);
+
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:1100px;margin:0 auto">${p.join('')}</svg>`;
+    host.querySelectorAll('.gn').forEach(n => {
+        n.addEventListener('mousemove', ev => showTip(ev, n.dataset.tip));
+        n.addEventListener('mouseleave', hideTip);
+    });
+}
+
+async function openSupplierCard(id) {
+    const r = await api('/suppliers/' + id);
+    if (!r.success) { toast(r.error, true); return; }
+    const s = r.data;
+    openModal(`<h3>${esc(s.name)} <span class="mono muted">${esc(s.code)}</span></h3>
+        <table class="tbl">
+            <tr><td class="muted">${esc(t('sp.type'))}</td><td>${esc(s.supplier_type_name)}</td>
+                <td class="muted">${esc(t('sp.rating'))}</td><td>${s.rating ?? '—'} / ${esc(t('sp.otif'))} ${s.otif_pct ?? '—'}</td></tr>
+            <tr><td class="muted">${esc(t('mk.country'))}</td><td>${esc(s.country || '')} ${esc(s.city || '')}</td>
+                <td class="muted">${esc(t('sp.turnover'))}</td><td>${money(s.annual_turnover)}</td></tr>
+            <tr><td class="muted">${esc(t('sp.phone'))}</td><td>${esc(s.phone || '—')}</td>
+                <td class="muted">${esc(t('sp.email'))}</td><td>${esc(s.email || '—')}</td></tr>
+            <tr><td class="muted">IDNO</td><td class="mono">${esc(s.idno || '—')}</td>
+                <td class="muted">${esc(t('sp.deliversTo'))}</td><td>${esc(s.delivers_to)}</td></tr>
+        </table>
+        <h3 style="margin-top:14px">${esc(t('sp.contacts'))}</h3>
+        <table class="tbl"><thead><tr><th>${esc(t('sp.contact'))}</th><th>${esc(t('sp.role'))}</th>
+            <th>${esc(t('sp.phone'))}</th><th>${esc(t('sp.email'))}</th><th></th></tr></thead><tbody>
+            ${(s.contacts || []).map(c => `<tr>
+                <td>${esc(c.full_name)}${Number(c.is_primary) ? ' <span class="pill ok">' + esc(t('sp.primary')) + '</span>' : ''}</td>
+                <td class="muted">${esc(c.icon || '')} ${esc(c.role_name || c.position_tx || '—')}</td>
+                <td class="mono">${esc(c.mobile || c.phone || '—')}</td>
+                <td class="mono muted">${esc(c.email || '—')}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteContact(${c.id}, ${s.id})">🗑</button></td>
+            </tr>`).join('') || `<tr><td colspan="5" class="empty">${esc(t('ui.empty'))}</td></tr>`}
+        </tbody></table>
+        <h3 style="margin-top:14px">${esc(t('sp.contracts'))}</h3>
+        <table class="tbl"><thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('sp.type'))}</th>
+            <th>${esc(t('pr.period'))}</th><th>${esc(t('sp.payment'))}</th><th>${esc(t('sp.retro'))}</th>
+            <th>${esc(t('sp.incoterms'))}</th><th>${esc(t('plg.status'))}</th></tr></thead><tbody>
+            ${(s.contracts || []).map(c => `<tr>
+                <td class="mono">${esc(c.code)}</td><td>${esc(c.contract_type_name)}</td>
+                <td class="muted">${fmtDate(c.date_from)} — ${fmtDate(c.date_to)}</td>
+                <td>${c.payment_days}</td><td>${c.retro_bonus_pct}%</td><td class="muted">${esc(c.incoterms || '')}</td>
+                <td><span class="pill ${c.effective_status === 'active' ? 'ok' : 'mute'}">${esc(t('st.' + c.effective_status, c.effective_status))}</span>
+                    ${Number(c.expiring_soon) ? ' <span class="pill warn">' + esc(t('sp.expiring')) + '</span>' : ''}</td>
+            </tr>`).join('') || `<tr><td colspan="7" class="empty">${esc(t('ui.empty'))}</td></tr>`}
+        </tbody></table>
+        <h3 style="margin-top:14px">${esc(t('sp.groups'))}</h3>
+        <table class="tbl"><thead><tr><th>${esc(t('prod.category'))}</th><th>${esc(t('ds.sku'))}</th>
+            <th>${esc(t('sp.turnover'))}</th><th>${esc(t('sp.share'))}</th><th>${esc(t('sp.margin'))}</th></tr></thead><tbody>
+            ${(s.categories || []).map(c => `<tr>
+                <td><span class="pill" style="background:${c.category_color}22;color:${c.category_color}">${esc(c.category)}</span>
+                    ${Number(c.is_primary) ? ' ★' : ''}</td>
+                <td>${c.sku_count}</td><td>${money(c.turnover)}</td>
+                <td>${c.share_pct}%</td><td>${c.margin_pct}%</td></tr>`).join('')
+                || `<tr><td colspan="5" class="empty">${esc(t('ui.empty'))}</td></tr>`}
+        </tbody></table>
+        <div class="btn-row">
+            <button class="btn btn-ghost" onclick="openContactModal(${s.id})">${esc(t('sp.newContact'))}</button>
+            <button class="btn btn-ghost" onclick="openContractModal(${s.id})">${esc(t('sp.newContract'))}</button>
+            <button class="btn btn-primary" onclick="closeModal()">${esc(t('ui.close'))}</button></div>`);
+}
+
+function openSupplierModal(s) {
+    s = s || {};
+    openModal(`<h3>${esc(s.id ? t('ui.edit') : t('sp.newSupplier'))}</h3>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="su_code" value="${esc(s.code || '')}"></div>
+            <div class="fg"><label>${esc(t('sp.type'))}</label><select id="su_type">
+                ${['producer', 'distributor', 'importer', 'farm', 'private_label'].map(x =>
+                    `<option value="${x}" ${x === s.supplier_type ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="su_name_ru" value="${esc(s.name_ru || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="su_name_ro" value="${esc(s.name_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="su_name_en" value="${esc(s.name_en || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('mk.country'))}</label><input id="su_country" value="${esc(s.country || 'MD')}"></div>
+            <div class="fg"><label>${esc(t('ui.store'))}</label><input id="su_city" value="${esc(s.city || '')}"></div>
+            <div class="fg"><label>IDNO</label><input id="su_idno" value="${esc(s.idno || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('sp.phone'))}</label><input id="su_phone" value="${esc(s.phone || '')}"></div>
+            <div class="fg"><label>${esc(t('sp.email'))}</label><input id="su_email" value="${esc(s.email || '')}"></div>
+            <div class="fg"><label>${esc(t('sp.deliversTo'))}</label><select id="su_del">
+                ${['dc', 'store', 'both'].map(x => `<option value="${x}" ${x === s.delivers_to ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('sp.rating'))}</label><input id="su_rating" type="number" step="0.1" value="${s.rating || ''}"></div>
+            <div class="fg"><label>${esc(t('sp.otif'))}</label><input id="su_otif" type="number" step="0.1" value="${s.otif_pct || ''}"></div>
+            <div class="fg"><label>${esc(t('sp.turnover'))}</label><input id="su_turn" type="number" value="${s.annual_turnover || ''}"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+            <input type="checkbox" id="su_key" ${Number(s.is_key) ? 'checked' : ''}> ${esc(t('sp.key'))}</label>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveSupplier(${s.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveSupplier(id) {
+    const body = {dataset_id: datasetId() || null, code: gv('su_code'), supplier_type: gv('su_type'),
+        name_ru: gv('su_name_ru'), name_ro: gv('su_name_ro'), name_en: gv('su_name_en'),
+        country: gv('su_country'), city: gv('su_city'), idno: gv('su_idno'),
+        phone: gv('su_phone'), email: gv('su_email'), delivers_to: gv('su_del'),
+        rating: gn('su_rating'), otif_pct: gn('su_otif'), annual_turnover: gn('su_turn'),
+        is_key: document.getElementById('su_key').checked ? 1 : 0};
+    const r = id ? await api('/suppliers/' + id, 'PUT', body) : await api('/suppliers', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadSuppliers(); }
+}
+
+async function deleteSupplier(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/suppliers/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadSuppliers();
+}
+
+function openContactModal(supId) {
+    openModal(`<h3>${esc(t('sp.newContact'))}</h3>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('sp.contact'))}</label><input id="ct_name"></div>
+            <div class="fg"><label>${esc(t('sp.role'))}</label><select id="ct_role">
+                ${['kam', 'logistics', 'finance', 'quality', 'director'].map(x => `<option value="${x}">${esc(x)}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('sp.phone'))}</label><input id="ct_phone"></div>
+            <div class="fg"><label>Mobile</label><input id="ct_mobile"></div>
+            <div class="fg"><label>${esc(t('sp.email'))}</label><input id="ct_email"></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+            <input type="checkbox" id="ct_primary"> ${esc(t('sp.primary'))}</label>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveContact(${supId})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="openSupplierCard(${supId})">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveContact(supId) {
+    const r = await api('/suppliers/' + supId + '/contacts', 'POST',
+        {full_name: gv('ct_name'), role_code: gv('ct_role'), phone: gv('ct_phone'),
+         mobile: gv('ct_mobile'), email: gv('ct_email'),
+         is_primary: document.getElementById('ct_primary').checked ? 1 : 0});
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) openSupplierCard(supId);
+}
+
+async function deleteContact(id, supId) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/contacts/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) openSupplierCard(supId);
+}
+
+function openContractModal(supId) {
+    openModal(`<h3>${esc(t('sp.newContract'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('sp.type'))}</label><select id="cr_type">
+                ${['supply', 'marketing', 'logistics', 'private_label', 'consignment'].map(x => `<option value="${x}">${esc(x)}</option>`).join('')}</select></div>
+            <div class="fg"><label>${esc(t('plg.validFrom'))}</label><input id="cr_from" type="date"></div>
+            <div class="fg"><label>${esc(t('plg.validTo'))}</label><input id="cr_to" type="date"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('sp.payment'))}</label><input id="cr_pay" type="number" value="30"></div>
+            <div class="fg"><label>${esc(t('sp.retro'))}</label><input id="cr_retro" type="number" step="0.1" value="0"></div>
+            <div class="fg"><label>${esc(t('sp.incoterms'))}</label><input id="cr_inco" value="DDP"></div>
+        </div>
+        <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="cr_title_ru"></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveContract(${supId})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="openSupplierCard(${supId})">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveContract(supId) {
+    const r = await api('/suppliers/' + supId + '/contracts', 'POST',
+        {contract_type: gv('cr_type'), date_from: gv('cr_from'), date_to: gv('cr_to') || null,
+         payment_days: gn('cr_pay'), retro_bonus_pct: gn('cr_retro'), incoterms: gv('cr_inco'),
+         title_ru: gv('cr_title_ru')});
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) openSupplierCard(supId);
+}
+
+async function loadContracts() {
+    const ds = datasetId();
+    const exp = document.getElementById('ctrExpiring').checked ? '&expiring=1' : '';
+    const r = await api('/contracts?dataset_id=' + ds + exp);
+    if (!r.success) return;
+    document.getElementById('ctrTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('sp.supplier'))}</th><th>${esc(t('sp.type'))}</th>
+        <th>${esc(t('pr.period'))}</th><th>${esc(t('sp.daysLeft'))}</th><th>${esc(t('sp.payment'))}</th>
+        <th>${esc(t('sp.retro'))}</th><th>${esc(t('sp.marketing'))}</th><th>${esc(t('sp.incoterms'))}</th>
+        <th>${esc(t('plg.status'))}</th><th></th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(c => `<tr>
+            <td class="mono">${esc(c.code)}</td><td>${esc(c.supplier)}</td>
+            <td class="muted">${esc(c.contract_type_name)}</td>
+            <td class="muted">${fmtDate(c.date_from)} — ${fmtDate(c.date_to)}</td>
+            <td ${Number(c.expiring_soon) ? 'style="color:var(--warn);font-weight:600"' : 'class="muted"'}>
+                ${c.days_left != null ? Math.round(c.days_left) : '—'}</td>
+            <td>${c.payment_days}</td><td>${c.retro_bonus_pct}%</td>
+            <td class="muted">${money(c.marketing_fee)}</td><td class="muted">${esc(c.incoterms || '')}</td>
+            <td><span class="pill ${c.effective_status === 'active' ? 'ok' : 'mute'}">${esc(t('st.' + c.effective_status, c.effective_status))}</span></td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteContract(${c.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="11" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+async function deleteContract(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/contracts/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadContracts();
+}
+
+// ==================== Конкуренты ====================
+
+function indexColor(idx) {
+    // <100 конкурент дешевле нас — для нас это плохо (красный)
+    if (idx == null) return '#94a3b8';
+    if (idx < 92) return '#ef4444';
+    if (idx < 98) return '#f97316';
+    if (idx <= 102) return '#eab308';
+    if (idx <= 110) return '#84cc16';
+    return '#22c55e';
+}
+
+async function loadCompetitors() {
+    const ds = datasetId();
+    const [comps, idx] = await Promise.all([
+        api('/competitors?dataset_id=' + ds), api('/competitors/price-index?dataset_id=' + ds)]);
+    if (comps.success) {
+        COMPETITORS = comps.data || [];
+        const sel = document.getElementById('cpCompFilter');
+        const cur = sel.value;
+        sel.innerHTML = `<option value="">${esc(t('ui.all'))}</option>` +
+            COMPETITORS.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+        sel.value = cur;
+        renderCompetitorTable();
+    }
+    if (idx.success) drawPriceIndex(idx.data || []);
+    loadPriceCompare();
+    loadCompetitorSuppliers();
+}
+
+function renderCompetitorTable() {
+    document.getElementById('compTbl').innerHTML = `
+        <thead><tr><th>${esc(t('cp.competitor'))}</th><th>${esc(t('cp.positioning'))}</th>
+        <th>${esc(t('cp.storeCount'))}</th><th>${esc(t('cp.share'))}</th><th>${esc(t('cp.priceIndex'))}</th>
+        <th>${esc(t('cp.monitored'))}</th><th>${esc(t('cp.privateLabel'))}</th>
+        <th>${esc(t('cp.theirSuppliers'))}</th><th>${esc(t('cp.lastCheck'))}</th><th></th></tr></thead><tbody>` +
+        (COMPETITORS.length ? COMPETITORS.map(c => `<tr>
+            <td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c.color};margin-right:5px"></span>
+                <b>${esc(c.name)}</b> <span class="mono muted">${esc(c.code)}</span></td>
+            <td><span class="pill ${c.positioning === 'discount' ? 'warn' : c.positioning === 'premium' ? 'info' : 'mute'}">${esc(t('cp.' + c.positioning, c.positioning))}</span></td>
+            <td>${num(c.store_count)}</td><td>${c.market_share}%</td>
+            <td><span class="pill" style="background:${indexColor(c.price_index_actual)}22;color:${indexColor(c.price_index_actual)}">
+                ${c.price_index_actual != null ? Number(c.price_index_actual).toFixed(1) : '—'}</span></td>
+            <td>${num(c.sku_monitored)}</td><td>${c.private_label_pct}%</td>
+            <td>${c.shared_suppliers}/${c.supplier_count}</td>
+            <td class="muted">${fmtDate(c.last_check)}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick='openCompetitorModal(${jattr(c)})'>✎</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCompetitor(${c.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="10" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function drawPriceIndex(rows) {
+    const host = document.getElementById('priceIndexHost');
+    if (!rows.length) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
+    const comps = [...new Map(rows.map(r => [r.competitor_id, r])).values()];
+    const cats = [...new Map(rows.map(r => [r.category_id, r])).values()];
+    const cell = {};
+    rows.forEach(r => { cell[r.competitor_id + '|' + r.category_id] = r; });
+
+    const CW = 74, CH = 30, LEFT = 150, TOP = 58;
+    const W = LEFT + cats.length * CW + 16, H = TOP + comps.length * CH + 16;
+    const p = [];
+    cats.forEach((c, j) => {
+        const x = LEFT + j * CW + CW / 2;
+        p.push(`<text x="${x}" y="${TOP - 34}" text-anchor="start" fill="var(--muted)" font-size="9.5"
+                 transform="rotate(-32 ${x} ${TOP - 34})">${esc(String(c.category).slice(0, 18))}</text>`);
+    });
+    comps.forEach((c, i) => {
+        const y = TOP + i * CH;
+        p.push(`<text x="8" y="${y + 19}" fill="var(--fg)" font-size="11" font-weight="600">${esc(String(c.competitor).slice(0, 20))}</text>`);
+        cats.forEach((cat, j) => {
+            const r = cell[c.competitor_id + '|' + cat.category_id];
+            const x = LEFT + j * CW;
+            if (!r) {
+                p.push(`<rect x="${x + 1}" y="${y + 1}" width="${CW - 3}" height="${CH - 4}" rx="4" fill="#e2e8f0" opacity="0.4"/>`);
+                return;
+            }
+            const col = indexColor(r.price_index);
+            p.push(`<g class="pc" data-tip="${esc(c.competitor + ' · ' + cat.category + '\n' + t('cp.priceIndex') + ': ' + r.price_index + '\n' + t('ds.sku') + ': ' + r.sku_count + '\n' + t('cp.weExpensive') + ': ' + r.we_expensive + ' / ' + t('cp.weCheap') + ': ' + r.we_cheap)}">
+                <rect x="${x + 1}" y="${y + 1}" width="${CW - 3}" height="${CH - 4}" rx="4" fill="${col}" opacity="0.85"/>
+                <text x="${x + CW / 2 - 1}" y="${y + 19}" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">
+                    ${Number(r.price_index).toFixed(0)}</text></g>`);
+        });
+    });
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block">${p.join('')}</svg>
+        <div class="legend" style="margin-top:8px">
+            ${[[89, 'cp.weExpensive'], [100, 'cp.parity'], [112, 'cp.weCheap']].map(([v, k]) =>
+              `<div><i style="background:${indexColor(v)}"></i><span>${esc(t(k))}</span></div>`).join('')}</div>`;
+    host.querySelectorAll('.pc').forEach(g => {
+        g.addEventListener('mousemove', ev => showTip(ev, g.dataset.tip));
+        g.addEventListener('mouseleave', hideTip);
+    });
+}
+
+async function loadPriceCompare() {
+    const ds = datasetId(), cid = gv('cpCompFilter');
+    const r = await api('/competitors/prices?dataset_id=' + ds + (cid ? '&competitor_id=' + cid : '') + '&limit=150');
+    if (!r.success) return;
+    const posCls = p => p === 'we_expensive' ? 'crit' : p === 'we_cheap' ? 'ok' : 'mute';
+    document.getElementById('priceTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th><th>${esc(t('cp.competitor'))}</th>
+        <th>${esc(t('cp.ourPrice'))}</th><th>${esc(t('cp.theirPrice'))}</th><th>${esc(t('cp.diff'))}</th>
+        <th>${esc(t('cp.priceIndex'))}</th><th>${esc(t('cp.source'))}</th></tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(x => `<tr>
+            <td class="mono">${esc(x.product_code)}</td>
+            <td>${esc(x.product)}${Number(x.is_promo) ? ' <span class="pill warn">%</span>' : ''}</td>
+            <td class="muted">${esc(x.competitor)}</td>
+            <td>${money(x.our_price)}</td><td>${money(x.competitor_price)}</td>
+            <td style="color:${Number(x.diff_abs) < 0 ? 'var(--crit)' : 'var(--ok)'};font-weight:600">
+                ${Number(x.diff_abs) > 0 ? '+' : ''}${Number(x.diff_abs || 0).toFixed(2)}</td>
+            <td><span class="pill ${posCls(x.position_code)}">${Number(x.price_index || 0).toFixed(0)}</span></td>
+            <td class="muted">${esc(x.source)}</td>
+        </tr>`).join('') : `<tr><td colspan="8" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+async function loadCompetitorSuppliers() {
+    const ds = datasetId(), cid = gv('cpCompFilter');
+    const r = await api('/competitors/suppliers?dataset_id=' + ds + (cid ? '&competitor_id=' + cid : ''));
+    if (!r.success) return;
+    document.getElementById('compSupHost').innerHTML = ((r.data || []).length ? r.data.slice(0, 60).map(s => `
+        <div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span style="width:8px;height:8px;border-radius:2px;background:${s.competitor_color};flex-shrink:0"></span>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:11.5px;font-weight:500">${esc(s.supplier_name)}</div>
+                <div style="font-size:10px;color:var(--muted)">${esc(s.competitor)} · ${esc(s.category || '—')}</div>
+            </div>
+            <span class="pill ${Number(s.is_shared) ? 'warn' : 'mute'}">
+                ${esc(Number(s.is_shared) ? t('cp.shared') : t('cp.exclusive'))}</span>
+            <span style="font-size:10.5px;color:var(--muted);width:38px;text-align:right">${s.est_share_pct || 0}%</span>
+        </div>`).join('') : `<div class="empty">${esc(t('ui.empty'))}</div>`);
+}
+
+function openCompetitorModal(c) {
+    c = c || {};
+    openModal(`<h3>${esc(c.id ? t('ui.edit') : t('cp.newCompetitor'))}</h3>
+        <div class="frow">
+            <div class="fg"><label>${esc(t('plg.code'))}</label><input id="cm_code" value="${esc(c.code || '')}"></div>
+            <div class="fg"><label>${esc(t('cp.positioning'))}</label><select id="cm_pos">
+                ${['discount', 'mid', 'premium'].map(x => `<option value="${x}" ${x === c.positioning ? 'selected' : ''}>${esc(t('cp.' + x, x))}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="cm_name_ru" value="${esc(c.name_ru || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RO)</label><input id="cm_name_ro" value="${esc(c.name_ro || '')}"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="cm_name_en" value="${esc(c.name_en || '')}"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('cp.storeCount'))}</label><input id="cm_stores" type="number" value="${c.store_count || ''}"></div>
+            <div class="fg"><label>${esc(t('cp.share'))}</label><input id="cm_share" type="number" step="0.1" value="${c.market_share || ''}"></div>
+            <div class="fg"><label>${esc(t('cp.privateLabel'))}</label><input id="cm_pl" type="number" step="0.1" value="${c.private_label_pct || ''}"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveCompetitor(${c.id || 'null'})">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveCompetitor(id) {
+    const body = {dataset_id: datasetId() || null, code: gv('cm_code'), positioning: gv('cm_pos'),
+        name_ru: gv('cm_name_ru'), name_ro: gv('cm_name_ro'), name_en: gv('cm_name_en'),
+        store_count: gn('cm_stores'), market_share: gn('cm_share'), private_label_pct: gn('cm_pl')};
+    const r = id ? await api('/competitors/' + id, 'PUT', body) : await api('/competitors', 'POST', body);
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadCompetitors(); }
+}
+
+async function deleteCompetitor(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/competitors/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadCompetitors();
+}
+
+function openImportModal() {
+    openModal(`<h3>${esc(t('cp.importPrices'))}</h3>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">${esc(t('cp.importHint'))}</div>
+        <div class="fg"><textarea id="imp_csv" style="min-height:180px;font-family:ui-monospace,monospace"
+            placeholder="D1-CMP-01;D1-PRO-0001;2026-08-15;24.90;0"></textarea></div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="doImport()">${esc(t('cp.importPrices'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function doImport() {
+    const r = await api('/competitors/prices/import', 'POST',
+        {csv: document.getElementById('imp_csv').value, dataset_id: datasetId() || null});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(`${t('cp.imported')}: ${r.imported} (${t('fct.skipped')}: ${r.skipped})`, r.skipped > 0);
+    closeModal(); loadCompetitors();
+}
+
+// ==================== Рынки других стран ====================
+
+async function loadMarkets() {
+    const ds = datasetId();
+    const [mkts, bench] = await Promise.all([
+        api('/markets?dataset_id=' + ds), api('/markets/benchmark?dataset_id=' + ds)]);
+    if (mkts.success) {
+        MARKETS = mkts.data || [];
+        const sel = document.getElementById('mktFilter');
+        const cur = sel.value;
+        sel.innerHTML = `<option value="">${esc(t('ui.all'))}</option>` +
+            MARKETS.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join('');
+        sel.value = cur;
+        renderMarketTable();
+    }
+    if (bench.success) drawBubbles(bench.data);
+    loadMarketChains();
+}
+
+function renderMarketTable() {
+    document.getElementById('mktTbl').innerHTML = `
+        <thead><tr><th>${esc(t('mk.country'))}</th><th>${esc(t('mk.market'))}</th><th>${esc(t('mk.population'))}</th>
+        <th>${esc(t('mk.gdp'))}</th><th>${esc(t('mk.retailVolume'))}</th><th>${esc(t('mk.modernTrade'))}</th>
+        <th>${esc(t('mk.top5'))}</th><th>${esc(t('mk.avgCheckEur'))}</th><th>${esc(t('mk.storesPer'))}</th>
+        <th>${esc(t('cp.privateLabel'))}</th><th>${esc(t('mk.leader'))}</th><th></th></tr></thead><tbody>` +
+        (MARKETS.length ? MARKETS.map(m => `<tr>
+            <td class="mono"><b>${esc(m.country_code)}</b></td><td>${esc(m.name)}</td>
+            <td>${m.population_mln}</td><td>${num(m.gdp_per_capita)}</td>
+            <td>${num(m.retail_volume_mln)}</td><td>${m.modern_trade_pct}%</td>
+            <td>${m.top5_share_pct}%</td><td>${m.avg_check_eur} €</td>
+            <td>${m.stores_per_100k}</td><td>${m.private_label_pct}%</td>
+            <td class="muted">${esc(m.leader_chain || '—')} <span class="pill mute">${m.chain_count}</span></td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteMarket(${m.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="12" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function drawBubbles(d) {
+    const host = document.getElementById('bubbleHost');
+    const chains = (d.chains || []).filter(c => c.store_count > 0 && c.avg_check_eur > 0);
+    if (!chains.length) { host.innerHTML = `<div class="empty">${esc(t('ui.empty'))}</div>`; return; }
+    const ours = d.ours || {};
+    const pts = chains.slice();
+    if (ours.store_count > 0 && ours.avg_check_eur > 0) pts.push(Object.assign({}, ours, {is_ours: 1}));
+
+    const W = 940, H = 440, L = 56, R = 20, T = 26, B = 42;
+    // Ось X логарифмическая: сети различаются на три порядка по числу магазинов
+    const lx = v => Math.log10(Math.max(1, v));
+    const xs = pts.map(p => lx(p.store_count)), ys = pts.map(p => Number(p.avg_check_eur));
+    const x0 = Math.min(...xs) - 0.15, x1 = Math.max(...xs) + 0.15;
+    const y0 = 0, y1 = Math.max(...ys) * 1.15;
+    const X = v => L + (lx(v) - x0) / (x1 - x0 || 1) * (W - L - R);
+    const Y = v => H - B - (v - y0) / (y1 - y0 || 1) * (H - T - B);
+    const maxRev = Math.max(...pts.map(p => Number(p.revenue_mln || 0)), 1);
+    const RAD = v => 5 + Math.sqrt(Math.max(0, Number(v || 0)) / maxRev) * 26;
+    const colors = {MD: '#e11d48', RO: '#2563eb', UA: '#eab308', PL: '#16a34a', BG: '#7c3aed', GE: '#0891b2'};
+    const p = [];
+
+    p.push(`<rect width="${W}" height="${H}" rx="8" fill="#111827"/>`);
+    p.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="7" fill="#141f30"/>`);
+    for (let g = 0; g <= 5; g++) {
+        const yv = y0 + (y1 - y0) * g / 5, y = Y(yv);
+        p.push(`<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="#1e2d42" stroke-width="0.6"/>`);
+        p.push(`<text x="${L - 8}" y="${y + 3}" text-anchor="end" fill="#64748b" font-size="9">${yv.toFixed(0)}€</text>`);
+    }
+    for (let e = Math.ceil(x0); e <= Math.floor(x1); e++) {
+        const x = X(Math.pow(10, e));
+        p.push(`<line x1="${x}" y1="${T}" x2="${x}" y2="${H - B}" stroke="#1e2d42" stroke-width="0.6"/>`);
+        p.push(`<text x="${x}" y="${H - B + 15}" text-anchor="middle" fill="#64748b" font-size="9">${num(Math.pow(10, e))}</text>`);
+    }
+    p.push(`<text x="${(L + W - R) / 2}" y="${H - 8}" text-anchor="middle" fill="#94a3b8" font-size="10">${esc(t('cp.storeCount'))}</text>`);
+    p.push(`<text x="14" y="${T + 4}" fill="#94a3b8" font-size="10">${esc(t('mk.avgCheckEur'))}</text>`);
+
+    pts.sort((a, b) => Number(b.revenue_mln || 0) - Number(a.revenue_mln || 0)).forEach(c => {
+        const cx = X(c.store_count), cy = Y(Number(c.avg_check_eur)), r = RAD(c.revenue_mln);
+        const col = c.is_ours ? '#f59e0b' : (colors[c.country_code] || '#64748b');
+        const tip = `${c.is_ours ? t('mk.ourNetwork') : c.name}\n${t('cp.storeCount')}: ${num(c.store_count)}` +
+                    `\n${t('mk.avgCheckEur')}: ${c.avg_check_eur}\n${t('mk.revenue')}: ${num(c.revenue_mln)}` +
+                    (c.market_share_pct != null ? `\n${t('cp.share')}: ${c.market_share_pct}` : '');
+        p.push(`<g class="bb" data-tip="${esc(tip)}">
+            <circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="${col}"
+                    opacity="${c.is_ours ? 0.95 : 0.55}" stroke="${c.is_ours ? '#fff' : col}"
+                    stroke-width="${c.is_ours ? 2 : 1}" ${c.is_ours ? 'stroke-dasharray="3 2"' : ''}/>
+            ${r > 12 || c.is_ours ? `<text x="${cx}" y="${cy + 3}" text-anchor="middle" fill="#fff"
+                 font-size="9" font-weight="600">${esc(String(c.is_ours ? t('mk.ourNetwork') : c.name).slice(0, 12))}</text>` : ''}
+        </g>`);
+    });
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:1200px;margin:0 auto">${p.join('')}</svg>
+        <div class="legend" style="margin-top:8px;justify-content:center">
+            ${Object.entries(colors).map(([k, v]) => `<div><i style="background:${v}"></i><span>${esc(k)}</span></div>`).join('')}
+            <div><i style="background:#f59e0b"></i><span>${esc(t('mk.ourNetwork'))}</span></div></div>`;
+    host.querySelectorAll('.bb').forEach(g => {
+        g.addEventListener('mousemove', ev => showTip(ev, g.dataset.tip));
+        g.addEventListener('mouseleave', hideTip);
+    });
+}
+
+async function loadMarketChains() {
+    const ds = datasetId(), mid = gv('mktFilter');
+    const r = await api('/markets/chains?dataset_id=' + ds + (mid ? '&market_id=' + mid : ''));
+    if (!r.success) return;
+    document.getElementById('chainTbl').innerHTML = `
+        <thead><tr><th>${esc(t('mk.country'))}</th><th>${esc(t('mk.chain'))}</th><th>${esc(t('mk.owner'))}</th>
+        <th>${esc(t('cp.storeCount'))}</th><th>${esc(t('mk.revenue'))}</th><th>${esc(t('cp.share'))}</th>
+        <th>${esc(t('mk.avgSqm'))}</th><th>${esc(t('mk.revPerStore'))}</th><th>${esc(t('mk.revPerSqm'))}</th>
+        <th>${esc(t('cp.privateLabel'))}</th><th>${esc(t('mk.avgCheckEur'))}</th><th>${esc(t('mk.online'))}</th><th></th>
+        </tr></thead><tbody>` +
+        ((r.data || []).length ? r.data.map(c => `<tr>
+            <td class="mono">${esc(c.country_code)}</td>
+            <td><b>${esc(c.name)}</b>${Number(c.is_benchmark) ? ' <span class="pill info">' + esc(t('mk.benchmark')) + '</span>' : ''}</td>
+            <td class="muted">${esc(c.owner_group || '—')}</td>
+            <td>${num(c.store_count)}</td><td>${num(c.revenue_mln)}</td><td>${c.market_share_pct}%</td>
+            <td class="muted">${num(c.avg_store_sqm)}</td>
+            <td>${c.revenue_per_store_mln != null ? Number(c.revenue_per_store_mln).toFixed(2) : '—'}</td>
+            <td>${num(c.revenue_per_sqm)}</td>
+            <td>${c.private_label_pct}%</td><td>${c.avg_check_eur} €</td><td class="muted">${c.online_share_pct}%</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteChain(${c.id})">🗑</button></td>
+        </tr>`).join('') : `<tr><td colspan="13" class="empty">${esc(t('ui.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openMarketModal() {
+    openModal(`<h3>${esc(t('mk.newMarket'))}</h3>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('mk.country'))}</label><input id="mk_code" maxlength="5" placeholder="RO"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (RU)</label><input id="mk_name_ru"></div>
+            <div class="fg"><label>${esc(t('plg.name'))} (EN)</label><input id="mk_name_en"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('mk.population'))}</label><input id="mk_pop" type="number" step="0.01"></div>
+            <div class="fg"><label>${esc(t('mk.gdp'))}</label><input id="mk_gdp" type="number"></div>
+            <div class="fg"><label>${esc(t('mk.retailVolume'))}</label><input id="mk_retail" type="number"></div>
+        </div>
+        <div class="frow3">
+            <div class="fg"><label>${esc(t('mk.modernTrade'))}</label><input id="mk_modern" type="number" step="0.1"></div>
+            <div class="fg"><label>${esc(t('mk.top5'))}</label><input id="mk_top5" type="number" step="0.1"></div>
+            <div class="fg"><label>${esc(t('mk.avgCheckEur'))}</label><input id="mk_check" type="number" step="0.1"></div>
+        </div>
+        <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveMarket()">${esc(t('ui.save'))}</button>
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button></div>`);
+}
+
+async function saveMarket() {
+    const r = await api('/markets', 'POST', {dataset_id: datasetId() || null,
+        country_code: gv('mk_code'), name_ru: gv('mk_name_ru'), name_en: gv('mk_name_en'),
+        population_mln: gn('mk_pop'), gdp_per_capita: gn('mk_gdp'),
+        retail_volume_mln: gn('mk_retail'), modern_trade_pct: gn('mk_modern'),
+        top5_share_pct: gn('mk_top5'), avg_check_eur: gn('mk_check')});
+    toast(r.success ? t('ui.saved') : r.error, !r.success);
+    if (r.success) { closeModal(); loadMarkets(); }
+}
+
+async function deleteMarket(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/markets/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadMarkets();
+}
+
+async function deleteChain(id) {
+    if (!confirm(t('ui.confirmDel'))) return;
+    const r = await api('/chains/' + id, 'DELETE');
+    toast(r.success ? t('ui.deleted') : r.error, !r.success);
+    if (r.success) loadMarkets();
+}
+
 document.getElementById('globalSearch').addEventListener('keydown', ev => {
     if (ev.key !== 'Enter') return;
     const q = ev.target.value.trim();
