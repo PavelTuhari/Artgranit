@@ -519,3 +519,38 @@ nufarul (WP `/var/www/wpuna/.../biro26-wp`). Проверено сквозняк
 facebook), `utm_source=tg` → telegram, `gclid` → google-ads; cookie
 корректно читается обратно при конверсии (экранирование Werkzeug учтено).
 Тестовые строки удалены. `pymysql` добавлен в `requirements.txt`.
+
+### Рассинхрон деплоя, картинки impreso, health (2026-08-15)
+
+По заданию импорт-команды (`docs/Biro26/TASK_WEB_DEPLOY_SI_IMAGINI_IMPRESO.md`).
+
+**Причина рассинхрона** — точечные патчи: на officeplus уезжал список файлов,
+который поддерживался вручную, и `app.py` оказался из одного коммита, а
+`controllers/biro26_controller.py` — из другого (`pt/sources` давал 500 вместо
+401, `/api/biro26/img` — 404). **Деплой переведён на полное дерево**: `git
+archive HEAD` (29,5 МБ, только отслеживаемые файлы) распаковывается поверх
+`/home/ubuntu/artgranit` на обоих контурах — venv/.env/wallet не тронуты,
+выборочных списков больше нет. Рядом кладётся файл `DEPLOY_COMMIT`.
+
+**`GET /api/biro26/health`** (публичный): `commit` (из `DEPLOY_COMMIT`, локально
+из git), `started_at`, `routes`, `missing_controller_refs` — список ссылок
+`Biro26Controller.<метод>` из app.py, которых нет в контроллере. Тот же
+smoke-тест выполняется при старте приложения и пишет предупреждение в
+journalctl — рассинхрон виден при загрузке, а не 500-й в проде.
+
+**Заглушки «нет изображения»** (просьба §3): в `models/biro26_imgproxy.py`
+добавлены `STUB_MARKERS` (`noimage`, `no-image`, `no_image`, `placeholder`,
+`default.jpg`) и `is_stub()`; `proxy_url()` превращает такие URL в `NULL` —
+защита работает во всех трёх местах подстановки в `biro26_oracle_store.py`.
+
+**`/api/biro26/site/config` ускорен с ~5 с до ~0,2 с**: каждая интерогация шла
+через thick-подпроцесс Oracle (~1 с+), а config() делает 3–4. Введён кеш всей
+конфигурации (60 с) со **stale-while-revalidate** (протухший ответ отдаётся
+мгновенно, обновление в фоне) и прогревом при старте приложения; любой save в
+site-admin инвалидирует кеш немедленно.
+
+Проверено на бою (оба контура, commit `0200874`): pt/sources → 401; img-прокси
+→ 200 image/jpeg; SSRF-тесты (evil.example.com, 127.0.0.1) → 400; в выдаче
+products 191/200 картинок impreso идут через `/api/biro26/img?u=`, чужие
+HTTPS (papirus.md) не тронуты, stub'ов нет; полный обход 74 GET-маршрутов —
+только штатные 401/200.
