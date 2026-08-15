@@ -22,6 +22,7 @@ from controllers.shell_controller import ShellController
 from controllers.digi_marketing_controller import DigiMarketingController
 from controllers.tbcontrol_controller import TBControlController
 from controllers.planogram_controller import PlanogramController
+from controllers.plg_mobile_controller import PlgMobileController
 from controllers.colass_controller import ColassController
 import threading
 import time
