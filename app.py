@@ -819,7 +819,12 @@ def _docs_md_to_html(markdown_content):
     try:
         import markdown
         from markdown.extensions import codehilite, fenced_code, tables
-        md = markdown.Markdown(extensions=['codehilite', 'fenced_code', 'tables', 'nl2br'])
+        # toc даёт заголовкам якоря по тексту: без него внутренние ссылки
+        # вида [Раздел](#раздел) в документе никуда не ведут — просмотрщик
+        # нумерует заголовки как h0, h1, … и о слагах не знает.
+        md = markdown.Markdown(extensions=['codehilite', 'fenced_code', 'tables',
+                                           'nl2br', 'toc'],
+                               extension_configs={'toc': {'slugify': _docs_slugify}})
         return md.convert(markdown_content)
     except ImportError:
         import re
