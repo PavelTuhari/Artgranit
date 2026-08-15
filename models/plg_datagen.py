@@ -568,9 +568,12 @@ class DataGenerator:
         stores = self._fetch(
             "SELECT ID, CODE FROM PLG_STORES WHERE DATASET_ID = :p_ds ORDER BY ID",
             {"p_ds": self.dataset_id})
+        # ORDER BY обязателен: от порядка этого списка зависит, какие SKU
+        # rnd.sample() возьмёт в акцию и в планограмму, а значит и весь
+        # последующий спрос. Без него один и тот же seed даёт разные данные.
         products = self._fetch(
-            "SELECT ID, CATEGORY_ID, PRICE FROM PLG_PRODUCTS WHERE DATASET_ID = :p_ds",
-            {"p_ds": self.dataset_id})
+            "SELECT ID, CATEGORY_ID, PRICE FROM PLG_PRODUCTS WHERE DATASET_ID = :p_ds "
+            "ORDER BY ID", {"p_ds": self.dataset_id})
         if not stores or not products:
             return
         days = int(self.params.get('days') or 365)
@@ -584,9 +587,9 @@ class DataGenerator:
             self._check_cancel()
             zones = self._fetch(
                 "SELECT ID, CODE, CATEGORY_ID FROM PLG_ZONES WHERE STORE_ID = :p_st "
-                "AND ZONE_TYPE IN ('dept','promo_island')", {"p_st": store_id})
+                "AND ZONE_TYPE IN ('dept','promo_island') ORDER BY ID", {"p_st": store_id})
             fixtures = self._fetch(
-                "SELECT ID, ZONE_ID FROM PLG_FIXTURES WHERE STORE_ID = :p_st", {"p_st": store_id})
+                "SELECT ID, ZONE_ID FROM PLG_FIXTURES WHERE STORE_ID = :p_st ORDER BY ID", {"p_st": store_id})
             if not zones:
                 continue
 
@@ -921,7 +924,7 @@ class DataGenerator:
 
             # Проходимость зон: доля категории в продажах → нормируем в 0..100
             zones = self._fetch(
-                "SELECT ID, CATEGORY_ID, ZONE_TYPE FROM PLG_ZONES WHERE STORE_ID = :p_st",
+                "SELECT ID, CATEGORY_ID, ZONE_TYPE FROM PLG_ZONES WHERE STORE_ID = :p_st ORDER BY ID",
                 {"p_st": store_id})
             cat_share = {}
             total_qty = sum(float(q or 0) for (_, _, q, _) in cat_rows) or 1.0
