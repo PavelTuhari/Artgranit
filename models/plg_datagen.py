@@ -888,7 +888,9 @@ class DataGenerator:
             if not daily:
                 continue
 
-            srnd = random.Random(self.seed * 31 + int(store_id))
+            # Seed от НОМЕРА магазина в наборе, а не от PLG_STORES.ID —
+            # иначе повторная генерация с тем же seed даёт другие числа.
+            srnd = random.Random(self.seed * 31 + si)
             metric_rows = []
             for (d, amount, qty) in daily:
                 d = d.date() if hasattr(d, 'date') else d
