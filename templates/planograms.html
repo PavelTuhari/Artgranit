@@ -658,7 +658,7 @@ table.tbl tbody tr:hover { background: #f8fafc; }
 
             <!-- ===== Фреш: маршруты, профили категорий, заказ ===== -->
             <section class="panel" id="panel-fresh">
-                <div class="cards" id="freshStats"></div>
+                <div class="stat-grid" id="freshStats"></div>
                 <div class="card">
                     <div class="card-h">
                         <div>
@@ -692,7 +692,7 @@ table.tbl tbody tr:hover { background: #f8fafc; }
 
             <!-- ===== Заказы из торгового зала (мобильное приложение) ===== -->
             <section class="panel" id="panel-floor-orders">
-                <div class="cards" id="floorStats"></div>
+                <div class="stat-grid" id="floorStats"></div>
                 <div class="card">
                     <div class="card-h">
                         <div>
@@ -3390,6 +3390,388 @@ async function deleteChain(id) {
     const r = await api('/chains/' + id, 'DELETE');
     toast(r.success ? t('ui.deleted') : r.error, !r.success);
     if (r.success) loadMarkets();
+}
+
+// ==================== Фреш: маршруты, профили, заказ ====================
+//
+// Раздел собран вокруг одного вопроса категорийного менеджера: «сколько
+// заказать сегодня и сколько из этого спишется». Поэтому покрытие, срок
+// и ожидаемое списание стоят В ОДНОЙ строке с количеством, а не прячутся
+// в карточке товара: рекомендация, которую нельзя проверить взглядом,
+// не выполняется.
+
+const ROUTE_PILL = {dc: 'info', direct: 'ok'};
+const WEEK_LETTERS = {ru: 'ПВСЧПСВ', ro: 'LMMJVSD', en: 'MTWTFSS'};
+
+function weekMask(mask) {
+    const letters = WEEK_LETTERS[LANG] || WEEK_LETTERS.ru;
+    const m = String(mask || '1111111');
+    return '<span class="mono" style="letter-spacing:1px">' +
+        letters.split('').map((ch, i) => m[i] === '1'
+            ? `<b style="color:var(--ok)">${ch}</b>`
+            : `<span style="opacity:.28">${ch}</span>`).join('') + '</span>';
+}
+
+async function loadFresh() {
+    const store = document.getElementById('freshRouteFilter')?.value || '';
+    const [routes, profs, order] = await Promise.all([
+        api('/fresh/routes?store_id=' + (store || STORE_ID || '')),
+        api('/fresh/profiles'),
+        api('/fresh/order?store_id=' + (store || STORE_ID || '')),
+    ]);
+    fillFreshFilter();
+    if (routes.success) renderFreshRoutes(routes.data || []);
+    if (profs.success) renderFreshProfiles(profs.data || []);
+    if (order.success) renderFreshOrder(order);
+}
+
+function fillFreshFilter() {
+    const sel = document.getElementById('freshRouteFilter');
+    if (!sel || sel.dataset.filled) return;
+    sel.innerHTML = STORES.map(s =>
+        `<option value="${s.id}" ${s.id === STORE_ID ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+    sel.dataset.filled = '1';
+}
+
+function renderFreshRoutes(rows) {
+    document.getElementById('freshRoutesTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.category'))}</th><th>${esc(t('fr.route'))}</th>
+        <th>${esc(t('fr.partner'))}</th><th>${esc(t('fr.lead'))}</th><th>${esc(t('fr.transit'))}</th>
+        <th>${esc(t('fr.orderDays'))}</th><th>${esc(t('fr.deliveryDays'))}</th>
+        <th>${esc(t('fr.perWeek'))}</th><th>${esc(t('fr.cutoff'))}</th><th>${esc(t('fr.moq'))}</th><th></th>
+        </tr></thead><tbody>` + (rows.length ? rows.map(r => `<tr>
+            <td><b>${esc(r.category_name || '—')}</b></td>
+            <td><span class="pill ${ROUTE_PILL[r.route] || 'mute'}">${esc(t('fr.' + r.route, r.route))}</span></td>
+            <td class="muted">${esc(r.dc_name || r.supplier_name || '—')}</td>
+            <td>${r.lead_time_days} ${esc(t('fr.days'))}</td>
+            <td class="muted">${r.transit_days || 0}</td>
+            <td>${weekMask(r.order_days)}</td>
+            <td>${weekMask(r.delivery_days)}</td>
+            <td><b>${num(r.deliveries_per_week)}</b></td>
+            <td class="mono">${esc(r.cutoff_time || '—')}</td>
+            <td>${Number(r.min_order_qty) ? num(r.min_order_qty) : '—'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openFreshRouteModal(${r.id})">✎</button></td>
+        </tr>`).join('') : `<tr><td colspan="11" class="muted">${esc(t('common.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function renderFreshProfiles(rows) {
+    document.getElementById('freshProfTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.category'))}</th><th>${esc(t('fr.temp'))}</th>
+        <th>${esc(t('fr.shelfLife'))}</th><th>${esc(t('fr.receipt'))}</th>
+        <th>${esc(t('fr.presentation'))}</th><th>${esc(t('fr.salvage'))}</th>
+        <th>${esc(t('fr.wasteTarget'))}</th><th>${esc(t('fr.step'))}</th>
+        <th>${esc(t('ds.sku'))}</th><th></th></tr></thead><tbody>` +
+        (rows.length ? rows.map(p => `<tr>
+            <td><b>${esc(p.category_name)}</b></td>
+            <td><span class="pill mute" style="border-color:${p.temp_color}">${esc(p.temp_name)}</span>
+                <span class="muted small">${p.temp_min}…${p.temp_max} °C</span></td>
+            <td><b>${num(p.shelf_life_days)}</b> ${esc(t('fr.days'))}</td>
+            <td class="muted">${num(p.receipt_shelf_pct)}%</td>
+            <td>${num(p.presentation_min)}</td>
+            <td class="muted">${num(p.salvage_pct)}%</td>
+            <td>${num(p.waste_target_pct)}%</td>
+            <td class="muted">${p.round_step}</td>
+            <td>${num(p.sku_count)}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openFreshProfileModal(${p.id})">✎</button></td>
+        </tr>`).join('') : `<tr><td colspan="10" class="muted">${esc(t('common.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function renderFreshOrder(res) {
+    const rows = res.data || [], sum = res.summary || [];
+    const info = document.getElementById('freshRunInfo');
+    if (info) info.textContent = res.run_id ? `${t('fr.run')} #${res.run_id}` : (res.message || '');
+
+    const totQty = sum.reduce((a, b) => a + Number(b.order_qty || 0), 0);
+    const totAmt = sum.reduce((a, b) => a + Number(b.order_amount || 0), 0);
+    const totWaste = sum.reduce((a, b) => a + Number(b.waste_amount || 0), 0);
+    const limited = sum.reduce((a, b) => a + Number(b.shelf_limited || 0), 0);
+    const wastePct = totAmt ? (totWaste / totAmt * 100) : 0;
+    document.getElementById('freshStats').innerHTML =
+        `<div class="stat"><div class="lb">${esc(t('fr.orderQty'))}</div><div class="vl">${num(Math.round(totQty))}</div>
+            <div class="sb">${rows.length} SKU</div></div>
+         <div class="stat g"><div class="lb">${esc(t('fr.orderAmount'))}</div><div class="vl">${money(totAmt)}</div>
+            <div class="sb">${sum.map(s => t('fr.' + s.route, s.route)).join(' · ') || '—'}</div></div>
+         <div class="stat ${wastePct > 6 ? 'r' : 'w'}"><div class="lb">${esc(t('fr.wasteExpected'))}</div>
+            <div class="vl">${money(totWaste)}</div><div class="sb">${wastePct.toFixed(2)}% ${esc(t('fr.ofOrder'))}</div></div>
+         <div class="stat ${limited ? 'r' : ''}"><div class="lb">${esc(t('fr.shelfLimited'))}</div>
+            <div class="vl">${num(limited)}</div><div class="sb">${esc(t('fr.shelfLimitedSub'))}</div></div>`;
+
+    document.getElementById('freshOrderTbl').innerHTML = `
+        <thead><tr><th>${esc(t('plg.product'))}</th><th>${esc(t('plg.category'))}</th>
+        <th>${esc(t('fr.route'))}</th><th>${esc(t('fr.shelfLife'))}</th>
+        <th>${esc(t('fr.coverage'))}</th><th>${esc(t('fr.nextDelivery'))}</th>
+        <th>${esc(t('fc.stock'))}</th><th>${esc(t('fc.order'))}</th>
+        <th>${esc(t('fr.waste'))}</th><th>${esc(t('fc.amount'))}</th></tr></thead><tbody>` +
+        (rows.length ? rows.slice(0, 300).map(r => {
+            const wp = Number(r.order_qty) ? Number(r.waste_forecast) / Number(r.order_qty) * 100 : 0;
+            return `<tr>
+            <td><b>${esc(r.product_name)}</b><div class="muted small mono">${esc(r.product_code)}</div></td>
+            <td class="muted">${esc(r.category_name || '—')}</td>
+            <td><span class="pill ${ROUTE_PILL[r.route] || 'mute'}">${esc(t('fr.' + r.route, r.route || '—'))}</span></td>
+            <td class="muted">${num(r.shelf_life_days)} ${esc(t('fr.days'))}</td>
+            <td>${r.coverage_days ? Number(r.coverage_days).toFixed(1) : '—'}
+                ${Number(r.shelf_limited) ? `<span class="pill warn" title="${esc(t('fr.shelfLimitedHint'))}">${esc(t('fr.limited'))}</span>` : ''}</td>
+            <td class="muted">${fmtDate(r.next_delivery)}</td>
+            <td class="muted">${num(r.stock_on_hand)}</td>
+            <td><b>${num(r.order_qty)}</b> <span class="muted small">${esc(r.uom || '')}</span></td>
+            <td class="${wp > 8 ? 'bad' : ''}">${num(r.waste_forecast)} <span class="muted small">${wp.toFixed(1)}%</span></td>
+            <td>${money(r.order_amount)}</td></tr>`;
+        }).join('') : `<tr><td colspan="10" class="muted">${esc(t('fr.noRun'))}</td></tr>`) + '</tbody>';
+}
+
+async function openFreshRouteModal(id) {
+    const r = await api('/fresh/routes?store_id=' + (STORE_ID || ''));
+    const row = (r.data || []).find(x => x.id === id);
+    if (!row) return;
+    openModal(`
+        <h3>${esc(t('fr.editRoute'))} — ${esc(row.category_name || '')}</h3>
+        <div class="frm">
+            <label>${esc(t('fr.route'))}
+                <select id="frRoute"><option value="dc" ${row.route === 'dc' ? 'selected' : ''}>${esc(t('fr.dc'))}</option>
+                <option value="direct" ${row.route === 'direct' ? 'selected' : ''}>${esc(t('fr.direct'))}</option></select></label>
+            <label>${esc(t('fr.lead'))}<input id="frLead" type="number" step="0.5" value="${row.lead_time_days}"></label>
+            <label>${esc(t('fr.transit'))}<input id="frTransit" type="number" step="0.5" value="${row.transit_days || 0}"></label>
+            <label>${esc(t('fr.orderDays'))}<input id="frOrderDays" value="${esc(row.order_days)}" maxlength="7"></label>
+            <label>${esc(t('fr.deliveryDays'))}<input id="frDeliveryDays" value="${esc(row.delivery_days)}" maxlength="7"></label>
+            <label>${esc(t('fr.cutoff'))}<input id="frCutoff" value="${esc(row.cutoff_time || '')}"></label>
+            <label>${esc(t('fr.moq'))}<input id="frMoq" type="number" step="0.1" value="${row.min_order_qty || 0}"></label>
+            <label>${esc(t('fr.receipt'))}<input id="frReceipt" type="number" step="1" value="${row.receipt_shelf_pct || ''}"></label>
+        </div>
+        <div class="muted small" style="margin-top:8px">${esc(t('fr.maskHint'))}</div>
+        <div class="modal-f">
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('common.cancel'))}</button>
+            <button class="btn btn-primary" onclick="saveFreshRoute(${id})">${esc(t('common.save'))}</button>
+        </div>`);
+}
+
+async function saveFreshRoute(id) {
+    const r = await api('/fresh/routes/' + id, 'PUT', {
+        route: gv('frRoute'), lead_time_days: gn('frLead'), transit_days: gn('frTransit'),
+        order_days: gv('frOrderDays'), delivery_days: gv('frDeliveryDays'),
+        cutoff_time: gv('frCutoff'), min_order_qty: gn('frMoq'),
+        receipt_shelf_pct: gn('frReceipt'),
+    });
+    if (!r.success) { toast(r.error, true); return; }
+    closeModal(); toast(t('common.saved')); loadFresh();
+}
+
+async function openFreshProfileModal(id) {
+    const r = await api('/fresh/profiles');
+    const p = (r.data || []).find(x => x.id === id);
+    if (!p) return;
+    openModal(`
+        <h3>${esc(t('fr.editProfile'))} — ${esc(p.category_name)}</h3>
+        <div class="frm">
+            <label>${esc(t('fr.shelfLife'))}<input id="fpShelf" type="number" value="${p.shelf_life_days}"></label>
+            <label>${esc(t('fr.receipt'))}<input id="fpReceipt" type="number" value="${p.receipt_shelf_pct}"></label>
+            <label>${esc(t('fr.presentation'))}<input id="fpPresent" type="number" step="0.1" value="${p.presentation_min}"></label>
+            <label>${esc(t('fr.salvage'))}<input id="fpSalvage" type="number" step="1" value="${p.salvage_pct}"></label>
+            <label>${esc(t('fr.wasteTarget'))}<input id="fpWaste" type="number" step="0.1" value="${p.waste_target_pct}"></label>
+            <label>${esc(t('fr.margin'))}<input id="fpMargin" type="number" step="0.1" value="${p.margin_pct}"></label>
+            <label>${esc(t('fr.step'))}<input id="fpStep" type="number" step="0.1" value="${p.round_step}"></label>
+        </div>
+        <div class="modal-f">
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('common.cancel'))}</button>
+            <button class="btn btn-primary" onclick="saveFreshProfile(${id})">${esc(t('common.save'))}</button>
+        </div>`);
+}
+
+async function saveFreshProfile(id) {
+    const r = await api('/fresh/profiles/' + id, 'PUT', {
+        shelf_life_days: gn('fpShelf'), receipt_shelf_pct: gn('fpReceipt'),
+        presentation_min: gn('fpPresent'), salvage_pct: gn('fpSalvage'),
+        waste_target_pct: gn('fpWaste'), margin_pct: gn('fpMargin'), round_step: gn('fpStep'),
+    });
+    if (!r.success) { toast(r.error, true); return; }
+    closeModal(); toast(t('common.saved')); loadFresh();
+}
+
+// ==================== Заказы из зала и голосовой контур ====================
+
+const FLOOR_PILL = {draft: 'mute', submitted: 'info', accepted: 'ok',
+                    rejected: 'bad', cancelled: 'mute'};
+const ITEM_PILL = {ok: 'ok', ambiguous: 'warn', unmatched: 'bad', removed: 'mute'};
+
+async function loadFloorOrders() {
+    const status = document.getElementById('floorStatusFilter')?.value || '';
+    fillFloorFilter();
+    const [orders, devices, log, syn] = await Promise.all([
+        api('/floor-orders?store_id=' + (STORE_ID || '') + (status ? '&status=' + status : '')),
+        api('/devices?store_id=' + (STORE_ID || '')),
+        api('/voice/log?store_id=' + (STORE_ID || '') + '&limit=60'),
+        api('/voice/synonyms'),
+    ]);
+    if (orders.success) renderFloorOrders(orders.data || []);
+    if (devices.success) renderDevices(devices.data || []);
+    if (log.success) renderVoiceLog(log.data || []);
+    if (syn.success) renderSynonyms(syn.data || []);
+}
+
+function fillFloorFilter() {
+    const sel = document.getElementById('floorStatusFilter');
+    if (!sel || sel.dataset.filled) return;
+    sel.innerHTML = `<option value="">${esc(t('common.all'))}</option>` +
+        ['draft', 'submitted', 'accepted', 'rejected', 'cancelled'].map(s =>
+            `<option value="${s}">${esc(t('fo.' + s, s))}</option>`).join('');
+    sel.dataset.filled = '1';
+}
+
+function renderFloorOrders(rows) {
+    const submitted = rows.filter(r => r.status === 'submitted').length;
+    const attention = rows.reduce((a, b) => a + Number(b.needs_attention || 0), 0);
+    const amount = rows.filter(r => r.status !== 'cancelled')
+        .reduce((a, b) => a + Number(b.total_amount || 0), 0);
+    document.getElementById('floorStats').innerHTML =
+        `<div class="stat"><div class="lb">${esc(t('fo.orders'))}</div><div class="vl">${num(rows.length)}</div>
+            <div class="sb">${esc(t('fo.forStore'))}</div></div>
+         <div class="stat ${submitted ? 'w' : 'g'}"><div class="lb">${esc(t('fo.waiting'))}</div>
+            <div class="vl">${num(submitted)}</div><div class="sb">${esc(t('fo.needDecision'))}</div></div>
+         <div class="stat ${attention ? 'r' : 'g'}"><div class="lb">${esc(t('fo.attention'))}</div>
+            <div class="vl">${num(attention)}</div><div class="sb">${esc(t('fo.unrecognized'))}</div></div>
+         <div class="stat g"><div class="lb">${esc(t('fo.amount'))}</div><div class="vl">${money(amount)}</div>
+            <div class="sb">—</div></div>`;
+
+    document.getElementById('floorOrdersTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fo.number'))}</th><th>${esc(t('fo.device'))}</th>
+        <th>${esc(t('fo.source'))}</th><th>${esc(t('plg.status'))}</th>
+        <th>${esc(t('fo.items'))}</th><th>${esc(t('fc.amount'))}</th>
+        <th>${esc(t('fo.created'))}</th><th></th></tr></thead><tbody>` +
+        (rows.length ? rows.map(o => `<tr>
+            <td class="mono">${esc(o.order_no)}</td>
+            <td>${esc(o.device_name || '—')}<div class="muted small">${esc(o.platform || '')}</div></td>
+            <td><span class="pill mute">${esc(t('fo.src.' + o.source, o.source))}</span></td>
+            <td><span class="pill ${FLOOR_PILL[o.status] || 'mute'}">${esc(t('fo.' + o.status, o.status))}</span>
+                ${Number(o.needs_attention) ? `<span class="pill bad">${num(o.needs_attention)}</span>` : ''}</td>
+            <td>${num(o.item_count)}</td>
+            <td>${money(o.total_amount)}</td>
+            <td class="muted">${fmtTs(o.created_at)}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick="openFloorOrder(${o.id})">👁</button>
+                ${o.status === 'submitted' ? `
+                <button class="btn btn-ghost btn-sm" onclick="reviewFloorOrder(${o.id}, 'accepted')">✓</button>
+                <button class="btn btn-ghost btn-sm" onclick="reviewFloorOrder(${o.id}, 'rejected')">✕</button>` : ''}
+            </td></tr>`).join('') :
+            `<tr><td colspan="8" class="muted">${esc(t('common.empty'))}</td></tr>`) + '</tbody>';
+}
+
+async function openFloorOrder(id) {
+    const r = await api('/floor-orders?store_id=' + (STORE_ID || ''));
+    const o = (r.data || []).find(x => x.id === id);
+    const log = await api('/voice/log?store_id=' + (STORE_ID || '') + '&limit=200');
+    const phrases = (log.data || []).filter(v => v.order_id === id);
+    openModal(`
+        <h3>${esc(o ? o.order_no : '')} — ${esc(o ? t('fo.' + o.status, o.status) : '')}</h3>
+        <table class="tbl">
+            <tr><td class="muted">${esc(t('fo.device'))}</td><td>${esc(o?.device_name || '—')}</td>
+                <td class="muted">${esc(t('fc.amount'))}</td><td>${money(o?.total_amount)}</td></tr>
+            <tr><td class="muted">${esc(t('fo.created'))}</td><td>${fmtTs(o?.created_at)}</td>
+                <td class="muted">${esc(t('fo.zone'))}</td><td>${esc(o?.zone_name || '—')}</td></tr>
+        </table>
+        <h3 style="margin-top:14px">${esc(t('fo.phrases'))}</h3>
+        ${phrases.length ? phrases.map(p => `<div class="quote" style="margin:6px 0">
+            «${esc(p.raw_text)}»<div class="muted small">${esc(t('fo.intent'))}: ${esc(p.intent)} ·
+            ${esc(t('fo.confidence'))} ${p.confidence ?? '—'}%</div></div>`).join('')
+          : `<div class="muted">${esc(t('common.empty'))}</div>`}
+        <div class="modal-f"><button class="btn btn-ghost" onclick="closeModal()">${esc(t('common.close'))}</button></div>`);
+}
+
+async function reviewFloorOrder(id, decision) {
+    const r = await api('/floor-orders/' + id + '/review', 'POST', {decision});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(t('common.saved')); loadFloorOrders();
+}
+
+function renderDevices(rows) {
+    document.getElementById('devicesTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fo.device'))}</th><th>${esc(t('fo.user'))}</th>
+        <th>${esc(t('plg.status'))}</th><th>${esc(t('fo.platform'))}</th>
+        <th>${esc(t('fo.limit'))}</th><th>${esc(t('fo.lastSeen'))}</th>
+        <th>${esc(t('fo.orders'))}</th><th></th></tr></thead><tbody>` +
+        (rows.length ? rows.map(d => `<tr>
+            <td><b>${esc(d.display_name || '—')}</b>
+                ${d.pair_code ? `<div class="muted small mono">${esc(t('fo.pairCode'))}: ${esc(d.pair_code)}</div>` : ''}</td>
+            <td class="muted">${esc(d.username || '—')}</td>
+            <td><span class="pill ${d.status === 'active' ? 'ok' : d.status === 'revoked' ? 'bad' : 'warn'}">
+                ${esc(t('fo.dev.' + d.status, d.status))}</span></td>
+            <td class="muted">${esc(d.platform || '—')} ${esc(d.app_version || '')}</td>
+            <td>${Number(d.order_limit) ? money(d.order_limit) : '—'}</td>
+            <td class="muted">${fmtTs(d.last_seen)}</td>
+            <td>${num(d.order_count)} / ${num(d.voice_count)}</td>
+            <td>${d.status === 'revoked' ? '' :
+                `<button class="btn btn-ghost btn-sm" onclick="revokeDevice(${d.id})">${esc(t('fo.revoke'))}</button>`}</td>
+        </tr>`).join('') : `<tr><td colspan="8" class="muted">${esc(t('common.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function openDeviceModal() {
+    openModal(`
+        <h3>${esc(t('fo.newDevice'))}</h3>
+        <div class="frm">
+            <label>${esc(t('fo.deviceName'))}<input id="devName" placeholder="iPhone зав. секцией"></label>
+            <label>${esc(t('fo.user'))}<input id="devUser" placeholder="ivanov"></label>
+            <label>${esc(t('fo.lang'))}
+                <select id="devLang"><option value="ru">RU</option><option value="ro">RO</option><option value="en">EN</option></select></label>
+            <label>${esc(t('fo.limit'))}<input id="devLimit" type="number" value="0"></label>
+        </div>
+        <div class="muted small" style="margin-top:8px">${esc(t('fo.pairHint'))}</div>
+        <div class="modal-f">
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('common.cancel'))}</button>
+            <button class="btn btn-primary" onclick="saveDevice()">${esc(t('common.save'))}</button>
+        </div>`);
+}
+
+async function saveDevice() {
+    const r = await api('/devices', 'POST', {
+        store_id: STORE_ID, display_name: gv('devName'), username: gv('devUser'),
+        lang: gv('devLang'), order_limit: gn('devLimit') || 0,
+    });
+    if (!r.success) { toast(r.error, true); return; }
+    closeModal();
+    // Код показываем в модальном окне: он одноразовый и больше нигде не всплывёт
+    openModal(`<h3>${esc(t('fo.pairCode'))}</h3>
+        <div style="font-size:34px;font-weight:800;letter-spacing:6px;text-align:center;padding:18px 0">
+            ${esc(r.pair_code)}</div>
+        <div class="muted small">${esc(t('fo.pairCodeHint'))}</div>
+        <div class="modal-f"><button class="btn btn-primary" onclick="closeModal();loadFloorOrders()">
+            ${esc(t('common.close'))}</button></div>`);
+}
+
+async function revokeDevice(id) {
+    const r = await api('/devices/' + id + '/revoke', 'POST');
+    if (!r.success) { toast(r.error, true); return; }
+    toast(t('common.saved')); loadFloorOrders();
+}
+
+function renderVoiceLog(rows) {
+    document.getElementById('voiceLogTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fo.phrase'))}</th><th>${esc(t('fo.intent'))}</th>
+        <th>${esc(t('fo.lang'))}</th><th>${esc(t('fo.recognized'))}</th>
+        <th>${esc(t('fo.confidence'))}</th><th>${esc(t('fo.device'))}</th>
+        <th>${esc(t('fo.created'))}</th></tr></thead><tbody>` +
+        (rows.length ? rows.map(v => `<tr>
+            <td>«${esc(v.raw_text)}»</td>
+            <td><span class="pill mute">${esc(v.intent || '—')}</span></td>
+            <td class="mono muted">${esc(v.lang)}</td>
+            <td>${num(v.matched)} / ${num(v.item_count)}
+                ${Number(v.unmatched) ? `<span class="pill bad">${num(v.unmatched)}</span>` : ''}</td>
+            <td class="${Number(v.confidence) < 45 ? 'bad' : ''}">${v.confidence ?? '—'}%</td>
+            <td class="muted">${esc(v.device_name || '—')}</td>
+            <td class="muted">${fmtTs(v.created_at)}</td>
+        </tr>`).join('') : `<tr><td colspan="7" class="muted">${esc(t('common.empty'))}</td></tr>`) + '</tbody>';
+}
+
+function renderSynonyms(rows) {
+    document.getElementById('synTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fo.phrase'))}</th><th>${esc(t('fo.lang'))}</th>
+        <th>${esc(t('plg.product'))}</th><th>${esc(t('plg.category'))}</th>
+        <th>${esc(t('fo.synSource'))}</th></tr></thead><tbody>` +
+        (rows.length ? rows.slice(0, 200).map(s => `<tr>
+            <td><b>${esc(s.phrase)}</b></td>
+            <td class="mono muted">${esc(s.lang)}</td>
+            <td>${esc(s.product_name || '—')}</td>
+            <td class="muted">${esc(s.category_name || '—')}</td>
+            <td><span class="pill ${s.source === 'learned' ? 'ok' : 'mute'}">
+                ${esc(t('fo.syn.' + s.source, s.source))}</span></td>
+        </tr>`).join('') : `<tr><td colspan="5" class="muted">${esc(t('common.empty'))}</td></tr>`) + '</tbody>';
 }
 
 // ==================== Бизнес-процессы: просмотрщик схем draw.io ====================
