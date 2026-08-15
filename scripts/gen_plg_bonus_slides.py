@@ -222,7 +222,7 @@ SLIDES = f"""
   </div>
   {livebar([('Открыть систему', f'{MODULE}#overview', ''),
             ('Загрузить свой набор данных', f'{MODULE}#testdata', 'blue'),
-            ('Сравнение моделей заказа', f'{MODULE}#fctruns', 'blue'),
+            ('Сравнение моделей заказа', f'{MODULE}#forecast', 'blue'),
             ('Как это устроено', f'{MODULE}/docs', 'blue')])}
   <div class="num">X</div>
 </section>
