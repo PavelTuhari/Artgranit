@@ -287,9 +287,224 @@ def run_algorithm(algorithm: str, series: Sequence[float], horizon: int,
     fn = ALGORITHMS.get(algorithm)
     if not fn:
         raise ValueError(f"Неизвестный алгоритм прогноза: {algorithm}")
-    if algorithm == 'promo_reg':
+    if algorithm in ('promo_reg', 'fresh'):
         return fn(series, horizon, params, ctx)
     return fn(series, horizon, params)
+
+
+# ==================== Заказ фреш: календарь и экономика ====================
+#
+# Отдельный слой поверх прогноза: спрос предсказывается одинаково, а вот
+# превращение прогноза в заказ у фреша принципиально другое.
+
+def _norm_cdf(x: float) -> float:
+    """Φ(x) через erf — стандартной библиотеки хватает, зависимостей не надо."""
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def _norm_pdf(x: float) -> float:
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
+def z_from_probability(p: float) -> float:
+    """
+    Обратная функция нормального распределения (Acklam, рациональное
+    приближение). Нужна там, где уровень сервиса не задан оператором,
+    а ВЫЧИСЛЕН из экономики — как критическое отношение newsvendor.
+    """
+    p = min(0.999999, max(0.000001, float(p)))
+    a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02,
+         1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
+    b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02,
+         6.680131188771972e+01, -1.328068155288572e+01]
+    c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+         -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00]
+    d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00,
+         3.754408661907416e+00]
+    p_low, p_high = 0.02425, 1 - 0.02425
+    if p < p_low:
+        q = math.sqrt(-2 * math.log(p))
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / \
+               ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    if p > p_high:
+        q = math.sqrt(-2 * math.log(1 - p))
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / \
+               ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    q = p - 0.5
+    r = q * q
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / \
+           (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+
+
+def _calendar_days(mask: Optional[str]) -> List[int]:
+    """'1111100' → [0,1,2,3,4]. Понедельник первый, как в date.weekday()."""
+    mask = (mask or '1111111').strip()
+    if len(mask) != 7 or set(mask) - {'0', '1'}:
+        return list(range(7))
+    days = [i for i, ch in enumerate(mask) if ch == '1']
+    return days or list(range(7))
+
+
+def delivery_schedule(origin: date, route: Dict, ahead: int = 21) -> Tuple[Optional[date], Optional[date]]:
+    """
+    Ближайшая и следующая за ней даты поставки по календарю маршрута.
+
+    Считаем честно по календарю, а не «плечо в днях»: у рыбы поставки
+    по понедельникам, средам и пятницам, и разрыв выходного (пятница → понедельник)
+    втрое больше буднего. Именно этот разрыв определяет, сколько товара нужно
+    заказать, — усреднённое «раз в 2.3 дня» даёт систематический недозаказ
+    перед выходными и перезаказ в середине недели.
+    """
+    order_days = set(_calendar_days(route.get('order_days')))
+    delivery_days = set(_calendar_days(route.get('delivery_days')))
+    lead = float(route.get('lead_time_days') or 1)
+
+    found: List[date] = []
+    for offset in range(0, ahead + 1):
+        day = origin + timedelta(days=offset)
+        if day.weekday() not in order_days and offset == 0:
+            continue
+        # Заказ, размещённый сегодня, приезжает не раньше чем через lead дней
+        earliest = origin + timedelta(days=int(math.ceil(lead)))
+        if day < earliest:
+            continue
+        if day.weekday() in delivery_days:
+            found.append(day)
+            if len(found) >= 2:
+                break
+    if not found:
+        return None, None
+    return found[0], (found[1] if len(found) > 1 else None)
+
+
+def fresh_order(daily_forecast: Sequence[float], origin: date, route: Dict,
+                economics: Dict, params: Dict) -> Dict[str, Any]:
+    """
+    Заказ скоропортящегося товара.
+
+    Логика, по шагам:
+
+    1. По календарю маршрута находим ближайшую поставку d1 и следующую d2.
+       Партия должна прокормить полку от d1 до d2 — это и есть окно защиты.
+    2. Спрос на окне берём из прогноза (он уже дневной и с профилем недели),
+       а не из среднего: разрыв выходного считается по фактическим дням.
+    3. Уровень сервиса НЕ задаётся оператором. Он вычисляется из экономики:
+         Cu = цена − себестоимость          (теряем, если не хватило)
+         Co = себестоимость − возврат уценкой (теряем, если списали)
+         CR = Cu / (Cu + Co)
+       У молока с наценкой 26 % и полным списанием CR ≈ 0.79, у пекарни
+       с наценкой 42 % и уценкой 10 % — CR ≈ 0.85. Это и есть ответ на вопрос
+       «сколько держать на полке»: не «97 % по регламенту», а столько, сколько
+       выгодно именно по этому товару.
+    4. Ограничение сроком годности. Если остаточный срок на полке короче окна
+       защиты, партия физически не доживёт до следующей поставки — заказ
+       режется по сроку и помечается shelf_limited. Это не ошибка расчёта,
+       а сигнал категорийному менеджеру: маршрут или график не годятся.
+    5. Презентационный минимум: полка фреша не должна выглядеть пустой даже
+       при слабом спросе, иначе падают и продажи соседних позиций.
+    6. Ожидаемое списание считается функцией потерь нормального распределения
+       E[max(0, S − D)] — чтобы рекомендация показывала свою цену, а не только
+       количество.
+    """
+    horizon = len(daily_forecast)
+    d1, d2 = delivery_schedule(origin, route)
+    if not d1:
+        return {'order': 0.0, 'coverage': 0.0, 'waste': 0.0, 'shelf_limited': 0,
+                'next_delivery': None, 'safety': 0.0, 'reason': 'no_delivery_day'}
+
+    # Окно защиты: от ближайшей поставки до следующей. Если следующей в горизонте
+    # нет, берём типовой интервал по календарю поставок.
+    if d2:
+        window_days = max(1, (d2 - d1).days)
+    else:
+        per_week = len(_calendar_days(route.get('delivery_days')))
+        window_days = max(1, round(7 / max(1, per_week)))
+
+    def demand_between(day_from: date, days: int) -> float:
+        total = 0.0
+        for i in range(days):
+            idx = (day_from - origin).days + i - 1
+            if 0 <= idx < horizon:
+                total += float(daily_forecast[idx])
+            elif horizon:
+                total += sum(daily_forecast) / horizon   # за горизонтом — средний день
+        return total
+
+    # Остаточный срок годности на полке
+    shelf_life = float(economics.get('shelf_life_days') or 0)
+    receipt_pct = float(route.get('receipt_shelf_pct')
+                        or economics.get('receipt_shelf_pct') or 80)
+    transit = float(route.get('transit_days') or 0)
+    usable_days = max(0.5, shelf_life * receipt_pct / 100.0 - transit) if shelf_life else 999.0
+
+    coverage_days = float(window_days)
+    shelf_limited = 0
+    if usable_days < coverage_days:
+        coverage_days = usable_days
+        shelf_limited = 1
+
+    mu = demand_between(d1, int(math.ceil(coverage_days)))
+    # Спрос до прихода партии закрывается текущим остатком, а не заказом
+    mu_until_arrival = demand_between(origin + timedelta(days=1), max(0, (d1 - origin).days))
+
+    # Критическое отношение
+    price = float(economics.get('price') or 0)
+    cost = float(economics.get('cost') or 0) or price * 0.72
+    salvage = cost * float(economics.get('salvage_pct') or 0) / 100.0
+    waste_cost = cost * float(params.get('waste_cost_pct') or 100) / 100.0 - salvage
+    cu = max(0.01, price - cost)
+    co = max(0.01, waste_cost)
+    cr = cu / (cu + co)
+    cr = min(float(params.get('max_cr') or 0.97), max(float(params.get('min_cr') or 0.70), cr))
+    z = z_from_probability(cr)
+
+    sigma_daily = float(economics.get('sigma') or 0)
+    sigma = sigma_daily * math.sqrt(max(1.0, coverage_days))
+    safety = z * sigma
+
+    target = mu + safety
+    if params.get('use_presentation'):
+        target = max(target, float(economics.get('presentation_min') or 0))
+
+    stock = float(economics.get('stock_on_hand') or 0)
+    order = target - max(0.0, stock - mu_until_arrival)
+    order = max(0.0, order)
+
+    # Минимальная партия: округляем вверх, только если заказ уже близок к ней.
+    # Иначе минималка сама по себе создаёт списание — а именно с ним боремся.
+    moq = float(route.get('min_order_qty') or 0)
+    if moq > 0 and 0 < order < moq:
+        order = moq if order >= moq / 2 else 0.0
+
+    step = float(economics.get('round_step') or 0) or 0
+    pack = float(economics.get('pack') or 1)
+    if order > 0:
+        if pack > 1:
+            order = math.ceil(order / pack) * pack
+        elif step > 0:
+            order = math.ceil(order / step) * step
+
+    # Ожидаемое списание: сколько из партии не успеет продаться за usable_days
+    sell_days = min(usable_days, coverage_days) if shelf_life else coverage_days
+    mu_sell = demand_between(d1, int(math.ceil(sell_days))) if sell_days > 0 else mu
+    sigma_sell = sigma_daily * math.sqrt(max(1.0, sell_days))
+    available = order + max(0.0, stock - mu_until_arrival)
+    if sigma_sell > 0:
+        k = (available - mu_sell) / sigma_sell
+        waste = (available - mu_sell) * _norm_cdf(k) + sigma_sell * _norm_pdf(k)
+    else:
+        waste = max(0.0, available - mu_sell)
+
+    return {
+        'order': round(order, 3),
+        'coverage': round(coverage_days, 2),
+        'waste': round(max(0.0, waste), 3),
+        'shelf_limited': shelf_limited,
+        'next_delivery': d1,
+        'safety': round(safety, 3),
+        'critical_ratio': round(cr, 4),
+        'reason': 'ok',
+    }
 
 
 # ==================== Движок прогонов ====================
