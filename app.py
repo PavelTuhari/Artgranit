@@ -2913,6 +2913,107 @@ def api_plg_audit():
     return jsonify(PlanogramController.get_audit(request.args.get('limit', 200, type=int)))
 
 
+# --- Тестовые наборы данных ---
+@app.route('/api/plg/datasets', methods=['GET'])
+def api_plg_datasets():
+    return jsonify(PlanogramController.get_datasets(_plg_lang()))
+
+
+@app.route('/api/plg/datasets', methods=['POST'])
+def api_plg_create_dataset():
+    return jsonify(PlanogramController.create_dataset(request.get_json() or {}))
+
+
+@app.route('/api/plg/datasets/<int:dataset_id>', methods=['DELETE'])
+def api_plg_delete_dataset(dataset_id):
+    return jsonify(PlanogramController.delete_dataset(dataset_id))
+
+
+# --- Генерация тестовых данных ---
+@app.route('/api/plg/gen/algorithms', methods=['GET'])
+def api_plg_gen_algorithms():
+    return jsonify(PlanogramController.get_gen_algorithms(_plg_lang()))
+
+
+@app.route('/api/plg/gen/start', methods=['POST'])
+def api_plg_gen_start():
+    return jsonify(PlanogramController.start_generation(request.get_json() or {}))
+
+
+@app.route('/api/plg/gen/runs', methods=['GET'])
+def api_plg_gen_runs():
+    return jsonify(PlanogramController.get_gen_runs(
+        request.args.get('dataset_id', type=int),
+        request.args.get('limit', 50, type=int), _plg_lang()))
+
+
+@app.route('/api/plg/gen/runs/<int:run_id>', methods=['GET'])
+def api_plg_gen_run(run_id):
+    return jsonify(PlanogramController.get_gen_run(run_id, _plg_lang()))
+
+
+@app.route('/api/plg/gen/runs/<int:run_id>/cancel', methods=['POST'])
+def api_plg_gen_cancel(run_id):
+    return jsonify(PlanogramController.cancel_generation(run_id))
+
+
+# --- Прогноз заказов: алгоритмы и модели ---
+@app.route('/api/plg/forecast/algorithms', methods=['GET'])
+def api_plg_fct_algorithms():
+    return jsonify(PlanogramController.get_fct_algorithms(_plg_lang()))
+
+
+@app.route('/api/plg/forecast/models', methods=['GET'])
+def api_plg_fct_models():
+    return jsonify(PlanogramController.get_fct_models(_plg_lang()))
+
+
+@app.route('/api/plg/forecast/models', methods=['POST'])
+def api_plg_create_fct_model():
+    return jsonify(PlanogramController.save_fct_model(request.get_json() or {}))
+
+
+@app.route('/api/plg/forecast/models/<int:model_id>', methods=['PUT'])
+def api_plg_update_fct_model(model_id):
+    return jsonify(PlanogramController.save_fct_model(request.get_json() or {}, model_id))
+
+
+@app.route('/api/plg/forecast/models/<int:model_id>', methods=['DELETE'])
+def api_plg_delete_fct_model(model_id):
+    return jsonify(PlanogramController.delete_fct_model(model_id))
+
+
+# --- Прогноз заказов: прогоны ---
+@app.route('/api/plg/forecast/start', methods=['POST'])
+def api_plg_fct_start():
+    return jsonify(PlanogramController.start_forecast(request.get_json() or {}))
+
+
+@app.route('/api/plg/forecast/runs', methods=['GET'])
+def api_plg_fct_runs():
+    return jsonify(PlanogramController.get_fct_runs(
+        request.args.get('model_id', type=int),
+        request.args.get('dataset_id', type=int),
+        request.args.get('limit', 50, type=int), _plg_lang()))
+
+
+@app.route('/api/plg/forecast/runs/<int:run_id>', methods=['GET'])
+def api_plg_fct_run(run_id):
+    return jsonify(PlanogramController.get_fct_run(run_id, _plg_lang()))
+
+
+@app.route('/api/plg/forecast/runs/<int:run_id>/cancel', methods=['POST'])
+def api_plg_fct_cancel(run_id):
+    return jsonify(PlanogramController.cancel_forecast(run_id))
+
+
+@app.route('/api/plg/forecast/runs/<int:run_id>/orders', methods=['GET'])
+def api_plg_order_proposal(run_id):
+    return jsonify(PlanogramController.get_order_proposal(
+        run_id, request.args.get('store_id', type=int),
+        request.args.get('limit', 200, type=int), _plg_lang()))
+
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
