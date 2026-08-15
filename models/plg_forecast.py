@@ -877,12 +877,39 @@ class ForecastEngine:
                     sigma = 0.0
                 safety = z * sigma * math.sqrt(max(1, sku_lead))
 
-                horizon_demand = sum(fct)
-                lead_demand = (horizon_demand / horizon) * sku_lead if horizon else 0.0
-                need = horizon_demand + lead_demand + safety - stock_on_hand
-                order = max(0.0, need)
-                if self.model['round_to_pack'] and pack > 1 and order > 0:
-                    order = math.ceil(order / pack) * pack
+                route_code = coverage = waste_qty = next_delivery = None
+                shelf_limited = 0
+
+                if algorithm == 'fresh' and current_pid in fresh_econ:
+                    # Фреш считается по календарю маршрута и экономике списаний,
+                    # а не по «горизонт + плечо»: см. fresh_order().
+                    econ = dict(fresh_profiles.get(cat_id, {}))
+                    econ.update({k: v for k, v in fresh_econ[current_pid].items()
+                                 if v not in (None, 0) or k == 'cost'})
+                    econ.update({'sigma': sigma, 'stock_on_hand': stock_on_hand,
+                                 'pack': pack if self.model['round_to_pack'] else 1})
+                    route = fresh_routes.get(cat_id) or fresh_routes.get(None)
+                    if route:
+                        res = fresh_order(fct, origin, route, econ, params)
+                        order = res['order']
+                        safety = res['safety']
+                        route_code = route['route']
+                        coverage = res['coverage']
+                        waste_qty = res['waste']
+                        shelf_limited = res['shelf_limited']
+                        next_delivery = res['next_delivery']
+                    else:
+                        # Маршрута нет — заказ не выдумываем: пустая рекомендация
+                        # честнее, чем посчитанная по несуществующему графику.
+                        order = 0.0
+                        self.skipped += 1
+                else:
+                    horizon_demand = sum(fct)
+                    lead_demand = (horizon_demand / horizon) * sku_lead if horizon else 0.0
+                    need = horizon_demand + lead_demand + safety - stock_on_hand
+                    order = max(0.0, need)
+                    if self.model['round_to_pack'] and pack > 1 and order > 0:
+                        order = math.ceil(order / pack) * pack
                 self.order_sum += order
 
                 for h, d in enumerate(future_days):
