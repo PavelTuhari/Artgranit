@@ -176,6 +176,12 @@ def main() -> None:
     if not args.drop:
         order = [f for f in order if f != "00_drop.sql"]
 
+    if args.only:
+        order = [f for f in order if any(sub in f for sub in args.only)]
+        if not order:
+            print(f"Ошибка: под фильтр --only {' '.join(args.only)} не попал ни один файл.")
+            sys.exit(1)
+
     files = []
     for name in order:
         p = sql_dir / name
