@@ -924,10 +924,12 @@ class ForecastEngine:
                         shelf_limited = res['shelf_limited']
                         next_delivery = res['next_delivery']
                     else:
-                        # Маршрута нет — заказ не выдумываем: пустая рекомендация
-                        # честнее, чем посчитанная по несуществующему графику.
-                        order = 0.0
+                        # Маршрута нужного типа у категории нет — ряд вообще не наш.
+                        # Раньше здесь писался нулевой заказ, и обе модели показывали
+                        # одинаковые 846 рядов: молочка попадала в прогон «через РЦ»
+                        # с нулём вместо того, чтобы честно остаться за его рамками.
                         self.skipped += 1
+                        return
                 else:
                     horizon_demand = sum(fct)
                     lead_demand = (horizon_demand / horizon) * sku_lead if horizon else 0.0
