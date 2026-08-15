@@ -776,14 +776,19 @@ class DataGenerator:
         done_pairs = 0
         buffer: List[Tuple] = []
 
-        for store_id, fmt, area in stores:
+        # Порядковый номер товара внутри набора. Именно он, а НЕ PLG_PRODUCTS.ID,
+        # идёт в seed: ID выдаёт последовательность Oracle, поэтому у второго
+        # набора с тем же seed он другой, и данные переставали воспроизводиться.
+        prod_index = {int(p[0]): i for i, p in enumerate(products)}
+
+        for store_idx, (store_id, fmt, area) in enumerate(stores):
             self._check_cancel()
             prof = STORE_FORMATS.get(fmt, STORE_FORMATS['super'])
             share = prof['assortment_share']
             traffic_k = sum(prof['traffic']) / 2.0 / 3000.0   # нормировка к «среднему» супермаркету
 
-            # Ассортимент магазина детерминирован seed'ом магазина
-            srnd = random.Random(self.seed * 7919 + int(store_id))
+            # Ассортимент магазина детерминирован seed'ом и НОМЕРОМ магазина в наборе
+            srnd = random.Random(self.seed * 7919 + store_idx)
             local_products = products if share >= 0.999 else srnd.sample(
                 products, max(1, int(len(products) * share)))
 
@@ -791,7 +796,8 @@ class DataGenerator:
                 self._check_cancel()
                 cprof = CATEGORY_PROFILE.get(ccode, CATEGORY_PROFILE['grocery'])
                 lo, hi = abc_base.get(abc or 'C', abc_base['C'])
-                prnd = random.Random(self.seed * 104729 + int(store_id) * 7919 + int(prod_id))
+                prnd = random.Random(self.seed * 104729 + store_idx * 7919
+                                     + prod_index.get(int(prod_id), 0))
                 base = prnd.uniform(lo, hi) * traffic_k
                 yearly_amp = cprof['yearly_amp'] * (yearly_amp_k / 0.20)
                 phase = cprof['yearly_phase']
