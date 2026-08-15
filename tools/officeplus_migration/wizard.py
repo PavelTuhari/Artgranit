@@ -10,6 +10,12 @@ DNS и TLS. Под капотом запускает make_archive.py и deploy_a
 
     python3 wizard.py
 
+Если ваш python3 собран без tkinter (например, homebrew python3.14 выдаёт
+"No module named _tkinter") — возьмите системный или другой интерпретатор:
+
+    /usr/bin/python3 wizard.py            # macOS: системный, tkinter есть
+    python3.12 wizard.py                  # homebrew python3.12 — тоже есть
+
 Параметры сохраняются в migration.json рядом (без паролей — их тут и нет,
 только пути к SSH-ключам).
 """
