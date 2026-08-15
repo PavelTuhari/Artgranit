@@ -184,8 +184,8 @@ BEGIN
     FOR c IN 1 .. CASE WHEN r = 4 THEN 4 ELSE 5 END LOOP
       v_x := 170 + (c - 1) * 110;
       v_w := CASE WHEN c = 5 THEN 90 ELSE 80 END;
-      v_zcode := CASE c WHEN 1 THEN 'produce' WHEN 2 THEN 'snacks' WHEN 3 THEN 'grocery'
-                        WHEN 4 THEN 'health'  ELSE 'coffee' END;
+      v_zcode := CASE c WHEN 1 THEN 'produce' WHEN 2 THEN 'drinks' WHEN 3 THEN 'grocery'
+                        WHEN 4 THEN 'snacks'  ELSE 'coffee' END;
       SELECT ID INTO v_zone FROM PLG_ZONES WHERE STORE_ID = v_store AND CODE = v_zcode;
       v_idx := v_idx + 1;
       INSERT INTO PLG_FIXTURES (STORE_ID, ZONE_ID, CODE, FIXTURE_TYPE, NAME_RU, NAME_RO, NAME_EN,
