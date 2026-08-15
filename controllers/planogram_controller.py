@@ -1109,3 +1109,401 @@ class PlanogramController:
             return {"success": False, "error": str(e)}
         PlanogramController._audit("delete", entity_type, int(entity_id), table)
         return {"success": True}
+
+    # ==================== Наборы тестовых данных ====================
+
+    @staticmethod
+    def get_datasets(lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_PLG_DATASETS ORDER BY IS_PROTECTED DESC, CREATED_AT DESC")
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_dataset(data: Dict) -> Dict:
+        params = {
+            "p_code": (data.get("code") or "").strip() or None,
+            "p_kind": data.get("kind") or "test",
+            "p_descr": data.get("description"),
+            "p_stores": data.get("store_count") or 10,
+            "p_sku": data.get("sku_count") or 400,
+            "p_days": data.get("days") or 365,
+            "p_seed": data.get("seed") or 20260815,
+            "p_user": PlanogramController._username(),
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        if not params["p_name_ru"]:
+            return {"success": False, "error": "Не указано название набора"}
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "INSERT INTO PLG_DATASETS (CODE, KIND, NAME_RU, NAME_RO, NAME_EN, DESCRIPTION, "
+                    "STATUS, STORE_COUNT, SKU_COUNT, DAYS_DEPTH, SEED, CREATED_BY) "
+                    "VALUES (:p_code, :p_kind, :p_name_ru, :p_name_ro, :p_name_en, :p_descr, "
+                    "'building', :p_stores, :p_sku, :p_days, :p_seed, :p_user)", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+                row = PlanogramController._first(db.execute_query(
+                    "SELECT MAX(ID) AS ID FROM PLG_DATASETS"))
+                new_id = row.get("id") if row else None
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("create", "dataset", new_id, params["p_name_ru"])
+        return {"success": True, "id": new_id}
+
+    @staticmethod
+    def delete_dataset(dataset_id: int) -> Dict:
+        """
+        Удаляет набор целиком. Порядок обязателен: планограммы не каскадируются
+        от магазина (обычный FK), а позиции выкладки ссылаются на товар без каскада,
+        поэтому сначала документы, потом магазины, потом товары.
+        """
+        try:
+            with DatabaseModel() as db:
+                row = PlanogramController._first(db.execute_query(
+                    "SELECT CODE, IS_PROTECTED FROM PLG_DATASETS WHERE ID = :p_id",
+                    {"p_id": int(dataset_id)}))
+                if not row:
+                    return {"success": False, "error": "Набор не найден"}
+                if int(row.get("is_protected") or 0):
+                    return {"success": False,
+                            "error": f"Набор {row.get('code')} защищён от удаления"}
+                steps = [
+                    "DELETE FROM PLG_PLANOGRAMS WHERE STORE_ID IN "
+                    "(SELECT ID FROM PLG_STORES WHERE DATASET_ID = :p_id)",
+                    "DELETE FROM PLG_STORES WHERE DATASET_ID = :p_id",
+                    "DELETE FROM PLG_PRODUCTS WHERE DATASET_ID = :p_id",
+                    "DELETE FROM PLG_DATASETS WHERE ID = :p_id",
+                ]
+                for sql in steps:
+                    r = db.execute_query(sql, {"p_id": int(dataset_id)})
+                    if not r.get("success"):
+                        return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("delete", "dataset", int(dataset_id), row.get("code"))
+        return {"success": True}
+
+    # ==================== Генерация тестовых данных ====================
+
+    @staticmethod
+    def get_gen_algorithms(lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, "
+                    "PARAMS_JSON, STAGE_ORDER FROM PLG_GEN_ALGORITHMS WHERE IS_ACTIVE = 1 "
+                    "ORDER BY STAGE_ORDER")
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def start_generation(data: Dict) -> Dict:
+        """
+        Запускает генерацию. Если dataset_id не передан — создаёт новый набор
+        по параметрам запроса. Прогон идёт в фоновом потоке, прогресс пишется
+        в PLG_GEN_RUNS и опрашивается админкой.
+        """
+        from models.plg_datagen import DataGenerator
+
+        dataset_id = data.get("dataset_id")
+        params = {
+            "store_count": int(data.get("store_count") or 10),
+            "sku_count": int(data.get("sku_count") or 400),
+            "days": int(data.get("days") or 365),
+            "seed": int(data.get("seed") or 20260815),
+            "noise_pct": float(data.get("noise_pct") or 18),
+            "oos_rate": float(data.get("oos_rate") or 0.015),
+            "trend_pct_year": float(data.get("trend_pct_year") or 6),
+            "weekly_amplitude": float(data.get("weekly_amplitude") or 0.35),
+            "yearly_amplitude": float(data.get("yearly_amplitude") or 0.20),
+            "promo_per_store": int(data.get("promo_per_store") or 6),
+            "planogram_per_store": int(data.get("planogram_per_store") or 5),
+            "task_per_store": int(data.get("task_per_store") or 8),
+            "conversion_min": float(data.get("conversion_min") or 16),
+            "conversion_max": float(data.get("conversion_max") or 21),
+        }
+        if params["store_count"] < 1 or params["store_count"] > 100:
+            return {"success": False, "error": "Число магазинов должно быть от 1 до 100"}
+        if params["sku_count"] < 10 or params["sku_count"] > 5000:
+            return {"success": False, "error": "Число SKU должно быть от 10 до 5000"}
+        if params["days"] < 14 or params["days"] > 1095:
+            return {"success": False, "error": "Глубина истории должна быть от 14 до 1095 дней"}
+
+        if not dataset_id:
+            created = PlanogramController.create_dataset({
+                "name": data.get("name") or f"Тестовая сеть {params['store_count']}×{params['sku_count']}",
+                "name_ro": data.get("name_ro"), "name_en": data.get("name_en"),
+                "code": data.get("code"), "kind": data.get("kind") or "test",
+                "description": data.get("description"),
+                "store_count": params["store_count"], "sku_count": params["sku_count"],
+                "days": params["days"], "seed": params["seed"],
+            })
+            if not created.get("success"):
+                return created
+            dataset_id = created["id"]
+
+        stages = data.get("stages") or DataGenerator.STAGES
+        result = DataGenerator.launch(int(dataset_id), params, list(stages),
+                                      PlanogramController._username())
+        if result.get("success"):
+            PlanogramController._audit("generate", "dataset", int(dataset_id),
+                                       f"stages={','.join(result.get('stages') or [])}")
+        return result
+
+    @staticmethod
+    def get_gen_runs(dataset_id: Optional[int] = None, limit: int = 50,
+                     lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            limit = max(1, min(int(limit or 50), 500))
+        except (TypeError, ValueError):
+            limit = 50
+        sql = "SELECT * FROM V_PLG_GEN_RUNS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    sql + f" ORDER BY STARTED_AT DESC FETCH FIRST {limit} ROWS ONLY", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_gen_run(run_id: int, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                row = PlanogramController._first(db.execute_query(
+                    "SELECT * FROM V_PLG_GEN_RUNS WHERE ID = :p_id", {"p_id": int(run_id)}))
+                if not row:
+                    return {"success": False, "error": "Прогон не найден"}
+                return {"success": True, "data": PlanogramController._localize([row], lang)[0],
+                        "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def cancel_generation(run_id: int) -> Dict:
+        from models.plg_datagen import DataGenerator
+        result = DataGenerator.cancel(int(run_id))
+        if result.get("success"):
+            PlanogramController._audit("cancel", "gen_run", int(run_id), "")
+        return result
+
+    # ==================== Модели прогноза заказов ====================
+
+    @staticmethod
+    def get_fct_algorithms(lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, "
+                    "PARAMS_SCHEMA, PARAMS_JSON, MIN_HISTORY FROM PLG_FCT_ALGORITHMS "
+                    "WHERE IS_ACTIVE = 1 ORDER BY SORT_ORDER")
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_fct_models(lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("SELECT * FROM V_PLG_FCT_MODELS ORDER BY ALGORITHM, CODE")
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_fct_model(data: Dict, model_id: Optional[int] = None) -> Dict:
+        import json as _json
+        raw_params = data.get("params")
+        if isinstance(raw_params, dict):
+            params_json = _json.dumps(raw_params, ensure_ascii=False)
+        else:
+            params_json = (raw_params or "{}").strip()
+            try:
+                _json.loads(params_json)
+            except (ValueError, TypeError):
+                return {"success": False, "error": "Параметры модели — некорректный JSON"}
+
+        params = {
+            "p_code": (data.get("code") or "").strip(),
+            "p_algo": data.get("algorithm"),
+            "p_params": params_json[:2000],
+            "p_horizon": int(data.get("horizon_days") or 7),
+            "p_sl": float(data.get("service_level") or 95),
+            "p_lead": int(data.get("lead_time_days") or 2),
+            "p_pack": 1 if data.get("round_to_pack", 1) else 0,
+            "p_active": 1 if data.get("is_active", 1) else 0,
+            "p_default": 1 if data.get("is_default") else 0,
+        }
+        params.update(PlanogramController._multilang_params(data, "name", "p_name", required=True))
+        if not params["p_code"] or not params["p_algo"] or not params["p_name_ru"]:
+            return {"success": False, "error": "Код, алгоритм и название модели обязательны"}
+        if not 1 <= params["p_horizon"] <= 90:
+            return {"success": False, "error": "Горизонт прогноза — от 1 до 90 дней"}
+        if not 50 <= params["p_sl"] <= 99.9:
+            return {"success": False, "error": "Уровень сервиса — от 50 до 99.9 %"}
+        try:
+            with DatabaseModel() as db:
+                if model_id:
+                    params["p_id"] = int(model_id)
+                    r = db.execute_query(
+                        "UPDATE PLG_FCT_MODELS SET CODE = :p_code, ALGORITHM = :p_algo, "
+                        "NAME_RU = :p_name_ru, NAME_RO = :p_name_ro, NAME_EN = :p_name_en, "
+                        "PARAMS_JSON = :p_params, HORIZON_DAYS = :p_horizon, SERVICE_LEVEL = :p_sl, "
+                        "LEAD_TIME_DAYS = :p_lead, ROUND_TO_PACK = :p_pack, IS_ACTIVE = :p_active, "
+                        "IS_DEFAULT = :p_default WHERE ID = :p_id", params)
+                else:
+                    r = db.execute_query(
+                        "INSERT INTO PLG_FCT_MODELS (CODE, ALGORITHM, NAME_RU, NAME_RO, NAME_EN, "
+                        "PARAMS_JSON, HORIZON_DAYS, SERVICE_LEVEL, LEAD_TIME_DAYS, ROUND_TO_PACK, "
+                        "IS_ACTIVE, IS_DEFAULT, CREATED_BY) "
+                        "VALUES (:p_code, :p_algo, :p_name_ru, :p_name_ro, :p_name_en, :p_params, "
+                        ":p_horizon, :p_sl, :p_lead, :p_pack, :p_active, :p_default, :p_user)",
+                        {**params, "p_user": PlanogramController._username()})
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                if params["p_default"]:
+                    # Модель по умолчанию должна быть ровно одна
+                    db.execute_query(
+                        "UPDATE PLG_FCT_MODELS SET IS_DEFAULT = 0 WHERE CODE <> :p_code",
+                        {"p_code": params["p_code"]})
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("update" if model_id else "create", "fct_model",
+                                   model_id, params["p_code"])
+        return {"success": True}
+
+    @staticmethod
+    def delete_fct_model(model_id: int) -> Dict:
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query("DELETE FROM PLG_FCT_MODELS WHERE ID = :p_id",
+                                     {"p_id": int(model_id)})
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                db.connection.commit()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        PlanogramController._audit("delete", "fct_model", int(model_id), "")
+        return {"success": True}
+
+    # ==================== Прогоны прогноза ====================
+
+    @staticmethod
+    def start_forecast(data: Dict) -> Dict:
+        from models.plg_forecast import ForecastEngine
+        model_id = data.get("model_id")
+        if not model_id:
+            return {"success": False, "error": "Не выбрана модель прогноза"}
+        result = ForecastEngine.launch(
+            int(model_id), data.get("dataset_id"), data.get("store_id"),
+            data.get("mode") or "forecast", PlanogramController._username())
+        if result.get("success"):
+            PlanogramController._audit("forecast", "fct_run", result.get("run_id"),
+                                       f"model={result.get('model')} mode={result.get('mode')}")
+        return result
+
+    @staticmethod
+    def get_fct_runs(model_id: Optional[int] = None, dataset_id: Optional[int] = None,
+                     limit: int = 50, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            limit = max(1, min(int(limit or 50), 500))
+        except (TypeError, ValueError):
+            limit = 50
+        sql = "SELECT * FROM V_PLG_FCT_RUNS WHERE 1 = 1"
+        params: Dict[str, Any] = {}
+        if model_id:
+            sql += " AND MODEL_ID = :p_m"
+            params["p_m"] = int(model_id)
+        if dataset_id:
+            sql += " AND DATASET_ID = :p_ds"
+            params["p_ds"] = int(dataset_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    sql + f" ORDER BY STARTED_AT DESC FETCH FIRST {limit} ROWS ONLY", params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                return {"success": True, "data": PlanogramController._localized(r, lang), "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_fct_run(run_id: int, lang: str = DEFAULT_LANG) -> Dict:
+        lang = PlanogramController.lang(lang)
+        try:
+            with DatabaseModel() as db:
+                row = PlanogramController._first(db.execute_query(
+                    "SELECT * FROM V_PLG_FCT_RUNS WHERE ID = :p_id", {"p_id": int(run_id)}))
+                if not row:
+                    return {"success": False, "error": "Прогон не найден"}
+                return {"success": True, "data": PlanogramController._localize([row], lang)[0],
+                        "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def cancel_forecast(run_id: int) -> Dict:
+        from models.plg_forecast import ForecastEngine
+        result = ForecastEngine.cancel(int(run_id))
+        if result.get("success"):
+            PlanogramController._audit("cancel", "fct_run", int(run_id), "")
+        return result
+
+    @staticmethod
+    def get_order_proposal(run_id: int, store_id: Optional[int] = None,
+                           limit: int = 200, lang: str = DEFAULT_LANG) -> Dict:
+        """Рекомендуемый заказ по итогам прогона, отсортированный по сумме."""
+        lang = PlanogramController.lang(lang)
+        try:
+            limit = max(1, min(int(limit or 200), 2000))
+        except (TypeError, ValueError):
+            limit = 200
+        sql = "SELECT * FROM V_PLG_ORDER_PROPOSAL WHERE RUN_ID = :p_run AND ORDER_QTY > 0"
+        params: Dict[str, Any] = {"p_run": int(run_id)}
+        if store_id:
+            sql += " AND STORE_ID = :p_st"
+            params["p_st"] = int(store_id)
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    sql + f" ORDER BY ORDER_AMOUNT DESC NULLS LAST FETCH FIRST {limit} ROWS ONLY",
+                    params)
+                if not r.get("success"):
+                    return PlanogramController._fail(r)
+                rows = PlanogramController._localized(r, lang)
+                totals = PlanogramController._first(db.execute_query(
+                    "SELECT COUNT(*) AS SKU_COUNT, ROUND(SUM(ORDER_QTY),3) AS QTY_TOTAL, "
+                    "ROUND(SUM(ORDER_AMOUNT),2) AS AMOUNT_TOTAL "
+                    "FROM V_PLG_ORDER_PROPOSAL WHERE RUN_ID = :p_run AND ORDER_QTY > 0",
+                    {"p_run": int(run_id)})) or {}
+                return {"success": True, "data": rows, "totals": totals, "lang": lang}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
