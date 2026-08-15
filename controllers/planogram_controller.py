@@ -2622,7 +2622,8 @@ class PlanogramController:
                     f"UPDATE PLG_FRESH_ROUTES SET {', '.join(sets)} WHERE ID = :p_id", params)
                 if not r.get("success"):
                     return PlanogramController._fail(r)
-            PlanogramController._log("update", "fresh_route", route_id, str(payload)[:2000])
+                db.connection.commit()
+            PlanogramController._audit("update", "fresh_route", route_id, str(payload)[:2000])
             return {"success": True}
         except Exception as e:                                   # noqa: BLE001
             return {"success": False, "error": str(e)}
@@ -2665,7 +2666,8 @@ class PlanogramController:
                     f"UPDATE PLG_FRESH_PROFILES SET {', '.join(sets)} WHERE ID = :p_id", params)
                 if not r.get("success"):
                     return PlanogramController._fail(r)
-            PlanogramController._log("update", "fresh_profile", profile_id, str(payload)[:2000])
+                db.connection.commit()
+            PlanogramController._audit("update", "fresh_profile", profile_id, str(payload)[:2000])
             return {"success": True}
         except Exception as e:                                   # noqa: BLE001
             return {"success": False, "error": str(e)}
@@ -2680,18 +2682,24 @@ class PlanogramController:
         """
         try:
             with DatabaseModel() as db:
-                if not run_id:
+                if run_id:
+                    run_ids = [int(run_id)]
+                else:
+                    # Берём последний прогон КАЖДОЙ фреш-модели, а не просто
+                    # максимальный ID: иначе экран показывает только тот маршрут,
+                    # который считали последним, и половина заказа исчезает.
                     r = db.execute_query(
                         "SELECT MAX(r.ID) AS ID FROM PLG_FCT_RUNS r "
                         "JOIN PLG_FCT_MODELS m ON m.ID = r.MODEL_ID "
-                        "WHERE m.ALGORITHM = 'fresh' AND r.STATUS = 'done'")
-                    rows = PlanogramController._rows(r)
-                    run_id = rows[0].get("id") if rows else None
-                if not run_id:
+                        "WHERE m.ALGORITHM = 'fresh' AND r.STATUS = 'done' "
+                        "AND r.RUN_MODE = 'forecast' GROUP BY r.MODEL_ID")
+                    run_ids = [int(x["id"]) for x in PlanogramController._rows(r) if x.get("id")]
+                if not run_ids:
                     return {"success": True, "lang": lang, "data": [], "run_id": None,
                             "message": "Прогонов фреш-модели ещё не было"}
-                sql = "SELECT * FROM V_PLG_FRESH_ORDER WHERE RUN_ID = :p_run"
-                params: Dict[str, Any] = {"p_run": run_id}
+                in_list = ",".join(str(int(x)) for x in run_ids)   # значения из БД, не из запроса
+                sql = f"SELECT * FROM V_PLG_FRESH_ORDER WHERE RUN_ID IN ({in_list})"
+                params: Dict[str, Any] = {}
                 if store_id:
                     sql += " AND STORE_ID = :p_st"
                     params["p_st"] = store_id
@@ -2706,9 +2714,9 @@ class PlanogramController:
                     "ROUND(SUM(WASTE_FORECAST),2) AS WASTE_QTY, "
                     "ROUND(SUM(WASTE_AMOUNT),2) AS WASTE_AMOUNT, "
                     "SUM(SHELF_LIMITED) AS SHELF_LIMITED "
-                    "FROM V_PLG_FRESH_ORDER WHERE RUN_ID = :p_run GROUP BY ROUTE",
-                    {"p_run": run_id})
-            return {"success": True, "lang": lang, "run_id": run_id, "data": data,
+                    f"FROM V_PLG_FRESH_ORDER WHERE RUN_ID IN ({in_list}) GROUP BY ROUTE")
+            return {"success": True, "lang": lang, "run_id": run_ids[0],
+                    "run_ids": run_ids, "data": data,
                     "summary": PlanogramController._rows(summary)}
         except Exception as e:                                   # noqa: BLE001
             return {"success": False, "error": str(e)}
