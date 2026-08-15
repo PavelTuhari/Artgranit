@@ -388,10 +388,11 @@ class ForecastEngine:
         if not stores:
             return None
 
+        # Последняя дата истории по выбранному срезу. Список магазинов уже
+        # получен из БД (числа), поэтому подстановка в IN безопасна.
+        in_list = ",".join(str(int(s)) for s in stores)
         row = self._fetch(
-            "SELECT MAX(SALES_DATE) FROM PLG_SALES_DAILY WHERE STORE_ID IN "
-            "(SELECT COLUMN_VALUE FROM TABLE(SYS.ODCINUMBERLIST(" +
-            ",".join(str(s) for s in stores) + ")))")
+            f"SELECT MAX(SALES_DATE) FROM PLG_SALES_DAILY WHERE STORE_ID IN ({in_list})")
         last_date = row[0][0] if row and row[0][0] else None
         if not last_date:
             raise ValueError("Нет истории продаж: сначала сгенерируйте набор данных")
