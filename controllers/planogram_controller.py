@@ -195,10 +195,16 @@ class PlanogramController:
 
     @staticmethod
     def _resolve_store(db: DatabaseModel, store_id: Optional[int]) -> Optional[int]:
-        """Возвращает переданный магазин либо первый доступный."""
+        """
+        Возвращает переданный магазин либо магазин по умолчанию — тот, у которого
+        уже размечены зоны зала (пустой магазин показывать бессмысленно).
+        """
         if store_id:
             return int(store_id)
-        r = db.execute_query("SELECT MIN(ID) AS ID FROM PLG_STORES WHERE STATUS = 'active'")
+        r = db.execute_query(
+            "SELECT s.ID FROM PLG_STORES s WHERE s.STATUS = 'active' "
+            "ORDER BY (SELECT COUNT(*) FROM PLG_ZONES z WHERE z.STORE_ID = s.ID) DESC, s.ID "
+            "FETCH FIRST 1 ROWS ONLY")
         row = PlanogramController._first(r)
         return row.get("id") if row else None
 
