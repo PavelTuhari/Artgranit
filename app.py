@@ -6291,7 +6291,8 @@ def api_biro26_pt_remap():
 #     /api/biro26/pt/sources (fisiere din commit-uri diferite pe server).
 # EN: deployment health — running commit + controller-reference smoke test;
 #     a file/commit mismatch shows up here instead of as a prod 500.
-_HEALTH_STARTED = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+import datetime as _dt
+_HEALTH_STARTED = _dt.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
 
 def _biro26_route_check():
     import re as _re
