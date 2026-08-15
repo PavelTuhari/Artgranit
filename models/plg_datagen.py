@@ -27,7 +27,7 @@ import random
 import sys
 import threading
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, time as dtime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,6 +37,13 @@ if root_dir not in sys.path:
 from models.database import DatabaseConnection
 
 BATCH = 20000
+
+
+def datetime_at(day: date, hour_float: float) -> datetime:
+    """Собирает timestamp из даты и «дробного часа» (9.5 → 09:30)."""
+    hour = int(hour_float) % 24
+    minute = int(round((hour_float - int(hour_float)) * 60)) % 60
+    return datetime.combine(day, dtime(hour, minute))
 
 # ==================== Профили форматов магазина ====================
 # area — площадь зала, traffic — базовый суточный трафик,
@@ -198,7 +205,7 @@ class DataGenerator:
     _active: Dict[int, "DataGenerator"] = {}
     _lock = threading.Lock()
 
-    STAGES = ['network', 'assortment', 'suppliers', 'events', 'demand', 'traffic',
+    STAGES = ['network', 'suppliers', 'assortment', 'events', 'demand', 'traffic',
               'logistics', 'competitors', 'markets']
 
     def __init__(self, run_id: int, dataset_id: int, params: Dict[str, Any], stages: List[str]):
@@ -510,6 +517,16 @@ class DataGenerator:
         cats = self._categories()
         abc_split = self.params.get('abc_split') or [0.2, 0.3, 0.5]
         cur = self.conn.cursor()
+
+        # Поставщики по товарным группам: каждый SKU получает поставщика,
+        # который реально работает в этой категории (этап suppliers идёт раньше).
+        sup_by_cat: Dict[int, List[int]] = {}
+        for (sup_id, cat_id) in self._fetch(
+                "SELECT sc.SUPPLIER_ID, sc.CATEGORY_ID FROM PLG_SUPPLIER_CATEGORIES sc "
+                "JOIN PLG_SUPPLIERS s ON s.ID = sc.SUPPLIER_ID "
+                "WHERE s.DATASET_ID = :p_ds ORDER BY sc.SUPPLIER_ID, sc.CATEGORY_ID",
+                {"p_ds": self.dataset_id}):
+            sup_by_cat.setdefault(int(cat_id), []).append(int(sup_id))
 
         plan: List[Tuple[str, int]] = []
         for ccode, prof in CATEGORY_PROFILE.items():
