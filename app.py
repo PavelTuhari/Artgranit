@@ -2621,6 +2621,297 @@ def api_tbc_update_sla(sla_id):
     return jsonify(TBControlController.update_sla(sla_id, request.get_json() or {}))
 
 
+# ========== Планограммы (Planograms) Routes ==========
+
+def _plg_lang():
+    """Язык интерфейса модуля планограмм: ?lang=ru|ro|en."""
+    return PlanogramController.lang(request.args.get('lang'))
+
+
+@app.route('/UNA.md/orasldev/planograms')
+@app.route('/UNA.md/orasldev/planograms/')
+def planograms():
+    """Модуль «Планограммы» — выкладка товара, зоны зала, проходимость"""
+    if not AuthController.is_authenticated():
+        return redirect(url_for('login'))
+    return render_template('planograms.html')
+
+
+# --- Язык, словарь, справочники ---
+@app.route('/api/plg/langs', methods=['GET'])
+def api_plg_langs():
+    return jsonify(PlanogramController.get_langs(_plg_lang()))
+
+
+@app.route('/api/plg/i18n', methods=['GET'])
+def api_plg_i18n():
+    return jsonify(PlanogramController.get_i18n(_plg_lang()))
+
+
+@app.route('/api/plg/refs', methods=['GET'])
+def api_plg_refs():
+    return jsonify(PlanogramController.get_refs(_plg_lang()))
+
+
+@app.route('/api/plg/stores', methods=['GET'])
+def api_plg_stores():
+    return jsonify(PlanogramController.get_stores(_plg_lang()))
+
+
+# --- Дашборд и карта ---
+@app.route('/api/plg/dashboard', methods=['GET'])
+def api_plg_dashboard():
+    return jsonify(PlanogramController.get_dashboard(
+        request.args.get('store_id', type=int), _plg_lang(),
+        request.args.get('days', 14, type=int)))
+
+
+@app.route('/api/plg/map', methods=['GET'])
+def api_plg_map():
+    return jsonify(PlanogramController.get_store_map(
+        request.args.get('store_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/analytics', methods=['GET'])
+def api_plg_analytics():
+    return jsonify(PlanogramController.get_analytics(
+        request.args.get('store_id', type=int),
+        request.args.get('days', 14, type=int), _plg_lang()))
+
+
+# --- Зоны ---
+@app.route('/api/plg/zones', methods=['GET'])
+def api_plg_zones():
+    return jsonify(PlanogramController.get_zones(
+        request.args.get('store_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/zones', methods=['POST'])
+def api_plg_create_zone():
+    return jsonify(PlanogramController.save_zone(request.get_json() or {}))
+
+
+@app.route('/api/plg/zones/<int:zone_id>', methods=['PUT'])
+def api_plg_update_zone(zone_id):
+    return jsonify(PlanogramController.save_zone(request.get_json() or {}, zone_id))
+
+
+@app.route('/api/plg/zones/<int:zone_id>', methods=['DELETE'])
+def api_plg_delete_zone(zone_id):
+    return jsonify(PlanogramController.delete_zone(zone_id))
+
+
+# --- Оборудование ---
+@app.route('/api/plg/fixtures', methods=['GET'])
+def api_plg_fixtures():
+    return jsonify(PlanogramController.get_fixtures(
+        request.args.get('store_id', type=int),
+        request.args.get('zone_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/fixtures', methods=['POST'])
+def api_plg_create_fixture():
+    return jsonify(PlanogramController.save_fixture(request.get_json() or {}))
+
+
+@app.route('/api/plg/fixtures/<int:fixture_id>', methods=['PUT'])
+def api_plg_update_fixture(fixture_id):
+    return jsonify(PlanogramController.save_fixture(request.get_json() or {}, fixture_id))
+
+
+@app.route('/api/plg/fixtures/<int:fixture_id>', methods=['DELETE'])
+def api_plg_delete_fixture(fixture_id):
+    return jsonify(PlanogramController.delete_fixture(fixture_id))
+
+
+# --- Товары ---
+@app.route('/api/plg/products', methods=['GET'])
+def api_plg_products():
+    return jsonify(PlanogramController.get_products(
+        request.args.get('category_id', type=int),
+        request.args.get('q'), _plg_lang()))
+
+
+@app.route('/api/plg/products', methods=['POST'])
+def api_plg_create_product():
+    return jsonify(PlanogramController.save_product(request.get_json() or {}))
+
+
+@app.route('/api/plg/products/<int:product_id>', methods=['PUT'])
+def api_plg_update_product(product_id):
+    return jsonify(PlanogramController.save_product(request.get_json() or {}, product_id))
+
+
+@app.route('/api/plg/products/<int:product_id>', methods=['DELETE'])
+def api_plg_delete_product(product_id):
+    return jsonify(PlanogramController.delete_product(product_id))
+
+
+# --- Планограммы ---
+@app.route('/api/plg/planograms', methods=['GET'])
+def api_plg_planograms():
+    return jsonify(PlanogramController.get_planograms(
+        request.args.get('store_id', type=int), request.args.get('status'),
+        request.args.get('zone_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/planograms/<int:planogram_id>', methods=['GET'])
+def api_plg_planogram(planogram_id):
+    return jsonify(PlanogramController.get_planogram(planogram_id, _plg_lang()))
+
+
+@app.route('/api/plg/planograms', methods=['POST'])
+def api_plg_create_planogram():
+    return jsonify(PlanogramController.save_planogram(request.get_json() or {}))
+
+
+@app.route('/api/plg/planograms/<int:planogram_id>', methods=['PUT'])
+def api_plg_update_planogram(planogram_id):
+    return jsonify(PlanogramController.save_planogram(request.get_json() or {}, planogram_id))
+
+
+@app.route('/api/plg/planograms/<int:planogram_id>', methods=['DELETE'])
+def api_plg_delete_planogram(planogram_id):
+    return jsonify(PlanogramController.delete_planogram(planogram_id))
+
+
+@app.route('/api/plg/planograms/<int:planogram_id>/status', methods=['POST'])
+def api_plg_planogram_status(planogram_id):
+    data = request.get_json() or {}
+    return jsonify(PlanogramController.set_planogram_status(planogram_id, data.get('status', '')))
+
+
+# --- Позиции планограммы ---
+@app.route('/api/plg/planograms/<int:planogram_id>/items', methods=['POST'])
+def api_plg_create_item(planogram_id):
+    return jsonify(PlanogramController.save_planogram_item(planogram_id, request.get_json() or {}))
+
+
+@app.route('/api/plg/planograms/<int:planogram_id>/items/<int:item_id>', methods=['PUT'])
+def api_plg_update_item(planogram_id, item_id):
+    return jsonify(PlanogramController.save_planogram_item(
+        planogram_id, request.get_json() or {}, item_id))
+
+
+@app.route('/api/plg/items/<int:item_id>', methods=['DELETE'])
+def api_plg_delete_item(item_id):
+    return jsonify(PlanogramController.delete_planogram_item(item_id))
+
+
+# --- История изменений ---
+@app.route('/api/plg/history', methods=['GET'])
+def api_plg_history():
+    return jsonify(PlanogramController.get_history(
+        request.args.get('store_id', type=int),
+        request.args.get('planogram_id', type=int),
+        request.args.get('limit', 200, type=int), _plg_lang()))
+
+
+# --- Акции ---
+@app.route('/api/plg/promos', methods=['GET'])
+def api_plg_promos():
+    return jsonify(PlanogramController.get_promos(
+        request.args.get('store_id', type=int),
+        request.args.get('active') == '1', _plg_lang()))
+
+
+@app.route('/api/plg/promos', methods=['POST'])
+def api_plg_create_promo():
+    return jsonify(PlanogramController.save_promo(request.get_json() or {}))
+
+
+@app.route('/api/plg/promos/<int:promo_id>', methods=['PUT'])
+def api_plg_update_promo(promo_id):
+    return jsonify(PlanogramController.save_promo(request.get_json() or {}, promo_id))
+
+
+@app.route('/api/plg/promos/<int:promo_id>', methods=['DELETE'])
+def api_plg_delete_promo(promo_id):
+    return jsonify(PlanogramController.delete_promo(promo_id))
+
+
+# --- Задачи ---
+@app.route('/api/plg/tasks', methods=['GET'])
+def api_plg_tasks():
+    return jsonify(PlanogramController.get_tasks(
+        request.args.get('store_id', type=int), request.args.get('status'), _plg_lang()))
+
+
+@app.route('/api/plg/tasks', methods=['POST'])
+def api_plg_create_task():
+    return jsonify(PlanogramController.save_task(request.get_json() or {}))
+
+
+@app.route('/api/plg/tasks/<int:task_id>', methods=['PUT'])
+def api_plg_update_task(task_id):
+    return jsonify(PlanogramController.save_task(request.get_json() or {}, task_id))
+
+
+@app.route('/api/plg/tasks/<int:task_id>', methods=['DELETE'])
+def api_plg_delete_task(task_id):
+    return jsonify(PlanogramController.delete_task(task_id))
+
+
+# --- Документы ---
+@app.route('/api/plg/documents', methods=['GET'])
+def api_plg_documents():
+    return jsonify(PlanogramController.get_documents(
+        request.args.get('store_id', type=int),
+        request.args.get('planogram_id', type=int), _plg_lang()))
+
+
+@app.route('/api/plg/documents', methods=['POST'])
+def api_plg_create_document():
+    return jsonify(PlanogramController.save_document(request.get_json() or {}))
+
+
+@app.route('/api/plg/documents/<int:document_id>', methods=['PUT'])
+def api_plg_update_document(document_id):
+    return jsonify(PlanogramController.save_document(request.get_json() or {}, document_id))
+
+
+@app.route('/api/plg/documents/<int:document_id>', methods=['DELETE'])
+def api_plg_delete_document(document_id):
+    return jsonify(PlanogramController.delete_document(document_id))
+
+
+# --- Уведомления ---
+@app.route('/api/plg/notifications', methods=['GET'])
+def api_plg_notifications():
+    return jsonify(PlanogramController.get_notifications(
+        request.args.get('store_id', type=int),
+        request.args.get('unread') == '1', _plg_lang()))
+
+
+@app.route('/api/plg/notifications/<int:notification_id>/read', methods=['POST'])
+def api_plg_notification_read(notification_id):
+    return jsonify(PlanogramController.mark_notification_read(notification_id))
+
+
+@app.route('/api/plg/notifications/read-all', methods=['POST'])
+def api_plg_notifications_read_all():
+    return jsonify(PlanogramController.mark_notification_read(
+        None, request.args.get('store_id', type=int)))
+
+
+# --- Настройки и аудит ---
+@app.route('/api/plg/settings', methods=['GET'])
+def api_plg_settings():
+    return jsonify(PlanogramController.get_settings(_plg_lang()))
+
+
+@app.route('/api/plg/settings', methods=['POST'])
+def api_plg_save_setting():
+    data = request.get_json() or {}
+    return jsonify(PlanogramController.save_setting(
+        data.get('param_code', ''), data.get('param_value', '')))
+
+
+@app.route('/api/plg/audit', methods=['GET'])
+def api_plg_audit():
+    return jsonify(PlanogramController.get_audit(request.args.get('limit', 200, type=int)))
+
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
