@@ -814,6 +814,21 @@ def docs_index():
     return render_template('docs_index.html')
 
 
+def _docs_slugify(value, separator='-'):
+    """
+    Якорь заголовка в стиле GitHub, с сохранением кириллицы.
+
+    Стандартный slugify из markdown прогоняет текст через ASCII и от русского
+    заголовка не оставляет ничего — все внутренние ссылки документа ведут
+    в пустоту. Здесь режем только пунктуацию.
+    """
+    import re as _re
+    import unicodedata as _ud
+    text = _ud.normalize('NFKC', str(value)).strip().lower()
+    text = _re.sub(r'[^\w\s-]', '', text, flags=_re.UNICODE)
+    return _re.sub(r'[\s_]+', separator, text).strip(separator)
+
+
 def _docs_md_to_html(markdown_content):
     """Конвертация Markdown в HTML для docs viewer."""
     try:
