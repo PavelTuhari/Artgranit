@@ -230,7 +230,9 @@ class Biro26Site:
     # ── admin: sectiunile paginii principale on/off ────────────────────
     @staticmethod
     def section_save(d: Dict[str, Any]) -> Dict[str, Any]:
-        return Biro26DB().execute_dml(
+        r = Biro26DB().execute_dml(
             "UPDATE YBIRO_SITE_SECTION SET ENABLED=:e WHERE CODE=:c",
             {"e": "1" if str(d.get("enabled", "1")) == "1" else "0",
              "c": (d.get("code") or "")[:40]})
+        Biro26Site._invalidate()
+        return r
