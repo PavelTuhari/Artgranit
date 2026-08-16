@@ -2311,6 +2311,43 @@ def tbcontrol():
     return render_template('tbcontrol.html')
 
 
+@app.route('/UNA.md/orasldev/tbcontrol/presentation')
+def tbcontrol_presentation():
+    """HTML-презентация TBControl с живыми ссылками на панели системы"""
+    if not AuthController.is_authenticated():
+        return redirect(url_for('login', next=request.path))
+    from flask import send_file
+    return send_file(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  'docs', 'TBControl', 'presentation.html'))
+
+
+_TBC_DOCS = {
+    'INDEX': 'TBControl — полная документация',
+    'TECHNICAL-OPS': 'TBControl — ТЗ (Technical Ops)',
+    'TBCONTROL_MODULE': 'TBControl — справочник реализации',
+    'SCENARIOS': 'TBControl — сценарии полезности',
+    'PRESENTATION_GOOGLE_LM': 'TBControl — материал для NotebookLM',
+}
+
+
+@app.route('/UNA.md/orasldev/tbcontrol/docs')
+@app.route('/UNA.md/orasldev/tbcontrol/docs/<name>')
+def tbcontrol_docs(name='INDEX'):
+    """Документация TBControl (MD → HTML); относительные ссылки между
+    документами остаются рабочими."""
+    if not AuthController.is_authenticated():
+        return redirect(url_for('login', next=request.path))
+    if name in ('presentation.html', 'presentation'):
+        return redirect('/UNA.md/orasldev/tbcontrol/presentation')
+    key = name[:-3] if name.endswith('.md') else name
+    if key not in _TBC_DOCS:
+        return "<h1>Документ не найден</h1>", 404
+    md_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'docs', 'TBControl', key + '.md')
+    page, err = _render_doc_page(md_path, _TBC_DOCS[key])
+    return page if page else err
+
+
 # --- Dashboard & refs ---
 @app.route('/api/tbc/stats', methods=['GET'])
 def api_tbc_stats():
