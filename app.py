@@ -2242,6 +2242,64 @@ def api_digi_roles():
     return jsonify(DigiMarketingController.get_roles())
 
 
+# ========== Хэш-инвайты: автологин по ссылке ?h=<hash> (INV_LINKS) ==========
+
+@app.before_request
+def _invite_autologin():
+    """Ссылка вида /UNA.md/orasldev/tbcontrol?h=43hhjghj34g5jh345hj:
+    хэш ищется в INV_LINKS, при успехе сессия логинится кредами инвайта."""
+    try:
+        if request.method != 'GET':
+            return None
+        inv_hash = request.args.get('h')
+        if not inv_hash or AuthController.is_authenticated():
+            return None
+        if not request.path.startswith('/UNA.md/'):
+            return None
+        cred = TBControlController.resolve_invite(inv_hash)
+        if cred and AuthController.login(cred['login'], cred['password']):
+            AuthController.set_authenticated(True)
+            session['username'] = cred['login']
+            session['invite_login'] = True
+            # Хэш убираем из адресной строки повторным заходом без ?h=
+            clean = request.args.to_dict()
+            clean.pop('h', None)
+            from urllib.parse import urlencode
+            qs = ('?' + urlencode(clean)) if clean else ''
+            return redirect(request.path + qs)
+    except Exception:
+        pass
+    return None
+
+
+@app.route('/api/tbc/invites', methods=['GET'])
+def api_tbc_invites():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.get_invites())
+
+
+@app.route('/api/tbc/invites', methods=['POST'])
+def api_tbc_create_invite():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.create_invite(request.get_json() or {}))
+
+
+@app.route('/api/tbc/invites/<invite_id>', methods=['PUT'])
+def api_tbc_update_invite(invite_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.update_invite(invite_id, request.get_json() or {}))
+
+
+@app.route('/api/tbc/invites/<invite_id>', methods=['DELETE'])
+def api_tbc_delete_invite(invite_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.delete_invite(invite_id))
+
+
 # ========== TBControl (Front Office / POS / SCO / Android Operations) Routes ==========
 
 @app.route('/UNA.md/orasldev/tbcontrol')
