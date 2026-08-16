@@ -59,6 +59,49 @@ class MonitorCancelled(Exception):
     """Прогон остановлен оператором."""
 
 
+def _squash(value: float, scale: float) -> float:
+    """
+    x / (x + scale) — мягкая нормировка в [0, 1).
+
+    Выбрана вместо min-max: у неё нет зависимости от выборки (вектор SKU
+    не меняется от того, какие ещё товары попали в прогон), а хвосты
+    сжимаются плавно — «продажи 500/день» и «продажи 900/день» дают
+    близкие координаты, что для СРАВНЕНИЯ ПОВЕДЕНИЯ и нужно.
+    """
+    v = max(0.0, float(value))
+    return v / (v + scale)
+
+
+def behavior_vector(avg7: float, mean28: float, med28: float, sigma: float,
+                    cv: float, trend: float, weekend_lift: float,
+                    promo_uplift: float, oos_days: int, cover: float,
+                    waste_pct: Optional[float], is_fresh: int) -> str:
+    """
+    Вектор поведения SKU: 12 нормированных координат для колонки VECTOR.
+
+    Состав подобран так, чтобы близость векторов означала «товары живут
+    одинаково»: уровень спроса, стабильность, тренд, недельный рисунок,
+    реакция на промо, доступность, запас, списания. Цена сюда не входит
+    сознательно — дорогой и дешёвый товар могут вести себя одинаково,
+    и для прогноза новинки по аналогам это ценнее ценового соседства.
+    """
+    coords = [
+        _squash(avg7, 10.0),                       # уровень спроса, свежий
+        _squash(mean28, 10.0),                     # уровень спроса, месяц
+        _squash(med28, 10.0),                      # медианный уровень
+        _squash(sigma, 5.0),                       # разброс
+        min(1.0, cv / 2.0),                        # коэффициент вариации
+        max(0.0, min(1.0, 0.5 + trend / 200.0)),   # тренд: −100%…+100% → 0…1
+        max(0.0, min(1.0, weekend_lift / 3.0)),    # подъём выходных
+        max(0.0, min(1.0, (promo_uplift - 1.0) / 3.0)),  # промо-аплифт
+        min(1.0, oos_days / float(WINDOW)),        # доля дней OOS
+        _squash(cover, 7.0),                       # покрытие остатком
+        min(1.0, (waste_pct or 0.0) / 20.0),       # ожидаемое списание
+        float(is_fresh),                           # фреш-флаг
+    ]
+    return '[' + ','.join(f'{c:.5f}' for c in coords) + ']'
+
+
 def _median(vals: List[float]) -> float:
     s = sorted(vals)
     n = len(s)
