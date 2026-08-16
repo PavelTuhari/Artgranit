@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TBControl — презентация системы</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d1621; --panel: #121e2d; --panel2: #16263a; --border: #1e3752;
+    --accent: #049fd9; --accent2: #00bceb; --ok: #6abf4b; --warn: #fbab18;
+    --crit: #e2231a; --text: #dbe5ef; --muted: #7e93a8;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text); overflow: hidden; height: 100vh;
+  }
+  .slide {
+    display: none; height: 100vh; padding: 6vh 8vw; flex-direction: column; justify-content: center;
+  }
+  .slide.active { display: flex; }
+  .kicker { color: var(--accent2); text-transform: uppercase; letter-spacing: 3px; font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+  h1 { font-size: 52px; line-height: 1.15; margin-bottom: 18px; }
+  h1 b { color: var(--accent2); }
+  h2 { font-size: 36px; margin-bottom: 24px; }
+  h2 .n { color: var(--muted); font-weight: 400; margin-right: 12px; }
+  .sub { font-size: 20px; color: var(--muted); max-width: 900px; line-height: 1.5; }
+  .quote { font-size: 26px; color: var(--text); border-left: 4px solid var(--accent); padding: 10px 22px; margin: 24px 0; background: var(--panel); border-radius: 0 8px 8px 0; }
+  ul.big { font-size: 20px; line-height: 1.85; list-style: none; }
+  ul.big li::before { content: '▸ '; color: var(--accent2); font-weight: 700; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 8px; padding: 18px 20px; }
+  .card h3 { font-size: 17px; margin-bottom: 8px; color: var(--accent2); }
+  .card p, .card li { font-size: 14.5px; color: var(--muted); line-height: 1.55; }
+  .card ul { list-style: none; }
+  .card.ok { border-top-color: var(--ok); } .card.warn { border-top-color: var(--warn); } .card.crit { border-top-color: var(--crit); }
+  pre.chain {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 20px 26px; font-size: 16px; line-height: 1.7; color: var(--text);
+    font-family: 'SF Mono', Menlo, monospace; overflow-x: auto;
+  }
+  pre.chain .a { color: var(--accent2); } pre.chain .g { color: var(--ok); }
+  pre.chain .w { color: var(--warn); } pre.chain .r { color: #ff6b64; } pre.chain .m { color: var(--muted); }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .badge { padding: 6px 16px; border-radius: 16px; font-size: 14px; font-weight: 700; background: var(--panel2); border: 1px solid var(--border); }
+  .badge.ok { color: var(--ok); } .badge.warn { color: var(--warn); } .badge.crit { color: #ff6b64; } .badge.blue { color: var(--accent2); }
+  .stat { font-size: 44px; font-weight: 800; color: var(--accent2); }
+  .stat small { display: block; font-size: 13px; color: var(--muted); font-weight: 400; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .nav {
+    position: fixed; bottom: 18px; right: 24px; display: flex; gap: 10px; align-items: center;
+    color: var(--muted); font-size: 13px; z-index: 10;
+  }
+  .nav button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 16px; font-size: 15px; cursor: pointer;
+  }
+  .nav button:hover { border-color: var(--accent); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent2); transition: width .3s; z-index: 10; }
+  .footer { position: fixed; bottom: 18px; left: 24px; color: var(--muted); font-size: 12px; }
+  table.t { border-collapse: collapse; font-size: 15px; margin-top: 8px; }
+  table.t th { text-align: left; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 16px 8px 0; border-bottom: 1px solid var(--border); }
+  table.t td { padding: 9px 16px 9px 0; border-bottom: 1px solid var(--border); }
+  .mono { font-family: 'SF Mono', Menlo, monospace; font-size: 13px; color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- 1. Титул -->
+<section class="slide active">
+  <div class="kicker">Operations Center торговой сети</div>
+  <h1>TB<b>Control</b></h1>
+  <div class="sub">Единая платформа мониторинга, диагностики и сопровождения магазинов:
+  Front Office · POS · Self-Service · Android · обмен данными · AI-диагностика</div>
+  <div class="quote">Мы мониторим не компьютеры, а способность магазина продавать.<br>
+  <span style="color:var(--accent2);font-size:18px">Can the store sell?</span></div>
+  <div class="badges">
+    <span class="badge blue">Oracle-first</span><span class="badge blue">NOC-консоль в стиле Cisco</span>
+    <span class="badge ok">Production: nufarul.eminescu.md</span><span class="badge warn">Реальный Zabbix подключён</span>
+  </div>
+</section>
+
+<!-- 2. Проблема -->
+<section class="slide">
+  <h2><span class="n">02</span>Слепые зоны классического мониторинга</h2>
+  <div class="grid2">
+    <div class="card crit"><h3>«Сервер доступен» ≠ «магазин продаёт»</h3>
+      <p>Ping отвечает, а кассы не пробивают чеки: банк, фискализация, очередь синхронизации — вне поля зрения инфраструктурного мониторинга.</p></div>
+    <div class="card crit"><h3>Данные теряются по дороге</h3>
+      <p>Продажи идут цепочкой SQLite-касса → серверы магазина → центральный → бэк-офис. Застрявший батч виден только по жалобам бухгалтерии.</p></div>
+    <div class="card warn"><h3>Версии ПО расползаются</h3>
+      <p>Front Office 7.3.9 на одной кассе и 7.4.12 на соседней — обновления не проверяются, отставшие кассы никто не видит.</p></div>
+    <div class="card warn"><h3>Контекст сбоя собирается вручную</h3>
+      <p>Дежурный тратит час на сбор фактов. Внешние AI-ассистенты могли бы диагностировать мгновенно — им нужен полный структурированный контекст.</p></div>
+  </div>
+</section>
+
+<!-- 3. Общая картина -->
+<section class="slide">
+  <h2><span class="n">03</span>Executive-дашборд: вся сеть на одном экране</h2>
+  <pre class="chain"><span class="m">Store Health по каждому магазину:</span>
+<span class="g">■ MD-BLT-101 Foxi ......... OK</span>        <span class="w">■ MD-CHS-001 Bonus ..... DEGRADED  P2/P3:2</span>
+<span class="g">■ MD-CHS-002 Local ........ OK</span>        <span class="r">■ MD-CHS-003 Local Expres CRITICAL  P1:1</span>
+
+<span class="m">Доступность:</span>  POS <span class="a">5/8</span>   SCO <span class="a">1/2</span>   Android <span class="a">3/4</span>   <span class="m">|</span>   P1/P2: <span class="r">1 / 5</span>   Инциденты: <span class="w">3</span></pre>
+  <ul class="big">
+    <li>STORE_HEALTH = OK / DEGRADED / CRITICAL — агрегат из устройств, сервисов и открытых событий</li>
+    <li>Плитки магазинов с брендами: Bonus · Super Bonus · Local · Local Expres · Foxi</li>
+    <li>Автообновление каждые 30 секунд, мигающий CRITICAL</li>
+  </ul>
+</section>
+
+<!-- 4. Мониторинг касс -->
+<section class="slide">
+  <h2><span class="n">04</span>Мониторинг касс: два контура</h2>
+  <div class="grid2">
+    <div class="card"><h3>🖥️ Касса как компьютер (HW)</h3>
+      <ul><li>▸ CPU · RAM · Disk · Uptime</li><li>▸ Battery / Storage для Android</li>
+      <li>▸ Heartbeat каждой кассы, автоregистрация по коду MD-CHS-001-POS-01</li></ul></div>
+    <div class="card"><h3>🧾 Front Office внутри (APP)</h3>
+      <ul><li>▸ Latency приложения · чеки/час · ошибки</li><li>▸ Очереди покупателей на кассе</li>
+      <li>▸ Версия против ожидаемой (OK / OUTDATED)</li></ul></div>
+  </div>
+  <div class="badges" style="margin-top:26px">
+    <span class="badge blue">Сейчас</span><span class="badge blue">Сегодня</span>
+    <span class="badge blue">7 дней</span><span class="badge blue">Произвольный период</span>
+    <span class="badge ok">append-only time series · SVG-графики без библиотек</span>
+  </div>
+</section>
+
+<!-- 5. Processing -->
+<section class="slide">
+  <h2><span class="n">05</span>Processing центр: путь данных от кассы до бэк-офиса</h2>
+  <pre class="chain">POS <span class="m">(SQLite)</span> ──▶ Серверы магазина <span class="m">(1..N: MySQL/PostgreSQL/MSSQL/SQLite)</span> ──▶ Центральный <span class="m">(Oracle)</span> ──▶ Бэк-офис
+     <span class="g">flow OK</span>            <span class="w">flow LAGGING lag 95 мин · pending 8 900</span>              <span class="r">flow FAIL: ORA-02291 batch rejected</span></pre>
+  <ul class="big">
+    <li>Каждое звено — поток со статусом OK / LAGGING / STALLED / FAIL, отставанием и накопленным pending</li>
+    <li>Журнал батчей: отправлено/принято/ошибка; повтор передачи в один клик</li>
+    <li>Узлы: три уровня контроля — железо, приложение обмена, база данных (5 движков)</li>
+  </ul>
+</section>
+
+<!-- 6. События и корреляция -->
+<section class="slide">
+  <h2><span class="n">06</span>События: корреляция вместо шторма алертов</h2>
+  <pre class="chain"><span class="r">P1  ROOT CAUSE</span>  Сеть магазина 003 недоступна <span class="m">(router down)</span>
+      ├─ <span class="m">suppressed</span>  POS-01 unavailable
+      ├─ <span class="m">suppressed</span>  POS-02 unavailable
+      └─ <span class="m">suppressed</span>  MEV offline-очередь растёт
+
+<span class="g">resolve root cause → все suppressed закрываются автоматически</span></pre>
+  <ul class="big">
+    <li>Приоритеты P1–P4 по бизнес-влиянию: P1 = «магазин не может продавать»</li>
+    <li>Событие → инцидент в один клик: группа по границе Customer IT / Developer, SLA-дедлайн по приоритету</li>
+    <li>RCA-поля обязательны для P1/P2: root cause, business impact, corrective / preventive action</li>
+  </ul>
+</section>
+
+<!-- 7. Отчёт динамики -->
+<section class="slide">
+  <h2><span class="n">07</span>Отчёт «Динамика»: инфраструктура + люди + бизнес</h2>
+  <div class="grid3">
+    <div class="card"><h3>События по дням</h3><p>P1–P4 stacked-бары за 7/14/30 дней — видно тренд деградации сети.</p></div>
+    <div class="card warn"><h3>Очереди на кассах</h3><p>Сломанный SCO → очередь 9 человек. Подсветка: «очереди растут — проверьте кассы/SCO».</p></div>
+    <div class="card crit"><h3>Ненужные перезагрузки</h3><p>Кассир 3 раза перезагрузил кассу при сбое банка — зафиксировано и посчитано. База для обучения персонала.</p></div>
+    <div class="card"><h3>Обращения и время реакции</h3><p>Техподдержка · банки · MEV (SFS) · электросети · ISP. Задержка 247 минут — красным.</p></div>
+    <div class="card warn"><h3>Климат и питание</h3><p>Жара +38° → серверная 34°, просадки до 198V, перегруз централи. Мороз −18° — тоже кейс.</p></div>
+    <div class="card ok"><h3>UPS-телеметрия</h3><p>Магазин на UPS: батарея 100→36%, остаток минут — решение «генератор или ждать» принимается по данным.</p></div>
+  </div>
+</section>
+
+<!-- 8. Версии и деплой -->
+<section class="slide">
+  <h2><span class="n">08</span>Версии ПО и контролируемый deployment</h2>
+  <pre class="chain">CHG-2026-0812  Front Office <span class="a">7.4.13</span>  <span class="m">rollback→7.4.12  окно 02:00–04:00  канал PILOT</span>
+
+verification:  process <span class="g">OK</span> → version <span class="g">OK</span> → health <span class="g">OK</span> → database <span class="g">OK</span> → api <span class="g">OK</span> → sync <span class="g">OK</span> → business <span class="g">OK</span>
+<span class="g">DEPLOYMENT = SUCCESS</span>   <span class="m">|  успешный PRODUCTION-деплой поднимает Expected Version → отставшие кассы = OUTDATED</span></pre>
+  <ul class="big">
+    <li>Каналы DEV → TEST → PILOT → PRODUCTION, deployment window, rollback-план</li>
+    <li>Автоматическая verification после деплоя вплоть до тестовой бизнес-транзакции</li>
+  </ul>
+</section>
+
+<!-- 9. AI-досье -->
+<section class="slide">
+  <h2><span class="n">09</span>AI-досье: сбой как документ для LLM</h2>
+  <div class="grid2">
+    <div class="card"><h3>Что внутри MD-досье</h3>
+      <ul><li>▸ контекст сбоя (событие / инцидент / поток)</li>
+      <li>▸ паспорт устройства + метрики NOW + телеметрия 24ч</li>
+      <li>▸ версии ПО, health checks, потоки и журнал батчей</li>
+      <li>▸ STORE_HEALTH магазина и соседние события</li>
+      <li>▸ инструкция AI: порядок диагностики + whitelist-действия</li></ul></div>
+    <div class="card ok"><h3>Доступ и безопасность</h3>
+      <ul><li>▸ <span class="mono">GET /api/tbc/ai/dossier/&lt;code&gt;.md?token=…</span></li>
+      <li>▸ секретный токен на каждый документ, учёт прочтений</li>
+      <li>▸ credentials в досье не включаются (Secret Store отдельно)</li>
+      <li>▸ AI может: диагностика, retry потока, resolve, RCA</li>
+      <li>▸ AI не может: финансовые данные, prod-конфиг, security</li></ul></div>
+  </div>
+  <div class="sub" style="margin-top:20px">Автогенерация при каждом P1/P2-инциденте — внешний AI-провайдер получает полный контекст за секунды, а не за час ручного сбора.</div>
+</section>
+
+<!-- 10. Источники событий -->
+<section class="slide">
+  <h2><span class="n">10</span>Источники событий: эмулятор и реальный Zabbix</h2>
+  <div class="grid2">
+    <div class="card warn"><h3>🧪 Эмулятор 10 сценариев</h3>
+      <p>По кругу: нечётный цикл — сбои (свет/интернет/банк/MEV/жара/очереди/потоки), чётный — восстановление. Фоновая heartbeat-телеметрия всех касс. Управление из UI или CLI.</p></div>
+    <div class="card ok"><h3>📡 Реальный Zabbix (3.x–7.x)</h3>
+      <p>Подключён боевой Zabbix 3.4.15: user.login + trigger.get (для 5.4+ — API-token + problem.get). Severity → P1–P4, хост → устройство, решённые проблемы закрывают события автоматически.</p></div>
+  </div>
+  <pre class="chain" style="margin-top:22px"><span class="m">Живой результат:</span> 18 реальных проблем → события TBControl
+<span class="r">P1</span> cloudbd /mnt/md3 &lt; 3%   <span class="w">P2</span> PROXMOX3 /storage &lt; 3–5%   <span class="w">P3</span> Oracle Wine: Stores OFFLINE
+<span class="m">«Шумовые» триггеры (Vetropack, почта garileauto, SSL tnme.md) отключены через Zabbix API → −7 событий</span></pre>
+</section>
+
+<!-- 11. Инвайты -->
+<section class="slide">
+  <h2><span class="n">11</span>Хэш-инвайты: доступ по одной ссылке</h2>
+  <pre class="chain">https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol<span class="a">?h=43hhjghj34g5jh345hj</span>
+                                          <span class="m">│</span>
+        <span class="m">INV_LINKS: hash → модуль + логин/пароль → автологин → redirect без ?h</span></pre>
+  <ul class="big">
+    <li>Админ создаёт ссылку в панели «🔗 Инвайты»: модуль, креды, срок действия, лимит использований</li>
+    <li>Получатель просто открывает ссылку — без ввода логина и пароля</li>
+    <li>Учёт использований, пауза/отзыв в один клик, пароль наружу не отдаётся</li>
+  </ul>
+</section>
+
+<!-- 12. Архитектура и цифры -->
+<section class="slide">
+  <h2><span class="n">12</span>Технологии и демо-стенд</h2>
+  <div class="grid2">
+    <div>
+      <table class="t">
+        <tr><th>Слой</th><th>Реализация</th></tr>
+        <tr><td>Backend</td><td>Python / Flask (движок Artgranit)</td></tr>
+        <tr><td>БД</td><td>Oracle ADB, нормализованные <span class="mono">TBC_*</span> / <span class="mono">INV_*</span></td></tr>
+        <tr><td>UI</td><td>Монолитный SPA, тёмная NOC-тема, SVG-графики</td></tr>
+        <tr><td>Интеграции</td><td>Heartbeat API · Flow-report API · Zabbix · AI-токены</td></tr>
+        <tr><td>Деплой</td><td>local + production (nufarul.eminescu.md), общая ADB</td></tr>
+      </table>
+    </div>
+    <div class="grid2">
+      <div class="card"><div class="stat">11<small>магазинов · 5 брендов</small></div></div>
+      <div class="card"><div class="stat">39<small>устройств POS/SCO/AND</small></div></div>
+      <div class="card"><div class="stat">17<small>потоков обмена · 7 узлов</small></div></div>
+      <div class="card"><div class="stat">28<small>таблиц Oracle · 10 views</small></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 13. Итог -->
+<section class="slide">
+  <div class="kicker">Итог</div>
+  <h1>Мы знаем, работает ли <b>каждый магазин</b></h1>
+  <div class="sub" style="font-size:22px;line-height:1.7">…почему он не работает, кто отвечает за проблему,
+  что именно сломалось, как это диагностировать (в том числе силами AI),
+  как это исправить — и когда проблема была устранена.</div>
+  <div class="badges" style="margin-top:28px">
+    <span class="badge blue">docs/TBControl/INDEX.md — полная документация</span>
+    <span class="badge blue">SCENARIOS.md — 10 кейсов</span>
+    <span class="badge ok">/UNA.md/orasldev/tbcontrol</span>
+  </div>
+</section>
+
+<div class="nav">
+  <span id="counter">1 / 13</span>
+  <button onclick="nav(-1)">← Назад</button>
+  <button onclick="nav(1)">Вперёд →</button>
+</div>
+<div class="footer">TBControl · Artgranit · управление — стрелки ←/→, пробел, клик</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let cur = 0;
+function show(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, n) => s.classList.toggle('active', n === cur));
+  document.getElementById('counter').textContent = (cur + 1) + ' / ' + slides.length;
+  document.getElementById('progress').style.width = ((cur + 1) / slides.length * 100) + '%';
+}
+function nav(d) { show(cur + d); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') nav(1);
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') nav(-1);
+  if (e.key === 'Home') show(0);
+  if (e.key === 'End') show(slides.length - 1);
+});
+document.addEventListener('click', e => { if (!e.target.closest('.nav')) nav(1); });
+show(0);
+</script>
+</body>
+</html>
