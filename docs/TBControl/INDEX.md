@@ -6,9 +6,26 @@ Android-устройств, софта Front Office и цепочки обмен
 бэк-офиса. Принцип: **«мониторим не компьютер, а способность магазина
 продавать»**. Интерфейс — NOC-консоль в стилистике Cisco DNA / Unify.
 
-- **Рабочий URL:** `/UNA.md/orasldev/tbcontrol` (локально `http://localhost:3003`, production `https://nufarul.eminescu.md`)
+## Живые ссылки (production)
+
+| Что | URL |
+|---|---|
+| 🖥️ **Рабочая панель** | [https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol) |
+| 🎞 **Презентация** (слайды с live-кнопками) | [https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol/presentation](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol/presentation) |
+| 📖 **Эта документация онлайн** | [https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol/docs](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol/docs) |
+
+Прямые ссылки на панели (deep-link по `#`): [дашборд](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#dashboard) ·
+[мониторинг касс](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#monitor) ·
+[processing](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#processing) ·
+[события](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#events) ·
+[инциденты](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#incidents) ·
+[отчёт «Динамика»](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#report) ·
+[AI-досье](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#dossiers) ·
+[инвайты](https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol#invites).
+Локально — то же на `http://localhost:3003`. Доступ без пароля — по хэш-инвайту (`?h=…`, раздел 4).
+
 - **Oracle:** префиксы `TBC_*` (мониторинг/операции) и `INV_*` (инвайты), общая ADB обоих контуров
-- **Презентация:** [presentation.html](presentation.html) — слайды HTML (открыть в браузере)
+- **Презентация (файл):** [presentation.html](presentation.html)
 
 ---
 
