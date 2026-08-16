@@ -524,6 +524,20 @@
             </div></div>
         </div>
 
+        <!-- ===== Invites ===== -->
+        <div class="panel" id="panel-invites">
+            <div class="panel-title">Хэш-инвайты автологина
+                <span class="muted" style="font-size:12px;font-weight:400">— ссылки вида <span class="mono">…/tbcontrol?h=&lt;hash&gt;</span> логинят автоматически</span>
+                <button class="btn btn-primary btn-sm" onclick="openInviteModal()">+ Инвайт</button>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Модуль</th><th>Ссылка</th><th>Логин</th><th>Статус</th>
+                    <th>Истекает</th><th>Исп.</th><th>Заметка</th><th>Создан</th><th></th>
+                </tr></thead><tbody id="invitesTbody"></tbody></table>
+            </div></div>
+        </div>
+
         <!-- ===== Audit ===== -->
         <div class="panel" id="panel-audit">
             <div class="panel-title">Журнал аудита действий</div>
