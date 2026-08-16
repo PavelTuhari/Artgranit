@@ -1712,6 +1712,111 @@ class TBControlController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ========== Хэш-инвайты автологина (таблица INV_LINKS) ==========
+
+    @staticmethod
+    def get_invites():
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, HASH, MODULE_CODE, TARGET_PATH, LOGIN, STATUS, EXPIRES_AT, "
+                    "MAX_USES, USES_COUNT, NOTE, CREATED_BY, CREATED_AT, LAST_USED_AT "
+                    "FROM INV_LINKS ORDER BY CREATED_AT DESC")
+                data = TBControlController._rows_to_dicts(r)
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_invite(data):
+        try:
+            login = (data.get("login") or "").strip()
+            passwd = data.get("password") or ""
+            target = (data.get("target_path") or "").strip()
+            module = (data.get("module_code") or "").strip()
+            if not login or not passwd:
+                return {"success": False, "error": "Логин и пароль обязательны"}
+            if not target.startswith("/"):
+                return {"success": False, "error": "target_path должен начинаться с /"}
+            if not module:
+                module = target.rstrip("/").rsplit("/", 1)[-1] or "portal"
+            inv_hash = secrets.token_urlsafe(24)
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "INSERT INTO INV_LINKS (HASH, MODULE_CODE, TARGET_PATH, LOGIN, PASSWD, "
+                    "EXPIRES_AT, MAX_USES, NOTE, CREATED_BY) "
+                    "VALUES (:h, :module, :target, :login, :passwd, "
+                    "TO_TIMESTAMP(:expires, 'YYYY-MM-DD\"T\"HH24:MI'), :max_uses, :note, :who)",
+                    {"h": inv_hash, "module": module, "target": target,
+                     "login": login, "passwd": passwd,
+                     "expires": (data.get("expires_at") or "")[:16] or None,
+                     "max_uses": int(data["max_uses"]) if data.get("max_uses") else None,
+                     "note": data.get("note"), "who": TBControlController._username()})
+                if not r.get("success"):
+                    return {"success": False, "error": r.get("message", "insert failed")[:200]}
+                db.connection.commit()
+                TBControlController._add_audit("create", "invite", None,
+                                               f"Инвайт для {module} ({target}), login {login}")
+                return {"success": True, "data": {"hash": inv_hash, "target_path": target,
+                                                  "url": f"{target}?h={inv_hash}"}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_invite(invite_id, data):
+        try:
+            with DatabaseModel() as db:
+                if data.get("status") in ("active", "disabled"):
+                    db.execute_query("UPDATE INV_LINKS SET STATUS = :st WHERE ID = :id",
+                                     {"st": data["status"], "id": int(invite_id)})
+                    db.connection.commit()
+                    TBControlController._add_audit(data["status"], "invite", int(invite_id),
+                                                   f"Инвайт → {data['status']}")
+                    return {"success": True}
+                return {"success": False, "error": "status: active/disabled"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_invite(invite_id):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query("DELETE FROM INV_LINKS WHERE ID = :id", {"id": int(invite_id)})
+                db.connection.commit()
+                TBControlController._add_audit("delete", "invite", int(invite_id), "Инвайт удалён")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def resolve_invite(inv_hash):
+        """Проверка хэша из ?h=... Возвращает {login, password} если инвайт
+        активен, не истёк и не исчерпан. Использование учитывается."""
+        if not inv_hash or len(inv_hash) > 64:
+            return None
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    "SELECT ID, LOGIN, PASSWD, STATUS, EXPIRES_AT, MAX_USES, USES_COUNT "
+                    "FROM INV_LINKS WHERE HASH = :h", {"h": inv_hash})
+                row = TBControlController._first_row(r)
+                if not row or row.get("status") != "active":
+                    return None
+                r2 = db.execute_query(
+                    "SELECT CASE WHEN EXPIRES_AT IS NOT NULL AND EXPIRES_AT < SYSTIMESTAMP THEN 1 ELSE 0 END "
+                    "FROM INV_LINKS WHERE ID = :id", {"id": row["id"]})
+                if r2.get("data") and r2["data"][0][0] == 1:
+                    return None
+                if row.get("max_uses") and (row.get("uses_count") or 0) >= row["max_uses"]:
+                    return None
+                db.execute_query(
+                    "UPDATE INV_LINKS SET USES_COUNT = NVL(USES_COUNT, 0) + 1, "
+                    "LAST_USED_AT = SYSTIMESTAMP WHERE ID = :id", {"id": row["id"]})
+                db.connection.commit()
+                return {"login": row["login"], "password": row["passwd"]}
+        except Exception:
+            return None
+
     # ========== Справочники и журнал ==========
 
     @staticmethod
