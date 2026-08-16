@@ -265,9 +265,10 @@ class AiMonitorEngine:
             "INSERT INTO PLG_AI_FEATURES (RUN_ID, STORE_ID, PRODUCT_ID, SNAPSHOT_DATE, "
             "AVG_QTY_7, AVG_QTY_28, MEDIAN_QTY_28, SIGMA_28, CV, TREND_PCT, WEEKEND_LIFT, "
             "PROMO_UPLIFT, PROMO_DAYS_28, OOS_DAYS_28, STOCK_END, STOCK_COVER_DAYS, "
-            "WASTE_PCT, FORECAST_BIAS, PRICE, MARGIN_PCT, ABC_CLASS, XYZ_CLASS, IS_FRESH) "
+            "WASTE_PCT, FORECAST_BIAS, PRICE, MARGIN_PCT, ABC_CLASS, XYZ_CLASS, IS_FRESH, "
+            "EMB) "
             "VALUES (:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12, :13, :14, :15, "
-            ":16, :17, :18, :19, :20, :21, :22, :23)")
+            ":16, :17, :18, :19, :20, :21, :22, :23, :24)")
         sig_sql = (
             "INSERT INTO PLG_AI_SIGNALS (RUN_ID, SIGNAL_TYPE, SEVERITY, STORE_ID, "
             "PRODUCT_ID, CATEGORY_ID, METRIC_VALUE, BASELINE_VALUE, DELTA_PCT, "
@@ -365,7 +366,10 @@ class AiMonitorEngine:
                     round(waste_pct, 3) if waste_pct is not None else None,
                     bias, price or None,
                     round(margin, 2) if margin is not None else None,
-                    abc, xyz, is_fresh))
+                    abc, xyz, is_fresh,
+                    behavior_vector(avg7, mean28, med28, sigma, cv, trend,
+                                    weekend_lift, promo_uplift, oos_days, cover,
+                                    waste_pct, is_fresh)))
                 self.feature_count += 1
 
                 # ---------- Детекторы ----------
@@ -443,7 +447,63 @@ class AiMonitorEngine:
 
         self._write(feat_sql, feat_buf)
         self._write(sig_sql, sig_buf)
-        self.signal_count += 0   # счётчик сигналов пополняется в _write ниже
+        self._vector_outliers(stores, sig_sql)
+
+    def _vector_outliers(self, stores: List[int], sig_sql: str):
+        """
+        Векторный детектор: выброс среди соседей по категории.
+
+        Расстояния считает БАЗА (VECTOR_DISTANCE по колонке VECTOR из 26ai),
+        а не Python: среднее косинусное расстояние каждого SKU до товаров
+        своей категории в том же магазине. SKU, чьё расстояние выше
+        медианы категории на 2.5 межквартильных размаха, — аномалия
+        сочетания признаков, даже если каждый признак по отдельности
+        в норме и пороговые детекторы молчат.
+        """
+        self._progress('vector outliers', 96)
+        sig_buf: List[Tuple] = []
+        for store_id in stores:
+            self._check_cancel()
+            rows = self._fetch(
+                "SELECT f1.PRODUCT_ID, p1.CATEGORY_ID, "
+                "AVG(VECTOR_DISTANCE(f1.EMB, f2.EMB, COSINE)) AS D, COUNT(*) AS N "
+                "FROM PLG_AI_FEATURES f1 "
+                "JOIN PLG_PRODUCTS p1 ON p1.ID = f1.PRODUCT_ID "
+                "JOIN PLG_PRODUCTS p2 ON p2.CATEGORY_ID = p1.CATEGORY_ID "
+                "JOIN PLG_AI_FEATURES f2 ON f2.PRODUCT_ID = p2.ID "
+                " AND f2.RUN_ID = f1.RUN_ID AND f2.STORE_ID = f1.STORE_ID "
+                " AND f2.PRODUCT_ID <> f1.PRODUCT_ID "
+                "WHERE f1.RUN_ID = :p_run AND f1.STORE_ID = :p_st "
+                " AND f1.EMB IS NOT NULL AND f2.EMB IS NOT NULL "
+                "GROUP BY f1.PRODUCT_ID, p1.CATEGORY_ID HAVING COUNT(*) >= 5",
+                {'p_run': self.run_id, 'p_st': store_id})
+            by_cat: Dict[int, List[Tuple[int, float]]] = {}
+            for (pid, cat_id, d, _n) in rows:
+                by_cat.setdefault(int(cat_id or 0), []).append((int(pid), float(d)))
+            for cat_id, items in by_cat.items():
+                dists = sorted(d for _, d in items)
+                if len(dists) < 8:
+                    continue
+                q1 = dists[len(dists) // 4]
+                q3 = dists[3 * len(dists) // 4]
+                med = dists[len(dists) // 2]
+                iqr = max(q3 - q1, 0.005)
+                threshold = med + 2.5 * iqr
+                for pid, d in items:
+                    if d <= threshold or d < 0.03:
+                        continue
+                    delta = (d / med - 1) * 100 if med > 0 else 100.0
+                    sig_buf.append((
+                        self.run_id, 'peer_outlier', 'warn', store_id, pid,
+                        cat_id or None, round(d, 4), round(med, 4), round(delta, 1),
+                        'Поведение товара выбивается из категории: векторное расстояние '
+                        f'{d:.3f} при типичном {med:.3f} — проверьте карточку и историю',
+                        'Comportamentul produsului iese din tiparul categoriei: distanța '
+                        f'vectorială {d:.3f} față de {med:.3f} tipic',
+                        f'Product behaviour deviates from its category: vector distance '
+                        f'{d:.3f} vs the typical {med:.3f}',
+                        'aimonitor'))
+        self._write(sig_sql, sig_buf)
 
     def _write(self, sql: str, rows: List[Tuple]):
         if not rows:
