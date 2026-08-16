@@ -3758,6 +3758,141 @@ def api_plg_fresh_order():
         request.args.get('store_id', type=int)))
 
 
+# ========== ИИ-мониторинг продаж и витрина признаков ==========
+
+@app.route('/api/plg/ai/monitor/start', methods=['POST'])
+def api_plg_ai_start():
+    return jsonify(PlgAiController.start_monitor(request.get_json() or {},
+                                                 session.get('username', 'user')))
+
+
+@app.route('/api/plg/ai/monitor/runs', methods=['GET'])
+def api_plg_ai_runs():
+    return jsonify(PlgAiController.monitor_runs(request.args.get('limit', 20, type=int)))
+
+
+@app.route('/api/plg/ai/signals', methods=['GET'])
+def api_plg_ai_signals():
+    return jsonify(PlgAiController.signals(
+        _plg_lang(), request.args.get('store_id', type=int),
+        request.args.get('type'), request.args.get('run_id', type=int)))
+
+
+@app.route('/api/plg/ai/signals/<int:signal_id>/ack', methods=['POST'])
+def api_plg_ai_ack(signal_id):
+    return jsonify(PlgAiController.ack_signal(signal_id, session.get('username', 'user')))
+
+
+@app.route('/api/plg/ai/features', methods=['GET'])
+def api_plg_ai_features():
+    return jsonify(PlgAiController.features(
+        _plg_lang(), request.args.get('store_id', type=int),
+        request.args.get('run_id', type=int),
+        request.args.get('limit', 200, type=int)))
+
+
+@app.route('/api/plg/ai/features/export', methods=['GET'])
+def api_plg_ai_export():
+    """Выгрузка массива признаков для обучения моделей: CSV или JSON."""
+    result = PlgAiController.export_features(
+        request.args.get('fmt', 'csv'), request.args.get('run_id', type=int),
+        request.args.get('store_id', type=int))
+    if not result.get('success'):
+        return jsonify(result), result.get('status', 400)
+    return Response(result['content'], mimetype=result['mimetype'],
+                    headers={'Content-Disposition':
+                             f'attachment; filename="{result["filename"]}"'})
+
+
+# ========== Автозаказ: корректировка на лету и пакет документов ==========
+
+@app.route('/api/plg/orders/runs', methods=['GET'])
+def api_plg_order_runs():
+    return jsonify(PlgAiController.order_runs(_plg_lang()))
+
+
+@app.route('/api/plg/orders/proposal', methods=['GET'])
+def api_plg_order_proposal():
+    return jsonify(PlgAiController.order_proposal(
+        _plg_lang(), request.args.get('run_id', type=int),
+        request.args.get('store_id', type=int)))
+
+
+@app.route('/api/plg/orders/adjust', methods=['POST'])
+def api_plg_order_adjust():
+    result = PlgAiController.adjust_order(request.get_json() or {},
+                                          session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/orders/adjust/reset', methods=['POST'])
+def api_plg_order_adjust_reset():
+    return jsonify(PlgAiController.reset_adjustment(request.get_json() or {}))
+
+
+@app.route('/UNA.md/orasldev/planograms/order-package')
+def plg_order_package():
+    """Печатный пакет документов заказа: спецификации по поставщикам."""
+    lang = _plg_lang()
+    run_id = request.args.get('run_id', type=int)
+    store_id = request.args.get('store_id', type=int)
+    result = PlgAiController.order_package(lang, run_id, store_id)
+    if not result.get('success'):
+        return jsonify(result), 400
+    return render_template('plg_order_package.html', pkg=result, lang=lang,
+                           generated_by=session.get('username', 'Гость'))
+
+
+# ========== Заказы импорта ==========
+
+@app.route('/api/plg/imports', methods=['GET'])
+def api_plg_imports():
+    return jsonify(PlgAiController.import_orders(_plg_lang(), request.args.get('status')))
+
+
+@app.route('/api/plg/imports', methods=['POST'])
+def api_plg_create_import():
+    result = PlgAiController.create_import(request.get_json() or {},
+                                           session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else 400)
+
+
+@app.route('/api/plg/imports/<int:order_id>', methods=['GET'])
+def api_plg_import_order(order_id):
+    result = PlgAiController.import_order(_plg_lang(), order_id)
+    return jsonify(result), (200 if result.get('success') else result.get('status', 404))
+
+
+@app.route('/api/plg/imports/<int:order_id>/stage', methods=['POST'])
+def api_plg_import_stage(order_id):
+    result = PlgAiController.advance_stage(order_id, request.get_json() or {},
+                                           session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/imports/<int:order_id>/docs/<int:doc_id>', methods=['PUT'])
+def api_plg_import_doc(order_id, doc_id):
+    result = PlgAiController.set_import_doc(order_id, doc_id, request.get_json() or {},
+                                            session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/imports/delays', methods=['GET'])
+def api_plg_import_delays():
+    return jsonify(PlgAiController.import_delay_stats(_plg_lang()))
+
+
+@app.route('/UNA.md/orasldev/planograms/import-package/<int:order_id>')
+def plg_import_package(order_id):
+    """Печатный пакет импортного заказа: реквизиты, позиции с ТН ВЭД, чек-лист."""
+    lang = _plg_lang()
+    result = PlgAiController.import_order(lang, order_id)
+    if not result.get('success'):
+        return jsonify(result), 404
+    return render_template('plg_import_package.html', o=result['data'], lang=lang,
+                           generated_by=session.get('username', 'Гость'))
+
+
 # WebSocket Events
 @socketio.on('connect')
 def handle_connect():
