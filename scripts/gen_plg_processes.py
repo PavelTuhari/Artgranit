@@ -290,6 +290,97 @@ PROCESSES = [
                   ('c9', 'g2', 'n7', 'да'), ('c10', 'g2', 'n6', 'нет'),
                   ('c11', 'n6', 'n7'), ('c12', 'n7', 'n8'), ('c13', 'n8', 'e1')],
     },
+    {
+        'code': 'import-order', 'sort': 9,
+        'ru': 'Заказ импорта товара',
+        'ro': 'Comandă de import',
+        'en': 'Import order',
+        'dru': 'От контракта до склада: проформа, оплата, производство, транзит, '
+               'граница, растаможка, выпуск. План этапов строится автоматически, '
+               'задержки считаются как факт минус план — по журналу видно, где '
+               'и почему теряются дни.',
+        'dro': 'De la contract până la depozit: etape, frontieră, vămuire.',
+        'den': 'From contract to warehouse: stages, border, customs clearance.',
+        'nodes': [
+            ('s1', 'Потребность в импорте', 'start', 40, 170, f'{MODULE}#forecast'),
+            ('n1', 'Контракт и спецификация с ТН ВЭД', 'task', 130, 163, f'{MODULE}#imports'),
+            ('n2', 'Проформа и оплата', 'task', 350, 163, f'{MODULE}#imports'),
+            ('n3', 'Упреждающая подготовка документов', 'task3', 570, 60, f'{MODULE}#imports'),
+            ('n4', 'Производство и отгрузка', 'task', 570, 250, f'{MODULE}#imports'),
+            ('g1', 'Документы готовы к прибытию?', 'gateway', 790, 156, f'{MODULE}#imports'),
+            ('n5', 'Граница и подача декларации', 'task', 990, 60, f'{MODULE}#imports'),
+            ('n6', 'Простой на СВХ, дозапрос документов', 'task3', 990, 260, f'{MODULE}#imports'),
+            ('n7', 'Растаможка и выпуск', 'task', 720, 420, f'{MODULE}#imports'),
+            ('n8', 'Приёмка на склад, фиксация задержек', 'task2', 460, 420, f'{MODULE}#logistics'),
+            ('e1', 'Товар в обороте', 'end', 380, 500, f'{MODULE}#imports'),
+        ],
+        'edges': [('c1', 's1', 'n1'), ('c2', 'n1', 'n2'), ('c3', 'n2', 'n3'),
+                  ('c4', 'n2', 'n4'), ('c5', 'n3', 'g1'), ('c6', 'n4', 'g1'),
+                  ('c7', 'g1', 'n5', 'да'), ('c8', 'g1', 'n6', 'нет'),
+                  ('c9', 'n6', 'n5'), ('c10', 'n5', 'n7'), ('c11', 'n7', 'n8'),
+                  ('c12', 'n8', 'e1')],
+    },
+    {
+        'code': 'customs-clearance', 'sort': 10,
+        'ru': 'Растаможка и задержки на границе',
+        'ro': 'Vămuirea și întârzierile la frontieră',
+        'en': 'Customs clearance and border delays',
+        'dru': 'Таможенный контур крупным планом: декларация, коридор контроля, '
+               'досмотр, платежи, выпуск. Каждая задержка фиксируется с причиной '
+               '(документы, таможня, логистика) — статистика причин выбирает '
+               'пост и брокера лучше любых обещаний.',
+        'dro': 'Circuitul vamal în detaliu: declarație, culoar, control, plăți.',
+        'den': 'The customs circuit in detail: declaration, lane, inspection, payments.',
+        'nodes': [
+            ('s1', 'Машина на границе', 'start', 40, 170, f'{MODULE}#imports'),
+            ('n1', 'Подача декларации брокером', 'task', 130, 163, f'{MODULE}#imports'),
+            ('g1', 'Коридор контроля', 'gateway', 350, 156, f'{MODULE}#imports'),
+            ('n2', 'Зелёный: выпуск по документам', 'task2', 570, 40, f'{MODULE}#imports'),
+            ('n3', 'Жёлтый: проверка документов', 'task3', 570, 163, f'{MODULE}#imports'),
+            ('n4', 'Красный: досмотр груза', 'task3', 570, 290, f'{MODULE}#imports'),
+            ('g2', 'Замечания сняты?', 'gateway', 800, 220, f'{MODULE}#imports'),
+            ('n5', 'Дозапрос: простой на СВХ, задержка с причиной', 'task3', 1010, 130, f'{MODULE}#imports'),
+            ('n6', 'Пошлина, НДС, сборы', 'task', 1010, 320, f'{MODULE}#imports'),
+            ('n7', 'Выпуск в свободное обращение', 'task2', 740, 440, f'{MODULE}#imports'),
+            ('e1', 'Машина едет на склад', 'end', 500, 447, f'{MODULE}#logistics'),
+        ],
+        'edges': [('c1', 's1', 'n1'), ('c2', 'n1', 'g1'),
+                  ('c3', 'g1', 'n2', 'зелёный'), ('c4', 'g1', 'n3', 'жёлтый'),
+                  ('c5', 'g1', 'n4', 'красный'), ('c6', 'n3', 'g2'), ('c7', 'n4', 'g2'),
+                  ('c8', 'g2', 'n5', 'нет'), ('c9', 'n5', 'g2'),
+                  ('c10', 'g2', 'n6', 'да'), ('c11', 'n2', 'n6'),
+                  ('c12', 'n6', 'n7'), ('c13', 'n7', 'e1')],
+    },
+    {
+        'code': 'import-docs', 'sort': 11,
+        'ru': 'Упреждающая подготовка документов и локализация',
+        'ro': 'Pregătirea anticipată a documentelor și localizarea',
+        'en': 'Proactive document preparation and localization',
+        'dru': 'Чек-лист документов заводится в момент создания заказа, дедлайны '
+               'отсчитаны назад от плановой даты границы. Локализованные этикетки '
+               '(перевод состава и маркировки) готовятся параллельно производству — '
+               'товар без этикетки на госязыке не встанет на полку законно.',
+        'dro': 'Lista documentelor cu termene calculate înapoi de la data frontierei.',
+        'den': 'Document checklist with deadlines counted back from the border date.',
+        'nodes': [
+            ('s1', 'Заказ импорта создан', 'start', 40, 170, f'{MODULE}#imports'),
+            ('n1', 'Чек-лист с дедлайнами от даты границы', 'task', 130, 163, f'{MODULE}#imports'),
+            ('n2', 'Инвойс, упаковочный, CMR', 'task', 360, 60, f'{MODULE}#imports'),
+            ('n3', 'EUR.1 и сертификат происхождения', 'task', 360, 163, f'{MODULE}#imports'),
+            ('n4', 'Сертификаты соответствия и безопасности', 'task', 360, 270, f'{MODULE}#imports'),
+            ('n5', 'Локализованные этикетки RO/RU', 'task3', 590, 270, f'{MODULE}#products'),
+            ('g1', 'Всё готово за N дней до границы?', 'gateway', 640, 120, f'{MODULE}#imports'),
+            ('n6', 'Эскалация ответственному, сдвиг ETA', 'task3', 860, 40, f'{MODULE}#imports'),
+            ('n7', 'Пакет передан брокеру', 'task2', 880, 200, f'{MODULE}#imports'),
+            ('n8', 'Досье заказа в архиве', 'task2', 880, 380, f'{MODULE}#docs'),
+            ('e1', 'Готово к границе', 'end', 660, 420, f'{MODULE}#imports'),
+        ],
+        'edges': [('c1', 's1', 'n1'), ('c2', 'n1', 'n2'), ('c3', 'n1', 'n3'),
+                  ('c4', 'n1', 'n4'), ('c5', 'n4', 'n5'), ('c6', 'n2', 'g1'),
+                  ('c7', 'n3', 'g1'), ('c8', 'n5', 'g1'),
+                  ('c9', 'g1', 'n7', 'да'), ('c10', 'g1', 'n6', 'нет'),
+                  ('c11', 'n6', 'n7'), ('c12', 'n7', 'n8'), ('c13', 'n8', 'e1')],
+    },
 ]
 
 
@@ -369,7 +460,7 @@ BEGIN
   -- Файл рассчитан на повторный запуск: схема перезаписывается целиком.
   -- Правки, сделанные оператором в бэк-офисе, при повторном деплое
   -- этого файла теряются — так и задумано, эталон схемы лежит в генераторе.
-  DELETE FROM PLG_PROCESSES WHERE CODE = q'[{code}]';
+  DELETE FROM PLG_PROCESSES WHERE CODE = q'[{p['code']}]';
   INSERT INTO PLG_PROCESSES (CODE, NAME_RU, NAME_RO, NAME_EN,
                              DESCR_RU, DESCR_RO, DESCR_EN,
                              DIAGRAM_XML, NODE_COUNT, SORT_ORDER, UPDATED_BY)
