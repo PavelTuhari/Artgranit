@@ -162,6 +162,7 @@ class PlanogramController:
             "promo_types":   "SELECT CODE, NAME_RU, NAME_RO, NAME_EN, COLOR FROM PLG_REF_PROMO_TYPES ORDER BY SORT_ORDER",
             "doc_types":     "SELECT CODE, NAME_RU, NAME_RO, NAME_EN, ICON FROM PLG_REF_DOC_TYPES ORDER BY SORT_ORDER",
             "categories":    "SELECT ID, CODE, PARENT_ID, NAME_RU, NAME_RO, NAME_EN, COLOR, ICON FROM PLG_CATEGORIES WHERE STATUS = 'active' ORDER BY SORT_ORDER",
+            "suppliers":     "SELECT ID, CODE, NAME_RU, NAME_RO, NAME_EN, COUNTRY FROM PLG_SUPPLIERS WHERE STATUS = 'active' ORDER BY NAME_RU",
         }
         data: Dict[str, Any] = {}
         try:
