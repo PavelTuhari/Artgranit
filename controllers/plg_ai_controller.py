@@ -192,6 +192,49 @@ class PlgAiController:
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
 
+    @staticmethod
+    def similar_skus(lang: str, store_id: int, product_id: int,
+                     limit: int = 8) -> Dict[str, Any]:
+        """
+        Похожие по поведению SKU — поиск ближайших соседей по HNSW-индексу
+        Oracle 26ai (FETCH APPROX ... ROWS ONLY по VECTOR_DISTANCE).
+
+        Зачем это закупщику: прогноз для новинки берётся по поведению
+        аналогов; кандидаты на ту же промо-механику находятся по соседству
+        в пространстве поведения, а не по названию категории.
+        """
+        try:
+            with DatabaseModel() as db:
+                run_id = PlgAiController._last_monitor_run(db)
+                if not run_id:
+                    return {'success': False, 'error': 'Прогонов мониторинга ещё не было',
+                            'status': 404}
+                data = _localize(_rows(db.execute_query(
+                    "SELECT f.PRODUCT_ID, p.CODE AS PRODUCT_CODE, "
+                    "p.NAME_RU AS PRODUCT_NAME_RU, p.NAME_RO AS PRODUCT_NAME_RO, "
+                    "p.NAME_EN AS PRODUCT_NAME_EN, "
+                    "c.NAME_RU AS CATEGORY_NAME_RU, c.NAME_RO AS CATEGORY_NAME_RO, "
+                    "c.NAME_EN AS CATEGORY_NAME_EN, "
+                    "f.AVG_QTY_28, f.CV, f.TREND_PCT, f.PROMO_UPLIFT, f.OOS_DAYS_28, "
+                    "f.ABC_CLASS, f.XYZ_CLASS, f.IS_FRESH, "
+                    "ROUND(VECTOR_DISTANCE(f.EMB, "
+                    "  (SELECT f0.EMB FROM PLG_AI_FEATURES f0 WHERE f0.RUN_ID = :p_run "
+                    "   AND f0.STORE_ID = :p_st AND f0.PRODUCT_ID = :p_p), COSINE), 4) "
+                    "  AS DISTANCE "
+                    "FROM PLG_AI_FEATURES f "
+                    "JOIN PLG_PRODUCTS p ON p.ID = f.PRODUCT_ID "
+                    "LEFT JOIN PLG_CATEGORIES c ON c.ID = p.CATEGORY_ID "
+                    "WHERE f.RUN_ID = :p_run2 AND f.STORE_ID = :p_st2 "
+                    " AND f.PRODUCT_ID <> :p_p2 AND f.EMB IS NOT NULL "
+                    "ORDER BY DISTANCE "
+                    "FETCH APPROX FIRST :p_lim ROWS ONLY",
+                    {'p_run': run_id, 'p_st': store_id, 'p_p': product_id,
+                     'p_run2': run_id, 'p_st2': store_id, 'p_p2': product_id,
+                     'p_lim': limit})), lang)
+            return {'success': True, 'data': data, 'run_id': run_id}
+        except Exception as e:                                   # noqa: BLE001
+            return {'success': False, 'error': str(e)}
+
     # ==================== Корректировка автозаказа ====================
 
     @staticmethod
