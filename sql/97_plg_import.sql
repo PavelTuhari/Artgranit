@@ -317,6 +317,7 @@ SELECT
   i.GROSS_KG, i.SORT_ORDER
 FROM PLG_IMPORT_ITEMS i
 LEFT JOIN PLG_PRODUCTS p ON p.ID = i.PRODUCT_ID;
+/
 
 -- ==================== Демо-данные ====================
 --
