@@ -346,8 +346,12 @@ class AiMonitorEngine:
                 if len(same_dow) >= 2:
                     base = _median(same_dow)
                     s_dow = math.sqrt(sum((v - base) ** 2 for v in same_dow) / len(same_dow))
+                    # Двойной порог: и статистический (z), и практический (×1.6).
+                    # На медленных SKU сигма меньше единицы, и «5 против 4»
+                    # проходит по z-оценке, оставаясь бытовым шумом.
                     if (s_dow > 0 and last_qty > base + TH['spike_z'] * s_dow
-                            and last_qty >= TH['spike_min_qty'] and not hist[-1][3]):
+                            and last_qty >= max(TH['spike_min_qty'], base * 1.6)
+                            and not hist[-1][3]):
                         delta = (last_qty / base - 1) * 100 if base > 0 else 100.0
                         sig_buf.append((self.run_id, 'spike', 'info', store_id, pid, cat_id,
                                         round(last_qty, 2), round(base, 2), round(delta, 1),
