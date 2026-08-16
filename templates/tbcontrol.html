@@ -1546,7 +1546,7 @@ function openInviteModal() {
 async function saveInvite() {
     const path = gv('inv_path');
     const r = await api('/invites', 'POST', {
-        module_code: path.rstrip ? path : path.replace(/\/+$/, '').split('/').pop(),
+        module_code: path.replace(/\/+$/, '').split('/').pop() || 'portal',
         target_path: path, login: gv('inv_login'), password: gv('inv_pass'),
         expires_at: gv('inv_expires'), max_uses: gv('inv_max'), note: gv('inv_note')});
     if (!r.success) return toast(r.error, true);
