@@ -656,6 +656,86 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 </div>
             </section>
 
+            <!-- ===== ИИ-мониторинг продаж ===== -->
+            <section class="panel" id="panel-aimonitor">
+                <div class="stat-grid" id="aiStats"></div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="ai.signalsTitle">Сигналы мониторинга</div>
+                            <div class="sub" data-i18n="ai.signalsSub">Детекторы: риск out-of-stock, всплеск и провал спроса, риск списаний, дрейф модели, мёртвый запас</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <select class="ctl" id="aiTypeFilter" onchange="loadAiMonitor()"></select>
+                            <button class="btn btn-primary" onclick="startAiMonitor()" data-i18n="ai.run">Запустить мониторинг</button>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="aiSignalsTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="ai.featuresTitle">Массив признаков для обучения</div>
+                            <div class="sub" data-i18n="ai.featuresSub">Витрина по каждому SKU: уровни спроса, волатильность, промо-аплифт, OOS, списания. Выгружается для ML</div>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <a class="btn btn-ghost" id="aiCsv" href="/api/plg/ai/features/export?fmt=csv" data-i18n="ai.exportCsv">Выгрузить CSV</a>
+                            <a class="btn btn-ghost" id="aiJson" href="/api/plg/ai/features/export?fmt=json" data-i18n="ai.exportJson">Выгрузить JSON</a>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="aiFeatTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ttl" data-i18n="ai.runsTitle">Прогоны мониторинга</div></div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="aiRunsTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Автозаказ: корректировка на лету ===== -->
+            <section class="panel" id="panel-orders">
+                <div class="stat-grid" id="aoStats"></div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="ao.title">Автозаказ с корректировкой</div>
+                            <div class="sub" data-i18n="ao.sub">Рекомендация модели и решение закупщика рядом. Правка сохраняется сразу, модельная цифра не перезаписывается</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <select class="ctl" id="aoRunSel" onchange="loadAutoOrders()"></select>
+                            <a class="btn btn-primary" id="aoPackage" target="_blank" data-i18n="ao.package">Пакет документов</a>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="aoTbl"></table></div>
+                </div>
+            </section>
+
+            <!-- ===== Заказы импорта ===== -->
+            <section class="panel" id="panel-imports">
+                <div class="stat-grid" id="impStats"></div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="io.title">Заказы импорта</div>
+                            <div class="sub" data-i18n="io.sub">Контракт → отгрузка → граница → растаможка → выпуск. Задержки считаются как факт минус план</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="openImportModal()" data-i18n="io.new">Новый импортный заказ</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="impTbl"></table></div>
+                </div>
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="io.delaysTitle">Где теряются дни</div>
+                            <div class="sub" data-i18n="io.delaysSub">Задержки по этапам и причинам за все заказы — статистика для выбора поста и брокера</div>
+                        </div>
+                    </div>
+                    <div class="card-b">
+                        <div id="impDelayStage"></div>
+                        <div id="impDelayReason" style="margin-top:12px"></div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ===== Фреш: маршруты, профили категорий, заказ ===== -->
             <section class="panel" id="panel-fresh">
                 <div class="stat-grid" id="freshStats"></div>
