@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>Импортный заказ {{ o.order_no }} — пакет документов</title>
+<style>
+:root{ --line:#cbd5e1; --muted:#64748b; }
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{ font:14px/1.55 Georgia, 'Times New Roman', serif; color:#0f172a;
+      background:#f1f5f9; padding:28px; }
+.sheet{ background:#fff; max-width:900px; margin:0 auto 24px; padding:44px 52px;
+        box-shadow:0 2px 14px rgba(15,23,42,.12); page-break-after:always; }
+h1{ font-size:21px; margin-bottom:4px; }
+h2{ font-size:16px; margin:24px 0 8px; }
+.muted{ color:var(--muted); font-size:12.5px; }
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:4px 26px; margin-top:14px;
+       font-size:13.5px; }
+.grid b{ display:inline-block; min-width:170px; font-weight:normal; color:var(--muted); }
+table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+th{ text-align:left; border-bottom:2px solid #0f172a; padding:6px 8px;
+    font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+td{ border-bottom:1px solid var(--line); padding:6px 8px; }
+td.num, th.num{ text-align:right; white-space:nowrap; }
+.total td{ border-bottom:none; border-top:2px solid #0f172a; font-weight:bold; }
+.late{ color:#b91c1c; font-weight:bold; }
+.ok{ color:#15803d; }
+.toolbar{ max-width:900px; margin:0 auto 18px; display:flex; gap:10px; align-items:center; }
+.btn{ border:1px solid var(--line); background:#fff; border-radius:8px;
+      padding:8px 18px; font:600 13.5px system-ui; cursor:pointer; }
+.btn.primary{ background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+.sign{ display:flex; gap:60px; margin-top:44px; }
+.sign div{ flex:1; border-top:1px solid #0f172a; padding-top:6px;
+           font-size:12px; color:var(--muted); }
+@media print{ body{ background:#fff; padding:0; } .toolbar{ display:none; }
+              .sheet{ box-shadow:none; margin:0; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="btn primary" onclick="window.print()">Печать / сохранить в PDF</button>
+  <a class="btn" href="/UNA.md/orasldev/planograms#imports" style="text-decoration:none;color:inherit">← к импорту</a>
+  <span class="muted">{{ o.order_no }} · {{ o.stage_name }} ·
+        задержка {{ o.total_delay_days or 0 }} дн.</span>
+</div>
+
+<div class="sheet">
+  <h1>Импортный заказ {{ o.order_no }}</h1>
+  <div class="muted">Пакет для таможенного оформления · сформировано автоматически</div>
+
+  <div class="grid">
+    <div><b>Поставщик</b> {{ o.supplier_name or '—' }} ({{ o.supplier_country or o.country }})</div>
+    <div><b>Получатель</b> {{ o.dc_name or o.store_name or '—' }}</div>
+    <div><b>Условия поставки</b> {{ o.incoterms }} · {{ o.transport }}</div>
+    <div><b>Валюта / сумма</b> {{ o.currency }} {{ '%.2f'|format(o.amount or 0) }}</div>
+    <div><b>Пошлина (оценка)</b> {{ o.duty_pct or 0 }} % · НДС {{ o.vat_pct or 20 }} %</div>
+    <div><b>Таможенный пост</b> {{ o.customs_post or '—' }}</div>
+    <div><b>Брокер</b> {{ o.broker or '—' }}</div>
+    <div><b>ETD / ETA</b> {{ o.etd or '—' }} → {{ o.eta or '—' }}</div>
+  </div>
+
+  <h2>Спецификация (с кодами ТН ВЭД)</h2>
+  <table>
+    <thead><tr>
+      <th style="width:32%">Товар</th><th>ТН ВЭД</th><th>Происхождение</th>
+      <th class="num">Кол-во</th><th class="num">Цена</th>
+      <th class="num">Сумма</th><th class="num">Брутто, кг</th>
+    </tr></thead>
+    <tbody>
+    {% for it in o['items'] %}
+      <tr>
+        <td>{{ it.product_name }}</td>
+        <td>{{ it.hs_code or '—' }}</td>
+        <td>{{ it.origin or '—' }}</td>
+        <td class="num">{{ it.qty }} {{ it.uom }}</td>
+        <td class="num">{{ '%.2f'|format(it.price or 0) }}</td>
+        <td class="num">{{ '%.2f'|format(it.amount or 0) }}</td>
+        <td class="num">{{ it.gross_kg or '—' }}</td>
+      </tr>
+    {% endfor %}
+      <tr class="total"><td colspan="5">Итого</td>
+        <td class="num">{{ '%.2f'|format(o.amount or 0) }}</td><td></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sheet">
+  <h1>Чек-лист документов · {{ o.order_no }}</h1>
+  <div class="muted">Дедлайн каждого документа отсчитан от плановой даты прибытия
+       на границу. Просроченный документ — это простой машины на СВХ.</div>
+
+  <table>
+    <thead><tr>
+      <th style="width:34%">Документ</th><th>Статус</th><th>Срок готовности</th>
+      <th>Фактически готов</th><th>Ответственный</th>
+    </tr></thead>
+    <tbody>
+    {% for d in o.docs %}
+      <tr>
+        <td>{{ d.doc_name }}{% if not d.is_customs %} <span class="muted">(не для таможни)</span>{% endif %}</td>
+        <td class="{{ 'ok' if d.status in ('ready','approved') else ('late' if d.is_overdue else '') }}">
+          {{ {'pending':'ожидает','in_progress':'в работе','ready':'готов',
+              'approved':'принят','rejected':'отклонён'}.get(d.status, d.status) }}
+          {% if d.is_overdue %} · просрочен{% endif %}
+        </td>
+        <td>{{ d.due_date or '—' }}</td>
+        <td>{{ d.ready_date or '—' }}</td>
+        <td class="muted">{{ d.responsible or '—' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Прохождение этапов</h2>
+  <table>
+    <thead><tr>
+      <th>Этап</th><th>План</th><th>Факт</th>
+      <th class="num">Задержка, дн.</th><th>Причина</th>
+    </tr></thead>
+    <tbody>
+    {% for s in o.stages %}
+      <tr>
+        <td>{{ s.stage_name }}{% if s.is_customs %} <span class="muted">· таможня</span>{% endif %}</td>
+        <td>{{ s.planned_date or '—' }}</td>
+        <td>{{ s.actual_date or '—' }}</td>
+        <td class="num {{ 'late' if (s.delay_days or 0) > 0 else '' }}">{{ s.delay_days or 0 }}</td>
+        <td class="muted">{{ {'docs':'документы','customs':'таможня','logistics':'логистика',
+                              'supplier':'поставщик','payment':'оплата','other':'прочее'}.get(s.delay_reason, s.delay_reason or '') }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sign">
+    <div>Сформировал: {{ generated_by }}</div>
+    <div>Отдел ВЭД</div>
+    <div>Таможенный брокер</div>
+  </div>
+</div>
+</body>
+</html>
