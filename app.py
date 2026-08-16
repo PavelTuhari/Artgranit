@@ -23,6 +23,7 @@ from controllers.digi_marketing_controller import DigiMarketingController
 from controllers.tbcontrol_controller import TBControlController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
+from controllers.plg_ai_controller import PlgAiController
 from controllers.colass_controller import ColassController
 import threading
 import time
