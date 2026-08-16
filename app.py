@@ -3791,6 +3791,16 @@ def api_plg_ai_features():
         request.args.get('limit', 200, type=int)))
 
 
+@app.route('/api/plg/ai/similar', methods=['GET'])
+def api_plg_ai_similar():
+    """Похожие по поведению SKU — векторный поиск по HNSW-индексу 26ai."""
+    result = PlgAiController.similar_skus(
+        _plg_lang(), request.args.get('store_id', type=int),
+        request.args.get('product_id', type=int),
+        request.args.get('limit', 8, type=int))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
 @app.route('/api/plg/ai/features/export', methods=['GET'])
 def api_plg_ai_export():
     """Выгрузка массива признаков для обучения моделей: CSV или JSON."""
@@ -3812,7 +3822,7 @@ def api_plg_order_runs():
 
 
 @app.route('/api/plg/orders/proposal', methods=['GET'])
-def api_plg_order_proposal():
+def api_plg_adjusted_proposal():
     return jsonify(PlgAiController.order_proposal(
         _plg_lang(), request.args.get('run_id', type=int),
         request.args.get('store_id', type=int)))
