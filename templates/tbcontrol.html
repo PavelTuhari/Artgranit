@@ -1481,6 +1481,100 @@ async function loadAudit() {
         '<tr><td colspan="5" class="empty-note">Журнал пуст</td></tr>';
 }
 
+// ===== Хэш-инвайты =====
+const INVITE_MODULES = [
+    ['tbcontrol', '/UNA.md/orasldev/tbcontrol', 'TBControl'],
+    ['digi-sm', '/UNA.md/orasldev/digi-sm', 'DIGI SM'],
+    ['dashboard', '/UNA.md/orasldev/dashboard', 'Dashboard'],
+    ['nufarul-admin', '/UNA.md/orasldev/nufarul-admin', 'Nufarul Admin'],
+    ['nufarul-operator', '/UNA.md/orasldev/nufarul-operator', 'Nufarul Operator'],
+    ['credit-admin', '/UNA.md/orasldev/credit-admin', 'Credit Admin'],
+    ['decor-admin', '/UNA.md/orasldev/decor-admin', 'DECOR Admin'],
+    ['agro', '/UNA.md/orasldev/agro', 'AGRO'],
+    ['biro26', '/UNA.md/orasldev/biro26', 'Biro26'],
+    ['docs', '/UNA.md/orasldev/docs', 'Документация'],
+    ['sqldeveloper', '/UNA.md/orasldev', 'SQL Developer'],
+];
+async function loadInvites() {
+    const r = await api('/invites');
+    if (!r.success) return toast(r.error, true);
+    const dows = {active: 'bg-ok', disabled: 'bg-mut'};
+    document.getElementById('invitesTbody').innerHTML = r.data.map(i => {
+        const url = location.origin + i.target_path + '?h=' + i.hash;
+        return `<tr><td><b style="color:var(--accent2)">${esc(i.module_code)}</b></td>
+        <td class="mono" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(url)}">${esc(i.target_path)}?h=${esc(i.hash.substring(0, 10))}…</td>
+        <td class="muted">${esc(i.login)}</td>
+        <td><span class="badge-st ${dows[i.status] || 'bg-mut'}">${esc(i.status)}</span></td>
+        <td class="muted">${fmtTs(i.expires_at) || 'бессрочно'}</td>
+        <td class="muted">${i.uses_count || 0}${i.max_uses ? '/' + i.max_uses : ''}</td>
+        <td class="muted">${esc(i.note || '')}</td>
+        <td class="muted">${fmtTs(i.created_at)}</td>
+        <td style="white-space:nowrap">
+            <button class="btn btn-secondary btn-sm" onclick="copyInvite('${esc(url)}')" title="Скопировать ссылку">📋</button>
+            ${i.status === 'active'
+                ? `<button class="btn btn-warning btn-sm" onclick="setInviteStatus(${i.id}, 'disabled')" title="Отключить">⏸</button>`
+                : `<button class="btn btn-success btn-sm" onclick="setInviteStatus(${i.id}, 'active')" title="Включить">▶</button>`}
+            <button class="btn btn-danger btn-sm" onclick="delInvite(${i.id})">🗑</button>
+        </td></tr>`;
+    }).join('') || '<tr><td colspan="9" class="empty-note">Инвайтов нет — создайте первый</td></tr>';
+}
+function openInviteModal() {
+    openModal(`<h3>🔗 Новый хэш-инвайт</h3>
+        <div class="muted" style="font-size:12px;margin-bottom:10px">
+            Система сгенерирует секретный хэш и ссылку вида
+            <span class="mono">${location.origin}/UNA.md/orasldev/tbcontrol?h=…</span> —
+            переход по ней автоматически логинит указанными кредами и открывает модуль.
+        </div>
+        <div class="form-group"><label>Модуль</label><select class="form-control" id="inv_module" onchange="document.getElementById('inv_path').value = this.value">
+            ${INVITE_MODULES.map(m => `<option value="${m[1]}">${esc(m[2])} — ${m[1]}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Путь (можно изменить)</label>
+            <input class="form-control mono" id="inv_path" value="/UNA.md/orasldev/tbcontrol"></div>
+        <div class="form-row">
+            <div class="form-group"><label>Логин для автовхода</label><input class="form-control" id="inv_login"></div>
+            <div class="form-group"><label>Пароль</label><input class="form-control" id="inv_pass" type="password"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Истекает (пусто = бессрочно)</label>
+                <input class="form-control" id="inv_expires" type="datetime-local"></div>
+            <div class="form-group"><label>Лимит использований (пусто = без лимита)</label>
+                <input class="form-control" id="inv_max" type="number" min="1"></div>
+        </div>
+        <div class="form-group"><label>Заметка (кому выдан)</label><input class="form-control" id="inv_note"></div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveInvite()">Создать и получить ссылку</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+}
+async function saveInvite() {
+    const path = gv('inv_path');
+    const r = await api('/invites', 'POST', {
+        module_code: path.rstrip ? path : path.replace(/\/+$/, '').split('/').pop(),
+        target_path: path, login: gv('inv_login'), password: gv('inv_pass'),
+        expires_at: gv('inv_expires'), max_uses: gv('inv_max'), note: gv('inv_note')});
+    if (!r.success) return toast(r.error, true);
+    const url = location.origin + r.data.url;
+    closeModal();
+    loadInvites();
+    openModal(`<h3>✅ Инвайт создан</h3>
+        <div class="form-group"><label>Ссылка для отправки</label>
+            <input class="form-control mono" id="inv_url_out" value="${esc(url)}" readonly onclick="this.select()"></div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="copyInvite('${esc(url)}')">📋 Скопировать</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Закрыть</button></div>`);
+}
+function copyInvite(url) {
+    navigator.clipboard.writeText(url).then(() => toast('Ссылка скопирована'))
+        .catch(() => toast('Скопируйте вручную: выделите поле', true));
+}
+async function setInviteStatus(id, status) {
+    const r = await api('/invites/' + id, 'PUT', {status});
+    toast(r.success ? 'Обновлено' : r.error, !r.success);
+    loadInvites();
+}
+async function delInvite(id) {
+    if (!confirm('Удалить инвайт? Ссылка перестанет работать.')) return;
+    const r = await api('/invites/' + id, 'DELETE');
+    toast(r.success ? 'Удалено' : r.error, !r.success);
+    loadInvites();
+}
+
 // ===== Эмулятор сценариев / Zabbix-коннектор =====
 let emuPollTimer = null;
 async function openEmulatorModal() {
