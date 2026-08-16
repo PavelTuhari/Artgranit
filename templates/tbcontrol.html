@@ -1655,6 +1655,15 @@ async function stopEmulator() {
 }
 
 boot();
+// Deep-link: /UNA.md/orasldev/tbcontrol#monitor открывает панель сразу
+(function () {
+    const openFromHash = () => {
+        const h = location.hash.replace('#', '');
+        if (h && document.getElementById('panel-' + h)) showPanel(h);
+    };
+    openFromHash();
+    window.addEventListener('hashchange', openFromHash);
+})();
 setInterval(() => { if (document.getElementById('panel-dashboard').classList.contains('active')) loadDashboard(); }, 30000);
 api('/emulator/status').then(r => { if (r.success) renderEmuStatus(r.data); });
 </script>
