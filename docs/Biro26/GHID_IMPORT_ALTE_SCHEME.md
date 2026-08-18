@@ -332,6 +332,79 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.28 Foile = grupe, algoritm selectabil, mapare manuala care nu se pierde
+
+Setul 12 (PRINTERRA) a cerut trei lucruri care lipseau: marfa pe **6 foi = 6 grupe**,
+o **lista de algoritmi** in loc de un singur comportament implicit, si **maparea manuala**
+a coloanelor — pentru ca fisierul avea antetul stricat.
+
+#### Antet suprascris cu valori: esecul cel mai tacut de pina acum
+
+Pe **4 din 6 foi**, cineva suprascrisese antetul coloanelor de pret cu valori din primul rand:
+
+| Foaie | Coloanele 12–13 |
+|---|---|
+| Imprimante | `Price Online`, `Розничная цена с НДС` ✅ |
+| Cerneala | `Price Online`, `Розничная цена с НДС` ✅ |
+| Hirtie si baza | `43,50`, `43.5` ❌ |
+| Cartuse | `109,50`, `109.5` ❌ |
+| Sublimare | `189,00`, `189` ❌ |
+| Accesorii si piese | `526,50`, `526.5` ❌ |
+
+Detectarea automata nu gaseste coloana, importul **reuseste**, iar **4 108 din 5 147** de
+produse ar fi intrat fara niciun pret. Nimic nu semnaleaza asta: nu e eroare, e absenta.
+
+#### Defect gasit: maparea manuala se stergea singura
+
+Interfata avea de mult un tabel de mapare manuala, dar era **inutilizabil**:
+`detect_columns` incepea cu `DELETE FROM biro26pt_map WHERE load_id = ...` — fara conditie.
+Orice reanaliza arunca ce corectase omul, iar analiza se reface la fiecare import.
+
+Corectat: se sterg doar mapările automate, iar detectarea nu mai calca peste cimpurile sau
+coloanele fixate manual.
+
+```sql
+-- RO: maparea MANUALA a operatorului se PASTREAZA
+DELETE FROM biro26pt_map WHERE load_id = p_load_id AND NVL(strategy,'?') <> 'MANUAL';
+```
+
+In raport se vede exact ce a corectat omul:
+
+```
+c10 -> ANGRO     [HEADER]  "Цена закупки с НДС"
+c11 -> ONLINE    [MANUAL]  "43,50"
+c12 -> RETAIL    [MANUAL]  "43.5"
+```
+
+#### Algoritmii ca lista, nu ca implicit
+
+`YBIRO_IMPORT_ALGO` — lista selectabila in back-office, extensibila fara cod. Fiecare
+algoritm isi **declara** comportamentul (`SHEET_GROUP`, `CREATES_GOODS`, `NEEDS_MAP`), iar
+interfata explica operatorului ce urmeaza sa se intimple **inainte** sa apese.
+
+| Cod | Ce face |
+|---|---|
+| `UNIVERSAL` | detectare automata (implicit) |
+| `SHEET_AS_GROUP` | numele foii devine GRUPA |
+| `MANUAL_MAP` | cere maparea manuala a coloanelor |
+| `PRICES_ONLY` / `IMAGES` / `BARCODES` | actualizari tintite, fara creare de marfa |
+
+Precedenta: algoritmul ales explicit > cel al sursei (`TMS_ORG_IMPSRC.ALGO_CODE`) > `UNIVERSAL`.
+
+#### Foaia ca grupa
+
+In `build_stg`, rezerva pentru `GRUPA` devine numele foii in loc de grupa implicita —
+dar **coloana `GRUPA` din fisier ramine prioritara**, deci algoritmul nu strica un fisier
+corect. Atentie la legaturi: cu `p_sheet_group`, `:grp`/`:grpp` nu mai apar in SQL-ul
+dinamic, deci `EXECUTE IMMEDIATE` leaga doar `load_id`.
+
+Rezultat pe setul 12: **5 147 produse**, **98 grupe** (6 foi x categorii), toate cu cod de
+bare **real** din fisier (niciun EAN generat), preturi verificate fata de fisier —
+**0 diferente**, 0 diacritice stricate.
+
+> **De verificat la orice fisier cu mai multe foi:** deschideti antetul **fiecarei** foi,
+> nu doar al primei. Foile arata identic la prima vedere si difera exact acolo unde doare.
+
 ### 9.27 Sursa fara HTTPS: imaginile se importa, dar nu se vad
 
 La impreso.md imaginile pareau "neimportate". Nu erau: toate cele 2 662 de URL-uri erau

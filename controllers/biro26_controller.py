@@ -1126,7 +1126,8 @@ class Biro26Controller:
                                    int(d.get("codprice") or 1),
                                    mark_all_new=d.get("mark_all_new", True),
                                    price_date=d.get("price_effective") or None,
-                                   src=d.get("src") or None)
+                                   src=d.get("src") or None,
+                                   algo=d.get("algo") or None)
             if not r.get("success"):
                 return r
             out.append(r["data"])
@@ -1151,7 +1152,8 @@ class Biro26Controller:
                                    int(d.get("codprice") or 1),
                                    mark_all_new=d.get("mark_all_new", True),
                                    price_date=d.get("price_effective") or None,
-                                   src=d.get("src") or None)
+                                   src=d.get("src") or None,
+                                   algo=d.get("algo") or None)
             if not r.get("success"):
                 return r
             out.append(r["data"])
@@ -1176,6 +1178,13 @@ class Biro26Controller:
         from models.biro26pt_store import Biro26PTStore
         return Biro26PTStore.sources(
             active_only=(request.args.get("all") != "1"))
+
+    @staticmethod
+    def pt_algorithms() -> Dict[str, Any]:
+        """RO: algoritmii de import pentru selectorul din back-office.
+        EN: import algorithms for the back-office selector."""
+        from models.biro26pt_store import Biro26PTStore
+        return Biro26PTStore.algorithms()
 
     @staticmethod
     def pt_source_files(src_code: str) -> Dict[str, Any]:

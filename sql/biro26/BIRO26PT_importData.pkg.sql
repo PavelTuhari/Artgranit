@@ -44,7 +44,12 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   FUNCTION  col_of(p_load_id IN NUMBER, p_field IN VARCHAR2) RETURN VARCHAR2;
 
   -- RO: proiecteaza RAW -> BIRO26PT_STG dupa maparea detectata / EN: project RAW -> STG per mapping
-  PROCEDURE build_stg(p_load_id IN NUMBER, p_grupa IN VARCHAR2 DEFAULT NULL);
+  -- RO: p_sheet_group => numele FOII Excel devine GRUPA (foile = grupe de marfa).
+  --     Coloana GRUPA din fisier, daca exista, are prioritate.
+  -- EN: p_sheet_group => the Excel SHEET name becomes the GROUP; a GRUPA column
+  --     in the file still wins.
+  PROCEDURE build_stg(p_load_id IN NUMBER, p_grupa IN VARCHAR2 DEFAULT NULL,
+                      p_sheet_group IN BOOLEAN DEFAULT FALSE);
 
   -- RO: clasifica randurile (NOU/EXISTENT/AMBIGUU) + raport / EN: classify rows + report
   PROCEDURE classify(p_load_id IN NUMBER);
@@ -70,7 +75,8 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
                         p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                         p_date        IN DATE     DEFAULT NULL,
                         p_force       IN BOOLEAN  DEFAULT FALSE,
-                        p_src         IN VARCHAR2 DEFAULT NULL);
+                        p_src         IN VARCHAR2 DEFAULT NULL,
+                        p_algo        IN VARCHAR2 DEFAULT NULL);
 
   -- RO: proceseaza toate fisierele neimportate / EN: process all not-yet-imported files
   PROCEDURE import_folder(p_grupa       IN VARCHAR2 DEFAULT NULL,
@@ -79,7 +85,8 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                           p_date        IN DATE     DEFAULT NULL,
                           p_force       IN BOOLEAN  DEFAULT FALSE,
-                          p_src         IN VARCHAR2 DEFAULT NULL);
+                          p_src         IN VARCHAR2 DEFAULT NULL,
+                          p_algo        IN VARCHAR2 DEFAULT NULL);
 
   -- RO: importa IMAGINILE SUPLIMENTARE (galeria) dintr-o foaie de tip "Images":
   --     coloanele articul + image_index + image_url -> TMS_MPT_WEBIMG.
@@ -141,7 +148,12 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     v_missing NUMBER;
   BEGIN
     SELECT src_file, n_cols INTO v_file, v_ncols FROM biro26pt_file WHERE load_id = p_load_id;
-    DELETE FROM biro26pt_map WHERE load_id = p_load_id;
+    -- RO: maparea MANUALA a operatorului se PASTREAZA — detectarea automata nu o
+    --     poate sterge. Altfel, orice reanaliza ar arunca ce a corectat omul, iar
+    --     fisierele cu antet stricat (PRINTERRA: 4 foi din 6) n-ar putea fi importate.
+    -- EN: the operator's MANUAL mapping is KEPT — auto-detection must not wipe it,
+    --     otherwise every re-analysis would discard the human's fix.
+    DELETE FROM biro26pt_map WHERE load_id = p_load_id AND NVL(strategy,'?') <> 'MANUAL';
     COMMIT;
 
     -- ============ STRATEGIA 1: dupa numele coloanei / STRATEGY 1: by header name ============
@@ -167,8 +179,11 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       ) WHERE rn = 1
     )
     SELECT p_load_id, logical_field, col_idx, 'HEADER', 1
-    FROM field_best
-    WHERE logical_field IN ('ARTICOL','DENUMIRE','BARCODE','ANGRO','ONLINE','RETAIL','VAT','URL',
+    FROM field_best fb
+    WHERE NOT EXISTS (SELECT 1 FROM biro26pt_map m
+                       WHERE m.load_id = p_load_id AND m.strategy = 'MANUAL'
+                         AND (m.logical_field = fb.logical_field OR m.col_idx = fb.col_idx))
+      AND logical_field IN ('ARTICOL','DENUMIRE','BARCODE','ANGRO','ONLINE','RETAIL','VAT','URL',
                             'GRUPA','CATEG','FURNIZOR','DESCRIERE','DENUM_FULL');
     COMMIT;
 
@@ -314,7 +329,8 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     END IF;
   END detect_columns;
 
-  PROCEDURE build_stg(p_load_id IN NUMBER, p_grupa IN VARCHAR2 DEFAULT NULL) IS
+  PROCEDURE build_stg(p_load_id IN NUMBER, p_grupa IN VARCHAR2 DEFAULT NULL,
+                      p_sheet_group IN BOOLEAN DEFAULT FALSE) IS
     v_art VARCHAR2(8); v_den VARCHAR2(8); v_bc VARCHAR2(8);
     v_ang VARCHAR2(8); v_onl VARCHAR2(8); v_ret VARCHAR2(8); v_vat VARCHAR2(8); v_grp VARCHAR2(8);
     v_url VARCHAR2(8); v_cat VARCHAR2(8); v_fz VARCHAR2(8);
@@ -325,6 +341,10 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     v_grupa VARCHAR2(60) := SUBSTR(NVL(p_grupa, g_default_grupa), 1, 60);
     v_grupp VARCHAR2(25) := SUBSTR(NVL(p_grupa, g_default_grupa), 1, 25);
     v_sql   VARCHAR2(4000);
+    -- RO: rezerva pentru GRUPA: numele foii (foile = grupe) sau grupa implicita.
+    -- EN: GRUPA fallback: the sheet name (sheets = groups) or the default group.
+    v_gfb   VARCHAR2(60) := CASE WHEN p_sheet_group THEN 'SUBSTR(r.sheet,1,60)' ELSE ':grp'  END;
+    v_gfbp  VARCHAR2(60) := CASE WHEN p_sheet_group THEN 'SUBSTR(r.sheet,1,25)' ELSE ':grpp' END;
     FUNCTION e(p_col VARCHAR2, p_num BOOLEAN DEFAULT FALSE) RETURN VARCHAR2 IS
     BEGIN
       IF p_col IS NULL THEN RETURN 'NULL'; END IF;
@@ -350,8 +370,8 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       '  SUBSTR(TRIM(REGEXP_REPLACE(' || e(v_art) ||
       '    , ''^(SKU|Articol|Article|Cod|Code|Art)[[:space:]]*:[[:space:]]*'', '''', 1, 1, ''i'')),1,60),' ||
       '  SUBSTR(' || e(v_den) || ',1,400),' ||
-      '  NVL(SUBSTR(' || e(v_grp) || ',1,60), :grp),' ||         -- grupa plina / full grupa
-      '  NVL(SUBSTR(' || e(v_grp) || ',1,25), :grpp),' ||        -- grupa_pret <=25
+      '  NVL(SUBSTR(' || e(v_grp) || ',1,60), ' || v_gfb  || '),' ||   -- grupa plina / full grupa
+      '  NVL(SUBSTR(' || e(v_grp) || ',1,25), ' || v_gfbp || '),' ||   -- grupa_pret <=25
       '  SUBSTR(' || e(v_cat) || ',1,260),' ||                   -- categorie
       '  SUBSTR(' || e(v_fz)  || ',1,260),' ||                   -- furnizor/producator
       '  ' || e(v_ang, TRUE) || ', ' || e(v_onl, TRUE) || ',' ||
@@ -371,7 +391,13 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       '  SUBSTR(' || e(v_dfull) || ',1,1000), NULL, NULL' ||
       ' FROM biro26pt_raw r WHERE r.load_id = :l' ||
       '   AND (' || e(v_art) || ' IS NOT NULL OR ' || e(v_den) || ' IS NOT NULL)';
-    EXECUTE IMMEDIATE v_sql USING v_grupa, v_grupp, p_load_id;
+    -- RO: cind foaia da grupa, :grp/:grpp nu mai apar in SQL — se leaga doar load_id.
+    -- EN: with sheet-as-group the :grp/:grpp binds are gone; only load_id remains.
+    IF p_sheet_group THEN
+      EXECUTE IMMEDIATE v_sql USING p_load_id;
+    ELSE
+      EXECUTE IMMEDIATE v_sql USING v_grupa, v_grupp, p_load_id;
+    END IF;
     COMMIT;
   END build_stg;
 
@@ -915,16 +941,40 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                         p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                         p_date        IN DATE     DEFAULT NULL,
                         p_force       IN BOOLEAN  DEFAULT FALSE,
-                        p_src         IN VARCHAR2 DEFAULT NULL) IS
+                        p_src         IN VARCHAR2 DEFAULT NULL,
+                        p_algo        IN VARCHAR2 DEFAULT NULL) IS
     v_cp   NUMBER := NVL(p_codprice, g_codprice);
     v_new  NUMBER;
     v_bc_filled NUMBER;
+    -- RO: algoritmul: explicit (p_algo) > cel al sursei > UNIVERSAL.
+    -- EN: algorithm: explicit > the source's own > UNIVERSAL.
+    v_algo VARCHAR2(30) := UPPER(p_algo);
+    v_sheet_group BOOLEAN := FALSE;
+    v_sg_num NUMBER;
   BEGIN
+    IF v_algo IS NULL AND p_src IS NOT NULL THEN
+      BEGIN
+        SELECT algo_code INTO v_algo FROM tms_org_impsrc WHERE src_code = UPPER(p_src);
+      EXCEPTION WHEN NO_DATA_FOUND THEN NULL; END;
+    END IF;
+    v_algo := NVL(v_algo, 'UNIVERSAL');
+    BEGIN
+      -- RO: SQL-ul nu cunoaste BOOLEAN — citim numarul si convertim in PL/SQL.
+      -- EN: SQL has no BOOLEAN — read the number and convert in PL/SQL.
+      SELECT sheet_group INTO v_sg_num FROM ybiro_import_algo WHERE algo_code = v_algo;
+      v_sheet_group := (NVL(v_sg_num, 0) = 1);
+    EXCEPTION WHEN NO_DATA_FOUND THEN
+      say('  RO: algoritm necunoscut: ' || v_algo || ' — se foloseste UNIVERSAL' ||
+          ' / EN: unknown algorithm, falling back to UNIVERSAL');
+      v_algo := 'UNIVERSAL';
+    END;
+    say('  RO: algoritm / EN: algorithm: ' || v_algo ||
+        CASE WHEN v_sheet_group THEN '  (foile = grupe / sheets = groups)' END);
     detect_columns(p_load_id, TRUE);
     IF col_of(p_load_id,'ARTICOL') IS NULL AND col_of(p_load_id,'DENUMIRE') IS NULL THEN
       say('  RO: fisier nerecunoscut - se sare / EN: unrecognized file - skipped'); RETURN;
     END IF;
-    build_stg(p_load_id, p_grupa);
+    build_stg(p_load_id, p_grupa, v_sheet_group);
     -- RO: prefixarea articolelor slabe TREBUIE sa se faca INAINTE de clasificare,
     --     altfel potrivirea s-ar face pe codul scurt si ar da dubluri/false.
     -- EN: weak-article prefixing MUST run BEFORE classification, otherwise matching
@@ -971,10 +1021,11 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                           p_mark_all_new IN BOOLEAN DEFAULT TRUE,
                           p_date        IN DATE     DEFAULT NULL,
                           p_force       IN BOOLEAN  DEFAULT FALSE,
-                          p_src         IN VARCHAR2 DEFAULT NULL) IS
+                          p_src         IN VARCHAR2 DEFAULT NULL,
+                          p_algo        IN VARCHAR2 DEFAULT NULL) IS
   BEGIN
     FOR r IN (SELECT load_id FROM biro26pt_file ORDER BY load_id) LOOP
-      import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date, p_force, p_src);
+      import_file(r.load_id, p_grupa, p_codprice, p_commit, p_mark_all_new, p_date, p_force, p_src, p_algo);
     END LOOP;
   END import_folder;
 

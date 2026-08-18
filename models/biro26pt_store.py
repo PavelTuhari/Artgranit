@@ -144,7 +144,8 @@ class Biro26PTStore:
     def _run_import(load_id: int, grupa: Optional[str], codprice: int,
                     commit: bool, mark_all_new: bool = True,
                     price_date: Optional[str] = None,
-                    src: Optional[str] = None) -> Dict[str, Any]:
+                    src: Optional[str] = None,
+                    algo: Optional[str] = None) -> Dict[str, Any]:
         # RO: p_mark_all_new => MATGR1=1 (filtrul "produse noi"); p_date =
         #     data intrarii in vigoare a pretului (NULL = azi).
         # EN: p_mark_all_new flags MATGR1=1 (the "new products" filter);
@@ -159,12 +160,18 @@ class Biro26PTStore:
         src_expr = ":s" if src else "NULL"
         if src:
             params["s"] = str(src).upper()
+        # RO: algoritmul ales explicit in back-office bate pe cel al sursei.
+        # EN: the algorithm picked in the back office overrides the source's own.
+        algo_expr = ":a" if algo else "NULL"
+        if algo:
+            params["a"] = str(algo).upper()
         r = Biro26DB().execute_dml(
             "BEGIN BIRO26PT_importData.import_file("
             "p_load_id => :l, p_grupa => :g, p_codprice => :cp, "
             "p_commit => " + ("TRUE" if commit else "FALSE") + ", "
             "p_mark_all_new => " + ("TRUE" if mark_all_new else "FALSE") + ", "
-            f"p_date => {date_expr}, p_src => {src_expr}); END;", params)
+            f"p_date => {date_expr}, p_src => {src_expr}, "
+            f"p_algo => {algo_expr}); END;", params)
         if not r.get("success"):
             return {"success": False, "error": r.get("message")}
         return {"success": True}
@@ -173,12 +180,13 @@ class Biro26PTStore:
     def analyze(load_id: int, grupa: Optional[str] = None,
                 codprice: int = 1, mark_all_new: bool = True,
                 price_date: Optional[str] = None,
-                src: Optional[str] = None) -> Dict[str, Any]:
+                src: Optional[str] = None,
+                algo: Optional[str] = None) -> Dict[str, Any]:
         """DRY-RUN (p_commit=FALSE, nothing written to production) + read the
         detection results for the UI (spec §6.1—6.3)."""
         run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=False,
                                         mark_all_new=mark_all_new,
-                                        price_date=price_date, src=src)
+                                        price_date=price_date, src=src, algo=algo)
         if not run["success"]:
             return run
         try:
@@ -241,11 +249,12 @@ class Biro26PTStore:
     def commit(load_id: int, grupa: Optional[str] = None,
                codprice: int = 1, mark_all_new: bool = True,
                price_date: Optional[str] = None,
-                src: Optional[str] = None) -> Dict[str, Any]:
+                src: Optional[str] = None,
+                algo: Optional[str] = None) -> Dict[str, Any]:
         """Real import (p_commit=TRUE) + the log and final counters."""
         run = Biro26PTStore._run_import(load_id, grupa, codprice, commit=True,
                                         mark_all_new=mark_all_new,
-                                        price_date=price_date, src=src)
+                                        price_date=price_date, src=src, algo=algo)
         if not run["success"]:
             return run
         try:
@@ -317,6 +326,23 @@ class Biro26PTStore:
                 + ("WHERE s.active = 1 " if active_only else "")
                 + "ORDER BY s.src_type, s.src_code"))
             return {"success": True, "data": {"sources": rows}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def algorithms() -> Dict[str, Any]:
+        """RO: lista algoritmilor de import pentru selectorul din back-office.
+        Fiecare algoritm spune ce face: daca foile devin grupe, daca creeaza
+        marfa noua si daca cere maparea manuala a coloanelor.
+        EN: import algorithms for the back-office selector; each declares whether
+        sheets become groups, whether it creates goods, and whether it needs a
+        manual column mapping."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT algo_code, algo_name, descr, sheet_group, creates_goods, "
+                "       needs_map, sort_order "
+                "  FROM ybiro_import_algo WHERE active = 1 ORDER BY sort_order"))
+            return {"success": True, "data": {"algorithms": rows}}
         except Exception as e:
             return {"success": False, "error": str(e)}
 

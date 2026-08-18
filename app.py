@@ -7650,6 +7650,10 @@ def api_biro26_img():
     return Response(data, mimetype=ctype,
                     headers={'Cache-Control': 'public, max-age=86400'})
 
+@app.route('/api/biro26/pt/algorithms', methods=['GET'])
+def api_biro26_pt_algorithms():
+    return _b26(Biro26Controller.pt_algorithms)
+
 @app.route('/api/biro26/pt/sources', methods=['GET'])
 def api_biro26_pt_sources():
     return _b26(Biro26Controller.pt_sources)

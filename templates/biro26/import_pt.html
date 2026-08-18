@@ -82,7 +82,11 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
     <div class="hint">Dry-run nu scrie NIMIC în producție — arată cum a înțeles sistemul
       fișierele. · Ничего не пишет в базу: показывает маппинг и счётчики.</div>
     <div class="frm">
-      <div><label>Sursa / algoritm · Источник</label>
+      <div><label>Algoritm de încărcare · Алгоритм</label>
+        <select id="f-algo" onchange="onAlgoChange()" style="min-width:230px">
+          <option value="">— din sursă (implicit) —</option>
+        </select></div>
+      <div><label>Sursa · Источник</label>
         <select id="f-src" onchange="onSrcChange()" style="min-width:210px">
           <option value="">— fără sursă (generic) —</option>
         </select></div>
@@ -98,6 +102,7 @@ pre.help{white-space:pre-wrap;font-size:12px;background:#0f172a;color:#e2e8f0;pa
       <b>virtual</b> = filtrul MATGR1, nu un nod fizic. Prețurile — regula <b>«nu se coboară»</b>.
       · Новые товары попадают в СВОИ реальные узлы дерева; «PRODUSE NOI» — виртуальный
       (фильтр MATGR1); цены — «не понижать».</div>
+    <div id="algo-info" class="hint" style="display:none;border-left:3px solid #2563eb;padding-left:10px"></div>
     <div id="src-info" class="hint" style="display:none;border-left:3px solid #888;padding-left:10px"></div>
     <div id="an-result"></div>
   </div>
@@ -219,7 +224,35 @@ function onSrcChange() {
   if (s.FILES_CNT) h += '<br>📁 fișiere păstrate în baza de date: <b>' + s.FILES_CNT + '</b>';
   box.innerHTML = h; box.style.display = '';
 }
-document.addEventListener('DOMContentLoaded', loadSources);
+// RO: algoritmii de incarcare (YBIRO_IMPORT_ALGO). Fiecare spune ce face:
+//     daca foile devin grupe, daca creeaza marfa, daca cere mapare manuala.
+let ALGOS = {};
+async function loadAlgos() {
+  try {
+    const r = await (await fetch('/api/biro26/pt/algorithms')).json();
+    if (!r.success) return;
+    const sel = document.getElementById('f-algo');
+    (r.data.algorithms || []).forEach(a => {
+      ALGOS[a.ALGO_CODE] = a;
+      const o = document.createElement('option');
+      o.value = a.ALGO_CODE; o.textContent = a.ALGO_NAME;
+      sel.appendChild(o);
+    });
+  } catch (e) { /* RO: fara lista, importul merge pe algoritmul sursei */ }
+}
+function onAlgoChange() {
+  const a = ALGOS[document.getElementById('f-algo').value];
+  const box = document.getElementById('algo-info');
+  if (!a) { box.style.display = 'none'; return; }
+  let h = '<b>' + a.ALGO_NAME + '</b><br>' + (a.DESCR || '');
+  if (a.SHEET_GROUP) h += '<br>📑 <b>Fiecare foaie Excel devine o GRUPĂ de marfă.</b>' +
+    ' Numele foii = grupa; coloana GRUPA din fișier, dacă există, are prioritate.';
+  if (!a.CREATES_GOODS) h += '<br>🔒 Nu creează marfă nouă — doar actualizează existentul.';
+  if (a.NEEDS_MAP) h += '<br>✋ <b>Cere maparea manuală a coloanelor</b> (tabelul de mai jos,' +
+    ' după «Analizează»). Folosiți-l când antetul e stricat sau lipsește.';
+  box.innerHTML = h; box.style.display = '';
+}
+document.addEventListener('DOMContentLoaded', () => { loadSources(); loadAlgos(); });
 
 async function analyze() {
   if (!LOADS.length) return;
@@ -232,7 +265,8 @@ async function analyze() {
     codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1,
     mark_all_new: document.getElementById('f-marknew').checked,
     price_effective: document.getElementById('f-pdate').value || null,
-    src: document.getElementById('f-src').value || null})});
+    src: document.getElementById('f-src').value || null,
+    algo: document.getElementById('f-algo').value || null})});
   btn.disabled = false;
   if (!r.success) { document.getElementById('an-result').innerHTML = ''; return; }
   ANALYSES = r.data;
@@ -314,7 +348,8 @@ async function doCommit() {
     codprice: parseInt(document.getElementById('f-codprice').value, 10) || 1,
     mark_all_new: document.getElementById('f-marknew').checked,
     price_effective: document.getElementById('f-pdate').value || null,
-    src: document.getElementById('f-src').value || null})});
+    src: document.getElementById('f-src').value || null,
+    algo: document.getElementById('f-algo').value || null})});
   btn.disabled = false;
   if (!r.success) { document.getElementById('ci-result').innerHTML = ''; return; }
   document.getElementById('ci-result').innerHTML = r.data.map(d =>
