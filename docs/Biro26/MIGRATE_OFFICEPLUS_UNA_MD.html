@@ -136,19 +136,34 @@
 </header>
 
 <section>
-  <h2>Сначала — две поправки</h2>
-  <div class="note note--stop">
-    <h3>Записи, которые вы прислали, — не то место</h3>
-    <p>В присланной таблице зона <code>officeplus.md</code> на nic.md. Но
-       <code>officeplus.una.md</code> — это поддомен <strong>una.md</strong>, и живёт он
-       в зоне <code>una.md</code> на вашем сервере имён <code>ns1.una.md</code>.
-       На nic.md его завести нельзя. Менять нужно зону una.md.</p>
+  <h2>Что уже сделано, а что нет</h2>
+
+  <div class="note note--ok">
+    <h3>officeplus.md уже на новом хостинге</h3>
+    <p>Публичный DNS отдаёт <code>92.5.130.1</code> — переезд основного имени
+       состоялся. Сертификат на месте, сайт работает. Здесь делать нечего.</p>
   </div>
+
   <div class="note note--stop">
-    <h3>Имя officeplus.una.md уже занято</h3>
-    <p>Оно сейчас отвечает и ведёт на <code>93.115.136.18</code> — там другой nginx
-       отдаёт старую страницу OfficePlus. Прежде чем переключать, нужно решить,
-       что делать с тем сайтом: он перестанет быть доступен по этому адресу.</p>
+    <h3>officeplus.una.md пока ведёт на другую машину</h3>
+    <p>Авторитетный сервер зоны <code>ns2.una.md</code> отвечает
+       <code>93.115.136.18</code>, а за этим NAT стоит внутренняя
+       <code>192.168.0.148</code>. Проверено сверкой страницы: она совпадает
+       с <code>.148</code> побайтово, а с новым хостингом — нет.</p>
+    <pre><code>dig +trace officeplus.una.md A
+officeplus.una.md.  600  IN  A  93.115.136.18
+;; Received from 178.175.140.131#53(ns2.una.md)</code></pre>
+    <p>Магазин там тот же самый — это не старый сайт, а второй работающий
+       контур. Но это <strong>не</strong> новый хостинг.</p>
+  </div>
+
+  <div class="note note--warn">
+    <h3>Запись меняется не на nic.md</h3>
+    <p>В присланной таблице зона <code>officeplus.md</code>. А
+       <code>officeplus.una.md</code> — поддомен <strong>una.md</strong>, и его
+       зону держат ваши собственные <code>ns1.una.md</code> / <code>ns2.una.md</code>
+       (<code>178.175.140.131</code> и <code>93.115.136.18</code>).
+       Записи, добавленные на nic.md, на это имя не повлияют.</p>
   </div>
 </section>
 
@@ -156,18 +171,21 @@
   <h2>Как всё разрешается сейчас</h2>
   <div class="scroll">
   <table>
-    <thead><tr><th>Имя</th><th class="mono">Адрес сейчас</th><th>Что там</th><th>Действие</th></tr></thead>
+    <thead><tr><th>Имя</th><th class="mono">Адрес</th><th>Что за машина</th><th>Действие</th></tr></thead>
     <tbody>
-      <tr><td class="mono">officeplus.md</td><td class="mono">92.5.130.1</td><td>боевой магазин</td><td><span class="tag tag--change">редирект</span></td></tr>
-      <tr><td class="mono">www.officeplus.md</td><td class="mono">92.5.130.1</td><td>то же</td><td><span class="tag tag--change">редирект</span></td></tr>
-      <tr><td class="mono">officeplus.una.md</td><td class="mono">93.115.136.18</td><td>старая страница, другой сервер</td><td><span class="tag tag--new">переключить</span></td></tr>
-      <tr><td class="mono">shop1 / shop2 / shop3</td><td class="mono">92.5.130.1</td><td>тестовые витрины</td><td><span class="tag tag--keep">не трогать</span></td></tr>
+      <tr><td class="mono">officeplus.md</td><td class="mono">92.5.130.1</td><td>новый хостинг</td><td><span class="tag tag--keep">готово</span></td></tr>
+      <tr><td class="mono">www.officeplus.md</td><td class="mono">92.5.130.1</td><td>новый хостинг</td><td><span class="tag tag--keep">готово</span></td></tr>
+      <tr><td class="mono">officeplus.una.md</td><td class="mono">93.115.136.18</td><td>NAT → 192.168.0.148</td><td><span class="tag tag--change">переключить</span></td></tr>
+      <tr><td class="mono">shop1 / shop2 / shop3</td><td class="mono">92.5.130.1</td><td>новый хостинг</td><td><span class="tag tag--keep">не трогать</span></td></tr>
       <tr><td class="mono">mail</td><td class="mono">92.5.130.1</td><td>почта</td><td><span class="tag tag--keep">не трогать</span></td></tr>
     </tbody>
   </table>
   </div>
-  <p class="prose">Сертификат на сервере сейчас выписан на <code>officeplus.md</code> и
-     <code>www.officeplus.md</code>, действует до 5 ноября 2026. Для нового имени нужен свой.</p>
+  <p class="prose">На новом хостинге имя <code>officeplus.una.md</code> пока не
+     настроено: по HTTP его подхватывает заглушка <code>_</code>, по HTTPS выходит
+     редирект обратно на HTTP, а сертификат выписан только на
+     <code>officeplus.md</code> и <code>www.officeplus.md</code> (до 5 ноября 2026).
+     Поэтому одной правкой DNS не обойтись — нужны шаги 3 и 4.</p>
 </section>
 
 <section>
@@ -178,23 +196,26 @@
   <ol class="steps">
     <li>
       <h3>Снизить TTL заранее</h3>
-      <p class="where">зона una.md · ns1.una.md</p>
-      <p>За сутки до переезда поставить у записи <code>officeplus.una.md</code>
+      <p class="where">зона una.md · ns1.una.md / ns2.una.md</p>
+      <p>Сейчас TTL этой записи — 600 секунд, это уже удобно. За сутки до переезда поставить у записи <code>officeplus.una.md</code>
          TTL <strong>300 секунд</strong>. Иначе старый адрес будет жить в кэшах
          провайдеров часами, и часть клиентов увидит старый сайт.</p>
     </li>
 
     <li>
       <h3>Переключить A-запись</h3>
-      <p class="where">зона una.md · ns1.una.md</p>
+      <p class="where">зона una.md · ns1.una.md / ns2.una.md</p>
       <div class="scroll">
       <table>
-        <thead><tr><th>Имя</th><th>Тип</th><th class="mono">Было</th><th class="mono">Станет</th></tr></thead>
+        <thead><tr><th>Имя в зоне</th><th>Тип</th><th class="mono">Было</th><th class="mono">Станет</th></tr></thead>
         <tbody>
           <tr><td class="mono">officeplus</td><td>A</td><td class="mono">93.115.136.18</td><td class="mono">92.5.130.1</td></tr>
         </tbody>
       </table>
       </div>
+      <p>После этого магазин на <code>192.168.0.148</code> перестанет быть доступен
+         по этому адресу. Сам он продолжит работать — вопрос лишь в том, нужен ли
+         он ещё.</p>
       <p>Проверка — адрес должен смениться:</p>
       <pre><code>dig +short officeplus.una.md A</code></pre>
     </li>
@@ -221,10 +242,12 @@ sudo certbot certificates</code></pre>
     </li>
 
     <li>
-      <h3>Поставить редирект со старого имени</h3>
+      <h3>Решить, какое имя главное</h3>
       <p class="where">92.5.130.1 · nginx</p>
-      <p>Старый домен не отключать. На нём остаются ссылки в поиске, в счетах,
-         в переписке и в рекламе. Отдельный блок <code>server</code>:</p>
+      <p>Оба имени ведут на одну машину, поэтому сайт откроется по обоим. Но
+         поисковику и платёжному шлюзу нужен <strong>один</strong> канонический
+         адрес. Если главным становится <code>officeplus.una.md</code> —
+         со старого ставим редирект:</p>
       <pre><code>server {
     listen 443 ssl;
     server_name officeplus.md www.officeplus.md;
