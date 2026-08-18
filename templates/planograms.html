@@ -1020,7 +1020,7 @@ const DEMO_MSG = 'Демо-режим: просмотр без изменени�
 // Только изменяющие действия. Просмотровые (go, navClick, setLang, setPeriod,
 // openPlanogramDetail, openSupplierCard, showProcess, compareModels) остаются
 // рабочими — иначе демонстрировать было бы нечего.
-const WRITE_RE = /^(save[A-Z]|delete[A-Z]|cancelGen|cancelFct|doImport|markRead|markAllRead|runForecast|startGeneration|setPlgStatus|openProcessImport|open[A-Za-z]*Modal)/;
+const WRITE_RE = /^(save[A-Z]|delete[A-Z]|cancelGen|cancelFct|doImport|markRead|markAllRead|runForecast|startGeneration|setPlgStatus|openProcessImport|open[A-Za-z]*Modal|startAiMonitor|adjustOrderQty|resetAdjustment|advanceImportStage|setImportDoc)/;
 
 function demoGuard() {
     if (!DEMO) return;
@@ -1147,10 +1147,13 @@ const SECTION_ALIASES = {
     map: 'storemap', plan: 'storemap', list: 'plglist', planograms: 'overview',
     gantt: 'logistics', shipments: 'logistics', supplier: 'suppliers',
     competitor: 'competitors', market: 'markets', price: 'competitors',
-    forecast_orders: 'forecast', orders: 'forecast', generator: 'testdata',
+    forecast_orders: 'forecast', generator: 'testdata',
     processes: 'processes',
     voice: 'floor-orders', devices: 'floor-orders', mobile: 'floor-orders',
     floor: 'floor-orders', waste: 'fresh', routes: 'fresh',
+    monitor: 'aimonitor', ai: 'aimonitor', signals: 'aimonitor',
+    autoorder: 'orders', 'auto-orders': 'orders', import: 'imports',
+    customs: 'imports',
 };
 
 function sectionFromHash() {
@@ -1253,6 +1256,7 @@ function reloadActive() {
         logistics: loadLogistics, suppliers: loadSuppliers,
         competitors: loadCompetitors, markets: loadMarkets, processes: loadProcesses,
         fresh: loadFresh, 'floor-orders': loadFloorOrders,
+        aimonitor: loadAiMonitor, orders: loadAutoOrders, imports: loadImports,
     };
     (loaders[ACTIVE] || loadDashboard)();
 }
@@ -3545,7 +3549,7 @@ function renderAiFeatures(res) {
         <th class="num">CV</th><th class="num">${esc(t('ai.trend'))}</th>
         <th class="num">${esc(t('ai.weekend'))}</th><th class="num">${esc(t('ai.promoUp'))}</th>
         <th class="num">OOS</th><th class="num">${esc(t('ai.cover'))}</th>
-        <th class="num">${esc(t('fr.waste'))}</th></tr></thead><tbody>` +
+        <th class="num">${esc(t('fr.waste'))}</th><th></th></tr></thead><tbody>` +
         (rows.length ? rows.map(f => `<tr>
             <td>${esc(f.product_name)}<div class="muted small">${esc(f.category_name || '')}</div></td>
             <td><span class="pill mute">${esc(f.abc_class || '—')}${esc(f.xyz_class || '')}</span></td>
@@ -3557,7 +3561,9 @@ function renderAiFeatures(res) {
             <td class="num ${Number(f.oos_days_28) > 3 ? 'bad' : ''}">${num(f.oos_days_28)}</td>
             <td class="num">${f.stock_cover_days ?? '—'}</td>
             <td class="num">${f.waste_pct !== null && f.waste_pct !== undefined ? f.waste_pct + '%' : '—'}</td>
-        </tr>`).join('') : `<tr><td colspan="12" class="muted">${esc(t('ai.noRun'))}</td></tr>`) + '</tbody>';
+            <td><button class="btn btn-ghost btn-sm" title="${esc(t('ai.similar'))}"
+                onclick="showSimilar(${f.store_id},${f.product_id},'${esc(String(f.product_name || '')).replace(/'/g, '')}')">≈</button></td>
+        </tr>`).join('') : `<tr><td colspan="13" class="muted">${esc(t('ai.noRun'))}</td></tr>`) + '</tbody>';
 }
 
 function renderAiRuns(rows) {
@@ -3581,6 +3587,30 @@ async function startAiMonitor() {
     if (!r.success) { toast(r.error, true); return; }
     toast(t('ai.started'));
     setTimeout(loadAiMonitor, 1500);
+}
+
+async function showSimilar(storeId, productId, name) {
+    const r = await api('/ai/similar?store_id=' + storeId + '&product_id=' + productId);
+    if (!r.success) { toast(r.error, true); return; }
+    const rows = (r.data || []).map(x => `<tr>
+        <td><b>${esc(x.product_name)}</b><div class="muted small">${esc(x.category_name || '')}</div></td>
+        <td class="num">${x.distance}</td>
+        <td class="num">${num(x.avg_qty_28)}</td>
+        <td class="num">${x.cv ?? '—'}</td>
+        <td class="num">${x.trend_pct ?? '—'}%</td>
+        <td class="num">${x.promo_uplift ?? '—'}</td>
+        <td><span class="pill mute">${esc(x.abc_class || '—')}${esc(x.xyz_class || '')}</span></td>
+    </tr>`).join('');
+    openModal(`
+        <h3>≈ ${esc(t('ai.similarTo'))}: ${esc(name)}</h3>
+        <div class="muted small">${esc(t('ai.similarHint'))}</div>
+        <table class="tbl" style="margin-top:10px"><thead><tr>
+            <th>${esc(t('nav.products'))}</th><th class="num">${esc(t('ai.distance'))}</th>
+            <th class="num">μ28</th><th class="num">CV</th>
+            <th class="num">${esc(t('ai.trend'))}</th><th class="num">${esc(t('ai.promoUp'))}</th>
+            <th>ABC/XYZ</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="7" class="muted">${esc(t('ui.empty'))}</td></tr>`}</tbody></table>
+        <div class="modal-f"><button class="btn btn-primary" onclick="closeModal()">${esc(t('ui.close'))}</button></div>`);
 }
 
 // ==================== Автозаказ: корректировка на лету ====================

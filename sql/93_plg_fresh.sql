@@ -45,6 +45,7 @@ WHEN NOT MATCHED THEN INSERT (CODE, NAME_RU, NAME_RO, NAME_EN, TEMP_MIN, TEMP_MA
      VALUES (s.CODE, s.RU, s.RO, s.EN, s.TMIN, s.TMAX, s.COL, s.SRT);
 
 COMMIT;
+/
 
 -- ==================== Атрибуты товара для фреш ====================
 --
@@ -190,6 +191,7 @@ END;
 /
 
 CREATE INDEX IX_PLG_FRESH_ROUTES_ST ON PLG_FRESH_ROUTES (STORE_ID, CATEGORY_ID, IS_ACTIVE);
+/
 
 -- ==================== Результат расчёта: фреш-поля ====================
 --
@@ -294,16 +296,20 @@ GROUP BY res.RUN_ID, res.STORE_ID, s.CODE, s.NAME_RU, s.NAME_RO, s.NAME_EN,
 
 -- ==================== Алгоритм заказа фреш ====================
 
+DELETE FROM PLG_FCT_ALGORITHMS WHERE CODE = 'fresh'
+  AND NOT EXISTS (SELECT 1 FROM PLG_FCT_MODELS m WHERE m.ALGORITHM = 'fresh');
+
 INSERT INTO PLG_FCT_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN,
-                                PARAMS_SCHEMA, PARAMS_JSON, MIN_HISTORY, SORT_ORDER) VALUES
-('fresh', 'Фреш: заказ по критическому отношению', 'Fresh: comandă după raportul critic',
+                                PARAMS_SCHEMA, PARAMS_JSON, MIN_HISTORY, SORT_ORDER)
+SELECT 'fresh', 'Фреш: заказ по критическому отношению', 'Fresh: comandă după raportul critic',
  'Fresh: critical-ratio ordering',
  'Спрос считается по медианному недельному профилю за короткое окно (фреш меняет уровень быстрее сухого ассортимента), с поправкой на свежий уровень последних дней и плановые акции. Заказ определяется не уровнем сервиса, а критическим отношением newsvendor: упущенная маржа против стоимости списания. Покрытие = интервал между поставками по календарю маршрута + плечо, но не больше остаточного срока годности на полке. Учитываются презентационный минимум выкладки, минимальная партия и кратность короба. Работает для обоих маршрутов: через распределительный центр и прямой поставкой.',
  'Cererea se calculează după profilul săptămânal median pe o fereastră scurtă, cu corecție de nivel recent și promoții planificate. Comanda se determină prin raportul critic newsvendor: marja pierdută față de costul rebutului. Acoperirea = intervalul dintre livrări + termenul de livrare, limitat de termenul de valabilitate rămas.',
  'Demand uses a median weekly profile over a short window, corrected for the recent level and planned promotions. The order quantity follows the newsvendor critical ratio — lost margin versus waste cost — rather than a flat service level. Coverage equals the interval between deliveries plus lead time, capped by the remaining shelf life. Supports both DC and direct-delivery routes.',
- '[{"key":"window","type":"int","min":14,"max":120,"default":35,"label_ru":"Окно профиля, дней","label_ro":"Fereastra profilului, zile","label_en":"Profile window, days"},{"key":"level_window","type":"int","min":3,"max":21,"default":7,"label_ru":"Окно свежего уровня, дней","label_ro":"Fereastra nivelului recent, zile","label_en":"Recent level window, days"},{"key":"route","type":"select","options":["auto","dc","direct"],"default":"auto","label_ru":"Маршрут поставки","label_ro":"Ruta de livrare","label_en":"Delivery route"},{"key":"waste_cost_pct","type":"float","min":0,"max":100,"step":1,"default":100,"label_ru":"Стоимость списания, % себестоимости","label_ro":"Costul rebutului, % din cost","label_en":"Waste cost, % of cost"},{"key":"min_cr","type":"float","min":0.5,"max":0.99,"step":0.01,"default":0.7,"label_ru":"Нижняя граница критического отношения","label_ro":"Limita inferioară a raportului critic","label_en":"Critical ratio floor"},{"key":"max_cr","type":"float","min":0.6,"max":0.999,"step":0.005,"default":0.97,"label_ru":"Верхняя граница критического отношения","label_ro":"Limita superioară a raportului critic","label_en":"Critical ratio cap"},{"key":"use_presentation","type":"bool","default":1,"label_ru":"Держать презентационный минимум","label_ro":"Menține minimul de prezentare","label_en":"Keep presentation minimum"},{"key":"use_promo","type":"bool","default":1,"label_ru":"Учитывать плановые акции","label_ro":"Ia în calcul promoțiile planificate","label_en":"Use planned promotions"},{"key":"exclude_oos","type":"bool","default":1,"label_ru":"Исключать дни out-of-stock","label_ro":"Exclude zilele fără stoc","label_en":"Exclude out-of-stock days"}]',
- '{"window": 35, "level_window": 7, "route": "auto", "waste_cost_pct": 100, "min_cr": 0.7, "max_cr": 0.97, "use_presentation": 1, "use_promo": 1, "exclude_oos": 1}',
- 28, 5);
+ '[{"key":"window","type":"int","min":14,"max":120,"default":35,"label_ru":"Окно профиля, дней","label_ro":"Fereastra profilului, zile","label_en":"Profile window, days"},{"key":"level_window","type":"int","min":3,"max":21,"default":7,"label_ru":"Окно свежего уровня, дней","label_ro":"Fereastra nivelului recent, zile","label_en":"Recent level window, days"},{"key":"route","type":"select","options":["auto","dc","direct"],"default":"auto","label_ru":"Маршрут поставки","label_ro":"Ruta de livrare","label_en":"Delivery route"},{"key":"waste_cost_pct","type":"float","min":0,"max":100,"step":1,"default":100,"label_ru":"Стоимость списания, % себестоимости","label_ro":"Costul rebutului, % din cost","label_en":"Waste cost, % of cost"},{"key":"lost_sale_factor","type":"float","min":1.0,"max":4.0,"step":0.1,"default":1.5,"label_ru":"Цена упущенной продажи, × маржи","label_ro":"Costul vânzării pierdute, × marjă","label_en":"Lost sale cost, × margin"},{"key":"min_cr","type":"float","min":0.5,"max":0.99,"step":0.01,"default":0.55,"label_ru":"Нижняя граница критического отношения","label_ro":"Limita inferioară a raportului critic","label_en":"Critical ratio floor"},{"key":"max_cr","type":"float","min":0.6,"max":0.999,"step":0.005,"default":0.97,"label_ru":"Верхняя граница критического отношения","label_ro":"Limita superioară a raportului critic","label_en":"Critical ratio cap"},{"key":"use_presentation","type":"bool","default":1,"label_ru":"Держать презентационный минимум","label_ro":"Menține minimul de prezentare","label_en":"Keep presentation minimum"},{"key":"use_promo","type":"bool","default":1,"label_ru":"Учитывать плановые акции","label_ro":"Ia în calcul promoțiile planificate","label_en":"Use planned promotions"},{"key":"exclude_oos","type":"bool","default":1,"label_ru":"Исключать дни out-of-stock","label_ro":"Exclude zilele fără stoc","label_en":"Exclude out-of-stock days"}]',
+ '{"window": 35, "level_window": 7, "route": "auto", "waste_cost_pct": 100, "lost_sale_factor": 1.5, "min_cr": 0.55, "max_cr": 0.97, "use_presentation": 1, "use_promo": 1, "exclude_oos": 1}',
+ 28, 5
+  FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM PLG_FCT_ALGORITHMS WHERE CODE = 'fresh');
 
 COMMIT;
 
@@ -311,19 +317,22 @@ COMMIT;
 -- списаний можно было сравнить на одних и тех же данных.
 INSERT INTO PLG_FCT_MODELS (CODE, ALGORITHM, NAME_RU, NAME_RO, NAME_EN, PARAMS_JSON,
                             HORIZON_DAYS, SERVICE_LEVEL, LEAD_TIME_DAYS, IS_DEFAULT, CREATED_BY)
-VALUES ('FRESH-DC', 'fresh', 'Фреш через распределительный центр', 'Fresh prin centrul de distribuție',
+SELECT 'FRESH-DC', 'fresh', 'Фреш через распределительный центр', 'Fresh prin centrul de distribuție',
         'Fresh via distribution centre',
-        '{"window": 35, "level_window": 7, "route": "dc", "waste_cost_pct": 100, "min_cr": 0.7, "max_cr": 0.97, "use_presentation": 1, "use_promo": 1, "exclude_oos": 1}',
-        7, 97, 1, 0, 'system');
+        '{"window": 35, "level_window": 7, "route": "dc", "waste_cost_pct": 100, "lost_sale_factor": 1.5, "min_cr": 0.55, "max_cr": 0.97, "use_presentation": 1, "use_promo": 1, "exclude_oos": 1}',
+        7, 97, 1, 0, 'system'
+  FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM PLG_FCT_MODELS WHERE CODE = 'FRESH-DC');
 
 INSERT INTO PLG_FCT_MODELS (CODE, ALGORITHM, NAME_RU, NAME_RO, NAME_EN, PARAMS_JSON,
                             HORIZON_DAYS, SERVICE_LEVEL, LEAD_TIME_DAYS, IS_DEFAULT, CREATED_BY)
-VALUES ('FRESH-DIRECT', 'fresh', 'Фреш прямой поставкой', 'Fresh prin livrare directă',
+SELECT 'FRESH-DIRECT', 'fresh', 'Фреш прямой поставкой', 'Fresh prin livrare directă',
         'Fresh via direct delivery',
-        '{"window": 35, "level_window": 7, "route": "direct", "waste_cost_pct": 100, "min_cr": 0.72, "max_cr": 0.97, "use_presentation": 1, "use_promo": 1, "exclude_oos": 1}',
-        7, 97, 1, 0, 'system');
+        '{"window": 35, "level_window": 7, "route": "direct", "waste_cost_pct": 100, "lost_sale_factor": 1.6, "min_cr": 0.55, "max_cr": 0.97, "use_presentation": 1, "use_promo": 1, "exclude_oos": 1}',
+        7, 97, 1, 0, 'system'
+  FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM PLG_FCT_MODELS WHERE CODE = 'FRESH-DIRECT');
 
 COMMIT;
+/
 
 -- ==================== Профили фреш-категорий ====================
 --
@@ -385,6 +394,7 @@ UPDATE PLG_PRODUCTS p
  WHERE p.COST_PRICE IS NULL AND p.PRICE IS NOT NULL;
 
 COMMIT;
+/
 
 -- ==================== Маршруты поставки для существующих наборов ====================
 --

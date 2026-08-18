@@ -627,10 +627,17 @@ class DataGenerator:
 
             # --- Акции: раскиданы по всей глубине истории, часть активна сейчас
             promo_total = max(1, round(promo_per_store * days / 90))
+            # Первые три акции каждого магазина обязаны идти ПРЯМО СЕЙЧАС.
+            # При случайном разбросе по году шанс попасть на сегодня мал, и на
+            # дашборде карточка «Активные акции» оказывалась пустой — витрина
+            # выглядела нерабочей, хотя акций в базе десятки.
             for p in range(promo_total):
                 ptype, label, disc, name = PROMO_TEMPLATES[self.rnd.randrange(len(PROMO_TEMPLATES))]
                 dur = self.rnd.choice([7, 10, 14, 14, 21])
-                start_offset = self.rnd.randint(-days, 20)
+                if p < 3:
+                    start_offset = -self.rnd.randint(1, max(2, dur - 2))
+                else:
+                    start_offset = self.rnd.randint(-days, 20)
                 d_from = today + timedelta(days=start_offset)
                 d_to = d_from + timedelta(days=dur)
                 zone = self.rnd.choice(zones)

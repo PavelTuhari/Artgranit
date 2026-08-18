@@ -139,7 +139,7 @@ CREATE TABLE PLG_GEN_ALGORITHMS (
 CREATE TABLE PLG_GEN_RUNS (
   ID           NUMBER        NOT NULL,
   DATASET_ID   NUMBER,
-  ALGORITHM    VARCHAR2(30)  NOT NULL,      -- код алгоритма либо 'full' (полный прогон)
+  ALGORITHM    VARCHAR2(200) NOT NULL,      -- код алгоритма, список кодов либо 'full'
   PARAMS_JSON  VARCHAR2(2000),
   STATUS       VARCHAR2(20)  DEFAULT 'running',  -- running / done / failed / cancelled
   STAGE        VARCHAR2(60),                -- текущий этап (для прогресса в админке)
@@ -181,27 +181,72 @@ INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR
  'Генерирует SKU по категориям с ценами, габаритами упаковки, кратностью заказа и ABC-классом. Доля категорий соответствует реальной структуре продуктового ритейла.',
  'Generează SKU pe categorii cu prețuri, dimensiuni, multiplu de comandă și clasa ABC.',
  'Generates SKUs per category with prices, pack sizes, order multiples and ABC class.',
- '{"sku_count": 400, "abc_split": [0.2, 0.3, 0.5], "price_min": 5, "price_max": 350}', 2);
+ '{"sku_count": 400, "abc_split": [0.2, 0.3, 0.5], "price_min": 5, "price_max": 350}', 3);
 
 INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
 ('demand', 'История спроса', 'Istoricul cererii', 'Demand history',
  'Ядро тестового окружения: суточные продажи по каждому SKU в каждом магазине. Модель = базовый уровень × годовая сезонность × недельный профиль × тренд × промо-аплифт × шум, поверх — события out-of-stock и остатки.',
  'Nucleul mediului de test: vânzări zilnice pe SKU și magazin. Model = nivel de bază × sezonalitate anuală × profil săptămânal × trend × uplift promoțional × zgomot.',
  'Core of the test environment: daily sales per SKU and store. Model = base level × yearly seasonality × weekly profile × trend × promo uplift × noise.',
- '{"days": 365, "weekly_amplitude": 0.35, "yearly_amplitude": 0.20, "trend_pct_year": 6, "noise_pct": 18, "oos_rate": 0.015, "promo_uplift": 1.9}', 3);
+ '{"days": 365, "weekly_amplitude": 0.35, "yearly_amplitude": 0.20, "trend_pct_year": 6, "noise_pct": 18, "oos_rate": 0.015, "promo_uplift": 1.9}', 5);
 
 INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
 ('traffic', 'Трафик и показатели', 'Trafic și indicatori', 'Traffic and metrics',
  'Считает проходимость зон и дневные показатели магазина (трафик, покупатели, конверсия, средний чек, выручка) СОГЛАСОВАННО с уже сгенерированными продажами, а не независимым шумом.',
  'Calculează traficul pe zone și indicatorii zilnici ai magazinului în concordanță cu vânzările generate.',
  'Computes zone traffic and daily store metrics consistently with the generated sales.',
- '{"conversion_min": 16, "conversion_max": 21}', 4);
+ '{"conversion_min": 16, "conversion_max": 21}', 6);
 
 INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
 ('events', 'Акции, планограммы, задачи', 'Promoții, planograme, sarcini', 'Promos, planograms, tasks',
  'Достраивает операционный слой: промо-кампании с привязкой к товарам и зонам, планограммы по зонам с позициями выкладки, задачи мерчандайзинга и уведомления.',
  'Completează stratul operațional: campanii promoționale, planograme cu poziții, sarcini și notificări.',
  'Builds the operational layer: promo campaigns, planograms with layout items, tasks and notifications.',
- '{"promo_per_store": 6, "planogram_per_store": 5, "task_per_store": 8}', 5);
+ '{"promo_per_store": 6, "planogram_per_store": 5, "task_per_store": 8}', 4);
 
+COMMIT;
+
+-- ==================== Рекомпиляция зависимых представлений ====================
+--
+-- ALTER TABLE над PLG_STORES / PLG_PRODUCTS инвалидирует представления,
+-- которые на них ссылаются (V_PLG_PLANOGRAMS, V_PLG_TASKS и др.). Oracle
+-- перекомпилирует их лениво при первом обращении, но оставлять объекты
+-- в статусе INVALID нельзя: чек-лист релиза требует VALID, а ленивая
+-- перекомпиляция может всплыть как ORA-04063 в неудачный момент.
+
+BEGIN
+  FOR v IN (SELECT OBJECT_NAME FROM USER_OBJECTS
+             WHERE OBJECT_TYPE = 'VIEW' AND STATUS <> 'VALID'
+               AND OBJECT_NAME LIKE 'V_PLG%') LOOP
+    BEGIN
+      EXECUTE IMMEDIATE 'ALTER VIEW ' || v.OBJECT_NAME || ' COMPILE';
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+  END LOOP;
+END;
+/
+INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
+('suppliers', 'Поставщики и контракты', 'Furnizori și contracte', 'Suppliers and contracts',
+ 'Создаёт базу поставщиков (производители, дистрибьюторы, импортёры, фермерские хозяйства, СТМ) с контактными лицами по ролям, договорами поставки/маркетинга/СТМ и товарными группами, по которым идёт работа. Каждый SKU затем получает поставщика из своей категории.',
+ 'Creează baza de furnizori cu persoane de contact, contracte și grupele de produse pe care lucrează.',
+ 'Builds the supplier base with contact persons, contracts and the product groups each supplier works in.',
+ '{"contacts_min": 2, "contacts_max": 4}', 2);
+INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
+('logistics', 'Логистика завоза', 'Logistica livrărilor', 'Inbound logistics',
+ 'Строит распределительный центр с доками, парк машин пяти типов и расписание рейсов на трёх плечах: поставщик → РЦ, РЦ → магазин по дням маршрута, прямой завоз фреша в магазины. Окна разгрузки не пересекаются ни по доку, ни по машине; часть рейсов опаздывает или отменяется — это и даёт материал для диаграммы Ганта.',
+ 'Construiește centrul de distribuție, parcul auto și programul curselor pe trei segmente.',
+ 'Builds the distribution centre, the vehicle fleet and the trip schedule across three legs.',
+ '{"gantt_days": 21}', 7);
+INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
+('competitors', 'Конкуренты и мониторинг цен', 'Concurenți și monitorizarea prețurilor', 'Competitors and price monitoring',
+ 'Создаёт сети-конкуренты с позиционированием (дискаунтер / средний сегмент / премиум), несколько раундов замеров их цен по нашим SKU и список их поставщиков с пометкой пересечения с нашей базой. Цена конкурента считается от нашей через позиционирование и постоянный сдвиг по SKU.',
+ 'Creează rețele concurente, runde de verificare a prețurilor și lista furnizorilor lor.',
+ 'Creates competitor chains, rounds of price checks and their supplier lists.',
+ '{"price_checks": 160, "price_rounds": 4}', 8);
+INSERT INTO PLG_GEN_ALGORITHMS (CODE, NAME_RU, NAME_RO, NAME_EN, DESCR_RU, DESCR_RO, DESCR_EN, PARAMS_JSON, STAGE_ORDER) VALUES
+('markets', 'Рынки других стран', 'Piețele altor țări', 'International markets',
+ 'Заполняет справочник рынков (Молдова, Румыния, Украина, Польша, Болгария, Грузия) с макропоказателями и схожими торговыми сетями: число магазинов, выручка, доля рынка, средняя площадь, доля СТМ, средний чек в евро — база для бенчмарка своей сети.',
+ 'Completează piețele cu indicatori macro și rețele comerciale comparabile.',
+ 'Fills in country markets with macro indicators and comparable retail chains.',
+ '{}', 9);
 COMMIT;

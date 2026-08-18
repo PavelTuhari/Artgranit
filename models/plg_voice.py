@@ -48,7 +48,10 @@ NUMBER_WORDS: Dict[str, Dict[str, float]] = {
         'zero': 0, 'un': 1, 'una': 1, 'unu': 1, 'doi': 2, 'doua': 2, 'două': 2,
         'trei': 3, 'patru': 4, 'cinci': 5, 'sase': 6, 'șase': 6, 'sapte': 7,
         'șapte': 7, 'opt': 8, 'noua': 9, 'nouă': 9, 'zece': 10, 'unsprezece': 11,
-        'doisprezece': 12, 'cincisprezece': 15, 'douazeci': 20, 'douăzeci': 20,
+        'doisprezece': 12, 'douasprezece': 12, 'douăsprezece': 12,
+        'treisprezece': 13, 'paisprezece': 14, 'cincisprezece': 15,
+        'saisprezece': 16, 'șaisprezece': 16, 'saptesprezece': 17,
+        'optsprezece': 18, 'nouasprezece': 19, 'douazeci': 20, 'douăzeci': 20,
         'treizeci': 30, 'patruzeci': 40, 'cincizeci': 50, 'suta': 100, 'sută': 100,
         'jumatate': 0.5, 'jumătate': 0.5, 'duzina': 12,
     },
@@ -207,7 +210,7 @@ def words_match(spoken: str, name_word: str) -> bool:
     """
     if spoken == name_word:
         return True
-    if similarity(spoken, name_word) >= 0.50:
+    if similarity(spoken, name_word) >= 0.45:
         return True
     pref = _common_prefix(spoken, name_word)
     shortest = min(len(spoken), len(name_word))

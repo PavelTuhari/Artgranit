@@ -86,6 +86,29 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
 .demo{ display:inline-block; background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4);
   color:var(--accent2); font-size:11.5px; font-weight:700; border-radius:6px;
   padding:4px 10px; letter-spacing:.4px; }
+/* Живая ссылка в работающую систему — есть на каждом слайде */
+a.live{ display:inline-flex; align-items:center; gap:7px; text-decoration:none;
+  background:rgba(34,197,94,.13); border:1px solid rgba(34,197,94,.45); color:#86efac;
+  font-size:12.5px; font-weight:600; border-radius:8px; padding:7px 14px;
+  transition:background .15s, transform .15s; }
+a.live:hover{ background:rgba(34,197,94,.24); transform:translateY(-1px); }
+a.live:before{ content:'▶'; font-size:10px; }
+a.live.blue{ background:rgba(59,130,246,.13); border-color:rgba(59,130,246,.45); color:var(--accent2); }
+a.live.blue:hover{ background:rgba(59,130,246,.24); }
+.livebar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.livebar .hint{ font-size:12px; color:var(--muted); }
+/* Кликабельные фигуры BPMN */
+.bpm a shape, .bpm a{ cursor:pointer; }
+.bpm a:hover rect, .bpm a:hover polygon, .bpm a:hover ellipse{ filter:brightness(1.35); }
+.proc-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:12px; }
+.doc-tile{ display:flex; gap:14px; background:var(--panel); border:1px solid var(--border);
+  border-radius:11px; padding:14px 16px; text-decoration:none; color:inherit;
+  border-left:3px solid var(--accent); transition:background .15s; }
+.doc-tile:hover{ background:var(--panel2); }
+.doc-tile .n{ width:28px; height:28px; border-radius:8px; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0; }
+.doc-tile h3{ font-size:15px; margin-bottom:4px; }
+.doc-tile p{ font-size:12.5px; color:var(--muted); margin:0; line-height:1.45; }
 .steps{ counter-reset:s; }
 .steps .step{ counter-increment:s; position:relative; padding-left:52px; margin-bottom:20px; }
 .steps .step:before{ content:counter(s); position:absolute; left:0; top:-2px;
@@ -115,6 +138,7 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
     <div><b>918 тыс.</b>строк в тестовой сети</div>
     <div><b>0</b>новых зависимостей</div>
   </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть работающую систему</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Документация модуля</a></div></div>
   <div class="num">1</div>
 </section>
 
@@ -147,6 +171,7 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       </div>
     </div>
   </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#plglist" target="_blank" rel="noopener">Как это выглядит сейчас: реестр планограмм</a><a class="live blue" href="/UNA.md/orasldev/planograms#logistics" target="_blank" rel="noopener">График завоза</a></div></div>
   <div class="num">2</div>
 </section>
 
@@ -184,7 +209,109 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       </ul>
     </div>
   </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#storemap" target="_blank" rel="noopener">Выкладка</a><a class="live blue" href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Заказ</a><a class="live blue" href="/UNA.md/orasldev/planograms#logistics" target="_blank" rel="noopener">Завоз</a><a class="live blue" href="/UNA.md/orasldev/planograms#competitors" target="_blank" rel="noopener">Рынок</a></div></div>
   <div class="num">3</div>
+</section>
+
+<!-- BPMN: карта процессов -->
+<section class="slide">
+  <div class="kicker">Бизнес-процессы</div>
+  <h2>Пять процессов, которые закрывает модуль</h2>
+  <p>Схемы описаны в нотации BPMN и хранятся в формате draw.io — тот же файл
+     открывается в diagrams.net. Каждая фигура на схеме кликабельна и ведёт
+     в соответствующий раздел работающей системы.</p>
+  <div class="proc-grid">
+      <a class="doc-tile" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">
+        <div class="n">1</div>
+        <div>
+          <h3>Изменение выкладки</h3>
+          <p>От инициативы категорийного менеджера до внедрения новой выкладки в зале с фотоотчётом. Каждый шаг опирается на данные…</p>
+        </div>
+      </a>
+      <a class="doc-tile" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">
+        <div class="n">2</div>
+        <div>
+          <h3>Формирование заказа</h3>
+          <p>От истории продаж до заказа поставщику. Модель прогноза выбирается не на веру: backtest прячет последнюю неделю и срав…</p>
+        </div>
+      </a>
+      <a class="doc-tile" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">
+        <div class="n">3</div>
+        <div>
+          <h3>Завоз товара</h3>
+          <p>Схема сети — распределительный центр плюс прямые поставки. Скоропортящееся идёт в магазин напрямую, остальное через РЦ…</p>
+        </div>
+      </a>
+      <a class="doc-tile" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">
+        <div class="n">4</div>
+        <div>
+          <h3>Работа с поставщиком</h3>
+          <p>Жизненный цикл поставщика: от заведения карточки и договора до контроля надёжности поставок и перезаключения контракта…</p>
+        </div>
+      </a>
+      <a class="doc-tile" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">
+        <div class="n">5</div>
+        <div>
+          <h3>Ценовой мониторинг</h3>
+          <p>Сбор цен конкурентов, расчёт ценового индекса по товарным группам и реакция там, где мы заметно дороже. Средняя цифра …</p>
+        </div>
+      </a></div>
+  <div class="card accent" style="margin-top:18px">
+    <h3>Почему это не «картинка в презентации»</h3>
+    <p>Схемы лежат в Oracle и редактируются в бэк-офисе: их можно выгрузить
+       в .drawio, изменить в diagrams.net и загрузить обратно. Ссылки на разделы
+       живут внутри схемы как штатные гиперссылки draw.io.</p>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Раздел «Бизнес-процессы» в системе</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Документация</a><span class="hint">клик по любой фигуре на следующих слайдах открывает раздел системы</span></div></div>
+  <div class="num">4</div>
+</section>
+<!-- BPMN: planogram-change -->
+<section class="slide">
+  <div class="kicker">Процесс · выкладка</div>
+  <h2>Изменение выкладки</h2>
+  <p>От инициативы категорийного менеджера до внедрения новой выкладки в зале с фотоотчётом. Каждый шаг опирается на данные модуля: проходимость зоны, версии планограммы, задачи мерчандайзеру.</p>
+  <div class="viz" style="padding:10px"><svg viewBox="18 18 1114 463" width="100%" class="bpm" style="display:block"><defs><marker id="bpaplanogram-change" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M 92.0 175.1275167785235 L 111.0 175.1275167785235 L 111.0 173.8523489932886 L 130.0 173.8523489932886" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 300.0 171.0 L 320.0 171.0 L 320.0 171.0 L 340.0 171.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 510.0 171.0 L 535.0 171.0 L 535.0 171.0 L 560.0 171.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 670.0 141.18421052631578 L 711.6747572815534 141.18421052631578 L 711.6747572815534 96.0 L 753.3495145631068 96.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><rect x="700.2747572815534" y="109.59210526315789" width="22.8" height="15" rx="3" fill="#111827" opacity=".93"/><text x="711.6747572815534" y="120.59210526315789" text-anchor="middle" fill="#94a3b8" font-size="10">да</text><path d="M 670.0 201.97368421052633 L 712.6401869158879 201.97368421052633 L 712.6401869158879 250.0 L 755.2803738317757 250.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><rect x="698.0401869158878" y="216.98684210526318" width="29.200000000000003" height="15" rx="3" fill="#111827" opacity=".93"/><text x="712.6401869158879" y="227.98684210526318" text-anchor="middle" fill="#94a3b8" font-size="10">нет</text><path d="M 864.8058252427185 96.0 L 915.0 96.0 L 915.0 143.0 L 965.1941747572815 143.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 862.5700934579439 250.0 L 915.0 250.0 L 915.0 199.0 L 967.4299065420561 199.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 1019.8780487804878 199.0 L 1019.8780487804878 249.5 L 1001.4024390243902 249.5 L 1001.4024390243902 300.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 940.0 359.35714285714283 L 894.1129032258065 359.35714285714283 L 894.1129032258065 400.0 L 848.2258064516129 400.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><rect x="882.7129032258065" y="370.67857142857144" width="22.8" height="15" rx="3" fill="#111827" opacity=".93"/><text x="894.1129032258065" y="381.67857142857144" text-anchor="middle" fill="#94a3b8" font-size="10">да</text><path d="M 940.0 323.43589743589746 L 620.0 323.43589743589746 L 620.0 188.87179487179486 L 300.0 188.87179487179486" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><rect x="570.2" y="247.1538461538462" width="99.60000000000001" height="15" rx="3" fill="#111827" opacity=".93"/><text x="620.0" y="258.1538461538462" text-anchor="middle" fill="#94a3b8" font-size="10">нет: доработка</text><path d="M 700.0 428.0 L 665.0 428.0 L 665.0 428.0 L 630.0 428.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><path d="M 460.0 431.0575539568345 L 446.0 431.0575539568345 L 446.0 432.0647482014389 L 432.0 432.0647482014389" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaplanogram-change)"/><g><ellipse cx="66.0" cy="176.0" rx="26.0" ry="26.0" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="66.0" y="177.0" text-anchor="middle" fill="#dcfce7" font-size="10" font-weight="500">Инициатива</text></g><a href="/UNA.md/orasldev/planograms#analytics" target="_blank"><title>Анализ проходимости зоны — открыть раздел</title><g><rect x="130" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="215.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Анализ проходимости зоны</text></g></a><a href="/UNA.md/orasldev/planograms#storemap" target="_blank"><title>Оценка текущей выкладки — открыть раздел</title><g><rect x="340" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="425.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Оценка текущей выкладки</text></g></a><a href="/UNA.md/orasldev/planograms#storemap" target="_blank"><title>Зона перегружена? — открыть раздел</title><g><polygon points="615.0,136 670,171.0 615.0,206 560,171.0" fill="#3f2d0b" stroke="#f59e0b" stroke-width="1.6"/><text x="615.0" y="172.0" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="500">Зона перегружена?</text></g></a><a href="/UNA.md/orasldev/planograms#storemap" target="_blank"><title>Перераспределить полочное пространство — открыть раздел</title><g><rect x="720" y="40" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="805.0" y="62.04" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Перераспределить полочное</text><text x="805.0" y="76.03999999999999" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">пространство</text></g></a><a href="/UNA.md/orasldev/planograms#products" target="_blank"><title>Точечная замена SKU — открыть раздел</title><g><rect x="720" y="250" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="805.0" y="279.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Точечная замена SKU</text></g></a><a href="/UNA.md/orasldev/planograms#plglist" target="_blank"><title>Создать версию планограммы — открыть раздел</title><g><rect x="940" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="1025.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Создать версию планограммы</text></g></a><a href="/UNA.md/orasldev/planograms#plglist" target="_blank"><title>Согласовано? — открыть раздел</title><g><polygon points="995.0,300 1050,335.0 995.0,370 940,335.0" fill="#3f2d0b" stroke="#f59e0b" stroke-width="1.6"/><text x="995.0" y="336.0" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="500">Согласовано?</text></g></a><a href="/UNA.md/orasldev/planograms#tasks" target="_blank"><title>Задача мерчандайзеру — открыть раздел</title><g><rect x="700" y="400" width="170" height="56" rx="12" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="785.0" y="429.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Задача мерчандайзеру</text></g></a><a href="/UNA.md/orasldev/planograms#docs" target="_blank"><title>Внедрение и фотоотчёт — открыть раздел</title><g><rect x="460" y="400" width="170" height="56" rx="12" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="545.0" y="429.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Внедрение и фотоотчёт</text></g></a><a href="/UNA.md/orasldev/planograms#history" target="_blank"><title>Готово — открыть раздел</title><g><ellipse cx="406.0" cy="433.0" rx="26.0" ry="26.0" fill="#4c1414" stroke="#ef4444" stroke-width="3"/><text x="406.0" y="434.0" text-anchor="middle" fill="#fee2e2" font-size="10" font-weight="500">Готово</text></g></a></svg></div>
+  <div class="legend">
+    <div><i style="background:#22c55e"></i>событие</div>
+    <div><i style="background:#3b82f6"></i>задача</div>
+    <div><i style="background:#f59e0b"></i>шлюз / решение</div>
+    <div><i style="background:#ef4444"></i>завершение</div>
+    <div style="margin-left:auto">клик по фигуре → раздел системы</div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#plglist" target="_blank" rel="noopener">Реестр планограмм</a><a class="live blue" href="/UNA.md/orasldev/planograms#storemap" target="_blank" rel="noopener">Карта зала</a><a class="live blue" href="/UNA.md/orasldev/planograms#history" target="_blank" rel="noopener">История изменений</a><span class="hint">фигуры схемы кликабельны</span></div></div>
+  <div class="num">5</div>
+</section>
+<!-- BPMN: order-forecast -->
+<section class="slide">
+  <div class="kicker">Процесс · заказ</div>
+  <h2>Формирование заказа</h2>
+  <p>От истории продаж до заказа поставщику. Модель прогноза выбирается не на веру: backtest прячет последнюю неделю и сравнивает прогноз с фактом, а заказ считается со страховым запасом и кратностью короба.</p>
+  <div class="viz" style="padding:10px"><svg viewBox="18 -2 1124 463" width="100%" class="bpm" style="display:block"><defs><marker id="bpaorder-forecast" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M 92.0 175.1275167785235 L 111.0 175.1275167785235 L 111.0 173.8523489932886 L 130.0 173.8523489932886" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 300.0 171.0 L 320.0 171.0 L 320.0 171.0 L 340.0 171.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 510.0 171.0 L 530.0 171.0 L 530.0 171.0 L 550.0 171.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 720.0 171.0 L 750.0 171.0 L 750.0 171.0 L 780.0 171.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 837.8455284552846 136.0 L 837.8455284552846 106.0 L 842.7235772357724 106.0 L 842.7235772357724 76.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><rect x="825.6845528455284" y="97.0" width="29.200000000000003" height="15" rx="3" fill="#111827" opacity=".93"/><text x="840.2845528455284" y="108.0" text-anchor="middle" fill="#94a3b8" font-size="10">нет</text><path d="M 760.0 72.89285714285714 L 635.0 72.89285714285714 L 635.0 146.10714285714286 L 510.0 146.10714285714286" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 890.0 171.0 L 920.0 171.0 L 920.0 171.0 L 950.0 171.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><rect x="908.6" y="162.0" width="22.8" height="15" rx="3" fill="#111827" opacity=".93"/><text x="920.0" y="173.0" text-anchor="middle" fill="#94a3b8" font-size="10">да</text><path d="M 1035.0 199.0 L 1035.0 229.5 L 1035.0 229.5 L 1035.0 260.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 981.3333333333334 316.0 L 920.0 316.0 L 920.0 380.0 L 858.6666666666666 380.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 720.0 408.0 L 680.0 408.0 L 680.0 408.0 L 640.0 408.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><path d="M 470.0 411.0575539568345 L 456.0 411.0575539568345 L 456.0 412.0647482014389 L 442.0 412.0647482014389" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpaorder-forecast)"/><g><ellipse cx="66.0" cy="176.0" rx="26.0" ry="26.0" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="66.0" y="171.2" text-anchor="middle" fill="#dcfce7" font-size="10" font-weight="500">Плановый</text><text x="66.0" y="183.2" text-anchor="middle" fill="#dcfce7" font-size="10" font-weight="500">цикл</text></g><a href="/UNA.md/orasldev/planograms#analytics" target="_blank"><title>История продаж по SKU — открыть раздел</title><g><rect x="130" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="215.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">История продаж по SKU</text></g></a><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>Выбор модели прогноза — открыть раздел</title><g><rect x="340" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="425.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Выбор модели прогноза</text></g></a><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>Backtest на факте — открыть раздел</title><g><rect x="550" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="635.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Backtest на факте</text></g></a><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>MAPE приемлем? — открыть раздел</title><g><polygon points="835.0,136 890,171.0 835.0,206 780,171.0" fill="#3f2d0b" stroke="#f59e0b" stroke-width="1.6"/><text x="835.0" y="172.0" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="500">MAPE приемлем?</text></g></a><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>Настройка параметров модели — открыть раздел</title><g><rect x="760" y="20" width="170" height="56" rx="12" fill="#4a2c0a" stroke="#f59e0b" stroke-width="1.6"/><text x="845.0" y="49.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Настройка параметров модели</text></g></a><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>Прогноз спроса на горизонт — открыть раздел</title><g><rect x="950" y="143" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="1035.0" y="172.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Прогноз спроса на горизонт</text></g></a><a href="/UNA.md/orasldev/planograms#promos" target="_blank"><title>Учёт плановых акций — открыть раздел</title><g><rect x="950" y="260" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="1035.0" y="289.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Учёт плановых акций</text></g></a><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>Расчёт заказа: запас и кратность — открыть раздел</title><g><rect x="720" y="380" width="170" height="56" rx="12" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="805.0" y="402.04" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Расчёт заказа: запас и</text><text x="805.0" y="416.04" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">кратность</text></g></a><a href="/UNA.md/orasldev/planograms#suppliers" target="_blank"><title>Заказ поставщику — открыть раздел</title><g><rect x="470" y="380" width="170" height="56" rx="12" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="555.0" y="409.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Заказ поставщику</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Заказ размещён — открыть раздел</title><g><ellipse cx="416.0" cy="413.0" rx="26.0" ry="26.0" fill="#4c1414" stroke="#ef4444" stroke-width="3"/><text x="416.0" y="408.2" text-anchor="middle" fill="#fee2e2" font-size="10" font-weight="500">Заказ</text><text x="416.0" y="420.2" text-anchor="middle" fill="#fee2e2" font-size="10" font-weight="500">размещён</text></g></a></svg></div>
+  <div class="legend">
+    <div><i style="background:#22c55e"></i>событие</div>
+    <div><i style="background:#3b82f6"></i>задача</div>
+    <div><i style="background:#f59e0b"></i>шлюз / решение</div>
+    <div><i style="background:#ef4444"></i>завершение</div>
+    <div style="margin-left:auto">клик по фигуре → раздел системы</div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Модели прогноза</a><a class="live blue" href="/UNA.md/orasldev/planograms#analytics" target="_blank" rel="noopener">Аналитика спроса</a><a class="live blue" href="/UNA.md/orasldev/planograms#promos" target="_blank" rel="noopener">Акции</a><span class="hint">фигуры схемы кликабельны</span></div></div>
+  <div class="num">6</div>
+</section>
+<!-- BPMN: inbound-delivery -->
+<section class="slide">
+  <div class="kicker">Процесс · завоз</div>
+  <h2>Завоз товара</h2>
+  <p>Схема сети — распределительный центр плюс прямые поставки. Скоропортящееся идёт в магазин напрямую, остальное через РЦ. Окна разгрузки не пересекаются ни по доку, ни по машине.</p>
+  <div class="viz" style="padding:10px"><svg viewBox="18 18 1074 460" width="100%" class="bpm" style="display:block"><defs><marker id="bpainbound-delivery" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M 92.0 206.43697478991598 L 111.0 206.43697478991598 L 111.0 207.07563025210084 L 130.0 207.07563025210084" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 235.0 173.0 L 290.0 173.0 L 290.0 96.0 L 345.0 96.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><rect x="272.2" y="125.5" width="35.6" height="15" rx="3" fill="#111827" opacity=".93"/><text x="290.0" y="136.5" text-anchor="middle" fill="#94a3b8" font-size="10">фреш</text><path d="M 240.0 235.5 L 284.5 235.5 L 284.5 280.0 L 329.0 280.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><rect x="263.5" y="248.75" width="42.0" height="15" rx="3" fill="#111827" opacity=".93"/><text x="284.5" y="259.75" text-anchor="middle" fill="#94a3b8" font-size="10">сухой</text><path d="M 470.0 308.0 L 495.0 308.0 L 495.0 308.0 L 520.0 308.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 690.0 308.0 L 715.0 308.0 L 715.0 308.0 L 740.0 308.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 797.9166666666666 343.0 L 797.9166666666666 371.5 L 802.6666666666666 371.5 L 802.6666666666666 400.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><rect x="785.6916666666666" y="362.5" width="29.200000000000003" height="15" rx="3" fill="#111827" opacity=".93"/><text x="800.2916666666666" y="373.5" text-anchor="middle" fill="#94a3b8" font-size="10">нет</text><path d="M 847.0 400.0 L 895.0 400.0 L 895.0 336.0 L 943.0 336.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 850.0 308.0 L 875.0 308.0 L 875.0 308.0 L 900.0 308.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><rect x="863.6" y="299.0" width="22.8" height="15" rx="3" fill="#111827" opacity=".93"/><text x="875.0" y="310.0" text-anchor="middle" fill="#94a3b8" font-size="10">да</text><path d="M 985.0 280.0 L 985.0 248.0 L 985.0 248.0 L 985.0 216.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 924.3333333333334 160.0 L 855.0 160.0 L 855.0 96.0 L 785.6666666666666 96.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 470.0 68.0 L 555.0 68.0 L 555.0 68.0 L 640.0 68.0" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><path d="M 640.0 71.29457364341086 L 631.0 71.29457364341086 L 631.0 71.9922480620155 L 622.0 71.9922480620155" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#bpainbound-delivery)"/><a href="/UNA.md/orasldev/planograms#forecast" target="_blank"><title>Заказ размещён — открыть раздел</title><g><ellipse cx="66.0" cy="206.0" rx="26.0" ry="26.0" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="66.0" y="201.2" text-anchor="middle" fill="#dcfce7" font-size="10" font-weight="500">Заказ</text><text x="66.0" y="213.2" text-anchor="middle" fill="#dcfce7" font-size="10" font-weight="500">размещён</text></g></a><a href="/UNA.md/orasldev/planograms#products" target="_blank"><title>Тип товара — открыть раздел</title><g><polygon points="185.0,173 240,208.0 185.0,243 130,208.0" fill="#3f2d0b" stroke="#f59e0b" stroke-width="1.6"/><text x="185.0" y="209.0" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="500">Тип товара</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Прямой завоз в магазин — открыть раздел</title><g><rect x="300" y="40" width="170" height="56" rx="12" fill="#4a2c0a" stroke="#f59e0b" stroke-width="1.6"/><text x="385.0" y="69.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Прямой завоз в магазин</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Поставка на РЦ — открыть раздел</title><g><rect x="300" y="280" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="385.0" y="309.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Поставка на РЦ</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Приёмка на доке — открыть раздел</title><g><rect x="520" y="280" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="605.0" y="309.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Приёмка на доке</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>В окно разгрузки? — открыть раздел</title><g><polygon points="795.0,273 850,308.0 795.0,343 740,308.0" fill="#3f2d0b" stroke="#f59e0b" stroke-width="1.6"/><text x="795.0" y="309.0" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="500">В окно разгрузки?</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Фиксация опоздания — открыть раздел</title><g><rect x="720" y="400" width="170" height="56" rx="12" fill="#4a2c0a" stroke="#f59e0b" stroke-width="1.6"/><text x="805.0" y="429.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Фиксация опоздания</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Хранение и комплектация — открыть раздел</title><g><rect x="900" y="280" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="985.0" y="309.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Хранение и комплектация</text></g></a><a href="/UNA.md/orasldev/planograms#logistics" target="_blank"><title>Развозка по магазинам — открыть раздел</title><g><rect x="900" y="160" width="170" height="56" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.6"/><text x="985.0" y="189.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Развозка по магазинам</text></g></a><a href="/UNA.md/orasldev/planograms#plglist" target="_blank"><title>Выкладка по планограмме — открыть раздел</title><g><rect x="640" y="40" width="170" height="56" rx="12" fill="#14532d" stroke="#22c55e" stroke-width="1.6"/><text x="725.0" y="69.0" text-anchor="middle" fill="#e8eef7" font-size="12" font-weight="500">Выкладка по планограмме</text></g></a><a href="/UNA.md/orasldev/planograms#storemap" target="_blank"><title>Товар на полке — открыть раздел</title><g><ellipse cx="596.0" cy="73.0" rx="26.0" ry="26.0" fill="#4c1414" stroke="#ef4444" stroke-width="3"/><text x="596.0" y="68.2" text-anchor="middle" fill="#fee2e2" font-size="10" font-weight="500">Товар на</text><text x="596.0" y="80.2" text-anchor="middle" fill="#fee2e2" font-size="10" font-weight="500">полке</text></g></a></svg></div>
+  <div class="legend">
+    <div><i style="background:#22c55e"></i>событие</div>
+    <div><i style="background:#3b82f6"></i>задача</div>
+    <div><i style="background:#f59e0b"></i>шлюз / решение</div>
+    <div><i style="background:#ef4444"></i>завершение</div>
+    <div style="margin-left:auto">клик по фигуре → раздел системы</div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#logistics" target="_blank" rel="noopener">Диаграмма Ганта</a><a class="live blue" href="/UNA.md/orasldev/planograms#suppliers" target="_blank" rel="noopener">Поставщики</a><span class="hint">фигуры схемы кликабельны</span></div></div>
+  <div class="num">7</div>
 </section>
 
 <!-- 4 -->
@@ -218,9 +345,6 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
         <rect x="20" y="211" width="62" height="4" rx="2" fill="#eab308"/>
       </g>
       <!-- центральные стеллажи -->
-      <g>
-        <script type="application/x-ignore"></script>
-      </g>
       <g fill="#2a3d5e" stroke="#4a6080" stroke-width=".8">
         <rect x="210" y="34" width="110" height="40" rx="4"/><rect x="345" y="34" width="110" height="40" rx="4"/>
         <rect x="480" y="34" width="110" height="40" rx="4"/><rect x="615" y="34" width="110" height="40" rx="4"/>
@@ -261,8 +385,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       <div><i style="background:#ef4444"></i>пиковая проходимость</div>
     </div>
   </div>
-  <div class="foot"><span class="demo">ПОКАЗАТЬ ВЖИВУЮ</span> &nbsp; навести курсор на зоны · переключить язык RU → RO → EN</div>
-  <div class="num">4</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#storemap" target="_blank" rel="noopener">Открыть карту зала с живой проходимостью</a><a class="live blue" href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Сводка дня</a><span class="hint">&amp;nbsp; навести курсор на зоны · переключить язык RU → RO → EN</span></div></div>
+  <div class="num">8</div>
 </section>
 
 <!-- 5 -->
@@ -303,7 +427,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       <p class="small muted" style="margin-top:12px">История изменений планограммы «Напитки — основная выкладка»</p>
     </div>
   </div>
-  <div class="num">5</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#plglist" target="_blank" rel="noopener">Реестр планограмм со статусами</a><a class="live blue" href="/UNA.md/orasldev/planograms#history" target="_blank" rel="noopener">История изменений</a></div></div>
+  <div class="num">9</div>
 </section>
 
 <!-- 6 -->
@@ -339,8 +464,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       </div>
     </div>
   </div>
-  <div class="foot">Все четыре — чистый расчёт на нашей стороне. Внешних библиотек и сервисов нет.</div>
-  <div class="num">6</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Конфигуратор моделей прогноза</a></div></div>
+  <div class="num">10</div>
 </section>
 
 <!-- 7 -->
@@ -378,7 +503,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       <p class="small muted">2332 ряда «магазин × SKU», горизонт 7 дней, ~95 секунд на модель.</p>
     </div>
   </div>
-  <div class="num">7</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Прогоны backtest с метриками</a><a class="live blue" href="/UNA.md/orasldev/planograms#analytics" target="_blank" rel="noopener">Аналитика спроса</a></div></div>
+  <div class="num">11</div>
 </section>
 
 <!-- 8 -->
@@ -409,8 +535,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
     <div class="stat g"><div class="v">67 625</div><div class="l">единиц товара</div></div>
     <div class="stat w"><div class="v">5,74 млн</div><div class="l">MDL сумма заказа</div></div>
   </div>
-  <div class="foot">Результат одного прогона модели PROMO-REG по сети из 10 магазинов</div>
-  <div class="num">8</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Рекомендуемый заказ</a><a class="live blue" href="/UNA.md/orasldev/planograms#products" target="_blank" rel="noopener">Карточки товаров</a></div></div>
+  <div class="num">12</div>
 </section>
 
 <!-- 9 -->
@@ -485,8 +611,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
     <div class="stat g"><div class="v">148 / 93 / 302</div><div class="l">РЦ / развозка / фреш</div></div>
     <div class="stat v"><div class="v">14</div><div class="l">машин в парке</div></div>
   </div>
-  <div class="foot"><span class="demo">ПОКАЗАТЬ ВЖИВУЮ</span> &nbsp; переключить строки «по машинам» → «по докам РЦ» · навести на срыв окна</div>
-  <div class="num">9</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#logistics" target="_blank" rel="noopener">Открыть диаграмму Ганта</a><a class="live blue" href="/UNA.md/orasldev/planograms#tasks" target="_blank" rel="noopener">Задачи мерчандайзинга</a><span class="hint">&amp;nbsp; переключить строки «по машинам» → «по докам РЦ» · навести на срыв окна</span></div></div>
+  <div class="num">13</div>
 </section>
 
 <!-- 10 -->
@@ -551,7 +677,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       </div>
     </div>
   </div>
-  <div class="num">10</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#suppliers" target="_blank" rel="noopener">Граф связей с поставщиками</a><a class="live blue" href="/UNA.md/orasldev/planograms#promos" target="_blank" rel="noopener">Акции и промо</a></div></div>
+  <div class="num">14</div>
 </section>
 
 <!-- 11 -->
@@ -639,8 +766,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
          это готовое задание категорийному менеджеру на пересмотр цены
          или переговоры с поставщиком.</p></div>
   </div>
-  <div class="foot"><span class="demo">ПОКАЗАТЬ ВЖИВУЮ</span> &nbsp; навести на красную ячейку · прокрутить к «Расхождения по SKU»</div>
-  <div class="num">11</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#competitors" target="_blank" rel="noopener">Ценовой индекс конкурентов</a><a class="live blue" href="/UNA.md/orasldev/planograms#products" target="_blank" rel="noopener">Ассортимент и цены</a><span class="hint">&amp;nbsp; навести на красную ячейку · прокрутить к «Расхождения по SKU»</span></div></div>
+  <div class="num">15</div>
 </section>
 
 <!-- 12 -->
@@ -705,7 +832,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
       </ul>
     </div>
   </div>
-  <div class="num">12</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#markets" target="_blank" rel="noopener">Бенчмарк рынков стран</a><a class="live blue" href="/UNA.md/orasldev/planograms#equipment" target="_blank" rel="noopener">Оборудование зала</a></div></div>
+  <div class="num">16</div>
 </section>
 
 <!-- 13 -->
@@ -746,10 +874,211 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
         данные ничего не нужно: структура одна и та же.</p>
     </div>
   </div>
-  <div class="num">13</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#testdata" target="_blank" rel="noopener">Генератор тестовых данных</a><a class="live blue" href="/UNA.md/orasldev/planograms#testdata" target="_blank" rel="noopener">Наборы и журнал прогонов</a></div></div>
+  <div class="num">17</div>
 </section>
 
+<!-- ИИ-мониторинг, автозаказ, импорт -->
+<section class="slide">
+  <div class="kicker">Новое в системе</div>
+  <h2>ИИ-мониторинг, автозаказ и импорт</h2>
+  <div class="cols3" style="margin-bottom:14px">
+    <div class="card accent">
+      <h3>☲ ИИ-мониторинг продаж</h3>
+      <p>Семь детекторов: риск пустой полки, всплеск и провал спроса, риск
+         списаний, дрейф модели, мёртвый запас — и <b>векторный выброс</b>:
+         товар, у которого каждый показатель в норме, а сочетание аномально.
+         Расстояния считает сама Oracle 26ai (тип VECTOR, индекс HNSW).</p>
+    </div>
+    <div class="card ok">
+      <h3>☑ Автозаказ с корректировкой</h3>
+      <p>Рекомендация модели и решение закупщика в одной строке; правка
+         сохраняется мгновенно, модельная цифра не перезаписывается.
+         Кнопка «Пакет документов» печатает спецификации по поставщикам.</p>
+    </div>
+    <div class="card warn">
+      <h3>⛴ Заказы импорта</h3>
+      <p>Одиннадцать этапов от контракта до склада, задержка = факт − план
+         с обязательной причиной, упреждающий чек-лист из десяти документов
+         с дедлайнами от даты границы — включая локализованные этикетки.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Массив данных для обучения</h3>
+    <p style="font-size:14.5px">По каждому SKU считается витрина из 24 признаков
+       (уровни спроса, волатильность, тренд, промо-аплифт, OOS, списания,
+       ABC/XYZ) и вектор поведения. Выгружается в CSV/JSON одной кнопкой —
+       это вход для моделей машинного обучения из дорожной карты, а кнопка «≈»
+       находит товары с похожим поведением через векторный индекс: прогноз
+       новинки по аналогам, кандидаты на ту же промо-механику.</p>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#aimonitor" target="_blank" rel="noopener">ИИ-мониторинг</a><a class="live blue" href="/UNA.md/orasldev/planograms#orders" target="_blank" rel="noopener">Автозаказ</a><a class="live blue" href="/UNA.md/orasldev/planograms#imports" target="_blank" rel="noopener">Импорт</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs/auto-order" target="_blank" rel="noopener">Методичка</a></div></div>
+  <div class="num">18</div>
+</section>
+
+
 <!-- 14 -->
+
+<!-- Bonus: сеть сегодня -->
+<section class="slide">
+  <div class="kicker">Сеть Bonus</div>
+  <h2>Мы уже внутри вашего контура</h2>
+  <div class="cols">
+    <div>
+      <p>Одиннадцать магазинов сети — Bonus, Super Bonus, Local, Local Expres,
+         Foxi — уже заведены в этой же системе: модуль эксплуатации следит
+         за кассами, серверами, самообслуживанием и климатом серверных.</p>
+      <div class="cols" style="grid-template-columns:1fr 1fr; gap:12px; margin:18px 0">
+        <div class="stat"><div class="v">11</div><div class="l">магазинов сети</div></div>
+        <div class="stat g"><div class="v">39</div><div class="l">устройств под контролем</div></div>
+        <div class="stat w"><div class="v">5</div><div class="l">брендов сети</div></div>
+        <div class="stat v"><div class="v">3</div><div class="l">города</div></div>
+      </div>
+      <div class="card accent">
+        <h3>Что это меняет</h3>
+        <p>Планограммы — не новая система, а следующий раздел в том,
+           чем сеть уже пользуется. Тот же адрес, тот же вход, та же база
+           Oracle, тот же сервер. Отдельного внедрения не требуется.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="padding:0; overflow:hidden">
+        <table>
+          <thead><tr><th>Код</th><th>Магазин</th><th>Город</th><th>Статус</th></tr></thead>
+          <tbody><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-001</td><td><b>Магазин №1 Центр</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-002</td><td><b>Магазин №2 Ботаника</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-003</td><td><b>Магазин №3 Рышкановка</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-010</td><td><b>Bonus Дачия</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-011</td><td><b>Super Bonus Мунчешть</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-012</td><td><b>Local Крянгэ</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-013</td><td><b>Local Expres Москова</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-CHS-014</td><td><b>Foxi Петрикань</b></td><td class="muted">Кишинёв</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-BLT-101</td><td><b>Магазин №101 Бельцы</b></td><td class="muted">Бельцы</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-BLT-102</td><td><b>Foxi Бельцы Центр</b></td><td class="muted">Бельцы</td><td><span class="pill ok">под контуром</span></td></tr><tr><td class="mono" style="font-family:ui-monospace,monospace;font-size:12px">MD-ORH-201</td><td><b>Local Орхей</b></td><td class="muted">Орхей</td><td><span class="pill ok">под контуром</span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть модуль планограмм</a><a class="live blue" href="/UNA.md/orasldev/planograms#products" target="_blank" rel="noopener">Ассортимент и категории</a><span class="hint">список магазинов — из таблицы TBC_STORES; контур эксплуатации открывается по входу</span></div></div>
+  <div class="num">19</div>
+</section>
+
+<!-- Bonus: что получает каждый -->
+<section class="slide">
+  <div class="kicker">Сеть Bonus · роли</div>
+  <h2>Что получает каждый менеджер в первый же день</h2>
+  <div class="cols3" style="margin-bottom:16px">
+    <div class="card accent">
+      <h3>◈ Категорийный менеджер</h3>
+      <p>Актуальная выкладка по всем 11 магазинам в одном месте, версии
+         и согласование вместо переписки. Видно, какие зоны недорабатывают
+         по проходимости и где мы дороже конкурента.</p>
+    </div>
+    <div class="card ok">
+      <h3>◆ Закупщик</h3>
+      <p>Заказ считается моделью с измеренной точностью, а не «по опыту».
+         Учитываются запланированные акции, срок поставки и кратность короба —
+         на выходе готовый заказ поставщику.</p>
+    </div>
+    <div class="card warn">
+      <h3>▤ Руководитель логистики</h3>
+      <p>График завоза по трём плечам на одной диаграмме: кто, куда, в какое
+         окно, кто опоздал. Загрузка парка видна полосами — сразу понятно,
+         где перекос.</p>
+    </div>
+  </div>
+  <div class="cols3">
+    <div class="card" style="border-left:3px solid var(--violet)">
+      <h3>◇ Коммерческий директор</h3>
+      <p>Ценовой индекс по товарным группам против Linella, Kaufland, Nr.1,
+         Fidesco. Плюс бенчмарк с сетями Румынии, Польши, Украины —
+         где сеть стоит по выручке с метра и среднему чеку.</p>
+    </div>
+    <div class="card crit">
+      <h3>◉ Поставщик-менеджер</h3>
+      <p>Карточка поставщика: контакты по ролям, договоры с отсрочкой
+         и ретро-бонусом, товарные группы. Список контрактов, истекающих
+         в ближайшие 60 дней, — одним флажком.</p>
+    </div>
+    <div class="card">
+      <h3>⚙ ИТ-служба</h3>
+      <p>Ни одной новой системы в ландшафте: та же Oracle, тот же сервер,
+         тот же процесс обновления. Исходный код у сети. Все действия
+         записи — в журнале.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#storemap" target="_blank" rel="noopener">Выкладка</a><a class="live blue" href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Заказ</a><a class="live blue" href="/UNA.md/orasldev/planograms#logistics" target="_blank" rel="noopener">Завоз</a><a class="live blue" href="/UNA.md/orasldev/planograms#competitors" target="_blank" rel="noopener">Конкуренты</a><a class="live blue" href="/UNA.md/orasldev/planograms#suppliers" target="_blank" rel="noopener">Поставщики</a></div></div>
+  <div class="num">20</div>
+</section>
+
+<!-- Bonus: чек-лист выбора -->
+<section class="slide">
+  <div class="kicker">Сеть Bonus · выбор поставщика</div>
+  <h2>Семь вопросов, которые стоит задать любому вендору</h2>
+  <p>Включая нас. Ответы ниже — про эту систему; их можно проверить прямо
+     на слайде по ссылкам, не дожидаясь демо-стенда.</p>
+  <div class="card" style="padding:0; overflow:hidden; margin-top:6px">
+    <table>
+      <thead><tr><th style="width:52%">Вопрос</th><th>Ответ по этой системе</th></tr></thead>
+      <tbody>
+        <tr><td>Где физически лежат данные сети?</td>
+            <td>В вашей Oracle, рядом с остальными модулями. Выгрузка не нужна —
+                данные и так ваши</td></tr>
+        <tr><td>Что будет, если мы захотим уйти?</td>
+            <td>Таблицы <code>PLG_*</code> остаются в вашей базе, схема
+                документирована, исходный код у сети</td></tr>
+        <tr><td>Сколько стоит подключить 12-й магазин?</td>
+            <td>Строка в справочнике. Лицензии на магазин в этой системе нет</td></tr>
+        <tr><td>Работает ли на румынском?</td>
+            <td>RU / RO / EN с первого релиза, включая названия зон,
+                категорий и поставщиков</td></tr>
+        <tr><td>Можно ли проверить точность заказа <b>до</b> внедрения?</td>
+            <td>Да: backtest на вашей истории продаж, метрики MAPE / MAE /
+                смещение по каждой модели</td></tr>
+        <tr><td>Как описаны бизнес-процессы?</td>
+            <td>BPMN-схемы в формате draw.io, редактируются в системе,
+                фигуры ведут в рабочие разделы</td></tr>
+        <tr><td>Что с интеграцией в то, что уже работает?</td>
+            <td>Тот же сервер, тот же вход, тот же контур эксплуатации сети —
+                интеграция уже сделана</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Проверить: прогноз и backtest</a><a class="live blue" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Проверить: бизнес-процессы</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Проверить: документация</a><span class="hint">каждый ответ проверяется по ссылке</span></div></div>
+  <div class="num">21</div>
+</section>
+
+<!-- Bonus: механика перехода -->
+<section class="slide">
+  <div class="kicker">Сеть Bonus · переход</div>
+  <h2>Переход без остановки работы</h2>
+  <p>Ничего не выключается одномоментно. Новая система набирает данные
+     параллельно, пока сеть работает как обычно, — и её видно в деле
+     раньше, чем принято решение.</p>
+  <div class="cols3" style="margin-top:14px">
+    <div class="card ok">
+      <h3>Что переносим</h3>
+      <p>Справочник магазинов — уже перенесён (11 точек в системе).
+         Дальше: товары и категории, поставщики с договорами, история продаж
+         выгрузкой в тестовый набор. Всё через файл, без доступа к чужому API.</p>
+    </div>
+    <div class="card accent">
+      <h3>Что работает параллельно</h3>
+      <p>Первые недели сеть заказывает как раньше, а система считает свой
+         вариант заказа рядом. Сравниваются две цифры на одних и тех же данных —
+         спор о точности закрывается фактом.</p>
+    </div>
+    <div class="card warn">
+      <h3>Чего не будет</h3>
+      <p>Ни остановки касс, ни нового сервера, ни отдельного входа для
+         сотрудников, ни платы за подключение следующего магазина.
+         Контур эксплуатации сети продолжает работать как работал.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Стартовые точки, которые предлагаем</h3>
+    <p style="font-size:14.5px">
+      <b>Super Bonus Мунчешть</b> — крупный формат, максимум ассортимента и
+      сложная выкладка. <b>Bonus Дачия</b> — типовой городской магазин.
+      <b>Local Expres Москова</b> — малый формат с частым завозом.
+      Три разных профиля спроса дают честную картину по всей сети,
+      а не по одному удачному магазину.</p>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть систему</a><a class="live blue" href="/UNA.md/orasldev/planograms#testdata" target="_blank" rel="noopener">Загрузить свой набор данных</a><a class="live blue" href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Сравнение моделей заказа</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Как это устроено</a></div></div>
+  <div class="num">22</div>
+</section>
+
 <section class="slide">
   <div class="kicker">Дальше</div>
   <h2>Пилот на три недели</h2>
@@ -774,11 +1103,8 @@ td.n{ text-align:right; font-variant-numeric:tabular-nums; }
     <h3>Решение, которое нужно сегодня</h3>
     <p style="font-size:15px">Какой магазин и какая товарная группа берутся в пилот.</p>
   </div>
-  <div class="foot">
-    Модуль развёрнут и работает: <b>nufarul.eminescu.md/UNA.md/orasldev/planograms</b> ·
-    документация — <span class="muted">docs/Planograms/</span>
-  </div>
-  <div class="num">14</div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть систему</a><a class="live blue" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Схемы бизнес-процессов</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Документация</a></div></div>
+  <div class="num">23</div>
 </section>
 
 </div>

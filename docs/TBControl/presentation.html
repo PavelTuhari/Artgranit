@@ -62,6 +62,14 @@
   table.t th { text-align: left; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 16px 8px 0; border-bottom: 1px solid var(--border); }
   table.t td { padding: 9px 16px 9px 0; border-bottom: 1px solid var(--border); }
   .mono { font-family: 'SF Mono', Menlo, monospace; font-size: 13px; color: var(--accent2); }
+  a.live {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; width: fit-content;
+    padding: 10px 22px; border-radius: 6px; background: var(--accent); color: #fff;
+    text-decoration: none; font-size: 15px; font-weight: 700; transition: background .15s;
+  }
+  a.live:hover { background: #0489bb; }
+  a.live.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--accent2); }
+  .footer a { color: var(--accent2); text-decoration: none; margin-right: 14px; }
 </style>
 </head>
 <body>
@@ -80,6 +88,8 @@
     <span class="badge blue">Oracle-first</span><span class="badge blue">NOC-консоль в стиле Cisco</span>
     <span class="badge ok">Production: nufarul.eminescu.md</span><span class="badge warn">Реальный Zabbix подключён</span>
   </div>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol" target="_blank" onclick="event.stopPropagation()">▶ Открыть живую систему</a>
+
 </section>
 
 <!-- 2. Проблема -->
@@ -110,6 +120,8 @@
     <li>Плитки магазинов с брендами: Bonus · Super Bonus · Local · Local Expres · Foxi</li>
     <li>Автообновление каждые 30 секунд, мигающий CRITICAL</li>
   </ul>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#dashboard" target="_blank" onclick="event.stopPropagation()">▶ Живой дашборд</a>
+
 </section>
 
 <!-- 4. Мониторинг касс -->
@@ -128,6 +140,8 @@
     <span class="badge blue">7 дней</span><span class="badge blue">Произвольный период</span>
     <span class="badge ok">append-only time series · SVG-графики без библиотек</span>
   </div>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#monitor" target="_blank" onclick="event.stopPropagation()">▶ Мониторинг касс живьём</a>
+
 </section>
 
 <!-- 5. Processing -->
@@ -140,6 +154,8 @@
     <li>Журнал батчей: отправлено/принято/ошибка; повтор передачи в один клик</li>
     <li>Узлы: три уровня контроля — железо, приложение обмена, база данных (5 движков)</li>
   </ul>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#processing" target="_blank" onclick="event.stopPropagation()">▶ Processing центр живьём</a>
+
 </section>
 
 <!-- 6. События и корреляция -->
@@ -156,6 +172,8 @@
     <li>Событие → инцидент в один клик: группа по границе Customer IT / Developer, SLA-дедлайн по приоритету</li>
     <li>RCA-поля обязательны для P1/P2: root cause, business impact, corrective / preventive action</li>
   </ul>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#events" target="_blank" onclick="event.stopPropagation()">▶ События живьём</a>
+
 </section>
 
 <!-- 7. Отчёт динамики -->
@@ -169,6 +187,8 @@
     <div class="card warn"><h3>Климат и питание</h3><p>Жара +38° → серверная 34°, просадки до 198V, перегруз централи. Мороз −18° — тоже кейс.</p></div>
     <div class="card ok"><h3>UPS-телеметрия</h3><p>Магазин на UPS: батарея 100→36%, остаток минут — решение «генератор или ждать» принимается по данным.</p></div>
   </div>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#report" target="_blank" onclick="event.stopPropagation()">▶ Отчёт «Динамика» живьём</a>
+
 </section>
 
 <!-- 8. Версии и деплой -->
@@ -182,6 +202,8 @@ verification:  process <span class="g">OK</span> → version <span class="g">OK<
     <li>Каналы DEV → TEST → PILOT → PRODUCTION, deployment window, rollback-план</li>
     <li>Автоматическая verification после деплоя вплоть до тестовой бизнес-транзакции</li>
   </ul>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#changes" target="_blank" onclick="event.stopPropagation()">▶ Изменения / Deploy живьём</a>
+
 </section>
 
 <!-- 9. AI-досье -->
@@ -202,6 +224,8 @@ verification:  process <span class="g">OK</span> → version <span class="g">OK<
       <li>▸ AI не может: финансовые данные, prod-конфиг, security</li></ul></div>
   </div>
   <div class="sub" style="margin-top:20px">Автогенерация при каждом P1/P2-инциденте — внешний AI-провайдер получает полный контекст за секунды, а не за час ручного сбора.</div>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#dossiers" target="_blank" onclick="event.stopPropagation()">▶ AI-досье живьём</a>
+
 </section>
 
 <!-- 10. Источники событий -->
@@ -216,6 +240,8 @@ verification:  process <span class="g">OK</span> → version <span class="g">OK<
   <pre class="chain" style="margin-top:22px"><span class="m">Живой результат:</span> 18 реальных проблем → события TBControl
 <span class="r">P1</span> cloudbd /mnt/md3 &lt; 3%   <span class="w">P2</span> PROXMOX3 /storage &lt; 3–5%   <span class="w">P3</span> Oracle Wine: Stores OFFLINE
 <span class="m">«Шумовые» триггеры (Vetropack, почта garileauto, SSL tnme.md) отключены через Zabbix API → −7 событий</span></pre>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#events" target="_blank" onclick="event.stopPropagation()">▶ Реальные события Zabbix живьём</a>
+
 </section>
 
 <!-- 11. Инвайты -->
@@ -229,6 +255,8 @@ verification:  process <span class="g">OK</span> → version <span class="g">OK<
     <li>Получатель просто открывает ссылку — без ввода логина и пароля</li>
     <li>Учёт использований, пауза/отзыв в один клик, пароль наружу не отдаётся</li>
   </ul>
+  <a class="live" href="/UNA.md/orasldev/tbcontrol#invites" target="_blank" onclick="event.stopPropagation()">▶ Панель инвайтов живьём</a>
+
 </section>
 
 <!-- 12. Архитектура и цифры -->
@@ -262,9 +290,9 @@ verification:  process <span class="g">OK</span> → version <span class="g">OK<
   что именно сломалось, как это диагностировать (в том числе силами AI),
   как это исправить — и когда проблема была устранена.</div>
   <div class="badges" style="margin-top:28px">
-    <span class="badge blue">docs/TBControl/INDEX.md — полная документация</span>
-    <span class="badge blue">SCENARIOS.md — 10 кейсов</span>
-    <span class="badge ok">/UNA.md/orasldev/tbcontrol</span>
+    <a class="live" style="margin-top:0" href="/UNA.md/orasldev/tbcontrol" target="_blank" onclick="event.stopPropagation()">▶ Живая система</a>
+    <a class="live ghost" style="margin-top:0" href="/UNA.md/orasldev/tbcontrol/docs" target="_blank" onclick="event.stopPropagation()">📖 Полная документация</a>
+    <a class="live ghost" style="margin-top:0" href="/UNA.md/orasldev/tbcontrol/docs/SCENARIOS" target="_blank" onclick="event.stopPropagation()">🗂 10 кейсов</a>
   </div>
 </section>
 
@@ -273,7 +301,7 @@ verification:  process <span class="g">OK</span> → version <span class="g">OK<
   <button onclick="nav(-1)">← Назад</button>
   <button onclick="nav(1)">Вперёд →</button>
 </div>
-<div class="footer">TBControl · Artgranit · управление — стрелки ←/→, пробел, клик</div>
+<div class="footer">TBControl · Artgranit · стрелки ←/→, пробел, клик · <a href="/UNA.md/orasldev/tbcontrol" target="_blank" onclick="event.stopPropagation()">панель</a><a href="/UNA.md/orasldev/tbcontrol/docs" target="_blank" onclick="event.stopPropagation()">документация</a></div>
 
 <script>
 const slides = document.querySelectorAll('.slide');

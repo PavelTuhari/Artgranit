@@ -272,6 +272,7 @@ FROM PLG_VOICE_LOG v
 LEFT JOIN PLG_MOBILE_DEVICES d ON d.ID = v.DEVICE_ID
 LEFT JOIN PLG_STORES s         ON s.ID = v.STORE_ID
 LEFT JOIN PLG_MOBILE_ORDERS o  ON o.ID = v.ORDER_ID;
+/
 
 -- ==================== Базовые речевые синонимы ====================
 --

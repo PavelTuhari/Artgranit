@@ -132,11 +132,11 @@ VALUES (16, 3, '5.12.3', '2026.08.01.2', 'cfg-30', 'OK', SYSTIMESTAMP - 7, SYSTI
 -- ===== События (корреляция: сеть 003 → POS suppressed) =====
 
 INSERT INTO TBC_EVENTS (SEVERITY, STORE_ID, DEVICE_ID, SERVICE_CODE, PROBLEM, STATUS, SOURCE, CORRELATION_ID)
-VALUES ('P1', 3, 15, 'network', 'Store network unavailable — router MD-CHS-003-NET-01 не отвечает', 'open', 'zabbix', 'c1a2b3');
+VALUES ('P1', 3, 14, 'network', 'Store network unavailable — router MD-CHS-003-NET-01 не отвечает', 'open', 'zabbix', 'c1a2b3');
 INSERT INTO TBC_EVENTS (SEVERITY, STORE_ID, DEVICE_ID, SERVICE_CODE, PROBLEM, STATUS, SOURCE, CORRELATION_ID, PARENT_EVENT_ID)
-VALUES ('P3', 3, 13, 'pos', 'POS-01 unavailable', 'suppressed', 'correlation', 'c1a2b3', 1);
+VALUES ('P3', 3, 12, 'pos', 'POS-01 unavailable', 'suppressed', 'correlation', 'c1a2b3', 1);
 INSERT INTO TBC_EVENTS (SEVERITY, STORE_ID, DEVICE_ID, SERVICE_CODE, PROBLEM, STATUS, SOURCE, CORRELATION_ID, PARENT_EVENT_ID)
-VALUES ('P3', 3, 14, 'pos', 'POS-02 unavailable', 'suppressed', 'correlation', 'c1a2b3', 1);
+VALUES ('P3', 3, 13, 'pos', 'POS-02 unavailable', 'suppressed', 'correlation', 'c1a2b3', 1);
 INSERT INTO TBC_EVENTS (SEVERITY, STORE_ID, DEVICE_ID, SERVICE_CODE, PROBLEM, STATUS, SOURCE, CORRELATION_ID)
 VALUES ('P3', 1, 5, 'sco', 'SCO-02 offline — не отвечает 3 часа', 'ack', 'zabbix', 'd4e5f6');
 INSERT INTO TBC_EVENTS (SEVERITY, STORE_ID, DEVICE_ID, SERVICE_CODE, PROBLEM, STATUS, SOURCE, CORRELATION_ID)
@@ -151,7 +151,7 @@ VALUES ('P2', 2, 'sync', 'Synchronization delay > 30 min', 'resolved', 'zabbix',
 -- ===== Инциденты =====
 
 INSERT INTO TBC_INCIDENTS (CODE, EVENT_ID, STORE_ID, DEVICE_ID, SEVERITY, TITLE, DESCRIPTION, ASSIGNED_GROUP, ASSIGNEE, STATUS, SLA_DEADLINE)
-VALUES ('INC-2026-10452', 1, 3, 15, 'P1', 'Магазин 003: сеть недоступна', 'Router не отвечает, все POS offline. Root cause: store network. Downstream события подавлены.', 'customer_it', 'n.ivanov', 'diagnosing', SYSTIMESTAMP + INTERVAL '2' HOUR);
+VALUES ('INC-2026-10452', 1, 3, 14, 'P1', 'Магазин 003: сеть недоступна', 'Router не отвечает, все POS offline. Root cause: store network. Downstream события подавлены.', 'customer_it', 'n.ivanov', 'diagnosing', SYSTIMESTAMP + INTERVAL '2' HOUR);
 INSERT INTO TBC_INCIDENTS (CODE, EVENT_ID, STORE_ID, DEVICE_ID, SEVERITY, TITLE, DESCRIPTION, ASSIGNED_GROUP, ASSIGNEE, STATUS, SLA_DEADLINE)
 VALUES ('INC-2026-10453', 5, 1, 3, 'P3', 'POS-03: таймаут платёжного терминала', 'Payment timeout, сеть OK. Диагностика: терминал недоступен.', 'customer_it', 'p.rusu', 'assigned', SYSTIMESTAMP + INTERVAL '8' HOUR);
 INSERT INTO TBC_INCIDENTS (CODE, STORE_ID, DEVICE_ID, SEVERITY, TITLE, DESCRIPTION, ASSIGNED_GROUP, STATUS, ROOT_CAUSE, TECH_CAUSE, BUSINESS_IMPACT, RESOLUTION, CORRECTIVE_ACTION, PREVENTIVE_ACTION, OPENED_AT, CLOSED_AT)

@@ -121,3 +121,14 @@ INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('io.dr.
 INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('io.dr.other', 'ui', 'прочее', 'altele', 'other');
 
 COMMIT;
+
+-- ==================== Векторный контур (Oracle 26ai) ====================
+DELETE FROM PLG_I18N WHERE MSG_KEY IN ('ai.t.peer_outlier', 'ai.similar',
+  'ai.similarTo', 'ai.similarHint', 'ai.distance');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('ai.t.peer_outlier', 'ui', 'Векторный выброс', 'Anomalie vectorială', 'Vector outlier');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('ai.similar', 'ui', 'Похожие по поведению SKU', 'SKU cu comportament similar', 'Similar-behaviour SKUs');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('ai.similarTo', 'ui', 'Похожие по поведению на', 'Comportament similar cu', 'Similar behaviour to');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('ai.similarHint', 'ui', 'Векторный поиск по HNSW-индексу Oracle 26ai: близость означает похожее поведение, а не похожее название. Применения: прогноз новинки по аналогам, кандидаты на ту же промо-механику', 'Căutare vectorială pe indexul HNSW Oracle 26ai: apropierea înseamnă comportament similar, nu nume similar', 'Vector search over the Oracle 26ai HNSW index: proximity means similar behaviour, not a similar name. Uses: new-item forecast by analogues, promo-mechanic candidates');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('ai.distance', 'ui', 'Расстояние', 'Distanță', 'Distance');
+
+COMMIT;

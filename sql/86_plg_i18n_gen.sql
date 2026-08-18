@@ -102,3 +102,11 @@ INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('st.tes
 INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('st.sandbox',  'status', 'Песочница',   'Sandbox',     'Sandbox');
 
 COMMIT;
+
+-- Полный словарь статусов планограмм: используется как fallback в t('st.'+код),
+-- когда название не пришло из справочника (например, в компактных бейджах).
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('st.draft',    'status', 'Черновик',        'Ciornă',   'Draft');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('st.approved', 'status', 'Утверждена',      'Aprobată', 'Approved');
+INSERT INTO PLG_I18N (MSG_KEY, SCOPE, TEXT_RU, TEXT_RO, TEXT_EN) VALUES ('st.rejected', 'status', 'Отклонена',       'Respinsă', 'Rejected');
+
+COMMIT;

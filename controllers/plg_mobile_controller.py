@@ -101,6 +101,7 @@ class PlgMobileController:
                      'p_by': username})
                 if not r.get('success'):
                     return {'success': False, 'error': r.get('message')}
+                db.connection.commit()
             return {'success': True, 'pair_code': code}
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -135,6 +136,7 @@ class PlgMobileController:
                      'p_ver': (payload.get('app_version') or '')[:20]})
                 if not r.get('success'):
                     return {'success': False, 'error': r.get('message')}
+                db.connection.commit()
             return {'success': True, 'token': token, 'device_id': dev['id'],
                     'store_id': dev['store_id'], 'lang': dev.get('lang') or 'ru'}
         except Exception as e:                                   # noqa: BLE001
@@ -158,6 +160,7 @@ class PlgMobileController:
                 db.execute_query(
                     "UPDATE PLG_MOBILE_DEVICES SET LAST_SEEN = SYSTIMESTAMP WHERE ID = :p_id",
                     {'p_id': rows[0]['id']})
+                db.connection.commit()
                 return rows[0]
         except Exception:                                        # noqa: BLE001
             return None
@@ -195,6 +198,7 @@ class PlgMobileController:
                 r = db.execute_query(
                     "UPDATE PLG_MOBILE_DEVICES SET STATUS = 'revoked', TOKEN_HASH = NULL "
                     "WHERE ID = :p_id", {'p_id': device_id})
+                db.connection.commit()
                 return {'success': bool(r.get('success')), 'error': r.get('message')}
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -308,6 +312,7 @@ class PlgMobileController:
                      'p_conf': parsed.get('confidence'),
                      'p_asr': payload.get('asr_conf'), 'p_dur': payload.get('duration_ms'),
                      'p_user': device.get('username') or device.get('display_name')})
+                db.connection.commit()
         except Exception:                                        # noqa: BLE001
             pass   # журнал не должен ронять заказ
 
@@ -362,6 +367,7 @@ class PlgMobileController:
                      'p_name': (item.get('match_name') or '')[:300] or None,
                      'p_conf': item.get('confidence'), 'p_status': item.get('status') or 'ok'})
             PlgMobileController._recalc(db, oid)
+            db.connection.commit()
         return PlgMobileController.get_order(device, oid).get('data')
 
     @staticmethod
@@ -468,6 +474,7 @@ class PlgMobileController:
                 PlgMobileController._learn_synonym(db, item_id, payload.get('product_id'),
                                                    device.get('lang') or 'ru')
                 PlgMobileController._recalc(db, order_id)
+                db.connection.commit()
             return PlgMobileController.get_order(device, order_id)
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -501,6 +508,7 @@ class PlgMobileController:
                 " AND PRODUCT_ID = :p_p2)",
                 {'p_p': int(product_id), 'p_l': lang, 'p_ph': phrase[:200],
                  'p_l2': lang, 'p_ph2': phrase[:200], 'p_p2': int(product_id)})
+            db.connection.commit()
         except Exception:                                        # noqa: BLE001
             pass
 
@@ -514,6 +522,7 @@ class PlgMobileController:
                     "AND STORE_ID = :p_st AND STATUS = 'draft')",
                     {'p_i': item_id, 'p_o': order_id, 'p_st': int(device['store_id'])})
                 PlgMobileController._recalc(db, order_id)
+                db.connection.commit()
             return PlgMobileController.get_order(device, order_id)
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -551,6 +560,7 @@ class PlgMobileController:
                     {'p_id': order_id})
                 if not r.get('success'):
                     return {'success': False, 'error': r.get('message')}
+                db.connection.commit()
             return PlgMobileController.get_order(device, order_id)
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -563,6 +573,7 @@ class PlgMobileController:
                     "UPDATE PLG_MOBILE_ORDERS SET STATUS = 'cancelled' WHERE ID = :p_id "
                     "AND STORE_ID = :p_st AND STATUS = 'draft'",
                     {'p_id': order_id, 'p_st': int(device['store_id'])})
+                db.connection.commit()
             return PlgMobileController.get_order(device, order_id)
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -586,6 +597,7 @@ class PlgMobileController:
                 if not r.get('rowcount'):
                     return {'success': False, 'error': 'Заказ не в статусе «отправлен»',
                             'status': 409}
+                db.connection.commit()
             return {'success': True}
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -658,6 +670,7 @@ class PlgMobileController:
                      'p_l': payload.get('lang') if payload.get('lang') in LANGS else 'ru',
                      'p_ph': phrase[:200], 'p_w': float(payload.get('weight') or 1),
                      'p_by': username})
+                db.connection.commit()
                 return {'success': bool(r.get('success')), 'error': r.get('message')}
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
@@ -668,6 +681,7 @@ class PlgMobileController:
             with DatabaseModel() as db:
                 r = db.execute_query("DELETE FROM PLG_VOICE_SYNONYMS WHERE ID = :p_id",
                                      {'p_id': syn_id})
+                db.connection.commit()
                 return {'success': bool(r.get('success')), 'error': r.get('message')}
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}
