@@ -373,6 +373,40 @@ officeshop, plus cele 2 387 de la PRINTERRA.
 Reparat prin insertie directa, cu legatura pe numele trunchiat. Dupa reparatie: **6 197 din
 6 197**, adica 100%.
 
+#### Restul de 1 326: alte doua cauze, gasite prin aceeasi verificare
+
+Dupa corectarea JOIN-ului au mai ramas 1 326 de marfuri cu pret in feed dar fara pret in
+lista. Nu era acelasi defect — erau doua, mai vechi:
+
+**a) Virgula zecimala in feed (474).** `parse_price` intelege doar punctul, iar in
+`BIRO26_GOODS.RETAIL1` se strinsesera valori ca `10,00`, `1.169,00`, `2,071.00` — trei
+formate diferite, din surse diferite. Normalizate dupa regula **ultimul separator e cel
+zecimal** (operatia pastreaza valoarea, doar formatul devine citibil):
+
+| Din feed | Devine | De ce |
+|---|---|---|
+| `10,00` | `10.00` | virgula = zecimala |
+| `1.169,00` | `1169.00` | european: punctul e separator de mii |
+| `2,071.00` | `2071.00` | anglo-saxon: virgula e separator de mii |
+
+25 457 de valori normalizate; zero ambiguitati (toate cele cu virgula aveau exact doua
+zecimale, deci niciuna nu putea fi separator de mii).
+
+**b) Grupa de pret inexistenta (302).** Marfa era intr-o grupa (`Carti de colorat`) pentru
+care nu se crease niciodata un rind in `VPR01M_GROUPS`, deci n-avea unde sa fie pretul.
+Create 5 grupe lipsa si perioadele lor.
+
+Restul (550) aveau si grupa, si pret citibil — ramasite din importuri vechi, dinaintea
+logicii actuale. Recuperate la fel.
+
+**Rezultat final: 124 657 din 124 657** de marfuri active cu pret in feed au acum si un
+rind valabil in lista de preturi. Zero exceptii.
+
+> **Atentie, chestiune separata:** la ~3% din marfa, pretul din feed difera de cel din lista
+> (perioade vechi, din iulie: feed 59.85 vs lista 12.35). Nu e cauzat de reparatie — ea a
+> scris doar acolo unde nu exista niciun pret. Ramine de decis care dintre cele doua e cel
+> corect.
+
 #### De ce n-a fost prins mai devreme
 
 Verificam mereu preturile comparind `BIRO26PT_STG` cu `BIRO26_GOODS` — si acolo totul era
