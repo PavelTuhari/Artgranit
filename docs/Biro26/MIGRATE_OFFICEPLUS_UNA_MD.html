@@ -1,0 +1,342 @@
+<title>Перенос на officeplus.una.md</title>
+<style>
+  :root{
+    --ground:#F6F8F9; --surface:#FFFFFF; --surface-2:#EEF2F4;
+    --ink:#111A1F; --ink-2:#4F616C; --ink-3:#7C8D98;
+    --rule:#DBE3E7; --rule-2:#C3D0D6;
+    --accent:#0B6B5B; --accent-soft:#E2F0EC;
+    --warn:#8A5300; --warn-soft:#FBF0DE;
+    --stop:#93231F; --stop-soft:#FAE7E5;
+    --code-bg:#EDF2F3;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D1417; --surface:#141D21; --surface-2:#1B262B;
+      --ink:#E4ECEF; --ink-2:#9DAFB8; --ink-3:#7B8D97;
+      --rule:#25333A; --rule-2:#33454E;
+      --accent:#4CC3A8; --accent-soft:#0E2C27;
+      --warn:#DCA33F; --warn-soft:#2C2313;
+      --stop:#E88C86; --stop-soft:#2E1615;
+      --code-bg:#111A1E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1417; --surface:#141D21; --surface-2:#1B262B;
+    --ink:#E4ECEF; --ink-2:#9DAFB8; --ink-3:#7B8D97;
+    --rule:#25333A; --rule-2:#33454E;
+    --accent:#4CC3A8; --accent-soft:#0E2C27;
+    --warn:#DCA33F; --warn-soft:#2C2313;
+    --stop:#E88C86; --stop-soft:#2E1615;
+    --code-bg:#111A1E;
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:60rem;margin:0 auto;padding:3rem 1.5rem 5rem}
+  .prose{max-width:38rem}
+
+  h1,h2,h3{font-family:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    text-wrap:balance;line-height:1.2;margin:0}
+  h1{font-size:2.45rem;letter-spacing:-.015em;font-weight:600}
+  h2{font-size:1.45rem;font-weight:600;margin-bottom:.5rem}
+  h3{font-size:1.05rem;font-weight:600;margin-bottom:.35rem}
+  p{margin:0 0 .9rem}
+  a{color:var(--accent);text-underline-offset:2px}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+  .eyebrow{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 .8rem}
+  .lede{font-size:1.1rem;color:var(--ink-2);margin:.9rem 0 0;max-width:38rem}
+
+  header{border-bottom:1px solid var(--rule);padding-bottom:2rem;margin-bottom:2.5rem}
+  .route{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin-top:1.6rem;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:.9rem}
+  .route .from{color:var(--ink-2);text-decoration:line-through;text-decoration-thickness:1px}
+  .route .arrow{color:var(--ink-3)}
+  .route .to{color:var(--accent);font-weight:600}
+
+  section{margin-bottom:2.75rem}
+
+  .note{border-left:3px solid var(--rule-2);background:var(--surface);
+    padding:1.05rem 1.25rem;border-radius:0 6px 6px 0;margin:1.25rem 0}
+  .note h3{margin-bottom:.3rem}
+  .note p:last-child{margin-bottom:0}
+  .note--stop{border-left-color:var(--stop);background:var(--stop-soft)}
+  .note--stop h3{color:var(--stop)}
+  .note--warn{border-left-color:var(--warn);background:var(--warn-soft)}
+  .note--warn h3{color:var(--warn)}
+  .note--ok{border-left-color:var(--accent);background:var(--accent-soft)}
+  .note--ok h3{color:var(--accent)}
+
+  .scroll{overflow-x:auto;margin:1.1rem 0;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{text-align:left;padding:.6rem .85rem;border-bottom:1px solid var(--rule);white-space:nowrap}
+  thead th{background:var(--surface-2);font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-2);font-weight:600}
+  tbody tr:last-child td{border-bottom:0}
+  td.mono,th.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-variant-numeric:tabular-nums;font-size:.85rem}
+  .tag{display:inline-block;padding:.08rem .5rem;border-radius:999px;font-size:.72rem;font-weight:600;
+    font-family:system-ui,sans-serif;letter-spacing:.01em}
+  .tag--keep{background:var(--surface-2);color:var(--ink-2)}
+  .tag--change{background:var(--accent-soft);color:var(--accent)}
+  .tag--new{background:var(--warn-soft);color:var(--warn)}
+
+  pre{margin:.7rem 0 0;padding:.85rem 1rem;background:var(--code-bg);border:1px solid var(--rule);
+    border-radius:7px;overflow-x:auto;font-size:.845rem;line-height:1.55}
+  code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+  p code,li code,td code{background:var(--code-bg);padding:.08em .35em;border-radius:4px;font-size:.87em}
+
+  ol.steps{list-style:none;margin:0;padding:0;counter-reset:step}
+  ol.steps>li{counter-increment:step;position:relative;padding:0 0 2.1rem 3.4rem;border-left:1px solid var(--rule);
+    margin-left:1.05rem}
+  ol.steps>li:last-child{border-left-color:transparent;padding-bottom:0}
+  ol.steps>li::before{content:counter(step);position:absolute;left:-1.05rem;top:-.15rem;
+    width:2.1rem;height:2.1rem;border-radius:50%;background:var(--surface);border:1px solid var(--rule-2);
+    color:var(--ink-2);display:grid;place-items:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;font-weight:600}
+  ol.steps>li[data-tone="stop"]::before{border-color:var(--stop);color:var(--stop)}
+  ol.steps .where{font-size:.8rem;color:var(--ink-3);margin:.15rem 0 .6rem;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  ul.plain{margin:.4rem 0 .9rem;padding-left:1.15rem}
+  ul.plain li{margin-bottom:.35rem}
+
+  details{border:1px solid var(--rule);border-radius:8px;background:var(--surface);padding:.7rem 1rem;margin:1rem 0}
+  summary{cursor:pointer;font-weight:600;font-size:.95rem}
+  details[open] summary{margin-bottom:.6rem}
+
+  .check{list-style:none;margin:0;padding:0;font-size:.95rem}
+  .check li{padding:.5rem 0 .5rem 1.9rem;border-bottom:1px solid var(--rule);position:relative}
+  .check li:last-child{border-bottom:0}
+  .check li::before{content:"";position:absolute;left:0;top:.95rem;width:.85rem;height:.85rem;
+    border:1.5px solid var(--rule-2);border-radius:3px}
+  footer{margin-top:3.5rem;padding-top:1.5rem;border-top:1px solid var(--rule);
+    font-size:.85rem;color:var(--ink-3)}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Регламент перехода · DNS и приложение</p>
+  <h1>Перенос на officeplus.una.md</h1>
+  <p class="lede">Что и в каком порядке менять, чтобы магазин переехал на новое имя,
+     не потеряв платежи, письма и выдачу счетов из ERP.</p>
+  <div class="route">
+    <span class="from">officeplus.md</span>
+    <span class="arrow">──▶</span>
+    <span class="to">officeplus.una.md</span>
+    <span class="arrow">·</span>
+    <span>сервер 92.5.130.1</span>
+  </div>
+</header>
+
+<section>
+  <h2>Сначала — две поправки</h2>
+  <div class="note note--stop">
+    <h3>Записи, которые вы прислали, — не то место</h3>
+    <p>В присланной таблице зона <code>officeplus.md</code> на nic.md. Но
+       <code>officeplus.una.md</code> — это поддомен <strong>una.md</strong>, и живёт он
+       в зоне <code>una.md</code> на вашем сервере имён <code>ns1.una.md</code>.
+       На nic.md его завести нельзя. Менять нужно зону una.md.</p>
+  </div>
+  <div class="note note--stop">
+    <h3>Имя officeplus.una.md уже занято</h3>
+    <p>Оно сейчас отвечает и ведёт на <code>93.115.136.18</code> — там другой nginx
+       отдаёт старую страницу OfficePlus. Прежде чем переключать, нужно решить,
+       что делать с тем сайтом: он перестанет быть доступен по этому адресу.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Как всё разрешается сейчас</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Имя</th><th class="mono">Адрес сейчас</th><th>Что там</th><th>Действие</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">officeplus.md</td><td class="mono">92.5.130.1</td><td>боевой магазин</td><td><span class="tag tag--change">редирект</span></td></tr>
+      <tr><td class="mono">www.officeplus.md</td><td class="mono">92.5.130.1</td><td>то же</td><td><span class="tag tag--change">редирект</span></td></tr>
+      <tr><td class="mono">officeplus.una.md</td><td class="mono">93.115.136.18</td><td>старая страница, другой сервер</td><td><span class="tag tag--new">переключить</span></td></tr>
+      <tr><td class="mono">shop1 / shop2 / shop3</td><td class="mono">92.5.130.1</td><td>тестовые витрины</td><td><span class="tag tag--keep">не трогать</span></td></tr>
+      <tr><td class="mono">mail</td><td class="mono">92.5.130.1</td><td>почта</td><td><span class="tag tag--keep">не трогать</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="prose">Сертификат на сервере сейчас выписан на <code>officeplus.md</code> и
+     <code>www.officeplus.md</code>, действует до 5 ноября 2026. Для нового имени нужен свой.</p>
+</section>
+
+<section>
+  <h2>Порядок работ</h2>
+  <p class="prose">Порядок важен: сертификат нельзя выпустить, пока имя не показывает на сервер,
+     а платежи нельзя переключать, пока сайт не открывается по новому адресу.</p>
+
+  <ol class="steps">
+    <li>
+      <h3>Снизить TTL заранее</h3>
+      <p class="where">зона una.md · ns1.una.md</p>
+      <p>За сутки до переезда поставить у записи <code>officeplus.una.md</code>
+         TTL <strong>300 секунд</strong>. Иначе старый адрес будет жить в кэшах
+         провайдеров часами, и часть клиентов увидит старый сайт.</p>
+    </li>
+
+    <li>
+      <h3>Переключить A-запись</h3>
+      <p class="where">зона una.md · ns1.una.md</p>
+      <div class="scroll">
+      <table>
+        <thead><tr><th>Имя</th><th>Тип</th><th class="mono">Было</th><th class="mono">Станет</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">officeplus</td><td>A</td><td class="mono">93.115.136.18</td><td class="mono">92.5.130.1</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>Проверка — адрес должен смениться:</p>
+      <pre><code>dig +short officeplus.una.md A</code></pre>
+    </li>
+
+    <li>
+      <h3>Добавить имя в nginx</h3>
+      <p class="where">92.5.130.1 · /etc/nginx/sites-enabled/officeplus</p>
+      <p>В обоих блоках <code>server</code> дописать новое имя к <code>server_name</code>.
+         Старое пока оставить — оно понадобится на шаге 5.</p>
+      <pre><code>server_name officeplus.una.md officeplus.md www.officeplus.md _;
+
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+    </li>
+
+    <li>
+      <h3>Выпустить сертификат</h3>
+      <p class="where">92.5.130.1 · certbot</p>
+      <p>Только после того, как шаг 2 разошёлся по DNS — Let's Encrypt проверяет
+         домен обращением к серверу.</p>
+      <pre><code>sudo certbot --nginx -d officeplus.una.md \
+     -d officeplus.md -d www.officeplus.md
+
+sudo certbot certificates</code></pre>
+    </li>
+
+    <li>
+      <h3>Поставить редирект со старого имени</h3>
+      <p class="where">92.5.130.1 · nginx</p>
+      <p>Старый домен не отключать. На нём остаются ссылки в поиске, в счетах,
+         в переписке и в рекламе. Отдельный блок <code>server</code>:</p>
+      <pre><code>server {
+    listen 443 ssl;
+    server_name officeplus.md www.officeplus.md;
+    return 301 https://officeplus.una.md$request_uri;
+}</code></pre>
+      <div class="note note--warn">
+        <h3>Одно исключение</h3>
+        <p>Путь <code>/api/biro26/</code> редиректить нельзя: по нему Oracle 11g
+           ходит простым HTTP и редиректы не понимает. Пока не сделан шаг 8 —
+           оставить этот путь на старом домене рабочим.</p>
+      </div>
+    </li>
+
+    <li>
+      <h3>Переключить WordPress</h3>
+      <p class="where">92.5.130.1 · база officeplus_wp</p>
+      <p>Двух настроек мало: новый адрес нужно заменить и внутри контента —
+         в ссылках, картинках, меню.</p>
+      <pre><code>sudo mysql officeplus_wp -e "UPDATE wp_options
+  SET option_value='https://officeplus.una.md'
+  WHERE option_name IN ('siteurl','home');"
+
+# в содержимом страниц и настройках плагинов
+sudo -u www-data wp search-replace \
+  'https://officeplus.md' 'https://officeplus.una.md' \
+  --path=/var/www/officeplus --all-tables --skip-columns=guid</code></pre>
+    </li>
+
+    <li data-tone="stop">
+      <h3>Переключить платежи</h3>
+      <p class="where">Oracle · YBIRO_SETTINGS.NOTIFY_PUBLIC_BASE</p>
+      <p>Из этой настройки строятся адреса возврата и подтверждения для MAIB
+         и MIA. Сейчас там <code>https://officeplus.md</code>. Если её не сменить,
+         клиент после оплаты вернётся на старый домен, а подтверждение платежа
+         может не дойти.</p>
+      <pre><code>-- значение сейчас
+SELECT SVAL FROM YBIRO_SETTINGS WHERE SKEY='NOTIFY_PUBLIC_BASE';
+
+BEGIN y_ai_BIRO26.set_setting(
+  'NOTIFY_PUBLIC_BASE', 'https://officeplus.una.md'); END;
+/</code></pre>
+      <div class="note note--stop">
+        <h3>Отдельно предупредить MAIB</h3>
+        <p>Банк принимает возвраты только на адреса, зарегистрированные у него
+           для мерчанта. Смена домена в настройке этого не делает — нужно
+           письмо в MAIB, иначе оплата картой перестанет проходить.
+           То же касается MIA.</p>
+      </div>
+    </li>
+
+    <li data-tone="stop">
+      <h3>Пересобрать пакет Oracle</h3>
+      <p class="where">Oracle · Y_AI_BIRO26</p>
+      <p>Адрес зашит прямо в тексте пакета — в двух местах, строки 472 и 618
+         (<code>gen_conturi</code> и <code>gen_conturi_pr</code>). Через настройку
+         он не меняется.</p>
+      <pre><code>v_url := 'http://officeplus.una.md/api/biro26/gen-docs-by-nr/'</code></pre>
+      <p>Править в <code>sql/biro26/04_y_ai_biro26.sql</code> и накатывать заново.
+         Оставить именно <code>http</code>, не <code>https</code>: у Oracle 11g на
+         этом сервере нет TLS-кошелька, а эндпоинт защищён ключом API.</p>
+    </li>
+
+    <li>
+      <h3>Обновить остальное</h3>
+      <p class="where">приложение и внешние сервисы</p>
+      <ul class="plain">
+        <li>Google Search Console — добавить новый ресурс и отправить смену адреса.</li>
+        <li>Шаблоны писем и подписи, если в них указан домен.</li>
+        <li>Соцсети, Google Business, визитки, бланки счетов.</li>
+        <li>Telegram- и WhatsApp-уведомления: ссылки на документы строятся из
+            той же <code>NOTIFY_PUBLIC_BASE</code> — отдельной правки не требуют.</li>
+      </ul>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2>Проверка после переключения</h2>
+  <ul class="check">
+    <li><code>dig +short officeplus.una.md</code> → <code>92.5.130.1</code></li>
+    <li>Витрина открывается: <code>https://officeplus.una.md/catalog</code> → 200</li>
+    <li>Замок в браузере без предупреждений, сертификат на новое имя</li>
+    <li>Старый адрес ведёт на новый: <code>curl -I https://officeplus.md/catalog</code> → 301</li>
+    <li>Бэк-офис пускает: <code>https://officeplus.una.md/login</code></li>
+    <li>Админка WordPress открывается и не уводит на старый домен</li>
+    <li>Пробная оплата картой проходит и возвращает на новый адрес</li>
+    <li>Счёт из ERP генерируется: <code>y_ai_BIRO26.gen_conturi</code> отдаёт файл, а не ошибку</li>
+    <li>Письмо клиенту приходит со ссылками на новый домен</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Если что-то пошло не так</h2>
+  <p class="prose">Откат — это возврат A-записи <code>officeplus.una.md</code> на
+     <code>93.115.136.18</code> и <code>NOTIFY_PUBLIC_BASE</code> на старое значение.
+     Всё остальное (nginx, сертификат, редирект) обратной силы не имеет: старый домен
+     продолжает работать всё это время, поэтому магазин не падает.</p>
+  <p class="prose">Именно поэтому шаг 1 — низкий TTL. С TTL 300 откат разойдётся за пять минут,
+     с «Auto» может занять сутки.</p>
+</section>
+
+<details>
+  <summary>Почему не наоборот: перенести сайт на 93.115.136.18</summary>
+  <p style="margin-top:.6rem">Тот адрес — внешний шлюз офисной сети. За ним внутренние машины,
+     и наружу проброшен только один порт. Боевой магазин там опубликовать нельзя без правки
+     NAT на MikroTik и выпуска сертификата, а сам MikroTik не сохраняет конфигурацию
+     автоматически — правила уже пропадали после сбоя питания. Держать магазин на
+     92.5.130.1 надёжнее.</p>
+</details>
+
+<footer>
+  Проверено на состоянии DNS и сервера 18 августа 2026. Перед работами сверить
+  адреса заново: <code>dig +short officeplus.una.md</code>.
+</footer>
+</div>
