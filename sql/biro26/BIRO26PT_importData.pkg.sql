@@ -626,7 +626,13 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
              ROW_NUMBER() OVER (PARTITION BY s.cod_univers
                  ORDER BY YBIRO_Import_Marfa.parse_price(s.retail1) DESC NULLS LAST, s.id) rn
       FROM biro26pt_stg s
-      JOIN vpr01m_groups vg ON vg.codprice = p_codprice AND vg.grpname = s.grupa
+      -- RO: legatura se face pe GRUPA_PRET (trunchiata la 25), pentru ca exact asa a fost
+      --     creat VPR01M_GROUPS.GRPNAME (max 25). Pe s.grupa (numele COMPLET, pina la 60)
+      --     orice grupa cu nume peste 25 de caractere nu se potrivea si pretul se pierdea
+      --     TACUT — vezi PRINTERRA: 2 387 din 5 147 de produse fara pret.
+      -- EN: join on GRUPA_PRET (truncated to 25) — that is how GRPNAME was created.
+      --     Joining on the FULL name silently dropped prices for any group over 25 chars.
+      JOIN vpr01m_groups vg ON vg.codprice = p_codprice AND vg.grpname = s.grupa_pret
       WHERE s.load_id = p_load_id AND s.cod_univers IS NOT NULL AND s.status IN ('NEW','EXISTING')
         AND ( s.status = 'NEW'
               OR ( YBIRO_Import_Marfa.parse_price(s.retail1) IS NOT NULL

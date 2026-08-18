@@ -332,6 +332,66 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.29 Grupa mai lunga de 25 de caractere = pret pierdut (defect vechi, sistemic)
+
+Gasit la verificarea setului 12, dar vechi de multe importuri. Din 5 147 de produse
+PRINTERRA, doar 2 760 aveau pret. Tiparul a iesit imediat:
+
+| Grupa | Lungimea numelui | Pret |
+|---|---|---|
+| `Imprimante` (10), `Sublimare` (9), `Cartuse pentru imprimante` (**25**) | ≤ 25 | ✅ |
+| `Cerneala pentru imprimante` (26), `Hirtie si baza pentru imprimare` (31), `Accesorii si piese IMPRIMANTE` (29) | > 25 | ❌ |
+
+#### Cauza
+
+`VPR01M_GROUPS.GRPNAME` are maxim 25 de caractere, de aceea stagin-ul are doua coloane:
+`GRUPA` (numele complet, pina la 60) si `GRUPA_PRET` (trunchiat la 25). Grupele de pret se
+creeaza din `GRUPA_PRET` — corect. Dar inserarea preturilor se lega pe numele **complet**:
+
+```sql
+-- gresit: s.grupa are pina la 60 de caractere, grpname are 25
+JOIN vpr01m_groups vg ON vg.codprice = p_codprice AND vg.grpname = s.grupa
+```
+
+Cind numele incape in 25, cele doua coincid si totul merge. Peste 25, JOIN-ul nu gaseste
+nimic, `INSERT ... SELECT` insereaza zero randuri — **fara eroare**. Corectat: `= s.grupa_pret`.
+
+#### Cit a costat
+
+Corelatia e perfecta, deci nu e coincidenta:
+
+| Grupe | Marfuri | Cu pret |
+|---|---|---|
+| ≤ 25 caractere | 118 460 | 117 134 (99%) |
+| **> 25 caractere** | 6 197 | **3 033 (49%)** |
+
+**3 164 de produse** stateau in magazin cu pret in feed (`BIRO26_GOODS.RETAIL1`) dar fara
+niciun rind in lista de preturi. Afectate: `Arta, creativitate si jocuri` (2 107),
+`Rechizite scoala si gradinita` (761), `Ceai, cafea, vesela, pungi` (296) — toate
+officeshop, plus cele 2 387 de la PRINTERRA.
+
+Reparat prin insertie directa, cu legatura pe numele trunchiat. Dupa reparatie: **6 197 din
+6 197**, adica 100%.
+
+#### De ce n-a fost prins mai devreme
+
+Verificam mereu preturile comparind `BIRO26PT_STG` cu `BIRO26_GOODS` — si acolo totul era
+corect, pentru ca feed-ul se scrie separat de lista de preturi. Nimeni nu compara **lista de
+preturi** cu feed-ul.
+
+> **Verificare noua, obligatorie dupa orice import:** cite din marfurile importate au un rind
+> **in lista de preturi** (`TPR1D_PERPRLIST` cu `DATAEND >= SYSDATE`), nu doar un pret in
+> `BIRO26_GOODS`. Diferenta dintre cele doua e exact locul unde se ascund defectele de acest
+> tip.
+
+```sql
+-- RO: marfa importata fara pret in vigoare / EN: imported goods with no active price
+SELECT COUNT(*) FROM biro26_goods g
+ WHERE g.retail1 IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM tpr1d_perprlist p
+                    WHERE p.sc = g.cod_univers AND p.dataend >= TRUNC(SYSDATE));
+```
+
 ### 9.28 Foile = grupe, algoritm selectabil, mapare manuala care nu se pierde
 
 Setul 12 (PRINTERRA) a cerut trei lucruri care lipseau: marfa pe **6 foi = 6 grupe**,
