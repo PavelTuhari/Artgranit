@@ -1,0 +1,291 @@
+<title>Магазин с подхватом</title>
+<style>
+  :root{
+    --ground:#F6F8F9; --surface:#FFFFFF; --surface-2:#EEF2F4;
+    --ink:#111A1F; --ink-2:#4F616C; --ink-3:#7C8D98;
+    --rule:#DBE3E7; --rule-2:#C3D0D6;
+    --accent:#0B6B5B; --accent-soft:#E2F0EC;
+    --warn:#8A5300; --warn-soft:#FBF0DE;
+    --stop:#93231F; --stop-soft:#FAE7E5;
+    --code-bg:#EDF2F3;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D1417; --surface:#141D21; --surface-2:#1B262B;
+      --ink:#E4ECEF; --ink-2:#9DAFB8; --ink-3:#7B8D97;
+      --rule:#25333A; --rule-2:#33454E;
+      --accent:#4CC3A8; --accent-soft:#0E2C27;
+      --warn:#DCA33F; --warn-soft:#2C2313;
+      --stop:#E88C86; --stop-soft:#2E1615;
+      --code-bg:#111A1E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1417; --surface:#141D21; --surface-2:#1B262B;
+    --ink:#E4ECEF; --ink-2:#9DAFB8; --ink-3:#7B8D97;
+    --rule:#25333A; --rule-2:#33454E;
+    --accent:#4CC3A8; --accent-soft:#0E2C27;
+    --warn:#DCA33F; --warn-soft:#2C2313;
+    --stop:#E88C86; --stop-soft:#2E1615;
+    --code-bg:#111A1E;
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:60rem;margin:0 auto;padding:3rem 1.5rem 5rem}
+  .prose{max-width:38rem}
+
+  h1,h2,h3{font-family:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    text-wrap:balance;line-height:1.2;margin:0}
+  h1{font-size:2.45rem;letter-spacing:-.015em;font-weight:600}
+  h2{font-size:1.45rem;font-weight:600;margin-bottom:.5rem}
+  h3{font-size:1.05rem;font-weight:600;margin-bottom:.35rem}
+  p{margin:0 0 .9rem}
+  a{color:var(--accent);text-underline-offset:2px}
+  a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+  .eyebrow{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 .8rem}
+  .lede{font-size:1.1rem;color:var(--ink-2);margin:.9rem 0 0;max-width:38rem}
+
+  header{border-bottom:1px solid var(--rule);padding-bottom:2rem;margin-bottom:2.5rem}
+  .route{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin-top:1.6rem;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;font-size:.9rem}
+  .route .from{color:var(--ink-2);text-decoration:line-through;text-decoration-thickness:1px}
+  .route .arrow{color:var(--ink-3)}
+  .route .to{color:var(--accent);font-weight:600}
+
+  section{margin-bottom:2.75rem}
+
+  .note{border-left:3px solid var(--rule-2);background:var(--surface);
+    padding:1.05rem 1.25rem;border-radius:0 6px 6px 0;margin:1.25rem 0}
+  .note h3{margin-bottom:.3rem}
+  .note p:last-child{margin-bottom:0}
+  .note--stop{border-left-color:var(--stop);background:var(--stop-soft)}
+  .note--stop h3{color:var(--stop)}
+  .note--warn{border-left-color:var(--warn);background:var(--warn-soft)}
+  .note--warn h3{color:var(--warn)}
+  .note--ok{border-left-color:var(--accent);background:var(--accent-soft)}
+  .note--ok h3{color:var(--accent)}
+
+  .scroll{overflow-x:auto;margin:1.1rem 0;border:1px solid var(--rule);border-radius:8px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{text-align:left;padding:.6rem .85rem;border-bottom:1px solid var(--rule);white-space:nowrap}
+  thead th{background:var(--surface-2);font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-2);font-weight:600}
+  tbody tr:last-child td{border-bottom:0}
+  td.mono,th.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-variant-numeric:tabular-nums;font-size:.85rem}
+  .tag{display:inline-block;padding:.08rem .5rem;border-radius:999px;font-size:.72rem;font-weight:600;
+    font-family:system-ui,sans-serif;letter-spacing:.01em}
+  .tag--keep{background:var(--surface-2);color:var(--ink-2)}
+  .tag--change{background:var(--accent-soft);color:var(--accent)}
+  .tag--new{background:var(--warn-soft);color:var(--warn)}
+
+  pre{margin:.7rem 0 0;padding:.85rem 1rem;background:var(--code-bg);border:1px solid var(--rule);
+    border-radius:7px;overflow-x:auto;font-size:.845rem;line-height:1.55}
+  code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace}
+  p code,li code,td code{background:var(--code-bg);padding:.08em .35em;border-radius:4px;font-size:.87em}
+
+  ol.steps{list-style:none;margin:0;padding:0;counter-reset:step}
+  ol.steps>li{counter-increment:step;position:relative;padding:0 0 2.1rem 3.4rem;border-left:1px solid var(--rule);
+    margin-left:1.05rem}
+  ol.steps>li:last-child{border-left-color:transparent;padding-bottom:0}
+  ol.steps>li::before{content:counter(step);position:absolute;left:-1.05rem;top:-.15rem;
+    width:2.1rem;height:2.1rem;border-radius:50%;background:var(--surface);border:1px solid var(--rule-2);
+    color:var(--ink-2);display:grid;place-items:center;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;font-weight:600}
+  ol.steps>li[data-tone="stop"]::before{border-color:var(--stop);color:var(--stop)}
+  ol.steps .where{font-size:.8rem;color:var(--ink-3);margin:.15rem 0 .6rem;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  ul.plain{margin:.4rem 0 .9rem;padding-left:1.15rem}
+  ul.plain li{margin-bottom:.35rem}
+
+  details{border:1px solid var(--rule);border-radius:8px;background:var(--surface);padding:.7rem 1rem;margin:1rem 0}
+  summary{cursor:pointer;font-weight:600;font-size:.95rem}
+  details[open] summary{margin-bottom:.6rem}
+
+  .check{list-style:none;margin:0;padding:0;font-size:.95rem}
+  .check li{padding:.5rem 0 .5rem 1.9rem;border-bottom:1px solid var(--rule);position:relative}
+  .check li:last-child{border-bottom:0}
+  .check li::before{content:"";position:absolute;left:0;top:.95rem;width:.85rem;height:.85rem;
+    border:1.5px solid var(--rule-2);border-radius:3px}
+  footer{margin-top:3.5rem;padding-top:1.5rem;border-top:1px solid var(--rule);
+    font-size:.85rem;color:var(--ink-3)}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Схема публикации · основная площадка и подхват</p>
+  <h1>Магазин с подхватом</h1>
+  <p class="lede">Основной сайт отдаётся из офисной сети, а когда её выключают —
+     автоматически с запасной площадки. Имя <code>officeplus.md</code> при этом
+     не меняется, поэтому MAIB трогать не нужно.</p>
+  <div class="route">
+    <span>officeplus.md</span>
+    <span class="arrow">──▶</span>
+    <span>92.5.130.1</span>
+    <span class="arrow">──▶</span>
+    <span class="to">93.115.136.18</span>
+    <span class="arrow">↩ при отказе</span>
+    <span>сам 92.5.130.1</span>
+  </div>
+</header>
+
+<section>
+  <h2>Идея</h2>
+  <p class="prose"><code>92.5.130.1</code> остаётся публичным адресом и становится
+     входной дверью. Запросы он передаёт в офис, а если офис недоступен — отвечает
+     сам, своей копией. Клиент этого не замечает: адрес в браузере всё время
+     <code>officeplus.md</code>.</p>
+
+  <div class="note note--ok">
+    <h3>Что при этом НЕ нужно менять</h3>
+    <p>Записи DNS на nic.md, <code>NOTIFY_PUBLIC_BASE</code>, адреса возврата в MAIB
+       и MIA, адрес в пакете <code>Y_AI_BIRO26</code>, ссылки в WordPress. Всё это
+       завязано на имя <code>officeplus.md</code>, а оно сохраняется.</p>
+  </div>
+
+  <div class="note note--stop">
+    <h3>Нужно проксирование, а не редирект</h3>
+    <p>Если поставить <code>301</code>, браузер уйдёт на <code>officeplus.una.md</code>,
+       оплата начнётся уже с того имени — и адреса возврата в MAIB пришлось бы менять.
+       Ровно то, чего мы избегаем. Работает только проксирование: клиент остаётся на
+       <code>officeplus.md</code>, а содержимое берётся из офиса.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Проверено на месте</h2>
+  <p class="prose">Схему собрал на отдельных портах <code>92.5.130.1</code>, не трогая
+     боевой сайт, и прогнал оба сценария.</p>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Сценарий</th><th>Откуда ответ</th><th class="mono">Код</th><th class="mono">Время</th></tr></thead>
+    <tbody>
+      <tr><td>офис включён</td><td>офис</td><td class="mono">200</td><td class="mono">2,1–2,9 с</td></tr>
+      <tr><td>офис выключен</td><td>запасная</td><td class="mono">200</td><td class="mono">6,3–6,5 с</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="prose">Неожиданный результат: офис <strong>быстрее</strong> запасной —
+     2–3 секунды против 6,5. Он в одной сети с Oracle, а <code>92.5.130.1</code>
+     ходит к базе через интернет. То есть переезд не только про надёжность, но и
+     про скорость.</p>
+</section>
+
+<section>
+  <h2>Конфигурация</h2>
+  <p class="prose">На <code>92.5.130.1</code> живой конфиг лежит в
+     <code>/etc/nginx/conf.d/officeplus-hybrid.conf</code>. Каталог
+     <code>sites-enabled</code> на этом сервере nginx <strong>не читает</strong> —
+     там лежит только старая копия, которая ни на что не влияет.</p>
+  <pre><code># основной путь — офис
+location / {
+    proxy_pass https://93.115.136.18;
+    proxy_set_header Host officeplus.md;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_ssl_server_name on;
+    proxy_ssl_name officeplus.md;
+
+    # сколько ждать, прежде чем признать офис недоступным
+    proxy_connect_timeout 3s;
+    proxy_read_timeout   25s;
+
+    # офис молчит -> отдаём своей копией
+    proxy_intercept_errors on;
+    error_page 502 503 504 = @spare;
+}
+
+# запасная площадка — локальный Flask на этой же машине
+location @spare {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header Host $host;
+}</code></pre>
+  <p class="prose">Такой же блок нужен для остальных путей витрины
+     (<code>/cos</code>, <code>/catalog</code>, <code>/cont</code>,
+     <code>/produs/…</code>) — они сейчас проксируются на локальный
+     <code>127.0.0.1:8000</code> напрямую.</p>
+
+  <div class="note note--warn">
+    <h3>Сначала настроить приём на стороне офиса</h3>
+    <p>Сейчас <code>192.168.0.148</code> на имя <code>officeplus.md</code> отдаёт
+       посторонний сайт — магазин там отвечает только на
+       <code>officeplus.una.md</code>. Пока это не исправлено, проксировать нужно
+       с подменой заголовка <code>Host: officeplus.una.md</code>, а Flask начнёт
+       отдавать ссылки на то имя. Правильнее добавить имя в
+       <code>server_name</code> на <code>.148</code>:</p>
+    <pre><code>server_name officeplus.una.md officeplus.md www.officeplus.md;</code></pre>
+  </div>
+</section>
+
+<section>
+  <h2>О чём помнить</h2>
+
+  <div class="note">
+    <h3>Заказы совпадут, страницы WordPress — нет</h3>
+    <p>Обе площадки работают с <strong>одной</strong> базой Oracle, поэтому товары,
+       цены, заказы и документы при подхвате одинаковые. А WordPress у каждой свой
+       MySQL: если статью правили в офисе, на запасной во время отказа будет
+       прежняя версия. Для витрины это не критично, для новостей — заметно.</p>
+  </div>
+
+  <div class="note">
+    <h3>Сессии клиентов</h3>
+    <p>Вход в личный кабинет держится на cookie, подписанной <code>SECRET_KEY</code>.
+       Если на площадках ключи разные, при переключении всех разлогинит. Проверить,
+       что <code>SECRET_KEY</code> в <code>.env</code> совпадает на обеих.</p>
+  </div>
+
+  <div class="note">
+    <h3>Вызовы из Oracle</h3>
+    <p>Пакет <code>Y_AI_BIRO26</code> дёргает <code>http://officeplus.md/api/biro26/…</code>.
+       Сама база стоит в офисе, поэтому запрос пойдёт наружу на
+       <code>92.5.130.1</code> и вернётся обратно. Работать будет, но разумнее
+       направить его напрямую внутри сети — это отдельная небольшая правка.</p>
+  </div>
+
+  <div class="note note--warn">
+    <h3>Подхват ловит отказ, а не поломку</h3>
+    <p><code>error_page 502 503 504</code> срабатывает, когда офис не отвечает или
+       вернул ошибку шлюза. Если он ответит быстро и неправильно — например,
+       отдаст страницу панели вместо магазина — подхват не сработает. Поэтому
+       предыдущий пункт про <code>server_name</code> важен.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Проверка после включения</h2>
+  <ul class="check">
+    <li><code>curl -I https://officeplus.md/catalog</code> → 200, адрес в браузере не меняется</li>
+    <li>Заголовок ответа показывает, что источник — офис</li>
+    <li>Офис выключили: сайт продолжает открываться, источник — запасная</li>
+    <li>Офис включили обратно: источник снова офис, вручную ничего не делали</li>
+    <li>Вход в кабинет не слетел при переключении</li>
+    <li>Пробная оплата картой проходит и возвращает на <code>officeplus.md</code></li>
+    <li>Счёт из ERP генерируется: <code>y_ai_BIRO26.gen_conturi</code> отдаёт файл</li>
+  </ul>
+</section>
+
+<details>
+  <summary>Что делать с officeplus.una.md</summary>
+  <p style="margin-top:.6rem">Оно ведёт в офис напрямую, минуя <code>92.5.130.1</code> —
+     это самый короткий путь, но без подхвата: выключили офис, и имя недоступно.
+     Если нужен подхват и там, запись <code>officeplus</code> в зоне
+     <code>una.md</code> (сервера <code>ns1</code>/<code>ns2.una.md</code>, не nic.md)
+     переводится на <code>92.5.130.1</code>, и дальше работает та же схема.
+     Тогда у обоих имён поведение одинаковое.</p>
+</details>
+
+<footer>
+  Схема проверена на 92.5.130.1 18 августа 2026: подхват срабатывает, боевой сайт
+  при проверке не затрагивался. Тестовая конфигурация удалена.
+</footer>
+</div>
