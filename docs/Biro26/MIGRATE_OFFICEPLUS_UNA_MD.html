@@ -124,130 +124,115 @@
 <header>
   <p class="eyebrow">Регламент перехода · DNS и приложение</p>
   <h1>Перенос на officeplus.una.md</h1>
-  <p class="lede">Что и в каком порядке менять, чтобы магазин переехал на новое имя,
-     не потеряв платежи, письма и выдачу счетов из ERP.</p>
+  <p class="lede">Магазин переезжает на площадку в офисной сети. Что и в каком
+     порядке менять, чтобы не потерять платежи и выдачу счетов из ERP.</p>
   <div class="route">
-    <span class="from">officeplus.md</span>
+    <span class="from">92.5.130.1</span>
     <span class="arrow">──▶</span>
-    <span class="to">officeplus.una.md</span>
+    <span class="to">93.115.136.18</span>
     <span class="arrow">·</span>
-    <span>сервер 92.5.130.1</span>
+    <span>внутр. 192.168.0.148</span>
   </div>
 </header>
 
 <section>
-  <h2>Что уже сделано, а что нет</h2>
+  <h2>Куда именно переезжаем</h2>
+  <p class="prose">Целевая площадка — <code>93.115.136.18</code>, внешний адрес офисной
+     сети; за NAT стоит <code>192.168.0.148</code>. Определено сверкой: страница,
+     которую отдаёт <code>officeplus.una.md</code>, побайтово совпадает с той, что
+     отдаёт <code>.148</code>.</p>
 
   <div class="note note--ok">
-    <h3>officeplus.md уже на новом хостинге</h3>
-    <p>Публичный DNS отдаёт <code>92.5.130.1</code> — переезд основного имени
-       состоялся. Сертификат на месте, сайт работает. Здесь делать нечего.</p>
-  </div>
-
-  <div class="note note--stop">
-    <h3>officeplus.una.md пока ведёт на другую машину</h3>
-    <p>Авторитетный сервер зоны <code>ns2.una.md</code> отвечает
-       <code>93.115.136.18</code>, а за этим NAT стоит внутренняя
-       <code>192.168.0.148</code>. Проверено сверкой страницы: она совпадает
-       с <code>.148</code> побайтово, а с новым хостингом — нет.</p>
-    <pre><code>dig +trace officeplus.una.md A
-officeplus.una.md.  600  IN  A  93.115.136.18
-;; Received from 178.175.140.131#53(ns2.una.md)</code></pre>
-    <p>Магазин там тот же самый — это не старый сайт, а второй работающий
-       контур. Но это <strong>не</strong> новый хостинг.</p>
+    <h3>officeplus.una.md уже готов</h3>
+    <p>Ведёт на новую площадку, отдаёт магазин, сертификат действителен —
+       браузер открывает без предупреждений. Здесь делать нечего.</p>
   </div>
 
   <div class="note note--warn">
-    <h3>Запись меняется не на nic.md</h3>
-    <p>В присланной таблице зона <code>officeplus.md</code>. А
-       <code>officeplus.una.md</code> — поддомен <strong>una.md</strong>, и его
-       зону держат ваши собственные <code>ns1.una.md</code> / <code>ns2.una.md</code>
-       (<code>178.175.140.131</code> и <code>93.115.136.18</code>).
-       Записи, добавленные на nic.md, на это имя не повлияют.</p>
+    <h3>officeplus.md ещё на старом адресе</h3>
+    <p>Все записи в зоне на nic.md показывают на <code>92.5.130.1</code>. Именно их
+       и нужно переключить — это та таблица, что вы прислали.</p>
   </div>
 </section>
 
 <section>
-  <h2>Как всё разрешается сейчас</h2>
+  <h2>Что менять в зоне officeplus.md</h2>
   <div class="scroll">
   <table>
-    <thead><tr><th>Имя</th><th class="mono">Адрес</th><th>Что за машина</th><th>Действие</th></tr></thead>
+    <thead><tr><th>Имя</th><th>Тип</th><th class="mono">Сейчас</th><th class="mono">Станет</th><th>Примечание</th></tr></thead>
     <tbody>
-      <tr><td class="mono">officeplus.md</td><td class="mono">92.5.130.1</td><td>новый хостинг</td><td><span class="tag tag--keep">готово</span></td></tr>
-      <tr><td class="mono">www.officeplus.md</td><td class="mono">92.5.130.1</td><td>новый хостинг</td><td><span class="tag tag--keep">готово</span></td></tr>
-      <tr><td class="mono">officeplus.una.md</td><td class="mono">93.115.136.18</td><td>NAT → 192.168.0.148</td><td><span class="tag tag--change">переключить</span></td></tr>
-      <tr><td class="mono">shop1 / shop2 / shop3</td><td class="mono">92.5.130.1</td><td>новый хостинг</td><td><span class="tag tag--keep">не трогать</span></td></tr>
-      <tr><td class="mono">mail</td><td class="mono">92.5.130.1</td><td>почта</td><td><span class="tag tag--keep">не трогать</span></td></tr>
+      <tr><td class="mono">@</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>основной адрес</td></tr>
+      <tr><td class="mono">www</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>вместе с основным</td></tr>
+      <tr><td class="mono">shop1</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>только если витрина переезжает тоже</td></tr>
+      <tr><td class="mono">shop2</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>то же</td></tr>
+      <tr><td class="mono">shop3</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>то же</td></tr>
+      <tr><td class="mono">mail</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>см. ниже — можно не трогать</td></tr>
+      <tr><td class="mono">hpanel</td><td>A</td><td class="mono">92.5.130.1</td><td class="mono">93.115.136.18</td><td>панель, если она нужна на новой машине</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="prose">На новом хостинге имя <code>officeplus.una.md</code> пока не
-     настроено: по HTTP его подхватывает заглушка <code>_</code>, по HTTPS выходит
-     редирект обратно на HTTP, а сертификат выписан только на
-     <code>officeplus.md</code> и <code>www.officeplus.md</code> (до 5 ноября 2026).
-     Поэтому одной правкой DNS не обойтись — нужны шаги 3 и 4.</p>
+  <div class="note">
+    <h3>Про mail: MX у домена нет</h3>
+    <p>У <code>officeplus.md</code> нет ни одной MX-записи, а порт 25 закрыт на обоих
+       адресах. Входящей почты на домене нет, приложение шлёт письма через Gmail.
+       Запись <code>mail</code> сейчас ничего не обслуживает — её можно оставить как есть.</p>
+  </div>
 </section>
 
 <section>
   <h2>Порядок работ</h2>
-  <p class="prose">Порядок важен: сертификат нельзя выпустить, пока имя не показывает на сервер,
-     а платежи нельзя переключать, пока сайт не открывается по новому адресу.</p>
+  <p class="prose">Сложность одна: сертификат для <code>officeplus.md</code> нельзя
+     выпустить на новой площадке, пока имя туда не показывает, а до выпуска браузер
+     будет ругаться. Поэтому шаги 1–2 готовятся заранее, а 3 и 4 идут подряд, без паузы.</p>
 
   <ol class="steps">
     <li>
-      <h3>Снизить TTL заранее</h3>
-      <p class="where">зона una.md · ns1.una.md / ns2.una.md</p>
-      <p>Сейчас TTL этой записи — 600 секунд, это уже удобно. За сутки до переезда поставить у записи <code>officeplus.una.md</code>
-         TTL <strong>300 секунд</strong>. Иначе старый адрес будет жить в кэшах
-         провайдеров часами, и часть клиентов увидит старый сайт.</p>
-    </li>
-
-    <li>
-      <h3>Переключить A-запись</h3>
-      <p class="where">зона una.md · ns1.una.md / ns2.una.md</p>
-      <div class="scroll">
-      <table>
-        <thead><tr><th>Имя в зоне</th><th>Тип</th><th class="mono">Было</th><th class="mono">Станет</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">officeplus</td><td>A</td><td class="mono">93.115.136.18</td><td class="mono">92.5.130.1</td></tr>
-        </tbody>
-      </table>
-      </div>
-      <p>После этого магазин на <code>192.168.0.148</code> перестанет быть доступен
-         по этому адресу. Сам он продолжит работать — вопрос лишь в том, нужен ли
-         он ещё.</p>
-      <p>Проверка — адрес должен смениться:</p>
-      <pre><code>dig +short officeplus.una.md A</code></pre>
-    </li>
-
-    <li>
-      <h3>Добавить имя в nginx</h3>
-      <p class="where">92.5.130.1 · /etc/nginx/sites-enabled/officeplus</p>
-      <p>В обоих блоках <code>server</code> дописать новое имя к <code>server_name</code>.
-         Старое пока оставить — оно понадобится на шаге 5.</p>
-      <pre><code>server_name officeplus.una.md officeplus.md www.officeplus.md _;
+      <h3>Подготовить vhost на новой площадке</h3>
+      <p class="where">192.168.0.148 · nginx</p>
+      <p>Сейчас на этой машине имя <code>officeplus.md</code> попадает на посторонний
+         сайт — отдаётся чужая страница с пустым <code>&lt;title&gt;</code>, не магазин.
+         Нужно добавить имя туда же, где обслуживается <code>officeplus.una.md</code>:</p>
+      <pre><code>server_name officeplus.una.md officeplus.md www.officeplus.md;
 
 sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
     </li>
 
     <li>
-      <h3>Выпустить сертификат</h3>
-      <p class="where">92.5.130.1 · certbot</p>
-      <p>Только после того, как шаг 2 разошёлся по DNS — Let's Encrypt проверяет
-         домен обращением к серверу.</p>
-      <pre><code>sudo certbot --nginx -d officeplus.una.md \
-     -d officeplus.md -d www.officeplus.md
-
-sudo certbot certificates</code></pre>
+      <h3>Снизить TTL на nic.md</h3>
+      <p class="where">зона officeplus.md · панель nic.md</p>
+      <p>За сутки поменять «Auto» на <strong>300 секунд</strong> у записей
+         <code>@</code> и <code>www</code>. Тогда и переключение, и откат
+         разойдутся за пять минут, а не за сутки.</p>
     </li>
 
     <li>
-      <h3>Решить, какое имя главное</h3>
-      <p class="where">92.5.130.1 · nginx</p>
-      <p>Оба имени ведут на одну машину, поэтому сайт откроется по обоим. Но
-         поисковику и платёжному шлюзу нужен <strong>один</strong> канонический
-         адрес. Если главным становится <code>officeplus.una.md</code> —
-         со старого ставим редирект:</p>
+      <h3>Переключить A-записи</h3>
+      <p class="where">зона officeplus.md · панель nic.md</p>
+      <p>По таблице выше: <code>92.5.130.1</code> → <code>93.115.136.18</code>.</p>
+      <pre><code>dig +short officeplus.md A
+# должно стать 93.115.136.18</code></pre>
+      <p>С этого момента и до шага 4 сайт по HTTPS будет ругаться на сертификат —
+         действующий выписан на <code>una.md</code> и <code>officeplus.una.md</code>,
+         но не на <code>officeplus.md</code>.</p>
+    </li>
+
+    <li data-tone="stop">
+      <h3>Сразу выпустить сертификат</h3>
+      <p class="where">192.168.0.148 · certbot</p>
+      <p>Не откладывать: делать следом за шагом 3, как только DNS разошёлся.</p>
+      <pre><code>sudo certbot --nginx \
+     -d officeplus.una.md -d officeplus.md -d www.officeplus.md
+
+sudo certbot certificates</code></pre>
+      <p>Проверка ходом Let's Encrypt идёт по HTTP на порт 80 снаружи — убедиться,
+         что он проброшен на <code>.148</code> и не перехвачен редиректом.</p>
+    </li>
+
+    <li>
+      <h3>Сделать officeplus.una.md главным</h3>
+      <p class="where">192.168.0.148 · nginx</p>
+      <p>Оба имени ведут на одну машину, но поисковику и платёжному шлюзу нужен
+         один канонический адрес:</p>
       <pre><code>server {
     listen 443 ssl;
     server_name officeplus.md www.officeplus.md;
@@ -256,69 +241,61 @@ sudo certbot certificates</code></pre>
       <div class="note note--warn">
         <h3>Одно исключение</h3>
         <p>Путь <code>/api/biro26/</code> редиректить нельзя: по нему Oracle 11g
-           ходит простым HTTP и редиректы не понимает. Пока не сделан шаг 8 —
-           оставить этот путь на старом домене рабочим.</p>
+           ходит простым HTTP и редиректов не понимает. Оставить его рабочим на
+           обоих именах, пока не сделан шаг 8.</p>
       </div>
     </li>
 
     <li>
       <h3>Переключить WordPress</h3>
-      <p class="where">92.5.130.1 · база officeplus_wp</p>
-      <p>Двух настроек мало: новый адрес нужно заменить и внутри контента —
-         в ссылках, картинках, меню.</p>
-      <pre><code>sudo mysql officeplus_wp -e "UPDATE wp_options
-  SET option_value='https://officeplus.una.md'
-  WHERE option_name IN ('siteurl','home');"
+      <p class="where">192.168.0.148 · база WordPress</p>
+      <p>Двух настроек мало — адрес сидит и внутри контента, в ссылках и картинках.</p>
+      <pre><code>UPDATE wp_options SET option_value='https://officeplus.una.md'
+ WHERE option_name IN ('siteurl','home');
 
-# в содержимом страниц и настройках плагинов
-sudo -u www-data wp search-replace \
-  'https://officeplus.md' 'https://officeplus.una.md' \
-  --path=/var/www/officeplus --all-tables --skip-columns=guid</code></pre>
+wp search-replace 'https://officeplus.md' 'https://officeplus.una.md' \
+   --all-tables --skip-columns=guid</code></pre>
     </li>
 
     <li data-tone="stop">
       <h3>Переключить платежи</h3>
       <p class="where">Oracle · YBIRO_SETTINGS.NOTIFY_PUBLIC_BASE</p>
-      <p>Из этой настройки строятся адреса возврата и подтверждения для MAIB
-         и MIA. Сейчас там <code>https://officeplus.md</code>. Если её не сменить,
-         клиент после оплаты вернётся на старый домен, а подтверждение платежа
-         может не дойти.</p>
-      <pre><code>-- значение сейчас
-SELECT SVAL FROM YBIRO_SETTINGS WHERE SKEY='NOTIFY_PUBLIC_BASE';
+      <p>Из этой настройки строятся адреса возврата и подтверждения для MAIB и MIA.
+         Сейчас там <code>https://officeplus.md</code>. Не сменить — клиент после
+         оплаты вернётся на старый адрес, а подтверждение может не дойти.</p>
+      <pre><code>SELECT SVAL FROM YBIRO_SETTINGS WHERE SKEY='NOTIFY_PUBLIC_BASE';
 
 BEGIN y_ai_BIRO26.set_setting(
   'NOTIFY_PUBLIC_BASE', 'https://officeplus.una.md'); END;
 /</code></pre>
       <div class="note note--stop">
         <h3>Отдельно предупредить MAIB</h3>
-        <p>Банк принимает возвраты только на адреса, зарегистрированные у него
-           для мерчанта. Смена домена в настройке этого не делает — нужно
-           письмо в MAIB, иначе оплата картой перестанет проходить.
-           То же касается MIA.</p>
+        <p>Банк принимает возвраты только на адреса, зарегистрированные у него для
+           мерчанта. Смена настройки на нашей стороне этого не делает — нужно письмо
+           в MAIB, иначе оплата картой перестанет проходить. То же по MIA.</p>
       </div>
     </li>
 
     <li data-tone="stop">
       <h3>Пересобрать пакет Oracle</h3>
       <p class="where">Oracle · Y_AI_BIRO26</p>
-      <p>Адрес зашит прямо в тексте пакета — в двух местах, строки 472 и 618
-         (<code>gen_conturi</code> и <code>gen_conturi_pr</code>). Через настройку
-         он не меняется.</p>
+      <p>Адрес зашит прямо в тексте пакета, в двух местах — строки 472 и 618
+         (<code>gen_conturi</code> и <code>gen_conturi_pr</code>). Настройкой не меняется.</p>
       <pre><code>v_url := 'http://officeplus.una.md/api/biro26/gen-docs-by-nr/'</code></pre>
       <p>Править в <code>sql/biro26/04_y_ai_biro26.sql</code> и накатывать заново.
-         Оставить именно <code>http</code>, не <code>https</code>: у Oracle 11g на
-         этом сервере нет TLS-кошелька, а эндпоинт защищён ключом API.</p>
+         Оставить именно <code>http</code>: у Oracle 11g нет TLS-кошелька, а эндпоинт
+         защищён ключом API.</p>
     </li>
 
     <li>
-      <h3>Обновить остальное</h3>
-      <p class="where">приложение и внешние сервисы</p>
+      <h3>Обновить внешнее</h3>
+      <p class="where">поиск, реклама, документы</p>
       <ul class="plain">
-        <li>Google Search Console — добавить новый ресурс и отправить смену адреса.</li>
-        <li>Шаблоны писем и подписи, если в них указан домен.</li>
+        <li>Google Search Console — добавить ресурс и отправить смену адреса.</li>
+        <li>Шаблоны писем и подписи, если домен указан в них.</li>
         <li>Соцсети, Google Business, визитки, бланки счетов.</li>
-        <li>Telegram- и WhatsApp-уведомления: ссылки на документы строятся из
-            той же <code>NOTIFY_PUBLIC_BASE</code> — отдельной правки не требуют.</li>
+        <li>Telegram и WhatsApp: ссылки строятся из той же
+            <code>NOTIFY_PUBLIC_BASE</code> — отдельной правки не нужно.</li>
       </ul>
     </li>
   </ol>
@@ -327,39 +304,39 @@ BEGIN y_ai_BIRO26.set_setting(
 <section>
   <h2>Проверка после переключения</h2>
   <ul class="check">
-    <li><code>dig +short officeplus.una.md</code> → <code>92.5.130.1</code></li>
+    <li><code>dig +short officeplus.md</code> → <code>93.115.136.18</code></li>
     <li>Витрина открывается: <code>https://officeplus.una.md/catalog</code> → 200</li>
-    <li>Замок в браузере без предупреждений, сертификат на новое имя</li>
-    <li>Старый адрес ведёт на новый: <code>curl -I https://officeplus.md/catalog</code> → 301</li>
+    <li>Замок без предупреждений на обоих именах</li>
+    <li>Старое имя ведёт на новое: <code>curl -I https://officeplus.md/catalog</code> → 301</li>
     <li>Бэк-офис пускает: <code>https://officeplus.una.md/login</code></li>
-    <li>Админка WordPress открывается и не уводит на старый домен</li>
+    <li>Админка WordPress открывается и не уводит на старый адрес</li>
     <li>Пробная оплата картой проходит и возвращает на новый адрес</li>
-    <li>Счёт из ERP генерируется: <code>y_ai_BIRO26.gen_conturi</code> отдаёт файл, а не ошибку</li>
+    <li>Счёт из ERP генерируется: <code>y_ai_BIRO26.gen_conturi</code> отдаёт файл</li>
     <li>Письмо клиенту приходит со ссылками на новый домен</li>
   </ul>
 </section>
 
 <section>
   <h2>Если что-то пошло не так</h2>
-  <p class="prose">Откат — это возврат A-записи <code>officeplus.una.md</code> на
-     <code>93.115.136.18</code> и <code>NOTIFY_PUBLIC_BASE</code> на старое значение.
-     Всё остальное (nginx, сертификат, редирект) обратной силы не имеет: старый домен
-     продолжает работать всё это время, поэтому магазин не падает.</p>
-  <p class="prose">Именно поэтому шаг 1 — низкий TTL. С TTL 300 откат разойдётся за пять минут,
-     с «Auto» может занять сутки.</p>
+  <p class="prose">Откат — вернуть A-записи на <code>92.5.130.1</code> и
+     <code>NOTIFY_PUBLIC_BASE</code> на прежнее значение. Старая площадка
+     продолжает работать всё это время и остаётся полностью рабочей копией,
+     так что откат мгновенный по сути — вопрос только в TTL.</p>
+  <p class="prose">Поэтому шаг 2 важнее, чем кажется: с TTL 300 откат разойдётся
+     за пять минут, с «Auto» может занять сутки.</p>
 </section>
 
 <details>
-  <summary>Почему не наоборот: перенести сайт на 93.115.136.18</summary>
-  <p style="margin-top:.6rem">Тот адрес — внешний шлюз офисной сети. За ним внутренние машины,
-     и наружу проброшен только один порт. Боевой магазин там опубликовать нельзя без правки
-     NAT на MikroTik и выпуска сертификата, а сам MikroTik не сохраняет конфигурацию
-     автоматически — правила уже пропадали после сбоя питания. Держать магазин на
-     92.5.130.1 надёжнее.</p>
+  <summary>Что будет со старой площадкой 92.5.130.1</summary>
+  <p style="margin-top:.6rem">Пока на неё не показывает ни одно имя, она просто
+     простаивает — код, база WordPress и настройки остаются на месте. Это удобный
+     запасной вариант на первое время: если на новой площадке всплывёт проблема,
+     возврат делается одной правкой DNS. Отключать её стоит не раньше, чем новый
+     адрес отработает без замечаний хотя бы неделю.</p>
 </details>
 
 <footer>
-  Проверено на состоянии DNS и сервера 18 августа 2026. Перед работами сверить
-  адреса заново: <code>dig +short officeplus.una.md</code>.
+  Состояние DNS и обеих площадок проверено 18 августа 2026. Перед работами сверить
+  заново: <code>dig +short officeplus.md</code> и <code>dig +short officeplus.una.md</code>.
 </footer>
 </div>
