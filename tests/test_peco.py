@@ -465,3 +465,147 @@ def test_close_shift_marks_disputed_on_shortfall():
         r = peco_shift.close_shift(77, employee_id=5, cash_declared=2000.0)
     assert r["status"] == "DISPUTED"
     assert r["variances"]["liter_variance"] == 10.0
+
+
+# ------------------------------------------------------------------
+# Task 8 fix-pass 1: error-path findings
+# ------------------------------------------------------------------
+
+
+def _close_mocks(store):
+    """Общая заглушка успешного закрытия смены."""
+    store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+    store.mark_shift_closing.return_value = {"success": True}
+    store.get_shift_meters.return_value = {"success": True, "items": []}
+    store.shift_paid_liters.return_value = {
+        "success": True, "liters": 0.0, "cash": 0.0, "mia": 0.0}
+    store.get_shift_tanks.return_value = {"success": True, "items": []}
+    store.save_tank_close.return_value = {"success": True}
+    store.finalize_shift.return_value = {"success": True}
+    store.log_event.return_value = {"success": True}
+
+
+def test_close_shift_fails_when_a_tank_write_fails():
+    """Смена не должна закрываться успешно, если расхождение по резервуару
+    не сохранилось: итог по станции остался бы без данных о том, ГДЕ недостача."""
+    with patch("models.peco_shift.PecoStore") as store:
+        _close_mocks(store)
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 100.0, "delivered_l": 0.0}]}
+        store.save_tank_close.return_value = {"success": False, "error": "ORA-00001"}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={11: 50.0})
+    assert r["success"] is False
+    store.finalize_shift.assert_not_called()
+
+
+def test_close_shift_fails_when_tank_ledger_cannot_be_read():
+    """Сбой чтения реестра — это ошибка, а не 'расхождений по резервуарам нет'."""
+    with patch("models.peco_shift.PecoStore") as store:
+        _close_mocks(store)
+        store.get_shift_tanks.return_value = {"success": False,
+                                              "error": "ORA-00942"}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0)
+    assert r["success"] is False
+    store.finalize_shift.assert_not_called()
+
+
+def test_close_shift_marks_closing_before_writing_measurements():
+    """Пока идёт закрытие, смена не должна выглядеть обычной открытой."""
+    with patch("models.peco_shift.PecoStore") as store:
+        _close_mocks(store)
+        peco_shift.close_shift(77, employee_id=5, cash_declared=0.0)
+    store.mark_shift_closing.assert_called_once_with(77)
+
+
+def test_close_shift_returns_per_tank_detail():
+    with patch("models.peco_shift.PecoStore") as store:
+        _close_mocks(store)
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 100.0, "delivered_l": 0.0}]}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={11: 90.0})
+    assert r["tanks"][0]["tank_id"] == 11
+    assert r["tanks"][0]["tank_variance"] == -10.0
+
+
+def test_close_shift_reports_dips_for_unknown_tanks():
+    """Замер по резервуару, которого нет в реестре смены, не должен
+    исчезать молча."""
+    with patch("models.peco_shift.PecoStore") as store:
+        _close_mocks(store)
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={99: 5000.0})
+    assert r["ignored_dips"] == [99]
+
+
+def test_open_shift_maps_index_violation_to_domain_error():
+    """Гонка двух открытий: оператор должен увидеть доменную ошибку,
+    а не текст ORA."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": False, "error": "нет"}
+        store.open_shift.return_value = {
+            "success": False,
+            "error": "ORA-00001: unique constraint (X.UX_PECO_SHIFTS_ACTIVE) violated"}
+        r = peco_shift.open_shift(station_id=1, employee_id=5)
+    assert r["success"] is False
+    assert "ORA-" not in r["error"]
+    assert "уже открыта" in r["error"]
+
+
+def test_open_shift_rejects_a_null_shift_id():
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": False, "error": "нет"}
+        store.open_shift.return_value = {"success": True, "shift_id": None}
+        r = peco_shift.open_shift(station_id=1, employee_id=5)
+    assert r["success"] is False
+
+
+def test_save_tank_close_rejects_a_zero_row_update():
+    """UPDATE, не задевший ни одной строки, означает отсутствие строки
+    реестра — это ошибка, а не успех."""
+    db = MagicMock()
+    db.execute_query.return_value = {"success": True, "columns": [], "data": [],
+                                     "rowcount": 0}
+    cm = MagicMock()
+    cm.__enter__.return_value = db
+    cm.__exit__.return_value = False
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.save_tank_close(77, 11, 100.0, -5.0)
+    assert r["success"] is False
+
+
+# ------------------------------------------------------------------
+# Task 8 fix-pass 2: mark_shift_closing retry-idempotency
+# ------------------------------------------------------------------
+
+
+def _rowcount_db(rowcount):
+    db = MagicMock()
+    db.execute_query.return_value = {"success": True, "columns": [], "data": [],
+                                     "rowcount": rowcount}
+    cm = MagicMock()
+    cm.__enter__.return_value = db
+    cm.__exit__.return_value = False
+    return cm, db
+
+
+def test_mark_shift_closing_accepts_a_shift_already_closing():
+    """Повторное закрытие после сбоя обязано пройти: иначе смена,
+    упавшая на finalize, застревает в CLOSING навсегда, и станция
+    не может ни закрыть её, ни открыть новую."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.mark_shift_closing(77)
+    assert r["success"] is True
+    sql = db.execute_query.call_args[0][0]
+    assert "'OPEN'" in sql and "'CLOSING'" in sql
+
+
+def test_mark_shift_closing_rejects_an_already_closed_shift():
+    cm, _ = _rowcount_db(0)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.mark_shift_closing(77)
+    assert r["success"] is False
