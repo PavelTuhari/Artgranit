@@ -1302,7 +1302,7 @@ Append to `README.md`:
 - [ ] **Step 3: Verify the full test suite still passes**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 54 passed
+Expected: PASS — 58 passed
 
 - [ ] **Step 4: Commit**
 
@@ -1317,7 +1317,7 @@ git commit -m "PECO: документация модуля и раздел в RE
 
 After Task 20, confirm the whole module:
 
-- [ ] `python -m pytest tests/test_peco.py -v` → 54 passed
+- [ ] `python -m pytest tests/test_peco.py -v` → 58 passed
 - [ ] `python -c "import ast; ast.parse(open('app.py').read())"` → no error
 - [ ] `python deploy_oracle_objects.py --only peco` → all five SQL files applied
 - [ ] `python app.py`, then open `/UNA.md/orasldev/docs/peco/TZ.html` and click each of the three entry buttons

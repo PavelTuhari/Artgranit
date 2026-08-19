@@ -221,7 +221,7 @@ def approve_disputed(shift_id: int, manager_id: int, pin: str) -> Dict[str, Any]
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 28 passed
+Expected: PASS — 32 passed
 
 - [ ] **Step 6: Commit**
 
@@ -389,7 +389,7 @@ def validate_settlement(status: str, pay_method: str,
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 37 passed
+Expected: PASS — 41 passed
 
 - [ ] **Step 5: Commit**
 
@@ -751,7 +751,7 @@ def void(txn_id: int, reason: str) -> Dict[str, Any]:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 44 passed
+Expected: PASS — 48 passed
 
 - [ ] **Step 6: Commit**
 
@@ -1088,7 +1088,7 @@ def tank_levels(station_id: int) -> Dict[str, Any]:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 48 passed
+Expected: PASS — 52 passed
 
 - [ ] **Step 6: Commit**
 
@@ -1166,7 +1166,7 @@ In `models/peco_txn.py`, inside `finish_dispense`, insert directly after the `if
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 49 passed
+Expected: PASS — 53 passed
 
 - [ ] **Step 6: Commit**
 
@@ -1486,7 +1486,7 @@ class PecoController:
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 54 passed
+Expected: PASS — 58 passed
 
 - [ ] **Step 5: Commit**
 
