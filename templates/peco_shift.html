@@ -477,6 +477,223 @@ function collectDips() {
   return dips;
 }
 
+var dlvLineSeq = 0;
+var dlvLines = [];
+
+function tankSelectOptions(selectedId) {
+  var sel = document.createElement('select');
+  sel.style.cssText = 'background:#fff;border:1.5px solid var(--line);border-radius:10px;' +
+    'padding:11px 13px;color:var(--text);font-size:15px;font-weight:600;width:150px;';
+  var ids = Object.keys(tanksById);
+  if (!ids.length) {
+    sel.appendChild(txt('option', null, 'нет резервуаров'));
+    sel.disabled = true;
+    return sel;
+  }
+  ids.forEach(function(tankId){
+    var t = tanksById[tankId];
+    var opt = txt('option', null, t.tank_code + ' — ' + t.grade_name);
+    opt.value = tankId;
+    if (selectedId !== undefined && String(selectedId) === String(tankId)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  return sel;
+}
+
+function numInput(id, step, placeholder) {
+  var input = document.createElement('input');
+  input.type = 'number';
+  input.step = step || '0.001';
+  input.id = id;
+  if (placeholder) input.placeholder = placeholder;
+  return input;
+}
+
+function addDeliveryLine() {
+  var id = ++dlvLineSeq;
+  dlvLines.push(id);
+  var tbody = document.querySelector('#dlvItemsTbl tbody');
+
+  var tr = document.createElement('tr');
+  tr.id = 'dlvRow' + id;
+
+  var tdTank = document.createElement('td');
+  var sel = tankSelectOptions();
+  sel.id = 'dlvTank' + id;
+  tdTank.appendChild(sel);
+  tr.appendChild(tdTank);
+
+  var tdDoc = document.createElement('td');
+  var docInput = numInput('dlvDoc' + id, '0.001');
+  docInput.oninput = function(){ updateLineShortfall(id); };
+  tdDoc.appendChild(docInput);
+  tr.appendChild(tdDoc);
+
+  var tdRecv = document.createElement('td');
+  var recvInput = numInput('dlvRecv' + id, '0.001');
+  recvInput.oninput = function(){ updateLineShortfall(id); };
+  tdRecv.appendChild(recvInput);
+  tr.appendChild(tdRecv);
+
+  var tdShort = document.createElement('td');
+  tdShort.id = 'dlvShort' + id;
+  tdShort.className = 'num';
+  tdShort.textContent = '—';
+  tr.appendChild(tdShort);
+
+  var tdTemp = document.createElement('td');
+  tdTemp.appendChild(numInput('dlvTemp' + id, '0.1'));
+  tr.appendChild(tdTemp);
+
+  var tdDipBefore = document.createElement('td');
+  tdDipBefore.appendChild(numInput('dlvDipBefore' + id, '0.001'));
+  tr.appendChild(tdDipBefore);
+
+  var tdDipAfter = document.createElement('td');
+  tdDipAfter.appendChild(numInput('dlvDipAfter' + id, '0.001'));
+  tr.appendChild(tdDipAfter);
+
+  var tdBtn = document.createElement('td');
+  var rmBtn = txt('button', 'ghost', 'Убрать');
+  rmBtn.onclick = function(){ removeDeliveryLine(id); };
+  tdBtn.appendChild(rmBtn);
+  tr.appendChild(tdBtn);
+
+  tbody.appendChild(tr);
+}
+
+function removeDeliveryLine(id) {
+  var tr = document.getElementById('dlvRow' + id);
+  if (tr) tr.parentNode.removeChild(tr);
+  dlvLines = dlvLines.filter(function(x){ return x !== id; });
+}
+
+function refreshDeliveryTankOptions() {
+  dlvLines.forEach(function(id){
+    var oldSel = document.getElementById('dlvTank' + id);
+    if (!oldSel) return;
+    var newSel = tankSelectOptions(oldSel.value);
+    newSel.id = oldSel.id;
+    oldSel.parentNode.replaceChild(newSel, oldSel);
+  });
+  if (!dlvLines.length) addDeliveryLine();
+}
+
+function updateLineShortfall(id) {
+  var doc = document.getElementById('dlvDoc' + id).value;
+  var recv = document.getElementById('dlvRecv' + id).value;
+  var cell = document.getElementById('dlvShort' + id);
+  if (doc === '' || recv === '') {
+    cell.textContent = '—';
+    cell.className = 'num';
+    return;
+  }
+  var diff = Number(doc) - Number(recv);
+  cell.textContent = (diff > 0 ? '−' : (diff < 0 ? '+' : '')) + fmt3(Math.abs(diff)) + ' л';
+  cell.className = 'num ' + (diff > 0.001 ? 'low' : '');
+}
+
+function collectDeliveryItems() {
+  var items = [];
+  dlvLines.forEach(function(id){
+    var tankSel = document.getElementById('dlvTank' + id);
+    var docVal = document.getElementById('dlvDoc' + id).value;
+    var recvVal = document.getElementById('dlvRecv' + id).value;
+    if (!tankSel || !tankSel.value || docVal === '' || recvVal === '') return;
+    var tank = tanksById[tankSel.value];
+    var item = {
+      tank_id: Number(tankSel.value),
+      grade_code: tank ? tank.grade_code : undefined,
+      liters_doc: Number(docVal),
+      liters_recv: Number(recvVal)
+    };
+    var temp = document.getElementById('dlvTemp' + id).value;
+    var dipBefore = document.getElementById('dlvDipBefore' + id).value;
+    var dipAfter = document.getElementById('dlvDipAfter' + id).value;
+    if (temp !== '') item.temperature_c = Number(temp);
+    if (dipBefore !== '') item.dip_before = Number(dipBefore);
+    if (dipAfter !== '') item.dip_after = Number(dipAfter);
+    items.push(item);
+  });
+  return items;
+}
+
+function submitDelivery() {
+  if (!state || !state.success) {
+    say('dlvMsg', 'Нет активной смены', 'err');
+    return;
+  }
+  var items = collectDeliveryItems();
+  if (!items.length) {
+    say('dlvMsg', 'Заполните хотя бы одну строку: резервуар, «По накладной» и «Факт принято»', 'err');
+    return;
+  }
+  var payload = {
+    station_id: state.station_id,
+    supplier: document.getElementById('dlvSupplier').value,
+    waybill_no: document.getElementById('dlvWaybill').value,
+    driver_name: document.getElementById('dlvDriver').value,
+    vehicle_no: document.getElementById('dlvVehicle').value,
+    employee_id: Number(document.getElementById('empId').value),
+    items: items
+  };
+  api('/api/peco/delivery', payload).then(function(r){
+    if (!r.success) {
+      var msg = r.error || 'Не удалось провести приёмку';
+      if (/waybill|наклад/i.test(msg) || /unique|duplicate/i.test(msg)) {
+        msg = 'Накладная с таким номером уже зарегистрирована на этой станции. Проверьте номер.';
+      }
+      say('dlvMsg', msg, 'err');
+      document.getElementById('dlvResult').style.display = 'none';
+      return;
+    }
+    say('dlvMsg', 'Приёмка №' + r.delivery_id + ' проведена', 'ok');
+    renderDeliveryResult(r);
+    load();
+  });
+}
+
+function renderDeliveryResult(r) {
+  var box = document.getElementById('dlvResult');
+  box.style.display = '';
+
+  var vg = document.getElementById('dlvVariances');
+  clear(vg);
+  vg.appendChild(vbox(
+    'Недостача по станции, нетто', r.total_shortfall, ' л', 0,
+    'Сумма по всем строкам. Недостача в одном резервуаре не гасится излишком в другом — смотрите разбивку ниже.'));
+
+  var tbody = document.querySelector('#dlvShortfallTbl tbody');
+  clear(tbody);
+  var grossShort = 0;
+  if (!r.shortfalls || !r.shortfalls.length) {
+    tbody.appendChild(rowMsg(3, 'Расхождений по строкам нет'));
+  } else {
+    r.shortfalls.forEach(function(s){
+      var meta = tanksById[s.tank_id];
+      var tr = document.createElement('tr');
+      tr.appendChild(txt('td', null, meta ? meta.tank_code : ('#' + s.tank_id)));
+      tr.appendChild(txt('td', null, s.grade_code || (meta ? meta.grade_name : '')));
+      var v = Number(s.shortfall);
+      if (v > 0) grossShort += v;
+      var td = txt('td', 'num ' + (v > 0.001 ? 'bad' : (v < -0.001 ? 'ok' : '')),
+        (v > 0 ? '−' : (v < 0 ? '+' : '')) + fmt3(Math.abs(v)) + ' л' + (v < -0.001 ? ' (излишек)' : ''));
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
+  var note = document.getElementById('dlvOffsetNote');
+  clear(note);
+  if (Math.abs(grossShort - Number(r.total_shortfall)) > 0.01) {
+    var n = txt('div', 'ignored-note', null);
+    n.textContent = '⚠ Итог нетто (' + fmt3(r.total_shortfall) + ' л) меньше суммы недостач по строкам (' +
+      fmt3(grossShort) + ' л) — часть недостачи скрыта излишком в другом резервуаре. ' +
+      'Каждую строку нужно разбирать отдельно, нетто-цифру для этого не использовать.';
+    note.appendChild(n);
+  }
+}
+
 function closeShift() {
   if (!state || !state.success) {
     say('closeMsg', 'Нет активной смены', 'err');
