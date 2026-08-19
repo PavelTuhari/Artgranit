@@ -207,7 +207,47 @@ button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
 </div>
 
 <div class="card">
-  <h2><span class="n">4</span>Закрытие смены со сверкой</h2>
+  <h2><span class="n">4</span>Приём топлива с бензовоза</h2>
+  <div class="hint">В резервуар зачисляется столько, сколько реально принято (гр. «Факт»), а не то, что написано в накладной — по каждой строке недостача считается сразу. Один бензовоз может заливать несколько резервуаров: добавляйте строки.</div>
+
+  <div class="row">
+    <div><label>Поставщик</label><input id="dlvSupplier" type="text" placeholder="напр. Petrom"></div>
+    <div><label>№ накладной</label><input id="dlvWaybill" type="text" placeholder="WB-2026-0417"></div>
+    <div><label>Водитель</label><input id="dlvDriver" type="text" placeholder="ФИО"></div>
+    <div><label>№ автомобиля</label><input id="dlvVehicle" type="text" placeholder="напр. C AB 123"></div>
+  </div>
+
+  <div class="table-scroll" style="margin-top:14px;">
+  <table id="dlvItemsTbl">
+    <thead><tr>
+      <th>Резервуар</th><th>По накладной, л</th><th>Факт принято, л</th>
+      <th>Недостача, л</th><th>Темп., °C</th><th>Замер до, л</th><th>Замер после, л</th><th></th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  </div>
+
+  <div class="row" style="margin-top:14px;">
+    <button class="ghost" onclick="addDeliveryLine()">+ Добавить резервуар</button>
+    <button class="ok" onclick="submitDelivery()">Провести приёмку</button>
+  </div>
+
+  <div id="dlvMsg"></div>
+
+  <div id="dlvResult" style="display:none;">
+    <div class="vgrid" id="dlvVariances" style="margin-top:14px;"></div>
+    <div class="table-scroll" style="margin-top:10px;">
+    <table class="tank-recon-table" id="dlvShortfallTbl">
+      <thead><tr><th>Резервуар</th><th>Топливо</th><th>Недостача / излишек, л</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+    <div id="dlvOffsetNote"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">5</span>Закрытие смены со сверкой</h2>
   <div class="hint">Введите фактическую наличность в кассе и замер каждого резервуара на момент закрытия. Остаток на открытие и приход за смену система знает сама и не запрашивает у оператора.</div>
 
   <div class="row">
