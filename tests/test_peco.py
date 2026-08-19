@@ -1064,3 +1064,60 @@ def test_settle_reports_a_lost_audit_record():
         r = peco_txn.settle(500, pay_method="CASH")
     assert r["success"] is True
     assert "audit_warning" in r
+
+
+from models import peco_inventory
+
+
+def test_shortfall_is_positive_when_less_arrived_than_documented():
+    assert peco_inventory.shortfall(5000.0, 4980.0) == 20.0
+    assert peco_inventory.shortfall(5000.0, 5000.0) == 0.0
+    assert peco_inventory.shortfall(5000.0, 5010.0) == -10.0  # излишек
+
+
+def test_receive_delivery_writes_header_and_all_items():
+    items = [
+        {"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
+         "liters_recv": 4980.0, "dip_before": 3000.0, "dip_after": 7980.0},
+        {"tank_id": 2, "grade_code": "DIESEL", "liters_doc": 3000.0,
+         "liters_recv": 3000.0, "dip_before": 2000.0, "dip_after": 5000.0},
+    ]
+    with patch("models.peco_inventory.PecoStore") as store:
+        store.insert_delivery.return_value = {"success": True, "delivery_id": 9}
+        store.insert_delivery_item.return_value = {"success": True}
+        store.add_tank_volume.return_value = {"success": True}
+        store.accept_delivery.return_value = {"success": True}
+        r = peco_inventory.receive_delivery(
+            station_id=1, supplier="Petrom", waybill_no="WB-77",
+            items=items, employee_id=5)
+    assert r["success"] is True
+    assert r["delivery_id"] == 9
+    assert store.insert_delivery_item.call_count == 2
+    # остаток растёт на ФАКТИЧЕСКИ принятый объём, не на документальный
+    added = [c.kwargs["liters"] for c in store.add_tank_volume.call_args_list]
+    assert added == [4980.0, 3000.0]
+    # приход обязан попасть и в реестр открытой смены
+    assert store.add_shift_tank_delivered.call_count == 2
+
+
+def test_receive_delivery_reports_total_shortfall():
+    items = [{"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
+              "liters_recv": 4980.0}]
+    with patch("models.peco_inventory.PecoStore") as store:
+        store.insert_delivery.return_value = {"success": True, "delivery_id": 9}
+        store.insert_delivery_item.return_value = {"success": True}
+        store.add_tank_volume.return_value = {"success": True}
+        store.accept_delivery.return_value = {"success": True}
+        r = peco_inventory.receive_delivery(
+            station_id=1, supplier="Petrom", waybill_no="WB-78",
+            items=items, employee_id=5)
+    assert r["total_shortfall"] == 20.0
+
+
+def test_receive_delivery_refuses_empty_item_list():
+    with patch("models.peco_inventory.PecoStore") as store:
+        r = peco_inventory.receive_delivery(
+            station_id=1, supplier="Petrom", waybill_no="WB-79",
+            items=[], employee_id=5)
+    assert r["success"] is False
+    store.insert_delivery.assert_not_called()
