@@ -1082,8 +1082,60 @@ Add inside `class PecoStore`, after `set_price`:
                           AND n.ACTIVE = 1 AND p.ACTIVE = 1""",
                     {"shift_id": shift_id, "station_id": station_id},
                 )
+
+                # Снимок остатков резервуаров на момент открытия. Без него
+                # tank_variance при закрытии не из чего вычислять:
+                # PECO_TANKS.CURRENT_L — это текущий счётчик, а не снимок.
+                db.execute_query(
+                    """INSERT INTO PECO_SHIFT_TANKS
+                              (ID, SHIFT_ID, TANK_ID, STATION_ID,
+                               VOLUME_OPEN_L, DELIVERED_L)
+                       SELECT PECO_SHIFT_TANKS_SEQ.NEXTVAL, :shift_id,
+                              t.ID, t.STATION_ID, t.CURRENT_L, 0
+                         FROM PECO_TANKS t
+                        WHERE t.STATION_ID = :station_id AND t.ACTIVE = 1""",
+                    {"shift_id": shift_id, "station_id": station_id},
+                )
                 db.connection.commit()
                 return {"success": True, "shift_id": shift_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_shift_tanks(shift_id: int) -> Dict[str, Any]:
+        """Реестр резервуаров смены: остаток на открытие, приход, замер."""
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(
+                    """SELECT st.TANK_ID, t.GRADE_CODE, st.VOLUME_OPEN_L,
+                              st.DELIVERED_L, st.DIP_CLOSE_L, st.TANK_VARIANCE,
+                              t.CODE AS TANK_CODE
+                         FROM PECO_SHIFT_TANKS st
+                         JOIN PECO_TANKS t ON t.ID = st.TANK_ID
+                        WHERE st.SHIFT_ID = :shift_id
+                        ORDER BY t.GRADE_CODE""",
+                    {"shift_id": shift_id},
+                )
+                return {"success": True, "items": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_tank_close(shift_id: int, tank_id: int, dip_close_l: float,
+                        tank_variance: Optional[float] = None) -> Dict[str, Any]:
+        """Записывает замер на закрытие и расхождение по конкретному резервуару."""
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """UPDATE PECO_SHIFT_TANKS
+                          SET DIP_CLOSE_L   = :dip_close_l,
+                              TANK_VARIANCE = :tank_variance
+                        WHERE SHIFT_ID = :shift_id AND TANK_ID = :tank_id""",
+                    {"shift_id": shift_id, "tank_id": tank_id,
+                     "dip_close_l": dip_close_l, "tank_variance": tank_variance},
+                )
+                db.connection.commit()
+                return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
