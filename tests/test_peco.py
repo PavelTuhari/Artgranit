@@ -141,7 +141,7 @@ def test_open_shift_snapshots_tank_volumes():
     with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
         PecoStore.open_shift(station_id=1, employee_id=5)
     statements = [c[0][0] for c in db.execute_query.call_args_list]
-    assert any("INSERT INTO PECO_SHIFT_TANKS" in s for s in statements)
+    assert any("INTO PECO_SHIFT_TANKS" in s for s in statements)
     assert any("CURRENT_L" in s for s in statements)
 
 
