@@ -1007,3 +1007,98 @@ class PecoStore:
                 return {"success": True, "items": _norm_rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ---------------- сотрудники / PIN ----------------
+
+    @staticmethod
+    def list_employees(station_id: Optional[int] = None) -> Dict[str, Any]:
+        """Сотрудники сети (или одной станции) без PIN_HASH/PIN_SALT.
+
+        HAS_PIN считается прямо в SQL по значению-заглушке 'NO_PIN_SET',
+        которым засеваются демо-сотрудники до того, как им назначен
+        реальный PIN. Сами PIN_HASH/PIN_SALT в SELECT не входят —
+        см. get_employee_credentials для пути, где они действительно нужны."""
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE, ACTIVE,
+                              CASE WHEN PIN_HASH = 'NO_PIN_SET' THEN 0 ELSE 1 END AS HAS_PIN
+                         FROM PECO_EMPLOYEES
+                        WHERE (:station_id IS NULL OR STATION_ID = :station_id)
+                        ORDER BY FULL_NAME""",
+                    {"station_id": station_id},
+                )
+                return {"success": True, "items": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_employee_pin(employee_id: int, pin_salt: str, pin_hash: str) -> Dict[str, Any]:
+        """Записывает соль и хеш PIN сотрудника. Сам PIN сюда не попадает —
+        вызывающий (peco_shift.hash_pin) обязан посчитать хеш заранее."""
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """UPDATE PECO_EMPLOYEES
+                          SET PIN_SALT = :pin_salt, PIN_HASH = :pin_hash
+                        WHERE ID = :employee_id AND ACTIVE = 1""",
+                    {"employee_id": employee_id, "pin_salt": pin_salt,
+                     "pin_hash": pin_hash},
+                )
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Сотрудник не найден или неактивен"}
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ---------------- смены: сводка и расхождения ----------------
+
+    @staticmethod
+    def list_disputed_shifts(station_id: Optional[int] = None) -> Dict[str, Any]:
+        """Смены со статусом DISPUTED из V_PECO_VARIANCE.
+
+        Представление не отдаёт APPROVED_BY (см. sql/103_peco_views.sql),
+        поэтому статус подтверждения читается прямым JOIN на PECO_SHIFTS —
+        без этого бэк-офис не может отличить расхождение, уже принятое
+        менеджером под ответственность, от того, что всё ещё ждёт PIN."""
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT v.SHIFT_ID, v.STATION_ID, v.STATION_NAME,
+                              v.CLOSED_AT, v.LITER_VARIANCE, v.CASH_VARIANCE,
+                              v.TANK_VARIANCE, v.CLOSED_BY_NAME,
+                              CASE WHEN sh.APPROVED_BY IS NOT NULL THEN 1 ELSE 0 END AS IS_APPROVED
+                         FROM V_PECO_VARIANCE v
+                         JOIN PECO_SHIFTS sh ON sh.ID = v.SHIFT_ID
+                        WHERE v.STATUS_CODE = 'DISPUTED'
+                          AND (:station_id IS NULL OR v.STATION_ID = :station_id)
+                        ORDER BY v.CLOSED_AT DESC""",
+                    {"station_id": station_id},
+                )
+                return {"success": True, "items": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shift_summary(shift_id: int) -> Dict[str, Any]:
+        """Одна строка V_PECO_SHIFT_SUMMARY по номеру смены."""
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT SHIFT_ID, STATION_ID, STATION_NAME, STATUS_CODE,
+                              OPENED_AT, CLOSED_AT, METER_DELTA, TXN_LITERS,
+                              CASH_AMOUNT, MIA_AMOUNT, OPEN_TXN_COUNT,
+                              CASH_DECLARED, CASH_EXPECTED, CASH_VARIANCE,
+                              LITER_VARIANCE, TANK_VARIANCE
+                         FROM V_PECO_SHIFT_SUMMARY
+                        WHERE SHIFT_ID = :shift_id""",
+                    {"shift_id": shift_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Смена не найдена"}
+                return {"success": True, "summary": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
