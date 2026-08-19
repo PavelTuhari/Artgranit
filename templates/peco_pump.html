@@ -270,16 +270,16 @@ function say(text, kind) {
 
 function load() {
   api('/api/peco/pump/state').then(function(r){
-    if (!r.success) { document.getElementById('shiftBadge').innerHTML = '<span class="dot" style="background:var(--danger)"></span>' + r.error; return; }
+    if (!r.success) { document.getElementById('shiftBadge').innerHTML = '<span class="dot" style="background:var(--danger)"></span>' + esc(r.error); return; }
     state = r;
-    document.getElementById('shiftBadge').innerHTML = '<span class="dot"></span>Смена №' + r.shift_id;
+    document.getElementById('shiftBadge').innerHTML = '<span class="dot"></span>Смена №' + esc(r.shift_id);
     var html = '';
     r.nozzles.forEach(function(n){
       var price = r.prices[n.grade_code];
       html += '<div class="nozzle" data-id="' + n.id + '" onclick="pick(' + n.id + ')">' +
-              '<div class="g">' + n.grade_code + '</div>' +
+              '<div class="g">' + esc(n.grade_code) + '</div>' +
               '<div class="p">' + (price !== undefined ? price.toFixed(2) + '<span class="unit"> лей/л</span>' : '<span class="unit">нет цены</span>') + '</div>' +
-              '<div class="m">' + n.pump_code + ' · ' + n.code +
+              '<div class="m">' + esc(n.pump_code) + ' · ' + esc(n.code) +
               ' · счётчик ' + Number(n.meter_total).toFixed(3) + '</div></div>';
     });
     document.getElementById('nozzles').innerHTML = html;
