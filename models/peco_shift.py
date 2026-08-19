@@ -154,3 +154,122 @@ def tank_variances_exceed(rows: List[Dict[str, Any]]) -> bool:
 def resolve_status(variances: Dict[str, Any]) -> str:
     """Итоговый статус смены по расхождениям."""
     return "DISPUTED" if exceeds_tolerance(variances) else "CLOSED"
+
+
+# ------------------------------------------------------------------
+# Оркестрация (обращается к store, но не пишет SQL сама)
+# ------------------------------------------------------------------
+
+
+def open_shift(station_id: int, employee_id: int) -> Dict[str, Any]:
+    """Открывает смену. На станции может быть только одна открытая смена."""
+    existing = PecoStore.get_open_shift(station_id)
+    if existing.get("success"):
+        return {"success": False,
+                "error": "На станции уже открыта смена",
+                "shift_id": existing["shift"].get("id")}
+
+    created = PecoStore.open_shift(station_id, employee_id)
+    if not created.get("success"):
+        return created
+
+    PecoStore.log_event(
+        "SHIFT_OPENED",
+        station_id=station_id,
+        shift_id=created["shift_id"],
+        entity_type="SHIFT",
+        entity_id=created["shift_id"],
+        employee_id=employee_id,
+    )
+    return created
+
+
+def close_shift(
+    shift_id: int,
+    employee_id: int,
+    cash_declared: float,
+    dips: Optional[Dict[int, float]] = None,
+) -> Dict[str, Any]:
+    """Закрывает смену со сверкой.
+
+    dips — замеры на закрытие: {tank_id: измеренные литры}. Остаток на
+    открытие и приход за смену НЕ принимаются от вызывающего: они читаются
+    из PECO_SHIFT_TANKS, куда попали при открытии смены и при приёме
+    цистерн. Иначе оператор мог бы подогнать расхождение под ноль,
+    объявив удобные исходные цифры.
+    """
+    unresolved = PecoStore.count_unresolved_txn(shift_id)
+    if not unresolved.get("success"):
+        return unresolved
+    if unresolved["count"] > 0:
+        return {
+            "success": False,
+            "error": "Есть неразобранные транзакции: оплатите или аннулируйте",
+            "unresolved": unresolved["count"],
+        }
+
+    meters_r = PecoStore.get_shift_meters(shift_id)
+    if not meters_r.get("success"):
+        return meters_r
+    meters = meters_r["items"]
+
+    paid = PecoStore.shift_paid_liters(shift_id)
+    if not paid.get("success"):
+        return paid
+
+    # Расхождение по каждому резервуару считается отдельно: у станции до
+    # четырёх резервуаров, и утечка в одном не должна тонуть в сумме.
+    tanks_r = PecoStore.get_shift_tanks(shift_id)
+    tank_rows = tanks_r.get("items", []) if tanks_r.get("success") else []
+    dips = dips or {}
+
+    per_tank = tank_variances(tank_rows, meters, dips)
+    for row in per_tank:
+        if row["tank_variance"] is not None:
+            PecoStore.save_tank_close(
+                shift_id, row["tank_id"], row["dip_close_l"],
+                row["tank_variance"],
+            )
+
+    measured = [r["tank_variance"] for r in per_tank
+                if r["tank_variance"] is not None]
+    tank_total = round(sum(measured), 3) if measured else None
+
+    variances = compute_variances(
+        meters,
+        txn_liters=paid["liters"],
+        cash_declared=cash_declared,
+        cash_expected=paid["cash"],
+    )
+    variances["tank_variance"] = tank_total
+
+    # Статус решается и по сумме, и по КАЖДОМУ резервуару отдельно.
+    # Только по сумме нельзя: утечка в одном резервуаре и излишек в другом
+    # погасили бы друг друга, и смена закрылась бы как чистая.
+    status = ("DISPUTED"
+              if exceeds_tolerance(variances) or tank_variances_exceed(per_tank)
+              else "CLOSED")
+    totals = {
+        "cash_declared": cash_declared,
+        "cash_expected": paid["cash"],
+        "cash_variance": variances["cash_variance"],
+        "liter_variance": variances["liter_variance"],
+        "tank_variance": variances["tank_variance"],
+    }
+
+    saved = PecoStore.finalize_shift(
+        shift_id, employee_id=employee_id, status=status, totals=totals
+    )
+    if not saved.get("success"):
+        return saved
+
+    PecoStore.log_event(
+        "SHIFT_CLOSED",
+        shift_id=shift_id,
+        entity_type="SHIFT",
+        entity_id=shift_id,
+        employee_id=employee_id,
+        payload={"status": status, **variances},
+    )
+    return {"success": True, "status": status, "variances": variances,
+            "mia_amount": paid["mia"]}

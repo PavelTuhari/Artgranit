@@ -318,7 +318,7 @@ def test_tolerance_boundary_is_inclusive():
     assert peco_shift.exceeds_tolerance(
         {"liter_variance": 0.5, "cash_variance": 0.0, "tank_variance": None}) is False
     assert peco_shift.exceeds_tolerance(
-        {"liter_variance": 0.501, "cash_variance": 0.0, "tank_variance": None}) is False or True
+        {"liter_variance": 0.501, "cash_variance": 0.0, "tank_variance": None}) is True
     assert peco_shift.exceeds_tolerance(
         {"liter_variance": 0.6, "cash_variance": 0.0, "tank_variance": None}) is True
     assert peco_shift.exceeds_tolerance(
@@ -357,3 +357,111 @@ def test_tank_variances_output_carries_grade_and_dip():
     out = peco_shift.tank_variances(rows, [], {11: 95.0})
     assert out[0]["grade_code"] == "A95"
     assert out[0]["dip_close_l"] == 95.0
+
+
+def test_open_shift_refuses_when_one_is_already_open():
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": True, "shift": {"id": 42}}
+        r = peco_shift.open_shift(station_id=1, employee_id=5)
+    assert r["success"] is False
+    assert "уже открыта" in r["error"]
+    store.open_shift.assert_not_called()
+
+
+def test_open_shift_creates_when_none_open():
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": False, "error": "Нет открытой смены"}
+        store.open_shift.return_value = {"success": True, "shift_id": 43}
+        r = peco_shift.open_shift(station_id=1, employee_id=5)
+    assert r["success"] is True and r["shift_id"] == 43
+    store.log_event.assert_called_once()
+
+
+def test_close_shift_blocked_by_unresolved_transactions():
+    """Смена не закрывается, пока налив идёт или ждёт оплаты — ничего
+    не должно исчезать молча."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 2}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=100.0)
+    assert r["success"] is False
+    assert r["unresolved"] == 2
+    store.finalize_shift.assert_not_called()
+
+
+def test_close_shift_computes_and_persists_variances():
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": [
+            {"nozzle_id": 1, "meter_open": 0.0, "meter_close": 100.0},
+        ]}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 100.0, "cash": 2400.0, "mia": 500.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": []}
+        store.finalize_shift.return_value = {"success": True}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=2400.0)
+    assert r["success"] is True
+    assert r["status"] == "CLOSED"
+    assert r["variances"]["liter_variance"] == 0.0
+    assert r["variances"]["cash_variance"] == 0.0
+    # ожидаемая наличность — только CASH, без MIA QR
+    totals = store.finalize_shift.call_args.kwargs["totals"]
+    assert totals["cash_expected"] == 2400.0
+
+
+def test_close_shift_reads_tank_ledger_from_store_not_caller():
+    """Остаток на открытие и приход читаются из PECO_SHIFT_TANKS.
+    Иначе оператор подогнал бы расхождение под ноль, объявив удобные цифры."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": [
+            {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 1000.0},
+        ]}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 1000.0, "cash": 0.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 12000.0, "delivered_l": 5000.0},
+        ]}
+        store.finalize_shift.return_value = {"success": True}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={11: 15800.0})
+    # 12000 + 5000 - 1000 = 16000; замер 15800 -> -200
+    assert r["variances"]["tank_variance"] == -200.0
+    store.save_tank_close.assert_called_once()
+    assert r["status"] == "DISPUTED"   # 200 л выходит за допуск по резервуару
+
+
+def test_close_shift_does_not_let_tanks_cancel_each_other():
+    """Утечка в одном резервуаре и излишек в другом дают в сумме ноль.
+    Смена всё равно обязана уйти в DISPUTED."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": []}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 0.0, "cash": 0.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 1000.0, "delivered_l": 0.0},
+            {"tank_id": 12, "grade_code": "DIESEL",
+             "volume_open_l": 1000.0, "delivered_l": 0.0},
+        ]}
+        store.finalize_shift.return_value = {"success": True}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={11: 800.0, 12: 1200.0})
+    assert r["variances"]["tank_variance"] == 0.0   # сумма действительно ноль
+    assert r["status"] == "DISPUTED"                # но по резервуарам — нет
+
+
+def test_close_shift_marks_disputed_on_shortfall():
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": [
+            {"nozzle_id": 1, "meter_open": 0.0, "meter_close": 100.0},
+        ]}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 90.0, "cash": 2000.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": []}
+        store.finalize_shift.return_value = {"success": True}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=2000.0)
+    assert r["status"] == "DISPUTED"
+    assert r["variances"]["liter_variance"] == 10.0
