@@ -480,6 +480,55 @@ def test_close_shift_marks_disputed_on_shortfall():
 
 
 # ------------------------------------------------------------------
+# Final review fix: reconciliation must not be opt-in (Critical 1)
+# ------------------------------------------------------------------
+
+
+def test_close_shift_refuses_when_a_nozzle_has_no_closing_meter():
+    """Пистолет без снятого показания — это спущенное топливо без следа,
+    а не законный ноль: смена не имеет права закрыться, пока показание
+    не снято со ВСЕХ пистолетов."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": [
+            {"nozzle_id": 1, "nozzle_code": "N-A95",
+             "meter_open": 0.0, "meter_close": 100.0},
+            {"nozzle_id": 2, "nozzle_code": "N-DIESEL",
+             "meter_open": 0.0, "meter_close": None},
+        ]}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0)
+    assert r["success"] is False
+    assert r["missing_meters"] == [2]
+    assert "N-DIESEL" in r["error"]
+    store.mark_shift_closing.assert_not_called()
+    store.finalize_shift.assert_not_called()
+
+
+def test_close_shift_forces_disputed_when_a_tank_has_no_dip():
+    """Отсутствие метрштока — недостаток данных, а не доказательство
+    чистой смены (тот же принцип, что и None в exceeds_tolerance).
+    liter_variance и cash_variance в допуске, но резервуар не обмерен —
+    смена обязана уйти в DISPUTED, а не закрыться CLOSED."""
+    with patch("models.peco_shift.PecoStore") as store:
+        _close_mocks(store)
+        store.get_shift_meters.return_value = {"success": True, "items": [
+            {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 100.0},
+        ]}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 100.0, "cash": 0.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 1000.0, "delivered_l": 0.0},
+        ]}
+        # dips не передан вовсе -> у резервуара 11 нет замера на закрытие
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0)
+    assert r["success"] is True
+    assert r["status"] == "DISPUTED"
+    assert r["unmeasured_tanks"] == [11]
+    store.save_tank_close.assert_not_called()  # нечего писать без замера
+
+
+# ------------------------------------------------------------------
 # Task 8 fix-pass 1: error-path findings
 # ------------------------------------------------------------------
 
