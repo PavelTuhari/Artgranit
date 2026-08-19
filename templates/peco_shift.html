@@ -214,10 +214,12 @@ button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
     <div><label>Наличность в кассе, лей</label><input id="cash" type="number" step="0.01" placeholder="0.00"></div>
   </div>
 
-  <table id="dipsTbl" style="margin-top:14px;">
+  <div class="table-scroll" style="margin-top:14px;">
+  <table id="dipsTbl">
     <thead><tr><th>Резервуар</th><th>Топливо</th><th>Замер на закрытие, л</th></tr></thead>
     <tbody><tr><td colspan="3" class="empty">Загрузка резервуаров…</td></tr></tbody>
   </table>
+  </div>
 
   <div class="row" style="margin-top:16px;">
     <button class="danger big" onclick="closeShift()">Закрыть смену со сверкой</button>
