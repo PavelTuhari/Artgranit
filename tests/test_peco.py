@@ -933,3 +933,134 @@ def test_void_is_refused_on_a_paid_transaction():
         r = peco_txn.void(500, reason="ошибка оператора")
     assert r["success"] is False
     store.update_txn_status.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# Task 11 fix-pass 1: guarded status update, dropped log_event results,
+# null txn_id, unreferenced self-service, backwards meter, shift not open,
+# settling a still-running dispense
+# ------------------------------------------------------------------
+
+
+def test_update_txn_status_guards_on_expected_state():
+    """Ожидаемый статус обязан быть в WHERE: проверка в Python оставляет
+    окно, в котором второй оператор перезапишет уже оплаченную продажу."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.update_txn_status(500, "PAID", expected_status="AWAITING_PAY")
+    assert r["success"] is True
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert "STATUS_CODE = :expected_status" in sql
+
+
+def test_update_txn_status_reports_a_lost_race():
+    cm, _ = _rowcount_db(0)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.update_txn_status(500, "PAID", expected_status="AWAITING_PAY")
+    assert r["success"] is False
+
+
+def test_update_txn_status_rejects_an_unknown_field():
+    cm, _ = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        try:
+            PecoStore.update_txn_status(500, "PAID", pay_metod="CASH")
+        except ValueError as e:
+            assert "pay_metod" in str(e)
+        else:
+            raise AssertionError("опечатка в имени поля должна быть ошибкой")
+
+
+def test_insert_txn_takes_station_from_the_open_shift_only():
+    """Станция берётся из смены, а не от вызывающего, и только у ОТКРЫТОЙ смены:
+    иначе колонка отпускала бы топливо на уже закрывающуюся смену."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(500,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        PecoStore.insert_txn(77, 3, "A95", 23.90, 1000.0, False)
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert "FROM PECO_SHIFTS" in sql
+    assert "'OPEN'" in sql
+
+
+def test_meter_total_never_moves_backwards():
+    """Счётчик не должен уезжать назад: с него берётся показание открытия
+    следующей смены."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        PecoStore.update_txn_status(500, "PAID", expected_status="DISPENSING",
+                                    meter_end=1010.0)
+    meter_sql = [c[0][0] for c in db.execute_query.call_args_list
+                 if "PECO_NOZZLES" in c[0][0]][0]
+    assert "METER_TOTAL <= :meter_end" in meter_sql
+
+
+def test_self_service_requires_a_mia_reference():
+    """Продажа самообслуживания без ссылки предавторизации не сверяется
+    с отчётом эквайера."""
+    with patch("models.peco_txn.PecoStore") as store:
+        store.current_price.return_value = {"success": True, "price": 23.90}
+        r = peco_txn.authorize(shift_id=77, nozzle_id=3, grade_code="A95",
+                               station_id=1, meter_start=0.0,
+                               is_self_service=True)
+    assert r["success"] is False
+    store.insert_txn.assert_not_called()
+
+
+def test_self_service_stores_the_mia_reference():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.current_price.return_value = {"success": True, "price": 23.90}
+        store.insert_txn.return_value = {"success": True, "txn_id": 500}
+        store.log_event.return_value = {"success": True}
+        r = peco_txn.authorize(shift_id=77, nozzle_id=3, grade_code="A95",
+                               station_id=1, meter_start=0.0,
+                               is_self_service=True, mia_ref="MIA-1")
+    assert r["success"] is True
+    assert store.insert_txn.call_args.kwargs["mia_ref"] == "MIA-1"
+
+
+def test_authorize_rejects_a_null_txn_id():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.current_price.return_value = {"success": True, "price": 23.90}
+        store.insert_txn.return_value = {"success": True, "txn_id": None}
+        r = peco_txn.authorize(shift_id=77, nozzle_id=3, grade_code="A95",
+                               station_id=1, meter_start=0.0,
+                               is_self_service=False)
+    assert r["success"] is False
+
+
+def test_cannot_settle_a_dispense_still_running():
+    """Оплатить ещё идущий налив значит продать топливо за ноль:
+    PAID терминален, и finish_dispense после этого уже не пройдёт."""
+    assert peco_txn.validate_settlement("DISPENSING", "CASH", None)["ok"] is False
+
+
+def test_cannot_settle_a_transaction_without_liters():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "AWAITING_PAY", "liters": 0.0}}
+        r = peco_txn.settle(500, pay_method="CASH")
+    assert r["success"] is False
+    store.update_txn_status.assert_not_called()
+
+
+def test_money_path_events_carry_the_shift():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "AWAITING_PAY", "liters": 10.0,
+            "shift_id": 77}}
+        store.update_txn_status.return_value = {"success": True}
+        store.log_event.return_value = {"success": True}
+        peco_txn.settle(500, pay_method="CASH")
+    assert store.log_event.call_args.kwargs.get("shift_id") == 77
+
+
+def test_settle_reports_a_lost_audit_record():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "AWAITING_PAY", "liters": 10.0,
+            "shift_id": 77}}
+        store.update_txn_status.return_value = {"success": True}
+        store.log_event.return_value = {"success": False, "error": "ORA-00942"}
+        r = peco_txn.settle(500, pay_method="CASH")
+    assert r["success"] is True
+    assert "audit_warning" in r
