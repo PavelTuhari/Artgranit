@@ -1258,7 +1258,7 @@ python deploy_oracle_objects.py --only peco
 ## Тесты
 
 ```bash
-python -m pytest tests/test_peco.py -v
+./venv/bin/python -m pytest tests/test_peco.py -v
 ```
 
 Oracle полностью замокан — живая база не нужна.
@@ -1296,13 +1296,13 @@ Append to `README.md`:
 - ТЗ: `/UNA.md/orasldev/docs/peco/TZ.html`
 - Интерфейсы: `/UNA.md/orasldev/peco-pump`, `peco-shift`, `peco-admin`
 - Oracle-объекты: префикс `PECO_` (`sql/100_peco_tables.sql` … `104_peco_demo_data.sql`)
-- Тесты: `python -m pytest tests/test_peco.py -v`
+- Тесты: `./venv/bin/python -m pytest tests/test_peco.py -v`
 ```
 
 - [ ] **Step 3: Verify the full test suite still passes**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 58 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 122 passed
 
 - [ ] **Step 4: Commit**
 
@@ -1317,7 +1317,7 @@ git commit -m "PECO: документация модуля и раздел в RE
 
 After Task 20, confirm the whole module:
 
-- [ ] `python -m pytest tests/test_peco.py -v` → 58 passed
+- [ ] `./venv/bin/python -m pytest tests/test_peco.py -v` → 122 passed
 - [ ] `python -c "import ast; ast.parse(open('app.py').read())"` → no error
 - [ ] `python deploy_oracle_objects.py --only peco` → all five SQL files applied
 - [ ] `python app.py`, then open `/UNA.md/orasldev/docs/peco/TZ.html` and click each of the three entry buttons

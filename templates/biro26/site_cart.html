@@ -331,7 +331,10 @@ function setQty(cod, v) { const c = cart(); const i = c.find(x => x.cod === cod)
   if (i) { i.qty = parseFloat(v) || 0; saveCartLS(c); } }
 function delItem(cod) { saveCartLS(cart().filter(x => x.cod !== cod)); }
 function clearCart() { saveCartLS([]); }
-window.onCartChange = renderCart;
+// RO: la schimbarea cosului se reface SI panoul de plata — pragul minim
+//     pentru rate depinde de suma comenzii, altfel butoanele ramineau
+//     dezactivate dupa ce clientul adauga marfa si depasea pragul.
+window.onCartChange = function () { renderCart(); renderPmEntry(); };
 
 function setPm(m) {
   payMethod = m;
@@ -381,7 +384,28 @@ function renderPmEntry() {
       o.id + ')">' + esc(o.name) + '</button>';
   });
   html += '<button type="button" class="pm-btn pm-btn-standard" onclick="openStdModal()" data-t="payStd">Standard (factură)</button>';
+  // RO: sub pragul minim rata nu se poate alege — butoanele de creditare se
+  //     dezactiveaza, iar CONDITIA se scrie cu ROSU, ca sa fie clar DE CE
+  //     (cerinta proprietar 18.08.2026). Standard ramine mereu disponibil.
+  // EN: below the minimum the credit buttons are disabled and the condition
+  //     is spelled out in red; Standard payment stays available.
+  const min = window.CREDIT_MIN_ORDER || 0;
+  const under = min > 0 && cartTotal() < min;
+  if (under) {
+    html += '<div class="credit-min" style="font-size:12.5px;margin-top:8px">' +
+      biS('Achitarea în rate / credit — la comenzi de la · ' +
+          'Оплата в рассрочку / кредит — при заказе от') + ' ' + fmtLei(min) + '</div>';
+  }
   box.innerHTML = html;
+  if (under) {
+    box.querySelectorAll('.pm-btn').forEach(function (b) {
+      if (b.classList.contains('pm-btn-standard')) return;
+      b.disabled = true;
+      b.style.opacity = '.5';
+      b.style.cursor = 'not-allowed';
+      b.title = 'Disponibil de la ' + fmtLei(min);
+    });
+  }
 }
 
 /* RO: trecerea la formularul de cerere, cu creditorul si suma cosului. */

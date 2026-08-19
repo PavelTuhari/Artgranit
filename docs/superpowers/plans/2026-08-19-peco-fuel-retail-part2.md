@@ -99,7 +99,7 @@ def test_approve_disputed_accepts_manager_with_correct_pin():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "pin or approve or salt"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "pin or approve or salt"`
 Expected: FAIL — `AttributeError: module 'models.peco_shift' has no attribute 'hash_pin'`
 
 - [ ] **Step 3: Add the store methods**
@@ -111,7 +111,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
     def get_employee(employee_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE,
                               PIN_SALT, PIN_HASH
                          FROM PECO_EMPLOYEES
@@ -131,7 +131,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
         расхождение не стирается, оно принимается под ответственность."""
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_SHIFTS SET APPROVED_BY = :employee_id
                         WHERE ID = :shift_id""",
                     {"shift_id": shift_id, "employee_id": employee_id},
@@ -220,8 +220,8 @@ def approve_disputed(shift_id: int, manager_id: int, pin: str) -> Dict[str, Any]
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 32 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 70 passed
 
 - [ ] **Step 6: Commit**
 
@@ -308,7 +308,7 @@ def test_cannot_settle_a_voided_transaction():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "transition or dispense or liters or amount or settlement"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "transition or dispense or liters or amount or settlement"`
 Expected: FAIL — `ModuleNotFoundError: No module named 'models.peco_txn'`
 
 - [ ] **Step 3: Write the module**
@@ -388,8 +388,8 @@ def validate_settlement(status: str, pay_method: str,
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 41 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 81 passed
 
 - [ ] **Step 5: Commit**
 
@@ -497,7 +497,7 @@ def test_void_is_refused_on_a_paid_transaction():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "authorize or finish_dispense or settle or void"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "authorize or finish_dispense or settle or void"`
 Expected: FAIL — `AttributeError: module 'models.peco_txn' has no attribute 'authorize'`
 
 - [ ] **Step 3: Add the store methods**
@@ -514,7 +514,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
                    authorized_by: Optional[int] = None) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_TXN
                               (ID, SHIFT_ID, NOZZLE_ID, GRADE_CODE, STATUS_CODE,
                                PRICE, METER_START, IS_SELF_SERVICE, AUTHORIZED_BY)
@@ -531,7 +531,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
                         "authorized_by": authorized_by,
                     },
                 )
-                r = db.execute_query(
+                r = _run(db, 
                     "SELECT PECO_TXN_SEQ.CURRVAL AS ID FROM dual"
                 )
                 db.connection.commit()
@@ -545,7 +545,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
     def get_txn(txn_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT ID, SHIFT_ID, NOZZLE_ID, GRADE_CODE, STATUS_CODE,
                               LITERS, PRICE, AMOUNT, PAY_METHOD, IS_SELF_SERVICE,
                               MIA_REF, METER_START, METER_END
@@ -579,13 +579,13 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
 
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     f"UPDATE PECO_TXN SET {', '.join(sets)} WHERE ID = :txn_id",
                     params,
                 )
                 # тотализатор пистолета двигается вместе с завершённым наливом
                 if "meter_end" in params and params["meter_end"] is not None:
-                    db.execute_query(
+                    _run(db, 
                         """UPDATE PECO_NOZZLES SET METER_TOTAL = :meter_end
                             WHERE ID = (SELECT NOZZLE_ID FROM PECO_TXN
                                          WHERE ID = :txn_id)""",
@@ -750,8 +750,8 @@ def void(txn_id: int, reason: str) -> Dict[str, Any]:
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 48 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 100 passed
 
 - [ ] **Step 6: Commit**
 
@@ -777,6 +777,7 @@ git commit -m "PECO: транзакции — авторизация, налив
   - `PecoStore.insert_delivery(station_id, supplier, waybill_no, driver_name, vehicle_no) -> dict` → `{"success": True, "delivery_id": int}`
   - `PecoStore.insert_delivery_item(delivery_id, tank_id, grade_code, liters_doc, liters_recv, temperature_c, dip_before, dip_after) -> dict`
   - `PecoStore.add_tank_volume(tank_id: int, liters: float) -> dict`
+  - `PecoStore.add_shift_tank_delivered(station_id: int, tank_id: int, liters: float) -> dict`
   - `PecoStore.accept_delivery(delivery_id: int, employee_id: int) -> dict`
   - `peco_inventory.shortfall(liters_doc: float, liters_recv: float) -> float`
   - `peco_inventory.receive_delivery(station_id, supplier, waybill_no, items, employee_id, driver_name=None, vehicle_no=None) -> dict`
@@ -816,6 +817,8 @@ def test_receive_delivery_writes_header_and_all_items():
     # остаток растёт на ФАКТИЧЕСКИ принятый объём, не на документальный
     added = [c.kwargs["liters"] for c in store.add_tank_volume.call_args_list]
     assert added == [4980.0, 3000.0]
+    # приход обязан попасть и в реестр открытой смены
+    assert store.add_shift_tank_delivered.call_count == 2
 
 
 def test_receive_delivery_reports_total_shortfall():
@@ -843,7 +846,7 @@ def test_receive_delivery_refuses_empty_item_list():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "shortfall or receive_delivery"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "shortfall or receive_delivery"`
 Expected: FAIL — `ModuleNotFoundError: No module named 'models.peco_inventory'`
 
 - [ ] **Step 3: Add the store methods**
@@ -859,7 +862,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
                         vehicle_no: Optional[str] = None) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_DELIVERIES
                               (ID, STATION_ID, SUPPLIER, WAYBILL_NO,
                                DRIVER_NAME, VEHICLE_NO)
@@ -870,7 +873,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
                      "waybill_no": waybill_no, "driver_name": driver_name,
                      "vehicle_no": vehicle_no},
                 )
-                r = db.execute_query(
+                r = _run(db, 
                     "SELECT PECO_DELIVERIES_SEQ.CURRVAL AS ID FROM dual"
                 )
                 db.connection.commit()
@@ -888,7 +891,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
                              dip_after: Optional[float] = None) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_DELIVERY_ITEMS
                               (ID, DELIVERY_ID, TANK_ID, GRADE_CODE,
                                LITERS_DOC, LITERS_RECV, TEMPERATURE_C,
@@ -911,7 +914,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
         """Прибавляет к остатку резервуара. Отрицательное значение — расход."""
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_TANKS
                           SET CURRENT_L = CURRENT_L + :liters
                         WHERE ID = :tank_id""",
@@ -923,10 +926,35 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def add_shift_tank_delivered(station_id: int, tank_id: int,
+                                 liters: float) -> Dict[str, Any]:
+        """Прибавляет принятые литры к реестру ОТКРЫТОЙ смены станции.
+
+        Если открытой смены нет (приём вне смены), строка просто не находится
+        и обновление ничего не делает — это допустимо и не ошибка.
+        """
+        try:
+            with DatabaseModel() as db:
+                _run(db, 
+                    """UPDATE PECO_SHIFT_TANKS
+                          SET DELIVERED_L = DELIVERED_L + :liters
+                        WHERE TANK_ID = :tank_id
+                          AND SHIFT_ID = (SELECT ID FROM PECO_SHIFTS
+                                           WHERE STATION_ID = :station_id
+                                             AND STATUS_CODE IN ('OPEN','CLOSING'))""",
+                    {"tank_id": tank_id, "station_id": station_id,
+                     "liters": liters},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def accept_delivery(delivery_id: int, employee_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_DELIVERIES
                           SET ACCEPTED_AT = SYSTIMESTAMP,
                               ACCEPTED_BY = :employee_id
@@ -944,7 +972,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
                         employee_id: Optional[int] = None) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_TANK_DIPS
                               (ID, TANK_ID, SHIFT_ID, MEASURED_L,
                                MEASURED_BY, DIP_KIND)
@@ -963,7 +991,7 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
     def list_tank_levels(station_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT TANK_ID, TANK_CODE, GRADE_CODE, GRADE_NAME,
                               CAPACITY_L, CURRENT_L, MIN_ALARM_L,
                               FILL_PCT, IS_LOW
@@ -1048,6 +1076,12 @@ def receive_delivery(
         if not added.get("success"):
             return added
 
+        # Приход должен попасть и в реестр текущей смены, иначе при её
+        # закрытии tank_variance покажет привезённое топливо как излишек.
+        PecoStore.add_shift_tank_delivered(
+            station_id=station_id, tank_id=it["tank_id"], liters=liters_recv
+        )
+
         if it.get("dip_after") is not None:
             PecoStore.insert_tank_dip(
                 tank_id=it["tank_id"], measured_l=float(it["dip_after"]),
@@ -1087,8 +1121,8 @@ def tank_levels(station_id: int) -> Dict[str, Any]:
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 52 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 109 passed
 
 - [ ] **Step 6: Commit**
 
@@ -1134,7 +1168,7 @@ def test_finish_dispense_draws_the_tank_down():
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `python -m pytest tests/test_peco.py -v -k "draws_the_tank_down"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "draws_the_tank_down"`
 Expected: FAIL — `AssertionError: Expected 'add_tank_volume' to be called once. Called 0 times.`
 
 - [ ] **Step 3: Make `get_txn` return the tank**
@@ -1165,8 +1199,8 @@ In `models/peco_txn.py`, inside `finish_dispense`, insert directly after the `if
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 53 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 111 passed
 
 - [ ] **Step 6: Commit**
 
@@ -1260,7 +1294,7 @@ def test_shift_close_forwards_declared_cash():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "pump_state or authorize_rejects or pay_passes or shift_close_forwards"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "pump_state or authorize_rejects or pay_passes or shift_close_forwards"`
 Expected: FAIL — `ModuleNotFoundError: No module named 'controllers.peco_controller'`
 
 - [ ] **Step 3: Write the controller**
@@ -1416,7 +1450,7 @@ class PecoController:
             int(payload["shift_id"]),
             employee_id=int(payload["employee_id"]),
             cash_declared=float(payload["cash_declared"]),
-            tank_readings=payload.get("tank_readings"),
+            dips={int(k): float(v) for k, v in (payload.get("dips") or {}).items()},
         )
 
     @staticmethod
@@ -1485,8 +1519,8 @@ class PecoController:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 58 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 116 passed
 
 - [ ] **Step 5: Commit**
 

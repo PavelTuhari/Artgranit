@@ -1682,6 +1682,21 @@ class Biro26Controller:
                 credit_avans = max(0.0, float(d.get("credit_avans") or 0))
             except (TypeError, ValueError, OverflowError):
                 credit_avans = 0.0
+            # RO: pragul minim al COMENZII pentru achitarea in rate — aceeasi
+            #     valoare pe care vitrina o scrie cu rosu (CREDIT_MIN_ORDER).
+            #     Verificarea se face si aici: butonul dezactivat in browser nu
+            #     opreste o cerere trimisa direct catre API.
+            # EN: server-side guard for the same minimum the storefront shows.
+            try:
+                min_order = float(Biro26Store.get_setting("CREDIT_MIN_ORDER", "1500"))
+            except Exception:                              # noqa: BLE001
+                min_order = 1500.0
+            base_total = sum(it["qty"] * it["price"] for it in clean)
+            if min_order > 0 and base_total < min_order:
+                return {"success": False,
+                        "error": f"Achitarea în rate / credit este disponibilă "
+                                 f"la comenzi de la {min_order:.0f} lei · "
+                                 f"Оплата в рассрочку — при заказе от {min_order:.0f} лей"}
             mk = 1 + (float(plan["markup_pct"] or 0)
                       + float(plan.get("transport_markup_pct") or 0)) / 100
             financed = round(sum(it["qty"] * it["price"] for it in clean) * mk

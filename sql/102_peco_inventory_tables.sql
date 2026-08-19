@@ -71,7 +71,7 @@ CREATE TABLE PECO_TANK_DIPS (
   -- Составной FK: резервуар замера обязан принадлежать той же станции, что и замер
   -- (иначе резервуар соседней АЗС попадёт в чужую станцию)
   CONSTRAINT FK_PECO_DIP_TA FOREIGN KEY (TANK_ID, STATION_ID)     REFERENCES PECO_TANKS (ID, STATION_ID),
-  -- Составной FK: смена замера обязана принадлежать той же станции, что и замер;
+  -- Составной FK: смена замера обязана принадлежать той же станции, что и замер.
   -- обратим внимание, что смена может быть NULL (замер вне смены), и Oracle не
   -- применяет составной FK, когда любой его столбец NULL — это допустимое поведение
   CONSTRAINT FK_PECO_DIP_SH FOREIGN KEY (SHIFT_ID, STATION_ID)    REFERENCES PECO_SHIFTS (ID, STATION_ID),

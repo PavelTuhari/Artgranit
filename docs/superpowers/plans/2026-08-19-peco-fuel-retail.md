@@ -19,6 +19,7 @@
 - Routes are registered directly in `app.py` — this codebase does not use Flask blueprints.
 - Stores use `with DatabaseModel() as db:` and call `db.connection.commit()` explicitly after DML.
 - Every store method returns `{"success": bool, ...}` and never raises to the caller.
+- **Never call `db.execute_query` directly.** `models.database.execute_query` reports SQL errors by returning `success: False` rather than raising, so a direct call lets a failed statement reach `commit()` and be reported as success. Route every statement through the `_run(db, sql, params)` helper in `models/peco_oracle_store.py`, which raises `PecoSqlError` on failure; the method's existing `try/except` turns that into the standard failure dict and `commit()` is never reached.
 - Tests never touch a live Oracle. Mock `models.peco_oracle_store.DatabaseModel`.
 - Money is `NUMBER(12,2)`; liters and meter readings are `NUMBER(14,3)`.
 - Comments and UI copy in Russian, matching the surrounding modules.
@@ -755,7 +756,7 @@ def test_store_never_raises_on_db_error():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
 Expected: FAIL — `ModuleNotFoundError: No module named 'models.peco_oracle_store'`
 
 - [ ] **Step 3: Write the store**
@@ -784,6 +785,24 @@ def _norm_rows(r: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [dict(zip(cols, row)) for row in r["data"]]
 
 
+class PecoSqlError(Exception):
+    """Ошибка SQL, о которой execute_query сообщает флагом, а не исключением."""
+
+
+def _run(db, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Выполняет запрос и бросает исключение, если он не удался.
+
+    models.database.execute_query не бросает исключений: об ошибке SQL он
+    сообщает полем success. Без этой обёртки неудавшийся DML молча
+    доезжал бы до commit(), и вызывающий получал бы success=True на
+    операции, которая не выполнилась.
+    """
+    r = db.execute_query(sql, params) if params else db.execute_query(sql)
+    if not r.get("success"):
+        raise PecoSqlError(r.get("message") or "SQL error")
+    return r
+
+
 class PecoStore:
     """CRUD по справочникам, мастер-данным и ценам PECO."""
 
@@ -793,7 +812,7 @@ class PecoStore:
     def list_grades() -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT CODE, NAME, COLOR, DENSITY
                          FROM PECO_REF_FUEL_GRADES
                         ORDER BY SORT_ORDER"""
@@ -813,7 +832,7 @@ class PecoStore:
                 if active_only:
                     sql += " WHERE ACTIVE = 1"
                 sql += " ORDER BY CODE"
-                r = db.execute_query(sql)
+                r = _run(db, sql)
                 return {"success": True, "items": _norm_rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -823,7 +842,7 @@ class PecoStore:
         """Активные пистолеты станции с колонкой, резервуаром и счётчиком."""
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT n.ID, n.CODE, n.GRADE_CODE, n.METER_TOTAL,
                               n.TANK_ID, p.ID AS PUMP_ID, p.CODE AS PUMP_CODE,
                               p.SELF_SERVICE
@@ -845,7 +864,7 @@ class PecoStore:
         """Действующая цена = строка с VALID_TO IS NULL."""
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT PRICE FROM PECO_PRICES
                         WHERE STATION_ID = :station_id
                           AND GRADE_CODE = :grade_code
@@ -867,14 +886,14 @@ class PecoStore:
         params = {"station_id": station_id, "grade_code": grade_code}
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_PRICES SET VALID_TO = SYSTIMESTAMP
                         WHERE STATION_ID = :station_id
                           AND GRADE_CODE = :grade_code
                           AND VALID_TO IS NULL""",
                     params,
                 )
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_PRICES
                               (ID, STATION_ID, GRADE_CODE, PRICE)
                        VALUES (PECO_PRICES_SEQ.NEXTVAL, :station_id,
@@ -901,7 +920,7 @@ class PecoStore:
         """Append-only запись в PECO_EVENT_LOG."""
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_EVENT_LOG
                               (ID, STATION_ID, SHIFT_ID, EVENT_TYPE,
                                ENTITY_TYPE, ENTITY_ID, EMPLOYEE_ID, PAYLOAD)
@@ -926,8 +945,8 @@ class PecoStore:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 6 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 10 passed
 
 - [ ] **Step 5: Commit**
 
@@ -1038,7 +1057,7 @@ def test_finalize_shift_writes_all_three_variances():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "shift or unresolved or paid_liters"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "shift or unresolved or paid_liters"`
 Expected: FAIL — `AttributeError: type object 'PecoStore' has no attribute 'open_shift'`
 
 - [ ] **Step 3: Append the methods to `PecoStore`**
@@ -1058,24 +1077,24 @@ Add inside `class PecoStore`, after `set_price`:
         """
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_SHIFTS
                               (ID, STATION_ID, STATUS_CODE, OPENED_BY)
                        VALUES (PECO_SHIFTS_SEQ.NEXTVAL, :station_id, 'OPEN',
                                :employee_id)""",
                     {"station_id": station_id, "employee_id": employee_id},
                 )
-                r = db.execute_query(
+                r = _run(db, 
                     "SELECT PECO_SHIFTS_SEQ.CURRVAL AS ID FROM dual"
                 )
                 rows = _norm_rows(r)
                 shift_id = int(rows[0]["id"]) if rows else None
 
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_SHIFT_METERS
-                              (ID, SHIFT_ID, NOZZLE_ID, METER_OPEN)
+                              (ID, SHIFT_ID, NOZZLE_ID, STATION_ID, METER_OPEN)
                        SELECT PECO_SHIFT_METERS_SEQ.NEXTVAL, :shift_id,
-                              n.ID, n.METER_TOTAL
+                              n.ID, n.STATION_ID, n.METER_TOTAL
                          FROM PECO_NOZZLES n
                          JOIN PECO_PUMPS p ON p.ID = n.PUMP_ID
                         WHERE p.STATION_ID = :station_id
@@ -1086,7 +1105,7 @@ Add inside `class PecoStore`, after `set_price`:
                 # Снимок остатков резервуаров на момент открытия. Без него
                 # tank_variance при закрытии не из чего вычислять:
                 # PECO_TANKS.CURRENT_L — это текущий счётчик, а не снимок.
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_SHIFT_TANKS
                               (ID, SHIFT_ID, TANK_ID, STATION_ID,
                                VOLUME_OPEN_L, DELIVERED_L)
@@ -1106,7 +1125,7 @@ Add inside `class PecoStore`, after `set_price`:
         """Реестр резервуаров смены: остаток на открытие, приход, замер."""
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT st.TANK_ID, t.GRADE_CODE, st.VOLUME_OPEN_L,
                               st.DELIVERED_L, st.DIP_CLOSE_L, st.TANK_VARIANCE,
                               t.CODE AS TANK_CODE
@@ -1126,7 +1145,7 @@ Add inside `class PecoStore`, after `set_price`:
         """Записывает замер на закрытие и расхождение по конкретному резервуару."""
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_SHIFT_TANKS
                           SET DIP_CLOSE_L   = :dip_close_l,
                               TANK_VARIANCE = :tank_variance
@@ -1143,7 +1162,7 @@ Add inside `class PecoStore`, after `set_price`:
     def get_open_shift(station_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT ID, STATION_ID, STATUS_CODE, OPENED_AT, OPENED_BY
                          FROM PECO_SHIFTS
                         WHERE STATION_ID = :station_id
@@ -1163,7 +1182,7 @@ Add inside `class PecoStore`, after `set_price`:
     def get_shift_meters(shift_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT sm.NOZZLE_ID, sm.METER_OPEN, sm.METER_CLOSE,
                               n.CODE AS NOZZLE_CODE, n.GRADE_CODE, n.TANK_ID
                          FROM PECO_SHIFT_METERS sm
@@ -1182,13 +1201,13 @@ Add inside `class PecoStore`, after `set_price`:
         """Записывает закрывающее показание и синхронно двигает тотализатор."""
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_SHIFT_METERS SET METER_CLOSE = :meter_close
                         WHERE SHIFT_ID = :shift_id AND NOZZLE_ID = :nozzle_id""",
                     {"shift_id": shift_id, "nozzle_id": nozzle_id,
                      "meter_close": meter_close},
                 )
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_NOZZLES SET METER_TOTAL = :meter_close
                         WHERE ID = :nozzle_id""",
                     {"nozzle_id": nozzle_id, "meter_close": meter_close},
@@ -1207,7 +1226,7 @@ Add inside `class PecoStore`, after `set_price`:
         """
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT NVL(SUM(LITERS), 0) AS LITERS,
                               NVL(SUM(CASE WHEN PAY_METHOD = 'CASH'
                                            THEN AMOUNT ELSE 0 END), 0) AS CASH_AMT,
@@ -1235,7 +1254,7 @@ Add inside `class PecoStore`, after `set_price`:
         """Транзакции, мешающие закрыть смену: налив идёт или ждёт оплаты."""
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT COUNT(*) AS C FROM PECO_TXN
                         WHERE SHIFT_ID = :shift_id
                           AND STATUS_CODE IN ('DISPENSING', 'AWAITING_PAY')""",
@@ -1251,7 +1270,7 @@ Add inside `class PecoStore`, after `set_price`:
                        totals: Dict[str, Any]) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_SHIFTS
                           SET STATUS_CODE    = :status,
                               CLOSED_AT      = SYSTIMESTAMP,
@@ -1281,8 +1300,8 @@ Add inside `class PecoStore`, after `set_price`:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 10 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 16 passed
 
 - [ ] **Step 5: Commit**
 
@@ -1309,6 +1328,7 @@ This is the heart of the system. Pure functions, no database, fully unit-tested.
   - `meter_delta(meters: list[dict]) -> float` — sums `meter_close - meter_open`, skipping rows where `meter_close` is `None`
   - `compute_variances(meters, txn_liters, cash_declared, cash_expected, tank_open=None, delivered=0.0, dip_close=None) -> dict` → keys `meter_delta`, `liter_variance`, `cash_variance`, `tank_variance` (the last is `None` when `tank_open` or `dip_close` is absent)
   - `TOLERANCE_LITERS: float = 0.5`, `TOLERANCE_CASH: float = 1.0`
+  - `tank_variances(tank_rows: list[dict], meters: list[dict], dips: dict[int, float]) -> list[dict]` — per-tank variance; each result carries `tank_id`, `grade_code`, `dip_close_l`, `tank_variance` (`None` when that tank has no closing dip)
   - `exceeds_tolerance(variances: dict) -> bool`
   - `resolve_status(variances: dict) -> str` → `"CLOSED"` or `"DISPUTED"`
 
@@ -1367,6 +1387,45 @@ def test_variances_are_rounded_to_three_decimals():
     assert v["liter_variance"] == 0.0
 
 
+def test_tank_variances_computes_per_tank_not_per_station():
+    """У станции до четырёх резервуаров; утечка в одном не должна
+    растворяться в сумме по станции."""
+    tank_rows = [
+        {"tank_id": 11, "grade_code": "A95", "volume_open_l": 12000.0, "delivered_l": 5000.0},
+        {"tank_id": 12, "grade_code": "DIESEL", "volume_open_l": 8000.0, "delivered_l": 0.0},
+    ]
+    meters = [
+        {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 1000.0},
+        {"nozzle_id": 2, "tank_id": 12, "meter_open": 0.0, "meter_close": 500.0},
+    ]
+    dips = {11: 15950.0, 12: 7500.0}
+    rows = peco_shift.tank_variances(tank_rows, meters, dips)
+    by_id = {r["tank_id"]: r for r in rows}
+    # 12000 + 5000 - 1000 = 16000, замер 15950 -> -50
+    assert by_id[11]["tank_variance"] == -50.0
+    # 8000 + 0 - 500 = 7500, замер 7500 -> 0
+    assert by_id[12]["tank_variance"] == 0.0
+
+
+def test_tank_variance_is_none_when_that_tank_has_no_dip():
+    tank_rows = [{"tank_id": 11, "grade_code": "A95",
+                  "volume_open_l": 100.0, "delivered_l": 0.0}]
+    rows = peco_shift.tank_variances(tank_rows, [], {})
+    assert rows[0]["tank_variance"] is None
+
+
+def test_tank_variances_only_counts_meters_of_that_tank():
+    """Счётчик чужого резервуара не должен уменьшать чужой остаток."""
+    tank_rows = [{"tank_id": 11, "grade_code": "A95",
+                  "volume_open_l": 1000.0, "delivered_l": 0.0}]
+    meters = [
+        {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 100.0},
+        {"nozzle_id": 2, "tank_id": 99, "meter_open": 0.0, "meter_close": 400.0},
+    ]
+    rows = peco_shift.tank_variances(tank_rows, meters, {11: 900.0})
+    assert rows[0]["tank_variance"] == 0.0
+
+
 def test_status_is_closed_within_tolerance():
     v = {"liter_variance": 0.2, "cash_variance": 0.5, "tank_variance": None}
     assert peco_shift.exceeds_tolerance(v) is False
@@ -1387,7 +1446,7 @@ def test_status_is_disputed_on_negative_cash_beyond_tolerance():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "variance or meter_delta or status or tolerance"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "variance or meter_delta or status or tolerance"`
 Expected: FAIL — `ModuleNotFoundError: No module named 'models.peco_shift'`
 
 - [ ] **Step 3: Write the module**
@@ -1460,6 +1519,50 @@ def compute_variances(
     }
 
 
+def tank_variances(
+    tank_rows: List[Dict[str, Any]],
+    meters: List[Dict[str, Any]],
+    dips: Dict[int, float],
+) -> List[Dict[str, Any]]:
+    """Расхождение по каждому резервуару отдельно.
+
+    tank_rows — строки PECO_SHIFT_TANKS (остаток на открытие и приход за
+    смену). meters — строки PECO_SHIFT_METERS, каждая с TANK_ID своего
+    пистолета. dips — {tank_id: замер на закрытие}.
+
+    Считается по резервуарам, а не суммой по станции: утечка в одном
+    резервуаре и излишек в другом взаимно погасились бы и обе исчезли.
+    """
+    dispensed: Dict[int, float] = {}
+    for m in meters:
+        close = m.get("meter_close")
+        if close is None:
+            continue
+        tank_id = m.get("tank_id")
+        if tank_id is None:
+            continue
+        delta = float(close) - float(m.get("meter_open") or 0.0)
+        dispensed[tank_id] = dispensed.get(tank_id, 0.0) + delta
+
+    out: List[Dict[str, Any]] = []
+    for t in tank_rows:
+        tank_id = t["tank_id"]
+        dip = dips.get(tank_id)
+        variance = None
+        if dip is not None:
+            expected = (float(t.get("volume_open_l") or 0.0)
+                        + float(t.get("delivered_l") or 0.0)
+                        - dispensed.get(tank_id, 0.0))
+            variance = round(float(dip) - expected, 3)
+        out.append({
+            "tank_id": tank_id,
+            "grade_code": t.get("grade_code"),
+            "dip_close_l": dip,
+            "tank_variance": variance,
+        })
+    return out
+
+
 def exceeds_tolerance(variances: Dict[str, Any]) -> bool:
     """Проверяется модуль отклонения: излишек — такое же расхождение."""
     if abs(float(variances.get("liter_variance") or 0.0)) > TOLERANCE_LITERS:
@@ -1479,8 +1582,8 @@ def resolve_status(variances: Dict[str, Any]) -> str:
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 19 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 36 passed
 
 - [ ] **Step 5: Commit**
 
@@ -1545,6 +1648,7 @@ def test_close_shift_computes_and_persists_variances():
         ]}
         store.shift_paid_liters.return_value = {
             "success": True, "liters": 100.0, "cash": 2400.0, "mia": 500.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": []}
         store.finalize_shift.return_value = {"success": True}
         r = peco_shift.close_shift(77, employee_id=5, cash_declared=2400.0)
     assert r["success"] is True
@@ -1556,6 +1660,50 @@ def test_close_shift_computes_and_persists_variances():
     assert totals["cash_expected"] == 2400.0
 
 
+def test_close_shift_reads_tank_ledger_from_store_not_caller():
+    """Остаток на открытие и приход читаются из PECO_SHIFT_TANKS.
+    Иначе оператор подогнал бы расхождение под ноль, объявив удобные цифры."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": [
+            {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 1000.0},
+        ]}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 1000.0, "cash": 0.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 12000.0, "delivered_l": 5000.0},
+        ]}
+        store.finalize_shift.return_value = {"success": True}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={11: 15800.0})
+    # 12000 + 5000 - 1000 = 16000; замер 15800 -> -200
+    assert r["variances"]["tank_variance"] == -200.0
+    store.save_tank_close.assert_called_once()
+    assert r["status"] == "DISPUTED"   # 200 л выходит за допуск по резервуару
+
+
+def test_close_shift_does_not_let_tanks_cancel_each_other():
+    """Утечка в одном резервуаре и излишек в другом дают в сумме ноль.
+    Смена всё равно обязана уйти в DISPUTED."""
+    with patch("models.peco_shift.PecoStore") as store:
+        store.count_unresolved_txn.return_value = {"success": True, "count": 0}
+        store.get_shift_meters.return_value = {"success": True, "items": []}
+        store.shift_paid_liters.return_value = {
+            "success": True, "liters": 0.0, "cash": 0.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": [
+            {"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 1000.0, "delivered_l": 0.0},
+            {"tank_id": 12, "grade_code": "DIESEL",
+             "volume_open_l": 1000.0, "delivered_l": 0.0},
+        ]}
+        store.finalize_shift.return_value = {"success": True}
+        r = peco_shift.close_shift(77, employee_id=5, cash_declared=0.0,
+                                   dips={11: 800.0, 12: 1200.0})
+    assert r["variances"]["tank_variance"] == 0.0   # сумма действительно ноль
+    assert r["status"] == "DISPUTED"                # но по резервуарам — нет
+
+
 def test_close_shift_marks_disputed_on_shortfall():
     with patch("models.peco_shift.PecoStore") as store:
         store.count_unresolved_txn.return_value = {"success": True, "count": 0}
@@ -1564,6 +1712,7 @@ def test_close_shift_marks_disputed_on_shortfall():
         ]}
         store.shift_paid_liters.return_value = {
             "success": True, "liters": 90.0, "cash": 2000.0, "mia": 0.0}
+        store.get_shift_tanks.return_value = {"success": True, "items": []}
         store.finalize_shift.return_value = {"success": True}
         r = peco_shift.close_shift(77, employee_id=5, cash_declared=2000.0)
     assert r["status"] == "DISPUTED"
@@ -1572,7 +1721,7 @@ def test_close_shift_marks_disputed_on_shortfall():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "open_shift or close_shift"`
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v -k "open_shift or close_shift"`
 Expected: FAIL — `AttributeError: module 'models.peco_shift' has no attribute 'open_shift'`
 
 - [ ] **Step 3: Append the orchestration functions**
@@ -1673,7 +1822,12 @@ def close_shift(
     )
     variances["tank_variance"] = tank_total
 
-    status = resolve_status(variances)
+    # Статус решается и по сумме, и по КАЖДОМУ резервуару отдельно.
+    # Только по сумме нельзя: утечка в одном резервуаре и излишек в другом
+    # погасили бы друг друга, и смена закрылась бы как чистая.
+    status = ("DISPUTED"
+              if exceeds_tolerance(variances) or tank_variances_exceed(per_tank)
+              else "CLOSED")
     totals = {
         "cash_declared": cash_declared,
         "cash_expected": paid["cash"],
@@ -1702,8 +1856,8 @@ def close_shift(
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `python -m pytest tests/test_peco.py -v`
-Expected: PASS — 24 passed
+Run: `./venv/bin/python -m pytest tests/test_peco.py -v`
+Expected: PASS — 53 passed
 
 - [ ] **Step 5: Commit**
 

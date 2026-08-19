@@ -21,7 +21,8 @@ CREATE TABLE PECO_SHIFTS (
   CASH_VARIANCE   NUMBER(12,2),
   LITER_VARIANCE  NUMBER(14,3),
   -- Станционный итог по всем резервуарам = SUM(PECO_SHIFT_TANKS.TANK_VARIANCE)
-  -- за эту смену; разбивка по каждому резервуару/виду топлива живёт в PECO_SHIFT_TANKS.
+  -- за эту смену. Разбивка по каждому резервуару и виду топлива живёт
+  -- в PECO_SHIFT_TANKS.
   TANK_VARIANCE   NUMBER(14,3),
   -- PIN менеджера, подтвердившего расхождение выше допуска
   APPROVED_BY     NUMBER,
@@ -61,7 +62,7 @@ CREATE TABLE PECO_TXN (
   GRADE_CODE      VARCHAR2(10) NOT NULL,
   STATUS_CODE     VARCHAR2(15) DEFAULT 'AUTHORIZED' NOT NULL,
   LITERS          NUMBER(14,3) DEFAULT 0 NOT NULL,
-  -- цена, по которой транзакция ФАКТИЧЕСКИ проведена; смена цены
+  -- цена, по которой транзакция ФАКТИЧЕСКИ проведена. Смена цены
   -- посреди смены не переписывает историю
   PRICE           NUMBER(12,2) NOT NULL,
   AMOUNT          NUMBER(12,2) DEFAULT 0 NOT NULL,

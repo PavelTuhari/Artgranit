@@ -7833,6 +7833,15 @@ def _biro26_site_ctx():
     EN: shared context for the new-site pages."""
     from models.biro26_oracle_store import Biro26Store
     liber_pct, liber_min, rate_plans = _biro26_rate_plans()
+    # RO: suma MINIMA a comenzii de la care se poate achita in rate/credit.
+    #     Conditia se scrie cu ROSU pe card, pe pagina produsului si in cos
+    #     (cerinta proprietar 18.08.2026). Se schimba din YBIRO_SETTINGS,
+    #     fara atingerea codului.
+    # EN: minimum order total that unlocks instalments; shown in red.
+    try:
+        credit_min_order = float(Biro26Store.get_setting('CREDIT_MIN_ORDER', '1500'))
+    except Exception:                                        # noqa: BLE001
+        credit_min_order = 1500.0
     try:
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
     except Exception:
@@ -7868,6 +7877,7 @@ def _biro26_site_ctx():
         pay_logos = []
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
+            'credit_min_order': credit_min_order,
             'rate_plans': rate_plans,
             'brand_filter': brand_filter,
             'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
