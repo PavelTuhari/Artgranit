@@ -9021,6 +9021,16 @@ def api_peco_tanks():
     return jsonify(PecoController.tank_levels(station_id))
 
 
+@app.route('/api/peco/prices')
+def api_peco_prices():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    station_id = _peco_station_id()
+    if station_id is None:
+        return jsonify({"success": False, "error": "Нет активных станций"})
+    return jsonify(PecoController.prices(station_id))
+
+
 @app.route('/api/peco/admin/overview')
 def api_peco_admin_overview():
     if not AuthController.is_authenticated():
