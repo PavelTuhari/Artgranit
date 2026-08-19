@@ -43,6 +43,20 @@ def test_current_price_missing_is_not_success():
     assert r["success"] is False
 
 
+def test_list_prices_returns_only_active_rows():
+    """Менеджер меняет цены и между сменами, поэтому цены нужны отдельно
+    от pump_state, который требует открытую смену."""
+    cm, db = _fake_db({"success": True,
+                       "columns": ["GRADE_CODE", "PRICE", "VALID_FROM", "GRADE_NAME"],
+                       "data": [("A95", 23.90, None, "Бензин А-95")]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.list_prices(1)
+    assert r["success"] is True
+    assert r["items"][0]["grade_code"] == "A95"
+    sql = db.execute_query.call_args[0][0]
+    assert "VALID_TO IS NULL" in sql
+
+
 def test_set_price_closes_previous_then_inserts():
     cm, db = _fake_db({"success": True, "columns": [], "data": []})
     with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
