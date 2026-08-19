@@ -180,3 +180,110 @@ def test_finalize_shift_writes_all_three_variances():
     for col in ("CASH_VARIANCE", "LITER_VARIANCE", "TANK_VARIANCE", "STATUS_CODE"):
         assert col in sql
     db.connection.commit.assert_called_once()
+
+
+from models import peco_shift
+
+
+def test_meter_delta_sums_closed_nozzles_only():
+    meters = [
+        {"nozzle_id": 1, "meter_open": 1000.0, "meter_close": 1120.5},
+        {"nozzle_id": 2, "meter_open": 500.0,  "meter_close": 560.0},
+        {"nozzle_id": 3, "meter_open": 200.0,  "meter_close": None},  # не снят
+    ]
+    assert peco_shift.meter_delta(meters) == 180.5
+
+
+def test_liter_variance_is_meter_minus_paid():
+    """Топливо вышло из пистолета, но не оплачено — это и есть недостача."""
+    meters = [{"nozzle_id": 1, "meter_open": 0.0, "meter_close": 100.0}]
+    v = peco_shift.compute_variances(meters, txn_liters=98.0,
+                                     cash_declared=0.0, cash_expected=0.0)
+    assert v["meter_delta"] == 100.0
+    assert v["liter_variance"] == 2.0
+
+
+def test_cash_variance_is_declared_minus_expected():
+    v = peco_shift.compute_variances([], txn_liters=0.0,
+                                     cash_declared=2390.0, cash_expected=2400.0)
+    assert v["cash_variance"] == -10.0  # недостача кассы
+
+
+def test_tank_variance_uses_ledger_identity():
+    """tank_expected = открытие + приход − отпуск по счётчику."""
+    meters = [{"nozzle_id": 1, "meter_open": 0.0, "meter_close": 1000.0}]
+    v = peco_shift.compute_variances(
+        meters, txn_liters=1000.0, cash_declared=0.0, cash_expected=0.0,
+        tank_open=12000.0, delivered=5000.0, dip_close=15950.0,
+    )
+    # ожидалось 12000 + 5000 - 1000 = 16000; замер 15950 -> -50 (утечка)
+    assert v["tank_variance"] == -50.0
+
+
+def test_tank_variance_is_none_without_dip():
+    v = peco_shift.compute_variances([], 0.0, 0.0, 0.0, tank_open=100.0)
+    assert v["tank_variance"] is None
+
+
+def test_variances_are_rounded_to_three_decimals():
+    meters = [{"nozzle_id": 1, "meter_open": 0.0, "meter_close": 10.0}]
+    v = peco_shift.compute_variances(meters, txn_liters=9.9999,
+                                     cash_declared=0.0, cash_expected=0.0)
+    assert v["liter_variance"] == 0.0
+
+
+def test_tank_variances_computes_per_tank_not_per_station():
+    """У станции до четырёх резервуаров; утечка в одном не должна
+    растворяться в сумме по станции."""
+    tank_rows = [
+        {"tank_id": 11, "grade_code": "A95", "volume_open_l": 12000.0, "delivered_l": 5000.0},
+        {"tank_id": 12, "grade_code": "DIESEL", "volume_open_l": 8000.0, "delivered_l": 0.0},
+    ]
+    meters = [
+        {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 1000.0},
+        {"nozzle_id": 2, "tank_id": 12, "meter_open": 0.0, "meter_close": 500.0},
+    ]
+    dips = {11: 15950.0, 12: 7500.0}
+    rows = peco_shift.tank_variances(tank_rows, meters, dips)
+    by_id = {r["tank_id"]: r for r in rows}
+    # 12000 + 5000 - 1000 = 16000, замер 15950 -> -50
+    assert by_id[11]["tank_variance"] == -50.0
+    # 8000 + 0 - 500 = 7500, замер 7500 -> 0
+    assert by_id[12]["tank_variance"] == 0.0
+
+
+def test_tank_variance_is_none_when_that_tank_has_no_dip():
+    tank_rows = [{"tank_id": 11, "grade_code": "A95",
+                  "volume_open_l": 100.0, "delivered_l": 0.0}]
+    rows = peco_shift.tank_variances(tank_rows, [], {})
+    assert rows[0]["tank_variance"] is None
+
+
+def test_tank_variances_only_counts_meters_of_that_tank():
+    """Счётчик чужого резервуара не должен уменьшать чужой остаток."""
+    tank_rows = [{"tank_id": 11, "grade_code": "A95",
+                  "volume_open_l": 1000.0, "delivered_l": 0.0}]
+    meters = [
+        {"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": 100.0},
+        {"nozzle_id": 2, "tank_id": 99, "meter_open": 0.0, "meter_close": 400.0},
+    ]
+    rows = peco_shift.tank_variances(tank_rows, meters, {11: 900.0})
+    assert rows[0]["tank_variance"] == 0.0
+
+
+def test_status_is_closed_within_tolerance():
+    v = {"liter_variance": 0.2, "cash_variance": 0.5, "tank_variance": None}
+    assert peco_shift.exceeds_tolerance(v) is False
+    assert peco_shift.resolve_status(v) == "CLOSED"
+
+
+def test_status_is_disputed_when_liters_exceed_tolerance():
+    v = {"liter_variance": 3.0, "cash_variance": 0.0, "tank_variance": None}
+    assert peco_shift.exceeds_tolerance(v) is True
+    assert peco_shift.resolve_status(v) == "DISPUTED"
+
+
+def test_status_is_disputed_on_negative_cash_beyond_tolerance():
+    """Излишек тоже расхождение — проверяется модуль, а не знак."""
+    v = {"liter_variance": 0.0, "cash_variance": -25.0, "tank_variance": None}
+    assert peco_shift.resolve_status(v) == "DISPUTED"
