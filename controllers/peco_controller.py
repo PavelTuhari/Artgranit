@@ -335,3 +335,38 @@ class PecoController:
                                        _as_float(payload, "price"))
         except PecoInputError as e:
             return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def employees(station_id: Optional[int] = None) -> Dict[str, Any]:
+        return PecoStore.list_employees(station_id)
+
+    @staticmethod
+    def set_pin(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Назначение/сброс PIN сотрудника. PIN нигде здесь не логируется,
+        не эхируется в ответе и не попадает в сообщение об ошибке — только
+        имя отсутствующего поля и общие проверки формата."""
+        missing = _require(payload, "employee_id", "pin")
+        if missing:
+            return {"success": False, "error": f"Не указано поле: {missing}"}
+        try:
+            employee_id = _as_int(payload, "employee_id")
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
+
+        pin = str(payload["pin"])
+        if not pin.isdigit():
+            return {"success": False, "error": "PIN должен состоять только из цифр"}
+        if len(pin) < 4:
+            return {"success": False, "error": "PIN должен содержать не менее 4 цифр"}
+
+        salt = peco_shift.new_salt()
+        pin_hash = peco_shift.hash_pin(pin, salt)
+        return PecoStore.set_employee_pin(employee_id, salt, pin_hash)
+
+    @staticmethod
+    def disputed_shifts(station_id: Optional[int] = None) -> Dict[str, Any]:
+        return PecoStore.list_disputed_shifts(station_id)
+
+    @staticmethod
+    def shift_summary(shift_id: int) -> Dict[str, Any]:
+        return PecoStore.shift_summary(shift_id)
