@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PECO — Колонка</title>
+<style>
+:root{
+  --bg:#060a14;--bg2:#0a1120;--card:#101c33;--card2:#0c1729;--line:#26385c;--line-strong:#3a5padding;
+  --text:#f4f8ff;--muted:#a9bbdd;
+  --accent:#ffb020;--accent-ink:#241300;
+  --ok:#2fd66b;--ok-ink:#04220f;
+  --danger:#ff5a5a;--danger-ink:#2a0606;
+  --info:#3fa9ff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #14213e 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, #17203a 0%, transparent 55%),
+    var(--bg);
+  color:var(--text);
+  padding:18px;
+  min-height:100vh;
+  font-size:16px;
+  -webkit-font-smoothing:antialiased;
+}
+
+header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:20px;flex-wrap:wrap;gap:12px;
+}
+.title-wrap{display:flex;align-items:center;gap:14px;}
+.pump-icon{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(160deg,#1a2947,#0f1a30);
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
+}
+h1{font-size:21px;font-weight:800;letter-spacing:.2px;}
+h1 .sub{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-top:2px;letter-spacing:.3px;}
+.badge{
+  font-size:14px;font-weight:700;color:var(--text);
+  background:var(--card2);border:1px solid var(--line);
+  padding:9px 16px;border-radius:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.badge .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(47,214,107,.18);}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;}
+
+.nozzle{
+  position:relative;
+  background:linear-gradient(165deg,var(--card),var(--card2));
+  border:2px solid var(--line);border-radius:18px;padding:20px;
+  cursor:pointer;transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease;
+  min-height:118px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  -webkit-user-select:none;user-select:none;
+}
+.nozzle:active{transform:scale(.98);}
+.nozzle:hover{border-color:#4d6ba3;}
+.nozzle.sel{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(255,176,32,.22), 0 8px 24px rgba(255,176,32,.10);
+}
+.nozzle.sel::after{
+  content:"✓ ВЫБРАНО";
+  position:absolute;top:10px;right:12px;
+  font-size:11px;font-weight:800;color:var(--accent-ink);
+  background:var(--accent);padding:3px 8px;border-radius:999px;letter-spacing:.4px;
+}
+.nozzle .g{font-size:26px;font-weight:800;letter-spacing:.3px;}
+.nozzle .p{font-size:30px;font-weight:800;margin-top:6px;color:var(--accent);}
+.nozzle .p .unit{font-size:14px;font-weight:600;color:var(--muted);margin-left:4px;}
+.nozzle .m{font-size:12.5px;color:var(--muted);margin-top:10px;font-weight:600;}
+
+.panel{
+  background:linear-gradient(165deg,var(--card),var(--card2));
+  border:1px solid var(--line);border-radius:20px;padding:22px;
+  margin-top:20px;
+}
+.panel-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+.panel-head .sel-grade{font-size:19px;font-weight:800;}
+.panel-head .sel-grade .code{color:var(--muted);font-weight:600;font-size:14px;}
+
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px;font-weight:600;letter-spacing:.2px;}
+input{
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;
+  color:var(--text);font-size:20px;font-weight:700;width:190px;
+}
+input:focus{outline:none;border-color:var(--accent);}
+input[readonly]{color:var(--muted);}
+input::placeholder{color:#5b6f96;font-weight:500;}
+
+button{
+  border:0;border-radius:12px;padding:16px 24px;font-size:16px;font-weight:800;
+  cursor:pointer;background:var(--accent);color:var(--accent-ink);
+  min-height:52px;min-width:52px;
+  transition:filter .1s ease, transform .06s ease;
+  letter-spacing:.2px;
+}
+button:active{transform:scale(.97);}
+button:hover{filter:brightness(1.08);}
+button.ghost{background:transparent;border:1.5px solid var(--line);color:var(--text);}
+button.ghost:hover{border-color:#4d6ba3;}
+button.ok{background:var(--ok);color:var(--ok-ink);}
+button.danger{background:var(--danger);color:var(--danger-ink);}
+button.big{font-size:19px;padding:20px 28px;width:100%;}
+button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
+
+.mode-toggle{
+  display:inline-flex;background:var(--bg2);border:1.5px solid var(--line);border-radius:12px;padding:4px;gap:4px;
+}
+.mode-toggle button{
+  background:transparent;color:var(--muted);padding:11px 16px;font-size:14px;min-height:auto;
+  border-radius:9px;font-weight:700;
+}
+.mode-toggle button.active{background:var(--accent);color:var(--accent-ink);}
+.mode-toggle button.active.attendant{background:var(--info);color:#04162a;}
+
+.mia-field{
+  background:rgba(63,169,255,.08);border:1.5px dashed var(--info);border-radius:14px;
+  padding:14px 16px;margin-bottom:14px;
+}
+.mia-field label{color:#a9d6ff;}
+.mia-field input{width:100%;max-width:340px;border-color:var(--info);}
+.mia-field .hint{font-size:12px;color:#a9d6ff;margin-top:6px;font-weight:600;}
+
+.status-line{
+  display:flex;align-items:center;gap:10px;
+  font-size:14px;font-weight:700;color:var(--muted);
+  margin-bottom:16px;padding:10px 14px;background:var(--bg2);border-radius:10px;
+}
+.status-line .pulse{width:10px;height:10px;border-radius:50%;background:var(--info);flex-shrink:0;}
+.status-line.flowing .pulse{background:var(--ok);animation:pulse 1s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(47,214,107,.5);}70%{box-shadow:0 0 0 8px rgba(47,214,107,0);}100%{box-shadow:0 0 0 0 rgba(47,214,107,0);}}
+
+.total-card{
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:16px;
+  padding:22px;margin-bottom:16px;text-align:center;
+}
+.total-card .liters{font-size:22px;font-weight:700;color:var(--muted);}
+.total{font-size:52px;font-weight:900;margin:6px 0;letter-spacing:-.5px;}
+.total .cur{font-size:24px;font-weight:700;color:var(--muted);margin-left:6px;}
+
+.msg{padding:14px 18px;border-radius:12px;margin-top:14px;font-size:15px;font-weight:700;
+     display:flex;align-items:center;gap:10px;}
+.msg.err{background:#3b1114;color:#ffb0b0;border:1px solid #6b2530;}
+.msg.ok{background:#0d2b18;color:#a4f4bf;border:1px solid #1f5c3a;}
+.hidden{display:none;}
+
+.awaiting-strip{
+  background:linear-gradient(90deg,rgba(255,176,32,.14),transparent);
+  border-left:4px solid var(--accent);border-radius:10px;
+  padding:12px 16px;margin-bottom:16px;font-weight:700;font-size:14px;
+}
+
+@media (max-width:520px){
+  h1{font-size:18px;}
+  .grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+  .nozzle .g{font-size:22px;}
+  .nozzle .p{font-size:25px;}
+  input{width:100%;}
+  .total{font-size:42px;}
+  button.big{font-size:17px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title-wrap">
+    <div class="pump-icon">⛽</div>
+    <h1>Колонка — отпуск топлива<span class="sub">PECO · рабочее место оператора</span></h1>
+  </div>
+  <div class="badge" id="shiftBadge"><span class="dot"></span>загрузка…</div>
+</header>
+
+<div class="grid" id="nozzles"></div>
+
+<div class="panel hidden" id="panel">
+  <div class="panel-head">
+    <div class="sel-grade" id="selGradeTxt">—</div>
+    <div class="mode-toggle" id="modeToggle">
+      <button type="button" class="active" id="modeSelfBtn" onclick="setMode(true)">🙋 Самообслуживание</button>
+      <button type="button" class="attendant" id="modeAttBtn" onclick="setMode(false)">🧑‍✈️ Отпуск сотрудником</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>Показание счётчика на старте</label>
+      <input id="meterStart" type="number" step="0.001" readonly>
+    </div>
+  </div>
+
+  <div class="mia-field hidden" id="miaAuthField">
+    <label>Ссылка предавторизации MIA QR (обязательно для самообслуживания)</label>
+    <input id="miaAuthRef" type="text" placeholder="например MIA-2026-000123">
+    <div class="hint">Без ссылки предавторизации самообслуживание запрещено — сервер отклонит налив.</div>
+  </div>
+
+  <div class="row" id="authRow">
+    <button class="big" id="authBtn" onclick="doAuthorize()">✅ Авторизовать налив</button>
+  </div>
+
+  <div class="row hidden" id="dispRow" style="display:block;">
+    <div class="status-line flowing">
+      <span class="pulse"></span>Налив разрешён — идёт отпуск топлива
+    </div>
+    <div class="row">
+      <div>
+        <label>Показание счётчика на финише</label>
+        <input id="meterEnd" type="number" step="0.001" placeholder="0.000">
+      </div>
+    </div>
+    <button class="ok big" onclick="doFinish()">🏁 Завершить налив</button>
+  </div>
+
+  <div class="hidden" id="payBlock">
+    <div class="awaiting-strip" id="awaitingStrip">Ожидает оплаты на кассе</div>
+    <div class="total-card">
+      <div class="liters" id="litersTxt">—</div>
+      <div class="total" id="totalTxt">—</div>
+    </div>
+    <div class="row">
+      <button onclick="doPay('CASH')">💵 Оплата наличными</button>
+      <button onclick="doPay('MIA_QR')">📱 Оплата MIA QR</button>
+      <button class="ghost danger" onclick="doVoid()">✖ Аннулировать</button>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+</div>
+
+<script>
+var state = null, sel = null, txn = null, selfService = true;
+
+function api(url, body) {
+  var opt = body ? {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(body)} : {};
+  return fetch(url, opt).then(function(r){ return r.json(); });
+}
+
+function say(text, kind) {
+  document.getElementById('msg').innerHTML =
+    text ? '<div class="msg ' + (kind||'ok') + '">' + (kind === 'err' ? '⚠ ' : '✓ ') + text + '</div>' : '';
+}
+
+function load() {
+  api('/api/peco/pump/state').then(function(r){
+    if (!r.success) { document.getElementById('shiftBadge').innerHTML = '<span class="dot" style="background:var(--danger)"></span>' + r.error; return; }
+    state = r;
+    document.getElementById('shiftBadge').innerHTML = '<span class="dot"></span>Смена №' + r.shift_id;
+    var html = '';
+    r.nozzles.forEach(function(n){
+      var price = r.prices[n.grade_code];
+      html += '<div class="nozzle" data-id="' + n.id + '" onclick="pick(' + n.id + ')">' +
+              '<div class="g">' + n.grade_code + '</div>' +
+              '<div class="p">' + (price !== undefined ? price.toFixed(2) + '<span class="unit"> лей/л</span>' : '<span class="unit">нет цены</span>') + '</div>' +
+              '<div class="m">' + n.pump_code + ' · ' + n.code +
+              ' · счётчик ' + Number(n.meter_total).toFixed(3) + '</div></div>';
+    });
+    document.getElementById('nozzles').innerHTML = html;
+  });
+}
+
+function pick(id) {
+  sel = state.nozzles.filter(function(n){ return n.id === id; })[0];
+  document.querySelectorAll('.nozzle').forEach(function(el){
+    el.classList.toggle('sel', Number(el.dataset.id) === id);
+  });
+  document.getElementById('panel').classList.remove('hidden');
+  document.getElementById('selGradeTxt').innerHTML =
+    sel.grade_code + ' <span class="code">' + sel.pump_code + ' · ' + sel.code + '</span>';
+  document.getElementById('meterStart').value = Number(sel.meter_total).toFixed(3);
+  resetFlow();
+}
+
+function resetFlow() {
+  txn = null;
+  document.getElementById('authRow').classList.remove('hidden');
+  document.getElementById('dispRow').classList.add('hidden');
+  document.getElementById('payBlock').classList.add('hidden');
+  document.getElementById('meterEnd').value = '';
+  document.getElementById('miaAuthRef').value = '';
+  say('');
+  setMode(selfService);
+}
+
+function setMode(isSelf) {
+  selfService = isSelf;
+  document.getElementById('modeSelfBtn').classList.toggle('active', isSelf);
+  document.getElementById('modeAttBtn').classList.toggle('active', !isSelf);
+  document.getElementById('miaAuthField').classList.toggle('hidden', !isSelf);
+}
+
+function doAuthorize() {
+  if (!sel) return;
+  var miaRef = null;
+  if (selfService) {
+    miaRef = (document.getElementById('miaAuthRef').value || '').trim();
+    if (!miaRef) {
+      say('Для самообслуживания укажите ссылку предавторизации MIA QR', 'err');
+      return;
+    }
+  }
+  api('/api/peco/txn/authorize', {
+    station_id: state.station_id, shift_id: state.shift_id,
+    nozzle_id: sel.id, grade_code: sel.grade_code,
+    meter_start: Number(document.getElementById('meterStart').value),
+    is_self_service: selfService,
+    mia_ref: miaRef
+  }).then(function(r){
+    if (!r.success) { say(r.error, 'err'); return; }
+    txn = r.txn_id;
+    return api('/api/peco/txn/start', {txn_id: txn});
+  }).then(function(r){
+    if (!r || !r.success) { if (r) say(r.error, 'err'); return; }
+    document.getElementById('authRow').classList.add('hidden');
+    document.getElementById('dispRow').classList.remove('hidden');
+    say('Налив разрешён. Введите показание счётчика по окончании.');
+  });
+}
+
+function doFinish() {
+  api('/api/peco/txn/finish', {
+    txn_id: txn, meter_end: Number(document.getElementById('meterEnd').value)
+  }).then(function(r){
+    if (!r.success) { say(r.error, 'err'); return; }
+    document.getElementById('dispRow').classList.add('hidden');
+    document.getElementById('litersTxt').textContent = r.liters.toFixed(3) + ' л';
+    document.getElementById('totalTxt').innerHTML = r.amount.toFixed(2) + '<span class="cur"> лей</span>';
+    if (r.status === 'PAID') {
+      document.getElementById('awaitingStrip').textContent = 'Оплачено по MIA QR (предавторизация самообслуживания)';
+      document.getElementById('payBlock').classList.remove('hidden');
+      document.querySelectorAll('#payBlock .row button').forEach(function(b){ b.style.display = 'none'; });
+      say('Оплачено по MIA QR (предавторизация самообслуживания).');
+      setTimeout(load, 1200);
+    } else {
+      document.getElementById('awaitingStrip').textContent = 'Ожидает оплаты на кассе';
+      document.getElementById('payBlock').classList.remove('hidden');
+      say('Ожидает оплаты на кассе.');
+    }
+  });
+}
+
+function doPay(method) {
+  var ref = null;
+  if (method === 'MIA_QR') {
+    ref = prompt('Ссылка платежа MIA:');
+    if (!ref) { say('Не указана ссылка платежа MIA', 'err'); return; }
+  }
+  api('/api/peco/txn/pay', {txn_id: txn, pay_method: method, mia_ref: ref})
+    .then(function(r){
+      if (!r.success) { say(r.error, 'err'); return; }
+      say('Транзакция оплачена.');
+      setTimeout(load, 1000);
+      resetFlow();
+    });
+}
+
+function doVoid() {
+  var reason = prompt('Причина аннулирования:') || 'не указана';
+  api('/api/peco/txn/void', {txn_id: txn, reason: reason}).then(function(r){
+    if (!r.success) { say(r.error, 'err'); return; }
+    say('Транзакция аннулирована.');
+    resetFlow(); load();
+  });
+}
+
+load();
+</script>
+</body>
+</html>
