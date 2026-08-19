@@ -1618,13 +1618,15 @@ def close_shift(
     shift_id: int,
     employee_id: int,
     cash_declared: float,
-    tank_readings: Optional[List[Dict[str, Any]]] = None,
+    dips: Optional[Dict[int, float]] = None,
 ) -> Dict[str, Any]:
     """Закрывает смену со сверкой.
 
-    tank_readings — список словарей вида
-    {"tank_open": float, "delivered": float, "dip_close": float};
-    суммируется по станции. Если не передан, tank_variance = None.
+    dips — замеры на закрытие: {tank_id: измеренные литры}. Остаток на
+    открытие и приход за смену НЕ принимаются от вызывающего: они читаются
+    из PECO_SHIFT_TANKS, куда попали при открытии смены и при приёме
+    цистерн. Иначе оператор мог бы подогнать расхождение под ноль,
+    объявив удобные исходные цифры.
     """
     unresolved = PecoStore.count_unresolved_txn(shift_id)
     if not unresolved.get("success"):
