@@ -42,31 +42,24 @@ def compute_variances(
     txn_liters: float,
     cash_declared: float,
     cash_expected: float,
-    tank_open: Optional[float] = None,
-    delivered: float = 0.0,
-    dip_close: Optional[float] = None,
 ) -> Dict[str, Any]:
-    """Считает все три расхождения смены.
+    """Считает расхождения смены по счётчикам и кассе.
 
-    tank_variance возвращается как None, если нет замера закрытия или
-    остатка на открытие — считать его «нулевым» в этом случае значило бы
-    выдавать отсутствие данных за отсутствие проблемы.
+    tank_variance здесь всегда None: расхождение по резервуару считается
+    только по резервуарам отдельно, функцией tank_variances() ниже —
+    станционная сумма как раз и есть та ошибка, ради которой резервуары
+    не сводятся в одно число (см. модуль docstring).
     """
     delta = meter_delta(meters)
 
     liter_variance = round(delta - float(txn_liters), 3)
     cash_variance = round(float(cash_declared) - float(cash_expected), 2)
 
-    tank_variance: Optional[float] = None
-    if tank_open is not None and dip_close is not None:
-        tank_expected = float(tank_open) + float(delivered) - delta
-        tank_variance = round(float(dip_close) - tank_expected, 3)
-
     return {
         "meter_delta": delta,
         "liter_variance": liter_variance,
         "cash_variance": cash_variance,
-        "tank_variance": tank_variance,
+        "tank_variance": None,
     }
 
 
