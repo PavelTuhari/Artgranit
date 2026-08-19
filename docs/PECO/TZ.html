@@ -208,8 +208,10 @@ tank_variance  = dip_close − (volume_open + delivered − dispensed)
 <ul>
 <li><code>PECO_REF_FUEL_GRADES</code> — A92, A95, A98, DIESEL</li>
 <li><code>PECO_REF_PAY_METHODS</code> — CASH, MIA_QR; несёт флаг
-    <code>AFFECTS_CASH</code>, которым и управляется исключение MIA QR
-    из кассовой сверки</li>
+    <code>IS_CASH</code>, предназначенный для классификации способов оплаты,
+    но сегодня им ничего не управляет — исключение MIA QR из кассовой сверки
+    зашито кодами способа оплаты прямо в запросе <code>shift_paid_liters</code>
+    (см. раздел 2)</li>
 <li><code>PECO_REF_SHIFT_STATUS</code> — OPEN, CLOSING, CLOSED, DISPUTED</li>
 <li><code>PECO_REF_TXN_STATUS</code> — AUTHORIZED, DISPENSING, AWAITING_PAY, PAID, VOIDED</li>
 </ul>
