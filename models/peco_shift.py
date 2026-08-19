@@ -276,9 +276,14 @@ def close_shift(
     per_tank = tank_variances(tank_rows, meters, dips)
     for row in per_tank:
         if row["tank_variance"] is not None:
+            # Физический замер записывается в PECO_TANKS.CURRENT_L той же
+            # транзакцией (см. save_tank_close): иначе учётный остаток
+            # резервуара продолжит вестись только по счётчикам и приходу,
+            # разойдётся с замером и будет заново "утекать" на КАЖДОЙ
+            # следующей смене — DISPUTED перестанет что-либо значить.
             saved_tank = PecoStore.save_tank_close(
                 shift_id, row["tank_id"], row["dip_close_l"],
-                row["tank_variance"],
+                row["tank_variance"], employee_id=employee_id,
             )
             if not saved_tank.get("success"):
                 return saved_tank
@@ -286,6 +291,13 @@ def close_shift(
     measured = [r["tank_variance"] for r in per_tank
                 if r["tank_variance"] is not None]
     tank_total = round(sum(measured), 3) if measured else None
+
+    # Резервуары без замера на закрытие: отсутствие метрштока — это
+    # недостаток данных, а не доказательство отсутствия расхождения (тот же
+    # принцип, что и для liter_variance/cash_variance в exceeds_tolerance).
+    # Смена с такими резервуарами не имеет права объявить себя "чистой".
+    unmeasured_tanks = [r["tank_id"] for r in per_tank
+                        if r["dip_close_l"] is None]
 
     variances = compute_variances(
         meters,
@@ -295,11 +307,14 @@ def close_shift(
     )
     variances["tank_variance"] = tank_total
 
-    # Статус решается и по сумме, и по КАЖДОМУ резервуару отдельно.
-    # Только по сумме нельзя: утечка в одном резервуаре и излишек в другом
-    # погасили бы друг друга, и смена закрылась бы как чистая.
+    # Статус решается по сумме, по КАЖДОМУ резервуару отдельно и по наличию
+    # замера у каждого из них. Только по сумме нельзя: утечка в одном
+    # резервуаре и излишек в другом погасили бы друг друга, и смена
+    # закрылась бы как чистая. А необмеренный резервуар не даёт CLOSED в
+    # принципе — по той же логике, что и None в exceeds_tolerance.
     status = ("DISPUTED"
-              if exceeds_tolerance(variances) or tank_variances_exceed(per_tank)
+              if (exceeds_tolerance(variances) or tank_variances_exceed(per_tank)
+                  or unmeasured_tanks)
               else "CLOSED")
     totals = {
         "cash_declared": cash_declared,
