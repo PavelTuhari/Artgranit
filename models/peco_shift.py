@@ -1,0 +1,124 @@
+"""PECO: жизненный цикл смены и расчёт расхождений.
+
+Функции расчёта — чистые: принимают и возвращают словари, к базе не
+обращаются. Это делает главную бизнес-логику модуля тестируемой без Oracle.
+
+Три расхождения соответствуют трём разным типам отказа и намеренно
+не сводятся в одно число:
+
+  liter_variance -- топливо вышло из пистолета, но не оплачено
+  cash_variance  -- недостача или излишек денежного ящика
+  tank_variance  -- утечка либо уход калибровки резервуара
+"""
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
+
+# Допуски. Выход за пределы переводит смену в DISPUTED и требует PIN менеджера.
+TOLERANCE_LITERS: float = 0.5
+TOLERANCE_CASH: float = 1.0
+
+
+def meter_delta(meters: List[Dict[str, Any]]) -> float:
+    """Сумма (METER_CLOSE - METER_OPEN) по пистолетам со снятым показанием."""
+    total = 0.0
+    for m in meters:
+        close = m.get("meter_close")
+        if close is None:
+            continue
+        total += float(close) - float(m.get("meter_open") or 0.0)
+    return round(total, 3)
+
+
+def compute_variances(
+    meters: List[Dict[str, Any]],
+    txn_liters: float,
+    cash_declared: float,
+    cash_expected: float,
+    tank_open: Optional[float] = None,
+    delivered: float = 0.0,
+    dip_close: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Считает все три расхождения смены.
+
+    tank_variance возвращается как None, если нет замера закрытия или
+    остатка на открытие — считать его «нулевым» в этом случае значило бы
+    выдавать отсутствие данных за отсутствие проблемы.
+    """
+    delta = meter_delta(meters)
+
+    liter_variance = round(delta - float(txn_liters), 3)
+    cash_variance = round(float(cash_declared) - float(cash_expected), 2)
+
+    tank_variance: Optional[float] = None
+    if tank_open is not None and dip_close is not None:
+        tank_expected = float(tank_open) + float(delivered) - delta
+        tank_variance = round(float(dip_close) - tank_expected, 3)
+
+    return {
+        "meter_delta": delta,
+        "liter_variance": liter_variance,
+        "cash_variance": cash_variance,
+        "tank_variance": tank_variance,
+    }
+
+
+def tank_variances(
+    tank_rows: List[Dict[str, Any]],
+    meters: List[Dict[str, Any]],
+    dips: Dict[int, float],
+) -> List[Dict[str, Any]]:
+    """Расхождение по каждому резервуару отдельно.
+
+    tank_rows — строки PECO_SHIFT_TANKS (остаток на открытие и приход за
+    смену). meters — строки PECO_SHIFT_METERS, каждая с TANK_ID своего
+    пистолета. dips — {tank_id: замер на закрытие}.
+
+    Считается по резервуарам, а не суммой по станции: утечка в одном
+    резервуаре и излишек в другом взаимно погасились бы и обе исчезли.
+    """
+    dispensed: Dict[int, float] = {}
+    for m in meters:
+        close = m.get("meter_close")
+        if close is None:
+            continue
+        tank_id = m.get("tank_id")
+        if tank_id is None:
+            continue
+        delta = float(close) - float(m.get("meter_open") or 0.0)
+        dispensed[tank_id] = dispensed.get(tank_id, 0.0) + delta
+
+    out: List[Dict[str, Any]] = []
+    for t in tank_rows:
+        tank_id = t["tank_id"]
+        dip = dips.get(tank_id)
+        variance = None
+        if dip is not None:
+            expected = (float(t.get("volume_open_l") or 0.0)
+                        + float(t.get("delivered_l") or 0.0)
+                        - dispensed.get(tank_id, 0.0))
+            variance = round(float(dip) - expected, 3)
+        out.append({
+            "tank_id": tank_id,
+            "grade_code": t.get("grade_code"),
+            "dip_close_l": dip,
+            "tank_variance": variance,
+        })
+    return out
+
+
+def exceeds_tolerance(variances: Dict[str, Any]) -> bool:
+    """Проверяется модуль отклонения: излишек — такое же расхождение."""
+    if abs(float(variances.get("liter_variance") or 0.0)) > TOLERANCE_LITERS:
+        return True
+    if abs(float(variances.get("cash_variance") or 0.0)) > TOLERANCE_CASH:
+        return True
+    tank = variances.get("tank_variance")
+    if tank is not None and abs(float(tank)) > TOLERANCE_LITERS:
+        return True
+    return False
+
+
+def resolve_status(variances: Dict[str, Any]) -> str:
+    """Итоговый статус смены по расхождениям."""
+    return "DISPUTED" if exceeds_tolerance(variances) else "CLOSED"
