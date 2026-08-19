@@ -165,8 +165,11 @@ class PecoController:
         missing = _require(payload, "station_id", "employee_id")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_shift.open_shift(int(payload["station_id"]),
-                                     int(payload["employee_id"]))
+        try:
+            return peco_shift.open_shift(_as_int(payload, "station_id"),
+                                         _as_int(payload, "employee_id"))
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def shift_meters(shift_id: int) -> Dict[str, Any]:
@@ -177,10 +180,13 @@ class PecoController:
         missing = _require(payload, "shift_id", "nozzle_id", "meter_close")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return PecoStore.save_meter_close(
-            int(payload["shift_id"]), int(payload["nozzle_id"]),
-            float(payload["meter_close"]),
-        )
+        try:
+            return PecoStore.save_meter_close(
+                _as_int(payload, "shift_id"), _as_int(payload, "nozzle_id"),
+                _as_float(payload, "meter_close"),
+            )
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def shift_close(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -191,12 +197,27 @@ class PecoController:
         missing = _require(payload, "shift_id", "employee_id", "cash_declared")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_shift.close_shift(
-            int(payload["shift_id"]),
-            employee_id=int(payload["employee_id"]),
-            cash_declared=float(payload["cash_declared"]),
-            dips={int(k): float(v) for k, v in (payload.get("dips") or {}).items()},
-        )
+        try:
+            raw_dips = payload.get("dips") or {}
+            if not isinstance(raw_dips, dict):
+                return {"success": False, "error": "Некорректное значение поля: dips"}
+            dips: Dict[int, float] = {}
+            for key, value in raw_dips.items():
+                try:
+                    tank = _as_int({"tank_id": key}, "tank_id")
+                    litres = _as_float({"dip": value}, "dip")
+                except PecoInputError:
+                    return {"success": False, "error": "Некорректное значение поля: dips"}
+                dips[tank] = litres
+
+            return peco_shift.close_shift(
+                _as_int(payload, "shift_id"),
+                employee_id=_as_int(payload, "employee_id"),
+                cash_declared=_as_float(payload, "cash_declared"),
+                dips=dips,
+            )
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def shift_approve(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -207,10 +228,13 @@ class PecoController:
         missing = _require(payload, "shift_id", "manager_id", "pin")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_shift.approve_disputed(
-            int(payload["shift_id"]), int(payload["manager_id"]),
-            str(payload["pin"]),
-        )
+        try:
+            return peco_shift.approve_disputed(
+                _as_int(payload, "shift_id"), _as_int(payload, "manager_id"),
+                str(payload["pin"]),
+            )
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     # ---------------- склад ----------------
 
