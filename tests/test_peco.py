@@ -865,9 +865,10 @@ def test_authorize_uses_current_price_and_opens_at_authorized():
     with patch("models.peco_txn.PecoStore") as store:
         store.current_price.return_value = {"success": True, "price": 23.90}
         store.insert_txn.return_value = {"success": True, "txn_id": 500}
+        store.log_event.return_value = {"success": True}
         r = peco_txn.authorize(shift_id=77, nozzle_id=3, grade_code="A95",
                                station_id=1, meter_start=1000.0,
-                               is_self_service=True)
+                               is_self_service=True, mia_ref="MIA-1")
     assert r["success"] is True and r["txn_id"] == 500
     assert store.insert_txn.call_args.kwargs["price"] == 23.90
 
