@@ -600,6 +600,7 @@ class PecoStore:
 
     @staticmethod
     def update_txn_status(txn_id: int, status: str,
+                          expected_status: Optional[str] = None,
                           **fields: Any) -> Dict[str, Any]:
         """Обновляет статус и переданные поля.
 
@@ -607,7 +608,19 @@ class PecoStore:
         в SQL не попадает ничего из внешнего ввода. Вызывающая сторона —
         только код этого модуля (peco_txn.py передаёт заранее известные
         ключи), но белый список остаётся обязательным барьером на случай,
-        если в будущем сюда прокинут словарь из запроса.
+        если в будущем сюда прокинут словарь из запроса. Неизвестный ключ —
+        это опечатка вызывающего (например, pay_metod вместо pay_method),
+        и она обязана падать явной ошибкой, а не молча терять поле.
+
+        `expected_status`, если передан, обязан попасть в WHERE, а не
+        проверяться отдельным чтением в Python до этого вызова: peco_txn.py
+        читает текущий статус через get_txn на одном соединении, а этот
+        UPDATE выполняется на другом — между ними есть окно, в котором
+        второй оператор (например, кассир вместо того, кто аннулирует)
+        успевает провести свой переход первым. Проверка в Python этого
+        не видит и просто перезаписывает уже оплаченную строку. Условие в
+        WHERE делает гонку невозможной: если статус успел измениться,
+        обновится ноль строк, и это будет замечено проверкой rowcount ниже.
         """
         allowed = {"liters", "amount", "pay_method", "mia_ref", "meter_end"}
         sets = ["STATUS_CODE = :status"]
@@ -615,33 +628,50 @@ class PecoStore:
 
         for key, value in fields.items():
             if key not in allowed:
-                continue
+                raise ValueError(
+                    f"update_txn_status: неизвестное поле {key!r}")
             sets.append(f"{key.upper()} = :{key}")
             params[key] = value
 
         if status == "PAID":
             sets.append("PAID_AT = SYSTIMESTAMP")
 
+        where = "WHERE ID = :txn_id"
+        if expected_status is not None:
+            where += " AND STATUS_CODE = :expected_status"
+            params["expected_status"] = expected_status
+
         try:
             with DatabaseModel() as db:
                 r = _run(db,
-                    f"UPDATE PECO_TXN SET {', '.join(sets)} WHERE ID = :txn_id",
+                    f"UPDATE PECO_TXN SET {', '.join(sets)} {where}",
                     params,
                 )
-                # rowcount == 0 значит, что транзакции с таким ID нет: без
-                # этой проверки авторизация/оплата/аннулирование молча
-                # "проходят", хотя ни одна строка не изменилась — тот же
-                # класс ошибки, что уже находили в save_tank_close и
+                # rowcount == 0 значит либо что транзакции с таким ID нет,
+                # либо (когда передан expected_status) что статус успел
+                # измениться другим оператором между чтением и записью —
+                # тот же класс ошибки, что уже находили в save_tank_close и
                 # mark_shift_closing.
                 if r.get("rowcount", 0) == 0:
+                    if expected_status is not None:
+                        return {"success": False,
+                                "error": "Статус транзакции изменился "
+                                         "другим оператором"}
                     return {"success": False,
                             "error": "Транзакция не найдена"}
-                # тотализатор пистолета двигается вместе с завершённым наливом
+                # тотализатор пистолета двигается вместе с завершённым наливом.
+                # METER_TOTAL <= :meter_end не даёт счётчику уехать назад:
+                # с него берётся показание открытия следующей смены, и
+                # откат сломал бы meter_delta и этой, и следующей смены.
+                # Ноль строк здесь — ожидаемый отказ сдвинуть счётчик назад,
+                # а не ошибка: транзакция с нулевыми литрами уже сохранена
+                # выше, откат счётчика лишь не проводится.
                 if "meter_end" in params and params["meter_end"] is not None:
                     _run(db,
                         """UPDATE PECO_NOZZLES SET METER_TOTAL = :meter_end
                             WHERE ID = (SELECT NOZZLE_ID FROM PECO_TXN
-                                         WHERE ID = :txn_id)""",
+                                         WHERE ID = :txn_id)
+                              AND METER_TOTAL <= :meter_end""",
                         {"meter_end": params["meter_end"], "txn_id": txn_id},
                     )
                 db.connection.commit()
