@@ -950,6 +950,8 @@ git commit -m "PECO: store — справочники, мастер-данные
   - `PecoStore.open_shift(station_id: int, employee_id: int) -> dict` → `{"success": True, "shift_id": int}`
   - `PecoStore.get_open_shift(station_id: int) -> dict` → `{"success": bool, "shift": dict}`
   - `PecoStore.get_shift_meters(shift_id: int) -> dict` → `{"success": True, "items": [...]}` with keys `nozzle_id`, `meter_open`, `meter_close`
+  - `PecoStore.get_shift_tanks(shift_id: int) -> dict` → `{"success": True, "items": [...]}` with keys `tank_id`, `grade_code`, `volume_open_l`, `delivered_l`, `dip_close_l`
+  - `PecoStore.save_tank_close(shift_id: int, tank_id: int, dip_close_l: float, tank_variance: float | None) -> dict`
   - `PecoStore.save_meter_close(shift_id: int, nozzle_id: int, meter_close: float) -> dict`
   - `PecoStore.shift_paid_liters(shift_id: int) -> dict` → `{"success": True, "liters": float, "cash": float, "mia": float}`
   - `PecoStore.count_unresolved_txn(shift_id: int) -> dict` → `{"success": True, "count": int}`
