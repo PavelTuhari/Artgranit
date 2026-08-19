@@ -1022,23 +1022,18 @@ Add inside `class PecoStore`, after `set_price`:
         """
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                db.execute_query(
                     """INSERT INTO PECO_SHIFTS
                               (ID, STATION_ID, STATUS_CODE, OPENED_BY)
                        VALUES (PECO_SHIFTS_SEQ.NEXTVAL, :station_id, 'OPEN',
-                               :employee_id)
-                       RETURNING ID INTO :new_id""",
+                               :employee_id)""",
                     {"station_id": station_id, "employee_id": employee_id},
+                )
+                r = db.execute_query(
+                    "SELECT PECO_SHIFTS_SEQ.CURRVAL AS ID FROM dual"
                 )
                 rows = _norm_rows(r)
                 shift_id = int(rows[0]["id"]) if rows else None
-                if shift_id is None:
-                    r2 = db.execute_query(
-                        """SELECT MAX(ID) AS ID FROM PECO_SHIFTS
-                            WHERE STATION_ID = :station_id""",
-                        {"station_id": station_id},
-                    )
-                    shift_id = int(_norm_rows(r2)[0]["id"])
 
                 db.execute_query(
                     """INSERT INTO PECO_SHIFT_METERS
