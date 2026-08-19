@@ -296,7 +296,7 @@ class PecoStore:
         """Записывает замер на закрытие и расхождение по конкретному резервуару."""
         try:
             with DatabaseModel() as db:
-                _run(db,
+                r = _run(db,
                     """UPDATE PECO_SHIFT_TANKS
                           SET DIP_CLOSE_L   = :dip_close_l,
                               TANK_VARIANCE = :tank_variance
@@ -304,6 +304,36 @@ class PecoStore:
                     {"shift_id": shift_id, "tank_id": tank_id,
                      "dip_close_l": dip_close_l, "tank_variance": tank_variance},
                 )
+                # rowcount == 0 значит, что для этой пары (SHIFT_ID, TANK_ID)
+                # нет строки в PECO_SHIFT_TANKS: UPDATE ничего не задел, но
+                # execute_query всё равно вернул success. Без этой проверки
+                # расхождение по резервуару молча исчезает без единой ошибки.
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Нет строки реестра резервуара для этой смены"}
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def mark_shift_closing(shift_id: int) -> Dict[str, Any]:
+        """Переводит смену в CLOSING перед записью замеров.
+
+        Между началом закрытия и finalize_shift смена не должна выглядеть
+        обычной открытой: иначе после сбоя в реестре резервуаров окажется
+        замер на закрытие, а колонки продолжат отпускать топливо.
+        """
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """UPDATE PECO_SHIFTS SET STATUS_CODE = 'CLOSING'
+                        WHERE ID = :shift_id AND STATUS_CODE = 'OPEN'""",
+                    {"shift_id": shift_id},
+                )
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Смена не в статусе OPEN"}
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
