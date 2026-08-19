@@ -111,7 +111,9 @@ CREATE TABLE PECO_SHIFT_TANKS (
 CREATE INDEX IX_PECO_TXN_SHIFT       ON PECO_TXN (SHIFT_ID, STATUS_CODE);
 CREATE INDEX IX_PECO_TXN_NOZZLE      ON PECO_TXN (NOZZLE_ID);
 CREATE INDEX IX_PECO_SHIFTS_ST       ON PECO_SHIFTS (STATION_ID, STATUS_CODE);
-CREATE INDEX IX_PECO_SHIFT_TANKS_SH  ON PECO_SHIFT_TANKS (SHIFT_ID);
+-- IX_PECO_SHIFT_TANKS_SH намеренно не создаётся: UQ_PECO_SHIFT_TANKS
+-- (SHIFT_ID, TANK_ID) уже даёт индекс с SHIFT_ID первым столбцом, второй
+-- индекс с тем же ведущим столбцом был чистым дублированием.
 
 -- Не более одной активной (OPEN или CLOSING) смены на станцию.
 -- Функциональный индекс: для смен в статусах, отличных от OPEN/CLOSING, выражение
