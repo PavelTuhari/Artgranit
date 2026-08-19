@@ -60,3 +60,49 @@ def test_store_never_raises_on_db_error():
     with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
         r = PecoStore.list_stations()
     assert r["success"] is False and "ORA-12541" in r["error"]
+
+
+def _failing_db(message="ORA-00001: unique constraint violated"):
+    """db, чей execute_query сообщает об ошибке флагом, а не исключением —
+    именно так ведёт себя models.database.execute_query."""
+    db = MagicMock()
+    db.execute_query.return_value = {"success": False, "message": message,
+                                     "columns": [], "data": [], "rowcount": 0}
+    cm = MagicMock()
+    cm.__enter__.return_value = db
+    cm.__exit__.return_value = False
+    return cm, db
+
+
+def test_set_price_does_not_commit_when_sql_fails():
+    """Неудавшийся UPDATE не должен доезжать до commit и возвращать success."""
+    cm, db = _failing_db()
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.set_price(1, "A95", 24.50)
+    assert r["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_log_event_reports_sql_failure():
+    cm, db = _failing_db()
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.log_event("TEST", station_id=1)
+    assert r["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_reads_report_failure_instead_of_empty_list():
+    """Сломанный SELECT — это ошибка, а не 'данных нет'."""
+    cm, _ = _failing_db("ORA-00942: table or view does not exist")
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        assert PecoStore.list_grades()["success"] is False
+        assert PecoStore.list_stations()["success"] is False
+        assert PecoStore.list_nozzles(1)["success"] is False
+
+
+def test_current_price_failure_is_not_reported_as_missing_price():
+    cm, _ = _failing_db("ORA-00942: table or view does not exist")
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.current_price(1, "A95")
+    assert r["success"] is False
+    assert "действующей цены" not in r.get("error", "")
