@@ -1,7 +1,8 @@
 """Контроллер модуля PECO — розничная продажа топлива в сети АЗС.
 
 Спецификация: docs/superpowers/specs/2026-08-19-peco-fuel-retail-design.md
-Oracle-объекты: префикс PECO_ (sql/100_peco_tables.sql ... 104_peco_demo_data.sql).
+Oracle-объекты: префикс PECO_ (sql/100_peco_tables.sql ... 104_peco_ref_data.sql;
+демо-станция sql/105_peco_demo_station.sql — отдельно, не для production).
 
 Слой отвечает только за приём запроса, проверку полей и формирование
 ответа. Бизнес-правила живут в models/peco_shift.py, models/peco_txn.py
