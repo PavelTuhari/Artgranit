@@ -8913,9 +8913,13 @@ def peco_admin():
 @app.route('/UNA.md/orasldev/docs/peco/')
 def peco_tz():
     """Страница технического задания PECO с кнопками входа в интерфейсы."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    p = Path(os.path.dirname(os.path.abspath(__file__))) / 'docs' / 'PECO' / 'TZ.html'
+    if not p.is_file():
+        return "<h1>Не найдено</h1><p><a href='/UNA.md/orasldev/docs'>Назад</a></p>", 404
     from flask import send_file
-    return send_file(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                  'docs', 'PECO', 'TZ.html'))
+    return send_file(str(p))
 
 
 # ---------- PECO API ----------
