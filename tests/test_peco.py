@@ -672,6 +672,61 @@ def test_mark_shift_closing_rejects_an_already_closed_shift():
     assert r["success"] is False
 
 
+# ------------------------------------------------------------------
+# Final review fix: measured dip must correct the register (Critical 2)
+# ------------------------------------------------------------------
+
+
+def test_save_tank_close_writes_current_l_and_dip_row_in_one_transaction():
+    """Замер на закрытие обязан переписывать PECO_TANKS.CURRENT_L и
+    оставлять след в PECO_TANK_DIPS в ТОЙ ЖЕ транзакции, что и реестр
+    смены. Иначе один неучтённый слив «утекает» заново на каждой
+    следующей смене, и DISPUTED перестаёт что-либо значить."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.save_tank_close(77, 11, 15800.0, -200.0, employee_id=5)
+    assert r["success"] is True
+    statements = [c[0][0] for c in db.execute_query.call_args_list]
+    assert any("UPDATE PECO_TANKS" in s and "CURRENT_L" in s for s in statements)
+    assert any("INSERT INTO PECO_TANK_DIPS" in s and "'CLOSE'" in s
+              for s in statements)
+    db.connection.commit.assert_called_once()
+
+
+# ------------------------------------------------------------------
+# Final review fix: save_meter_close guards (Critical 5)
+# ------------------------------------------------------------------
+
+
+def test_save_meter_close_refuses_a_nozzle_outside_the_shift():
+    """Ноль строк по (SHIFT_ID, NOZZLE_ID) — это либо чужой пистолет, либо
+    уже закрытая смена. Ни то, ни другое не должно тихо вернуть success,
+    иначе первый UPDATE открывает путь второму — station-scoped, но не
+    существующему для этой смены — перезаписать чужой тотализатор."""
+    cm, db = _rowcount_db(0)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.save_meter_close(12, 900, 5000.0)
+    assert r["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_save_meter_close_nozzle_update_is_station_scoped_and_forward_only():
+    """Второй UPDATE обязан быть ограничен станцией этой смены и не давать
+    тотализатору идти назад — без этого запрос с чужим nozzle_id молча
+    перезаписывает тотализатор ЧУЖОЙ станции."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.save_meter_close(12, 3, 5000.0)
+    assert r["success"] is True
+    statements = [c[0][0] for c in db.execute_query.call_args_list]
+    nozzle_sql = next(s for s in statements if "UPDATE PECO_NOZZLES" in s)
+    assert "STATION_ID = (SELECT STATION_ID FROM PECO_SHIFTS" in nozzle_sql
+    assert "METER_TOTAL <= :meter_close" in nozzle_sql
+    shift_sql = next(s for s in statements if "UPDATE PECO_SHIFT_METERS" in s)
+    assert "STATUS_CODE IN ('OPEN','CLOSING')" in shift_sql
+    db.connection.commit.assert_called_once()
+
+
 def test_hash_pin_is_stable_for_the_same_salt():
     salt = "a" * 32
     h = peco_shift.hash_pin("1234", salt)
