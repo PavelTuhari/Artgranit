@@ -16,6 +16,8 @@ from __future__ import annotations
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, Optional, Set
 
+from models.peco_oracle_store import PecoStore
+
 TRANSITIONS: Dict[str, Set[str]] = {
     "AUTHORIZED":   {"DISPENSING", "VOIDED"},
     "DISPENSING":   {"AWAITING_PAY", "PAID", "VOIDED"},
