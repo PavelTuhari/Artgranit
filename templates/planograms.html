@@ -3574,6 +3574,386 @@ async function deleteChain(id) {
     if (r.success) loadMarkets();
 }
 
+// ==================== Автозаказ топлива ====================
+//
+// Карта построена на Leaflet по образцу исходника заказчика
+// (erp1.eu/govRM/maps4 romania vot md.html): перетаскивание маркера
+// в режиме правки и поиск по адресу через Nominatim. Отличие одно,
+// но принципиальное — координаты не скачиваются файлом, а сразу
+// сохраняются в Oracle: файл с координатами через неделю расходится
+// с базой, и никто не помнит, какая версия правильная.
+
+let FUEL_MAP = null, FUEL_LAYER = null, FUEL_EDIT = false;
+let FUEL_STATIONS = [], FUEL_DEPOTS = [], FUEL_SEL = null;
+
+const FUEL_ORDER_PILL = {draft: 'mute', approved: 'info', planned: 'warn',
+                         delivered: 'ok', cancelled: 'mute'};
+const TRIP_PILL = {planned: 'mute', loading: 'info', en_route: 'warn',
+                   done: 'ok', cancelled: 'mute'};
+
+function dryColor(days) {
+    if (days === null || days === undefined) return '#64748b';
+    if (days < 1) return '#ef4444';
+    if (days < 3) return '#f59e0b';
+    if (days < 7) return '#eab308';
+    return '#22c55e';
+}
+
+async function loadFuel() {
+    fillFuelFilter();
+    const [st, orders, depot, trips, gps] = await Promise.all([
+        api('/fuel/stations'),
+        api('/fuel/orders' + (document.getElementById('fuelStatusFilter')?.value
+            ? '?status=' + document.getElementById('fuelStatusFilter').value : '')),
+        api('/fuel/depot'),
+        api('/fuel/trips'),
+        api('/fuel/gps/events'),
+    ]);
+    if (st.success) { FUEL_STATIONS = st.data || []; FUEL_DEPOTS = st.depots || [];
+                      drawFuelMap(st); }
+    if (orders.success) renderFuelOrders(orders.data || []);
+    if (depot.success) renderFuelDepot(depot);
+    if (trips.success) renderFuelTrips(trips.data || []);
+    if (gps.success) renderFuelGps(gps.data || []);
+    renderFuelStats(orders, trips, gps);
+}
+
+function fillFuelFilter() {
+    const sel = document.getElementById('fuelStatusFilter');
+    if (!sel || sel.dataset.filled) return;
+    sel.innerHTML = `<option value="">${esc(t('ui.all'))}</option>` +
+        ['draft', 'approved', 'planned', 'delivered'].map(s =>
+            `<option value="${s}">${esc(t('fu.s.' + s, s))}</option>`).join('');
+    sel.dataset.filled = '1';
+}
+
+function renderFuelStats(orders, trips, gps) {
+    const rows = (orders && orders.data) || [];
+    const liters = rows.reduce((a, b) => a + Number(b.liters_total || 0), 0);
+    const dry = rows.reduce((a, b) => a + Number(b.dry_risk_count || 0), 0);
+    const noGeo = FUEL_STATIONS.filter(s => !Number(s.has_geo)).length;
+    const active = ((trips && trips.data) || []).filter(x =>
+        ['planned', 'loading', 'en_route'].includes(x.status)).length;
+    const alerts = ((gps && gps.data) || []).length;
+    document.getElementById('fuelStats').innerHTML =
+        `<div class="stat"><div class="lb">${esc(t('fu.toDeliver'))}</div>
+            <div class="vl">${num(Math.round(liters))}</div>
+            <div class="sb">${esc(t('fu.liters'))} · ${rows.length} ${esc(t('fu.orders'))}</div></div>
+         <div class="stat ${dry ? 'r' : 'g'}"><div class="lb">${esc(t('fu.dryRisk'))}</div>
+            <div class="vl">${num(dry)}</div><div class="sb">${esc(t('fu.tanks'))}</div></div>
+         <div class="stat ${active ? 'w' : ''}"><div class="lb">${esc(t('fu.activeTrips'))}</div>
+            <div class="vl">${num(active)}</div><div class="sb">${esc(t('fu.trucks'))}</div></div>
+         <div class="stat ${alerts ? 'r' : 'g'}"><div class="lb">${esc(t('fu.gpsAlerts'))}</div>
+            <div class="vl">${num(alerts)}</div>
+            <div class="sb">${noGeo ? esc(t('fu.noGeo')) + ': ' + noGeo : '—'}</div></div>`;
+}
+
+function drawFuelMap(res) {
+    const host = document.getElementById('fuelMap');
+    if (!host || typeof L === 'undefined') return;
+    if (!FUEL_MAP) {
+        FUEL_MAP = L.map('fuelMap').setView([47.0, 28.6], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18, attribution: '© OpenStreetMap'
+        }).addTo(FUEL_MAP);
+        FUEL_LAYER = L.layerGroup().addTo(FUEL_MAP);
+    }
+    FUEL_LAYER.clearLayers();
+
+    (res.depots || []).forEach(d => {
+        if (d.lat === null || d.lon === null) return;
+        L.marker([d.lat, d.lon], {icon: L.divIcon({className: 'fuel-pin depot',
+            html: '<i style="background:#8b5cf6"></i>', iconSize: [18, 18], iconAnchor: [9, 9]})})
+            .bindPopup(`<b>${esc(d.name)}</b><br>${esc(d.address || '')}<br>
+                ${esc(t('fu.bays'))}: ${d.load_bays}`).addTo(FUEL_LAYER);
+    });
+
+    (res.data || []).forEach(s => {
+        if (s.lat === null || s.lon === null) return;
+        const color = dryColor(s.min_days_to_dry);
+        const m = L.marker([s.lat, s.lon], {
+            draggable: FUEL_EDIT,
+            icon: L.divIcon({className: 'fuel-pin',
+                html: `<i style="background:${color}"></i>`,
+                iconSize: [14, 14], iconAnchor: [7, 7]})
+        }).addTo(FUEL_LAYER);
+        m.bindPopup(`<b>${esc(s.station_name)}</b><br>${esc(s.address || '')}<br>
+            ${esc(t('fu.minCover'))}: <b>${s.min_days_to_dry ?? '—'}</b> ${esc(t('fr.days'))}<br>
+            ${esc(t('fu.dailyRate'))}: ${num(Math.round(s.daily_rate_l))} ${esc(t('fu.lPerDay'))}<br>
+            ${esc(t('fu.ullage'))}: ${num(Math.round(s.ullage_l))} ${esc(t('fu.liters'))}`);
+        m.on('click', () => {
+            FUEL_SEL = s;
+            document.getElementById('fuelMapInfo').textContent =
+                `${s.station_code} · ${s.station_name} · ${s.lat}, ${s.lon}`;
+            document.getElementById('fuelAddr').value = s.address || '';
+        });
+        m.on('dragend', async ev => {
+            const c = ev.target.getLatLng();
+            const r = await api('/fuel/stations/' + s.station_id + '/geo', 'PUT',
+                {lat: c.lat, lon: c.lng, source: 'manual'});
+            if (!r.success) { toast(r.error, true); loadFuel(); return; }
+            s.lat = r.lat; s.lon = r.lon;
+            toast(t('fu.geoSaved') + ': ' + s.station_code);
+            document.getElementById('fuelMapInfo').textContent =
+                `${s.station_code} · ${s.station_name} · ${r.lat}, ${r.lon}`;
+        });
+    });
+
+    document.getElementById('fuelLegend').innerHTML =
+        [['#ef4444', 'fu.l1'], ['#f59e0b', 'fu.l3'], ['#eab308', 'fu.l7'],
+         ['#22c55e', 'fu.l7p'], ['#8b5cf6', 'fu.depot']]
+        .map(([c, k]) => `<span><b style="background:${c}"></b>${esc(t(k))}</span>`).join('');
+}
+
+function toggleFuelEdit() {
+    FUEL_EDIT = !FUEL_EDIT;
+    document.getElementById('fuelEditBtn').classList.toggle('btn-primary', FUEL_EDIT);
+    drawFuelMap({data: FUEL_STATIONS, depots: FUEL_DEPOTS});
+    toast(FUEL_EDIT ? t('fu.editOn') : t('fu.editOff'));
+}
+
+async function geocodeFuelStation() {
+    const q = (document.getElementById('fuelAddr').value || '').trim();
+    if (!q) { toast(t('fu.needAddr'), true); return; }
+    if (!FUEL_SEL) { toast(t('fu.pickStation'), true); return; }
+    try {
+        // Nominatim — тот же геокодер, что в исходнике заказчика.
+        // Запрос уточняется страной: «ул. Ленина 3» есть в десятке стран.
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' +
+                    encodeURIComponent(q + ', Moldova');
+        const data = await (await fetch(url)).json();
+        if (!data || !data.length) { toast(t('fu.notFound'), true); return; }
+        const r = await api('/fuel/stations/' + FUEL_SEL.station_id + '/geo', 'PUT',
+            {lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), source: 'geocode'});
+        if (!r.success) { toast(r.error, true); return; }
+        toast(t('fu.geoSaved') + ': ' + FUEL_SEL.station_code);
+        await loadFuel();
+        FUEL_MAP.setView([r.lat, r.lon], 15);
+    } catch (e) {
+        toast(t('fu.geoError'), true);
+    }
+}
+
+function renderFuelOrders(rows) {
+    document.getElementById('fuelOrdersTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fo.number'))}</th><th>${esc(t('fu.station'))}</th>
+        <th>${esc(t('fu.source'))}</th><th>${esc(t('fu.grades'))}</th>
+        <th class="num">${esc(t('fu.liters'))}</th><th class="num">${esc(t('fu.minCover'))}</th>
+        <th>${esc(t('plg.status'))}</th><th>${esc(t('fu.trip'))}</th><th></th>
+        </tr></thead><tbody>` +
+        (rows.length ? rows.slice(0, 120).map(o => `<tr ${Number(o.dry_risk_count) ? 'style="background:rgba(239,68,68,.07)"' : ''}>
+            <td class="mono">${esc(o.order_no)}</td>
+            <td><b>${esc(o.station_name)}</b><div class="muted small">${esc(o.region || '')}</div></td>
+            <td><span class="pill ${Number(o.is_import) ? 'warn' : 'mute'}">${esc(o.source_name)}</span></td>
+            <td>${(o.items || []).map(i =>
+                `<span class="pill mute" style="border-color:${i.grade_color}">${esc(i.grade_code)} ${num(i.liters_order)}</span>`).join(' ')}</td>
+            <td class="num"><b>${num(o.liters_total)}</b></td>
+            <td class="num ${Number(o.min_days_to_dry) < 1 ? 'bad' : ''}">${o.min_days_to_dry ?? '—'}</td>
+            <td><span class="pill ${FUEL_ORDER_PILL[o.status] || 'mute'}">${esc(o.status_name)}</span></td>
+            <td class="muted mono">${esc(o.trip_no || '—')}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-ghost btn-sm" onclick="openFuelOrder(${o.id})">👁</button>
+                ${o.status === 'draft' ? `<button class="btn btn-ghost btn-sm"
+                    onclick="setFuelOrderStatus(${o.id},'approved')">✓</button>` : ''}
+            </td></tr>`).join('') :
+            `<tr><td colspan="9" class="muted">${esc(t('fu.noOrders'))}</td></tr>`) + '</tbody>';
+}
+
+async function openFuelOrder(id) {
+    const r = await api('/fuel/orders');
+    const o = (r.data || []).find(x => x.id === id);
+    if (!o) return;
+    const rows = (o.items || []).map(i => `<tr>
+        <td>${esc(i.tank_code)} <span class="pill mute" style="border-color:${i.grade_color}">${esc(i.grade_code)}</span></td>
+        <td class="num muted">${num(i.current_l)}</td>
+        <td class="num muted">${num(i.ullage_l)}</td>
+        <td class="num">${num(i.daily_rate_l)}</td>
+        <td class="num ${Number(i.days_to_dry) < 1 ? 'bad' : ''}">${i.days_to_dry ?? '—'}</td>
+        <td class="num muted">${num(i.liters_model)}</td>
+        <td class="num"><input class="ctl" style="width:88px;text-align:right" id="fi_${i.id}"
+            value="${i.liters_order}" onchange="adjustFuelItem(${i.id})"></td>
+        <td class="num">${i.cover_after_d ?? '—'}</td>
+    </tr>`).join('');
+    openModal(`
+        <h3>${esc(o.order_no)} — ${esc(o.station_name)}</h3>
+        <div class="muted small">${esc(o.source_name)} · ${esc(t('fu.needBy'))}: ${fmtDate(o.need_by)} ·
+            ${esc(o.status_name)}${o.trip_no ? ' · ' + esc(o.trip_no) : ''}</div>
+        <table class="tbl" style="margin-top:10px"><thead><tr>
+            <th>${esc(t('fu.tank'))}</th><th class="num">${esc(t('ord.stock'))}</th>
+            <th class="num">${esc(t('fu.ullage'))}</th><th class="num">${esc(t('fu.dailyRate'))}</th>
+            <th class="num">${esc(t('fu.toDry'))}</th><th class="num">${esc(t('ao.model'))}</th>
+            <th class="num">${esc(t('fu.toFill'))}</th><th class="num">${esc(t('fu.coverAfter'))}</th>
+        </tr></thead><tbody>${rows}</tbody></table>
+        <div class="muted small" style="margin-top:8px">${esc(t('fu.ullageHint'))}</div>
+        <div class="modal-f"><button class="btn btn-primary" onclick="closeModal()">${esc(t('ui.close'))}</button></div>`);
+}
+
+async function adjustFuelItem(itemId) {
+    const v = Number(document.getElementById('fi_' + itemId).value);
+    const r = await api('/fuel/orders/items/' + itemId, 'PUT', {liters: v, reason: 'manual'});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(t('ui.saved')); loadFuel();
+}
+
+async function setFuelOrderStatus(id, status) {
+    const r = await api('/fuel/orders/' + id + '/status', 'POST', {status});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(t('ui.saved')); loadFuel();
+}
+
+async function runFuelAutoorder() {
+    const r = await api('/fuel/autoorder', 'POST', {});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(`${t('fu.calculated')}: ${r.orders} · ${num(Math.round(r.liters))} ${t('fu.liters')}`);
+    loadFuel();
+}
+
+function openFuelParams() {
+    api('/fuel/params').then(r => {
+        const p = r.data || {};
+        openModal(`
+            <h3>${esc(t('fu.params'))}</h3>
+            <div class="frm">
+                <label>${esc(t('fu.p.maxFill'))}<input id="fpMaxFill" type="number" step="1" value="${p.max_fill_pct}"></label>
+                <label>${esc(t('fu.p.targetFill'))}<input id="fpTarget" type="number" step="1" value="${p.target_fill_pct}"></label>
+                <label>${esc(t('fu.p.trigger'))}<input id="fpTrigger" type="number" step="0.5" value="${p.trigger_days}"></label>
+                <label>${esc(t('fu.p.maxCover'))}<input id="fpMaxCover" type="number" step="1" value="${p.max_cover_days}"></label>
+                <label>${esc(t('fu.p.lead'))}<input id="fpLead" type="number" step="0.5" value="${p.lead_days}"></label>
+                <label>${esc(t('fu.p.service'))}<input id="fpService" type="number" step="0.5" value="${p.service_level}"></label>
+                <label>${esc(t('fu.p.minDrop'))}<input id="fpMinDrop" type="number" step="500" value="${p.min_drop_l}"></label>
+            </div>
+            <div class="muted small" style="margin-top:8px">${esc(t('fu.paramsHint'))}</div>
+            <div class="modal-f">
+                <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button>
+                <button class="btn btn-primary" onclick="runFuelWithParams()">${esc(t('fu.run'))}</button>
+            </div>`);
+    });
+}
+
+async function runFuelWithParams() {
+    const r = await api('/fuel/autoorder', 'POST', {
+        max_fill_pct: gn('fpMaxFill'), target_fill_pct: gn('fpTarget'),
+        trigger_days: gn('fpTrigger'), max_cover_days: gn('fpMaxCover'),
+        lead_days: gn('fpLead'), service_level: gn('fpService'),
+        min_drop_l: gn('fpMinDrop'),
+    });
+    if (!r.success) { toast(r.error, true); return; }
+    closeModal();
+    toast(`${t('fu.calculated')}: ${r.orders} · ${num(Math.round(r.liters))} ${t('fu.liters')}`);
+    loadFuel();
+}
+
+function renderFuelDepot(res) {
+    const rows = res.data || [];
+    document.getElementById('fuelDepotTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fu.grade'))}</th><th class="num">${esc(t('ord.stock'))}</th>
+        <th class="num">${esc(t('fu.fill'))}</th><th class="num">${esc(t('fu.netDaily'))}</th>
+        <th class="num">${esc(t('fu.coverNet'))}</th><th class="num">${esc(t('fu.deficit'))}</th>
+        <th>${esc(t('fu.importDue'))}</th></tr></thead><tbody>` +
+        (rows.length ? rows.map(d => `<tr>
+            <td><span class="pill mute" style="border-color:${d.grade_color}">${esc(d.grade_code)}</span>
+                <span class="muted">${esc(d.grade_name)}</span></td>
+            <td class="num">${num(Math.round(d.current_l))}</td>
+            <td class="num muted">${d.fill_pct}%</td>
+            <td class="num">${num(Math.round(d.net_daily_l))}</td>
+            <td class="num ${Number(d.days_cover_net) < 5 ? 'bad' : ''}">${d.days_cover_net ?? '—'}</td>
+            <td class="num">${num(Math.round(d.deficit_l))}</td>
+            <td>${Number(d.import_due)
+                ? `<span class="pill bad">${esc(t('fu.orderImport'))}</span>`
+                : `<span class="pill ok">${esc(t('fu.enough'))}</span>`}</td>
+        </tr>`).join('') : `<tr><td colspan="7" class="muted">${esc(t('ui.empty'))}</td></tr>`) +
+        '</tbody>';
+}
+
+function renderFuelTrips(rows) {
+    document.getElementById('fuelTripsTbl').innerHTML = `
+        <thead><tr><th>${esc(t('fu.trip'))}</th><th>${esc(t('fu.truck'))}</th>
+        <th>${esc(t('fu.driver'))}</th><th class="num">${esc(t('fu.load'))}</th>
+        <th class="num">${esc(t('fu.stops'))}</th><th>${esc(t('plg.status'))}</th>
+        <th>${esc(t('fu.lastPing'))}</th><th></th></tr></thead><tbody>` +
+        (rows.length ? rows.map(tr => `<tr>
+            <td class="mono">${esc(tr.trip_no)}</td>
+            <td>${esc(tr.plate_no)}<div class="muted small">${num(tr.truck_capacity_l)} ${esc(t('fu.liters'))} · ${tr.comp_count} ${esc(t('fu.comps'))}</div></td>
+            <td class="muted">${esc(tr.driver_name || '—')}</td>
+            <td class="num"><b>${num(Math.round(tr.liters_total))}</b>
+                <div class="muted small">${tr.load_pct ?? '—'}%</div></td>
+            <td class="num">${num(tr.stops_count)}</td>
+            <td><span class="pill ${TRIP_PILL[tr.status] || 'mute'}">${esc(t('fu.t.' + tr.status, tr.status))}</span>
+                ${Number(tr.alert_count) ? `<span class="pill bad">${tr.alert_count}</span>` : ''}</td>
+            <td class="muted">${tr.last_ping_at ? fmtTs(tr.last_ping_at) : '—'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openFuelTrip(${tr.id})">👁</button></td>
+        </tr>`).join('') : `<tr><td colspan="8" class="muted">${esc(t('fu.noTrips'))}</td></tr>`) +
+        '</tbody>';
+}
+
+async function openFuelTrip(id) {
+    const [r, tr] = await Promise.all([api('/fuel/trips'), api('/fuel/trips/' + id + '/track')]);
+    const trip = (r.data || []).find(x => x.id === id);
+    if (!trip) return;
+    const stops = (trip.stops || []).map(s => `<tr>
+        <td>${s.stop_no}</td><td>${esc(s.station_name)}</td>
+        <td><span class="pill mute" style="border-color:${s.grade_color}">${esc(s.grade_code)}</span></td>
+        <td class="num">${esc(t('fu.comp'))} ${s.comp_no} · ${num(s.comp_volume_l)}</td>
+        <td class="num">${num(s.liters_plan)}</td>
+        <td class="muted">${fmtTs(s.plan_arrive)}</td></tr>`).join('');
+    const evs = ((tr.events) || []).map(e => `<tr>
+        <td><span class="pill ${e.severity === 'crit' ? 'bad' : 'warn'}">${esc(t('fu.e.' + e.event_type, e.event_type))}</span></td>
+        <td>${esc(e.message_ru)}</td><td class="muted">${fmtTs(e.ts)}</td></tr>`).join('');
+    openModal(`
+        <h3>${esc(trip.trip_no)} — ${esc(trip.plate_no)}</h3>
+        <div class="muted small">${esc(trip.depot_name)} · ${num(Math.round(trip.liters_total))} ${esc(t('fu.liters'))} ·
+            ${esc(t('fu.load'))} ${trip.load_pct ?? '—'}% · ${esc(t('fu.points'))}: ${(tr.points || []).length}</div>
+        <h3 style="margin-top:12px">${esc(t('fu.stopsTitle'))}</h3>
+        <table class="tbl"><thead><tr><th>#</th><th>${esc(t('fu.station'))}</th>
+            <th>${esc(t('fu.grade'))}</th><th>${esc(t('fu.comp'))}</th>
+            <th class="num">${esc(t('fu.liters'))}</th><th>${esc(t('fu.eta'))}</th></tr></thead>
+        <tbody>${stops || `<tr><td colspan="6" class="muted">${esc(t('ui.empty'))}</td></tr>`}</tbody></table>
+        ${evs ? `<h3 style="margin-top:12px">${esc(t('fu.gpsTitle'))}</h3>
+        <table class="tbl"><tbody>${evs}</tbody></table>` : ''}
+        <div class="modal-f">
+            ${trip.status === 'planned' ? `<button class="btn btn-ghost"
+                onclick="setFuelTripStatus(${trip.id},'en_route')">${esc(t('fu.depart'))}</button>` : ''}
+            ${trip.status === 'en_route' ? `<button class="btn btn-ghost"
+                onclick="setFuelTripStatus(${trip.id},'done')">${esc(t('fu.finish'))}</button>` : ''}
+            <button class="btn btn-primary" onclick="closeModal()">${esc(t('ui.close'))}</button>
+        </div>`);
+}
+
+async function setFuelTripStatus(id, status) {
+    const r = await api('/fuel/trips/' + id + '/status', 'POST', {status});
+    if (!r.success) { toast(r.error, true); return; }
+    closeModal(); toast(t('ui.saved')); loadFuel();
+}
+
+async function planFuelTrips() {
+    const r = await api('/fuel/trips/plan', 'POST', {});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(`${t('fu.planned')}: ${r.trips} · ${esc(t('fu.stops'))} ${r.stops}`);
+    loadFuel();
+}
+
+async function analyzeFuelGps() {
+    const r = await api('/fuel/gps/analyze', 'POST', {});
+    if (!r.success) { toast(r.error, true); return; }
+    toast(`${t('fu.gpsAnalyzed')}: ${r.events}`);
+    loadFuel();
+}
+
+function renderFuelGps(rows) {
+    document.getElementById('fuelGpsTbl').innerHTML = `
+        <thead><tr><th>${esc(t('ai.type'))}</th><th>${esc(t('fu.truck'))}</th>
+        <th>${esc(t('fu.trip'))}</th><th>${esc(t('ai.message'))}</th>
+        <th>${esc(t('fo.created'))}</th></tr></thead><tbody>` +
+        (rows.length ? rows.map(e => `<tr>
+            <td><span class="pill ${e.severity === 'crit' ? 'bad' : 'warn'}">${esc(t('fu.e.' + e.event_type, e.event_type))}</span></td>
+            <td class="mono">${esc(e.plate_no)}</td>
+            <td class="mono muted">${esc(e.trip_no || '—')}</td>
+            <td>${esc(e.message)}</td>
+            <td class="muted">${fmtTs(e.ts)}</td>
+        </tr>`).join('') : `<tr><td colspan="5" class="muted">${esc(t('fu.noEvents'))}</td></tr>`) +
+        '</tbody>';
+}
+
 // ==================== ИИ-мониторинг продаж ====================
 
 const SIG_PILL = {crit: 'bad', warn: 'warn', info: 'info'};
