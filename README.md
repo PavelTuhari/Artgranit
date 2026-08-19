@@ -499,5 +499,5 @@ journalctl -u artgranit -n 100
 - Документация модуля: [docs/PECO/README.md](docs/PECO/README.md)
 - ТЗ: `/UNA.md/orasldev/docs/peco/TZ.html`
 - Интерфейсы: `/UNA.md/orasldev/peco-pump`, `peco-shift`, `peco-admin`
-- Oracle-объекты: префикс `PECO_` (`sql/100_peco_tables.sql` … `104_peco_demo_data.sql`), DDL ещё не выполнялся на живой базе — развернуть перед релизом через `python deploy_oracle_objects.py --only peco`
+- Oracle-объекты: префикс `PECO_` (`sql/100_peco_tables.sql` … `104_peco_ref_data.sql`), DDL ещё не выполнялся на живой базе — развернуть перед релизом через `python deploy_oracle_objects.py --only peco` (демо-станция `sql/105_peco_demo_station.sql` — отдельно и никогда на production, см. `docs/PECO/README.md`)
 - Тесты: `./venv/bin/python -m pytest tests/test_peco.py -v`
