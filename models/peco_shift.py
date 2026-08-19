@@ -344,7 +344,7 @@ def hash_pin(pin: str, salt: str) -> str:
         "sha256", str(pin).encode("utf-8"), str(salt).encode("utf-8"),
         _PIN_ITERATIONS,
     )
-    return dk.hex()[:64]
+    return dk.hex()
 
 
 def verify_pin(pin: str, salt: str, expected_hash: str) -> bool:
