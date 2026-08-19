@@ -238,7 +238,9 @@ button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
 <script>
 var stations = [];
 var lowTanks = [];
-var priceCache = {}; // "stationId|gradeCode" -> last price we successfully applied this session
+var stationPrices = {}; // grade_code -> price, для СЕЙЧАС выбранной станции
+var pricesLoaded = false;
+var pricesError = null;
 var stSort = {key: 'code', dir: 1};
 var lowSort = {key: 'station_name', dir: 1};
 
