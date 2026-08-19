@@ -112,7 +112,8 @@ Append inside `class PecoStore` in `models/peco_oracle_store.py`:
         try:
             with DatabaseModel() as db:
                 r = db.execute_query(
-                    """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE, PIN_HASH
+                    """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE,
+                              PIN_SALT, PIN_HASH
                          FROM PECO_EMPLOYEES
                         WHERE ID = :employee_id AND ACTIVE = 1""",
                     {"employee_id": employee_id},
