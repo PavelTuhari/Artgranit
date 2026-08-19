@@ -449,11 +449,12 @@ class PecoStore:
 
     @staticmethod
     def get_employee(employee_id: int) -> Dict[str, Any]:
+        """Публичные данные сотрудника. PIN_SALT и PIN_HASH сюда не входят —
+        см. get_employee_credentials для пути, который их использует."""
         try:
             with DatabaseModel() as db:
-                r = _run(db, 
-                    """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE,
-                              PIN_SALT, PIN_HASH
+                r = _run(db,
+                    """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE
                          FROM PECO_EMPLOYEES
                         WHERE ID = :employee_id AND ACTIVE = 1""",
                     {"employee_id": employee_id},
@@ -466,16 +467,56 @@ class PecoStore:
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def approve_shift(shift_id: int, employee_id: int) -> Dict[str, Any]:
+    def get_employee_credentials(employee_id: int) -> Dict[str, Any]:
+        """Данные сотрудника вместе с PIN_SALT/PIN_HASH для проверки PIN.
+
+        Результат этого метода не должен сериализоваться и уходить клиенту
+        ни в каком виде — он только для сравнения хеша внутри approve_disputed.
+        """
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT ID, STATION_ID, ROLE_CODE, PIN_SALT, PIN_HASH
+                         FROM PECO_EMPLOYEES
+                        WHERE ID = :employee_id AND ACTIVE = 1""",
+                    {"employee_id": employee_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Сотрудник не найден"}
+                return {"success": True, "employee": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def approve_shift(shift_id: int, employee_id: int,
+                      station_id: Optional[int]) -> Dict[str, Any]:
         """Подтверждение расхождения менеджером. Статус остаётся DISPUTED —
         расхождение не стирается, оно принимается под ответственность."""
         try:
             with DatabaseModel() as db:
-                _run(db, 
+                # Все три условия авторизации — существование смены, статус
+                # DISPUTED и своя станция менеджера — намеренно живут в одном
+                # атомарном UPDATE, а не в отдельных проверках в Python до
+                # него. Проверка-потом-обновление оставила бы окно гонки
+                # между чтением и записью, и вдобавок разные ошибки на
+                # разных условиях сказали бы атакующему, какое из них не
+                # выполнено (существует ли смена, в каком она статусе, на
+                # какой станции). :station_id IS NULL пропускает проверку
+                # станции для ADMIN, у которого STATION_ID в БД NULL и кто
+                # действует по всей сети.
+                r = _run(db,
                     """UPDATE PECO_SHIFTS SET APPROVED_BY = :employee_id
-                        WHERE ID = :shift_id""",
-                    {"shift_id": shift_id, "employee_id": employee_id},
+                        WHERE ID = :shift_id
+                          AND STATUS_CODE = 'DISPUTED'
+                          AND (:station_id IS NULL OR STATION_ID = :station_id)""",
+                    {"shift_id": shift_id, "employee_id": employee_id,
+                     "station_id": station_id},
                 )
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Смена не найдена, не в статусе расхождения "
+                                     "или относится к другой станции"}
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
