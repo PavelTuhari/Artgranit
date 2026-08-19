@@ -9,7 +9,11 @@
                        v              v
                     VOIDED         VOIDED
 
-Функции этого модуля чистые: к базе не обращаются.
+Чистый конечный автомат (can_transition, next_status_after_dispense,
+liters_from_meter, compute_amount, validate_settlement) сосредоточен вверху
+этого файла и к базе не обращается. Ниже — оркестрация (authorize,
+start_dispense, finish_dispense, settle, void): она вызывает PecoStore и
+делает реальные запросы к Oracle.
 """
 from __future__ import annotations
 
