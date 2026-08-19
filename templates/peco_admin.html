@@ -578,8 +578,7 @@ function setPrice() {
     price: price
   }).then(function(r){
     if (r.success) {
-      priceCache[stationId + '|' + gradeCode] = price;
-      updatePricePreview();
+      loadStationPrices();
       say('priceMsg', 'Цена обновлена: с этого момента продажи ' + esc(gradeCode) +
           ' на станции идут по ' + fmt2(price) + ' лей/л', 'ok');
     } else {
@@ -588,7 +587,10 @@ function setPrice() {
   });
 }
 
-document.getElementById('stSel').addEventListener('change', updatePricePreview);
+document.getElementById('stSel').addEventListener('change', function(){
+  loadStationPrices();
+  loadStationTanks();
+});
 document.getElementById('grSel').addEventListener('change', updatePricePreview);
 document.getElementById('price').addEventListener('input', updateNewPricePreview);
 
@@ -596,7 +598,6 @@ wireSortableHeaders('stTbl', stSort, renderStations);
 wireSortableHeaders('lowTbl', lowSort, renderLowTanks);
 
 loadOverview();
-loadStationTanks();
 </script>
 </body>
 </html>
