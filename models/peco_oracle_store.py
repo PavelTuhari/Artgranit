@@ -127,7 +127,7 @@ class PecoStore:
                           AND VALID_TO IS NULL""",
                     params,
                 )
-                _run(db, 
+                _run(db,
                     """INSERT INTO PECO_PRICES
                               (ID, STATION_ID, GRADE_CODE, PRICE)
                        VALUES (PECO_PRICES_SEQ.NEXTVAL, :station_id,
