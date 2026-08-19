@@ -262,6 +262,10 @@ class PecoController:
     def tank_levels(station_id: int) -> Dict[str, Any]:
         return peco_inventory.tank_levels(station_id)
 
+    @staticmethod
+    def default_station_id() -> Dict[str, Any]:
+        return PecoStore.default_station_id()
+
     # ---------------- бэк-офис ----------------
 
     @staticmethod
