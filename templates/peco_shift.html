@@ -288,6 +288,26 @@ button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
     </div>
 
     <div id="ignoredNote"></div>
+
+    <div id="approveBlock" style="display:none;">
+      <div class="dispute-banner" style="border-color:var(--info);background:#eef4fd;margin-top:18px;">
+        <div class="ic">🔐</div>
+        <div>
+          <div class="t" style="color:#0d3e7a;">Требуется подтверждение менеджера</div>
+          <div class="d" style="color:#0d3e7a;">
+            Ввод PIN <strong>не обнуляет расхождение</strong> — смена останется в статусе
+            DISPUTED. PIN лишь фиксирует, кто из менеджеров принял это расхождение под
+            свою ответственность (в базе это поле APPROVED_BY).
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <div><label>ID менеджера</label><input id="apprMgrId" type="number"></div>
+        <div><label>PIN менеджера</label><input id="apprPin" type="password" autocomplete="off"></div>
+        <button class="ok" onclick="approveShift()">Подтвердить расхождение</button>
+      </div>
+      <div id="approveMsg"></div>
+    </div>
   </div>
 </div>
 
