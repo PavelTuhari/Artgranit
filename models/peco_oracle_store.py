@@ -114,6 +114,28 @@ class PecoStore:
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def list_prices(station_id: int) -> Dict[str, Any]:
+        """Действующие цены станции — по одной на вид топлива.
+
+        Отдельно от pump_state: там цены отдаются только при открытой смене,
+        а менеджер меняет цены и между сменами.
+        """
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT p.GRADE_CODE, p.PRICE, p.VALID_FROM,
+                              g.NAME AS GRADE_NAME
+                         FROM PECO_PRICES p
+                         JOIN PECO_REF_FUEL_GRADES g ON g.CODE = p.GRADE_CODE
+                        WHERE p.STATION_ID = :station_id
+                          AND p.VALID_TO IS NULL
+                        ORDER BY g.SORT_ORDER""",
+                    {"station_id": station_id})
+                return {"success": True, "items": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def set_price(station_id: int, grade_code: str, price: float) -> Dict[str, Any]:
         """Закрывает предыдущую цену и вставляет новую. In-place не обновляем:
         транзакции хранят цену проведения, история должна оставаться верной."""
