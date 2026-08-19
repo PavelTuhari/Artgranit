@@ -877,11 +877,11 @@ class PecoStore:
                     liters_recv = float(it.get("liters_recv") or 0.0)
 
                     item_r = _run(db,
-                        """INSERT INTO PECO_DELIVERY_ITEMS
+                        """INSERT /*+ NO_PARALLEL */ INTO PECO_DELIVERY_ITEMS
                                   (ID, DELIVERY_ID, TANK_ID, STATION_ID, GRADE_CODE,
                                    LITERS_DOC, LITERS_RECV, TEMPERATURE_C,
                                    DIP_BEFORE_L, DIP_AFTER_L)
-                           SELECT PECO_DELIVERY_ITEMS_SEQ.NEXTVAL, :delivery_id,
+                           SELECT /*+ NO_PARALLEL */ PECO_DELIVERY_ITEMS_SEQ.NEXTVAL, :delivery_id,
                                   :tank_id, d.STATION_ID, :grade_code,
                                   :liters_doc, :liters_recv, :temperature_c,
                                   :dip_before, :dip_after
