@@ -94,8 +94,11 @@ def tank_variances(
         dip = dips.get(tank_id)
         variance = None
         if dip is not None:
-            expected = (float(t.get("volume_open_l") or 0.0)
-                        + float(t.get("delivered_l") or 0.0)
+            # VOLUME_OPEN_L и DELIVERED_L — колонки NOT NULL; отсутствие
+            # значения означает битые данные, а не законный ноль, и должно
+            # упасть здесь, а не молча превратиться в 0.0.
+            expected = (float(t.get("volume_open_l"))
+                        + float(t.get("delivered_l"))
                         - dispensed.get(tank_id, 0.0))
             variance = round(float(dip) - expected, 3)
         out.append({
