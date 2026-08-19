@@ -994,6 +994,38 @@ def test_meter_total_never_moves_backwards():
     assert "METER_TOTAL <= :meter_end" in meter_sql
 
 
+def test_update_txn_status_draws_the_tank_down_in_the_same_transaction():
+    """Списание резервуара обязано идти тем же UPDATE/commit, что и смена
+    статуса — раздельный commit (как предлагал черновик задачи) оставляет
+    окно, где продажа записана, а расход резервуара — нет, и tank_variance
+    на закрытии смены расходится безвозвратно."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.update_txn_status(500, "PAID", expected_status="DISPENSING",
+                                        meter_end=1010.0, liters=40.0, amount=800.0)
+    assert r["success"] is True
+    tank_sql_calls = [c[0][0] for c in db.execute_query.call_args_list
+                      if "PECO_TANKS" in c[0][0]]
+    assert len(tank_sql_calls) == 1
+    tank_sql = tank_sql_calls[0]
+    assert "CURRENT_L = CURRENT_L - :liters" in tank_sql
+    assert "PECO_NOZZLES" in tank_sql and "PECO_TXN" in tank_sql
+    assert db.connection.commit.call_count == 1
+
+
+def test_update_txn_status_does_not_credit_the_tank_with_zero_liters():
+    """Обратный или переполнившийся счётчик даёт liters=0 — такой отпуск
+    не должен ничего списывать с резервуара."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.update_txn_status(500, "VOIDED", expected_status="DISPENSING",
+                                        meter_end=990.0, liters=0.0, amount=0.0)
+    assert r["success"] is True
+    tank_sql_calls = [c[0][0] for c in db.execute_query.call_args_list
+                      if "PECO_TANKS" in c[0][0]]
+    assert tank_sql_calls == []
+
+
 def test_self_service_requires_a_mia_reference():
     """Продажа самообслуживания без ссылки предавторизации не сверяется
     с отчётом эквайера."""
