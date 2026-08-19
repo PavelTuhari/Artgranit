@@ -427,19 +427,49 @@ class PecoStore:
     @staticmethod
     def save_meter_close(shift_id: int, nozzle_id: int,
                          meter_close: float) -> Dict[str, Any]:
-        """Записывает закрывающее показание и синхронно двигает тотализатор."""
+        """Записывает закрывающее показание и синхронно двигает тотализатор.
+
+        METER_CLOSE становится METER_OPEN следующей смены — это самое
+        аудит-критичное число модуля, и запись обязана быть защищена не
+        слабее прочих мутаций реестра смены:
+
+        1. UPDATE PECO_SHIFT_METERS ограничен И сменой (SHIFT_ID), И тем,
+           что смена ещё OPEN/CLOSING. Без второго условия показание можно
+           переписать ПОСЛЕ финализации смены, не пересчитав LITER_VARIANCE
+           — аудированная цифра стала бы редактируемой задним числом.
+        2. UPDATE PECO_NOZZLES ограничен станцией этой смены и не даёт
+           тотализатору пойти назад (тот же приём, что и в
+           update_txn_status выше). Без этого чужой nozzle_id из другого
+           запроса молча перезаписывает тотализатор ЧУЖОЙ станции.
+
+        rowcount не проверяется на втором UPDATE: отказ сдвинуть счётчик
+        назад — это ожидаемый исход (показание уже сохранено выше), а не
+        ошибка.
+        """
         try:
             with DatabaseModel() as db:
-                _run(db,
+                r = _run(db,
                     """UPDATE PECO_SHIFT_METERS SET METER_CLOSE = :meter_close
-                        WHERE SHIFT_ID = :shift_id AND NOZZLE_ID = :nozzle_id""",
+                        WHERE SHIFT_ID = :shift_id AND NOZZLE_ID = :nozzle_id
+                          AND EXISTS (SELECT 1 FROM PECO_SHIFTS s
+                                       WHERE s.ID = :shift_id
+                                         AND s.STATUS_CODE IN ('OPEN','CLOSING'))""",
                     {"shift_id": shift_id, "nozzle_id": nozzle_id,
                      "meter_close": meter_close},
                 )
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Пистолет не относится к этой смене, "
+                                     "либо смена уже закрыта"}
+
                 _run(db,
                     """UPDATE PECO_NOZZLES SET METER_TOTAL = :meter_close
-                        WHERE ID = :nozzle_id""",
-                    {"nozzle_id": nozzle_id, "meter_close": meter_close},
+                        WHERE ID = :nozzle_id
+                          AND METER_TOTAL <= :meter_close
+                          AND STATION_ID = (SELECT STATION_ID FROM PECO_SHIFTS
+                                              WHERE ID = :shift_id)""",
+                    {"nozzle_id": nozzle_id, "meter_close": meter_close,
+                     "shift_id": shift_id},
                 )
                 db.connection.commit()
                 return {"success": True}
