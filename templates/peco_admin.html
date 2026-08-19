@@ -632,6 +632,124 @@ document.getElementById('price').addEventListener('input', updateNewPricePreview
 wireSortableHeaders('stTbl', stSort, renderStations);
 wireSortableHeaders('lowTbl', lowSort, renderLowTanks);
 
+// ---------------- сотрудники и PIN ----------------
+
+function loadEmployees() {
+  var tbody = document.querySelector('#empTbl tbody');
+  api('/api/peco/employees').then(function(r){
+    clear(tbody);
+    if (!r.success || !r.items || !r.items.length) {
+      tbody.appendChild(rowMsg(6, r.success ? 'Сотрудников нет' : r.error));
+      return;
+    }
+    r.items.forEach(function(e){
+      var tr = document.createElement('tr');
+      tr.appendChild(txt('td', null, e.full_name));
+      tr.appendChild(txt('td', null, e.station_id === null || e.station_id === undefined ? 'вся сеть' : String(e.station_id)));
+      tr.appendChild(txt('td', null, e.role_code));
+      tr.appendChild(txt('td', null, Number(e.active) === 1 ? 'да' : 'нет'));
+
+      var tdPin = document.createElement('td');
+      if (Number(e.has_pin) === 1) {
+        tdPin.appendChild(txt('span', null, '✓ назначен'));
+      } else {
+        var flag = txt('span', 'low-flag', 'не назначен');
+        tdPin.appendChild(flag);
+      }
+      tr.appendChild(tdPin);
+
+      var tdBtn = document.createElement('td');
+      var btn = txt('button', null, 'Заполнить форму');
+      btn.style.cssText = 'padding:8px 14px;min-height:36px;font-size:13px;';
+      btn.onclick = function(){
+        document.getElementById('pinEmpId').value = e.id;
+        document.getElementById('pinValue').value = '';
+        document.getElementById('pinValue').focus();
+      };
+      tdBtn.appendChild(btn);
+      tr.appendChild(tdBtn);
+
+      tbody.appendChild(tr);
+    });
+  }).catch(function(){
+    clear(tbody);
+    tbody.appendChild(rowMsg(6, 'Сотрудники недоступны'));
+  });
+}
+
+function setEmployeePin() {
+  var empIdInput = document.getElementById('pinEmpId');
+  var pinInput = document.getElementById('pinValue');
+  var employeeId = Number(empIdInput.value);
+  var pin = pinInput.value;
+  if (!employeeId) {
+    say('pinMsg', 'Укажите ID сотрудника', 'err');
+    return;
+  }
+  if (!pin) {
+    say('pinMsg', 'Введите новый PIN', 'err');
+    return;
+  }
+  api('/api/peco/employee/pin', {employee_id: employeeId, pin: pin}).then(function(r){
+    // PIN нигде дальше не хранится и не показывается — поле очищается
+    // сразу после отправки, независимо от результата.
+    pinInput.value = '';
+    if (r.success) {
+      say('pinMsg', 'PIN сотрудника №' + employeeId + ' обновлён', 'ok');
+      loadEmployees();
+    } else {
+      say('pinMsg', r.error || 'Не удалось обновить PIN', 'err');
+    }
+  }).catch(function(){
+    pinInput.value = '';
+    say('pinMsg', 'Сервер недоступен', 'err');
+  });
+}
+
+// ---------------- смены с расхождением ----------------
+
+function loadDisputedShifts() {
+  var tbody = document.querySelector('#disputedTbl tbody');
+  api('/api/peco/shifts/disputed').then(function(r){
+    clear(tbody);
+    if (!r.success) {
+      tbody.appendChild(rowMsg(8, r.error || 'Ошибка загрузки'));
+      return;
+    }
+    if (!r.items || !r.items.length) {
+      tbody.appendChild(rowMsg(8, 'Смен с расхождением нет'));
+      return;
+    }
+    r.items.forEach(function(s){
+      var tr = document.createElement('tr');
+      tr.className = 'low-row';
+      tr.appendChild(txt('td', null, s.station_name));
+      tr.appendChild(txt('td', null, '№' + s.shift_id));
+      tr.appendChild(txt('td', null, s.closed_at || '—'));
+      tr.appendChild(txt('td', null, s.closed_by_name || '—'));
+      tr.appendChild(txt('td', 'num low', fmt3(s.liter_variance) + ' л'));
+      tr.appendChild(txt('td', 'num low', fmt2(s.cash_variance) + ' лей'));
+      tr.appendChild(txt('td', 'num low', fmt3(s.tank_variance) + ' л'));
+
+      var tdStatus = document.createElement('td');
+      if (Number(s.is_approved) === 1) {
+        tdStatus.appendChild(txt('span', null, '✓ принято менеджером'));
+      } else {
+        var flag = txt('span', 'low-flag', '⛔ ждёт PIN менеджера');
+        tdStatus.appendChild(flag);
+      }
+      tr.appendChild(tdStatus);
+
+      tbody.appendChild(tr);
+    });
+  }).catch(function(){
+    clear(tbody);
+    tbody.appendChild(rowMsg(8, 'Смены с расхождением недоступны'));
+  });
+}
+
+loadEmployees();
+loadDisputedShifts();
 loadOverview();
 </script>
 </body>
