@@ -961,25 +961,6 @@ class PecoStore:
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def accept_delivery(delivery_id: int, employee_id: int) -> Dict[str, Any]:
-        try:
-            with DatabaseModel() as db:
-                r = _run(db,
-                    """UPDATE PECO_DELIVERIES
-                          SET ACCEPTED_AT = SYSTIMESTAMP,
-                              ACCEPTED_BY = :employee_id
-                        WHERE ID = :delivery_id""",
-                    {"delivery_id": delivery_id, "employee_id": employee_id},
-                )
-                if r.get("rowcount", 0) == 0:
-                    return {"success": False,
-                            "error": "Приход с таким ID не найден"}
-                db.connection.commit()
-                return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    @staticmethod
     def insert_tank_dip(tank_id: int, measured_l: float, dip_kind: str,
                         shift_id: Optional[int] = None,
                         employee_id: Optional[int] = None) -> Dict[str, Any]:
