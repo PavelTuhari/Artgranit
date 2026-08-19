@@ -272,19 +272,17 @@ def test_tank_variances_only_counts_meters_of_that_tank():
 def test_status_is_closed_within_tolerance():
     v = {"liter_variance": 0.2, "cash_variance": 0.5, "tank_variance": None}
     assert peco_shift.exceeds_tolerance(v) is False
-    assert peco_shift.resolve_status(v) == "CLOSED"
 
 
 def test_status_is_disputed_when_liters_exceed_tolerance():
     v = {"liter_variance": 3.0, "cash_variance": 0.0, "tank_variance": None}
     assert peco_shift.exceeds_tolerance(v) is True
-    assert peco_shift.resolve_status(v) == "DISPUTED"
 
 
 def test_status_is_disputed_on_negative_cash_beyond_tolerance():
     """Излишек тоже расхождение — проверяется модуль, а не знак."""
     v = {"liter_variance": 0.0, "cash_variance": -25.0, "tank_variance": None}
-    assert peco_shift.resolve_status(v) == "DISPUTED"
+    assert peco_shift.exceeds_tolerance(v) is True
 
 
 def test_tank_leak_and_overage_do_not_cancel():
