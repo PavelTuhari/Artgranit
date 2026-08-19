@@ -1478,6 +1478,28 @@ def test_authorize_forwards_the_mia_reference():
     assert txn.authorize.call_args.kwargs["mia_ref"] == "MIA-7"
 
 
+def test_authorize_rejects_a_non_numeric_employee_id():
+    """employee_id обязан пройти через тот же _as_int guard, что и
+    остальные числовые поля — иначе JSON-строка доезжает до Oracle как
+    необработанный ORA-01722 вместо доменной ошибки запроса."""
+    r = PecoController.authorize({
+        "station_id": 1, "shift_id": 77, "nozzle_id": 3,
+        "grade_code": "A95", "meter_start": 0.0, "employee_id": "abc"})
+    assert r["success"] is False
+    assert "employee_id" in r["error"]
+
+
+def test_authorize_allows_a_missing_employee_id():
+    """При самообслуживании кассир не участвует — employee_id законно
+    отсутствует и не должен требоваться."""
+    with patch("controllers.peco_controller.peco_txn") as txn:
+        txn.authorize.return_value = {"success": True, "txn_id": 500}
+        PecoController.authorize({
+            "station_id": 1, "shift_id": 77, "nozzle_id": 3,
+            "grade_code": "A95", "meter_start": 0.0, "is_self_service": True})
+    assert txn.authorize.call_args.kwargs["employee_id"] is None
+
+
 def test_controller_rejects_a_non_numeric_field_cleanly():
     """Мусор в запросе — ошибка запроса, а не 500."""
     r = PecoController.shift_close({"shift_id": "abc", "employee_id": 5,
