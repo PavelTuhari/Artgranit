@@ -314,7 +314,7 @@ function load() {
       var tr = document.createElement('tr');
       tr.appendChild(txt('td', null, t.tank_code));
       tr.appendChild(txt('td', null, t.grade_name));
-      var tdCur = txt('td num' + (t.is_low ? ' low' : ''), null, null);
+      var tdCur = txt('td', 'num' + (t.is_low ? ' low' : ''), null);
       var bar = txt('div', 'fillbar' + (t.is_low ? ' low' : ''), null);
       var fill = txt('i', null, null);
       fill.style.width = Math.max(0, Math.min(100, Number(t.fill_pct))) + '%';
