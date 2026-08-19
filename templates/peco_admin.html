@@ -506,8 +506,18 @@ function loadOverview() {
 }
 
 function loadStationTanks() {
-  api('/api/peco/tanks').then(function(r){
-    var tbody = document.querySelector('#tanksTbl tbody');
+  var stSel = document.getElementById('stSel');
+  var tbody = document.querySelector('#tanksTbl tbody');
+  var label = document.getElementById('tanksStationLabel');
+  if (!stSel.value) {
+    clear(tbody);
+    tbody.appendChild(rowMsg(6, 'Станция не выбрана'));
+    if (label) label.textContent = '';
+    return;
+  }
+  var st = stations.filter(function(s){ return String(s.id) === String(stSel.value); })[0];
+  if (label) label.textContent = st ? (' — ' + st.code + ' ' + st.name) : '';
+  api('/api/peco/tanks?station_id=' + encodeURIComponent(stSel.value)).then(function(r){
     clear(tbody);
     if (!r.success || !r.items || !r.items.length) {
       tbody.appendChild(rowMsg(6, r.success ? 'Резервуаров на станции нет' : r.error));
