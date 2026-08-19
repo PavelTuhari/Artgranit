@@ -111,14 +111,41 @@ def tank_variances(
 
 
 def exceeds_tolerance(variances: Dict[str, Any]) -> bool:
-    """Проверяется модуль отклонения: излишек — такое же расхождение."""
-    if abs(float(variances.get("liter_variance") or 0.0)) > TOLERANCE_LITERS:
+    """Проверяется модуль отклонения: излишек — такое же расхождение.
+
+    Отсутствие замера (None) — это не доказательство отсутствия
+    расхождения, а недостаток данных. Чистой смена признаётся только
+    если известно, что расхождения в допуске, поэтому отсутствующие
+    liter_variance/cash_variance трактуются как «за пределами допуска»,
+    а не как ноль. Для tank_variance это не так: пока станция считает
+    tank_variance отдельно по резервуарам, отсутствие снимка по станции
+    в целом ожидаемо и не должно само по себе диспутить смену — см.
+    tank_variances_exceed() для проверки по каждому резервуару.
+    """
+    liter = variances.get("liter_variance")
+    if liter is None or abs(float(liter)) > TOLERANCE_LITERS:
         return True
-    if abs(float(variances.get("cash_variance") or 0.0)) > TOLERANCE_CASH:
+    cash = variances.get("cash_variance")
+    if cash is None or abs(float(cash)) > TOLERANCE_CASH:
         return True
     tank = variances.get("tank_variance")
-    if tank is not None and abs(float(tank)) > TOLERANCE_LITERS:
+    if tank is not None and abs(float(tank)) > TOLERANCE_TANK_LITERS:
         return True
+    return False
+
+
+def tank_variances_exceed(rows: List[Dict[str, Any]]) -> bool:
+    """Выходит ли расхождение хотя бы по одному резервуару за допуск.
+
+    Проверяется каждый резервуар отдельно. Сумма по станции здесь не годится:
+    утечка в одном резервуаре и излишек в другом взаимно погасились бы,
+    и смена закрылась бы как чистая — ровно та ошибка, ради которой
+    расхождение и считается по резервуарам.
+    """
+    for r in rows:
+        v = r.get("tank_variance")
+        if v is not None and abs(float(v)) > TOLERANCE_TANK_LITERS:
+            return True
     return False
 
 
