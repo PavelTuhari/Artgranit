@@ -117,34 +117,46 @@ class PecoController:
         missing = _require(payload, "txn_id")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_txn.start_dispense(int(payload["txn_id"]))
+        try:
+            return peco_txn.start_dispense(_as_int(payload, "txn_id"))
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def finish(payload: Dict[str, Any]) -> Dict[str, Any]:
         missing = _require(payload, "txn_id", "meter_end")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_txn.finish_dispense(int(payload["txn_id"]),
-                                        float(payload["meter_end"]))
+        try:
+            return peco_txn.finish_dispense(_as_int(payload, "txn_id"),
+                                            _as_float(payload, "meter_end"))
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def pay(payload: Dict[str, Any]) -> Dict[str, Any]:
         missing = _require(payload, "txn_id", "pay_method")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_txn.settle(
-            int(payload["txn_id"]),
-            pay_method=payload["pay_method"],
-            mia_ref=payload.get("mia_ref"),
-        )
+        try:
+            return peco_txn.settle(
+                _as_int(payload, "txn_id"),
+                pay_method=payload["pay_method"],
+                mia_ref=payload.get("mia_ref"),
+            )
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def void(payload: Dict[str, Any]) -> Dict[str, Any]:
         missing = _require(payload, "txn_id")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return peco_txn.void(int(payload["txn_id"]),
-                             reason=payload.get("reason") or "не указана")
+        try:
+            return peco_txn.void(_as_int(payload, "txn_id"),
+                                 reason=payload.get("reason") or "не указана")
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     # ---------------- консоль смены ----------------
 
