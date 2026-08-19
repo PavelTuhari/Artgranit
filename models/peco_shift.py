@@ -233,19 +233,34 @@ def close_shift(
     if not paid.get("success"):
         return paid
 
+    # Смена помечается CLOSING до записи замеров: между началом закрытия и
+    # finalize_shift она не должна выглядеть обычной открытой, иначе после
+    # сбоя в реестре резервуаров останется замер на закрытие при статусе
+    # OPEN, а колонки продолжат отпускать топливо.
+    closing = PecoStore.mark_shift_closing(shift_id)
+    if not closing.get("success"):
+        return closing
+
     # Расхождение по каждому резервуару считается отдельно: у станции до
     # четырёх резервуаров, и утечка в одном не должна тонуть в сумме.
     tanks_r = PecoStore.get_shift_tanks(shift_id)
-    tank_rows = tanks_r.get("items", []) if tanks_r.get("success") else []
+    if not tanks_r.get("success"):
+        return tanks_r
+    tank_rows = tanks_r["items"]
     dips = dips or {}
+
+    known_tank_ids = {t["tank_id"] for t in tank_rows}
+    ignored_dips = sorted(tid for tid in dips if tid not in known_tank_ids)
 
     per_tank = tank_variances(tank_rows, meters, dips)
     for row in per_tank:
         if row["tank_variance"] is not None:
-            PecoStore.save_tank_close(
+            saved_tank = PecoStore.save_tank_close(
                 shift_id, row["tank_id"], row["dip_close_l"],
                 row["tank_variance"],
             )
+            if not saved_tank.get("success"):
+                return saved_tank
 
     measured = [r["tank_variance"] for r in per_tank
                 if r["tank_variance"] is not None]
