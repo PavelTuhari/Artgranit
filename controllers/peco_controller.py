@@ -98,16 +98,19 @@ class PecoController:
         # mia_ref обязателен только для самообслуживания — эту проверку
         # делает сама модель (peco_txn.authorize), контроллер лишь
         # прокидывает значение, если оно пришло в запросе.
-        return peco_txn.authorize(
-            shift_id=int(payload["shift_id"]),
-            nozzle_id=int(payload["nozzle_id"]),
-            grade_code=payload["grade_code"],
-            station_id=int(payload["station_id"]),
-            meter_start=float(payload["meter_start"]),
-            is_self_service=bool(payload.get("is_self_service")),
-            employee_id=payload.get("employee_id"),
-            mia_ref=payload.get("mia_ref"),
-        )
+        try:
+            return peco_txn.authorize(
+                shift_id=_as_int(payload, "shift_id"),
+                nozzle_id=_as_int(payload, "nozzle_id"),
+                grade_code=payload["grade_code"],
+                station_id=_as_int(payload, "station_id"),
+                meter_start=_as_float(payload, "meter_start"),
+                is_self_service=bool(payload.get("is_self_service")),
+                employee_id=payload.get("employee_id"),
+                mia_ref=payload.get("mia_ref"),
+            )
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def start(payload: Dict[str, Any]) -> Dict[str, Any]:
