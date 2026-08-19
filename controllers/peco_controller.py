@@ -294,6 +294,9 @@ class PecoController:
         missing = _require(payload, "station_id", "grade_code", "price")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
-        return PecoStore.set_price(int(payload["station_id"]),
-                                   payload["grade_code"],
-                                   float(payload["price"]))
+        try:
+            return PecoStore.set_price(_as_int(payload, "station_id"),
+                                       payload["grade_code"],
+                                       _as_float(payload, "price"))
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
