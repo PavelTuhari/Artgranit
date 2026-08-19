@@ -245,15 +245,18 @@ class PecoController:
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
         items: List[Dict[str, Any]] = payload.get("items") or []
-        return peco_inventory.receive_delivery(
-            station_id=int(payload["station_id"]),
-            supplier=payload["supplier"],
-            waybill_no=payload["waybill_no"],
-            items=items,
-            employee_id=int(payload["employee_id"]),
-            driver_name=payload.get("driver_name"),
-            vehicle_no=payload.get("vehicle_no"),
-        )
+        try:
+            return peco_inventory.receive_delivery(
+                station_id=_as_int(payload, "station_id"),
+                supplier=payload["supplier"],
+                waybill_no=payload["waybill_no"],
+                items=items,
+                employee_id=_as_int(payload, "employee_id"),
+                driver_name=payload.get("driver_name"),
+                vehicle_no=payload.get("vehicle_no"),
+            )
+        except PecoInputError as e:
+            return {"success": False, "error": str(e)}
 
     @staticmethod
     def tank_levels(station_id: int) -> Dict[str, Any]:
