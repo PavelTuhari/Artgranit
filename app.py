@@ -8909,6 +8909,19 @@ def peco_admin():
     return render_template('peco_admin.html')
 
 
+@app.route('/UNA.md/orasldev/peco')
+@app.route('/UNA.md/orasldev/peco/')
+def peco_index():
+    """Главная страница PECO — единая точка доступа со ссылками на все функции."""
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    p = Path(os.path.dirname(os.path.abspath(__file__))) / 'docs' / 'PECO' / 'index.html'
+    if not p.is_file():
+        return "<h1>Не найдено</h1><p><a href='/UNA.md/orasldev/docs'>Назад</a></p>", 404
+    from flask import send_file
+    return send_file(str(p))
+
+
 @app.route('/UNA.md/orasldev/docs/peco/TZ.html')
 @app.route('/UNA.md/orasldev/docs/peco/')
 def peco_tz():
