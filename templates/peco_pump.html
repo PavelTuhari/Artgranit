@@ -293,7 +293,7 @@ function pick(id) {
   });
   document.getElementById('panel').classList.remove('hidden');
   document.getElementById('selGradeTxt').innerHTML =
-    sel.grade_code + ' <span class="code">' + sel.pump_code + ' · ' + sel.code + '</span>';
+    esc(sel.grade_code) + ' <span class="code">' + esc(sel.pump_code) + ' · ' + esc(sel.code) + '</span>';
   document.getElementById('meterStart').value = Number(sel.meter_total).toFixed(3);
   resetFlow();
 }
