@@ -816,6 +816,50 @@ function renderReconciliation(r) {
       r.ignored_dips.join(', ') + '. Проверьте номер резервуара.';
     note.appendChild(n);
   }
+
+  var approveBlock = document.getElementById('approveBlock');
+  if (r.status === 'DISPUTED') {
+    approveBlock.style.display = '';
+    document.getElementById('apprPin').value = '';
+    say('approveMsg', '', null);
+  } else {
+    approveBlock.style.display = 'none';
+  }
+}
+
+function approveShift() {
+  if (!state || !state.success) {
+    say('approveMsg', 'Нет активной смены', 'err');
+    return;
+  }
+  var mgrInput = document.getElementById('apprMgrId');
+  var pinInput = document.getElementById('apprPin');
+  var managerId = Number(mgrInput.value);
+  var pin = pinInput.value;
+  if (!managerId || !pin) {
+    say('approveMsg', 'Укажите ID менеджера и PIN', 'err');
+    return;
+  }
+  api('/api/peco/shift/approve', {
+    shift_id: state.shift_id,
+    manager_id: managerId,
+    pin: pin
+  }).then(function(r){
+    // PIN нигде дальше не хранится и не показывается — поле очищается
+    // сразу после отправки, независимо от результата.
+    pinInput.value = '';
+    if (r.success) {
+      say('approveMsg',
+        'Расхождение принято под ответственность менеджера №' + managerId +
+        '. Смена остаётся в статусе DISPUTED — сумма расхождения не изменилась, ' +
+        'подтверждён только факт, что оно рассмотрено.', 'ok');
+    } else {
+      say('approveMsg', r.error || 'Не удалось подтвердить расхождение', 'err');
+    }
+  }).catch(function(){
+    pinInput.value = '';
+    say('approveMsg', 'Сервер недоступен', 'err');
+  });
 }
 
 function vbox(label, value, unit, tolerance, meaning) {
