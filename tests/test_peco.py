@@ -644,25 +644,24 @@ def test_verify_pin_rejects_placeholder_seed_values():
     assert peco_shift.verify_pin("1234", "NO_SALT_SET", "NO_PIN_SET") is False
 
 
-def _mgr(role="MANAGER", pin="1234"):
+def _mgr(role="MANAGER", pin="1234", station_id=1):
     salt = peco_shift.new_salt()
-    return {"id": 9, "role_code": role, "pin_salt": salt,
+    return {"id": 9, "station_id": station_id, "role_code": role, "pin_salt": salt,
             "pin_hash": peco_shift.hash_pin(pin, salt)}
 
 
 def test_approve_disputed_rejects_non_manager():
     with patch("models.peco_shift.PecoStore") as store:
-        store.get_employee.return_value = {"success": True,
-                                          "employee": _mgr(role="ATTENDANT")}
+        store.get_employee_credentials.return_value = {
+            "success": True, "employee": _mgr(role="ATTENDANT")}
         r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
     assert r["success"] is False
-    assert "менеджер" in r["error"].lower()
     store.approve_shift.assert_not_called()
 
 
 def test_approve_disputed_rejects_wrong_pin():
     with patch("models.peco_shift.PecoStore") as store:
-        store.get_employee.return_value = {"success": True, "employee": _mgr()}
+        store.get_employee_credentials.return_value = {"success": True, "employee": _mgr()}
         r = peco_shift.approve_disputed(77, manager_id=9, pin="9999")
     assert r["success"] is False
     store.approve_shift.assert_not_called()
@@ -670,9 +669,120 @@ def test_approve_disputed_rejects_wrong_pin():
 
 def test_approve_disputed_accepts_manager_with_correct_pin():
     with patch("models.peco_shift.PecoStore") as store:
-        store.get_employee.return_value = {"success": True, "employee": _mgr()}
+        store.get_employee_credentials.return_value = {"success": True, "employee": _mgr()}
         store.approve_shift.return_value = {"success": True}
         r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
     assert r["success"] is True
-    store.approve_shift.assert_called_once_with(77, 9)
+    store.approve_shift.assert_called_once_with(77, 9, 1)
     store.log_event.assert_called_once()
+
+
+# ------------------------------------------------------------------
+# Task 9 fix-pass 1: approve_shift authorization gaps
+# ------------------------------------------------------------------
+
+
+def test_hash_pin_is_actually_pbkdf2_not_a_bare_digest():
+    """Известный вектор: подмена PBKDF2 на sha256(salt+pin) не должна
+    пройти тесты. Четырёхзначный PIN — это 10 000 вариантов, и голый
+    дайджест такого пространства разворачивается таблицей мгновенно."""
+    import hashlib
+    salt = "a" * 32
+    expected = hashlib.pbkdf2_hmac(
+        "sha256", b"1234", salt.encode(), peco_shift._PIN_ITERATIONS).hex()
+    assert peco_shift.hash_pin("1234", salt) == expected
+    assert peco_shift.hash_pin("1234", salt) != hashlib.sha256(
+        (salt + "1234").encode()).hexdigest()
+
+
+def test_pin_iterations_meet_current_guidance():
+    assert peco_shift._PIN_ITERATIONS >= 600_000
+
+
+def test_approve_shift_scopes_the_update_to_disputed_and_station():
+    """Условия авторизации обязаны быть в WHERE: проверка в Python
+    оставила бы окно между проверкой и обновлением."""
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.approve_shift(77, 9, 1)
+    assert r["success"] is True
+    sql = db.execute_query.call_args[0][0]
+    assert "DISPUTED" in sql
+    assert "STATION_ID" in sql
+
+
+def test_approve_shift_rejects_a_zero_row_update():
+    """Ноль затронутых строк — смены нет, она не DISPUTED, либо чужая станция."""
+    cm, _ = _rowcount_db(0)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.approve_shift(77, 9, 1)
+    assert r["success"] is False
+
+
+def test_manager_cannot_approve_a_shift_at_another_station():
+    """Менеджер станции 3 не должен подписывать расхождение станции 41."""
+    salt = peco_shift.new_salt()
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_employee_credentials.return_value = {"success": True, "employee": {
+            "id": 9, "station_id": 3, "role_code": "MANAGER",
+            "pin_salt": salt, "pin_hash": peco_shift.hash_pin("1234", salt)}}
+        store.approve_shift.return_value = {
+            "success": False,
+            "error": "Смена не найдена, не в статусе расхождения или относится к другой станции"}
+        r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
+    assert r["success"] is False
+    # станция менеджера обязана дойти до запроса
+    assert store.approve_shift.call_args[0][2] == 3
+
+
+def test_admin_may_approve_network_wide():
+    salt = peco_shift.new_salt()
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_employee_credentials.return_value = {"success": True, "employee": {
+            "id": 1, "station_id": None, "role_code": "ADMIN",
+            "pin_salt": salt, "pin_hash": peco_shift.hash_pin("1234", salt)}}
+        store.approve_shift.return_value = {"success": True}
+        store.log_event.return_value = {"success": True}
+        r = peco_shift.approve_disputed(77, manager_id=1, pin="1234")
+    assert r["success"] is True
+    assert store.approve_shift.call_args[0][2] is None
+
+
+def test_approval_errors_do_not_reveal_which_check_failed():
+    """Разные сообщения выдавали бы, существует ли сотрудник и менеджер ли он."""
+    salt = peco_shift.new_salt()
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_employee_credentials.return_value = {"success": True, "employee": {
+            "id": 5, "station_id": 1, "role_code": "ATTENDANT",
+            "pin_salt": salt, "pin_hash": peco_shift.hash_pin("1234", salt)}}
+        not_manager = peco_shift.approve_disputed(77, 5, "1234")
+        store.get_employee_credentials.return_value = {"success": True, "employee": {
+            "id": 9, "station_id": 1, "role_code": "MANAGER",
+            "pin_salt": salt, "pin_hash": peco_shift.hash_pin("1234", salt)}}
+        wrong_pin = peco_shift.approve_disputed(77, 9, "9999")
+    assert not_manager["error"] == wrong_pin["error"]
+
+
+def test_get_employee_does_not_expose_credentials():
+    """Хеш и соль не должны уезжать наружу с обычным чтением сотрудника."""
+    cm, _ = _fake_db({"success": True,
+                      "columns": ["ID", "STATION_ID", "FULL_NAME", "ROLE_CODE"],
+                      "data": [(9, 1, "Тест", "MANAGER")]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.get_employee(9)
+    assert r["success"] is True
+    assert "pin_hash" not in r["employee"]
+    assert "pin_salt" not in r["employee"]
+
+
+def test_approval_reports_a_lost_audit_record():
+    salt = peco_shift.new_salt()
+    with patch("models.peco_shift.PecoStore") as store:
+        store.get_employee_credentials.return_value = {"success": True, "employee": {
+            "id": 9, "station_id": 1, "role_code": "MANAGER",
+            "pin_salt": salt, "pin_hash": peco_shift.hash_pin("1234", salt)}}
+        store.approve_shift.return_value = {"success": True}
+        store.log_event.return_value = {"success": False, "error": "ORA-00942"}
+        r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
+    assert r["success"] is True
+    assert "audit_warning" in r
