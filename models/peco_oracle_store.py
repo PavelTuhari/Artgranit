@@ -335,8 +335,22 @@ class PecoStore:
 
     @staticmethod
     def save_tank_close(shift_id: int, tank_id: int, dip_close_l: float,
-                        tank_variance: Optional[float] = None) -> Dict[str, Any]:
-        """Записывает замер на закрытие и расхождение по конкретному резервуару."""
+                        tank_variance: Optional[float] = None,
+                        employee_id: Optional[int] = None) -> Dict[str, Any]:
+        """Записывает замер на закрытие и расхождение по конкретному резервуару.
+
+        Замер метрштоком — физическое измерение, и он обязан стать новым
+        действующим остатком резервуара (PECO_TANKS.CURRENT_L), а не только
+        лечь в реестр смены. Иначе CURRENT_L продолжает вестись только по
+        счётчикам и приходу; если он разошёлся с физикой (например, слив без
+        транзакции), это расхождение никогда не исчезает само и заново
+        отражается на КАЖДОЙ следующей смене — DISPUTED перестаёт что-либо
+        значить, потому что нет способа отличить новую утечку от старой,
+        которую уже видели и не исправили. Обновление регистра и запись
+        замера в PECO_TANK_DIPS (DIP_KIND='CLOSE') идут в ОДНОЙ транзакции
+        с UPDATE реестра смены: замер обязан либо целиком применяться, либо
+        не применяться вовсе.
+        """
         try:
             with DatabaseModel() as db:
                 r = _run(db,
@@ -354,6 +368,28 @@ class PecoStore:
                 if r.get("rowcount", 0) == 0:
                     return {"success": False,
                             "error": "Нет строки реестра резервуара для этой смены"}
+
+                # Замер становится действующим остатком: следующая смена
+                # откроется от него (VOLUME_OPEN_L = CURRENT_L), а не от
+                # старого значения, которое разошлось со счётчиками.
+                _run(db,
+                    """UPDATE PECO_TANKS SET CURRENT_L = :dip_close_l
+                        WHERE ID = :tank_id""",
+                    {"tank_id": tank_id, "dip_close_l": dip_close_l},
+                )
+
+                _run(db,
+                    """INSERT INTO PECO_TANK_DIPS
+                              (ID, TANK_ID, STATION_ID, SHIFT_ID, MEASURED_L,
+                               MEASURED_BY, DIP_KIND)
+                       SELECT PECO_TANK_DIPS_SEQ.NEXTVAL, :tank_id, t.STATION_ID,
+                              :shift_id, :dip_close_l, :employee_id, 'CLOSE'
+                         FROM PECO_TANKS t
+                        WHERE t.ID = :tank_id""",
+                    {"tank_id": tank_id, "shift_id": shift_id,
+                     "dip_close_l": dip_close_l, "employee_id": employee_id},
+                )
+
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
