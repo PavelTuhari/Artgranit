@@ -837,3 +837,20 @@ def test_cash_settlement_needs_no_reference():
 def test_cannot_settle_a_voided_transaction():
     r = peco_txn.validate_settlement("VOIDED", "CASH", None)
     assert r["ok"] is False
+
+
+# ------------------------------------------------------------------
+# Task 10 fix-pass 1: meter rollover documentation
+# ------------------------------------------------------------------
+
+
+def test_meter_rollover_is_not_reconstructed():
+    """Переполнение счётчика намеренно НЕ восстанавливается: чтобы вычислить
+    оборот, пришлось бы предполагать максимум счётчика, а ошибка в этом
+    предположении зачислила бы неотпущенное топливо. Литры остаются в
+    meter_delta смены и всплывают при закрытии как неоплаченные."""
+    assert peco_txn.liters_from_meter(999999.000, 12.000) == 0.0
+
+
+def test_equal_readings_dispense_nothing():
+    assert peco_txn.liters_from_meter(1000.0, 1000.0) == 0.0
