@@ -116,6 +116,10 @@ CREATE TABLE PECO_NOZZLES (
   ACTIVE       NUMBER(1)    DEFAULT 1 NOT NULL,
   CONSTRAINT PK_PECO_NOZZLES PRIMARY KEY (ID),
   CONSTRAINT UQ_PECO_NOZZLES UNIQUE (PUMP_ID, CODE),
+  -- Опорные UNIQUE для составных FK из PECO_SHIFT_METERS/PECO_TXN (та же станция)
+  -- и из PECO_TXN по виду топлива (тот же грейд, что и у пистолета)
+  CONSTRAINT UQ_PECO_NOZZLES_ID_ST UNIQUE (ID, STATION_ID),
+  CONSTRAINT UQ_PECO_NOZZLES_ID_GR UNIQUE (ID, GRADE_CODE),
   CONSTRAINT FK_PECO_NOZZLES_ST FOREIGN KEY (STATION_ID) REFERENCES PECO_STATIONS (ID),
   -- Составной FK: колонка пистолета обязана принадлежать той же станции, что и сам пистолет
   -- (иначе пистолет может "смотреть" на колонку соседней АЗС)
