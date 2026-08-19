@@ -21,6 +21,7 @@ from controllers.documentation_controller import DocumentationController
 from controllers.shell_controller import ShellController
 from controllers.digi_marketing_controller import DigiMarketingController
 from controllers.tbcontrol_controller import TBControlController
+from controllers.peco_controller import PecoController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
 from controllers.plg_ai_controller import PlgAiController
