@@ -255,6 +255,27 @@ class PecoStore:
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def default_station_id() -> Dict[str, Any]:
+        """Первая активная станция — для запросов без явного station_id.
+
+        Отдельный лёгкий запрос вместо admin_overview: тот обходит все
+        станции и читает остатки каждой (около 47 запросов), а этот вызов
+        стоит на самом горячем маршруте — опросе состояния колонки.
+        """
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT ID FROM PECO_STATIONS
+                        WHERE ACTIVE = 1 ORDER BY CODE
+                        FETCH FIRST 1 ROWS ONLY""")
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Нет активных станций"}
+                return {"success": True, "station_id": int(rows[0]["id"])}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def get_shift_meters(shift_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
