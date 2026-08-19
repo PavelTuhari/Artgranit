@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Техническое задание — PECO</title>
+<style>
+:root{
+  --bg:#eef2fa;--card:#ffffff;--card2:#f7f9fd;--line:#d7e0f0;
+  --text:#132038;--muted:#5c6b85;
+  --primary:#1d4ed8;--accent:#1447b8;
+  --ok:#1f9d55;--danger:#dc2626;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);
+     line-height:1.6;padding:24px;max-width:960px;margin:0 auto;}
+.lead{font-size:17px;margin-bottom:28px;padding:20px 24px;
+      background:linear-gradient(135deg,#e6ecfa 0%,#dbe5f8 100%);
+      border-radius:16px;border-left:4px solid var(--primary);}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;}
+@media (max-width:640px){.choice{grid-template-columns:1fr;}}
+.choice-card{background:var(--card);border-radius:16px;padding:24px;
+             box-shadow:0 4px 16px rgba(19,32,56,.08);border:2px solid var(--line);
+             transition:border-color .2s,box-shadow .2s;}
+.choice-card:hover{border-color:var(--primary);box-shadow:0 6px 20px rgba(29,78,216,.15);}
+.choice-card h2{font-size:18px;margin-bottom:10px;color:var(--primary);
+                display:flex;align-items:center;gap:10px;}
+.choice-card p{font-size:14px;color:var(--muted);margin-bottom:16px;}
+.links{display:flex;flex-direction:column;gap:10px;}
+.btn{display:inline-block;padding:12px 20px;border-radius:10px;font-weight:600;
+     text-decoration:none;text-align:center;transition:opacity .2s,transform .05s;}
+.btn:active{transform:scale(.98);}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{opacity:.92;}
+.btn-ghost{background:var(--card2);color:var(--accent);border:1px solid var(--line);}
+.btn-ghost:hover{background:#e6ecfa;}
+.btn-block{width:100%;}
+h1{font-size:28px;margin-bottom:8px;font-weight:800;}
+h2{font-size:20px;margin-top:28px;margin-bottom:12px;color:var(--primary);
+   border-bottom:1px solid var(--line);padding-bottom:6px;}
+h3{font-size:16px;margin-top:16px;margin-bottom:8px;}
+p{margin-bottom:12px;}
+ul,ol{margin:0 0 12px 24px;}
+li{margin-bottom:6px;}
+.meta{font-size:14px;color:var(--muted);margin-bottom:24px;}
+.card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:20px;
+      box-shadow:0 2px 8px rgba(19,32,56,.06);border:1px solid var(--line);}
+.table-scroll{overflow-x:auto;margin:12px 0;}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:480px;}
+th,td{padding:10px 12px;text-align:left;border:1px solid var(--line);}
+th{background:var(--card2);font-weight:700;color:var(--muted);}
+code{background:var(--card2);border:1px solid var(--line);padding:2px 6px;border-radius:4px;font-size:13px;}
+pre{background:#132038;color:#dbe5f8;padding:16px;border-radius:10px;overflow-x:auto;
+    font-size:13px;margin:12px 0;}
+pre code{background:none;border:none;color:inherit;padding:0;}
+.section-read{margin-top:40px;}
+.section-label{font-size:12px;text-transform:uppercase;letter-spacing:.05em;
+               color:var(--muted);margin-bottom:12px;font-weight:700;}
+.sub-link{font-size:13px;margin-top:6px;color:var(--muted);}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;
+       background:var(--card2);border:1px solid var(--line);color:var(--muted);}
+.note{background:#fff8e6;border:1px solid #f3d98a;border-radius:10px;padding:14px 18px;
+      font-size:14px;margin:12px 0;}
+.gap{background:var(--card2);border:1px dashed var(--line);border-radius:10px;padding:14px 18px;
+     font-size:14px;margin-bottom:8px;}
+</style>
+</head>
+<body>
+<h1>PECO — Техническое задание</h1>
+<p class="meta">Управление розничной продажей топлива в региональной сети АЗС.
+46 станций · 4 вида топлива · 2–3 пересменки в сутки.</p>
+
+<p class="lead">
+<strong>На этой странице можно:</strong> читать полный текст технического задания
+(требования, модель данных, интерфейсы) <strong>или сразу перейти к работе с
+системой</strong> — отпускать топливо на колонке, вести смену на консоли оператора
+либо управлять сетью в бэк-офисе.
+</p>
+
+<div class="choice">
+  <div class="choice-card">
+    <h2>📄 Читать ТЗ</h2>
+    <p>Описание проекта, ключевое архитектурное решение, модель данных
+       и интерфейсы. Ниже на странице — полный текст по разделам.</p>
+    <div class="links">
+      <a href="#intro" class="btn btn-ghost btn-block">1. Общие сведения</a>
+      <a href="#arch" class="btn btn-ghost btn-block">2. Учёт по счётчику</a>
+      <a href="#data" class="btn btn-ghost btn-block">3. Модель данных</a>
+      <a href="#flows" class="btn btn-ghost btn-block">4. Потоки и интерфейсы</a>
+      <a href="#tech" class="btn btn-ghost btn-block">5. Техническая реализация</a>
+      <a href="#deliverables" class="btn btn-ghost btn-block">6. Состав поставки</a>
+    </div>
+  </div>
+  <div class="choice-card">
+    <h2>⛽ Работать с системой</h2>
+    <p>Отпуск топлива, ведение смены и управление сетью. Все ссылки ведут
+       в рабочие интерфейсы. Вход требует авторизации.</p>
+    <div class="links">
+      <a href="/UNA.md/orasldev/peco-pump" class="btn btn-primary btn-block">
+        Фронт-офис — колонка</a>
+      <p class="sub-link">Выбор вида топлива, авторизация налива, завершение по счётчику,
+         оплата наличными на кассе или по MIA QR. Самообслуживание и отпуск сотрудником.</p>
+      <a href="/UNA.md/orasldev/peco-admin" class="btn btn-primary btn-block">
+        Бэк-офис — управление сетью</a>
+      <p class="sub-link">46 станций, остатки резервуаров, изменение цен,
+         отчёты по расхождениям смен.</p>
+      <a href="/UNA.md/orasldev/peco-shift" class="btn btn-ghost btn-block">
+        Консоль смены оператора</a>
+      <p class="sub-link">Открытие смены, снятие показаний счётчиков, приём цистерн,
+         закрытие смены со сверкой.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section-read"><p class="section-label">Текст технического задания</p></div>
+
+<div class="card">
+<h2 id="intro">1. Общие сведения</h2>
+<p><strong>Предмет:</strong> система управления розничной продажей топлива
+в региональной сети АЗС.</p>
+<div class="table-scroll">
+<table>
+<tr><th>Параметр</th><th>Значение</th></tr>
+<tr><td>Количество АЗС</td><td>46</td></tr>
+<tr><td>Виды топлива</td><td>A92, A95, A98, Дизель (DIESEL)</td></tr>
+<tr><td>Способы оплаты</td><td>наличные на кассе, MIA QR-код</td></tr>
+<tr><td>Пересменок в сутки</td><td>2–3 по графику</td></tr>
+</table>
+</div>
+<p><strong>Режимы отпуска:</strong> самообслуживание клиентом и отпуск сотрудником АЗС —
+одним конечным автоматом, без раздельных веток кода (см. раздел 4).</p>
+<p><strong>Уровень функциональности:</strong> полный контур — приём цистерн, складской
+учёт по резервуарам, закрытие смены со сверкой, расчёт трёх видов расхождений,
+бэк-офис по всей сети.</p>
+</div>
+
+<div class="card">
+<h2 id="arch">2. Ключевое решение: учёт по счётчику</h2>
+<p>Источником истины является <strong>тотализатор раздаточного пистолета</strong>
+(хранится в <code>PECO_NOZZLES</code>, а не на колонке), а не сумма транзакций.
+Каждая транзакция фиксирует показание счётчика на старте и на финише;
+при закрытии смены показания сверяются с суммой транзакций и с фактически
+собранными деньгами.</p>
+<p><strong>Обоснование.</strong> При учёте «по транзакциям» отпуск топлива,
+не попавший в систему, не оставляет следов вообще. При учёте по счётчику такой
+отпуск автоматически проявляется как расхождение — счётчик прокрутился,
+а оплаченных литров меньше.</p>
+<h3>Три независимых расхождения</h3>
+<div class="table-scroll">
+<pre><code>liter_variance = meter_delta − txn_liters
+                 -- топливо вышло из пистолета, но не оплачено
+
+cash_variance  = cash_declared − cash_expected
+                 -- недостача/излишек денежного ящика;
+                 -- MIA QR в cash_expected НЕ входит
+
+tank_variance  = dip_close − (volume_open + delivered − dispensed)
+                 -- считается и оценивается ОТДЕЛЬНО по каждому резервуару</code></pre>
+</div>
+<p>Показатели соответствуют трём разным типам отказа и намеренно не сводятся
+в одно число: <code>liter_variance</code> — недостача по транзакциям,
+<code>cash_variance</code> — недостача или излишек кассы, <code>tank_variance</code> —
+утечка или уход калибровки резервуара.</p>
+<p><strong>MIA QR исключён из кассовой сверки.</strong> Признак, какие способы
+оплаты попадают в сверку, — колонка <code>PECO_REF_PAY_METHODS.AFFECTS_CASH</code>
+(1 = наличные, 0 = MIA QR): оплата по MIA QR приходит на банковский счёт
+торговой точки, а не в денежный ящик, и включать её в кассовую сверку
+означало бы требовать от кассира лишние деньги, которых физически нет.</p>
+<p><strong>Резервуар — не станция.</strong> <code>tank_variance</code> считается
+и проверяется на допуск отдельно для каждого резервуара станции
+(функции <code>tank_variances()</code> и <code>tank_variances_exceed()</code>
+в <code>models/peco_shift.py</code>), а не как одна сумма по станции: иначе
+утечка в одном резервуаре и излишек в другом взаимно погасили бы друг друга
+в общем итоге, и ни один не был бы замечен.</p>
+<h3>Допуски</h3>
+<div class="table-scroll">
+<table>
+<tr><th>Константа</th><th>Значение</th><th>Смысл</th></tr>
+<tr><td><code>TOLERANCE_LITERS</code></td><td>0.5 л</td>
+    <td>допуск по литражу счётчик/транзакции</td></tr>
+<tr><td><code>TOLERANCE_CASH</code></td><td>1.0 (ед. валюты)</td>
+    <td>допуск по кассе</td></tr>
+<tr><td><code>TOLERANCE_TANK_LITERS</code></td><td>50.0 л</td>
+    <td>допуск по резервуару, на каждый резервуар отдельно</td></tr>
+</table>
+</div>
+<p>Допуск по резервуару на два порядка шире допуска по счётчику намеренно.
+Замер метрштоком на резервуаре ёмкостью ~20 000 л сам по себе даёт
+погрешность порядка ±5 л, а тепловое расширение дизеля (~0,08 %/°C) добавляет
+ещё около 16 л на градус разницы температуры между приёмкой и замером.
+Допуск 0,5 л на резервуаре означал бы <code>DISPUTED</code> практически
+на каждой смене, и статус спора перестал бы быть сигналом чего-либо. Значение
+50 л задано как стартовое и подлежит уточнению владельцем по фактической
+статистике замеров.</p>
+<p>Превышение любого из трёх допусков переводит смену в статус
+<code>DISPUTED</code> и требует подтверждения PIN-кодом сотрудника с ролью
+<code>MANAGER</code> или <code>ADMIN</code> (см. раздел 4, «Пересменка»).</p>
+</div>
+
+<div class="card">
+<h2 id="data">3. Модель данных</h2>
+<p>Префикс всех Oracle-объектов — <code>PECO_</code>. Схема нормализована:
+18 таблиц и 4 представления, generic key-value таблиц и JSON-blob нет.</p>
+<h3>Справочники</h3>
+<ul>
+<li><code>PECO_REF_FUEL_GRADES</code> — A92, A95, A98, DIESEL</li>
+<li><code>PECO_REF_PAY_METHODS</code> — CASH, MIA_QR; несёт флаг
+    <code>AFFECTS_CASH</code>, которым и управляется исключение MIA QR
+    из кассовой сверки</li>
+<li><code>PECO_REF_SHIFT_STATUS</code> — OPEN, CLOSING, CLOSED, DISPUTED</li>
+<li><code>PECO_REF_TXN_STATUS</code> — AUTHORIZED, DISPENSING, AWAITING_PAY, PAID, VOIDED</li>
+</ul>
+<h3>Мастер-данные</h3>
+<ul>
+<li><code>PECO_STATIONS</code> — 46 станций</li>
+<li><code>PECO_TANKS</code> — резервуар на вид топлива на станции</li>
+<li><code>PECO_PUMPS</code> — колонки</li>
+<li><code>PECO_NOZZLES</code> — пистолеты; <strong>тотализатор хранится здесь</strong>,
+    а не на колонке</li>
+<li><code>PECO_EMPLOYEES</code> — сотрудники, роли ATTENDANT / MANAGER / ADMIN,
+    PIN хранится как PBKDF2-хеш с солью сотрудника (600 000 итераций), в открытом
+    виде не хранится и не логируется</li>
+<li><code>PECO_PRICES</code> — версионные цены с VALID_FROM / VALID_TO</li>
+</ul>
+<h3>Операционные таблицы</h3>
+<ul>
+<li><code>PECO_SHIFTS</code> — смены с расхождениями; не более одной активной
+    (OPEN/CLOSING) смены на станцию — обеспечено функциональным уникальным
+    индексом, а не только логикой приложения</li>
+<li><code>PECO_SHIFT_METERS</code> — показания по каждому пистолету за смену</li>
+<li><code>PECO_TXN</code> — продажи топлива</li>
+<li><code>PECO_SHIFT_TANKS</code> — снимок резервуара на смену (остаток на
+    открытие, приход, замер на закрытие, расхождение). <strong>Добавлена
+    в ходе реализации</strong> — без неё <code>tank_variance</code> было бы
+    физически нечем считать: остаток резервуара на начало смены и то, что
+    в неё пришло, больше негде было хранить как принадлежащее конкретной
+    смене и конкретному резервуару одновременно</li>
+<li><code>PECO_DELIVERIES</code> + <code>PECO_DELIVERY_ITEMS</code> — приход цистерн</li>
+<li><code>PECO_TANK_DIPS</code> — ручные замеры уровня</li>
+<li><code>PECO_EVENT_LOG</code> — append-only журнал событий модуля</li>
+</ul>
+<h3>Представления</h3>
+<p><code>V_PECO_TANK_LEVELS</code>, <code>V_PECO_SHIFT_SUMMARY</code>,
+<code>V_PECO_STATION_DAILY</code>, <code>V_PECO_VARIANCE</code>.</p>
+</div>
+
+<div class="card">
+<h2 id="flows">4. Потоки и интерфейсы</h2>
+<h3>Отпуск топлива</h3>
+<div class="table-scroll">
+<pre><code>AUTHORIZED → DISPENSING → AWAITING_PAY → PAID
+                  ↓             ↓
+               VOIDED        VOIDED</code></pre>
+</div>
+<p>Один конечный автомат обслуживает оба режима; различие сводится к флагу
+<code>IS_SELF_SERVICE</code>, отдельной ветки кода для этого нет.
+<strong>Самообслуживание обязано иметь ссылку MIA-предавторизации
+(<code>mia_ref</code>) уже на шаге авторизации</strong> — без неё запрос
+авторизации отклоняется: клиент без карты/приложения не должен получить
+топливо без гарантированной оплаты. Транзакция самообслуживания закрывается
+статусом <code>PAID</code> сразу по завершении налива (оплата уже подтверждена
+предавторизацией); отпуск сотрудником остаётся в <code>AWAITING_PAY</code>
+до расчёта на кассе — наличными либо по MIA QR.</p>
+<h3>Пересменка</h3>
+<ol>
+<li>Сдающий оператор вводит закрывающие показания по каждому пистолету.</li>
+<li>Система рассчитывает <code>liter_variance</code> и <code>cash_variance</code>
+    по станции, а <code>tank_variance</code> — отдельно по каждому резервуару
+    из <code>PECO_SHIFT_TANKS</code>.</li>
+<li>Оператор объявляет наличность в кассе.</li>
+<li>При превышении любого из трёх допусков смена переходит в
+    <code>DISPUTED</code> и требует PIN сотрудника с ролью MANAGER/ADMIN
+    (ADMIN подтверждает по любой станции, MANAGER — только по своей).</li>
+<li>Открывающие показания следующей смены копируются из закрывающих
+    показаний предыдущей.</li>
+</ol>
+<p>Пункт 5 исключает незаметный разрыв цепочки показаний.</p>
+<h3>Приём цистерны</h3>
+<p>Замер до → приём по строкам накладной по каждому резервуару → замер после.
+Хранятся и заявленный, и фактически принятый объём — недолив проявляется
+немедленно. Остаток резервуара растёт на фактически принятый объём.</p>
+<h3>Обработка ошибок</h3>
+<p>Налив, потерявший связь, остаётся в статусе <code>DISPENSING</code>
+и попадает в закрытие смены как неразобранная транзакция. Смена не закроется,
+пока она не будет оплачена либо аннулирована.</p>
+<h3>UI-маршруты</h3>
+<div class="table-scroll">
+<table>
+<tr><th>Маршрут</th><th>Назначение</th></tr>
+<tr><td><code>/UNA.md/orasldev/peco-pump</code></td>
+    <td>Фронт-офис колонки: выбор топлива, авторизация налива, оплата</td></tr>
+<tr><td><code>/UNA.md/orasldev/peco-shift</code></td>
+    <td>Консоль оператора АЗС: смена, счётчики, приём цистерн, касса</td></tr>
+<tr><td><code>/UNA.md/orasldev/peco-admin</code></td>
+    <td>Бэк-офис сети: станции, цены, остатки, расхождения</td></tr>
+</table>
+</div>
+<h3>API</h3>
+<div class="table-scroll">
+<table>
+<tr><th>Метод</th><th>Маршрут</th><th>Назначение</th></tr>
+<tr><td>GET</td><td><code>/api/peco/pump/state</code></td><td>текущее состояние колонки</td></tr>
+<tr><td>POST</td><td><code>/api/peco/txn/authorize</code></td><td>авторизация налива</td></tr>
+<tr><td>POST</td><td><code>/api/peco/txn/start</code></td><td>старт налива (→ DISPENSING)</td></tr>
+<tr><td>POST</td><td><code>/api/peco/txn/finish</code></td><td>завершение по показанию счётчика</td></tr>
+<tr><td>POST</td><td><code>/api/peco/txn/pay</code></td><td>оплата (касса или MIA QR)</td></tr>
+<tr><td>POST</td><td><code>/api/peco/txn/void</code></td><td>аннулирование транзакции</td></tr>
+<tr><td>POST</td><td><code>/api/peco/shift/open</code></td><td>открытие смены</td></tr>
+<tr><td>GET</td><td><code>/api/peco/shift/&lt;id&gt;/meters</code></td><td>показания счётчиков смены</td></tr>
+<tr><td>POST</td><td><code>/api/peco/shift/meter</code></td><td>снятие закрывающего показания</td></tr>
+<tr><td>POST</td><td><code>/api/peco/shift/close</code></td><td>расчёт расхождений и закрытие смены</td></tr>
+<tr><td>POST</td><td><code>/api/peco/shift/approve</code></td><td>подтверждение DISPUTED PIN-кодом менеджера</td></tr>
+<tr><td>POST</td><td><code>/api/peco/delivery</code></td><td>приём цистерны</td></tr>
+<tr><td>GET</td><td><code>/api/peco/tanks</code></td><td>остатки резервуаров</td></tr>
+<tr><td>GET</td><td><code>/api/peco/prices</code></td><td>действующие цены по видам топлива</td></tr>
+<tr><td>GET</td><td><code>/api/peco/admin/overview</code></td><td>сводка по сети для бэк-офиса</td></tr>
+<tr><td>POST</td><td><code>/api/peco/admin/price</code></td><td>изменение цены</td></tr>
+</table>
+</div>
+<p>Все маршруты — как UI, так и API — требуют аутентифицированной сессии.</p>
+</div>
+
+<div class="card">
+<h2 id="tech">5. Техническая реализация</h2>
+<ul>
+<li>Python 3.12, Flask, Oracle через <code>oracledb</code> (wallet по <code>WALLET_DIR</code>)</li>
+<li>Одна схема Oracle на всю сеть; строки помечаются <code>STATION_ID</code>,
+    отдельных БД по станциям нет</li>
+<li>Бизнес-логика — чистые функции в <code>models/peco_shift.py</code>
+    (расхождения, пересменка, PIN) и <code>models/peco_txn.py</code>
+    (конечный автомат отпуска); к базе не обращаются, тестируются без Oracle</li>
+<li>Весь SQL изолирован в <code>models/peco_oracle_store.py</code></li>
+<li>DDL: <code>sql/100_peco_tables.sql</code> … <code>sql/104_peco_demo_data.sql</code>,
+    развёртывание — <code>python deploy_oracle_objects.py</code>
+    (обычный <code>deploy_to_remote.sh</code> код переносит, но DDL не выполняет)</li>
+</ul>
+</div>
+
+<div class="card">
+<h2 id="deliverables">6. Состав поставки</h2>
+<ol>
+<li>Oracle-схема <code>PECO_</code>: 18 таблиц, 4 представления, справочники и демо-данные.</li>
+<li>Слой хранения, изолированный от бизнес-логики.</li>
+<li>Расчёт трёх независимых расхождений смены (литры, касса, резервуар —
+    последний отдельно по каждому резервуару) с покрытием юнит-тестами.</li>
+<li>Конечный автомат отпуска топлива для обоих режимов, с обязательной
+    MIA-предавторизацией для самообслуживания.</li>
+<li>Складской контур: приём цистерн, замеры, остатки резервуаров.</li>
+<li>Три рабочих интерфейса и полный набор API-эндпоинтов под <code>/UNA.md/orasldev/</code>.</li>
+<li>Настоящая страница ТЗ с кнопками входа.</li>
+</ol>
+<h3>Не входит в первую версию</h3>
+<div class="gap">Нет rate limiting или блокировки по числу попыток на PIN менеджера —
+только PBKDF2-хеширование самого PIN.</div>
+<div class="gap">Нет прямой интеграции с контроллерами колонок: показания
+счётчиков вводятся оператором на консоли смены или поступают через API;
+протокол конкретного оборудования — предмет отдельной задачи.</div>
+<div class="gap">Нет программы лояльности и топливных карт.</div>
+<div class="gap">Нет мобильного приложения клиента.</div>
+</div>
+
+<div class="card">
+<h2>Ссылки</h2>
+<ul>
+<li><a href="/UNA.md/orasldev/peco-pump">Фронт-офис колонки</a></li>
+<li><a href="/UNA.md/orasldev/peco-shift">Консоль смены</a></li>
+<li><a href="/UNA.md/orasldev/peco-admin">Бэк-офис</a></li>
+<li><a href="/login">Вход в систему</a></li>
+</ul>
+</div>
+</body>
+</html>
