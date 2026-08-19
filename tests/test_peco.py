@@ -854,3 +854,80 @@ def test_meter_rollover_is_not_reconstructed():
 
 def test_equal_readings_dispense_nothing():
     assert peco_txn.liters_from_meter(1000.0, 1000.0) == 0.0
+
+
+# ------------------------------------------------------------------
+# Task 11: транзакции — авторизация, налив, оплата, аннулирование
+# ------------------------------------------------------------------
+
+
+def test_authorize_uses_current_price_and_opens_at_authorized():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.current_price.return_value = {"success": True, "price": 23.90}
+        store.insert_txn.return_value = {"success": True, "txn_id": 500}
+        r = peco_txn.authorize(shift_id=77, nozzle_id=3, grade_code="A95",
+                               station_id=1, meter_start=1000.0,
+                               is_self_service=True)
+    assert r["success"] is True and r["txn_id"] == 500
+    assert store.insert_txn.call_args.kwargs["price"] == 23.90
+
+
+def test_authorize_refuses_without_a_current_price():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.current_price.return_value = {"success": False, "error": "Нет цены"}
+        r = peco_txn.authorize(shift_id=77, nozzle_id=3, grade_code="A95",
+                               station_id=1, meter_start=1000.0,
+                               is_self_service=True)
+    assert r["success"] is False
+    store.insert_txn.assert_not_called()
+
+
+def test_finish_dispense_computes_liters_and_amount_from_meter():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "DISPENSING", "meter_start": 1000.0,
+            "price": 23.90, "is_self_service": 0, "nozzle_id": 3}}
+        store.update_txn_status.return_value = {"success": True}
+        r = peco_txn.finish_dispense(500, meter_end=1010.0)
+    assert r["success"] is True
+    assert r["liters"] == 10.0
+    assert r["amount"] == 239.00
+    assert r["status"] == "AWAITING_PAY"   # отпуск сотрудником ждёт кассы
+
+
+def test_finish_dispense_self_service_goes_straight_to_paid():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 501, "status_code": "DISPENSING", "meter_start": 0.0,
+            "price": 20.0, "is_self_service": 1, "nozzle_id": 3}}
+        store.update_txn_status.return_value = {"success": True}
+        r = peco_txn.finish_dispense(501, meter_end=5.0)
+    assert r["status"] == "PAID"
+
+
+def test_settle_refuses_mia_without_reference():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "AWAITING_PAY"}}
+        r = peco_txn.settle(500, pay_method="MIA_QR", mia_ref=None)
+    assert r["success"] is False
+    store.update_txn_status.assert_not_called()
+
+
+def test_settle_marks_paid_with_method():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "AWAITING_PAY"}}
+        store.update_txn_status.return_value = {"success": True}
+        r = peco_txn.settle(500, pay_method="CASH")
+    assert r["success"] is True
+    assert store.update_txn_status.call_args[0][1] == "PAID"
+
+
+def test_void_is_refused_on_a_paid_transaction():
+    with patch("models.peco_txn.PecoStore") as store:
+        store.get_txn.return_value = {"success": True, "txn": {
+            "id": 500, "status_code": "PAID"}}
+        r = peco_txn.void(500, reason="ошибка оператора")
+    assert r["success"] is False
+    store.update_txn_status.assert_not_called()
