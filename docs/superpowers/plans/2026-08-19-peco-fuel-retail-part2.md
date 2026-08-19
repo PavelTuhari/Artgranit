@@ -201,7 +201,7 @@ def approve_disputed(shift_id: int, manager_id: int, pin: str) -> Dict[str, Any]
         return {"success": False,
                 "error": "Подтвердить расхождение может только менеджер"}
 
-    if emp.get("pin_hash") != hash_pin(pin):
+    if not verify_pin(pin, emp.get("pin_salt"), emp.get("pin_hash")):
         return {"success": False, "error": "Неверный PIN"}
 
     saved = PecoStore.approve_shift(shift_id, manager_id)
