@@ -80,3 +80,143 @@ def validate_settlement(status: str, pay_method: str,
     if pay_method in _REF_REQUIRED and not mia_ref:
         return {"ok": False, "error": "Не указана ссылка платежа MIA"}
     return {"ok": True, "error": ""}
+
+
+# ------------------------------------------------------------------
+# Оркестрация
+# ------------------------------------------------------------------
+
+
+def authorize(shift_id: int, nozzle_id: int, grade_code: str,
+              station_id: int, meter_start: float, is_self_service: bool,
+              employee_id: Optional[int] = None) -> Dict[str, Any]:
+    """Авторизует налив по действующей цене.
+
+    Цена фиксируется в транзакции: смена цены посреди смены не должна
+    переписывать то, что клиент уже заплатил.
+    """
+    price_r = PecoStore.current_price(station_id, grade_code)
+    if not price_r.get("success"):
+        return price_r
+
+    created = PecoStore.insert_txn(
+        shift_id=shift_id,
+        nozzle_id=nozzle_id,
+        grade_code=grade_code,
+        price=price_r["price"],
+        meter_start=meter_start,
+        is_self_service=is_self_service,
+        authorized_by=employee_id,
+    )
+    if not created.get("success"):
+        return created
+
+    PecoStore.log_event(
+        "TXN_AUTHORIZED", station_id=station_id, shift_id=shift_id,
+        entity_type="TXN", entity_id=created["txn_id"], employee_id=employee_id,
+        payload={"grade": grade_code, "price": price_r["price"]},
+    )
+    return {"success": True, "txn_id": created["txn_id"],
+            "price": price_r["price"]}
+
+
+def start_dispense(txn_id: int) -> Dict[str, Any]:
+    """AUTHORIZED -> DISPENSING."""
+    txn_r = PecoStore.get_txn(txn_id)
+    if not txn_r.get("success"):
+        return txn_r
+    current = txn_r["txn"]["status_code"]
+    if not can_transition(current, "DISPENSING"):
+        return {"success": False,
+                "error": f"Недопустимый переход {current} -> DISPENSING"}
+    saved = PecoStore.update_txn_status(txn_id, "DISPENSING")
+    if not saved.get("success"):
+        return saved
+    return {"success": True, "status": "DISPENSING"}
+
+
+def finish_dispense(txn_id: int, meter_end: float) -> Dict[str, Any]:
+    """Завершает налив: литры и сумма считаются по счётчику."""
+    txn_r = PecoStore.get_txn(txn_id)
+    if not txn_r.get("success"):
+        return txn_r
+    txn = txn_r["txn"]
+    current = txn["status_code"]
+
+    is_self = bool(int(txn.get("is_self_service") or 0))
+    target = next_status_after_dispense(is_self)
+
+    if not can_transition(current, target):
+        return {"success": False,
+                "error": f"Недопустимый переход {current} -> {target}"}
+
+    liters = liters_from_meter(float(txn["meter_start"]), meter_end)
+    amount = compute_amount(liters, float(txn["price"]))
+
+    fields: Dict[str, Any] = {"liters": liters, "amount": amount,
+                              "meter_end": meter_end}
+    if target == "PAID":
+        # самообслуживание предавторизовано по MIA QR
+        fields["pay_method"] = "MIA_QR"
+
+    saved = PecoStore.update_txn_status(txn_id, target, **fields)
+    if not saved.get("success"):
+        return saved
+
+    PecoStore.log_event(
+        "TXN_DISPENSED", entity_type="TXN", entity_id=txn_id,
+        payload={"liters": liters, "amount": amount, "status": target},
+    )
+    return {"success": True, "status": target, "liters": liters,
+            "amount": amount}
+
+
+def settle(txn_id: int, pay_method: str,
+           mia_ref: Optional[str] = None) -> Dict[str, Any]:
+    """Закрывает транзакцию оплатой на кассе или по MIA QR."""
+    txn_r = PecoStore.get_txn(txn_id)
+    if not txn_r.get("success"):
+        return txn_r
+    current = txn_r["txn"]["status_code"]
+
+    check = validate_settlement(current, pay_method, mia_ref)
+    if not check["ok"]:
+        return {"success": False, "error": check["error"]}
+
+    if not can_transition(current, "PAID"):
+        return {"success": False,
+                "error": f"Недопустимый переход {current} -> PAID"}
+
+    saved = PecoStore.update_txn_status(
+        txn_id, "PAID", pay_method=pay_method, mia_ref=mia_ref
+    )
+    if not saved.get("success"):
+        return saved
+
+    PecoStore.log_event(
+        "TXN_PAID", entity_type="TXN", entity_id=txn_id,
+        payload={"pay_method": pay_method},
+    )
+    return {"success": True, "status": "PAID"}
+
+
+def void(txn_id: int, reason: str) -> Dict[str, Any]:
+    """Аннулирует незавершённую транзакцию. Оплаченную аннулировать нельзя."""
+    txn_r = PecoStore.get_txn(txn_id)
+    if not txn_r.get("success"):
+        return txn_r
+    current = txn_r["txn"]["status_code"]
+
+    if not can_transition(current, "VOIDED"):
+        return {"success": False,
+                "error": f"Нельзя аннулировать транзакцию в статусе {current}"}
+
+    saved = PecoStore.update_txn_status(txn_id, "VOIDED")
+    if not saved.get("success"):
+        return saved
+
+    PecoStore.log_event(
+        "TXN_VOIDED", entity_type="TXN", entity_id=txn_id,
+        payload={"reason": reason},
+    )
+    return {"success": True, "status": "VOIDED"}
