@@ -233,7 +233,26 @@ table.tbl tbody tr:hover { background: #f8fafc; }
 
 .zone-tip { position: fixed; background: #0f172a; color: #fff; padding: 6px 9px; border-radius: 6px;
     font-size: 11px; pointer-events: none; z-index: 800; display: none; line-height: 1.4; }
+
+/* Карта АЗС. Leaflet отдаётся с нашего сервера, а не с CDN:
+   раздел должен открываться и при недоступном unpkg. */
+#fuelMap { height: 460px; width: 100%; border-radius: 10px; z-index: 1; }
+.leaflet-container { background: var(--map-bg); font: inherit; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: var(--card); color: var(--fg); }
+.leaflet-popup-content { font-size: 12.5px; line-height: 1.5; }
+.fuel-pin { background: transparent; border: 0; }
+.fuel-pin i { display: block; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.fuel-pin.depot i { width: 18px; height: 18px; border-radius: 4px; transform: rotate(45deg); }
+.fuel-pin.truck i { width: 16px; height: 16px; border-radius: 4px; }
+.map-legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+    font-size: 12px; color: var(--muted); margin-top: 8px; }
+.map-legend b { display: inline-block; width: 11px; height: 11px; border-radius: 50%;
+    margin-right: 5px; vertical-align: -1px; }
 </style>
+<link rel="stylesheet" href="/static/plg/vendor/leaflet/leaflet.css">
+<script src="/static/plg/vendor/leaflet/leaflet.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -656,6 +675,78 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                 </div>
             </section>
 
+            <!-- ===== Автозаказ топлива: карта, резервуары, рейсы ===== -->
+            <section class="panel" id="panel-fuel">
+                <div class="stat-grid" id="fuelStats"></div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fu.mapTitle">Карта сети АЗС</div>
+                            <div class="sub" data-i18n="fu.mapSub">Цвет точки — запас топлива до сухого бака. Режим правки позволяет перетащить станцию или найти её по адресу</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <input class="ctl" id="fuelAddr" style="width:230px"
+                                   data-i18n-ph="fu.addrPh" placeholder="Адрес станции">
+                            <button class="btn btn-ghost" onclick="geocodeFuelStation()" data-i18n="fu.find">Найти по адресу</button>
+                            <button class="btn btn-ghost" id="fuelEditBtn" onclick="toggleFuelEdit()" data-i18n="fu.edit">Режим правки</button>
+                        </div>
+                    </div>
+                    <div class="card-b">
+                        <div id="fuelMap"></div>
+                        <div class="map-legend" id="fuelLegend"></div>
+                        <div class="muted small" id="fuelMapInfo" style="margin-top:6px"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fu.orderTitle">Автозаказ топлива</div>
+                            <div class="sub" data-i18n="fu.orderSub">Объём подбирается комбинацией секций бензовоза и ограничен свободной ёмкостью резервуара на момент прихода</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <select class="ctl" id="fuelStatusFilter" onchange="loadFuelOrders()"></select>
+                            <button class="btn btn-ghost" onclick="openFuelParams()" data-i18n="fu.params">Параметры</button>
+                            <button class="btn btn-primary" onclick="runFuelAutoorder()" data-i18n="fu.run">Рассчитать заказ</button>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelOrdersTbl"></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fu.depotTitle">Нефтебаза и импорт</div>
+                            <div class="sub" data-i18n="fu.depotSub">Второй эшелон: запас базы против суточной потребности всей сети и плеча импорта</div>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelDepotTbl"></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fu.tripsTitle">Рейсы бензовозов</div>
+                            <div class="sub" data-i18n="fu.tripsSub">Одна секция — один вид топлива и один резервуар. GPS-датчики на аутсорсе</div>
+                        </div>
+                        <button class="btn btn-primary" onclick="planFuelTrips()" data-i18n="fu.plan">Спланировать рейсы</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelTripsTbl"></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fu.gpsTitle">События телеметрии</div>
+                            <div class="sub" data-i18n="fu.gpsSub">Стоянки вне маршрута, отклонения, срыв пломбы, превышение скорости</div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="analyzeFuelGps()" data-i18n="fu.analyze">Разобрать треки</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelGpsTbl"></table></div>
+                </div>
+            </section>
+
             <!-- ===== ИИ-мониторинг продаж ===== -->
             <section class="panel" id="panel-aimonitor">
                 <div class="stat-grid" id="aiStats"></div>
@@ -940,6 +1031,7 @@ const NAV = [
     {id: 'orders',        icon: '☑', key: 'nav.autoOrders'},
     {id: 'aimonitor',     icon: '☲', key: 'nav.aiMonitor'},
     {id: 'imports',       icon: '⛴', key: 'nav.imports'},
+    {id: 'fuel',          icon: '⛽', key: 'nav.fuel'},
     {id: 'fresh',         icon: '❄', key: 'nav.fresh'},
     {id: 'floor-orders',  icon: '🎤', key: 'nav.floorOrders'},
     {id: 'logistics',     icon: '▬', key: 'nav.logistics'},
