@@ -233,6 +233,23 @@ def close_shift(
         return meters_r
     meters = meters_r["items"]
 
+    # Смена не закрывается, пока не снято показание с КАЖДОГО пистолета.
+    # meter_delta() пропускает пистолеты без METER_CLOSE, а не считает их
+    # нулём — иначе отпуск без снятого показания дал бы liter_variance = 0
+    # и смена ушла бы в CLOSED, хотя топливо физически ушло без следа: не
+    # видно ни в кассе (транзакции нет), ни в резервуаре (тотализатор не
+    # сдвинулся, и следующая смена унаследует то же самое METER_OPEN).
+    missing_meters = [m.get("nozzle_id") for m in meters
+                      if m.get("meter_close") is None]
+    if missing_meters:
+        codes = [str(m.get("nozzle_code") or m.get("nozzle_id"))
+                 for m in meters if m.get("meter_close") is None]
+        return {
+            "success": False,
+            "error": "Не сняты показания счётчиков: " + ", ".join(codes),
+            "missing_meters": missing_meters,
+        }
+
     paid = PecoStore.shift_paid_liters(shift_id)
     if not paid.get("success"):
         return paid
