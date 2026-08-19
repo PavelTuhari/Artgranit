@@ -322,8 +322,8 @@ function load() {
       tdCur.appendChild(bar);
       tdCur.appendChild(document.createTextNode(fmt3(t.current_l) + (t.is_low ? ' ⚠ низкий остаток' : '')));
       tr.appendChild(tdCur);
-      tr.appendChild(txt('td num', null, Number(t.capacity_l).toFixed(0)));
-      tr.appendChild(txt('td num', null, Number(t.fill_pct).toFixed(1) + '%'));
+      tr.appendChild(txt('td', 'num', Number(t.capacity_l).toFixed(0)));
+      tr.appendChild(txt('td', 'num', Number(t.fill_pct).toFixed(1) + '%'));
       tbody.appendChild(tr);
 
       var dtr = document.createElement('tr');
