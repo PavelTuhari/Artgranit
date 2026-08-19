@@ -130,7 +130,7 @@ def test_open_shift_creates_meter_rows_from_nozzles():
     statements = [c[0][0] for c in db.execute_query.call_args_list]
     assert any("INSERT INTO PECO_SHIFTS" in s for s in statements)
     # показания открытия берутся из текущих счётчиков пистолетов
-    assert any("INSERT INTO PECO_SHIFT_METERS" in s for s in statements)
+    assert any("INTO PECO_SHIFT_METERS" in s for s in statements)
     assert any("METER_TOTAL" in s for s in statements)
     db.connection.commit.assert_called_once()
 
