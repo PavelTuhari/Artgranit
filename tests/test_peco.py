@@ -1297,3 +1297,56 @@ def test_shift_close_forwards_declared_cash():
                                         "cash_declared": 2400.0})
     assert r["success"] is True
     assert shift.close_shift.call_args.kwargs["cash_declared"] == 2400.0
+
+
+def test_authorize_forwards_the_mia_reference():
+    """Без ссылки предавторизации модель отказывает в отпуске, а MIA-итог
+    смены нечем сверить с эквайером."""
+    with patch("controllers.peco_controller.peco_txn") as txn:
+        txn.authorize.return_value = {"success": True, "txn_id": 500}
+        PecoController.authorize({
+            "station_id": 1, "shift_id": 77, "nozzle_id": 3,
+            "grade_code": "A95", "meter_start": 0.0,
+            "is_self_service": True, "mia_ref": "MIA-7"})
+    assert txn.authorize.call_args.kwargs["mia_ref"] == "MIA-7"
+
+
+def test_controller_rejects_a_non_numeric_field_cleanly():
+    """Мусор в запросе — ошибка запроса, а не 500."""
+    r = PecoController.shift_close({"shift_id": "abc", "employee_id": 5,
+                                    "cash_declared": 0.0})
+    assert r["success"] is False
+    assert "shift_id" in r["error"]
+
+
+def test_controller_rejects_malformed_dips():
+    r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
+                                    "cash_declared": 0.0,
+                                    "dips": {"x": "abc"}})
+    assert r["success"] is False
+
+
+def test_controller_rejects_a_dips_value_that_is_not_a_mapping():
+    r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
+                                    "cash_declared": 0.0,
+                                    "dips": [1, 2, 3]})
+    assert r["success"] is False
+
+
+def test_controller_rejects_infinity():
+    """float('1e999') не бросает исключение, а тихо даёт inf, который
+    прошёл бы всю арифметику сверки и испортил расхождения смены."""
+    r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
+                                    "cash_declared": "1e999"})
+    assert r["success"] is False
+
+
+def test_an_empty_till_can_still_close_a_shift():
+    """Ноль наличных — законное значение, а не отсутствующее поле."""
+    with patch("controllers.peco_controller.peco_shift") as shift:
+        shift.close_shift.return_value = {"success": True, "status": "CLOSED",
+                                          "variances": {}}
+        r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
+                                        "cash_declared": 0.0})
+    assert r["success"] is True
+    assert shift.close_shift.call_args.kwargs["cash_declared"] == 0.0
