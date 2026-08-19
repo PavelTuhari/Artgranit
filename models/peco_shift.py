@@ -317,3 +317,66 @@ def close_shift(
         # операцию, но и молчать о нём нельзя.
         result["audit_warning"] = "Не удалось записать событие закрытия смены"
     return result
+
+
+# Число итераций PBKDF2. PIN четырёхзначный, то есть пространство перебора
+# крошечное — стойкость здесь даёт только стоимость одной проверки.
+_PIN_ITERATIONS = 200_000
+
+
+def new_salt() -> str:
+    """Случайная соль на сотрудника (32 hex-символа)."""
+    return secrets.token_hex(16)
+
+
+def hash_pin(pin: str, salt: str) -> str:
+    """PBKDF2-HMAC-SHA256 от PIN с солью сотрудника.
+
+    Соль обязательна: без неё одинаковый PIN у двух сотрудников даёт
+    одинаковый хеш, и всё пространство четырёхзначных PIN вскрывается
+    одной радужной таблицей. PIN в открытом виде не хранится и не логируется.
+    """
+    dk = hashlib.pbkdf2_hmac(
+        "sha256", str(pin).encode("utf-8"), str(salt).encode("utf-8"),
+        _PIN_ITERATIONS,
+    )
+    return dk.hex()[:64]
+
+
+def verify_pin(pin: str, salt: str, expected_hash: str) -> bool:
+    """Сравнение в постоянном времени, чтобы не утекала длина совпадения."""
+    if not salt or not expected_hash:
+        return False
+    return hmac.compare_digest(hash_pin(pin, salt), str(expected_hash))
+
+
+def approve_disputed(shift_id: int, manager_id: int, pin: str) -> Dict[str, Any]:
+    """Подтверждение смены с расхождением. Требует роль MANAGER или ADMIN.
+
+    Расхождение при этом не обнуляется: статус остаётся DISPUTED, а в
+    APPROVED_BY фиксируется, кто принял его под ответственность.
+    """
+    emp_r = PecoStore.get_employee(manager_id)
+    if not emp_r.get("success"):
+        return emp_r
+    emp = emp_r["employee"]
+
+    if emp.get("role_code") not in ("MANAGER", "ADMIN"):
+        return {"success": False,
+                "error": "Подтвердить расхождение может только менеджер"}
+
+    if not verify_pin(pin, emp.get("pin_salt"), emp.get("pin_hash")):
+        return {"success": False, "error": "Неверный PIN"}
+
+    saved = PecoStore.approve_shift(shift_id, manager_id)
+    if not saved.get("success"):
+        return saved
+
+    PecoStore.log_event(
+        "SHIFT_APPROVED",
+        shift_id=shift_id,
+        entity_type="SHIFT",
+        entity_id=shift_id,
+        employee_id=manager_id,
+    )
+    return {"success": True}

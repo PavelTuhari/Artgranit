@@ -446,3 +446,37 @@ class PecoStore:
                 return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_employee(employee_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, 
+                    """SELECT ID, STATION_ID, FULL_NAME, ROLE_CODE,
+                              PIN_SALT, PIN_HASH
+                         FROM PECO_EMPLOYEES
+                        WHERE ID = :employee_id AND ACTIVE = 1""",
+                    {"employee_id": employee_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Сотрудник не найден"}
+                return {"success": True, "employee": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def approve_shift(shift_id: int, employee_id: int) -> Dict[str, Any]:
+        """Подтверждение расхождения менеджером. Статус остаётся DISPUTED —
+        расхождение не стирается, оно принимается под ответственность."""
+        try:
+            with DatabaseModel() as db:
+                _run(db, 
+                    """UPDATE PECO_SHIFTS SET APPROVED_BY = :employee_id
+                        WHERE ID = :shift_id""",
+                    {"shift_id": shift_id, "employee_id": employee_id},
+                )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
