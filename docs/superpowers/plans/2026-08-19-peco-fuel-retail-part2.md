@@ -18,29 +18,62 @@
 **Interfaces:**
 - Consumes: `PecoStore.log_event`.
 - Produces:
-  - `PecoStore.get_employee(employee_id: int) -> dict` → `{"success": bool, "employee": {"id", "full_name", "role_code", "pin_hash", "station_id"}}`
+  - `PecoStore.get_employee(employee_id: int) -> dict` → `{"success": bool, "employee": {"id", "full_name", "role_code", "pin_salt", "pin_hash", "station_id"}}`
   - `PecoStore.approve_shift(shift_id: int, employee_id: int) -> dict`
   - `peco_shift.approve_disputed(shift_id: int, manager_id: int, pin: str) -> dict`
-  - `peco_shift.hash_pin(pin: str) -> str` — SHA-256 hex
+  - `peco_shift.new_salt() -> str` — 32 hex chars from `secrets`
+  - `peco_shift.hash_pin(pin: str, salt: str) -> str` — PBKDF2-HMAC-SHA256, 64 hex chars
+  - `peco_shift.verify_pin(pin: str, salt: str, expected_hash: str) -> bool` — constant-time
 
 - [ ] **Step 1: Write the failing tests**
 
 Append to `tests/test_peco.py`:
 
 ```python
-def test_hash_pin_is_stable_and_not_plaintext():
-    h = peco_shift.hash_pin("1234")
-    assert h == peco_shift.hash_pin("1234")
+def test_hash_pin_is_stable_for_the_same_salt():
+    salt = "a" * 32
+    h = peco_shift.hash_pin("1234", salt)
+    assert h == peco_shift.hash_pin("1234", salt)
     assert "1234" not in h
     assert len(h) == 64
 
 
+def test_same_pin_with_different_salts_gives_different_hashes():
+    """Соль на сотрудника: одинаковый PIN у двоих не даёт одинаковый хеш,
+    иначе четырёхзначный PIN вскрывается одной радужной таблицей."""
+    assert peco_shift.hash_pin("1234", "a" * 32) != peco_shift.hash_pin("1234", "b" * 32)
+
+
+def test_new_salt_is_random_and_hex():
+    s1, s2 = peco_shift.new_salt(), peco_shift.new_salt()
+    assert s1 != s2
+    assert len(s1) == 32
+    int(s1, 16)  # бросит ValueError, если не hex
+
+
+def test_verify_pin_accepts_correct_and_rejects_wrong():
+    salt = peco_shift.new_salt()
+    h = peco_shift.hash_pin("1234", salt)
+    assert peco_shift.verify_pin("1234", salt, h) is True
+    assert peco_shift.verify_pin("9999", salt, h) is False
+
+
+def test_verify_pin_rejects_placeholder_seed_values():
+    """Демо-строки из сида не должны случайно проходить проверку."""
+    assert peco_shift.verify_pin("1234", "NO_SALT_SET", "NO_PIN_SET") is False
+
+
+def _mgr(role="MANAGER", pin="1234"):
+    salt = peco_shift.new_salt()
+    return {"id": 9, "role_code": role, "pin_salt": salt,
+            "pin_hash": peco_shift.hash_pin(pin, salt)}
+
+
 def test_approve_disputed_rejects_non_manager():
     with patch("models.peco_shift.PecoStore") as store:
-        store.get_employee.return_value = {"success": True, "employee": {
-            "id": 5, "role_code": "ATTENDANT",
-            "pin_hash": peco_shift.hash_pin("1234")}}
-        r = peco_shift.approve_disputed(77, manager_id=5, pin="1234")
+        store.get_employee.return_value = {"success": True,
+                                          "employee": _mgr(role="ATTENDANT")}
+        r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
     assert r["success"] is False
     assert "менеджер" in r["error"].lower()
     store.approve_shift.assert_not_called()
@@ -48,9 +81,7 @@ def test_approve_disputed_rejects_non_manager():
 
 def test_approve_disputed_rejects_wrong_pin():
     with patch("models.peco_shift.PecoStore") as store:
-        store.get_employee.return_value = {"success": True, "employee": {
-            "id": 9, "role_code": "MANAGER",
-            "pin_hash": peco_shift.hash_pin("1234")}}
+        store.get_employee.return_value = {"success": True, "employee": _mgr()}
         r = peco_shift.approve_disputed(77, manager_id=9, pin="9999")
     assert r["success"] is False
     store.approve_shift.assert_not_called()
@@ -58,9 +89,7 @@ def test_approve_disputed_rejects_wrong_pin():
 
 def test_approve_disputed_accepts_manager_with_correct_pin():
     with patch("models.peco_shift.PecoStore") as store:
-        store.get_employee.return_value = {"success": True, "employee": {
-            "id": 9, "role_code": "MANAGER",
-            "pin_hash": peco_shift.hash_pin("1234")}}
+        store.get_employee.return_value = {"success": True, "employee": _mgr()}
         store.approve_shift.return_value = {"success": True}
         r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
     assert r["success"] is True
@@ -70,7 +99,7 @@ def test_approve_disputed_accepts_manager_with_correct_pin():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `python -m pytest tests/test_peco.py -v -k "pin or approve"`
+Run: `python -m pytest tests/test_peco.py -v -k "pin or approve or salt"`
 Expected: FAIL — `AttributeError: module 'models.peco_shift' has no attribute 'hash_pin'`
 
 - [ ] **Step 3: Add the store methods**
