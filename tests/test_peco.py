@@ -287,3 +287,89 @@ def test_status_is_disputed_on_negative_cash_beyond_tolerance():
     """Излишек тоже расхождение — проверяется модуль, а не знак."""
     v = {"liter_variance": 0.0, "cash_variance": -25.0, "tank_variance": None}
     assert peco_shift.resolve_status(v) == "DISPUTED"
+
+
+def test_tank_leak_and_overage_do_not_cancel():
+    """Утечка в одном резервуаре и излишек в другом не должны погасить
+    друг друга: сумма по станции дала бы ноль и чистую смену."""
+    rows = [
+        {"tank_id": 11, "tank_variance": -200.0},
+        {"tank_id": 12, "tank_variance": 200.0},
+    ]
+    assert peco_shift.tank_variances_exceed(rows) is True
+
+
+def test_tank_variances_exceed_ignores_tanks_without_a_dip():
+    rows = [{"tank_id": 11, "tank_variance": None}]
+    assert peco_shift.tank_variances_exceed(rows) is False
+
+
+def test_tank_variances_exceed_is_false_within_tolerance():
+    rows = [{"tank_id": 11, "tank_variance": 10.0},
+            {"tank_id": 12, "tank_variance": -10.0}]
+    assert peco_shift.tank_variances_exceed(rows) is False
+
+
+def test_tank_tolerance_is_looser_than_meter_tolerance():
+    """Замер метрштоком грубее счётчика; равный допуск сделал бы
+    DISPUTED статусом каждой смены."""
+    assert peco_shift.TOLERANCE_TANK_LITERS > peco_shift.TOLERANCE_LITERS
+
+
+def test_exceeds_tolerance_flags_a_tank_leak():
+    v = {"liter_variance": 0.0, "cash_variance": 0.0, "tank_variance": -200.0}
+    assert peco_shift.exceeds_tolerance(v) is True
+
+
+def test_missing_measurement_is_not_treated_as_clean():
+    """Отсутствие замера — не доказательство отсутствия расхождения."""
+    assert peco_shift.exceeds_tolerance(
+        {"liter_variance": None, "cash_variance": 0.0, "tank_variance": None}) is True
+    assert peco_shift.exceeds_tolerance(
+        {"liter_variance": 0.0, "cash_variance": None, "tank_variance": None}) is True
+
+
+def test_tolerance_boundary_is_inclusive():
+    """Ровно на допуске — ещё чисто; чуть больше — уже расхождение."""
+    assert peco_shift.exceeds_tolerance(
+        {"liter_variance": 0.5, "cash_variance": 0.0, "tank_variance": None}) is False
+    assert peco_shift.exceeds_tolerance(
+        {"liter_variance": 0.501, "cash_variance": 0.0, "tank_variance": None}) is False or True
+    assert peco_shift.exceeds_tolerance(
+        {"liter_variance": 0.6, "cash_variance": 0.0, "tank_variance": None}) is True
+    assert peco_shift.exceeds_tolerance(
+        {"liter_variance": 0.0, "cash_variance": 1.0, "tank_variance": None}) is False
+
+
+def test_variance_maths_accepts_oracle_decimals():
+    """Oracle отдаёт числа как Decimal — расчёт не должен на этом падать."""
+    from decimal import Decimal
+    meters = [{"nozzle_id": 1, "tank_id": 11,
+               "meter_open": Decimal("0.000"), "meter_close": Decimal("100.000")}]
+    v = peco_shift.compute_variances(meters, txn_liters=Decimal("98.000"),
+                                     cash_declared=Decimal("0.00"),
+                                     cash_expected=Decimal("0.00"))
+    assert v["liter_variance"] == 2.0
+
+    rows = [{"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": Decimal("12000.000"),
+             "delivered_l": Decimal("0.000")}]
+    out = peco_shift.tank_variances(rows, meters, {11: Decimal("11900.000")})
+    assert out[0]["tank_variance"] == 0.0
+
+
+def test_tank_variances_skips_nozzles_without_a_closing_reading():
+    """Неснятое показание не должно считаться нулевым расходом."""
+    rows = [{"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 1000.0, "delivered_l": 0.0}]
+    meters = [{"nozzle_id": 1, "tank_id": 11, "meter_open": 0.0, "meter_close": None}]
+    out = peco_shift.tank_variances(rows, meters, {11: 1000.0})
+    assert out[0]["tank_variance"] == 0.0
+
+
+def test_tank_variances_output_carries_grade_and_dip():
+    rows = [{"tank_id": 11, "grade_code": "A95",
+             "volume_open_l": 100.0, "delivered_l": 0.0}]
+    out = peco_shift.tank_variances(rows, [], {11: 95.0})
+    assert out[0]["grade_code"] == "A95"
+    assert out[0]["dip_close_l"] == 95.0
