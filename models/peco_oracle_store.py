@@ -76,7 +76,7 @@ class PecoStore:
         """Активные пистолеты станции с колонкой, резервуаром и счётчиком."""
         try:
             with DatabaseModel() as db:
-                r = _run(db, 
+                r = _run(db,
                     """SELECT n.ID, n.CODE, n.GRADE_CODE, n.METER_TOTAL,
                               n.TANK_ID, p.ID AS PUMP_ID, p.CODE AS PUMP_CODE,
                               p.SELF_SERVICE
