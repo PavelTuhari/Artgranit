@@ -109,6 +109,13 @@ class PecoController:
         # делает сама модель (peco_txn.authorize), контроллер лишь
         # прокидывает значение, если оно пришло в запросе.
         try:
+            # employee_id необязателен (кассир не участвует при
+            # самообслуживании), но если он пришёл, обязан пройти через
+            # тот же _as_int, что и остальные числовые поля — иначе
+            # JSON-строка вместо числа доезжает до Oracle и падает
+            # необработанным ORA-01722 вместо доменной ошибки запроса.
+            employee_id = (_as_int(payload, "employee_id")
+                          if payload.get("employee_id") is not None else None)
             return peco_txn.authorize(
                 shift_id=_as_int(payload, "shift_id"),
                 nozzle_id=_as_int(payload, "nozzle_id"),
@@ -116,7 +123,7 @@ class PecoController:
                 station_id=_as_int(payload, "station_id"),
                 meter_start=_as_float(payload, "meter_start"),
                 is_self_service=bool(payload.get("is_self_service")),
-                employee_id=payload.get("employee_id"),
+                employee_id=employee_id,
                 mia_ref=payload.get("mia_ref"),
             )
         except PecoInputError as e:
