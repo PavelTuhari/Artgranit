@@ -155,11 +155,6 @@ def tank_variances_exceed(rows: List[Dict[str, Any]]) -> bool:
     return False
 
 
-def resolve_status(variances: Dict[str, Any]) -> str:
-    """Итоговый статус смены по расхождениям."""
-    return "DISPUTED" if exceeds_tolerance(variances) else "CLOSED"
-
-
 # ------------------------------------------------------------------
 # Оркестрация (обращается к store, но не пишет SQL сама)
 # ------------------------------------------------------------------
