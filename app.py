@@ -9045,6 +9045,36 @@ def api_peco_admin_price():
     return jsonify(PecoController.set_price(request.get_json(silent=True) or {}))
 
 
+@app.route('/api/peco/employees')
+def api_peco_employees():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    station_id = _peco_station_id() if request.args.get('station_id') else None
+    return jsonify(PecoController.employees(station_id))
+
+
+@app.route('/api/peco/employee/pin', methods=['POST'])
+def api_peco_employee_pin():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(PecoController.set_pin(request.get_json(silent=True) or {}))
+
+
+@app.route('/api/peco/shifts/disputed')
+def api_peco_shifts_disputed():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    station_id = _peco_station_id() if request.args.get('station_id') else None
+    return jsonify(PecoController.disputed_shifts(station_id))
+
+
+@app.route('/api/peco/shift/<int:shift_id>/summary')
+def api_peco_shift_summary(shift_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(PecoController.shift_summary(shift_id))
+
+
 if __name__ == '__main__':
     # Запускаем фоновый поток для обновления метрик
     updater_thread = threading.Thread(target=background_metric_updater, daemon=True)
