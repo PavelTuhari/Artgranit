@@ -389,10 +389,10 @@ class PecoStore:
                 )
 
                 _run(db,
-                    """INSERT INTO PECO_TANK_DIPS
+                    """INSERT /*+ NO_PARALLEL */ INTO PECO_TANK_DIPS
                               (ID, TANK_ID, STATION_ID, SHIFT_ID, MEASURED_L,
                                MEASURED_BY, DIP_KIND)
-                       SELECT PECO_TANK_DIPS_SEQ.NEXTVAL, :tank_id, t.STATION_ID,
+                       SELECT /*+ NO_PARALLEL */ PECO_TANK_DIPS_SEQ.NEXTVAL, :tank_id, t.STATION_ID,
                               :shift_id, :dip_close_l, :employee_id, 'CLOSE'
                          FROM PECO_TANKS t
                         WHERE t.ID = :tank_id""",
