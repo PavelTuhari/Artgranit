@@ -528,7 +528,8 @@ class PecoStore:
     def insert_txn(shift_id: int, nozzle_id: int, grade_code: str,
                    price: float, meter_start: float,
                    is_self_service: bool,
-                   authorized_by: Optional[int] = None) -> Dict[str, Any]:
+                   authorized_by: Optional[int] = None,
+                   mia_ref: Optional[str] = None) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
                 # STATION_ID берётся подзапросом из самой смены, а не
@@ -536,18 +537,21 @@ class PecoStore:
                 # участвует в составном FK на PECO_SHIFTS (ID, STATION_ID) —
                 # значение обязано совпасть со станцией смены, иначе
                 # транзакция может привязать пистолет одной станции к
-                # смене другой. Подзапрос гарантирует совпадение и сразу
-                # проваливает INSERT (NOT NULL), если SHIFT_ID не существует.
+                # смене другой. Подзапрос дополнительно требует
+                # STATUS_CODE = 'OPEN': смена в CLOSING/CLOSED/DISPUTED не
+                # даст строку, и NOT NULL провалит INSERT — иначе можно
+                # было бы авторизовать налив против смены, которая уже
+                # закрывается, что и должен предотвращать mark_shift_closing.
                 _run(db,
                     """INSERT INTO PECO_TXN
                               (ID, SHIFT_ID, NOZZLE_ID, STATION_ID, GRADE_CODE,
                                STATUS_CODE, PRICE, METER_START, IS_SELF_SERVICE,
-                               AUTHORIZED_BY)
+                               AUTHORIZED_BY, MIA_REF)
                        VALUES (PECO_TXN_SEQ.NEXTVAL, :shift_id, :nozzle_id,
                                (SELECT STATION_ID FROM PECO_SHIFTS
-                                 WHERE ID = :shift_id),
+                                 WHERE ID = :shift_id AND STATUS_CODE = 'OPEN'),
                                :grade_code, 'AUTHORIZED', :price, :meter_start,
-                               :is_self_service, :authorized_by)""",
+                               :is_self_service, :authorized_by, :mia_ref)""",
                     {
                         "shift_id": shift_id,
                         "nozzle_id": nozzle_id,
@@ -556,6 +560,7 @@ class PecoStore:
                         "meter_start": meter_start,
                         "is_self_service": 1 if is_self_service else 0,
                         "authorized_by": authorized_by,
+                        "mia_ref": mia_ref,
                     },
                 )
                 r = _run(db,
@@ -566,6 +571,13 @@ class PecoStore:
                 return {"success": True,
                         "txn_id": int(rows[0]["id"]) if rows else None}
         except Exception as e:
+            # ORA-01400 здесь означает, что подзапрос STATION_ID не вернул
+            # строку — смена не существует или не в статусе OPEN. Домены
+            # ошибки должны говорить об этом прямо, а не отдавать сырой
+            # текст Oracle оператору у колонки.
+            if "ORA-01400" in str(e):
+                return {"success": False,
+                        "error": "Смена не открыта — отпуск невозможен"}
             return {"success": False, "error": str(e)}
 
     @staticmethod
@@ -573,9 +585,9 @@ class PecoStore:
         try:
             with DatabaseModel() as db:
                 r = _run(db,
-                    """SELECT ID, SHIFT_ID, NOZZLE_ID, GRADE_CODE, STATUS_CODE,
-                              LITERS, PRICE, AMOUNT, PAY_METHOD, IS_SELF_SERVICE,
-                              MIA_REF, METER_START, METER_END
+                    """SELECT ID, SHIFT_ID, STATION_ID, NOZZLE_ID, GRADE_CODE,
+                              STATUS_CODE, LITERS, PRICE, AMOUNT, PAY_METHOD,
+                              IS_SELF_SERVICE, MIA_REF, METER_START, METER_END
                          FROM PECO_TXN WHERE ID = :txn_id""",
                     {"txn_id": txn_id},
                 )
