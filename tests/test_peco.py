@@ -1076,6 +1076,12 @@ def test_shortfall_is_positive_when_less_arrived_than_documented():
 
 
 def test_receive_delivery_writes_header_and_all_items():
+    """Task 12 fix pass 1: приход теперь применяется одним вызовом
+    apply_delivery (одна транзакция), а не отдельными вызовами store per
+    item — тест переписан на новую границу, но проверяет то же самое:
+    все строки уходят в store, резервуар зачисляется ФАКТИЧЕСКИ принятым
+    объёмом (не документальным), и это же значение попадает в реестр
+    открытой смены, потому что store читает liters_recv из тех же items."""
     items = [
         {"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
          "liters_recv": 4980.0, "dip_before": 3000.0, "dip_after": 7980.0},
@@ -1083,31 +1089,32 @@ def test_receive_delivery_writes_header_and_all_items():
          "liters_recv": 3000.0, "dip_before": 2000.0, "dip_after": 5000.0},
     ]
     with patch("models.peco_inventory.PecoStore") as store:
-        store.insert_delivery.return_value = {"success": True, "delivery_id": 9}
-        store.insert_delivery_item.return_value = {"success": True}
-        store.add_tank_volume.return_value = {"success": True}
-        store.accept_delivery.return_value = {"success": True}
+        store.apply_delivery.return_value = {"success": True, "delivery_id": 9}
+        store.log_event.return_value = {"success": True}
         r = peco_inventory.receive_delivery(
             station_id=1, supplier="Petrom", waybill_no="WB-77",
             items=items, employee_id=5)
     assert r["success"] is True
     assert r["delivery_id"] == 9
-    assert store.insert_delivery_item.call_count == 2
-    # остаток растёт на ФАКТИЧЕСКИ принятый объём, не на документальный
-    added = [c.kwargs["liters"] for c in store.add_tank_volume.call_args_list]
-    assert added == [4980.0, 3000.0]
-    # приход обязан попасть и в реестр открытой смены
-    assert store.add_shift_tank_delivered.call_count == 2
+    store.apply_delivery.assert_called_once()
+    call_kwargs = store.apply_delivery.call_args.kwargs
+    # обе строки прихода уходят в store одним вызовом, вместе с их
+    # ФАКТИЧЕСКИ принятыми объёмами (liters_recv), которыми store
+    # зачислит и резервуар, и реестр открытой смены
+    assert call_kwargs["items"] == items
+    recv = [it["liters_recv"] for it in call_kwargs["items"]]
+    assert recv == [4980.0, 3000.0]
+    assert call_kwargs["station_id"] == 1
+    assert call_kwargs["waybill_no"] == "WB-77"
+    assert call_kwargs["employee_id"] == 5
 
 
 def test_receive_delivery_reports_total_shortfall():
     items = [{"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
               "liters_recv": 4980.0}]
     with patch("models.peco_inventory.PecoStore") as store:
-        store.insert_delivery.return_value = {"success": True, "delivery_id": 9}
-        store.insert_delivery_item.return_value = {"success": True}
-        store.add_tank_volume.return_value = {"success": True}
-        store.accept_delivery.return_value = {"success": True}
+        store.apply_delivery.return_value = {"success": True, "delivery_id": 9}
+        store.log_event.return_value = {"success": True}
         r = peco_inventory.receive_delivery(
             station_id=1, supplier="Petrom", waybill_no="WB-78",
             items=items, employee_id=5)
@@ -1120,4 +1127,86 @@ def test_receive_delivery_refuses_empty_item_list():
             station_id=1, supplier="Petrom", waybill_no="WB-79",
             items=[], employee_id=5)
     assert r["success"] is False
-    store.insert_delivery.assert_not_called()
+    store.apply_delivery.assert_not_called()
+
+
+# ------------------------------------------------------------------
+# Task 12 fix pass 1: приход одной транзакцией + раздельные недостачи
+# ------------------------------------------------------------------
+
+
+def test_delivery_is_applied_in_one_transaction():
+    """Приход обязан быть одной транзакцией: иначе сбой на середине оставит
+    резервуары пополненными по накладной, которую не довели до конца, а
+    уникальность накладной не даст повторить приём начисто."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(9,)],
+                       "rowcount": 1})
+    items = [{"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
+              "liters_recv": 4980.0},
+             {"tank_id": 2, "grade_code": "DIESEL", "liters_doc": 3000.0,
+              "liters_recv": 3000.0}]
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.apply_delivery(1, "Petrom", "WB-1", items, 5)
+    assert r["success"] is True
+    # весь приём — один commit, а не по одному на каждое утверждение
+    assert db.connection.commit.call_count == 1
+
+
+def test_failed_delivery_commits_nothing():
+    cm, db = _failing_db("ORA-00001")
+    items = [{"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
+              "liters_recv": 4980.0}]
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.apply_delivery(1, "Petrom", "WB-2", items, 5)
+    assert r["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_tank_is_credited_with_received_not_documented_litres():
+    """Зачесть документальные литры значит записать недостачу как топливо,
+    которое есть; позже она всплывёт как необъяснимая утечка."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(9,)],
+                       "rowcount": 1})
+    items = [{"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
+              "liters_recv": 4980.0}]
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        PecoStore.apply_delivery(1, "Petrom", "WB-3", items, 5)
+    binds = [c[0][1] for c in db.execute_query.call_args_list
+             if len(c[0]) > 1 and isinstance(c[0][1], dict)]
+    credited = [b.get("liters") for b in binds if "liters" in b]
+    assert 4980.0 in credited
+    assert 5000.0 not in credited
+
+
+def test_receive_delivery_reports_each_tank_shortfall_separately():
+    """Чистая сумма скрыла бы недостачу в одном резервуаре за излишком
+    в другом."""
+    items = [
+        {"tank_id": 1, "grade_code": "A95", "liters_doc": 5000.0,
+         "liters_recv": 4980.0},
+        {"tank_id": 2, "grade_code": "DIESEL", "liters_doc": 3000.0,
+         "liters_recv": 3020.0},
+    ]
+    with patch("models.peco_inventory.PecoStore") as store:
+        store.apply_delivery.return_value = {"success": True, "delivery_id": 9}
+        store.log_event.return_value = {"success": True}
+        r = peco_inventory.receive_delivery(
+            station_id=1, supplier="Petrom", waybill_no="WB-4",
+            items=items, employee_id=5)
+    assert r["total_shortfall"] == 0.0          # взаимно погасились
+    assert len(r["shortfalls"]) == 2            # но каждый виден отдельно
+    by_tank = {s["tank_id"]: s["shortfall"] for s in r["shortfalls"]}
+    assert by_tank[1] == 20.0
+    assert by_tank[2] == -20.0
+
+
+def test_receive_delivery_propagates_a_store_failure():
+    with patch("models.peco_inventory.PecoStore") as store:
+        store.apply_delivery.return_value = {"success": False, "error": "ORA-00001"}
+        r = peco_inventory.receive_delivery(
+            station_id=1, supplier="Petrom", waybill_no="WB-5",
+            items=[{"tank_id": 1, "grade_code": "A95",
+                    "liters_doc": 10.0, "liters_recv": 10.0}],
+            employee_id=5)
+    assert r["success"] is False
+    store.log_event.assert_not_called()
