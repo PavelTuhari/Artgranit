@@ -1647,21 +1647,31 @@ def close_shift(
     if not paid.get("success"):
         return paid
 
-    tank_open = delivered = dip_close = None
-    if tank_readings:
-        tank_open = sum(float(t.get("tank_open") or 0.0) for t in tank_readings)
-        delivered = sum(float(t.get("delivered") or 0.0) for t in tank_readings)
-        dip_close = sum(float(t.get("dip_close") or 0.0) for t in tank_readings)
+    # Расхождение по каждому резервуару считается отдельно: у станции до
+    # четырёх резервуаров, и утечка в одном не должна тонуть в сумме.
+    tanks_r = PecoStore.get_shift_tanks(shift_id)
+    tank_rows = tanks_r.get("items", []) if tanks_r.get("success") else []
+    dips = dips or {}
+
+    per_tank = tank_variances(tank_rows, meters, dips)
+    for row in per_tank:
+        if row["tank_variance"] is not None:
+            PecoStore.save_tank_close(
+                shift_id, row["tank_id"], row["dip_close_l"],
+                row["tank_variance"],
+            )
+
+    measured = [r["tank_variance"] for r in per_tank
+                if r["tank_variance"] is not None]
+    tank_total = round(sum(measured), 3) if measured else None
 
     variances = compute_variances(
         meters,
         txn_liters=paid["liters"],
         cash_declared=cash_declared,
         cash_expected=paid["cash"],
-        tank_open=tank_open,
-        delivered=delivered or 0.0,
-        dip_close=dip_close,
     )
+    variances["tank_variance"] = tank_total
 
     status = resolve_status(variances)
     totals = {
