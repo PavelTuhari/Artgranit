@@ -1501,7 +1501,7 @@ git commit -m "PECO: расчёт расхождений смены (чисты�
 - Consumes: `PecoStore.open_shift`, `get_open_shift`, `get_shift_meters`, `shift_paid_liters`, `count_unresolved_txn`, `finalize_shift`, `log_event`; `compute_variances`, `resolve_status` from Task 7.
 - Produces:
   - `open_shift(station_id: int, employee_id: int) -> dict` — refuses if a shift is already open
-  - `close_shift(shift_id, employee_id, cash_declared, tank_readings=None) -> dict` → on success `{"success": True, "status": str, "variances": dict}`; on unresolved transactions `{"success": False, "error": ..., "unresolved": int}`
+  - `close_shift(shift_id, employee_id, cash_declared, dips=None) -> dict` → on success `{"success": True, "status": str, "variances": dict, "tanks": [...]}`; on unresolved transactions `{"success": False, "error": ..., "unresolved": int}`. `dips` is an optional `{tank_id: measured_litres}` mapping of closing measurements; opening volumes and delivered litres are read from `PECO_SHIFT_TANKS`, never supplied by the caller.
 
 - [ ] **Step 1: Write the failing tests**
 
