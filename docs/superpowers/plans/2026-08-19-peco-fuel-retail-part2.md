@@ -148,14 +148,42 @@ At the top of `models/peco_shift.py`, add below the existing imports:
 
 ```python
 import hashlib
+import hmac
+import secrets
 ```
 
 Append to the end of `models/peco_shift.py`:
 
 ```python
-def hash_pin(pin: str) -> str:
-    """SHA-256 от PIN. PIN в открытом виде не хранится и не логируется."""
-    return hashlib.sha256(str(pin).encode("utf-8")).hexdigest()
+# Число итераций PBKDF2. PIN четырёхзначный, то есть пространство перебора
+# крошечное — стойкость здесь даёт только стоимость одной проверки.
+_PIN_ITERATIONS = 200_000
+
+
+def new_salt() -> str:
+    """Случайная соль на сотрудника (32 hex-символа)."""
+    return secrets.token_hex(16)
+
+
+def hash_pin(pin: str, salt: str) -> str:
+    """PBKDF2-HMAC-SHA256 от PIN с солью сотрудника.
+
+    Соль обязательна: без неё одинаковый PIN у двух сотрудников даёт
+    одинаковый хеш, и всё пространство четырёхзначных PIN вскрывается
+    одной радужной таблицей. PIN в открытом виде не хранится и не логируется.
+    """
+    dk = hashlib.pbkdf2_hmac(
+        "sha256", str(pin).encode("utf-8"), str(salt).encode("utf-8"),
+        _PIN_ITERATIONS,
+    )
+    return dk.hex()[:64]
+
+
+def verify_pin(pin: str, salt: str, expected_hash: str) -> bool:
+    """Сравнение в постоянном времени, чтобы не утекала длина совпадения."""
+    if not salt or not expected_hash:
+        return False
+    return hmac.compare_digest(hash_pin(pin, salt), str(expected_hash))
 
 
 def approve_disputed(shift_id: int, manager_id: int, pin: str) -> Dict[str, Any]:
