@@ -33,7 +33,8 @@
 
 ## Oracle-объекты (префикс `PECO_`)
 
-DDL: `sql/100_peco_tables.sql` … `sql/104_peco_demo_data.sql`.
+DDL: `sql/100_peco_tables.sql` … `sql/104_peco_ref_data.sql` (плюс отдельно
+подключаемая демо-станция `sql/105_peco_demo_station.sql`, см. ниже).
 
 | Группа | Объекты |
 |---|---|
