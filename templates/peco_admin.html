@@ -235,6 +235,40 @@ button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
   <div id="priceMsg"></div>
 </div>
 
+<div class="card" id="disputedCard">
+  <h2>Смены с расхождением, требующие внимания</h2>
+  <div class="hint">Смены в статусе DISPUTED. Подтверждение (PIN менеджера) выполняется в консоли смены на станции — здесь только список и три отдельных показателя расхождения.</div>
+  <div class="table-scroll">
+  <table id="disputedTbl">
+    <thead><tr>
+      <th>Станция</th><th>Смена</th><th>Закрыта</th><th>Кто закрыл</th>
+      <th>Литры</th><th>Касса</th><th>Резервуары</th><th>Статус подтверждения</th>
+    </tr></thead>
+    <tbody><tr><td colspan="8" class="empty">Загрузка…</td></tr></tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Сотрудники и PIN</h2>
+  <div class="hint">PIN подтверждает расхождение смены под ответственность менеджера — здесь можно назначить или сбросить PIN сотруднику. Сам PIN нигде не отображается и не хранится в открытом виде.</div>
+  <div class="table-scroll">
+  <table id="empTbl">
+    <thead><tr>
+      <th>ФИО</th><th>Станция</th><th>Роль</th><th>Активен</th><th>PIN</th><th></th>
+    </tr></thead>
+    <tbody><tr><td colspan="6" class="empty">Загрузка…</td></tr></tbody>
+  </table>
+  </div>
+
+  <div class="row" style="margin-top:16px;" id="pinForm">
+    <div><label>ID сотрудника</label><input id="pinEmpId" type="number"></div>
+    <div><label>Новый PIN (мин. 4 цифры)</label><input id="pinValue" type="password" autocomplete="off" inputmode="numeric"></div>
+    <button onclick="setEmployeePin()">Назначить / сбросить PIN</button>
+  </div>
+  <div id="pinMsg"></div>
+</div>
+
 <script>
 var stations = [];
 var lowTanks = [];
