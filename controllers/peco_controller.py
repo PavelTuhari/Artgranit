@@ -296,16 +296,25 @@ class PecoController:
             return stations_r
 
         low: List[Dict[str, Any]] = []
+        # Станция, чьи резервуары не удалось прочитать, обязана быть видна
+        # отдельно: "continue" без следа делает сбой чтения неотличимым от
+        # "у станции нет резервуаров с низким уровнем" — а это ложное
+        # спокойствие ровно там, где нужен сигнал "не проверено".
+        unavailable_stations: List[Any] = []
         for st in stations_r["items"]:
             levels = PecoStore.list_tank_levels(st["id"])
             if not levels.get("success"):
+                unavailable_stations.append(st["id"])
                 continue
             for t in levels["items"]:
                 if int(t.get("is_low") or 0) == 1:
                     low.append(dict(t, station_name=st["name"]))
 
-        return {"success": True, "stations": stations_r["items"],
-                "low_tanks": low}
+        result: Dict[str, Any] = {"success": True, "stations": stations_r["items"],
+                                  "low_tanks": low}
+        if unavailable_stations:
+            result["unavailable_stations"] = unavailable_stations
+        return result
 
     @staticmethod
     def set_price(payload: Dict[str, Any]) -> Dict[str, Any]:
