@@ -120,7 +120,7 @@ class PecoStore:
         params = {"station_id": station_id, "grade_code": grade_code}
         try:
             with DatabaseModel() as db:
-                _run(db, 
+                _run(db,
                     """UPDATE PECO_PRICES SET VALID_TO = SYSTIMESTAMP
                         WHERE STATION_ID = :station_id
                           AND GRADE_CODE = :grade_code
