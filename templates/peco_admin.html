@@ -395,7 +395,8 @@ function renderStationSelect() {
     opt.textContent = s.code + ' — ' + s.name;
     sel.appendChild(opt);
   });
-  updatePricePreview();
+  loadStationPrices();
+  loadStationTanks();
 }
 
 function updatePricePreview() {
@@ -407,15 +408,49 @@ function updatePricePreview() {
     cur.textContent = 'неизвестна';
     return;
   }
-  var key = stSel.value + '|' + grSel.value;
-  var known = priceCache[key];
-  if (known === undefined) {
+  if (pricesError) {
     cur.className = 'v na';
-    cur.textContent = 'неизвестна';
+    cur.textContent = pricesError;
+    return;
+  }
+  if (!pricesLoaded) {
+    cur.className = 'v na';
+    cur.textContent = 'загрузка…';
+    return;
+  }
+  var price = stationPrices[grSel.value];
+  if (price === undefined) {
+    cur.className = 'v na';
+    cur.textContent = 'нет действующей цены';
   } else {
     cur.className = 'v';
-    cur.textContent = fmt2(known) + ' лей';
+    cur.textContent = fmt2(price) + ' лей';
   }
+}
+
+function loadStationPrices() {
+  var stSel = document.getElementById('stSel');
+  pricesLoaded = false;
+  pricesError = null;
+  stationPrices = {};
+  updatePricePreview();
+  if (!stSel.value) return;
+  api('/api/peco/prices?station_id=' + encodeURIComponent(stSel.value)).then(function(r){
+    if (r.success) {
+      stationPrices = {};
+      (r.items || []).forEach(function(it){
+        stationPrices[it.grade_code] = it.price;
+      });
+      pricesLoaded = true;
+      pricesError = null;
+    } else {
+      pricesError = r.error || 'Ошибка загрузки цен';
+    }
+    updatePricePreview();
+  }).catch(function(){
+    pricesError = 'Цены недоступны';
+    updatePricePreview();
+  });
 }
 
 function updateNewPricePreview() {
