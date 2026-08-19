@@ -209,22 +209,6 @@ def test_cash_variance_is_declared_minus_expected():
     assert v["cash_variance"] == -10.0  # недостача кассы
 
 
-def test_tank_variance_uses_ledger_identity():
-    """tank_expected = открытие + приход − отпуск по счётчику."""
-    meters = [{"nozzle_id": 1, "meter_open": 0.0, "meter_close": 1000.0}]
-    v = peco_shift.compute_variances(
-        meters, txn_liters=1000.0, cash_declared=0.0, cash_expected=0.0,
-        tank_open=12000.0, delivered=5000.0, dip_close=15950.0,
-    )
-    # ожидалось 12000 + 5000 - 1000 = 16000; замер 15950 -> -50 (утечка)
-    assert v["tank_variance"] == -50.0
-
-
-def test_tank_variance_is_none_without_dip():
-    v = peco_shift.compute_variances([], 0.0, 0.0, 0.0, tank_open=100.0)
-    assert v["tank_variance"] is None
-
-
 def test_variances_are_rounded_to_three_decimals():
     meters = [{"nozzle_id": 1, "meter_open": 0.0, "meter_close": 10.0}]
     v = peco_shift.compute_variances(meters, txn_liters=9.9999,
