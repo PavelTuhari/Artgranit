@@ -19,6 +19,24 @@ def _norm_rows(r: Dict[str, Any]) -> List[Dict[str, Any]]:
     return [dict(zip(cols, row)) for row in r["data"]]
 
 
+class PecoSqlError(Exception):
+    """Ошибка SQL, о которой execute_query сообщает флагом, а не исключением."""
+
+
+def _run(db, sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Выполняет запрос и бросает исключение, если он не удался.
+
+    models.database.execute_query не бросает исключений: об ошибке SQL он
+    сообщает полем success. Без этой обёртки неудавшийся DML молча
+    доезжал бы до commit(), и вызывающий получал бы success=True на
+    операции, которая не выполнилась.
+    """
+    r = db.execute_query(sql, params) if params else db.execute_query(sql)
+    if not r.get("success"):
+        raise PecoSqlError(r.get("message") or "SQL error")
+    return r
+
+
 class PecoStore:
     """CRUD по справочникам, мастер-данным и ценам PECO."""
 
