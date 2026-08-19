@@ -521,3 +521,118 @@ class PecoStore:
                 return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # ---------------- транзакции ----------------
+
+    @staticmethod
+    def insert_txn(shift_id: int, nozzle_id: int, grade_code: str,
+                   price: float, meter_start: float,
+                   is_self_service: bool,
+                   authorized_by: Optional[int] = None) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                # STATION_ID берётся подзапросом из самой смены, а не
+                # принимается параметром: PECO_TXN.STATION_ID NOT NULL и
+                # участвует в составном FK на PECO_SHIFTS (ID, STATION_ID) —
+                # значение обязано совпасть со станцией смены, иначе
+                # транзакция может привязать пистолет одной станции к
+                # смене другой. Подзапрос гарантирует совпадение и сразу
+                # проваливает INSERT (NOT NULL), если SHIFT_ID не существует.
+                _run(db,
+                    """INSERT INTO PECO_TXN
+                              (ID, SHIFT_ID, NOZZLE_ID, STATION_ID, GRADE_CODE,
+                               STATUS_CODE, PRICE, METER_START, IS_SELF_SERVICE,
+                               AUTHORIZED_BY)
+                       VALUES (PECO_TXN_SEQ.NEXTVAL, :shift_id, :nozzle_id,
+                               (SELECT STATION_ID FROM PECO_SHIFTS
+                                 WHERE ID = :shift_id),
+                               :grade_code, 'AUTHORIZED', :price, :meter_start,
+                               :is_self_service, :authorized_by)""",
+                    {
+                        "shift_id": shift_id,
+                        "nozzle_id": nozzle_id,
+                        "grade_code": grade_code,
+                        "price": price,
+                        "meter_start": meter_start,
+                        "is_self_service": 1 if is_self_service else 0,
+                        "authorized_by": authorized_by,
+                    },
+                )
+                r = _run(db,
+                    "SELECT PECO_TXN_SEQ.CURRVAL AS ID FROM dual"
+                )
+                db.connection.commit()
+                rows = _norm_rows(r)
+                return {"success": True,
+                        "txn_id": int(rows[0]["id"]) if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_txn(txn_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    """SELECT ID, SHIFT_ID, NOZZLE_ID, GRADE_CODE, STATUS_CODE,
+                              LITERS, PRICE, AMOUNT, PAY_METHOD, IS_SELF_SERVICE,
+                              MIA_REF, METER_START, METER_END
+                         FROM PECO_TXN WHERE ID = :txn_id""",
+                    {"txn_id": txn_id},
+                )
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Транзакция не найдена"}
+                return {"success": True, "txn": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_txn_status(txn_id: int, status: str,
+                          **fields: Any) -> Dict[str, Any]:
+        """Обновляет статус и переданные поля.
+
+        Имена полей проверяются по фиксированному белому списку `allowed` —
+        в SQL не попадает ничего из внешнего ввода. Вызывающая сторона —
+        только код этого модуля (peco_txn.py передаёт заранее известные
+        ключи), но белый список остаётся обязательным барьером на случай,
+        если в будущем сюда прокинут словарь из запроса.
+        """
+        allowed = {"liters", "amount", "pay_method", "mia_ref", "meter_end"}
+        sets = ["STATUS_CODE = :status"]
+        params: Dict[str, Any] = {"txn_id": txn_id, "status": status}
+
+        for key, value in fields.items():
+            if key not in allowed:
+                continue
+            sets.append(f"{key.upper()} = :{key}")
+            params[key] = value
+
+        if status == "PAID":
+            sets.append("PAID_AT = SYSTIMESTAMP")
+
+        try:
+            with DatabaseModel() as db:
+                r = _run(db,
+                    f"UPDATE PECO_TXN SET {', '.join(sets)} WHERE ID = :txn_id",
+                    params,
+                )
+                # rowcount == 0 значит, что транзакции с таким ID нет: без
+                # этой проверки авторизация/оплата/аннулирование молча
+                # "проходят", хотя ни одна строка не изменилась — тот же
+                # класс ошибки, что уже находили в save_tank_close и
+                # mark_shift_closing.
+                if r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Транзакция не найдена"}
+                # тотализатор пистолета двигается вместе с завершённым наливом
+                if "meter_end" in params and params["meter_end"] is not None:
+                    _run(db,
+                        """UPDATE PECO_NOZZLES SET METER_TOTAL = :meter_end
+                            WHERE ID = (SELECT NOZZLE_ID FROM PECO_TXN
+                                         WHERE ID = :txn_id)""",
+                        {"meter_end": params["meter_end"], "txn_id": txn_id},
+                    )
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
