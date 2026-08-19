@@ -812,123 +812,14 @@ class PecoStore:
             return {"success": False, "error": str(e)}
 
     # ---------------- приход цистерн ----------------
-
-    @staticmethod
-    def insert_delivery(station_id: int, supplier: str, waybill_no: str,
-                        driver_name: Optional[str] = None,
-                        vehicle_no: Optional[str] = None) -> Dict[str, Any]:
-        try:
-            with DatabaseModel() as db:
-                _run(db,
-                    """INSERT INTO PECO_DELIVERIES
-                              (ID, STATION_ID, SUPPLIER, WAYBILL_NO,
-                               DRIVER_NAME, VEHICLE_NO)
-                       VALUES (PECO_DELIVERIES_SEQ.NEXTVAL, :station_id,
-                               :supplier, :waybill_no, :driver_name,
-                               :vehicle_no)""",
-                    {"station_id": station_id, "supplier": supplier,
-                     "waybill_no": waybill_no, "driver_name": driver_name,
-                     "vehicle_no": vehicle_no},
-                )
-                r = _run(db,
-                    "SELECT PECO_DELIVERIES_SEQ.CURRVAL AS ID FROM dual"
-                )
-                db.connection.commit()
-                rows = _norm_rows(r)
-                return {"success": True,
-                        "delivery_id": int(rows[0]["id"]) if rows else None}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    @staticmethod
-    def insert_delivery_item(delivery_id: int, tank_id: int, grade_code: str,
-                             liters_doc: float, liters_recv: float,
-                             temperature_c: Optional[float] = None,
-                             dip_before: Optional[float] = None,
-                             dip_after: Optional[float] = None) -> Dict[str, Any]:
-        """STATION_ID у строки NOT NULL и участвует в составных FK на
-        PECO_DELIVERIES (ID, STATION_ID) и PECO_TANKS (ID, STATION_ID).
-
-        Берём его подзапросом из PECO_DELIVERIES по delivery_id, а не из
-        параметра вызывающего кода: деливери уже привязан к правильной
-        станции, и это надёжнее, чем доверять значению, которое мог
-        передать (и перепутать) вызывающий.
-        """
-        try:
-            with DatabaseModel() as db:
-                r = _run(db,
-                    """INSERT INTO PECO_DELIVERY_ITEMS
-                              (ID, DELIVERY_ID, TANK_ID, STATION_ID, GRADE_CODE,
-                               LITERS_DOC, LITERS_RECV, TEMPERATURE_C,
-                               DIP_BEFORE_L, DIP_AFTER_L)
-                       SELECT PECO_DELIVERY_ITEMS_SEQ.NEXTVAL, :delivery_id,
-                              :tank_id, d.STATION_ID, :grade_code,
-                              :liters_doc, :liters_recv, :temperature_c,
-                              :dip_before, :dip_after
-                         FROM PECO_DELIVERIES d
-                        WHERE d.ID = :delivery_id""",
-                    {"delivery_id": delivery_id, "tank_id": tank_id,
-                     "grade_code": grade_code, "liters_doc": liters_doc,
-                     "liters_recv": liters_recv, "temperature_c": temperature_c,
-                     "dip_before": dip_before, "dip_after": dip_after},
-                )
-                # rowcount == 0 значит, что delivery_id не существует: INSERT
-                # ... SELECT молча не вставил ни одной строки, а execute_query
-                # всё равно вернул success. Без этой проверки строка прихода
-                # исчезает без единой ошибки.
-                if r.get("rowcount", 0) == 0:
-                    return {"success": False,
-                            "error": "Приход с таким ID не найден"}
-                db.connection.commit()
-                return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    @staticmethod
-    def add_tank_volume(tank_id: int, liters: float) -> Dict[str, Any]:
-        """Прибавляет к остатку резервуара. Отрицательное значение — расход."""
-        try:
-            with DatabaseModel() as db:
-                r = _run(db,
-                    """UPDATE PECO_TANKS
-                          SET CURRENT_L = CURRENT_L + :liters
-                        WHERE ID = :tank_id""",
-                    {"tank_id": tank_id, "liters": liters},
-                )
-                if r.get("rowcount", 0) == 0:
-                    return {"success": False,
-                            "error": "Резервуар с таким ID не найден"}
-                db.connection.commit()
-                return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    @staticmethod
-    def add_shift_tank_delivered(station_id: int, tank_id: int,
-                                 liters: float) -> Dict[str, Any]:
-        """Прибавляет принятые литры к реестру ОТКРЫТОЙ смены станции.
-
-        Если открытой смены нет (приём вне смены), строка просто не находится
-        и обновление ничего не делает — это допустимо и не ошибка, в отличие
-        от save_tank_close/mark_shift_closing/approve_shift/update_txn_status,
-        где ноль строк означает пропавшую запись.
-        """
-        try:
-            with DatabaseModel() as db:
-                _run(db,
-                    """UPDATE PECO_SHIFT_TANKS
-                          SET DELIVERED_L = DELIVERED_L + :liters
-                        WHERE TANK_ID = :tank_id
-                          AND SHIFT_ID = (SELECT ID FROM PECO_SHIFTS
-                                           WHERE STATION_ID = :station_id
-                                             AND STATUS_CODE IN ('OPEN','CLOSING'))""",
-                    {"tank_id": tank_id, "station_id": station_id,
-                     "liters": liters},
-                )
-                db.connection.commit()
-                return {"success": True}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+    #
+    # insert_delivery / insert_delivery_item / add_tank_volume /
+    # add_shift_tank_delivered были ранней (многотранзакционной) версией
+    # приёма цистерны и вызваны здесь же apply_delivery ниже: сбой на
+    # середине оставлял резервуары зачисленными по недооформленной
+    # накладной, а повторная попытка иногда начисляла топливо дважды.
+    # apply_delivery делает то же самое одной транзакцией; отдельные методы
+    # удалены как не имеющие вызывающих вне тестов.
 
     @staticmethod
     def apply_delivery(station_id: int, supplier: str, waybill_no: str,
