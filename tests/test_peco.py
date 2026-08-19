@@ -145,6 +145,24 @@ def test_open_shift_snapshots_tank_volumes():
     assert any("CURRENT_L" in s for s in statements)
 
 
+def test_open_shift_hints_the_nextval_inserts_no_parallel():
+    """PECO_SHIFT_METERS_SEQ и PECO_SHIFT_TANKS_SEQ — NOCACHE. Oracle ADB
+    сам распараллеливает INSERT...SELECT, а параллельные слейвы
+    сериализуются на NEXTVAL NOCACHE-последовательности и блокируют друг
+    друга (ORA-12801/ORA-12860) — без NO_PARALLEL open_shift падает
+    каждый раз. Регрессия: хинт нельзя тихо потерять при рефакторинге."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(77,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        PecoStore.open_shift(station_id=1, employee_id=5)
+    statements = [c[0][0] for c in db.execute_query.call_args_list]
+    meters_sql = [s for s in statements if "PECO_SHIFT_METERS_SEQ.NEXTVAL" in s]
+    tanks_sql = [s for s in statements if "PECO_SHIFT_TANKS_SEQ.NEXTVAL" in s]
+    assert meters_sql and tanks_sql
+    for s in meters_sql + tanks_sql:
+        assert "INSERT /*+ NO_PARALLEL */ INTO" in s
+        assert "SELECT /*+ NO_PARALLEL */" in s
+
+
 def test_get_shift_tanks_returns_ledger_columns():
     cm, db = _fake_db({
         "success": True,
@@ -688,7 +706,7 @@ def test_save_tank_close_writes_current_l_and_dip_row_in_one_transaction():
     assert r["success"] is True
     statements = [c[0][0] for c in db.execute_query.call_args_list]
     assert any("UPDATE PECO_TANKS" in s and "CURRENT_L" in s for s in statements)
-    assert any("INSERT INTO PECO_TANK_DIPS" in s and "'CLOSE'" in s
+    assert any("INTO PECO_TANK_DIPS" in s and "'CLOSE'" in s
               for s in statements)
     db.connection.commit.assert_called_once()
 
