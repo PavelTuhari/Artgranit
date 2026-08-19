@@ -93,7 +93,8 @@ def validate_settlement(status: str, pay_method: str,
 
 def authorize(shift_id: int, nozzle_id: int, grade_code: str,
               station_id: int, meter_start: float, is_self_service: bool,
-              employee_id: Optional[int] = None) -> Dict[str, Any]:
+              employee_id: Optional[int] = None,
+              mia_ref: Optional[str] = None) -> Dict[str, Any]:
     """Авторизует налив по действующей цене.
 
     Цена фиксируется в транзакции: смена цены посреди смены не должна
@@ -103,6 +104,14 @@ def authorize(shift_id: int, nozzle_id: int, grade_code: str,
     if not price_r.get("success"):
         return price_r
 
+    # Самообслуживание предавторизовано по MIA QR ещё до того, как пошло
+    # топливо, — ссылка уже обязана существовать на этом шаге. Без неё
+    # продажу нельзя будет построчно сверить со отчётом эквайера, и
+    # непонятно, чем закрыт итог смены по MIA.
+    if is_self_service and not mia_ref:
+        return {"success": False,
+                "error": "Самообслуживание требует ссылку предавторизации MIA"}
+
     created = PecoStore.insert_txn(
         shift_id=shift_id,
         nozzle_id=nozzle_id,
@@ -111,17 +120,28 @@ def authorize(shift_id: int, nozzle_id: int, grade_code: str,
         meter_start=meter_start,
         is_self_service=is_self_service,
         authorized_by=employee_id,
+        mia_ref=mia_ref,
     )
     if not created.get("success"):
         return created
+    if not created.get("txn_id"):
+        # CURRVAL не вернул строку — та же защита, что уже есть в
+        # peco_shift.open_shift для аналогичного случая с shift_id.
+        return {"success": False,
+                "error": "Не удалось получить номер транзакции"}
 
-    PecoStore.log_event(
+    log_r = PecoStore.log_event(
         "TXN_AUTHORIZED", station_id=station_id, shift_id=shift_id,
         entity_type="TXN", entity_id=created["txn_id"], employee_id=employee_id,
         payload={"grade": grade_code, "price": price_r["price"]},
     )
-    return {"success": True, "txn_id": created["txn_id"],
-            "price": price_r["price"]}
+    result: Dict[str, Any] = {"success": True, "txn_id": created["txn_id"],
+                              "price": price_r["price"]}
+    if not log_r.get("success"):
+        # Транзакция уже авторизована в Oracle; сбой аудит-лога не должен
+        # откатывать операцию, но и молчать о нём нельзя.
+        result["audit_warning"] = "Не удалось записать событие авторизации"
+    return result
 
 
 def start_dispense(txn_id: int) -> Dict[str, Any]:
@@ -133,7 +153,8 @@ def start_dispense(txn_id: int) -> Dict[str, Any]:
     if not can_transition(current, "DISPENSING"):
         return {"success": False,
                 "error": f"Недопустимый переход {current} -> DISPENSING"}
-    saved = PecoStore.update_txn_status(txn_id, "DISPENSING")
+    saved = PecoStore.update_txn_status(txn_id, "DISPENSING",
+                                        expected_status=current)
     if not saved.get("success"):
         return saved
     return {"success": True, "status": "DISPENSING"}
@@ -160,19 +181,26 @@ def finish_dispense(txn_id: int, meter_end: float) -> Dict[str, Any]:
     fields: Dict[str, Any] = {"liters": liters, "amount": amount,
                               "meter_end": meter_end}
     if target == "PAID":
-        # самообслуживание предавторизовано по MIA QR
+        # самообслуживание предавторизовано по MIA QR — ссылка уже
+        # записана в MIA_REF при authorize, здесь только фиксируем способ
         fields["pay_method"] = "MIA_QR"
 
-    saved = PecoStore.update_txn_status(txn_id, target, **fields)
+    saved = PecoStore.update_txn_status(txn_id, target, expected_status=current,
+                                        **fields)
     if not saved.get("success"):
         return saved
 
-    PecoStore.log_event(
-        "TXN_DISPENSED", entity_type="TXN", entity_id=txn_id,
+    log_r = PecoStore.log_event(
+        "TXN_DISPENSED", station_id=txn.get("station_id"),
+        shift_id=txn.get("shift_id"),
+        entity_type="TXN", entity_id=txn_id,
         payload={"liters": liters, "amount": amount, "status": target},
     )
-    return {"success": True, "status": target, "liters": liters,
-            "amount": amount}
+    result: Dict[str, Any] = {"success": True, "status": target,
+                              "liters": liters, "amount": amount}
+    if not log_r.get("success"):
+        result["audit_warning"] = "Не удалось записать событие завершения налива"
+    return result
 
 
 def settle(txn_id: int, pay_method: str,
@@ -181,7 +209,8 @@ def settle(txn_id: int, pay_method: str,
     txn_r = PecoStore.get_txn(txn_id)
     if not txn_r.get("success"):
         return txn_r
-    current = txn_r["txn"]["status_code"]
+    txn = txn_r["txn"]
+    current = txn["status_code"]
 
     check = validate_settlement(current, pay_method, mia_ref)
     if not check["ok"]:
@@ -191,17 +220,30 @@ def settle(txn_id: int, pay_method: str,
         return {"success": False,
                 "error": f"Недопустимый переход {current} -> PAID"}
 
+    # Ещё не отпущенное топливо нельзя продать: без этой проверки кассир
+    # оплатил бы транзакцию с LITERS/AMOUNT = 0, а PAID терминален —
+    # finish_dispense после этого уже не сможет провести реальный налив.
+    if not txn.get("liters"):
+        return {"success": False,
+                "error": "Нельзя оплатить транзакцию без отпущенного топлива"}
+
     saved = PecoStore.update_txn_status(
-        txn_id, "PAID", pay_method=pay_method, mia_ref=mia_ref
+        txn_id, "PAID", expected_status=current,
+        pay_method=pay_method, mia_ref=mia_ref
     )
     if not saved.get("success"):
         return saved
 
-    PecoStore.log_event(
-        "TXN_PAID", entity_type="TXN", entity_id=txn_id,
+    log_r = PecoStore.log_event(
+        "TXN_PAID", station_id=txn.get("station_id"),
+        shift_id=txn.get("shift_id"),
+        entity_type="TXN", entity_id=txn_id,
         payload={"pay_method": pay_method},
     )
-    return {"success": True, "status": "PAID"}
+    result: Dict[str, Any] = {"success": True, "status": "PAID"}
+    if not log_r.get("success"):
+        result["audit_warning"] = "Не удалось записать событие оплаты"
+    return result
 
 
 def void(txn_id: int, reason: str) -> Dict[str, Any]:
@@ -209,18 +251,25 @@ def void(txn_id: int, reason: str) -> Dict[str, Any]:
     txn_r = PecoStore.get_txn(txn_id)
     if not txn_r.get("success"):
         return txn_r
-    current = txn_r["txn"]["status_code"]
+    txn = txn_r["txn"]
+    current = txn["status_code"]
 
     if not can_transition(current, "VOIDED"):
         return {"success": False,
                 "error": f"Нельзя аннулировать транзакцию в статусе {current}"}
 
-    saved = PecoStore.update_txn_status(txn_id, "VOIDED")
+    saved = PecoStore.update_txn_status(txn_id, "VOIDED",
+                                        expected_status=current)
     if not saved.get("success"):
         return saved
 
-    PecoStore.log_event(
-        "TXN_VOIDED", entity_type="TXN", entity_id=txn_id,
+    log_r = PecoStore.log_event(
+        "TXN_VOIDED", station_id=txn.get("station_id"),
+        shift_id=txn.get("shift_id"),
+        entity_type="TXN", entity_id=txn_id,
         payload={"reason": reason},
     )
-    return {"success": True, "status": "VOIDED"}
+    result: Dict[str, Any] = {"success": True, "status": "VOIDED"}
+    if not log_r.get("success"):
+        result["audit_warning"] = "Не удалось записать событие аннулирования"
+    return result
