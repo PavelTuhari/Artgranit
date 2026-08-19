@@ -1614,13 +1614,14 @@ git commit -m "PECO: открытие и закрытие смены со све
 
 ---
 
-The plan continues with Tasks 9–20. Given the size, the remaining stages are specified in a companion file.
+## Continued
 
-**Remaining stages:**
+The plan is split across three files so each stays readable. Execute them in order.
 
-- **Task 9** — manager approval of a `DISPUTED` shift (PIN check, `APPROVED_BY`).
-- **Stage D (10–11)** — dispense state machine (`models/peco_txn.py`), transition table with legal/illegal moves, transaction persistence and payment settlement.
-- **Stage E (12–13)** — `models/peco_inventory.py`: delivery header + items intake, tank level recomputation, dip recording.
-- **Stage F (14–15)** — `controllers/peco_controller.py` and route registration in `app.py`.
-- **Stage G (16–18)** — `templates/peco_pump.html`, `peco_shift.html`, `peco_admin.html`.
-- **Stage H (19–20)** — `docs/PECO/TZ.html` with entry buttons, `README.md` and `docs/PECO/` module documentation.
+| File | Tasks | Contents |
+|---|---|---|
+| This file | 1–8 | Stage A schema, Stage B store, Stage C shift core |
+| [part 2](2026-08-19-peco-fuel-retail-part2.md) | 9–14 | Manager approval, Stage D dispensing, Stage E inventory, controller |
+| [part 3](2026-08-19-peco-fuel-retail-part3.md) | 15–20 | Routes, Stage G templates, Stage H documentation |
+
+The Global Constraints above apply to every task in all three files.
