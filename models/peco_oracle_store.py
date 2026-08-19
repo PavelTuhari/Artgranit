@@ -226,10 +226,20 @@ class PecoStore:
                 # STATION_ID у PECO_SHIFT_METERS NOT NULL и участвует в составном
                 # FK на PECO_NOZZLES (ID, STATION_ID) — без него строка не свяжет
                 # смену и пистолет с одной и той же станцией.
+                #
+                # NO_PARALLEL обязателен на каждом INSERT...SELECT, который
+                # берёт ключ из NOCACHE-последовательности PECO_*: Oracle ADB
+                # сам распараллеливает такие запросы, а слейвы параллельного
+                # запроса сериализуются на NEXTVAL NOCACHE-последовательности
+                # и блокируют друг друга — deadlock ORA-12801/ORA-12860.
+                # Без хинта open_shift падает так на КАЖДОМ вызове. Тот же
+                # хинт нужен на любом другом INSERT...SELECT с NEXTVAL этой
+                # формы (ниже — PECO_SHIFT_TANKS, PECO_TANK_DIPS,
+                # PECO_DELIVERY_ITEMS); INSERT...VALUES это не касается.
                 _run(db,
-                    """INSERT INTO PECO_SHIFT_METERS
+                    """INSERT /*+ NO_PARALLEL */ INTO PECO_SHIFT_METERS
                               (ID, SHIFT_ID, NOZZLE_ID, STATION_ID, METER_OPEN)
-                       SELECT PECO_SHIFT_METERS_SEQ.NEXTVAL, :shift_id,
+                       SELECT /*+ NO_PARALLEL */ PECO_SHIFT_METERS_SEQ.NEXTVAL, :shift_id,
                               n.ID, n.STATION_ID, n.METER_TOTAL
                          FROM PECO_NOZZLES n
                          JOIN PECO_PUMPS p ON p.ID = n.PUMP_ID
@@ -242,10 +252,10 @@ class PecoStore:
                 # tank_variance при закрытии не из чего вычислять:
                 # PECO_TANKS.CURRENT_L — это текущий счётчик, а не снимок.
                 _run(db,
-                    """INSERT INTO PECO_SHIFT_TANKS
+                    """INSERT /*+ NO_PARALLEL */ INTO PECO_SHIFT_TANKS
                               (ID, SHIFT_ID, TANK_ID, STATION_ID,
                                VOLUME_OPEN_L, DELIVERED_L)
-                       SELECT PECO_SHIFT_TANKS_SEQ.NEXTVAL, :shift_id,
+                       SELECT /*+ NO_PARALLEL */ PECO_SHIFT_TANKS_SEQ.NEXTVAL, :shift_id,
                               t.ID, t.STATION_ID, t.CURRENT_L, 0
                          FROM PECO_TANKS t
                         WHERE t.STATION_ID = :station_id AND t.ACTIVE = 1""",
