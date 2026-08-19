@@ -505,7 +505,7 @@ function renderReconciliation(r) {
       var meta = tanksById[t.tank_id];
       tr.appendChild(txt('td', null, meta ? meta.tank_code : ('#' + t.tank_id)));
       tr.appendChild(txt('td', null, t.grade_code || (meta ? meta.grade_name : '')));
-      tr.appendChild(txt('td num', null, t.dip_close_l === null ? '—' : fmt3(t.dip_close_l)));
+      tr.appendChild(txt('td', 'num', t.dip_close_l === null ? '—' : fmt3(t.dip_close_l)));
       var tdV = document.createElement('td');
       if (t.tank_variance === null || t.tank_variance === undefined) {
         tdV.className = 'na';
