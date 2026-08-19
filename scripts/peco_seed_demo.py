@@ -747,14 +747,9 @@ def main():
     print("=" * 70)
 
     results: List[Dict[str, Any]] = []
-    print(f"\nСтанция {st_clean}: чистая смена, день 1")
-    results.append(scenario_clean(st_clean, station_ids, "clean-day1"))
-    print(f"\nСтанция {st_clean}: чистая смена, день 2")
-    results.append(scenario_clean(st_clean, station_ids, "clean") if False else None)
-    # день 2 на той же станции невозможен без повторного open_shift на уже
-    # занятой станции в рамках station_has_shifts-проверки (она смотрит на
-    # станцию в целом) -- вторую "чистую" смену проводим на отдельной станции
-    print(f"\nСтанция {st_clean2}: чистая смена")
+    print(f"\nСтанция {st_clean}: чистая смена")
+    results.append(scenario_clean(st_clean, station_ids, "clean"))
+    print(f"\nСтанция {st_clean2}: чистая смена (вторая станция сети — для разнообразия картины)")
     results.append(scenario_clean(st_clean2, station_ids, "clean"))
     print(f"\nСтанция {st_disputed}: смена с расхождением")
     results.append(scenario_disputed(st_disputed, station_ids))
