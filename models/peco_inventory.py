@@ -30,64 +30,46 @@ def receive_delivery(
     Остаток резервуара растёт на ФАКТИЧЕСКИ принятый объём, а не на
     документальный: иначе недолив осел бы в учёте как наличное топливо
     и всплыл позже как необъяснимая утечка.
+
+    Персистенция (шапка, строки, остатки резервуаров, реестр смены, замер)
+    выполняется одним вызовом PecoStore.apply_delivery — одной транзакцией
+    с одним commit. Раньше это были отдельные вызовы store с отдельными
+    коммитами: сбой на середине списка строк оставлял резервуары уже
+    зачисленными по накладной, которую не довели до конца, а уникальность
+    (STATION_ID, WAYBILL_NO) не давала повторить приём начисто под той же
+    накладной — повторная отправка под новой накладной удваивала зачисление.
     """
     if not items:
         return {"success": False, "error": "Не указано ни одной строки прихода"}
 
-    header = PecoStore.insert_delivery(
-        station_id=station_id, supplier=supplier, waybill_no=waybill_no,
-        driver_name=driver_name, vehicle_no=vehicle_no,
-    )
-    if not header.get("success"):
-        return header
-    delivery_id = header["delivery_id"]
-
     total_shortfall = 0.0
+    shortfalls = []
     for it in items:
         liters_doc = float(it.get("liters_doc") or 0.0)
         liters_recv = float(it.get("liters_recv") or 0.0)
-        total_shortfall += shortfall(liters_doc, liters_recv)
+        sf = shortfall(liters_doc, liters_recv)
+        total_shortfall += sf
+        # Чистая сумма (total_shortfall) складывает недостачи и излишки
+        # алгебраически и может дать ноль, спрятав реальную недостачу в
+        # одном резервуаре за излишком в другом. Поэтому недостачу каждой
+        # строки репортим отдельно, а не только суммарно.
+        if sf != 0:
+            shortfalls.append({"tank_id": it["tank_id"],
+                               "grade_code": it["grade_code"],
+                               "shortfall": sf})
 
-        saved = PecoStore.insert_delivery_item(
-            delivery_id=delivery_id,
-            tank_id=it["tank_id"],
-            grade_code=it["grade_code"],
-            liters_doc=liters_doc,
-            liters_recv=liters_recv,
-            temperature_c=it.get("temperature_c"),
-            dip_before=it.get("dip_before"),
-            dip_after=it.get("dip_after"),
-        )
-        if not saved.get("success"):
-            return saved
-
-        added = PecoStore.add_tank_volume(tank_id=it["tank_id"],
-                                          liters=liters_recv)
-        if not added.get("success"):
-            return added
-
-        # Приход должен попасть и в реестр текущей смены, иначе при её
-        # закрытии tank_variance покажет привезённое топливо как излишек.
-        shift_credited = PecoStore.add_shift_tank_delivered(
-            station_id=station_id, tank_id=it["tank_id"], liters=liters_recv
-        )
-        if not shift_credited.get("success"):
-            return shift_credited
-
-        if it.get("dip_after") is not None:
-            dip_saved = PecoStore.insert_tank_dip(
-                tank_id=it["tank_id"], measured_l=float(it["dip_after"]),
-                dip_kind="DELIVERY", employee_id=employee_id,
-            )
-            if not dip_saved.get("success"):
-                return dip_saved
-
-    accepted = PecoStore.accept_delivery(delivery_id, employee_id)
-    if not accepted.get("success"):
-        return accepted
+    applied = PecoStore.apply_delivery(
+        station_id=station_id, supplier=supplier, waybill_no=waybill_no,
+        items=items, employee_id=employee_id,
+        driver_name=driver_name, vehicle_no=vehicle_no,
+    )
+    if not applied.get("success"):
+        return applied
+    delivery_id = applied["delivery_id"]
 
     result = {"success": True, "delivery_id": delivery_id,
-              "total_shortfall": round(total_shortfall, 3)}
+              "total_shortfall": round(total_shortfall, 3),
+              "shortfalls": shortfalls}
 
     logged = PecoStore.log_event(
         "DELIVERY_RECEIVED", station_id=station_id, entity_type="DELIVERY",
