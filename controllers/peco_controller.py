@@ -186,6 +186,8 @@ class PecoController:
             waybill_no=payload["waybill_no"],
             items=items,
             employee_id=int(payload["employee_id"]),
+            driver_name=payload.get("driver_name"),
+            vehicle_no=payload.get("vehicle_no"),
         )
 
     @staticmethod
