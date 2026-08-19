@@ -171,9 +171,21 @@ def open_shift(station_id: int, employee_id: int) -> Dict[str, Any]:
 
     created = PecoStore.open_shift(station_id, employee_id)
     if not created.get("success"):
+        err = str(created.get("error") or "")
+        # Гонка: проверку выше прошли оба запроса, но уникальный индекс
+        # UX_PECO_SHIFTS_ACTIVE пропустил только один. Возвращаем доменную
+        # ошибку, а не текст ORA.
+        if "UX_PECO_SHIFTS_ACTIVE" in err.upper() or "ORA-00001" in err.upper():
+            return {"success": False, "error": "На станции уже открыта смена"}
         return created
 
-    PecoStore.log_event(
+    if created.get("shift_id") is None:
+        # CURRVAL не вернул строку: смена формально создана, но у нас нет
+        # её id. Возвращать success с null id хуже, чем явная ошибка.
+        return {"success": False,
+                "error": "Не удалось получить номер созданной смены"}
+
+    log_r = PecoStore.log_event(
         "SHIFT_OPENED",
         station_id=station_id,
         shift_id=created["shift_id"],
@@ -181,6 +193,10 @@ def open_shift(station_id: int, employee_id: int) -> Dict[str, Any]:
         entity_id=created["shift_id"],
         employee_id=employee_id,
     )
+    if not log_r.get("success"):
+        # Смена уже открыта в Oracle; сбой аудит-лога не должен откатывать
+        # операцию, но и молчать о нём нельзя.
+        created = dict(created, audit_warning="Не удалось записать событие открытия смены")
     return created
 
 
