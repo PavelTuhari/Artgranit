@@ -8878,9 +8878,8 @@ def _peco_station_id():
             return int(raw)
         except (TypeError, ValueError):
             pass
-    stations = PecoController.admin_overview()
-    items = stations.get('stations') or []
-    return items[0]['id'] if items else None
+    res = PecoController.default_station_id()
+    return res.get('station_id') if res.get('success') else None
 
 
 @app.route('/UNA.md/orasldev/peco-pump')
