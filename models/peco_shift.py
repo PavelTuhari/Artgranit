@@ -12,7 +12,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 # Допуски. Выход за пределы переводит смену в DISPUTED и требует PIN менеджера.
 TOLERANCE_LITERS: float = 0.5
