@@ -938,10 +938,10 @@ class PecoStore:
 
                     if it.get("dip_after") is not None:
                         dip_r = _run(db,
-                            """INSERT INTO PECO_TANK_DIPS
+                            """INSERT /*+ NO_PARALLEL */ INTO PECO_TANK_DIPS
                                       (ID, TANK_ID, STATION_ID, SHIFT_ID, MEASURED_L,
                                        MEASURED_BY, DIP_KIND)
-                               SELECT PECO_TANK_DIPS_SEQ.NEXTVAL, :tank_id,
+                               SELECT /*+ NO_PARALLEL */ PECO_TANK_DIPS_SEQ.NEXTVAL, :tank_id,
                                       t.STATION_ID, NULL, :measured_l,
                                       :employee_id, 'DELIVERY'
                                  FROM PECO_TANKS t
