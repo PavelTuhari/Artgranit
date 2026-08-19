@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PECO — Консоль смены</title>
+<style>
+:root{
+  --bg:#eef2fa;--bg2:#e4eaf6;--card:#ffffff;--card2:#f7f9fd;--line:#d7e0f0;
+  --text:#132038;--muted:#5c6b85;
+  --accent:#ffb020;--accent-ink:#241300;
+  --ok:#1f9d55;--ok-ink:#04220f;
+  --danger:#dc2626;--danger-ink:#2a0606;
+  --info:#1d6fd6;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #dfe7f9 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, #e6ecfa 0%, transparent 55%),
+    var(--bg);
+  color:var(--text);
+  padding:18px;
+  min-height:100vh;
+  font-size:16px;
+  -webkit-font-smoothing:antialiased;
+  max-width:1180px;margin:0 auto;
+}
+
+header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:20px;flex-wrap:wrap;gap:12px;
+}
+.title-wrap{display:flex;align-items:center;gap:14px;}
+.pump-icon{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(160deg,#eef3fe,#dbe5f8);
+  border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
+}
+h1{font-size:21px;font-weight:800;letter-spacing:.2px;}
+h1 .sub{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-top:2px;letter-spacing:.3px;}
+.badge{
+  font-size:14px;font-weight:700;color:var(--text);
+  background:var(--card2);border:1px solid var(--line);
+  padding:9px 16px;border-radius:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.badge .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(31,157,85,.16);}
+
+.card{
+  background:linear-gradient(165deg,var(--card),var(--card2));
+  border:1px solid var(--line);border-radius:18px;padding:20px;
+  margin-bottom:18px;
+}
+h2{font-size:16px;margin-bottom:14px;color:var(--text);font-weight:800;display:flex;align-items:center;gap:8px;}
+h2 .n{
+  width:24px;height:24px;border-radius:50%;background:var(--info);color:#fff;
+  font-size:12.5px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.hint{font-size:13px;color:var(--muted);margin-bottom:14px;margin-top:-6px;}
+
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;}
+th{color:var(--muted);font-weight:700;font-size:12.5px;text-transform:uppercase;letter-spacing:.3px;}
+tr:last-child td{border-bottom:0;}
+td.num{font-variant-numeric:tabular-nums;}
+
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px;font-weight:600;letter-spacing:.2px;}
+input{
+  background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:11px 13px;
+  color:var(--text);font-size:16px;font-weight:600;width:150px;
+  font-variant-numeric:tabular-nums;
+}
+input:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 3px rgba(29,111,214,.14);}
+input::placeholder{color:#9aa8c2;font-weight:500;}
+table input{width:120px;padding:9px 11px;font-size:15px;}
+
+button{
+  border:0;border-radius:11px;padding:12px 20px;font-size:14.5px;font-weight:800;
+  cursor:pointer;background:var(--accent);color:var(--accent-ink);
+  min-height:44px;
+  transition:filter .1s ease, transform .06s ease;
+  letter-spacing:.2px;
+}
+button:active{transform:scale(.97);}
+button:hover{filter:brightness(1.06);}
+button.ghost{background:transparent;border:1.5px solid var(--line);color:var(--text);padding:8px 14px;min-height:36px;font-size:13.5px;}
+button.ghost:hover{border-color:var(--info);}
+button.ok{background:var(--ok);color:var(--ok-ink);}
+button.danger{background:var(--danger);color:#fff;}
+button.big{font-size:16px;padding:16px 24px;}
+button:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;}
+
+.msg{padding:13px 16px;border-radius:12px;margin-top:14px;font-size:14.5px;font-weight:700;
+     display:flex;align-items:flex-start;gap:10px;}
+.msg.err{background:#fdeaea;color:#8a1c1c;border:1px solid #f3b8b8;}
+.msg.ok{background:#e6f6ec;color:#0d5c2e;border:1px solid #b7e3c6;}
+.msg.warn{background:#fef3d9;color:#7a4a04;border:1px solid #f2d491;}
+
+.low{color:var(--danger);font-weight:800;}
+.fillbar{position:relative;width:80px;height:8px;background:var(--line);border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px;}
+.fillbar i{position:absolute;left:0;top:0;bottom:0;background:var(--info);border-radius:6px;}
+.fillbar.low i{background:var(--danger);}
+
+/* Reconciliation */
+.recon-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px;}
+.status-pill{
+  font-size:13px;font-weight:800;padding:8px 14px;border-radius:999px;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.status-pill.ok{background:#e6f6ec;color:#0d5c2e;border:1px solid #b7e3c6;}
+.status-pill.disputed{
+  background:repeating-linear-gradient(135deg,#fdeaea,#fdeaea 8px,#fbdada 8px,#fbdada 16px);
+  color:#8a1c1c;border:2px solid var(--danger);
+}
+.status-pill .ic{font-size:15px;}
+
+.dispute-banner{
+  border:2px solid var(--danger);border-radius:14px;padding:16px 18px;margin:14px 0;
+  background:repeating-linear-gradient(135deg,#fdeaea,#fdeaea 10px,#fcdcdc 10px,#fcdcdc 20px);
+  display:flex;gap:14px;align-items:flex-start;
+}
+.dispute-banner .ic{font-size:26px;flex-shrink:0;line-height:1;}
+.dispute-banner .t{font-weight:800;color:#8a1c1c;font-size:15.5px;margin-bottom:4px;}
+.dispute-banner .d{font-size:13.5px;color:#7a2020;font-weight:600;line-height:1.4;}
+
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:14px;}
+.vbox{border:1.5px solid var(--line);border-radius:14px;padding:16px;background:#fff;}
+.vbox.ok{border-color:#b7e3c6;background:#f2fbf5;}
+.vbox.bad{border-color:#f3b8b8;background:#fdf2f2;}
+.vbox .n{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;}
+.vbox.ok .n{color:#0d5c2e;}
+.vbox.bad .n{color:#8a1c1c;}
+.vbox .l{font-size:12.5px;color:var(--text);font-weight:700;margin-top:6px;}
+.vbox .m{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35;}
+
+.tank-recon-table td.bad{color:#8a1c1c;font-weight:800;}
+.tank-recon-table td.ok{color:#0d5c2e;font-weight:800;}
+.tank-recon-table td.na{color:var(--muted);font-style:italic;}
+
+.ignored-note{
+  font-size:13px;color:#7a4a04;background:#fef3d9;border:1px solid #f2d491;
+  border-radius:10px;padding:10px 14px;margin-top:10px;font-weight:600;
+}
+
+.empty{color:var(--muted);font-size:13.5px;padding:14px 4px;}
+
+@media (max-width:640px){
+  h1{font-size:18px;}
+  input{width:100%;}
+  table input{width:100%;}
+  .row{flex-direction:column;align-items:stretch;}
+  .row > div{width:100%;}
+  th,td{font-size:12.5px;padding:8px 6px;}
+  .vbox .n{font-size:22px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title-wrap">
+    <div class="pump-icon">🖥️</div>
+    <h1>Консоль смены<span class="sub">PECO · рабочее место оператора</span></h1>
+  </div>
+  <div class="badge" id="shiftBadge"><span class="dot"></span>загрузка…</div>
+</header>
+
+<div class="card" id="openCard">
+  <h2><span class="n">1</span>Открытие смены</h2>
+  <div class="hint">Нужно, если на станции сейчас нет активной смены.</div>
+  <div class="row">
+    <div><label>ID сотрудника</label><input id="empId" type="number" value="1"></div>
+    <button onclick="openShift()">Открыть смену</button>
+  </div>
+  <div id="shiftMsg"></div>
+</div>
+
+<div class="card">
+  <h2><span class="n">2</span>Показания счётчиков на закрытие</h2>
+  <div class="hint">По каждому пистолету — показание в конце смены. Заполняйте по порядку сверху вниз, поле рядом.</div>
+  <table id="metersTbl">
+    <thead><tr><th>Пистолет</th><th>Топливо</th><th>Открытие</th>
+      <th>Закрытие</th><th></th></tr></thead>
+    <tbody><tr><td colspan="5" class="empty">Откройте смену, чтобы увидеть пистолеты</td></tr></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2><span class="n">3</span>Остатки и замер резервуаров</h2>
+  <div class="hint">Текущий остаток по данным системы. Замер (щуп/метршток) вводится в блоке сверки ниже.</div>
+  <table id="tanksTbl">
+    <thead><tr><th>Резервуар</th><th>Топливо</th><th>Остаток по системе, л</th>
+      <th>Ёмкость, л</th><th>Заполнение</th></tr></thead>
+    <tbody><tr><td colspan="5" class="empty">Загрузка…</td></tr></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2><span class="n">4</span>Закрытие смены со сверкой</h2>
+  <div class="hint">Введите фактическую наличность в кассе и замер каждого резервуара на момент закрытия. Остаток на открытие и приход за смену система знает сама и не запрашивает у оператора.</div>
+
+  <div class="row">
+    <div><label>Наличность в кассе, лей</label><input id="cash" type="number" step="0.01" placeholder="0.00"></div>
+  </div>
+
+  <table id="dipsTbl" style="margin-top:14px;">
+    <thead><tr><th>Резервуар</th><th>Топливо</th><th>Замер на закрытие, л</th></tr></thead>
+    <tbody><tr><td colspan="3" class="empty">Загрузка резервуаров…</td></tr></tbody>
+  </table>
+
+  <div class="row" style="margin-top:16px;">
+    <button class="danger big" onclick="closeShift()">Закрыть смену со сверкой</button>
+  </div>
+
+  <div id="closeMsg"></div>
+
+  <div id="reconBlock" style="display:none;">
+    <div class="recon-head" style="margin-top:18px;">
+      <h2 style="margin-bottom:0;"><span class="n">✓</span>Результат сверки</h2>
+      <span id="statusPill"></span>
+    </div>
+
+    <div id="disputeBanner" style="display:none;"></div>
+
+    <div class="vgrid" id="variances"></div>
+
+    <div style="margin-top:18px;">
+      <h2 style="font-size:14.5px;">Расхождение по резервуарам (отдельно, не суммой по станции)</h2>
+      <table class="tank-recon-table" id="tankReconTbl">
+        <thead><tr><th>Резервуар</th><th>Топливо</th><th>Замер, л</th><th>Расхождение, л</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="ignoredNote"></div>
+  </div>
+</div>
+
+<script>
+var state = null;
+var tanksById = {};
+
+function api(url, body) {
+  var opt = body ? {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(body)} : {};
+  return fetch(url, opt).then(function(r){ return r.json(); });
+}
+
+function esc(v) {
+  return String(v === undefined || v === null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function txt(tag, className, content) {
+  var el = document.createElement(tag);
+  if (className) el.className = className;
+  if (content !== undefined) el.textContent = content;
+  return el;
+}
+
+function clear(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function say(id, text, kind) {
+  var el = document.getElementById(id);
+  clear(el);
+  if (!text) return;
+  var box = txt('div', 'msg ' + (kind || 'ok'), null);
+  box.appendChild(txt('span', null, kind === 'err' ? '⚠' : (kind === 'warn' ? '⛔' : '✓')));
+  box.appendChild(txt('span', null, text));
+  el.appendChild(box);
+}
+
+function fmt3(v) { return Number(v).toFixed(3); }
+function fmt2(v) { return Number(v).toFixed(2); }
+
+function load() {
+  api('/api/peco/pump/state').then(function(r){
+    state = r;
+    var badge = document.getElementById('shiftBadge');
+    clear(badge);
+    if (!r.success) {
+      badge.innerHTML = '<span class="dot" style="background:var(--danger)"></span>';
+      badge.appendChild(txt('span', null, r.error));
+      document.getElementById('openCard').style.display = '';
+      return;
+    }
+    badge.innerHTML = '<span class="dot"></span>';
+    badge.appendChild(txt('span', null, 'Станция ' + r.station_id + ' · смена №' + r.shift_id));
+    document.getElementById('openCard').style.display = 'none';
+    loadMeters(r.shift_id);
+  });
+  api('/api/peco/tanks').then(function(r){
+    var tbody = document.querySelector('#tanksTbl tbody');
+    var dipsBody = document.querySelector('#dipsTbl tbody');
+    clear(tbody);
+    clear(dipsBody);
+    if (!r.success || !r.items.length) {
+      tbody.appendChild(rowMsg(5, r.success ? 'Резервуаров на станции нет' : r.error));
+      dipsBody.appendChild(rowMsg(3, 'Нет резервуаров для замера'));
+      return;
+    }
+    tanksById = {};
+    r.items.forEach(function(t){
+      tanksById[t.tank_id] = t;
+
+      var tr = document.createElement('tr');
+      tr.appendChild(txt('td', null, t.tank_code));
+      tr.appendChild(txt('td', null, t.grade_name));
+      var tdCur = txt('td num' + (t.is_low ? ' low' : ''), null, null);
+      var bar = txt('div', 'fillbar' + (t.is_low ? ' low' : ''), null);
+      var fill = txt('i', null, null);
+      fill.style.width = Math.max(0, Math.min(100, Number(t.fill_pct))) + '%';
+      bar.appendChild(fill);
+      tdCur.appendChild(bar);
+      tdCur.appendChild(document.createTextNode(fmt3(t.current_l) + (t.is_low ? ' ⚠ низкий остаток' : '')));
+      tr.appendChild(tdCur);
+      tr.appendChild(txt('td num', null, Number(t.capacity_l).toFixed(0)));
+      tr.appendChild(txt('td num', null, Number(t.fill_pct).toFixed(1) + '%'));
+      tbody.appendChild(tr);
+
+      var dtr = document.createElement('tr');
+      dtr.appendChild(txt('td', null, t.tank_code));
+      dtr.appendChild(txt('td', null, t.grade_name));
+      var tdInput = document.createElement('td');
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.001';
+      input.id = 'dip' + t.tank_id;
+      input.placeholder = 'напр. ' + fmt3(t.current_l);
+      tdInput.appendChild(input);
+      dtr.appendChild(tdInput);
+      dipsBody.appendChild(dtr);
+    });
+  });
+}
+
+function rowMsg(colspan, text) {
+  var tr = document.createElement('tr');
+  var td = document.createElement('td');
+  td.colSpan = colspan;
+  td.className = 'empty';
+  td.textContent = text;
+  tr.appendChild(td);
+  return tr;
+}
+
+function loadMeters(shiftId) {
+  api('/api/peco/shift/' + shiftId + '/meters').then(function(r){
+    var tbody = document.querySelector('#metersTbl tbody');
+    clear(tbody);
+    if (!r.success || !r.items.length) {
+      tbody.appendChild(rowMsg(5, r.success ? 'Пистолетов нет' : r.error));
+      return;
+    }
+    r.items.forEach(function(m, idx){
+      var tr = document.createElement('tr');
+      tr.appendChild(txt('td', null, m.nozzle_code));
+      tr.appendChild(txt('td', null, m.grade_code));
+      tr.appendChild(txt('td num', null, fmt3(m.meter_open)));
+
+      var tdInput = document.createElement('td');
+      var input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.001';
+      input.id = 'mc' + m.nozzle_id;
+      input.value = (m.meter_close !== null && m.meter_close !== undefined) ? fmt3(m.meter_close) : '';
+      input.setAttribute('data-idx', idx);
+      input.onkeydown = function(ev){
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          var next = document.querySelector('#metersTbl input[data-idx="' + (idx + 1) + '"]');
+          if (next) next.focus(); else saveMeter(m.nozzle_id);
+        }
+      };
+      tdInput.appendChild(input);
+      tr.appendChild(tdInput);
+
+      var tdBtn = document.createElement('td');
+      var btn = txt('button', 'ghost', 'Сохранить');
+      btn.onclick = function(){ saveMeter(m.nozzle_id); };
+      tdBtn.appendChild(btn);
+      tr.appendChild(tdBtn);
+
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+function openShift() {
+  api('/api/peco/shift/open', {
+    station_id: state && state.station_id ? state.station_id : 1,
+    employee_id: Number(document.getElementById('empId').value)
+  }).then(function(r){
+    say('shiftMsg', r.success ? 'Смена №' + r.shift_id + ' открыта' : r.error,
+        r.success ? 'ok' : 'err');
+    load();
+  });
+}
+
+function saveMeter(nozzleId) {
+  var input = document.getElementById('mc' + nozzleId);
+  api('/api/peco/shift/meter', {
+    shift_id: state.shift_id, nozzle_id: nozzleId,
+    meter_close: Number(input.value)
+  }).then(function(r){
+    say('shiftMsg', r.success ? 'Показание сохранено' : r.error,
+        r.success ? 'ok' : 'err');
+  });
+}
+
+function collectDips() {
+  var dips = {};
+  Object.keys(tanksById).forEach(function(tankId){
+    var input = document.getElementById('dip' + tankId);
+    if (input && input.value !== '') {
+      dips[tankId] = Number(input.value);
+    }
+  });
+  return dips;
+}
+
+function closeShift() {
+  if (!state || !state.success) {
+    say('closeMsg', 'Нет активной смены', 'err');
+    return;
+  }
+  api('/api/peco/shift/close', {
+    shift_id: state.shift_id,
+    employee_id: Number(document.getElementById('empId').value),
+    cash_declared: Number(document.getElementById('cash').value),
+    dips: collectDips()
+  }).then(function(r){
+    if (!r.success) {
+      var extra = r.unresolved ? ' (' + r.unresolved + ' шт.)' : '';
+      say('closeMsg', r.error + extra, 'err');
+      return;
+    }
+    renderReconciliation(r);
+    say('closeMsg', '', null);
+  });
+}
+
+function renderReconciliation(r) {
+  document.getElementById('reconBlock').style.display = '';
+
+  var pill = document.getElementById('statusPill');
+  clear(pill);
+  if (r.status === 'DISPUTED') {
+    var p = txt('span', 'status-pill disputed', null);
+    p.appendChild(txt('span', 'ic', '⛔'));
+    p.appendChild(document.createTextNode('DISPUTED — требуется PIN менеджера'));
+    pill.appendChild(p);
+  } else {
+    var p2 = txt('span', 'status-pill ok', null);
+    p2.appendChild(txt('span', 'ic', '✓'));
+    p2.appendChild(document.createTextNode('CLOSED — в пределах допуска'));
+    pill.appendChild(p2);
+  }
+
+  var banner = document.getElementById('disputeBanner');
+  clear(banner);
+  if (r.status === 'DISPUTED') {
+    banner.style.display = 'flex';
+    banner.className = 'dispute-banner';
+    banner.appendChild(txt('div', 'ic', '⛔'));
+    var textWrap = document.createElement('div');
+    textWrap.appendChild(txt('div', 't', 'Смена закрыта со статусом DISPUTED'));
+    textWrap.appendChild(txt('div', 'd',
+      'Одно или несколько расхождений вышли за допуск. Смена заблокирована до подтверждения: ' +
+      'менеджер должен ввести свой PIN, чтобы принять расхождение и снять блокировку.'));
+    banner.appendChild(textWrap);
+  } else {
+    banner.style.display = 'none';
+  }
+
+  var v = r.variances;
+  var vg = document.getElementById('variances');
+  clear(vg);
+  vg.appendChild(vbox(
+    'Расхождение по литрам', v.liter_variance, ' л', 0.5,
+    'Топливо вышло из пистолета, но не оплачено (или переплачено против счётчика).'));
+  vg.appendChild(vbox(
+    'Расхождение по кассе', v.cash_variance, ' лей', 1.0,
+    'Недостача или излишек наличности в ящике против ожидаемой выручки.'));
+  vg.appendChild(vbox(
+    'Расхождение по резервуарам, сумма', v.tank_variance, ' л', 50.0,
+    'Утечка или уход калибровки резервуара. Сумма показана справочно — ' +
+    'решение принимается по каждому резервуару отдельно ниже.'));
+
+  var tbody = document.querySelector('#tankReconTbl tbody');
+  clear(tbody);
+  if (!r.tanks || !r.tanks.length) {
+    tbody.appendChild(rowMsg(4, 'Нет данных по резервуарам'));
+  } else {
+    r.tanks.forEach(function(t){
+      var tr = document.createElement('tr');
+      var meta = tanksById[t.tank_id];
+      tr.appendChild(txt('td', null, meta ? meta.tank_code : ('#' + t.tank_id)));
+      tr.appendChild(txt('td', null, t.grade_code || (meta ? meta.grade_name : '')));
+      tr.appendChild(txt('td num', null, t.dip_close_l === null ? '—' : fmt3(t.dip_close_l)));
+      var tdV = document.createElement('td');
+      if (t.tank_variance === null || t.tank_variance === undefined) {
+        tdV.className = 'na';
+        tdV.textContent = 'нет замера';
+      } else {
+        var bad = Math.abs(Number(t.tank_variance)) > 50.0;
+        tdV.className = bad ? 'bad' : 'ok';
+        tdV.textContent = (bad ? '⛔ ' : '') + fmt3(t.tank_variance) + ' л';
+      }
+      tr.appendChild(tdV);
+      tbody.appendChild(tr);
+    });
+  }
+
+  var note = document.getElementById('ignoredNote');
+  clear(note);
+  if (r.ignored_dips && r.ignored_dips.length) {
+    var n = txt('div', 'ignored-note', null);
+    n.textContent = '⚠ Замер введён для резервуара(ов) вне этой смены и был проигнорирован: ' +
+      r.ignored_dips.join(', ') + '. Проверьте номер резервуара.';
+    note.appendChild(n);
+  }
+}
+
+function vbox(label, value, unit, tolerance, meaning) {
+  var known = value !== null && value !== undefined;
+  var bad = known && Math.abs(Number(value)) > tolerance;
+  var box = txt('div', 'vbox ' + (known ? (bad ? 'bad' : 'ok') : ''), null);
+  box.appendChild(txt('div', 'n', known ? (bad ? '⛔ ' : '') + fmt3(value) + unit : '—'));
+  box.appendChild(txt('div', 'l', label));
+  box.appendChild(txt('div', 'm', meaning));
+  return box;
+}
+
+load();
+</script>
+</body>
+</html>
