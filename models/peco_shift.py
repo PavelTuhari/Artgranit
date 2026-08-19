@@ -12,7 +12,9 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from models.peco_oracle_store import PecoStore
 
 # Допуски. Выход за пределы переводит смену в DISPUTED и требует PIN менеджера.
 TOLERANCE_LITERS: float = 0.5
