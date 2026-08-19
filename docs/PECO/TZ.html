@@ -161,11 +161,14 @@ tank_variance  = dip_close − (volume_open + delivered − dispensed)
 в одно число: <code>liter_variance</code> — недостача по транзакциям,
 <code>cash_variance</code> — недостача или излишек кассы, <code>tank_variance</code> —
 утечка или уход калибровки резервуара.</p>
-<p><strong>MIA QR исключён из кассовой сверки.</strong> Признак, какие способы
-оплаты попадают в сверку, — колонка <code>PECO_REF_PAY_METHODS.AFFECTS_CASH</code>
-(1 = наличные, 0 = MIA QR): оплата по MIA QR приходит на банковский счёт
-торговой точки, а не в денежный ящик, и включать её в кассовую сверку
-означало бы требовать от кассира лишние деньги, которых физически нет.</p>
+<p><strong>MIA QR исключён из кассовой сверки.</strong> Разделение реализовано
+явными кодами способа оплаты в самом запросе агрегата смены: справочник
+<code>PECO_REF_PAY_METHODS</code> задаёт коды <code>CASH</code> и
+<code>MIA_QR</code>, а <code>shift_paid_liters</code> в
+<code>models/peco_oracle_store.py</code> суммирует по каждому коду отдельно.
+Оплата по MIA QR приходит на банковский счёт торговой точки, а не в денежный
+ящик, и включать её в кассовую сверку означало бы требовать от кассира лишние
+деньги, которых физически нет.</p>
 <p><strong>Резервуар — не станция.</strong> <code>tank_variance</code> считается
 и проверяется на допуск отдельно для каждого резервуара станции
 (функции <code>tank_variances()</code> и <code>tank_variances_exceed()</code>
