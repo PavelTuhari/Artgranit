@@ -132,7 +132,7 @@
     <span class="arrow">──▶</span>
     <span>92.5.130.1</span>
     <span class="arrow">──▶</span>
-    <span class="to">93.115.136.18</span>
+    <span class="to">93.115.136.18 → .148 → .250</span>
     <span class="arrow">↩ при отказе</span>
     <span>сам 92.5.130.1</span>
   </div>
@@ -224,14 +224,25 @@ location @spare {
      <code>127.0.0.1:8000</code> напрямую.</p>
 
   <div class="note note--warn">
-    <h3>Сначала настроить приём на стороне офиса</h3>
-    <p>Сейчас <code>192.168.0.148</code> на имя <code>officeplus.md</code> отдаёт
-       посторонний сайт — магазин там отвечает только на
-       <code>officeplus.una.md</code>. Пока это не исправлено, проксировать нужно
-       с подменой заголовка <code>Host: officeplus.una.md</code>, а Flask начнёт
-       отдавать ссылки на то имя. Правильнее добавить имя в
-       <code>server_name</code> на <code>.148</code>:</p>
-    <pre><code>server_name officeplus.una.md officeplus.md www.officeplus.md;</code></pre>
+    <h3>Почему передаём Host: officeplus.una.md</h3>
+    <p>В vhost на <code>.148</code> стоит жёсткое правило: любой другой Host
+       получает редирект на <code>officeplus.una.md</code>.</p>
+    <pre><code>if ($host != 'officeplus.una.md') {
+    return 301 https://officeplus.una.md$request_uri;
+}</code></pre>
+    <p>Поэтому подмена заголовка обязательна — иначе клиента выбросит на другое
+       имя и адреса возврата MAIB перестанут совпадать. Имена, приходящие
+       обратно в <code>canonical</code> и <code>og:image</code>, чинит
+       <code>sub_filter</code>.</p>
+  </div>
+
+  <div class="note note--stop">
+    <h3>Мина на .148: nginx вне systemd</h3>
+    <p>Процессы nginx работают, но <code>systemctl status nginx</code> показывает
+       <b>failed</b> с 3 августа — юнит потерял управление. Команда
+       <code>systemctl restart nginx</code> может не поднять сервис обратно и
+       обрушить все сайты машины, а их там несколько десятков. Перед любым
+       перезапуском на <code>.148</code> — разбираться отдельно.</p>
   </div>
 </section>
 
