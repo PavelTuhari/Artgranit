@@ -33,7 +33,7 @@ TRANSITIONS: Dict[str, Set[str]] = {
 # Способы оплаты, требующие внешней ссылки на платёж
 _REF_REQUIRED = {"MIA_QR"}
 
-_SETTLEABLE = {"DISPENSING", "AWAITING_PAY"}
+_SETTLEABLE = {"AWAITING_PAY"}
 
 
 def can_transition(current: str, target: str) -> bool:
