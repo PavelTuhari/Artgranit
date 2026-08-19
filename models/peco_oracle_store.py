@@ -323,17 +323,23 @@ class PecoStore:
         Между началом закрытия и finalize_shift смена не должна выглядеть
         обычной открытой: иначе после сбоя в реестре резервуаров окажется
         замер на закрытие, а колонки продолжат отпускать топливо.
+
+        Переход в CLOSING обязан быть идемпотентным: если close_shift упадёт
+        на finalize_shift, смена остаётся в CLOSING, и оператор должен иметь
+        возможность повторить попытку закрытия без раскрытия смены. Поэтому
+        WHERE принимает и OPEN, и CLOSING. Отвергаются только уже CLOSED или
+        DISPUTED — те, что нельзя переоткрыть.
         """
         try:
             with DatabaseModel() as db:
                 r = _run(db,
                     """UPDATE PECO_SHIFTS SET STATUS_CODE = 'CLOSING'
-                        WHERE ID = :shift_id AND STATUS_CODE = 'OPEN'""",
+                        WHERE ID = :shift_id AND STATUS_CODE IN ('OPEN', 'CLOSING')""",
                     {"shift_id": shift_id},
                 )
                 if r.get("rowcount", 0) == 0:
                     return {"success": False,
-                            "error": "Смена не в статусе OPEN"}
+                            "error": "Смена уже закрыта"}
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
