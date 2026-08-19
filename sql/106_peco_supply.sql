@@ -1,0 +1,570 @@
+-- ============================================================
+-- PECO: контур снабжения топливом (автозаказ, нефтебаза, импорт, доставка)
+--
+-- Существующий модуль PECO закрывает розницу АЗС: смены, транзакции,
+-- резервуары, приходы. Здесь достраивается то, что ему предшествует —
+-- ОТКУДА берётся топливо в резервуаре.
+--
+-- Схема снабжения двухэшелонная, и это определяет всю модель:
+--
+--   импорт ──▶ НЕФТЕБАЗА ──▶ АЗС
+--   (длинное плечо,   (свой склад,   (резервуар с ограниченной
+--    крупная партия)   буфер сети)    свободной ёмкостью)
+--
+-- Ключевое отличие автозаказа топлива от товарного:
+--   1. Ограничение сверху — не срок годности, а СВОБОДНАЯ ЁМКОСТЬ на момент
+--      прихода бензовоза (ullage). Перелив невозможен физически: заказать
+--      больше, чем влезет, — значит остановить слив на середине.
+--   2. Кратность — СЕКЦИЯ ЦИСТЕРНЫ, а не короб. Одна секция = один вид
+--      топлива: смешивание А-95 и дизеля в секции портит обе партии.
+--   3. Стокаут стоит не упущенной маржи с литра, а простоя всей станции:
+--      сухой бак уводит клиента вместе с покупкой в магазине при АЗС.
+--
+-- Транспорт свой, а GPS-датчики на аутсорсе: телеметрию присылает внешний
+-- провайдер по токену (PECO_GPS_PROVIDERS), мы её только принимаем
+-- и разбираем. Отсюда PECO_GPS_PINGS как append-only факт и отдельная
+-- таблица разобранных событий PECO_GPS_EVENTS.
+--
+-- Расчёт: models/peco_autoorder.py. Префикс объектов: PECO_
+-- ============================================================
+
+-- ==================== Координаты станции для карты ====================
+--
+-- Карта построена на Leaflet + OpenStreetMap по образцу
+-- https://erp1.eu/govRM/maps4 romania vot md.html: маркер перетаскивается
+-- в режиме редактирования, адрес геокодируется через Nominatim.
+-- Разница в том, что координаты не скачиваются файлом, а ложатся сюда.
+
+DECLARE
+  PROCEDURE add_col(p_tab VARCHAR2, p_col VARCHAR2, p_def VARCHAR2) IS
+    v_n NUMBER;
+  BEGIN
+    SELECT COUNT(*) INTO v_n FROM USER_TAB_COLUMNS
+     WHERE TABLE_NAME = p_tab AND COLUMN_NAME = p_col;
+    IF v_n = 0 THEN
+      EXECUTE IMMEDIATE 'ALTER TABLE ' || p_tab || ' ADD (' || p_col || ' ' || p_def || ')';
+    END IF;
+  END;
+BEGIN
+  add_col('PECO_STATIONS', 'LAT',         'NUMBER(9,6)');
+  add_col('PECO_STATIONS', 'LON',         'NUMBER(9,6)');
+  add_col('PECO_STATIONS', 'GEO_SOURCE',  'VARCHAR2(20)');   -- manual / geocode / import
+  add_col('PECO_STATIONS', 'GEO_AT',      'TIMESTAMP');
+  -- Ограничение по въезду бензовоза: ночной запрет, узкий двор и т.п.
+  add_col('PECO_STATIONS', 'ACCESS_NOTE', 'VARCHAR2(300)');
+  add_col('PECO_STATIONS', 'ROUTE_ZONE',  'VARCHAR2(60)');   -- логистическая зона развоза
+END;
+/
+
+-- ==================== Справочники ====================
+
+CREATE TABLE PECO_REF_SUPPLY_SOURCES (
+  CODE       VARCHAR2(20)  NOT NULL,
+  NAME_RU    VARCHAR2(150) NOT NULL,
+  NAME_RO    VARCHAR2(150),
+  NAME_EN    VARCHAR2(150),
+  IS_IMPORT  NUMBER(1)     DEFAULT 0,
+  SORT_ORDER NUMBER        DEFAULT 0,
+  CONSTRAINT PK_PECO_REF_SUP_SRC PRIMARY KEY (CODE),
+  CONSTRAINT CK_PECO_RSS_IMP CHECK (IS_IMPORT IN (0,1))
+);
+
+MERGE INTO PECO_REF_SUPPLY_SOURCES t USING (
+  SELECT 'depot' CODE, 'Своя нефтебаза' RU, 'Depozit propriu' RO, 'Own depot' EN, 0 IMP, 1 SRT FROM dual UNION ALL
+  SELECT 'import', 'Импорт', 'Import', 'Import', 1, 2 FROM dual UNION ALL
+  SELECT 'market', 'Внутренний рынок', 'Piața internă', 'Domestic market', 0, 3 FROM dual
+) s ON (t.CODE = s.CODE)
+WHEN MATCHED THEN UPDATE SET NAME_RU = s.RU, NAME_RO = s.RO, NAME_EN = s.EN,
+     IS_IMPORT = s.IMP, SORT_ORDER = s.SRT
+WHEN NOT MATCHED THEN INSERT (CODE, NAME_RU, NAME_RO, NAME_EN, IS_IMPORT, SORT_ORDER)
+     VALUES (s.CODE, s.RU, s.RO, s.EN, s.IMP, s.SRT);
+
+CREATE TABLE PECO_REF_ORDER_STATUS (
+  CODE       VARCHAR2(20)  NOT NULL,
+  NAME_RU    VARCHAR2(100) NOT NULL,
+  NAME_RO    VARCHAR2(100),
+  NAME_EN    VARCHAR2(100),
+  SORT_ORDER NUMBER        DEFAULT 0,
+  IS_FINAL   NUMBER(1)     DEFAULT 0,
+  CONSTRAINT PK_PECO_REF_ORD_ST PRIMARY KEY (CODE),
+  CONSTRAINT CK_PECO_ROS_FIN CHECK (IS_FINAL IN (0,1))
+);
+
+MERGE INTO PECO_REF_ORDER_STATUS t USING (
+  SELECT 'draft' CODE, 'Черновик' RU, 'Ciornă' RO, 'Draft' EN, 1 SRT, 0 FIN FROM dual UNION ALL
+  SELECT 'approved',  'Утверждён',      'Aprobat',   'Approved',  2, 0 FROM dual UNION ALL
+  SELECT 'planned',   'В рейсе',        'În cursă',  'On trip',   3, 0 FROM dual UNION ALL
+  SELECT 'delivered', 'Доставлен',      'Livrat',    'Delivered', 4, 1 FROM dual UNION ALL
+  SELECT 'cancelled', 'Отменён',        'Anulat',    'Cancelled', 5, 1 FROM dual
+) s ON (t.CODE = s.CODE)
+WHEN MATCHED THEN UPDATE SET NAME_RU = s.RU, NAME_RO = s.RO, NAME_EN = s.EN,
+     SORT_ORDER = s.SRT, IS_FINAL = s.FIN
+WHEN NOT MATCHED THEN INSERT (CODE, NAME_RU, NAME_RO, NAME_EN, SORT_ORDER, IS_FINAL)
+     VALUES (s.CODE, s.RU, s.RO, s.EN, s.SRT, s.FIN);
+
+COMMIT;
+
+-- ==================== Нефтебаза ====================
+
+CREATE SEQUENCE PECO_DEPOT_SEQ      START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_DEPOT_TANK_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE PECO_DEPOTS (
+  ID          NUMBER        NOT NULL,
+  CODE        VARCHAR2(20)  NOT NULL,
+  NAME        VARCHAR2(150) NOT NULL,
+  ADDRESS     VARCHAR2(300),
+  LAT         NUMBER(9,6),
+  LON         NUMBER(9,6),
+  LOAD_BAYS   NUMBER        DEFAULT 2,      -- наливных постов: ограничивает рейсы в сутки
+  WORK_FROM   VARCHAR2(5)   DEFAULT '06:00',
+  WORK_TO     VARCHAR2(5)   DEFAULT '22:00',
+  ACTIVE      NUMBER(1)     DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_PECO_DEPOTS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_DEPOTS_CODE UNIQUE (CODE),
+  CONSTRAINT UQ_PECO_DEPOTS_ID UNIQUE (ID),
+  CONSTRAINT CK_PECO_DEPOTS_ACT CHECK (ACTIVE IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_DEPOTS_BI
+  BEFORE INSERT ON PECO_DEPOTS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_DEPOT_SEQ.NEXTVAL;
+END;
+/
+
+-- Резервуарный парк нефтебазы: свой запас по каждому виду топлива.
+-- Он же — точка, которая сама заказывает импортом (второй эшелон).
+CREATE TABLE PECO_DEPOT_TANKS (
+  ID           NUMBER        NOT NULL,
+  DEPOT_ID     NUMBER        NOT NULL,
+  GRADE_CODE   VARCHAR2(10)  NOT NULL,
+  CODE         VARCHAR2(20)  NOT NULL,
+  CAPACITY_L   NUMBER(14,3)  NOT NULL,
+  CURRENT_L    NUMBER(14,3)  DEFAULT 0 NOT NULL,
+  MIN_STOCK_L  NUMBER(14,3)  DEFAULT 0 NOT NULL,   -- неснижаемый остаток
+  ACTIVE       NUMBER(1)     DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_PECO_DEPOT_TANKS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_DT UNIQUE (DEPOT_ID, GRADE_CODE),
+  CONSTRAINT FK_PECO_DT_DE FOREIGN KEY (DEPOT_ID)   REFERENCES PECO_DEPOTS (ID),
+  CONSTRAINT FK_PECO_DT_GR FOREIGN KEY (GRADE_CODE) REFERENCES PECO_REF_FUEL_GRADES (CODE),
+  CONSTRAINT CK_PECO_DT_ACT CHECK (ACTIVE IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_DEPOT_TANKS_BI
+  BEFORE INSERT ON PECO_DEPOT_TANKS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_DEPOT_TANK_SEQ.NEXTVAL;
+END;
+/
+
+-- ==================== Поставщики топлива ====================
+
+CREATE SEQUENCE PECO_FSUP_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE PECO_FUEL_SUPPLIERS (
+  ID            NUMBER        NOT NULL,
+  CODE          VARCHAR2(30)  NOT NULL,
+  NAME          VARCHAR2(200) NOT NULL,
+  SOURCE_CODE   VARCHAR2(20)  NOT NULL,   -- depot / import / market
+  COUNTRY       VARCHAR2(5)   DEFAULT 'MD',
+  INCOTERMS     VARCHAR2(10),
+  LEAD_DAYS     NUMBER(5,1)   DEFAULT 1,  -- от заявки до налива
+  MIN_LOT_L     NUMBER(14,3)  DEFAULT 0,  -- минимальная партия
+  PRICE_PER_L   NUMBER(10,4),             -- закупочная цена, ориентир
+  CURRENCY      VARCHAR2(5)   DEFAULT 'MDL',
+  CONTRACT_NO   VARCHAR2(60),
+  ACTIVE        NUMBER(1)     DEFAULT 1 NOT NULL,
+  NOTE          VARCHAR2(500),
+  CONSTRAINT PK_PECO_FSUP PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_FSUP_CODE UNIQUE (CODE),
+  CONSTRAINT FK_PECO_FSUP_SRC FOREIGN KEY (SOURCE_CODE) REFERENCES PECO_REF_SUPPLY_SOURCES (CODE),
+  CONSTRAINT CK_PECO_FSUP_ACT CHECK (ACTIVE IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_FUEL_SUPPLIERS_BI
+  BEFORE INSERT ON PECO_FUEL_SUPPLIERS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_FSUP_SEQ.NEXTVAL;
+END;
+/
+
+-- ==================== Транспорт: бензовозы и секции ====================
+--
+-- Транспорт СВОЙ, GPS-датчики на аутсорсе: провайдер шлёт пинги по токену.
+-- Токен хранится хешем — утечка дампа не даёт возможности слать поддельную
+-- телеметрию от имени провайдера.
+
+CREATE SEQUENCE PECO_GPSPROV_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_TRUCK_SEQ   START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_COMP_SEQ    START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE PECO_GPS_PROVIDERS (
+  ID          NUMBER        NOT NULL,
+  CODE        VARCHAR2(30)  NOT NULL,
+  NAME        VARCHAR2(200) NOT NULL,
+  TOKEN_HASH  VARCHAR2(64),               -- SHA-256 токена приёма телеметрии
+  CONTACT     VARCHAR2(200),
+  ACTIVE      NUMBER(1)     DEFAULT 1 NOT NULL,
+  CREATED_AT  TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  CONSTRAINT PK_PECO_GPSPROV PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_GPSPROV_CODE UNIQUE (CODE),
+  CONSTRAINT CK_PECO_GPSPROV_ACT CHECK (ACTIVE IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_GPS_PROVIDERS_BI
+  BEFORE INSERT ON PECO_GPS_PROVIDERS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_GPSPROV_SEQ.NEXTVAL;
+END;
+/
+
+CREATE TABLE PECO_TRUCKS (
+  ID            NUMBER        NOT NULL,
+  PLATE_NO      VARCHAR2(30)  NOT NULL,
+  MODEL         VARCHAR2(150),
+  DEPOT_ID      NUMBER,                    -- приписка к нефтебазе
+  CAPACITY_L    NUMBER(12,3)  DEFAULT 0,   -- сумма секций, пересчитывается
+  COMP_COUNT    NUMBER        DEFAULT 0,
+  GPS_PROVIDER_ID NUMBER,
+  GPS_DEVICE_ID VARCHAR2(60),              -- идентификатор трекера у провайдера
+  DRIVER_NAME   VARCHAR2(150),
+  DRIVER_PHONE  VARCHAR2(40),
+  ACTIVE        NUMBER(1)     DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_PECO_TRUCKS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_TRUCKS_PLATE UNIQUE (PLATE_NO),
+  CONSTRAINT UQ_PECO_TRUCKS_DEV UNIQUE (GPS_DEVICE_ID),
+  CONSTRAINT FK_PECO_TRUCKS_DE FOREIGN KEY (DEPOT_ID) REFERENCES PECO_DEPOTS (ID),
+  CONSTRAINT FK_PECO_TRUCKS_GP FOREIGN KEY (GPS_PROVIDER_ID) REFERENCES PECO_GPS_PROVIDERS (ID),
+  CONSTRAINT CK_PECO_TRUCKS_ACT CHECK (ACTIVE IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_TRUCKS_BI
+  BEFORE INSERT ON PECO_TRUCKS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_TRUCK_SEQ.NEXTVAL;
+END;
+/
+
+-- Секция цистерны. Одна секция — один вид топлива за рейс: остаток
+-- предыдущего продукта в секции делает следующую партию несортовой.
+CREATE TABLE PECO_TRUCK_COMPARTMENTS (
+  ID          NUMBER        NOT NULL,
+  TRUCK_ID    NUMBER        NOT NULL,
+  COMP_NO     NUMBER        NOT NULL,
+  VOLUME_L    NUMBER(12,3)  NOT NULL,
+  LAST_GRADE  VARCHAR2(10),               -- что возили в прошлый раз
+  ACTIVE      NUMBER(1)     DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_PECO_COMP PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_COMP UNIQUE (TRUCK_ID, COMP_NO),
+  CONSTRAINT FK_PECO_COMP_TR FOREIGN KEY (TRUCK_ID)   REFERENCES PECO_TRUCKS (ID) ON DELETE CASCADE,
+  CONSTRAINT FK_PECO_COMP_GR FOREIGN KEY (LAST_GRADE) REFERENCES PECO_REF_FUEL_GRADES (CODE),
+  CONSTRAINT CK_PECO_COMP_ACT CHECK (ACTIVE IN (0,1)),
+  CONSTRAINT CK_PECO_COMP_VOL CHECK (VOLUME_L > 0)
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_TRUCK_COMP_BI
+  BEFORE INSERT ON PECO_TRUCK_COMPARTMENTS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_COMP_SEQ.NEXTVAL;
+END;
+/
+
+-- ==================== Заказы топлива ====================
+
+CREATE SEQUENCE PECO_FORDER_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_FITEM_SEQ  START WITH 1 INCREMENT BY 1 CACHE 100;
+CREATE SEQUENCE PECO_FRUN_SEQ   START WITH 1 INCREMENT BY 1 NOCACHE;
+
+-- Прогон автозаказа: как прогон прогноза в товарном контуре
+CREATE TABLE PECO_ORDER_RUNS (
+  ID            NUMBER        NOT NULL,
+  DEPOT_ID      NUMBER,
+  STATUS        VARCHAR2(20)  DEFAULT 'running',
+  STAGE         VARCHAR2(60),
+  PROGRESS_PCT  NUMBER        DEFAULT 0,
+  STATION_COUNT NUMBER        DEFAULT 0,
+  ORDER_COUNT   NUMBER        DEFAULT 0,
+  LITERS_TOTAL  NUMBER(16,3)  DEFAULT 0,
+  DRY_RISK_CNT  NUMBER        DEFAULT 0,   -- резервуаров с риском сухого бака
+  PARAMS_JSON   VARCHAR2(2000),
+  MESSAGE       VARCHAR2(2000),
+  USERNAME      VARCHAR2(150),
+  STARTED_AT    TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  FINISHED_AT   TIMESTAMP,
+  DURATION_SEC  NUMBER,
+  CONSTRAINT PK_PECO_ORDER_RUNS PRIMARY KEY (ID),
+  CONSTRAINT FK_PECO_OR_DE FOREIGN KEY (DEPOT_ID) REFERENCES PECO_DEPOTS (ID),
+  CONSTRAINT CK_PECO_OR_ST CHECK (STATUS IN ('running','done','failed','cancelled'))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_ORDER_RUNS_BI
+  BEFORE INSERT ON PECO_ORDER_RUNS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_FRUN_SEQ.NEXTVAL;
+END;
+/
+
+CREATE TABLE PECO_FUEL_ORDERS (
+  ID            NUMBER        NOT NULL,
+  ORDER_NO      VARCHAR2(30),
+  RUN_ID        NUMBER,
+  STATION_ID    NUMBER        NOT NULL,
+  SOURCE_CODE   VARCHAR2(20)  DEFAULT 'depot' NOT NULL,
+  DEPOT_ID      NUMBER,
+  SUPPLIER_ID   NUMBER,
+  STATUS        VARCHAR2(20)  DEFAULT 'draft' NOT NULL,
+  NEED_BY       DATE,                      -- когда топливо должно быть в баке
+  LITERS_TOTAL  NUMBER(14,3)  DEFAULT 0,
+  AMOUNT        NUMBER(16,2)  DEFAULT 0,
+  TRIP_ID       NUMBER,
+  NOTE          VARCHAR2(600),
+  CREATED_BY    VARCHAR2(150),
+  APPROVED_BY   VARCHAR2(150),
+  APPROVED_AT   TIMESTAMP,
+  CREATED_AT    TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  UPDATED_AT    TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  CONSTRAINT PK_PECO_FUEL_ORDERS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_FO_NO UNIQUE (ORDER_NO),
+  -- Опорный UNIQUE для составного FK строки: строка проверяется на ту же станцию
+  CONSTRAINT UQ_PECO_FO_ID_ST UNIQUE (ID, STATION_ID),
+  CONSTRAINT FK_PECO_FO_RUN FOREIGN KEY (RUN_ID)      REFERENCES PECO_ORDER_RUNS (ID) ON DELETE SET NULL,
+  CONSTRAINT FK_PECO_FO_ST  FOREIGN KEY (STATION_ID)  REFERENCES PECO_STATIONS (ID),
+  CONSTRAINT FK_PECO_FO_SRC FOREIGN KEY (SOURCE_CODE) REFERENCES PECO_REF_SUPPLY_SOURCES (CODE),
+  CONSTRAINT FK_PECO_FO_DE  FOREIGN KEY (DEPOT_ID)    REFERENCES PECO_DEPOTS (ID),
+  CONSTRAINT FK_PECO_FO_SUP FOREIGN KEY (SUPPLIER_ID) REFERENCES PECO_FUEL_SUPPLIERS (ID),
+  CONSTRAINT FK_PECO_FO_STS FOREIGN KEY (STATUS)      REFERENCES PECO_REF_ORDER_STATUS (CODE)
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_FUEL_ORDERS_BI
+  BEFORE INSERT ON PECO_FUEL_ORDERS FOR EACH ROW
+BEGIN
+  IF :NEW.ID IS NULL THEN :NEW.ID := PECO_FORDER_SEQ.NEXTVAL; END IF;
+  IF :NEW.ORDER_NO IS NULL THEN
+    :NEW.ORDER_NO := 'FO-' || TO_CHAR(SYSDATE, 'YYYYMMDD') || '-' || LPAD(:NEW.ID, 5, '0');
+  END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER PECO_FUEL_ORDERS_BU
+  BEFORE UPDATE ON PECO_FUEL_ORDERS FOR EACH ROW
+BEGIN
+  :NEW.UPDATED_AT := SYSTIMESTAMP;
+END;
+/
+
+-- Строка заказа = один резервуар. Хранятся и рекомендация модели,
+-- и утверждённый объём: расхождение показывает, где логист правит расчёт.
+CREATE TABLE PECO_FUEL_ORDER_ITEMS (
+  ID              NUMBER        NOT NULL,
+  ORDER_ID        NUMBER        NOT NULL,
+  STATION_ID      NUMBER        NOT NULL,
+  TANK_ID         NUMBER        NOT NULL,
+  GRADE_CODE      VARCHAR2(10)  NOT NULL,
+  LITERS_MODEL    NUMBER(14,3),              -- рекомендация алгоритма
+  LITERS_ORDER    NUMBER(14,3)  NOT NULL,    -- утверждено к наливу
+  CURRENT_L       NUMBER(14,3),              -- остаток на момент расчёта
+  ULLAGE_L        NUMBER(14,3),              -- свободная ёмкость к приходу
+  DAILY_RATE_L    NUMBER(12,3),              -- средний суточный отпуск
+  DAYS_TO_DRY     NUMBER(8,2),               -- через сколько дней сухой бак
+  COVER_AFTER_D   NUMBER(8,2),               -- на сколько дней хватит после налива
+  IS_DRY_RISK     NUMBER(1)     DEFAULT 0,
+  ADJ_REASON      VARCHAR2(30),
+  CONSTRAINT PK_PECO_FOI PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_FOI UNIQUE (ORDER_ID, TANK_ID),
+  -- Составной FK: строка и заказ обязаны быть на одной станции
+  CONSTRAINT FK_PECO_FOI_FO FOREIGN KEY (ORDER_ID, STATION_ID) REFERENCES PECO_FUEL_ORDERS (ID, STATION_ID),
+  -- Составной FK: резервуар строки обязан принадлежать той же станции
+  CONSTRAINT FK_PECO_FOI_TA FOREIGN KEY (TANK_ID, STATION_ID)  REFERENCES PECO_TANKS (ID, STATION_ID),
+  -- Составной FK: вид топлива строки обязан совпадать с видом топлива резервуара
+  CONSTRAINT FK_PECO_FOI_TA_GR FOREIGN KEY (TANK_ID, GRADE_CODE) REFERENCES PECO_TANKS (ID, GRADE_CODE),
+  CONSTRAINT FK_PECO_FOI_GR FOREIGN KEY (GRADE_CODE) REFERENCES PECO_REF_FUEL_GRADES (CODE),
+  CONSTRAINT CK_PECO_FOI_DRY CHECK (IS_DRY_RISK IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_FOI_BI
+  BEFORE INSERT ON PECO_FUEL_ORDER_ITEMS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_FITEM_SEQ.NEXTVAL;
+END;
+/
+
+CREATE INDEX IX_PECO_FOI_ORDER ON PECO_FUEL_ORDER_ITEMS (ORDER_ID);
+
+-- ==================== Рейсы бензовозов ====================
+
+CREATE SEQUENCE PECO_TRIP_SEQ  START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_STOP_SEQ  START WITH 1 INCREMENT BY 1 CACHE 100;
+CREATE SEQUENCE PECO_PING_SEQ  START WITH 1 INCREMENT BY 1 CACHE 1000;
+CREATE SEQUENCE PECO_GEV_SEQ   START WITH 1 INCREMENT BY 1 CACHE 100;
+
+CREATE TABLE PECO_TRIPS (
+  ID            NUMBER        NOT NULL,
+  TRIP_NO       VARCHAR2(30),
+  DEPOT_ID      NUMBER        NOT NULL,
+  TRUCK_ID      NUMBER        NOT NULL,
+  DRIVER_NAME   VARCHAR2(150),
+  STATUS        VARCHAR2(20)  DEFAULT 'planned' NOT NULL,
+  PLAN_DEPART   TIMESTAMP,
+  ACT_DEPART    TIMESTAMP,
+  PLAN_RETURN   TIMESTAMP,
+  ACT_RETURN    TIMESTAMP,
+  LITERS_TOTAL  NUMBER(14,3)  DEFAULT 0,
+  STOPS_COUNT   NUMBER        DEFAULT 0,
+  DISTANCE_KM   NUMBER(10,2),
+  NOTE          VARCHAR2(600),
+  CREATED_BY    VARCHAR2(150),
+  CREATED_AT    TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  UPDATED_AT    TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  CONSTRAINT PK_PECO_TRIPS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_TRIPS_NO UNIQUE (TRIP_NO),
+  CONSTRAINT UQ_PECO_TRIPS_ID UNIQUE (ID),
+  CONSTRAINT FK_PECO_TRIPS_DE FOREIGN KEY (DEPOT_ID) REFERENCES PECO_DEPOTS (ID),
+  CONSTRAINT FK_PECO_TRIPS_TR FOREIGN KEY (TRUCK_ID) REFERENCES PECO_TRUCKS (ID),
+  CONSTRAINT CK_PECO_TRIPS_ST CHECK (STATUS IN ('planned','loading','en_route','done','cancelled'))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_TRIPS_BI
+  BEFORE INSERT ON PECO_TRIPS FOR EACH ROW
+BEGIN
+  IF :NEW.ID IS NULL THEN :NEW.ID := PECO_TRIP_SEQ.NEXTVAL; END IF;
+  IF :NEW.TRIP_NO IS NULL THEN
+    :NEW.TRIP_NO := 'TR-' || TO_CHAR(SYSDATE, 'YYYYMMDD') || '-' || LPAD(:NEW.ID, 4, '0');
+  END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER PECO_TRIPS_BU
+  BEFORE UPDATE ON PECO_TRIPS FOR EACH ROW
+BEGIN
+  :NEW.UPDATED_AT := SYSTIMESTAMP;
+END;
+/
+
+CREATE TABLE PECO_TRIP_STOPS (
+  ID            NUMBER        NOT NULL,
+  TRIP_ID       NUMBER        NOT NULL,
+  STOP_NO       NUMBER        NOT NULL,
+  STATION_ID    NUMBER        NOT NULL,
+  ORDER_ID      NUMBER,
+  COMP_ID       NUMBER,                     -- какая секция сливается
+  GRADE_CODE    VARCHAR2(10),
+  LITERS_PLAN   NUMBER(14,3)  DEFAULT 0,
+  LITERS_FACT   NUMBER(14,3),
+  PLAN_ARRIVE   TIMESTAMP,
+  ACT_ARRIVE    TIMESTAMP,
+  ACT_DEPART    TIMESTAMP,
+  STATUS        VARCHAR2(20)  DEFAULT 'planned',
+  CONSTRAINT PK_PECO_TRIP_STOPS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_STOP UNIQUE (TRIP_ID, STOP_NO),
+  CONSTRAINT FK_PECO_STOP_TR FOREIGN KEY (TRIP_ID)    REFERENCES PECO_TRIPS (ID) ON DELETE CASCADE,
+  CONSTRAINT FK_PECO_STOP_ST FOREIGN KEY (STATION_ID) REFERENCES PECO_STATIONS (ID),
+  CONSTRAINT FK_PECO_STOP_FO FOREIGN KEY (ORDER_ID)   REFERENCES PECO_FUEL_ORDERS (ID) ON DELETE SET NULL,
+  CONSTRAINT FK_PECO_STOP_CO FOREIGN KEY (COMP_ID)    REFERENCES PECO_TRUCK_COMPARTMENTS (ID),
+  CONSTRAINT FK_PECO_STOP_GR FOREIGN KEY (GRADE_CODE) REFERENCES PECO_REF_FUEL_GRADES (CODE),
+  CONSTRAINT CK_PECO_STOP_ST CHECK (STATUS IN ('planned','arrived','unloaded','skipped'))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_TRIP_STOPS_BI
+  BEFORE INSERT ON PECO_TRIP_STOPS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_STOP_SEQ.NEXTVAL;
+END;
+/
+
+CREATE INDEX IX_PECO_STOPS_TRIP ON PECO_TRIP_STOPS (TRIP_ID, STOP_NO);
+
+-- ==================== GPS: телеметрия и события ====================
+--
+-- Пинги — append-only факт от внешнего провайдера. Ничего не пересчитываем
+-- на месте: разбор в события идёт отдельно, чтобы приём телеметрии
+-- не зависел от нашей бизнес-логики и не терял данные при её ошибках.
+
+CREATE TABLE PECO_GPS_PINGS (
+  ID           NUMBER        NOT NULL,
+  TRUCK_ID     NUMBER        NOT NULL,
+  TRIP_ID      NUMBER,
+  TS           TIMESTAMP     NOT NULL,
+  LAT          NUMBER(9,6)   NOT NULL,
+  LON          NUMBER(9,6)   NOT NULL,
+  SPEED_KMH    NUMBER(6,2),
+  HEADING      NUMBER(6,2),
+  IGNITION     NUMBER(1),
+  SEAL_CLOSED  NUMBER(1),                  -- датчик пломбы горловины
+  FUEL_L       NUMBER(12,3),               -- уровень в цистерне, если есть датчик
+  PROVIDER_ID  NUMBER,
+  RECEIVED_AT  TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  CONSTRAINT PK_PECO_GPS_PINGS PRIMARY KEY (ID),
+  CONSTRAINT FK_PECO_PING_TR FOREIGN KEY (TRUCK_ID)    REFERENCES PECO_TRUCKS (ID) ON DELETE CASCADE,
+  CONSTRAINT FK_PECO_PING_TP FOREIGN KEY (TRIP_ID)     REFERENCES PECO_TRIPS (ID) ON DELETE SET NULL,
+  CONSTRAINT FK_PECO_PING_PR FOREIGN KEY (PROVIDER_ID) REFERENCES PECO_GPS_PROVIDERS (ID),
+  CONSTRAINT CK_PECO_PING_IGN CHECK (IGNITION IN (0,1)),
+  CONSTRAINT CK_PECO_PING_SEAL CHECK (SEAL_CLOSED IN (0,1))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_GPS_PINGS_BI
+  BEFORE INSERT ON PECO_GPS_PINGS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_PING_SEQ.NEXTVAL;
+END;
+/
+
+CREATE INDEX IX_PECO_PINGS_TRUCK ON PECO_GPS_PINGS (TRUCK_ID, TS);
+CREATE INDEX IX_PECO_PINGS_TRIP  ON PECO_GPS_PINGS (TRIP_ID, TS);
+
+CREATE TABLE PECO_GPS_EVENTS (
+  ID          NUMBER        NOT NULL,
+  TRUCK_ID    NUMBER        NOT NULL,
+  TRIP_ID     NUMBER,
+  EVENT_TYPE  VARCHAR2(30)  NOT NULL,   -- unplanned_stop / seal_open / route_deviation / speeding / long_idle
+  SEVERITY    VARCHAR2(10)  DEFAULT 'warn',
+  TS          TIMESTAMP     NOT NULL,
+  LAT         NUMBER(9,6),
+  LON         NUMBER(9,6),
+  VALUE_NUM   NUMBER(12,3),              -- минуты стоянки / км отклонения / км-ч
+  MESSAGE_RU  VARCHAR2(500),
+  MESSAGE_RO  VARCHAR2(500),
+  MESSAGE_EN  VARCHAR2(500),
+  STATUS      VARCHAR2(20)  DEFAULT 'new',
+  CREATED_AT  TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  CONSTRAINT PK_PECO_GPS_EVENTS PRIMARY KEY (ID),
+  CONSTRAINT FK_PECO_GEV_TR FOREIGN KEY (TRUCK_ID) REFERENCES PECO_TRUCKS (ID) ON DELETE CASCADE,
+  CONSTRAINT FK_PECO_GEV_TP FOREIGN KEY (TRIP_ID)  REFERENCES PECO_TRIPS (ID) ON DELETE SET NULL,
+  CONSTRAINT CK_PECO_GEV_TYPE CHECK (EVENT_TYPE IN
+    ('unplanned_stop','seal_open','route_deviation','speeding','long_idle')),
+  CONSTRAINT CK_PECO_GEV_SEV CHECK (SEVERITY IN ('info','warn','crit')),
+  CONSTRAINT CK_PECO_GEV_ST CHECK (STATUS IN ('new','ack','resolved'))
+);
+/
+
+CREATE OR REPLACE TRIGGER PECO_GPS_EVENTS_BI
+  BEFORE INSERT ON PECO_GPS_EVENTS FOR EACH ROW
+  WHEN (NEW.ID IS NULL)
+BEGIN
+  :NEW.ID := PECO_GEV_SEQ.NEXTVAL;
+END;
+/
+
+CREATE INDEX IX_PECO_GEV_TRIP ON PECO_GPS_EVENTS (TRIP_ID, TS);
