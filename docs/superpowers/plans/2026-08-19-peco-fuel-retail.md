@@ -222,7 +222,7 @@ In `deploy_oracle_objects.py`, in the `order` list, add after `"99_plg_vector.sq
 
 - [ ] **Step 3: Verify the SQL parses**
 
-Run: `python -c "p=open('sql/100_peco_tables.sql').read(); assert p.count('CREATE TABLE')==9, p.count('CREATE TABLE'); assert p.count('CREATE SEQUENCE')==6; print('ok')"`
+Run: `python -c "p=open('sql/100_peco_tables.sql').read(); assert p.count('CREATE TABLE')==10, p.count('CREATE TABLE'); assert p.count('CREATE SEQUENCE')==6; print('ok')"`
 
 Expected: `ok`
 
@@ -608,9 +608,12 @@ SELECT PECO_PUMPS_SEQ.NEXTVAL, ID, 'P-1', 1 FROM PECO_STATIONS WHERE CODE = 'AZS
 INSERT INTO PECO_PUMPS (ID, STATION_ID, CODE, SELF_SERVICE)
 SELECT PECO_PUMPS_SEQ.NEXTVAL, ID, 'P-2', 0 FROM PECO_STATIONS WHERE CODE = 'AZS-001';
 
--- По одному пистолету каждого вида топлива на первой колонке
-INSERT INTO PECO_NOZZLES (ID, PUMP_ID, TANK_ID, GRADE_CODE, CODE, METER_TOTAL)
-SELECT PECO_NOZZLES_SEQ.NEXTVAL, p.ID, t.ID, t.GRADE_CODE, 'N-' || t.GRADE_CODE, 0
+-- По одному пистолету каждого вида топлива на первой колонке.
+-- STATION_ID заполняется явно: составные внешние ключи не дают привязать
+-- пистолет к колонке одной станции и резервуару другой.
+INSERT INTO PECO_NOZZLES (ID, PUMP_ID, TANK_ID, STATION_ID, GRADE_CODE, CODE, METER_TOTAL)
+SELECT PECO_NOZZLES_SEQ.NEXTVAL, p.ID, t.ID, p.STATION_ID, t.GRADE_CODE,
+       'N-' || t.GRADE_CODE, 0
   FROM PECO_PUMPS p
   JOIN PECO_TANKS t ON t.STATION_ID = p.STATION_ID
  WHERE p.CODE = 'P-1';
