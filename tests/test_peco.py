@@ -786,3 +786,54 @@ def test_approval_reports_a_lost_audit_record():
         r = peco_shift.approve_disputed(77, manager_id=9, pin="1234")
     assert r["success"] is True
     assert "audit_warning" in r
+
+
+from models import peco_txn
+
+
+def test_legal_transitions_follow_the_state_machine():
+    assert peco_txn.can_transition("AUTHORIZED", "DISPENSING") is True
+    assert peco_txn.can_transition("DISPENSING", "AWAITING_PAY") is True
+    assert peco_txn.can_transition("AWAITING_PAY", "PAID") is True
+    assert peco_txn.can_transition("DISPENSING", "VOIDED") is True
+    assert peco_txn.can_transition("AUTHORIZED", "VOIDED") is True
+
+
+def test_illegal_transitions_are_refused():
+    assert peco_txn.can_transition("AUTHORIZED", "PAID") is False   # без налива
+    assert peco_txn.can_transition("PAID", "DISPENSING") is False   # оплачено — финал
+    assert peco_txn.can_transition("VOIDED", "PAID") is False
+    assert peco_txn.can_transition("PAID", "VOIDED") is False
+
+
+def test_self_service_settles_immediately_attendant_waits_for_cashier():
+    assert peco_txn.next_status_after_dispense(is_self_service=True) == "PAID"
+    assert peco_txn.next_status_after_dispense(is_self_service=False) == "AWAITING_PAY"
+
+
+def test_liters_come_from_the_meter_not_from_input():
+    assert peco_txn.liters_from_meter(1000.0, 1042.375) == 42.375
+
+
+def test_liters_from_meter_refuses_backwards_reading():
+    assert peco_txn.liters_from_meter(1000.0, 999.0) == 0.0
+
+
+def test_amount_rounds_half_up_to_two_decimals():
+    assert peco_txn.compute_amount(10.0, 23.90) == 239.00
+    assert peco_txn.compute_amount(1.005, 10.0) == 10.05
+
+
+def test_mia_settlement_requires_a_reference():
+    r = peco_txn.validate_settlement("AWAITING_PAY", "MIA_QR", None)
+    assert r["ok"] is False
+    assert "MIA" in r["error"]
+
+
+def test_cash_settlement_needs_no_reference():
+    assert peco_txn.validate_settlement("AWAITING_PAY", "CASH", None)["ok"] is True
+
+
+def test_cannot_settle_a_voided_transaction():
+    r = peco_txn.validate_settlement("VOIDED", "CASH", None)
+    assert r["ok"] is False
