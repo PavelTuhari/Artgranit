@@ -674,6 +674,29 @@ class PecoStore:
                               AND METER_TOTAL <= :meter_end""",
                         {"meter_end": params["meter_end"], "txn_id": txn_id},
                     )
+                # Топливо физически покинуло резервуар — списание обязано
+                # закоммититься вместе со сменой статуса и сдвигом
+                # тотализатора, а не отдельным вызовом add_tank_volume после
+                # этого метода (как предлагал черновик задачи). Отдельный
+                # commit — это Critical-дефект, найденный на Task 12: успешная
+                # смена статуса с последующим неудавшимся списанием оставляет
+                # продажу в реестре без соответствующего расхода резервуара,
+                # tank_variance на закрытии смены расходится безвозвратно, и
+                # безопасного повтора нет — второй прогон либо спишет литры
+                # дважды, либо будет отвергнут guard'ом терминального статуса.
+                # rowcount == 0 здесь не проверяется: PECO_NOZZLES.TANK_ID
+                # NOT NULL и participates в составном FK на PECO_TANKS
+                # (ID, STATION_ID) — строка резервуара гарантирована схемой,
+                # а сам txn_id уже подтверждён проверкой rowcount выше по
+                # основному UPDATE.
+                if "liters" in params and params["liters"] and params["liters"] > 0:
+                    _run(db,
+                        """UPDATE PECO_TANKS SET CURRENT_L = CURRENT_L - :liters
+                            WHERE ID = (SELECT n.TANK_ID FROM PECO_TXN t
+                                          JOIN PECO_NOZZLES n ON n.ID = t.NOZZLE_ID
+                                         WHERE t.ID = :txn_id)""",
+                        {"liters": params["liters"], "txn_id": txn_id},
+                    )
                 db.connection.commit()
                 return {"success": True}
         except Exception as e:
