@@ -106,3 +106,77 @@ def test_current_price_failure_is_not_reported_as_missing_price():
         r = PecoStore.current_price(1, "A95")
     assert r["success"] is False
     assert "действующей цены" not in r.get("error", "")
+
+
+def test_open_shift_creates_meter_rows_from_nozzles():
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(77,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.open_shift(station_id=1, employee_id=5)
+    assert r["success"] is True and r["shift_id"] == 77
+    statements = [c[0][0] for c in db.execute_query.call_args_list]
+    assert any("INSERT INTO PECO_SHIFTS" in s for s in statements)
+    # показания открытия берутся из текущих счётчиков пистолетов
+    assert any("INSERT INTO PECO_SHIFT_METERS" in s for s in statements)
+    assert any("METER_TOTAL" in s for s in statements)
+    db.connection.commit.assert_called_once()
+
+
+def test_open_shift_snapshots_tank_volumes():
+    """Без снимка остатка на открытие tank_variance посчитать не из чего."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(77,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        PecoStore.open_shift(station_id=1, employee_id=5)
+    statements = [c[0][0] for c in db.execute_query.call_args_list]
+    assert any("INSERT INTO PECO_SHIFT_TANKS" in s for s in statements)
+    assert any("CURRENT_L" in s for s in statements)
+
+
+def test_get_shift_tanks_returns_ledger_columns():
+    cm, db = _fake_db({
+        "success": True,
+        "columns": ["TANK_ID", "GRADE_CODE", "VOLUME_OPEN_L", "DELIVERED_L", "DIP_CLOSE_L"],
+        "data": [(11, "A95", 12000.0, 5000.0, 15950.0)],
+    })
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.get_shift_tanks(77)
+    assert r["success"] is True
+    assert r["items"][0]["volume_open_l"] == 12000.0
+    assert r["items"][0]["delivered_l"] == 5000.0
+
+
+def test_count_unresolved_txn_covers_both_open_states():
+    cm, db = _fake_db({"success": True, "columns": ["C"], "data": [(3,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.count_unresolved_txn(77)
+    assert r["success"] is True and r["count"] == 3
+    sql = db.execute_query.call_args[0][0]
+    assert "DISPENSING" in sql and "AWAITING_PAY" in sql
+
+
+def test_shift_paid_liters_separates_cash_from_mia():
+    cm, db = _fake_db({
+        "success": True,
+        "columns": ["LITERS", "CASH_AMT", "MIA_AMT"],
+        "data": [(120.5, 2400.00, 900.00)],
+    })
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.shift_paid_liters(77)
+    assert r["liters"] == 120.5
+    assert r["cash"] == 2400.00
+    assert r["mia"] == 900.00
+    sql = db.execute_query.call_args[0][0]
+    assert "'CASH'" in sql and "'MIA_QR'" in sql
+
+
+def test_finalize_shift_writes_all_three_variances():
+    cm, db = _fake_db({"success": True, "columns": [], "data": []})
+    totals = {"cash_declared": 2390.0, "cash_expected": 2400.0,
+              "cash_variance": -10.0, "liter_variance": 0.4,
+              "tank_variance": -1.2}
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.finalize_shift(77, employee_id=5, status="DISPUTED", totals=totals)
+    assert r["success"] is True
+    sql = db.execute_query.call_args[0][0]
+    for col in ("CASH_VARIANCE", "LITER_VARIANCE", "TANK_VARIANCE", "STATUS_CODE"):
+        assert col in sql
+    db.connection.commit.assert_called_once()
