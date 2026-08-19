@@ -975,6 +975,29 @@ def test_open_shift_creates_meter_rows_from_nozzles():
     db.connection.commit.assert_called_once()
 
 
+def test_open_shift_snapshots_tank_volumes():
+    """Без снимка остатка на открытие tank_variance посчитать не из чего."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(77,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        PecoStore.open_shift(station_id=1, employee_id=5)
+    statements = [c[0][0] for c in db.execute_query.call_args_list]
+    assert any("INSERT INTO PECO_SHIFT_TANKS" in s for s in statements)
+    assert any("CURRENT_L" in s for s in statements)
+
+
+def test_get_shift_tanks_returns_ledger_columns():
+    cm, db = _fake_db({
+        "success": True,
+        "columns": ["TANK_ID", "GRADE_CODE", "VOLUME_OPEN_L", "DELIVERED_L", "DIP_CLOSE_L"],
+        "data": [(11, "A95", 12000.0, 5000.0, 15950.0)],
+    })
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.get_shift_tanks(77)
+    assert r["success"] is True
+    assert r["items"][0]["volume_open_l"] == 12000.0
+    assert r["items"][0]["delivered_l"] == 5000.0
+
+
 def test_count_unresolved_txn_covers_both_open_states():
     cm, db = _fake_db({"success": True, "columns": ["C"], "data": [(3,)]})
     with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
