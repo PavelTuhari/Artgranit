@@ -64,7 +64,7 @@ class PecoController:
 
     @staticmethod
     def authorize(payload: Dict[str, Any]) -> Dict[str, Any]:
-        missing = _require(payload, "station_id", "shift_id", "nozzle_id",
+        missing = _require(payload, "station_id", "nozzle_id", "shift_id",
                            "grade_code", "meter_start")
         if missing:
             return {"success": False, "error": f"Не указано поле: {missing}"}
