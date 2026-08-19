@@ -360,27 +360,42 @@ def approve_disputed(shift_id: int, manager_id: int, pin: str) -> Dict[str, Any]
     Расхождение при этом не обнуляется: статус остаётся DISPUTED, а в
     APPROVED_BY фиксируется, кто принял его под ответственность.
     """
-    emp_r = PecoStore.get_employee(manager_id)
+    # Единое сообщение об ошибке для "нет такого сотрудника", "не менеджер"
+    # и "неверный PIN": по-разному сформулированные ответы сказали бы
+    # атакующему, существует ли ID сотрудника и есть ли у него роль
+    # менеджера — той же логике, что и в approve_shift ниже.
+    generic_error = {"success": False, "error": "Неверный сотрудник или PIN"}
+
+    emp_r = PecoStore.get_employee_credentials(manager_id)
     if not emp_r.get("success"):
-        return emp_r
+        return generic_error
     emp = emp_r["employee"]
 
     if emp.get("role_code") not in ("MANAGER", "ADMIN"):
-        return {"success": False,
-                "error": "Подтвердить расхождение может только менеджер"}
+        return generic_error
 
     if not verify_pin(pin, emp.get("pin_salt"), emp.get("pin_hash")):
-        return {"success": False, "error": "Неверный PIN"}
+        return generic_error
 
-    saved = PecoStore.approve_shift(shift_id, manager_id)
+    # Станция менеджера идёт в БД вместе с проверкой статуса: ADMIN
+    # (STATION_ID NULL) утверждает по всей сети, MANAGER — только свою.
+    station_id = None if emp.get("role_code") == "ADMIN" else emp.get("station_id")
+
+    saved = PecoStore.approve_shift(shift_id, manager_id, station_id)
     if not saved.get("success"):
         return saved
 
-    PecoStore.log_event(
+    log_r = PecoStore.log_event(
         "SHIFT_APPROVED",
         shift_id=shift_id,
         entity_type="SHIFT",
         entity_id=shift_id,
         employee_id=manager_id,
     )
-    return {"success": True}
+    result: Dict[str, Any] = {"success": True}
+    if not log_r.get("success"):
+        # Единственное назначение этого события — зафиксировать, кто принял
+        # расхождение под ответственность; потерять его тише, чем
+        # SHIFT_CLOSED, нельзя.
+        result["audit_warning"] = "Не удалось записать событие подтверждения смены"
+    return result
