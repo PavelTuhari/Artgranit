@@ -49,6 +49,9 @@ CREATE TABLE PECO_DELIVERY_ITEMS (
   -- Составной FK: резервуар строки обязан принадлежать той же станции, что и строка
   -- (иначе резервуар соседней АЗС попадёт в чужую станцию)
   CONSTRAINT FK_PECO_DI_TA FOREIGN KEY (TANK_ID, STATION_ID)     REFERENCES PECO_TANKS (ID, STATION_ID),
+  -- Составной FK: вид топлива строки обязан совпадать с видом топлива его резервуара
+  -- (иначе приход неправильно учитывает объём в разрезе видов топлива)
+  CONSTRAINT FK_PECO_DI_TA_GR FOREIGN KEY (TANK_ID, GRADE_CODE) REFERENCES PECO_TANKS (ID, GRADE_CODE),
   CONSTRAINT FK_PECO_DI_GR FOREIGN KEY (GRADE_CODE)  REFERENCES PECO_REF_FUEL_GRADES (CODE)
 );
 
