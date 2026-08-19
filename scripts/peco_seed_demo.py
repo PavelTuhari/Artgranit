@@ -557,7 +557,7 @@ def scenario_delivery(station_code: str, station_ids: Dict[str, int]) -> Optiona
         station_id, supplier="Petrom Moldova SRL",
         waybill_no=f"WB-{station_code}-{random.randint(10000,99999)}",
         items=items, employee_id=attendant["id"],
-        driver_name="Ион カнту", vehicle_no="C AA 123",
+        driver_name="Ион Кантемир", vehicle_no="C AA 123",
     )
     if not delivered.get("success"):
         die("peco_inventory.receive_delivery", delivered)
