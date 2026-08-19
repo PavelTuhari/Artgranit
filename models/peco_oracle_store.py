@@ -799,6 +799,136 @@ class PecoStore:
             return {"success": False, "error": str(e)}
 
     @staticmethod
+    def apply_delivery(station_id: int, supplier: str, waybill_no: str,
+                       items: List[Dict[str, Any]],
+                       employee_id: int,
+                       driver_name: Optional[str] = None,
+                       vehicle_no: Optional[str] = None) -> Dict[str, Any]:
+        """Приход цистерны целиком — одна транзакция, один commit.
+
+        Раньше шапка, каждая строка, зачисление резервуара, реестр смены и
+        замер коммитились отдельно. Сбой на середине оставлял резервуары
+        зачисленными по накладной, которую не довели до конца, а уникальный
+        индекс (STATION_ID, WAYBILL_NO) не давал повторить приём под той же
+        накладной. Оператор, оформивший новую накладную и повторно
+        отправивший весь список строк, начислял уже зачисленное топливо
+        второй раз — фактически несуществующее топливо оседало в остатках.
+        Поэтому всё пишется на одном соединении через _run и коммитится
+        один раз в самом конце: любая ошибка бросает исключение раньше
+        commit, и Oracle откатывает всю транзакцию целиком при закрытии
+        соединения.
+        """
+        try:
+            with DatabaseModel() as db:
+                _run(db,
+                    """INSERT INTO PECO_DELIVERIES
+                              (ID, STATION_ID, SUPPLIER, WAYBILL_NO,
+                               DRIVER_NAME, VEHICLE_NO)
+                       VALUES (PECO_DELIVERIES_SEQ.NEXTVAL, :station_id,
+                               :supplier, :waybill_no, :driver_name,
+                               :vehicle_no)""",
+                    {"station_id": station_id, "supplier": supplier,
+                     "waybill_no": waybill_no, "driver_name": driver_name,
+                     "vehicle_no": vehicle_no},
+                )
+                r = _run(db,
+                    "SELECT PECO_DELIVERIES_SEQ.CURRVAL AS ID FROM dual"
+                )
+                rows = _norm_rows(r)
+                delivery_id = int(rows[0]["id"]) if rows else None
+
+                for it in items:
+                    tank_id = it["tank_id"]
+                    grade_code = it["grade_code"]
+                    liters_doc = float(it.get("liters_doc") or 0.0)
+                    liters_recv = float(it.get("liters_recv") or 0.0)
+
+                    item_r = _run(db,
+                        """INSERT INTO PECO_DELIVERY_ITEMS
+                                  (ID, DELIVERY_ID, TANK_ID, STATION_ID, GRADE_CODE,
+                                   LITERS_DOC, LITERS_RECV, TEMPERATURE_C,
+                                   DIP_BEFORE_L, DIP_AFTER_L)
+                           SELECT PECO_DELIVERY_ITEMS_SEQ.NEXTVAL, :delivery_id,
+                                  :tank_id, d.STATION_ID, :grade_code,
+                                  :liters_doc, :liters_recv, :temperature_c,
+                                  :dip_before, :dip_after
+                             FROM PECO_DELIVERIES d
+                            WHERE d.ID = :delivery_id""",
+                        {"delivery_id": delivery_id, "tank_id": tank_id,
+                         "grade_code": grade_code, "liters_doc": liters_doc,
+                         "liters_recv": liters_recv,
+                         "temperature_c": it.get("temperature_c"),
+                         "dip_before": it.get("dip_before"),
+                         "dip_after": it.get("dip_after")},
+                    )
+                    if item_r.get("rowcount", 0) == 0:
+                        return {"success": False,
+                                "error": "Приход с таким ID не найден"}
+
+                    # Резервуар зачисляется ФАКТИЧЕСКИ принятым объёмом, не
+                    # документальным: иначе недолив осел бы в учёте как
+                    # наличное топливо.
+                    tank_r = _run(db,
+                        """UPDATE PECO_TANKS
+                              SET CURRENT_L = CURRENT_L + :liters
+                            WHERE ID = :tank_id""",
+                        {"tank_id": tank_id, "liters": liters_recv},
+                    )
+                    if tank_r.get("rowcount", 0) == 0:
+                        return {"success": False,
+                                "error": "Резервуар с таким ID не найден"}
+
+                    # Ноль строк здесь — норма: приём вне открытой смены,
+                    # обновление просто ничего не находит (см.
+                    # add_shift_tank_delivered). Настоящая ошибка SQL всё
+                    # равно уйдёт исключением через _run и остановит всю
+                    # транзакцию.
+                    _run(db,
+                        """UPDATE PECO_SHIFT_TANKS
+                              SET DELIVERED_L = DELIVERED_L + :liters
+                            WHERE TANK_ID = :tank_id
+                              AND SHIFT_ID = (SELECT ID FROM PECO_SHIFTS
+                                               WHERE STATION_ID = :station_id
+                                                 AND STATUS_CODE IN ('OPEN','CLOSING'))""",
+                        {"tank_id": tank_id, "station_id": station_id,
+                         "liters": liters_recv},
+                    )
+
+                    if it.get("dip_after") is not None:
+                        dip_r = _run(db,
+                            """INSERT INTO PECO_TANK_DIPS
+                                      (ID, TANK_ID, STATION_ID, SHIFT_ID, MEASURED_L,
+                                       MEASURED_BY, DIP_KIND)
+                               SELECT PECO_TANK_DIPS_SEQ.NEXTVAL, :tank_id,
+                                      t.STATION_ID, NULL, :measured_l,
+                                      :employee_id, 'DELIVERY'
+                                 FROM PECO_TANKS t
+                                WHERE t.ID = :tank_id""",
+                            {"tank_id": tank_id,
+                             "measured_l": float(it["dip_after"]),
+                             "employee_id": employee_id},
+                        )
+                        if dip_r.get("rowcount", 0) == 0:
+                            return {"success": False,
+                                    "error": "Резервуар с таким ID не найден"}
+
+                accept_r = _run(db,
+                    """UPDATE PECO_DELIVERIES
+                          SET ACCEPTED_AT = SYSTIMESTAMP,
+                              ACCEPTED_BY = :employee_id
+                        WHERE ID = :delivery_id""",
+                    {"delivery_id": delivery_id, "employee_id": employee_id},
+                )
+                if accept_r.get("rowcount", 0) == 0:
+                    return {"success": False,
+                            "error": "Приход с таким ID не найден"}
+
+                db.connection.commit()
+                return {"success": True, "delivery_id": delivery_id}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def accept_delivery(delivery_id: int, employee_id: int) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
