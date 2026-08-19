@@ -1242,3 +1242,58 @@ def test_receive_delivery_propagates_a_store_failure():
             employee_id=5)
     assert r["success"] is False
     store.log_event.assert_not_called()
+
+
+from controllers.peco_controller import PecoController
+
+
+def test_pump_state_requires_an_open_shift():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": False,
+                                             "error": "Нет открытой смены"}
+        r = PecoController.pump_state(station_id=1)
+    assert r["success"] is False
+    assert "смен" in r["error"].lower()
+
+
+def test_pump_state_returns_nozzles_with_current_prices():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": True, "shift": {"id": 77}}
+        store.list_nozzles.return_value = {"success": True, "items": [
+            {"id": 3, "code": "N-A95", "grade_code": "A95", "meter_total": 1000.0,
+             "pump_code": "P-1", "self_service": 1, "tank_id": 11},
+        ]}
+        store.list_grades.return_value = {"success": True, "items": [
+            {"code": "A95", "name": "Бензин А-95", "color": "#2563eb"}]}
+        store.current_price.return_value = {"success": True, "price": 23.90}
+        r = PecoController.pump_state(station_id=1)
+    assert r["success"] is True
+    assert r["shift_id"] == 77
+    assert r["prices"]["A95"] == 23.90
+    assert r["nozzles"][0]["code"] == "N-A95"
+
+
+def test_authorize_rejects_missing_fields():
+    r = PecoController.authorize({"station_id": 1})
+    assert r["success"] is False
+    assert "nozzle_id" in r["error"]
+
+
+def test_pay_passes_mia_reference_through():
+    with patch("controllers.peco_controller.peco_txn") as txn:
+        txn.settle.return_value = {"success": True, "status": "PAID"}
+        r = PecoController.pay({"txn_id": 500, "pay_method": "MIA_QR",
+                                "mia_ref": "MIA-ABC-1"})
+    assert r["success"] is True
+    txn.settle.assert_called_once_with(500, pay_method="MIA_QR",
+                                       mia_ref="MIA-ABC-1")
+
+
+def test_shift_close_forwards_declared_cash():
+    with patch("controllers.peco_controller.peco_shift") as shift:
+        shift.close_shift.return_value = {"success": True, "status": "CLOSED",
+                                          "variances": {}}
+        r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
+                                        "cash_declared": 2400.0})
+    assert r["success"] is True
+    assert shift.close_shift.call_args.kwargs["cash_declared"] == 2400.0
