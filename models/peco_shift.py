@@ -344,6 +344,8 @@ def close_shift(
                                "mia_amount": paid["mia"], "tanks": per_tank}
     if ignored_dips:
         result["ignored_dips"] = ignored_dips
+    if unmeasured_tanks:
+        result["unmeasured_tanks"] = unmeasured_tanks
     if not log_r.get("success"):
         # Смена уже закрыта в Oracle; сбой аудит-лога не должен откатывать
         # операцию, но и молчать о нём нельзя.
