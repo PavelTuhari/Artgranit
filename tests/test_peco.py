@@ -918,8 +918,9 @@ def test_settle_refuses_mia_without_reference():
 def test_settle_marks_paid_with_method():
     with patch("models.peco_txn.PecoStore") as store:
         store.get_txn.return_value = {"success": True, "txn": {
-            "id": 500, "status_code": "AWAITING_PAY"}}
+            "id": 500, "status_code": "AWAITING_PAY", "liters": 10.0}}
         store.update_txn_status.return_value = {"success": True}
+        store.log_event.return_value = {"success": True}
         r = peco_txn.settle(500, pay_method="CASH")
     assert r["success"] is True
     assert store.update_txn_status.call_args[0][1] == "PAID"
