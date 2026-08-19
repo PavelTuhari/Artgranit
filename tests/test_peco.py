@@ -1564,3 +1564,142 @@ def test_default_station_reports_when_none_are_active():
     with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
         r = PecoStore.default_station_id()
     assert r["success"] is False
+
+
+# ------------------------------------------------------------------
+# Task 22: employee PIN enrollment + disputed-shift visibility
+# ------------------------------------------------------------------
+
+
+def test_list_employees_never_returns_pin_columns():
+    cm, db = _fake_db({"success": True,
+                       "columns": ["ID", "STATION_ID", "FULL_NAME", "ROLE_CODE",
+                                   "ACTIVE", "HAS_PIN"],
+                       "data": [(1, 5, "Иван Иванов", "ATTENDANT", 1, 0)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.list_employees()
+    assert r["success"] is True
+    item = r["items"][0]
+    assert "pin_hash" not in item and "pin_salt" not in item
+    assert item["has_pin"] == 0
+    sql = db.execute_query.call_args[0][0]
+    assert "PIN_SALT" not in sql
+    assert "'NO_PIN_SET'" in sql
+
+
+def test_set_employee_pin_zero_rows_is_failure():
+    cm, db = _rowcount_db(0)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.set_employee_pin(999, "a" * 32, "deadbeef")
+    assert r["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_set_employee_pin_commits_on_success():
+    cm, db = _rowcount_db(1)
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.set_employee_pin(1, "a" * 32, "deadbeef")
+    assert r["success"] is True
+    db.connection.commit.assert_called_once()
+
+
+def test_list_disputed_shifts_reads_from_variance_view():
+    cm, db = _fake_db({"success": True,
+                       "columns": ["SHIFT_ID", "STATION_ID", "STATION_NAME",
+                                   "CLOSED_AT", "LITER_VARIANCE", "CASH_VARIANCE",
+                                   "TANK_VARIANCE", "CLOSED_BY_NAME", "IS_APPROVED"],
+                       "data": [(77, 1, "АЗС №1", None, 1.2, -50.0, 3.0, "Пётр", 0)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.list_disputed_shifts()
+    assert r["success"] is True
+    assert r["items"][0]["shift_id"] == 77
+    sql = db.execute_query.call_args[0][0]
+    assert "V_PECO_VARIANCE" in sql
+    assert "DISPUTED" in sql
+
+
+def test_shift_summary_reports_missing_shift():
+    cm, _ = _fake_db({"success": True, "columns": ["SHIFT_ID"], "data": []})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.shift_summary(999)
+    assert r["success"] is False
+
+
+def test_set_pin_stores_a_salted_hash_not_the_raw_pin_or_bare_sha256():
+    """Хеш обязан отличаться и от самого PIN, и от голого SHA-256 —
+    иначе то же уязвимое место, из-за которого approve_disputed вообще
+    хеширует PIN с солью, тихо возвращается через путь назначения PIN."""
+    import hashlib
+    captured = {}
+
+    def fake_set_employee_pin(employee_id, pin_salt, pin_hash):
+        captured['salt'] = pin_salt
+        captured['hash'] = pin_hash
+        return {"success": True}
+
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.set_employee_pin.side_effect = fake_set_employee_pin
+        r = PecoController.set_pin({"employee_id": 1, "pin": "1234"})
+
+    assert r["success"] is True
+    assert captured['hash'] != "1234"
+    assert captured['hash'] != hashlib.sha256(("1234").encode()).hexdigest()
+    assert captured['hash'] != hashlib.sha256((captured['salt'] + "1234").encode()).hexdigest()
+    # хеш обязан реально зависеть от соли — иначе проверка PBKDF2 бутафорская
+    from models import peco_shift as _peco_shift
+    assert not _peco_shift.verify_pin("9999", captured['salt'], captured['hash'])
+    assert _peco_shift.verify_pin("1234", captured['salt'], captured['hash'])
+
+
+def test_set_pin_rejects_short_pin():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        r = PecoController.set_pin({"employee_id": 1, "pin": "12"})
+    assert r["success"] is False
+    store.set_employee_pin.assert_not_called()
+
+
+def test_set_pin_rejects_non_numeric_pin():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        r = PecoController.set_pin({"employee_id": 1, "pin": "abcd"})
+    assert r["success"] is False
+    store.set_employee_pin.assert_not_called()
+
+
+def test_set_pin_propagates_a_zero_row_failure_without_leaking_pin():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.set_employee_pin.return_value = {
+            "success": False, "error": "Сотрудник не найден или неактивен"}
+        r = PecoController.set_pin({"employee_id": 999, "pin": "1234"})
+    assert r["success"] is False
+    assert "1234" not in str(r)
+
+
+def test_set_pin_response_never_echoes_the_pin_on_success():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.set_employee_pin.return_value = {"success": True}
+        r = PecoController.set_pin({"employee_id": 1, "pin": "1234"})
+    assert "1234" not in str(r)
+
+
+def test_employees_delegates_to_store():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.list_employees.return_value = {"success": True, "items": []}
+        r = PecoController.employees(5)
+    assert r["success"] is True
+    store.list_employees.assert_called_once_with(5)
+
+
+def test_disputed_shifts_delegates_to_store():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.list_disputed_shifts.return_value = {"success": True, "items": []}
+        r = PecoController.disputed_shifts(None)
+    assert r["success"] is True
+    store.list_disputed_shifts.assert_called_once_with(None)
+
+
+def test_shift_summary_delegates_to_store():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.shift_summary.return_value = {"success": True, "summary": {}}
+        r = PecoController.shift_summary(77)
+    assert r["success"] is True
+    store.shift_summary.assert_called_once_with(77)
