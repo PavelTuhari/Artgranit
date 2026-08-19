@@ -193,7 +193,10 @@ def main() -> None:
         "101_peco_ops_tables.sql",
         "102_peco_inventory_tables.sql",
         "103_peco_views.sql",
-        "104_peco_demo_data.sql",
+        "104_peco_ref_data.sql",
+        # 105_peco_demo_station.sql НАМЕРЕННО не в этом списке: это демо-
+        # станция, а не справочник, запускается только вручную и никогда
+        # на production (см. docs/PECO/README.md).
     ]
     if not args.drop:
         order = [f for f in order if f != "00_drop.sql"]
