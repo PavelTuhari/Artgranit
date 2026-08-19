@@ -7,6 +7,7 @@ Oracle-объекты: префикс PECO_ (sql/100_peco_tables.sql ... 104_pec
 ответа. Бизнес-правила живут в models/peco_shift.py, models/peco_txn.py
 и models/peco_inventory.py.
 """
+import math
 import os
 import sys
 from typing import Any, Dict, List, Optional
@@ -25,6 +26,31 @@ def _require(payload: Dict[str, Any], *names: str) -> Optional[str]:
         if payload.get(n) in (None, ""):
             return n
     return None
+
+
+class PecoInputError(Exception):
+    """Некорректное значение поля во входящем запросе."""
+
+
+def _as_int(payload: Dict[str, Any], name: str) -> int:
+    """Целое из запроса. Клиент может прислать что угодно — строку, null,
+    список; это ошибка запроса, а не сбой сервера."""
+    try:
+        return int(payload[name])
+    except (TypeError, ValueError, KeyError):
+        raise PecoInputError(f"Некорректное значение поля: {name}")
+
+
+def _as_float(payload: Dict[str, Any], name: str) -> float:
+    """Дробное из запроса. Бесконечность и NaN отбрасываются: они прошли бы
+    арифметику сверки молча и испортили бы расхождения смены."""
+    try:
+        value = float(payload[name])
+    except (TypeError, ValueError, KeyError):
+        raise PecoInputError(f"Некорректное значение поля: {name}")
+    if not math.isfinite(value):
+        raise PecoInputError(f"Некорректное значение поля: {name}")
+    return value
 
 
 class PecoController:
