@@ -46,7 +46,7 @@ class PecoStore:
     def list_grades() -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db,
                     """SELECT CODE, NAME, COLOR, DENSITY
                          FROM PECO_REF_FUEL_GRADES
                         ORDER BY SORT_ORDER"""
@@ -66,7 +66,7 @@ class PecoStore:
                 if active_only:
                     sql += " WHERE ACTIVE = 1"
                 sql += " ORDER BY CODE"
-                r = db.execute_query(sql)
+                r = _run(db, sql)
                 return {"success": True, "items": _norm_rows(r)}
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -76,7 +76,7 @@ class PecoStore:
         """Активные пистолеты станции с колонкой, резервуаром и счётчиком."""
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT n.ID, n.CODE, n.GRADE_CODE, n.METER_TOTAL,
                               n.TANK_ID, p.ID AS PUMP_ID, p.CODE AS PUMP_CODE,
                               p.SELF_SERVICE
@@ -98,7 +98,7 @@ class PecoStore:
         """Действующая цена = строка с VALID_TO IS NULL."""
         try:
             with DatabaseModel() as db:
-                r = db.execute_query(
+                r = _run(db, 
                     """SELECT PRICE FROM PECO_PRICES
                         WHERE STATION_ID = :station_id
                           AND GRADE_CODE = :grade_code
@@ -120,14 +120,14 @@ class PecoStore:
         params = {"station_id": station_id, "grade_code": grade_code}
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """UPDATE PECO_PRICES SET VALID_TO = SYSTIMESTAMP
                         WHERE STATION_ID = :station_id
                           AND GRADE_CODE = :grade_code
                           AND VALID_TO IS NULL""",
                     params,
                 )
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_PRICES
                               (ID, STATION_ID, GRADE_CODE, PRICE)
                        VALUES (PECO_PRICES_SEQ.NEXTVAL, :station_id,
@@ -154,7 +154,7 @@ class PecoStore:
         """Append-only запись в PECO_EVENT_LOG."""
         try:
             with DatabaseModel() as db:
-                db.execute_query(
+                _run(db, 
                     """INSERT INTO PECO_EVENT_LOG
                               (ID, STATION_ID, SHIFT_ID, EVENT_TYPE,
                                ENTITY_TYPE, ENTITY_ID, EMPLOYEE_ID, PAYLOAD)
