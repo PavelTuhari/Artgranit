@@ -364,7 +364,7 @@ function loadMeters(shiftId) {
       var tr = document.createElement('tr');
       tr.appendChild(txt('td', null, m.nozzle_code));
       tr.appendChild(txt('td', null, m.grade_code));
-      tr.appendChild(txt('td num', null, fmt3(m.meter_open)));
+      tr.appendChild(txt('td', 'num', fmt3(m.meter_open)));
 
       var tdInput = document.createElement('td');
       var input = document.createElement('input');
