@@ -266,6 +266,10 @@ class PecoController:
     def default_station_id() -> Dict[str, Any]:
         return PecoStore.default_station_id()
 
+    @staticmethod
+    def prices(station_id: int) -> Dict[str, Any]:
+        return PecoStore.list_prices(station_id)
+
     # ---------------- бэк-офис ----------------
 
     @staticmethod
