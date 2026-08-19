@@ -294,7 +294,7 @@ def close_shift(
     if not saved.get("success"):
         return saved
 
-    PecoStore.log_event(
+    log_r = PecoStore.log_event(
         "SHIFT_CLOSED",
         shift_id=shift_id,
         entity_type="SHIFT",
@@ -302,5 +302,14 @@ def close_shift(
         employee_id=employee_id,
         payload={"status": status, **variances},
     )
-    return {"success": True, "status": status, "variances": variances,
-            "mia_amount": paid["mia"]}
+
+    result: Dict[str, Any] = {"success": True, "status": status,
+                               "variances": variances,
+                               "mia_amount": paid["mia"], "tanks": per_tank}
+    if ignored_dips:
+        result["ignored_dips"] = ignored_dips
+    if not log_r.get("success"):
+        # Смена уже закрыта в Oracle; сбой аудит-лога не должен откатывать
+        # операцию, но и молчать о нём нельзя.
+        result["audit_warning"] = "Не удалось записать событие закрытия смены"
+    return result
