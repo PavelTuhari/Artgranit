@@ -1011,17 +1011,26 @@ class PecoStore:
                                 "error": "Резервуар с таким ID не найден"}
 
                     # Ноль строк здесь — норма: приём вне открытой смены,
-                    # обновление просто ничего не находит (см.
-                    # add_shift_tank_delivered). Настоящая ошибка SQL всё
-                    # равно уйдёт исключением через _run и остановит всю
-                    # транзакцию.
+                    # обновление просто ничего не находит. Настоящая ошибка
+                    # SQL всё равно уйдёт исключением через _run и остановит
+                    # всю транзакцию.
+                    #
+                    # Подзапрос смены ограничен ТОЛЬКО STATUS_CODE = 'OPEN'
+                    # (не 'CLOSING'): close_shift читает реестр резервуаров
+                    # и тут же считает TANK_VARIANCE от прочитанных чисел.
+                    # Если бы приход мог присоединиться к уже закрывающейся
+                    # смене, DELIVERED_L сдвинулся бы ПОСЛЕ того, как
+                    # расхождение уже посчитано и сохранено, и сохранённый
+                    # TANK_VARIANCE перестал бы соответствовать данным в
+                    # PECO_SHIFT_TANKS — расхождение стало бы
+                    # самопротиворечивым и невоспроизводимым.
                     _run(db,
                         """UPDATE PECO_SHIFT_TANKS
                               SET DELIVERED_L = DELIVERED_L + :liters
                             WHERE TANK_ID = :tank_id
                               AND SHIFT_ID = (SELECT ID FROM PECO_SHIFTS
                                                WHERE STATION_ID = :station_id
-                                                 AND STATUS_CODE IN ('OPEN','CLOSING'))""",
+                                                 AND STATUS_CODE = 'OPEN')""",
                         {"tank_id": tank_id, "station_id": station_id,
                          "liters": liters_recv},
                     )
