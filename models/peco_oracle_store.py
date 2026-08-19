@@ -98,7 +98,7 @@ class PecoStore:
         """Действующая цена = строка с VALID_TO IS NULL."""
         try:
             with DatabaseModel() as db:
-                r = _run(db, 
+                r = _run(db,
                     """SELECT PRICE FROM PECO_PRICES
                         WHERE STATION_ID = :station_id
                           AND GRADE_CODE = :grade_code
