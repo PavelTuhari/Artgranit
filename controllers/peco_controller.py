@@ -73,13 +73,20 @@ class PecoController:
         grades_r = PecoStore.list_grades()
         grades = grades_r.get("items", []) if grades_r.get("success") else []
 
+        # Сорт, чью цену не удалось прочитать, не должен молча исчезать из
+        # prices: это выглядело бы так же, как сорт без действующей цены
+        # вовсе, а колонка узнаёт об отказе БД только через отсутствие цены.
+        # unavailable_prices делает разницу видимой вызывающему.
         prices: Dict[str, float] = {}
+        unavailable_prices: List[str] = []
         for g in grades:
             p = PecoStore.current_price(station_id, g["code"])
             if p.get("success"):
                 prices[g["code"]] = p["price"]
+            else:
+                unavailable_prices.append(g["code"])
 
-        return {
+        result: Dict[str, Any] = {
             "success": True,
             "station_id": station_id,
             "shift_id": shift_r["shift"]["id"],
@@ -87,6 +94,9 @@ class PecoController:
             "grades": grades,
             "prices": prices,
         }
+        if unavailable_prices:
+            result["unavailable_prices"] = unavailable_prices
+        return result
 
     @staticmethod
     def authorize(payload: Dict[str, Any]) -> Dict[str, Any]:
