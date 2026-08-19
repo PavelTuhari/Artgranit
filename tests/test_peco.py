@@ -1389,6 +1389,57 @@ def test_pump_state_returns_nozzles_with_current_prices():
     assert r["nozzles"][0]["code"] == "N-A95"
 
 
+# ------------------------------------------------------------------
+# Final review fix: read failures must surface, not vanish (Important 5)
+# ------------------------------------------------------------------
+
+
+def test_pump_state_marks_a_grade_whose_price_read_failed():
+    """Сбой чтения цены — это не 'цены нет вообще', а не полученные
+    данные. Сорт не должен молча пропасть из prices, как будто у него
+    нет действующей цены."""
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.get_open_shift.return_value = {"success": True, "shift": {"id": 77}}
+        store.list_nozzles.return_value = {"success": True, "items": []}
+        store.list_grades.return_value = {"success": True, "items": [
+            {"code": "A95", "name": "Бензин А-95", "color": "#2563eb"}]}
+        store.current_price.return_value = {"success": False, "error": "ORA-03113"}
+        r = PecoController.pump_state(station_id=1)
+    assert r["success"] is True
+    assert "A95" not in r["prices"]
+    assert r["unavailable_prices"] == ["A95"]
+
+
+def test_admin_overview_reports_a_station_whose_tank_read_failed():
+    """Станция, у которой не прочитались резервуары, обязана быть видна
+    отдельно от станций без низких резервуаров — иначе сбой БД и
+    'всё в порядке' неотличимы."""
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.list_stations.return_value = {"success": True, "items": [
+            {"id": 1, "name": "АЗС №1"}, {"id": 2, "name": "АЗС №2"}]}
+
+        def levels(station_id):
+            if station_id == 1:
+                return {"success": True, "items": [
+                    {"tank_id": 11, "is_low": 1}]}
+            return {"success": False, "error": "ORA-03113: конец соединения"}
+
+        store.list_tank_levels.side_effect = levels
+        r = PecoController.admin_overview()
+    assert r["success"] is True
+    assert len(r["low_tanks"]) == 1
+    assert r["unavailable_stations"] == [2]
+
+
+def test_admin_overview_omits_the_key_when_all_stations_are_readable():
+    with patch("controllers.peco_controller.PecoStore") as store:
+        store.list_stations.return_value = {"success": True, "items": [
+            {"id": 1, "name": "АЗС №1"}]}
+        store.list_tank_levels.return_value = {"success": True, "items": []}
+        r = PecoController.admin_overview()
+    assert "unavailable_stations" not in r
+
+
 def test_authorize_rejects_missing_fields():
     r = PecoController.authorize({"station_id": 1})
     assert r["success"] is False
