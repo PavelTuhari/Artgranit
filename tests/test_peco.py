@@ -1335,10 +1335,18 @@ def test_controller_rejects_a_dips_value_that_is_not_a_mapping():
 
 def test_controller_rejects_infinity():
     """float('1e999') не бросает исключение, а тихо даёт inf, который
-    прошёл бы всю арифметику сверки и испортил расхождения смены."""
-    r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
-                                    "cash_declared": "1e999"})
+    прошёл бы всю арифметику сверки и испортил расхождения смены.
+
+    Модель замокана намеренно: без этого тест проходил бы из-за
+    недоступной базы, а не из-за проверки на бесконечность."""
+    with patch("controllers.peco_controller.peco_shift") as shift:
+        shift.close_shift.return_value = {"success": True, "status": "CLOSED",
+                                          "variances": {}}
+        r = PecoController.shift_close({"shift_id": 77, "employee_id": 5,
+                                        "cash_declared": "1e999"})
     assert r["success"] is False
+    assert "cash_declared" in r["error"]
+    shift.close_shift.assert_not_called()
 
 
 def test_an_empty_till_can_still_close_a_shift():
@@ -1350,3 +1358,20 @@ def test_an_empty_till_can_still_close_a_shift():
                                         "cash_declared": 0.0})
     assert r["success"] is True
     assert shift.close_shift.call_args.kwargs["cash_declared"] == 0.0
+
+
+def test_default_station_is_one_cheap_query():
+    """Опрос состояния колонки — самый горячий маршрут; выбирать станцию
+    обходом всех 46 станций с остатками там нельзя."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(1,)]})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.default_station_id()
+    assert r["success"] is True and r["station_id"] == 1
+    assert db.execute_query.call_count == 1
+
+
+def test_default_station_reports_when_none_are_active():
+    cm, _ = _fake_db({"success": True, "columns": ["ID"], "data": []})
+    with patch("models.peco_oracle_store.DatabaseModel", return_value=cm):
+        r = PecoStore.default_station_id()
+    assert r["success"] is False
