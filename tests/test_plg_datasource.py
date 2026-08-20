@@ -240,3 +240,20 @@ def test_peco_store_map_without_station_returns_empty_plan():
     assert r["success"] is True
     assert r["data"]["store"] is None
     assert r["data"]["zones"] == [] and r["data"]["fixtures"] == []
+
+
+# ── маршруты ─────────────────────────────────────────────────────────
+
+def test_routes_pass_source_through_to_the_controller():
+    """?source= обязан доезжать до контроллера на всех трёх маршрутах,
+    иначе переключатель в витрине окажется декоративным."""
+    import app as app_module
+    client = app_module.app.test_client()
+    for path, method in (('/api/plg/stores', 'get_stores'),
+                         ('/api/plg/map', 'get_store_map'),
+                         ('/api/plg/products', 'get_products')):
+        with patch.object(app_module.PlanogramController, method,
+                          return_value={"success": True, "data": []}) as m:
+            client.get(path + '?source=peco')
+        assert m.call_args.args[-1] == 'peco' or m.call_args.kwargs.get('source') == 'peco', \
+            f"{path}: источник не передан в {method}"

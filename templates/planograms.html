@@ -75,6 +75,14 @@ body {
     font-family: inherit; text-transform: uppercase; letter-spacing: .5px;
 }
 .lang-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.src-switch { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.src-btn {
+    padding: 5px 8px; border-radius: 5px; border: 1px solid rgba(255,255,255,.12);
+    background: transparent; color: var(--sidebar-fg); font-size: 11px; cursor: pointer;
+    font-family: inherit; text-align: left;
+}
+.src-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.src-btn small { display: block; opacity: .7; font-size: 10px; }
 .sb-user { display: flex; align-items: center; gap: 10px; }
 .sb-user .ava { width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
     display: flex; align-items: center; justify-content: center; color: #fff;
@@ -268,6 +276,7 @@ table.tbl tbody tr:hover { background: #f8fafc; }
         </div>
         <nav class="sb-nav" id="sbNav"></nav>
         <div class="sb-foot">
+            <div class="src-switch" id="srcSwitch"></div>
             <div class="lang-switch" id="langSwitch"></div>
             <div class="sb-user">
                 <div class="ava" id="userAva">—</div>
@@ -1007,6 +1016,7 @@ table.tbl tbody tr:hover { background: #f8fafc; }
 // ==================== Состояние ====================
 const API = '/api/plg';
 let LANG = localStorage.getItem('plg_lang') || 'ru';
+let SOURCE = localStorage.getItem('plg_source') || 'demo';
 let STORE_ID = null;
 let I18N = {};
 let REFS = {};
@@ -1143,7 +1153,7 @@ async function api(path, method, body) {
     const opts = {method: method || 'GET', headers: {'Content-Type': 'application/json'}};
     if (body) opts.body = JSON.stringify(body);
     try {
-        const res = await fetch(API + path + sep + 'lang=' + LANG, opts);
+        const res = await fetch(API + path + sep + 'lang=' + LANG + '&source=' + SOURCE, opts);
         return await res.json();
     } catch (e) {
         return {success: false, error: String(e)};
@@ -1162,6 +1172,7 @@ function applyI18n() {
     document.title = t('app.title') + ' — Artgranit';
     renderNav();
     renderLangSwitch();
+    renderSourceSwitch();
     renderPageHead();
     renderLegend();
     renderPeriodBtns();
@@ -1186,6 +1197,30 @@ async function setLang(code) {
     if (refs.success) REFS = refs.data;
     await loadStores();
     applyI18n();
+    await loadMap();
+    reloadActive();
+}
+
+// Поддерживаемые источники данных модуля.
+const SOURCES = [
+    {code: 'demo', title: 'Демо-набор', hint: 'учебные магазины PLG'},
+    {code: 'peco', title: 'UNA.md/PECO', hint: 'сеть АЗС, реальные данные'}
+];
+
+function renderSourceSwitch() {
+    document.getElementById('srcSwitch').innerHTML = SOURCES.map(s =>
+        `<button class="src-btn ${s.code === SOURCE ? 'active' : ''}" onclick="setSource('${s.code}')">`
+        + `${esc(s.title)}<small>${esc(s.hint)}</small></button>`
+    ).join('');
+}
+
+async function setSource(code) {
+    if (code === SOURCE) return;
+    SOURCE = code;
+    localStorage.setItem('plg_source', code);
+    STORE_ID = null;              // точки другого источника — другие id
+    renderSourceSwitch();
+    await loadStores();
     await loadMap();
     reloadActive();
 }
@@ -1447,6 +1482,20 @@ function drawMap(hostId) {
                 <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="#16a34a" opacity="0.9"/>
                 <text x="${x + w / 2}" y="${y + h / 2 + 3}" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">${esc(t('map.entrance'))}</text>
                 <path d="M ${x + w / 2} ${y - 3} L ${x + w / 2} ${y - 11}" stroke="#16a34a" stroke-width="2" marker-end="url(#plgArrow)"/>
+            </g>`);
+        } else if (z.zone_type === 'fuel') {
+            const pct = Math.max(0, Math.min(100, z.traffic_pct || 0));
+            const low = z.traffic_level === 'low';
+            parts.push(`<g class="zn" data-tip="${esc(tip)}">
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"
+                      fill="#16233a" stroke="${low ? '#dc2626' : '#2d3d55'}" stroke-width="${low ? 2 : 1}"/>
+                <rect x="${x + 4}" y="${y + h - 12}" width="${w - 8}" height="7" rx="3" fill="#0f1929"/>
+                <rect x="${x + 4}" y="${y + h - 12}" width="${(w - 8) * pct / 100}" height="7" rx="3"
+                      fill="${z.color || (low ? '#dc2626' : '#2563eb')}"/>
+                <text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" fill="#cbd5e1"
+                      font-size="9" font-weight="700">${esc(z.name)}</text>
+                <text x="${x + w / 2}" y="${y + h - 18}" text-anchor="middle" fill="#94a3b8"
+                      font-size="8">${pct}%</text>
             </g>`);
         } else {
             parts.push(`<g class="zn" data-tip="${esc(tip)}">

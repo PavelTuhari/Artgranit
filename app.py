@@ -2748,6 +2748,11 @@ def _plg_lang():
     return PlanogramController.lang(request.args.get('lang'))
 
 
+def _plg_source():
+    """Источник данных модуля планограмм: ?source=demo|peco."""
+    return PlanogramController.source(request.args.get('source'))
+
+
 @app.route('/UNA.md/orasldev/planograms')
 @app.route('/UNA.md/orasldev/planograms/')
 def planograms():
@@ -2902,7 +2907,7 @@ def api_plg_refs():
 @app.route('/api/plg/stores', methods=['GET'])
 def api_plg_stores():
     return jsonify(PlanogramController.get_stores(
-        _plg_lang(), request.args.get('dataset_id', type=int)))
+        _plg_lang(), request.args.get('dataset_id', type=int), _plg_source()))
 
 
 # --- Дашборд и карта ---
@@ -2916,7 +2921,7 @@ def api_plg_dashboard():
 @app.route('/api/plg/map', methods=['GET'])
 def api_plg_map():
     return jsonify(PlanogramController.get_store_map(
-        request.args.get('store_id', type=int), _plg_lang()))
+        request.args.get('store_id', type=int), _plg_lang(), _plg_source()))
 
 
 @app.route('/api/plg/analytics', methods=['GET'])
@@ -2976,7 +2981,7 @@ def api_plg_delete_fixture(fixture_id):
 def api_plg_products():
     return jsonify(PlanogramController.get_products(
         request.args.get('category_id', type=int),
-        request.args.get('q'), _plg_lang()))
+        request.args.get('q'), _plg_lang(), _plg_source()))
 
 
 @app.route('/api/plg/products', methods=['POST'])
