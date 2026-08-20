@@ -1134,6 +1134,36 @@ Call `renderSourceSwitch()` from `applyI18n()` right after the existing `renderL
     renderSourceSwitch();
 ```
 
+- [ ] **Step 6a: Render fuel zones with their fill level**
+
+Задача 5 кладёт наполненность резервуара в `traffic_pct` зоны, но в
+SVG-отрисовке зон нет ветки для `zone_type === 'fuel'`: такие зоны
+попадают в общий `else` и рисуются плоской коробкой — единственная живая
+величина плана не видна. Добавьте ветку перед финальным `else` в
+отрисовке зон (рядом с ветками `checkout` / `entrance`, примерно строка
+1445 `templates/planograms.html`):
+
+```javascript
+        } else if (z.zone_type === 'fuel') {
+            const pct = Math.max(0, Math.min(100, z.traffic_pct || 0));
+            const low = z.traffic_level === 'low';
+            parts.push(`<g class="zn" data-tip="${esc(tip)}">
+                <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4"
+                      fill="#16233a" stroke="${low ? '#dc2626' : '#2d3d55'}" stroke-width="${low ? 2 : 1}"/>
+                <rect x="${x + 4}" y="${y + h - 12}" width="${w - 8}" height="7" rx="3" fill="#0f1929"/>
+                <rect x="${x + 4}" y="${y + h - 12}" width="${(w - 8) * pct / 100}" height="7" rx="3"
+                      fill="${z.color || (low ? '#dc2626' : '#2563eb')}"/>
+                <text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" fill="#cbd5e1"
+                      font-size="9" font-weight="700">${esc(z.name)}</text>
+                <text x="${x + w / 2}" y="${y + h - 18}" text-anchor="middle" fill="#94a3b8"
+                      font-size="8">${pct}%</text>
+            </g>`);
+```
+
+Красный резервуар (`traffic_level === 'low'`, то есть остаток ниже
+аварийного) обводится и заливается красным — это тот же сигнал, что
+`IS_LOW` в `V_PECO_TANK_LEVELS`. Визуальный контроль — в задаче 7.
+
 - [ ] **Step 7: Verify the switcher is not caught by the demo write-guard**
 
 Run: `cd /Users/pt/Projects.AI/Artgranit && grep -n "WRITE_RE" templates/planograms.html`
