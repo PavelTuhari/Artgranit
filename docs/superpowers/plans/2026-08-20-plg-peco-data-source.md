@@ -579,7 +579,7 @@ class PecoDataSource(PlanogramDataSource):
         except Exception as e:
             return {"success": False, "error": str(e)}
         return {"success": True, "lang": lang,
-                "data": _localize_rows(rows, lang)}
+                "data": localize_rows(rows, lang)}
 
     def list_products(self, lang: str, category_id: Optional[int] = None,
                       search: Optional[str] = None) -> Dict:
@@ -596,13 +596,18 @@ class PecoSourceError(RuntimeError):
     """Ошибка чтения объектов PECO."""
 
 
-def _localize_rows(rows: list, lang: str) -> list:
+def localize_rows(rows: list, lang: str, langs: tuple = ('ru', 'ro', 'en'),
+                  default_lang: str = 'ru') -> list:
     """Разворачивает тройки <base>_ru/_ro/_en в сводный ключ <base>.
 
-    Повторяет PlanogramController._localize, но без импорта контроллера
-    в модель — направление зависимостей остаётся «контроллер -> модель».
+    Единственная реализация на проект: PlanogramController._localize
+    делегирует сюда. Живёт в модели, потому что направление зависимостей
+    «контроллер -> модель» разрешено, а обратное — нет.
+
+    Исходные языковые колонки сохраняются: они нужны формам
+    редактирования, где оператор правит все три языка сразу.
     """
-    suffixes = ('_ru', '_ro', '_en')
+    suffixes = tuple('_' + code for code in langs)
     out = []
     for row in rows:
         bases = {k[:-3] for k in row if k.endswith(suffixes)}
@@ -610,11 +615,35 @@ def _localize_rows(rows: list, lang: str) -> list:
         for base in bases:
             value = row.get(base + '_' + lang)
             if value in (None, ''):
-                value = row.get(base + '_ru')
+                value = row.get(base + '_' + default_lang)
             new[base] = value
         out.append(new)
     return out
 ```
+
+**Решение владельца (предполётная сверка):** дубля логики локализации быть
+не должно. В том же шаге отредактируйте `controllers/planogram_controller.py`
+так, чтобы существующий `_localize` делегировал в эту функцию, сохранив
+свою сигнатуру и поведение:
+
+```python
+    @staticmethod
+    def _localize(rows: List[Dict], lang: str) -> List[Dict]:
+        """
+        Добавляет к тройкам колонок `<base>_ru/_ro/_en` сводный ключ `<base>`
+        на выбранном языке. Если перевода нет — подставляет русский вариант.
+        Исходные языковые колонки сохраняются: они нужны формам редактирования,
+        где оператор правит все три языка сразу.
+
+        Реализация — models.plg_datasource.localize_rows: её же использует
+        источник peco, и расходиться этим двум путям нельзя.
+        """
+        from models.plg_datasource import localize_rows
+        return localize_rows(rows, lang, PlanogramController.LANGS,
+                             PlanogramController.DEFAULT_LANG)
+```
+
+Дальше по плану вместо `_localize_rows(...)` вызывайте `localize_rows(...)`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -638,7 +667,7 @@ git commit -m "feat(plg): map PECO stations onto the store list"
 - Test: `tests/test_plg_datasource.py`
 
 **Interfaces:**
-- Consumes: `PecoDataSource._query`, `_localize_rows` (Task 3).
+- Consumes: `PecoDataSource._query`, `localize_rows` (Task 3).
 - Produces: `list_products` rows with keys `id, code, name, category, category_color, price, currency, uom, brand, barcode, status`.
 
 - [ ] **Step 1: Write the failing test**
@@ -738,7 +767,7 @@ In `models/plg_datasource.py`, replace `PecoDataSource.list_products` with:
             rows = self._query(sql + " ORDER BY g.SORT_ORDER, g.CODE", params)
         except Exception as e:
             return {"success": False, "error": str(e)}
-        return {"success": True, "lang": lang, "data": _localize_rows(rows, lang)}
+        return {"success": True, "lang": lang, "data": localize_rows(rows, lang)}
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -763,7 +792,7 @@ git commit -m "feat(plg): map PECO fuel grades onto the product list"
 - Test: `tests/test_plg_datasource.py`
 
 **Interfaces:**
-- Consumes: `PecoDataSource._query`, `_localize_rows`, `PecoDataSource.MAP_WIDTH/MAP_HEIGHT`.
+- Consumes: `PecoDataSource._query`, `localize_rows`, `PecoDataSource.MAP_WIDTH/MAP_HEIGHT`.
 - Produces: `store_map` result `{"success": True, "lang": str, "data": {"store": {...}|None, "zones": [...], "fixtures": [...]}}`; zone rows carry `id, store_id, code, name, zone_type, color, pos_x, pos_y, width, height, sort_order, status, traffic_pct, fixture_count`; fixture rows carry `id, store_id, zone_id, code, name, fixture_type, pos_x, pos_y, width, height, shelf_count, status, item_count`.
 
 - [ ] **Step 1: Write the failing test**
