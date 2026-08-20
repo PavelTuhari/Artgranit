@@ -25,6 +25,8 @@ from controllers.peco_controller import PecoController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
 from controllers.plg_ai_controller import PlgAiController
+from controllers.peco_supply_controller import PecoSupplyController
+from models.peco_gps import PecoGps
 from controllers.colass_controller import ColassController
 import threading
 import time

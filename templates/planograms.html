@@ -1112,7 +1112,7 @@ const DEMO_MSG = 'Демо-режим: просмотр без изменени�
 // Только изменяющие действия. Просмотровые (go, navClick, setLang, setPeriod,
 // openPlanogramDetail, openSupplierCard, showProcess, compareModels) остаются
 // рабочими — иначе демонстрировать было бы нечего.
-const WRITE_RE = /^(save[A-Z]|delete[A-Z]|cancelGen|cancelFct|doImport|markRead|markAllRead|runForecast|startGeneration|setPlgStatus|openProcessImport|open[A-Za-z]*Modal|startAiMonitor|adjustOrderQty|resetAdjustment|advanceImportStage|setImportDoc)/;
+const WRITE_RE = /^(save[A-Z]|delete[A-Z]|cancelGen|cancelFct|doImport|markRead|markAllRead|runForecast|startGeneration|setPlgStatus|openProcessImport|open[A-Za-z]*Modal|startAiMonitor|adjustOrderQty|resetAdjustment|advanceImportStage|setImportDoc|runFuelAutoorder|runFuelWithParams|planFuelTrips|analyzeFuelGps|adjustFuelItem|setFuelOrderStatus|setFuelTripStatus|toggleFuelEdit|geocodeFuelStation)/;
 
 function demoGuard() {
     if (!DEMO) return;
@@ -1246,6 +1246,7 @@ const SECTION_ALIASES = {
     monitor: 'aimonitor', ai: 'aimonitor', signals: 'aimonitor',
     autoorder: 'orders', 'auto-orders': 'orders', import: 'imports',
     customs: 'imports',
+    azs: 'fuel', peco: 'fuel', tanker: 'fuel', gps: 'fuel',
 };
 
 function sectionFromHash() {
@@ -1349,6 +1350,7 @@ function reloadActive() {
         competitors: loadCompetitors, markets: loadMarkets, processes: loadProcesses,
         fresh: loadFresh, 'floor-orders': loadFloorOrders,
         aimonitor: loadAiMonitor, orders: loadAutoOrders, imports: loadImports,
+        fuel: loadFuel,
     };
     (loaders[ACTIVE] || loadDashboard)();
 }

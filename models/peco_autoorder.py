@@ -59,6 +59,8 @@ DEFAULTS = {
     'lead_days': 1.0,         # плечо от заявки до слива (нефтебаза)
     'review_days': 1.0,       # как часто вообще можем приехать
     'min_drop_l': 2000.0,     # меньше этого объёма ехать невыгодно
+    'max_cover_days': 21.0,   # потолок запаса: сверх него деньги заморожены,
+                              # а топливо (особенно А-98 с присадками) стареет
     'recent_weight': 0.35,    # вес свежей недели против месяца в оценке спроса
 }
 
@@ -140,13 +142,24 @@ def calc_tank_order(tank: Dict[str, Any], params: Dict[str, Any],
     lead = float(p['lead_days'])
     review = float(p['review_days'])
     max_fill = capacity * float(p['max_fill_pct']) / 100.0
+    # Целевой уровень ограничен ДВАЖДЫ: физически (процент ёмкости)
+    # и экономически (потолок покрытия в сутках). Без второго ограничения
+    # медленный грейд заливается под крышку: у А-98 с оборотом 330 л/сут
+    # полный резервуар на 27 тысяч — это запас на два с половиной месяца,
+    # то есть замороженные деньги и стареющее топливо.
     target_level = capacity * float(p['target_fill_pct']) / 100.0
+    if daily > 0:
+        target_level = min(target_level,
+                           min_alarm + daily * float(p['max_cover_days']))
 
     # Сколько останется к приходу бензовоза
     level_at_arrival = max(0.0, current - daily * lead)
     ullage = max(0.0, max_fill - level_at_arrival)
 
-    days_to_dry = ((current - min_alarm) / daily) if daily > 0 else None
+    # Ниже аварийного остатка «дней до сухого бака» не бывает: это уже ноль,
+    # а факт провала показывается отдельным признаком
+    below_alarm = 1 if current <= min_alarm else 0
+    days_to_dry = (max(0.0, current - min_alarm) / daily) if daily > 0 else None
 
     z = z_score(p['service_level'])
     safety = z * sigma * math.sqrt(max(1.0, lead + review))
@@ -165,7 +178,7 @@ def calc_tank_order(tank: Dict[str, Any], params: Dict[str, Any],
                 'daily_rate_l': round(daily, 2),
                 'days_to_dry': round(days_to_dry, 2) if days_to_dry is not None else None,
                 'cover_after_d': round(days_to_dry, 2) if days_to_dry is not None else None,
-                'is_dry_risk': 0, 'reason': 'not_due'}
+                'is_below_alarm': below_alarm, 'is_dry_risk': 0, 'reason': 'not_due'}
 
     liters, combo = best_compartment_fill(need, ullage, compartments,
                                           float(p['min_drop_l']))
@@ -179,8 +192,10 @@ def calc_tank_order(tank: Dict[str, Any], params: Dict[str, Any],
         'daily_rate_l': round(daily, 2),
         'days_to_dry': round(days_to_dry, 2) if days_to_dry is not None else None,
         'cover_after_d': round(cover_after, 2) if cover_after is not None else None,
+        'is_below_alarm': below_alarm,
         # Риск сухого бака: топливо кончится раньше, чем приедет машина
-        'is_dry_risk': 1 if (days_to_dry is not None and days_to_dry <= lead + 0.5) else 0,
+        'is_dry_risk': 1 if (below_alarm or
+                             (days_to_dry is not None and days_to_dry <= lead + 0.5)) else 0,
         'reason': 'ok' if liters > 0 else 'no_room',
     }
 
@@ -334,16 +349,25 @@ class FuelAutoOrder:
     # ==================== Планирование рейсов ====================
 
     @staticmethod
-    def plan_trips(run_id: Optional[int] = None,
-                   username: str = 'system') -> Dict[str, Any]:
+    def plan_trips(run_id: Optional[int] = None, username: str = 'system',
+                   max_stations: int = 3) -> Dict[str, Any]:
         """
         Раскладка утверждённых заказов по бензовозам.
 
         Правило одно и жёсткое: одна секция — один вид топлива и один
-        резервуар. Поэтому строка заказа не «делится» между секциями,
-        а занимает ближайшую подходящую по объёму. Машина набирается,
-        пока есть свободные секции; станции берутся по возрастанию
-        покрытия — сначала те, где ближе сухой бак.
+        резервуар. Но строка заказа при этом МОЖЕТ занимать несколько
+        секций: автозаказ подбирает объём как сумму секций (8000 + 8000 +
+        7000 = 23 000 л), и физически это три отдельных слива.
+        Поэтому на каждую задействованную секцию заводится своя остановка —
+        так же, как это происходит на площадке.
+
+        Первая версия искала ОДНУ секцию, вмещающую строку целиком,
+        и молча пропускала всё, что больше самой большой секции:
+        из 42 заказов в рейс попадали три.
+
+        Станции берутся по возрастанию покрытия — сначала те, где ближе
+        сухой бак. Больше max_stations точек в рейс не ставим: бензовоз
+        физически не успевает объехать больше за смену.
         """
         try:
             with DatabaseModel() as db:
@@ -379,22 +403,39 @@ class FuelAutoOrder:
                 depart = datetime.now() + timedelta(hours=2)
 
                 for truck in trucks:
-                    free = list(comps_by_truck.get(int(truck['id']), []))
+                    free = sorted(comps_by_truck.get(int(truck['id']), []),
+                                  key=lambda c: -float(c['volume_l']))
                     if not free:
                         continue
-                    load: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
+                    # План загрузки: (строка заказа, список секций под неё)
+                    load: List[Tuple[Dict[str, Any], List[Dict[str, Any]]]] = []
+                    stations: set = set()
                     for it in items:
                         if it['item_id'] in assigned or not free:
                             continue
-                        need = float(it['liters_order'] or 0)
-                        # Ближайшая секция, вмещающая строку целиком
-                        fit = next((c for c in sorted(free, key=lambda c: float(c['volume_l']))
-                                    if float(c['volume_l']) >= need - 1e-6), None)
-                        if not fit:
+                        if (it['station_id'] not in stations
+                                and len(stations) >= max_stations):
                             continue
-                        free.remove(fit)
+                        need = float(it['liters_order'] or 0)
+                        taken: List[Dict[str, Any]] = []
+                        rest = need
+                        for c in list(free):
+                            vol = float(c['volume_l'])
+                            if vol <= rest + 1e-6:
+                                taken.append(c)
+                                free.remove(c)
+                                rest -= vol
+                                if rest <= 1e-6:
+                                    break
+                        if rest > 1e-6:
+                            # Целиком не набралось — возвращаем секции в парк,
+                            # частичный завоз резервуара не планируем
+                            free.extend(taken)
+                            free.sort(key=lambda c: -float(c['volume_l']))
+                            continue
                         assigned.add(it['item_id'])
-                        load.append((it, fit))
+                        stations.add(it['station_id'])
+                        load.append((it, taken))
                     if not load:
                         continue
 
@@ -406,33 +447,35 @@ class FuelAutoOrder:
                         {'p_d': depot_id, 'p_t': int(truck['id']),
                          'p_dr': truck.get('driver_name'), 'p_dep': depart,
                          'p_l': round(sum(float(i['liters_order']) for i, _c in load), 3),
-                         'p_s': len({i['station_id'] for i, _c in load}), 'p_u': username})
+                         'p_s': len(stations), 'p_u': username})
                     trip_id = FuelAutoOrder._rows(db.execute_query(
                         "SELECT MAX(ID) AS ID FROM PECO_TRIPS WHERE TRUCK_ID = :p_t",
                         {'p_t': int(truck['id'])}))[0]['id']
 
                     stop_no = 0
                     eta = depart + timedelta(minutes=45)
-                    for it, comp in load:
-                        stop_no += 1
-                        db.execute_query(
-                            "INSERT INTO PECO_TRIP_STOPS (TRIP_ID, STOP_NO, STATION_ID, "
-                            "ORDER_ID, COMP_ID, GRADE_CODE, LITERS_PLAN, PLAN_ARRIVE) "
-                            "VALUES (:p_tr, :p_no, :p_st, :p_o, :p_c, :p_g, :p_l, :p_eta)",
-                            {'p_tr': trip_id, 'p_no': stop_no, 'p_st': int(it['station_id']),
-                             'p_o': int(it['order_id']), 'p_c': int(comp['id']),
-                             'p_g': it['grade_code'], 'p_l': float(it['liters_order']),
-                             'p_eta': eta})
+                    for it, comps in load:
+                        for c in comps:
+                            stop_no += 1
+                            db.execute_query(
+                                "INSERT INTO PECO_TRIP_STOPS (TRIP_ID, STOP_NO, STATION_ID, "
+                                "ORDER_ID, COMP_ID, GRADE_CODE, LITERS_PLAN, PLAN_ARRIVE) "
+                                "VALUES (:p_tr, :p_no, :p_st, :p_o, :p_c, :p_g, :p_l, :p_eta)",
+                                {'p_tr': trip_id, 'p_no': stop_no,
+                                 'p_st': int(it['station_id']), 'p_o': int(it['order_id']),
+                                 'p_c': int(c['id']), 'p_g': it['grade_code'],
+                                 'p_l': float(c['volume_l']), 'p_eta': eta})
+                            stops_created += 1
                         db.execute_query(
                             "UPDATE PECO_FUEL_ORDERS SET TRIP_ID = :p_tr, STATUS = 'planned' "
                             "WHERE ID = :p_o", {'p_tr': trip_id, 'p_o': int(it['order_id'])})
                         eta += timedelta(minutes=50)
-                        stops_created += 1
                     trips_created += 1
                     depart += timedelta(minutes=40)   # разнос выездов по наливным постам
 
                 db.connection.commit()
             return {'success': True, 'trips': trips_created, 'stops': stops_created,
-                    'items_assigned': len(assigned)}
+                    'items_assigned': len(assigned),
+                    'items_left': len(items) - len(assigned)}
         except Exception as e:                                   # noqa: BLE001
             return {'success': False, 'error': str(e)}

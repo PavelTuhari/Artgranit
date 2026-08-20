@@ -236,13 +236,16 @@ location @spare {
        <code>sub_filter</code>.</p>
   </div>
 
-  <div class="note note--stop">
-    <h3>Мина на .148: nginx вне systemd</h3>
-    <p>Процессы nginx работают, но <code>systemctl status nginx</code> показывает
-       <b>failed</b> с 3 августа — юнит потерял управление. Команда
-       <code>systemctl restart nginx</code> может не поднять сервис обратно и
-       обрушить все сайты машины, а их там несколько десятков. Перед любым
-       перезапуском на <code>.148</code> — разбираться отдельно.</p>
+  <div class="note note--ok">
+    <h3>Починено и проверено: nginx на .148 снова под systemd</h3>
+    <p>С 3 по 19 августа <code>systemctl status nginx</code> показывал
+       <b>failed</b>, хотя сами процессы работали — юнит потерял управление.
+       Починено 19.08.2026, проверено на живой машине 20.08.2026: полный
+       <code>systemctl restart nginx</code> (PID сменился, значит перезапуск
+       был настоящий) и отдельно <code>systemctl reload</code> — оба прошли
+       чисто, <code>Main PID</code> совпадает с живым процессом, а выборка из
+       четырёх сайтов машины (включая <code>officeplus.una.md</code>) до и
+       после перезапуска отдала одинаковые коды.</p>
   </div>
 </section>
 

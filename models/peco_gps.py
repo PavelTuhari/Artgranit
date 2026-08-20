@@ -59,6 +59,42 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * EARTH_KM * math.asin(min(1.0, math.sqrt(a)))
 
 
+def distance_to_corridor_km(lat: float, lon: float,
+                            route: List[Tuple[float, float]]) -> float:
+    """
+    Расстояние от точки до КОРИДОРА маршрута — ломаной «нефтебаза → станции»,
+    а не до ближайшего её узла.
+
+    Разница принципиальная. Первая версия мерила расстояние до узлов,
+    и на середине стокилометрового перегона машина оказывалась «в 50 км
+    от маршрута»: детектор давал 36 ложных срабатываний на одном обычном
+    рейсе и был бы отключён оператором в первый же день.
+
+    Внутри отрезка работает равнопромежуточная проекция: на масштабе
+    десятков километров её погрешность заметно меньше порога срабатывания.
+    """
+    if not route:
+        return 0.0
+    if len(route) == 1:
+        return haversine_km(lat, lon, route[0][0], route[0][1])
+    best = None
+    for (alat, alon), (blat, blon) in zip(route, route[1:]):
+        # Локальные координаты в километрах относительно точки A
+        kx = 111.32 * math.cos(math.radians((alat + blat) / 2))
+        ky = 110.57
+        ax, ay = 0.0, 0.0
+        bx, by = (blon - alon) * kx, (blat - alat) * ky
+        px, py = (lon - alon) * kx, (lat - alat) * ky
+        seg2 = bx * bx + by * by
+        if seg2 <= 1e-9:
+            d = math.hypot(px, py)
+        else:
+            t = max(0.0, min(1.0, (px * bx + py * by) / seg2))
+            d = math.hypot(px - bx * t, py - by * t)
+        best = d if best is None else min(best, d)
+    return best or 0.0
+
+
 def _rows(res) -> List[Dict[str, Any]]:
     if not res or not res.get('success'):
         return []
@@ -206,6 +242,8 @@ class PecoGps:
                         created += 1
 
                     stop_start = None
+                    dev_open = None
+                    seal_open = None
                     for i, p in enumerate(pings):
                         lat, lon = float(p['lat']), float(p['lon'])
                         speed = float(p.get('speed_kmh') or 0)
@@ -217,19 +255,32 @@ class PecoGps:
                                 f'Viteză {speed:.0f} km/h cu cisterna încărcată',
                                 f'Speed {speed:.0f} km/h with a loaded tanker')
 
-                        near = min((haversine_km(lat, lon, a, b) for a, b in pts),
-                                   default=None)
+                        near = distance_to_corridor_km(lat, lon, pts) if pts else None
                         if near is not None and near > TH['deviation_km']:
-                            add('route_deviation', 'warn', ts, lat, lon, near,
-                                f'Отклонение {near:.1f} км от точек маршрута',
-                                f'Abatere de {near:.1f} km de la traseu',
-                                f'{near:.1f} km deviation from the route')
+                            if dev_open is None or near > dev_open[1]:
+                                dev_open = (ts, near, lat, lon)
+                        elif dev_open is not None:
+                            dts, dnear, dlat, dlon = dev_open
+                            dev_open = None
+                            add('route_deviation', 'warn', dts, dlat, dlon, dnear,
+                                f'Съезд с маршрута, максимум {dnear:.1f} км от коридора',
+                                f'Ieșire de pe traseu, maxim {dnear:.1f} km de la coridor',
+                                f'Off-route excursion, up to {dnear:.1f} km from the corridor')
 
+                        # Пломба: один сигнал на эпизод, а не на каждый пинг.
+                        # Открытая пломба держится минутами, и десяток
+                        # одинаковых строк в журнале только прячет остальные.
                         if p.get('seal_closed') == 0:
-                            add('seal_open', 'crit', ts, lat, lon, None,
-                                'Пломба горловины открыта вне точки слива',
-                                'Sigiliul gurii de descărcare este deschis în afara punctului',
-                                'Discharge seal open outside a delivery point')
+                            if seal_open is None:
+                                seal_open = (ts, lat, lon)
+                        elif seal_open is not None:
+                            sts, slat, slon = seal_open
+                            mins = (ts - sts).total_seconds() / 60.0
+                            seal_open = None
+                            add('seal_open', 'crit', sts, slat, slon, mins,
+                                f'Пломба горловины открыта {mins:.0f} мин вне точки слива',
+                                f'Sigiliul deschis {mins:.0f} min în afara punctului de descărcare',
+                                f'Discharge seal open for {mins:.0f} min outside a delivery point')
 
                         # Остановка: копим, пока скорость около нуля
                         if speed < 3:
@@ -238,8 +289,8 @@ class PecoGps:
                         else:
                             if stop_start is not None:
                                 mins = (ts - stop_start[0]).total_seconds() / 60.0
-                                d = min((haversine_km(stop_start[1], stop_start[2], a, b)
-                                         for a, b in pts), default=99.0)
+                                d = (distance_to_corridor_km(stop_start[1], stop_start[2], pts)
+                                     if pts else 99.0)
                                 if mins >= TH['stop_minutes'] and d > TH['stop_radius_km']:
                                     add('unplanned_stop', 'crit', stop_start[0],
                                         stop_start[1], stop_start[2], mins,

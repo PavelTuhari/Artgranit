@@ -56,6 +56,34 @@ BEGIN
 END;
 /
 
+-- Секвенции создаются через проверку словаря: файл рассчитан
+-- на повторный запуск, а CREATE SEQUENCE не умеет IF NOT EXISTS.
+DECLARE
+  PROCEDURE mk_seq(p_name VARCHAR2) IS
+    v_n NUMBER;
+  BEGIN
+    SELECT COUNT(*) INTO v_n FROM USER_SEQUENCES WHERE SEQUENCE_NAME = p_name;
+    IF v_n = 0 THEN
+      EXECUTE IMMEDIATE 'CREATE SEQUENCE ' || p_name || ' START WITH 1 INCREMENT BY 1 NOCACHE';
+    END IF;
+  END;
+BEGIN
+  mk_seq('PECO_DEPOT_SEQ');
+  mk_seq('PECO_DEPOT_TANK_SEQ');
+  mk_seq('PECO_FSUP_SEQ');
+  mk_seq('PECO_GPSPROV_SEQ');
+  mk_seq('PECO_TRUCK_SEQ');
+  mk_seq('PECO_COMP_SEQ');
+  mk_seq('PECO_FORDER_SEQ');
+  mk_seq('PECO_FITEM_SEQ');
+  mk_seq('PECO_FRUN_SEQ');
+  mk_seq('PECO_TRIP_SEQ');
+  mk_seq('PECO_STOP_SEQ');
+  mk_seq('PECO_PING_SEQ');
+  mk_seq('PECO_GEV_SEQ');
+END;
+/
+
 -- ==================== Справочники ====================
 
 CREATE TABLE PECO_REF_SUPPLY_SOURCES (
@@ -106,9 +134,6 @@ COMMIT;
 
 -- ==================== Нефтебаза ====================
 
-CREATE SEQUENCE PECO_DEPOT_SEQ      START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE PECO_DEPOT_TANK_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
-
 CREATE TABLE PECO_DEPOTS (
   ID          NUMBER        NOT NULL,
   CODE        VARCHAR2(20)  NOT NULL,
@@ -122,7 +147,6 @@ CREATE TABLE PECO_DEPOTS (
   ACTIVE      NUMBER(1)     DEFAULT 1 NOT NULL,
   CONSTRAINT PK_PECO_DEPOTS PRIMARY KEY (ID),
   CONSTRAINT UQ_PECO_DEPOTS_CODE UNIQUE (CODE),
-  CONSTRAINT UQ_PECO_DEPOTS_ID UNIQUE (ID),
   CONSTRAINT CK_PECO_DEPOTS_ACT CHECK (ACTIVE IN (0,1))
 );
 /
@@ -164,8 +188,6 @@ END;
 
 -- ==================== Поставщики топлива ====================
 
-CREATE SEQUENCE PECO_FSUP_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
-
 CREATE TABLE PECO_FUEL_SUPPLIERS (
   ID            NUMBER        NOT NULL,
   CODE          VARCHAR2(30)  NOT NULL,
@@ -200,10 +222,6 @@ END;
 -- Транспорт СВОЙ, GPS-датчики на аутсорсе: провайдер шлёт пинги по токену.
 -- Токен хранится хешем — утечка дампа не даёт возможности слать поддельную
 -- телеметрию от имени провайдера.
-
-CREATE SEQUENCE PECO_GPSPROV_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE PECO_TRUCK_SEQ   START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE PECO_COMP_SEQ    START WITH 1 INCREMENT BY 1 NOCACHE;
 
 CREATE TABLE PECO_GPS_PROVIDERS (
   ID          NUMBER        NOT NULL,
@@ -283,10 +301,6 @@ END;
 /
 
 -- ==================== Заказы топлива ====================
-
-CREATE SEQUENCE PECO_FORDER_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE PECO_FITEM_SEQ  START WITH 1 INCREMENT BY 1 CACHE 100;
-CREATE SEQUENCE PECO_FRUN_SEQ   START WITH 1 INCREMENT BY 1 NOCACHE;
 
 -- Прогон автозаказа: как прогон прогноза в товарном контуре
 CREATE TABLE PECO_ORDER_RUNS (
@@ -410,11 +424,6 @@ CREATE INDEX IX_PECO_FOI_ORDER ON PECO_FUEL_ORDER_ITEMS (ORDER_ID);
 
 -- ==================== Рейсы бензовозов ====================
 
-CREATE SEQUENCE PECO_TRIP_SEQ  START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE PECO_STOP_SEQ  START WITH 1 INCREMENT BY 1 CACHE 100;
-CREATE SEQUENCE PECO_PING_SEQ  START WITH 1 INCREMENT BY 1 CACHE 1000;
-CREATE SEQUENCE PECO_GEV_SEQ   START WITH 1 INCREMENT BY 1 CACHE 100;
-
 CREATE TABLE PECO_TRIPS (
   ID            NUMBER        NOT NULL,
   TRIP_NO       VARCHAR2(30),
@@ -435,7 +444,6 @@ CREATE TABLE PECO_TRIPS (
   UPDATED_AT    TIMESTAMP     DEFAULT SYSTIMESTAMP,
   CONSTRAINT PK_PECO_TRIPS PRIMARY KEY (ID),
   CONSTRAINT UQ_PECO_TRIPS_NO UNIQUE (TRIP_NO),
-  CONSTRAINT UQ_PECO_TRIPS_ID UNIQUE (ID),
   CONSTRAINT FK_PECO_TRIPS_DE FOREIGN KEY (DEPOT_ID) REFERENCES PECO_DEPOTS (ID),
   CONSTRAINT FK_PECO_TRIPS_TR FOREIGN KEY (TRUCK_ID) REFERENCES PECO_TRUCKS (ID),
   CONSTRAINT CK_PECO_TRIPS_ST CHECK (STATUS IN ('planned','loading','en_route','done','cancelled'))
@@ -568,3 +576,52 @@ END;
 /
 
 CREATE INDEX IX_PECO_GEV_TRIP ON PECO_GPS_EVENTS (TRIP_ID, TS);
+/
+
+-- ==================== Суточный отпуск по резервуару ====================
+--
+-- Основа расчёта потребления. Отдельный append-only факт, а не выборка
+-- из транзакций: смена закрывается раз в сутки и даёт сверенную цифру
+-- (счётчик пистолета против чеков), тогда как сырые транзакции содержат
+-- незакрытые и отменённые. Алгоритм должен считать по сверенному отпуску,
+-- иначе он планирует завоз под кассовые ошибки.
+--
+-- В проде наполняется при закрытии смены; в демо — генератором.
+
+DECLARE
+  v_n NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_n FROM USER_SEQUENCES WHERE SEQUENCE_NAME = 'PECO_TDAILY_SEQ';
+  IF v_n = 0 THEN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE PECO_TDAILY_SEQ START WITH 1 INCREMENT BY 1 CACHE 1000';
+  END IF;
+  SELECT COUNT(*) INTO v_n FROM USER_TABLES WHERE TABLE_NAME = 'PECO_TANK_DAILY';
+  IF v_n = 0 THEN
+    EXECUTE IMMEDIATE q'[
+      CREATE TABLE PECO_TANK_DAILY (
+        ID          NUMBER        NOT NULL,
+        TANK_ID     NUMBER        NOT NULL,
+        STATION_ID  NUMBER        NOT NULL,
+        GRADE_CODE  VARCHAR2(10)  NOT NULL,
+        SALE_DATE   DATE          NOT NULL,
+        LITERS      NUMBER(14,3)  DEFAULT 0 NOT NULL,
+        AMOUNT      NUMBER(16,2)  DEFAULT 0,
+        LEVEL_END_L NUMBER(14,3),
+        IS_DRY      NUMBER(1)     DEFAULT 0,
+        CONSTRAINT PK_PECO_TANK_DAILY PRIMARY KEY (ID),
+        CONSTRAINT UQ_PECO_TD UNIQUE (TANK_ID, SALE_DATE),
+        CONSTRAINT FK_PECO_TD_TA FOREIGN KEY (TANK_ID, STATION_ID) REFERENCES PECO_TANKS (ID, STATION_ID),
+        CONSTRAINT FK_PECO_TD_GR FOREIGN KEY (TANK_ID, GRADE_CODE) REFERENCES PECO_TANKS (ID, GRADE_CODE),
+        CONSTRAINT CK_PECO_TD_DRY CHECK (IS_DRY IN (0,1))
+      )]';
+    EXECUTE IMMEDIATE 'CREATE INDEX IX_PECO_TD_ST ON PECO_TANK_DAILY (STATION_ID, SALE_DATE)';
+    EXECUTE IMMEDIATE q'[
+      CREATE OR REPLACE TRIGGER PECO_TANK_DAILY_BI
+        BEFORE INSERT ON PECO_TANK_DAILY FOR EACH ROW
+        WHEN (NEW.ID IS NULL)
+      BEGIN
+        :NEW.ID := PECO_TDAILY_SEQ.NEXTVAL;
+      END;]';
+  END IF;
+END;
+/

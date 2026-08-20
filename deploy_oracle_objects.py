@@ -194,6 +194,9 @@ def main() -> None:
         "102_peco_inventory_tables.sql",
         "103_peco_views.sql",
         "104_peco_ref_data.sql",
+        "106_peco_supply.sql",
+        "107_peco_supply_views.sql",
+        "109_plg_i18n_fuel.sql",
         # 105_peco_demo_station.sql НАМЕРЕННО не в этом списке: это демо-
         # станция, а не справочник, запускается только вручную и никогда
         # на production (см. docs/PECO/README.md).

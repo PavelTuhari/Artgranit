@@ -97,9 +97,10 @@ class PecoSupplyController:
                     return {'success': False, 'error': r.get('message')}
                 db.connection.commit()
                 db.execute_query(
-                    "INSERT INTO PECO_EVENT_LOG (EVENT_TYPE, PAYLOAD, CREATED_AT) "
-                    "VALUES ('station_geo', :p_p, SYSTIMESTAMP)",
-                    {'p_p': f'station={station_id} lat={lat} lon={lon} by={username}'})
+                    "INSERT INTO PECO_EVENT_LOG (STATION_ID, EVENT_TYPE, ENTITY_TYPE, "
+                    "ENTITY_ID, PAYLOAD) VALUES (:p_st, 'station_geo', 'station', :p_st2, :p_p)",
+                    {'p_st': station_id, 'p_st2': station_id,
+                     'p_p': f'lat={lat} lon={lon} source={source} by={username}'})
                 db.connection.commit()
             return {'success': True, 'lat': round(lat, 6), 'lon': round(lon, 6)}
         except Exception as e:                                   # noqa: BLE001

@@ -1079,6 +1079,54 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
   <div class="num">22</div>
 </section>
 
+
+<!-- Топливо -->
+<section class="slide">
+  <div class="kicker">Сеть АЗС</div>
+  <h2>Автозаказ топлива</h2>
+  <p>Тот же модуль работает и для сети заправок с собственной нефтебазой.
+     Три отличия от товарного заказа меняют не константы, а формулу.</p>
+  <div class="cols3" style="margin:14px 0">
+    <div class="card accent">
+      <h3>◧ Потолок — свободная ёмкость</h3>
+      <p>Не срок годности, а физика резервуара. Причём считается свободный
+         объём <b>на момент прихода</b> бензовоза: пока он едет, станция
+         продаёт, и места становится больше. Заказать больше — значит
+         остановить слив на середине.</p>
+    </div>
+    <div class="card ok">
+      <h3>▤ Кратность — секция цистерны</h3>
+      <p>Объём собирается комбинацией секций: 8000 + 8000 + 7000. Одна
+         секция — один вид топлива и один резервуар: остаток А-95 в секции
+         с дизелем делает несортовыми обе партии.</p>
+    </div>
+    <div class="card warn">
+      <h3>⛽ Стокаут = простой станции</h3>
+      <p>Сухой бак уводит клиента вместе с кофе и мойкой, поэтому уровень
+         сервиса 99 %. Но запас ограничен и сверху: без потолка в сутках
+         А-98 заливался на 54 дня — замороженные деньги и стареющее топливо.</p>
+    </div>
+  </div>
+  <div class="cols">
+    <div class="card">
+      <h3>Два эшелона снабжения</h3>
+      <p>Импорт идёт на нефтебазу полторы-две недели, нефтебаза развозит
+         по станциям за сутки. Система сводит заказы всех АЗС в потребность
+         базы и показывает, когда размещать импорт — до того, как база
+         опустеет, а не после.</p>
+    </div>
+    <div class="card">
+      <h3>Карта и контроль рейсов</h3>
+      <p>46 станций на карте, цвет — запас до сухого бака; маркер
+         перетаскивается, адрес геокодируется. Транспорт свой, GPS-датчики
+         на аутсорсе: система показывает факты — стоянку вне коридора
+         маршрута, срыв пломбы, — а вывод делает человек.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#fuel" target="_blank" rel="noopener">Карта и автозаказ топлива</a><a class="live blue" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Схемы процессов</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs/auto-order" target="_blank" rel="noopener">Методичка</a></div></div>
+  <div class="num">23</div>
+</section>
+
 <section class="slide">
   <div class="kicker">Дальше</div>
   <h2>Пилот на три недели</h2>
@@ -1104,7 +1152,7 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
     <p style="font-size:15px">Какой магазин и какая товарная группа берутся в пилот.</p>
   </div>
   <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть систему</a><a class="live blue" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Схемы бизнес-процессов</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Документация</a></div></div>
-  <div class="num">23</div>
+  <div class="num">24</div>
 </section>
 
 </div>
