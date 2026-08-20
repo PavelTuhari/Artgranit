@@ -135,3 +135,49 @@ def test_peco_stores_never_raise_on_db_error():
     with patch("models.plg_datasource.DatabaseModel", return_value=cm):
         r = PecoDataSource().list_stores('ru')
     assert r["success"] is False and "ORA-12541" in r["error"]
+
+
+# ── источник peco: сорта топлива как «товары» ────────────────────────
+
+_PECO_PROD_COLS = ["ID", "CODE", "CATEGORY_ID", "CATEGORY_CODE",
+                   "CATEGORY_RU", "CATEGORY_RO", "CATEGORY_EN", "CATEGORY_COLOR",
+                   "NAME_RU", "NAME_RO", "NAME_EN", "BARCODE", "BRAND", "UOM",
+                   "PRICE", "CURRENCY", "STATUS"]
+_PECO_PROD_ROW = (2, "A95", None, "FUEL", "Топливо", "Combustibil", "Fuel",
+                  "#43a047", "Бензин А-95", "Бензин А-95", "Бензин А-95",
+                  None, None, "L", 23.90, "MDL", "active")
+
+
+def test_peco_products_are_fuel_grades_with_current_price():
+    """Товар источника peco — сорт топлива; цена берётся действующая."""
+    cm, db = _fake_db({"success": True, "columns": _PECO_PROD_COLS,
+                       "data": [_PECO_PROD_ROW]})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().list_products('ru')
+    row = r["data"][0]
+    assert r["success"] is True
+    assert row["code"] == "A95" and row["name"] == "Бензин А-95"
+    assert row["price"] == 23.90 and row["uom"] == "L"
+    assert row["category"] == "Топливо"
+    sql = db.execute_query.call_args[0][0]
+    assert "VALID_TO IS NULL" in sql  # действующая цена, а не любая
+
+
+def test_peco_products_synthesize_numeric_id():
+    """PECO_REF_FUEL_GRADES ключуется кодом, а витрине нужен числовой id."""
+    cm, db = _fake_db({"success": True, "columns": _PECO_PROD_COLS,
+                       "data": [_PECO_PROD_ROW]})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().list_products('ru')
+    assert r["data"][0]["id"] == 2
+    assert "ROW_NUMBER()" in db.execute_query.call_args[0][0]
+
+
+def test_peco_product_search_filters_by_name_and_code():
+    """Поиск в витрине обязан работать и на источнике peco."""
+    cm, db = _fake_db({"success": True, "columns": _PECO_PROD_COLS, "data": []})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        PecoDataSource().list_products('ru', None, 'дизель')
+    sql, params = db.execute_query.call_args[0][0], db.execute_query.call_args[0][1]
+    assert "LIKE :p_q" in sql
+    assert params["p_q"] == "%ДИЗЕЛЬ%"

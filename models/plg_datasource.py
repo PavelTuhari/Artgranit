@@ -161,7 +161,41 @@ class PecoDataSource(PlanogramDataSource):
 
     def list_products(self, lang: str, category_id: Optional[int] = None,
                       search: Optional[str] = None) -> Dict:
-        raise NotImplementedError
+        """Сорта топлива как товарный справочник витрины.
+
+        Цена — средняя действующая по сети: список товаров не привязан
+        к станции (get_products не принимает store_id), а цены на АЗС
+        различаются. Цену конкретной станции показывает план точки.
+
+        category_id игнорируется: у источника peco одна категория —
+        топливо, отдельного справочника категорий нет.
+        """
+        sql = (
+            "SELECT ROW_NUMBER() OVER (ORDER BY g.SORT_ORDER, g.CODE) AS ID, "
+            "g.CODE, "
+            "CAST(NULL AS NUMBER) AS CATEGORY_ID, "
+            "'FUEL' AS CATEGORY_CODE, "
+            "'Топливо' AS CATEGORY_RU, 'Combustibil' AS CATEGORY_RO, 'Fuel' AS CATEGORY_EN, "
+            "g.COLOR AS CATEGORY_COLOR, "
+            "g.NAME AS NAME_RU, g.NAME AS NAME_RO, g.NAME AS NAME_EN, "
+            "CAST(NULL AS VARCHAR2(40)) AS BARCODE, "
+            "CAST(NULL AS VARCHAR2(150)) AS BRAND, "
+            "'L' AS UOM, "
+            "(SELECT ROUND(AVG(p.PRICE), 2) FROM PECO_PRICES p "
+            "  WHERE p.GRADE_CODE = g.CODE AND p.VALID_TO IS NULL) AS PRICE, "
+            "'MDL' AS CURRENCY, "
+            "'active' AS STATUS "
+            "FROM PECO_REF_FUEL_GRADES g WHERE 1 = 1"
+        )
+        params: Dict[str, Any] = {}
+        if search:
+            sql += " AND (UPPER(g.CODE) LIKE :p_q OR UPPER(g.NAME) LIKE :p_q)"
+            params["p_q"] = "%" + search.strip().upper() + "%"
+        try:
+            rows = self._query(sql + " ORDER BY g.SORT_ORDER, g.CODE", params)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        return {"success": True, "lang": lang, "data": localize_rows(rows, lang)}
 
     def store_map(self, lang: str, store_id: Optional[int] = None) -> Dict:
         raise NotImplementedError
