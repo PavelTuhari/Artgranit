@@ -31,6 +31,8 @@ class PlanogramController:
 
     LANGS = ('ru', 'ro', 'en')
     DEFAULT_LANG = 'ru'
+    SOURCES = ('demo', 'peco')
+    DEFAULT_SOURCE = 'demo'
 
     # ==================== Инфраструктура ====================
 
@@ -39,6 +41,16 @@ class PlanogramController:
         """Нормализует код языка. Неизвестный язык -> язык по умолчанию."""
         code = (value or '').strip().lower()[:2]
         return code if code in PlanogramController.LANGS else PlanogramController.DEFAULT_LANG
+
+    @staticmethod
+    def source(value: Optional[str]) -> str:
+        """Нормализует код источника данных. Неизвестный -> источник по умолчанию.
+
+        Контракт повторяет lang(): неизвестное значение не ошибка, а откат
+        на демо-набор, иначе ссылка с опечаткой роняла бы весь модуль.
+        """
+        code = (value or '').strip().lower()
+        return code if code in PlanogramController.SOURCES else PlanogramController.DEFAULT_SOURCE
 
     @staticmethod
     def _rows(result: Dict) -> List[Dict]:
