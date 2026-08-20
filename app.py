@@ -2781,7 +2781,8 @@ def planograms():
     а не на форму входа. Данные модуля — синтетический тестовый набор.
     """
     return render_template('planograms.html',
-                           plg_demo=not AuthController.is_authenticated())
+                           plg_demo=not AuthController.is_authenticated(),
+                           planogram3d_url=Config.PLANOGRAM3D_URL)
 
 
 @app.before_request

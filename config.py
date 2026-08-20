@@ -176,6 +176,13 @@ class Config:
     # RO: PDF-urile "cont de plata" / "comanda" din cos se genereaza aici.
     # EN: the cart's invoice/order PDFs are rendered by this service.
     JSREPORT_URL = os.environ.get('JSREPORT_URL', 'http://127.0.0.1:5488')
+    # RO: adresa gemenei digitale 3D (planogram3d, alt proiect, port 8050) —
+    #     folosita doar de butonul din sectiunea Combustibil pentru a
+    #     deschide vizualizarea 3D intr-un tab nou; niciun apel de server.
+    # EN: address of the 3D digital twin (planogram3d, separate project,
+    #     port 8050) — used only by the Fuel section button that opens the
+    #     3D view in a new tab; no server-to-server call involved.
+    PLANOGRAM3D_URL = os.environ.get('PLANOGRAM3D_URL', 'http://127.0.0.1:8050')
     # RO/EN: seller requisites printed on the forms (override via env)
     BIRO26_FIRM_NAME = os.environ.get('BIRO26_FIRM_NAME', 'S.R.L. „GRECU OFFICE GROUP”')
     BIRO26_FIRM_ADDRESS = os.environ.get('BIRO26_FIRM_ADDRESS',
