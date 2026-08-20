@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
 from models.database import DatabaseModel
 
@@ -170,9 +170,19 @@ class PecoDataSource(PlanogramDataSource):
         category_id игнорируется: у источника peco одна категория —
         топливо, отдельного справочника категорий нет.
         """
+        # ROW_NUMBER() нумерует резервуары внутри inline view, до фильтра
+        # поиска: если бы номер считался после WHERE, id одного и того же
+        # сорта топлива менялся бы от строки поиска (найдёт "дизель" —
+        # получит id=1, сбросит фильтр — тот же сорт станет id=3), а id
+        # используется в ссылках PUT/DELETE и как React-подобный key на
+        # витрине.
         sql = (
+            "SELECT v.ID, v.CODE, v.CATEGORY_ID, v.CATEGORY_CODE, "
+            "v.CATEGORY_RU, v.CATEGORY_RO, v.CATEGORY_EN, v.CATEGORY_COLOR, "
+            "v.NAME_RU, v.NAME_RO, v.NAME_EN, v.BARCODE, v.BRAND, v.UOM, "
+            "v.PRICE, v.CURRENCY, v.STATUS FROM ("
             "SELECT ROW_NUMBER() OVER (ORDER BY g.SORT_ORDER, g.CODE) AS ID, "
-            "g.CODE, "
+            "g.CODE, g.SORT_ORDER, "
             "CAST(NULL AS NUMBER) AS CATEGORY_ID, "
             "'FUEL' AS CATEGORY_CODE, "
             "'Топливо' AS CATEGORY_RU, 'Combustibil' AS CATEGORY_RO, 'Fuel' AS CATEGORY_EN, "
@@ -185,14 +195,14 @@ class PecoDataSource(PlanogramDataSource):
             "  WHERE p.GRADE_CODE = g.CODE AND p.VALID_TO IS NULL) AS PRICE, "
             "'MDL' AS CURRENCY, "
             "'active' AS STATUS "
-            "FROM PECO_REF_FUEL_GRADES g WHERE 1 = 1"
+            "FROM PECO_REF_FUEL_GRADES g) v WHERE 1 = 1"
         )
         params: Dict[str, Any] = {}
         if search:
-            sql += " AND (UPPER(g.CODE) LIKE :p_q OR UPPER(g.NAME) LIKE :p_q)"
+            sql += " AND (UPPER(v.CODE) LIKE :p_q OR UPPER(v.NAME_RU) LIKE :p_q)"
             params["p_q"] = "%" + search.strip().upper() + "%"
         try:
-            rows = self._query(sql + " ORDER BY g.SORT_ORDER, g.CODE", params)
+            rows = self._query(sql + " ORDER BY v.SORT_ORDER, v.CODE", params)
         except Exception as e:
             return {"success": False, "error": str(e)}
         return {"success": True, "lang": lang, "data": localize_rows(rows, lang)}
@@ -226,16 +236,21 @@ class PecoDataSource(PlanogramDataSource):
         empty = {"store": None, "zones": [], "fixtures": []}
         sql = ("SELECT v.TANK_ID, v.STATION_ID, v.STATION_CODE, v.STATION_NAME, "
                "v.TANK_CODE, v.GRADE_CODE, v.GRADE_NAME, v.CAPACITY_L, "
-               "v.CURRENT_L, v.MIN_ALARM_L, v.FILL_PCT, v.IS_LOW, g.COLOR "
+               "v.CURRENT_L, v.MIN_ALARM_L, v.FILL_PCT, v.IS_LOW, g.COLOR, "
+               "s.ADDRESS AS STATION_ADDRESS, s.REGION AS STATION_REGION "
                "FROM V_PECO_TANK_LEVELS v "
-               "JOIN PECO_REF_FUEL_GRADES g ON g.CODE = v.GRADE_CODE ")
+               "JOIN PECO_REF_FUEL_GRADES g ON g.CODE = v.GRADE_CODE "
+               "JOIN PECO_STATIONS s ON s.ID = v.STATION_ID ")
         params: Dict[str, Any] = {}
+        # ACTIVE фильтруется в обеих ветках: без него декоммиссированная
+        # станция, чей id где-то остался (закладка, старая ссылка), молча
+        # отрисует план, как будто станция всё ещё работает.
         if store_id:
-            sql += "WHERE v.STATION_ID = :p_station "
+            sql += "WHERE v.STATION_ID = :p_station AND s.ACTIVE = 1 "
             params["p_station"] = int(store_id)
         else:
             sql += ("WHERE v.STATION_ID = (SELECT MIN(ID) FROM PECO_STATIONS "
-                    "                       WHERE ACTIVE = 1) ")
+                    "                       WHERE ACTIVE = 1) AND s.ACTIVE = 1 ")
         try:
             rows = self._query(sql + "ORDER BY v.TANK_CODE", params)
         except Exception as e:
@@ -245,7 +260,9 @@ class PecoDataSource(PlanogramDataSource):
 
         first = rows[0]
         store = {"id": first["station_id"], "code": first["station_code"],
-                 "name": first["station_name"], "address": None, "city": None,
+                 "name": first["station_name"],
+                 "address": first.get("station_address"),
+                 "city": first.get("station_region"),
                  "area_sqm": None, "map_width": self.MAP_WIDTH,
                  "map_height": self.MAP_HEIGHT, "checkout_qty": None,
                  "manager_name": None}
@@ -295,7 +312,7 @@ class PecoDataSource(PlanogramDataSource):
 
 
 #: Реестр источников: единственное место, где перечислены реализации.
-_SOURCES: Dict[str, Any] = {
+_SOURCES: Dict[str, Type[PlanogramDataSource]] = {
     DemoDataSource.id: DemoDataSource,
     PecoDataSource.id: PecoDataSource,
 }

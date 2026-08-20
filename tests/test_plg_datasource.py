@@ -183,6 +183,26 @@ def test_peco_product_search_filters_by_name_and_code():
     assert params["p_q"] == "%ДИЗЕЛЬ%"
 
 
+def test_peco_product_id_is_stable_regardless_of_search_filter():
+    """id сорта топлива не должен «прыгать» от строки поиска.
+
+    ROW_NUMBER() раньше считался после WHERE: сузил список поиском — id
+    сместился, хотя открыт тот же сорт топлива. id используется в ссылке
+    PUT/DELETE и как ключ строки на витрине, поэтому обязан оставаться
+    равным номеру строки в полном, нефильтрованном перечне сортов.
+    """
+    cm, db = _fake_db({"success": True, "columns": _PECO_PROD_COLS,
+                       "data": [_PECO_PROD_ROW]})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        PecoDataSource().list_products('ru', None, 'а-95')
+    sql = db.execute_query.call_args[0][0]
+    # Нумерация обязана происходить в inline view до применения фильтра:
+    # WHERE поиска стоит снаружи, ROW_NUMBER() — внутри вложенного запроса.
+    inner_end = sql.index(') v WHERE')
+    assert 'ROW_NUMBER()' in sql[:inner_end]
+    assert 'LIKE :p_q' in sql[inner_end:]
+
+
 # ── источник peco: план станции ──────────────────────────────────────
 
 _PECO_TANK_COLS = ["TANK_ID", "STATION_ID", "STATION_CODE", "STATION_NAME",
@@ -240,6 +260,71 @@ def test_peco_store_map_without_station_returns_empty_plan():
     assert r["success"] is True
     assert r["data"]["store"] is None
     assert r["data"]["zones"] == [] and r["data"]["fixtures"] == []
+
+
+def test_peco_store_map_filters_active_station_with_explicit_id():
+    """Ветка с явным store_id обязана фильтровать ACTIVE так же, как ветка
+    без аргумента — иначе устаревшая закладка/ссылка отрисует план
+    закрытой АЗС, как будто она всё ещё работает."""
+    cm, db = _fake_db({"success": True, "columns": _PECO_TANK_COLS, "data": []})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        PecoDataSource().store_map('ru', 7)
+    sql = db.execute_query.call_args[0][0]
+    assert "s.ACTIVE = 1" in sql
+    assert "PECO_STATIONS" in sql
+
+
+_PECO_TANK_COLS_ADDR = _PECO_TANK_COLS + ["STATION_ADDRESS", "STATION_REGION"]
+_PECO_TANK_ROWS_ADDR = [row + ("ул. Индепенденцей, 12", "Бэлць") for row in _PECO_TANK_ROWS]
+
+
+def test_peco_store_map_surfaces_station_address():
+    """Заголовок плана должен показывать тот же адрес, что и список точек
+    (list_stores уже отдаёт ADDRESS/REGION — store_map их игнорировал)."""
+    cm, _ = _fake_db({"success": True, "columns": _PECO_TANK_COLS_ADDR,
+                      "data": _PECO_TANK_ROWS_ADDR})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().store_map('ru', 7)
+    assert r["data"]["store"]["address"] == "ул. Индепенденцей, 12"
+    assert r["data"]["store"]["city"] == "Бэлць"
+
+
+# ── маршруты записи товаров: источник peco обязан быть только для чтения ──
+
+def test_peco_source_blocks_product_write_routes():
+    """PUT/DELETE /api/plg/products/<id> обязаны отклонять source=peco.
+
+    Синтетический id сорта топлива (1..4) совпадает с id настоящих строк
+    PLG_PRODUCTS: без серверной проверки запрос с витрины АЗС молча правил
+    или удалял бы демо-товар с тем же номером.
+    """
+    import app as app_module
+    with patch.object(app_module.AuthController, 'is_authenticated', return_value=True), \
+         patch.object(app_module.PlanogramController, 'save_product') as save_m, \
+         patch.object(app_module.PlanogramController, 'delete_product') as del_m:
+        client = app_module.app.test_client()
+        put_resp = client.put('/api/plg/products/1?source=peco', json={})
+        del_resp = client.delete('/api/plg/products/1?source=peco')
+    for resp in (put_resp, del_resp):
+        assert resp.status_code == 403
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body.get("error")
+    save_m.assert_not_called()
+    del_m.assert_not_called()
+
+
+def test_demo_source_still_allows_product_write_routes():
+    """Демо-набор — единственный источник записи, гвард не должен его ломать."""
+    import app as app_module
+    with patch.object(app_module.AuthController, 'is_authenticated', return_value=True), \
+         patch.object(app_module.PlanogramController, 'save_product',
+                      return_value={"success": True, "data": {}}) as save_m:
+        client = app_module.app.test_client()
+        resp = client.put('/api/plg/products/1?source=demo', json={})
+    assert resp.status_code == 200
+    assert resp.get_json()["success"] is True
+    save_m.assert_called_once()
 
 
 # ── маршруты ─────────────────────────────────────────────────────────

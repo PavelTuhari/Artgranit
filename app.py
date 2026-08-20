@@ -2753,6 +2753,23 @@ def _plg_source():
     return PlanogramController.source(request.args.get('source'))
 
 
+def _plg_require_demo_source():
+    """Источник peco — только чтение (см. models/plg_datasource.py).
+
+    Синтетический ROW_NUMBER()-id peco-товара (1..4) совпадает с id
+    настоящих строк PLG_PRODUCTS, поэтому без этой проверки запись,
+    отправленная с витрины сорта топлива, молча правила или удаляла бы
+    демо-товары. Возвращает готовый ответ 403, если источник не demo,
+    иначе None — маршрут продолжает работу как обычно.
+    """
+    if _plg_source() != 'demo':
+        return jsonify({
+            'success': False,
+            'error': 'Источник «PECO» доступен только для чтения',
+        }), 403
+    return None
+
+
 @app.route('/UNA.md/orasldev/planograms')
 @app.route('/UNA.md/orasldev/planograms/')
 def planograms():
@@ -2991,11 +3008,17 @@ def api_plg_create_product():
 
 @app.route('/api/plg/products/<int:product_id>', methods=['PUT'])
 def api_plg_update_product(product_id):
+    guard = _plg_require_demo_source()
+    if guard:
+        return guard
     return jsonify(PlanogramController.save_product(request.get_json() or {}, product_id))
 
 
 @app.route('/api/plg/products/<int:product_id>', methods=['DELETE'])
 def api_plg_delete_product(product_id):
+    guard = _plg_require_demo_source()
+    if guard:
+        return guard
     return jsonify(PlanogramController.delete_product(product_id))
 
 
