@@ -23,6 +23,35 @@ from typing import Any, Dict, Optional
 from models.database import DatabaseModel
 
 
+class PecoSourceError(RuntimeError):
+    """Ошибка чтения объектов PECO."""
+
+
+def localize_rows(rows: list, lang: str, langs: tuple = ('ru', 'ro', 'en'),
+                  default_lang: str = 'ru') -> list:
+    """Разворачивает тройки <base>_ru/_ro/_en в сводный ключ <base>.
+
+    Единственная реализация на проект: PlanogramController._localize
+    делегирует сюда. Живёт в модели, потому что направление зависимостей
+    «контроллер -> модель» разрешено, а обратное — нет.
+
+    Исходные языковые колонки сохраняются: они нужны формам
+    редактирования, где оператор правит все три языка сразу.
+    """
+    suffixes = tuple('_' + code for code in langs)
+    out = []
+    for row in rows:
+        bases = {k[:-3] for k in row if k.endswith(suffixes)}
+        new = dict(row)
+        for base in bases:
+            value = row.get(base + '_' + lang)
+            if value in (None, ''):
+                value = row.get(base + '_' + default_lang)
+            new[base] = value
+        out.append(new)
+    return out
+
+
 class PlanogramDataSource(ABC):
     """Контракт источника данных для витрины планограмм.
 
@@ -73,23 +102,62 @@ class DemoDataSource(PlanogramDataSource):
 
 
 class PecoDataSource(PlanogramDataSource):
-    """Сеть АЗС проекта PECO (UNA.md/PECO), только чтение."""
+    """Сеть АЗС проекта PECO (UNA.md/PECO), только чтение.
+
+    Одноязычные колонки PECO раскладываются алиасами в тройку
+    NAME_RU/NAME_RO/NAME_EN: так _localize() контроллера сам соберёт
+    ключ `name`, и витрина не отличает источник от демо-набора.
+    """
 
     id = "peco"
 
+    #: Габариты синтетической карты станции (PECO не хранит координат).
+    MAP_WIDTH = 780
+    MAP_HEIGHT = 460
+
+    @staticmethod
+    def _query(sql: str, params: Optional[Dict[str, Any]] = None) -> list:
+        """SELECT с ключами словарей в нижнем регистре.
+
+        Бросает PecoSourceError, если execute_query вернул success=False:
+        models.database.execute_query не бросает исключений сам, и без
+        этой проверки ошибка SQL молча превратилась бы в пустой экран.
+        """
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params or {})
+        if not r.get("success"):
+            raise PecoSourceError(r.get("message") or "query failed")
+        cols = [c.lower() for c in (r.get("columns") or [])]
+        return [dict(zip(cols, row)) for row in (r.get("data") or [])]
+
     def list_stores(self, lang: str, dataset_id: Optional[int] = None) -> Dict:
-        sql = ("SELECT s.ID, s.CODE FROM PECO_STATIONS s "
-               "WHERE s.ACTIVE = 1 ORDER BY s.CODE")
+        """Станции сети как торговые точки витрины.
+
+        dataset_id игнорируется: у источника peco нет тестовых наборов —
+        это живая сеть, а не сгенерированные данные.
+        """
+        sql = (
+            "SELECT s.ID, s.CODE, "
+            "s.NAME AS NAME_RU, s.NAME AS NAME_RO, s.NAME AS NAME_EN, "
+            "s.REGION AS CITY, "
+            "s.ADDRESS AS ADDRESS_RU, s.ADDRESS AS ADDRESS_RO, s.ADDRESS AS ADDRESS_EN, "
+            "CAST(NULL AS NUMBER) AS AREA_SQM, "
+            + str(self.MAP_WIDTH) + " AS MAP_WIDTH, "
+            + str(self.MAP_HEIGHT) + " AS MAP_HEIGHT, "
+            "CAST(NULL AS NUMBER) AS CHECKOUT_QTY, "
+            "CAST(NULL AS VARCHAR2(150)) AS MANAGER_NAME, "
+            "'active' AS STATUS, 'azs' AS STORE_FORMAT, "
+            "CAST(NULL AS NUMBER) AS DATASET_ID, "
+            "(SELECT COUNT(*) FROM PECO_TANKS t "
+            "  WHERE t.STATION_ID = s.ID AND t.ACTIVE = 1) AS ZONE_COUNT "
+            "FROM PECO_STATIONS s WHERE s.ACTIVE = 1 ORDER BY s.CODE"
+        )
         try:
-            with DatabaseModel() as db:
-                r = db.execute_query(sql, {})
-                if not r.get("success"):
-                    return {"success": False, "error": r.get("message") or "query failed"}
-                cols = [c.lower() for c in (r.get("columns") or [])]
-                return {"success": True, "lang": lang,
-                        "data": [dict(zip(cols, row)) for row in (r.get("data") or [])]}
+            rows = self._query(sql)
         except Exception as e:
             return {"success": False, "error": str(e)}
+        return {"success": True, "lang": lang,
+                "data": localize_rows(rows, lang)}
 
     def list_products(self, lang: str, category_id: Optional[int] = None,
                       search: Optional[str] = None) -> Dict:

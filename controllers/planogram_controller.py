@@ -71,19 +71,13 @@ class PlanogramController:
         на выбранном языке. Если перевода нет — подставляет русский вариант.
         Исходные языковые колонки сохраняются: они нужны формам редактирования,
         где оператор правит все три языка сразу.
+
+        Реализация — models.plg_datasource.localize_rows: её же использует
+        источник peco, и расходиться этим двум путям нельзя.
         """
-        suffixes = tuple('_' + code for code in PlanogramController.LANGS)
-        out = []
-        for row in rows:
-            bases = {k[:-3] for k in row if k.endswith(suffixes)}
-            new = dict(row)
-            for base in bases:
-                value = row.get(base + '_' + lang)
-                if value in (None, ''):
-                    value = row.get(base + '_ru')
-                new[base] = value
-            out.append(new)
-        return out
+        from models.plg_datasource import localize_rows
+        return localize_rows(rows, lang, PlanogramController.LANGS,
+                             PlanogramController.DEFAULT_LANG)
 
     @staticmethod
     def _localized(result: Dict, lang: str) -> List[Dict]:
