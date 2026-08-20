@@ -197,8 +197,101 @@ class PecoDataSource(PlanogramDataSource):
             return {"success": False, "error": str(e)}
         return {"success": True, "lang": lang, "data": localize_rows(rows, lang)}
 
+    #: Синтетическая сетка плана: 4 колонки, шаг и габарит блока.
+    GRID_COLS = 4
+    CELL_W = 170
+    CELL_H = 120
+    BLOCK_W = 140
+    BLOCK_H = 90
+    MARGIN = 30
+
+    def _slot(self, ordinal: int) -> Dict[str, int]:
+        """Координаты блока по порядковому номеру резервуара (с нуля).
+
+        PECO не хранит план станции, поэтому раскладка синтетическая, но
+        детерминированная: один и тот же резервуар всегда занимает то же
+        место, иначе план «прыгал» бы между обновлениями.
+        """
+        col, row = ordinal % self.GRID_COLS, ordinal // self.GRID_COLS
+        return {"pos_x": self.MARGIN + col * self.CELL_W,
+                "pos_y": self.MARGIN + row * self.CELL_H}
+
     def store_map(self, lang: str, store_id: Optional[int] = None) -> Dict:
-        raise NotImplementedError
+        """План станции: сорт топлива — зона, резервуар — оборудование.
+
+        Резервуар на станции ровно один на сорт (UQ_PECO_TANKS_ST_GR),
+        поэтому зона и оборудование идут парой: зона отвечает за смысл
+        (какое топливо), оборудование — за физику (ёмкость и остаток).
+        """
+        empty = {"store": None, "zones": [], "fixtures": []}
+        sql = ("SELECT v.TANK_ID, v.STATION_ID, v.STATION_CODE, v.STATION_NAME, "
+               "v.TANK_CODE, v.GRADE_CODE, v.GRADE_NAME, v.CAPACITY_L, "
+               "v.CURRENT_L, v.MIN_ALARM_L, v.FILL_PCT, v.IS_LOW, g.COLOR "
+               "FROM V_PECO_TANK_LEVELS v "
+               "JOIN PECO_REF_FUEL_GRADES g ON g.CODE = v.GRADE_CODE ")
+        params: Dict[str, Any] = {}
+        if store_id:
+            sql += "WHERE v.STATION_ID = :p_station "
+            params["p_station"] = int(store_id)
+        else:
+            sql += ("WHERE v.STATION_ID = (SELECT MIN(ID) FROM PECO_STATIONS "
+                    "                       WHERE ACTIVE = 1) ")
+        try:
+            rows = self._query(sql + "ORDER BY v.TANK_CODE", params)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        if not rows:
+            return {"success": True, "lang": lang, "data": empty}
+
+        first = rows[0]
+        store = {"id": first["station_id"], "code": first["station_code"],
+                 "name": first["station_name"], "address": None, "city": None,
+                 "area_sqm": None, "map_width": self.MAP_WIDTH,
+                 "map_height": self.MAP_HEIGHT, "checkout_qty": None,
+                 "manager_name": None}
+
+        zones, fixtures = [], []
+        for i, t in enumerate(rows):
+            slot = self._slot(i)
+            zone_id = int(t["tank_id"])
+            zones.append({
+                "id": zone_id, "store_id": t["station_id"],
+                "store_code": t["station_code"], "code": t["grade_code"],
+                "zone_type": "fuel", "zone_type_name": "Топливо",
+                "is_selling": 1, "category_id": None,
+                "category": "Топливо", "name": t["grade_name"],
+                "pos_x": slot["pos_x"], "pos_y": slot["pos_y"],
+                "width": self.BLOCK_W, "height": self.BLOCK_H,
+                "color": t.get("color"), "area_sqm": None,
+                "sort_order": i, "status": "active",
+                # наполненность резервуара занимает место проходимости:
+                # это единственная величина плана, меняющаяся в реальном времени
+                "traffic_pct": t.get("fill_pct"),
+                "visitors": None, "dwell_sec": None, "pickups": None,
+                "traffic_date": None,
+                "traffic_level": "low" if t.get("is_low") else "normal",
+                "fixture_count": 1,
+            })
+            fixtures.append({
+                "id": zone_id, "store_id": t["station_id"],
+                "store_code": t["station_code"], "zone_id": zone_id,
+                "zone": t["grade_name"], "code": t["tank_code"],
+                "fixture_type": "tank", "fixture_type_name": "Резервуар",
+                "icon": "🛢", "name": t["tank_code"],
+                "pos_x": slot["pos_x"] + 10, "pos_y": slot["pos_y"] + 26,
+                "width": self.BLOCK_W - 20, "height": self.BLOCK_H - 40,
+                "orientation": "H", "shelf_count": 1,
+                "width_mm": None, "height_mm": None, "depth_mm": None,
+                "serial_number": None, "status": "active",
+                "created_at": None, "updated_at": None,
+                "item_count": 1, "facing_count": 1,
+                "capacity_l": t.get("capacity_l"),
+                "current_l": t.get("current_l"),
+                "fill_pct": t.get("fill_pct"),
+                "is_low": t.get("is_low"),
+            })
+        return {"success": True, "lang": lang,
+                "data": {"store": store, "zones": zones, "fixtures": fixtures}}
 
 
 #: Реестр источников: единственное место, где перечислены реализации.

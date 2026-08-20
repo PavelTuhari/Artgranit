@@ -181,3 +181,62 @@ def test_peco_product_search_filters_by_name_and_code():
     sql, params = db.execute_query.call_args[0][0], db.execute_query.call_args[0][1]
     assert "LIKE :p_q" in sql
     assert params["p_q"] == "%ДИЗЕЛЬ%"
+
+
+# ── источник peco: план станции ──────────────────────────────────────
+
+_PECO_TANK_COLS = ["TANK_ID", "STATION_ID", "STATION_CODE", "STATION_NAME",
+                   "TANK_CODE", "GRADE_CODE", "GRADE_NAME", "CAPACITY_L",
+                   "CURRENT_L", "MIN_ALARM_L", "FILL_PCT", "IS_LOW", "COLOR"]
+_PECO_TANK_ROWS = [
+    (11, 7, "AZS-014", "АЗС Бэлць-2", "T-1", "A95", "Бензин А-95",
+     30000, 18450, 3000, 61.5, 0, "#43a047"),
+    (12, 7, "AZS-014", "АЗС Бэлць-2", "T-2", "DIESEL", "Дизель",
+     27000, 2100, 3000, 7.8, 1, "#455a64"),
+]
+
+
+def test_peco_store_map_builds_zone_and_fixture_per_tank():
+    """Каждый резервуар — зона (сорт топлива) и оборудование (сам резервуар)."""
+    cm, _ = _fake_db({"success": True, "columns": _PECO_TANK_COLS,
+                      "data": _PECO_TANK_ROWS})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().store_map('ru', 7)
+    data = r["data"]
+    assert r["success"] is True
+    assert len(data["zones"]) == 2 and len(data["fixtures"]) == 2
+    assert data["zones"][0]["name"] == "Бензин А-95"
+    assert data["fixtures"][0]["code"] == "T-1"
+    assert data["fixtures"][0]["zone_id"] == data["zones"][0]["id"]
+
+
+def test_peco_store_map_uses_fill_pct_as_traffic():
+    """Наполненность резервуара — аналог проходимости зоны: она красит план."""
+    cm, _ = _fake_db({"success": True, "columns": _PECO_TANK_COLS,
+                      "data": _PECO_TANK_ROWS})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().store_map('ru', 7)
+    assert r["data"]["zones"][0]["traffic_pct"] == 61.5
+    assert r["data"]["zones"][1]["traffic_pct"] == 7.8
+
+
+def test_peco_store_map_geometry_is_inside_the_canvas():
+    """PECO не хранит координат — синтетическая раскладка обязана попадать
+    в холст, иначе резервуары уедут за край плана."""
+    cm, _ = _fake_db({"success": True, "columns": _PECO_TANK_COLS,
+                      "data": _PECO_TANK_ROWS})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().store_map('ru', 7)
+    for zone in r["data"]["zones"]:
+        assert 0 <= zone["pos_x"] <= PecoDataSource.MAP_WIDTH - zone["width"]
+        assert 0 <= zone["pos_y"] <= PecoDataSource.MAP_HEIGHT - zone["height"]
+
+
+def test_peco_store_map_without_station_returns_empty_plan():
+    """Сеть без активных станций не должна ронять экран плана."""
+    cm, _ = _fake_db({"success": True, "columns": _PECO_TANK_COLS, "data": []})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PecoDataSource().store_map('ru', None)
+    assert r["success"] is True
+    assert r["data"]["store"] is None
+    assert r["data"]["zones"] == [] and r["data"]["fixtures"] == []
