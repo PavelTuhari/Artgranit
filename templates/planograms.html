@@ -445,7 +445,7 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                     <select class="ctl" id="prodCatFilter" onchange="loadProducts()"></select>
                     <input class="ctl" id="prodSearch" data-i18n-ph="ui.search" placeholder="…" oninput="debounce(loadProducts)">
                     <div class="spacer"></div>
-                    <button class="btn btn-primary" onclick="openProductModal()" data-i18n="prod.new">Новый товар</button>
+                    <button class="btn btn-primary" id="prodNewBtn" onclick="openProductModal()" data-i18n="prod.new">Новый товар</button>
                 </div>
                 <div class="card"><div class="card-b" style="padding:0;overflow-x:auto">
                     <table class="tbl" id="prodTbl"></table>
@@ -1941,6 +1941,11 @@ async function loadProducts() {
     const cat = gv('prodCatFilter'), q = gv('prodSearch');
     const r = await api('/products?' + (cat ? 'category_id=' + cat + '&' : '') + (q ? 'q=' + encodeURIComponent(q) : ''));
     if (!r.success) { toast(r.error, true); return; }
+    // Источник peco — только чтение: у сорта топлива синтетический id, и
+    // создание «товара» ушло бы строкой в PLG_PRODUCTS (сервер это тоже
+    // отклоняет, кнопку прячем, чтобы не предлагать заведомо отказ).
+    const newBtn = document.getElementById('prodNewBtn');
+    if (newBtn) newBtn.style.display = SOURCE === 'demo' ? '' : 'none';
     document.getElementById('prodTbl').innerHTML = `
         <thead><tr><th>${esc(t('plg.code'))}</th><th>${esc(t('plg.name'))}</th><th>${esc(t('prod.category'))}</th>
         <th>${esc(t('prod.brand'))}</th><th>${esc(t('prod.barcode'))}</th><th>${esc(t('prod.price'))}</th>

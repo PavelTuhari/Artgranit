@@ -3003,6 +3003,9 @@ def api_plg_products():
 
 @app.route('/api/plg/products', methods=['POST'])
 def api_plg_create_product():
+    guard = _plg_require_demo_source()
+    if guard:
+        return guard
     return jsonify(PlanogramController.save_product(request.get_json() or {}))
 
 

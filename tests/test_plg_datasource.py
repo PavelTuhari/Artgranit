@@ -342,3 +342,35 @@ def test_routes_pass_source_through_to_the_controller():
             client.get(path + '?source=peco')
         assert m.call_args.args[-1] == 'peco' or m.call_args.kwargs.get('source') == 'peco', \
             f"{path}: источник не передан в {method}"
+
+
+def test_peco_source_blocks_product_create_route():
+    """POST /api/plg/products обязан отклонять source=peco так же, как PUT/DELETE.
+
+    Создание «товара» с витрины сортов топлива завело бы новую строку в
+    PLG_PRODUCTS — тот же прорыв на запись, что правка и удаление, только
+    через создание; закрывать надо все три метода, а не два.
+    """
+    import app as app_module
+    with patch.object(app_module.AuthController, 'is_authenticated', return_value=True), \
+         patch.object(app_module.PlanogramController, 'save_product') as save_m:
+        client = app_module.app.test_client()
+        resp = client.post('/api/plg/products?source=peco', json={"code": "A95"})
+    assert resp.status_code == 403
+    body = resp.get_json()
+    assert body["success"] is False
+    assert body.get("error")
+    save_m.assert_not_called()
+
+
+def test_demo_source_still_allows_product_create():
+    """Защита второго источника не должна задевать обычный demo-режим —
+    иначе она сломает работающий модуль ради нового источника."""
+    import app as app_module
+    with patch.object(app_module.AuthController, 'is_authenticated', return_value=True), \
+         patch.object(app_module.PlanogramController, 'save_product',
+                      return_value={"success": True}) as save_m:
+        client = app_module.app.test_client()
+        resp = client.post('/api/plg/products', json={"code": "X-1"})
+    assert resp.status_code == 200
+    save_m.assert_called_once()
