@@ -58,3 +58,36 @@ def test_both_sources_implement_the_interface():
         assert isinstance(impl, PlanogramDataSource)
         for method in ('list_stores', 'list_products', 'store_map'):
             assert callable(getattr(impl, method))
+
+
+# ── диспетчеризация контроллера по источнику ─────────────────────────
+
+def test_get_stores_defaults_to_demo_sql():
+    """Без ?source= поведение обязано остаться прежним — PLG_STORES."""
+    cm, db = _fake_db({"success": True, "columns": ["ID", "CODE"], "data": [(1, "MD-CHS-024")]})
+    with patch("controllers.planogram_controller.DatabaseModel", return_value=cm):
+        r = PlanogramController.get_stores('ru')
+    assert r["success"] is True
+    sql = db.execute_query.call_args[0][0]
+    assert "PLG_STORES" in sql
+    assert "PECO_STATIONS" not in sql
+
+
+def test_get_stores_with_peco_source_queries_peco_stations():
+    """При source=peco витрина обязана читать станции PECO, а не демо-магазины."""
+    cm, db = _fake_db({"success": True, "columns": ["ID", "CODE"], "data": [(1, "AZS-001")]})
+    with patch("models.plg_datasource.DatabaseModel", return_value=cm):
+        r = PlanogramController.get_stores('ru', None, 'peco')
+    assert r["success"] is True
+    sql = db.execute_query.call_args[0][0]
+    assert "PECO_STATIONS" in sql
+    assert "PLG_STORES" not in sql
+
+
+def test_unknown_source_still_serves_demo_data():
+    """Опечатка в ?source= не должна оставлять пользователя с пустым экраном."""
+    cm, db = _fake_db({"success": True, "columns": ["ID"], "data": [(1,)]})
+    with patch("controllers.planogram_controller.DatabaseModel", return_value=cm):
+        r = PlanogramController.get_stores('ru', None, 'nonsense')
+    assert r["success"] is True
+    assert "PLG_STORES" in db.execute_query.call_args[0][0]

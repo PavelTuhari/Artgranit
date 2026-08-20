@@ -20,6 +20,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
+from models.database import DatabaseModel
+
 
 class PlanogramDataSource(ABC):
     """Контракт источника данных для витрины планограмм.
@@ -76,7 +78,18 @@ class PecoDataSource(PlanogramDataSource):
     id = "peco"
 
     def list_stores(self, lang: str, dataset_id: Optional[int] = None) -> Dict:
-        raise NotImplementedError
+        sql = ("SELECT s.ID, s.CODE FROM PECO_STATIONS s "
+               "WHERE s.ACTIVE = 1 ORDER BY s.CODE")
+        try:
+            with DatabaseModel() as db:
+                r = db.execute_query(sql, {})
+                if not r.get("success"):
+                    return {"success": False, "error": r.get("message") or "query failed"}
+                cols = [c.lower() for c in (r.get("columns") or [])]
+                return {"success": True, "lang": lang,
+                        "data": [dict(zip(cols, row)) for row in (r.get("data") or [])]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def list_products(self, lang: str, category_id: Optional[int] = None,
                       search: Optional[str] = None) -> Dict:
