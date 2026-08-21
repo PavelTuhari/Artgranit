@@ -821,12 +821,20 @@ img {
 .name-more.show { display: inline-block; }
 .name-more:hover { text-decoration: underline; }
 
-/* УСЛОВИЕ рассрочки — красным, как просил владелец */
+/* УСЛОВИЕ рассрочки — красным и КРУПНЕЕ обычного текста карточки
+   (владелец 20.08.2026: «faceti textul cu rosu mai mare»). Размер задаётся
+   здесь, а не инлайном, чтобы он не зависел от места вывода. */
 .credit-min {
   color: #d32f2f;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 13px;
   line-height: 1.35;
   white-space: nowrap;
+}
+/* в корзине условие — самостоятельная строка, поэтому ещё заметнее */
+#pm-entry .credit-min {
+  font-size: 15px;
+  white-space: normal;
 }
 
 /* articol (CODVECHI) + cod de bare pe cardul din catalog */

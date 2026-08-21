@@ -392,7 +392,7 @@ function renderPmEntry() {
   const min = window.CREDIT_MIN_ORDER || 0;
   const under = min > 0 && cartTotal() < min;
   if (under) {
-    html += '<div class="credit-min" style="font-size:12.5px;margin-top:8px">' +
+    html += '<div class="credit-min" style="margin-top:10px">' +
       biS('Achitarea în rate / credit — la comenzi de la · ' +
           'Оплата в рассрочку / кредит — при заказе от') + ' ' + fmtLei(min) + '</div>';
   }

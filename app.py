@@ -154,6 +154,24 @@ def inject_gettext():
     return dict(_=_, get_locale=get_locale, languages=Config.LANGUAGES, supported_languages=Config.SUPPORTED_LANGUAGES)
 
 
+@app.template_global()
+def asset(path: str) -> str:
+    """RO: adresa fisierului static + marca de versiune din data modificarii.
+
+    Statica se serveste cu `max-age=604800`, deci fara marca browserul tine
+    CSS/JS vechi o saptamina: dupa o livrare o parte din clienti vedeau cardurile
+    in forma veche. `?v=<mtime>` se schimba la fiecare modificare a fisierului,
+    asa ca versiunea noua ajunge imediat, iar cea nemodificata ramine in cache.
+    EN: static URL with an mtime cache-buster; without it a week-long max-age
+    kept serving stale CSS/JS after a deploy.
+    """
+    try:
+        full = os.path.join(app.static_folder, path.lstrip('/'))
+        return f"/static/{path.lstrip('/')}?v={int(os.path.getmtime(full))}"
+    except OSError:
+        return f"/static/{path.lstrip('/')}"
+
+
 @app.context_processor
 def inject_app_version():
     """RO: versiunea din TMS_WEBAPPVERS — se afiseaza in subsolul site-ului.
@@ -8033,12 +8051,20 @@ def _biro26_site_ctx():
     #     missing file (404 noise); the rest fall back to a text badge.
     try:
         _paydir = os.path.join(app.static_folder, 'biro26', 'pay')
-        pay_logos = sorted(f.rsplit('.', 1)[0].lower()
-                           for f in os.listdir(_paydir)
-                           if f.lower().endswith(('.svg', '.png'))
-                           and not f.startswith(('.', '_')))
-    except Exception:
-        pay_logos = []
+        # RO: {slug: nume-fisier} — subsolul are nevoie de EXTENSIE, nu doar
+        #     de nume: EasyCredit a venit in PNG, restul in SVG. SVG-ul are
+        #     prioritate daca exista ambele.
+        # EN: {slug: filename} — the footer needs the extension too (EasyCredit
+        #     is a PNG); SVG wins when both exist.
+        pay_logos = {}
+        for f in sorted(os.listdir(_paydir)):
+            if f.startswith(('.', '_')) or not f.lower().endswith(('.svg', '.png')):
+                continue
+            slug = f.rsplit('.', 1)[0].lower()
+            if slug not in pay_logos or f.lower().endswith('.svg'):
+                pay_logos[slug] = f
+    except Exception:                                        # noqa: BLE001
+        pay_logos = {}
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
             'credit_min_order': credit_min_order,

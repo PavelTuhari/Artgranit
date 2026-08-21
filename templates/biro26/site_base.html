@@ -15,10 +15,10 @@
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://{{ request.host }}/static/biro26/landing/assets/logo.png">
   <link rel="icon" href="/static/biro26/landing/assets/logo.png">
-  <link rel="stylesheet" href="/static/biro26/landing/styles.css">
-  <link rel="stylesheet" href="/static/biro26/site-responsive.css">
+  <link rel="stylesheet" href="{{ asset('biro26/landing/styles.css') }}">
+  <link rel="stylesheet" href="{{ asset('biro26/site-responsive.css') }}">
   <!-- RO: stilurile OFICIALE ale butonului maib liber (materialele bancii) -->
-  <link rel="stylesheet" href="/static/biro26/maib-liber.css">
+  <link rel="stylesheet" href="{{ asset('biro26/maib-liber.css') }}">
   <style>
     /* RO: completari LIVE peste CSS-ul prototipului Figma — comune tuturor
        paginilor noului site (PLP/PDP/cos/cont). Tokens neschimbate. */
@@ -335,7 +335,7 @@ window.CREDIT_MIN_ORDER = {{ credit_min_order|default(0) }};
 // produsului si in cos. Vezi _biro26_site_ctx() in app.py.
 window.RATE_PLANS = {{ rate_plans|default([])|tojson }};
 </script>
-<script src="/static/biro26/site.js"></script>
+<script src="{{ asset('biro26/site.js') }}"></script>
 {% block js %}{% endblock %}
 </body>
 </html>

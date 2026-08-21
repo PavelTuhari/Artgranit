@@ -456,11 +456,17 @@ function payBadgeHtml(name) {
   //     consola si fara sigle „aproximative" (marcile sint protejate).
   // EN: only request the logo when the file really exists; otherwise show the
   //     text badge — no 404 noise, no look-alike trademarks.
+  // PAY_LOGOS = {slug: nume-fisier}; forma veche (lista) ramine suportata
   const have = window.PAY_LOGOS;
-  if (Array.isArray(have) && have.indexOf(slug) === -1)
+  let file = slug + '.svg';
+  if (have && !Array.isArray(have) && typeof have === 'object') {
+    if (!have[slug]) return '<span class="paybadge">' + alt + '</span>';
+    file = have[slug];
+  } else if (Array.isArray(have) && have.indexOf(slug) === -1) {
     return '<span class="paybadge">' + alt + '</span>';
+  }
   // onerror: fisierul lipseste -> inlocuim <img> cu badge-ul text
-  return '<img class="paylogo" src="/static/biro26/pay/' + slug + '.svg" alt="' + alt +
+  return '<img class="paylogo" src="/static/biro26/pay/' + encodeURIComponent(file) + '" alt="' + alt +
          '" title="' + alt + '" loading="lazy"' +
          ' onerror="this.onerror=null;this.outerHTML=\'<span class=&quot;paybadge&quot;>' +
          alt.replace(/'/g, '') + '</span>\'">';
