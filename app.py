@@ -8058,7 +8058,8 @@ def _biro26_site_ctx():
         #     is a PNG); SVG wins when both exist.
         pay_logos = {}
         for f in sorted(os.listdir(_paydir)):
-            if f.startswith(('.', '_')) or not f.lower().endswith(('.svg', '.png')):
+            if f.startswith(('.', '_')) or not f.lower().endswith(
+                    ('.svg', '.png', '.jpg', '.jpeg', '.webp')):
                 continue
             slug = f.rsplit('.', 1)[0].lower()
             if slug not in pay_logos or f.lower().endswith('.svg'):
