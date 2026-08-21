@@ -332,6 +332,68 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.30 Setul 13 (bestbuy): patru defecte gasite intr-un singur import
+
+Fisier de scraping obisnuit — 8 655 de randuri, 29 de coloane, grupe in rusa — dar a scos
+la iveala patru probleme deodata. Toate erau acolo de mult; abia dimensiunea fisierului
+le-a facut vizibile.
+
+#### a) Analiza rula 25 de minute fara sa se termine
+
+Pazele din `classify()` compara `UPPER(TRIM(denumirea))` si articolul normalizat pentru
+FIECARE rand. Fara indecsi pe aceste **expresii**, fiecare rand scaneaza integral
+`TMS_UNIVERS` (~460 000). La 8 655 de randuri devine imposibil.
+
+```sql
+CREATE INDEX TMS_UNIVERS_UP_DENUMIREA  ON tms_univers (UPPER(TRIM(denumirea)));
+CREATE INDEX TMS_UNIVERS_NORM_CODVECHI ON tms_univers
+       (REPLACE(REPLACE(UPPER(codvechi),' ',''),'.',''));
+```
+
+Creati in sub o secunda fiecare. Rezultat: **25+ minute -> sub un minut**.
+
+> Daca o paza compara o EXPRESIE, are nevoie de index pe exact acea expresie. Altfel merge
+> la fisiere mici si cedeaza exact cind ai nevoie de ea.
+
+#### b) Paza anti-dubluri testa "zero" in loc de o proportie
+
+Fisierul avea **26 de coduri de bare din 8 655** (0,3%) — practic niciunul. Paza a tacut,
+fiindca testa `v_bc_filled = 0`. Un singur rand completat dintr-o mie o dezarma.
+Acum pragul e proportional: `g_min_bc_ratio` (implicit 5%).
+
+#### c) Cod de bare duplicat IN ACELASI fisier oprea tot importul
+
+`ORA-20000` de la triggerul nativ `TMS_MPT_BARCODE$TR$UNIQ_BAR`, la jumatatea importului:
+marfa creata, codurile si preturile nu. Paza existenta verifica doar codurile deja aflate
+in catalog — nu si pe cele repetate in interiorul lotului. Intr-un `INSERT ... SELECT`
+randurile se vad intre ele: al doilea rand cu acelasi cod il loveste pe primul.
+
+Rezolvat cu `ROW_NUMBER() OVER (PARTITION BY barcode)` plus verificare si in
+`TMS_MPT_BARCODE`, nu doar in `TMS_BARCODE_UNIQ`.
+
+> **Consecinta operationala:** un import oprit la jumatate lasa marfa creata dar nefinalizata.
+> La reluare ea e deja EXISTENTA, deci pasii pentru marfa NOUA (generarea EAN-13) se sar.
+> Dupa orice import intrerupt, verificati explicit ce a ramas nefacut.
+
+#### d) Entitati HTML in denumiri si in numele grupelor
+
+`Tablets &amp; Phones`, `children&#8217;s camera`, `USB &#8212; (16GB)` — exporturile de
+site pastreaza entitatile din pagina. Decodarea a fost adaugata in loader **inainte** de
+transliterare, ca rezultatul sa treaca apoi prin cp1251. Ordinea conteaza: decodate dupa
+transliterare, ele raman gresite pentru totdeauna. Reparate retroactiv 178 de randuri.
+
+#### Rezultatul importului
+
+| | |
+|---|---|
+| Produse | **7 384** |
+| Cu pret in lista de preturi | **7 384** (verificare automata: OK) |
+| Preturi verificate fata de fisier | 0 diferente |
+| Imagini de galerie | 5 832 |
+| Grupe | 78, in rusa (chirilica trece intacta prin cp1251) |
+| Diacritice stricate | 0 |
+| Randuri sarite (fara articol) | 1 269 |
+
 ### 9.29 Grupa mai lunga de 25 de caractere = pret pierdut (defect vechi, sistemic)
 
 Gasit la verificarea setului 12, dar vechi de multe importuri. Din 5 147 de produse

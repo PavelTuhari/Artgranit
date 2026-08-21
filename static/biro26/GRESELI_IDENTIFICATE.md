@@ -24,6 +24,10 @@
 | 10 | `price_retail` care nu e retail | marfă vândută la preț de achiziție | evitat la timp | 9.24 |
 | 11 | Mapare manuală ștearsă | operatorul nu putea corecta nimic | funcție inutilizabilă | 9.28 |
 | 12 | Import necorelat cu sursa | nu se știa de unde vine cartela | tot catalogul | 9.25 |
+| 13 | Cod de bare duplicat în fișier | **importul se oprește** cu ORA-20000 | setul 13 | 9.30 |
+| 14 | Pază pe „zero", nu pe proporție | 26 coduri din 8 655 nu declanșau paza | setul 13 | 9.30 |
+| 15 | Entități HTML nedecodate | `Tablets &amp; Phones` în catalog | 178 rânduri | 9.30 |
+| 16 | Potriviri fără index | analiză de **25+ minute** | setul 13 | 9.30 |
 
 ---
 
@@ -119,6 +123,68 @@ Deci funcția **nu a fost niciodată utilizabilă**. Acum se șterg doar mapări
 Fără marcaj de sursă nu se putea răspunde la „de unde a apărut cartela asta?". Rezolvat cu
 `TMS_MPT_IMPSRC` (sursă, rulare, rândul exact din fișier), `YBIRO_IMPORT_LOG` (jurnalul) și
 `YBIRO_IMPORT_GROUPS` + fișierele de grupe cu script de anulare.
+
+## 13. Cod de bare duplicat in acelasi fisier -> importul se opreste
+
+**Se manifesta:** `ORA-20000: Produsul cu acest cod de bare a fost deja adaugat` si importul
+se opreste la jumatate — o parte din marfa e creata, restul nu.
+
+**De ce:** un trigger nativ (`TMS_MPT_BARCODE$TR$UNIQ_BAR`) impune unicitatea codurilor.
+Exista deja o paza impotriva codurilor prezente in catalog, dar **nu** impotriva celor
+repetate in interiorul aceluiasi fisier: al doilea rand cu acelasi cod il loveste pe primul,
+inserat cu o clipa inainte.
+
+**Rezolvat:** deduplicare in lot (`ROW_NUMBER() OVER (PARTITION BY barcode)`) plus
+verificare si in `TMS_MPT_BARCODE`, nu doar in `TMS_BARCODE_UNIQ`.
+
+> **Lectie de proiectare:** o paza care verifica doar starea *dinainte* de operatie e
+> incompleta. Intr-un `INSERT ... SELECT`, randurile se vad intre ele.
+
+## 14. Paza anti-dubluri verifica "zero", nu o proportie
+
+Fisierul bestbuy avea **26 de coduri de bare din 8 655 de randuri** (0,3%) — practic niciunul.
+Paza n-a spus nimic, pentru ca testa `= 0`. Acum pragul e o **proportie** (`g_min_bc_ratio`,
+implicit 5%): sub ea, coloana e considerata inutilizabila ca cheie.
+
+> **Regula generala:** pragurile pe "exact zero" se ocolesc singure. Un singur rand completat
+> dintr-o mie dezarmeaza paza fara sa aduca vreun beneficiu.
+
+## 15. Entitati HTML nedecodate
+
+**Se manifesta:** in catalog apar `Tablets &amp; Phones`, `children&#8217;s camera`,
+`USB &#8212; (16GB)`.
+
+**De ce:** exporturile de site pastreaza entitatile HTML din pagina. Nimeni nu le decodeaza,
+iar ele ajung in denumire **si in numele grupei** — deci si in arborele magazinului.
+
+**Rezolvat:** decodare (`html.unescape`) in loader, **inainte** de transliterare, ca rezultatul
+sa treaca apoi prin filtrul cp1251. Reparate retroactiv 178 de randuri.
+
+Ordinea conteaza: daca decodezi *dupa* transliterare, `&#8212;` a devenit deja text inofensiv
+si ramane asa pentru totdeauna.
+
+## 16. Potriviri fara index -> analiza devine imposibila
+
+**Se manifesta:** dry-run-ul unui fisier de 8 655 de randuri rula de peste **25 de minute**
+fara sa se termine.
+
+**De ce:** pazele compara `UPPER(TRIM(denumirea))` si articolul normalizat pentru fiecare
+rand. Fara indecsi pe aceste **expresii**, fiecare rand scaneaza integral `TMS_UNIVERS`
+(~460 000 de randuri). 8 655 x scanare completa.
+
+**Rezolvat:** doi indecsi functionali, creati in sub o secunda fiecare:
+
+```sql
+CREATE INDEX TMS_UNIVERS_UP_DENUMIREA  ON tms_univers (UPPER(TRIM(denumirea)));
+CREATE INDEX TMS_UNIVERS_NORM_CODVECHI ON tms_univers
+       (REPLACE(REPLACE(UPPER(codvechi),' ',''),'.',''));
+```
+
+Rezultat: de la 25+ minute la **sub un minut**.
+
+> **Regula:** daca o paza compara o **expresie** (nu coloana bruta), are nevoie de un index
+> pe exact acea expresie. Altfel functioneaza la fisiere mici si devine inutilizabila exact
+> cand ai nevoie de ea.
 
 ---
 

@@ -10,6 +10,9 @@ CREATE OR REPLACE PACKAGE BIRO26PT_importData IS
   -- EN: article too WEAK to be a key: shorter than this OR purely numeric. Short and
   --     numeric codes collide across suppliers — see the officeshop incident (load 285).
   g_min_articol_len PLS_INTEGER := 6;
+  -- RO: sub ce proportie de randuri cu cod de bare coloana e considerata inutila.
+  -- EN: below this share of rows with a barcode the column is useless as a key.
+  g_min_bc_ratio  NUMBER       := 0.05;   -- RO: 5%
   g_sample_rows   PLS_INTEGER  := 80;       -- RO: randuri pt. analiza continut / EN: rows for content analysis
   g_min_anchor    PLS_INTEGER  := 3;        -- RO: minim potriviri produs pt. ancora / EN: min product hits for anchor
   g_default_grupa VARCHAR2(60) := 'IMPORT PT';
@@ -782,15 +785,22 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     SELECT c.cod, c.bc, 'RO: cod de bare din fisier / EN: barcode from file'
     FROM (
       SELECT u.cod cod, SUBSTR(s.barcode, 1, 15) bc,
-             COUNT(*) OVER (PARTITION BY s.id) cnt
+             COUNT(*) OVER (PARTITION BY s.id) cnt,
+             -- RO: un cod de bare poate aparea de mai multe ori IN ACELASI fisier.
+             --     Triggerul nativ TMS_MPT_BARCODE$TR$UNIQ_BAR il respinge pe al doilea
+             --     si opreste TOT importul cu ORA-20000. Pastram o singura aparitie.
+             -- EN: the same barcode can appear twice IN THE SAME file; the native
+             --     uniqueness trigger rejects the second one and aborts the whole import.
+             ROW_NUMBER() OVER (PARTITION BY SUBSTR(s.barcode, 1, 15) ORDER BY u.cod, s.id) rn_bc
       FROM biro26pt_stg s
       JOIN tms_univers u ON u.tip = g_tip AND u.codvechi = SUBSTR(s.articol, 1, g_len_codvechi)
       WHERE s.load_id = p_load_id AND s.barcode IS NOT NULL
     ) c
-    WHERE c.cnt = 1
+    WHERE c.cnt = 1 AND c.rn_bc = 1
       AND EXISTS (SELECT 1 FROM tms_mpt m WHERE m.cod = c.cod)
       AND NOT EXISTS (SELECT 1 FROM tms_mpt_barcode x WHERE x.cod = c.cod AND x.barcode = c.bc)
-      AND NOT EXISTS (SELECT 1 FROM tms_barcode_uniq y WHERE y.barcode = c.bc AND y.cod <> c.cod);
+      AND NOT EXISTS (SELECT 1 FROM tms_barcode_uniq y WHERE y.barcode = c.bc AND y.cod <> c.cod)
+      AND NOT EXISTS (SELECT 1 FROM tms_mpt_barcode z WHERE z.barcode = c.bc AND z.cod <> c.cod);
     say('RO: coduri de bare din fisier inserate / EN: file barcodes inserted: ' || SQL%ROWCOUNT);
     COMMIT;
 
@@ -1001,6 +1011,7 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     v_cp   NUMBER := NVL(p_codprice, g_codprice);
     v_new  NUMBER;
     v_bc_filled NUMBER;
+    v_rows_tot  NUMBER;
     -- RO: algoritmul: explicit (p_algo) > cel al sursei > UNIVERSAL.
     -- EN: algorithm: explicit > the source's own > UNIVERSAL.
     v_algo VARCHAR2(30) := UPPER(p_algo);
@@ -1048,9 +1059,16 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
     --     DATE in ea. Un fisier cu coloana goala e la fel de periculos ca unul fara.
     -- EN: having the barcode COLUMN is not enough — it must actually contain DATA.
     --     An empty barcode column is just as dangerous as a missing one.
+    SELECT COUNT(*) INTO v_rows_tot FROM biro26pt_stg WHERE load_id = p_load_id;
     SELECT COUNT(*) INTO v_bc_filled FROM biro26pt_stg
      WHERE load_id = p_load_id AND barcode IS NOT NULL;
-    IF v_bc_filled = 0 AND v_new > g_max_new_nobc AND NOT p_force THEN
+    -- RO: pragul nu e ZERO, ci o PROPORTIE. La bestbuy doar 26 din 8 655 de randuri
+    --     aveau cod de bare (0,3%) — practic niciunul, dar paza nu se declansa fiindca
+    --     cauta exact zero. Sub 5% acoperire, coloana e inutila ca cheie de potrivire.
+    -- EN: the threshold is a RATIO, not zero. bestbuy had 26 barcodes out of 8 655 rows
+    --     (0.3%) — effectively none, yet the guard stayed silent because it tested for 0.
+    IF v_bc_filled < GREATEST(1, v_rows_tot * g_min_bc_ratio)
+       AND v_new > g_max_new_nobc AND NOT p_force THEN
       say('  RO: *** OPRIT *** fisierul nu are coduri de bare (coloana lipsa sau GOALA) si ar crea ' || v_new ||
           ' pozitii NOI (prag ' || g_max_new_nobc || ').');
       say('  RO: Riscul: dubluri de marfa (vezi incidentul GOG / load 164). Cereti furnizorului');

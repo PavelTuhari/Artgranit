@@ -26,6 +26,7 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
+import html  # noqa: E402
 import unicodedata  # noqa: E402
 
 import oracledb  # noqa: E402
@@ -55,6 +56,14 @@ _TRANSLIT = {
 
 def cp1251_safe(s: str) -> str:
     """RO: text care incape garantat in CL8MSWIN1251 / EN: guaranteed cp1251-safe text."""
+    # RO: exporturile de site vin cu entitati HTML nedecodate: &#8217; (apostrof),
+    #     &#8212; (linie de dialog), &#038; si &amp; (&). Ajung ca atare in catalog
+    #     ('Tablets &amp; Phones') si strica si denumirea, si grupa. Le decodam
+    #     INAINTE de transliterare, ca rezultatul sa treaca apoi prin cp1251.
+    # EN: site exports carry undecoded HTML entities; decode them BEFORE
+    #     transliteration so the result still passes through cp1251.
+    if '&' in s:
+        s = html.unescape(s)
     out = []
     for ch in s:
         repl = _TRANSLIT.get(ch)
