@@ -136,10 +136,34 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
   END;
 
   -- RO: expresie SQL numerica sigura pentru o coloana text / EN: safe numeric SQL expr for a text column
-  FUNCTION num_expr(p_col VARCHAR2) RETURN VARCHAR2 IS
+  -- RO: NORMALIZAREA numerelor scrise ca text. Furnizorii amesteca trei formate
+  --     in aceeasi coloana: '10,00' (virgula zecimala), '1.169,00' (european, punctul
+  --     e separator de mii) si '2,071.00' (anglo-saxon, virgula e separator de mii).
+  --     Regula sigura: ULTIMUL separator este cel ZECIMAL, celalalt e de mii.
+  --     Operatia pastreaza VALOAREA, schimba doar formatul.
+  --     Fara ea, 474 de preturi au intrat necitibile si marfa a ramas fara pret
+  --     in lista de preturi — vezi GHID 9.29.
+  -- EN: NORMALIZE numbers stored as text. Suppliers mix three formats in one column:
+  --     '10,00', '1.169,00' (European) and '2,071.00' (Anglo). Safe rule: the LAST
+  --     separator is the DECIMAL one. Value-preserving.
+  FUNCTION norm_txt(p_col VARCHAR2) RETURN VARCHAR2 IS
   BEGIN
-    RETURN 'CASE WHEN REGEXP_LIKE(' || p_col || ', ''^[0-9]+([.,][0-9]+)?$'')' ||
-           ' THEN TO_NUMBER(REPLACE(' || p_col || ', '','', ''.'')) END';
+    RETURN 'CASE' ||
+      ' WHEN INSTR(' || p_col || ', '','') > 0 AND INSTR(' || p_col || ', ''.'') > 0' ||
+      '      AND INSTR(' || p_col || ', '','') > INSTR(' || p_col || ', ''.'')' ||
+      '   THEN REPLACE(REPLACE(' || p_col || ', ''.'', ''''), '','', ''.'')' ||
+      ' WHEN INSTR(' || p_col || ', '','') > 0 AND INSTR(' || p_col || ', ''.'') > 0' ||
+      '   THEN REPLACE(' || p_col || ', '','', '''')' ||
+      ' WHEN INSTR(' || p_col || ', '','') > 0' ||
+      '   THEN REPLACE(' || p_col || ', '','', ''.'')' ||
+      ' ELSE ' || p_col || ' END';
+  END;
+
+  FUNCTION num_expr(p_col VARCHAR2) RETURN VARCHAR2 IS
+    v VARCHAR2(2000) := norm_txt(p_col);
+  BEGIN
+    RETURN 'CASE WHEN REGEXP_LIKE(' || v || ', ''^[0-9]+(\.[0-9]+)?$'')' ||
+           ' THEN TO_NUMBER(' || v || ') END';
   END;
 
   PROCEDURE detect_columns(p_load_id IN NUMBER, p_verbose IN BOOLEAN DEFAULT TRUE) IS
@@ -381,9 +405,7 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       --     Daca valoarea are DEJA punct, o lasam asa (poate fi separator de mii).
       -- EN: keep retail as TEXT but normalize the decimal separator: parse_price does not
       --     understand a comma and returns NULL, so prices would silently not update.
-      '  SUBSTR(CASE WHEN INSTR(' || e(v_ret) || ', ''.'') = 0' ||
-      '              THEN REPLACE(' || e(v_ret) || ', '','', ''.'')' ||
-      '              ELSE ' || e(v_ret) || ' END, 1, 60),' ||
+      '  SUBSTR(' || norm_txt(e(v_ret)) || ', 1, 60),' ||
       '  SUBSTR(' || e(v_bc)  || ',1,30),' ||
       '  SUBSTR(' || e(v_vat) || ',1,20),' ||
       '  SUBSTR(' || e(v_url) || ',1,1000),' ||
@@ -893,6 +915,33 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
            AND NVL(m.dep_producer,-1)<>v_org;
       END;
     END LOOP;
+    -- =================================================================
+    -- RO: VERIFICARE FINALA: marfa are pret in LISTA DE PRETURI, nu doar in feed?
+    --     Pina la GHID 9.29 verificam doar feed-ul (BIRO26_GOODS.RETAIL1) si totul
+    --     parea corect — dar lista de preturi se scrie SEPARAT. Asa au stat 4 490 de
+    --     produse in magazin cu pret in feed si fara niciun rind valabil in lista.
+    --     Diferenta dintre cele doua e locul unde se ascund defectele tacute.
+    -- EN: FINAL CHECK: do the goods have a price in the PRICE LIST, not only in the
+    --     feed? The feed is written separately, so a silent failure there is invisible.
+    -- =================================================================
+    SELECT COUNT(*) INTO v_cnt
+      FROM biro26pt_stg s
+     WHERE s.load_id = p_load_id AND s.cod_univers IS NOT NULL
+       AND s.status IN ('NEW','EXISTING')
+       AND s.retail1 IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM tpr1d_perprlist p
+                        WHERE p.sc = s.cod_univers AND p.dataend >= TRUNC(SYSDATE));
+    IF v_cnt > 0 THEN
+      say('  *** ATENTIE: ' || v_cnt || ' marfuri au pret in fisier dar NU au pret in ' ||
+          'lista de preturi. Cauze uzuale: grupa peste 25 de caractere, format de numar ' ||
+          'necitibil, grupa de pret inexistenta. Vezi GHID 9.29.');
+      say('  *** WARNING: ' || v_cnt || ' goods have a price in the file but NONE in the ' ||
+          'price list — see GHID 9.29.');
+    ELSE
+      say('  RO: verificare pret OK — toata marfa cu pret in fisier are pret si in lista' ||
+          ' / EN: price check OK');
+    END IF;
+
     say('RO: producator/furnizor legat (DEP_PRODUCER) / EN: producer/supplier linked');
     COMMIT;
   END do_writes;
