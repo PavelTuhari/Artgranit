@@ -130,199 +130,199 @@ def landed_cost_per_l(path: Dict[str, Any], money_rate_year: float = 0.14) -> fl
     return round(price + transport + handling + duty + money, 5)
 
 
-def solve_sourcing(demands: List[Dict[str, Any]], paths: List[Dict[str, Any]],
-                   depots: Optional[List[Dict[str, Any]]] = None,
-                   money_rate_year: float = 0.14) -> Dict[str, Any]:
+def solve_distribution(demands: List[Dict[str, Any]], sources: List[Dict[str, Any]],
+                       money_rate_year: float = 0.14) -> Dict[str, Any]:
     """
-    Распределение потребностей станций по путям снабжения.
+    ЗАДАЧА 1 — сегодняшняя развозка: чем закрыть потребность станций
+    прямо сейчас.
 
-    demands: [{'key', 'station_id', 'grade_code', 'liters', 'days_to_dry'}]
-    paths:   [{'code', 'source_code', 'grade_code', 'depot_id'|None,
-               'station_id'|None, 'lead_days', 'price_per_l',
-               'transport_per_l', 'handling_per_l', 'duty_per_l',
-               'available_l', 'min_lot_l'}]
-    depots:  [{'id', 'grade_code', 'available_l', 'throughput_l_day'}]
+    Источники здесь — то, что физически доступно к отгрузке сегодня:
+      * остаток СВОЕЙ нефтебазы (плечо — часы до станции);
+      * остаток ЧУЖОЙ нефтебазы, где мы храним по тарифу;
+      * прямая поставка с внутреннего рынка на станцию (плечо сутки).
 
-    Устройство сети:
+    Импорт сюда не попадает: судно идёт две недели и станцию,
+    у которой топливо кончится завтра, не спасёт. Импорт решается
+    во второй задаче — пополнении баз.
 
-        исток ──▶ путь ──▶ [нефтебаза] ──▶ потребность ──▶ сток
+    Разделение на две задачи появилось после проверки: единый граф
+    «источник → база → станция» складывал плечо закупки и плечо развозки,
+    и станция в полусутках от сухого бака оказывалась непокрытой при
+    полной нефтебазе в сорока километрах. Это была ошибка модели,
+    а не жизни.
+    """
+    return _solve_flow(demands, sources, money_rate_year, lead_field='lead_days')
 
-    Нефтебаза — это УЗКОЕ МЕСТО, а не строка прайса: пути, идущие через
-    неё, конкурируют за один и тот же ограниченный объём (остаток плюс
-    суточная пропускная способность налива). Ограничение навешено на
-    ребро «вход базы → выход базы», поэтому оптимизатор сам решает, кому
-    из станций достанется дефицитный ресурс — по стоимости и срочности.
 
-    Про атрибуцию. Литры в резервуаре базы обезличены: если базу питают
-    два импортных контракта, сказать, «чей» литр уехал на конкретную
-    станцию, нельзя — и притворяться, что можно, было бы враньём.
-    Поэтому результат двухслойный:
-      allocations   — что получила станция и каким маршрутом (через какую базу);
-      replenishment — чем при этом пополнялась сама база.
+def solve_replenishment(depot_needs: List[Dict[str, Any]],
+                        supplies: List[Dict[str, Any]],
+                        money_rate_year: float = 0.14) -> Dict[str, Any]:
+    """
+    ЗАДАЧА 2 — пополнение нефтебаз: импорт против внутреннего рынка.
+
+    Потребность базы — это дефицит покрытия сети на горизонте плеча
+    импорта. Ограничение сверху — свободная ёмкость резервуарного парка
+    базы: залить больше, чем влезет, нельзя и здесь.
+
+    Дешёвый импорт выигрывает по цене литра, но замораживает деньги
+    на две недели и не годится, когда покрытия осталось на трое суток;
+    внутренний рынок дороже, но приезжает за двое. Выбор между ними —
+    ровно то, что считает этот поток.
+    """
+    return _solve_flow(depot_needs, supplies, money_rate_year, lead_field='lead_days')
+
+
+# Цена опоздания: сколько условно стоит литр, приехавший на сутки позже,
+# чем станция высохнет. Величина не «настоящая цена» — это ВЕС в задаче
+# оптимизации: он должен уверенно перебивать разницу в цене литра между
+# путями (там речь о 1-3 лея), чтобы срочная потребность ушла на быстрый
+# путь, но не быть бесконечным — иначе поток вообще откажется её везти.
+LATE_PENALTY_PER_L_DAY = 5.0
+
+
+def _solve_flow(demands: List[Dict[str, Any]], sources: List[Dict[str, Any]],
+                money_rate_year: float, lead_field: str,
+                late_penalty: float = LATE_PENALTY_PER_L_DAY) -> Dict[str, Any]:
+    """
+    Общее ядро обеих задач: поток минимальной стоимости
+    «источники → потребности» с запретом по плечу.
+
+    demands: [{'key', 'target_id', 'grade_code', 'liters', 'days_to_dry'|None,
+               'capacity_l'|None}]
+    sources: [{'code', 'source_code', 'grade_code', 'target_id'|None,
+               'lead_days', 'price_per_l', 'transport_per_l',
+               'handling_per_l', 'duty_per_l', 'available_l', 'min_lot_l',
+               'depot_id'|None, 'depot_name'|None}]
     """
     if not demands:
-        return {'success': True, 'allocations': [], 'replenishment': [],
-                'uncovered': [], 'total_liters': 0.0, 'total_cost': 0.0}
-    if not paths:
-        return {'success': False, 'error': 'Не задано ни одного пути снабжения'}
+        return {'success': True, 'allocations': [], 'uncovered': [],
+                'total_liters': 0.0, 'total_cost': 0.0, 'avg_cost_per_l': None}
+    if not sources:
+        return {'success': False, 'error': 'Не задано ни одного источника'}
 
-    depots = depots or []
-    dep_index: Dict[Tuple[int, str], int] = {}
-    for d in depots:
-        dep_index[(int(d['id']), str(d['grade_code']))] = len(dep_index)
-
-    P, D, N = len(paths), len(dep_index), len(demands)
-    src = 0
-    p_node = lambda i: 1 + i
-    din = lambda k: 1 + P + k
-    dout = lambda k: 1 + P + D + k
-    d_node = lambda j: 1 + P + 2 * D + j
-    sink = 1 + P + 2 * D + N
+    S, N = len(sources), len(demands)
+    src, sink = 0, 1 + S + N
+    s_node = lambda i: 1 + i
+    d_node = lambda j: 1 + S + j
     mcf = MinCostFlow(sink + 1)
 
-    # Пропускная способность базы: остаток сверх неснижаемого плюс то,
-    # что она физически успеет налить за сутки
-    for (did, grade), k in dep_index.items():
-        d = next(x for x in depots
-                 if int(x['id']) == did and str(x['grade_code']) == grade)
-        cap = max(0.0, min(float(d.get('available_l') or 0),
-                           float(d.get('throughput_l_day') or INF)))
-        mcf.add_edge(din(k), dout(k), cap, 0.0)
-
-    for i, p in enumerate(paths):
+    for i, p in enumerate(sources):
         avail = max(0.0, float(p.get('available_l') or 0))
         if avail > 0:
-            mcf.add_edge(src, p_node(i), avail, 0.0)
-
-    # Рёбра «путь → база» с полной стоимостью литра на этом пути
-    path_to_depot: Dict[int, int] = {}
-    for i, p in enumerate(paths):
-        if not p.get('depot_id'):
-            continue
-        key = (int(p['depot_id']), str(p.get('grade_code') or ''))
-        if key not in dep_index:
-            continue
-        k = dep_index[key]
-        path_to_depot[i] = k
-        mcf.add_edge(p_node(i), din(k), max(0.0, float(p.get('available_l') or 0)),
-                     landed_cost_per_l(p, money_rate_year))
+            mcf.add_edge(src, s_node(i), avail, 0.0)
 
     reasons: Dict[str, str] = {}
-    depot_edge_ref: Dict[Tuple[int, int], Tuple[int, int]] = {}
-    direct_edge_ref: Dict[Tuple[int, int], Tuple[int, int]] = {}
-
+    edge_ref: Dict[Tuple[int, int], int] = {}
     for j, dem in enumerate(demands):
-        need = float(dem['liters'])
+        need = float(dem.get('liters') or 0)
         if need <= 0:
             continue
         mcf.add_edge(d_node(j), sink, need, 0.0)
         served = False
-        for i, p in enumerate(paths):
-            if p.get('grade_code') and p['grade_code'] != dem['grade_code']:
+        for i, p in enumerate(sources):
+            if p.get('grade_code') and p['grade_code'] != dem.get('grade_code'):
                 continue
-            if p.get('station_id') and int(p['station_id']) != int(dem['station_id']):
-                continue
-            dtd = dem.get('days_to_dry')
-            if dtd is not None and float(p.get('lead_days') or 0) > float(dtd) + 1e-9:
-                # Путь не успевает физически: это запрет, а не штраф
-                reasons.setdefault(dem['key'], 'lead_too_long')
+            if p.get('target_id') and int(p['target_id']) != int(dem['target_id']):
                 continue
             if float(p.get('available_l') or 0) <= 0:
                 continue
-            if i in path_to_depot:
-                k = path_to_depot[i]
-                # Ребро «выход базы → потребность» заводим один раз на пару
-                if (k, j) not in depot_edge_ref:
-                    depot_edge_ref[(k, j)] = (dout(k), len(mcf.graph[dout(k)]))
-                    mcf.add_edge(dout(k), d_node(j), need, 0.0)
-                served = True
-            else:
-                direct_edge_ref[(i, j)] = (p_node(i), len(mcf.graph[p_node(i)]))
-                mcf.add_edge(p_node(i), d_node(j), min(need, float(p['available_l'])),
-                             landed_cost_per_l(p, money_rate_year))
-                served = True
+            dtd = dem.get('days_to_dry')
+            lead = float(p.get(lead_field) or 0)
+            # Опоздание НЕ запрещает путь, а дорожает его.
+            #
+            # Первая версия отсекала пути с плечом больше остатка хода —
+            # и на прогоне 17 станций из 23 остались «непокрытыми»: это
+            # были ровно те, у кого бак высохнет через несколько часов.
+            # В жизни таким станциям везут в первую очередь и максимально
+            # быстрым транспортом, а не отказывают в поставке. Штраф за
+            # сутки опоздания сохраняет правильный ПОРЯДОК предпочтений
+            # (быстрый путь выигрывает у дешёвого) и при этом всегда
+            # оставляет потребность покрытой.
+            late = max(0.0, lead - float(dtd)) if dtd is not None else 0.0
+            # Минимальная партия: источник, который нельзя взять мелко,
+            # не годится под мелкую потребность
+            if float(p.get('min_lot_l') or 0) > need + 1e-9:
+                reasons.setdefault(dem['key'], 'min_lot')
+                continue
+            cap = min(need, float(p['available_l']))
+            edge_ref[(i, j)] = len(mcf.graph[s_node(i)])
+            mcf.add_edge(s_node(i), d_node(j), cap,
+                         landed_cost_per_l(p, money_rate_year) + late * late_penalty)
+            served = True
         if not served:
-            reasons.setdefault(dem['key'], 'no_path')
+            reasons.setdefault(dem['key'], reasons.get(dem['key'], 'no_source'))
 
-    total_need = sum(float(d['liters']) for d in demands if float(d['liters']) > 0)
+    total_need = sum(float(d.get('liters') or 0) for d in demands)
     flow, cost = mcf.flow(src, sink, total_need)
 
-    def sent(u: int, idx: int) -> float:
-        """Сколько ушло по ребру: столько же вернулось в обратное."""
-        e = mcf.graph[u][idx]
-        return mcf.graph[int(e[0])][int(e[3])][1]
-
-    depot_by_index = {k: (did, grade) for (did, grade), k in dep_index.items()}
     allocations: List[Dict[str, Any]] = []
     covered: Dict[str, float] = {}
-
-    for (k, j), (u, idx) in depot_edge_ref.items():
-        vol = sent(u, idx)
+    for (i, j), idx in edge_ref.items():
+        e = mcf.graph[s_node(i)][idx]
+        vol = mcf.graph[int(e[0])][int(e[3])][1]      # сколько вернулось в обратное ребро
         if vol <= 1e-9:
             continue
-        dem = demands[j]
-        did, grade = depot_by_index[k]
-        dep = next((x for x in depots if int(x['id']) == did
-                    and str(x['grade_code']) == grade), {})
-        allocations.append({
-            'key': dem['key'], 'station_id': dem['station_id'],
-            'grade_code': dem['grade_code'], 'via': 'depot',
-            'depot_id': did, 'depot_name': dep.get('name'),
-            'path_code': None, 'source_code': 'depot',
-            'liters': round(vol, 1),
-        })
-        covered[dem['key']] = covered.get(dem['key'], 0.0) + vol
-
-    for (i, j), (u, idx) in direct_edge_ref.items():
-        vol = sent(u, idx)
-        if vol <= 1e-9:
-            continue
-        dem, p = demands[j], paths[i]
+        p, dem = sources[i], demands[j]
         cpl = landed_cost_per_l(p, money_rate_year)
+        dtd = dem.get('days_to_dry')
+        late = (max(0.0, float(p.get(lead_field) or 0) - float(dtd))
+                if dtd is not None else 0.0)
         allocations.append({
-            'key': dem['key'], 'station_id': dem['station_id'],
-            'grade_code': dem['grade_code'], 'via': 'direct',
-            'depot_id': None, 'depot_name': None,
-            'path_code': p['code'], 'source_code': p.get('source_code'),
-            'liters': round(vol, 1), 'lead_days': p.get('lead_days'),
+            'key': dem['key'], 'target_id': dem.get('target_id'),
+            'grade_code': dem.get('grade_code'), 'path_code': p['code'],
+            'source_code': p.get('source_code'), 'depot_id': p.get('depot_id'),
+            'depot_name': p.get('depot_name'),
+            'liters': round(vol, 1), 'lead_days': p.get(lead_field),
+            # Сумма считается по РЕАЛЬНОЙ цене литра: штраф за опоздание —
+            # инструмент выбора, а не строка в счёте поставщика
             'cost_per_l': cpl, 'amount': round(vol * cpl, 2),
+            'late_days': round(late, 2), 'is_late': 1 if late > 1e-6 else 0,
         })
         covered[dem['key']] = covered.get(dem['key'], 0.0) + vol
-
-    # Чем пополнялась сама база
-    replenishment: List[Dict[str, Any]] = []
-    for i, k in path_to_depot.items():
-        for idx, e in enumerate(mcf.graph[p_node(i)]):
-            if int(e[0]) != din(k):
-                continue
-            vol = sent(p_node(i), idx)
-            if vol <= 1e-9:
-                continue
-            p = paths[i]
-            cpl = landed_cost_per_l(p, money_rate_year)
-            did, grade = depot_by_index[k]
-            replenishment.append({
-                'depot_id': did, 'grade_code': grade, 'path_code': p['code'],
-                'source_code': p.get('source_code'), 'liters': round(vol, 1),
-                'lead_days': p.get('lead_days'), 'cost_per_l': cpl,
-                'amount': round(vol * cpl, 2),
-            })
 
     uncovered = []
     for dem in demands:
-        need = float(dem['liters'])
+        need = float(dem.get('liters') or 0)
         got = covered.get(dem['key'], 0.0)
         if need - got > 1.0:
-            uncovered.append({'key': dem['key'], 'station_id': dem['station_id'],
-                              'grade_code': dem['grade_code'],
+            uncovered.append({'key': dem['key'], 'target_id': dem.get('target_id'),
+                              'grade_code': dem.get('grade_code'),
                               'need_l': round(need, 1), 'covered_l': round(got, 1),
                               'reason': reasons.get(dem['key'], 'no_capacity')})
 
-    return {'success': True, 'allocations': allocations,
-            'replenishment': replenishment, 'uncovered': uncovered,
-            'total_liters': round(flow, 1), 'total_cost': round(cost, 2),
-            'avg_cost_per_l': round(cost / flow, 4) if flow > 0 else None,
+    # Стоимость из потока включает штрафы за опоздание — для отчёта
+    # пересчитываем по фактическим ценам путей
+    real_cost = sum(a['amount'] for a in allocations)
+    late_l = sum(a['liters'] for a in allocations if a['is_late'])
+    return {'success': True, 'allocations': allocations, 'uncovered': uncovered,
+            'total_liters': round(flow, 1), 'total_cost': round(real_cost, 2),
+            'avg_cost_per_l': round(real_cost / flow, 4) if flow > 0 else None,
+            'late_liters': round(late_l, 1),
+            'late_count': sum(1 for a in allocations if a['is_late']),
             'demands': len(demands)}
+
+
+def solve_supply_plan(station_demands: List[Dict[str, Any]],
+                      distribution_sources: List[Dict[str, Any]],
+                      depot_needs: List[Dict[str, Any]],
+                      replenishment_sources: List[Dict[str, Any]],
+                      money_rate_year: float = 0.14) -> Dict[str, Any]:
+    """
+    Полный план снабжения: развозка сегодня плюс пополнение баз.
+
+    Возвращает оба слоя раздельно — именно так решение и принимается:
+    диспетчер смотрит развозку, закупщик смотрит пополнение, и это
+    разные люди с разным горизонтом.
+    """
+    dist = solve_distribution(station_demands, distribution_sources, money_rate_year)
+    repl = solve_replenishment(depot_needs, replenishment_sources, money_rate_year)
+    total = 0.0
+    for part in (dist, repl):
+        if part.get('success'):
+            total += float(part.get('total_cost') or 0)
+    return {'success': dist.get('success', False) or repl.get('success', False),
+            'distribution': dist, 'replenishment': repl,
+            'total_cost': round(total, 2)}
 
 
 def compare_paths(dem: Dict[str, Any], paths: List[Dict[str, Any]],
@@ -340,17 +340,22 @@ def compare_paths(dem: Dict[str, Any], paths: List[Dict[str, Any]],
             continue
         reason = None
         dtd = dem.get('days_to_dry')
-        if dtd is not None and float(p.get('lead_days') or 0) > float(dtd) + 1e-9:
-            reason = 'не успевает по плечу'
-        elif float(p.get('available_l') or 0) <= 0:
+        lead = float(p.get('lead_days') or 0)
+        late = max(0.0, lead - float(dtd)) if dtd is not None else 0.0
+        if float(p.get('available_l') or 0) <= 0:
             reason = 'нет доступного объёма'
         elif float(p.get('min_lot_l') or 0) > float(dem.get('liters') or 0):
-            reason = 'партия меньше минимальной'
+            reason = 'потребность меньше минимальной партии'
         out.append({
             'path_code': p['code'], 'source_code': p.get('source_code'),
             'depot_id': p.get('depot_id'), 'lead_days': p.get('lead_days'),
             'cost_per_l': landed_cost_per_l(p, money_rate_year),
             'available_l': p.get('available_l'),
+            'late_days': round(late, 2),
+            'note': ('опоздание %.1f сут' % late) if late > 1e-6 else None,
             'blocked_reason': reason, 'is_feasible': reason is None,
         })
-    return sorted(out, key=lambda x: (not x['is_feasible'], x['cost_per_l']))
+    # Сортировка по решающему критерию: сначала успевающие и дешёвые,
+    # затем опаздывающие — в том же порядке, в каком их выбирает поток
+    return sorted(out, key=lambda x: (not x['is_feasible'], x['late_days'],
+                                      x['cost_per_l']))

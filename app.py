@@ -24,6 +24,8 @@ from controllers.tbcontrol_controller import TBControlController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
 from controllers.plg_ai_controller import PlgAiController
+from controllers.peco_supply_controller import PecoSupplyController
+from models.peco_gps import PecoGps
 from controllers.colass_controller import ColassController
 import threading
 import time
@@ -3908,6 +3910,184 @@ def api_plg_import_doc(order_id, doc_id):
 @app.route('/api/plg/imports/delays', methods=['GET'])
 def api_plg_import_delays():
     return jsonify(PlgAiController.import_delay_stats(_plg_lang()))
+
+
+# ========== Автозаказ топлива: карта АЗС, нефтебаза, рейсы, GPS ==========
+#
+# Контур живёт в разделе #fuel модуля «Планограммы», а данными опирается
+# на PECO: станции и резервуары уже описаны там, дублировать их в PLG_*
+# запрещено правилами проекта.
+
+@app.route('/api/plg/fuel/stations', methods=['GET'])
+def api_plg_fuel_stations():
+    return jsonify(PecoSupplyController.stations(_plg_lang()))
+
+
+@app.route('/api/plg/fuel/stations/<int:station_id>/geo', methods=['PUT'])
+def api_plg_fuel_station_geo(station_id):
+    """Координаты станции: перетащили маркер либо нашли по адресу."""
+    result = PecoSupplyController.save_geo(station_id, request.get_json() or {},
+                                           session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/tanks', methods=['GET'])
+def api_plg_fuel_tanks():
+    return jsonify(PecoSupplyController.tanks(request.args.get('station_id', type=int)))
+
+
+@app.route('/api/plg/fuel/params', methods=['GET'])
+def api_plg_fuel_params():
+    return jsonify(PecoSupplyController.params())
+
+
+@app.route('/api/plg/fuel/algorithms', methods=['GET'])
+def api_plg_fuel_algorithms():
+    """Реестр алгоритмов прогноза топлива с описанием и областью применения."""
+    return jsonify(PecoSupplyController.algorithms(_plg_lang()))
+
+
+@app.route('/api/plg/fuel/autoorder', methods=['POST'])
+def api_plg_fuel_autoorder():
+    result = PecoSupplyController.run_autoorder(request.get_json() or {},
+                                                session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/backtest', methods=['POST'])
+def api_plg_fuel_backtest():
+    """Сравнение алгоритмов на истории отпуска: MAPE, смещение, покрытие."""
+    result = PecoSupplyController.backtest(request.get_json() or {},
+                                           session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/backtest', methods=['GET'])
+def api_plg_fuel_backtest_results():
+    return jsonify(PecoSupplyController.backtest_results(_plg_lang()))
+
+
+@app.route('/api/plg/fuel/paths', methods=['GET'])
+def api_plg_fuel_paths():
+    """Пути снабжения: импорт / рынок ↔ своя или чужая нефтебаза ↔ АЗС."""
+    return jsonify(PecoSupplyController.paths(_plg_lang(), request.args.get('kind')))
+
+
+@app.route('/api/plg/fuel/paths/<int:path_id>', methods=['PUT'])
+def api_plg_fuel_save_path(path_id):
+    result = PecoSupplyController.save_path(path_id, request.get_json() or {},
+                                            session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/plan', methods=['GET'])
+def api_plg_fuel_plan():
+    """План снабжения: развозка сегодня и пополнение баз, поток мин. стоимости."""
+    return jsonify(PecoSupplyController.supply_plan(
+        _plg_lang(), request.args.get('run_id', type=int)))
+
+
+@app.route('/api/plg/fuel/plan/explain', methods=['GET'])
+def api_plg_fuel_plan_explain():
+    """Разбор одной потребности по всем путям — «почему выбрано именно это»."""
+    return jsonify(PecoSupplyController.explain_demand(
+        _plg_lang(), request.args.get('station_id', type=int),
+        request.args.get('grade'), request.args.get('liters', type=float),
+        request.args.get('days_to_dry', type=float)))
+
+
+@app.route('/api/plg/fuel/runs', methods=['GET'])
+def api_plg_fuel_runs():
+    return jsonify(PecoSupplyController.runs(request.args.get('limit', 15, type=int)))
+
+
+@app.route('/api/plg/fuel/orders', methods=['GET'])
+def api_plg_fuel_orders():
+    return jsonify(PecoSupplyController.orders(
+        _plg_lang(), request.args.get('status'), request.args.get('run_id', type=int)))
+
+
+@app.route('/api/plg/fuel/orders/items/<int:item_id>', methods=['PUT'])
+def api_plg_fuel_adjust_item(item_id):
+    result = PecoSupplyController.adjust_item(item_id, request.get_json() or {},
+                                              session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/orders/<int:order_id>/status', methods=['POST'])
+def api_plg_fuel_order_status(order_id):
+    body = request.get_json() or {}
+    result = PecoSupplyController.set_order_status(order_id, body.get('status'),
+                                                   session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/orders/approve-all', methods=['POST'])
+def api_plg_fuel_approve_all():
+    body = request.get_json() or {}
+    return jsonify(PecoSupplyController.approve_all(body.get('run_id'),
+                                                    session.get('username', 'user')))
+
+
+@app.route('/api/plg/fuel/depot', methods=['GET'])
+def api_plg_fuel_depot():
+    return jsonify(PecoSupplyController.depot(
+        _plg_lang(), request.args.get('import_lead_days', 9.0, type=float)))
+
+
+@app.route('/api/plg/fuel/trips', methods=['GET'])
+def api_plg_fuel_trips():
+    return jsonify(PecoSupplyController.trips(_plg_lang(), request.args.get('status')))
+
+
+@app.route('/api/plg/fuel/trips/plan', methods=['POST'])
+def api_plg_fuel_plan_trips():
+    result = PecoSupplyController.plan_trips(request.get_json() or {},
+                                             session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/trips/<int:trip_id>/status', methods=['POST'])
+def api_plg_fuel_trip_status(trip_id):
+    body = request.get_json() or {}
+    result = PecoSupplyController.set_trip_status(trip_id, body.get('status'),
+                                                  session.get('username', 'user'))
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
+
+
+@app.route('/api/plg/fuel/trips/<int:trip_id>/track', methods=['GET'])
+def api_plg_fuel_track(trip_id):
+    return jsonify(PecoSupplyController.track(trip_id))
+
+
+@app.route('/api/plg/fuel/gps/events', methods=['GET'])
+def api_plg_fuel_gps_events():
+    return jsonify(PecoSupplyController.gps_events(
+        _plg_lang(), request.args.get('status', 'new'),
+        request.args.get('limit', 100, type=int)))
+
+
+@app.route('/api/plg/fuel/gps/analyze', methods=['POST'])
+def api_plg_fuel_gps_analyze():
+    body = request.get_json() or {}
+    return jsonify(PecoSupplyController.analyze(body.get('trip_id')))
+
+
+@app.route('/api/peco/gps/ping', methods=['POST'])
+def api_peco_gps_ping():
+    """
+    Приём телеметрии от внешнего GPS-провайдера (датчики на аутсорсе).
+
+    Авторизация — токеном провайдера в заголовке X-PECO-GPS-Token,
+    а не сессией: пинги шлёт сервер провайдера пачками.
+    """
+    token = (request.headers.get('X-PECO-GPS-Token')
+             or request.headers.get('Authorization', '').replace('Bearer ', '').strip())
+    provider = PecoGps.provider_by_token(token)
+    if not provider:
+        return jsonify({'success': False, 'error': 'Провайдер не авторизован'}), 401
+    result = PecoGps.ingest(provider, request.get_json() or {})
+    return jsonify(result), (200 if result.get('success') else result.get('status', 400))
 
 
 @app.route('/UNA.md/orasldev/planograms/import-package/<int:order_id>')
