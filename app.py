@@ -2682,6 +2682,47 @@ def api_tbc_save_settings():
     return jsonify(TBControlController.save_settings(request.get_json() or {}))
 
 
+# --- Источники мониторинга (TBC_SOURCES) и кассы UaMenu ---
+@app.route('/api/tbc/sources', methods=['GET'])
+def api_tbc_sources():
+    return jsonify(TBControlController.get_sources(request.args.get('kind')))
+
+
+@app.route('/api/tbc/sources', methods=['POST'])
+def api_tbc_save_source():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.save_source(request.get_json() or {}))
+
+
+@app.route('/api/tbc/sources/<code>', methods=['DELETE'])
+def api_tbc_delete_source(code):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.delete_source(code))
+
+
+@app.route('/api/tbc/sources/<code>/test', methods=['POST'])
+def api_tbc_test_source(code):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    return jsonify(TBControlController.test_source(code))
+
+
+@app.route('/api/tbc/cassa', methods=['GET'])
+def api_tbc_cassa():
+    return jsonify(TBControlController.get_cassa(
+        request.args.get('source_code'), request.args.get('status')))
+
+
+@app.route('/api/tbc/cassa/sync', methods=['POST'])
+def api_tbc_cassa_sync():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    data = request.get_json() or {}
+    return jsonify(TBControlController.sync_cassa(data.get('source_code')))
+
+
 # --- Эмулятор сценариев / Zabbix-коннектор (tbc_emulator.py) ---
 @app.route('/api/tbc/emulator/status', methods=['GET'])
 def api_tbc_emulator_status():
