@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
+  {# RO: Google tag (gtag.js) — imediat dupa <head>, cum cere Google Analytics.
+       Se randeaza doar cind ga_id e setat (pe domeniul public officeplus.md). #}
+  {% if ga_id %}
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_id }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ ga_id }}');
+  </script>
+  {% endif %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }} – Totul de ce ai nevoie într-un singur loc{% endblock %}</title>

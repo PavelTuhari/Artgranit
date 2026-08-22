@@ -2362,6 +2362,16 @@ def tbcontrol():
     return render_template('tbcontrol.html')
 
 
+@app.route('/UNA.md/orasldev/tbcontrol/cassa')
+@app.route('/UNA.md/orasldev/cassa-monitor')
+def tbcontrol_cassa_dashboard():
+    """Cassa Monitor — полноэкранный дашборд касс (аналог unisim-dashboard.una.md),
+    mobile-first: отдельная страница для телефона и настенного экрана."""
+    if not AuthController.is_authenticated():
+        return redirect(url_for('login', next=request.path))
+    return render_template('tbc_cassa_dashboard.html')
+
+
 @app.route('/UNA.md/orasldev/tbcontrol/presentation')
 def tbcontrol_presentation():
     """HTML-презентация TBControl с живыми ссылками на панели системы"""
@@ -2746,6 +2756,14 @@ def api_tbc_emulator_start():
                                        'zabbix_token': zbx_token or None,
                                        'zabbix_user': zbx_user or None,
                                        'zabbix_password': zbx_password or None})
+    if mode not in ('emulator', 'zabbix', 'unisim'):
+        return jsonify({"success": False, "error": "mode: emulator | zabbix | unisim"})
+    if mode == 'unisim':
+        srcs = [s for s in (TBControlController.get_sources('unisim_cassa').get('data') or [])
+                if s.get('enabled') == 'Y']
+        if not srcs:
+            return jsonify({"success": False,
+                            "error": "Нет включённых источников UaMenu — настройте их в разделе «Источники»"})
     if mode == 'zabbix':
         zbx_url = (zbx_url or TBControlController.get_setting_raw('zabbix_url') or '').strip()
         if zbx_token.endswith('***') or not zbx_token:
@@ -8089,6 +8107,18 @@ def _biro26_site_ctx():
         fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
     except Exception:
         fmt_html, fmt_xlsx = '1', '1'
+    # RO: ID-ul Google Analytics (gtag.js). Se pune in <head> DOAR pe domeniul
+    #     public; pe URL-urile interne de dezvoltare tagul nu se incarca, ca sa nu
+    #     amestece traficul de test cu cel real. Se poate goli din setari ca sa fie
+    #     oprit complet. EN: GA id injected into <head> only on the public host.
+    try:
+        ga_id = Biro26Store.get_setting('SHOP_GA_ID', 'G-STJ1NQDGY0')
+    except Exception:
+        ga_id = 'G-STJ1NQDGY0'
+    from flask import request as _rq
+    _host = (_rq.host or '').lower()
+    if 'officeplus.md' not in _host:
+        ga_id = ''   # RO: doar pe domeniul public / EN: public host only
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
     #     vizitatorii vad preturile pentru persoane fizice
     try:
@@ -8119,7 +8149,8 @@ def _biro26_site_ctx():
             'brand_filter': brand_filter,
             'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
             'price_field': price_field,
-            'pay_logos': pay_logos}
+            'pay_logos': pay_logos,
+            'ga_id': ga_id}
 
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
