@@ -1712,6 +1712,270 @@ class TBControlController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ========== Источники мониторинга (TBC_SOURCES) ==========
+
+    _SRC_SECRET_FIELDS = ("db_password", "api_secret")
+
+    @staticmethod
+    def get_sources(kind=None, with_secrets=False):
+        """Реестр источников. Секреты наружу отдаются маскированными."""
+        try:
+            with DatabaseModel() as db:
+                sql = ("SELECT ID, CODE, NAME, KIND, DB_USER, DB_PASSWORD, DB_DSN, "
+                       "API_URL, API_USER, API_SECRET, ENABLED, SORT_ORDER, NOTE, "
+                       "LAST_SYNC_AT, LAST_STATUS, LAST_ERROR "
+                       "FROM TBC_SOURCES WHERE 1=1")
+                params = {}
+                if kind:
+                    sql += " AND KIND = :kind"
+                    params["kind"] = kind
+                sql += " ORDER BY SORT_ORDER, CODE"
+                r = db.execute_query(sql, params if params else None)
+                data = TBControlController._rows_to_dicts(r)
+                if not with_secrets:
+                    for row in data:
+                        for f in TBControlController._SRC_SECRET_FIELDS:
+                            if row.get(f):
+                                row[f] = "***"
+                return {"success": True, "data": data, "total": len(data)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def _source_by_code(code, with_secrets=True):
+        r = TBControlController.get_sources(with_secrets=with_secrets)
+        if not r.get("success"):
+            return None
+        for row in r["data"]:
+            if row.get("code") == code:
+                return row
+        return None
+
+    @staticmethod
+    def save_source(data):
+        """Создаёт или обновляет источник. Маскированные секреты (***)
+        не перезаписывают сохранённые значения."""
+        code = (data.get("code") or "").strip()
+        if not code:
+            return {"success": False, "error": "Код источника обязателен"}
+        kind = data.get("kind") or "unisim_cassa"
+        if kind not in ("unisim_cassa", "zabbix", "emulator"):
+            return {"success": False, "error": "kind: unisim_cassa/zabbix/emulator"}
+        try:
+            with DatabaseModel() as db:
+                exists = TBControlController._first_row(
+                    db.execute_query("SELECT ID FROM TBC_SOURCES WHERE CODE = :c", {"c": code}))
+                field_map = {"name": "NAME", "kind": "KIND", "db_user": "DB_USER",
+                             "db_password": "DB_PASSWORD", "db_dsn": "DB_DSN",
+                             "api_url": "API_URL", "api_user": "API_USER",
+                             "api_secret": "API_SECRET", "note": "NOTE",
+                             "sort_order": "SORT_ORDER"}
+                if exists:
+                    sets, params = [], {"id": exists["id"]}
+                    for key, col in field_map.items():
+                        if key not in data or data[key] is None:
+                            continue
+                        if key in TBControlController._SRC_SECRET_FIELDS and str(data[key]).endswith("***"):
+                            continue  # маскированное значение — оставляем прежнее
+                        sets.append(f"{col} = :{key}")
+                        params[key] = data[key]
+                    if "enabled" in data:
+                        sets.append("ENABLED = :enabled")
+                        params["enabled"] = 'Y' if data["enabled"] in (True, 'Y', 'y', 1, '1') else 'N'
+                    if not sets:
+                        return {"success": False, "error": "Нет данных для обновления"}
+                    db.execute_query(f"UPDATE TBC_SOURCES SET {', '.join(sets)} WHERE ID = :id", params)
+                else:
+                    db.execute_query(
+                        "INSERT INTO TBC_SOURCES (CODE, NAME, KIND, DB_USER, DB_PASSWORD, DB_DSN, "
+                        "API_URL, API_USER, API_SECRET, ENABLED, SORT_ORDER, NOTE) "
+                        "VALUES (:code, :name, :kind, :db_user, :db_password, :db_dsn, "
+                        ":api_url, :api_user, :api_secret, :enabled, :sort_order, :note)",
+                        {"code": code, "name": data.get("name") or code, "kind": kind,
+                         "db_user": data.get("db_user"), "db_password": data.get("db_password"),
+                         "db_dsn": data.get("db_dsn"), "api_url": data.get("api_url"),
+                         "api_user": data.get("api_user"), "api_secret": data.get("api_secret"),
+                         "enabled": 'Y' if data.get("enabled") in (True, 'Y', 'y', 1, '1') else 'N',
+                         "sort_order": int(data.get("sort_order") or 100),
+                         "note": data.get("note")})
+                db.connection.commit()
+                TBControlController._add_audit("save", "source", None, f"Источник {code} ({kind})")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_source(code):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query("DELETE FROM TBC_CASSA_STATE WHERE SOURCE_CODE = :c", {"c": code})
+                db.execute_query("DELETE FROM TBC_SOURCES WHERE CODE = :c", {"c": code})
+                db.connection.commit()
+                TBControlController._add_audit("delete", "source", None, f"Источник {code} удалён")
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def test_source(code):
+        """Проверка соединения с источником без полного опроса."""
+        src = TBControlController._source_by_code(code)
+        if not src:
+            return {"success": False, "error": "Источник не найден"}
+        if src.get("kind") == "unisim_cassa":
+            from models import unisim_cassa
+            res = unisim_cassa.test_source(src)
+            TBControlController._mark_source(code, res.get("success"), res.get("error"))
+            return res
+        if src.get("kind") == "zabbix":
+            try:
+                from tbc_emulator import ZabbixConnector
+                conn = ZabbixConnector(None, src.get("api_url"), src.get("api_secret"),
+                                       src.get("api_user"), src.get("api_secret"))
+                ver = conn.connect()
+                TBControlController._mark_source(code, True, None)
+                return {"success": True, "version": ver}
+            except Exception as e:
+                TBControlController._mark_source(code, False, str(e))
+                return {"success": False, "error": str(e)[:300]}
+        return {"success": True, "message": "Встроенный источник, проверка не требуется"}
+
+    @staticmethod
+    def _mark_source(code, ok, error=None):
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    "UPDATE TBC_SOURCES SET LAST_SYNC_AT = SYSTIMESTAMP, LAST_STATUS = :st, "
+                    "LAST_ERROR = :err WHERE CODE = :c",
+                    {"st": 'OK' if ok else 'ERROR', "err": (error or "")[:500] or None, "c": code})
+                db.connection.commit()
+        except Exception:
+            pass
+
+    # ========== Кассы UaMenu (TBC_CASSA_STATE) ==========
+
+    @staticmethod
+    def sync_cassa(code=None):
+        """Опрашивает источники unisim_cassa и обновляет снимок касс.
+        Кассы, ушедшие в OFFLINE, порождают события P2/P3."""
+        from models import unisim_cassa
+        srcs = [s for s in (TBControlController.get_sources('unisim_cassa', with_secrets=True).get("data") or [])
+                if s.get("enabled") == 'Y' and (not code or s.get("code") == code)]
+        if not srcs:
+            return {"success": False, "error": "Нет включённых источников unisim_cassa"}
+        summary = []
+        for src in srcs:
+            res = unisim_cassa.query_source(src)
+            if not res.get("success"):
+                TBControlController._mark_source(src["code"], False, res.get("error"))
+                summary.append({"source": src["code"], "success": False, "error": res.get("error")})
+                continue
+            data = res["data"]
+            try:
+                with DatabaseModel() as db:
+                    prev = {}
+                    r = db.execute_query(
+                        "SELECT DB_LINK, STATUS FROM TBC_CASSA_STATE WHERE SOURCE_CODE = :c",
+                        {"c": src["code"]})
+                    for row in TBControlController._rows_to_dicts(r):
+                        prev[row["db_link"]] = row["status"]
+
+                    for reg in data["registers"]:
+                        db.execute_query(
+                            "MERGE INTO TBC_CASSA_STATE t USING (SELECT :src AS SRC, :link AS LNK FROM DUAL) s "
+                            "ON (t.SOURCE_CODE = s.SRC AND t.DB_LINK = s.LNK) "
+                            "WHEN MATCHED THEN UPDATE SET t.SOURCE_NAME = :sname, t.COD_UNIV = :cod, "
+                            "  t.STORE_NAME = :store, t.DB_LINK_PREFIX = :prefix, t.SHEMA = :shema, "
+                            "  t.IN_PROCESS = :inproc, t.OFF_LINE = :offline, t.SERVER_ID = :srv, "
+                            "  t.STATUS = :status, t.STATUS_REASON = :reason, t.LINK_ERROR = :lerr, "
+                            "  t.CHECKED_AT = SYSTIMESTAMP "
+                            "WHEN NOT MATCHED THEN INSERT (SOURCE_CODE, SOURCE_NAME, COD_UNIV, STORE_NAME, "
+                            "  DB_LINK, DB_LINK_PREFIX, SHEMA, IN_PROCESS, OFF_LINE, SERVER_ID, STATUS, "
+                            "  STATUS_REASON, LINK_ERROR) "
+                            "VALUES (:src2, :sname2, :cod2, :store2, :link2, :prefix2, :shema2, :inproc2, "
+                            "  :offline2, :srv2, :status2, :reason2, :lerr2)",
+                            {"src": src["code"], "link": reg["db_link"], "sname": src.get("name"),
+                             "cod": reg["cod_univ"], "store": reg["store_name"],
+                             "prefix": reg["db_link_prefix"], "shema": reg["shema"],
+                             "inproc": reg["in_process"], "offline": reg["off_line"],
+                             "srv": reg["server_id"], "status": reg["status"],
+                             "reason": (reg["status_reason"] or "")[:500],
+                             "lerr": (reg["link_error"] or "")[:500] or None,
+                             "src2": src["code"], "sname2": src.get("name"), "cod2": reg["cod_univ"],
+                             "store2": reg["store_name"], "link2": reg["db_link"],
+                             "prefix2": reg["db_link_prefix"], "shema2": reg["shema"],
+                             "inproc2": reg["in_process"], "offline2": reg["off_line"],
+                             "srv2": reg["server_id"], "status2": reg["status"],
+                             "reason2": (reg["status_reason"] or "")[:500],
+                             "lerr2": (reg["link_error"] or "")[:500] or None})
+                        # Переход ONLINE → OFFLINE открывает событие
+                        if reg["status"] == "OFFLINE" and prev.get(reg["db_link"]) != "OFFLINE":
+                            db.execute_query(
+                                "INSERT INTO TBC_EVENTS (SEVERITY, SERVICE_CODE, PROBLEM, STATUS, "
+                                "SOURCE, CORRELATION_ID) VALUES ('P3', 'pos', :problem, 'open', "
+                                "'unisim_cassa', :corr)",
+                                {"problem": (f"UaMenu [{src.get('name')}] {reg['store_name']}: "
+                                             f"касса {reg['db_link']} недоступна — "
+                                             f"{reg['status_reason']}")[:500],
+                                 "corr": f"cassa-{src['code']}-{reg['db_link_prefix']}"[:30]})
+                        # Возврат в ONLINE закрывает событие
+                        if reg["status"] == "ONLINE" and prev.get(reg["db_link"]) == "OFFLINE":
+                            db.execute_query(
+                                "UPDATE TBC_EVENTS SET STATUS = 'resolved', RESOLVED_AT = SYSTIMESTAMP "
+                                "WHERE CORRELATION_ID = :corr AND STATUS IN ('open','ack')",
+                                {"corr": f"cassa-{src['code']}-{reg['db_link_prefix']}"[:30]})
+                    db.connection.commit()
+            except Exception as e:
+                TBControlController._mark_source(src["code"], False, str(e))
+                summary.append({"source": src["code"], "success": False, "error": str(e)[:300]})
+                continue
+            TBControlController._mark_source(src["code"], True, None)
+            summary.append({"source": src["code"], "success": True, "total": data["total"],
+                            "online": data["online"], "offline": data["offline"],
+                            "shutdown": data["shutdown"]})
+        TBControlController._add_audit("sync", "cassa", None,
+                                       f"Опрос касс: {len([s for s in summary if s.get('success')])}"
+                                       f"/{len(summary)} источников")
+        return {"success": True, "data": summary}
+
+    @staticmethod
+    def get_cassa(source_code=None, status=None):
+        """Кассы, сгруппированные по магазинам (как в UaMenu Dashboard)."""
+        try:
+            with DatabaseModel() as db:
+                sql = "SELECT * FROM V_TBC_CASSA_STORES WHERE 1=1"
+                params = {}
+                if source_code:
+                    sql += " AND SOURCE_CODE = :src"
+                    params["src"] = source_code
+                if status:
+                    sql += " AND STATUS = :status"
+                    params["status"] = status
+                sql += " ORDER BY SOURCE_NAME, STORE_NAME"
+                stores = TBControlController._rows_to_dicts(
+                    db.execute_query(sql, params if params else None))
+
+                sql2 = ("SELECT SOURCE_CODE, SOURCE_NAME, COD_UNIV, STORE_NAME, DB_LINK, "
+                        "DB_LINK_PREFIX, SHEMA, SERVER_ID, OFF_LINE, STATUS, STATUS_REASON, "
+                        "LINK_ERROR, CHECKED_AT FROM TBC_CASSA_STATE WHERE 1=1")
+                if source_code:
+                    sql2 += " AND SOURCE_CODE = :src"
+                sql2 += " ORDER BY SOURCE_CODE, STORE_NAME, DB_LINK"
+                regs = TBControlController._rows_to_dicts(
+                    db.execute_query(sql2, {"src": source_code} if source_code else None))
+                by_store = {}
+                for reg in regs:
+                    by_store.setdefault((reg["source_code"], reg["cod_univ"]), []).append(reg)
+                for st in stores:
+                    st["registers"] = by_store.get((st["source_code"], st["cod_univ"]), [])
+
+                stats = TBControlController._first_row(
+                    db.execute_query("SELECT * FROM V_TBC_CASSA_STATS")) or {}
+                return {"success": True, "data": {"stores": stores, "stats": stats},
+                        "total": len(stores)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     # ========== Хэш-инвайты автологина (таблица INV_LINKS) ==========
 
     @staticmethod
