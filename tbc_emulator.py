@@ -541,6 +541,28 @@ class EmulatorRuntime:
                         except Exception as e:
                             self._log(f'ошибка sync: {e}')
                         self._stop.wait(interval)
+                elif mode == 'unisim':
+                    # UaMenu Cassa: периодический опрос Oracle-источников
+                    # (ybmb_dif_cassa + DB Links) — как unisim-dashboard.una.md
+                    self._log('UaMenu Cassa: опрос источников запущен')
+                    while not self._stop.is_set():
+                        try:
+                            r = client.post('/cassa/sync', {})
+                            if r.get('success'):
+                                for item in (r.get('data') or []):
+                                    if item.get('success'):
+                                        self._log(f"{item['source']}: {item['online']} online, "
+                                                  f"{item['offline']} offline, "
+                                                  f"{item['shutdown']} suspend (всего {item['total']})")
+                                    else:
+                                        self._log(f"{item.get('source')}: ошибка — "
+                                                  f"{str(item.get('error'))[:120]}")
+                            else:
+                                self._log(f"ошибка опроса: {str(r.get('error'))[:150]}")
+                            self.state['cycle'] += 1
+                        except Exception as e:
+                            self._log(f'ошибка цикла: {e}')
+                        self._stop.wait(interval)
                 else:
                     emu = TBCEmulator(client, log=self._log, stop_event=self._stop)
                     while not self._stop.is_set():
