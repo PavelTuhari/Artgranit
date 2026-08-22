@@ -187,7 +187,10 @@ function cart() { try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'
 function saveCartLS(c) { localStorage.setItem(CART_KEY, JSON.stringify(c)); cartBadge();
   if (window.onCartChange) window.onCartChange(); }
 function cartBadge() {
-  const n = cart().reduce((s, i) => s + (i.qty || 0), 0);
+  // RO: insigna arata NUMARUL DE PRODUSE distincte adaugate (linii cu cant > 0),
+  //     nu cantitatea totala — cerinta owner (22.08.2026).
+  // EN: badge shows the number of DISTINCT products added, not total quantity.
+  const n = cart().filter(i => (i.qty || 0) > 0).length;
   const b = document.getElementById('cart-badge');
   if (b) { b.style.display = n ? '' : 'none'; b.textContent = n; }
 }
