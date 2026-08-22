@@ -1228,14 +1228,51 @@ async function setLang(code) {
 }
 
 // ==================== Навигация ====================
+
+// Страховка от потерянных разделов.
+//
+// NAV — рукописный список, а панели добавляют разные люди в разное время.
+// Стоит кому-то добавить <section class="panel" id="panel-xyz"> и забыть
+// строку в NAV — раздел существует, работает и невидим. Проверка ниже
+// сверяет список с фактическими панелями страницы и дописывает
+// недостающие пункты сама: подпись берётся из словаря по ключу
+// nav.<id>, а если и его нет — из самого идентификатора.
+//
+// Пункт помечается точкой вместо иконки: это значит «раздел найден
+// автоматически, ему не назначили ни иконку, ни перевод».
+function syncNavWithPanels() {
+    const known = new Set();
+    NAV.forEach(item => {
+        known.add(item.id);
+        (item.children || []).forEach(c => known.add(c.id));
+    });
+    const missing = [];
+    document.querySelectorAll('.panel[id^="panel-"]').forEach(el => {
+        const id = el.id.slice(6);
+        if (id && !known.has(id)) { known.add(id); missing.push(id); }
+    });
+    if (!missing.length) return;
+    // Новые разделы ставим перед служебными (документы, уведомления,
+    // настройки), чтобы они не тонули в конце списка
+    const tailAt = NAV.findIndex(i => i.id === 'docs');
+    const items = missing.map(id => ({
+        id, icon: '•', key: 'nav.' + id,
+        fallback: id.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase()),
+        auto: true,
+    }));
+    if (tailAt >= 0) NAV.splice(tailAt, 0, ...items); else NAV.push(...items);
+    console.info('[nav] разделы найдены автоматически:', missing.join(', '));
+}
+
 function renderNav() {
+    syncNavWithPanels();
     document.getElementById('sbNav').innerHTML = NAV.map(item => {
         const isParent = !!item.children;
         const active = isParent
             ? (item.children.some(c => c.id === ACTIVE))
             : ACTIVE === item.id;
         let html = `<div><button class="nav-item ${active ? 'active' : ''}" onclick="navClick('${item.id}')">
-            <span class="ic">${item.icon}</span><span class="lbl">${esc(t(item.key))}</span>
+            <span class="ic">${item.icon}</span><span class="lbl">${esc(t(item.key, item.fallback))}</span>
             ${item.badge ? `<span class="badge" id="navBadge" style="display:none">0</span>` : ''}
             ${isParent ? `<span class="caret">${PLG_OPEN ? '▾' : '▸'}</span>` : ''}
         </button>`;

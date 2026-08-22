@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "Dashboard метрик БД", "ro": "Dashboard metrici BD", "en": "Database dashboard"},
+  "icon": "📈",
+  "order": 200,
+  "group": "tools",
+  "url": "/UNA.md/orasldev/dashboard",
+  "descr": "Метрики Oracle, наборы дашбордов"
+}

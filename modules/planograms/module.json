@@ -1,0 +1,15 @@
+{
+  "title": {"ru": "Планограммы и автозаказ", "ro": "Planograme și comandă automată", "en": "Planograms & auto-order"},
+  "icon": "▦",
+  "order": 10,
+  "url": "/UNA.md/orasldev/planograms",
+  "docs": "docs/Planograms",
+  "sql_prefix": "PLG_, PECO_",
+  "descr": "Выкладка, прогноз заказов, фреш, импорт, топливо, ИИ-мониторинг",
+  "pages": {
+    "planograms": "Модуль (все разделы)",
+    "planograms/docs": "Документация модуля",
+    "planograms/presentation": "Презентация",
+    "planograms/order-package": "Пакет документов заказа"
+  }
+}

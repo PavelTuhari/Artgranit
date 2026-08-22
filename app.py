@@ -24,6 +24,7 @@ from controllers.tbcontrol_controller import TBControlController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
 from controllers.plg_ai_controller import PlgAiController
+from models import doc_registry, module_registry
 from controllers.peco_supply_controller import PecoSupplyController
 from models.peco_gps import PecoGps
 from controllers.colass_controller import ColassController
@@ -376,7 +377,36 @@ def sqldeveloper():
     """Oracle SQL Developer интерфейс"""
     if not AuthController.is_authenticated():
         return _login_redirect()
-    return render_template('sqldeveloper_mdi.html', username=AuthController.get_current_user())
+    return render_template('sqldeveloper_mdi.html',
+                           username=AuthController.get_current_user(),
+                           registry=module_registry.get(app))
+
+
+@app.route('/UNA.md/orasldev/modules')
+def modules_map():
+    """
+    Карта системы: все модули и страницы, найденные автоматически.
+
+    Страница существует ради одного правила: что бы кто ни добавил
+    в проект, оно должно быть видно из меню. Источник — карта маршрутов
+    Flask, а не список, который надо не забыть дописать.
+    """
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    refresh = request.args.get('refresh') == '1'
+    return render_template('modules_map.html',
+                           username=AuthController.get_current_user(),
+                           registry=module_registry.get(app, refresh=refresh))
+
+
+@app.route('/api/modules')
+def api_modules():
+    """Карта модулей в JSON — для внешних панелей и проверок деплоя."""
+    if not AuthController.is_authenticated():
+        return jsonify({'success': False, 'error': 'Требуется вход'}), 401
+    data = module_registry.get(app, request.args.get('lang', 'ru'),
+                               refresh=request.args.get('refresh') == '1')
+    return jsonify({'success': True, **data})
 
 
 @app.route('/UNA.md/orasldev/dashboard')
@@ -2806,63 +2836,35 @@ def _plg_block_anonymous_writes():
 
 # --- Публичная документация модуля ---
 #
-# Реестр документов. Флаг public=True открывает документ без входа в систему.
-# Руководство пользователя и презентация показывают только работу с интерфейсом
-# и потому открыты. Техническое описание и инструкция по установке содержат
-# пути на сервере, размещение wallet, имя systemd-юнита и перечень ключей
-# окружения — их анонимный доступ был бы разведданными для атакующего,
-# поэтому они закрыты входом. Чтобы открыть их тоже, достаточно поставить
-# 'public': True в соответствующей строке.
-PLG_DOCS = [
-    {'slug': 'user-guide', 'file': 'USER_GUIDE.md', 'public': True,
-     'icon': '📘', 'cls': 'g', 'title': 'Руководство пользователя',
-     'audience': 'для сотрудников сети',
-     'descr': 'Как работать в модуле: карта зала, планограммы и согласование, '
-              'прогноз заказов, диаграмма Ганта, поставщики, конкуренты, рынки. '
-              'Пять типовых сценариев и пояснения, как читать цвета и метрики.'},
-    {'slug': 'module', 'file': 'PLANOGRAMS_MODULE.md', 'public': False,
-     'icon': '⚙', 'cls': '', 'title': 'Техническое описание',
-     'audience': 'для разработчиков',
-     'descr': 'Модель данных, представления, API, алгоритмы генерации и прогноза, '
-              'инженерные решения и найденные при тестировании дефекты.'},
-    {'slug': 'install', 'file': 'INSTALL.md', 'public': False,
-     'icon': '⬇', 'cls': 'c', 'title': 'Установка и развёртывание',
-     'audience': 'для администраторов',
-     'descr': 'Все скрипты установки, порядок SQL-файлов, флаги деплоя, '
-              'конфигурация окружения и обязательные проверки после релиза.'},
-    {'slug': 'auto-order', 'file': 'AUTO_ORDER_GUIDE.md', 'public': True,
-     'icon': '∿', 'cls': 'v', 'title': 'Методичка по автозаказу',
-     'audience': 'для категорийного менеджера и закупщика',
-     'descr': 'Все алгоритмы автозаказа со скриншотами и ссылками в работающую '
-              'систему, фреш через РЦ и прямой поставкой, голосовой дозаказ, '
-              'дорожная карта ИИ, векторные возможности Oracle 26ai '
-              'и сравнение методологических подходов.'},
-    {'slug': 'fuel', 'file': 'FUEL_LOGISTICS.md', 'public': True,
-     'icon': '⛽', 'cls': 'r', 'title': 'Топливная логистика',
-     'audience': 'для логиста сети АЗС и закупщика топлива',
-     'descr': 'Автозаказ для сети заправок: расчёт по резервуару и секциям '
-              'бензовоза, четыре алгоритма прогноза отпуска, выбор пути '
-              'снабжения между импортом, внутренним рынком и своей или '
-              'партнёрской нефтебазой, рейсы и GPS-телеметрия на аутсорсе.'},
-    {'slug': 'presentation-plan', 'file': 'PRESENTATION_PLAN.md', 'public': True,
-     'icon': '◐', 'cls': 'w', 'title': 'План презентации',
-     'audience': 'для докладчика',
-     'descr': 'Сценарий показа на 25 минут: структура слайдов с таймингом, '
-              'что демонстрировать вживую, ожидаемые вопросы и план пилота.'},
-]
+# Реестр НЕ пишется здесь руками: он собирается из самой папки
+# docs/Planograms (models/doc_registry.py). Любой .md, который кто-то
+# туда положит, появляется в хабе сам — раньше новый документ был не
+# виден, пока не вспомнят про список в этом файле.
+#
+# Иконку, аудиторию, порядок и флаг публичности задаёт docs/Planograms/docs.json.
+# Флаг public=True открывает документ без входа: руководство пользователя,
+# методички и презентация показывают только работу с интерфейсом и потому
+# открыты. Техническое описание и инструкция по установке содержат пути
+# на сервере, размещение wallet, имя systemd-юнита и перечень ключей
+# окружения — они закрыты входом. Документ без записи в манифесте виден
+# в хабе, но закрыт входом: открывать неизвестный файл анониму нельзя.
 
 PLG_DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs', 'Planograms')
 
 
+def _plg_docs():
+    return doc_registry.scan(PLG_DOCS_DIR)
+
+
 def _plg_doc_by_slug(slug):
-    return next((d for d in PLG_DOCS if d['slug'] == slug), None)
+    return next((d for d in _plg_docs() if d['slug'] == slug), None)
 
 
 @app.route('/UNA.md/orasldev/planograms/docs')
 @app.route('/UNA.md/orasldev/planograms/docs/')
 def planograms_docs_index():
     """Хаб документации модуля — открыт без входа."""
-    return render_template('planograms_docs.html', docs=PLG_DOCS, doc=None,
+    return render_template('planograms_docs.html', docs=_plg_docs(), doc=None,
                            page_title='Планограммы — документация модуля')
 
 
@@ -2871,27 +2873,27 @@ def planograms_doc(slug):
     """Отдельный документ модуля, отрендеренный из Markdown."""
     doc = _plg_doc_by_slug(slug)
     if not doc:
-        return render_template('planograms_docs.html', docs=PLG_DOCS, doc=None,
+        return render_template('planograms_docs.html', docs=_plg_docs(), doc=None,
                                page_title='Документ не найден'), 404
     if not doc['public'] and not AuthController.is_authenticated():
         return redirect(url_for('login'))
 
     path = os.path.join(PLG_DOCS_DIR, doc['file'])
     if not os.path.isfile(path):
-        return render_template('planograms_docs.html', docs=PLG_DOCS, doc=None,
+        return render_template('planograms_docs.html', docs=_plg_docs(), doc=None,
                                page_title='Документ не найден'), 404
     with open(path, 'r', encoding='utf-8') as f:
         source = f.read()
 
     # Ссылки между файлами переписываем на маршруты приложения,
     # иначе из браузера они ведут в никуда.
-    for other in PLG_DOCS:
+    for other in _plg_docs():
         source = source.replace(f"]({other['file']})",
                                 f"](/UNA.md/orasldev/planograms/docs/{other['slug']})")
     source = source.replace('](presentation.html)',
                             '](/UNA.md/orasldev/planograms/presentation)')
 
-    return render_template('planograms_docs.html', docs=PLG_DOCS, doc=doc,
+    return render_template('planograms_docs.html', docs=_plg_docs(), doc=doc,
                            content=_docs_md_to_html(source),
                            page_title=f"{doc['title']} — Планограммы")
 

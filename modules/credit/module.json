@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "Кредитование", "ro": "Creditare", "en": "Credit management"},
+  "icon": "💳",
+  "order": 70,
+  "url": "/UNA.md/orasldev/credit-admin",
+  "sql_prefix": "CRED_",
+  "descr": "Админка, рабочее место оператора, портфель, EasyCredit и Iute"
+}

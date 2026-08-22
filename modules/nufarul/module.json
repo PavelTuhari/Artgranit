@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "Nufărul — производство", "ro": "Nufărul — producție", "en": "Nufărul — production"},
+  "icon": "🌸",
+  "order": 80,
+  "url": "/UNA.md/orasldev/nufarul-operator",
+  "sql_prefix": "NUF_",
+  "descr": "Рабочее место оператора, админка, экран покупателя"
+}

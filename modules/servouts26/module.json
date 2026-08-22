@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "ServOuts26 — услуги", "ro": "ServOuts26 — servicii", "en": "ServOuts26 — services"},
+  "icon": "🔧",
+  "order": 30,
+  "url": "/UNA.md/orasldev/servouts26",
+  "sql_prefix": "UNITEST",
+  "descr": "Заказы услуг, витрина, администрирование"
+}

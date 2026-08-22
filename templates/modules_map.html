@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Карта системы — Artgranit</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root{
+  --bg:#070c15; --panel:#0d1626; --panel2:#141f30; --border:#25344f;
+  --fg:#e8eef7; --muted:#8ea2bd; --accent:#3b82f6; --accent2:#60a5fa;
+  --ok:#22c55e; --warn:#f59e0b; --crit:#ef4444; --violet:#a855f7;
+}
+body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  background:var(--bg); color:var(--fg); line-height:1.6; }
+a{ color:var(--accent2); text-decoration:none; }
+.top{ background:linear-gradient(90deg,#0c1c2c,#10283e); border-bottom:2px solid var(--accent);
+  padding:0 22px; height:54px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:50; }
+.top .logo{ font-weight:800; font-size:16px; }
+.top .logo span{ color:var(--accent2); }
+.top .spacer{ flex:1; }
+.top a.btn{ font-size:12.5px; padding:6px 13px; border-radius:7px; border:1px solid var(--border); color:var(--fg); }
+.top a.btn:hover{ background:var(--panel2); }
+.wrap{ max-width:1240px; margin:0 auto; padding:24px 22px 60px; }
+h1{ font-size:34px; letter-spacing:-.02em; margin-bottom:10px; }
+.lead{ font-size:16px; color:#cdd9e8; max-width:820px; }
+.badges{ display:flex; gap:26px; flex-wrap:wrap; margin:22px 0 8px; }
+.badges div{ font-size:12px; color:var(--muted); }
+.badges b{ display:block; font-size:24px; color:var(--fg); font-weight:800; }
+.cap{ font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px; color:var(--muted);
+  margin:34px 0 12px; }
+.grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+.mod{ background:var(--panel); border:1px solid var(--border); border-radius:13px; padding:18px 20px;
+  border-top:3px solid var(--accent); }
+.mod.auto{ border-top-color:var(--warn); }
+.mod.orphan{ border-top-color:var(--crit); }
+.mod .hd{ display:flex; align-items:baseline; gap:10px; }
+.mod .ic{ font-size:20px; }
+.mod h3{ font-size:16.5px; letter-spacing:-.01em; }
+.mod h3 a{ color:var(--fg); }
+.mod h3 a:hover{ color:var(--accent2); }
+.mod .descr{ font-size:13px; color:var(--muted); margin:6px 0 10px; }
+.mod ul{ list-style:none; display:flex; flex-direction:column; gap:3px; margin-top:8px;
+  max-height:210px; overflow:auto; }
+.mod li{ font-size:12.5px; }
+.mod li a{ color:#a9bdd8; }
+.mod li a:hover{ color:var(--accent2); }
+.mod .meta{ margin-top:12px; font-size:11.5px; color:#5b6d8a; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.tag{ font-size:10.5px; font-weight:700; letter-spacing:.4px; border-radius:5px; padding:2px 7px; }
+.tag.man{ background:rgba(34,197,94,.15); color:#4ade80; }
+.tag.no{ background:rgba(245,158,11,.15); color:#fbbf24; }
+.tag.err{ background:rgba(239,68,68,.15); color:#fca5a5; }
+.note{ background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:10px; padding:16px 18px; margin-top:28px; font-size:13.5px; color:#cdd9e8; }
+.note code{ background:var(--panel2); padding:1px 6px; border-radius:5px; font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="logo">Artgranit<span>.</span> Карта системы</div>
+  <div class="spacer"></div>
+  <a class="btn" href="/UNA.md/orasldev/modules?refresh=1">Пересканировать</a>
+  <a class="btn" href="/UNA.md/orasldev">SQL Developer</a>
+  <a class="btn" href="/UNA.md/orasldev/docs">Документация</a>
+</div>
+
+<div class="wrap">
+  <h1>Всё, что есть в системе</h1>
+  <p class="lead">Список собран при запуске из карты маршрутов приложения, а не написан руками.
+     Если модуль или страница добавлены — они здесь, кто бы их ни написал и в какой бы
+     сессии это ни произошло. Манифест <code>modules/&lt;ключ&gt;/module.json</code> задаёт
+     название и порядок, но спрятать модуль из этого списка он не может.</p>
+
+  <div class="badges">
+    <div><b>{{ registry.total_modules }}</b>модулей</div>
+    <div><b>{{ registry.total_pages }}</b>страниц</div>
+    <div><b>{{ registry.without_manifest|length }}</b>без манифеста</div>
+  </div>
+
+  <div class="cap">Модули сети</div>
+  <div class="grid">
+    {% for m in registry.by_group.modules %}
+    <div class="mod {% if not m.has_manifest %}auto{% endif %}{% if m.orphan %} orphan{% endif %}">
+      <div class="hd"><span class="ic">{{ m.icon }}</span>
+        <h3><a href="{{ m.url }}">{{ m.title.ru }}</a></h3></div>
+      {% if m.descr %}<div class="descr">{{ m.descr }}</div>{% endif %}
+      {% if m.pages %}
+      <ul>
+        {% for p in m.pages %}<li><a href="{{ p.url }}">{{ p.title }}</a></li>{% endfor %}
+      </ul>
+      {% else %}
+      <div class="descr">Манифест есть, работающих маршрутов нет — проверьте, что модуль подключён.</div>
+      {% endif %}
+      <div class="meta">
+        <span>{{ m.page_count }} стр.</span>
+        {% if m.sql_prefix %}<span>Oracle: {{ m.sql_prefix }}</span>{% endif %}
+        {% if m.manifest_error %}<span class="tag err">ошибка манифеста</span>
+        {% elif m.has_manifest %}<span class="tag man">манифест</span>
+        {% else %}<span class="tag no">без манифеста</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="cap">Инструменты</div>
+  <div class="grid">
+    {% for m in registry.by_group.tools %}
+    <div class="mod {% if not m.has_manifest %}auto{% endif %}">
+      <div class="hd"><span class="ic">{{ m.icon }}</span>
+        <h3><a href="{{ m.url }}">{{ m.title.ru }}</a></h3></div>
+      {% if m.descr %}<div class="descr">{{ m.descr }}</div>{% endif %}
+      <ul>{% for p in m.pages %}<li><a href="{{ p.url }}">{{ p.title }}</a></li>{% endfor %}</ul>
+      <div class="meta"><span>{{ m.page_count }} стр.</span>
+        {% if m.has_manifest %}<span class="tag man">манифест</span>
+        {% else %}<span class="tag no">без манифеста</span>{% endif %}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="note">
+    <b>Как добавить модуль в меню.</b> Никак — он попадёт туда сам, как только появится
+    маршрут под <code>/UNA.md/orasldev/…</code>. Чтобы он выглядел прилично, положите рядом
+    <code>modules/&lt;ключ&gt;/module.json</code> с названием на трёх языках, иконкой и порядком.
+    Ключ — первый сегмент адреса до дефиса: у <code>/UNA.md/orasldev/biro26-site</code>
+    ключ <code>biro26</code>. Оранжевая рамка означает «модуль найден, манифеста нет»,
+    красная — «манифест есть, а маршруты не отвечают».
+  </div>
+</div>
+</body>
+</html>

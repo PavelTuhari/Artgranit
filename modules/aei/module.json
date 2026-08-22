@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "AEÎ — депозиты и кредиты", "ro": "AEÎ — depozite și credite", "en": "AEÎ — deposits & loans"},
+  "icon": "🏦",
+  "order": 60,
+  "url": "/UNA.md/orasldev/aei",
+  "sql_prefix": "AEI_",
+  "descr": "Оператор, бэк-офис, симулятор, документация и ТЗ"
+}
