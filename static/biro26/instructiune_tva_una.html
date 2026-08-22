@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cum se determină cota TVA — UNA.md</title>
+<style>
+:root{--bg:#fff;--fg:#16202b;--mut:#5b6b7c;--line:#e4e9ef;--accent:#1d4ed8;
+      --card:#f7f9fc;--warn-bg:#fff8ec;--warn-br:#e08c00;--ok-bg:#f1fbf4;--ok-br:#15a34a}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1319;--fg:#e6edf3;--mut:#98a5b3;
+  --line:#232f3d;--accent:#7aa2f7;--card:#151c25;--warn-bg:#2a1e0e;--warn-br:#c07c10;
+  --ok-bg:#0e2318;--ok-br:#25a55a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,
+     "Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:30px 20px 72px}
+main{max-width:880px;margin:0 auto}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 6px}
+h2{font-size:1.2rem;margin:34px 0 10px;padding-top:15px;border-top:1px solid var(--line)}
+h3{font-size:1.02rem;margin:22px 0 6px}
+.lead{color:var(--mut);margin:0 0 24px;font-size:1.02rem}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.93rem}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--card);font-weight:600}
+code{background:var(--card);padding:1px 5px;border-radius:4px;font-size:.88em;
+     font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;overflow-x:auto;font-size:.86rem;line-height:1.5}
+.box{border-left:4px solid var(--accent);background:var(--card);padding:12px 16px;
+     border-radius:0 8px 8px 0;margin:16px 0}
+.warn{border-left-color:var(--warn-br);background:var(--warn-bg)}
+.ok{border-left-color:var(--ok-br);background:var(--ok-bg)}
+ol,ul{padding-left:22px}ol>li,ul>li{margin:8px 0}
+.step{list-style:none;padding-left:0;counter-reset:s}
+.step>li{counter-increment:s;position:relative;padding-left:40px;margin:14px 0}
+.step>li::before{content:counter(s);position:absolute;left:0;top:1px;width:27px;height:27px;
+  line-height:27px;text-align:center;background:var(--accent);color:#fff;border-radius:50%;
+  font-size:.83rem;font-weight:700}
+.muted{color:var(--mut);font-size:.88rem}
+</style></head><body><main>
+
+<h1>Cum se determină cota TVA</h1>
+<p class="lead">Ce cotă primește o poziție dintr-un document, de unde vine ea și ce faceți când
+nu e cea așteptată. Se aplică la facturi fiscale, facturi și documentele de vânzare.</p>
+
+<h2>1. Regula de bază: patru verificări, în ordine</h2>
+<p>Sistemul nu ia cota dintr-un singur loc. Le verifică pe rând și <b>se oprește la prima care
+răspunde</b>:</p>
+
+<ol class="step">
+<li><b>Întreprinderea este plătitoare de TVA?</b> Dacă în parametri e marcat că nu, toate
+    pozițiile primesc cotă <b>0</b> și nimic altceva nu mai contează.</li>
+<li><b>Documentul are un regim propriu de TVA?</b> Butonul din formularul documentului
+    (<i>Cu TVA / TVA 0% / Fara TVA</i>) bate peste tot ce urmează.</li>
+<li><b>Clientul are un regim special?</b> Dacă în cartela clientului codul TVA e
+    <code>0</code> sau <code>N</code>, se aplică acela — indiferent de marfă.</li>
+<li><b>Altfel, cota vine de la marfă</b> — din codul TVA al poziției din nomenclator.</li>
+</ol>
+
+<div class="box">
+Cu alte cuvinte: <b>documentul bate clientul, clientul bate marfa.</b> Dacă o factură apare
+cu 0% deși marfa e la 20%, aproape sigur clientul are un regim special — vedeți punctul 3.
+</div>
+
+<h2>2. Codurile de TVA din cartele</h2>
+<p>Atât marfa, cât și clientul au în cartelă o literă care spune ce cotă li se aplică:</p>
+
+<div class="tw"><table>
+<tr><th>Cod</th><th>Cota</th><th>Ce înseamnă</th></tr>
+<tr><td><code>A</code></td><td>20%</td><td>cota standard — implicit pentru marfă nouă</td></tr>
+<tr><td><code>B</code></td><td>8%</td><td>cotă redusă</td></tr>
+<tr><td><code>C</code></td><td>5%</td><td>cotă redusă</td></tr>
+<tr><td><code>D</code></td><td>6%</td><td>cotă redusă</td></tr>
+<tr><td><code>E</code></td><td>10%</td><td>cotă redusă</td></tr>
+<tr><td><code>0</code></td><td><b>0%</b></td><td>operațiune <b>impozabilă la cota zero</b> — apare în declarație cu TVA = 0</td></tr>
+<tr><td><code>N</code></td><td>—</td><td><b>fără TVA</b> — operațiune <b>în afara</b> sistemului TVA</td></tr>
+</table></div>
+
+<div class="box warn">
+<b><code>0</code> și <code>N</code> nu sunt același lucru</b> și nu se pot înlocui unul cu
+altul. Cota zero înseamnă o operațiune impozabilă la 0% — se raportează. „Fără TVA" înseamnă
+o operațiune care nu intră deloc în TVA. Se contabilizează diferit, iar în declarație ajung
+în rânduri diferite.
+</div>
+
+<h2>3. Codul TVA are istoric: contează <u>data documentului</u></h2>
+<p>Codul TVA din cartelă nu e o singură valoare — el are <b>perioade de valabilitate</b>. Un
+client poate fi la 20% până la o dată, la 0% de la alta.</p>
+
+<p>Exemplu real de istoric al unui client:</p>
+<div class="tw"><table>
+<tr><th>Cod TVA</th><th>De la</th><th>Până la</th></tr>
+<tr><td><code>A</code> (20%)</td><td>01.01.1900</td><td>19.08.2026</td></tr>
+<tr><td><code>0</code> (0%)</td><td>20.08.2026</td><td>01.01.3000</td></tr>
+</table></div>
+
+<div class="box ok">
+<b>Cota se ia la data documentului, nu la data de azi.</b> O factură emisă pe 19.08 primește
+20%, chiar dacă o deschideți luna următoare, când clientul e deja la 0%. Așa trebuie: un
+document păstrează regimul fiscal valabil la momentul operațiunii.
+</div>
+
+<h2>4. Când cota nu e cea așteptată — ce verificați</h2>
+<ol>
+<li><b>Data documentului.</b> Cea mai frecventă cauză. Verificați ce cod TVA era valabil la
+    <i>acea</i> dată, nu ce scrie acum în cartelă.</li>
+<li><b>Perioada din istoric e prea scurtă.</b> Dacă scutirea a fost introdusă „de la o dată
+    până la alta" și acea perioadă s-a încheiat, documentele următoare revin la cota standard.
+    Dacă regimul e permanent, perioada trebuie să rămână deschisă.</li>
+<li><b>Regimul pus pe document</b> (butonul <i>Cu TVA / TVA 0% / Fara TVA</i>). El bate
+    cartela clientului — dacă e pus din greșeală, cota clientului nu se mai aplică.</li>
+<li><b>Cartela clientului vs istoricul.</b> Ele trebuie să spună același lucru. Dacă în
+    cartelă scrie un cod, iar în istoric e valabil altul la data documentului, rezultatul
+    va părea contradictoriu.</li>
+</ol>
+
+<h2>5. Cum se introduce corect o scutire</h2>
+<ol>
+<li>Deschideți cartela clientului și schimbați codul TVA în <code>0</code> (cotă zero) sau
+    <code>N</code> (fără TVA) — după regimul real din actul care confirmă scutirea.</li>
+<li>Indicați <b>data de la care</b> se aplică. Aceasta devine începutul unei perioade noi în
+    istoric; ce a fost înainte rămâne neatins.</li>
+<li>Dacă scutirea e <b>pe termen nedeterminat</b>, nu puneți o dată de sfârșit. O perioadă
+    închisă înseamnă că, după ea, clientul revine automat la cota standard.</li>
+<li>Verificați pe un document de probă, cu data reală a operațiunii.</li>
+</ol>
+
+<div class="box warn">
+<b>Istoricul TVA nu se șterge.</b> Este un jurnal: intrările greșite se <b>corectează</b>,
+nu se elimină. Așa rămâne vizibil ce regim a fost aplicat la fiecare moment — necesar la
+orice control sau reconciliere.
+</div>
+
+<h2>6. Întrebări frecvente</h2>
+
+<h3>Marfa e la 20%, dar factura iese cu 0%. E o eroare?</h3>
+<p>Nu neapărat. Dacă clientul are cod TVA <code>0</code>, regimul lui se aplică peste cota
+mărfii — asta e regula. Verificați cartela clientului la data documentului.</p>
+
+<h3>Am schimbat codul TVA în cartelă, dar documentele vechi nu s-au schimbat.</h3>
+<p>Corect. Documentele deja emise păstrează cota valabilă la data lor. Schimbarea se aplică
+de la data pe care ați indicat-o, înainte.</p>
+
+<h3>Ce aleg: <code>0</code> sau <code>N</code>?</h3>
+<p>Depinde de temeiul scutirii. Cota zero (<code>0</code>) — operațiuni impozabile cu cota 0%,
+care se raportează. Fără TVA (<code>N</code>) — operațiuni care nu intră în sfera TVA.
+La dubii, întrebați contabilul: alegerea greșită se vede abia în declarație.</p>
+
+<h3>Pot pune regimul direct pe document, fără să ating cartela?</h3>
+<p>Da, prin butonul din formular — dar se aplică <b>doar acelui document</b>. Dacă regimul e
+permanent pentru client, corect e în cartelă: altfel trebuie ținut minte la fiecare factură.</p>
+
+<p class="muted" style="margin-top:36px">
+Document informativ pentru utilizatorii UNA.md. Pentru încadrarea fiscală concretă a unei
+operațiuni consultați contabilul — sistemul aplică regimul pe care i-l indicați, nu îl decide.</p>
+
+</main></body></html>
