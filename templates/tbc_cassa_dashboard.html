@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d1621">
+<title>Cassa Monitor — TBControl</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0b1420; --panel: #121e2d; --panel2: #16263a; --border: #1e3752;
+    --accent: #049fd9; --accent2: #00bceb; --neon: #00f0ff; --violet: #7b2fff;
+    --ok: #6abf4b; --warn: #fbab18; --crit: #e2231a; --text: #dbe5ef; --muted: #7e93a8;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, #10283e 0%, var(--bg) 60%);
+    color: var(--text); min-height: 100vh; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+
+  /* ===== Шапка ===== */
+  .topbar {
+    position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; background: rgba(13,22,33,.92); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 16px; }
+  .brand .mark {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--neon), var(--violet));
+    display: grid; place-items: center; color: #fff; font-size: 15px;
+  }
+  .brand small { display: block; font-size: 10.5px; color: var(--muted); font-weight: 400; }
+  .topbar .spacer { flex: 1; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    font-size: 16px; cursor: pointer; text-decoration: none; flex-shrink: 0;
+  }
+  .icon-btn:active { background: var(--accent); }
+  .icon-btn.busy { opacity: .5; pointer-events: none; }
+
+  .wrap { padding: 12px 14px 32px; max-width: 1400px; margin: 0 auto; }
+
+  /* ===== KPI ===== */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 11px 12px; border-top: 3px solid var(--accent);
+  }
+  .stat.ok { border-top-color: var(--ok); } .stat.crit { border-top-color: var(--crit); }
+  .stat.warn { border-top-color: var(--warn); }
+  .stat b { display: block; font-size: 24px; line-height: 1.1; }
+  .stat span { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .c-ok { color: var(--ok); } .c-crit { color: #ff6b64; } .c-warn { color: var(--warn); } .c-blue { color: var(--accent2); }
+
+  /* ===== Фильтры ===== */
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .search {
+    flex: 1 1 220px; display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .search input {
+    flex: 1; background: none; border: none; color: var(--text); font-size: 15px; outline: none; min-width: 0;
+  }
+  select.sel {
+    padding: 9px 12px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 14px;
+  }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .chip {
+    padding: 7px 14px; border-radius: 16px; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+  }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ===== Карточки магазинов ===== */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+  .store {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    border-left: 4px solid var(--ok); overflow: hidden;
+  }
+  .store.OFFLINE { border-left-color: var(--crit); }
+  .store.SHUTDOWN { border-left-color: var(--muted); }
+  .store.WORKING, .store.FUNCTIONAL { border-left-color: var(--warn); }
+  .store-head { padding: 12px 14px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; }
+  .store-head:active { background: var(--panel2); }
+  .store-head .t { flex: 1; min-width: 0; }
+  .store-name { font-weight: 600; font-size: 15px; margin-bottom: 3px; word-break: break-word; }
+  .store-meta { font-size: 11.5px; color: var(--muted); }
+  .pill {
+    padding: 3px 10px; border-radius: 12px; font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  }
+  .p-ONLINE, .p-FUNCTIONAL { background: rgba(106,191,75,.16); color: var(--ok); }
+  .p-WORKING { background: rgba(251,171,24,.16); color: var(--warn); }
+  .p-OFFLINE { background: rgba(226,35,26,.2); color: #ff6b64; }
+  .p-SHUTDOWN { background: var(--border); color: var(--muted); }
+  .bar { height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .bar > i { display: block; height: 100%; background: var(--ok); }
+  .regs { border-top: 1px solid var(--border); display: none; }
+  .store.open .regs { display: block; }
+  .reg {
+    padding: 10px 14px; border-bottom: 1px solid rgba(30,55,82,.6);
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+  }
+  .reg:last-child { border-bottom: none; }
+  .reg .l { flex: 1; min-width: 0; }
+  .reg .lnk { font-size: 13px; }
+  .reg .why { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-word; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .d-ONLINE { background: var(--ok); } .d-OFFLINE { background: var(--crit); } .d-SHUTDOWN { background: var(--muted); }
+
+  /* ===== Проблемы ===== */
+  .errors { background: rgba(226,35,26,.07); border: 1px solid rgba(226,35,26,.35); border-radius: 12px; margin-bottom: 12px; }
+  .errors h3 { font-size: 13px; padding: 11px 14px; color: #ff6b64; }
+  .errors .e { padding: 9px 14px; border-top: 1px solid rgba(226,35,26,.2); font-size: 12.5px; }
+  .errors .e b { color: var(--text); }
+  .errors .e span { color: var(--muted); display: block; margin-top: 2px; font-size: 11.5px; }
+
+  .note { color: var(--muted); font-size: 13px; text-align: center; padding: 26px 14px; }
+  .footer { text-align: center; color: var(--muted); font-size: 11.5px; padding: 18px 14px 8px; }
+  .footer a { color: var(--accent2); text-decoration: none; margin: 0 6px; }
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 90;
+    background: var(--panel2); border: 1px solid var(--accent); color: var(--text);
+    padding: 11px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 600;
+    display: none; max-width: 92vw; text-align: center;
+  }
+  .toast.err { border-color: var(--crit); }
+  .toast.on { display: block; }
+  .upd { font-size: 11.5px; color: var(--muted); text-align: center; margin: 4px 0 12px; }
+
+  @media (max-width: 560px) {
+    .wrap { padding: 10px 10px 28px; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    .brand span.bn { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">◈</div>
+    <div><span class="bn">Cassa Monitor</span>
+      <small>TBControl · мониторинг касс по DB Links</small></div>
+  </div>
+  <div class="spacer"></div>
+  <a class="icon-btn" href="/UNA.md/orasldev/tbcontrol#cassa" title="Панель TBControl">🖥️</a>
+  <div class="icon-btn" id="btnSync" onclick="syncNow()" title="Опросить источники">↻</div>
+</div>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <div class="upd" id="updated">—</div>
+
+  <div class="filters">
+    <label class="search">🔎<input id="q" type="search" placeholder="Магазин, источник, касса…" oninput="render()"></label>
+    <select class="sel" id="src" onchange="render()"><option value="">Все источники</option></select>
+    <select class="sel" id="sort" onchange="render()">
+      <option value="status">Сначала проблемные</option>
+      <option value="name">По названию</option>
+      <option value="regs">По числу касс</option>
+    </select>
+  </div>
+  <div class="chips" id="chips">
+    <span class="chip on" data-f="" onclick="setF(this)">Все</span>
+    <span class="chip" data-f="OFFLINE" onclick="setF(this)">Offline</span>
+    <span class="chip" data-f="ONLINE" onclick="setF(this)">Online</span>
+    <span class="chip" data-f="SHUTDOWN" onclick="setF(this)">Suspendate</span>
+  </div>
+
+  <div id="errors"></div>
+  <div class="grid" id="grid"><div class="note">Загрузка…</div></div>
+
+  <div class="footer">
+    <a href="/UNA.md/orasldev/tbcontrol#cassa">Панель TBControl</a>·
+    <a href="/UNA.md/orasldev/tbcontrol/docs">Документация</a>·
+    <a href="/UNA.md/orasldev/tbcontrol/presentation">Презентация</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let DATA = {stores: [], stats: {}}, FILTER = '';
+const esc = s => (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = ts => ts ? String(ts).replace('T', ' ').substring(0, 16) : '—';
+
+function toast(m, err) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.className = 'toast on' + (err ? ' err' : '');
+  setTimeout(() => t.classList.remove('on'), 3500);
+}
+function setF(el) {
+  document.querySelectorAll('#chips .chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on'); FILTER = el.dataset.f; render();
+}
+const RANK = {OFFLINE: 0, SHUTDOWN: 1, WORKING: 2, FUNCTIONAL: 3, ONLINE: 4};
+
+async function load() {
+  try {
+    const r = await (await fetch('/api/tbc/cassa')).json();
+    if (!r.success) return toast(r.error || 'Ошибка загрузки', true);
+    DATA = r.data;
+    const sel = document.getElementById('src'), cur = sel.value;
+    const srcs = [...new Set(DATA.stores.map(s => s.source_name))].sort();
+    sel.innerHTML = '<option value="">Все источники</option>' +
+      srcs.map(x => `<option ${cur === x ? 'selected' : ''}>${esc(x)}</option>`).join('');
+    render();
+  } catch (e) { toast('Сеть недоступна', true); }
+}
+
+function render() {
+  const st = DATA.stats || {};
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><b class="c-blue">${st.stores_total || 0}</b><span>Магазины</span></div>
+    <div class="stat ok"><b class="c-ok">${st.stores_online || 0}</b><span>Работают</span></div>
+    <div class="stat crit"><b class="${st.stores_offline ? 'c-crit' : ''}">${st.stores_offline || 0}</b><span>Offline</span></div>
+    <div class="stat warn"><b>${st.stores_shutdown || 0}</b><span>Suspendate</span></div>
+    <div class="stat ok"><b class="${st.reg_offline ? 'c-warn' : 'c-ok'}">${st.reg_online || 0}/${st.reg_total || 0}</b><span>Кассы online</span></div>`;
+  document.getElementById('updated').textContent =
+    `Последний опрос: ${fmt(st.checked_at)} · источников: ${st.sources_total || 0}` +
+    (st.sources_error ? ` · с ошибкой: ${st.sources_error}` : '');
+
+  // Проблемные кассы отдельным блоком — как в UaMenu
+  const bad = [];
+  (DATA.stores || []).forEach(s => (s.registers || []).forEach(r => {
+    if (r.status !== 'ONLINE') bad.push({...r, store: s.store_name, src: s.source_name});
+  }));
+  document.getElementById('errors').innerHTML = bad.length ? `
+    <div class="errors"><h3>⚠ Кассы, требующие внимания — ${bad.length}</h3>
+      ${bad.map(r => `<div class="e"><b>${esc(r.store)}</b> · ${esc(r.src)} · <span class="mono">${esc(r.db_link)}</span>
+        <span>${esc(r.status_reason || r.link_error || '')}</span></div>`).join('')}
+    </div>` : '';
+
+  const q = (document.getElementById('q').value || '').toLowerCase().trim();
+  const srcSel = document.getElementById('src').value;
+  const sort = document.getElementById('sort').value;
+  let list = (DATA.stores || []).filter(s => {
+    if (srcSel && s.source_name !== srcSel) return false;
+    if (FILTER) {
+      if (FILTER === 'ONLINE' && !['ONLINE', 'FUNCTIONAL', 'WORKING'].includes(s.status)) return false;
+      if (FILTER !== 'ONLINE' && s.status !== FILTER) return false;
+    }
+    if (q) {
+      const hay = [s.store_name, s.source_name, s.cod_univ,
+                   ...(s.registers || []).map(r => r.db_link + ' ' + (r.shema || ''))].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  list.sort((a, b) => sort === 'name' ? String(a.store_name).localeCompare(b.store_name)
+    : sort === 'regs' ? (b.reg_total - a.reg_total)
+    : ((RANK[a.status] ?? 9) - (RANK[b.status] ?? 9)) || String(a.store_name).localeCompare(b.store_name));
+
+  document.getElementById('grid').innerHTML = list.length ? list.map((s, i) => {
+    const pct = s.reg_total ? Math.round(s.reg_online / s.reg_total * 100) : 0;
+    const color = s.status === 'OFFLINE' ? 'var(--crit)' : (pct < 100 ? 'var(--warn)' : 'var(--ok)');
+    return `<div class="store ${esc(s.status)}${s.status === 'OFFLINE' ? ' open' : ''}" id="st${i}">
+      <div class="store-head" onclick="document.getElementById('st${i}').classList.toggle('open')">
+        <div class="t">
+          <div class="store-name">${esc(s.store_name)}</div>
+          <div class="store-meta">${esc(s.source_name)} · cod ${esc(s.cod_univ)} ·
+            ${s.reg_online}/${s.reg_total} касс${s.reg_shutdown ? ` · ${s.reg_shutdown} suspend` : ''}</div>
+          <div class="bar"><i style="width:${pct}%;background:${color}"></i></div>
+        </div>
+        <span class="pill p-${esc(s.status)}">${esc(s.status)}</span>
+      </div>
+      <div class="regs">
+        ${(s.registers || []).map(r => `<div class="reg">
+          <span class="dot d-${esc(r.status)}"></span>
+          <div class="l">
+            <div class="lnk mono">${esc(r.db_link)}${r.server_id ? ` <span style="color:var(--muted)">· ServerID ${esc(r.server_id)}</span>` : ''}</div>
+            <div class="why">${esc(r.shema || '')}${r.shema ? ' · ' : ''}${esc(r.status_reason || '')}</div>
+          </div>
+          <span class="pill p-${esc(r.status)}">${esc(r.status)}</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('') : '<div class="note">Ничего не найдено. Проверьте фильтры или запустите опрос кнопкой ↻</div>';
+}
+
+async function syncNow() {
+  const b = document.getElementById('btnSync');
+  b.classList.add('busy'); toast('Опрашиваем источники…');
+  try {
+    const r = await (await fetch('/api/tbc/cassa/sync', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'})).json();
+    if (!r.success) toast(r.error || 'Ошибка опроса', true);
+    else {
+      const ok = (r.data || []).filter(x => x.success).length;
+      const bad = (r.data || []).filter(x => !x.success).length;
+      toast(`Опрошено источников: ${ok}${bad ? ', ошибок: ' + bad : ''}`, bad > 0);
+    }
+    await load();
+  } catch (e) { toast('Опрос не удался', true); }
+  b.classList.remove('busy');
+}
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
