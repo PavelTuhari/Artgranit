@@ -1530,6 +1530,181 @@ async function loadAudit() {
         '<tr><td colspan="5" class="empty-note">Журнал пуст</td></tr>';
 }
 
+// ===== Кассы UaMenu =====
+let cassaStatusSel = '';
+const CASSA_ST = {ONLINE: 'bg-ok', FUNCTIONAL: 'bg-ok', WORKING: 'bg-warn',
+                  OFFLINE: 'bg-crit', SHUTDOWN: 'bg-mut'};
+function setCassaStatus(el) {
+    document.querySelectorAll('#panel-cassa .tab-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active'); cassaStatusSel = el.dataset.cs; loadCassa();
+}
+async function loadCassa() {
+    let q = [];
+    const sf = gv('cassaSrcFilter'); if (sf) q.push('source_code=' + sf);
+    if (cassaStatusSel) q.push('status=' + cassaStatusSel);
+    const r = await api('/cassa' + (q.length ? '?' + q.join('&') : ''));
+    if (!r.success) return toast(r.error, true);
+    const st = r.data.stats || {};
+    document.getElementById('cassaStatGrid').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Источники</div><div class="stat-value blue">${st.sources_total || 0}</div>
+            <div class="stat-sub">${st.sources_error ? '<span style="color:var(--crit)">ошибок: ' + st.sources_error + '</span>' : 'все отвечают'}</div></div>
+        <div class="stat-card green"><div class="stat-label">Магазины</div>
+            <div class="stat-value ${st.stores_offline > 0 ? 'yellow' : 'green'}">${st.stores_online || 0}/${st.stores_total || 0}</div>
+            <div class="stat-sub">offline: ${st.stores_offline || 0} · suspend: ${st.stores_shutdown || 0}</div></div>
+        <div class="stat-card green"><div class="stat-label">Кассы (DB Links)</div>
+            <div class="stat-value ${st.reg_offline > 0 ? 'red' : 'green'}">${st.reg_online || 0}/${st.reg_total || 0}</div>
+            <div class="stat-sub">не отвечают: ${st.reg_offline || 0}</div></div>
+        <div class="stat-card"><div class="stat-label">Последний опрос</div>
+            <div class="stat-value" style="font-size:17px">${fmtTs(st.checked_at)}</div></div>`;
+    const b = document.getElementById('badgeCassa');
+    b.textContent = st.reg_offline || 0;
+    b.className = 'badge' + (st.reg_offline > 0 ? ' crit' : '');
+    document.getElementById('cassaStores').innerHTML = (r.data.stores || []).map(s => `
+        <div class="card">
+            <div class="card-header">
+                <span class="badge-st ${CASSA_ST[s.status] || 'bg-mut'}">${esc(s.status)}</span>
+                <span style="margin-left:8px">${esc(s.store_name)}</span>
+                <span class="muted" style="font-weight:400;margin-left:8px">${esc(s.source_name)} · cod ${esc(s.cod_univ)}</span>
+                <span class="muted" style="margin-left:auto;font-weight:400">${s.reg_online}/${s.reg_total} online${s.reg_shutdown ? ' · ' + s.reg_shutdown + ' suspend' : ''}</span>
+            </div>
+            <div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>DB Link</th><th>Схема</th><th>ServerID</th><th>Статус</th><th>Причина</th><th>Проверено</th>
+                </tr></thead><tbody>
+                ${(s.registers || []).map(x => `<tr>
+                    <td class="mono">${esc(x.db_link)}</td><td class="muted">${esc(x.shema || '—')}</td>
+                    <td class="mono">${esc(x.server_id || '—')}</td>
+                    <td><span class="badge-st ${CASSA_ST[x.status] || 'bg-mut'}">${esc(x.status)}</span></td>
+                    <td class="muted" style="max-width:340px">${esc(x.status_reason || '')}</td>
+                    <td class="muted">${fmtTs(x.checked_at)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>
+        </div>`).join('') || '<div class="card"><div class="empty-note">Данных нет — настройте источники и нажмите «Опросить источники»</div></div>';
+}
+async function syncCassa() {
+    toast('Опрос источников: читаем ybmb_dif_cassa и DB Links…');
+    const r = await api('/cassa/sync', 'POST', {});
+    if (!r.success) return toast(r.error, true);
+    const ok = (r.data || []).filter(x => x.success);
+    const bad = (r.data || []).filter(x => !x.success);
+    toast(`Опрошено источников: ${ok.length}${bad.length ? ', с ошибкой: ' + bad.length : ''}`, bad.length > 0);
+    loadCassa(); loadSources();
+}
+
+// ===== Источники мониторинга =====
+const SRC_KINDS = {unisim_cassa: 'UaMenu Cassa (Oracle DB Links)', zabbix: 'Zabbix API', emulator: 'Эмулятор сценариев'};
+async function loadSources() {
+    const r = await api('/sources');
+    if (!r.success) return toast(r.error, true);
+    SOURCES = r.data;
+    document.getElementById('sourcesTbody').innerHTML = r.data.map(s => {
+        const conn = s.kind === 'unisim_cassa'
+            ? `${esc(s.db_user || '—')}@${esc(s.db_dsn || '—')}`
+            : (s.kind === 'zabbix' ? esc(s.api_url || '—') : '<span class="muted">встроенный</span>');
+        return `<tr><td class="mono"><b style="color:var(--accent2)">${esc(s.code)}</b></td>
+        <td>${esc(s.name)}</td><td class="muted">${esc(SRC_KINDS[s.kind] || s.kind)}</td>
+        <td class="mono muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${conn}</td>
+        <td>${s.enabled === 'Y' ? '<span class="badge-st bg-ok">да</span>' : '<span class="badge-st bg-mut">нет</span>'}</td>
+        <td class="muted">${fmtTs(s.last_sync_at)}</td>
+        <td>${s.last_status ? stBadge(s.last_status === 'OK' ? 'OK' : 'FAIL') : '—'}
+            ${s.last_error ? `<span class="muted" title="${esc(s.last_error)}"> ⓘ</span>` : ''}</td>
+        <td style="white-space:nowrap">
+            <button class="btn btn-secondary btn-sm" onclick="testSource('${esc(s.code)}')" title="Проверить связь">🔌</button>
+            <button class="btn btn-secondary btn-sm" onclick='openSourceModal(${JSON.stringify(s)})'>✎</button>
+            ${s.kind !== 'emulator' ? `<button class="btn btn-danger btn-sm" onclick="delSource('${esc(s.code)}')">🗑</button>` : ''}
+        </td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="empty-note">Источников нет</td></tr>';
+    fillSelect('cassaSrcFilter', r.data.filter(s => s.kind === 'unisim_cassa'), 'code', s => s.name, 'Все источники');
+    renderSourcePill();
+}
+function renderSourcePill() {
+    const el = document.getElementById('sourcePill');
+    if (!el) return;
+    const active = (SOURCES || []).filter(s => s.enabled === 'Y' && s.kind !== 'emulator');
+    const running = EMU_STATE && EMU_STATE.running ? EMU_STATE.mode : null;
+    const names = {zabbix: 'Zabbix', unisim: 'UaMenu', unisim_cassa: 'UaMenu', emulator: 'Эмулятор'};
+    let color = 'var(--muted)', text = 'источник: не настроен';
+    if (running) {
+        color = 'var(--ok)';
+        text = 'источник: ' + (names[running] || running) + ' · активен';
+    } else if (active.length) {
+        color = 'var(--warn)';
+        text = 'источник: ' + active.map(s => names[s.kind] || s.kind).filter((v, i, a) => a.indexOf(v) === i).join(' + ') + ' · опрос остановлен';
+    }
+    el.innerHTML = `<span class="dot" style="background:${color}"></span><span>${esc(text)}</span>`;
+}
+function openSourceModal(s) {
+    s = s || {};
+    const isNew = !s.code;
+    openModal(`<h3>${isNew ? 'Новый источник мониторинга' : 'Источник ' + esc(s.code)}</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Код</label>
+                <input class="form-control mono" id="src_code" value="${esc(s.code || '')}" ${isNew ? '' : 'readonly'}></div>
+            <div class="form-group"><label>Название</label><input class="form-control" id="src_name" value="${esc(s.name || '')}"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Тип</label><select class="form-control" id="src_kind" onchange="srcKindChanged()">
+                ${Object.entries(SRC_KINDS).map(([k, v]) => `<option value="${k}" ${s.kind === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
+            <div class="form-group"><label>Включён</label><select class="form-control" id="src_enabled">
+                <option value="Y" ${s.enabled === 'Y' ? 'selected' : ''}>да</option>
+                <option value="N" ${s.enabled !== 'Y' ? 'selected' : ''}>нет</option></select></div>
+        </div>
+        <div id="src_oracle">
+            <div class="form-row-3">
+                <div class="form-group"><label>Oracle-схема (логин)</label><input class="form-control" id="src_db_user" value="${esc(s.db_user || '')}"></div>
+                <div class="form-group"><label>Пароль</label><input class="form-control" id="src_db_password" type="password" value="${esc(s.db_password || '')}"></div>
+                <div class="form-group"><label>DSN (host:port/service)</label><input class="form-control mono" id="src_db_dsn" value="${esc(s.db_dsn || 'orange.una.md:4024/cloudbd.world')}"></div>
+            </div>
+        </div>
+        <div id="src_api" style="display:none">
+            <div class="form-row-3">
+                <div class="form-group"><label>API URL</label><input class="form-control" id="src_api_url" value="${esc(s.api_url || '')}"></div>
+                <div class="form-group"><label>Логин</label><input class="form-control" id="src_api_user" value="${esc(s.api_user || '')}"></div>
+                <div class="form-group"><label>Пароль / токен</label><input class="form-control" id="src_api_secret" type="password" value="${esc(s.api_secret || '')}"></div>
+            </div>
+        </div>
+        <div class="form-group"><label>Заметка</label><input class="form-control" id="src_note" value="${esc(s.note || '')}"></div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="saveSource()">Сохранить</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
+    srcKindChanged();
+}
+function srcKindChanged() {
+    const k = gv('src_kind');
+    document.getElementById('src_oracle').style.display = k === 'unisim_cassa' ? '' : 'none';
+    document.getElementById('src_api').style.display = k === 'zabbix' ? '' : 'none';
+}
+async function saveSource() {
+    const kind = gv('src_kind');
+    const payload = {code: gv('src_code'), name: gv('src_name'), kind, note: gv('src_note'),
+                     enabled: gv('src_enabled')};
+    if (kind === 'unisim_cassa') {
+        payload.db_user = gv('src_db_user');
+        payload.db_password = gv('src_db_password');
+        payload.db_dsn = gv('src_db_dsn');
+    } else if (kind === 'zabbix') {
+        payload.api_url = gv('src_api_url');
+        payload.api_user = gv('src_api_user');
+        payload.api_secret = gv('src_api_secret');
+    }
+    const r = await api('/sources', 'POST', payload);
+    toast(r.success ? 'Сохранено' : r.error, !r.success);
+    if (r.success) { closeModal(); loadSources(); }
+}
+async function testSource(code) {
+    toast('Проверяем связь с источником…');
+    const r = await api(`/sources/${code}/test`, 'POST');
+    toast(r.success
+        ? `Связь есть${r.registers != null ? ': касс в реестре ' + r.registers : (r.version ? ' · API ' + r.version : '')}`
+        : r.error, !r.success);
+    loadSources();
+}
+async function delSource(code) {
+    if (!confirm(`Удалить источник ${code} и его снимок касс?`)) return;
+    const r = await api('/sources/' + code, 'DELETE');
+    toast(r.success ? 'Удалено' : r.error, !r.success);
+    loadSources();
+}
+
 // ===== Хэш-инвайты =====
 const INVITE_MODULES = [
     ['tbcontrol', '/UNA.md/orasldev/tbcontrol', 'TBControl'],
