@@ -916,6 +916,92 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
   <div class="num">18</div>
 </section>
 
+<!-- Топливо: контур сети АЗС -->
+<section class="slide">
+  <div class="kicker">Новое в системе · топливо</div>
+  <h2>Сеть АЗС с собственной нефтебазой</h2>
+  <p>Тот же модуль умеет считать заказ там, где заказывают не коробами,
+     а секциями цистерны. Три отличия от товарного автозаказа меняют
+     формулу, а не только константы.</p>
+  <div class="cols3" style="margin-bottom:14px">
+    <div class="card accent">
+      <h3>◱ Потолок — ёмкость, а не срок годности</h3>
+      <p>Свободный объём считается <b>на момент прихода бензовоза</b>:
+         пока он едет, станция продаёт, и места становится больше.
+         Выше 95 % ёмкости заливать нельзя — температурное расширение.</p>
+    </div>
+    <div class="card ok">
+      <h3>▤ Кратность — секция, а не короб</h3>
+      <p>Объём подбирается комбинацией секций (6000 + 5000 = 11 000 л)
+         и округляется <b>вниз</b>: перелив означает остановленный слив
+         и возврат остатка на базу. Одна секция — один вид топлива.</p>
+    </div>
+    <div class="card warn">
+      <h3>◈ Стокаут — простой станции</h3>
+      <p>Сухой бак уводит клиента к конкуренту вместе с кофе и мойкой.
+         Уровень сервиса 99 %, а «риск сухого бака» — отдельный флаг,
+         а не следствие расчёта.</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Карта сети и телеметрия</h3>
+    <p style="font-size:14.5px">Станции наносятся на карту мышью или находятся
+       по адресу; цвет точки — запас до сухого бака. Рейсы бензовозов
+       раскладываются по секциям, GPS-датчики на аутсорсе присылают треки
+       по токену провайдера: стоянка вне маршрута, отклонение от коридора,
+       срыв пломбы, превышение скорости.</p>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#fuel" target="_blank" rel="noopener">Карта и автозаказ топлива</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs/fuel" target="_blank" rel="noopener">Методичка по топливу</a><span class="hint">данные демо-сети: 46 станций, 184 резервуара</span></div></div>
+  <div class="num">19</div>
+</section>
+
+<!-- Топливо: алгоритмы и путь снабжения -->
+<section class="slide">
+  <div class="kicker">Новое в системе · топливо</div>
+  <h2>Четыре алгоритма и выбор пути снабжения</h2>
+  <p>Алгоритм выбирается измерением, а не названием: сравнение идёт
+     на вашей истории отпуска, по ошибке <b>накопленного</b> спроса
+     за горизонт завоза.</p>
+  <div class="card" style="padding:0; overflow:hidden; margin-bottom:12px">
+    <table>
+      <thead><tr><th style="width:26%">Алгоритм</th><th style="width:46%">Для какого спроса</th><th>MAPE на демо-сети</th></tr></thead>
+      <tbody>
+        <tr><td><b>Градиентный бустинг</b></td>
+            <td>сложный профиль: недельный ритм, тренд и уровень взаимодействуют</td>
+            <td><b>7.41 %</b>, смещение −0.4 %</td></tr>
+        <tr><td><b>Конформный запас</b></td>
+            <td>тяжёлый правый хвост: транзит, праздники, уход конкурента</td>
+            <td>8.50 %, смещение +0.3 %</td></tr>
+        <tr><td><b>Theta</b> (победитель M3)</td>
+            <td>ровный поток городской и трассовой АЗС</td>
+            <td>8.85 %, смещение +0.2 %</td></tr>
+        <tr><td><b>Croston + SBA</b></td>
+            <td>медленные грейды: А-98 на селе, премиальный дизель</td>
+            <td>9.87 %, смещение −8.3 %</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cols2">
+    <div class="card">
+      <h3>Честная цифра вместо обещания</h3>
+      <p style="font-size:14.5px">Последняя строка — не дефект, а показание
+         прибора: Croston создан для перемежающегося спроса, которого
+         на трассовой станции нет. Конформный запас даёт 97.8 % реального
+         покрытия там, где нормальное приближение обещает 99 %,
+         а даёт 93.2 %.</p>
+    </div>
+    <div class="card accent">
+      <h3>Импорт ↔ рынок ↔ база ↔ АЗС</h3>
+      <p style="font-size:14.5px">Путь выбирается точным потоком минимальной
+         стоимости. Цена литра «до бака» включает транспорт, перевалку,
+         пошлину и <b>стоимость денег на плече</b> — без последнего импорт
+         с плечом девять суток всегда выглядит дешевле, чем есть.</p>
+    </div>
+  </div>
+  <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#fuel" target="_blank" rel="noopener">Сравнить алгоритмы на истории</a><a class="live blue" href="/UNA.md/orasldev/planograms#fuel" target="_blank" rel="noopener">План снабжения</a><span class="hint">кнопка «Сравнить на истории» считает при вас</span></div></div>
+  <div class="num">20</div>
+</section>
+
 
 <!-- 14 -->
 
@@ -951,7 +1037,7 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
     </div>
   </div>
   <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть модуль планограмм</a><a class="live blue" href="/UNA.md/orasldev/planograms#products" target="_blank" rel="noopener">Ассортимент и категории</a><span class="hint">список магазинов — из таблицы TBC_STORES; контур эксплуатации открывается по входу</span></div></div>
-  <div class="num">19</div>
+  <div class="num">21</div>
 </section>
 
 <!-- Bonus: что получает каждый -->
@@ -999,7 +1085,7 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
     </div>
   </div>
   <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#storemap" target="_blank" rel="noopener">Выкладка</a><a class="live blue" href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Заказ</a><a class="live blue" href="/UNA.md/orasldev/planograms#logistics" target="_blank" rel="noopener">Завоз</a><a class="live blue" href="/UNA.md/orasldev/planograms#competitors" target="_blank" rel="noopener">Конкуренты</a><a class="live blue" href="/UNA.md/orasldev/planograms#suppliers" target="_blank" rel="noopener">Поставщики</a></div></div>
-  <div class="num">20</div>
+  <div class="num">22</div>
 </section>
 
 <!-- Bonus: чек-лист выбора -->
@@ -1036,7 +1122,7 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
     </table>
   </div>
   <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Проверить: прогноз и backtest</a><a class="live blue" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Проверить: бизнес-процессы</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Проверить: документация</a><span class="hint">каждый ответ проверяется по ссылке</span></div></div>
-  <div class="num">21</div>
+  <div class="num">23</div>
 </section>
 
 <!-- Bonus: механика перехода -->
@@ -1076,7 +1162,7 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
       а не по одному удачному магазину.</p>
   </div>
   <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть систему</a><a class="live blue" href="/UNA.md/orasldev/planograms#testdata" target="_blank" rel="noopener">Загрузить свой набор данных</a><a class="live blue" href="/UNA.md/orasldev/planograms#forecast" target="_blank" rel="noopener">Сравнение моделей заказа</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Как это устроено</a></div></div>
-  <div class="num">22</div>
+  <div class="num">24</div>
 </section>
 
 <section class="slide">
@@ -1104,7 +1190,7 @@ a.live.blue:hover{ background:rgba(59,130,246,.24); }
     <p style="font-size:15px">Какой магазин и какая товарная группа берутся в пилот.</p>
   </div>
   <div class="foot"><div class="livebar"><a class="live " href="/UNA.md/orasldev/planograms#overview" target="_blank" rel="noopener">Открыть систему</a><a class="live blue" href="/UNA.md/orasldev/planograms#processes" target="_blank" rel="noopener">Схемы бизнес-процессов</a><a class="live blue" href="/UNA.md/orasldev/planograms/docs" target="_blank" rel="noopener">Документация</a></div></div>
-  <div class="num">23</div>
+  <div class="num">25</div>
 </section>
 
 </div>

@@ -122,8 +122,7 @@ def forecast_tank(hist: Dict[str, Any], algorithm: str, horizon: int,
     среднюю за 28 дней, а не подставляет выдуманный ряд.
     """
     series = hist.get('series') or []
-    meta = ALGO_MIN_HISTORY.get(algorithm, 28)
-    if len(series) < meta:
+    if len(series) < ALGO_MIN_HISTORY.get(algorithm, 28):
         return None
     try:
         return fc.run_forecast(algorithm, series, hist['weekdays'], horizon,
@@ -132,8 +131,27 @@ def forecast_tank(hist: Dict[str, Any], algorithm: str, horizon: int,
         return None
 
 
-# Минимум истории: держим здесь же, чтобы не ходить в Oracle на каждый бак
-ALGO_MIN_HISTORY = {'theta': 28, 'croston_sba': 21, 'conformal': 35, 'gbt': 45}
+# Минимум истории. Значение живёт в реестре `PECO_FCT_ALGORITHMS` — это
+# то же число, которое видит пользователь в карточке алгоритма. Здесь
+# только КЭШ на время процесса: ходить в Oracle на каждый из 184 баков
+# нельзя, а расходиться с тем, что показано в интерфейсе, — тем более.
+# Словарь ниже — запасной вариант на случай, когда реестр ещё не развёрнут.
+_MIN_HISTORY_FALLBACK = {'theta': 28, 'croston_sba': 21, 'conformal': 35, 'gbt': 45}
+ALGO_MIN_HISTORY = dict(_MIN_HISTORY_FALLBACK)
+_min_history_loaded = False
+
+
+def load_min_history(db) -> Dict[str, int]:
+    global _min_history_loaded
+    if _min_history_loaded:
+        return ALGO_MIN_HISTORY
+    rows = _rows(db.execute_query(
+        "SELECT CODE, MIN_HISTORY FROM PECO_FCT_ALGORITHMS WHERE IS_ACTIVE = 1"))
+    for r in rows:
+        if r.get('min_history'):
+            ALGO_MIN_HISTORY[r['code']] = int(r['min_history'])
+    _min_history_loaded = bool(rows)
+    return ALGO_MIN_HISTORY
 
 
 # ==================== Пути снабжения ====================
@@ -362,6 +380,7 @@ def run_backtests(algorithms: Optional[List[str]] = None, horizon: int = 3,
     started = datetime.now()
     try:
         with DatabaseModel() as db:
+            load_min_history(db)
             hist = load_tank_history(db, HISTORY_DAYS, grade_code)
             tank_ids = sorted(hist)[:max_tanks]
             results = []

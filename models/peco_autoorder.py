@@ -320,6 +320,7 @@ class FuelAutoOrder:
                                                float(p['review_days']))) + 1)
                 hist = {}
                 if algorithm:
+                    peco_plan.load_min_history(db)
                     hist = peco_plan.load_tank_history(db, peco_plan.HISTORY_DAYS)
 
                 by_station: Dict[int, List[Dict[str, Any]]] = {}

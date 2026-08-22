@@ -184,7 +184,7 @@ MERGE INTO PECO_FCT_ALGORITHMS t USING (
     'Медленные грейды: А-98 на сельской станции, премиальный дизель, редкие продажи три дня из семи.',
     'Sortimente lente: A-98 la stații rurale, motorină premium.',
     'Slow grades: A-98 at rural stations, premium diesel.',
-    '{"alpha": 0.15, "sba": 1}', 35, 2 FROM dual
+    '{"alpha": 0.15, "sba": 1}', 21, 2 FROM dual
   UNION ALL SELECT 'conformal',
     'Конформный запас (без гипотезы нормальности)', 'Rezervă conformală (fără ipoteza normalității)', 'Conformal safety stock (distribution-free)',
     'Страховой запас берётся не из z-квантиля нормального распределения, а из эмпирического квантиля ошибок скользящего backtest с конечно-выборочной поправкой. На синтетике с тяжёлым правым хвостом при заявленных 99 % нормальное приближение давало 93.2 % реального покрытия, конформное — 97.8 %.',
@@ -193,7 +193,7 @@ MERGE INTO PECO_FCT_ALGORITHMS t USING (
     'Станции с тяжёлым правым хвостом спроса: транзитные трассы, соседство с закрывающимся конкурентом, праздничные пики.',
     'Stații cu coadă grea a cererii: trasee de tranzit, vârfuri de sărbători.',
     'Stations with a heavy right tail: transit highways, holiday peaks.',
-    '{"alpha": 0.3, "coverage": 0.99, "protect_days": 2}', 45, 3 FROM dual
+    '{"alpha": 0.3, "coverage": 0.99, "protect_days": 2}', 35, 3 FROM dual
   UNION ALL SELECT 'gbt',
     'Градиентный бустинг (деревья по признакам)', 'Gradient boosting (arbori pe caracteristici)', 'Gradient boosting (feature trees)',
     'Деревья глубины 3 на квадратичной ошибке по календарным и лаговым признакам: день недели, выходной, лаги 1/7/14, скользящие средние 7/28, тренд. Ловит взаимодействия, недоступные сглаживанию: «пятница после недели роста» ведёт себя иначе, чем просто пятница. Прогноз рекурсивный, поэтому горизонт ограничен неделей.',
@@ -202,7 +202,7 @@ MERGE INTO PECO_FCT_ALGORITHMS t USING (
     'Станции со сложным профилем: рядом с рынком или стадионом, где день недели взаимодействует с уровнем спроса.',
     'Stații cu profil complex, unde ziua interacționează cu nivelul cererii.',
     'Stations with a complex profile where weekday interacts with demand level.',
-    '{"rounds": 60, "depth": 3, "lr": 0.1, "min_history": 30}', 60, 4 FROM dual
+    '{"rounds": 60, "depth": 3, "lr": 0.1, "min_history": 30}', 45, 4 FROM dual
 ) s ON (t.CODE = s.CODE)
 WHEN MATCHED THEN UPDATE SET NAME_RU = s.RU, NAME_RO = s.RO, NAME_EN = s.EN,
      DESCR_RU = s.DRU, DESCR_RO = s.DRO, DESCR_EN = s.DEN,

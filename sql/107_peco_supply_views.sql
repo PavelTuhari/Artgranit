@@ -137,6 +137,8 @@ SELECT i.ID, i.ORDER_ID, o.ORDER_NO, i.STATION_ID, i.TANK_ID,
        t.CAPACITY_L, i.CURRENT_L, i.ULLAGE_L,
        i.LITERS_MODEL, i.LITERS_ORDER,
        i.DAILY_RATE_L, i.DAYS_TO_DRY, i.COVER_AFTER_D, i.IS_DRY_RISK, i.ADJ_REASON,
+       -- Чем считали и чем повезём: колонки добавлены в 110_peco_algorithms.sql
+       i.ALGORITHM, i.FORECAST_DAILY_L, i.SAFETY_L, i.PATH_CODE, i.COST_PER_L,
        CASE WHEN i.LITERS_MODEL IS NOT NULL
              AND ABS(NVL(i.LITERS_ORDER, 0) - i.LITERS_MODEL) > 0.5
             THEN 1 ELSE 0 END AS IS_ADJUSTED

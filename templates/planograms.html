@@ -706,12 +706,49 @@ table.tbl tbody tr:hover { background: #f8fafc; }
                             <div class="sub" data-i18n="fu.orderSub">Объём подбирается комбинацией секций бензовоза и ограничен свободной ёмкостью резервуара на момент прихода</div>
                         </div>
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <select class="ctl" id="fuelAlgoSel" title="Алгоритм прогноза"></select>
                             <select class="ctl" id="fuelStatusFilter" onchange="loadFuelOrders()"></select>
                             <button class="btn btn-ghost" onclick="openFuelParams()" data-i18n="fu.params">Параметры</button>
                             <button class="btn btn-primary" onclick="runFuelAutoorder()" data-i18n="fu.run">Рассчитать заказ</button>
                         </div>
                     </div>
                     <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelOrdersTbl"></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fa.title">Алгоритмы прогноза отпуска</div>
+                            <div class="sub" data-i18n="fa.sub">Четыре модели на чистом Python. Выбор делается не спором, а измерением</div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                            <input class="ctl" id="fuelBtHorizon" type="number" min="1" max="14" value="3"
+                                   style="width:76px" title="Горизонт, суток">
+                            <button class="btn btn-primary" onclick="runFuelBacktest()" data-i18n="fa.compare">Сравнить на истории</button>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelAlgoTbl"></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fp.planTitle">План снабжения</div>
+                            <div class="sub" data-i18n="fp.planSub">Поток минимальной стоимости по двум слоям: развозка сегодня и пополнение баз</div>
+                        </div>
+                        <button class="btn btn-ghost" onclick="loadFuelPlan()" data-i18n="fp.recalc">Пересчитать план</button>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelPlanTbl"></table></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h">
+                        <div>
+                            <div class="ttl" data-i18n="fp.title">Пути снабжения</div>
+                            <div class="sub" data-i18n="fp.sub">Импорт и внутренний рынок, своя и партнёрская нефтебаза, прямая поставка на станцию</div>
+                        </div>
+                    </div>
+                    <div class="card-b" style="padding:0;overflow-x:auto"><table class="tbl" id="fuelPathsTbl"></table></div>
                 </div>
 
                 <div class="card">
@@ -3603,13 +3640,16 @@ function dryColor(days) {
 
 async function loadFuel() {
     fillFuelFilter();
-    const [st, orders, depot, trips, gps] = await Promise.all([
+    const [st, orders, depot, trips, gps, algos, bt, paths] = await Promise.all([
         api('/fuel/stations'),
         api('/fuel/orders' + (document.getElementById('fuelStatusFilter')?.value
             ? '?status=' + document.getElementById('fuelStatusFilter').value : '')),
         api('/fuel/depot'),
         api('/fuel/trips'),
         api('/fuel/gps/events'),
+        api('/fuel/algorithms'),
+        api('/fuel/backtest'),
+        api('/fuel/paths'),
     ]);
     if (st.success) { FUEL_STATIONS = st.data || []; FUEL_DEPOTS = st.depots || [];
                       drawFuelMap(st); }
@@ -3617,7 +3657,158 @@ async function loadFuel() {
     if (depot.success) renderFuelDepot(depot);
     if (trips.success) renderFuelTrips(trips.data || []);
     if (gps.success) renderFuelGps(gps.data || []);
+    if (algos.success) { FUEL_ALGOS = algos.data || []; fillFuelAlgoSel(); }
+    renderFuelAlgos(FUEL_ALGOS, (bt.success && bt.data) || []);
+    if (paths.success) renderFuelPaths(paths.data || []);
     renderFuelStats(orders, trips, gps);
+    loadFuelPlan();
+}
+
+// ==================== Алгоритмы прогноза ====================
+
+var FUEL_ALGOS = [];
+
+function fillFuelAlgoSel() {
+    const sel = document.getElementById('fuelAlgoSel');
+    if (!sel) return;
+    const cur = sel.value;
+    // Пустое значение — базовый расчёт по среднему: он остаётся
+    // доступным намеренно, это точка отсчёта для сравнения
+    sel.innerHTML = `<option value="">${esc(t('fa.baseline'))}</option>` +
+        FUEL_ALGOS.map(a => `<option value="${esc(a.code)}">${esc(a.name)}</option>`).join('');
+    if (cur) sel.value = cur;
+}
+
+function renderFuelAlgos(algos, bt) {
+    const el = document.getElementById('fuelAlgoTbl');
+    if (!el) return;
+    // Метрики берём из САМОГО СВЕЖЕГО сравнения по каждому алгоритму:
+    // список отсортирован по дате, поэтому первое вхождение и есть оно
+    const last = {};
+    (bt || []).forEach(b => { if (!last[b.algorithm]) last[b.algorithm] = b; });
+    const best = Object.values(last).sort((a, b) => (a.mape || 999) - (b.mape || 999))[0];
+    el.innerHTML = `
+        <thead><tr><th>${esc(t('fa.algorithm'))}</th><th>${esc(t('fa.bestFor'))}</th>
+        <th class="num">${esc(t('fa.minHistory'))}</th><th class="num">${esc(t('fa.mape'))}</th>
+        <th class="num">${esc(t('fa.mae'))}</th><th class="num">${esc(t('fa.bias'))}</th>
+        <th class="num">${esc(t('fa.tanks'))}</th></tr></thead><tbody>` +
+        (algos || []).map(a => {
+            const m = last[a.code];
+            const win = best && m && m.algorithm === best.algorithm;
+            return `<tr ${win ? 'style="background:rgba(34,197,94,.08)"' : ''}>
+            <td><b>${esc(a.name)}</b>${win ? ` <span class="pill ok">${esc(t('fa.best'))}</span>` : ''}
+                <div class="muted small">${esc(a.descr || '')}</div></td>
+            <td class="muted small">${esc(a.best_for || '')}</td>
+            <td class="num muted">${a.min_history}</td>
+            <td class="num">${m ? Number(m.mape).toFixed(2) + '%' : '—'}</td>
+            <td class="num muted">${m ? num(Math.round(m.mae)) : '—'}</td>
+            <td class="num ${m && Math.abs(m.bias_pct) > 5 ? 'bad' : 'muted'}">${m ?
+                (m.bias_pct > 0 ? '+' : '') + Number(m.bias_pct).toFixed(2) + '%' : '—'}</td>
+            <td class="num muted">${m ? m.tank_count : '—'}</td></tr>`;
+        }).join('') + '</tbody>';
+}
+
+async function runFuelBacktest() {
+    toast(t('fa.running'));
+    const h = Number(document.getElementById('fuelBtHorizon').value) || 3;
+    const r = await api('/fuel/backtest', 'POST', {horizon: h, folds: 8, max_tanks: 30});
+    if (!r.success) { toast(r.error, true); return; }
+    const bt = await api('/fuel/backtest');
+    renderFuelAlgos(FUEL_ALGOS, (bt.success && bt.data) || []);
+    toast(`${t('fa.best')}: ${r.best || '—'}`);
+}
+
+// ==================== Пути снабжения и план ====================
+
+function renderFuelPaths(rows) {
+    const el = document.getElementById('fuelPathsTbl');
+    if (!el) return;
+    el.innerHTML = `
+        <thead><tr><th>${esc(t('fp.path'))}</th><th>${esc(t('fp.kind'))}</th>
+        <th class="num">${esc(t('fp.lead'))}</th><th class="num">${esc(t('fp.costPerL'))}</th>
+        <th class="num">${esc(t('fp.available'))}</th><th class="num">${esc(t('fp.minLot'))}</th>
+        <th></th></tr></thead><tbody>` +
+        (rows.length ? rows.map(p => `<tr>
+            <td><b>${esc(p.name || p.code)}</b>
+                <div class="muted small mono">${esc(p.code)}${p.note ? ' · ' + esc(p.note) : ''}</div></td>
+            <td><span class="pill ${Number(p.is_import) ? 'warn' : 'mute'}">${esc(p.source_name)}</span>
+                ${p.depot_name ? `<div class="muted small">${esc(p.depot_name)}${Number(p.depot_is_own) ? '' : ' · ' + esc(p.depot_operator || '')}</div>` : ''}</td>
+            <td class="num">${p.lead_days}</td>
+            <td class="num"><b>${Number(p.cost_per_l_base).toFixed(2)}</b></td>
+            <td class="num muted">${num(Math.round(p.available_l))}</td>
+            <td class="num muted">${num(Math.round(p.min_lot_l))}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openFuelPath(${p.id})">✎</button></td>
+        </tr>`).join('') : `<tr><td colspan="7" class="muted">—</td></tr>`) + '</tbody>';
+}
+
+async function openFuelPath(id) {
+    const r = await api('/fuel/paths');
+    const p = (r.data || []).find(x => x.id === id);
+    if (!p) return;
+    openModal(`
+        <h3>${esc(t('fp.editPath'))}</h3>
+        <div class="muted small">${esc(p.name || p.code)}</div>
+        <div class="frm">
+            <label>${esc(t('fp.lead'))}<input id="ppLead" type="number" step="0.5" value="${p.lead_days}"></label>
+            <label>${esc(t('fp.price'))}<input id="ppPrice" type="number" step="0.01" value="${p.price_per_l}"></label>
+            <label>${esc(t('fp.transport'))}<input id="ppTrans" type="number" step="0.01" value="${p.transport_per_l}"></label>
+            <label>${esc(t('fp.handling'))}<input id="ppHand" type="number" step="0.01" value="${p.handling_per_l}"></label>
+            <label>${esc(t('fp.duty'))}<input id="ppDuty" type="number" step="0.01" value="${p.duty_per_l}"></label>
+            <label>${esc(t('fp.available'))}<input id="ppAvail" type="number" step="1000" value="${p.available_l}"></label>
+            <label>${esc(t('fp.minLot'))}<input id="ppMinLot" type="number" step="1000" value="${p.min_lot_l}"></label>
+        </div>
+        <div class="modal-f">
+            <button class="btn btn-ghost" onclick="closeModal()">${esc(t('ui.cancel'))}</button>
+            <button class="btn btn-primary" onclick="saveFuelPath(${id})">${esc(t('ui.save'))}</button>
+        </div>`);
+}
+
+async function saveFuelPath(id) {
+    const r = await api('/fuel/paths/' + id, 'PUT', {
+        lead_days: gn('ppLead'), price_per_l: gn('ppPrice'), transport_per_l: gn('ppTrans'),
+        handling_per_l: gn('ppHand'), duty_per_l: gn('ppDuty'),
+        available_l: gn('ppAvail'), min_lot_l: gn('ppMinLot'),
+    });
+    if (!r.success) { toast(r.error, true); return; }
+    closeModal(); toast(t('ui.saved')); loadFuel();
+}
+
+async function loadFuelPlan() {
+    const el = document.getElementById('fuelPlanTbl');
+    if (!el) return;
+    const p = await api('/fuel/plan');
+    if (!p.success) { el.innerHTML = `<tbody><tr><td class="muted">${esc(p.error || '—')}</td></tr></tbody>`; return; }
+    const layer = (title, part, isDist) => {
+        const a = (part && part.allocations) || [];
+        if (!a.length) return '';
+        return `<tr class="grp"><td colspan="6"><b>${esc(title)}</b>
+                    <span class="muted small"> · ${num(Math.round(part.total_liters))} ${esc(t('fu.liters'))}
+                    · ${Number(part.avg_cost_per_l || 0).toFixed(2)} ${esc(t('fp.perL'))}
+                    ${part.late_count ? ` · <span class="bad">${esc(t('fp.late'))}: ${part.late_count}</span>` : ''}
+                    ${(part.uncovered || []).length ? ` · <span class="bad">${esc(t('fp.uncovered'))}: ${part.uncovered.length}</span>` : ''}</span></td></tr>` +
+            a.sort((x, y) => y.liters - x.liters).map(x => `<tr>
+                <td>${esc(x.path_name || x.path_code)}
+                    <span class="pill ${Number(x.is_import) ? 'warn' : 'mute'}">${esc(x.source_code)}</span></td>
+                <td>${esc(isDist ? (x.station_name || ('#' + x.target_id))
+                                 : (x.depot_name || ('#' + x.target_id)))}
+                    ${!isDist && x.key ? `<span class="muted small">${esc(t(x.key.endsWith(':urgent') ? 'fp.urgent' : 'fp.base'))}</span>` : ''}</td>
+                <td><span class="pill mute">${esc(x.grade_code)}</span></td>
+                <td class="num"><b>${num(Math.round(x.liters))}</b></td>
+                <td class="num">${Number(x.cost_per_l).toFixed(2)}</td>
+                <td class="num ${x.is_late ? 'bad' : 'muted'}">${x.is_late ? '+' + x.late_days + ' ' + esc(t('fp.late')) : x.lead_days}</td>
+            </tr>`).join('');
+    };
+    el.innerHTML = `
+        <thead><tr><th>${esc(t('fp.path'))}</th><th>${esc(t('fp.target'))}</th>
+        <th>${esc(t('fu.grade'))}</th><th class="num">${esc(t('fu.liters'))}</th>
+        <th class="num">${esc(t('fp.costPerL'))}</th><th class="num">${esc(t('fp.lead'))}</th>
+        </tr></thead><tbody>` +
+        layer(t('fp.distribution'), p.distribution, true) +
+        layer(t('fp.replenishment'), p.replenishment, false) +
+        `<tr><td colspan="4"><b>${esc(t('fp.totalPlan'))}</b>
+            <span class="muted small"> · ${esc(t('fp.lateHint'))}</span></td>
+         <td class="num" colspan="2"><b>${num(Math.round(p.total_cost))}</b></td></tr>` +
+        '</tbody>';
 }
 
 function fillFuelFilter() {
@@ -3771,10 +3962,14 @@ async function openFuelOrder(id) {
         <td class="num muted">${num(i.ullage_l)}</td>
         <td class="num">${num(i.daily_rate_l)}</td>
         <td class="num ${Number(i.days_to_dry) < 1 ? 'bad' : ''}">${i.days_to_dry ?? '—'}</td>
-        <td class="num muted">${num(i.liters_model)}</td>
+        <td class="num muted">${num(i.liters_model)}${i.algorithm ?
+            `<div class="muted small">${esc(i.algorithm)}</div>` : ''}</td>
+        <td class="num muted">${i.safety_l != null ? num(Math.round(i.safety_l)) : '—'}</td>
         <td class="num"><input class="ctl" style="width:88px;text-align:right" id="fi_${i.id}"
             value="${i.liters_order}" onchange="adjustFuelItem(${i.id})"></td>
         <td class="num">${i.cover_after_d ?? '—'}</td>
+        <td class="muted small">${i.path_code ? esc(i.path_code) +
+            (i.cost_per_l != null ? ` · ${Number(i.cost_per_l).toFixed(2)}` : '') : '—'}</td>
     </tr>`).join('');
     openModal(`
         <h3>${esc(o.order_no)} — ${esc(o.station_name)}</h3>
@@ -3784,7 +3979,9 @@ async function openFuelOrder(id) {
             <th>${esc(t('fu.tank'))}</th><th class="num">${esc(t('ord.stock'))}</th>
             <th class="num">${esc(t('fu.ullage'))}</th><th class="num">${esc(t('fu.dailyRate'))}</th>
             <th class="num">${esc(t('fu.toDry'))}</th><th class="num">${esc(t('ao.model'))}</th>
+            <th class="num">${esc(t('fa.safety'))}</th>
             <th class="num">${esc(t('fu.toFill'))}</th><th class="num">${esc(t('fu.coverAfter'))}</th>
+            <th>${esc(t('fp.path'))}</th>
         </tr></thead><tbody>${rows}</tbody></table>
         <div class="muted small" style="margin-top:8px">${esc(t('fu.ullageHint'))}</div>
         <div class="modal-f"><button class="btn btn-primary" onclick="closeModal()">${esc(t('ui.close'))}</button></div>`);
@@ -3804,9 +4001,11 @@ async function setFuelOrderStatus(id, status) {
 }
 
 async function runFuelAutoorder() {
-    const r = await api('/fuel/autoorder', 'POST', {});
+    const algo = document.getElementById('fuelAlgoSel')?.value || '';
+    const r = await api('/fuel/autoorder', 'POST', algo ? {algorithm: algo} : {});
     if (!r.success) { toast(r.error, true); return; }
-    toast(`${t('fu.calculated')}: ${r.orders} · ${num(Math.round(r.liters))} ${t('fu.liters')}`);
+    toast(`${t('fu.calculated')}: ${r.orders} · ${num(Math.round(r.liters))} ${t('fu.liters')}` +
+          (r.forecasted_tanks ? ` · ${t('fa.usedIn')}: ${r.forecasted_tanks}` : ''));
     loadFuel();
 }
 
@@ -3838,6 +4037,7 @@ async function runFuelWithParams() {
         trigger_days: gn('fpTrigger'), max_cover_days: gn('fpMaxCover'),
         lead_days: gn('fpLead'), service_level: gn('fpService'),
         min_drop_l: gn('fpMinDrop'),
+        algorithm: document.getElementById('fuelAlgoSel')?.value || '',
     });
     if (!r.success) { toast(r.error, true); return; }
     closeModal();
