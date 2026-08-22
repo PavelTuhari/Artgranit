@@ -319,6 +319,48 @@
             </div>
         </div>
 
+        <!-- ===== Кассы UaMenu ===== -->
+        <div class="panel" id="panel-cassa">
+            <div class="panel-title">Кассы UaMenu
+                <span class="muted" style="font-size:12px;font-weight:400">— ybmb_dif_cassa + DB Links (как unisim-dashboard.una.md)</span>
+                <button class="btn btn-primary btn-sm" onclick="syncCassa()">↻ Опросить источники</button>
+            </div>
+            <div class="stat-grid" id="cassaStatGrid"></div>
+            <div class="filter-bar">
+                <select class="form-control" id="cassaSrcFilter" onchange="loadCassa()"><option value="">Все источники</option></select>
+                <span class="tab-chip active" data-cs="" onclick="setCassaStatus(this)">Все</span>
+                <span class="tab-chip" data-cs="OFFLINE" onclick="setCassaStatus(this)">Проблемные</span>
+                <span class="tab-chip" data-cs="ONLINE" onclick="setCassaStatus(this)">Online</span>
+            </div>
+            <div id="cassaStores"></div>
+        </div>
+
+        <!-- ===== Источники мониторинга ===== -->
+        <div class="panel" id="panel-sources">
+            <div class="panel-title">Источники мониторинга
+                <span class="muted" style="font-size:12px;font-weight:400">— откуда система берёт события и состояние касс</span>
+                <button class="btn btn-primary btn-sm" onclick="openSourceModal()">+ Источник</button>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Код</th><th>Название</th><th>Тип</th><th>Подключение</th><th>Включён</th>
+                    <th>Последний опрос</th><th>Статус</th><th></th>
+                </tr></thead><tbody id="sourcesTbody"></tbody></table>
+            </div></div>
+            <div class="card">
+                <div class="card-header">Как это работает</div>
+                <div class="card-body" style="font-size:13px;color:var(--muted);line-height:1.7">
+                    <b style="color:var(--accent2)">unisim_cassa</b> — Oracle-схема клиента: читается реестр касс
+                    <span class="mono">ybmb_dif_cassa</span>, для каждой кассы проверяется DB Link
+                    <span class="mono">tms_init_params@&lt;PREFIX&gt;.WORLD</span> (ServerID). Есть ServerID → ONLINE,
+                    OFF_LINE=1 → SHUTDOWN, иначе OFFLINE с текстом ошибки. Магазин агрегируется по
+                    <span class="mono">tms_univers</span> (FUNCTIONAL при доле online ≥ 60%).<br>
+                    <b style="color:var(--accent2)">zabbix</b> — реальные проблемы Zabbix (3.x–7.x) как события P1–P4.<br>
+                    <b style="color:var(--accent2)">emulator</b> — встроенная генерация 10 сценариев по кругу.
+                </div>
+            </div>
+        </div>
+
         <!-- ===== Processing Center ===== -->
         <div class="panel" id="panel-processing">
             <div class="panel-title">Processing центр <span class="muted" style="font-size:12px;font-weight:400">— POS (SQLite) → серверы магазина → центральный → бэк-офис</span></div>
