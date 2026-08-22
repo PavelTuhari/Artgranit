@@ -126,6 +126,46 @@ def _ro_amount(total) -> str:
 class Biro26Report:
 
     @staticmethod
+    def reconciliation(client_cod: int, limit: int = 100) -> Dict[str, Any]:
+        """RO: ACTUL DE VERIFICARE pentru cabinetul clientului: fiecare cont de
+        plata cu livrarea lui (FF 1228) si starea — inchis sau nu.
+
+        Legatura vine din VMDB_ST201M.CTNRDOC: acolo se scrie NRDOC-ul livrarii
+        create din cont. Daca e gol, comanda nu a fost livrata inca.
+        Diferenta (comandat - livrat) arata exact ce a ramas de primit.
+        EN: reconciliation statement — invoice vs its delivery note and status.
+        """
+        try:
+            sql = ("SELECT * FROM ("
+                   "SELECT d.COD, TRIM(d.NRMANUAL) NRMANUAL, "
+                   "TO_CHAR(d.DATAMANUAL,'DD.MM.YYYY') DDATE, "
+                   "(SELECT ROUND(SUM(l.SUMA),2) FROM VMDB_ST201D l "
+                   "  WHERE l.NRDOC = d.COD) TOTAL, "
+                   "m.CTNRDOC LIVR_COD, "
+                   "(SELECT TRIM(h.NRMANUAL) FROM TMDB_DOCS h "
+                   "  WHERE h.COD = m.CTNRDOC) LIVR_NR, "
+                   "(SELECT TO_CHAR(h.DATAMANUAL,'DD.MM.YYYY') FROM TMDB_DOCS h "
+                   "  WHERE h.COD = m.CTNRDOC) LIVR_DATE, "
+                   "(SELECT ROUND(SUM(l.SUMA),2) FROM VMDB_ST201D l "
+                   "  WHERE l.NRDOC = m.CTNRDOC) LIVR_TOTAL "
+                   "FROM TMDB_DOCS d "
+                   "JOIN VMDB_ST201M m ON m.NRDOC = d.COD "
+                   "WHERE d.SYSFID = 12280 AND m.DTDEP = :cl "
+                   "ORDER BY d.COD DESC) WHERE ROWNUM <= :n")
+            rows = _rows(Biro26DB().execute_query(
+                sql, {"cl": int(client_cod), "n": max(1, min(int(limit), 500))}))
+            for r in rows:
+                total = float(r.get("total") or 0)
+                livr = float(r.get("livr_total") or 0)
+                r["nr"] = f"#{r.get('nrmanual')}" if r.get("nrmanual") else f"#{r.get('cod')}"
+                r["closed"] = bool(r.get("livr_cod"))
+                # RO: restul de primit; nu poate fi negativ la ochii clientului
+                r["rest"] = round(max(total - livr, 0), 2)
+            return {"success": True, "data": rows}
+        except Exception as e:                             # noqa: BLE001
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def docs_list(client: str = "", limit: int = 50) -> Dict[str, Any]:
         """RO: lista documentelor (conturi de plata web, SYSFID=12280) pentru
         aplicatiile EXTERNE (API): nr. documentului (#NRMANUAL — numarul

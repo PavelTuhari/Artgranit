@@ -309,7 +309,9 @@ function renderP() {
   //     si codul de bare. EN: BRAND column holds the intermediary supplier.
   document.getElementById('p-code').textContent =
     tr('code') + ': ' + (P.codvechi || P.cod) + (P.barcode ? ' · ' + P.barcode : '');
-  const inStock = (P.real_cant || 0) > 0;
+  // RO: stoc DISPONIBIL (fara comenzile neonorate) — vezi AVAIL_CANT
+  const avail = (P.avail_cant != null) ? P.avail_cant : (P.real_cant || 0);
+  const inStock = avail > 0;
   const st = document.getElementById('p-stock');
   st.className = 'stock ' + (inStock ? 'in' : 'order');
   st.textContent = tr(inStock ? 'inStock' : 'onOrder');

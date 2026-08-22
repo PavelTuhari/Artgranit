@@ -151,6 +151,24 @@ def inject_gettext():
     return dict(_=_, get_locale=get_locale, languages=Config.LANGUAGES, supported_languages=Config.SUPPORTED_LANGUAGES)
 
 
+@app.template_global()
+def asset(path: str) -> str:
+    """RO: adresa fisierului static + marca de versiune din data modificarii.
+
+    Statica se serveste cu `max-age=604800`, deci fara marca browserul tine
+    CSS/JS vechi o saptamina: dupa o livrare o parte din clienti vedeau cardurile
+    in forma veche. `?v=<mtime>` se schimba la fiecare modificare a fisierului,
+    asa ca versiunea noua ajunge imediat, iar cea nemodificata ramine in cache.
+    EN: static URL with an mtime cache-buster; without it a week-long max-age
+    kept serving stale CSS/JS after a deploy.
+    """
+    try:
+        full = os.path.join(app.static_folder, path.lstrip('/'))
+        return f"/static/{path.lstrip('/')}?v={int(os.path.getmtime(full))}"
+    except OSError:
+        return f"/static/{path.lstrip('/')}"
+
+
 @app.context_processor
 def inject_app_version():
     """RO: versiunea din TMS_WEBAPPVERS — se afiseaza in subsolul site-ului.
@@ -8822,6 +8840,11 @@ def api_biro26_client_file_delete(file_id):
     r = Biro26Controller.client_files_delete(file_id)
     return jsonify(r), (200 if r.get('success')
                         else 401 if r.get('error') == 'login required' else 400)
+
+@app.route('/api/biro26/shop/my-reconciliation', methods=['GET'])
+def api_biro26_shop_my_reconciliation():
+    # RO: actul de verificare din cabinetul clientului
+    return jsonify(Biro26Controller.shop_my_reconciliation())
 
 @app.route('/api/biro26/shop/my-invoices', methods=['GET'])
 def api_biro26_shop_my_invoices():

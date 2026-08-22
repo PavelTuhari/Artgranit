@@ -79,6 +79,16 @@
               <b style="font-size:14px" data-bi>Comenzile mele · Мои заказы</b>
               <div id="my-orders" style="margin-top:8px;font-size:13.5px;color:#808080">…</div>
             </div>
+            <!-- RO: ACTUL DE VERIFICARE — fiecare cont de plata cu livrarea lui
+                 si starea: inchis (livrat) sau in asteptare. Sus stau comenzile
+                 nelivrate, ele intereseaza clientul in primul rind. -->
+            <div style="border:1px solid #ececec;border-radius:12px;padding:12px 14px;margin:10px 0">
+              <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                <b style="font-size:14px" data-bi>Act de verificare · Акт сверки</b>
+                <span style="font-size:12px;color:#808080" id="rec-sum"></span>
+              </div>
+              <div id="my-rec" style="margin-top:8px;font-size:13.5px;color:#808080">…</div>
+            </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap">
               <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px" href="/catalog" data-t="goCatalog">Mergi la catalog</a>
               <a class="btn-blue" style="display:inline-block;text-decoration:none;line-height:46px;background:#ea6f21" href="/cos" data-t="cart">Coș</a>
@@ -144,6 +154,7 @@ async function refresh() {
     crSaveUI((me.credit || {}).save !== false, me.credit || {});
     typeUI();
     loadMyOrders();
+    loadMyRec();
     loadMyDocs();
   }
   window.ME_ACC = me;
@@ -279,6 +290,55 @@ async function loadMyOrders() {
         '<a target="_blank" href="' + API + '/report-html/invoice/' + d.cod + '" ' +
         'style="color:#194681;text-decoration:underline">HTML</a></td></tr>').join('') +
       '</table>';
+  } catch (e) { box.textContent = '—'; }
+}
+
+/* RO: ACTUL DE VERIFICARE. Pentru fiecare cont de plata se arata livrarea
+   legata de el (VMDB_ST201M.CTNRDOC) si restul de primit. Comenzile nelivrate
+   se ridica sus — ele sint intrebarea clientului.
+   EN: reconciliation — invoice vs delivery note, unshipped first. */
+async function loadMyRec() {
+  const box = document.getElementById('my-rec');
+  if (!box) return;
+  try {
+    const r = await j(API + '/my-reconciliation?limit=100');
+    const rows = (r.success && r.data) || [];
+    if (!rows.length) {
+      box.textContent = bl('Nu sunt documente', 'Документов нет');
+      return;
+    }
+    rows.sort((a, b) => (a.closed === b.closed) ? 0 : (a.closed ? 1 : -1));
+    const rest = rows.reduce((s, d) => s + (d.rest || 0), 0);
+    const open = rows.filter(d => !d.closed).length;
+    document.getElementById('rec-sum').textContent = open
+      ? bl('în așteptare: ' + open + ' · rest ' + fmtLei(rest),
+           'в ожидании: ' + open + ' · остаток ' + fmtLei(rest))
+      : bl('toate comenzile sunt livrate', 'все заказы отгружены');
+    box.innerHTML = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
+      '<tr style="color:#808080;font-size:12px">' +
+      '<th style="text-align:left;padding:4px">' + bl('Cont', 'Счёт') + '</th>' +
+      '<th style="text-align:left;padding:4px">' + bl('Data', 'Дата') + '</th>' +
+      '<th style="text-align:right;padding:4px">' + bl('Suma', 'Сумма') + '</th>' +
+      '<th style="text-align:left;padding:4px">' + bl('Livrare', 'Накладная') + '</th>' +
+      '<th style="text-align:right;padding:4px">' + bl('Rest', 'Остаток') + '</th>' +
+      '<th></th></tr>' +
+      rows.map(d =>
+        '<tr style="border-bottom:1px solid #f1f1f1">' +
+        '<td style="padding:5px 4px"><b>' + esc(d.nr || '') + '</b></td>' +
+        '<td style="padding:5px 4px">' + esc(d.ddate || '') + '</td>' +
+        '<td style="padding:5px 4px;text-align:right">' + fmtLei(d.total || 0) + '</td>' +
+        '<td style="padding:5px 4px">' + (d.closed
+          ? '<span style="color:#599e28">✓ ' + esc(d.livr_nr || '') + '</span>' +
+            (d.livr_date ? ' <span style="color:#808080">' + esc(d.livr_date) + '</span>' : '')
+          : '<span style="color:#ea6f21">' + bl('în așteptare', 'в ожидании') + '</span>') + '</td>' +
+        '<td style="padding:5px 4px;text-align:right">' +
+          (d.rest ? '<b style="color:#ea6f21">' + fmtLei(d.rest) + '</b>' : '—') + '</td>' +
+        '<td style="padding:5px 4px;text-align:right;white-space:nowrap">' +
+        '<a target="_blank" href="' + API + '/report/invoice/' + d.cod + '" ' +
+        'style="color:#194681;text-decoration:underline">' + bl('Cont', 'Счёт') + '</a>' +
+        (d.closed ? ' · <a target="_blank" href="' + API + '/report/order/' + d.cod + '" ' +
+          'style="color:#194681;text-decoration:underline">' + bl('Livrare', 'Отгрузка') + '</a>' : '') +
+        '</td></tr>').join('') + '</table></div>';
   } catch (e) { box.textContent = '—'; }
 }
 

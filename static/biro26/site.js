@@ -304,7 +304,12 @@ function cardBuy(cod) {
 function cardHtml(p) {
   PMAP[p.cod] = p;
   const price = pprice(p);
-  const inStock = (p.real_cant || 0) > 0;
+  // RO: pe vitrina se arata stocul DISPONIBIL, nu cel din depozit: din el
+  //     sint scazute comenzile neonorate si livrarile de dupa ultimul calcul
+  //     al stocului (vezi get_products_stock -> AVAIL_CANT).
+  // EN: the storefront shows AVAILABLE stock — snapshot minus open orders.
+  const avail = (p.avail_cant != null) ? p.avail_cant : (p.real_cant || 0);
+  const inStock = avail > 0;
   const varSel = (p.var_cnt || 1) > 1
     ? '<select class="varsel-sm" id="v-' + p.cod + '" ' +
       'onfocus="loadVariants(' + p.cod + ')" onclick="event.stopPropagation()">' +

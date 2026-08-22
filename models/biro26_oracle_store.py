@@ -856,7 +856,9 @@ class Biro26Store:
                 "c.ANGRO, c.IONLINE, c.RETAIL1, "
                 "c.ANGRO_FARA_TVA, "
                 "NVL(m.IE_LINKADRES, NVL(c.PHOTO_URL, c.IMAGE_LINK)) IMAGE, "
-                "s.CANT REAL_CANT, bc.BARCODE, bc.BC_CNT, "
+                "s.CANT REAL_CANT, NVL(rz.QTY, 0) RESERVED, "
+                "GREATEST(NVL(s.CANT, 0) - NVL(rz.QTY, 0), 0) AVAIL_CANT, "
+                "bc.BARCODE, bc.BC_CNT, "
                 "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT, "
                 # RO: denumirea completa din TMS_MPT_WEBATTR — copia VARCHAR2
                 #     (ieftina) pentru grila/tooltip; BLOB-ul DOAR in fisa
@@ -867,6 +869,27 @@ class Biro26Store:
                 "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
                 "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
                 "  GROUP BY sc) s ON s.sc = c.COD "
+                # RO: cantitatea BLOCATA de comenzile magazinului. Instantaneul
+                #     de stoc (YBIRO_STOCK_CALC) se recalculeaza periodic, deci
+                #     nu stie nici de comenzile neonorate, nici de livrarile de
+                #     dupa data lui. Scadem ambele:
+                #       - contul de plata NElivrat (ctnrdoc IS NULL) -> rezervat;
+                #       - livrat DUPA data instantaneului -> marfa a plecat deja.
+                #     Cele doua cazuri nu se suprapun: la livrare comanda se inchide.
+                # EN: quantity locked by shop orders — the stock snapshot is
+                #     periodic, so subtract both unshipped orders and shipments
+                #     made after the snapshot date.
+                "LEFT JOIN (SELECT d.CTSC SC, SUM(NVL(d.CANT, 0)) QTY "
+                "  FROM VMDB_ST201D d "
+                "  JOIN VMDB_ST201M m ON m.NRDOC = d.NRDOC "
+                "  JOIN VMDB_DOCS   h ON h.COD = d.NRDOC AND h.SYSFID = 12280 "
+                "  WHERE d.CTSC IS NOT NULL AND ("
+                "        m.CTNRDOC IS NULL "
+                "     OR NVL((SELECT dh.DATAMANUAL FROM VMDB_DOCS dh "
+                "               WHERE dh.COD = m.CTNRDOC), h.DATAMANUAL) > "
+                "        NVL((SELECT MAX(DATA_DOC) FROM YBIRO_STOCK_CALC "
+                "               WHERE IS_LATEST = '1'), DATE '1900-01-01')) "
+                "  GROUP BY d.CTSC) rz ON rz.SC = c.COD "
                 "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
                 "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = c.COD "
                 "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = c.COD "

@@ -1884,3 +1884,15 @@ class Biro26Controller:
             return {"success": False, "error": "login required"}
         return Biro26Report.docs_list(str(c["univers_cod"]),
                                       request.args.get("limit", 50, type=int))
+
+    @staticmethod
+    def shop_my_reconciliation() -> Dict[str, Any]:
+        """RO: actul de verificare al clientului — conturile lui cu livrarile
+        aferente si starea fiecareia (inchisa / in asteptare)."""
+        from flask import session
+        from models.biro26_report import Biro26Report
+        c = session.get("biro26_client")
+        if not c:
+            return {"success": False, "error": "login required"}
+        return Biro26Report.reconciliation(c["univers_cod"],
+                                           request.args.get("limit", 100, type=int))
