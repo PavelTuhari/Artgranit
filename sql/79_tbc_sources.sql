@@ -132,7 +132,7 @@ VALUES ('emulator', 'Встроенный эмулятор сценариев', 
 INSERT INTO TBC_SOURCES (CODE, NAME, KIND, API_URL, API_USER, ENABLED, SORT_ORDER, NOTE)
 VALUES ('zabbix34', 'Zabbix Unisim (3.4.15)', 'zabbix',
         'http://192.168.0.110/zabbix/api_jsonrpc.php', 'Admin', 'N', 20,
-        'LXC CT 101 на PROXMOX3; доступен только из LAN 192.168.0.0/24');
+        'LXC CT 101 на PROXMOX3, доступен только из LAN 192.168.0.0/24');
 
 INSERT INTO TBC_SOURCES (CODE, NAME, KIND, DB_USER, DB_DSN, ENABLED, SORT_ORDER, NOTE)
 VALUES ('cuptorf26', 'Cuptorul Fermecat', 'unisim_cassa', 'cuptorf26',
