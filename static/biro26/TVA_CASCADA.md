@@ -17,6 +17,19 @@ Verificările se fac în ordine și **prima care răspunde oprește căutarea**:
 
 **Documentul bate clientul, clientul bate marfa.**
 
+### Butoanele din formular = valorile din `VATFREE`
+
+Confirmat din sursa aplicatiei (`Dll/unD001/ufmD001a.dfm`, `rg01TVAFree`, `DataField='VATFREE'`):
+
+```
+Items.Strings  = ('Cu TVA', 'TVA 0%', 'Fara TVA')
+Values.Strings = ('0',      '1',      '-1')
+```
+
+Interfata si motorul **coincid**: `1` -> `return 0` (cota zero), `-1` -> `return null`
+(fara TVA). Nu exista nepotrivire intre eticheta si efect. `VATFREE` se scrie exclusiv
+din acest grup de butoane (`:VATFREE` in `uDMdata.dfm`), deci ia doar valorile 0 / 1 / -1.
+
 `0` (cotă zero, impozabilă) și `N` (în afara TVA) se contabilizează diferit — nu sunt sinonime.
 
 ## 2. Istoricul de TVA
