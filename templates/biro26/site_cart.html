@@ -280,6 +280,7 @@
 
               <div class="ck-box">
                 <div class="ck-total"><span data-t="total">Total</span>: <span id="cart-total">0</span></div>
+                <div id="cart-min-note"></div>
                 <!-- RO: cerinta obligatorie maib pentru e-commerce — bifa cu link ACTIV
                      la Termeni si conditii, pe care clientul o marcheaza INAINTE de plata
                      (https://docs.maibmerchants.md/main/ro/integration/requirements).
@@ -313,7 +314,32 @@ let payMethod = 'standard', PAY = {enabled: false, methods: []}, miaTimer = null
 //     — null while Standard payment is active.
 let selOrgId = null, selMonths = null;
 
+// RO: comanda minima — se aplica la TOATE metodele de plata (standard, rate/credit,
+//     Liber Card). Sub acest prag comanda nu se plaseaza. Conditia se afiseaza cu ROSU.
+// EN: minimum order for ALL payment methods; below it checkout is blocked. Shown in red.
+//     Valoarea vine din WP (site config -> min_order); 1500 e doar rezerva.
+let MIN_ORDER = 1500;
 function cartTotal() { return cart().reduce((s, i) => s + i.qty * i.price, 0); }
+function belowMin() { return cartTotal() < MIN_ORDER; }
+// RO: mesajul-conditie in rosu / EN: the red condition message
+function minOrderNotice() {
+  return '<div class="min-order-note" style="color:#dc2626;font-weight:700;font-size:13px;' +
+    'line-height:1.45;margin:2px 0 10px">' +
+    bl('Comenzile se plasează de la ' + fmtLei(MIN_ORDER) + ' — inclusiv cu achitare standard. ' +
+       'Rate / credit și Liber Card sunt disponibile pentru comenzi de la ' + fmtLei(MIN_ORDER) + '.',
+       'Заказы оформляются от ' + fmtLei(MIN_ORDER) + ' — включая стандартную оплату. ' +
+       'Рассрочка / кредит и Liber Card доступны для заказов от ' + fmtLei(MIN_ORDER) + '.') +
+    '</div>';
+}
+// RO: garda comuna — intoarce true si arata mesajul rosu daca suma e sub prag
+function guardMinOrder() {
+  if (belowMin()) {
+    toast(bl('Suma minimă a comenzii este ' + fmtLei(MIN_ORDER),
+             'Минимальная сумма заказа — ' + fmtLei(MIN_ORDER)), true);
+    return true;
+  }
+  return false;
+}
 function renderCart() {
   const c = cart(); let total = 0;
   document.getElementById('cart-body').innerHTML = c.map(i => {
@@ -325,7 +351,41 @@ function renderCart() {
       '<td><button class="cart-x" onclick="delItem(' + i.cod + ')">×</button></td></tr>';
   }).join('') || '<tr><td colspan="5" style="color:#808080">' + tr('cartEmpty') + '</td></tr>';
   document.getElementById('cart-total').textContent = fmtLei(total);
+  // RO: conditia de comanda minima, in rosu, sub total
+  var mn = document.getElementById('cart-min-note');
+  if (mn) mn.innerHTML = (total > 0 && total < MIN_ORDER) ? minOrderNotice() : '';
+  applyMinOrderGate();
   renderTiles();
+}
+// RO: blocheaza vizual butonul «Plasează comanda» si butonul maib liber cind
+//     totalul e sub prag; ambele redevin active de la MIN_ORDER.
+// EN: greys out the checkout button and the maib liber button below MIN_ORDER.
+function applyMinOrderGate() {
+  const low = belowMin();
+  const btn = document.querySelector('.btn-big[onclick="makeInvoice()"]');
+  if (btn) {
+    btn.disabled = low;
+    btn.style.opacity = low ? '0.5' : '';
+    btn.style.cursor = low ? 'not-allowed' : '';
+    btn.title = low ? bl('Comanda se plasează de la ' + fmtLei(MIN_ORDER),
+                         'Заказ оформляется от ' + fmtLei(MIN_ORDER)) : '';
+  }
+  const ml = document.getElementById('maib-liber-box');
+  if (ml) {
+    ml.style.opacity = low ? '0.5' : '';
+    ml.style.pointerEvents = low ? 'none' : '';
+    let note = document.getElementById('maib-liber-min');
+    if (low && !note) {
+      note = document.createElement('div');
+      note.id = 'maib-liber-min';
+      note.style.cssText = 'color:#dc2626;font-weight:700;font-size:12px;margin-top:6px';
+      note.textContent = bl('Liber Card — disponibil pentru comenzi de la ' + fmtLei(MIN_ORDER),
+                            'Liber Card — доступен для заказов от ' + fmtLei(MIN_ORDER));
+      ml.parentNode.insertBefore(note, ml.nextSibling);
+    } else if (!low && note) {
+      note.remove();
+    }
+  }
 }
 function setQty(cod, v) { const c = cart(); const i = c.find(x => x.cod === cod);
   if (i) { i.qty = parseFloat(v) || 0; saveCartLS(c); } }
@@ -356,6 +416,14 @@ function pmBtnClass(name) {
 function renderPmEntry() {
   const box = document.getElementById('pm-entry');
   if (!box) return;
+  // RO: sub pragul minim toate metodele sint blocate; conditia apare cu rosu.
+  if (belowMin()) {
+    box.innerHTML = minOrderNotice() +
+      '<div style="font-size:12.5px;color:#64748b">' +
+      bl('Adăugați produse până la ' + fmtLei(MIN_ORDER) + ' pentru a plasa comanda.',
+         'Добавьте товары до ' + fmtLei(MIN_ORDER) + ', чтобы оформить заказ.') + '</div>';
+    return;
+  }
   let html = '';
   OFFERS.forEach(o => {
     const cls = pmBtnClass(o.name);
@@ -386,11 +454,13 @@ function renderPmEntry() {
 
 /* RO: trecerea la formularul de cerere, cu creditorul si suma cosului. */
 function goCreditForm(orgId) {
+  if (guardMinOrder()) return;
   const q = new URLSearchParams({org: orgId, amount: Math.round(cartTotal())});
   location.href = '/cerere-credit?' + q.toString();
 }
 
 function openCreditModal(orgId, monthsOnly) {
+  if (guardMinOrder()) return;
   const org = OFFERS.find(o => o.id === orgId);
   if (!org) return;
   selOrgId = orgId;
@@ -491,6 +561,7 @@ function crSubmitManual() {
 }
 
 function openStdModal() {
+  if (guardMinOrder()) return;
   selOrgId = null;
   setPm('standard');
   document.getElementById('std-agree-terms').checked = false;
@@ -916,6 +987,7 @@ window.addEventListener('pagehide', ecStop);
 async function makeInvoice() {
   const c = cart().filter(i => i.qty > 0);
   if (!c.length) { toast(tr('cartEmpty'), true); return; }
+  if (guardMinOrder()) return;
   if (!ME) { toast(tr('needLogin'), true); location.href = siteURL('/cont') + '?next=' + encodeURIComponent(siteURL('/cos')); return; }
   // RO/EN: cerinta maib — fara bifa la Termeni si conditii nu se plaseaza comanda
   const agree = document.getElementById('agree-terms');
@@ -1094,6 +1166,11 @@ document.getElementById('std-modal').addEventListener('click', function (e) {
    response updates its own part of the UI; the credit buttons render as
    soon as /credit/offers lands, not after /pay/methods. */
 (function init() {
+  // RO: pragul comenzii minime din WP (site config). Pina soseste, ramine 1500.
+  j('/api/biro26/site/config').then(cfg => {
+    const mo = cfg && cfg.data && cfg.data.min_order;
+    if (mo && mo > 0) { MIN_ORDER = mo; renderCart(); renderPmEntry(); }
+  }).catch(() => {});
   renderCart();
   renderPmEntry();  // afiseaza macar butonul Standard cit se incarca OFFERS
 

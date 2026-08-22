@@ -81,10 +81,27 @@ class Biro26Site:
                     deal["product"] = rows[0]
             except Exception:
                 deal = None
+        # RO: pragul comenzii minime — setabil din WP (pagina "site-min-order",
+        #     al carei continut e doar numarul, ex. 1500). Fallback: 1500.
+        # EN: minimum-order threshold, editable in WP (page "site-min-order").
+        min_order = 1500
+        try:
+            import re as _re
+            from app import _biro26_wp_page as _wp
+            _t, _html = _wp('site-min-order')
+            if _html:
+                m = _re.search(r'\d[\d\s.,]*', _re.sub(r'<[^>]+>', ' ', _html))
+                if m:
+                    v = float(m.group(0).replace(' ', '').replace(',', '.'))
+                    if v > 0:
+                        min_order = int(round(v))
+        except Exception:
+            pass
         res = {"success": True, "data": {
             "hero": [{k.lower(): v for k, v in h.items()} for h in hero],
             "sections": [{k.lower(): v for k, v in s.items()} for s in sections],
             "featured": Biro26Site.featured_products(),
+            "min_order": min_order,
             "deal": deal}}
         c.update(exp=_t.time() + 60, data=res)
         return res
