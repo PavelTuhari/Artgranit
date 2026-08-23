@@ -396,7 +396,14 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       --     duplicates are created (5,113 cards had to be archived).
       '  SUBSTR(TRIM(REGEXP_REPLACE(' || e(v_art) ||
       '    , ''^(SKU|Articol|Article|Cod|Code|Art)[[:space:]]*:[[:space:]]*'', '''', 1, 1, ''i'')),1,60),' ||
-      '  SUBSTR(' || e(v_den) || ',1,400),' ||
+      -- RO: ghilimelele duble sint INTERZISE in TMS_UNIVERS.DENUMIREA de triggerul
+      --     nativ TRIG_BFIU_TMS_UNIVERS_CK_BANK; tolii din numele produselor IT
+      --     (atehno: 27") devin doua apostrofuri (27''). Se face in STAGIN, ca
+      --     potrivirile pe nume (paza 4) sa ramina consistente cu ce e in catalog.
+      -- EN: double quotes are forbidden in DENUMIREA by a native trigger; inch
+      --     marks become two apostrophes, sanitized at STAGING level so name
+      --     comparisons stay consistent.
+      '  SUBSTR(REPLACE(' || e(v_den) || ', CHR(34), CHR(39)||CHR(39)),1,400),' ||
       '  NVL(SUBSTR(' || e(v_grp) || ',1,60), ' || v_gfb  || '),' ||   -- grupa plina / full grupa
       '  NVL(SUBSTR(' || e(v_grp) || ',1,25), ' || v_gfbp || '),' ||   -- grupa_pret <=25
       '  SUBSTR(' || e(v_cat) || ',1,260),' ||                   -- categorie
