@@ -79,6 +79,33 @@ clientul 471738 (IURILEN-FLOR SRL), factura din 20.08.2026 ieșea cu 20% deși c
 
 Control, client normal (CRAFTI, 161245): `0.2` la toate datele — neschimbat.
 
+## 3a. A doua corectie (23.08.2026): regenerarea GFC nu recalcula TVA-ul
+
+Dupa corectia din §3 a iesit la iveala inca un strat: **TVA-ul de pe randurile
+documentului este STOCAT** (`VMDB_ST201D.SUMAVALCT` / `SUMAGAAP`), scris la crearea
+documentului. Regenerarea formulelor contabile (`YBON_DOCS.perecislenie_NN_GFC`)
+doar **posta** aceste sume stocate — recalcularea (`Cassa_NN_calc_VAT`) era chemata
+exclusiv la creare (`PKG_CARDS`).
+
+Consecinta: schimbai regimul de TVA (pe document sau pe client), regenerai formulele —
+si contabilitatea ramanea pe sumele VECHI. Exact simptomul de la documentul 369.
+
+**Corectia:** `perecislenie_NN_GFC` apeleaza acum intii `Cassa_NN_calc_VAT(vNrdoc)`,
+deci orice regenerare recalculeaza sumele dupa atributele CURENTE si abia apoi posteaza.
+
+Verificat pe 369, ambele directii dintr-un singur apel:
+
+| Atribute | 5342 (TVA colectat) | 6112 (venit) |
+|---|---|---|
+| Cu TVA (client `A`, `VATFREE=0`) | **776.18** | 3880.82 |
+| TVA 0 (client `0`, `VATFREE=1`) | **0** | 4657 |
+
+Fisier: `YBON_DOCS_fix_gfc_recalc_vat.sql`; copie de rezerva: `Backups/ybon_docs/`.
+
+> **Lectie:** intr-un sistem cu valori stocate, o corectie de FUNCTIE nu repara datele
+> deja scrise, iar o REGENERARE care nu recalculeaza nu e o regenerare completa.
+> Verificati intotdeauna lantul intreg: functie -> randuri -> formule.
+
 ## 4. Corectarea de date
 
 Istoricul clientului 471738 avea fereastra de 0% de **două zile** (20–21.08.2026), apoi
