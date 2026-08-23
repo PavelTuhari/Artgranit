@@ -1,27 +1,3 @@
--- =====================================================================
--- RO: Trigger de protectie: NU permite scrierea in TMS_UNIVERS a textelor cu
---     diacritice romanesti (sau alte caractere) STRICATE de charset-ul bazei.
---     Baza e CL8MSWIN1251 (chirilic) si NU are 'ă â î ș ț' sau '× ² ‑ …' —
---     Oracle le converteste tacit in '?' ("Foto și Video" -> "Foto ?i Video").
---     Aplicatiile trebuie sa transliteze INAINTE de scriere (vezi cp1251_safe()
---     din biro26pt_loader.py).
--- EN: Guard trigger: rejects writes to TMS_UNIVERS whose text carries Romanian
---     diacritics (or other chars) MANGLED by the DB charset. The DB is
---     CL8MSWIN1251 and silently turns them into '?'. Applications must
---     transliterate BEFORE writing (see cp1251_safe() in biro26pt_loader.py).
---
--- RO: Detecteaza DOAR tiparele sigure de stricare, ca sa NU blocheze semnele de
---     intrebare REALE (care stau la sfirsit de cuvint: "Кто испек пирог?"):
---       1) '?' intre litere/cifre        -> "car?i", "22?10?32"
---       2) '?' la inceput de cuvint      -> "?coala", "?i", "?tampila"
--- EN: Only unambiguous mangling patterns, so REAL question marks (always at the
---     end of a word) are never blocked.
---
--- RO: Se declanseaza doar cind textul chiar se schimba (randurile vechi cu '?'
---     pot fi actualizate pe alte cimpuri). Dezactivare de urgenta:
---       ALTER TRIGGER YBIRO_UNIVERS_CHK_DIACRITICE DISABLE;
--- EN: Fires only when the text actually changes. Emergency off: see above.
--- =====================================================================
 CREATE OR REPLACE TRIGGER YBIRO_UNIVERS_CHK_DIACRITICE
   BEFORE INSERT OR UPDATE OF DENUMIREA, NAMERUS, GR2 ON TMS_UNIVERS
   FOR EACH ROW
@@ -34,6 +10,14 @@ DECLARE
   FUNCTION is_mangled(p_txt IN VARCHAR2) RETURN BOOLEAN IS
   BEGIN
     IF p_txt IS NULL OR INSTR(p_txt, '?') = 0 THEN
+      RETURN FALSE;
+    END IF;
+    -- RO: valorile care CONTIN un URL au '?' legitim (separatorul query string) —
+    --     ex. "...IdeaCentre?M=F0HM0131RU" (atehno). Aceeasi garda ca in algoritmul 5
+    --     de reparare (05_repair_raw_staging). Fara ea, garda bloca importul.
+    -- EN: values containing a URL carry a legitimate '?' (query-string separator);
+    --     same guard as repair algorithm 5.
+    IF REGEXP_LIKE(p_txt, '(https?://|www\.)', 'i') THEN
       RETURN FALSE;
     END IF;
     RETURN REGEXP_LIKE(p_txt, c_pat_inner) OR REGEXP_LIKE(p_txt, c_pat_start);
