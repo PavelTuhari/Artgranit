@@ -1,14 +1,3 @@
--- =====================================================================
--- RO: YBIRO_TEXT_UTIL — utilitare pentru text Unicode intr-o baza CL8MSWIN1251.
---     Ideea: textul ORIGINAL (cu diacritice) se pastreaza in BLOB (octeti UTF-8),
---     pe care baza NU ii converteste. Pentru cautare/indexare se genereaza copii
---     TEXT fara diacritice, folosind charset-ul national AL16UTF16 (NCLOB), care
---     suporta complet Unicode.
--- EN: YBIRO_TEXT_UTIL — Unicode text helpers for a CL8MSWIN1251 database.
---     The ORIGINAL text (with diacritics) lives in a BLOB (UTF-8 bytes) which the
---     DB never transcodes. Search/index copies are derived through the national
---     charset AL16UTF16 (NCLOB), which is full Unicode.
--- =====================================================================
 CREATE OR REPLACE PACKAGE YBIRO_TEXT_UTIL IS
   -- RO: BLOB (UTF-8) -> NCLOB (Unicode, cu diacritice) / EN: UTF-8 BLOB -> Unicode NCLOB
   FUNCTION blob_to_nclob(p_blob IN BLOB) RETURN NCLOB;
@@ -23,23 +12,24 @@ CREATE OR REPLACE PACKAGE YBIRO_TEXT_UTIL IS
   -- RO: text (orice) -> BLOB UTF-8 / EN: text -> UTF-8 BLOB
   FUNCTION nclob_to_blob(p_txt IN NCLOB) RETURN BLOB;
 END YBIRO_TEXT_UTIL;
+
 /
 
 CREATE OR REPLACE PACKAGE BODY YBIRO_TEXT_UTIL IS
 
   -- RO: TRANSLATE e 1:1 — fiecare bloc din c_from are EXACT aceeasi lungime ca perechea
-  --     lui din c_to (lungimile sint notate in dreapta). Cazurile 1:N (² -> 2, ½ -> 1/2)
+  --     lui din c_to (lungimile sint notate in dreapta). Cazurile 1:N (? -> 2, ? -> 1/2)
   --     se rezolva separat, cu REPLACE, in expand_multi.
   -- EN: TRANSLATE is 1:1 — each c_from block has EXACTLY the same length as its c_to
   --     pair (lengths noted on the right). Non-1:1 cases are handled in expand_multi.
   c_from CONSTANT NVARCHAR2(200) :=
-    UNISTR('\0103\00E2\00EE\015F\0219\0163\021B') ||               -- ă â î ş ș ţ ț   (7)
-    UNISTR('\0102\00C2\00CE\015E\0218\0162\021A') ||               -- Ă Â Î Ş Ș Ţ Ț   (7)
-    UNISTR('\00E0\00E1\00E4\00E8\00E9\00EB\00EC\00ED') ||          -- à á ä è é ë ì í (8)
-    UNISTR('\00F2\00F3\00F6\00F9\00FA\00FC\00E7\00F1') ||          -- ò ó ö ù ú ü ç ñ (8)
-    UNISTR('\00C0\00C1\00C4\00C8\00C9\00CB\00CC\00CD') ||          -- À Á Ä È É Ë Ì Í (8)
-    UNISTR('\00D2\00D3\00D6\00D9\00DA\00DC\00C7\00D1') ||          -- Ò Ó Ö Ù Ú Ü Ç Ñ (8)
-    UNISTR('\00D7\2212\2010\2011\2013\2014') ||                    -- × − ‐ ‑ – —     (6)
+    UNISTR('\0103\00E2\00EE\015F\0219\0163\021B') ||               -- a a i s ? t ?   (7)
+    UNISTR('\0102\00C2\00CE\015E\0218\0162\021A') ||               -- A A I S ? T ?   (7)
+    UNISTR('\00E0\00E1\00E4\00E8\00E9\00EB\00EC\00ED') ||          -- a a a e e e i i (8)
+    UNISTR('\00F2\00F3\00F6\00F9\00FA\00FC\00E7\00F1') ||          -- o o o u u u c n (8)
+    UNISTR('\00C0\00C1\00C4\00C8\00C9\00CB\00CC\00CD') ||          -- A A A E E E I I (8)
+    UNISTR('\00D2\00D3\00D6\00D9\00DA\00DC\00C7\00D1') ||          -- O O O U U U C N (8)
+    UNISTR('\00D7\2212\2010\2011\2013\2014') ||                    -- ? ? ? ? – —     (6)
     UNISTR('\2018\2019\201C\201D\00B7\2022\00B0');                 -- ‘ ’ “ ” · • °   (7)
   c_to   CONSTANT NVARCHAR2(200) :=
     UNISTR('aaisstt')  ||                                          -- (7)
@@ -55,23 +45,23 @@ CREATE OR REPLACE PACKAGE BODY YBIRO_TEXT_UTIL IS
   FUNCTION expand_multi(p IN NVARCHAR2) RETURN NVARCHAR2 IS
     v NVARCHAR2(4000) := p;
   BEGIN
-    v := REPLACE(v, UNISTR('\00B2'), '2');      -- ²
-    v := REPLACE(v, UNISTR('\00B3'), '3');      -- ³
-    v := REPLACE(v, UNISTR('\00B9'), '1');      -- ¹
-    v := REPLACE(v, UNISTR('\00BD'), '1/2');    -- ½
-    v := REPLACE(v, UNISTR('\00BC'), '1/4');    -- ¼
-    v := REPLACE(v, UNISTR('\00BE'), '3/4');    -- ¾
-    v := REPLACE(v, UNISTR('\2264'), '<=');     -- ≤
-    v := REPLACE(v, UNISTR('\2265'), '>=');     -- ≥
-    v := REPLACE(v, UNISTR('\2248'), '~');      -- ≈
-    v := REPLACE(v, UNISTR('\2260'), '!=');     -- ≠
-    v := REPLACE(v, UNISTR('\00DF'), 'ss');     -- ß
-    v := REPLACE(v, UNISTR('\00E6'), 'ae');     -- æ
-    v := REPLACE(v, UNISTR('\00C6'), 'AE');     -- Æ
-    v := REPLACE(v, UNISTR('\0153'), 'oe');     -- œ
-    v := REPLACE(v, UNISTR('\0152'), 'OE');     -- Œ
-    v := REPLACE(v, UNISTR('\FB01'), 'fi');     -- ﬁ
-    v := REPLACE(v, UNISTR('\FB02'), 'fl');     -- ﬂ
+    v := REPLACE(v, UNISTR('\00B2'), '2');      -- ?
+    v := REPLACE(v, UNISTR('\00B3'), '3');      -- ?
+    v := REPLACE(v, UNISTR('\00B9'), '1');      -- ?
+    v := REPLACE(v, UNISTR('\00BD'), '1/2');    -- ?
+    v := REPLACE(v, UNISTR('\00BC'), '1/4');    -- ?
+    v := REPLACE(v, UNISTR('\00BE'), '3/4');    -- ?
+    v := REPLACE(v, UNISTR('\2264'), '<=');     -- ?
+    v := REPLACE(v, UNISTR('\2265'), '>=');     -- ?
+    v := REPLACE(v, UNISTR('\2248'), '~');      -- ?
+    v := REPLACE(v, UNISTR('\2260'), '!=');     -- ?
+    v := REPLACE(v, UNISTR('\00DF'), 'ss');     -- ?
+    v := REPLACE(v, UNISTR('\00E6'), 'ae');     -- ?
+    v := REPLACE(v, UNISTR('\00C6'), 'AE');     -- ?
+    v := REPLACE(v, UNISTR('\0153'), 'oe');     -- ?
+    v := REPLACE(v, UNISTR('\0152'), 'OE');     -- ?
+    v := REPLACE(v, UNISTR('\FB01'), 'fi');     -- ?
+    v := REPLACE(v, UNISTR('\FB02'), 'fl');     -- ?
     v := REPLACE(v, UNISTR('\2026'), '...');    -- …
     v := REPLACE(v, UNISTR('\00A0'), ' ');      -- nbsp
     v := REPLACE(v, UNISTR('\200B'), '');       -- zero-width space
@@ -113,12 +103,19 @@ CREATE OR REPLACE PACKAGE BODY YBIRO_TEXT_UTIL IS
       -- RO: inlocuieste diacriticele, apoi converteste la charset-ul bazei
       -- EN: replace diacritics, then convert down to the DB charset
       DECLARE
-        v_fixed NVARCHAR2(4000) := TRANSLATE(expand_multi(v_piece), c_from, c_to);
-      BEGIN
-        IF v_fixed IS NOT NULL THEN
-          DBMS_LOB.WRITEAPPEND(v_out, LENGTH(v_fixed), v_fixed);
-        END IF;
-      END;
+v_fixed NVARCHAR2(4000) := TRANSLATE(expand_multi(v_piece), c_from, c_to);
+-- RO: conversia la charset-ul BAZEI se face AICI, prin atribuire, iar lungimea
+--     se masoara pe rezultat. Cu emoji (perechi surogat UTF-16) LENGTH pe
+--     NVARCHAR2 nu corespundea bufferului convertit si WRITEAPPEND pica cu
+--     ORA-21560 (descoperit la descrierile atehno).
+-- EN: convert to the DB charset FIRST (assignment), then measure THAT length;
+--     surrogate pairs made LENGTH(nvarchar2) mismatch the converted buffer.
+v_db VARCHAR2(16000) := v_fixed;
+BEGIN
+IF v_db IS NOT NULL THEN
+DBMS_LOB.WRITEAPPEND(v_out, LENGTH(v_db), v_db);
+END IF;
+END;
       v_pos := v_pos + c_chunk;
     END LOOP;
     RETURN v_out;

@@ -847,7 +847,9 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
                           WHERE b.load_id = s.load_id AND b.row_no = s.row_no
                             AND b.col_idx = v_col_dfull),
                         YBIRO_TEXT_UTIL.nclob_to_blob(TO_NCLOB(s.denumire_full)) ) dfull_blob,
-                   NVL(s.furnizor, s.src_file) src,
+                   -- RO: SRC are max 60 — numele lungi de fisier depaseau (ORA-12899 la atehno)
+                   -- EN: SRC is max 60; long file names overflowed
+                   SUBSTR(NVL(s.furnizor, s.src_file), 1, 60) src,
                    -- RO: ATENTIE - acelasi articol poate aparea in fisier la produse
                    --     DIFERITE (eroare a furnizorului: pe o foaie "Smartphone", pe alta
                    --     "Imprimanta"). Alegem randul a carui DENUMIRE se potriveste cu
