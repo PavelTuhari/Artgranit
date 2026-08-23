@@ -407,7 +407,10 @@ CREATE OR REPLACE PACKAGE BODY BIRO26PT_importData IS
       '  NVL(SUBSTR(' || e(v_grp) || ',1,60), ' || v_gfb  || '),' ||   -- grupa plina / full grupa
       '  NVL(SUBSTR(' || e(v_grp) || ',1,25), ' || v_gfbp || '),' ||   -- grupa_pret <=25
       '  SUBSTR(' || e(v_cat) || ',1,260),' ||                   -- categorie
-      '  SUBSTR(' || e(v_fz)  || ',1,260),' ||                   -- furnizor/producator
+      -- RO: si numele FURNIZORULUI se curata de ghilimele — devine cartela de
+      --     organizatie (TIP='O'), unde triggerul CK_BANK le interzice.
+      -- EN: the SUPPLIER name feeds an organization card; sanitize quotes too.
+      '  SUBSTR(REPLACE(' || e(v_fz) || ', CHR(34), CHR(39)||CHR(39)),1,260),' ||   -- furnizor/producator
       '  ' || e(v_ang, TRUE) || ', ' || e(v_onl, TRUE) || ',' ||
       -- RO: pretul de raft ramine TEXT (parse_price il converteste mai tirziu), dar
       --     normalizam separatorul: "69,66" -> "69.66". parse_price NU intelege virgula

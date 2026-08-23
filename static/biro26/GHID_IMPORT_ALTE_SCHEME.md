@@ -332,6 +332,42 @@ Un `.xlsx` poate avea **multe foi**, fiecare o categorie (ex. catalog electronic
 Loader-ul încarcă **fiecare foaie ca `load_id` separat**. La import, pasează **numele foii
 drept `p_grupa`** → plasare corectă pe categorii, fără „totul într-un nod".
 
+### 9.31 Setul 14 (atehno, 22 000 produse IT): patru straturi de aparare, patru defecte
+
+Cel mai mare set de pina acum (22 397 randuri + 42 675 imagini) si primul catalog IT.
+Continutul tehnic a lovit patru limite noi, una dupa alta — fiecare oprire a scos alt strat:
+
+| # | Defect | Cauza | Corectia |
+|---|---|---|---|
+| 1 | `ORA-12899` la `TMS_MPT_WEBATTR.SRC` | nume de fisier > 60 caractere | trunchiere la 60 |
+| 2 | `ORA-21560` in `YBIRO_TEXT_UTIL` | **emoji** in descrieri: LENGTH pe NVARCHAR2 (perechi surogat) nu corespunde bufferului convertit la cp1251 | conversia la charset-ul bazei INAINTE de `WRITEAPPEND`, lungimea masurata pe rezultat |
+| 3 | `ORA-20077` de la garda de diacritice | **URL in denumire** — `?` din query string parea diacritica stricata | garda de URL in trigger (ca in algoritmul 5 de reparare) |
+| 4 | `ORA-20000` de la triggerul nativ CK_BANK | **tolii** din numele IT (`27"`) si ghilimele in numele brandurilor — `"` e interzis in `TMS_UNIVERS` | sanitizare in STAGIN: `"` -> `''` la denumire SI la furnizor |
+
+Sanitizarea ghilimelelor se face la nivel de **stagin** (build_stg), nu la insert: asa
+potrivirile pe nume (paza 4) ramin consistente intre fisier si catalog — altfel fiecare
+produs cu toli in nume ar fi devenit dublura la reimport.
+
+**Nota de reluare:** un import intrerupt lasa pasii dinainte de eroare COMISI. La reluare
+marfa e deja EXISTENTA, deci pasii doar-pentru-NOI (plasare in arbore, EAN) nu se repeta —
+la atehno nu a durut (codurile de bare vin din fisier, plasarea se facuse), dar verificati
+mereu ce a ramas nefacut (vezi si 9.30c, bestbuy).
+
+#### Rezultat
+
+| | |
+|---|---|
+| Produse | **21 732** (toate cu cod de bare REAL din fisier) |
+| Preturi verificate fata de fisier | 21 746, **0 diferente**; verificarea automata: OK |
+| Atribute web (descrieri) | 17 501 |
+| Galerie | 16 645 imagini pentru 4 091 produse |
+| Grupe | **122**, in rusa, 3 niveluri (`Компьютеры` 12 956, `Строительство` 4 029...) |
+| Articole slabe prefixate | 14 953 (`ATH-`/brand) |
+| Diacritice stricate | 0 |
+
+Prima sursa de scraping cu coduri de bare complete — paza anti-dubluri a trecut fara
+`p_force`, iar potrivirile viitoare se vor face intii pe cod de bare, cheia cea mai sigura.
+
 ### 9.30 Setul 13 (bestbuy): patru defecte gasite intr-un singur import
 
 Fisier de scraping obisnuit — 8 655 de randuri, 29 de coloane, grupe in rusa — dar a scos
