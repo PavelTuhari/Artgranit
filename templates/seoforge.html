@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEOForge — AI-SEO продвижение</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 6px;
+        }
+        .top-bar .logo { color: #53d769; font-weight: 700; font-size: 16px; letter-spacing: 1px; margin-right: 8px; }
+        .top-bar .logo span { color: #e94560; }
+        .top-bar .nav-item {
+            padding: 6px 12px; cursor: pointer; color: #a0a0c0;
+            border-radius: 4px; font-size: 12px; transition: all .2s; white-space: nowrap;
+        }
+        .top-bar .nav-item:hover { background: #0f3460; color: #fff; }
+        .top-bar .nav-item.active { background: #e94560; color: #fff; }
+        .top-bar .spacer { flex: 1; }
+        .back-link { color: #8888aa; text-decoration: none; font-size: 13px; }
+        .back-link:hover { color: #e94560; }
+
+        .content-area { height: calc(100vh - 48px); overflow-y: auto; padding: 16px 20px 60px; }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        .section-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; color: #fff; }
+        .section-note { font-size: 12px; color: #8888aa; margin-bottom: 14px; max-width: 900px; line-height: 1.5; }
+
+        .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+
+        .card { background: #16213e; border: 1px solid #0f3460; border-radius: 6px; margin-bottom: 16px; }
+        .card-header {
+            padding: 10px 14px; border-bottom: 1px solid #0f3460;
+            font-size: 13px; font-weight: 600; color: #fff;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .card-header .spacer { flex: 1; }
+        .card-body { padding: 14px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th {
+            text-align: left; padding: 8px 10px; background: #0f3460;
+            color: #a0a0c0; font-weight: 600; white-space: nowrap;
+        }
+        td { padding: 7px 10px; border-top: 1px solid #0f3460; vertical-align: top; }
+        tr:hover td { background: #1c2b4a; }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        input, select, textarea {
+            background: #1a1a2e; border: 1px solid #0f3460; color: #e0e0e0;
+            padding: 6px 8px; border-radius: 4px; font-size: 12px; font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #e94560; }
+        textarea { width: 100%; min-height: 60px; resize: vertical; }
+        label { display: block; font-size: 11px; color: #8888aa; margin-bottom: 3px; }
+
+        .field { margin-bottom: 10px; }
+        .field input, .field select { width: 100%; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 12px; }
+
+        button {
+            background: #0f3460; border: 1px solid #1c4a80; color: #e0e0e0;
+            padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: inherit;
+        }
+        button:hover { background: #1c4a80; color: #fff; }
+        button.primary { background: #e94560; border-color: #e94560; color: #fff; }
+        button.primary:hover { background: #ff5f78; }
+        button:disabled { opacity: .45; cursor: not-allowed; }
+        button.link { background: none; border: none; color: #6ba8ff; padding: 0 4px; }
+
+        .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+        .tile { background: #16213e; border: 1px solid #0f3460; border-radius: 6px; padding: 14px; cursor: pointer; }
+        .tile:hover { border-color: #e94560; }
+        .tile .domain { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+        .tile .row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; color: #a0a0c0; }
+        .tile .row b { color: #e0e0e0; font-variant-numeric: tabular-nums; }
+
+        .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .tab { padding: 6px 14px; font-size: 12px; cursor: pointer; border-radius: 4px; color: #a0a0c0; background: #16213e; }
+        .tab.active { background: #e94560; color: #fff; }
+
+        .empty-state { padding: 22px; text-align: center; color: #6a6a88; font-size: 12px; }
+        .over { color: #ff6b81; font-weight: 600; }
+        .good { color: #53d769; }
+        .muted { color: #8888aa; }
+
+        .toast {
+            position: fixed; right: 18px; bottom: 18px; max-width: 460px;
+            padding: 11px 15px; border-radius: 5px; font-size: 12px;
+            background: #0f3460; border: 1px solid #1c4a80; color: #fff;
+            display: none; z-index: 50; line-height: 1.45;
+        }
+        .toast.error { background: #4a1020; border-color: #e94560; }
+        .toast.ok { background: #10331c; border-color: #53d769; }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo">SEO<span>Forge</span></div>
+    <div class="nav-item active" data-panel="portfolio" onclick="showPanel('portfolio')">Портфель</div>
+    <div class="nav-item" data-panel="sites" onclick="showPanel('sites')">Сайты</div>
+    <div class="nav-item" data-panel="campaigns" onclick="showPanel('campaigns')">Кампании</div>
+    <div class="nav-item" data-panel="budget" onclick="showPanel('budget')">Бюджет</div>
+    <div class="nav-item" data-panel="facts" onclick="showPanel('facts')">Факты</div>
+    <div class="nav-item" data-panel="roi" onclick="showPanel('roi')">ROI</div>
+    <div class="nav-item" data-panel="refs" onclick="showPanel('refs')">Справочники</div>
+    <div class="spacer"></div>
+    <a href="/UNA.md/orasldev" class="back-link">&#8592; Портал</a>
+</div>
+
+<div class="content-area">
+
+    <!-- ===== Портфель ===== -->
+    <div class="panel active" id="panel-portfolio">
+        <h2 class="section-title">Портфель сайтов</h2>
+        <div class="section-note">
+            Плитка показывает текущий период: план, израсходовано, остаток и число активных
+            кампаний. Красный остаток означает перерасход — строки расхода помечены флагом
+            в базе и ждут разбора.
+        </div>
+        <div class="toolbar">
+            <button onclick="loadPortfolio()">&#8635; Обновить</button>
+        </div>
+        <div class="tiles" id="portfolioTiles"><div class="empty-state">Загрузка…</div></div>
+    </div>
+
+    <!-- ===== Сайты ===== -->
+    <div class="panel" id="panel-sites">
+        <h2 class="section-title">Профили сайтов</h2>
+        <div class="section-note">
+            Site Profile: кто мы, что продаём, кому и каким тоном. Эти поля станут контекстом
+            для плейбуков AI-сессий, когда будет сделан кусок D. Удаления нет — только архив.
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span id="siteFormTitle">Новый сайт</span>
+                <div class="spacer"></div>
+                <button class="link" onclick="resetSiteForm()">Очистить</button>
+            </div>
+            <div class="card-body">
+                <input type="hidden" id="siteCod">
+                <div class="form-grid">
+                    <div class="field"><label>Домен *</label><input id="siteDomain" placeholder="officeplus.md"></div>
+                    <div class="field"><label>Локали *</label><input id="siteLocales" placeholder="ru,ro,en"></div>
+                    <div class="field"><label>Гео</label><input id="siteGeo" placeholder="MD, RO"></div>
+                    <div class="field"><label>Ниша</label><input id="siteNiche" placeholder="Офисные товары"></div>
+                    <div class="field"><label>Подразделение</label><input id="siteDiv" placeholder="OP"></div>
+                </div>
+                <div class="field"><label>Tone of voice</label><textarea id="siteTone"></textarea></div>
+                <div class="field"><label>Guardrails — что запрещено</label><textarea id="siteGuardrails"></textarea></div>
+                <div class="field"><label>KPI</label><textarea id="siteKpi"></textarea></div>
+                <button class="primary" onclick="saveSite()">Сохранить</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Сайты<div class="spacer"></div>
+                <label style="display:flex;align-items:center;gap:5px;margin:0;">
+                    <input type="checkbox" id="sitesArchived" onchange="loadSites()" style="width:auto"> показать архив
+                </label>
+            </div>
+            <div class="card-body" style="padding:0" id="sitesTable"><div class="empty-state">Загрузка…</div></div>
+        </div>
+    </div>
+
+    <!-- ===== Кампании ===== -->
+    <div class="panel" id="panel-campaigns">
+        <h2 class="section-title">Кампании</h2>
+        <div class="section-note">
+            Код кампании одновременно служит меткой <code>utm_campaign</code> — по нему
+            расход из выгрузок кабинета связывается с кампанией автоматически.
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span id="campFormTitle">Новая кампания</span>
+                <div class="spacer"></div>
+                <button class="link" onclick="resetCampaignForm()">Очистить</button>
+            </div>
+            <div class="card-body">
+                <input type="hidden" id="campCod">
+                <div class="form-grid">
+                    <div class="field"><label>Код кампании *</label><input id="campCode" placeholder="back_to_school_2026"></div>
+                    <div class="field"><label>Сайт *</label><select id="campSite"></select></div>
+                    <div class="field"><label>Тип промо *</label><select id="campPromo"></select></div>
+                    <div class="field"><label>Начало *</label><input id="campStart" type="date"></div>
+                    <div class="field"><label>Окончание *</label><input id="campEnd" type="date"></div>
+                    <div class="field"><label>План бюджета</label><input id="campBudget" type="number" step="0.01" value="0"></div>
+                    <div class="field"><label>Название (RU)</label><input id="campNameRu"></div>
+                    <div class="field"><label>Название (RO)</label><input id="campNameRo"></div>
+                    <div class="field"><label>Название (EN)</label><input id="campNameEn"></div>
+                    <div class="field"><label>Промокод</label><input id="campPromoCode"></div>
+                    <div class="field"><label>Скидка</label><input id="campDiscount" type="number" step="0.01"></div>
+                    <div class="field"><label>Охват</label>
+                        <select id="campScope">
+                            <option value="SITE">Весь сайт</option>
+                            <option value="CATEGORY">Категория</option>
+                            <option value="ITEMS">Отдельные товары</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="primary" onclick="saveCampaign()">Сохранить</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Список кампаний</div>
+            <div class="card-body" style="padding:0" id="campaignsTable"><div class="empty-state">Загрузка…</div></div>
+        </div>
+    </div>
+
+    <!-- ===== Бюджет ===== -->
+    <div class="panel" id="panel-budget">
+        <h2 class="section-title">Бюджет: план и факт</h2>
+        <div class="section-note">
+            Сетка строится по ключу «период × статья × канал × сайт». Строки без плана —
+            это расход, которого не планировали: они видны специально, чтобы перерасход
+            не исчезал из отчёта. Контроль лимита живёт в пакете <code>PK_SEO_BUDGET</code>,
+            режим переключается в «Справочниках».
+        </div>
+
+        <div class="card">
+            <div class="card-header">Строка плана</div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="field"><label>Период * (YYYY-MM)</label><input id="planPeriod" placeholder="2026-08"></div>
+                    <div class="field"><label>Статья *</label><select id="planArticle"></select></div>
+                    <div class="field"><label>Канал</label><select id="planChannel"></select></div>
+                    <div class="field"><label>Сайт</label><select id="planSite"></select></div>
+                    <div class="field"><label>Сумма</label><input id="planSuma" type="number" step="0.01" value="0"></div>
+                    <div class="field"><label>Валюта</label><input id="planValuta" value="MDL"></div>
+                </div>
+                <div class="field"><label>Примечание</label><input id="planNote"></div>
+                <button class="primary" onclick="savePlan()">Записать план</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">План / факт
+                <div class="spacer"></div>
+                <input id="planfactPeriod" placeholder="период YYYY-MM" style="width:150px">
+                <button onclick="loadPlanfact()">Показать</button>
+            </div>
+            <div class="card-body" style="padding:0" id="planfactTable"><div class="empty-state">Задайте период</div></div>
+        </div>
+    </div>
+
+    <!-- ===== Факты ===== -->
+    <div class="panel" id="panel-facts">
+        <h2 class="section-title">Факт: расходы и метрики</h2>
+        <div class="section-note">
+            Коннекторов к рекламным кабинетам и Search Console в этой версии нет, поэтому факт
+            вводится вручную или грузится CSV. Импорт двухшаговый: предпросмотр ничего не пишет,
+            показывает ошибки по номерам строк и найденные дубли. Повторная заливка того же
+            файла не создаёт дублей — ключ <code>EXT_ID</code>.
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" id="tab-SPEND" onclick="showFactTab('SPEND')">Расходы рекламы</div>
+            <div class="tab" id="tab-METRICS" onclick="showFactTab('METRICS')">Метрики сайта</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Ручной ввод</div>
+            <div class="card-body">
+                <div id="spendForm">
+                    <div class="form-grid">
+                        <div class="field"><label>Сайт *</label><select id="spendSite"></select></div>
+                        <div class="field"><label>Канал *</label><select id="spendChannel"></select></div>
+                        <div class="field"><label>Статья *</label><select id="spendArticle"></select></div>
+                        <div class="field"><label>Кампания</label><input id="spendCampaign" placeholder="код кампании"></div>
+                        <div class="field"><label>Дата *</label><input id="spendDate" type="date"></div>
+                        <div class="field"><label>Сумма *</label><input id="spendSuma" type="number" step="0.01"></div>
+                        <div class="field"><label>Валюта</label><input id="spendValuta" value="MDL"></div>
+                        <div class="field"><label>Клики</label><input id="spendClicks" type="number" value="0"></div>
+                        <div class="field"><label>Показы</label><input id="spendImpressions" type="number" value="0"></div>
+                        <div class="field"><label>Конверсии</label><input id="spendConversions" type="number" value="0"></div>
+                        <div class="field"><label>Выручка</label><input id="spendRevenue" type="number" step="0.01" value="0"></div>
+                    </div>
+                    <button class="primary" onclick="addSpend()">Добавить расход</button>
+                </div>
+                <div id="metricsForm" style="display:none">
+                    <div class="form-grid">
+                        <div class="field"><label>Сайт *</label><select id="metricSite"></select></div>
+                        <div class="field"><label>Метрика *</label><select id="metricMetric"></select></div>
+                        <div class="field"><label>Канал</label><select id="metricChannel"></select></div>
+                        <div class="field"><label>Дата *</label><input id="metricDate" type="date"></div>
+                        <div class="field"><label>Значение *</label><input id="metricValue" type="number" step="0.0001"></div>
+                        <div class="field"><label>Источник</label><input id="metricSource" placeholder="gsc, ga4, ручной"></div>
+                    </div>
+                    <button class="primary" onclick="addMetric()">Добавить метрику</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Импорт CSV</div>
+            <div class="card-body">
+                <div class="toolbar">
+                    <input type="file" id="importFile" accept=".csv,.txt,.tsv" onchange="resetImport()">
+                    <button onclick="importPreview()">Предпросмотр</button>
+                    <button class="primary" id="importCommitBtn" disabled onclick="importCommit()">Загрузить</button>
+                    <span class="muted" id="importHint">Сначала предпросмотр — он показывает, что именно будет записано.</span>
+                </div>
+                <div id="importResult"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Данные
+                <div class="spacer"></div>
+                <input id="factPeriod" placeholder="период YYYY-MM" style="width:150px">
+                <button onclick="loadFacts()">Показать</button>
+            </div>
+            <div class="card-body" style="padding:0" id="factsTable"><div class="empty-state">Загрузка…</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Партии импорта</div>
+            <div class="card-body" style="padding:0" id="importsTable"><div class="empty-state">—</div></div>
+        </div>
+    </div>
+
+    <!-- ===== ROI ===== -->
+    <div class="panel" id="panel-roi">
+        <h2 class="section-title">Эффективность по каналам</h2>
+        <div class="section-note">
+            Все суммы приведены к базовой валюте по курсу из справочника.
+            ROI = (выручка − расход) / расход. Пустой ROI означает нулевой расход за период.
+        </div>
+        <div class="toolbar">
+            <input id="roiFrom" placeholder="с периода YYYY-MM" style="width:160px">
+            <input id="roiTo" placeholder="по период YYYY-MM" style="width:160px">
+            <select id="roiSite" style="width:200px"></select>
+            <button class="primary" onclick="loadRoi()">Показать</button>
+        </div>
+        <div class="card">
+            <div class="card-header">Каналы</div>
+            <div class="card-body" style="padding:0" id="roiTable"><div class="empty-state">Задайте период</div></div>
+        </div>
+    </div>
+
+    <!-- ===== Справочники ===== -->
+    <div class="panel" id="panel-refs">
+        <h2 class="section-title">Справочники и настройки</h2>
+        <div class="section-note">
+            Коды 101–999 поставляются с модулем и одинаковы в любой установке;
+            добавленные здесь начинаются с 1001.
+        </div>
+
+        <div class="card">
+            <div class="card-header">Справочник
+                <div class="spacer"></div>
+                <select id="dictSection" onchange="loadDict()" style="width:220px">
+                    <option value="CHANNEL">Каналы</option>
+                    <option value="ARTICLE">Статьи бюджета</option>
+                    <option value="PROMO_TYPE">Типы промо</option>
+                    <option value="FORMAT">Форматы размещения</option>
+                    <option value="BUYUNIT">Единицы закупки</option>
+                    <option value="METRIC">Метрики</option>
+                </select>
+            </div>
+            <div class="card-body" style="padding:0" id="dictTable"><div class="empty-state">Загрузка…</div></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Курсы валют</div>
+            <div class="card-body">
+                <div class="toolbar">
+                    <input id="fxValuta" placeholder="EUR" style="width:80px">
+                    <input id="fxDate" type="date">
+                    <input id="fxRate" type="number" step="0.000001" placeholder="19.5" style="width:130px">
+                    <button class="primary" onclick="saveFx()">Записать курс</button>
+                </div>
+                <div id="fxTable"><div class="empty-state">Загрузка…</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Площадки</div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="field"><label>Код *</label><input id="platCode" placeholder="POINT_MD"></div>
+                    <div class="field"><label>Название *</label><input id="platName"></div>
+                    <div class="field"><label>Канал *</label><select id="platChannel"></select></div>
+                    <div class="field"><label>URL</label><input id="platUrl"></div>
+                    <div class="field"><label>Лимит постов в день</label><input id="platLimit" type="number"></div>
+                    <div class="field"><label>Оценка качества (0–10)</label><input id="platScore" type="number" step="0.01"></div>
+                </div>
+                <button class="primary" onclick="savePlatform()">Сохранить площадку</button>
+                <div id="platformsTable" style="margin-top:14px"><div class="empty-state">Загрузка…</div></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Настройки контура</div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="field"><label>Базовая валюта</label><input id="setBaseCurrency"></div>
+                    <div class="field"><label>Режим перерасхода</label>
+                        <select id="setOverrunMode">
+                            <option value="WARN">WARN — пометить и разобрать</option>
+                            <option value="BLOCK">BLOCK — не пропускать расход сверх плана</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="primary" onclick="saveSettings()">Сохранить настройки</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Журнал модуля<div class="spacer"></div>
+                <button onclick="loadEvents()">&#8635; Обновить</button>
+            </div>
+            <div class="card-body" style="padding:0" id="eventsTable"><div class="empty-state">—</div></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/UNA.md/orasldev/seoforge/api';
+
+let DICT = {};          // section -> [rows]
+let SITES = [];
+let FACT_KIND = 'SPEND';
+let PREVIEW = null;     // разобранный файл, ждущий подтверждения
+
+// ── общее ────────────────────────────────────────────────────────────
+
+function esc(value) {
+    if (value === null || value === undefined) return '';
+    return String(value).replace(/[&<>"]/g, c => (
+        {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+}
+
+function num(value, digits) {
+    if (value === null || value === undefined || value === '') return '';
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return esc(value);
+    return parsed.toLocaleString('ru-RU', {
+        minimumFractionDigits: digits === undefined ? 2 : digits,
+        maximumFractionDigits: digits === undefined ? 2 : digits});
+}
+
+function toast(message, kind) {
+    const el = document.getElementById('toast');
+    el.className = 'toast ' + (kind || '');
+    el.textContent = message;
+    el.style.display = 'block';
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+async function api(path, options) {
+    const response = await fetch(API + path, options);
+    let body = {};
+    try { body = await response.json(); } catch (e) { body = {}; }
+    if (!response.ok || body.success === false) {
+        throw new Error(body.message || ('Ошибка ' + response.status));
+    }
+    return body.data;
+}
+
+async function post(path, payload) {
+    return api(path, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+}
+
+function showPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + name);
+    if (panel) panel.classList.add('active');
+    document.querySelectorAll('.top-bar .nav-item').forEach(n => {
+        n.classList.toggle('active', n.dataset.panel === name);
+    });
+    const loaders = {
+        portfolio: loadPortfolio, sites: loadSites, campaigns: loadCampaigns,
+        budget: loadPlanfact, facts: loadFacts, roi: null, refs: loadRefs
+    };
+    if (loaders[name]) loaders[name]();
+}
+
+function table(columns, rows, render) {
+    if (!rows || !rows.length) return '<div class="empty-state">Нет данных</div>';
+    const head = columns.map(c => '<th' + (c.num ? ' class="num"' : '') + '>'
+        + esc(c.title) + '</th>').join('');
+    const body = rows.map(render).join('');
+    return '<table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>';
+}
+
+function fillSelect(id, rows, valueKey, labelKey, emptyLabel) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    const options = (emptyLabel ? ['<option value="">' + esc(emptyLabel) + '</option>'] : []);
+    (rows || []).forEach(row => {
+        options.push('<option value="' + esc(row[valueKey]) + '">'
+            + esc(row[labelKey] || row.code || row[valueKey]) + '</option>');
+    });
+    el.innerHTML = options.join('');
+    if (current) el.value = current;
+}
+
+// ── справочные данные, нужные всем панелям ───────────────────────────
+
+async function loadShared() {
+    try {
+        const [dict, sites] = await Promise.all([api('/dict'), api('/sites')]);
+        DICT = {};
+        (dict || []).forEach(row => {
+            (DICT[row.section] = DICT[row.section] || []).push(row);
+        });
+        SITES = sites || [];
+
+        const siteSelects = ['campSite', 'planSite', 'spendSite', 'metricSite', 'roiSite'];
+        siteSelects.forEach(id => fillSelect(id, SITES, 'cod', 'domain',
+            id === 'campSite' || id === 'spendSite' || id === 'metricSite'
+                ? '' : 'все сайты'));
+
+        fillSelect('campPromo', DICT.PROMO_TYPE, 'cod1', 'name_ru', '');
+        fillSelect('planArticle', DICT.ARTICLE, 'cod1', 'name_ru', '');
+        fillSelect('planChannel', DICT.CHANNEL, 'cod1', 'name_ru', 'все каналы');
+        fillSelect('spendChannel', DICT.CHANNEL, 'cod1', 'name_ru', '');
+        fillSelect('spendArticle', DICT.ARTICLE, 'cod1', 'name_ru', '');
+        fillSelect('metricMetric', DICT.METRIC, 'cod1', 'name_ru', '');
+        fillSelect('metricChannel', DICT.CHANNEL, 'cod1', 'name_ru', 'без канала');
+        fillSelect('platChannel', DICT.CHANNEL, 'cod1', 'name_ru', '');
+    } catch (e) {
+        toast(e.message, 'error');
+    }
+}
+
+function channelCode(cod1) {
+    const found = (DICT.CHANNEL || []).find(r => String(r.cod1) === String(cod1));
+    return found ? found.code : '';
+}
+
+function articleCode(cod1) {
+    const found = (DICT.ARTICLE || []).find(r => String(r.cod1) === String(cod1));
+    return found ? found.code : '';
+}
+
+function metricCode(cod1) {
+    const found = (DICT.METRIC || []).find(r => String(r.cod1) === String(cod1));
+    return found ? found.code : '';
+}
+
+function siteDomain(cod) {
+    const found = SITES.find(r => String(r.cod) === String(cod));
+    return found ? found.domain : '';
+}
+
+// ── портфель ─────────────────────────────────────────────────────────
+
+async function loadPortfolio() {
+    const box = document.getElementById('portfolioTiles');
+    try {
+        const rows = await api('/sites');
+        SITES = rows || [];
+        if (!SITES.length) {
+            box.innerHTML = '<div class="empty-state">Сайтов пока нет — заведите первый на вкладке «Сайты»</div>';
+            return;
+        }
+        box.innerHTML = SITES.map(site => {
+            const rest = Number(site.rest_current || 0);
+            return '<div class="tile" onclick="editSite(' + site.cod + ')">'
+                + '<div class="domain">' + esc(site.domain) + '</div>'
+                + '<div class="row"><span>План периода</span><b>' + num(site.plan_current) + '</b></div>'
+                + '<div class="row"><span>Израсходовано</span><b>' + num(site.spend_current) + '</b></div>'
+                + '<div class="row"><span>Остаток</span><b class="' + (rest < 0 ? 'over' : 'good') + '">'
+                + num(rest) + '</b></div>'
+                + '<div class="row"><span>Активных кампаний</span><b>' + esc(site.active_campaigns || 0) + '</b></div>'
+                + '</div>';
+        }).join('');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+// ── сайты ────────────────────────────────────────────────────────────
+
+async function loadSites() {
+    const box = document.getElementById('sitesTable');
+    const archived = document.getElementById('sitesArchived').checked ? '?archived=1' : '';
+    try {
+        const rows = await api('/sites' + archived);
+        SITES = rows || [];
+        box.innerHTML = table(
+            [{title: 'Домен'}, {title: 'Локали'}, {title: 'Гео'}, {title: 'Ниша'},
+             {title: 'Кампаний', num: true}, {title: ''}],
+            SITES,
+            site => '<tr><td>' + esc(site.domain) + (site.isarhiv ? ' <span class="muted">(архив)</span>' : '')
+                + '</td><td>' + esc(site.locales) + '</td><td>' + esc(site.geo)
+                + '</td><td>' + esc(site.niche) + '</td><td class="num">' + esc(site.active_campaigns || 0)
+                + '</td><td><button class="link" onclick="editSite(' + site.cod + ')">править</button>'
+                + (site.isarhiv ? '' : '<button class="link" onclick="archiveSite(' + site.cod + ')">в архив</button>')
+                + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+function editSite(cod) {
+    const site = SITES.find(s => String(s.cod) === String(cod));
+    if (!site) return;
+    showPanel('sites');
+    document.getElementById('siteCod').value = site.cod;
+    document.getElementById('siteDomain').value = site.domain || '';
+    document.getElementById('siteLocales').value = site.locales || '';
+    document.getElementById('siteGeo').value = site.geo || '';
+    document.getElementById('siteNiche').value = site.niche || '';
+    document.getElementById('siteDiv').value = site.div || '';
+    document.getElementById('siteTone').value = site.tone_of_voice || '';
+    document.getElementById('siteGuardrails').value = site.guardrails || '';
+    document.getElementById('siteKpi').value = site.kpi_target || '';
+    document.getElementById('siteFormTitle').textContent = 'Сайт: ' + site.domain;
+}
+
+function resetSiteForm() {
+    ['siteCod', 'siteDomain', 'siteLocales', 'siteGeo', 'siteNiche', 'siteDiv',
+     'siteTone', 'siteGuardrails', 'siteKpi'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('siteFormTitle').textContent = 'Новый сайт';
+}
+
+async function saveSite() {
+    const payload = {
+        cod: document.getElementById('siteCod').value || null,
+        domain: document.getElementById('siteDomain').value,
+        locales: document.getElementById('siteLocales').value,
+        geo: document.getElementById('siteGeo').value,
+        niche: document.getElementById('siteNiche').value,
+        div: document.getElementById('siteDiv').value,
+        tone_of_voice: document.getElementById('siteTone').value,
+        guardrails: document.getElementById('siteGuardrails').value,
+        kpi_target: document.getElementById('siteKpi').value
+    };
+    try {
+        await post('/sites', payload);
+        toast('Сайт сохранён', 'ok');
+        resetSiteForm();
+        await loadSites();
+        await loadShared();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function archiveSite(cod) {
+    if (!confirm('Отправить сайт в архив? Данные сохранятся, удаления нет.')) return;
+    try {
+        await post('/sites/' + cod + '/archive', {});
+        toast('Сайт в архиве', 'ok');
+        loadSites();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── кампании ─────────────────────────────────────────────────────────
+
+let CAMPAIGNS = [];
+
+async function loadCampaigns() {
+    const box = document.getElementById('campaignsTable');
+    try {
+        CAMPAIGNS = await api('/campaigns') || [];
+        box.innerHTML = table(
+            [{title: 'Код'}, {title: 'Сайт'}, {title: 'Период'}, {title: 'Статус'},
+             {title: 'План', num: true}, {title: 'Факт', num: true},
+             {title: 'Остаток', num: true}, {title: ''}],
+            CAMPAIGNS,
+            c => {
+                const rest = Number(c.rest_suma || 0);
+                return '<tr><td>' + esc(c.camp_code) + '</td><td>' + esc(c.site_domain)
+                    + '</td><td>' + esc(String(c.date_start || '').slice(0, 10)) + ' — '
+                    + esc(String(c.date_end || '').slice(0, 10))
+                    + '</td><td>' + esc(c.status)
+                    + '</td><td class="num">' + num(c.budget_plan)
+                    + '</td><td class="num">' + num(c.fact_suma)
+                    + '</td><td class="num ' + (rest < 0 ? 'over' : '') + '">' + num(rest)
+                    + '</td><td><button class="link" onclick="editCampaign(' + c.cod + ')">править</button>'
+                    + '<button class="link" onclick="cycleStatus(' + c.cod + ', \'' + esc(c.status) + '\')">статус</button>'
+                    + '</td></tr>';
+            });
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+function editCampaign(cod) {
+    const c = CAMPAIGNS.find(r => String(r.cod) === String(cod));
+    if (!c) return;
+    document.getElementById('campCod').value = c.cod;
+    document.getElementById('campCode').value = c.camp_code || '';
+    document.getElementById('campSite').value = c.site_cod || '';
+    document.getElementById('campPromo').value = c.promo_type_cod1 || '';
+    document.getElementById('campStart').value = String(c.date_start || '').slice(0, 10);
+    document.getElementById('campEnd').value = String(c.date_end || '').slice(0, 10);
+    document.getElementById('campBudget').value = c.budget_plan || 0;
+    document.getElementById('campNameRu').value = c.name_ru || '';
+    document.getElementById('campNameRo').value = c.name_ro || '';
+    document.getElementById('campNameEn').value = c.name_en || '';
+    document.getElementById('campPromoCode').value = c.promo_code || '';
+    document.getElementById('campDiscount').value = c.discount_value || '';
+    document.getElementById('campScope').value = c.scope_kind || 'SITE';
+    document.getElementById('campFormTitle').textContent = 'Кампания: ' + c.camp_code;
+}
+
+function resetCampaignForm() {
+    ['campCod', 'campCode', 'campStart', 'campEnd', 'campNameRu', 'campNameRo',
+     'campNameEn', 'campPromoCode', 'campDiscount'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('campBudget').value = 0;
+    document.getElementById('campFormTitle').textContent = 'Новая кампания';
+}
+
+async function saveCampaign() {
+    const payload = {
+        cod: document.getElementById('campCod').value || null,
+        camp_code: document.getElementById('campCode').value,
+        site_cod: document.getElementById('campSite').value,
+        promo_type_cod1: document.getElementById('campPromo').value,
+        date_start: document.getElementById('campStart').value,
+        date_end: document.getElementById('campEnd').value,
+        budget_plan: document.getElementById('campBudget').value,
+        name_ru: document.getElementById('campNameRu').value,
+        name_ro: document.getElementById('campNameRo').value,
+        name_en: document.getElementById('campNameEn').value,
+        promo_code: document.getElementById('campPromoCode').value,
+        discount_value: document.getElementById('campDiscount').value || null,
+        scope_kind: document.getElementById('campScope').value
+    };
+    try {
+        await post('/campaigns', payload);
+        toast('Кампания сохранена', 'ok');
+        resetCampaignForm();
+        loadCampaigns();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function cycleStatus(cod, current) {
+    const order = ['DRAFT', 'ACTIVE', 'CLOSED', 'CANCELLED'];
+    const next = order[(order.indexOf(current) + 1) % order.length];
+    try {
+        await post('/campaigns/' + cod + '/status', {status: next});
+        toast('Статус: ' + next, 'ok');
+        loadCampaigns();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+// ── бюджет ───────────────────────────────────────────────────────────
+
+async function savePlan() {
+    const payload = {
+        period: document.getElementById('planPeriod').value,
+        article_cod1: document.getElementById('planArticle').value,
+        channel_cod1: document.getElementById('planChannel').value || null,
+        site_cod: document.getElementById('planSite').value || null,
+        plan_suma: document.getElementById('planSuma').value,
+        valuta: document.getElementById('planValuta').value,
+        note: document.getElementById('planNote').value
+    };
+    try {
+        await post('/budget/plan', payload);
+        toast('План записан', 'ok');
+        document.getElementById('planfactPeriod').value = payload.period;
+        loadPlanfact();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadPlanfact() {
+    const box = document.getElementById('planfactTable');
+    const period = document.getElementById('planfactPeriod').value.trim();
+    try {
+        const rows = await api('/budget/planfact' + (period ? '?period=' + encodeURIComponent(period) : ''));
+        box.innerHTML = table(
+            [{title: 'Период'}, {title: 'Статья'}, {title: 'Канал'}, {title: 'Сайт'},
+             {title: 'План', num: true}, {title: 'Факт', num: true},
+             {title: 'Остаток', num: true}, {title: 'Выполнено, %', num: true}],
+            rows,
+            r => '<tr><td>' + esc(r.period) + '</td><td>' + esc(r.article_name_ru || r.article_code)
+                + '</td><td>' + esc(r.channel_code || 'все') + '</td><td>' + esc(r.site_domain || 'все')
+                + '</td><td class="num">' + num(r.plan_suma)
+                + '</td><td class="num">' + num(r.fact_suma)
+                + '</td><td class="num ' + (Number(r.rest_suma) < 0 ? 'over' : '') + '">' + num(r.rest_suma)
+                + '</td><td class="num">' + num(r.done_pct, 1) + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+// ── факты ────────────────────────────────────────────────────────────
+
+function showFactTab(kind) {
+    FACT_KIND = kind;
+    document.getElementById('tab-SPEND').classList.toggle('active', kind === 'SPEND');
+    document.getElementById('tab-METRICS').classList.toggle('active', kind === 'METRICS');
+    document.getElementById('spendForm').style.display = kind === 'SPEND' ? '' : 'none';
+    document.getElementById('metricsForm').style.display = kind === 'METRICS' ? '' : 'none';
+    resetImport();
+    loadFacts();
+}
+
+async function addSpend() {
+    const payload = {
+        site: siteDomain(document.getElementById('spendSite').value),
+        channel: channelCode(document.getElementById('spendChannel').value),
+        article: articleCode(document.getElementById('spendArticle').value),
+        campaign: document.getElementById('spendCampaign').value,
+        spend_date: document.getElementById('spendDate').value,
+        suma: document.getElementById('spendSuma').value,
+        valuta: document.getElementById('spendValuta').value,
+        clicks: document.getElementById('spendClicks').value,
+        impressions: document.getElementById('spendImpressions').value,
+        conversions: document.getElementById('spendConversions').value,
+        revenue: document.getElementById('spendRevenue').value
+    };
+    try {
+        await post('/spend', payload);
+        toast('Расход записан', 'ok');
+        loadFacts();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function addMetric() {
+    const payload = {
+        site: siteDomain(document.getElementById('metricSite').value),
+        metric: metricCode(document.getElementById('metricMetric').value),
+        channel: channelCode(document.getElementById('metricChannel').value),
+        fact_date: document.getElementById('metricDate').value,
+        value: document.getElementById('metricValue').value,
+        source: document.getElementById('metricSource').value
+    };
+    try {
+        await post('/metrics', payload);
+        toast('Метрика записана', 'ok');
+        loadFacts();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadFacts() {
+    const box = document.getElementById('factsTable');
+    const period = document.getElementById('factPeriod').value.trim();
+    const query = period ? '?period=' + encodeURIComponent(period) : '';
+    try {
+        if (FACT_KIND === 'SPEND') {
+            const rows = await api('/spend' + query);
+            box.innerHTML = table(
+                [{title: 'Дата'}, {title: 'Сайт'}, {title: 'Канал'}, {title: 'Статья'},
+                 {title: 'Кампания'}, {title: 'Сумма', num: true}, {title: 'В MDL', num: true},
+                 {title: 'Клики', num: true}, {title: 'Конверсии', num: true}, {title: 'Флаг'}],
+                rows,
+                r => '<tr><td>' + esc(String(r.spend_date || '').slice(0, 10))
+                    + '</td><td>' + esc(r.site_domain) + '</td><td>' + esc(r.channel_code)
+                    + '</td><td>' + esc(r.article_code) + '</td><td>' + esc(r.camp_code || '')
+                    + '</td><td class="num">' + num(r.suma) + ' ' + esc(r.valuta)
+                    + '</td><td class="num">' + num(r.suma_mdl)
+                    + '</td><td class="num">' + esc(r.clicks) + '</td><td class="num">' + esc(r.conversions)
+                    + '</td><td>' + (Number(r.is_overbudget) ? '<span class="over">перерасход</span>' : '')
+                    + '</td></tr>');
+        } else {
+            const rows = await api('/metrics' + query);
+            box.innerHTML = table(
+                [{title: 'Дата'}, {title: 'Сайт'}, {title: 'Метрика'}, {title: 'Канал'},
+                 {title: 'Значение', num: true}, {title: 'Источник'}],
+                rows,
+                r => '<tr><td>' + esc(String(r.fact_date || '').slice(0, 10))
+                    + '</td><td>' + esc(r.site_domain) + '</td><td>' + esc(r.metric_code)
+                    + '</td><td>' + esc(r.channel_code || '')
+                    + '</td><td class="num">' + num(r.metric_value, 4)
+                    + '</td><td>' + esc(r.source || '') + '</td></tr>');
+        }
+        loadImports();
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function loadImports() {
+    const box = document.getElementById('importsTable');
+    try {
+        const rows = await api('/imports');
+        box.innerHTML = table(
+            [{title: 'Когда'}, {title: 'Вид'}, {title: 'Файл'}, {title: 'Автор'},
+             {title: 'Всего', num: true}, {title: 'Загружено', num: true},
+             {title: 'Пропущено', num: true}, {title: 'Статус'}],
+            rows,
+            r => '<tr><td>' + esc(String(r.loaded_at || '').slice(0, 19)) + '</td><td>' + esc(r.kind)
+                + '</td><td>' + esc(r.file_name) + '</td><td>' + esc(r.username)
+                + '</td><td class="num">' + esc(r.rows_total) + '</td><td class="num">' + esc(r.rows_loaded)
+                + '</td><td class="num">' + esc(r.rows_skipped) + '</td><td>' + esc(r.status) + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+function resetImport() {
+    PREVIEW = null;
+    document.getElementById('importCommitBtn').disabled = true;
+    document.getElementById('importResult').innerHTML = '';
+    document.getElementById('importHint').textContent =
+        'Сначала предпросмотр — он показывает, что именно будет записано.';
+}
+
+function importForm() {
+    const input = document.getElementById('importFile');
+    if (!input.files || !input.files.length) {
+        toast('Выберите файл', 'error');
+        return null;
+    }
+    const form = new FormData();
+    form.append('file', input.files[0]);
+    return form;
+}
+
+async function importPreview() {
+    const form = importForm();
+    if (!form) return;
+    try {
+        const data = await api('/import/' + FACT_KIND + '/preview',
+            {method: 'POST', body: form});
+        PREVIEW = data;
+        renderPreview(data);
+        document.getElementById('importCommitBtn').disabled = data.will_load === 0;
+        document.getElementById('importHint').textContent = data.will_load
+            ? ('Будет записано строк: ' + data.will_load)
+            : 'Записывать нечего: все строки уже загружены или содержат ошибки.';
+    } catch (e) {
+        resetImport();
+        toast(e.message, 'error');
+    }
+}
+
+async function importCommit() {
+    const form = importForm();
+    if (!form) return;
+    try {
+        const data = await api('/import/' + FACT_KIND + '/commit',
+            {method: 'POST', body: form});
+        toast('Загружено: ' + data.loaded + ', пропущено дублей: ' + data.skipped, 'ok');
+        resetImport();
+        document.getElementById('importFile').value = '';
+        loadFacts();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderPreview(data) {
+    const parts = [];
+
+    if (data.errors && data.errors.length) {
+        parts.push('<div class="card"><div class="card-header">Ошибки разбора — эти строки не будут записаны</div>'
+            + '<div class="card-body" style="padding:0">'
+            + table([{title: 'Строка файла', num: true}, {title: 'Что не так'}], data.errors,
+                e => '<tr><td class="num">' + esc(e.line) + '</td><td>' + esc(e.message) + '</td></tr>')
+            + '</div></div>');
+    }
+
+    const columns = (data.rows && data.rows.length)
+        ? Object.keys(data.rows[0]).filter(k => k !== 'is_duplicate')
+        : [];
+    if (columns.length) {
+        parts.push('<div class="card"><div class="card-header">Разобрано строк: ' + data.rows.length
+            + (data.duplicates.length ? (', из них дублей: ' + data.duplicates.length) : '')
+            + '</div><div class="card-body" style="padding:0">'
+            + table(columns.map(c => ({title: c})).concat([{title: 'Состояние'}]), data.rows,
+                row => '<tr>' + columns.map(c => '<td>' + esc(row[c]) + '</td>').join('')
+                    + '<td>' + (row.is_duplicate
+                        ? '<span class="muted">уже загружена</span>'
+                        : '<span class="good">новая</span>') + '</td></tr>')
+            + '</div></div>');
+    }
+
+    document.getElementById('importResult').innerHTML = parts.join('')
+        || '<div class="empty-state">В файле нет данных</div>';
+}
+
+// ── ROI ──────────────────────────────────────────────────────────────
+
+async function loadRoi() {
+    const box = document.getElementById('roiTable');
+    const params = [];
+    const from = document.getElementById('roiFrom').value.trim();
+    const to = document.getElementById('roiTo').value.trim();
+    const site = document.getElementById('roiSite').value;
+    if (from) params.push('period_from=' + encodeURIComponent(from));
+    if (to) params.push('period_to=' + encodeURIComponent(to));
+    if (site) params.push('site=' + encodeURIComponent(site));
+    try {
+        const rows = await api('/roi' + (params.length ? '?' + params.join('&') : ''));
+        box.innerHTML = table(
+            [{title: 'Период'}, {title: 'Канал'}, {title: 'Сайт'},
+             {title: 'Расход', num: true}, {title: 'Клики', num: true},
+             {title: 'Показы', num: true}, {title: 'Конверсии', num: true},
+             {title: 'Выручка', num: true}, {title: 'ROI', num: true},
+             {title: 'CPC', num: true}, {title: 'CPA', num: true}, {title: 'CTR, %', num: true}],
+            rows,
+            r => '<tr><td>' + esc(r.period) + '</td><td>' + esc(r.channel_name_ru || r.channel_code)
+                + '</td><td>' + esc(siteDomain(r.site_cod))
+                + '</td><td class="num">' + num(r.spend_suma)
+                + '</td><td class="num">' + esc(r.clicks) + '</td><td class="num">' + esc(r.impressions)
+                + '</td><td class="num">' + esc(r.conversions)
+                + '</td><td class="num">' + num(r.revenue)
+                + '</td><td class="num ' + (Number(r.roi) < 0 ? 'over' : 'good') + '">' + num(r.roi, 2)
+                + '</td><td class="num">' + num(r.cpc) + '</td><td class="num">' + num(r.cpa)
+                + '</td><td class="num">' + num(r.ctr_pct, 2) + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+// ── справочники ──────────────────────────────────────────────────────
+
+function loadRefs() {
+    loadDict();
+    loadFx();
+    loadPlatforms();
+    loadSettings();
+    loadEvents();
+}
+
+async function loadDict() {
+    const box = document.getElementById('dictTable');
+    const section = document.getElementById('dictSection').value;
+    try {
+        const rows = await api('/dict/' + section);
+        box.innerHTML = table(
+            [{title: 'Код', num: true}, {title: 'Ключ'}, {title: 'RU'}, {title: 'RO'}, {title: 'EN'},
+             {title: 'Порядок', num: true}],
+            rows,
+            r => '<tr><td class="num">' + esc(r.cod1) + '</td><td>' + esc(r.code)
+                + '</td><td>' + esc(r.name_ru) + '</td><td>' + esc(r.name_ro)
+                + '</td><td>' + esc(r.name_en) + '</td><td class="num">' + esc(r.sort_order) + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function loadFx() {
+    const box = document.getElementById('fxTable');
+    try {
+        const rows = await api('/fx');
+        box.innerHTML = table(
+            [{title: 'Валюта'}, {title: 'Дата'}, {title: 'Курс', num: true}],
+            rows,
+            r => '<tr><td>' + esc(r.valuta) + '</td><td>' + esc(String(r.rate_date || '').slice(0, 10))
+                + '</td><td class="num">' + num(r.rate, 6) + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function saveFx() {
+    try {
+        await post('/fx', {
+            valuta: document.getElementById('fxValuta').value,
+            rate_date: document.getElementById('fxDate').value,
+            rate: document.getElementById('fxRate').value
+        });
+        toast('Курс записан', 'ok');
+        loadFx();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadPlatforms() {
+    const box = document.getElementById('platformsTable');
+    try {
+        const rows = await api('/platforms');
+        box.innerHTML = table(
+            [{title: 'Код'}, {title: 'Название'}, {title: 'Канал'}, {title: 'URL'},
+             {title: 'Лимит/день', num: true}, {title: 'Оценка', num: true}, {title: ''}],
+            rows,
+            r => '<tr><td>' + esc(r.platform_code) + '</td><td>' + esc(r.name)
+                + '</td><td>' + esc(r.channel_code) + '</td><td>' + esc(r.url || '')
+                + '</td><td class="num">' + esc(r.rate_limit_day || '')
+                + '</td><td class="num">' + esc(r.quality_score || '')
+                + '</td><td><button class="link" onclick="archivePlatform(' + r.cod + ')">в архив</button></td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function savePlatform() {
+    try {
+        await post('/platforms', {
+            platform_code: document.getElementById('platCode').value,
+            name: document.getElementById('platName').value,
+            channel_cod1: document.getElementById('platChannel').value,
+            url: document.getElementById('platUrl').value,
+            rate_limit_day: document.getElementById('platLimit').value || null,
+            quality_score: document.getElementById('platScore').value || null,
+            has_api: 0,
+            manual_publish: 1
+        });
+        toast('Площадка сохранена', 'ok');
+        loadPlatforms();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function archivePlatform(cod) {
+    if (!confirm('Отправить площадку в архив?')) return;
+    try {
+        await post('/platforms/' + cod + '/archive', {});
+        loadPlatforms();
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadSettings() {
+    try {
+        const rows = await api('/settings');
+        (rows || []).forEach(row => {
+            if (row.param_code === 'BASE_CURRENCY') {
+                document.getElementById('setBaseCurrency').value = row.param_value || '';
+            }
+            if (row.param_code === 'BUDGET_OVERRUN_MODE') {
+                document.getElementById('setOverrunMode').value = row.param_value || 'WARN';
+            }
+        });
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function saveSettings() {
+    try {
+        await post('/settings', {
+            BASE_CURRENCY: document.getElementById('setBaseCurrency').value,
+            BUDGET_OVERRUN_MODE: document.getElementById('setOverrunMode').value
+        });
+        toast('Настройки сохранены', 'ok');
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadEvents() {
+    const box = document.getElementById('eventsTable');
+    try {
+        const rows = await api('/events');
+        box.innerHTML = table(
+            [{title: 'Когда'}, {title: 'Действие'}, {title: 'Объект'}, {title: 'Подробности'}, {title: 'Кто'}],
+            rows,
+            r => '<tr><td>' + esc(String(r.created_at || '').slice(0, 19)) + '</td><td>' + esc(r.action)
+                + '</td><td>' + esc(r.entity_type || '') + ' ' + esc(r.entity_cod || '')
+                + '</td><td>' + esc(r.details || '') + '</td><td>' + esc(r.username || '') + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+// ── старт ────────────────────────────────────────────────────────────
+
+(async function init() {
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('spendDate').value = today;
+    document.getElementById('metricDate').value = today;
+    document.getElementById('fxDate').value = today;
+    document.getElementById('planPeriod').value = today.slice(0, 7);
+    document.getElementById('planfactPeriod').value = today.slice(0, 7);
+
+    await loadShared();
+    loadPortfolio();
+})();
+</script>
+
+</body>
+</html>

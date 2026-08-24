@@ -618,3 +618,70 @@ def test_import_commit_passes_only_valid_rows_to_the_store():
 def test_unknown_import_kind_is_rejected():
     payload, status = SeoController.import_preview("PAYROLL", "x.csv", "a;b")
     assert status == 400
+
+
+# ── Task 8: маршруты, интерфейс, манифест ────────────────────────────
+
+import json
+
+
+def test_module_manifest_is_valid_and_trilingual():
+    path = os.path.join(ROOT, "modules", "seoforge", "module.json")
+    with open(path, encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    assert set(manifest["title"]) >= {"ru", "ro", "en"}
+    assert manifest["url"] == "/UNA.md/orasldev/seoforge"
+    assert manifest["sql_prefix"] == "YSEO_"
+
+
+def test_app_registers_the_page_and_the_api():
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "'/UNA.md/orasldev/seoforge'" in src
+    assert "/UNA.md/orasldev/seoforge/api/sites" in src
+    assert "SeoController" in src
+
+
+def test_every_seoforge_route_is_guarded_by_authentication():
+    # Разбираем app.py деревом, а не строками: обработчик модуля — это
+    # функция seoforge*, и каждая обязана либо сама звать is_authenticated,
+    # либо пройти через общий _seo_guard.
+    import ast
+
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+
+    handlers = [node for node in tree.body
+                if isinstance(node, ast.FunctionDef)
+                and node.name.startswith("seoforge")
+                and any(_is_route(dec) for dec in node.decorator_list)]
+    assert handlers, "маршруты модуля не найдены"
+
+    for node in handlers:
+        called = {n.func.attr for n in ast.walk(node)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
+        called |= {n.func.id for n in ast.walk(node)
+                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+        assert "is_authenticated" in called or "_seo_guard" in called, node.name
+
+
+def _is_route(decorator):
+    import ast
+    func = decorator.func if isinstance(decorator, ast.Call) else decorator
+    return isinstance(func, ast.Attribute) and func.attr == "route"
+
+
+def test_template_declares_every_panel():
+    with open(os.path.join(ROOT, "templates", "seoforge.html"), encoding="utf-8") as fh:
+        html = fh.read()
+    for panel in ("portfolio", "sites", "campaigns", "budget", "facts",
+                  "roi", "refs"):
+        assert f'id="panel-{panel}"' in html, panel
+        assert f'data-panel="{panel}"' in html, panel
+
+
+def test_template_commit_button_waits_for_a_preview():
+    # Загрузка без предпросмотра — прямой путь к мусору в базе.
+    with open(os.path.join(ROOT, "templates", "seoforge.html"), encoding="utf-8") as fh:
+        html = fh.read()
+    assert "importCommitBtn" in html and "disabled" in html
