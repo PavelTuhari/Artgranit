@@ -165,3 +165,53 @@ def test_packages_have_no_russian_comments():
     for line in _sql("115_yseo_package.sql").splitlines():
         if line.strip().startswith("--"):
             assert not re.search(r"[а-яА-ЯёЁ]", line), line
+
+
+# ── Task 4: справочники и деплой ─────────────────────────────────────
+
+def test_seed_covers_every_dictionary_section():
+    seed = _sql("116_yseo_dict_seed.sql").upper()
+    for section in ("CHANNEL", "ARTICLE", "PROMO_TYPE", "FORMAT", "BUYUNIT", "METRIC"):
+        assert f"'{section}'" in seed, section
+
+
+def test_seed_is_idempotent():
+    # Повторный прогон установки не должен ронять деплой на дублях.
+    seed = _sql("116_yseo_dict_seed.sql").upper()
+    assert seed.count("MERGE INTO") >= 2
+    assert "INSERT INTO YSEO_DICT" not in seed
+
+
+def test_seed_declares_default_settings():
+    seed = _sql("116_yseo_dict_seed.sql").upper()
+    assert "BASE_CURRENCY" in seed and "'MDL'" in seed
+    assert "BUDGET_OVERRUN_MODE" in seed
+
+
+def test_seed_recompiles_the_budget_trigger():
+    # Триггер из 113 ссылается на пакеты из 115 и до их установки невалиден.
+    seed = _sql("116_yseo_dict_seed.sql").upper()
+    assert "ALTER TRIGGER TRG_YSEO_SPEND_BUDGET COMPILE" in seed
+
+
+def test_deploy_registers_yseo_files_in_order():
+    with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    order = [src.index(f'"{name}"') for name in (
+        "113_yseo_tables.sql", "114_yseo_views.sql",
+        "115_yseo_package.sql", "116_yseo_dict_seed.sql")]
+    assert order == sorted(order), "файлы контура должны идти в порядке зависимостей"
+
+
+def test_sql_comments_never_contain_a_semicolon_or_a_quote():
+    # deploy_oracle_objects.py режет скрипт по ';' и отслеживает кавычки,
+    # НЕ вырезая комментарии: точка с запятой или апостроф внутри '--'
+    # разрывает команду пополам и валит установку.
+    for name in ("113_yseo_tables.sql", "114_yseo_views.sql",
+                 "115_yseo_package.sql", "116_yseo_dict_seed.sql"):
+        for no, line in enumerate(_sql(name).splitlines(), 1):
+            stripped = line.strip()
+            if not stripped.startswith("--"):
+                continue
+            assert ";" not in stripped, f"{name}:{no} {stripped}"
+            assert "'" not in stripped and '"' not in stripped, f"{name}:{no} {stripped}"

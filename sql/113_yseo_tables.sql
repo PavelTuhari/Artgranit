@@ -15,14 +15,14 @@
 
 -- ---------------------------------------------------------------------
 -- RO: Nomenclator comun al conturului. Inlocuieste sectiunile TMS_SYSS
---     ('W', 1..7) din sistemul UNA: aceeasi idee, dar autonoma.
--- EN: Shared dictionary of the contour. Replaces the TMS_SYSS ('W', 1..7)
+--     W1..W7 din sistemul UNA: aceeasi idee, dar autonoma.
+-- EN: Shared dictionary of the contour. Replaces the TMS_SYSS W1..W7
 --     sections of the UNA system: same idea, but standalone.
 --
 -- RO: COD1 este unic global (nu doar in sectiune) ca sa poata fi tinta
---     cheilor straine; PK compus pastreaza cautarea in stil UNA.
+--     cheilor straine. PK compus pastreaza cautarea in stil UNA.
 -- EN: COD1 is globally unique (not only within a section) so that foreign
---     keys can target it; the composite PK keeps the UNA-style lookup.
+--     keys can target it. The composite PK keeps the UNA-style lookup.
 -- ---------------------------------------------------------------------
 CREATE TABLE YSEO_DICT (
     SECTION         VARCHAR2(20)    NOT NULL,
@@ -42,7 +42,11 @@ CREATE TABLE YSEO_DICT (
 );
 COMMENT ON TABLE YSEO_DICT IS 'RO: Nomenclator comun al conturului SEO / EN: Shared SEO contour dictionary';
 
-CREATE SEQUENCE YSEO_DICT_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+-- RO: Porneste de la 1001: codurile 101..999 sunt rezervate pentru
+--     nomenclatorul livrat cu modulul (116_yseo_dict_seed.sql).
+-- EN: Starts at 1001: codes 101..999 are reserved for the dictionary
+--     shipped with the module (116_yseo_dict_seed.sql).
+CREATE SEQUENCE YSEO_DICT_SEQ START WITH 1001 INCREMENT BY 1 NOCACHE;
 
 -- ---------------------------------------------------------------------
 -- RO: Profilul site-ului promovat (Site Profile din caietul de sarcini).
@@ -471,9 +475,9 @@ END;
 --     once in AFTER STATEMENT.
 --
 -- RO: Depinde de pachetele din 115_yseo_package.sql. La prima instalare
---     ramane invalid pana la crearea lor; 116 il recompileaza explicit.
+--     ramane invalid pana la crearea lor. Fisierul 116 il recompileaza.
 -- EN: Depends on the packages from 115_yseo_package.sql. On first install
---     it stays invalid until they exist; 116 recompiles it explicitly.
+--     it stays invalid until they exist. File 116 recompiles it.
 -- =====================================================================
 CREATE OR REPLACE TRIGGER TRG_YSEO_SPEND_BUDGET
 FOR INSERT OR UPDATE ON YSEO_SPEND_FACT

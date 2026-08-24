@@ -10,8 +10,8 @@ CREATE OR REPLACE PACKAGE PK_SEO_UTIL AS
   -- RO: Data -> perioada in format YYYY-MM. EN: Date -> YYYY-MM period.
   FUNCTION PERIOD_OF(p_date IN DATE) RETURN VARCHAR2;
 
-  -- RO: Valoarea unei setari din YSEO_SETUP; p_default daca lipseste.
-  -- EN: A setting value from YSEO_SETUP; p_default when absent.
+  -- RO: Valoarea unei setari din YSEO_SETUP, sau p_default daca lipseste.
+  -- EN: A setting value from YSEO_SETUP, or p_default when absent.
   FUNCTION GET_SETUP(p_code IN VARCHAR2, p_default IN VARCHAR2 DEFAULT NULL)
     RETURN VARCHAR2;
 

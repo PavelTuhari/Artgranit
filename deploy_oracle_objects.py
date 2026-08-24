@@ -169,6 +169,8 @@ def main() -> None:
         "76_tbc_ops_demo.sql",
         "77_tbc_settings.sql",
         "78_invite_links.sql",
+        "79_tbc_sources.sql",
+        "79b_tbc_mtls_services.sql",
         "80_plg_tables.sql",
         "81_plg_views.sql",
         "82_plg_demo_data.sql",
@@ -200,6 +202,13 @@ def main() -> None:
         "110_peco_algorithms.sql",
         "111_peco_paths_demo.sql",
         "112_plg_i18n_algos.sql",
+        # SEOForge: контур YSEO_* ставится строго в этом порядке —
+        # триггер бюджета из 113 ссылается на пакеты из 115, а 116
+        # его перекомпилирует (см. docs/SEOForge/README.md).
+        "113_yseo_tables.sql",
+        "114_yseo_views.sql",
+        "115_yseo_package.sql",
+        "116_yseo_dict_seed.sql",
         # 105_peco_demo_station.sql НАМЕРЕННО не в этом списке: это демо-
         # станция, а не справочник, запускается только вручную и никогда
         # на production (см. docs/PECO/README.md).
