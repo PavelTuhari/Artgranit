@@ -479,3 +479,142 @@ def test_queries_use_bind_variables_only():
     with patch.object(store, "DatabaseModel", return_value=db):
         store.planfact(period="2026-08'; DROP TABLE YSEO_SITE--", site_cod=1)
     assert "DROP TABLE" not in " ".join(db.captured).upper()
+
+
+# ── Task 7: контроллер ───────────────────────────────────────────────
+
+from controllers.seo_controller import SeoController
+
+
+def test_business_error_becomes_409():
+    msg = ("ORA-20101: RO: Cheltuiala depaseste bugetul planificat. / "
+           "EN: Spend exceeds the planned budget.")
+    assert SeoController.error_status(msg) == 409
+
+
+def test_unique_constraint_becomes_409():
+    assert SeoController.error_status("ORA-00001: unique constraint violated") == 409
+
+
+def test_unknown_error_becomes_500():
+    assert SeoController.error_status("ORA-03113: end-of-file on communication") == 500
+
+
+def test_business_message_reaches_the_user_verbatim():
+    msg = "ORA-20102: RO: Lipseste cursul valutar pentru EUR. / EN: Missing rate."
+    with patch.object(SeoController, "_store") as st:
+        st.save_fx.return_value = {"success": False, "data": None, "message": msg}
+        payload, status = SeoController.save_fx(
+            {"valuta": "EUR", "rate_date": "2026-08-01", "rate": 19.5})
+    assert status == 409
+    assert "Lipseste cursul valutar" in payload["message"]
+
+
+def test_infrastructure_error_is_not_leaked_to_the_user():
+    with patch.object(SeoController, "_store") as st:
+        st.sites.return_value = None
+        st.list_sites.return_value = {
+            "success": False, "data": None,
+            "message": "ORA-12541: TNS:no listener at host db-internal:1521"}
+        payload, status = SeoController.sites()
+    assert status == 500
+    assert "db-internal" not in payload["message"]
+
+
+def test_save_site_rejects_empty_domain_before_touching_the_database():
+    with patch.object(SeoController, "_store") as st:
+        payload, status = SeoController.save_site({"domain": "  "})
+    assert status == 400
+    assert payload["success"] is False
+    st.save_site.assert_not_called()
+
+
+def test_save_site_requires_locales():
+    with patch.object(SeoController, "_store") as st:
+        payload, status = SeoController.save_site({"domain": "una.md"})
+    assert status == 400
+    st.save_site.assert_not_called()
+
+
+def test_save_campaign_rejects_reversed_dates():
+    with patch.object(SeoController, "_store") as st:
+        payload, status = SeoController.save_campaign(
+            {"camp_code": "c1", "site_cod": 1, "date_start": "2026-09-01",
+             "date_end": "2026-08-01", "promo_type_cod1": 1})
+    assert status == 400
+    st.save_campaign.assert_not_called()
+
+
+def test_campaign_status_must_be_known():
+    with patch.object(SeoController, "_store") as st:
+        payload, status = SeoController.set_campaign_status(1, "MAYBE")
+    assert status == 400
+    st.set_campaign_status.assert_not_called()
+
+
+def test_plan_save_rejects_a_bad_period():
+    with patch.object(SeoController, "_store") as st:
+        payload, status = SeoController.plan_save(
+            {"period": "август", "article_cod1": 201, "plan_suma": 10})
+    assert status == 400
+    st.plan_upsert.assert_not_called()
+
+
+_SPEND_HEADER = ("site;channel;article;campaign;spend_date;suma;valuta;"
+                 "clicks;impressions;conversions;revenue;ext_id")
+
+
+def test_import_preview_never_writes():
+    text = _SPEND_HEADER + "\nuna.md;GOOGLE_ADS;ADS;c;2026-08-25;10;MDL;1;2;0;0;"
+    with patch.object(SeoController, "_store") as st:
+        st.existing_ext_ids.return_value = set()
+        payload, status = SeoController.import_preview("SPEND", "ads.csv", text)
+    assert status == 200
+    assert payload["data"]["rows"][0]["site"] == "una.md"
+    st.import_commit.assert_not_called()
+
+
+def test_import_preview_marks_duplicates():
+    text = _SPEND_HEADER + "\nuna.md;GOOGLE_ADS;ADS;c;2026-08-25;10;MDL;1;2;0;0;fixed-id"
+    with patch.object(SeoController, "_store") as st:
+        st.existing_ext_ids.return_value = {"fixed-id"}
+        payload, status = SeoController.import_preview("SPEND", "ads.csv", text)
+    assert payload["data"]["duplicates"] == ["fixed-id"]
+    assert payload["data"]["rows"][0]["is_duplicate"] is True
+
+
+def test_import_preview_returns_parse_errors_with_line_numbers():
+    text = _SPEND_HEADER + "\nuna.md;GOOGLE_ADS;ADS;c;2026-08-25;мусор;MDL;1;2;0;0;"
+    with patch.object(SeoController, "_store") as st:
+        st.existing_ext_ids.return_value = set()
+        payload, status = SeoController.import_preview("SPEND", "ads.csv", text)
+    assert status == 200
+    assert payload["data"]["errors"][0]["line"] == 2
+
+
+def test_import_commit_refuses_a_file_with_only_errors():
+    with patch.object(SeoController, "_store") as st:
+        payload, status = SeoController.import_commit("SPEND", "bad.csv",
+                                                      "site;suma\nx;1")
+    assert status == 400
+    st.import_commit.assert_not_called()
+
+
+def test_import_commit_passes_only_valid_rows_to_the_store():
+    text = (_SPEND_HEADER
+            + "\nuna.md;GOOGLE_ADS;ADS;c;2026-08-25;10;MDL;1;2;0;0;"
+            + "\nuna.md;GOOGLE_ADS;ADS;c;2026-08-26;мусор;MDL;1;2;0;0;")
+    with patch.object(SeoController, "_store") as st:
+        st.import_commit.return_value = {
+            "success": True, "data": {"import_cod": 1, "loaded": 1, "skipped": 0},
+            "message": ""}
+        payload, status = SeoController.import_commit("SPEND", "ads.csv", text)
+    assert status == 200
+    passed_rows = st.import_commit.call_args[0][2]
+    assert len(passed_rows) == 1
+    assert payload["data"]["errors"][0]["line"] == 3
+
+
+def test_unknown_import_kind_is_rejected():
+    payload, status = SeoController.import_preview("PAYROLL", "x.csv", "a;b")
+    assert status == 400
