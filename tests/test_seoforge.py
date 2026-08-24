@@ -330,3 +330,152 @@ def test_parse_metrics_csv_allows_negative_values():
 def test_empty_file_is_an_error_not_an_empty_success():
     res = parse_spend_csv("")
     assert res.rows == [] and res.errors
+
+
+# ── Task 6: хранилище ────────────────────────────────────────────────
+
+from unittest.mock import MagicMock, patch
+
+from models import seo_oracle_store as store
+
+
+def _ok(columns=None, data=None, rowcount=1):
+    return {"success": True, "columns": columns or [], "data": data or [],
+            "rowcount": rowcount, "message": ""}
+
+
+def _db(query_results=None, dml_ok=True):
+    """Мок DatabaseModel: отдаёт подготовленные ответы execute_query."""
+    db = MagicMock()
+    db.__enter__.return_value = db
+    db.__exit__.return_value = False
+    results = list(query_results or [])
+    db.captured = []
+
+    def _exec(sql, params=None):
+        db.captured.append(sql)
+        if results:
+            return results.pop(0)
+        if dml_ok:
+            return _ok()
+        return {"success": False, "columns": [], "data": [], "rowcount": 0,
+                "message": "ORA-00001: unique constraint violated"}
+
+    db.execute_query.side_effect = _exec
+    return db
+
+
+def test_list_sites_maps_rows_to_dicts():
+    rows = _ok(["COD", "DOMAIN"], [[1, "una.md"]])
+    with patch.object(store, "DatabaseModel", return_value=_db([rows])):
+        res = store.list_sites()
+    assert res["success"] is True
+    assert res["data"] == [{"cod": 1, "domain": "una.md"}]
+
+
+def test_list_sites_hides_archived_by_default():
+    db = _db([_ok()])
+    with patch.object(store, "DatabaseModel", return_value=db):
+        store.list_sites()
+    assert "ISARHIV = 0" in db.captured[0].upper()
+
+
+def test_list_sites_can_include_archived():
+    db = _db([_ok()])
+    with patch.object(store, "DatabaseModel", return_value=db):
+        store.list_sites(include_archived=True)
+    assert "ISARHIV = 0" not in db.captured[0].upper()
+
+
+def test_save_site_commits():
+    db = _db()
+    with patch.object(store, "DatabaseModel", return_value=db):
+        res = store.save_site({"domain": "una.md", "locales": "ru,ro"}, "pt")
+    assert res["success"] is True
+    db.connection.commit.assert_called_once()
+
+
+def test_failed_dml_does_not_commit():
+    db = _db(dml_ok=False)
+    with patch.object(store, "DatabaseModel", return_value=db):
+        res = store.save_site({"domain": "una.md", "locales": "ru"}, "pt")
+    assert res["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_archive_site_sets_flag_and_never_deletes():
+    db = _db()
+    with patch.object(store, "DatabaseModel", return_value=db):
+        store.archive_site(1, "pt")
+    joined = " ".join(db.captured).upper()
+    assert "ISARHIV = 1" in joined and "DELETE" not in joined
+
+
+def test_every_write_leaves_a_journal_entry():
+    db = _db()
+    with patch.object(store, "DatabaseModel", return_value=db):
+        store.save_site({"domain": "una.md", "locales": "ru"}, "pt")
+    assert any("LOG_EVENT" in sql.upper() for sql in db.captured)
+
+
+def test_existing_ext_ids_returns_a_set():
+    rows = _ok(["EXT_ID"], [["a"], ["b"]], 2)
+    with patch.object(store, "DatabaseModel", return_value=_db([rows])):
+        assert store.existing_ext_ids("SPEND", ["a", "b", "c"]) == {"a", "b"}
+
+
+def test_existing_ext_ids_without_input_does_not_touch_the_database():
+    db = _db()
+    with patch.object(store, "DatabaseModel", return_value=db):
+        assert store.existing_ext_ids("SPEND", []) == set()
+    db.execute_query.assert_not_called()
+
+
+def test_existing_ext_ids_rejects_an_unknown_kind():
+    with pytest.raises(ValueError):
+        store.existing_ext_ids("PAYROLL", ["a"])
+
+
+def test_import_commit_counts_loaded_and_skipped():
+    seq = [
+        _ok(["EXT_ID"], [["dup"]], 1),   # уже загруженные ext_id
+        _ok(["COD"], [[7]], 1),          # созданная партия
+    ]
+    with patch.object(store, "DatabaseModel", return_value=_db(seq)):
+        res = store.import_commit(
+            "SPEND", "ads.csv",
+            [{"ext_id": "dup", "site": "una.md"}, {"ext_id": "new", "site": "una.md"}],
+            "pt")
+    assert res["success"] is True
+    assert res["data"]["loaded"] == 1
+    assert res["data"]["skipped"] == 1
+    assert res["data"]["import_cod"] == 7
+
+
+def test_import_commit_with_only_duplicates_writes_nothing_new():
+    seq = [
+        _ok(["EXT_ID"], [["dup"]], 1),
+        _ok(["COD"], [[8]], 1),
+    ]
+    with patch.object(store, "DatabaseModel", return_value=_db(seq)):
+        res = store.import_commit("SPEND", "ads.csv",
+                                  [{"ext_id": "dup", "site": "una.md"}], "pt")
+    assert res["data"]["loaded"] == 0 and res["data"]["skipped"] == 1
+
+
+def test_plan_upsert_goes_through_the_package_not_raw_sql():
+    # Лимит бюджета и журнал живут в PK_SEO_BUDGET: прямой INSERT обошёл бы их.
+    db = _db()
+    with patch.object(store, "DatabaseModel", return_value=db):
+        store.plan_upsert({"period": "2026-08", "article_cod1": 201,
+                           "channel_cod1": 102, "site_cod": 1,
+                           "plan_suma": 1000}, "pt")
+    assert any("PK_SEO_BUDGET.PLAN_UPSERT" in sql.upper() for sql in db.captured)
+
+
+def test_queries_use_bind_variables_only():
+    # Конкатенация значений в SQL — путь к инъекции; выбираем только связывание.
+    db = _db([_ok()])
+    with patch.object(store, "DatabaseModel", return_value=db):
+        store.planfact(period="2026-08'; DROP TABLE YSEO_SITE--", site_cod=1)
+    assert "DROP TABLE" not in " ".join(db.captured).upper()
