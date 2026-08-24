@@ -92,7 +92,7 @@ Console. Дедуп по `EXT_ID`: повторная заливка того ж
 | `YSEO_CAMPAIGN` | кампания / акция | PK `COD`, UK `CAMP_CODE` (= `utm_campaign`); `SITE_COD`, `NAME_RU/RO/EN`, `PROMO_TYPE_COD1`, `DISCOUNT_VALUE`, `PROMO_CODE`, `SCOPE_KIND`, `DATE_START`, `DATE_END`, `LIMIT_QTY`, `LIMIT_SUM`, `BUDGET_PLAN`, `KPI_TARGET`, `LEGAL_TEXT_REF`, `STATUS`, `ISARHIV` |
 | `YSEO_BUDGET_PLAN` | план бюджета | PK `COD`, UK `(PERIOD, ARTICLE_COD1, CHANNEL_COD1, SITE_COD)`; `PLAN_SUMA`, `VALUTA`, `NOTE` |
 | `YSEO_SPEND_FACT` | факт расхода рекламы | PK `COD`, UK `EXT_ID`; `SITE_COD`, `CAMP_COD`, `CHANNEL_COD1`, `PLATFORM_COD`, `ARTICLE_COD1`, `SPEND_DATE`, `PERIOD`, `SUMA`, `VALUTA`, `SUMA_MDL`, `CLICKS`, `IMPRESSIONS`, `CONVERSIONS`, `REVENUE`, `IS_OVERBUDGET`, `SOURCE`, `IMPORT_COD` |
-| `YSEO_METRICS_FACT` | метрики сайта | PK `COD`, UK `EXT_ID`; `SITE_COD`, `METRIC_COD1`, `CHANNEL_COD1`, `FACT_DATE`, `PERIOD`, `VALUE`, `SOURCE`, `IMPORT_COD` |
+| `YSEO_METRICS_FACT` | метрики сайта | PK `COD`, UK `EXT_ID`; `SITE_COD`, `METRIC_COD1`, `CHANNEL_COD1`, `FACT_DATE`, `PERIOD`, `METRIC_VALUE`, `SOURCE`, `IMPORT_COD` |
 | `YSEO_IMPORT` | партии CSV-импорта | PK `COD`; `KIND` (`SPEND`/`METRICS`), `FILE_NAME`, `USERNAME`, `LOADED_AT`, `ROWS_TOTAL`, `ROWS_LOADED`, `ROWS_SKIPPED`, `STATUS` |
 | `YSEO_FX_RATE` | курс валюты на дату | PK `(VALUTA, RATE_DATE)`; `RATE` |
 | `YSEO_SETUP` | настройки контура | PK `PARAM_CODE`; `PARAM_VALUE`, `DESCR`. Параметры: `BASE_CURRENCY` (по умолчанию `MDL`), `BUDGET_OVERRUN_MODE` (`BLOCK`/`WARN`) |
@@ -241,7 +241,9 @@ SPA по образцу `templates/digi_marketing.html`: панели `.panel#pa
 
 ## 9. Деплой
 
-1. `sql/113…116` добавляются в порядок выполнения в `deploy_oracle_objects.py`.
+1. `sql/113…116` добавляются в порядок выполнения в `deploy_oracle_objects.py`
+   в порядке зависимостей `113 → 115 → 114 → 116`: вьюшки вызывают
+   `PK_SEO_UTIL.TO_MDL`, поэтому пакеты ставятся раньше вьюшек.
 2. `deploy_to_remote.sh` переносит код, но DDL не выполняет — установка контура
    делается отдельным запуском `python deploy_oracle_objects.py`
    либо remote deploy с `DEPLOY_ORACLE_ON_REMOTE=1`.

@@ -485,29 +485,30 @@ COMPOUND TRIGGER
 
   g_keys PK_SEO_BUDGET.T_KEYS;
 
+  -- RO: Iesirea devreme prin RETURN este interzisa in declansatoarele
+  --     compuse (PLS-00678), deci garda este un IF care inchide tot corpul.
+  -- EN: An early RETURN is forbidden inside compound triggers (PLS-00678),
+  --     so the guard is an IF that wraps the whole body.
   BEFORE EACH ROW IS
   BEGIN
-    IF PK_SEO_BUDGET.IS_FLAGGING THEN
-      RETURN;
+    IF NOT PK_SEO_BUDGET.IS_FLAGGING THEN
+      IF :NEW.COD IS NULL THEN
+        :NEW.COD := YSEO_SPEND_FACT_SEQ.NEXTVAL;
+      END IF;
+
+      :NEW.PERIOD   := PK_SEO_UTIL.PERIOD_OF(:NEW.SPEND_DATE);
+      :NEW.SUMA_MDL := PK_SEO_UTIL.TO_MDL(:NEW.SUMA, :NEW.VALUTA, :NEW.SPEND_DATE);
+
+      g_keys(g_keys.COUNT + 1) := PK_SEO_BUDGET.MAKE_KEY(
+          :NEW.PERIOD, :NEW.ARTICLE_COD1, :NEW.CHANNEL_COD1, :NEW.SITE_COD);
     END IF;
-
-    IF :NEW.COD IS NULL THEN
-      :NEW.COD := YSEO_SPEND_FACT_SEQ.NEXTVAL;
-    END IF;
-
-    :NEW.PERIOD   := PK_SEO_UTIL.PERIOD_OF(:NEW.SPEND_DATE);
-    :NEW.SUMA_MDL := PK_SEO_UTIL.TO_MDL(:NEW.SUMA, :NEW.VALUTA, :NEW.SPEND_DATE);
-
-    g_keys(g_keys.COUNT + 1) := PK_SEO_BUDGET.MAKE_KEY(
-        :NEW.PERIOD, :NEW.ARTICLE_COD1, :NEW.CHANNEL_COD1, :NEW.SITE_COD);
   END BEFORE EACH ROW;
 
   AFTER STATEMENT IS
   BEGIN
-    IF PK_SEO_BUDGET.IS_FLAGGING THEN
-      RETURN;
+    IF NOT PK_SEO_BUDGET.IS_FLAGGING THEN
+      PK_SEO_BUDGET.ENFORCE_KEYS(g_keys);
     END IF;
-    PK_SEO_BUDGET.ENFORCE_KEYS(g_keys);
   END AFTER STATEMENT;
 
 END TRG_YSEO_SPEND_BUDGET;

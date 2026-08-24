@@ -194,13 +194,16 @@ def test_seed_recompiles_the_budget_trigger():
     assert "ALTER TRIGGER TRG_YSEO_SPEND_BUDGET COMPILE" in seed
 
 
-def test_deploy_registers_yseo_files_in_order():
+def test_deploy_registers_yseo_files_in_dependency_order():
+    # Не по номерам, а по зависимостям: вьюшки VSEO_BUDGET_PLANFACT и
+    # VSEO_SITE вызывают PK_SEO_UTIL.TO_MDL, поэтому пакеты (115) обязаны
+    # ставиться раньше вьюшек (114) — иначе вьюшки не компилируются.
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
     order = [src.index(f'"{name}"') for name in (
-        "113_yseo_tables.sql", "114_yseo_views.sql",
-        "115_yseo_package.sql", "116_yseo_dict_seed.sql")]
-    assert order == sorted(order), "файлы контура должны идти в порядке зависимостей"
+        "113_yseo_tables.sql", "115_yseo_package.sql",
+        "114_yseo_views.sql", "116_yseo_dict_seed.sql")]
+    assert order == sorted(order), "нарушен порядок зависимостей файлов контура"
 
 
 def test_sql_comments_never_contain_a_semicolon_or_a_quote():
@@ -733,3 +736,11 @@ def test_smoke_script_requires_explicit_confirmation():
               encoding="utf-8") as fh:
         src = fh.read()
     assert "--yes" in src
+
+
+def test_compound_trigger_has_no_return_statement():
+    # PLS-00678: RETURN внутри compound trigger запрещён. Ловится только
+    # компиляцией в живой базе, поэтому правило закреплено тестом.
+    ddl = _sql("113_yseo_tables.sql").upper()
+    block = ddl.split("CREATE OR REPLACE TRIGGER TRG_YSEO_SPEND_BUDGET")[1]
+    assert not re.search(r"\bRETURN\s*;", block)
