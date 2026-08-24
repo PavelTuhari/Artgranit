@@ -88,3 +88,35 @@ def test_fact_tables_deduplicate_by_ext_id():
         block = ddl.split(f"CREATE TABLE {table} (")[1].split(");")[0]
         assert "EXT_ID" in block, table
         assert re.search(r"UNIQUE \(EXT_ID\)", block), table
+
+
+# ── Task 2: вьюшки ───────────────────────────────────────────────────
+
+EXPECTED_VIEWS = ["VSEO_SITE", "VSEO_CAMPAIGN", "VSEO_BUDGET_PLANFACT", "VSEO_CHANNEL_ROI"]
+
+
+def test_views_ddl_declares_every_view():
+    ddl = _sql("114_yseo_views.sql").upper()
+    for view in EXPECTED_VIEWS:
+        assert f"CREATE OR REPLACE VIEW {view}" in ddl, view
+
+
+def test_roi_view_guards_division_by_zero():
+    ddl = _sql("114_yseo_views.sql").upper()
+    block = ddl.split("CREATE OR REPLACE VIEW VSEO_CHANNEL_ROI")[1]
+    # ROI, CPC и CPA делят на расход и клики — оба могут быть нулём.
+    assert block.count("NULLIF(") >= 3
+
+
+def test_planfact_view_keeps_unplanned_spend():
+    # Расход по статье без плана обязан попасть в сетку, иначе перерасход
+    # молча исчезнет из отчёта.
+    ddl = _sql("114_yseo_views.sql").upper()
+    block = ddl.split("CREATE OR REPLACE VIEW VSEO_BUDGET_PLANFACT")[1].split(";")[0]
+    assert "FULL OUTER JOIN" in block
+
+
+def test_views_ddl_has_no_russian_comments():
+    for line in _sql("114_yseo_views.sql").splitlines():
+        if line.strip().startswith("--"):
+            assert not re.search(r"[а-яА-ЯёЁ]", line), line
