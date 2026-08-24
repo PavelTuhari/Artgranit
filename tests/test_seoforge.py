@@ -685,3 +685,51 @@ def test_template_commit_button_waits_for_a_preview():
     with open(os.path.join(ROOT, "templates", "seoforge.html"), encoding="utf-8") as fh:
         html = fh.read()
     assert "importCommitBtn" in html and "disabled" in html
+
+
+# ── Task 9: документация и живой smoke ───────────────────────────────
+
+def test_docs_registry_lists_every_document():
+    # Формат реестра — как в docs/Planograms/docs.json: ключ = имя файла.
+    docs_dir = os.path.join(ROOT, "docs", "SEOForge")
+    with open(os.path.join(docs_dir, "docs.json"), encoding="utf-8") as fh:
+        registry = json.load(fh)
+    on_disk = {n for n in os.listdir(docs_dir) if n.endswith(".md")}
+    assert on_disk == set(registry)
+    for name, item in registry.items():
+        assert item.get("slug") and item.get("title"), name
+
+
+def test_csv_format_doc_matches_the_parser():
+    from models.seo_csv import METRICS_COLUMNS, SPEND_COLUMNS
+    with open(os.path.join(ROOT, "docs", "SEOForge", "CSV_FORMAT.md"),
+              encoding="utf-8") as fh:
+        text = fh.read()
+    for col in SPEND_COLUMNS + METRICS_COLUMNS:
+        assert col in text, col
+
+
+def test_data_model_doc_lists_every_table():
+    with open(os.path.join(ROOT, "docs", "SEOForge", "DATA_MODEL.md"),
+              encoding="utf-8") as fh:
+        text = fh.read()
+    for table_name in EXPECTED_TABLES:
+        assert table_name in text, table_name
+
+
+def test_smoke_script_covers_every_declared_invariant():
+    with open(os.path.join(ROOT, "scripts", "seoforge_smoke.py"),
+              encoding="utf-8") as fh:
+        src = fh.read()
+    for check in ("check_plan_and_spend", "check_overrun_blocked",
+                  "check_overrun_warned", "check_import_dedup",
+                  "check_archive_not_delete", "check_views"):
+        assert f"def {check}" in src, check
+
+
+def test_smoke_script_requires_explicit_confirmation():
+    # Скрипт пишет в базу: случайный запуск не должен ничего создавать.
+    with open(os.path.join(ROOT, "scripts", "seoforge_smoke.py"),
+              encoding="utf-8") as fh:
+        src = fh.read()
+    assert "--yes" in src
