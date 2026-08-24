@@ -77,9 +77,18 @@ def test_spend_fact_is_guarded_by_the_budget_trigger():
     ddl = _sql("113_yseo_tables.sql").upper()
     assert "CREATE OR REPLACE TRIGGER TRG_YSEO_SPEND_BUDGET" in ddl
     block = ddl.split("TRG_YSEO_SPEND_BUDGET")[1]
-    assert "PK_SEO_BUDGET.CHECK_LIMIT" in block
-    assert "RAISE_APPLICATION_ERROR" in block
-    assert "IS_OVERBUDGET" in block
+    assert "PK_SEO_BUDGET.ENFORCE_KEYS" in block
+
+
+def test_budget_trigger_is_compound_to_avoid_mutating_table():
+    # Проверка лимита читает саму YSEO_SPEND_FACT: построчный триггер
+    # упал бы с ORA-04091. Сбор ключей в BEFORE EACH ROW, проверка —
+    # один раз в AFTER STATEMENT.
+    ddl = _sql("113_yseo_tables.sql").upper()
+    block = ddl.split("CREATE OR REPLACE TRIGGER TRG_YSEO_SPEND_BUDGET")[1]
+    assert "COMPOUND TRIGGER" in block
+    assert "BEFORE EACH ROW" in block
+    assert "AFTER STATEMENT" in block
 
 
 def test_fact_tables_deduplicate_by_ext_id():
@@ -118,5 +127,41 @@ def test_planfact_view_keeps_unplanned_spend():
 
 def test_views_ddl_has_no_russian_comments():
     for line in _sql("114_yseo_views.sql").splitlines():
+        if line.strip().startswith("--"):
+            assert not re.search(r"[а-яА-ЯёЁ]", line), line
+
+
+# ── Task 3: пакеты ───────────────────────────────────────────────────
+
+def test_packages_declare_expected_routines():
+    ddl = _sql("115_yseo_package.sql").upper()
+    for routine in ("PERIOD_OF", "TO_MDL", "GET_SETUP", "LOG_EVENT",
+                    "PLAN_UPSERT", "CHECK_LIMIT", "RECALC_OVERBUDGET"):
+        assert routine in ddl, routine
+
+
+def test_packages_have_spec_and_body():
+    ddl = _sql("115_yseo_package.sql").upper()
+    for pkg in ("PK_SEO_UTIL", "PK_SEO_BUDGET"):
+        assert f"CREATE OR REPLACE PACKAGE {pkg}" in ddl, pkg
+        assert f"CREATE OR REPLACE PACKAGE BODY {pkg}" in ddl, pkg
+
+
+def test_business_errors_are_bilingual():
+    ddl = _sql("115_yseo_package.sql")
+    raises = re.findall(r"RAISE_APPLICATION_ERROR\s*\(\s*-\d+\s*,(.*?)\);", ddl, re.S)
+    assert raises, "пакеты обязаны иметь хотя бы одно бизнес-исключение"
+    for body in raises:
+        assert "RO:" in body and "EN:" in body, body
+
+
+def test_missing_fx_rate_is_an_error_not_a_silent_one():
+    # Молчаливая единица вместо курса исказила бы все суммы отчётов.
+    body = _sql("115_yseo_package.sql").upper().split("FUNCTION TO_MDL")[-1]
+    assert "RAISE_APPLICATION_ERROR" in body
+
+
+def test_packages_have_no_russian_comments():
+    for line in _sql("115_yseo_package.sql").splitlines():
         if line.strip().startswith("--"):
             assert not re.search(r"[а-яА-ЯёЁ]", line), line

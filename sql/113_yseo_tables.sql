@@ -461,41 +461,50 @@ END;
 -- EN: Budget overrun control. The rule lives in the database, not in the
 --     application: a code bug must not lead to uncontrolled money.
 --
--- RO: Declansatorul depinde de pachetele din 115_yseo_package.sql. La
---     prima instalare ramane invalid pana la crearea lor; 116 il
---     recompileaza explicit.
--- EN: The trigger depends on the packages from 115_yseo_package.sql. On
---     first install it stays invalid until they exist; 116 recompiles it
---     explicitly.
+-- RO: Declansator compus dinadins: verificarea limitei citeste chiar
+--     YSEO_SPEND_FACT, iar un declansator pe rand ar cadea cu ORA-04091
+--     (tabel in mutatie). Randurile atinse se strang in BEFORE EACH ROW
+--     si se verifica o singura data in AFTER STATEMENT.
+-- EN: A compound trigger on purpose: the limit check reads YSEO_SPEND_FACT
+--     itself, and a row-level trigger would fail with ORA-04091 (mutating
+--     table). Touched rows are collected in BEFORE EACH ROW and checked
+--     once in AFTER STATEMENT.
+--
+-- RO: Depinde de pachetele din 115_yseo_package.sql. La prima instalare
+--     ramane invalid pana la crearea lor; 116 il recompileaza explicit.
+-- EN: Depends on the packages from 115_yseo_package.sql. On first install
+--     it stays invalid until they exist; 116 recompiles it explicitly.
 -- =====================================================================
 CREATE OR REPLACE TRIGGER TRG_YSEO_SPEND_BUDGET
-BEFORE INSERT OR UPDATE ON YSEO_SPEND_FACT FOR EACH ROW
-DECLARE
-  v_rest NUMBER;
-  v_mode VARCHAR2(20);
-  v_mdl  NUMBER;
-BEGIN
-  IF :NEW.COD IS NULL THEN
-    :NEW.COD := YSEO_SPEND_FACT_SEQ.NEXTVAL;
-  END IF;
+FOR INSERT OR UPDATE ON YSEO_SPEND_FACT
+COMPOUND TRIGGER
 
-  :NEW.PERIOD   := PK_SEO_UTIL.PERIOD_OF(:NEW.SPEND_DATE);
-  v_mdl         := PK_SEO_UTIL.TO_MDL(:NEW.SUMA, :NEW.VALUTA, :NEW.SPEND_DATE);
-  :NEW.SUMA_MDL := v_mdl;
+  g_keys PK_SEO_BUDGET.T_KEYS;
 
-  v_mode := PK_SEO_UTIL.GET_SETUP('BUDGET_OVERRUN_MODE');
-  v_rest := PK_SEO_BUDGET.CHECK_LIMIT(:NEW.PERIOD, :NEW.ARTICLE_COD1,
-                                      :NEW.CHANNEL_COD1, :NEW.SITE_COD, v_mdl);
-
-  IF v_rest < 0 THEN
-    IF v_mode = 'BLOCK' THEN
-      RAISE_APPLICATION_ERROR(-20101,
-        'RO: Cheltuiala depaseste bugetul planificat pentru perioada. / '
-        || 'EN: Spend exceeds the planned budget for the period.');
+  BEFORE EACH ROW IS
+  BEGIN
+    IF PK_SEO_BUDGET.IS_FLAGGING THEN
+      RETURN;
     END IF;
-    :NEW.IS_OVERBUDGET := 1;
-  ELSE
-    :NEW.IS_OVERBUDGET := 0;
-  END IF;
-END;
+
+    IF :NEW.COD IS NULL THEN
+      :NEW.COD := YSEO_SPEND_FACT_SEQ.NEXTVAL;
+    END IF;
+
+    :NEW.PERIOD   := PK_SEO_UTIL.PERIOD_OF(:NEW.SPEND_DATE);
+    :NEW.SUMA_MDL := PK_SEO_UTIL.TO_MDL(:NEW.SUMA, :NEW.VALUTA, :NEW.SPEND_DATE);
+
+    g_keys(g_keys.COUNT + 1) := PK_SEO_BUDGET.MAKE_KEY(
+        :NEW.PERIOD, :NEW.ARTICLE_COD1, :NEW.CHANNEL_COD1, :NEW.SITE_COD);
+  END BEFORE EACH ROW;
+
+  AFTER STATEMENT IS
+  BEGIN
+    IF PK_SEO_BUDGET.IS_FLAGGING THEN
+      RETURN;
+    END IF;
+    PK_SEO_BUDGET.ENFORCE_KEYS(g_keys);
+  END AFTER STATEMENT;
+
+END TRG_YSEO_SPEND_BUDGET;
 /
