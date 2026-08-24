@@ -215,3 +215,118 @@ def test_sql_comments_never_contain_a_semicolon_or_a_quote():
                 continue
             assert ";" not in stripped, f"{name}:{no} {stripped}"
             assert "'" not in stripped and '"' not in stripped, f"{name}:{no} {stripped}"
+
+
+# ── Task 5: разбор CSV ───────────────────────────────────────────────
+
+import datetime
+
+import pytest
+
+from models.seo_csv import (METRICS_COLUMNS, SPEND_COLUMNS, make_ext_id,
+                            parse_metrics_csv, parse_spend_csv, period_of)
+
+
+def test_period_of_formats_year_month():
+    assert period_of("2026-08-25") == "2026-08"
+    assert period_of(datetime.date(2026, 1, 3)) == "2026-01"
+
+
+def test_period_of_rejects_garbage():
+    with pytest.raises(ValueError):
+        period_of("25.08.2026 maybe")
+
+
+def test_make_ext_id_is_deterministic_and_sensitive():
+    a = make_ext_id("google_ads", "2026-08-25", "back_to_school", "GOOGLE_ADS")
+    b = make_ext_id("google_ads", "2026-08-25", "back_to_school", "GOOGLE_ADS")
+    c = make_ext_id("google_ads", "2026-08-26", "back_to_school", "GOOGLE_ADS")
+    assert a == b and a != c
+    assert len(a) == 32 and all(ch in "0123456789abcdef" for ch in a)
+
+
+def _spend_csv(*rows):
+    return "\n".join([";".join(SPEND_COLUMNS), *rows])
+
+
+def test_parse_spend_csv_reads_a_good_row():
+    res = parse_spend_csv(_spend_csv(
+        "officeplus.md;GOOGLE_ADS;ADS;back_to_school;2026-08-25;1250.50;MDL;300;15000;12;8400;"))
+    assert res.errors == []
+    assert len(res.rows) == 1
+    row = res.rows[0]
+    assert row["site"] == "officeplus.md"
+    assert row["suma"] == 1250.50
+    assert row["clicks"] == 300
+    assert row["period"] == "2026-08"
+    assert len(row["ext_id"]) == 32
+
+
+def test_parse_spend_csv_reports_bad_number_without_dropping_other_rows():
+    res = parse_spend_csv(_spend_csv(
+        "officeplus.md;GOOGLE_ADS;ADS;back_to_school;2026-08-25;не число;MDL;300;15000;12;8400;",
+        "officeplus.md;GOOGLE_ADS;ADS;back_to_school;2026-08-26;10;MDL;1;2;0;0;",
+    ))
+    assert len(res.rows) == 1
+    assert len(res.errors) == 1
+    assert res.errors[0]["line"] == 2
+    assert "SUMA" in res.errors[0]["message"].upper()
+
+
+def test_parse_spend_csv_requires_mandatory_columns():
+    res = parse_spend_csv("site;suma\nofficeplus.md;10")
+    assert res.rows == []
+    assert res.errors and "SPEND_DATE" in res.errors[0]["message"].upper()
+
+
+def test_parse_spend_csv_rejects_negative_amount():
+    res = parse_spend_csv(_spend_csv(
+        "officeplus.md;GOOGLE_ADS;ADS;c;2026-08-25;-5;MDL;0;0;0;0;"))
+    assert res.rows == [] and len(res.errors) == 1
+
+
+def test_parse_spend_csv_accepts_comma_decimal_and_tab_separator():
+    text = ("\t".join(SPEND_COLUMNS) + "\n"
+            + "officeplus.md\tGOOGLE_ADS\tADS\tc\t2026-08-25\t1250,50\tMDL\t0\t0\t0\t0\t")
+    res = parse_spend_csv(text)
+    assert res.errors == [] and res.rows[0]["suma"] == 1250.50
+
+
+def test_parse_spend_csv_keeps_supplied_ext_id():
+    res = parse_spend_csv(_spend_csv(
+        "officeplus.md;GOOGLE_ADS;ADS;c;2026-08-25;10;MDL;0;0;0;0;campaign-42-day-1"))
+    assert res.rows[0]["ext_id"] == "campaign-42-day-1"
+
+
+def test_parse_spend_csv_ignores_blank_lines_and_bom():
+    text = "﻿" + _spend_csv(
+        "officeplus.md;GOOGLE_ADS;ADS;c;2026-08-25;10;MDL;0;0;0;0;", "", "   ")
+    res = parse_spend_csv(text)
+    assert res.errors == [] and len(res.rows) == 1
+
+
+def test_parse_spend_csv_rejects_a_bad_date():
+    res = parse_spend_csv(_spend_csv(
+        "officeplus.md;GOOGLE_ADS;ADS;c;25/08/2026;10;MDL;0;0;0;0;"))
+    assert res.rows == []
+    assert "SPEND_DATE" in res.errors[0]["message"].upper()
+
+
+def test_parse_metrics_csv_reads_a_good_row():
+    text = ";".join(METRICS_COLUMNS) + "\n" + \
+        "una.md;POSITION_AVG;GOOGLE_ORGANIC;2026-08-25;7.4;gsc;"
+    res = parse_metrics_csv(text)
+    assert res.errors == [] and res.rows[0]["value"] == 7.4
+    assert res.rows[0]["period"] == "2026-08"
+
+
+def test_parse_metrics_csv_allows_negative_values():
+    # Дельта позиции или изменение трафика бывают отрицательными.
+    text = ";".join(METRICS_COLUMNS) + "\n" + "una.md;CTR;;2026-08-25;-1.5;gsc;"
+    res = parse_metrics_csv(text)
+    assert res.errors == [] and res.rows[0]["value"] == -1.5
+
+
+def test_empty_file_is_an_error_not_an_empty_success():
+    res = parse_spend_csv("")
+    assert res.rows == [] and res.errors
