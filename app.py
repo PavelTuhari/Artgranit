@@ -3369,6 +3369,13 @@ def api_sda_deposit():
     return jsonify(SDAController.get_deposit(request.args))
 
 
+@app.route('/api/sda/dossier', methods=['GET'])
+def api_sda_dossier():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    return jsonify(SDAController.get_dossier(request.args))
+
+
 # --- Язык, словарь, справочники ---
 @app.route('/api/plg/langs', methods=['GET'])
 def api_plg_langs():
