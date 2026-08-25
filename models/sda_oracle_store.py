@@ -131,19 +131,21 @@ class SDAStore:
         if not listed["success"]:
             return listed
         changed = 0
-        for unit in listed["data"]:
-            regim, motiv = sda_rules.classify_regime(
-                unit.get("suprafata_mp"), unit.get("tip_amplasament") or "MAGAZIN")
-            if regim == unit.get("regim"):
-                continue
-            with DatabaseModel() as db:
+        with DatabaseModel() as db:
+            for unit in listed["data"]:
+                is_horeca = unit.get("regim") == "C_HORECA"
+                regim, motiv = sda_rules.classify_regime(
+                    unit.get("suprafata_mp"), unit.get("tip_amplasament") or "MAGAZIN",
+                    is_horeca)
+                if regim == unit.get("regim"):
+                    continue
                 db.execute_query(
                     "UPDATE SDA_UNIT SET REGIM = :regim, "
                     "REGIM_MOTIV = :regim_motiv, DATA_EVALUARE = :data_evaluare "
                     "WHERE UNIT_ID = :unit_id",
                     {"regim": regim, "regim_motiv": motiv,
                      "data_evaluare": date.today(), "unit_id": unit["unit_id"]})
-            changed += 1
+                changed += 1
         SDAStore.log("RECLASSIFY", "SDA_UNIT", None,
                      f"reclasificate {changed} unitati", username)
         return _done({"changed": changed})
