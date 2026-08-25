@@ -249,12 +249,17 @@ class SDAStore:
                 if (regim, motiv) == (unit.get("regim"),
                                       unit.get("regim_motiv")):
                     continue
-                db.execute_query(
+                ur = db.execute_query(
                     "UPDATE SDA_UNIT SET REGIM = :regim, "
                     "REGIM_MOTIV = :regim_motiv, DATA_EVALUARE = :data_evaluare "
                     "WHERE UNIT_ID = :unit_id",
                     {"regim": regim, "regim_motiv": motiv,
                      "data_evaluare": date.today(), "unit_id": unit["unit_id"]})
+                if not ur.get("success"):
+                    # Un rând eșuat nu trebuie contorizat drept succes, iar
+                    # lotul întreg nu se comite peste un update ratat.
+                    return _fail(ur.get("message")
+                                 or "Eroare la reclasificarea unitatilor")
                 changed += 1
             if changed:
                 db.connection.commit()
