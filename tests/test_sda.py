@@ -1362,3 +1362,149 @@ def test_controller_accepts_a_json_whole_number_float_sales_volume():
         res = SDAController.save_partic(
             {"idno": "1", "denumire": "X", "vandut_an_ant": 12.0}, "tester")
     assert res["success"] is True
+
+
+# -- Fourth review round: fixes for the final findings -----------------
+
+# 1. HoReCa nu este disponibil decat pentru ALIMENTATIE_PUBLICA: controlorul
+#    respinge orice incercare de a-l marca pentru un alt tip de amplasament,
+#    altfel reclassify_all l-ar citi inapoi din REGIM si l-ar perpetua.
+
+def test_controller_rejects_horeca_flag_for_a_regular_shop():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_unit(
+        {"partic_id": 1, "denumire": "Magazin mare", "suprafata_mp": 500,
+         "tip_amplasament": "MAGAZIN", "is_horeca": True}, "tester")
+    assert res["success"] is False
+    assert "horeca" in res["message"].lower()
+    assert "alimentatie" in res["message"].lower()
+
+
+def test_controller_accepts_horeca_flag_for_alimentatie_publica():
+    from controllers.sda_controller import SDAController
+    from unittest.mock import patch as _patch
+    with _patch("controllers.sda_controller.SDAStore.save_unit",
+                return_value={"success": True, "data": {}, "message": ""}):
+        res = SDAController.save_unit(
+            {"partic_id": 1, "denumire": "Bistro", "suprafata_mp": 40,
+             "tip_amplasament": "ALIMENTATIE_PUBLICA", "is_horeca": True},
+            "tester")
+    assert res["success"] is True
+
+
+# 2. Intrarea de jurnal trebuie sa primeasca ENTITATE_ID nenul la creare,
+#    citit inapoi prin SEQ_*.CURRVAL pe aceeasi conexiune, imediat dupa
+#    INSERT-ul principal.
+
+def test_saving_a_new_unit_writes_a_non_null_entitate_id_to_the_journal():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _currval(555),
+                       _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_unit(
+            {"partic_id": 1, "denumire": "Magazin nou", "suprafata_mp": 85,
+             "tip_amplasament": "MAGAZIN"}, "tester")
+    assert res["success"] is True
+    currval_sql = db.execute_query.call_args_list[1][0][0]
+    assert "SEQ_SDA_UNIT.CURRVAL" in currval_sql
+    journal_params = db.execute_query.call_args_list[2][0][1]
+    assert journal_params["entitate_id"] == 555
+    assert res["data"]["unit_id"] == 555
+
+
+def test_saving_a_new_pack_writes_a_non_null_entitate_id_to_the_journal():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _currval(777),
+                       _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_pack(
+            {"ean": "4840012345678", "material": "STICLA", "volum_l": 0.75,
+             "greutate_g": 380}, "tester")
+    assert res["success"] is True
+    currval_sql = db.execute_query.call_args_list[1][0][0]
+    assert "SEQ_SDA_PACK.CURRVAL" in currval_sql
+    journal_params = db.execute_query.call_args_list[2][0][1]
+    assert journal_params["entitate_id"] == 777
+    assert res["data"]["pack_id"] == 777
+
+
+def test_saving_a_new_participant_writes_a_non_null_entitate_id_to_the_journal():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _currval(333),
+                       _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_partic(
+            {"idno": "1003600000000", "denumire": "Rogob SRL"}, "tester")
+    assert res["success"] is True
+    currval_sql = db.execute_query.call_args_list[1][0][0]
+    assert "SEQ_SDA_PARTIC.CURRVAL" in currval_sql
+    journal_params = db.execute_query.call_args_list[2][0][1]
+    assert journal_params["entitate_id"] == 333
+    assert res["data"]["partic_id"] == 333
+
+
+# 3. reclassify_all nu are voie sa scrie in jurnal si sa comita atunci cand
+#    nimic nu s-a schimbat.
+
+def test_reclassify_all_skips_journal_and_commit_when_nothing_changed():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
+            [[7, 85, "MAGAZIN", "B_EXCEPTIE_APL",
+              "Suprafata 85 m2 nu depaseste pragul de 100 m2"]]))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.reclassify_all("tester")
+    assert res["success"] is True
+    assert res["data"]["changed"] == 0
+    # Un singur apel: cel care a listat unitatile. Niciun UPDATE, niciun
+    # INSERT in jurnal, deci niciun commit.
+    assert db.execute_query.call_count == 1
+    db.connection.commit.assert_not_called()
+
+
+# 5. O interogare esuata pentru tariful de depozit trebuie raportata cu
+#    mesajul real al driverului, nu tratata tacut ca "niciun tarif".
+
+def test_deposit_reports_a_failing_tariff_query_instead_of_no_tariff():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PACK_ID", "EAN", "CAT_ADMIN", "REUTILIZABIL"],
+            [[7, "4840012345678", "f", "N"]]),
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-00942"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.deposit_for_ean("4840012345678")
+    assert res["success"] is False
+    assert "ORA-00942" in res["message"]
+
+
+# 6. controller.save_unit foloseste _parse_partic_id, la fel ca restul
+#    controlorului, in loc sa verifice doar prezenta.
+
+def test_controller_rejects_a_non_numeric_partic_id_on_save_unit():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_unit(
+        {"partic_id": "abc", "denumire": "Magazin"}, "tester")
+    assert res["success"] is False
+    assert "partic_id" in res["message"]
+
+
+# 7. Consola trebuie sa redirectioneze la /login pe 401, nu sa arate
+#    banner-ul rusesc de autorizare pe o pagina fara sesiune.
+
+def test_console_template_redirects_to_login_on_401():
+    html = _template("sda.html")
+    for marker in ("loadCompliance", "loadUnits", "fetchPartic"):
+        section = html[html.index(f"async function {marker}"):]
+        section = section[:section.index("\n}\n")]
+        assert "status === 401" in section
+        assert "/login" in section
+
+
+# 8. Bifa HoReCa nu are voie sa fie oferita in interfata pentru un tip de
+#    amplasament diferit de ALIMENTATIE_PUBLICA.
+
+def test_console_template_disables_horeca_checkbox_outside_alimentatie_publica():
+    html = _template("sda.html")
+    assert "syncHorecaCheckbox" in html
+    assert "ALIMENTATIE_PUBLICA" in html[html.index("function syncHorecaCheckbox"):]
