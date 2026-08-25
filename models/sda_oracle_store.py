@@ -475,8 +475,10 @@ class SDAStore:
             r = db.execute_query(
                 "SELECT PT.POINT_ID, PT.UNIT_ID, PT.ADRESA, PT.ORAR, PT.TIP "
                 "FROM SDA_RETURN_POINT PT JOIN SDA_UNIT UN "
-                "ON UN.UNIT_ID = PT.UNIT_ID WHERE UN.PARTIC_ID = :partic_id",
-                {"partic_id": partic_id})
+                "ON UN.UNIT_ID = PT.UNIT_ID WHERE UN.PARTIC_ID = :partic_id "
+                "AND (PT.ACTIV_PANA IS NULL OR PT.ACTIV_PANA >= :d) "
+                "AND (PT.ACTIV_DIN IS NULL OR PT.ACTIV_DIN <= :d)",
+                {"partic_id": partic_id, "d": on_date})
             if not r.get("success"):
                 return _fail(r.get("message")
                              or "Eroare la citirea punctelor de preluare")
