@@ -79,7 +79,11 @@
 ### 4. UI и маршруты
 
 1. Все UI-маршруты должны жить под `/UNA.md/orasldev/...`.
-2. Нужно добавить admin/operator/viewer маршруты в `app.py` и связанные templates/static assets.
+2. **Маршруты в `app.py` больше не добавляются.** Модуль объявляет их на
+   своём blueprint в `modules/<ключ>/`, ядро подключает его само —
+   см. [`docs/CORE_MODULES.md`](docs/CORE_MODULES.md). Образец полностью
+   самодостаточного модуля — `modules/seoforge/`. Старые модули, чьи
+   страницы ещё в `app.py`, продолжают работать и переносятся по одному.
 3. Если модуль попадает в dashboards, обновить `dashboards/dashboard_*.json` и документацию в `docs/dashboards/`.
 4. Нельзя оставлять устаревшие dashboard queries, которые смотрят на generic runtime tables.
 

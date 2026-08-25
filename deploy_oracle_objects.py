@@ -169,9 +169,6 @@ def main() -> None:
         "76_tbc_ops_demo.sql",
         "77_tbc_settings.sql",
         "78_invite_links.sql",
-        "79_tbc_sources.sql",
-        "79b_tbc_mtls_services.sql",
-        "79c_tbc_dossier_types.sql",
         "80_plg_tables.sql",
         "81_plg_views.sql",
         "82_plg_demo_data.sql",
@@ -203,10 +200,6 @@ def main() -> None:
         "110_peco_algorithms.sql",
         "111_peco_paths_demo.sql",
         "112_plg_i18n_algos.sql",
-        # SEOForge (sql/113..116) НАМЕРЕННО не в этом списке: контур YSEO_*
-        # живёт в боевой ERP OfficePlus, а этот скрипт ставит объекты в
-        # облачную БД бэкофиса. Установщик контура —
-        # scripts/seoforge_deploy_erp.py (см. docs/SEOForge/README.md).
         # 105_peco_demo_station.sql НАМЕРЕННО не в этом списке: это демо-
         # станция, а не справочник, запускается только вручную и никогда
         # на production (см. docs/PECO/README.md).

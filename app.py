@@ -20,7 +20,7 @@ from controllers.nufarul_controller import NufarulController
 from controllers.documentation_controller import DocumentationController
 from controllers.shell_controller import ShellController
 from controllers.digi_marketing_controller import DigiMarketingController
-from controllers.seo_controller import SeoController
+from core import load_modules
 from controllers.tbcontrol_controller import TBControlController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
@@ -42,6 +42,11 @@ from scripts.import_decor_order_xml_sample import import_xml_orders_from_dir
 app = Flask(__name__)
 app.config.from_object(Config)
 Config.init_app(app)
+
+# Модули портала подключаются сами: ядро находит их в modules/,
+# проверяет и вешает под /UNA.md/orasldev/<ключ>. Добавление модуля
+# не требует правок этого файла — см. core/module_loader.py.
+load_modules(app)
 
 # RO: protectia sesiunii si a incarcarilor — cerinta auditului GDPR/securitate
 #     (documentele personale ale clientilor: buletin fata/verso in
@@ -2018,248 +2023,6 @@ def digi_sm():
 def digi_marketing_redirect():
     return redirect('/UNA.md/orasldev/digi-sm')
 
-
-# ========== SEOForge Routes ==========
-# Модуль AI-SEO продвижения: сайты, кампании, бюджет план/факт, ROI.
-# Вся бизнес-логика — в SeoController и пакетах PK_SEO_* контура YSEO_*.
-# Документация: docs/SEOForge/, спека: docs/superpowers/specs/.
-
-def _seo_reply(reply):
-    """(payload, status) от контроллера -> ответ Flask."""
-    payload, status = reply
-    return jsonify(payload), status
-
-
-def _seo_guard():
-    """Общая проверка входа для JSON-маршрутов модуля."""
-    if AuthController.is_authenticated():
-        return None
-    return jsonify({"success": False, "data": None,
-                    "message": "Требуется вход в систему"}), 401
-
-
-def _seo_json_body():
-    return request.get_json(silent=True) or {}
-
-
-def _seo_int(name):
-    value = request.args.get(name)
-    try:
-        return int(value) if value else None
-    except (TypeError, ValueError):
-        return None
-
-
-@app.route('/UNA.md/orasldev/seoforge')
-@app.route('/UNA.md/orasldev/seoforge/')
-def seoforge():
-    """Страница модуля SEOForge."""
-    if not AuthController.is_authenticated():
-        return redirect(url_for('login'))
-    return render_template('seoforge.html')
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/sites', methods=['GET', 'POST'])
-def seoforge_api_sites():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.save_site(_seo_json_body()))
-    return _seo_reply(SeoController.sites(
-        include_archived=request.args.get('archived') == '1'))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/sites/<int:cod>/archive', methods=['POST'])
-def seoforge_api_site_archive(cod):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.archive_site(cod))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/platforms', methods=['GET', 'POST'])
-def seoforge_api_platforms():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.save_platform(_seo_json_body()))
-    return _seo_reply(SeoController.platforms(
-        include_archived=request.args.get('archived') == '1'))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/platforms/<int:cod>/archive', methods=['POST'])
-def seoforge_api_platform_archive(cod):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.archive_platform(cod))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/dict', methods=['GET'])
-@app.route('/UNA.md/orasldev/seoforge/api/dict/<section>', methods=['GET', 'POST'])
-def seoforge_api_dict(section=None):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.save_dictionary(section, _seo_json_body()))
-    return _seo_reply(SeoController.dictionary(section))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/fx', methods=['GET', 'POST'])
-def seoforge_api_fx():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.save_fx(_seo_json_body()))
-    return _seo_reply(SeoController.fx())
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/campaigns', methods=['GET', 'POST'])
-def seoforge_api_campaigns():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.save_campaign(_seo_json_body()))
-    return _seo_reply(SeoController.campaigns(
-        site_cod=_seo_int('site'),
-        include_archived=request.args.get('archived') == '1'))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/campaigns/<int:cod>/status', methods=['POST'])
-def seoforge_api_campaign_status(cod):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.set_campaign_status(
-        cod, _seo_json_body().get('status')))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/campaigns/<int:cod>/archive', methods=['POST'])
-def seoforge_api_campaign_archive(cod):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.archive_campaign(cod))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/budget/plan', methods=['POST'])
-def seoforge_api_budget_plan():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.plan_save(_seo_json_body()))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/budget/planfact', methods=['GET'])
-def seoforge_api_budget_planfact():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.planfact(
-        period=request.args.get('period'), site_cod=_seo_int('site')))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/spend', methods=['GET', 'POST'])
-def seoforge_api_spend():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.add_spend(_seo_json_body()))
-    return _seo_reply(SeoController.spend(
-        period=request.args.get('period'), site_cod=_seo_int('site')))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/metrics', methods=['GET', 'POST'])
-def seoforge_api_metrics():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.add_metrics(_seo_json_body()))
-    return _seo_reply(SeoController.metrics(
-        period=request.args.get('period'), site_cod=_seo_int('site')))
-
-
-def _seo_upload_text():
-    """Текст загруженного файла и его имя.
-
-    Файл приходит либо multipart-загрузкой, либо телом JSON — второй путь
-    нужен интерфейсу, который уже прочитал файл в браузере.
-    """
-    uploaded = request.files.get('file')
-    if uploaded is not None:
-        raw = uploaded.read()
-        for encoding in ('utf-8-sig', 'cp1251'):
-            try:
-                return raw.decode(encoding), uploaded.filename
-            except UnicodeDecodeError:
-                continue
-        return raw.decode('utf-8', errors='replace'), uploaded.filename
-    body = _seo_json_body()
-    return body.get('text', ''), body.get('file_name', 'upload.csv')
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/import/<kind>/preview', methods=['POST'])
-def seoforge_api_import_preview(kind):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    text, file_name = _seo_upload_text()
-    return _seo_reply(SeoController.import_preview(
-        (kind or '').upper(), file_name, text))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/import/<kind>/commit', methods=['POST'])
-def seoforge_api_import_commit(kind):
-    denied = _seo_guard()
-    if denied:
-        return denied
-    text, file_name = _seo_upload_text()
-    return _seo_reply(SeoController.import_commit(
-        (kind or '').upper(), file_name, text))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/imports', methods=['GET'])
-def seoforge_api_imports():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.imports())
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/roi', methods=['GET'])
-def seoforge_api_roi():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.roi(
-        period_from=request.args.get('period_from'),
-        period_to=request.args.get('period_to'),
-        site_cod=_seo_int('site')))
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/settings', methods=['GET', 'POST'])
-def seoforge_api_settings():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    if request.method == 'POST':
-        return _seo_reply(SeoController.save_settings(_seo_json_body()))
-    return _seo_reply(SeoController.settings())
-
-
-@app.route('/UNA.md/orasldev/seoforge/api/events', methods=['GET'])
-def seoforge_api_events():
-    denied = _seo_guard()
-    if denied:
-        return denied
-    return _seo_reply(SeoController.events())
 
 
 

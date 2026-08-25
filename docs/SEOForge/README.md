@@ -50,21 +50,22 @@
 ## Установка контура
 
 ```bash
-venv/bin/python scripts/seoforge_deploy_erp.py --dry-run   # посмотреть
-venv/bin/python scripts/seoforge_deploy_erp.py --yes       # установить
+venv/bin/python modules/seoforge/scripts/seoforge_deploy_erp.py --dry-run
+venv/bin/python modules/seoforge/scripts/seoforge_deploy_erp.py --yes
 ```
 
-`deploy_oracle_objects.py` контур **не ставит** и не должен: он работает
-с облачной базой. Файлы `113..116` намеренно исключены из его списка.
+`deploy_oracle_objects.py` контур **не ставит** и вообще о модуле не знает:
+весь DDL лежит в `modules/seoforge/sql/`. Общий код модуль не трогает —
+см. [`docs/CORE_MODULES.md`](../CORE_MODULES.md).
 
 Порядок файлов важен и зафиксирован в установщике:
 
 | Файл | Содержимое |
 |---|---|
-| `sql/113_yseo_tables.sql` | таблицы, последовательности, триггеры |
-| `sql/115_yseo_package.sql` | пакеты `PK_SEO_UTIL`, `PK_SEO_BUDGET` |
-| `sql/114_yseo_views.sql` | вьюшки `VSEO_*` — вызывают `PK_SEO_UTIL.TO_MDL`, потому идут после пакетов |
-| `sql/116_yseo_dict_seed.sql` | справочники, настройки, перекомпиляция триггера |
+| `modules/seoforge/sql/113_yseo_tables.sql` | таблицы, последовательности, триггеры |
+| `modules/seoforge/sql/115_yseo_package.sql` | пакеты `PK_SEO_UTIL`, `PK_SEO_BUDGET` |
+| `modules/seoforge/sql/114_yseo_views.sql` | вьюшки `VSEO_*` — вызывают `PK_SEO_UTIL.TO_MDL`, потому идут после пакетов |
+| `modules/seoforge/sql/116_yseo_dict_seed.sql` | справочники, настройки, перекомпиляция триггера |
 
 Триггер `TRG_YSEO_SPEND_BUDGET` из `113` обращается к пакетам из `115`,
 поэтому при первой установке он создаётся невалидным. Файл `116`
@@ -93,7 +94,7 @@ venv/bin/python -m pytest tests/test_seoforge.py -q
 `smoke.invalid` и требует явного согласия:
 
 ```bash
-venv/bin/python scripts/seoforge_smoke.py --yes
+venv/bin/python modules/seoforge/scripts/seoforge_smoke.py --yes
 ```
 
 ## Режим контроля бюджета

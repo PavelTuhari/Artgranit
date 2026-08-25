@@ -13,7 +13,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SQL_DIR = os.path.join(ROOT, "sql")
+MODULE_DIR = os.path.join(ROOT, "modules", "seoforge")
+SQL_DIR = os.path.join(MODULE_DIR, "sql")
 
 
 def _sql(name):
@@ -198,26 +199,24 @@ def test_erp_installer_keeps_dependency_order():
     # Не по номерам, а по зависимостям: вьюшки VSEO_BUDGET_PLANFACT и
     # VSEO_SITE вызывают PK_SEO_UTIL.TO_MDL, поэтому пакеты (115) обязаны
     # ставиться раньше вьюшек (114) — иначе вьюшки не компилируются.
-    from scripts.seoforge_deploy_erp import FILES
+    from modules.seoforge.scripts.seoforge_deploy_erp import FILES
     assert list(FILES) == ["113_yseo_tables.sql", "115_yseo_package.sql",
                            "114_yseo_views.sql", "116_yseo_dict_seed.sql"]
 
 
-def test_cloud_deploy_does_not_install_the_contour():
-    # Контур перенесён в ERP. Если файлы вернутся в облачный установщик,
-    # ближайший деплой создаст вторую копию схемы, и данные разойдутся.
+def test_shared_deploy_script_is_untouched_by_the_module():
+    # Контур ставится своим установщиком в ERP. Общий скрипт облачной базы
+    # модуль не трогает вовсе — ни файлами, ни комментариями.
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
-    for name in ("113_yseo_tables.sql", "114_yseo_views.sql",
-                 "115_yseo_package.sql", "116_yseo_dict_seed.sql"):
-        assert f'"{name}"' not in src, name
+    assert "yseo" not in src.lower()
+    assert "seoforge" not in src.lower()
 
 
 def test_store_uses_the_erp_transport_only():
     # Thick-режим включается на весь процесс: если хранилище возьмёт
     # DatabaseModel, модуль полезет в облачную базу, где контура больше нет.
-    with open(os.path.join(ROOT, "models", "seo_oracle_store.py"),
-              encoding="utf-8") as fh:
+    with open(os.path.join(MODULE_DIR, "store.py"), encoding="utf-8") as fh:
         src = fh.read()
     assert "Biro26DB" in src
     assert "DatabaseModel" not in src
@@ -243,7 +242,7 @@ import datetime
 
 import pytest
 
-from models.seo_csv import (METRICS_COLUMNS, SPEND_COLUMNS, make_ext_id,
+from modules.seoforge.csv_format import (METRICS_COLUMNS, SPEND_COLUMNS, make_ext_id,
                             parse_metrics_csv, parse_spend_csv, period_of)
 
 
@@ -356,7 +355,7 @@ def test_empty_file_is_an_error_not_an_empty_success():
 
 from unittest.mock import MagicMock, patch
 
-from models import seo_oracle_store as store
+from modules.seoforge import store
 
 
 def _ok(columns=None, data=None, rowcount=1):
@@ -547,7 +546,7 @@ def test_queries_use_bind_variables_only():
 
 # ── Task 7: контроллер ───────────────────────────────────────────────
 
-from controllers.seo_controller import SeoController
+from modules.seoforge.controller import SeoController
 
 
 def test_business_error_becomes_409():
@@ -698,35 +697,53 @@ def test_module_manifest_is_valid_and_trilingual():
     assert manifest["sql_prefix"] == "YSEO_"
 
 
-def test_app_registers_the_page_and_the_api():
+def test_module_leaves_nothing_in_the_shared_app():
+    # Ради этого и делалось ядро: модуль не должен присутствовать в общем
+    # файле ни строкой, иначе каждый новый модуль — конфликт слияния.
     with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
         src = fh.read()
-    assert "'/UNA.md/orasldev/seoforge'" in src
-    assert "/UNA.md/orasldev/seoforge/api/sites" in src
-    assert "SeoController" in src
+    assert "seoforge" not in src.lower()
+    assert "SeoController" not in src
+
+
+def test_module_is_picked_up_by_the_core():
+    from core.module_loader import module_keys
+    assert "seoforge" in module_keys()
+    assert os.path.isfile(os.path.join(MODULE_DIR, "__init__.py"))
+
+    from modules.seoforge import blueprint
+    assert blueprint.name == "seoforge"
+
+
+def test_routes_are_declared_without_the_module_prefix():
+    # Префикс ставит ядро. Если модуль пропишет его сам, он сможет
+    # промахнуться мимо своей области.
+    with open(os.path.join(MODULE_DIR, "routes.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "@blueprint.route" in src
+    assert "/UNA.md/orasldev" not in src.replace(
+        "Адреса здесь записаны БЕЗ префикса `/UNA.md/orasldev/seoforge`", "")
 
 
 def test_every_seoforge_route_is_guarded_by_authentication():
-    # Разбираем app.py деревом, а не строками: обработчик модуля — это
-    # функция seoforge*, и каждая обязана либо сама звать is_authenticated,
-    # либо пройти через общий _seo_guard.
+    # Обработчик модуля — функция с @blueprint.route; каждая обязана либо
+    # сама звать is_authenticated, либо пройти через общий _guard.
     import ast
 
-    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+    with open(os.path.join(MODULE_DIR, "routes.py"), encoding="utf-8") as fh:
         tree = ast.parse(fh.read())
 
     handlers = [node for node in tree.body
                 if isinstance(node, ast.FunctionDef)
-                and node.name.startswith("seoforge")
                 and any(_is_route(dec) for dec in node.decorator_list)]
-    assert handlers, "маршруты модуля не найдены"
+    assert len(handlers) >= 20, f"маршрутов найдено {len(handlers)}"
 
     for node in handlers:
         called = {n.func.attr for n in ast.walk(node)
                   if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
         called |= {n.func.id for n in ast.walk(node)
                    if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-        assert "is_authenticated" in called or "_seo_guard" in called, node.name
+        assert "is_authenticated" in called or "_guard" in called, node.name
 
 
 def _is_route(decorator):
@@ -736,7 +753,7 @@ def _is_route(decorator):
 
 
 def test_template_declares_every_panel():
-    with open(os.path.join(ROOT, "templates", "seoforge.html"), encoding="utf-8") as fh:
+    with open(os.path.join(MODULE_DIR, "templates", "seoforge.html"), encoding="utf-8") as fh:
         html = fh.read()
     for panel in ("portfolio", "sites", "campaigns", "budget", "facts",
                   "roi", "refs"):
@@ -746,7 +763,7 @@ def test_template_declares_every_panel():
 
 def test_template_commit_button_waits_for_a_preview():
     # Загрузка без предпросмотра — прямой путь к мусору в базе.
-    with open(os.path.join(ROOT, "templates", "seoforge.html"), encoding="utf-8") as fh:
+    with open(os.path.join(MODULE_DIR, "templates", "seoforge.html"), encoding="utf-8") as fh:
         html = fh.read()
     assert "importCommitBtn" in html and "disabled" in html
 
@@ -765,7 +782,7 @@ def test_docs_registry_lists_every_document():
 
 
 def test_csv_format_doc_matches_the_parser():
-    from models.seo_csv import METRICS_COLUMNS, SPEND_COLUMNS
+    from modules.seoforge.csv_format import METRICS_COLUMNS, SPEND_COLUMNS
     with open(os.path.join(ROOT, "docs", "SEOForge", "CSV_FORMAT.md"),
               encoding="utf-8") as fh:
         text = fh.read()
@@ -782,7 +799,7 @@ def test_data_model_doc_lists_every_table():
 
 
 def test_smoke_script_covers_every_declared_invariant():
-    with open(os.path.join(ROOT, "scripts", "seoforge_smoke.py"),
+    with open(os.path.join(MODULE_DIR, "scripts", "seoforge_smoke.py"),
               encoding="utf-8") as fh:
         src = fh.read()
     for check in ("check_plan_and_spend", "check_overrun_blocked",
@@ -793,7 +810,7 @@ def test_smoke_script_covers_every_declared_invariant():
 
 def test_smoke_script_requires_explicit_confirmation():
     # Скрипт пишет в базу: случайный запуск не должен ничего создавать.
-    with open(os.path.join(ROOT, "scripts", "seoforge_smoke.py"),
+    with open(os.path.join(MODULE_DIR, "scripts", "seoforge_smoke.py"),
               encoding="utf-8") as fh:
         src = fh.read()
     assert "--yes" in src
@@ -822,7 +839,7 @@ def test_una_interface_doc_records_the_verified_facts():
 def test_erp_config_installer_reserves_a_documented_range():
     # Диапазон DB ID = SYSFID: если он разъедется с документацией,
     # журнал перестанет видеть свои же документы.
-    from scripts.seoforge_erp_config import DBID_FROM, DBID_TO, DOCUMENTS
+    from modules.seoforge.scripts.seoforge_erp_config import DBID_FROM, DBID_TO, DOCUMENTS
     assert (DBID_FROM, DBID_TO) == (60000, 60099)
     for _section, _name, dbid, _src in DOCUMENTS:
         assert DBID_FROM <= dbid <= DBID_TO, dbid
@@ -837,6 +854,6 @@ def test_erp_config_installer_reserves_a_documented_range():
 
 def test_erp_config_documents_are_copies_of_real_documents():
     # Набор свойств документа руками не собрать: копируем работающий.
-    from scripts.seoforge_erp_config import DOCUMENTS
+    from modules.seoforge.scripts.seoforge_erp_config import DOCUMENTS
     for _section, _name, _dbid, src in DOCUMENTS:
         assert src.startswith("2:"), src

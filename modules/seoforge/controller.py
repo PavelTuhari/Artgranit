@@ -22,8 +22,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from models import seo_csv
-from models import seo_oracle_store
+from modules.seoforge import csv_format as seo_csv
+from modules.seoforge import store as seo_oracle_store
 
 Reply = Tuple[Dict[str, Any], int]
 

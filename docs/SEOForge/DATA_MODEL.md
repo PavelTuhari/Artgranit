@@ -126,13 +126,13 @@
 
 | Файл | Ответственность |
 |---|---|
-| `models/seo_csv.py` | чистый разбор CSV: период, `EXT_ID`, валидация. Ни Oracle, ни Flask |
-| `models/seo_oracle_store.py` | SQL через thick-воркер ERP: чтения из `VSEO_*`, записи одним `execute_script` — воркер коммитит скрипт целиком |
-| `controllers/seo_controller.py` | валидация ввода, двухшаговый импорт, перевод ошибок Oracle в HTTP-коды |
-| `app.py` | 22 маршрута под `/UNA.md/orasldev/seoforge` |
-| `scripts/seoforge_deploy_erp.py` | установка контура в ERP с проверкой `USER_ERRORS` |
-| `scripts/seoforge_drop_cloud.py` | снятие контура с облачной БД после переноса |
-| `templates/seoforge.html` | SPA с семью панелями |
+| `modules/seoforge/csv_format.py` | чистый разбор CSV: период, `EXT_ID`, валидация. Ни Oracle, ни Flask |
+| `modules/seoforge/store.py` | SQL через thick-воркер ERP: чтения из `VSEO_*`, записи одним `execute_script` — воркер коммитит скрипт целиком |
+| `modules/seoforge/controller.py` | валидация ввода, двухшаговый импорт, перевод ошибок Oracle в HTTP-коды |
+| `modules/seoforge/routes.py` | 22 маршрута на blueprint, адреса без префикса — его ставит ядро |
+| `modules/seoforge/scripts/seoforge_deploy_erp.py` | установка контура в ERP с проверкой `USER_ERRORS` |
+| `modules/seoforge/scripts/seoforge_drop_cloud.py` | снятие контура с облачной БД после переноса |
+| `modules/seoforge/templates/seoforge.html` | SPA с семью панелями |
 
 Коды ответов: `400` — ошибка ввода, `409` — нарушенный инвариант
 (`ORA-20xxx`, `ORA-00001`), `500` — сбой инфраструктуры. Тексты вроде
