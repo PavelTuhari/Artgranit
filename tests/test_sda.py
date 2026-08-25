@@ -606,3 +606,44 @@ def test_module_manifest_lists_the_console_page():
         manifest = json.load(fh)
     assert "pages" in manifest
     assert "/UNA.md/orasldev/sda-console" in manifest["pages"]
+
+# -- Task 8: dossier --------------------------------------------------
+
+def test_dossier_carries_all_eight_blocks_of_pct_78():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PARTIC_ID", "IDNO", "DENUMIRE", "CONTACT_NUME", "CONTACT_TEL",
+             "CONTACT_EMAIL", "VANDUT_AN_ANT", "ESTIMARE_AN"],
+            [[1, "1003600000000", "Rogob SRL", "Ion Popescu", "+373...",
+              "office@example.md", 412000, 430000]]),
+        _ok(["UNIT_ID", "DENUMIRE", "ADRESA", "SUPRAFATA_MP",
+             "TIP_AMPLASAMENT", "REGIM"],
+            [[1, "Magazin 12", "str. Test 1", 85, "MAGAZIN", "B_EXCEPTIE_APL"]]),
+        _ok(["POINT_ID", "UNIT_ID", "ADRESA", "ORAR", "TIP"],
+            [[1, 1, "str. Test 1", "08-20", "MANUAL"]]),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.registration_dossier(1)
+    assert res["success"] is True
+    d = res["data"]
+    assert d["vandut_an_anterior"] == 412000
+    for block in ("identificare", "contact", "unitati", "punct_preluare",
+                  "modalitate_preluare", "vandut_an_anterior",
+                  "estimare_an_curent", "exceptii"):
+        assert block in d, block
+
+
+def test_dossier_flags_units_that_still_have_no_regime():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PARTIC_ID", "IDNO", "DENUMIRE", "CONTACT_NUME", "CONTACT_TEL",
+             "CONTACT_EMAIL", "VANDUT_AN_ANT", "ESTIMARE_AN"],
+            [[1, "1003", "Rogob SRL", "", "", "", None, None]]),
+        _ok(["UNIT_ID", "DENUMIRE", "ADRESA", "SUPRAFATA_MP",
+             "TIP_AMPLASAMENT", "REGIM"],
+            [[1, "Magazin fara suprafata", "str. X", None, "MAGAZIN", None]]),
+        _ok(["POINT_ID", "UNIT_ID", "ADRESA", "ORAR", "TIP"], []),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.registration_dossier(1)
+    assert res["data"]["incomplet"] == 1

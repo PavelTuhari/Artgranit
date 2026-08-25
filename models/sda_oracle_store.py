@@ -296,3 +296,55 @@ class SDAStore:
             return _fail("Nu exista tarif de depozit pentru aceasta categorie")
         return _done({"ean": pack["ean"], "pack_id": pack["pack_id"],
                       "valoare_lei": float(value)})
+
+    # ── досье регистрации (пункт 78) ────────────────────────────────
+
+    @staticmethod
+    def registration_dossier(partic_id: int) -> Dict[str, Any]:
+        """Восемь блоков уведомления о регистрации у Администратора.
+
+        Блок «unitati» несёт площадь каждой точки: именно он решает,
+        нужен ли сети собственный пункт возврата. Точки без площади
+        считаются отдельно — досье с ними подавать нельзя.
+        """
+        with DatabaseModel() as db:
+            p = db.execute_query(
+                "SELECT PARTIC_ID, IDNO, DENUMIRE, CONTACT_NUME, CONTACT_TEL, "
+                "CONTACT_EMAIL, VANDUT_AN_ANT, ESTIMARE_AN FROM SDA_PARTIC "
+                "WHERE PARTIC_ID = :partic_id",
+                {"partic_id": partic_id})
+            partics = _rows(p)
+            if not partics:
+                return _fail(f"Participantul {partic_id} nu exista")
+
+            u = db.execute_query(
+                "SELECT UNIT_ID, DENUMIRE, ADRESA, SUPRAFATA_MP, "
+                "TIP_AMPLASAMENT, REGIM FROM SDA_UNIT "
+                "WHERE PARTIC_ID = :partic_id ORDER BY DENUMIRE",
+                {"partic_id": partic_id})
+            units = _rows(u)
+
+            r = db.execute_query(
+                "SELECT PT.POINT_ID, PT.UNIT_ID, PT.ADRESA, PT.ORAR, PT.TIP "
+                "FROM SDA_RETURN_POINT PT JOIN SDA_UNIT UN "
+                "ON UN.UNIT_ID = PT.UNIT_ID WHERE UN.PARTIC_ID = :partic_id",
+                {"partic_id": partic_id})
+            points = _rows(r)
+
+        partic = partics[0]
+        incomplet = sum(1 for x in units if not x.get("regim"))
+        metode = sorted({x["tip"] for x in points}) or ["MANUAL"]
+
+        return _done({
+            "identificare": {"idno": partic["idno"], "denumire": partic["denumire"]},
+            "contact": {"nume": partic.get("contact_nume"),
+                        "telefon": partic.get("contact_tel"),
+                        "email": partic.get("contact_email")},
+            "unitati": units,
+            "punct_preluare": points,
+            "modalitate_preluare": metode,
+            "vandut_an_anterior": partic.get("vandut_an_ant"),
+            "estimare_an_curent": partic.get("estimare_an"),
+            "exceptii": [x for x in units if x.get("regim") == "B_EXCEPTIE_APL"],
+            "incomplet": incomplet,
+        })
