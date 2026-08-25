@@ -3347,6 +3347,8 @@ def api_sda_partic_save():
 
 @app.route('/api/sda/units', methods=['GET'])
 def api_sda_units():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
     return jsonify(SDAController.get_units(request.args))
 
 
