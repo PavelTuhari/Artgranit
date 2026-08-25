@@ -20,12 +20,18 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="description" content="{{ app_name }} — magazin online de birotică și papetărie în Moldova: catalog live, coș, achitare online (MAIB/MIA), rate și credit.">
-  <link rel="canonical" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
-  <link rel="alternate" hreflang="ro" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
-  <link rel="alternate" hreflang="ru" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}?lang=ru">
+  {# RO: adresele absolute folosesc DOAR domeniul public (canonical_url / public_base).
+       Cu request.host, pe officeplus.una.md — care e doar o redirectare de reclama —
+       canonical trimitea spre acel domeniu, deci motoarele vedeau doua site-uri
+       identice si nu indexau niciunul ca principal. #}
+  <link rel="canonical" href="{{ canonical_url }}">
+  <link rel="alternate" hreflang="ro" href="{{ canonical_url }}">
+  <link rel="alternate" hreflang="ru" href="{{ canonical_url }}{{ '&' if '?' in canonical_url else '?' }}lang=ru">
+  <link rel="alternate" hreflang="x-default" href="{{ canonical_url }}">
+  <meta property="og:url" content="{{ canonical_url }}">
   <meta property="og:title" content="{{ self.title() }}">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://{{ request.host }}/static/biro26/landing/assets/logo.png">
+  <meta property="og:image" content="{{ public_base }}/static/biro26/landing/assets/logo.png">
   <link rel="icon" href="/static/biro26/landing/assets/logo.png">
   <link rel="stylesheet" href="/static/biro26/landing/styles.css">
   <link rel="stylesheet" href="/static/biro26/site-responsive.css">

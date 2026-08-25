@@ -8175,6 +8175,58 @@ def _biro26_site_ctx():
             'pay_logos': pay_logos,
             'ga_id': ga_id}
 
+# RO: adresa CANONICA a paginii curente. Doua lucruri de rezolvat:
+#   1. domeniul — mereu cel PUBLIC (officeplus.md). Pe officeplus.una.md, care e
+#      doar o redirectare de reclama, canonical trebuie sa trimita tot spre
+#      domeniul public; altfel motoarele vad doua site-uri identice si nu
+#      indexeaza niciunul ca principal.
+#   2. calea — instantele fara pretty-URL ruleaza sub /UNA.md/orasldev/biro26-*
+#      cu nume de rute interne (/cart, /product/7). Canonical trebuie sa arate
+#      calea PUBLICA (/cos, /produs/7), altfel trimite spre adrese inexistente.
+# EN: canonical URL of the current page: always the PUBLIC domain, and the PUBLIC
+#     path (prefix instances use internal route names that do not exist publicly).
+_BIRO26_PRETTY = {'': '/', '/catalog': '/catalog', '/cart': '/cos',
+                  '/account': '/cont', '/favorites': '/favorite',
+                  '/compare': '/compara', '/brands': '/branduri',
+                  '/payment-result': '/payment-result'}
+
+def _biro26_public_path():
+    import re as _re
+    path = request.path or '/'
+    # RO: scoatem prefixul instantelor de dezvoltare / EN: strip the dev prefix
+    path = _re.sub(r'^/UNA\.md/orasldev/biro26-[^/]+', '', path) or '/'
+    if path in _BIRO26_PRETTY:
+        return _BIRO26_PRETTY[path]
+    m = _re.match(r'^/product/(\d+)$', path)
+    if m:
+        return '/produs/' + m.group(1)
+    m = _re.match(r'^/page/(.+)$', path)
+    if m:
+        return '/' + m.group(1)
+    return path
+
+def _biro26_canonical():
+    """RO: canonical complet, cu filtrele care definesc o pagina REALA de catalog.
+    EN: full canonical; keeps only the params that define a real catalog page."""
+    from urllib.parse import urlencode
+    base = 'https://' + Config.BIRO26_PUBLIC_HOST + _biro26_public_path()
+    # RO: doar grupa/categorie fac o pagina distincta si indexabila. Restul
+    #     (pagina, brand, pret, cautare) ar produce duplicate — le lasam afara,
+    #     ca fiecare categorie sa aiba UN canonical stabil.
+    # EN: only grupa/categorie define a distinct indexable page.
+    keep = [(k, request.args.get(k)) for k in ('grupa', 'categorie')
+            if request.args.get(k)]
+    return base + ('?' + urlencode(keep) if keep else '')
+
+@app.context_processor
+def _biro26_seo_ctx():
+    """RO: pus la dispozitia TUTUROR sabloanelor, ca nicio pagina sa nu mai emita
+    din greseala adrese absolute cu gazda ceruta de browser.
+    EN: available to ALL templates so no page emits absolute URLs with the
+    request host again."""
+    return {'canonical_url': _biro26_canonical(),
+            'public_base': 'https://' + Config.BIRO26_PUBLIC_HOST}
+
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
 #     (ex. nufarul); navigarea e tradusa client-side de siteURL() din site.js.

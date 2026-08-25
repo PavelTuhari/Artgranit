@@ -242,7 +242,11 @@ if (SITE_PREFIX) document.addEventListener('click', function (e) {
   const h = a.getAttribute('href'), m = siteURL(h);
   if (m !== h) a.setAttribute('href', m);
 }, true);
-function openProd(cod) { location.href = siteURL('/produs/' + cod); }
+/* RO: adresa fisei produsului — folosita in href-ul cardurilor, ca sa existe
+   legaturi reale in pagina. openProd ramine pentru click-urile programatice.
+   EN: product page URL for real hrefs on cards; openProd stays for JS clicks. */
+function prodURL(cod) { return siteURL('/produs/' + cod); }
+function openProd(cod) { location.href = prodURL(cod); }
 function uniq(rows) { const seen = new Set(); return (rows || []).filter(p => {
   const k = p.master_cod || p.denumirea; if (seen.has(k)) return false;
   seen.add(k); return true; }); }
@@ -323,13 +327,22 @@ function cardHtml(p) {
     '<button class="wish' + (favHas(p.cod) ? ' on' : '') +
       '" type="button" aria-label="Favorite" onclick="favToggle(this,' + p.cod + ')">' +
       (favHas(p.cod) ? '❤' : '♡') + '</button>' +
+    // RO: poza si denumirea sint LEGATURI reale spre fisa produsului. Inainte
+    //     erau doar onclick, deci in pagina nu exista nicio adresa: motoarele de
+    //     cautare nu aveau ce urma si niciun produs nu ajungea in index.
+    //     Navigarea ramine aceeasi — click-ul urmeaza href-ul.
+    // EN: image and name are REAL links to the product page; they used to be
+    //     onclick-only, so crawlers found no URL and no product got indexed.
     (p.image
-      ? '<div class="product-img live" style="background-image:url(\'' + esc(p.image) +
-        '\')" onclick="openProd(' + p.cod + ')"></div>'
-      : '<div class="product-img p-markers" onclick="openProd(' + p.cod + ')"></div>') +
+      ? '<a class="product-img live" href="' + esc(prodURL(p.cod)) +
+        '" style="background-image:url(\'' + esc(p.image) + '\')" aria-label="' +
+        esc(pname(p)) + '"></a>'
+      : '<a class="product-img p-markers" href="' + esc(prodURL(p.cod)) +
+        '" aria-label="' + esc(pname(p)) + '"></a>') +
     '<span class="stock ' + (inStock ? 'in' : 'order') + '">' +
       tr(inStock ? 'inStock' : 'onOrder') + '</span>' +
-    '<h3 class="product-name" onclick="openProd(' + p.cod + ')">' + esc(pname(p)) + '</h3>' +
+    '<h3 class="product-name"><a href="' + esc(prodURL(p.cod)) + '">' +
+      esc(pname(p)) + '</a></h3>' +
     // RO: articolul (CODVECHI) + codul de bare direct pe card — clientii le
     //     cauta ca sa compare oferta. EN: article + barcode on the card.
     '<div class="product-code">' + esc(p.codvechi || p.cod) +

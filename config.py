@@ -147,6 +147,15 @@ class Config:
     #     ex. https://officeplus.md/wp-json; gol = functie oprita.
     # EN: WP REST API base for the nav "info:<slug>" pages; empty = off.
     BIRO26_SHOP_WP_API = os.environ.get('BIRO26_SHOP_WP_API', '')
+    # RO: domeniul PUBLIC al magazinului. Toate adresele absolute pe care le emite
+    #     site-ul (canonical, hreflang, og:url, sitemap) trebuie sa arate DOAR spre el.
+    #     officeplus.una.md e o simpla redirectare de reclama pe nginx si nu are voie
+    #     sa apara nicaieri in interiorul site-ului: altfel motoarele de cautare vad
+    #     doua domenii cu acelasi continut si nu indexeaza niciunul ca principal.
+    # EN: the shop's PUBLIC domain. Every absolute URL the site emits (canonical,
+    #     hreflang, og:url, sitemap) must point here only; officeplus.una.md is just
+    #     an ad redirect and must never appear inside the site.
+    BIRO26_PUBLIC_HOST = os.environ.get('BIRO26_PUBLIC_HOST', 'officeplus.md')
     # RO: plati online in magazin — MAIB e-commerce + MIA instant payments.
     #     SECRETELE stau DOAR aici (.env), editate din pagina de admin
     #     (ca SMTP); ID-urile nesecrete stau in YBIRO_SETTINGS (PAY_*).

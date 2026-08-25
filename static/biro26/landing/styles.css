@@ -738,7 +738,21 @@ img {
   border-radius: 10px;
   background: #f6f6f6 center/cover no-repeat;
   margin-bottom: 4px;
+  /* RO: poza si denumirea au devenit LEGATURI reale (<a>) ca sa existe adrese
+     in pagina pentru motoarele de cautare. Regulile de mai jos pastreaza exact
+     aspectul de dinainte, cind erau <div>/<h3> simple.
+     EN: image and name are now real <a> links (for crawlers); these rules keep
+     the previous look. */
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
 }
+
+.product-name a {
+  color: inherit;
+  text-decoration: none;
+}
+.product-name a:hover { text-decoration: underline; }
 
 .product-img.p-markers {
   background-image: linear-gradient(180deg, #fff 0%, #f3f3f3 100%);

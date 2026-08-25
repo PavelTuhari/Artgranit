@@ -194,15 +194,30 @@ function renderCrumbs() {
   const l = curLang();
   let h = '<a href="' + siteURL('/') + '">' + tr('home') + '</a> › ';
   if (!F.grupa) { box.innerHTML = h + '<span>' + tr('catalog') + '</span>'; return; }
-  h += '<a href="javascript:void(0)" onclick="resetF()">' + tr('catalog') + '</a> › ';
+  h += '<a href="' + catURL() + '" onclick="resetF();return false">' + tr('catalog') + '</a> › ';
   const node = TREE.find(t => t.grupa === F.grupa) || {};
   const gl = (l === 'ru' && node.grupa_ru) ? node.grupa_ru : F.grupa;
   if (!F.categorie) { box.innerHTML = h + '<span>' + esc(gl) + '</span>'; return; }
-  h += '<a href="javascript:void(0)" onclick="pickGrupa(\'' +
-       esc(F.grupa).replace(/'/g, '&#39;') + '\')">' + esc(gl) + '</a> › ';
+  h += '<a href="' + esc(catURL(F.grupa)) + '" onclick="pickGrupa(\'' +
+       esc(F.grupa).replace(/'/g, '&#39;') + '\');return false">' + esc(gl) + '</a> › ';
   const cn = TREE.find(t => t.grupa === F.grupa && t.categorie === F.categorie) || {};
   const cl = (l === 'ru' && cn.cat_ru) ? cn.cat_ru : F.categorie;
   box.innerHTML = h + '<span>' + esc(cl) + '</span>';
+}
+
+/* RO: adresa REALA a unei grupe/categorii — exact cea pe care o scrie deja
+   history.replaceState la filtrare. Legaturile din arbore si din firimituri
+   trebuie sa o poarte in href: fara ea motoarele de cautare vad
+   javascript:void(0), adica NICIO adresa, si nu exista pagina de categorie
+   pe care sa o indexeze (166 din 194 legaturi erau goale).
+   Click-ul ramine SPA — onclick filtreaza si intoarce false.
+   EN: the REAL URL of a group/category — the same one replaceState already
+   writes. Crawlers need it in href; the click stays SPA. */
+function catURL(grupa, categorie) {
+  const p = new URLSearchParams();
+  if (grupa) p.set('grupa', grupa);
+  if (categorie) p.set('categorie', categorie);
+  return siteURL('/catalog' + (p.toString() ? '?' + p : ''));
 }
 
 function renderSide() {
@@ -231,8 +246,8 @@ function renderSide() {
     //     (toggleGrp o scotea din OPEN, iar filtrul o redeschidea imediat).
     const isOpen = OPEN.has(g.grupa);
     let h = '<div class="grp-row' + (isOpen ? ' open' : '') + '">' +
-      '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
-      '" onclick="pickGrupa(\'' + gq + '\')">' +
+      '<a href="' + esc(catURL(g.grupa)) + '" class="' + (F.grupa === g.grupa ? 'on' : '') +
+      '" onclick="pickGrupa(\'' + gq + '\');return false">' +
       esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>' +
       (g.cats.length ? '<span class="grp-arrow" onclick="toggleGrp(\'' + gq +
         '\')">▶</span>' : '') + '</div>';
@@ -241,10 +256,10 @@ function renderSide() {
       h += g.cats.sort((a, b) =>
         clbl(a).localeCompare(clbl(b), l === 'ru' ? 'ru' : 'ro')).map(c => {
         const cl = clbl(c);
-        return '<a href="javascript:void(0)" class="cat ' +
+        return '<a href="' + esc(catURL(g.grupa, c.categorie)) + '" class="cat ' +
           (F.categorie === c.categorie ? 'on' : '') +
           '" onclick="pickCat(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\',\'' +
-          esc(c.categorie).replace(/'/g, '&#39;') + '\')">' + esc(cl) +
+          esc(c.categorie).replace(/'/g, '&#39;') + '\');return false">' + esc(cl) +
           ' <span style="opacity:.55">(' + (c.cnt || 0) + ')</span></a>';
       }).join('');
     }
