@@ -3330,6 +3330,8 @@ def _sda_user():
 
 @app.route('/api/sda/partic', methods=['GET'])
 def api_sda_partic():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
     return jsonify(SDAController.get_partic(request.args))
 
 
