@@ -143,6 +143,8 @@ def pick_value(lines, categorie, metoda=None, reutilizabil=None):
             return False
         if line.get("metoda") is not None and metoda is None:
             return False
+        if line.get("reutilizabil") is not None and reutilizabil is None:
+            return False
         return True
 
     for cat in (categorie, "*"):
