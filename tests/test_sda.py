@@ -1402,6 +1402,7 @@ def test_app_redirects_a_non_public_doc_to_login_when_anonymous():
     # 'presentation' is public and 'docs_index' lists only metadata; a
     # non-public individual document is what actually exercises the
     # url_for('login') redirect at modules/sda/routes.py's doc() guard.
+    from modules.sda.routes import _sda_docs
     docs = _sda_docs()
     non_public = next((d for d in docs if not d["public"]), None)
     assert non_public is not None, "expected at least one non-public SDA doc to test the guard"
