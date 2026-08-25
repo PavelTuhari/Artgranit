@@ -5,5 +5,10 @@
   "url": "/UNA.md/orasldev/sda",
   "docs": "docs/SDA",
   "sql_prefix": "SDA_",
-  "descr": "Регистр упаковки, сеть и режимы точек возврата, депозит на кассе, талоны, сдача администратору, взаиморасчёты и отчётность"
+  "descr": "Регистр упаковки, сеть и режимы точек возврата, депозит на кассе, талоны, сдача администратору, взаиморасчёты и отчётность",
+  "pages": {
+    "/UNA.md/orasldev/sda": {"ru": "Документация", "ro": "Documentație", "en": "Documentation"},
+    "/UNA.md/orasldev/sda-console": {"ru": "Консоль модуля", "ro": "Consola modulului", "en": "Module console"},
+    "/UNA.md/orasldev/sda/presentation": {"ru": "Досье для клиента", "ro": "Dosar de prezentare", "en": "Client dossier"}
+  }
 }
