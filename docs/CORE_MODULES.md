@@ -76,7 +76,7 @@ app.extensions["module_loader"].as_dict()
 Модуль без `__init__.py` ядро пропускает молча: у него есть только манифест
 меню, а страницы живут в `app.py` по старому образцу. Так сейчас устроены
 `aei`, `agro`, `biro26`, `colass`, `credit`, `decor`, `digi`, `nufarul`,
-`planograms`, `sda`, `servouts26`, `tbcontrol` — они продолжают работать
+`planograms`, `servouts26`, `tbcontrol` — они продолжают работать
 без единой правки.
 
 Переносить их можно по одному, когда до них дойдут руки: ядро не требует
