@@ -36,6 +36,10 @@ FILES = (
     "115_yseo_package.sql",
     "114_yseo_views.sql",
     "116_yseo_dict_seed.sql",
+    # Документы маркетинга в архитектуре UNA: master/detail под TMDB_DOCS.
+    # Ставится последним: ссылается на YSEO_SITE, YSEO_CAMPAIGN, YSEO_DICT
+    # и YSEO_PLATFORM из предыдущих файлов.
+    "117_tmdb_yseo_docs.sql",
 )
 
 # Объект уже существует — это не ошибка при повторной установке.

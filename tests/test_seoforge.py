@@ -201,7 +201,9 @@ def test_erp_installer_keeps_dependency_order():
     # ставиться раньше вьюшек (114) — иначе вьюшки не компилируются.
     from modules.seoforge.scripts.seoforge_deploy_erp import FILES
     assert list(FILES) == ["113_yseo_tables.sql", "115_yseo_package.sql",
-                           "114_yseo_views.sql", "116_yseo_dict_seed.sql"]
+                           "114_yseo_views.sql", "116_yseo_dict_seed.sql",
+                           # документы ссылаются на справочники контура
+                           "117_tmdb_yseo_docs.sql"]
 
 
 def test_shared_deploy_script_is_untouched_by_the_module():

@@ -547,3 +547,31 @@ def test_write_routes_are_guarded_too():
         names = {n.func.id for n in ast.walk(node)
                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
         assert "_guard" in names, node.name
+
+
+def test_own_document_types_read_lines_through_their_business_view():
+    # Строки лежат в общем TMDB_CST3A — там их ждёт родной клиент.
+    # VMDB_YSEO1D даёт им бизнес-имена и отбирает только свои документы.
+    from modules.biro26web.store import line_source
+    for sysfid in (60001, 60002):
+        assert line_source(sysfid=sysfid)["source"] == "VMDB_YSEO1D"
+
+
+def test_registry_documents_how_the_line_view_is_discovered():
+    # Витрина строк не угадывается: она записана в SmartQuery грида
+    # документа в конфигурации. Эта подсказка должна остаться в коде.
+    with open(os.path.join(MODULE_DIR, "store.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "SmartQuery" in src and "tpf0" in src
+
+
+def test_document_development_guide_keeps_the_verified_facts():
+    # Руководство заменяет догадки проверенными фактами. Если из него
+    # пропадут имена объектов, следующий разработчик снова пойдёт гадать.
+    path = os.path.join(ROOT, "docs", "UNA", "DOCUMENT_DEVELOPMENT.md")
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    for fact in ("ID_TMDB_DOCS.NEXTVAL", "TMDB_CST3A", "VMDB_CST3A",
+                 "ID_TMDB_CM", "SmartQuery", ":fRegistru:grCST3a",
+                 "DB ID", "SYSFID", "setDoc_GFC", "A$LOB", "SDBG"):
+        assert fact in text, fact

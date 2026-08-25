@@ -42,7 +42,30 @@ from models.biro26_db import Biro26DB
 # (тип документа), потом DOCNAME (семейство). Каждый источник сам приводит
 # свои колонки к общему виду: код, наименование, единица, количество,
 # цена, сумма.
+# Как узнать витрину строк для нового типа: у узла-документа в
+# конфигурации лежит LOB типа 0 (Grid) с именем вида
+# `:fRegistru:gr<...>`. Это поток Delphi формата SDBG, и в блоке
+# SmartQuery написан прямой запрос строк, например
+# `SELECT ... FROM VMDB_CST3A WHERE NRDOC = :COD ORDER BY NRDOC1`.
+# То есть источник строк не угадывается, а читается из конфигурации —
+# декодировать грид умеет uniconf/tpf0.py. Реестр ниже заполняется по
+# этому признаку, а не наугад.
 _LINE_BY_SYSFID = {
+    # Собственные документы маркетинга. Строки лежат в общем TMDB_CST3A —
+    # там же, где их ждёт родной клиент, — а VMDB_YSEO1D даёт им
+    # бизнес-имена и отбирает только свои документы.
+    60001: {
+        "source": "VMDB_YSEO1D",
+        "sql": "SELECT l.SC CODE, l.CLCSCT NAME, l.CLCUMT UNIT, "
+               "l.CANT QTY, l.PRET PRICE, l.SUMA_TOTAL AMOUNT "
+               "FROM VMDB_YSEO1D l WHERE l.NRDOC = :c ORDER BY l.NRDOC1",
+    },
+    60002: {
+        "source": "VMDB_YSEO1D",
+        "sql": "SELECT l.SC CODE, l.CLCSCT NAME, l.CLCUMT UNIT, "
+               "l.CANT QTY, l.PRET PRICE, l.SUMA_TOTAL AMOUNT "
+               "FROM VMDB_YSEO1D l WHERE l.NRDOC = :c ORDER BY l.NRDOC1",
+    },
     # «Регистрация товаров» — черновик прайса из импорта BIRO26.
     49398: {
         "source": "TMDB_EDL_PLDRAFTD",
