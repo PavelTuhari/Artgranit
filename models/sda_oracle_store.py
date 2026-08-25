@@ -208,16 +208,25 @@ class SDAStore:
         with DatabaseModel() as db:
             r = db.execute_query(sql, params)
             if not r.get("success"):
-                return _fail(r.get("message") or "Eroare la salvarea unitatii")
+                message = r.get("message") or "Eroare la salvarea unitatii"
+                # FK-ul e adevăratul garant, dar restul modulului traduce
+                # fiecare constrângere într-o frază — nu lăsăm un ORA brut
+                # în banner-ul operatorului.
+                if "ORA-02291" in message:
+                    message = "Participantul indicat nu exista"
+                return _fail(message)
             if unit_id is not None and not r.get("rowcount"):
                 return _fail(f"Unitatea {unit_id} nu mai exista")
-            db.execute_query(
+            jr = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('UNIT_SAVE', 'SDA_UNIT', "
                 ":entitate_id, :utilizator, :detalii)",
                 {"entitate_id": unit_id,
                  "utilizator": username,
-                 "detalii": f"{payload.get('denumire')} -> {regim or 'FARA REGIM'}"})
+                 "detalii": (f"{payload.get('denumire')} -> "
+                             f"{regim or 'FARA REGIM'}")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
             db.connection.commit()
         return _done({"regim": regim, "regim_motiv": motiv})
 
