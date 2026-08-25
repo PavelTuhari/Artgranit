@@ -161,6 +161,58 @@ def test_deploy_script_installs_the_sda_ddl():
     assert "117_sda_tables.sql" in FILES
 
 
+def test_module_installer_only_imports_functions_that_exist_on_the_shared_script():
+    # sda_deploy.py imports these four private names from the shared
+    # installer instead of duplicating SQL-parsing logic (see the module's
+    # own docstring). If the shared script ever renames/drops one of them,
+    # the import breaks loudly at parse time here rather than only at
+    # `sda_deploy.py --dry-run` runtime.
+    import deploy_oracle_objects as shared
+    for name in ("_sql_blocks", "_is_plsql_block", "_split_ddl_dml",
+                 "_is_comment_only"):
+        assert hasattr(shared, name), name
+
+
+def test_ddl_splits_into_one_isolated_block_per_trigger():
+    # Regression for the missing '/' before each CREATE OR REPLACE TRIGGER:
+    # without it, the shared splitter (deploy_oracle_objects._sql_blocks)
+    # glues each trigger to the surrounding indexes/tables/sequences into
+    # one blob that _is_plsql_block treats as a single PL/SQL statement,
+    # and cursor.execute() on that blob is rejected by python-oracledb.
+    import deploy_oracle_objects as shared
+
+    text = _sql("117_sda_tables.sql")
+    blocks = shared._sql_blocks(text)
+
+    plsql_blocks = 0
+    for block in blocks:
+        if shared._is_comment_only(block):
+            continue
+        if shared._is_plsql_block(block):
+            plsql_blocks += 1
+            continue
+        # Non-PL/SQL block: every individual statement produced by
+        # splitting on ';' must be a single statement on its own — none
+        # of them should still contain an embedded, unsplit second
+        # "CREATE ..." (that was the symptom of the missing '/': DDL and
+        # the following trigger's body ending up concatenated).
+        for stmt in shared._split_ddl_dml(block):
+            stmt = stmt.strip()
+            if not stmt or shared._is_comment_only(stmt):
+                continue
+            creates = len(re.findall(r"(?mi)^\s*(--.*\n)*CREATE\s", "\n" + stmt))
+            assert creates <= 1, (
+                "non-PL/SQL statement still glues together more than one "
+                f"CREATE: {stmt[:120]!r}")
+
+    trigger_count = len(re.findall(r"(?i)CREATE OR REPLACE TRIGGER", text))
+    assert trigger_count == len(EXPECTED_TABLES), (
+        "expected one BI trigger per table declared in the DDL")
+    assert plsql_blocks == trigger_count, (
+        f"expected {trigger_count} isolated PL/SQL blocks (one per "
+        f"trigger), got {plsql_blocks}")
+
+
 # -- Task 2: pure rules ------------------------------------------------
 
 from modules.sda import rules as sda_rules  # noqa: E402
