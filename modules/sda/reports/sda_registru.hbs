@@ -1,0 +1,57 @@
+<html><head><meta charset="utf-8"><style>
+  @page { size: A4; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9pt; color: #14181f; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2mm; }
+  .meta { color: #5a6472; font-size: 8.5pt; margin-bottom: 4mm; }
+  .sumar { border: 1px solid #d6dbe3; border-radius: 3px; padding: 3mm 4mm; margin-bottom: 5mm; }
+  .sumar h2 { font-size: 11pt; margin: 0 0 2mm; }
+  .sumar table { width: 100%; }
+  .sumar td { border: 0; padding: 1mm 0; }
+  .sumar td.n { text-align: right; width: 18mm; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #d6dbe3; padding: 1.1mm 1.5mm; vertical-align: top; text-align: left; }
+  th { background: #f4f6f9; font-size: 8pt; }
+  td.r { text-align: right; }
+  td.c { text-align: center; }
+  tr { page-break-inside: avoid; }
+</style></head><body>
+
+<h1>{{titlu}}</h1>
+<div class="meta">Registrul ambalajelor supuse sistemului de depozit · raport generat la {{data_raport}}</div>
+
+<div class="sumar">
+  <h2>Sumar pe material</h2>
+  <table>
+    {{#each materiale}}
+    <tr><td>{{label}}</td><td class="n">{{n}}</td></tr>
+    {{/each}}
+    <tr><td><strong>Total ambalaje</strong></td><td class="n">{{total}}</td></tr>
+  </table>
+</div>
+
+<table>
+  <thead><tr>
+    <th style="width:22mm">EAN</th><th>Denumire</th><th style="width:28mm">Producător</th>
+    <th style="width:16mm">Material</th><th style="width:18mm">Culoare</th>
+    <th style="width:13mm">Barieră O₂</th><th style="width:16mm">Reutilizabil</th>
+    <th style="width:14mm">Volum, l</th><th style="width:16mm">Greutate, g</th>
+    <th style="width:16mm">Cat. tarifară</th><th style="width:16mm">Cat. gestiune</th>
+  </tr></thead>
+  <tbody>
+  {{#each rows}}
+    <tr>
+      <td>{{ean}}</td><td>{{denumire}}</td><td>{{producator}}</td>
+      <td>{{material_label}}</td><td>{{culoare}}</td>
+      <td class="c">{{bariera_o2}}</td><td class="c">{{reutilizabil}}</td>
+      <td class="r">{{volum_text}}</td><td class="r">{{greutate_text}}</td>
+      <td class="c">{{cat_admin}}</td><td class="c">{{cat_gest}}</td>
+    </tr>
+  {{/each}}
+  </tbody>
+</table>
+
+{{#unless rows}}
+<p>Registrul nu conține nicio înregistrare.</p>
+{{/unless}}
+
+</body></html>

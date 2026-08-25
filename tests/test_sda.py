@@ -1715,3 +1715,335 @@ def test_docs_template_carries_no_leftovers_from_the_module_it_was_copied_from()
     html = _template("sda_docs.html")
     for leftover in ("выкладкой", "планограм", "Планограм", "planograms"):
         assert leftover not in html, leftover
+
+
+# -- Task 10: rapoarte PDF / Excel -------------------------------------
+#
+# Sablonul Handlebars pleaca INLINE in corpul cererii catre serviciul de
+# randare — modulul nu are voie sa lase nimic in reports/templates/, care
+# apartine serviciului comun (docs/CORE_MODULES.md). Testele de mai jos
+# verifica exact asta, plus faptul ca un serviciu cazut da un refuz JSON,
+# nu un fisier stricat.
+
+def _units_for_report():
+    return [
+        {"unit_id": 1, "cod_erp": "A-1", "denumire": "Magazin Centru",
+         "adresa": "str. Ștefan cel Mare 1", "localitate": "Chișinău",
+         "suprafata_mp": 460, "tip_amplasament": "MAGAZIN",
+         "regim": "A_PUNCT_PROPRIU", "regim_motiv": "Suprafața depășește pragul"},
+        {"unit_id": 2, "cod_erp": "A-2", "denumire": "Chioșc Gară",
+         "adresa": "bd. Gării 2", "localitate": "Bălți",
+         "suprafata_mp": 20, "tip_amplasament": "CHIOSC",
+         "regim": "B_EXCEPTIE_APL", "regim_motiv": "Sub prag"},
+        {"unit_id": 3, "cod_erp": "A-3", "denumire": "Depozit nou",
+         "adresa": "str. Nouă 3", "localitate": "Orhei",
+         "suprafata_mp": None, "tip_amplasament": "MAGAZIN",
+         "regim": None, "regim_motiv": "Suprafața nu este cunoscută"},
+    ]
+
+
+def _packs_for_report():
+    return [
+        {"pack_id": 1, "ean": "4840000000001", "denumire": "Apă plată 0,5",
+         "producator": "Izvor", "material": "PLASTIC", "culoare": "TRANSPARENT",
+         "bariera_o2": "N", "reutilizabil": "N", "volum_l": 0.5,
+         "greutate_g": 18, "cat_admin": "a", "cat_gest": "b"},
+        {"pack_id": 2, "ean": "4840000000002", "denumire": "Bere sticlă 0,33",
+         "producator": "Berărie", "material": "STICLA", "culoare": "MARO",
+         "bariera_o2": "N", "reutilizabil": "D", "volum_l": 0.33,
+         "greutate_g": 250, "cat_admin": "g", "cat_gest": "e"},
+    ]
+
+
+def _dossier_for_report(poate=False):
+    return {
+        "identificare": {"idno": "1003600000000", "denumire": "Rețeaua SRL"},
+        "contact": {"nume": "Ion Popescu", "telefon": "+37322000000",
+                    "email": "ion@example.md"},
+        "unitati": _units_for_report(),
+        "punct_preluare": [{"point_id": 5, "unit_id": 1,
+                            "adresa": "str. Ștefan cel Mare 1",
+                            "orar": "08:00–20:00", "tip": "MANUAL"}],
+        "modalitate_preluare": ["MANUAL"],
+        "vandut_an_anterior": 120000,
+        "estimare_an_curent": 150000,
+        "exceptii": [_units_for_report()[1]],
+        "incomplet": 0 if poate else 1,
+        "poate_fi_depus": poate,
+    }
+
+
+def _sheet_rows(payload):
+    import io as _io
+
+    import openpyxl
+    wb = openpyxl.load_workbook(_io.BytesIO(payload))
+    ws = wb.worksheets[0]
+    return ws, [[c.value for c in row] for row in ws.iter_rows()]
+
+
+def test_conformitate_xlsx_is_a_real_workbook_with_one_row_per_unit():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": True, "data": _units_for_report(),
+                                    "message": ""}):
+        res = SDAReport.render_xlsx("conformitate", {})
+    assert res["success"] is True
+    ws, rows = _sheet_rows(res["xlsx"])
+    assert rows[0] == SDAReport.XLSX_HEADERS["conformitate"]
+    assert len(rows) == 1 + len(_units_for_report())
+    assert {r[1] for r in rows[1:]} == {"Magazin Centru", "Chioșc Gară",
+                                        "Depozit nou"}
+
+
+def test_conformitate_xlsx_puts_units_without_a_regime_first():
+    # Единицы без режима — это остаток работы перед подачей досье, и
+    # прятать их в конце списка значило бы прятать смысл документа.
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": True, "data": _units_for_report(),
+                                    "message": ""}):
+        res = SDAReport.render_xlsx("conformitate", {})
+    _, rows = _sheet_rows(res["xlsx"])
+    assert rows[1][6] == "FĂRĂ REGIM"
+
+
+def test_registru_xlsx_is_a_real_workbook_with_one_row_per_pack():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "list_packs",
+                      return_value={"success": True, "data": _packs_for_report(),
+                                    "message": ""}):
+        res = SDAReport.render_xlsx("registru", {})
+    assert res["success"] is True
+    _, rows = _sheet_rows(res["xlsx"])
+    assert rows[0] == SDAReport.XLSX_HEADERS["registru"]
+    assert len(rows) == 1 + len(_packs_for_report())
+    assert rows[1][0] in ("4840000000001", "4840000000002")
+
+
+def test_registru_summary_counts_per_material():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "list_packs",
+                      return_value={"success": True, "data": _packs_for_report(),
+                                    "message": ""}):
+        data = SDAReport.registru_data({})["data"]
+    counts = {m["material"]: m["n"] for m in data["materiale"]}
+    assert counts == {"PLASTIC": 1, "STICLA": 1}
+
+
+def test_dosar_xlsx_states_the_negative_verdict_in_the_first_data_row():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "registration_dossier",
+                      return_value={"success": True, "message": "",
+                                    "data": _dossier_for_report(poate=False)}):
+        res = SDAReport.render_xlsx("dosar", {"partic_id": 7})
+    assert res["success"] is True
+    _, rows = _sheet_rows(res["xlsx"])
+    assert rows[0] == SDAReport.XLSX_HEADERS["dosar"]
+    assert rows[1] == ["Verdict", "Poate fi depus", "NU"]
+
+
+def test_dosar_data_carries_the_eight_blocks_in_regulation_order():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "registration_dossier",
+                      return_value={"success": True, "message": "",
+                                    "data": _dossier_for_report(poate=True)}):
+        data = SDAReport.dosar_data({"partic_id": 7})["data"]
+    for block in ("identificare", "contact", "unitati", "punct_preluare",
+                  "modalitate_preluare", "vandut_an_anterior",
+                  "estimare_an_curent", "exceptii"):
+        assert block in data, block
+    assert data["poate_fi_depus"] is True
+    assert data["incomplet"] == 0
+
+
+def test_dosar_requires_a_participant_id():
+    from modules.sda.report import SDAReport
+    res = SDAReport.render_xlsx("dosar", {})
+    assert res["success"] is False
+    assert "partic_id" in res["message"]
+
+
+def test_pdf_posts_the_template_string_itself_not_a_file_reference():
+    from modules.sda.report import REPORT_KINDS, SDAReport, _read
+    from modules.sda.store import SDAStore
+
+    class _Resp:
+        status_code = 200
+        content = b"%PDF-1.4 fake"
+
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": True, "data": _units_for_report(),
+                                    "message": ""}), \
+            patch("modules.sda.report.requests.post",
+                  return_value=_Resp()) as post:
+        res = SDAReport.render_pdf("conformitate", {})
+    assert res["success"] is True
+    assert res["pdf"] == b"%PDF-1.4 fake"
+
+    url = post.call_args[0][0]
+    assert url.endswith("/api/report")
+    payload = post.call_args[1]["json"]
+    tpl = payload["template"]
+    assert tpl["engine"] == "handlebars"
+    assert tpl["recipe"] == "chrome-pdf"
+    # Содержимое шаблона едет целиком: сервису рендера не нужно ничего
+    # хранить у себя, значит модуль ничего не кладёт в общий reports/.
+    assert tpl["content"] == _read(REPORT_KINDS["conformitate"])
+    assert "Sumar pe regimuri" in tpl["content"]
+    assert REPORT_KINDS["conformitate"] not in str(payload)
+    assert payload["data"]["total"] == 3
+
+
+def test_pdf_sends_the_module_helpers_inline_too():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+
+    class _Resp:
+        status_code = 200
+        content = b"%PDF"
+
+    with patch.object(SDAStore, "list_packs",
+                      return_value={"success": True, "data": _packs_for_report(),
+                                    "message": ""}), \
+            patch("modules.sda.report.requests.post",
+                  return_value=_Resp()) as post:
+        SDAReport.render_pdf("registru", {})
+    helpers = post.call_args[1]["json"]["template"]["helpers"]
+    assert "function nvl" in helpers
+
+
+def test_pdf_returns_a_refusal_when_the_render_sidecar_is_unreachable():
+    import requests as _requests
+
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": True, "data": _units_for_report(),
+                                    "message": ""}), \
+            patch("modules.sda.report.requests.post",
+                  side_effect=_requests.ConnectionError("refused")):
+        res = SDAReport.render_pdf("conformitate", {})
+    assert res["success"] is False
+    assert res["message"]
+    assert "pdf" not in res
+
+
+def test_pdf_reports_a_non_200_from_the_sidecar_instead_of_a_broken_file():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+
+    class _Resp:
+        status_code = 500
+        content = b"boom"
+
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": True, "data": _units_for_report(),
+                                    "message": ""}), \
+            patch("modules.sda.report.requests.post", return_value=_Resp()):
+        res = SDAReport.render_pdf("conformitate", {})
+    assert res["success"] is False
+    assert "500" in res["message"]
+    assert "pdf" not in res
+
+
+def test_report_rejects_an_unknown_kind_before_touching_the_store():
+    from modules.sda.report import SDAReport
+    assert SDAReport.render_pdf("inventar", {})["success"] is False
+    assert SDAReport.render_xlsx("inventar", {})["success"] is False
+
+
+def test_store_failure_is_passed_through_instead_of_an_empty_report():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": False, "data": None,
+                                    "message": "ORA-00942"}):
+        res = SDAReport.render_xlsx("conformitate", {})
+    assert res["success"] is False
+    assert "ORA-00942" in res["message"]
+
+
+def test_app_requires_authentication_on_the_report_pdf_route():
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/report/conformitate.pdf")
+    assert resp.status_code == 401
+    assert resp.get_json()["success"] is False
+
+
+def test_app_requires_authentication_on_the_report_xlsx_route():
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/report/registru.xlsx")
+    assert resp.status_code == 401
+    assert resp.get_json()["success"] is False
+
+
+def test_report_routes_send_a_named_attachment():
+    from modules.sda.report import SDAReport
+    from modules.sda.store import SDAStore
+    client = _sda_test_client()
+    with client.session_transaction() as sess:
+        sess["authenticated"] = True
+        sess["username"] = "tester"
+    with patch.object(SDAStore, "list_packs",
+                      return_value={"success": True, "data": _packs_for_report(),
+                                    "message": ""}):
+        resp = client.get("/UNA.md/orasldev/sda/api/report/registru.xlsx")
+    assert resp.status_code == 200
+    assert resp.mimetype == ("application/vnd.openxmlformats-officedocument"
+                             ".spreadsheetml.sheet")
+    disp = resp.headers["Content-Disposition"]
+    assert "attachment" in disp and "registru" in disp
+    assert SDAReport.filename("registru", "xlsx") in disp
+
+
+def test_report_route_returns_json_when_the_pdf_sidecar_is_down():
+    import requests as _requests
+
+    from modules.sda.store import SDAStore
+    client = _sda_test_client()
+    with client.session_transaction() as sess:
+        sess["authenticated"] = True
+        sess["username"] = "tester"
+    with patch.object(SDAStore, "list_units",
+                      return_value={"success": True, "data": _units_for_report(),
+                                    "message": ""}), \
+            patch("modules.sda.report.requests.post",
+                  side_effect=_requests.ConnectionError("refused")):
+        resp = client.get("/UNA.md/orasldev/sda/api/report/conformitate.pdf")
+    assert resp.status_code == 400
+    assert resp.mimetype == "application/json"
+    assert resp.get_json()["success"] is False
+
+
+def test_module_report_templates_are_not_placed_in_the_shared_sidecar_store():
+    shared = os.path.join(ROOT, "reports", "templates")
+    if os.path.isdir(shared):
+        for name in os.listdir(shared):
+            assert not name.lower().startswith("sda"), name
+
+
+def test_console_builds_report_urls_from_the_api_base():
+    html = _template("sda.html")
+    assert "function reportUrl" in html
+    section = html[html.index("function reportUrl"):]
+    section = section[:section.index("\n}\n")]
+    assert "SDA_API" in section
+    assert "/UNA.md/" not in section
+
+
+def test_console_offers_pdf_and_excel_on_both_panels_and_per_participant():
+    html = _template("sda.html")
+    for call in ("downloadReport('conformitate', 'pdf')",
+                 "downloadReport('conformitate', 'xlsx')",
+                 "downloadReport('registru', 'pdf')",
+                 "downloadReport('registru', 'xlsx')"):
+        assert call in html, call
+    assert "downloadReport('dosar', 'pdf'" in html
+    assert "downloadReport('dosar', 'xlsx'" in html

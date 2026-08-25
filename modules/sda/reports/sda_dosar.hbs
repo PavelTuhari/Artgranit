@@ -1,0 +1,109 @@
+<html><head><meta charset="utf-8"><style>
+  @page { size: A4; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10pt; color: #14181f; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2mm; }
+  .meta { color: #5a6472; font-size: 8.5pt; margin-bottom: 4mm; }
+  .verdict { border-radius: 3px; padding: 3mm 4mm; margin-bottom: 5mm; font-weight: 700; }
+  .verdict.nu { border: 1.5px solid #b00020; background: #fff4f5; color: #b00020; }
+  .verdict.da { border: 1.5px solid #1f7a41; background: #f2fbf5; color: #1f7a41; }
+  .verdict .detaliu { font-weight: 400; font-size: 9pt; margin-top: 1.5mm; }
+  .bloc { margin-bottom: 4.5mm; page-break-inside: avoid; }
+  .bloc h2 { font-size: 11pt; margin: 0 0 1.5mm; padding: 1.5mm 2mm;
+             background: #eef1f6; border-left: 3px solid #4a6fa5; }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th, td { border: 1px solid #d6dbe3; padding: 1.2mm 1.6mm; text-align: left; vertical-align: top; }
+  th { background: #f4f6f9; font-size: 8.5pt; }
+  td.r { text-align: right; }
+  dl { margin: 0; }
+  dl div { display: flex; gap: 3mm; padding: 0.8mm 0; }
+  dt { width: 42mm; color: #5a6472; }
+  dd { margin: 0; font-weight: 600; }
+  .alarma { color: #b00020; font-weight: 700; }
+</style></head><body>
+
+<h1>{{titlu}}</h1>
+<div class="meta">Notificare de înregistrare la Administratorul sistemului de depozit ·
+  raport generat la {{data_raport}}</div>
+
+<div class="verdict {{#if poate_fi_depus}}da{{else}}nu{{/if}}">
+  {{verdict}}
+  <div class="detaliu">Unități cu date incomplete: {{incomplet}}</div>
+</div>
+
+<div class="bloc">
+  <h2>1. Identificarea participantului</h2>
+  <dl>
+    <div><dt>IDNO</dt><dd>{{identificare.idno}}</dd></div>
+    <div><dt>Denumire</dt><dd>{{identificare.denumire}}</dd></div>
+  </dl>
+</div>
+
+<div class="bloc">
+  <h2>2. Datele de contact</h2>
+  <dl>
+    <div><dt>Persoană de contact</dt><dd>{{contact.nume}}</dd></div>
+    <div><dt>Telefon</dt><dd>{{contact.telefon}}</dd></div>
+    <div><dt>E-mail</dt><dd>{{contact.email}}</dd></div>
+  </dl>
+</div>
+
+<div class="bloc">
+  <h2>3. Unitățile comerciale</h2>
+  <table>
+    <thead><tr><th>Denumire</th><th>Adresă</th><th style="width:18mm">Suprafață, m²</th>
+      <th style="width:28mm">Tip amplasament</th><th style="width:32mm">Regim</th></tr></thead>
+    <tbody>
+    {{#each unitati}}
+      <tr><td>{{denumire}}</td><td>{{adresa}}</td><td class="r">{{suprafata_text}}</td>
+        <td>{{tip_amplasament}}</td>
+        <td>{{#if regim}}{{regim}}{{else}}<span class="alarma">FĂRĂ REGIM</span>{{/if}}</td></tr>
+    {{/each}}
+    {{#unless unitati}}<tr><td colspan="5">Nicio unitate declarată.</td></tr>{{/unless}}
+    </tbody>
+  </table>
+</div>
+
+<div class="bloc">
+  <h2>4. Punctele de preluare</h2>
+  <table>
+    <thead><tr><th>Adresă</th><th style="width:34mm">Tip</th><th style="width:40mm">Orar</th></tr></thead>
+    <tbody>
+    {{#each punct_preluare}}
+      <tr><td>{{adresa}}</td><td>{{tip}}</td><td>{{orar}}</td></tr>
+    {{/each}}
+    {{#unless punct_preluare}}
+      <tr><td colspan="3" class="alarma">Niciun punct de preluare activ declarat.</td></tr>
+    {{/unless}}
+    </tbody>
+  </table>
+</div>
+
+<div class="bloc">
+  <h2>5. Modalitatea de preluare</h2>
+  <p>{{modalitate_text}}</p>
+</div>
+
+<div class="bloc">
+  <h2>6. Ambalaje vândute în anul anterior</h2>
+  <p>{{nvl vandut_an_anterior "nedeclarat"}}</p>
+</div>
+
+<div class="bloc">
+  <h2>7. Estimarea pentru anul curent</h2>
+  <p>{{nvl estimare_an_curent "nedeclarată"}}</p>
+</div>
+
+<div class="bloc">
+  <h2>8. Unitățile în regim de excepție</h2>
+  <table>
+    <thead><tr><th>Denumire</th><th>Adresă</th></tr></thead>
+    <tbody>
+    {{#each exceptii}}
+      <tr><td>{{denumire}}</td><td>{{adresa}}</td></tr>
+    {{/each}}
+    {{#unless exceptii}}<tr><td colspan="2">Nicio unitate în regim de excepție.</td></tr>{{/unless}}
+    </tbody>
+  </table>
+</div>
+
+</body></html>

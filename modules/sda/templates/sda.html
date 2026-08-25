@@ -120,7 +120,13 @@ tr:hover td { background: #f8faff; }
             <h1>Harta de conformitate</h1>
             <div class="crumbs">SDA / Harta de conformitate</div>
             <div class="card">
-                <h2>Regimuri pe rețea</h2>
+                <div class="toolbar">
+                    <h2 style="margin:0">Regimuri pe rețea</h2>
+                    <div class="report-actions" data-report="conformitate">
+                        <button class="btn btn-secondary btn-sm" onclick="downloadReport('conformitate', 'pdf')">PDF</button>
+                        <button class="btn btn-secondary btn-sm" onclick="downloadReport('conformitate', 'xlsx')">Excel</button>
+                    </div>
+                </div>
                 <div id="harta-bars"></div>
                 <div id="harta-unknown"></div>
             </div>
@@ -203,6 +209,10 @@ tr:hover td { background: #f8faff; }
                         <input id="packSearch" placeholder="Caută după EAN sau denumire" oninput="loadPacks()"
                             style="padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit">
                         <button class="btn btn-secondary btn-sm" onclick="openPackForm()">+ Ambalaj nou</button>
+                        <span class="report-actions" data-report="registru">
+                            <button class="btn btn-secondary btn-sm" onclick="downloadReport('registru', 'pdf')">PDF</button>
+                            <button class="btn btn-secondary btn-sm" onclick="downloadReport('registru', 'xlsx')">Excel</button>
+                        </span>
                     </div>
                 </div>
                 <table>
@@ -325,6 +335,17 @@ tr:hover td { background: #f8faff; }
 // приходит в data-api-base на <body> — модуль не должен знать, под каким
 // префиксом его смонтировало ядро (см. docs/CORE_MODULES.md).
 const SDA_API = document.body.dataset.apiBase.replace(/\/units$/, '');
+
+// Adresele rapoartelor se construiesc din ACEEASI baza data-api-base: modulul
+// nu are voie sa stie sub ce prefix l-a montat nucleul (docs/CORE_MODULES.md).
+function reportUrl(kind, ext, params) {
+    const qs = new URLSearchParams(params || {}).toString();
+    return SDA_API + '/report/' + kind + '.' + ext + (qs ? '?' + qs : '');
+}
+
+function downloadReport(kind, ext, params) {
+    window.location.href = reportUrl(kind, ext, params);
+}
 
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
@@ -563,6 +584,8 @@ async function loadPartic() {
             <td>${esc(p.stare)}</td>
             <td class="row-actions">
                 <button class="btn btn-secondary btn-sm" onclick='openParticForm(${JSON.stringify(p).replace(/'/g, "&#39;")})'>Editează</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadReport('dosar', 'pdf', { partic_id: ${p.partic_id} })">Dosar PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadReport('dosar', 'xlsx', { partic_id: ${p.partic_id} })">Dosar Excel</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="6" style="color:var(--muted)">Niciun participant înregistrat</td></tr>';

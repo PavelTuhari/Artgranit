@@ -1,0 +1,77 @@
+<html><head><meta charset="utf-8"><style>
+  @page { size: A4; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 9.5pt; color: #14181f; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 2mm; }
+  .meta { color: #5a6472; font-size: 8.5pt; margin-bottom: 4mm; }
+  .sumar { border: 1px solid #d6dbe3; border-radius: 3px; padding: 3mm 4mm; margin-bottom: 5mm; }
+  .sumar h2 { font-size: 11pt; margin: 0 0 2mm; }
+  .sumar table { width: 100%; border: 0; }
+  .sumar td { border: 0; padding: 1mm 0; }
+  .sumar td.n { text-align: right; width: 18mm; font-weight: 700; }
+  .alarma { color: #b00020; font-weight: 700; }
+  .alarma-box { border: 1.5px solid #b00020; background: #fff4f5; border-radius: 3px;
+                padding: 3mm 4mm; margin-bottom: 5mm; color: #b00020; }
+  .grup { margin-bottom: 5mm; page-break-inside: auto; }
+  .grup h2 { font-size: 11pt; margin: 0 0 1.5mm; padding: 1.5mm 2mm;
+             background: #eef1f6; border-left: 3px solid #4a6fa5; }
+  .grup.fara h2 { background: #fff4f5; border-left-color: #b00020; color: #b00020; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #d6dbe3; padding: 1.2mm 1.6mm; vertical-align: top; text-align: left; }
+  th { background: #f4f6f9; font-size: 8.5pt; }
+  td.r { text-align: right; }
+  tr { page-break-inside: avoid; }
+  .motiv { color: #5a6472; font-size: 8.5pt; }
+</style></head><body>
+
+<h1>{{titlu}}</h1>
+<div class="meta">Sistemul de depozit pentru ambalaje · raport generat la {{data_raport}}</div>
+
+{{#if fara_regim}}
+<div class="alarma-box">
+  <strong>{{fara_regim}}</strong> unități nu au regim atribuit. Până la completarea lor,
+  dosarul de înregistrare nu poate fi depus la Administrator.
+</div>
+{{/if}}
+
+<div class="sumar">
+  <h2>Sumar pe regimuri</h2>
+  <table>
+    {{#each sumar}}
+    <tr><td>{{label}}</td><td class="n">{{n}}</td></tr>
+    {{/each}}
+    <tr><td class="alarma">Unități fără regim atribuit</td><td class="n alarma">{{fara_regim}}</td></tr>
+    <tr><td class="alarma">Unități fără suprafață declarată</td><td class="n alarma">{{fara_suprafata}}</td></tr>
+    <tr><td><strong>Total unități</strong></td><td class="n">{{total}}</td></tr>
+  </table>
+</div>
+
+{{#each grupuri}}
+<div class="grup{{#if fara_regim}} fara{{/if}}">
+  <h2>{{label}} — {{n}} unități</h2>
+  <table>
+    <thead><tr>
+      <th style="width:16mm">Cod ERP</th><th>Denumire</th><th>Adresă</th>
+      <th style="width:24mm">Localitate</th><th style="width:16mm">Suprafață, m²</th>
+      <th style="width:24mm">Tip amplasament</th><th style="width:20mm">Regim</th>
+      <th style="width:44mm">Motivul regimului</th>
+    </tr></thead>
+    <tbody>
+    {{#each units}}
+      <tr>
+        <td>{{cod_erp}}</td><td>{{denumire}}</td><td>{{adresa}}</td>
+        <td>{{localitate}}</td><td class="r">{{suprafata_text}}</td>
+        <td>{{tip_amplasament}}</td>
+        <td>{{#if regim}}{{regim}}{{else}}<span class="alarma">FĂRĂ REGIM</span>{{/if}}</td>
+        <td class="motiv">{{regim_motiv}}</td>
+      </tr>
+    {{/each}}
+    </tbody>
+  </table>
+</div>
+{{/each}}
+
+{{#unless grupuri}}
+<p>Nu există unități înregistrate pentru criteriile alese.</p>
+{{/unless}}
+
+</body></html>

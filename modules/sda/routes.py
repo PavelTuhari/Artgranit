@@ -192,3 +192,39 @@ def api_dossier():
     if not AuthController.is_authenticated():
         return jsonify({"success": False, "message": "Требуется авторизация"}), 401
     return jsonify(SDAController.get_dossier(request.args))
+
+
+# ── рапорты (PDF / Excel) ─────────────────────────────────────────────
+#
+# Требуют входа так же, как остальные маршруты сети: документ содержит
+# адреса и площади конкретного оператора рынка. Недоступный сервис
+# рендера возвращает штатный JSON-отказ модуля, а не битый файл.
+
+from modules.sda.report import SDAReport, XLSX_MIME  # noqa: E402
+
+
+def _attachment(payload: bytes, mimetype: str, filename: str) -> Response:
+    return Response(payload, mimetype=mimetype, headers={
+        "Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@blueprint.route('/api/report/<kind>.pdf', methods=['GET'])
+def api_report_pdf(kind):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    res = SDAReport.render_pdf(kind, request.args.to_dict())
+    if not res.get("success"):
+        return jsonify(res), 400
+    return _attachment(res["pdf"], 'application/pdf',
+                       SDAReport.filename(kind, 'pdf'))
+
+
+@blueprint.route('/api/report/<kind>.xlsx', methods=['GET'])
+def api_report_xlsx(kind):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    res = SDAReport.render_xlsx(kind, request.args.to_dict())
+    if not res.get("success"):
+        return jsonify(res), 400
+    return _attachment(res["xlsx"], XLSX_MIME,
+                       SDAReport.filename(kind, 'xlsx'))
