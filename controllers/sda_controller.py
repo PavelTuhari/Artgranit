@@ -104,3 +104,15 @@ class SDAController:
         if not ean:
             return _fail("Parametrul ean este obligatoriu")
         return SDAStore.deposit_for_ean(ean)
+
+    # ── досье ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def get_dossier(args) -> Dict[str, Any]:
+        try:
+            partic_id = _parse_partic_id(args.get("partic_id"))
+        except ValueError as exc:
+            return _fail(str(exc))
+        if not partic_id:
+            return _fail("Parametrul partic_id este obligatoriu")
+        return SDAStore.registration_dossier(partic_id)
