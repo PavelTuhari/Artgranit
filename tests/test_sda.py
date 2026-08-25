@@ -190,6 +190,16 @@ def test_ddl_splits_into_one_isolated_block_per_trigger():
             continue
         if shared._is_plsql_block(block):
             plsql_blocks += 1
+            # An isolated trigger block must contain exactly its own
+            # CREATE OR REPLACE TRIGGER and nothing else. Before the fix
+            # (no '/' ahead of the trigger), this block absorbed the
+            # preceding CREATE TABLE/SEQUENCE/INDEX statements too — the
+            # whole blob still "looked" PL/SQL (it has BEGIN/END), but
+            # cursor.execute() on it is invalid because it isn't only PL/SQL.
+            creates = re.findall(r"(?im)^\s*CREATE\s+(\S+)", block)
+            assert creates == ["OR"], (
+                "PL/SQL block is not isolated to its own trigger — it "
+                f"also contains: {block[:200]!r}")
             continue
         # Non-PL/SQL block: every individual statement produced by
         # splitting on ';' must be a single statement on its own — none
