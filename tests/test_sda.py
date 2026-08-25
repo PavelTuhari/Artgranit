@@ -552,11 +552,19 @@ def test_deposit_endpoint_requires_an_ean():
 
 
 def test_app_registers_every_sda_api_route():
-    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
-        src = fh.read()
-    for route in ("/api/sda/units", "/api/sda/units/reclassify",
-                  "/api/sda/compliance", "/api/sda/packs", "/api/sda/deposit"):
-        assert f"'{route}'" in src or f'"{route}"' in src, route
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    load_module(app, "sda")
+    rules = {r.rule for r in app.url_map.iter_rules()}
+    for route in ("/UNA.md/orasldev/sda/api/units",
+                  "/UNA.md/orasldev/sda/api/units/reclassify",
+                  "/UNA.md/orasldev/sda/api/compliance",
+                  "/UNA.md/orasldev/sda/api/packs",
+                  "/UNA.md/orasldev/sda/api/deposit"):
+        assert route in rules, route
 
 
 def test_get_units_rejects_a_non_numeric_partic_id():
