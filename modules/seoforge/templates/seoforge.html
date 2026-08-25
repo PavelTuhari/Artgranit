@@ -122,6 +122,7 @@
     <div class="nav-item" data-panel="budget" onclick="showPanel('budget')">Бюджет</div>
     <div class="nav-item" data-panel="facts" onclick="showPanel('facts')">Факты</div>
     <div class="nav-item" data-panel="roi" onclick="showPanel('roi')">ROI</div>
+    <div class="nav-item" data-panel="strategy" onclick="showPanel('strategy')">Стратегия</div>
     <div class="nav-item" data-panel="refs" onclick="showPanel('refs')">Справочники</div>
     <div class="spacer"></div>
     <a href="/UNA.md/orasldev" class="back-link">&#8592; Портал</a>
@@ -359,6 +360,30 @@
         </div>
     </div>
 
+    <!-- ===== Стратегия ===== -->
+    <div class="panel" id="panel-strategy">
+        <h2 class="section-title">Стратегия и плейбуки</h2>
+        <div class="section-note">
+            Документы, которыми ведётся работа: стратегия продвижения, планы,
+            инструкции для AI-сессий. Хранятся в контуре с версиями.
+            <b>Опубликованная версия неизменяема</b> — правка создаёт новую,
+            поэтому через полгода видно не только что решили, но и почему тогда.
+            Отпечаток текста показывает, совпадает ли документ в контуре
+            с файлом в репозитории.
+        </div>
+        <div class="toolbar">
+            <label style="display:flex;align-items:center;gap:5px;margin:0;">
+                <input type="checkbox" id="pbAll" onchange="loadPlaybooks()" style="width:auto"> все версии
+            </label>
+            <button onclick="loadPlaybooks()">&#8635; Обновить</button>
+        </div>
+        <div class="card">
+            <div class="card-header">Документы</div>
+            <div class="card-body" style="padding:0" id="playbooksTable"><div class="empty-state">Загрузка…</div></div>
+        </div>
+        <div id="playbookBody"></div>
+    </div>
+
     <!-- ===== Справочники ===== -->
     <div class="panel" id="panel-refs">
         <h2 class="section-title">Справочники и настройки</h2>
@@ -500,7 +525,8 @@ function showPanel(name) {
     });
     const loaders = {
         portfolio: loadPortfolio, sites: loadSites, campaigns: loadCampaigns,
-        budget: loadPlanfact, facts: loadFacts, roi: null, refs: loadRefs
+        budget: loadPlanfact, facts: loadFacts, roi: null,
+        strategy: loadPlaybooks, refs: loadRefs
     };
     if (loaders[name]) loaders[name]();
 }
@@ -1027,6 +1053,55 @@ async function loadRoi() {
                 + '</td><td class="num ' + (Number(r.roi) < 0 ? 'over' : 'good') + '">' + num(r.roi, 2)
                 + '</td><td class="num">' + num(r.cpc) + '</td><td class="num">' + num(r.cpa)
                 + '</td><td class="num">' + num(r.ctr_pct, 2) + '</td></tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+// ── стратегия и плейбуки ─────────────────────────────────────────────
+
+async function loadPlaybooks() {
+    const box = document.getElementById('playbooksTable');
+    const all = document.getElementById('pbAll').checked ? '?all=1' : '';
+    document.getElementById('playbookBody').innerHTML = '';
+    try {
+        const rows = await api('/playbooks' + all);
+        box.innerHTML = table(
+            [{title: 'Код'}, {title: 'Версия', num: true}, {title: 'Вид'},
+             {title: 'Заголовок'}, {title: 'Сайт'}, {title: 'Период'},
+             {title: 'Статус'}, {title: 'Знаков', num: true}, {title: 'Отпечаток'}],
+            rows,
+            r => '<tr class="clickable" onclick="openPlaybook(' + r.cod + ')">'
+                + '<td>' + esc(r.code) + '</td>'
+                + '<td class="num">' + esc(r.version) + '</td>'
+                + '<td>' + esc(r.kind) + '</td>'
+                + '<td>' + esc(r.title) + '</td>'
+                + '<td>' + esc(r.clcsitet || '') + '</td>'
+                + '<td>' + esc(r.period || '') + '</td>'
+                + '<td>' + (r.status === 'ACTIVE'
+                    ? '<span class="badge gfc">действует</span>'
+                    : '<span class="badge">' + esc(r.status) + '</span>') + '</td>'
+                + '<td class="num">' + esc(r.body_len) + '</td>'
+                + '<td><span class="muted">' + esc(String(r.body_sha || '').slice(0, 12)) + '…</span></td>'
+                + '</tr>');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function openPlaybook(cod) {
+    const box = document.getElementById('playbookBody');
+    box.innerHTML = '<div class="empty-state">Загрузка документа…</div>';
+    try {
+        const d = await api('/playbooks/' + cod);
+        box.innerHTML = '<div class="card"><div class="card-header">'
+            + esc(d.title) + ' — версия ' + esc(d.version)
+            + '<div class="spacer"></div>'
+            + '<span class="badge">' + esc(d.status) + '</span>'
+            + '</div><div class="card-body">'
+            + '<pre style="white-space:pre-wrap;font-size:12px;line-height:1.55;'
+            + 'font-family:ui-monospace,Menlo,monospace;color:#c8c8dd">'
+            + esc(d.body) + '</pre></div></div>';
     } catch (e) {
         box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
     }

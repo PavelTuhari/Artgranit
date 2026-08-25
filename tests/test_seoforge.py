@@ -203,7 +203,9 @@ def test_erp_installer_keeps_dependency_order():
     assert list(FILES) == ["113_yseo_tables.sql", "115_yseo_package.sql",
                            "114_yseo_views.sql", "116_yseo_dict_seed.sql",
                            # документы ссылаются на справочники контура
-                           "117_tmdb_yseo_docs.sql"]
+                           "117_tmdb_yseo_docs.sql",
+                           # стратегии ссылаются на YSEO_SITE
+                           "118_yseo_playbook.sql"]
 
 
 def test_shared_deploy_script_is_untouched_by_the_module():
@@ -758,7 +760,7 @@ def test_template_declares_every_panel():
     with open(os.path.join(MODULE_DIR, "templates", "seoforge.html"), encoding="utf-8") as fh:
         html = fh.read()
     for panel in ("portfolio", "sites", "campaigns", "budget", "facts",
-                  "roi", "refs"):
+                  "roi", "strategy", "refs"):
         assert f'id="panel-{panel}"' in html, panel
         assert f'data-panel="{panel}"' in html, panel
 
@@ -859,3 +861,88 @@ def test_erp_config_documents_are_copies_of_real_documents():
     from modules.seoforge.scripts.seoforge_erp_config import DOCUMENTS
     for _section, _name, _dbid, src in DOCUMENTS:
         assert src.startswith("2:"), src
+
+
+# ── стратегии и плейбуки ─────────────────────────────────────────────
+
+from modules.seoforge import playbooks as pb
+
+
+def test_body_sha_ignores_line_ending_style():
+    # Один и тот же документ с разными переносами — один документ.
+    assert pb.body_sha("a\nb\n") == pb.body_sha("a\r\nb\r\n")
+    assert pb.body_sha(" a\nb ") == pb.body_sha("a\nb")
+    assert pb.body_sha("a\nb") != pb.body_sha("a\nc")
+
+
+def test_charset_guard_finds_characters_the_database_cannot_store():
+    # Проверено на боевой базе: знак >= (U+2265) Oracle заменил на «?»
+    # молча — длина та же, содержимое другое. Ловим до записи.
+    bad = pb.unsupported_chars("порог ≥ 60%\nвторая строка\nстрелка →",
+                               codec="cp1251")
+    chars = [c for c, _ln in bad]
+    assert "≥" in chars and "→" in chars
+    assert dict(bad)["≥"] == 1, "должна указываться строка, где искать"
+
+
+def test_charset_guard_passes_cyrillic_and_plain_latin():
+    assert pb.unsupported_chars("Стратегия, rechizite scolare — «тест»",
+                                codec="cp1251") == []
+
+
+def test_romanian_diacritics_do_not_fit_the_accounting_charset():
+    # Важное ограничение, а не придирка: CP1251 не содержит румынских
+    # диакритических знаков. Поэтому и в самой ERP группы называются
+    # «Rechizite scolare», без знаков. Документы контура живут по тому же
+    # правилу — иначе текст молча испортится.
+    bad = dict(pb.unsupported_chars("rechizite școlare și hârtie",
+                                    codec="cp1251"))
+    assert "ș" in bad and "ț" not in bad  # ț в этой строке нет
+    assert pb.unsupported_chars("rechizite scolare si hirtie",
+                                codec="cp1251") == []
+
+
+def test_charset_guard_is_silent_on_utf8_databases():
+    assert pb.unsupported_chars("порог ≥ 60% →", codec="utf-8") == []
+
+
+def test_save_refuses_text_the_database_would_corrupt(monkeypatch):
+    monkeypatch.setattr(pb, "db_codec", lambda: "cp1251")
+    db = MagicMock()
+    with patch.object(pb, "Biro26DB", return_value=db):
+        res = pb.save_playbook("c", "t", "порог ≥ 60%")
+    assert res["success"] is False
+    assert "U+2265" in res["message"]
+    db.execute_script.assert_not_called()
+
+
+def test_save_requires_the_essentials():
+    for kwargs in ({"code": "", "title": "t", "body": "b"},
+                   {"code": "c", "title": "", "body": "b"},
+                   {"code": "c", "title": "t", "body": "   "}):
+        res = pb.save_playbook(kwargs["code"], kwargs["title"], kwargs["body"])
+        assert res["success"] is False
+
+
+def test_unknown_kind_and_status_are_refused():
+    assert pb.save_playbook("c", "t", "b", kind="POEM")["success"] is False
+    assert pb.save_playbook("c", "t", "b", status="MAYBE")["success"] is False
+
+
+def test_strategy_document_fits_the_database_charset():
+    # Документ лежит и в репозитории, и в контуре. Если в репозитории
+    # появится знак вне кодировки базы, они разойдутся молча.
+    path = os.path.join(ROOT, "docs", "SEOForge", "STRATEGY_OFFICEPLUS.md")
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    assert pb.unsupported_chars(text, codec="cp1251") == []
+
+
+def test_strategy_document_is_grounded_in_real_data():
+    # Стратегия писалась по выгрузке из ERP, а не по общим соображениям.
+    path = os.path.join(ROOT, "docs", "SEOForge", "STRATEGY_OFFICEPLUS.md")
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    for fact in ("165 164", "Carti educationale", "39 805", "Biblion",
+                 "YSEO_PLAYBOOK", "officeplus-strategy-2026"):
+        assert fact in text, fact

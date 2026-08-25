@@ -40,6 +40,8 @@ FILES = (
     # Ставится последним: ссылается на YSEO_SITE, YSEO_CAMPAIGN, YSEO_DICT
     # и YSEO_PLATFORM из предыдущих файлов.
     "117_tmdb_yseo_docs.sql",
+    # Стратегии и плейбуки: Markdown в контуре, с версиями.
+    "118_yseo_playbook.sql",
 )
 
 # Объект уже существует — это не ошибка при повторной установке.
