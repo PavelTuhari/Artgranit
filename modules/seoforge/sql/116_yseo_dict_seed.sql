@@ -98,6 +98,12 @@ USING (
            'RO: Valuta de baza a rapoartelor / EN: Base reporting currency' AS DESCR FROM DUAL
     UNION ALL SELECT 'BUDGET_OVERRUN_MODE', 'WARN',
            'RO: BLOCK opreste cheltuiala peste plan, WARN o marcheaza / EN: BLOCK stops over-plan spend, WARN flags it' FROM DUAL
+    UNION ALL SELECT 'WORK_PERIOD_BEG', '2026-01-01',
+           'RO: Inceputul perioadei de lucru pentru sesiune, YYYY-MM-DD / EN: Session working period start, YYYY-MM-DD' FROM DUAL
+    UNION ALL SELECT 'UNA_USERID', '33',
+           'RO: Utilizatorul UNA sub care web-ul creeaza documente / EN: The UNA user the web creates documents as' FROM DUAL
+    UNION ALL SELECT 'WORK_PERIOD_END', '2026-12-31',
+           'RO: Sfirsitul perioadei de lucru pentru sesiune, YYYY-MM-DD / EN: Session working period end, YYYY-MM-DD' FROM DUAL
 ) s
 ON (t.PARAM_CODE = s.PARAM_CODE)
 WHEN NOT MATCHED THEN

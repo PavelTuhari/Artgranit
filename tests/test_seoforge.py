@@ -7,6 +7,7 @@
 DatabaseModel, как в tests/test_biro26.py.
 """
 import os
+import pathlib
 import re
 import sys
 
@@ -946,3 +947,57 @@ def test_strategy_document_is_grounded_in_real_data():
     for fact in ("165 164", "Carti educationale", "39 805", "Biblion",
                  "YSEO_PLAYBOOK", "officeplus-strategy-2026"):
         assert fact in text, fact
+
+
+# --- даты не зависят от формата сессии --------------------------------------
+#
+# Ошибка формата даты возникает там, где строку отдают Oracle и надеются,
+# что сервер разберёт её сам — по NLS_DATE_FORMAT. Формат сессии может быть
+# любым, поэтому такая надежда рано или поздно подводит. Правило простое:
+# каждая дата приходит в базу либо через явный TO_DATE с форматом, либо
+# в сессии, формат которой мы сами и выставили. Тест сторожит первую половину
+# правила во всех наших SQL-текстах, а не только в тех, о которых помнили.
+
+_MODULE_DIRS = ("modules/seoforge", "modules/biro26web")
+
+
+def _sql_sources():
+    root = pathlib.Path(__file__).resolve().parent.parent
+    for rel in _MODULE_DIRS:
+        for path in (root / rel).rglob("*"):
+            if path.suffix in (".py", ".sql") and "__pycache__" not in path.parts:
+                yield path
+
+
+def test_every_to_date_declares_its_format():
+    bare = []
+    for path in _sql_sources():
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"TO_DATE\s*\(([^)]*)\)", text, re.IGNORECASE):
+            if "'" not in match.group(1).split(",", 1)[-1] or "," not in match.group(1):
+                bare.append(f"{path.name}: TO_DATE({match.group(1)})")
+    assert not bare, "TO_DATE без явного формата — дата будет разобрана по " \
+                     "NLS_DATE_FORMAT сессии:\n" + "\n".join(bare)
+
+
+def test_date_columns_are_never_fed_a_bare_bind():
+    """Строку в колонку DATE кладут только через TO_DATE.
+
+    Прямой bind строки Oracle тоже примет — и разберёт по формату сессии.
+    Так и появляется ошибка, которую невозможно воспроизвести на своей
+    машине: у разработчика формат один, на сервере другой.
+    """
+    suspicious = []
+    for path in _sql_sources():
+        if path.suffix != ".py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for name in ("date_start", "date_end", "fact_date", "spend_date",
+                     "rate_date", "doc_date"):
+            for match in re.finditer(rf"[^_]:{name}\b", text):
+                head = text[max(0, match.start() - 60):match.start()]
+                if "TO_DATE" not in head.upper():
+                    line = text[:match.start()].count("\n") + 1
+                    suspicious.append(f"{path.name}:{line}: :{name}")
+    assert not suspicious, "дата уходит в базу строкой, без TO_DATE:\n" \
+                           + "\n".join(suspicious)
