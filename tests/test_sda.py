@@ -827,15 +827,20 @@ def test_controller_rejects_a_unit_without_a_participant():
 
 
 def test_app_registers_the_participant_api_route():
-    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
-        src = fh.read()
-    assert "'/api/sda/partic'" in src or '"/api/sda/partic"' in src
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    load_module(app, "sda")
+    rules = {r.rule for r in app.url_map.iter_rules()}
+    assert "/UNA.md/orasldev/sda/api/partic" in rules
 
 
 def test_console_template_declares_the_participants_panel():
     html = _template("sda.html")
     assert 'id="panel-participanti"' in html
-    assert "/api/sda/partic" in html
+    assert "/partic" in html
     # Unitatea se leagă de un participant existent, nu de un ID scris de mână.
     assert '<select id="u_partic_id"' in html
 
