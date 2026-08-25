@@ -14,6 +14,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Optional, Tuple
 
+# Обоснование режима видит оператор и оно уходит в досье Администратору,
+# поэтому текст пишется на нормальном румынском, с диакритикой. Это
+# безопасно: SDA_* живут в облачной базе (AL32UTF8). Запрет на не-ASCII
+# касается DDL и контура OfficePlus (CL8MSWIN1251), а не этих строк.
 PRAG_STANDARD_MP = 100.0
 PRAG_SPECIAL_MP = 150.0
 
@@ -44,18 +48,18 @@ def classify_regime(suprafata_mp: Optional[float],
     подставить один из двух — значит однажды подставить неверный.
     """
     if is_horeca:
-        return REGIM_HORECA, "Unitate HoReCa: predare directa catre Administrator"
+        return REGIM_HORECA, "Unitate HoReCa: predare directă către Administrator"
 
     if suprafata_mp is None:
-        return None, "Suprafata comerciala nu este cunoscuta - inventar necesar"
+        return None, "Suprafața comercială nu este cunoscută — inventar necesar"
 
     prag = prag_pentru(tip_amplasament)
     if suprafata_mp <= prag:
         return REGIM_EXCEPTIE, (
-            f"Suprafata {suprafata_mp:g} m2 nu depaseste pragul de {prag:g} m2"
+            f"Suprafața {suprafata_mp:g} m² nu depășește pragul de {prag:g} m²"
         )
     return REGIM_PROPRIU, (
-        f"Suprafata {suprafata_mp:g} m2 depaseste pragul de {prag:g} m2"
+        f"Suprafața {suprafata_mp:g} m² depășește pragul de {prag:g} m²"
     )
 
 

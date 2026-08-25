@@ -466,7 +466,7 @@ def test_reclassify_all_keeps_horeca_units_horeca():
     db = _db_returning(
         _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
             [[1, 500, "ALIMENTATIE_PUBLICA", "C_HORECA",
-              "Unitate HoReCa: predare directa catre Administrator"]]),
+              "Unitate HoReCa: predare directă către Administrator"]]),
         _ok([], [], rowcount=1))
     with patch("modules.sda.store.DatabaseModel", return_value=db):
         res = SDAStore.reclassify_all("tester")
@@ -1603,7 +1603,7 @@ def test_reclassify_all_skips_journal_and_commit_when_nothing_changed():
     db = _db_returning(
         _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
             [[7, 85, "MAGAZIN", "B_EXCEPTIE_APL",
-              "Suprafata 85 m2 nu depaseste pragul de 100 m2"]]))
+              "Suprafața 85 m² nu depășește pragul de 100 m²"]]))
     with patch("modules.sda.store.DatabaseModel", return_value=db):
         res = SDAStore.reclassify_all("tester")
     assert res["success"] is True
@@ -1690,3 +1690,28 @@ def test_shared_deploy_script_is_untouched_by_the_module():
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
     assert not _sda_leak_signatures_found(src)
+
+
+def test_surface_input_accepts_any_decimal_value():
+    """Поле площади не должно навязывать сетку шага.
+
+    Найдено живым прогоном: было step="0.1" при min="0.01", то есть браузер
+    считал допустимыми только 0.01, 0.11, 0.21 ... и отказывался сохранять
+    магазин в 460 м2 («ближайшие допустимые 459,91 и 460,01»). Редактировать
+    можно было только те точки, площадь которых случайно попала на сетку.
+    """
+    html = _template("sda.html")
+    line = next(l for l in html.splitlines() if 'id="u_suprafata_mp"' in l)
+    assert 'step="any"' in line, line
+
+
+def test_docs_template_carries_no_leftovers_from_the_module_it_was_copied_from():
+    """Шаблон хаба сделан по образцу планограмм — чужой текст должен уйти.
+
+    Живой прогон показал в шапке «Модуль управления выкладкой, логистикой
+    и рыночным анализом»: подпись другого модуля, приехавшая вместе с
+    разметкой. На странице, которую открывает клиент, это заметнее всего.
+    """
+    html = _template("sda_docs.html")
+    for leftover in ("выкладкой", "планограм", "Планограм", "planograms"):
+        assert leftover not in html, leftover
