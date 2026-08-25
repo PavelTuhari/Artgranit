@@ -388,10 +388,22 @@ async function loadUnits() {
     `).join('') || '<tr><td colspan="7" style="color:var(--muted)">Nicio unitate înregistrată</td></tr>';
 }
 
+// Serverul refuza is_horeca=true pentru orice tip diferit de
+// ALIMENTATIE_PUBLICA (vezi SDAController.save_unit) — bifa nu are voie
+// sa ofere in interfata ceva ce backend-ul respinge oricum.
+function syncHorecaCheckbox() {
+    const tip = document.getElementById('u_tip_amplasament').value;
+    const cb = document.getElementById('u_is_horeca');
+    const allowed = tip === 'ALIMENTATIE_PUBLICA';
+    cb.disabled = !allowed;
+    if (!allowed) cb.checked = false;
+}
+
 async function openUnitForm(u) {
     if (!PARTIC.length) await fetchPartic();
     fillParticSelect(u ? u.partic_id : null);
     document.getElementById('u_is_horeca').checked = !!(u && u.regim === 'C_HORECA');
+    syncHorecaCheckbox();
     document.getElementById('unitFormCard').style.display = 'block';
     document.getElementById('unitRegimResult').classList.remove('show');
     document.getElementById('unitFormTitle').textContent = u ? 'Editează unitatea' : 'Unitate nouă';
