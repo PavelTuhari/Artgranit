@@ -445,3 +445,45 @@ def test_known_ean_without_a_tariff_period_is_an_error_not_a_zero():
         res = SDAStore.deposit_for_ean("4840012345678")
     assert res["success"] is False
     assert "tarif" in res["message"].lower()
+
+
+def test_overlapping_tariff_periods_pick_the_later_starting_one():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PACK_ID", "EAN", "CAT_ADMIN", "REUTILIZABIL"],
+            [[7, "4840012345678", "f", "N"]]),
+        # Мок отдаёт данные в порядке ORDER BY DATA_START DESC, TARIFF_ID DESC:
+        # более поздний период (2.0 lei) идёт первым.
+        _ok(["CATEGORIE", "METODA", "REUTILIZABIL", "VALOARE_LEI"],
+            [["*", None, None, 2.0], ["*", None, None, 1.0]]),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.deposit_for_ean("4840012345678")
+    assert res["success"] is True
+    assert res["data"]["valoare_lei"] == 2.0
+    tariff_sql = db.execute_query.call_args_list[1][0][0]
+    assert "ORDER BY T.DATA_START DESC, T.TARIFF_ID DESC" in tariff_sql
+
+
+def test_saving_a_unit_with_id_zero_updates_instead_of_inserting():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_unit(
+            {"unit_id": 0, "partic_id": 1, "denumire": "Magazin 0",
+             "tip_amplasament": "MAGAZIN"}, "tester")
+    assert res["success"] is True
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert sql.strip().startswith("UPDATE SDA_UNIT")
+
+
+def test_saving_a_pack_with_id_zero_updates_instead_of_inserting():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_pack(
+            {"pack_id": 0, "ean": "4840012345678", "material": "STICLA",
+             "volum_l": 0.75, "greutate_g": 380}, "tester")
+    assert res["success"] is True
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert sql.strip().startswith("UPDATE SDA_PACK")
