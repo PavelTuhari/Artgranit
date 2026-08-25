@@ -374,17 +374,25 @@ class SDAStore:
                 return _fail(r.get("message") or "Eroare la salvarea ambalajului")
             if pack_id is not None and not r.get("rowcount"):
                 return _fail(f"Ambalajul {pack_id} nu mai exista")
+            new_id = pack_id
+            if pack_id is None:
+                idr = db.execute_query(
+                    "SELECT SEQ_SDA_PACK.CURRVAL FROM DUAL")
+                if not idr.get("success") or not idr.get("data"):
+                    return _fail(idr.get("message")
+                                 or "Eroare la citirea id-ului nou creat")
+                new_id = idr["data"][0][0]
             jr = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('PACK_SAVE', 'SDA_PACK', "
                 ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": pack_id, "utilizator": username,
+                {"entitate_id": new_id, "utilizator": username,
                  "detalii": (f"{params['ean']} "
                              f"{params['cat_admin']}/{params['cat_gest']}")[:1000]})
             if not jr.get("success"):
                 return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
             db.connection.commit()
-        return _done({"cat_admin": params["cat_admin"],
+        return _done({"pack_id": new_id, "cat_admin": params["cat_admin"],
                       "cat_gest": params["cat_gest"]})
 
     @staticmethod
