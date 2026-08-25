@@ -19,6 +19,12 @@ body {
 .top-bar .logo { color: #53d769; font-weight: 700; font-size: 15px; letter-spacing: .5px; }
 .top-bar .logo span { color: #e94560; }
 .top-bar .crumbs { color: #8888aa; font-size: 12px; }
+.top-bar .mode {
+    padding: 5px 11px; border-radius: 4px; font-size: 12px; cursor: pointer;
+    color: #a0a0c0;
+}
+.top-bar .mode:hover { background: #0f3460; color: #fff; }
+.top-bar .mode.active { background: #e94560; color: #fff; }
 .top-bar .spacer { flex: 1; }
 .back-link { color: #8888aa; text-decoration: none; font-size: 13px; }
 .back-link:hover { color: #e94560; }
@@ -40,6 +46,14 @@ body {
 .journal:hover { background: #1c2b4a; color: #fff; }
 .journal.active { background: #0f3460; color: #fff; border-left-color: #e94560; }
 .journal .muted { color: #6a6a88; }
+.gnode {
+    padding: 5px 10px 5px 14px; font-size: 12px; cursor: pointer; color: #c0c0d0;
+    display: flex; gap: 6px; align-items: baseline;
+}
+.gnode:hover { background: #1c2b4a; color: #fff; }
+.gnode.active { background: #0f3460; color: #fff; }
+.gnode .tw { width: 10px; color: #6a6a88; flex: 0 0 10px; }
+.gnode.sub { padding-left: 30px; font-size: 11.5px; }
 
 .content { flex: 1; overflow-y: auto; padding: 14px 18px 60px; }
 
@@ -91,6 +105,8 @@ button.link { background: none; border: none; color: #6ba8ff; padding: 0; }
 
 <div class="top-bar">
     <div class="logo">UNA<span>web</span></div>
+    <div class="mode" id="modeJournals" onclick="setMode('journals')">Журналы</div>
+    <div class="mode" id="modeGoods" onclick="setMode('goods')">Товары</div>
     <div class="crumbs" id="crumbs">Журналы</div>
     <div class="spacer"></div>
     <a href="/UNA.md/orasldev" class="back-link">&#8592; Портал</a>
@@ -110,7 +126,10 @@ button.link { background: none; border: none; color: #6ba8ff; padding: 0; }
 
 <script>
 const API = '/UNA.md/orasldev/biro26web/api';
-let CURRENT = null;
+let CURRENT = null;      // выбранный журнал
+let MODE = 'journals';
+let GROUP = null;        // выбранная группа товаров {group1, group2}
+let OPEN_GROUPS = {};    // раскрытые верхние группы
 
 function esc(v) {
     if (v === null || v === undefined) return '';
@@ -148,7 +167,7 @@ async function loadJournals() {
         const parts = [];
         tree.forEach(group => {
             if (!group.journals || !group.journals.length) return;
-            parts.push('<div class="group-title">' + esc(group.title) + '</div>');
+            if (group.titled) parts.push('<div class="group-title">' + esc(group.title) + '</div>');
             group.journals.forEach(j => {
                 parts.push('<div class="journal" data-id="' + j.obj_id + '" '
                     + 'onclick="openJournal(' + j.obj_id + ')">'
@@ -249,7 +268,10 @@ async function openDocument(cod) {
               + '</div></div>',
         ];
 
-        parts.push('<div class="card"><div class="card-header">Строки</div>'
+        parts.push('<div class="card"><div class="card-header">Строки'
+        + (d.lines_source ? '<div class="spacer"></div><span class="badge">'
+              + esc(d.lines_source) + '</span>' : '')
+        + '</div>'
             + (d.lines_note ? '<div class="card-body"><div class="note">'
                     + esc(d.lines_note) + '</div></div>'
                : '<div class="card-body" style="padding:0">'
@@ -258,12 +280,12 @@ async function openDocument(cod) {
                          {title: 'Кол-во', num: true}, {title: 'Цена', num: true},
                          {title: 'Сумма', num: true}],
                         d.lines,
-                        l => '<tr><td>' + esc(l.codvechi || l.ctsc) + '</td>'
-                            + '<td>' + esc(l.denumirea) + '</td>'
-                            + '<td>' + esc(l.um) + '</td>'
-                            + '<td class="num">' + num(l.cant, 3) + '</td>'
-                            + '<td class="num">' + num(l.pret) + '</td>'
-                            + '<td class="num">' + num(l.suma) + '</td></tr>')
+                        l => '<tr><td>' + esc(l.code) + '</td>'
+                            + '<td>' + esc(l.name) + '</td>'
+                            + '<td>' + esc(l.unit) + '</td>'
+                            + '<td class="num">' + num(l.qty, 3) + '</td>'
+                            + '<td class="num">' + num(l.price) + '</td>'
+                            + '<td class="num">' + num(l.amount) + '</td></tr>')
                     + '</div>')
             + '</div>');
 
@@ -289,7 +311,7 @@ function linesTotal(lines) {
     // Итог считается из показанных строк, а не берётся из базы: общей
     // суммы документа в UNA нет, у каждого семейства своя витрина строк.
     if (!lines || !lines.length) return '';
-    const sum = lines.reduce((a, l) => a + (Number(l.suma) || 0), 0);
+    const sum = lines.reduce((a, l) => a + (Number(l.amount) || 0), 0);
     return '<div class="card-body" style="text-align:right;border-top:1px solid #0f3460">'
         + '<span class="k" style="color:#8888aa">Итого по строкам: </span><b>'
         + num(sum) + '</b></div>';
@@ -300,7 +322,149 @@ function kv(k, v) {
         + (v === null || v === undefined || v === '' ? '—' : esc(v)) + '</div>';
 }
 
-loadJournals();
+// ── товары ───────────────────────────────────────────────────────────
+
+async function loadGoodsTree() {
+    const box = document.getElementById('sidebar');
+    box.innerHTML = '<div class="empty-state">Загрузка групп…</div>';
+    try {
+        const tops = await api('/goods/groups?root=1');
+        const parts = ['<div class="group-title">Группы товаров</div>'];
+        tops.forEach(g => {
+            const open = OPEN_GROUPS[g.group1];
+            const active = GROUP && GROUP.group1 === g.group1 && !GROUP.group2;
+            parts.push('<div class="gnode' + (active ? ' active' : '') + '" '
+                + 'onclick="toggleGroup(' + g.group1 + ')">'
+                + '<span class="tw">' + (Number(g.subgroups) ? (open ? '&#9662;' : '&#9656;') : '') + '</span>'
+                + '<span>' + esc(g.coment) + '</span></div>');
+            if (open && open.length) {
+                open.forEach(s => {
+                    const act = GROUP && GROUP.group1 === s.group1 && GROUP.group2 === s.group2;
+                    parts.push('<div class="gnode sub' + (act ? ' active' : '') + '" '
+                        + 'onclick="event.stopPropagation();openGroup(' + s.group1 + ',' + s.group2 + ')">'
+                        + '<span>' + esc(s.coment) + '</span></div>');
+                });
+            }
+        });
+        box.innerHTML = parts.join('');
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function toggleGroup(group1) {
+    if (OPEN_GROUPS[group1]) {
+        delete OPEN_GROUPS[group1];
+        await loadGoodsTree();
+        openGroup(group1, null);
+        return;
+    }
+    try {
+        OPEN_GROUPS[group1] = await api('/goods/groups?parent=' + group1);
+    } catch (e) {
+        OPEN_GROUPS[group1] = [];
+    }
+    await loadGoodsTree();
+    openGroup(group1, null);
+}
+
+function openGroup(group1, group2) {
+    GROUP = {group1: group1, group2: group2 || null};
+    loadGoodsTree();
+    loadItems();
+}
+
+async function loadItems() {
+    const box = document.getElementById('content');
+    const q = (document.getElementById('gq') || {}).value || '';
+    const params = [];
+    if (GROUP && GROUP.group1) params.push('group1=' + GROUP.group1);
+    if (GROUP && GROUP.group2) params.push('group2=' + GROUP.group2);
+    if (q) params.push('q=' + encodeURIComponent(q));
+
+    const toolbar = '<div class="toolbar">'
+        + '<input id="gq" placeholder="поиск по названию или коду" style="width:280px" value="' + esc(q) + '">'
+        + '<button class="primary" onclick="loadItems()">Найти</button>'
+        + '</div>';
+
+    if (!params.length) {
+        box.innerHTML = '<div class="section-title">Номенклатура</div>'
+            + '<div class="section-note">Выберите группу слева или задайте поиск — '
+            + 'в справочнике более 200 тысяч позиций.</div>' + toolbar;
+        return;
+    }
+
+    box.innerHTML = '<div class="empty-state">Загрузка…</div>';
+    try {
+        const rows = await api('/goods/items?' + params.join('&'));
+        document.getElementById('crumbs').textContent = 'Номенклатура';
+        box.innerHTML = '<div class="section-title">Номенклатура</div>'
+            + '<div class="section-note">Показаны незаархивированные товары '
+            + '(TIP=P). Список ограничен, уточните группу или поиск.</div>'
+            + toolbar
+            + '<div class="card"><div class="card-header">Позиции<div class="spacer"></div>'
+            + '<span class="badge">строк: ' + rows.length + '</span></div>'
+            + '<div class="card-body" style="padding:0">'
+            + table([{title: 'Код'}, {title: 'Наименование'}, {title: 'Рус.'}, {title: 'Ед.'}],
+                rows,
+                r => '<tr class="clickable" onclick="openItem(' + r.cod + ')">'
+                    + '<td>' + esc(r.codvechi || r.cod) + '</td>'
+                    + '<td>' + esc(r.denumirea) + '</td>'
+                    + '<td>' + esc(r.namerus) + '</td>'
+                    + '<td>' + esc(r.um) + '</td></tr>')
+            + '</div></div>';
+    } catch (e) {
+        box.innerHTML = '<div class="section-title">Номенклатура</div>' + toolbar
+            + '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+async function openItem(cod) {
+    const box = document.getElementById('content');
+    box.innerHTML = '<div class="empty-state">Загрузка карточки…</div>';
+    try {
+        const it = await api('/goods/items/' + cod);
+        box.innerHTML = '<div class="toolbar"><button onclick="loadItems()">&#8592; к списку</button></div>'
+            + '<div class="section-title">' + esc(it.denumirea) + '</div>'
+            + '<div class="card"><div class="card-header">Реквизиты</div><div class="card-body">'
+            + '<div class="kv">'
+            + kv('Код', it.cod) + kv('Артикул', it.codvechi)
+            + kv('Наименование', it.denumirea) + kv('Наименование (рус.)', it.namerus)
+            + kv('Единица', it.um) + kv('Код НДС', it.codtva)
+            + kv('Тип', it.tip) + kv('В архиве', Number(it.isarhiv) ? 'да' : 'нет')
+            + '</div></div></div>'
+            + '<div class="card"><div class="card-header">Группы</div>'
+            + '<div class="card-body" style="padding:0">'
+            + table([{title: 'Группа'}, {title: 'Подгруппа'}],
+                it.groups,
+                g => '<tr class="clickable" onclick="setMode(\'goods\');openGroup('
+                    + g.group1 + ',' + (g.group2 || 'null') + ')">'
+                    + '<td>' + esc(g.top_name) + '</td>'
+                    + '<td>' + esc(g.sub_name || '') + '</td></tr>')
+            + '</div></div>';
+    } catch (e) {
+        box.innerHTML = '<div class="empty-state">' + esc(e.message) + '</div>';
+    }
+}
+
+// ── режимы ───────────────────────────────────────────────────────────
+
+function setMode(mode) {
+    MODE = mode;
+    document.getElementById('modeJournals').classList.toggle('active', mode === 'journals');
+    document.getElementById('modeGoods').classList.toggle('active', mode === 'goods');
+    if (mode === 'journals') {
+        document.getElementById('crumbs').textContent = 'Журналы';
+        loadJournals();
+        if (CURRENT) loadDocuments();
+    } else {
+        document.getElementById('crumbs').textContent = 'Номенклатура';
+        loadGoodsTree();
+        loadItems();
+    }
+}
+
+setMode('journals');
 </script>
 </body>
 </html>

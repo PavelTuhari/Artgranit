@@ -18,7 +18,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from modules.biro26web import store
+from modules.biro26web import store, writer
 
 Reply = Tuple[Dict[str, Any], int]
 
@@ -57,6 +57,59 @@ class Biro26WebController:
         if message.upper().startswith("ORA-") or "TNS" in message.upper():
             return cls._fail(_GENERIC_ERROR, 500)
         return cls._fail(message or _GENERIC_ERROR, 400)
+
+    @classmethod
+    def _reply_write(cls, result: Dict[str, Any]) -> Reply:
+        """Ответ операции записи.
+
+        В отличие от чтения, сообщения ORA-20xxx здесь доходят до
+        пользователя: это правила самого учёта, и текст у них
+        осмысленный — «дата вне рабочего периода», «документ уже
+        проведён». Спрятать их значило бы оставить человека с «ошибкой
+        базы» вместо указания, что именно поправить.
+        """
+        if result.get("success"):
+            return ({"success": True, "data": result.get("data"),
+                     "message": result.get("message", "")}, 200)
+
+        message = result.get("message", "")
+        # Сообщение занимает несколько строк, и суть обычно во второй:
+        # «Redactarea documentului este interzisa» — это заголовок, а
+        # «Data documentului … inafara perioadei de lucru» — причина.
+        # Поэтому берём всё до технического хвоста ORA-06512, а не первую
+        # строку.
+        business = re.search(r"ORA-20\d{3}:\s*(.+?)(?=ORA-0651|ORA-0408|$)",
+                             message, re.S)
+        if business:
+            text = " ".join(business.group(1).split())
+            return cls._fail(text, 409)
+        if message.upper().startswith("ORA-") or "TNS" in message.upper():
+            return cls._fail(_GENERIC_ERROR, 500)
+        return cls._fail(message or _GENERIC_ERROR, 400)
+
+    # ── запись ───────────────────────────────────────────────────────
+
+    @classmethod
+    def create_document(cls, payload: Dict[str, Any],
+                        username: Optional[str] = None) -> Reply:
+        sysfid = cls._int((payload or {}).get("sysfid"))
+        if sysfid is None:
+            return cls._fail("тип документа должен быть числом")
+        return cls._reply_write(writer.create_document(
+            sysfid,
+            (payload or {}).get("date") or "",
+            valuta=(payload or {}).get("valuta") or "LEI",
+            nrset=cls._int((payload or {}).get("nrset")),
+            div=cls._int((payload or {}).get("div")),
+            comment=(payload or {}).get("comment"),
+            username=username))
+
+    @classmethod
+    def post_document(cls, cod: Any) -> Reply:
+        number = cls._int(cod)
+        if number is None:
+            return cls._fail("номер документа должен быть числом")
+        return cls._reply_write(writer.post_document(number))
 
     @staticmethod
     def _int(value: Any) -> Optional[int]:
@@ -111,15 +164,55 @@ class Biro26WebController:
         if not head.get("success"):
             return cls._reply(head)
 
-        lines = cls._store.document_lines(number, head["data"].get("docname"))
+        lines = cls._store.document_lines(
+            number,
+            docname=head["data"].get("docname"),
+            sysfid=head["data"].get("sysfid"),
+            type_name=head["data"].get("type_name"))
         postings = cls._store.document_postings(number)
 
         return cls._ok({
             "head": head["data"],
             "lines": (lines.get("data") or {}).get("rows", []),
             "lines_note": (lines.get("data") or {}).get("note"),
+            "lines_source": (lines.get("data") or {}).get("source"),
             "postings": postings.get("data") or [],
         })
+
+    # ── номенклатура ─────────────────────────────────────────────────
+
+    @classmethod
+    def goods_roots(cls) -> Reply:
+        return cls._reply(cls._store.goods_roots())
+
+    @classmethod
+    def goods_groups(cls, root: Any = 1, parent: Any = None) -> Reply:
+        root_id = cls._int(root)
+        if root_id is None:
+            return cls._fail("корень дерева должен быть числом")
+        parent_id = cls._int(parent) if parent not in (None, "") else None
+        return cls._reply(cls._store.goods_groups(root_id, parent_id))
+
+    @classmethod
+    def goods_items(cls, group1: Any = None, group2: Any = None,
+                    search: Optional[str] = None, limit: Any = 200) -> Reply:
+        g1 = cls._int(group1) if group1 not in (None, "") else None
+        g2 = cls._int(group2) if group2 not in (None, "") else None
+        needle = (search or "").strip()
+
+        if g1 is None and len(needle) < 2:
+            return cls._fail("выберите группу или задайте не меньше "
+                             "двух символов для поиска")
+
+        rows = max(1, min(cls._int(limit) or 200, _MAX_ROWS))
+        return cls._reply(cls._store.goods_items(g1, g2, needle or None, rows))
+
+    @classmethod
+    def goods_item(cls, cod: Any) -> Reply:
+        number = cls._int(cod)
+        if number is None:
+            return cls._fail("код номенклатуры должен быть числом")
+        return cls._reply(cls._store.goods_item(number))
 
     @classmethod
     def document_types(cls) -> Reply:

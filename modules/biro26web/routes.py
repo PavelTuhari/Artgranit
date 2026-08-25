@@ -72,3 +72,60 @@ def api_document_types():
     if denied:
         return denied
     return _reply(Biro26WebController.document_types())
+
+
+@blueprint.route('/api/goods/roots', methods=['GET'])
+def api_goods_roots():
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(Biro26WebController.goods_roots())
+
+
+@blueprint.route('/api/goods/groups', methods=['GET'])
+def api_goods_groups():
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(Biro26WebController.goods_groups(
+        root=request.args.get('root', 1),
+        parent=request.args.get('parent')))
+
+
+@blueprint.route('/api/goods/items', methods=['GET'])
+def api_goods_items():
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(Biro26WebController.goods_items(
+        group1=request.args.get('group1'),
+        group2=request.args.get('group2'),
+        search=request.args.get('q'),
+        limit=request.args.get('limit', 200)))
+
+
+@blueprint.route('/api/goods/items/<int:cod>', methods=['GET'])
+def api_goods_item(cod):
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(Biro26WebController.goods_item(cod))
+
+
+@blueprint.route('/api/documents', methods=['POST'])
+def api_create_document():
+    denied = _guard()
+    if denied:
+        return denied
+    from flask import session
+    return _reply(Biro26WebController.create_document(
+        request.get_json(silent=True) or {},
+        username=session.get('username', 'system')))
+
+
+@blueprint.route('/api/documents/<int:cod>/post', methods=['POST'])
+def api_post_document(cod):
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(Biro26WebController.post_document(cod))

@@ -26,14 +26,59 @@ if _ROOT not in sys.path:
 
 from models.biro26_db import Biro26DB
 
-# Витрины строк документа по семействам. Общей витрины строк в UNA нет:
-# каждый DLL-модуль хранит строки по-своему. Что известно — перечислено
-# здесь; для остальных типов строки не показываем и говорим об этом прямо,
-# вместо того чтобы показать пустую таблицу и выдать её за «строк нет».
-LINE_VIEWS = {
-    "201": ("VMDB_ST201D", "VMDB_ST201M"),
-    "202": ("VMDB_CMN202D", "VMDB_CMN202M"),
+# Откуда брать строки документа.
+#
+# Общего хранилища строк в UNA нет: строки кладёт DLL, исполняющая документ,
+# и у каждой они свои. Причём DOCNAME семейство не задаёт — под одним
+# `DG1p21` сидят 223 типа документов с совершенно разным хранением.
+#
+# Автоопределение «найти таблицу с таким NRDOC» проверено и отвергнуто: оно
+# даёт ложные срабатывания. У документа 86 («Акт изменения цен») так
+# «находится» TMDB_SALAR_ABSD1 с 28 строками зарплаты — там NRDOC означает
+# совсем другой документ. Показать это пользователю как строки его
+# документа хуже, чем не показать ничего.
+#
+# Поэтому реестр составлен по проверенным данным. Ключ — сначала SYSFID
+# (тип документа), потом DOCNAME (семейство). Каждый источник сам приводит
+# свои колонки к общему виду: код, наименование, единица, количество,
+# цена, сумма.
+_LINE_BY_SYSFID = {
+    # «Регистрация товаров» — черновик прайса из импорта BIRO26.
+    49398: {
+        "source": "TMDB_EDL_PLDRAFTD",
+        "sql": "SELECT x.BARCODE CODE, "
+               "NVL(x.RUPRODUCTNAME, x.ROPRODUCTNAME) NAME, "
+               "NVL(x.RUUNIT, x.ROUNIT) UNIT, x.QUANTITYINBOX QTY, "
+               "x.ORDERPRICE PRICE, NULL AMOUNT "
+               "FROM TMDB_EDL_PLDRAFTD x WHERE x.NRDOC = :c "
+               "ORDER BY x.POSITIONNUMBER",
+    },
 }
+
+_LINE_BY_FAMILY = {
+    "201": {
+        "source": "VMDB_ST201D",
+        "sql": "SELECT l.CTSC CODE, u.DENUMIREA NAME, u.UM UNIT, "
+               "l.CANT QTY, l.PRET PRICE, l.SUMA AMOUNT "
+               "FROM VMDB_ST201D l LEFT JOIN TMS_UNIVERS u ON u.COD = l.CTSC "
+               "WHERE l.NRDOC = :c ORDER BY l.RROWID",
+    },
+    "202": {
+        "source": "VMDB_CMN202D",
+        "sql": "SELECT l.CTSC CODE, u.DENUMIREA NAME, u.UM UNIT, "
+               "l.CANT QTY, l.PRET PRICE, l.SUMA AMOUNT "
+               "FROM VMDB_CMN202D l LEFT JOIN TMS_UNIVERS u ON u.COD = l.CTSC "
+               "WHERE l.NRDOC = :c ORDER BY l.RROWID",
+    },
+}
+
+
+def line_source(sysfid=None, docname=None):
+    """Источник строк для типа документа либо None, если неизвестен."""
+    if sysfid is not None and sysfid in _LINE_BY_SYSFID:
+        return _LINE_BY_SYSFID[sysfid]
+    return _LINE_BY_FAMILY.get((docname or "").strip())
+
 
 # Фильтр журнала — сырой SQL из конфигурации. Он попадает в WHERE, поэтому
 # пропускаем только то, из чего реальные фильтры и состоят: сравнения
@@ -118,6 +163,13 @@ def journal_tree() -> Dict[str, Any]:
     tree = []
     for group in groups["data"]:
         group["title"] = group.get("caption") or group.get("name")
+        # У части групп ни заголовка, ни осмысленного имени: в конфигурации
+        # они называются служебным «Journals group». Показывать шесть таких
+        # заголовков подряд бессмысленно, поэтому помечаем группу
+        # безымянной, а интерфейс печатает её журналы без шапки.
+        group["titled"] = bool(
+            (group.get("title") or "").strip()
+            and (group.get("title") or "").strip().upper() != "JOURNALS GROUP")
         group["journals"] = by_parent.pop(group["obj_id"], [])
         tree.append(group)
 
@@ -126,7 +178,7 @@ def journal_tree() -> Dict[str, Any]:
     # недоступной, а понять почему будет нечем.
     orphans = [row for rows in by_parent.values() for row in rows]
     if orphans:
-        tree.append({"obj_id": None, "title": "Без группы",
+        tree.append({"obj_id": None, "title": "Без группы", "titled": True,
                      "journals": sorted(orphans, key=lambda r: r["title"] or "")})
 
     return _done(tree)
@@ -255,28 +307,26 @@ def document(cod: int) -> Dict[str, Any]:
     return _done(row)
 
 
-def document_lines(cod: int, docname: Optional[str] = None) -> Dict[str, Any]:
-    """Строки документа из витрины его семейства.
+def document_lines(cod: int, docname: Optional[str] = None,
+                   sysfid: Optional[int] = None,
+                   type_name: Optional[str] = None) -> Dict[str, Any]:
+    """Строки документа из проверенного источника его типа.
 
-    Общей витрины строк в UNA нет. Если для типа она неизвестна, честно
-    возвращаем пустой список с пояснением: пустая таблица без пояснения
-    читалась бы как «в документе нет строк».
+    Если источник неизвестен, возвращаем пустой список с пояснением:
+    пустая таблица без пояснения читалась бы как «в документе нет строк».
     """
-    family = (docname or "").strip()
-    view = LINE_VIEWS.get(family, (None, None))[0]
-    if view is None:
-        return _done({"rows": [],
-                      "note": f"строки документов вида «{family or '—'}» "
-                              "в вебе пока не подключены"})
+    source = line_source(sysfid, docname)
+    if source is None:
+        label = type_name or docname or "—"
+        return _done({"rows": [], "source": None,
+                      "note": f"строки документов вида «{label}» в вебе пока "
+                              "не подключены: в UNA у каждого типа своё "
+                              "хранилище строк, и определять его наугад нельзя"})
 
-    rows = _select(
-        f"SELECT l.CTSC, l.CANT, l.PRET, l.SUMA, "
-        "u.DENUMIREA, u.UM, u.CODVECHI "
-        f"FROM {view} l LEFT JOIN TMS_UNIVERS u ON u.COD = l.CTSC "
-        "WHERE l.NRDOC = :c ORDER BY l.RROWID", {"c": cod})
+    rows = _select(source["sql"], {"c": cod})
     if not rows.get("success"):
         return rows
-    return _done({"rows": rows["data"], "note": None})
+    return _done({"rows": rows["data"], "source": source["source"], "note": None})
 
 
 def document_postings(cod: int) -> Dict[str, Any]:
@@ -287,3 +337,98 @@ def document_postings(cod: int) -> Dict[str, Any]:
         "c.CANT, c.SUMA, c.VALUTADT, c.ISVALID "
         "FROM TMDB_CM c WHERE c.NRDOC = :c "
         "ORDER BY c.COD", {"c": cod})
+
+
+# ── номенклатура ─────────────────────────────────────────────────────
+#
+# Дерево товаров в UNA собрано из трёх таблиц:
+#   TMS_SYSGR    — корни (DEPOZIT, Cheltuieli, Подразделения…);
+#   TMS_SYSGRPH  — узлы: GROUP1..GROUP5, COMENT — имя, SCH — код
+#                  строки-категории в TMS_UNIVERS. Верхний узел: GROUP2 = 0;
+#   TMS_SYSGRP   — принадлежность: SC — код товара, GROUP1..GROUP5 — узел.
+#
+# В TMS_UNIVERS лежит всё сразу, различает TIP: 'P' — товар, 'T' —
+# строка-категория, 'O' — контрагент. Поэтому выборка товаров всегда
+# фильтруется по TIP = 'P': без этого в список попали бы сами категории.
+
+def goods_roots() -> Dict[str, Any]:
+    return _select(
+        "SELECT ID0, TIP, GR1, TEXT, USE_IN_WEB FROM TMS_SYSGR ORDER BY ID0")
+
+
+def goods_groups(root: int = 1, parent: Optional[int] = None) -> Dict[str, Any]:
+    """Верхние узлы корня либо подузлы конкретной группы."""
+    if parent is None:
+        return _select(
+            "SELECT h.GROUP1, h.GROUP2, h.COMENT, h.SCH, "
+            "(SELECT COUNT(*) FROM TMS_SYSGRPH c "
+            "  WHERE c.GROUP1 = h.GROUP1 AND c.GROUP2 > 0) SUBGROUPS "
+            "FROM TMS_SYSGRPH h "
+            "WHERE h.ID0 = :root AND h.GROUP2 = 0 "
+            "ORDER BY h.COMENT", {"root": root})
+
+    return _select(
+        "SELECT h.GROUP1, h.GROUP2, h.COMENT, h.SCH, 0 SUBGROUPS "
+        "FROM TMS_SYSGRPH h "
+        "WHERE h.GROUP1 = :parent AND h.GROUP2 > 0 "
+        "ORDER BY h.COMENT", {"parent": parent})
+
+
+def goods_items(group1: Optional[int] = None, group2: Optional[int] = None,
+                search: Optional[str] = None, limit: int = 200) -> Dict[str, Any]:
+    """Товары группы или результат поиска по наименованию и коду.
+
+    Группа без подгруппы отдаёт всё поддерево: так же ведёт себя клиент,
+    и в одной группе это бывают тысячи позиций — отсюда обязательный лимит.
+    """
+    where = ["u.TIP = 'P'", "NVL(u.ISARHIV, 0) = 0"]
+    params: Dict[str, Any] = {"row_limit": int(limit)}
+    joins = ""
+
+    if group1 is not None:
+        joins = "JOIN TMS_SYSGRP p ON p.SC = u.COD "
+        where.append("p.GROUP1 = :group1")
+        params["group1"] = group1
+        if group2 is not None:
+            where.append("p.GROUP2 = :group2")
+            params["group2"] = group2
+
+    if search:
+        where.append("(UPPER(u.DENUMIREA) LIKE :needle "
+                     "OR UPPER(u.NAMERUS) LIKE :needle "
+                     "OR UPPER(u.CODVECHI) LIKE :needle)")
+        params["needle"] = f"%{search.upper()}%"
+
+    return _select(
+        "SELECT * FROM ("
+        "  SELECT DISTINCT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, "
+        "         u.UM, u.CODTVA "
+        f"  FROM TMS_UNIVERS u {joins}"
+        f"  WHERE {' AND '.join(where)} "
+        "  ORDER BY u.DENUMIREA"
+        ") WHERE ROWNUM <= :row_limit", params)
+
+
+def goods_item(cod: int) -> Dict[str, Any]:
+    """Карточка номенклатуры: реквизиты и группы, в которых она состоит."""
+    rows = _select(
+        "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
+        "u.GR1, u.GR2, u.CODTVA, u.NRSET, NVL(u.ISARHIV, 0) ISARHIV "
+        "FROM TMS_UNIVERS u WHERE u.COD = :c", {"c": cod})
+    if not rows.get("success"):
+        return rows
+    if not rows["data"]:
+        return _fail("номенклатура не найдена")
+
+    groups = _select(
+        "SELECT DISTINCT p.GROUP1, p.GROUP2, "
+        "(SELECT COMENT FROM TMS_SYSGRPH t "
+        "  WHERE t.GROUP1 = p.GROUP1 AND t.GROUP2 = 0) TOP_NAME, "
+        "(SELECT COMENT FROM TMS_SYSGRPH t "
+        "  WHERE t.GROUP1 = p.GROUP1 AND t.GROUP2 = p.GROUP2) SUB_NAME "
+        "FROM TMS_SYSGRP p WHERE p.SC = :c ORDER BY p.GROUP1, p.GROUP2",
+        {"c": cod})
+
+    item = rows["data"][0]
+    item["groups"] = groups.get("data") or []
+    return _done(item)

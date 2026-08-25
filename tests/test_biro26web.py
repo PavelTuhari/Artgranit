@@ -5,6 +5,7 @@
 тексты Oracle не должны утекать наружу.
 """
 import os
+import re
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -274,3 +275,275 @@ def test_document_list_does_not_show_a_made_up_total():
     docs = src.split("def documents(")[1].split("def document(")[0]
     assert "SUM(c.SUMA)" not in docs
     assert "COUNT(*)" in docs
+
+
+def test_line_source_is_chosen_by_document_type_then_family():
+    from modules.biro26web.store import line_source
+    # тип важнее семейства: под одним DG1p21 сидят 223 разных типа
+    assert line_source(sysfid=49398)["source"] == "TMDB_EDL_PLDRAFTD"
+    assert line_source(docname="201")["source"] == "VMDB_ST201D"
+    assert line_source(sysfid=12280, docname="201")["source"] == "VMDB_ST201D"
+    assert line_source(sysfid=999999, docname="DG1p21") is None
+
+
+def test_line_source_registry_is_curated_not_guessed():
+    # Автоопределение по NRDOC даёт ложные срабатывания: у документа 86
+    # «находится» TMDB_SALAR_ABSD1 с зарплатными строками. Реестр должен
+    # оставаться списком проверенных источников.
+    with open(os.path.join(MODULE_DIR, "store.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "TMDB_SALAR_ABSD1" not in src.split("# Фильтр журнала")[0].replace(
+        "# «находится» TMDB_SALAR_ABSD1", "")
+    assert "user_tab_columns" not in src, "поиск таблицы наугад недопустим"
+
+
+def test_unmapped_type_explains_why_instead_of_showing_nothing():
+    db = _db()
+    with patch.object(store, "Biro26DB", return_value=db):
+        res = store.document_lines(1, docname="DG1p21", sysfid=48121,
+                                   type_name="Акт изменения цен")
+    note = res["data"]["note"]
+    assert "Акт изменения цен" in note and "не подключены" in note
+    db.execute_query.assert_not_called()
+
+
+# ── номенклатура ─────────────────────────────────────────────────────
+
+def test_goods_items_always_filter_by_product_type():
+    # В TMS_UNIVERS лежат и товары, и категории, и контрагенты. Без TIP='P'
+    # в список номенклатуры попали бы сами категории.
+    db = _db([_ok(["COD"], [])])
+    with patch.object(store, "Biro26DB", return_value=db):
+        store.goods_items(group1=276)
+    sql, _params = db.captured[0]
+    assert "u.TIP = 'P'" in sql
+
+
+def test_goods_items_require_a_group_or_a_search():
+    # Иначе запрос пойдёт по 208 тысячам позиций.
+    with patch.object(Biro26WebController, "_store") as st:
+        payload, status = Biro26WebController.goods_items()
+    assert status == 400
+    st.goods_items.assert_not_called()
+
+
+def test_short_search_without_a_group_is_refused():
+    with patch.object(Biro26WebController, "_store") as st:
+        payload, status = Biro26WebController.goods_items(search="a")
+    assert status == 400
+    st.goods_items.assert_not_called()
+
+
+def test_goods_search_uses_a_bind_variable():
+    db = _db([_ok(["COD"], [])])
+    with patch.object(store, "Biro26DB", return_value=db):
+        store.goods_items(search="о'брайен")
+    sql, params = db.captured[0]
+    assert ":needle" in sql and "%О'БРАЙЕН%" in params["needle"]
+
+
+def test_goods_item_not_found_is_404():
+    with patch.object(Biro26WebController, "_store") as st:
+        st.goods_item.return_value = {"success": False, "data": None,
+                                      "message": "номенклатура не найдена"}
+        _payload, status = Biro26WebController.goods_item(1)
+    assert status == 404
+
+
+def test_goods_items_are_capped():
+    with patch.object(Biro26WebController, "_store") as st:
+        st.goods_items.return_value = {"success": True, "data": [], "message": ""}
+        Biro26WebController.goods_items(group1=276, limit=10**6)
+    assert st.goods_items.call_args[0][3] == 1000
+
+
+def test_untitled_journal_groups_are_marked_so_the_ui_can_skip_them():
+    # В конфигурации шесть групп называются служебным «Journals group».
+    # Печатать такой заголовок шесть раз подряд бессмысленно.
+    groups = _ok(["OBJ_ID", "NAME", "CAPTION"],
+                 [[10, "Journals group", None], [11, "grp", "Касса"]])
+    journals = _ok(["OBJ_ID", "PARENT_ID", "NAME", "CAPTION"],
+                   [[20, 10, "j1", "A"], [21, 11, "j2", "B"]])
+    with patch.object(store, "Biro26DB", return_value=_db([groups, journals])):
+        tree = store.journal_tree()["data"]
+
+    assert tree[0]["titled"] is False
+    assert tree[1]["titled"] is True
+    # журналы безымянной группы всё равно на месте
+    assert [j["obj_id"] for j in tree[0]["journals"]] == [20]
+
+
+# ── запись документов ────────────────────────────────────────────────
+
+from modules.biro26web import writer
+
+
+def test_foreign_document_types_cannot_be_created():
+    # Чужие типы имеют свои настройки проводок и свою ответственность.
+    db = _db()
+    with patch.object(writer, "Biro26DB", return_value=db):
+        for sysfid in (1228, 12280, 201, 59999, 60100, None):
+            res = writer.create_document(sysfid, "2026-08-25")
+            assert res["success"] is False, sysfid
+            assert "разрешённого диапазона" in res["message"]
+    db.execute_query.assert_not_called()
+
+
+def test_own_document_type_is_allowed():
+    assert writer.is_writable(60001) and writer.is_writable(60099)
+    assert not writer.is_writable(59999) and not writer.is_writable(60100)
+
+
+def test_bad_date_is_refused_before_the_database():
+    db = _db()
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.create_document(60001, "25.08.2026")
+    assert res["success"] is False and "YYYY-MM-DD" in res["message"]
+    db.execute_query.assert_not_called()
+
+
+def test_document_number_comes_from_the_sequence_not_from_max():
+    db = _db([_ok(["COD"], [[777]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.create_document(60001, "2026-08-25")
+    sql, _ = db.captured[0]
+    assert "ID_TMDB_DOCS.NEXTVAL" in sql
+    assert "MAX(" not in sql
+    assert res["data"]["cod"] == 777
+
+
+def test_author_is_left_empty_when_mapping_is_not_configured(monkeypatch):
+    # Подставить чужой USERID хуже, чем оставить пустой.
+    monkeypatch.delenv("BIRO26WEB_UNA_USERID", raising=False)
+    db = _db([_ok(["COD"], [[1]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.create_document(60001, "2026-08-25", username="pt")
+
+    statements = db.execute_script.call_args[0][0]
+    assert not any("SET_ENV" in s["sql"] for s in statements)
+    assert res["data"]["userid"] is None
+    assert "не настроено" in res["message"]
+    # имя пользователя портала при этом сохраняется в примечании
+    note = [s for s in statements if "TMDB_DOCS_ADD" in s["sql"]][0]
+    assert "pt" in note["params"]["note"]
+
+
+def test_author_is_set_when_mapping_is_configured(monkeypatch):
+    monkeypatch.setenv("BIRO26WEB_UNA_USERID", "42")
+    db = _db([_ok(["COD"], [[1]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.create_document(60001, "2026-08-25")
+
+    statements = db.execute_script.call_args[0][0]
+    assert any("SET_ENV" in s["sql"] for s in statements)
+    assert res["data"]["userid"] == 42
+
+
+def test_creation_is_one_transaction():
+    # Документ без строки TMDB_DOCS_ADD либо наоборот — мусор в учёте.
+    db = _db([_ok(["COD"], [[1]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        writer.create_document(60001, "2026-08-25")
+    assert db.execute_script.call_count == 1
+
+
+def test_posting_goes_through_un_gfc_not_direct_inserts():
+    db = _db([_ok(["SYSFID", "ISGFC"], [[60001, 0]]),
+              _ok(["ISGFC", "CM"], [[1, 4]])])
+    db.call_proc = MagicMock(return_value={"success": True, "output_lines": [],
+                                           "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.post_document(500)
+
+    block = db.call_proc.call_args[0][0].upper()
+    assert "UN$GFC.SETDOC_GFC" in block and "UN$GFC.SETDOC_CORRECT" in block
+    assert "INSERT" not in block
+    assert res["data"]["postings"] == 4
+
+
+def test_foreign_document_cannot_be_posted():
+    db = _db([_ok(["SYSFID", "ISGFC"], [[12280, 0]])])
+    db.call_proc = MagicMock()
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.post_document(386)
+    assert res["success"] is False and "чужие документы" in res["message"]
+    db.call_proc.assert_not_called()
+
+
+def test_already_posted_document_is_not_posted_twice():
+    db = _db([_ok(["SYSFID", "ISGFC"], [[60001, 1]])])
+    db.call_proc = MagicMock()
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.post_document(500)
+    assert res["success"] is False and "уже проведён" in res["message"]
+    db.call_proc.assert_not_called()
+
+
+def test_read_layer_stays_free_of_writing():
+    # Чтение и запись разнесены намеренно: store.py можно доверять без
+    # чтения целиком, а writer.py короткий и читается перед тем, как
+    # разрешить запись.
+    with open(os.path.join(MODULE_DIR, "store.py"), encoding="utf-8") as fh:
+        assert "TMDB_DOCS (" not in fh.read()
+
+
+def test_bind_names_avoid_oracle_builtins():
+    # :uid падает с ORA-01745: UID — встроенная функция Oracle. Проверяем
+    # сам запрос, а не комментарии, где эта причина и записана.
+    db = _db([_ok(["COD"], [[1]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        writer.create_document(60001, "2026-08-25")
+
+    insert = [s for s in db.execute_script.call_args[0][0]
+              if "INSERT INTO TMDB_DOCS " in s["sql"]][0]
+    # имена связывания целиком, а не подстрокой: ':division' содержит ':div'
+    binds = set(re.findall(r":(\w+)", insert["sql"]))
+    assert "uid" not in binds and "div" not in binds
+    assert binds == set(insert["params"]), "связывания и параметры разошлись"
+
+
+def test_accounting_rules_reach_the_user_on_write():
+    # «Дата вне рабочего периода» человек исправит сам, если увидит текст.
+    # Спрятать его за «ошибкой базы» значило бы оставить его в тупике.
+    msg = ("ORA-20101: Redactarea documentului este interzisa: 389.\n"
+           "Data documentului (25-AUG-26) inafara perioadei de lucru (-)\n"
+           "ORA-06512: at \"UN4PUBLIC.MSG\", line 4")
+    with patch.object(writer, "create_document",
+                      return_value={"success": False, "data": None, "message": msg}):
+        payload, status = Biro26WebController.create_document(
+            {"sysfid": 60001, "date": "2026-08-25"})
+    assert status == 409
+    assert "perioadei de lucru" in payload["message"]
+    assert "ORA-06512" not in payload["message"]
+
+
+def test_infrastructure_errors_stay_hidden_on_write():
+    with patch.object(writer, "create_document",
+                      return_value={"success": False, "data": None,
+                                    "message": "ORA-12541: TNS:no listener at db-internal"}):
+        payload, status = Biro26WebController.create_document(
+            {"sysfid": 60001, "date": "2026-08-25"})
+    assert status == 500 and "db-internal" not in payload["message"]
+
+
+def test_write_routes_are_guarded_too():
+    import ast
+    with open(os.path.join(MODULE_DIR, "routes.py"), encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    writers = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+               and n.name in ("api_create_document", "api_post_document")]
+    assert len(writers) == 2
+    for node in writers:
+        names = {n.func.id for n in ast.walk(node)
+                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+        assert "_guard" in names, node.name
