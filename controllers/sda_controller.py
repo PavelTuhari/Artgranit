@@ -66,8 +66,11 @@ class SDAController:
 
     @staticmethod
     def get_compliance(args) -> Dict[str, Any]:
-        partic_id = args.get("partic_id")
-        return SDAStore.compliance_map(int(partic_id) if partic_id else None)
+        try:
+            partic_id = _parse_partic_id(args.get("partic_id"))
+        except ValueError as exc:
+            return _fail(str(exc))
+        return SDAStore.compliance_map(partic_id)
 
     # ── реестр ──────────────────────────────────────────────────────
 
