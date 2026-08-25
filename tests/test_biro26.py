@@ -699,3 +699,68 @@ def test_public_host_comes_from_the_forwarded_header():
         assert _app._biro26_public_host() == "officeplus.md"
     with _app.app.test_request_context("/", headers={"Host": "nufarul.eminescu.md"}):
         assert _app._biro26_public_host() == "nufarul.eminescu.md"
+
+
+# ── карта сайта ────────────────────────────────────────────────────────
+#
+# В карту идёт только то, что можно купить. Витрина показывает больше, но
+# страница, на которой нечего заказать, приводит посетителя впустую и
+# портит мнение поисковика о магазине.
+
+def test_sitemap_index_lists_every_chunk():
+    from models import biro26_sitemap as sm
+    with patch.object(sm, "parts_count", return_value=3):
+        xml = sm.index_xml("https://officeplus.md")
+    assert xml.count("<sitemap>") == 5          # страницы, категории, 3 части
+    assert "https://officeplus.md/sitemap-products-3.xml" in xml
+    assert "sitemap-products-4.xml" not in xml
+
+
+def test_sitemap_products_refuses_a_chunk_that_does_not_exist():
+    from models import biro26_sitemap as sm
+    with patch.object(sm, "parts_count", return_value=2):
+        assert sm.products_xml("https://officeplus.md", 3) is None
+        assert sm.products_xml("https://officeplus.md", 0) is None
+
+
+def test_sitemap_addresses_are_public_ones():
+    from models import biro26_sitemap as sm
+    with patch.object(sm, "core_codes", return_value=[7, 42]), \
+         patch.object(sm, "parts_count", return_value=1):
+        xml = sm.products_xml("https://officeplus.md", 1)
+    assert "<loc>https://officeplus.md/produs/7</loc>" in xml
+    assert "<loc>https://officeplus.md/produs/42</loc>" in xml
+    assert "/UNA.md/" not in xml
+
+
+def test_sitemap_categories_escape_the_name():
+    """Название группы попадает в адрес и в XML — обе кодировки нужны."""
+    from models import biro26_sitemap as sm
+    with patch.object(sm, "core_groups", return_value=["Arta si creatie",
+                                                       "Ceai & cafea"]):
+        xml = sm.categories_xml("https://officeplus.md")
+    assert "grupa=Arta+si+creatie" in xml
+    assert "grupa=Ceai+%26+cafea" in xml
+    assert "&amp;" in xml or "%26" in xml
+
+
+def test_sitemap_holds_only_what_can_be_bought():
+    """Условие «можно купить» задано один раз, чтобы карта и витрина
+    не разошлись."""
+    from models import biro26_sitemap as sm
+    for part in ("g.STOC > 0", "g.IONLINE > 1", "PHOTO_URL"):
+        assert part in sm.BUYABLE
+
+
+def test_robots_points_at_the_sitemap_and_hides_the_noise():
+    from models import biro26_sitemap as sm
+    txt = sm.robots_txt("https://officeplus.md")
+    assert "Sitemap: https://officeplus.md/sitemap.xml" in txt
+    # корзина, счёт и сортировки в индексе не нужны
+    for hidden in ("/cos", "/cont", "/*?sort=", "/*?page="):
+        assert f"Disallow: {hidden}" in txt
+    # правила WordPress остаются как были
+    assert "Allow: /wp-admin/admin-ajax.php" in txt
+    # каталог и карточки закрывать нельзя
+    assert "Disallow: /catalog\n" not in txt
+    assert "Disallow: /produs" not in txt

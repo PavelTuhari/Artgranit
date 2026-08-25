@@ -8242,6 +8242,51 @@ def _biro26_site_ctx():
             'canonical_url': _biro26_canonical_url(),
             'ga_id': ga_id}
 
+# RO: harta site-ului si robots.txt pentru magazinul public. Adresele se
+#     dau la numele public, nu la calea interna - vezi _biro26_canonical_url.
+# EN: sitemap and robots.txt for the public shop, addressed by public name.
+def _biro26_sitemap_base():
+    return 'https://' + (_biro26_public_host() or request.host)
+
+
+def _xml(body):
+    return app.response_class(body, mimetype='application/xml')
+
+
+@app.route('/sitemap.xml')
+def biro26_sitemap_index():
+    from models import biro26_sitemap as sm
+    return _xml(sm.index_xml(_biro26_sitemap_base()))
+
+
+@app.route('/sitemap-pages.xml')
+def biro26_sitemap_pages():
+    from models import biro26_sitemap as sm
+    return _xml(sm.pages_xml(_biro26_sitemap_base()))
+
+
+@app.route('/sitemap-categories.xml')
+def biro26_sitemap_categories():
+    from models import biro26_sitemap as sm
+    return _xml(sm.categories_xml(_biro26_sitemap_base()))
+
+
+@app.route('/sitemap-products-<int:part>.xml')
+def biro26_sitemap_products(part):
+    from models import biro26_sitemap as sm
+    body = sm.products_xml(_biro26_sitemap_base(), part)
+    if body is None:
+        return ('', 404)
+    return _xml(body)
+
+
+@app.route('/robots.txt')
+def biro26_robots():
+    from models import biro26_sitemap as sm
+    return app.response_class(sm.robots_txt(_biro26_sitemap_base()),
+                              mimetype='text/plain')
+
+
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
 #     (ex. nufarul); navigarea e tradusa client-side de siteURL() din site.js.
