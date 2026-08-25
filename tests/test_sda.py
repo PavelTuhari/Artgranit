@@ -1290,24 +1290,28 @@ def test_dossier_passes_the_reference_date_as_a_bind_parameter():
 #    presupusa functionala.
 
 def test_log_truncates_an_overlong_detail_before_binding_it():
+    # SDAStore.log() a fost cod mort (l-am sters): singurul apelant era
+    # aceasta suita de teste. Reancoram acelasi comportament — trunchierea
+    # detaliului la 1000 de caractere — prin save_partic.
     from models.sda_oracle_store import SDAStore
-    long_detail = "x" * 2000
-    db = _db_returning(_ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(),
+                       _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
-        res = SDAStore.log("TEST", "SDA_UNIT", 1, long_detail, "tester")
+        res = SDAStore.save_partic(
+            {"idno": "1003600000000", "denumire": "X" * 2000}, "tester")
     assert res["success"] is True
-    bound = db.execute_query.call_args_list[0][0][1]["detalii"]
+    bound = db.execute_query.call_args_list[2][0][1]["detalii"]
     assert len(bound) == 1000
 
 
 def test_save_partic_truncates_the_journal_detail():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         res = SDAStore.save_partic(
             {"idno": "1003600000000", "denumire": "X" * 2000}, "tester")
     assert res["success"] is True
-    bound = db.execute_query.call_args_list[1][0][1]["detalii"]
+    bound = db.execute_query.call_args_list[2][0][1]["detalii"]
     assert len(bound) <= 1000
 
 
