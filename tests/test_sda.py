@@ -1157,9 +1157,8 @@ def test_dossier_with_own_point_regime_and_a_declared_point_may_be_filed():
 #    protejat la fel ca ruta POST.
 
 def test_app_requires_authentication_on_the_participant_read_route():
-    import app as flask_app
-    client = flask_app.app.test_client()
-    resp = client.get("/api/sda/partic")
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/partic")
     assert resp.status_code == 401
     assert resp.get_json()["success"] is False
 
