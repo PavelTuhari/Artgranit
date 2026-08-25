@@ -265,12 +265,17 @@ class SDAStore:
             if not packs:
                 return _fail(f"EAN {ean} nu exista in registrul ambalajelor SD")
 
+            # Периоды тарифа не должны пересекаться (см. sda_rules.validate_periods),
+            # но если это всё же произошло, результат обязан быть детерминирован:
+            # без ORDER BY Oracle не гарантирует порядок строк. Правило разрешения
+            # конфликта: побеждает период с более поздней датой начала.
             t = db.execute_query(
                 "SELECT L.CATEGORIE, L.METODA, L.REUTILIZABIL, L.VALOARE_LEI "
                 "FROM SDA_TARIFF T JOIN SDA_TARIFF_LINE L "
                 "ON L.TARIFF_ID = T.TARIFF_ID "
                 "WHERE T.TIP = 'DEPOZIT' AND T.DATA_START <= :d "
-                "AND (T.DATA_END IS NULL OR T.DATA_END >= :d)",
+                "AND (T.DATA_END IS NULL OR T.DATA_END >= :d) "
+                "ORDER BY T.DATA_START DESC, T.TARIFF_ID DESC",
                 {"d": on_date})
             lines = _rows(t)
 
