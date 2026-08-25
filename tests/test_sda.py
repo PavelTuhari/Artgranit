@@ -359,6 +359,34 @@ def test_compliance_map_counts_units_without_a_regime_separately():
     assert res["data"]["unknown"] == 3
 
 
+def test_reclassify_all_keeps_horeca_units_horeca():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM"],
+            [[1, 500, "MAGAZIN", "C_HORECA"]]),
+        _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.reclassify_all("tester")
+    assert res["success"] is True
+    assert res["data"]["changed"] == 0
+
+
+def test_reclassify_all_updates_units_whose_regime_no_longer_matches_surface():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM"],
+            [[7, 500, "MAGAZIN", "B_EXCEPTIE_APL"]]),
+        _ok([], [], rowcount=1),
+        _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.reclassify_all("tester")
+    assert res["success"] is True
+    assert res["data"]["changed"] == 1
+    update_params = db.execute_query.call_args_list[1][0][1]
+    assert update_params["regim"] == "A_PUNCT_PROPRIU"
+    assert update_params["unit_id"] == 7
+
+
 def test_store_reports_failure_instead_of_raising():
     from models.sda_oracle_store import SDAStore
     db = _db_returning({"success": False, "columns": [], "data": [],
