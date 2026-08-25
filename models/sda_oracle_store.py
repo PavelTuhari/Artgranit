@@ -441,13 +441,15 @@ class SDAStore:
     # ── досье регистрации (пункт 78) ────────────────────────────────
 
     @staticmethod
-    def registration_dossier(partic_id: int) -> Dict[str, Any]:
+    def registration_dossier(partic_id: int,
+                             on_date: Optional[date] = None) -> Dict[str, Any]:
         """Восемь блоков уведомления о регистрации у Администратора.
 
         Блок «unitati» несёт площадь каждой точки: именно он решает,
         нужен ли сети собственный пункт возврата. Точки без площади
         считаются отдельно — досье с ними подавать нельзя.
         """
+        on_date = on_date or date.today()
         with DatabaseModel() as db:
             p = db.execute_query(
                 "SELECT PARTIC_ID, IDNO, DENUMIRE, CONTACT_NUME, CONTACT_TEL, "
