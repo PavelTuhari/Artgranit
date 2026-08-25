@@ -3228,6 +3228,74 @@ def planograms_presentation():
         return Response(f.read(), mimetype='text/html; charset=utf-8')
 
 
+# --- Модуль SDA: документация и презентация ---
+#
+# Реестр документов не пишется здесь руками: он собирается из папки
+# docs/SDA (models/doc_registry.py), флаги и порядок — в docs/SDA/docs.json.
+# Разбор нормы и досье для клиента открыты без входа: в них нет ни путей на
+# сервере, ни ключей окружения. Техническая спецификация закрыта входом.
+
+SDA_DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docs', 'SDA')
+
+
+def _sda_docs():
+    return doc_registry.scan(SDA_DOCS_DIR)
+
+
+def _sda_doc_by_slug(slug):
+    return next((d for d in _sda_docs() if d['slug'] == slug), None)
+
+
+@app.route('/UNA.md/orasldev/sda')
+@app.route('/UNA.md/orasldev/sda/')
+@app.route('/UNA.md/orasldev/sda/docs')
+@app.route('/UNA.md/orasldev/sda/docs/')
+def sda_docs_index():
+    """Хаб модуля SDA — открыт без входа."""
+    return render_template('sda_docs.html', docs=_sda_docs(), doc=None,
+                           page_title='SDA — документация модуля')
+
+
+@app.route('/UNA.md/orasldev/sda/docs/<slug>')
+def sda_doc(slug):
+    """Отдельный документ модуля, отрендеренный из Markdown."""
+    doc = _sda_doc_by_slug(slug)
+    if not doc:
+        return render_template('sda_docs.html', docs=_sda_docs(), doc=None,
+                               page_title='Документ не найден'), 404
+    if not doc['public'] and not AuthController.is_authenticated():
+        return redirect(url_for('login'))
+
+    path = os.path.join(SDA_DOCS_DIR, doc['file'])
+    if not os.path.isfile(path):
+        return render_template('sda_docs.html', docs=_sda_docs(), doc=None,
+                               page_title='Документ не найден'), 404
+    with open(path, 'r', encoding='utf-8') as f:
+        source = f.read()
+
+    # Ссылки между файлами переписываем на маршруты приложения.
+    for other in _sda_docs():
+        source = source.replace(f"]({other['file']})",
+                                f"](/UNA.md/orasldev/sda/docs/{other['slug']})")
+    source = source.replace('](presentation.html)',
+                            '](/UNA.md/orasldev/sda/presentation)')
+
+    return render_template('sda_docs.html', docs=_sda_docs(), doc=doc,
+                           content=_docs_md_to_html(source),
+                           page_title=f"{doc['title']} — SDA")
+
+
+@app.route('/UNA.md/orasldev/sda/presentation')
+def sda_presentation():
+    """Досье для клиента — самостоятельная HTML-страница, открыта без входа."""
+    path = os.path.join(SDA_DOCS_DIR, 'presentation.html')
+    if not os.path.isfile(path):
+        return '<h1>Презентация не найдена</h1>', 404
+    from flask import Response
+    with open(path, 'r', encoding='utf-8') as f:
+        return Response(f.read(), mimetype='text/html; charset=utf-8')
+
+
 # --- Язык, словарь, справочники ---
 @app.route('/api/plg/langs', methods=['GET'])
 def api_plg_langs():

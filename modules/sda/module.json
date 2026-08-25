@@ -1,0 +1,9 @@
+{
+  "title": {"ru": "SDA — залоговая система упаковки", "ro": "SDA — Sistemul de depozit pentru ambalaje", "en": "DRS — packaging deposit system"},
+  "icon": "♻️",
+  "order": 45,
+  "url": "/UNA.md/orasldev/sda",
+  "docs": "docs/SDA",
+  "sql_prefix": "SDA_",
+  "descr": "Регистр упаковки, сеть и режимы точек возврата, депозит на кассе, талоны, сдача администратору, взаиморасчёты и отчётность"
+}

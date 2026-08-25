@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Depozitul pe raftul Rogob</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F1F4F0; --surface:#FBFCFA; --sunken:#E5EAE4;
+  --ink:#161D19; --ink-2:#48544D; --ink-3:#78857D;
+  --rule:#D3DBD2; --rule-2:#C0CABF;
+  --accent:#1C6A56; --accent-soft:#DCEBE4; --accent-ink:#124436;
+  --gold:#8F6A12; --gold-soft:#F0E7CE;
+  --slate:#3D5566; --slate-soft:#DFE7EC;
+  --shadow:0 1px 2px rgba(22,29,25,.05), 0 8px 24px -12px rgba(22,29,25,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#10150F; --surface:#171E19; --sunken:#1E2721;
+    --ink:#EAF0E9; --ink-2:#A9B6AC; --ink-3:#7C8A80;
+    --rule:#2A342D; --rule-2:#3A473D;
+    --accent:#6BC4A6; --accent-soft:#17342B; --accent-ink:#A8DFCA;
+    --gold:#D8B865; --gold-soft:#332A12;
+    --slate:#93B0C4; --slate-soft:#1B2831;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10150F; --surface:#171E19; --sunken:#1E2721;
+  --ink:#EAF0E9; --ink-2:#A9B6AC; --ink-3:#7C8A80;
+  --rule:#2A342D; --rule-2:#3A473D;
+  --accent:#6BC4A6; --accent-soft:#17342B; --accent-ink:#A8DFCA;
+  --gold:#D8B865; --gold-soft:#332A12;
+  --slate:#93B0C4; --slate-soft:#1B2831;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+  font-size:18px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 96px}
+h1,h2,h3,.disp{font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;text-wrap:balance;line-height:1.1}
+.mono,code,td.num{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+
+/* ---- masthead ---- */
+header.mast{border-bottom:1px solid var(--rule);padding:56px 0 28px;margin-bottom:8px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(38px,6.2vw,72px);font-weight:800;letter-spacing:-.025em;margin:18px 0 14px;max-width:15ch}
+.standfirst{font-size:clamp(19px,2.1vw,23px);color:var(--ink-2);max-width:58ch;margin:0}
+.byline{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:26px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-3)}
+
+/* ---- layout with citation gutter ---- */
+.doc{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+@media(min-width:1000px){.doc{grid-template-columns:minmax(0,68ch) 1fr;column-gap:44px}}
+section.blk{padding:40px 0;border-bottom:1px solid var(--rule);display:contents}
+.body-col{grid-column:1}
+.note-col{grid-column:1;margin:8px 0 28px}
+@media(min-width:1000px){.note-col{grid-column:2;margin:0}}
+h2{font-size:clamp(26px,3.2vw,34px);font-weight:600;letter-spacing:-.02em;margin:52px 0 6px;padding-top:34px;border-top:1px solid var(--rule)}
+h2:first-of-type{border-top:0;padding-top:0}
+h2 .kicker{display:block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:500}
+h3{font-size:20px;font-weight:600;margin:34px 0 8px;letter-spacing:-.01em}
+p{margin:0 0 18px}
+strong{font-weight:600}
+a{color:var(--accent-ink);text-decoration-thickness:1px;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+/* margin note */
+.note{border-left:2px solid var(--rule-2);padding:2px 0 2px 14px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;line-height:1.6;color:var(--ink-3);max-width:30ch}
+.note b{color:var(--ink-2);font-weight:500}
+
+/* ---- verdict cards ---- */
+.verdicts{display:grid;gap:14px;margin:26px 0 8px}
+@media(min-width:680px){.verdicts{grid-template-columns:repeat(3,1fr)}}
+.v{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:20px;box-shadow:var(--shadow)}
+.v .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:3px 8px;border-radius:3px;display:inline-block;margin-bottom:12px}
+.v.good .tag{background:var(--accent-soft);color:var(--accent-ink)}
+.v.duty .tag{background:var(--slate-soft);color:var(--slate)}
+.v.money .tag{background:var(--gold-soft);color:var(--gold)}
+.v h3{margin:0 0 8px;font-size:18px}
+.v p{font-size:16px;color:var(--ink-2);margin:0}
+
+/* ---- tables ---- */
+.tw{overflow-x:auto;margin:22px 0 26px;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15.5px;font-family:"Bricolage Grotesque",sans-serif}
+th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:500;padding:12px 16px;border-bottom:1px solid var(--rule-2);white-space:nowrap}
+td{padding:13px 16px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td:first-child{color:var(--ink);font-weight:500}
+td.num{text-align:right;white-space:nowrap}
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;letter-spacing:.05em}
+.pill.a{background:var(--gold-soft);color:var(--gold)}
+.pill.b{background:var(--accent-soft);color:var(--accent-ink)}
+.pill.c{background:var(--slate-soft);color:var(--slate)}
+
+/* ---- deadline strip ---- */
+.strip{background:var(--sunken);border:1px solid var(--rule);border-radius:4px;padding:22px 24px;margin:28px 0}
+.strip .big{font-family:"Bricolage Grotesque",sans-serif;font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.03em;color:var(--accent-ink);display:block;line-height:1}
+.strip p{margin:10px 0 0;font-size:16px;color:var(--ink-2)}
+
+/* ---- demo ---- */
+.demo{background:var(--sunken);border:1px solid var(--rule);border-radius:6px;padding:8px;margin:26px 0}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:4px}
+.tabs button{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.04em;padding:8px 13px;border:1px solid transparent;background:none;color:var(--ink-2);border-radius:4px;cursor:pointer}
+.tabs button:hover{background:var(--surface)}
+.tabs button[aria-selected="true"]{background:var(--surface);border-color:var(--rule-2);color:var(--ink);box-shadow:var(--shadow)}
+.screen{display:none;background:var(--surface);border:1px solid var(--rule-2);border-radius:4px;padding:22px;margin:4px;font-family:"Bricolage Grotesque",sans-serif}
+.screen[data-on="1"]{display:block}
+.scr-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:12px;margin-bottom:16px}
+.scr-head .t{font-weight:600;font-size:16px}
+.scr-head .u{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3)}
+.rows{font-size:15px}
+.row{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px dashed var(--rule)}
+.row.dep{color:var(--accent-ink)}
+.row.dep .lbl::before{content:"♻ ";}
+.row.tot{border-bottom:0;border-top:2px solid var(--rule-2);margin-top:6px;font-weight:600;font-size:17px;color:var(--ink)}
+.row .val{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14.5px;margin-top:4px}
+.kv dt{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);align-self:center}
+.kv dd{margin:0;color:var(--ink)}
+.ticket{border:1px dashed var(--rule-2);border-radius:4px;padding:18px;text-align:center;background:var(--ground)}
+.ticket .amt{font-size:40px;font-weight:800;letter-spacing:-.03em;color:var(--accent-ink);font-family:"Bricolage Grotesque",sans-serif;line-height:1}
+.ticket .code{font-family:"IBM Plex Mono",monospace;font-size:15px;letter-spacing:.22em;margin-top:12px;color:var(--ink)}
+.ticket .exp{font-size:13px;color:var(--ink-3);margin-top:8px}
+.bars{display:grid;gap:10px;margin-top:6px}
+.bar{display:grid;grid-template-columns:120px 1fr auto;gap:12px;align-items:center;font-size:14px}
+.bar .track{height:22px;background:var(--sunken);border-radius:3px;overflow:hidden}
+.bar .fill{height:100%;display:block}
+.bar .fill.b{background:var(--accent)}
+.bar .fill.a{background:var(--gold)}
+.bar .fill.c{background:var(--slate)}
+.bar .n{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-2)}
+.hint{font-size:13.5px;color:var(--ink-3);margin-top:16px;font-family:"Source Serif 4",serif;font-style:italic}
+.badge-ok,.badge-no{font-family:"IBM Plex Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px}
+.badge-ok{background:var(--accent-soft);color:var(--accent-ink)}
+.badge-no{background:var(--gold-soft);color:var(--gold)}
+
+ol.cal{list-style:none;padding:0;margin:24px 0;counter-reset:s}
+ol.cal li{counter-increment:s;display:grid;grid-template-columns:38px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--rule)}
+ol.cal li::before{content:counter(s);font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--accent);border:1px solid var(--rule-2);border-radius:50%;width:30px;height:30px;display:grid;place-items:center}
+ol.cal .w{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);display:block;margin-top:4px}
+ol.cal b{font-family:"Bricolage Grotesque",sans-serif;font-weight:600}
+
+ul.ask{list-style:none;padding:0;margin:20px 0}
+ul.ask li{padding:14px 0 14px 26px;border-bottom:1px solid var(--rule);position:relative}
+ul.ask li::before{content:"→";position:absolute;left:0;color:var(--accent);font-family:"IBM Plex Mono",monospace}
+
+footer{border-top:1px solid var(--rule);margin-top:60px;padding-top:24px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-3);line-height:1.8}
+@media(prefers-reduced-motion:no-preference){.v,.strip{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="mast">
+  <div class="eyebrow">Dosar de prezentare · Sistemul de Depozit pentru Ambalaje</div>
+  <h1>Depozitul pe raftul Rogob</h1>
+  <p class="standfirst">Ce se schimbă din ianuarie 2027 pentru o rețea de peste 85 de magazine — și de ce cea mai importantă cifră din acest dosar este suprafața comercială a fiecărei unități.</p>
+  <div class="byline">
+    <span>25 august 2026</span>
+    <span>Bază: L. 209/2016 art. 54¹–54⁴ · L. 97/2024 · Regulamentul SDA</span>
+    <span>Modul propus peste platforma BIRO26 / OfficePlus</span>
+  </div>
+</header>
+
+<div class="doc">
+
+<h2 class="body-col"><span class="kicker">Rezumat pentru decizie</span>Trei constatări</h2>
+<div class="body-col">
+  <div class="verdicts">
+    <div class="v good">
+      <span class="tag">Nu se aplică</span>
+      <h3>Rogob nu este producător SDA</h3>
+      <p>Sistemul acoperă exclusiv ambalajele de băuturi. Mezelurile, specialitățile din carne și panificația „Plămădele" nu intră. Fără marcaj, fără registru propriu, fără raportare la data de 10, fără tarif de administrare.</p>
+    </div>
+    <div class="v duty">
+      <span class="tag">Se aplică</span>
+      <h3>Comerciant și HoReCa</h3>
+      <p>Cele 85+ magazine proprii vând băuturi la raft — deci calitatea de comerciant. Rogob Grill Cafe intră ca HoReCa. Înregistrarea la Administrator: 6 luni de la desemnarea acestuia, produsă în mai 2026.</p>
+    </div>
+    <div class="v money">
+      <span class="tag">Miza</span>
+      <h3>Pragul de 100 m²</h3>
+      <p>Magazinele sub prag nu operează punct propriu de returnare. Diferența dintre a demonstra încadrarea la timp și a nu o demonstra este diferența dintre afișaje și zeci de instalații automate.</p>
+    </div>
+  </div>
+</div>
+<div class="note-col"><div class="note"><b>pct. 14.1</b> · ambalaj SD = sticlă, plastic sau metal, 0,1–3 l, pentru produsele de la art. 54¹ alin. (3): bere, cidru, vin, băuturi fermentate, alcoolice și nealcoolice, apă minerală și potabilă, sucuri.</div></div>
+
+<div class="body-col">
+  <div class="strip">
+    <span class="big">25 ianuarie 2027</span>
+    <p>Termenul-limită legal la care sistemul devine operațional pe întreg teritoriul țării. Din acea zi, fiecare băutură vândută poartă depozit pe bon.</p>
+  </div>
+  <p><strong>Prima acțiune recomandată, independentă de orice decizie privind furnizorul de software:</strong> inventarierea documentată a suprafeței comerciale a fiecărei unități. Este datul de intrare pentru tot ce urmează și trebuie oricum depus la Administrator.</p>
+</div>
+<div class="note-col"><div class="note"><b>pct. 78.3</b> · notificarea de înregistrare cuprinde adresa <i>și suprafața</i> fiecărei unități de comercializare operate ca punct de desfacere.</div></div>
+
+<h2 class="body-col"><span class="kicker">Regimuri</span>Harta de conformitate a rețelei</h2>
+<div class="body-col">
+  <p>Fiecare unitate se încadrează, după suprafață și tip de amplasament, într-unul din trei regimuri. Harta se construiește o singură dată și devine baza dosarului de înregistrare, a planului de investiții și a afișajelor din magazine.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Regim</th><th>Condiție</th><th>Ce trebuie făcut</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill a">A</span> punct propriu</td><td>suprafață peste prag</td><td>Punct în unitate sau la maximum 150 m, cu cel puțin același orar. Decizie manual vs. instalație automată, spațiu și personal.</td></tr>
+      <tr><td><span class="pill b">B</span> excepție, APL</td><td>până la 100 m²; până la 150 m² la tarabe, chioșcuri, benzinării, alimentație publică</td><td>Înregistrare cu suprafața declarată, afișajul obligatoriu, acord cu autoritatea locală, responsabil desemnat în relația cu Administratorul.</td></tr>
+      <tr><td><span class="pill c">C</span> HoReCa</td><td>Rogob Grill Cafe</td><td>Predare directă către Administrator, fără punct public de returnare. Tarif de gestionare pentru ambalajele predate.</td></tr>
+    </tbody>
+  </table></div>
+</div>
+<div class="note-col"><div class="note"><b>pct. 92–97</b> · magazinele din regimul B afișează vizibil textul „Acest magazin nu funcționează ca punct de returnare a ambalajelor", plus localizarea punctelor disponibile din zonă.</div></div>
+
+<h2 class="body-col"><span class="kicker">Operațiuni</span>Ce se schimbă la front și la back</h2>
+<div class="body-col">
+  <h3>La casă</h3>
+  <p>Fiecare băutură primește pe bon o linie separată de depozit, calculată din codul EAN prin Registrul ambalajelor SD. Valoarea trebuie să fie identică în raft, în coș, pe bon și în factură — calculată o singură dată, pe server, și propagată în toate afișările. Este cerința cea mai simplă în enunț și cea mai frecventă sursă de reclamații în practică.</p>
+  <h3>La punctul de returnare</h3>
+  <p>Se acceptă orice ambalaj SD, indiferent de unde a fost cumpărat produsul și fără a cere bonul fiscal. Preluarea manuală permite numerar sau tichet; instalația automată rambursează doar prin tichet, valabil 12 luni și preschimbabil la același comerciant. Ambalajele returnate devin, din momentul preluării, proprietatea Administratorului.</p>
+  <h3>În evidență</h3>
+  <p>Numărul de ambalaje returnate în bucăți și în kilograme, defalcat pe material și volum, plus depozitele plătite consumatorilor și cele încasate de la Administrator. Kilogramele se derivă din greutatea unitară din registru — nu e nevoie de cântărire la fiecare punct.</p>
+  <p>Pentru fiecare ambalaj preluat, Administratorul plătește comerciantului <strong>tariful de gestionare</strong>, prin transfer bancar, la cel mult 14 zile. Este un venit real al rețelei: modulul compară ce se cuvine cu ce s-a încasat și semnalează întârzierile.</p>
+</div>
+<div class="note-col">
+  <div class="note"><b>pct. 86, 89</b> · fără condiționarea de bonul fiscal.<br><br><b>pct. 88</b> · ambalajele returnate sunt proprietatea Administratorului.<br><br><b>pct. 100</b> · evidența în bucăți și kg, pe material și volum.<br><br><b>pct. 14.14</b> · tariful de gestionare, cu frecvență nu mai mare de 14 zile.</div>
+</div>
+
+<h2 class="body-col"><span class="kicker">Demonstrație</span>Cum arată în sistem</h2>
+<div class="body-col">
+  <p>Patru ecrane din modulul propus, cu date ilustrative. Valoarea depozitului folosită aici este un exemplu: legea nu a fixat-o încă, urmează ordin al ministrului mediului.</p>
+  <div class="demo">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-t="bon">Bon de casă</button>
+      <button role="tab" aria-selected="false" data-t="kiosk">Punct de returnare</button>
+      <button role="tab" aria-selected="false" data-t="tichet">Tichet</button>
+      <button role="tab" aria-selected="false" data-t="harta">Harta rețelei</button>
+    </div>
+
+    <div class="screen" data-on="1" data-s="bon">
+      <div class="scr-head"><span class="t">Bon fiscal</span><span class="u">Magazin Rogob nr. 12 · Chișinău</span></div>
+      <div class="rows">
+        <div class="row"><span class="lbl">Salam Doctorsc, 400 g</span><span class="val">62,40</span></div>
+        <div class="row"><span class="lbl">Pâine Plămădele, 500 g</span><span class="val">11,50</span></div>
+        <div class="row"><span class="lbl">Apă minerală, PET 1,5 l × 2</span><span class="val">27,80</span></div>
+        <div class="row dep"><span class="lbl">Depozit SDA · PET 1,5 l × 2</span><span class="val">2,00</span></div>
+        <div class="row"><span class="lbl">Bere blondă, sticlă 0,5 l</span><span class="val">18,90</span></div>
+        <div class="row dep"><span class="lbl">Depozit SDA · sticlă 0,5 l × 1</span><span class="val">1,00</span></div>
+        <div class="row tot"><span class="lbl">Total de plată</span><span class="val">123,60</span></div>
+      </div>
+      <p class="hint">Salamul și pâinea nu poartă depozit — nu sunt băuturi. Linia de depozit apare doar acolo unde EAN-ul există în Registrul ambalajelor SD.</p>
+    </div>
+
+    <div class="screen" data-s="kiosk">
+      <div class="scr-head"><span class="t">Preluare ambalaje</span><span class="u">Punct de returnare · manual</span></div>
+      <dl class="kv">
+        <dt>Scanat</dt><dd>4 ambalaje</dd>
+        <dt>Acceptate</dt><dd>3 <span class="badge-ok">în registru</span></dd>
+        <dt>Refuzate</dt><dd>1 <span class="badge-no">ambalaj deformat</span></dd>
+        <dt>Greutate</dt><dd>0,742 kg — derivată din registru</dd>
+        <dt>De rambursat</dt><dd><strong>3,00 lei</strong></dd>
+      </dl>
+      <p class="hint">Refuzul se înregistrează cu motiv, nu se pierde: intră în raportare și susține poziția rețelei în caz de reclamație. Preluarea manuală lasă clientului alegerea între numerar și tichet.</p>
+    </div>
+
+    <div class="screen" data-s="tichet">
+      <div class="scr-head"><span class="t">Tichet valoric</span><span class="u">emis de instalația automată</span></div>
+      <div class="ticket">
+        <span class="amt">3,00 lei</span>
+        <div class="code">MD7K · 4Q2P · 9NR8</div>
+        <div class="exp">Valabil până la 25 august 2027 · preschimbabil în numerar sau utilizabil la cumpărături în magazinele Rogob</div>
+      </div>
+      <p class="hint">Fiecare tichet are cod unic și stare în registru — emis, preschimbat în numerar, folosit la cumpărături, expirat. Consumul este permis o singură dată, impus în baza de date. Dubla utilizare a tichetului este scenariul de fraudă cel mai probabil al sistemului.</p>
+    </div>
+
+    <div class="screen" data-s="harta">
+      <div class="scr-head"><span class="t">Încadrarea unităților</span><span class="u">exemplu ilustrativ · 85 de unități</span></div>
+      <div class="bars">
+        <div class="bar"><span>Regim B · excepție</span><span class="track"><span class="fill b" style="width:76%"></span></span><span class="n">65</span></div>
+        <div class="bar"><span>Regim A · punct propriu</span><span class="track"><span class="fill a" style="width:20%"></span></span><span class="n">17</span></div>
+        <div class="bar"><span>Regim C · HoReCa</span><span class="track"><span class="fill c" style="width:4%"></span></span><span class="n">3</span></div>
+      </div>
+      <p class="hint">Proporțiile de mai sus sunt ipotetice — le putem calcula abia după inventarul suprafețelor. Exact această distribuție decide dacă vorbim despre afișaje sau despre 17, 40 ori 85 de puncte de returnare.</p>
+    </div>
+  </div>
+</div>
+<div class="note-col"><div class="note"><b>pct. 90.2</b> · instalația automată rambursează exclusiv prin tichet.<br><br><b>pct. 14.15</b> · tichetul e valabil 12 luni de la emitere.</div></div>
+
+<h2 class="body-col"><span class="kicker">Calendar</span>De la inventar la punerea în funcțiune</h2>
+<div class="body-col">
+  <ol class="cal">
+    <li><div><b>Inventarul suprafețelor</b><span class="w">imediat</span><br>Suprafața comercială și tipul amplasamentului pentru fiecare unitate, plus sortimentul de băuturi vândut.</div></li>
+    <li><div><b>Harta de conformitate</b><span class="w">2–3 săptămâni de la inventar</span><br>Încadrarea A/B/C per unitate, scenarii de cost, decizia manual vs. automat.</div></li>
+    <li><div><b>Dosarul de înregistrare</b><span class="w">în fereastra de 6 luni</span><br>Notificarea digitală semnată electronic către Administrator, cu cele opt blocuri cerute de Regulament.</div></li>
+    <li><div><b>Acorduri cu autoritățile locale</b><span class="w">paralel</span><br>Pentru unitățile din regimul B, lista locațiilor aprobată de APL.</div></li>
+    <li><div><b>Implementare informatică</b><span class="w">până în toamna 2026</span><br>Registru, casă, chioșc de returnare, tichete, deconturi, rapoarte.</div></li>
+    <li><div><b>Pilot cu date reale</b><span class="w">înainte de decembrie 2026</span><br>Un oraș sau un grup de magazine.</div></li>
+    <li><div><b>Punerea în funcțiune</b><span class="w">25 ianuarie 2027</span><br>Întreaga rețea.</div></li>
+  </ol>
+  <p>Primele două etape nu depind de nicio decizie privind furnizorul de software și pot începe acum. Sunt și cele care aduc cea mai mare parte a valorii.</p>
+</div>
+<div class="note-col"><div class="note"><b>pct. 77</b> · comercianții se înregistrează în termen de 6 luni de la desemnarea Administratorului.<br><br><b>pct. 6</b> · sistemul devine operațional în 1 an de la desemnare, dar nu mai târziu de termenul din L. 97/2024.</div></div>
+
+<h2 class="body-col"><span class="kicker">Parametri</span>Ce nu este încă stabilit prin lege</h2>
+<div class="body-col">
+  <div class="tw"><table>
+    <thead><tr><th>Element</th><th>Cine îl stabilește</th></tr></thead>
+    <tbody>
+      <tr><td>Valoarea depozitului</td><td>ordin al ministrului mediului — nu e fixată în Regulament</td></tr>
+      <tr><td>Tariful de administrare, 7 categorii</td><td>Administratorul, prin Schema de finanțare aprobată</td></tr>
+      <tr><td>Tariful de gestionare, 5 categorii × manual/automat</td><td>Administratorul, conform ordinului ministrului</td></tr>
+      <tr><td>Grafica mărcii SDA</td><td>ordin al ministrului, pe propunerea Administratorului</td></tr>
+      <tr><td>Formatul raportării și specificațiile codului de bare</td><td>Administratorul</td></tr>
+    </tbody>
+  </table></div>
+  <p>Consecința practică este o decizie de arhitectură, nu una de detaliu: <strong>niciuna dintre aceste mărimi nu se scrie în cod.</strong> În modul sunt parametri cu perioade de valabilitate, exact ca prețurile din OfficePlus — o valoare schimbată retroactiv recalculează corect deconturile deja emise. Este singura arhitectură care rezistă la un sistem încă în construcție normativă.</p>
+</div>
+<div class="note-col"><div class="note"><b>art. 54¹ alin. (18)</b> · valoarea depozitului și tarifele se stabilesc prin ordin al ministrului mediului.</div></div>
+
+<h2 class="body-col"><span class="kicker">Pasul următor</span>Ce vă cerem</h2>
+<div class="body-col">
+  <ul class="ask">
+    <li><strong>Suprafețele comerciale</strong> ale unităților — există în OfficePlus sau trebuie inventariate pe teren?</li>
+    <li><strong>Confirmarea</strong> că Rogob nu îmbuteliază și nu importă băuturi sub marcă proprie. Dacă o face, se activează și calitatea de producător pentru acel sortiment.</li>
+    <li><strong>Confirmarea</strong> dacă livrările către magazinele partenere includ băuturi — în acest caz apare și calitatea de distribuitor, cu obligația de a percepe depozitul mai departe pe lanț.</li>
+    <li><strong>Persoana desemnată</strong> pentru relația cu Administratorul SDA.</li>
+  </ul>
+  <p>Cu răspunsurile la primele trei, livrăm harta de conformitate și estimarea de cost pe scenarii în două–trei săptămâni.</p>
+</div>
+<div class="note-col"><div class="note"><b>pct. 14.7</b> · distribuitorul e operatorul din lanț, altul decât producătorul, care furnizează produsul pentru distribuire, consum sau utilizare.</div></div>
+
+</div>
+
+<footer>
+  Dosar tehnic pregătit de echipa platformei BIRO26 / OfficePlus.<br>
+  Analiza se bazează pe textul proiectului de Hotărâre de Guvern privind stabilirea Sistemului de depozit pentru ambalaje și pe Legea nr. 209/2016 privind deșeurile, art. 54¹–54⁴, astfel cum a fost modificată prin Legea nr. 97/2024.<br>
+  Cifrele din demonstrație sunt ilustrative. Documentul nu constituie consultanță juridică.
+</footer>
+</div>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var demo = btn.closest('.demo');
+    demo.querySelectorAll('.tabs button').forEach(function(b){ b.setAttribute('aria-selected', String(b === btn)); });
+    demo.querySelectorAll('.screen').forEach(function(s){
+      if (s.dataset.s === btn.dataset.t) { s.setAttribute('data-on','1'); } else { s.removeAttribute('data-on'); }
+    });
+  });
+});
+</script>
+</body>
+</html>
