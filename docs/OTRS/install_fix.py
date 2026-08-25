@@ -53,8 +53,10 @@ def auth(t):
     return {"user": t["user"], "password": pw, "dsn": DSN}
 
 
-def run(a, sql, label):
-    r = _call_worker(a, sql, 5)
+def run(a, sql, label, timeout=120):
+    # третий аргумент _call_worker — ТАЙМАУТ В СЕКУНДАХ, не число строк.
+    # Отправка с тремя попытками и паузами 2+4 с в 5 секунд не укладывается.
+    r = _call_worker(a, sql, timeout)
     ok = r.get("success")
     print(f"    {label}: {'OK' if ok else str(r.get('message'))[:250]}")
     return ok
