@@ -3311,6 +3311,56 @@ def sda_presentation():
         return Response(f.read(), mimetype='text/html; charset=utf-8')
 
 
+# --- Модуль SDA: API ---
+#
+# Чтение открыто вместе с хабом модуля; запись требует входа, как
+# в остальных модулях портала.
+
+def _sda_user():
+    return session.get('username') or 'anonim'
+
+
+@app.route('/api/sda/units', methods=['GET'])
+def api_sda_units():
+    return jsonify(SDAController.get_units(request.args))
+
+
+@app.route('/api/sda/units', methods=['POST'])
+def api_sda_units_save():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    return jsonify(SDAController.save_unit(request.get_json() or {}, _sda_user()))
+
+
+@app.route('/api/sda/units/reclassify', methods=['POST'])
+def api_sda_units_reclassify():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    return jsonify(SDAController.reclassify(_sda_user()))
+
+
+@app.route('/api/sda/compliance', methods=['GET'])
+def api_sda_compliance():
+    return jsonify(SDAController.get_compliance(request.args))
+
+
+@app.route('/api/sda/packs', methods=['GET'])
+def api_sda_packs():
+    return jsonify(SDAController.get_packs(request.args))
+
+
+@app.route('/api/sda/packs', methods=['POST'])
+def api_sda_packs_save():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    return jsonify(SDAController.save_pack(request.get_json() or {}, _sda_user()))
+
+
+@app.route('/api/sda/deposit', methods=['GET'])
+def api_sda_deposit():
+    return jsonify(SDAController.get_deposit(request.args))
+
+
 # --- Язык, словарь, справочники ---
 @app.route('/api/plg/langs', methods=['GET'])
 def api_plg_langs():
