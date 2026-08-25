@@ -3300,6 +3300,14 @@ def sda_doc(slug):
                            page_title=f"{doc['title']} — SDA")
 
 
+@app.route('/UNA.md/orasldev/sda-console')
+def sda_console():
+    """Консоль модуля: карта соответствия, сеть, реестр упаковки."""
+    if not AuthController.is_authenticated():
+        return redirect(url_for('login'))
+    return render_template('sda.html', page_title='SDA — consola modulului')
+
+
 @app.route('/UNA.md/orasldev/sda/presentation')
 def sda_presentation():
     """Досье для клиента — самостоятельная HTML-страница, открыта без входа."""
