@@ -246,14 +246,32 @@ limbi, iconul, ordinea și adresa; descoperirea rutelor este automată.
 
 ## 6. Livrare
 
-DDL în `sql/` cu includere în ordinea din `deploy_oracle_objects.py`. Obiectele
-Oracle nu se creează prin deploy-ul de cod: se rulează separat
-`python deploy_oracle_objects.py` sau deploy remote cu
-`DEPLOY_ORACLE_ON_REMOTE=1`.
+Modulul e un pachet autonom `modules/sda/` (arhitectura de module izolate,
+`docs/CORE_MODULES.md`) — cod, șabloane, DDL și instalator locuiesc acolo,
+nu în arborele comun. `app.py` și `deploy_oracle_objects.py` nu conțin nicio
+mențiune SDA; asta e verificat de teste
+(`test_module_leaves_nothing_in_the_shared_app`,
+`test_shared_deploy_script_is_untouched_by_the_module` în
+`tests/test_sda.py`).
+
+DDL-ul (`modules/sda/sql/117_sda_tables.sql`) se instalează cu propriul
+script, **nu** cu `deploy_oracle_objects.py` — acesta nu-l vede și nu are
+voie să-l vadă:
+
+```bash
+venv/bin/python modules/sda/scripts/sda_deploy.py --dry-run
+venv/bin/python modules/sda/scripts/sda_deploy.py --yes
+```
+
+Ținta e ADB-ul cloud al platformei (thin-mode, `models/database.py`), nu
+ERP-ul OfficePlus — tabelele `SDA_*` nu au legătură cu contorul thick al
+Biro26/SEOForge.
 
 Verificare după livrare: obiectele `SDA_*` prezente în `USER_OBJECTS`; modulul
-vizibil în `/UNA.md/orasldev/modules` și în bara laterală; rutele funcționale;
-`curl -I https://nufarul.eminescu.md/login` → 200.
+vizibil în `/UNA.md/orasldev/modules` și în bara laterală (automat, din
+`modules/sda/module.json` — nu se scrie manual în meniu); rutele funcționale
+sub `/UNA.md/orasldev/sda/...`; `curl -I https://nufarul.eminescu.md/login`
+→ 200.
 
 ---
 
