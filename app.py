@@ -8116,6 +8116,73 @@ def _biro26_rate_plans():
     return liber_pct, liber_min, rate_plans
 
 
+# RO: adresa PUBLICA a paginii curente. Pe officeplus.md paginile se deschid
+#     la /catalog, /produs/N, iar in interior aceleasi pagini traiesc sub
+#     /UNA.md/orasldev/biro26-site/... Canonical trebuie sa arate adresa
+#     publica, altfel motorul de cautare scoate din index exact adresa pe
+#     care o deschid clientii.
+# EN: the PUBLIC address of the current page. Canonical must point at the
+#     address customers actually open, not at the internal path.
+_BIRO26_SITE_PREFIXES = ('/UNA.md/orasldev/biro26-site',
+                         '/UNA.md/orasldev/biro26-1shop')
+
+# RO: cale interna -> cale publica (oglinda lui siteURL() din site.js)
+# EN: internal path -> public path (mirrors siteURL() in site.js)
+_BIRO26_PUBLIC_PATHS = {
+    '': '/', '/': '/', '/catalog': '/catalog', '/cart': '/cos',
+    '/account': '/cont', '/favorites': '/favorite', '/compare': '/compara',
+    '/brands': '/branduri', '/credit-form': '/cerere-credit',
+    '/payment-result': '/payment-result',
+}
+
+# RO: fatetele care merita adresa proprie in index; sortarea, paginarea si
+#     cautarea nu creeaza pagini noi si nu intra in canonical.
+# EN: facets worth their own indexed address; sort, paging and search do not.
+_BIRO26_CANONICAL_ARGS = ('grupa', 'categorie', 'brand')
+
+
+def _biro26_public_host():
+    """RO: numele public al site-ului. EN: the public site host.
+
+    Pe productie cererea ajunge prin nginx, care pune numele intern in
+    antetul Host (numele public e ocupat acolo de alt site). Numele adevarat
+    vine in X-Forwarded-Host, pus de propriul nostru frontal.
+    """
+    from flask import request as _rq
+    fwd = (_rq.headers.get('X-Forwarded-Host') or '').split(',')[0].strip()
+    return (fwd or _rq.host or '').lower()
+
+
+def _biro26_public_path(path=None):
+    """RO: calea publica a paginii. EN: the page's public path."""
+    from flask import request as _rq
+    path = path if path is not None else (_rq.path or '/')
+    for prefix in _BIRO26_SITE_PREFIXES:
+        if path == prefix or path.startswith(prefix + '/'):
+            rest = path[len(prefix):]
+            if rest in _BIRO26_PUBLIC_PATHS:
+                return _BIRO26_PUBLIC_PATHS[rest]
+            if rest.startswith('/product/'):
+                return '/produs/' + rest[len('/product/'):]
+            if rest.startswith('/page/'):
+                slug = rest[len('/page/'):]
+                return ('/' + slug) if slug else '/'
+            return rest or '/'
+    return path
+
+
+def _biro26_canonical_url():
+    """RO: adresa canonica absoluta a paginii curente."""
+    from flask import request as _rq
+    from urllib.parse import quote, urlencode
+    host = _biro26_public_host() or _rq.host
+    path = quote(_biro26_public_path(), safe='/')
+    facets = [(k, _rq.args.get(k)) for k in _BIRO26_CANONICAL_ARGS
+              if _rq.args.get(k)]
+    query = ('?' + urlencode(facets)) if facets else ''
+    return 'https://' + host + path + query
+
+
 def _biro26_site_ctx():
     """RO: contextul comun al paginilor noului site Figma.
     EN: shared context for the new-site pages."""
@@ -8138,8 +8205,7 @@ def _biro26_site_ctx():
         ga_id = Biro26Store.get_setting('SHOP_GA_ID', 'G-STJ1NQDGY0')
     except Exception:
         ga_id = 'G-STJ1NQDGY0'
-    from flask import request as _rq
-    _host = (_rq.host or '').lower()
+    _host = _biro26_public_host()
     if 'officeplus.md' not in _host:
         ga_id = ''   # RO: doar pe domeniul public / EN: public host only
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
@@ -8173,6 +8239,7 @@ def _biro26_site_ctx():
             'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
             'price_field': price_field,
             'pay_logos': pay_logos,
+            'canonical_url': _biro26_canonical_url(),
             'ga_id': ga_id}
 
 @app.route('/UNA.md/orasldev/biro26-site')

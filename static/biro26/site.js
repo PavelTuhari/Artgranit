@@ -324,12 +324,19 @@ function cardHtml(p) {
       '" type="button" aria-label="Favorite" onclick="favToggle(this,' + p.cod + ')">' +
       (favHas(p.cod) ? '❤' : '♡') + '</button>' +
     (p.image
-      ? '<div class="product-img live" style="background-image:url(\'' + esc(p.image) +
-        '\')" onclick="openProd(' + p.cod + ')"></div>'
-      : '<div class="product-img p-markers" onclick="openProd(' + p.cod + ')"></div>') +
+      ? '<a class="product-img live" href="' + siteURL('/produs/' + p.cod) +
+        '" style="background-image:url(\'' + esc(p.image) + '\')"></a>'
+      : '<a class="product-img p-markers" href="' + siteURL('/produs/' + p.cod) +
+        '"></a>') +
     '<span class="stock ' + (inStock ? 'in' : 'order') + '">' +
       tr(inStock ? 'inStock' : 'onOrder') + '</span>' +
-    '<h3 class="product-name" onclick="openProd(' + p.cod + ')">' + esc(pname(p)) + '</h3>' +
+    // RO: numele este o LEGATURA reala, nu un onclick: asa produsul are o
+    //     adresa pe care motorul de cautare o poate urma, iar clientul poate
+    //     deschide cardul in fila noua. Comportamentul la clic nu se schimba.
+    // EN: the name is a REAL link, not an onclick: the product gets an address
+    //     a crawler can follow and the customer can open it in a new tab.
+    '<h3 class="product-name"><a href="' + siteURL('/produs/' + p.cod) + '">' +
+      esc(pname(p)) + '</a></h3>' +
     // RO: articolul (CODVECHI) + codul de bare direct pe card — clientii le
     //     cauta ca sa compare oferta. EN: article + barcode on the card.
     '<div class="product-code">' + esc(p.codvechi || p.cod) +

@@ -88,6 +88,21 @@ const PRESETS = [[0, 500], [500, 1000], [1000, 2500], [2500, 5000], [5000, 10000
   if (F.grupa) OPEN.add(F.grupa);
 })();
 
+/* RO: adresa unui filtru — ACEEASI pe care o pune pushURL() in bara de
+   adrese. Se foloseste ca href real pe legaturile din arbore si din
+   firimituri: motorul de cautare urmeaza atributul href, nu onclick, deci
+   fara ea grupele si categoriile nu exista pentru cautare.
+   EN: the address of a filter — the SAME one pushURL() puts in the address
+   bar. Used as a real href, because a crawler follows href, not onclick. */
+function catURL(o) {
+  const p = new URLSearchParams();
+  if (o && o.grupa) p.set('grupa', o.grupa);
+  if (o && o.categorie) p.set('categorie', o.categorie);
+  if (o && o.brand) p.set('brand', o.brand);
+  const qs = p.toString();
+  return siteURL('/catalog' + (qs ? '?' + qs : ''));
+}
+
 function pushURL() {
   const p = new URLSearchParams();
   if (F.q) p.set('q', F.q);
@@ -194,12 +209,13 @@ function renderCrumbs() {
   const l = curLang();
   let h = '<a href="' + siteURL('/') + '">' + tr('home') + '</a> › ';
   if (!F.grupa) { box.innerHTML = h + '<span>' + tr('catalog') + '</span>'; return; }
-  h += '<a href="javascript:void(0)" onclick="resetF()">' + tr('catalog') + '</a> › ';
+  h += '<a href="' + catURL(null) + '" onclick="resetF();return false">' +
+       tr('catalog') + '</a> › ';
   const node = TREE.find(t => t.grupa === F.grupa) || {};
   const gl = (l === 'ru' && node.grupa_ru) ? node.grupa_ru : F.grupa;
   if (!F.categorie) { box.innerHTML = h + '<span>' + esc(gl) + '</span>'; return; }
-  h += '<a href="javascript:void(0)" onclick="pickGrupa(\'' +
-       esc(F.grupa).replace(/'/g, '&#39;') + '\')">' + esc(gl) + '</a> › ';
+  h += '<a href="' + catURL({grupa: F.grupa}) + '" onclick="pickGrupa(\'' +
+       esc(F.grupa).replace(/'/g, '&#39;') + '\');return false">' + esc(gl) + '</a> › ';
   const cn = TREE.find(t => t.grupa === F.grupa && t.categorie === F.categorie) || {};
   const cl = (l === 'ru' && cn.cat_ru) ? cn.cat_ru : F.categorie;
   box.innerHTML = h + '<span>' + esc(cl) + '</span>';
@@ -231,8 +247,9 @@ function renderSide() {
     //     (toggleGrp o scotea din OPEN, iar filtrul o redeschidea imediat).
     const isOpen = OPEN.has(g.grupa);
     let h = '<div class="grp-row' + (isOpen ? ' open' : '') + '">' +
-      '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
-      '" onclick="pickGrupa(\'' + gq + '\')">' +
+      '<a href="' + catURL({grupa: g.grupa}) + '" class="' +
+      (F.grupa === g.grupa ? 'on' : '') +
+      '" onclick="pickGrupa(\'' + gq + '\');return false">' +
       esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>' +
       (g.cats.length ? '<span class="grp-arrow" onclick="toggleGrp(\'' + gq +
         '\')">▶</span>' : '') + '</div>';
@@ -241,10 +258,10 @@ function renderSide() {
       h += g.cats.sort((a, b) =>
         clbl(a).localeCompare(clbl(b), l === 'ru' ? 'ru' : 'ro')).map(c => {
         const cl = clbl(c);
-        return '<a href="javascript:void(0)" class="cat ' +
-          (F.categorie === c.categorie ? 'on' : '') +
+        return '<a href="' + catURL({grupa: g.grupa, categorie: c.categorie}) +
+          '" class="cat ' + (F.categorie === c.categorie ? 'on' : '') +
           '" onclick="pickCat(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\',\'' +
-          esc(c.categorie).replace(/'/g, '&#39;') + '\')">' + esc(cl) +
+          esc(c.categorie).replace(/'/g, '&#39;') + '\');return false">' + esc(cl) +
           ' <span style="opacity:.55">(' + (c.cnt || 0) + ')</span></a>';
       }).join('');
     }
@@ -252,9 +269,10 @@ function renderSide() {
   }).join('');
   const fb = document.getElementById('fbrands');
   if (fb) fb.innerHTML = BRANDS.map(b =>
-    '<span class="fchip' + (F.brand === b.brand ? ' on' : '') +
-    '" onclick="pickBrand(\'' + esc(b.brand).replace(/'/g, '&#39;') + '\')">' +
-    esc(b.brand) + '</span>').join('');
+    '<a class="fchip' + (F.brand === b.brand ? ' on' : '') +
+    '" href="' + catURL({brand: b.brand}) +
+    '" onclick="pickBrand(\'' + esc(b.brand).replace(/'/g, '&#39;') + '\');return false">' +
+    esc(b.brand) + '</a>').join('');
   document.getElementById('pprese').innerHTML = PRESETS.map(([mn, mx]) =>
     '<span class="fchip' + (F.pmin === mn && F.pmax === mx ? ' on' : '') +
     '" onclick="pickPreset(' + mn + ',' + (mx == null ? 'null' : mx) + ')">' +

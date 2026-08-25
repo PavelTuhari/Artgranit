@@ -596,3 +596,106 @@ def test_move_tree_categorie_sql():
         r = Biro26Store.move_tree_categorie("G1", "C1", "G2")
     assert r["success"] and "SET GRUPA = :ng" in fake.last_sql
     assert "WHERE GRUPA = :g AND CATEGORIE = :c" in fake.last_sql
+
+
+# ── адреса витрины: то, что видит поисковый робот ──────────────────────
+#
+# Магазин живёт по двум путям сразу: снаружи это /catalog и /produs/N,
+# внутри — /UNA.md/orasldev/biro26-site/... Робот приходит по внешнему
+# адресу, поэтому canonical обязан называть именно его: иначе сайт сам
+# просит выкинуть из индекса ту страницу, которую открывают клиенты.
+# Отдельно стережём ссылки: обходчик идёт по href, а не по onclick.
+
+import pathlib as _pathlib
+import re as _re
+
+
+def _site_templates():
+    root = _pathlib.Path(__file__).resolve().parent.parent
+    return [root / "templates/biro26/site_catalog.html",
+            root / "templates/biro26/site_base.html",
+            root / "static/biro26/site.js"]
+
+
+def test_storefront_has_no_empty_links():
+    """Ссылка-пустышка равна отсутствию страницы.
+
+    `javascript:void(0)` не даёт адреса ни категории, ни товару: обходчик
+    такую ссылку не проходит, и под запрос «rechizite scolare» отвечать
+    оказывается нечем.
+    """
+    bad = []
+    for path in _site_templates():
+        text = path.read_text(encoding="utf-8")
+        for m in _re.finditer(r"javascript:void", text):
+            bad.append(f"{path.name}:{text[:m.start()].count(chr(10)) + 1}")
+    assert not bad, "ссылки без адреса на витрине:\n" + "\n".join(bad)
+
+
+def test_product_cards_link_to_a_real_address():
+    js = (_pathlib.Path(__file__).resolve().parent.parent
+          / "static/biro26/site.js").read_text(encoding="utf-8")
+    assert js.count("siteURL('/produs/' + p.cod)") >= 2, \
+        "карточка товара должна давать адрес и на имени, и на картинке"
+
+
+def test_category_links_carry_the_filter_address():
+    tpl = (_pathlib.Path(__file__).resolve().parent.parent
+           / "templates/biro26/site_catalog.html").read_text(encoding="utf-8")
+    assert "function catURL(" in tpl
+    for call in ("catURL({grupa: g.grupa})",
+                 "catURL({grupa: g.grupa, categorie: c.categorie})",
+                 "catURL({brand: b.brand})"):
+        assert call in tpl, f"нет адреса у ссылки: {call}"
+
+
+def test_internal_paths_map_to_public_ones():
+    import app as _app
+    pub = _app._biro26_public_path
+    assert pub("/UNA.md/orasldev/biro26-site") == "/"
+    assert pub("/UNA.md/orasldev/biro26-site/catalog") == "/catalog"
+    assert pub("/UNA.md/orasldev/biro26-site/product/42") == "/produs/42"
+    assert pub("/UNA.md/orasldev/biro26-site/cart") == "/cos"
+    assert pub("/UNA.md/orasldev/biro26-site/brands") == "/branduri"
+    assert pub("/UNA.md/orasldev/biro26-site/credit-form") == "/cerere-credit"
+    assert pub("/UNA.md/orasldev/biro26-site/page/livrare") == "/livrare"
+    # алиас для установок без красивых адресов
+    assert pub("/UNA.md/orasldev/biro26-1shop/catalog") == "/catalog"
+    # чужие адреса не трогаем
+    assert pub("/UNA.md/orasldev/seoforge") == "/UNA.md/orasldev/seoforge"
+
+
+def test_canonical_names_the_public_address_not_the_inner_one():
+    import app as _app
+    with _app.app.test_request_context(
+            "/UNA.md/orasldev/biro26-site/catalog?grupa=Arta",
+            headers={"X-Forwarded-Host": "officeplus.md"}):
+        assert (_app._biro26_canonical_url()
+                == "https://officeplus.md/catalog?grupa=Arta")
+
+
+def test_canonical_drops_sorting_paging_and_search():
+    """Сортировка и страницы не создают новых страниц для индекса."""
+    import app as _app
+    with _app.app.test_request_context(
+            "/UNA.md/orasldev/biro26-site/catalog"
+            "?grupa=Arta&sort=price_desc&page=4&q=creion",
+            headers={"X-Forwarded-Host": "officeplus.md"}):
+        assert (_app._biro26_canonical_url()
+                == "https://officeplus.md/catalog?grupa=Arta")
+
+
+def test_public_host_comes_from_the_forwarded_header():
+    """На проде nginx подставляет внутреннее имя в Host.
+
+    Настоящее имя площадки приходит в X-Forwarded-Host от нашего же
+    фронтового сервера. Без этого счётчик посещаемости не включается, а
+    canonical называет чужой домен.
+    """
+    import app as _app
+    with _app.app.test_request_context(
+            "/", headers={"Host": "officeplus.una.md",
+                          "X-Forwarded-Host": "officeplus.md"}):
+        assert _app._biro26_public_host() == "officeplus.md"
+    with _app.app.test_request_context("/", headers={"Host": "nufarul.eminescu.md"}):
+        assert _app._biro26_public_host() == "nufarul.eminescu.md"
