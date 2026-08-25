@@ -105,6 +105,11 @@ modules/seoforge/
 `test_module_leaves_nothing_in_the_shared_app` и
 `test_shared_deploy_script_is_untouched_by_the_module`.
 
+`modules/sda/` — второй перенесённый по этому образцу модуль (реестр
+депозитно-возвратной системы упаковки, Молдова): свой `routes.py` без
+префикса в адресах, свой установщик DDL контура `SDA_*`, документация
+в `docs/SDA/`. Те же две проверки изоляции покрывают и его.
+
 ## Что ядро занимает в общем коде
 
 Ровно пять строк в `app.py`:
