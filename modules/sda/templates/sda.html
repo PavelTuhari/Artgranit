@@ -118,7 +118,60 @@ tr:hover td { background: #f8faff; }
     <div class="main">
         <div id="globalErr" class="err"></div>
 
-        <section class="panel active" id="panel-harta">
+        <section class="panel active" id="panel-dashboard">
+            <h1>Tablou de bord</h1>
+            <div class="crumbs">SDA / Tablou de bord</div>
+
+            <div class="card">
+                <h2 id="dbCountdownTitle">Termen legal: 25.01.2027</h2>
+                <div class="db-countdown" id="dbCountdown">—</div>
+            </div>
+
+            <div class="db-grid">
+                <div class="card">
+                    <h2>Pregătire rețea</h2>
+                    <div class="db-stat" id="dbReadinessStat">—</div>
+                    <div class="bar" style="grid-template-columns:1fr 48px;margin-top:8px">
+                        <span class="track"><span class="fill A_PUNCT_PROPRIU" id="dbReadinessBar" style="width:0%"></span></span>
+                        <span class="n" id="dbReadinessPct">0%</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Repartizare pe regimuri</h2>
+                    <div id="dbRegimeBars"></div>
+                </div>
+
+                <div class="card" id="dbCoverageCard">
+                    <h2>Acoperire cu punct propriu de returnare</h2>
+                    <div class="db-stat" id="dbCoverageStat">—</div>
+                    <ul class="db-blocklist" id="dbBlockingUnits"></ul>
+                </div>
+
+                <div class="card">
+                    <h2>Registrul ambalajelor</h2>
+                    <div class="db-stat" id="dbRegistryTotal">—</div>
+                    <div id="dbRegistryByMaterial" class="db-chiplist"></div>
+                    <div id="dbRegistryByCatAdmin" class="db-chiplist"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Stare tarife</h2>
+                    <div id="dbTariffState"></div>
+                    <ul class="db-blocklist" id="dbTariffProblems"></ul>
+                </div>
+
+                <div class="card">
+                    <h2>Verdict pe participant</h2>
+                    <table>
+                        <thead><tr><th>Participant</th><th>Poate fi depus</th><th>Puncte incomplete</th></tr></thead>
+                        <tbody id="dbDossierBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" id="panel-harta">
             <h1>Harta de conformitate</h1>
             <div class="crumbs">SDA / Harta de conformitate</div>
             <div class="card">
