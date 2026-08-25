@@ -409,7 +409,7 @@ def test_store_reports_failure_instead_of_raising():
 
 def test_saving_a_pack_derives_both_tariff_categories():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         SDAStore.save_pack({"ean": "4840012345678", "material": "STICLA",
                             "volum_l": 0.75, "greutate_g": 380}, "tester")
