@@ -972,3 +972,199 @@ def test_an_unknown_placement_type_falls_to_the_stricter_threshold():
     assert sda_rules.prag_pentru(None) == 100.0
     regim, _motiv = sda_rules.classify_regime(120, "SUPERMARKET_VIITOR")
     assert regim == "A_PUNCT_PROPRIU"
+
+
+# -- Second review round: fixes for the eight findings ----------------
+
+# 1. Cimpurile numerice ale participantului nu au voie sa provoace o
+#    exceptie necaptata la un fel scris de mana.
+
+def test_controller_rejects_a_non_numeric_sales_volume():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_partic(
+        {"idno": "1", "denumire": "X", "vandut_an_ant": "12.5"}, "tester")
+    assert res["success"] is False
+    assert "vandut" in res["message"].lower()
+
+
+def test_controller_rejects_a_non_numeric_estimate():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_partic(
+        {"idno": "1", "denumire": "X", "estimare_an": "abc"}, "tester")
+    assert res["success"] is False
+    assert "estimare" in res["message"].lower()
+
+
+def test_controller_accepts_an_absent_sales_volume_as_not_declared():
+    from controllers.sda_controller import SDAController
+    from unittest.mock import patch as _patch
+    with _patch("controllers.sda_controller.SDAStore.save_partic",
+                return_value={"success": True, "data": {}, "message": ""}):
+        res = SDAController.save_partic({"idno": "1", "denumire": "X"}, "tester")
+    assert res["success"] is True
+
+
+# 2. reclassify_all nu are voie sa contorizeze sau sa comita un UPDATE esuat.
+
+def test_reclassify_all_reports_a_failing_update_and_does_not_commit():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
+            [[7, 500, "MAGAZIN", "B_EXCEPTIE_APL", "vechi"]]),
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-00001"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.reclassify_all("tester")
+    assert res["success"] is False
+    assert "ORA-00001" in res["message"]
+    db.connection.commit.assert_not_called()
+
+
+# 3. O intrare de jurnal esuata nu are voie sa lase scrierea de business
+#    sa se comita oricum.
+
+def test_saving_a_unit_does_not_commit_when_the_journal_insert_fails():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok([], [], rowcount=1),
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-01461"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_unit(
+            {"partic_id": 1, "denumire": "Magazin 12", "suprafata_mp": 85,
+             "tip_amplasament": "MAGAZIN"}, "tester")
+    assert res["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_saving_a_pack_does_not_commit_when_the_journal_insert_fails():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok([], [], rowcount=1),
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-01461"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_pack({"ean": "4840012345678", "material": "STICLA",
+                                  "volum_l": 0.75, "greutate_g": 380}, "tester")
+    assert res["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+def test_saving_a_participant_does_not_commit_when_the_journal_insert_fails():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok([], [], rowcount=1),
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-01461"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_partic(
+            {"idno": "1003600000000", "denumire": "Rogob SRL"}, "tester")
+    assert res["success"] is False
+    db.connection.commit.assert_not_called()
+
+
+# 4. O unitate A_PUNCT_PROPRIU fara niciun punct de preluare declarat nu
+#    poate fi depusa, chiar daca dosarul e altfel "complet".
+
+def test_dossier_with_own_point_regime_and_no_declared_point_may_not_be_filed():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PARTIC_ID", "IDNO", "DENUMIRE", "CONTACT_NUME", "CONTACT_TEL",
+             "CONTACT_EMAIL", "VANDUT_AN_ANT", "ESTIMARE_AN"],
+            [[1, "1003", "Rogob SRL", "", "", "", None, None]]),
+        _ok(["UNIT_ID", "DENUMIRE", "ADRESA", "SUPRAFATA_MP",
+             "TIP_AMPLASAMENT", "REGIM"],
+            [[1, "Magazin 500mp", "str. X", 500, "MAGAZIN", "A_PUNCT_PROPRIU"]]),
+        _ok(["POINT_ID", "UNIT_ID", "ADRESA", "ORAR", "TIP"], []),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.registration_dossier(1)
+    assert res["data"]["incomplet"] == 0
+    assert res["data"]["modalitate_preluare"] == []
+    assert res["data"]["poate_fi_depus"] is False
+
+
+def test_dossier_with_own_point_regime_and_a_declared_point_may_be_filed():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PARTIC_ID", "IDNO", "DENUMIRE", "CONTACT_NUME", "CONTACT_TEL",
+             "CONTACT_EMAIL", "VANDUT_AN_ANT", "ESTIMARE_AN"],
+            [[1, "1003", "Rogob SRL", "", "", "", None, None]]),
+        _ok(["UNIT_ID", "DENUMIRE", "ADRESA", "SUPRAFATA_MP",
+             "TIP_AMPLASAMENT", "REGIM"],
+            [[1, "Magazin 500mp", "str. X", 500, "MAGAZIN", "A_PUNCT_PROPRIU"]]),
+        _ok(["POINT_ID", "UNIT_ID", "ADRESA", "ORAR", "TIP"],
+            [[1, 1, "str. X", "08-20", "AUTOMAT"]]),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.registration_dossier(1)
+    assert res["data"]["poate_fi_depus"] is True
+
+
+# 5. GET /api/sda/partic returneaza date personale, deci trebuie sa fie
+#    protejat la fel ca ruta POST.
+
+def test_app_requires_authentication_on_the_participant_read_route():
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    marker = "def api_sda_partic():"
+    idx = src.index(marker)
+    body = src[idx:idx + 300]
+    assert "AuthController.is_authenticated" in body
+
+
+# 6. O unitate legata de un participant inexistent trebuie sa primeasca
+#    un mesaj tradus, nu un ORA brut.
+
+def test_saving_a_unit_with_an_unknown_participant_gets_a_readable_message():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-02291: integrity constraint violated - parent key not found"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_unit(
+            {"partic_id": 999999, "denumire": "Magazin", "suprafata_mp": 50,
+             "tip_amplasament": "MAGAZIN"}, "tester")
+    assert res["success"] is False
+    assert "nu exista" in res["message"].lower()
+    assert "ORA-02291" not in res["message"]
+    db.connection.commit.assert_not_called()
+
+
+# 7. Un id gol de forma "" trebuie tratat ca absent, la fel ca None; 0
+#    ramane un id real.
+
+def test_empty_string_unit_id_is_treated_as_absent():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_unit(
+            {"unit_id": "", "partic_id": 1, "denumire": "Magazin 12",
+             "suprafata_mp": 85, "tip_amplasament": "MAGAZIN"}, "tester")
+    assert res["success"] is True
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert sql.strip().startswith("INSERT INTO SDA_UNIT")
+
+
+def test_empty_string_pack_id_is_treated_as_absent():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_pack(
+            {"pack_id": "", "ean": "4840012345678", "material": "STICLA",
+             "volum_l": 0.75, "greutate_g": 380}, "tester")
+    assert res["success"] is True
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert sql.strip().startswith("INSERT INTO SDA_PACK")
+
+
+def test_empty_string_partic_id_is_treated_as_absent():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_partic(
+            {"partic_id": "", "idno": "1003600000000", "denumire": "Rogob SRL"},
+            "tester")
+    assert res["success"] is True
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert sql.strip().startswith("INSERT INTO SDA_PARTIC")
