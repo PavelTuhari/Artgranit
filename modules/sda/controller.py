@@ -155,6 +155,16 @@ class SDAController:
 
     # ── досье ───────────────────────────────────────────────────────
 
+    # ── tablou de bord ──────────────────────────────────────────────
+
+    @staticmethod
+    def get_dashboard(args) -> Dict[str, Any]:
+        try:
+            partic_id = _parse_partic_id(args.get("partic_id"))
+        except ValueError as exc:
+            return _fail(str(exc))
+        return SDAStore.dashboard(partic_id)
+
     @staticmethod
     def get_dossier(args) -> Dict[str, Any]:
         try:
