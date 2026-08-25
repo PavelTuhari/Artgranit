@@ -56,16 +56,21 @@ def fetch(a):
     return out
 
 
+def hdr(v):
+    """В заголовке письма переводов строки быть не должно — в базе они есть."""
+    return " ".join(str(v or "").split())
+
+
 def to_eml(m):
     msg = EmailMessage()
-    msg["Subject"] = m.get("subject") or ""
-    msg["From"] = m.get("sender") or ""
-    msg["To"] = m.get("recipients") or ""
+    msg["Subject"] = hdr(m.get("subject"))
+    msg["From"] = hdr(m.get("sender"))
+    msg["To"] = hdr(m.get("recipients"))
     if m.get("cc"):
-        msg["Cc"] = m["cc"]
+        msg["Cc"] = hdr(m["cc"])
     if m.get("bcc"):
-        msg["Bcc"] = m["bcc"]
-    msg["Date"] = m.get("sd") or ""
+        msg["Bcc"] = hdr(m["bcc"])
+    msg["Date"] = hdr(m.get("sd"))
     msg["X-Un9mail-Nrmsg"] = str(m.get("nrmsg"))
     if m.get("em"):
         msg["X-Un9mail-Error"] = " ".join(str(m["em"]).split())
