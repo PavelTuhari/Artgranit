@@ -1,0 +1,19 @@
+{
+  "title": {
+    "ru": "Бэк-офис UNA (веб)",
+    "ro": "Back-office UNA (web)",
+    "en": "UNA back-office (web)"
+  },
+  "icon": "📒",
+  "order": 12,
+  "url": "/UNA.md/orasldev/biro26web",
+  "descr": "Журналы, документы и проводки учётной системы в браузере",
+  "pages": {
+    "biro26web": {
+      "ru": "Журналы и документы",
+      "ro": "Jurnale si documente",
+      "en": "Journals and documents"
+    }
+  },
+  "docs": "Biro26Web"
+}
