@@ -596,3 +596,25 @@ def test_move_tree_categorie_sql():
         r = Biro26Store.move_tree_categorie("G1", "C1", "G2")
     assert r["success"] and "SET GRUPA = :ng" in fake.last_sql
     assert "WHERE GRUPA = :g AND CATEGORIE = :c" in fake.last_sql
+
+
+# ── версия статики ─────────────────────────────────────────────────────
+#
+# site.js отдаётся с cache-control: max-age=604800 — семь дней. Без версии
+# в адресе выкаченная правка просто не видна: браузер и поисковый робот
+# продолжают исполнять старый файл, и карточки рисуются прежним кодом.
+
+def test_static_assets_carry_a_version():
+    import pathlib
+    tpl = (pathlib.Path(__file__).resolve().parent.parent
+           / "templates/biro26/site_base.html").read_text(encoding="utf-8")
+    for asset in ("site.js", "landing/styles.css", "site-responsive.css",
+                  "maib-liber.css"):
+        assert f"{asset}?v={{{{ asset_v }}}}" in tpl, f"без версии: {asset}"
+
+
+def test_asset_version_is_stable_between_calls():
+    import app as _app
+    _app._ASSET_V = None
+    first = _app._asset_version()
+    assert first and _app._asset_version() == first

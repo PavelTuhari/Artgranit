@@ -7878,6 +7878,42 @@ def _biro26_route_check():
     except Exception:                                        # noqa: BLE001
         return []
 
+
+# RO: versiunea fisierelor statice. Fara ea browserul si robotul tin in cache
+#     vechiul site.js pina la 7 zile (cache-control: max-age=604800), asa ca o
+#     corectie desfasurata pur si simplu nu se vede: cardurile continuau sa fie
+#     desenate de codul vechi, fara legaturi spre produs.
+# EN: the static asset version. Without it the browser and the crawler keep the
+#     old site.js for up to 7 days, so a deployed fix simply does not show.
+_ASSET_V = None
+
+
+def _asset_version() -> str:
+    """RO: se calculeaza o singura data, la pornire. EN: computed once, at start."""
+    global _ASSET_V
+    if _ASSET_V:
+        return _ASSET_V
+    base = os.path.dirname(os.path.abspath(__file__))
+    try:
+        with open(os.path.join(base, 'DEPLOY_COMMIT'), encoding='utf-8') as f:
+            _ASSET_V = (f.read().strip() or '')[:12]
+    except OSError:
+        _ASSET_V = ''
+    if not _ASSET_V:
+        # RO: in dezvoltare nu exista DEPLOY_COMMIT - luam data fisierului,
+        #     ca modificarea sa se vada imediat dupa salvare.
+        try:
+            import hashlib
+            stamp = ''
+            for rel in ('static/biro26/site.js',
+                        'static/biro26/landing/styles.css'):
+                stamp += str(os.path.getmtime(os.path.join(base, rel)))
+            _ASSET_V = hashlib.sha1(stamp.encode()).hexdigest()[:12]
+        except OSError:
+            _ASSET_V = 'dev'
+    return _ASSET_V
+
+
 @app.route('/api/biro26/health', methods=['GET'])
 def api_biro26_health():
     base = os.path.dirname(os.path.abspath(__file__))
@@ -8173,6 +8209,7 @@ def _biro26_site_ctx():
             'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
             'price_field': price_field,
             'pay_logos': pay_logos,
+            'asset_v': _asset_version(),
             'ga_id': ga_id}
 
 # RO: adresa CANONICA a paginii curente. Doua lucruri de rezolvat:
