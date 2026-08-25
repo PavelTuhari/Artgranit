@@ -403,7 +403,6 @@ async function openUnitForm(u) {
     if (!PARTIC.length) await fetchPartic();
     fillParticSelect(u ? u.partic_id : null);
     document.getElementById('u_is_horeca').checked = !!(u && u.regim === 'C_HORECA');
-    syncHorecaCheckbox();
     document.getElementById('unitFormCard').style.display = 'block';
     document.getElementById('unitRegimResult').classList.remove('show');
     document.getElementById('unitFormTitle').textContent = u ? 'Editează unitatea' : 'Unitate nouă';
