@@ -31,9 +31,16 @@ def auth():
 
 if __name__ == "__main__":
     a = auth()
+    total = _rows(_call_worker(a,
+        "SELECT COUNT(*) C FROM ALL_TABLES WHERE TABLE_NAME='UN9MAIL_MSG'", 120))
+    # в части схем таблица старой раскладки — без STATUS/SENT_DATE; берём только
+    # те, где очередь устроена так же, как в OTRS
     owners = [x["owner"] for x in _rows(_call_worker(a,
-        "SELECT OWNER FROM ALL_TABLES WHERE TABLE_NAME='UN9MAIL_MSG' ORDER BY OWNER", 120))]
-    print(f"схем с очередью UN9MAIL_MSG: {len(owners)}\n")
+        "SELECT OWNER FROM ALL_TAB_COLUMNS WHERE TABLE_NAME='UN9MAIL_MSG' "
+        "AND COLUMN_NAME IN ('STATUS','SENT_DATE','TEXT') "
+        "GROUP BY OWNER HAVING COUNT(DISTINCT COLUMN_NAME)=3 ORDER BY OWNER", 120))]
+    print(f"схем с очередью UN9MAIL_MSG: {total[0]['c'] if total else '?'}, "
+          f"из них с современной раскладкой: {len(owners)}\n")
 
     # один запрос вместо 150 подключений: воркер поднимает соединение на вызов
     parts = [f"SELECT '{o}' OWNER, COUNT(*) STUCK, "
