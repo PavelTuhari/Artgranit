@@ -94,7 +94,7 @@ class SDAStore:
             "data_evaluare": date.today(),
         }
 
-        if payload.get("unit_id"):
+        if payload.get("unit_id") is not None:
             sql = ("UPDATE SDA_UNIT SET COD_ERP = :cod_erp, "
                    "DENUMIRE = :denumire, ADRESA = :adresa, "
                    "LOCALITATE = :localitate, RAION = :raion, "
