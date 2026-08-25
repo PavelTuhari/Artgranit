@@ -371,7 +371,9 @@ async function loadCompliance() {
 
 // ==================== Rețeaua de unități ====================
 async function loadUnits() {
-    const r = await fetch('/api/sda/units').then(x => x.json());
+    const resp = await fetch('/api/sda/units');
+    if (resp.status === 401) { window.location.href = '/login'; return; }
+    const r = await resp.json();
     if (!r.success) { showError(r.message); return; }
     showError(null);
     const rows = r.data || [];
