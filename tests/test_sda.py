@@ -667,16 +667,22 @@ def test_dossier_flags_units_that_still_have_no_regime():
 #    fiecare scriere a modulului s-ar fi pierdut în tăcere.
 
 def test_log_commits_its_journal_entry():
+    # SDAStore.log() a fost cod mort (l-am sters): singurul apelant era
+    # aceasta suita de teste. Reancoram acelasi comportament — o scriere in
+    # jurnal (in acest caz cea din save_partic) trebuie sa fie comisa — prin
+    # save_partic, calea reala prin care apare o intrare de jurnal.
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
-        SDAStore.log("TEST", "SDA_UNIT", 1, "detalii", "tester")
+        res = SDAStore.save_partic(
+            {"idno": "1003600000000", "denumire": "Rogob SRL"}, "tester")
+    assert res["success"] is True
     assert db.connection.commit.called
 
 
 def test_saving_a_unit_commits_the_transaction():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         res = SDAStore.save_unit(
             {"partic_id": 1, "denumire": "Magazin 12", "suprafata_mp": 85,
@@ -687,7 +693,7 @@ def test_saving_a_unit_commits_the_transaction():
 
 def test_saving_a_pack_commits_the_transaction():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         res = SDAStore.save_pack({"ean": "4840012345678", "material": "STICLA",
                                   "volum_l": 0.75, "greutate_g": 380}, "tester")
