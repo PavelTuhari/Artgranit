@@ -175,3 +175,116 @@ class SDAStore:
             else:
                 unknown += n
         return _done({"total": total, "by_regime": by_regime, "unknown": unknown})
+
+    # ── реестр упаковки ─────────────────────────────────────────────
+
+    @staticmethod
+    def list_packs(search: Optional[str] = None) -> Dict[str, Any]:
+        sql = ("SELECT PACK_ID, EAN, DENUMIRE, PRODUCATOR, MATERIAL, CULOARE, "
+               "BARIERA_O2, REUTILIZABIL, VOLUM_L, GREUTATE_G, CAT_ADMIN, "
+               "CAT_GEST, SURSA FROM SDA_PACK WHERE 1=1")
+        params: Dict[str, Any] = {}
+        if search:
+            sql += " AND (UPPER(DENUMIRE) LIKE :q OR EAN LIKE :q)"
+            params["q"] = f"%{search.upper()}%"
+        sql += " ORDER BY DENUMIRE"
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params or None)
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la citirea registrului")
+        return _done(_rows(r))
+
+    @staticmethod
+    def save_pack(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        material = (payload.get("material") or "").upper()
+        volum = float(payload.get("volum_l") or 0)
+        params = {
+            "pack_id": payload.get("pack_id"),
+            "ean": payload.get("ean"),
+            "denumire": payload.get("denumire"),
+            "producator": payload.get("producator"),
+            "material": material,
+            "culoare": (payload.get("culoare") or None),
+            "bariera_o2": (payload.get("bariera_o2") or "N").upper(),
+            "reutilizabil": (payload.get("reutilizabil") or "N").upper(),
+            "volum_l": volum,
+            "greutate_g": float(payload.get("greutate_g") or 0),
+            "cat_admin": sda_rules.admin_category(
+                material, payload.get("culoare"),
+                (payload.get("bariera_o2") or "N"), volum),
+            "cat_gest": sda_rules.gest_category(material, volum),
+            "sursa": (payload.get("sursa") or "MANUAL").upper(),
+        }
+
+        if payload.get("pack_id"):
+            sql = ("UPDATE SDA_PACK SET EAN = :ean, DENUMIRE = :denumire, "
+                   "PRODUCATOR = :producator, MATERIAL = :material, "
+                   "CULOARE = :culoare, BARIERA_O2 = :bariera_o2, "
+                   "REUTILIZABIL = :reutilizabil, VOLUM_L = :volum_l, "
+                   "GREUTATE_G = :greutate_g, CAT_ADMIN = :cat_admin, "
+                   "CAT_GEST = :cat_gest, SURSA = :sursa "
+                   "WHERE PACK_ID = :pack_id")
+        else:
+            params.pop("pack_id")
+            sql = ("INSERT INTO SDA_PACK (EAN, DENUMIRE, PRODUCATOR, MATERIAL, "
+                   "CULOARE, BARIERA_O2, REUTILIZABIL, VOLUM_L, GREUTATE_G, "
+                   "CAT_ADMIN, CAT_GEST, SURSA) VALUES (:ean, :denumire, "
+                   ":producator, :material, :culoare, :bariera_o2, "
+                   ":reutilizabil, :volum_l, :greutate_g, :cat_admin, "
+                   ":cat_gest, :sursa)")
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params)
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la salvarea ambalajului")
+            db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('PACK_SAVE', 'SDA_PACK', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": payload.get("pack_id"), "utilizator": username,
+                 "detalii": f"{params['ean']} {params['cat_admin']}/{params['cat_gest']}"})
+        return _done({"cat_admin": params["cat_admin"],
+                      "cat_gest": params["cat_gest"]})
+
+    @staticmethod
+    def deposit_for_ean(ean: str, on_date: Optional[date] = None) -> Dict[str, Any]:
+        """Величина депозита для штрихкода на дату.
+
+        Неизвестный EAN — это ошибка, а не ноль. Молчаливый ноль означал бы,
+        что сеть недобирает депозит и обнаруживает это при сверке.
+        """
+        on_date = on_date or date.today()
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                "SELECT PACK_ID, EAN, CAT_ADMIN, REUTILIZABIL FROM SDA_PACK "
+                "WHERE EAN = :ean", {"ean": ean})
+            packs = _rows(r)
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la citirea registrului")
+            if not packs:
+                return _fail(f"EAN {ean} nu exista in registrul ambalajelor SD")
+
+            t = db.execute_query(
+                "SELECT L.CATEGORIE, L.METODA, L.REUTILIZABIL, L.VALOARE_LEI "
+                "FROM SDA_TARIFF T JOIN SDA_TARIFF_LINE L "
+                "ON L.TARIFF_ID = T.TARIFF_ID "
+                "WHERE T.TIP = 'DEPOZIT' AND T.DATA_START <= :d "
+                "AND (T.DATA_END IS NULL OR T.DATA_END >= :d)",
+                {"d": on_date})
+            lines = _rows(t)
+
+        if not lines:
+            return _fail("Nu exista tarif de depozit valabil la data ceruta")
+
+        pack = packs[0]
+        value = sda_rules.pick_value(
+            [{"categorie": l["categorie"], "metoda": l["metoda"],
+              "reutilizabil": l["reutilizabil"], "valoare_lei": l["valoare_lei"]}
+             for l in lines],
+            pack.get("cat_admin") or "*",
+            reutilizabil=pack.get("reutilizabil"))
+        if value is None:
+            return _fail("Nu exista tarif de depozit pentru aceasta categorie")
+        return _done({"ean": pack["ean"], "pack_id": pack["pack_id"],
+                      "valoare_lei": float(value)})
