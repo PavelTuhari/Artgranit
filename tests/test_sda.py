@@ -650,7 +650,7 @@ def test_module_manifest_lists_the_console_page():
               encoding="utf-8") as fh:
         manifest = json.load(fh)
     assert "pages" in manifest
-    assert "/UNA.md/orasldev/sda-console" in manifest["pages"]
+    assert "/UNA.md/orasldev/sda/console" in manifest["pages"]
 
 # -- Task 8: dossier --------------------------------------------------
 
