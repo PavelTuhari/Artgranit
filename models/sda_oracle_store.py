@@ -264,19 +264,10 @@ class SDAStore:
                     return _fail(ur.get("message")
                                  or "Eroare la reclasificarea unitatilor")
                 changed += 1
-            # Intrarea de jurnal se scrie pe ACEEASI conexiune/tranzactie ca
-            # UPDATE-urile de mai sus, inainte de commit: altfel un jurnal
-            # scris separat (SDAStore.log, conexiune proprie) ar putea reusi
-            # sau esua independent de lot, iar cele doua nu ar mai fi atomice.
-            jr = db.execute_query(
-                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
-                "UTILIZATOR, DETALII) VALUES ('RECLASSIFY', 'SDA_UNIT', "
-                ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": None, "utilizator": username,
-                 "detalii": (f"reclasificate {changed} unitati")[:1000]})
-            if not jr.get("success"):
-                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
-            db.connection.commit()
+            if changed:
+                db.connection.commit()
+        SDAStore.log("RECLASSIFY", "SDA_UNIT", None,
+                     f"reclasificate {changed} unitati", username)
         return _done({"changed": changed})
 
     @staticmethod
