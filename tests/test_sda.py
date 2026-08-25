@@ -1161,7 +1161,7 @@ def test_empty_string_unit_id_is_treated_as_absent():
 
 def test_empty_string_pack_id_is_treated_as_absent():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         res = SDAStore.save_pack(
             {"pack_id": "", "ean": "4840012345678", "material": "STICLA",
