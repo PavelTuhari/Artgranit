@@ -93,6 +93,25 @@ tr:hover td { background: #f8faff; }
 .readonly-out { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); }
 .readonly-out b { color: var(--fg); }
 .hidden { display: none; }
+
+/* ---- dashboard ---- */
+.db-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.db-countdown { font-size: 30px; font-weight: 800; }
+.db-countdown .u { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.db-countdown.crit { color: var(--crit); }
+.db-countdown.warn { color: var(--warn); }
+.db-stat { font-size: 22px; font-weight: 700; }
+.db-stat .sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 6px; }
+.db-blocklist { list-style: none; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.db-blocklist li { font-size: 12.5px; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca;
+    border-radius: 6px; padding: 6px 9px; }
+.db-blocklist li.ok { color: #15803d; background: rgba(34,197,94,.10); border-color: rgba(34,197,94,.35); }
+.db-chiplist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.db-chip { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+    background: #eef1f6; color: var(--fg); }
+.db-tariff-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 4px 0; }
+.db-tariff-row b { font-size: 14px; }
+.db-tariff-missing { color: var(--crit); font-weight: 700; }
 </style>
 </head>
 <body data-api-base="{{ url_for('sda.api_units') }}">
