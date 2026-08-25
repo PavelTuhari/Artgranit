@@ -315,7 +315,7 @@ def _ok(columns, data, rowcount=None):
 
 
 def _currval(new_id=101):
-    """Mock du résultat de SELECT SEQ_*.CURRVAL FROM DUAL après un INSERT."""
+    """Mock pentru rezultatul SELECT SEQ_*.CURRVAL FROM DUAL de dupa un INSERT."""
     return _ok(["CURRVAL"], [[new_id]])
 
 
