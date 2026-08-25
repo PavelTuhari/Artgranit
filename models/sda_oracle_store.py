@@ -498,5 +498,5 @@ class SDAStore:
             "incomplet": incomplet,
             # Досье с точками без площади подавать нельзя (см. docstring):
             # это правило должно быть в данных, а не только в тексте.
-            "poate_fi_depus": incomplet == 0,
+            "poate_fi_depus": incomplet == 0 and not missing_own_point,
         })
