@@ -92,6 +92,17 @@ tr:hover td { background: #f8faff; }
 .form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
 .readonly-out { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); }
 .readonly-out b { color: var(--fg); }
+.db-flow-wrap { overflow-x: auto; padding: 4px 0 2px; }
+.db-flow-wrap .mermaid { min-width: 760px; }
+.db-flow-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+    font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.db-flow-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+    margin-right: 6px; vertical-align: -1px; }
+.db-flow-legend .sw.ok { background: var(--ok); }
+.db-flow-legend .sw.warn { background: var(--warn); }
+.db-flow-legend .sw.crit { background: var(--crit); }
+.db-flow-legend .hint { margin-left: auto; font-style: italic; }
+.db-flow-error { color: var(--crit); font-size: 12.5px; }
 .hidden { display: none; }
 
 /* ---- dashboard ---- */
@@ -114,6 +125,7 @@ tr:hover td { background: #f8faff; }
 .db-tariff-missing { color: var(--crit); font-weight: 700; }
 </style>
 </head>
+<script src="{{ url_for('sda.static', filename='vendor/mermaid.min.js') }}"></script>
 <body data-api-base="{{ url_for('sda.api_units') }}">
 <div class="layout">
     <div class="sidebar">
@@ -144,6 +156,17 @@ tr:hover td { background: #f8faff; }
             <div class="card">
                 <h2 id="dbCountdownTitle">Termen legal: 25.01.2027</h2>
                 <div class="db-countdown" id="dbCountdown">—</div>
+            </div>
+
+            <div class="card">
+                <h2>Fluxul sistemului de depozit</h2>
+                <div class="db-flow-legend">
+                    <span><i class="sw ok"></i>în regulă</span>
+                    <span><i class="sw warn"></i>de urmărit</span>
+                    <span><i class="sw crit"></i>blochează depunerea</span>
+                    <span class="hint">Cifrele sunt citite din baza de date, nu desenate.</span>
+                </div>
+                <div class="db-flow-wrap"><pre class="mermaid" id="dbFlow"></pre></div>
             </div>
 
             <div class="db-grid">
@@ -459,6 +482,86 @@ const REGIME_LABELS = {
   C_HORECA: 'HoReCa',
 };
 
+// ── Схема бизнес-процесса SDA ────────────────────────────────────────
+//
+// Это не картинка «как оно устроено вообще»: узлы несут те же цифры,
+// что и карточки выше, и красятся по тем же правилам. Схема должна
+// показывать состояние сети, а не идею системы — иначе на неё перестают
+// смотреть. Mermaid лежит в static/vendor модуля: портал работает и во
+// внутренней сети, где внешний скрипт не загрузился бы.
+
+function flowStatus(d) {
+  const cov = d.return_point_coverage || {covered: 0, total: 0};
+  const dep = d.tariff_state && d.tariff_state.deposit;
+  const problems = (d.tariff_state && d.tariff_state.period_problems) || [];
+  return {
+    producatori: (d.registry && d.registry.total) ? 'ok' : 'warn',
+    comercianti: d.unknown_regime ? 'crit' : 'ok',
+    puncte: (cov.total && cov.covered < cov.total) ? 'crit'
+            : (cov.total ? 'ok' : 'warn'),
+    administrator: (!dep || problems.length) ? 'warn' : 'ok'
+  };
+}
+
+function buildFlowDefinition(d) {
+  const st = flowStatus(d);
+  const cov = d.return_point_coverage || {covered: 0, total: 0};
+  const dep = d.tariff_state && d.tariff_state.deposit;
+  const nPack = (d.registry && d.registry.total) || 0;
+  const nUnit = (d.readiness && d.readiness.total) || 0;
+  const faraRegim = d.unknown_regim || d.unknown_regime || 0;
+  const depozit = dep ? (dep.valoare_lei + ' lei') : 'nestabilit';
+
+  const comLabel = faraRegim
+    ? nUnit + ' unități · ' + faraRegim + ' fără regim'
+    : nUnit + ' unități · toate clasificate';
+  const covLabel = cov.total
+    ? cov.covered + ' / ' + cov.total + ' puncte active'
+    : 'niciun punct obligatoriu';
+
+  const lines = [
+    'flowchart LR',
+    '  P["Producători<br/>' + nPack + ' ambalaje în registru"]:::' + st.producatori,
+    '  D["Distribuitori"]:::neutral',
+    '  C["Comercianți<br/>' + comLabel + '"]:::' + st.comercianti,
+    '  U["Consumatori"]:::neutral',
+    '  R["Puncte de returnare<br/>' + covLabel + '"]:::' + st.puncte,
+    '  A["Administrator SDA<br/>depozit ' + depozit + '"]:::' + st.administrator,
+    '  P -- "depozit" --> D',
+    '  D -- "depozit" --> C',
+    '  C -- "depozit ' + depozit + '" --> U',
+    '  U -- "ambalaj gol" --> R',
+    '  R -- "numerar sau tichet" --> U',
+    '  R -- "ambalaje: proprietatea Administratorului" --> A',
+    '  A -- "tarif de gestionare, max. 14 zile" --> R',
+    '  P -- "tarif de administrare" --> A',
+    '  P -- "depozit, până la data de 25" --> A',
+    '  classDef ok fill:#e8f7ee,stroke:#22c55e,stroke-width:1.5px,color:#14532d;',
+    '  classDef warn fill:#fdf3e3,stroke:#f59e0b,stroke-width:1.5px,color:#7c2d12;',
+    '  classDef crit fill:#fdecec,stroke:#ef4444,stroke-width:2px,color:#7f1d1d;',
+    '  classDef neutral fill:#f4f6f9,stroke:#c8d2e0,stroke-width:1px,color:#334155;'
+  ];
+  return lines.join('\n');
+}
+
+async function renderFlow(d) {
+  const host = document.getElementById('dbFlow');
+  if (!host) return;
+  if (typeof mermaid === 'undefined') {
+    host.outerHTML = '<div class="db-flow-error">Schema nu poate fi desenată: ' +
+      'biblioteca mermaid nu s-a încărcat.</div>';
+    return;
+  }
+  try {
+    const def = buildFlowDefinition(d);
+    const out = await mermaid.render('sdaFlowSvg', def);
+    host.innerHTML = out.svg;
+  } catch (e) {
+    host.innerHTML = '<div class="db-flow-error">Schema nu poate fi desenată: ' +
+      esc(String(e && e.message ? e.message : e)) + '</div>';
+  }
+}
+
 async function loadDashboard() {
   const resp = await fetch(SDA_API + '/dashboard');
   if (resp.status === 401) { window.location.href = '/login'; return; }
@@ -510,6 +613,8 @@ async function loadDashboard() {
   document.getElementById('dbRegistryByCatAdmin').innerHTML =
     Object.entries(d.registry.by_cat_admin).sort().map(([k, v]) =>
       `<span class="db-chip">cat. ${esc(k)}: ${v}</span>`).join('');
+
+  renderFlow(d);
 
   const tState = document.getElementById('dbTariffState');
   const dep = d.tariff_state.deposit;
@@ -799,6 +904,18 @@ async function savePartic(ev) {
     await loadPartic();
 }
 
+if (typeof mermaid !== 'undefined') {
+  // fontFamily должен быть НАСТОЯЩИМ шрифтом, а не 'inherit': mermaid
+  // сам меряет ширину подписи, чтобы посчитать размер узла, и на 'inherit'
+  // мерил моноширинным — подписи обрезались («46 unități · 4 făr»).
+  mermaid.initialize({
+    startOnLoad: false, securityLevel: 'strict', theme: 'base',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+    flowchart: {useMaxWidth: false, htmlLabels: false, curve: 'basis',
+                nodeSpacing: 42, rankSpacing: 68, padding: 12},
+    themeVariables: {fontSize: '13px', lineColor: '#94a3b8', primaryTextColor: '#14213d'}
+  });
+}
 loadDashboard();
 </script>
 </body>

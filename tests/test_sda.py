@@ -2194,3 +2194,62 @@ def test_console_formats_dates_the_romanian_way():
     html = _template("sda.html")
     assert "function roDate(" in html
     assert "roDate(dep.data_start)" in html
+
+
+# -- Schema procesului (mermaid) --------------------------------------
+
+def test_mermaid_is_vendored_inside_the_module_not_pulled_from_a_cdn():
+    """Портал работает и во внутренней сети, где CDN недоступен.
+
+    Схема — часть дашборда, а не украшение: если библиотека не загрузится,
+    оператор потеряет картину состояния. Поэтому mermaid лежит в модуле.
+    """
+    path = os.path.join(ROOT, "modules", "sda", "static", "vendor", "mermaid.min.js")
+    assert os.path.isfile(path), "mermaid не вложен в модуль"
+    assert os.path.getsize(path) > 500_000, "похоже, вложен не тот файл"
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        head = fh.read(200_000)
+    assert "mermaid" in head
+
+
+def test_console_loads_mermaid_through_the_module_static_route():
+    html = _template("sda.html")
+    assert "url_for('sda.static'" in html
+    assert "vendor/mermaid.min.js" in html
+
+
+def test_module_pulls_nothing_from_an_external_host():
+    """Ни одного внешнего адреса в модуле: ни CDN, ни шрифтов, ни картинок."""
+    import re as _re
+    offenders = []
+    for folder, _dirs, files in os.walk(os.path.join(ROOT, "modules", "sda")):
+        if "__pycache__" in folder or os.sep + "vendor" in folder:
+            continue
+        for name in files:
+            if not name.endswith((".html", ".py", ".hbs", ".js", ".json")):
+                continue
+            full = os.path.join(folder, name)
+            with open(full, encoding="utf-8", errors="replace") as fh:
+                body = fh.read()
+            for url in _re.findall(r"https?://[^\s\"'<>)]+", body):
+                if url.startswith(("http://127.0.0.1", "http://localhost")):
+                    continue          # локальный сайдкар отчётов — не внешний
+                offenders.append(f"{name}: {url}")
+    assert not offenders, offenders
+
+
+def test_flow_diagram_colours_come_from_the_data():
+    """Узлы красятся по тем же правилам, что и карточки выше.
+
+    Схема обязана показывать состояние сети, а не идею системы: точка без
+    режима и непокрытый пункт возврата должны быть красными на схеме так же,
+    как в карточках.
+    """
+    html = _template("sda.html")
+    assert "function flowStatus(" in html
+    assert "function buildFlowDefinition(" in html
+    # Статусы выводятся из данных, а не зашиты в определение схемы.
+    assert "d.unknown_regime ? 'crit'" in html
+    assert "cov.covered < cov.total) ? 'crit'" in html
+    for cls in ("classDef ok", "classDef warn", "classDef crit", "classDef neutral"):
+        assert cls in html, cls
