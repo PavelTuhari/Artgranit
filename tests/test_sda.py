@@ -395,3 +395,53 @@ def test_store_reports_failure_instead_of_raising():
         res = SDAStore.list_units()
     assert res["success"] is False
     assert "ORA-00942" in res["message"]
+
+
+# -- Task 5: registry -------------------------------------------------
+
+def test_saving_a_pack_derives_both_tariff_categories():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        SDAStore.save_pack({"ean": "4840012345678", "material": "STICLA",
+                            "volum_l": 0.75, "greutate_g": 380}, "tester")
+    params = db.execute_query.call_args_list[0][0][1]
+    assert params["cat_admin"] == "f"
+    assert params["cat_gest"] == "d"
+
+
+def test_deposit_for_a_known_ean_uses_the_current_tariff():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PACK_ID", "EAN", "CAT_ADMIN", "REUTILIZABIL"],
+            [[7, "4840012345678", "f", "N"]]),
+        _ok(["CATEGORIE", "METODA", "REUTILIZABIL", "VALOARE_LEI"],
+            [["*", None, None, 1.0]]),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.deposit_for_ean("4840012345678")
+    assert res["success"] is True
+    assert res["data"]["valoare_lei"] == 1.0
+    assert res["data"]["pack_id"] == 7
+
+
+def test_unknown_ean_never_silently_returns_zero_deposit():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok(["PACK_ID"], []))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.deposit_for_ean("0000000000000")
+    assert res["success"] is False
+    assert "registru" in res["message"].lower()
+
+
+def test_known_ean_without_a_tariff_period_is_an_error_not_a_zero():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["PACK_ID", "EAN", "CAT_ADMIN", "REUTILIZABIL"],
+            [[7, "4840012345678", "f", "N"]]),
+        _ok(["CATEGORIE", "METODA", "REUTILIZABIL", "VALOARE_LEI"], []),
+    )
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.deposit_for_ean("4840012345678")
+    assert res["success"] is False
+    assert "tarif" in res["message"].lower()
