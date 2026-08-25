@@ -154,6 +154,9 @@ if __name__ == "__main__":
     for name in names:
         t = TARGETS[name]
         print(f"\n=== схема {name.upper()} ===")
+        if "--purge" in args:
+            purge(t)
+            continue
         if "--retry-all" in args:
             retry_all(t)
             continue
