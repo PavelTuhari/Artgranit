@@ -701,8 +701,11 @@ def test_console_template_declares_the_three_panels():
 
 
 def test_console_template_calls_the_real_api_routes():
+    # The mount point is no longer a literal in the template (finding 2):
+    # it's built server-side from url_for('sda.api_units') into
+    # data-api-base and derived in JS from there.
     html = _template("sda.html")
-    assert "/UNA.md/orasldev/sda/api" in html
+    assert "data-api-base=\"{{ url_for('sda.api_units') }}\"" in html
     for route in ("/compliance", "/units", "/packs"):
         assert route in html, route
 
