@@ -85,10 +85,13 @@ def cleanup(t):
     before = _rows(_call_worker(a, "SELECT COUNT(*) C FROM UN9MAIL_MSG "
                                    "WHERE STATUS=1 AND SENT_DATE < SYSDATE-30", 5))
     print(f"  {t['user']}: в архив уходит писем — {before[0]['c'] if before else '?'}")
-    run(a, "UPDATE UN9MAIL_MSG SET STATUS=3, ERR_CODE=-1, "
+    # UPDATE и COMMIT обязаны быть в ОДНОМ вызове: воркер на каждый вызов
+    # открывает новое соединение, отдельный COMMIT ничего не сохранит.
+    run(a, "BEGIN "
+           "UPDATE UN9MAIL_MSG SET STATUS=3, ERR_CODE=-1, "
            "ERR_MSG='arhivat 25.08.2026: fix buffer VARCHAR2(4000)' "
-           "WHERE STATUS=1 AND SENT_DATE < SYSDATE-30", "пометка архивом")
-    run(a, "COMMIT", "commit")
+           "WHERE STATUS=1 AND SENT_DATE < SYSDATE-30; "
+           "COMMIT; END;", "пометка архивом + commit")
     for x in _rows(_call_worker(a, "SELECT STATUS, COUNT(*) C FROM UN9MAIL_MSG "
                                    "GROUP BY STATUS ORDER BY STATUS", 10)):
         print("    ", x)
