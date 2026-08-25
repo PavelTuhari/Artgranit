@@ -347,7 +347,7 @@ class SDAStore:
                    "WHERE PACK_ID = :pack_id")
         else:
             params.pop("pack_id")
-            sql = ("INSERT INTO SDA_PACK (EAN, DENUMIRE, PRODUCATOR, MATERIAL, "  # noqa: E501
+            sql = ("INSERT INTO SDA_PACK (EAN, DENUMIRE, PRODUCATOR, MATERIAL, "
                    "CULOARE, BARIERA_O2, REUTILIZABIL, VOLUM_L, GREUTATE_G, "
                    "CAT_ADMIN, CAT_GEST, SURSA) VALUES (:ean, :denumire, "
                    ":producator, :material, :culoare, :bariera_o2, "
