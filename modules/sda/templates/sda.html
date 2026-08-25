@@ -438,9 +438,90 @@ function showPanel(name) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.panel === name));
     document.getElementById('panel-' + name).classList.add('active');
-    const loaders = {harta: loadCompliance, retea: loadUnits, registru: loadPacks,
-                     participanti: loadPartic};
+    const loaders = {dashboard: loadDashboard, harta: loadCompliance, retea: loadUnits,
+                     registru: loadPacks, participanti: loadPartic};
     (loaders[name] || (() => {}))();
+}
+
+// ==================== Tablou de bord ====================
+const REGIME_LABELS = {
+  A_PUNCT_PROPRIU: 'Punct propriu de returnare',
+  B_EXCEPTIE_APL: 'Excepție — parteneriat APL',
+  C_HORECA: 'HoReCa',
+};
+
+async function loadDashboard() {
+  const resp = await fetch(SDA_API + '/dashboard');
+  if (resp.status === 401) { window.location.href = '/login'; return; }
+  const r = await resp.json();
+  if (!r.success) { showError(r.message); return; }
+  showError(null);
+  const d = r.data;
+
+  const days = d.days_remaining;
+  const cd = document.getElementById('dbCountdown');
+  cd.className = 'db-countdown' + (days < 0 ? ' crit' : days <= 60 ? ' warn' : '');
+  cd.innerHTML = days >= 0
+    ? `${days}<span class="u">zile până la ${esc(d.deadline)}</span>`
+    : `Termenul a expirat<span class="u">${esc(d.deadline)}</span>`;
+
+  const ready = d.readiness;
+  document.getElementById('dbReadinessStat').innerHTML =
+    `${ready.with_regim} / ${ready.total}<span class="sub">unități cu regim stabilit</span>`;
+  document.getElementById('dbReadinessBar').style.width = ready.pct + '%';
+  document.getElementById('dbReadinessPct').textContent = ready.pct + '%';
+
+  const regimeRows = Object.entries(REGIME_LABELS).map(([key, label]) => {
+    const n = d.by_regime[key] || 0;
+    const total = ready.total || 1;
+    const pct = Math.round(n * 100 / total);
+    return `<div class="bar"><span>${label}</span>
+      <span class="track"><span class="fill ${key}" style="width:${pct}%"></span></span>
+      <span class="n">${n}</span></div>`;
+  }).join('');
+  document.getElementById('dbRegimeBars').innerHTML = regimeRows +
+    (d.unknown_regime
+      ? `<div style="color:var(--crit);font-size:12.5px;margin-top:6px">${d.unknown_regime} unități fără suprafață — inventar necesar</div>`
+      : '');
+
+  const cov = d.return_point_coverage;
+  const covStat = document.getElementById('dbCoverageStat');
+  covStat.innerHTML = `${cov.covered} / ${cov.total}<span class="sub">unități regim A cu punct activ azi</span>`;
+  covStat.style.color = (cov.total && cov.covered < cov.total) ? 'var(--crit)' : 'inherit';
+  const blockEl = document.getElementById('dbBlockingUnits');
+  blockEl.innerHTML = cov.blocking_units.length
+    ? cov.blocking_units.map(u => `<li>${esc(u.denumire)} — fără punct propriu activ, blochează depunerea</li>`).join('')
+    : '<li class="ok">Toate unitățile în regim propriu au punct de returnare activ</li>';
+
+  document.getElementById('dbRegistryTotal').innerHTML =
+    `${d.registry.total}<span class="sub">ambalaje înregistrate</span>`;
+  document.getElementById('dbRegistryByMaterial').innerHTML =
+    Object.entries(d.registry.by_material).map(([k, v]) =>
+      `<span class="db-chip">${esc(k)}: ${v}</span>`).join('');
+  document.getElementById('dbRegistryByCatAdmin').innerHTML =
+    Object.entries(d.registry.by_cat_admin).sort().map(([k, v]) =>
+      `<span class="db-chip">cat. ${esc(k)}: ${v}</span>`).join('');
+
+  const tState = document.getElementById('dbTariffState');
+  const dep = d.tariff_state.deposit;
+  tState.innerHTML = dep
+    ? `<div class="db-tariff-row"><span>Depozit în vigoare azi</span><b>${dep.valoare_lei} lei</b></div>
+       <div class="db-tariff-row"><span>Perioadă</span><span>${esc(dep.data_start)} — ${esc(dep.data_end || 'nedeterminat')}</span></div>`
+    : '<div class="db-tariff-missing">Niciun tarif de depozit nu acoperă data de azi</div>';
+  const probEl = document.getElementById('dbTariffProblems');
+  probEl.innerHTML = d.tariff_state.period_problems.length
+    ? d.tariff_state.period_problems.map(p => `<li>${esc(p)}</li>`).join('')
+    : '<li class="ok">Perioadele tarifare nu au goluri sau suprapuneri</li>';
+
+  document.getElementById('dbDossierBody').innerHTML = d.dossiers.map(x => `
+    <tr>
+      <td>${esc(x.denumire)}</td>
+      <td>${x.poate_fi_depus
+          ? '<span class="pill A_PUNCT_PROPRIU">Da</span>'
+          : '<span class="pill B_EXCEPTIE_APL">Nu</span>'}</td>
+      <td>${x.incomplet}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="3" style="color:var(--muted)">Niciun participant înregistrat</td></tr>';
 }
 
 // ==================== Harta de conformitate (Task 7 — decizie fixă) ====================
