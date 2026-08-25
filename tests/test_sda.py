@@ -33,7 +33,21 @@ def _sda_test_client():
 
     app = Flask(__name__)
     app.secret_key = "test"
-    load_module(app, "sda")
+    loaded = load_module(app, "sda")
+    assert loaded, (
+        "load_module(app, 'sda') returned a falsy value — the module "
+        "failed to load, which would otherwise show up as silent 404s "
+        "in every route test instead of a loud failure here")
+
+    # Stub login endpoint: the isolated test app doesn't carry the portal's
+    # real login route, but sda.routes redirects unauthenticated requests
+    # to endpoint 'login' (console guard, non-public doc guard). Without a
+    # matching endpoint, url_for('login') raises werkzeug.routing.BuildError
+    # the moment those code paths run.
+    @app.route("/login")
+    def login():
+        return "login", 200
+
     return app.test_client()
 
 
