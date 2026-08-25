@@ -1542,3 +1542,21 @@ def test_console_template_disables_horeca_checkbox_outside_alimentatie_publica()
     html = _template("sda.html")
     assert "syncHorecaCheckbox" in html
     assert "ALIMENTATIE_PUBLICA" in html[html.index("function syncHorecaCheckbox"):]
+
+
+# -- Task 9: isolation from shared code --------------------------------
+
+def test_module_leaves_nothing_in_the_shared_app():
+    # Ради этого и делалось ядро: модуль не должен присутствовать в общем
+    # файле ни строкой, иначе каждый новый модуль — конфликт слияния.
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "sda" not in src.lower()
+
+
+def test_shared_deploy_script_is_untouched_by_the_module():
+    # Контур ставится своим установщиком в облачную ADB. Общий скрипт
+    # модуль не трогает вовсе — ни файлами, ни комментариями.
+    with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "sda" not in src.lower()

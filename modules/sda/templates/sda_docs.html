@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ page_title }}</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root{
+  --bg:#070c15; --panel:#0d1626; --panel2:#141f30; --border:#25344f;
+  --fg:#e8eef7; --muted:#8ea2bd; --accent:#3b82f6; --accent2:#60a5fa;
+  --ok:#22c55e; --warn:#f59e0b; --crit:#ef4444; --violet:#a855f7;
+}
+body{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  background:var(--bg); color:var(--fg); line-height:1.6; }
+a{ color:var(--accent2); }
+
+/* ===== Шапка ===== */
+.top{ background:linear-gradient(90deg,#0c1c2c,#10283e); border-bottom:2px solid var(--accent);
+  padding:0 22px; height:54px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:50; }
+.top .logo{ font-weight:800; font-size:16px; letter-spacing:.4px; white-space:nowrap; }
+.top .logo span{ color:var(--accent2); }
+.top .sub{ font-size:11.5px; color:var(--muted); }
+.top .spacer{ flex:1; }
+.top a.btn{ font-size:12.5px; text-decoration:none; padding:6px 13px; border-radius:7px;
+  border:1px solid var(--border); color:var(--fg); white-space:nowrap; }
+.top a.btn:hover{ background:var(--panel2); }
+.top a.btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+
+.wrap{ max-width:1240px; margin:0 auto; padding:24px 22px 60px; }
+
+/* ===== Хаб ===== */
+.hero{ padding:26px 0 12px; }
+.hero h1{ font-size:38px; letter-spacing:-.02em; line-height:1.15; margin-bottom:12px; }
+.hero p{ font-size:17px; color:#cdd9e8; max-width:760px; }
+.badges{ display:flex; gap:22px; flex-wrap:wrap; margin-top:22px; }
+.badges div{ font-size:12px; color:var(--muted); }
+.badges b{ display:block; font-size:22px; color:var(--fg); font-weight:800; letter-spacing:-.02em; }
+
+.grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:30px; }
+.doc{ background:var(--panel); border:1px solid var(--border); border-radius:13px; padding:20px 22px;
+  text-decoration:none; color:inherit; display:flex; flex-direction:column; border-top:3px solid var(--accent);
+  transition:background .15s, transform .15s; }
+.doc:hover{ background:var(--panel2); transform:translateY(-2px); }
+.doc.g{ border-top-color:var(--ok); } .doc.w{ border-top-color:var(--warn); }
+.doc.v{ border-top-color:var(--violet); } .doc.c{ border-top-color:var(--crit); }
+.doc .ic{ font-size:22px; margin-bottom:10px; }
+.doc h3{ font-size:17px; margin-bottom:7px; letter-spacing:-.01em; }
+.doc p{ font-size:13.5px; color:var(--muted); line-height:1.55; flex:1; }
+.doc .meta{ margin-top:14px; font-size:11.5px; color:#5b6d8a; display:flex; gap:12px; align-items:center; }
+.lock{ font-size:10.5px; font-weight:700; letter-spacing:.4px; border-radius:5px; padding:2px 7px;
+  background:rgba(245,158,11,.15); color:#fbbf24; }
+.open{ font-size:10.5px; font-weight:700; letter-spacing:.4px; border-radius:5px; padding:2px 7px;
+  background:rgba(34,197,94,.15); color:#4ade80; }
+
+/* ===== Просмотр документа ===== */
+.viewer{ display:grid; grid-template-columns:250px minmax(0,1fr); gap:34px; align-items:start; }
+@media (max-width:900px){ .viewer{ grid-template-columns:1fr; } .side{ position:static !important; } }
+.side{ position:sticky; top:78px; }
+.side .cap{ font-size:10.5px; text-transform:uppercase; letter-spacing:1.1px; color:var(--muted);
+  font-weight:700; margin:0 0 10px 12px; }
+.side a{ display:block; padding:8px 12px; border-radius:7px; font-size:13.5px; text-decoration:none;
+  color:#c3d1e4; border-left:2px solid transparent; margin-bottom:2px; }
+.side a:hover{ background:var(--panel2); color:#fff; }
+.side a.on{ background:var(--panel2); color:#fff; font-weight:600; border-left-color:var(--accent); }
+.side .toc{ margin-top:20px; max-height:52vh; overflow-y:auto; }
+.side .toc a{ font-size:12.5px; padding:5px 12px; color:var(--muted); }
+.side .toc a.h3{ padding-left:24px; font-size:12px; }
+
+.doc-body{ background:var(--panel); border:1px solid var(--border); border-radius:13px; padding:34px 40px; }
+.doc-body h1{ font-size:32px; letter-spacing:-.02em; line-height:1.2; margin:0 0 18px;
+  padding-bottom:14px; border-bottom:1px solid var(--border); }
+.doc-body h2{ font-size:23px; letter-spacing:-.015em; margin:34px 0 14px; padding-top:6px;
+  scroll-margin-top:80px; }
+.doc-body h3{ font-size:17px; margin:24px 0 10px; color:#dbe6f4; scroll-margin-top:80px; }
+.doc-body h4{ font-size:15px; margin:18px 0 8px; color:#c3d1e4; }
+.doc-body p{ font-size:15px; color:#cdd9e8; margin-bottom:13px; }
+.doc-body ul, .doc-body ol{ margin:0 0 14px 22px; }
+.doc-body li{ font-size:15px; color:#cdd9e8; margin-bottom:6px; }
+.doc-body strong{ color:var(--fg); }
+.doc-body hr{ border:none; border-top:1px solid var(--border); margin:32px 0; }
+.doc-body blockquote{ border-left:3px solid var(--accent); background:rgba(59,130,246,.06);
+  padding:12px 18px; margin:16px 0; border-radius:0 8px 8px 0; }
+.doc-body blockquote p:last-child{ margin-bottom:0; }
+.doc-body code{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
+  background:#0a1220; border:1px solid #1d2a40; border-radius:5px; padding:1.5px 6px; color:#9ec5fe; }
+.doc-body pre{ background:#0a1220; border:1px solid #1d2a40; border-radius:9px;
+  padding:15px 18px; overflow-x:auto; margin:0 0 16px; }
+.doc-body pre code{ background:none; border:none; padding:0; font-size:12.8px; color:#c9d8ee;
+  line-height:1.65; display:block; }
+.doc-body table{ width:100%; border-collapse:collapse; font-size:13.8px; margin:0 0 18px;
+  display:block; overflow-x:auto; }
+.doc-body th{ text-align:left; padding:9px 13px; font-size:11px; text-transform:uppercase;
+  letter-spacing:.6px; color:var(--muted); border-bottom:1px solid var(--border);
+  white-space:nowrap; font-weight:700; }
+.doc-body td{ padding:9px 13px; border-bottom:1px solid #1a2740; color:#cdd9e8; vertical-align:top; }
+.doc-body tr:last-child td{ border-bottom:none; }
+.doc-body td code{ white-space:nowrap; }
+
+.crumbs{ font-size:12.5px; color:var(--muted); margin-bottom:16px; }
+.crumbs a{ text-decoration:none; }
+.foot{ margin-top:36px; padding-top:18px; border-top:1px solid var(--border);
+  font-size:12.5px; color:var(--muted); display:flex; gap:18px; flex-wrap:wrap; }
+
+@media print{
+  body{ background:#fff; color:#111; }
+  .top,.side,.foot,.crumbs{ display:none; }
+  .viewer{ grid-template-columns:1fr; } .wrap{ padding:0; max-width:none; }
+  .doc-body{ background:#fff; border:none; padding:0; }
+  .doc-body h1,.doc-body h2,.doc-body h3,.doc-body p,.doc-body li,.doc-body td{ color:#111; }
+  .doc-body code,.doc-body pre{ background:#f4f6fa; border-color:#dde3ec; color:#1e293b; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <div class="logo">SDA<span> · документация</span></div>
+    <div class="sub">Модуль управления выкладкой, логистикой и рыночным анализом</div>
+  </div>
+  <div class="spacer"></div>
+  <a class="btn" href="{{ url_for('sda.docs_index') }}">Все документы</a>
+  <a class="btn" href="{{ url_for('sda.presentation') }}" target="_blank">Презентация</a>
+  <a class="btn primary" href="{{ url_for('sda.docs_index') }}">Открыть модуль</a>
+</header>
+
+<div class="wrap">
+{% if doc %}
+  <!-- ===== Просмотр документа ===== -->
+  <div class="crumbs">
+    <a href="{{ url_for('sda.docs_index') }}">Документация</a> / {{ doc.title }}
+  </div>
+  <div class="viewer">
+    <aside class="side">
+      <div class="cap">Документы</div>
+      {% for d in docs %}
+        <a href="{{ url_for('sda.doc', slug=d.slug) }}"
+           class="{% if d.slug == doc.slug %}on{% endif %}">{{ d.icon }} &nbsp;{{ d.title }}</a>
+      {% endfor %}
+      <div class="cap" style="margin-top:22px">Разделы</div>
+      <nav class="toc" id="toc"></nav>
+    </aside>
+    <article class="doc-body" id="content">
+      {{ content|safe }}
+    </article>
+  </div>
+{% else %}
+  <!-- ===== Хаб ===== -->
+  <section class="hero">
+    <h1>SDA — Sistemul de depozit pentru ambalaje</h1>
+    <p>Модуль соответствия закону Республики Молдова о залоговой системе упаковки,
+       вступающему в силу к 25 января 2027 года. Здесь собрана документация:
+       разбор нормы, дело для клиента и техническая спецификация.</p>
+    <div class="badges">
+      <div><b>25.01.2027</b>срок ввода системы</div>
+      <div><b>0,1–3 л</b>стекло, пластик, металл</div>
+      <div><b>100 м²</b>порог освобождения магазина</div>
+      <div><b>12 мес.</b>срок жизни талона</div>
+      <div><b>14 дней</b>предел выплаты тарифа за обработку</div>
+    </div>
+  </section>
+
+  <div class="grid">
+    {% for d in docs %}
+      <a class="doc {{ d.cls }}" href="{{ url_for('sda.doc', slug=d.slug) }}">
+        <div class="ic">{{ d.icon }}</div>
+        <h3>{{ d.title }}</h3>
+        <p>{{ d.descr }}</p>
+        <div class="meta">
+          {% if d.public %}<span class="open">ОТКРЫТО</span>{% else %}<span class="lock">ТРЕБУЕТ ВХОДА</span>{% endif %}
+          <span>{{ d.audience }}</span>
+        </div>
+      </a>
+    {% endfor %}
+    <a class="doc v" href="{{ url_for('sda.presentation') }}" target="_blank">
+      <div class="ic">◧</div>
+      <h3>Dosar de prezentare — Rogob</h3>
+      <p>Досье для руководства торговой сети: почему сеть не является
+         производителем в смысле SDA, что ей вменяется как торговцу и HoReCa,
+         карта соответствия магазинов по порогу площади, календарь до пуска
+         и демонстрация четырёх экранов модуля.</p>
+      <div class="meta"><span class="open">ОТКРЫТО</span><span>для руководства</span></div>
+    </a>
+  </div>
+
+  <div class="foot">
+    <span>Модуль развёрнут: <a href="{{ url_for('sda.docs_index') }}">{{ url_for('sda.docs_index') }}</a></span>
+    <span>Исходные файлы: <code style="font-size:12px">docs/SDA/</code></span>
+  </div>
+{% endif %}
+</div>
+
+{% if doc %}
+<script>
+// Оглавление собираем из заголовков документа и подсвечиваем текущий раздел
+(function(){
+  const content = document.getElementById('content');
+  const toc = document.getElementById('toc');
+  const heads = [...content.querySelectorAll('h2, h3')];
+  heads.forEach((h, i) => {
+    if (!h.id) h.id = 'h' + i;
+    const a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.textContent = h.textContent.replace(/^\d+\.\s*/, '');
+    if (h.tagName === 'H3') a.className = 'h3';
+    toc.appendChild(a);
+  });
+  const links = [...toc.querySelectorAll('a')];
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => {
+      if (!e.isIntersecting) return;
+      const i = heads.indexOf(e.target);
+      links.forEach(l => l.style.color = '');
+      if (links[i]) links[i].style.color = 'var(--accent2)';
+    });
+  }, {rootMargin: '-70px 0px -75% 0px'});
+  heads.forEach(h => io.observe(h));
+})();
+</script>
+{% endif %}
+</body>
+</html>

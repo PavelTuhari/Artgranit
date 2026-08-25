@@ -351,7 +351,7 @@ function showPanel(name) {
 
 // ==================== Harta de conformitate (Task 7 — decizie fixă) ====================
 async function loadCompliance() {
-  const resp = await fetch('/api/sda/compliance');
+  const resp = await fetch(SDA_API + '/compliance');
   if (resp.status === 401) { window.location.href = '/login'; return; }
   const r = await resp.json();
   if (!r.success) { showError(r.message); return; }
@@ -377,7 +377,7 @@ async function loadCompliance() {
 
 // ==================== Rețeaua de unități ====================
 async function loadUnits() {
-    const resp = await fetch('/api/sda/units');
+    const resp = await fetch(SDA_API + '/units');
     if (resp.status === 401) { window.location.href = '/login'; return; }
     const r = await resp.json();
     if (!r.success) { showError(r.message); return; }
@@ -450,7 +450,7 @@ async function saveUnit(ev) {
         partic_id: document.getElementById('u_partic_id').value || undefined,
         is_horeca: document.getElementById('u_is_horeca').checked,
     };
-    const r = await fetch('/api/sda/units', {
+    const r = await fetch(SDA_API + '/units', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
     }).then(x => x.json());
     if (!r.success) { showError(r.message); return; }
@@ -464,7 +464,7 @@ async function saveUnit(ev) {
 }
 
 async function reclassifyUnits() {
-    const r = await fetch('/api/sda/units/reclassify', {method: 'POST'}).then(x => x.json());
+    const r = await fetch(SDA_API + '/units/reclassify', {method: 'POST'}).then(x => x.json());
     if (!r.success) { showError(r.message); return; }
     showError(null);
     await loadUnits();
@@ -474,7 +474,7 @@ async function reclassifyUnits() {
 // ==================== Registrul ambalajelor ====================
 async function loadPacks() {
     const q = document.getElementById('packSearch') ? document.getElementById('packSearch').value.trim() : '';
-    const url = '/api/sda/packs' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+    const url = SDA_API + '/packs' + (q ? ('?q=' + encodeURIComponent(q)) : '');
     const r = await fetch(url).then(x => x.json());
     if (!r.success) { showError(r.message); return; }
     showError(null);
@@ -517,7 +517,7 @@ async function savePack(ev) {
         volum_l: parseFloat(document.getElementById('p_volum_l').value),
         greutate_g: parseFloat(document.getElementById('p_greutate_g').value || '0'),
     };
-    const r = await fetch('/api/sda/packs', {
+    const r = await fetch(SDA_API + '/packs', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
     }).then(x => x.json());
     if (!r.success) { showError(r.message); return; }
@@ -535,7 +535,7 @@ async function savePack(ev) {
 let PARTIC = [];
 
 async function fetchPartic() {
-    const resp = await fetch('/api/sda/partic');
+    const resp = await fetch(SDA_API + '/partic');
     if (resp.status === 401) { window.location.href = '/login'; return []; }
     const r = await resp.json();
     if (!r.success) { showError(r.message); return []; }
@@ -604,7 +604,7 @@ async function savePartic(ev) {
         vandut_an_ant: document.getElementById('q_vandut_an_ant').value,
         estimare_an: document.getElementById('q_estimare_an').value,
     };
-    const r = await fetch('/api/sda/partic', {
+    const r = await fetch(SDA_API + '/partic', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
     }).then(x => x.json());
     if (!r.success) { showError(r.message); return; }
