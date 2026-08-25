@@ -573,3 +573,36 @@ def test_get_compliance_with_a_string_partic_id_reaches_the_store_as_int():
     args, _kwargs = mock_map.call_args
     assert args[0] == 7
     assert isinstance(args[0], int)
+
+# -- Task 7: interface ------------------------------------------------
+
+def _template(name):
+    with open(os.path.join(ROOT, "templates", name), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def test_console_template_declares_the_three_panels():
+    html = _template("sda.html")
+    for panel in ("panel-harta", "panel-retea", "panel-registru"):
+        assert f'id="{panel}"' in html, panel
+
+
+def test_console_template_calls_the_real_api_routes():
+    html = _template("sda.html")
+    for route in ("/api/sda/compliance", "/api/sda/units", "/api/sda/packs"):
+        assert route in html, route
+
+
+def test_console_route_is_registered():
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "/UNA.md/orasldev/sda-console" in src
+
+
+def test_module_manifest_lists_the_console_page():
+    import json
+    with open(os.path.join(ROOT, "modules", "sda", "module.json"),
+              encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    assert "pages" in manifest
+    assert "/UNA.md/orasldev/sda-console" in manifest["pages"]
