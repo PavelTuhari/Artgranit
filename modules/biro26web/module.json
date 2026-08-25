@@ -9,11 +9,7 @@
   "url": "/UNA.md/orasldev/biro26web",
   "descr": "Журналы, документы и проводки учётной системы в браузере",
   "pages": {
-    "biro26web": {
-      "ru": "Журналы и документы",
-      "ro": "Jurnale si documente",
-      "en": "Journals and documents"
-    }
+    "biro26web": "Журналы и документы"
   },
   "docs": "Biro26Web"
 }
