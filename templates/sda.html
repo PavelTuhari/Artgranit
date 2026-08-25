@@ -345,7 +345,9 @@ function showPanel(name) {
 
 // ==================== Harta de conformitate (Task 7 — decizie fixă) ====================
 async function loadCompliance() {
-  const r = await fetch('/api/sda/compliance').then(x => x.json());
+  const resp = await fetch('/api/sda/compliance');
+  if (resp.status === 401) { window.location.href = '/login'; return; }
+  const r = await resp.json();
   if (!r.success) { showError(r.message); return; }
   const d = r.data, total = d.total || 0;
   const rows = [
