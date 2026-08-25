@@ -533,3 +533,161 @@ class SDAStore:
             # это правило должно быть в данных, а не только в тексте.
             "poate_fi_depus": incomplet == 0 and not missing_own_point,
         })
+
+    # ── tablou de bord (pregătirea rețelei pentru 25.01.2027) ─────────
+
+    DEADLINE = date(2027, 1, 25)
+
+    @staticmethod
+    def dashboard(partic_id: Optional[int] = None) -> Dict[str, Any]:
+        """Un singur agregat pentru consola de bord.
+
+        Pagina pune o singură întrebare: cât de pregătită e rețeaua pentru
+        25.01.2027 și ce anume o blochează. Un apel — nu șase — pentru că
+        fiecare bloc citește tabele diferite, dar operatorul are nevoie de
+        toate deodată, nu de șase spinnere separate.
+        """
+        today = date.today()
+        days_remaining = (SDAStore.DEADLINE - today).days
+
+        unit_filter = ""
+        params: Dict[str, Any] = {}
+        if partic_id is not None:
+            unit_filter = " AND PARTIC_ID = :partic_id"
+            params["partic_id"] = partic_id
+
+        with DatabaseModel() as db:
+            # Pregătire + repartizare pe regimuri, într-o singură trecere:
+            # unitățile fără regim nu sunt o categorie, ci lucrul rămas.
+            r = db.execute_query(
+                "SELECT REGIM, COUNT(*) AS N FROM SDA_UNIT WHERE 1=1"
+                + unit_filter + " GROUP BY REGIM", params or None)
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la citirea rețelei")
+            by_regime: Dict[str, int] = {}
+            unknown = 0
+            total_units = 0
+            for row in _rows(r):
+                n = int(row["n"])
+                total_units += n
+                if row["regim"]:
+                    by_regime[row["regim"]] = n
+                else:
+                    unknown += n
+            with_regim = total_units - unknown
+            readiness_pct = (round(with_regim * 100.0 / total_units, 1)
+                             if total_units else 0.0)
+
+            # Acoperirea cu punct propriu de returnare: unitățile obligate
+            # (regim A) fără niciun punct activ AZI blochează depunerea
+            # dosarului, deci sunt numite pe nume, nu doar numărate.
+            ru = db.execute_query(
+                "SELECT UNIT_ID, DENUMIRE FROM SDA_UNIT "
+                "WHERE REGIM = 'A_PUNCT_PROPRIU'" + unit_filter,
+                params or None)
+            if not ru.get("success"):
+                return _fail(ru.get("message")
+                             or "Eroare la citirea unitatilor in regim propriu")
+            regim_a_units = _rows(ru)
+
+            rp = db.execute_query(
+                "SELECT DISTINCT UNIT_ID FROM SDA_RETURN_POINT WHERE "
+                "ACTIV_DIN <= :d AND (ACTIV_PANA IS NULL OR ACTIV_PANA >= :d)",
+                {"d": today})
+            if not rp.get("success"):
+                return _fail(rp.get("message")
+                             or "Eroare la citirea punctelor de returnare")
+            active_unit_ids = {row["unit_id"] for row in _rows(rp)}
+
+            blocking = [u for u in regim_a_units
+                       if u["unit_id"] not in active_unit_ids]
+            coverage_total = len(regim_a_units)
+            coverage_covered = coverage_total - len(blocking)
+
+            # Registru: total și pe material și pe categoria de tarif de
+            # administrare — registrul nu e specific unui participant.
+            pm = db.execute_query(
+                "SELECT MATERIAL, COUNT(*) AS N FROM SDA_PACK GROUP BY MATERIAL")
+            if not pm.get("success"):
+                return _fail(pm.get("message") or "Eroare la citirea registrului")
+            by_material = {row["material"]: int(row["n"]) for row in _rows(pm)}
+            total_packs = sum(by_material.values())
+
+            pc = db.execute_query(
+                "SELECT CAT_ADMIN, COUNT(*) AS N FROM SDA_PACK GROUP BY CAT_ADMIN")
+            if not pc.get("success"):
+                return _fail(pc.get("message") or "Eroare la citirea registrului")
+            by_cat_admin = {row["cat_admin"]: int(row["n"])
+                            for row in _rows(pc) if row["cat_admin"]}
+
+            # Stare tarife: perioade fără gol/suprapunere (rules.py verifică),
+            # plus valoarea depozitului în vigoare azi, dacă există.
+            tp = db.execute_query(
+                "SELECT TARIFF_ID, TIP, DATA_START, DATA_END FROM SDA_TARIFF")
+            if not tp.get("success"):
+                return _fail(tp.get("message") or "Eroare la citirea tarifelor")
+            tariff_rows = _rows(tp)
+
+            periods = [{"tariff_id": t["tariff_id"], "tip": t["tip"],
+                       "data_start": t["data_start"], "data_end": t["data_end"]}
+                      for t in tariff_rows]
+            period_problems = sda_rules.validate_periods(periods) if periods else []
+
+            deposit_match = next(
+                (t for t in tariff_rows
+                 if t["tip"] == "DEPOZIT" and t["data_start"] <= today
+                 and (t["data_end"] is None or t["data_end"] >= today)), None)
+            deposit_state = None
+            if deposit_match:
+                dl = db.execute_query(
+                    "SELECT VALOARE_LEI FROM SDA_TARIFF_LINE WHERE "
+                    "TARIFF_ID = :t AND CATEGORIE = '*'",
+                    {"t": deposit_match["tariff_id"]})
+                if not dl.get("success"):
+                    return _fail(dl.get("message")
+                                 or "Eroare la citirea valorii depozitului")
+                lines = _rows(dl)
+                deposit_state = {
+                    "valoare_lei": (float(lines[0]["valoare_lei"])
+                                   if lines else None),
+                    "data_start": deposit_match["data_start"],
+                    "data_end": deposit_match["data_end"],
+                }
+
+            pp = db.execute_query(
+                "SELECT PARTIC_ID, DENUMIRE FROM SDA_PARTIC"
+                + (" WHERE PARTIC_ID = :partic_id" if partic_id is not None else ""),
+                params or None)
+            if not pp.get("success"):
+                return _fail(pp.get("message")
+                             or "Eroare la citirea participantilor")
+            partics = _rows(pp)
+
+        dossiers = []
+        for p in partics:
+            d = SDAStore.registration_dossier(p["partic_id"], today)
+            if not d.get("success"):
+                return d
+            dossiers.append({
+                "partic_id": p["partic_id"], "denumire": p["denumire"],
+                "poate_fi_depus": d["data"]["poate_fi_depus"],
+                "incomplet": d["data"]["incomplet"],
+            })
+
+        return _done({
+            "deadline": SDAStore.DEADLINE.isoformat(),
+            "days_remaining": days_remaining,
+            "readiness": {"with_regim": with_regim, "total": total_units,
+                         "pct": readiness_pct},
+            "by_regime": by_regime,
+            "unknown_regime": unknown,
+            "return_point_coverage": {
+                "total": coverage_total, "covered": coverage_covered,
+                "blocking_units": blocking,
+            },
+            "registry": {"total": total_packs, "by_material": by_material,
+                        "by_cat_admin": by_cat_admin},
+            "tariff_state": {"deposit": deposit_state,
+                             "period_problems": period_problems},
+            "dossiers": dossiers,
+        })

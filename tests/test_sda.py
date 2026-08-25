@@ -2077,3 +2077,87 @@ def test_wide_reports_are_rendered_in_landscape():
                   encoding="utf-8") as fh:
             tpl = fh.read()
         assert "size: A4" not in tpl, name
+
+
+# -- Task 8: tablou de bord --------------------------------------------
+#
+# Dashboard.dashboard() face un singur agregat: countdown legal, pregătire
+# (unități cu regim vs total), acoperire cu punct propriu de returnare
+# (regim A), registru pe material/categorie, stare tarife (perioade +
+# valoare azi) și verdictul de dosar per participant. Testele nu ating
+# Oracle live — DatabaseModel e mocat, ca la restul modulului.
+
+from datetime import date as _date  # noqa: E402
+
+
+def test_dashboard_countdown_computes_days_remaining_to_the_legal_deadline():
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["REGIM", "N"], [["A_PUNCT_PROPRIU", 1]]),   # regime counts
+        _ok(["UNIT_ID", "DENUMIRE"], []),                  # regim A units
+        _ok(["UNIT_ID"], []),                              # active points
+        _ok(["MATERIAL", "N"], []),                        # by material
+        _ok(["CAT_ADMIN", "N"], []),                        # by cat_admin
+        _ok(["TARIFF_ID", "TIP", "DATA_START", "DATA_END"], []),  # tariffs
+        _ok(["PARTIC_ID", "DENUMIRE"], []),                 # participants
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.dashboard()
+    assert res["success"] is True
+    expected_days = (SDAStore.DEADLINE - _date.today()).days
+    assert res["data"]["days_remaining"] == expected_days
+    assert res["data"]["deadline"] == "2027-01-25"
+
+
+def test_dashboard_readiness_percentage_counts_units_without_a_regime():
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["REGIM", "N"], [["A_PUNCT_PROPRIU", 1], ["B_EXCEPTIE_APL", 1],
+                             [None, 3]]),
+        _ok(["UNIT_ID", "DENUMIRE"], []),
+        _ok(["UNIT_ID"], []),
+        _ok(["MATERIAL", "N"], []),
+        _ok(["CAT_ADMIN", "N"], []),
+        _ok(["TARIFF_ID", "TIP", "DATA_START", "DATA_END"], []),
+        _ok(["PARTIC_ID", "DENUMIRE"], []),
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.dashboard()
+    assert res["success"] is True
+    readiness = res["data"]["readiness"]
+    assert readiness["total"] == 5
+    assert readiness["with_regim"] == 2
+    assert readiness["pct"] == 40.0
+    assert res["data"]["unknown_regime"] == 3
+
+
+def test_dashboard_return_point_coverage_excludes_an_expired_point():
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["REGIM", "N"], [["A_PUNCT_PROPRIU", 2]]),
+        _ok(["UNIT_ID", "DENUMIRE"],
+            [[10, "Magazin A — cu punct activ"], [11, "Magazin B — fara punct"]]),
+        # Interogarea punctelor active filtreaza deja ACTIV_PANA in trecut la
+        # nivel SQL: mock-ul intoarce doar unitatea 10, ca unitatea 11 sa nu
+        # fie tratata drept acoperita chiar daca ar avea un punct expirat.
+        _ok(["UNIT_ID"], [[10]]),
+        _ok(["MATERIAL", "N"], []),
+        _ok(["CAT_ADMIN", "N"], []),
+        _ok(["TARIFF_ID", "TIP", "DATA_START", "DATA_END"], []),
+        _ok(["PARTIC_ID", "DENUMIRE"], []),
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.dashboard()
+    assert res["success"] is True
+    cov = res["data"]["return_point_coverage"]
+    assert cov["total"] == 2
+    assert cov["covered"] == 1
+    assert [u["unit_id"] for u in cov["blocking_units"]] == [11]
+    assert cov["blocking_units"][0]["denumire"] == "Magazin B — fara punct"
+
+
+def test_app_requires_authentication_on_the_dashboard_route():
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/dashboard")
+    assert resp.status_code == 401
+    assert resp.get_json()["success"] is False
