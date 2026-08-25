@@ -52,6 +52,18 @@ class SDAController:
         stare = (data.get("stare") or "ACTIV").upper()
         if stare not in ("ACTIV", "SUSPENDAT", "INCHIS"):
             return _fail("Starea trebuie sa fie ACTIV, SUSPENDAT sau INCHIS")
+        # Volumele comerciale sunt informative, dar dacă sunt completate
+        # trebuie să fie numere întregi — altfel int() explodează mai jos,
+        # în store, cu un ValueError necaptat (500 in loc de raspuns JSON).
+        for key, label in (("vandut_an_ant", "Vandut anul anterior"),
+                           ("estimare_an", "Estimare anul curent")):
+            raw = data.get(key)
+            if raw in (None, ""):
+                continue
+            try:
+                int(raw)
+            except (TypeError, ValueError):
+                return _fail(f"{label} trebuie sa fie un numar intreg")
         return SDAStore.save_partic(data, username)
 
     # ── сеть ────────────────────────────────────────────────────────
