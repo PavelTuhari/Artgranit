@@ -739,7 +739,7 @@ def test_list_partic_maps_rows_to_dicts():
 
 def test_saving_a_new_participant_inserts_with_bind_variables():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         SDAStore.save_partic({"idno": "1003600000000", "denumire": "Rogob SRL",
                               "stare": "activ"}, "tester")
