@@ -430,6 +430,8 @@ class SDAStore:
                 "AND (T.DATA_END IS NULL OR T.DATA_END >= :d) "
                 "ORDER BY T.DATA_START DESC, T.TARIFF_ID DESC",
                 {"d": on_date})
+            if not t.get("success"):
+                return _fail(t.get("message") or "Eroare la citirea tarifului")
             lines = _rows(t)
 
         if not lines:
