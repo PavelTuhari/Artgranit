@@ -1105,12 +1105,11 @@ def test_dossier_with_own_point_regime_and_a_declared_point_may_be_filed():
 #    protejat la fel ca ruta POST.
 
 def test_app_requires_authentication_on_the_participant_read_route():
-    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
-        src = fh.read()
-    marker = "def api_sda_partic():"
-    idx = src.index(marker)
-    body = src[idx:idx + 300]
-    assert "AuthController.is_authenticated" in body
+    import app as flask_app
+    client = flask_app.app.test_client()
+    resp = client.get("/api/sda/partic")
+    assert resp.status_code == 401
+    assert resp.get_json()["success"] is False
 
 
 # 6. O unitate legata de un participant inexistent trebuie sa primeasca
