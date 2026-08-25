@@ -20,6 +20,23 @@ def _sql(name):
         return fh.read()
 
 
+MODULE_DIR = os.path.join(ROOT, "modules", "sda")
+
+
+def _sda_test_client():
+    """A Flask app with only the sda blueprint registered — no live Oracle,
+    no wallet, no need to import the whole app.py (see test_seoforge.py's
+    approach for the same problem)."""
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    app.secret_key = "test"
+    load_module(app, "sda")
+    return app.test_client()
+
+
 EXPECTED_TABLES = [
     "SDA_PARTIC", "SDA_PARTIC_ROL", "SDA_UNIT", "SDA_RETURN_POINT",
     "SDA_RVM", "SDA_PACK", "SDA_PACK_SKU", "SDA_TARIFF",
