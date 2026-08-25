@@ -187,6 +187,13 @@ def api_deposit():
     return jsonify(SDAController.get_deposit(request.args))
 
 
+@blueprint.route('/api/dashboard', methods=['GET'])
+def api_dashboard():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    return jsonify(SDAController.get_dashboard(request.args))
+
+
 @blueprint.route('/api/dossier', methods=['GET'])
 def api_dossier():
     if not AuthController.is_authenticated():
