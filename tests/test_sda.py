@@ -1581,12 +1581,24 @@ def test_console_template_disables_horeca_checkbox_outside_alimentatie_publica()
 
 # -- Task 9: isolation from shared code --------------------------------
 
+# Trigram "sda" false-positives inside ordinary words (sysdate, readAsDataURL,
+# loadWidgetsData), so isolation checks below match specific leak signatures
+# instead of the bare substring.
+SDA_LEAK_SIGNATURES = ("sda_", "/api/sda", "sda.html", "sdacontroller",
+                       "orasldev/sda")
+
+
+def _sda_leak_signatures_found(src: str) -> list:
+    lowered = src.lower()
+    return [sig for sig in SDA_LEAK_SIGNATURES if sig in lowered]
+
+
 def test_module_leaves_nothing_in_the_shared_app():
     # Ради этого и делалось ядро: модуль не должен присутствовать в общем
     # файле ни строкой, иначе каждый новый модуль — конфликт слияния.
     with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
         src = fh.read()
-    assert "sda" not in src.lower()
+    assert not _sda_leak_signatures_found(src)
 
 
 def test_shared_deploy_script_is_untouched_by_the_module():
@@ -1594,4 +1606,4 @@ def test_shared_deploy_script_is_untouched_by_the_module():
     # модуль не трогает вовсе — ни файлами, ни комментариями.
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
-    assert "sda" not in src.lower()
+    assert not _sda_leak_signatures_found(src)
