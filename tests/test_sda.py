@@ -1067,6 +1067,7 @@ def test_saving_a_participant_does_not_commit_when_the_journal_insert_fails():
     from models.sda_oracle_store import SDAStore
     db = _db_returning(
         _ok([], [], rowcount=1),
+        _currval(),
         {"success": False, "columns": [], "data": [], "rowcount": 0,
          "message": "ORA-01461"})
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
