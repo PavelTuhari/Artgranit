@@ -474,6 +474,16 @@ class SDAStore:
         # а неизвестен: это юридическое заявление, а не значение по вкусу.
         metode = sorted({x["tip"] for x in points})
 
+        # Единица в режиме A_PUNCT_PROPRIU обязана содержать собственный
+        # пункт возврата (регламент). Если ни один пункт сети за ней не
+        # заявлен, досье формально «полное» (у всех точек есть режим), но
+        # подавать его нельзя — статутарное поле способа приёма пустое
+        # именно для той точки, которая обязана его иметь.
+        units_with_points = {p["unit_id"] for p in points}
+        missing_own_point = any(
+            x.get("regim") == "A_PUNCT_PROPRIU" and x["unit_id"] not in units_with_points
+            for x in units)
+
         return _done({
             "identificare": {"idno": partic["idno"], "denumire": partic["denumire"]},
             "contact": {"nume": partic.get("contact_nume"),
