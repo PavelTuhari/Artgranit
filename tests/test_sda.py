@@ -314,6 +314,11 @@ def _ok(columns, data, rowcount=None):
             "message": ""}
 
 
+def _currval(new_id=101):
+    """Mock du résultat de SELECT SEQ_*.CURRVAL FROM DUAL après un INSERT."""
+    return _ok(["CURRVAL"], [[new_id]])
+
+
 def test_list_units_maps_rows_to_dicts():
     from models.sda_oracle_store import SDAStore
     db = _db_returning(_ok(["UNIT_ID", "DENUMIRE", "REGIM"],
