@@ -95,18 +95,29 @@ class SDAStore:
             if has_id and not r.get("rowcount"):
                 return _fail(
                     f"Participantul {partic_id} nu mai exista")
+            new_id = partic_id
+            if not has_id:
+                # ID-ul e generat de trigger la INSERT; CURRVAL e valabil doar
+                # in aceeasi sesiune, imediat dupa insert, pe aceeasi conexiune.
+                idr = db.execute_query(
+                    "SELECT SEQ_SDA_PARTIC.CURRVAL FROM DUAL")
+                if not idr.get("success") or not idr.get("data"):
+                    return _fail(idr.get("message")
+                                 or "Eroare la citirea id-ului nou creat")
+                new_id = idr["data"][0][0]
             jr = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('PARTIC_SAVE', 'SDA_PARTIC', "
                 ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": partic_id,
+                {"entitate_id": new_id,
                  "utilizator": username,
                  "detalii": (f"{params['idno']} {params['denumire']}")[:1000]})
             if not jr.get("success"):
                 return _fail(jr.get("message")
                              or "Eroare la scrierea in jurnal")
             db.connection.commit()
-        return _done({"idno": params["idno"], "denumire": params["denumire"]})
+        return _done({"partic_id": new_id, "idno": params["idno"],
+                      "denumire": params["denumire"]})
 
     # ── сеть ────────────────────────────────────────────────────────
 
