@@ -358,14 +358,17 @@ class SDAStore:
             r = db.execute_query(sql, params)
             if not r.get("success"):
                 return _fail(r.get("message") or "Eroare la salvarea ambalajului")
-            if payload.get("pack_id") is not None and not r.get("rowcount"):
-                return _fail(f"Ambalajul {payload.get('pack_id')} nu mai exista")
-            db.execute_query(
+            if pack_id is not None and not r.get("rowcount"):
+                return _fail(f"Ambalajul {pack_id} nu mai exista")
+            jr = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('PACK_SAVE', 'SDA_PACK', "
                 ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": payload.get("pack_id"), "utilizator": username,
-                 "detalii": f"{params['ean']} {params['cat_admin']}/{params['cat_gest']}"})
+                {"entitate_id": pack_id, "utilizator": username,
+                 "detalii": (f"{params['ean']} "
+                             f"{params['cat_admin']}/{params['cat_gest']}")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
             db.connection.commit()
         return _done({"cat_admin": params["cat_admin"],
                       "cat_gest": params["cat_gest"]})
