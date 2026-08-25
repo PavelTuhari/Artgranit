@@ -628,14 +628,20 @@ def test_console_template_declares_the_three_panels():
 
 def test_console_template_calls_the_real_api_routes():
     html = _template("sda.html")
-    for route in ("/api/sda/compliance", "/api/sda/units", "/api/sda/packs"):
+    assert "/UNA.md/orasldev/sda/api" in html
+    for route in ("/compliance", "/units", "/packs"):
         assert route in html, route
 
 
 def test_console_route_is_registered():
-    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
-        src = fh.read()
-    assert "/UNA.md/orasldev/sda-console" in src
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    load_module(app, "sda")
+    rules = {r.rule for r in app.url_map.iter_rules()}
+    assert "/UNA.md/orasldev/sda/console" in rules
 
 
 def test_module_manifest_lists_the_console_page():
