@@ -1386,9 +1386,29 @@ def test_app_requires_authentication_on_the_compliance_read_route():
 def test_app_leaves_packs_and_deposit_open_without_authentication():
     client = _sda_test_client()
     resp = client.get("/UNA.md/orasldev/sda/api/packs")
-    assert resp.status_code != 401
+    assert resp.status_code == 200
     resp = client.get("/UNA.md/orasldev/sda/api/deposit?ean=0000000000000")
-    assert resp.status_code != 401
+    assert resp.status_code == 200
+
+
+def test_app_redirects_the_console_route_to_login_when_anonymous():
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/console")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]
+
+
+def test_app_redirects_a_non_public_doc_to_login_when_anonymous():
+    # 'presentation' is public and 'docs_index' lists only metadata; a
+    # non-public individual document is what actually exercises the
+    # url_for('login') redirect at modules/sda/routes.py's doc() guard.
+    docs = _sda_docs()
+    non_public = next((d for d in docs if not d["public"]), None)
+    assert non_public is not None, "expected at least one non-public SDA doc to test the guard"
+    client = _sda_test_client()
+    resp = client.get(f"/UNA.md/orasldev/sda/docs/{non_public['slug']}")
+    assert resp.status_code == 302
+    assert "/login" in resp.headers["Location"]
 
 
 # 6. modules/sda/store.py:484 foloseste .get(...) ca restul accesarilor,
