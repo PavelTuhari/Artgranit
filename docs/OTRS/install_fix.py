@@ -118,6 +118,9 @@ if __name__ == "__main__":
     for name in names:
         t = TARGETS[name]
         print(f"\n=== схема {name.upper()} ===")
+        if "--retry" in args:
+            retry(t, int(args[args.index("--retry") + 1]))
+            continue
         if "--cleanup-only" in args:
             cleanup(t)
             continue
