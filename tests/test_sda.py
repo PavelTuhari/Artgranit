@@ -487,3 +487,42 @@ def test_saving_a_pack_with_id_zero_updates_instead_of_inserting():
     assert res["success"] is True
     sql = db.execute_query.call_args_list[0][0][0]
     assert sql.strip().startswith("UPDATE SDA_PACK")
+
+
+# -- Task 6: controller and routes ------------------------------------
+
+def test_controller_rejects_a_unit_without_a_name():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_unit({"partic_id": 1}, "tester")
+    assert res["success"] is False
+    assert "denumire" in res["message"].lower()
+
+
+def test_controller_rejects_a_pack_without_an_ean():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_pack({"material": "STICLA", "volum_l": 0.5,
+                                   "greutate_g": 300}, "tester")
+    assert res["success"] is False
+    assert "ean" in res["message"].lower()
+
+
+def test_controller_rejects_a_volume_outside_the_legal_range():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_pack({"ean": "484", "material": "PLASTIC",
+                                   "volum_l": 5, "greutate_g": 40}, "tester")
+    assert res["success"] is False
+    assert "3" in res["message"]
+
+
+def test_deposit_endpoint_requires_an_ean():
+    from controllers.sda_controller import SDAController
+    res = SDAController.get_deposit({})
+    assert res["success"] is False
+
+
+def test_app_registers_every_sda_api_route():
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    for route in ("/api/sda/units", "/api/sda/units/reclassify",
+                  "/api/sda/compliance", "/api/sda/packs", "/api/sda/deposit"):
+        assert f"'{route}'" in src or f'"{route}"' in src, route
