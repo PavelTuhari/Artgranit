@@ -110,6 +110,21 @@ def retry(t, nrmsg):
                                             f"FROM UN9MAIL_MSG WHERE NRMSG={nrmsg}", 5)))
 
 
+def purge(t, limit=2000):
+    """Физически удаляет застрявшие письма (STATUS=1) из очереди.
+
+    Применять ТОЛЬКО после выгрузки (docs/OTRS/export_stuck.py): удаление
+    необратимо. Архивные STATUS=3 не трогаются.
+    """
+    a = auth(t)
+    before = _rows(_call_worker(a, "SELECT COUNT(*) C FROM UN9MAIL_MSG WHERE STATUS=1", 30))
+    print(f"  {t['user']}: удаляю писем STATUS=1 — {before[0]['c'] if before else '?'}")
+    run(a, "BEGIN DELETE FROM UN9MAIL_MSG WHERE STATUS=1; COMMIT; END;", "удаление + commit")
+    for x in _rows(_call_worker(a, "SELECT STATUS, COUNT(*) C FROM UN9MAIL_MSG "
+                                   "GROUP BY STATUS ORDER BY STATUS", 10)):
+        print("    ", x)
+
+
 def retry_all(t, limit=200):
     """Догоняет застрявшие письма: по одному, чтобы не ловить HTTP 508."""
     a = auth(t)
