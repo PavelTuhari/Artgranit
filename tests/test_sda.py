@@ -696,6 +696,16 @@ def _template(name):
         return fh.read()
 
 
+def test_docs_footer_links_to_the_console_not_the_docs_index():
+    # "Открыть модуль" / "Модуль развёрнут:" must point at the module ROOT
+    # (the console), not loop back to the docs hub itself.
+    html = _template("sda_docs.html")
+    assert "url_for('sda.docs_index') }}\">Открыть модуль" not in html
+    assert "url_for('sda.console') }}\">Открыть модуль" in html
+    assert ("Модуль развёрнут: <a href=\"{{ url_for('sda.console') }}\">"
+            "{{ url_for('sda.console') }}</a>") in html
+
+
 def test_console_template_has_no_hardcoded_mount_point():
     # The module must not assume where it's mounted: the API base is built
     # server-side via url_for() into data-api-base on <body>, not baked
