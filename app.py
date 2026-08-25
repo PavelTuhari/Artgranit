@@ -8218,6 +8218,44 @@ def _biro26_canonical():
             if request.args.get(k)]
     return base + ('?' + urlencode(keep) if keep else '')
 
+# RO: harta site-ului si robots.txt — servite de pe domeniul PUBLIC.
+#     Fara ele, motoarele trebuiau sa descopere singure 1 251 de categorii si
+#     ~152 000 de produse urmarind legaturi; acum le primesc explicit.
+# EN: sitemap and robots for the public domain.
+def _biro26_xml(body):
+    return Response(body, mimetype='application/xml',
+                    headers={'Cache-Control': 'public, max-age=21600'})
+
+@app.route('/robots.txt')
+def biro26_robots():
+    from models.biro26_sitemap import robots_txt
+    return Response(robots_txt(), mimetype='text/plain',
+                    headers={'Cache-Control': 'public, max-age=21600'})
+
+@app.route('/sitemap.xml')
+def biro26_sitemap():
+    from models.biro26_sitemap import index_xml
+    return _biro26_xml(index_xml())
+
+@app.route('/sitemap-pages.xml')
+def biro26_sitemap_pages():
+    from models.biro26_sitemap import pages_xml
+    return _biro26_xml(pages_xml())
+
+@app.route('/sitemap-categories.xml')
+def biro26_sitemap_categories():
+    from models.biro26_sitemap import categories_xml
+    return _biro26_xml(categories_xml())
+
+@app.route('/sitemap-products-<int:part>.xml')
+def biro26_sitemap_products(part):
+    from models.biro26_sitemap import products_xml, product_count, CHUNK
+    # RO: refuzam bucatile inexistente, ca sa nu raspundem cu harti goale
+    # EN: reject non-existent chunks instead of serving empty sitemaps
+    if part < 1 or (part - 1) * CHUNK >= max(product_count(), 1):
+        return ('sitemap part not found', 404)
+    return _biro26_xml(products_xml(part))
+
 @app.context_processor
 def _biro26_seo_ctx():
     """RO: pus la dispozitia TUTUROR sabloanelor, ca nicio pagina sa nu mai emita
