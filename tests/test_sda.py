@@ -292,3 +292,78 @@ def test_gap_hidden_by_a_wider_covering_period_is_not_reported():
     ])
     assert not any("gol" in p.lower() for p in problems)
     assert any("suprapun" in p.lower() for p in problems)
+
+
+# -- Task 4: store ----------------------------------------------------
+
+from unittest.mock import MagicMock, patch  # noqa: E402
+
+
+def _db_returning(*results):
+    """Мок DatabaseModel: каждый вызов execute_query отдаёт свой результат."""
+    db = MagicMock()
+    db.__enter__ = MagicMock(return_value=db)
+    db.__exit__ = MagicMock(return_value=False)
+    db.execute_query = MagicMock(side_effect=list(results))
+    return db
+
+
+def _ok(columns, data, rowcount=None):
+    return {"success": True, "columns": columns, "data": data,
+            "rowcount": rowcount if rowcount is not None else len(data),
+            "message": ""}
+
+
+def test_list_units_maps_rows_to_dicts():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok(["UNIT_ID", "DENUMIRE", "REGIM"],
+                           [[1, "Magazin 12", "B_EXCEPTIE_APL"]]))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.list_units()
+    assert res["success"] is True
+    assert res["data"][0]["denumire"] == "Magazin 12"
+
+
+def test_saving_a_unit_recomputes_its_regime():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_unit(
+            {"partic_id": 1, "denumire": "Magazin 12", "suprafata_mp": 85,
+             "tip_amplasament": "MAGAZIN"}, "tester")
+    assert res["success"] is True
+    params = db.execute_query.call_args_list[0][0][1]
+    assert params["regim"] == "B_EXCEPTIE_APL"
+    assert "100" in params["regim_motiv"]
+
+
+def test_saving_a_unit_without_surface_leaves_the_regime_empty():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        SDAStore.save_unit({"partic_id": 1, "denumire": "X",
+                            "tip_amplasament": "MAGAZIN"}, "tester")
+    params = db.execute_query.call_args_list[0][0][1]
+    assert params["regim"] is None
+
+
+def test_compliance_map_counts_units_without_a_regime_separately():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok(["REGIM", "N"],
+                           [["B_EXCEPTIE_APL", 65], ["A_PUNCT_PROPRIU", 17],
+                            [None, 3]]))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.compliance_map()
+    assert res["data"]["total"] == 85
+    assert res["data"]["by_regime"]["B_EXCEPTIE_APL"] == 65
+    assert res["data"]["unknown"] == 3
+
+
+def test_store_reports_failure_instead_of_raising():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning({"success": False, "columns": [], "data": [],
+                        "rowcount": 0, "message": "ORA-00942"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.list_units()
+    assert res["success"] is False
+    assert "ORA-00942" in res["message"]
