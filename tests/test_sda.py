@@ -1356,27 +1356,24 @@ def test_save_partic_truncates_the_journal_detail():
 #    fel ca partic si dossier.
 
 def test_app_requires_authentication_on_the_units_read_route():
-    import app as flask_app
-    client = flask_app.app.test_client()
-    resp = client.get("/api/sda/units")
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/units")
     assert resp.status_code == 401
     assert resp.get_json()["success"] is False
 
 
 def test_app_requires_authentication_on_the_compliance_read_route():
-    import app as flask_app
-    client = flask_app.app.test_client()
-    resp = client.get("/api/sda/compliance")
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/compliance")
     assert resp.status_code == 401
     assert resp.get_json()["success"] is False
 
 
 def test_app_leaves_packs_and_deposit_open_without_authentication():
-    import app as flask_app
-    client = flask_app.app.test_client()
-    resp = client.get("/api/sda/packs")
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/api/packs")
     assert resp.status_code != 401
-    resp = client.get("/api/sda/deposit?ean=0000000000000")
+    resp = client.get("/UNA.md/orasldev/sda/api/deposit?ean=0000000000000")
     assert resp.status_code != 401
 
 
