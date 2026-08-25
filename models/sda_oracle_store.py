@@ -316,8 +316,11 @@ class SDAStore:
     def save_pack(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
         material = (payload.get("material") or "").upper()
         volum = float(payload.get("volum_l") or 0)
+        pack_id = payload.get("pack_id")
+        if pack_id == "":
+            pack_id = None
         params = {
-            "pack_id": payload.get("pack_id"),
+            "pack_id": pack_id,
             "ean": payload.get("ean"),
             "denumire": payload.get("denumire"),
             "producator": payload.get("producator"),
