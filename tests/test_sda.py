@@ -106,6 +106,22 @@ def test_ean_is_unique():
         or "EAN VARCHAR2(20) NOT NULL UNIQUE" in ddl, "EAN must be unique"
 
 
+def test_tariff_line_reutilizabil_is_constrained():
+    ddl = _sql("117_sda_tables.sql").upper()
+    assert "CONSTRAINT CK_SDA_TL_REUT CHECK (REUTILIZABIL IS NULL OR REUTILIZABIL IN ('D','N'))" in ddl
+
+
+def test_pack_tariff_categories_are_constrained():
+    ddl = _sql("117_sda_tables.sql").upper()
+    assert "CONSTRAINT CK_SDA_PACK_CATADM CHECK (CAT_ADMIN IS NULL OR CAT_ADMIN IN ('A','B','C','D','E','F','G'))" in ddl
+    assert "CONSTRAINT CK_SDA_PACK_CATGES CHECK (CAT_GEST IS NULL OR CAT_GEST IN ('A','B','C','D','E'))" in ddl
+
+
+def test_tariff_line_categorie_is_constrained():
+    ddl = _sql("117_sda_tables.sql").upper()
+    assert "CONSTRAINT CK_SDA_TL_CAT CHECK (CATEGORIE IN ('A','B','C','D','E','F','G','*'))" in ddl
+
+
 def test_deploy_script_installs_the_sda_ddl():
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
