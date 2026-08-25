@@ -495,9 +495,10 @@ class SDAStore:
         # заявлен, досье формально «полное» (у всех точек есть режим), но
         # подавать его нельзя — статутарное поле способа приёма пустое
         # именно для той точки, которая обязана его иметь.
-        units_with_points = {p["unit_id"] for p in points}
+        units_with_points = {p.get("unit_id") for p in points}
         missing_own_point = any(
-            x.get("regim") == "A_PUNCT_PROPRIU" and x["unit_id"] not in units_with_points
+            x.get("regim") == "A_PUNCT_PROPRIU"
+            and x.get("unit_id") not in units_with_points
             for x in units)
 
         return _done({
