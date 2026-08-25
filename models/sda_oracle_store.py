@@ -337,7 +337,7 @@ class SDAStore:
             "sursa": (payload.get("sursa") or "MANUAL").upper(),
         }
 
-        if payload.get("pack_id") is not None:
+        if pack_id is not None:
             sql = ("UPDATE SDA_PACK SET EAN = :ean, DENUMIRE = :denumire, "
                    "PRODUCATOR = :producator, MATERIAL = :material, "
                    "CULOARE = :culoare, BARIERA_O2 = :bariera_o2, "
