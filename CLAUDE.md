@@ -253,14 +253,21 @@ git diff --name-only main HEAD   # ни одного общего файла
 
 ```bash
 cd /Users/pt/Projects.AI/Artgranit
-tar -czf /tmp/patch.tar.gz <только изменённые файлы>
+COPYFILE_DISABLE=1 tar -czf /tmp/patch.tar.gz --exclude='__pycache__' --exclude='.DS_Store' <только изменённые файлы>
 scp -i <ключ> /tmp/patch.tar.gz <user@host>:/tmp/patch.tar.gz
 ssh -i <ключ> <user@host> 'cd /home/ubuntu/artgranit && tar -xzf /tmp/patch.tar.gz \
   && rm -f /tmp/patch.tar.gz && sudo systemctl restart artgranit'
 ```
 
 Распаковка поверх каталога не трогает `venv/`, `.env` и wallet — их сохранять
-отдельно не нужно. После КАЖДОГО обновления любого контура —
+отдельно не нужно.
+
+**`COPYFILE_DISABLE=1` обязателен.** Без него macOS кладёт в архив
+AppleDouble-двойники `._имя` для каждого файла, и они приезжают на сервер.
+25.08.2026 в хабе документации SDA из-за этого появились карточки-призраки
+«._SPEC_SDA.md — без описания в docs.json»: реестр собирает хаб из самой
+папки и честно показывал всё, что там лежало. Реестр с тех пор отсекает
+файлы с точкой в начале имени, но плодить мусор на сервере всё равно не надо. После КАЖДОГО обновления любого контура —
 `curl -I https://nufarul.eminescu.md/login` и `curl -s -o /dev/null -w '%{http_code}' https://officeplus.md/cos`.
 
 ## VPN во внутреннюю сеть — поднимать самому
