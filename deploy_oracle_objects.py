@@ -172,6 +172,7 @@ def main() -> None:
         "79_tbc_sources.sql",
         "79b_tbc_mtls_services.sql",
         "79c_tbc_dossier_types.sql",
+        "79d_tbc_proxmox.sql",
         "80_plg_tables.sql",
         "81_plg_views.sql",
         "82_plg_demo_data.sql",
@@ -203,6 +204,7 @@ def main() -> None:
         "110_peco_algorithms.sql",
         "111_peco_paths_demo.sql",
         "112_plg_i18n_algos.sql",
+        "117_sda_tables.sql",
         # SEOForge (sql/113..116) НАМЕРЕННО не в этом списке: контур YSEO_*
         # живёт в боевой ERP OfficePlus, а этот скрипт ставит объекты в
         # облачную БД бэкофиса. Установщик контура —
