@@ -895,6 +895,7 @@ def test_updating_a_missing_unit_is_reported_not_silently_ok():
                                  "tester")
     assert res["success"] is False
     assert "99" in res["message"]
+    db.connection.commit.assert_not_called()
 
 
 def test_updating_a_missing_pack_is_reported_not_silently_ok():
