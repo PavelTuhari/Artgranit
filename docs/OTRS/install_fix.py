@@ -107,6 +107,9 @@ if __name__ == "__main__":
     for name in names:
         t = TARGETS[name]
         print(f"\n=== схема {name.upper()} ===")
+        if "--cleanup-only" in args:
+            cleanup(t)
+            continue
         ok = install(t, rollback=rollback)
         if ok and not rollback and "--cleanup" in args:
             cleanup(t)
