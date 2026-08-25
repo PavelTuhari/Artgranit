@@ -194,16 +194,33 @@ def test_seed_recompiles_the_budget_trigger():
     assert "ALTER TRIGGER TRG_YSEO_SPEND_BUDGET COMPILE" in seed
 
 
-def test_deploy_registers_yseo_files_in_dependency_order():
+def test_erp_installer_keeps_dependency_order():
     # Не по номерам, а по зависимостям: вьюшки VSEO_BUDGET_PLANFACT и
     # VSEO_SITE вызывают PK_SEO_UTIL.TO_MDL, поэтому пакеты (115) обязаны
     # ставиться раньше вьюшек (114) — иначе вьюшки не компилируются.
+    from scripts.seoforge_deploy_erp import FILES
+    assert list(FILES) == ["113_yseo_tables.sql", "115_yseo_package.sql",
+                           "114_yseo_views.sql", "116_yseo_dict_seed.sql"]
+
+
+def test_cloud_deploy_does_not_install_the_contour():
+    # Контур перенесён в ERP. Если файлы вернутся в облачный установщик,
+    # ближайший деплой создаст вторую копию схемы, и данные разойдутся.
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
-    order = [src.index(f'"{name}"') for name in (
-        "113_yseo_tables.sql", "115_yseo_package.sql",
-        "114_yseo_views.sql", "116_yseo_dict_seed.sql")]
-    assert order == sorted(order), "нарушен порядок зависимостей файлов контура"
+    for name in ("113_yseo_tables.sql", "114_yseo_views.sql",
+                 "115_yseo_package.sql", "116_yseo_dict_seed.sql"):
+        assert f'"{name}"' not in src, name
+
+
+def test_store_uses_the_erp_transport_only():
+    # Thick-режим включается на весь процесс: если хранилище возьмёт
+    # DatabaseModel, модуль полезет в облачную базу, где контура больше нет.
+    with open(os.path.join(ROOT, "models", "seo_oracle_store.py"),
+              encoding="utf-8") as fh:
+        src = fh.read()
+    assert "Biro26DB" in src
+    assert "DatabaseModel" not in src
 
 
 def test_sql_comments_never_contain_a_semicolon_or_a_quote():
@@ -347,30 +364,42 @@ def _ok(columns=None, data=None, rowcount=1):
             "rowcount": rowcount, "message": ""}
 
 
-def _db(query_results=None, dml_ok=True):
-    """Мок DatabaseModel: отдаёт подготовленные ответы execute_query."""
+def _db(query_results=None, script_ok=True, script_results=None):
+    """Мок Biro26DB: контур живёт в ERP, туда ходят через воркер.
+
+    Постоянного соединения нет: чтения — execute_query, записи — один
+    execute_script на всю операцию.
+    """
     db = MagicMock()
     db.__enter__.return_value = db
     db.__exit__.return_value = False
     results = list(query_results or [])
     db.captured = []
 
-    def _exec(sql, params=None):
+    def _query(sql, params=None):
         db.captured.append(sql)
-        if results:
-            return results.pop(0)
-        if dml_ok:
-            return _ok()
-        return {"success": False, "columns": [], "data": [], "rowcount": 0,
+        return results.pop(0) if results else _ok()
+
+    def _script(statements):
+        db.captured.extend(st["sql"] for st in statements)
+        db.script_calls.append(statements)
+        if script_ok:
+            return {"success": True,
+                    "results": script_results or [{"rowcount": 1}
+                                                  for _ in statements],
+                    "message": ""}
+        return {"success": False, "results": [],
                 "message": "ORA-00001: unique constraint violated"}
 
-    db.execute_query.side_effect = _exec
+    db.script_calls = []
+    db.execute_query.side_effect = _query
+    db.execute_script.side_effect = _script
     return db
 
 
 def test_list_sites_maps_rows_to_dicts():
     rows = _ok(["COD", "DOMAIN"], [[1, "una.md"]])
-    with patch.object(store, "DatabaseModel", return_value=_db([rows])):
+    with patch.object(store, "Biro26DB", return_value=_db([rows])):
         res = store.list_sites()
     assert res["success"] is True
     assert res["data"] == [{"cod": 1, "domain": "una.md"}]
@@ -378,60 +407,72 @@ def test_list_sites_maps_rows_to_dicts():
 
 def test_list_sites_hides_archived_by_default():
     db = _db([_ok()])
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         store.list_sites()
     assert "ISARHIV = 0" in db.captured[0].upper()
 
 
 def test_list_sites_can_include_archived():
     db = _db([_ok()])
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         store.list_sites(include_archived=True)
     assert "ISARHIV = 0" not in db.captured[0].upper()
 
 
-def test_save_site_commits():
+def test_write_goes_through_a_single_transaction():
+    # Воркер коммитит скрипт целиком: две команды в двух вызовах означали
+    # бы две транзакции и запись в журнал, пережившую откат операции.
     db = _db()
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         res = store.save_site({"domain": "una.md", "locales": "ru,ro"}, "pt")
     assert res["success"] is True
-    db.connection.commit.assert_called_once()
+    assert len(db.script_calls) == 1
+    assert db.execute_query.call_count == 0
 
 
-def test_failed_dml_does_not_commit():
-    db = _db(dml_ok=False)
-    with patch.object(store, "DatabaseModel", return_value=db):
+def test_failed_write_reports_the_oracle_message():
+    db = _db(script_ok=False)
+    with patch.object(store, "Biro26DB", return_value=db):
         res = store.save_site({"domain": "una.md", "locales": "ru"}, "pt")
     assert res["success"] is False
-    db.connection.commit.assert_not_called()
+    assert "ORA-00001" in res["message"]
 
 
 def test_archive_site_sets_flag_and_never_deletes():
     db = _db()
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         store.archive_site(1, "pt")
     joined = " ".join(db.captured).upper()
     assert "ISARHIV = 1" in joined and "DELETE" not in joined
 
 
-def test_every_write_leaves_a_journal_entry():
+def test_every_write_leaves_a_journal_entry_in_the_same_script():
     db = _db()
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         store.save_site({"domain": "una.md", "locales": "ru"}, "pt")
-    assert any("LOG_EVENT" in sql.upper() for sql in db.captured)
+    statements = db.script_calls[0]
+    assert any("LOG_EVENT" in st["sql"].upper() for st in statements)
 
 
 def test_existing_ext_ids_returns_a_set():
     rows = _ok(["EXT_ID"], [["a"], ["b"]], 2)
-    with patch.object(store, "DatabaseModel", return_value=_db([rows])):
+    with patch.object(store, "Biro26DB", return_value=_db([rows])):
         assert store.existing_ext_ids("SPEND", ["a", "b", "c"]) == {"a", "b"}
 
 
 def test_existing_ext_ids_without_input_does_not_touch_the_database():
     db = _db()
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         assert store.existing_ext_ids("SPEND", []) == set()
     db.execute_query.assert_not_called()
+
+
+def test_existing_ext_ids_splits_long_lists():
+    # В IN нельзя больше 1000 элементов, а выгрузка за месяц бывает длиннее.
+    db = _db([_ok(["EXT_ID"], [], 0), _ok(["EXT_ID"], [], 0)])
+    with patch.object(store, "Biro26DB", return_value=db):
+        store.existing_ext_ids("SPEND", [f"k{i}" for i in range(1500)])
+    assert len(db.captured) == 2
 
 
 def test_existing_ext_ids_rejects_an_unknown_kind():
@@ -442,9 +483,9 @@ def test_existing_ext_ids_rejects_an_unknown_kind():
 def test_import_commit_counts_loaded_and_skipped():
     seq = [
         _ok(["EXT_ID"], [["dup"]], 1),   # уже загруженные ext_id
-        _ok(["COD"], [[7]], 1),          # созданная партия
+        _ok(["COD"], [[7]], 1),          # номер будущей партии
     ]
-    with patch.object(store, "DatabaseModel", return_value=_db(seq)):
+    with patch.object(store, "Biro26DB", return_value=_db(seq)):
         res = store.import_commit(
             "SPEND", "ads.csv",
             [{"ext_id": "dup", "site": "una.md"}, {"ext_id": "new", "site": "una.md"}],
@@ -455,21 +496,41 @@ def test_import_commit_counts_loaded_and_skipped():
     assert res["data"]["import_cod"] == 7
 
 
+def test_import_commit_writes_batch_and_rows_in_one_transaction():
+    seq = [_ok(["EXT_ID"], [], 0), _ok(["COD"], [[9]], 1)]
+    db = _db(seq)
+    with patch.object(store, "Biro26DB", return_value=db):
+        store.import_commit("SPEND", "ads.csv",
+                            [{"ext_id": "a"}, {"ext_id": "b"}], "pt")
+    assert len(db.script_calls) == 1
+    statements = db.script_calls[0]
+    # партия + две строки + журнал
+    assert len(statements) == 4
+    assert "YSEO_IMPORT" in statements[0]["sql"].upper()
+
+
 def test_import_commit_with_only_duplicates_writes_nothing_new():
-    seq = [
-        _ok(["EXT_ID"], [["dup"]], 1),
-        _ok(["COD"], [[8]], 1),
-    ]
-    with patch.object(store, "DatabaseModel", return_value=_db(seq)):
+    seq = [_ok(["EXT_ID"], [["dup"]], 1), _ok(["COD"], [[8]], 1)]
+    with patch.object(store, "Biro26DB", return_value=_db(seq)):
         res = store.import_commit("SPEND", "ads.csv",
                                   [{"ext_id": "dup", "site": "una.md"}], "pt")
     assert res["data"]["loaded"] == 0 and res["data"]["skipped"] == 1
 
 
+def test_manual_fact_does_not_depend_on_the_import_sequence():
+    # Ручной ввод идёт той же командой, что и импорт. Если бы номер партии
+    # брался через CURRVAL, в сессии без импорта был бы ORA-08002.
+    db = _db()
+    with patch.object(store, "Biro26DB", return_value=db):
+        store.add_spend({"ext_id": "manual-1", "site": "una.md"}, "pt")
+    joined = " ".join(db.captured).upper()
+    assert "CURRVAL" not in joined
+
+
 def test_plan_upsert_goes_through_the_package_not_raw_sql():
     # Лимит бюджета и журнал живут в PK_SEO_BUDGET: прямой INSERT обошёл бы их.
     db = _db()
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         store.plan_upsert({"period": "2026-08", "article_cod1": 201,
                            "channel_cod1": 102, "site_cod": 1,
                            "plan_suma": 1000}, "pt")
@@ -479,7 +540,7 @@ def test_plan_upsert_goes_through_the_package_not_raw_sql():
 def test_queries_use_bind_variables_only():
     # Конкатенация значений в SQL — путь к инъекции; выбираем только связывание.
     db = _db([_ok()])
-    with patch.object(store, "DatabaseModel", return_value=db):
+    with patch.object(store, "Biro26DB", return_value=db):
         store.planfact(period="2026-08'; DROP TABLE YSEO_SITE--", site_cod=1)
     assert "DROP TABLE" not in " ".join(db.captured).upper()
 

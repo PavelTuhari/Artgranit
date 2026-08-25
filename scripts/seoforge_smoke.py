@@ -7,7 +7,11 @@
 живут в пакетах и триггерах Oracle, поэтому нужен прогон по настоящей
 базе.
 
-Скрипт пишет в базу, поэтому требует явного `--yes`:
+Контур живёт в боевой ERP OfficePlus (Oracle 11g), поэтому скрипт ходит
+туда через thick-воркер `models/biro26_db.py`, как и весь модуль. Постоянного
+соединения нет: каждая команда — своя транзакция, отдельного commit нет.
+
+Скрипт пишет в БОЕВУЮ базу, поэтому требует явного `--yes`:
 
     venv/bin/python scripts/seoforge_smoke.py --yes
 
@@ -33,7 +37,7 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(ROOT, ".env"))
 
-from models.database import DatabaseModel  # noqa: E402
+from models.biro26_db import Biro26DB  # noqa: E402
 
 SITE_DOMAIN = "smoke.invalid"
 PERIOD = "2099-01"
@@ -66,8 +70,15 @@ def scalar(db, sql, params=None):
 
 
 def run(db, sql, params=None):
-    """Выполняет команду и возвращает (успех, сообщение) вместо исключения."""
-    result = db.execute_query(sql, params or {})
+    """Выполняет команду и возвращает (успех, сообщение) вместо исключения.
+
+    Блок PL/SQL уходит через call_proc, обычный DML — через execute_dml:
+    воркер коммитит каждую команду сам.
+    """
+    if sql.strip().upper().startswith("BEGIN"):
+        result = db.call_proc(sql, params or {})
+    else:
+        result = db.execute_dml(sql, params or {})
     return bool(result.get("success")), result.get("message", "")
 
 
@@ -80,7 +91,6 @@ def prepare(db) -> dict:
     if cod is None:
         run(db, "INSERT INTO YSEO_SITE (DOMAIN, LOCALES, GEO, NICHE) "
                 "VALUES (:d, 'ru', 'MD', 'smoke')", {"d": SITE_DOMAIN})
-        db.connection.commit()
         cod = scalar(db, "SELECT COD FROM YSEO_SITE WHERE DOMAIN = :d",
                      {"d": SITE_DOMAIN})
 
@@ -88,7 +98,6 @@ def prepare(db) -> dict:
     run(db, "DELETE FROM YSEO_SPEND_FACT WHERE SITE_COD = :cod", {"cod": cod})
     run(db, "DELETE FROM YSEO_BUDGET_PLAN WHERE SITE_COD = :cod", {"cod": cod})
     run(db, "UPDATE YSEO_SITE SET ISARHIV = 0 WHERE COD = :cod", {"cod": cod})
-    db.connection.commit()
 
     article = scalar(db, "SELECT COD1 FROM YSEO_DICT "
                          "WHERE SECTION = 'ARTICLE' AND CODE = :c",
@@ -103,7 +112,6 @@ def prepare(db) -> dict:
 def set_mode(db, mode: str) -> None:
     run(db, "UPDATE YSEO_SETUP SET PARAM_VALUE = :m "
             "WHERE PARAM_CODE = 'BUDGET_OVERRUN_MODE'", {"m": mode})
-    db.connection.commit()
 
 
 def insert_spend(db, ctx, ext_id, suma, valuta="MDL"):
@@ -126,7 +134,6 @@ def check_plan_and_spend(db, ctx) -> None:
         "1000, 'MDL', 'smoke', 'smoke'); END;",
         {"period": PERIOD, "article": ctx["article"],
          "channel": ctx["channel"], "site": ctx["site"]})
-    db.connection.commit()
     report("план записывается через PK_SEO_BUDGET.PLAN_UPSERT", ok, message)
 
     plan = scalar(db, "SELECT PLAN_SUMA FROM YSEO_BUDGET_PLAN "
@@ -139,7 +146,6 @@ def check_plan_and_spend(db, ctx) -> None:
             ":site, 1000, 'MDL', 'smoke again', 'smoke'); END;",
         {"period": PERIOD, "article": ctx["article"],
          "channel": ctx["channel"], "site": ctx["site"]})
-    db.connection.commit()
     count = scalar(db, "SELECT COUNT(*) FROM YSEO_BUDGET_PLAN "
                        "WHERE PERIOD = :p AND SITE_COD = :s",
                    {"p": PERIOD, "s": ctx["site"]})
@@ -147,7 +153,6 @@ def check_plan_and_spend(db, ctx) -> None:
            f"строк={count}")
 
     ok, message = insert_spend(db, ctx, "smoke-within-plan", 400)
-    db.connection.commit()
     report("расход в пределах плана проходит", ok, message)
 
     flag = scalar(db, "SELECT IS_OVERBUDGET FROM YSEO_SPEND_FACT "
@@ -165,7 +170,6 @@ def check_overrun_blocked(db, ctx) -> None:
     """В режиме BLOCK расход сверх плана отклоняется."""
     set_mode(db, "BLOCK")
     ok, message = insert_spend(db, ctx, "smoke-over-block", 5000)
-    db.connection.commit()
 
     report("режим BLOCK отклоняет расход сверх плана", not ok, message[:120])
     report("сообщение отказа двуязычное",
@@ -181,7 +185,6 @@ def check_overrun_warned(db, ctx) -> None:
     """В режиме WARN тот же расход записывается с флагом перерасхода."""
     set_mode(db, "WARN")
     ok, message = insert_spend(db, ctx, "smoke-over-warn", 5000)
-    db.connection.commit()
     report("режим WARN пропускает расход сверх плана", ok, message[:120])
 
     flag = scalar(db, "SELECT IS_OVERBUDGET FROM YSEO_SPEND_FACT "
@@ -192,7 +195,6 @@ def check_overrun_warned(db, ctx) -> None:
 def check_import_dedup(db, ctx) -> None:
     """Повторная загрузка той же строки не создаёт дубль."""
     ok, message = insert_spend(db, ctx, "smoke-over-warn", 10)
-    db.connection.commit()
     report("повторный EXT_ID отвергается уникальным ключом", not ok,
            message[:120])
 
@@ -209,7 +211,6 @@ def check_archive_not_delete(db, ctx) -> None:
             "'smoke run', 'smoke'); END;", {"cod": ctx["site"]})
     run(db, "UPDATE YSEO_SITE SET ISARHIV = 1 WHERE COD = :cod",
         {"cod": ctx["site"]})
-    db.connection.commit()
 
     still_here = scalar(db, "SELECT COUNT(*) FROM YSEO_SITE WHERE COD = :cod",
                         {"cod": ctx["site"]})
@@ -222,9 +223,9 @@ def check_archive_not_delete(db, ctx) -> None:
     report("журнал пополнился событием", after > before,
            f"было={before} стало={after}")
 
+    # Удаление отбивает триггер, поэтому команда не дойдёт до коммита.
     ok, message = run(db, "DELETE FROM YSEO_EVENT_LOG WHERE COD = :c",
                       {"c": scalar(db, "SELECT MAX(COD) FROM YSEO_EVENT_LOG")})
-    db.connection.rollback()
     report("журнал защищён от удаления", not ok, message[:120])
 
 
@@ -271,15 +272,16 @@ def main() -> None:
         print("Скрипт пишет в базу. Запускайте с --yes, если это то, что нужно.")
         sys.exit(2)
 
-    print(f"SEOForge smoke: сайт {SITE_DOMAIN}, период {PERIOD}\n")
+    print(f"SEOForge smoke: БОЕВАЯ ERP OfficePlus, "
+          f"сайт {SITE_DOMAIN}, период {PERIOD}\n")
 
-    with DatabaseModel() as db:
+    with Biro26DB() as db:
         try:
             ctx = prepare(db)
         except RuntimeError as exc:
             print(f"Не удалось подготовить данные: {exc}")
             print("Проверьте, что контур установлен: "
-                  "python deploy_oracle_objects.py --only yseo")
+                  "python scripts/seoforge_deploy_erp.py --yes")
             sys.exit(1)
 
         if ctx["article"] is None or ctx["channel"] is None:

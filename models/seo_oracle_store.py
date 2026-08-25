@@ -1,4 +1,4 @@
-"""SEOForge — хранилище модуля поверх контура YSEO_* в облачной Oracle.
+"""SEOForge — хранилище модуля поверх контура YSEO_* в ERP OfficePlus/UNA.
 
 Слой знает про SQL и ничего не знает про HTTP. Наружу отдаёт тот же
 контракт, что и остальные модули портала:
@@ -11,8 +11,16 @@
 транзакции: журнал не должен переживать откат операции, которую он
 описывает.
 
-`DatabaseModel.execute_query` не коммитит — коммит здесь, и только после
-того, как все команды операции прошли успешно.
+**Транспорт.** Контур живёт в боевой ERP OfficePlus (Oracle 11g,
+`orange.una.md`), а туда ходят только через `models/biro26_db.py`:
+thick-режим в отдельном процессе. Включить thick в основном процессе
+нельзя — это переключатель на весь процесс, и он сломал бы облачное
+подключение остальных модулей портала.
+
+Отсюда важное следствие: постоянного соединения нет, каждый вызов —
+своя транзакция. Многокомандные операции идут одним `execute_script`,
+который воркер выполняет на одном соединении и коммитит только целиком.
+Отдельного `commit()` здесь нет и быть не может.
 """
 from __future__ import annotations
 
@@ -24,7 +32,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from models.database import DatabaseModel
+from models.biro26_db import Biro26DB
 
 # Таблицы фактов, куда ложится импорт. Отображение закрыто списком:
 # произвольный `kind` не должен превращаться в имя таблицы.
@@ -58,15 +66,15 @@ _LOG_SQL = (
 )
 
 
-def _log(db, action: str, entity_type: str, entity_cod, details: str,
-         username: str) -> Dict[str, Any]:
-    return db.execute_query(_LOG_SQL, {
+def _log_params(action: str, entity_type: str, entity_cod, details: str,
+                username: str) -> Dict[str, Any]:
+    return {
         "action": action,
         "entity_type": entity_type,
         "entity_cod": entity_cod,
         "details": (details or "")[:2000],
         "username": username or "system",
-    })
+    }
 
 
 def _limited(sql: str) -> str:
@@ -79,36 +87,56 @@ def _limited(sql: str) -> str:
 
 
 def _select(sql: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    with DatabaseModel() as db:
+    with Biro26DB() as db:
         result = db.execute_query(sql, params or {})
         if not result.get("success"):
             return _fail(result.get("message", ""))
         return _done(_rows(result))
 
 
-def _write(statements: Sequence, *, log: Optional[tuple] = None) -> Dict[str, Any]:
-    """Выполняет команды одной транзакцией и коммитит только при полном успехе.
+def _script(statements: Sequence[tuple], *,
+            log: Optional[tuple] = None) -> Dict[str, Any]:
+    """Выполняет команды ОДНОЙ транзакцией через воркер ERP.
 
-    `statements` — последовательность пар (sql, params) либо вызываемых
-    объектов `fn(db) -> result`, если операции нужен результат предыдущей.
+    `statements` — последовательность пар `(sql, params)`. Воркер выполняет
+    их на одном соединении и коммитит только после последней: любая ошибка
+    посередине отменяет всю операцию вместе с записью в журнал.
+
+    Возвращает `{"success", "data": [результаты команд], "message"}`;
+    результат команды с `kind="query"` содержит `columns` и `data`.
     """
-    with DatabaseModel() as db:
-        for statement in statements:
-            if callable(statement):
-                result = statement(db)
-            else:
-                sql, params = statement
-                result = db.execute_query(sql, params)
-            if not result.get("success"):
-                return _fail(result.get("message", ""))
+    script = [{"sql": sql, "params": params or {}, "kind": kind}
+              for sql, params, kind in _normalize(statements)]
 
-        if log is not None:
-            result = _log(db, *log)
-            if not result.get("success"):
-                return _fail(result.get("message", ""))
+    if log is not None:
+        script.append({"sql": _LOG_SQL, "params": _log_params(*log),
+                       "kind": "dml"})
 
-        db.connection.commit()
-        return _done()
+    with Biro26DB() as db:
+        result = db.execute_script(script)
+
+    if not result.get("success"):
+        return _fail(result.get("message", ""))
+    return _done(result.get("results", []))
+
+
+def _normalize(statements: Sequence[tuple]):
+    """Пары (sql, params) и тройки (sql, params, kind) -> тройки."""
+    for statement in statements:
+        if len(statement) == 3:
+            yield statement
+        else:
+            sql, params = statement
+            yield sql, params, "dml"
+
+
+def _write(statements: Sequence[tuple], *,
+           log: Optional[tuple] = None) -> Dict[str, Any]:
+    """Запись без возвращаемых данных: успех или сообщение об ошибке."""
+    result = _script(statements, log=log)
+    if not result.get("success"):
+        return result
+    return _done()
 
 
 # ── сайты ────────────────────────────────────────────────────────────
@@ -523,19 +551,45 @@ def existing_ext_ids(kind: str, ext_ids: Iterable[str]) -> set:
     if not values:
         return set()
 
-    binds = {f"e{i}": value for i, value in enumerate(values)}
-    placeholders = ", ".join(f":{name}" for name in binds)
-    sql = (f"SELECT EXT_ID FROM {_FACT_TABLES[kind]} "
-           f"WHERE EXT_ID IN ({placeholders})")
+    # Oracle не принимает больше 1000 элементов в IN, а выгрузки бывают
+    # длиннее: режем на порции и объединяем.
+    known = set()
+    for start in range(0, len(values), 900):
+        chunk = values[start:start + 900]
+        binds = {f"e{i}": value for i, value in enumerate(chunk)}
+        placeholders = ", ".join(f":{name}" for name in binds)
+        sql = (f"SELECT EXT_ID FROM {_FACT_TABLES[kind]} "
+               f"WHERE EXT_ID IN ({placeholders})")
+        with Biro26DB() as db:
+            result = db.execute_query(sql, binds)
+        known |= {row["ext_id"] for row in _rows(result)}
+    return known
 
-    with DatabaseModel() as db:
-        result = db.execute_query(sql, binds)
-    return {row["ext_id"] for row in _rows(result)}
+
+def next_import_cod() -> Optional[int]:
+    """Номер будущей партии импорта.
+
+    Берётся отдельным запросом ДО транзакции, а не внутри неё: иначе номер
+    пришлось бы тянуть через CURRVAL, и та же команда INSERT перестала бы
+    годиться для ручного ввода — там последовательность в сессии не
+    использовалась и CURRVAL упал бы с ORA-08002. Потерянный при сбое
+    номер последовательности ничего не стоит.
+    """
+    with Biro26DB() as db:
+        result = db.execute_query(
+            "SELECT YSEO_IMPORT_SEQ.NEXTVAL AS COD FROM DUAL")
+    rows = _rows(result)
+    return rows[0]["cod"] if rows else None
 
 
 def import_commit(kind: str, file_name: str, rows: Sequence[Dict[str, Any]],
                   username: str) -> Dict[str, Any]:
-    """Пишет партию импорта и её строки, пропуская уже загруженные ключи."""
+    """Пишет партию импорта и её строки, пропуская уже загруженные ключи.
+
+    Партия и строки идут одной транзакцией: если не запишется хоть одна
+    строка, не останется и партии — иначе в журнале импорта висели бы
+    записи о загрузках, которых не было.
+    """
     if kind not in _FACT_WRITERS:
         raise ValueError(f"unknown fact kind: {kind!r}")
 
@@ -545,44 +599,29 @@ def import_commit(kind: str, file_name: str, rows: Sequence[Dict[str, Any]],
     skipped = len(rows) - len(fresh)
 
     insert_sql, build, action = _FACT_WRITERS[kind]
-    state: Dict[str, Any] = {}
+    import_cod = next_import_cod()
 
-    def take_batch_cod(db):
-        # Номер партии берём заранее: RETURNING INTO слой execute_query не
-        # поддерживает, а MAX(COD) после вставки врёт при параллельной работе.
-        result = db.execute_query(
-            "SELECT YSEO_IMPORT_SEQ.NEXTVAL AS COD FROM DUAL")
-        found = _rows(result)
-        state["import_cod"] = found[0]["cod"] if found else None
-        return result
+    statements = [(
+        "INSERT INTO YSEO_IMPORT (COD, KIND, FILE_NAME, USERNAME, ROWS_TOTAL, "
+        "ROWS_LOADED, ROWS_SKIPPED, STATUS) "
+        "VALUES (:cod, :kind, :file_name, :username, :total, :loaded, "
+        ":skipped, :status)",
+        {"cod": import_cod, "kind": kind, "file_name": file_name,
+         "username": username, "total": len(rows), "loaded": len(fresh),
+         "skipped": skipped,
+         "status": "OK" if len(fresh) == len(rows) else "PARTIAL"})]
 
-    def create_batch(db):
-        return db.execute_query(
-            "INSERT INTO YSEO_IMPORT (COD, KIND, FILE_NAME, USERNAME, "
-            "ROWS_TOTAL, ROWS_LOADED, ROWS_SKIPPED, STATUS) "
-            "VALUES (:cod, :kind, :file_name, :username, :total, :loaded, "
-            ":skipped, :status)",
-            {"cod": state.get("import_cod"), "kind": kind,
-             "file_name": file_name, "username": username,
-             "total": len(rows), "loaded": len(fresh), "skipped": skipped,
-             "status": "OK" if len(fresh) == len(rows) else "PARTIAL"})
-
-    def insert_rows(db):
-        for row in fresh:
-            result = db.execute_query(
-                insert_sql, build(row, state.get("import_cod"), "CSV"))
-            if not result.get("success"):
-                return result
-        return {"success": True}
+    statements += [(insert_sql, build(row, import_cod, "CSV"))
+                   for row in fresh]
 
     outcome = _write(
-        [take_batch_cod, create_batch, insert_rows],
-        log=(action, kind, None,
+        statements,
+        log=(action, kind, import_cod,
              f"{file_name}: loaded={len(fresh)} skipped={skipped}", username))
 
     if not outcome.get("success"):
         return outcome
-    return _done({"import_cod": state.get("import_cod"),
+    return _done({"import_cod": import_cod,
                   "loaded": len(fresh), "skipped": skipped})
 
 
