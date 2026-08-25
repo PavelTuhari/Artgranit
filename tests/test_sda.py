@@ -331,7 +331,7 @@ def test_list_units_maps_rows_to_dicts():
 
 def test_saving_a_unit_recomputes_its_regime():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         res = SDAStore.save_unit(
             {"partic_id": 1, "denumire": "Magazin 12", "suprafata_mp": 85,
