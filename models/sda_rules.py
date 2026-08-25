@@ -95,9 +95,6 @@ def gest_category(material: str, volum_l: float) -> str:
 # посчитать можно двумя способами. Обе ошибки видны только на границе,
 # поэтому их ищет отдельная проверка, а не глаз оператора.
 
-from datetime import timedelta   # noqa: E402  (рядом с использованием)
-
-
 def validate_periods(periods):
     """Список проблем в наборе периодов. Пустой список — всё в порядке."""
     problems = []
@@ -107,20 +104,25 @@ def validate_periods(periods):
 
     for tip, group in by_type.items():
         group = sorted(group, key=lambda p: p["data_start"])
+        furthest = group[0]
         for prev, curr in zip(group, group[1:]):
-            if prev["data_end"] is None:
+            if furthest["data_end"] is None:
                 problems.append(
-                    f"{tip}: perioada {prev['tariff_id']} este deschisa si "
+                    f"{tip}: perioada {furthest['tariff_id']} este deschisa si "
                     f"se suprapune cu perioada {curr['tariff_id']}")
                 continue
-            if prev["data_end"] >= curr["data_start"]:
+            if furthest["data_end"] >= curr["data_start"]:
                 problems.append(
-                    f"{tip}: perioadele {prev['tariff_id']} si "
+                    f"{tip}: perioadele {furthest['tariff_id']} si "
                     f"{curr['tariff_id']} se suprapun")
-            elif prev["data_end"] + timedelta(days=1) < curr["data_start"]:
+            elif furthest["data_end"] + timedelta(days=1) < curr["data_start"]:
                 problems.append(
-                    f"{tip}: gol intre perioadele {prev['tariff_id']} si "
+                    f"{tip}: gol intre perioadele {furthest['tariff_id']} si "
                     f"{curr['tariff_id']}")
+            if furthest["data_end"] is not None and (
+                    curr["data_end"] is None
+                    or curr["data_end"] > furthest["data_end"]):
+                furthest = curr
     return problems
 
 
