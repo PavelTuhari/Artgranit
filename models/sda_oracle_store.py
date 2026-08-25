@@ -39,15 +39,18 @@ class SDAStore:
 
     @staticmethod
     def log(tip: str, entitate: str, entitate_id, detalii: str,
-            username: str) -> None:
+            username: str) -> Dict[str, Any]:
         with DatabaseModel() as db:
-            db.execute_query(
+            r = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES (:tip, :entitate, :entitate_id, "
                 ":utilizator, :detalii)",
                 {"tip": tip, "entitate": entitate, "entitate_id": entitate_id,
                  "utilizator": username, "detalii": (detalii or "")[:1000]})
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la scrierea in jurnal")
             db.connection.commit()
+        return _done()
 
     # ── участники ───────────────────────────────────────────────────
 
