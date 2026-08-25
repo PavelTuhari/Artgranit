@@ -97,6 +97,17 @@ def cleanup(t):
         print("    ", x)
 
 
+def retry(t, nrmsg):
+    """Прогон одного письма через исправленную процедуру — проверка после установки."""
+    a = auth(t)
+    proc = f"{t['package']}.SEND_EMAIL_API_PHP"
+    print("  до:  ", _rows(_call_worker(a, "SELECT NRMSG, STATUS, SUBSTR(ERR_MSG,1,90) EM "
+                                           f"FROM UN9MAIL_MSG WHERE NRMSG={nrmsg}", 5)))
+    run(a, f"BEGIN {proc}({nrmsg}); END;", "отправка")
+    print("  после:", _rows(_call_worker(a, "SELECT NRMSG, STATUS, ERR_CODE, SUBSTR(ERR_MSG,1,150) EM "
+                                            f"FROM UN9MAIL_MSG WHERE NRMSG={nrmsg}", 5)))
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     names = list(TARGETS)
