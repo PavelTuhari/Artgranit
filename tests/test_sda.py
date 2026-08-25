@@ -526,3 +526,50 @@ def test_app_registers_every_sda_api_route():
     for route in ("/api/sda/units", "/api/sda/units/reclassify",
                   "/api/sda/compliance", "/api/sda/packs", "/api/sda/deposit"):
         assert f"'{route}'" in src or f'"{route}"' in src, route
+
+
+def test_get_units_rejects_a_non_numeric_partic_id():
+    from controllers.sda_controller import SDAController
+    res = SDAController.get_units({"partic_id": "abc"})
+    assert res["success"] is False
+    assert res["data"] is None
+    assert "partic_id" in res["message"]
+
+
+def test_get_compliance_rejects_a_non_numeric_partic_id():
+    from controllers.sda_controller import SDAController
+    res = SDAController.get_compliance({"partic_id": "abc"})
+    assert res["success"] is False
+    assert res["data"] is None
+    assert "partic_id" in res["message"]
+
+
+def test_get_units_with_no_partic_id_still_lists_everything():
+    from controllers.sda_controller import SDAController
+    db = _db_returning(_ok(["UNIT_ID", "DENUMIRE", "REGIM"],
+                           [[1, "Magazin 12", "B_EXCEPTIE_APL"]]))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAController.get_units({})
+    assert res["success"] is True
+    assert res["data"][0]["denumire"] == "Magazin 12"
+
+
+def test_get_units_with_a_string_partic_id_reaches_the_store_as_int():
+    from controllers.sda_controller import SDAController
+    from models.sda_oracle_store import SDAStore
+    with patch.object(SDAStore, "list_units", return_value=_ok([], [])) as mock_list:
+        SDAController.get_units({"partic_id": "7"})
+    args, _kwargs = mock_list.call_args
+    assert args[0] == 7
+    assert isinstance(args[0], int)
+
+
+def test_get_compliance_with_a_string_partic_id_reaches_the_store_as_int():
+    from controllers.sda_controller import SDAController
+    from models.sda_oracle_store import SDAStore
+    with patch.object(SDAStore, "compliance_map",
+                       return_value={"success": True, "data": {}, "message": ""}) as mock_map:
+        SDAController.get_compliance({"partic_id": "7"})
+    args, _kwargs = mock_map.call_args
+    assert args[0] == 7
+    assert isinstance(args[0], int)
