@@ -817,3 +817,26 @@ def test_una_interface_doc_records_the_verified_facts():
                  "TMDB_DOCS_TRLOG", "TRG_DOCS_COLOR", "PARAM_USERID",
                  "setDoc_GFC", "setDoc_Correct", "YSEO_XREF"):
         assert fact in text, fact
+
+
+def test_erp_config_installer_reserves_a_documented_range():
+    # Диапазон DB ID = SYSFID: если он разъедется с документацией,
+    # журнал перестанет видеть свои же документы.
+    from scripts.seoforge_erp_config import DBID_FROM, DBID_TO, DOCUMENTS
+    assert (DBID_FROM, DBID_TO) == (60000, 60099)
+    for _section, _name, dbid, _src in DOCUMENTS:
+        assert DBID_FROM <= dbid <= DBID_TO, dbid
+
+    with open(os.path.join(ROOT, "docs", "SEOForge", "UNA_INTERFACE.md"),
+              encoding="utf-8") as fh:
+        text = fh.read()
+    assert f"{DBID_FROM}..{DBID_TO}" in text
+    for _section, name, _dbid, _src in DOCUMENTS:
+        assert name in text, name
+
+
+def test_erp_config_documents_are_copies_of_real_documents():
+    # Набор свойств документа руками не собрать: копируем работающий.
+    from scripts.seoforge_erp_config import DOCUMENTS
+    for _section, _name, _dbid, src in DOCUMENTS:
+        assert src.startswith("2:"), src
