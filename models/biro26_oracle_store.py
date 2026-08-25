@@ -703,6 +703,20 @@ class Biro26Store:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # RO: conditia "se poate cumpara": stoc, pret de internet si fotografie.
+    #     Vitrina publica arata implicit doar aceste pozitii - o fisa unde nu
+    #     se poate comanda nimic aduce vizitatorul degeaba si strica parerea
+    #     motorului de cautare. Biroul vede TOT, filtrul e doar pentru magazin.
+    # EN: the "can be bought" condition: stock, online price and a photo. The
+    #     public shop shows only these; the back office always sees everything.
+    BUYABLE_SQL = (" AND g.STOC > 0 AND g.IONLINE > 1 "
+                   "AND NVL(g.PHOTO_URL, g.IMAGE_LINK) IS NOT NULL")
+
+    @staticmethod
+    def buyable_only_enabled() -> bool:
+        """RO: comutatorul din setari, implicit pornit."""
+        return str(Biro26Store.get_setting("SHOP_ONLY_BUYABLE", "1")).strip() == "1"
+
     @staticmethod
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
                            brand: Optional[str] = None, categorie: Optional[str] = None,
@@ -714,6 +728,7 @@ class Biro26Store:
                            only_new: bool = False,
                            with_count: bool = False,
                            archived: bool = False,
+                           buyable_only: bool = False,
                            sort: str = "name") -> Dict[str, Any]:
         """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
 
@@ -779,6 +794,8 @@ class Biro26Store:
             #     the archived ones. The public shop never sees them.
             inner += (" AND u.ISARHIV = '2'" if archived
                       else " AND NVL(u.ISARHIV,'0') <> '2'")
+            if buyable_only:
+                inner += Biro26Store.BUYABLE_SQL
             params: Dict[str, Any] = {"pd": price_date}
             if search:
                 # RO: interogarea se NORMALIZEAZA (cp1251_safe: 'cărți'->'carti')
@@ -1045,7 +1062,7 @@ class Biro26Store:
             return {"success": False, "error": str(e)}
 
     @staticmethod
-    def get_product_tree() -> Dict[str, Any]:
+    def get_product_tree(buyable_only: bool = False) -> Dict[str, Any]:
         """GRUPA -> CATEGORIE counts for the Marfă/Stoc left-panel tree
         (same TIP='P' + BIRO26_GOODS scope as the grid; ~768 rows).
         RO: numele RU/EN vin din dictionarul editabil YBIRO_GRP_I18N
@@ -1067,6 +1084,10 @@ class Biro26Store:
                 "  ON ci.KIND='categorie' AND ci.NAME_RO = g.CATEGORIE "
                 "WHERE u.TIP='P' AND g.GRUPA IS NOT NULL "
                 "AND NVL(u.ISARHIV,'0') <> '2' "
+                # RO: arborele numara DUPA aceeasi regula ca grila, altfel
+                #     grupa promite 6032 si deschide 2300.
+                # EN: the tree counts by the same rule as the grid.
+                + (Biro26Store.BUYABLE_SQL + " " if buyable_only else "") +
                 "GROUP BY g.GRUPA, g.CATEGORIE ORDER BY g.GRUPA, g.CATEGORIE")
             return _result(r)
         except Exception as e:

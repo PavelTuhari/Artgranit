@@ -63,13 +63,22 @@ def _rows(result: Dict[str, Any]) -> List[Dict[str, Any]]:
 BUYABLE = ("g.STOC > 0 AND g.IONLINE > 1 "
            "AND NVL(g.PHOTO_URL, g.IMAGE_LINK) IS NOT NULL")
 
+# RO: harta trebuie sa numere EXACT ca vitrina. Fisa poate lipsi din
+#     dictionar sau poate fi arhivata - atunci adresa exista in feed, dar
+#     magazinul nu o arata, iar motorul de cautare primeste o pagina goala.
+# EN: the map must count EXACTLY like the storefront: an address in the feed
+#     whose card is archived would give the crawler an empty page.
+FROM_BUYABLE = ("FROM BIRO26_GOODS g "
+                "JOIN TMS_UNIVERS u ON u.COD = g.COD_UNIVERS "
+                f"WHERE u.TIP = 'P' AND NVL(u.ISARHIV, '0') <> '2' "
+                f"AND {BUYABLE}")
+
 
 def core_count() -> int:
     """RO: cite pozitii intra in harta. EN: how many items the map holds."""
     def build() -> int:
         rows = _rows(Biro26DB().execute_query(
-            f"SELECT COUNT(DISTINCT g.COD_UNIVERS) N FROM BIRO26_GOODS g "
-            f"WHERE {BUYABLE} AND g.COD_UNIVERS IS NOT NULL", {}))
+            f"SELECT COUNT(DISTINCT g.COD_UNIVERS) N {FROM_BUYABLE}", {}))
         return int(rows[0]["n"]) if rows else 0
     return _cached("count", build)
 
@@ -86,8 +95,7 @@ def core_codes(part: int) -> List[int]:
         rows = _rows(Biro26DB().execute_query(
             "SELECT COD FROM ("
             "  SELECT COD, ROWNUM RN FROM ("
-            "    SELECT DISTINCT g.COD_UNIVERS AS COD FROM BIRO26_GOODS g "
-            f"   WHERE {BUYABLE} AND g.COD_UNIVERS IS NOT NULL "
+            f"   SELECT DISTINCT g.COD_UNIVERS AS COD {FROM_BUYABLE} "
             "    ORDER BY g.COD_UNIVERS"
             "  ) WHERE ROWNUM <= :last"
             ") WHERE RN >= :first",
@@ -100,8 +108,8 @@ def core_groups() -> List[str]:
     """RO: grupele in care exista macar o pozitie de cumparat."""
     def build() -> List[str]:
         rows = _rows(Biro26DB().execute_query(
-            f"SELECT g.GRUPA FROM BIRO26_GOODS g WHERE {BUYABLE} "
-            "AND g.GRUPA IS NOT NULL GROUP BY g.GRUPA ORDER BY g.GRUPA", {}))
+            f"SELECT g.GRUPA {FROM_BUYABLE} AND g.GRUPA IS NOT NULL "
+            "GROUP BY g.GRUPA ORDER BY g.GRUPA", {}))
         return [r["grupa"] for r in rows if r.get("grupa")]
     return _cached("groups", build)
 

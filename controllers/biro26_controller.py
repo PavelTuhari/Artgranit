@@ -291,9 +291,11 @@ class Biro26Controller:
             limit=a.get("limit", 500, type=int), offset=a.get("offset", 0, type=int))
 
     @staticmethod
-    def get_products_stock() -> Dict[str, Any]:
+    def get_products_stock(buyable_only: bool = False) -> Dict[str, Any]:
         a = request.args
         return Biro26Store.get_products_stock(
+            # RO: pornit doar de pe vitrina publica / EN: public shop only
+            buyable_only=buyable_only,
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
             grupa=a.get("grupa"), cod=a.get("cod", type=int),
@@ -1293,8 +1295,8 @@ class Biro26Controller:
             int(d["sc"]), str(d["date"]), codprice=int(d.get("codprice") or 1))
 
     @staticmethod
-    def get_product_tree() -> Dict[str, Any]:
-        return Biro26Store.get_product_tree()
+    def get_product_tree(buyable_only: bool = False) -> Dict[str, Any]:
+        return Biro26Store.get_product_tree(buyable_only=buyable_only)
 
     @staticmethod
     def update_product(cod: int) -> Dict[str, Any]:

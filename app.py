@@ -8987,13 +8987,24 @@ def api_biro26_shop_me():
 
 @app.route('/api/biro26/shop/products', methods=['GET'])
 def api_biro26_shop_products():
-    # public read-only catalog (same grid data as Marfă/Stoc)
-    return jsonify(Biro26Controller.get_products_stock())
+    # RO: vitrina publica arata doar ce se poate cumpara (stoc, pret de
+    #     internet, fotografie). Biroul vede tot prin /api/biro26/products.
+    #     Comutatorul SHOP_ONLY_BUYABLE il opreste fara redesfasurare.
+    # EN: the public shop shows only what can be bought; the back office
+    #     still sees everything. SHOP_ONLY_BUYABLE turns it off without a
+    #     redeploy.
+    from models.biro26_oracle_store import Biro26Store
+    return jsonify(Biro26Controller.get_products_stock(
+        buyable_only=Biro26Store.buyable_only_enabled()))
 
 @app.route('/api/biro26/shop/tree', methods=['GET'])
 def api_biro26_shop_tree():
     # public read-only grupa->categorie facet tree (Amazon-style sidebar)
-    return jsonify(Biro26Controller.get_product_tree())
+    # RO: numara dupa aceeasi regula ca vitrina, ca grupa sa nu promita
+    #     6032 si sa deschida 2300.
+    from models.biro26_oracle_store import Biro26Store
+    return jsonify(Biro26Controller.get_product_tree(
+        buyable_only=Biro26Store.buyable_only_enabled()))
 
 @app.route('/api/biro26/shop/brands', methods=['GET'])
 def api_biro26_shop_brands():

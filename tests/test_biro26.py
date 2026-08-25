@@ -764,3 +764,47 @@ def test_robots_points_at_the_sitemap_and_hides_the_noise():
     # каталог и карточки закрывать нельзя
     assert "Disallow: /catalog\n" not in txt
     assert "Disallow: /produs" not in txt
+
+
+# ── витрина показывает только то, что можно купить ─────────────────────
+
+def _sql_of(mock_db):
+    return " ".join(str(c[0][0]) for c in mock_db.execute_query.call_args_list)
+
+
+def test_shop_hides_what_cannot_be_bought_but_backoffice_sees_all():
+    db = MagicMock()
+    db.execute_query.return_value = {"success": True, "columns": [], "data": []}
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=db):
+        Biro26Store.get_products_stock(limit=1)
+        assert "g.STOC > 0" not in _sql_of(db), "бэк-офис обязан видеть весь товар"
+        db.execute_query.reset_mock()
+        Biro26Store.get_products_stock(limit=1, buyable_only=True)
+        sql = _sql_of(db)
+    for part in ("g.STOC > 0", "g.IONLINE > 1", "PHOTO_URL"):
+        assert part in sql, f"на витрине не хватает условия: {part}"
+
+
+def test_category_counts_follow_the_same_rule_as_the_grid():
+    """Иначе группа обещает 6032, а открывает 2205."""
+    db = MagicMock()
+    db.execute_query.return_value = {"success": True, "columns": [], "data": []}
+    with patch("models.biro26_oracle_store.Biro26DB", return_value=db):
+        Biro26Store.get_product_tree(buyable_only=True)
+        sql = _sql_of(db)
+    assert "g.STOC > 0" in sql and "g.IONLINE > 1" in sql
+
+
+def test_the_filter_can_be_switched_off_without_a_redeploy():
+    with patch.object(Biro26Store, "get_setting", return_value="1"):
+        assert Biro26Store.buyable_only_enabled() is True
+    with patch.object(Biro26Store, "get_setting", return_value="0"):
+        assert Biro26Store.buyable_only_enabled() is False
+
+
+def test_sitemap_counts_exactly_what_the_shop_shows():
+    """Адрес в карте, которого нет на витрине, отдаёт пустую страницу."""
+    from models import biro26_sitemap as sm
+    assert "u.TIP = 'P'" in sm.FROM_BUYABLE
+    assert "NVL(u.ISARHIV, '0') <> '2'" in sm.FROM_BUYABLE
+    assert sm.BUYABLE in sm.FROM_BUYABLE
