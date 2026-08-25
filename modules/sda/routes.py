@@ -23,6 +23,7 @@
     /api/sda/packs                  -> '/api/packs'
     /api/sda/deposit                -> '/api/deposit'
     /api/sda/dossier                -> '/api/dossier'
+    (nou)                           -> '/api/dashboard'
 
 Итог: API модуля живёт под /UNA.md/orasldev/sda/api/… — модуль физически
 не может занять общий /api/ namespace.
