@@ -283,6 +283,9 @@ class SDAStore:
             return _fail("Nu exista tarif de depozit valabil la data ceruta")
 
         pack = packs[0]
+        # lines сохраняет порядок ORDER BY из запроса (позднее начавшийся
+        # период первым) — pick_value берёт первое совпадение, поэтому
+        # порядок должен пройти через list comprehension без изменений.
         value = sda_rules.pick_value(
             [{"categorie": l["categorie"], "metoda": l["metoda"],
               "reutilizabil": l["reutilizabil"], "valoare_lei": l["valoare_lei"]}
