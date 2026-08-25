@@ -414,6 +414,7 @@ async function openUnitForm(u) {
     document.getElementById('u_raion').value = u ? (u.raion || '') : '';
     document.getElementById('u_suprafata_mp').value = u ? (u.suprafata_mp || '') : '';
     document.getElementById('u_tip_amplasament').value = u ? (u.tip_amplasament || 'MAGAZIN') : 'MAGAZIN';
+    syncHorecaCheckbox();
     document.getElementById('unitFormCard').scrollIntoView({behavior: 'smooth'});
 }
 
