@@ -86,3 +86,64 @@ def gest_category(material: str, volum_l: float) -> str:
     if material == "STICLA":
         return "d" if volum_l > 0.5 else "e"
     return "a" if volum_l <= 1.0 else "b"
+
+# ── периоды тарифов ──────────────────────────────────────────────────
+#
+# Тарифы живут периодами, как цены в OfficePlus. Дыра в периодах — это
+# день, за который систему нечем посчитать; наложение — день, за который
+# посчитать можно двумя способами. Обе ошибки видны только на границе,
+# поэтому их ищет отдельная проверка, а не глаз оператора.
+
+from datetime import timedelta   # noqa: E402  (рядом с использованием)
+
+
+def validate_periods(periods):
+    """Список проблем в наборе периодов. Пустой список — всё в порядке."""
+    problems = []
+    by_type = {}
+    for p in periods:
+        by_type.setdefault(p["tip"], []).append(p)
+
+    for tip, group in by_type.items():
+        group = sorted(group, key=lambda p: p["data_start"])
+        for prev, curr in zip(group, group[1:]):
+            if prev["data_end"] is None:
+                problems.append(
+                    f"{tip}: perioada {prev['tariff_id']} este deschisa si "
+                    f"se suprapune cu perioada {curr['tariff_id']}")
+                continue
+            if prev["data_end"] >= curr["data_start"]:
+                problems.append(
+                    f"{tip}: perioadele {prev['tariff_id']} si "
+                    f"{curr['tariff_id']} se suprapun")
+            elif prev["data_end"] + timedelta(days=1) < curr["data_start"]:
+                problems.append(
+                    f"{tip}: gol intre perioadele {prev['tariff_id']} si "
+                    f"{curr['tariff_id']}")
+    return problems
+
+
+def pick_value(lines, categorie, metoda=None, reutilizabil=None):
+    """Значение тарифа для категории. None — если строки нет.
+
+    Точное совпадение важнее подстановочной категории `*`: последняя
+    нужна для депозита, у которого категорий нет вовсе.
+    """
+    def matches(line, cat):
+        if line.get("categorie") != cat:
+            return False
+        if line.get("metoda") is not None and metoda is not None \
+                and line["metoda"] != metoda:
+            return False
+        if line.get("reutilizabil") is not None and reutilizabil is not None \
+                and line["reutilizabil"] != reutilizabil:
+            return False
+        if line.get("metoda") is not None and metoda is None:
+            return False
+        return True
+
+    for cat in (categorie, "*"):
+        for line in lines:
+            if matches(line, cat):
+                return line["valoare_lei"]
+    return None

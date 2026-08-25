@@ -194,3 +194,71 @@ def test_gest_categories_split_plastic_at_one_litre_and_glass_at_half():
     assert sda_rules.gest_category("METAL", 0.5) == "c"
     assert sda_rules.gest_category("STICLA", 0.75) == "d"
     assert sda_rules.gest_category("STICLA", 0.5) == "e"
+
+# -- Task 3: tariff periods -------------------------------------------
+
+from datetime import date  # noqa: E402
+
+
+def _p(tid, tip, start, end=None):
+    return {"tariff_id": tid, "tip": tip, "data_start": start, "data_end": end}
+
+
+def test_clean_consecutive_periods_are_valid():
+    problems = sda_rules.validate_periods([
+        _p(1, "DEPOZIT", date(2027, 1, 25), date(2027, 6, 30)),
+        _p(2, "DEPOZIT", date(2027, 7, 1), None),
+    ])
+    assert problems == []
+
+
+def test_overlapping_periods_are_reported():
+    problems = sda_rules.validate_periods([
+        _p(1, "DEPOZIT", date(2027, 1, 25), date(2027, 7, 31)),
+        _p(2, "DEPOZIT", date(2027, 7, 1), None),
+    ])
+    assert len(problems) == 1
+    assert "suprapun" in problems[0].lower()
+
+
+def test_gap_between_periods_is_reported():
+    problems = sda_rules.validate_periods([
+        _p(1, "DEPOZIT", date(2027, 1, 25), date(2027, 6, 30)),
+        _p(2, "DEPOZIT", date(2027, 8, 1), None),
+    ])
+    assert len(problems) == 1
+    assert "gol" in problems[0].lower()
+
+
+def test_different_tariff_types_do_not_collide():
+    problems = sda_rules.validate_periods([
+        _p(1, "DEPOZIT", date(2027, 1, 25), None),
+        _p(2, "ADMIN", date(2027, 1, 25), None),
+    ])
+    assert problems == []
+
+
+def test_pick_value_matches_the_exact_category():
+    lines = [
+        {"categorie": "a", "metoda": None, "reutilizabil": None, "valoare_lei": 0.11},
+        {"categorie": "e", "metoda": None, "reutilizabil": None, "valoare_lei": 0.09},
+    ]
+    assert sda_rules.pick_value(lines, "e") == 0.09
+
+
+def test_pick_value_distinguishes_manual_from_automatic():
+    lines = [
+        {"categorie": "a", "metoda": "MANUAL", "reutilizabil": None, "valoare_lei": 0.20},
+        {"categorie": "a", "metoda": "AUTOMAT", "reutilizabil": None, "valoare_lei": 0.35},
+    ]
+    assert sda_rules.pick_value(lines, "a", metoda="AUTOMAT") == 0.35
+
+
+def test_pick_value_falls_back_to_the_wildcard_category():
+    lines = [{"categorie": "*", "metoda": None, "reutilizabil": None, "valoare_lei": 1.0}]
+    assert sda_rules.pick_value(lines, "f") == 1.0
+
+
+def test_pick_value_returns_none_when_nothing_matches():
+    lines = [{"categorie": "a", "metoda": None, "reutilizabil": None, "valoare_lei": 0.11}]
+    assert sda_rules.pick_value(lines, "f") is None
