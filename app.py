@@ -3368,8 +3368,6 @@ def api_sda_units_reclassify():
 
 @app.route('/api/sda/compliance', methods=['GET'])
 def api_sda_compliance():
-    if not AuthController.is_authenticated():
-        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
     return jsonify(SDAController.get_compliance(request.args))
 
 
