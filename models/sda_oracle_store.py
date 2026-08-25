@@ -47,6 +47,74 @@ class SDAStore:
                 ":utilizator, :detalii)",
                 {"tip": tip, "entitate": entitate, "entitate_id": entitate_id,
                  "utilizator": username, "detalii": (detalii or "")[:1000]})
+            db.connection.commit()
+
+    # ── участники ───────────────────────────────────────────────────
+
+    @staticmethod
+    def list_partic() -> Dict[str, Any]:
+        """Участники SDA. Без них единицу сети создать нельзя: PARTIC_ID
+        в SDA_UNIT — NOT NULL с внешним ключом сюда."""
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                "SELECT PARTIC_ID, IDNO, DENUMIRE, DATA_INREG, NR_CONTRACT, "
+                "DATA_CONTRACT, CONTACT_NUME, CONTACT_TEL, CONTACT_EMAIL, "
+                "STARE, VANDUT_AN_ANT, ESTIMARE_AN FROM SDA_PARTIC "
+                "ORDER BY DENUMIRE")
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la citirea participantilor")
+        return _done(_rows(r))
+
+    @staticmethod
+    def save_partic(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        def _num(key):
+            raw = payload.get(key)
+            return int(raw) if raw not in (None, "") else None
+
+        params = {
+            "partic_id": payload.get("partic_id"),
+            "idno": payload.get("idno"),
+            "denumire": payload.get("denumire"),
+            "nr_contract": payload.get("nr_contract") or None,
+            "contact_nume": payload.get("contact_nume") or None,
+            "contact_tel": payload.get("contact_tel") or None,
+            "contact_email": payload.get("contact_email") or None,
+            "stare": (payload.get("stare") or "ACTIV").upper(),
+            "vandut_an_ant": _num("vandut_an_ant"),
+            "estimare_an": _num("estimare_an"),
+        }
+
+        if payload.get("partic_id") is not None:
+            sql = ("UPDATE SDA_PARTIC SET IDNO = :idno, DENUMIRE = :denumire, "
+                   "NR_CONTRACT = :nr_contract, CONTACT_NUME = :contact_nume, "
+                   "CONTACT_TEL = :contact_tel, CONTACT_EMAIL = :contact_email, "
+                   "STARE = :stare, VANDUT_AN_ANT = :vandut_an_ant, "
+                   "ESTIMARE_AN = :estimare_an WHERE PARTIC_ID = :partic_id")
+        else:
+            params.pop("partic_id")
+            sql = ("INSERT INTO SDA_PARTIC (IDNO, DENUMIRE, NR_CONTRACT, "
+                   "CONTACT_NUME, CONTACT_TEL, CONTACT_EMAIL, STARE, "
+                   "VANDUT_AN_ANT, ESTIMARE_AN) VALUES (:idno, :denumire, "
+                   ":nr_contract, :contact_nume, :contact_tel, :contact_email, "
+                   ":stare, :vandut_an_ant, :estimare_an)")
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params)
+            if not r.get("success"):
+                return _fail(r.get("message")
+                             or "Eroare la salvarea participantului")
+            if payload.get("partic_id") is not None and not r.get("rowcount"):
+                return _fail(
+                    f"Participantul {payload.get('partic_id')} nu mai exista")
+            db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('PARTIC_SAVE', 'SDA_PARTIC', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": payload.get("partic_id"),
+                 "utilizator": username,
+                 "detalii": f"{params['idno']} {params['denumire']}"})
+            db.connection.commit()
+        return _done({"idno": params["idno"], "denumire": params["denumire"]})
 
     # ── сеть ────────────────────────────────────────────────────────
 
@@ -76,11 +144,28 @@ class SDAStore:
         suprafata = payload.get("suprafata_mp")
         suprafata = float(suprafata) if suprafata not in (None, "") else None
         tip = (payload.get("tip_amplasament") or "MAGAZIN").upper()
-        regim, motiv = sda_rules.classify_regime(
-            suprafata, tip, bool(payload.get("is_horeca")))
+        unit_id = payload.get("unit_id")
+
+        # Признака HoReCa нет отдельной колонкой: он живёт только в REGIM.
+        # Если форма его не прислала, при правке существующей точки его
+        # надо унести вперёд, иначе редактирование адреса молча разжалует
+        # заведение из C_HORECA в обычный магазин.
+        is_horeca = payload.get("is_horeca")
+        if is_horeca is None and unit_id is not None:
+            with DatabaseModel() as db:
+                cur = db.execute_query(
+                    "SELECT REGIM FROM SDA_UNIT WHERE UNIT_ID = :unit_id",
+                    {"unit_id": unit_id})
+            if not cur.get("success"):
+                return _fail(cur.get("message")
+                             or "Eroare la citirea regimului curent")
+            rows = _rows(cur)
+            is_horeca = bool(rows) and rows[0].get("regim") == "C_HORECA"
+
+        regim, motiv = sda_rules.classify_regime(suprafata, tip, bool(is_horeca))
 
         params = {
-            "unit_id": payload.get("unit_id"),
+            "unit_id": unit_id,
             "partic_id": payload.get("partic_id"),
             "cod_erp": payload.get("cod_erp"),
             "denumire": payload.get("denumire"),
@@ -94,7 +179,7 @@ class SDAStore:
             "data_evaluare": date.today(),
         }
 
-        if payload.get("unit_id") is not None:
+        if unit_id is not None:
             sql = ("UPDATE SDA_UNIT SET COD_ERP = :cod_erp, "
                    "DENUMIRE = :denumire, ADRESA = :adresa, "
                    "LOCALITATE = :localitate, RAION = :raion, "
@@ -116,13 +201,16 @@ class SDAStore:
             r = db.execute_query(sql, params)
             if not r.get("success"):
                 return _fail(r.get("message") or "Eroare la salvarea unitatii")
+            if unit_id is not None and not r.get("rowcount"):
+                return _fail(f"Unitatea {unit_id} nu mai exista")
             db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('UNIT_SAVE', 'SDA_UNIT', "
                 ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": payload.get("unit_id"),
+                {"entitate_id": unit_id,
                  "utilizator": username,
                  "detalii": f"{payload.get('denumire')} -> {regim or 'FARA REGIM'}"})
+            db.connection.commit()
         return _done({"regim": regim, "regim_motiv": motiv})
 
     @staticmethod
@@ -137,7 +225,12 @@ class SDAStore:
                 regim, motiv = sda_rules.classify_regime(
                     unit.get("suprafata_mp"), unit.get("tip_amplasament") or "MAGAZIN",
                     is_horeca)
-                if regim == unit.get("regim"):
+                # Сравнивать только режим мало: исправленная площадь внутри
+                # той же полосы или уточнённая формулировка оставили бы
+                # REGIM_MOTIV и DATA_EVALUARE от прошлой оценки, а модуль
+                # предъявляет их как основание досье.
+                if (regim, motiv) == (unit.get("regim"),
+                                      unit.get("regim_motiv")):
                     continue
                 db.execute_query(
                     "UPDATE SDA_UNIT SET REGIM = :regim, "
@@ -146,6 +239,8 @@ class SDAStore:
                     {"regim": regim, "regim_motiv": motiv,
                      "data_evaluare": date.today(), "unit_id": unit["unit_id"]})
                 changed += 1
+            if changed:
+                db.connection.commit()
         SDAStore.log("RECLASSIFY", "SDA_UNIT", None,
                      f"reclasificate {changed} unitati", username)
         return _done({"changed": changed})
@@ -238,12 +333,15 @@ class SDAStore:
             r = db.execute_query(sql, params)
             if not r.get("success"):
                 return _fail(r.get("message") or "Eroare la salvarea ambalajului")
+            if payload.get("pack_id") is not None and not r.get("rowcount"):
+                return _fail(f"Ambalajul {payload.get('pack_id')} nu mai exista")
             db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('PACK_SAVE', 'SDA_PACK', "
                 ":entitate_id, :utilizator, :detalii)",
                 {"entitate_id": payload.get("pack_id"), "utilizator": username,
                  "detalii": f"{params['ean']} {params['cat_admin']}/{params['cat_gest']}"})
+            db.connection.commit()
         return _done({"cat_admin": params["cat_admin"],
                       "cat_gest": params["cat_gest"]})
 
@@ -270,7 +368,8 @@ class SDAStore:
             # без ORDER BY Oracle не гарантирует порядок строк. Правило разрешения
             # конфликта: побеждает период с более поздней датой начала.
             t = db.execute_query(
-                "SELECT L.CATEGORIE, L.METODA, L.REUTILIZABIL, L.VALOARE_LEI "
+                "SELECT T.TARIFF_ID, L.CATEGORIE, L.METODA, L.REUTILIZABIL, "
+                "L.VALOARE_LEI "
                 "FROM SDA_TARIFF T JOIN SDA_TARIFF_LINE L "
                 "ON L.TARIFF_ID = T.TARIFF_ID "
                 "WHERE T.TIP = 'DEPOZIT' AND T.DATA_START <= :d "
@@ -283,9 +382,11 @@ class SDAStore:
             return _fail("Nu exista tarif de depozit valabil la data ceruta")
 
         pack = packs[0]
-        # lines сохраняет порядок ORDER BY из запроса (позднее начавшийся
-        # период первым) — pick_value берёт первое совпадение, поэтому
-        # порядок должен пройти через list comprehension без изменений.
+        # Сначала период, потом категория внутри него. Иначе точное совпадение
+        # категории из старого периода перебило бы «*» из нового: pick_value
+        # перебирает категории снаружи, и порядок строк ему тут не помог бы.
+        winner = lines[0].get("tariff_id")
+        lines = [l for l in lines if l.get("tariff_id") == winner]
         value = sda_rules.pick_value(
             [{"categorie": l["categorie"], "metoda": l["metoda"],
               "reutilizabil": l["reutilizabil"], "valoare_lei": l["valoare_lei"]}
@@ -313,6 +414,9 @@ class SDAStore:
                 "CONTACT_EMAIL, VANDUT_AN_ANT, ESTIMARE_AN FROM SDA_PARTIC "
                 "WHERE PARTIC_ID = :partic_id",
                 {"partic_id": partic_id})
+            if not p.get("success"):
+                return _fail(p.get("message")
+                             or "Eroare la citirea participantului")
             partics = _rows(p)
             if not partics:
                 return _fail(f"Participantul {partic_id} nu exista")
@@ -322,6 +426,8 @@ class SDAStore:
                 "TIP_AMPLASAMENT, REGIM FROM SDA_UNIT "
                 "WHERE PARTIC_ID = :partic_id ORDER BY DENUMIRE",
                 {"partic_id": partic_id})
+            if not u.get("success"):
+                return _fail(u.get("message") or "Eroare la citirea unitatilor")
             units = _rows(u)
 
             r = db.execute_query(
@@ -329,11 +435,16 @@ class SDAStore:
                 "FROM SDA_RETURN_POINT PT JOIN SDA_UNIT UN "
                 "ON UN.UNIT_ID = PT.UNIT_ID WHERE UN.PARTIC_ID = :partic_id",
                 {"partic_id": partic_id})
+            if not r.get("success"):
+                return _fail(r.get("message")
+                             or "Eroare la citirea punctelor de preluare")
             points = _rows(r)
 
         partic = partics[0]
         incomplet = sum(1 for x in units if not x.get("regim"))
-        metode = sorted({x["tip"] for x in points}) or ["MANUAL"]
+        # Без пунктов возврата способ приёма не «MANUAL по умолчанию»,
+        # а неизвестен: это юридическое заявление, а не значение по вкусу.
+        metode = sorted({x["tip"] for x in points})
 
         return _done({
             "identificare": {"idno": partic["idno"], "denumire": partic["denumire"]},
@@ -347,4 +458,7 @@ class SDAStore:
             "estimare_an_curent": partic.get("estimare_an"),
             "exceptii": [x for x in units if x.get("regim") == "B_EXCEPTIE_APL"],
             "incomplet": incomplet,
+            # Досье с точками без площади подавать нельзя (см. docstring):
+            # это правило должно быть в данных, а не только в тексте.
+            "poate_fi_depus": incomplet == 0,
         })

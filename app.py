@@ -3328,6 +3328,18 @@ def _sda_user():
     return session.get('username') or 'anonim'
 
 
+@app.route('/api/sda/partic', methods=['GET'])
+def api_sda_partic():
+    return jsonify(SDAController.get_partic(request.args))
+
+
+@app.route('/api/sda/partic', methods=['POST'])
+def api_sda_partic_save():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "message": "Требуется авторизация"}), 401
+    return jsonify(SDAController.save_partic(request.get_json() or {}, _sda_user()))
+
+
 @app.route('/api/sda/units', methods=['GET'])
 def api_sda_units():
     return jsonify(SDAController.get_units(request.args))

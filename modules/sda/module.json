@@ -1,14 +1,30 @@
 {
-  "title": {"ru": "SDA — залоговая система упаковки", "ro": "SDA — Sistemul de depozit pentru ambalaje", "en": "DRS — packaging deposit system"},
+  "title": {
+    "ru": "SDA — залоговая система упаковки",
+    "ro": "SDA — Sistemul de depozit pentru ambalaje",
+    "en": "DRS — packaging deposit system"
+  },
   "icon": "♻️",
   "order": 45,
   "url": "/UNA.md/orasldev/sda",
   "docs": "docs/SDA",
   "sql_prefix": "SDA_",
-  "descr": "Регистр упаковки, сеть и режимы точек возврата, депозит на кассе, талоны, сдача администратору, взаиморасчёты и отчётность",
+  "descr": "Регистр упаковки SDA, участники, сеть точек и расчёт режима возврата (A/B/C), карта соответствия и досье регистрации по пункту 78",
   "pages": {
-    "/UNA.md/orasldev/sda": {"ru": "Документация", "ro": "Documentație", "en": "Documentation"},
-    "/UNA.md/orasldev/sda-console": {"ru": "Консоль модуля", "ro": "Consola modulului", "en": "Module console"},
-    "/UNA.md/orasldev/sda/presentation": {"ru": "Досье для клиента", "ro": "Dosar de prezentare", "en": "Client dossier"}
+    "/UNA.md/orasldev/sda": {
+      "ru": "Документация",
+      "ro": "Documentație",
+      "en": "Documentation"
+    },
+    "/UNA.md/orasldev/sda-console": {
+      "ru": "Консоль модуля",
+      "ro": "Consola modulului",
+      "en": "Module console"
+    },
+    "/UNA.md/orasldev/sda/presentation": {
+      "ru": "Досье для клиента",
+      "ro": "Dosar de prezentare",
+      "en": "Client dossier"
+    }
   }
 }

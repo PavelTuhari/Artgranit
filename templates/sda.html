@@ -109,6 +109,8 @@ tr:hover td { background: #f8faff; }
                 <span class="ic">🏬</span><span>Rețeaua de unități</span></button>
             <button class="nav-item" data-panel="registru" onclick="showPanel('registru')">
                 <span class="ic">📦</span><span>Registrul ambalajelor</span></button>
+            <button class="nav-item" data-panel="participanti" onclick="showPanel('participanti')">
+                <span class="ic">🏢</span><span>Participanți</span></button>
         </div>
     </div>
     <div class="main">
@@ -161,7 +163,7 @@ tr:hover td { background: #f8faff; }
                         <div class="field"><label>Raion</label>
                             <input id="u_raion"></div>
                         <div class="field"><label>Suprafață, m²</label>
-                            <input id="u_suprafata_mp" type="number" step="0.1" min="0" required></div>
+                            <input id="u_suprafata_mp" type="number" step="0.1" min="0.01"></div>
                         <div class="field"><label>Tip amplasament</label>
                             <select id="u_tip_amplasament" required>
                                 <option value="MAGAZIN">Magazin</option>
@@ -170,8 +172,11 @@ tr:hover td { background: #f8faff; }
                                 <option value="BENZINARIE">Benzinărie</option>
                                 <option value="ALIMENTATIE_PUBLICA">Alimentație publică</option>
                             </select></div>
-                        <div class="field"><label>ID participant</label>
-                            <input id="u_partic_id"></div>
+                        <div class="field"><label>Participant</label>
+                            <select id="u_partic_id" required></select></div>
+                        <div class="field" style="flex-direction:row;align-items:center;gap:7px">
+                            <input id="u_is_horeca" type="checkbox">
+                            <label for="u_is_horeca" style="margin:0">Unitate HoReCa</label></div>
 
                         <div class="regim-result" id="unitRegimResult">
                             <span class="k">Regim: </span><span id="unitRegimVal"></span>
@@ -230,7 +235,7 @@ tr:hover td { background: #f8faff; }
                         <div class="field"><label>Volum, l (0.1–3)</label>
                             <input id="p_volum_l" type="number" step="0.01" min="0.1" max="3" required></div>
                         <div class="field"><label>Greutate, g</label>
-                            <input id="p_greutate_g" type="number" step="1" min="0"></div>
+                            <input id="p_greutate_g" type="number" step="0.01" min="0.01" required></div>
                         <div class="field"><label>Barieră O2</label>
                             <select id="p_bariera_o2">
                                 <option value="N">Nu</option>
@@ -257,6 +262,61 @@ tr:hover td { background: #f8faff; }
                 </form>
             </div>
         </section>
+
+        <section class="panel" id="panel-participanti">
+            <h1>Participanți</h1>
+            <div class="crumbs">SDA / Participanți</div>
+
+            <div class="card">
+                <div class="toolbar">
+                    <h2 style="margin:0">Participanți la sistemul de depozit</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="openParticForm(null)">+ Participant nou</button>
+                </div>
+                <table>
+                    <thead><tr>
+                        <th>IDNO</th><th>Denumire</th><th>Contract</th><th>Contact</th>
+                        <th>Stare</th><th></th>
+                    </tr></thead>
+                    <tbody id="particBody"></tbody>
+                </table>
+            </div>
+
+            <div class="card" id="particFormCard" style="display:none">
+                <h2 id="particFormTitle">Participant nou</h2>
+                <form id="particForm" onsubmit="savePartic(event)">
+                    <input type="hidden" id="q_partic_id">
+                    <div class="form-grid">
+                        <div class="field"><label>IDNO</label>
+                            <input id="q_idno" required></div>
+                        <div class="field"><label>Denumire</label>
+                            <input id="q_denumire" required></div>
+                        <div class="field"><label>Nr. contract</label>
+                            <input id="q_nr_contract"></div>
+                        <div class="field"><label>Stare</label>
+                            <select id="q_stare">
+                                <option value="ACTIV">Activ</option>
+                                <option value="SUSPENDAT">Suspendat</option>
+                                <option value="INCHIS">Închis</option>
+                            </select></div>
+                        <div class="field"><label>Persoană de contact</label>
+                            <input id="q_contact_nume"></div>
+                        <div class="field"><label>Telefon</label>
+                            <input id="q_contact_tel"></div>
+                        <div class="field"><label>E-mail</label>
+                            <input id="q_contact_email" type="email"></div>
+                        <div class="field"><label>Unități vândute anul anterior</label>
+                            <input id="q_vandut_an_ant" type="number" step="1" min="0"></div>
+                        <div class="field"><label>Estimare anul curent</label>
+                            <input id="q_estimare_an" type="number" step="1" min="0"></div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Salvează</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeParticForm()">Anulează</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -278,7 +338,8 @@ function showPanel(name) {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.panel === name));
     document.getElementById('panel-' + name).classList.add('active');
-    const loaders = {harta: loadCompliance, retea: loadUnits, registru: loadPacks};
+    const loaders = {harta: loadCompliance, retea: loadUnits, registru: loadPacks,
+                     participanti: loadPartic};
     (loaders[name] || (() => {}))();
 }
 
@@ -327,7 +388,10 @@ async function loadUnits() {
     `).join('') || '<tr><td colspan="7" style="color:var(--muted)">Nicio unitate înregistrată</td></tr>';
 }
 
-function openUnitForm(u) {
+async function openUnitForm(u) {
+    if (!PARTIC.length) await fetchPartic();
+    fillParticSelect(u ? u.partic_id : null);
+    document.getElementById('u_is_horeca').checked = !!(u && u.regim === 'C_HORECA');
     document.getElementById('unitFormCard').style.display = 'block';
     document.getElementById('unitRegimResult').classList.remove('show');
     document.getElementById('unitFormTitle').textContent = u ? 'Editează unitatea' : 'Unitate nouă';
@@ -339,7 +403,6 @@ function openUnitForm(u) {
     document.getElementById('u_raion').value = u ? (u.raion || '') : '';
     document.getElementById('u_suprafata_mp').value = u ? (u.suprafata_mp || '') : '';
     document.getElementById('u_tip_amplasament').value = u ? (u.tip_amplasament || 'MAGAZIN') : 'MAGAZIN';
-    document.getElementById('u_partic_id').value = u ? (u.partic_id || '') : '';
     document.getElementById('unitFormCard').scrollIntoView({behavior: 'smooth'});
 }
 
@@ -357,9 +420,13 @@ async function saveUnit(ev) {
         adresa: document.getElementById('u_adresa').value,
         localitate: document.getElementById('u_localitate').value,
         raion: document.getElementById('u_raion').value,
-        suprafata_mp: parseFloat(document.getElementById('u_suprafata_mp').value),
+        // Suprafața poate lipsi: regimul NULL („inventar necesar") este chiar
+        // starea pe care harta de conformitate o raportează. Un număr inventat
+        // ar declara scutit un magazin mare.
+        suprafata_mp: document.getElementById('u_suprafata_mp').value || null,
         tip_amplasament: document.getElementById('u_tip_amplasament').value,
         partic_id: document.getElementById('u_partic_id').value || undefined,
+        is_horeca: document.getElementById('u_is_horeca').checked,
     };
     const r = await fetch('/api/sda/units', {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
@@ -367,7 +434,8 @@ async function saveUnit(ev) {
     if (!r.success) { showError(r.message); return; }
     showError(null);
     const res = document.getElementById('unitRegimResult');
-    document.getElementById('unitRegimVal').textContent = r.data.regim || '—';
+    document.getElementById('unitRegimVal').textContent =
+        r.data.regim || 'nestabilit';
     document.getElementById('unitRegimMotiv').textContent = r.data.regim_motiv || '';
     res.classList.add('show');
     await loadUnits();
@@ -437,6 +505,88 @@ async function savePack(ev) {
     document.getElementById('packResult').classList.add('show');
     document.getElementById('packForm').reset();
     await loadPacks();
+}
+
+// ==================== Participanți ====================
+// O unitate nu poate exista fără participant: PARTIC_ID este NOT NULL cu
+// cheie străină. De aceea formularul unității oferă o listă, nu un câmp liber.
+let PARTIC = [];
+
+async function fetchPartic() {
+    const r = await fetch('/api/sda/partic').then(x => x.json());
+    if (!r.success) { showError(r.message); return []; }
+    PARTIC = r.data || [];
+    return PARTIC;
+}
+
+function fillParticSelect(selected) {
+    const sel = document.getElementById('u_partic_id');
+    const opts = PARTIC.map(p =>
+        `<option value="${esc(p.partic_id)}">${esc(p.denumire)} (${esc(p.idno)})</option>`).join('');
+    sel.innerHTML = PARTIC.length
+        ? opts
+        : '<option value="">Niciun participant înregistrat</option>';
+    if (selected != null && selected !== '') sel.value = String(selected);
+}
+
+async function loadPartic() {
+    const rows = await fetchPartic();
+    document.getElementById('particBody').innerHTML = rows.map(p => `
+        <tr>
+            <td>${esc(p.idno)}</td>
+            <td>${esc(p.denumire)}</td>
+            <td>${esc(p.nr_contract)}</td>
+            <td>${esc(p.contact_nume)}</td>
+            <td>${esc(p.stare)}</td>
+            <td class="row-actions">
+                <button class="btn btn-secondary btn-sm" onclick='openParticForm(${JSON.stringify(p).replace(/'/g, "&#39;")})'>Editează</button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="6" style="color:var(--muted)">Niciun participant înregistrat</td></tr>';
+}
+
+function openParticForm(p) {
+    document.getElementById('particFormCard').style.display = 'block';
+    document.getElementById('particFormTitle').textContent = p ? 'Editează participantul' : 'Participant nou';
+    document.getElementById('q_partic_id').value = p ? p.partic_id : '';
+    document.getElementById('q_idno').value = p ? (p.idno || '') : '';
+    document.getElementById('q_denumire').value = p ? (p.denumire || '') : '';
+    document.getElementById('q_nr_contract').value = p ? (p.nr_contract || '') : '';
+    document.getElementById('q_stare').value = p ? (p.stare || 'ACTIV') : 'ACTIV';
+    document.getElementById('q_contact_nume').value = p ? (p.contact_nume || '') : '';
+    document.getElementById('q_contact_tel').value = p ? (p.contact_tel || '') : '';
+    document.getElementById('q_contact_email').value = p ? (p.contact_email || '') : '';
+    document.getElementById('q_vandut_an_ant').value = p ? (p.vandut_an_ant || '') : '';
+    document.getElementById('q_estimare_an').value = p ? (p.estimare_an || '') : '';
+    document.getElementById('particFormCard').scrollIntoView({behavior: 'smooth'});
+}
+
+function closeParticForm() {
+    document.getElementById('particFormCard').style.display = 'none';
+    document.getElementById('particForm').reset();
+}
+
+async function savePartic(ev) {
+    ev.preventDefault();
+    const body = {
+        partic_id: document.getElementById('q_partic_id').value || undefined,
+        idno: document.getElementById('q_idno').value,
+        denumire: document.getElementById('q_denumire').value,
+        nr_contract: document.getElementById('q_nr_contract').value,
+        stare: document.getElementById('q_stare').value,
+        contact_nume: document.getElementById('q_contact_nume').value,
+        contact_tel: document.getElementById('q_contact_tel').value,
+        contact_email: document.getElementById('q_contact_email').value,
+        vandut_an_ant: document.getElementById('q_vandut_an_ant').value,
+        estimare_an: document.getElementById('q_estimare_an').value,
+    };
+    const r = await fetch('/api/sda/partic', {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    }).then(x => x.json());
+    if (!r.success) { showError(r.message); return; }
+    showError(null);
+    closeParticForm();
+    await loadPartic();
 }
 
 loadCompliance();

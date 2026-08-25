@@ -7,7 +7,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from models.sda_oracle_store import SDAStore
 
@@ -19,7 +19,7 @@ def _fail(message: str) -> Dict[str, Any]:
     return {"success": False, "data": None, "message": message}
 
 
-def _parse_partic_id(raw: Any) -> int:
+def _parse_partic_id(raw: Any) -> Optional[int]:
     """Разбирает query-параметр ``partic_id``.
 
     Пустое значение (None/"") означает "без фильтра" и возвращает None.
@@ -37,6 +37,23 @@ def _parse_partic_id(raw: Any) -> int:
 class SDAController:
     """Тонкий слой между Flask и SDAStore."""
 
+    # ── участники ───────────────────────────────────────────────────
+
+    @staticmethod
+    def get_partic(args) -> Dict[str, Any]:
+        return SDAStore.list_partic()
+
+    @staticmethod
+    def save_partic(data: Dict[str, Any], username: str) -> Dict[str, Any]:
+        if not (data.get("denumire") or "").strip():
+            return _fail("Denumirea participantului este obligatorie")
+        if not (data.get("idno") or "").strip():
+            return _fail("IDNO al participantului este obligatoriu")
+        stare = (data.get("stare") or "ACTIV").upper()
+        if stare not in ("ACTIV", "SUSPENDAT", "INCHIS"):
+            return _fail("Starea trebuie sa fie ACTIV, SUSPENDAT sau INCHIS")
+        return SDAStore.save_partic(data, username)
+
     # ── сеть ────────────────────────────────────────────────────────
 
     @staticmethod
@@ -51,6 +68,10 @@ class SDAController:
     def save_unit(data: Dict[str, Any], username: str) -> Dict[str, Any]:
         if not (data.get("denumire") or "").strip():
             return _fail("Denumirea unitatii este obligatorie")
+        # PARTIC_ID в SDA_UNIT — NOT NULL с внешним ключом: без него Oracle
+        # ответит ORA-01400, и оператор увидит её в баннере как есть.
+        if data.get("partic_id") in (None, ""):
+            return _fail("Participantul este obligatoriu pentru o unitate")
         suprafata = data.get("suprafata_mp")
         if suprafata not in (None, ""):
             try:

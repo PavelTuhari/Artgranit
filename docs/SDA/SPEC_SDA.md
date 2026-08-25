@@ -164,18 +164,34 @@ fără `IDENTITY` (secvență + trigger), exclusiv variabile bind.
 
 ## 4. Interfețe
 
+### 4.1 Ce există astăzi
+
 | Rută | Conținut |
 |---|---|
-| `/UNA.md/orasldev/sda` | lansatorul modulului |
-| `…/sda-registru` | Registrul ambalajelor SD, sincronizare cu registrul Administratorului, maparea SKU, alerte pentru băuturi nemapate |
-| `…/sda-retea` | unități, suprafețe, încadrare A/B/C, puncte de returnare, orare, instalații automate |
-| `…/sda-retur` | chioșcul de returnare: scanare EAN, validare, refuz motivat, emitere tichet |
-| `…/sda-tichete` | validare și consum de tichet la casă, căutare după cod, istoric |
-| `…/sda-predari` | predări către centrul logistic, saci și sigilii, confirmări, divergențe |
-| `…/sda-tarife` | perioade de tarif: depozit, administrare, gestiune |
-| `…/sda-decont` | cuvenit vs. încasat, control al termenului de 14 zile |
-| `…/sda-rapoarte` | evidența pct. 100, dosarul pct. 78, afișajele pct. 84 și 92, exporturi |
-| `…/sda-docs`, `…/sda-tz` | documentația și specificația modulului |
+| `/UNA.md/orasldev/sda` | hubul de documentație al modulului (alias: `…/sda/docs`) |
+| `…/sda/docs/<slug>` | un document al modulului |
+| `…/sda/presentation` | dosarul de prezentare pentru client |
+| `…/sda-console` | consola modulului: patru panouri — harta de conformitate, rețeaua de unități, registrul ambalajelor, participanții |
+
+API-ul livrat: `GET/POST /api/sda/partic`, `GET/POST /api/sda/units`,
+`POST /api/sda/units/reclassify`, `GET /api/sda/compliance`,
+`GET/POST /api/sda/packs`, `GET /api/sda/deposit`, `GET /api/sda/dossier`.
+Citirile sunt deschise, scrierile cer autentificare; dosarul cere de asemenea
+autentificare.
+
+### 4.2 Rute planificate pentru etapele următoare
+
+Rutele de mai jos **nu există încă** — ele aparțin etapelor 4–8 din § 7 și
+sunt păstrate aici ca plan, nu ca stare a modulului:
+
+| Rută | Conținut | Etapa |
+|---|---|---|
+| `…/sda-retur` | chioșcul de returnare: scanare EAN, validare, refuz motivat, emitere tichet | 5 |
+| `…/sda-tichete` | validare și consum de tichet la casă, căutare după cod, istoric | 5 |
+| `…/sda-predari` | predări către centrul logistic, saci și sigilii, confirmări, divergențe | 6 |
+| `…/sda-tarife` | perioade de tarif: depozit, administrare, gestiune | 3 (rest) |
+| `…/sda-decont` | cuvenit vs. încasat, control al termenului de 14 zile | 7 |
+| `…/sda-rapoarte` | evidența pct. 100, dosarul pct. 78, afișajele pct. 84 și 92, exporturi | 8 |
 
 Chioșcul de returnare reia tiparul `ScaleKiosk` din modulul AGRO: IIFE care
 expune un obiect global, configurat prin constructor, cu selecție de elemente
@@ -222,12 +238,19 @@ vizibil în `/UNA.md/orasldev/modules` și în bara laterală; rutele funcționa
 |---|---|---|---|
 | 1 | Rețea și regimuri | `SDA_PARTIC`, `SDA_UNIT`, calculul regimului, harta de conformitate, dosarul pct. 78 | **Livrat** |
 | 2 | Registru | `SDA_PACK`, `SDA_PACK_SKU`, sincronizare, alerte de mapare | **Livrat** |
-| 3 | Tarife | perioade versionate, funcțiile de calcul | **Livrat** |
+| 3 | Tarife | perioade versionate, funcțiile de calcul | **Parțial** |
 | 4 | Front | linia de depozit la casă și în coș, afișajele pct. 84 și 92 | — |
 | 5 | Returnare | chioșc, refuzuri motivate, registrul tichetelor | — |
 | 6 | Logistică | predări, sigilii, confirmări, divergențe | — |
 | 7 | Financiar | deconturi, controlul termenului de 14 zile | — |
 | 8 | Raportare | evidența pct. 100, exporturi, jurnal | — |
+
+Etapa 3 este marcată **parțial** în mod deliberat: schema (`SDA_TARIFF`,
+`SDA_TARIFF_LINE`) și regulile pure (`sda_rules.validate_periods`,
+`sda_rules.pick_value`) există și sunt acoperite de teste, dar nu există nici
+UI, nici API pentru tarife. `validate_periods` este apelată doar din teste, iar
+rândurile de tarif pot fi introduse astăzi exclusiv prin SQL scris de mână.
+Până când apare `…/sda-tarife`, etapa nu poate fi considerată livrată.
 
 Etapa 1 are valoare de sine stătătoare: produce harta de conformitate și
 dosarul de înregistrare, care sunt necesare indiferent de restul modulului.
