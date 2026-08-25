@@ -22,6 +22,7 @@ from controllers.shell_controller import ShellController
 from controllers.digi_marketing_controller import DigiMarketingController
 from controllers.seo_controller import SeoController
 from controllers.tbcontrol_controller import TBControlController
+from controllers.sda_controller import SDAController
 from controllers.planogram_controller import PlanogramController
 from controllers.plg_mobile_controller import PlgMobileController
 from controllers.plg_ai_controller import PlgAiController
@@ -2963,6 +2964,20 @@ def api_tbc_test_source(code):
     if not AuthController.is_authenticated():
         return jsonify({"success": False, "error": "Требуется авторизация"}), 401
     return jsonify(TBControlController.test_source(code))
+
+
+@app.route('/api/tbc/proxmox', methods=['GET'])
+def api_tbc_proxmox():
+    return jsonify(TBControlController.get_proxmox(
+        request.args.get('source_code'), request.args.get('obj_type'), request.args.get('health')))
+
+
+@app.route('/api/tbc/proxmox/sync', methods=['POST'])
+def api_tbc_proxmox_sync():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Требуется авторизация"}), 401
+    data = request.get_json() or {}
+    return jsonify(TBControlController.sync_proxmox(data.get('source_code')))
 
 
 @app.route('/api/tbc/services', methods=['GET'])
