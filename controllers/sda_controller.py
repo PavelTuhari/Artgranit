@@ -86,6 +86,19 @@ class SDAController:
         # ответит ORA-01400, и оператор увидит её в баннере как есть.
         if data.get("partic_id") in (None, ""):
             return _fail("Participantul este obligatoriu pentru o unitate")
+        try:
+            _parse_partic_id(data.get("partic_id"))
+        except ValueError as exc:
+            return _fail(str(exc))
+        # Regimul HoReCa nu are coloana proprie: traieste doar in REGIM. Daca
+        # l-am accepta pentru orice tip de amplasament, reclassify_all l-ar citi
+        # inapoi din REGIM == 'C_HORECA' la fiecare reclasificare si l-ar
+        # perpetua la nesfarsit, chiar si pentru un magazin obisnuit.
+        tip = (data.get("tip_amplasament") or "MAGAZIN").upper()
+        if data.get("is_horeca") and tip != "ALIMENTATIE_PUBLICA":
+            return _fail(
+                "Regimul HoReCa este disponibil doar pentru unitatile cu "
+                "tipul de amplasament ALIMENTATIE_PUBLICA")
         suprafata = data.get("suprafata_mp")
         if suprafata not in (None, ""):
             try:
