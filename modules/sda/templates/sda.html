@@ -321,11 +321,10 @@ tr:hover td { background: #f8faff; }
 </div>
 
 <script>
-// Базовый путь API захардкожен, как в modules/seoforge/templates/seoforge.html:
-// ядро (core/module_loader.py) гарантирует, что маршруты этого blueprint'а
-// живут ровно под /UNA.md/orasldev/sda — префикс не может измениться без
-// смены ключа модуля, поэтому url_for() здесь не нужен.
-const SDA_API = '/UNA.md/orasldev/sda/api';
+// Базовый путь API строится сервером через url_for('sda.api_units') и
+// приходит в data-api-base на <body> — модуль не должен знать, под каким
+// префиксом его смонтировало ядро (см. docs/CORE_MODULES.md).
+const SDA_API = document.body.dataset.apiBase.replace(/\/units$/, '');
 
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
