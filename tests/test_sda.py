@@ -42,12 +42,22 @@ def test_ddl_has_no_cyrillic():
 
 def test_every_foreign_key_column_has_an_index():
     ddl = _sql("117_sda_tables.sql").upper()
-    fk_cols = set(re.findall(r"FOREIGN KEY \(([A-Z0-9_]+)\)", ddl))
-    indexed = set()
-    for cols in re.findall(r"CREATE INDEX [A-Z0-9_]+ ON [A-Z0-9_]+ \(([^)]+)\)", ddl):
-        indexed.add(cols.split(",")[0].strip())
-    for col in fk_cols:
-        assert col in indexed, f"FK {col} without index"
+
+    # Index every table's first-column position: {table: {first_col, ...}}.
+    indexed_by_table = {}
+    for table, cols in re.findall(
+        r"CREATE (?:UNIQUE )?INDEX [A-Z0-9_]+ ON ([A-Z0-9_]+) \(([^)]+)\)", ddl
+    ):
+        indexed_by_table.setdefault(table, set()).add(cols.split(",")[0].strip())
+
+    # Parse each CREATE TABLE <name> ( ... ); block and collect its FK columns.
+    for table, body in re.findall(
+        r"CREATE TABLE ([A-Z0-9_]+) \((.*?)\n\);", ddl, re.DOTALL
+    ):
+        fk_cols = re.findall(r"FOREIGN KEY \(([A-Z0-9_]+)\)", body)
+        for col in fk_cols:
+            assert col in indexed_by_table.get(table, set()), \
+                f"{table}.{col} is a FK but has no index on {table} starting with it"
 
 
 def test_every_table_has_a_sequence_and_trigger():
