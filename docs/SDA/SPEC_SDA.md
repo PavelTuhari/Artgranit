@@ -207,6 +207,12 @@ limbi, iconul, ordinea și adresa; descoperirea rutelor este automată.
 
 1. `SDA_UNIT.REGIM` derivat din suprafață și tip de amplasament, cu data
    evaluării stocată.
+1a. Regimul `C_HORECA` este disponibil doar unităților al căror
+   `TIP_AMPLASAMENT` este `ALIMENTATIE_PUBLICA`. Controlorul respinge orice
+   încercare de a marca `is_horeca` pentru un alt tip de amplasament —
+   altfel reclasificarea ar citi `REGIM = 'C_HORECA'` înapoi ca intrare și
+   ar perpetua la nesfârșit o clasificare eronată, chiar și pentru un
+   magazin obișnuit.
 2. `SDA_RETURN_POINT.DISTANTA_M ≤ 150`.
 3. Perioadele din `SDA_TARIFF` nu se suprapun și nu lasă goluri pe același tip
    și aceeași categorie.
