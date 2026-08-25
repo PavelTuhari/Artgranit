@@ -140,9 +140,11 @@ def test_tariff_line_categorie_is_constrained():
 
 
 def test_deploy_script_installs_the_sda_ddl():
-    with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
-        src = fh.read()
-    assert '"117_sda_tables.sql"' in src
+    # The module ships its own installer (modules/sda/scripts/sda_deploy.py);
+    # the shared deploy_oracle_objects.py must stay untouched (see
+    # test_shared_deploy_script_is_untouched_by_the_module below).
+    from modules.sda.scripts.sda_deploy import FILES
+    assert "117_sda_tables.sql" in FILES
 
 
 # -- Task 2: pure rules ------------------------------------------------
