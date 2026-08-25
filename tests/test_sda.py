@@ -262,3 +262,33 @@ def test_pick_value_falls_back_to_the_wildcard_category():
 def test_pick_value_returns_none_when_nothing_matches():
     lines = [{"categorie": "a", "metoda": None, "reutilizabil": None, "valoare_lei": 0.11}]
     assert sda_rules.pick_value(lines, "f") is None
+
+
+def test_pick_value_distinguishes_reusable_from_single_use():
+    lines = [
+        {"categorie": "a", "metoda": None, "reutilizabil": "D", "valoare_lei": 0.50},
+        {"categorie": "a", "metoda": None, "reutilizabil": "N", "valoare_lei": 0.11},
+    ]
+    assert sda_rules.pick_value(lines, "a", reutilizabil="D") == 0.50
+    assert sda_rules.pick_value(lines, "a", reutilizabil="N") == 0.11
+
+
+def test_pick_value_without_reutilizabil_does_not_match_a_specific_line():
+    lines = [{"categorie": "a", "metoda": None, "reutilizabil": "D", "valoare_lei": 0.50}]
+    assert sda_rules.pick_value(lines, "a") is None
+
+
+def test_pick_value_null_reutilizabil_line_matches_either_caller_value():
+    lines = [{"categorie": "a", "metoda": None, "reutilizabil": None, "valoare_lei": 0.20}]
+    assert sda_rules.pick_value(lines, "a", reutilizabil="D") == 0.20
+    assert sda_rules.pick_value(lines, "a", reutilizabil="N") == 0.20
+
+
+def test_gap_hidden_by_a_wider_covering_period_is_not_reported():
+    problems = sda_rules.validate_periods([
+        _p(1, "DEPOZIT", date(2027, 1, 1), date(2027, 4, 1)),
+        _p(2, "DEPOZIT", date(2027, 1, 2), date(2027, 1, 3)),
+        _p(3, "DEPOZIT", date(2027, 3, 1), date(2027, 5, 1)),
+    ])
+    assert not any("gol" in p.lower() for p in problems)
+    assert any("suprapun" in p.lower() for p in problems)
