@@ -41,9 +41,11 @@ class SDAController:
 
     @staticmethod
     def get_units(args) -> Dict[str, Any]:
-        partic_id = args.get("partic_id")
-        return SDAStore.list_units(
-            int(partic_id) if partic_id else None, args.get("regim") or None)
+        try:
+            partic_id = _parse_partic_id(args.get("partic_id"))
+        except ValueError as exc:
+            return _fail(str(exc))
+        return SDAStore.list_units(partic_id, args.get("regim") or None)
 
     @staticmethod
     def save_unit(data: Dict[str, Any], username: str) -> Dict[str, Any]:
