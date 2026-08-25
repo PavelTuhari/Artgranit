@@ -61,10 +61,8 @@ class SDAController:
             if raw in (None, ""):
                 continue
             try:
-                as_float = float(raw)
+                int(raw)
             except (TypeError, ValueError):
-                return _fail(f"{label} trebuie sa fie un numar intreg")
-            if as_float != int(as_float):
                 return _fail(f"{label} trebuie sa fie un numar intreg")
         return SDAStore.save_partic(data, username)
 
