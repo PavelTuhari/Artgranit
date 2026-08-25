@@ -214,18 +214,26 @@ class SDAStore:
                 return _fail(message)
             if unit_id is not None and not r.get("rowcount"):
                 return _fail(f"Unitatea {unit_id} nu mai exista")
+            new_id = unit_id
+            if unit_id is None:
+                idr = db.execute_query(
+                    "SELECT SEQ_SDA_UNIT.CURRVAL FROM DUAL")
+                if not idr.get("success") or not idr.get("data"):
+                    return _fail(idr.get("message")
+                                 or "Eroare la citirea id-ului nou creat")
+                new_id = idr["data"][0][0]
             jr = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('UNIT_SAVE', 'SDA_UNIT', "
                 ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": unit_id,
+                {"entitate_id": new_id,
                  "utilizator": username,
                  "detalii": (f"{payload.get('denumire')} -> "
                              f"{regim or 'FARA REGIM'}")[:1000]})
             if not jr.get("success"):
                 return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
             db.connection.commit()
-        return _done({"regim": regim, "regim_motiv": motiv})
+        return _done({"unit_id": new_id, "regim": regim, "regim_motiv": motiv})
 
     @staticmethod
     def reclassify_all(username: str) -> Dict[str, Any]:
