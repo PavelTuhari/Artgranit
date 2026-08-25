@@ -110,6 +110,25 @@ def retry(t, nrmsg):
                                             f"FROM UN9MAIL_MSG WHERE NRMSG={nrmsg}", 5)))
 
 
+def retry_all(t, limit=200):
+    """Догоняет застрявшие письма: по одному, чтобы не ловить HTTP 508."""
+    a = auth(t)
+    proc = f"{t['package']}.SEND_EMAIL_API_PHP"
+    rows = _rows(_call_worker(a, "SELECT NRMSG FROM UN9MAIL_MSG WHERE STATUS=1 "
+                                 f"ORDER BY NRMSG DESC", 60))[:limit]
+    print(f"  к отправке: {len(rows)}")
+    sent = failed = 0
+    for r in rows:
+        nr = r["nrmsg"]
+        _call_worker(a, f"BEGIN {proc}({nr}); END;", 120)
+        st = _rows(_call_worker(a, f"SELECT STATUS FROM UN9MAIL_MSG WHERE NRMSG={nr}", 30))
+        ok = st and st[0]["status"] == 2
+        sent += 1 if ok else 0
+        failed += 0 if ok else 1
+        print(f"    {nr}: {'отправлено' if ok else 'не ушло'}")
+    print(f"  итог: отправлено {sent}, осталось проблемных {failed}")
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     names = list(TARGETS)
