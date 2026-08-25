@@ -31,6 +31,11 @@ _TPL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")
 
 # Три вида рапорта — и ровно три шаблона. Неизвестный вид отклоняется до
 # любого обращения к базе и к сервису рендера.
+# Альбомная ориентация для широких таблиц. Портретный A4 сжимал колонки
+# так, что «Magazin 62 — Cahul» переносился на три строки: документ уходит
+# клиенту и регулятору, читаемость здесь — не косметика.
+LANDSCAPE_KINDS = {"conformitate", "registru"}
+
 REPORT_KINDS = {
     "conformitate": "sda_conformitate.hbs",
     "registru": "sda_registru.hbs",
@@ -62,6 +67,23 @@ TIP_LABEL = {
 }
 
 MATERIAL_LABEL = {"PLASTIC": "Plastic", "STICLA": "Sticlă", "METAL": "Metal"}
+
+# Цвет в базе лежит кодом («TRANSPARENT», «VERDE»): так его сравнивает
+# правило вывода тарифной категории. В документе, который читает клиент и
+# регулятор, капслок неуместен — показываем словом.
+CULOARE_LABEL = {
+    "TRANSPARENT": "Transparent",
+    "ALBASTRU": "Albastru",
+    "VERDE": "Verde",
+    "MARO": "Maro",
+}
+
+
+def _culoare_label(value) -> str:
+    if not value:
+        return ""
+    key = str(value).strip().upper()
+    return CULOARE_LABEL.get(key, str(value).strip().capitalize())
 
 XLSX_MIME = ("application/vnd.openxmlformats-officedocument"
              ".spreadsheetml.sheet")
@@ -193,7 +215,7 @@ class SDAReport:
                 "producator": _txt(p.get("producator")),
                 "material": material,
                 "material_label": MATERIAL_LABEL.get(material, material),
-                "culoare": _txt(p.get("culoare")),
+                "culoare": _culoare_label(p.get("culoare")),
                 "bariera_o2": _da_nu(p.get("bariera_o2")),
                 "reutilizabil": _da_nu(p.get("reutilizabil")),
                 "volum_l": volum,
@@ -328,9 +350,11 @@ class SDAReport:
                         "engine": "handlebars",
                         "recipe": "chrome-pdf",
                         "helpers": helpers,
-                        "chrome": {"format": "A4",
-                                   "marginTop": "10mm", "marginBottom": "12mm",
-                                   "marginLeft": "8mm", "marginRight": "8mm"},
+                        "chrome": dict(
+                            {"format": "A4",
+                             "marginTop": "10mm", "marginBottom": "12mm",
+                             "marginLeft": "8mm", "marginRight": "8mm"},
+                            **({"landscape": True} if kind in LANDSCAPE_KINDS else {})),
                     },
                     "data": prepared["data"],
                 },

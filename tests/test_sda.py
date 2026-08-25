@@ -2047,3 +2047,33 @@ def test_console_offers_pdf_and_excel_on_both_panels_and_per_participant():
         assert call in html, call
     assert "downloadReport('dosar', 'pdf'" in html
     assert "downloadReport('dosar', 'xlsx'" in html
+
+
+def test_registru_report_shows_colours_as_words_not_codes():
+    """Цвет хранится кодом ради правила категории, но документ читают люди.
+
+    В первом живом рендере в колонке «Culoare» стояло «TRANSPARENT» и
+    «VERDE» капслоком — это машинный код, а не текст для регулятора.
+    """
+    from modules.sda import report as sda_report
+    assert sda_report._culoare_label("TRANSPARENT") == "Transparent"
+    assert sda_report._culoare_label("VERDE") == "Verde"
+    assert sda_report._culoare_label("albastru") == "Albastru"
+    assert sda_report._culoare_label(None) == ""
+    # Незнакомый код не должен теряться — показываем как есть, с заглавной.
+    assert sda_report._culoare_label("BEJ") == "Bej"
+
+
+def test_wide_reports_are_rendered_in_landscape():
+    """Портретный A4 сжимал колонки так, что адрес переносился на три строки.
+
+    Ориентацию задаёт chrome; @page с фиксированным size в шаблоне
+    перебивал её и молча возвращал портрет — поэтому проверяем и шаблоны.
+    """
+    from modules.sda import report as sda_report
+    assert sda_report.LANDSCAPE_KINDS == {"conformitate", "registru"}
+    for name in ("sda_conformitate.hbs", "sda_registru.hbs"):
+        with open(os.path.join(ROOT, "modules", "sda", "reports", name),
+                  encoding="utf-8") as fh:
+            tpl = fh.read()
+        assert "size: A4" not in tpl, name

@@ -156,7 +156,10 @@ def seed():
         for unit_id, den in units["data"]:
             _q(db, "INSERT INTO SDA_RETURN_POINT (UNIT_ID, TIP, ADRESA, DISTANTA_M, "
                    "ORAR, ACTIV_DIN) VALUES (:u, 'AUTOMAT', :a, 0, '08:00-21:00', :d)",
-               {"u": unit_id, "a": den, "d": date(2026, 12, 1)})
+               # Дата начала — в прошлом: досье считает только действующие
+               # пункты (ACTIV_DIN <= дата отчёта), и с будущей датой блок 4
+               # выглядел бы пустым, хотя пункты заведены.
+               {"u": unit_id, "a": den, "d": date(2026, 8, 1)})
             print(f"  punct de returnare (automat): {den}")
         db.connection.commit()
 
