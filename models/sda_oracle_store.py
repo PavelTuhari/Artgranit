@@ -84,7 +84,10 @@ class SDAStore:
             "estimare_an": _num("estimare_an"),
         }
 
-        if payload.get("partic_id") is not None:
+        partic_id = payload.get("partic_id")
+        has_id = partic_id not in (None, "")
+
+        if has_id:
             sql = ("UPDATE SDA_PARTIC SET IDNO = :idno, DENUMIRE = :denumire, "
                    "NR_CONTRACT = :nr_contract, CONTACT_NUME = :contact_nume, "
                    "CONTACT_TEL = :contact_tel, CONTACT_EMAIL = :contact_email, "
@@ -103,16 +106,19 @@ class SDAStore:
             if not r.get("success"):
                 return _fail(r.get("message")
                              or "Eroare la salvarea participantului")
-            if payload.get("partic_id") is not None and not r.get("rowcount"):
+            if has_id and not r.get("rowcount"):
                 return _fail(
-                    f"Participantul {payload.get('partic_id')} nu mai exista")
-            db.execute_query(
+                    f"Participantul {partic_id} nu mai exista")
+            jr = db.execute_query(
                 "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
                 "UTILIZATOR, DETALII) VALUES ('PARTIC_SAVE', 'SDA_PARTIC', "
                 ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": payload.get("partic_id"),
+                {"entitate_id": partic_id,
                  "utilizator": username,
-                 "detalii": f"{params['idno']} {params['denumire']}"})
+                 "detalii": (f"{params['idno']} {params['denumire']}")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message")
+                             or "Eroare la scrierea in jurnal")
             db.connection.commit()
         return _done({"idno": params["idno"], "denumire": params["denumire"]})
 
