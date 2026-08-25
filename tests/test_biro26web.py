@@ -648,3 +648,23 @@ def test_broken_period_setting_is_refused(monkeypatch):
     monkeypatch.setattr(writer, "work_period", lambda: ("2026-12-31", "2026-01-01"))
     with pytest.raises(writer.WriteRefused):
         writer.session_prelude()
+
+
+def test_satellite_row_is_updated_not_inserted(period):
+    """Строку TMDB_DOCS_ADD заводит учётная система, а не мы.
+
+    TRIG_AFTINS_TMDB_DOCS2 вставляет её сразу после заголовка. Наша вторая
+    вставка ломалась об ORA-00001, и документ не создавался вовсе —
+    транзакция одна. Примечание дописывается правкой готовой строки.
+    """
+    db = _db([_ok(["COD"], [[1]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        writer.create_document(60001, "2026-08-25", comment="проверка")
+
+    statements = db.execute_script.call_args[0][0]
+    satellite = [s for s in statements if "TMDB_DOCS_ADD" in s["sql"]]
+    assert len(satellite) == 1
+    assert satellite[0]["sql"].startswith("UPDATE TMDB_DOCS_ADD")
+    assert "INSERT INTO TMDB_DOCS_ADD" not in " ".join(s["sql"] for s in statements)
