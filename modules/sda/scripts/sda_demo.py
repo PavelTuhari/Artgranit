@@ -194,7 +194,10 @@ PACKS = [
 # și automată — costul de procesare diferă după metodă.
 
 TARIFFS = [
-    ("DEPOZIT", date(2026, 9, 1), date(2027, 1, 24),
+    # Начало пилота — в прошлом, иначе на дашборде «тариф депозита
+    # сегодня» пусто, и демонстрация показывает не работу системы,
+    # а её отсутствие.
+    ("DEPOZIT", date(2026, 6, 1), date(2027, 1, 24),
      "Perioadă-pilot a rețelei (valoare demonstrativă, legea nu a fixat-o încă)",
      [("*", None, None, 0.5)]),
     ("DEPOZIT", date(2027, 1, 25), None,

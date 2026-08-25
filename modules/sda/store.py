@@ -10,7 +10,7 @@
 """
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from models.database import DatabaseModel
@@ -22,6 +22,19 @@ def _rows(r: Dict[str, Any]) -> List[Dict[str, Any]]:
         return []
     cols = [c.lower() for c in r["columns"]]
     return [dict(zip(cols, row)) for row in r["data"]]
+
+
+def _as_date(value):
+    """DATE из Oracle приходит как datetime — сравнивать с date нельзя.
+
+    Живой прогон уронил дашборд на `TypeError: can't compare datetime.datetime
+    to datetime.date`: в тестах даты подставлялись мокой как `date`, и разница
+    не проявлялась. Все колонки периодов здесь дневной точности, время в них
+    несёт ноль информации, поэтому приводим к `date` на границе слоя.
+    """
+    if isinstance(value, datetime):
+        return value.date()
+    return value
 
 
 def _fail(message: str) -> Dict[str, Any]:
@@ -628,6 +641,9 @@ class SDAStore:
                 return _fail(tp.get("message") or "Eroare la citirea tarifelor")
             tariff_rows = _rows(tp)
 
+            for t in tariff_rows:
+                t["data_start"] = _as_date(t["data_start"])
+                t["data_end"] = _as_date(t["data_end"])
             periods = [{"tariff_id": t["tariff_id"], "tip": t["tip"],
                        "data_start": t["data_start"], "data_end": t["data_end"]}
                       for t in tariff_rows]
@@ -650,8 +666,13 @@ class SDAStore:
                 deposit_state = {
                     "valoare_lei": (float(lines[0]["valoare_lei"])
                                    if lines else None),
-                    "data_start": deposit_match["data_start"],
-                    "data_end": deposit_match["data_end"],
+                    # ISO-строки, а не объекты: Flask сериализует date в
+                    # HTTP-формат («Mon, 01 Jun 2026 00:00:00 GMT»), и он
+                    # так и выводился на дашборде.
+                    "data_start": (deposit_match["data_start"].isoformat()
+                                   if deposit_match["data_start"] else None),
+                    "data_end": (deposit_match["data_end"].isoformat()
+                                 if deposit_match["data_end"] else None),
                 }
 
             pp = db.execute_query(

@@ -421,6 +421,15 @@ function downloadReport(kind, ext, params) {
     window.location.href = reportUrl(kind, ext, params);
 }
 
+// Дата приходит строкой ISO (YYYY-MM-DD). Показываем её так, как её
+// пишут в Молдове: 01.06.2026. Раньше сюда попадал объект даты, и Flask
+// отдавал HTTP-формат «Mon, 01 Jun 2026 00:00:00 GMT».
+function roDate(iso) {
+  if (!iso) return '';
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso);
+}
+
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -506,7 +515,7 @@ async function loadDashboard() {
   const dep = d.tariff_state.deposit;
   tState.innerHTML = dep
     ? `<div class="db-tariff-row"><span>Depozit în vigoare azi</span><b>${dep.valoare_lei} lei</b></div>
-       <div class="db-tariff-row"><span>Perioadă</span><span>${esc(dep.data_start)} — ${esc(dep.data_end || 'nedeterminat')}</span></div>`
+       <div class="db-tariff-row"><span>Perioadă</span><span>${esc(roDate(dep.data_start))} — ${esc(dep.data_end ? roDate(dep.data_end) : 'nedeterminat')}</span></div>`
     : '<div class="db-tariff-missing">Niciun tarif de depozit nu acoperă data de azi</div>';
   const probEl = document.getElementById('dbTariffProblems');
   probEl.innerHTML = d.tariff_state.period_problems.length

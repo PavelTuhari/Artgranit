@@ -2161,3 +2161,36 @@ def test_app_requires_authentication_on_the_dashboard_route():
     resp = client.get("/UNA.md/orasldev/sda/api/dashboard")
     assert resp.status_code == 401
     assert resp.get_json()["success"] is False
+
+
+def test_dashboard_returns_tariff_dates_as_iso_strings():
+    """Flask сериализует date в HTTP-формат, и он попадал на экран.
+
+    На дашборде стояло «PerioadăMon, 01 Jun 2026 00:00:00 GMT» — объект
+    даты, отданный как есть. Слой отдаёт ISO, а страница печатает 01.06.2026.
+    """
+    from datetime import datetime as _dt
+    from modules.sda.store import SDAStore
+    # Oracle отдаёт DATE как datetime — как в живой базе, не как в моке.
+    db = _db_returning(
+        _ok(["REGIM", "N"], [["A_PUNCT_PROPRIU", 1]]),
+        _ok(["UNIT_ID", "DENUMIRE"], []),
+        _ok(["UNIT_ID"], []),
+        _ok(["MATERIAL", "N"], []),
+        _ok(["CAT_ADMIN", "N"], []),
+        _ok(["TARIFF_ID", "TIP", "DATA_START", "DATA_END"],
+            [[1, "DEPOZIT", _dt(2026, 6, 1), _dt(2027, 1, 24)]]),
+        _ok(["VALOARE_LEI"], [[0.5]]),
+        _ok(["PARTIC_ID", "DENUMIRE"], []),
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.dashboard()
+    dep = res["data"]["tariff_state"]["deposit"]
+    assert dep["data_start"] == "2026-06-01"
+    assert dep["data_end"] == "2027-01-24"
+
+
+def test_console_formats_dates_the_romanian_way():
+    html = _template("sda.html")
+    assert "function roDate(" in html
+    assert "roDate(dep.data_start)" in html
