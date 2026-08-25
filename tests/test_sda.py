@@ -1192,11 +1192,18 @@ def test_empty_string_partic_id_is_treated_as_absent():
 #    intrarea de jurnal pe ACEEASI conexiune, inainte de commit-ul lotului.
 
 def test_log_reports_failure_instead_of_returning_none():
+    # SDAStore.log() a fost cod mort (l-am sters): singurul apelant era
+    # aceasta suita de teste. Reancoram acelasi comportament — o scriere in
+    # jurnal esuata trebuie raportata, nu inghitita — prin save_partic,
+    # calea reala prin care apare o intrare de jurnal.
     from models.sda_oracle_store import SDAStore
-    db = _db_returning({"success": False, "columns": [], "data": [],
-                        "rowcount": 0, "message": "ORA-00001"})
+    db = _db_returning(
+        _ok([], [], rowcount=1), _currval(),
+        {"success": False, "columns": [], "data": [],
+         "rowcount": 0, "message": "ORA-00001"})
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
-        res = SDAStore.log("TEST", "SDA_UNIT", 1, "detalii", "tester")
+        res = SDAStore.save_partic(
+            {"idno": "1003600000000", "denumire": "Rogob SRL"}, "tester")
     assert res["success"] is False
     assert "ORA-00001" in res["message"]
     db.connection.commit.assert_not_called()
