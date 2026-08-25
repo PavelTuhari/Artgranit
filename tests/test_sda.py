@@ -686,6 +686,14 @@ def _template(name):
         return fh.read()
 
 
+def test_console_template_has_no_hardcoded_mount_point():
+    # The module must not assume where it's mounted: the API base is built
+    # server-side via url_for() into data-api-base on <body>, not baked
+    # into the JS as a literal '/UNA.md/orasldev/...' string.
+    html = _template("sda.html")
+    assert "/UNA.md/orasldev" not in html
+
+
 def test_console_template_declares_the_three_panels():
     html = _template("sda.html")
     for panel in ("panel-harta", "panel-retea", "panel-registru"):
