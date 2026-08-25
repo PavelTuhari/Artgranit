@@ -529,7 +529,9 @@ async function savePack(ev) {
 let PARTIC = [];
 
 async function fetchPartic() {
-    const r = await fetch('/api/sda/partic').then(x => x.json());
+    const resp = await fetch('/api/sda/partic');
+    if (resp.status === 401) { window.location.href = '/login'; return []; }
+    const r = await resp.json();
     if (!r.success) { showError(r.message); return []; }
     PARTIC = r.data || [];
     return PARTIC;
