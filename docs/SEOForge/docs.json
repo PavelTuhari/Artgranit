@@ -1,20 +1,42 @@
 {
   "README.md": {
-    "slug": "readme", "public": true, "icon": "🚀", "cls": "g", "order": 10,
+    "slug": "readme",
+    "public": true,
+    "icon": "🚀",
+    "cls": "g",
+    "order": 10,
     "title": "Модуль SEOForge",
     "audience": "для маркетолога и владельца сайтов",
     "descr": "Что делает модуль, какие экраны в него вошли и что отложено, как установить контур YSEO_* и как переключается режим контроля бюджета."
   },
   "DATA_MODEL.md": {
-    "slug": "data-model", "public": false, "icon": "⚙", "cls": "", "order": 20,
+    "slug": "data-model",
+    "public": false,
+    "icon": "⚙",
+    "cls": "",
+    "order": 20,
     "title": "Модель данных",
     "audience": "для разработчиков",
     "descr": "Таблицы, вьюшки и пакеты контура, отличия от ТЗ платформы, инварианты, которые держит база, и почему триггер контроля бюджета сделан compound."
   },
   "CSV_FORMAT.md": {
-    "slug": "csv-format", "public": true, "icon": "📄", "cls": "v", "order": 30,
+    "slug": "csv-format",
+    "public": true,
+    "icon": "📄",
+    "cls": "v",
+    "order": 30,
     "title": "Формат импорта CSV",
     "audience": "для того, кто грузит выгрузки кабинетов",
     "descr": "Колонки файлов расходов и метрик, правила дедупликации по EXT_ID, двухшаговый импорт с предпросмотром и разбор частых ошибок."
+  },
+  "UNA_INTERFACE.md": {
+    "slug": "una-interface",
+    "public": false,
+    "icon": "🔍",
+    "cls": "c",
+    "order": 25,
+    "title": "Интерфейс UNA: что проверено в базе",
+    "audience": "для разработчиков куска C",
+    "descr": "Сверка предположений ТЗ с боевой схемой OFFICEPLUS: выдача TMDB_DOCS.COD, фактический состав TMDB_DOCS_ADD и TMDB_DOCS_LOG, реальный смысл DOCCOLOR, подтверждённый интерфейс UN$GFC и то, что осталось решением владельца учёта."
   }
 }

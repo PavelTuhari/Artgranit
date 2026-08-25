@@ -805,3 +805,15 @@ def test_compound_trigger_has_no_return_statement():
     ddl = _sql("113_yseo_tables.sql").upper()
     block = ddl.split("CREATE OR REPLACE TRIGGER TRG_YSEO_SPEND_BUDGET")[1]
     assert not re.search(r"\bRETURN\s*;", block)
+
+
+def test_una_interface_doc_records_the_verified_facts():
+    # Документ заменяет таблицу предположений ТЗ: если он потеряет
+    # проверенные имена объектов, кусок C снова поедет на догадках.
+    with open(os.path.join(ROOT, "docs", "SEOForge", "UNA_INTERFACE.md"),
+              encoding="utf-8") as fh:
+        text = fh.read()
+    for fact in ("ID_TMDB_DOCS.NEXTVAL", "TRIG_BFINS_TMDB_DOCS",
+                 "TMDB_DOCS_TRLOG", "TRG_DOCS_COLOR", "PARAM_USERID",
+                 "setDoc_GFC", "setDoc_Correct", "YSEO_XREF"):
+        assert fact in text, fact
