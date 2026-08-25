@@ -19,6 +19,21 @@ def _fail(message: str) -> Dict[str, Any]:
     return {"success": False, "data": None, "message": message}
 
 
+def _parse_partic_id(raw: Any) -> int:
+    """Разбирает query-параметр ``partic_id``.
+
+    Пустое значение (None/"") означает "без фильтра" и возвращает None.
+    Нечисловое значение — ошибка формы, поднимается как ValueError с
+    понятным сообщением, которое вызывающая сторона оборачивает в _fail().
+    """
+    if raw in (None, ""):
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("Parametrul partic_id trebuie sa fie un numar intreg")
+
+
 class SDAController:
     """Тонкий слой между Flask и SDAStore."""
 
