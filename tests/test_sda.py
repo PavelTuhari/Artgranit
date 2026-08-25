@@ -344,7 +344,7 @@ def test_saving_a_unit_recomputes_its_regime():
 
 def test_saving_a_unit_without_surface_leaves_the_regime_empty():
     from models.sda_oracle_store import SDAStore
-    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    db = _db_returning(_ok([], [], rowcount=1), _currval(), _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
         SDAStore.save_unit({"partic_id": 1, "denumire": "X",
                             "tip_amplasament": "MAGAZIN"}, "tester")
