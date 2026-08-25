@@ -2,7 +2,8 @@
 
 > Modul al platformei Artgranit / BIRO26 pentru conformarea la Sistemul de
 > Depozit pentru Ambalaje. Prefix Oracle **`SDA_`**, rute sub
-> `/UNA.md/orasldev/sda-*`.
+> `/UNA.md/orasldev/sda` (modul autonom în arhitectura de module izolate,
+> `docs/CORE_MODULES.md` — pachetul `modules/sda/`).
 > Referințele „pct. N" trimit la Regulamentul SDA — vezi
 > [sinteza normativă](LEGE_SDA_SINTEZA.md).
 
@@ -196,16 +197,20 @@ autentificare. (Adresele vechi, de dinainte de migrare, erau
 ### 4.2 Rute planificate pentru etapele următoare
 
 Rutele de mai jos **nu există încă** — ele aparțin etapelor 4–8 din § 7 și
-sunt păstrate aici ca plan, nu ca stare a modulului:
+sunt păstrate aici ca plan, nu ca stare a modulului. După migrarea la
+arhitectura de module izolate, un vecin cu cratimă la nivelul
+`/UNA.md/orasldev/` nu mai e posibil pentru un modul nou — nucleul dă un
+singur prefix `/<cheie>` per blueprint. De aceea planul de mai jos folosește
+căi copil sub `…/sda/`, ca și `console` de mai sus:
 
-| Rută | Conținut | Etapa |
+| Rută (sub `/UNA.md/orasldev/sda/`) | Conținut | Etapa |
 |---|---|---|
-| `…/sda-retur` | chioșcul de returnare: scanare EAN, validare, refuz motivat, emitere tichet | 5 |
-| `…/sda-tichete` | validare și consum de tichet la casă, căutare după cod, istoric | 5 |
-| `…/sda-predari` | predări către centrul logistic, saci și sigilii, confirmări, divergențe | 6 |
-| `…/sda-tarife` | perioade de tarif: depozit, administrare, gestiune | 3 (rest) |
-| `…/sda-decont` | cuvenit vs. încasat, control al termenului de 14 zile | 7 |
-| `…/sda-rapoarte` | evidența pct. 100, dosarul pct. 78, afișajele pct. 84 și 92, exporturi | 8 |
+| `…/sda/retur` | chioșcul de returnare: scanare EAN, validare, refuz motivat, emitere tichet | 5 |
+| `…/sda/tichete` | validare și consum de tichet la casă, căutare după cod, istoric | 5 |
+| `…/sda/predari` | predări către centrul logistic, saci și sigilii, confirmări, divergențe | 6 |
+| `…/sda/tarife` | perioade de tarif: depozit, administrare, gestiune | 3 (rest) |
+| `…/sda/decont` | cuvenit vs. încasat, control al termenului de 14 zile | 7 |
+| `…/sda/rapoarte` | evidența pct. 100, dosarul pct. 78, afișajele pct. 84 și 92, exporturi | 8 |
 
 Chioșcul de returnare reia tiparul `ScaleKiosk` din modulul AGRO: IIFE care
 expune un obiect global, configurat prin constructor, cu selecție de elemente
@@ -270,7 +275,7 @@ Etapa 3 este marcată **parțial** în mod deliberat: schema (`SDA_TARIFF`,
 `sda_rules.pick_value`) există și sunt acoperite de teste, dar nu există nici
 UI, nici API pentru tarife. `validate_periods` este apelată doar din teste, iar
 rândurile de tarif pot fi introduse astăzi exclusiv prin SQL scris de mână.
-Până când apare `…/sda-tarife`, etapa nu poate fi considerată livrată.
+Până când apare `…/sda/tarife`, etapa nu poate fi considerată livrată.
 
 Etapa 1 are valoare de sine stătătoare: produce harta de conformitate și
 dosarul de înregistrare, care sunt necesare indiferent de restul modulului.
