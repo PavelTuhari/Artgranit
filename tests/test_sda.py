@@ -1167,3 +1167,173 @@ def test_empty_string_partic_id_is_treated_as_absent():
     assert res["success"] is True
     sql = db.execute_query.call_args_list[0][0][0]
     assert sql.strip().startswith("INSERT INTO SDA_PARTIC")
+
+
+# -- Third review round: fixes for gate-3 findings ---------------------
+
+# 1. Vezi mai sus (test_app_requires_authentication_on_the_participant_read_route)
+#    — verifica acum comportamentul real prin test_client, nu o felie de sursa.
+
+# 2. log() trebuie sa raporteze esecul, iar reclassify_all trebuie sa scrie
+#    intrarea de jurnal pe ACEEASI conexiune, inainte de commit-ul lotului.
+
+def test_log_reports_failure_instead_of_returning_none():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning({"success": False, "columns": [], "data": [],
+                        "rowcount": 0, "message": "ORA-00001"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.log("TEST", "SDA_UNIT", 1, "detalii", "tester")
+    assert res["success"] is False
+    assert "ORA-00001" in res["message"]
+    db.connection.commit.assert_not_called()
+
+
+def test_reclassify_all_does_not_commit_when_the_journal_insert_fails():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
+            [[7, 500, "MAGAZIN", "B_EXCEPTIE_APL", "vechi"]]),
+        _ok([], [], rowcount=1),
+        {"success": False, "columns": [], "data": [], "rowcount": 0,
+         "message": "ORA-00001"})
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.reclassify_all("tester")
+    assert res["success"] is False
+    assert "ORA-00001" in res["message"]
+    db.connection.commit.assert_not_called()
+
+
+def test_reclassify_all_writes_the_journal_entry_on_the_batch_connection():
+    """Jurnalul se scrie prin acelasi db.execute_query cat timp with-block-ul
+    e deschis, nu printr-o conexiune separata (SDAStore.log)."""
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(
+        _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
+            [[7, 500, "MAGAZIN", "B_EXCEPTIE_APL", "vechi"]]),
+        _ok([], [], rowcount=1),
+        _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db) as dm:
+        res = SDAStore.reclassify_all("tester")
+    assert res["success"] is True
+    # o singura instantiere de DatabaseModel pentru list_units + una pentru
+    # lotul cu update-uri si jurnal: jurnalul nu deschide o a treia.
+    assert dm.call_count == 2
+    journal_sql = db.execute_query.call_args_list[2][0][0]
+    assert "SDA_EVENT_LOG" in journal_sql
+    assert db.connection.commit.call_count == 1
+
+
+# 3. Un dosar de inregistrare nu poate conta un punct de returnare care nu
+#    mai e activ la data de referinta a dosarului.
+
+def test_dossier_ignores_a_return_point_that_has_expired():
+    from models.sda_oracle_store import SDAStore
+    from datetime import date as _date
+    db = _db_returning(
+        _ok(["PARTIC_ID", "IDNO", "DENUMIRE", "CONTACT_NUME", "CONTACT_TEL",
+             "CONTACT_EMAIL", "VANDUT_AN_ANT", "ESTIMARE_AN"],
+            [[1, "1003", "Rogob SRL", "", "", "", None, None]]),
+        _ok(["UNIT_ID", "DENUMIRE", "ADRESA", "SUPRAFATA_MP",
+             "TIP_AMPLASAMENT", "REGIM"],
+            [[1, "Magazin 500mp", "str. X", 500, "MAGAZIN", "A_PUNCT_PROPRIU"]]),
+        # Punctul are ACTIV_PANA in trecut: filtrul din SQL nu l-ar mai
+        # intoarce pe date reale, dar mock-ul nu executa WHERE — il tratam
+        # ca deja-exclus, exact cum ar face Oracle.
+        _ok(["POINT_ID", "UNIT_ID", "ADRESA", "ORAR", "TIP"], []))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.registration_dossier(1, on_date=_date(2026, 1, 1))
+    assert res["data"]["poate_fi_depus"] is False
+    assert res["data"]["punct_preluare"] == []
+
+
+def test_dossier_passes_the_reference_date_as_a_bind_parameter():
+    from models.sda_oracle_store import SDAStore
+    from datetime import date as _date
+    db = _db_returning(
+        _ok(["PARTIC_ID", "IDNO", "DENUMIRE", "CONTACT_NUME", "CONTACT_TEL",
+             "CONTACT_EMAIL", "VANDUT_AN_ANT", "ESTIMARE_AN"],
+            [[1, "1003", "Rogob SRL", "", "", "", None, None]]),
+        _ok(["UNIT_ID", "DENUMIRE", "ADRESA", "SUPRAFATA_MP",
+             "TIP_AMPLASAMENT", "REGIM"], []),
+        _ok(["POINT_ID", "UNIT_ID", "ADRESA", "ORAR", "TIP"], []))
+    ref = _date(2026, 3, 15)
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        SDAStore.registration_dossier(1, on_date=ref)
+    points_call = db.execute_query.call_args_list[2]
+    sql, params = points_call[0]
+    assert "ACTIV_PANA" in sql and "ACTIV_DIN" in sql
+    assert params["d"] == ref
+
+
+# 4. Truncherea la 1000 de caractere trebuie ancorata cu un test, nu doar
+#    presupusa functionala.
+
+def test_log_truncates_an_overlong_detail_before_binding_it():
+    from models.sda_oracle_store import SDAStore
+    long_detail = "x" * 2000
+    db = _db_returning(_ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.log("TEST", "SDA_UNIT", 1, long_detail, "tester")
+    assert res["success"] is True
+    bound = db.execute_query.call_args_list[0][0][1]["detalii"]
+    assert len(bound) == 1000
+
+
+def test_save_partic_truncates_the_journal_detail():
+    from models.sda_oracle_store import SDAStore
+    db = _db_returning(_ok([], [], rowcount=1), _ok([], [], rowcount=1))
+    with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
+        res = SDAStore.save_partic(
+            {"idno": "1003600000000", "denumire": "X" * 2000}, "tester")
+    assert res["success"] is True
+    bound = db.execute_query.call_args_list[1][0][1]["detalii"]
+    assert len(bound) <= 1000
+
+
+# 5. Doua rute noi (units, compliance) trebuie sa ceara autentificare, la
+#    fel ca partic si dossier.
+
+def test_app_requires_authentication_on_the_units_read_route():
+    import app as flask_app
+    client = flask_app.app.test_client()
+    resp = client.get("/api/sda/units")
+    assert resp.status_code == 401
+    assert resp.get_json()["success"] is False
+
+
+def test_app_requires_authentication_on_the_compliance_read_route():
+    import app as flask_app
+    client = flask_app.app.test_client()
+    resp = client.get("/api/sda/compliance")
+    assert resp.status_code == 401
+    assert resp.get_json()["success"] is False
+
+
+def test_app_leaves_packs_and_deposit_open_without_authentication():
+    import app as flask_app
+    client = flask_app.app.test_client()
+    resp = client.get("/api/sda/packs")
+    assert resp.status_code != 401
+    resp = client.get("/api/sda/deposit?ean=0000000000000")
+    assert resp.status_code != 401
+
+
+# 6. models/sda_oracle_store.py:484 foloseste .get(...) ca restul accesarilor,
+#    iar controllerul respinge un float JSON netreg (12.5) la fel ca stringul.
+
+def test_controller_rejects_a_json_float_sales_volume():
+    from controllers.sda_controller import SDAController
+    res = SDAController.save_partic(
+        {"idno": "1", "denumire": "X", "vandut_an_ant": 12.5}, "tester")
+    assert res["success"] is False
+    assert "vandut" in res["message"].lower()
+
+
+def test_controller_accepts_a_json_whole_number_float_sales_volume():
+    from controllers.sda_controller import SDAController
+    from unittest.mock import patch as _patch
+    with _patch("controllers.sda_controller.SDAStore.save_partic",
+                return_value={"success": True, "data": {}, "message": ""}):
+        res = SDAController.save_partic(
+            {"idno": "1", "denumire": "X", "vandut_an_ant": 12.0}, "tester")
+    assert res["success"] is True
