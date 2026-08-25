@@ -126,3 +126,71 @@ def test_deploy_script_installs_the_sda_ddl():
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
     assert '"117_sda_tables.sql"' in src
+
+
+# -- Task 2: pure rules ------------------------------------------------
+
+from models import sda_rules  # noqa: E402
+
+
+def test_small_shop_falls_under_the_exception():
+    regim, motiv = sda_rules.classify_regime(85.0, "MAGAZIN")
+    assert regim == "B_EXCEPTIE_APL"
+    assert "100" in motiv
+
+
+def test_shop_exactly_at_the_threshold_still_falls_under_the_exception():
+    # pct. 93 says "nu depaseste 100 m2" - 100 is inside the exception.
+    regim, _ = sda_rules.classify_regime(100.0, "MAGAZIN")
+    assert regim == "B_EXCEPTIE_APL"
+
+
+def test_large_shop_needs_its_own_return_point():
+    regim, motiv = sda_rules.classify_regime(240.0, "MAGAZIN")
+    assert regim == "A_PUNCT_PROPRIU"
+    assert "240" in motiv
+
+
+def test_kiosk_uses_the_150_threshold():
+    assert sda_rules.classify_regime(140.0, "CHIOSC")[0] == "B_EXCEPTIE_APL"
+    assert sda_rules.classify_regime(160.0, "CHIOSC")[0] == "A_PUNCT_PROPRIU"
+
+
+def test_petrol_station_and_market_stall_use_the_special_threshold():
+    for tip in ("BENZINARIE", "TARABA", "ALIMENTATIE_PUBLICA"):
+        assert sda_rules.classify_regime(149.0, tip)[0] == "B_EXCEPTIE_APL", tip
+
+
+def test_horeca_wins_over_surface():
+    regim, motiv = sda_rules.classify_regime(400.0, "ALIMENTATIE_PUBLICA", is_horeca=True)
+    assert regim == "C_HORECA"
+    assert "HoReCa" in motiv
+
+
+def test_unknown_surface_gives_no_regime_and_says_why():
+    regim, motiv = sda_rules.classify_regime(None, "MAGAZIN")
+    assert regim is None
+    assert "suprafa" in motiv.lower()
+
+
+def test_admin_categories_cover_the_seven_cases():
+    assert sda_rules.admin_category("PLASTIC", "TRANSPARENT", "N", 1.5) == "a"
+    assert sda_rules.admin_category("PLASTIC", "VERDE", "N", 1.5) == "b"
+    assert sda_rules.admin_category("PLASTIC", "ROSU", "N", 1.5) == "c"
+    assert sda_rules.admin_category("PLASTIC", "TRANSPARENT", "D", 1.5) == "d"
+    assert sda_rules.admin_category("METAL", None, "N", 0.33) == "e"
+    assert sda_rules.admin_category("STICLA", None, "N", 0.75) == "f"
+    assert sda_rules.admin_category("STICLA", None, "N", 0.5) == "g"
+
+
+def test_oxygen_barrier_beats_colour():
+    # A barrier moves the packaging to category d whatever its colour.
+    assert sda_rules.admin_category("PLASTIC", "VERDE", "D", 1.0) == "d"
+
+
+def test_gest_categories_split_plastic_at_one_litre_and_glass_at_half():
+    assert sda_rules.gest_category("PLASTIC", 1.0) == "a"
+    assert sda_rules.gest_category("PLASTIC", 1.5) == "b"
+    assert sda_rules.gest_category("METAL", 0.5) == "c"
+    assert sda_rules.gest_category("STICLA", 0.75) == "d"
+    assert sda_rules.gest_category("STICLA", 0.5) == "e"
