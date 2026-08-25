@@ -218,16 +218,27 @@ vizibil în `/UNA.md/orasldev/modules` și în bara laterală; rutele funcționa
 
 ## 7. Etape de implementare
 
-| # | Etapă | Conținut |
-|---|---|---|
-| 1 | Rețea și regimuri | `SDA_PARTIC`, `SDA_UNIT`, calculul regimului, harta de conformitate, dosarul pct. 78 |
-| 2 | Registru | `SDA_PACK`, `SDA_PACK_SKU`, sincronizare, alerte de mapare |
-| 3 | Tarife | perioade versionate, funcțiile de calcul |
-| 4 | Front | linia de depozit la casă și în coș, afișajele pct. 84 și 92 |
-| 5 | Returnare | chioșc, refuzuri motivate, registrul tichetelor |
-| 6 | Logistică | predări, sigilii, confirmări, divergențe |
-| 7 | Financiar | deconturi, controlul termenului de 14 zile |
-| 8 | Raportare | evidența pct. 100, exporturi, jurnal |
+| # | Etapă | Conținut | Stare |
+|---|---|---|---|
+| 1 | Rețea și regimuri | `SDA_PARTIC`, `SDA_UNIT`, calculul regimului, harta de conformitate, dosarul pct. 78 | **Livrat** |
+| 2 | Registru | `SDA_PACK`, `SDA_PACK_SKU`, sincronizare, alerte de mapare | **Livrat** |
+| 3 | Tarife | perioade versionate, funcțiile de calcul | **Livrat** |
+| 4 | Front | linia de depozit la casă și în coș, afișajele pct. 84 și 92 | — |
+| 5 | Returnare | chioșc, refuzuri motivate, registrul tichetelor | — |
+| 6 | Logistică | predări, sigilii, confirmări, divergențe | — |
+| 7 | Financiar | deconturi, controlul termenului de 14 zile | — |
+| 8 | Raportare | evidența pct. 100, exporturi, jurnal | — |
 
 Etapa 1 are valoare de sine stătătoare: produce harta de conformitate și
 dosarul de înregistrare, care sunt necesare indiferent de restul modulului.
+
+Două decizii de arhitectură au fost fixate în etapele 1–3 și rămân
+obligatorii pentru etapele următoare:
+
+1. Tabelele `SDA_*` trăiesc în ADB-ul cloud al platformei Artgranit, nu în
+   ERP-ul clientului. Rețeaua de retail nu capătă un schema propriu — modulul
+   citește și scrie exclusiv în baza platformei, prin `models/sda_oracle_store.py`.
+2. Nomenclatorul OfficePlus este doar-citire, accesat prin `biro26_db`.
+   Modulul SDA nu scrie niciodată în schema OfficePlus/Biro26 — orice
+   corelare cu SKU-uri sau prețuri de acolo este o citire, nu o sincronizare
+   bidirecțională.
