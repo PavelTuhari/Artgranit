@@ -747,6 +747,7 @@ def test_updating_a_missing_participant_is_reported_not_silently_ok():
                                     "denumire": "X"}, "tester")
     assert res["success"] is False
     assert "42" in res["message"]
+    db.connection.commit.assert_not_called()
 
 
 def test_saving_a_participant_with_id_zero_updates_instead_of_inserting():
