@@ -151,6 +151,8 @@ class SDAStore:
         suprafata = float(suprafata) if suprafata not in (None, "") else None
         tip = (payload.get("tip_amplasament") or "MAGAZIN").upper()
         unit_id = payload.get("unit_id")
+        if unit_id == "":
+            unit_id = None
 
         # Признака HoReCa нет отдельной колонкой: он живёт только в REGIM.
         # Если форма его не прислала, при правке существующей точки его
