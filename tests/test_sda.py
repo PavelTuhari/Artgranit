@@ -365,7 +365,7 @@ def test_reclassify_all_keeps_horeca_units_horeca():
     # deci „nimic nu s-a schimbat" înseamnă regim ȘI motiv identice.
     db = _db_returning(
         _ok(["UNIT_ID", "SUPRAFATA_MP", "TIP_AMPLASAMENT", "REGIM", "REGIM_MOTIV"],
-            [[1, 500, "MAGAZIN", "C_HORECA",
+            [[1, 500, "ALIMENTATIE_PUBLICA", "C_HORECA",
               "Unitate HoReCa: predare directa catre Administrator"]]),
         _ok([], [], rowcount=1))
     with patch("models.sda_oracle_store.DatabaseModel", return_value=db):
