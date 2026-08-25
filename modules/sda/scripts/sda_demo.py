@@ -68,64 +68,72 @@ PARTICS = [
 # Trei-patru unități rămân fără suprafață — starea „inventar necesar".
 
 UNITS = [
+    # cod, denumire, adresă, localitate, m², tip_amplasament, is_horeca
+    #
+    # is_horeca e explicit, nu dedus din tip: o unitate ALIMENTATIE_PUBLICA
+    # poate fi fie predare directă (HoReCa), fie clasificată după prag ca
+    # oricare alt tip din grupul special — de-asta pragul de 150/150,1 m²
+    # trebuie testat și pentru acest tip, nu doar pentru CHIOSC/TARABA.
+    #
     # Chișinău
-    ("R-012", "Magazin 12 — Botanica",        "bd. Dacia 45",              "Chișinău",  78.0,  "MAGAZIN"),
-    ("R-031", "Magazin 31 — Rîșcani",         "str. Kiev 12",              "Chișinău",  94.5,  "MAGAZIN"),
-    ("R-044", "Magazin 44 — Centru",          "str. Columna 104",          "Chișinău", 100.0,  "MAGAZIN"),
-    ("R-045", "Magazin 45 — Buiucani",        "str. Alba Iulia 90",        "Chișinău", 100.1,  "MAGAZIN"),
-    ("R-101", "Supermarket Ciocana",          "bd. Mircea cel Bătrân 8",   "Chișinău", 460.0,  "MAGAZIN"),
-    ("R-102", "Supermarket Poșta Veche",      "str. Calea Ieșilor 3",      "Chișinău", 610.0,  "MAGAZIN"),
-    ("R-210", "Chioșc Piața Centrală",        "Piața Centrală, rând 4",    "Chișinău",  22.0,  "CHIOSC"),
-    ("R-212", "Chioșc Sculeni",               "str. Sculeni 15",           "Chișinău", 150.0,  "CHIOSC"),
-    ("R-213", "Chioșc Ciocana Nouă",          "str. Mesager 9",            "Chișinău", 150.1,  "CHIOSC"),
-    ("R-305", "Benzinărie Chișinău Vest",     "șos. Hîncești 122",         "Chișinău", 149.5,  "BENZINARIE"),
-    ("R-500", "Grill Cafe Centru",            "str. Pușkin 24",            "Chișinău",  85.0,  "ALIMENTATIE_PUBLICA"),
-    ("R-501", "Grill Cafe Ciocana",           "bd. Mircea cel Bătrân 8",   "Chișinău",  60.0,  "ALIMENTATIE_PUBLICA"),
-    ("R-502", "Trattoria Centru",             "str. Ismail 33",            "Chișinău", 180.0,  "ALIMENTATIE_PUBLICA"),
-    ("R-604", "Magazin 64 — Telecentru",      "str. N. Costin 14",         "Chișinău",  None,  "MAGAZIN"),
+    ("R-012", "Magazin 12 — Botanica",        "bd. Dacia 45",              "Chișinău",  78.0,  "MAGAZIN", False),
+    ("R-031", "Magazin 31 — Rîșcani",         "str. Kiev 12",              "Chișinău",  94.5,  "MAGAZIN", False),
+    ("R-044", "Magazin 44 — Centru",          "str. Columna 104",          "Chișinău", 100.0,  "MAGAZIN", False),
+    ("R-045", "Magazin 45 — Buiucani",        "str. Alba Iulia 90",        "Chișinău", 100.1,  "MAGAZIN", False),
+    ("R-101", "Supermarket Ciocana",          "bd. Mircea cel Bătrân 8",   "Chișinău", 460.0,  "MAGAZIN", False),
+    ("R-102", "Supermarket Poșta Veche",      "str. Calea Ieșilor 3",      "Chișinău", 610.0,  "MAGAZIN", False),
+    ("R-210", "Chioșc Piața Centrală",        "Piața Centrală, rând 4",    "Chișinău",  22.0,  "CHIOSC", False),
+    ("R-212", "Chioșc Sculeni",               "str. Sculeni 15",           "Chișinău", 150.0,  "CHIOSC", False),
+    ("R-213", "Chioșc Ciocana Nouă",          "str. Mesager 9",            "Chișinău", 150.1,  "CHIOSC", False),
+    ("R-305", "Benzinărie Chișinău Vest",     "șos. Hîncești 122",         "Chișinău", 149.5,  "BENZINARIE", False),
+    ("R-500", "Grill Cafe Centru",            "str. Pușkin 24",            "Chișinău",  85.0,  "ALIMENTATIE_PUBLICA", True),
+    ("R-501", "Grill Cafe Ciocana",           "bd. Mircea cel Bătrân 8",   "Chișinău",  60.0,  "ALIMENTATIE_PUBLICA", True),
+    ("R-502", "Trattoria Centru",             "str. Ismail 33",            "Chișinău", 150.0,  "ALIMENTATIE_PUBLICA", False),
+    ("R-507", "Restaurant Ismail",            "str. Ismail 40",            "Chișinău", 150.1,  "ALIMENTATIE_PUBLICA", False),
+    ("R-604", "Magazin 64 — Telecentru",      "str. N. Costin 14",         "Chișinău",  None,  "MAGAZIN", False),
     # Bălți
-    ("R-103", "Supermarket Bălți Centru",     "str. Ștefan cel Mare 21",   "Bălți",    312.0,  "MAGAZIN"),
-    ("R-104", "Magazin Bălți Nord",           "str. Decebal 5",            "Bălți",     88.0,  "MAGAZIN"),
-    ("R-214", "Taraba Piața Bălți",           "Piața orașului, rând 2",    "Bălți",     18.0,  "TARABA"),
-    ("R-306", "Benzinărie Bălți Est",         "str. Chișinăului 40",       "Bălți",    138.0,  "BENZINARIE"),
+    ("R-103", "Supermarket Bălți Centru",     "str. Ștefan cel Mare 21",   "Bălți",    312.0,  "MAGAZIN", False),
+    ("R-104", "Magazin Bălți Nord",           "str. Decebal 5",            "Bălți",     88.0,  "MAGAZIN", False),
+    ("R-214", "Taraba Piața Bălți",           "Piața orașului, rând 2",    "Bălți",     18.0,  "TARABA", False),
+    ("R-306", "Benzinărie Bălți Est",         "str. Chișinăului 40",       "Bălți",    138.0,  "BENZINARIE", False),
     # Cahul
-    ("R-602", "Magazin 62 — Cahul",           "str. Independenței 7",      "Cahul",     None,  "MAGAZIN"),
-    ("R-105", "Supermarket Cahul",            "str. Ștefan cel Mare 60",   "Cahul",    255.0,  "MAGAZIN"),
-    ("R-503", "Fast-food Cahul",              "str. Victoriei 12",         "Cahul",     72.0,  "ALIMENTATIE_PUBLICA"),
+    ("R-602", "Magazin 62 — Cahul",           "str. Independenței 7",      "Cahul",     None,  "MAGAZIN", False),
+    ("R-105", "Supermarket Cahul",            "str. Ștefan cel Mare 60",   "Cahul",    255.0,  "MAGAZIN", False),
+    ("R-503", "Fast-food Cahul",              "str. Victoriei 12",         "Cahul",     72.0,  "ALIMENTATIE_PUBLICA", True),
     # Orhei
-    ("R-307", "Benzinărie Orhei",             "șos. Chișinăului 3",        "Orhei",    140.0,  "BENZINARIE"),
-    ("R-046", "Magazin Orhei Centru",         "str. Vasile Mahu 8",        "Orhei",     65.0,  "MAGAZIN"),
+    ("R-307", "Benzinărie Orhei",             "șos. Chișinăului 3",        "Orhei",    140.0,  "BENZINARIE", False),
+    ("R-046", "Magazin Orhei Centru",         "str. Vasile Mahu 8",        "Orhei",     65.0,  "MAGAZIN", False),
     # Ungheni
-    ("R-211", "Taraba Piața Ungheni",         "Piața orașului",            "Ungheni",   16.0,  "TARABA"),
-    ("R-106", "Magazin Ungheni Gară",         "str. Națională 2",          "Ungheni",  190.0,  "MAGAZIN"),
+    ("R-211", "Taraba Piața Ungheni",         "Piața orașului",            "Ungheni",   16.0,  "TARABA", False),
+    ("R-106", "Magazin Ungheni Gară",         "str. Națională 2",          "Ungheni",  190.0,  "MAGAZIN", False),
     # Soroca
-    ("R-603", "Magazin 63 — Soroca",          "str. Ștefan cel Mare 5",    "Soroca",    None,  "MAGAZIN"),
-    ("R-107", "Magazin Soroca Centru",        "str. Independenței 20",     "Soroca",   210.0,  "MAGAZIN"),
+    ("R-603", "Magazin 63 — Soroca",          "str. Ștefan cel Mare 5",    "Soroca",    None,  "MAGAZIN", False),
+    ("R-107", "Magazin Soroca Centru",        "str. Independenței 20",     "Soroca",   210.0,  "MAGAZIN", False),
     # Comrat
-    ("R-108", "Supermarket Comrat",           "str. Lenin 44",             "Comrat",   330.0,  "MAGAZIN"),
-    ("R-215", "Chioșc Comrat",                "str. Pobeda 11",            "Comrat",    30.0,  "CHIOSC"),
+    ("R-108", "Supermarket Comrat",           "str. Lenin 44",             "Comrat",   330.0,  "MAGAZIN", False),
+    ("R-215", "Chioșc Comrat",                "str. Pobeda 11",            "Comrat",    30.0,  "CHIOSC", False),
     # Edineț
-    ("R-109", "Magazin Edineț Centru",        "str. Independenței 33",     "Edineț",   150.0,  "MAGAZIN"),
-    ("R-504", "Cafenea Edineț",               "str. 31 August 6",          "Edineț",    95.0,  "ALIMENTATIE_PUBLICA"),
+    ("R-109", "Magazin Edineț Centru",        "str. Independenței 33",     "Edineț",   150.0,  "MAGAZIN", False),
+    ("R-504", "Cafenea Edineț",               "str. 31 August 6",          "Edineț",    95.0,  "ALIMENTATIE_PUBLICA", True),
     # Hîncești
-    ("R-110", "Magazin Hîncești Centru",      "str. Mihalcea Hîncu 15",    "Hîncești", 175.0,  "MAGAZIN"),
-    ("R-308", "Benzinărie Hîncești",          "șos. Chișinăului 1",        "Hîncești", 151.0,  "BENZINARIE"),
+    ("R-110", "Magazin Hîncești Centru",      "str. Mihalcea Hîncu 15",    "Hîncești", 175.0,  "MAGAZIN", False),
+    ("R-308", "Benzinărie Hîncești",          "șos. Chișinăului 1",        "Hîncești", 151.0,  "BENZINARIE", False),
     # Căușeni
-    ("R-111", "Magazin Căușeni Centru",       "str. Mateevici 9",          "Căușeni",   82.0,  "MAGAZIN"),
-    ("R-216", "Taraba Piața Căușeni",         "Piața orașului",            "Căușeni",   14.0,  "TARABA"),
+    ("R-111", "Magazin Căușeni Centru",       "str. Mateevici 9",          "Căușeni",   82.0,  "MAGAZIN", False),
+    ("R-216", "Taraba Piața Căușeni",         "Piața orașului",            "Căușeni",   14.0,  "TARABA", False),
     # Strășeni
-    ("R-112", "Supermarket Strășeni",         "str. Mihai Eminescu 18",    "Strășeni", 240.0,  "MAGAZIN"),
-    ("R-505", "Restaurant Strășeni",          "str. 31 August 40",         "Strășeni", 160.0,  "ALIMENTATIE_PUBLICA"),
+    ("R-112", "Supermarket Strășeni",         "str. Mihai Eminescu 18",    "Strășeni", 240.0,  "MAGAZIN", False),
+    ("R-505", "Restaurant Strășeni",          "str. 31 August 40",         "Strășeni", 160.0,  "ALIMENTATIE_PUBLICA", False),
     # Drochia
-    ("R-113", "Magazin Drochia Centru",       "str. 1 Mai 3",              "Drochia",  120.0,  "MAGAZIN"),
-    ("R-309", "Benzinărie Drochia",           "șos. Bălțiului 5",          "Drochia",  145.0,  "BENZINARIE"),
+    ("R-113", "Magazin Drochia Centru",       "str. 1 Mai 3",              "Drochia",  120.0,  "MAGAZIN", False),
+    ("R-309", "Benzinărie Drochia",           "șos. Bălțiului 5",          "Drochia",  145.0,  "BENZINARIE", False),
     # Alte 6 pentru volum (mix de tipuri, fără puncte de returnare proprii)
-    ("R-114", "Magazin Chișinău Râșcani 2",   "str. Alecu Russo 15",       "Chișinău",  91.0,  "MAGAZIN"),
-    ("R-115", "Magazin Bălți Sud",            "str. Bulgară 7",            "Bălți",     70.0,  "MAGAZIN"),
-    ("R-217", "Chioșc Orhei",                 "str. Vasile Mahu 20",       "Orhei",     45.0,  "CHIOSC"),
-    ("R-310", "Benzinărie Ungheni",           "șos. Națională 40",         "Ungheni",  132.0,  "BENZINARIE"),
-    ("R-506", "Bistro Comrat",                "str. Lenin 60",             "Comrat",    68.0,  "ALIMENTATIE_PUBLICA"),
-    ("R-605", "Magazin 65 — Strășeni",        "str. Ștefan cel Mare 2",    "Strășeni",  None,  "MAGAZIN"),
+    ("R-114", "Magazin Chișinău Râșcani 2",   "str. Alecu Russo 15",       "Chișinău",  91.0,  "MAGAZIN", False),
+    ("R-115", "Magazin Bălți Sud",            "str. Bulgară 7",            "Bălți",     70.0,  "MAGAZIN", False),
+    ("R-217", "Chioșc Orhei",                 "str. Vasile Mahu 20",       "Orhei",     45.0,  "CHIOSC", False),
+    ("R-310", "Benzinărie Ungheni",           "șos. Națională 40",         "Ungheni",  132.0,  "BENZINARIE", False),
+    ("R-506", "Bistro Comrat",                "str. Lenin 60",             "Comrat",    68.0,  "ALIMENTATIE_PUBLICA", True),
+    ("R-605", "Magazin 65 — Strășeni",        "str. Ștefan cel Mare 2",    "Strășeni",  None,  "MAGAZIN", False),
 ]
 
 # ── Registrul ambalajelor SD ─────────────────────────────────────────────
@@ -252,12 +260,12 @@ def seed():
     main_partic_id = partic_ids[0]
 
     unit_ids = {}
-    for cod, den, adr, loc, mp, tip in UNITS:
+    for cod, den, adr, loc, mp, tip, is_horeca in UNITS:
         r = SDAStore.save_unit({
             "partic_id": main_partic_id, "cod_erp": cod, "denumire": den,
             "adresa": adr, "localitate": loc, "suprafata_mp": mp,
             "tip_amplasament": tip,
-            "is_horeca": tip == "ALIMENTATIE_PUBLICA",
+            "is_horeca": is_horeca,
         }, USER)
         if not r["success"]:
             raise SystemExit(f"{den}: {r['message']}")
