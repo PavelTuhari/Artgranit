@@ -259,26 +259,30 @@ class SDAStore:
                     "REGIM_MOTIV = :regim_motiv, DATA_EVALUARE = :data_evaluare "
                     "WHERE UNIT_ID = :unit_id",
                     {"regim": regim, "regim_motiv": motiv,
-                     "data_evaluare": date.today(), "unit_id": unit["unit_id"]})
+                     "data_evaluare": date.today(),
+                     "unit_id": unit.get("unit_id")})
                 if not ur.get("success"):
                     # Un rând eșuat nu trebuie contorizat drept succes, iar
                     # lotul întreg nu se comite peste un update ratat.
                     return _fail(ur.get("message")
                                  or "Eroare la reclasificarea unitatilor")
                 changed += 1
-            # Intrarea de jurnal se scrie pe ACEEASI conexiune/tranzactie ca
-            # UPDATE-urile de mai sus, inainte de commit: altfel un jurnal
-            # scris separat (SDAStore.log, conexiune proprie) ar putea reusi
-            # sau esua independent de lot, iar cele doua nu ar mai fi atomice.
-            jr = db.execute_query(
-                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
-                "UTILIZATOR, DETALII) VALUES ('RECLASSIFY', 'SDA_UNIT', "
-                ":entitate_id, :utilizator, :detalii)",
-                {"entitate_id": None, "utilizator": username,
-                 "detalii": (f"reclasificate {changed} unitati")[:1000]})
-            if not jr.get("success"):
-                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
-            db.connection.commit()
+            if changed:
+                # Intrarea de jurnal se scrie pe ACEEASI conexiune/tranzactie ca
+                # UPDATE-urile de mai sus, inainte de commit: altfel un jurnal
+                # scris separat ar putea reusi sau esua independent de lot,
+                # iar cele doua nu ar mai fi atomice. Fara nicio unitate
+                # schimbata nu exista nimic de jurnalizat sau de comis.
+                jr = db.execute_query(
+                    "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                    "UTILIZATOR, DETALII) VALUES ('RECLASSIFY', 'SDA_UNIT', "
+                    ":entitate_id, :utilizator, :detalii)",
+                    {"entitate_id": None, "utilizator": username,
+                     "detalii": (f"reclasificate {changed} unitati")[:1000]})
+                if not jr.get("success"):
+                    return _fail(jr.get("message")
+                                 or "Eroare la scrierea in jurnal")
+                db.connection.commit()
         return _done({"changed": changed})
 
     @staticmethod
