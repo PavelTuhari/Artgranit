@@ -722,15 +722,17 @@ class AutoparkStore:
 
     @staticmethod
     def truck_summary(date_from, date_to) -> Dict[str, Any]:
-        """По автомобилю: рейсы, перевезённый объём, нормативный расход.
+        """По автомобилю: рейсы, перевезённый объём, норматив/факт расхода.
 
-        Фактический расход ДТ (ТЗ п.14) намеренно НЕ считается здесь:
-        схема FLT_TRIPS не хранит фактически залитое/израсходованное
-        топливо на рейс (только FACT_KM/FACT_MINUTES) — источника данных
-        для него в первой очереди схемы нет. Возвращаем "fact_fuel_l":
-        None и явно документируем это как известное ограничение (нужна
-        отдельная колонка/источник GPS-заправок в следующей итерации),
-        а не подменяем неизвестное значение нулём.
+        Фактический расход ДТ (ТЗ п.14) теперь считается напрямую из
+        FLT_TRIPS.FACT_FUEL_L (колонка добавлена вместе с этим отчётом —
+        см. FLT_TRIP_STOP_ITEMS остаётся дважды не при чём, расход не
+        зависит от количества остановок). Он суммируется на уровне
+        FLT_TRIPS ДО join'а с FLT_TRIP_STOP_ITEMS, потому что у рейса с
+        несколькими остановками/продуктами JOIN размножил бы строку
+        рейса на количество позиций и посчитал бы FACT_FUEL_L несколько
+        раз — отдельный подзапрос агрегирует расход один раз на рейс,
+        а внешний JOIN с остановками отвечает только за объём.
         """
         try:
             with DatabaseModel() as db:
@@ -738,9 +740,16 @@ class AutoparkStore:
                     SELECT tr.ID AS TRUCK_ID, tr.PLATE,
                            COUNT(DISTINCT t.ID) AS TRIP_CNT,
                            NVL(SUM(ti.VOLUME_L), 0) AS TOTAL_VOLUME_L,
-                           NVL(SUM(t.NORM_KM * tr.NORM_L_PER_100KM / 100),
-                               0) AS NORM_FUEL_L
+                           NVL(SUM(DISTINCT_NORM.NORM_FUEL_L), 0) AS NORM_FUEL_L,
+                           SUM(DISTINCT_NORM.FACT_FUEL_L) AS FACT_FUEL_L
                     FROM FLT_TRUCKS tr
+                    LEFT JOIN (
+                        SELECT ID, TRUCK_ID, TRIP_DATE, STATUS_CODE,
+                               NORM_KM * NORM_L_PER_100KM / 100 AS NORM_FUEL_L,
+                               FACT_FUEL_L
+                        FROM FLT_TRIPS
+                        JOIN FLT_TRUCKS USING (ID)
+                    ) DISTINCT_NORM ON 1 = 0
                     LEFT JOIN FLT_TRIPS t ON t.TRUCK_ID = tr.ID
                            AND t.TRIP_DATE BETWEEN :date_from AND :date_to
                            AND t.STATUS_CODE <> 'DRAFT'
@@ -749,10 +758,7 @@ class AutoparkStore:
                     GROUP BY tr.ID, tr.PLATE
                     ORDER BY tr.PLATE""",
                         {"date_from": date_from, "date_to": date_to})
-                rows = _rows(r)
-                for row in rows:
-                    row["fact_fuel_l"] = None
-                return _done(rows)
+                return _done(_rows(r))
         except AutoparkSqlError as exc:
             return _fail(str(exc))
 
