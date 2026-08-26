@@ -41,8 +41,8 @@ TTL = 6 * 3600
 #     compararea NU au ce cauta in index — sint personale si fara continut util.
 # EN: content pages worth indexing; cart/account/favourites/compare are personal.
 STATIC_PAGES = ['/', '/catalog', '/branduri', '/livrare', '/credite',
-                '/termeni-si-conditii', '/retur-produse', '/despre-companie',
-                '/contacte']
+                '/termeni-si-conditii', '/retur-produse', '/despre-noi',
+                '/politica-de-confidentialitate', '/contacte']
 
 _cache: Dict[str, Tuple[float, str]] = {}
 
@@ -82,7 +82,9 @@ def product_count() -> int:
     EN: how many products the sitemap covers."""
     def build() -> str:
         rows = _rows(Biro26DB().execute_query(
-            "SELECT COUNT(*) CNT FROM biro26_goods g "
+            # RO: feed-ul are mai multe rinduri per produs — fara DISTINCT
+            #     harta numara duplicate. EN: the feed holds duplicate rows.
+            "SELECT COUNT(DISTINCT g.cod_univers) CNT FROM biro26_goods g "
             "  JOIN tms_univers u ON u.cod = g.cod_univers "
             " WHERE NVL(u.isarhiv,'0') <> '2' AND g.retail1 IS NOT NULL "
             "   AND EXISTS (SELECT 1 FROM tpr1d_perprlist p "
@@ -152,7 +154,7 @@ def products_xml(part: int) -> str:
         rows = _rows(Biro26DB().execute_query(
             "SELECT cod FROM ("
             "  SELECT cod, ROWNUM rn FROM ("
-            "    SELECT g.cod_univers cod "
+            "    SELECT DISTINCT g.cod_univers cod "
             "      FROM biro26_goods g "
             "      JOIN tms_univers u ON u.cod = g.cod_univers "
             "     WHERE NVL(u.isarhiv,'0') <> '2' AND g.retail1 IS NOT NULL "

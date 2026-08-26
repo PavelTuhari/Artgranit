@@ -647,3 +647,33 @@ def test_analytics_tag_is_absent_on_a_foreign_host():
     import app as _app
     with _app.app.test_request_context("/", headers={"Host": "nufarul.eminescu.md"}):
         assert not _app._biro26_site_ctx().get("ga_id")
+
+
+# ── карта сайта: что в неё попадает ────────────────────────────────────
+
+def test_sitemap_lists_pages_that_actually_exist():
+    """`/despre-companie` отдавал 404 — на сайте страница `/despre-noi`.
+
+    Адрес из карты, который отвечает 404, поисковик считает ошибкой сайта,
+    а не опечаткой в файле.
+    """
+    from models import biro26_sitemap as sm
+    assert "/despre-noi" in sm.STATIC_PAGES
+    assert "/despre-companie" not in sm.STATIC_PAGES
+    assert "/politica-de-confidentialitate" in sm.STATIC_PAGES
+    # личные страницы в индексе не нужны
+    for personal in ("/cos", "/cont", "/favorite", "/compara"):
+        assert personal not in sm.STATIC_PAGES
+
+
+def test_sitemap_does_not_repeat_the_same_product():
+    """В фиде по нескольку строк на товар: без DISTINCT карта повторялась.
+
+    Замер 26.08.2026: 152 734 строки при 148 899 уникальных адресах.
+    """
+    import re as _re
+    from models import biro26_sitemap as sm
+    src = _re.sub(r"\s+", " ", (
+        __import__("pathlib").Path(sm.__file__).read_text(encoding="utf-8")))
+    assert "SELECT COUNT(DISTINCT g.cod_univers) CNT" in src
+    assert "SELECT DISTINCT g.cod_univers cod" in src
