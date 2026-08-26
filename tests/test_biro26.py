@@ -761,3 +761,81 @@ def test_settings_are_read_in_one_query_not_five():
     assert "get_settings_many" in chrome
     assert not _re.search(r"Biro26Store\.get_setting\(", chrome), \
         "в общей части не должно остаться поштучных чтений настроек"
+
+
+# ── разметка Product/Offer ─────────────────────────────────────────────
+#
+# Без разметки товар в выдаче — обычная синяя ссылка. С Product + Offer
+# Google показывает цену, наличие и штрихкод прямо в результатах. Строится
+# на сервере из ТОГО ЖЕ ряда, что рисует страница: расхождение разметки с
+# экраном Google считает обманом.
+
+_PROD_ROW = {
+    "cod": 462051, "codvechi": "1453-1-A",
+    "denumirea": "Penar Axent LA Timeless", "namerus": "Пенал Axent",
+    "retail1": 109, "barcode": "2000000568768", "avail_cant": 0,
+    "image": "https://example.invalid/p.jpg", "brand": "Axent",
+    "grupa": "Rechizite scolare", "categorie": "Penare",
+}
+
+
+def test_product_markup_carries_price_and_offer():
+    from models import biro26_jsonld as ld
+    d = ld.product(_PROD_ROW, "https://officeplus.md/produs/462051")
+    assert d["@type"] == "Product"
+    assert d["sku"] == "1453-1-A"
+    assert d["gtin13"] == "2000000568768"
+    assert d["brand"] == {"@type": "Brand", "name": "Axent"}
+    assert d["offers"]["price"] == "109.00"
+    assert d["offers"]["priceCurrency"] == "MDL"
+    assert d["offers"]["url"] == "https://officeplus.md/produs/462051"
+
+
+def test_out_of_stock_is_backorder_not_unavailable():
+    """Магазин продаёт под заказ — кнопка «Купить» работает и без остатка.
+
+    OutOfStock сказал бы поисковику, что купить нельзя, и это противоречило
+    бы самой странице.
+    """
+    from models import biro26_jsonld as ld
+    assert ld.availability({"avail_cant": 0}).endswith("/BackOrder")
+    assert ld.availability({"avail_cant": 7}).endswith("/InStock")
+    assert ld.availability({}).endswith("/BackOrder")
+
+
+def test_markup_is_skipped_when_there_is_no_price():
+    """Offer без цены Google не примет — лучше не выводить ничего."""
+    from models import biro26_jsonld as ld
+    assert ld.product({**_PROD_ROW, "retail1": None}, "https://x.invalid") is None
+    assert ld.product({**_PROD_ROW, "denumirea": None, "namerus": None},
+                      "https://x.invalid") is None
+    assert ld.script_tag(None) == ""
+
+
+def test_a_wrong_barcode_is_left_out():
+    """Неверный gtin13 хуже отсутствующего."""
+    from models import biro26_jsonld as ld
+    for bad in ("12345", "abcdefghijklm", "", None):
+        d = ld.product({**_PROD_ROW, "barcode": bad}, "https://x.invalid")
+        assert "gtin13" not in d
+
+
+def test_markup_cannot_break_the_page():
+    """`</script>` в названии товара закрыл бы тег раньше времени."""
+    from models import biro26_jsonld as ld
+    d = ld.product({**_PROD_ROW, "denumirea": "Penar </script><b>x"},
+                   "https://x.invalid")
+    tag = ld.script_tag(d)
+    assert "</script>" == tag[-len("</script>"):]
+    assert tag.count("</script>") == 1
+    assert "<\\/script>" in tag
+
+
+def test_product_page_does_not_ask_for_the_same_row_twice():
+    """Сервер уже прочитал карточку ради разметки — браузеру повторять незачем."""
+    import pathlib
+    tpl = (pathlib.Path(__file__).resolve().parent.parent
+           / "templates/biro26/site_product.html").read_text(encoding="utf-8")
+    assert "product_preload" in tpl
+    assert "PRELOAD ?" in tpl, "предзагруженные данные должны использоваться"
+    assert "{{ product_ld|safe }}" in tpl

@@ -8407,12 +8407,52 @@ def biro26_site_catalog():
     # RO: catalog (PLP) in stilul Figma; filtrele vin din URL (deep-link)
     return render_template('biro26/site_catalog.html', **_biro26_site_ctx())
 
+# RO: fisele citite pentru marcaj se tin putin in memorie: un robot trece o
+#     data, dar un vizitator reincarca, iar interogarea costa ~1,5 s.
+# EN: products read for the markup are cached briefly.
+_PDP_CACHE = {}
+_PDP_TTL = 300
+
+
+def _biro26_product_row(cod):
+    """RO: rindul produsului pentru marcaj si pentru pagina. None daca lipseste."""
+    import time as _t
+    hit = _PDP_CACHE.get(cod)
+    if hit and _t.time() - hit[0] < _PDP_TTL:
+        return hit[1]
+    try:
+        from models.biro26_oracle_store import Biro26Store
+        rows = (Biro26Store.get_products_stock(cod=cod, limit=1) or {}).get('data')
+        row = (rows or [None])[0]
+    except Exception:                                        # noqa: BLE001
+        return None
+    if len(_PDP_CACHE) > 500:            # RO: fara crestere nelimitata
+        _PDP_CACHE.clear()
+    _PDP_CACHE[cod] = (_t.time(), row)
+    return row
+
+
 @app.route('/UNA.md/orasldev/biro26-site/product/<int:cod>')
 @app.route('/UNA.md/orasldev/biro26-1shop/product/<int:cod>')
 def biro26_site_product(cod):
-    # RO: fisa produsului (PDP) — datele se incarca client-side dupa COD
+    """RO: fisa produsului. Rindul se citeste O DATA pe server: din el se
+    construieste marcajul schema.org si tot el se da paginii, ca browserul
+    sa nu mai ceara aceleasi date inca o data.
+    EN: the row is read ONCE on the server - it feeds both the schema.org
+    markup and the page itself, so the browser does not fetch it again."""
+    import json as _json
+    from models import biro26_jsonld as _ld
+    ctx = _biro26_site_ctx()
+    row = _biro26_product_row(cod)
+    ld = _ld.product(row, _biro26_canonical(),
+                     price_field=ctx.get('price_field') or 'retail1',
+                     seller=Config.BIRO26_APP_NAME) if row else None
     return render_template('biro26/site_product.html', cod=cod,
-                           **_biro26_site_ctx())
+                           product_ld=_ld.script_tag(ld),
+                           product_preload=_json.dumps(row or None,
+                                                       ensure_ascii=False,
+                                                       default=str),
+                           **ctx)
 
 @app.route('/UNA.md/orasldev/biro26-site/cart')
 @app.route('/UNA.md/orasldev/biro26-1shop/cart')
