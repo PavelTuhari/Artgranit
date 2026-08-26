@@ -897,3 +897,131 @@ def test_routes_declare_every_documented_api_endpoint():
     ):
         assert prefix + suffix in rules, suffix
     assert prefix in rules or prefix + "/" in rules
+
+
+# -- Task 4: fuel prices (123_flt_prices.sql + store/routes/generator) ----
+
+def test_prices_ddl_declares_table_and_unique_constraint():
+    ddl = _sql("123_flt_prices.sql").upper()
+    assert "CREATE TABLE FLT_FUEL_PRICES" in ddl
+    assert "UNIQUE (PRICE_DATE, PRODUCT_CODE)" in ddl
+    assert "CHECK (SOURCE IN ('ANRE','MODEL'))" in ddl
+    assert "CHECK (PRICE_LEI > 0)" in ddl
+
+
+def test_prices_ddl_has_no_semicolons_in_comments():
+    for line in _sql("123_flt_prices.sql").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("--"):
+            assert ";" not in stripped, stripped
+
+
+def test_prices_ddl_trigger_is_fenced_by_slashes_before_and_after():
+    text = _sql("123_flt_prices.sql")
+    idx = text.index("CREATE OR REPLACE TRIGGER TRG_FLT_FUEL_PRICES_BI")
+    before = text[:idx].rstrip()
+    assert before.endswith("/"), "missing leading '/' before the trigger block"
+    after = text[idx:]
+    end_idx = after.index("END;") + len("END;")
+    after_trigger = after[end_idx:].lstrip()
+    assert after_trigger.startswith("/"), "missing trailing '/' after the trigger block"
+
+
+def test_store_declares_list_and_upsert_fuel_prices():
+    from modules.autopark.store import AutoparkStore
+    assert hasattr(AutoparkStore, "list_fuel_prices")
+    assert hasattr(AutoparkStore, "upsert_fuel_prices")
+
+
+def test_controller_declares_fuel_prices_wrapper():
+    from modules.autopark.controller import AutoparkController
+    assert hasattr(AutoparkController, "fuel_prices")
+
+
+def test_fuel_prices_route_is_declared():
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    app.secret_key = "test"
+    loaded = load_module(app, "autopark")
+    assert loaded
+    rules_set = {r.rule for r in app.url_map.iter_rules()}
+    assert "/UNA.md/orasldev/autopark/api/fuel-prices" in rules_set
+
+
+def test_price_generator_produces_jumps_over_three_percent():
+    from modules.autopark.scripts.autopark_prices import build_all_rows
+    rows, jump_days = build_all_rows()
+    assert len(jump_days) > 0, "expected at least one day-to-day change > 3%"
+    assert rows
+
+
+def test_price_generator_labels_unretrieved_products_as_model():
+    from modules.autopark.scripts.autopark_prices import REAL_ANRE, PRODUCTS
+    # A92/A98 have no retrievable public ANRE archive -- must not be
+    # silently reported as real regulator data.
+    for product in ("A92", "A98"):
+        assert product not in REAL_ANRE
+    assert set(PRODUCTS) == {"A92", "A95", "A98", "DIESEL"}
+
+
+def test_history_generator_caps_route_length_and_import_cadence():
+    from modules.autopark.scripts.autopark_history import build_import_trip_dates
+    dates = build_import_trip_dates()
+    # ~1 import trip per month over a ~24-month horizon.
+    assert 18 <= len(dates) <= 30
+
+
+# -- Task 4 fix: dashboard keys, chart date sorting, ANRE/MODEL seam -----
+
+def test_station_supply_report_selects_current_and_min_stock():
+    src = open(os.path.join(MODULE_DIR, "store.py"), encoding="utf-8").read()
+    idx = src.index("def station_supply_report")
+    body = src[idx:idx + 1200]
+    assert "s.CURRENT_L" in body
+    assert "s.MIN_STOCK_L" in body
+
+
+def test_price_changes_are_sorted_by_real_timestamp_in_template():
+    html = open(os.path.join(MODULE_DIR, "templates", "autopark.html"),
+                encoding="utf-8").read()
+    assert "function dateTime(v)" in html
+    assert "dateTime(b.price_date) - dateTime(a.price_date)" in html
+    # the old lexicographic string comparison must be gone
+    assert "a.price_date < b.price_date" not in html
+
+
+def test_template_has_fmt_date_helper_used_for_trip_and_delivery_dates():
+    html = open(os.path.join(MODULE_DIR, "templates", "autopark.html"),
+                encoding="utf-8").read()
+    assert "function fmtDate(v)" in html
+    assert "fmtDate(t.trip_date)" in html
+    assert "fmtDate(d.deliv_date)" in html
+    assert "fmtDate(r.price_date)" in html
+
+
+def test_calibration_keeps_anchor_boundary_change_under_five_percent():
+    from datetime import timedelta
+
+    from modules.autopark.scripts.autopark_prices import REAL_ANRE, build_all_rows
+    rows, _jumps = build_all_rows()
+    by_prod = {}
+    for r in rows:
+        by_prod.setdefault(r["product_code"], {})[r["price_date"]] = r["price_lei"]
+    for product, anchors in REAL_ANRE.items():
+        series = by_prod[product]
+        for d in anchors:
+            for neighbor in (d - timedelta(days=1), d + timedelta(days=1)):
+                if neighbor in series and series[neighbor]:
+                    pct = abs(series[d] - series[neighbor]) / series[neighbor] * 100
+                    assert pct < 5, (product, d, neighbor, pct)
+
+
+def test_calibrate_to_anchors_leaves_products_without_anchors_untouched():
+    from datetime import date
+
+    from modules.autopark.scripts.autopark_prices import calibrate_to_anchors
+    series = {date(2025, 1, 1): 24.0, date(2025, 1, 2): 24.5}
+    assert calibrate_to_anchors(series, {}) == series
