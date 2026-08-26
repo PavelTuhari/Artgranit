@@ -412,6 +412,30 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
       </div>
     </section>
 
+    <!-- ============ ПАНЕЛЬ: ЦЕНЫ ============ -->
+    <section class="panel" id="panel-prices">
+      <h1>Цены на топливо</h1>
+      <div class="crumbs">Предельные цены ANRE и модельный ряд по 4 продуктам, дневная гранулярность</div>
+      <div class="toolbar">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-secondary btn-sm" data-period="3m" onclick="setPricePeriod('3m')">3 мес</button>
+          <button class="btn btn-secondary btn-sm" data-period="1y" onclick="setPricePeriod('1y')">1 год</button>
+          <button class="btn btn-secondary btn-sm active" data-period="2y" onclick="setPricePeriod('2y')">2 года</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Динамика цен, лей/л</h2>
+        <div id="priceLegend" style="display:flex; gap:16px; margin-bottom:8px; flex-wrap:wrap;"></div>
+        <div style="overflow-x:auto;">
+          <canvas id="priceChart" width="900" height="320" style="display:block; max-width:100%;"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Последние изменения (скачок — изменение &gt; 3% день-к-дню)</h2>
+        <div class="table-wrap" id="priceChangesTable">Загрузка…</div>
+      </div>
+    </section>
+
   </div>
 </div>
 
