@@ -100,11 +100,15 @@ def send_now() -> Dict[str, Any]:
     from models.biro26_notify import Biro26Notify
     text = compose()
     res = Biro26Notify.send_all("Воронка продаж officeplus.md", text)
-    ok = bool(res) and any(
-        (v or {}).get("success") for v in res.values() if isinstance(v, dict))
+    # RO: raspunsul canalelor sta in res["data"]: {email: {...}, telegram:
+    #     {...}} - reusita inseamna ca MACAR un canal a dus mesajul.
+    # EN: per-channel results live one level down, in res["data"].
+    channels = (res or {}).get("data") or {}
+    ok = any((v or {}).get("success") for v in channels.values()
+             if isinstance(v, dict))
     if ok:
         _set_setting(K_LAST, datetime.date.today().isoformat())
-    return {"success": ok, "channels": res, "text": text}
+    return {"success": ok, "channels": channels, "text": text}
 
 
 def due() -> bool:

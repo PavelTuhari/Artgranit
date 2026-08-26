@@ -144,3 +144,20 @@ def test_cheatsheet_uses_real_addresses_not_onclick():
     assert "opGuideBtn" in tpl
     assert "/produs/'+x.cod" in tpl or "/produs/' + x.cod" in tpl
     assert "catalog?grupa=" in tpl
+
+
+def test_send_now_reads_the_per_channel_results(monkeypatch):
+    """Ответ каналов лежит в res["data"] — уровень выше пуст, и первая
+    версия считала успешную отправку неудачей."""
+    from modules.funnel import digest
+    monkeypatch.setattr(digest, "compose", lambda: "текст")
+    sent = {"success": True, "data": {
+        "email": {"success": False, "error": "SMTP is not configured"},
+        "telegram": {"success": True}}}
+    import models.biro26_notify as notify
+    monkeypatch.setattr(notify.Biro26Notify, "send_all",
+                        staticmethod(lambda *a, **k: sent))
+    monkeypatch.setattr(digest, "_set_setting", lambda k, v: None)
+    r = digest.send_now()
+    assert r["success"] is True, "один живой канал = сводка доставлена"
+    assert r["channels"]["telegram"]["success"] is True
