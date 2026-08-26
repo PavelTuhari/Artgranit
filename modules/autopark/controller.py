@@ -622,6 +622,8 @@ class AutoparkController:
         total_norm_km = sum(float(r["norm_km"] or 0) for r in payroll["data"])
         total_fact_km = sum(float(r["fact_km"] or 0) for r in control["data"])
         over_limit_cnt = sum(1 for r in control["data"] if r.get("over_km_limit"))
+        fuel_over_limit_cnt = sum(1 for r in control["data"]
+                                  if r.get("over_fuel_limit"))
 
         total_volume = sum(float(t["total_volume_l"]) for t in trucks["data"])
         total_trip_cnt = sum(int(t["trip_cnt"]) for t in trucks["data"])
