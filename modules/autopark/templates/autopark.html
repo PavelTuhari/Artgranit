@@ -437,6 +437,50 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
       </div>
     </section>
 
+    <!-- ============ ПАНЕЛЬ: GPS ============ -->
+    <section class="panel" id="panel-gps">
+      <h1>GPS — позиции и треки</h1>
+      <div class="crumbs">Симулятор движения бензовозов и воспроизведение пройденных маршрутов — прослойка над любым GPS-провайдером (см. docs/Autopark/GPS_INTEGRATION.md)</div>
+      <div class="card">
+        <h2>Карта — сегодняшние рейсы</h2>
+        <div class="note" style="margin-bottom:8px;">Позиции обновляются каждые 5 секунд, пока открыта эта панель. АЗС — точки, пункты загрузки/конца — квадраты, бензовозы — подвижные маркеры.</div>
+        <div style="overflow-x:auto;">
+          <svg id="gpsMap" viewBox="0 0 900 480" width="900" height="480" style="display:block; max-width:100%; background:#f8faff; border:1px solid var(--border); border-radius:8px;"></svg>
+        </div>
+        <div id="gpsLegend" style="display:flex; gap:16px; margin-top:8px; flex-wrap:wrap; font-size:12px; color:var(--muted);"></div>
+      </div>
+      <div class="card">
+        <h2>Воспроизведение прошедшего рейса</h2>
+        <div class="form-grid cols2">
+          <div class="field">
+            <label>Рейс</label>
+            <select id="gpsReplayTrip"></select>
+          </div>
+          <div class="form-actions" style="grid-column: auto; margin-top: 18px;">
+            <button class="btn btn-primary btn-sm" onclick="gpsShowTrack()">Показать трек</button>
+            <button class="btn btn-secondary btn-sm" onclick="gpsFormTrack()">Сформировать трек</button>
+          </div>
+        </div>
+        <div class="grid3" style="margin-top:12px;">
+          <div class="card stat-card">
+            <div class="n" id="gpsTrackKm">—</div>
+            <div class="label">Длина трека (по GPS), км</div>
+          </div>
+          <div class="card stat-card">
+            <div class="n" id="gpsNormKm">—</div>
+            <div class="label">Норматив, км</div>
+          </div>
+          <div class="card stat-card">
+            <div class="n" id="gpsDeviationPct">—</div>
+            <div class="label">Отклонение, %</div>
+          </div>
+        </div>
+        <div style="overflow-x:auto; margin-top:12px;">
+          <svg id="gpsTrackSvg" viewBox="0 0 900 360" width="900" height="360" style="display:block; max-width:100%; background:#f8faff; border:1px solid var(--border); border-radius:8px;"></svg>
+        </div>
+      </div>
+    </section>
+
   </div>
 </div>
 
