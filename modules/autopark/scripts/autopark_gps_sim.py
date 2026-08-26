@@ -297,5 +297,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    from typing import Optional  # noqa: E402  (только для аннотации run_live)
     main()
