@@ -851,6 +851,191 @@ class AutoparkStore:
         except AutoparkSqlError as exc:
             return _fail(str(exc))
 
+    # ── GPS-прослойка ────────────────────────────────────────────────
+
+    @staticmethod
+    def list_geo_points() -> Dict[str, Any]:
+        """АЗС/пункты загрузки/конечные пункты с координатами (для карты).
+
+        Только точки, у которых LAT/LON уже заполнены (см. sql/124_flt_gps.sql
+        — колонки nullable): непривязанная к координате точка не
+        появляется на карте молча, а не рисуется в (0,0)/NULL.
+        """
+        try:
+            with DatabaseModel() as db:
+                stations = _rows(_run(db, "SELECT ID, CODE, NAME, LAT, LON "
+                                          "FROM FLT_STATIONS WHERE LAT IS "
+                                          "NOT NULL AND LON IS NOT NULL "
+                                          "ORDER BY CODE"))
+                for s in stations:
+                    s["kind"] = "STATION"
+                load_points = _rows(_run(db, "SELECT ID, CODE, NAME, LAT, "
+                                             "LON FROM FLT_LOAD_POINTS "
+                                             "WHERE LAT IS NOT NULL AND "
+                                             "LON IS NOT NULL ORDER BY CODE"))
+                for lp in load_points:
+                    lp["kind"] = "LOAD"
+                end_points = _rows(_run(db, "SELECT ID, CODE, NAME, LAT, "
+                                            "LON FROM FLT_END_POINTS WHERE "
+                                            "LAT IS NOT NULL AND LON IS NOT "
+                                            "NULL ORDER BY CODE"))
+                for ep in end_points:
+                    ep["kind"] = "END"
+                return _done({"stations": stations, "load_points": load_points,
+                             "end_points": end_points})
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def provider_id_by_code(code: str) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, "SELECT ID FROM FLT_GPS_PROVIDERS WHERE CODE "
+                             "= :code", {"code": code})
+                rows = _rows(r)
+                if not rows:
+                    return _fail(f"Провайдер GPS {code} не зарегистрирован")
+                return _done(rows[0]["id"])
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def insert_track_points(trip_id, provider_code: str,
+                            points: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+        """Пакетная запись точек трека рейса через `cursor.executemany`.
+
+        Один трек живого/повторённого рейса — от единиц до сотен точек;
+        построчный цикл отдельных INSERT был бы N сетевых round-trip до
+        облачного ADB (тот же довод, что у upsert_fuel_prices) — здесь
+        одна вставка, не MERGE (точки трека не идемпотентны по природе:
+        два разных прогона симулятора для одного рейса добавляют два
+        разных набора точек, это не одна и та же запись с разными
+        значениями).
+        """
+        if not points:
+            return _done({"rows": 0})
+        prov = AutoparkStore.provider_id_by_code(provider_code)
+        if not prov.get("success"):
+            return prov
+        provider_id = prov["data"]
+        binds = [{"trip_id": trip_id, "provider_id": provider_id,
+                 "ts": p["ts"], "lat": p["lat"], "lon": p["lon"],
+                 "speed_kmh": p.get("speed_kmh")} for p in points]
+        try:
+            with DatabaseModel() as db:
+                with db.connection.cursor() as cursor:
+                    cursor.executemany(
+                        "INSERT INTO FLT_GPS_TRACKS (TRIP_ID, PROVIDER_ID, "
+                        "TS, LAT, LON, SPEED_KMH) VALUES (:trip_id, "
+                        ":provider_id, :ts, :lat, :lon, :speed_kmh)", binds)
+                db.connection.commit()
+            return _done({"rows": len(binds)})
+        except Exception as exc:                                  # noqa: BLE001
+            return _fail(str(exc))
+
+    @staticmethod
+    def get_track(trip_id) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, "SELECT TS, LAT, LON, SPEED_KMH FROM "
+                             "FLT_GPS_TRACKS WHERE TRIP_ID = :trip_id "
+                             "ORDER BY TS", {"trip_id": trip_id})
+                return _done(_rows(r))
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def apply_track_fact(trip_id) -> Dict[str, Any]:
+        """Длина сохранённого трека (haversine) -> FLT_TRIPS.FACT_KM.
+
+        Rowcount-guard как у остальных факт-записей модуля
+        (set_trip_fact): DRAFT-рейс ещё не основание для факта (ТЗ п.6),
+        UPDATE на DRAFT/несуществующий рейс — явная ошибка, а не тихий
+        no-op.
+        """
+        track = AutoparkStore.get_track(trip_id)
+        if not track.get("success"):
+            return track
+        points = track["data"]
+        if len(points) < 2:
+            return _fail(f"Трек рейса {trip_id} слишком короткий "
+                         f"({len(points)} точек) — длину не посчитать")
+        from modules.autopark.gps import track_length_km
+        fact_km = track_length_km(points)
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, "UPDATE FLT_TRIPS SET FACT_KM = :fact_km "
+                             "WHERE ID = :trip_id AND STATUS_CODE <> "
+                             "'DRAFT'", {"trip_id": trip_id, "fact_km": fact_km})
+                if not r.get("rowcount"):
+                    return _fail(f"Рейс {trip_id} не найден или ещё не "
+                                 "утверждён (DRAFT)")
+                db.connection.commit()
+            return _done({"trip_id": trip_id, "fact_km": fact_km,
+                         "points": len(points)})
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def active_trips_today() -> Dict[str, Any]:
+        """Сегодняшние рейсы со стопами и геоточками маршрута (для live-позиций).
+
+        Возвращает рейсы вместе с готовой последовательностью геоточек
+        (LOAD -> STATION... -> END) — ровно то, что нужно
+        gps.interpolate_route на входе; controller не должен сам собирать
+        эту последовательность из трёх разных таблиц.
+        """
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, "SELECT ID, TRUCK_ID, DRIVER_ID, TYPE_CODE, "
+                             "STATUS_CODE, LOAD_POINT_ID, END_POINT_ID FROM "
+                             "FLT_TRIPS WHERE TRIP_DATE = TRUNC(SYSDATE) "
+                             "ORDER BY ID")
+                trips = _rows(r)
+                if not trips:
+                    return _done([])
+
+                geo = AutoparkStore.list_geo_points()
+                if not geo.get("success"):
+                    return geo
+                load_by_id = {p["id"]: p for p in geo["data"]["load_points"]}
+                end_by_id = {p["id"]: p for p in geo["data"]["end_points"]}
+                station_by_id = {p["id"]: p for p in geo["data"]["stations"]}
+
+                trip_ids = [t["id"] for t in trips]
+                placeholders = ", ".join(f":id{i}" for i in range(len(trip_ids)))
+                sp = _run(db, "SELECT TRIP_ID, SEQ_NO, STATION_ID FROM "
+                             f"FLT_TRIP_STOPS WHERE TRIP_ID IN ({placeholders}) "
+                             "ORDER BY TRIP_ID, SEQ_NO",
+                         {f"id{i}": v for i, v in enumerate(trip_ids)})
+                stops_by_trip: Dict[int, List[Dict[str, Any]]] = {}
+                for row in _rows(sp):
+                    stops_by_trip.setdefault(row["trip_id"], []).append(row)
+
+                for t in trips:
+                    geo_points = []
+                    lp = load_by_id.get(t["load_point_id"])
+                    if lp:
+                        geo_points.append({"kind": "LOAD", "id": lp["id"],
+                                          "lat": float(lp["lat"]),
+                                          "lon": float(lp["lon"])})
+                    for stop in stops_by_trip.get(t["id"], []):
+                        st = station_by_id.get(stop["station_id"])
+                        if st:
+                            geo_points.append({"kind": "STATION",
+                                              "id": st["id"],
+                                              "lat": float(st["lat"]),
+                                              "lon": float(st["lon"])})
+                    ep = end_by_id.get(t["end_point_id"])
+                    if ep:
+                        geo_points.append({"kind": "END", "id": ep["id"],
+                                          "lat": float(ep["lat"]),
+                                          "lon": float(ep["lon"])})
+                    t["geo_points"] = geo_points
+                return _done(trips)
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
     # ── журнал ───────────────────────────────────────────────────────
 
     @staticmethod
