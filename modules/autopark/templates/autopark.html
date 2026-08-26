@@ -1712,27 +1712,30 @@ function renderGpsStaticMap() {
   var project = gpsProjector(bounds, 900, 480, 26);
   svg.setAttribute('data-bounds', JSON.stringify(bounds));
 
-  (GPS_GEO.stations || []).forEach(function (s) {
-    var xy = project(s.lat, s.lon);
-    svg.appendChild(svgEl('circle', {cx: xy[0], cy: xy[1], r: 5, fill: '#2563eb', 'data-kind': 'station'}));
-    var label = svgEl('text', {x: xy[0] + 7, y: xy[1] + 4, 'font-size': 10, fill: '#14213d'});
-    label.textContent = s.name || s.code;
+  // Подложка: контур Республики Молдова.
+  svg.appendChild(svgEl('path', {
+    d: gpsCountryPath(project), fill: '#e8eefb', stroke: '#9db4d6',
+    'stroke-width': 1.5, 'stroke-linejoin': 'round'
+  }));
+
+  function marker(p, shape, fill) {
+    var raw = project(p.lat, p.lon);
+    var c = gpsClamp(raw, 900, 480);
+    if (shape === 'circle') {
+      svg.appendChild(svgEl('circle', {cx: c.x, cy: c.y, r: 5, fill: fill, 'data-kind': 'station'}));
+    } else {
+      svg.appendChild(svgEl('rect', {x: c.x - 5, y: c.y - 5, width: 10, height: 10, fill: fill,
+        'stroke-dasharray': c.clamped ? '2 2' : null, stroke: c.clamped ? '#64748b' : null}));
+    }
+    var onLeft = c.x > 780;
+    var label = svgEl('text', {x: onLeft ? c.x - 8 : c.x + 8, y: c.y + 4,
+      'font-size': 10, fill: '#14213d', 'text-anchor': onLeft ? 'end' : 'start'});
+    label.textContent = (p.name || p.code) + (c.clamped ? ' ↘ (за картой)' : '');
     svg.appendChild(label);
-  });
-  (GPS_GEO.load_points || []).forEach(function (p) {
-    var xy = project(p.lat, p.lon);
-    svg.appendChild(svgEl('rect', {x: xy[0] - 5, y: xy[1] - 5, width: 10, height: 10, fill: '#22c55e'}));
-    var label = svgEl('text', {x: xy[0] + 8, y: xy[1] + 4, 'font-size': 10, fill: '#14213d'});
-    label.textContent = p.name || p.code;
-    svg.appendChild(label);
-  });
-  (GPS_GEO.end_points || []).forEach(function (p) {
-    var xy = project(p.lat, p.lon);
-    svg.appendChild(svgEl('rect', {x: xy[0] - 5, y: xy[1] - 5, width: 10, height: 10, fill: '#f59e0b'}));
-    var label = svgEl('text', {x: xy[0] + 8, y: xy[1] + 4, 'font-size': 10, fill: '#14213d'});
-    label.textContent = p.name || p.code;
-    svg.appendChild(label);
-  });
+  }
+  (GPS_GEO.stations || []).forEach(function (s) { marker(s, 'circle', '#2563eb'); });
+  (GPS_GEO.load_points || []).forEach(function (p) { marker(p, 'rect', '#22c55e'); });
+  (GPS_GEO.end_points || []).forEach(function (p) { marker(p, 'rect', '#f59e0b'); });
 
   renderGpsLegend();
 }
