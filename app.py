@@ -9134,6 +9134,15 @@ def api_biro26_shop_products():
     # public read-only catalog (same grid data as Marfă/Stoc)
     return jsonify(Biro26Controller.get_products_stock())
 
+@app.route('/api/biro26/shop/bestsellers', methods=['GET'])
+def api_biro26_shop_bestsellers():
+    # RO: bestsellerurile pentru ghidul plutitor de pe vitrina - numarate
+    #     din comenzile reale, tinute in memorie 15 minute.
+    # EN: bestsellers for the storefront cheat-sheet, from real orders.
+    from models.biro26_oracle_store import Biro26Store
+    return jsonify(Biro26Store.get_shop_bestsellers(
+        days=30, limit=request.args.get('limit', 8, type=int)))
+
 @app.route('/api/biro26/shop/tree', methods=['GET'])
 def api_biro26_shop_tree():
     # public read-only grupa->categorie facet tree (Amazon-style sidebar)

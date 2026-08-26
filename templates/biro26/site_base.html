@@ -351,6 +351,101 @@ window.LIBER_MIN = {{ liber_min|default(0) }};
 window.RATE_PLANS = {{ rate_plans|default([])|tojson }};
 </script>
 <script src="/static/biro26/site.js?v={{ asset_v }}"></script>
+{# ── Ghidul magazinului — butonul plutitor «шпаргалка» ──────────────
+   RO: un buton mereu la indemina care deschide ce e mai interesant in
+   magazin: bestsellerurile din comenzile REALE, categoriile mari, rate
+   fara dobinda, livrarea si contactul rapid. Toate legaturile sint
+   adrese reale (siteURL), deci ajuta si navigarea, si retinerea
+   vizitatorului. EN: the floating cheat-sheet button - bestsellers from
+   real orders, big categories, credit, delivery, quick contact. #}
+<style>
+#opGuideBtn{position:fixed;right:18px;bottom:18px;z-index:1200;border:none;cursor:pointer;
+  width:58px;height:58px;border-radius:50%;color:#fff;font-size:25px;
+  background:linear-gradient(135deg,#194681,#e8632c);
+  box-shadow:0 6px 22px rgba(25,70,129,.45);transition:transform .15s}
+#opGuideBtn:hover{transform:scale(1.08)}
+#opGuide{position:fixed;right:18px;bottom:86px;z-index:1200;width:min(370px,calc(100vw - 36px));
+  max-height:min(72vh,640px);overflow:auto;background:#fff;border-radius:16px;
+  box-shadow:0 12px 40px rgba(0,0,0,.28);padding:16px 16px 12px;display:none;
+  font-size:13.5px;color:#232323}
+#opGuide.open{display:block}
+#opGuide h4{margin:14px 0 8px;font-size:12px;text-transform:uppercase;
+  letter-spacing:.07em;color:#8a8a8a}
+#opGuide h4:first-child{margin-top:0}
+#opGuide .g-best a{display:flex;gap:10px;align-items:center;text-decoration:none;
+  color:#232323;padding:6px 6px;border-radius:10px}
+#opGuide .g-best a:hover{background:#f2f5fa}
+#opGuide .g-best .im{width:40px;height:40px;border-radius:8px;flex:none;
+  background:#f4f4f4 center/contain no-repeat}
+#opGuide .g-best .nm{flex:1;line-height:1.3;max-height:2.6em;overflow:hidden}
+#opGuide .g-cats{display:flex;flex-wrap:wrap;gap:6px}
+#opGuide .g-cats a{background:#eef3fa;color:#194681;border-radius:999px;
+  padding:5px 11px;text-decoration:none;font-size:12.5px}
+#opGuide .g-cats a:hover{background:#194681;color:#fff}
+#opGuide .g-links{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#opGuide .g-links a{display:block;background:#f7f7f7;border-radius:10px;
+  padding:8px 10px;text-decoration:none;color:#232323;font-size:12.5px}
+#opGuide .g-links a b{display:block;color:#194681}
+#opGuide .g-foot{margin-top:10px;font-size:11.5px;color:#9a9a9a;text-align:center}
+@media(max-width:640px){ #opGuideBtn{right:12px;bottom:12px} #opGuide{right:12px;bottom:78px} }
+</style>
+<button id="opGuideBtn" type="button" aria-label="Ghid" title="Ghidul magazinului"
+        onclick="opGuideToggle()">✦</button>
+<div id="opGuide" role="dialog" aria-label="Ghidul magazinului">
+  <h4 id="gT1">Se cumpără chiar acum</h4>
+  <div class="g-best" id="gBest">…</div>
+  <h4 id="gT2">Categorii mari</h4>
+  <div class="g-cats" id="gCats">…</div>
+  <h4 id="gT3">Util</h4>
+  <div class="g-links" id="gLinks"></div>
+  <div class="g-foot" id="gFoot"></div>
+</div>
+<script>
+(function(){
+  var loaded=false;
+  window.opGuideToggle=function(){
+    var p=document.getElementById('opGuide');
+    p.classList.toggle('open');
+    if(p.classList.contains('open')&&!loaded){loaded=true;opGuideLoad();}
+  };
+  function ru(){try{return curLang()==='ru'}catch(e){return false}}
+  function url(p){try{return siteURL(p)}catch(e){return p}}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  async function opGuideLoad(){
+    var isru=ru();
+    document.getElementById('gT1').textContent=isru?'Покупают прямо сейчас':'Se cumpără chiar acum';
+    document.getElementById('gT2').textContent=isru?'Большие разделы':'Categorii mari';
+    document.getElementById('gT3').textContent=isru?'Полезное':'Util';
+    document.getElementById('gLinks').innerHTML=[
+      ['/credite',isru?'Рассрочка 0%':'Rate 0%',isru?'Liber Card и другие':'Liber Card și altele'],
+      ['/livrare',isru?'Доставка':'Livrare',isru?'по всей Молдове':'în toată Moldova'],
+      ['/branduri',isru?'Бренды':'Branduri',isru?'официально':'oficial'],
+      ['tel:+37362007211',isru?'Позвонить':'Sună-ne','062-007-211'],
+    ].map(function(l){return '<a href="'+(l[0][0]==='/'?url(l[0]):l[0])+'"><b>'+l[1]+'</b>'+l[2]+'</a>'}).join('');
+    try{
+      var b=await (await fetch(url('/api/biro26/shop/bestsellers?limit=6'))).json();
+      document.getElementById('gBest').innerHTML=(b.data||[]).slice(0,6).map(function(x){
+        return '<a href="'+url('/produs/'+x.cod)+'">'
+          +'<span class="im"'+(x.image?' style="background-image:url(\''+esc(x.image)+'\')"':'')+'></span>'
+          +'<span class="nm">'+esc(String(x.denumirea).slice(0,60))+'</span></a>';
+      }).join('')||'<div style="color:#999">—</div>';
+    }catch(e){document.getElementById('gBest').innerHTML='<div style="color:#999">—</div>';}
+    try{
+      var t=await (await fetch(url('/api/biro26/shop/tree'))).json();
+      var by={};(t.data||[]).forEach(function(r){by[r.grupa]=(by[r.grupa]||0)+(r.cnt||0)});
+      var top=Object.keys(by).map(function(k){return [k,by[k]]})
+        .sort(function(a,b2){return b2[1]-a[1]}).slice(0,8);
+      var total=Object.values(by).reduce(function(s,n){return s+n},0);
+      document.getElementById('gCats').innerHTML=top.map(function(c){
+        return '<a href="'+url('/catalog?grupa='+encodeURIComponent(c[0]))+'">'
+          +esc(c[0])+' · '+c[1].toLocaleString()+'</a>'}).join('');
+      document.getElementById('gFoot').textContent=(isru?'Всего в каталоге: ':'Total în catalog: ')
+        +total.toLocaleString()+(isru?' товаров':' produse');
+    }catch(e){}
+  }
+})();
+</script>
 {% block js %}{% endblock %}
 </body>
 </html>
