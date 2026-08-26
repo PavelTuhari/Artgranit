@@ -368,11 +368,13 @@ def test_min_stock_l_is_average_times_safety_days():
 
 
 def test_need_volume_does_not_exceed_free_tank_space():
-    # Huge shortfall, but the tank has almost no free room left.
+    # Huge shortfall (raw need = 600 + 9000 - 500 - 0 = 9100), but the
+    # tank only has 500 L of free room left -- the order must be capped
+    # there, not at the raw shortfall.
     need = rules.need_volume_l(
-        current_l=9800, min_stock_l=600, forecast_sales_l=2000,
-        in_transit_l=0, tank_capacity_l=10000)
-    assert need == 200  # capped at free space, not at the raw shortfall
+        current_l=500, min_stock_l=600, forecast_sales_l=9000,
+        in_transit_l=0, tank_capacity_l=1000)
+    assert need == 500  # capped at free space, not at the raw shortfall
 
 
 def test_need_volume_accounts_for_stock_already_in_transit():
