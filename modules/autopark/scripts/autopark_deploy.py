@@ -30,6 +30,7 @@ FILES = (
     "121_flt_views.sql",
     "122_flt_seed.sql",
     "123_flt_prices.sql",
+    "124_flt_gps.sql",
 )
 
 
