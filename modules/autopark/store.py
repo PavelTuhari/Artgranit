@@ -370,6 +370,60 @@ class AutoparkStore:
         with DatabaseModel() as db:
             return AutoparkStore.distance_lookup(db)
 
+    # ── цены на топливо ──────────────────────────────────────────────
+
+    @staticmethod
+    def list_fuel_prices(date_from, date_to,
+                         product: Optional[str] = None) -> Dict[str, Any]:
+        sql = ("SELECT PRICE_DATE, PRODUCT_CODE, PRICE_LEI, SOURCE FROM "
+               "FLT_FUEL_PRICES WHERE PRICE_DATE BETWEEN :date_from "
+               "AND :date_to")
+        params: Dict[str, Any] = {"date_from": date_from, "date_to": date_to}
+        if product:
+            sql += " AND PRODUCT_CODE = :product"
+            params["product"] = product
+        sql += " ORDER BY PRICE_DATE, PRODUCT_CODE"
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, sql, params)
+                return _done(_rows(r))
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def upsert_fuel_prices(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+        """Пакетная загрузка цен через `cursor.executemany` одним MERGE.
+
+        Ряд за 2 года по 4 продуктам — тысячи строк; построчный цикл
+        отдельных MERGE (как в upsert_station_stock, где строк на порядок
+        меньше) на реальном сетевом round-trip до облачного ADB был бы
+        неприемлемо медленным. `executemany` отправляет все bind-наборы
+        одним batch-вызовом драйвера. Идемпотентно: MERGE по
+        (PRICE_DATE, PRODUCT_CODE), повторный запуск не дублирует и не
+        роняет CK_FLT_FUEL_PRICES_SRC/_AMT — их проверяет сам Oracle.
+        """
+        if not rows:
+            return _done({"rows": 0})
+        sql = ("MERGE INTO FLT_FUEL_PRICES t USING (SELECT :price_date AS "
+               "PRICE_DATE, :product_code AS PRODUCT_CODE FROM DUAL) s ON "
+               "(t.PRICE_DATE = s.PRICE_DATE AND t.PRODUCT_CODE = "
+               "s.PRODUCT_CODE) WHEN MATCHED THEN UPDATE SET t.PRICE_LEI = "
+               ":price_lei, t.SOURCE = :source WHEN NOT MATCHED THEN "
+               "INSERT (PRICE_DATE, PRODUCT_CODE, PRICE_LEI, SOURCE) "
+               "VALUES (:price_date, :product_code, :price_lei, :source)")
+        binds = [{"price_date": r["price_date"],
+                 "product_code": r["product_code"],
+                 "price_lei": r["price_lei"], "source": r["source"]}
+                for r in rows]
+        try:
+            with DatabaseModel() as db:
+                with db.connection.cursor() as cursor:
+                    cursor.executemany(sql, binds)
+                db.connection.commit()
+            return _done({"rows": len(rows)})
+        except Exception as exc:                                  # noqa: BLE001
+            return _fail(str(exc))
+
     # ── настройки ────────────────────────────────────────────────────
 
     @staticmethod
