@@ -122,8 +122,7 @@ class AutoparkController:
                      "Табельный номер обязателен")
         except AutoparkValidationError as exc:
             return _fail(str(exc))
-        return AutoparkStore.driver_upsert_impl(payload) if hasattr(
-            AutoparkStore, "driver_upsert_impl") else AutoparkStore.upsert_driver(payload)
+        return AutoparkStore.upsert_driver(payload)
 
     # ── матрица расстояний ──────────────────────────────────────────
 
