@@ -1,16 +1,1334 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>{{ page_title or 'Autopark' }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ page_title or 'Autopark' }}</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+    --bg: #f2f4f8;
+    --card: #ffffff;
+    --sidebar: #131c2e;
+    --sidebar-fg: #c8d8f0;
+    --sidebar-active: #1f3050;
+    --border: #e3e8ef;
+    --fg: #14213d;
+    --muted: #6b7a90;
+    --accent: #2563eb;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --crit: #ef4444;
+}
+html, body { max-width: 100%; overflow-x: hidden; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg); color: var(--fg); font-size: 13px;
+}
+.layout { display: flex; min-height: 100vh; }
+.sidebar { width: 220px; flex-shrink: 0; background: var(--sidebar); min-height: 100vh; }
+.sb-logo { padding: 16px 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.sb-logo .t1 { color: #fff; font-weight: 700; font-size: 14px; }
+.sb-logo .t2 { color: var(--sidebar-fg); font-size: 10px; opacity: .75; margin-top: 2px; }
+.sb-nav { padding: 10px; }
+.nav-item {
+    width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px;
+    border-radius: 6px; border: none; cursor: pointer; background: transparent;
+    color: var(--sidebar-fg); font-size: 12.5px; margin-bottom: 2px; text-align: left;
+    font-family: inherit;
+}
+.nav-item:hover { background: rgba(255,255,255,.06); }
+.nav-item.active { background: var(--sidebar-active); color: #fff; font-weight: 600; }
+.nav-item .ic { font-size: 14px; width: 18px; text-align: center; }
+.main { flex: 1; padding: 20px 24px; min-width: 0; }
+.panel { display: none; flex-direction: column; gap: 16px; }
+.panel.active { display: flex; }
+h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+h2 { font-size: 15px; font-weight: 600; }
+.crumbs { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.card h2 { margin-bottom: 12px; }
+.err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 8px 12px;
+    border-radius: 8px; font-size: 12.5px; display: none; margin-bottom: 10px; }
+.err.show { display: block; }
+.ok-msg { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 8px 12px;
+    border-radius: 8px; font-size: 12.5px; display: none; margin-bottom: 10px; }
+.ok-msg.show { display: block; }
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+.stat-card .n { font-size: 26px; font-weight: 800; }
+.stat-card .n.warn { color: var(--warn); }
+.stat-card .n.crit { color: var(--crit); }
+.stat-card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+td.num, th.num { text-align: right; }
+tr:hover td { background: #f8faff; }
+tr.hl-warn td { background: rgba(245,158,11,.08); }
+tr.hl-crit td { background: rgba(239,68,68,.08); }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.pill.ok { background: rgba(34,197,94,.14); color: #15803d; }
+.pill.warn { background: rgba(245,158,11,.16); color: #92400e; }
+.pill.crit { background: rgba(239,68,68,.14); color: #991b1b; }
+.pill.muted { background: #eef1f6; color: var(--muted); }
+.btn { border: none; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: #eef1f6; color: var(--fg); }
+.btn-danger { background: #fef2f2; color: #991b1b; }
+.btn-sm { padding: 4px 9px; font-size: 11.5px; }
+.toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; }
+.subtabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.subtab { border: 1px solid var(--border); background: #fff; border-radius: 20px; padding: 6px 14px;
+    font-size: 12px; font-weight: 600; cursor: pointer; color: var(--muted); font-family: inherit; }
+.subtab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.subpanel { display: none; }
+.subpanel.active { display: block; }
+.form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; margin-top: 4px; }
+.form-grid.cols2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 900px) { .form-grid, .form-grid.cols2 { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.field input, .field select {
+    padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px;
+    font-family: inherit; background: #fff; color: var(--fg);
+}
+.form-actions { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 4px; }
+.hidden { display: none !important; }
+.stops-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
+.stop-row { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: #f8faff; }
+.stop-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.item-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.note { font-size: 12px; color: var(--muted); font-style: italic; }
+.formula { background: #f8faff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    font-size: 12.5px; margin-bottom: 10px; }
+.formula code { background: #eef1f6; padding: 1px 5px; border-radius: 4px; }
+.section-title { font-size: 13px; font-weight: 700; margin: 6px 0 2px; }
+</style>
 </head>
-<body>
-  <h1>Autopark — автопарк бензовозов</h1>
-  <p>
-    Консоль модуля (справочники, рейсы, зарплата, планирование поставок)
-    работает через API под <code>/api/...</code> этого модуля.
-    UI-панель логиста будет наполнена следующей задачей.
-  </p>
+<body data-api-base="{{ url_for('autopark.index') }}">
+<div class="layout">
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="t1">🚚 Autopark</div>
+      <div class="t2">Автопарк бензовозов — Bemol</div>
+    </div>
+    <div class="sb-nav" id="sbNav">
+      <button class="nav-item active" data-panel="dashboard" onclick="showPanel('dashboard')"><span class="ic">📊</span><span>Сводка</span></button>
+      <button class="nav-item" data-panel="refs" onclick="showPanel('refs')"><span class="ic">📚</span><span>Справочники</span></button>
+      <button class="nav-item" data-panel="deliveries" onclick="showPanel('deliveries')"><span class="ic">🛢️</span><span>Поставки</span></button>
+      <button class="nav-item" data-panel="trips" onclick="showPanel('trips')"><span class="ic">🚛</span><span>Рейсы</span></button>
+      <button class="nav-item" data-panel="planning" onclick="showPanel('planning')"><span class="ic">🗺️</span><span>Планирование</span></button>
+      <button class="nav-item" data-panel="payroll" onclick="showPanel('payroll')"><span class="ic">💰</span><span>Зарплата</span></button>
+      <button class="nav-item" data-panel="control" onclick="showPanel('control')"><span class="ic">🚦</span><span>Контроль</span></button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="globalErr" class="err"></div>
+    <div id="globalOk" class="ok-msg"></div>
+
+    <!-- ============ ПАНЕЛЬ: СВОДКА ============ -->
+    <section class="panel active" id="panel-dashboard">
+      <h1>Сводка</h1>
+      <div class="crumbs">Общее состояние автопарка и АЗС на сегодня</div>
+      <div class="grid3">
+        <div class="card stat-card">
+          <div class="n warn" id="dbNeedSupply">—</div>
+          <div class="label">АЗС требуют поставки</div>
+        </div>
+        <div class="card stat-card">
+          <div class="n" id="dbTripsWeek">—</div>
+          <div class="label">Рейсов за последние 7 дней</div>
+        </div>
+        <div class="card stat-card">
+          <div class="n crit" id="dbDeviations">—</div>
+          <div class="label">Превышений (пробег/топливо), 7 дней</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Запасы по АЗС и продуктам (в днях реализации)</h2>
+        <div class="table-wrap" id="dbStockTable">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- ============ ПАНЕЛЬ: СПРАВОЧНИКИ ============ -->
+    <section class="panel" id="panel-refs">
+      <h1>Справочники</h1>
+      <div class="crumbs">АЗС, автомобили, водители, пункты загрузки, матрица расстояний</div>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="stations" onclick="showSub('stations')">АЗС</button>
+        <button class="subtab" data-sub="trucks" onclick="showSub('trucks')">Автомобили</button>
+        <button class="subtab" data-sub="drivers" onclick="showSub('drivers')">Водители</button>
+        <button class="subtab" data-sub="points" onclick="showSub('points')">Пункты загрузки</button>
+        <button class="subtab" data-sub="distances" onclick="showSub('distances')">Матрица расстояний</button>
+      </div>
+
+      <div class="subpanel active" id="sub-stations">
+        <div class="card">
+          <div class="toolbar"><h2>АЗС</h2></div>
+          <div class="table-wrap" id="stationsTable">Загрузка…</div>
+        </div>
+        <div class="card">
+          <h2>Добавить / изменить АЗС</h2>
+          <div class="form-grid cols2" id="stationForm">
+            <div class="field"><label>ID (пусто — новая)</label><input id="stStId"></div>
+            <div class="field"><label>Код *</label><input id="stCode"></div>
+            <div class="field"><label>Наименование *</label><input id="stName"></div>
+            <div class="field"><label>Адрес</label><input id="stAddress"></div>
+          </div>
+          <div class="section-title">Вместимость резервуаров (продукт : литры), через запятую, напр. A95:20000, DIESEL:30000</div>
+          <div class="field"><input id="stTanks" style="width:100%"></div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="saveStation()">Сохранить</button></div>
+        </div>
+      </div>
+
+      <div class="subpanel" id="sub-trucks">
+        <div class="card">
+          <div class="toolbar"><h2>Автомобили (бензовозы)</h2></div>
+          <div class="table-wrap" id="trucksTable">Загрузка…</div>
+        </div>
+        <div class="card">
+          <h2>Добавить / изменить автомобиль</h2>
+          <div class="form-grid" id="truckForm">
+            <div class="field"><label>ID (пусто — новый)</label><input id="trId"></div>
+            <div class="field"><label>Госномер *</label><input id="trPlate"></div>
+            <div class="field"><label>Марка</label><input id="trBrand"></div>
+            <div class="field"><label>Вместимость, л *</label><input id="trCapacity" type="number"></div>
+            <div class="field"><label>Секций *</label><input id="trSections" type="number" value="1"></div>
+            <div class="field"><label>Норма л/100км *</label><input id="trNorm" type="number" step="0.1"></div>
+            <div class="field"><label>Допустимые продукты (коды через запятую)</label><input id="trProducts"></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="saveTruck()">Сохранить</button></div>
+        </div>
+      </div>
+
+      <div class="subpanel" id="sub-drivers">
+        <div class="card">
+          <div class="toolbar"><h2>Водители</h2></div>
+          <div class="table-wrap" id="driversTable">Загрузка…</div>
+        </div>
+        <div class="card">
+          <h2>Добавить / изменить водителя</h2>
+          <div class="form-grid" id="driverForm">
+            <div class="field"><label>ID (пусто — новый)</label><input id="drId"></div>
+            <div class="field"><label>ФИО *</label><input id="drName"></div>
+            <div class="field"><label>Табельный номер *</label><input id="drTabNo"></div>
+            <div class="field"><label>Закреплённый автомобиль</label><select id="drTruck"></select></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="saveDriver()">Сохранить</button></div>
+        </div>
+      </div>
+
+      <div class="subpanel" id="sub-points">
+        <div class="grid2">
+          <div class="card">
+            <h2>Пункты загрузки</h2>
+            <div class="table-wrap" id="loadPointsTable">Загрузка…</div>
+          </div>
+          <div class="card">
+            <h2>Конечные пункты маршрута</h2>
+            <div class="table-wrap" id="endPointsTable">Загрузка…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="subpanel" id="sub-distances">
+        <div class="card">
+          <div class="toolbar"><h2>Матрица расстояний</h2></div>
+          <div class="table-wrap" id="distancesTable">Загрузка…</div>
+        </div>
+        <div class="card">
+          <h2>Добавить / изменить участок</h2>
+          <div class="note">Обратный участок (туда-обратно) записывается автоматически, если он ещё не задан.</div>
+          <div class="form-grid" id="distanceForm">
+            <div class="field"><label>Откуда — вид *</label>
+              <select id="distFromKind" onchange="onDistKindChange('from')">
+                <option value="LOAD">Пункт загрузки</option>
+                <option value="STATION">АЗС</option>
+                <option value="END">Конечный пункт</option>
+              </select>
+            </div>
+            <div class="field"><label>Откуда — объект *</label><select id="distFromId"></select></div>
+            <div class="field"><label>Расстояние, км *</label><input id="distKm" type="number" step="0.1"></div>
+            <div class="field"><label>Куда — вид *</label>
+              <select id="distToKind" onchange="onDistKindChange('to')">
+                <option value="LOAD">Пункт загрузки</option>
+                <option value="STATION" selected>АЗС</option>
+                <option value="END">Конечный пункт</option>
+              </select>
+            </div>
+            <div class="field"><label>Куда — объект *</label><select id="distToId"></select></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="saveDistance()">Сохранить участок</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ПАНЕЛЬ: ПОСТАВКИ ============ -->
+    <section class="panel" id="panel-deliveries">
+      <h1>Поставки</h1>
+      <div class="crumbs">Накладные на поставку нефтепродуктов из пункта загрузки на АЗС</div>
+      <div class="card">
+        <h2>Новая накладная</h2>
+        <div class="form-grid" id="deliveryForm">
+          <div class="field"><label>Дата поставки *</label><input id="dlDate" type="date"></div>
+          <div class="field"><label>Продукт *</label><select id="dlProduct"></select></div>
+          <div class="field"><label>Объём, л *</label><input id="dlVolume" type="number"></div>
+          <div class="field"><label>Пункт загрузки *</label><select id="dlLoadPoint"></select></div>
+          <div class="field"><label>АЗС назначения *</label><select id="dlStation"></select></div>
+          <div class="field"><label>Автомобиль *</label><select id="dlTruck"></select></div>
+          <div class="field"><label>Водитель *</label><select id="dlDriver"></select></div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="addDelivery()">Добавить накладную</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <h2>Накладные за период</h2>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="dlFrom" type="date">
+            <input id="dlTo" type="date">
+            <label style="font-size:12px; display:flex; align-items:center; gap:4px;">
+              <input type="checkbox" id="dlUnassignedOnly" style="width:auto"> только без рейса
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="loadDeliveries()">Обновить</button>
+            <button class="btn btn-primary btn-sm" onclick="autoformTrips()">Сформировать рейсы автоматически</button>
+          </div>
+        </div>
+        <div id="autoformReport"></div>
+        <div class="table-wrap" id="deliveriesTable">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- ============ ПАНЕЛЬ: РЕЙСЫ ============ -->
+    <section class="panel" id="panel-trips">
+      <h1>Рейсы</h1>
+      <div class="crumbs">Список рейсов, ручное формирование, утверждение, факт GPS</div>
+      <div class="card">
+        <h2>Новый рейс (вручную)</h2>
+        <div class="form-grid" id="tripForm">
+          <div class="field"><label>Дата рейса *</label><input id="tpDate" type="date"></div>
+          <div class="field"><label>Автомобиль *</label><select id="tpTruck"></select></div>
+          <div class="field"><label>Водитель *</label><select id="tpDriver"></select></div>
+          <div class="field"><label>Пункт загрузки *</label><select id="tpLoadPoint" onchange="updateTripTypeHint()"></select></div>
+          <div class="field"><label>Конечный пункт *</label><select id="tpEndPoint"></select></div>
+          <div class="field"><label>Тип рейса (авто, можно переопределить)</label><select id="tpType">
+            <option value="">— определить автоматически —</option>
+            <option value="DOMESTIC">Внутренний</option>
+            <option value="IMPORT">Импортный</option>
+          </select></div>
+        </div>
+        <div class="note" id="tripTypeHint"></div>
+        <div class="section-title">Остановки маршрута (АЗС, в порядке обслуживания)</div>
+        <div class="stops-list" id="stopsList"></div>
+        <button class="btn btn-secondary btn-sm" onclick="addStopRow()">+ Добавить остановку</button>
+        <div class="form-actions"><button class="btn btn-primary" onclick="createTrip()">Создать рейс</button></div>
+        <div id="tripCreateReport"></div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <h2>Рейсы за период</h2>
+          <div style="display:flex; gap:8px;">
+            <input id="tpFrom" type="date">
+            <input id="tpTo" type="date">
+            <button class="btn btn-secondary btn-sm" onclick="loadTrips()">Обновить</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="tripsTable">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- ============ ПАНЕЛЬ: ПЛАНИРОВАНИЕ ============ -->
+    <section class="panel" id="panel-planning">
+      <h1>Планирование поставок</h1>
+      <div class="crumbs">Автоматический расчёт потребности АЗС и предложение рейсов (ТЗ п.7)</div>
+      <div class="note">Это предложение системы, а не утверждённый документ — логист принимает решение через панель «Рейсы» (ручное формирование или автоформирование по накладным).</div>
+      <div class="toolbar"><button class="btn btn-secondary btn-sm" onclick="loadSupplyPlan()">Пересчитать</button></div>
+      <div class="card">
+        <h2>Потребность АЗС в поставке</h2>
+        <div class="table-wrap" id="planNeedsTable">Загрузка…</div>
+      </div>
+      <div class="card">
+        <h2>Предложенные рейсы</h2>
+        <div class="table-wrap" id="planTripsTable">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- ============ ПАНЕЛЬ: ЗАРПЛАТА ============ -->
+    <section class="panel" id="panel-payroll">
+      <h1>Зарплата водителей</h1>
+      <div class="crumbs">Расчёт по нормативному пробегу и доплате за внутренний рейс (ТЗ п.10-11)</div>
+      <div class="formula">
+        Формула: <code>Зарплата = Норм.пробег × 2.75 лея + Внутр.рейсы × 600 леев</code>.
+        Импортные рейсы (напр. Кишинёв–Констанца–Кишинёв) доплату 600 леев не получают.
+        Рейсы в статусе «Черновик» (DRAFT) в расчёт не входят.
+      </div>
+      <div class="toolbar">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="pyFrom" type="date">
+          <input id="pyTo" type="date">
+          <select id="pyDriver"><option value="">Все водители</option></select>
+          <button class="btn btn-secondary btn-sm" onclick="loadPayroll()">Пересчитать</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Рейсы за период</h2>
+        <div class="table-wrap" id="payrollTripsTable">Загрузка…</div>
+      </div>
+      <div class="card">
+        <h2>Свод по водителям</h2>
+        <div class="table-wrap" id="payrollSummaryTable">Загрузка…</div>
+      </div>
+    </section>
+
+    <!-- ============ ПАНЕЛЬ: КОНТРОЛЬ ============ -->
+    <section class="panel" id="panel-control">
+      <h1>Контроль отклонений</h1>
+      <div class="crumbs">Превышение лимита пробега и перерасход дизельного топлива (ТЗ п.9, 12-13)</div>
+      <div class="toolbar">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="ctFrom" type="date">
+          <input id="ctTo" type="date">
+          <button class="btn btn-secondary btn-sm" onclick="loadControl()">Пересчитать</button>
+        </div>
+      </div>
+      <div class="grid3" id="mgmtCards">
+        <div class="card stat-card"><div class="n" id="mgTotalKm">—</div><div class="label">Общий норм. пробег, км</div></div>
+        <div class="card stat-card"><div class="n" id="mgTotalPay">—</div><div class="label">Общая зарплата, лей</div></div>
+        <div class="card stat-card"><div class="n" id="mgCostLiter">—</div><div class="label">Стоимость перевозки 1 л, лей</div></div>
+      </div>
+      <div class="grid3">
+        <div class="card stat-card"><div class="n" id="mgLoading">—</div><div class="label">Средняя загрузка бензовозов, %</div></div>
+        <div class="card stat-card"><div class="n crit" id="mgKmDev">—</div><div class="label">Превышений по пробегу</div></div>
+        <div class="card stat-card"><div class="n crit" id="mgFuelDev">—</div><div class="label">Превышений по расходу ДТ</div></div>
+      </div>
+      <div class="card">
+        <h2>Рейсы с отклонениями</h2>
+        <div class="table-wrap" id="controlTable">Загрузка…</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+var API_BASE = document.body.getAttribute('data-api-base');
+var REFS = null;
+var STATIONS_BY_ID = {}, TRUCKS_BY_ID = {}, DRIVERS_BY_ID = {}, LOAD_POINTS_BY_ID = {},
+    END_POINTS_BY_ID = {}, PRODUCTS_BY_CODE = {};
+
+// ---- маленькие DOM-хелперы -------------------------------------------
+
+function txt(tag, className, content) {
+  // ВАЖНО: первым аргументом строго имя тега, без класса внутри строки —
+  // document.createElement('td num') кидает InvalidCharacterError.
+  var el = document.createElement(tag);
+  if (className) { el.className = className; }
+  if (content !== undefined && content !== null) { el.textContent = content; }
+  return el;
+}
+
+function clearNode(node) {
+  while (node.firstChild) { node.removeChild(node.firstChild); }
+}
+
+function esc(v) {
+  if (v === null || v === undefined) { return ''; }
+  return String(v);
+}
+
+function fmtNum(v, digits) {
+  if (v === null || v === undefined || v === '') { return '—'; }
+  var n = Number(v);
+  if (isNaN(n)) { return '—'; }
+  return n.toFixed(digits === undefined ? 1 : digits);
+}
+
+function todayIso() {
+  var d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+function isoDaysAgo(n) {
+  var d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+function buildTable(headers, rows, cellFn, rowClassFn) {
+  var table = txt('table');
+  var thead = txt('thead');
+  var trh = txt('tr');
+  for (var i = 0; i < headers.length; i++) {
+    var h = headers[i];
+    var isNum = typeof h === 'object';
+    trh.appendChild(txt('th', isNum ? 'num' : '', isNum ? h.label : h));
+  }
+  thead.appendChild(trh);
+  table.appendChild(thead);
+  var tbody = txt('tbody');
+  for (var r = 0; r < rows.length; r++) {
+    var row = rows[r];
+    var tr = txt('tr', rowClassFn ? (rowClassFn(row) || '') : '');
+    var cells = cellFn(row);
+    for (var c = 0; c < cells.length; c++) {
+      var cell = cells[c];
+      var td = txt('td', cell.cls || '');
+      if (cell.node) { td.appendChild(cell.node); }
+      else { td.textContent = cell.text !== undefined && cell.text !== null ? cell.text : ''; }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  return table;
+}
+
+function renderInto(containerId, node) {
+  var el = document.getElementById(containerId);
+  clearNode(el);
+  el.appendChild(node);
+}
+
+function renderEmpty(containerId, message) {
+  var el = document.getElementById(containerId);
+  clearNode(el);
+  el.appendChild(txt('div', 'note', message || 'Нет данных за выбранный период'));
+}
+
+// ---- API ---------------------------------------------------------------
+
+function apiGet(path) {
+  return fetch(API_BASE + path, {credentials: 'same-origin'})
+    .then(function (r) { return r.json(); });
+}
+
+function apiPost(path, body) {
+  return fetch(API_BASE + path, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body || {})
+  }).then(function (r) { return r.json(); });
+}
+
+function showErr(msg) {
+  var e = document.getElementById('globalErr');
+  e.textContent = msg;
+  e.classList.add('show');
+  document.getElementById('globalOk').classList.remove('show');
+}
+
+function showOk(msg) {
+  var e = document.getElementById('globalOk');
+  e.textContent = msg;
+  e.classList.add('show');
+  document.getElementById('globalErr').classList.remove('show');
+}
+
+function clearMsgs() {
+  document.getElementById('globalErr').classList.remove('show');
+  document.getElementById('globalOk').classList.remove('show');
+}
+
+function checkOk(res, context) {
+  if (!res || !res.success) {
+    showErr((context ? context + ': ' : '') + (res && res.message ? res.message : 'Ошибка запроса'));
+    return false;
+  }
+  return true;
+}
+
+// ---- навигация -----------------------------------------------------------
+
+function showPanel(name) {
+  var panels = document.querySelectorAll('.panel');
+  for (var i = 0; i < panels.length; i++) { panels[i].classList.remove('active'); }
+  document.getElementById('panel-' + name).classList.add('active');
+  var items = document.querySelectorAll('.nav-item');
+  for (var j = 0; j < items.length; j++) { items[j].classList.remove('active'); }
+  var active = document.querySelector('.nav-item[data-panel="' + name + '"]');
+  if (active) { active.classList.add('active'); }
+  clearMsgs();
+  onPanelShown(name);
+}
+
+function showSub(name) {
+  var subs = document.querySelectorAll('.subpanel');
+  for (var i = 0; i < subs.length; i++) { subs[i].classList.remove('active'); }
+  document.getElementById('sub-' + name).classList.add('active');
+  var tabs = document.querySelectorAll('.subtab');
+  for (var j = 0; j < tabs.length; j++) { tabs[j].classList.remove('active'); }
+  var active = document.querySelector('.subtab[data-sub="' + name + '"]');
+  if (active) { active.classList.add('active'); }
+}
+
+function onPanelShown(name) {
+  if (name === 'dashboard') { loadDashboard(); }
+  if (name === 'refs') { renderAllRefs(); }
+  if (name === 'deliveries') { loadDeliveries(); }
+  if (name === 'trips') { loadTrips(); }
+  if (name === 'planning') { loadSupplyPlan(); }
+  if (name === 'payroll') { loadPayroll(); }
+  if (name === 'control') { loadControl(); }
+}
+
+// ---- справочники: загрузка и индексация ---------------------------------
+
+function loadRefs() {
+  return apiGet('/api/refs').then(function (res) {
+    if (!checkOk(res, 'Справочники')) { return null; }
+    REFS = res.data;
+    STATIONS_BY_ID = indexById(REFS.stations);
+    TRUCKS_BY_ID = indexById(REFS.trucks);
+    DRIVERS_BY_ID = indexById(REFS.drivers);
+    LOAD_POINTS_BY_ID = indexById(REFS.load_points);
+    END_POINTS_BY_ID = indexById(REFS.end_points);
+    PRODUCTS_BY_CODE = {};
+    (REFS.products || []).forEach(function (p) { PRODUCTS_BY_CODE[p.code] = p; });
+    return REFS;
+  });
+}
+
+function indexById(list) {
+  var m = {};
+  (list || []).forEach(function (x) { m[x.id] = x; });
+  return m;
+}
+
+function fillSelect(selectEl, items, valueField, labelField, placeholder) {
+  clearNode(selectEl);
+  if (placeholder) {
+    selectEl.appendChild(txt('option', '', placeholder)).setAttribute('value', '');
+  }
+  (items || []).forEach(function (item) {
+    var opt = txt('option', '', item[labelField]);
+    opt.setAttribute('value', item[valueField]);
+    selectEl.appendChild(opt);
+  });
+}
+
+function fillAllRefSelects() {
+  fillSelect(document.getElementById('dlProduct'), REFS.products, 'code', 'name_ru');
+  fillSelect(document.getElementById('dlLoadPoint'), REFS.load_points, 'id', 'name');
+  fillSelect(document.getElementById('dlStation'), REFS.stations, 'id', 'name');
+  fillSelect(document.getElementById('dlTruck'), REFS.trucks, 'id', 'plate');
+  fillSelect(document.getElementById('dlDriver'), REFS.drivers, 'id', 'full_name');
+
+  fillSelect(document.getElementById('tpTruck'), REFS.trucks, 'id', 'plate');
+  fillSelect(document.getElementById('tpDriver'), REFS.drivers, 'id', 'full_name');
+  fillSelect(document.getElementById('tpLoadPoint'), REFS.load_points, 'id', 'name');
+  fillSelect(document.getElementById('tpEndPoint'), REFS.end_points, 'id', 'name');
+
+  fillSelect(document.getElementById('drTruck'), REFS.trucks, 'id', 'plate', '— не закреплён —');
+
+  var pyDriver = document.getElementById('pyDriver');
+  clearNode(pyDriver);
+  var allOpt = txt('option', '', 'Все водители'); allOpt.setAttribute('value', '');
+  pyDriver.appendChild(allOpt);
+  (REFS.drivers || []).forEach(function (d) {
+    var opt = txt('option', '', d.full_name); opt.setAttribute('value', d.id);
+    pyDriver.appendChild(opt);
+  });
+
+  onDistKindChange('from');
+  onDistKindChange('to');
+  updateTripTypeHint();
+}
+
+// ---- панель: Сводка -------------------------------------------------------
+
+function loadDashboard() {
+  clearMsgs();
+  var stockPromise = apiGet('/api/report/stations?date_from=' + isoDaysAgo(30) + '&date_to=' + todayIso());
+  var tripsPromise = apiGet('/api/trips?date_from=' + isoDaysAgo(7) + '&date_to=' + todayIso());
+  var controlPromise = apiGet('/api/report/control?date_from=' + isoDaysAgo(7) + '&date_to=' + todayIso());
+
+  Promise.all([stockPromise, tripsPromise, controlPromise]).then(function (results) {
+    var stock = results[0], trips = results[1], control = results[2];
+
+    if (checkOk(stock, 'Отчёт по АЗС')) {
+      var rows = stock.data || [];
+      var needCount = 0;
+      var seen = {};
+      rows.forEach(function (r) {
+        if (r.need_supply) {
+          var key = r.station_id + '|' + r.product_code;
+          if (!seen[key]) { seen[key] = true; needCount++; }
+        }
+      });
+      document.getElementById('dbNeedSupply').textContent = needCount;
+
+      if (!rows.length) {
+        renderEmpty('dbStockTable');
+      } else {
+        var table = buildTable(
+          ['АЗС', 'Продукт', {label: 'Остаток, л'}, {label: 'Запас, дней'}, {label: 'Мин. запас, л'}, 'Статус'],
+          rows,
+          function (r) {
+            var days = r.stock_days;
+            var status = r.need_supply ? {cls: 'crit', text: 'Нужна поставка'} : {cls: 'ok', text: 'Норма'};
+            return [
+              {text: r.station_name},
+              {text: (PRODUCTS_BY_CODE[r.product_code] || {}).name_ru || r.product_code},
+              {cls: 'num', text: fmtNum(r.current_l, 0)},
+              {cls: 'num', text: fmtNum(days, 1)},
+              {cls: 'num', text: fmtNum(r.min_stock_l, 0)},
+              {node: pill(status.cls, status.text)}
+            ];
+          },
+          function (r) { return r.need_supply ? 'hl-crit' : ''; }
+        );
+        renderInto('dbStockTable', table);
+      }
+    }
+
+    if (checkOk(trips, 'Рейсы')) {
+      document.getElementById('dbTripsWeek').textContent = (trips.data || []).length;
+    }
+
+    if (checkOk(control, 'Контроль')) {
+      var devCount = 0;
+      (control.data || []).forEach(function (r) {
+        if (r.over_km_limit) { devCount++; }
+        if (r.over_fuel_limit) { devCount++; }
+      });
+      document.getElementById('dbDeviations').textContent = devCount;
+    }
+  });
+}
+
+function pill(cls, text) {
+  return txt('span', 'pill ' + cls, text);
+}
+
+// ---- панель: Справочники --------------------------------------------------
+
+function renderAllRefs() {
+  loadRefs().then(function () {
+    if (!REFS) { return; }
+    fillAllRefSelects();
+    renderStationsTable();
+    renderTrucksTable();
+    renderDriversTable();
+    renderPointsTables();
+    renderDistancesTable();
+  });
+}
+
+function renderStationsTable() {
+  var rows = REFS.stations || [];
+  if (!rows.length) { renderEmpty('stationsTable'); return; }
+  var table = buildTable(
+    ['ID', 'Код', 'Наименование', 'Адрес', 'Резервуары'],
+    rows,
+    function (s) {
+      var tanks = (s.tanks || []).map(function (t) {
+        return t.product_code + ':' + fmtNum(t.capacity_l, 0);
+      }).join(', ');
+      return [
+        {text: s.id}, {text: s.code}, {text: s.name}, {text: s.address || ''},
+        {text: tanks || '—'}
+      ];
+    });
+  renderInto('stationsTable', table);
+}
+
+function saveStation() {
+  clearMsgs();
+  var tanksRaw = (document.getElementById('stTanks').value || '').trim();
+  var tanks = [];
+  if (tanksRaw) {
+    tanksRaw.split(',').forEach(function (piece) {
+      var parts = piece.split(':');
+      if (parts.length === 2 && parts[0].trim()) {
+        tanks.push({product_code: parts[0].trim().toUpperCase(),
+                    capacity_l: parseFloat(parts[1].trim())});
+      }
+    });
+  }
+  var payload = {
+    id: document.getElementById('stStId').value || null,
+    code: document.getElementById('stCode').value,
+    name: document.getElementById('stName').value,
+    address: document.getElementById('stAddress').value,
+    tanks: tanks
+  };
+  apiPost('/api/station', payload).then(function (res) {
+    if (checkOk(res, 'АЗС')) {
+      showOk('АЗС сохранена (ID ' + res.data.id + ')');
+      renderAllRefs();
+    }
+  });
+}
+
+function renderTrucksTable() {
+  var rows = REFS.trucks || [];
+  if (!rows.length) { renderEmpty('trucksTable'); return; }
+  var table = buildTable(
+    ['ID', 'Госномер', 'Марка', {label: 'Вместимость, л'}, {label: 'Секций'}, {label: 'Норма л/100км'}, 'Продукты'],
+    rows,
+    function (t) {
+      return [
+        {text: t.id}, {text: t.plate}, {text: t.brand || ''},
+        {cls: 'num', text: fmtNum(t.capacity_l, 0)},
+        {cls: 'num', text: t.sections_cnt},
+        {cls: 'num', text: fmtNum(t.norm_l_per_100km, 1)},
+        {text: (t.products || []).join(', ') || '—'}
+      ];
+    });
+  renderInto('trucksTable', table);
+}
+
+function saveTruck() {
+  clearMsgs();
+  var productsRaw = (document.getElementById('trProducts').value || '').trim();
+  var products = productsRaw ? productsRaw.split(',').map(function (p) { return p.trim().toUpperCase(); }).filter(Boolean) : [];
+  var payload = {
+    id: document.getElementById('trId').value || null,
+    plate: document.getElementById('trPlate').value,
+    brand: document.getElementById('trBrand').value,
+    capacity_l: parseFloat(document.getElementById('trCapacity').value),
+    sections_cnt: parseInt(document.getElementById('trSections').value, 10) || 1,
+    norm_l_per_100km: parseFloat(document.getElementById('trNorm').value),
+    products: products
+  };
+  apiPost('/api/truck', payload).then(function (res) {
+    if (checkOk(res, 'Автомобиль')) {
+      showOk('Автомобиль сохранён (ID ' + res.data.id + ')');
+      renderAllRefs();
+    }
+  });
+}
+
+function renderDriversTable() {
+  var rows = REFS.drivers || [];
+  if (!rows.length) { renderEmpty('driversTable'); return; }
+  var table = buildTable(
+    ['ID', 'ФИО', 'Табельный №', 'Закреплённый автомобиль'],
+    rows,
+    function (d) {
+      var truck = TRUCKS_BY_ID[d.truck_id];
+      return [
+        {text: d.id}, {text: d.full_name}, {text: d.tab_no},
+        {text: truck ? truck.plate : '—'}
+      ];
+    });
+  renderInto('driversTable', table);
+}
+
+function saveDriver() {
+  clearMsgs();
+  var truckVal = document.getElementById('drTruck').value;
+  var payload = {
+    id: document.getElementById('drId').value || null,
+    full_name: document.getElementById('drName').value,
+    tab_no: document.getElementById('drTabNo').value,
+    truck_id: truckVal || null
+  };
+  apiPost('/api/driver', payload).then(function (res) {
+    if (checkOk(res, 'Водитель')) {
+      showOk('Водитель сохранён (ID ' + res.data.id + ')');
+      renderAllRefs();
+    }
+  });
+}
+
+function renderPointsTables() {
+  var lp = REFS.load_points || [];
+  if (!lp.length) { renderEmpty('loadPointsTable'); }
+  else {
+    renderInto('loadPointsTable', buildTable(
+      ['ID', 'Код', 'Наименование', 'За рубежом'],
+      lp,
+      function (p) {
+        return [{text: p.id}, {text: p.code}, {text: p.name},
+                {node: pill(p.is_foreign ? 'warn' : 'muted', p.is_foreign ? 'Да (импорт)' : 'Нет')}];
+      }));
+  }
+  var ep = REFS.end_points || [];
+  if (!ep.length) { renderEmpty('endPointsTable'); }
+  else {
+    renderInto('endPointsTable', buildTable(
+      ['ID', 'Код', 'Наименование'], ep,
+      function (p) { return [{text: p.id}, {text: p.code}, {text: p.name}]; }));
+  }
+}
+
+function kindItems(kind) {
+  if (kind === 'LOAD') { return {items: REFS.load_points, label: 'name'}; }
+  if (kind === 'STATION') { return {items: REFS.stations, label: 'name'}; }
+  return {items: REFS.end_points, label: 'name'};
+}
+
+function onDistKindChange(which) {
+  var kindSel = document.getElementById('dist' + (which === 'from' ? 'From' : 'To') + 'Kind');
+  var idSel = document.getElementById('dist' + (which === 'from' ? 'From' : 'To') + 'Id');
+  var info = kindItems(kindSel.value);
+  fillSelect(idSel, info.items, 'id', info.label);
+}
+
+function kindLabel(kind) {
+  if (kind === 'LOAD') { return 'Пункт загрузки'; }
+  if (kind === 'STATION') { return 'АЗС'; }
+  return 'Конечный пункт';
+}
+
+function objectName(kind, id) {
+  if (kind === 'LOAD') { return (LOAD_POINTS_BY_ID[id] || {}).name || ('#' + id); }
+  if (kind === 'STATION') { return (STATIONS_BY_ID[id] || {}).name || ('#' + id); }
+  return (END_POINTS_BY_ID[id] || {}).name || ('#' + id);
+}
+
+function renderDistancesTable() {
+  var rows = REFS.distances || [];
+  if (!rows.length) { renderEmpty('distancesTable'); return; }
+  var table = buildTable(
+    ['Откуда', 'Куда', {label: 'Км'}],
+    rows,
+    function (d) {
+      return [
+        {text: kindLabel(d.from_kind) + ' — ' + objectName(d.from_kind, d.from_id)},
+        {text: kindLabel(d.to_kind) + ' — ' + objectName(d.to_kind, d.to_id)},
+        {cls: 'num', text: fmtNum(d.km, 1)}
+      ];
+    });
+  renderInto('distancesTable', table);
+}
+
+function saveDistance() {
+  clearMsgs();
+  var payload = {
+    from_kind: document.getElementById('distFromKind').value,
+    from_id: document.getElementById('distFromId').value,
+    to_kind: document.getElementById('distToKind').value,
+    to_id: document.getElementById('distToId').value,
+    km: parseFloat(document.getElementById('distKm').value)
+  };
+  apiPost('/api/distance', payload).then(function (res) {
+    if (checkOk(res, 'Матрица расстояний')) {
+      showOk('Участок сохранён');
+      renderAllRefs();
+    }
+  });
+}
+
+// ---- панель: Поставки -------------------------------------------------
+
+function ensureRefsThen(fn) {
+  if (REFS) { fn(); return; }
+  loadRefs().then(function () { if (REFS) { fillAllRefSelects(); fn(); } });
+}
+
+function initDateRange(fromId, toId, daysBack) {
+  var fromEl = document.getElementById(fromId), toEl = document.getElementById(toId);
+  if (!fromEl.value) { fromEl.value = isoDaysAgo(daysBack); }
+  if (!toEl.value) { toEl.value = todayIso(); }
+}
+
+function loadDeliveries() {
+  clearMsgs();
+  initDateRange('dlFrom', 'dlTo', 30);
+  ensureRefsThen(function () {
+    var from = document.getElementById('dlFrom').value;
+    var to = document.getElementById('dlTo').value;
+    var unassigned = document.getElementById('dlUnassignedOnly').checked;
+    var qs = '?date_from=' + from + '&date_to=' + to + (unassigned ? '&unassigned_only=1' : '');
+    apiGet('/api/delivery' + qs).then(function (res) {
+      if (!checkOk(res, 'Поставки')) { return; }
+      var rows = res.data || [];
+      if (!rows.length) { renderEmpty('deliveriesTable'); return; }
+      renderInto('deliveriesTable', buildTable(
+        ['Дата', 'Продукт', {label: 'Объём, л'}, 'Пункт загрузки', 'АЗС', 'Автомобиль', 'Водитель', 'Рейс'],
+        rows,
+        function (d) {
+          var truck = TRUCKS_BY_ID[d.truck_id], driver = DRIVERS_BY_ID[d.driver_id],
+              station = STATIONS_BY_ID[d.station_id], lp = LOAD_POINTS_BY_ID[d.load_point_id];
+          return [
+            {text: d.deliv_date}, {text: (PRODUCTS_BY_CODE[d.product_code] || {}).name_ru || d.product_code},
+            {cls: 'num', text: fmtNum(d.volume_l, 0)},
+            {text: lp ? lp.name : d.load_point_id},
+            {text: station ? station.name : d.station_id},
+            {text: truck ? truck.plate : d.truck_id},
+            {text: driver ? driver.full_name : d.driver_id},
+            {node: d.trip_id ? pill('ok', '№' + d.trip_id) : pill('warn', 'без рейса')}
+          ];
+        }));
+    });
+  });
+}
+
+function addDelivery() {
+  clearMsgs();
+  var payload = {
+    deliv_date: document.getElementById('dlDate').value,
+    product_code: document.getElementById('dlProduct').value,
+    volume_l: parseFloat(document.getElementById('dlVolume').value),
+    load_point_id: document.getElementById('dlLoadPoint').value,
+    station_id: document.getElementById('dlStation').value,
+    truck_id: document.getElementById('dlTruck').value,
+    driver_id: document.getElementById('dlDriver').value
+  };
+  apiPost('/api/delivery', payload).then(function (res) {
+    if (checkOk(res, 'Накладная')) {
+      showOk('Накладная добавлена (ID ' + res.data.id + ')');
+      loadDeliveries();
+    }
+  });
+}
+
+function autoformTrips() {
+  clearMsgs();
+  var from = document.getElementById('dlFrom').value || isoDaysAgo(30);
+  var to = document.getElementById('dlTo').value || todayIso();
+  apiPost('/api/trip/autoform', {date_from: from, date_to: to}).then(function (res) {
+    if (!checkOk(res, 'Автоформирование рейсов')) { return; }
+    var d = res.data;
+    var box = document.getElementById('autoformReport');
+    clearNode(box);
+    var summary = txt('div', 'ok-msg show',
+      'Создано рейсов: ' + d.created + '. Не удалось сформировать: ' + (d.skipped || []).length + '.');
+    box.appendChild(summary);
+    if ((d.skipped || []).length) {
+      var list = txt('ul');
+      d.skipped.forEach(function (s) {
+        var li = txt('li', '', s.key + ' — ' + s.reason);
+        list.appendChild(li);
+      });
+      box.appendChild(list);
+    }
+    loadDeliveries();
+  });
+}
+
+// ---- панель: Рейсы ------------------------------------------------------
+
+var STOP_ROW_SEQ = 0;
+
+function addStopRow() {
+  ensureRefsThen(function () {
+    STOP_ROW_SEQ++;
+    var rowId = 'stop-' + STOP_ROW_SEQ;
+    var wrap = txt('div', 'stop-row');
+    wrap.setAttribute('id', rowId);
+    var head = txt('div', 'stop-head');
+    var stationSel = txt('select');
+    stationSel.className = 'stop-station';
+    fillSelect(stationSel, REFS.stations, 'id', 'name');
+    head.appendChild(stationSel);
+    var removeBtn = txt('button', 'btn btn-danger btn-sm', 'Удалить остановку');
+    removeBtn.setAttribute('type', 'button');
+    removeBtn.onclick = function () { var el = document.getElementById(rowId); el.parentNode.removeChild(el); };
+    head.appendChild(removeBtn);
+    wrap.appendChild(head);
+    var itemsBox = txt('div', 'items-box');
+    wrap.appendChild(itemsBox);
+    var addItemBtn = txt('button', 'btn btn-secondary btn-sm', '+ Продукт для слива');
+    addItemBtn.setAttribute('type', 'button');
+    addItemBtn.onclick = function () { addItemRow(itemsBox); };
+    wrap.appendChild(addItemBtn);
+    document.getElementById('stopsList').appendChild(wrap);
+    addItemRow(itemsBox);
+  });
+}
+
+function addItemRow(itemsBox) {
+  var row = txt('div', 'item-row');
+  var productSel = txt('select');
+  productSel.className = 'item-product';
+  fillSelect(productSel, REFS.products, 'code', 'name_ru');
+  var volInput = txt('input');
+  volInput.className = 'item-volume';
+  volInput.setAttribute('type', 'number');
+  volInput.setAttribute('placeholder', 'Объём, л');
+  var removeBtn = txt('button', 'btn btn-danger btn-sm', '×');
+  removeBtn.setAttribute('type', 'button');
+  removeBtn.onclick = function () { row.parentNode.removeChild(row); };
+  row.appendChild(productSel);
+  row.appendChild(volInput);
+  row.appendChild(removeBtn);
+  itemsBox.appendChild(row);
+}
+
+function updateTripTypeHint() {
+  if (!REFS) { return; }
+  var lpId = document.getElementById('tpLoadPoint').value;
+  var lp = LOAD_POINTS_BY_ID[lpId];
+  var hint = document.getElementById('tripTypeHint');
+  if (!lp) { hint.textContent = ''; return; }
+  hint.textContent = lp.is_foreign
+    ? 'По географии пункта загрузки этот рейс будет классифицирован как ИМПОРТНЫЙ (доплата 600 леев не начисляется).'
+    : 'По географии пункта загрузки этот рейс будет классифицирован как ВНУТРЕННИЙ (доплата 600 леев начисляется).';
+}
+
+function collectStops() {
+  var stops = [];
+  var rows = document.querySelectorAll('#stopsList .stop-row');
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var stationId = row.querySelector('.stop-station').value;
+    var items = [];
+    var itemRows = row.querySelectorAll('.item-row');
+    for (var j = 0; j < itemRows.length; j++) {
+      var ir = itemRows[j];
+      var product = ir.querySelector('.item-product').value;
+      var vol = parseFloat(ir.querySelector('.item-volume').value);
+      if (product && vol) { items.push({product_code: product, volume_l: vol}); }
+    }
+    stops.push({station_id: stationId, items: items});
+  }
+  return stops;
+}
+
+function createTrip() {
+  clearMsgs();
+  var payload = {
+    trip_date: document.getElementById('tpDate').value,
+    truck_id: document.getElementById('tpTruck').value,
+    driver_id: document.getElementById('tpDriver').value,
+    load_point_id: document.getElementById('tpLoadPoint').value,
+    end_point_id: document.getElementById('tpEndPoint').value,
+    type_code: document.getElementById('tpType').value || null,
+    stations: collectStops()
+  };
+  apiPost('/api/trip', payload).then(function (res) {
+    var box = document.getElementById('tripCreateReport');
+    clearNode(box);
+    if (!checkOk(res, 'Создание рейса')) { return; }
+    box.appendChild(txt('div', 'ok-msg show',
+      'Рейс №' + res.data.trip_id + ' создан. Норм. пробег: ' + fmtNum(res.data.norm_km, 1) + ' км.'));
+    if (res.warnings && res.warnings.length) {
+      res.warnings.forEach(function (w) { box.appendChild(txt('div', 'err show', w)); });
+    }
+    loadTrips();
+  });
+}
+
+function loadTrips() {
+  clearMsgs();
+  initDateRange('tpFrom', 'tpTo', 30);
+  ensureRefsThen(function () {
+    var from = document.getElementById('tpFrom').value;
+    var to = document.getElementById('tpTo').value;
+    apiGet('/api/trips?date_from=' + from + '&date_to=' + to).then(function (res) {
+      if (!checkOk(res, 'Рейсы')) { return; }
+      var rows = res.data || [];
+      if (!rows.length) { renderEmpty('tripsTable'); return; }
+      renderInto('tripsTable', buildTable(
+        ['№', 'Дата', 'Тип', 'Статус', 'Автомобиль', 'Водитель', {label: 'Норм. км'}, {label: 'Факт км'}, 'Действия'],
+        rows,
+        function (t) {
+          var truck = TRUCKS_BY_ID[t.truck_id], driver = DRIVERS_BY_ID[t.driver_id];
+          var actions = txt('div');
+          if (t.status_code === 'DRAFT') {
+            var approveBtn = txt('button', 'btn btn-primary btn-sm', 'Утвердить');
+            approveBtn.onclick = function () { approveTrip(t.id); };
+            actions.appendChild(approveBtn);
+          } else if (t.fact_km === null || t.fact_km === undefined) {
+            var factBtn = txt('button', 'btn btn-secondary btn-sm', 'Внести факт');
+            factBtn.onclick = function () { promptFact(t.id); };
+            actions.appendChild(factBtn);
+          }
+          return [
+            {text: t.id},
+            {text: t.trip_date},
+            {node: pill(t.type_code === 'IMPORT' ? 'warn' : 'ok', t.type_code === 'IMPORT' ? 'Импортный' : 'Внутренний')},
+            {node: pill(t.status_code === 'DRAFT' ? 'muted' : 'ok', t.status_code)},
+            {text: truck ? truck.plate : t.truck_id},
+            {text: driver ? driver.full_name : t.driver_id},
+            {cls: 'num', text: fmtNum(t.norm_km, 1)},
+            {cls: 'num', text: fmtNum(t.fact_km, 1)},
+            {node: actions}
+          ];
+        }));
+    });
+  });
+}
+
+function approveTrip(tripId) {
+  clearMsgs();
+  apiPost('/api/trip/approve', {trip_id: tripId}).then(function (res) {
+    if (checkOk(res, 'Утверждение рейса')) { showOk('Рейс №' + tripId + ' утверждён'); loadTrips(); }
+  });
+}
+
+function promptFact(tripId) {
+  var factKm = window.prompt('Фактический пробег (GPS), км:');
+  if (factKm === null) { return; }
+  var factMinutes = window.prompt('Фактическое время в пути, мин:');
+  if (factMinutes === null) { return; }
+  var factFuel = window.prompt('Фактический расход ДТ, л (можно оставить пустым):');
+  var payload = {trip_id: tripId, fact_km: parseFloat(factKm), fact_minutes: parseInt(factMinutes, 10)};
+  if (factFuel !== null && factFuel.trim() !== '') { payload.fact_fuel_l = parseFloat(factFuel); }
+  apiPost('/api/trip/fact', payload).then(function (res) {
+    if (checkOk(res, 'Факт по рейсу')) { showOk('Факт по рейсу №' + tripId + ' записан'); loadTrips(); }
+  });
+}
+
+// ---- панель: Планирование --------------------------------------------
+
+function loadSupplyPlan() {
+  clearMsgs();
+  ensureRefsThen(function () {
+    apiGet('/api/supply-plan').then(function (res) {
+      if (!checkOk(res, 'Планирование поставок')) { return; }
+      var trips = (res.data && res.data.trips) || [];
+      if (!trips.length) {
+        renderEmpty('planNeedsTable', 'Потребности не выявлены — у всех АЗС запас выше страхового');
+        renderEmpty('planTripsTable', 'Предложений нет');
+        return;
+      }
+      var needRows = [];
+      trips.forEach(function (t) {
+        t.stops.forEach(function (s) {
+          s.items.forEach(function (it) {
+            needRows.push({station_id: s.station_id, product: it.product, volume: it.volume, truck: t.truck});
+          });
+        });
+      });
+      renderInto('planNeedsTable', buildTable(
+        ['АЗС', 'Продукт', {label: 'Объём к поставке, л'}, 'Бензовоз'],
+        needRows,
+        function (r) {
+          var station = STATIONS_BY_ID[r.station_id], truck = TRUCKS_BY_ID[r.truck];
+          return [
+            {text: station ? station.name : r.station_id},
+            {text: (PRODUCTS_BY_CODE[r.product] || {}).name_ru || r.product},
+            {cls: 'num', text: fmtNum(r.volume, 0)},
+            {text: truck ? truck.plate : r.truck}
+          ];
+        }));
+
+      renderInto('planTripsTable', buildTable(
+        ['Бензовоз', 'Маршрут (АЗС по порядку)', {label: 'Расч. км'}],
+        trips,
+        function (t) {
+          var truck = TRUCKS_BY_ID[t.truck];
+          var routeNames = t.stops.map(function (s) {
+            var st = STATIONS_BY_ID[s.station_id];
+            return st ? st.name : s.station_id;
+          }).join(' → ');
+          return [
+            {text: truck ? truck.plate : t.truck},
+            {text: routeNames},
+            {cls: 'num', text: fmtNum(t.est_km, 1)}
+          ];
+        }));
+    });
+  });
+}
+
+// ---- панель: Зарплата ---------------------------------------------------
+
+function loadPayroll() {
+  clearMsgs();
+  initDateRange('pyFrom', 'pyTo', 30);
+  ensureRefsThen(function () {
+    var from = document.getElementById('pyFrom').value;
+    var to = document.getElementById('pyTo').value;
+    var driverId = document.getElementById('pyDriver').value;
+    var qs = '?date_from=' + from + '&date_to=' + to + (driverId ? '&driver_id=' + driverId : '');
+
+    apiGet('/api/report/payroll' + qs).then(function (res) {
+      if (!checkOk(res, 'Зарплата (рейсы)')) { return; }
+      var rows = res.data || [];
+      if (!rows.length) { renderEmpty('payrollTripsTable'); return; }
+      renderInto('payrollTripsTable', buildTable(
+        ['№', 'Дата', 'Водитель', 'Тип', {label: 'Норм. км'}, {label: 'Оплата км'}, {label: 'Бонус'}, {label: 'Итого'}],
+        rows,
+        function (r) {
+          return [
+            {text: r.trip_id}, {text: r.trip_date}, {text: r.driver_name},
+            {node: pill(r.type_code === 'IMPORT' ? 'warn' : 'ok', r.type_code === 'IMPORT' ? 'Импортный' : 'Внутренний')},
+            {cls: 'num', text: fmtNum(r.norm_km, 1)},
+            {cls: 'num', text: fmtNum(r.km_pay, 2)},
+            {cls: 'num', text: fmtNum(r.bonus_pay, 2)},
+            {cls: 'num', text: fmtNum(r.total_pay, 2)}
+          ];
+        }));
+    });
+
+    apiGet('/api/report/drivers' + qs).then(function (res) {
+      if (!checkOk(res, 'Свод по водителям')) { return; }
+      var rows = res.data || [];
+      if (!rows.length) { renderEmpty('payrollSummaryTable'); return; }
+      renderInto('payrollSummaryTable', buildTable(
+        ['Водитель', {label: 'Внутр. рейсов'}, {label: 'Импортных рейсов'}, {label: 'Норм. км'}, {label: 'Факт км'}, {label: 'Итого зарплата'}],
+        rows,
+        function (r) {
+          return [
+            {text: r.full_name},
+            {cls: 'num', text: r.domestic_cnt},
+            {cls: 'num', text: r.import_cnt},
+            {cls: 'num', text: fmtNum(r.total_norm_km, 1)},
+            {cls: 'num', text: fmtNum(r.total_fact_km, 1)},
+            {cls: 'num', text: fmtNum(r.total_pay, 2)}
+          ];
+        }));
+    });
+  });
+}
+
+// ---- панель: Контроль -----------------------------------------------------
+
+function loadControl() {
+  clearMsgs();
+  initDateRange('ctFrom', 'ctTo', 30);
+  ensureRefsThen(function () {
+    var from = document.getElementById('ctFrom').value;
+    var to = document.getElementById('ctTo').value;
+    var qs = '?date_from=' + from + '&date_to=' + to;
+
+    apiGet('/api/report/management' + qs).then(function (res) {
+      if (!checkOk(res, 'Сводка руководству')) { return; }
+      var d = res.data;
+      document.getElementById('mgTotalKm').textContent = fmtNum(d.total_norm_km, 0);
+      document.getElementById('mgTotalPay').textContent = fmtNum(d.total_pay, 0);
+      document.getElementById('mgCostLiter').textContent = d.cost_per_liter === null ? '—' : fmtNum(d.cost_per_liter, 3);
+      document.getElementById('mgLoading').textContent = d.avg_loading_pct === null ? '—' : fmtNum(d.avg_loading_pct, 1);
+      document.getElementById('mgKmDev').textContent = d.km_deviation_cnt;
+      document.getElementById('mgFuelDev').textContent = d.fuel_deviation_cnt;
+    });
+
+    apiGet('/api/report/control' + qs).then(function (res) {
+      if (!checkOk(res, 'Контроль отклонений')) { return; }
+      var rows = (res.data || []).filter(function (r) { return r.over_km_limit || r.over_fuel_limit; });
+      if (!rows.length) { renderEmpty('controlTable', 'Отклонений за период не выявлено'); return; }
+      renderInto('controlTable', buildTable(
+        ['№', 'Дата', 'Автомобиль', {label: 'Норм. км'}, {label: 'Факт км'}, {label: 'Δ км'},
+         {label: 'Норм. ДТ, л'}, {label: 'Факт ДТ, л'}, {label: 'Δ ДТ, л'}, 'Отклонение'],
+        rows,
+        function (r) {
+          var badges = txt('div');
+          if (r.over_km_limit) { badges.appendChild(pill('crit', 'пробег')); }
+          if (r.over_fuel_limit) { badges.appendChild(pill('crit', 'топливо')); }
+          return [
+            {text: r.trip_id}, {text: r.trip_date}, {text: r.plate},
+            {cls: 'num', text: fmtNum(r.norm_km, 1)},
+            {cls: 'num', text: fmtNum(r.fact_km, 1)},
+            {cls: 'num', text: fmtNum(r.km_deviation, 1)},
+            {cls: 'num', text: fmtNum(r.norm_fuel_l, 1)},
+            {cls: 'num', text: fmtNum(r.fact_fuel_l, 1)},
+            {cls: 'num', text: fmtNum(r.fuel_deviation, 1)},
+            {node: badges}
+          ];
+        },
+        function (r) { return (r.over_km_limit || r.over_fuel_limit) ? 'hl-crit' : ''; }));
+    });
+  });
+}
+
+// ---- инициализация --------------------------------------------------------
+
+document.addEventListener('DOMContentLoaded', function () {
+  addStopRow();
+  loadDashboard();
+});
+</script>
 </body>
 </html>
