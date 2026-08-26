@@ -1612,6 +1612,244 @@ function renderPriceChanges(rows) {
     function (r) { return r.jump ? 'hl-crit' : ''; }));
 }
 
+// ---- GPS: карта, live-позиции, replay ------------------------------------
+
+var SVG_NS = 'http://www.w3.org/2000/svg';
+var GPS_GEO = null;
+var GPS_REFRESH_TIMER = null;
+
+function svgEl(tag, attrs) {
+  var el = document.createElementNS(SVG_NS, tag);
+  for (var key in attrs) {
+    if (attrs.hasOwnProperty(key)) { el.setAttribute(key, attrs[key]); }
+  }
+  return el;
+}
+
+function gpsBounds(points) {
+  // points: [{lat, lon}, ...] -- bounding box with a small margin so
+  // edge markers are not clipped against the SVG border.
+  var lats = points.map(function (p) { return p.lat; });
+  var lons = points.map(function (p) { return p.lon; });
+  var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+  var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+  var latMargin = (maxLat - minLat) * 0.12 || 0.05;
+  var lonMargin = (maxLon - minLon) * 0.12 || 0.05;
+  return {
+    minLat: minLat - latMargin, maxLat: maxLat + latMargin,
+    minLon: minLon - lonMargin, maxLon: maxLon + lonMargin
+  };
+}
+
+function gpsProjector(bounds, w, h, padding) {
+  var pad = padding || 20;
+  var plotW = w - 2 * pad, plotH = h - 2 * pad;
+  var spanLat = (bounds.maxLat - bounds.minLat) || 1;
+  var spanLon = (bounds.maxLon - bounds.minLon) || 1;
+  return function (lat, lon) {
+    var x = pad + ((lon - bounds.minLon) / spanLon) * plotW;
+    var y = pad + ((bounds.maxLat - lat) / spanLat) * plotH;
+    return [x, y];
+  };
+}
+
+function loadGpsPanel() {
+  var work = GPS_GEO ? Promise.resolve({success: true, data: GPS_GEO}) : apiGet('/api/gps/geo');
+  work.then(function (res) {
+    if (!checkOk(res, 'GPS')) { return; }
+    GPS_GEO = res.data;
+    renderGpsStaticMap();
+    refreshGpsPositions();
+  });
+  loadGpsReplayTripOptions();
+}
+
+function renderGpsStaticMap() {
+  var svg = document.getElementById('gpsMap');
+  clearNode(svg);
+  var allPoints = []
+    .concat(GPS_GEO.stations || [])
+    .concat(GPS_GEO.load_points || [])
+    .concat(GPS_GEO.end_points || []);
+  if (!allPoints.length) {
+    svg.appendChild(svgEl('text', {x: 20, y: 40, fill: '#6b7a90', 'font-size': 13}));
+    return;
+  }
+  var bounds = gpsBounds(allPoints);
+  var project = gpsProjector(bounds, 900, 480, 26);
+  svg.setAttribute('data-bounds', JSON.stringify(bounds));
+
+  (GPS_GEO.stations || []).forEach(function (s) {
+    var xy = project(s.lat, s.lon);
+    svg.appendChild(svgEl('circle', {cx: xy[0], cy: xy[1], r: 5, fill: '#2563eb', 'data-kind': 'station'}));
+    var label = svgEl('text', {x: xy[0] + 7, y: xy[1] + 4, 'font-size': 10, fill: '#14213d'});
+    label.textContent = s.name || s.code;
+    svg.appendChild(label);
+  });
+  (GPS_GEO.load_points || []).forEach(function (p) {
+    var xy = project(p.lat, p.lon);
+    svg.appendChild(svgEl('rect', {x: xy[0] - 5, y: xy[1] - 5, width: 10, height: 10, fill: '#22c55e'}));
+    var label = svgEl('text', {x: xy[0] + 8, y: xy[1] + 4, 'font-size': 10, fill: '#14213d'});
+    label.textContent = p.name || p.code;
+    svg.appendChild(label);
+  });
+  (GPS_GEO.end_points || []).forEach(function (p) {
+    var xy = project(p.lat, p.lon);
+    svg.appendChild(svgEl('rect', {x: xy[0] - 5, y: xy[1] - 5, width: 10, height: 10, fill: '#f59e0b'}));
+    var label = svgEl('text', {x: xy[0] + 8, y: xy[1] + 4, 'font-size': 10, fill: '#14213d'});
+    label.textContent = p.name || p.code;
+    svg.appendChild(label);
+  });
+
+  renderGpsLegend();
+}
+
+function renderGpsLegend() {
+  var el = document.getElementById('gpsLegend');
+  clearNode(el);
+  var items = [
+    {color: '#2563eb', shape: 'circle', label: 'АЗС'},
+    {color: '#22c55e', shape: 'square', label: 'Пункт загрузки'},
+    {color: '#f59e0b', shape: 'square', label: 'Конечный пункт'},
+    {color: '#ef4444', shape: 'circle', label: 'Бензовоз'}
+  ];
+  items.forEach(function (it) {
+    var wrap = txt('div');
+    wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '5px';
+    var swatch = txt('span');
+    swatch.style.display = 'inline-block'; swatch.style.width = '9px'; swatch.style.height = '9px';
+    swatch.style.background = it.color;
+    swatch.style.borderRadius = it.shape === 'circle' ? '50%' : '2px';
+    wrap.appendChild(swatch);
+    wrap.appendChild(txt('span', '', it.label));
+    el.appendChild(wrap);
+  });
+}
+
+function refreshGpsPositions() {
+  if (!GPS_GEO) { return; }
+  apiGet('/api/gps/positions').then(function (res) {
+    if (!res || !res.success) { return; }
+    drawGpsTruckMarkers(res.data || []);
+  });
+}
+
+function drawGpsTruckMarkers(positions) {
+  var svg = document.getElementById('gpsMap');
+  var old = svg.querySelectorAll('[data-kind="truck"]');
+  for (var i = 0; i < old.length; i++) { svg.removeChild(old[i]); }
+
+  var allPoints = []
+    .concat(GPS_GEO.stations || [])
+    .concat(GPS_GEO.load_points || [])
+    .concat(GPS_GEO.end_points || []);
+  if (!allPoints.length) { return; }
+  var bounds = gpsBounds(allPoints);
+  var project = gpsProjector(bounds, 900, 480, 26);
+
+  positions.forEach(function (p) {
+    var xy = project(p.lat, p.lon);
+    var marker = svgEl('circle', {
+      cx: xy[0], cy: xy[1], r: 6, fill: '#ef4444', stroke: '#fff',
+      'stroke-width': 1.5, 'data-kind': 'truck'
+    });
+    var title = svgEl('title', {});
+    title.textContent = 'Рейс ' + p.trip_id + (p.finished ? ' (прибыл)' : '');
+    marker.appendChild(title);
+    svg.appendChild(marker);
+  });
+}
+
+function startGpsAutoRefresh() {
+  stopGpsAutoRefresh();
+  GPS_REFRESH_TIMER = setInterval(refreshGpsPositions, 5000);
+}
+
+function stopGpsAutoRefresh() {
+  if (GPS_REFRESH_TIMER) { clearInterval(GPS_REFRESH_TIMER); GPS_REFRESH_TIMER = null; }
+}
+
+function loadGpsReplayTripOptions() {
+  var dateTo = todayIso();
+  var dateFrom = isoDaysAgo(730);
+  apiGet('/api/trips?date_from=' + dateFrom + '&date_to=' + dateTo).then(function (res) {
+    if (!checkOk(res, 'Рейсы (GPS)')) { return; }
+    var trips = (res.data || []).filter(function (t) { return t.status_code !== 'DRAFT'; });
+    trips.sort(function (a, b) { return dateTime(b.trip_date) - dateTime(a.trip_date); });
+    var sel = document.getElementById('gpsReplayTrip');
+    clearNode(sel);
+    trips.slice(0, 200).forEach(function (t) {
+      var opt = txt('option', '', fmtDate(t.trip_date) + ' — рейс ' + t.id + ' (' + t.type_code + ')');
+      opt.setAttribute('value', t.id);
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function gpsSelectedTripId() {
+  var sel = document.getElementById('gpsReplayTrip');
+  return sel && sel.value ? sel.value : null;
+}
+
+function gpsShowTrack() {
+  var tripId = gpsSelectedTripId();
+  if (!tripId) { showErr('Выберите рейс'); return; }
+  apiGet('/api/gps/track?trip_id=' + tripId).then(function (res) {
+    if (!checkOk(res, 'Трек GPS')) { return; }
+    renderGpsTrackStats(res.data);
+    renderGpsTrackSvg(res.data);
+  });
+}
+
+function gpsFormTrack() {
+  var tripId = gpsSelectedTripId();
+  if (!tripId) { showErr('Выберите рейс'); return; }
+  clearMsgs();
+  apiPost('/api/gps/replay', {trip_id: Number(tripId)}).then(function (res) {
+    if (!checkOk(res, 'Формирование трека')) { return; }
+    showOk('Трек сформирован: ' + res.data.points + ' точек, факт ' + fmtNum(res.data.fact_km, 1) + ' км');
+    gpsShowTrack();
+  });
+}
+
+function renderGpsTrackStats(data) {
+  document.getElementById('gpsTrackKm').textContent = fmtNum(data.track_km, 1);
+  document.getElementById('gpsNormKm').textContent = fmtNum(data.norm_km, 1);
+  var devEl = document.getElementById('gpsDeviationPct');
+  if (data.deviation_pct === null || data.deviation_pct === undefined) {
+    devEl.textContent = '—'; devEl.className = 'n';
+  } else {
+    devEl.textContent = (data.deviation_pct >= 0 ? '+' : '') + fmtNum(data.deviation_pct, 1);
+    devEl.className = 'n ' + (Math.abs(data.deviation_pct) > 15 ? 'crit' : (Math.abs(data.deviation_pct) > 5 ? 'warn' : ''));
+  }
+}
+
+function renderGpsTrackSvg(data) {
+  var svg = document.getElementById('gpsTrackSvg');
+  clearNode(svg);
+  var points = data.points || [];
+  if (points.length < 2) {
+    svg.appendChild(svgEl('text', {x: 20, y: 30, 'font-size': 13, fill: '#6b7a90'}));
+    svg.lastChild.textContent = 'Трек ещё не сформирован — нажмите «Сформировать трек»';
+    return;
+  }
+  var bounds = gpsBounds(points);
+  var project = gpsProjector(bounds, 900, 360, 26);
+  var d = '';
+  points.forEach(function (p, i) {
+    var xy = project(p.lat, p.lon);
+    d += (i === 0 ? 'M' : 'L') + xy[0].toFixed(1) + ',' + xy[1].toFixed(1) + ' ';
+  });
+  svg.appendChild(svgEl('path', {d: d, fill: 'none', stroke: '#2563eb', 'stroke-width': 2}));
+  points.forEach(function (p, i) {
+    var xy = project(p.lat, p.lon);
+    svg.appendChild(svgEl('circle', {
+      cx: xy[0], cy: xy[1], r: 4,
+      fill: i === 0 ? '#22c55e' : (i === points.length - 1 ? '#f59e0b' : '#2563eb')
+    }));
+  });
+}
+
 // ---- инициализация --------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', function () {
