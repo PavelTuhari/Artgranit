@@ -287,7 +287,7 @@ def seed_deliveries(trucks_by_plate, drivers_by_tab, load_points, stations):
 
 
 def autoform_and_approve(date_from, date_to):
-    res = AutoparkController.trip_autoform(date_from.isoformat(), date_to.isoformat())
+    res = AutoparkController.trip_autoform(date_from, date_to)
     if not res.get("success"):
         raise RuntimeError(f"Автоформирование рейсов: {res.get('message')}")
     created = res["data"]["trips"]
