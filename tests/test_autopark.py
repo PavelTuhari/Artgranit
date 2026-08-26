@@ -728,6 +728,69 @@ def test_distance_set_rejects_an_unknown_kind():
     assert "from_kind" in res["message"]
 
 
+def test_require_date_converts_string_to_date_object():
+    # Регресс сквозной проверки задачи 3: голая строка 'YYYY-MM-DD',
+    # отправленная в BETWEEN на живом Oracle без TO_DATE, падает с
+    # ORA-01861 (NLS_DATE_FORMAT этой ADB не 'YYYY-MM-DD'). Парсинг в
+    # date() должен случиться в контроллере ДО передачи в store.
+    from datetime import date as date_cls
+    from modules.autopark.controller import _require_date
+    result = _require_date("2026-08-20", "date_from")
+    assert result == date_cls(2026, 8, 20)
+    assert isinstance(result, date_cls)
+
+
+def test_require_date_rejects_bad_format():
+    from modules.autopark.controller import _require_date, AutoparkValidationError
+    try:
+        _require_date("20/08/2026", "date_from")
+        assert False, "должно было поднять AutoparkValidationError"
+    except AutoparkValidationError:
+        pass
+
+
+def test_delivery_list_passes_date_objects_to_store_not_raw_strings():
+    from datetime import date as date_cls
+    from modules.autopark.controller import AutoparkController
+    with patch("modules.autopark.controller.AutoparkStore.list_deliveries",
+               return_value={"success": True, "data": [], "message": ""}) as mocked:
+        res = AutoparkController.delivery_list(
+            {"date_from": "2026-08-01", "date_to": "2026-08-31"})
+    assert res["success"] is True
+    args = mocked.call_args[0]
+    assert args[0] == date_cls(2026, 8, 1)
+    assert args[1] == date_cls(2026, 8, 31)
+
+
+def test_trip_autoform_parses_and_rejects_bad_dates():
+    from modules.autopark.controller import AutoparkController
+    res = AutoparkController.trip_autoform("not-a-date", "2026-08-31")
+    assert res["success"] is False
+
+
+def test_supply_plan_in_transit_lookup_uses_date_objects_not_strings():
+    # Раньше supply_plan подставлял литералы "0001-01-01"/"9999-12-31"
+    # прямо строками -- тот же ORA-01861 на BETWEEN, просто маскировался
+    # тем, что ошибка in_transit тихо игнорируется (см. controller.py).
+    from datetime import date as date_cls
+    from modules.autopark.controller import AutoparkController
+    settings_ok = {"success": True, "data": {"safety_days": 6}, "message": ""}
+    stock_ok = {"success": True, "data": [], "message": ""}
+    stations_ok = {"success": True, "data": [], "message": ""}
+    with patch("modules.autopark.controller.AutoparkStore.get_settings",
+               return_value=settings_ok), \
+         patch("modules.autopark.controller.AutoparkStore.stock_days_report",
+               return_value=stock_ok), \
+         patch("modules.autopark.controller.AutoparkStore.list_stations",
+               return_value=stations_ok), \
+         patch("modules.autopark.controller.AutoparkStore.list_deliveries",
+               return_value={"success": True, "data": [], "message": ""}) as mocked:
+        AutoparkController.supply_plan()
+    args = mocked.call_args[0]
+    assert isinstance(args[0], date_cls)
+    assert isinstance(args[1], date_cls)
+
+
 def test_truck_upsert_rejects_zero_capacity():
     from modules.autopark.controller import AutoparkController
     res = AutoparkController.truck_upsert({
