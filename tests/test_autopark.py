@@ -169,7 +169,7 @@ def test_deploy_script_installs_all_flt_files_in_order():
     from modules.autopark.scripts.autopark_deploy import FILES
     assert FILES == (
         "120_flt_tables.sql", "121_flt_views.sql", "122_flt_seed.sql",
-        "123_flt_prices.sql",
+        "123_flt_prices.sql", "124_flt_gps.sql",
     )
 
 
