@@ -1530,6 +1530,10 @@ function renderPriceChanges(rows) {
     var r = rows[i];
     (byProduct[r.product_code] = byProduct[r.product_code] || []).push(r);
   }
+  for (var code0 in byProduct) {
+    if (!byProduct.hasOwnProperty(code0)) { continue; }
+    byProduct[code0].sort(function (a, b) { return dateTime(a.price_date) - dateTime(b.price_date); });
+  }
   var changes = [];
   for (var code in byProduct) {
     if (!byProduct.hasOwnProperty(code)) { continue; }
