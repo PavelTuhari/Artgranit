@@ -853,8 +853,15 @@ class AutoparkController:
         except ValueError as exc:
             return _fail(str(exc))
 
+        settings_res = AutoparkStore.get_settings()
+        km_deviation_limit = (float(settings_res["data"]["km_deviation_limit"])
+                              if settings_res.get("success") else 15.0)
+        target_km = gps.road_target_km(trip.get("norm_km") or 0,
+                                       km_deviation_limit)
+        road_profile = gps.road_scaled_track(profile, target_km)
+
         points = []
-        for node in profile:
+        for node in road_profile:
             dlat, dlon = AutoparkController._jitter_deg(
                 node["lat"], GPS_REPLAY_NOISE_KM)
             points.append({"ts": node["ts"], "lat": node["lat"] + dlat,
