@@ -993,7 +993,7 @@ function loadDeliveries() {
           var truck = TRUCKS_BY_ID[d.truck_id], driver = DRIVERS_BY_ID[d.driver_id],
               station = STATIONS_BY_ID[d.station_id], lp = LOAD_POINTS_BY_ID[d.load_point_id];
           return [
-            {text: d.deliv_date}, {text: (PRODUCTS_BY_CODE[d.product_code] || {}).name_ru || d.product_code},
+            {text: fmtDate(d.deliv_date)}, {text: (PRODUCTS_BY_CODE[d.product_code] || {}).name_ru || d.product_code},
             {cls: 'num', text: fmtNum(d.volume_l, 0)},
             {text: lp ? lp.name : d.load_point_id},
             {text: station ? station.name : d.station_id},
@@ -1179,7 +1179,7 @@ function loadTrips() {
           }
           return [
             {text: t.id},
-            {text: t.trip_date},
+            {text: fmtDate(t.trip_date)},
             {node: pill(t.type_code === 'IMPORT' ? 'warn' : 'ok', t.type_code === 'IMPORT' ? 'Импортный' : 'Внутренний')},
             {node: pill(t.status_code === 'DRAFT' ? 'muted' : 'ok', t.status_code)},
             {text: truck ? truck.plate : t.truck_id},
@@ -1286,7 +1286,7 @@ function loadPayroll() {
         rows,
         function (r) {
           return [
-            {text: r.trip_id}, {text: r.trip_date}, {text: r.driver_name},
+            {text: r.trip_id}, {text: fmtDate(r.trip_date)}, {text: r.driver_name},
             {node: pill(r.type_code === 'IMPORT' ? 'warn' : 'ok', r.type_code === 'IMPORT' ? 'Импортный' : 'Внутренний')},
             {cls: 'num', text: fmtNum(r.norm_km, 1)},
             {cls: 'num', text: fmtNum(r.km_pay, 2)},
@@ -1351,7 +1351,7 @@ function loadControl() {
           if (r.over_km_limit) { badges.appendChild(pill('crit', 'пробег')); }
           if (r.over_fuel_limit) { badges.appendChild(pill('crit', 'топливо')); }
           return [
-            {text: r.trip_id}, {text: r.trip_date}, {text: r.plate},
+            {text: r.trip_id}, {text: fmtDate(r.trip_date)}, {text: r.plate},
             {cls: 'num', text: fmtNum(r.norm_km, 1)},
             {cls: 'num', text: fmtNum(r.fact_km, 1)},
             {cls: 'num', text: fmtNum(r.km_deviation, 1)},
@@ -1418,6 +1418,22 @@ function renderPriceLegend() {
     item.appendChild(txt('span', '', PRICE_NAMES[code]));
     el.appendChild(item);
   }
+}
+
+function dateTime(v) {
+  // jsonify отдаёт Oracle DATE как RFC-строку ("Wed, 01 Jul 2026 00:00:00
+  // GMT") -- лексикографическая сортировка такой строки сортирует
+  // сначала по имени дня недели, а не по времени, и рвёт ломаную графика
+  // в клочья. Сравнивать нужно ТОЛЬКО через реальное значение времени.
+  var t = new Date(v).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+function fmtMonthYear(v) {
+  var d = new Date(v);
+  if (isNaN(d.getTime())) { return String(v); }
+  var month = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  return month + '.' + d.getUTCFullYear();
 }
 
 function drawPriceChart(rows) {
@@ -1524,7 +1540,7 @@ function renderPriceChanges(rows) {
     top,
     function (r) {
       return [
-        {text: r.price_date}, {text: PRICE_NAMES[r.product_code] || r.product_code},
+        {text: fmtDate(r.price_date)}, {text: PRICE_NAMES[r.product_code] || r.product_code},
         {cls: 'num', text: fmtNum(r.price_lei, 2)},
         {cls: 'num', text: (r.pct >= 0 ? '+' : '') + fmtNum(r.pct, 2)},
         {text: r.source},
