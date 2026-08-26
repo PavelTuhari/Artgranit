@@ -1449,6 +1449,11 @@ function drawPriceChart(rows) {
     var row = rows[r];
     if (byProduct[row.product_code]) { byProduct[row.product_code].push(row); }
   }
+  for (var pc = 0; pc < PRICE_ORDER.length; pc++) {
+    byProduct[PRICE_ORDER[pc]].sort(function (a, b) {
+      return dateTime(a.price_date) - dateTime(b.price_date);
+    });
+  }
 
   var allPrices = rows.map(function (r) { return Number(r.price_lei); })
     .filter(function (n) { return !isNaN(n); });
