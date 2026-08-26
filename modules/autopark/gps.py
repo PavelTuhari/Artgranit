@@ -177,8 +177,6 @@ def interpolate_route(
     if not geo_points:
         return []
 
-    from datetime import timedelta
-
     profile: List[Dict[str, Any]] = []
     ts = depart_ts
     first = geo_points[0]
