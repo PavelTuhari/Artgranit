@@ -604,7 +604,9 @@ function indexById(list) {
 function fillSelect(selectEl, items, valueField, labelField, placeholder) {
   clearNode(selectEl);
   if (placeholder) {
-    selectEl.appendChild(txt('option', '', placeholder)).setAttribute('value', '');
+    var placeholderOpt = txt('option', '', placeholder);
+    placeholderOpt.setAttribute('value', '');
+    selectEl.appendChild(placeholderOpt);
   }
   (items || []).forEach(function (item) {
     var opt = txt('option', '', item[labelField]);
