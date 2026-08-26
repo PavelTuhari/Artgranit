@@ -48,7 +48,7 @@ CREATE UNIQUE INDEX UX_FLT_GPS_PROVIDERS_CODE ON FLT_GPS_PROVIDERS (CODE);
 -- Saved GPS track points -- one row per position sample, per trip. Both
 -- the live simulator (autopark_gps_sim.py --live) and a replayed past
 -- trip (AutoparkController.gps_replay) write here through the very same
--- ingest path (AutoparkStore.insert_track_points); a real device feed
+-- ingest path (AutoparkStore.insert_track_points) -- a real device feed
 -- would land in the same table through the same call.
 CREATE TABLE FLT_GPS_TRACKS (
   ID           NUMBER(12)   NOT NULL,
