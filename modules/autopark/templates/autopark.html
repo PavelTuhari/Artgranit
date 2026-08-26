@@ -1785,10 +1785,11 @@ function drawGpsTruckMarkers(positions) {
   var project = gpsProjector(bounds, 900, 480, 26);
 
   positions.forEach(function (p) {
-    var xy = project(p.lat, p.lon);
+    var c = gpsClamp(project(p.lat, p.lon), 900, 480);
     var marker = svgEl('circle', {
-      cx: xy[0], cy: xy[1], r: 6, fill: '#ef4444', stroke: '#fff',
-      'stroke-width': 1.5, 'data-kind': 'truck'
+      cx: c.x, cy: c.y, r: 6, fill: '#ef4444', stroke: '#fff',
+      'stroke-width': 1.5, 'stroke-dasharray': c.clamped ? '2 2' : null,
+      'data-kind': 'truck'
     });
     var title = svgEl('title', {});
     title.textContent = 'Рейс ' + p.trip_id + (p.finished ? ' (прибыл)' : '');
