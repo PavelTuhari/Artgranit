@@ -424,9 +424,15 @@ class AutoparkController:
             _require(fact_km >= 0, "Фактический пробег не может быть отрицательным")
             fact_minutes = _as_int(payload.get("fact_minutes"), "Фактическое время (мин)")
             _require(fact_minutes >= 0, "Фактическое время не может быть отрицательным")
+            fact_fuel_l = _as_optional_float(payload.get("fact_fuel_l"),
+                                             "Фактический расход ДТ")
+            if fact_fuel_l is not None:
+                _require(fact_fuel_l >= 0,
+                         "Фактический расход ДТ не может быть отрицательным")
         except AutoparkValidationError as exc:
             return _fail(str(exc))
-        return AutoparkStore.set_trip_fact(trip_id, fact_km, fact_minutes)
+        return AutoparkStore.set_trip_fact(trip_id, fact_km, fact_minutes,
+                                           fact_fuel_l)
 
     # ── учёт АЗС ─────────────────────────────────────────────────────
 
