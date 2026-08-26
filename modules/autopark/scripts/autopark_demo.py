@@ -358,7 +358,7 @@ def create_manual_multi_stop_trip(trucks_by_plate, drivers_by_tab, load_points,
                                   end_points, stations):
     """Один рейс логиста вручную, несколько АЗС: Оргеев -> Бельцы -> Сороки."""
     payload = {
-        "trip_date": d(2).isoformat(),
+        "trip_date": d(2),
         "truck_id": trucks_by_plate["C CC 303"]["id"],
         "driver_id": drivers_by_tab["D-003"]["id"],
         "load_point_id": load_points["KIS"]["id"],
