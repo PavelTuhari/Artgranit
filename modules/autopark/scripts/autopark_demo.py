@@ -304,11 +304,16 @@ def autoform_and_approve(date_from, date_to):
 
 def set_fact_for_autoformed(trip_ids, trucks_by_plate):
     """Один рейс с превышением пробега, один с перерасходом ДТ, один чистый."""
-    if len(trip_ids) < 1:
-        return
+    if not trip_ids:
+        return []
     trips = get_json(AutoparkController.trip_list({
-        "date_from": d(10).isoformat(), "date_to": TODAY.isoformat()}), "trip_list")
+        "date_from": d(10), "date_to": TODAY}), "trip_list")
     by_id = by_key(trips, "id")
+    trucks_by_id = by_key(get_json(AutoparkStore.list_trucks(), "list_trucks"), "id")
+
+    def norm_l_per_100km(trip_id):
+        truck_id = by_id[trip_id]["truck_id"]
+        return float(trucks_by_id[truck_id]["norm_l_per_100km"])
 
     notes = []
     # 1) превышение пробега: факт km на 40 больше нормы (лимит 15 км)
@@ -318,7 +323,7 @@ def set_fact_for_autoformed(trip_ids, trucks_by_plate):
         fact_km = norm_km + 40
         AutoparkController.trip_set_fact({
             "trip_id": trip_ids[0], "fact_km": fact_km, "fact_minutes": 90,
-            "fact_fuel_l": norm_km * 0.30,  # нормальный расход, чтобы не путать со вторым случаем
+            "fact_fuel_l": norm_km * norm_l_per_100km(trip_ids[0]) / 100,
         })
         notes.append(f"Рейс #{trip_ids[0]}: НАМЕРЕННОЕ превышение пробега "
                     f"(норм={norm_km}, факт={fact_km}, лимит=15км)")
@@ -327,8 +332,7 @@ def set_fact_for_autoformed(trip_ids, trucks_by_plate):
     if len(trip_ids) >= 2:
         t = by_id[trip_ids[1]]
         norm_km = float(t["norm_km"])
-        truck = trucks_by_plate.get(t.get("truck_plate")) or {}
-        norm_l = norm_km * float(get_norm_l_per_100km(trip_ids[1], by_id, trucks_by_plate)) / 100
+        norm_l = norm_km * norm_l_per_100km(trip_ids[1]) / 100
         fact_fuel = norm_l * 1.25
         AutoparkController.trip_set_fact({
             "trip_id": trip_ids[1], "fact_km": norm_km + 2, "fact_minutes": 150,
@@ -341,24 +345,13 @@ def set_fact_for_autoformed(trip_ids, trucks_by_plate):
     if len(trip_ids) >= 3:
         t = by_id[trip_ids[2]]
         norm_km = float(t["norm_km"])
-        norm_l = norm_km * float(get_norm_l_per_100km(trip_ids[2], by_id, trucks_by_plate)) / 100
+        norm_l = norm_km * norm_l_per_100km(trip_ids[2]) / 100
         AutoparkController.trip_set_fact({
             "trip_id": trip_ids[2], "fact_km": norm_km + 3, "fact_minutes": 120,
             "fact_fuel_l": norm_l * 1.01,
         })
         notes.append(f"Рейс #{trip_ids[2]}: без отклонений (контрольный)")
     return notes
-
-
-def get_norm_l_per_100km(trip_id, trips_by_id, trucks_by_plate):
-    truck_id = trips_by_id[trip_id]["truck_id"]
-    for spec in TRUCKS:
-        pass
-    trucks = get_json(AutoparkStore.list_trucks(), "list_trucks")
-    for t in trucks:
-        if t["id"] == truck_id:
-            return t["norm_l_per_100km"]
-    return 30.0
 
 
 def create_manual_multi_stop_trip(trucks_by_plate, drivers_by_tab, load_points,
