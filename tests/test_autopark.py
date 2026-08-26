@@ -491,3 +491,259 @@ def test_shared_deploy_script_is_untouched_by_the_module():
     with open(os.path.join(ROOT, "deploy_oracle_objects.py"), encoding="utf-8") as fh:
         src = fh.read()
     assert not _leak_signatures_found(src)
+
+
+# -- Task 2: store.py, controller.py, routes.py (no live Oracle) --------
+
+from unittest.mock import MagicMock, patch  # noqa: E402
+
+
+def _db_returning(*results):
+    """Мок DatabaseModel: каждый вызов execute_query отдаёт свой результат."""
+    db = MagicMock()
+    db.__enter__ = MagicMock(return_value=db)
+    db.__exit__ = MagicMock(return_value=False)
+    db.execute_query = MagicMock(side_effect=list(results))
+    return db
+
+
+def _ok(columns, data, rowcount=None):
+    return {"success": True, "columns": columns, "data": data,
+            "rowcount": rowcount if rowcount is not None else len(data),
+            "message": ""}
+
+
+def _currval_row(value):
+    return _ok(["ID"], [[value]])
+
+
+# -- store: atomicity, rowcount guards, NO_PARALLEL regression ----------
+
+def test_create_trip_makes_exactly_one_commit():
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(
+        _ok([], [], rowcount=1),   # INSERT FLT_TRIPS
+        _currval_row(501),         # SEQ_FLT_TRIPS.CURRVAL
+        _ok([], [], rowcount=1),   # INSERT FLT_TRIP_STOPS
+        _currval_row(601),         # SEQ_FLT_TRIP_STOPS.CURRVAL
+        _ok([], [], rowcount=1),   # INSERT FLT_TRIP_STOP_ITEMS
+        _ok([], [], rowcount=1),  # UPDATE FLT_DELIVERIES (delivery 77)
+    )
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.create_trip(
+            {"trip_date": "2026-08-01", "truck_id": 1, "driver_id": 2,
+             "type_code": "DOMESTIC", "load_point_id": 10,
+             "end_point_id": 20, "norm_km": 123.4, "delivery_ids": [77]},
+            [{"station_id": 30,
+              "items": [{"product_code": "A95", "volume_l": 500}]}])
+    assert res["success"] is True
+    assert res["data"]["trip_id"] == 501
+    assert db.connection.commit.call_count == 1
+
+
+def test_create_trip_rolls_back_conceptually_when_a_delivery_vanishes():
+    # Последний шаг (привязка накладной) не находит строку -- ошибка, и
+    # commit НЕ должен быть вызван: транзакция ещё не подтверждена.
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(
+        _ok([], [], rowcount=1),
+        _currval_row(501),
+        _ok([], [], rowcount=1),
+        _currval_row(601),
+        _ok([], [], rowcount=1),
+        _ok([], [], rowcount=0),  # UPDATE FLT_DELIVERIES -- строка исчезла
+    )
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.create_trip(
+            {"trip_date": "2026-08-01", "truck_id": 1, "driver_id": 2,
+             "type_code": "DOMESTIC", "load_point_id": 10,
+             "end_point_id": 20, "norm_km": 100, "delivery_ids": [999]},
+            [{"station_id": 30,
+              "items": [{"product_code": "A95", "volume_l": 500}]}])
+    assert res["success"] is False
+    assert db.connection.commit.call_count == 0
+
+
+def test_approve_trip_zero_rowcount_is_an_error():
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(_ok([], [], rowcount=0))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.approve_trip(999, "logist")
+    assert res["success"] is False
+    assert db.connection.commit.call_count == 0
+
+
+def test_set_trip_fact_zero_rowcount_is_an_error():
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(_ok([], [], rowcount=0))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.set_trip_fact(999, 100, 60)
+    assert res["success"] is False
+
+
+def test_log_event_swallows_sql_failure_and_never_raises():
+    from modules.autopark.store import AutoparkStore
+    db = MagicMock()
+    db.__enter__ = MagicMock(return_value=db)
+    db.__exit__ = MagicMock(return_value=False)
+    db.execute_query = MagicMock(side_effect=RuntimeError("boom"))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        AutoparkStore.log_event("X", "REF", 1, "details", "tester")
+    # Никакого исключения наружу и никакого commit при ошибке.
+    assert db.connection.commit.call_count == 0
+
+
+def test_trip_pay_report_filters_draft_at_the_store_layer():
+    # ТЗ п.6: DRAFT-рейс не основание для начисления. Это правило должно
+    # жить в store (единый источник правды для любого вызывающего кода),
+    # а не полагаться на то, что controller не забудет отфильтровать.
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(_ok(["TRIP_ID"], []))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        AutoparkStore.trip_pay_report("2026-01-01", "2026-01-31")
+    sql = db.execute_query.call_args[0][0]
+    assert "STATUS_CODE <> 'DRAFT'" in sql.upper() or \
+           "STATUS_CODE <> 'DRAFT'" in sql
+
+
+def test_no_insert_select_nextval_without_no_parallel_hint():
+    # Регресс на урок PECO (ORA-12860, 26.08.2026): любой INSERT...SELECT
+    # с явным NEXTVAL в тексте вызывающего кода обязан нести хинт
+    # /*+ NO_PARALLEL */. Сегодня в store.py такого паттерна нет (каждый
+    # INSERT — одна строка, ID назначает BI-триггер таблицы), поэтому тест
+    # проходит "вхолостую", но ловит регресс, если кто-то добавит батч-
+    # вставку с NEXTVAL и забудет про хинт.
+    with open(os.path.join(MODULE_DIR, "store.py"), encoding="utf-8") as fh:
+        src = fh.read().upper()
+    for match in re.finditer(r"INSERT INTO[\s\S]{0,400}?SELECT[\s\S]{0,400}?"
+                             r"(?:NEXTVAL|;|$)", src):
+        stmt = match.group(0)
+        if "NEXTVAL" in stmt:
+            assert "NO_PARALLEL" in stmt, stmt[:200]
+
+
+# -- controller: validation, matrix-gap naming, classification warning --
+
+def test_distance_set_rejects_a_non_numeric_km():
+    from modules.autopark.controller import AutoparkController
+    res = AutoparkController.distance_set({
+        "from_kind": "load", "from_id": 1, "to_kind": "station", "to_id": 2,
+        "km": "abc"})
+    assert res["success"] is False
+    assert "числом" in res["message"]
+
+
+def test_distance_set_rejects_an_unknown_kind():
+    from modules.autopark.controller import AutoparkController
+    res = AutoparkController.distance_set({
+        "from_kind": "GARAGE", "from_id": 1, "to_kind": "STATION",
+        "to_id": 2, "km": 10})
+    assert res["success"] is False
+    assert "from_kind" in res["message"]
+
+
+def test_truck_upsert_rejects_zero_capacity():
+    from modules.autopark.controller import AutoparkController
+    res = AutoparkController.truck_upsert({
+        "plate": "ABC123", "capacity_l": 0, "sections_cnt": 2,
+        "norm_l_per_100km": 30})
+    assert res["success"] is False
+    assert "вместимость" in res["message"].lower()
+
+
+def test_trip_create_manual_names_the_missing_leg():
+    from modules.autopark.controller import AutoparkController
+    payload = {
+        "trip_date": "2026-08-01", "truck_id": 1, "driver_id": 2,
+        "load_point_id": 10, "end_point_id": 20,
+        "stations": [{"station_id": 30,
+                     "items": [{"product_code": "A95", "volume_l": 100}]}],
+    }
+    with patch.object(AutoparkController, "_load_point_is_foreign",
+                      return_value=False), \
+         patch("modules.autopark.controller.AutoparkStore.distance_lookup_fn",
+              return_value=lambda *a: None):
+        res = AutoparkController.trip_create_manual(payload)
+    assert res["success"] is False
+    assert "матрице" in res["message"]
+
+
+def test_trip_create_manual_warns_on_contradicting_trip_type():
+    from modules.autopark.controller import AutoparkController
+    payload = {
+        "trip_date": "2026-08-01", "truck_id": 1, "driver_id": 2,
+        "load_point_id": 10, "end_point_id": 20, "type_code": "IMPORT",
+        "stations": [{"station_id": 30,
+                     "items": [{"product_code": "A95", "volume_l": 100}]}],
+    }
+    matrix = {
+        ("LOAD", 10, "STATION", 30): 50,
+        ("STATION", 30, "END", 20): 60,
+    }
+    lookup = lambda fk, fi, tk, ti: matrix.get((fk, fi, tk, ti))  # noqa: E731
+    with patch.object(AutoparkController, "_load_point_is_foreign",
+                      return_value=False), \
+         patch("modules.autopark.controller.AutoparkStore.distance_lookup_fn",
+              return_value=lookup), \
+         patch("modules.autopark.controller.AutoparkStore.create_trip",
+              return_value={"success": True,
+                           "data": {"trip_id": 1, "norm_km": 110},
+                           "message": ""}), \
+         patch("modules.autopark.controller.AutoparkStore.log_event"):
+        res = AutoparkController.trip_create_manual(payload)
+    assert res["success"] is True
+    assert res.get("warnings"), "expected a warning for the type mismatch"
+    assert "IMPORT" in res["warnings"][0]
+
+
+def test_trip_create_manual_matches_computed_type_without_a_warning():
+    from modules.autopark.controller import AutoparkController
+    payload = {
+        "trip_date": "2026-08-01", "truck_id": 1, "driver_id": 2,
+        "load_point_id": 10, "end_point_id": 20,
+        "stations": [{"station_id": 30,
+                     "items": [{"product_code": "A95", "volume_l": 100}]}],
+    }
+    matrix = {
+        ("LOAD", 10, "STATION", 30): 50,
+        ("STATION", 30, "END", 20): 60,
+    }
+    lookup = lambda fk, fi, tk, ti: matrix.get((fk, fi, tk, ti))  # noqa: E731
+    with patch.object(AutoparkController, "_load_point_is_foreign",
+                      return_value=False), \
+         patch("modules.autopark.controller.AutoparkStore.distance_lookup_fn",
+              return_value=lookup), \
+         patch("modules.autopark.controller.AutoparkStore.create_trip",
+              return_value={"success": True,
+                           "data": {"trip_id": 1, "norm_km": 110},
+                           "message": ""}), \
+         patch("modules.autopark.controller.AutoparkStore.log_event"):
+        res = AutoparkController.trip_create_manual(payload)
+    assert res["success"] is True
+    assert not res.get("warnings")
+
+
+# -- routes: every documented address is declared ------------------------
+
+def test_routes_declare_every_documented_api_endpoint():
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    app.secret_key = "test"
+    loaded = load_module(app, "autopark")
+    assert loaded
+    rules = {r.rule for r in app.url_map.iter_rules()}
+    prefix = "/UNA.md/orasldev/autopark"
+    for suffix in (
+        "/api/refs", "/api/station", "/api/truck", "/api/driver",
+        "/api/distance", "/api/settings", "/api/delivery", "/api/trips",
+        "/api/trip", "/api/trip/autoform", "/api/trip/approve",
+        "/api/trip/fact", "/api/stock", "/api/supply-plan",
+        "/api/report/payroll", "/api/report/control", "/api/report/drivers",
+        "/api/report/trucks", "/api/report/stations",
+        "/api/report/management",
+    ):
+        assert prefix + suffix in rules, suffix
+    assert prefix in rules or prefix + "/" in rules
