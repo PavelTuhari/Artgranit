@@ -517,8 +517,8 @@ def print_counts():
 
 
 def print_payroll_check():
-    date_from = d(15).isoformat()
-    date_to = TODAY.isoformat()
+    date_from = d(15)
+    date_to = TODAY
     res = AutoparkController.driver_report({"date_from": date_from, "date_to": date_to})
     if not res.get("success"):
         print(f"Свод зарплаты недоступен: {res.get('message')}")
