@@ -304,6 +304,11 @@ class AutoparkController:
         (ТЗ п.6, вариант 1): группировка по (дата, авто, водитель, пункт
         загрузки), внутри группы — обход АЗС жадным ближайшим соседом.
         """
+        try:
+            date_from = _require_date(date_from, "date_from")
+            date_to = _require_date(date_to, "date_to")
+        except AutoparkValidationError as exc:
+            return _fail(str(exc))
         deliv = AutoparkStore.list_deliveries(date_from, date_to, unassigned_only=True)
         if not deliv.get("success"):
             return deliv
