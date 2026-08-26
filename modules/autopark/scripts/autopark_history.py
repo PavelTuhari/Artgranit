@@ -528,8 +528,6 @@ def main() -> None:
 
     if args.dry_run:
         print("[dry-run] запись в БД пропущена")
-        payroll_parity_check(trip_records, md.rate_per_km, md.trip_bonus) \
-            if False else None
         return
 
     print("Запись в Oracle (executemany) ...")
