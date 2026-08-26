@@ -977,6 +977,82 @@ class AutoparkStore:
             return _fail(str(exc))
 
     @staticmethod
+    def get_trip_header(trip_id) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                r = _run(db, "SELECT ID, TRIP_DATE, STATUS_CODE, NORM_KM, "
+                             "FACT_KM, LOAD_POINT_ID, END_POINT_ID FROM "
+                             "FLT_TRIPS WHERE ID = :trip_id",
+                        {"trip_id": trip_id})
+                rows = _rows(r)
+                if not rows:
+                    return _fail(f"Рейс {trip_id} не найден")
+                return _done(rows[0])
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def _geo_points_for(load_point_id, end_point_id, station_ids: Sequence,
+                       geo_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Собирает LOAD -> STATION... -> END геоточки маршрута из уже
+        загруженного результата :meth:`list_geo_points` — общий кусок,
+        используемый и для сегодняшних активных рейсов
+        (:meth:`active_trips_today`), и для произвольного рейса
+        (:meth:`trip_geo_points`, replay), чтобы не дублировать сборку.
+        Точка без координаты (LAT/LON ещё не заведены) молча
+        пропускается — построенный маршрут просто короче, это не ошибка.
+        """
+        load_by_id = {p["id"]: p for p in geo_data["load_points"]}
+        end_by_id = {p["id"]: p for p in geo_data["end_points"]}
+        station_by_id = {p["id"]: p for p in geo_data["stations"]}
+        geo_points: List[Dict[str, Any]] = []
+        lp = load_by_id.get(load_point_id)
+        if lp:
+            geo_points.append({"kind": "LOAD", "id": lp["id"],
+                              "lat": float(lp["lat"]), "lon": float(lp["lon"])})
+        for sid in station_ids:
+            st = station_by_id.get(sid)
+            if st:
+                geo_points.append({"kind": "STATION", "id": st["id"],
+                                  "lat": float(st["lat"]),
+                                  "lon": float(st["lon"])})
+        ep = end_by_id.get(end_point_id)
+        if ep:
+            geo_points.append({"kind": "END", "id": ep["id"],
+                              "lat": float(ep["lat"]), "lon": float(ep["lon"])})
+        return geo_points
+
+    @staticmethod
+    def trip_geo_points(trip_id) -> Dict[str, Any]:
+        """Заголовок рейса + геоточки его маршрута (для replay — ТЗ п.4).
+
+        В отличие от :meth:`active_trips_today` (только рейсы на
+        сегодня, пакетно), здесь один произвольный рейс любой даты — это
+        и есть разница в сценарии (replay воспроизводит уже прошедший
+        рейс, а не сегодняшний).
+        """
+        header = AutoparkStore.get_trip_header(trip_id)
+        if not header.get("success"):
+            return header
+        trip = header["data"]
+        try:
+            with DatabaseModel() as db:
+                sp = _run(db, "SELECT SEQ_NO, STATION_ID FROM "
+                             "FLT_TRIP_STOPS WHERE TRIP_ID = :trip_id "
+                             "ORDER BY SEQ_NO", {"trip_id": trip_id})
+                station_ids = [row["station_id"] for row in _rows(sp)]
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+        geo = AutoparkStore.list_geo_points()
+        if not geo.get("success"):
+            return geo
+        geo_points = AutoparkStore._geo_points_for(
+            trip["load_point_id"], trip["end_point_id"], station_ids,
+            geo["data"])
+        return _done({"trip": trip, "geo_points": geo_points})
+
+    @staticmethod
     def active_trips_today() -> Dict[str, Any]:
         """Сегодняшние рейсы со стопами и геоточками маршрута (для live-позиций).
 
