@@ -474,6 +474,21 @@ function fmtNum(v, digits) {
   return n.toFixed(digits === undefined ? 1 : digits);
 }
 
+function fmtDate(v) {
+  // API/jsonify возвращает Oracle DATE как RFC-строку ("Wed, 01 Jul 2026
+  // 00:00:00 GMT") -- показывать её как есть нельзя. new Date() парсит и
+  // эту RFC-форму, и голое "YYYY-MM-DD" (последнее -- как UTC-полночь),
+  // поэтому используем UTC-геттеры, чтобы не съехать на день от локального
+  // часового пояса браузера.
+  if (v === null || v === undefined || v === '') { return '—'; }
+  var d = new Date(v);
+  if (isNaN(d.getTime())) { return String(v); }
+  var day = ('0' + d.getUTCDate()).slice(-2);
+  var month = ('0' + (d.getUTCMonth() + 1)).slice(-2);
+  var year = d.getUTCFullYear();
+  return day + '.' + month + '.' + year;
+}
+
 function todayIso() {
   var d = new Date();
   return d.toISOString().slice(0, 10);
