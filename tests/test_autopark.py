@@ -605,6 +605,68 @@ def test_set_trip_fact_zero_rowcount_is_an_error():
     assert res["success"] is False
 
 
+def test_set_trip_fact_writes_fact_fuel_l_param():
+    # Регресс задачи 3: FACT_FUEL_L должен уйти в UPDATE, а не потеряться
+    # на пути от controller к store.
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(_ok([], [], rowcount=1))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.set_trip_fact(501, 100, 60, fact_fuel_l=42.5)
+    assert res["success"] is True
+    assert res["data"]["fact_fuel_l"] == 42.5
+    call_args = db.execute_query.call_args
+    sql, params = call_args[0][0], call_args[0][1]
+    assert "FACT_FUEL_L" in sql.upper()
+    assert params["fact_fuel_l"] == 42.5
+
+
+def test_set_trip_fact_fuel_defaults_to_none_when_not_supplied():
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(_ok([], [], rowcount=1))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.set_trip_fact(501, 100, 60)
+    assert res["success"] is True
+    assert res["data"]["fact_fuel_l"] is None
+
+
+def test_controller_trip_set_fact_passes_through_fact_fuel_l():
+    from modules.autopark.controller import AutoparkController
+    with patch("modules.autopark.controller.AutoparkStore.set_trip_fact",
+               return_value={"success": True, "data": {}, "message": ""}) as mocked:
+        res = AutoparkController.trip_set_fact(
+            {"trip_id": 501, "fact_km": 120, "fact_minutes": 90,
+             "fact_fuel_l": 33.3})
+    assert res["success"] is True
+    mocked.assert_called_once_with(501, 120.0, 90, 33.3)
+
+
+def test_controller_trip_set_fact_rejects_negative_fuel():
+    from modules.autopark.controller import AutoparkController
+    res = AutoparkController.trip_set_fact(
+        {"trip_id": 501, "fact_km": 120, "fact_minutes": 90,
+         "fact_fuel_l": -5})
+    assert res["success"] is False
+
+
+def test_truck_summary_query_avoids_double_counting_fuel_via_subqueries():
+    # Урок этой задачи: суммировать FACT_FUEL_L/NORM_FUEL_L на уровне
+    # FLT_TRIPS ПОСЛЕ join'а с FLT_TRIP_STOP_ITEMS размножило бы расход на
+    # число остановок/продуктов рейса. Запрос обязан агрегировать расход
+    # рейса и объём по остановкам в раздельных подзапросах.
+    from modules.autopark.store import AutoparkStore
+    db = _db_returning(_ok(
+        ["TRUCK_ID", "PLATE", "TRIP_CNT", "TOTAL_VOLUME_L", "NORM_FUEL_L",
+         "FACT_FUEL_L"],
+        [[1, "AB123", 2, 40000.0, 300.0, 305.0]]))
+    with patch("modules.autopark.store.DatabaseModel", return_value=db):
+        res = AutoparkStore.truck_summary("2026-08-01", "2026-08-31")
+    assert res["success"] is True
+    sql = db.execute_query.call_args[0][0].upper()
+    assert sql.count("LEFT JOIN (") == 2
+    assert "FLT_TRIP_STOP_ITEMS" in sql
+    assert res["data"][0]["fact_fuel_l"] == 305.0
+
+
 def test_log_event_swallows_sql_failure_and_never_raises():
     from modules.autopark.store import AutoparkStore
     db = MagicMock()
