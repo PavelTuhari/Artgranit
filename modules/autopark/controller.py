@@ -681,6 +681,198 @@ class AutoparkController:
         }}
 
 
+    # ── GPS-прослойка ────────────────────────────────────────────────
+
+    @staticmethod
+    def gps_geo() -> Dict[str, Any]:
+        """Точки маршрутной сети с координатами -- для отрисовки карты (ТЗ п.5)."""
+        return AutoparkStore.list_geo_points()
+
+    @staticmethod
+    def gps_ingest(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Вход прослойки: сюда пишет и симулятор, и (в будущем) реальный
+        провайдер -- оба через один и тот же контракт ``{provider,
+        trip_id, points: [...]}``. ``provider`` -- CODE из
+        FLT_GPS_PROVIDERS (ТЗ п.2: регистр провайдеров), не голая
+        строка "SIM"/"HTTP_PUSH" -- KIND провайдера подтягивается из
+        регистра, а не передаётся ingest-запросом (иначе один и тот же
+        провайдер мог бы прислать точки под чужим KIND).
+        """
+        try:
+            provider_code = (payload.get("provider") or "").strip().upper()
+            _require(bool(provider_code), "provider обязателен")
+            trip_id = _as_int(payload.get("trip_id"), "trip_id")
+            points = payload.get("points")
+            _require(isinstance(points, list) and bool(points),
+                     "points должен быть непустым списком")
+        except AutoparkValidationError as exc:
+            return _fail(str(exc))
+
+        prov = AutoparkStore.get_gps_provider(provider_code)
+        if not prov.get("success"):
+            return prov
+        kind = prov["data"]["kind"]
+
+        normalized, reasons = gps.normalize_points(kind, {"track": points})
+        if not normalized:
+            return _fail("Нет ни одной валидной точки"
+                        + (": " + "; ".join(reasons) if reasons else ""))
+
+        res = AutoparkStore.insert_track_points(trip_id, provider_code, normalized)
+        if res.get("success"):
+            AutoparkStore.log_event(
+                "GPS_INGEST", "FLT_TRIPS", trip_id,
+                f"{provider_code}: {len(normalized)} точек"
+                + (f", отброшено {len(reasons)}" if reasons else ""),
+                payload.get("_username") or provider_code)
+            res = dict(res)
+            if reasons:
+                res["warnings"] = reasons
+        return res
+
+    @staticmethod
+    def gps_positions() -> Dict[str, Any]:
+        """Симулированные текущие позиции всех сегодняшних рейсов.
+
+        Ничего не пишет в БД (ТЗ п.3) -- позиция считается на лету через
+        gps.interpolate_route по геоточкам маршрута, при каждом вызове
+        заново. Выезд в 08:00, средняя скорость и стоянка -- модульные
+        константы (см. докстринг класса).
+        """
+        trips = AutoparkStore.active_trips_today()
+        if not trips.get("success"):
+            return trips
+
+        out: List[Dict[str, Any]] = []
+        now = datetime.now()
+        for t in trips["data"]:
+            geo_points = t.get("geo_points") or []
+            if len(geo_points) < 2:
+                continue
+            depart_ts = datetime.combine(date.today(),
+                                         time(GPS_DEPART_HOUR, 0))
+            try:
+                profile = gps.interpolate_route(
+                    geo_points, depart_ts, GPS_AVG_SPEED_KMH, GPS_STOP_MINUTES)
+            except ValueError:
+                continue
+            pos = gps.position_at(profile, now)
+            if not pos:
+                continue
+            out.append({
+                "trip_id": t["id"], "truck_id": t["truck_id"],
+                "driver_id": t["driver_id"], "type_code": t["type_code"],
+                "status_code": t["status_code"], "lat": pos["lat"],
+                "lon": pos["lon"], "started": pos["started"],
+                "finished": pos["finished"],
+            })
+        return {"success": True, "message": "", "data": out}
+
+    @staticmethod
+    def gps_track(trip_id) -> Dict[str, Any]:
+        """Сохранённый трек рейса + его длина + сравнение с NORM_KM (ТЗ п.3)."""
+        try:
+            trip_id = _as_int(trip_id, "trip_id")
+        except AutoparkValidationError as exc:
+            return _fail(str(exc))
+
+        header = AutoparkStore.get_trip_header(trip_id)
+        if not header.get("success"):
+            return header
+        track = AutoparkStore.get_track(trip_id)
+        if not track.get("success"):
+            return track
+
+        points = track["data"]
+        track_km = gps.track_length_km(points) if len(points) >= 2 else 0.0
+        norm_km = float(header["data"].get("norm_km") or 0)
+        deviation_pct = ((track_km - norm_km) / norm_km * 100)  if norm_km else None
+
+        return {"success": True, "message": "", "data": {
+            "trip_id": trip_id, "points": points, "track_km": track_km,
+            "norm_km": header["data"].get("norm_km"),
+            "fact_km": header["data"].get("fact_km"),
+            "deviation_pct": deviation_pct,
+        }}
+
+    @staticmethod
+    def _jitter_deg(lat: float, km: float) -> "tuple[float, float]":
+        """Случайное смещение в градусах (±``km``) -- для правдоподобного
+        replay-шума: 1 градус широты ~ 111.32 км, долгота на этой широте
+        короче на cos(lat), иначе смещение по долготе на севере страны
+        оказалось бы заметно больше запрошенных метров."""
+        km_per_deg_lat = 111.32
+        km_per_deg_lon = 111.32 * max(0.1, math.cos(math.radians(lat)))
+        dlat = random.uniform(-km, km) / km_per_deg_lat
+        dlon = random.uniform(-km, km) / km_per_deg_lon
+        return dlat, dlon
+
+    @staticmethod
+    def gps_replay(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Сгенерировать и СОХРАНИТЬ трек прошедшего рейса (ТЗ п.3, п.4):
+        та же gps.interpolate_route, что и live-симуляция, плюс шум
+        ±150 м на каждой узловой точке -- имитация реального разброса
+        GPS-приёмника. Пишет факт (apply_track_fact), поэтому только для
+        рейса не в DRAFT (иначе он ещё не основание для факта, ТЗ п.6).
+        """
+        try:
+            trip_id = _as_int(payload.get("trip_id"), "trip_id")
+        except AutoparkValidationError as exc:
+            return _fail(str(exc))
+
+        tg = AutoparkStore.trip_geo_points(trip_id)
+        if not tg.get("success"):
+            return tg
+        trip = tg["data"]["trip"]
+        geo_points = tg["data"]["geo_points"]
+
+        if trip.get("status_code") == "DRAFT":
+            return _fail(f"Рейс {trip_id} в статусе DRAFT -- трек можно "
+                        "сформировать только для утверждённого рейса")
+        if len(geo_points) < 2:
+            return _fail(f"У рейса {trip_id} недостаточно геоточек "
+                        "маршрута (нет координат) -- трек не построить")
+
+        trip_date = trip["trip_date"]
+        if hasattr(trip_date, "replace") and hasattr(trip_date, "hour"):
+            depart_ts = trip_date.replace(hour=GPS_DEPART_HOUR, minute=0,
+                                          second=0, microsecond=0)
+        else:
+            depart_ts = datetime.combine(trip_date, time(GPS_DEPART_HOUR, 0))
+
+        try:
+            profile = gps.interpolate_route(
+                geo_points, depart_ts, GPS_AVG_SPEED_KMH, GPS_STOP_MINUTES)
+        except ValueError as exc:
+            return _fail(str(exc))
+
+        points = []
+        for node in profile:
+            dlat, dlon = AutoparkController._jitter_deg(
+                node["lat"], GPS_REPLAY_NOISE_KM)
+            points.append({"ts": node["ts"], "lat": node["lat"] + dlat,
+                          "lon": node["lon"] + dlon,
+                          "speed_kmh": GPS_AVG_SPEED_KMH})
+
+        ins = AutoparkStore.insert_track_points(trip_id, "SIM", points)
+        if not ins.get("success"):
+            return ins
+        fact = AutoparkStore.apply_track_fact(trip_id)
+        if not fact.get("success"):
+            return fact
+
+        AutoparkStore.log_event(
+            "GPS_REPLAY", "FLT_TRIPS", trip_id,
+            f"{len(points)} points, fact_km={fact['data']['fact_km']:.1f}",
+            payload.get("_username") or "system")
+
+        return {"success": True, "message": "", "data": {
+            "trip_id": trip_id, "points": len(points),
+            "fact_km": fact["data"]["fact_km"],
+            "norm_km": trip.get("norm_km"),
+        }}
+
+
 def _require_date(raw: Any, label: str) -> date:
     """Строку 'YYYY-MM-DD' (из query string/JSON) -- в объект date.
 
