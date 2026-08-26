@@ -94,6 +94,7 @@
 | GET | `/api/report/trucks` | Свод по автомобилям (пробег, объём, норматив/факт ДТ) |
 | GET | `/api/report/stations` | Потребность и фактические поставки по АЗС |
 | GET | `/api/report/management` | Сводка руководству |
+| GET | `/api/fuel-prices` | Цены на топливо за период (`date_from`, `date_to`, опционально `product`) |
 
 ## Формулы
 
