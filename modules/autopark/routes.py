@@ -222,3 +222,44 @@ def api_fuel_prices():
     if not AuthController.is_authenticated():
         return _unauthorized()
     return jsonify(AutoparkController.fuel_prices(request.args))
+
+
+# ── GPS-прослойка ────────────────────────────────────────────────────
+
+@blueprint.route("/api/gps/geo", methods=["GET"])
+def api_gps_geo():
+    if not AuthController.is_authenticated():
+        return _unauthorized()
+    return jsonify(AutoparkController.gps_geo())
+
+
+@blueprint.route("/api/gps/positions", methods=["GET"])
+def api_gps_positions():
+    if not AuthController.is_authenticated():
+        return _unauthorized()
+    return jsonify(AutoparkController.gps_positions())
+
+
+@blueprint.route("/api/gps/track", methods=["GET"])
+def api_gps_track():
+    if not AuthController.is_authenticated():
+        return _unauthorized()
+    return jsonify(AutoparkController.gps_track(request.args.get("trip_id")))
+
+
+@blueprint.route("/api/gps/ingest", methods=["POST"])
+def api_gps_ingest():
+    if not AuthController.is_authenticated():
+        return _unauthorized()
+    payload = request.get_json(silent=True) or {}
+    payload["_username"] = _username()
+    return jsonify(AutoparkController.gps_ingest(payload))
+
+
+@blueprint.route("/api/gps/replay", methods=["POST"])
+def api_gps_replay():
+    if not AuthController.is_authenticated():
+        return _unauthorized()
+    payload = request.get_json(silent=True) or {}
+    payload["_username"] = _username()
+    return jsonify(AutoparkController.gps_replay(payload))
