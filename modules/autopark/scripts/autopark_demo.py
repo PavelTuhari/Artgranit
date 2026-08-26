@@ -464,9 +464,13 @@ RESET_TABLES_IN_FK_ORDER = (
 
 
 def reset_business_data():
+    # /*+ NO_PARALLEL */ -- тот же ORA-12860 (deadlock под параллельным
+    # DML), что и в PECO/SDA на этой ADB, воспроизвёлся здесь на обычном
+    # DELETE FROM без всякого INSERT...SELECT: хинт нужен для любого DML,
+    # который планировщик может распараллелить, не только для вставок.
     with DatabaseModel() as db:
         for table in RESET_TABLES_IN_FK_ORDER:
-            r = db.execute_query(f"DELETE FROM {table}")
+            r = db.execute_query(f"DELETE /*+ NO_PARALLEL */ FROM {table}")
             if not r.get("success"):
                 raise RuntimeError(f"Очистка {table}: {r.get('message')}")
         db.connection.commit()
