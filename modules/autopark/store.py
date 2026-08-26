@@ -887,17 +887,25 @@ class AutoparkStore:
             return _fail(str(exc))
 
     @staticmethod
-    def provider_id_by_code(code: str) -> Dict[str, Any]:
+    def get_gps_provider(code: str) -> Dict[str, Any]:
         try:
             with DatabaseModel() as db:
-                r = _run(db, "SELECT ID FROM FLT_GPS_PROVIDERS WHERE CODE "
-                             "= :code", {"code": code})
+                r = _run(db, "SELECT ID, CODE, NAME, KIND, ACTIVE FROM "
+                             "FLT_GPS_PROVIDERS WHERE CODE = :code",
+                        {"code": code})
                 rows = _rows(r)
                 if not rows:
                     return _fail(f"Провайдер GPS {code} не зарегистрирован")
-                return _done(rows[0]["id"])
+                return _done(rows[0])
         except AutoparkSqlError as exc:
             return _fail(str(exc))
+
+    @staticmethod
+    def provider_id_by_code(code: str) -> Dict[str, Any]:
+        prov = AutoparkStore.get_gps_provider(code)
+        if not prov.get("success"):
+            return prov
+        return _done(prov["data"]["id"])
 
     @staticmethod
     def insert_track_points(trip_id, provider_code: str,
