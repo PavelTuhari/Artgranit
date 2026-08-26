@@ -250,6 +250,32 @@ INSERT) — иначе тысячи round-trip к облачному ADB зан�
 `modules.autopark.store`, к Oracle напрямую не подключается). Подробно
 — `GPS_INTEGRATION.md`.
 
+## Отчётность XLSX/PDF (`autopark_reports.py`) и телеграм-бот (`autopark_bot.py`)
+
+```bash
+# пакет из 6 отчётов (ТЗ §14) в Excel и PDF
+./venv/bin/python modules/autopark/scripts/autopark_reports.py \
+    --report all --date-from 2026-07-01 --date-to 2026-07-31 \
+    --xlsx --pdf --out docs/Autopark/examples
+
+# бот логиста: команды локально, без Telegram API
+./venv/bin/python modules/autopark/scripts/autopark_bot.py \
+    --dry-run /stock "/pay 2026-07" "/control 7"
+```
+
+Шесть отчётов (`driver|truck|station|summary|management|prices`) собирает
+`modules/autopark/reports.py` по единому контракту
+`{title, period, columns, rows, totals, notes}` поверх существующих
+методов store/controller; XLSX — openpyxl, PDF — деловой HTML +
+`soffice --headless --convert-to pdf`. Готовые примеры (июль 2026 + YTD)
+— `docs/Autopark/examples/`. Подробно — `REPORTS.md`.
+
+Телеграм-бот (long polling, чистый urllib, токен `AUTOPARK_TG_TOKEN` и
+белый список `AUTOPARK_TG_CHAT_IDS` в `.env`): команды `/stock`, `/plan`,
+`/trips`, `/pay`, `/control`, `/prices` и пуш-мониторинг `--monitor`
+(запас ниже страхового, превышение лимитов; антидубль). Без белого
+списка не отвечает никому. Подробно — `TELEGRAM_BOT.md`.
+
 ## Checklist верификации после релиза
 
 1. `git diff --name-only main HEAD` — только `modules/autopark/**`,
