@@ -28,5 +28,17 @@
     "title": "GPS-прослойка — интеграция и симулятор",
     "audience": "для разработчиков",
     "descr": "Контракт /api/gps/ingest, регистр провайдеров FLT_GPS_PROVIDERS, как подключить реального провайдера (HTTP_PUSH/HTTP_PULL) без изменений в store/controller/routes, как устроен и работает внешний симулятор autopark_gps_sim.py (--live/--replay-recent)."
+  },
+  "REPORTS.md": {
+    "slug": "reports", "public": false, "icon": "📊", "cls": "", "order": 60,
+    "title": "Пакет отчётности — XLSX и PDF",
+    "audience": "для логиста и руководства",
+    "descr": "Шесть отчётов ТЗ §14 (по водителям, автомобилям, АЗС, сводный с рейтингом, для руководства, ценовой ANRE): единый контракт reports.py, CLI-выгрузка autopark_reports.py в Excel (openpyxl) и PDF (LibreOffice headless), зафиксированные допущения расчётов, готовые примеры в examples/."
+  },
+  "TELEGRAM_BOT.md": {
+    "slug": "telegram-bot", "public": false, "icon": "🤖", "cls": "", "order": 70,
+    "title": "Телеграм-бот логиста",
+    "audience": "для логиста и администратора",
+    "descr": "Long-polling бот без сторонних SDK: команды /stock /plan /trips /pay /control /prices, пуш-мониторинг (запас ниже страхового, превышения лимитов) с антидублем, настройка BotFather и .env, белый список chat_id, пример systemd-unit, режим --dry-run."
   }
 }
