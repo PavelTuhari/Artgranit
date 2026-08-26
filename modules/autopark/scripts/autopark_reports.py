@@ -130,19 +130,29 @@ def _fmt_cell(value) -> str:
 
 def report_html(report: Report) -> str:
     """Самодостаточная HTML-страница отчёта (кириллица, деловая палитра)."""
-    head_cells = "".join(f"<th>{html.escape(c)}</th>"
-                         for c in report["columns"])
+    # Legacy-атрибуты (bgcolor/border/cellpadding) вместе с CSS — не
+    # архаика ради архаики: HTML-импорт LibreOffice Writer игнорирует
+    # часть CSS-свойств ячеек (фоны, границы), а атрибуты честно
+    # переносит в PDF (проверено глазами на station-отчёте за июль).
+    head_cells = "".join(
+        f"<th bgcolor=\"#132038\">{html.escape(c)}</th>"
+        for c in report["columns"])
+
+    def _tr(row, shade: str = "", bold: bool = False) -> str:
+        cells = []
+        for v in row:
+            align = " align=\"right\"" if isinstance(v, (int, float)) else ""
+            text = _fmt_cell(v)
+            if bold:
+                text = f"<b>{text}</b>"
+            cells.append(f"<td{align}{shade}>{text}</td>")
+        return "<tr>" + "".join(cells) + "</tr>"
+
     body = []
-    for row in report["rows"]:
-        cells = "".join(
-            f"<td class=\"{'num' if isinstance(v, (int, float)) else 'txt'}\">"
-            f"{_fmt_cell(v)}</td>" for v in row)
-        body.append(f"<tr>{cells}</tr>")
+    for i, row in enumerate(report["rows"]):
+        body.append(_tr(row, " bgcolor=\"#f2f5fa\"" if i % 2 else ""))
     if report.get("totals"):
-        cells = "".join(
-            f"<td class=\"{'num' if isinstance(v, (int, float)) else 'txt'}\">"
-            f"{_fmt_cell(v)}</td>" for v in report["totals"])
-        body.append(f"<tr class='totals'>{cells}</tr>")
+        body.append(_tr(report["totals"], " bgcolor=\"#dbe4f5\"", bold=True))
     notes = "".join(f"<p class='note'>* {html.escape(n)}</p>"
                     for n in report.get("notes") or [])
     generated = datetime.now().strftime("%Y-%m-%d %H:%M")
