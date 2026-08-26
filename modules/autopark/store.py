@@ -953,6 +953,30 @@ class AutoparkStore:
             return _fail(str(exc))
 
     @staticmethod
+    def delete_track(trip_id, provider_code: Optional[str] = None) -> Dict[str, Any]:
+        """Удалить сохранённый трек рейса (весь или одного провайдера).
+
+        Нужен повторному replay: без него точки двух прогонов складываются
+        в один трек, и apply_track_fact считает суммарную длину обоих —
+        факт получался в полтора раза больше норматива (поймано на живой
+        базе 26.08.2026).
+        """
+        try:
+            params: Dict[str, Any] = {"trip_id": trip_id}
+            sql = ("DELETE /*+ NO_PARALLEL */ FROM FLT_GPS_TRACKS "
+                   "WHERE TRIP_ID = :trip_id")
+            if provider_code:
+                sql += (" AND PROVIDER_ID = (SELECT ID FROM "
+                        "FLT_GPS_PROVIDERS WHERE CODE = :code)")
+                params["code"] = provider_code
+            with DatabaseModel() as db:
+                r = _run(db, sql, params)
+                db.connection.commit()
+                return _done({"rows": r.get("rowcount") or 0})
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
     def apply_track_fact(trip_id) -> Dict[str, Any]:
         """Длина сохранённого трека (haversine) -> FLT_TRIPS.FACT_KM.
 
