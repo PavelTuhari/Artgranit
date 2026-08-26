@@ -388,7 +388,7 @@ def create_import_trip(trucks_by_plate, drivers_by_tab, load_points, end_points,
                        stations):
     """Импортный рейс Кишинёв-Констанца-Кишинёв -- доплата 600 леев НЕ начисляется."""
     payload = {
-        "trip_date": d(1).isoformat(),
+        "trip_date": d(1),
         "truck_id": trucks_by_plate["C BB 202"]["id"],
         "driver_id": drivers_by_tab["D-002"]["id"],
         "load_point_id": load_points["CONST"]["id"],
