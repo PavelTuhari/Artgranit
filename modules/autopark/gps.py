@@ -100,6 +100,21 @@ def normalize_points(provider_kind: str,
         if not ts:
             reasons.append(f"точка #{i}: отсутствует ts")
             continue
+        # Провайдер шлёт ts JSON-строкой ("2026-08-26T08:00:00" и т.п.);
+        # Oracle DATE-колонка (FLT_GPS_TRACKS.TS) требует настоящий
+        # python-объект datetime как bind, а не голую строку -- то же
+        # ORA-01861 "literal does not match format string", что уже
+        # ловили с date_from/date_to в controller._require_date. Разбор
+        # здесь, а не в store, чтобы store никогда не видел строку.
+        if isinstance(ts, str):
+            try:
+                ts = datetime.fromisoformat(ts)
+            except ValueError:
+                reasons.append(f"точка #{i}: ts не разбирается как ISO-дата: {ts!r}")
+                continue
+        elif not isinstance(ts, datetime):
+            reasons.append(f"точка #{i}: ts должен быть строкой или datetime")
+            continue
         try:
             lat = float(raw.get("lat"))
             lon = float(raw.get("lon"))
