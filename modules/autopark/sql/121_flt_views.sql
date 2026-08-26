@@ -70,9 +70,16 @@ JOIN FLT_REF_TRIP_TYPES tt ON tt.CODE = t.TYPE_CODE
 CROSS JOIN FLT_SETTINGS cfg;
 
 -- Route/fuel control per trip (ToR pt. 9, 12).
---   km deviation    = FACT_KM - NORM_KM
---   over limit       = deviation exceeds FLT_SETTINGS.KM_DEVIATION_LIMIT
---   norm fuel        = NORM_KM * truck.NORM_L_PER_100KM / 100
+--   km deviation      = FACT_KM - NORM_KM
+--   over limit        = deviation exceeds FLT_SETTINGS.KM_DEVIATION_LIMIT
+--   norm fuel         = NORM_KM * truck.NORM_L_PER_100KM / 100
+--   fuel deviation    = FACT_FUEL_L - NORM_FUEL_L (ToR pt. 12)
+--   fuel over limit   = |deviation| / norm fuel exceeds
+--                       FLT_SETTINGS.FUEL_DEVIATION_PCT, guarded against
+--                       division by zero the same way V_FLT_STOCK_DAYS
+--                       guards AVG_DAILY_SALES_L -- a zero-km trip (norm
+--                       fuel = 0) with a positive fact is flagged as an
+--                       overage instead of raising ORA-01476.
 CREATE OR REPLACE VIEW V_FLT_TRIP_CONTROL AS
 SELECT t.ID AS TRIP_ID,
        t.TRIP_DATE,
@@ -83,7 +90,19 @@ SELECT t.ID AS TRIP_ID,
        CASE WHEN ABS(t.FACT_KM - t.NORM_KM) > cfg.KM_DEVIATION_LIMIT
             THEN 1 ELSE 0
        END AS OVER_KM_LIMIT,
-       t.NORM_KM * tr.NORM_L_PER_100KM / 100 AS NORM_FUEL_L
+       t.NORM_KM * tr.NORM_L_PER_100KM / 100 AS NORM_FUEL_L,
+       t.FACT_FUEL_L,
+       CASE WHEN t.FACT_FUEL_L IS NOT NULL
+            THEN t.FACT_FUEL_L - (t.NORM_KM * tr.NORM_L_PER_100KM / 100)
+       END AS FUEL_DEVIATION,
+       CASE WHEN t.FACT_FUEL_L IS NULL THEN 0
+            WHEN NVL(t.NORM_KM * tr.NORM_L_PER_100KM / 100, 0) = 0
+                 THEN CASE WHEN t.FACT_FUEL_L > 0 THEN 1 ELSE 0 END
+            WHEN ABS(t.FACT_FUEL_L - (t.NORM_KM * tr.NORM_L_PER_100KM / 100))
+                 / (t.NORM_KM * tr.NORM_L_PER_100KM / 100) * 100
+                 > cfg.FUEL_DEVIATION_PCT
+                 THEN 1 ELSE 0
+       END AS OVER_FUEL_LIMIT
 FROM FLT_TRIPS t
 JOIN FLT_TRUCKS tr ON tr.ID = t.TRUCK_ID
 CROSS JOIN FLT_SETTINGS cfg
