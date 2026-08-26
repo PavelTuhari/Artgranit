@@ -1025,3 +1025,261 @@ def test_calibrate_to_anchors_leaves_products_without_anchors_untouched():
     from modules.autopark.scripts.autopark_prices import calibrate_to_anchors
     series = {date(2025, 1, 1): 24.0, date(2025, 1, 2): 24.5}
     assert calibrate_to_anchors(series, {}) == series
+
+
+# -- Task 5: GPS layer (124_flt_gps.sql + gps.py + store/controller/routes) --
+
+def test_gps_ddl_declares_alters_and_new_tables():
+    ddl = _sql("124_flt_gps.sql").upper()
+    assert "ALTER TABLE FLT_STATIONS ADD" in ddl
+    assert "ALTER TABLE FLT_LOAD_POINTS ADD" in ddl
+    assert "ALTER TABLE FLT_END_POINTS ADD" in ddl
+    assert "CREATE TABLE FLT_GPS_PROVIDERS" in ddl
+    assert "CREATE TABLE FLT_GPS_TRACKS" in ddl
+    assert "CHECK (KIND IN ('SIM','HTTP_PUSH','HTTP_PULL'))" in ddl
+    assert "CACHE 20" in ddl
+
+
+def test_gps_ddl_has_composite_index_on_trip_and_ts():
+    ddl = _sql("124_flt_gps.sql").upper()
+    assert "CREATE INDEX IX_FLT_GPS_TRACKS_TRIP_TS ON FLT_GPS_TRACKS (TRIP_ID, TS)" in ddl
+
+
+def test_gps_ddl_has_no_semicolons_in_comments():
+    for line in _sql("124_flt_gps.sql").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("--"):
+            assert ";" not in stripped, stripped
+
+
+def test_gps_ddl_triggers_are_fenced_by_slashes_before_and_after():
+    text = _sql("124_flt_gps.sql")
+    for trigger_name in ("TRG_FLT_GPS_PROVIDERS_BI", "TRG_FLT_GPS_TRACKS_BI"):
+        idx = text.index(f"CREATE OR REPLACE TRIGGER {trigger_name}")
+        before = text[:idx].rstrip()
+        assert before.endswith("/"), f"missing leading '/' before {trigger_name}"
+        after = text[idx:]
+        end_idx = after.index("END;") + len("END;")
+        after_trigger = after[end_idx:].lstrip()
+        assert after_trigger.startswith("/"), f"missing trailing '/' after {trigger_name}"
+
+
+def test_deploy_installer_ignores_ora_01430_column_already_exists():
+    # ALTER TABLE ... ADD on an already-migrated schema raises ORA-01430
+    # ("column being added already exists") on a repeat run of file 124 --
+    # this must be in the installer's tolerated-not-an-error list, same as
+    # the existing 120-123 idempotency guarantee (see autopark_deploy.py
+    # docstring / sql/124_flt_gps.sql header comment).
+    src = open(os.path.join(MODULE_DIR, "scripts", "autopark_deploy.py"),
+              encoding="utf-8").read()
+    idx = src.index("if any(code in message for code in")
+    assert "ORA-01430" in src[idx:idx + 300]
+
+
+def test_haversine_km_chisinau_to_balti_matches_known_distance():
+    from modules.autopark.gps import haversine_km
+    # Chisinau ~47.0105/28.8638, Balti ~47.7614/27.9297 -- straight-line
+    # distance is well documented as ~110 km.
+    km = haversine_km(47.0105, 28.8638, 47.7614, 27.9297)
+    assert abs(km - 110) < 10
+
+
+def test_haversine_km_same_point_is_zero():
+    from modules.autopark.gps import haversine_km
+    assert haversine_km(47.0, 28.8, 47.0, 28.8) == 0.0
+
+
+def test_track_length_km_sums_consecutive_legs():
+    from modules.autopark.gps import haversine_km, track_length_km
+    points = [{"lat": 47.0, "lon": 28.8}, {"lat": 47.4, "lon": 28.8},
+             {"lat": 47.8, "lon": 28.8}]
+    expected = (haversine_km(47.0, 28.8, 47.4, 28.8)
+               + haversine_km(47.4, 28.8, 47.8, 28.8))
+    assert abs(track_length_km(points) - expected) < 1e-9
+
+
+def test_track_length_km_single_point_is_zero():
+    from modules.autopark.gps import track_length_km
+    assert track_length_km([{"lat": 47.0, "lon": 28.8}]) == 0.0
+
+
+def test_interpolate_route_position_before_departure_is_start():
+    from datetime import datetime, timedelta
+
+    from modules.autopark.gps import interpolate_route, position_at
+    geo_points = [
+        {"kind": "LOAD", "id": 1, "lat": 47.0, "lon": 28.8},
+        {"kind": "STATION", "id": 2, "lat": 47.4, "lon": 28.8},
+        {"kind": "END", "id": 3, "lat": 47.8, "lon": 28.8},
+    ]
+    depart_ts = datetime(2026, 8, 26, 8, 0)
+    profile = interpolate_route(geo_points, depart_ts, 55.0, 25.0)
+    pos = position_at(profile, depart_ts - timedelta(hours=1))
+    assert pos["started"] is False
+    assert pos["lat"] == 47.0 and pos["lon"] == 28.8
+
+
+def test_interpolate_route_position_after_finish_is_end():
+    from datetime import datetime, timedelta
+
+    from modules.autopark.gps import interpolate_route, position_at
+    geo_points = [
+        {"kind": "LOAD", "id": 1, "lat": 47.0, "lon": 28.8},
+        {"kind": "STATION", "id": 2, "lat": 47.4, "lon": 28.8},
+        {"kind": "END", "id": 3, "lat": 47.8, "lon": 28.8},
+    ]
+    depart_ts = datetime(2026, 8, 26, 8, 0)
+    profile = interpolate_route(geo_points, depart_ts, 55.0, 25.0)
+    pos = position_at(profile, profile[-1]["ts"] + timedelta(days=1))
+    assert pos["finished"] is True
+    assert pos["lat"] == 47.8 and pos["lon"] == 28.8
+
+
+def test_interpolate_route_profile_timestamps_are_monotonic():
+    from datetime import datetime
+
+    from modules.autopark.gps import interpolate_route
+    geo_points = [
+        {"kind": "LOAD", "id": 1, "lat": 47.0, "lon": 28.8},
+        {"kind": "STATION", "id": 2, "lat": 47.2, "lon": 28.7},
+        {"kind": "STATION", "id": 3, "lat": 47.5, "lon": 28.6},
+        {"kind": "END", "id": 4, "lat": 47.0, "lon": 28.85},
+    ]
+    profile = interpolate_route(geo_points, datetime(2026, 8, 26, 8, 0), 55.0, 25.0)
+    for a, b in zip(profile, profile[1:]):
+        assert b["ts"] >= a["ts"]
+
+
+def test_interpolate_route_rejects_non_positive_speed():
+    from datetime import datetime
+
+    from modules.autopark.gps import interpolate_route
+    geo_points = [{"kind": "LOAD", "id": 1, "lat": 47.0, "lon": 28.8},
+                 {"kind": "END", "id": 2, "lat": 47.5, "lon": 28.8}]
+    try:
+        interpolate_route(geo_points, datetime(2026, 8, 26, 8, 0), 0, 10)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_position_at_empty_profile_is_none():
+    from modules.autopark.gps import position_at
+    assert position_at([], object()) is None
+
+
+def test_normalize_points_discards_garbage_and_reports_reasons():
+    from modules.autopark.gps import normalize_points
+    payload = {"track": [
+        {"ts": "2026-08-26T08:00:00", "lat": 47.0, "lon": 28.8, "speed": 50},
+        {"ts": "2026-08-26T08:05:00", "lat": "not-a-number", "lon": 28.8},
+        {"lat": 47.1, "lon": 28.8},                     # missing ts
+        {"ts": "2026-08-26T08:10:00", "lat": 999, "lon": 28.8},  # out of range
+        "not-a-dict",
+    ]}
+    points, reasons = normalize_points("SIM", payload)
+    assert len(points) == 1
+    assert points[0]["lat"] == 47.0
+    assert len(reasons) == 4
+
+
+def test_normalize_points_accepts_device_key_as_alias_for_track():
+    from modules.autopark.gps import normalize_points
+    payload = {"device": [{"ts": "2026-08-26T08:00:00", "lat": 47.0, "lon": 28.8}]}
+    points, reasons = normalize_points("SIM", payload)
+    assert len(points) == 1
+    assert not reasons
+
+
+def test_normalize_points_rejects_unknown_provider_kind():
+    from modules.autopark.gps import normalize_points
+    points, reasons = normalize_points("CARRIER_PIGEON", {"track": []})
+    assert points == []
+    assert reasons
+
+
+def test_normalize_points_missing_track_and_device_is_reported():
+    from modules.autopark.gps import normalize_points
+    points, reasons = normalize_points("SIM", {})
+    assert points == []
+    assert reasons
+
+
+def test_store_declares_gps_layer_methods():
+    from modules.autopark.store import AutoparkStore
+    for name in ("list_geo_points", "insert_track_points", "get_track",
+                "apply_track_fact", "active_trips_today",
+                "get_gps_provider", "trip_geo_points", "get_trip_header"):
+        assert hasattr(AutoparkStore, name), name
+
+
+def test_controller_declares_gps_layer_methods():
+    from modules.autopark.controller import AutoparkController
+    for name in ("gps_geo", "gps_ingest", "gps_positions", "gps_track",
+                "gps_replay"):
+        assert hasattr(AutoparkController, name), name
+
+
+def test_gps_routes_are_declared():
+    from flask import Flask
+
+    from core.module_loader import load_module
+
+    app = Flask(__name__)
+    app.secret_key = "test"
+    loaded = load_module(app, "autopark")
+    assert loaded
+    rules_set = {r.rule for r in app.url_map.iter_rules()}
+    prefix = "/UNA.md/orasldev/autopark"
+    for suffix in ("/api/gps/positions", "/api/gps/track", "/api/gps/ingest",
+                  "/api/gps/replay", "/api/gps/geo"):
+        assert prefix + suffix in rules_set, suffix
+
+
+def test_apply_track_fact_short_track_is_rejected(monkeypatch):
+    from modules.autopark.store import AutoparkStore
+
+    monkeypatch.setattr(AutoparkStore, "get_track",
+                        staticmethod(lambda trip_id: {"success": True,
+                                                      "data": [{"lat": 47.0,
+                                                               "lon": 28.8}]}))
+    res = AutoparkStore.apply_track_fact(123)
+    assert res["success"] is False
+    assert "точек" in res["message"]
+
+
+def test_apply_track_fact_propagates_get_track_failure(monkeypatch):
+    from modules.autopark.store import AutoparkStore
+
+    monkeypatch.setattr(AutoparkStore, "get_track",
+                        staticmethod(lambda trip_id: {"success": False,
+                                                      "data": None,
+                                                      "message": "boom"}))
+    res = AutoparkStore.apply_track_fact(123)
+    assert res["success"] is False
+    assert res["message"] == "boom"
+
+
+def test_gps_replay_refuses_draft_trip(monkeypatch):
+    from modules.autopark.controller import AutoparkController
+    from modules.autopark.store import AutoparkStore
+
+    monkeypatch.setattr(
+        AutoparkStore, "trip_geo_points",
+        staticmethod(lambda trip_id: {"success": True, "data": {
+            "trip": {"id": trip_id, "status_code": "DRAFT", "norm_km": 100,
+                    "trip_date": __import__("datetime").datetime(2026, 1, 1)},
+            "geo_points": [{"kind": "LOAD", "id": 1, "lat": 47.0, "lon": 28.8},
+                          {"kind": "END", "id": 2, "lat": 47.5, "lon": 28.8}],
+        }}))
+    res = AutoparkController.gps_replay({"trip_id": 1})
+    assert res["success"] is False
+    assert "DRAFT" in res["message"]
+
+
+def test_gps_ingest_validates_provider_and_points(monkeypatch):
+    from modules.autopark.controller import AutoparkController
+    res = AutoparkController.gps_ingest({"trip_id": 1, "points": []})
+    assert res["success"] is False
+    res2 = AutoparkController.gps_ingest({"provider": "SIM", "trip_id": 1})
+    assert res2["success"] is False
