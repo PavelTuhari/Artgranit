@@ -72,8 +72,8 @@ BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_LOAD_POINTS.NEXTVAL INTO :NEW.ID FR
 /
 CREATE UNIQUE INDEX UX_FLT_LOAD_POINTS_CODE ON FLT_LOAD_POINTS (CODE);
 
--- End points of a route (garage/base). A route's final leg targets a row
--- here. NOTE: FLT_DISTANCES.TO_KIND='END' cannot carry a real FOREIGN KEY
+-- End points of a route (garage/base). The final leg of a route targets a
+-- row here. NOTE: FLT_DISTANCES.TO_KIND='END' cannot carry a real FOREIGN KEY
 -- to this table (the same column also points at FLT_STATIONS when
 -- TO_KIND='STATION') -- the kind/id pair is a polymorphic reference,
 -- enforced only in application code (modules/autopark/rules.py).
