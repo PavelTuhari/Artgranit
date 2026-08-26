@@ -24,10 +24,10 @@ ALTER TABLE FLT_LOAD_POINTS ADD (LAT NUMBER(9,6), LON NUMBER(9,6));
 ALTER TABLE FLT_END_POINTS ADD (LAT NUMBER(9,6), LON NUMBER(9,6));
 
 -- Registry of GPS providers behind the interface (modules/autopark/gps.py).
--- SIM is the simulator seeded below; a real provider is a second row of
--- the same table, KIND says whether the system pushes to it (HTTP_PUSH:
+-- SIM is the simulator seeded below, a real provider is a second row of
+-- the same table -- KIND says whether the system pushes to it (HTTP_PUSH:
 -- provider calls FLT ingest) or FLT pulls from it (HTTP_PULL: FLT calls
--- the provider's API on a schedule) -- see docs/Autopark/GPS_INTEGRATION.md.
+-- the provider API on a schedule) -- see docs/Autopark/GPS_INTEGRATION.md.
 CREATE TABLE FLT_GPS_PROVIDERS (
   ID      NUMBER(12)    NOT NULL,
   CODE    VARCHAR2(20)  NOT NULL,
