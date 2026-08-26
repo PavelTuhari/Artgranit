@@ -1466,7 +1466,7 @@ function drawPriceChart(rows) {
 
   var allDates = {};
   for (var r2 = 0; r2 < rows.length; r2++) { allDates[rows[r2].price_date] = true; }
-  var dateKeys = Object.keys(allDates).sort();
+  var dateKeys = Object.keys(allDates).sort(function (a, b) { return dateTime(a) - dateTime(b); });
   var n = dateKeys.length;
 
   function xOf(idx) { return padL + (n <= 1 ? 0 : (idx / (n - 1)) * plotW); }
