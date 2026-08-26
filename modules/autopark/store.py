@@ -687,7 +687,8 @@ class AutoparkStore:
             with DatabaseModel() as db:
                 r = _run(db, "SELECT TRIP_ID, TRIP_DATE, PLATE, NORM_KM, "
                              "FACT_KM, KM_DEVIATION, OVER_KM_LIMIT, "
-                             "NORM_FUEL_L FROM V_FLT_TRIP_CONTROL WHERE "
+                             "NORM_FUEL_L, FACT_FUEL_L, FUEL_DEVIATION, "
+                             "OVER_FUEL_LIMIT FROM V_FLT_TRIP_CONTROL WHERE "
                              "TRIP_DATE BETWEEN :date_from AND :date_to "
                              "ORDER BY TRIP_DATE, TRIP_ID",
                         {"date_from": date_from, "date_to": date_to})
