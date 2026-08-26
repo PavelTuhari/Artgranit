@@ -238,6 +238,18 @@ INSERT) — иначе тысячи round-trip к облачному ADB зан�
 км×2.75 + внутр.рейсы×600 из сгенерированных рейсов против
 `AutoparkController.payroll_report`) сошлась 1-в-1 по всем 4 водителям.
 
+## GPS-симулятор и replay (`autopark_gps_sim.py`)
+
+```bash
+./venv/bin/python modules/autopark/scripts/autopark_gps_sim.py --live --interval 10
+./venv/bin/python modules/autopark/scripts/autopark_gps_sim.py --replay-recent 30
+```
+
+Внешний по отношению к порталу скрипт — эмулирует реальный GPS-трекер:
+логинится и шлёт `POST /api/gps/ingest` настоящим HTTP (не импортирует
+`modules.autopark.store`, к Oracle напрямую не подключается). Подробно
+— `GPS_INTEGRATION.md`.
+
 ## Checklist верификации после релиза
 
 1. `git diff --name-only main HEAD` — только `modules/autopark/**`,
