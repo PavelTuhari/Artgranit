@@ -831,7 +831,8 @@ class AutoparkStore:
             with DatabaseModel() as db:
                 r = _run(db, """
                     SELECT s.STATION_ID, s.STATION_CODE, s.STATION_NAME,
-                           s.PRODUCT_CODE, s.STOCK_DAYS, s.NEED_SUPPLY,
+                           s.PRODUCT_CODE, s.CURRENT_L, s.MIN_STOCK_L,
+                           s.STOCK_DAYS, s.NEED_SUPPLY,
                            NVL(d.DELIV_CNT, 0) AS DELIV_CNT,
                            NVL(d.DELIV_VOLUME_L, 0) AS DELIV_VOLUME_L
                     FROM V_FLT_STOCK_DAYS s
