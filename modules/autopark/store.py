@@ -725,37 +725,45 @@ class AutoparkStore:
         """По автомобилю: рейсы, перевезённый объём, норматив/факт расхода.
 
         Фактический расход ДТ (ТЗ п.14) теперь считается напрямую из
-        FLT_TRIPS.FACT_FUEL_L (колонка добавлена вместе с этим отчётом —
-        см. FLT_TRIP_STOP_ITEMS остаётся дважды не при чём, расход не
-        зависит от количества остановок). Он суммируется на уровне
-        FLT_TRIPS ДО join'а с FLT_TRIP_STOP_ITEMS, потому что у рейса с
-        несколькими остановками/продуктами JOIN размножил бы строку
-        рейса на количество позиций и посчитал бы FACT_FUEL_L несколько
-        раз — отдельный подзапрос агрегирует расход один раз на рейс,
-        а внешний JOIN с остановками отвечает только за объём.
+        FLT_TRIPS.FACT_FUEL_L. Норматив/факт расхода агрегируются в
+        ОТДЕЛЬНОМ подзапросе на уровне FLT_TRIPS (один рейс — одна
+        строка), а перевезённый объём — во втором подзапросе на уровне
+        FLT_TRIP_STOP_ITEMS: рейс с несколькими остановками/продуктами
+        даёт несколько строк в JOIN с items, и суммирование расхода по
+        той же развёрнутой строке посчитало бы его несколько раз на
+        рейс. Раздельные подзапросы, объединённые по TRUCK_ID, исключают
+        это задвоение.
         """
         try:
             with DatabaseModel() as db:
                 r = _run(db, """
                     SELECT tr.ID AS TRUCK_ID, tr.PLATE,
-                           COUNT(DISTINCT t.ID) AS TRIP_CNT,
-                           NVL(SUM(ti.VOLUME_L), 0) AS TOTAL_VOLUME_L,
-                           NVL(SUM(DISTINCT_NORM.NORM_FUEL_L), 0) AS NORM_FUEL_L,
-                           SUM(DISTINCT_NORM.FACT_FUEL_L) AS FACT_FUEL_L
+                           NVL(trip_agg.TRIP_CNT, 0) AS TRIP_CNT,
+                           NVL(vol_agg.TOTAL_VOLUME_L, 0) AS TOTAL_VOLUME_L,
+                           NVL(trip_agg.NORM_FUEL_L, 0) AS NORM_FUEL_L,
+                           trip_agg.FACT_FUEL_L AS FACT_FUEL_L
                     FROM FLT_TRUCKS tr
                     LEFT JOIN (
-                        SELECT ID, TRUCK_ID, TRIP_DATE, STATUS_CODE,
-                               NORM_KM * NORM_L_PER_100KM / 100 AS NORM_FUEL_L,
-                               FACT_FUEL_L
-                        FROM FLT_TRIPS
-                        JOIN FLT_TRUCKS USING (ID)
-                    ) DISTINCT_NORM ON 1 = 0
-                    LEFT JOIN FLT_TRIPS t ON t.TRUCK_ID = tr.ID
-                           AND t.TRIP_DATE BETWEEN :date_from AND :date_to
-                           AND t.STATUS_CODE <> 'DRAFT'
-                    LEFT JOIN FLT_TRIP_STOPS ts ON ts.TRIP_ID = t.ID
-                    LEFT JOIN FLT_TRIP_STOP_ITEMS ti ON ti.STOP_ID = ts.ID
-                    GROUP BY tr.ID, tr.PLATE
+                        SELECT t.TRUCK_ID,
+                               COUNT(*) AS TRIP_CNT,
+                               SUM(t.NORM_KM * tr2.NORM_L_PER_100KM / 100)
+                                 AS NORM_FUEL_L,
+                               SUM(t.FACT_FUEL_L) AS FACT_FUEL_L
+                        FROM FLT_TRIPS t
+                        JOIN FLT_TRUCKS tr2 ON tr2.ID = t.TRUCK_ID
+                        WHERE t.TRIP_DATE BETWEEN :date_from AND :date_to
+                          AND t.STATUS_CODE <> 'DRAFT'
+                        GROUP BY t.TRUCK_ID
+                    ) trip_agg ON trip_agg.TRUCK_ID = tr.ID
+                    LEFT JOIN (
+                        SELECT t.TRUCK_ID, SUM(ti.VOLUME_L) AS TOTAL_VOLUME_L
+                        FROM FLT_TRIPS t
+                        JOIN FLT_TRIP_STOPS ts ON ts.TRIP_ID = t.ID
+                        JOIN FLT_TRIP_STOP_ITEMS ti ON ti.STOP_ID = ts.ID
+                        WHERE t.TRIP_DATE BETWEEN :date_from AND :date_to
+                          AND t.STATUS_CODE <> 'DRAFT'
+                        GROUP BY t.TRUCK_ID
+                    ) vol_agg ON vol_agg.TRUCK_ID = tr.ID
                     ORDER BY tr.PLATE""",
                         {"date_from": date_from, "date_to": date_to})
                 return _done(_rows(r))
