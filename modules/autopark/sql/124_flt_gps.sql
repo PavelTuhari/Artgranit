@@ -4,7 +4,7 @@
 -- Same PL/SQL-block fencing rule as sql/120_flt_tables.sql: '/' BEFORE and
 -- AFTER the trigger block -- without the leading '/' the shared splitter
 -- glues the preceding CREATE TABLE/INDEX into the same PL/SQL block
--- (SDA incident 25.08.2026, this module's own docstring in store.py).
+-- (SDA incident 25.08.2026, this module docstring in store.py).
 --
 -- Idempotency of the ALTER ADD statements below: a repeat run of this
 -- file hits ORA-01430 ("column being added already exists in table")
