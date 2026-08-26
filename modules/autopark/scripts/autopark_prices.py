@@ -157,13 +157,69 @@ def build_series(product: str, rnd: random.Random) -> dict:
     return prices
 
 
+def calibrate_to_anchors(series: dict, anchors: dict) -> dict:
+    """Multiply the raw MODEL series by a piecewise-linear correction
+    factor tied to the real ANRE anchors, so the calibrated curve
+    approaches each anchor smoothly instead of jumping to it on the
+    anchor's own date.
+
+    Without this, an anchor sitting far from the surrounding synthetic
+    trend (e.g. 2025-12-31 A95=21.72 next to a ~30 modelled neighbourhood)
+    produced a one-day ~28% discontinuity -- a real defect a presentation
+    audience would immediately notice as broken data, not "real-world
+    volatility". The factor is 1.0 exactly AT each anchor date (by
+    construction: anchor_price / raw_model_price_at_that_date), linearly
+    interpolated BETWEEN consecutive anchors, and held flat before the
+    first/after the last anchor -- so every date's calibrated price
+    smoothly leans toward its nearest anchors instead of snapping.
+
+    Products with no anchors (``anchors`` empty) are returned unchanged --
+    the task requires "у продуктов без якорей — без изменений".
+    """
+    if not anchors:
+        return dict(series)
+
+    anchor_days = sorted(anchors)
+    factors = {}
+    for ad in anchor_days:
+        base = series.get(ad)
+        if base:
+            factors[ad] = anchors[ad] / base
+    if not factors:
+        return dict(series)
+
+    ordered = sorted(factors)
+    ordinals = [d.toordinal() for d in ordered]
+    fvalues = [factors[d] for d in ordered]
+
+    def factor_at(d: date) -> float:
+        o = d.toordinal()
+        if o <= ordinals[0]:
+            return fvalues[0]
+        if o >= ordinals[-1]:
+            return fvalues[-1]
+        for i in range(1, len(ordinals)):
+            if o <= ordinals[i]:
+                o0, o1 = ordinals[i - 1], ordinals[i]
+                f0, f1 = fvalues[i - 1], fvalues[i]
+                if o1 == o0:
+                    return f1
+                frac = (o - o0) / (o1 - o0)
+                return f0 + (f1 - f0) * frac
+        return fvalues[-1]
+
+    return {d: max(1.0, round(price * factor_at(d), 2))
+           for d, price in series.items()}
+
+
 def build_all_rows():
     rnd = random.Random(RANDOM_SEED)
     rows = []
     jump_days = set()
     for product in PRODUCTS:
-        series = build_series(product, rnd)
+        raw_series = build_series(product, rnd)
         anre = REAL_ANRE.get(product, {})
+        series = calibrate_to_anchors(raw_series, anre) if anre else raw_series
         prev = None
         for d in daterange(START, END):
             if d in anre:
