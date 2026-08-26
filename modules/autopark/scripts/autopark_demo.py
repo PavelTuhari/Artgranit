@@ -268,7 +268,7 @@ def seed_deliveries(trucks_by_plate, drivers_by_tab, load_points, stations):
     plan = [
         (d(6), "DIESEL", 8000, "C AA 101", "D-001", "ORH"),
         (d(5), "A95", 10000, "C BB 202", "D-002", "BAL"),
-        (d(4), "A92", 7000, "C AA 101", "D-001", "CAH"),
+        (d(4), "A92", 7000, "C CC 303", "D-003", "CAH"),
     ]
     created_ids = []
     for deliv_date, product_code, volume, plate, tab_no, station_code in plan:
