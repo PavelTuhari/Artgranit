@@ -1074,9 +1074,6 @@ class AutoparkStore:
                 geo = AutoparkStore.list_geo_points()
                 if not geo.get("success"):
                     return geo
-                load_by_id = {p["id"]: p for p in geo["data"]["load_points"]}
-                end_by_id = {p["id"]: p for p in geo["data"]["end_points"]}
-                station_by_id = {p["id"]: p for p in geo["data"]["stations"]}
 
                 trip_ids = [t["id"] for t in trips]
                 placeholders = ", ".join(f":id{i}" for i in range(len(trip_ids)))
@@ -1089,25 +1086,11 @@ class AutoparkStore:
                     stops_by_trip.setdefault(row["trip_id"], []).append(row)
 
                 for t in trips:
-                    geo_points = []
-                    lp = load_by_id.get(t["load_point_id"])
-                    if lp:
-                        geo_points.append({"kind": "LOAD", "id": lp["id"],
-                                          "lat": float(lp["lat"]),
-                                          "lon": float(lp["lon"])})
-                    for stop in stops_by_trip.get(t["id"], []):
-                        st = station_by_id.get(stop["station_id"])
-                        if st:
-                            geo_points.append({"kind": "STATION",
-                                              "id": st["id"],
-                                              "lat": float(st["lat"]),
-                                              "lon": float(st["lon"])})
-                    ep = end_by_id.get(t["end_point_id"])
-                    if ep:
-                        geo_points.append({"kind": "END", "id": ep["id"],
-                                          "lat": float(ep["lat"]),
-                                          "lon": float(ep["lon"])})
-                    t["geo_points"] = geo_points
+                    station_ids = [row["station_id"] for row in
+                                  stops_by_trip.get(t["id"], [])]
+                    t["geo_points"] = AutoparkStore._geo_points_for(
+                        t["load_point_id"], t["end_point_id"], station_ids,
+                        geo["data"])
                 return _done(trips)
         except AutoparkSqlError as exc:
             return _fail(str(exc))
