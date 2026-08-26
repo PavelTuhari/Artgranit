@@ -484,8 +484,10 @@ class AutoparkController:
 
         # В пути = объём непривязанных к рейсу накладных на эту АЗС и
         # продукт (ещё не доставлено физически, но уже отгружено).
+        # Диапазон дат -- настоящие date(), не строки: BETWEEN на живом
+        # Oracle падает с ORA-01861 на голой строке (см. _require_date).
         in_transit_res = AutoparkStore.list_deliveries(
-            "0001-01-01", "9999-12-31", unassigned_only=True)
+            date(1, 1, 1), date(9999, 12, 31), unassigned_only=True)
         in_transit_by_key: Dict[tuple, float] = {}
         if in_transit_res.get("success"):
             for d in in_transit_res["data"]:
