@@ -1494,8 +1494,15 @@ function drawPriceChart(rows) {
   ctx.fillText(maxP.toFixed(1), 2, padT + 8);
   ctx.fillText(minP.toFixed(1), 2, padT + plotH);
   if (n > 0) {
-    ctx.fillText(dateKeys[0], padL, h - 6);
-    ctx.fillText(dateKeys[n - 1], padL + plotW - 60, h - 6);
+    var ticks = Math.min(6, n);
+    for (var tk = 0; tk < ticks; tk++) {
+      var idx2 = ticks === 1 ? 0 : Math.round(tk * (n - 1) / (ticks - 1));
+      var label = fmtMonthYear(dateKeys[idx2]);
+      var tx = xOf(idx2);
+      if (tk === ticks - 1) { tx -= ctx.measureText(label).width; }
+      else if (tk > 0) { tx -= ctx.measureText(label).width / 2; }
+      ctx.fillText(label, Math.max(padL, tx), h - 6);
+    }
   }
 
   var dateIndex = {};
