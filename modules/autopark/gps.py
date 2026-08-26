@@ -111,15 +111,27 @@ def road_scaled_track(profile: Sequence[Dict[str, Any]], target_km: float,
     докстринг выше и docs/Autopark/GPS_INTEGRATION.md, раздел "дорожный
     коэффициент").
 
-    Каждый участок пересчитывается как вектор смещения (в локальной
-    эквиректангулярной проекции вокруг средней широты участка) от УЖЕ
-    пересчитанной предыдущей точки, умноженный на общий коэффициент
-    ``factor = target_km / straight_km``. Это работает симметрично и
-    при ``factor > 1`` (растяжение -- типичный случай: дорога длиннее
-    прямой), и при ``factor < 1`` (сжатие -- координаты отдельных
-    коротких рейсов дают прямую длиннее их норматива, см. докстринг
-    выше). Узлы-остановки (``leg_km`` отсутствует или 0 -- стоим на
-    месте, см. :func:`interpolate_route`) остаются на месте последней
+    Каждый участок пересчитывается как вектор смещения, умноженный на
+    общий коэффициент ``factor = target_km / straight_km``, и
+    накапливается от УЖЕ пересчитанной предыдущей точки -- всё в ОДНОЙ
+    эквиректангулярной проекции на весь трек (единая ``ref_lat`` —
+    средняя широта всех узлов профиля). Единая проекция обязательна: на
+    первой версии этой функции у каждого участка была своя ``ref_lat``
+    (средняя широта именно этого участка), и обратный пересчёт
+    уже-масштабированной предыдущей точки через ДРУГУЮ проекцию каждый
+    раз накапливал систематическое рассогласование от участка к
+    участку -- на одном участке (простой тест) ошибка была
+    исчезающей (~0.001%), а на реальном многоучастковом рейсе
+    расхождение расходилось лавинообразно (контрольный прогон
+    26.08.2026 показал 90.8% вместо ожидаемых 2-3%, см.
+    .superpowers/sdd/autopark-task5-gps.md). Единая проекция на весь
+    трек устраняет рассогласование.
+
+    Это работает симметрично и при ``factor > 1`` (растяжение --
+    типичный случай: дорога длиннее прямой), и при ``factor < 1``
+    (сжатие -- координаты отдельных коротких рейсов дают прямую длиннее
+    их норматива). Узлы-остановки (``leg_km`` отсутствует или 0 -- стоим
+    на месте, см. :func:`interpolate_route`) остаются на месте последней
     пересчитанной точки, а не масштабируются отдельно.
 
     ``correction_passes`` — плоская проекция вносит небольшую погрешность
@@ -134,25 +146,26 @@ def road_scaled_track(profile: Sequence[Dict[str, Any]], target_km: float,
     if not profile or not legs or straight_total <= 0 or target_km <= 0:
         return list(profile)
 
+    ref_lat = sum(n["lat"] for n in profile) / len(profile)
+    orig_xy = [_equirect_xy(n["lat"], n["lon"], ref_lat) for n in profile]
+
     factor = target_km / straight_total
     out: List[Dict[str, Any]] = list(profile)
     for _pass in range(max(1, correction_passes)):
+        scaled_xy = [orig_xy[0]]
         out = [dict(profile[0])]
-        for prev, cur in zip(profile, profile[1:]):
-            scaled_prev = out[-1]
+        for i in range(1, len(profile)):
+            cur = profile[i]
             if (cur.get("leg_km") or 0) <= 0:
-                node = dict(cur)
-                node["lat"], node["lon"] = scaled_prev["lat"], scaled_prev["lon"]
-                out.append(node)
-                continue
-            ref_lat = (prev["lat"] + cur["lat"]) / 2.0
-            x1, y1 = _equirect_xy(prev["lat"], prev["lon"], ref_lat)
-            x2, y2 = _equirect_xy(cur["lat"], cur["lon"], ref_lat)
-            sx, sy = _equirect_xy(scaled_prev["lat"], scaled_prev["lon"], ref_lat)
-            nx, ny = sx + (x2 - x1) * factor, sy + (y2 - y1) * factor
-            nlat, nlon = _equirect_lonlat(nx, ny, ref_lat)
+                sx, sy = scaled_xy[-1]
+            else:
+                dx = orig_xy[i][0] - orig_xy[i - 1][0]
+                dy = orig_xy[i][1] - orig_xy[i - 1][1]
+                sx = scaled_xy[-1][0] + dx * factor
+                sy = scaled_xy[-1][1] + dy * factor
+            scaled_xy.append((sx, sy))
             node = dict(cur)
-            node["lat"], node["lon"] = nlat, nlon
+            node["lat"], node["lon"] = _equirect_lonlat(sx, sy, ref_lat)
             out.append(node)
         achieved = track_length_km(out)
         if achieved <= 0:
