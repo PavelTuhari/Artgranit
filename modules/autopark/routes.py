@@ -213,3 +213,12 @@ def api_report_management():
     if not AuthController.is_authenticated():
         return _unauthorized()
     return jsonify(AutoparkController.management_report(request.args))
+
+
+# ── цены на топливо ──────────────────────────────────────────────────
+
+@blueprint.route("/api/fuel-prices", methods=["GET"])
+def api_fuel_prices():
+    if not AuthController.is_authenticated():
+        return _unauthorized()
+    return jsonify(AutoparkController.fuel_prices(request.args))
