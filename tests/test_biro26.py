@@ -677,3 +677,87 @@ def test_sitemap_does_not_repeat_the_same_product():
         __import__("pathlib").Path(sm.__file__).read_text(encoding="utf-8")))
     assert "SELECT COUNT(DISTINCT g.cod_univers) CNT" in src
     assert "SELECT DISTINCT g.cod_univers cod" in src
+
+
+# ── скорость ответа витрины ────────────────────────────────────────────
+#
+# Замер 26.08.2026: HTML страницы читал из Oracle пять настроек (каждая
+# поднимает свой процесс-воркер) и предложения банков — 9,5 с на КАЖДЫЙ
+# показ. Это и был медленный ответ сайта. Всё это меняется только когда
+# кто-то правит настройки, поэтому читается один раз и держится в памяти.
+
+def test_page_chrome_is_read_once_not_on_every_render():
+    import app as _app
+    _app._biro26_chrome_reset()
+    calls = {"n": 0}
+
+    def fake_refresh():
+        calls["n"] += 1
+        _app._SITE_CHROME.update(
+            {"at": __import__("time").time(), "data": {"x": 1},
+             "epoch": 0, "busy": False})
+        return {"x": 1}
+
+    with patch.object(_app, "_biro26_chrome_refresh", fake_refresh), \
+         patch("models.biro26_oracle_store.SETTINGS_EPOCH", 0):
+        for _ in range(5):
+            _app._biro26_site_chrome()
+    assert calls["n"] == 1, f"читали {calls['n']} раз вместо одного"
+
+
+def test_expired_chrome_answers_at_once_and_refreshes_apart():
+    """Посетитель не должен ждать перечитывания."""
+    import time as _t
+    import app as _app
+    _app._biro26_chrome_reset()
+    _app._SITE_CHROME.update({"at": _t.time() - 10_000, "data": {"x": "старое"},
+                              "epoch": 0, "busy": True})   # busy: фон уже идёт
+    with patch("models.biro26_oracle_store.SETTINGS_EPOCH", 0):
+        began = _t.time()
+        got = _app._biro26_site_chrome()
+    assert got == {"x": "старое"}
+    assert _t.time() - began < 0.5, "отдача устаревшего значения должна быть мгновенной"
+    _app._biro26_chrome_reset()
+
+
+def test_saving_a_setting_makes_the_shop_reread_at_once():
+    """Правка из администрирования не должна ждать истечения памяти."""
+    import time as _t
+    import app as _app
+    _app._biro26_chrome_reset()
+    _app._SITE_CHROME.update({"at": _t.time(), "data": {"x": "старое"},
+                              "epoch": 0, "busy": False})
+    calls = {"n": 0}
+
+    def fake_refresh():
+        calls["n"] += 1
+        return {"x": "новое"}
+
+    with patch.object(_app, "_biro26_chrome_refresh", fake_refresh), \
+         patch("models.biro26_oracle_store.SETTINGS_EPOCH", 1):
+        assert _app._biro26_site_chrome() == {"x": "новое"}
+    assert calls["n"] == 1
+    _app._biro26_chrome_reset()
+
+
+def test_settings_write_bumps_the_counter():
+    from models import biro26_oracle_store as store
+    db = MagicMock()
+    db.execute_dml.return_value = {"success": True}
+    before = store.SETTINGS_EPOCH
+    with patch.object(store, "Biro26DB", return_value=db):
+        store.Biro26Store.set_setting("SHOP_GA_ID", "G-TEST")
+    assert store.SETTINGS_EPOCH == before + 1
+
+
+def test_settings_are_read_in_one_query_not_five():
+    """Каждый отдельный get_setting поднимает свой процесс-воркер Oracle."""
+    import pathlib
+    import re as _re
+    src = (pathlib.Path(__file__).resolve().parent.parent / "app.py").read_text(
+        encoding="utf-8")
+    chrome = src[src.index("def _biro26_chrome_refresh"):
+                 src.index("def _biro26_site_ctx")]
+    assert "get_settings_many" in chrome
+    assert not _re.search(r"Biro26Store\.get_setting\(", chrome), \
+        "в общей части не должно остаться поштучных чтений настроек"

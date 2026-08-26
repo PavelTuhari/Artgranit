@@ -7955,6 +7955,15 @@ def _biro26_warm_site_config():
         Biro26Site.config()
     except Exception:                                        # noqa: BLE001
         pass
+    # RO: aceeasi problema o avea si HTML-ul paginii: setarile si ofertele
+    #     bancilor se citeau la fiecare afisare (masurat 26.08.2026: 9,5 s).
+    #     Se incalzeste tot aici, ca primul vizitator sa nu plateasca.
+    # EN: the page HTML had the same problem - settings and credit offers were
+    #     read on every render; warm it here too.
+    try:
+        _biro26_chrome_refresh()
+    except Exception:                                        # noqa: BLE001
+        pass
 
 threading.Thread(target=_biro26_warm_site_config, daemon=True).start()
 
@@ -8152,28 +8161,115 @@ def _biro26_rate_plans():
     return liber_pct, liber_min, rate_plans
 
 
+# RO: PARTEA COMUNA a paginilor magazinului — setari, planuri de rate, sigle.
+#     Se schimba doar cind cineva le editeaza din administrare, dar se citea la
+#     FIECARE afisare de pagina: cinci setari (fiecare porneste un proces-worker
+#     Oracle) plus ofertele bancilor. Masurat 26.08.2026: setarile 2,6 s,
+#     ofertele 6,7 s, tot contextul 9,5 s — asta si era raspunsul lent al
+#     site-ului. Acum se citeste o data si se tine in memorie.
+# EN: the shop pages' SHARED chrome — settings, credit plans, logos. It only
+#     changes when an admin edits it, yet it was read on EVERY page render.
+_SITE_CHROME = {'at': 0.0, 'data': None, 'busy': False, 'epoch': -1}
+
+# RO: cit tine memoria; o modificare din administrare se vede in cel mult atit.
+#     Salvarea setarilor goleste memoria imediat (_biro26_chrome_reset).
+# EN: cache lifetime; saving settings clears it at once.
+_SITE_CHROME_TTL = 120
+
+
+def _biro26_chrome_reset():
+    """RO: golire imediata dupa o modificare din administrare."""
+    _SITE_CHROME['at'] = 0.0
+    _SITE_CHROME['data'] = None
+    _SITE_CHROME['busy'] = False
+
+
+def _biro26_site_chrome():
+    """RO: partea comuna. Cind expira, se intoarce valoarea VECHE si se
+    reciteste in fundal — asa niciun vizitator nu asteapta cele zece secunde.
+    EN: when stale, return the OLD value and refresh in the background, so no
+    visitor ever waits for the read."""
+    import time as _t
+    from models import biro26_oracle_store as _store
+    data = _SITE_CHROME['data']
+    # RO: o setare salvata din administrare se vede imediat, fara asteptare
+    if data is not None and _SITE_CHROME.get('epoch') != _store.SETTINGS_EPOCH:
+        data = None
+    fresh = data is not None and _t.time() - _SITE_CHROME['at'] < _SITE_CHROME_TTL
+    if fresh:
+        return data
+    if data is not None:
+        # RO: valoarea a expirat, dar exista — o dam pe ea si improspatam aparte
+        if not _SITE_CHROME['busy']:
+            _SITE_CHROME['busy'] = True
+            import threading as _th
+            _th.Thread(target=_biro26_chrome_refresh, daemon=True).start()
+        return data
+    # RO: prima cerere dupa pornire — nu avem ce da, citim pe loc
+    return _biro26_chrome_refresh()
+
+
+def _biro26_chrome_refresh():
+    """RO: citirea propriu-zisa. EN: the actual read."""
+    import time as _t
+    from models.biro26_oracle_store import Biro26Store
+    liber_pct, liber_min, rate_plans = _biro26_rate_plans()
+    # RO: TOATE setarile intr-o singura interogare — altfel fiecare porneste
+    #     propriul proces-worker. EN: all settings in ONE query.
+    try:
+        s = Biro26Store.get_settings_many(
+            ['SHOP_BRAND_FILTER', 'SHOP_FMT_HTML', 'SHOP_FMT_XLSX',
+             'SHOP_GA_ID', 'SHOP_PRICE_FIZ'])
+    except Exception:                                        # noqa: BLE001
+        s = {}
+    # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
+    #     pentru ele, restul raman badge text. Altfel browserul incerca sa
+    #     incarce fisiere inexistente si consola se umplea de 404.
+    # EN: which payment logos actually exist, so the footer never requests a
+    #     missing file (404 noise); the rest fall back to a text badge.
+    try:
+        _paydir = os.path.join(app.static_folder, 'biro26', 'pay')
+        pay_logos = sorted(f.rsplit('.', 1)[0].lower()
+                           for f in os.listdir(_paydir)
+                           if f.lower().endswith(('.svg', '.png'))
+                           and not f.startswith(('.', '_')))
+    except Exception:                                        # noqa: BLE001
+        pay_logos = []
+
+    data = {
+        'liber_pct': liber_pct, 'liber_min': liber_min,
+        'rate_plans': rate_plans,
+        'brand_filter': s.get('SHOP_BRAND_FILTER') or '0',
+        'fmt_html': s.get('SHOP_FMT_HTML') or '1',
+        'fmt_xlsx': s.get('SHOP_FMT_XLSX') or '1',
+        'ga_id': s.get('SHOP_GA_ID') or 'G-STJ1NQDGY0',
+        'price_fiz': s.get('SHOP_PRICE_FIZ') or 'retail1',
+        'pay_logos': pay_logos,
+    }
+    from models import biro26_oracle_store as _store
+    _SITE_CHROME['at'] = _t.time()
+    _SITE_CHROME['data'] = data
+    _SITE_CHROME['epoch'] = _store.SETTINGS_EPOCH
+    _SITE_CHROME['busy'] = False
+    return data
+
+
 def _biro26_site_ctx():
     """RO: contextul comun al paginilor noului site Figma.
     EN: shared context for the new-site pages."""
     from models.biro26_oracle_store import Biro26Store
-    liber_pct, liber_min, rate_plans = _biro26_rate_plans()
-    try:
-        brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
-    except Exception:
-        brand_filter = '0'
-    try:
-        fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
-        fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
-    except Exception:
-        fmt_html, fmt_xlsx = '1', '1'
+    chrome = _biro26_site_chrome()
+    liber_pct = chrome['liber_pct']
+    liber_min = chrome['liber_min']
+    rate_plans = chrome['rate_plans']
+    brand_filter = chrome['brand_filter']
+    fmt_html, fmt_xlsx = chrome['fmt_html'], chrome['fmt_xlsx']
+    pay_logos = chrome['pay_logos']
     # RO: ID-ul Google Analytics (gtag.js). Se pune in <head> DOAR pe domeniul
     #     public; pe URL-urile interne de dezvoltare tagul nu se incarca, ca sa nu
     #     amestece traficul de test cu cel real. Se poate goli din setari ca sa fie
     #     oprit complet. EN: GA id injected into <head> only on the public host.
-    try:
-        ga_id = Biro26Store.get_setting('SHOP_GA_ID', 'G-STJ1NQDGY0')
-    except Exception:
-        ga_id = 'G-STJ1NQDGY0'
+    ga_id = chrome['ga_id']
     from flask import request as _rq
     # RO: cererea ajunge la aplicatie sub numele intern (vezi
     #     BIRO26_SHOP_HOSTS), nu sub cel public - de aceea nu se compara cu
@@ -8185,28 +8281,16 @@ def _biro26_site_ctx():
         ga_id = ''   # RO: doar pe magazinul public / EN: public shop only
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
     #     vizitatorii vad preturile pentru persoane fizice
+    # RO: vizitatorul neautentificat ia coloana din partea comuna (deja citita),
+    #     doar clientul logat cere o interogare proprie.
+    # EN: anonymous visitors take the column from the cached chrome.
     try:
         from flask import session as _s
         _cl = _s.get('biro26_client')
         price_field = (Biro26Store.client_price_field(_cl['univers_cod'])
-                       if _cl else Biro26Store.get_setting('SHOP_PRICE_FIZ',
-                                                           'retail1'))
-    except Exception:
+                       if _cl else chrome['price_fiz'])
+    except Exception:                                        # noqa: BLE001
         price_field = 'retail1'
-    # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
-    #     pentru ele, restul raman badge text. Altfel browserul incerca sa
-    #     incarce fisiere inexistente si consola se umplea de 404
-    #     (siglele oficiale se adauga in /static/biro26/pay/ sau din WP).
-    # EN: which payment logos actually exist, so the footer never requests a
-    #     missing file (404 noise); the rest fall back to a text badge.
-    try:
-        _paydir = os.path.join(app.static_folder, 'biro26', 'pay')
-        pay_logos = sorted(f.rsplit('.', 1)[0].lower()
-                           for f in os.listdir(_paydir)
-                           if f.lower().endswith(('.svg', '.png'))
-                           and not f.startswith(('.', '_')))
-    except Exception:
-        pay_logos = []
     return {'app_name': Config.BIRO26_APP_NAME,
             'liber_pct': liber_pct, 'liber_min': liber_min,
             'rate_plans': rate_plans,

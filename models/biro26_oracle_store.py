@@ -81,6 +81,14 @@ def build_gset_block(profile: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+# RO: de cite ori s-au schimbat setarile de la pornirea procesului. Vitrina
+#     tine partea comuna in memorie; dupa acest numar intelege ca trebuie
+#     recitita, fara ca depozitul sa stie ceva despre cache-ul aplicatiei.
+# EN: how many times settings changed since start. The storefront cache keys
+#     off this number, so the store needs to know nothing about the cache.
+SETTINGS_EPOCH = 0
+
+
 class Biro26Store:
     """All OfficePlus CRUD + package orchestration for Biro26."""
 
@@ -1040,6 +1048,10 @@ class Biro26Store:
                 {"k": key, "v": str(val or "")[:400]})
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
+            # RO: vitrina tine setarile in memorie; numarul acesta ii spune
+            #     ca trebuie recitite. EN: tells the storefront cache to reread.
+            global SETTINGS_EPOCH
+            SETTINGS_EPOCH += 1
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
