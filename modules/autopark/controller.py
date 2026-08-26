@@ -868,6 +868,11 @@ class AutoparkController:
                           "lon": node["lon"] + dlon,
                           "speed_kmh": GPS_AVG_SPEED_KMH})
 
+        # Повторный replay обязан заменить прежний SIM-трек, а не дописать
+        # к нему: иначе apply_track_fact просуммирует оба прогона.
+        wipe = AutoparkStore.delete_track(trip_id, "SIM")
+        if not wipe.get("success"):
+            return wipe
         ins = AutoparkStore.insert_track_points(trip_id, "SIM", points)
         if not ins.get("success"):
             return ins
