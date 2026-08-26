@@ -580,22 +580,32 @@ class AutoparkStore:
             return _fail(str(exc))
 
     @staticmethod
-    def set_trip_fact(trip_id, fact_km: float,
-                      fact_minutes: int) -> Dict[str, Any]:
+    def set_trip_fact(trip_id, fact_km: float, fact_minutes: int,
+                      fact_fuel_l: Optional[float] = None) -> Dict[str, Any]:
+        """Факт по рейсу: пробег GPS, время в пути, фактический расход ДТ.
+
+        ``fact_fuel_l`` необязателен (не у каждого GPS-контура сегодня
+        есть заправочная телеметрия) — при отсутствии колонка остаётся
+        NULL, и V_FLT_TRIP_CONTROL/OVER_FUEL_LIMIT для этого рейса тоже
+        NULL/0, а не ложное превышение на пустых данных (ТЗ п.12).
+        """
         try:
             with DatabaseModel() as db:
                 r = _run(db, "UPDATE FLT_TRIPS SET FACT_KM = :fact_km, "
-                             "FACT_MINUTES = :fact_minutes WHERE ID = "
+                             "FACT_MINUTES = :fact_minutes, "
+                             "FACT_FUEL_L = :fact_fuel_l WHERE ID = "
                              ":trip_id AND STATUS_CODE <> 'DRAFT'",
                         {"trip_id": trip_id, "fact_km": fact_km,
-                         "fact_minutes": fact_minutes})
+                         "fact_minutes": fact_minutes,
+                         "fact_fuel_l": fact_fuel_l})
                 if not r.get("rowcount"):
                     return _fail(
                         f"Рейс {trip_id} не найден или ещё не утверждён "
                         "(DRAFT)")
                 db.connection.commit()
             return _done({"trip_id": trip_id, "fact_km": fact_km,
-                         "fact_minutes": fact_minutes})
+                         "fact_minutes": fact_minutes,
+                         "fact_fuel_l": fact_fuel_l})
         except AutoparkSqlError as exc:
             return _fail(str(exc))
 
