@@ -647,6 +647,7 @@ class AutoparkController:
             "cost_per_liter": cost_per_liter,
             "avg_loading_pct": avg_loading_pct,
             "km_deviation_cnt": over_limit_cnt,
+            "fuel_deviation_cnt": fuel_over_limit_cnt,
         }}
 
 
