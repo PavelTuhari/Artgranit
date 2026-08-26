@@ -1283,3 +1283,279 @@ def test_gps_ingest_validates_provider_and_points(monkeypatch):
     assert res["success"] is False
     res2 = AutoparkController.gps_ingest({"provider": "SIM", "trip_id": 1})
     assert res2["success"] is False
+
+
+# -- Task 5 (reports): пакет отчётности reports.py ----------------------
+
+def _res(data):
+    return {"success": True, "data": data, "message": ""}
+
+
+def _patch_report_store(monkeypatch):
+    """Единый набор моков AutoparkStore для всех отчётов (без Oracle)."""
+    from datetime import datetime
+    from modules.autopark.store import AutoparkStore
+
+    monkeypatch.setattr(AutoparkStore, "get_settings", staticmethod(
+        lambda: _res({"rate_per_km": 2.75, "trip_bonus": 600,
+                      "safety_days": 6, "km_deviation_limit": 10,
+                      "fuel_deviation_pct": 5})))
+    monkeypatch.setattr(AutoparkStore, "driver_summary", staticmethod(
+        lambda f, t: _res([
+            {"driver_id": 1, "full_name": "Плохой", "domestic_cnt": 2,
+             "import_cnt": 0, "total_norm_km": 100.0,
+             "total_fact_km": 150.0, "total_pay": 1475.0},
+            {"driver_id": 2, "full_name": "Хороший", "domestic_cnt": 3,
+             "import_cnt": 1, "total_norm_km": 200.0,
+             "total_fact_km": 202.0, "total_pay": 2350.0},
+        ])))
+    monkeypatch.setattr(AutoparkStore, "truck_summary", staticmethod(
+        lambda f, t: _res([
+            {"truck_id": 11, "plate": "C AA 101", "trip_cnt": 3,
+             "total_volume_l": 30000.0, "norm_fuel_l": 90.0,
+             "fact_fuel_l": 95.0},
+            {"truck_id": 12, "plate": "C BB 202", "trip_cnt": 0,
+             "total_volume_l": 0, "norm_fuel_l": 0, "fact_fuel_l": None},
+        ])))
+    monkeypatch.setattr(AutoparkStore, "station_supply_report", staticmethod(
+        lambda f, t: _res([
+            {"station_id": 1, "station_code": "BAL", "station_name": "Бельцы",
+             "product_code": "A95", "current_l": 500.0, "min_stock_l": 900.0,
+             "stock_days": 3.2, "need_supply": 1, "deliv_cnt": 2,
+             "deliv_volume_l": 1000.0},
+        ])))
+    monkeypatch.setattr(AutoparkStore, "trip_pay_report", staticmethod(
+        lambda f, t, driver_id=None: _res([
+            {"trip_id": 1, "norm_km": 100.0, "total_pay": 875.0},
+            {"trip_id": 2, "norm_km": 200.0, "total_pay": 550.0},
+        ])))
+    monkeypatch.setattr(AutoparkStore, "trip_control_report", staticmethod(
+        lambda f, t: _res([
+            {"trip_id": 1, "trip_date": datetime(2026, 7, 3),
+             "plate": "C AA 101", "norm_km": 100.0, "fact_km": 150.0,
+             "km_deviation": 50.0, "over_km_limit": 1, "norm_fuel_l": 30.0,
+             "fact_fuel_l": 34.0, "fuel_deviation": 4.0,
+             "over_fuel_limit": 1},
+            {"trip_id": 2, "trip_date": datetime(2026, 7, 4),
+             "plate": "C BB 202", "norm_km": 200.0, "fact_km": 202.0,
+             "km_deviation": 2.0, "over_km_limit": 0, "norm_fuel_l": 60.0,
+             "fact_fuel_l": 58.0, "fuel_deviation": -2.0,
+             "over_fuel_limit": 0},
+        ])))
+    monkeypatch.setattr(AutoparkStore, "list_trips", staticmethod(
+        lambda f, t, driver_id=None: _res([
+            {"id": 1, "trip_date": datetime(2026, 7, 3), "truck_id": 11,
+             "driver_id": 1, "type_code": "DOMESTIC",
+             "status_code": "APPROVED", "norm_km": 100.0, "fact_km": 150.0,
+             "stops": [{"station_id": 1}]},
+            {"id": 2, "trip_date": datetime(2026, 7, 4), "truck_id": 11,
+             "driver_id": 2, "type_code": "DOMESTIC", "status_code": "DRAFT",
+             "norm_km": 200.0, "fact_km": None, "stops": []},
+        ])))
+    monkeypatch.setattr(AutoparkStore, "list_trucks", staticmethod(
+        lambda: _res([{"id": 11, "plate": "C AA 101", "capacity_l": 20000,
+                       "sections_cnt": 4, "norm_l_per_100km": 30.0,
+                       "active": 1, "products": []}])))
+    monkeypatch.setattr(AutoparkStore, "list_fuel_prices", staticmethod(
+        lambda f, t, product=None: _res([
+            {"price_date": datetime(2026, 7, 1), "product_code": "DIESEL",
+             "price_lei": 30.0, "source": "ANRE"},
+            {"price_date": datetime(2026, 7, 2), "product_code": "DIESEL",
+             "price_lei": 31.0, "source": "ANRE"},
+            {"price_date": datetime(2026, 7, 1), "product_code": "A95",
+             "price_lei": 29.0, "source": "ANRE"},
+        ])))
+
+
+def test_reports_contract_every_report(monkeypatch):
+    # Контракт единый: columns/rows/totals согласованной ширины, period
+    # проставлен -- на этом строится и XLSX, и PDF, и бот.
+    from datetime import date
+    from modules.autopark import reports
+
+    _patch_report_store(monkeypatch)
+    for name, fn in reports.REPORTS.items():
+        rep = fn(date(2026, 7, 1), date(2026, 7, 31))
+        assert rep["title"], name
+        assert rep["period"] == "2026-07-01 — 2026-07-31", name
+        ncols = len(rep["columns"])
+        assert ncols > 1, name
+        for row in rep["rows"]:
+            assert len(row) == ncols, (name, row)
+        assert rep["totals"] == [] or len(rep["totals"]) == ncols, name
+        assert isinstance(rep["notes"], list), name
+
+
+def test_summary_rating_sorted_by_relative_deviation(monkeypatch):
+    # |факт-норма|/норма: "Хороший" (1%) выше "Плохого" (50%).
+    from datetime import date
+    from modules.autopark import reports
+
+    _patch_report_store(monkeypatch)
+    rep = reports.report_summary(date(2026, 7, 1), date(2026, 7, 31))
+    names = [row[1] for row in rep["rows"]]
+    assert names == ["Хороший", "Плохой"]
+    effs = [row[6] for row in rep["rows"]]
+    assert effs == sorted(effs)
+
+
+def test_driver_report_counts_deviations_and_skips_draft(monkeypatch):
+    from datetime import date
+    from modules.autopark import reports
+
+    _patch_report_store(monkeypatch)
+    rep = reports.report_driver(date(2026, 7, 1), date(2026, 7, 31))
+    by_name = {row[0]: row for row in rep["rows"]}
+    assert by_name["Плохой"][7] == 1      # |150-100| > лимита 10
+    assert by_name["Хороший"][7] == 0     # его рейс -- DRAFT, не считается
+
+
+def test_prices_report_norm_cost_uses_price_at_trip_date(monkeypatch):
+    # Рейс 2026-07-03, 100 норм. км * 30 л/100км = 30 л * цена 31.00
+    # (последнее решение <= даты рейса -- forward-fill), DRAFT не входит.
+    from datetime import date
+    from modules.autopark import reports
+
+    _patch_report_store(monkeypatch)
+    rep = reports.report_prices(date(2026, 7, 1), date(2026, 7, 31))
+    assert any("30.0 л" in n and "930.00 леев" in n for n in rep["notes"]), \
+        rep["notes"]
+
+
+def test_report_raises_on_store_failure(monkeypatch):
+    import pytest
+    from datetime import date
+    from modules.autopark import reports
+    from modules.autopark.store import AutoparkStore
+
+    _patch_report_store(monkeypatch)
+    monkeypatch.setattr(AutoparkStore, "driver_summary", staticmethod(
+        lambda f, t: {"success": False, "data": None, "message": "boom"}))
+    with pytest.raises(reports.AutoparkReportError):
+        reports.report_driver(date(2026, 7, 1), date(2026, 7, 31))
+
+
+def test_xlsx_roundtrip(monkeypatch, tmp_path):
+    # XLSX реально собирается и открывается обратно openpyxl-ом.
+    from datetime import date
+    from openpyxl import load_workbook
+    from modules.autopark import reports
+    from modules.autopark.scripts.autopark_reports import write_xlsx
+
+    _patch_report_store(monkeypatch)
+    rep = reports.report_driver(date(2026, 7, 1), date(2026, 7, 31))
+    path = str(tmp_path / "driver.xlsx")
+    write_xlsx([rep], path)
+
+    wb = load_workbook(path)
+    ws = wb[wb.sheetnames[0]]
+    assert ws.cell(row=1, column=1).value == rep["title"]
+    assert ws.cell(row=4, column=1).value == rep["columns"][0]
+    assert ws.cell(row=5, column=1).value == rep["rows"][0][0]
+    assert ws.freeze_panes == "A5"
+
+
+def test_report_html_is_selfcontained_cyrillic(monkeypatch):
+    from datetime import date
+    from modules.autopark import reports
+    from modules.autopark.scripts.autopark_reports import report_html
+
+    _patch_report_store(monkeypatch)
+    html_text = report_html(
+        reports.report_driver(date(2026, 7, 1), date(2026, 7, 31)))
+    assert "charset=\"utf-8\"" in html_text
+    assert "Отчёт по водителям" in html_text
+    assert "http://" not in html_text and "https://" not in html_text
+
+
+# -- Task 5 (bot): телеграм-бот логиста ---------------------------------
+
+def test_bot_parse_command():
+    from modules.autopark.scripts.autopark_bot import parse_command
+
+    assert parse_command("/stock") == ("stock", "")
+    assert parse_command("/pay 2026-07") == ("pay", "2026-07")
+    assert parse_command("/stock@AutoparkBot") == ("stock", "")
+    assert parse_command("просто текст") == (None, "")
+    assert parse_command("") == (None, "")
+
+
+def test_bot_rejects_chat_outside_whitelist():
+    from modules.autopark.scripts.autopark_bot import process_update
+
+    update = {"message": {"chat": {"id": 999}, "text": "/help"}}
+    # Чужой чат -- молчание; пустой белый список -- молчание ВСЕМ.
+    assert process_update(update, ["111"]) is None
+    assert process_update(update, []) is None
+    handled = process_update(update, ["999"])
+    assert handled is not None
+    assert handled[0] == "999"
+    assert "/stock" in handled[1]
+
+
+def test_bot_unknown_command_and_plain_text():
+    from modules.autopark.scripts.autopark_bot import execute_command
+
+    assert execute_command("привет") is None
+    assert "/help" in execute_command("/abracadabra")
+
+
+def test_bot_pay_command_formats_month(monkeypatch):
+    from modules.autopark.scripts import autopark_bot
+    from modules.autopark.store import AutoparkStore
+
+    captured = {}
+
+    def fake_summary(f, t):
+        captured["range"] = (f, t)
+        return _res([{"full_name": "Тестов", "total_pay": 1234.5,
+                      "domestic_cnt": 2, "import_cnt": 0,
+                      "total_norm_km": 400}])
+    monkeypatch.setattr(AutoparkStore, "driver_summary",
+                        staticmethod(fake_summary))
+    out = autopark_bot.execute_command("/pay 2026-07")
+    assert captured["range"][0].isoformat() == "2026-07-01"
+    assert captured["range"][1].isoformat() == "2026-07-31"
+    assert "Тестов" in out and "1 234.50" in out
+    assert "Формат" in autopark_bot.execute_command("/pay кривой-месяц")
+
+
+def test_bot_monitor_antidedup(monkeypatch, tmp_path):
+    # Один и тот же дефицит АЗС/продукта -- не чаще 1 пуша в сутки;
+    # один и тот же рейс с превышением -- один пуш навсегда.
+    from datetime import date
+    from modules.autopark.scripts.autopark_bot import (NotifyState,
+                                                       monitor_tick)
+    from modules.autopark.store import AutoparkStore
+
+    monkeypatch.setattr(AutoparkStore, "stock_days_report", staticmethod(
+        lambda: _res([{"station_id": 1, "station_code": "BAL",
+                       "station_name": "Бельцы", "product_code": "A95",
+                       "current_l": 100, "min_stock_l": 900,
+                       "stock_days": 0.5, "need_supply": 1}])))
+    monkeypatch.setattr(AutoparkStore, "trip_control_report", staticmethod(
+        lambda f, t: _res([{"trip_id": 77, "plate": "C AA 101",
+                            "km_deviation": 30.0, "over_km_limit": 1,
+                            "fuel_deviation": None,
+                            "over_fuel_limit": 0}])))
+
+    state_path = str(tmp_path / "state.json")
+    sent = []
+    state = NotifyState(state_path)
+    day1 = date(2026, 8, 25)
+    assert monitor_tick(state, sent.append, today=day1) == 2
+    assert monitor_tick(state, sent.append, today=day1) == 0  # антидубль
+
+    # Состояние переживает перезапуск процесса (файл перечитан заново).
+    state2 = NotifyState(state_path)
+    assert monitor_tick(state2, sent.append, today=day1) == 0
+    # Новые сутки: склад снова тревожит, рейс 77 -- уже нет.
+    assert monitor_tick(state2, sent.append, today=date(2026, 8, 26)) == 1
+    assert sum("рейс №77" in m for m in sent) == 1
+
+
+def test_isolation_reports_and_bot_leave_shared_code_alone():
+    # Отчётность и бот -- только modules/autopark/: общий app.py модуль
+    # autopark по-прежнему не упоминает (правило №1 CLAUDE.md).
+    with open(os.path.join(ROOT, "app.py"), encoding="utf-8") as fh:
+        assert "autopark" not in fh.read()
