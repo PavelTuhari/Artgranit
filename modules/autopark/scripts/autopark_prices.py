@@ -4,23 +4,39 @@
 Daily price series 2024-09-01..2026-08-26 for 4 products (A92/A95/A98/
 DIESEL). Two data sources, never blended silently:
 
-  SOURCE='ANRE'  -- literal ceiling prices published by anre.md, fetched
-                    2026-08-26 via WebFetch of https://anre.md/benzina-95-3-2
-                    and https://anre.md/motorina-3-3 plus the retrospective
-                    articles for 2025/2026 milestones (see REAL_ANRE below,
-                    each value carries its source date as a comment where it
-                    isn't obvious). Only A95 and DIESEL have retrievable
-                    anchors -- the live anre.md pages expose only a short
-                    rolling window (no full 2-year archive reachable without
-                    an authenticated/paginated query form), and A92/A98 have
-                    no equivalent public history page at all.
-  SOURCE='MODEL' -- every other date/product: a synthesized series (slow
-                    drift + seasonality + 4-6 sharp step-revisions with
-                    partial retracement, matching the profile ANRE's own
-                    real jumps show -- see REAL_ANRE's Aug-2026 run and the
-                    July-2026 "Middle East tensions" spike in the
-                    retrospective article) -- explicitly labeled as a model,
-                    not represented as real regulator data.
+  SOURCE='ANRE'  -- the REAL daily ceiling-price archive of anre.md.
+                    Harvested 2026-08-26 through the site's own AJAX
+                    endpoint `/oil-get-table?firstDate=&secondDate=&fuelId=`
+                    (the same endpoint the date-range filter on
+                    anre.md/benzina-95-3-2 and anre.md/motorina-3-3 calls;
+                    fuelId=2 -> Benzina A95, fuelId=3 -> Motorina).
+                    500 publication-day points per product covering the
+                    whole window 2024-09-02..2026-08-26. The registry of
+                    primary points lives in docs/Autopark/anre_prices_raw.csv
+                    (date,product,price,source_url) -- this script only
+                    LOADS it, it does not synthesize any of it.
+
+                    ANRE publishes on working days; a ceiling price stays
+                    legally in force until the next decision, so weekend/
+                    holiday gaps BETWEEN two real points are closed by a
+                    step function (forward-fill of the last published
+                    price). CK_FLT_FUEL_PRICES_SRC only allows
+                    ('ANRE','MODEL'), so forward-filled days also carry
+                    SOURCE='ANRE'; which days are primary publications is
+                    exactly the CSV registry (see docs/Autopark/
+                    PRICES_ANRE.md for the methodology).
+
+  SOURCE='MODEL' -- only where no real regulator data exists:
+                    * A92/A98 for the whole period -- ANRE does NOT
+                      regulate them (only A95 and diesel have ceiling
+                      prices), so a real archive for them cannot exist;
+                    * edge days outside the real archive (before the first
+                      real point / after the last one) for A95/DIESEL --
+                      in practice just 2024-09-01, a Sunday before the
+                      first publication in the window. Edge MODEL days are
+                      calibrated to the nearest real anchor
+                      (calibrate_to_anchors) so the seam stays smooth,
+                      but keep the honest MODEL label.
 
 Idempotent: AutoparkStore.upsert_fuel_prices does one big executemany MERGE
 by (PRICE_DATE, PRODUCT_CODE) -- re-running reloads/overwrites the same
@@ -28,10 +44,13 @@ by (PRICE_DATE, PRODUCT_CODE) -- re-running reloads/overwrites the same
 
     venv/bin/python modules/autopark/scripts/autopark_prices.py --dry-run
     venv/bin/python modules/autopark/scripts/autopark_prices.py --yes
+    venv/bin/python modules/autopark/scripts/autopark_prices.py \
+        --anre-csv docs/Autopark/anre_prices_raw.csv --yes
 """
 from __future__ import annotations
 
 import argparse
+import csv
 import math
 import os
 import random
@@ -57,48 +76,34 @@ BASE_LEVELS = {
     "DIESEL": 22.5,
 }
 
-# Real ANRE ceiling prices (lei/litru), fetched 2026-08-26 from anre.md.
-# Kept as exact literal anchors -- SOURCE='ANRE'. Everything else on the
-# calendar is SOURCE='MODEL' (see module docstring for why).
-REAL_ANRE = {
-    "A95": {
-        # anre.md/retrospectiva-anului-2025...: max of 2025 was 24.79
-        # during 25-28 Jan 2025.
-        date(2025, 1, 25): 24.79, date(2025, 1, 26): 24.79,
-        date(2025, 1, 27): 24.79, date(2025, 1, 28): 24.79,
-        # same source: min of 2025 was 21.72 on 31 Dec 2025.
-        date(2025, 12, 31): 21.72,
-        # ANRE set 21.92 for 3-5 Jan 2026.
-        date(2026, 1, 3): 21.92, date(2026, 1, 4): 21.92,
-        date(2026, 1, 5): 21.92,
-        # Middle East tensions spike: 30.16 for 25-27 Jul 2026.
-        date(2026, 7, 25): 30.16, date(2026, 7, 26): 30.16,
-        date(2026, 7, 27): 30.16,
-        # anre.md/benzina-95-3-2 rolling window (fetched 26.08.2026).
-        date(2026, 8, 12): 30.00, date(2026, 8, 13): 29.98,
-        date(2026, 8, 14): 30.01, date(2026, 8, 17): 30.02,
-        date(2026, 8, 18): 30.12, date(2026, 8, 19): 30.37,
-        date(2026, 8, 20): 30.62, date(2026, 8, 21): 30.82,
-        date(2026, 8, 24): 30.95, date(2026, 8, 25): 31.01,
-    },
-    "DIESEL": {
-        date(2025, 1, 25): 21.71, date(2025, 1, 26): 21.71,
-        date(2025, 1, 27): 21.71,
-        date(2026, 1, 3): 18.70, date(2026, 1, 4): 18.70,
-        date(2026, 1, 5): 18.70,
-        date(2026, 7, 25): 30.29, date(2026, 7, 26): 30.29,
-        date(2026, 7, 27): 30.29,
-        # anre.md/motorina-3-3 rolling window (fetched 26.08.2026).
-        date(2026, 8, 12): 32.07, date(2026, 8, 13): 31.97,
-        date(2026, 8, 14): 31.90, date(2026, 8, 17): 31.77,
-        date(2026, 8, 18): 31.98, date(2026, 8, 19): 32.37,
-        date(2026, 8, 20): 32.72, date(2026, 8, 21): 33.06,
-        date(2026, 8, 24): 33.30, date(2026, 8, 25): 33.32,
-    },
-}
+# Registry of REAL ANRE ceiling prices (primary publication-day points).
+ANRE_CSV_DEFAULT = os.path.join(ROOT, "docs", "Autopark",
+                                "anre_prices_raw.csv")
 
-# 6 step-revision events spread across the 2-year horizon -- typical ANRE
-# profile per the task: sharp +8-12% over 1-2 weeks, then partial pullback.
+
+def load_anre_csv(path: str) -> dict:
+    """Read the harvested archive: {product: {date: price_lei}}.
+
+    Only A95/DIESEL may appear -- ANRE regulates ceiling prices for
+    Benzina A95 and Motorina only; A92/A98 are not price-regulated and a
+    real ceiling-price archive for them does not exist.
+    """
+    out: dict = {}
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            d = date.fromisoformat(row["date"])
+            if START <= d <= END:
+                out.setdefault(row["product"], {})[d] = float(row["price"])
+    return out
+
+
+# Real ANRE ceiling prices (lei/litru): the FULL harvested daily archive.
+# Loaded at import time so the acceptance tests exercise the same data the
+# loader writes. A92/A98 intentionally absent (not regulated by ANRE).
+REAL_ANRE = load_anre_csv(ANRE_CSV_DEFAULT)
+
+# 6 step-revision events for the MODEL series (A92/A98 only) -- typical
+# profile: sharp +8-12% over a few days, then partial retracement.
 JUMPS = [
     date(2024, 11, 15),
     date(2025, 3, 10),
@@ -144,7 +149,7 @@ def build_series(product: str, rnd: random.Random) -> dict:
         drift = base * 0.00007 * i
         yday = d.timetuple().tm_yday
         # Gasoline peaks mid-summer (~day 200), diesel peaks mid-winter
-        # (~day 15) -- task requirement "летом бензин выше, зимой дизель выше".
+        # (~day 15).
         if is_diesel:
             season = 0.4 * math.cos(2 * math.pi * (yday - 15) / 365.0)
         else:
@@ -159,22 +164,14 @@ def build_series(product: str, rnd: random.Random) -> dict:
 
 def calibrate_to_anchors(series: dict, anchors: dict) -> dict:
     """Multiply the raw MODEL series by a piecewise-linear correction
-    factor tied to the real ANRE anchors, so the calibrated curve
-    approaches each anchor smoothly instead of jumping to it on the
-    anchor's own date.
+    factor tied to the real ANRE anchors, so any MODEL day that survives
+    next to real data (in practice only the edge days outside the real
+    archive) sits at the real level instead of the synthetic one.
 
-    Without this, an anchor sitting far from the surrounding synthetic
-    trend (e.g. 2025-12-31 A95=21.72 next to a ~30 modelled neighbourhood)
-    produced a one-day ~28% discontinuity -- a real defect a presentation
-    audience would immediately notice as broken data, not "real-world
-    volatility". The factor is 1.0 exactly AT each anchor date (by
-    construction: anchor_price / raw_model_price_at_that_date), linearly
-    interpolated BETWEEN consecutive anchors, and held flat before the
-    first/after the last anchor -- so every date's calibrated price
-    smoothly leans toward its nearest anchors instead of snapping.
-
-    Products with no anchors (``anchors`` empty) are returned unchanged --
-    the task requires "у продуктов без якорей — без изменений".
+    The factor is 1.0 exactly AT each anchor date (by construction:
+    anchor_price / raw_model_price_at_that_date), linearly interpolated
+    BETWEEN consecutive anchors, and held flat before the first/after the
+    last anchor. Products with no anchors are returned unchanged.
     """
     if not anchors:
         return dict(series)
@@ -198,36 +195,68 @@ def calibrate_to_anchors(series: dict, anchors: dict) -> dict:
             return fvalues[0]
         if o >= ordinals[-1]:
             return fvalues[-1]
-        for i in range(1, len(ordinals)):
-            if o <= ordinals[i]:
-                o0, o1 = ordinals[i - 1], ordinals[i]
-                f0, f1 = fvalues[i - 1], fvalues[i]
-                if o1 == o0:
-                    return f1
-                frac = (o - o0) / (o1 - o0)
-                return f0 + (f1 - f0) * frac
-        return fvalues[-1]
+        # binary search: with a 500-anchor real archive a linear scan per
+        # calendar day would be ~360k comparisons for nothing.
+        lo, hi = 0, len(ordinals) - 1
+        while lo + 1 < hi:
+            mid = (lo + hi) // 2
+            if ordinals[mid] <= o:
+                lo = mid
+            else:
+                hi = mid
+        o0, o1 = ordinals[lo], ordinals[hi]
+        f0, f1 = fvalues[lo], fvalues[hi]
+        if o1 == o0:
+            return f1
+        frac = (o - o0) / (o1 - o0)
+        return f0 + (f1 - f0) * frac
 
     return {d: max(1.0, round(price * factor_at(d), 2))
-           for d, price in series.items()}
+            for d, price in series.items()}
 
 
-def build_all_rows():
+def build_all_rows(anre: dict | None = None):
+    """Full 4-product daily series.
+
+    A95/DIESEL: real ANRE points on publication days, step-function
+    forward-fill of the last published price BETWEEN them (both
+    SOURCE='ANRE' -- the ceiling stays in force until the next decision;
+    the CSV registry distinguishes primary points), MODEL only on edge
+    days outside the real archive. A92/A98: MODEL everywhere (not
+    regulated). Returns (rows, jump_days) plus per-product stat fields on
+    each row via 'source'; jump_days flags day-to-day moves > 3%.
+    """
+    if anre is None:
+        anre = REAL_ANRE
     rnd = random.Random(RANDOM_SEED)
     rows = []
     jump_days = set()
+    stats: dict = {}
     for product in PRODUCTS:
         raw_series = build_series(product, rnd)
-        anre = REAL_ANRE.get(product, {})
-        series = calibrate_to_anchors(raw_series, anre) if anre else raw_series
+        real = anre.get(product, {})
+        series = calibrate_to_anchors(raw_series, real) if real else raw_series
+        first = min(real) if real else None
+        last = max(real) if real else None
+        st = stats.setdefault(product, {"real": 0, "ff": 0, "model": 0})
         prev = None
+        last_real_price = None
         for d in daterange(START, END):
-            if d in anre:
-                price = anre[d]
+            if d in real:
+                price = real[d]
+                last_real_price = price
                 source = "ANRE"
+                st["real"] += 1
+            elif first is not None and first < d < last:
+                # gap between two real decisions: the last published
+                # ceiling price is still legally in force (step function).
+                price = last_real_price
+                source = "ANRE"
+                st["ff"] += 1
             else:
                 price = series[d]
                 source = "MODEL"
+                st["model"] += 1
             if prev is not None and prev > 0:
                 pct_change = abs(price - prev) / prev * 100
                 if pct_change > 3:
@@ -235,32 +264,42 @@ def build_all_rows():
             prev = price
             rows.append({"price_date": d, "product_code": product,
                         "price_lei": price, "source": source})
+    build_all_rows.last_stats = stats
     return rows, jump_days
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Load 2-year FLT_FUEL_PRICES history (ANRE + model)")
+        description="Load 2-year FLT_FUEL_PRICES history (real ANRE archive "
+                    "+ forward-fill; MODEL only for unregulated A92/A98)")
     parser.add_argument("--yes", action="store_true",
                         help="confirm writing to the database")
     parser.add_argument("--dry-run", action="store_true",
                         help="build the series and print diagnostics only")
+    parser.add_argument("--anre-csv", default=ANRE_CSV_DEFAULT,
+                        help="registry of real ANRE points "
+                             "(date,product,price,source_url)")
     args = parser.parse_args()
 
     if not args.yes and not args.dry_run:
         print("Run with --yes or --dry-run.")
         sys.exit(2)
 
-    rows, jump_days = build_all_rows()
-    anre_cnt = sum(1 for r in rows if r["source"] == "ANRE")
-    model_cnt = len(rows) - anre_cnt
+    anre = load_anre_csv(args.anre_csv)
+    rows, jump_days = build_all_rows(anre)
+    stats = build_all_rows.last_stats
 
     print(f"Период: {START.isoformat()} .. {END.isoformat()}")
     print(f"Строк: {len(rows)} ({len(PRODUCTS)} продукта x "
           f"{(END - START).days + 1} дней)")
     print(f"Скачков (день-к-дню > 3%): {len(jump_days)}")
-    print(f"ANRE: {anre_cnt} ({anre_cnt / len(rows) * 100:.1f}%), "
-          f"MODEL: {model_cnt} ({model_cnt / len(rows) * 100:.1f}%)")
+    for product in PRODUCTS:
+        st = stats[product]
+        real = anre.get(product, {})
+        span = (f"{min(real).isoformat()}..{max(real).isoformat()}"
+                if real else "нет реальных точек (ANRE не регулирует)")
+        print(f"  {product}: реальных ANRE {st['real']}, forward-fill "
+              f"{st['ff']}, MODEL {st['model']}  [{span}]")
 
     if args.dry_run:
         print("[dry-run] запись в БД пропущена")
