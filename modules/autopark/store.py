@@ -73,12 +73,6 @@ def _done(data: Any = None, message: str = "") -> Dict[str, Any]:
     return {"success": True, "data": data, "message": message}
 
 
-def _currval(db, seq: str):
-    r = _run(db, f"SELECT {seq}.CURRVAL FROM DUAL")
-    rows = _rows(r)
-    return rows[0][seq.lower().replace("seq_", "") if False else "currval"]
-
-
 class AutoparkStore:
     """Все обращения к Oracle для модуля Autopark (FLT_*)."""
 
