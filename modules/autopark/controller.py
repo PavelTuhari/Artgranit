@@ -9,11 +9,23 @@
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+import math
+import random
+from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, List, Optional
 
-from modules.autopark import rules
+from modules.autopark import gps, rules
 from modules.autopark.store import AutoparkStore
+
+# Допущения первой очереди GPS-симуляции (ТЗ задачи 5): выезд в 08:00,
+# средняя скорость движения по трассе и стоянка на АЗС под слив.
+GPS_DEPART_HOUR = 8
+GPS_AVG_SPEED_KMH = 55.0
+GPS_STOP_MINUTES = 25.0
+# Шум replay-трека вокруг "идеальной" ломаной маршрута -- в градусах, эквивалент
+# примерно 150 метров (1 градус широты ~= 111.32 км, долгота дополнительно
+# сжимается на cos(lat), см. _jitter_deg ниже).
+GPS_REPLAY_NOISE_KM = 0.15
 
 VALID_KINDS = ("LOAD", "STATION", "END")
 VALID_TRIP_TYPES = ("DOMESTIC", "IMPORT")
