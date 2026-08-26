@@ -662,6 +662,7 @@ function onPanelShown(name) {
   if (name === 'payroll') { loadPayroll(); }
   if (name === 'control') { loadControl(); }
   if (name === 'prices') { loadPrices(); }
+  if (name === 'gps') { loadGpsPanel(); startGpsAutoRefresh(); } else { stopGpsAutoRefresh(); }
 }
 
 // ---- справочники: загрузка и индексация ---------------------------------
