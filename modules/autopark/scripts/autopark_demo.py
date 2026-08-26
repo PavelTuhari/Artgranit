@@ -108,8 +108,50 @@ DISTANCES = [
     ("LOAD", "KIS", "STATION", "EDI", 200.0),
     ("LOAD", "KIS", "STATION", "STR", 12.0),
     ("LOAD", "KIS", "STATION", "CHI", 8.0),
-    ("STATION", "ORH", "STATION", "BAL", 90.0),
-    ("STATION", "BAL", "STATION", "SOR", 75.0),
+    # Полная попарная матрица АЗС-АЗС (не только соседние по маршруту
+    # примера ТЗ) -- планировщик поставок (rules.plan_trips) может
+    # объединить в один рейс любые две АЗС с истекающим запасом, и
+    # жадный ближайший сосед должен найти участок между ними, а не
+    # свалиться в "расстояние не заведено" (это и произошло на первом
+    # прогоне supply_plan на этом демо-наборе). Км -- оценка по
+    # приблизительным координатам городов с поправкой на извилистость
+    # дороги (не выверено геодезически, для демо-реализма достаточно).
+    ("STATION", "ORH", "STATION", "BAL", 90.0),   # оставлено по подсказке ТЗ
+    ("STATION", "BAL", "STATION", "SOR", 75.0),   # оставлено по подсказке ТЗ
+    ("STATION", "ORH", "STATION", "SOR", 165.5),
+    ("STATION", "ORH", "STATION", "CAH", 270.3),
+    ("STATION", "ORH", "STATION", "UNG", 141.7),
+    ("STATION", "ORH", "STATION", "COM", 178.9),
+    ("STATION", "ORH", "STATION", "EDI", 193.7),
+    ("STATION", "ORH", "STATION", "STR", 59.4),
+    ("STATION", "ORH", "STATION", "CHI", 51.7),
+    ("STATION", "BAL", "STATION", "CAH", 376.4),
+    ("STATION", "BAL", "STATION", "UNG", 206.4),
+    ("STATION", "BAL", "STATION", "COM", 284.9),
+    ("STATION", "BAL", "STATION", "EDI", 110.7),
+    ("STATION", "BAL", "STATION", "STR", 163.2),
+    ("STATION", "BAL", "STATION", "CHI", 157.9),
+    ("STATION", "SOR", "STATION", "CAH", 429.9),
+    ("STATION", "SOR", "STATION", "UNG", 284.2),
+    ("STATION", "SOR", "STATION", "COM", 333.8),
+    ("STATION", "SOR", "STATION", "EDI", 156.0),
+    ("STATION", "SOR", "STATION", "STR", 224.8),
+    ("STATION", "SOR", "STATION", "CHI", 214.9),
+    ("STATION", "CAH", "STATION", "UNG", 244.6),
+    ("STATION", "CAH", "STATION", "COM", 97.8),
+    ("STATION", "CAH", "STATION", "EDI", 447.2),
+    ("STATION", "CAH", "STATION", "STR", 214.0),
+    ("STATION", "CAH", "STATION", "CHI", 218.6),
+    ("STATION", "UNG", "STATION", "COM", 193.7),
+    ("STATION", "UNG", "STATION", "EDI", 228.6),
+    ("STATION", "UNG", "STATION", "STR", 110.8),
+    ("STATION", "UNG", "STATION", "CHI", 128.2),
+    ("STATION", "COM", "STATION", "EDI", 365.6),
+    ("STATION", "COM", "STATION", "STR", 127.9),
+    ("STATION", "COM", "STATION", "CHI", 128.1),
+    ("STATION", "EDI", "STATION", "STR", 237.6),
+    ("STATION", "EDI", "STATION", "CHI", 239.4),
+    ("STATION", "STR", "STATION", "CHI", 17.8),
     ("STATION", "ORH", "END", "BAZA", 46.0),
     ("STATION", "BAL", "END", "BAZA", 135.0),
     ("STATION", "SOR", "END", "BAZA", 184.0),
