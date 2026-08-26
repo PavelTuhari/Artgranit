@@ -265,9 +265,16 @@ def generate(md: MasterData, rnd: random.Random):
                             "need_l": need_l, "days_left": days_left})
 
         if needs:
-            trucks_today = md.trucks[truck_i % len(md.trucks):] + \
+            rotated = md.trucks[truck_i % len(md.trucks):] + \
                 md.trucks[:truck_i % len(md.trucks)]
-            trucks_today = trucks_today[:3]
+            # Route length constraint (task: маршруты 1-3 АЗС): cap each
+            # truck's usable sections for this trip to 1-3, even though its
+            # real hardware has 4-6 -- a route visiting every section's
+            # worth of stations in one run would routinely hit 4-6 stops.
+            trucks_today = [
+                dict(t, sections_cnt=min(t["sections_cnt"], rnd.randint(1, 3)))
+                for t in rotated
+            ]
             planned = rules.plan_trips(needs, trucks_today, md.dist_lookup, kis_id)
             for trip in planned:
                 truck = next(t for t in md.trucks if t["id"] == trip["truck"])
