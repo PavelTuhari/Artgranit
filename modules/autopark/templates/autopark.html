@@ -1544,7 +1544,7 @@ function renderPriceChanges(rows) {
       });
     }
   }
-  changes.sort(function (a, b) { return a.price_date < b.price_date ? 1 : -1; });
+  changes.sort(function (a, b) { return dateTime(b.price_date) - dateTime(a.price_date); });
   var top = changes.slice(0, 40);
   if (!top.length) { renderEmpty('priceChangesTable', 'Нет данных за выбранный период'); return; }
   renderInto('priceChangesTable', buildTable(
