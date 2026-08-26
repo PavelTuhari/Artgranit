@@ -1621,7 +1621,8 @@ var GPS_REFRESH_TIMER = null;
 function svgEl(tag, attrs) {
   var el = document.createElementNS(SVG_NS, tag);
   for (var key in attrs) {
-    if (attrs.hasOwnProperty(key)) { el.setAttribute(key, attrs[key]); }
+    if (attrs.hasOwnProperty(key) && attrs[key] !== null &&
+        attrs[key] !== undefined) { el.setAttribute(key, attrs[key]); }
   }
   return el;
 }
