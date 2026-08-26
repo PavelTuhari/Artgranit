@@ -41,9 +41,11 @@ def _fake_proc(payload: dict, returncode: int = 0, stderr: str = ""):
 
 
 def test_execute_query_parses_worker_json():
+    # транспорт без пула: тест проверяет одноразовый путь
     payload = {"success": True, "columns": ["ID", "NAME"],
                "data": [[1, "a"], [2, "b"]], "rowcount": 2}
-    with patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)) as mrun:
+    with patch("models.biro26_db._POOL_ENABLED", False), \
+         patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)) as mrun:
         r = Biro26DB().execute_query("SELECT 1 FROM dual", {"x": 1})
     assert r["success"] and r["columns"] == ["ID", "NAME"]
     assert r["data"] == [(1, "a"), (2, "b")]  # rows normalized to tuples
@@ -53,22 +55,27 @@ def test_execute_query_parses_worker_json():
 
 
 def test_call_proc_returns_output_lines():
+    # транспорт без пула: тест проверяет одноразовый путь
     payload = {"success": True, "output_lines": ["RO: ok / EN: ok"]}
-    with patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)):
+    with patch("models.biro26_db._POOL_ENABLED", False), \
+         patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)):
         r = Biro26DB().call_proc("BEGIN NULL; END;", capture_output=True)
     assert r["success"] and r["output_lines"] == ["RO: ok / EN: ok"]
 
 
 def test_worker_nonzero_exit_is_error():
+    # транспорт без пула: тест проверяет одноразовый путь
     bad = MagicMock(); bad.returncode = 1; bad.stdout = ""; bad.stderr = "boom"
-    with patch("models.biro26_db.subprocess.run", return_value=bad):
+    with patch("models.biro26_db._POOL_ENABLED", False), \
+         patch("models.biro26_db.subprocess.run", return_value=bad):
         r = Biro26DB().execute_query("SELECT 1 FROM dual")
     assert r["success"] is False and "boom" in r["message"]
 
 
 def test_test_connection_maps_version():
     payload = {"success": True, "version": "Oracle Database 11g"}
-    with patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)):
+    with patch("models.biro26_db._POOL_ENABLED", False), \
+         patch("models.biro26_db.subprocess.run", return_value=_fake_proc(payload)):
         r = Biro26DB().test_connection()
     assert r["success"] and "11g" in r["version"]
 
@@ -839,3 +846,83 @@ def test_product_page_does_not_ask_for_the_same_row_twice():
     assert "product_preload" in tpl
     assert "PRELOAD ?" in tpl, "предзагруженные данные должны использоваться"
     assert "{{ product_ld|safe }}" in tpl
+
+
+# ── пул процессов-воркеров ─────────────────────────────────────────────
+#
+# Запуск процесса на каждую интерогацию стоил ~1,5 с (Python + thick-клиент)
+# — из этого складывалась вся медленность витрины. Пул держит процессы
+# живыми; каждая запись при этом получает СВЕЖЕЕ соединение Oracle, чтобы
+# состояние сессии (SET_ENV, период, пользователь) не утекало между
+# запросами.
+
+import subprocess as _sp
+import tempfile as _tf
+import textwrap as _tw
+
+# Подставной воркер: отвечает своим PID, умеет притворяться зависшим.
+_STUB = _tw.dedent("""
+    import json, os, sys, time
+    for line in sys.stdin:
+        req = json.loads(line)
+        if req.get("hang"):
+            time.sleep(60)
+        sys.stdout.write(json.dumps({"success": True, "pid": os.getpid()}) + "\\n")
+        sys.stdout.flush()
+""")
+
+
+def _stub_pool(monkeypatch_target=None):
+    from models import biro26_db as bdb
+    f = _tf.NamedTemporaryFile("w", suffix=".py", delete=False)
+    f.write(_STUB); f.close()
+    return bdb, f.name
+
+
+def test_pool_reuses_the_same_worker_process(monkeypatch):
+    bdb, stub = _stub_pool()
+    monkeypatch.setattr(bdb, "_WORKER", stub)
+    monkeypatch.setattr(bdb, "_POOL_ENABLED", True)
+    monkeypatch.setattr(bdb, "_pool", bdb._Pool(2))
+    db = bdb.Biro26DB()
+    pids = {db._call({"op": "query"})["pid"] for _ in range(5)}
+    assert len(pids) == 1, f"процесс должен переиспользоваться, а видели {pids}"
+
+
+def test_timeout_kills_the_worker_and_the_pool_recovers(monkeypatch):
+    """Убить процесс = убить сессию Oracle = откат — та же страховка от
+    чужих блокировок, что давал старый subprocess.run(timeout=...)."""
+    bdb, stub = _stub_pool()
+    monkeypatch.setattr(bdb, "_WORKER", stub)
+    monkeypatch.setattr(bdb, "_POOL_ENABLED", True)
+    monkeypatch.setattr(bdb, "_pool", bdb._Pool(1))
+    db = bdb.Biro26DB()
+    first = db._call({"op": "query"})
+    r = db._call({"op": "query", "hang": True}, timeout=1)
+    assert r["success"] is False and "timeout" in r["message"]
+    again = db._call({"op": "query"})
+    assert again["success"] is True
+    assert again["pid"] != first["pid"], "после таймаута должен быть новый процесс"
+
+
+def test_two_parallel_calls_get_two_workers(monkeypatch):
+    bdb, stub = _stub_pool()
+    monkeypatch.setattr(bdb, "_WORKER", stub)
+    pool = bdb._Pool(2)
+    w1, w2 = pool.acquire(), pool.acquire()
+    assert w1 is not None and w2 is not None and w1 is not w2
+    assert pool.acquire() is None, "сверх размера пула — отказ, не очередь"
+    pool.release(w1, broken=False); pool.release(w2, broken=False)
+    w3 = pool.acquire()
+    assert w3 in (w1, w2), "после возврата процесс переиспользуется"
+    pool.release(w3, broken=False)
+
+
+def test_reads_reuse_a_connection_but_writes_get_a_fresh_one():
+    """Записи выставляют контекст сессии (SET_ENV, период, пользователь) —
+    он не должен утекать в следующие запросы. Поэтому чтения идут по
+    удержанному соединению, а записи всегда по свежему."""
+    from models import biro26_worker as w
+    assert "query" in w._READ_OPS and "test" in w._READ_OPS
+    for write_op in ("dml", "plsql", "script"):
+        assert write_op not in w._READ_OPS
