@@ -156,6 +156,18 @@ class Config:
     #     hreflang, og:url, sitemap) must point here only; officeplus.una.md is just
     #     an ad redirect and must never appear inside the site.
     BIRO26_PUBLIC_HOST = os.environ.get('BIRO26_PUBLIC_HOST', 'officeplus.md')
+    # RO: numele sub care cererea AJUNGE la aplicatie. Nu coincide cu cel
+    #     public: nginx-ul din fata pune in Host numele intern
+    #     officeplus.una.md, fiindca pe partea de birou numele public este
+    #     ocupat de alt site. Contorul de trafic se aprinde dupa aceasta
+    #     lista, altfel s-ar aprinde si pe nufarul, amestecind traficul.
+    # EN: the names under which a request REACHES the app. The front nginx
+    #     rewrites Host to the internal name, so the analytics tag keys off
+    #     this list instead - otherwise it would also fire on nufarul.
+    BIRO26_SHOP_HOSTS = [
+        h.strip().lower() for h in os.environ.get(
+            'BIRO26_SHOP_HOSTS', 'officeplus.md,officeplus.una.md').split(',')
+        if h.strip()]
     # RO: plati online in magazin — MAIB e-commerce + MIA instant payments.
     #     SECRETELE stau DOAR aici (.env), editate din pagina de admin
     #     (ca SMTP); ID-urile nesecrete stau in YBIRO_SETTINGS (PAY_*).

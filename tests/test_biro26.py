@@ -618,3 +618,32 @@ def test_asset_version_is_stable_between_calls():
     _app._ASSET_V = None
     first = _app._asset_version()
     assert first and _app._asset_version() == first
+
+
+# ── счётчик посещаемости ───────────────────────────────────────────────
+#
+# Запрос доходит до приложения под внутренним именем: nginx подставляет в
+# Host officeplus.una.md, потому что на офисной стороне публичное имя
+# занято другим сайтом. Поэтому счётчик включается по списку имён
+# магазина, а не по совпадению с публичным именем.
+
+def test_analytics_fires_on_the_shop_hosts_only():
+    from config import Config
+    hosts = Config.BIRO26_SHOP_HOSTS
+    assert "officeplus.md" in hosts
+    assert "officeplus.una.md" in hosts, \
+        "внутреннее имя обязано быть в списке, иначе счётчик не включится"
+    assert "nufarul.eminescu.md" not in hosts, \
+        "чужой контур не должен слать трафик в чужой счётчик"
+
+
+def test_analytics_tag_is_rendered_for_the_internal_host():
+    import app as _app
+    with _app.app.test_request_context("/", headers={"Host": "officeplus.una.md"}):
+        assert _app._biro26_site_ctx().get("ga_id")
+
+
+def test_analytics_tag_is_absent_on_a_foreign_host():
+    import app as _app
+    with _app.app.test_request_context("/", headers={"Host": "nufarul.eminescu.md"}):
+        assert not _app._biro26_site_ctx().get("ga_id")

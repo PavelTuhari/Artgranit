@@ -8175,9 +8175,14 @@ def _biro26_site_ctx():
     except Exception:
         ga_id = 'G-STJ1NQDGY0'
     from flask import request as _rq
-    _host = (_rq.host or '').lower()
-    if 'officeplus.md' not in _host:
-        ga_id = ''   # RO: doar pe domeniul public / EN: public host only
+    # RO: cererea ajunge la aplicatie sub numele intern (vezi
+    #     BIRO26_SHOP_HOSTS), nu sub cel public - de aceea nu se compara cu
+    #     officeplus.md, ci cu lista numelor magazinului.
+    # EN: the request reaches the app under the internal name, so match the
+    #     shop's host list rather than the public name alone.
+    _host = (_rq.host or '').lower().split(':')[0]
+    if _host not in Config.BIRO26_SHOP_HOSTS:
+        ga_id = ''   # RO: doar pe magazinul public / EN: public shop only
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
     #     vizitatorii vad preturile pentru persoane fizice
     try:
