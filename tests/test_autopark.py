@@ -165,10 +165,11 @@ def test_event_log_has_no_foreign_keys():
     assert "FOREIGN KEY" not in log
 
 
-def test_deploy_script_installs_all_three_flt_files_in_order():
+def test_deploy_script_installs_all_flt_files_in_order():
     from modules.autopark.scripts.autopark_deploy import FILES
     assert FILES == (
         "120_flt_tables.sql", "121_flt_views.sql", "122_flt_seed.sql",
+        "123_flt_prices.sql",
     )
 
 
