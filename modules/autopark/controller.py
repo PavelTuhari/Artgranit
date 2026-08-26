@@ -599,6 +599,16 @@ class AutoparkController:
         return AutoparkStore.station_supply_report(date_from, date_to)
 
     @staticmethod
+    def fuel_prices(args) -> Dict[str, Any]:
+        try:
+            date_from = _require_date(args.get("date_from"), "date_from")
+            date_to = _require_date(args.get("date_to"), "date_to")
+        except AutoparkValidationError as exc:
+            return _fail(str(exc))
+        product = args.get("product") or None
+        return AutoparkStore.list_fuel_prices(date_from, date_to, product)
+
+    @staticmethod
     def management_report(args) -> Dict[str, Any]:
         """Сводка руководству (ТЗ п.14).
 
