@@ -1351,6 +1351,174 @@ function loadControl() {
   });
 }
 
+// ---- цены на топливо -------------------------------------------------
+
+var PRICE_PERIOD = '2y';
+var PRICE_COLORS = {A92: '#2563eb', A95: '#22c55e', A98: '#f59e0b', DIESEL: '#ef4444'};
+var PRICE_NAMES = {A92: 'A92', A95: 'A95', A98: 'A98', DIESEL: 'Дизель'};
+var PRICE_ORDER = ['A92', 'A95', 'A98', 'DIESEL'];
+
+function setPricePeriod(period) {
+  PRICE_PERIOD = period;
+  var btns = document.querySelectorAll('#panel-prices .btn[data-period]');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('active', btns[i].getAttribute('data-period') === period);
+  }
+  loadPrices();
+}
+
+function priceDateFrom() {
+  var days = PRICE_PERIOD === '3m' ? 92 : (PRICE_PERIOD === '1y' ? 366 : 731);
+  return isoDaysAgo(days);
+}
+
+function loadPrices() {
+  var qs = '?date_from=' + priceDateFrom() + '&date_to=' + todayIso();
+  return apiGet('/api/fuel-prices' + qs).then(function (res) {
+    if (!checkOk(res, 'Цены на топливо')) { return; }
+    var rows = res.data || [];
+    renderPriceLegend();
+    drawPriceChart(rows);
+    renderPriceChanges(rows);
+  });
+}
+
+function renderPriceLegend() {
+  var el = document.getElementById('priceLegend');
+  clearNode(el);
+  for (var i = 0; i < PRICE_ORDER.length; i++) {
+    var code = PRICE_ORDER[i];
+    var item = txt('div');
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.gap = '6px';
+    item.style.fontSize = '12px';
+    var swatch = txt('span');
+    swatch.style.display = 'inline-block';
+    swatch.style.width = '10px';
+    swatch.style.height = '10px';
+    swatch.style.borderRadius = '2px';
+    swatch.style.background = PRICE_COLORS[code];
+    item.appendChild(swatch);
+    item.appendChild(txt('span', '', PRICE_NAMES[code]));
+    el.appendChild(item);
+  }
+}
+
+function drawPriceChart(rows) {
+  var canvas = document.getElementById('priceChart');
+  if (!canvas.getContext) { return; }
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  var byProduct = {};
+  for (var i = 0; i < PRICE_ORDER.length; i++) { byProduct[PRICE_ORDER[i]] = []; }
+  for (var r = 0; r < rows.length; r++) {
+    var row = rows[r];
+    if (byProduct[row.product_code]) { byProduct[row.product_code].push(row); }
+  }
+
+  var allPrices = rows.map(function (r) { return Number(r.price_lei); })
+    .filter(function (n) { return !isNaN(n); });
+  if (!allPrices.length) {
+    ctx.fillStyle = '#6b7a90';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('Нет данных за выбранный период', 12, h / 2);
+    return;
+  }
+  var minP = Math.min.apply(null, allPrices) - 1;
+  var maxP = Math.max.apply(null, allPrices) + 1;
+
+  var padL = 40, padR = 10, padT = 10, padB = 24;
+  var plotW = w - padL - padR, plotH = h - padT - padB;
+
+  var allDates = {};
+  for (var r2 = 0; r2 < rows.length; r2++) { allDates[rows[r2].price_date] = true; }
+  var dateKeys = Object.keys(allDates).sort();
+  var n = dateKeys.length;
+
+  function xOf(idx) { return padL + (n <= 1 ? 0 : (idx / (n - 1)) * plotW); }
+  function yOf(price) {
+    if (maxP === minP) { return padT + plotH / 2; }
+    return padT + plotH - ((price - minP) / (maxP - minP)) * plotH;
+  }
+
+  // axes
+  ctx.strokeStyle = '#e3e8ef';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + plotH);
+  ctx.lineTo(padL + plotW, padT + plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#6b7a90';
+  ctx.font = '10px sans-serif';
+  ctx.fillText(maxP.toFixed(1), 2, padT + 8);
+  ctx.fillText(minP.toFixed(1), 2, padT + plotH);
+  if (n > 0) {
+    ctx.fillText(dateKeys[0], padL, h - 6);
+    ctx.fillText(dateKeys[n - 1], padL + plotW - 60, h - 6);
+  }
+
+  var dateIndex = {};
+  for (var di = 0; di < dateKeys.length; di++) { dateIndex[dateKeys[di]] = di; }
+
+  for (var p = 0; p < PRICE_ORDER.length; p++) {
+    var code = PRICE_ORDER[p];
+    var series = byProduct[code];
+    if (!series.length) { continue; }
+    ctx.strokeStyle = PRICE_COLORS[code];
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (var s = 0; s < series.length; s++) {
+      var idx = dateIndex[series[s].price_date];
+      var x = xOf(idx), y = yOf(Number(series[s].price_lei));
+      if (s === 0) { ctx.moveTo(x, y); } else { ctx.lineTo(x, y); }
+    }
+    ctx.stroke();
+  }
+}
+
+function renderPriceChanges(rows) {
+  var byProduct = {};
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    (byProduct[r.product_code] = byProduct[r.product_code] || []).push(r);
+  }
+  var changes = [];
+  for (var code in byProduct) {
+    if (!byProduct.hasOwnProperty(code)) { continue; }
+    var series = byProduct[code];
+    for (var j = 1; j < series.length; j++) {
+      var prev = Number(series[j - 1].price_lei), cur = Number(series[j].price_lei);
+      if (!prev) { continue; }
+      var pct = (cur - prev) / prev * 100;
+      changes.push({
+        product_code: code, price_date: series[j].price_date, price_lei: cur,
+        source: series[j].source, pct: pct, jump: Math.abs(pct) > 3,
+      });
+    }
+  }
+  changes.sort(function (a, b) { return a.price_date < b.price_date ? 1 : -1; });
+  var top = changes.slice(0, 40);
+  if (!top.length) { renderEmpty('priceChangesTable', 'Нет данных за выбранный период'); return; }
+  renderInto('priceChangesTable', buildTable(
+    ['Дата', 'Продукт', {label: 'Цена, лей/л'}, {label: 'Δ, %'}, 'Источник', 'Скачок'],
+    top,
+    function (r) {
+      return [
+        {text: r.price_date}, {text: PRICE_NAMES[r.product_code] || r.product_code},
+        {cls: 'num', text: fmtNum(r.price_lei, 2)},
+        {cls: 'num', text: (r.pct >= 0 ? '+' : '') + fmtNum(r.pct, 2)},
+        {text: r.source},
+        {node: r.jump ? pill('crit', 'скачок') : txt('span', '', '')},
+      ];
+    },
+    function (r) { return r.jump ? 'hl-crit' : ''; }));
+}
+
 // ---- инициализация --------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', function () {
