@@ -64,26 +64,34 @@ def track_length_km(points: Sequence[Dict[str, Any]]) -> float:
 #
 # interpolate_route строит ЛОМАНУЮ ПО ПРЯМЫМ между точками маршрута --
 # это годится для отображения (карта условная, без реальных дорог), но
-# длина такой прямой систематически КОРОЧЕ дорожного норматива NORM_KM
-# (дорога всегда петляет). Записывать FACT_KM как haversine-сумму прямых
-# точек означало бы, что реплеенные рейсы выглядят "телепортацией"
-# бензовоза -- расхождение около -39% на реальных данных (см.
-# .superpowers/sdd/autopark-task5-gps.md, находка координатора
-# 26.08.2026). Функции ниже не меняют интерфейс interpolate_route/
-# position_at (те остаются чистой геометрией прямых для отрисовки) --
-# они пост-обрабатывают уже построенный профиль, вставляя между каждой
-# парой соседних узлов точку излома так, чтобы СУММА haversine-отрезков
-# приблизилась к заданной дорожной длине. Профиль остаётся кусочно-
-# прямым (два коротких прямых отрезка на каждом участке вместо одного) --
-# для условной карты это по-прежнему "почти прямая", а записываемая
-# длина -- уже дорожная.
+# длина такой прямой почти всегда ОТЛИЧАЕТСЯ от дорожного норматива
+# NORM_KM (обычно короче -- дорога петляет; но на отдельных коротких
+# рейсах координаты точек маршрута дают прямую ДЛИННЕЕ норматива --
+# найдено на реальных данных 26.08.2026, см. ниже). Записывать FACT_KM
+# как haversine-сумму прямых точек означало бы, что реплеенные рейсы
+# выглядят "телепортацией" бензовоза -- расхождение около -39% в
+# среднем на первом прогоне (.superpowers/sdd/autopark-task5-gps.md).
+# Функции ниже не меняют интерфейс interpolate_route/position_at (те
+# остаются чистой геометрией прямых для отрисовки) -- они
+# ПЕРЕМАСШТАБИРУЮТ уже построенный профиль так, чтобы суммарная
+# haversine-длина получившейся ломаной была близка к заданной дорожной
+# длине, причём одинаково корректно и когда эту длину нужно УВЕЛИЧИТЬ
+# (типичный случай), и когда её нужно УМЕНЬШИТЬ (координаты некоторых
+# исторических рейсов дают прямую длиннее их NORM_KM -- первая версия
+# этой функции умела только растягивать путь через излом в середине
+# участка и поэтому не могла обработать сжатие: 4 из 30 рейсов в первом
+# контрольном прогоне остались нетронутыми, средний |факт-норма| вышел
+# 15.5% вместо ожидаемых 2-3%, см. .superpowers/sdd/autopark-task5-gps.md).
+# Симметричное решение -- каждый участок масштабируется как вектор
+# смещения от УЖЕ пересчитанной предыдущей точки, поэтому растяжение и
+# сжатие работают одним и тем же кодом.
 
 def _equirect_xy(lat: float, lon: float, ref_lat: float) -> Tuple[float, float]:
     """Градусы -> локальные км (эквиректангулярная проекция вокруг
     ``ref_lat``). Годится только на региональном масштабе (Молдова,
-    сотни км) -- нужна исключительно чтобы найти точку излома
-    перпендикулярно линии участка, итоговая длина всё равно считается
-    обратно через haversine_km, а не через эту проекцию."""
+    сотни км) -- нужна исключительно чтобы масштабировать вектор
+    участка, итоговая длина всё равно считается обратно через
+    haversine_km, а не через эту проекцию."""
     x = lon * 111.320 * math.cos(math.radians(ref_lat))
     y = lat * 110.574
     return x, y
@@ -95,76 +103,57 @@ def _equirect_lonlat(x: float, y: float, ref_lat: float) -> Tuple[float, float]:
     return lat, lon
 
 
-def road_leg_midpoint(lat1: float, lon1: float, lat2: float, lon2: float,
-                      target_km: float, sign: float = 1.0) -> Tuple[float, float]:
-    """Точка излома A-M-B такая, что haversine(A,M) + haversine(M,B) ~=
-    ``target_km`` (плоская аппроксимация, см. модульный докстринг выше).
-
-    Если ``target_km`` меньше или равно прямому расстоянию A-B, излом не
-    нужен -- геометрического смысла в отрицательном/нулевом ``h`` нет,
-    возвращается настоящая середина без смещения (сумма отрезков тогда
-    просто равна прямой, короче цели -- вызывающий код (:func:`road_scaled_track`)
-    это компенсирует перераспределением через коэффициент, а не эта
-    функция в одиночку).
-    """
-    ref_lat = (lat1 + lat2) / 2.0
-    x1, y1 = _equirect_xy(lat1, lon1, ref_lat)
-    x2, y2 = _equirect_xy(lat2, lon2, ref_lat)
-    dx, dy = x2 - x1, y2 - y1
-    straight = math.hypot(dx, dy)
-    mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-    if straight <= 0 or target_km <= straight:
-        return _equirect_lonlat(mx, my, ref_lat)
-    half = straight / 2.0
-    h = math.sqrt(max(0.0, (target_km / 2.0) ** 2 - half ** 2))
-    ux, uy = -dy / straight, dx / straight
-    px, py = mx + ux * h * sign, my + uy * h * sign
-    return _equirect_lonlat(px, py, ref_lat)
-
-
 def road_scaled_track(profile: Sequence[Dict[str, Any]], target_km: float,
                       correction_passes: int = 2) -> List[Dict[str, Any]]:
-    """Вставляет точку излома между каждой парой соседних узлов профиля
-    (:func:`interpolate_route`) так, чтобы суммарная haversine-длина
-    получившейся ломаной была близка к ``target_km`` -- дорожному
-    нормативу с шумом (см. модульный докстринг выше и
-    docs/Autopark/GPS_INTEGRATION.md, раздел "дорожный коэффициент").
+    """Масштабирует геометрию профиля (:func:`interpolate_route`) так,
+    чтобы суммарная haversine-длина получившейся ломаной была близка к
+    ``target_km`` -- дорожному нормативу с шумом (см. модульный
+    докстринг выше и docs/Autopark/GPS_INTEGRATION.md, раздел "дорожный
+    коэффициент").
 
-    Узлы-остановки (``leg_km`` отсутствует или 0 -- стоим на месте, см.
-    :func:`interpolate_route`) не получают излома: добавлять зигзаг там,
-    где бензовоз не двигался, было бы неправдоподобно.
+    Каждый участок пересчитывается как вектор смещения (в локальной
+    эквиректангулярной проекции вокруг средней широты участка) от УЖЕ
+    пересчитанной предыдущей точки, умноженный на общий коэффициент
+    ``factor = target_km / straight_km``. Это работает симметрично и
+    при ``factor > 1`` (растяжение -- типичный случай: дорога длиннее
+    прямой), и при ``factor < 1`` (сжатие -- координаты отдельных
+    коротких рейсов дают прямую длиннее их норматива, см. докстринг
+    выше). Узлы-остановки (``leg_km`` отсутствует или 0 -- стоим на
+    месте, см. :func:`interpolate_route`) остаются на месте последней
+    пересчитанной точки, а не масштабируются отдельно.
 
     ``correction_passes`` — плоская проекция вносит небольшую погрешность
     (участки в сотни км на широте Молдовы), поэтому после первого
     прохода фактическая длина сверяется через :func:`track_length_km` и
     коэффициент уточняется пропорционально -- пары проходов достаточно,
-    чтобы сойтись к цели с точностью на уровне долей процента.
+    чтобы сойтись к цели с точностью на уровне долей процента, в обе
+    стороны (растяжение и сжатие).
     """
     legs = [n for n in profile if (n.get("leg_km") or 0) > 0]
     straight_total = sum(n["leg_km"] for n in legs)
-    if not legs or straight_total <= 0 or target_km <= 0:
+    if not profile or not legs or straight_total <= 0 or target_km <= 0:
         return list(profile)
 
     factor = target_km / straight_total
-    out: List[Dict[str, Any]] = []
+    out: List[Dict[str, Any]] = list(profile)
     for _pass in range(max(1, correction_passes)):
-        out = []
-        if profile:
-            out.append(dict(profile[0]))
-        sign = 1.0
+        out = [dict(profile[0])]
         for prev, cur in zip(profile, profile[1:]):
+            scaled_prev = out[-1]
             if (cur.get("leg_km") or 0) <= 0:
-                out.append(dict(cur))
+                node = dict(cur)
+                node["lat"], node["lon"] = scaled_prev["lat"], scaled_prev["lon"]
+                out.append(node)
                 continue
-            leg_target = cur["leg_km"] * factor
-            mid_lat, mid_lon = road_leg_midpoint(
-                prev["lat"], prev["lon"], cur["lat"], cur["lon"],
-                leg_target, sign)
-            sign = -sign  # чередуем сторону излома -- лёгкий зигзаг, не петля
-            mid_ts = prev["ts"] + (cur["ts"] - prev["ts"]) / 2
-            out.append({"ts": mid_ts, "lat": mid_lat, "lon": mid_lon,
-                       "kind": None, "id": None, "leg_km": None})
-            out.append(dict(cur))
+            ref_lat = (prev["lat"] + cur["lat"]) / 2.0
+            x1, y1 = _equirect_xy(prev["lat"], prev["lon"], ref_lat)
+            x2, y2 = _equirect_xy(cur["lat"], cur["lon"], ref_lat)
+            sx, sy = _equirect_xy(scaled_prev["lat"], scaled_prev["lon"], ref_lat)
+            nx, ny = sx + (x2 - x1) * factor, sy + (y2 - y1) * factor
+            nlat, nlon = _equirect_lonlat(nx, ny, ref_lat)
+            node = dict(cur)
+            node["lat"], node["lon"] = nlat, nlon
+            out.append(node)
         achieved = track_length_km(out)
         if achieved <= 0:
             break
