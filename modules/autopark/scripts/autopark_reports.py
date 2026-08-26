@@ -178,7 +178,9 @@ def report_html(report: Report) -> str:
 </style></head><body>
 <h1>{html.escape(report['title'])}</h1>
 <p class="meta">Период: {html.escape(report['period'])} · Autopark (Bemol)</p>
-<table><thead><tr>{head_cells}</tr></thead>
+<table border="1" cellspacing="0" cellpadding="4" width="100%"
+       bordercolor="#c9d1e0">
+<thead><tr>{head_cells}</tr></thead>
 <tbody>{''.join(body)}</tbody></table>
 {notes}
 <p class="footer">Сформировано {generated} · modules/autopark · Oracle FLT_*</p>
