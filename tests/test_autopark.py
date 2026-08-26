@@ -236,6 +236,30 @@ def test_trip_control_view_computes_km_deviation_and_norm_fuel():
     assert "T.NORM_KM * TR.NORM_L_PER_100KM / 100" in view
 
 
+def test_trips_table_has_fact_fuel_l_column():
+    ddl = _sql("120_flt_tables.sql").upper()
+    trips = ddl[ddl.index("CREATE TABLE FLT_TRIPS"):]
+    trips = trips[:trips.index(");")]
+    assert "FACT_FUEL_L" in trips
+
+
+def test_trip_control_view_reports_fact_fuel_and_deviation():
+    ddl = _sql("121_flt_views.sql").upper()
+    view = ddl[ddl.index("CREATE OR REPLACE VIEW V_FLT_TRIP_CONTROL"):]
+    assert "T.FACT_FUEL_L" in view
+    assert "FUEL_DEVIATION" in view
+    assert "OVER_FUEL_LIMIT" in view
+    assert "CFG.FUEL_DEVIATION_PCT" in view
+
+
+def test_trip_control_view_guards_fuel_division_by_zero():
+    # Тот же урок, что в V_FLT_STOCK_DAYS: не делить на NORM_FUEL_L=0
+    # напрямую -- проверка на 0 должна стоять раньше деления в CASE.
+    ddl = _sql("121_flt_views.sql").upper()
+    view = ddl[ddl.index("CREATE OR REPLACE VIEW V_FLT_TRIP_CONTROL"):]
+    assert "NVL(T.NORM_KM * TR.NORM_L_PER_100KM / 100, 0) = 0" in view
+
+
 # -- Task 3: seed (122_flt_seed.sql) ------------------------------------
 
 def test_seed_is_idempotent_merge_statements_only():
