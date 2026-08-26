@@ -652,7 +652,27 @@ class AutoparkController:
         }}
 
 
-def _require_date(raw: Any, label: str) -> str:
+def _require_date(raw: Any, label: str) -> date:
+    """Строку 'YYYY-MM-DD' (из query string/JSON) -- в объект date.
+
+    Критично: store.py биндит date_from/date_to напрямую в
+    ``DATE_COLUMN BETWEEN :date_from AND :date_to`` без явного TO_DATE.
+    Если передать туда голую строку, Oracle пытается неявно привести её
+    по СВОЕМУ дефолтному NLS_DATE_FORMAT сессии (у этой ADB он не
+    'YYYY-MM-DD') и падает с ORA-01861 "literal does not match format
+    string" -- воспроизведено на живом контуре при сквозной проверке
+    задачи 3 (все report/list-эндпоинты возвращали success=False).
+    python-oracledb передаёt объект ``datetime.date`` как настоящий
+    Oracle DATE bind без всякого NLS-форматирования, поэтому парсинг
+    должен случиться здесь, ДО передачи в store, а не полагаться на
+    неявное приведение в SQL.
+    """
     if not raw:
         raise AutoparkValidationError(f"Параметр {label} обязателен")
-    return raw
+    if isinstance(raw, date):
+        return raw
+    try:
+        return datetime.strptime(str(raw), "%Y-%m-%d").date()
+    except ValueError:
+        raise AutoparkValidationError(
+            f"Параметр {label} должен быть датой в формате YYYY-MM-DD")
