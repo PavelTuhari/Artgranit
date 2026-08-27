@@ -228,6 +228,13 @@
      fila "Cont" din bara de jos — il ridicam deasupra barei.
      EN: floating guide button must clear the bottom tab bar. */
   #opGuideBtn { bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
+  /* pe fisa produsului mai exista bara "Adauga in cos" — urcam si mai sus */
+  body:has(.pdp-qty) #opGuideBtn {
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  body:has(.pdp-qty) #opGuide {
+    bottom: calc(198px + env(safe-area-inset-bottom, 0px)) !important;
+  }
   #opGuide { bottom: calc(134px + env(safe-area-inset-bottom, 0px)) !important;
     max-height: 60vh; }
   .pager .pg { min-width: 42px; height: 42px; }
