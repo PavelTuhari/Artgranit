@@ -127,6 +127,17 @@
   .ftree { max-height: none; }
   .fchip { min-height: 34px; display: inline-flex; align-items: center; }
 
+  /* RO: coloanele NU trebuie sa depaseasca ecranul. `1fr` = minmax(auto,1fr)
+     si nu coboara sub min-content: codurile lungi (barcod/articol) umflau
+     grila pina la 1460px intr-un container de 343px, iar pagina se putea
+     trage lateral. `minmax(0,1fr)` + min-width:0 pe containere rezolva.
+     EN: use minmax(0,1fr) so tracks may shrink below content width. */
+  .plp, .plp-main, .plp-top { min-width: 0; max-width: 100%; }
+  .plp-main { width: 100%; }
+  .product-grid, .product-grid.five, .plp .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   /* butonul "Filtre" — plutitor linga sortare, mereu vizibil */
   .plp-ftoggle {
     height: 40px;
