@@ -8348,49 +8348,11 @@ def _biro26_canonical():
 #     Fara ele, motoarele trebuiau sa descopere singure 1 251 de categorii si
 #     ~152 000 de produse urmarind legaturi; acum le primesc explicit.
 # EN: sitemap and robots for the public domain.
-def _biro26_xml(body):
-    return Response(body, mimetype='application/xml',
-                    headers={'Cache-Control': 'public, max-age=21600'})
-
-@app.route('/robots.txt')
-def biro26_robots():
-    from models.biro26_sitemap import robots_txt
-    return Response(robots_txt(), mimetype='text/plain',
-                    headers={'Cache-Control': 'public, max-age=21600'})
-
-@app.route('/sitemap.xml')
-def biro26_sitemap():
-    from models.biro26_sitemap import index_xml
-    return _biro26_xml(index_xml())
-
-@app.route('/sitemap-pages.xml')
-def biro26_sitemap_pages():
-    from models.biro26_sitemap import pages_xml
-    return _biro26_xml(pages_xml())
-
-@app.route('/sitemap-categories.xml')
-def biro26_sitemap_categories():
-    from models.biro26_sitemap import categories_xml
-    return _biro26_xml(categories_xml())
-
-@app.route('/sitemap-products-<int:part>.xml')
-def biro26_sitemap_products(part):
-    from models.biro26_sitemap import products_xml, product_count, CHUNK
-    # RO: refuzam bucatile inexistente, ca sa nu raspundem cu harti goale
-    # EN: reject non-existent chunks instead of serving empty sitemaps
-    if part < 1 or (part - 1) * CHUNK >= max(product_count(), 1):
-        return ('sitemap part not found', 404)
-    return _biro26_xml(products_xml(part))
-
-@app.context_processor
-def _biro26_seo_ctx():
-    """RO: pus la dispozitia TUTUROR sabloanelor, ca nicio pagina sa nu mai emita
-    din greseala adrese absolute cu gazda ceruta de browser.
-    EN: available to ALL templates so no page emits absolute URLs with the
-    request host again."""
-    return {'canonical_url': _biro26_canonical(),
-            'public_base': 'https://' + Config.BIRO26_PUBLIC_HOST}
-
+# RO: robots.txt si sitemap.xml au plecat in modules/seo/ - o ramura fara
+#     ele nu le mai poate pierde la desfasurare (27.08.2026 exact asa s-a
+#     intimplat: contur pe alta ramura -> 404 pe site-ul public).
+# EN: robots.txt and sitemap.xml moved to modules/seo/ so a branch without
+#     them can no longer lose them on deploy.
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
 #     (ex. nufarul); navigarea e tradusa client-side de siteURL() din site.js.

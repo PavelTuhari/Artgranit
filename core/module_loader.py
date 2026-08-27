@@ -39,6 +39,18 @@ blueprint = Blueprint("seoforge", __name__, template_folder="templates")
 2. **Маршруты модуля лежат под `/UNA.md/orasldev/<ключ>`.** Префикс задаёт
    ядро при регистрации, поэтому модуль физически не может объявить адрес
    вне своей области — не по договорённости, а по устройству.
+
+   Исключение — адреса, которые обязаны жить в корне сайта: `/robots.txt`,
+   `/sitemap.xml`. Такие модуль объявляет **списком** в манифесте:
+
+   ```json
+   { "root_paths": ["/robots.txt", "/sitemap.xml"] }
+   ```
+
+   Ядро подключает второй blueprint без префикса, но только для этих
+   адресов, и отвергает попытку занять адрес, который уже держит другой
+   модуль. Список видно в манифесте — то есть кто что занял, читается за
+   секунду, без раскопок по `app.py`.
 3. **Обойти префикс нечем.** На время импорта модуля ядро закрывает ему
    `app.add_url_rule` и `app.register_blueprint`: повесить маршрут прямо на
    приложение в обход префикса физически невозможно, попытка сразу даёт
@@ -66,6 +78,10 @@ MODULES_DIR = os.path.join(ROOT, "modules")
 
 # Все страницы портала живут под этим адресом.
 BASE_URL = "/UNA.md/orasldev"
+
+# Какой модуль занял какой корневой адрес. Нужен, чтобы второй претендент
+# получил отказ, а не молча перекрыл первого.
+_ROOT_CLAIMS: Dict[str, str] = {}
 
 
 class ModuleLoadError(Exception):
@@ -200,8 +216,44 @@ def load_module(app, key: str, report: Optional[LoadReport] = None) -> bool:
         report.failed[key] = f"{type(exc).__name__}: {exc}"
         return False
 
+    _register_root(app, key, package, report)
     report.loaded.append(key)
     return True
+
+
+def _register_root(app, key: str, package, report: LoadReport) -> None:
+    """Подключает адреса, которые обязаны жить в корне сайта.
+
+    `/robots.txt` и `/sitemap.xml` поисковик ищет только в корне — под
+    префиксом модуля они бессмысленны. Раньше такие маршруты писали в общий
+    `app.py`, и любая ветка без них теряла их при выкладке. Теперь они
+    живут в папке модуля и уезжают вместе с ней.
+    """
+    paths = _load_manifest(key).get("root_paths") or []
+    if not paths:
+        return
+    root_bp = getattr(package, "root_blueprint", None)
+    if root_bp is None:
+        report.skipped[f"{key}:root"] = (
+            "в манифесте есть root_paths, но модуль не объявил root_blueprint")
+        return
+
+    # Чужое не занимаем: адрес, который уже держит другой модуль, отвергается.
+    taken = {p: owner for p, owner in _ROOT_CLAIMS.items()
+             if owner != key and p in paths}
+    if taken:
+        report.failed[f"{key}:root"] = (
+            "адреса уже заняты: "
+            + ", ".join(f"{p} ({owner})" for p, owner in sorted(taken.items())))
+        return
+
+    try:
+        app.register_blueprint(root_bp)
+    except Exception as exc:                                     # noqa: BLE001
+        report.failed[f"{key}:root"] = f"{type(exc).__name__}: {exc}"
+        return
+    for p in paths:
+        _ROOT_CLAIMS[p] = key
 
 
 def load_modules(app) -> LoadReport:
