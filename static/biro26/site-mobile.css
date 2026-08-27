@@ -178,6 +178,18 @@
   .pdp-desc, .pdp-desc * { max-width: 100%; overflow-wrap: anywhere; }
   .pdp-desc img, .pdp-desc table { max-width: 100% !important; height: auto; }
 
+  /* ── tinte tactile: minimum 44px inaltime pentru orice legatura pe
+     care se apasa cu degetul (recomandarea Apple HIG / Material).
+     Legaturile de text aveau 14-20px — greu de nimerit pe telefon. ── */
+  .see-all { min-height: 44px; display: inline-flex; align-items: center; }
+  .footer-col a, .footer-links a, .footer-nav a {
+    display: inline-flex; align-items: center; min-height: 40px;
+  }
+  .footer-col li { margin: 0; }
+  .breadcrumbs a { padding: 6px 0; display: inline-block; }
+  .lang-item { min-height: 40px; display: inline-flex; align-items: center;
+    padding: 0 6px; }
+
   /* ── marunte de finete ────────────────────────────────────────── */
   .breadcrumbs { font-size: 12px; overflow-x: auto; white-space: nowrap;
     scrollbar-width: none; }
