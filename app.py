@@ -7919,6 +7919,21 @@ def _biro26_warm_site_config():
         Biro26Site.config()
     except Exception:                                        # noqa: BLE001
         pass
+    # RO: incalzim si datele grele ale catalogului (arbore, branduri) si
+    #     contextul vitrinei — altfel PRIMUL vizitator dupa repornire le
+    #     plateste integral (~25 s pe conturul lent).
+    # EN: warm the heavy catalog data and the storefront context too.
+    try:
+        from models.biro26_oracle_store import Biro26Store
+        Biro26Store.get_product_tree()
+        Biro26Store.get_product_brands()
+    except Exception:                                        # noqa: BLE001
+        pass
+    try:
+        with app.test_request_context('/'):
+            _biro26_site_ctx()
+    except Exception:                                        # noqa: BLE001
+        pass
 
 threading.Thread(target=_biro26_warm_site_config, daemon=True).start()
 
