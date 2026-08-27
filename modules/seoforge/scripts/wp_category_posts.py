@@ -40,6 +40,23 @@ SKIP_GROUPS = {"IMPORT PT"}
 MIN_SUBGROUP = 100          # порог из инструкции, §2
 
 
+# RO: numele rusesti ale sectiunilor din dictionarul editabil
+#     YBIRO_GRP_I18N (principiul una-shops: traducerile sint DATE).
+#     Unde traducerea lipseste, ramine numele romanesc - mai bine numele
+#     original decit masina de tradus.
+# EN: Russian section names from the editable dictionary; where a
+#     translation is missing the Romanian name stays.
+def fetch_i18n(db) -> Dict[str, str]:
+    rows = _rows(db.execute_query(
+        "SELECT KIND, NAME_RO, NAME_RU FROM YBIRO_GRP_I18N "
+        "WHERE NAME_RU IS NOT NULL", {}))
+    return {f"{r['kind']}||{r['name_ro']}": r["name_ru"] for r in rows}
+
+
+def ru(i18n: Dict[str, str], kind: str, name: str) -> str:
+    return i18n.get(f"{kind}||{name}") or name
+
+
 def _rows(r: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not r.get("success"):
         raise RuntimeError(r.get("message") or "query failed")
@@ -139,117 +156,171 @@ def fetch_samples(db) -> Dict[str, List[Dict[str, Any]]]:
     return out
 
 
-HOW_TO_BUY = (
-    '<h2>Cum cumperi</h2>\n'
-    '<ul>\n'
-    f'<li><strong>Livrare</strong> în toată Moldova — '
-    f'<a href="{BASE}/livrare">condiții și termene</a>.</li>\n'
-    f'<li><strong>Rate fără dobândă</strong> — Liber Card MAIB și alte '
-    f'programe: <a href="{BASE}/credite">vezi variantele</a>.</li>\n'
-    '<li><strong>Pentru organizații</strong> — factură fiscală și livrare '
-    'la birou, comandă direct din catalog.</li>\n'
-    '</ul>\n')
+# RO/RU: blocul de serviciu - singurul care se repeta, si asta e normal:
+# e informatie, nu continut. EN: the only repeated block, by design.
+HOW_TO_BUY = {
+    "ro": ('<h2>Cum cumperi</h2>\n<ul>\n'
+           f'<li><strong>Livrare</strong> în toată Moldova — '
+           f'<a href="{BASE}/livrare">condiții și termene</a>.</li>\n'
+           f'<li><strong>Rate fără dobândă</strong> — Liber Card MAIB și alte '
+           f'programe: <a href="{BASE}/credite">vezi variantele</a>.</li>\n'
+           '<li><strong>Pentru organizații</strong> — factură fiscală și '
+           'livrare la birou, comandă direct din catalog.</li>\n</ul>\n'),
+    "ru": ('<h2>Как купить</h2>\n<ul>\n'
+           f'<li><strong>Доставка</strong> по всей Молдове — '
+           f'<a href="{BASE}/livrare">условия и сроки</a>.</li>\n'
+           f'<li><strong>Рассрочка без процентов</strong> — Liber Card MAIB '
+           f'и другие программы: <a href="{BASE}/credite">посмотреть</a>.</li>\n'
+           '<li><strong>Для организаций</strong> — налоговая накладная и '
+           'доставка в офис, заказ прямо из каталога.</li>\n</ul>\n'),
+}
+
+# RO: fraze scurte, pe limbi - ca sa nu se amestece in cod.
+T = {
+    "ro": {
+        "band_h": "După preț", "upto": "Până la", "over": "Peste",
+        "usual": "alegerea obișnuită", "cheap": "variantele accesibile din secțiune",
+        "till": "până la", "lei": "lei",
+        "brands_h": "Mărci din secțiune", "inside_h": "Ce găsești aici",
+        "examples_h": "Exemple din secțiune", "pos": "poziții",
+        "open": "Deschide", "in_catalog": "în catalog",
+        "all_of": "Toate pozițiile", "other_lang": "Русская версия",
+    },
+    "ru": {
+        "band_h": "По цене", "upto": "До", "over": "Свыше",
+        "usual": "обычный выбор", "cheap": "доступные позиции раздела",
+        "till": "до", "lei": "лей",
+        "brands_h": "Марки в разделе", "inside_h": "Что внутри",
+        "examples_h": "Примеры из раздела", "pos": "позиций",
+        "open": "Открыть", "in_catalog": "в каталоге",
+        "all_of": "Все позиции", "other_lang": "Versiunea în română",
+    },
+}
 
 
-def price_bands(url: str, pmin, pmed, pmax) -> str:
+def price_bands(url: str, pmin, pmed, pmax, lang: str) -> str:
     """RO: trei benzi de pret, calculate din preturile REALE ale sectiunii."""
     try:
-        lo, mid, hi = float(pmin), float(pmed), float(pmax)
+        mid, hi = float(pmed), float(pmax)
     except (TypeError, ValueError):
         return ""
+    w = T[lang]
     b1 = int(max(1, round(mid / 2)))
     b2 = int(max(b1 + 1, round(mid * 2)))
     return (
-        '<h2>După preț</h2>\n<ul>\n'
-        f'<li><a href="{url}&amp;price_max={b1}">Până la {_money(b1)} lei</a> — '
-        'variantele accesibile din secțiune.</li>\n'
+        f'<h2>{w["band_h"]}</h2>\n<ul>\n'
+        f'<li><a href="{url}&amp;price_max={b1}">{w["upto"]} {_money(b1)} '
+        f'{w["lei"]}</a> — {w["cheap"]}.</li>\n'
         f'<li><a href="{url}&amp;price_min={b1}&amp;price_max={b2}">'
-        f'{_money(b1)}–{_money(b2)} lei</a> — alegerea obișnuită.</li>\n'
-        f'<li><a href="{url}&amp;price_min={b2}">Peste {_money(b2)} lei</a> — '
-        f'până la {_money(hi)} lei.</li>\n</ul>\n')
+        f'{_money(b1)}–{_money(b2)} {w["lei"]}</a> — {w["usual"]}.</li>\n'
+        f'<li><a href="{url}&amp;price_min={b2}">{w["over"]} {_money(b2)} '
+        f'{w["lei"]}</a> — {w["till"]} {_money(hi)} {w["lei"]}.</li>\n</ul>\n')
 
 
-def build_group_post(g, brands, children) -> Dict[str, Any]:
-    name = g["grupa"]
-    url = catalog_url(name)
+def build_group_post(g, brands, children, i18n, lang: str) -> Dict[str, Any]:
+    ro_name = g["grupa"]
+    name = ro_name if lang == "ro" else ru(i18n, "grupa", ro_name)
+    url = catalog_url(ro_name)
     n = int(g["n"])
-    kids = [c for c in children.get(name, []) if int(c["n"]) >= 10][:14]
-    brs = [b for b in brands.get(name, [])][:8]
+    w = T[lang]
+    kids = [c for c in children.get(ro_name, []) if int(c["n"]) >= 10][:14]
+    brs = brands.get(ro_name, [])[:8]
 
-    body = [
-        f'<p><strong>{html.escape(name)}</strong> la OfficePlus — '
-        f'<strong>{_money(n)}</strong> de poziții disponibile pentru comandă, '
-        f'cu prețuri de la {_money(g["pmin"])} până la {_money(g["pmax"])} lei '
-        f'(preț tipic — {_money(g["pmed"])} lei). '
-        f'<a href="{url}">Vezi toată secțiunea în catalog</a>.</p>\n']
+    if lang == "ro":
+        lead = (f'<p><strong>{html.escape(name)}</strong> la OfficePlus — '
+                f'<strong>{_money(n)}</strong> de poziții disponibile pentru '
+                f'comandă, cu prețuri de la {_money(g["pmin"])} până la '
+                f'{_money(g["pmax"])} lei (preț tipic — {_money(g["pmed"])} lei). '
+                f'<a href="{url}">Vezi toată secțiunea în catalog</a>.</p>\n')
+        title = f"{name} — cumpără online la OfficePlus"
+        excerpt = (f"{_money(n)} de poziții în secțiunea {name}, prețuri de la "
+                   f"{_money(g['pmin'])} lei. Livrare în toată Moldova, "
+                   f"rate fără dobândă.")
+    else:
+        lead = (f'<p><strong>{html.escape(name)}</strong> в OfficePlus — '
+                f'<strong>{_money(n)}</strong> позиций, доступных к заказу, '
+                f'по ценам от {_money(g["pmin"])} до {_money(g["pmax"])} лей '
+                f'(обычная цена — {_money(g["pmed"])} лей). '
+                f'<a href="{url}">Открыть раздел в каталоге</a>.</p>\n')
+        title = f"{name} — купить онлайн в OfficePlus"
+        excerpt = (f"{_money(n)} позиций в разделе «{name}», цены от "
+                   f"{_money(g['pmin'])} лей. Доставка по всей Молдове, "
+                   f"рассрочка без процентов.")
 
+    body = [lead]
     if brs:
-        body.append('<h2>Mărci din secțiune</h2>\n<p>' + ", ".join(
+        body.append(f'<h2>{w["brands_h"]}</h2>\n<p>' + ", ".join(
             f'{html.escape(str(b["brand"]))} ({_money(b["n"])})' for b in brs)
             + '.</p>\n')
-
     if kids:
-        body.append('<h2>Ce găsești aici</h2>\n<ul>\n')
+        body.append(f'<h2>{w["inside_h"]}</h2>\n<ul>\n')
         for c in kids:
-            cu = catalog_url(name, c["categorie"])
-            body.append(f'<li><a href="{cu}">{html.escape(str(c["categorie"]))}</a>'
-                        f' — {_money(c["n"])} poziții</li>\n')
+            label = (c["categorie"] if lang == "ro"
+                     else ru(i18n, "categorie", c["categorie"]))
+            body.append(f'<li><a href="{catalog_url(ro_name, c["categorie"])}">'
+                        f'{html.escape(str(label))}</a> — {_money(c["n"])} '
+                        f'{w["pos"]}</li>\n')
         body.append('</ul>\n')
+    body.append(price_bands(url, g["pmin"], g["pmed"], g["pmax"], lang))
+    body.append(HOW_TO_BUY[lang])
+    body.append(f'<p><a href="{url}"><strong>{w["open"]} '
+                f'{html.escape(name)} {w["in_catalog"]} →</strong></a></p>\n')
 
-    body.append(price_bands(url, g["pmin"], g["pmed"], g["pmax"]))
-    body.append(HOW_TO_BUY)
-    body.append(f'<p><a href="{url}"><strong>Deschide '
-                f'{html.escape(name)} în catalog →</strong></a></p>\n')
-
-    return {
-        "kind": "group",
-        "slug": slugify(name),
-        "title": f"{name} — cumpără online la OfficePlus",
-        "excerpt": (f"{_money(n)} de poziții în secțiunea {name}, "
-                    f"prețuri de la {_money(g['pmin'])} lei. "
-                    f"Livrare în toată Moldova, rate fără dobândă."),
-        "content": "".join(body),
-        "catalog_url": url,
-        "items": n,
-    }
+    slug = slugify(ro_name) + ("" if lang == "ro" else "-ru")
+    return {"kind": "group", "lang": lang, "slug": slug, "title": title,
+            "excerpt": excerpt, "content": "".join(body),
+            "catalog_url": url, "items": n,
+            "pair_slug": slugify(ro_name) + ("-ru" if lang == "ro" else "")}
 
 
-def build_subgroup_post(s, samples) -> Dict[str, Any]:
-    grupa, categ = s["grupa"], s["categorie"]
-    url = catalog_url(grupa, categ)
+def build_subgroup_post(s, samples, i18n, lang: str) -> Dict[str, Any]:
+    ro_g, ro_c = s["grupa"], s["categorie"]
+    gname = ro_g if lang == "ro" else ru(i18n, "grupa", ro_g)
+    cname = ro_c if lang == "ro" else ru(i18n, "categorie", ro_c)
+    url = catalog_url(ro_g, ro_c)
     n = int(s["n"])
-    ex = samples.get(f"{grupa}||{categ}", [])[:6]
+    w = T[lang]
+    ex = samples.get(f"{ro_g}||{ro_c}", [])[:6]
 
-    body = [
-        f'<p><strong>{html.escape(categ)}</strong> — '
-        f'<strong>{_money(n)}</strong> de poziții în secțiunea '
-        f'<a href="{catalog_url(grupa)}">{html.escape(grupa)}</a>, '
-        f'prețuri {_money(s["pmin"])}–{_money(s["pmax"])} lei '
-        f'(tipic {_money(s["pmed"])} lei). '
-        f'<a href="{url}">Vezi în catalog</a>.</p>\n']
+    if lang == "ro":
+        lead = (f'<p><strong>{html.escape(cname)}</strong> — '
+                f'<strong>{_money(n)}</strong> de poziții în secțiunea '
+                f'<a href="{catalog_url(ro_g)}">{html.escape(gname)}</a>, '
+                f'prețuri {_money(s["pmin"])}–{_money(s["pmax"])} lei '
+                f'(tipic {_money(s["pmed"])} lei). '
+                f'<a href="{url}">Vezi în catalog</a>.</p>\n')
+        title = f"{cname} — {gname} online la OfficePlus"
+        excerpt = (f"{_money(n)} de poziții: {cname} din secțiunea {gname}. "
+                   f"Prețuri de la {_money(s['pmin'])} lei, livrare rapidă.")
+    else:
+        lead = (f'<p><strong>{html.escape(cname)}</strong> — '
+                f'<strong>{_money(n)}</strong> позиций в разделе '
+                f'<a href="{catalog_url(ro_g)}">{html.escape(gname)}</a>, '
+                f'цены {_money(s["pmin"])}–{_money(s["pmax"])} лей '
+                f'(обычно {_money(s["pmed"])} лей). '
+                f'<a href="{url}">Смотреть в каталоге</a>.</p>\n')
+        title = f"{cname} — {gname} онлайн в OfficePlus"
+        excerpt = (f"{_money(n)} позиций: {cname} из раздела «{gname}». "
+                   f"Цены от {_money(s['pmin'])} лей, быстрая доставка.")
 
+    body = [lead]
     if ex:
-        body.append('<h2>Exemple din secțiune</h2>\n<ul>\n')
+        body.append(f'<h2>{w["examples_h"]}</h2>\n<ul>\n')
         for e in ex:
             body.append(f'<li><a href="{BASE}/produs/{int(e["cod"])}">'
                         f'{html.escape(str(e["name"])[:90])}</a></li>\n')
         body.append('</ul>\n')
+    body.append(price_bands(url, s["pmin"], s["pmed"], s["pmax"], lang))
+    body.append(HOW_TO_BUY[lang])
+    body.append(f'<p><a href="{url}"><strong>{w["all_of"]}: '
+                f'{html.escape(cname)} →</strong></a></p>\n')
 
-    body.append(price_bands(url, s["pmin"], s["pmed"], s["pmax"]))
-    body.append(HOW_TO_BUY)
-    body.append(f'<p><a href="{url}"><strong>Toate pozițiile: '
-                f'{html.escape(categ)} →</strong></a></p>\n')
-
-    return {
-        "kind": "subgroup",
-        "slug": slugify(grupa, categ),
-        "title": f"{categ} — {grupa} online la OfficePlus",
-        "excerpt": (f"{_money(n)} de poziții: {categ} din secțiunea {grupa}. "
-                    f"Prețuri de la {_money(s['pmin'])} lei, livrare rapidă."),
-        "content": "".join(body),
-        "catalog_url": url,
-        "items": n,
-    }
+    base_slug = slugify(ro_g, ro_c)
+    return {"kind": "subgroup", "lang": lang,
+            "slug": base_slug + ("" if lang == "ro" else "-ru"),
+            "title": title, "excerpt": excerpt, "content": "".join(body),
+            "catalog_url": url, "items": n,
+            "pair_slug": base_slug + ("-ru" if lang == "ro" else "")}
 
 
 def main() -> int:
@@ -258,17 +329,15 @@ def main() -> int:
     groups = [g for g in fetch_groups(db) if g["grupa"] not in SKIP_GROUPS]
     subs = [s for s in fetch_subgroups(db)
             if s["grupa"] not in SKIP_GROUPS
-            # RO: subgrupa cu acelasi nume ca grupa nu adauga nimic
             and str(s["categorie"]).strip().lower() != str(s["grupa"]).strip().lower()]
-    brands = fetch_brands(db)
-    children = fetch_children(db)
-    samples = fetch_samples(db)
+    brands, children = fetch_brands(db), fetch_children(db)
+    samples, i18n = fetch_samples(db), fetch_i18n(db)
 
-    posts = [build_group_post(g, brands, children) for g in groups]
-    posts += [build_subgroup_post(s, samples) for s in subs]
+    posts = []
+    for lang in ("ro", "ru"):
+        posts += [build_group_post(g, brands, children, i18n, lang) for g in groups]
+        posts += [build_subgroup_post(s, samples, i18n, lang) for s in subs]
 
-    # RO: adresele trebuie sa fie unice - altfel al doilea articol l-ar
-    #     suprascrie pe primul. EN: slugs must be unique.
     seen, unique = set(), []
     for p in posts:
         if p["slug"] in seen:
@@ -279,8 +348,9 @@ def main() -> int:
     out = "/tmp/officeplus_wp_posts.json"
     with open(out, "w", encoding="utf-8") as f:
         json.dump(unique, f, ensure_ascii=False, indent=1)
-    print(f"готово: {len(groups)} групп + {len(subs)} подгрупп = "
-          f"{len(unique)} постов -> {out}")
+    per = len(groups) + len(subs)
+    print(f"готово: {len(groups)} групп + {len(subs)} подгрупп x 2 языка = "
+          f"{len(unique)} постов ({per} на язык) -> {out}")
     return 0
 
 
