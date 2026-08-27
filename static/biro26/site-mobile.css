@@ -242,6 +242,22 @@
   .footer { padding-bottom: 8px; }
 }
 
+/* ── DESKTOP: cardurile compacte (cerinta owner 27.08.2026) ────────────
+   RO: regula sta AICI, nu in blocul <style> din site_base.html, pentru ca
+   sablonul e rescris periodic de cealalta echipa si atunci cardurile
+   redeveneau uriase (repeat(4,1fr) + coduri lungi = coloane de 900px).
+   Fisierul acesta e al nostru si se incarca ultimul.
+   EN: keep the compact-card rule in our own last-loaded file; the shared
+   template gets overwritten by the other team from time to time. */
+@media (min-width: 1025px) {
+  .plp .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  }
+}
+.product-card { min-width: 0; }
+.product-card .product-name,
+.product-card .product-code { overflow-wrap: anywhere; }
+
 /* tableta: doar antetul lipicios, fara bara de jos */
 @media (min-width: 641px) and (max-width: 1024px) {
   .homepage { overflow: visible; }
