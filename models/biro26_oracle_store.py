@@ -8,7 +8,11 @@ Multi-statement atomic ops use db.execute_script([...]) (one transaction).
 """
 from __future__ import annotations
 
+import json
+import os
 import re as _re
+import tempfile
+import time
 from typing import Any, Dict, List, Optional
 
 from models.biro26_db import Biro26DB
@@ -79,6 +83,87 @@ def build_gset_block(profile: Dict[str, Any]) -> str:
             rhs = _q(val)
         lines.append(f"  {PKG}.g_{name} := {rhs};")
     return "\n".join(lines)
+
+
+# ── RO: cache in memorie pentru interogarile GRELE si RAR schimbatoare ──
+#    Fiecare interogare Oracle trece printr-un subproces thick (~0,4 s doar
+#    pornirea), iar arborele de grupe costa ~1,6 s si se schimba o data pe zi,
+#    dupa import. Numaratoarea totala la cautare costa ~2,7 s si se repeta la
+#    fiecare pagina. Cache-ul scurt le face instantanee, fara sa schimbe
+#    comportamentul: dupa TTL datele se recitesc.
+# EN: in-memory TTL cache for heavy, rarely-changing catalog queries.
+_CACHE: Dict[str, Any] = {}
+
+# RO: cache-ul trebuie sa fie COMUN pentru toate procesele. In productie
+#     aplicatia ruleaza sub gunicorn cu 2 workeri, fiecare cu memoria lui:
+#     un cache doar in RAM se nimerea in ~50% din cereri, iar workerul "rece"
+#     platea pretul intreg (arborele de grupe ~1,6 s). De aceea valorile se
+#     scriu si intr-un fisier: citirea e instantanee, scrierea e atomica
+#     (fisier temporar + os.replace), iar continutul e public (arbore de
+#     grupe, branduri, numaratori) — nimic sensibil.
+# EN: shared on-disk cache; a RAM-only cache misses ~50% under 2 gunicorn
+#     workers. Atomic writes; cached data is public catalog metadata.
+_CACHE_DIR = os.path.join(tempfile.gettempdir(), "biro26_cache")
+
+
+def _disk_path(key: str) -> str:
+    import hashlib
+    return os.path.join(_CACHE_DIR, hashlib.md5(key.encode()).hexdigest() + ".json")
+
+
+def _disk_get(key: str, ttl: float):
+    try:
+        f = _disk_path(key)
+        if time.time() - os.path.getmtime(f) > ttl:
+            return None
+        with open(f, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _disk_put(key: str, val) -> None:
+    try:
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        f = _disk_path(key)
+        tmp = f + f".{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(val, fh, ensure_ascii=False, default=str)
+        os.replace(tmp, f)          # atomic: alt worker nu vede fisier partial
+    except (OSError, TypeError, ValueError):
+        pass
+
+
+def _cached(key: str, ttl: float, producer):
+    hit = _CACHE.get(key)
+    if hit and hit[0] > time.time():
+        return hit[1]
+    shared = _disk_get(key, ttl)          # scris de celalalt worker
+    if shared is not None:
+        _CACHE[key] = (time.time() + ttl, shared)
+        return shared
+    val = producer()
+    # nu punem in cache raspunsurile esuate — altfel o eroare de retea
+    # ar ramine "lipita" pina la expirarea TTL-ului
+    if isinstance(val, dict) and val.get("success") is False:
+        return val
+    _CACHE[key] = (time.time() + ttl, val)
+    _disk_put(key, val)
+    return val
+
+
+def cache_clear(prefix: str = "") -> int:
+    """RO: goleste cache-ul (tot sau dupa prefix) — se apeleaza dupa import.
+    EN: drop cached entries after an import refreshes the catalog."""
+    keys = [k for k in _CACHE if not prefix or k.startswith(prefix)]
+    for k in keys:
+        _CACHE.pop(k, None)
+    try:                                  # si copia de pe disc (toti workerii)
+        for f in os.listdir(_CACHE_DIR):
+            os.unlink(os.path.join(_CACHE_DIR, f))
+    except OSError:
+        pass
+    return len(keys)
 
 
 class Biro26Store:
@@ -282,11 +367,15 @@ class Biro26Store:
 
     @staticmethod
     def prepare_input() -> Dict[str, Any]:
-        return Biro26Store._run_pkg("prepare_input;", capture=True)
+        r = Biro26Store._run_pkg("prepare_input;", capture=True)
+        cache_clear()   # RO: catalogul s-a schimbat — golim cache-ul
+        return r
 
     @staticmethod
     def assign_keys() -> Dict[str, Any]:
-        return Biro26Store._run_pkg("assign_keys;", capture=True)
+        r = Biro26Store._run_pkg("assign_keys;", capture=True)
+        cache_clear()   # RO: catalogul s-a schimbat — golim cache-ul
+        return r
 
     @staticmethod
     def source_columns(source: str) -> Dict[str, Any]:
@@ -858,8 +947,29 @@ class Biro26Store:
                 "NVL(m.IE_LINKADRES, NVL(c.PHOTO_URL, c.IMAGE_LINK)) IMAGE, "
                 "s.CANT REAL_CANT, NVL(rz.QTY, 0) RESERVED, "
                 "GREATEST(NVL(s.CANT, 0) - NVL(rz.QTY, 0), 0) AVAIL_CANT, "
-                "bc.BARCODE, bc.BC_CNT, "
-                "vr.VARIANT, vr.MASTER_COD, NVL(vg.VCNT, 1) VAR_CNT, "
+                # RO: codul de bare si numarul de variante — subinterogari
+                #     SCALARE, evaluate DOAR pentru cele <=200 rinduri ale
+                #     paginii. Varianta veche (LEFT JOIN peste un GROUP BY al
+                #     INTREGII tabele) agrega 197.704 de coduri de bare la
+                #     fiecare cerere de catalog: 2,3-3,0 s din cele ~2,6 s ale
+                #     interogarii. Indexul TMS_MPT_BARCODE_PK (COD, BARCODE)
+                #     face fiecare subinterogare instantanee: 0,04 s pentru 24
+                #     de rinduri, adica de ~58 de ori mai rapid.
+                # EN: scalar subqueries run only for the page rows; the old
+                #     GROUP BY inline view aggregated the whole barcode table
+                #     (197k rows) on every catalog request.
+                "(SELECT MIN(b.BARCODE) FROM TMS_MPT_BARCODE b "
+                "   WHERE b.COD = c.COD) BARCODE, "
+                "(SELECT COUNT(*) FROM TMS_MPT_BARCODE b "
+                "   WHERE b.COD = c.COD) BC_CNT, "
+                "vr.VARIANT, vr.MASTER_COD, "
+                # RO: fara familie de variante numarul e 1. COUNT(*) pe un
+                #     MASTER_COD NULL intoarce 0 (nu NULL), deci NVL nu ajuta —
+                #     de aceea CASE explicit.
+                # EN: COUNT(*) over a NULL key returns 0, not NULL — use CASE.
+                "CASE WHEN vr.MASTER_COD IS NULL THEN 1 ELSE "
+                "  (SELECT COUNT(*) FROM BIRO26_VARIANTS v2 "
+                "     WHERE v2.MASTER_COD = vr.MASTER_COD) END VAR_CNT, "
                 # RO: denumirea completa din TMS_MPT_WEBATTR — copia VARCHAR2
                 #     (ieftina) pentru grila/tooltip; BLOB-ul DOAR in fisa
                 "w.DENUMIRE_FULL_RO DENUM_FULL, w.DENUMIRE_FULL_RU DENUM_FULL_RU "
@@ -890,12 +1000,7 @@ class Biro26Store:
                 "        NVL((SELECT MAX(DATA_DOC) FROM YBIRO_STOCK_CALC "
                 "               WHERE IS_LATEST = '1'), DATE '1900-01-01')) "
                 "  GROUP BY d.CTSC) rz ON rz.SC = c.COD "
-                "LEFT JOIN (SELECT COD, MIN(BARCODE) BARCODE, COUNT(*) BC_CNT "
-                "  FROM TMS_MPT_BARCODE GROUP BY COD) bc ON bc.COD = c.COD "
                 "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = c.COD "
-                "LEFT JOIN (SELECT MASTER_COD, COUNT(*) VCNT FROM BIRO26_VARIANTS "
-                "  WHERE MASTER_COD IS NOT NULL GROUP BY MASTER_COD) vg "
-                "  ON vg.MASTER_COD = vr.MASTER_COD "
                 "ORDER BY c.rn")
             r = Biro26DB().execute_query(outer, params)
             res = _result(r)
@@ -905,8 +1010,20 @@ class Biro26Store:
             from models.biro26_imgproxy import rewrite_rows
             rewrite_rows(res.get("data") or res.get("rows"), "IMAGE")
             if with_count and res.get("success"):
-                rc = _rows(Biro26DB().execute_query(count_sql, params))
-                res["total"] = int(rc[0]["cnt"]) if rc else 0
+                # RO: numaratoarea totala nu depinde de pagina si costa scump
+                #     la cautare (scanare completa cu LIKE '%…%': ~2,7 s).
+                #     O tinem in cache 5 minute dupa cheia filtrelor, deci
+                #     paginile 2,3,4… si vizitatorii urmatori o primesc gata.
+                # EN: the total is page-independent and expensive on search —
+                #     cache it per filter set for 5 minutes.
+                import hashlib as _h
+                ckey = "cnt:" + _h.md5(
+                    (count_sql + repr(sorted(params.items()))).encode()
+                ).hexdigest()
+                total = _cached(ckey, 300, lambda: (
+                    lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                        _rows(Biro26DB().execute_query(count_sql, params))))
+                res["total"] = total
             return res
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -1046,7 +1163,14 @@ class Biro26Store:
 
     @staticmethod
     def get_product_tree() -> Dict[str, Any]:
-        """GRUPA -> CATEGORIE counts for the Marfă/Stoc left-panel tree
+        return _cached("tree", 600, Biro26Store._get_product_tree_uncached)
+
+    @staticmethod
+    def _get_product_tree_uncached() -> Dict[str, Any]:
+        """RO: arborele se citeste prin cache (10 min) — costa ~1,6 s si se
+        schimba doar dupa import. EN: cached for 10 minutes.
+
+        GRUPA -> CATEGORIE counts for the Marfă/Stoc left-panel tree
         (same TIP='P' + BIRO26_GOODS scope as the grid; ~768 rows).
         RO: numele RU/EN vin din dictionarul editabil YBIRO_GRP_I18N
         (principiul una-shops: traduceri ca DATE, fallback pe romana).
@@ -1074,6 +1198,11 @@ class Biro26Store:
 
     @staticmethod
     def get_product_brands() -> Dict[str, Any]:
+        """RO: lista de branduri — cache 10 min (se schimba doar la import)."""
+        return _cached("brands", 600, Biro26Store._get_product_brands_uncached)
+
+    @staticmethod
+    def _get_product_brands_uncached() -> Dict[str, Any]:
         """Distinct brands for the Marfă/Stoc filter dropdown, scoped to the same
         TIP='P' + BIRO26_GOODS join as get_products_stock (so filter options never
         lead to an empty result)."""

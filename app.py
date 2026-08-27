@@ -7922,6 +7922,13 @@ def _biro26_warm_site_config():
 
 threading.Thread(target=_biro26_warm_site_config, daemon=True).start()
 
+def _public_cached(resp, seconds: int = 600):
+    """RO: date PUBLICE si rar schimbatoare (arbore de grupe, branduri) —
+    pot sta in cache-ul browserului; asa pagina de catalog nu mai asteapta
+    reteaua la fiecare navigare. EN: public, rarely-changing catalog data."""
+    resp.headers['Cache-Control'] = f'public, max-age={seconds}'
+    return resp
+
 @app.route('/api/biro26/img', methods=['GET'])
 def api_biro26_img():
     """RO: serveste pe HTTPS o imagine gazduita doar pe HTTP (impreso.md).
@@ -8880,13 +8887,18 @@ def api_biro26_shop_products():
 
 @app.route('/api/biro26/shop/tree', methods=['GET'])
 def api_biro26_shop_tree():
-    # public read-only grupa->categorie facet tree (Amazon-style sidebar)
-    return jsonify(Biro26Controller.get_product_tree())
+    # RO: arborele de grupe e IDENTIC pentru toti si se schimba o data pe zi
+    #     (dupa import), dar cintareste ~400 KB necomprimat si trece prin
+    #     tunelul birou->cloud la FIECARE pagina de catalog. Il lasam in
+    #     cache-ul browserului 10 minute: vizitatorul il cere o singura data,
+    #     iar navigarea prin catalog nu mai asteapta reteaua.
+    # EN: the facet tree is identical for everyone and ~400 KB uncompressed —
+    #     let the browser cache it for 10 minutes.
+    return _public_cached(jsonify(Biro26Controller.get_product_tree()))
 
 @app.route('/api/biro26/shop/brands', methods=['GET'])
-def api_biro26_shop_brands():
-    # public read-only brand facet with counts
-    return jsonify(Biro26Controller.get_product_brands())
+def api_biro26_shop_brands_cached():
+    return _public_cached(jsonify(Biro26Controller.get_product_brands()))
 
 @app.route('/api/biro26/shop/transport', methods=['GET'])
 def api_biro26_shop_transport():
