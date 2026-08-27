@@ -54,6 +54,8 @@ const T = {
   contacts:   {ro: 'Contacte', ru: 'Контакты'},
   returns:    {ro: 'Retur produse', ru: 'Возврат товаров'},
   cart:       {ro: 'Coș', ru: 'Корзина'},
+  navHome:    {ro: 'Acasă', ru: 'Главная'},
+  navAcc:     {ro: 'Cont', ru: 'Кабинет'},
   useful:     {ro: 'Utile:', ru: 'Полезное:'},
   terms:      {ro: 'Termeni și condiții', ru: 'Условия использования'},
   payDelivery:{ro: 'Plată și livrare', ru: 'Оплата и доставка'},
@@ -191,8 +193,10 @@ function cartBadge() {
   //     nu cantitatea totala — cerinta owner (22.08.2026).
   // EN: badge shows the number of DISTINCT products added, not total quantity.
   const n = cart().filter(i => (i.qty || 0) > 0).length;
-  const b = document.getElementById('cart-badge');
-  if (b) { b.style.display = n ? '' : 'none'; b.textContent = n; }
+  ['cart-badge', 'cart-badge-m'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.style.display = n ? '' : 'none'; b.textContent = n; }
+  });
 }
 window.addEventListener('storage', cartBadge);
 function addToCart(cod, name, price, qty) {
@@ -480,6 +484,43 @@ function payBadgeHtml(name) {
     if (hit) history.replaceState(null, '', u.pathname +
       (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
   } catch (e) {}
+})();
+
+/* ── mobil: fila activa in bara de jos + filtrele ca bottom-sheet ─────
+   RO: bara .bnav exista pe toate paginile (site_base); aici doar marcam
+   fila curenta si transformam panoul de filtre in sheet cu maner,
+   buton de inchidere si overlay (site-mobile.css deseneaza totul).
+   Ruleaza inofensiv si pe desktop — elementele pur si simplu nu se vad. */
+(function mobileNav() {
+  try {
+    const here = location.pathname.replace(SITE_PREFIX, '') || '/';
+    const map = {'': '/', '/': '/', '/catalog': '/catalog', '/cart': '/cos',
+      '/cos': '/cos', '/favorites': '/favorite', '/favorite': '/favorite',
+      '/account': '/cont', '/cont': '/cont'};
+    const cur = here.startsWith('/product') || here.startsWith('/produs')
+      ? '/catalog' : (map[here] || null);
+    document.querySelectorAll('.bnav a').forEach(a =>
+      a.classList.toggle('on', a.dataset.bn === cur));
+  } catch (e) {}
+})();
+(function filterSheet() {
+  const side = document.querySelector('.plp-side');
+  const ov = document.getElementById('sheet-overlay');
+  if (!side || !ov) return;
+  const close = () => { side.classList.remove('open');
+    ov.classList.remove('on'); document.body.classList.remove('sheet-open'); };
+  ov.addEventListener('click', close);
+  new MutationObserver(() => {
+    const open = side.classList.contains('open') && innerWidth <= 640;
+    ov.classList.toggle('on', open);
+    document.body.classList.toggle('sheet-open', open);
+    if (open && !side.querySelector('.sheet-grip')) {
+      const g = document.createElement('div'); g.className = 'sheet-grip';
+      const x = document.createElement('button'); x.className = 'sheet-close';
+      x.type = 'button'; x.textContent = '✕'; x.onclick = close;
+      side.prepend(x); side.prepend(g);
+    }
+  }).observe(side, {attributes: true, attributeFilter: ['class']});
 })();
 
 applyLang(); cartBadge();

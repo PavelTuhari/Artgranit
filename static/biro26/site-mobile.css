@@ -1,0 +1,171 @@
+/* =====================================================================
+   OfficePlus — stratul MOBIL "ca la lideri" (Amazon/eMAG/Wildberries).
+   RO: se incarca DUPA site-responsive.css si adauga doar comportamentul
+   de telefon: bara de navigare fixa jos (app-like), antet lipicios cu
+   cautarea mereu la indemina, filtrele ca bottom-sheet, bara fixa
+   "Adauga in cos" pe fisa produsului, tinte tactile >=44px si insetele
+   de siguranta iPhone (notch / home-indicator, env(safe-area-inset-*)).
+   EN: mobile-first layer: fixed bottom tab bar, sticky search header,
+   filters as a bottom sheet, sticky PDP buy bar, 44px touch targets,
+   iOS/Android safe-area support. Desktop ramine neatins.
+   ===================================================================== */
+
+/* bara de jos exista DOAR pe telefon */
+.bnav { display: none; }
+.sheet-overlay { display: none; }
+
+@media (max-width: 640px) {
+
+  /* ── platforma: fara zoom la focus (fonturi >=16px pe inputuri),
+        fara flash albastru la tap, fara dublu-tap-zoom pe butoane ── */
+  html { -webkit-text-size-adjust: 100%; }
+  * { -webkit-tap-highlight-color: transparent; }
+  a, button, .fchip, .tab, .pg { touch-action: manipulation; }
+  input, select, textarea { font-size: 16px !important; }
+
+  /* loc pentru bara de jos + insetul home-indicator (iPhone X+) */
+  body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── antet lipicios: cautarea ramine mereu sus (stil lider) ──
+     .homepage avea overflow:hidden — anuleaza sticky, il deschidem */
+  .homepage { overflow: visible; }
+  .topbar { display: none; }              /* pe telefon nu aduce nimic */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  }
+  .navbar { padding: 8px 12px 10px; gap: 8px 10px; }
+  .logo, .logo img { width: 128px; }
+  .search-field { height: 44px; border-radius: 12px; }
+  .catalog-btn { display: none; }         /* Catalogul e in bara de jos */
+  /* pictogramele din dreapta dubleaza bara de jos — lasam doar telefonul */
+  .nav-actions .icon-btn { display: none; }
+
+  /* ── bara de navigare fixa jos (app-like) ─────────────────────── */
+  .bnav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 70;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 2px calc(2px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.96);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid #e6e6e6;
+  }
+  .bnav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    color: #8a8a8a;
+    font-size: 10.5px;
+    font-weight: 600;
+    position: relative;
+  }
+  .bnav a.on { color: #194681; }
+  .bnav svg { width: 23px; height: 23px; }
+  .bnav .badge {
+    top: -2px;
+    right: calc(50% - 20px);
+    min-width: 16px; height: 16px;
+    line-height: 16px; font-size: 10px;
+  }
+
+  /* ── catalog: filtrele ca BOTTOM-SHEET (nu impinge continutul) ── */
+  .plp-side.open {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    top: auto;
+    max-height: 78vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 80;
+    background: #fff;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+  /* minerul si butonul de inchidere (injectate din site.js) */
+  .sheet-grip {
+    width: 44px; height: 5px;
+    border-radius: 99px;
+    background: #d8d8d8;
+    margin: 4px auto 10px;
+  }
+  .sheet-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    width: 34px; height: 34px;
+    border: 0; border-radius: 50%;
+    background: #f1f1f1;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .sheet-overlay.on {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 75;
+    background: rgba(15, 23, 42, 0.45);
+  }
+  body.sheet-open { overflow: hidden; }
+  .ftree { max-height: none; }
+  .fchip { min-height: 34px; display: inline-flex; align-items: center; }
+
+  /* butonul "Filtre" — plutitor linga sortare, mereu vizibil */
+  .plp-ftoggle {
+    height: 40px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+
+  /* ── fisa produsului: bara fixa "Adauga in cos" jos (stil lider) ── */
+  .pdp-qty {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    z-index: 60;
+    margin: 0;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.97);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid #e6e6e6;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.10);
+    gap: 10px;
+  }
+  .pdp-qty > span { display: none; }       /* eticheta "Cantitate" — evidenta */
+  .pdp-qty input { width: 62px; height: 44px; flex: none; }
+  .pdp-qty .btn-big { flex: 1; width: auto; height: 46px; margin: 0; }
+  /* continutul nu se ascunde sub bara */
+  .pdp { padding-bottom: 84px; }
+
+  /* ── marunte de finete ────────────────────────────────────────── */
+  .breadcrumbs { font-size: 12px; overflow-x: auto; white-space: nowrap;
+    scrollbar-width: none; }
+  .breadcrumbs::-webkit-scrollbar { display: none; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; }
+  .toast { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .pager .pg { min-width: 42px; height: 42px; }
+  .row-nav .nav-pill { width: 42px; height: 42px; }
+  .footer { padding-bottom: 8px; }
+}
+
+/* tableta: doar antetul lipicios, fara bara de jos */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .homepage { overflow: visible; }
+  .header { position: sticky; top: -40px; z-index: 50;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06); }
+}
