@@ -165,6 +165,17 @@
   .hero-slide-art { width: 220px; height: 220px; right: -70px; bottom: -70px; }
   .slider-controls { margin-top: 10px; }
 
+  /* fisa produsului: poza nu iese din ecran, titlul lung se rupe */
+  .pdp-img { min-height: 0; height: 260px; padding: 12px; }
+  .pdp-img img { max-width: 100%; max-height: 236px; }
+  .pdp-name { font-size: 19px; overflow-wrap: anywhere; }
+  .pdp-code { overflow-wrap: anywhere; }
+  .pdp-price { font-size: 24px; margin: 6px 0 2px; }
+  .pdp-cols { flex-direction: column; gap: 16px; }
+  .pdp-sec, .pdp-credit { min-width: 0; }
+  .pdp-desc, .pdp-desc * { max-width: 100%; overflow-wrap: anywhere; }
+  .pdp-desc img, .pdp-desc table { max-width: 100% !important; height: auto; }
+
   /* ── marunte de finete ────────────────────────────────────────── */
   .breadcrumbs { font-size: 12px; overflow-x: auto; white-space: nowrap;
     scrollbar-width: none; }
