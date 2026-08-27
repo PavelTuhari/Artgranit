@@ -1002,6 +1002,36 @@ class Biro26Store:
                 "  GROUP BY d.CTSC) rz ON rz.SC = c.COD "
                 "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = c.COD "
                 "ORDER BY c.rn")
+            # RO: raspunsul CAUTARII se tine in cache 5 minute, cu tot cu
+            #     pagina. Cautarea costa ~4-6 s pentru ca descrierile sint in
+            #     CLOB fara index de text, iar Oracle le citeste pe toate la
+            #     fiecare cerere. Nu putem sari peste ele fara sa PIERDEM
+            #     rezultate (verificat: "ergonomic" scade de la 406 la 143
+            #     produse), deci pastram cautarea completa si o facem sa se
+            #     plateasca o singura data: paginile urmatoare, revenirile si
+            #     ceilalti vizitatori o primesc gata. Solutia definitiva ar fi
+            #     un index Oracle Text pe descrieri — decizie separata, cere
+            #     DDL pe baza de productie.
+            # EN: cache the full search response (page included) for 5 minutes;
+            #     skipping the CLOB scan would silently drop results.
+            if search:
+                import hashlib as _hh
+                skey = "srch:" + _hh.md5(
+                    (outer + repr(sorted(params.items())) + str(with_count))
+                    .encode()).hexdigest()
+                hit = _cached(skey, 300, lambda: _result(
+                    Biro26DB().execute_query(outer, params)))
+                if hit.get("success"):
+                    res = dict(hit)
+                    if with_count:
+                        import hashlib as _h2
+                        ck2 = "cnt:" + _h2.md5(
+                            (count_sql + repr(sorted(params.items()))).encode()
+                        ).hexdigest()
+                        res["total"] = _cached(ck2, 300, lambda: (
+                            lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                                _rows(Biro26DB().execute_query(count_sql, params))))
+                    return res
             r = Biro26DB().execute_query(outer, params)
             res = _result(r)
             # RO: sursele fara HTTPS (impreso.md) trec prin proxy, altfel browserul
