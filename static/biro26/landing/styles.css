@@ -754,7 +754,7 @@ img {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 48px;
+  font-size: 30px;
   opacity: 0.35;
 }
 
@@ -769,7 +769,7 @@ img {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 48px;
+  font-size: 30px;
   opacity: 0.45;
 }
 
