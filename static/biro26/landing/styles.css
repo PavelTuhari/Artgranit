@@ -735,10 +735,11 @@ img {
 }
 
 .product-img {
-  height: 160px;
-  border-radius: 10px;
-  background: #f6f6f6 center/cover no-repeat;
-  margin-bottom: 4px;
+  height: 118px;
+  border-radius: 8px;
+  background: #f6f6f6 center/contain no-repeat;
+  background-color: #f6f6f6;
+  margin-bottom: 2px;
 }
 
 .product-img.p-markers {
