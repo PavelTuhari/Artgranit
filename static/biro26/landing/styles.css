@@ -701,6 +701,15 @@ img {
   gap: 5px;
 }
 
+/* RO: cardurile-schelet (in timpul incarcarii) nu au continut, iar de cind
+   min-height a disparut se turteau la 0 — pagina parea GOALA pina veneau
+   datele. Le dam inaltimea aproximativa a unui card real.
+   EN: loading skeletons need their own height, else the grid looks empty. */
+.product-card.skel {
+  min-height: 252px;
+  background: #f3f4f6;
+}
+
 .product-card:hover {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   border-color: #d1d1d1;
