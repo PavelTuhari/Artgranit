@@ -81,6 +81,11 @@
   /* ── catalog: filtrele ca BOTTOM-SHEET (nu impinge continutul) ── */
   .plp-side.open {
     position: fixed;
+    /* RO: `width` bate `right` la pozitionare fixa, iar blocul <style> din
+       site_base (width:280px) vine DUPA site-responsive — de aceea sheet-ul
+       ramasese ingust. Selectorul .plp-side.open are specificitate mai mare.
+       EN: width beats right on fixed elements; reset it so left/right rule. */
+    width: auto;
     left: 0; right: 0; bottom: 0;
     top: auto;
     max-height: 78vh;
@@ -92,6 +97,8 @@
     box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
     padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
   }
+  /* spatiu pentru butonul de inchidere, ca sa nu acopere primul filtru */
+  .plp-side.open > .fbox:first-of-type { margin-top: 6px; }
   /* minerul si butonul de inchidere (injectate din site.js) */
   .sheet-grip {
     width: 44px; height: 5px;
@@ -100,9 +107,8 @@
     margin: 4px auto 10px;
   }
   .sheet-close {
-    position: sticky;
-    top: 0;
-    float: right;
+    position: absolute;
+    top: 10px; right: 14px;
     width: 34px; height: 34px;
     border: 0; border-radius: 50%;
     background: #f1f1f1;
