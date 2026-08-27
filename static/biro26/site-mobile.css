@@ -166,7 +166,9 @@
   .slider-controls { margin-top: 10px; }
 
   /* fisa produsului: poza nu iese din ecran, titlul lung se rupe */
-  .pdp-img { min-height: 0; height: 260px; padding: 12px; }
+  /* latimea 520px vine din blocul <style> (desktop) si iesea din ecran */
+  .pdp-img { width: 100%; max-width: 100%; min-height: 0; height: 260px;
+    padding: 12px; }
   .pdp-img img { max-width: 100%; max-height: 236px; }
   .pdp-name { font-size: 19px; overflow-wrap: anywhere; }
   .pdp-code { overflow-wrap: anywhere; }
