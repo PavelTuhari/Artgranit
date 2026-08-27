@@ -8123,10 +8123,53 @@ def _biro26_rate_plans():
     return liber_pct, liber_min, rate_plans
 
 
-def _biro26_site_ctx():
-    """RO: contextul comun al paginilor noului site Figma.
-    EN: shared context for the new-site pages."""
+def _biro26_price_field():
+    """RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
+    vizitatorii vad preturile pentru persoane fizice."""
     from models.biro26_oracle_store import Biro26Store
+    try:
+        from flask import session as _s
+        _cl = _s.get('biro26_client')
+        if _cl:
+            return Biro26Store.client_price_field(_cl['univers_cod'])
+        # RO: pentru vizitator e o simpla setare — o citim prin cache-ul
+        #     comun, altfel fiecare pagina mai facea o interogare Oracle.
+        # EN: for anonymous visitors this is just a setting — read it cached.
+        from models.biro26_oracle_store import _cached
+        return _cached('set:SHOP_PRICE_FIZ', 300,
+                       lambda: Biro26Store.get_setting('SHOP_PRICE_FIZ', 'retail1'))
+    except Exception:                                        # noqa: BLE001
+        return 'retail1'
+
+
+_SITE_CTX_CACHE = {}
+
+
+def _biro26_site_ctx():
+    """RO: contextul comun al paginilor vitrinei.
+
+    Se construieste la FIECARE pagina si face 5-6 interogari Oracle (tarife de
+    rate, setari, tipul de pret), fiecare printr-un subproces thick — pe
+    conturul lent pagina ajungea la ~8 s. Partea care nu depinde de client
+    (tarife + setari) se tine 60 s in cache; pretul dupa TIPUL clientului se
+    recalculeaza mereu, ca sa nu amestecam persoane fizice cu juridice.
+    EN: cache the client-independent part for 60 s; per-client price always
+    recomputed.
+    """
+    import time as _t
+    from models.biro26_oracle_store import Biro26Store
+    # RO: cheia include GAZDA — ga_id (Google Analytics) se pune doar pe
+    #     domeniul public, deci contextul difera de la un domeniu la altul.
+    # EN: key by host — ga_id is domain-dependent.
+    try:
+        _hk = (request.host or '').lower()
+    except Exception:                                        # noqa: BLE001
+        _hk = ''
+    _c = _SITE_CTX_CACHE.get(_hk)
+    if _c and _c["exp"] > _t.time():
+        base = dict(_c["val"])
+        base["price_field"] = _biro26_price_field()
+        return base
     liber_pct, liber_min, rate_plans = _biro26_rate_plans()
     try:
         brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
@@ -8151,14 +8194,7 @@ def _biro26_site_ctx():
         ga_id = ''   # RO: doar pe domeniul public / EN: public host only
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
     #     vizitatorii vad preturile pentru persoane fizice
-    try:
-        from flask import session as _s
-        _cl = _s.get('biro26_client')
-        price_field = (Biro26Store.client_price_field(_cl['univers_cod'])
-                       if _cl else Biro26Store.get_setting('SHOP_PRICE_FIZ',
-                                                           'retail1'))
-    except Exception:
-        price_field = 'retail1'
+    price_field = _biro26_price_field()
     # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
     #     pentru ele, restul raman badge text. Altfel browserul incerca sa
     #     incarce fisiere inexistente si consola se umplea de 404
@@ -8173,14 +8209,16 @@ def _biro26_site_ctx():
                            and not f.startswith(('.', '_')))
     except Exception:
         pay_logos = []
-    return {'app_name': Config.BIRO26_APP_NAME,
-            'liber_pct': liber_pct, 'liber_min': liber_min,
-            'rate_plans': rate_plans,
-            'brand_filter': brand_filter,
-            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
-            'price_field': price_field,
-            'pay_logos': pay_logos,
-            'ga_id': ga_id}
+    ctx = {'app_name': Config.BIRO26_APP_NAME,
+           'liber_pct': liber_pct, 'liber_min': liber_min,
+           'rate_plans': rate_plans,
+           'brand_filter': brand_filter,
+           'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
+           'price_field': price_field,
+           'pay_logos': pay_logos,
+           'ga_id': ga_id}
+    _SITE_CTX_CACHE[_hk] = {"exp": _t.time() + 60, "val": ctx}
+    return ctx
 
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
