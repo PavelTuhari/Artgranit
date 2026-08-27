@@ -149,6 +149,16 @@
   /* continutul nu se ascunde sub bara */
   .pdp { padding-bottom: 84px; }
 
+  /* hero pe telefon: mai scund, titlul nu se sparge in cuvinte-turn */
+  .hero { padding-top: 8px; }
+  .hero-slide-visual { height: 300px; border-radius: 14px; }
+  .hero-slide-content { left: 18px; top: 20px; right: 18px; }
+  .hero-title { font-size: 23px; margin-bottom: 10px; }
+  .hero-sub { font-size: 13px; margin-bottom: 16px; }
+  .btn-orange { height: 42px; padding: 0 20px; font-size: 14.5px; }
+  .hero-slide-art { width: 220px; height: 220px; right: -70px; bottom: -70px; }
+  .slider-controls { margin-top: 10px; }
+
   /* ── marunte de finete ────────────────────────────────────────── */
   .breadcrumbs { font-size: 12px; overflow-x: auto; white-space: nowrap;
     scrollbar-width: none; }
