@@ -31,7 +31,6 @@
   <link rel="icon" href="/static/biro26/landing/assets/logo.png">
   <link rel="stylesheet" href="{{ asset('biro26/landing/styles.css') }}">
   <link rel="stylesheet" href="{{ asset('biro26/site-responsive.css') }}">
-  <link rel="stylesheet" href="{{ asset('biro26/site-mobile.css') }}">
   <!-- RO: stilurile OFICIALE ale butonului maib liber (materialele bancii) -->
   <link rel="stylesheet" href="{{ asset('biro26/maib-liber.css') }}">
   <style>
@@ -184,6 +183,11 @@
     .breadcrumbs a{color:#194681}
     {% block css %}{% endblock %}
   </style>
+  <!-- RO: stratul MOBIL se incarca ULTIMUL, dupa blocul <style> de mai
+       sus: la specificitate egala cistiga regula care vine ultima, iar
+       altfel stilurile de desktop din <style> anulau adaptarile de
+       telefon (poza PDP, titluri). EN: mobile layer must come last. -->
+  <link rel="stylesheet" href="{{ asset('biro26/site-mobile.css') }}">
 </head>
 <body>
   <div class="page-shell">
