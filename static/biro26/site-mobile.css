@@ -199,6 +199,12 @@
   .tabs::-webkit-scrollbar { display: none; }
   .tab { flex: none; }
   .toast { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  /* RO: butonul plutitor al ghidului (#opGuideBtn, alta echipa) statea peste
+     fila "Cont" din bara de jos — il ridicam deasupra barei.
+     EN: floating guide button must clear the bottom tab bar. */
+  #opGuideBtn { bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
+  #opGuide { bottom: calc(134px + env(safe-area-inset-bottom, 0px)) !important;
+    max-height: 60vh; }
   .pager .pg { min-width: 42px; height: 42px; }
   .row-nav .nav-pill { width: 42px; height: 42px; }
   .footer { padding-bottom: 8px; }
