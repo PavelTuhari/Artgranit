@@ -1,0 +1,87 @@
+-- RO: conturul Oracle al modulului Partner API (prefix PAPI_), Oracle 11g.
+--     Trei tabele normalizate: partenerii, token-urile lor (doar amprente
+--     SHA-256) si jurnalul append-only al evenimentelor.
+-- EN: Partner API schema (PAPI_ prefix): partners, token fingerprints,
+--     append-only event log. Oracle 11g compatible.
+
+CREATE TABLE PAPI_PARTNER (
+    ID           NUMBER        NOT NULL,
+    EMAIL        VARCHAR2(200) NOT NULL,
+    PWD_HASH     VARCHAR2(300) NOT NULL,
+    NAME         VARCHAR2(200),
+    -- RO: clientul ERP (TMS_UNIVERS.COD) pe care se emit comenzile si dupa
+    --     care se alege coloana de pret / EN: the ERP client behind orders
+    UNIVERS_COD  NUMBER        NOT NULL,
+    ENABLED      CHAR(1)       DEFAULT '1' NOT NULL,
+    CREATED      DATE          DEFAULT SYSDATE NOT NULL,
+    LAST_LOGIN   DATE,
+    CONSTRAINT PK_PAPI_PARTNER PRIMARY KEY (ID),
+    CONSTRAINT UQ_PAPI_PARTNER_EMAIL UNIQUE (EMAIL)
+)
+/
+
+CREATE SEQUENCE PAPI_PARTNER_SEQ START WITH 1 INCREMENT BY 1
+/
+
+CREATE OR REPLACE TRIGGER PAPI_PARTNER_BI
+BEFORE INSERT ON PAPI_PARTNER FOR EACH ROW
+WHEN (NEW.ID IS NULL)
+BEGIN
+  SELECT PAPI_PARTNER_SEQ.NEXTVAL INTO :NEW.ID FROM dual;
+END;
+/
+
+CREATE TABLE PAPI_TOKEN (
+    ID           NUMBER       NOT NULL,
+    PARTNER_ID   NUMBER       NOT NULL,
+    KIND         VARCHAR2(10) NOT NULL,           -- access | refresh
+    TOKEN_HASH   VARCHAR2(64) NOT NULL,           -- SHA-256, nu tokenul
+    EXPIRES      DATE         NOT NULL,
+    REVOKED      CHAR(1)      DEFAULT '0' NOT NULL,
+    CREATED      DATE         DEFAULT SYSDATE NOT NULL,
+    CONSTRAINT PK_PAPI_TOKEN PRIMARY KEY (ID),
+    CONSTRAINT UQ_PAPI_TOKEN_HASH UNIQUE (TOKEN_HASH),
+    CONSTRAINT FK_PAPI_TOKEN_PARTNER FOREIGN KEY (PARTNER_ID)
+        REFERENCES PAPI_PARTNER (ID)
+)
+/
+
+CREATE INDEX IX_PAPI_TOKEN_PARTNER ON PAPI_TOKEN (PARTNER_ID, KIND, REVOKED)
+/
+
+CREATE SEQUENCE PAPI_TOKEN_SEQ START WITH 1 INCREMENT BY 1
+/
+
+CREATE OR REPLACE TRIGGER PAPI_TOKEN_BI
+BEFORE INSERT ON PAPI_TOKEN FOR EACH ROW
+WHEN (NEW.ID IS NULL)
+BEGIN
+  SELECT PAPI_TOKEN_SEQ.NEXTVAL INTO :NEW.ID FROM dual;
+END;
+/
+
+-- RO: jurnal append-only (autentificari, comenzi, sincronizari Ultra) —
+--     tabela proprie a modulului, nu un "event log" generic.
+CREATE TABLE PAPI_LOG (
+    ID          NUMBER        NOT NULL,
+    PARTNER_ID  NUMBER,
+    TS          DATE          DEFAULT SYSDATE NOT NULL,
+    EVENT       VARCHAR2(40)  NOT NULL,
+    DETAIL      VARCHAR2(1000),
+    CONSTRAINT PK_PAPI_LOG PRIMARY KEY (ID)
+)
+/
+
+CREATE INDEX IX_PAPI_LOG_TS ON PAPI_LOG (TS)
+/
+
+CREATE SEQUENCE PAPI_LOG_SEQ START WITH 1 INCREMENT BY 1
+/
+
+CREATE OR REPLACE TRIGGER PAPI_LOG_BI
+BEFORE INSERT ON PAPI_LOG FOR EACH ROW
+WHEN (NEW.ID IS NULL)
+BEGIN
+  SELECT PAPI_LOG_SEQ.NEXTVAL INTO :NEW.ID FROM dual;
+END;
+/

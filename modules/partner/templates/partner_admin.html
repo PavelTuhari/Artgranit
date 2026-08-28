@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partner API — administrare</title>
+<style>
+  body{margin:0;font:14px/1.5 Inter,system-ui,sans-serif;background:#f2f4f8;color:#1a1a1a}
+  .bar{background:#194681;color:#fff;padding:12px 20px;font-weight:700}
+  .bar a{color:#ffd23a;text-decoration:none;margin-left:14px;font-weight:600;font-size:13px}
+  .wrap{max-width:1080px;margin:20px auto;padding:0 14px}
+  .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;
+        box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  h2{margin:.2em 0 .6em;font-size:17px;color:#194681}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid #e5e7eb;padding:7px 8px;text-align:left}
+  input,select{padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+  .btn{background:#194681;color:#fff;border:0;border-radius:8px;padding:8px 16px;
+       font-weight:700;cursor:pointer}
+  .btn.orange{background:#ea6f21}
+  .muted{color:#64748b;font-size:12.5px}
+  .ok{color:#16a34a}.err{color:#dc2626}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+  .row label{display:block;font-size:12px;color:#475569;margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="bar">🤝 Partner API — administrare
+  <a href="api-documentation" target="_blank">Documentația API ↗</a>
+  <a href="/UNA.md/orasldev/modules">← Portal</a></div>
+<div class="wrap">
+
+<div class="card">
+  <h2>Parteneri (conturi API)</h2>
+  <p class="muted">Fiecare partener e legat de un client ERP (TMS_UNIVERS.COD):
+    pe acel client se emit comenzile și după el se alege coloana de preț.</p>
+  <table id="ptab"><thead><tr><th>ID</th><th>Email</th><th>Denumire</th>
+    <th>Client ERP</th><th>Activ</th><th>Ultima logare</th></tr></thead>
+    <tbody></tbody></table>
+  <h2 style="margin-top:16px">Adaugă / modifică</h2>
+  <div class="row">
+    <div><label>ID (gol = nou)</label><input id="f-id" style="width:70px"></div>
+    <div><label>Email</label><input id="f-email" style="width:220px"></div>
+    <div><label>Parola (gol = neschimbată)</label><input id="f-pwd" style="width:160px"></div>
+    <div><label>Denumire</label><input id="f-name" style="width:180px"></div>
+    <div><label>COD client ERP</label><input id="f-cod" type="number" style="width:110px"></div>
+    <div><label>Activ</label><select id="f-en"><option value="1">Da</option>
+      <option value="0">Nu</option></select></div>
+    <button class="btn" onclick="save()">💾 Salvează</button>
+    <span id="p-info"></span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Integrare Ultra (noi ca partener ultra.md)</h2>
+  <p class="muted">Catalogul Ultra intră în tamponul BIRO26_GOODS
+    (SHEET='ULTRA'), publicarea rămâne pe pipeline-ul standard de import.
+    Prima sincronizare = tot catalogul; următoarele = incremental
+    (/api/changes).</p>
+  <div class="row">
+    <div><label>Base URL</label><input id="u-base" style="width:280px"></div>
+    <div><label>Utilizator (dealer)</label><input id="u-user" style="width:200px"></div>
+    <div><label>Parola</label><input id="u-pwd" type="password" style="width:160px"
+      placeholder="(neschimbată)"></div>
+    <button class="btn" onclick="saveUltra()">💾 Salvează</button>
+    <button class="btn" onclick="testUltra()">🔌 Testează conexiunea</button>
+    <button class="btn orange" onclick="syncUltra(false)">⟳ Sincronizare incrementală</button>
+    <button class="btn orange" onclick="syncUltra(true)">⟳⟳ Sincronizare completă</button>
+  </div>
+  <div class="muted" id="u-info"></div>
+</div>
+
+<div class="card">
+  <h2>Jurnal (ultimele 200)</h2>
+  <table id="ltab"><thead><tr><th>Când</th><th>Eveniment</th><th>Partener</th>
+    <th>Detalii</th></tr></thead><tbody></tbody></table>
+</div>
+</div>
+<script>
+const j = (u, o) => fetch(u, Object.assign({headers: {'Content-Type': 'application/json'},
+  credentials: 'include'}, o)).then(r => r.json());
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
+  c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+
+async function load() {
+  const r = await j('admin/partners');
+  document.querySelector('#ptab tbody').innerHTML = (r.data || []).map(p =>
+    `<tr style="cursor:pointer" onclick='pick(${JSON.stringify(p)})'>
+     <td>${p.id}</td><td>${esc(p.email)}</td><td>${esc(p.name || '')}</td>
+     <td>${p.univers_cod} · ${esc(p.client_name || '?')}</td>
+     <td>${p.enabled === '1' ? '✅' : '⛔'}</td>
+     <td>${esc(p.last_login || '—')}</td></tr>`).join('') ||
+    '<tr><td colspan="6" class="muted">Niciun partener încă</td></tr>';
+  const u = await j('admin/ultra/settings');
+  if (u.data) {
+    document.getElementById('u-base').value = u.data.base || '';
+    document.getElementById('u-user').value = u.data.username || '';
+    document.getElementById('u-info').textContent =
+      (u.data.password_set ? 'Parola: setată. ' : 'Parola: NEsetată. ') +
+      (u.data.last_sync ? 'Ultima sincronizare: ' + u.data.last_sync : '');
+  }
+  const l = await j('admin/log');
+  document.querySelector('#ltab tbody').innerHTML = (l.data || []).map(x =>
+    `<tr><td>${esc(x.ts)}</td><td>${esc(x.event)}</td><td>${esc(x.email || '')}</td>
+     <td>${esc(x.detail || '')}</td></tr>`).join('');
+}
+function pick(p) {
+  for (const [f, k] of [['f-id','id'],['f-email','email'],['f-name','name'],
+                        ['f-cod','univers_cod']])
+    document.getElementById(f).value = p[k] == null ? '' : p[k];
+  document.getElementById('f-en').value = p.enabled === '1' ? '1' : '0';
+  document.getElementById('f-pwd').value = '';
+}
+async function save() {
+  const d = {id: document.getElementById('f-id').value || null,
+    email: document.getElementById('f-email').value,
+    password: document.getElementById('f-pwd').value || null,
+    name: document.getElementById('f-name').value,
+    univers_cod: document.getElementById('f-cod').value,
+    enabled: document.getElementById('f-en').value};
+  const r = await j('admin/partners', {method: 'POST', body: JSON.stringify(d)});
+  document.getElementById('p-info').innerHTML = r.success ?
+    '<span class="ok">Salvat ✓</span>' :
+    '<span class="err">' + esc(r.error) + '</span>';
+  if (r.success) load();
+}
+async function saveUltra() {
+  const r = await j('admin/ultra/settings', {method: 'POST', body: JSON.stringify({
+    base: document.getElementById('u-base').value,
+    username: document.getElementById('u-user').value,
+    password: document.getElementById('u-pwd').value || null})});
+  document.getElementById('u-info').textContent = r.success ? 'Salvat ✓' : 'Eroare';
+  load();
+}
+async function testUltra() {
+  document.getElementById('u-info').textContent = 'Se testează…';
+  const r = await j('admin/ultra/test', {method: 'POST', body: '{}'});
+  document.getElementById('u-info').textContent =
+    r.success ? '✅ ' + (r.message || 'conectat') : '❌ ' + (r.error || 'eșuat');
+}
+async function syncUltra(full) {
+  document.getElementById('u-info').textContent =
+    'Sincronizare' + (full ? ' completă' : '') + ' pornită — poate dura câteva minute…';
+  const r = await j('admin/ultra/sync', {method: 'POST',
+    body: JSON.stringify({full: full})});
+  document.getElementById('u-info').textContent = r.success ?
+    `✅ ${r.mode}: văzute ${r.seen}, scrise în tampon ${r.written}` :
+    '❌ ' + (r.error || 'eșuat');
+  load();
+}
+load();
+</script>
+</body></html>

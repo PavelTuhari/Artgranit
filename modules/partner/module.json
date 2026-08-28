@@ -1,0 +1,20 @@
+{
+  "title": {
+    "ro": "Partner API (B2B)",
+    "ru": "Partner API (B2B)",
+    "en": "Partner API (B2B)"
+  },
+  "icon": "🤝",
+  "order": 62,
+  "url": "/UNA.md/orasldev/partner/",
+  "descr": {
+    "ro": "API B2B pentru partenerii officeplus.md (contract identic cu Ultra B2B API V1) + integrarea noastră ca partener ultra.md: sincronizarea catalogului Ultra în ERP-ul una.md.",
+    "ru": "B2B API для партнёров officeplus.md (контракт идентичен Ultra B2B API V1) + наша интеграция как партнёра ultra.md: синхронизация каталога Ultra в ERP una.md.",
+    "en": "B2B API for officeplus.md partners (Ultra B2B API V1 contract) + our Ultra dealer integration syncing their catalog into the una.md ERP."
+  },
+  "sql_prefix": "PAPI",
+  "pages": {
+    "partner.admin_page": {"ro": "Administrare parteneri", "ru": "Управление партнёрами", "en": "Partner administration"},
+    "partner.api_documentation": {"ro": "Documentația API", "ru": "Документация API", "en": "API documentation"}
+  }
+}
