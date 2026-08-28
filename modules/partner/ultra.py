@@ -101,8 +101,15 @@ class UltraClient:
         """RO: generator peste TOT catalogul, paginat cite 1000."""
         offset = 0
         while True:
+            # RO: sort=name_asc — paginarea Ultra fara sortare e INSTABILA:
+            #     prima trecere a adus 38.706 rinduri cu doar 26.010 uuid-uri
+            #     unice (dubluri intre pagini => si goluri). O ordine fixa
+            #     minimizeaza alunecarea intre pagini.
+            # EN: unsorted pagination proved unstable (dupes across pages);
+            #     a fixed sort keeps the window from drifting.
             r = self._req("GET", "/product",
-                          params={"limit": PAGE, "offset": offset})
+                          params={"limit": PAGE, "offset": offset,
+                                  "sort": "name_asc"})
             if not r.get("success"):
                 raise RuntimeError(f"GET /product: {r.get('error')}")
             body = r["data"]
@@ -270,11 +277,12 @@ class UltraClient:
         since = Biro26Store.get_setting("PARTNER_ULTRA_SINCE", "")
         try:
             if full or not since:
-                rows, seen = [], 0
+                rows, seen, uniq = [], 0, set()
                 for p in self.iter_products():
                     seen += 1
                     row = self._staging_row(p)
-                    if row:
+                    if row and row["guid"] not in uniq:
+                        uniq.add(row["guid"])
                         rows.append(row)
                 written = self.upsert_staging(rows)
                 mode = "full"
