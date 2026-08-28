@@ -143,32 +143,75 @@ class UltraClient:
 
     # ── scrierea in tampon (BIRO26_GOODS) ─────────────────────────────
     @staticmethod
+    def _money(v: Any) -> Optional[float]:
+        """RO: pretul REAL al Ultra e un obiect {amount, currency:{rate}} —
+        dealer-ul primeste user_price in USD cu cursul zilei, retailul in
+        MDL. Convertim totul in MDL (amount * rate). Documentatia lor arata
+        numere simple; realitatea (verificata 28.08.2026) arata dict-uri.
+        EN: Ultra prices are {amount, currency:{rate}} dicts — normalise to
+        MDL; plain numbers are accepted too."""
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            try:
+                amount = float(v.get("amount") or 0)
+                rate = float(((v.get("currency") or {}).get("rate")) or 1)
+                mdl = round(amount * rate, 2)
+                return mdl if mdl > 0 else None
+            except (TypeError, ValueError):
+                return None
+        try:
+            f = round(float(v), 2)
+            return f if f > 0 else None
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _lang(v: Any, *keys: str) -> str:
+        """RO: cimpurile multilingve vin cind dict, cind JSON-STRING
+        ('{"ro":...}') — realitatea API-ului Ultra difera de documentatie.
+        EN: multilingual fields arrive as dicts OR JSON strings."""
+        if isinstance(v, str) and v.startswith("{"):
+            try:
+                v = json.loads(v)
+            except ValueError:
+                return v
+        if isinstance(v, dict):
+            for k in keys:
+                if v.get(k):
+                    return str(v[k])
+            return ""
+        return str(v or "")
+
+    @staticmethod
     def _staging_row(p: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """RO: obiectul Ultra -> rindul tabelei-tampon. Stub-urile 'fara
         imagine' se arunca (lectia impreso)."""
-        name = p.get("product_name") or {}
-        cat = p.get("category") or {}
-        cat_name = cat.get("name") or {}
-        hierarchy = cat.get("hierarchy") or []
         images = [u for u in (p.get("image_urls") or []) if u
                   and "noimage" not in u.lower() and "placeholder" not in u.lower()]
         code = p.get("ultra_code") or p.get("code")
         uuid = p.get("ultra_uuid") or p.get("uuid")
         if not (code and uuid):
             return None
-        price = p.get("fixed_price") or p.get("price_d") or p.get("user_price")
+        name_ro = UltraClient._lang(p.get("product_name"), "ro", "ru", "en")
+        cat = p.get("category") or {}
+        hierarchy = cat.get("hierarchy") or []
+        cat_ro = UltraClient._lang(cat.get("name"), "ro", "ru", "en")
+        retail = UltraClient._money(p.get("fixed_price"))             or UltraClient._money(p.get("promo_b2b"))
+        dealer = UltraClient._money(p.get("user_price"))             or UltraClient._money(p.get("price_d"))
         return {
             "guid": str(uuid)[:100],
             "articol": str(code)[:60],
-            "denumire": str((name.get("ro") or name.get("ru") or ""))[:500],
+            "denumire": name_ro[:500],
             "brand": str((p.get("brand") or {}).get("name") or "")[:100] or None,
-            "grupa": (str(hierarchy[0])[:200] if hierarchy else None),
-            "categorie": (str(hierarchy[-1])[:200] if len(hierarchy) > 1
-                          else str(cat_name.get("ro") or "")[:200] or None),
+            "grupa": (UltraClient._lang(
+                hierarchy[0] if hierarchy else cat_ro, "ro", "ru")[:200] or None),
+            "categorie": (UltraClient._lang(
+                hierarchy[-1], "ro", "ru")[:200] if len(hierarchy) > 1
+                else (cat_ro[:200] or None)),
             "stoc": int(p.get("quantity") or 0),
-            "retail1": (str(price) if price is not None else None),
-            "angro": (str(p.get("user_price"))
-                      if p.get("user_price") is not None else None),
+            "retail1": (str(retail) if retail is not None else None),
+            "angro": (str(dealer) if dealer is not None else None),
             "photo": (images[0][:1000] if images else None),
         }
 
