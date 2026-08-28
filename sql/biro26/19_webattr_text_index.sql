@@ -22,3 +22,19 @@ CREATE INDEX IX_WEBATTR_DESCR_RO ON TMS_MPT_WEBATTR (DESCRIERE_NON_DIACR_RO)
 --    WHERE INDEX_NAME = 'IX_WEBATTR_DESCR_RO';   -- VALID / VALID
 -- RO: stergere (revenire la scanare — codul o face automat) / EN: rollback
 --   DROP INDEX IX_WEBATTR_DESCR_RO;
+
+-- ── RO: index lipsa pe cheia de legatura a fidului ────────────────────
+-- BIRO26_GOODS (201.212 randuri) se leaga de TMS_UNIVERS prin COD_UNIVERS,
+-- dar coloana NU avea index: fiecare pagina de catalog facea legatura fara el.
+-- Fidul chiar are duplicate (3.631 de COD_UNIVERS apar de mai multe ori),
+-- deci deduplicarea ROW_NUMBER ramine necesara — dar acum are pe ce se sprijini.
+-- EN: the feed's join key had no index; the dedupe stays (3,631 real dupes).
+CREATE INDEX IX_BIRO26_GOODS_CODUNIV ON BIRO26_GOODS (COD_UNIVERS);
+
+-- RO: dupa creare — statistici proaspete, altfel optimizatorul nu foloseste
+--     indexul nou. EN: gather stats so the optimizer picks the new index.
+BEGIN
+  DBMS_STATS.GATHER_TABLE_STATS(USER, 'BIRO26_GOODS',
+                                cascade => TRUE, estimate_percent => 10);
+END;
+/
