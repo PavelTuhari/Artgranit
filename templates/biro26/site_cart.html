@@ -623,27 +623,6 @@ function crIs0(p) { return /0\s*%/.test(p.name || ''); }
 // EN: EFFECTIVE markup = plan commission + the org's markup replacing the
 //     undelivered transport on credit payments.
 function crEffMarkup(pl, o) { return (pl.markup_pct || 0) + (o.transport_markup_pct || 0); }
-/* RO: COMISIONUL efectiv, in procente, exact cel dupa care se calculeaza
-   pretul in rate (naceta pachetului + majorarea organizatiei care inlocuieste
-   transportul neprestat). Se afiseaza pe fiecare placa, ca sa se vada din ce
-   se compune pretul — cerinta proprietarului 22.08.2026.
-   Atentie: «0%» de pe placa e dobinda CREDITORULUI, comisionul de mai jos e
-   alta cifra si se arata separat, ca sa nu para contradictorie.
-   EN: effective commission shown per tile; the green «0%» is the lender's
-   interest, this is the shop's commission — deliberately shown apart. */
-function crComPct(eff) {
-  const v = Math.round((eff || 0) * 100) / 100;
-  return String(v).replace('.', ',');
-}
-function crComHtml(eff) {
-  if (!(eff > 0)) return '';
-  return '<span class="cr-com">' + bl('comision', 'комиссия') + ' ' +
-    crComPct(eff) + '%</span>';
-}
-function crComText(eff) {
-  if (!(eff > 0)) return '';
-  return ' · ' + bl('comision', 'комиссия') + ' ' + crComPct(eff) + '%';
-}
 function crTiles(base, orgId) {
   const tiles = [];
   OFFERS.forEach(o => {
@@ -702,7 +681,7 @@ function renderTiles() {
       '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
       ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
       '<b>' + t.m + ' ' + plWord(t.m) + '</b><span>' + Math.ceil(t.monthly) + ' ' + bl('lei/lună', 'лей/мес') + '</span>' +
-      crComHtml(t.eff) + '</div>').join('');
+      '</div>').join('');
     // RO: in rezumat se arata pretul IN RATE (albastru), nu cel standard —
     //     clientul plateste exact aceasta suma. La fel pentru TOATE pachetele,
     //     nu doar la cele «0%».
@@ -712,7 +691,7 @@ function renderTiles() {
     document.getElementById('cr-sim').innerHTML =
       '<span class="price-red">' + tr('cartRate') + ': ' +
       fmtLei(t.credit_price) + '</span> · ' + t.m + ' × ' +
-      Math.ceil(t.monthly) + ' lei' + crComText(t.eff) +
+      Math.ceil(t.monthly) + ' lei' +
       (is0 ? '' : ' (' + esc(t.org.name) + ' — ' + esc(t.plan.name) + ')');
     if (contBtn) contBtn.disabled = false;
   } finally {
