@@ -166,6 +166,16 @@ def cache_clear(prefix: str = "") -> int:
     return len(keys)
 
 
+def _one_word(q: str) -> bool:
+    """RO: un singur cuvint, fara semne speciale — DOAR pentru asemenea
+    interogari s-a dovedit ca indexul de text da EXACT acelasi rezultat ca
+    scanarea. La mai multe cuvinte semantica difera (Oracle Text cauta
+    cuvintele, nu subsirul: '50%' ar da 8.091 in loc de 139), deci acolo
+    ramine scanarea — mai lenta, dar identica cu ce vedea clientul pina acum.
+    EN: single word, no special chars — only there CONTAINS matches INSTR."""
+    return bool(_re.fullmatch(r"[0-9A-Za-zА-Яа-яЁёĂÂÎȘȚăâîșț]+", (q or "").strip()))
+
+
 class Biro26Store:
     """All OfficePlus CRUD + package orchestration for Biro26."""
 
@@ -579,7 +589,7 @@ class Biro26Store:
             if search:
                 inner += " WHERE UPPER(u.DENUMIREA) LIKE UPPER(:s)"
                 params["s"] = f"%{search}%"
-            inner += " ORDER BY u.DENUMIREA"
+            inner += " ORDER BY u.DENUMIREA, u.COD"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
             return _result(r)
         except Exception as e:
@@ -792,6 +802,33 @@ class Biro26Store:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ── cautarea in descrieri: index Oracle Text sau scanare ──────────
+    @staticmethod
+    def _text_index_ok() -> bool:
+        """RO: exista indexul de text si e valid? Raspunsul se tine 10 min —
+        daca indexul dispare (recreare, mutare de baza), cautarea revine
+        automat la scanare, fara eroare pentru client.
+        EN: is the Text index present and valid? Cached, with graceful
+        fallback to the scan when it is not."""
+        rows = _cached("txtidx", 600, lambda: _rows(Biro26DB().execute_query(
+            "SELECT COUNT(*) CNT FROM USER_INDEXES "
+            "WHERE INDEX_NAME = 'IX_WEBATTR_DESCR_RO' AND STATUS = 'VALID'")))
+        try:
+            return bool(rows) and int(rows[0]["cnt"]) > 0
+        except (KeyError, ValueError, TypeError):
+            return False
+
+    @staticmethod
+    def _descr_predicate(q_norm: str) -> str:
+        """RO: predicatul pentru cautarea in descrieri (CLOB). Cu index de
+        text: 0,02-0,18 s in loc de 2,2-2,8 s, rezultat identic (verificat
+        pe hp/toner/ergonomic/creion/plastic/birou/a4).
+        EN: description-search predicate — Text index when applicable."""
+        if _one_word(q_norm) and Biro26Store._text_index_ok():
+            return "CONTAINS(DESCRIERE_NON_DIACR_RO, :ct) > 0"
+        return ("DBMS_LOB.INSTR(UPPER(DESCRIERE_NON_DIACR_RO), "
+                "                UPPER(:sq)) > 0")
+
     @staticmethod
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
                            brand: Optional[str] = None, categorie: Optional[str] = None,
@@ -897,10 +934,12 @@ class Biro26Store:
                           "SELECT COD FROM TMS_MPT_WEBATTR WHERE "
                           "  UPPER(DENUMIRE_FULL_RO) LIKE UPPER(:s) "
                           "  OR UPPER(DENUMIRE_FULL_RU) LIKE UPPER(:s) "
-                          "  OR DBMS_LOB.INSTR(UPPER(DESCRIERE_NON_DIACR_RO), "
-                          "                    UPPER(:sq)) > 0)")
+                          f"  OR {Biro26Store._descr_predicate(q_norm)})")
                 params["s"] = f"%{q_norm}%"
-                params["sq"] = q_norm
+                if _one_word(q_norm) and Biro26Store._text_index_ok():
+                    params["ct"] = f"%{q_norm}%"
+                else:
+                    params["sq"] = q_norm
             if cod:
                 # RO: fisa unui singur produs (pagina PDP a noului site)
                 inner += " AND u.COD=:cod"; params["cod"] = int(cod)
@@ -931,13 +970,13 @@ class Biro26Store:
             # RO: sortare — alfabetic (implicit) sau dupa pretul efectiv
             # EN: sorting — alphabetical (default) or by effective price
             if sort == "price_asc":
-                inner += f" ORDER BY {price_expr} ASC NULLS LAST, u.DENUMIREA"
+                inner += f" ORDER BY {price_expr} ASC NULLS LAST, u.DENUMIREA, u.COD"
             elif sort == "price_desc":
-                inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA"
+                inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA, u.COD"
             elif sort == "name_desc":
-                inner += " ORDER BY u.DENUMIREA DESC"
+                inner += " ORDER BY u.DENUMIREA DESC, u.COD"
             else:
-                inner += " ORDER BY u.DENUMIREA"
+                inner += " ORDER BY u.DENUMIREA, u.COD"
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
             outer = (
                 "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
