@@ -46,9 +46,14 @@ Credentialele se introduc in pagina de administrare (YBIRO_SETTINGS:
 (paginat 1000); urmatoarele = incremental prin `/api/changes` cu reperul
 `PARTNER_ULTRA_SINCE`. Stub-urile "no image" se arunca (lectia impreso).
 CLI/cron: `python3 modules/partner/scripts/ultra_sync.py [--full]`.
-Conectivitatea verificata: `eshop.ultra.md/api/auth/token` raspunde 401 pe
-credentiale gresite (contract confirmat); mai trebuie DOAR credentialele
-reale de dealer de la Ultra.
+**Formatul REAL al API-ului Ultra difera de documentatia lor** (verificat
+28.08.2026 cu contul de dealer): raspunsul la `/product` e o LISTA goala de
+wrapper; `product_name` vine ca JSON-STRING (`'{"ro":...}'`), nu ca obiect;
+preturile vin ca `{amount, currency: {code, name, rate}}` — `user_price`
+(pretul de dealer) e in USD cu cursul zilei, `fixed_price` (retail) in MDL.
+Clientul nostru normalizeaza totul la MDL (`amount * rate`) si accepta
+ambele forme. Cont dealer: officeplussrl@gmail.com (parola in
+YBIRO_SETTINGS.PARTNER_ULTRA_PASSWORD).
 
 ## Verificare (28.08.2026, productie)
 
