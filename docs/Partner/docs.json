@@ -1,0 +1,10 @@
+{
+  "PARTNER_API.md": {
+    "title": {"ro": "Partner B2B API + integrarea Ultra",
+              "ru": "Partner B2B API + интеграция Ultra",
+              "en": "Partner B2B API + Ultra integration"},
+    "descr": {"ro": "Contract identic cu Ultra B2B API V1; obiecte PAPI_*; sincronizarea catalogului Ultra in ERP.",
+              "ru": "Контракт идентичен Ultra B2B API V1; объекты PAPI_*; синхронизация каталога Ultra в ERP.",
+              "en": "Ultra-compatible partner API; PAPI_* schema; Ultra catalog sync into the ERP."}
+  }
+}
