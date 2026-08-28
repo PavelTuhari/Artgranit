@@ -193,6 +193,15 @@ class UltraClient:
         uuid = p.get("ultra_uuid") or p.get("uuid")
         if not (code and uuid):
             return None
+        # RO: regula sursei ULTRA din TMS_ORG_IMPSRC (echipa de import):
+        #     articol "slab" — sub 6 caractere SAU pur numeric — primeste
+        #     prefixul ULT, ca sa nu se bata cap in cap cu articolele altor
+        #     furnizori la potrivirea in nomenclator.
+        # EN: weak articles (short or purely numeric) get the ULT prefix,
+        #     per the import team's source rules.
+        art = str(code)[:60]
+        if art.isdigit() or len(art) < 6:
+            art = ("ULT" + art)[:60]
         name_ro = UltraClient._lang(p.get("product_name"), "ro", "ru", "en")
         cat = p.get("category") or {}
         hierarchy = cat.get("hierarchy") or []
@@ -201,7 +210,7 @@ class UltraClient:
         dealer = UltraClient._money(p.get("user_price"))             or UltraClient._money(p.get("price_d"))
         return {
             "guid": str(uuid)[:100],
-            "articol": str(code)[:60],
+            "articol": art,
             "denumire": name_ro[:500],
             "brand": str((p.get("brand") or {}).get("name") or "")[:100] or None,
             "grupa": (UltraClient._lang(
