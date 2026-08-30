@@ -7,9 +7,17 @@
             onclick="document.querySelector('.plp-side').classList.toggle('open')">☰ <span data-t="filters">Filtre</span></button>
           <div class="plp">
             <aside class="plp-side">
-              <div class="fbox">
+              <div class="fbox fbox-tree">
                 <h3 data-t="categories">Categorii</h3>
                 <div class="ftree" id="ftree"></div>
+                <!-- RO: categoriile grupei alese ies LATERAL (ca la ultra.md),
+                     nu sub grupa: lista de grupe nu mai sare sub degete. -->
+                <div class="cat-fly" id="cat-fly" hidden>
+                  <div class="cat-fly-head"><b id="cat-fly-title"></b>
+                    <button type="button" class="cat-fly-x"
+                            onclick="closeFly()" aria-label="Închide">✕</button></div>
+                  <div class="cat-fly-list" id="cat-fly-list"></div>
+                </div>
               </div>
               <!-- RO: arbore stil ultra.md — sageata deschide/inchide grupa
                    fara a filtra; grupa DESCHISA are fundal verde -->
@@ -25,6 +33,37 @@
                   transition:transform .15s,color .15s}
                 .grp-row.open .grp-arrow{transform:rotate(90deg);color:#ea6f21}
                 .grp-arrow:hover{background:#fff;color:#ea6f21}
+                /* RO: panoul lateral cu categoriile grupei — se deschide in
+                   DREAPTA listei de grupe (cerinta owner 30.08.2026), ca la
+                   ultra.md. Pe telefon nu are unde iesi lateral, deci acolo
+                   ramine sub grupa (vezi @media de mai jos). */
+                .fbox-tree{position:relative}
+                .cat-fly{position:absolute;left:calc(100% + 10px);top:8px;
+                  width:290px;max-height:70vh;overflow:auto;z-index:40;
+                  background:#fff;border:1px solid #ececec;border-radius:14px;
+                  box-shadow:0 12px 34px rgba(0,0,0,.16);padding:12px 14px}
+                .cat-fly-head{display:flex;align-items:center;gap:10px;
+                  margin-bottom:8px;padding-bottom:8px;
+                  border-bottom:1px solid #eef2f7}
+                .cat-fly-head b{flex:1;font-size:14.5px;color:#194681;
+                  line-height:1.25}
+                .cat-fly-x{border:0;background:#f1f5f9;border-radius:50%;
+                  width:26px;height:26px;cursor:pointer;font-size:13px;
+                  color:#475569;flex:none}
+                .cat-fly-x:hover{background:#e2e8f0}
+                .cat-fly-list{display:flex;flex-direction:column;gap:2px}
+                .cat-fly-list a{display:block;padding:6px 9px;border-radius:8px;
+                  font-size:13.5px;color:#232323}
+                .cat-fly-list a:hover{background:#f6f6f6;color:#194681}
+                .cat-fly-list a.on{background:#194681;color:#fff;font-weight:700}
+                .cat-fly-all{border-bottom:1px solid #eef2f7;margin-bottom:4px;
+                  padding-bottom:6px !important;font-weight:600}
+                /* RO: sub 1100px nu incape lateral -> revenim la lista sub grupa */
+                @media (max-width:1100px){
+                  .cat-fly{position:static;width:auto;max-height:none;
+                    box-shadow:none;border:0;padding:4px 0 0;margin-top:4px}
+                  .cat-fly-x{display:none}
+                }
               </style>
               <div class="fbox">
                 <h3 data-t="price">Preț, lei</h3>
@@ -162,28 +201,37 @@ function toggleGrp(g) {
 }
 function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
   if (F.grupa) OPEN.add(g);
-  F.categorie = null; F.page = 1; load(); }
+  F.categorie = null; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickCat(g, c) { F.grupa = g; OPEN.add(g);
-  F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); }
-function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); }
+  F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); closeFilterSheetIfMobile(); }
+function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickPreset(mn, mx) {
   if (F.pmin === mn && F.pmax === mx) { F.pmin = F.pmax = null; }
   else { F.pmin = mn; F.pmax = mx; }
   document.getElementById('pmin').value = F.pmin == null ? '' : F.pmin;
   document.getElementById('pmax').value = F.pmax == null ? '' : F.pmax;
-  F.page = 1; load();
+  F.page = 1; load(); closeFilterSheetIfMobile();
 }
 function applyPrice() {
   const mn = parseFloat(document.getElementById('pmin').value);
   const mx = parseFloat(document.getElementById('pmax').value);
   F.pmin = isNaN(mn) ? null : mn; F.pmax = isNaN(mx) ? null : mx;
-  F.page = 1; load();
+  F.page = 1; load(); closeFilterSheetIfMobile();
 }
 function resetF() { F.q = F.grupa = F.categorie = F.brand = F.pmin = F.pmax = null;
   F.sort = 'name'; F.page = 1;
   document.getElementById('sort').value = 'name';
   document.getElementById('pmin').value = document.getElementById('pmax').value = '';
-  document.getElementById('q').value = ''; load(); }
+  document.getElementById('q').value = ''; load(); closeFilterSheetIfMobile(); }
+/* RO: pe telefon sheet-ul de filtre acopera produsele — dupa alegerea
+   grupei/categoriei il inchidem ca lista sa fie vizibila. Sageata (toggleGrp)
+   NU inchide: ea doar deschide/inchide copiii, fara filtru.
+   EN: on the phone the filter sheet covers the grid; close it after a
+   real filter pick. The arrow (toggleGrp) only expands the tree. */
+function closeFilterSheetIfMobile() {
+  if (innerWidth > 640) return;
+  if (typeof closeFilterSheet === 'function') closeFilterSheet();
+}
 
 /* RO: firimiturile arata unde se afla clientul: Catalog / grupa / categorie.
    Numele se traduc din arbore (grupa_ru / cat_ru); grupa din firimituri
@@ -203,6 +251,60 @@ function renderCrumbs() {
   const cn = TREE.find(t => t.grupa === F.grupa && t.categorie === F.categorie) || {};
   const cl = (l === 'ru' && cn.cat_ru) ? cn.cat_ru : F.categorie;
   box.innerHTML = h + '<span>' + esc(cl) + '</span>';
+}
+
+/* RO: panoul LATERAL cu categoriile grupei deschise (cerinta owner:
+   «sa se deschida in dreapta, dar nu sub ea»). Sursa starii ramine aceeasi —
+   setul OPEN — deci sageata, deep-link-ul si firimiturile lucreaza ca inainte;
+   se schimba DOAR locul in care se deseneaza categoriile. Sub 1100px CSS-ul
+   il aduce inapoi sub grupa: lateral n-ar avea unde iesi.
+   EN: categories render in a side flyout instead of nesting under the group;
+   OPEN stays the single source of truth. */
+function renderFly(byG) {
+  const fly = document.getElementById('cat-fly');
+  if (!fly) return;
+  const l = curLang();
+  // grupa deschisa: cea marcata in OPEN (daca sint mai multe, cea filtrata)
+  const key = (F.grupa && OPEN.has(F.grupa)) ? F.grupa : [...OPEN][0];
+  const g = key && byG[key];
+  if (!g || !(g.cats || []).length) { fly.hidden = true; return; }
+  const gl = (l === 'ru' && g.ru) ? g.ru : g.grupa;
+  const clbl = c => (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
+  const gq = esc(g.grupa).replace(/'/g, '&#39;');
+  document.getElementById('cat-fly-title').textContent = gl;
+  // primul rind: toata grupa, fara filtru de categorie
+  let html = '<a href="javascript:void(0)" class="cat-fly-all' +
+    (F.grupa === g.grupa && !F.categorie ? ' on' : '') +
+    '" onclick="pickGrupa(\'' + gq + '\')">' + tr('all') +
+    ' <span style="opacity:.55">(' + g.cnt + ')</span></a>';
+  html += g.cats.slice().sort((a, b) =>
+    clbl(a).localeCompare(clbl(b), l === 'ru' ? 'ru' : 'ro')).map(c =>
+    '<a href="javascript:void(0)" class="' +
+    (F.categorie === c.categorie ? 'on' : '') +
+    '" onclick="pickCat(\'' + gq + '\',\'' +
+    esc(c.categorie).replace(/'/g, '&#39;') + '\')">' + esc(clbl(c)) +
+    ' <span style="opacity:.55">(' + (c.cnt || 0) + ')</span></a>').join('');
+  document.getElementById('cat-fly-list').innerHTML = html;
+  fly.hidden = false;
+  // pozitionam panoul in dreptul grupei deschise (pe ecrane late)
+  if (innerWidth > 1100) {
+    const row = [...document.querySelectorAll('#ftree .grp-row.open')][0];
+    const box = document.querySelector('.fbox-tree');
+    if (row && box) {
+      const top = row.getBoundingClientRect().top -
+                  box.getBoundingClientRect().top;
+      fly.style.top = Math.max(4, top) + 'px';
+    }
+  } else {
+    fly.style.top = '';
+  }
+}
+
+function closeFly() {
+  OPEN.clear();
+  const fly = document.getElementById('cat-fly');
+  if (fly) fly.hidden = true;
+  renderSide();
 }
 
 function renderSide() {
@@ -236,20 +338,9 @@ function renderSide() {
       esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>' +
       (g.cats.length ? '<span class="grp-arrow" onclick="toggleGrp(\'' + gq +
         '\')">▶</span>' : '') + '</div>';
-    if (isOpen) {
-      const clbl = c => (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
-      h += g.cats.sort((a, b) =>
-        clbl(a).localeCompare(clbl(b), l === 'ru' ? 'ru' : 'ro')).map(c => {
-        const cl = clbl(c);
-        return '<a href="javascript:void(0)" class="cat ' +
-          (F.categorie === c.categorie ? 'on' : '') +
-          '" onclick="pickCat(\'' + esc(g.grupa).replace(/'/g, '&#39;') + '\',\'' +
-          esc(c.categorie).replace(/'/g, '&#39;') + '\')">' + esc(cl) +
-          ' <span style="opacity:.55">(' + (c.cnt || 0) + ')</span></a>';
-      }).join('');
-    }
-    return h;
+    return h;   // RO: categoriile NU mai stau sub grupa — vezi renderFly()
   }).join('');
+  renderFly(byG);
   const fb = document.getElementById('fbrands');
   if (fb) fb.innerHTML = BRANDS.map(b =>
     '<span class="fchip' + (F.brand === b.brand ? ' on' : '') +
