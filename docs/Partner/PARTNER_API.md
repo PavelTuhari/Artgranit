@@ -55,6 +55,21 @@ Clientul nostru normalizeaza totul la MDL (`amount * rate`) si accepta
 ambele forme. Cont dealer: officeplussrl@gmail.com (parola in
 YBIRO_SETTINGS.PARTNER_ULTRA_PASSWORD).
 
+**Alte capcane ale API-ului lor, verificate pe viu (28–29.08.2026):**
+
+| Ce zice documentatia | Ce face API-ul real | Ce facem noi |
+|---|---|---|
+| `sort=name_asc` e o optiune valida | raspunde **500 Server Error** | folosim `sort=updated_at`, cu revenire automata la "fara sortare" |
+| paginare simpla `limit/offset` | fara sortare fixa **fereastra aluneca**: prima trecere = 38.706 rinduri cu doar **26.010 uuid-uri unice** (dubluri intre pagini, deci si goluri) | sortare fixa + deduplicare pe `ultra_uuid` in cadrul rularii |
+| raspunsul e un obiect cu `data` | pentru `/product` e o **lista** direct | acceptam ambele forme |
+| `product_name` e obiect multilingv | vine ca **JSON-STRING** | `_lang()` accepta si dict, si string |
+| campurile de pret sint numere | sint `{amount, currency:{code,name,rate}}`, dealer in **USD** | `_money()` converteste in MDL dupa cursul din raspuns |
+
+**Articolele Ultra sint numerice** (ex. `246019`), deci intra sub regula sursei
+`ULTRA` din `TMS_ORG_IMPSRC` (`ART_PREFIX='ULT'`, `ART_MIN_LEN=6`): toate
+primesc prefixul `ULT` inainte de a ajunge in tampon, ca sa nu se bata cap in
+cap cu articolele altor furnizori.
+
 ## Verificare (28.08.2026, productie)
 
 Token+refresh+revoke OK; 401 fara token / parola gresita; catalog cu preturi,
