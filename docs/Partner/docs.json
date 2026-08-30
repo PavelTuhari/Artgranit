@@ -1,10 +1,26 @@
 {
   "PARTNER_API.md": {
-    "title": {"ro": "Partner B2B API + integrarea Ultra",
-              "ru": "Partner B2B API + интеграция Ultra",
-              "en": "Partner B2B API + Ultra integration"},
-    "descr": {"ro": "Contract identic cu Ultra B2B API V1; obiecte PAPI_*; sincronizarea catalogului Ultra in ERP.",
-              "ru": "Контракт идентичен Ultra B2B API V1; объекты PAPI_*; синхронизация каталога Ultra в ERP.",
-              "en": "Ultra-compatible partner API; PAPI_* schema; Ultra catalog sync into the ERP."}
+    "title": {
+      "ro": "Partner B2B API + integrarea Ultra",
+      "ru": "Partner B2B API + интеграция Ultra",
+      "en": "Partner B2B API + Ultra integration"
+    },
+    "descr": {
+      "ro": "Contract identic cu Ultra B2B API V1; obiecte PAPI_*; sincronizarea catalogului Ultra in ERP.",
+      "ru": "Контракт идентичен Ultra B2B API V1; объекты PAPI_*; синхронизация каталога Ultra в ERP.",
+      "en": "Ultra-compatible partner API; PAPI_* schema; Ultra catalog sync into the ERP."
+    }
+  },
+  "ANALIZA_EFACTURA_SFS.md": {
+    "title": {
+      "ro": "Integrarea cu e-Factura (SFS) — analiza",
+      "ru": "Интеграция с e-Factura (SFS) — анализ",
+      "en": "e-Factura (SFS) integration — analysis"
+    },
+    "descr": {
+      "ro": "Ce exista in proiect, ce ofera API-ul SFS, cele doua regimuri si ce trebuie de la companie.",
+      "ru": "Что есть в проекте, что даёт API SFS, два режима и что нужно от компании.",
+      "en": "What exists, what the SFS API offers, the two modes, and what the company must provide."
+    }
   }
 }
