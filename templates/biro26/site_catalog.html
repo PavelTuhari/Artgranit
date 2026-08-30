@@ -214,7 +214,11 @@ function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
   OPEN.clear();
   if (F.grupa) OPEN.add(g);
   F.categorie = null; F.page = 1; load(); closeFilterSheetIfMobile(); }
-function pickCat(g, c) { F.grupa = g; FLY_HIDDEN = true; OPEN.clear(); OPEN.add(g);
+function pickCat(g, c) { F.grupa = g; OPEN.clear(); OPEN.add(g);
+  // RO: ascundem panoul IMEDIAT, nu dupa ce se incarca produsele (load()
+  //     redeseneaza abia la raspunsul serverului — pina atunci panoul ar sta
+  //     peste rezultate). EN: hide right away, not after the fetch.
+  hideFly();
   F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickPreset(mn, mx) {
@@ -312,11 +316,15 @@ function renderFly(byG) {
   }
 }
 
-function closeFly() {
+function hideFly() {
   FLY_HIDDEN = true;
-  OPEN.clear();
   const fly = document.getElementById('cat-fly');
   if (fly) fly.hidden = true;
+}
+
+function closeFly() {
+  hideFly();
+  OPEN.clear();
   renderSide();
 }
 
