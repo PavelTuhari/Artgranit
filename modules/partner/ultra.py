@@ -34,6 +34,7 @@ class UltraClient:
         self.username = username
         self.password = password
         self._token: Optional[str] = None
+        self._sort_ok = True        # vezi iter_products: sortarea poate cadea
 
     @classmethod
     def from_settings(cls) -> "UltraClient":
@@ -101,15 +102,22 @@ class UltraClient:
         """RO: generator peste TOT catalogul, paginat cite 1000."""
         offset = 0
         while True:
-            # RO: sort=name_asc — paginarea Ultra fara sortare e INSTABILA:
-            #     prima trecere a adus 38.706 rinduri cu doar 26.010 uuid-uri
-            #     unice (dubluri intre pagini => si goluri). O ordine fixa
-            #     minimizeaza alunecarea intre pagini.
-            # EN: unsorted pagination proved unstable (dupes across pages);
-            #     a fixed sort keeps the window from drifting.
-            r = self._req("GET", "/product",
-                          params={"limit": PAGE, "offset": offset,
-                                  "sort": "name_asc"})
+            # RO: paginarea Ultra FARA sortare e instabila (prima trecere:
+            #     38.706 rinduri, doar 26.010 uuid-uri unice), deci cerem o
+            #     ordine fixa. ATENTIE: `name_asc` din documentatia LOR da
+            #     "Server Error" pe API-ul real — verificat 29.08.2026;
+            #     `updated_at` merge. Daca si el cade, continuam fara sortare
+            #     (deduplicarea pe uuid de mai jos ne acopera).
+            # EN: their documented `name_asc` 500s on the live API; use
+            #     `updated_at`, falling back to unsorted.
+            params = {"limit": PAGE, "offset": offset}
+            if self._sort_ok:
+                params["sort"] = "updated_at"
+            r = self._req("GET", "/product", params=params)
+            if not r.get("success") and self._sort_ok:
+                self._sort_ok = False           # o singura data, apoi fara sort
+                r = self._req("GET", "/product",
+                              params={"limit": PAGE, "offset": offset})
             if not r.get("success"):
                 raise RuntimeError(f"GET /product: {r.get('error')}")
             body = r["data"]
