@@ -111,6 +111,10 @@ const F = {q: null, grupa: null, categorie: null, brand: null,
 let TREE = [], BRANDS = [], total = 0, needCount = true, seq = 0;
 // RO: grupele DESCHISE in arbore — unica sursa a starii (sageata o comuta)
 const OPEN = new Set();
+// RO: panoul lateral se inchide dupa ce clientul a ALES o categorie — altfel
+//     ar sta peste primele produse exact cind vrea sa le vada.
+// EN: the flyout closes once a category is picked, so it never covers results.
+let FLY_HIDDEN = false;
 const PRESETS = [[0, 500], [500, 1000], [1000, 2500], [2500, 5000], [5000, 10000],
                  [10000, 20000], [20000, 40000], [40000, null]];
 
@@ -200,15 +204,17 @@ function renderPager() {
    EN: single open group; the flyout shows one group's categories. */
 function toggleGrp(g) {
   const was = OPEN.has(g);
+  FLY_HIDDEN = false;
   OPEN.clear();
   if (!was) OPEN.add(g);
   renderSide();
 }
 function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
+  FLY_HIDDEN = false;
   OPEN.clear();
   if (F.grupa) OPEN.add(g);
   F.categorie = null; F.page = 1; load(); closeFilterSheetIfMobile(); }
-function pickCat(g, c) { F.grupa = g; OPEN.clear(); OPEN.add(g);
+function pickCat(g, c) { F.grupa = g; FLY_HIDDEN = true; OPEN.clear(); OPEN.add(g);
   F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickPreset(mn, mx) {
@@ -273,7 +279,7 @@ function renderFly(byG) {
   // grupa deschisa: cea marcata in OPEN (daca sint mai multe, cea filtrata)
   const key = (F.grupa && OPEN.has(F.grupa)) ? F.grupa : [...OPEN][0];
   const g = key && byG[key];
-  if (!g || !(g.cats || []).length) { fly.hidden = true; return; }
+  if (FLY_HIDDEN || !g || !(g.cats || []).length) { fly.hidden = true; return; }
   const gl = (l === 'ru' && g.ru) ? g.ru : g.grupa;
   const clbl = c => (l === 'ru' && c.cat_ru) ? c.cat_ru : c.categorie;
   const gq = esc(g.grupa).replace(/'/g, '&#39;');
@@ -307,6 +313,7 @@ function renderFly(byG) {
 }
 
 function closeFly() {
+  FLY_HIDDEN = true;
   OPEN.clear();
   const fly = document.getElementById('cat-fly');
   if (fly) fly.hidden = true;
