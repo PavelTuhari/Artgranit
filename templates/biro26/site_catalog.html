@@ -195,14 +195,20 @@ function renderPager() {
 }
 
 /* ── sidebar: arbore grupe/categorii + branduri + presete pret ───────── */
+/* RO: o singura grupa deschisa — panoul lateral arata categoriile UNEI
+   grupe (ca la ultra.md); a doua apasare pe sageata o inchide.
+   EN: single open group; the flyout shows one group's categories. */
 function toggleGrp(g) {
-  if (OPEN.has(g)) OPEN.delete(g); else OPEN.add(g);
+  const was = OPEN.has(g);
+  OPEN.clear();
+  if (!was) OPEN.add(g);
   renderSide();
 }
 function pickGrupa(g) { F.grupa = (F.grupa === g && !F.categorie) ? null : g;
+  OPEN.clear();
   if (F.grupa) OPEN.add(g);
   F.categorie = null; F.page = 1; load(); closeFilterSheetIfMobile(); }
-function pickCat(g, c) { F.grupa = g; OPEN.add(g);
+function pickCat(g, c) { F.grupa = g; OPEN.clear(); OPEN.add(g);
   F.categorie = (F.categorie === c) ? null : c; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickBrand(b) { F.brand = (F.brand === b) ? null : b; F.page = 1; load(); closeFilterSheetIfMobile(); }
 function pickPreset(mn, mx) {
