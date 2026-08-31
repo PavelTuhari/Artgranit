@@ -18,8 +18,18 @@ from models.biro26_oracle_store import _rows
 #     niciodata catre interfata (doar faptul ca e completata).
 DEFAULTS = {
     "endpoint": "",
+    # RO: DOI semnatari. Factura fiscala se semneaza de obicei de doua
+    #     persoane (director + contabil-sef), iar SIA e-Factura tine cozi
+    #     separate pentru fiecare (`Order` 1 si 2 la GetInvoicesForSigning),
+    #     deci se inregistreaza DOUA conturi API. Al doilea e optional:
+    #     firmele mici semneaza cu o singura persoana.
+    # EN: two API users, one per signer; the second is optional.
     "username": "",
     "password": "",
+    "signer1_name": "",
+    "username2": "",
+    "password2": "",
+    "signer2_name": "",
     "namespace": "http://tempuri.org/",
     "mode": "semi",              # semi | full  (vezi analiza SFS)
     "seller_idno": "",
@@ -31,7 +41,7 @@ DEFAULTS = {
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }
-SECRET_KEYS = ("password",)
+SECRET_KEYS = ("password", "password2")
 
 
 class EfaStore:
@@ -52,6 +62,8 @@ class EfaStore:
         s = EfaStore.settings()
         pub = {k: v for k, v in s.items() if k not in SECRET_KEYS}
         pub["password_set"] = bool(s.get("password"))
+        pub["password2_set"] = bool(s.get("password2"))
+        pub["two_signers"] = bool(s.get("username2") and s.get("password2"))
         pub["configured"] = bool(s.get("endpoint") and s.get("username")
                                  and s.get("password"))
         return pub

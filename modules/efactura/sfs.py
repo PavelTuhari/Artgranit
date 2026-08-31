@@ -27,6 +27,14 @@ from typing import Any, Dict, List, Optional
 from xml.etree import ElementTree as ET
 
 TIMEOUT_S = 60
+# RO: valorile din ghidul SFS — roluri si statut XML (tabelele 6 si 24)
+ROLE_SUPPLIER = 1        # furnizor
+ROLE_BUYER = 2           # cumparator
+ROLE_CARRIER = 3         # transportator
+XML_UNSIGNED = 0         # nesemnat
+XML_SIGNED = 1           # semnat
+SIGN_FIRST = 1           # coada primei semnaturi
+SIGN_SECOND = 2          # coada celei de a doua semnaturi
 NS_SOAP = "http://schemas.xmlsoap.org/soap/envelope/"
 NS_WSSE = ("http://docs.oasis-open.org/wss/2004/01/"
            "oasis-200401-wss-wssecurity-secext-1.0.xsd")
@@ -61,11 +69,24 @@ class SfsClient:
         self.ns = namespace or "http://tempuri.org/"
 
     @classmethod
-    def from_settings(cls) -> "SfsClient":
+    def from_settings(cls, signer: int = 1) -> "SfsClient":
+        """RO: clientul unuia dintre cei DOI semnatari.
+
+        In practica factura fiscala se semneaza de doua persoane (director si
+        contabil-sef), iar SIA e-Factura tine cozi separate pentru fiecare
+        (`Order` 1 si 2). De aceea sint doua conturi API: `signer=1` —
+        primul semnatar, `signer=2` — al doilea. Daca al doilea nu e
+        configurat, se foloseste primul (firmele mici semneaza cu o singura
+        persoana).
+        EN: one client per signer; falls back to the first when the second
+        account is not configured.
+        """
         from modules.efactura.store import EfaStore
         s = EfaStore.settings()
-        return cls(s.get("endpoint", ""), s.get("username", ""),
-                   s.get("password", ""),
+        user, pwd = s.get("username", ""), s.get("password", "")
+        if int(signer) == 2 and s.get("username2"):
+            user, pwd = s.get("username2", ""), s.get("password2", "")
+        return cls(s.get("endpoint", ""), user, pwd,
                    s.get("namespace", "http://tempuri.org/"))
 
     def configured(self) -> bool:
@@ -134,21 +155,43 @@ class SfsClient:
     # ── metodele folosite ──────────────────────────────────────────────
     def post_invoices(self, invoices_xml: str,
                       request_id: Optional[str] = None,
-                      actor_role: str = "Supplier",
-                      xml_status: str = "Draft") -> Dict[str, Any]:
+                      actor_role: int = ROLE_SUPPLIER,
+                      xml_status: int = XML_UNSIGNED) -> Dict[str, Any]:
         """RO: PostInvoices — trimite factura fiscala in e-Factura.
-        Raspunsul contine Status, TotalInvoicesPosted, RequestId, ErrorMessage.
+
+        ATENTIE: `ActorRole` si `InvoicesXmlStatus` sint NUMERE, nu texte
+        (ghidul SFS, tabelul 24): rolul 1/2/3, statutul 0 = nesemnat,
+        1 = semnat. Prima versiune trimitea "Supplier"/"Draft" — SFS le-ar fi
+        respins.
+        EN: both fields are integers per the SFS guide, not strings.
         """
         rid = request_id or uuid.uuid4().hex
         body = ("<request>"
                 f"<RequestId>{_esc(rid)}</RequestId>"
                 f"<InvoicesXml>{_esc(invoices_xml)}</InvoicesXml>"
-                f"<ActorRole>{_esc(actor_role)}</ActorRole>"
-                f"<InvoicesXmlStatus>{_esc(xml_status)}</InvoicesXmlStatus>"
+                f"<ActorRole>{int(actor_role)}</ActorRole>"
+                f"<InvoicesXmlStatus>{int(xml_status)}</InvoicesXmlStatus>"
                 "</request>")
         r = self.call("PostInvoices", body)
         r["request_id"] = rid
         return r
+
+    def get_for_signing(self, order: int = SIGN_FIRST,
+                        actor_role: int = ROLE_SUPPLIER) -> Dict[str, Any]:
+        """RO: facturile care asteapta semnatura.
+
+        `Order` = pozitia in lantul de semnare (ghidul SFS, tabelul 10):
+          1 — factura NEsemnata (asteapta PRIMA semnatura);
+          2 — deja semnata cu prima (asteapta A DOUA).
+        De aici vine si nevoia celor DOUA conturi API: fiecare semnatar isi
+        vede propria coada.
+        EN: invoices awaiting signature; Order 1 = unsigned, 2 = first signed.
+        """
+        return self.call(
+            "GetInvoicesForSigning",
+            f"<request><RequestId>{uuid.uuid4().hex}</RequestId>"
+            f"<Order>{int(order)}</Order>"
+            f"<ActorRole>{int(actor_role)}</ActorRole></request>")
 
     def get_accepted(self, since: str = "") -> Dict[str, Any]:
         return self.call("GetAcceptedInvoices",

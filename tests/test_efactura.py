@@ -88,3 +88,80 @@ class TestSfsClientGuards(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTestInvoice(unittest.TestCase):
+    """RO: plafonul probei se verifica pe SERVER — formularul poate fi ocolit."""
+
+    BASE = {"seller": {"idno": "1026602001837", "name": "Firma mea"},
+            "buyer": {"idno": "1003600050218", "name": "Client test"},
+            "tva_rate": 20}
+
+    def _p(self, qty, price, **kw):
+        d = dict(self.BASE)
+        d["lines"] = [{"name": "Serviciu de test", "um": "buc.",
+                       "qty": qty, "price": price}]
+        d.update(kw)
+        return d
+
+    def test_amount_limits(self):
+        from modules.efactura import testff
+        self.assertEqual(testff.validate(self._p(1, 1.00)), {})      # 1 leu
+        self.assertEqual(testff.validate(self._p(1, 0.01)), {})      # un ban
+        self.assertEqual(testff.validate(self._p(1, 10.00)), {})     # pragul
+        self.assertIn("total", testff.validate(self._p(1, 10.01)))   # peste
+        self.assertIn("total", testff.validate(self._p(1, 0)))       # zero
+        self.assertIn("total", testff.validate(self._p(3, 4.00)))    # 12 lei
+
+    def test_required_fields(self):
+        from modules.efactura import testff
+        d = self._p(1, 1.00)
+        d["seller"] = {"name": "x"}
+        self.assertIn("seller.idno", testff.validate(d))
+        d = self._p(1, 1.00)
+        d["lines"] = [{"name": "", "qty": 1, "price": 1}]
+        self.assertIn("lines.0.name", testff.validate(d))
+        d = self._p(1, 1.00)
+        d["lines"] = []
+        self.assertIn("lines", testff.validate(d))
+
+    def test_build_and_xml(self):
+        from xml.etree import ElementTree as ET
+        from modules.efactura import testff
+        p = self._p(2, 1.50, seria="TT", number="TEST-1")   # 3.00 lei
+        doc = testff.build(p)
+        self.assertEqual(doc["total"], 3.00)
+        self.assertEqual(doc["tva"], 0.50)                  # 20% inclus
+        self.assertEqual(doc["total_fara_tva"], 2.50)
+        r = testff.preview(p)
+        self.assertTrue(r["success"])
+        inv = ET.fromstring(r["data"]["xml"]).find("Invoice")
+        self.assertEqual(inv.findtext("Number"), "TEST-1")
+        self.assertEqual(inv.findtext("Seria"), "TT")
+        self.assertEqual(inv.find("Supplier").findtext("IDNO"),
+                         "1026602001837")
+        self.assertEqual(inv.findtext("TotalAmount"), "3.00")
+
+    def test_preview_works_without_credentials(self):
+        """RO: XML-ul se vede si cind integrarea nu e configurata."""
+        from modules.efactura import testff
+        r = testff.preview(self._p(1, 0.05))
+        self.assertTrue(r["success"])
+        self.assertIn("<Invoice>", r["data"]["xml"])
+
+
+class TestSfsProtocolValues(unittest.TestCase):
+    """RO: valorile din ghidul SFS — roluri si statut sint NUMERE."""
+
+    def test_post_body_uses_integers(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient("https://x/y.svc", "u", "p")
+        env = c._envelope("PostInvoices",
+                          "<request><ActorRole>1</ActorRole>"
+                          "<InvoicesXmlStatus>0</InvoicesXmlStatus></request>")
+        self.assertIn("<ActorRole>1</ActorRole>", env)
+        self.assertIn("<InvoicesXmlStatus>0</InvoicesXmlStatus>", env)
+        self.assertEqual(sfs.ROLE_SUPPLIER, 1)
+        self.assertEqual(sfs.XML_UNSIGNED, 0)
+        self.assertEqual(sfs.SIGN_FIRST, 1)
+        self.assertEqual(sfs.SIGN_SECOND, 2)

@@ -196,3 +196,117 @@ def api_health():
     return jsonify({"success": True, "data": {
         "configured": s.get("configured"), "mode": s.get("mode"),
         "endpoint_set": bool(s.get("endpoint"))}})
+
+
+# ── 4. FACTURA DE TEST — mini-modul universal ─────────────────────────
+# RO: pagina si API-ul probei. Sint deschise si operatorului portalului, si
+#     (prin X-API-Key) altor aplicatii; orice modul al platformei poate pune
+#     butonul cu o singura linie — vezi /widget.js.
+@blueprint.route("/test")
+def test_page():
+    if not AuthController.is_authenticated():
+        return redirect("/login?next=/UNA.md/orasldev/efactura/test")
+    from modules.efactura.testff import MAX_LINES, MAX_TOTAL, MIN_TOTAL
+    return render_template("efactura_test.html", min_total=MIN_TOTAL,
+                           max_total=MAX_TOTAL, max_lines=MAX_LINES,
+                           settings=EfaStore.settings_public(),
+                           firm=_erp_firm())
+
+
+def _erp_firm():
+    """RO: rechizitele firmei din ERP — se propun in formular ca punct de
+    plecare; directorul le poate inlocui cu ale lui."""
+    try:
+        from models.biro26_db import Biro26DB
+        from models.biro26_oracle_store import _rows
+        r = _rows(Biro26DB().execute_query(
+            "SELECT * FROM (SELECT CODFISCAL, ACCOUNT, BANK, MFO, ADRESS "
+            "FROM VMS_ORG_CONT_FISC WHERE CODFISCAL IS NOT NULL) "
+            "WHERE ROWNUM = 1"))
+        if r:
+            x = r[0]
+            return {"idno": x.get("codfiscal"), "iban": x.get("account"),
+                    "bank": x.get("bank"), "bank_code": x.get("mfo"),
+                    "address": x.get("adress")}
+    except Exception:                                        # noqa: BLE001
+        pass
+    return {}
+
+
+def _test_guard():
+    """RO: proba o poate face operatorul logat SAU o aplicatie cu cheie."""
+    if AuthController.is_authenticated() or Biro26Controller._api_token_ok():
+        return None
+    return jsonify({"success": False, "error": "login or api key required"}), 401
+
+
+@blueprint.route("/test/preview", methods=["POST"])
+def test_preview():
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import testff
+    return _reply(testff.preview(_body()))
+
+
+@blueprint.route("/test/send", methods=["POST"])
+def test_send():
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import testff
+    src = "api" if not AuthController.is_authenticated() else "test-page"
+    return _reply(testff.send(_body(), src=src))
+
+
+@blueprint.route("/test/queues")
+def test_queues():
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import testff
+    return _reply(testff.signing_queues())
+
+
+@blueprint.route("/widget.js")
+def widget_js():
+    """RO: butonul «Factura de test» pentru ORICE modul al platformei.
+
+    Activarea intr-un modul strain e o singura linie in sablonul lui:
+        <script src="/UNA.md/orasldev/efactura/widget.js"></script>
+    Scriptul pune butonul in coltul din dreapta-jos si deschide pagina probei
+    intr-o fereastra separata. Nu cere nimic de la modulul-gazda: nici stiluri,
+    nici biblioteci, nici modificari in codul lui.
+    EN: one-line drop-in button for any module on the platform.
+    """
+    # RO: textul butonului cu diacritice — direct, fara secvente \uXXXX
+    #     (intr-un literal Python obisnuit ele s-ar interpreta ca escape-uri)
+    js = r"""(function () {
+  // butonul nu se pune de doua ori si nu apare pe pagina probei
+  if (window.__efaWidget || location.pathname.indexOf('/efactura/test') > -1) return;
+  window.__efaWidget = true;
+  var base = '/UNA.md/orasldev/efactura';
+  function make() {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = 'FACTURA_LABEL';
+    b.title = 'Emite o factura fiscala de proba (max 10 lei)';
+    b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9998;' +
+      'background:#194681;color:#fff;border:0;border-radius:999px;' +
+      'padding:10px 18px;font:600 13px/1.2 Inter,system-ui,sans-serif;' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.22);cursor:pointer';
+    b.onmouseover = function () { b.style.background = '#0f3460'; };
+    b.onmouseout = function () { b.style.background = '#194681'; };
+    b.onclick = function () {
+      window.open(base + '/test', 'efactura_test',
+                  'width=980,height=880,scrollbars=yes');
+    };
+    document.body.appendChild(b);
+  }
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', make);
+  else make();
+})();""".replace("FACTURA_LABEL", "\U0001F9FE Factur\u0103 de test")
+    from flask import Response
+    return Response(js, mimetype="application/javascript",
+                    headers={"Cache-Control": "public, max-age=300"})

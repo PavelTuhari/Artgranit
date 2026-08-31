@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factură fiscală de test — e-Factura</title>
+<style>
+  :root{--blue:#194681;--orange:#ea6f21;--bd:#e2e8f0;--gray:#475569}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 Inter,system-ui,sans-serif;background:#f2f4f8;color:#1a1a1a}
+  .bar{background:var(--blue);color:#fff;padding:12px 20px;font-weight:700;
+       display:flex;align-items:center;gap:14px}
+  .bar a{color:#ffd23a;text-decoration:none;font-size:13px;font-weight:600}
+  .bar .sp{flex:1}
+  .wrap{max-width:980px;margin:18px auto;padding:0 14px 60px}
+  .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;
+        box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  h2{margin:.1em 0 .7em;font-size:16px;color:var(--blue)}
+  .warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:11px;
+        padding:12px 16px;margin-bottom:16px;font-size:13px;line-height:1.6}
+  .warn b{color:#b45309}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+  .fld{flex:1;min-width:150px}
+  .fld label{display:block;font-size:11.5px;color:var(--gray);margin-bottom:3px}
+  input,select{width:100%;padding:8px 10px;border:1px solid #cbd5e1;
+               border-radius:8px;font:inherit}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid var(--bd);padding:6px 5px;text-align:left}
+  th{font-size:11.5px;color:var(--gray);font-weight:600}
+  td input{padding:6px 8px}
+  .btn{background:var(--blue);color:#fff;border:0;border-radius:9px;
+       padding:9px 18px;font-weight:700;cursor:pointer}
+  .btn.orange{background:var(--orange)}
+  .btn.gray{background:#64748b}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .total{font-size:19px;font-weight:800;color:var(--blue)}
+  .total.bad{color:#dc2626}
+  .muted{color:var(--gray);font-size:12px}
+  pre{background:#0f172a;color:#d7e3f4;border-radius:10px;padding:13px;
+      font-size:11.5px;overflow:auto;max-height:300px;white-space:pre-wrap}
+  .ok{color:#15803d}.err{color:#dc2626}
+  .sign{display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px}
+  .sign div{flex:1;min-width:210px;border:1px solid var(--bd);border-radius:10px;
+            padding:9px 12px;background:#f8fafc}
+</style>
+</head>
+<body>
+<div class="bar">🧾 Factură fiscală de TEST
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/efactura/">← Setări e-Factura</a>
+  <a href="/UNA.md/orasldev/biro26">Hub Biro26</a></div>
+<div class="wrap">
+
+  <div class="warn">
+    <b>Atenție:</b> factura trimisă ajunge în sistemul <b>fiscal real</b> al
+    SFS — nu într-un mediu de simulare. De aceea proba este plafonată la
+    <b>{{ '%.2f'|format(max_total) }} lei</b> (minim {{ '%.2f'|format(min_total) }} lei)
+    și la {{ max_lines }} poziții. Documentul pleacă <b>nesemnat</b>: semnarea
+    rămâne la cei doi semnatari, în interfața e-Factura.
+    {% if not settings.configured %}
+    <br><b>Momentan integrarea nu este configurată</b> — puteți vedea XML-ul
+    care ar pleca, dar trimiterea va fi refuzată.
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Semnăturile</h2>
+    <div class="sign">
+      <div><b>Primul semnatar</b><br>
+        <span class="muted">{{ settings.signer1_name or 'nespecificat' }} ·
+        cont API: {{ settings.username or '—' }}
+        {% if settings.password_set %}<span class="ok">✓</span>{% endif %}</span></div>
+      <div><b>Al doilea semnatar</b><br>
+        <span class="muted">{{ settings.signer2_name or 'nespecificat' }} ·
+        cont API: {{ settings.username2 or '—' }}
+        {% if settings.password2_set %}<span class="ok">✓</span>{% endif %}</span></div>
+    </div>
+    <p class="muted" style="margin-top:8px">Factura fiscală se semnează de
+      obicei de două persoane, iar e-Factura ține cozi separate pentru fiecare
+      (<code>Order</code> 1 și 2), de aceea se înregistrează două conturi API.
+      Al doilea este opțional.</p>
+    <button class="btn gray" style="margin-top:8px" onclick="queues()">
+      👁 Vezi cozile de semnare</button>
+    <span id="q-info" class="muted"></span>
+  </div>
+
+  <div class="card">
+    <h2>Vânzătorul (rechizitele dvs.)</h2>
+    <div class="row">
+      <div class="fld"><label>IDNO</label><input id="s-idno" value="{{ firm.idno or '' }}"></div>
+      <div class="fld" style="flex:2"><label>Denumirea</label><input id="s-name"></div>
+    </div>
+    <div class="row">
+      <div class="fld" style="flex:2"><label>Adresa</label><input id="s-address" value="{{ firm.address or '' }}"></div>
+      <div class="fld"><label>IBAN</label><input id="s-iban" value="{{ firm.iban or '' }}"></div>
+      <div class="fld"><label>Cod bancă</label><input id="s-bank" value="{{ firm.bank_code or '' }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Cumpărătorul</h2>
+    <div class="row">
+      <div class="fld"><label>IDNO</label><input id="b-idno"></div>
+      <div class="fld" style="flex:2"><label>Denumirea</label><input id="b-name"></div>
+      <div class="fld" style="flex:2"><label>Adresa</label><input id="b-address"></div>
+    </div>
+    <p class="muted">Pentru probă puteți pune propriul IDNO — factura merge
+      atunci către propria companie.</p>
+  </div>
+
+  <div class="card">
+    <h2>Marfă / servicii</h2>
+    <table id="lines"><thead><tr>
+      <th style="width:38%">Denumirea</th><th style="width:14%">Cod</th>
+      <th style="width:12%">U.M.</th><th style="width:12%">Cantitate</th>
+      <th style="width:14%">Preț, lei</th><th style="width:10%">Sumă</th><th></th>
+    </tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <button class="btn gray" onclick="addLine()">➕ Poziție</button>
+      <div class="fld" style="max-width:120px"><label>TVA, %</label>
+        <input id="tva" type="number" value="20" onchange="recalc()"></div>
+      <div class="fld" style="max-width:150px"><label>Seria</label><input id="seria"></div>
+      <div class="fld" style="max-width:170px"><label>Numărul</label>
+        <input id="number" placeholder="TEST-… (automat)"></div>
+      <span class="sp"></span>
+      <div style="text-align:right">
+        <div class="muted">Total</div>
+        <div class="total" id="total">0.00 lei</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="btn gray" onclick="preview()">👁 Vezi XML-ul</button>
+    <button class="btn orange" id="send" onclick="send()">📤 Trimite proba în e-Factura</button>
+    <span id="info" class="muted"></span>
+    <pre id="out" style="display:none;margin-top:12px"></pre>
+  </div>
+</div>
+<script>
+const MIN = {{ min_total }}, MAX = {{ max_total }}, MAXL = {{ max_lines }};
+const j = (u, o) => fetch(u, Object.assign({headers: {'Content-Type': 'application/json'},
+  credentials: 'include'}, o)).then(r => r.json());
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
+  c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+
+function addLine(d) {
+  const tb = document.querySelector('#lines tbody');
+  if (tb.rows.length >= MAXL) return;
+  d = d || {};
+  const tr = tb.insertRow();
+  tr.innerHTML =
+    '<td><input class="l-name" value="' + esc(d.name || '') + '"></td>' +
+    '<td><input class="l-cod" value="' + esc(d.cod || '') + '"></td>' +
+    '<td><input class="l-um" value="' + esc(d.um || 'buc.') + '"></td>' +
+    '<td><input class="l-qty" type="number" step="0.001" value="' + (d.qty || 1) + '"></td>' +
+    '<td><input class="l-price" type="number" step="0.01" value="' + (d.price || '') + '"></td>' +
+    '<td class="l-sum">0.00</td>' +
+    '<td><button class="btn gray" style="padding:4px 9px" onclick="this.closest(\\'tr\\').remove();recalc()">✕</button></td>';
+  tr.querySelectorAll('input').forEach(i => i.oninput = recalc);
+  recalc();
+}
+function lines() {
+  return [...document.querySelectorAll('#lines tbody tr')].map(tr => ({
+    name: tr.querySelector('.l-name').value.trim(),
+    cod: tr.querySelector('.l-cod').value.trim(),
+    um: tr.querySelector('.l-um').value.trim(),
+    qty: parseFloat(tr.querySelector('.l-qty').value) || 0,
+    price: parseFloat(tr.querySelector('.l-price').value) || 0,
+  }));
+}
+function recalc() {
+  let total = 0;
+  document.querySelectorAll('#lines tbody tr').forEach(tr => {
+    const q = parseFloat(tr.querySelector('.l-qty').value) || 0;
+    const p = parseFloat(tr.querySelector('.l-price').value) || 0;
+    const s = Math.round(q * p * 100) / 100;
+    tr.querySelector('.l-sum').textContent = s.toFixed(2);
+    total += s;
+  });
+  total = Math.round(total * 100) / 100;
+  const el = document.getElementById('total');
+  el.textContent = total.toFixed(2) + ' lei';
+  const bad = total < MIN || total > MAX;
+  el.className = 'total' + (bad ? ' bad' : '');
+  document.getElementById('send').disabled = bad;
+  document.getElementById('info').innerHTML = bad
+    ? '<span class="err">Suma trebuie să fie între ' + MIN.toFixed(2) +
+      ' și ' + MAX.toFixed(2) + ' lei</span>' : '';
+}
+function payload() {
+  return {
+    seller: {idno: v('s-idno'), name: v('s-name'), address: v('s-address'),
+             iban: v('s-iban'), bank_code: v('s-bank')},
+    buyer: {idno: v('b-idno'), name: v('b-name'), address: v('b-address')},
+    lines: lines(), tva_rate: parseFloat(v('tva')) || 0,
+    seria: v('seria'), number: v('number'),
+  };
+}
+const v = id => document.getElementById(id).value.trim();
+function show(r, okMsg) {
+  const out = document.getElementById('out');
+  out.style.display = 'block';
+  out.textContent = r.xml || (r.data && r.data.xml) || JSON.stringify(r, null, 2);
+  document.getElementById('info').innerHTML = r.success
+    ? '<span class="ok">' + okMsg + '</span>'
+    : '<span class="err">' + esc(r.error || '') + ' ' +
+      esc(JSON.stringify(r.errors || '')) + '</span>';
+}
+async function preview() {
+  show(await j('preview', {method: 'POST', body: JSON.stringify(payload())}),
+       'XML generat (nu s-a trimis nimic)');
+}
+async function send() {
+  if (!confirm('Factura ajunge în sistemul FISCAL real al SFS. Continuați?')) return;
+  document.getElementById('info').textContent = 'Se trimite…';
+  const r = await j('send', {method: 'POST', body: JSON.stringify(payload())});
+  show(r, 'Trimis ✓ ' + ((r.data && r.data.number) || ''));
+}
+async function queues() {
+  document.getElementById('q-info').textContent = 'Se verifică…';
+  const r = await j('queues');
+  const d = (r.data) || {};
+  document.getElementById('q-info').innerHTML = ' ' + Object.entries(d).map(
+    ([k, x]) => k + ': ' + (x.configured ? (x.ok ? '✅' : '❌') : '— neconfigurat')
+  ).join(' · ');
+}
+addLine({name: 'Serviciu de test', um: 'buc.', qty: 1, price: 1.00});
+</script>
+</body></html>

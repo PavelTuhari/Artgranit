@@ -33,6 +33,7 @@
 <body>
 <div class="bar">🧾 e-Factura (SFS) — administrare
   <a href="/UNA.md/orasldev/b26docs/Partner/ANALIZA_EFACTURA_SFS.md" target="_blank">Analiza integrării ↗</a>
+  <a href="test">🧪 Factură de test</a>
   <a href="/UNA.md/orasldev/biro26">Hub Biro26</a>
   <a href="/UNA.md/orasldev/modules">← Portal</a></div>
 <div class="wrap">
@@ -49,12 +50,29 @@
     <div><label>Namespace</label><input id="s-namespace" style="width:200px"></div>
   </div>
   <div class="row">
-    <div><label>Utilizator API</label><input id="s-username" style="width:220px"></div>
-    <div><label>Parola</label><input id="s-password" type="password" style="width:180px"
-      placeholder="(neschimbată)"></div>
     <div><label>Regim</label><select id="s-mode">
       <option value="semi">Semi-automat (semnare în web)</option>
       <option value="full">Complet automat (cu certificat)</option></select></div>
+  </div>
+  <h2 style="margin-top:14px">Semnatarii — DOUĂ conturi API</h2>
+  <p class="muted">Factura fiscală se semnează de obicei de două persoane
+    (director și contabil-șef), iar e-Factura ține <b>cozi separate</b> pentru
+    fiecare (<code>Order</code> 1 și 2 la <code>GetInvoicesForSigning</code>) —
+    de aceea se înregistrează două conturi API. Al doilea este opțional:
+    dacă lipsește, se folosește primul.</p>
+  <div class="row">
+    <div><label>1. Utilizator API</label><input id="s-username" style="width:200px"></div>
+    <div><label>1. Parola</label><input id="s-password" type="password" style="width:150px"
+      placeholder="(neschimbată)"></div>
+    <div><label>1. Numele semnatarului</label><input id="s-signer1_name" style="width:200px"
+      placeholder="director"></div>
+  </div>
+  <div class="row">
+    <div><label>2. Utilizator API</label><input id="s-username2" style="width:200px"></div>
+    <div><label>2. Parola</label><input id="s-password2" type="password" style="width:150px"
+      placeholder="(neschimbată)"></div>
+    <div><label>2. Numele semnatarului</label><input id="s-signer2_name" style="width:200px"
+      placeholder="contabil-șef"></div>
   </div>
   <h2 style="margin-top:14px">Rechizitele vânzătorului (pentru XML)</h2>
   <div class="row">
@@ -105,7 +123,8 @@ const j = (u, o) => fetch(u, Object.assign({headers: {'Content-Type': 'applicati
   credentials: 'include'}, o)).then(r => r.json());
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
   c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
-const KEYS = ['endpoint','namespace','username','mode','seller_idno','seller_name',
+const KEYS = ['endpoint','namespace','username','username2','signer1_name',
+              'signer2_name','mode','seller_idno','seller_name',
               'seller_address','seller_iban','seller_bank_code','seria',
               'auto_send','only_companies'];
 
@@ -136,10 +155,13 @@ async function saveSettings() {
     if (el) d[k] = el.value; });
   const pwd = document.getElementById('s-password').value;
   if (pwd) d.password = pwd;
+  const pwd2 = document.getElementById('s-password2').value;
+  if (pwd2) d.password2 = pwd2;
   const r = await j('admin/settings', {method: 'POST', body: JSON.stringify(d)});
   document.getElementById('s-info').innerHTML = r.success
     ? '<span class="ok">Salvat ✓</span>' : '<span class="err">' + esc(r.error) + '</span>';
   document.getElementById('s-password').value = '';
+  document.getElementById('s-password2').value = '';
   load();
 }
 async function testConn() {

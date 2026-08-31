@@ -352,6 +352,16 @@
         <a class="lc-doc" href="/UNA.md/orasldev/b26docs/Partner/ANALIZA_EFACTURA_SFS.md" target="_blank">documentație ↗</a></div>
       <div class="lc-cta">Setări e-Factura →</div>
     </a>
+    <a class="launch-card" href="/UNA.md/orasldev/efactura/test">
+      <div class="lc-icon">🧪</div>
+      <div class="lc-title">Factură de TEST
+        <span class="lc-badge b-new">nou</span></div>
+      <div class="lc-desc">Orice director emite o factură fiscală de probă cu
+        <b>rechizitele lui</b>, pe marfă sau serviciu, de la 0,01 până la
+        10 lei. Butonul se poate activa în orice modul al platformei printr-o
+        singură linie.</div>
+      <div class="lc-cta">Emite o probă →</div>
+    </a>
     <a class="launch-card" href="/UNA.md/orasldev/partner/">
       <div class="lc-icon">🤝</div>
       <div class="lc-title">Partner API (B2B)
@@ -505,5 +515,9 @@ async function testConnection() {
 document.addEventListener('DOMContentLoaded', testConnection);
 </script>
 
+<!-- RO: butonul «Factura de test» — activarea modulului de proba intr-un
+     modul strain e EXACT o linie. La fel se poate pune in orice alt modul al
+     platformei Artgranit. EN: one-line drop-in of the test-invoice button. -->
+<script src="/UNA.md/orasldev/efactura/widget.js"></script>
 </body>
 </html>
