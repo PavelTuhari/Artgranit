@@ -99,3 +99,64 @@ facturii: se descarca din sectiunea *Help* a e-Factura, cu contul companiei.
 - [SFS — e-Factura in baza fisierului XML](https://sfs.md/ro/stiri/in-atentia-contribuabililor-care-emit-e-factura-in-baza-fisierului-xml)
 - [Ghidul utilizatorului SI „e-Factura" v.2.0](https://egov.md/sites/default/files/document/attachments/ghid_de_utilizare_e-factura.pdf)
 - Suport tehnic CTIF: **022 822222**
+
+---
+
+## 8. IMPLEMENTAT (31.08.2026) — modulul `modules/efactura/`
+
+Integrarea este scrisa si instalata pe toate conturile; **asteapta doar
+credentialele** (utilizatorul API din e-Factura). Pina atunci modulul
+functioneaza „in gol": arata XML-ul care ar pleca, dar nu trimite nimic.
+
+### Trei intrari, o singura logica
+
+Ca si forma tiparita a contului, trimiterea e disponibila din trei locuri, iar
+in spate ruleaza EXACT acelasi cod (`modules/efactura/controller.py`):
+
+| Intrare | Adresa | Cine are voie |
+|---|---|---|
+| Back-office | `/UNA.md/orasldev/efactura/` | sesiunea portalului |
+| Cabinetul clientului | buton «e-Factura» linga PDF/HTML in „Comenzile mele" | clientul, DOAR documentele lui (serverul verifica) |
+| API intern | `/UNA.md/orasldev/efactura/api/send/<doc>`, `/api/status/<doc>`, `/api/preview/<doc>`, `/api/docs`, `/api/health` | `X-API-Key` — acelasi antet ca restul API-ului Biro26, pentru back-office-urile native |
+
+### Contur Oracle propriu (prefix EFA_)
+
+`EFA_SETTING` (setarile integrarii), `EFA_DOC` (o linie per document:
+status NEW/SENT/ACCEPTED/REJECTED/ERROR, numarul SFS, RequestId, eroarea),
+`EFA_LOG` (jurnal append-only: ce XML a plecat si ce a raspuns SFS — pentru
+audit fiscal). Instalator propriu:
+`python3 modules/efactura/scripts/efactura_deploy.py`. Instalat 31.08.2026,
+7 obiecte VALID.
+
+### Clientul SOAP
+
+Scris de mina, fara `zeep` (nu e in venv-ul productiei, iar o dependinta noua
+pe conturul viu nu se justifica pentru cinci metode): plic SOAP cu
+WS-Security `UsernameToken` peste HTTPS, exact cum cere
+`basicHttpBinding` / `TransportWithMessageCredential` din ghidul SFS.
+Metode acoperite: `PostInvoices`, `GetAcceptedInvoices`, `GetRejectedInvoices`,
+`GetInvoicesBySeriaNumber`, `GetTaxpayersInfo`, `GetLogs`.
+
+### Rechizitele vinzatorului — din ERP, nu din admin
+
+`Biro26Report.doc_data` da deja blocul `firm` din care se tipareste contul:
+IDNO `1026602001837`, denumirea, adresa, IBAN, banca. Modulul il foloseste
+ca sursa, iar setarile din admin doar il SUPRASCRIU. Asa nu se poate intimpla
+ca pe hirtie sa fie o firma si in e-Factura alta.
+
+### Verificat pe documente reale
+
+XML valid pentru contul A-86 (televizor + tonere) si pentru un client
+persoana juridica (`CABINETUL AVOCATULUI…`, IDNO 3202121297825 in `<Buyer>`);
+caracterele speciale (`"`, `&`, `<`) escapate; fara credentiale — mesaj clar,
+nu exceptie; toate cele trei intrari intorc 401 fara autentificare.
+Teste: `tests/test_efactura.py` (7 passed), inclusiv cele doua de izolare.
+
+### Ce ramine de facut cind vin credentialele
+
+1. Se completeaza in pagina modulului: **endpoint**, **utilizator API**,
+   **parola** (+ eventual seria facturii).
+2. Butonul **«Testează conexiunea»** confirma accesul.
+3. La primul document real se compara XML-ul nostru cu **XSD-ul** descarcat
+   din sectiunea *Help* a e-Facturii si se aliniaza denumirile nodurilor
+   (XML-ul plecat se vede in jurnal, deci alinierea se face pe date reale).
