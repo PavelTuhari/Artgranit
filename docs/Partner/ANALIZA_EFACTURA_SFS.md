@@ -273,9 +273,22 @@ PAGINA HTML cu status 500, nu un raspuns SOAP (masurat cu credentiale
 evident invalide). De aceea clientul recunoaste acum acest caz si scrie
 exact asta, in loc sa arate blocul HTML.
 
-IP-urile care ar trebui trecute pe lista, dupa contur: **92.5.3.187**
-(nufarul) si iesirea biroului, **93.115.136.18** (masina `192.168.0.250`,
-care serveste officeplus.md) — de confirmat inainte de cerere.
+**Adresa care conteaza e a SERVERULUI, nu a statiei directorului**: apelul
+SOAP il face aplicatia, nu browserul. Masurate pe viu (31.08.2026):
+
+| Contur | IP de iesire | `apiefactura-pre.sfs.md` |
+|---|---|---|
+| officeplus.md (masina `192.168.0.250`) | **93.115.136.18** | 403 «Accesul este restricționat!» |
+| nufarul | **92.5.3.187** | 403 |
+
+Pe mediul REAL (`efactura-api.sfs.md`) de pe aceleasi IP-uri: `GET` pe
+`?wsdl` da 200, iar `POST` da 500 «A apărut o eroare» — tot o pagina de la
+nginx-ul SFS, nu un raspuns SOAP. Comportamentul nu se schimba nici cu
+antetul WS-Security completat, nici cu alt User-Agent, deci nu tine de
+plicul nostru.
+
+Din 31.08.2026 butonul «Verifică contul» arata si **IP-ul de iesire al
+serverului** — exact numarul care trebuie trimis la SFS.
 
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 

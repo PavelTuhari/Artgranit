@@ -352,3 +352,21 @@ class TestSoapMatchesWsdl(unittest.TestCase):
                                return_value={"success": True}) as call:
             c.test()
         self.assertEqual(call.call_args[0][0], "Test")
+
+
+class TestEgressIp(unittest.TestCase):
+    """RO: SFS deschide accesul pe IP, iar apelul il face SERVERUL — deci
+    verificarea trebuie sa arate adresa serverului, nu a statiei."""
+
+    def test_ping_shows_server_ip(self):
+        from unittest import mock
+        from modules.efactura import testff
+        testff._EGRESS.clear()
+        with mock.patch("modules.efactura.testff._egress_ip",
+                        return_value="203.0.113.7"), \
+             mock.patch("modules.efactura.testff._reach",
+                        return_value={"configured": True, "ok": False,
+                                      "reply": "test"}):
+            r = testff.ping({"username": "u", "password": "p"})
+        self.assertEqual(r["data"]["ip_server"]["reply"][:11], "203.0.113.7")
+        self.assertIn("asistenta@sfs.md", r["data"]["ip_server"]["reply"])

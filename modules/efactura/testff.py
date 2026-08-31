@@ -207,11 +207,39 @@ def _reach(endpoint: str) -> Dict[str, Any]:
     return {"configured": True, "ok": True, "reply": "%s:%s accesibil" % (host, port)}
 
 
+_EGRESS: Dict[str, str] = {}
+
+
+def _egress_ip() -> str:
+    """RO: adresa cu care ESTE VAZUT serverul in internet.
+
+    SFS deschide accesul pe lista de IP, iar apelul catre e-Factura il face
+    SERVERUL, nu calculatorul directorului — deci adresa care trebuie trimisa
+    la `asistenta@sfs.md` este aceasta, nu cea a statiei de lucru. Se afla o
+    singura data si se tine minte; daca nu se poate afla, nu strica nimic.
+    EN: the server's outbound IP — that is what SFS must whitelist.
+    """
+    if "ip" not in _EGRESS:
+        import urllib.request
+        try:
+            with urllib.request.urlopen("https://api.ipify.org",
+                                        timeout=4) as r:
+                _EGRESS["ip"] = r.read().decode("ascii", "replace").strip()[:45]
+        except Exception:                                    # noqa: BLE001
+            _EGRESS["ip"] = ""
+    return _EGRESS["ip"]
+
+
 def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """RO: verifica AMBELE conturi API date in formular, fara sa trimita
     nimic in sistem — asa directorul vede ca datele lui sint bune inainte
     de a emite proba. Prima linie e despre ADRESA, nu despre cont."""
     out = {"adresa": _reach(sfs.SfsClient.from_api(api).endpoint)}
+    ip = _egress_ip()
+    if ip:
+        out["ip_server"] = {"configured": True, "ok": True,
+                            "reply": "%s — această adresă trebuie deschisă "
+                                     "la SFS (asistenta@sfs.md)" % ip}
     if out["adresa"].get("configured") and not out["adresa"].get("ok"):
         # RO: fara retea, apelurile SOAP ar da doar acelasi mesaj de trei ori
         return {"success": True, "data": out}
