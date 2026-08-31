@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ name }} — documentație OfficePlus</title>
+<style>
+  :root{--blue:#194681;--bd:#e2e8f0}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.7 Inter,system-ui,sans-serif;background:#f7f8fa;color:#1a1a1a}
+  .bar{background:var(--blue);color:#fff;padding:13px 22px;font-weight:700;
+       display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:5}
+  .bar a{color:#ffd23a;text-decoration:none;font-size:13px;font-weight:600}
+  .bar .sp{flex:1}
+  .bar .fn{font-weight:400;font-size:12.5px;opacity:.8;font-family:ui-monospace,monospace}
+  .doc{max-width:900px;margin:24px auto 60px;background:#fff;border:1px solid var(--bd);
+       border-radius:14px;padding:32px 38px}
+  .doc h1{font-size:26px;margin:.2em 0 .5em;color:var(--blue)}
+  .doc h2{font-size:20px;margin:1.6em 0 .5em;color:var(--blue);
+          border-bottom:1px solid var(--bd);padding-bottom:6px}
+  .doc h3{font-size:16.5px;margin:1.4em 0 .4em}
+  .doc code{background:#eef2f7;border-radius:5px;padding:1px 6px;font-size:13px}
+  .doc pre{background:#0f172a;color:#d7e3f4;border-radius:10px;padding:14px 16px;
+           overflow:auto;font-size:13px}
+  .doc pre code{background:none;color:inherit;padding:0}
+  .doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;
+             display:block;overflow-x:auto}
+  .doc th,.doc td{border:1px solid var(--bd);padding:7px 10px;text-align:left;
+                  vertical-align:top}
+  .doc th{background:#f1f5f9}
+  .doc blockquote{border-left:3px solid #ea6f21;background:#fff7ed;margin:12px 0;
+                  padding:8px 14px;border-radius:0 8px 8px 0}
+  .doc img{max-width:100%}
+  .doc a{color:#1d4ed8}
+</style>
+</head>
+<body>
+<div class="bar">📄 {{ folder }}<span class="fn">{{ name }}</span>
+  <span class="sp"></span>
+  <a href="{{ url_for('b26docs.index') }}">← Toate documentele</a>
+  <a href="/UNA.md/orasldev/biro26">Hub Biro26</a></div>
+<article class="doc">{{ html|safe }}</article>
+</body></html>

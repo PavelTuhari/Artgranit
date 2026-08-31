@@ -121,6 +121,45 @@
     .launch-card.primary .lc-title,
     .launch-card.primary .lc-cta { color: var(--c-blue); }
 
+    /* RO: sectiuni tematice — hub-ul crescuse la 24 de plachete intr-o
+       singura gramada, iar optiunile noi (Partner API, e-Factura) nu se
+       gaseau. Acum fiecare grup are titlu si numar.
+       EN: themed sections; the flat 24-tile pile hid the newer options. */
+    .sec-head {
+      display: flex; align-items: baseline; gap: 10px;
+      margin: 26px 0 12px; padding-bottom: 7px;
+      border-bottom: 2px solid var(--c-border);
+    }
+    .sec-head h2 { font-size: 15px; color: var(--c-text); font-weight: 800; }
+    .sec-head .sec-n {
+      background: var(--c-blue-lt); color: var(--c-blue);
+      border-radius: 999px; padding: 1px 9px; font-size: 11px; font-weight: 700;
+    }
+    .sec-head .sec-sub { color: var(--c-gray); font-size: 11.5px; flex: 1; }
+    /* legatura catre documentatia optiunii, direct din plachet */
+    .lc-doc {
+      display: inline-block; margin-top: 2px;
+      font-size: 10.5px; color: var(--c-gray);
+      border: 1px solid var(--c-border); border-radius: 999px;
+      padding: 1px 8px; text-decoration: none;
+    }
+    .lc-doc:hover { border-color: var(--c-blue); color: var(--c-blue); }
+    .lc-badge {
+      font-size: 10px; font-weight: 800; letter-spacing: .03em;
+      border-radius: 999px; padding: 1px 7px; margin-left: 6px;
+    }
+    .b-new { background: var(--c-green-lt); color: var(--c-green); }
+    .b-cfg { background: #fef3c7; color: #b45309; }
+    .quick {
+      display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px;
+    }
+    .quick a {
+      font-size: 11.5px; text-decoration: none; color: var(--c-text);
+      background: #fff; border: 1px solid var(--c-border);
+      border-radius: 999px; padding: 5px 12px;
+    }
+    .quick a:hover { border-color: var(--c-blue); color: var(--c-blue); }
+
     .status-row {
       display: flex; align-items: center; gap: 10px;
       background: #fff; border: 1px solid var(--c-border);
@@ -198,181 +237,239 @@
     <button class="st-btn" onclick="testConnection()">↻ Testează</button>
   </div>
 
+  <!-- RO: HUB-ul proiectului. Plachetele sint grupate pe sectiuni si fiecare
+       poarta legatura catre documentatia ei — altfel optiunile noi se pierd
+       intr-o gramada de 20+ carduri, iar «unde e documentat asta?» ramine
+       fara raspuns. Sursa adevarului pentru module: /UNA.md/orasldev/modules.
+       EN: project hub grouped in sections; every tile links to its docs. -->
+
+  <div class="quick">
+    <a href="/UNA.md/orasldev/modules">🧩 Toate modulele portalului</a>
+    <a href="/UNA.md/orasldev/b26docs/" target="_blank">📚 Toate documentele</a>
+    <a href="/UNA.md/orasldev/biro26-tz" target="_blank">📋 Caiet de sarcini</a>
+    <a href="/api/biro26/health" target="_blank">💚 Health (ce commit rulează)</a>
+    <a href="https://officeplus.md/" target="_blank">🌐 officeplus.md</a>
+  </div>
+
+  <!-- ═══ 1. VITRINA ═══ -->
+  <div class="sec-head"><span class="sec-n">1</span><h2>Vitrina online</h2>
+    <span class="sec-sub">magazinul public și administrarea lui</span></div>
   <div class="cards-grid">
-    <a class="launch-card primary" href="/UNA.md/orasldev/biro26-backoffice">
-      <div class="lc-icon">🗂️</div>
-      <div class="lc-title">Back-office {{ app_name }}</div>
-      <div class="lc-desc">
-        Consola principală: sursă (BIRO26_GOODS), nomenclator, grupe/furnizori,
-        listă de prețuri, mapare/setări. Interfață trilingvă RU / RO / EN.
-      </div>
-      <div class="lc-cta">Deschide consola →</div>
+    <a class="launch-card primary" href="/UNA.md/orasldev/biro26-1shop">
+      <div class="lc-icon">🛍️</div>
+      <div class="lc-title">Magazin (design nou)</div>
+      <div class="lc-desc">Vitrina Figma: catalog, fișa produsului, coș, rate
+        și credit, cabinetul clientului. Pe officeplus.md rulează la
+        adresa rădăcină.</div>
+      <div class="lc-cta">Deschide magazinul →</div>
     </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-tz" target="_blank">
-      <div class="lc-icon">📋</div>
-      <div class="lc-title">Specificație tehnică (TZ)</div>
-      <div class="lc-desc">
-        Documentul de proiectare al modulului: arhitectură, mapare de câmpuri,
-        pachetul Oracle, fazele de implementare.
-      </div>
-      <div class="lc-cta">Vezi TZ ↗</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-docs" target="_blank">
-      <div class="lc-icon">📖</div>
-      <div class="lc-title">Documentație modul</div>
-      <div class="lc-desc">
-        Descrierea obiectelor Oracle, rutelor UI/API, instrucțiuni de rulare locală
-        și de deploy.
-      </div>
-      <div class="lc-cta">Vezi documentația ↗</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-report-templates">
-      <div class="lc-icon">🖨️</div>
-      <div class="lc-title">Șabloane rapoarte (PDF)</div>
-      <div class="lc-desc">
-        Editor pentru formularele tipăribile din coș: „Cont de plată”, „Comanda
-        cumpărătorului”, helpers (sumă în litere). Previzualizare PDF pe date
-        reale sau demo; salvare cu backup .bak.
-      </div>
-      <div class="lc-cta">Editează șabloanele →</div>
-    </a>
-
     <a class="launch-card" href="/UNA.md/orasldev/biro26-site-admin">
       <div class="lc-icon">🏬</div>
       <div class="lc-title">Vitrina · Pagina principală</div>
-      <div class="lc-desc">
-        Slide-urile hero, <b>„Produsul zilei”</b> (căutare după denumire, termen,
-        pornit/oprit), lista „Cele mai populare”, secțiunile paginii și abonații
-        la newsletter.
-      </div>
+      <div class="lc-desc">Slide-urile hero, <b>„Produsul zilei”</b> (căutare
+        după denumire), lista „Cele mai populare”, secțiunile paginii,
+        abonații la newsletter.</div>
       <div class="lc-cta">Administrează vitrina →</div>
     </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-notify-settings">
-      <div class="lc-icon">🔔</div>
-      <div class="lc-title">Notificări · Numerotare conturi</div>
-      <div class="lc-desc">
-        Alerte email / Telegram / WhatsApp; plăți online; magazin (produse/pagină);
-        <b>număr de start</b> pentru cont de plată (<code>NRMANUAL</code>).
-      </div>
-      <div class="lc-cta">Configurează →</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-credit-admin">
-      <div class="lc-icon">💳</div>
-      <div class="lc-title">Integrări cu organizații de creditare</div>
-      <div class="lc-desc">
-        Provideri API (EasyCredit, Iute) — credențiale, <b>Test conexiune</b>;
-        organizații de creditare, pachete de rate, majorarea fără transport;
-        cererile clienților cu status API. Schema <code>TMS_CREDITE_*</code>.
-        <a href="/UNA.md/orasldev/biro26-docs#creditare" target="_blank">Documentație §16</a>
-      </div>
-      <div class="lc-cta">Configurează →</div>
-    </a>
-
-    <a class="launch-card primary" href="/UNA.md/orasldev/biro26-journal">
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-shop">
       <div class="lc-icon">🧾</div>
-      <div class="lc-title">Jurnal universal · casa operatorului</div>
-      <div class="lc-desc">
-        O singură formă pentru documente (model aprobat): filtre, grilă master
-        și patru file — <b>Contări · Mărfuri · Fișiere · LOG</b>. De aici
-        operatorul înregistrează clienți noi (fizică / juridică, minim
-        denumirea), alege cumpărătorul și emite contul de plată. Doar tabele
-        Oracle existente: <code>TMDB_DOCS</code>, <code>VMDB_ST201D/M</code>,
-        <code>VMDB_DOCS_OLE</code>, <code>XLOG</code>.
-      </div>
-      <div class="lc-cta">Deschide jurnalul →</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-clients">
-      <div class="lc-icon">👥</div>
-      <div class="lc-title">Clienți magazin · Клиенты магазина</div>
-      <div class="lc-desc">
-        Toți clienții înregistrați pe site și <b>marcajul</b> lor:
-        <b>admin</b> (vede detaliile tehnice pe vitrină), <b>test</b>, <b>trusted</b>.
-        Căutare după email, nume, telefon sau COD.
-      </div>
+      <div class="lc-title">Magazin clasic</div>
+      <div class="lc-desc">Varianta precedentă a vitrinei, păstrată pentru
+        comparație și pentru clienții obișnuiți cu ea.</div>
       <div class="lc-cta">Deschide →</div>
     </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-credite-docs">
-      <div class="lc-icon">💳</div>
-      <div class="lc-title">Documente de credit · Кредитные документы</div>
-      <div class="lc-desc">
-        Fiecare cerere de credit ca <b>document propriu</b> (serie CR), legat de
-        contul comenzii: NNP, IDNP/IDNO, telefon, adresa, pachetul și rîndurile.
-        Tab pe organizație (EasyCredit / Liber Card) și descărcare în Excel.
-      </div>
-      <div class="lc-cta">Deschide →</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-integration-log">
-      <div class="lc-icon">🧾</div>
-      <div class="lc-title">Jurnal integrări · Журнал интеграций</div>
-      <div class="lc-desc">
-        Toată comunicarea tehnică cu <b>EasyCredit / Iute</b> și cu plățile
-        <b>maib / MIA</b>: operația, codul HTTP, durata, cererea și răspunsul.
-        Filtru pe erori — primul loc unde se caută cauza.
-      </div>
-      <div class="lc-cta">Deschide →</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-import-pt">
-      <div class="lc-icon">📥</div>
-      <div class="lc-title">Import fișiere (PT)</div>
-      <div class="lc-desc">
-        Grup de fișiere xlsx/csv sau zip cu structură necunoscută → detecție
-        automată a coloanelor (BIRO26PT_importData), dry-run cu contoare
-        NEW/EXISTING, corectare manuală a mapping-ului, apoi import confirmat.
-      </div>
-      <div class="lc-cta">Importă →</div>
-    </a>
-
-    <!-- RO: DOUA variante de magazin (owner 06.08.2026):
-         «shop»  = sablon WordPress standard cu magazinul in IFRAME (biro26-wp)
-         «shop1» = site INTREG de magazin (biro26-1shop); setarile, paginile
-                   si imaginile le ia din admin-ul WordPress local. -->
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-1shop" target="_blank">
-      <div class="lc-icon">🛒</div>
-      <div class="lc-title">Magazin «shop1» — site întreg</div>
-      <div class="lc-desc">
-        Varianta 1shop: site de magazin de sine stătător (designul actual
-        officeplus.md) — catalog, coș, credite (EasyCredit / Liber / MAIB),
-        cont client. Setările, paginile și imaginile le ia din
-        <b>admin-ul WordPress</b> local (copia biro26-wp).
-      </div>
-      <div class="lc-cta">Deschide shop1 →</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-wp" target="_blank">
-      <div class="lc-icon">🌐</div>
-      <div class="lc-title">Magazin «shop» — WordPress + iframe</div>
-      <div class="lc-desc">
-        Varianta shop: șablon WordPress standard, iar magazinul rulează în
-        interior, în <b>iframe</b> (copia completă officeplus.md, arhiva
-        2026-08-05; DB <code>officeplus_wp</code>,
-        <code>/var/www/officeplus</code>).<br>
-        <a href="/UNA.md/orasldev/biro26-wp/wp-admin/" target="_blank">wp-admin
-        (setări, pagini, imagini pentru ambele variante) →</a>
-      </div>
-      <div class="lc-cta">Deschide shop →</div>
-    </a>
-
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-backups">
-      <div class="lc-icon">📦</div>
-      <div class="lc-title">Arhive site (backup)</div>
-      <div class="lc-desc">
-        Arhivare <b>săptămânală, noaptea</b> a surselor și metadatelor site-ului
-        (fără marfa ERP / imagini produse). Retenție: ultimele 7 + câte 1 pe lună.
-        Descărcare arhive, jurnal și destinații <b>FTP / SFTP</b> pentru copii externe.
-      </div>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-wp">
+      <div class="lc-icon">📰</div>
+      <div class="lc-title">WordPress (conținut)</div>
+      <div class="lc-desc">Paginile de conținut (Despre noi, Contacte, Livrare)
+        pe care vitrina le afișează prin API.
+        <a class="lc-doc" href="/UNA.md/orasldev/biro26-wp/wp-admin/" target="_blank">wp-admin ↗</a></div>
       <div class="lc-cta">Deschide →</div>
     </a>
   </div>
 
+  <!-- ═══ 2. BACK-OFFICE ═══ -->
+  <div class="sec-head"><span class="sec-n">2</span><h2>Back-office</h2>
+    <span class="sec-sub">marfă, prețuri, documente, clienți</span></div>
+  <div class="cards-grid">
+    <a class="launch-card primary" href="/UNA.md/orasldev/biro26-backoffice">
+      <div class="lc-icon">📦</div>
+      <div class="lc-title">Marfă &amp; Stoc</div>
+      <div class="lc-desc">Sursa mărfurilor (BIRO26_GOODS), nomenclatorul
+        (TMS_UNIVERS), grupe și furnizori, lista de prețuri, importul în ERP.</div>
+      <div class="lc-cta">Deschide back-office-ul →</div>
+    </a>
+    <a class="launch-card primary" href="/UNA.md/orasldev/biro26-journal">
+      <div class="lc-icon">📒</div>
+      <div class="lc-title">Jurnal universal</div>
+      <div class="lc-desc">O singură formă pentru documente: filtre, grila
+        master și cele patru file (poziții, plăți, livrări, credit).
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/Biro26/JURNAL_UNIVERSAL.md" target="_blank">documentație ↗</a></div>
+      <div class="lc-cta">Deschide jurnalul →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-clients">
+      <div class="lc-icon">👥</div>
+      <div class="lc-title">Clienți</div>
+      <div class="lc-desc">Cartelele clienților web, legătura cu contragentul
+        ERP, actele încărcate, adăugare rapidă din date.gov.md.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-import-pt">
+      <div class="lc-icon">📥</div>
+      <div class="lc-title">Import fișiere (BIRO26PT)</div>
+      <div class="lc-desc">Încărcarea prețurilor și mărfurilor din xlsx/csv:
+        detecția coloanelor, verificare, import.
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/Biro26/IMPORT_SURSE.md" target="_blank">sursele ↗</a></div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-credite-docs">
+      <div class="lc-icon">📄</div>
+      <div class="lc-title">Documente de credit</div>
+      <div class="lc-desc">Cererile de credit cu toate datele din anchetă și
+        actele clientului — de copiat în formularul băncii.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-translations">
+      <div class="lc-icon">🌐</div>
+      <div class="lc-title">Traduceri</div>
+      <div class="lc-desc">Dicționarul de grupe și categorii în RO/RU/EN
+        (YBIRO_GRP_I18N) — numele pe care le vede clientul.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+  </div>
+
+  <!-- ═══ 3. INTEGRARI ═══ -->
+  <div class="sec-head"><span class="sec-n">3</span><h2>Integrări</h2>
+    <span class="sec-sub">bănci, parteneri, fisc, sisteme externe</span></div>
+  <div class="cards-grid">
+    <a class="launch-card" href="/UNA.md/orasldev/efactura/">
+      <div class="lc-icon">🧾</div>
+      <div class="lc-title">e-Factura (SFS)
+        <span class="lc-badge b-cfg">de configurat</span></div>
+      <div class="lc-desc">Factura fiscală electronică în SIA „e-Factura”:
+        setări, jurnal, previzualizare XML. Trimiterea merge din back-office,
+        din cabinetul clientului și prin API intern.
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/Partner/ANALIZA_EFACTURA_SFS.md" target="_blank">documentație ↗</a></div>
+      <div class="lc-cta">Setări e-Factura →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/partner/">
+      <div class="lc-icon">🤝</div>
+      <div class="lc-title">Partner API (B2B)
+        <span class="lc-badge b-new">nou</span></div>
+      <div class="lc-desc">API pentru partenerii noștri (contract identic cu
+        Ultra B2B V1) și integrarea noastră ca dealer ultra.md.
+        <a class="lc-doc" href="https://officeplus.md/api-documentation" target="_blank">documentația API ↗</a></div>
+      <div class="lc-cta">Administrează parteneri →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-credit-admin">
+      <div class="lc-icon">💳</div>
+      <div class="lc-title">Rate și credite</div>
+      <div class="lc-desc">Organizațiile de creditare (EasyCredit, Liber Card
+        MAIB, MAIB Credit de consum, Microinvest), pachetele și adaosurile.
+        <a class="lc-doc" href="/UNA.md/orasldev/biro26-docs#creditare" target="_blank">documentație ↗</a></div>
+      <div class="lc-cta">Configurează →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-pay-test">
+      <div class="lc-icon">🏦</div>
+      <div class="lc-title">Plăți online (MAIB)</div>
+      <div class="lc-desc">Verificarea conexiunii cu MAIB Checkout și a plăților
+        de test înainte de a trece pe producție.</div>
+      <div class="lc-cta">Testează →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-integration-log">
+      <div class="lc-icon">🔌</div>
+      <div class="lc-title">Jurnalul integrărilor</div>
+      <div class="lc-desc">Apelurile către sistemele externe (bănci, creditori,
+        parteneri) cu cererea și răspunsul — pentru căutarea cauzei.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-notify-settings">
+      <div class="lc-icon">🔔</div>
+      <div class="lc-title">Notificări · Numerotare</div>
+      <div class="lc-desc">Alerte email / Telegram / WhatsApp; numărul de start
+        pentru contul de plată (<code>NRMANUAL</code>).</div>
+      <div class="lc-cta">Configurează →</div>
+    </a>
+  </div>
+
+  <!-- ═══ 4. RAPOARTE SI FORME ═══ -->
+  <div class="sec-head"><span class="sec-n">4</span><h2>Rapoarte și forme tipărite</h2>
+    <span class="sec-sub">ce primește clientul pe hârtie și în PDF</span></div>
+  <div class="cards-grid">
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-report-templates">
+      <div class="lc-icon">🖨️</div>
+      <div class="lc-title">Șabloane rapoarte (PDF)</div>
+      <div class="lc-desc">Formularele tipăribile din coș: „Cont de plată”,
+        „Comanda cumpărătorului”. Previzualizare pe date reale, salvare cu
+        backup.</div>
+      <div class="lc-cta">Editează șabloanele →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-pdfme-designer">
+      <div class="lc-icon">🎨</div>
+      <div class="lc-title">Designer vizual (pdfme)</div>
+      <div class="lc-desc">Editorul vizual al formularelor PDF — mutarea
+        câmpurilor cu mouse-ul, fără cod.</div>
+      <div class="lc-cta">Deschide designerul →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-backups">
+      <div class="lc-icon">💾</div>
+      <div class="lc-title">Copii de rezervă</div>
+      <div class="lc-desc">Arhivele site-ului și ale bazei, cu descărcare și
+        restaurare.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+  </div>
+
+  <!-- ═══ 5. DOCUMENTATIE ═══ -->
+  <div class="sec-head"><span class="sec-n">5</span><h2>Documentație</h2>
+    <span class="sec-sub">totul despre proiect, într-un singur loc</span></div>
+  <div class="cards-grid">
+    <a class="launch-card primary" href="/UNA.md/orasldev/b26docs/" target="_blank">
+      <div class="lc-icon">📚</div>
+      <div class="lc-title">Toate documentele
+        <span class="lc-badge b-new">nou</span></div>
+      <div class="lc-desc">Indexul complet cu căutare: arhitectura, obiectele
+        Oracle, importul, creditarea, integrările. Documentele se citesc direct
+        din repository — se deschid în portal, nu doar în cod.
+        <a class="lc-doc" href="/UNA.md/orasldev/biro26-docs" target="_blank">prezentarea modulului ↗</a></div>
+      <div class="lc-cta">Deschide indexul →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/b26docs/Biro26/PROJECT_BIRO26.md" target="_blank">
+      <div class="lc-icon">📖</div>
+      <div class="lc-title">Descrierea proiectului</div>
+      <div class="lc-desc">Cum e construit modulul, ce s-a schimbat și de ce —
+        documentul principal, ținut la zi după fiecare lucrare.</div>
+      <div class="lc-cta">Citește →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/biro26-tz" target="_blank">
+      <div class="lc-icon">📋</div>
+      <div class="lc-title">Caiet de sarcini</div>
+      <div class="lc-desc">Cerințele după care se construiește modulul, cu
+        starea fiecărui punct.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/b26docs/Biro26/GHID_IMPORT_ALTE_SCHEME.md" target="_blank">
+      <div class="lc-icon">🧭</div>
+      <div class="lc-title">Ghidul importului</div>
+      <div class="lc-desc">Cum se adaugă o sursă nouă de mărfuri, capcanele
+        deja plătite și verificările standard.</div>
+      <div class="lc-cta">Citește →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/b26docs/Biro26/AUDIT_GDPR_SECURITATE.html" target="_blank">
+      <div class="lc-icon">🔐</div>
+      <div class="lc-title">Audit GDPR &amp; securitate</div>
+      <div class="lc-desc">Datele personale ale clienților, actele încărcate,
+        riscurile identificate și ce rămâne de decis.</div>
+      <div class="lc-cta">Deschide →</div>
+    </a>
+    <a class="launch-card" href="/UNA.md/orasldev/b26docs/Biro26/WEB_APP_VERSIONING.md" target="_blank">
+      <div class="lc-icon">🔢</div>
+      <div class="lc-title">Versiunea aplicației</div>
+      <div class="lc-desc">Regula numărului de versiune din subsol și scriptul
+        care îl scrie în Oracle și MySQL.</div>
+      <div class="lc-cta">Citește →</div>
+    </a>
+  </div>
   <div class="alert">
     <b>Despre modul.</b> {{ app_name }} citește fluxul sursă <code>BIRO26_GOODS</code>, îl validează
     și îl pregătește, atribuie chei (<code>cod_univers</code>) și importă în

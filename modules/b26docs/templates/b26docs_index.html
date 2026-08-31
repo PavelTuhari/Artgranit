@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentația proiectului — OfficePlus</title>
+<style>
+  :root{--blue:#194681;--gray:#475569;--bd:#e2e8f0}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.6 Inter,system-ui,sans-serif;background:#f7f8fa;color:#1a1a1a}
+  .bar{background:var(--blue);color:#fff;padding:13px 22px;font-weight:700;
+       display:flex;align-items:center;gap:14px}
+  .bar a{color:#ffd23a;text-decoration:none;font-size:13px;font-weight:600}
+  .bar .sp{flex:1}
+  .wrap{max-width:1000px;margin:22px auto;padding:0 16px 50px}
+  .search{width:100%;padding:11px 16px;border:1px solid var(--bd);border-radius:10px;
+          font:inherit;margin-bottom:18px}
+  h2{font-size:16px;color:var(--blue);margin:26px 0 10px;padding-bottom:7px;
+     border-bottom:2px solid var(--bd);display:flex;align-items:baseline;gap:9px}
+  h2 .n{background:#dbeafe;color:#1d4ed8;border-radius:999px;padding:1px 9px;
+        font-size:11px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  .doc{background:#fff;border:1px solid var(--bd);border-radius:11px;padding:14px 16px;
+       text-decoration:none;color:inherit;display:block;transition:.15s}
+  .doc:hover{border-color:var(--blue);box-shadow:0 5px 16px rgba(15,23,42,.07)}
+  .doc b{display:block;font-size:13.5px;color:var(--blue);margin-bottom:3px}
+  .doc .d{font-size:12px;color:var(--gray);line-height:1.5}
+  .doc .f{font-size:11px;color:#94a3b8;margin-top:6px;font-family:ui-monospace,monospace}
+  .muted{color:var(--gray);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="bar">📚 Documentația proiectului
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/biro26">← Hub Biro26</a>
+  <a href="/UNA.md/orasldev/modules">Toate modulele</a></div>
+<div class="wrap">
+  <input class="search" id="q" placeholder="🔎 Caută în titluri și descrieri…"
+         value="{{ q }}" oninput="filter()">
+  {% for g in groups %}
+  <h2><span class="n">{{ g.items|length }}</span>{{ g.folder }}</h2>
+  <div class="grid" data-group="{{ g.folder }}">
+    {% for d in g.items %}
+    <a class="doc" href="{{ url_for('b26docs.view', folder=g.folder, name=d.file) }}"
+       data-t="{{ (d.title ~ ' ' ~ d.descr ~ ' ' ~ d.file)|lower }}">
+      <b>{{ d.title or d.file }}</b>
+      {% if d.descr %}<span class="d">{{ d.descr }}</span>{% endif %}
+      <span class="f">{{ d.file }} · {{ (d.size / 1024)|round|int }} KB</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  <p class="muted" style="margin-top:26px">Documentele se citesc direct din
+    <code>docs/</code> — ce e commit-uit în repository, asta se vede aici.</p>
+</div>
+<script>
+function filter() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  document.querySelectorAll('.doc').forEach(a => {
+    a.style.display = (!q || a.dataset.t.includes(q)) ? '' : 'none';
+  });
+  document.querySelectorAll('.grid').forEach(g => {
+    const vis = [...g.querySelectorAll('.doc')].some(a => a.style.display !== 'none');
+    g.previousElementSibling.style.display = vis ? '' : 'none';
+    g.style.display = vis ? '' : 'none';
+  });
+}
+if (document.getElementById('q').value) filter();
+</script>
+</body></html>

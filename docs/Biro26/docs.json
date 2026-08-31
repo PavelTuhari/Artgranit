@@ -1,0 +1,338 @@
+{
+  "PROJECT_BIRO26.md": {
+    "title": {
+      "ro": "Descrierea proiectului",
+      "ru": "Descrierea proiectului",
+      "en": "Descrierea proiectului"
+    },
+    "descr": {
+      "ro": "Documentul principal: cum e construit modulul, ce s-a schimbat si de ce. Tinut la zi dupa fiecare lucrare.",
+      "ru": "Documentul principal: cum e construit modulul, ce s-a schimbat si de ce. Tinut la zi dupa fiecare lucrare.",
+      "en": "Documentul principal: cum e construit modulul, ce s-a schimbat si de ce. Tinut la zi dupa fiecare lucrare."
+    }
+  },
+  "TZ_BIRO26_App.md": {
+    "title": {
+      "ro": "Caiet de sarcini",
+      "ru": "Caiet de sarcini",
+      "en": "Caiet de sarcini"
+    },
+    "descr": {
+      "ro": "Cerintele dupa care se construieste modulul, cu starea fiecarui punct.",
+      "ru": "Cerintele dupa care se construieste modulul, cu starea fiecarui punct.",
+      "en": "Cerintele dupa care se construieste modulul, cu starea fiecarui punct."
+    }
+  },
+  "GHID_IMPORT_ALTE_SCHEME.md": {
+    "title": {
+      "ro": "Ghidul importului",
+      "ru": "Ghidul importului",
+      "en": "Ghidul importului"
+    },
+    "descr": {
+      "ro": "Cum se adauga o sursa noua de marfuri, capcanele deja platite si verificarile standard.",
+      "ru": "Cum se adauga o sursa noua de marfuri, capcanele deja platite si verificarile standard.",
+      "en": "Cum se adauga o sursa noua de marfuri, capcanele deja platite si verificarile standard."
+    }
+  },
+  "IMPORT_SURSE.md": {
+    "title": {
+      "ro": "Sursele de import",
+      "ru": "Sursele de import",
+      "en": "Sursele de import"
+    },
+    "descr": {
+      "ro": "Toti furnizorii de date (impreso, birovits, officeshop, ULTRA...), prefixele de articol si particularitatile fiecaruia.",
+      "ru": "Toti furnizorii de date (impreso, birovits, officeshop, ULTRA...), prefixele de articol si particularitatile fiecaruia.",
+      "en": "Toti furnizorii de date (impreso, birovits, officeshop, ULTRA...), prefixele de articol si particularitatile fiecaruia."
+    }
+  },
+  "BIRO26PT_IMPORTDATA.md": {
+    "title": {
+      "ro": "Motorul de import (PL/SQL)",
+      "ru": "Motorul de import (PL/SQL)",
+      "en": "Motorul de import (PL/SQL)"
+    },
+    "descr": {
+      "ro": "Pachetul care detecteaza coloanele, construieste stagingul si scrie in nomenclator.",
+      "ru": "Pachetul care detecteaza coloanele, construieste stagingul si scrie in nomenclator.",
+      "en": "Pachetul care detecteaza coloanele, construieste stagingul si scrie in nomenclator."
+    }
+  },
+  "BIRO26PT_WEB_INTERFACE_SPEC.md": {
+    "title": {
+      "ro": "Interfata de import (web)",
+      "ru": "Interfata de import (web)",
+      "en": "Interfata de import (web)"
+    },
+    "descr": {
+      "ro": "Ecranul de incarcare a fisierelor: maparea coloanelor, verificarea, importul.",
+      "ru": "Ecranul de incarcare a fisierelor: maparea coloanelor, verificarea, importul.",
+      "en": "Ecranul de incarcare a fisierelor: maparea coloanelor, verificarea, importul."
+    }
+  },
+  "JURNAL_UNIVERSAL.md": {
+    "title": {
+      "ro": "Jurnalul universal",
+      "ru": "Jurnalul universal",
+      "en": "Jurnalul universal"
+    },
+    "descr": {
+      "ro": "O singura forma pentru documente: filtre, grila master si cele patru file.",
+      "ru": "O singura forma pentru documente: filtre, grila master si cele patru file.",
+      "en": "O singura forma pentru documente: filtre, grila master si cele patru file."
+    }
+  },
+  "IMPORT_FOI_CA_GRUPE.md": {
+    "title": {
+      "ro": "Foile ca grupe",
+      "ru": "Foile ca grupe",
+      "en": "Foile ca grupe"
+    },
+    "descr": {
+      "ro": "Algoritmul care transforma foile fisierului in grupe de marfa.",
+      "ru": "Algoritmul care transforma foile fisierului in grupe de marfa.",
+      "en": "Algoritmul care transforma foile fisierului in grupe de marfa."
+    }
+  },
+  "SERVICII_NOMENCLATOR.md": {
+    "title": {
+      "ro": "Serviciile in nomenclator",
+      "ru": "Serviciile in nomenclator",
+      "en": "Serviciile in nomenclator"
+    },
+    "descr": {
+      "ro": "Cum intra serviciile (transport, montaj) alaturi de marfa.",
+      "ru": "Cum intra serviciile (transport, montaj) alaturi de marfa.",
+      "en": "Cum intra serviciile (transport, montaj) alaturi de marfa."
+    }
+  },
+  "DIACRITICE_SI_SERVICII.md": {
+    "title": {
+      "ro": "Diacritice si servicii",
+      "ru": "Diacritice si servicii",
+      "en": "Diacritice si servicii"
+    },
+    "descr": {
+      "ro": "De ce denumirile se transliterreaza si cum se cauta 'carti' vs 'carti'.",
+      "ru": "De ce denumirile se transliterreaza si cum se cauta 'carti' vs 'carti'.",
+      "en": "De ce denumirile se transliterreaza si cum se cauta 'carti' vs 'carti'."
+    }
+  },
+  "TVA_CASCADA.md": {
+    "title": {
+      "ro": "TVA in cascada",
+      "ru": "TVA in cascada",
+      "en": "TVA in cascada"
+    },
+    "descr": {
+      "ro": "Cum se calculeaza TVA pe document si de ce modul contorizarii conteaza.",
+      "ru": "Cum se calculeaza TVA pe document si de ce modul contorizarii conteaza.",
+      "en": "Cum se calculeaza TVA pe document si de ce modul contorizarii conteaza."
+    }
+  },
+  "COMISIOANE_BASELINE.md": {
+    "title": {
+      "ro": "Comisioanele — etalon",
+      "ru": "Comisioanele — etalon",
+      "en": "Comisioanele — etalon"
+    },
+    "descr": {
+      "ro": "Valorile de referinta ale comisioanelor, fixate ca sa nu se piarda.",
+      "ru": "Valorile de referinta ale comisioanelor, fixate ca sa nu se piarda.",
+      "en": "Valorile de referinta ale comisioanelor, fixate ca sa nu se piarda."
+    }
+  },
+  "EASYCREDIT_REQUEST_V3.md": {
+    "title": {
+      "ro": "EasyCredit — cererea v3",
+      "ru": "EasyCredit — cererea v3",
+      "en": "EasyCredit — cererea v3"
+    },
+    "descr": {
+      "ro": "Formatul cererii catre EasyCredit si campurile obligatorii.",
+      "ru": "Formatul cererii catre EasyCredit si campurile obligatorii.",
+      "en": "Formatul cererii catre EasyCredit si campurile obligatorii."
+    }
+  },
+  "GOOGLE_SHEETS_CREDITE.md": {
+    "title": {
+      "ro": "Creditele in Google Sheets",
+      "ru": "Creditele in Google Sheets",
+      "en": "Creditele in Google Sheets"
+    },
+    "descr": {
+      "ro": "Legatura cu tabelul de lucru al operatorilor de credit.",
+      "ru": "Legatura cu tabelul de lucru al operatorilor de credit.",
+      "en": "Legatura cu tabelul de lucru al operatorilor de credit."
+    }
+  },
+  "COMENZI_EXTRABILANTIER.md": {
+    "title": {
+      "ro": "Comenzi extrabilantiere",
+      "ru": "Comenzi extrabilantiere",
+      "en": "Comenzi extrabilantiere"
+    },
+    "descr": {
+      "ro": "Comenzile care nu trec prin stoc si cum se vad in documente.",
+      "ru": "Comenzile care nu trec prin stoc si cum se vad in documente.",
+      "en": "Comenzile care nu trec prin stoc si cum se vad in documente."
+    }
+  },
+  "DEV_MARFA_STOC.md": {
+    "title": {
+      "ro": "Marfa & Stoc — dezvoltare",
+      "ru": "Marfa & Stoc — dezvoltare",
+      "en": "Marfa & Stoc — dezvoltare"
+    },
+    "descr": {
+      "ro": "Ecranul principal al back-office-ului: coloane, filtre, actiuni.",
+      "ru": "Ecranul principal al back-office-ului: coloane, filtre, actiuni.",
+      "en": "Ecranul principal al back-office-ului: coloane, filtre, actiuni."
+    }
+  },
+  "MIGRATION_BIRO26.md": {
+    "title": {
+      "ro": "Migrarea",
+      "ru": "Migrarea",
+      "en": "Migrarea"
+    },
+    "descr": {
+      "ro": "Mutarea modulului intre conturi si ce trebuie verificat dupa.",
+      "ru": "Mutarea modulului intre conturi si ce trebuie verificat dupa.",
+      "en": "Mutarea modulului intre conturi si ce trebuie verificat dupa."
+    }
+  },
+  "WEB_APP_VERSIONING.md": {
+    "title": {
+      "ro": "Versiunea aplicatiei",
+      "ru": "Versiunea aplicatiei",
+      "en": "Versiunea aplicatiei"
+    },
+    "descr": {
+      "ro": "Regula numarului din subsol si scriptul care il scrie in Oracle si MySQL.",
+      "ru": "Regula numarului din subsol si scriptul care il scrie in Oracle si MySQL.",
+      "en": "Regula numarului din subsol si scriptul care il scrie in Oracle si MySQL."
+    }
+  },
+  "WP_SHOP_NUFARUL.md": {
+    "title": {
+      "ro": "WordPress pe nufarul",
+      "ru": "WordPress pe nufarul",
+      "en": "WordPress pe nufarul"
+    },
+    "descr": {
+      "ro": "Copia WP care serveste paginile de continut ale vitrinei.",
+      "ru": "Copia WP care serveste paginile de continut ale vitrinei.",
+      "en": "Copia WP care serveste paginile de continut ale vitrinei."
+    }
+  },
+  "DEPLOY_250_OFFICEPLUS_COPY.md": {
+    "title": {
+      "ro": "Copia de pe .250",
+      "ru": "Copia de pe .250",
+      "en": "Copia de pe .250"
+    },
+    "descr": {
+      "ro": "Platforma din birou care serveste officeplus.md prin failover.",
+      "ru": "Platforma din birou care serveste officeplus.md prin failover.",
+      "en": "Platforma din birou care serveste officeplus.md prin failover."
+    }
+  },
+  "AUDIT_GDPR_SECURITATE.html": {
+    "title": {
+      "ro": "Audit GDPR & securitate",
+      "ru": "Audit GDPR & securitate",
+      "en": "Audit GDPR & securitate"
+    },
+    "descr": {
+      "ro": "Datele personale, actele incarcate, riscurile identificate si ce ramine de decis.",
+      "ru": "Datele personale, actele incarcate, riscurile identificate si ce ramine de decis.",
+      "en": "Datele personale, actele incarcate, riscurile identificate si ce ramine de decis."
+    }
+  },
+  "OFFICEPLUS_FAILOVER.html": {
+    "title": {
+      "ro": "Failover officeplus.md",
+      "ru": "Failover officeplus.md",
+      "en": "Failover officeplus.md"
+    },
+    "descr": {
+      "ro": "Cum domeniul trece de la biroul propriu la platforma de rezerva.",
+      "ru": "Cum domeniul trece de la biroul propriu la platforma de rezerva.",
+      "en": "Cum domeniul trece de la biroul propriu la platforma de rezerva."
+    }
+  },
+  "README_BIRO26.html": {
+    "title": {
+      "ro": "Prezentarea modulului",
+      "ru": "Prezentarea modulului",
+      "en": "Prezentarea modulului"
+    },
+    "descr": {
+      "ro": "Pagina de prezentare cu legaturile vii catre toate ecranele.",
+      "ru": "Pagina de prezentare cu legaturile vii catre toate ecranele.",
+      "en": "Pagina de prezentare cu legaturile vii catre toate ecranele."
+    }
+  },
+  "TZ_WEB_TMS_MPT_WEBATTR.md": {
+    "title": {
+      "ro": "Atributele web ale marfii",
+      "ru": "Atributele web ale marfii",
+      "en": "Atributele web ale marfii"
+    },
+    "descr": {
+      "ro": "Denumirile complete si descrierile folosite de vitrina si de cautare.",
+      "ru": "Denumirile complete si descrierile folosite de vitrina si de cautare.",
+      "en": "Denumirile complete si descrierile folosite de vitrina si de cautare."
+    }
+  },
+  "GRESELI_IDENTIFICATE.md": {
+    "title": {
+      "ro": "Greseli identificate",
+      "ru": "Greseli identificate",
+      "en": "Greseli identificate"
+    },
+    "descr": {
+      "ro": "Jurnalul erorilor gasite si al cauzelor lor — ca sa nu se repete.",
+      "ru": "Jurnalul erorilor gasite si al cauzelor lor — ca sa nu se repete.",
+      "en": "Jurnalul erorilor gasite si al cauzelor lor — ca sa nu se repete."
+    }
+  },
+  "INSTRUCTIUNE_INCARCARE_DATE.md": {
+    "title": {
+      "ro": "Instructiune: incarcarea datelor",
+      "ru": "Instructiune: incarcarea datelor",
+      "en": "Instructiune: incarcarea datelor"
+    },
+    "descr": {
+      "ro": "Pas cu pas pentru operator: de la fisier la marfa publicata.",
+      "ru": "Pas cu pas pentru operator: de la fisier la marfa publicata.",
+      "en": "Pas cu pas pentru operator: de la fisier la marfa publicata."
+    }
+  },
+  "TASK_WEB_DEPLOY_SI_IMAGINI_IMPRESO.md": {
+    "title": {
+      "ro": "Task: deploy si imaginile impreso",
+      "ru": "Task: deploy si imaginile impreso",
+      "en": "Task: deploy si imaginile impreso"
+    },
+    "descr": {
+      "ro": "Cererea echipei de import despre rasincronul de deploy si imaginile fara HTTPS.",
+      "ru": "Cererea echipei de import despre rasincronul de deploy si imaginile fara HTTPS.",
+      "en": "Cererea echipei de import despre rasincronul de deploy si imaginile fara HTTPS."
+    }
+  },
+  "TASK_WEB_DEPLOY_SI_IMAGINI_IMPRESO_RASPUNS.md": {
+    "title": {
+      "ro": "Raspuns: deploy si imagini",
+      "ru": "Raspuns: deploy si imagini",
+      "en": "Raspuns: deploy si imagini"
+    },
+    "descr": {
+      "ro": "Ce s-a reparat: deploy complet, proxy de imagini, health cu commit.",
+      "ru": "Ce s-a reparat: deploy complet, proxy de imagini, health cu commit.",
+      "en": "Ce s-a reparat: deploy complet, proxy de imagini, health cu commit."
+    }
+  }
+}
