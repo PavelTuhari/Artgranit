@@ -207,3 +207,66 @@ Teste: `tests/test_efactura.py` (7 passed), inclusiv cele doua de izolare.
 | Trimitere fara credentiale | mesaj clar, nu exceptie |
 | Jurnal | scrie corect (5 inregistrari) |
 | Cele trei intrari fara autentificare | 401 / redirect la login |
+
+---
+
+## 10. Mini-modulul universal «Factura de TEST» (31.08.2026)
+
+**Pentru ce:** orice director isi emite o factura fiscala de proba cu
+rechizitele LUI, pe marfa sau serviciu, ca sa vada ca lantul
+«sistemul nostru → SIA e-Factura → semnare» chiar merge — inainte ca prin el
+sa treaca documentele reale.
+
+**Adresa:** `/UNA.md/orasldev/efactura/test` (si plachet in hub-ul Biro26).
+
+### Plafonul de suma — pe SERVER, nu doar in formular
+
+De la **0,01 lei** (un ban) pina la **10,00 lei**, maximum 5 pozitii. Limita
+NU e o formalitate: o factura trimisa ajunge in sistemul **fiscal real** al
+SFS, nu intr-un mediu de simulare. Daca o proba ramine uitata sau se semneaza
+din greseala, paguba trebuie sa fie de citiva bani. Verificarea e in
+`testff.validate()`, deci un apel direct la API nu o poate ocoli —
+verificat: `POST /test/send` cu 25 lei intoarce 400.
+
+### Universal: activarea in alt modul = O SINGURA linie
+
+Motorul (`modules/efactura/testff.py`) nu stie nimic despre Biro26. Orice
+modul al platformei Artgranit pune butonul asa:
+
+```html
+<script src="/UNA.md/orasldev/efactura/widget.js"></script>
+```
+
+Widget-ul adauga butonul plutitor si deschide pagina probei intr-o fereastra
+separata. Nu cere gazdei nici stiluri, nici biblioteci, nici modificari in
+codul ei. Exista si calea masina-la-masina: `POST /test/preview`,
+`POST /test/send`, `GET /test/queues` cu `X-API-Key`.
+
+### DOUA semnaturi — doua conturi API
+
+Ghidul SFS confirma ce spunea proprietarul: sistemul tine **cozi separate de
+semnare** — `GetInvoicesForSigning` cu `Order = 1` (factura NEsemnata,
+asteapta prima semnatura) si `Order = 2` (deja semnata cu prima, asteapta a
+doua). De aceea in setari sint **doua conturi API** (de obicei director si
+contabil-sef) plus numele semnatarilor. Al doilea e optional: daca lipseste,
+se foloseste primul. Butonul «Vezi cozile de semnare» din pagina probei arata
+imediat daca factura a ajuns in coada.
+
+Documentul de test pleaca **nesemnat** (`InvoicesXmlStatus = 0`); semnarea
+ramine la cei doi semnatari — in interfata web (regim semi) sau prin cozile
+de mai sus.
+
+### Eroare de protocol prinsa aici
+
+Prima versiune trimitea `ActorRole = "Supplier"` si `InvoicesXmlStatus =
+"Draft"` — **texte**. In ghidul SFS (tabelul 24) ambele sint **numere**:
+rolul 1 = furnizor, 2 = cumparator, 3 = transportator; statutul 0 = nesemnat,
+1 = semnat. SFS ar fi respins documentele. Corectat, cu test care fixeaza
+valorile.
+
+### Verificat
+
+12 teste (2 de izolare, XML, plafon de suma, cimpuri obligatorii, valorile de
+protocol). Pe baza vie: salvarea celor doua conturi, parolele nu se intorc
+niciodata in interfata, o parola goala NU sterge cea salvata, clientul alege
+corect contul dupa semnatar.
