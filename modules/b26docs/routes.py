@@ -60,7 +60,9 @@ def index():
                 "size": os.path.getsize(os.path.join(path, fn))
                 if os.path.isfile(os.path.join(path, fn)) else 0,
             })
-        groups.append({"folder": folder, "items": items})
+        # RO: cheia NU se numeste `items` — in Jinja `g.items` ar lua
+        #     metoda dict-ului, nu lista (capcana clasica).
+        groups.append({"folder": folder, "docs": items})
     return render_template("b26docs_index.html", groups=groups,
                            q=request.args.get("q", ""))
 

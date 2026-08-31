@@ -37,9 +37,9 @@
   <input class="search" id="q" placeholder="🔎 Caută în titluri și descrieri…"
          value="{{ q }}" oninput="filter()">
   {% for g in groups %}
-  <h2><span class="n">{{ g.items|length }}</span>{{ g.folder }}</h2>
+  <h2><span class="n">{{ g.docs|length }}</span>{{ g.folder }}</h2>
   <div class="grid" data-group="{{ g.folder }}">
-    {% for d in g.items %}
+    {% for d in g.docs %}
     <a class="doc" href="{{ url_for('b26docs.view', folder=g.folder, name=d.file) }}"
        data-t="{{ (d.title ~ ' ' ~ d.descr ~ ' ' ~ d.file)|lower }}">
       <b>{{ d.title or d.file }}</b>
