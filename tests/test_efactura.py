@@ -204,55 +204,78 @@ class TestTemplateJs(unittest.TestCase):
 
 
 class TestAdHocApiAccount(unittest.TestCase):
-    """RO: contul API scris in pagina probei — proba pleaca sub ACEL cont,
-    setarile firmei raman neatinse (31.08.2026)."""
+    """RO: pagina probei merge NUMAI pe contul scris in formular — nu se
+    leaga de setarile vreunui magazin (31.08.2026)."""
 
-    SAVED = {"endpoint": "https://sfs/svc", "namespace": "http://tempuri.org/",
+    SAVED = {"endpoint": "https://sfs-salvat/svc", "namespace": "http://x/",
              "username": "salvat1", "password": "p-salvat1",
              "username2": "salvat2", "password2": "p-salvat2", "seria": "FT"}
 
-    def _client(self, signer=1, api=None):
-        from unittest import mock
+    def _p(self, api):
+        return {"seller": {"idno": "1003600116460", "name": "Test SRL"},
+                "buyer": {"idno": "1012600013725", "name": "Client SRL"},
+                "lines": [{"name": "Serviciu", "qty": 1, "price": 1.0}],
+                "api": api}
+
+    def test_form_account_is_used(self):
         from modules.efactura import sfs
-        with mock.patch("modules.efactura.store.EfaStore.settings",
-                        return_value=dict(self.SAVED)):
-            return sfs.SfsClient.from_settings(signer=signer, api=api)
+        c = sfs.SfsClient.from_api({"username": "director", "password": "p1"})
+        self.assertEqual((c.username, c.password), ("director", "p1"))
 
-    def test_adhoc_wins_over_saved(self):
-        c = self._client(1, {"username": "ad-hoc", "password": "p-ad-hoc"})
-        self.assertEqual(c.username, "ad-hoc")
-        self.assertEqual(c.password, "p-ad-hoc")
-        self.assertEqual(c.endpoint, self.SAVED["endpoint"])  # adresa din setari
+    def test_default_endpoint_is_sfs_test_env(self):
+        """RO: implicit — mediul de PROBA al SFS, nu adresa din setari."""
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "u", "password": "p"})
+        self.assertEqual(c.endpoint, sfs.TEST_ENDPOINT)
+        self.assertIn("api-test", sfs.TEST_ENDPOINT)
 
-    def test_second_signer_never_mixes_with_saved(self):
-        """RO: daca in formular e un singur cont, al doilea semnatar merge tot
-        pe el — NU pe contul salvat al firmei (altfel s-ar amesteca doi
-        oameni intr-o singura proba)."""
-        c = self._client(2, {"username": "ad-hoc", "password": "p-ad-hoc"})
-        self.assertEqual(c.username, "ad-hoc")
-        self.assertNotEqual(c.username, self.SAVED["username2"])
+    def test_second_signer_falls_back_to_first_of_the_form(self):
+        """RO: un singur cont in formular = ambele cozi pe el; niciodata pe
+        contul salvat al firmei (altfel s-ar amesteca doi oameni)."""
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "director", "password": "p1"},
+                                   signer=2)
+        self.assertEqual(c.username, "director")
 
-    def test_second_signer_adhoc(self):
-        c = self._client(2, {"username": "u1", "password": "p1",
-                             "username2": "u2", "password2": "p2"})
+    def test_second_signer_own_account(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "u1", "password": "p1",
+                                    "username2": "u2", "password2": "p2"},
+                                   signer=2)
         self.assertEqual((c.username, c.password), ("u2", "p2"))
 
-    def test_no_adhoc_uses_saved(self):
-        self.assertEqual(self._client(1).username, "salvat1")
-        self.assertEqual(self._client(2).username, "salvat2")
-
-    def test_send_refuses_without_password(self):
-        """RO: utilizator fara parola = refuz clar, fara apel in retea."""
+    def test_send_refuses_without_account(self):
+        """RO: fara utilizator/parola — refuz clar, fara apel in retea."""
         from unittest import mock
         from modules.efactura import testff
-        p = {"seller": {"idno": "1003600116460", "name": "Test SRL"},
-             "buyer": {"idno": "1012600013725", "name": "Client SRL"},
-             "lines": [{"name": "Serviciu", "qty": 1, "price": 1.0}],
-             "api": {"username": "fara-parola"}}
-        with mock.patch("modules.efactura.store.EfaStore.settings",
-                        return_value=dict(self.SAVED)), \
-             mock.patch("modules.efactura.sfs.SfsClient.post_invoices") as post:
-            r = testff.send(p)
+        with mock.patch("modules.efactura.sfs.SfsClient.post_invoices") as post:
+            r = testff.send(self._p({"username": "fara-parola"}))
         self.assertFalse(r["success"])
-        self.assertIn("Contul API", r["error"])
+        self.assertIn("contul API", r["error"])
         post.assert_not_called()
+
+    def test_test_page_never_reads_shop_settings(self):
+        """RO: garantia decuplarii — daca EFA_SETTING ar exploda, proba
+        trebuie sa mearga oricum: preview-ul si trimiterea nu-l citesc."""
+        from unittest import mock
+        from modules.efactura import testff
+
+        def boom(*a, **k):
+            raise AssertionError("pagina probei a citit setarile magazinului")
+
+        with mock.patch("modules.efactura.store.EfaStore.settings",
+                        side_effect=boom), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch("modules.efactura.sfs.SfsClient.post_invoices",
+                        return_value={"success": True, "parsed": {}}):
+            self.assertTrue(testff.preview(self._p(None))["success"])
+            self.assertTrue(testff.send(
+                self._p({"username": "u", "password": "p"}))["success"])
+
+    def test_page_template_has_no_shop_coupling(self):
+        """RO: sablonul probei nu are voie sa citeasca setarile magazinului,
+        datele din ERP-ul lui, nici adresa portalului scrisa cu mina."""
+        src = open(os.path.join(ROOT, "modules", "efactura", "templates",
+                                "efactura_test.html"), encoding="utf-8").read()
+        for token in ("settings.", "firm.", "/UNA.md/orasldev/"):
+            self.assertNotIn(token, src, "cuplare interzisa: %s" % token)

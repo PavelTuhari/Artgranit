@@ -219,24 +219,44 @@ sa treaca documentele reale.
 
 **Adresa:** `/UNA.md/orasldev/efactura/test` (si plachet in hub-ul Biro26).
 
+### Pagina e AUTONOMA — nu atinge setarile niciunui magazin
+
+Corectat 31.08.2026, la cererea proprietarului. Pagina probei nu mai citeste
+`EFA_SETTING`, nu mai afiseaza semnatarii configurati si nu mai ia rechizitele
+din ERP-ul Biro26 (`VMS_ORG_CONT_FISC`). Tot ce foloseste vine din formular:
+contul API, rechizitele vinzatorului si ale cumparatorului, pozitiile. Asa
+proba merge la fel din orice modul al platformei, la orice director. Efectul
+se vede si in teste: setul modulului ruleaza in ~0,3 s in loc de ~9 s, pentru
+ca nu mai deschide Oracle pentru randarea paginii. Regula e prinsa in test
+(`test_page_template_has_no_shop_coupling`, `test_test_page_never_reads_shop_settings`).
+
+### Mediul il decide ADRESA serviciului
+
+Implicit pagina merge pe mediul de **proba** al SFS —
+`https://api-test.fisc.md/Service.svc`, constanta `sfs.TEST_ENDPOINT`
+(o proprietate a SFS, nu o setare a firmei, de aceea sta in cod). Daca in
+cimpul «Adresa serviciului SFS» se pune adresa sistemului real, factura devine
+un **document fiscal adevarat**. Textul de avertisment din pagina spune exact
+asta — varianta veche afirma neconditionat «sistem fiscal real», ceea ce nu
+era adevarat cu adresa de test.
+
 ### Plafonul de suma — pe SERVER, nu doar in formular
 
 De la **0,01 lei** (un ban) pina la **10,00 lei**, maximum 5 pozitii. Limita
-NU e o formalitate: o factura trimisa ajunge in sistemul **fiscal real** al
-SFS, nu intr-un mediu de simulare. Daca o proba ramine uitata sau se semneaza
-din greseala, paguba trebuie sa fie de citiva bani. Verificarea e in
-`testff.validate()`, deci un apel direct la API nu o poate ocoli —
-verificat: `POST /test/send` cu 25 lei intoarce 400.
+ramine si in mediul de proba, ca sa fie inofensiva si cind cineva schimba
+adresa pe cea reala: daca o proba ramine uitata sau se semneaza din greseala,
+paguba trebuie sa fie de citiva bani. Verificarea e in `testff.validate()`,
+deci un apel direct la API nu o poate ocoli — verificat: `POST /test/send` cu
+25 lei intoarce 400.
 
 ### Contul API cu care se face proba
 
-In pagina probei se poate scrie **alt cont API e-Factura** decit cel salvat in
-setarile firmei: utilizator + parola pentru primul semnatar, optional inca o
-pereche pentru al doilea, si — daca e nevoie — alta adresa a serviciului SFS.
-Cind cimpul «utilizator» e completat, proba pleaca **sub acel cont**; setarile
-salvate nu se ating si nu se amesteca (daca in formular e un singur cont, tot
-el serveste si a doua semnatura, ca sa nu se combine doi oameni intr-o proba).
-Gol = merge pe conturile din **Setari e-Factura**.
+Contul API se scrie **in pagina**: utilizator + parola pentru primul semnatar,
+optional inca o pereche pentru al doilea. Proba pleaca sub acel cont —
+`sfs.SfsClient.from_api()` nu citeste niciodata `EFA_SETTING`. Daca in formular
+e un singur cont, tot el serveste si a doua coada de semnare, ca sa nu se
+combine doi oameni intr-o proba. Fara utilizator si parola, trimiterea e
+refuzata cu mesaj clar, fara apel in retea.
 
 Parolele scrise aici traiesc **numai cit tine apelul**: nu se scriu in
 `EFA_SETTING`, nu intra in jurnal si nu se pastreaza in browser (autosalvarea

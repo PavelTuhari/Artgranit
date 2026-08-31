@@ -35,6 +35,14 @@ XML_UNSIGNED = 0         # nesemnat
 XML_SIGNED = 1           # semnat
 SIGN_FIRST = 1           # coada primei semnaturi
 SIGN_SECOND = 2          # coada celei de a doua semnaturi
+
+# RO: adresa mediului de PROBA al SFS si namespace-ul serviciului. Sint
+#     proprietati ale SFS, nu setari ale unei firme — de aceea stau in cod:
+#     pagina probei trebuie sa mearga la orice director, fara sa depinda de
+#     ce a configurat cineva in back-office-ul unui anume magazin.
+# EN: SFS test endpoint — a property of SFS, not of any tenant's settings.
+TEST_ENDPOINT = "https://api-test.fisc.md/Service.svc"
+DEFAULT_NAMESPACE = "http://tempuri.org/"
 NS_SOAP = "http://schemas.xmlsoap.org/soap/envelope/"
 NS_WSSE = ("http://docs.oasis-open.org/wss/2004/01/"
            "oasis-200401-wss-wssecurity-secext-1.0.xsd")
@@ -102,6 +110,25 @@ class SfsClient:
         if int(signer) == 2 and s.get("username2"):
             user, pwd = s.get("username2", ""), s.get("password2", "")
         return cls(endpoint, user, pwd, ns)
+
+    @classmethod
+    def from_api(cls, api: Optional[Dict[str, Any]] = None,
+                 signer: int = 1) -> "SfsClient":
+        """RO: clientul construit NUMAI din ce s-a scris in formular.
+
+        Spre deosebire de `from_settings`, nu atinge deloc `EFA_SETTING`:
+        proba merge sub contul omului care o face, pe adresa pe care a
+        indicat-o el (implicit — mediul de proba al SFS). Asa pagina probei
+        e universala: nu depinde de setarile unui magazin anume.
+        EN: form-only client; never reads tenant settings.
+        """
+        a = {k: str(v).strip() for k, v in (api or {}).items()
+             if str(v or "").strip()}
+        user, pwd = a.get("username", ""), a.get("password", "")
+        if int(signer) == 2 and a.get("username2"):
+            user, pwd = a["username2"], a.get("password2", "")
+        return cls(a.get("endpoint") or TEST_ENDPOINT, user, pwd,
+                   a.get("namespace") or DEFAULT_NAMESPACE)
 
     def configured(self) -> bool:
         return bool(self.endpoint and self.username and self.password)

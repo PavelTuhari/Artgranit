@@ -46,66 +46,50 @@
 <body>
 <div class="bar">🧾 Factură fiscală de TEST
   <span class="sp"></span>
-  <a href="/UNA.md/orasldev/efactura/">← Setări e-Factura</a>
-  <a href="/UNA.md/orasldev/biro26">Hub Biro26</a></div>
+  <span class="muted" style="color:#cbd5e1;font-size:12.5px">pagină autonomă —
+    merge cu contul dvs. API, independent de setările vreunui magazin</span></div>
 <div class="wrap">
 
   <div class="warn">
-    <b>Atenție:</b> factura trimisă ajunge în sistemul <b>fiscal real</b> al
-    SFS — nu într-un mediu de simulare. De aceea proba este plafonată la
+    <b>Atenție:</b> unde ajunge proba decide <b>adresa serviciului</b> de mai
+    jos. Implicit este mediul de <b>probă</b> al SFS
+    (<code>{{ test_endpoint }}</code>). Dacă puneți adresa sistemului real,
+    factura devine un <b>document fiscal adevărat</b>, nu o simulare.
+    <br>Indiferent de mediu, proba este plafonată la
     <b>{{ '%.2f'|format(max_total) }} lei</b> (minim {{ '%.2f'|format(min_total) }} lei)
-    și la {{ max_lines }} poziții. Documentul pleacă <b>nesemnat</b>: semnarea
-    rămâne la cei doi semnatari, în interfața e-Factura.
-    {% if not settings.configured %}
-    <br><b>Momentan integrarea nu este configurată</b> — puteți vedea XML-ul
-    care ar pleca, dar trimiterea va fi refuzată.
-    {% endif %}
+    și la {{ max_lines }} poziții, iar documentul pleacă <b>nesemnat</b>:
+    semnarea rămâne la cei doi semnatari, în interfața e-Factura.
   </div>
 
   <div class="card">
-    <h2>Semnăturile</h2>
-    <div class="sign">
-      <div><b>Primul semnatar</b><br>
-        <span class="muted">{{ settings.signer1_name or 'nespecificat' }} ·
-        cont API: {{ settings.username or '—' }}
-        {% if settings.password_set %}<span class="ok">✓</span>{% endif %}</span></div>
-      <div><b>Al doilea semnatar</b><br>
-        <span class="muted">{{ settings.signer2_name or 'nespecificat' }} ·
-        cont API: {{ settings.username2 or '—' }}
-        {% if settings.password2_set %}<span class="ok">✓</span>{% endif %}</span></div>
-    </div>
-    <p class="muted" style="margin-top:8px">Factura fiscală se semnează de
-      obicei de două persoane, iar e-Factura ține cozi separate pentru fiecare
-      (<code>Order</code> 1 și 2), de aceea se înregistrează două conturi API.
-      Al doilea este opțional.</p>
-
-    <h3 style="margin:16px 0 2px;font-size:15px">Contul API cu care se face proba</h3>
-    <p class="muted" style="margin-top:0">Lăsați gol ca să meargă pe conturile
-      salvate în <a href="{{ url_for('efactura.admin_page') }}">Setări e-Factura</a>.
-      Dacă scrieți aici alt utilizator, proba pleacă <b>sub acel cont</b>, iar
-      setările firmei rămân neatinse. Parola se folosește doar pentru apelul
-      curent: nu se salvează nici pe server, nici în browser.</p>
+    <h2>Contul API e-Factura</h2>
+    <p class="muted" style="margin-top:0">Proba pleacă <b>sub contul scris
+      aici</b> — pagina nu folosește conturile configurate în back-office-ul
+      vreunui magazin. Parola se folosește doar pentru apelul curent: nu se
+      salvează pe server, nu intră în jurnal și nu rămâne în browser
+      (se rețin doar utilizatorii).</p>
     <div class="row">
       <div class="fld"><label>Utilizator (primul semnatar)</label>
-        <input id="a-user" autocomplete="off"
-               placeholder="{{ settings.username or 'utilizator API' }}"></div>
+        <input id="a-user" autocomplete="off" placeholder="utilizator API"></div>
       <div class="fld"><label>Parola</label>
         <input id="a-pass" type="password" autocomplete="new-password"></div>
       <div class="fld"><label>Utilizator (al doilea semnatar)</label>
-        <input id="a-user2" autocomplete="off"
-               placeholder="{{ settings.username2 or 'opțional' }}"></div>
+        <input id="a-user2" autocomplete="off" placeholder="opțional"></div>
       <div class="fld"><label>Parola</label>
         <input id="a-pass2" type="password" autocomplete="new-password"></div>
     </div>
     <div class="row">
-      <div class="fld"><label>Adresa serviciului SFS (opțional)</label>
+      <div class="fld"><label>Adresa serviciului SFS</label>
         <input id="a-endpoint" autocomplete="off"
-               placeholder="{{ settings.endpoint or 'din setări' }}"></div>
+               value="{{ test_endpoint }}"></div>
     </div>
-
-    <button class="btn gray" style="margin-top:10px" type="button" onclick="ping()">
+    <p class="muted">Factura fiscală se semnează de obicei de două persoane,
+      iar e-Factura ține cozi separate pentru fiecare (<code>Order</code> 1 și
+      2), de aceea se pot da două conturi API. Al doilea este opțional: dacă
+      lipsește, ambele cozi se verifică cu primul.</p>
+    <button class="btn gray" type="button" onclick="ping()">
       🔌 Verifică contul</button>
-    <button class="btn gray" style="margin-top:10px" type="button" onclick="queues()">
+    <button class="btn gray" type="button" onclick="queues()">
       👁 Vezi cozile de semnare</button>
     <span id="q-info" class="muted"></span>
   </div>
@@ -113,14 +97,18 @@
   <div class="card">
     <h2>Vânzătorul (rechizitele dvs.)</h2>
     <div class="row">
-      <div class="fld"><label>IDNO</label><input id="s-idno" value="{{ firm.idno or '' }}"></div>
-      <div class="fld" style="flex:2"><label>Denumirea</label><input id="s-name"></div>
+      <div class="fld"><label>IDNO</label>
+        <input id="s-idno" placeholder="IDNO-ul companiei dvs."></div>
+      <div class="fld" style="flex:2"><label>Denumirea</label>
+        <input id="s-name" placeholder="denumirea companiei dvs."></div>
     </div>
     <div class="row">
-      <div class="fld" style="flex:2"><label>Adresa</label><input id="s-address" value="{{ firm.address or '' }}"></div>
-      <div class="fld"><label>IBAN</label><input id="s-iban" value="{{ firm.iban or '' }}"></div>
-      <div class="fld"><label>Cod bancă</label><input id="s-bank" value="{{ firm.bank_code or '' }}"></div>
+      <div class="fld" style="flex:2"><label>Adresa</label><input id="s-address"></div>
+      <div class="fld"><label>IBAN</label><input id="s-iban"></div>
+      <div class="fld"><label>Cod bancă</label><input id="s-bank"></div>
     </div>
+    <p class="muted">Se scriu o singură dată: valorile rămân salvate în acest
+      browser pentru probele următoare.</p>
   </div>
 
   <div class="card">

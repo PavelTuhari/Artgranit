@@ -84,7 +84,6 @@ def validate(payload: Dict[str, Any]) -> Dict[str, List[str]]:
 
 def build(payload: Dict[str, Any]) -> Dict[str, Any]:
     """RO: formularul -> documentul in forma pe care o asteapta build_invoice_xml."""
-    s = EfaStore.settings()
     seller = payload.get("seller") or {}
     buyer = payload.get("buyer") or {}
     lines_in = payload.get("lines") or []
@@ -125,7 +124,7 @@ def build(payload: Dict[str, Any]) -> Dict[str, Any]:
             "address": seller.get("address"), "iban": seller.get("iban"),
             "bank_code": seller.get("bank_code"),
         },
-        "_seria": str(payload.get("seria") or s.get("seria") or "").strip(),
+        "_seria": str(payload.get("seria") or "").strip(),
     }
 
 
@@ -156,13 +155,13 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
     doc = build(payload)
     xml = sfs.build_invoice_xml(doc, doc["_seller"], seria=doc["_seria"],
                                 number=doc["nrmanual"])
-    # RO: contul API scris in formular are prioritate — proba pleaca sub
-    #     semnatura directorului care o face, fara sa atinga setarile firmei.
-    client = sfs.SfsClient.from_settings(signer=1, api=payload.get("api"))
+    # RO: NUMAI contul scris in formular — pagina probei nu se leaga de
+    #     setarile vreunui magazin (vezi sfs.SfsClient.from_api).
+    client = sfs.SfsClient.from_api(payload.get("api"), signer=1)
     if not client.configured():
         return {"success": False, "xml": xml, "error":
-                "Contul API e-Factura lipseste: completati utilizatorul si "
-                "parola in pagina probei sau in Setari e-Factura."}
+                "Completati contul API e-Factura (utilizator si parola) "
+                "in pagina probei."}
     rid = "test-" + uuid.uuid4().hex[:16]
     r = client.post_invoices(xml, request_id=rid,
                              actor_role=sfs.ROLE_SUPPLIER,
@@ -188,7 +187,7 @@ def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     de a emite proba."""
     out = {}
     for label, signer in (("prima_semnatura", 1), ("a_doua_semnatura", 2)):
-        c = sfs.SfsClient.from_settings(signer=signer, api=api)
+        c = sfs.SfsClient.from_api(api, signer=signer)
         if not c.configured():
             out[label] = {"configured": False}
             continue
@@ -205,7 +204,7 @@ def signing_queues(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     out = {}
     for label, signer, order in (("prima_semnatura", 1, sfs.SIGN_FIRST),
                                  ("a_doua_semnatura", 2, sfs.SIGN_SECOND)):
-        c = sfs.SfsClient.from_settings(signer=signer, api=api)
+        c = sfs.SfsClient.from_api(api, signer=signer)
         if not c.configured():
             out[label] = {"configured": False}
             continue
