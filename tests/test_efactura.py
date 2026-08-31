@@ -165,3 +165,39 @@ class TestSfsProtocolValues(unittest.TestCase):
         self.assertEqual(sfs.XML_UNSIGNED, 0)
         self.assertEqual(sfs.SIGN_FIRST, 1)
         self.assertEqual(sfs.SIGN_SECOND, 2)
+
+
+class TestTemplateJs(unittest.TestCase):
+    """RO: JS-ul din sabloane trebuie sa se parseze — o ghilimea gresit
+    escapata opreste TOT scriptul si pagina ramane moarta (31.08.2026)."""
+
+    TPL = os.path.join(ROOT, "modules", "efactura", "templates")
+
+    def _blocks(self, name):
+        import re
+        src = open(os.path.join(self.TPL, name), encoding="utf-8").read()
+        for blk in re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+                              src, re.S):
+            js = re.sub(r"\{\{[^}]*\}\}", "1", blk)
+            yield re.sub(r"\{%.*?%\}", "", js, flags=re.S)
+
+    def test_inline_js_parses(self):
+        import shutil
+        import subprocess
+        import tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node lipseste")
+        for name in ("efactura_test.html", "efactura_admin.html"):
+            for js in self._blocks(name):
+                with tempfile.NamedTemporaryFile("w", suffix=".js",
+                                                 delete=False) as fh:
+                    fh.write(js)
+                    path = fh.name
+                try:
+                    r = subprocess.run([node, "--check", path],
+                                       capture_output=True, text=True)
+                finally:
+                    os.unlink(path)
+                self.assertEqual(r.returncode, 0,
+                                 "%s: %s" % (name, r.stderr[:300]))

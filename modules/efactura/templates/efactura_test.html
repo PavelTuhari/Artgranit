@@ -155,7 +155,8 @@ function addLine(d) {
     '<td><input class="l-qty" type="number" step="0.001" value="' + (d.qty || 1) + '"></td>' +
     '<td><input class="l-price" type="number" step="0.01" value="' + (d.price || '') + '"></td>' +
     '<td class="l-sum">0.00</td>' +
-    '<td><button class="btn gray" style="padding:4px 9px" onclick="this.closest(\\'tr\\').remove();recalc()">✕</button></td>';
+    '<td><button class="btn gray l-del" type="button" style="padding:4px 9px">✕</button></td>';
+  tr.querySelector('.l-del').onclick = () => { tr.remove(); recalc(); };
   tr.querySelectorAll('input').forEach(i => i.oninput = recalc);
   recalc();
 }
