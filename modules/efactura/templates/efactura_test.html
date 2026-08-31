@@ -132,7 +132,12 @@
   <div class="card">
     <button class="btn gray" onclick="preview()">👁 Vezi XML-ul</button>
     <button class="btn orange" id="send" onclick="send()">📤 Trimite proba în e-Factura</button>
+    <button class="btn gray" type="button" onclick="wipe()"
+            title="Sterge valorile pastrate in acest browser">🗑 Curăță datele</button>
     <span id="info" class="muted"></span>
+    <span id="saved" class="muted" style="margin-left:8px"></span>
+    <p class="muted" style="margin-top:8px">Valorile introduse se păstrează automat
+      în acest browser (doar local, nu pe server) și revin la următoarea deschidere.</p>
     <pre id="out" style="display:none;margin-top:12px"></pre>
   </div>
 </div>
@@ -156,9 +161,10 @@ function addLine(d) {
     '<td><input class="l-price" type="number" step="0.01" value="' + (d.price || '') + '"></td>' +
     '<td class="l-sum">0.00</td>' +
     '<td><button class="btn gray l-del" type="button" style="padding:4px 9px">✕</button></td>';
-  tr.querySelector('.l-del').onclick = () => { tr.remove(); recalc(); };
-  tr.querySelectorAll('input').forEach(i => i.oninput = recalc);
+  tr.querySelector('.l-del').onclick = () => { tr.remove(); recalc(); save(); };
+  tr.querySelectorAll('input').forEach(i => i.oninput = () => { recalc(); save(); });
   recalc();
+  save();
 }
 function lines() {
   return [...document.querySelectorAll('#lines tbody tr')].map(tr => ({
@@ -225,6 +231,43 @@ async function queues() {
     ([k, x]) => k + ': ' + (x.configured ? (x.ok ? '✅' : '❌') : '— neconfigurat')
   ).join(' · ');
 }
-addLine({name: 'Serviciu de test', um: 'buc.', qty: 1, price: 1.00});
+const LS = 'efa_test_form_v1';
+const FIELDS = ['s-idno', 's-name', 's-address', 's-iban', 's-bank',
+                'b-idno', 'b-name', 'b-address', 'tva', 'seria', 'number'];
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const f = {};
+    FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) f[id] = el.value;
+    });
+    try {
+      localStorage.setItem(LS, JSON.stringify({f: f, lines: lines()}));
+      document.getElementById('saved').textContent = 'salvat local ✓';
+    } catch (e) { /* private mode / storage plina — formularul merge oricum */ }
+  }, 300);
+}
+function restore() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { d = null; }
+  if (!d || typeof d !== 'object') return false;
+  FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && d.f && d.f[id] != null) el.value = d.f[id];
+  });
+  (Array.isArray(d.lines) ? d.lines : []).forEach(l => addLine(l));
+  return !!(Array.isArray(d.lines) && d.lines.length);
+}
+function wipe() {
+  try { localStorage.removeItem(LS); } catch (e) { /* nimic de sters */ }
+  location.reload();
+}
+FIELDS.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', save);
+});
+if (!restore()) addLine({name: 'Serviciu de test', um: 'buc.', qty: 1, price: 1.00});
 </script>
 </body></html>

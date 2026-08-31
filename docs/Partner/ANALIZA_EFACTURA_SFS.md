@@ -228,6 +228,16 @@ din greseala, paguba trebuie sa fie de citiva bani. Verificarea e in
 `testff.validate()`, deci un apel direct la API nu o poate ocoli —
 verificat: `POST /test/send` cu 25 lei intoarce 400.
 
+### Valorile introduse se pastreaza singure
+
+Tot ce se scrie in formular (rechizitele vinzatorului si ale cumparatorului,
+pozitiile, cota TVA, seria si numarul) se salveaza automat in `localStorage`
+sub cheia `efa_test_form_v1` si revine la urmatoarea deschidere a paginii —
+proba se repeta fara sa se reintroduca nimic. Datele stau **doar in browserul
+operatorului**, nu pe server. Butonul «🗑 Curata datele» sterge tot si readuce
+formularul la starea initiala. In mod privat, cind `localStorage` arunca
+exceptie, formularul merge mai departe fara salvare.
+
 ### Universal: activarea in alt modul = O SINGURA linie
 
 Motorul (`modules/efactura/testff.py`) nu stie nimic despre Biro26. Orice
