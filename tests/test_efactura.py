@@ -223,11 +223,15 @@ class TestAdHocApiAccount(unittest.TestCase):
         self.assertEqual((c.username, c.password), ("director", "p1"))
 
     def test_default_endpoint_is_sfs_test_env(self):
-        """RO: implicit — mediul de PROBA al SFS, nu adresa din setari."""
+        """RO: implicit — mediul de PROBA al SFS (adresele din ghidul de
+        integrare, verificate 31.08.2026), nu adresa din setari."""
         from modules.efactura import sfs
         c = sfs.SfsClient.from_api({"username": "u", "password": "p"})
         self.assertEqual(c.endpoint, sfs.TEST_ENDPOINT)
-        self.assertIn("api-test", sfs.TEST_ENDPOINT)
+        self.assertEqual(sfs.ENDPOINT_TEST,
+                         "https://apiefactura-pre.sfs.md/Service.svc")
+        self.assertEqual(sfs.ENDPOINT_PROD,
+                         "https://efactura-api.sfs.md/Service.svc")
 
     def test_second_signer_falls_back_to_first_of_the_form(self):
         """RO: un singur cont in formular = ambele cozi pe el; niciodata pe
@@ -290,3 +294,61 @@ class TestAdHocApiAccount(unittest.TestCase):
         self.assertFalse(a["ok"])
         self.assertIn("DNS", a["reply"])
         self.assertNotIn("prima_semnatura", r["data"])
+
+
+class TestSoapMatchesWsdl(unittest.TestCase):
+    """RO: plicul trebuie sa respecte contractul VIU al serviciului
+    (`?wsdl` / `?xsd=xsd2`, citit 31.08.2026). Greselile de aici nu se vad
+    la testare locala — se vad abia cind SFS refuza apelul."""
+
+    def _c(self):
+        from modules.efactura import sfs
+        return sfs.SfsClient(sfs.ENDPOINT_PROD, "u", "p")
+
+    def test_request_children_are_in_datacontract_namespace(self):
+        """RO: copiii lui <request> in tempuri = WCF ii citeste ca null."""
+        from modules.efactura import sfs
+        body = sfs._request([("RequestId", "x"), ("ActorRole", 1)])
+        self.assertIn('xmlns:a="%s"' % sfs.NS_DC, body)
+        self.assertIn("<a:RequestId>x</a:RequestId>", body)
+        self.assertIn("<a:ActorRole>1</a:ActorRole>", body)
+
+    def test_post_invoices_field_order(self):
+        """RO: DataContractSerializer cere intii membrii clasei de baza:
+        RequestId, ActorRole, apoi InvoicesXml, InvoicesXmlStatus."""
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.post_invoices("<Invoice/>")
+        body = call.call_args[0][1]
+        pos = [body.index("<a:%s>" % f) for f in
+               ("RequestId", "ActorRole", "InvoicesXml", "InvoicesXmlStatus")]
+        self.assertEqual(pos, sorted(pos))
+
+    def test_soap_action_includes_contract_name(self):
+        """RO: SOAPAction e {ns}/IService/{metoda} — fara `IService` WCF
+        raspunde «action not recognized»."""
+        from modules.efactura import sfs
+        self.assertEqual(sfs.CONTRACT, "IService")
+
+    def test_seria_number_uses_the_array_contract(self):
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.get_by_seria_number("FT", "123")
+        body = call.call_args[0][1]
+        self.assertIn("<a:SeriaAndNumbers>", body)
+        self.assertIn("<a:InvoiceIndentificator>", body)
+        self.assertIn("<a:Number>123</a:Number>", body)
+        self.assertIn("<a:Seria>FT</a:Seria>", body)
+
+    def test_connection_check_uses_the_test_operation(self):
+        """RO: `GetLogs` cerea `<Top>1</Top>`, cimp inexistent in contract."""
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.test()
+        self.assertEqual(call.call_args[0][0], "Test")

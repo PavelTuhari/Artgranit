@@ -213,7 +213,9 @@ def test_page():
     from modules.efactura.testff import MAX_LINES, MAX_TOTAL, MIN_TOTAL
     return render_template("efactura_test.html", min_total=MIN_TOTAL,
                            max_total=MAX_TOTAL, max_lines=MAX_LINES,
-                           test_endpoint=sfs.TEST_ENDPOINT)
+                           test_endpoint=sfs.TEST_ENDPOINT,
+                           endpoint_test=sfs.ENDPOINT_TEST,
+                           endpoint_prod=sfs.ENDPOINT_PROD)
 
 
 def _test_guard():

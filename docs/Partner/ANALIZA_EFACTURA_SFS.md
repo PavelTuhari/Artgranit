@@ -240,27 +240,66 @@ un **document fiscal adevarat**. Textul de avertisment din pagina spune exact
 asta — varianta veche afirma neconditionat «sistem fiscal real», ceea ce nu
 era adevarat cu adresa de test.
 
-### Adresa `api-test.fisc.md` NU se rezolva din internet (31.08.2026)
+### Adresele REALE ale platformei API (ghidul SFS, verificate 31.08.2026)
 
-Prima incercare reala cu doua conturi (Pavel Tuhari / Oxana Tuhari) a cazut cu
-`urlopen error [Errno -2] Name or service not known`. Masurat, nu presupus:
+Prima incercare reala a cazut cu `urlopen error [Errno -2]`, pentru ca in
+setari statea `api-test.fisc.md` — gazda care nu se rezolva nici public
+(`dig @8.8.8.8` fara raspuns), nici de pe serverele noastre. Ghidul de
+integrare ERP publicat de SFS da adresele corecte:
 
-| Verificare | Rezultat |
+| Ce | Adresa |
 |---|---|
-| `dig @8.8.8.8 api-test.fisc.md A` | fara raspuns — numele nu exista public |
-| `getent hosts api-test.fisc.md` pe nufarul | nimic |
-| `efactura.sfs.md` | 185.108.183.90, raspunde 302 |
-| `/Service.svc`, `/EFacturaWebService/EFactura.svc` pe `efactura.sfs.md` | 404 (pagina SPA), deci nu acolo |
+| Portal de test | `https://preproductie.sfs.md` |
+| e-Factura, mediu de test | `https://efactura-pre.sfs.md` |
+| **API, mediu de test** | `https://apiefactura-pre.sfs.md` |
+| **API, mediu real** | `https://efactura-api.sfs.md` |
 
-Concluzia: `api-test.fisc.md` (valoarea gasita in `EFA_SETTING`) e o gazda din
-reteaua SFS — mediile lor de test se acceseaza de regula prin **MConnect sau
-canal dedicat**, nu din internetul public. Adresa corecta pentru integrare
-vine de la SFS impreuna cu utilizatorul API; pina atunci nicio proba nu poate
-pleca, oricit de corecte ar fi conturile.
+Verificat pe viu: `https://efactura-api.sfs.md/Service.svc` intoarce pagina
+WCF si `?wsdl` complet (19 KB, `targetNamespace=http://tempuri.org/`).
+`apiefactura-pre.sfs.md` raspunde 403 pina la deschiderea accesului.
 
-De aceea butonul «Verifică contul» incepe acum cu **adresa**: rezolvare DNS +
-conexiune TCP. Daca gazda nu se rezolva, se spune exact asta si nu se mai
-incearca SOAP de trei ori cu acelasi mesaj criptic.
+Constantele `sfs.ENDPOINT_TEST` / `sfs.ENDPOINT_PROD` le tin in cod, iar
+pagina probei are doua butoane care le pun in cimp.
+
+### Accesul se da pe lista de IP — asta se cere de la SFS
+
+Pentru mediul de test se trimite un e-mail la **asistenta@sfs.md** cu: IDNO,
+numele si prenumele, IDNP, rolul in sistem (director / contabil), adresa
+electronica, telefonul si **IP-ul extern al statiei sau serverului**.
+
+Adresa de iesire conteaza pentru ca platforma filtreaza dupa ea: `GET` pe
+`?wsdl` merge de oriunde, dar un `POST` de pe un IP nedeschis primeste o
+PAGINA HTML cu status 500, nu un raspuns SOAP (masurat cu credentiale
+evident invalide). De aceea clientul recunoaste acum acest caz si scrie
+exact asta, in loc sa arate blocul HTML.
+
+IP-urile care ar trebui trecute pe lista, dupa contur: **92.5.3.187**
+(nufarul) si iesirea biroului, **93.115.136.18** (masina `192.168.0.250`,
+care serveste officeplus.md) — de confirmat inainte de cerere.
+
+### Plicul SOAP a fost aliniat la contractul VIU al serviciului
+
+Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio
+proba locala nu le-ar fi prins — s-ar fi vazut abia cind SFS ar fi refuzat
+apelul:
+
+1. **`SOAPAction` era `{ns}/{metoda}`**, iar contractul cere
+   `{ns}/IService/{metoda}` — WCF ar fi raspuns «action not recognized».
+2. **Copiii lui `<request>` stateau in `tempuri`**, dar tipurile sint din
+   `http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel`:
+   DataContractSerializer i-ar fi citit ca `null`, adica factura ar fi
+   „plecat" goala.
+3. **Ordinea cimpurilor** trebuie sa fie cea din XSD (intii membrii clasei de
+   baza): `RequestId`, `ActorRole`, apoi `InvoicesXml`, `InvoicesXmlStatus`.
+4. **Metode cu alta structura decit presupuneam:** `GetAcceptedInvoices` si
+   `GetRejectedInvoices` primesc doar `ActorBaseRequest` (fara interval de
+   date, deci parametrul `days` din `refresh_statuses` nu are ce filtra);
+   `GetInvoicesBySeriaNumber` cere o LISTA `ArrayOfInvoiceIndentificator`,
+   nu doua cimpuri; `GetTaxpayersInfo` cere `FiscalCodes` ca
+   `ArrayOfstring`; iar verificarea conexiunii foloseste acum metoda `Test`
+   a serviciului in locul lui `GetLogs` cu `<Top>1</Top>` (cimp inexistent).
+
+Toate cele patru sint prinse in teste (`TestSoapMatchesWsdl`).
 
 ### Plafonul de suma — pe SERVER, nu doar in formular
 

@@ -79,10 +79,23 @@
         <input id="a-pass2" type="password" autocomplete="new-password"></div>
     </div>
     <div class="row">
-      <div class="fld"><label>Adresa serviciului SFS</label>
+      <div class="fld" style="flex:2"><label>Adresa serviciului SFS</label>
         <input id="a-endpoint" autocomplete="off"
                value="{{ test_endpoint }}"></div>
+      <div class="fld"><label>&nbsp;</label>
+        <div>
+          <button class="btn gray" type="button" style="padding:7px 11px"
+                  onclick="setEp('{{ endpoint_test }}')">mediu de probă</button>
+          <button class="btn gray" type="button" style="padding:7px 11px"
+                  onclick="setEp('{{ endpoint_prod }}')">mediu real</button>
+        </div></div>
     </div>
+    <p class="muted">Adresele sînt cele publicate de SFS în ghidul de
+      integrare ERP. Accesul la <b>mediul de probă</b> se cere prin e-mail la
+      <code>asistenta@sfs.md</code> (IDNO, nume, IDNP, rolul — director sau
+      contabil, e-mail, telefon și <b>IP-ul extern</b> al stației/serverului):
+      platforma filtrează după adresa de ieșire, deci un cont corect nu ajunge
+      dacă IP-ul nu e pe listă.</p>
     <p class="muted">Factura fiscală se semnează de obicei de două persoane,
       iar e-Factura ține cozi separate pentru fiecare (<code>Order</code> 1 și
       2), de aceea se pot da două conturi API. Al doilea este opțional: dacă
@@ -221,6 +234,11 @@ function recalc() {
   document.getElementById('info').innerHTML = bad
     ? '<span class="err">Suma trebuie să fie între ' + MIN.toFixed(2) +
       ' și ' + MAX.toFixed(2) + ' lei</span>' : '';
+}
+function setEp(u) {
+  const el = document.getElementById('a-endpoint');
+  el.value = u;
+  el.dispatchEvent(new Event('input', {bubbles: true}));
 }
 function api() {
   const a = {username: v('a-user'), password: g('a-pass'),
