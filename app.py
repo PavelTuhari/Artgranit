@@ -8160,6 +8160,60 @@ def _biro26_price_field():
 _SITE_CTX_CACHE = {}
 
 
+def _biro26_hours_parse(cfg):
+    """RO: «1-5=09:00-18:00;6=09:00-15:00;7=» -> {zi: (de la, pina la)}.
+
+    Ziua 1 = luni … 7 = duminica (ca ISO). Valoare goala = zi libera.
+    Un fragment stricat se ignora, ca o greseala in setari sa nu lase vitrina
+    fara bara. EN: parse the weekly schedule; a broken chunk is skipped.
+    """
+    out = {}
+    for part in str(cfg or '').split(';'):
+        part = part.strip()
+        if not part or '=' not in part:
+            continue
+        days, _, rng = part.partition('=')
+        rng = rng.strip()
+        try:
+            if '-' in days:
+                a_, b_ = days.split('-', 1)
+                day_list = range(int(a_), int(b_) + 1)
+            else:
+                day_list = [int(days)]
+        except ValueError:
+            continue
+        pair = None
+        if rng:
+            bits = rng.split('-')
+            if len(bits) == 2 and bits[0].strip() and bits[1].strip():
+                pair = (bits[0].strip(), bits[1].strip())
+        for d in day_list:
+            if 1 <= d <= 7:
+                out[d] = pair
+    return out
+
+
+def _biro26_hours_text(cfg):
+    """RO: textul pentru bara de sus, in RO si RU, pentru ziua de AZI.
+
+    Ora se ia la fusul Moldovei — altfel un vizitator din alt fus ar vedea
+    programul de ieri sau de miine. EN: today's text in Moldova time.
+    """
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo('Europe/Chisinau'))
+    except Exception:                                        # noqa: BLE001
+        now = datetime.now()
+    sched = _biro26_hours_parse(cfg)
+    today = sched.get(now.isoweekday(), None)
+    if not today:
+        return ('Astăzi este zi liberă', 'Сегодня выходной')
+    a_, b_ = today
+    return (f'Astăzi lucrăm de la {a_} până la {b_}',
+            f'Сегодня работаем с {a_} до {b_}')
+
+
 def _biro26_site_ctx():
     """RO: contextul comun al paginilor vitrinei.
 
@@ -8195,6 +8249,21 @@ def _biro26_site_ctx():
         fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
     except Exception:
         fmt_html, fmt_xlsx = '1', '1'
+    # RO: PROGRAMUL DE LUCRU pe ziua curenta. Pina acum in bara statea un text
+    #     fix «09:00-19:00» din dictionarul de traduceri — aceeasi fraza lunea si
+    #     duminica, deci gresita in majoritatea zilelor. Acum se calculeaza dupa
+    #     ziua saptaminii, la ora Moldovei (nu a vizitatorului), si se ia din
+    #     setari, ca sa se poata schimba fara atingerea codului.
+    #     Format SHOP_HOURS: «1-5=09:00-18:00;6=09:00-15:00;7=» (gol = zi libera).
+    # EN: today's opening hours, computed per weekday in Moldova time and read
+    #     from settings; the old bar showed one hardcoded range every day.
+    try:
+        hours_cfg = Biro26Store.get_setting(
+            'SHOP_HOURS', '1-5=09:00-18:00;6=09:00-15:00;7=')
+    except Exception:                                        # noqa: BLE001
+        hours_cfg = '1-5=09:00-18:00;6=09:00-15:00;7='
+    hours_ro, hours_ru = _biro26_hours_text(hours_cfg)
+
     # RO: ID-ul Google Analytics (gtag.js). Se pune in <head> DOAR pe domeniul
     #     public; pe URL-urile interne de dezvoltare tagul nu se incarca, ca sa nu
     #     amestece traficul de test cu cel real. Se poate goli din setari ca sa fie
@@ -8231,6 +8300,7 @@ def _biro26_site_ctx():
            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
            'price_field': price_field,
            'pay_logos': pay_logos,
+           'hours_ro': hours_ro, 'hours_ru': hours_ru,
            'ga_id': ga_id}
     _SITE_CTX_CACHE[_hk] = {"exp": _t.time() + 60, "val": ctx}
     return ctx
