@@ -279,3 +279,14 @@ class TestAdHocApiAccount(unittest.TestCase):
                                 "efactura_test.html"), encoding="utf-8").read()
         for token in ("settings.", "firm.", "/UNA.md/orasldev/"):
             self.assertNotIn(token, src, "cuplare interzisa: %s" % token)
+
+    def test_ping_separates_address_from_account(self):
+        """RO: gazda inexistenta = problema de ADRESA, spusa asa, nu «cont
+        gresit» de trei ori (31.08.2026: api-test.fisc.md nu se rezolva)."""
+        from modules.efactura import testff
+        r = testff.ping({"username": "u", "password": "p",
+                         "endpoint": "https://nu-exista.invalid/Service.svc"})
+        a = r["data"]["adresa"]
+        self.assertFalse(a["ok"])
+        self.assertIn("DNS", a["reply"])
+        self.assertNotIn("prima_semnatura", r["data"])

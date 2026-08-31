@@ -171,7 +171,40 @@ class SfsClient:
             return {"success": False, "status": e.code,
                     "error": self._fault(raw) or raw[:400], "raw": raw}
         except Exception as e:                               # noqa: BLE001
-            return {"success": False, "error": str(e)[:300]}
+            return {"success": False, "error": self._network_hint(e)}
+
+    def _network_hint(self, exc: Exception) -> str:
+        """RO: erorile de retea in limbaj omenesc.
+
+        «urlopen error [Errno -2] Name or service not known» nu spune nimic
+        unui director: problema nu e la contul lui, ci la ADRESA serviciului,
+        care nu se rezolva de pe server. Mesajul trebuie sa spuna exact asta.
+        EN: turn raw socket errors into an actionable sentence.
+        """
+        host = ""
+        try:
+            from urllib.parse import urlsplit
+            host = urlsplit(self.endpoint).hostname or ""
+        except Exception:                                    # noqa: BLE001
+            pass
+        txt = str(exc)
+        low = txt.lower()
+        if "name or service not known" in low or "nodename nor servname" in low \
+                or "name resolution" in low or "getaddrinfo" in low:
+            return ("Adresa serviciului nu se rezolvă din server (DNS): «%s». "
+                    "Verificați adresa primită de la SFS — unele medii ale "
+                    "SFS sînt accesibile doar din rețeaua lor (MConnect / "
+                    "canal dedicat), nu din internet." % (host or self.endpoint))
+        if "timed out" in low or "timeout" in low:
+            return ("Serviciul «%s» nu a răspuns în %s s: adresa se rezolvă, "
+                    "dar conexiunea nu trece (firewall sau rețea închisă)."
+                    % (host or self.endpoint, TIMEOUT_S))
+        if "connection refused" in low:
+            return ("Conexiune refuzată de «%s»: gazda există, dar portul e "
+                    "închis pentru noi." % (host or self.endpoint))
+        if "certificate" in low or "ssl" in low:
+            return "Problemă de certificat TLS la «%s»: %s" % (host, txt[:200])
+        return txt[:300]
 
     @staticmethod
     def _fault(raw: str) -> Optional[str]:

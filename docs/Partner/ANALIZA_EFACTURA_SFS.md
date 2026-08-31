@@ -240,6 +240,28 @@ un **document fiscal adevarat**. Textul de avertisment din pagina spune exact
 asta — varianta veche afirma neconditionat «sistem fiscal real», ceea ce nu
 era adevarat cu adresa de test.
 
+### Adresa `api-test.fisc.md` NU se rezolva din internet (31.08.2026)
+
+Prima incercare reala cu doua conturi (Pavel Tuhari / Oxana Tuhari) a cazut cu
+`urlopen error [Errno -2] Name or service not known`. Masurat, nu presupus:
+
+| Verificare | Rezultat |
+|---|---|
+| `dig @8.8.8.8 api-test.fisc.md A` | fara raspuns — numele nu exista public |
+| `getent hosts api-test.fisc.md` pe nufarul | nimic |
+| `efactura.sfs.md` | 185.108.183.90, raspunde 302 |
+| `/Service.svc`, `/EFacturaWebService/EFactura.svc` pe `efactura.sfs.md` | 404 (pagina SPA), deci nu acolo |
+
+Concluzia: `api-test.fisc.md` (valoarea gasita in `EFA_SETTING`) e o gazda din
+reteaua SFS — mediile lor de test se acceseaza de regula prin **MConnect sau
+canal dedicat**, nu din internetul public. Adresa corecta pentru integrare
+vine de la SFS impreuna cu utilizatorul API; pina atunci nicio proba nu poate
+pleca, oricit de corecte ar fi conturile.
+
+De aceea butonul «Verifică contul» incepe acum cu **adresa**: rezolvare DNS +
+conexiune TCP. Daca gazda nu se rezolva, se spune exact asta si nu se mai
+incearca SOAP de trei ori cu acelasi mesaj criptic.
+
 ### Plafonul de suma — pe SERVER, nu doar in formular
 
 De la **0,01 lei** (un ban) pina la **10,00 lei**, maximum 5 pozitii. Limita

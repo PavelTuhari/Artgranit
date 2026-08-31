@@ -181,11 +181,40 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
             "xml": xml}
 
 
+def _reach(endpoint: str) -> Dict[str, Any]:
+    """RO: intii adresa, apoi contul. Daca gazda nu se rezolva sau portul e
+    inchis, vina nu e a utilizatorului si a parolei — omul trebuie sa vada
+    asta separat, nu ca «cont gresit»."""
+    import socket
+    from urllib.parse import urlsplit
+    u = urlsplit(endpoint or "")
+    host = u.hostname
+    port = u.port or (443 if u.scheme == "https" else 80)
+    if not host:
+        return {"configured": False}
+    try:
+        socket.getaddrinfo(host, port)
+    except OSError as e:
+        return {"configured": True, "ok": False,
+                "reply": "«%s» nu se rezolvă (DNS): %s. Unele medii ale SFS "
+                         "sînt accesibile doar din rețeaua lor." % (host, e)}
+    try:
+        with socket.create_connection((host, port), timeout=6):
+            pass
+    except OSError as e:
+        return {"configured": True, "ok": False,
+                "reply": "%s:%s inaccesibil: %s" % (host, port, e)}
+    return {"configured": True, "ok": True, "reply": "%s:%s accesibil" % (host, port)}
+
+
 def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """RO: verifica AMBELE conturi API date in formular, fara sa trimita
     nimic in sistem — asa directorul vede ca datele lui sint bune inainte
-    de a emite proba."""
-    out = {}
+    de a emite proba. Prima linie e despre ADRESA, nu despre cont."""
+    out = {"adresa": _reach(sfs.SfsClient.from_api(api).endpoint)}
+    if out["adresa"].get("configured") and not out["adresa"].get("ok"):
+        # RO: fara retea, apelurile SOAP ar da doar acelasi mesaj de trei ori
+        return {"success": True, "data": out}
     for label, signer in (("prima_semnatura", 1), ("a_doua_semnatura", 2)):
         c = sfs.SfsClient.from_api(api, signer=signer)
         if not c.configured():
