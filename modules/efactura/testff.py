@@ -156,7 +156,13 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
     doc = build(payload)
     xml = sfs.build_invoice_xml(doc, doc["_seller"], seria=doc["_seria"],
                                 number=doc["nrmanual"])
-    client = sfs.SfsClient.from_settings(signer=1)
+    # RO: contul API scris in formular are prioritate — proba pleaca sub
+    #     semnatura directorului care o face, fara sa atinga setarile firmei.
+    client = sfs.SfsClient.from_settings(signer=1, api=payload.get("api"))
+    if not client.configured():
+        return {"success": False, "xml": xml, "error":
+                "Contul API e-Factura lipseste: completati utilizatorul si "
+                "parola in pagina probei sau in Setari e-Factura."}
     rid = "test-" + uuid.uuid4().hex[:16]
     r = client.post_invoices(xml, request_id=rid,
                              actor_role=sfs.ROLE_SUPPLIER,
@@ -176,13 +182,30 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
             "xml": xml}
 
 
-def signing_queues() -> Dict[str, Any]:
+def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """RO: verifica AMBELE conturi API date in formular, fara sa trimita
+    nimic in sistem — asa directorul vede ca datele lui sint bune inainte
+    de a emite proba."""
+    out = {}
+    for label, signer in (("prima_semnatura", 1), ("a_doua_semnatura", 2)):
+        c = sfs.SfsClient.from_settings(signer=signer, api=api)
+        if not c.configured():
+            out[label] = {"configured": False}
+            continue
+        r = c.test()
+        out[label] = {"configured": True, "user": c.username,
+                      "ok": bool(r.get("success")),
+                      "reply": str(r.get("message") or r.get("error"))[:300]}
+    return {"success": True, "data": out}
+
+
+def signing_queues(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """RO: ce asteapta prima si a doua semnatura — pentru butonul din pagina
     de test: se vede imediat daca proba a ajuns in coada de semnare."""
     out = {}
     for label, signer, order in (("prima_semnatura", 1, sfs.SIGN_FIRST),
                                  ("a_doua_semnatura", 2, sfs.SIGN_SECOND)):
-        c = sfs.SfsClient.from_settings(signer=signer)
+        c = sfs.SfsClient.from_settings(signer=signer, api=api)
         if not c.configured():
             out[label] = {"configured": False}
             continue

@@ -78,7 +78,34 @@
       obicei de două persoane, iar e-Factura ține cozi separate pentru fiecare
       (<code>Order</code> 1 și 2), de aceea se înregistrează două conturi API.
       Al doilea este opțional.</p>
-    <button class="btn gray" style="margin-top:8px" onclick="queues()">
+
+    <h3 style="margin:16px 0 2px;font-size:15px">Contul API cu care se face proba</h3>
+    <p class="muted" style="margin-top:0">Lăsați gol ca să meargă pe conturile
+      salvate în <a href="{{ url_for('efactura.admin_page') }}">Setări e-Factura</a>.
+      Dacă scrieți aici alt utilizator, proba pleacă <b>sub acel cont</b>, iar
+      setările firmei rămân neatinse. Parola se folosește doar pentru apelul
+      curent: nu se salvează nici pe server, nici în browser.</p>
+    <div class="row">
+      <div class="fld"><label>Utilizator (primul semnatar)</label>
+        <input id="a-user" autocomplete="off"
+               placeholder="{{ settings.username or 'utilizator API' }}"></div>
+      <div class="fld"><label>Parola</label>
+        <input id="a-pass" type="password" autocomplete="new-password"></div>
+      <div class="fld"><label>Utilizator (al doilea semnatar)</label>
+        <input id="a-user2" autocomplete="off"
+               placeholder="{{ settings.username2 or 'opțional' }}"></div>
+      <div class="fld"><label>Parola</label>
+        <input id="a-pass2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="row">
+      <div class="fld"><label>Adresa serviciului SFS (opțional)</label>
+        <input id="a-endpoint" autocomplete="off"
+               placeholder="{{ settings.endpoint or 'din setări' }}"></div>
+    </div>
+
+    <button class="btn gray" style="margin-top:10px" type="button" onclick="ping()">
+      🔌 Verifică contul</button>
+    <button class="btn gray" style="margin-top:10px" type="button" onclick="queues()">
       👁 Vezi cozile de semnare</button>
     <span id="q-info" class="muted"></span>
   </div>
@@ -143,8 +170,21 @@
 </div>
 <script>
 const MIN = {{ min_total }}, MAX = {{ max_total }}, MAXL = {{ max_lines }};
-const j = (u, o) => fetch(u, Object.assign({headers: {'Content-Type': 'application/json'},
-  credentials: 'include'}, o)).then(r => r.json());
+// RO: baza vine de la Flask — o adresa relativa ('preview') s-ar rezolva in
+//     /efactura/preview, adica 404, si butonul ar tacea.
+const BASE = '{{ url_for("efactura.test_page") }}';
+const j = (u, o) => fetch(BASE + '/' + u,
+  Object.assign({headers: {'Content-Type': 'application/json'},
+    credentials: 'include'}, o))
+  .then(r => r.text().then(t => {
+    try { return JSON.parse(t); }
+    catch (e) {
+      // RO: 404/500 vin ca HTML — mai bine un mesaj clar decit tacere
+      return {success: false, error: 'HTTP ' + r.status + ' — ' +
+              t.replace(/<[^>]*>/g, ' ').trim().slice(0, 200)};
+    }
+  }))
+  .catch(e => ({success: false, error: String(e)}));
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
   c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
 
@@ -194,8 +234,15 @@ function recalc() {
     ? '<span class="err">Suma trebuie să fie între ' + MIN.toFixed(2) +
       ' și ' + MAX.toFixed(2) + ' lei</span>' : '';
 }
+function api() {
+  const a = {username: v('a-user'), password: g('a-pass'),
+             username2: v('a-user2'), password2: g('a-pass2'),
+             endpoint: v('a-endpoint')};
+  return a.username || a.endpoint ? a : null;
+}
 function payload() {
   return {
+    api: api(),
     seller: {idno: v('s-idno'), name: v('s-name'), address: v('s-address'),
              iban: v('s-iban'), bank_code: v('s-bank')},
     buyer: {idno: v('b-idno'), name: v('b-name'), address: v('b-address')},
@@ -214,8 +261,21 @@ function show(r, okMsg) {
       esc(JSON.stringify(r.errors || '')) + '</span>';
 }
 async function preview() {
+  document.getElementById('info').textContent = 'Se generează…';
   show(await j('preview', {method: 'POST', body: JSON.stringify(payload())}),
        'XML generat (nu s-a trimis nimic)');
+}
+async function ping() {
+  document.getElementById('q-info').textContent = 'Se verifică contul…';
+  const r = await j('ping', {method: 'POST',
+                             body: JSON.stringify({api: api()})});
+  document.getElementById('q-info').innerHTML = ' ' + qtext(r);
+}
+function qtext(r) {
+  if (!r.success) return '<span class="err">' + esc(r.error || 'eroare') + '</span>';
+  return Object.entries(r.data || {}).map(([k, x]) => k.replace(/_/g, ' ') +
+    ': ' + (x.configured ? (x.ok ? '✅' : '❌ ' + esc(x.reply || ''))
+                         : '— neconfigurat')).join(' · ');
 }
 async function send() {
   if (!confirm('Factura ajunge în sistemul FISCAL real al SFS. Continuați?')) return;
@@ -225,15 +285,17 @@ async function send() {
 }
 async function queues() {
   document.getElementById('q-info').textContent = 'Se verifică…';
-  const r = await j('queues');
-  const d = (r.data) || {};
-  document.getElementById('q-info').innerHTML = ' ' + Object.entries(d).map(
-    ([k, x]) => k + ': ' + (x.configured ? (x.ok ? '✅' : '❌') : '— neconfigurat')
-  ).join(' · ');
+  const r = await j('queues', {method: 'POST',
+                               body: JSON.stringify({api: api()})});
+  document.getElementById('q-info').innerHTML = ' ' + qtext(r);
 }
 const LS = 'efa_test_form_v1';
+// RO: se pastreaza doar ce nu e secret. Parolele (a-pass, a-pass2) NU intra
+//     in localStorage — se tasteaza de fiecare data.
 const FIELDS = ['s-idno', 's-name', 's-address', 's-iban', 's-bank',
-                'b-idno', 'b-name', 'b-address', 'tva', 'seria', 'number'];
+                'b-idno', 'b-name', 'b-address', 'tva', 'seria', 'number',
+                'a-user', 'a-user2', 'a-endpoint'];
+const g = id => { const e = document.getElementById(id); return e ? e.value : ''; };
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);

@@ -201,3 +201,58 @@ class TestTemplateJs(unittest.TestCase):
                     os.unlink(path)
                 self.assertEqual(r.returncode, 0,
                                  "%s: %s" % (name, r.stderr[:300]))
+
+
+class TestAdHocApiAccount(unittest.TestCase):
+    """RO: contul API scris in pagina probei — proba pleaca sub ACEL cont,
+    setarile firmei raman neatinse (31.08.2026)."""
+
+    SAVED = {"endpoint": "https://sfs/svc", "namespace": "http://tempuri.org/",
+             "username": "salvat1", "password": "p-salvat1",
+             "username2": "salvat2", "password2": "p-salvat2", "seria": "FT"}
+
+    def _client(self, signer=1, api=None):
+        from unittest import mock
+        from modules.efactura import sfs
+        with mock.patch("modules.efactura.store.EfaStore.settings",
+                        return_value=dict(self.SAVED)):
+            return sfs.SfsClient.from_settings(signer=signer, api=api)
+
+    def test_adhoc_wins_over_saved(self):
+        c = self._client(1, {"username": "ad-hoc", "password": "p-ad-hoc"})
+        self.assertEqual(c.username, "ad-hoc")
+        self.assertEqual(c.password, "p-ad-hoc")
+        self.assertEqual(c.endpoint, self.SAVED["endpoint"])  # adresa din setari
+
+    def test_second_signer_never_mixes_with_saved(self):
+        """RO: daca in formular e un singur cont, al doilea semnatar merge tot
+        pe el — NU pe contul salvat al firmei (altfel s-ar amesteca doi
+        oameni intr-o singura proba)."""
+        c = self._client(2, {"username": "ad-hoc", "password": "p-ad-hoc"})
+        self.assertEqual(c.username, "ad-hoc")
+        self.assertNotEqual(c.username, self.SAVED["username2"])
+
+    def test_second_signer_adhoc(self):
+        c = self._client(2, {"username": "u1", "password": "p1",
+                             "username2": "u2", "password2": "p2"})
+        self.assertEqual((c.username, c.password), ("u2", "p2"))
+
+    def test_no_adhoc_uses_saved(self):
+        self.assertEqual(self._client(1).username, "salvat1")
+        self.assertEqual(self._client(2).username, "salvat2")
+
+    def test_send_refuses_without_password(self):
+        """RO: utilizator fara parola = refuz clar, fara apel in retea."""
+        from unittest import mock
+        from modules.efactura import testff
+        p = {"seller": {"idno": "1003600116460", "name": "Test SRL"},
+             "buyer": {"idno": "1012600013725", "name": "Client SRL"},
+             "lines": [{"name": "Serviciu", "qty": 1, "price": 1.0}],
+             "api": {"username": "fara-parola"}}
+        with mock.patch("modules.efactura.store.EfaStore.settings",
+                        return_value=dict(self.SAVED)), \
+             mock.patch("modules.efactura.sfs.SfsClient.post_invoices") as post:
+            r = testff.send(p)
+        self.assertFalse(r["success"])
+        self.assertIn("Contul API", r["error"])
+        post.assert_not_called()

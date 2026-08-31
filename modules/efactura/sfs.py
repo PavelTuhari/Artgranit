@@ -69,7 +69,8 @@ class SfsClient:
         self.ns = namespace or "http://tempuri.org/"
 
     @classmethod
-    def from_settings(cls, signer: int = 1) -> "SfsClient":
+    def from_settings(cls, signer: int = 1,
+                      api: Optional[Dict[str, Any]] = None) -> "SfsClient":
         """RO: clientul unuia dintre cei DOI semnatari.
 
         In practica factura fiscala se semneaza de doua persoane (director si
@@ -78,16 +79,29 @@ class SfsClient:
         primul semnatar, `signer=2` — al doilea. Daca al doilea nu e
         configurat, se foloseste primul (firmele mici semneaza cu o singura
         persoana).
-        EN: one client per signer; falls back to the first when the second
-        account is not configured.
+        Parametrul `api` sint credentialele scrise AD-HOC in formular (pagina
+        probei): cind e dat un utilizator acolo, proba pleaca sub ACEL cont,
+        iar setarile salvate nu se ating si nu se amesteca. Din setari se ia
+        atunci doar adresa serviciului, daca omul nu a scris-o pe a lui.
+        EN: one client per signer; `api` overrides the stored account for a
+        single call without touching saved settings.
         """
         from modules.efactura.store import EfaStore
         s = EfaStore.settings()
+        adhoc = {k: str(v).strip() for k, v in (api or {}).items()
+                 if str(v or "").strip()}
+        endpoint = adhoc.get("endpoint") or s.get("endpoint", "")
+        ns = adhoc.get("namespace") or s.get("namespace",
+                                             "http://tempuri.org/")
+        if adhoc.get("username"):
+            user, pwd = adhoc["username"], adhoc.get("password", "")
+            if int(signer) == 2 and adhoc.get("username2"):
+                user, pwd = adhoc["username2"], adhoc.get("password2", "")
+            return cls(endpoint, user, pwd, ns)
         user, pwd = s.get("username", ""), s.get("password", "")
         if int(signer) == 2 and s.get("username2"):
             user, pwd = s.get("username2", ""), s.get("password2", "")
-        return cls(s.get("endpoint", ""), user, pwd,
-                   s.get("namespace", "http://tempuri.org/"))
+        return cls(endpoint, user, pwd, ns)
 
     def configured(self) -> bool:
         return bool(self.endpoint and self.username and self.password)

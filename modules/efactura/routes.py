@@ -259,13 +259,27 @@ def test_send():
     return _reply(testff.send(_body(), src=src))
 
 
-@blueprint.route("/test/queues")
+@blueprint.route("/test/queues", methods=["GET", "POST"])
 def test_queues():
     err = _test_guard()
     if err:
         return err
     from modules.efactura import testff
-    return _reply(testff.signing_queues())
+    return _reply(testff.signing_queues(_body().get("api")))
+
+
+@blueprint.route("/test/ping", methods=["POST"])
+def test_ping():
+    """RO: verifica contul API scris in formular — nu trimite nimic in SFS.
+
+    Credentialele venite aici se folosesc pentru ACEST apel si atit: nu se
+    salveaza nicaieri, nu intra in jurnal.
+    """
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import testff
+    return _reply(testff.ping(_body().get("api")))
 
 
 @blueprint.route("/widget.js")

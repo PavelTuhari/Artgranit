@@ -228,6 +228,21 @@ din greseala, paguba trebuie sa fie de citiva bani. Verificarea e in
 `testff.validate()`, deci un apel direct la API nu o poate ocoli —
 verificat: `POST /test/send` cu 25 lei intoarce 400.
 
+### Contul API cu care se face proba
+
+In pagina probei se poate scrie **alt cont API e-Factura** decit cel salvat in
+setarile firmei: utilizator + parola pentru primul semnatar, optional inca o
+pereche pentru al doilea, si — daca e nevoie — alta adresa a serviciului SFS.
+Cind cimpul «utilizator» e completat, proba pleaca **sub acel cont**; setarile
+salvate nu se ating si nu se amesteca (daca in formular e un singur cont, tot
+el serveste si a doua semnatura, ca sa nu se combine doi oameni intr-o proba).
+Gol = merge pe conturile din **Setari e-Factura**.
+
+Parolele scrise aici traiesc **numai cit tine apelul**: nu se scriu in
+`EFA_SETTING`, nu intra in jurnal si nu se pastreaza in browser (autosalvarea
+retine doar utilizatorii). Butonul «🔌 Verifică contul» (`POST /test/ping`)
+incearca ambele conturi fara sa trimita nimic in sistem.
+
 ### Valorile introduse se pastreaza singure
 
 Tot ce se scrie in formular (rechizitele vinzatorului si ale cumparatorului,
