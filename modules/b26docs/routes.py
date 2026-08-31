@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from flask import abort, render_template, request
+from flask import abort, redirect, render_template, request
 
 from controllers.auth_controller import AuthController
 from models import doc_registry
@@ -20,7 +20,11 @@ EXT = (".md", ".html", ".htm")
 
 
 def _guard():
-    return None if AuthController.is_authenticated() else abort(401)
+    """RO: paginile astea le deschide un OM — la lipsa sesiunii il trimitem la
+    autentificare, nu ii aratam un 401 sec (asa fac si celelalte pagini)."""
+    if AuthController.is_authenticated():
+        return None
+    return redirect("/login?next=" + request.path)
 
 
 def _safe(folder: str, name: str):
@@ -40,7 +44,9 @@ def _safe(folder: str, name: str):
 @blueprint.route("/")
 def index():
     """RO: indexul TUTUROR documentelor proiectului, pe foldere."""
-    _guard()
+    g = _guard()
+    if g is not None:
+        return g
     groups = []
     for folder in FOLDERS:
         path = os.path.join(DOCS, folder)
@@ -70,7 +76,9 @@ def index():
 @blueprint.route("/<folder>/<path:name>")
 def view(folder, name):
     """RO: un document — markdown randat sau HTML servit ca atare."""
-    _guard()
+    g = _guard()
+    if g is not None:
+        return g
     full = _safe(folder, name)
     raw = open(full, encoding="utf-8", errors="replace").read()
     if full.lower().endswith((".html", ".htm")):
