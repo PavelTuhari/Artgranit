@@ -1,19 +1,39 @@
-# Integrarea cu SIA „e-Factura” (SFS.md) — analiza
+# Integrarea cu SIA „e-Factura” (SFS.md)
+
+> ## ✅ STAREA CURENTA (31.08.2026): INTEGRAREA ESTE FACUTA
+>
+> Modulul `modules/efactura/` este scris, instalat pe toate conturile si
+> functional. Mai lipsesc **doar credentialele** (utilizatorul API care se
+> creeaza in e-Factura de persoana cu rol de Manager).
+>
+> * Pagina modulului: **`/UNA.md/orasldev/efactura/`** — setari, jurnal,
+>   previzualizare XML, buton de trimitere.
+> * Detaliile implementarii: [sectiunea 8](#8-implementat-31082026--modulul-modulesefactura)
+>   de la finalul acestui document.
+> * Ce trebuie de la companie: [sectiunea 5](#5-ce-trebuie-de-la-proprietar-nu-pot-obtine-singur).
+>
+> Sectiunile 1–7 de mai jos sint **analiza dinaintea dezvoltarii** — se
+> pastreaza pentru ca explica DE CE integrarea arata asa (regimuri, metode
+> API, capcane). Raspunsul „nu s-a facut" din sectiunea 1 se refera la
+> starea de la 30.08.2026, INAINTE de dezvoltare.
+
+---
 
 **Intrebarea proprietarului (30.08.2026):** se poate face partajare cu sfs.md
 ca factura sa se descarce in sistem si in e-Factura? S-a facut deja aceasta
 integrare in proiect?
 
-## 1. Raspuns scurt
+## 1. Raspuns scurt (la data analizei, 30.08.2026)
 
-**Nu, integrarea NU a fost facuta** — nu exista nicaieri in proiect. Singura
-urma este o linie in specificatia modulului AGRO:
+**Atunci integrarea NU exista** — nu era nicaieri in proiect. Singura urma era
+o linie in specificatia modulului AGRO:
 `Integration with e-factura/customs → Phase 2` (adica amanata, nu executata).
 
 **Da, se poate face** — SFS publica un API oficial pentru sistemele contabile
-(ERP), exact pentru acest scenariu.
+(ERP), exact pentru acest scenariu. → **A si fost facuta a doua zi**, vezi
+sectiunea 8.
 
-## 2. Ce am verificat
+## 2. Ce am verificat (inainte de dezvoltare)
 
 | Verificare | Rezultat |
 |---|---|
@@ -160,3 +180,30 @@ Teste: `tests/test_efactura.py` (7 passed), inclusiv cele doua de izolare.
 3. La primul document real se compara XML-ul nostru cu **XSD-ul** descarcat
    din sectiunea *Help* a e-Facturii si se aliniaza denumirile nodurilor
    (XML-ul plecat se vede in jurnal, deci alinierea se face pe date reale).
+
+---
+
+## 9. Pornirea in 4 pasi (cind aveti utilizatorul API)
+
+1. **Creati utilizatorul API** in e-Factura — DOAR persoana cu rol de
+   Manager (Director) poate: *Setări → Utilizatorii companiei →*
+   **„CREEAZĂ UN UTILIZATOR API"**. Notati utilizatorul si parola.
+2. **Completati setarile** in `/UNA.md/orasldev/efactura/`: endpoint-ul
+   serviciului, utilizatorul, parola. Restul (IDNO, denumire, IBAN, banca)
+   se ia automat din ERP — se completeaza doar daca vreti sa suprascrieti.
+3. **Apasati „Testează conexiunea"** — confirma accesul fara sa trimita nimic.
+4. **Trimiteti primul document** si comparati XML-ul din jurnal cu **XSD-ul**
+   descarcat din sectiunea *Help* a e-Facturii. Daca SFS cere alte denumiri de
+   noduri, se aliniaza in `modules/efactura/sfs.py` (`build_invoice_xml`) —
+   pe date reale, nu pe presupuneri.
+
+### Verificat inainte de predare (31.08.2026)
+
+| Ce | Rezultat |
+|---|---|
+| Obiecte Oracle `EFA_*` | 7, toate VALID |
+| Setari | `configured = false` — asteapta credentialele; regim `semi`; doar persoane juridice |
+| Document real de la client juridic → XML | contul **A-72**: vinzator IDNO `1026602001837`, cumparator IDNO `9999000161242`, 2 pozitii, total `222 000.00` |
+| Trimitere fara credentiale | mesaj clar, nu exceptie |
+| Jurnal | scrie corect (5 inregistrari) |
+| Cele trei intrari fara autentificare | 401 / redirect la login |
