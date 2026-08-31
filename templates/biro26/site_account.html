@@ -146,6 +146,9 @@ async function refresh() {
       me.email + (me.phone ? ' · ' + me.phone : '') +
       (me.address ? ' · ' + me.address : '');
     fmtApplyPref(me.invoice_fmt);
+    // RO: retinem tipul clientului — butonul e-Factura apare doar la persoane
+    //     juridice (factura fiscala electronica nu se emite persoanelor fizice)
+    CLIENT_IS_COMPANY = !!me.is_company;
     const r0 = document.querySelector('input[name="ctype"][value="' +
       (me.is_company ? '1' : '0') + '"]');
     if (r0) r0.checked = true;
@@ -288,9 +291,38 @@ async function loadMyOrders() {
         '<a target="_blank" href="' + API + '/report/invoice/' + d.cod + '" ' +
         'style="color:#194681;text-decoration:underline">PDF</a> · ' +
         '<a target="_blank" href="' + API + '/report-html/invoice/' + d.cod + '" ' +
-        'style="color:#194681;text-decoration:underline">HTML</a></td></tr>').join('') +
+        'style="color:#194681;text-decoration:underline">HTML</a>' +
+        /* RO: factura fiscala electronica — acelasi document, trimis in SIA
+           e-Factura a SFS. Butonul apare DOAR clientilor persoane juridice
+           (au IDNO); persoanelor fizice nu li se emite factura electronica. */
+        (d.client_idno || CLIENT_IS_COMPANY ?
+          ' · <a href="javascript:void(0)" onclick="efaSend(' + d.cod + ',this)" ' +
+          'style="color:#0a7d2e;text-decoration:underline">e-Factura</a>' : '') +
+        '</td></tr>').join('') +
       '</table>';
   } catch (e) { box.textContent = '—'; }
+}
+
+/* RO: trimiterea facturii fiscale electronice din CABINET. Aceeasi logica
+   pe care o foloseste back-office-ul si API-ul intern (modules/efactura):
+   clientul poate cere DOAR documentele lui — serverul verifica. */
+const EFA = '/UNA.md/orasldev/efactura';
+let CLIENT_IS_COMPANY = false;
+async function efaSend(cod, el) {
+  const prev = el.textContent;
+  el.textContent = '…';
+  try {
+    const r = await j(EFA + '/my/send/' + cod, {method: 'POST', body: '{}'});
+    if (r.success) {
+      el.textContent = '✓ e-Factura';
+      el.style.color = '#15803d';
+      toast(bl('Factura a fost trimisă în e-Factura',
+               'Накладная отправлена в e-Factura'));
+    } else {
+      el.textContent = prev;
+      toast(r.error || bl('Nu s-a putut trimite', 'Не удалось отправить'), true);
+    }
+  } catch (e) { el.textContent = prev; }
 }
 
 /* RO: ACTUL DE VERIFICARE. Pentru fiecare cont de plata se arata livrarea

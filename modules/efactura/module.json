@@ -1,0 +1,15 @@
+{
+  "title": {"ro": "e-Factura (SFS)", "ru": "e-Factura (SFS)", "en": "e-Factura (SFS)"},
+  "icon": "🧾",
+  "order": 63,
+  "url": "/UNA.md/orasldev/efactura/",
+  "descr": {
+    "ro": "Factura fiscală electronică în SIA „e-Factura” a SFS: setări, trimitere din back-office, din cabinetul clientului și prin API intern (X-API-Key) pentru back-office-urile native.",
+    "ru": "Электронная налоговая накладная в SIA «e-Factura» (SFS): настройки, отправка из бэк-офиса, из личного кабинета клиента и через внутренний API (X-API-Key) для нативных бэк-офисов.",
+    "en": "Electronic fiscal invoice in Moldova's SFS e-Factura: settings, sending from the back office, the client cabinet and an internal API."
+  },
+  "sql_prefix": "EFA",
+  "pages": {
+    "efactura.admin_page": {"ro": "Setări și jurnal", "ru": "Настройки и журнал", "en": "Settings and log"}
+  }
+}
