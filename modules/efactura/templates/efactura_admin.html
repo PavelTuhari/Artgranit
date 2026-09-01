@@ -119,8 +119,22 @@
 </div>
 </div>
 <script>
-const j = (u, o) => fetch(u, Object.assign({headers: {'Content-Type': 'application/json'},
-  credentials: 'include'}, o)).then(r => r.json());
+// RO: baza de la Flask, nu adrese relative — daca pagina se deschide fara
+//     slash la final, o adresa relativa ar cadea linga modul, nu in el.
+//     Iar un raspuns care nu e JSON (404/500 in HTML) trebuie sa se vada ca
+//     eroare, nu sa lase butonul mut — lectia din pagina probei (31.08.2026).
+const BASE = '{{ url_for("efactura.admin_page") }}'.replace(/\/$/, '');
+const j = (u, o) => fetch(BASE + '/' + u,
+  Object.assign({headers: {'Content-Type': 'application/json'},
+    credentials: 'include'}, o))
+  .then(r => r.text().then(t => {
+    try { return JSON.parse(t); }
+    catch (e) {
+      return {success: false, error: 'HTTP ' + r.status + ' — ' +
+              t.replace(/<[^>]*>/g, ' ').trim().slice(0, 200)};
+    }
+  }))
+  .catch(e => ({success: false, error: String(e)}));
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
   c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
 const KEYS = ['endpoint','namespace','username','username2','signer1_name',
@@ -133,9 +147,13 @@ async function load() {
   const d = r.data || {};
   KEYS.forEach(k => { const el = document.getElementById('s-' + k);
     if (el && d[k] != null) el.value = d[k]; });
-  document.getElementById('s-info').innerHTML = d.configured
-    ? '<span class="ok">✅ configurat</span>'
-    : '<span class="err">⚠ neconfigurat — completați endpoint, utilizator și parola</span>';
+  // RO: un apel cazut (sesiune expirata, 500) nu trebuie sa se prefaca in
+  //     «neconfigurat» — altfel omul cauta setari, nu problema reala.
+  document.getElementById('s-info').innerHTML = r.success === false
+    ? '<span class="err">⚠ ' + esc(r.error || 'apel eșuat') + '</span>'
+    : (d.configured
+      ? '<span class="ok">✅ configurat</span>'
+      : '<span class="err">⚠ neconfigurat — completați endpoint, utilizator și parola</span>');
   const dd = await j('admin/docs?limit=100');
   document.querySelector('#dtab tbody').innerHTML = (dd.data || []).map(x =>
     `<tr><td>${x.doc_cod}</td><td>${esc(x.nrmanual || '')}</td>

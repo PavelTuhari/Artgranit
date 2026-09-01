@@ -219,14 +219,133 @@ sa treaca documentele reale.
 
 **Adresa:** `/UNA.md/orasldev/efactura/test` (si plachet in hub-ul Biro26).
 
+### Pagina e AUTONOMA — nu atinge setarile niciunui magazin
+
+Corectat 31.08.2026, la cererea proprietarului. Pagina probei nu mai citeste
+`EFA_SETTING`, nu mai afiseaza semnatarii configurati si nu mai ia rechizitele
+din ERP-ul Biro26 (`VMS_ORG_CONT_FISC`). Tot ce foloseste vine din formular:
+contul API, rechizitele vinzatorului si ale cumparatorului, pozitiile. Asa
+proba merge la fel din orice modul al platformei, la orice director. Efectul
+se vede si in teste: setul modulului ruleaza in ~0,3 s in loc de ~9 s, pentru
+ca nu mai deschide Oracle pentru randarea paginii. Regula e prinsa in test
+(`test_page_template_has_no_shop_coupling`, `test_test_page_never_reads_shop_settings`).
+
+### Mediul il decide ADRESA serviciului
+
+Implicit pagina merge pe mediul de **proba** al SFS —
+`https://api-test.fisc.md/Service.svc`, constanta `sfs.TEST_ENDPOINT`
+(o proprietate a SFS, nu o setare a firmei, de aceea sta in cod). Daca in
+cimpul «Adresa serviciului SFS» se pune adresa sistemului real, factura devine
+un **document fiscal adevarat**. Textul de avertisment din pagina spune exact
+asta — varianta veche afirma neconditionat «sistem fiscal real», ceea ce nu
+era adevarat cu adresa de test.
+
+### Adresele REALE ale platformei API (ghidul SFS, verificate 31.08.2026)
+
+Prima incercare reala a cazut cu `urlopen error [Errno -2]`, pentru ca in
+setari statea `api-test.fisc.md` — gazda care nu se rezolva nici public
+(`dig @8.8.8.8` fara raspuns), nici de pe serverele noastre. Ghidul de
+integrare ERP publicat de SFS da adresele corecte:
+
+| Ce | Adresa |
+|---|---|
+| Portal de test | `https://preproductie.sfs.md` |
+| e-Factura, mediu de test | `https://efactura-pre.sfs.md` |
+| **API, mediu de test** | `https://apiefactura-pre.sfs.md` |
+| **API, mediu real** | `https://efactura-api.sfs.md` |
+
+Verificat pe viu: `https://efactura-api.sfs.md/Service.svc` intoarce pagina
+WCF si `?wsdl` complet (19 KB, `targetNamespace=http://tempuri.org/`).
+`apiefactura-pre.sfs.md` raspunde 403 pina la deschiderea accesului.
+
+Constantele `sfs.ENDPOINT_TEST` / `sfs.ENDPOINT_PROD` le tin in cod, iar
+pagina probei are doua butoane care le pun in cimp.
+
+### Accesul se da pe lista de IP — asta se cere de la SFS
+
+Pentru mediul de test se trimite un e-mail la **asistenta@sfs.md** cu: IDNO,
+numele si prenumele, IDNP, rolul in sistem (director / contabil), adresa
+electronica, telefonul si **IP-ul extern al statiei sau serverului**.
+
+Adresa de iesire conteaza pentru ca platforma filtreaza dupa ea: `GET` pe
+`?wsdl` merge de oriunde, dar un `POST` de pe un IP nedeschis primeste o
+PAGINA HTML cu status 500, nu un raspuns SOAP (masurat cu credentiale
+evident invalide). De aceea clientul recunoaste acum acest caz si scrie
+exact asta, in loc sa arate blocul HTML.
+
+**Adresa care conteaza e a SERVERULUI, nu a statiei directorului**: apelul
+SOAP il face aplicatia, nu browserul. Masurate pe viu (31.08.2026):
+
+| Contur | IP de iesire | `apiefactura-pre.sfs.md` |
+|---|---|---|
+| officeplus.md (masina `192.168.0.250`) | **93.115.136.18** | 403 «Accesul este restricționat!» |
+| nufarul | **92.5.3.187** | 403 |
+
+Pe mediul REAL (`efactura-api.sfs.md`) de pe aceleasi IP-uri: `GET` pe
+`?wsdl` da 200, iar `POST` da 500 «A apărut o eroare» — tot o pagina de la
+nginx-ul SFS, nu un raspuns SOAP. Comportamentul nu se schimba nici cu
+antetul WS-Security completat, nici cu alt User-Agent, deci nu tine de
+plicul nostru.
+
+Din 31.08.2026 butonul «Verifică contul» arata si **IP-ul de iesire al
+serverului** — exact numarul care trebuie trimis la SFS.
+
+### Plicul SOAP a fost aliniat la contractul VIU al serviciului
+
+Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio
+proba locala nu le-ar fi prins — s-ar fi vazut abia cind SFS ar fi refuzat
+apelul:
+
+1. **`SOAPAction` era `{ns}/{metoda}`**, iar contractul cere
+   `{ns}/IService/{metoda}` — WCF ar fi raspuns «action not recognized».
+2. **Copiii lui `<request>` stateau in `tempuri`**, dar tipurile sint din
+   `http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel`:
+   DataContractSerializer i-ar fi citit ca `null`, adica factura ar fi
+   „plecat" goala.
+3. **Ordinea cimpurilor** trebuie sa fie cea din XSD (intii membrii clasei de
+   baza): `RequestId`, `ActorRole`, apoi `InvoicesXml`, `InvoicesXmlStatus`.
+4. **Metode cu alta structura decit presupuneam:** `GetAcceptedInvoices` si
+   `GetRejectedInvoices` primesc doar `ActorBaseRequest` (fara interval de
+   date, deci parametrul `days` din `refresh_statuses` nu are ce filtra);
+   `GetInvoicesBySeriaNumber` cere o LISTA `ArrayOfInvoiceIndentificator`,
+   nu doua cimpuri; `GetTaxpayersInfo` cere `FiscalCodes` ca
+   `ArrayOfstring`; iar verificarea conexiunii foloseste acum metoda `Test`
+   a serviciului in locul lui `GetLogs` cu `<Top>1</Top>` (cimp inexistent).
+
+Toate cele patru sint prinse in teste (`TestSoapMatchesWsdl`).
+
 ### Plafonul de suma — pe SERVER, nu doar in formular
 
 De la **0,01 lei** (un ban) pina la **10,00 lei**, maximum 5 pozitii. Limita
-NU e o formalitate: o factura trimisa ajunge in sistemul **fiscal real** al
-SFS, nu intr-un mediu de simulare. Daca o proba ramine uitata sau se semneaza
-din greseala, paguba trebuie sa fie de citiva bani. Verificarea e in
-`testff.validate()`, deci un apel direct la API nu o poate ocoli —
-verificat: `POST /test/send` cu 25 lei intoarce 400.
+ramine si in mediul de proba, ca sa fie inofensiva si cind cineva schimba
+adresa pe cea reala: daca o proba ramine uitata sau se semneaza din greseala,
+paguba trebuie sa fie de citiva bani. Verificarea e in `testff.validate()`,
+deci un apel direct la API nu o poate ocoli — verificat: `POST /test/send` cu
+25 lei intoarce 400.
+
+### Contul API cu care se face proba
+
+Contul API se scrie **in pagina**: utilizator + parola pentru primul semnatar,
+optional inca o pereche pentru al doilea. Proba pleaca sub acel cont —
+`sfs.SfsClient.from_api()` nu citeste niciodata `EFA_SETTING`. Daca in formular
+e un singur cont, tot el serveste si a doua coada de semnare, ca sa nu se
+combine doi oameni intr-o proba. Fara utilizator si parola, trimiterea e
+refuzata cu mesaj clar, fara apel in retea.
+
+Parolele scrise aici traiesc **numai cit tine apelul**: nu se scriu in
+`EFA_SETTING`, nu intra in jurnal si nu se pastreaza in browser (autosalvarea
+retine doar utilizatorii). Butonul «🔌 Verifică contul» (`POST /test/ping`)
+incearca ambele conturi fara sa trimita nimic in sistem.
+
+### Valorile introduse se pastreaza singure
+
+Tot ce se scrie in formular (rechizitele vinzatorului si ale cumparatorului,
+pozitiile, cota TVA, seria si numarul) se salveaza automat in `localStorage`
+sub cheia `efa_test_form_v1` si revine la urmatoarea deschidere a paginii —
+proba se repeta fara sa se reintroduca nimic. Datele stau **doar in browserul
+operatorului**, nu pe server. Butonul «🗑 Curata datele» sterge tot si readuce
+formularul la starea initiala. In mod privat, cind `localStorage` arunca
+exceptie, formularul merge mai departe fara salvare.
 
 ### Universal: activarea in alt modul = O SINGURA linie
 

@@ -84,7 +84,6 @@ def validate(payload: Dict[str, Any]) -> Dict[str, List[str]]:
 
 def build(payload: Dict[str, Any]) -> Dict[str, Any]:
     """RO: formularul -> documentul in forma pe care o asteapta build_invoice_xml."""
-    s = EfaStore.settings()
     seller = payload.get("seller") or {}
     buyer = payload.get("buyer") or {}
     lines_in = payload.get("lines") or []
@@ -125,7 +124,7 @@ def build(payload: Dict[str, Any]) -> Dict[str, Any]:
             "address": seller.get("address"), "iban": seller.get("iban"),
             "bank_code": seller.get("bank_code"),
         },
-        "_seria": str(payload.get("seria") or s.get("seria") or "").strip(),
+        "_seria": str(payload.get("seria") or "").strip(),
     }
 
 
@@ -156,7 +155,13 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
     doc = build(payload)
     xml = sfs.build_invoice_xml(doc, doc["_seller"], seria=doc["_seria"],
                                 number=doc["nrmanual"])
-    client = sfs.SfsClient.from_settings(signer=1)
+    # RO: NUMAI contul scris in formular — pagina probei nu se leaga de
+    #     setarile vreunui magazin (vezi sfs.SfsClient.from_api).
+    client = sfs.SfsClient.from_api(payload.get("api"), signer=1)
+    if not client.configured():
+        return {"success": False, "xml": xml, "error":
+                "Completati contul API e-Factura (utilizator si parola) "
+                "in pagina probei."}
     rid = "test-" + uuid.uuid4().hex[:16]
     r = client.post_invoices(xml, request_id=rid,
                              actor_role=sfs.ROLE_SUPPLIER,
@@ -176,13 +181,87 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
             "xml": xml}
 
 
-def signing_queues() -> Dict[str, Any]:
+def _reach(endpoint: str) -> Dict[str, Any]:
+    """RO: intii adresa, apoi contul. Daca gazda nu se rezolva sau portul e
+    inchis, vina nu e a utilizatorului si a parolei — omul trebuie sa vada
+    asta separat, nu ca «cont gresit»."""
+    import socket
+    from urllib.parse import urlsplit
+    u = urlsplit(endpoint or "")
+    host = u.hostname
+    port = u.port or (443 if u.scheme == "https" else 80)
+    if not host:
+        return {"configured": False}
+    try:
+        socket.getaddrinfo(host, port)
+    except OSError as e:
+        return {"configured": True, "ok": False,
+                "reply": "«%s» nu se rezolvă (DNS): %s. Unele medii ale SFS "
+                         "sînt accesibile doar din rețeaua lor." % (host, e)}
+    try:
+        with socket.create_connection((host, port), timeout=6):
+            pass
+    except OSError as e:
+        return {"configured": True, "ok": False,
+                "reply": "%s:%s inaccesibil: %s" % (host, port, e)}
+    return {"configured": True, "ok": True, "reply": "%s:%s accesibil" % (host, port)}
+
+
+_EGRESS: Dict[str, str] = {}
+
+
+def _egress_ip() -> str:
+    """RO: adresa cu care ESTE VAZUT serverul in internet.
+
+    SFS deschide accesul pe lista de IP, iar apelul catre e-Factura il face
+    SERVERUL, nu calculatorul directorului — deci adresa care trebuie trimisa
+    la `asistenta@sfs.md` este aceasta, nu cea a statiei de lucru. Se afla o
+    singura data si se tine minte; daca nu se poate afla, nu strica nimic.
+    EN: the server's outbound IP — that is what SFS must whitelist.
+    """
+    if "ip" not in _EGRESS:
+        import urllib.request
+        try:
+            with urllib.request.urlopen("https://api.ipify.org",
+                                        timeout=4) as r:
+                _EGRESS["ip"] = r.read().decode("ascii", "replace").strip()[:45]
+        except Exception:                                    # noqa: BLE001
+            _EGRESS["ip"] = ""
+    return _EGRESS["ip"]
+
+
+def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """RO: verifica AMBELE conturi API date in formular, fara sa trimita
+    nimic in sistem — asa directorul vede ca datele lui sint bune inainte
+    de a emite proba. Prima linie e despre ADRESA, nu despre cont."""
+    out = {"adresa": _reach(sfs.SfsClient.from_api(api).endpoint)}
+    ip = _egress_ip()
+    if ip:
+        out["ip_server"] = {"configured": True, "ok": True,
+                            "reply": "%s — această adresă trebuie deschisă "
+                                     "la SFS (asistenta@sfs.md)" % ip}
+    if out["adresa"].get("configured") and not out["adresa"].get("ok"):
+        # RO: fara retea, apelurile SOAP ar da doar acelasi mesaj de trei ori
+        return {"success": True, "data": out}
+    for label, signer in (("prima_semnatura", 1), ("a_doua_semnatura", 2)):
+        c = sfs.SfsClient.from_api(api, signer=signer)
+        if not c.configured():
+            out[label] = {"configured": False}
+            continue
+        r = c.test()
+        out[label] = {"configured": True, "user": c.username,
+                      "ok": bool(r.get("success")),
+                      "reply": str(r.get("message") or r.get("error"))[:300]}
+    return {"success": True, "data": out}
+
+
+def signing_queues(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """RO: ce asteapta prima si a doua semnatura — pentru butonul din pagina
     de test: se vede imediat daca proba a ajuns in coada de semnare."""
     out = {}
     for label, signer, order in (("prima_semnatura", 1, sfs.SIGN_FIRST),
                                  ("a_doua_semnatura", 2, sfs.SIGN_SECOND)):
-        c = sfs.SfsClient.from_settings(signer=signer)
+        c = sfs.SfsClient.from_api(api, signer=signer)
         if not c.configured():
             out[label] = {"configured": False}
             continue

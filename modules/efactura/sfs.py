@@ -35,6 +35,30 @@ XML_UNSIGNED = 0         # nesemnat
 XML_SIGNED = 1           # semnat
 SIGN_FIRST = 1           # coada primei semnaturi
 SIGN_SECOND = 2          # coada celei de a doua semnaturi
+
+# RO: adresa mediului de PROBA al SFS si namespace-ul serviciului. Sint
+#     proprietati ale SFS, nu setari ale unei firme — de aceea stau in cod:
+#     pagina probei trebuie sa mearga la orice director, fara sa depinda de
+#     ce a configurat cineva in back-office-ul unui anume magazin.
+# EN: SFS test endpoint — a property of SFS, not of any tenant's settings.
+# Adresele publicate de SFS (ghidul de integrare ERP, verificate 31.08.2026):
+#   portal de test        https://preproductie.sfs.md
+#   e-Factura de test     https://efactura-pre.sfs.md
+#   API de test           https://apiefactura-pre.sfs.md   (acces pe lista de IP)
+#   API real              https://efactura-api.sfs.md
+ENDPOINT_PROD = "https://efactura-api.sfs.md/Service.svc"
+ENDPOINT_TEST = "https://apiefactura-pre.sfs.md/Service.svc"
+TEST_ENDPOINT = ENDPOINT_TEST          # RO: implicit — mediul de proba
+DEFAULT_NAMESPACE = "http://tempuri.org/"
+CONTRACT = "IService"                  # RO: SOAPAction e {ns}/IService/{metoda}
+
+# RO: copiii lui <request> NU stau in tempuri, ci in namespace-ul
+#     DataContract al serviciului, si in ORDINEA din XSD (intii membrii
+#     clasei de baza, apoi cei derivati). Altfel WCF ii deserializeaza ca
+#     null si apelul „reuseste" fara sa faca nimic.
+NS_DC = "http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel"
+NS_XSI = "http://www.w3.org/2001/XMLSchema-instance"
+NS_ARRAYS = "http://schemas.microsoft.com/2003/10/Serialization/Arrays"
 NS_SOAP = "http://schemas.xmlsoap.org/soap/envelope/"
 NS_WSSE = ("http://docs.oasis-open.org/wss/2004/01/"
            "oasis-200401-wss-wssecurity-secext-1.0.xsd")
@@ -47,6 +71,22 @@ def _esc(v: Any) -> str:
     s = "" if v is None else str(v)
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
              .replace('"', "&quot;"))
+
+
+def _request(fields: List[tuple]) -> str:
+    """RO: <request> cu copiii in namespace-ul DataContract.
+
+    `fields` — perechi (nume, xml_deja_construit_sau_text); ordinea din lista
+    trebuie sa fie cea din XSD. Valoarea None trimite elementul ca nil.
+    """
+    out = []
+    for name, val in fields:
+        if val is None:
+            out.append('<a:%s i:nil="true"/>' % name)
+        else:
+            out.append("<a:%s>%s</a:%s>" % (name, val, name))
+    return ('<request xmlns:a="%s" xmlns:i="%s">%s</request>'
+            % (NS_DC, NS_XSI, "".join(out)))
 
 
 def _num(v: Any, nd: int = 2) -> str:
@@ -69,7 +109,8 @@ class SfsClient:
         self.ns = namespace or "http://tempuri.org/"
 
     @classmethod
-    def from_settings(cls, signer: int = 1) -> "SfsClient":
+    def from_settings(cls, signer: int = 1,
+                      api: Optional[Dict[str, Any]] = None) -> "SfsClient":
         """RO: clientul unuia dintre cei DOI semnatari.
 
         In practica factura fiscala se semneaza de doua persoane (director si
@@ -78,16 +119,48 @@ class SfsClient:
         primul semnatar, `signer=2` — al doilea. Daca al doilea nu e
         configurat, se foloseste primul (firmele mici semneaza cu o singura
         persoana).
-        EN: one client per signer; falls back to the first when the second
-        account is not configured.
+        Parametrul `api` sint credentialele scrise AD-HOC in formular (pagina
+        probei): cind e dat un utilizator acolo, proba pleaca sub ACEL cont,
+        iar setarile salvate nu se ating si nu se amesteca. Din setari se ia
+        atunci doar adresa serviciului, daca omul nu a scris-o pe a lui.
+        EN: one client per signer; `api` overrides the stored account for a
+        single call without touching saved settings.
         """
         from modules.efactura.store import EfaStore
         s = EfaStore.settings()
+        adhoc = {k: str(v).strip() for k, v in (api or {}).items()
+                 if str(v or "").strip()}
+        endpoint = adhoc.get("endpoint") or s.get("endpoint", "")
+        ns = adhoc.get("namespace") or s.get("namespace",
+                                             "http://tempuri.org/")
+        if adhoc.get("username"):
+            user, pwd = adhoc["username"], adhoc.get("password", "")
+            if int(signer) == 2 and adhoc.get("username2"):
+                user, pwd = adhoc["username2"], adhoc.get("password2", "")
+            return cls(endpoint, user, pwd, ns)
         user, pwd = s.get("username", ""), s.get("password", "")
         if int(signer) == 2 and s.get("username2"):
             user, pwd = s.get("username2", ""), s.get("password2", "")
-        return cls(s.get("endpoint", ""), user, pwd,
-                   s.get("namespace", "http://tempuri.org/"))
+        return cls(endpoint, user, pwd, ns)
+
+    @classmethod
+    def from_api(cls, api: Optional[Dict[str, Any]] = None,
+                 signer: int = 1) -> "SfsClient":
+        """RO: clientul construit NUMAI din ce s-a scris in formular.
+
+        Spre deosebire de `from_settings`, nu atinge deloc `EFA_SETTING`:
+        proba merge sub contul omului care o face, pe adresa pe care a
+        indicat-o el (implicit — mediul de proba al SFS). Asa pagina probei
+        e universala: nu depinde de setarile unui magazin anume.
+        EN: form-only client; never reads tenant settings.
+        """
+        a = {k: str(v).strip() for k, v in (api or {}).items()
+             if str(v or "").strip()}
+        user, pwd = a.get("username", ""), a.get("password", "")
+        if int(signer) == 2 and a.get("username2"):
+            user, pwd = a["username2"], a.get("password2", "")
+        return cls(a.get("endpoint") or TEST_ENDPOINT, user, pwd,
+                   a.get("namespace") or DEFAULT_NAMESPACE)
 
     def configured(self) -> bool:
         return bool(self.endpoint and self.username and self.password)
@@ -118,7 +191,8 @@ class SfsClient:
         req = urllib.request.Request(
             self.endpoint, data=envelope.encode("utf-8"), method="POST",
             headers={"Content-Type": "text/xml; charset=utf-8",
-                     "SOAPAction": f"{self.ns.rstrip('/')}/{method}",
+                     "SOAPAction":
+                         f"{self.ns.rstrip('/')}/{CONTRACT}/{method}",
                      "User-Agent": "OfficePlus-eFactura/1.0"})
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
@@ -126,11 +200,55 @@ class SfsClient:
             return {"success": True, "raw": raw, "parsed": self._parse(raw)}
         except urllib.error.HTTPError as e:
             raw = e.read().decode("utf-8", "replace")[:2000]
-            # RO: SOAP intoarce erorile cu status 500 si un <Fault> lizibil
+            # RO: SOAP intoarce erorile cu status 500 si un <Fault> lizibil.
+            #     Daca in loc de XML vine o PAGINA HTML, raspunde portalul /
+            #     firewall-ul lor, nu serviciul: cel mai des inseamna ca IP-ul
+            #     nostru nu e pe lista lor de acces (verificat 31.08.2026:
+            #     GET pe ?wsdl merge, POST intoarce o pagina HTML 500).
+            if raw.lstrip()[:9].lower().startswith(("<!doctype", "<html")):
+                return {"success": False, "status": e.code, "raw": raw,
+                        "error": ("Serviciul a răspuns cu o pagină HTML "
+                                  "(status %s), nu cu SOAP: cel mai probabil "
+                                  "accesul nu e deschis pentru IP-ul acestui "
+                                  "server. Adresa de ieșire trebuie trimisă "
+                                  "la SFS (asistenta@sfs.md)." % e.code)}
             return {"success": False, "status": e.code,
                     "error": self._fault(raw) or raw[:400], "raw": raw}
         except Exception as e:                               # noqa: BLE001
-            return {"success": False, "error": str(e)[:300]}
+            return {"success": False, "error": self._network_hint(e)}
+
+    def _network_hint(self, exc: Exception) -> str:
+        """RO: erorile de retea in limbaj omenesc.
+
+        «urlopen error [Errno -2] Name or service not known» nu spune nimic
+        unui director: problema nu e la contul lui, ci la ADRESA serviciului,
+        care nu se rezolva de pe server. Mesajul trebuie sa spuna exact asta.
+        EN: turn raw socket errors into an actionable sentence.
+        """
+        host = ""
+        try:
+            from urllib.parse import urlsplit
+            host = urlsplit(self.endpoint).hostname or ""
+        except Exception:                                    # noqa: BLE001
+            pass
+        txt = str(exc)
+        low = txt.lower()
+        if "name or service not known" in low or "nodename nor servname" in low \
+                or "name resolution" in low or "getaddrinfo" in low:
+            return ("Adresa serviciului nu se rezolvă din server (DNS): «%s». "
+                    "Verificați adresa primită de la SFS — unele medii ale "
+                    "SFS sînt accesibile doar din rețeaua lor (MConnect / "
+                    "canal dedicat), nu din internet." % (host or self.endpoint))
+        if "timed out" in low or "timeout" in low:
+            return ("Serviciul «%s» nu a răspuns în %s s: adresa se rezolvă, "
+                    "dar conexiunea nu trece (firewall sau rețea închisă)."
+                    % (host or self.endpoint, TIMEOUT_S))
+        if "connection refused" in low:
+            return ("Conexiune refuzată de «%s»: gazda există, dar portul e "
+                    "închis pentru noi." % (host or self.endpoint))
+        if "certificate" in low or "ssl" in low:
+            return "Problemă de certificat TLS la «%s»: %s" % (host, txt[:200])
+        return txt[:300]
 
     @staticmethod
     def _fault(raw: str) -> Optional[str]:
@@ -159,72 +277,86 @@ class SfsClient:
                       xml_status: int = XML_UNSIGNED) -> Dict[str, Any]:
         """RO: PostInvoices — trimite factura fiscala in e-Factura.
 
-        ATENTIE: `ActorRole` si `InvoicesXmlStatus` sint NUMERE, nu texte
-        (ghidul SFS, tabelul 24): rolul 1/2/3, statutul 0 = nesemnat,
-        1 = semnat. Prima versiune trimitea "Supplier"/"Draft" — SFS le-ar fi
-        respins.
-        EN: both fields are integers per the SFS guide, not strings.
+        Structura e luata din WSDL-ul viu (`?wsdl` / `?xsd=xsd2`, verificat
+        31.08.2026), nu din presupuneri: `PostInvocesRequest` mosteneste
+        `ActorBaseRequest` -> `BaseRequest`, deci ordinea ceruta de
+        DataContractSerializer este RequestId, ActorRole, Attachment,
+        InvoicesXml, InvoicesXmlStatus.
+        `ActorRole` si `InvoicesXmlStatus` sint NUMERE (rol 1/2/3;
+        statut 0 = nesemnat, 1 = semnat).
+        EN: field order and namespace taken from the live WSDL.
         """
         rid = request_id or uuid.uuid4().hex
-        body = ("<request>"
-                f"<RequestId>{_esc(rid)}</RequestId>"
-                f"<InvoicesXml>{_esc(invoices_xml)}</InvoicesXml>"
-                f"<ActorRole>{int(actor_role)}</ActorRole>"
-                f"<InvoicesXmlStatus>{int(xml_status)}</InvoicesXmlStatus>"
-                "</request>")
+        body = _request([
+            ("RequestId", _esc(rid)),
+            ("ActorRole", int(actor_role)),
+            ("InvoicesXml", _esc(invoices_xml)),
+            ("InvoicesXmlStatus", int(xml_status)),
+        ])
         r = self.call("PostInvoices", body)
         r["request_id"] = rid
         return r
 
     def get_for_signing(self, order: int = SIGN_FIRST,
                         actor_role: int = ROLE_SUPPLIER) -> Dict[str, Any]:
-        """RO: facturile care asteapta semnatura.
+        """RO: facturile care asteapta semnatura (`SignRequest`).
 
-        `Order` = pozitia in lantul de semnare (ghidul SFS, tabelul 10):
-          1 — factura NEsemnata (asteapta PRIMA semnatura);
-          2 — deja semnata cu prima (asteapta A DOUA).
-        De aici vine si nevoia celor DOUA conturi API: fiecare semnatar isi
-        vede propria coada.
+        `Order` = pozitia in lantul de semnare: 1 — factura NEsemnata
+        (asteapta PRIMA semnatura); 2 — deja semnata cu prima (asteapta
+        A DOUA). De aici si nevoia celor doua conturi API.
         EN: invoices awaiting signature; Order 1 = unsigned, 2 = first signed.
         """
-        return self.call(
-            "GetInvoicesForSigning",
-            f"<request><RequestId>{uuid.uuid4().hex}</RequestId>"
-            f"<Order>{int(order)}</Order>"
-            f"<ActorRole>{int(actor_role)}</ActorRole></request>")
+        return self.call("GetInvoicesForSigning", _request([
+            ("RequestId", uuid.uuid4().hex),
+            ("ActorRole", int(actor_role)),
+            ("Order", int(order)),
+        ]))
 
-    def get_accepted(self, since: str = "") -> Dict[str, Any]:
-        return self.call("GetAcceptedInvoices",
-                         f"<request><DateFrom>{_esc(since)}</DateFrom></request>")
+    def get_accepted(self, actor_role: int = ROLE_SUPPLIER) -> Dict[str, Any]:
+        """RO: `ActorBaseRequest` — doar rolul, fara interval de date."""
+        return self.call("GetAcceptedInvoices", _request([
+            ("RequestId", uuid.uuid4().hex), ("ActorRole", int(actor_role))]))
 
-    def get_rejected(self, since: str = "") -> Dict[str, Any]:
-        return self.call("GetRejectedInvoices",
-                         f"<request><DateFrom>{_esc(since)}</DateFrom></request>")
+    def get_rejected(self, actor_role: int = ROLE_SUPPLIER) -> Dict[str, Any]:
+        return self.call("GetRejectedInvoices", _request([
+            ("RequestId", uuid.uuid4().hex), ("ActorRole", int(actor_role))]))
 
     def get_by_seria_number(self, seria: str, number: str) -> Dict[str, Any]:
-        return self.call(
-            "GetInvoicesBySeriaNumber",
-            f"<request><Seria>{_esc(seria)}</Seria>"
-            f"<Number>{_esc(number)}</Number></request>")
+        """RO: `InvoicesRequest` cere o LISTA de identificatori, nu doua
+        cimpuri scalare (ArrayOfInvoiceIndentificator; in element intii
+        Number, apoi Seria — ordine alfabetica, ca in XSD)."""
+        item = ("<a:InvoiceIndentificator>"
+                "<a:Number>%s</a:Number><a:Seria>%s</a:Seria>"
+                "</a:InvoiceIndentificator>" % (_esc(number), _esc(seria)))
+        return self.call("GetInvoicesBySeriaNumber", _request([
+            ("RequestId", uuid.uuid4().hex), ("SeriaAndNumbers", item)]))
 
     def get_taxpayer(self, idno: str) -> Dict[str, Any]:
-        return self.call("GetTaxpayersInfo",
-                         f"<request><IDNO>{_esc(idno)}</IDNO></request>")
+        """RO: `TaxpayersRequest` — lista de coduri fiscale; elementele
+        listei stau in namespace-ul Arrays al WCF."""
+        codes = ('<b:string xmlns:b="%s">%s</b:string>'
+                 % (NS_ARRAYS, _esc(idno)))
+        return self.call("GetTaxpayersInfo", _request([
+            ("RequestId", uuid.uuid4().hex), ("FiscalCodes", codes)]))
 
     def test(self) -> Dict[str, Any]:
-        """RO: verificarea conexiunii pentru butonul din pagina modulului —
-        un apel inofensiv (nu trimite nimic in sistem)."""
+        """RO: verificarea conexiunii — metoda `Test` a serviciului, care
+        exista chiar pentru asta si nu atinge nicio factura.
+
+        Inainte se apela `GetLogs` cu `<Top>1</Top>`, un cimp care nu exista
+        in contract (`LogsRequest` are From/To) — verificat in XSD.
+        EN: uses the service's own `Test` operation.
+        """
         if not self.configured():
             return {"success": False, "error":
-                    "RO: completati endpoint, utilizator si parola / "
-                    "EN: fill in endpoint, user and password"}
-        r = self.call("GetLogs", "<request><Top>1</Top></request>")
+                    "RO: completati adresa serviciului, utilizatorul si "
+                    "parola / EN: fill in endpoint, user and password"}
+        r = self.call("Test", "<message>ping</message>")
         if r.get("success"):
             return {"success": True,
                     "message": "RO: conectat la SIA e-Factura / EN: connected",
                     "sample": str(r.get("parsed"))[:300]}
         return r
-
 
 # ── XML-ul facturii ────────────────────────────────────────────────────
 def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],

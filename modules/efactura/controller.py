@@ -9,7 +9,6 @@ machine API — the same principle as the printed invoice form.
 """
 from __future__ import annotations
 
-import datetime
 from typing import Any, Dict, Optional
 
 from models.biro26_report import Biro26Report
@@ -153,12 +152,14 @@ class EfaController:
         client = sfs.SfsClient.from_settings()
         if not client.configured():
             return {"success": False, "error": "not configured"}
-        since = (datetime.date.today()
-                 - datetime.timedelta(days=max(1, int(days)))).isoformat()
-        out = {}
+        # RO: `days` ramine in semnatura pentru apelanti (admin, cron), dar
+        #     contractul SFS nu are filtru de date la aceste metode:
+        #     GetAcceptedInvoices / GetRejectedInvoices primesc doar
+        #     ActorBaseRequest (RequestId + ActorRole) — verificat in XSD.
+        out = {"days_ignored": int(days)}
         for kind, fn in (("ACCEPTED", client.get_accepted),
                          ("REJECTED", client.get_rejected)):
-            r = fn(since)
+            r = fn()
             EfaStore.log(None, f"get_{kind.lower()}", str(r.get("parsed")
                          or r.get("error"))[:1200], "backoffice")
             out[kind] = r.get("success")

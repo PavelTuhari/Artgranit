@@ -165,3 +165,208 @@ class TestSfsProtocolValues(unittest.TestCase):
         self.assertEqual(sfs.XML_UNSIGNED, 0)
         self.assertEqual(sfs.SIGN_FIRST, 1)
         self.assertEqual(sfs.SIGN_SECOND, 2)
+
+
+class TestTemplateJs(unittest.TestCase):
+    """RO: JS-ul din sabloane trebuie sa se parseze — o ghilimea gresit
+    escapata opreste TOT scriptul si pagina ramane moarta (31.08.2026)."""
+
+    TPL = os.path.join(ROOT, "modules", "efactura", "templates")
+
+    def _blocks(self, name):
+        import re
+        src = open(os.path.join(self.TPL, name), encoding="utf-8").read()
+        for blk in re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+                              src, re.S):
+            js = re.sub(r"\{\{[^}]*\}\}", "1", blk)
+            yield re.sub(r"\{%.*?%\}", "", js, flags=re.S)
+
+    def test_inline_js_parses(self):
+        import shutil
+        import subprocess
+        import tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node lipseste")
+        for name in ("efactura_test.html", "efactura_admin.html"):
+            for js in self._blocks(name):
+                with tempfile.NamedTemporaryFile("w", suffix=".js",
+                                                 delete=False) as fh:
+                    fh.write(js)
+                    path = fh.name
+                try:
+                    r = subprocess.run([node, "--check", path],
+                                       capture_output=True, text=True)
+                finally:
+                    os.unlink(path)
+                self.assertEqual(r.returncode, 0,
+                                 "%s: %s" % (name, r.stderr[:300]))
+
+
+class TestAdHocApiAccount(unittest.TestCase):
+    """RO: pagina probei merge NUMAI pe contul scris in formular — nu se
+    leaga de setarile vreunui magazin (31.08.2026)."""
+
+    SAVED = {"endpoint": "https://sfs-salvat/svc", "namespace": "http://x/",
+             "username": "salvat1", "password": "p-salvat1",
+             "username2": "salvat2", "password2": "p-salvat2", "seria": "FT"}
+
+    def _p(self, api):
+        return {"seller": {"idno": "1003600116460", "name": "Test SRL"},
+                "buyer": {"idno": "1012600013725", "name": "Client SRL"},
+                "lines": [{"name": "Serviciu", "qty": 1, "price": 1.0}],
+                "api": api}
+
+    def test_form_account_is_used(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "director", "password": "p1"})
+        self.assertEqual((c.username, c.password), ("director", "p1"))
+
+    def test_default_endpoint_is_sfs_test_env(self):
+        """RO: implicit — mediul de PROBA al SFS (adresele din ghidul de
+        integrare, verificate 31.08.2026), nu adresa din setari."""
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "u", "password": "p"})
+        self.assertEqual(c.endpoint, sfs.TEST_ENDPOINT)
+        self.assertEqual(sfs.ENDPOINT_TEST,
+                         "https://apiefactura-pre.sfs.md/Service.svc")
+        self.assertEqual(sfs.ENDPOINT_PROD,
+                         "https://efactura-api.sfs.md/Service.svc")
+
+    def test_second_signer_falls_back_to_first_of_the_form(self):
+        """RO: un singur cont in formular = ambele cozi pe el; niciodata pe
+        contul salvat al firmei (altfel s-ar amesteca doi oameni)."""
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "director", "password": "p1"},
+                                   signer=2)
+        self.assertEqual(c.username, "director")
+
+    def test_second_signer_own_account(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "u1", "password": "p1",
+                                    "username2": "u2", "password2": "p2"},
+                                   signer=2)
+        self.assertEqual((c.username, c.password), ("u2", "p2"))
+
+    def test_send_refuses_without_account(self):
+        """RO: fara utilizator/parola — refuz clar, fara apel in retea."""
+        from unittest import mock
+        from modules.efactura import testff
+        with mock.patch("modules.efactura.sfs.SfsClient.post_invoices") as post:
+            r = testff.send(self._p({"username": "fara-parola"}))
+        self.assertFalse(r["success"])
+        self.assertIn("contul API", r["error"])
+        post.assert_not_called()
+
+    def test_test_page_never_reads_shop_settings(self):
+        """RO: garantia decuplarii — daca EFA_SETTING ar exploda, proba
+        trebuie sa mearga oricum: preview-ul si trimiterea nu-l citesc."""
+        from unittest import mock
+        from modules.efactura import testff
+
+        def boom(*a, **k):
+            raise AssertionError("pagina probei a citit setarile magazinului")
+
+        with mock.patch("modules.efactura.store.EfaStore.settings",
+                        side_effect=boom), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch("modules.efactura.sfs.SfsClient.post_invoices",
+                        return_value={"success": True, "parsed": {}}):
+            self.assertTrue(testff.preview(self._p(None))["success"])
+            self.assertTrue(testff.send(
+                self._p({"username": "u", "password": "p"}))["success"])
+
+    def test_page_template_has_no_shop_coupling(self):
+        """RO: sablonul probei nu are voie sa citeasca setarile magazinului,
+        datele din ERP-ul lui, nici adresa portalului scrisa cu mina."""
+        src = open(os.path.join(ROOT, "modules", "efactura", "templates",
+                                "efactura_test.html"), encoding="utf-8").read()
+        for token in ("settings.", "firm.", "/UNA.md/orasldev/"):
+            self.assertNotIn(token, src, "cuplare interzisa: %s" % token)
+
+    def test_ping_separates_address_from_account(self):
+        """RO: gazda inexistenta = problema de ADRESA, spusa asa, nu «cont
+        gresit» de trei ori (31.08.2026: api-test.fisc.md nu se rezolva)."""
+        from modules.efactura import testff
+        r = testff.ping({"username": "u", "password": "p",
+                         "endpoint": "https://nu-exista.invalid/Service.svc"})
+        a = r["data"]["adresa"]
+        self.assertFalse(a["ok"])
+        self.assertIn("DNS", a["reply"])
+        self.assertNotIn("prima_semnatura", r["data"])
+
+
+class TestSoapMatchesWsdl(unittest.TestCase):
+    """RO: plicul trebuie sa respecte contractul VIU al serviciului
+    (`?wsdl` / `?xsd=xsd2`, citit 31.08.2026). Greselile de aici nu se vad
+    la testare locala — se vad abia cind SFS refuza apelul."""
+
+    def _c(self):
+        from modules.efactura import sfs
+        return sfs.SfsClient(sfs.ENDPOINT_PROD, "u", "p")
+
+    def test_request_children_are_in_datacontract_namespace(self):
+        """RO: copiii lui <request> in tempuri = WCF ii citeste ca null."""
+        from modules.efactura import sfs
+        body = sfs._request([("RequestId", "x"), ("ActorRole", 1)])
+        self.assertIn('xmlns:a="%s"' % sfs.NS_DC, body)
+        self.assertIn("<a:RequestId>x</a:RequestId>", body)
+        self.assertIn("<a:ActorRole>1</a:ActorRole>", body)
+
+    def test_post_invoices_field_order(self):
+        """RO: DataContractSerializer cere intii membrii clasei de baza:
+        RequestId, ActorRole, apoi InvoicesXml, InvoicesXmlStatus."""
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.post_invoices("<Invoice/>")
+        body = call.call_args[0][1]
+        pos = [body.index("<a:%s>" % f) for f in
+               ("RequestId", "ActorRole", "InvoicesXml", "InvoicesXmlStatus")]
+        self.assertEqual(pos, sorted(pos))
+
+    def test_soap_action_includes_contract_name(self):
+        """RO: SOAPAction e {ns}/IService/{metoda} — fara `IService` WCF
+        raspunde «action not recognized»."""
+        from modules.efactura import sfs
+        self.assertEqual(sfs.CONTRACT, "IService")
+
+    def test_seria_number_uses_the_array_contract(self):
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.get_by_seria_number("FT", "123")
+        body = call.call_args[0][1]
+        self.assertIn("<a:SeriaAndNumbers>", body)
+        self.assertIn("<a:InvoiceIndentificator>", body)
+        self.assertIn("<a:Number>123</a:Number>", body)
+        self.assertIn("<a:Seria>FT</a:Seria>", body)
+
+    def test_connection_check_uses_the_test_operation(self):
+        """RO: `GetLogs` cerea `<Top>1</Top>`, cimp inexistent in contract."""
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.test()
+        self.assertEqual(call.call_args[0][0], "Test")
+
+
+class TestEgressIp(unittest.TestCase):
+    """RO: SFS deschide accesul pe IP, iar apelul il face SERVERUL — deci
+    verificarea trebuie sa arate adresa serverului, nu a statiei."""
+
+    def test_ping_shows_server_ip(self):
+        from unittest import mock
+        from modules.efactura import testff
+        testff._EGRESS.clear()
+        with mock.patch("modules.efactura.testff._egress_ip",
+                        return_value="203.0.113.7"), \
+             mock.patch("modules.efactura.testff._reach",
+                        return_value={"configured": True, "ok": False,
+                                      "reply": "test"}):
+            r = testff.ping({"username": "u", "password": "p"})
+        self.assertEqual(r["data"]["ip_server"]["reply"][:11], "203.0.113.7")
+        self.assertIn("asistenta@sfs.md", r["data"]["ip_server"]["reply"])

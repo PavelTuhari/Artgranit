@@ -206,31 +206,16 @@ def api_health():
 def test_page():
     if not AuthController.is_authenticated():
         return redirect("/login?next=/UNA.md/orasldev/efactura/test")
+    # RO: pagina probei NU citeste setarile e-Factura ale magazinului —
+    #     contul API il scrie directorul aici, iar adresa implicita e mediul
+    #     de proba al SFS. Asa proba merge la fel din orice modul.
+    from modules.efactura import sfs
     from modules.efactura.testff import MAX_LINES, MAX_TOTAL, MIN_TOTAL
     return render_template("efactura_test.html", min_total=MIN_TOTAL,
                            max_total=MAX_TOTAL, max_lines=MAX_LINES,
-                           settings=EfaStore.settings_public(),
-                           firm=_erp_firm())
-
-
-def _erp_firm():
-    """RO: rechizitele firmei din ERP — se propun in formular ca punct de
-    plecare; directorul le poate inlocui cu ale lui."""
-    try:
-        from models.biro26_db import Biro26DB
-        from models.biro26_oracle_store import _rows
-        r = _rows(Biro26DB().execute_query(
-            "SELECT * FROM (SELECT CODFISCAL, ACCOUNT, BANK, MFO, ADRESS "
-            "FROM VMS_ORG_CONT_FISC WHERE CODFISCAL IS NOT NULL) "
-            "WHERE ROWNUM = 1"))
-        if r:
-            x = r[0]
-            return {"idno": x.get("codfiscal"), "iban": x.get("account"),
-                    "bank": x.get("bank"), "bank_code": x.get("mfo"),
-                    "address": x.get("adress")}
-    except Exception:                                        # noqa: BLE001
-        pass
-    return {}
+                           test_endpoint=sfs.TEST_ENDPOINT,
+                           endpoint_test=sfs.ENDPOINT_TEST,
+                           endpoint_prod=sfs.ENDPOINT_PROD)
 
 
 def _test_guard():
@@ -259,13 +244,27 @@ def test_send():
     return _reply(testff.send(_body(), src=src))
 
 
-@blueprint.route("/test/queues")
+@blueprint.route("/test/queues", methods=["GET", "POST"])
 def test_queues():
     err = _test_guard()
     if err:
         return err
     from modules.efactura import testff
-    return _reply(testff.signing_queues())
+    return _reply(testff.signing_queues(_body().get("api")))
+
+
+@blueprint.route("/test/ping", methods=["POST"])
+def test_ping():
+    """RO: verifica contul API scris in formular — nu trimite nimic in SFS.
+
+    Credentialele venite aici se folosesc pentru ACEST apel si atit: nu se
+    salveaza nicaieri, nu intra in jurnal.
+    """
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import testff
+    return _reply(testff.ping(_body().get("api")))
 
 
 @blueprint.route("/widget.js")

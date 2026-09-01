@@ -1682,6 +1682,12 @@ class Biro26Controller:
                 credit_avans = max(0.0, float(d.get("credit_avans") or 0))
             except (TypeError, ValueError, OverflowError):
                 credit_avans = 0.0
+            # порог рассрочки — models/biro26_credit_min.py (правило №2).
+            # Выключенная кнопка в браузере не мешает дёрнуть API напрямую.
+            from models.biro26_credit_min import check as _credit_min_check
+            _ok, _err = _credit_min_check(sum(it["qty"] * it["price"] for it in clean))
+            if not _ok:
+                return {"success": False, "error": _err}
             mk = 1 + (float(plan["markup_pct"] or 0)
                       + float(plan.get("transport_markup_pct") or 0)) / 100
             financed = round(sum(it["qty"] * it["price"] for it in clean) * mk

@@ -204,7 +204,11 @@
           <div class="topbar-inner">
             <div class="topbar-left">
               <span class="topbar-icon clock" aria-hidden="true"></span>
-              <span class="topbar-text" data-t="hours">Astăzi lucrăm de la 09:00 până la 19:00</span>
+              {# RO: programul REAL al zilei — vine din server (fus Moldova, setarea
+     SHOP_HOURS). Fara data-t: dictionarul ar suprascrie textul cu fraza
+     fixa de altadata. Ambele limbi stau in data-*, comutarea le ia de acolo. #}
+              <span class="topbar-text" id="topbar-hours"
+                    data-hours-ro="{{ hours_ro }}" data-hours-ru="{{ hours_ru }}">{{ hours_ro }}</span>
               <a class="topbar-link" href="/livrare" data-t="delivery">Livrare</a>
               <nav class="topbar-nav">
                 <a class="topbar-link" href="/despre-noi" data-t="about">Despre companie</a>
@@ -362,6 +366,7 @@ window.PAY_LOGOS = {{ pay_logos|default([])|tojson }};
 window.LIBER_PCT = {{ liber_pct|default(0) }};
 window.PRICE_FIELD = '{{ price_field|default("retail1") }}';
 window.LIBER_MIN = {{ liber_min|default(0) }};
+window.CREDIT_MIN_ORDER = {{ credit_min_order|default(0) }};
 // RO: pachetele de rate FARA dobinda {p: naceta efectiva %, mn/mx: limitele
 // sumei finantate} — sursa UNICA pentru «Preț în rate» pe carduri, pe fisa
 // produsului si in cos. Vezi _biro26_site_ctx() in app.py.

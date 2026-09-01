@@ -167,6 +167,11 @@ function applyLang() {
     e.classList.toggle('is-active', e.dataset.lang === l));
   document.querySelectorAll('[data-t]').forEach(e => {
     const v = tr(e.dataset.t); if (v) e.textContent = v; });
+  // RO: programul de lucru vine din server pentru ziua curenta; la comutarea
+  //     limbii se ia varianta din data-*, nu din dictionar (acolo statea o
+  //     fraza fixa, aceeasi in toate zilele).
+  const h = document.getElementById('topbar-hours');
+  if (h) { const v = h.dataset['hours' + (l === 'ru' ? 'Ru' : 'Ro')]; if (v) h.textContent = v; }
   document.querySelectorAll('[data-p]').forEach(e => {
     const v = tr(e.dataset.p); if (v) e.placeholder = v; });
   // RO: elemente marcate data-bi — continutul original tine ambele limbi
@@ -198,7 +203,11 @@ function cartBadge() {
     if (b) { b.style.display = n ? '' : 'none'; b.textContent = n; }
   });
 }
-window.addEventListener('storage', cartBadge);
+window.addEventListener('storage', function (e) {
+  if (e.key && e.key !== CART_KEY) return;
+  cartBadge();
+  if (window.onCartChange) window.onCartChange();
+});
 function addToCart(cod, name, price, qty) {
   const c = cart(); const ex = c.find(i => i.cod === cod);
   if (ex) ex.qty += (qty || 1); else c.push({cod, name, price, qty: qty || 1});
@@ -516,12 +525,19 @@ function payBadgeHtml(name) {
       a.classList.toggle('on', a.dataset.bn === cur));
   } catch (e) {}
 })();
+window.closeFilterSheet = function () {
+  const side = document.querySelector('.plp-side');
+  const ov = document.getElementById('sheet-overlay');
+  if (!side) return;
+  side.classList.remove('open');
+  if (ov) ov.classList.remove('on');
+  document.body.classList.remove('sheet-open');
+};
 (function filterSheet() {
   const side = document.querySelector('.plp-side');
   const ov = document.getElementById('sheet-overlay');
   if (!side || !ov) return;
-  const close = () => { side.classList.remove('open');
-    ov.classList.remove('on'); document.body.classList.remove('sheet-open'); };
+  const close = window.closeFilterSheet;
   ov.addEventListener('click', close);
   new MutationObserver(() => {
     const open = side.classList.contains('open') && innerWidth <= 640;

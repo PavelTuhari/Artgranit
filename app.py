@@ -8196,6 +8196,66 @@ def _biro26_price_field():
 _SITE_CTX_CACHE = {}
 
 
+def _credit_min_order():
+    """Порог рассрочки. Логика — models/biro26_credit_min.py (правило №2)."""
+    from models.biro26_credit_min import min_order
+    return min_order()
+
+
+def _biro26_hours_parse(cfg):
+    """RO: «1-5=09:00-18:00;6=09:00-15:00;7=» -> {zi: (de la, pina la)}.
+
+    Ziua 1 = luni … 7 = duminica (ca ISO). Valoare goala = zi libera.
+    Un fragment stricat se ignora, ca o greseala in setari sa nu lase vitrina
+    fara bara. EN: parse the weekly schedule; a broken chunk is skipped.
+    """
+    out = {}
+    for part in str(cfg or '').split(';'):
+        part = part.strip()
+        if not part or '=' not in part:
+            continue
+        days, _, rng = part.partition('=')
+        rng = rng.strip()
+        try:
+            if '-' in days:
+                a_, b_ = days.split('-', 1)
+                day_list = range(int(a_), int(b_) + 1)
+            else:
+                day_list = [int(days)]
+        except ValueError:
+            continue
+        pair = None
+        if rng:
+            bits = rng.split('-')
+            if len(bits) == 2 and bits[0].strip() and bits[1].strip():
+                pair = (bits[0].strip(), bits[1].strip())
+        for d in day_list:
+            if 1 <= d <= 7:
+                out[d] = pair
+    return out
+
+
+def _biro26_hours_text(cfg):
+    """RO: textul pentru bara de sus, in RO si RU, pentru ziua de AZI.
+
+    Ora se ia la fusul Moldovei — altfel un vizitator din alt fus ar vedea
+    programul de ieri sau de miine. EN: today's text in Moldova time.
+    """
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo('Europe/Chisinau'))
+    except Exception:                                        # noqa: BLE001
+        now = datetime.now()
+    sched = _biro26_hours_parse(cfg)
+    today = sched.get(now.isoweekday(), None)
+    if not today:
+        return ('Astăzi este zi liberă', 'Сегодня выходной')
+    a_, b_ = today
+    return (f'Astăzi lucrăm de la {a_} până la {b_}',
+            f'Сегодня работаем с {a_} до {b_}')
+
+
 def _biro26_site_ctx():
     """RO: contextul comun al paginilor vitrinei.
 
@@ -8227,7 +8287,7 @@ def _biro26_site_ctx():
     try:
         s = Biro26Store.get_settings_many(
             ['SHOP_BRAND_FILTER', 'SHOP_FMT_HTML', 'SHOP_FMT_XLSX',
-             'SHOP_GA_ID'])
+             'SHOP_GA_ID', 'SHOP_HOURS'])
     except Exception:                                        # noqa: BLE001
         s = {}
     brand_filter = s.get('SHOP_BRAND_FILTER') or '0'
@@ -8240,6 +8300,12 @@ def _biro26_site_ctx():
     # EN: the request reaches the app under the internal name, so the GA
     #     tag keys off the shop host list, not the public name alone.
     ga_id = s.get('SHOP_GA_ID') or 'G-STJ1NQDGY0'
+    # RO: PROGRAMUL DE LUCRU pe ziua curenta - dupa ziua saptaminii, la ora
+    #     Moldovei, din setari (SHOP_HOURS: «1-5=09:00-18:00;6=09:00-15:00;7=»).
+    #     Logica - in _biro26_hours_text; aici doar apelul.
+    # EN: today's opening hours, per weekday in Moldova time, from settings.
+    hours_cfg = s.get('SHOP_HOURS') or '1-5=09:00-18:00;6=09:00-15:00;7='
+    hours_ro, hours_ru = _biro26_hours_text(hours_cfg)
     from flask import request as _rq
     _host2 = (_rq.host or '').lower().split(':')[0]
     if _host2 not in Config.BIRO26_SHOP_HOSTS:
@@ -8265,6 +8331,9 @@ def _biro26_site_ctx():
            'fmt_html': fmt_html, 'fmt_xlsx': fmt_xlsx,
            'price_field': price_field,
            'pay_logos': pay_logos,
+           'hours_ro': hours_ro, 'hours_ru': hours_ru,
+           # порог рассрочки — логика в models/biro26_credit_min.py
+           'credit_min_order': _credit_min_order(),
            'ga_id': ga_id}
     _SITE_CTX_CACHE[_hk] = {"exp": _t.time() + 60, "val": ctx}
     return ctx
