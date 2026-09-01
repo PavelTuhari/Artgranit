@@ -318,7 +318,11 @@ let selOrgId = null, selMonths = null;
 //     Liber Card). Sub acest prag comanda nu se plaseaza. Conditia se afiseaza cu ROSU.
 // EN: minimum order for ALL payment methods; below it checkout is blocked. Shown in red.
 //     Valoarea vine din WP (site config -> min_order); 1500 e doar rezerva.
-let MIN_ORDER = 1500;
+// RO: valoarea vine din YBIRO_SETTINGS.CREDIT_MIN_ORDER (o pune
+//     models/biro26_credit_min.py in contextul paginii). Serverul
+//     verifica ACELASI prag la plasarea comenzii, deci cele doua nu
+//     mai pot spune lucruri diferite. 1500 ramine doar rezerva.
+let MIN_ORDER = Number(window.CREDIT_MIN_ORDER) || 1500;
 function cartTotal() { return cart().reduce((s, i) => s + i.qty * i.price, 0); }
 function belowMin() { return cartTotal() < MIN_ORDER; }
 // RO: mesajul-conditie in rosu / EN: the red condition message
