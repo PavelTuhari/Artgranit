@@ -14,20 +14,128 @@ are identical to other modules:
     execute_script-> {success, results, message}   (multiple statements, one tx)
     test_connection -> {success, version, error}
 
-Usable as a context manager for parity with DatabaseModel (`with Biro26DB() as db:`),
-but there is no persistent connection — each call is its own subprocess/transaction.
+Usable as a context manager for parity with DatabaseModel (`with Biro26DB() as db:`).
+Transport: a small pool of LONG-LIVED --serve workers (spawning a process per
+call cost ~1.5s and was the storefront's main slowness). Each call still gets
+its own Oracle connection and transaction, so session state never leaks between
+calls. BIRO26_WORKER_POOL=0 restores the old process-per-call transport.
 """
 from __future__ import annotations
 
 import json
 import os
+import queue
+import select
 import subprocess
 import sys
+import threading
 from typing import Any, Dict, List, Optional
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _WORKER = os.path.join(_PROJECT_ROOT, "models", "biro26_worker.py")
 _TIMEOUT = int(os.environ.get("BIRO26_WORKER_TIMEOUT", "300"))
+
+# RO: BAZINUL de procese-lucrator DE LUNGA DURATA. Pornirea unui proces nou la
+#     fiecare interogare costa ~1,5 s (Python + thick-client) si din asta se
+#     compunea toata incetineala vitrinei. Procesul din bazin traieste si
+#     raspunde pe rand la cereri; fiecare cerere isi deschide totusi PROPRIA
+#     conexiune Oracle, deci starea de sesiune (NLS, contextul envun4,
+#     variabilele de pachet) nu se poate scurge intre cereri — semantica e
+#     identica cu vechiul proces-pe-interogare.
+# EN: the POOL of LONG-LIVED workers. Spawning a process per query cost ~1.5s
+#     and made the storefront slow. A pooled worker answers requests in turn;
+#     each request still opens its OWN Oracle connection, so session state can
+#     never leak between requests — semantics match the old process-per-call.
+#
+# RO: BIRO26_WORKER_POOL=0 il opreste (revine la proces-pe-interogare);
+#     BIRO26_WORKER_POOL_SIZE regleaza cite procese stau pregatite.
+_POOL_ENABLED = os.environ.get("BIRO26_WORKER_POOL", "1") != "0"
+_POOL_SIZE = max(1, int(os.environ.get("BIRO26_WORKER_POOL_SIZE", "3")))
+
+
+class _PooledWorker:
+    """RO: un proces --serve cu care se vorbeste linie-cu-linie.
+    EN: one --serve process spoken to line-by-line."""
+
+    def __init__(self):
+        # RO: stderr la DEVNULL — altfel un lucrator vorbaret ar umple
+        #     conducta si s-ar bloca; erorile calatoresc oricum in JSON.
+        # EN: stderr to DEVNULL so a chatty worker can never fill the pipe.
+        self.proc = subprocess.Popen(
+            [sys.executable, _WORKER, "--serve"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, cwd=_PROJECT_ROOT)
+
+    def alive(self) -> bool:
+        return self.proc.poll() is None
+
+    def kill(self) -> None:
+        try:
+            self.proc.kill()
+        except Exception:                                    # noqa: BLE001
+            pass
+
+    def ask(self, req: Dict[str, Any], tmo: int) -> Dict[str, Any]:
+        """RO: o cerere, un raspuns. La timeout procesul se OMOARA — sesiunea
+        Oracle cade si face rollback, exact plasa de siguranta pe care o dadea
+        si vechiul subprocess.run(timeout=...). EN: on timeout the process is
+        KILLED so the Oracle session dies and rolls back — the same safety net
+        the old per-call subprocess gave."""
+        self.proc.stdin.write(json.dumps(req) + "\n")
+        self.proc.stdin.flush()
+        fd = self.proc.stdout
+        ready, _, _ = select.select([fd], [], [], tmo)
+        if not ready:
+            self.kill()
+            raise TimeoutError(f"worker timeout after {tmo}s")
+        line = fd.readline()
+        if not line:
+            raise BrokenPipeError("worker died")
+        return json.loads(line)
+
+
+class _Pool:
+    """RO: coada de lucratori pregatiti; thread-safe. Cind toti sint ocupati,
+    apelantul NU asteapta la rand — porneste un proces de unica folosinta, ca
+    inainte: mai lent, dar fara cozi si fara limita de paralelism.
+    EN: a queue of ready workers. When all are busy the caller does not queue
+    up — it falls back to a one-shot process, slower but unbounded."""
+
+    def __init__(self, size: int):
+        self.size = size
+        self._q: "queue.Queue[_PooledWorker]" = queue.Queue()
+        self._lock = threading.Lock()
+        self._made = 0
+
+    def acquire(self) -> Optional[_PooledWorker]:
+        try:
+            w = self._q.get_nowait()
+            if w.alive():
+                return w
+            w.kill()
+            with self._lock:
+                self._made -= 1
+        except queue.Empty:
+            pass
+        with self._lock:
+            if self._made < self.size:
+                self._made += 1
+                try:
+                    return _PooledWorker()
+                except Exception:                            # noqa: BLE001
+                    self._made -= 1
+        return None
+
+    def release(self, w: _PooledWorker, broken: bool) -> None:
+        if broken or not w.alive():
+            w.kill()
+            with self._lock:
+                self._made -= 1
+            return
+        self._q.put(w)
+
+
+_pool = _Pool(_POOL_SIZE)
 
 
 class Biro26DB:
@@ -49,6 +157,23 @@ class Biro26DB:
         #        rollback, iar apelantul primeste un mesaj clar in loc sa
         #        astepte minute intregi.
         tmo = int(timeout or _TIMEOUT)
+        if _POOL_ENABLED:
+            w = _pool.acquire()
+            if w is not None:
+                broken = False
+                try:
+                    return w.ask(req, tmo)
+                except TimeoutError as e:
+                    broken = True
+                    return {"success": False, "message": str(e)}
+                except Exception as e:                       # noqa: BLE001
+                    # RO: lucratorul a murit sau a raspuns stricat — se arunca
+                    #     si cererea trece pe procesul de unica folosinta.
+                    # EN: dead or garbled worker — drop it, fall through to
+                    #     the one-shot path below.
+                    broken = True
+                finally:
+                    _pool.release(w, broken)
         try:
             proc = subprocess.run(
                 [sys.executable, _WORKER],

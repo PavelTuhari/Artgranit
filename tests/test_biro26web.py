@@ -378,6 +378,17 @@ def test_untitled_journal_groups_are_marked_so_the_ui_can_skip_them():
 from modules.biro26web import writer
 
 
+@pytest.fixture(autouse=False)
+def period(monkeypatch):
+    """Рабочий период задан — как после настройки модуля.
+
+    Заодно отключается чтение настроек из контура: тесты не ходят в базу,
+    иначе каждый вызов съедал бы ответ из очереди подставного соединения.
+    """
+    monkeypatch.setattr(writer, "_setting", lambda code: None)
+    monkeypatch.setattr(writer, "work_period", lambda: ("2026-01-01", "2026-12-31"))
+
+
 def test_foreign_document_types_cannot_be_created():
     # Чужие типы имеют свои настройки проводок и свою ответственность.
     db = _db()
@@ -402,7 +413,7 @@ def test_bad_date_is_refused_before_the_database():
     db.execute_query.assert_not_called()
 
 
-def test_document_number_comes_from_the_sequence_not_from_max():
+def test_document_number_comes_from_the_sequence_not_from_max(period):
     db = _db([_ok(["COD"], [[777]])])
     db.execute_script = MagicMock(return_value={"success": True, "results": [],
                                                 "message": ""})
@@ -414,7 +425,7 @@ def test_document_number_comes_from_the_sequence_not_from_max():
     assert res["data"]["cod"] == 777
 
 
-def test_author_is_left_empty_when_mapping_is_not_configured(monkeypatch):
+def test_author_is_left_empty_when_mapping_is_not_configured(monkeypatch, period):
     # Подставить чужой USERID хуже, чем оставить пустой.
     monkeypatch.delenv("BIRO26WEB_UNA_USERID", raising=False)
     db = _db([_ok(["COD"], [[1]])])
@@ -424,7 +435,9 @@ def test_author_is_left_empty_when_mapping_is_not_configured(monkeypatch):
         res = writer.create_document(60001, "2026-08-25", username="pt")
 
     statements = db.execute_script.call_args[0][0]
-    assert not any("SET_ENV" in s["sql"] for s in statements)
+    # период сессия задаёт всегда, а вот автора — только если он настроен
+    assert not any("PARAM_USERID" in s["sql"] for s in statements)
+    assert any("PARAM_PERIODBEG" in s["sql"] for s in statements)
     assert res["data"]["userid"] is None
     assert "не настроено" in res["message"]
     # имя пользователя портала при этом сохраняется в примечании
@@ -432,7 +445,7 @@ def test_author_is_left_empty_when_mapping_is_not_configured(monkeypatch):
     assert "pt" in note["params"]["note"]
 
 
-def test_author_is_set_when_mapping_is_configured(monkeypatch):
+def test_author_is_set_when_mapping_is_configured(monkeypatch, period):
     monkeypatch.setenv("BIRO26WEB_UNA_USERID", "42")
     db = _db([_ok(["COD"], [[1]])])
     db.execute_script = MagicMock(return_value={"success": True, "results": [],
@@ -445,7 +458,7 @@ def test_author_is_set_when_mapping_is_configured(monkeypatch):
     assert res["data"]["userid"] == 42
 
 
-def test_creation_is_one_transaction():
+def test_creation_is_one_transaction(period):
     # Документ без строки TMDB_DOCS_ADD либо наоборот — мусор в учёте.
     db = _db([_ok(["COD"], [[1]])])
     db.execute_script = MagicMock(return_value={"success": True, "results": [],
@@ -453,19 +466,25 @@ def test_creation_is_one_transaction():
     with patch.object(writer, "Biro26DB", return_value=db):
         writer.create_document(60001, "2026-08-25")
     assert db.execute_script.call_count == 1
+    stmts = db.execute_script.call_args[0][0]
+    assert any("NLS_DATE_FORMAT" in st["sql"] for st in stmts), \
+        "формат даты должен задаваться самим модулем"
 
 
-def test_posting_goes_through_un_gfc_not_direct_inserts():
+def test_posting_goes_through_un_gfc_not_direct_inserts(period):
     db = _db([_ok(["SYSFID", "ISGFC"], [[60001, 0]]),
               _ok(["ISGFC", "CM"], [[1, 4]])])
-    db.call_proc = MagicMock(return_value={"success": True, "output_lines": [],
-                                           "message": ""})
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
     with patch.object(writer, "Biro26DB", return_value=db):
         res = writer.post_document(500)
 
-    block = db.call_proc.call_args[0][0].upper()
+    stmts = db.execute_script.call_args[0][0]
+    block = " ".join(st["sql"] for st in stmts).upper()
     assert "UN$GFC.SETDOC_GFC" in block and "UN$GFC.SETDOC_CORRECT" in block
     assert "INSERT" not in block
+    # проведение тоже идёт в подготовленной сессии
+    assert "NLS_DATE_FORMAT" in block and "PARAM_PERIODBEG" in block
     assert res["data"]["postings"] == 4
 
 
@@ -495,7 +514,7 @@ def test_read_layer_stays_free_of_writing():
         assert "TMDB_DOCS (" not in fh.read()
 
 
-def test_bind_names_avoid_oracle_builtins():
+def test_bind_names_avoid_oracle_builtins(period):
     # :uid падает с ORA-01745: UID — встроенная функция Oracle. Проверяем
     # сам запрос, а не комментарии, где эта причина и записана.
     db = _db([_ok(["COD"], [[1]])])
@@ -575,3 +594,77 @@ def test_document_development_guide_keeps_the_verified_facts():
                  "ID_TMDB_CM", "SmartQuery", ":fRegistru:grCST3a",
                  "DB ID", "SYSFID", "setDoc_GFC", "A$LOB", "SDBG"):
         assert fact in text, fact
+
+
+# ── дата и рабочий период ────────────────────────────────────────────
+
+def test_session_date_format_is_set_by_us_not_inherited(period):
+    # Смысл всей правки: модуль не полагается на умолчания сервера.
+    stmts = writer.session_prelude()
+    assert stmts[0]["sql"].startswith("ALTER SESSION SET NLS_DATE_FORMAT")
+    assert writer.SESSION_DATE_FORMAT in stmts[0]["sql"]
+    # значения идут ПОСЛЕ установки формата, иначе разберутся по-старому
+    assert "PARAM_PERIODBEG" in stmts[1]["sql"]
+
+
+def test_dates_are_converted_into_the_format_we_declared(period):
+    stmts = writer.session_prelude()
+    params = stmts[1]["params"]
+    assert params["beg"] == "01.01.2026" and params["end"] == "31.12.2026"
+
+
+def test_to_session_date_covers_every_declared_format():
+    # Если формат сменят, перевод обязан остаться правильным для всех.
+    original = writer.SESSION_DATE_FORMAT
+    try:
+        expected = {"DD.MM.YYYY": "05.03.2026", "YYYY-MM-DD": "2026-03-05",
+                    "MM/DD/YYYY": "03/05/2026"}
+        for fmt, want in expected.items():
+            writer.SESSION_DATE_FORMAT = fmt
+            assert writer.to_session_date("2026-03-05") == want, fmt
+    finally:
+        writer.SESSION_DATE_FORMAT = original
+
+
+def test_non_iso_input_is_refused_before_it_reaches_the_session():
+    for bad in ("05.03.2026", "2026/03/05", "5-3-2026", "", None):
+        with pytest.raises(ValueError):
+            writer.to_session_date(bad)
+
+
+def test_missing_work_period_is_refused_not_invented(monkeypatch):
+    # Тихо открыть период было бы обходом контроля учёта.
+    monkeypatch.setattr(writer, "work_period", lambda: (None, None))
+    db = _db()
+    with patch.object(writer, "Biro26DB", return_value=db):
+        res = writer.create_document(60001, "2026-08-25")
+    assert res["success"] is False and "рабочий период не задан" in res["message"]
+
+
+def test_broken_period_setting_is_refused(monkeypatch):
+    monkeypatch.setattr(writer, "work_period", lambda: ("01.01.2026", "2026-12-31"))
+    with pytest.raises(writer.WriteRefused):
+        writer.session_prelude()
+    monkeypatch.setattr(writer, "work_period", lambda: ("2026-12-31", "2026-01-01"))
+    with pytest.raises(writer.WriteRefused):
+        writer.session_prelude()
+
+
+def test_satellite_row_is_updated_not_inserted(period):
+    """Строку TMDB_DOCS_ADD заводит учётная система, а не мы.
+
+    TRIG_AFTINS_TMDB_DOCS2 вставляет её сразу после заголовка. Наша вторая
+    вставка ломалась об ORA-00001, и документ не создавался вовсе —
+    транзакция одна. Примечание дописывается правкой готовой строки.
+    """
+    db = _db([_ok(["COD"], [[1]])])
+    db.execute_script = MagicMock(return_value={"success": True, "results": [],
+                                                "message": ""})
+    with patch.object(writer, "Biro26DB", return_value=db):
+        writer.create_document(60001, "2026-08-25", comment="проверка")
+
+    statements = db.execute_script.call_args[0][0]
+    satellite = [s for s in statements if "TMDB_DOCS_ADD" in s["sql"]]
+    assert len(satellite) == 1
+    assert satellite[0]["sql"].startswith("UPDATE TMDB_DOCS_ADD")
+    assert "INSERT INTO TMDB_DOCS_ADD" not in " ".join(s["sql"] for s in statements)

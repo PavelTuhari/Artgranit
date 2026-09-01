@@ -1,6 +1,11 @@
 {% extends "biro26/site_base.html" %}
 {% block title %}{{ app_name }} — Produs{% endblock %}
 {% block content %}
+{# RO: marcajul schema.org (Product + Offer) construit pe server din ACELASI
+   rind pe care il afiseaza pagina — asa marcajul nu poate sa contrazica
+   ecranul. JSON-LD este valid oriunde in document.
+   EN: server-built schema.org markup from the SAME row the page shows. #}
+{{ product_ld|safe }}
         <section class="section">
           <p class="breadcrumbs" id="crumbs"><a href="/" data-t="home">Pagina principală</a> › <a href="/catalog" data-t="catalog">Catalog</a></p>
           <div class="pdp" id="pdp">
@@ -341,9 +346,17 @@ function renderP() {
 
 window.onLangChange = function () { renderP(); loadInfo(); };
 
+// RO: serverul a citit deja fisa ca sa construiasca marcajul — o luam de
+//     aici in loc sa cerem aceleasi date a doua oara (interogarea costa ~1,5 s).
+// EN: the server already read the row for the markup; reuse it instead of
+//     asking for the same data a second time.
+const PRELOAD = {{ product_preload|default('null', true)|safe }};
+
 (async function init() {
-  const [pr, offers] = await Promise.all([
-    j(API + '/products?cod=' + COD + '&limit=1'), j(API + '/credit/offers')]);
+  const need = PRELOAD ? [Promise.resolve({data: [PRELOAD]}), j(API + '/credit/offers')]
+                       : [j(API + '/products?cod=' + COD + '&limit=1'),
+                          j(API + '/credit/offers')];
+  const [pr, offers] = await Promise.all(need);
   P = (pr.data || [])[0];
   OFFERS = offers.data || [];
   if (!P) { document.getElementById('p-name').textContent = 'Produs indisponibil (COD ' + COD + ')'; return; }

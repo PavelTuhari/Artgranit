@@ -749,7 +749,18 @@ img {
   background: #f6f6f6 center/contain no-repeat;
   background-color: #f6f6f6;
   margin-bottom: 2px;
+  /* RO: poza si denumirea au devenit LEGATURI reale (<a>) — regulile
+     pastreaza aspectul de dinainte. EN: cards are links now. */
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
 }
+
+.product-name a {
+  color: inherit;
+  text-decoration: none;
+}
+.product-name a:hover { text-decoration: underline; }
 
 .product-img.p-markers {
   background-image: linear-gradient(180deg, #fff 0%, #f3f3f3 100%);

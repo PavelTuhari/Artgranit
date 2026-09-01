@@ -7878,6 +7878,42 @@ def _biro26_route_check():
     except Exception:                                        # noqa: BLE001
         return []
 
+
+# RO: versiunea fisierelor statice. Fara ea browserul si robotul tin in cache
+#     vechiul site.js pina la 7 zile (cache-control: max-age=604800), asa ca o
+#     corectie desfasurata pur si simplu nu se vede: cardurile continuau sa fie
+#     desenate de codul vechi, fara legaturi spre produs.
+# EN: the static asset version. Without it the browser and the crawler keep the
+#     old site.js for up to 7 days, so a deployed fix simply does not show.
+_ASSET_V = None
+
+
+def _asset_version() -> str:
+    """RO: se calculeaza o singura data, la pornire. EN: computed once, at start."""
+    global _ASSET_V
+    if _ASSET_V:
+        return _ASSET_V
+    base = os.path.dirname(os.path.abspath(__file__))
+    try:
+        with open(os.path.join(base, 'DEPLOY_COMMIT'), encoding='utf-8') as f:
+            _ASSET_V = (f.read().strip() or '')[:12]
+    except OSError:
+        _ASSET_V = ''
+    if not _ASSET_V:
+        # RO: in dezvoltare nu exista DEPLOY_COMMIT - luam data fisierului,
+        #     ca modificarea sa se vada imediat dupa salvare.
+        try:
+            import hashlib
+            stamp = ''
+            for rel in ('static/biro26/site.js',
+                        'static/biro26/landing/styles.css'):
+                stamp += str(os.path.getmtime(os.path.join(base, rel)))
+            _ASSET_V = hashlib.sha1(stamp.encode()).hexdigest()[:12]
+        except OSError:
+            _ASSET_V = 'dev'
+    return _ASSET_V
+
+
 @app.route('/api/biro26/health', methods=['GET'])
 def api_biro26_health():
     base = os.path.dirname(os.path.abspath(__file__))
@@ -8186,34 +8222,32 @@ def _biro26_site_ctx():
         base["price_field"] = _biro26_price_field()
         return base
     liber_pct, liber_min, rate_plans = _biro26_rate_plans()
+    # RO: TOATE setarile intr-o singura interogare — altfel fiecare porneste
+    #     propriul proces-worker. EN: all settings in ONE query.
     try:
-        brand_filter = Biro26Store.get_setting('SHOP_BRAND_FILTER', '0')
-    except Exception:
-        brand_filter = '0'
-    try:
-        fmt_html = Biro26Store.get_setting('SHOP_FMT_HTML', '1')
-        fmt_xlsx = Biro26Store.get_setting('SHOP_FMT_XLSX', '1')
-    except Exception:
-        fmt_html, fmt_xlsx = '1', '1'
-    # RO: ID-ul Google Analytics (gtag.js). Se pune in <head> DOAR pe domeniul
-    #     public; pe URL-urile interne de dezvoltare tagul nu se incarca, ca sa nu
-    #     amestece traficul de test cu cel real. Se poate goli din setari ca sa fie
-    #     oprit complet. EN: GA id injected into <head> only on the public host.
-    try:
-        ga_id = Biro26Store.get_setting('SHOP_GA_ID', 'G-STJ1NQDGY0')
-    except Exception:
-        ga_id = 'G-STJ1NQDGY0'
+        s = Biro26Store.get_settings_many(
+            ['SHOP_BRAND_FILTER', 'SHOP_FMT_HTML', 'SHOP_FMT_XLSX',
+             'SHOP_GA_ID'])
+    except Exception:                                        # noqa: BLE001
+        s = {}
+    brand_filter = s.get('SHOP_BRAND_FILTER') or '0'
+    fmt_html = s.get('SHOP_FMT_HTML') or '1'
+    fmt_xlsx = s.get('SHOP_FMT_XLSX') or '1'
+    # RO: ID-ul Google Analytics. Cererea ajunge la aplicatie sub numele
+    #     INTERN (nginx-ul din fata rescrie Host la officeplus.una.md), de
+    #     aceea nu se compara cu officeplus.md, ci cu LISTA numelor
+    #     magazinului - altfel contorul nu porneste deloc pe productie.
+    # EN: the request reaches the app under the internal name, so the GA
+    #     tag keys off the shop host list, not the public name alone.
+    ga_id = s.get('SHOP_GA_ID') or 'G-STJ1NQDGY0'
     from flask import request as _rq
-    _host = (_rq.host or '').lower()
-    if 'officeplus.md' not in _host:
-        ga_id = ''   # RO: doar pe domeniul public / EN: public host only
-    # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
-    #     vizitatorii vad preturile pentru persoane fizice
+    _host2 = (_rq.host or '').lower().split(':')[0]
+    if _host2 not in Config.BIRO26_SHOP_HOSTS:
+        ga_id = ''   # RO: doar pe magazinul public / EN: public shop only
     price_field = _biro26_price_field()
     # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
     #     pentru ele, restul raman badge text. Altfel browserul incerca sa
-    #     incarce fisiere inexistente si consola se umplea de 404
-    #     (siglele oficiale se adauga in /static/biro26/pay/ sau din WP).
+    #     incarce fisiere inexistente si consola se umplea de 404.
     # EN: which payment logos actually exist, so the footer never requests a
     #     missing file (404 noise); the rest fall back to a text badge.
     try:
@@ -8222,7 +8256,7 @@ def _biro26_site_ctx():
                            for f in os.listdir(_paydir)
                            if f.lower().endswith(('.svg', '.png'))
                            and not f.startswith(('.', '_')))
-    except Exception:
+    except Exception:                                        # noqa: BLE001
         pay_logos = []
     ctx = {'app_name': Config.BIRO26_APP_NAME,
            'liber_pct': liber_pct, 'liber_min': liber_min,
@@ -8235,6 +8269,58 @@ def _biro26_site_ctx():
     _SITE_CTX_CACHE[_hk] = {"exp": _t.time() + 60, "val": ctx}
     return ctx
 
+# RO: adresa CANONICA a paginii curente. Doua lucruri de rezolvat:
+#   1. domeniul — mereu cel PUBLIC (officeplus.md). Pe officeplus.una.md, care e
+#      doar o redirectare de reclama, canonical trebuie sa trimita tot spre
+#      domeniul public; altfel motoarele vad doua site-uri identice si nu
+#      indexeaza niciunul ca principal.
+#   2. calea — instantele fara pretty-URL ruleaza sub /UNA.md/orasldev/biro26-*
+#      cu nume de rute interne (/cart, /product/7). Canonical trebuie sa arate
+#      calea PUBLICA (/cos, /produs/7), altfel trimite spre adrese inexistente.
+# EN: canonical URL of the current page: always the PUBLIC domain, and the PUBLIC
+#     path (prefix instances use internal route names that do not exist publicly).
+_BIRO26_PRETTY = {'': '/', '/catalog': '/catalog', '/cart': '/cos',
+                  '/account': '/cont', '/favorites': '/favorite',
+                  '/compare': '/compara', '/brands': '/branduri',
+                  '/payment-result': '/payment-result'}
+
+def _biro26_public_path():
+    import re as _re
+    path = request.path or '/'
+    # RO: scoatem prefixul instantelor de dezvoltare / EN: strip the dev prefix
+    path = _re.sub(r'^/UNA\.md/orasldev/biro26-[^/]+', '', path) or '/'
+    if path in _BIRO26_PRETTY:
+        return _BIRO26_PRETTY[path]
+    m = _re.match(r'^/product/(\d+)$', path)
+    if m:
+        return '/produs/' + m.group(1)
+    m = _re.match(r'^/page/(.+)$', path)
+    if m:
+        return '/' + m.group(1)
+    return path
+
+def _biro26_canonical():
+    """RO: canonical complet, cu filtrele care definesc o pagina REALA de catalog.
+    EN: full canonical; keeps only the params that define a real catalog page."""
+    from urllib.parse import urlencode
+    base = 'https://' + Config.BIRO26_PUBLIC_HOST + _biro26_public_path()
+    # RO: doar grupa/categorie fac o pagina distincta si indexabila. Restul
+    #     (pagina, brand, pret, cautare) ar produce duplicate — le lasam afara,
+    #     ca fiecare categorie sa aiba UN canonical stabil.
+    # EN: only grupa/categorie define a distinct indexable page.
+    keep = [(k, request.args.get(k)) for k in ('grupa', 'categorie')
+            if request.args.get(k)]
+    return base + ('?' + urlencode(keep) if keep else '')
+
+# RO: harta site-ului si robots.txt — servite de pe domeniul PUBLIC.
+#     Fara ele, motoarele trebuiau sa descopere singure 1 251 de categorii si
+#     ~152 000 de produse urmarind legaturi; acum le primesc explicit.
+# EN: sitemap and robots for the public domain.
+# RO: robots.txt si sitemap.xml au plecat in modules/seo/ - o ramura fara
+#     ele nu le mai poate pierde la desfasurare (27.08.2026 exact asa s-a
+#     intimplat: contur pe alta ramura -> 404 pe site-ul public).
+# EN: robots.txt and sitemap.xml moved to modules/seo/ so a branch without
+#     them can no longer lose them on deploy.
 @app.route('/UNA.md/orasldev/biro26-site')
 # RO: alias '1shop' — acelasi site nou si pe instantele FARA nginx pretty-URLs
 #     (ex. nufarul); navigarea e tradusa client-side de siteURL() din site.js.
@@ -8251,12 +8337,52 @@ def biro26_site_catalog():
     # RO: catalog (PLP) in stilul Figma; filtrele vin din URL (deep-link)
     return render_template('biro26/site_catalog.html', **_biro26_site_ctx())
 
+# RO: fisele citite pentru marcaj se tin putin in memorie: un robot trece o
+#     data, dar un vizitator reincarca, iar interogarea costa ~1,5 s.
+# EN: products read for the markup are cached briefly.
+_PDP_CACHE = {}
+_PDP_TTL = 300
+
+
+def _biro26_product_row(cod):
+    """RO: rindul produsului pentru marcaj si pentru pagina. None daca lipseste."""
+    import time as _t
+    hit = _PDP_CACHE.get(cod)
+    if hit and _t.time() - hit[0] < _PDP_TTL:
+        return hit[1]
+    try:
+        from models.biro26_oracle_store import Biro26Store
+        rows = (Biro26Store.get_products_stock(cod=cod, limit=1) or {}).get('data')
+        row = (rows or [None])[0]
+    except Exception:                                        # noqa: BLE001
+        return None
+    if len(_PDP_CACHE) > 500:            # RO: fara crestere nelimitata
+        _PDP_CACHE.clear()
+    _PDP_CACHE[cod] = (_t.time(), row)
+    return row
+
+
 @app.route('/UNA.md/orasldev/biro26-site/product/<int:cod>')
 @app.route('/UNA.md/orasldev/biro26-1shop/product/<int:cod>')
 def biro26_site_product(cod):
-    # RO: fisa produsului (PDP) — datele se incarca client-side dupa COD
+    """RO: fisa produsului. Rindul se citeste O DATA pe server: din el se
+    construieste marcajul schema.org si tot el se da paginii, ca browserul
+    sa nu mai ceara aceleasi date inca o data.
+    EN: the row is read ONCE on the server - it feeds both the schema.org
+    markup and the page itself, so the browser does not fetch it again."""
+    import json as _json
+    from models import biro26_jsonld as _ld
+    ctx = _biro26_site_ctx()
+    row = _biro26_product_row(cod)
+    ld = _ld.product(row, _biro26_canonical(),
+                     price_field=ctx.get('price_field') or 'retail1',
+                     seller=Config.BIRO26_APP_NAME) if row else None
     return render_template('biro26/site_product.html', cod=cod,
-                           **_biro26_site_ctx())
+                           product_ld=_ld.script_tag(ld),
+                           product_preload=_json.dumps(row or None,
+                                                       ensure_ascii=False,
+                                                       default=str),
+                           **ctx)
 
 @app.route('/UNA.md/orasldev/biro26-site/cart')
 @app.route('/UNA.md/orasldev/biro26-1shop/cart')
@@ -8937,6 +9063,15 @@ def api_biro26_shop_me():
 def api_biro26_shop_products():
     # public read-only catalog (same grid data as Marfă/Stoc)
     return jsonify(Biro26Controller.get_products_stock())
+
+@app.route('/api/biro26/shop/bestsellers', methods=['GET'])
+def api_biro26_shop_bestsellers():
+    # RO: bestsellerurile pentru ghidul plutitor de pe vitrina - numarate
+    #     din comenzile reale, tinute in memorie 15 minute.
+    # EN: bestsellers for the storefront cheat-sheet, from real orders.
+    from models.biro26_oracle_store import Biro26Store
+    return jsonify(Biro26Store.get_shop_bestsellers(
+        days=30, limit=request.args.get('limit', 8, type=int)))
 
 @app.route('/api/biro26/shop/tree', methods=['GET'])
 def api_biro26_shop_tree():

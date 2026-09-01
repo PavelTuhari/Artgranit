@@ -280,8 +280,19 @@ function renderDeal() {
   img.classList.remove('skel');
   if (p.image) { img.className = 'deal-image live'; img.innerHTML = '';
     img.style.backgroundImage = "url('" + p.image + "')"; }
+  // RO: si "produsul zilei" primeste o legatura reala — e pe pagina principala,
+  //     cea mai vizitata de motoarele de cautare.
+  // EN: the deal of the day gets a real link too — it sits on the home page.
   img.onclick = () => openProd(p.cod);
-  document.getElementById('deal-name').textContent = pname(p);
+  img.style.cursor = 'pointer';
+  const dn = document.getElementById('deal-name');
+  dn.innerHTML = '';
+  const a = document.createElement('a');
+  a.href = prodURL(p.cod);
+  a.style.color = 'inherit';
+  a.style.textDecoration = 'none';
+  a.textContent = pname(p);
+  dn.appendChild(a);
   document.getElementById('deal-price').textContent = fmtLei(price);
   document.getElementById('deal-bar').style.width = (20 + (p.cod % 60)) + '%';
   document.getElementById('deal-buy').onclick = () =>

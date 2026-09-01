@@ -57,3 +57,15 @@ https://nufarul.eminescu.md/myloyalwalletcard/una-pos?tech=rogob2026
 - `PROJECT_MYLOYALWALLETCARD.md` — этот файл (обзор, ссылки)
 - `DEPLOY_EMINESCU.md` — как развёрнут прод: systemd, nginx, БД, SSL, откат
 - `SYNC_MINIMAL_TRAFFIC.md` — синхронизация изменений с минимальным трафиком (главный рабочий документ)
+- **`WALLET_ENROLLMENT_UNISIM.md`** — пошаговая регистрация для **Unisim-Soft SRL**: готовые значения для всех форм, CSR уже создан
+- **`WALLET_ISSUER_STATUS.md`** — как получить статус эмитента карт: Apple Wallet (99 USD/год + D-U-N-S) и Google Wallet (бесплатно). Код выпуска карт уже готов и ждёт учётных данных
+- `OWN_APP_STORE.md` — портал приложений `https://nufarul.eminescu.md/apps/`: 4 приложения на 5 платформ
+- `MOBILE_APP.md` — приложение UNA Market (Android + iOS): настройки без пересборки, сборка, грабли
+- `IOS_BUILD_AND_EU_DISTRIBUTION.md` — iOS-сборка, установка на iPhone, альтернативные магазины ЕС
+- `ALTSTORE_REPO.md` — репозиторий приложений для AltStore
+
+## Мобильные и десктопные приложения
+
+- **UNA Market** (Android + iOS) — `MyLoyalWalletCard/mobile-app/mobile`, адрес API меняется в настройках приложения
+- **Rogob POS** (Windows/macOS/Linux) — `MyLoyalWalletCard/desktop-pos`, кассовый терминал на Python без зависимостей
+- Портал раздачи: **https://nufarul.eminescu.md/apps/**

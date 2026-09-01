@@ -9,6 +9,7 @@ import sys
 import types
 
 import pytest
+from unittest.mock import patch
 from flask import Blueprint, Flask
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -191,3 +192,72 @@ def test_module_keys_reads_the_real_directory():
     keys = module_loader.module_keys()
     assert "seoforge" in keys and "biro26" in keys
     assert all(not k.startswith((".", "_")) for k in keys)
+
+
+# ── корневые адреса модуля ─────────────────────────────────────────────
+#
+# 27.08.2026: контур переставили на другую ветку, где маршрутов robots.txt
+# и sitemap.xml не было, — публичный сайт остался с 404 по обоим адресам.
+# Причина: маршруты жили в общем app.py. Теперь они в папке модуля и
+# уезжают вместе с ней; занятые адреса объявлены в манифесте.
+
+def test_root_paths_are_declared_in_the_manifest():
+    import json, pathlib
+    m = json.loads((pathlib.Path(__file__).resolve().parent.parent
+                    / "modules/seo/module.json").read_text(encoding="utf-8"))
+    assert "/robots.txt" in m["root_paths"]
+    assert "/sitemap.xml" in m["root_paths"]
+
+
+def test_root_routes_answer_from_the_module_not_from_shared_code():
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parent.parent
+           / "app.py").read_text(encoding="utf-8")
+    assert "@app.route('/robots.txt')" not in src, \
+        "маршрут вернулся в общий код — при смене ветки он снова пропадёт"
+    assert "@app.route('/sitemap.xml')" not in src
+    import app as _app
+    c = _app.app.test_client()
+    assert c.get("/robots.txt").status_code == 200
+    assert c.get("/sitemap.xml").status_code == 200
+
+
+def test_two_modules_cannot_claim_the_same_root_path():
+    """Иначе второй молча перекрыл бы первого — ровно то, чего избегаем."""
+    from core import module_loader as ml
+    from flask import Blueprint, Flask
+
+    app = Flask(__name__)
+    report = ml.LoadReport()
+    saved = dict(ml._ROOT_CLAIMS)
+    try:
+        ml._ROOT_CLAIMS.clear()
+        ml._ROOT_CLAIMS["/robots.txt"] = "seo"
+
+        class _Pkg:
+            root_blueprint = Blueprint("other_root", __name__)
+
+        with patch.object(ml, "_load_manifest",
+                          lambda k: {"root_paths": ["/robots.txt"]}):
+            ml._register_root(app, "other", _Pkg, report)
+        assert "other:root" in report.failed
+        assert "заняты" in report.failed["other:root"]
+    finally:
+        ml._ROOT_CLAIMS.clear()
+        ml._ROOT_CLAIMS.update(saved)
+
+
+def test_manifest_without_root_blueprint_is_reported_not_silent():
+    from core import module_loader as ml
+    from flask import Flask
+
+    app = Flask(__name__)
+    report = ml.LoadReport()
+
+    class _Pkg:
+        pass
+
+    with patch.object(ml, "_load_manifest",
+                      lambda k: {"root_paths": ["/x.txt"]}):
+        ml._register_root(app, "broken", _Pkg, report)
+    assert "broken:root" in report.skipped

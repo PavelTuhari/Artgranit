@@ -175,6 +175,13 @@ def _one_word(q: str) -> bool:
     EN: single word, no special chars — only there CONTAINS matches INSTR."""
     return bool(_re.fullmatch(r"[0-9A-Za-zА-Яа-яЁёĂÂÎȘȚăâîșț]+", (q or "").strip()))
 
+# RO: de cite ori s-au schimbat setarile de la pornirea procesului. Vitrina
+#     tine partea comuna in memorie; dupa acest numar intelege ca trebuie
+#     recitita, fara ca depozitul sa stie ceva despre cache-ul aplicatiei.
+# EN: how many times settings changed since start. The storefront cache keys
+#     off this number, so the store needs to know nothing about the cache.
+SETTINGS_EPOCH = 0
+
 
 class Biro26Store:
     """All OfficePlus CRUD + package orchestration for Biro26."""
@@ -1226,9 +1233,55 @@ class Biro26Store:
                 {"k": key, "v": str(val or "")[:400]})
             if not r.get("success"):
                 return {"success": False, "error": r.get("message")}
+            # RO: vitrina tine setarile in memorie; numarul acesta ii spune
+            #     ca trebuie recitite. EN: tells the storefront cache to reread.
+            global SETTINGS_EPOCH
+            SETTINGS_EPOCH += 1
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    # RO: bestsellerurile magazinului pentru ghidul plutitor (butonul de pe
+    #     vitrina). Se numara din COMENZILE reale (SYSFID 12280), nu din
+    #     presupuneri, si se tine in memorie - cererea vine la fiecare
+    #     deschidere a ghidului.
+    # EN: the shop's bestsellers for the floating cheat-sheet, counted from
+    #     REAL orders and cached.
+    _BESTSELLERS_CACHE = {"at": 0.0, "data": None}
+
+    @staticmethod
+    def get_shop_bestsellers(days: int = 30, limit: int = 8) -> Dict[str, Any]:
+        import time as _t
+        limit = max(1, min(int(limit), 20))
+        c = Biro26Store._BESTSELLERS_CACHE
+        # RO: memoria tine mereu lista INTREAGA (20) si taie la cerere -
+        #     altfel prima cerere cu limita mica ar saraci-o pe urmatoarele.
+        # EN: cache the FULL list, slice per request.
+        if c["data"] is not None and _t.time() - c["at"] < 900:
+            full = c["data"]
+            return {**full, "data": (full.get("data") or [])[:limit]}
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT * FROM ("
+                "  SELECT u.COD, u.DENUMIREA, ROUND(SUM(l.SUMA),0) TOTAL, "
+                "         (SELECT MAX(NVL(gg.PHOTO_URL, gg.IMAGE_LINK)) "
+                "          FROM BIRO26_GOODS gg WHERE gg.COD_UNIVERS = u.COD) IMAGE "
+                "  FROM VMDB_ST201D l "
+                "  JOIN TMDB_DOCS d ON d.COD = l.NRDOC AND d.SYSFID = 12280 "
+                "       AND d.DATAMANUAL >= TRUNC(SYSDATE) - :days "
+                "  JOIN TMS_UNIVERS u ON u.COD = l.CTSC "
+                "  WHERE NVL(u.ISARHIV, '0') <> '2' "
+                "  GROUP BY u.COD, u.DENUMIREA ORDER BY SUM(l.SUMA) DESC NULLS LAST"
+                ") WHERE ROWNUM <= :lim",
+                {"days": max(1, min(int(days), 92)), "lim": 20})
+            out = _result(r)
+        except Exception as e:                               # noqa: BLE001
+            out = {"success": False, "error": str(e)}
+        if out.get("success"):
+            c["at"] = _t.time()
+            c["data"] = out
+            return {**out, "data": (out.get("data") or [])[:limit]}
+        return out
 
     @staticmethod
     def get_product_tree() -> Dict[str, Any]:

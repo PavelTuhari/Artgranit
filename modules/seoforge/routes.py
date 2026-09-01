@@ -249,3 +249,32 @@ def api_events():
     if denied:
         return denied
     return _reply(SeoController.events())
+
+@blueprint.route('/api/playbooks', methods=['GET', 'POST'])
+def api_playbooks():
+    denied = _guard()
+    if denied:
+        return denied
+    if request.method == 'POST':
+        return _reply(SeoController.save_playbook(_json_body()))
+    return _reply(SeoController.playbooks(
+        site_cod=_int('site'),
+        kind=request.args.get('kind'),
+        all_versions=request.args.get('all') == '1'))
+
+
+@blueprint.route('/api/playbooks/<int:cod>', methods=['GET'])
+def api_playbook(cod):
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(SeoController.playbook(cod))
+
+
+@blueprint.route('/api/playbooks/<int:cod>/status', methods=['POST'])
+def api_playbook_status(cod):
+    denied = _guard()
+    if denied:
+        return denied
+    return _reply(SeoController.set_playbook_status(
+        cod, (_json_body() or {}).get('status')))
