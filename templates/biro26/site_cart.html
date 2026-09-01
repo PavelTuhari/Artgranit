@@ -391,7 +391,7 @@ function setQty(cod, v) { const c = cart(); const i = c.find(x => x.cod === cod)
   if (i) { i.qty = parseFloat(v) || 0; saveCartLS(c); } }
 function delItem(cod) { saveCartLS(cart().filter(x => x.cod !== cod)); }
 function clearCart() { saveCartLS([]); }
-window.onCartChange = renderCart;
+window.onCartChange = function () { renderCart(); renderPmEntry(); };
 
 function setPm(m) {
   payMethod = m;
@@ -1034,18 +1034,16 @@ async function makeInvoice() {
   const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
   if (!r.success) { toast(r.error || 'Eroare', true); return; }
   const cod = r.data.cod, nr = r.data.nrset || r.data.nr || cod;
-  // RO: calculam ecOrg INAINTE de a goli cosul — saveCartLS([]) declanseaza
-  // onCartChange->renderCart->renderTiles, care reseteaza TILES si ar face
-  // currentTile() sa returneze null mai jos. Modul ales (online/manual) e
-  // o variabila globala independenta de TILES, dar il capturam aici, la
-  // fel ca ecOrg, ca sa nu depinda de ordinea codului de mai jos.
-  // EN: compute ecOrg BEFORE clearing the cart — saveCartLS([]) triggers
-  // onCartChange->renderCart->renderTiles, which resets TILES and would
-  // make currentTile() return null below. ecMode is a plain global unaf-
-  // fected by TILES, but we snapshot it here too, for the same reason.
+  // RO: capturam organizatia si modul ACUM — cosul nu se mai goleste la
+  //     factura, dar TILES se pot schimba daca clientul mai editeaza cosul.
+  // EN: snapshot org and mode now; the cart is no longer cleared on invoice.
   const ecOrg = ecOrgOf(currentTile());
   const modeAtSubmit = ecMode;
-  saveCartLS([]);
+  // RO: NU golim cosul la crearea contului — produsul ramane pina la
+  //     achitarea confirmata (MIA QR sau card MAIB). Altfel, dupa
+  //     «Continuă la plată» clientul pierde marfa inainte sa plateasca.
+  // EN: do NOT empty the cart when the invoice is created — keep items
+  //     until MIA/MAIB payment is confirmed.
   const pdf = k => '/api/biro26/shop/report/' + k + '/' + cod;
   let h = '<b>✅ ' + tr('invoiceOk') + '</b> ' + tr('invoiceNr') + ' ' + esc(String(nr)) +
     '<br><a target="_blank" href="' + pdf('invoice') + '">' + tr('pdfInvoice') + '</a>' +
@@ -1136,9 +1134,30 @@ async function payMia(cod) {
   miaTimer = setInterval(async () => {
     const st = await j(API + '/pay/mia-status?order=' + encodeURIComponent(d.order_id));
     if (st.success && st.paid) { clearInterval(miaTimer);
-      document.getElementById('mia-status').innerHTML = '<b style="color:#15803d">✅ ' + bl('Plata confirmată!', 'Оплата подтверждена!') + '</b>'; }
+      document.getElementById('mia-status').innerHTML = '<b style="color:#15803d">✅ ' + bl('Plata confirmată!', 'Оплата подтверждена!') + '</b>';
+      clearCartAfterPaid(); }
   }, 4000);
 }
+/* RO: golim cosul DOAR dupa plata confirmata (MIA sau card bancar MAIB),
+   nu la «Continuă la plată» / crearea facturii.
+   EN: empty the cart ONLY after confirmed payment (MIA or MAIB card). */
+function clearCartAfterPaid() {
+  saveCartLS([]);
+  if (typeof renderCart === 'function') renderCart();
+}
+
+/* RO: intoarcerea de pe pagina bancii (successUrl/failUrl -> ?pay=ok|fail)
+   EN: bank-hosted checkout return */
+(function payReturnNotice() {
+  const p = new URLSearchParams(location.search).get('pay');
+  if (p === 'ok') {
+    clearCartAfterPaid();
+    toast('✅ ' + bl('Plata a fost efectuată cu succes!', 'Оплата прошла успешно!'));
+  } else if (p === 'fail') {
+    toast('❌ ' + bl('Plata NU a fost efectuată (refuzată sau anulată)', 'Оплата НЕ прошла'), true);
+  }
+})();
+
 function payP2P() {
   document.getElementById('pay-box').innerHTML =
     '<div style="border:1px solid #86efac;border-radius:12px;padding:14px;background:#fff;font-size:14px">' +

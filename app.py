@@ -8184,6 +8184,44 @@ def _biro26_chrome_reset():
     _SITE_CHROME['busy'] = False
 
 
+def _credit_min_order():
+    """Порог рассрочки. Логика — models/biro26_credit_min.py (правило №2)."""
+    from models.biro26_credit_min import min_order
+    return min_order()
+
+
+def _biro26_hours_parse(cfg):
+    """RO: «1-5=09:00-18:00;6=09:00-15:00;7=» -> {zi: (de la, pina la)}.
+
+    Ziua 1 = luni … 7 = duminica (ca ISO). Valoare goala = zi libera.
+    Un fragment stricat se ignora, ca o greseala in setari sa nu lase vitrina
+    fara bara. EN: parse the weekly schedule; a broken chunk is skipped.
+    """
+    out = {}
+    for part in str(cfg or '').split(';'):
+        part = part.strip()
+        if not part or '=' not in part:
+            continue
+        days, _, rng = part.partition('=')
+        rng = rng.strip()
+        try:
+            if '-' in days:
+                a_, b_ = days.split('-', 1)
+                day_list = range(int(a_), int(b_) + 1)
+            else:
+                day_list = [int(days)]
+        except ValueError:
+            continue
+        pair = None
+        if rng:
+            bits = rng.split('-')
+            if len(bits) == 2 and bits[0].strip() and bits[1].strip():
+                pair = (bits[0].strip(), bits[1].strip())
+        for d in day_list:
+            if 1 <= d <= 7:
+                out[d] = pair
+    return out
+
 def _biro26_site_chrome():
     """RO: partea comuna. Cind expira, se intoarce valoarea VECHE si se
     reciteste in fundal — asa niciun vizitator nu asteapta cele zece secunde.
@@ -8219,7 +8257,7 @@ def _biro26_chrome_refresh():
     try:
         s = Biro26Store.get_settings_many(
             ['SHOP_BRAND_FILTER', 'SHOP_FMT_HTML', 'SHOP_FMT_XLSX',
-             'SHOP_GA_ID', 'SHOP_PRICE_FIZ'])
+             'SHOP_GA_ID', 'SHOP_PRICE_FIZ', 'SHOP_HOURS'])
     except Exception:                                        # noqa: BLE001
         s = {}
     # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
@@ -8245,7 +8283,12 @@ def _biro26_chrome_refresh():
         'ga_id': s.get('SHOP_GA_ID') or 'G-STJ1NQDGY0',
         'price_fiz': s.get('SHOP_PRICE_FIZ') or 'retail1',
         'pay_logos': pay_logos,
+        # порог рассрочки — логика в models/biro26_credit_min.py (правило N2)
+        'credit_min_order': _credit_min_order(),
     }
+    # RO: programul de lucru pe ziua curenta, din setari (SHOP_HOURS)
+    hours_cfg = s.get('SHOP_HOURS') or '1-5=09:00-18:00;6=09:00-15:00;7='
+    data['hours_ro'], data['hours_ru'] = _biro26_hours_text(hours_cfg)
     from models import biro26_oracle_store as _store
     _SITE_CHROME['at'] = _t.time()
     _SITE_CHROME['data'] = data
@@ -8292,6 +8335,9 @@ def _biro26_site_ctx():
     except Exception:                                        # noqa: BLE001
         price_field = 'retail1'
     return {'app_name': Config.BIRO26_APP_NAME,
+            'credit_min_order': chrome.get('credit_min_order', 1500),
+            'hours_ro': chrome.get('hours_ro', ''),
+            'hours_ru': chrome.get('hours_ru', ''),
             'liber_pct': liber_pct, 'liber_min': liber_min,
             'rate_plans': rate_plans,
             'brand_filter': brand_filter,
