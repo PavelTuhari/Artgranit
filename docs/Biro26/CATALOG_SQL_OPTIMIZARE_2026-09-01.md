@@ -87,6 +87,25 @@ Echivalenta deduparii s-a verificat si direct in baza: `MIN(ID)` per cod si
 `ROW_NUMBER() ... ORDER BY ID` aleg acelasi rind — **0 diferente** pe toate
 cele 197.377 de coduri.
 
+## Ce a mers prost la punerea in functiune (de tinut minte)
+
+Prima varianta pusa pe masina de birou a **rupt catalogul pentru ~2 minute**:
+paginile cu `with_count=1` (adica toate paginile vitrinei) intorceau
+`name '_cached' is not defined`. Cauza: masina de birou ruleaza o ramura mai
+veche a `biro26_oracle_store.py`, in care ajutorul de cache nu exista. Eu
+testasem local, unde exista.
+
+A doua varianta a intors rinduri, dar `total` iesea 0: interogarea de
+numarare nu foloseste bind-ul `:pd` al paginii, iar Oracle refuza bind-urile
+in plus. Se trimit acum doar bind-urile care apar in ea.
+
+Doua invataminte, ambele acum in test:
+
+1. **Testul trebuie sa acopere `with_count`** — forma pe care o cere vitrina
+   la fiecare pagina. Fara ea, verificarea mea a trecut pe linga defect.
+2. **Ce se patcheaza pe masina de birou nu poate presupune functii din ramura
+   mea.** Codul nou nu trebuie sa depinda de ajutoare din fisierul comun.
+
 ## Ce NU s-a facut si de ce
 
 * **Nu s-a blocat Googlebot** — 15% din trafic, si scoaterea magazinului din

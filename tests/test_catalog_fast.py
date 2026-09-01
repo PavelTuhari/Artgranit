@@ -17,6 +17,9 @@ COMBOS = [
     dict(limit=12, offset=0, sort="name_desc"),
     dict(limit=5, offset=0, only_new=True),
     dict(cod=515935, limit=1),
+    # RO: cu numaratoare — forma pe care o cere vitrina la fiecare pagina
+    dict(limit=24, offset=0, with_count=True),
+    dict(limit=24, offset=0, grupa="Supraveghere video", with_count=True),
 ]
 
 
@@ -65,6 +68,13 @@ class TestFastPathEqualsOld(unittest.TestCase):
                 old = (S.get_products_stock(**kw).get("data") or [])
                 self.assertEqual([r.get("cod") for r in new],
                                  [r.get("cod") for r in old], str(kw))
+                if kw.get("with_count"):
+                    F.supports = real
+                    tn = S.get_products_stock(**kw).get("total")
+                    F.supports = lambda *a, **k: False
+                    to = S.get_products_stock(**kw).get("total")
+                    self.assertEqual(tn, to, "total difera: %s" % kw)
+                    self.assertTrue(tn and tn > 0, "total gol: %s" % kw)
                 for a, b in zip(new, old):
                     self.assertEqual(a, b, str(kw))
         finally:

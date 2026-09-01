@@ -884,14 +884,18 @@ class Biro26Store:
                     from models.biro26_imgproxy import rewrite_rows
                     rewrite_rows(fres.get("data") or fres.get("rows"), "IMAGE")
                     if with_count:
+                        # RO: numaratoarea nu foloseste toate bind-urile
+                        #     paginii (`:pd` lipseste din ea) — Oracle refuza
+                        #     bind-urile in plus, iar totalul iesea 0.
+                        cp = {k: v for k, v in fparams.items()
+                              if (":" + k) in fcount}
                         import hashlib as _hf
                         fk = "cnt:" + _hf.md5(
-                            (fcount + repr(sorted(fparams.items()))).encode()
+                            (fcount + repr(sorted(cp.items()))).encode()
                         ).hexdigest()
                         fres["total"] = _cached(fk, 300, lambda: (
                             lambda rc: int(rc[0]["cnt"]) if rc else 0)(
-                                _rows(Biro26DB().execute_query(
-                                    fcount, fparams))))
+                                _rows(Biro26DB().execute_query(fcount, cp))))
                     return fres
             # RO: nucleu ieftin (doar u+g+pl: filtrele si sortarea), paginat cu
             #     ROWNUM; join-urile scumpe (VMS_MPT_TVR view, stoc, barcode,
