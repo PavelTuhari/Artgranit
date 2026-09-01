@@ -56,4 +56,28 @@ def sitemap_products(part: int):
     return _xml(products_xml(part))
 
 
+# RO: DOMENIUL INTERN officeplus.una.md trebuie INCHIS pentru motoarele de
+#     cautare - e o dublura tehnica a magazinului. Capcana: nginx-ul din
+#     fata trimite TRAFICUL PUBLIC catre birou tot sub numele intern (pe
+#     partea de birou numele public e ocupat de alt site), deci "noindex pe
+#     tot ce vine cu Host intern" ar inchide si site-ul public. De aceea
+#     frontalul marcheaza traficul public cu antetul X-Public-Site, iar
+#     noindex primeste DOAR ce vine pe numele intern FARA acest marcaj -
+#     adica doar vizitele directe pe officeplus.una.md.
+# EN: the internal domain gets noindex ONLY when the request arrived
+#     directly (no X-Public-Site mark from our own front proxy) - otherwise
+#     we would deindex the public site too, since the front rewrites Host.
+INTERNAL_NOINDEX_HOSTS = {"officeplus.una.md"}
+
+
+@root_blueprint.after_app_request
+def _noindex_internal_domain(response):
+    from flask import request
+    host = (request.host or "").lower().split(":")[0]
+    if (host in INTERNAL_NOINDEX_HOSTS
+            and request.headers.get("X-Public-Site") != "1"):
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
 __all__ = ["blueprint", "root_blueprint"]

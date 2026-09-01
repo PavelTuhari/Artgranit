@@ -261,3 +261,29 @@ def test_manifest_without_root_blueprint_is_reported_not_silent():
                       lambda k: {"root_paths": ["/x.txt"]}):
         ml._register_root(app, "broken", _Pkg, report)
     assert "broken:root" in report.skipped
+
+
+# ── noindex внутреннего домена ─────────────────────────────────────────
+#
+# officeplus.una.md — техническая дублёрша магазина, её надо закрыть от
+# поисковиков. Ловушка: фронтовой nginx шлёт ПУБЛИЧНЫЙ трафик на офис тоже
+# под внутренним именем, поэтому закрывать по одному имени хоста нельзя —
+# закрылся бы и officeplus.md. Публичный трафик фронт помечает заголовком
+# X-Public-Site, noindex получает только непомеченное.
+
+def test_direct_internal_domain_gets_noindex():
+    import app as _app
+    c = _app.app.test_client()
+    r = c.get("/robots.txt", headers={"Host": "officeplus.una.md"})
+    assert r.headers.get("X-Robots-Tag") == "noindex, nofollow"
+
+
+def test_public_traffic_through_the_front_is_never_noindexed():
+    """Иначе мы бы своими руками выкинули officeplus.md из Google."""
+    import app as _app
+    c = _app.app.test_client()
+    r = c.get("/robots.txt", headers={"Host": "officeplus.una.md",
+                                      "X-Public-Site": "1"})
+    assert "X-Robots-Tag" not in r.headers
+    r2 = c.get("/robots.txt", headers={"Host": "officeplus.md"})
+    assert "X-Robots-Tag" not in r2.headers
