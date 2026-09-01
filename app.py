@@ -8184,6 +8184,28 @@ def _biro26_chrome_reset():
     _SITE_CHROME['busy'] = False
 
 
+def _biro26_hours_text(cfg):
+    """RO: textul pentru bara de sus, in RO si RU, pentru ziua de AZI.
+
+    Ora se ia la fusul Moldovei — altfel un vizitator din alt fus ar vedea
+    programul de ieri sau de miine. EN: today's text in Moldova time.
+    """
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        now = datetime.now(ZoneInfo('Europe/Chisinau'))
+    except Exception:                                        # noqa: BLE001
+        now = datetime.now()
+    sched = _biro26_hours_parse(cfg)
+    today = sched.get(now.isoweekday(), None)
+    if not today:
+        return ('Astăzi este zi liberă', 'Сегодня выходной')
+    a_, b_ = today
+    return (f'Astăzi lucrăm de la {a_} până la {b_}',
+            f'Сегодня работаем с {a_} до {b_}')
+
+
+
 def _credit_min_order():
     """Порог рассрочки. Логика — models/biro26_credit_min.py (правило №2)."""
     from models.biro26_credit_min import min_order
