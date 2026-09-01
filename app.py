@@ -8160,6 +8160,12 @@ def _biro26_price_field():
 _SITE_CTX_CACHE = {}
 
 
+def _credit_min_order():
+    """Порог рассрочки. Логика — models/biro26_credit_min.py (правило №2)."""
+    from models.biro26_credit_min import min_order
+    return min_order()
+
+
 def _biro26_hours_parse(cfg):
     """RO: «1-5=09:00-18:00;6=09:00-15:00;7=» -> {zi: (de la, pina la)}.
 
@@ -8301,6 +8307,8 @@ def _biro26_site_ctx():
            'price_field': price_field,
            'pay_logos': pay_logos,
            'hours_ro': hours_ro, 'hours_ru': hours_ru,
+           # порог рассрочки — логика в models/biro26_credit_min.py
+           'credit_min_order': _credit_min_order(),
            'ga_id': ga_id}
     _SITE_CTX_CACHE[_hk] = {"exp": _t.time() + 60, "val": ctx}
     return ctx
