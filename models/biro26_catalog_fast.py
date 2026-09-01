@@ -43,11 +43,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-# RO: coloanele feed-ului, luate din rindul cu ID-ul cel mai mic al codului
-#     (exact ce alegea ROW_NUMBER ... ORDER BY ID — verificat: 0 diferente).
-_DEDUPE = ("(SELECT gg.* FROM (SELECT g0.*, ROW_NUMBER() OVER "
-           "  (PARTITION BY g0.COD_UNIVERS ORDER BY g0.ID) RN0 "
-           "  FROM BIRO26_GOODS g0) gg WHERE gg.RN0 = 1)")
+# RO: din 02.09.2026 BIRO26_GOODS are UN singur rind per COD_UNIVERS (index
+#     unic UX_BIRO26_GOODS_CODUNIV, curatare prin scripts/biro26_goods_dedupe.py),
+#     deci join-ul e direct — fara ROW_NUMBER peste toata tabela.
+#     Masurat: filtrul pe grupa 0,50 s -> 0,10 s SQL fata de forma cu fereastra.
+_DEDUPE = "BIRO26_GOODS"
 
 
 def supports(search: Optional[str], price_min: Optional[float],

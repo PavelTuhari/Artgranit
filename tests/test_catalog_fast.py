@@ -79,3 +79,30 @@ class TestFastPathEqualsOld(unittest.TestCase):
                     self.assertEqual(a, b, str(kw))
         finally:
             F.supports = real
+
+
+class TestGoodsIsUnique(unittest.TestCase):
+    """RO: invariantul de care depinde join-ul simplu (02.09.2026): un singur
+    rind per COD_UNIVERS in BIRO26_GOODS, aparat de un index UNIC. Daca
+    testul pica, cineva a scos indexul sau a incarcat duplicate pe alta cale
+    — catalogul ar arata rinduri dublate."""
+
+    def test_no_duplicates_and_unique_index(self):
+        try:
+            from models.biro26_db import Biro26DB
+            from models.biro26_oracle_store import _rows
+            db = Biro26DB()
+            dup = _rows(db.execute_query(
+                "SELECT COUNT(*) N FROM (SELECT COD_UNIVERS FROM BIRO26_GOODS "
+                "WHERE COD_UNIVERS IS NOT NULL GROUP BY COD_UNIVERS "
+                "HAVING COUNT(*) > 1)"))
+            ix = _rows(db.execute_query(
+                "SELECT UNIQUENESS U FROM USER_INDEXES "
+                "WHERE INDEX_NAME = 'UX_BIRO26_GOODS_CODUNIV'"))
+        except Exception as e:                               # noqa: BLE001
+            self.skipTest("Oracle indisponibil: %s" % e)
+        if not dup:
+            self.skipTest("Oracle indisponibil (raspuns gol)")
+        self.assertEqual(int(dup[0]["n"]), 0, "BIRO26_GOODS are din nou duplicate")
+        self.assertTrue(ix and ix[0]["u"] == "UNIQUE",
+                        "lipseste indexul unic UX_BIRO26_GOODS_CODUNIV")

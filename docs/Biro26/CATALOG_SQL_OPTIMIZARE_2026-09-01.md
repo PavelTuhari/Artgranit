@@ -116,6 +116,47 @@ Doua invataminte, ambele acum in test:
   mare (join simplu, fara dedupare), dar cere DDL si curatare pe baza de
   productie plus o modificare in import. De discutat separat cu proprietarul.
 
+## Al doilea pas (02.09.2026): fara duplicate, cu index unic
+
+Proprietarul a aprobat: «вычистить дубликаты и повесить уникальный индекс —
+да, отдельным заходом».
+
+**Cit era de fapt de curatat.** Primul calcul (38.271 de rinduri) includea
+grupul `COD_UNIVERS IS NULL` — cele 34.437 de rinduri ale staging-ului Ultra,
+care nu sint duplicate. Real: **3.631 de coduri, 3.835 de rinduri in plus**,
+toate din vechile importuri Excel (coloana `SHEET` difera intre copii:
+«Rechizite de birou» vs «Articole din hirtie» etc.).
+
+**Ce s-a pastrat.** Pentru fiecare cod, rindul cu ID-ul cel mai mic — EXACT
+criteriul din interogarea catalogului (`ROW_NUMBER ... ORDER BY ID`), deci
+site-ul arata dupa curatare aceleasi date ca inainte. Copiile sterse stau in
+**`BIRO26_GOODS_DUP_BAK`** (3.835 de rinduri, cu `BAK_AT`) — se pot pune
+inapoi cu un `INSERT ... SELECT`.
+
+**De ce nu revin.** Importatorul curent, `BIRO26PT_IMPORTDATA`, face
+`MERGE ... ON (t.cod_univers = u.cod)`; `y_ai_BIRO26.add_product` insereaza
+doar coduri noi; `scripts/biro26_sync_sysgr_goods.py` insereaza cu
+`NOT EXISTS`; importul Ultra insereaza cu `COD_UNIVERS NULL` (neindexat).
+Indexul unic **`UX_BIRO26_GOODS_CODUNIV`** (in locul celui simplu
+`IX_BIRO26_GOODS_CODUNIV`) face imposibila orice alta cale.
+
+**Rulare** (o singura data — baza e comuna ambelor contururi):
+
+```bash
+venv/bin/python scripts/biro26_goods_dedupe.py        # dry-run
+venv/bin/python scripts/biro26_goods_dedupe.py --go
+```
+
+Jurnalul rularii din 02.09.2026 00:36: backup 3.835 → sterse 3.835 →
+index unic creat → 231.814 rinduri (din 235.649), duplicate ramase 0,
+`REZULTAT: OK`. DDL de referinta: `sql/biro26/20_biro26_goods_unique.sql`.
+
+**Efect in cod.** Ambele drumuri ale catalogului (`biro26_catalog_fast.py`
+si drumul vechi din `biro26_oracle_store.py`) fac acum `LEFT JOIN
+BIRO26_GOODS` direct. Masurat dupa curatare, filtru pe grupa: fereastra
+0,50 s → join simplu **0,10 s** SQL. Invariantul e aparat de
+`tests/test_catalog_fast.py::TestGoodsIsUnique`.
+
 ## Pragul de 1.500 lei — verificare separata
 
 Semnalul din sesiunea paralela („a disparut `CREDIT_MIN_ORDER`") s-a verificat

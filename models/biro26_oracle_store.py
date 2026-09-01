@@ -916,10 +916,11 @@ class Biro26Store:
                 f"{price_expr} RETAIL1, "
                 "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA "
                 "FROM TMS_UNIVERS u "
-                # dedupe: the feed holds a few identical duplicate rows per product
-                "LEFT JOIN (SELECT gg.* FROM (SELECT g0.*, ROW_NUMBER() OVER "
-                "  (PARTITION BY g0.COD_UNIVERS ORDER BY g0.ID) RN0 "
-                "  FROM BIRO26_GOODS g0) gg WHERE gg.RN0 = 1) g ON g.COD_UNIVERS = u.COD "
+                # RO: BIRO26_GOODS e unic pe COD_UNIVERS din 02.09.2026 (index
+                #     UX_BIRO26_GOODS_CODUNIV) — join direct, fara ROW_NUMBER
+                #     peste toata tabela la fiecare cerere.
+                # EN: unique feed since 02.09.2026 — plain join, no window dedupe.
+                "LEFT JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
                 # RO: pretul in vigoare la data ceruta / EN: price effective at the requested date
                 "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
                 "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
