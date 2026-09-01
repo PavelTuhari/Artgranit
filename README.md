@@ -112,6 +112,8 @@
     *   DDL: `sql/70_tbc_tables.sql`, `71_tbc_views.sql`, `72_tbc_demo_data.sql`, `73_tbc_processing.sql`, `74_tbc_processing_demo.sql`, `75_tbc_ops.sql`, `76_tbc_ops_demo.sql`, `77_tbc_settings.sql` (включены в `deploy_oracle_objects.py`; либо кнопка «Инициализация» в UI).
     *   **Хэш-инвайты** (`INV_LINKS`, `sql/78_invite_links.sql`): панель «🔗 Инвайты» создаёт ссылки `…/<модуль>?h=<hash>` с автологином (hash → модуль + логин/пароль); срок действия, лимит использований, учёт, отзыв; `before_request`-хук выполняет вход и убирает хэш из адресной строки.
     *   Документация: **`docs/TBControl/INDEX.md` (сводный вход)**, `TBCONTROL_MODULE.md` (справочник реализации), ТЗ — `TECHNICAL-OPS.md` (разделы 72–75), сценарии — `SCENARIOS.md`, HTML-презентация — `docs/TBControl/presentation.html`, исходник для NotebookLM — `PRESENTATION_GOOGLE_LM.md`.
+    *   **Инфраструктура (09.2026):** перегрев CPU cloudbd/PROXMOX3 — сбор t° через zabbix-агент, триггеры 52/60℃, Telegram (`docs/TBControl/CLOUDBD_TEMP_MONITOR.md`); почтовая очередь OTRS (`docs/OTRS/MAIL_QUEUE_DIAGNOSIS.md`).
+    *   **Мобильное приложение iPhone** (`ios/TBControlMobile/`, SwiftUI + xcodegen) по ТЗ `docs/TBControl/MOBILE_APP_TZ.md`: весь контур на одном экране, режим привлечения внимания при потере связи с Zabbix и выходе за температурные режимы; вход по хэш-инвайту.
 
 9.  **Планограммы (Planograms):** управление выкладкой товара и торговым пространством магазина — трёхъязычный модуль (**RU / RO / EN**).
     *   Маршрут `/UNA.md/orasldev/planograms`, API `/api/plg/*`, Oracle-объекты с префиксом `PLG_`.
