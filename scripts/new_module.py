@@ -36,7 +36,7 @@ def sh(cmd: list[str], cwd: Path = ROOT, check: bool = True) -> str:
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text.lstrip("\n"), encoding="utf-8")
-    print(f"   + {path.relative_to(path.parents[len(path.relative_to(ROOT.parent).parts) - 1])}")
+    print(f"   + {path}")
 
 
 # --------------------------------------------------------------------------- шаблоны
@@ -417,4 +417,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-'''
