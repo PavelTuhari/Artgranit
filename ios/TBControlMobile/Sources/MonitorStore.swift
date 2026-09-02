@@ -64,6 +64,7 @@ final class MonitorStore: ObservableObject {
 
     private func refreshZabbix() async {
         zabbix.lastAttempt = Date()
+        if zabbix.firstAttempt == nil { zabbix.firstAttempt = Date() }
         guard let url = URL(string: settings.zabbixURL) else { zabbix.lastError = "адрес Zabbix не задан"; return }
         let client = ZabbixClient(url: url, user: settings.zabbixUser, password: settings.zabbixPassword)
         do {
