@@ -290,6 +290,44 @@ plicul nostru.
 Din 31.08.2026 butonul «Verifică contul» arata si **IP-ul de iesire al
 serverului** — exact numarul care trebuie trimis la SFS.
 
+### Accesul a fost acordat (tichet SFS TT1651472, 02.09.2026)
+
+Raspunsul CTIF: accesul deschis conform cererii; portal de test
+`https://preproductie.sfs.md/` (autentificare cu semnatura electronica, ca pe
+sfs.md); platforma API de test `https://apiefactura-pre.sfs.md/`; utilizatorul
+API se creeaza din SIA e-Factura → Setări → Utilizatorii companiei → «Creați
+utilizator API»; ghidurile — la rubrica Ajutor.
+
+Masurat imediat dupa, de pe AMBELE adrese de iesire (93.115.136.18 si
+92.5.3.187):
+
+| Proba | Rezultat |
+|---|---|
+| `GET /Service.svc`, `?wsdl` pe mediul de proba | **200**, WSDL de 19.630 B (inainte: 403) |
+| contractul de proba vs cel real | **identic**: aceleasi 19 operatii, aceleasi tipuri (`PostInvocesRequest`, `SignRequest`, …), acelasi namespace DataContract |
+| `POST` gol | 400 (raspunsul WCF) |
+| `POST` cu `Content-Type: application/soap+xml` (SOAP 1.2) | 415 (raspunsul WCF) |
+| `POST` cu actiune inexistenta | 500, **pagina HTML** |
+| `POST Test` cu utilizator/parola invalide | 500, **pagina HTML** (`Server: nginx/1.30.1`) |
+
+Concluzia, importanta pentru depanare: cererile AJUNG la serviciu (400 si
+415 sint ale WCF), dar **orice fault SOAP — pe care WCF il trimite cu status
+500 — este inlocuit de nginx-ul SFS cu pagina lor HTML**. Textul erorii
+(autentificare gresita, XML respins de contract etc.) nu se poate citi de la
+SFS; doar apelul reusit (200) intoarce SOAP. De aceea clientul spune acum:
+**403 + HTML = IP-ul nu e pe lista; 500 + HTML = eroare SOAP mascata**, cel
+mai des utilizator/parola API gresite sau cont creat pe alt mediu decit
+adresa aleasa.
+
+**Ce urmeaza, din partea proprietarului** (cere semnatura electronica, nu se
+poate automatiza): intrare pe `https://preproductie.sfs.md/` cu semnatura →
+Cabinetul personal → SIA e-Factura → Setări → Utilizatorii companiei →
+«Creați utilizator API» — o data pentru primul semnatar (Tuhari Pavel) si o
+data pentru al doilea (Tuhari Oxana). Perechile utilizator/parola se scriu in
+pagina probei (`/UNA.md/orasldev/efactura/test`), adresa = «mediu de probă»,
+apoi «🔌 Verifică contul». Un ✅ acolo inseamna ca lantul e intreg; abia apoi
+se trimite prima factura de proba si se compara XML-ul cu XSD-ul din Ajutor.
+
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 
 Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio

@@ -206,12 +206,25 @@ class SfsClient:
             #     nostru nu e pe lista lor de acces (verificat 31.08.2026:
             #     GET pe ?wsdl merge, POST intoarce o pagina HTML 500).
             if raw.lstrip()[:9].lower().startswith(("<!doctype", "<html")):
+                # RO: masurat 02.09.2026, dupa deschiderea accesului: POST gol
+                #     -> 400, SOAP 1.2 -> 415 (raspunsuri ale WCF), dar ORICE
+                #     fault SOAP (statut 500) vine inapoi ca pagina HTML a
+                #     portalului. Deci: 403 = IP-ul nu e pe lista; 500 = o
+                #     eroare SOAP mascata (cel mai des utilizator/parola API
+                #     gresite sau cont creat pe alt mediu) — textul ei nu se
+                #     poate citi de la SFS, doar apelul reusit intoarce SOAP.
+                if e.code == 403:
+                    msg = ("Accesul e restricționat (403): IP-ul de ieșire al "
+                           "acestui server nu e pe lista SFS. Se cere la "
+                           "asistenta@sfs.md, cu IP-ul serverului.")
+                else:
+                    msg = ("Serviciul a răspuns cu o eroare SOAP (status %s), "
+                           "iar portalul SFS îi ascunde textul în spatele unei "
+                           "pagini HTML. Cel mai des: utilizatorul sau parola "
+                           "API greșite, ori contul creat pe alt mediu (de "
+                           "probă vs real) decât adresa aleasă." % e.code)
                 return {"success": False, "status": e.code, "raw": raw,
-                        "error": ("Serviciul a răspuns cu o pagină HTML "
-                                  "(status %s), nu cu SOAP: cel mai probabil "
-                                  "accesul nu e deschis pentru IP-ul acestui "
-                                  "server. Adresa de ieșire trebuie trimisă "
-                                  "la SFS (asistenta@sfs.md)." % e.code)}
+                        "error": msg}
             return {"success": False, "status": e.code,
                     "error": self._fault(raw) or raw[:400], "raw": raw}
         except Exception as e:                               # noqa: BLE001

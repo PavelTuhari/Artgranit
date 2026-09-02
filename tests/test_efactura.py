@@ -370,3 +370,31 @@ class TestEgressIp(unittest.TestCase):
             r = testff.ping({"username": "u", "password": "p"})
         self.assertEqual(r["data"]["ip_server"]["reply"][:11], "203.0.113.7")
         self.assertIn("asistenta@sfs.md", r["data"]["ip_server"]["reply"])
+
+
+class TestMaskedFault(unittest.TestCase):
+    """RO: portalul SFS inlocuieste orice raspuns 500 (fault SOAP) cu o pagina
+    HTML, iar 403 e filtrul de IP — mesajul trebuie sa le deosebeasca
+    (masurat 02.09.2026: POST gol -> 400, SOAP 1.2 -> 415, fault -> 500 HTML)."""
+
+    def _call(self, code):
+        import io
+        import urllib.error
+        from unittest import mock
+        from modules.efactura import sfs
+        c = sfs.SfsClient(sfs.ENDPOINT_TEST, "u", "p")
+        err = urllib.error.HTTPError(c.endpoint, code, "x", {},
+                                     io.BytesIO(b"<!DOCTYPE html><html>500</html>"))
+        with mock.patch("urllib.request.urlopen", side_effect=err):
+            return c.call("Test", "<message>ping</message>")
+
+    def test_403_means_ip(self):
+        r = self._call(403)
+        self.assertFalse(r["success"])
+        self.assertIn("IP", r["error"])
+
+    def test_500_means_masked_soap_fault(self):
+        r = self._call(500)
+        self.assertFalse(r["success"])
+        self.assertIn("parola", r["error"])
+        self.assertNotIn("IP-ul", r["error"])
