@@ -46,12 +46,14 @@ enum LinkState: String {
 struct LinkInfo: Equatable {
     var lastOK: Date?
     var lastAttempt: Date?
+    var firstAttempt: Date?
     var lastError: String?
     var latencyMs: Int?
 
-    /// «Потеряна» считается по последнему УСПЕШНОМУ опросу (ТЗ §4).
+    /// «Потеряна» считается по последнему УСПЕШНОМУ опросу (ТЗ §4);
+    /// если успеха ещё не было — от первой попытки.
     func state(staleMin: Int, lostMin: Int, now: Date = Date()) -> LinkState {
-        guard let ok = lastOK else { return lastAttempt == nil ? .unknown : .lost }
+        guard let ok = lastOK ?? firstAttempt else { return .unknown }
         let m = now.timeIntervalSince(ok) / 60
         if m >= Double(lostMin) { return .lost }
         if m >= Double(staleMin) { return .stale }
