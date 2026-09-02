@@ -116,8 +116,9 @@ final class MonitorStore: ObservableObject {
                                        detail: "последний успешный опрос: \(mins)" + (zabbix.lastError.map { " · \($0)" } ?? ""),
                                        since: zabbix.lastOK ?? now))
         } else if zabbix.lastOK == nil, zabbix.lastAttempt != nil {
-            items.append(AttentionItem(key: "link:zabbix", level: settings.outsideVPN ? .notice : .warning,
-                                       title: "Zabbix недоступен", detail: zabbix.lastError ?? "", since: now))
+            // до первого успеха — только жёлтая полоса; эскалация пойдёт по таймеру от первой попытки
+            items.append(AttentionItem(key: "link:zabbix", level: .notice,
+                                       title: "Zabbix ещё не отвечал", detail: zabbix.lastError ?? "", since: now))
         }
 
         // 2. Связь с TBControl — уровнем ниже
