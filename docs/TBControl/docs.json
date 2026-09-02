@@ -1,0 +1,23 @@
+{
+  "INDEX.md": {"slug": "index", "public": true, "icon": "◆", "cls": "g", "order": 10,
+    "title": "TBControl — сводный вход", "audience": "для всех",
+    "descr": "Живые ссылки, карта документации, состав системы, кейсы, инвайты."},
+  "TECHNICAL-OPS.md": {"slug": "tz", "public": false, "icon": "§", "cls": "v", "order": 20,
+    "title": "ТЗ / целевая архитектура", "audience": "для архитекторов и разработчиков",
+    "descr": "75 разделов: Zabbix-платформа, business-first мониторинг, Monitoring/Processing Center, AI-досье."},
+  "TBCONTROL_MODULE.md": {"slug": "module", "public": false, "icon": "⚙", "cls": "", "order": 30,
+    "title": "Справочник реализации", "audience": "для разработчиков",
+    "descr": "Таблицы TBC_*, API /api/tbc/*, heartbeat, локальный запуск, remote deploy, checklist."},
+  "SCENARIOS.md": {"slug": "cases", "public": true, "icon": "▶", "cls": "g", "order": 40,
+    "title": "10 кейсов полезности", "audience": "для руководства и эксплуатации",
+    "descr": "Свет, интернет, банк, MEV, жара, мороз, очереди, поддержка, AI-досье на демо-сети франшизы."},
+  "CLOUDBD_TEMP_MONITOR.md": {"slug": "temp", "public": false, "icon": "🌡", "cls": "v", "order": 50,
+    "title": "Перегрев CPU cloudbd / PROXMOX3", "audience": "для эксплуатации",
+    "descr": "Диагностика, сбор t° через zabbix-агент, триггеры 52/60℃, Telegram-алерты, проверка вживую."},
+  "MOBILE_APP_TZ.md": {"slug": "mobile", "public": false, "icon": "📱", "cls": "", "order": 60,
+    "title": "ТЗ мобильного приложения (iPhone)", "audience": "для разработчиков и заказчика",
+    "descr": "Экраны, источники данных, режим привлечения внимания при потере связи и перегреве, приёмка."},
+  "PRESENTATION_GOOGLE_LM.md": {"slug": "lm", "public": false, "icon": "🎞", "cls": "", "order": 70,
+    "title": "Исходник для NotebookLM", "audience": "для презентаций",
+    "descr": "Позиционирование, архитектура, сценарии, структура 13 слайдов."}
+}

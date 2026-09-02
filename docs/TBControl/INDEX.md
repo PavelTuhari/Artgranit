@@ -126,3 +126,32 @@ curl -I https://nufarul.eminescu.md/login          # → HTTP/2 200
 
 Особенность: Zabbix живёт в LAN `192.168.0.0/24` — коннектор запускается с
 локального инстанса; production видит все события через общую Oracle ADB.
+
+---
+
+## 6. Мониторинг инфраструктуры: cloudbd, PROXMOX3, OTRS (09.2026)
+
+| Документ | Что внутри |
+|---|---|
+| [CLOUDBD_TEMP_MONITOR.md](CLOUDBD_TEMP_MONITOR.md) | **Перегрев CPU cloudbd/PROXMOX3**: диагностика («перезагрузки» не было — uptime 60 дн), сбор t° через coretemp → zabbix-агент, items `cpu.temp[1|2]`, триггеры >52℃ (average) / ≥60℃ (disaster), алерты в Telegram; end-to-end проверка на реальном превышении. Скрипты: [cloudbd_temp/](cloudbd_temp/) |
+| [../OTRS/MAIL_QUEUE_DIAGNOSIS.md](../OTRS/MAIL_QUEUE_DIAGNOSIS.md) | **Дневные отчёты OTRS не доходили**: переполнение буфера `varchar2(4000)` в `send_email_api_php`, утечка HTTP-дескрипторов, отсутствие повторов; исправление в OTRS/TICKETS/GARABTA/VALORENERGY; скан 143 схем `cloudbd` |
+| [MOBILE_APP_TZ.md](MOBILE_APP_TZ.md) | **ТЗ мобильного приложения** (iPhone): весь контур на одном экране, режим «привлечения внимания» при потере связи с Zabbix и при выходе за температурные режимы |
+| `ios/TBControlMobile/` | Исходники iOS-приложения по ТЗ (SwiftUI, xcodegen) — см. README там же |
+
+## 7. Состояние кода после 01.09.2026 — что утеряно
+
+Проверка по правилу №2 CLAUDE.md показала: часть работы предыдущих сессий
+**затёрта и не восстанавливается** (ни в git, ни на проде, ни в транскриптах):
+
+| Утеряно | Что осталось |
+|---|---|
+| `models/zabbix_svc.py` (mTLS-источник сервисов Zabbix unisim-soft.com) | таблица `TBC_SERVICES` в ADB |
+| `models/proxmox_svc.py` (источник Proxmox под сертификатом) | таблица `TBC_PVE_OBJECTS`, события `source=proxmox` в `TBC_EVENTS` |
+| `sql/79b…79e_*.sql` (mTLS-колонки, типы досье, Proxmox, `TBC_CERTS`) | таблица `TBC_CERTS` в ADB |
+| методы контроллера `get_services/sync_services/sync_proxmox/get_proxmox/get_certs/check_certs` | маршрут `/api/tbc/services` в `app.py` остался и отдаёт **500** |
+| панели `services/proxmox` в `templates/tbcontrol.html`, `docs/TBControl/MTLS_SOURCE.md` | — |
+
+Работающими остались: источники `emulator`/`zabbix`/`unisim_cassa`, Cassa
+Monitor, AI-досье, инвайты, отчёты. Восстанавливать — заново и **только
+изолированными файлами** (`models/tbc_*.py` + вызов в одну строку), как велит
+правило №2.
