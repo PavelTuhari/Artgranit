@@ -88,6 +88,7 @@ final class MonitorStore: ObservableObject {
 
     private func refreshTBC() async {
         tbc.lastAttempt = Date()
+        if tbc.firstAttempt == nil { tbc.firstAttempt = Date() }
         guard let url = URL(string: settings.tbcBaseURL) else { tbc.lastError = "адрес TBControl не задан"; return }
         do {
             let s = try await TBCClient(base: url, inviteHash: settings.inviteHash).fetch()
