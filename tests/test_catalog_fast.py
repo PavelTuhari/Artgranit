@@ -51,14 +51,19 @@ class TestFastPathEqualsOld(unittest.TestCase):
     """RO: acelasi rezultat ca drumul vechi (cere Oracle; se sare fara el)."""
 
     def test_same_rows(self):
-        try:
-            from models import biro26_catalog_fast as F
-            from models.biro26_oracle_store import Biro26Store as S
-            probe = S.get_products_stock(limit=1)
-            if not probe.get("success"):
-                self.skipTest("Oracle indisponibil: %s" % probe.get("error"))
-        except Exception as e:                               # noqa: BLE001
-            self.skipTest("Oracle indisponibil: %s" % e)
+        # RO: importul NU e in try — o eroare de sintaxa/conflict in store
+        #     trebuie sa PICE testul, nu sa-l sara (02.09.2026: un fisier cu
+        #     markeri de conflict a trecut «verde» fiindca importul cadea in
+        #     skipTest). Se sare doar cind baza chiar nu raspunde.
+        from models import biro26_catalog_fast as F
+        from models.biro26_oracle_store import Biro26Store as S
+        probe = S.get_products_stock(limit=1)
+        if not probe.get("success"):
+            err = str(probe.get("error"))
+            if any(t in err for t in ("ORA-12", "DPY-", "wallet", "TNS",
+                                       "timed out", "worker")):
+                self.skipTest("Oracle indisponibil: %s" % err[:120])
+            self.fail("interogarea de catalog a picat: %s" % err[:300])
         real = F.supports
         try:
             for kw in COMBOS:
@@ -88,9 +93,9 @@ class TestGoodsIsUnique(unittest.TestCase):
     — catalogul ar arata rinduri dublate."""
 
     def test_no_duplicates_and_unique_index(self):
+        from models.biro26_db import Biro26DB
+        from models.biro26_oracle_store import _rows
         try:
-            from models.biro26_db import Biro26DB
-            from models.biro26_oracle_store import _rows
             db = Biro26DB()
             dup = _rows(db.execute_query(
                 "SELECT COUNT(*) N FROM (SELECT COD_UNIVERS FROM BIRO26_GOODS "

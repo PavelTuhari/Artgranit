@@ -85,14 +85,13 @@ def build_gset_block(profile: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-<<<<<<< ours
 # RO: de cite ori s-au schimbat setarile de la pornirea procesului. Vitrina
 #     tine partea comuna in memorie; dupa acest numar intelege ca trebuie
 #     recitita, fara ca depozitul sa stie ceva despre cache-ul aplicatiei.
 # EN: how many times settings changed since start. The storefront cache keys
 #     off this number, so the store needs to know nothing about the cache.
 SETTINGS_EPOCH = 0
-=======
+
 # ── RO: cache in memorie pentru interogarile GRELE si RAR schimbatoare ──
 #    Fiecare interogare Oracle trece printr-un subproces thick (~0,4 s doar
 #    pornirea), iar arborele de grupe costa ~1,6 s si se schimba o data pe zi,
@@ -172,7 +171,6 @@ def cache_clear(prefix: str = "") -> int:
     except OSError:
         pass
     return len(keys)
->>>>>>> theirs
 
 
 class Biro26Store:
@@ -970,13 +968,13 @@ class Biro26Store:
             # RO: sortare — alfabetic (implicit) sau dupa pretul efectiv
             # EN: sorting — alphabetical (default) or by effective price
             if sort == "price_asc":
-                inner += f" ORDER BY {price_expr} ASC NULLS LAST, u.DENUMIREA"
+                inner += f" ORDER BY {price_expr} ASC NULLS LAST, u.DENUMIREA, u.COD"
             elif sort == "price_desc":
-                inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA"
+                inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA, u.COD"
             elif sort == "name_desc":
-                inner += " ORDER BY u.DENUMIREA DESC"
+                inner += " ORDER BY u.DENUMIREA DESC, u.COD"
             else:
-                inner += " ORDER BY u.DENUMIREA"
+                inner += " ORDER BY u.DENUMIREA, u.COD"
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
             outer = (
                 "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
