@@ -100,3 +100,7 @@ wordpress_officeplus/db/
 wordpress/servouts26/public_html/
 wordpress/servouts26/db/
 .playwright-mcp/
+
+# TBControl Mobile: генерируется xcodegen из project.yml
+ios/TBControlMobile/TBControlMobile.xcodeproj/
+ios/TBControlMobile/Info.plist
