@@ -38,6 +38,8 @@ DEFAULTS = {
     "seller_iban": "",
     "seller_bank_code": "",
     "seria": "",
+    # RO: cota TVA folosita cind documentul ERP nu are TVA calculat
+    "tva_rate": "20",
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }

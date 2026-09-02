@@ -464,3 +464,25 @@ class TestQueueParsing(unittest.TestCase):
         from modules.efactura import testff
         self.assertEqual(testff.queue_invoices(""), [])
         self.assertEqual(testff.queue_invoices("<x/>"), [])
+
+
+class TestBackofficeMapping(unittest.TestCase):
+    """RO: lectiile contului real A-88 (02.09.2026)."""
+
+    def test_taxpayer_type_inferred_from_idnp(self):
+        from xml.etree import ElementTree as ET
+        from modules.efactura import sfs
+        xml = sfs.build_invoice_xml(
+            {"items": [{"name": "x", "qty": 1, "price": 1, "sum": 1}],
+             "client_idno": "2003004025284", "client_name": "Persoana"},
+            {"idno": "1026602001837", "name": "Firma"})
+        inf = ET.fromstring(xml).find("Document/SupplierInfo")
+        self.assertEqual(inf.find("Supplier").get("TaxpayerType"), "1")
+        self.assertEqual(inf.find("Buyer").get("TaxpayerType"), "2")
+
+    def test_tva_rate_from_document(self):
+        from modules.efactura.controller import EfaController as C
+        self.assertEqual(C._tva_rate(1200.0, 200.0, {}), 20.0)
+        self.assertEqual(C._tva_rate(1080.0, 80.0, {}), 8.0)
+        self.assertEqual(C._tva_rate(20149.0, 0.0, {"tva_rate": "20"}), 20.0)
+        self.assertEqual(C._tva_rate(100.0, 0.0, {"tva_rate": "0"}), 0.0)

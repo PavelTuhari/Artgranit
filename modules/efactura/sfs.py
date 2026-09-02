@@ -468,10 +468,18 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
 
     def party(tag: str, p: Dict[str, Any], idno: Any, name: Any, addr: Any,
               with_bank: bool) -> str:
+        # RO: TaxpayerType 1 = juridic, 2 = persoana fizica, 3 = nerezident.
+        #     Daca nu e dat, se deduce: IDNO-urile firmelor incep cu 1,
+        #     IDNP-urile persoanelor cu 2 (vazut pe contul A-88: cumparator
+        #     persoana fizica cu IDNP 2003…, marcat gresit ca juridic).
+        tt = p.get("taxpayer_type")
+        if not tt:
+            digits = "".join(ch for ch in str(idno or "") if ch.isdigit())
+            tt = 2 if (len(digits) == 13 and digits.startswith("2")) else 1
         out = (f"<{tag} IDNO=\"{_attr(idno)}\" Title=\"{_attr(name)}\" "
                f"Address=\"{_attr(addr)}\" NResident=\"false\" "
                f"IsSupplierOnly=\"false\" "
-               f"TaxpayerType=\"{int(p.get('taxpayer_type') or 1)}\"")
+               f"TaxpayerType=\"{int(tt)}\"")
         if p.get("cod_tva"):
             out += f' CodTVA="{_attr(p.get("cod_tva"))}"'
         acc = p.get("iban") or p.get("account")

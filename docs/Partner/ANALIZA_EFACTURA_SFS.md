@@ -401,6 +401,27 @@ Lectia de metoda: fiecare din cele trei erori s-a citit din raspunsul SOAP
 intreg, pastrat in `EFA_CALL` — fara jurnalul complet, «Object reference not
 set» nu s-ar fi putut lega de nodurile lipsa.
 
+### Drumul din back-office, verificat pe un document REAL (fara trimitere)
+
+`EfaController.preview_xml(402)` — contul A-88 din ERP (cumparator persoana
+fizica, un laptop de 19.999 lei) — produce un XML **valid fata de XSD**
+(`xmllint`). Trei corectii au iesit din el, toate in cod acum:
+
+1. banca vinzatorului (`BranchTitle`) si banca cumparatorului lipseau, desi
+   ERP-ul le stie (`firm.bank`, `client.iban/bank/bic`) — se pun;
+2. cumparatorul cu IDNP `2003…` era marcat `TaxpayerType=1` (juridic) — acum
+   se deduce: IDNO pe 1 = juridic, IDNP pe 2 = persoana fizica;
+3. cota TVA era 20 fix, iar documentul avea `tva = 0` la 20.149 lei — am fi
+   raportat 3.358 lei TVA care nu exista in document. Acum cota se deduce din
+   document (tva / baza, rotunjita la 20/12/8/0), iar fara TVA in document se
+   ia setarea noua `tva_rate` (implicit 20). **De verificat cu contabilul**:
+   pentru contul A-88 ERP-ul chiar nu calculeaza TVA sau e o lipsa a
+   raportului? Raspunsul decide valoarea setarii.
+
+Ce ramine pentru mediul real: contul API real (creat pe `sfs.md`, nu pe
+portalul de test), adresa `efactura-api.sfs.md` in Setari e-Factura, accesul
+IP pe mediul real (cererea: `SCRISOARE_ACCES_EFACTURA_PROD.md`).
+
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 
 Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio

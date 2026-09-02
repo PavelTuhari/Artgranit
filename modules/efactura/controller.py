@@ -49,6 +49,8 @@ class EfaController:
             "address": s.get("seller_address") or firm.get("address"),
             "iban": s.get("seller_iban") or firm.get("iban"),
             "bank_code": s.get("seller_bank_code") or firm.get("branch"),
+            # RO: XSD: BankAccount@BranchTitle = denumirea bancii
+            "bank_name": firm.get("bank"),
         }
         # RO: aplatizam documentul in forma asteptata de constructorul XML
         total = float(raw.get("total") or 0)
@@ -59,14 +61,35 @@ class EfaController:
             "client_name": client.get("name"),
             "client_idno": client.get("fiscal_code"),
             "client_address": client.get("address"),
+            # RO: banca cumparatorului — ERP-ul o stie (exportul real al SFS
+            #     o are mereu); XML-ul o pune doar daca exista IBAN.
+            "client_iban": client.get("iban"),
+            "client_bank": client.get("bank"),
+            "client_bank_code": client.get("bic"),
             "items": raw.get("items") or [],
             "total": total,
             "tva": tva,
             "total_fara_tva": round(total - tva, 2),
-            "tva_rate": 20,
+            # RO: cota TVA se deduce din document cind el are TVA calculat;
+            #     altfel se ia din setari (`tva_rate`, implicit 20). Pe A-88
+            #     ERP-ul dadea tva=0 la un total de 20.149 lei — cu 20 fix am
+            #     fi raportat 3.358 lei TVA inexistent in document.
+            "tva_rate": EfaController._tva_rate(total, tva, s),
         }
         return {"success": True, "doc": doc, "seller": seller, "raw": raw,
                 "client_cod": r.get("client_cod"), "settings": s}
+
+    @staticmethod
+    def _tva_rate(total: float, tva: float, settings: Dict[str, Any]) -> float:
+        """RO: cota din document (tva / baza), rotunjita la cotele legale
+        (20, 12, 8, 0); fara TVA in document -> setarea `tva_rate`."""
+        if total and tva and total > tva:
+            pct = round(tva / (total - tva) * 100)
+            return float(min((20, 12, 8, 0), key=lambda k: abs(k - pct)))
+        try:
+            return float(settings.get("tva_rate") or 20)
+        except (TypeError, ValueError):
+            return 20.0
 
     @staticmethod
     def _iso_date(dmy: Optional[str]) -> Optional[str]:
