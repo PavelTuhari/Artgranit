@@ -41,6 +41,16 @@ doua coloane de ~870px.
    cu backup `site_base.html.bak-link-*`), cu comentariu «nu o stergeti».
 3. Pe nufarul, unde sablonul e al nostru, a ajuns doar foaia CSS.
 
+4. Denumirea se taie pe desktop la **4 rinduri** (`-webkit-line-clamp`), tot
+   in plasa de siguranta: in «Piese Imprimanta» denumirile de 6-7 rinduri
+   urcau cardul la 518px. Masurat dupa: card 217×435px (inainte 873×518).
+5. **Cache-ul static**: biroul serveste statica cu `max-age=604800` (7 zile),
+   iar `?v=` vine din `DEPLOY_COMMIT` (citit o data, la pornire). Un CSS
+   inlocuit fara schimbarea versiunii ramine invizibil o saptamina pentru
+   vizitatorii care revin — de aceea `DEPLOY_COMMIT` a fost trecut pe
+   commit-ul curent si serviciul repornit. De fiecare data cind se schimba
+   statica pe birou: **schimbati DEPLOY_COMMIT si reporniti**.
+
 ## Cum se verifica
 
 Pe `https://officeplus.md/catalog?grupa=Piese+Imprimanta&page=3`, la 1440px
