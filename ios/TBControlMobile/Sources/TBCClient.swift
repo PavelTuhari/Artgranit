@@ -31,8 +31,6 @@ struct TBCClient {
     }
 
     private func getJSON(_ path: String) async throws -> [String: Any] {
-        var comp = URLComponents(url: base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
-        comp.percentEncodedQuery = path.contains("?") ? nil : comp.percentEncodedQuery
         let url = URL(string: base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + path)!
         let (data, resp): (Data, URLResponse)
         do { (data, resp) = try await session.data(from: url) }
