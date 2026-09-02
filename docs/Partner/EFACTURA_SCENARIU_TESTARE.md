@@ -84,7 +84,10 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
     merge pe HTTP simplu, sub `/api/biro26/efactura/…` — singurul prefix pe
     care intrarea officeplus.md nu-l redirecteaza la HTTPS (Oracle 11g nu are
     wallet TLS). Verificat din Oracle: trimitere, refuz cu mesaj in romana,
-    ORA-20000 cu textul erorii.
+    ORA-20000 cu textul erorii. Actiunea insasi e inregistrata in
+    configuratorul aplicatiei native (A$ADM/A$ADP, OBJ_ID 11522, formularul
+    «CONT la plata»), clona actiunii «Сгенерировать счета» — script
+    idempotent `efactura_native_action.py`.
 15. **Parolele**: niciodata in pagina/jurnal/chat. In browser — managerul
     de parole (Safari → Keychain); pentru probe automate — macOS Keychain
     (`security add-generic-password -s efactura-api-pre -a <utilizator> -w`),

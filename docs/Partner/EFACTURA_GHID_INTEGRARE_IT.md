@@ -84,6 +84,20 @@ Lista completa, cu raspunsurile care le-au dezvaluit:
 `BankAccount` x2, `VehicleLogbook`, `Redirections`); data doar azi…+10;
 normalizarea din registru; erorile SOAP mascate de HTML; accesul pe IP.
 
+## 4a. Actiunea din back-office-ul nativ una.md
+
+Back-office-ul nativ (uniConf.exe) tine actiunile formularelor in
+`A$ADM` (obiect: tip 1/subtip 2, parinte = tipul de document, nume RU/RO/EN,
+`SECTION` unic) si `A$ADP` (proprietati; `SQL1` = blocul PL/SQL executat cu
+`:nrdoc`). «Contul de plata» e obiectul 11476. Actiunea e-Factura e clona
+lui — `scripts/efactura_native_action.py` (idempotent; `--remove` o
+scoate) — cu `SQL1 = BEGIN commit; EFA_NATIVE.send_doc_pr(:nrdoc); END;`.
+Pachetul `EFA_NATIVE` (`sql/03_efa_native.sql`) face UTL_HTTP pe
+`http://officeplus.md/api/biro26/efactura/…` (HTTP simplu — Oracle 11g nu
+are wallet TLS; prefixul e singurul neredirectat la HTTPS). Cheia:
+`YBIRO_SETTINGS.API_GEN_KEY`. Pe 02.09.2026: OBJ_ID 11522, verificat din
+Oracle cu un document real (`HTTP 200, SENT`) si cu drumurile de eroare.
+
 ## 5. Go-live la client — checklist
 
 1. Clientul (firma care EMITE facturile) isi creeaza conturile API pe

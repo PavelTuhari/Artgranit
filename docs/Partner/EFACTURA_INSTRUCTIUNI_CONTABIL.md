@@ -53,11 +53,13 @@ aceeași cale și se vede în aceeași listă.
 
 ## 4. Transmiterea din back-office-ul nativ una.md — acțiunea «Выгрузить в e-Factura»
 
-Documentul se întocmește ca de obicei. Din formularul documentului se
-apelează acțiunea **«Выгрузить в e-Factura»** — ea execută în Oracle:
+Documentul se întocmește ca de obicei. În formularul **«CONT la plata»**,
+în lista de acțiuni — lîngă «Сгенерировать счета» — există acțiunea
+**«Выгрузить в e-Factura»** (înregistrată 02.09.2026, obiectul 11522 al
+configuratorului, exact ca acțiunea contului de plată). Ea execută în Oracle:
 
 ```sql
-BEGIN EFA_NATIVE.send_doc_pr(:COD); END;   -- COD = codul intern al documentului
+BEGIN commit; EFA_NATIVE.send_doc_pr(:nrdoc); END;   -- nrdoc = codul intern al documentului
 ```
 
 Ce se întîmplă: Oracle apelează serverul web (ca la «Contul de plată»),
