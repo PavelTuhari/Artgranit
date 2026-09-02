@@ -368,6 +368,39 @@ inregistrat in e-Factura. Pe pagina s-a vazut doar un JSON taiat, iar
    Test pe ambele conturi → factura de 1 leu → PostInvoices → cozile Order
    1/2 → jurnalul. Fara `--send` nu trimite nimic; `--real` = mediul real.
 
+### ✅ Prima factura ACCEPTATA de SIA e-Factura (02.09.2026, 21:19, mediu de proba)
+
+Proba automata de pe Mac (`efactura_smoke.py`, parolele din Keychain), 1 leu,
+furnizor = cumparator = UNISIM-SOFT. Trei raspunsuri reale, in ordine, au dus
+la forma corecta a XML-ului — fiecare e in jurnalul `EFA_CALL`:
+
+| Trimitere | Raspunsul SFS | Ce s-a corectat |
+|---|---|---|
+| 20:52, 20:57 (pagina) | `Validation failed: The 'Invoices' element is not declared…` | XML dupa `TaxInvoiceSchema.xsd` |
+| 21:18 | `Motivul Crearii este indicat incorect trebue sa fie 4 sau 5` | `CreationMotiv` = 4 (Livrare) |
+| 21:18 | `Object reference not set to an instance of an object` | nodurile din exportul real: `VehicleLogbook`, `Redirections`, `NResident`/`IsSupplierOnly`, `BankAccount` si la cumparator, date cu ora si fus `+03:00` |
+| **21:19** | **`Status 2, TotalInvoices 1, TotalInvoicesPosted 1`** | — |
+
+Nr. **TEST-09022119**, seria TST. Imediat dupa: coada primei semnaturi
+(`GetInvoicesForSigning`, Order 1, contul `ptuhari`) — **1 factura**; coada a
+doua (Order 2, `otuhari`) — 0, corect: pina la prima semnatura nu are ce
+astepta. Documentul se vede pe `https://preproductie.sfs.md/` → SIA
+e-Factura → facturile de semnat, si se semneaza acolo (semnatura ramine la
+oameni).
+
+**Ce face SFS cu documentul primit** (vazut in raspunsul cozii, `XmlInvoice/Xml`):
+`Seria` si `Number` vin GOALE — le atribuie sistemul la semnare (XSD-ul o
+spune: «se importă … dacă factura este semnată»); `Title` si `Address` ale
+furnizorului si cumparatorului sint INLOCUITE cu cele din registrul fiscal,
+dupa IDNO («"UNISIM-SOFT" S.R.L.», «SEC.BUIUCANI Alba-Iulia nr.75 bl.B»);
+`InvoiceStatus 0` = nesemnata. Deci ce trimitem noi ca denumire/adresa e
+doar orientativ — decide registrul. Pagina arata acum, la cozi, exact ce e IN
+sistem: total, prima pozitie, cumparatorul, starea.
+
+Lectia de metoda: fiecare din cele trei erori s-a citit din raspunsul SOAP
+intreg, pastrat in `EFA_CALL` — fara jurnalul complet, «Object reference not
+set» nu s-ar fi putut lega de nodurile lipsa.
+
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 
 Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio

@@ -166,7 +166,7 @@ def send(payload: Dict[str, Any], src: str = "test") -> Dict[str, Any]:
                                 number=doc["nrmanual"])
     # RO: NUMAI contul scris in formular — pagina probei nu se leaga de
     #     setarile vreunui magazin (vezi sfs.SfsClient.from_api).
-    client = sfs.SfsClient.from_api(payload.get("api"), signer=1)
+    client = sfs.SfsClient.from_api(payload.get("api"), signer=1, src=src)
     if not client.configured():
         return {"success": False, "xml": xml, "error":
                 "Completati contul API e-Factura (utilizator si parola) "
@@ -239,7 +239,8 @@ def _egress_ip() -> str:
     return _EGRESS["ip"]
 
 
-def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def ping(api: Optional[Dict[str, Any]] = None,
+         src: str = "test-page") -> Dict[str, Any]:
     """RO: verifica AMBELE conturi API date in formular, fara sa trimita
     nimic in sistem — asa directorul vede ca datele lui sint bune inainte
     de a emite proba. Prima linie e despre ADRESA, nu despre cont."""
@@ -253,7 +254,7 @@ def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         # RO: fara retea, apelurile SOAP ar da doar acelasi mesaj de trei ori
         return {"success": True, "data": out}
     for label, signer in (("prima_semnatura", 1), ("a_doua_semnatura", 2)):
-        c = sfs.SfsClient.from_api(api, signer=signer)
+        c = sfs.SfsClient.from_api(api, signer=signer, src=src)
         if not c.configured():
             out[label] = {"configured": False}
             continue
@@ -264,17 +265,61 @@ def ping(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     return {"success": True, "data": out}
 
 
-def signing_queues(api: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def signing_queues(api: Optional[Dict[str, Any]] = None,
+                   src: str = "test-page") -> Dict[str, Any]:
     """RO: ce asteapta prima si a doua semnatura — pentru butonul din pagina
     de test: se vede imediat daca proba a ajuns in coada de semnare."""
     out = {}
     for label, signer, order in (("prima_semnatura", 1, sfs.SIGN_FIRST),
                                  ("a_doua_semnatura", 2, sfs.SIGN_SECOND)):
-        c = sfs.SfsClient.from_api(api, signer=signer)
+        c = sfs.SfsClient.from_api(api, signer=signer, src=src)
         if not c.configured():
             out[label] = {"configured": False}
             continue
         r = c.get_for_signing(order=order)
+        invs = queue_invoices(r.get("raw", "")) if r.get("success") else []
         out[label] = {"configured": True, "ok": r.get("success"),
-                      "reply": str(r.get("parsed") or r.get("error"))[:300]}
+                      "count": len(invs), "invoices": invs[:20],
+                      "reply": (("%d factură/facturi în așteptare" % len(invs))
+                                if r.get("success") else str(r.get("error"))[:300])}
     return {"success": True, "data": out}
+
+
+def queue_invoices(raw: str) -> List[Dict[str, Any]]:
+    """RO: lista lizibila din raspunsul GetInvoicesForSigning.
+
+    Structura (masurata 02.09.2026): Results/XmlInvoice cu Number, Seria,
+    Status, InvoiceStatus si Xml (documentul, ca text). SFS NORMALIZEAZA ce
+    a primit: Seria/Number vin goale pina la semnare (le da sistemul), iar
+    Title/Address ale partilor sint inlocuite cu cele din registrul fiscal
+    dupa IDNO — de aceea aratam ce e IN sistem, nu ce am trimis noi.
+    """
+    from xml.etree import ElementTree as ET
+    out: List[Dict[str, Any]] = []
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return out
+    for el in root.iter():
+        if el.tag.split("}")[-1] != "XmlInvoice":
+            continue
+        rec: Dict[str, Any] = {}
+        for ch in el:
+            rec[ch.tag.split("}")[-1]] = (ch.text or "").strip()
+        item = {"seria": rec.get("Seria", ""), "number": rec.get("Number", ""),
+                "invoice_status": rec.get("InvoiceStatus", ""),
+                "status": rec.get("Status", ""), "total": "", "buyer": "",
+                "first_row": ""}
+        try:
+            doc = ET.fromstring(rec.get("Xml") or "")
+            inf = doc.find("SupplierInfo") if doc.tag == "Document" else doc.find(".//SupplierInfo")
+            if inf is not None:
+                item["total"] = inf.findtext("Total") or ""
+                b = inf.find("Buyer")
+                item["buyer"] = (b.get("Title") if b is not None else "") or ""
+                row = inf.find("Merchandises/Row")
+                item["first_row"] = (row.get("Name") if row is not None else "") or ""
+        except ET.ParseError:
+            pass
+        out.append(item)
+    return out

@@ -347,9 +347,21 @@ async function ping() {
 }
 function qtext(r) {
   if (!r.success) return '<span class="err">' + esc(r.error || 'eroare') + '</span>';
-  return Object.entries(r.data || {}).map(([k, x]) => k.replace(/_/g, ' ') +
-    ': ' + (x.configured ? (x.ok ? '✅' : '❌ ' + esc(x.reply || ''))
-                         : '— neconfigurat')).join(' · ');
+  // RO: pentru cozile de semnare aratam si CE asteapta (ce e IN sistem —
+  //     SFS inlocuieste denumirile cu cele din registru si da seria/numarul
+  //     abia la semnare, de aceea pot fi goale).
+  return Object.entries(r.data || {}).map(([k, x]) => {
+    let head = k.replace(/_/g, ' ') + ': ' +
+      (x.configured ? (x.ok ? '✅ ' + esc(x.reply || '') : '❌ ' + esc(x.reply || '')) : '— neconfigurat');
+    if (x.invoices && x.invoices.length) {
+      head += '<ul class="errlist" style="margin-top:4px">' + x.invoices.map(v =>
+        '<li>' + esc((v.seria || v.number) ? (v.seria + ' ' + v.number).trim() : 'fără serie/număr încă') +
+        ' — ' + esc(v.total || '?') + ' lei — ' + esc(v.first_row || '') +
+        (v.buyer ? ' → ' + esc(v.buyer) : '') +
+        ' (' + (v.invoice_status === '0' ? 'nesemnată' : 'stare ' + esc(v.invoice_status)) + ')</li>').join('') + '</ul>';
+    }
+    return '<div>' + head + '</div>';
+  }).join('');
 }
 async function send() {
   if (!confirm('Factura ajunge în sistemul FISCAL real al SFS. Continuați?')) return;

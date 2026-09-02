@@ -147,7 +147,7 @@ class SfsClient:
 
     @classmethod
     def from_api(cls, api: Optional[Dict[str, Any]] = None,
-                 signer: int = 1) -> "SfsClient":
+                 signer: int = 1, src: str = "test-page") -> "SfsClient":
         """RO: clientul construit NUMAI din ce s-a scris in formular.
 
         Spre deosebire de `from_settings`, nu atinge deloc `EFA_SETTING`:
@@ -163,7 +163,7 @@ class SfsClient:
             user, pwd = a["username2"], a.get("password2", "")
         c = cls(a.get("endpoint") or TEST_ENDPOINT, user, pwd,
                 a.get("namespace") or DEFAULT_NAMESPACE)
-        c.src = "test-page"
+        c.src = src or "test-page"          # RO: eticheta din jurnalul EFA_CALL
         return c
 
     def configured(self) -> bool:

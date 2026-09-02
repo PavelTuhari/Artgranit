@@ -436,3 +436,31 @@ class TestMaskedFault(unittest.TestCase):
         self.assertFalse(r["success"])
         self.assertIn("parola", r["error"])
         self.assertNotIn("IP-ul", r["error"])
+
+
+class TestQueueParsing(unittest.TestCase):
+    """RO: raspunsul REAL al cozii de semnare (02.09.2026) -> lista lizibila."""
+
+    RAW = ('<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>'
+           '<GetInvoicesForSigningResponse xmlns="http://tempuri.org/">'
+           '<GetInvoicesForSigningResult xmlns:a="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel"'
+           ' xmlns:i="http://www.w3.org/2001/XMLSchema-instance"><a:Status>2</a:Status><a:Results>'
+           '<a:XmlInvoice><a:Number/><a:Seria/><a:Status>2</a:Status><a:InvoiceStatus>0</a:InvoiceStatus>'
+           '<a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;Seria /&gt;&lt;Buyer IDNO="1" Title="&amp;quot;UNISIM-SOFT&amp;quot; S.R.L."/&gt;'
+           '&lt;Total&gt;1.00&lt;/Total&gt;&lt;Merchandises&gt;&lt;Row Name="Serviciu de test" TotalPrice="1.00" /&gt;'
+           '&lt;/Merchandises&gt;&lt;/SupplierInfo&gt;&lt;/Document&gt;</a:Xml></a:XmlInvoice>'
+           '</a:Results></GetInvoicesForSigningResult></GetInvoicesForSigningResponse></s:Body></s:Envelope>')
+
+    def test_parses_real_reply(self):
+        from modules.efactura import testff
+        inv = testff.queue_invoices(self.RAW)
+        self.assertEqual(len(inv), 1)
+        self.assertEqual(inv[0]["total"], "1.00")
+        self.assertEqual(inv[0]["invoice_status"], "0")           # nesemnata
+        self.assertEqual(inv[0]["first_row"], "Serviciu de test")
+        self.assertIn("UNISIM-SOFT", inv[0]["buyer"])
+
+    def test_empty_or_broken_reply(self):
+        from modules.efactura import testff
+        self.assertEqual(testff.queue_invoices(""), [])
+        self.assertEqual(testff.queue_invoices("<x/>"), [])

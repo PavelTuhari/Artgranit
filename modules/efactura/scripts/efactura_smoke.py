@@ -58,7 +58,7 @@ def main() -> int:
           else "de proba", "|", endpoint)
 
     # 1) conturile
-    r = testff.ping(api)
+    r = testff.ping(api, src="smoke")
     for k, v in r["data"].items():
         print("   %-18s %s" % (k, ("✅ " if v.get("ok") else "❌ ") + str(v.get("reply", ""))[:140]
                                 if v.get("configured") else "— neconfigurat"))
@@ -103,7 +103,7 @@ def main() -> int:
         return 5
 
     # 4) cozile de semnare
-    q = testff.signing_queues(api)
+    q = testff.signing_queues(api, src="smoke")
     for k, v in q["data"].items():
         print("   coada %-16s %s" % (k, ("✅ " if v.get("ok") else "❌ ") + str(v.get("reply", ""))[:200]))
 
