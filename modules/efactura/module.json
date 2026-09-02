@@ -1,5 +1,9 @@
 {
-  "title": {"ro": "e-Factura (SFS)", "ru": "e-Factura (SFS)", "en": "e-Factura (SFS)"},
+  "title": {
+    "ro": "e-Factura (SFS)",
+    "ru": "e-Factura (SFS)",
+    "en": "e-Factura (SFS)"
+  },
   "icon": "🧾",
   "order": 63,
   "url": "/UNA.md/orasldev/efactura/",
@@ -10,6 +14,15 @@
   },
   "sql_prefix": "EFA",
   "pages": {
-    "efactura.admin_page": {"ro": "Setări și jurnal", "ru": "Настройки и журнал", "en": "Settings and log"}
-  }
+    "efactura.admin_page": {
+      "ro": "Setări și jurnal",
+      "ru": "Настройки и журнал",
+      "en": "Settings and log"
+    }
+  },
+  "root_paths": [
+    "/api/biro26/efactura/health",
+    "/api/biro26/efactura/send/<int:doc_cod>",
+    "/api/biro26/efactura/status/<int:doc_cod>"
+  ]
 }

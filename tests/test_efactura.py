@@ -511,3 +511,26 @@ class TestDateWindow(unittest.TestCase):
         import datetime
         from modules.efactura.controller import EfaController as C
         self.assertIsNone(C.date_window_error("2026-08-19", override_date=datetime.date.today().isoformat()))
+
+
+class TestNativeApiMount(unittest.TestCase):
+    """RO: API-ul pentru una.md sta la radacina (/api/biro26/efactura/…) prin
+    root_blueprint — singurul prefix care trece pe HTTP simplu de intrarea
+    officeplus.md (Oracle 11g nu are wallet TLS). Manifestul si blueprint-ul
+    trebuie sa spuna acelasi lucru, altfel nucleul refuza montarea."""
+
+    def test_manifest_matches_blueprint(self):
+        import json
+        from modules import efactura
+        from modules.efactura import native_api
+        self.assertTrue(hasattr(efactura, "root_blueprint"))
+        man = json.load(open(os.path.join(ROOT, "modules", "efactura", "module.json"),
+                             encoding="utf-8"))
+        self.assertEqual(sorted(man.get("root_paths") or []),
+                         sorted(native_api.ROOT_PATHS))
+        for p in native_api.ROOT_PATHS:
+            self.assertTrue(p.startswith("/api/biro26/efactura/"), p)
+
+    def test_no_shared_file_touched(self):
+        src = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        self.assertNotIn("efactura", src)

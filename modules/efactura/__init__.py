@@ -24,5 +24,8 @@ blueprint = Blueprint(
 )
 
 from modules.efactura import routes  # noqa: E402,F401  (înregistrează rutele)
+# RO: API-ul pe HTTP simplu pentru back-office-ul nativ una.md — la radacina
+#     (/api/biro26/efactura/…), montat de nucleu prin root_paths din manifest.
+from modules.efactura.native_api import root_blueprint  # noqa: E402,F401
 
-__all__ = ["blueprint"]
+__all__ = ["blueprint", "root_blueprint"]
