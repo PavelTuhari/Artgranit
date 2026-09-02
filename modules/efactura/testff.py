@@ -114,6 +114,11 @@ def build(payload: Dict[str, Any]) -> Dict[str, Any]:
         "client_name": buyer.get("name"),
         "client_idno": buyer.get("idno"),
         "client_address": buyer.get("address"),
+        # RO: banca cumparatorului, daca e data (exportul real o are mereu)
+        "client_iban": buyer.get("iban"),
+        "client_bank": buyer.get("bank_name"),
+        "client_bank_code": buyer.get("bank_code"),
+        "client_taxpayer_type": buyer.get("taxpayer_type"),
         "items": items,
         "total": total,
         "tva": tva,
@@ -123,6 +128,10 @@ def build(payload: Dict[str, Any]) -> Dict[str, Any]:
             "idno": seller.get("idno"), "name": seller.get("name"),
             "address": seller.get("address"), "iban": seller.get("iban"),
             "bank_code": seller.get("bank_code"),
+            # RO: XSD: BankAccount@BranchTitle = denumirea bancii
+            "bank_name": seller.get("bank_name"),
+            "cod_tva": seller.get("cod_tva"),
+            "taxpayer_type": seller.get("taxpayer_type"),
         },
         "_seria": str(payload.get("seria") or "").strip(),
     }

@@ -52,10 +52,11 @@ class TestInvoiceXml(unittest.TestCase):
         #     Supplier, Buyer, Total, TotalTVA, Merchandises, CreationMotiv
         tags = [c.tag for c in inf]
         self.assertEqual(tags, ["Seria", "Number", "IssuedDate", "DeliveryDate",
-                                "Supplier", "Buyer", "Total", "TotalTVA",
+                                "Supplier", "Buyer", "VehicleLogbook",
+                                "Redirections", "Total", "TotalTVA",
                                 "Merchandises", "CreationMotiv"])
         self.assertEqual(inf.findtext("Number"), "A-86")
-        self.assertEqual(inf.findtext("DeliveryDate"), "2026-09-02T00:00:00")
+        self.assertTrue(inf.findtext("DeliveryDate").startswith("2026-09-02T"))
         sup = inf.find("Supplier")
         self.assertEqual(sup.get("IDNO"), "1003600116460")
         self.assertEqual(sup.get("TaxpayerType"), "1")
@@ -72,7 +73,7 @@ class TestInvoiceXml(unittest.TestCase):
         self.assertEqual(rows[0].get("TotalTVA"), "31.83")
         self.assertEqual(rows[0].get("TVA"), "20")
         self.assertEqual(inf.findtext("Total"), "20159.00")
-        self.assertEqual(inf.findtext("CreationMotiv"), "1")
+        self.assertEqual(inf.findtext("CreationMotiv"), "4")   # Livrare
 
     def test_validates_against_the_official_xsd(self):
         """RO: validare cu xmllint fata de XSD-ul descarcat de la SFS — proba

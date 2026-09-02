@@ -404,9 +404,11 @@ def _attr(v: Any) -> str:
 
 
 def _dt(v: Any) -> str:
-    """RO: XSD cere xs:dateTime; primim 'YYYY-MM-DD' sau nimic (= azi)."""
+    """RO: XSD cere xs:dateTime; primim 'YYYY-MM-DD' sau nimic (= azi).
+    Ora si fusul orar — ca in exportul real din ghidul SFS
+    (`2025-05-29T15:32:08+03:00`), nu miezul noptii fara fus."""
     v = str(v or "").strip()[:10] or datetime.date.today().isoformat()
-    return v + "T00:00:00"
+    return v + datetime.datetime.now().strftime("T%H:%M:%S") + "+03:00"
 
 
 def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
@@ -432,7 +434,8 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
     Preturile noastre includ TVA (ca in contul de plata al magazinului), iar
     XSD-ul cere si valorile FARA TVA: se calculeaza pe fiecare rind.
     TaxpayerType: 1 = juridic, 2 = persoana fizica, 3 = nerezident.
-    CreationMotiv: 1, ca in modelul oficial (ModelFacturafiscala.xml).
+    CreationMotiv: 4 = Livrare / 5 = Non-livrare — SFS respinge orice alta
+    valoare (masurat 02.09.2026); implicit 4.
     Total = suma cu TVA a facturii, TotalTVA = suma TVA — asa cum apar pe
     factura tiparita; ambele sint optionale la import, mediul de proba le
     valideaza.
@@ -466,7 +469,8 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
     def party(tag: str, p: Dict[str, Any], idno: Any, name: Any, addr: Any,
               with_bank: bool) -> str:
         out = (f"<{tag} IDNO=\"{_attr(idno)}\" Title=\"{_attr(name)}\" "
-               f"Address=\"{_attr(addr)}\" "
+               f"Address=\"{_attr(addr)}\" NResident=\"false\" "
+               f"IsSupplierOnly=\"false\" "
                f"TaxpayerType=\"{int(p.get('taxpayer_type') or 1)}\"")
         if p.get("cod_tva"):
             out += f' CodTVA="{_attr(p.get("cod_tva"))}"'
@@ -501,8 +505,17 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
                 seller.get("address"), True)
         + party("Buyer", buyer, d.get("client_idno"), d.get("client_name"),
                 d.get("client_address"), bool(buyer.get("iban")))
+        # RO: nodurile pe care exportul real al SFS le are mereu, chiar goale
+        #     (ghidul de integrare, §6): fara ele serverul lor a raspuns
+        #     «Object reference not set to an instance of an object» (02.09.2026).
+        + "<VehicleLogbook><Seria/><Number/></VehicleLogbook>"
+        + "<Redirections/>"
         + f"<Total>{_num(round(total, 2))}</Total>"
         f"<TotalTVA>{_num(round(total_tva, 2))}</TotalTVA>"
         "<Merchandises>" + "".join(rows) + "</Merchandises>"
-        "<CreationMotiv>1</CreationMotiv>"
+        # RO: SFS accepta DOAR 4 sau 5 («Motivul Crearii … trebue sa fie 4
+        #     sau 5», raspuns real 02.09.2026): 4 = Livrare (exemplul din
+        #     ghidul de integrare), 5 = Non-livrare (ghidul utilizatorului
+        #     §4.2). Implicit 4; se poate da in document (`creation_motiv`).
+        f"<CreationMotiv>{int(d.get('creation_motiv') or 4)}</CreationMotiv>"
         "</SupplierInfo></Document></Documents>")
