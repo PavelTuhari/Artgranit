@@ -253,6 +253,21 @@ def test_queues():
     return _reply(testff.signing_queues(_body().get("api")))
 
 
+@blueprint.route("/test/log")
+def test_log():
+    """RO: jurnalul apelurilor paginii de proba — ce s-a trimis, ce a raspuns
+    SFS, cit a durat. Parola nu e in jurnal (mascata la scriere)."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import journal
+    try:
+        rows = journal.recent(int(request.args.get("limit", 40)), src="test-page")
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)[:300]}), 500
+    return jsonify({"success": True, "data": rows})
+
+
 @blueprint.route("/test/ping", methods=["POST"])
 def test_ping():
     """RO: verifica contul API scris in formular — nu trimite nimic in SFS.

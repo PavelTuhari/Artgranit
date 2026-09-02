@@ -22,41 +22,76 @@ class TestEfacturaIsolation(unittest.TestCase):
 
 
 class TestInvoiceXml(unittest.TestCase):
+    """RO: XML-ul urmeaza XSD-ul OFICIAL (docs/Partner/sfs/TaxInvoiceSchema.xsd).
+    Prima proba reala (02.09.2026) a fost respinsa: «The 'Invoices' element is
+    not declared» — radacina noastra era inventata."""
 
     DOC = {"nrmanual": "A-86", "client_idno": "1003600050218",
            "client_name": 'SRL "Test & Co"', "client_address": "Chisinau",
            "total": 20159.0, "total_fara_tva": 16799.17, "tva": 3359.83,
-           "tva_rate": 20,
+           "tva_rate": 20, "issue_date": "2026-09-02",
            "items": [{"cod": "GA82543", "name": "Toner <HP>", "qty": 2,
-                      "um": "buc.", "price": 95.5, "sum": 191.0}]}
-    SELLER = {"idno": "1004600069507", "name": "OfficePlus SRL",
-              "address": "Chisinau", "iban": "MD00AG000000000000000000",
-              "bank_code": "AGRNMD2X"}
+                      "price": 95.5, "sum": 191.0},
+                     {"cod": "X1", "name": "Hirtie", "qty": 1,
+                      "price": 19968.0, "sum": 19968.0}]}
+    SELLER = {"idno": "1003600116460", "name": '"UNISIM-SOFT" S.R.L.',
+              "address": "Alba Iulia 75/b", "iban": "MD22ML000000222442000432",
+              "bank_code": "MOLDMD2X303", "bank_name": "Moldindconbank"}
 
-    def test_xml_wellformed_and_escaped(self):
+    def _xml(self):
+        from modules.efactura import sfs
+        return sfs.build_invoice_xml(self.DOC, self.SELLER, seria="AA", number="A-86")
+
+    def test_structure_follows_the_official_schema(self):
         from xml.etree import ElementTree as ET
-        from modules.efactura.sfs import build_invoice_xml
-        xml = build_invoice_xml(self.DOC, self.SELLER, seria="AA")
-        root = ET.fromstring(xml)               # RO: trebuie sa fie XML valid
-        inv = root.find("Invoice")
-        self.assertEqual(inv.findtext("Number"), "A-86")
-        self.assertEqual(inv.findtext("Seria"), "AA")
-        self.assertEqual(inv.find("Supplier").findtext("IDNO"),
-                         "1004600069507")
-        self.assertEqual(inv.find("Buyer").findtext("IDNO"), "1003600050218")
-        # RO: caracterele periculoase nu strica documentul
-        self.assertEqual(inv.find("Buyer").findtext("Name"), 'SRL "Test & Co"')
-        line = inv.find("Lines").find("InvoiceLine")
-        self.assertEqual(line.findtext("ProductName"), "Toner <HP>")
-        self.assertEqual(line.findtext("Amount"), "191.00")
-        self.assertEqual(inv.findtext("TotalAmount"), "20159.00")
+        root = ET.fromstring(self._xml())
+        self.assertEqual(root.tag, "Documents")
+        inf = root.find("Document/SupplierInfo")
+        self.assertIsNotNone(inf)
+        # RO: ordinea din xs:sequence — Seria, Number, IssuedDate, DeliveryDate,
+        #     Supplier, Buyer, Total, TotalTVA, Merchandises, CreationMotiv
+        tags = [c.tag for c in inf]
+        self.assertEqual(tags, ["Seria", "Number", "IssuedDate", "DeliveryDate",
+                                "Supplier", "Buyer", "Total", "TotalTVA",
+                                "Merchandises", "CreationMotiv"])
+        self.assertEqual(inf.findtext("Number"), "A-86")
+        self.assertEqual(inf.findtext("DeliveryDate"), "2026-09-02T00:00:00")
+        sup = inf.find("Supplier")
+        self.assertEqual(sup.get("IDNO"), "1003600116460")
+        self.assertEqual(sup.get("TaxpayerType"), "1")
+        self.assertEqual(sup.find("BankAccount").get("Account"),
+                         "MD22ML000000222442000432")
+        buy = inf.find("Buyer")
+        self.assertEqual(buy.get("IDNO"), "1003600050218")
+        self.assertEqual(buy.get("Title"), 'SRL "Test & Co"')     # ghilimele in atribut
+        rows = inf.findall("Merchandises/Row")
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0].get("Name"), "Toner <HP>")
+        self.assertEqual(rows[0].get("TotalPrice"), "191.00")
+        self.assertEqual(rows[0].get("TotalPriceWithoutTVA"), "159.17")
+        self.assertEqual(rows[0].get("TotalTVA"), "31.83")
+        self.assertEqual(rows[0].get("TVA"), "20")
+        self.assertEqual(inf.findtext("Total"), "20159.00")
+        self.assertEqual(inf.findtext("CreationMotiv"), "1")
+
+    def test_validates_against_the_official_xsd(self):
+        """RO: validare cu xmllint fata de XSD-ul descarcat de la SFS — proba
+        locala a ceea ce mediul lor de proba ar respinge."""
+        import shutil
+        import subprocess
+        xsd = os.path.join(ROOT, "docs", "Partner", "sfs", "TaxInvoiceSchema.xsd")
+        if not shutil.which("xmllint") or not os.path.exists(xsd):
+            self.skipTest("xmllint sau XSD-ul lipsesc")
+        r = subprocess.run(["xmllint", "--noout", "--schema", xsd, "-"],
+                           input=self._xml().encode("utf-8"),
+                           capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr.decode("utf-8", "replace")[:800])
 
     def test_missing_numbers_do_not_break(self):
-        from xml.etree import ElementTree as ET
-        from modules.efactura.sfs import build_invoice_xml
-        xml = build_invoice_xml({"items": [{"name": "x"}]}, {})
-        ET.fromstring(xml)                      # nu arunca
-
+        from modules.efactura import sfs
+        xml = sfs.build_invoice_xml({"items": [{"name": "x"}]}, {"idno": "1"})
+        self.assertIn("<Documents>", xml)
+        self.assertIn('TotalPrice="0.00"', xml)
 
 class TestSfsClientGuards(unittest.TestCase):
 
@@ -135,19 +170,21 @@ class TestTestInvoice(unittest.TestCase):
         self.assertEqual(doc["total_fara_tva"], 2.50)
         r = testff.preview(p)
         self.assertTrue(r["success"])
-        inv = ET.fromstring(r["data"]["xml"]).find("Invoice")
-        self.assertEqual(inv.findtext("Number"), "TEST-1")
-        self.assertEqual(inv.findtext("Seria"), "TT")
-        self.assertEqual(inv.find("Supplier").findtext("IDNO"),
-                         "1026602001837")
-        self.assertEqual(inv.findtext("TotalAmount"), "3.00")
+        inf = ET.fromstring(r["data"]["xml"]).find("Document/SupplierInfo")
+        self.assertEqual(inf.findtext("Number"), "TEST-1")
+        self.assertEqual(inf.findtext("Seria"), "TT")
+        self.assertEqual(inf.find("Supplier").get("IDNO"), "1026602001837")
+        self.assertEqual(inf.findtext("Total"), "3.00")
+        self.assertEqual(inf.findtext("TotalTVA"), "0.50")
+        row = inf.find("Merchandises/Row")
+        self.assertEqual(row.get("TotalPriceWithoutTVA"), "2.50")
 
     def test_preview_works_without_credentials(self):
         """RO: XML-ul se vede si cind integrarea nu e configurata."""
         from modules.efactura import testff
         r = testff.preview(self._p(1, 0.05))
         self.assertTrue(r["success"])
-        self.assertIn("<Invoice>", r["data"]["xml"])
+        self.assertIn("<Documents>", r["data"]["xml"])
 
 
 class TestSfsProtocolValues(unittest.TestCase):

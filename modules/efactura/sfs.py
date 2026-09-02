@@ -107,6 +107,8 @@ class SfsClient:
         self.username = (username or "").strip()
         self.password = password or ""
         self.ns = namespace or "http://tempuri.org/"
+        # RO: de unde vine apelul — pentru jurnalul EFA_CALL (test-page/api/…)
+        self.src = ""
 
     @classmethod
     def from_settings(cls, signer: int = 1,
@@ -159,8 +161,10 @@ class SfsClient:
         user, pwd = a.get("username", ""), a.get("password", "")
         if int(signer) == 2 and a.get("username2"):
             user, pwd = a["username2"], a.get("password2", "")
-        return cls(a.get("endpoint") or TEST_ENDPOINT, user, pwd,
-                   a.get("namespace") or DEFAULT_NAMESPACE)
+        c = cls(a.get("endpoint") or TEST_ENDPOINT, user, pwd,
+                a.get("namespace") or DEFAULT_NAMESPACE)
+        c.src = "test-page"
+        return c
 
     def configured(self) -> bool:
         return bool(self.endpoint and self.username and self.password)
@@ -188,6 +192,23 @@ class SfsClient:
                     "utilizator API / parola) — completati-le in pagina "
                     "modulului / EN: e-Factura is not configured yet"}
         envelope = self._envelope(method, body_xml)
+        r = self._send(method, envelope)
+        # RO: fiecare apel, intreg, in jurnal (parola mascata) — vezi journal.py
+        from modules.efactura import journal
+        res, summ = journal.verdict(r.get("status"), r.get("raw", ""),
+                                    r.get("parsed"), r.get("error"))
+        journal.record(src=self.src, username=self.username,
+                       endpoint=self.endpoint, method=method,
+                       request_xml=envelope, response_raw=r.get("raw", ""),
+                       status=r.get("status"), duration_ms=r.get("ms", 0),
+                       result=res, summary=summ)
+        r["result"], r["summary"] = res, summ
+        return r
+
+    def _send(self, method: str, envelope: str) -> Dict[str, Any]:
+        """RO: transportul propriu-zis; intoarce si statutul HTTP si durata."""
+        import time as _t
+        t0 = _t.time()
         req = urllib.request.Request(
             self.endpoint, data=envelope.encode("utf-8"), method="POST",
             headers={"Content-Type": "text/xml; charset=utf-8",
@@ -197,9 +218,12 @@ class SfsClient:
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
                 raw = resp.read().decode("utf-8", "replace")
-            return {"success": True, "raw": raw, "parsed": self._parse(raw)}
+                st = resp.status
+            return {"success": True, "raw": raw, "parsed": self._parse(raw),
+                    "status": st, "ms": int((_t.time() - t0) * 1000)}
         except urllib.error.HTTPError as e:
-            raw = e.read().decode("utf-8", "replace")[:2000]
+            raw = e.read().decode("utf-8", "replace")[:200000]
+            ms = int((_t.time() - t0) * 1000)
             # RO: SOAP intoarce erorile cu status 500 si un <Fault> lizibil.
             #     Daca in loc de XML vine o PAGINA HTML, raspunde portalul /
             #     firewall-ul lor, nu serviciul: cel mai des inseamna ca IP-ul
@@ -224,11 +248,13 @@ class SfsClient:
                            "API greșite, ori contul creat pe alt mediu (de "
                            "probă vs real) decât adresa aleasă." % e.code)
                 return {"success": False, "status": e.code, "raw": raw,
-                        "error": msg}
-            return {"success": False, "status": e.code,
-                    "error": self._fault(raw) or raw[:400], "raw": raw}
+                        "error": msg, "ms": ms}
+            return {"success": False, "status": e.code, "raw": raw, "ms": ms,
+                    "error": self._fault(raw) or raw[:400]}
         except Exception as e:                               # noqa: BLE001
-            return {"success": False, "error": self._network_hint(e)}
+            return {"success": False, "error": self._network_hint(e),
+                    "status": None, "raw": "",
+                    "ms": int((_t.time() - t0) * 1000)}
 
     def _network_hint(self, exc: Exception) -> str:
         """RO: erorile de retea in limbaj omenesc.
@@ -372,53 +398,111 @@ class SfsClient:
         return r
 
 # ── XML-ul facturii ────────────────────────────────────────────────────
+def _attr(v: Any) -> str:
+    """RO: valoare de ATRIBUT — pe linga &,<,> trebuie mascate si ghilimelele."""
+    return _esc(v).replace('"', "&quot;")
+
+
+def _dt(v: Any) -> str:
+    """RO: XSD cere xs:dateTime; primim 'YYYY-MM-DD' sau nimic (= azi)."""
+    v = str(v or "").strip()[:10] or datetime.date.today().isoformat()
+    return v + "T00:00:00"
+
+
 def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
                       seria: str = "", number: str = "") -> str:
-    """RO: documentul nostru -> XML-ul facturii fiscale.
+    """RO: documentul nostru -> XML-ul facturii fiscale, dupa XSD-ul OFICIAL.
 
-    Structura urmeaza ghidul SFS; denumirile exacte ale nodurilor se verifica
-    la primul apel real fata de XSD-ul descarcat din e-Factura. XML-ul plecat
-    se pastreaza in jurnal (EFA_LOG), deci alinierea se face pe date reale,
-    nu pe presupuneri.
-    EN: our document -> fiscal invoice XML; node names to be confirmed against
-    the XSD downloaded from e-Factura.
+    Structura vine din `TaxInvoiceSchema.xsd` (e-Factura -> Ajutor, copiat in
+    docs/Partner/sfs/), nu din presupuneri: prima proba reala (02.09.2026) a
+    fost respinsa cu «The 'Invoices' element is not declared…» pentru ca
+    radacina si nodurile noastre erau inventate. Reguli din XSD:
+
+      Documents / Document / SupplierInfo (fara namespace)
+        Seria?, Number?, IssuedDate?, DeliveryDate (OBLIGATORIU, dateTime),
+        Supplier @IDNO(obligatoriu) @Title @Address @TaxpayerType
+          + BankAccount @Account @BranchTitle @BranchCode,
+        Buyer  @IDNO(obligatoriu) @Title @Address @TaxpayerType,
+        Total?, TotalTVA?,
+        Merchandises / Row @Name @UnitOfMeasure @Quantity @UnitPriceWithoutTVA
+          @TotalPriceWithoutTVA @TVA @TotalTVA @TotalPrice (toate obligatorii),
+        CreationMotiv (OBLIGATORIU, int)
+      — in EXACT aceasta ordine (xs:sequence).
+
+    Preturile noastre includ TVA (ca in contul de plata al magazinului), iar
+    XSD-ul cere si valorile FARA TVA: se calculeaza pe fiecare rind.
+    TaxpayerType: 1 = juridic, 2 = persoana fizica, 3 = nerezident.
+    CreationMotiv: 1, ca in modelul oficial (ModelFacturafiscala.xml).
+    Total = suma cu TVA a facturii, TotalTVA = suma TVA — asa cum apar pe
+    factura tiparita; ambele sint optionale la import, mediul de proba le
+    valideaza.
+    EN: invoice XML strictly following the official TaxInvoiceSchema.xsd.
     """
     d = doc
     items: List[Dict[str, Any]] = d.get("items") or []
-    lines = []
-    for i, it in enumerate(items, 1):
-        lines.append(
-            "<InvoiceLine>"
-            f"<LineNumber>{i}</LineNumber>"
-            f"<ProductCode>{_esc(it.get('cod'))}</ProductCode>"
-            f"<ProductName>{_esc(it.get('name'))}</ProductName>"
-            f"<UnitOfMeasure>{_esc(it.get('um') or 'buc.')}</UnitOfMeasure>"
-            f"<Quantity>{_num(it.get('qty'), 3)}</Quantity>"
-            f"<UnitPrice>{_num(it.get('price'))}</UnitPrice>"
-            f"<Amount>{_num(it.get('sum'))}</Amount>"
-            f"<VatRate>{_num(d.get('tva_rate', 20), 0)}</VatRate>"
-            "</InvoiceLine>")
-    today = datetime.date.today().strftime("%Y-%m-%d")
+    rate = float(d.get("tva_rate") or 0)
+    k = 1 + rate / 100.0
+    rows, total, total_tva = [], 0.0, 0.0
+    for it in items:
+        qty = float(it.get("qty") or 0)
+        with_tva = float(it.get("sum") or 0)
+        no_tva = round(with_tva / k, 2) if k else with_tva
+        tva = round(with_tva - no_tva, 2)
+        unit_no_tva = round(no_tva / qty, 2) if qty else 0.0
+        total += with_tva
+        total_tva += tva
+        rows.append(
+            "<Row"
+            f' Code="{_attr(it.get("cod") or "")}"'
+            f' Name="{_attr(it.get("name"))}"'
+            f' UnitOfMeasure="{_attr(it.get("um") or "buc.")}"'
+            f' Quantity="{_num(qty, 3)}"'
+            f' UnitPriceWithoutTVA="{_num(unit_no_tva)}"'
+            f' TotalPriceWithoutTVA="{_num(no_tva)}"'
+            f' TVA="{_num(rate, 0)}"'
+            f' TotalTVA="{_num(tva)}"'
+            f' TotalPrice="{_num(with_tva)}"/>')
+
+    def party(tag: str, p: Dict[str, Any], idno: Any, name: Any, addr: Any,
+              with_bank: bool) -> str:
+        out = (f"<{tag} IDNO=\"{_attr(idno)}\" Title=\"{_attr(name)}\" "
+               f"Address=\"{_attr(addr)}\" "
+               f"TaxpayerType=\"{int(p.get('taxpayer_type') or 1)}\"")
+        if p.get("cod_tva"):
+            out += f' CodTVA="{_attr(p.get("cod_tva"))}"'
+        acc = p.get("iban") or p.get("account")
+        if with_bank and acc:
+            out += (">"
+                    f"<BankAccount Account=\"{_attr(acc)}\" "
+                    f"BranchTitle=\"{_attr(p.get('bank_name') or p.get('bank') or '')}\" "
+                    f"BranchCode=\"{_attr(p.get('bank_code') or '')}\"/>"
+                    f"</{tag}>")
+        else:
+            out += "/>"
+        return out
+
+    buyer = {"iban": d.get("client_iban"), "bank_name": d.get("client_bank"),
+             "bank_code": d.get("client_bank_code"),
+             "taxpayer_type": d.get("client_taxpayer_type"),
+             "cod_tva": d.get("client_cod_tva")}
+    issue = d.get("issue_date") or d.get("date")
+    head = ""
+    if seria:
+        head += f"<Seria>{_esc(seria)}</Seria>"
+    if number:
+        head += f"<Number>{_esc(number)}</Number>"
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
-        "<Invoices><Invoice>"
-        f"<Seria>{_esc(seria)}</Seria>"
-        f"<Number>{_esc(number or d.get('nrmanual'))}</Number>"
-        f"<IssueDate>{_esc(d.get('issue_date') or today)}</IssueDate>"
-        "<Supplier>"
-        f"<IDNO>{_esc(seller.get('idno'))}</IDNO>"
-        f"<Name>{_esc(seller.get('name'))}</Name>"
-        f"<Address>{_esc(seller.get('address'))}</Address>"
-        f"<BankAccount>{_esc(seller.get('iban'))}</BankAccount>"
-        f"<BankCode>{_esc(seller.get('bank_code'))}</BankCode>"
-        "</Supplier>"
-        "<Buyer>"
-        f"<IDNO>{_esc(d.get('client_idno'))}</IDNO>"
-        f"<Name>{_esc(d.get('client_name'))}</Name>"
-        f"<Address>{_esc(d.get('client_address'))}</Address>"
-        "</Buyer>"
-        f"<Lines>{''.join(lines)}</Lines>"
-        f"<TotalWithoutVat>{_num(d.get('total_fara_tva'))}</TotalWithoutVat>"
-        f"<TotalVat>{_num(d.get('tva'))}</TotalVat>"
-        f"<TotalAmount>{_num(d.get('total'))}</TotalAmount>"
-        "</Invoice></Invoices>")
+        "<Documents><Document><SupplierInfo>"
+        + head +
+        f"<IssuedDate>{_dt(issue)}</IssuedDate>"
+        f"<DeliveryDate>{_dt(d.get('delivery_date') or issue)}</DeliveryDate>"
+        + party("Supplier", seller, seller.get("idno"), seller.get("name"),
+                seller.get("address"), True)
+        + party("Buyer", buyer, d.get("client_idno"), d.get("client_name"),
+                d.get("client_address"), bool(buyer.get("iban")))
+        + f"<Total>{_num(round(total, 2))}</Total>"
+        f"<TotalTVA>{_num(round(total_tva, 2))}</TotalTVA>"
+        "<Merchandises>" + "".join(rows) + "</Merchandises>"
+        "<CreationMotiv>1</CreationMotiv>"
+        "</SupplierInfo></Document></Documents>")

@@ -23,6 +23,16 @@
   .fld label{display:block;font-size:11.5px;color:var(--gray);margin-bottom:3px}
   input,select{width:100%;padding:8px 10px;border:1px solid #cbd5e1;
                border-radius:8px;font:inherit}
+  .result{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:13.5px;line-height:1.45}
+  .ok-box{background:#ecfdf5;border:1px solid #a7f3d0}
+  .err-box{background:#fef2f2;border:1px solid #fecaca}
+  .errlist{margin:6px 0 8px 18px;padding:0}.errlist li{margin:2px 0}
+  #calls tr.r-ok td:nth-child(6){color:#15803d;font-weight:700}
+  #calls tr.r-rejected td:nth-child(6),#calls tr.r-fault td:nth-child(6),
+  #calls tr.r-html td:nth-child(6),#calls tr.r-network td:nth-child(6){color:#dc2626;font-weight:700}
+  #calls tbody tr.row{cursor:pointer}#calls tbody tr.row:hover td{background:#f8fafc}
+  #calls td.xml{background:#0f172a;color:#e2e8f0;font:12px/1.4 ui-monospace,Menlo,monospace;
+    white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:8px}
   table{border-collapse:collapse;width:100%;font-size:13px}
   th,td{border-bottom:1px solid var(--bd);padding:6px 5px;text-align:left}
   th{font-size:11.5px;color:var(--gray);font-weight:600}
@@ -68,16 +78,28 @@
       vreunui magazin. Parola se folosește doar pentru apelul curent: nu se
       salvează pe server, nu intră în jurnal și nu rămâne în browser
       (se rețin doar utilizatorii).</p>
+    <!-- RO: doua formulare separate, cu autocomplete standard, ca browserul
+         (Safari → Keychain, Chrome → managerul lui de parole) sa OFERE
+         salvarea fiecarei perechi utilizator/parola. Noi nu le tinem nicaieri. -->
     <div class="row">
-      <div class="fld"><label>Utilizator (primul semnatar)</label>
-        <input id="a-user" autocomplete="off" placeholder="utilizator API"></div>
-      <div class="fld"><label>Parola</label>
-        <input id="a-pass" type="password" autocomplete="new-password"></div>
-      <div class="fld"><label>Utilizator (al doilea semnatar)</label>
-        <input id="a-user2" autocomplete="off" placeholder="opțional"></div>
-      <div class="fld"><label>Parola</label>
-        <input id="a-pass2" type="password" autocomplete="new-password"></div>
+      <form class="fld" style="display:flex;gap:10px;flex:2" autocomplete="on"
+            onsubmit="return false" data-signer="1">
+        <div class="fld"><label>Utilizator (primul semnatar)</label>
+          <input id="a-user" name="username" autocomplete="username" placeholder="utilizator API"></div>
+        <div class="fld"><label>Parola</label>
+          <input id="a-pass" name="password" type="password" autocomplete="current-password"></div>
+      </form>
+      <form class="fld" style="display:flex;gap:10px;flex:2" autocomplete="on"
+            onsubmit="return false" data-signer="2">
+        <div class="fld"><label>Utilizator (al doilea semnatar)</label>
+          <input id="a-user2" name="username" autocomplete="username" placeholder="opțional"></div>
+        <div class="fld"><label>Parola</label>
+          <input id="a-pass2" name="password" type="password" autocomplete="current-password"></div>
+      </form>
     </div>
+    <p class="muted" style="margin-top:2px">Browserul vă poate propune să rețină
+      perechile utilizator/parolă (Safari — în Keychain, Chrome — în managerul lui
+      de parole). Pagina însăși nu le salvează nicăieri.</p>
     <div class="row">
       <div class="fld" style="flex:2"><label>Adresa serviciului SFS</label>
         <input id="a-endpoint" autocomplete="off"
@@ -167,6 +189,22 @@
     <p class="muted" style="margin-top:8px">Valorile introduse se păstrează automat
       în acest browser (doar local, nu pe server) și revin la următoarea deschidere.</p>
     <pre id="out" style="display:none;margin-top:12px"></pre>
+    <div id="result" class="result" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>Jurnalul apelurilor către e-Factura
+      <button class="btn gray" type="button" style="padding:5px 10px;font-size:12px;margin-left:8px"
+              onclick="loadLog()">↻ Reîncarcă</button></h2>
+    <p class="muted" style="margin-top:0">Fiecare comandă trimisă de această pagină
+      serviciului SFS și răspunsul lui, întregi, așa cum s-au înregistrat pe server
+      (tabela <code>EFA_CALL</code>). Parola API nu apare — e înlocuită la scriere.
+      Apăsați pe un rînd ca să vedeți cererea și răspunsul.</p>
+    <table id="calls"><thead><tr>
+      <th style="width:135px">Cînd</th><th style="width:150px">Comanda</th>
+      <th style="width:70px">Mediu</th><th style="width:55px">HTTP</th>
+      <th style="width:60px">Durata</th><th style="width:85px">Rezultat</th><th>Ce a răspuns SFS</th>
+    </tr></thead><tbody><tr><td colspan="7" class="muted">…</td></tr></tbody></table>
   </div>
 </div>
 <script>
@@ -266,6 +304,35 @@ function show(r, okMsg) {
     : '<span class="err">' + esc(r.error || '') + ' ' +
       esc(JSON.stringify(r.errors || '')) + '</span>';
 }
+// RO: dupa trimitere omul trebuie sa stie TREI lucruri: a ajuns sau nu, DE CE
+//     nu (textul intreg al SFS, ca lista), si UNDE se uita daca a ajuns.
+function showSend(r) {
+  const box = document.getElementById('result');
+  box.style.display = 'block';
+  const d = r.data || {};
+  const rep = d.reply || {};
+  const err = r.error || d.error || rep.ErrorMessage || '';
+  if (r.success) {
+    box.className = 'result ok-box';
+    box.innerHTML = '<b>✅ Acceptată de SIA e-Factura</b> — nr. ' + esc(d.number || '') +
+      ', RequestId ' + esc(d.request_id || '') + (rep.TotalInvoicesPosted != null
+        ? ', facturi înregistrate: ' + esc(rep.TotalInvoicesPosted) : '') +
+      '.<div class="muted" style="margin-top:6px">Unde apare: portalul ales mai sus → ' +
+      'Cabinetul personal → SIA e-Factura → facturile emise / <b>de semnat</b> ' +
+      '(coada primei semnături, Order 1). Documentul a plecat NEsemnat — semnarea se face acolo. ' +
+      'Butonul «Vezi cozile de semnare» de mai sus o confirmă.</div>';
+  } else {
+    const parts = String(err).split(/[\t\r\n]+|Validation error:/).map(x => x.trim()).filter(Boolean);
+    box.className = 'result err-box';
+    box.innerHTML = '<b>❌ Respinsă — nu s-a înregistrat nimic în e-Factura.</b>' +
+      (d.request_id ? '<div class="muted">RequestId ' + esc(d.request_id) + '</div>' : '') +
+      '<div style="margin-top:6px">Ce a răspuns SFS:</div><ul class="errlist">' +
+      parts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
+      '<div class="muted">Textul complet al cererii și al răspunsului e în jurnalul de mai jos.</div>';
+  }
+  out_scroll(box);
+}
+function out_scroll(el) { try { el.scrollIntoView({block: 'nearest'}); } catch (e) {} }
 async function preview() {
   document.getElementById('info').textContent = 'Se generează…';
   show(await j('preview', {method: 'POST', body: JSON.stringify(payload())}),
@@ -276,6 +343,7 @@ async function ping() {
   const r = await j('ping', {method: 'POST',
                              body: JSON.stringify({api: api()})});
   document.getElementById('q-info').innerHTML = ' ' + qtext(r);
+  loadLog();
 }
 function qtext(r) {
   if (!r.success) return '<span class="err">' + esc(r.error || 'eroare') + '</span>';
@@ -287,13 +355,17 @@ async function send() {
   if (!confirm('Factura ajunge în sistemul FISCAL real al SFS. Continuați?')) return;
   document.getElementById('info').textContent = 'Se trimite…';
   const r = await j('send', {method: 'POST', body: JSON.stringify(payload())});
-  show(r, 'Trimis ✓ ' + ((r.data && r.data.number) || ''));
+  document.getElementById('info').textContent = '';
+  document.getElementById('out').style.display = 'none';
+  showSend(r);
+  loadLog();
 }
 async function queues() {
   document.getElementById('q-info').textContent = 'Se verifică…';
   const r = await j('queues', {method: 'POST',
                                body: JSON.stringify({api: api()})});
   document.getElementById('q-info').innerHTML = ' ' + qtext(r);
+  loadLog();
 }
 const LS = 'efa_test_form_v1';
 // RO: se pastreaza doar ce nu e secret. Parolele (a-pass, a-pass2) NU intra
@@ -336,6 +408,45 @@ FIELDS.forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', save);
 });
+// ── jurnalul apelurilor (EFA_CALL) ──────────────────────────────────
+const RES_RO = {ok: 'acceptat', rejected: 'respins', fault: 'eroare SOAP',
+                html: 'HTML (mascat)', network: 'fără rețea'};
+function envName(ep) {
+  return /-pre\./.test(ep || '') ? 'probă' : (/efactura-api/.test(ep || '') ? 'REAL' : (ep || ''));
+}
+async function loadLog() {
+  const r = await j('log?limit=40');
+  const tb = document.querySelector('#calls tbody');
+  if (!r.success) { tb.innerHTML = '<tr><td colspan="7" class="err">' + esc(r.error || '') + '</td></tr>'; return; }
+  const rows = r.data || [];
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="muted">Încă nicio comandă trimisă.</td></tr>'; return; }
+  tb.innerHTML = rows.map((x, i) =>
+    '<tr class="row r-' + esc(x.result) + '" onclick="toggleCall(' + i + ')">' +
+    '<td>' + esc(x.ts) + '</td><td>' + esc(x.method) + '</td><td>' + esc(envName(x.endpoint)) + '</td>' +
+    '<td>' + esc(x.http_status == null ? '—' : x.http_status) + '</td>' +
+    '<td>' + esc(x.duration_ms == null ? '' : x.duration_ms + ' ms') + '</td>' +
+    '<td>' + esc(RES_RO[x.result] || x.result) + '</td>' +
+    '<td>' + esc((x.summary || '').slice(0, 220)) + '</td></tr>' +
+    '<tr id="call-' + i + '" style="display:none"><td colspan="7">' +
+    '<div class="muted" style="margin:2px 0 4px">Cererea (parola mascată):</div>' +
+    '<div class="xml" style="display:block;background:#0f172a;color:#e2e8f0;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:8px">' +
+    esc(pretty(x.request_xml)) + '</div>' +
+    '<div class="muted" style="margin:8px 0 4px">Răspunsul SFS:</div>' +
+    '<div style="display:block;background:#0f172a;color:#e2e8f0;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:8px">' +
+    esc(pretty(x.response_xml)) + '</div></td></tr>').join('');
+}
+function toggleCall(i) {
+  const el = document.getElementById('call-' + i);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+function pretty(x) {
+  x = String(x || '');
+  if (x.lstrip && false) return x;
+  if (/^\s*<!doctype|^\s*<html/i.test(x)) return x.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600) + ' …';
+  return x.replace(/></g, '>\n<').slice(0, 30000);
+}
+loadLog();
+
 if (!restore()) addLine({name: 'Serviciu de test', um: 'buc.', qty: 1, price: 1.00});
 </script>
 </body></html>
