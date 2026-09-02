@@ -30,9 +30,15 @@ final class AppSettings: ObservableObject {
     private init() {
         zabbixURL = d.string(forKey: "zabbixURL") ?? "http://192.168.0.110/zabbix/api_jsonrpc.php"
         zabbixUser = d.string(forKey: "zabbixUser") ?? "Admin"
-        zabbixPassword = Keychain.get("zabbixPassword")
+        // Для отладки в симуляторе секреты можно передать окружением
+        // (xcrun simctl launch с SIMCTL_CHILD_TBC_ZBX_PASSWORD / SIMCTL_CHILD_TBC_INVITE);
+        // в Keychain они при этом не пишутся.
+        let env = ProcessInfo.processInfo.environment
+        let kcPwd = Keychain.get("zabbixPassword")
+        zabbixPassword = kcPwd.isEmpty ? (env["TBC_ZBX_PASSWORD"] ?? "") : kcPwd
         tbcBaseURL = d.string(forKey: "tbcBaseURL") ?? "https://nufarul.eminescu.md"
-        inviteHash = Keychain.get("inviteHash")
+        let kcInv = Keychain.get("inviteHash")
+        inviteHash = kcInv.isEmpty ? (env["TBC_INVITE"] ?? "") : kcInv
         tempHosts = d.string(forKey: "tempHosts") ?? "cloudbd, PROXMOX3"
         tempWarn = d.object(forKey: "tempWarn") as? Int ?? 52
         tempCrit = d.object(forKey: "tempCrit") as? Int ?? 60
