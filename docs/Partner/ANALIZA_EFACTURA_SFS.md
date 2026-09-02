@@ -328,6 +328,46 @@ pagina probei (`/UNA.md/orasldev/efactura/test`), adresa = «mediu de probă»,
 apoi «🔌 Verifică contul». Un ✅ acolo inseamna ca lantul e intreg; abia apoi
 se trimite prima factura de proba si se compara XML-ul cu XSD-ul din Ajutor.
 
+### Prima proba reala: respinsa — si de ce nu s-a vazut (02.09.2026, seara)
+
+Cu conturile `ptuhari` / `otuhari` create pe portalul de proba, «Verifică
+contul» a dat ✅ pe ambele cozi. «Trimite proba» de doua ori (20:52, 20:57):
+SIA e-Factura a RASPUNS (SOAP 200), cu `Status 3` si
+
+> Validation failed: The 'Invoices' element is not declared. The 'Invoice'
+> element is not declared. The 'Seria' element is not declared. …
+
+Adica XML-ul nostru era inventat: radacina si toate nodurile. Nimic nu s-a
+inregistrat in e-Factura. Pe pagina s-a vazut doar un JSON taiat, iar
+`EFA_LOG` tine 2000 de caractere — de aici «непонятно что происходит».
+
+**Ce s-a schimbat:**
+
+1. **XML-ul dupa XSD-ul oficial** — `TaxInvoiceSchema.xsd` si
+   `ModelFacturafiscala.xml` din e-Factura → Ajutor, copiate in
+   `docs/Partner/sfs/`. Structura: `Documents/Document/SupplierInfo` cu
+   `Seria?, Number?, IssuedDate?, DeliveryDate!, Supplier@, Buyer@, Total?,
+   TotalTVA?, Merchandises/Row@, CreationMotiv!` — in aceasta ordine, fara
+   namespace; rechizitele sint ATRIBUTE (`IDNO`, `Title`, `Address`,
+   `TaxpayerType` 1=juridic/2=fizic/3=nerezident; `BankAccount@Account
+   @BranchTitle @BranchCode`); rindul cere si valorile FARA TVA. Validat
+   local cu `xmllint --schema` (test in `tests/test_efactura.py`).
+2. **Jurnal complet, `EFA_CALL`** (`sql/02_efa_call.sql`, instalat): fiecare
+   apel SOAP — plicul cu parola mascata, raspunsul brut, HTTP, durata,
+   verdict (`ok / rejected / fault / html / network`). `journal.py`, un
+   singur apel din `sfs.call()`. Pagina probei il arata jos; click pe rind =
+   cererea si raspunsul intregi. Ruta `GET /test/log`.
+3. **Rezultatul trimiterii, in cuvinte**: «Acceptată» + unde apare in
+   e-Factura (facturile de semnat, Order 1) sau «Respinsă» + lista erorilor
+   SFS, una pe rind.
+4. **Parolele in Keychain, nu in pagina**: cimpurile au `autocomplete`
+   standard in doua formulare, deci Safari/Chrome ofera salvarea; iar pentru
+   proba automata de pe Mac — `modules/efactura/scripts/efactura_smoke.py`
+   cu parolele din macOS Keychain (`security add-generic-password -s
+   efactura-api-pre -a ptuhari -w`, la fel `otuhari`). Scriptul face cap-coada:
+   Test pe ambele conturi → factura de 1 leu → PostInvoices → cozile Order
+   1/2 → jurnalul. Fara `--send` nu trimite nimic; `--real` = mediul real.
+
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 
 Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio
