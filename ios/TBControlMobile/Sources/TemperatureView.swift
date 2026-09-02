@@ -99,29 +99,43 @@ struct Sparkline: View {
     let warn: Int
     let crit: Int
 
+    private var range: (lo: Double, hi: Double) {
+        let all = points1 + points2
+        let lo = Double(min(all.map(\.value).min() ?? warn - 10, warn - 10))
+        let hi = Double(max(all.map(\.value).max() ?? crit + 5, crit + 5))
+        return (lo, hi)
+    }
+
+    private func y(_ v: Double, _ size: CGSize) -> CGFloat {
+        let r = range
+        return size.height - CGFloat((v - r.lo) / max(r.hi - r.lo, 1)) * size.height
+    }
+
+    private func line(_ pts: [TempPoint], _ size: CGSize) -> Path {
+        var p = Path()
+        guard pts.count > 1 else { return p }
+        for (i, pt) in pts.enumerated() {
+            let pos = CGPoint(x: CGFloat(i) / CGFloat(pts.count - 1) * size.width, y: y(Double(pt.value), size))
+            if i == 0 { p.move(to: pos) } else { p.addLine(to: pos) }
+        }
+        return p
+    }
+
+    private func level(_ v: Int, _ size: CGSize) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: 0, y: y(Double(v), size)))
+        p.addLine(to: CGPoint(x: size.width, y: y(Double(v), size)))
+        return p
+    }
+
     var body: some View {
         GeometryReader { g in
-            let all = points1 + points2
-            let lo = Double(min(all.map(\.value).min() ?? warn - 10, warn - 10))
-            let hi = Double(max(all.map(\.value).max() ?? crit + 5, crit + 5))
-            func y(_ v: Double) -> CGFloat { g.size.height - CGFloat((v - lo) / max(hi - lo, 1)) * g.size.height }
-            func line(_ pts: [TempPoint]) -> Path {
-                var p = Path()
-                guard pts.count > 1 else { return p }
-                for (i, pt) in pts.enumerated() {
-                    let x = CGFloat(i) / CGFloat(pts.count - 1) * g.size.width
-                    i == 0 ? p.move(to: CGPoint(x: x, y: y(Double(pt.value)))) : p.addLine(to: CGPoint(x: x, y: y(Double(pt.value))))
-                }
-                return p
-            }
             ZStack {
-                Path { p in p.move(to: CGPoint(x: 0, y: y(Double(warn)))); p.addLine(to: CGPoint(x: g.size.width, y: y(Double(warn)))) }
-                    .stroke(Color.orange.opacity(0.5), style: .init(lineWidth: 1, dash: [4, 3]))
-                Path { p in p.move(to: CGPoint(x: 0, y: y(Double(crit)))); p.addLine(to: CGPoint(x: g.size.width, y: y(Double(crit)))) }
-                    .stroke(Color.red.opacity(0.5), style: .init(lineWidth: 1, dash: [4, 3]))
-                line(points1).stroke(Color.blue, lineWidth: 2)
-                line(points2).stroke(Color.purple, lineWidth: 2)
-                if all.count < 2 {
+                level(warn, g.size).stroke(Color.orange.opacity(0.5), style: .init(lineWidth: 1, dash: [4, 3]))
+                level(crit, g.size).stroke(Color.red.opacity(0.5), style: .init(lineWidth: 1, dash: [4, 3]))
+                line(points1, g.size).stroke(Color.blue, lineWidth: 2)
+                line(points2, g.size).stroke(Color.purple, lineWidth: 2)
+                if points1.count + points2.count < 2 {
                     Text("история накопится по мере опроса").font(.caption2).foregroundStyle(.secondary)
                 }
             }
