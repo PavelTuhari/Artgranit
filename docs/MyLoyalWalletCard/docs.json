@@ -1,0 +1,62 @@
+{
+  "PROJECT_MYLOYALWALLETCARD.md": {
+    "slug": "myloyalwalletcard-project", "public": false, "icon": "💳", "cls": "c", "order": 10,
+    "title": "MyLoyalWalletCard — обзор платформы лояльности",
+    "audience": "для владельца и команды проекта",
+    "descr": "Что это, стек, все ссылки прода и локального стенда, демо-доступы, скрытый тех-режим демо-кассы, состав документации."
+  },
+  "DEPLOY_EMINESCU.md": {
+    "slug": "myloyalwalletcard-deploy", "public": false, "icon": "🚀", "cls": "c", "order": 20,
+    "title": "Деплой на nufarul.eminescu.md",
+    "audience": "для тех, кто обслуживает сервер",
+    "descr": "Как развёрнут прод: Next.js standalone, systemd, nginx location, MariaDB, SSL и порядок отката."
+  },
+  "SYNC_MINIMAL_TRAFFIC.md": {
+    "slug": "myloyalwalletcard-sync", "public": false, "icon": "📶", "cls": "c", "order": 30,
+    "title": "Синхронизация прода минимальным трафиком",
+    "audience": "для тех, кто выкатывает изменения",
+    "descr": "Обновление сервера rsync-дельтой в 1–3 МБ вместо 43 МБ полной сборки: что копируется, что пересобирается на месте, как проверять."
+  },
+  "WALLET_ISSUER_STATUS.md": {
+    "slug": "myloyalwalletcard-wallet-issuer", "public": false, "icon": "🎫", "cls": "c", "order": 40,
+    "title": "Статус эмитента карт: Apple и Google Wallet",
+    "audience": "для владельца компании",
+    "descr": "Требования Apple (99 USD/год, D-U-N-S, юрлицо, сайт на своём домене) и Google (бесплатно, демо-режим сразу); код выпуска карт готов и ждёт учётных данных."
+  },
+  "WALLET_ENROLLMENT_UNISIM.md": {
+    "slug": "myloyalwalletcard-wallet-unisim", "public": false, "icon": "📝", "cls": "c", "order": 50,
+    "title": "Регистрация эмитента для Unisim-Soft SRL",
+    "audience": "для владельца компании",
+    "descr": "Пошаговая заявка с готовыми значениями всех форм; CSR для Apple уже создан."
+  },
+  "MOBILE_APP.md": {
+    "slug": "myloyalwalletcard-mobile", "public": false, "icon": "📱", "cls": "c", "order": 60,
+    "title": "Приложение UNA Market (Android и iOS)",
+    "audience": "для разработчиков мобильного приложения",
+    "descr": "Настройки без пересборки (адрес API в UI), сборка APK и iOS, демо-бэкенд, грабли Expo SDK 57."
+  },
+  "IOS_BUILD_AND_EU_DISTRIBUTION.md": {
+    "slug": "myloyalwalletcard-ios", "public": false, "icon": "🍏", "cls": "c", "order": 70,
+    "title": "iOS-сборка и раздача в ЕС",
+    "audience": "для разработчиков мобильного приложения",
+    "descr": "Патч совместимости с Xcode 26, установка на iPhone тремя путями, альтернативные магазины ЕС по DMA и что для них нужно."
+  },
+  "ALTSTORE_REPO.md": {
+    "slug": "myloyalwalletcard-altstore", "public": false, "icon": "📦", "cls": "c", "order": 80,
+    "title": "Репозиторий приложений для AltStore",
+    "audience": "для тех, кто раздаёт приложение",
+    "descr": "Свой источник source.json, ограничения бесплатной подписи в 7 дней и как обновлять записи."
+  },
+  "OWN_APP_STORE.md": {
+    "slug": "myloyalwalletcard-app-store", "public": false, "icon": "🏪", "cls": "c", "order": 90,
+    "title": "Портал приложений Rogob",
+    "audience": "для тех, кто раздаёт приложения",
+    "descr": "Витрина /apps/: четыре приложения на пяти платформах, ключ подписи Android, PWA для iPhone и грабли nginx с блоком types."
+  },
+  "README.md": {
+    "slug": "myloyalwalletcard-readme", "public": false, "icon": "🗂", "cls": "c", "order": 100,
+    "title": "Как ведётся документация MyLoyalWalletCard",
+    "audience": "для агентов и разработчиков",
+    "descr": "Рабочий процесс по docs/GIT_WORKFLOW.md: свой worktree Artgranit-myloyalwalletcard, ветка feat/myloyalwalletcard, коммит и push каждого шага."
+  }
+}
