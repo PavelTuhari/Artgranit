@@ -243,6 +243,10 @@
         <div class="sidebar-item" data-panel="cassa" onclick="showPanel('cassa')">🧾 Кассы UaMenu <span class="badge" id="badgeCassa">0</span></div>
         <div class="sidebar-item" data-panel="stores" onclick="showPanel('stores')">🏬 Магазины</div>
         <div class="sidebar-item" data-panel="devices" onclick="showPanel('devices')">🖥️ Устройства</div>
+        <div class="sidebar-header">Инфраструктура</div>
+        <div class="sidebar-item" data-panel="services" onclick="showPanel('services')">🛰 Сервисы Zabbix <span class="badge" id="badgeSvc">0</span></div>
+        <div class="sidebar-item" data-panel="proxmox" onclick="showPanel('proxmox')">🖧 Proxmox <span class="badge" id="badgePve">0</span></div>
+        <div class="sidebar-item" data-panel="certs" onclick="showPanel('certs')">🔐 Сертификаты <span class="badge" id="badgeCerts">0</span></div>
         <div class="sidebar-header">Processing</div>
         <div class="sidebar-item" data-panel="processing" onclick="showPanel('processing')">🔄 Processing центр <span class="badge" id="badgeFlows">0</span></div>
         <div class="sidebar-item" data-panel="dossiers" onclick="showPanel('dossiers')">🤖 AI-досье</div>
@@ -335,6 +339,66 @@
             <div id="cassaStores"></div>
         </div>
 
+        <!-- ===== Инфраструктура: сервисы Zabbix (mTLS), Proxmox, SSL — JS в static/tbcontrol/tbc_infra.js ===== -->
+        <div class="panel" id="panel-services">
+            <div class="panel-title">Сервисы Zabbix
+                <span class="muted" style="font-size:12px;font-weight:400">— хосты unisim-soft.com через mTLS-шлюз 192.168.0.148</span>
+                <button class="btn btn-primary btn-sm" onclick="syncServices()">↻ Синхронизировать</button>
+            </div>
+            <div class="stat-grid" id="svcStatGrid"></div>
+            <div class="filter-bar">
+                <select class="form-control" id="svcKindFilter" onchange="loadServices()"><option value="">Все типы</option>
+                    <option value="server">Серверы</option><option value="db">Базы данных</option><option value="web">Веб</option>
+                    <option value="mail">Почта</option><option value="network">Сеть</option></select>
+                <span class="tab-chip active" data-ss="" onclick="setSvcStatus(this)">Все</span>
+                <span class="tab-chip" data-ss="PROBLEM" onclick="setSvcStatus(this)">Проблемы</span>
+                <span class="tab-chip" data-ss="WARN" onclick="setSvcStatus(this)">Предупреждения</span>
+                <span class="tab-chip" data-ss="OK" onclick="setSvcStatus(this)">OK</span>
+                <span class="tab-chip" data-ss="DISABLED" onclick="setSvcStatus(this)">Выключены</span>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Хост</th><th>Тип</th><th>IP</th><th>Группы</th><th>Агент</th><th>Статус</th><th>Проблемы</th><th>Проверено</th><th></th>
+                </tr></thead><tbody id="svcTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <div class="panel" id="panel-proxmox">
+            <div class="panel-title">Proxmox VE
+                <span class="muted" style="font-size:12px;font-weight:400">— ноды, VM, контейнеры и хранилища PROXMOX3 через mTLS-шлюз</span>
+                <button class="btn btn-primary btn-sm" onclick="syncProxmox()">↻ Синхронизировать</button>
+            </div>
+            <div class="stat-grid" id="pveStatGrid"></div>
+            <div class="filter-bar">
+                <span class="tab-chip active" data-pt="" onclick="setPveType(this)">Все</span>
+                <span class="tab-chip" data-pt="node" onclick="setPveType(this)">Ноды</span>
+                <span class="tab-chip" data-pt="qemu" onclick="setPveType(this)">VM</span>
+                <span class="tab-chip" data-pt="lxc" onclick="setPveType(this)">LXC</span>
+                <span class="tab-chip" data-pt="storage" onclick="setPveType(this)">Хранилища</span>
+                <select class="form-control" id="pveHealthFilter" onchange="loadProxmox()"><option value="">Любое здоровье</option>
+                    <option value="CRIT">CRIT</option><option value="WARN">WARN</option><option value="OK">OK</option></select>
+            </div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Тип</th><th>ID</th><th>Имя</th><th>Состояние</th><th>Health</th><th>CPU</th><th>RAM</th><th>Диск</th><th>Uptime</th><th></th>
+                </tr></thead><tbody id="pveTbody"></tbody></table>
+            </div></div>
+        </div>
+
+        <div class="panel" id="panel-certs">
+            <div class="panel-title">SSL-сертификаты
+                <span class="muted" style="font-size:12px;font-weight:400">— срок действия публичных доменов, предупреждение за 14 дней</span>
+                <button class="btn btn-secondary btn-sm" onclick="openCertModal()">+ Домен</button>
+                <button class="btn btn-primary btn-sm" onclick="checkCerts()">↻ Проверить все</button>
+            </div>
+            <div class="stat-grid" id="certStatGrid"></div>
+            <div class="card"><div class="card-body" style="padding:0">
+                <table class="data-table"><thead><tr>
+                    <th>Домен</th><th>Издатель</th><th>CN</th><th>Действует до</th><th>Дней</th><th>Продление</th><th>Статус</th><th>Проверено</th><th></th>
+                </tr></thead><tbody id="certTbody"></tbody></table>
+            </div></div>
+        </div>
+
         <!-- ===== Источники мониторинга ===== -->
         <div class="panel" id="panel-sources">
             <div class="panel-title">Источники мониторинга
@@ -357,6 +421,9 @@
                     <span class="mono">tms_univers</span> (FUNCTIONAL при доле online ≥ 60%).<br>
                     <b style="color:var(--accent2)">zabbix</b> — реальные проблемы Zabbix (3.x–7.x) как события P1–P4.<br>
                     <b style="color:var(--accent2)">emulator</b> — встроенная генерация 10 сценариев по кругу.
+                    <b style="color:var(--accent2)">zabbix_svc</b> — хосты Zabbix как сервисы (сервер/БД/веб/почта/сеть) через mTLS-шлюз
+                    <span class="mono">192.168.0.148:8443</span>; ключ клиента — только в Keychain.<br>
+                    <b style="color:var(--accent2)">proxmox</b> — ноды, VM, LXC и хранилища Proxmox VE через тот же шлюз (панели «Инфраструктура»).
                 </div>
             </div>
         </div>
@@ -643,7 +710,7 @@ function showPanel(name) {
     const loaders = {dashboard: loadDashboard, stores: loadStores, devices: loadDevices, apps: loadApps,
         versions: loadVersions, changes: loadChanges, events: loadEvents, incidents: loadIncidents,
         sla: loadSla, audit: loadAudit, monitor: loadMonitor, processing: loadProcessing,
-        dossiers: loadDossiers, report: loadReport, invites: loadInvites};
+        dossiers: loadDossiers, report: loadReport, invites: loadInvites, sources: loadSources, cassa: loadCassa};
     (loaders[name] || (() => {}))();
 }
 function openModal(html) {
@@ -1592,7 +1659,9 @@ async function syncCassa() {
 }
 
 // ===== Источники мониторинга =====
-const SRC_KINDS = {unisim_cassa: 'UaMenu Cassa (Oracle DB Links)', zabbix: 'Zabbix API', emulator: 'Эмулятор сценариев'};
+const SRC_KINDS = {unisim_cassa: 'UaMenu Cassa (Oracle DB Links)', zabbix: 'Zabbix API', emulator: 'Эмулятор сценариев',
+    zabbix_svc: 'Сервисы Zabbix (mTLS-шлюз)', proxmox: 'Proxmox VE (mTLS-шлюз)'};
+const SRC_API_KINDS = ['zabbix', 'zabbix_svc', 'proxmox'];
 async function loadSources() {
     const r = await api('/sources');
     if (!r.success) return toast(r.error, true);
@@ -1600,7 +1669,7 @@ async function loadSources() {
     document.getElementById('sourcesTbody').innerHTML = r.data.map(s => {
         const conn = s.kind === 'unisim_cassa'
             ? `${esc(s.db_user || '—')}@${esc(s.db_dsn || '—')}`
-            : (s.kind === 'zabbix' ? esc(s.api_url || '—') : '<span class="muted">встроенный</span>');
+            : (SRC_API_KINDS.includes(s.kind) ? esc(s.api_url || '—') : '<span class="muted">встроенный</span>');
         return `<tr><td class="mono"><b style="color:var(--accent2)">${esc(s.code)}</b></td>
         <td>${esc(s.name)}</td><td class="muted">${esc(SRC_KINDS[s.kind] || s.kind)}</td>
         <td class="mono muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${conn}</td>
@@ -1622,7 +1691,7 @@ function renderSourcePill() {
     if (!el) return;
     const active = (SOURCES || []).filter(s => s.enabled === 'Y' && s.kind !== 'emulator');
     const running = EMU_STATE && EMU_STATE.running ? EMU_STATE.mode : null;
-    const names = {zabbix: 'Zabbix', unisim: 'UaMenu', unisim_cassa: 'UaMenu', emulator: 'Эмулятор'};
+    const names = {zabbix: 'Zabbix', unisim: 'UaMenu', unisim_cassa: 'UaMenu', emulator: 'Эмулятор', zabbix_svc: 'Zabbix mTLS', proxmox: 'Proxmox'};
     let color = 'var(--muted)', text = 'источник: не настроен';
     if (running) {
         color = 'var(--ok)';
@@ -1663,6 +1732,17 @@ function openSourceModal(s) {
                 <div class="form-group"><label>Пароль / токен</label><input class="form-control" id="src_api_secret" type="password" value="${esc(s.api_secret || '')}"></div>
             </div>
         </div>
+        <div id="src_mtls" style="display:none">
+            <div class="form-row">
+                <div class="form-group"><label>Клиентский сертификат (PEM)</label><input class="form-control mono" id="src_cert_path" value="${esc(s.cert_path || '')}"></div>
+                <div class="form-group"><label>CA шлюза (PEM)</label><input class="form-control mono" id="src_ca_path" value="${esc(s.ca_path || '')}"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Keychain: service (-s)</label><input class="form-control mono" id="src_key_svc" value="${esc(s.key_keychain_svc || '')}"></div>
+                <div class="form-group"><label>Keychain: account (-a)</label><input class="form-control mono" id="src_key_acc" value="${esc(s.key_keychain_acc || '')}"></div>
+            </div>
+            <div class="muted" style="font-size:12px;margin:-4px 0 10px">Приватный ключ на диске проекта не хранится — читается из macOS Keychain. Пароль можно задать ссылкой <span class="mono">keychain:&lt;service&gt;/&lt;account&gt;</span>.</div>
+        </div>
         <div class="form-group"><label>Заметка</label><input class="form-control" id="src_note" value="${esc(s.note || '')}"></div>
         <div class="btn-group"><button class="btn btn-primary" onclick="saveSource()">Сохранить</button>
         <button class="btn btn-secondary" onclick="closeModal()">Отмена</button></div>`);
@@ -1671,7 +1751,8 @@ function openSourceModal(s) {
 function srcKindChanged() {
     const k = gv('src_kind');
     document.getElementById('src_oracle').style.display = k === 'unisim_cassa' ? '' : 'none';
-    document.getElementById('src_api').style.display = k === 'zabbix' ? '' : 'none';
+    document.getElementById('src_api').style.display = SRC_API_KINDS.includes(k) ? '' : 'none';
+    document.getElementById('src_mtls').style.display = (k === 'zabbix_svc' || k === 'proxmox') ? '' : 'none';
 }
 async function saveSource() {
     const kind = gv('src_kind');
@@ -1681,10 +1762,14 @@ async function saveSource() {
         payload.db_user = gv('src_db_user');
         payload.db_password = gv('src_db_password');
         payload.db_dsn = gv('src_db_dsn');
-    } else if (kind === 'zabbix') {
+    } else if (SRC_API_KINDS.includes(kind)) {
         payload.api_url = gv('src_api_url');
         payload.api_user = gv('src_api_user');
         payload.api_secret = gv('src_api_secret');
+        if (kind !== 'zabbix') {
+            payload.cert_path = gv('src_cert_path'); payload.ca_path = gv('src_ca_path');
+            payload.key_keychain_svc = gv('src_key_svc'); payload.key_keychain_acc = gv('src_key_acc');
+        }
     }
     const r = await api('/sources', 'POST', payload);
     toast(r.success ? 'Сохранено' : r.error, !r.success);
@@ -1694,7 +1779,7 @@ async function testSource(code) {
     toast('Проверяем связь с источником…');
     const r = await api(`/sources/${code}/test`, 'POST');
     toast(r.success
-        ? `Связь есть${r.registers != null ? ': касс в реестре ' + r.registers : (r.version ? ' · API ' + r.version : '')}`
+        ? `Связь есть${r.registers != null ? ': касс в реестре ' + r.registers : (r.version ? ' · API ' + r.version : '')}${r.hosts != null ? ' · хостов ' + r.hosts : ''}${r.nodes != null ? ' · нод ' + r.nodes : ''}${r.gateway ? ' · шлюз ' + r.gateway : ''}`
         : r.error, !r.success);
     loadSources();
 }
@@ -1890,5 +1975,6 @@ boot();
 setInterval(() => { if (document.getElementById('panel-dashboard').classList.contains('active')) loadDashboard(); }, 30000);
 api('/emulator/status').then(r => { if (r.success) renderEmuStatus(r.data); });
 </script>
+<script src="{{ url_for('static', filename='tbcontrol/tbc_infra.js') }}?v=20260902"></script>
 </body>
 </html>

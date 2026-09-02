@@ -167,3 +167,30 @@ actions). Диагностика и deployment verification в текущей в
 симуляция на стороне сервера (реальные проверки выполняют агенты на
 устройствах). Observability-stack (логи/трейсы) — вне scope модуля
 (раздел 42 ТЗ).
+
+
+## Инфраструктура (восстановлено 02.09.2026)
+
+Паспорт: [MTLS_SOURCE.md](MTLS_SOURCE.md), история: [INFRA_RESTORE_20260902.md](INFRA_RESTORE_20260902.md).
+
+| Объект | Назначение | DDL |
+|---|---|---|
+| `TBC_SOURCES.CERT_PATH / CA_PATH / CERT_FINGERPRINT / KEY_KEYCHAIN_SVC / KEY_KEYCHAIN_ACC` | mTLS-параметры источника (виды `zabbix_svc`, `proxmox`) | `sql/79b_tbc_services_mtls.sql` |
+| `TBC_SERVICES`, `V_TBC_SERVICES_STATS`, `V_TBC_SERVICES_BY_KIND` | хосты Zabbix как сервисы (server/db/web/mail/network), статус OK/WARN/PROBLEM/DISABLED | `sql/79b_tbc_services_mtls.sql` |
+| `TBC_AI_DOSSIERS.SOURCE_TYPE` + `service`, `cassa`, `store`, `pve` | AI-досье для сервисов и объектов Proxmox | `sql/79c_tbc_dossier_types.sql` |
+| `TBC_PVE_OBJECTS`, `V_TBC_PVE_STATS` | ноды / VM / LXC / хранилища Proxmox, HEALTH OK/WARN/CRIT | `sql/79d_tbc_proxmox.sql` |
+| `TBC_CERTS`, `V_TBC_CERTS_STATS` | SSL-сертификаты доменов, статус OK/EXPIRING/EXPIRED/ERROR | `sql/79e_tbc_certs.sql` |
+
+| Метод | Путь | Где объявлен | Что делает |
+|---|---|---|---|
+| GET | `/api/tbc/services?source_code&status&kind` | `app.py` | список сервисов + `stats`, `by_kind`, `sources` |
+| POST | `/api/tbc/services/sync` `{source_code?}` | `app.py` (auth) | опрос Zabbix через mTLS-шлюз, события `zabbix_svc` |
+| GET | `/api/tbc/proxmox?source_code&obj_type&health` | `controllers/tbc_infra_routes.py` | объекты Proxmox + `stats` |
+| POST | `/api/tbc/proxmox/sync` `{source_code?}` | там же (auth) | опрос PVE, события `proxmox` |
+| GET | `/api/tbc/certs` | там же | домены + `stats` |
+| POST | `/api/tbc/certs` `{domain_name, port?, note?, enabled?}` | там же (auth) | добавить/изменить домен |
+| DELETE | `/api/tbc/certs/<id>` | там же (auth) | убрать домен |
+| POST | `/api/tbc/certs/check` `{id?}` | там же (auth) | проверить все (или один), события `certs` |
+
+Логика — `models/tbc_mtls.py`, `tbc_services.py`, `tbc_proxmox.py`, `tbc_certs.py`;
+контроллер `TBControlController` содержит только вызовы в одну строку (правило №2 CLAUDE.md).

@@ -16,6 +16,7 @@ if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 from models.database import DatabaseModel
+from models import tbc_services, tbc_proxmox, tbc_certs  # инфраструктура: сервисы Zabbix, Proxmox, SSL (правило №2)
 from flask import session
 
 
@@ -1516,6 +1517,10 @@ class TBControlController:
                               f"- **Периодичность:** каждые {obj.get('schedule_min')} мин · Сбоев за 24ч: {obj.get('fails_24h')}\n")
                 elif source_type == 'node':
                     node_id = int(ref_id)
+                elif source_type == 'service':
+                    title, severity, section = tbc_services.dossier_section(db, int(ref_id)); md.append(section)
+                elif source_type == 'pve':
+                    title, severity, section = tbc_proxmox.dossier_section(db, int(ref_id)); md.append(section)
                 else:
                     device_id = int(ref_id)
 
@@ -1716,6 +1721,8 @@ class TBControlController:
 
     _SRC_SECRET_FIELDS = ("db_password", "api_secret")
 
+    _SRC_MTLS_FIELDS = ("cert_path", "ca_path", "key_keychain_svc", "key_keychain_acc")
+
     @staticmethod
     def get_sources(kind=None, with_secrets=False):
         """Реестр источников. Секреты наружу отдаются маскированными."""
@@ -1723,7 +1730,8 @@ class TBControlController:
             with DatabaseModel() as db:
                 sql = ("SELECT ID, CODE, NAME, KIND, DB_USER, DB_PASSWORD, DB_DSN, "
                        "API_URL, API_USER, API_SECRET, ENABLED, SORT_ORDER, NOTE, "
-                       "LAST_SYNC_AT, LAST_STATUS, LAST_ERROR "
+                       "LAST_SYNC_AT, LAST_STATUS, LAST_ERROR, "
+                       "CERT_PATH, CA_PATH, CERT_FINGERPRINT, KEY_KEYCHAIN_SVC, KEY_KEYCHAIN_ACC "
                        "FROM TBC_SOURCES WHERE 1=1")
                 params = {}
                 if kind:
@@ -1759,8 +1767,8 @@ class TBControlController:
         if not code:
             return {"success": False, "error": "Код источника обязателен"}
         kind = data.get("kind") or "unisim_cassa"
-        if kind not in ("unisim_cassa", "zabbix", "emulator"):
-            return {"success": False, "error": "kind: unisim_cassa/zabbix/emulator"}
+        if kind not in ("unisim_cassa", "zabbix", "emulator", "zabbix_svc", "proxmox"):
+            return {"success": False, "error": "kind: unisim_cassa/zabbix/emulator/zabbix_svc/proxmox"}
         try:
             with DatabaseModel() as db:
                 exists = TBControlController._first_row(
@@ -1769,7 +1777,8 @@ class TBControlController:
                              "db_password": "DB_PASSWORD", "db_dsn": "DB_DSN",
                              "api_url": "API_URL", "api_user": "API_USER",
                              "api_secret": "API_SECRET", "note": "NOTE",
-                             "sort_order": "SORT_ORDER"}
+                             "sort_order": "SORT_ORDER", "cert_path": "CERT_PATH", "ca_path": "CA_PATH",
+                             "key_keychain_svc": "KEY_KEYCHAIN_SVC", "key_keychain_acc": "KEY_KEYCHAIN_ACC"}
                 if exists:
                     sets, params = [], {"id": exists["id"]}
                     for key, col in field_map.items():
@@ -1777,6 +1786,8 @@ class TBControlController:
                             continue
                         if key in TBControlController._SRC_SECRET_FIELDS and str(data[key]).endswith("***"):
                             continue  # маскированное значение — оставляем прежнее
+                        if key in TBControlController._SRC_MTLS_FIELDS and str(data[key]).strip() == "":
+                            continue  # пустое поле mTLS не стирает сохранённые пути/адрес ключа
                         sets.append(f"{col} = :{key}")
                         params[key] = data[key]
                     if "enabled" in data:
@@ -1809,6 +1820,8 @@ class TBControlController:
         try:
             with DatabaseModel() as db:
                 db.execute_query("DELETE FROM TBC_CASSA_STATE WHERE SOURCE_CODE = :c", {"c": code})
+                db.execute_query("DELETE FROM TBC_SERVICES WHERE SOURCE_CODE = :c", {"c": code})
+                db.execute_query("DELETE FROM TBC_PVE_OBJECTS WHERE SOURCE_CODE = :c", {"c": code})
                 db.execute_query("DELETE FROM TBC_SOURCES WHERE CODE = :c", {"c": code})
                 db.connection.commit()
                 TBControlController._add_audit("delete", "source", None, f"Источник {code} удалён")
@@ -1825,6 +1838,12 @@ class TBControlController:
         if src.get("kind") == "unisim_cassa":
             from models import unisim_cassa
             res = unisim_cassa.test_source(src)
+            TBControlController._mark_source(code, res.get("success"), res.get("error"))
+            return res
+        if src.get("kind") in ("zabbix_svc", "proxmox"):
+            from models import tbc_mtls
+            mod = tbc_services if src.get("kind") == "zabbix_svc" else tbc_proxmox
+            res = mod.test_source(tbc_mtls.source_row(code) or {})
             TBControlController._mark_source(code, res.get("success"), res.get("error"))
             return res
         if src.get("kind") == "zabbix":
@@ -1851,6 +1870,41 @@ class TBControlController:
                 db.connection.commit()
         except Exception:
             pass
+
+    # ========== Инфраструктура: сервисы Zabbix (mTLS), Proxmox, SSL ==========
+    # Логика — в models/tbc_services.py, tbc_proxmox.py, tbc_certs.py (правило №2 CLAUDE.md).
+
+    @staticmethod
+    def get_services(source_code=None, status=None, kind=None):
+        return tbc_services.get_services(source_code, status, kind)
+
+    @staticmethod
+    def sync_services(source_code=None):
+        return tbc_services.sync_all(source_code)
+
+    @staticmethod
+    def get_proxmox(source_code=None, obj_type=None, health=None):
+        return tbc_proxmox.get_objects(source_code, obj_type, health)
+
+    @staticmethod
+    def sync_proxmox(source_code=None):
+        return tbc_proxmox.sync_all(source_code)
+
+    @staticmethod
+    def get_certs():
+        return tbc_certs.get_certs()
+
+    @staticmethod
+    def save_cert(data):
+        return tbc_certs.save_cert(data or {})
+
+    @staticmethod
+    def delete_cert(cert_id):
+        return tbc_certs.delete_cert(cert_id)
+
+    @staticmethod
+    def check_certs(cert_id=None):
+        return tbc_certs.check_all(cert_id)
 
     # ========== Кассы UaMenu (TBC_CASSA_STATE) ==========
 

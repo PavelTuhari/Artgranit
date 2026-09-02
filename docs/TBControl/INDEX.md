@@ -37,6 +37,8 @@ Android-устройств, софта Front Office и цепочки обмен
 | [TBCONTROL_MODULE.md](TBCONTROL_MODULE.md) | **Справочник реализации**: все таблицы `TBC_*` и представления `V_TBC_*`, полный перечень API `/api/tbc/*`, формат heartbeat, AI-досье, локальный запуск, remote deploy, checklist верификации релиза |
 | [SCENARIOS.md](SCENARIOS.md) | **10 кейсов полезности** на демо-сети франшизы (Bonus / Super Bonus / Local / Local Expres / Foxi, 11 магазинов) + эмулятор и подключение реального Zabbix |
 | [PRESENTATION_GOOGLE_LM.md](PRESENTATION_GOOGLE_LM.md) | Исходник для генерации презентации в Google NotebookLM: позиционирование, архитектура, сценарии, структура 13 слайдов |
+| [MTLS_SOURCE.md](MTLS_SOURCE.md) | **mTLS-шлюз 192.168.0.148**: сервисы Zabbix и Proxmox под клиентским сертификатом, ключ в Keychain, пути, проверка |
+| [INFRA_RESTORE_20260902.md](INFRA_RESTORE_20260902.md) | Восстановление панелей Инфраструктуры 02.09.2026: что утеряно, какие файлы, как проверить |
 | [INDEX.md](INDEX.md) | этот документ — сводный вход |
 
 Смежные документы проекта:
@@ -96,9 +98,9 @@ https://nufarul.eminescu.md/UNA.md/orasldev/tbcontrol?h=43hhjghj34g5jh345hj
 
 | Слой | Файлы |
 |---|---|
-| Oracle DDL | `sql/70_tbc_tables.sql` … `sql/77_tbc_settings.sql`, `sql/78_invite_links.sql` (все в `deploy_oracle_objects.py` и в init-demo модуля) |
-| Backend | `controllers/tbcontrol_controller.py`, маршруты в `app.py` (`/api/tbc/*`, before_request инвайтов) |
-| UI | `templates/tbcontrol.html` (монолитный SPA, без внешних библиотек) |
+| Oracle DDL | `sql/70_tbc_tables.sql` … `sql/77_tbc_settings.sql`, `sql/78_invite_links.sql`, `sql/79_tbc_sources.sql`, `sql/79b…79e` (сервисы mTLS, типы досье, Proxmox, сертификаты) — все в `deploy_oracle_objects.py` |
+| Backend | `controllers/tbcontrol_controller.py`, маршруты в `app.py` (`/api/tbc/*`, before_request инвайтов); инфраструктура — `models/tbc_mtls.py`, `tbc_services.py`, `tbc_proxmox.py`, `tbc_certs.py`, `controllers/tbc_infra_routes.py` |
+| UI | `templates/tbcontrol.html` (монолитный SPA, без внешних библиотек) + `static/tbcontrol/tbc_infra.js` (панели Инфраструктуры) |
 | Эмулятор/Zabbix | `tbc_emulator.py` (TBCEmulator, ZabbixConnector, EmulatorRuntime) |
 | Docs | `docs/TBControl/*.md`, `docs/TBControl/presentation.html` |
 
@@ -126,3 +128,31 @@ curl -I https://nufarul.eminescu.md/login          # → HTTP/2 200
 
 Особенность: Zabbix живёт в LAN `192.168.0.0/24` — коннектор запускается с
 локального инстанса; production видит все события через общую Oracle ADB.
+
+---
+
+## 6. Мониторинг инфраструктуры: cloudbd, PROXMOX3, OTRS (09.2026)
+
+| Документ | Что внутри |
+|---|---|
+| [CLOUDBD_TEMP_MONITOR.md](CLOUDBD_TEMP_MONITOR.md) | **Перегрев CPU cloudbd/PROXMOX3**: диагностика («перезагрузки» не было — uptime 60 дн), сбор t° через coretemp → zabbix-агент, items `cpu.temp[1|2]`, триггеры >52℃ (average) / ≥60℃ (disaster), алерты в Telegram; end-to-end проверка на реальном превышении. Скрипты: [cloudbd_temp/](cloudbd_temp/) |
+| [../OTRS/MAIL_QUEUE_DIAGNOSIS.md](../OTRS/MAIL_QUEUE_DIAGNOSIS.md) | **Дневные отчёты OTRS не доходили**: переполнение буфера `varchar2(4000)` в `send_email_api_php`, утечка HTTP-дескрипторов, отсутствие повторов; исправление в OTRS/TICKETS/GARABTA/VALORENERGY; скан 143 схем `cloudbd` |
+| [MOBILE_APP_TZ.md](MOBILE_APP_TZ.md) | **ТЗ мобильного приложения** (iPhone): весь контур на одном экране, режим «привлечения внимания» при потере связи с Zabbix и при выходе за температурные режимы |
+| `ios/TBControlMobile/` | Исходники iOS-приложения по ТЗ (SwiftUI, xcodegen) — см. README там же |
+
+## 7. Состояние кода после 01.09.2026 — утеря и восстановление
+
+Проверка по правилу №2 CLAUDE.md показала: часть работы предыдущих сессий
+**затёрта и в git не попала** (ни в ветках, ни на проде, ни в транскриптах):
+`models/zabbix_svc.py`, `models/proxmox_svc.py`, `sql/79b…79e`, методы
+контроллера `get_services/sync_services/sync_proxmox/get_proxmox/get_certs/check_certs`,
+панели `services/proxmox` в шаблоне, `docs/TBControl/MTLS_SOURCE.md`. Уцелели
+только таблицы в ADB (`TBC_SERVICES`, `TBC_PVE_OBJECTS`, `TBC_CERTS`) и маршрут
+`/api/tbc/services`, отдававший 500.
+
+**02.09.2026 функциональность восстановлена заново** изолированными файлами
+(`models/tbc_mtls.py`, `tbc_services.py`, `tbc_proxmox.py`, `tbc_certs.py`,
+`controllers/tbc_infra_routes.py`, `static/tbcontrol/tbc_infra.js`,
+`sql/79b…79e`), контроллер содержит только вызовы в одну строку. Подробности,
+что выяснилось и как проверять — [INFRA_RESTORE_20260902.md](INFRA_RESTORE_20260902.md);
+паспорт шлюза и ключей — [MTLS_SOURCE.md](MTLS_SOURCE.md).
