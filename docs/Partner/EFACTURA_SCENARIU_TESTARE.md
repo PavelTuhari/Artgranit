@@ -74,7 +74,12 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
     (client de test «SRL TEST Casa Operator», IDNO 1026602001999): «Buyer
     1026602001999 isn't registered in the fiscal registry». Clientii fictivi
     din ERP nu pot primi e-Factura; in productie e un semnal ca IDNO-ul din
-    fisa clientului e gresit.
+    fisa clientului e gresit. Cifra de control (ponderi 7,3,1 pe 12 cifre,
+    mod 10) desparte cazurile: fictivul pica la ea, deci modulul il refuza
+    LOCAL (`rules.idno_error`), fara apel la SFS. Un IDNO corect ca forma dar
+    absent din registrul de PROBA (Fundatia Terre des hommes, 1012620009625)
+    e respins de SFS — registrul mediului de test nu e neaparat complet;
+    pe mediul real se verifica din nou.
 14. **Actiunea din back-office-ul nativ una.md** (`EFA_NATIVE.send_doc_pr`)
     merge pe HTTP simplu, sub `/api/biro26/efactura/…` — singurul prefix pe
     care intrarea officeplus.md nu-l redirecteaza la HTTPS (Oracle 11g nu are

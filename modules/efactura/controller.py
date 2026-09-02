@@ -183,6 +183,16 @@ class EfaController:
                              "EN: buyer has no IDNO"}
         # RO: numarul nostru (A-81) merge ca Number — referinta noastra;
         #     SFS il inlocuieste cu numarul lui la semnare.
+        # RO: cifra de control a IDNO-ului — refuz local, fara apel la SFS
+        from modules.efactura.rules import idno_error
+        ierr = idno_error(idno, "clientului")
+        if ierr:
+            EfaStore.doc_upsert(doc_cod, NRMANUAL=str(doc.get("nrmanual") or "")[:40],
+                                CLIENT_COD=p.get("client_cod"),
+                                TOTAL=doc.get("total"), STATUS="ERROR",
+                                ERR_MSG=ierr[:1900])
+            return {"success": False, "error": ierr,
+                    "data": {"doc_cod": doc_cod, "status": "ERROR"}}
         xml = sfs.build_invoice_xml(doc, p["seller"], seria=s.get("seria", ""),
                                     number=str(doc.get("nrmanual") or ""))
         EfaStore.doc_upsert(doc_cod, NRMANUAL=str(doc.get("nrmanual") or "")[:40],

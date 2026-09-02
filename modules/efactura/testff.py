@@ -52,6 +52,10 @@ def validate(payload: Dict[str, Any]) -> Dict[str, List[str]]:
         e["seller.name"] = ["Denumirea vinzatorului e obligatorie"]
     if not str(buyer.get("idno") or "").strip():
         e["buyer.idno"] = ["IDNO-ul cumparatorului e obligatoriu"]
+    else:
+        from modules.efactura.rules import idno_valid
+        if not idno_valid(str(buyer.get("idno")).strip()):
+            e["buyer.idno"] = ["IDNO-ul cumparatorului nu trece cifra de control"]
     if not str(buyer.get("name") or "").strip():
         e["buyer.name"] = ["Denumirea cumparatorului e obligatorie"]
 

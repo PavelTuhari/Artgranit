@@ -534,3 +534,24 @@ class TestNativeApiMount(unittest.TestCase):
     def test_no_shared_file_touched(self):
         src = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
         self.assertNotIn("efactura", src)
+
+
+class TestIdnoCheckDigit(unittest.TestCase):
+    """RO: cifra de control IDNO — clientii fictivi pica local, nu la SFS."""
+
+    def test_real_and_fake(self):
+        from modules.efactura.rules import idno_valid, idno_error
+        for good in ("1003600116460", "1012600013725", "1008602003648", "1007601010378"):
+            self.assertTrue(idno_valid(good), good)
+        self.assertFalse(idno_valid("1026602001999"))      # «SRL TEST Casa Operator»
+        self.assertFalse(idno_valid("1234567890123"))
+        self.assertFalse(idno_valid(""))
+        self.assertIn("cifra de control", idno_error("1026602001999"))
+        self.assertIsNone(idno_error("1003600116460"))
+
+    def test_probe_rejects_bad_buyer_idno(self):
+        from modules.efactura import testff
+        e = testff.validate({"seller": {"idno": "1003600116460", "name": "x"},
+                             "buyer": {"idno": "1026602001999", "name": "y"},
+                             "lines": [{"name": "s", "qty": 1, "price": 1}]})
+        self.assertIn("buyer.idno", e)

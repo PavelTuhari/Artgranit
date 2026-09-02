@@ -95,7 +95,8 @@ nativă să afișeze mesajul.
 | «clientul nu are IDNO» | persoană fizică | nu se emite e-Factura |
 | «Accesul e restricționat (403)» | IP-ul serverului nu e la SFS | firma IT → asistenta@sfs.md |
 | «eroare SOAP … pagină HTML (500)» | parola API greșită sau cont pe alt mediu | verificați contul pe sfs.md, re-introduceți parola în Setări |
-| «Buyer … isn't registered in the fiscal registry» | IDNO-ul clientului nu există la SFS | verificați IDNO-ul în fișa clientului |
+| «IDNO-ul clientului … nu trece cifra de control» | IDNO greșit în fișa clientului (refuz local, fără apel la SFS) | corectați IDNO-ul în fișa clientului |
+| «Buyer … isn't registered in the fiscal registry» | IDNO corect ca formă, dar necunoscut registrului SFS | verificați cu clientul IDNO-ul; pe mediul de probă registrul poate fi incomplet |
 | «Validation failed …» | XML în afara schemei SFS | firma IT (jurnalul `EFA_CALL`) |
 
 Totul ce s-a trimis și ce a răspuns SFS e în jurnalul modulului (pagina
