@@ -750,6 +750,35 @@ class Biro26Store:
                       "'^-?[0-9]+([.,][0-9]+)?$') THEN "
                       "TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.')) END)")
         try:
+            # RO: drumul SCURT pentru forma cea mai ceruta (74% din trafic:
+            #     filtre pe grupa/categorie/brand). Logica in
+            #     models/biro26_catalog_fast.py — regula nr. 2.
+            # EN: fast path, see models/biro26_catalog_fast.py
+            from models import biro26_catalog_fast as _fast
+            if _fast.supports(search, price_min, price_max, sort):
+                fsql, fcount, fparams = _fast.build(
+                    price_expr, price_date, gr1=gr1, brand=brand,
+                    categorie=categorie, grupa=grupa, cod=cod,
+                    only_new=only_new, archived=archived, sort=sort,
+                    limit=limit, offset=offset)
+                fres = _result(Biro26DB().execute_query(fsql, fparams))
+                if fres.get("success"):
+                    from models.biro26_imgproxy import rewrite_rows
+                    rewrite_rows(fres.get("data") or fres.get("rows"), "IMAGE")
+                    if with_count:
+                        # RO: numaratoarea nu foloseste toate bind-urile
+                        #     paginii (`:pd` lipseste din ea) — Oracle refuza
+                        #     bind-urile in plus, iar totalul iesea 0.
+                        cp = {k: v for k, v in fparams.items()
+                              if (":" + k) in fcount}
+                        import hashlib as _hf
+                        fk = "cnt:" + _hf.md5(
+                            (fcount + repr(sorted(cp.items()))).encode()
+                        ).hexdigest()
+                        fres["total"] = _cached(fk, 300, lambda: (
+                            lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                                _rows(Biro26DB().execute_query(fcount, cp))))
+                    return fres
             # RO: nucleu ieftin (doar u+g+pl: filtrele si sortarea), paginat cu
             #     ROWNUM; join-urile scumpe (VMS_MPT_TVR view, stoc, barcode,
             #     variante) se aplica DOAR pe pagina de <=200 randuri.
@@ -769,10 +798,11 @@ class Biro26Store:
                 f"{price_expr} RETAIL1, "
                 "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA "
                 "FROM TMS_UNIVERS u "
-                # dedupe: the feed holds a few identical duplicate rows per product
-                "LEFT JOIN (SELECT gg.* FROM (SELECT g0.*, ROW_NUMBER() OVER "
-                "  (PARTITION BY g0.COD_UNIVERS ORDER BY g0.ID) RN0 "
-                "  FROM BIRO26_GOODS g0) gg WHERE gg.RN0 = 1) g ON g.COD_UNIVERS = u.COD "
+                # RO: BIRO26_GOODS e unic pe COD_UNIVERS din 02.09.2026 (index
+                #     UX_BIRO26_GOODS_CODUNIV) — join direct, fara ROW_NUMBER
+                #     peste toata tabela la fiecare cerere.
+                # EN: unique feed since 02.09.2026 — plain join, no window dedupe.
+                "LEFT JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
                 # RO: pretul in vigoare la data ceruta / EN: price effective at the requested date
                 "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
                 "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
