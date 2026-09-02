@@ -79,12 +79,15 @@ CREATE OR REPLACE PACKAGE BODY EFA_NATIVE AS
 
   -- RO: pentru aplicatia nativa — arunca eroarea ca sa apara in fereastra
   PROCEDURE send_doc_pr(p_doc IN NUMBER, p_date IN VARCHAR2 DEFAULT NULL) IS
-    v VARCHAR2(4000) := send_doc(p_doc, p_date);
+    v   VARCHAR2(4000) := send_doc(p_doc, p_date);
+    msg VARCHAR2(4000);
   BEGIN
-    IF v LIKE 'HTTP 200%' AND INSTR(v, '"success":true') > 0 THEN
+    IF v LIKE 'HTTP 200%' AND INSTR(v, '"success": true') + INSTR(v, '"success":true') > 0 THEN
       RETURN;
     END IF;
-    RAISE_APPLICATION_ERROR(-20000, SUBSTR('e-Factura: ' || v, 1, 2000));
+    -- RO: doar textul erorii (cimpul "error" din JSON), nu tot raspunsul
+    msg := REGEXP_SUBSTR(v, '"error": ?"([^"]*)"', 1, 1, NULL, 1);
+    RAISE_APPLICATION_ERROR(-20000, SUBSTR('e-Factura: ' || NVL(msg, v), 1, 2000));
   END send_doc_pr;
 
   -- RO: starea din EFA_DOC (fara apel la SFS): STATUS + mesaj + numarul SFS

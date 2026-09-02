@@ -45,7 +45,13 @@ def _guard():
 
 
 def _reply(r, ok=200, bad=400):
-    return jsonify(r), (ok if r.get("success") else bad)
+    """RO: JSON cu diacritice NEescapate — textul ajunge in fereastra
+    aplicatiei native prin PL/SQL, care nu decodifica \\u00e2."""
+    import json
+    from flask import Response
+    body = json.dumps(r, ensure_ascii=False)
+    return Response(body, status=(ok if r.get("success") else bad),
+                    mimetype="application/json; charset=utf-8")
 
 
 @root_blueprint.route("/api/biro26/efactura/health")

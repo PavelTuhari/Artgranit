@@ -70,7 +70,17 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
     copiii lui `<request>` in namespace-ul DataContract, in ordinea din XSD
     (RequestId, ActorRole, …). Mediul de proba si cel real au contract
     identic (19 operatii).
-13. **Parolele**: niciodata in pagina/jurnal/chat. In browser — managerul
+13. **Cumparatorul trebuie sa existe in registrul fiscal.** Raspuns pe A-74
+    (client de test «SRL TEST Casa Operator», IDNO 1026602001999): «Buyer
+    1026602001999 isn't registered in the fiscal registry». Clientii fictivi
+    din ERP nu pot primi e-Factura; in productie e un semnal ca IDNO-ul din
+    fisa clientului e gresit.
+14. **Actiunea din back-office-ul nativ una.md** (`EFA_NATIVE.send_doc_pr`)
+    merge pe HTTP simplu, sub `/api/biro26/efactura/…` — singurul prefix pe
+    care intrarea officeplus.md nu-l redirecteaza la HTTPS (Oracle 11g nu are
+    wallet TLS). Verificat din Oracle: trimitere, refuz cu mesaj in romana,
+    ORA-20000 cu textul erorii.
+15. **Parolele**: niciodata in pagina/jurnal/chat. In browser — managerul
     de parole (Safari → Keychain); pentru probe automate — macOS Keychain
     (`security add-generic-password -s efactura-api-pre -a <utilizator> -w`),
     citite direct in variabile de mediu.
