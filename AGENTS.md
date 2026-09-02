@@ -1,0 +1,63 @@
+# AGENTS.md — правила для любого ИИ-агента в репозитории Artgranit
+
+Читают Claude Code, Codex, Cursor и любой другой агент. Полная версия
+инженерных правил — [`CLAUDE.md`](CLAUDE.md); git-концепция —
+[`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md); ядро модулей —
+[`docs/CORE_MODULES.md`](docs/CORE_MODULES.md).
+
+## Перед первым действием
+
+```bash
+git branch --show-current && git worktree list && pwd
+```
+
+- Ты в `/Users/pt/Projects.AI/Artgranit` и ветка не `main`? Это чужой
+  каталог с чужой веткой. **Не работать здесь.** Создай свой worktree:
+  `python scripts/new_module.py <ключ> "<Название>"` (новый модуль) или
+  `git worktree add ../Artgranit-<ключ> -b feat/<ключ> main` (любая задача).
+- Ветка `main` в общем каталоге — только для `git pull --ff-only`, merge
+  готовых веток и деплоя.
+
+## Где лежит код задачи
+
+| Что | Куда | Никогда |
+|---|---|---|
+| модуль | `modules/<ключ>/` (blueprint, routes, controller, store, rules, templates, sql, scripts, module.json) | `app.py`, `controllers/`, `models/`, `templates/`, `sql/` |
+| логика для старого модуля | `models/<модуль>_<тема>.py`, вызов в одну строку | тело функции в общем файле |
+| документация | `docs/<Модуль>/*.md` + `docs.json` | правка чужих `docs/` |
+| тесты | `tests/test_<ключ>.py` с двумя тестами изоляции | — |
+| DDL | `modules/<ключ>/sql/` + свой `scripts/<ключ>_deploy.py` | `deploy_oracle_objects.py` |
+
+Проверка изоляции перед сдачей: `git diff --name-only main HEAD` — только
+свои пути.
+
+## Git: каждый шаг сохраняется
+
+1. Hook коммитит и пушит каждый `Write`/`Edit` в репозиторий файла.
+   Не полагайся только на него: после законченного шага —
+   `git add <свои пути> && git commit -m "<ключ>: что сделано" && git push`.
+2. Перед сдачей: `git log --oneline origin/$(git branch --show-current)..HEAD`
+   должно быть пусто.
+3. Общий файл (`app.py`, `CLAUDE.md`, `README.md`, старые шаблоны) — только
+   точечный `Edit` после `git log --oneline -3 -- <файл>` и `git pull`.
+   Полная перезапись общего файла запрещена.
+4. Запрещено: `push --force`, `rebase` запушенного, `checkout`/`stash`/
+   `restore` в общем каталоге, откат чужих коммитов, коммит чужих файлов.
+
+## Решения
+
+Технические развилки решай сам и сообщай результат. Спрашивай только про
+необратимое вне кода: деплой на прод, удаление данных, отправка наружу.
+Production `https://nufarul.eminescu.md/` важнее любой задачи — после любого
+действия на сервере `curl -I https://nufarul.eminescu.md/login` → 200.
+
+## Новый проект-модуль одной командой
+
+```bash
+python scripts/new_module.py <ключ> "<Название>" [--prefix XXX] [--icon 🧩]
+```
+
+Создаёт worktree, ветку, каркас `modules/<ключ>/`, тесты изоляции,
+`docs/<Модуль>/`, первый коммит и push. Дальше работа только в
+`../Artgranit-<ключ>/`. Ядро подключит модуль само; в меню он появится по
+`module.json`.
