@@ -92,6 +92,7 @@ class TestInvoiceXml(unittest.TestCase):
         from modules.efactura import sfs
         xml = sfs.build_invoice_xml({"items": [{"name": "x"}]}, {"idno": "1"})
         self.assertIn("<Documents>", xml)
+        self.assertIn("<Seria></Seria><Number></Number>", xml)   # mereu prezente
         self.assertIn('TotalPrice="0.00"', xml)
 
 class TestSfsClientGuards(unittest.TestCase):
@@ -423,7 +424,10 @@ class TestMaskedFault(unittest.TestCase):
         c = sfs.SfsClient(sfs.ENDPOINT_TEST, "u", "p")
         err = urllib.error.HTTPError(c.endpoint, code, "x", {},
                                      io.BytesIO(b"<!DOCTYPE html><html>500</html>"))
-        with mock.patch("urllib.request.urlopen", side_effect=err):
+        # RO: apelul simulat NU are voie sa scrie in jurnalul REAL (EFA_CALL)
+        #     — 02.09.2026 testele lasau rinduri «u / html» in productie.
+        with mock.patch("urllib.request.urlopen", side_effect=err), \
+             mock.patch("modules.efactura.journal.record"):
             return c.call("Test", "<message>ping</message>")
 
     def test_403_means_ip(self):
@@ -479,6 +483,7 @@ class TestBackofficeMapping(unittest.TestCase):
         inf = ET.fromstring(xml).find("Document/SupplierInfo")
         self.assertEqual(inf.find("Supplier").get("TaxpayerType"), "1")
         self.assertEqual(inf.find("Buyer").get("TaxpayerType"), "2")
+        self.assertIsNotNone(inf.find("Buyer/BankAccount"))   # mereu prezent
 
     def test_tva_rate_from_document(self):
         from modules.efactura.controller import EfaController as C
@@ -486,3 +491,23 @@ class TestBackofficeMapping(unittest.TestCase):
         self.assertEqual(C._tva_rate(1080.0, 80.0, {}), 8.0)
         self.assertEqual(C._tva_rate(20149.0, 0.0, {"tva_rate": "20"}), 20.0)
         self.assertEqual(C._tva_rate(100.0, 0.0, {"tva_rate": "0"}), 0.0)
+
+
+class TestDateWindow(unittest.TestCase):
+    """RO: regula SFS (raspuns real 02.09.2026): IssuedDate intre azi si
+    azi+10 zile; documentele vechi se refuza INAINTE de apel, in romana."""
+
+    def test_window(self):
+        import datetime
+        from modules.efactura.controller import EfaController as C
+        today = datetime.date.today()
+        self.assertIsNone(C.date_window_error(today.isoformat()))
+        self.assertIsNone(C.date_window_error((today + datetime.timedelta(days=10)).isoformat()))
+        self.assertIn("în trecut", C.date_window_error((today - datetime.timedelta(days=1)).isoformat()))
+        self.assertIn("viitor", C.date_window_error((today + datetime.timedelta(days=11)).isoformat()))
+        self.assertIn("invalid", C.date_window_error(""))
+
+    def test_override_wins(self):
+        import datetime
+        from modules.efactura.controller import EfaController as C
+        self.assertIsNone(C.date_window_error("2026-08-19", override_date=datetime.date.today().isoformat()))

@@ -156,10 +156,15 @@ def _api_guard():
 
 @blueprint.route("/api/send/<int:doc_cod>", methods=["POST"])
 def api_send(doc_cod):
+    """RO: corpul JSON optional: {"override_date": "YYYY-MM-DD"} — DOAR pentru
+    probe pe mediul de test cu documente vechi (SFS primeste facturi doar cu
+    data de azi…azi+10). In productie nu se trimite."""
     err = _api_guard()
     if err:
         return err
-    return _reply(EfaController.send(doc_cod, src="api"))
+    body = _body()
+    return _reply(EfaController.send(doc_cod, src="api",
+                                     override_date=body.get("override_date")))
 
 
 @blueprint.route("/api/status/<int:doc_cod>")

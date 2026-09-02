@@ -75,11 +75,11 @@ def main() -> int:
                    "address": "or. Chisinau, str. Alba Iulia, 75/b",
                    "iban": "MD22ML000000222442000432", "bank_code": "MOLDMD2X303",
                    "bank_name": "BC Moldindconbank S.A., filiala Alba-Iulia"},
-        "buyer": {"idno": "1003600116460",
-                  "name": "\"UNISIM-SOFT\" S.R.L. (proba catre propria companie)",
-                  "address": "or. Chisinau, str. Alba Iulia, 75/b",
-                  "iban": "MD22ML000000222442000432", "bank_code": "MOLDMD2X303",
-                  "bank_name": "BC Moldindconbank S.A., filiala Alba-Iulia"},
+        # RO: cumparatorul probei = Coninfo SRL, ca in pagina de test a
+        #     proprietarului (02.09.2026: «по идее покупатель должен был быть
+        #     Coninfo»). SFS ii inlocuieste oricum denumirea/adresa din registru.
+        "buyer": {"idno": "1012600013725", "name": "Coninfo SRL",
+                  "address": "or. Chisinau, str. Alba Iulia, 75/b"},
         "lines": [{"name": "Serviciu de test integrare e-Factura", "cod": "TEST-1",
                    "um": "buc.", "qty": 1, "price": 1.00}],
         "tva_rate": 20, "seria": "TST", "number": "",

@@ -112,7 +112,8 @@ class SfsClient:
 
     @classmethod
     def from_settings(cls, signer: int = 1,
-                      api: Optional[Dict[str, Any]] = None) -> "SfsClient":
+                      api: Optional[Dict[str, Any]] = None,
+                      src: str = "backoffice") -> "SfsClient":
         """RO: clientul unuia dintre cei DOI semnatari.
 
         In practica factura fiscala se semneaza de doua persoane (director si
@@ -139,11 +140,15 @@ class SfsClient:
             user, pwd = adhoc["username"], adhoc.get("password", "")
             if int(signer) == 2 and adhoc.get("username2"):
                 user, pwd = adhoc["username2"], adhoc.get("password2", "")
-            return cls(endpoint, user, pwd, ns)
+            c = cls(endpoint, user, pwd, ns)
+            c.src = src
+            return c
         user, pwd = s.get("username", ""), s.get("password", "")
         if int(signer) == 2 and s.get("username2"):
             user, pwd = s.get("username2", ""), s.get("password2", "")
-        return cls(endpoint, user, pwd, ns)
+        c = cls(endpoint, user, pwd, ns)
+        c.src = src                       # RO: eticheta din jurnalul EFA_CALL
+        return c
 
     @classmethod
     def from_api(cls, api: Optional[Dict[str, Any]] = None,
@@ -482,15 +487,15 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
                f"TaxpayerType=\"{int(tt)}\"")
         if p.get("cod_tva"):
             out += f' CodTVA="{_attr(p.get("cod_tva"))}"'
-        acc = p.get("iban") or p.get("account")
-        if with_bank and acc:
-            out += (">"
-                    f"<BankAccount Account=\"{_attr(acc)}\" "
-                    f"BranchTitle=\"{_attr(p.get('bank_name') or p.get('bank') or '')}\" "
-                    f"BranchCode=\"{_attr(p.get('bank_code') or '')}\"/>"
-                    f"</{tag}>")
-        else:
-            out += "/>"
+        # RO: BankAccount e MEREU prezent (si cu atribute goale): exportul
+        #     real il are la ambele parti, iar proba fara el la cumparator a
+        #     primit «Object reference not set…» (02.09.2026).
+        acc = p.get("iban") or p.get("account") or ""
+        out += (">"
+                f"<BankAccount Account=\"{_attr(acc)}\" "
+                f"BranchTitle=\"{_attr(p.get('bank_name') or p.get('bank') or '')}\" "
+                f"BranchCode=\"{_attr(p.get('bank_code') or '')}\"/>"
+                f"</{tag}>")
         return out
 
     buyer = {"iban": d.get("client_iban"), "bank_name": d.get("client_bank"),
@@ -498,11 +503,12 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
              "taxpayer_type": d.get("client_taxpayer_type"),
              "cod_tva": d.get("client_cod_tva")}
     issue = d.get("issue_date") or d.get("date")
-    head = ""
-    if seria:
-        head += f"<Seria>{_esc(seria)}</Seria>"
-    if number:
-        head += f"<Number>{_esc(number)}</Number>"
+    # RO: Seria si Number sint MEREU prezente, chiar goale: documentul
+    #     acceptat de SFS le are asa dupa normalizare (<Seria /><Number />),
+    #     iar un XML fara <Number> a primit «Object reference not set…»
+    #     (02.09.2026, conturile A-81/A-70).
+    head = (f"<Seria>{_esc(seria or '')}</Seria>"
+            f"<Number>{_esc(number or '')}</Number>")
     return (
         '<?xml version="1.0" encoding="utf-8"?>'
         "<Documents><Document><SupplierInfo>"

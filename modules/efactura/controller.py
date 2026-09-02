@@ -79,6 +79,36 @@ class EfaController:
         return {"success": True, "doc": doc, "seller": seller, "raw": raw,
                 "client_cod": r.get("client_cod"), "settings": s}
 
+    # RO: regula SFS, primita ca raspuns real la 02.09.2026 pe patru conturi
+    #     din august: «Specify the correct date for the IssuedDate element …
+    #     the date can be specified 0 days before or 10 days after the
+    #     current date». Adica factura se inregistreaza in e-Factura in ZIUA
+    #     eliberarii (sau cu data in viitor, pina la 10 zile) — un document
+    #     mai vechi nu mai poate fi trimis. Verificam INAINTE de apel, ca
+    #     operatorul sa primeasca motivul in romana, nu un ERROR generic.
+    DATE_WINDOW_DAYS = 10
+
+    @staticmethod
+    def date_window_error(issue_date: str,
+                          override_date: Optional[str] = None) -> Optional[str]:
+        """RO: None daca data e in fereastra [azi, azi+10]; altfel mesajul."""
+        import datetime as _d
+        day = str(override_date or issue_date or "")[:10]
+        try:
+            d = _d.date.fromisoformat(day)
+        except ValueError:
+            return "Data eliberării lipsește sau e invalidă (%s)." % day
+        today = _d.date.today()
+        if d < today:
+            return ("Data eliberării %s e în trecut: e-Factura primește facturi "
+                    "doar cu data de azi sau cu până la %d zile în viitor. "
+                    "Factura trebuie transmisă în ziua eliberării."
+                    % (d.strftime("%d.%m.%Y"), EfaController.DATE_WINDOW_DAYS))
+        if (d - today).days > EfaController.DATE_WINDOW_DAYS:
+            return ("Data eliberării %s e cu mai mult de %d zile în viitor."
+                    % (d.strftime("%d.%m.%Y"), EfaController.DATE_WINDOW_DAYS))
+        return None
+
     @staticmethod
     def _tva_rate(total: float, tva: float, settings: Dict[str, Any]) -> float:
         """RO: cota din document (tva / baza), rotunjita la cotele legale
@@ -117,14 +147,32 @@ class EfaController:
     # ── trimiterea ─────────────────────────────────────────────────────
     @staticmethod
     def send(doc_cod: int, src: str = "backoffice",
-             allowed_client_cod: Optional[int] = None) -> Dict[str, Any]:
+             allowed_client_cod: Optional[int] = None,
+             override_date: Optional[str] = None) -> Dict[str, Any]:
         """RO: trimite documentul in SIA e-Factura si scrie rezultatul in
         EFA_DOC + EFA_LOG. Nu arunca exceptii spre interfata: orice esec se
-        vede ca status ERROR cu mesajul de la SFS."""
+        vede ca status ERROR cu mesajul de la SFS.
+
+        `override_date` (YYYY-MM-DD) inlocuieste data eliberarii — DOAR
+        pentru probe pe mediul de test cu documente vechi; in productie nu se
+        da niciodata: data fiscala e cea a documentului."""
         p = EfaController.build_payload(doc_cod, allowed_client_cod)
         if not p.get("success"):
             return p
         doc, s = p["doc"], p["settings"]
+        if override_date:
+            doc["issue_date"] = str(override_date)[:10]
+            doc["delivery_date"] = doc["issue_date"]
+        # RO: fereastra de date a SFS — refuz clar INAINTE de apel
+        werr = EfaController.date_window_error(doc.get("issue_date"))
+        if werr:
+            EfaStore.doc_upsert(doc_cod, NRMANUAL=str(doc.get("nrmanual") or "")[:40],
+                                CLIENT_COD=p.get("client_cod"),
+                                TOTAL=doc.get("total"), STATUS="ERROR",
+                                ERR_MSG=werr[:1900])
+            EfaStore.log(doc_cod, "date_window", werr[:1500], src)
+            return {"success": False, "error": werr,
+                    "data": {"doc_cod": doc_cod, "status": "ERROR"}}
         idno = str(doc.get("client_idno") or "").strip()
         # RO: factura fiscala electronica are sens pentru persoane JURIDICE;
         #     pentru persoane fizice SFS nu asteapta document electronic.
@@ -133,12 +181,15 @@ class EfaController:
                     "error": "RO: clientul nu are IDNO (persoana fizica) — "
                              "e-Factura se emite persoanelor juridice / "
                              "EN: buyer has no IDNO"}
-        xml = sfs.build_invoice_xml(doc, p["seller"], seria=s.get("seria", ""))
+        # RO: numarul nostru (A-81) merge ca Number — referinta noastra;
+        #     SFS il inlocuieste cu numarul lui la semnare.
+        xml = sfs.build_invoice_xml(doc, p["seller"], seria=s.get("seria", ""),
+                                    number=str(doc.get("nrmanual") or ""))
         EfaStore.doc_upsert(doc_cod, NRMANUAL=str(doc.get("nrmanual") or "")[:40],
                             CLIENT_COD=p.get("client_cod"),
                             CLIENT_IDNO=idno[:20] or None,
                             TOTAL=doc.get("total"), STATUS="NEW")
-        client = sfs.SfsClient.from_settings()
+        client = sfs.SfsClient.from_settings(src=src)
         r = client.post_invoices(xml)
         EfaStore.log(doc_cod, "post_invoices",
                      f"src={src} xml={xml[:900]}", src)
@@ -158,9 +209,12 @@ class EfaController:
         # RO: SENT_AT se pune prin SQL (SYSDATE), nu din aplicatie
         if status == "SENT":
             from models.biro26_db import Biro26DB
+            # RO: SENT_AT prin SYSDATE si ERR_MSG golit explicit — upsert-ul
+            #     nu suprascrie cu NULL, iar mesajul refuzului anterior ramine
+            #     lipit de un document deja acceptat (vazut pe A-81, 02.09.2026).
             Biro26DB().execute_dml(
-                "UPDATE EFA_DOC SET SENT_AT = SYSDATE WHERE DOC_COD = :c",
-                {"c": int(doc_cod)})
+                "UPDATE EFA_DOC SET SENT_AT = SYSDATE, ERR_MSG = NULL "
+                "WHERE DOC_COD = :c", {"c": int(doc_cod)})
         EfaStore.log(doc_cod, "post_reply", str(parsed)[:1500], src)
         return {"success": status == "SENT", "data": {
             "doc_cod": int(doc_cod), "status": status,
