@@ -89,6 +89,65 @@ def admin_log():
     return jsonify(EfaStore.log_list(request.args.get("limit", 200, type=int)))
 
 
+# ── raportul «facturi transmise» (pachetul EFA_REPORT, 3 seturi) ────────
+@blueprint.route("/report")
+def report_page():
+    if not AuthController.is_authenticated():
+        return redirect("/login?next=/UNA.md/orasldev/efactura/report")
+    from modules.efactura.report import STATUSES
+    return render_template("efactura_report.html", statuses=STATUSES)
+
+
+def _report_data():
+    from modules.efactura import report
+    filters = report.parse_filters(request.args)
+    return report.fetch(filters)
+
+
+@blueprint.route("/admin/report")
+def admin_report():
+    err = _admin_guard()
+    if err:
+        return err
+    try:
+        return jsonify(_report_data())
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+@blueprint.route("/admin/report.xlsx")
+def admin_report_xlsx():
+    err = _admin_guard()
+    if err:
+        return err
+    from flask import Response
+    from modules.efactura import report
+    try:
+        data = _report_data()
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 400
+    return Response(report.to_xlsx(data),
+                    mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename=%s"
+                             % report.file_name(data["filters"], "xlsx")})
+
+
+@blueprint.route("/admin/report.pdf")
+def admin_report_pdf():
+    err = _admin_guard()
+    if err:
+        return err
+    from flask import Response
+    from modules.efactura import report
+    try:
+        data = _report_data()
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 400
+    return Response(report.to_pdf(data), mimetype="application/pdf",
+                    headers={"Content-Disposition": "inline; filename=%s"
+                             % report.file_name(data["filters"], "pdf")})
+
+
 @blueprint.route("/admin/calls")
 def admin_calls():
     """RO: TOATE comunicarile cu SFS — reusite si esuate — cu plicul trimis

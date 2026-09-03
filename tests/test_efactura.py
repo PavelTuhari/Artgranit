@@ -785,3 +785,80 @@ def test_vat_payer_option_drives_motiv_and_tva(monkeypatch):
     tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
                encoding="utf-8").read()
     assert 'id="s-vat_payer"' in tpl and "'vat_payer'" in tpl
+
+
+# ── raportul «facturi transmise» — pachetul EFA_REPORT + web/Excel/PDF (03.09.2026)
+def _report_sample():
+    return {"filters": {"from": "2026-09-01", "to": "2026-09-03", "status": None, "client": None},
+            "header": {"filter_from": "01.09.2026", "filter_to": "03.09.2026", "docs_cnt": 1,
+                       "sent_cnt": 1, "accepted_cnt": 0, "error_cnt": 0, "total_sum": 2481.0,
+                       "generated_at": "03.09.2026 22:00", "endpoint": "https://efactura-api.sfs.md/Service.svc"},
+            "master": [{"efa_id": 121, "doc_cod": 426, "nrmanual": "A-90", "doc_date": "03.09.2026",
+                        "client_name": "IURILEN-FLOR SRL — Bălți", "client_idno": "1014607001158",
+                        "status": "SENT", "sfs_seria": None, "sfs_number": None,
+                        "request_id": "08df0b1a", "sent_at": "03.09.2026 21:34", "err_msg": None,
+                        "total": 2481.0, "rows_cnt": 2, "qty_sum": 53.0}],
+            "detail": [{"efa_id": 121, "doc_cod": 426, "row_no": 1, "goods_cod": 165051,
+                        "code": "C12E5C5", "name": "Caiet A5, 12 file, pătrățele", "um": "buc",
+                        "qty": 50.0, "price": 1.75, "suma": 87.5, "nrmanual": "A-90"},
+                       {"efa_id": 121, "doc_cod": 426, "row_no": 2, "goods_cod": 182556,
+                        "code": "H.3662", "name": "Coperte HELLO clasa 1-a, română", "um": "buc",
+                        "qty": 3.0, "price": 25.0, "suma": 75.0, "nrmanual": "A-90"}]}
+
+
+def test_report_sql_has_slash_around_every_plsql_block():
+    """RO: lectia SDA (CLAUDE.md §2.5): '/' si INAINTE si DUPA fiecare bloc PL/SQL."""
+    src = open(os.path.join(ROOT, "modules/efactura/sql/04_efa_report.sql"), encoding="utf-8").read()
+    blocks = [b.strip() for b in src.split("\n/\n") if b.strip()]
+    heads = [" ".join(b.split()[:4]) for b in blocks if not b.lstrip().startswith("--") or "CREATE" in b]
+    assert any("PACKAGE BODY EFA_REPORT" in b for b in blocks)
+    for b in blocks:
+        body = "\n".join(l for l in b.splitlines() if not l.strip().startswith("--")).strip()
+        if body:
+            assert body.startswith("CREATE OR REPLACE"), body[:60]
+    assert "PIPELINED" in src and "OUT SYS_REFCURSOR" in src
+    assert all(x in src for x in ("FUNCTION header", "FUNCTION master", "FUNCTION detail", "PROCEDURE sent"))
+    assert "ă" not in src and "î" not in src, "diacritice in DDL — baza e CL8MSWIN1251"
+
+
+def test_report_filters_defaults_and_validation():
+    from modules.efactura import report
+    f = report.parse_filters({})
+    assert f["from"].endswith("-01") and f["status"] is None and f["client"] is None
+    f = report.parse_filters({"from": "01.09.2026", "to": "2026-09-03", "status": "sent", "client": "471738"})
+    assert f == {"from": "2026-09-01", "to": "2026-09-03", "status": "SENT", "client": 471738}
+    import pytest
+    with pytest.raises(ValueError):
+        report.parse_filters({"status": "WHATEVER"})
+    with pytest.raises(ValueError):
+        report.parse_filters({"from": "2026/09/01"})
+
+
+def test_report_xlsx_has_three_sheets_linked_by_efa_id():
+    from openpyxl import load_workbook
+    import io
+    from modules.efactura import report
+    wb = load_workbook(io.BytesIO(report.to_xlsx(_report_sample())))
+    assert wb.sheetnames == ["Header", "Master", "Detail"]
+    m = wb["Master"]; d = wb["Detail"]
+    assert m["A1"].value == "EFA_ID" and m["A2"].value == 121 and m["C2"].value == "A-90"
+    assert d["A2"].value == 121 and d["A3"].value == 121 and d["C2"].value == "A-90"
+    assert wb["Header"]["A1"].value.startswith("Raport")
+
+
+def test_report_pdf_renders_master_and_detail():
+    from modules.efactura import report
+    pdf = report.to_pdf(_report_sample())
+    assert pdf[:5] == b"%PDF-" and len(pdf) > 1500
+
+
+def test_report_routes_and_page():
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    for r in ('"/report"', '"/admin/report"', '"/admin/report.xlsx"', '"/admin/report.pdf"'):
+        assert r in routes
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_report.html"), encoding="utf-8").read()
+    assert "admin/report.xlsx" in tpl and "admin/report.pdf" in tpl and "EFA_REPORT" in tpl
+    assert 'url_for("efactura.admin_page")' in tpl and "/UNA.md/orasldev/efactura" not in tpl.split("<script>")[1]
+    import json
+    m = json.load(open(os.path.join(ROOT, "modules/efactura/module.json"), encoding="utf-8"))
+    assert "efactura.report_page" in m["pages"]

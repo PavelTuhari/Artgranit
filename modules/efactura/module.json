@@ -18,6 +18,16 @@
       "ro": "Setări și jurnal",
       "ru": "Настройки и журнал",
       "en": "Settings and log"
+    },
+    "efactura.report_page": {
+      "ro": "Facturi transmise (raport)",
+      "ru": "Переданные фактуры (отчёт)",
+      "en": "Sent invoices (report)"
+    },
+    "efactura.test_page": {
+      "ro": "Factură de test",
+      "ru": "Тестовая фактура",
+      "en": "Test invoice"
     }
   },
   "root_paths": [
