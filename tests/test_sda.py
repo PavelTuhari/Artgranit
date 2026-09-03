@@ -1467,11 +1467,21 @@ def test_app_requires_authentication_on_the_compliance_read_route():
 
 
 def test_app_leaves_packs_and_deposit_open_without_authentication():
+    """Реестр упаковки и подсказка депозита открыты без входа.
+
+    Хранилище замокано намеренно. Раньше тест бил в живую базу и падал в
+    любом рабочем дереве без .env и wallet — то есть проверял окружение,
+    а не маршрут. Здесь проверяется ровно одно: маршрут существует и не
+    закрыт входом.
+    """
     client = _sda_test_client()
-    resp = client.get("/UNA.md/orasldev/sda/api/packs")
-    assert resp.status_code == 200
-    resp = client.get("/UNA.md/orasldev/sda/api/deposit?ean=0000000000000")
-    assert resp.status_code == 200
+    ok = {"success": True, "data": [], "message": ""}
+    with patch("modules.sda.routes.SDAController.get_packs", return_value=ok), \
+         patch("modules.sda.routes.SDAController.get_deposit", return_value=ok):
+        resp = client.get("/UNA.md/orasldev/sda/api/packs")
+        assert resp.status_code == 200
+        resp = client.get("/UNA.md/orasldev/sda/api/deposit?ean=0000000000000")
+        assert resp.status_code == 200
 
 
 def test_app_redirects_the_console_route_to_login_when_anonymous():
@@ -2518,3 +2528,41 @@ def test_settlement_breakdown_excludes_refused_lines_in_sql():
     sql = db.execute_query.call_args_list[0][0][0]
     assert "REZULTAT = 'ACCEPTAT'" in sql
     assert "GROUP BY RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST" in sql
+
+
+def test_ddl_comments_contain_no_semicolon():
+    """Точка с запятой в комментарии режет DDL пополам.
+
+    Установка 118 упала с ORA-00931 «missing identifier»: разделитель
+    операторов режет по «;» и не отбрасывает комментарии, поэтому строка
+    «-- ... cash or ticket; automatic» обрубила CREATE TABLE SDA_RETURN,
+    а хвост «automatic» ушёл отдельным оператором. Родственник дефекта с
+    апострофом в комментарии, найденного в 117.
+    """
+    for name in ("117_sda_tables.sql", "118_sda_returns.sql"):
+        with open(os.path.join(ROOT, "modules", "sda", "sql", name),
+                  encoding="utf-8") as fh:
+            for n, line in enumerate(fh, 1):
+                stripped = line.strip()
+                if stripped.startswith("--"):
+                    assert ";" not in stripped, f"{name}:{n} {stripped}"
+
+
+def test_every_ddl_file_splits_into_single_statement_blocks():
+    """Каждый файл контура должен разбираться установщиком без склеек."""
+    import sys as _sys
+    _sys.path.insert(0, ROOT)
+    from deploy_oracle_objects import (_sql_blocks, _is_plsql_block,
+                                       _split_ddl_dml)
+    for name, triggers in (("117_sda_tables.sql", 10), ("118_sda_returns.sql", 5)):
+        with open(os.path.join(ROOT, "modules", "sda", "sql", name),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        blocks = _sql_blocks(src)
+        plsql = [b for b in blocks if _is_plsql_block(b)]
+        assert len(plsql) == triggers, f"{name}: {len(plsql)} PL/SQL blocks"
+        for block in blocks:
+            if _is_plsql_block(block):
+                continue
+            for stmt in _split_ddl_dml(block):
+                assert stmt.strip().count(";") == 0, f"{name}: {stmt[:70]}"

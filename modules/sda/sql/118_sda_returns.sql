@@ -26,9 +26,11 @@ CREATE TABLE SDA_RETURN (
   CONSTRAINT FK_SDA_RETURN_PT FOREIGN KEY (POINT_ID) REFERENCES SDA_RETURN_POINT (POINT_ID),
   CONSTRAINT FK_SDA_RETURN_RVM FOREIGN KEY (RVM_ID) REFERENCES SDA_RVM (RVM_ID),
   CONSTRAINT CK_SDA_RETURN_METODA CHECK (METODA IN ('MANUAL','AUTOMAT')),
-  -- Regulation pct. 150: manual take-back allows cash or ticket; automatic
-  -- take-back (RVM) issues only a ticket. The FK to SDA_VOUCHER is added
-  -- below, once that table exists.
+  -- Regulation pct. 90: manual take-back allows cash or ticket, while
+  -- automatic take-back (RVM) issues only a ticket. The FK to SDA_VOUCHER
+  -- is added below, once that table exists.
+  -- No semicolon may appear inside a comment: the DDL splitter cuts on it
+  -- and the CREATE TABLE above was silently truncated once already.
   CONSTRAINT CK_SDA_RETURN_MODRAMB CHECK (MOD_RAMBURS IN ('NUMERAR','TICHET')),
   CONSTRAINT CK_SDA_RETURN_MODRAMB_AUT CHECK (
     METODA != 'AUTOMAT' OR MOD_RAMBURS = 'TICHET')
@@ -91,7 +93,7 @@ CREATE INDEX IX_SDA_RETURN_LINE_P ON SDA_RETURN_LINE (PACK_ID);
 CREATE INDEX IX_SDA_RETURN_LINE_T ON SDA_RETURN_LINE (TARIFF_ID);
 
 -- Ticket registry (pct. 14.15). Issued by manual choice or forced by an
--- RVM (see CK_SDA_RETURN_MODRAMB_AUT above); valid 12 months from issue.
+-- RVM (see CK_SDA_RETURN_MODRAMB_AUT above) and valid 12 months.
 CREATE TABLE SDA_VOUCHER (
   VOUCHER_ID    NUMBER(12)     NOT NULL,
   COD           VARCHAR2(40)   NOT NULL,
