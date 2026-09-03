@@ -2253,3 +2253,23 @@ def test_flow_diagram_colours_come_from_the_data():
     assert "cov.covered < cov.total) ? 'crit'" in html
     for cls in ("classDef ok", "classDef warn", "classDef crit", "classDef neutral"):
         assert cls in html, cls
+
+
+def test_faq_page_is_served_and_open_without_login():
+    """Ответы клиенту отправляют ссылкой — страница должна открываться без входа."""
+    client = _sda_test_client()
+    resp = client.get("/UNA.md/orasldev/sda/faq")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "Cinci întrebări arhitecturale" in body
+    assert "PK_SDA.DEPOZIT" in body
+
+
+def test_faq_source_file_exists_next_to_the_other_client_documents():
+    path = os.path.join(ROOT, "docs", "SDA", "faq_arhitectura.html")
+    assert os.path.isfile(path)
+    with open(path, encoding="utf-8") as fh:
+        html = fh.read()
+    # Обе темы оформлены: страницу открывают и на светлом, и на тёмном.
+    assert 'prefers-color-scheme: dark' in html
+    assert '[data-theme="dark"]' in html
