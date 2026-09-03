@@ -71,6 +71,9 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
    traduse conteaza atit.
 10. **Accesul e pe IP-ul SERVERULUI**, nu al statiei directorului: 93.115.136.18
     (biroul) si 92.5.3.187 (nufarul). Se cere la asistenta@sfs.md.
+    **Doar pe mediul de test.** CTIF, 03.09.2026: pe mediul real nu se
+    acorda acces suplimentar si nu exista lista de IP — ajung utilizatorii
+    API creati din cabinetul real de pe `sfs.md`.
 11. **Doi semnatari = doua conturi API si doua cozi** (`GetInvoicesForSigning`
     Order 1 / Order 2). Al doilea e optional pentru firmele cu un semnatar.
 12. **Contractul SOAP**: SOAPAction `http://tempuri.org/IService/<Metoda>`;
@@ -108,9 +111,10 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
 ## 3. Ce ramine de facut pina la productie
 
 - semnatura a doua pe proba (pasul 6) si pe cele patru facturi reale;
-- contul API REAL (creat pe `sfs.md`, de firma care EMITE facturile — in
-  productie furnizorul e firma din ERP, nu firma IT) si accesul IP pe
-  `efactura-api.sfs.md` (cererea: `SCRISOARE_ACCES_EFACTURA_PROD.md`);
+- contul API REAL (creat pe `sfs.md` -> Cabinetul personal -> SIA e-Factura /
+  Setari -> Utilizatorii companiei -> «Creati utilizator API», de firma care
+  EMITE facturile — in productie furnizorul e firma din ERP, nu firma IT);
+  acces IP sau cerere la SFS pentru mediul real NU trebuie (CTIF, 03.09.2026);
 - in Setari e-Factura: adresa reala, conturile reale, `seller_*` GOALE
   (se ia firma din ERP), `seria` reala, `tva_rate` confirmat de contabil;
 - regula datei in procesul de lucru: factura se trimite in ziua eliberarii.

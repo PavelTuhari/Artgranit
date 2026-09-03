@@ -101,9 +101,11 @@ Oracle cu un document real (`HTTP 200, SENT`) si cu drumurile de eroare.
 ## 5. Go-live la client — checklist
 
 1. Clientul (firma care EMITE facturile) isi creeaza conturile API pe
-   `https://sfs.md/` (nu pe portalul de test) — cite unul per semnatar.
-2. Cerere la SFS pentru mediul real cu IP-urile serverelor
-   (`SCRISOARE_ACCES_EFACTURA_PROD.md`).
+   `https://sfs.md/` -> Cabinetul personal -> SIA e-Factura / Setari ->
+   Utilizatorii companiei -> «Creati utilizator API» — cite unul per semnatar.
+2. Nimic altceva de cerut la SFS: pentru mediul real NU se acorda acces
+   suplimentar si NU exista lista de IP (raspuns CTIF la TT1651472,
+   03.09.2026). Lista de IP e doar o regula a mediului de test.
 3. Setari e-Factura: adresa `https://efactura-api.sfs.md/Service.svc`,
    conturile clientului, `seller_*` GOALE (furnizorul = firma din ERP),
    `seria` reala, `tva_rate` confirmat de contabil, `only_companies`.
@@ -118,7 +120,7 @@ Oracle cu un document real (`HTTP 200, SENT`) si cu drumurile de eroare.
 
 | Simptom | Cauza | Unde se vede |
 |---|---|---|
-| 403 + pagina HTML | IP-ul serverului nu e pe lista SFS | «Verifică contul» → linia `ip_server` |
+| 403 + pagina HTML | pe mediul de TEST: IP-ul serverului nu e pe lista SFS; pe mediul real nu exista lista — de verificat contul | «Verifică contul» → linia `ip_server` |
 | 500 + pagina HTML | fault SOAP mascat (parola gresita / cont pe alt mediu) | jurnal `EFA_CALL`, `result = html` |
 | `Status 3, Validation failed` | XML in afara XSD | jurnal, coloana «Ce a răspuns SFS» |
 | `Object reference not set` | lipseste un nod «gol obligatoriu» | compara cu `docs/Partner/sfs/ModelFacturafiscala.xml` |

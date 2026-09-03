@@ -30,11 +30,14 @@ Pagina: portal → meniul **e-Factura** → *Setări* (adresa
 | Doar persoane juridice | pornit: e-Factura se emite doar clienților cu IDNO |
 
 Apoi **«Testează conexiunea»** → trebuie ✅ pentru ambele conturi. Dacă apare
-«Accesul e restricționat (403)», IP-ul serverului nu e deschis la SFS — se
-cere la `asistenta@sfs.md` (o face firma IT).
+«Accesul e restricționat (403)» pe mediul real, verificați contul API și
+parola: SFS a confirmat (03.09.2026) că pentru mediul real **nu se cere
+niciun acces suplimentar și nu există listă de adrese IP** — ajung
+utilizatorii API creați din cabinetul de pe `sfs.md`. Lista de IP este
+doar pentru mediul de probă (o cere firma IT la `asistenta@sfs.md`).
 
-Condiții pe care le asigură SFS, nu noi: contul API se creează cu semnătura
-electronică a persoanei; accesul se dă pe adresa IP a serverului.
+Condiție pe care o asigură SFS, nu noi: contul API se creează cu semnătura
+electronică a persoanei.
 
 ## 3. Transmiterea din back-office-ul web OfficePlus
 
@@ -106,7 +109,7 @@ nativă să afișeze mesajul.
 | Ce vedeți | Ce înseamnă | Ce faceți |
 |---|---|---|
 | «clientul nu are IDNO» | persoană fizică | nu se emite e-Factura |
-| «Accesul e restricționat (403)» | IP-ul serverului nu e la SFS | firma IT → asistenta@sfs.md |
+| «Accesul e restricționat (403)» | pe mediul de probă: IP-ul serverului nu e la SFS; pe mediul real: cont/parolă | probă → firma IT; real → verificați contul pe sfs.md |
 | «eroare SOAP … pagină HTML (500)» | parola API greșită sau cont pe alt mediu | verificați contul pe sfs.md, re-introduceți parola în Setări |
 | «IDNO-ul clientului … nu trece cifra de control» | IDNO greșit în fișa clientului (refuz local, fără apel la SFS) | corectați IDNO-ul în fișa clientului |
 | «Buyer … isn't registered in the fiscal registry» | IDNO corect ca formă, dar necunoscut registrului SFS | verificați cu clientul IDNO-ul; pe mediul de probă registrul poate fi incomplet |

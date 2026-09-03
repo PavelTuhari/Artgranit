@@ -419,8 +419,19 @@ fizica, un laptop de 19.999 lei) — produce un XML **valid fata de XSD**
    raportului? Raspunsul decide valoarea setarii.
 
 Ce ramine pentru mediul real: contul API real (creat pe `sfs.md`, nu pe
-portalul de test), adresa `efactura-api.sfs.md` in Setari e-Factura, accesul
-IP pe mediul real (cererea: `SCRISOARE_ACCES_EFACTURA_PROD.md`).
+portalul de test) si adresa `efactura-api.sfs.md` in Setari e-Factura.
+
+### Mediul real NU cere acces suplimentar (raspuns CTIF, 03.09.2026)
+
+Intrebat (raspuns la TT1651472), suportul SFS a confirmat: pentru mediul de
+productie **nu se acorda acces suplimentar si nu se inscriu adrese IP** intr-o
+lista permisa. Utilizatorii API pentru mediul real se creeaza direct din
+SIA e-Factura de pe portalul real `sfs.md` -> Cabinetul personal -> SIA
+e-Factura / Setari -> Utilizatorii companiei -> «Creati utilizator API».
+Deci lista de IP din §«Accesul se da pe lista de IP» e o regula DOAR a
+mediului de test; scrisoarea `SCRISOARE_ACCES_EFACTURA_PROD.md` nu mai
+trebuie trimisa (pastrata ca istoric). Un 403 pe `efactura-api.sfs.md`
+nu mai poate insemna «IP nedeschis» — de verificat contul si parola.
 
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 

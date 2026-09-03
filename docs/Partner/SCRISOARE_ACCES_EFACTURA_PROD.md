@@ -1,4 +1,12 @@
-# Cerere de acces la platforma API „e-Factura" — MEDIUL REAL (text gata de trimis)
+# Cerere de acces la platforma API „e-Factura" — MEDIUL REAL (NU MAI E NECESARĂ)
+
+> **03.09.2026 — nu se trimite.** Răspunsul CTIF (Secția suport sisteme
+> informaționale fiscale, la TT1651472): pentru mediul de producție *nu este
+> necesară acordarea unui acces suplimentar sau includerea adreselor IP
+> într-o listă permisă*. Utilizatorii API pentru mediul real se creează din
+> SIA e-Factura de pe portalul real `sfs.md` → Cabinetul personal → SIA
+> E-factura/Setări → Utilizatorii companiei → «Creați utilizator API».
+> Textul de mai jos rămîne doar ca istoric.
 
 **Către:** asistenta@sfs.md
 **De la:** info@una.md
