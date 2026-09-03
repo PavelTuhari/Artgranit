@@ -567,6 +567,7 @@ class TestNativeReply(unittest.TestCase):
         self.assertEqual(_fold({"error": "Ținut", "data": {"x": ["ș"]}}),
                          {"error": "Tinut", "data": {"x": ["s"]}})
         self.assertEqual(ascii_ro("Выгрузить"), "Выгрузить")   # chirilicele ramin
+        self.assertEqual(ascii_ro("a — «b»…"), 'a - "b"...')
 
 
 class TestFiscalDateIsSendDay(unittest.TestCase):

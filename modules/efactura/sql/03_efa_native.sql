@@ -45,6 +45,9 @@ CREATE OR REPLACE PACKAGE BODY EFA_NATIVE AS
     UTL_HTTP.SET_HEADER(v_req, 'User-Agent', 'EFA_NATIVE');
     v_resp := UTL_HTTP.GET_RESPONSE(v_req);
     v_open := TRUE;
+    -- RO: corpul vine UTF-8; fara asta Oracle il citeste ca CL8MSWIN1251 si
+    --     «—», «…», ghilimelele ajung mojibake in fereastra aplicatiei.
+    UTL_HTTP.SET_BODY_CHARSET(v_resp, 'UTF-8');
     BEGIN
       LOOP
         UTL_HTTP.READ_TEXT(v_resp, v_chunk, 2000);
