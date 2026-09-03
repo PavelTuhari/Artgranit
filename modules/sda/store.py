@@ -695,8 +695,243 @@ class SDAStore:
                 "incomplet": d["data"]["incomplet"],
             })
 
-        return _done({
-            "deadline": SDAStore.DEADLINE.isoformat(),
+    # ── retur si decontare ────────────────────────────────────────────
+
+    @staticmethod
+    def register_return(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        """Inregistreaza o sesiune de retur si liniile ei.
+
+        Metoda (MANUAL/AUTOMAT) e o dimensiune a probei, nu se deduce din
+        SDA_RETURN_POINT.TIP: un punct MIXT accepta ambalaj pe ambele cai,
+        iar un punct trece de la manual la automat in timp — a deduce
+        metoda ulterior din punct ar rescrie sumele deja pretinse. De aceea
+        fiecare linie primeste propria metoda din payload, iar tariful de
+        gestiune se rezolva la data returului pentru exact combinatia
+        (metoda, reutilizabil, categorie) a acelei linii, si se
+        instantaneaza (valoare + TARIFF_ID), la fel ca depozitul pe vanzare.
+
+        Un tarif de gestiune lipsa e eroare, nu zero: un retur inregistrat
+        cu pretentie zero ar disparea din decontare fara urma.
+        """
+        point_id = payload.get("point_id")
+        if point_id in (None, ""):
+            return _fail("Punctul de retur este obligatoriu")
+        return_date = payload.get("data_retur") or date.today()
+        if isinstance(return_date, str):
+            return_date = date.fromisoformat(return_date)
+        rvm_id = payload.get("rvm_id")
+        if rvm_id in (None, ""):
+            rvm_id = None
+        mod_ramburs = (payload.get("mod_ramburs") or "NUMERAR").upper()
+        lines_in = payload.get("lines") or []
+        if not lines_in:
+            return _fail("Returul trebuie sa aiba cel putin o linie")
+
+        with DatabaseModel() as db:
+            # Tarifele de gestiune valabile la data returului, o singura
+            # citire pentru intreaga sesiune: liniile pot avea categorii si
+            # metode diferite, dar toate cad in aceeasi fereastra de timp.
+            t = db.execute_query(
+                "SELECT T.TARIFF_ID, T.DATA_START, L.CATEGORIE, L.METODA, "
+                "L.REUTILIZABIL, L.VALOARE_LEI "
+                "FROM SDA_TARIFF T JOIN SDA_TARIFF_LINE L "
+                "ON L.TARIFF_ID = T.TARIFF_ID "
+                "WHERE T.TIP = 'GESTIUNE' AND T.DATA_START <= :d "
+                "AND (T.DATA_END IS NULL OR T.DATA_END >= :d) "
+                "ORDER BY T.DATA_START DESC, T.TARIFF_ID DESC",
+                {"d": return_date})
+            if not t.get("success"):
+                return _fail(t.get("message") or "Eroare la citirea tarifului de gestiune")
+            tariff_rows = _rows(t)
+            if not tariff_rows:
+                return _fail(
+                    "Nu exista tarif de gestiune valabil la data returului")
+            winner = tariff_rows[0]["tariff_id"]
+            tariff_rows = [r for r in tariff_rows if r["tariff_id"] == winner]
+
+            # Ambalajele referite in linii — pentru REUTILIZABIL/CAT_GEST
+            # implicite, atunci cand payload-ul nu le trimite explicit.
+            pack_ids = [ln.get("pack_id") for ln in lines_in]
+            packs_by_id: Dict[int, Dict[str, Any]] = {}
+            if pack_ids:
+                placeholders = ", ".join(f":p{i}" for i in range(len(pack_ids)))
+                pp = db.execute_query(
+                    "SELECT PACK_ID, REUTILIZABIL, CAT_GEST FROM SDA_PACK "
+                    f"WHERE PACK_ID IN ({placeholders})",
+                    {f"p{i}": pid for i, pid in enumerate(pack_ids)})
+                if not pp.get("success"):
+                    return _fail(pp.get("message") or "Eroare la citirea ambalajelor")
+                for row in _rows(pp):
+                    packs_by_id[int(row["pack_id"])] = row
+
+            rvm_proprietar = None
+            if rvm_id is not None:
+                rv = db.execute_query(
+                    "SELECT PROPRIETAR FROM SDA_RVM WHERE RVM_ID = :rvm_id",
+                    {"rvm_id": rvm_id})
+                if not rv.get("success"):
+                    return _fail(rv.get("message") or "Eroare la citirea instalatiei")
+                rv_rows = _rows(rv)
+                if rv_rows:
+                    rvm_proprietar = rv_rows[0].get("proprietar")
+
+            resolved_lines = []
+            total_buc = 0
+            total_kg = 0.0
+            total_lei = 0.0
+            for ln in lines_in:
+                pack_id = ln.get("pack_id")
+                if pack_id in (None, ""):
+                    return _fail("Fiecare linie de retur trebuie sa aiba un ambalaj")
+                pack_id = int(pack_id)
+                pack = packs_by_id.get(pack_id)
+                metoda = (ln.get("metoda") or payload.get("metoda") or "").upper()
+                if metoda not in ("MANUAL", "AUTOMAT"):
+                    return _fail(
+                        f"Metoda de preluare lipseste sau este invalida pentru "
+                        f"ambalajul {pack_id}")
+                reutilizabil = (ln.get("reutilizabil")
+                                or (pack or {}).get("reutilizabil") or "N").upper()
+                cat_gest = (ln.get("cat_gest")
+                            or (pack or {}).get("cat_gest") or "").lower()
+                if cat_gest not in ("a", "b", "c", "d", "e"):
+                    return _fail(
+                        f"Categoria de gestiune lipseste pentru ambalajul {pack_id}")
+
+                value = sda_rules.pick_value(
+                    [{"categorie": r["categorie"], "metoda": r["metoda"],
+                      "reutilizabil": r["reutilizabil"],
+                      "valoare_lei": r["valoare_lei"]} for r in tariff_rows],
+                    cat_gest, metoda=metoda, reutilizabil=reutilizabil)
+                if value is None:
+                    return _fail(
+                        "Nu exista tarif de gestiune pentru combinatia "
+                        f"metoda={metoda}, reutilizabil={reutilizabil}, "
+                        f"categorie={cat_gest} (ambalaj {pack_id})")
+
+                cant_buc = int(ln.get("cant_buc") or 0)
+                cant_kg = float(ln.get("cant_kg") or 0)
+                depozit_lei = float(ln.get("depozit_lei") or 0)
+                rezultat = (ln.get("rezultat") or "ACCEPTAT").upper()
+                motiv_refuz = ln.get("motiv_refuz") or None
+                if rezultat == "REFUZAT" and not motiv_refuz:
+                    return _fail(
+                        f"Refuzul liniei pentru ambalajul {pack_id} trebuie sa "
+                        "aiba un motiv (art. 54^1 alin. (9)-(10))")
+
+                gestiune_lei = round(float(value) * cant_buc, 2)
+                resolved_lines.append({
+                    "pack_id": pack_id, "cant_buc": cant_buc, "cant_kg": cant_kg,
+                    "depozit_lei": depozit_lei, "metoda": metoda,
+                    "reutilizabil": reutilizabil, "cat_gest": cat_gest,
+                    "rvm_proprietar": rvm_proprietar, "tariff_id": winner,
+                    "gestiune_unitar": float(value), "gestiune_lei": gestiune_lei,
+                    "rezultat": rezultat, "motiv_refuz": motiv_refuz,
+                })
+                total_buc += cant_buc
+                total_kg += cant_kg
+                total_lei += depozit_lei
+
+            hr = db.execute_query(
+                "INSERT INTO SDA_RETURN (POINT_ID, RVM_ID, DATA_RETUR, METODA, "
+                "OPERATOR_NUME, TOTAL_BUC, TOTAL_KG, TOTAL_LEI, MOD_RAMBURS) "
+                "VALUES (:point_id, :rvm_id, :data_retur, :metoda, "
+                ":operator_nume, :total_buc, :total_kg, :total_lei, :mod_ramburs)",
+                {"point_id": point_id, "rvm_id": rvm_id,
+                 "data_retur": return_date,
+                 "metoda": (payload.get("metoda")
+                            or resolved_lines[0]["metoda"]).upper(),
+                 "operator_nume": payload.get("operator_nume") or username,
+                 "total_buc": total_buc, "total_kg": total_kg,
+                 "total_lei": round(total_lei, 2), "mod_ramburs": mod_ramburs})
+            if not hr.get("success"):
+                message = hr.get("message") or "Eroare la inregistrarea returului"
+                if "ORA-02291" in message:
+                    message = "Punctul de retur sau instalatia indicata nu exista"
+                return _fail(message)
+            rid = db.execute_query("SELECT SEQ_SDA_RETURN.CURRVAL FROM DUAL")
+            if not rid.get("success") or not rid.get("data"):
+                return _fail(rid.get("message") or "Eroare la citirea id-ului nou creat")
+            return_id = rid["data"][0][0]
+
+            for rl in resolved_lines:
+                lr = db.execute_query(
+                    "INSERT INTO SDA_RETURN_LINE (RETURN_ID, PACK_ID, CANT_BUC, "
+                    "CANT_KG, DEPOZIT_LEI, METODA, REUTILIZABIL, CAT_GEST, "
+                    "RVM_PROPRIETAR, TARIFF_ID, GESTIUNE_UNITAR, GESTIUNE_LEI, "
+                    "REZULTAT, MOTIV_REFUZ) VALUES (:return_id, :pack_id, "
+                    ":cant_buc, :cant_kg, :depozit_lei, :metoda, :reutilizabil, "
+                    ":cat_gest, :rvm_proprietar, :tariff_id, :gestiune_unitar, "
+                    ":gestiune_lei, :rezultat, :motiv_refuz)",
+                    {**rl, "return_id": return_id})
+                if not lr.get("success"):
+                    return _fail(lr.get("message") or "Eroare la salvarea liniei de retur")
+
+            jr = db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('RETURN_REGISTER', 'SDA_RETURN', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": return_id, "utilizator": username,
+                 "detalii": (f"{len(resolved_lines)} linii, {total_buc} buc, "
+                             f"gestiune {sum(l['gestiune_lei'] for l in resolved_lines):.2f} lei")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
+            db.connection.commit()
+
+        return _done({"return_id": return_id, "total_buc": total_buc,
+                      "total_kg": total_kg, "total_lei": round(total_lei, 2),
+                      "gestiune_lei": round(
+                          sum(l["gestiune_lei"] for l in resolved_lines), 2),
+                      "lines": resolved_lines})
+
+    @staticmethod
+    def settlement_breakdown(partic_id: int, date_from: date,
+                             date_to: date) -> Dict[str, Any]:
+        """Proba analitica a pretentiei fata de Administrator.
+
+        O singura interogare, grupata pe (METODA, REUTILIZABIL, CAT_GEST) —
+        exact forma in care sectorul 14.14 diferentiaza tariful de gestiune,
+        deci exact forma in care reteaua trebuie sa poata prezenta pretentia.
+        """
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                "SELECT RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST, "
+                "SUM(RL.CANT_BUC) AS BUC, SUM(RL.CANT_KG) AS KG, "
+                "SUM(RL.GESTIUNE_LEI) AS SUMA_LEI "
+                "FROM SDA_RETURN_LINE RL JOIN SDA_RETURN R "
+                "ON R.RETURN_ID = RL.RETURN_ID "
+                "JOIN SDA_RETURN_POINT PT ON PT.POINT_ID = R.POINT_ID "
+                "JOIN SDA_UNIT U ON U.UNIT_ID = PT.UNIT_ID "
+                "WHERE U.PARTIC_ID = :partic_id "
+                "AND R.DATA_RETUR >= :date_from AND R.DATA_RETUR <= :date_to "
+                "AND RL.REZULTAT = 'ACCEPTAT' "
+                "GROUP BY RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST "
+                "ORDER BY RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST",
+                {"partic_id": partic_id, "date_from": date_from,
+                 "date_to": date_to})
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la calculul decontarii")
+
+        rows = _rows(r)
+        breakdown = []
+        total_lei = 0.0
+        for row in rows:
+            suma = float(row["suma_lei"] or 0)
+            total_lei += suma
+            breakdown.append({
+                "metoda": row["metoda"], "reutilizabil": row["reutilizabil"],
+                "cat_gest": row["cat_gest"], "cant_buc": int(row["buc"] or 0),
+                "cant_kg": float(row["kg"] or 0), "suma_lei": round(suma, 2),
+            })
+        return _done({"partic_id": partic_id,
+                      "perioada_start": date_from.isoformat()
+                      if hasattr(date_from, "isoformat") else date_from,
+                      "perioada_end": date_to.isoformat()
+                      if hasattr(date_to, "isoformat") else date_to,
+                      "breakdown": breakdown, "total_lei": round(total_lei, 2)})
+
+    return _done({
+        "deadline": SDAStore.DEADLINE.isoformat(),
             "days_remaining": days_remaining,
             "readiness": {"with_regim": with_regim, "total": total_units,
                          "pct": readiness_pct},
