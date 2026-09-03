@@ -68,18 +68,57 @@ def record(*, src: str, username: str, endpoint: str, method: str,
         pass                      # RO: jurnalul nu are voie sa strice apelul
 
 
-def recent(limit: int = 40, src: Optional[str] = None) -> List[Dict[str, Any]]:
-    """RO: ultimele apeluri, cele mai noi primele — pentru panoul din pagina."""
+CHUNK = 4000        # RO: DBMS_LOB.SUBSTR in SQL pe 11g da cel mult 4000 de octeti
+
+
+def _lob_cols(col: str, alias: str, chunks: int) -> str:
+    """RO: CLOB-ul citit pe bucati de 4000 — un SUBSTR de 32000 in SQL cade
+    cu ORA-06502 pe 11g, iar `execute_query` inghite eroarea: pe 03.09.2026
+    jurnalul din pagina era GOL desi tabelul avea 77 de rinduri."""
+    return ", ".join(
+        "DBMS_LOB.SUBSTR(%s, %d, %d) %s_%d" % (col, CHUNK, i * CHUNK + 1, alias, i)
+        for i in range(chunks))
+
+
+def _join(row: Dict[str, Any], alias: str, chunks: int) -> str:
+    return "".join(row.get("%s_%d" % (alias, i)) or "" for i in range(chunks))
+
+
+def _select(where: str, params: Dict[str, Any], limit: int,
+            chunks: int) -> List[Dict[str, Any]]:
     from models.biro26_db import Biro26DB
     from models.biro26_oracle_store import _rows
+    sql = ("SELECT * FROM (SELECT ID, TO_CHAR(TS,'DD.MM.YYYY HH24:MI:SS') TS, SRC, "
+           " USERNAME, ENDPOINT, METHOD, HTTP_STATUS, DURATION_MS, RESULT, SUMMARY, "
+           " DBMS_LOB.GETLENGTH(REQUEST_XML) REQ_LEN, "
+           " DBMS_LOB.GETLENGTH(RESPONSE_XML) RESP_LEN, "
+           + _lob_cols("REQUEST_XML", "RQ", chunks) + ", "
+           + _lob_cols("RESPONSE_XML", "RS", chunks)
+           + f" FROM EFA_CALL{where} ORDER BY ID DESC) WHERE ROWNUM <= :l")
+    params = dict(params, l=max(1, min(int(limit), 200)))
+    out = []
+    for r in _rows(Biro26DB().execute_query(sql, params)):
+        row = {k: v for k, v in r.items()
+               if not (k.startswith("rq_") or k.startswith("rs_"))}
+        row["request_xml"] = _join(r, "rq", chunks)
+        row["response_xml"] = _join(r, "rs", chunks)
+        row["request_truncated"] = (r.get("req_len") or 0) > chunks * CHUNK
+        row["response_truncated"] = (r.get("resp_len") or 0) > chunks * CHUNK
+        out.append(row)
+    return out
+
+
+def recent(limit: int = 40, src: Optional[str] = None,
+           chunks: int = 8) -> List[Dict[str, Any]]:
+    """RO: ultimele apeluri, cele mai noi primele — TOATE (reusite si nu),
+    cu plicul trimis (parola mascata) si raspunsul, pina la `chunks`*4000
+    de caractere fiecare; restul se ia cu `get(id)`."""
     where = " WHERE SRC = :src" if src else ""
-    params: Dict[str, Any] = {"l": max(1, min(int(limit), 200))}
-    if src:
-        params["src"] = src
-    rows = _rows(Biro26DB().execute_query(
-        "SELECT * FROM (SELECT ID, TO_CHAR(TS,'DD.MM.YYYY HH24:MI:SS') TS, SRC, "
-        " USERNAME, ENDPOINT, METHOD, HTTP_STATUS, DURATION_MS, RESULT, SUMMARY, "
-        " DBMS_LOB.SUBSTR(REQUEST_XML, 32000, 1) REQUEST_XML, "
-        " DBMS_LOB.SUBSTR(RESPONSE_XML, 32000, 1) RESPONSE_XML "
-        f" FROM EFA_CALL{where} ORDER BY ID DESC) WHERE ROWNUM <= :l", params))
-    return rows
+    params: Dict[str, Any] = {"src": src} if src else {}
+    return _select(where, params, limit, chunks)
+
+
+def get(call_id: int, chunks: int = 50) -> Optional[Dict[str, Any]]:
+    """RO: un apel cu textul COMPLET (pina la 200000 de caractere)."""
+    rows = _select(" WHERE ID = :id", {"id": int(call_id)}, 1, chunks)
+    return rows[0] if rows else None

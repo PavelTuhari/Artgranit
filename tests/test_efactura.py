@@ -690,3 +690,32 @@ def test_admin_template_has_endpoint_picker():
     assert 'id="s-endpoint"' in src and "syncEndpointPick()" in src
     routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
     assert "endpoint_prod=sfs.ENDPOINT_PROD" in routes
+
+
+def test_journal_reads_clobs_in_4000_chunks(monkeypatch):
+    """RO: pe 11g DBMS_LOB.SUBSTR in SQL da cel mult 4000 — jurnalul se citeste
+    pe bucati si le lipeste; un rind lung apare intreg, nu gol."""
+    from modules.efactura import journal
+    captured = {}
+    class FakeDB:
+        def execute_query(self, sql, params):
+            captured["sql"] = sql
+            return {"success": True, "columns": [], "data": []}
+    monkeypatch.setattr("models.biro26_db.Biro26DB", lambda: FakeDB())
+    monkeypatch.setattr("models.biro26_oracle_store._rows", lambda res: [
+        {"id": 1, "ts": "x", "src": "backoffice", "req_len": 8000, "resp_len": 10,
+         "rq_0": "a" * 4000, "rq_1": "b" * 4000, "rs_0": "ok", "rs_1": None}])
+    rows = journal.recent(5, chunks=2)
+    assert "DBMS_LOB.SUBSTR(REQUEST_XML, 4000, 4001) RQ_1" in captured["sql"]
+    assert "32000" not in captured["sql"]
+    assert rows[0]["request_xml"] == "a" * 4000 + "b" * 4000
+    assert rows[0]["response_xml"] == "ok" and rows[0]["request_truncated"] is False
+    assert "rq_0" not in rows[0]
+
+
+def test_admin_page_shows_all_sfs_calls():
+    src = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert "admin/calls" in src and "loadCalls()" in src and 'id="ctab"' in src
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert '"/admin/calls"' in routes and '"/admin/calls/<int:call_id>"' in routes

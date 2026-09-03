@@ -124,6 +124,16 @@
 </div>
 
 <div class="card">
+  <h2>Comunicări cu SFS — toate apelurile, complet</h2>
+  <p class="muted">Fiecare apel către SIA e-Factura, reușit sau nu: ce s-a trimis
+    (plicul SOAP, parola mascată) și ce a răspuns SFS. Click pe rînd → textul întreg.
+    <button class="btn gray" onclick="loadCalls()">↻ Reîncarcă</button></p>
+  <table id="ctab"><thead><tr><th>Când</th><th>Sursă</th><th>Cont</th>
+    <th>Metodă</th><th>HTTP</th><th>ms</th><th>Rezultat</th><th>Ce a răspuns SFS</th></tr></thead>
+    <tbody></tbody></table>
+</div>
+
+<div class="card">
   <h2>Jurnal (ultimele 200)</h2>
   <table id="ltab"><thead><tr><th>Când</th><th>Doc</th><th>Eveniment</th>
     <th>Sursă</th><th>Detalii</th></tr></thead><tbody></tbody></table>
@@ -209,6 +219,34 @@ async function saveSettings() {
   document.getElementById('s-password2').value = '';
   load();
 }
+async function loadCalls() {
+  const tb = document.querySelector('#ctab tbody');
+  tb.innerHTML = '<tr><td colspan="8" class="muted">Se încarcă…</td></tr>';
+  const r = await j('admin/calls?limit=100');
+  if (!r.success) { tb.innerHTML = '<tr><td colspan="8" class="err">' + esc(r.error || '') + '</td></tr>'; return; }
+  const cls = x => x.result === 'ok' ? 'ok' : 'err';
+  tb.innerHTML = (r.data || []).map(x =>
+    `<tr style="cursor:pointer" onclick="toggleCall(${x.id})"><td>${esc(x.ts)}</td>
+     <td>${esc(x.src || '')}</td><td>${esc(x.username || '')}</td><td>${esc(x.method || '')}</td>
+     <td>${x.http_status ?? ''}</td><td>${x.duration_ms ?? ''}</td>
+     <td class="${cls(x)}">${esc(x.result || '')}</td><td>${esc((x.summary || '').slice(0, 200))}</td></tr>
+     <tr id="call-${x.id}" hidden><td colspan="8">
+       <div class="muted">${esc(x.endpoint || '')}</div>
+       <b>Trimis:</b>${x.request_truncated ? ' <span class="muted">(trunchiat — <a href="#" onclick="return fullCall(' + x.id + ')">tot textul</a>)</span>' : ''}
+       <pre id="rq-${x.id}" style="white-space:pre-wrap;max-height:320px;overflow:auto;background:#f6f6f6;padding:8px">${esc(x.request_xml || '')}</pre>
+       <b>Răspuns:</b>${x.response_truncated ? ' <span class="muted">(trunchiat — <a href="#" onclick="return fullCall(' + x.id + ')">tot textul</a>)</span>' : ''}
+       <pre id="rs-${x.id}" style="white-space:pre-wrap;max-height:320px;overflow:auto;background:#f6f6f6;padding:8px">${esc(x.response_xml || '')}</pre>
+     </td></tr>`).join('') || '<tr><td colspan="8" class="muted">niciun apel</td></tr>';
+}
+function toggleCall(id) { const e = document.getElementById('call-' + id); e.hidden = !e.hidden; }
+async function fullCall(id) {
+  const r = await j('admin/calls/' + id);
+  if (r.success) {
+    document.getElementById('rq-' + id).textContent = r.data.request_xml || '';
+    document.getElementById('rs-' + id).textContent = r.data.response_xml || '';
+  }
+  return false;
+}
 async function testConn() {
   const box = document.getElementById('s-test');
   box.textContent = 'Se testează ambele conturi…';
@@ -219,6 +257,7 @@ async function testConn() {
     : x.success
       ? `<div class="ok">✅ ${t} (${esc(x.user || '')}): conectat</div>`
       : `<div class="err">❌ ${t} (${esc(x.user || '')}): ${esc(x.error || 'eșuat')}</div>`);
+  loadCalls();
   box.innerHTML =
     `<div><b>Test conexiune</b> — ${esc(new Date().toLocaleTimeString())}, mediul ${esc(r.env || r.endpoint || '')}</div>` +
     line('1. semnatar', sg.prima_semnatura) + line('2. semnatar', sg.a_doua_semnatura) +
@@ -258,5 +297,6 @@ async function refresh() {
   load();
 }
 load();
+loadCalls();
 </script>
 </body></html>

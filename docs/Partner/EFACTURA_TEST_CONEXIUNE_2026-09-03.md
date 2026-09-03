@@ -52,3 +52,23 @@ cîmp `endpoint` (`s-endpoint`), deci nimic nu se schimbă în API/store; la
 încărcare, o adresă necunoscută selectează automat «alt text». Fișiere:
 `efactura_admin.html`, `routes.py` (adresele vin din `sfs.ENDPOINT_*`),
 test `test_admin_template_has_endpoint_picker`.
+
+## Completare 2 (aceeași zi): jurnalul COMPLET al comunicărilor pe pagina Setări
+
+Cerința proprietarului: în jurnal să fie **toate** comunicările cu SFS, nu
+doar cele eșuate, cu textul întreg trimis și primit. Ele SE SCRIAU deja în
+`EFA_CALL` (fiecare apel, reușit sau nu, plic cu parola mascată + răspuns
+brut), dar:
+
+1. pagina Setări arăta doar `EFA_LOG` (rezumat de 2000 de caractere);
+2. citirea `EFA_CALL` era GOALĂ pe Oracle 11g: `DBMS_LOB.SUBSTR(…, 32000, 1)`
+   în SQL depășește limita de 4000 și `execute_query` înghite eroarea —
+   tabelul avea 77 de rînduri, pagina probei nu arăta niciunul.
+
+Schimbări: `journal.py` citește CLOB-urile pe bucăți de 4000 (`recent`:
+8 bucăți = 32000 de caractere; `get(id)`: 50 bucăți = tot textul), cu
+semnalul «trunchiat»; rute noi `/admin/calls` și `/admin/calls/<id>`;
+panoul «Comunicări cu SFS — toate apelurile, complet» pe pagina Setări
+(click pe rînd → trimis / răspuns; «tot textul» aduce restul). Teste:
+`test_journal_reads_clobs_in_4000_chunks`, `test_admin_page_shows_all_sfs_calls`
+(49 în total).

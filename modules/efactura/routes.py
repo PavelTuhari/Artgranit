@@ -89,6 +89,33 @@ def admin_log():
     return jsonify(EfaStore.log_list(request.args.get("limit", 200, type=int)))
 
 
+@blueprint.route("/admin/calls")
+def admin_calls():
+    """RO: TOATE comunicarile cu SFS — reusite si esuate — cu plicul trimis
+    (parola mascata) si raspunsul intors (03.09.2026, cerinta proprietarului)."""
+    err = _admin_guard()
+    if err:
+        return err
+    from modules.efactura import journal
+    try:
+        rows = journal.recent(request.args.get("limit", 100, type=int))
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "data": rows})
+
+
+@blueprint.route("/admin/calls/<int:call_id>")
+def admin_call(call_id):
+    err = _admin_guard()
+    if err:
+        return err
+    from modules.efactura import journal
+    row = journal.get(call_id)
+    if not row:
+        return jsonify({"success": False, "error": "apel inexistent"}), 404
+    return jsonify({"success": True, "data": row})
+
+
 @blueprint.route("/admin/send/<int:doc_cod>", methods=["POST"])
 def admin_send(doc_cod):
     err = _admin_guard()
