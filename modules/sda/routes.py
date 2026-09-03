@@ -118,6 +118,20 @@ def presentation():
         return Response(f.read(), mimetype='text/html; charset=utf-8')
 
 
+@blueprint.route('/faq')
+def faq():
+    """Ответы на архитектурные вопросы клиента — открыты без входа.
+
+    Отдельная страница, а не документ хаба: её отправляют ссылкой в переписку,
+    и она должна открываться без входа, как и досье.
+    """
+    path = os.path.join(SDA_DOCS_DIR, 'faq_arhitectura.html')
+    if not os.path.isfile(path):
+        return '<h1>Documentul nu a fost găsit</h1>', 404
+    with open(path, 'r', encoding='utf-8') as f:
+        return Response(f.read(), mimetype='text/html; charset=utf-8')
+
+
 # ── API ────────────────────────────────────────────────────────────────
 #
 # Реестр упаковки (/packs) и подсказка депозита (/deposit) открыты вместе
