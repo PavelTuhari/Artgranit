@@ -88,7 +88,8 @@ def admin_send(doc_cod):
     err = _admin_guard()
     if err:
         return err
-    return _reply(EfaController.send(doc_cod, src="backoffice"))
+    return _reply(EfaController.send(doc_cod, src="backoffice",
+                                     resend=bool(_body().get("resend"))))
 
 
 @blueprint.route("/admin/preview/<int:doc_cod>")

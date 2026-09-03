@@ -601,3 +601,21 @@ class TestFiscalDateIsSendDay(unittest.TestCase):
         today = datetime.date.today().isoformat()
         self.assertIn("<IssuedDate>%sT" % today, seen["xml"])
         self.assertIn("<DeliveryDate>%sT" % today, seen["xml"])
+
+
+class TestNoDuplicateSend(unittest.TestCase):
+    """RO: un document deja SENT nu se retrimite fara `resend` explicit
+    (03.09.2026: 4 apasari = 4 facturi in SFS)."""
+
+    def test_second_send_is_refused(self):
+        from unittest import mock
+        from modules.efactura.controller import EfaController as C
+        with mock.patch("modules.efactura.store.EfaStore.doc_state",
+                        return_value={"status": "SENT", "request_id": "abc", "sent_at": "03.09.2026 08:53"}), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch.object(C, "build_payload") as bp:
+            r = C.send(425, src="native")
+        self.assertFalse(r["success"])
+        self.assertTrue(r.get("already_sent"))
+        self.assertIn("deja trimis", r["error"])
+        bp.assert_not_called()                    # nici macar nu construieste XML

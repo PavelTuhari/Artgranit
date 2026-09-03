@@ -95,7 +95,12 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
     configuratorul aplicatiei native (A$ADM/A$ADP, OBJ_ID 11522, formularul
     «CONT la plata»), clona actiunii «Сгенерировать счета» — script
     idempotent `efactura_native_action.py`.
-15. **Parolele**: niciodata in pagina/jurnal/chat. In browser — managerul
+15. **Idempotenta**: pe 03.09.2026 actiunea din una.md a reusit in tacere si
+    a fost apasata de 4 ori pe A-89 -> 4 facturi in mediul de proba. Acum un
+    document SENT nu se retrimite fara `resend` explicit, iar rezultatul
+    (trimis / eroare / deja trimis) se scrie in istoria documentului
+    (`TMDB_DOCS_LOG`, prin `DOCLOG`, kind `EFA`).
+16. **Parolele**: niciodata in pagina/jurnal/chat. In browser — managerul
     de parole (Safari → Keychain); pentru probe automate — macOS Keychain
     (`security add-generic-password -s efactura-api-pre -a <utilizator> -w`),
     citite direct in variabile de mediu.

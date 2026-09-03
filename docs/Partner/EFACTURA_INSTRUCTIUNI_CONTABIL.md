@@ -64,7 +64,17 @@ BEGIN commit; EFA_NATIVE.send_doc_pr(:nrdoc); END;   -- nrdoc = codul intern al 
 
 Ce se întîmplă: Oracle apelează serverul web (ca la «Contul de plată»),
 serverul construiește XML-ul, îl trimite la SFS și scrie rezultatul în
-`EFA_DOC`. Acțiunea întoarce un text: `SENT …` sau `ERROR: <motivul>`.
+`EFA_DOC`. **Rezultatul se vede în fila «Istoria» a documentului** (aceeași
+listă cu «START EDIT», «ACTION 12: …»): rîndul `e-Factura: TRIMISA in SIA
+e-Factura (RequestId …)` înseamnă că a ajuns; `e-Factura: EROARE — …` —
+motivul. La eroare apare și fereastra Oracle cu același text; la succes nu
+apare nicio fereastră — verificați «Istoria».
+
+**Nu apăsați de două ori.** Un document deja trimis nu se retrimite:
+acțiunea răspunde «Documentul a fost deja trimis în e-Factura la … (RequestId
+…)». Retrimiterea (de exemplu după o respingere la SFS) se face doar din
+back-office-ul web, cu confirmare.
+
 Starea se poate citi oricînd:
 
 ```sql

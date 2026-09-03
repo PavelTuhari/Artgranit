@@ -148,7 +148,8 @@ class EfaController:
     @staticmethod
     def send(doc_cod: int, src: str = "backoffice",
              allowed_client_cod: Optional[int] = None,
-             override_date: Optional[str] = None) -> Dict[str, Any]:
+             override_date: Optional[str] = None,
+             resend: bool = False) -> Dict[str, Any]:
         """RO: trimite documentul in SIA e-Factura si scrie rezultatul in
         EFA_DOC + EFA_LOG. Nu arunca exceptii spre interfata: orice esec se
         vede ca status ERROR cu mesajul de la SFS.
@@ -156,6 +157,23 @@ class EfaController:
         `override_date` (YYYY-MM-DD) inlocuieste data eliberarii — DOAR
         pentru probe pe mediul de test cu documente vechi; in productie nu se
         da niciodata: data fiscala e cea a documentului."""
+        # RO: IDEMPOTENTA — un document deja trimis NU se retrimite: pe
+        #     03.09.2026 contabilul a apasat actiunea de 4 ori pe A-89 si SFS
+        #     a primit 4 facturi. In productie ar fi 4 facturi fiscale dublate.
+        #     Retrimiterea e posibila doar explicit (`resend=True`, din
+        #     back-office-ul web, cu confirmare).
+        prev = EfaStore.doc_state(int(doc_cod)) or {}
+        if prev.get("status") in ("SENT", "ACCEPTED", "SIGNED") and not resend:
+            when = prev.get("sent_at") or ""
+            msg = ("Documentul a fost deja trimis în e-Factura%s (RequestId %s); "
+                   "o nouă trimitere ar crea o factură dublă. Dacă chiar trebuie "
+                   "retrimis, faceți-o din back-office-ul web cu confirmare."
+                   % ((" la " + str(when)) if when else "", prev.get("request_id")))
+            EfaStore.log(doc_cod, "already_sent", msg[:1500], src)
+            return {"success": False, "error": msg, "already_sent": True,
+                    "data": {"doc_cod": int(doc_cod), "status": prev.get("status"),
+                             "request_id": prev.get("request_id"),
+                             "sent_at": when, "already_sent": True}}
         p = EfaController.build_payload(doc_cod, allowed_client_cod)
         if not p.get("success"):
             return p

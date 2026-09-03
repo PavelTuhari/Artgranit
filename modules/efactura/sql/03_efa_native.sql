@@ -80,19 +80,38 @@ CREATE OR REPLACE PACKAGE BODY EFA_NATIVE AS
     RETURN http_get(v_url);
   END send_doc;
 
-  -- RO: pentru aplicatia nativa — arunca eroarea ca sa apara in fereastra
+  -- RO: valoarea unui cimp text din JSON (ghilimelele escapate raman in text)
+  FUNCTION jfield(p_json IN VARCHAR2, p_key IN VARCHAR2) RETURN VARCHAR2 IS
+    v VARCHAR2(4000);
+  BEGIN
+    v := REGEXP_SUBSTR(p_json, '"' || p_key || '": ?"((\\"|[^"])*)"', 1, 1, NULL, 1);
+    RETURN REPLACE(v, '\"', '"');
+  END jfield;
+
+  -- RO: pentru aplicatia nativa. Rezultatul se scrie in ISTORIA documentului
+  --     (TMDB_DOCS_LOG, prin DOCLOG — acelasi mecanism ca «START EDIT» si
+  --     «ACTION 12: …» pe care le pune aplicatia), ca sa se vada in fila
+  --     «Istoria» daca s-a transmis sau nu. La eroare se ridica ORA-20000 —
+  --     singura fereastra pe care o arata aplicatia. (03.09.2026: actiunea
+  --     reusea in tacere si a fost apasata de 4 ori -> 4 facturi in SFS.)
   PROCEDURE send_doc_pr(p_doc IN NUMBER, p_date IN VARCHAR2 DEFAULT NULL) IS
     v   VARCHAR2(4000) := send_doc(p_doc, p_date);
     msg VARCHAR2(4000);
+    rid VARCHAR2(120);
   BEGIN
+    rid := jfield(v, 'request_id');
     IF v LIKE 'HTTP 200%' AND INSTR(v, '"success": true') + INSTR(v, '"success":true') > 0 THEN
+      DOCLOG('e-Factura: TRIMISA in SIA e-Factura (RequestId ' || rid
+             || '). Urmeaza semnaturile pe portal.', p_doc, 'EFA');
       RETURN;
     END IF;
-    -- RO: doar textul erorii (cimpul "error" din JSON), nu tot raspunsul;
-    --     ghilimelele escapate (\") din interior fac parte din text
-    msg := REGEXP_SUBSTR(v, '"error": ?"((\\"|[^"])*)"', 1, 1, NULL, 1);
-    msg := REPLACE(msg, '\"', '"');
-    RAISE_APPLICATION_ERROR(-20000, SUBSTR('e-Factura: ' || NVL(msg, v), 1, 2000));
+    msg := NVL(jfield(v, 'error'), v);
+    IF INSTR(v, '"already_sent": true') + INSTR(v, '"already_sent":true') > 0 THEN
+      DOCLOG('e-Factura: NU s-a retrimis - ' || msg, p_doc, 'EFA');
+    ELSE
+      DOCLOG('e-Factura: EROARE - ' || msg, p_doc, 'EFA');
+    END IF;
+    RAISE_APPLICATION_ERROR(-20000, SUBSTR('e-Factura: ' || msg, 1, 2000));
   END send_doc_pr;
 
   -- RO: starea din EFA_DOC (fara apel la SFS): STATUS + mesaj + numarul SFS
