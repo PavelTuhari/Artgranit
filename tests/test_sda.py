@@ -2253,3 +2253,268 @@ def test_flow_diagram_colours_come_from_the_data():
     assert "cov.covered < cov.total) ? 'crit'" in html
     for cls in ("classDef ok", "classDef warn", "classDef crit", "classDef neutral"):
         assert cls in html, cls
+
+
+# -- Task 6: return and settlement contour (DDL) -----------------------
+
+RETURN_EXPECTED_TABLES = [
+    "SDA_RETURN", "SDA_RETURN_LINE", "SDA_VOUCHER",
+    "SDA_SETTLEMENT", "SDA_SETTLEMENT_LINE",
+]
+
+
+def test_returns_ddl_declares_every_new_table():
+    ddl = _sql("118_sda_returns.sql").upper()
+    for table in RETURN_EXPECTED_TABLES:
+        assert f"CREATE TABLE {table}" in ddl, table
+
+
+def test_returns_ddl_has_no_cyrillic():
+    ddl = _sql("118_sda_returns.sql")
+    assert not re.search(r"[Ѐ-ӿ]", ddl), "Cyrillic found in DDL"
+
+
+def test_returns_ddl_every_table_has_a_sequence_and_trigger():
+    ddl = _sql("118_sda_returns.sql").upper()
+    for table in RETURN_EXPECTED_TABLES:
+        assert f"CREATE SEQUENCE SEQ_{table}" in ddl, table
+        assert f"CREATE OR REPLACE TRIGGER TRG_{table}_BI" in ddl, table
+
+
+def test_returns_ddl_every_foreign_key_column_has_an_index():
+    ddl = _sql("118_sda_returns.sql").upper()
+
+    indexed_by_table = {}
+    for table, cols in re.findall(
+        r"CREATE (?:UNIQUE )?INDEX [A-Z0-9_]+ ON ([A-Z0-9_]+) \(([^)]+)\)", ddl
+    ):
+        indexed_by_table.setdefault(table, set()).add(cols.split(",")[0].strip())
+
+    # FKs declared inline inside CREATE TABLE bodies.
+    for table, body in re.findall(
+        r"CREATE TABLE ([A-Z0-9_]+) \((.*?)\n\);", ddl, re.DOTALL
+    ):
+        fk_cols = re.findall(r"FOREIGN KEY \(([A-Z0-9_]+)\)", body)
+        for col in fk_cols:
+            assert col in indexed_by_table.get(table, set()), \
+                f"{table}.{col} is a FK but has no index on {table} starting with it"
+
+    # SDA_RETURN.VOUCHER_ID's FK is added via ALTER TABLE, once
+    # SDA_VOUCHER exists — check it the same way.
+    assert "VOUCHER_ID" in indexed_by_table.get("SDA_RETURN", set()), \
+        "SDA_RETURN.VOUCHER_ID is a FK (added via ALTER TABLE) but has no index"
+    assert re.search(
+        r"ALTER TABLE SDA_RETURN ADD CONSTRAINT FK_SDA_RETURN_VOUCHER\s+"
+        r"FOREIGN KEY \(VOUCHER_ID\) REFERENCES SDA_VOUCHER", ddl), \
+        "SDA_RETURN.VOUCHER_ID must reference SDA_VOUCHER"
+
+
+def test_returns_ddl_snapshot_dimensions_on_the_line():
+    ddl = _sql("118_sda_returns.sql").upper()
+    line = ddl[ddl.index("CREATE TABLE SDA_RETURN_LINE"):]
+    line = line[:line.index(";")]
+    for col in ("METODA", "REUTILIZABIL", "CAT_GEST", "RVM_PROPRIETAR",
+                "TARIFF_ID", "GESTIUNE_UNITAR", "GESTIUNE_LEI",
+                "REZULTAT", "MOTIV_REFUZ"):
+        assert col in line, col
+
+
+def test_returns_ddl_refusal_requires_a_reason():
+    ddl = _sql("118_sda_returns.sql").upper()
+    assert "CK_SDA_RL_MOTIV" in ddl
+    assert "REZULTAT = 'ACCEPTAT' OR MOTIV_REFUZ IS NOT NULL" in ddl
+
+
+def test_returns_ddl_automatic_return_forces_ticket():
+    ddl = _sql("118_sda_returns.sql").upper()
+    assert "CK_SDA_RETURN_MODRAMB_AUT" in ddl
+    assert "METODA != 'AUTOMAT' OR MOD_RAMBURS = 'TICHET'" in ddl
+
+
+def test_returns_ddl_voucher_carries_state_machine():
+    ddl = _sql("118_sda_returns.sql").upper()
+    for state in ("EMIS", "PRESCHIMBAT_NUMERAR", "FOLOSIT_CUMPARATURI",
+                  "EXPIRAT", "ANULAT"):
+        assert state in ddl, state
+
+
+def test_returns_ddl_settlement_breakdown_dimensions():
+    ddl = _sql("118_sda_returns.sql").upper()
+    line = ddl[ddl.index("CREATE TABLE SDA_SETTLEMENT_LINE"):]
+    line = line[:line.index(";")]
+    for col in ("METODA", "REUTILIZABIL", "CAT_GEST", "CANT_BUC", "CANT_KG",
+                "TARIFF_UNITAR", "SUMA_LEI"):
+        assert col in line, col
+
+
+def test_returns_ddl_splits_into_one_isolated_block_per_trigger():
+    import deploy_oracle_objects as shared
+
+    text = _sql("118_sda_returns.sql")
+    blocks = shared._sql_blocks(text)
+
+    trigger_count = len(re.findall(r"(?i)CREATE OR REPLACE TRIGGER", text))
+    assert trigger_count == len(RETURN_EXPECTED_TABLES)
+
+    plsql_blocks = 0
+    for block in blocks:
+        if shared._is_comment_only(block):
+            continue
+        if shared._is_plsql_block(block):
+            plsql_blocks += 1
+            creates = re.findall(r"(?im)^\s*CREATE\s+(\S+)", block)
+            assert creates == ["OR"], (
+                "PL/SQL block is not isolated to its own trigger — it "
+                f"also contains: {block[:200]!r}")
+    assert plsql_blocks == trigger_count
+
+
+def test_returns_ddl_is_registered_in_module_installer():
+    from modules.sda.scripts.sda_deploy import FILES
+    assert "118_sda_returns.sql" in FILES
+
+
+# -- Task 6: register_return / settlement_breakdown (store) -----------
+
+def _tariff_gestiune_row(tariff_id, categorie, metoda, reutilizabil, valoare):
+    return [tariff_id, "2026-01-01", categorie, metoda, reutilizabil, valoare]
+
+
+def test_return_at_a_mixed_point_stores_the_method_that_was_passed():
+    """SDA_RETURN_POINT.TIP = MIXT никогда не спрашивается: точка не решает
+    метод конкретной сессии, поэтому метод сохраняется таким, каким пришёл
+    в payload, независимо от того, что позволяет точка."""
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["TARIFF_ID", "DATA_START", "CATEGORIE", "METODA", "REUTILIZABIL",
+             "VALOARE_LEI"],
+            [_tariff_gestiune_row(50, "a", "AUTOMAT", "N", 0.5)]),
+        _ok(["PACK_ID", "REUTILIZABIL", "CAT_GEST"], [[9, "N", "a"]]),
+        _ok([], [], rowcount=1),          # INSERT SDA_RETURN
+        _currval(777),                     # CURRVAL
+        _ok([], [], rowcount=1),          # INSERT SDA_RETURN_LINE
+        _ok([], [], rowcount=1),          # journal
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.register_return(
+            {"point_id": 3, "mod_ramburs": "TICHET",
+             "lines": [{"pack_id": 9, "cant_buc": 2, "metoda": "AUTOMAT",
+                       "reutilizabil": "N", "cat_gest": "a"}]},
+            "tester")
+    assert res["success"] is True, res["message"]
+    line_params = db.execute_query.call_args_list[4][0][1]
+    assert line_params["metoda"] == "AUTOMAT"
+
+
+def test_two_returns_of_the_same_pack_by_different_methods_get_different_tariffs():
+    from modules.sda.store import SDAStore
+
+    def _run(metoda, valoare):
+        db = _db_returning(
+            _ok(["TARIFF_ID", "DATA_START", "CATEGORIE", "METODA",
+                 "REUTILIZABIL", "VALOARE_LEI"],
+                [_tariff_gestiune_row(50, "a", "MANUAL", "N", 0.3),
+                 _tariff_gestiune_row(50, "a", "AUTOMAT", "N", 0.5)]),
+            _ok(["PACK_ID", "REUTILIZABIL", "CAT_GEST"], [[9, "N", "a"]]),
+            _ok([], [], rowcount=1), _currval(1),
+            _ok([], [], rowcount=1), _ok([], [], rowcount=1),
+        )
+        with patch("modules.sda.store.DatabaseModel", return_value=db):
+            return SDAStore.register_return(
+                {"point_id": 3, "mod_ramburs": "TICHET" if metoda == "AUTOMAT"
+                                 else "NUMERAR",
+                 "lines": [{"pack_id": 9, "cant_buc": 1, "metoda": metoda,
+                           "reutilizabil": "N", "cat_gest": "a"}]},
+                "tester")
+
+    manual_res = _run("MANUAL", 0.3)
+    auto_res = _run("AUTOMAT", 0.5)
+    assert manual_res["success"] is True, manual_res["message"]
+    assert auto_res["success"] is True, auto_res["message"]
+    assert manual_res["data"]["gestiune_lei"] == 0.3
+    assert auto_res["data"]["gestiune_lei"] == 0.5
+    assert manual_res["data"]["gestiune_lei"] != auto_res["data"]["gestiune_lei"]
+
+
+def test_missing_management_tariff_fails_register_return_instead_of_recording_zero():
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["TARIFF_ID", "DATA_START", "CATEGORIE", "METODA", "REUTILIZABIL",
+             "VALOARE_LEI"], []))
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.register_return(
+            {"point_id": 3, "mod_ramburs": "NUMERAR",
+             "lines": [{"pack_id": 9, "cant_buc": 1, "metoda": "MANUAL",
+                       "reutilizabil": "N", "cat_gest": "a"}]},
+            "tester")
+    assert res["success"] is False
+    assert "tarif de gestiune" in res["message"].lower()
+
+
+def test_missing_management_tariff_for_the_specific_combination_also_fails():
+    """Perioada exista, dar nu are o linie pentru combinatia ceruta —
+    tot eroare, nu zero tacut."""
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["TARIFF_ID", "DATA_START", "CATEGORIE", "METODA", "REUTILIZABIL",
+             "VALOARE_LEI"],
+            [_tariff_gestiune_row(50, "b", "MANUAL", "N", 0.4)]),
+        _ok(["PACK_ID", "REUTILIZABIL", "CAT_GEST"], [[9, "N", "a"]]),
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.register_return(
+            {"point_id": 3, "mod_ramburs": "NUMERAR",
+             "lines": [{"pack_id": 9, "cant_buc": 1, "metoda": "MANUAL",
+                       "reutilizabil": "N", "cat_gest": "a"}]},
+            "tester")
+    assert res["success"] is False
+    assert "nu exista tarif de gestiune" in res["message"].lower()
+
+
+def test_refusal_without_a_reason_is_rejected():
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["TARIFF_ID", "DATA_START", "CATEGORIE", "METODA", "REUTILIZABIL",
+             "VALOARE_LEI"],
+            [_tariff_gestiune_row(50, "a", "MANUAL", "N", 0.3)]),
+        _ok(["PACK_ID", "REUTILIZABIL", "CAT_GEST"], [[9, "N", "a"]]),
+    )
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.register_return(
+            {"point_id": 3, "mod_ramburs": "NUMERAR",
+             "lines": [{"pack_id": 9, "cant_buc": 1, "metoda": "MANUAL",
+                       "reutilizabil": "N", "cat_gest": "a",
+                       "rezultat": "REFUZAT"}]},
+            "tester")
+    assert res["success"] is False
+    assert "motiv" in res["message"].lower()
+
+
+def test_settlement_breakdown_groups_by_all_three_dimensions():
+    from modules.sda.store import SDAStore
+    db = _db_returning(
+        _ok(["METODA", "REUTILIZABIL", "CAT_GEST", "BUC", "KG", "SUMA_LEI"],
+            [["MANUAL", "N", "a", 100, 12.5, 30.0],
+             ["AUTOMAT", "N", "a", 40, 5.0, 20.0],
+             ["MANUAL", "D", "d", 5, 3.0, 4.5]]))
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        res = SDAStore.settlement_breakdown(
+            1, date(2026, 1, 1), date(2026, 1, 31))
+    assert res["success"] is True
+    rows = res["data"]["breakdown"]
+    assert len(rows) == 3
+    keys = {(r["metoda"], r["reutilizabil"], r["cat_gest"]) for r in rows}
+    assert keys == {("MANUAL", "N", "a"), ("AUTOMAT", "N", "a"),
+                    ("MANUAL", "D", "d")}
+    assert res["data"]["total_lei"] == 54.5
+
+
+def test_settlement_breakdown_excludes_refused_lines_in_sql():
+    from modules.sda.store import SDAStore
+    db = _db_returning(_ok(["METODA", "REUTILIZABIL", "CAT_GEST", "BUC",
+                            "KG", "SUMA_LEI"], []))
+    with patch("modules.sda.store.DatabaseModel", return_value=db):
+        SDAStore.settlement_breakdown(1, date(2026, 1, 1), date(2026, 1, 31))
+    sql = db.execute_query.call_args_list[0][0][0]
+    assert "REZULTAT = 'ACCEPTAT'" in sql
+    assert "GROUP BY RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST" in sql
