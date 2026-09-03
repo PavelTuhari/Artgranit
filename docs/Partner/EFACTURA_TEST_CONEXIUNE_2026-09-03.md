@@ -99,3 +99,17 @@ Proprietarul (03.09.2026): «Не плательщик, добавь опцию�
 XML, motivul 4|5 devine 1, cota implicită 0 (pagina le schimbă singură la
 alegere). Pe officeplus.md: `vat_payer = 0`. Test
 `test_vat_payer_option_drives_motiv_and_tva` (52 în total).
+
+## Completare 5: «aceeași greșeală» după deploy — serviciul NU se repornise
+
+A doua și a treia încercare pe A-90 (21:24–21:25) au plecat tot cu motiv 4
+și TVA 413,49: jurnalul `EFA_CALL` a arătat-o imediat. Cauza nu era codul,
+ci deploy-ul: fișierele erau pe disc, dar `sudo -S systemctl restart` primea
+parola GOALĂ — în comanda ssh cu ghilimele duble `$SSHPASS` se expanda pe
+server, unde nu există — și eșua în tăcere (`2>/dev/null`). Gunicorn rula
+de la 18:20. Regulă: parola se inserează local (ghilimele simple) și după
+restart se verifică `systemctl status … since` sau PID-ul, nu doar HTTP 200.
+După repornirea corectă (21:34) A-90 a fost trimis prin același drum ca
+acțiunea din una.md (`/api/biro26/efactura/send/426`): `SENT`, RequestId
+`08df0b1ac5c2493b9b74be232c64b99b` — prima factură fiscală reală a
+Grecu Office Group în SIA e-Factura; urmează semnăturile pe `sfs.md`.
