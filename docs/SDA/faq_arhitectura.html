@@ -203,6 +203,49 @@ footer{border-top:1px solid var(--rule);margin-top:56px;padding-top:22px;font-fa
 
 <p>Refuzurile se înregistrează, nu se aruncă. Legea permite refuzul în cazurile de la art. 54¹ alin. (9)–(10) <span class="ref">pct. 91</span>, iar dovada că refuzul a fost motivat este exact ce va cere o reclamație sau un control.</p>
 
+<h3>Metoda de preluare este dimensiune analitică, nu detaliu</h3>
+
+<p>Aici merită insistat, pentru că de acest atribut depind banii pe care îi
+încasează rețeaua. Tariful de gestionare pe care Administratorul îl plătește
+comerciantului se diferențiază după <b>metoda de preluare — manuală sau
+automată</b>, după tipul ambalajului (reutilizabil sau de unică folosință) și
+după material <span class="ref">pct. 14.14</span>. Calculul ține cont în plus
+de faptul că instalația automată a fost cumpărată de comerciant sau de
+Administrator.</p>
+
+<p>De aceea metoda se înregistrează <b>pe faptul de preluare</b> și nu se
+deduce ulterior din punctul de returnare. Trei motive, fiecare suficient:</p>
+
+<ul>
+  <li>Un punct poate fi <b>mixt</b> — preia și manual, și prin aparat. Punctul
+      nu determină metoda unei preluări anume.</li>
+  <li>Un punct se transformă în timp: azi manual, peste o lună cu aparat
+      instalat. Dedus retroactiv, atributul ar rescrie sume deja revendicate.</li>
+  <li>Proprietarul aparatului intră în calcul. Și el trebuie fixat așa cum era
+      în momentul preluării, nu cum este azi.</li>
+</ul>
+
+<p>Practic: fiecare linie de preluare poartă un <b>instantaneu</b> al
+dimensiunilor — metodă, reutilizabil, categorie de gestiune, proprietarul
+aparatului — plus tariful rezolvat la acea dată și perioada tarifară care l-a
+produs. Așa decontul rămâne reproductibil și după ce Administratorul schimbă
+tarifele.</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Dimensiune</th><th>Valori</th><th>De ce contează</th></tr></thead>
+  <tbody>
+    <tr><td>Metodă</td><td>manual / automat</td><td>tarife diferite pentru același ambalaj</td></tr>
+    <tr><td>Tip ambalaj</td><td>reutilizabil / unică folosință</td><td>tarife diferite <span class="ref">pct. 14.14</span></td></tr>
+    <tr><td>Categorie material</td><td>a–e</td><td>plastic mic / mare, metal, sticlă mare / mică</td></tr>
+    <tr><td>Proprietar aparat</td><td>comerciant / Administrator</td><td>intră în formula tarifului</td></tr>
+  </tbody>
+</table></div>
+
+<p>Rezultatul direct este forma decontului: totalurile grupate pe
+<b>metodă × tip × categorie</b>, cu bucăți, kilograme și sumă cuvenită. Exact
+structura pe care o punem în fața Administratorului — și pe care o comparăm
+cu ce s-a încasat efectiv, în termenul de cel mult 14 zile.</p>
+
 <h3>Formule contabile</h3>
 
 <p>Depozitul încasat la vânzare este o <b>datorie</b> a rețelei (față de consumator, apoi față de Administrator), nu venit. Depozitul restituit stinge acea datorie. Tariful de gestionare încasat de la Administrator este, acela da, venit din prestarea serviciului de preluare. Deci: cont de decontare pentru garanție, cont de venit doar pentru tarif.</p>
@@ -296,7 +339,7 @@ footer{border-top:1px solid var(--rule);margin-top:56px;padding-top:22px;font-fa
 <h3>Ce cerem furnizorului de aparate</h3>
 <ol>
   <li>Notificare la emiterea tichetului: cod, valoare, aparat, punct, moment.</li>
-  <li>Notificare la preluare: EAN acceptat sau refuzat, cu motiv, pentru evidența pe categorii.</li>
+  <li>Notificare la preluare: EAN acceptat sau refuzat, cu motiv, pentru evidența pe categorii — plus identificarea aparatului, fiindcă metoda automată și proprietarul instalației schimbă tariful de gestionare cuvenit.</li>
   <li>Preluarea listei de EAN-uri eligibile și a valorii depozitului de la noi.</li>
   <li>Semnătura în codul tichetului, cu cheia convenită, pentru funcționarea offline.</li>
   <li>Stare de sănătate a aparatului — pentru ca un aparat oprit să apară pe tabloul de bord, nu să fie descoperit de client.</li>
@@ -318,7 +361,7 @@ footer{border-top:1px solid var(--rule);margin-top:56px;padding-top:22px;font-fa
   <li><div><b>Integrarea cu aparatele</b><span class="w">în paralel cu 4, depinde de furnizor</span>
     Cele cinci cerințe de mai sus. Începem cu sensul aparat → sistem, care e cel critic.</div></li>
   <li><div><b>Predări către Administrator și deconturi</b><span class="w">după ce circulă ambalaje</span>
-    Saci, sigilii, confirmări, divergențe, plus controlul termenului de 14 zile pentru tariful de gestionare.</div></li>
+    Saci, sigilii, confirmări, divergențe, plus controlul termenului de 14 zile. Decontul se construiește pe metodă × tip × categorie — dimensiunile după care se diferențiază tariful.</div></li>
   <li><div><b>Pilot pe un grup de magazine</b><span class="w">înainte de decembrie 2026</span>
     Cu date reale, nu de test. Restul rețelei după.</div></li>
 </ol>
