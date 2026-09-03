@@ -18,7 +18,12 @@ sys.path.insert(0, ROOT)
 from models.biro26_db import Biro26DB  # noqa: E402
 
 SQL_DIR = os.path.join(ROOT, "modules", "efactura", "sql")
-EXISTS_OK = ("ORA-00955", "ORA-01543", "ORA-02260", "ORA-00001", "ORA-01408")
+# RO: ORA-02303 = tipul obiect are dependenti (tabela de tip / pachetul) si nu
+#     se poate inlocui; la reinstalare tipurile sint neschimbate -> SKIP.
+#     Daca un tip chiar se schimba: DROP PACKAGE EFA_REPORT, DROP TYPE ..._TAB,
+#     DROP TYPE ..._T, apoi instalatorul din nou.
+EXISTS_OK = ("ORA-00955", "ORA-01543", "ORA-02260", "ORA-00001", "ORA-01408",
+             "ORA-02303")
 
 
 def run_file(db, path):

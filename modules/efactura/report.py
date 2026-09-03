@@ -93,6 +93,10 @@ def fetch(filters: Dict[str, Any]) -> Dict[str, Any]:
             raise RuntimeError("EFA_REPORT.%s: %s" % (name, r.get("message") or r.get("error")))
         sets[name] = _rows(r)
     # RO: legatura detail -> master (nrmanual pe fiecare pozitie, pentru export)
+    # RO: documente fara numar manual (nici in ERP, nici in EFA_DOC) -> «cod N»
+    for m in sets["master"]:
+        if not m.get("nrmanual"):
+            m["nrmanual"] = "cod %s" % m.get("doc_cod")
     nr = {m["efa_id"]: m.get("nrmanual") for m in sets["master"]}
     for d in sets["detail"]:
         d["nrmanual"] = nr.get(d["efa_id"])
