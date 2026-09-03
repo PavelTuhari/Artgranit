@@ -83,3 +83,11 @@ spune că pentru neplătitori valorile sînt 1/2/3. Adăugată setarea
 de `tva_rate` (care nu avea cîmp în pagină). `build_payload` o pune în
 document, `build_invoice_xml` o scrie. Pe officeplus.md setate:
 `creation_motiv = 1`, `tva_rate = 0`. Test: `test_creation_motiv_from_settings`.
+
+Completare la același caz: previzualizarea A-90 cu motiv 1 avea totuși
+`TotalTVA 413,49` — raportul ERP calculează 20% chiar și pentru firma
+neplătitoare. Regulă nouă în `build_payload`: motiv 1/2/3 ⇒ `tva = 0`,
+`tva_rate = 0`, indiferent de raport (test `test_non_vat_payer_forces_zero_tva`).
+Setările `creation_motiv=1`, `tva_rate=0` au fost scrise în `EFA_SETTING`
+direct din Mac (Oracle e accesibil fără VPN); codul pe serverul de birou
+așteaptă VPN-ul (L2TP: «incorrect user shared secret» — doar proprietarul).

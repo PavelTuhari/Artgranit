@@ -55,6 +55,12 @@ class EfaController:
         # RO: aplatizam documentul in forma asteptata de constructorul XML
         total = float(raw.get("total") or 0)
         tva = float(raw.get("tva") or 0)
+        motiv = EfaController._creation_motiv(s)
+        # RO: firma NEplatitoare de TVA (motiv 1/2/3) nu poate factura TVA,
+        #     chiar daca raportul ERP calculeaza 20% (A-90, 03.09.2026:
+        #     2481 lei -> 413,49 TVA inexistent). Se forteaza 0.
+        if motiv in (1, 2, 3):
+            tva = 0.0
         doc = {
             "nrmanual": raw.get("nrmanual") or raw.get("cont_number"),
             "issue_date": EfaController._iso_date(raw.get("date_short")),
@@ -74,9 +80,10 @@ class EfaController:
             #     altfel se ia din setari (`tva_rate`, implicit 20). Pe A-88
             #     ERP-ul dadea tva=0 la un total de 20.149 lei — cu 20 fix am
             #     fi raportat 3.358 lei TVA inexistent in document.
-            "tva_rate": EfaController._tva_rate(total, tva, s),
+            "tva_rate": 0.0 if motiv in (1, 2, 3)
+                        else EfaController._tva_rate(total, tva, s),
             # RO: motivul crearii — dupa statutul TVA al firmei (vezi store.DEFAULTS)
-            "creation_motiv": EfaController._creation_motiv(s),
+            "creation_motiv": motiv,
         }
         return {"success": True, "doc": doc, "seller": seller, "raw": raw,
                 "client_cod": r.get("client_cod"), "settings": s}

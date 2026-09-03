@@ -741,3 +741,25 @@ def test_creation_motiv_from_settings():
                encoding="utf-8").read()
     assert 'id="s-creation_motiv"' in tpl and 'id="s-tva_rate"' in tpl \
         and "'creation_motiv','tva_rate'" in tpl
+
+
+def test_non_vat_payer_forces_zero_tva(monkeypatch):
+    """RO: motiv 1/2/3 = neplatitor -> tva 0 si cota 0, oricare ar fi raportul ERP
+    (A-90, 03.09.2026: raportul dadea 413,49 lei TVA la o firma neplatitoare)."""
+    import modules.efactura.controller as ctl
+    import modules.efactura.store as store
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: {
+        "creation_motiv": "1", "tva_rate": "20", "seria": "AA"}))
+    raw = {"firm": {"fiscal_code": "1026602001837", "name": "G", "address": "B"},
+           "client": {"name": "C", "fiscal_code": "1012600013725"},
+           "items": [], "total": 2481.0, "tva": 413.49, "date_short": "03.09.2026",
+           "nrmanual": "A-90"}
+    monkeypatch.setattr(ctl.Biro26Report, "doc_data", staticmethod(
+        lambda cod: {"success": True, "data": raw, "client_cod": 1}))
+    d = ctl.EfaController.build_payload(426)["doc"]
+    assert d["creation_motiv"] == 1 and d["tva"] == 0 and d["tva_rate"] == 0
+    assert d["total_fara_tva"] == 2481.0
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: {
+        "creation_motiv": "4", "tva_rate": "20", "seria": "AA"}))
+    d = ctl.EfaController.build_payload(426)["doc"]
+    assert d["creation_motiv"] == 4 and d["tva"] == 413.49 and d["tva_rate"] == 20
