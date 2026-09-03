@@ -88,8 +88,10 @@ CREATE OR REPLACE PACKAGE BODY EFA_NATIVE AS
     IF v LIKE 'HTTP 200%' AND INSTR(v, '"success": true') + INSTR(v, '"success":true') > 0 THEN
       RETURN;
     END IF;
-    -- RO: doar textul erorii (cimpul "error" din JSON), nu tot raspunsul
-    msg := REGEXP_SUBSTR(v, '"error": ?"([^"]*)"', 1, 1, NULL, 1);
+    -- RO: doar textul erorii (cimpul "error" din JSON), nu tot raspunsul;
+    --     ghilimelele escapate (\") din interior fac parte din text
+    msg := REGEXP_SUBSTR(v, '"error": ?"((\\"|[^"])*)"', 1, 1, NULL, 1);
+    msg := REPLACE(msg, '\"', '"');
     RAISE_APPLICATION_ERROR(-20000, SUBSTR('e-Factura: ' || NVL(msg, v), 1, 2000));
   END send_doc_pr;
 
