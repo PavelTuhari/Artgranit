@@ -695,6 +695,24 @@ class SDAStore:
                 "incomplet": d["data"]["incomplet"],
             })
 
+        return _done({
+            "deadline": SDAStore.DEADLINE.isoformat(),
+            "days_remaining": days_remaining,
+            "readiness": {"with_regim": with_regim, "total": total_units,
+                         "pct": readiness_pct},
+            "by_regime": by_regime,
+            "unknown_regime": unknown,
+            "return_point_coverage": {
+                "total": coverage_total, "covered": coverage_covered,
+                "blocking_units": blocking,
+            },
+            "registry": {"total": total_packs, "by_material": by_material,
+                        "by_cat_admin": by_cat_admin},
+            "tariff_state": {"deposit": deposit_state,
+                             "period_problems": period_problems},
+            "dossiers": dossiers,
+        })
+
     # ── retur si decontare ────────────────────────────────────────────
 
     @staticmethod
@@ -930,20 +948,3 @@ class SDAStore:
                       if hasattr(date_to, "isoformat") else date_to,
                       "breakdown": breakdown, "total_lei": round(total_lei, 2)})
 
-    return _done({
-        "deadline": SDAStore.DEADLINE.isoformat(),
-            "days_remaining": days_remaining,
-            "readiness": {"with_regim": with_regim, "total": total_units,
-                         "pct": readiness_pct},
-            "by_regime": by_regime,
-            "unknown_regime": unknown,
-            "return_point_coverage": {
-                "total": coverage_total, "covered": coverage_covered,
-                "blocking_units": blocking,
-            },
-            "registry": {"total": total_packs, "by_material": by_material,
-                        "by_cat_admin": by_cat_admin},
-            "tariff_state": {"deposit": deposit_state,
-                             "period_problems": period_problems},
-            "dossiers": dossiers,
-        })
