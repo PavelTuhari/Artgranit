@@ -2572,8 +2572,11 @@ def test_faq_page_is_served_and_open_without_login():
     resp = client.get("/UNA.md/orasldev/sda/faq")
     assert resp.status_code == 200
     body = resp.get_data(as_text=True)
-    assert "Cinci întrebări arhitecturale" in body
+    # Проверяем то, что не зависит от редактуры: контракт с кассой и
+    # ответ на главный вопрос клиента — отдельная таблица, а не поле.
     assert "PK_SDA.DEPOZIT" in body
+    assert "SDA_PACK" in body
+    assert "TMS_MPT" in body
 
 
 def test_faq_source_file_exists_next_to_the_other_client_documents():
