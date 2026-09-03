@@ -46,7 +46,15 @@
     în gol: se poate vedea XML-ul care ar pleca, dar nu se trimite nimic.</p>
   <div class="row">
     <div><label>Endpoint (adresa serviciului SOAP)</label>
-      <input id="s-endpoint" style="width:420px" placeholder="https://…/EFacturaService.svc"></div>
+      <!-- RO: lista mediilor + «alt text» (03.09.2026): contabilul a lasat
+           adresa de proba cu conturi reale; alegerea explicita previne asta.
+           Valoarea salvata ramine in s-endpoint, ca inainte. -->
+      <select id="s-endpoint-pick" onchange="pickEndpoint()" style="width:420px">
+        <option value="{{ endpoint_prod }}">REAL — {{ endpoint_prod }}</option>
+        <option value="{{ endpoint_test }}">de PROBĂ — {{ endpoint_test }}</option>
+        <option value="__custom__">alt text…</option>
+      </select>
+      <input id="s-endpoint" style="width:420px;margin-top:4px" placeholder="https://…/Service.svc" oninput="syncEndpointPick()"></div>
     <div><label>Namespace</label><input id="s-namespace" style="width:200px"></div>
   </div>
   <div class="row">
@@ -145,11 +153,27 @@ const KEYS = ['endpoint','namespace','username','username2','signer1_name',
               'seller_address','seller_iban','seller_bank_code','seria',
               'auto_send','only_companies'];
 
+function pickEndpoint() {
+  const pick = document.getElementById('s-endpoint-pick');
+  const inp = document.getElementById('s-endpoint');
+  if (pick.value === '__custom__') { inp.hidden = false; inp.focus(); return; }
+  inp.value = pick.value; inp.hidden = true;
+}
+function syncEndpointPick() {
+  // RO: dupa incarcare / tastare: adresa cunoscuta -> optiunea ei, altfel «alt text»
+  const pick = document.getElementById('s-endpoint-pick');
+  const inp = document.getElementById('s-endpoint');
+  const v = (inp.value || '').trim();
+  const known = [...pick.options].some(o => o.value === v);
+  pick.value = known ? v : '__custom__';
+  inp.hidden = known;
+}
 async function load() {
   const r = await j('admin/settings');
   const d = r.data || {};
   KEYS.forEach(k => { const el = document.getElementById('s-' + k);
     if (el && d[k] != null) el.value = d[k]; });
+  syncEndpointPick();
   // RO: un apel cazut (sesiune expirata, 500) nu trebuie sa se prefaca in
   //     «neconfigurat» — altfel omul cauta setari, nu problema reala.
   document.getElementById('s-info').innerHTML = r.success === false

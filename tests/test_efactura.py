@@ -679,3 +679,14 @@ def test_admin_template_keeps_test_result_out_of_s_info():
     body = src[src.index("async function testConn"):]
     body = body[:body.index("\n}")]
     assert "s-test" in body and "s-info" not in body and "load()" not in body
+
+
+def test_admin_template_has_endpoint_picker():
+    """RO: lista REAL / PROBA / alt text, cu valoarea salvata tot in s-endpoint."""
+    src = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert 'id="s-endpoint-pick"' in src and '{{ endpoint_prod }}' in src \
+        and '{{ endpoint_test }}' in src and '__custom__' in src
+    assert 'id="s-endpoint"' in src and "syncEndpointPick()" in src
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert "endpoint_prod=sfs.ENDPOINT_PROD" in routes

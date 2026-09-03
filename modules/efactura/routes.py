@@ -42,7 +42,10 @@ def _admin_guard():
 def admin_page():
     if not AuthController.is_authenticated():
         return redirect("/login?next=/UNA.md/orasldev/efactura/")
-    return render_template("efactura_admin.html")
+    from modules.efactura import sfs
+    return render_template("efactura_admin.html",
+                           endpoint_test=sfs.ENDPOINT_TEST,
+                           endpoint_prod=sfs.ENDPOINT_PROD)
 
 
 @blueprint.route("/admin/settings", methods=["GET", "POST"])

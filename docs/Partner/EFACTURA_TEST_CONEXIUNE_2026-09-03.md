@@ -42,3 +42,13 @@ Adresa serviciului trebuie să fie a mediului pe care s-au creat conturile:
 conturi din `sfs.md` → `https://efactura-api.sfs.md/Service.svc`;
 conturi din `preproductie.sfs.md` → `https://apiefactura-pre.sfs.md/Service.svc`.
 Pe mediul real nu se cere nimic la SFS (răspuns CTIF 03.09.2026).
+
+## Completare (aceeași zi): lista mediilor
+
+Cîmpul «Adresa serviciului» din Setări e acum o listă: **REAL**
+(`efactura-api.sfs.md`), **de PROBĂ** (`apiefactura-pre.sfs.md`) sau
+**alt text…** (apare cîmpul liber). Valoarea salvată rămîne în același
+cîmp `endpoint` (`s-endpoint`), deci nimic nu se schimbă în API/store; la
+încărcare, o adresă necunoscută selectează automat «alt text». Fișiere:
+`efactura_admin.html`, `routes.py` (adresele vin din `sfs.ENDPOINT_*`),
+test `test_admin_template_has_endpoint_picker`.
