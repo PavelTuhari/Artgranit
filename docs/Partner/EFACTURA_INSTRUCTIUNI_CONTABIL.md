@@ -25,7 +25,8 @@ Pagina: portal → meniul **e-Factura** → *Setări* (adresa
 | Utilizator API / parola — al doilea semnatar | la fel, pentru contabilul-șef; opțional dacă firma semnează cu o singură persoană |
 | Numele semnatarilor | pentru afișare |
 | Seria facturii | seria firmei (ex. `AA`); numărul îl dă SFS la semnare |
-| Cota TVA implicită | 20 — se folosește doar cînd documentul din ERP nu are TVA calculat |
+| Cota TVA implicită | 20 — se folosește doar cînd documentul din ERP nu are TVA calculat; firmă **neplătitoare** de TVA → `0` |
+| Motivul creării facturii | după statutul TVA al firmei în registrul SFS: **plătitoare** → 4 Livrare (sau 5 Non-livrare); **neplătitoare** → 1 Livrare (2 refacturare, 3 combinată). Cu valoarea greșită SFS răspunde «Motivul Crearii este indicat incorect trebue sa fie 1 sau 2» (sau «4 sau 5») |
 | Rechizitele vînzătorului (`seller_*`) | **se lasă GOALE** — se iau din firma ERP-ului; se completează doar pe mediul de probă |
 | Doar persoane juridice | pornit: e-Factura se emite doar clienților cu IDNO |
 

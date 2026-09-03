@@ -108,7 +108,9 @@ Oracle cu un document real (`HTTP 200, SENT`) si cu drumurile de eroare.
    03.09.2026). Lista de IP e doar o regula a mediului de test.
 3. Setari e-Factura: adresa `https://efactura-api.sfs.md/Service.svc`,
    conturile clientului, `seller_*` GOALE (furnizorul = firma din ERP),
-   `seria` reala, `tva_rate` confirmat de contabil, `only_companies`.
+   `seria` reala, `tva_rate` confirmat de contabil, `only_companies`,
+   `creation_motiv` dupa statutul TVA al clientului (platitor 4|5,
+   neplatitor 1|2|3 — SFS refuza valoarea din cealalta grupa).
 4. «Testează conexiunea» din admin → ✅ pe ambele conturi (metoda `Test`,
    nu trimite nimic).
 5. Prima factura reala: un document emis AZI, valoare mica, catre un client

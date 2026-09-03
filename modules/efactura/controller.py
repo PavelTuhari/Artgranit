@@ -75,6 +75,8 @@ class EfaController:
             #     ERP-ul dadea tva=0 la un total de 20.149 lei — cu 20 fix am
             #     fi raportat 3.358 lei TVA inexistent in document.
             "tva_rate": EfaController._tva_rate(total, tva, s),
+            # RO: motivul crearii — dupa statutul TVA al firmei (vezi store.DEFAULTS)
+            "creation_motiv": EfaController._creation_motiv(s),
         }
         return {"success": True, "doc": doc, "seller": seller, "raw": raw,
                 "client_cod": r.get("client_cod"), "settings": s}
@@ -108,6 +110,15 @@ class EfaController:
             return ("Data eliberării %s e cu mai mult de %d zile în viitor."
                     % (d.strftime("%d.%m.%Y"), EfaController.DATE_WINDOW_DAYS))
         return None
+
+    @staticmethod
+    def _creation_motiv(settings: Dict[str, Any]) -> int:
+        """RO: 1..5 din setari; orice altceva -> 4 (platitor TVA, livrare)."""
+        try:
+            v = int(str(settings.get("creation_motiv") or "4").strip())
+        except (TypeError, ValueError):
+            return 4
+        return v if v in (1, 2, 3, 4, 5) else 4
 
     @staticmethod
     def _tva_rate(total: float, tva: float, settings: Dict[str, Any]) -> float:

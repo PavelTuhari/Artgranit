@@ -103,6 +103,13 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
     document SENT nu se retrimite fara `resend` explicit, iar rezultatul
     (trimis / eroare / deja trimis) se scrie in istoria documentului
     (`TMDB_DOCS_LOG`, prin `DOCLOG`, kind `EFA`).
+17. **`CreationMotiv` depinde de statutul TVA al FURNIZORULUI**, nu de
+    mediu. Raspuns real 03.09.2026, prima trimitere a Grecu Office Group
+    (neplatitor TVA) pe mediul real: «Motivul Crearii este indicat incorect
+    trebue sa fie 1 sau 2». Documentatia din XSD: platitor TVA -> 4 Livrare /
+    5 Non-livrare; neplatitor -> 1 livrare / 2 refacturare / 3 combinata.
+    Nuanta 2 de mai sus (4|5) era doar cazul UNISIM-SOFT (platitor). Acum
+    e setarea «Motivul crearii facturii» + «Cota TVA implicita» in Setari.
 16. **Parolele**: niciodata in pagina/jurnal/chat. In browser — managerul
     de parole (Safari → Keychain); pentru probe automate — macOS Keychain
     (`security add-generic-password -s efactura-api-pre -a <utilizator> -w`),

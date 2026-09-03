@@ -72,3 +72,14 @@ panoul «Comunicări cu SFS — toate apelurile, complet» pe pagina Setări
 (click pe rînd → trimis / răspuns; «tot textul» aduce restul). Teste:
 `test_journal_reads_clobs_in_4000_chunks`, `test_admin_page_shows_all_sfs_calls`
 (49 în total).
+
+## Completare 3 (aceeași zi): prima trimitere reală — `CreationMotiv` 1|2
+
+Acțiunea din una.md pe contul A-90 (Grecu Office Group, mediul real):
+«ORA-20000: … Motivul Crearii este indicat incorect trebue sa fie 1 sau 2».
+Cauza: valoarea era fixă 4 (plătitor TVA); firma e neplătitoare, iar XSD-ul
+spune că pentru neplătitori valorile sînt 1/2/3. Adăugată setarea
+`creation_motiv` (`EFA_SETTING`, implicit 4) + cîmpul în Setări, alături
+de `tva_rate` (care nu avea cîmp în pagină). `build_payload` o pune în
+document, `build_invoice_xml` o scrie. Pe officeplus.md setate:
+`creation_motiv = 1`, `tva_rate = 0`. Test: `test_creation_motiv_from_settings`.

@@ -40,6 +40,13 @@ DEFAULTS = {
     "seria": "",
     # RO: cota TVA folosita cind documentul ERP nu are TVA calculat
     "tva_rate": "20",
+    # RO: CreationMotiv din XML depinde de STATUTUL firmei in registrul SFS
+    #     (XSD, documentatia elementului): platitor TVA -> 4 Livrare / 5
+    #     Non-livrare; NEplatitor TVA -> 1 livrare / 2 refacturare / 3
+    #     combinata. Mediul de proba (UNISIM-SOFT, platitor) a cerut 4|5;
+    #     mediul real (Grecu Office Group, neplatitor) a refuzat 4 pe
+    #     03.09.2026: «trebue sa fie 1 sau 2». Se alege in Setari.
+    "creation_motiv": "4",
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }

@@ -532,9 +532,11 @@ def build_invoice_xml(doc: Dict[str, Any], seller: Dict[str, Any],
         + f"<Total>{_num(round(total, 2))}</Total>"
         f"<TotalTVA>{_num(round(total_tva, 2))}</TotalTVA>"
         "<Merchandises>" + "".join(rows) + "</Merchandises>"
-        # RO: SFS accepta DOAR 4 sau 5 («Motivul Crearii … trebue sa fie 4
-        #     sau 5», raspuns real 02.09.2026): 4 = Livrare (exemplul din
-        #     ghidul de integrare), 5 = Non-livrare (ghidul utilizatorului
-        #     §4.2). Implicit 4; se poate da in document (`creation_motiv`).
+        # RO: valorile depind de statutul TVA al FURNIZORULUI in registrul
+        #     SFS (documentatia din XSD): platitor TVA -> 4 Livrare / 5
+        #     Non-livrare («trebue sa fie 4 sau 5», 02.09.2026, UNISIM-SOFT);
+        #     neplatitor -> 1 / 2 / 3 («trebue sa fie 1 sau 2», 03.09.2026,
+        #     Grecu Office Group pe mediul real). Vine in document
+        #     (`creation_motiv`, din setarea cu acelasi nume); implicit 4.
         f"<CreationMotiv>{int(d.get('creation_motiv') or 4)}</CreationMotiv>"
         "</SupplierInfo></Document></Documents>")

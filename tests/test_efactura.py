@@ -719,3 +719,25 @@ def test_admin_page_shows_all_sfs_calls():
     assert "admin/calls" in src and "loadCalls()" in src and 'id="ctab"' in src
     routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
     assert '"/admin/calls"' in routes and '"/admin/calls/<int:call_id>"' in routes
+
+
+def test_creation_motiv_from_settings():
+    """RO: 03.09.2026, mediul real: «Motivul Crearii … trebue sa fie 1 sau 2»
+    pentru un neplatitor de TVA — valoarea vine din setari, nu e fixa 4."""
+    from modules.efactura.controller import EfaController
+    from modules.efactura import sfs
+    assert EfaController._creation_motiv({"creation_motiv": "1"}) == 1
+    assert EfaController._creation_motiv({"creation_motiv": ""}) == 4
+    assert EfaController._creation_motiv({"creation_motiv": "9"}) == 4
+    doc = {"number": "A-90", "issue_date": "2026-09-03", "client_idno": "1012600013725",
+           "client_name": "C", "client_address": "a", "items": [
+               {"code": "1", "name": "x", "qty": 1, "price": 10, "unit": "buc"}],
+           "total": 10, "tva": 0, "total_fara_tva": 10, "tva_rate": 0,
+           "creation_motiv": 1}
+    xml = sfs.build_invoice_xml(doc, {"idno": "1026602001837", "name": "G",
+                                      "address": "B"}, seria="AA", number="A-90")
+    assert "<CreationMotiv>1</CreationMotiv>" in xml
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert 'id="s-creation_motiv"' in tpl and 'id="s-tva_rate"' in tpl \
+        and "'creation_motiv','tva_rate'" in tpl
