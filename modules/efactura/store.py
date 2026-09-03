@@ -47,6 +47,10 @@ DEFAULTS = {
     #     mediul real (Grecu Office Group, neplatitor) a refuzat 4 pe
     #     03.09.2026: «trebue sa fie 1 sau 2». Se alege in Setari.
     "creation_motiv": "4",
+    # RO: statutul TVA al firmei (proprietar, 03.09.2026: «Не плательщик,
+    #     добавь опцию»). 1 = platitor, 0 = neplatitor: TVA 0 in XML si
+    #     CreationMotiv din grupa 1/2/3 (4|5 se traduc in 1).
+    "vat_payer": "1",
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }

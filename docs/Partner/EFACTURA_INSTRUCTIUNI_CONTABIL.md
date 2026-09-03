@@ -26,6 +26,7 @@ Pagina: portal → meniul **e-Factura** → *Setări* (adresa
 | Numele semnatarilor | pentru afișare |
 | Seria facturii | seria firmei (ex. `AA`); numărul îl dă SFS la semnare |
 | Cota TVA implicită | 20 — se folosește doar cînd documentul din ERP nu are TVA calculat; firmă **neplătitoare** de TVA → `0` |
+| Firma este plătitoare de TVA | **Nu** pentru Grecu Office Group (neplătitoare): în XML TVA = 0 și motivul creării din grupa 1/2/3, oricare ar fi raportul ERP. **Da** → motiv 4/5, cota implicită 20 |
 | Motivul creării facturii | după statutul TVA al firmei în registrul SFS: **plătitoare** → 4 Livrare (sau 5 Non-livrare); **neplătitoare** → 1 Livrare (2 refacturare, 3 combinată). Cu valoarea greșită SFS răspunde «Motivul Crearii este indicat incorect trebue sa fie 1 sau 2» (sau «4 sau 5») |
 | Rechizitele vînzătorului (`seller_*`) | **se lasă GOALE** — se iau din firma ERP-ului; se completează doar pe mediul de probă |
 | Doar persoane juridice | pornit: e-Factura se emite doar clienților cu IDNO |

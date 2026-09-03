@@ -119,13 +119,24 @@ class EfaController:
         return None
 
     @staticmethod
+    def vat_payer(settings: Dict[str, Any]) -> bool:
+        """RO: setarea `vat_payer` (1/0); un motiv din grupa 1/2/3 inseamna
+        tot neplatitor, ca setarile vechi sa ramina valabile."""
+        return str(settings.get("vat_payer", "1")).strip() != "0"
+
+    @staticmethod
     def _creation_motiv(settings: Dict[str, Any]) -> int:
-        """RO: 1..5 din setari; orice altceva -> 4 (platitor TVA, livrare)."""
+        """RO: 1..5 din setari, potrivit cu statutul TVA: neplatitor cu 4|5
+        -> 1 (livrare); platitor cu 1|2|3 -> 4. Altceva -> 4."""
         try:
             v = int(str(settings.get("creation_motiv") or "4").strip())
         except (TypeError, ValueError):
-            return 4
-        return v if v in (1, 2, 3, 4, 5) else 4
+            v = 4
+        if v not in (1, 2, 3, 4, 5):
+            v = 4
+        if not EfaController.vat_payer(settings) and v in (4, 5):
+            return 1
+        return v
 
     @staticmethod
     def _tva_rate(total: float, tva: float, settings: Dict[str, Any]) -> float:

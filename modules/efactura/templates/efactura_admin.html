@@ -96,7 +96,12 @@
   <div class="row">
     <!-- RO: CreationMotiv dupa statutul TVA al firmei (03.09.2026: mediul real
          a refuzat 4 pentru un neplatitor: «trebue sa fie 1 sau 2») -->
-    <div><label>Motivul creării facturii (statutul TVA al firmei)</label>
+    <div><label>Firma este plătitoare de TVA</label>
+      <select id="s-vat_payer" style="width:200px" onchange="syncVat()">
+        <option value="1">Da — plătitoare</option>
+        <option value="0">Nu — NEplătitoare (TVA 0, motiv 1/2/3)</option>
+      </select></div>
+    <div><label>Motivul creării facturii</label>
       <select id="s-creation_motiv" style="width:420px">
         <option value="4">4 — Livrare (firmă PLĂTITOARE de TVA)</option>
         <option value="5">5 — Non-livrare (plătitoare de TVA)</option>
@@ -175,9 +180,17 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
 const KEYS = ['endpoint','namespace','username','username2','signer1_name',
               'signer2_name','mode','seller_idno','seller_name',
               'seller_address','seller_iban','seller_bank_code','seria',
-              'creation_motiv','tva_rate',
+              'creation_motiv','tva_rate','vat_payer',
               'auto_send','only_companies'];
 
+function syncVat() {
+  // RO: neplatitor -> motivul din grupa 1/2/3 si cota 0; platitor -> 4/5 si 20
+  const vp = document.getElementById('s-vat_payer').value;
+  const m = document.getElementById('s-creation_motiv');
+  const t = document.getElementById('s-tva_rate');
+  if (vp === '0') { if (['4','5'].includes(m.value)) m.value = '1'; t.value = '0'; }
+  else { if (['1','2','3'].includes(m.value)) m.value = '4'; if (t.value === '0') t.value = '20'; }
+}
 function pickEndpoint() {
   const pick = document.getElementById('s-endpoint-pick');
   const inp = document.getElementById('s-endpoint');

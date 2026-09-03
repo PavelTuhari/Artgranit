@@ -91,3 +91,11 @@ neplătitoare. Regulă nouă în `build_payload`: motiv 1/2/3 ⇒ `tva = 0`,
 Setările `creation_motiv=1`, `tva_rate=0` au fost scrise în `EFA_SETTING`
 direct din Mac (Oracle e accesibil fără VPN); codul pe serverul de birou
 așteaptă VPN-ul (L2TP: «incorrect user shared secret» — doar proprietarul).
+
+## Completare 4: opțiunea «Firma este plătitoare de TVA»
+
+Proprietarul (03.09.2026): «Не плательщик, добавь опцию». Setarea
+`vat_payer` (1/0) în `EFA_SETTING` + select în Setări. La «Nu»: TVA 0 în
+XML, motivul 4|5 devine 1, cota implicită 0 (pagina le schimbă singură la
+alegere). Pe officeplus.md: `vat_payer = 0`. Test
+`test_vat_payer_option_drives_motiv_and_tva` (52 în total).
