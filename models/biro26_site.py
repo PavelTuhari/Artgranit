@@ -88,7 +88,11 @@ class Biro26Site:
         try:
             import re as _re
             from app import _biro26_wp_page as _wp
-            _t, _html = _wp('site-min-order')
+            # RO: NU `_t` — asa se cheama aliasul modulului `time` mai jos
+            #     (`_t.time()`); titlul paginii WP il ascundea si /site/config
+            #     cadea cu «'NoneType' object has no attribute 'time'»
+            #     (03.09.2026, ambele contururi).
+            _wp_title, _html = _wp('site-min-order')
             if _html:
                 m = _re.search(r'\d[\d\s.,]*', _re.sub(r'<[^>]+>', ' ', _html))
                 if m:
