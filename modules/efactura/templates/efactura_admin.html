@@ -94,6 +94,9 @@
     <button class="btn gray" onclick="testConn()">🔌 Testează conexiunea</button>
     <span id="s-info" class="muted"></span>
   </div>
+  <!-- RO: rezultatul testului sta AICI, nu in s-info: load() rescrie s-info
+       cu «configurat» si mesajul disparea intr-o secunda (03.09.2026). -->
+  <div id="s-test" class="muted" style="margin-top:8px;white-space:pre-line"></div>
 </div>
 
 <div class="card">
@@ -183,12 +186,21 @@ async function saveSettings() {
   load();
 }
 async function testConn() {
-  document.getElementById('s-info').textContent = 'Se testează…';
+  const box = document.getElementById('s-test');
+  box.textContent = 'Se testează ambele conturi…';
   const r = await j('admin/test', {method: 'POST', body: '{}'});
-  document.getElementById('s-info').innerHTML = r.success
-    ? '<span class="ok">✅ ' + esc(r.message || 'conectat') + '</span>'
-    : '<span class="err">❌ ' + esc(r.error || 'eșuat') + '</span>';
-  load();
+  const sg = r.signers || {};
+  const line = (t, x) => !x ? '' : (x.skipped
+    ? `<div class="muted">▫ ${t}: ${esc(x.message || 'fără cont')}</div>`
+    : x.success
+      ? `<div class="ok">✅ ${t} (${esc(x.user || '')}): conectat</div>`
+      : `<div class="err">❌ ${t} (${esc(x.user || '')}): ${esc(x.error || 'eșuat')}</div>`);
+  box.innerHTML =
+    `<div><b>Test conexiune</b> — ${esc(new Date().toLocaleTimeString())}, mediul ${esc(r.env || r.endpoint || '')}</div>` +
+    line('1. semnatar', sg.prima_semnatura) + line('2. semnatar', sg.a_doua_semnatura) +
+    (r.hint ? `<div class="err" style="margin-top:6px">💡 ${esc(r.hint)}</div>` : '') +
+    (!sg.prima_semnatura && !r.success ? `<div class="err">❌ ${esc(r.error || 'eșuat')}</div>` : '') +
+    (r.success ? `<div class="ok" style="margin-top:6px">${esc(r.message || '')}</div>` : '');
 }
 function docCod() {
   const v = parseInt(document.getElementById('d-cod').value, 10);

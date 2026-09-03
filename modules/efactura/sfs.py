@@ -243,9 +243,14 @@ class SfsClient:
                 #     gresite sau cont creat pe alt mediu) — textul ei nu se
                 #     poate citi de la SFS, doar apelul reusit intoarce SOAP.
                 if e.code == 403:
-                    msg = ("Accesul e restricționat (403): IP-ul de ieșire al "
-                           "acestui server nu e pe lista SFS. Se cere la "
-                           "asistenta@sfs.md, cu IP-ul serverului.")
+                    # RO: pe mediul de PROBA lista e pe IP si pe firma
+                    #     (03.09.2026: conturi ale altei firme, de pe IP-ul
+                    #     deschis, tot 403 au primit); pe mediul REAL nu
+                    #     exista lista (raspuns CTIF, 03.09.2026).
+                    msg = ("Accesul e restricționat (403). Pe mediul de probă: "
+                           "IP-ul serverului sau firma contului nu sînt pe lista "
+                           "SFS (asistenta@sfs.md). Pe mediul real: verificați "
+                           "contul API și mediul pe care a fost creat.")
                 else:
                     msg = ("Serviciul a răspuns cu o eroare SOAP (status %s), "
                            "iar portalul SFS îi ascunde textul în spatele unei "

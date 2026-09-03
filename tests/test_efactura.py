@@ -619,3 +619,63 @@ class TestNoDuplicateSend(unittest.TestCase):
         self.assertTrue(r.get("already_sent"))
         self.assertIn("deja trimis", r["error"])
         bp.assert_not_called()                    # nici macar nu construieste XML
+
+
+# ── «Testează conexiunea»: verdict pe semnatari + indiciu de mediu (03.09.2026)
+def _fake_client_factory(good_on):
+    """RO: client fals — `Test` reuseste doar pe adresa `good_on`."""
+    class Fake:
+        def __init__(self, signer, endpoint):
+            self.username = "u%d" % signer
+            self.endpoint = endpoint
+        def configured(self):
+            return True
+        def test(self):
+            if self.endpoint == good_on:
+                return {"success": True, "message": "ok"}
+            return {"success": False, "status": 500, "error": "HTML 500"}
+    return Fake
+
+
+def test_conncheck_hints_other_environment(monkeypatch):
+    from modules.efactura import conncheck, sfs
+    settings = {"endpoint": sfs.ENDPOINT_TEST, "username": "u1",
+                "password": "x", "username2": "u2", "password2": "y"}
+    Fake = _fake_client_factory(sfs.ENDPOINT_PROD)
+    monkeypatch.setattr(sfs.SfsClient, "from_settings",
+                        classmethod(lambda cls, signer=1, api=None, src="":
+                                    Fake(signer, (api or {}).get("endpoint")
+                                         or settings["endpoint"])))
+    import modules.efactura.store as store
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: settings))
+    r = conncheck.check()
+    assert r["success"] is False
+    assert r["cross_endpoint"] == sfs.ENDPOINT_PROD
+    assert "REAL" in r["hint"] and sfs.ENDPOINT_PROD in r["hint"]
+    assert r["signers"]["prima_semnatura"]["success"] is False
+    assert "u1" in r["error"] and "u2" in r["error"]
+
+
+def test_conncheck_success_both_signers(monkeypatch):
+    from modules.efactura import conncheck, sfs
+    settings = {"endpoint": sfs.ENDPOINT_PROD, "username": "u1",
+                "password": "x", "username2": "", "password2": ""}
+    Fake = _fake_client_factory(sfs.ENDPOINT_PROD)
+    monkeypatch.setattr(sfs.SfsClient, "from_settings",
+                        classmethod(lambda cls, signer=1, api=None, src="":
+                                    Fake(signer, settings["endpoint"])))
+    import modules.efactura.store as store
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: settings))
+    r = conncheck.check()
+    assert r["success"] is True
+    assert r["signers"]["a_doua_semnatura"]["skipped"] is True
+    assert "REAL" in r["message"]
+
+
+def test_admin_template_keeps_test_result_out_of_s_info():
+    """RO: rezultatul testului nu mai trece prin s-info, pe care load() il rescrie."""
+    src = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    body = src[src.index("async function testConn"):]
+    body = body[:body.index("\n}")]
+    assert "s-test" in body and "s-info" not in body and "load()" not in body

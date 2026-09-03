@@ -60,9 +60,12 @@ def admin_test():
     err = _admin_guard()
     if err:
         return err
-    from modules.efactura.sfs import SfsClient
-    r = SfsClient.from_settings().test()
-    EfaStore.log(None, "test", str(r)[:600], "backoffice")
+    # RO: verdict pe fiecare semnatar + indiciu «cont pe alt mediu» —
+    #     vezi modules/efactura/conncheck.py (03.09.2026).
+    from modules.efactura import conncheck
+    r = conncheck.check("backoffice")
+    EfaStore.log(None, "test", str({k: v for k, v in r.items()
+                                    if k != "signers"})[:600], "backoffice")
     return _reply(r, bad=502)
 
 
