@@ -40,9 +40,16 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
    comparatie cu exportul real din ghid).
 4. **Data eliberarii: doar azi … azi+10 zile.** Raspuns: «Specify the correct
    date for the IssuedDate element … 0 days before or 10 days after the
-   current date». Consecinta de business: factura se transmite in e-Factura
-   in ZIUA eliberarii; un document mai vechi nu mai intra. Modulul refuza
-   acum inainte de apel, in romana. `override_date` exista DOAR pentru probe.
+   current date». Prima interpretare (refuz pentru documente vechi) a fost
+   GRESITA si l-a blocat pe contabil pe 03.09.2026 cu un cont de ieri:
+   documentul din ERP e un CONT la plata (comanda), nu factura fiscala.
+   Corect: data facturii fiscale = ziua trimiterii — modulul pune
+   IssuedDate/DeliveryDate = azi, data contului ramine in ERP.
+   `override_date` exista DOAR pentru probe.
+4a. **Diacriticele nu trec prin Oracle CL8MSWIN1251**: mesajul de eroare
+   pentru aplicatia nativa a ajuns ca «Data eliberA?rii … A®n trecut».
+   API-ul pentru una.md raspunde fara diacritice romanesti (chirilicele
+   raman, CP1251 le are).
 5. **SFS normalizeaza documentul**: `Seria`/`Number` vin goale pina la
    semnare (le da sistemul — proba a primit `000002358` la prima semnatura);
    `Title`/`Address` ale partilor sint inlocuite din registrul fiscal dupa

@@ -160,9 +160,17 @@ class EfaController:
         if not p.get("success"):
             return p
         doc, s = p["doc"], p["settings"]
-        if override_date:
-            doc["issue_date"] = str(override_date)[:10]
-            doc["delivery_date"] = doc["issue_date"]
+        # RO: DATA FACTURII FISCALE = ziua in care se emite in e-Factura, adica
+        #     ACUM. Documentul din ERP e un «CONT la plata» (comanda), nu
+        #     factura fiscala — data lui ramine in ERP (EFA_DOC.NRMANUAL o
+        #     leaga). SFS oricum primeste doar azi…azi+10 («Specify the
+        #     correct date…»), iar pe 03.09.2026 contabilul a fost refuzat pe
+        #     un cont de ieri — gresit: contul poate fi de ieri, factura se
+        #     emite azi. `override_date` ramine doar pentru probe.
+        import datetime as _d
+        doc["issue_date"] = (str(override_date)[:10] if override_date
+                             else _d.date.today().isoformat())
+        doc["delivery_date"] = doc["issue_date"]
         # RO: fereastra de date a SFS — refuz clar INAINTE de apel
         werr = EfaController.date_window_error(doc.get("issue_date"))
         if werr:

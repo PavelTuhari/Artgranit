@@ -555,3 +555,48 @@ class TestIdnoCheckDigit(unittest.TestCase):
                              "buyer": {"idno": "1026602001999", "name": "y"},
                              "lines": [{"name": "s", "qty": 1, "price": 1}]})
         self.assertIn("buyer.idno", e)
+
+
+class TestNativeReply(unittest.TestCase):
+    """RO: raspunsul pentru aplicatia nativa — fara diacritice (CP1251)."""
+
+    def test_diacritics_folded(self):
+        from modules.efactura.native_api import ascii_ro, _fold
+        self.assertEqual(ascii_ro("Data eliberării e în trecut, așteptați"),
+                         "Data eliberarii e in trecut, asteptati")
+        self.assertEqual(_fold({"error": "Ținut", "data": {"x": ["ș"]}}),
+                         {"error": "Tinut", "data": {"x": ["s"]}})
+        self.assertEqual(ascii_ro("Выгрузить"), "Выгрузить")   # chirilicele ramin
+
+
+class TestFiscalDateIsSendDay(unittest.TestCase):
+    """RO: contul poate fi de ieri; factura fiscala se emite AZI (03.09.2026)."""
+
+    def test_issue_date_is_today(self):
+        import datetime
+        from unittest import mock
+        from modules.efactura.controller import EfaController as C
+        payload = {"success": True, "settings": {"only_companies": "1", "seria": "TST"},
+                   "client_cod": 1, "raw": {},
+                   "seller": {"idno": "1003600116460", "name": "F"},
+                   "doc": {"nrmanual": "A-89", "issue_date": "2026-09-02",
+                           "client_idno": "1003600116460", "client_name": "C",
+                           "items": [{"name": "x", "qty": 1, "price": 1, "sum": 1}],
+                           "total": 1.0, "tva": 0.17, "tva_rate": 20}}
+        seen = {}
+        def fake_post(self, xml, **kw):
+            seen["xml"] = xml
+            return {"success": True, "parsed": {"Status": "2", "TotalInvoicesPosted": "1"},
+                    "request_id": "r"}
+        with mock.patch.object(C, "build_payload", return_value=payload), \
+             mock.patch("modules.efactura.store.EfaStore.doc_upsert"), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch("modules.efactura.store.EfaStore.settings", return_value=payload["settings"]), \
+             mock.patch("modules.efactura.sfs.SfsClient.post_invoices", fake_post), \
+             mock.patch("modules.efactura.sfs.SfsClient.configured", return_value=True), \
+             mock.patch("models.biro26_db.Biro26DB.execute_dml", return_value={"success": True}):
+            r = C.send(7, src="native")
+        self.assertTrue(r.get("success"), r)
+        today = datetime.date.today().isoformat()
+        self.assertIn("<IssuedDate>%sT" % today, seen["xml"])
+        self.assertIn("<DeliveryDate>%sT" % today, seen["xml"])

@@ -44,12 +44,31 @@ def _guard():
     return jsonify({"success": False, "error": "invalid api key"}), 401
 
 
+_RO = str.maketrans({"ă": "a", "â": "a", "î": "i", "ș": "s", "ş": "s", "ț": "t",
+                     "ţ": "t", "Ă": "A", "Â": "A", "Î": "I", "Ș": "S", "Ş": "S",
+                     "Ț": "T", "Ţ": "T"})
+
+
+def ascii_ro(text):
+    """RO: fara diacritice — textul ajunge in aplicatia nativa prin UTL_HTTP
+    intr-o baza CL8MSWIN1251, care nu are ă/î/ș/ț: pe 03.09.2026 contabilul
+    a vazut «Data eliberA?rii … A®n trecut». Chirilicele (CP1251) trec."""
+    return str(text).translate(_RO) if isinstance(text, str) else text
+
+
+def _fold(obj):
+    if isinstance(obj, dict):
+        return {k: _fold(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_fold(v) for v in obj]
+    return ascii_ro(obj)
+
+
 def _reply(r, ok=200, bad=400):
-    """RO: JSON cu diacritice NEescapate — textul ajunge in fereastra
-    aplicatiei native prin PL/SQL, care nu decodifica \\u00e2."""
+    """RO: JSON fara \\u-escape si FARA diacritice romanesti (vezi ascii_ro)."""
     import json
     from flask import Response
-    body = json.dumps(r, ensure_ascii=False)
+    body = json.dumps(_fold(r), ensure_ascii=False)
     return Response(body, status=(ok if r.get("success") else bad),
                     mimetype="application/json; charset=utf-8")
 

@@ -77,9 +77,11 @@ nativă să afișeze mesajul.
 
 ## 5. Regulile SFS de care depinde fluxul zilnic
 
-1. **Factura se trimite în ziua eliberării.** SFS primește doar documente
-   cu data de azi (sau pînă la 10 zile în viitor). Un document de ieri nu
-   mai poate fi transmis — se emite unul nou cu data de azi.
+1. **Data facturii fiscale este ziua transmiterii.** SFS primește facturi
+   doar cu data de azi (sau pînă la 10 zile în viitor). Contul de plată
+   poate fi de ieri sau de acum o săptămînă — nu contează: la «Выгрузить в
+   e-Factura» factura fiscală se emite cu data de AZI, iar data contului
+   rămîne neschimbată în ERP.
 2. **Numărul facturii îl dă SFS** la prima semnătură; numărul nostru
    (A-81) rămîne ca referință în ERP.
 3. **Denumirea și adresa** părților se iau de SFS din registrul fiscal după
@@ -93,7 +95,6 @@ nativă să afișeze mesajul.
 
 | Ce vedeți | Ce înseamnă | Ce faceți |
 |---|---|---|
-| «Data eliberării … e în trecut» | document mai vechi de azi | document nou cu data de azi |
 | «clientul nu are IDNO» | persoană fizică | nu se emite e-Factura |
 | «Accesul e restricționat (403)» | IP-ul serverului nu e la SFS | firma IT → asistenta@sfs.md |
 | «eroare SOAP … pagină HTML (500)» | parola API greșită sau cont pe alt mediu | verificați contul pe sfs.md, re-introduceți parola în Setări |
