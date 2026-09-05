@@ -301,3 +301,16 @@ Traceback, model restaurat + IDNO. office: login 200, `clients-gov.js` 200
 Proba pe **Windows** a `start_contragenti.bat` și alegerea manuală în fereastra
 Contragenti («Vernuti contragentul») — după care formularul se completează și
 se apasă «Adaugă client».
+
+## Q. Gatekeeper macOS (05.09.2026, seara) — «Apple could not verify “start_contragenti.command” is free of malware»
+
+Raportat de proprietar la primul dublu-click pe scriptul descărcat. Cauza:
+macOS marchează orice executabil descărcat din browser (`com.apple.quarantine`)
+și îl blochează pînă cînd utilizatorul îl aprobă. Nu e un defect al
+scriptului. Ieșiri, puse acum în panoul «nu este disponibil» (ambele pagini):
+1. dacă Contragenti e instalat: Launchpad → Contragenti (scriptul nu e necesar);
+2. Setări sistem → Confidențialitate și securitate → «Deschide oricum»;
+3. Terminal (buton «Copiază comanda»):
+   `xattr -d com.apple.quarantine ~/Downloads/start_contragenti.command && ~/Downloads/start_contragenti.command`.
+Pe Windows echivalentul e SmartScreen («Mai multe informații» → «Rulează oricum»),
+indicat la fel.

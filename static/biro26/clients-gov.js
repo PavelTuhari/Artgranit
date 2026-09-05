@@ -28,9 +28,14 @@
     const B = 'display:inline-block;margin:2px 6px 2px 0;padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#1e293b;font-size:12.5px;text-decoration:none;cursor:pointer';
     const P = B + ';background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700';
     const btn = (k, label) => '<a style="' + (k === cur ? P : B) + '" download href="' + LAUNCHER + k + '?return=' + ret + '">' + label + '</a>';
+    // RO: Gatekeeper (05.09.2026, proprietarul: «Apple could not verify … is free of malware»):
+    //     orice executabil descarcat primeste marcajul quarantine — dam trei iesiri
+    const MAC_CMD = 'xattr -d com.apple.quarantine ~/Downloads/start_contragenti.command && ~/Downloads/start_contragenti.command';
     const hint = {
-      command: 'macOS: dublu-click pe start_contragenti.command (prima dată: click-dreapta → Deschide). Se deschide Terminal, pornește Contragenti și browserul revine aici.',
-      bat: 'Windows: dublu-click pe start_contragenti.bat (are nevoie de Python 3 dacă Contragenti nu e instalat din MSI).',
+      command: 'macOS: dacă Contragenti e instalat, cel mai simplu — Launchpad → Contragenti. La dublu-click pe scriptul descărcat macOS spune «Apple could not verify…»: ' +
+        'fie Setări sistem → Confidențialitate și securitate → «Deschide oricum», fie comanda în Terminal: <code style="background:#eef;padding:1px 5px;border-radius:4px">' + MAC_CMD + '</code> ' +
+        '<button style="' + B + ';padding:2px 8px;font-size:11.5px" onclick="navigator.clipboard.writeText(\'' + MAC_CMD + '\');this.textContent=\'✓ copiat\'">Copiază comanda</button>',
+      bat: 'Windows: dublu-click pe start_contragenti.bat (are nevoie de Python 3 dacă Contragenti nu e instalat din MSI). Dacă SmartScreen avertizează: «Mai multe informații» → «Rulează oricum».',
       py: 'Linux: python3 start_contragenti.py (Tkinter: sudo apt install python3-tk).'}[cur];
     msgEl.dataset.dl = '1';
     msgEl.innerHTML =
@@ -41,7 +46,7 @@
       '<div>' + btn('command', ' macOS — start_contragenti.command') + btn('bat', '⊞ Windows — start_contragenti.bat') +
       btn('py', '🐧 Linux / orice OS — start_contragenti.py') +
       '<button style="' + B + '" onclick="govRecheck()">↻ Verifică din nou</button></div>' +
-      '<div style="margin-top:6px;color:#64748b;font-size:12px">' + esc(hint) + '</div></div>';
+      '<div style="margin-top:6px;color:#64748b;font-size:12px">' + hint + '</div></div>';
   };
 
   window.govRecheck = async function () {

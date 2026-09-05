@@ -279,9 +279,11 @@ function showOffline(on) {
   const p = (navigator.platform || '') + ' ' + (navigator.userAgent || '');
   const os = /Mac/i.test(p) ? 'command' : /Win/i.test(p) ? 'bat' : 'py';
   ['command', 'bat', 'py'].forEach(k => document.getElementById('dl-' + k).className = 'btn' + (k === os ? ' btn-primary' : ''));
-  document.getElementById('off-hint').textContent = {
-    command: 'macOS: după descărcare, dublu-click pe start_contragenti.command (prima dată: click-dreapta → Deschide). Se deschide Terminal, pornește Contragenti și browserul revine aici.',
-    bat: 'Windows: dublu-click pe start_contragenti.bat. Are nevoie de Python 3 (python.org) dacă Contragenti nu e instalat din MSI.',
+  // RO: Gatekeeper pe macOS («Apple could not verify…») — trei iesiri, cu comanda de copiat
+  const MAC_CMD = 'xattr -d com.apple.quarantine ~/Downloads/start_contragenti.command && ~/Downloads/start_contragenti.command';
+  document.getElementById('off-hint').innerHTML = {
+    command: 'macOS: dacă Contragenti e instalat — Launchpad → Contragenti. La dublu-click pe scriptul descărcat macOS spune «Apple could not verify…»: Setări sistem → Confidențialitate și securitate → «Deschide oricum», sau în Terminal: <code>' + esc(MAC_CMD) + '</code> <button class="btn" style="padding:2px 8px;font-size:11.5px" onclick="navigator.clipboard.writeText(\'' + MAC_CMD + '\');this.textContent=\'✓ copiat\'">Copiază comanda</button>',
+    bat: 'Windows: dublu-click pe start_contragenti.bat. Are nevoie de Python 3 (python.org) dacă Contragenti nu e instalat din MSI. Dacă SmartScreen avertizează: «Mai multe informații» → «Rulează oricum».',
     py: 'Linux: python3 start_contragenti.py (Tkinter: sudo apt install python3-tk).'}[os];
 }
 async function searchAll(q) {
