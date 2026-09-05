@@ -139,8 +139,13 @@ def launcher(kind):
         port = int(urlparse(s.get("contragenti_url") or "").port or 9393)
     except (TypeError, ValueError):
         port = 9393
+    # RO: `?return=<cale din portal>` — pagina care a cerut scriptul (ex. biro26-clients);
+    #     doar cai relative din portal, ca sa nu devina redirect deschis
+    ret = request.args.get("return", "")
+    if not (ret.startswith("/UNA.md/") and "//" not in ret):
+        ret = url_for("crm.app_page")
     body = L.render(kind, lang=s.get("lang") or "ro", port=port,
-                    return_url=url_for("crm.app_page", _external=True),
+                    return_url=request.url_root.rstrip("/") + ret,
                     generated=datetime.now().strftime("%d.%m.%Y %H:%M"))
     return Response(body, mimetype=L.KINDS[kind] + "; charset=utf-8",
                     headers={"Content-Disposition": "attachment; filename=%s" % L.file_name(kind)})

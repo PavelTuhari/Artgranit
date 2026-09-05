@@ -1330,8 +1330,9 @@ END;""",
         try:
             w, params = "", {"n": max(1, min(int(limit), 500))}
             if (search or "").strip():
+                # RO: si dupa IDNO (05.09.2026) — cautarea unica din biro26-clients
                 w = ("WHERE UPPER(EMAIL) LIKE :q OR UPPER(FULL_NAME) LIKE :q "
-                     "OR PHONE LIKE :q OR TO_CHAR(UNIVERS_COD) LIKE :q ")
+                     "OR PHONE LIKE :q OR TO_CHAR(UNIVERS_COD) LIKE :q OR IDNO LIKE :q ")
                 params["q"] = f"%{search.strip().upper()}%"
             return _result(Biro26DB().execute_query(
                 f"SELECT * FROM (SELECT ID, UNIVERS_COD, EMAIL, FULL_NAME, PHONE, "

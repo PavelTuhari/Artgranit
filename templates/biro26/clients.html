@@ -45,10 +45,11 @@
 </p>
 
 <div class="bar">
-  <input id="q" placeholder="Caută: email, nume, telefon, COD · Поиск" style="width:280px"
+  <input id="q" placeholder="Caută: nume, IDNO, email, telefon, COD — în bază, apoi automat pe date.gov.md · Поиск" style="width:420px"
          onkeydown="if(event.key==='Enter')load()">
   <button onclick="load()">🔍 Caută · Найти</button>
   <button onclick="document.getElementById('q').value='';load()">Reset</button>
+  <button onclick="govAuto(document.getElementById('q').value.trim())" title="Caută direct în registrul de stat (utilitarul local Contragenti)">🏛 date.gov.md</button>
   <span id="cnt" class="muted"></span>
 </div>
 
@@ -95,6 +96,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="/static/biro26/clients-gov.js?v=20260905"></script>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function toast(m,err){const t=document.getElementById('toast');t.textContent=m;
@@ -105,6 +107,8 @@ async function load(){
   const r=await fetch('/api/biro26/shop-clients?limit=300&search='+q).then(x=>x.json()).catch(()=>({}));
   const rows=(r&&r.success)?r.data:[];
   document.getElementById('cnt').textContent=rows.length+' clienți';
+  // RO: cautarea unica — nimic in baza OfficePlus -> automat date.gov.md (static/biro26/clients-gov.js)
+  if(!rows.length && q && window.govAuto) govAuto(decodeURIComponent(q));
   document.getElementById('rows').innerHTML = rows.length ? rows.map(c => {
     const mk=(c.client_mark||'');
     return '<tr><td>'+esc(c.univers_cod)+'</td>'+
@@ -172,23 +176,22 @@ async function govReady(){
   // RO: daca utilitarul nu raspunde — dam operatorului LINKUL DE DESCARCARE
   //     (copia utilitarului este pastrata in proiect: tools/contragenti).
   // EN: when the helper is down, offer the download link right away.
-  if(!h && msg && !msg.dataset.dl){
-    msg.dataset.dl = '1';
-    msg.innerHTML = 'Utilitarul <b>Contragenti</b> nu rulează pe acest calculator. ' +
-      '<a href="/UNA.md/orasldev/biro26-contragenti.zip">⤓ Descarcă utilitarul</a> ' +
-      '(dezarhivați și rulați <code>run.sh</code>), apoi reîncărcați pagina. ' +
-      'Fără el, datele se introduc manual.';
-  }
+  // RO: «Contragenti (127.0.0.1:9393) nu este disponibil» + scriptul de pornire
+  //     Mac / Windows / Linux — static/biro26/clients-gov.js
+  if(!h && msg && !msg.dataset.dl && window.govOffline) govOffline(msg);
 }
 function govText(x, tag){
   const n = x.getElementsByTagName(tag)[0];
   return n && n.textContent ? n.textContent.trim() : '';
 }
-async function pickFromGov(){
+async function pickFromGov(qArg){
   const msg = document.getElementById('nc-msg');
-  const q = (document.getElementById('nc-idno').value.trim() ||
-             document.getElementById('nc-name').value.trim());
+  const q = (typeof qArg === 'string' && qArg) ? qArg :
+            (document.getElementById('nc-idno').value.trim() ||
+             document.getElementById('nc-name').value.trim() ||
+             document.getElementById('q').value.trim());
   if(!q){ msg.textContent = 'Introduceți denumirea sau IDNO pentru căutare'; return; }
+  if(!(await govHealth())){ govOffline(msg); return; }
   msg.textContent = 'Se deschide utilitarul Contragenti… alegeți compania și apăsați «Vernuti contragentul».';
   const url = GOV_BASE + '/pick?q=' + encodeURIComponent(q) + '&lang=ro&timeout=300&format=xml';
   try{
@@ -205,7 +208,8 @@ async function pickFromGov(){
     const lich = govText(xml,'lichidata');
     msg.textContent = 'Preluat din date.gov.md: ' + (govText(xml,'denumire') || '—') +
       (govText(xml,'inregistrare') ? ' · înregistrată ' + govText(xml,'inregistrare') : '') +
-      (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
+      (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '') +
+      ' — verificați și apăsați «Adaugă client».';
   }catch(e){
     // RO: pagina e pe HTTPS, utilitarul pe http://127.0.0.1 — unele browsere
     //     blocheaza apelul din pagina. Atunci deschidem utilitarul intr-o
