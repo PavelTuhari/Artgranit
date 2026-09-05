@@ -24,8 +24,10 @@
     if (!msgEl) return;
     const ret = encodeURIComponent(location.pathname);
     const cur = os();
-    const btn = (k, label) => '<a class="btn' + (k === cur ? ' primary' : '') + '" style="margin:2px 4px 2px 0" download href="' +
-      LAUNCHER + k + '?return=' + ret + '">' + label + '</a>';
+    // RO: pagina veche nu are clasele .btn/.primary — stiluri inline, ca butoanele sa arate ca butoane
+    const B = 'display:inline-block;margin:2px 6px 2px 0;padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#1e293b;font-size:12.5px;text-decoration:none;cursor:pointer';
+    const P = B + ';background:#2563eb;border-color:#1d4ed8;color:#fff;font-weight:700';
+    const btn = (k, label) => '<a style="' + (k === cur ? P : B) + '" download href="' + LAUNCHER + k + '?return=' + ret + '">' + label + '</a>';
     const hint = {
       command: 'macOS: dublu-click pe start_contragenti.command (prima dată: click-dreapta → Deschide). Se deschide Terminal, pornește Contragenti și browserul revine aici.',
       bat: 'Windows: dublu-click pe start_contragenti.bat (are nevoie de Python 3 dacă Contragenti nu e instalat din MSI).',
@@ -38,7 +40,7 @@
       'găsește instalarea (sau o descarcă de pe GitHub), pornește utilitarul și vă întoarce aici. Apoi repetați căutarea.</div>' +
       '<div>' + btn('command', ' macOS — start_contragenti.command') + btn('bat', '⊞ Windows — start_contragenti.bat') +
       btn('py', '🐧 Linux / orice OS — start_contragenti.py') +
-      '<button class="btn" style="margin:2px 0" onclick="govRecheck()">↻ Verifică din nou</button></div>' +
+      '<button style="' + B + '" onclick="govRecheck()">↻ Verifică din nou</button></div>' +
       '<div style="margin-top:6px;color:#64748b;font-size:12px">' + esc(hint) + '</div></div>';
   };
 
@@ -63,6 +65,10 @@
     if (!h) { window.govOffline(msg); return; }
     if (msg) { msg.dataset.dl = ''; msg.textContent = 'Nimic în baza OfficePlus pentru «' + q + '» — caut pe date.gov.md prin Contragenti… · В базе OfficePlus ничего нет, ищу на date.gov.md'; }
     const wrap = document.querySelector('.wrap'); if (wrap) wrap.scrollIntoView({behavior: 'smooth', block: 'start'});
-    if (window.pickFromGov) await window.pickFromGov(q);
+    if (!window.pickFromGov) return;
+    const p = window.pickFromGov(q);
+    // RO: pagina inlocuieste mesajul cu «Se deschide utilitarul…»; il completam cu contextul
+    setTimeout(() => { if (msg && /^Se deschide/.test(msg.textContent)) msg.textContent = 'Nimic în baza OfficePlus pentru «' + q + '» → date.gov.md: ' + msg.textContent; }, 150);
+    await p;
   };
 })();

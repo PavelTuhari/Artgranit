@@ -27,6 +27,6 @@
     "order": 30,
     "title": "Protocol de testare 05.09.2026",
     "audience": "pentru proprietar și QA",
-    "descr": "Partea I: unitare, API pe Oracle, Contragenti real, UI, servere. Partea II (cu 9 capturi): căutarea unică OfficePlus → date.gov.md, Contragenti indisponibil, scriptul de pornire Mac/Windows/Linux testat pe viu."
+    "descr": "Partea I: unitare, API pe Oracle, Contragenti real, UI, servere. Partea II: căutarea unică în CRM, offline, scriptul de pornire. Partea III: pagina biro26-clients — căutare unică OfficePlus → date.gov.md, panoul «nu este disponibil», 14 capturi."
   }
 }

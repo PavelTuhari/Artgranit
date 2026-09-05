@@ -217,6 +217,9 @@ async function pickFromGov(qArg){
     //     (302 -> pagina noastra de intoarcere -> postMessage), deci fluxul NU
     //     se mai opreste pe pagina utilitarului.
     // EN: fall back to a popup with return_to so the data comes BACK to us.
+    // RO: dar daca utilitarul chiar nu mai raspunde (inchis intre timp) —
+    //     panoul «nu este disponibil» cu scriptul de pornire, nu un popup mort.
+    if(!(await govHealth())){ govOffline(msg); return; }
     govPopup(q);
   }
 }

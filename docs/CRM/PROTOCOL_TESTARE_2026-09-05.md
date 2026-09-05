@@ -236,3 +236,68 @@ fără sesiune → 302 login (nufarul și public officeplus.md); `nufarul.emines
   agentul nu are voie să controleze fereastra Tk (permisiune refuzată).
 - Proba pe **Windows real** a `start_contragenti.bat` (MSI + `Contragenti.exe`
   sau Python 3) și pe **Linux** a `.py` (`python3-tk`).
+
+---
+
+# Partea a III-a (05.09.2026, seara) — pagina back-office **biro26-clients** (`/UNA.md/orasldev/biro26-clients`)
+
+Proprietarul a precizat că cerința «căutare unică → date.gov.md automat;
+Contragenti indisponibil → script de pornire» se referea la **această**
+pagină (clienții magazinului din Biro26), unde integrarea veche «lucra prost»:
+două celule separate (lista căuta doar în clienții site-ului, fără IDNO;
+butonul «Date.gov.md» cerea completarea manuală a formularului), iar la
+utilitar oprit se oferea un zip cu `run.sh`.
+
+## M. Ce s-a schimbat (fișiere: `static/biro26/clients-gov.js` nou; `templates/biro26/clients.html` și `models/biro26_oracle_store.py` — edituri punctuale; `modules/crm/routes.py` — `?return=`)
+
+| | Înainte | Acum |
+|---|---|---|
+| căutarea | doar email / nume / telefon / COD, numai în baza site-ului | **nume / IDNO / email / telefon / COD**; fără rezultate → **automat date.gov.md** prin Contragenti cu același filtru; buton «🏛 date.gov.md» pentru căutare directă |
+| rezultatul din registru | completa formularul | completează formularul + mesaj «verificați și apăsați «Adaugă client»» |
+| Contragenti oprit | link la un zip + `run.sh` | panou «⚠ **Contragenti (127.0.0.1:9393) nu este disponibil**» cu **macOS .command / Windows .bat / Linux .py** (OS-ul curent evidențiat), «↻ Verifică din nou» care reia automat căutarea |
+| utilitarul cade în timpul selecției | se deschidea un popup spre adresa moartă | se verifică `/health`; dacă nu răspunde → același panou |
+| scriptul de pornire | — | din modulul CRM: `/UNA.md/orasldev/crm/launcher/<kind>?return=/UNA.md/orasldev/biro26-clients` (revine pe pagina care l-a cerut; doar căi din portal) |
+
+Regula nr. 2: logica e în `clients-gov.js`; în șablonul comun sînt 7 edituri
+punctuale (placeholder, buton, `if(!rows.length && q) govAuto(...)`,
+`govOffline(msg)`, `pickFromGov(qArg)`, verificarea din `catch`, `<script src>`).
+`git log` înainte de editare: ultimele schimbări ale fișierelor erau vechi
+(daeec19 / 52a9acc). Pe **office** modelul diferă de `main` (1953 linii, cu
+cache) → acolo s-a aplicat **doar linia IDNO**, punctual, cu backup; șablonul
+office era identic cu `main` → înlocuit întreg, cu backup. Pe **nufarul**
+modelul fusese suprascris din greșeală cu versiunea din `main` (fără cache-ul
+vitrinei) — depistat imediat prin `diff` cu backup-ul (366 linii diferență),
+**restaurat din backup** și aplicată doar linia IDNO; `site/config` → 200.
+
+## N. Teste automate — `tests/test_biro26_clients_gov.py`: **4 / 4 PASS** (+ `test_crm.py` 18/18)
+
+N1 șablonul apelează fișierul separat, scriptul extern e încărcat înainte de
+`load()`, zip-ul vechi a dispărut; N2 `clients-gov.js`: trei OS-uri, ruta
+launcher cu `return=`, `node --check`; N3 modelul caută și după IDNO; N4 ruta
+launcher acceptă doar căi din portal.
+
+## O. Pagina în browser (Playwright, 1280×800; `/api/biro26/*` simulat cu răspunsurile reale, Contragenti REAL)
+
+| # | Pas | Așteptat | Rezultat | Captură |
+|---|---|---|---|---|
+| O1 | lista clienților, celula unică de căutare, butonul «🏛 date.gov.md» | | PASS | `10_biro26_clients_lista.png` |
+| O2 | căutare după **IDNO** `1026602001837` (e în bază) | 1 client, fără Contragenti | PASS («1 clienți») | `11_biro26_cautare_idno_in_baza.png` |
+| O3 | căutare «UNISIM» (nu e în bază) | «Nimic în baza OfficePlus pentru «UNISIM» → date.gov.md: Se deschide utilitarul Contragenti…», fereastra Contragenti se deschide cu filtrul | PASS (`/pick?q=UNISIM` real) | `12_biro26_fallback_dategov.png` |
+| O4 | Contragenti **oprit** → aceeași căutare | panou «Contragenti (127.0.0.1:9393) nu este disponibil», trei descărcări cu `return=` pe pagina curentă, macOS evidențiat | PASS | `13_biro26_offline_script.png` |
+| O5 | utilitarul repornit cu scriptul (2,7 s) → «↻ Verifică din nou» | «Contragenti activ», căutarea se reia automat pe date.gov.md | PASS | `14_biro26_online_din_nou.png` |
+
+Defect găsit și corectat la O4: dacă utilitarul murea **în timpul** selecției,
+pagina veche deschidea un popup spre adresa moartă; acum verifică `/health` și
+arată panoul. Consola: doar erorile așteptate (adresa moartă, 504).
+
+## P. Servere
+
+nufarul: login 200, `clients-gov.js` 200, `site/config` 200, jurnal fără
+Traceback, model restaurat + IDNO. office: login 200, `clients-gov.js` 200
+(și public pe officeplus.md), `site/config` 200, model patch-uit punctual.
+
+## Ce rămîne la proprietar
+
+Proba pe **Windows** a `start_contragenti.bat` și alegerea manuală în fereastra
+Contragenti («Vernuti contragentul») — după care formularul se completează și
+se apasă «Adaugă client».
