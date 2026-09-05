@@ -30,13 +30,13 @@
     const btn = (k, label) => '<a style="' + (k === cur ? P : B) + '" download href="' + LAUNCHER + k + '?return=' + ret + '">' + label + '</a>';
     // RO: Gatekeeper (05.09.2026, proprietarul: «Apple could not verify … is free of malware»):
     //     orice executabil descarcat primeste marcajul quarantine — dam trei iesiri
-    const MAC_CMD = 'xattr -d com.apple.quarantine ~/Downloads/start_contragenti.command && ~/Downloads/start_contragenti.command';
+    const MAC_CMD = 'bash ~/Downloads/start_contragenti.command';
     const hint = {
-      command: 'macOS: dacă Contragenti e instalat, cel mai simplu — Launchpad → Contragenti. La dublu-click pe scriptul descărcat macOS spune «Apple could not verify…»: ' +
-        'fie Setări sistem → Confidențialitate și securitate → «Deschide oricum», fie comanda în Terminal: <code style="background:#eef;padding:1px 5px;border-radius:4px">' + MAC_CMD + '</code> ' +
+      command: 'macOS: dacă Contragenti e instalat, cel mai simplu — Launchpad → Contragenti. Fișierul descărcat NU se poate porni cu dublu-click (browserul nu îi dă drept de execuție, iar Gatekeeper spune «Apple could not verify…»): ' +
+        'după descărcare deschideți Terminal și rulați <code style="background:#eef;padding:1px 5px;border-radius:4px">' + MAC_CMD + '</code> ' +
         '<button style="' + B + ';padding:2px 8px;font-size:11.5px" onclick="navigator.clipboard.writeText(\'' + MAC_CMD + '\');this.textContent=\'✓ copiat\'">Copiază comanda</button>',
       bat: 'Windows: dublu-click pe start_contragenti.bat (are nevoie de Python 3 dacă Contragenti nu e instalat din MSI). Dacă SmartScreen avertizează: «Mai multe informații» → «Rulează oricum».',
-      py: 'Linux: python3 start_contragenti.py (Tkinter: sudo apt install python3-tk).'}[cur];
+      py: 'Linux: în terminal — python3 ~/Downloads/start_contragenti.py (Tkinter: sudo apt install python3-tk).'}[cur];
     msgEl.dataset.dl = '1';
     msgEl.innerHTML =
       '<div style="border:1px solid #f0ad4e;background:#fff8ec;border-radius:8px;padding:10px 12px;margin-top:6px">' +

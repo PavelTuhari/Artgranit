@@ -314,3 +314,10 @@ scriptului. Ieșiri, puse acum în panoul «nu este disponibil» (ambele pagini)
    `xattr -d com.apple.quarantine ~/Downloads/start_contragenti.command && ~/Downloads/start_contragenti.command`.
 Pe Windows echivalentul e SmartScreen («Mai multe informații» → «Rulează oricum»),
 indicat la fel.
+
+**Completare Q (același caz):** comanda cu `xattr` a dat «permission denied» —
+browserul nu păstrează dreptul de execuție pe fișierul descărcat, deci nici
+dublu-click-ul, nici rularea directă nu pot merge. Indicația finală pentru
+macOS: `bash ~/Downloads/start_contragenti.command` (nu cere nici `chmod`,
+nici scoaterea carantinei); pentru Linux `python3 ~/Downloads/start_contragenti.py`.
+Verificat pe Mac-ul proprietarului în partea J (rularea prin `bash`).

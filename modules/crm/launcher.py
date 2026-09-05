@@ -5,7 +5,9 @@ care — lansat pe Mac, Windows sau Linux — gaseste instalarea Contragenti
 (sau o descarca din GitHub), o porneste si intoarce browserul in CRM.
 Trei ambalaje ale ACELUIASI cod Python (doar biblioteca standard):
   .py       universal (python3 start_contragenti.py)
-  .command  macOS: dublu-click in Finder -> Terminal
+  .command  macOS: `bash ~/Downloads/start_contragenti.command` in Terminal
+            (descarcarea din browser nu da drept de executie, iar Gatekeeper
+            blocheaza dublu-click-ul — 05.09.2026)
   .bat      Windows: dublu-click; prima linie e batch, restul Python (`-x`)
 EN: generates the cross-platform Contragenti starter script.
 """
@@ -188,7 +190,7 @@ def render(kind: str, *, lang: str = "ro", port: int = 9393, return_url: str = "
         return body
     if kind == "command":
         # RO: macOS — dublu-click deschide Terminal; python3 vine cu Xcode CLT / Homebrew
-        return ("#!/bin/bash\n# start_contragenti.command — dublu-click in Finder\n"
+        return ("#!/bin/bash\n# start_contragenti.command — in Terminal: bash ~/Downloads/start_contragenti.command\n"
                 "command -v python3 >/dev/null || { echo 'Instalati Python 3: https://www.python.org/downloads/macos/'; read -r; exit 1; }\n"
                 "python3 - <<'PYEOF'\n" + body + "\nPYEOF\n")
     # bat: prima linie e batch (ruleaza acelasi fisier cu python -x, care sare peste linia 1)
