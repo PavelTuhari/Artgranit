@@ -1,0 +1,22 @@
+{
+  "README.md": {
+    "slug": "readme",
+    "public": true,
+    "icon": "🤝",
+    "cls": "g",
+    "order": 10,
+    "title": "CRM (beta) — modulul de clienți",
+    "audience": "pentru proprietar și operatori",
+    "descr": "Ce face modulul (replica web a Demo CRM din Contragenti), obiectele CRM_*, rutele, cele trei căi de import, verificarea și ce urmează după beta."
+  },
+  "INTEGRARE_CONTRAGENTI.md": {
+    "slug": "integrare-contragenti",
+    "public": false,
+    "icon": "🔌",
+    "cls": "",
+    "order": 20,
+    "title": "Integrarea cu Contragenti",
+    "audience": "pentru dezvoltatori",
+    "descr": "Apelurile folosite din API-ul local Contragenti (health, pick, return_to, card), contractul XML, cele trei ieșiri și de ce merge din browser."
+  }
+}

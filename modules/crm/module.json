@@ -1,0 +1,24 @@
+{
+  "title": {
+    "ro": "CRM (beta)",
+    "ru": "CRM (бета)",
+    "en": "CRM (beta)"
+  },
+  "icon": "🤝",
+  "order": 64,
+  "url": "/UNA.md/orasldev/crm",
+  "descr": {
+    "ro": "Baza de clienți a firmei, integrată cu Contragenti: clientul se adaugă din registrul de stat (date.gov.md) prin cardul XML al contrapărții, cu fondatori, datorii la buget și deduplicare după IDNO. Beta = replica web a Demo CRM din repo-ul Contragenti.",
+    "ru": "База клиентов фирмы с интеграцией Contragenti: клиент заводится из госреестра (date.gov.md) по XML-карточке контрагента — учредители, долги перед бюджетом, дедупликация по IDNO. Бета = веб-реплика Demo CRM из репозитория Contragenti.",
+    "en": "Company client base integrated with Contragenti: clients are created from the state registry (date.gov.md) via the counterparty XML card, with founders, budget debts and IDNO deduplication. Beta mirrors the Contragenti Demo CRM."
+  },
+  "sql_prefix": "CRM_",
+  "docs": "CRM",
+  "pages": {
+    "crm.app_page": {
+      "ro": "Clienți",
+      "ru": "Клиенты",
+      "en": "Clients"
+    }
+  }
+}

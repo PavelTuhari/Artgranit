@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM (beta) — Clienți</title>
+<style>
+  /* RO: tema «Espo» ca in Demo CRM (crm_delphi/README_ru.md): nav 232px,
+     activ #dee1e7, btn-primary #5589ca, label-state pentru linia de mesaje */
+  :root{--nav:232px;--primary:#5589ca;--primary-d:#4176b8;--bg:#f5f5f5;--line:#e8eced;--muted:#7f8c8d;--text:#333}
+  *{box-sizing:border-box}
+  body{margin:0;font:13px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  a{color:var(--primary);text-decoration:none}
+  .nav{position:fixed;left:0;top:0;bottom:0;width:var(--nav);background:#fff;border-right:1px solid var(--line);padding-top:8px}
+  .nav .brand{padding:12px 18px 14px;font-size:17px;font-weight:700;color:#000}
+  .nav .brand small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+  .nav a{display:block;padding:9px 18px;color:#333;font-size:14px}
+  .nav a.active{background:#dee1e7}
+  .nav a.disabled{color:#9aa4ab;cursor:default}
+  .nav a .ic{display:inline-block;width:22px;color:#7f8c8d}
+  .top{position:fixed;left:var(--nav);right:0;top:0;height:50px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 20px;z-index:2}
+  .top input{width:340px;padding:6px 10px;border:1px solid #cfd6da;border-radius:3px;font:inherit}
+  .top .plus{width:32px;height:32px;border-radius:3px;border:1px solid #cfd6da;background:#fff;font-size:18px;cursor:pointer}
+  .top .sp{flex:1}
+  .top .user{color:#555}
+  .top .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#bbb;margin-right:5px;vertical-align:middle}
+  .top .dot.on{background:#2ecc71}.top .dot.off{background:#e74c3c}
+  main{margin-left:var(--nav);padding:66px 20px 56px}
+  .page-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .page-head h1{font-size:22px;font-weight:400;margin:0;flex:1}
+  .btn{padding:6px 12px;border:1px solid #cfd6da;border-radius:3px;background:#fff;color:#333;font:inherit;cursor:pointer}
+  .btn:hover{background:#f2f4f5}
+  .btn-primary{background:var(--primary);border-color:var(--primary-d);color:#fff}
+  .btn-primary:hover{background:var(--primary-d)}
+  .btn-danger{color:#c0392b}
+  .filters{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .filters select,.filters input{padding:6px 8px;border:1px solid #cfd6da;border-radius:3px;font:inherit}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:3px}
+  table{border-collapse:collapse;width:100%}
+  th{font-weight:400;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px}
+  td{padding:8px 10px;border-bottom:1px solid #f0f2f3;vertical-align:top}
+  tr.r{cursor:pointer}tr.r:hover td{background:#f8f9fa}tr.sel td{background:#eef3fa}
+  td.num,th.num{text-align:right;white-space:nowrap}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px}
+  .ov h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
+  .ov .kv{display:grid;grid-template-columns:130px 1fr;gap:6px 10px;padding:12px}
+  .ov .kv label{color:var(--muted);font-size:12px}
+  .ov .kv div{word-break:break-word}
+  .ov .sub{padding:0 12px 12px}
+  .ov .sub h4{margin:10px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase}
+  .ov textarea{width:100%;min-height:56px;border:1px solid #cfd6da;border-radius:3px;font:inherit;padding:6px}
+  .actions{padding:10px 12px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
+  .tag{display:inline-block;padding:1px 7px;border-radius:2px;font-size:11px;background:#eee}
+  .tag.liq{background:#f8d7da;color:#842029}
+  .dash{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px}
+  .dash .panel{padding:14px}
+  .dash b{display:block;font-size:26px;font-weight:400;color:#000}
+  .dash span{color:var(--muted);font-size:12px}
+  .status{position:fixed;left:var(--nav);right:0;bottom:0;padding:9px 20px;border-top:1px solid var(--line);background:#fff;font-size:13px;display:flex;gap:10px;align-items:center}
+  .status .lb{display:inline-block;padding:2px 8px;border-radius:2px;color:#fff;font-size:11px;background:#7f8c8d}
+  .status.primary .lb{background:#5589ca}.status.success .lb{background:#5cb85c}
+  .status.warning .lb{background:#f0ad4e}.status.danger .lb{background:#d9534f}
+  .settings .kv{display:grid;grid-template-columns:220px 1fr;gap:10px;padding:14px;align-items:center;max-width:820px}
+  .settings input,.settings select{padding:6px 8px;border:1px solid #cfd6da;border-radius:3px;font:inherit;width:100%}
+  .muted{color:var(--muted)}
+  textarea.xml{width:100%;min-height:140px;font:12px/1.4 Menlo,Consolas,monospace;border:1px solid #cfd6da;border-radius:3px;padding:8px}
+  [hidden]{display:none!important}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}.top input{width:180px}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="brand">CRM <small data-i="beta">beta · Artgranit + Contragenti</small></div>
+  <a href="#home" data-sec="home"><span class="ic">⌂</span><span data-i="nav_home">Acasă</span></a>
+  <a href="#clients" data-sec="clients"><span class="ic">▤</span><span data-i="nav_clients">Clienți</span></a>
+  <a class="disabled" title="în versiunea următoare"><span class="ic">☺</span><span data-i="nav_contacts">Contacte</span></a>
+  <a class="disabled"><span class="ic">◎</span><span data-i="nav_leads">Leaduri</span></a>
+  <a class="disabled"><span class="ic">$</span><span data-i="nav_deals">Oferte</span></a>
+  <a class="disabled"><span class="ic">▦</span><span data-i="nav_cal">Calendar</span></a>
+  <a href="#settings" data-sec="settings"><span class="ic">⚙</span><span data-i="nav_settings">Setări</span></a>
+  <a href="/UNA.md/orasldev/modules" style="margin-top:18px;color:var(--muted)">← <span data-i="nav_portal">Portal</span></a>
+</nav>
+<div class="top">
+  <input id="gsearch" data-ph="search" placeholder="Căutare globală (nume, IDNO, adresă)…" onkeydown="if(event.key==='Enter'){show('clients');loadClients()}">
+  <button class="plus" title="Creează client" onclick="createClient()">+</button>
+  <span class="sp"></span>
+  <span id="cg" class="muted"><span class="dot"></span>Contragenti</span>
+  <select id="ui-lang" onchange="setLang(this.value)" style="padding:4px"><option value="ro">RO</option><option value="ru">RU</option><option value="en">EN</option></select>
+  <span class="user">{{ session.get('user_name') or session.get('username') or '' }}</span>
+</div>
+
+<main>
+<!-- ── Acasa ─────────────────────────────────────────────────────────── -->
+<section id="sec-home">
+  <div class="page-head"><h1 data-i="home_title">Acasă</h1>
+    <button class="btn btn-primary" onclick="createClient()" data-i="btn_create">Creează client</button></div>
+  <div class="dash" id="dash"></div>
+  <div class="panel"><h3 style="margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px" data-i="recent">Evenimente recente</h3>
+    <table id="evtab"><thead><tr><th data-i="when">Când</th><th data-i="event">Eveniment</th><th data-i="src">Sursă</th><th>IDNO</th><th data-i="details">Detalii</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ── Clienti ───────────────────────────────────────────────────────── -->
+<section id="sec-clients" hidden>
+  <div class="page-head"><h1 data-i="clients_title">Clienți</h1>
+    <button class="btn" onclick="toggleImport()" data-i="btn_import">Import XML</button>
+    <button class="btn btn-primary" onclick="createClient()" data-i="btn_create">Creează client</button></div>
+  <div class="filters">
+    <select id="preset" onchange="loadClients()">
+      <option value="all" data-i="p_all">Toate</option>
+      <option value="today" data-i="p_today">Adăugate azi</option>
+      <option value="with_address" data-i="p_addr">Cu adresă juridică</option>
+    </select>
+    <input id="q" data-ph="filter" placeholder="Filtru: nume / IDNO / adresă" onkeydown="if(event.key==='Enter')loadClients()">
+    <button class="btn" onclick="loadClients()" data-i="btn_find">Caută</button>
+    <span class="muted" id="cnt"></span>
+  </div>
+  <div class="panel" id="import-box" hidden style="padding:12px;margin-bottom:12px">
+    <p class="muted" style="margin:0 0 6px" data-i="import_hint">Lipiți XML-ul cardului Contragenti (&lt;counterparty&gt;…) sau alegeți fișierul — echivalentul «ContragentiCRM.exe --import card.xml».</p>
+    <textarea class="xml" id="xml"></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <input type="file" id="xmlfile" accept=".xml,text/xml" onchange="readXmlFile(this)">
+      <label><input type="checkbox" id="refresh"> <span data-i="refresh">actualizează dacă există</span></label>
+      <button class="btn btn-primary" onclick="importXml()" data-i="btn_do_import">Importă</button>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="panel">
+      <table id="ctab"><thead><tr><th style="width:26px"><input type="checkbox" disabled></th>
+        <th data-i="c_name">Denumirea</th><th>IDNO</th><th data-i="c_form">Forma juridică</th>
+        <th data-i="c_addr">Adresa</th><th data-i="c_added">Adăugat</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="panel ov" id="ov"><h3 data-i="overview">Prezentare generală</h3>
+      <div class="kv"><div class="muted" style="grid-column:1/-1" data-i="pick_hint">Alegeți un client din listă.</div></div></div>
+  </div>
+</section>
+
+<!-- ── Setari ────────────────────────────────────────────────────────── -->
+<section id="sec-settings" hidden>
+  <div class="page-head"><h1 data-i="settings_title">Setări</h1></div>
+  <div class="panel settings">
+    <div class="kv">
+      <label data-i="s_url">Adresa Contragenti (API local)</label><input id="s-contragenti_url" placeholder="http://127.0.0.1:9393">
+      <label data-i="s_lang">Limba ferestrei Contragenti</label><select id="s-lang"><option value="ro">Română</option><option value="ru">Русский</option><option value="en">English</option></select>
+      <label data-i="s_timeout">Timp de așteptare a selecției, s</label><input id="s-pick_timeout" type="number" min="30" max="1800">
+      <div></div><div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveSettings()" data-i="btn_save">Salvează</button>
+        <button class="btn" onclick="checkContragenti(true)" data-i="btn_check">Verifică Contragenti</button></div>
+    </div>
+    <div class="kv" style="border-top:1px solid var(--line)">
+      <label data-i="s_how">Cum funcționează</label>
+      <div class="muted" data-i="s_how_text">Contragenti rulează pe calculatorul dvs. (Windows, din instalatorul MSI) și ține un API local pe portul 9393. «Creează client» îl deschide cu filtrul introdus; după «Vernuti contragent» cardul XML ajunge aici și clientul se salvează în Oracle (CRM_*), cu deduplicare după IDNO. Dacă browserul nu poate apela API-ul local, se folosește revenirea (return_to) — Contragenti trimite browserul înapoi aici cu datele.</div>
+      <label data-i="s_links">Legături</label>
+      <div><a href="https://github.com/PavelTuhari/Contragenti" target="_blank" rel="noopener">github.com/PavelTuhari/Contragenti ↗</a> · <a href="https://github.com/PavelTuhari/Contragenti/blob/main/INSTALL_WINDOWS_ru.md" target="_blank" rel="noopener">instalare Windows ↗</a> · <a id="cg-home" href="#" target="_blank" rel="noopener">API-ul local ↗</a></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="status" id="status"><span class="lb" id="st-lb">info</span><span id="st-msg" data-i="ready">Gata.</span></div>
+
+<script>
+// RO: baza din Flask, niciodata adresa portalului scrisa de mina (CLAUDE.md §1)
+const BASE = '{{ url_for("crm.app_page") }}'.replace(/\/$/, '');
+const CALLBACK = '{{ url_for("crm.contragenti_callback", _external=True) }}';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => v == null ? '' : Number(v).toLocaleString('ro-MD', {maximumFractionDigits: 2});
+const api = async (u, o) => {
+  const r = await fetch(BASE + '/' + u, Object.assign({credentials: 'include', headers: {'Content-Type': 'application/json'}}, o || {}));
+  const t = await r.text();
+  try { return JSON.parse(t); } catch (e) { return {success: false, error: 'HTTP ' + r.status + ': ' + t.slice(0, 160)}; }
+};
+let CFG = {}, SEL = null, DEL_ARMED = null;
+
+// ── i18n (RO / RU / EN) — ca in Demo CRM: trei limbi, comutare pe loc ──
+const I18N = {
+  ro: {},
+  ru: {beta:'бета · Artgranit + Contragenti',nav_home:'Главная',nav_clients:'Клиенты',nav_contacts:'Контакты',nav_leads:'Лиды',nav_deals:'Сделки',nav_cal:'Календарь',nav_settings:'Настройки',nav_portal:'Портал',
+       home_title:'Главная',btn_create:'Создать клиента',recent:'Последние события',when:'Когда',event:'Событие',src:'Источник',details:'Детали',
+       clients_title:'Клиенты',btn_import:'Импорт XML',p_all:'Все',p_today:'Добавлены сегодня',p_addr:'С юридическим адресом',btn_find:'Найти',
+       import_hint:'Вставьте XML карточки Contragenti (<counterparty>…) или выберите файл — аналог «ContragentiCRM.exe --import card.xml».',refresh:'обновить, если уже есть',btn_do_import:'Импортировать',
+       c_name:'Название',c_form:'Юр. форма',c_addr:'Адрес',c_added:'Добавлен',overview:'Обзор',pick_hint:'Выберите клиента в списке.',
+       settings_title:'Настройки',s_url:'Адрес Contragenti (локальный API)',s_lang:'Язык окна Contragenti',s_timeout:'Ожидание выбора, с',btn_save:'Сохранить',btn_check:'Проверить Contragenti',
+       s_how:'Как это работает',s_how_text:'Contragenti работает на вашем компьютере (Windows, из MSI-инсталлятора) и держит локальный API на порту 9393. «Создать клиента» открывает его с введённым фильтром; после «Вернуть контрагента» XML карточки попадает сюда, и клиент сохраняется в Oracle (CRM_*) с дедупликацией по IDNO. Если браузер не может вызвать локальный API, используется возврат (return_to) — Contragenti отправляет браузер обратно сюда с данными.',s_links:'Ссылки',ready:'Готово.',
+       search:'Глобальный поиск (название, IDNO, адрес)…',filter:'Фильтр: название / IDNO / адрес',
+       m_added:'Клиент добавлен',m_dup:'Дубликат: такой IDNO уже есть',m_updated:'Клиент обновлён',m_cancel:'Выбор отменён',m_timeout:'Истёк таймаут выбора',m_offline:'Contragenti не запущен (нет ответа от локального API). Запустите его или импортируйте XML.',m_wait:'Ожидание выбора в Contragenti…',m_deleted:'Клиент удалён',m_del_arm:'Нажмите «Удалить» ещё раз для подтверждения',m_saved:'Настройки сохранены',m_online:'Contragenti на связи',m_nosel:'Клиент не выбран',
+       ov_name:'Название',ov_idno:'IDNO',ov_reg:'Регистрация',ov_form:'Юр. форма',ov_liq:'Ликвидирована',ov_addr:'Адрес',ov_mgr:'Руководители',ov_src:'Источник',ov_added:'Добавлен',ov_note:'Заметка',founders:'Учредители',debts:'Долги перед бюджетом',none:'нет данных',btn_del:'Удалить',btn_note:'Сохранить заметку',btn_refresh:'Обновить из Contragenti',
+       d_total:'Всего клиентов',d_today:'Добавлено сегодня',d_addr:'С адресом',d_liq:'Ликвидированы',yes:'Да',no:'Нет'},
+  en: {beta:'beta · Artgranit + Contragenti',nav_home:'Home',nav_clients:'Accounts',nav_contacts:'Contacts',nav_leads:'Leads',nav_deals:'Opportunities',nav_cal:'Calendar',nav_settings:'Settings',nav_portal:'Portal',
+       home_title:'Home',btn_create:'Create Account',recent:'Recent events',when:'When',event:'Event',src:'Source',details:'Details',
+       clients_title:'Accounts',btn_import:'Import XML',p_all:'All',p_today:'Added today',p_addr:'With legal address',btn_find:'Search',
+       import_hint:'Paste the Contragenti card XML (<counterparty>…) or choose a file — same as «ContragentiCRM.exe --import card.xml».',refresh:'update if exists',btn_do_import:'Import',
+       c_name:'Name',c_form:'Legal form',c_addr:'Address',c_added:'Added',overview:'Overview',pick_hint:'Select an account from the list.',
+       settings_title:'Settings',s_url:'Contragenti address (local API)',s_lang:'Contragenti window language',s_timeout:'Pick timeout, s',btn_save:'Save',btn_check:'Check Contragenti',
+       s_how:'How it works',s_how_text:'Contragenti runs on your computer (Windows MSI) and serves a local API on port 9393. «Create Account» opens it with your filter; after «Return counterparty» the XML card lands here and the account is saved to Oracle (CRM_*) with IDNO deduplication. If the browser cannot call the local API, the return_to flow is used — Contragenti redirects the browser back here with the data.',s_links:'Links',ready:'Ready.',
+       search:'Global search (name, IDNO, address)…',filter:'Filter: name / IDNO / address',
+       m_added:'Account added',m_dup:'Duplicate: this IDNO already exists',m_updated:'Account updated',m_cancel:'Selection cancelled',m_timeout:'Selection timed out',m_offline:'Contragenti is not running (no answer from the local API). Start it or import XML.',m_wait:'Waiting for the selection in Contragenti…',m_deleted:'Account deleted',m_del_arm:'Press «Delete» again to confirm',m_saved:'Settings saved',m_online:'Contragenti is online',m_nosel:'No account selected',
+       ov_name:'Name',ov_idno:'IDNO',ov_reg:'Registered',ov_form:'Legal form',ov_liq:'Liquidated',ov_addr:'Address',ov_mgr:'Managers',ov_src:'Source',ov_added:'Added',ov_note:'Note',founders:'Founders',debts:'Budget debts',none:'no data',btn_del:'Delete',btn_note:'Save note',btn_refresh:'Refresh from Contragenti',
+       d_total:'Accounts',d_today:'Added today',d_addr:'With address',d_liq:'Liquidated',yes:'Yes',no:'No'}
+};
+const RO = {m_added:'Client adăugat',m_dup:'Duplicat: acest IDNO există deja',m_updated:'Client actualizat',m_cancel:'Selecția a fost anulată',m_timeout:'Timpul de selecție a expirat',m_offline:'Contragenti nu rulează (API-ul local nu răspunde). Porniți-l sau importați XML.',m_wait:'Se așteaptă selecția în Contragenti…',m_deleted:'Client șters',m_del_arm:'Apăsați «Șterge» încă o dată pentru confirmare',m_saved:'Setări salvate',m_online:'Contragenti răspunde',m_nosel:'Niciun client selectat',
+  ov_name:'Denumirea',ov_idno:'IDNO',ov_reg:'Înregistrare',ov_form:'Forma juridică',ov_liq:'Lichidată',ov_addr:'Adresa',ov_mgr:'Administratori',ov_src:'Sursa',ov_added:'Adăugat',ov_note:'Notiță',founders:'Fondatori',debts:'Datorii la buget',none:'fără date',btn_del:'Șterge',btn_note:'Salvează notița',btn_refresh:'Reîmprospătează din Contragenti',
+  d_total:'Clienți în total',d_today:'Adăugați azi',d_addr:'Cu adresă',d_liq:'Lichidate',yes:'Da',no:'Nu'};
+let LANG = 'ro';
+const T = k => (I18N[LANG] && I18N[LANG][k]) || RO[k] || document.querySelector(`[data-i="${k}"]`)?.dataset.ro || k;
+function setLang(l) {
+  LANG = I18N[l] ? l : 'ro'; document.getElementById('ui-lang').value = LANG;
+  try { localStorage.setItem('crm_lang', LANG); } catch (e) {}
+  document.querySelectorAll('[data-i]').forEach(el => {
+    if (!el.dataset.ro) el.dataset.ro = el.textContent;
+    el.textContent = (I18N[LANG][el.dataset.i]) || el.dataset.ro;
+  });
+  document.querySelectorAll('[data-ph]').forEach(el => {
+    if (!el.dataset.ro) el.dataset.ro = el.placeholder;
+    el.placeholder = (I18N[LANG][el.dataset.ph]) || el.dataset.ro;
+  });
+  if (SEL) renderOverview(SEL);
+  loadDash();
+}
+
+// ── linia de mesaje (fara ferestre modale, ca in Demo CRM) ───────────────
+function say(kind, msg) {
+  const s = document.getElementById('status');
+  s.className = 'status ' + kind;
+  document.getElementById('st-lb').textContent = {primary: 'info', success: 'ok', warning: 'atenție', danger: 'eroare'}[kind] || kind;
+  document.getElementById('st-msg').textContent = msg;
+}
+
+// ── navigare ─────────────────────────────────────────────────────────────
+function show(sec) {
+  ['home', 'clients', 'settings'].forEach(s => {
+    document.getElementById('sec-' + s).hidden = (s !== sec);
+    document.querySelector(`.nav a[data-sec="${s}"]`).classList.toggle('active', s === sec);
+  });
+  location.hash = sec;
+  if (sec === 'home') loadDash();
+  if (sec === 'clients') loadClients();
+  if (sec === 'settings') loadSettings();
+}
+
+// ── Contragenti ──────────────────────────────────────────────────────────
+function cgBase() { return (CFG.contragenti_url || 'http://127.0.0.1:9393').replace(/\/$/, ''); }
+async function checkContragenti(loud) {
+  const el = document.getElementById('cg');
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
+    const r = await fetch(cgBase() + '/health', {signal: ctl.signal});
+    const j = await r.json();
+    el.innerHTML = `<span class="dot on"></span>Contragenti v${esc(j.version || '?')} · ${j.db_count ?? '?'} în bază`;
+    if (loud) say('success', T('m_online'));
+    return true;
+  } catch (e) {
+    el.innerHTML = '<span class="dot off"></span>Contragenti offline';
+    if (loud) say('warning', T('m_offline'));
+    return false;
+  }
+}
+async function createClient() {
+  // RO: butonul «Creeaza client» din Demo CRM: Contragenti se deschide cu
+  //     filtrul din cautare, asteptam alegerea, importam XML-ul (3 iesiri:
+  //     adaugat / duplicat / anulat). Calea 1: fetch la API-ul local (CORS *).
+  const q = (document.getElementById('gsearch').value || document.getElementById('q').value || '').trim();
+  if (!(await checkContragenti(false))) { say('warning', T('m_offline')); show('settings'); return; }
+  say('primary', T('m_wait'));
+  const t = Number(CFG.pick_timeout || 300);
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), (t + 5) * 1000);
+    const r = await fetch(cgBase() + `/pick?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(CFG.lang || 'ro')}&timeout=${t}&format=xml`,
+                          {signal: ctl.signal, headers: {'Accept': 'application/xml'}});
+    if (r.status === 204) { say('warning', T('m_cancel')); return; }
+    if (r.status === 504) { say('warning', T('m_timeout')); return; }
+    if (r.status !== 200) { say('danger', 'Contragenti HTTP ' + r.status); return; }
+    await importXmlText(await r.text(), 'contragenti', false);
+  } catch (e) {
+    // RO: calea 2 (browser care blocheaza fetch-ul): plecam in Contragenti si revenim cu return_to
+    const u = await api('api/pick-url?return=1&q=' + encodeURIComponent(q) + '&state=' + Date.now());
+    if (u.success) { say('primary', T('m_wait')); location.href = u.url; }
+    else say('danger', u.error || String(e));
+  }
+}
+async function importXmlText(xml, src, refresh) {
+  const r = await api('api/import-xml', {method: 'POST', body: JSON.stringify({xml, src, refresh})});
+  if (!r.success) { say('danger', r.error || 'eroare la import'); return r; }
+  const label = {added: 'm_added', dup: 'm_dup', updated: 'm_updated'}[r.result] || r.result;
+  say(r.result === 'dup' ? 'warning' : 'success', T(label) + ': ' + (r.name || '') + (r.warning ? ' · ' + r.warning : ''));
+  show('clients'); await loadClients(); if (r.id) openClient(r.id);
+  return r;
+}
+function toggleImport() { const b = document.getElementById('import-box'); b.hidden = !b.hidden; }
+function readXmlFile(inp) { const f = inp.files[0]; if (!f) return; f.text().then(t => document.getElementById('xml').value = t); }
+async function importXml() {
+  const xml = document.getElementById('xml').value.trim();
+  if (!xml) { say('warning', 'XML gol'); return; }
+  const r = await importXmlText(xml, 'xml', document.getElementById('refresh').checked);
+  if (r && r.success) { document.getElementById('xml').value = ''; document.getElementById('import-box').hidden = true; }
+}
+async function refreshFromContragenti() {
+  // RO: GET /card?idno= din baza locala a Contragenti (API_ru.md) -> update
+  if (!SEL) { say('warning', T('m_nosel')); return; }
+  if (!(await checkContragenti(false))) { say('warning', T('m_offline')); return; }
+  try {
+    const r = await fetch(cgBase() + '/card?idno=' + encodeURIComponent(SEL.idno) + '&format=xml');
+    if (r.status === 404) { say('warning', 'IDNO ' + SEL.idno + ' nu e în baza Contragenti'); return; }
+    await importXmlText(await r.text(), 'contragenti', true);
+  } catch (e) { say('danger', String(e)); }
+}
+
+// ── lista, prezentarea generala ──────────────────────────────────────────
+async function loadClients() {
+  const q = document.getElementById('q').value.trim() || document.getElementById('gsearch').value.trim();
+  const r = await api(`api/clients?preset=${document.getElementById('preset').value}&q=${encodeURIComponent(q)}`);
+  const tb = document.querySelector('#ctab tbody');
+  if (!r.success) { tb.innerHTML = `<tr><td colspan="6">${esc(r.error)}</td></tr>`; say('danger', r.error); return; }
+  document.getElementById('cnt').textContent = r.data.length ? r.data.length + ' ' + (LANG === 'ru' ? 'записей' : LANG === 'en' ? 'records' : 'înregistrări') : '';
+  tb.innerHTML = r.data.map(c => `<tr class="r ${SEL && SEL.id === c.id ? 'sel' : ''}" id="row-${c.id}" onclick="openClient(${c.id})">
+    <td><input type="checkbox" onclick="event.stopPropagation()"></td>
+    <td><b>${esc(c.name)}</b>${c.is_liquidated ? ' <span class="tag liq">lichidată</span>' : ''}</td>
+    <td>${esc(c.idno)}</td><td>${esc(c.legal_form)}</td><td>${esc(c.address)}</td><td class="muted">${esc(c.created)}</td></tr>`).join('')
+    || `<tr><td colspan="6" class="muted">${LANG === 'ru' ? 'нет записей' : LANG === 'en' ? 'no records' : 'nicio înregistrare'}</td></tr>`;
+}
+async function openClient(id) {
+  const r = await api('api/clients/' + id);
+  if (!r.success) { say('danger', r.error); return; }
+  SEL = r.data; DEL_ARMED = null;
+  document.querySelectorAll('#ctab tr.r').forEach(tr => tr.classList.toggle('sel', tr.id === 'row-' + id));
+  renderOverview(SEL);
+}
+function renderOverview(c) {
+  const kv = [['ov_name', c.name], ['ov_idno', c.idno], ['ov_reg', c.reg_date], ['ov_form', c.legal_form],
+              ['ov_liq', c.is_liquidated ? T('yes') : T('no')], ['ov_addr', c.address], ['ov_mgr', c.managers],
+              ['ov_src', (c.source || '') + (c.source_updated ? ' · ' + c.source_updated : '')], ['ov_added', c.created]];
+  document.getElementById('ov').innerHTML = `<h3>${esc(c.name)}</h3>
+    <div class="kv">${kv.map(([k, v]) => `<label>${esc(T(k))}</label><div>${esc(v || '—')}</div>`).join('')}</div>
+    <div class="sub"><h4>${esc(T('founders'))}</h4>
+      ${(c.founders || []).length ? `<table>${c.founders.map(f => `<tr><td>${esc(f.name)}</td><td class="num">${f.share_pct != null ? num(f.share_pct) + ' %' : ''}</td></tr>`).join('')}</table>` : `<span class="muted">${esc(T('none'))}</span>`}
+      <h4>${esc(T('debts'))}</h4>
+      ${(c.debts || []).length ? `<table>${c.debts.map(d => `<tr><td>${esc(d.debt_type)}</td><td class="num">${num(d.amount)} ${esc(d.currency || 'MDL')}</td></tr>`).join('')}</table>` : `<span class="muted">${esc(T('none'))}</span>`}
+      <h4>${esc(T('ov_note'))}</h4><textarea id="note">${esc(c.note || '')}</textarea></div>
+    <div class="actions"><button class="btn" onclick="saveNote()">${esc(T('btn_note'))}</button>
+      <button class="btn" onclick="refreshFromContragenti()">${esc(T('btn_refresh'))}</button>
+      <button class="btn btn-danger" onclick="deleteClient()">${esc(T('btn_del'))}</button></div>`;
+}
+async function saveNote() {
+  if (!SEL) return;
+  const r = await api('api/clients/' + SEL.id + '/note', {method: 'POST', body: JSON.stringify({note: document.getElementById('note').value})});
+  say(r.success ? 'success' : 'danger', r.success ? 'OK' : r.error);
+}
+async function deleteClient() {
+  // RO: stergere in doi pasi, fara dialog modal (regula Demo CRM)
+  if (!SEL) { say('warning', T('m_nosel')); return; }
+  if (DEL_ARMED !== SEL.id) { DEL_ARMED = SEL.id; say('warning', T('m_del_arm') + ': ' + SEL.name); return; }
+  const r = await api('api/clients/' + SEL.id, {method: 'DELETE'});
+  if (!r.success) { say('danger', r.error); return; }
+  say('success', T('m_deleted') + ': ' + SEL.name); SEL = null; DEL_ARMED = null;
+  document.getElementById('ov').innerHTML = `<h3>${esc(T('overview'))}</h3><div class="kv"><div class="muted" style="grid-column:1/-1">${esc(T('pick_hint'))}</div></div>`;
+  loadClients();
+}
+
+// ── acasa, setari ────────────────────────────────────────────────────────
+async function loadDash() {
+  const s = await api('api/stats'); if (!s.success) return;
+  const d = s.data;
+  document.getElementById('dash').innerHTML = [['d_total', d.total], ['d_today', d.today], ['d_addr', d.with_address], ['d_liq', d.liquidated]]
+    .map(([k, v]) => `<div class="panel"><b>${v}</b><span>${esc(T(k))}</span></div>`).join('');
+  const e = await api('api/events?limit=30'); if (!e.success) return;
+  document.querySelector('#evtab tbody').innerHTML = e.data.map(x => `<tr><td class="muted">${esc(x.ts)}</td><td>${esc(x.event)}</td><td>${esc(x.src)}</td><td>${esc(x.idno)}</td><td>${esc(x.detail)}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="muted">—</td></tr>';
+}
+async function loadSettings() {
+  const r = await api('api/settings'); if (!r.success) { say('danger', r.error); return; }
+  CFG = r.data;
+  ['contragenti_url', 'lang', 'pick_timeout'].forEach(k => { const el = document.getElementById('s-' + k); if (el) el.value = CFG[k] || ''; });
+  document.getElementById('cg-home').href = cgBase() + '/';
+}
+async function saveSettings() {
+  const d = {}; ['contragenti_url', 'lang', 'pick_timeout'].forEach(k => d[k] = document.getElementById('s-' + k).value.trim());
+  const r = await api('api/settings', {method: 'POST', body: JSON.stringify(d)});
+  if (!r.success) { say('danger', r.error); return; }
+  CFG = r.data; say('success', T('m_saved')); checkContragenti(false);
+}
+
+// ── start ────────────────────────────────────────────────────────────────
+(async function init() {
+  try { setLang(localStorage.getItem('crm_lang') || 'ro'); } catch (e) { setLang('ro'); }
+  const r = await api('api/settings'); if (r.success) CFG = r.data;
+  document.getElementById('cg-home').href = cgBase() + '/';
+  checkContragenti(false);
+  // RO: intoarcerea din Contragenti (return_to): ?cb=added:ID:IDNO | dup:… | err:…
+  const cb = new URLSearchParams(location.search).get('cb');
+  if (cb) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    const [res, id] = cb.split(':');
+    if (res === 'err') say('warning', cb.slice(4)); else { say(res === 'dup' ? 'warning' : 'success', T({added: 'm_added', dup: 'm_dup', updated: 'm_updated'}[res] || res)); }
+    show('clients'); await loadClients(); if (id && Number(id)) openClient(Number(id));
+    return;
+  }
+  const sec = (location.hash || '#home').slice(1);
+  show(['home', 'clients', 'settings'].includes(sec) ? sec : 'home');
+})();
+</script>
+</body>
+</html>
