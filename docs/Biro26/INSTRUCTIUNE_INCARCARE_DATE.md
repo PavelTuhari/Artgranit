@@ -1,7 +1,13 @@
 # Instrucțiune: Încărcarea datelor (Import asistent) — ghid pentru operator
 
 > Cum încarci un fișier de la furnizor (prețuri, produse noi, coduri de bare) în OfficePlus,
-> prin interfața **Back-office → Import (asistent)**. Fără cunoștințe tehnice.
+> prin pagina **Import fișiere (PT)** — `https://officeplus.md/UNA.md/orasldev/biro26-import-pt`.
+> Fără cunoștințe tehnice.
+>
+> *Notă (05.09.2026):* fila **Import (asistent)** din back-office este altceva — asistentul în
+> 4 pași pentru o sursă SQL deja încărcată (vezi [Ghidul back-office-ului](GHID_BACKOFFICE.md#import)).
+> Fișierele Excel / CSV se încarcă pe pagina de mai sus; după import marfa apare în back-office,
+> fila **Sursă**.
 
 ---
 
