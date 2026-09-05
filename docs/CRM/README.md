@@ -83,6 +83,16 @@ de sus e roșu, «Creează client» trimite la Setări cu mesaj; «Import XML» 
 `modules/crm/sdk/sample_card.xml` → «Client adăugat: CENTRUL … UNISIM-SOFT»,
 a doua dată → «Duplicat».
 
+## Căutarea unică și pornirea Contragenti (05.09.2026)
+
+O singură căutare: baza OfficePlus, iar fără rezultate → automat date.gov.md
+prin Contragenti (buton separat «🌐 date.gov.md» pentru căutarea directă).
+Dacă utilitarul nu rulează, pagina spune «Contragenti (127.0.0.1:9393) nu este
+disponibil» și oferă scriptul de pornire (`/launcher/command|bat|py`, generat
+de `modules/crm/launcher.py`) pentru macOS / Windows / Linux: găsește sau
+descarcă Contragenti, îl pornește și revine în CRM. Protocol cu capturi:
+`PROTOCOL_TESTARE_2026-09-05.md`, partea a II-a.
+
 ## Ce urmează (după beta)
 
 Contacte / Leaduri / Oferte / Calendar (acum doar în navigație, ca în Demo

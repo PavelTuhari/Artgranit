@@ -142,3 +142,97 @@ este alegerea manuală în fereastra Contragenti (D10) — o face proprietarul
 pe Windows: portal → CRM (beta) → «Creează client» → în Contragenti se alege
 firma și se apasă «Returnează contragentul» → clientul apare în listă cu
 mesajul verde «Client adăugat».
+
+---
+
+# Partea a II-a (05.09.2026, după-amiază) — căutarea unică, Contragenti indisponibil, scriptul de pornire
+
+Cerința proprietarului: «căutare și pentru date.gov să fie în baza la
+singura celulă de căutare; dacă nu se găsește nimic în baza OfficePlus —
+automat pe date.gov.md; dacă s-a închis aplicația pe Mac, butonul vede că
+127.0.0.1 nu este disponibil și se descarcă un script Python care pornește
+utilitarul — la fel pe Windows și Linux». Plus: «testează tot și documentează
+cu screenshoturi».
+
+## G. Ce s-a schimbat
+
+- **O singură căutare** (bara de sus și cîmpul din Clienți): întîi baza
+  OfficePlus (`CRM_CLIENT`); dacă nu găsește nimic → mesaj «Nimic în baza
+  OfficePlus pentru «…» — caut pe date.gov.md prin Contragenti…» și
+  Contragenti se deschide cu acel filtru. Buton separat «🌐 date.gov.md»
+  pentru căutarea directă în registru.
+- **Contragenti indisponibil**: mesajul spune exact adresa
+  («Contragenti (127.0.0.1:9393) nu este disponibil») și apare panoul cu
+  scriptul de pornire pentru **macOS (.command)**, **Windows (.bat)**,
+  **Linux / orice OS (.py)** — butonul OS-ului curent e evidențiat.
+- **Scriptul de pornire** (`modules/crm/launcher.py`, rute
+  `/launcher/py|command|bat`, doar biblioteca standard Python): dacă API-ul
+  răspunde → doar ridică fereastra; altfel caută instalarea (Mac:
+  `/Applications/Contragenti.app`, `~/Projects.AI/DATE.gov/Contragenti`;
+  Windows: `Contragenti.exe` din MSI în `%LOCALAPPDATA%`/`Program Files`;
+  Linux: `~/Contragenti`, `~/.local/share/contragenti`, `/opt/contragenti`),
+  iar dacă nu există o descarcă din GitHub (`git clone` sau zip), face
+  `.venv` + `pip install`, pornește utilitarul detașat, așteaptă `/health`
+  pînă la 60 s și întoarce browserul în CRM. Același cod în trei ambalaje:
+  `.py`; `.command` = bash + `python3 - <<'PYEOF'`; `.bat` = prima linie
+  batch `@(python -x "%~f0" || py -3 -x "%~f0") & goto :eof`, restul Python
+  (`-x` sare peste prima linie).
+- `/Applications/Contragenti.app` pe Mac-ul proprietarului (lansator cu
+  icoană; pornește copia din `~/Projects.AI/DATE.gov/Contragenti`, baza cu
+  160 de firme; al doilea click doar ridică fereastra).
+
+## H. Teste automate — `pytest tests/test_crm.py`: **18 / 18 PASS**
+
+Noi: H1 cele trei ambalaje ale scriptului sînt Python valid (`ast.parse`),
+conțin portul/limba/adresa de revenire și ramurile Darwin/Windows/Linux;
+`render("exe")` → `ValueError`. H2 scriptul importă doar biblioteca
+standard. H3 pagina are `searchAll` cu `n === 0 && q → createClient(q)`,
+panoul offline, cele trei descărcări; ruta `/launcher/<kind>` cu
+`Content-Disposition`.
+
+## I. Rutele de descărcare (Flask test client)
+
+| # | Pas | Rezultat |
+|---|---|---|
+| I1 | `/launcher/command` fără sesiune | 302 → `/login?next=…/crm/` |
+| I2 | `/launcher/py` · `/command` · `/bat` cu sesiune | 200, `attachment; filename=start_contragenti.*`, MIME corect, `RETURN_URL = https://nufarul.eminescu.md/UNA.md/orasldev/crm/` |
+| I3 | `/launcher/exe` | 404 |
+
+## J. Scriptul de pornire pe viu (macOS, fișierele descărcate din CRM)
+
+| # | Scenariu | Rezultat |
+|---|---|---|
+| J1 | Contragenti rulează → `python3 start_contragenti.py` | «ruleaza deja — ridic fereastra», apoi deschide CRM-ul în browser |
+| J2 | Contragenti **oprit** (`pkill`), `/health` → 000 → `python3 start_contragenti.py` | «Pornesc Contragenti (app): /Applications/Contragenti.app … Contragenti raspunde» în **2,7 s**; `/health` → `db_count 160` |
+| J3 | `bash start_contragenti.command` | identic cu J1 (ambalajul macOS funcționează) |
+| J4 | `.bat`: prima linie batch, restul rulat cu `python3 -x start_contragenti.bat` | identic cu J1 (mecanismul `-x` funcționează; Windows real rămîne la proprietar) |
+| J5 | repetat J2 în timpul capturilor (K6→K7) | Contragenti readus de script, indicatorul redevine verde |
+
+## K. Pagina în browser (Playwright, 1280×800; API CRM simulat cu răspunsurile reale, Contragenti REAL) — capturi în `docs/CRM/testare/`
+
+| # | Pas | Așteptat | Rezultat | Captură |
+|---|---|---|---|---|
+| K1 | Acasă: plăcuțe + evenimente recente | ca Demo CRM | PASS | `01_acasa.png` |
+| K2 | Clienți + panoul clientului (fondatori, datorii, notiță, 3 butoane); indicator «Contragenti v1.0 · 160 în bază» | | PASS | `02_clienti_card.png` |
+| K3 | căutare «CONINFO» — există în baza OfficePlus | 1 rînd, fără apel la Contragenti | PASS (`found: 1`) | `03_cautare_in_baza.png` |
+| K4 | căutare «GRECU OFFICE GROUP» — nu e în bază | mesaj «Nimic în baza OfficePlus… caut pe date.gov.md» → Contragenti se deschide cu filtrul, pagina așteaptă | PASS (`/pick?q=GRECU%20OFFICE%20GROUP` real, fereastra Contragenti s-a deschis) | `04_fallback_dategov_asteptare.png` |
+| K5 | fără alegere în fereastră (`pick_timeout` 8 s) | 504 → galben «Timpul de selecție a expirat» | PASS | `05_fallback_timeout.png` |
+| K6 | Contragenti **oprit** → «Creează client» | roșu «Contragenti offline»; mesaj «Contragenti (127.0.0.1:9393) nu este disponibil — …»; panoul cu **macOS .command (evidențiat pe Mac) / Windows .bat / Linux .py** și indicația de lansare | PASS | `06_offline_script_pornire.png` |
+| K7 | pornit cu scriptul (J5) → «Verifică Contragenti» | verde «Contragenti răspunde», panoul dispare, «160 în bază» | PASS | `07_online_din_nou.png` |
+| K8 | Setări: adresă, limbă, timeout, «Pornirea utilitarului» cu cele trei descărcări, legături | | PASS | `08_setari.png` |
+| K9 | interfața în RU | «Создать клиента», «Клиенты» | PASS | `09_interfata_ru.png` |
+
+Consola browserului: doar `favicon.ico 404` (pagina de previzualizare) și
+`504` pe `/pick` (așteptat la K5). Fără erori JS.
+
+## L. Servere
+
+nufarul și office repornite fără Traceback; `/UNA.md/orasldev/crm/launcher/py`
+fără sesiune → 302 login (nufarul și public officeplus.md); `nufarul.eminescu.md/login` → 200.
+
+## Ce rămîne la proprietar
+
+- Alegerea manuală în fereastra Contragenti («Returnează contragentul») —
+  agentul nu are voie să controleze fereastra Tk (permisiune refuzată).
+- Proba pe **Windows real** a `start_contragenti.bat` (MSI + `Contragenti.exe`
+  sau Python 3) și pe **Linux** a `.py` (`python3-tk`).

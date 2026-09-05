@@ -27,6 +27,6 @@
     "order": 30,
     "title": "Protocol de testare 05.09.2026",
     "audience": "pentru proprietar și QA",
-    "descr": "Ce s-a testat automat, pe Oracle, cu Contragenti real și în browser: 15 teste unitare, 21 pași API, 10 pași Contragenti, 9 pași UI, servere; notele despre diacritice și ce rămîne la proprietar."
+    "descr": "Partea I: unitare, API pe Oracle, Contragenti real, UI, servere. Partea II (cu 9 capturi): căutarea unică OfficePlus → date.gov.md, Contragenti indisponibil, scriptul de pornire Mac/Windows/Linux testat pe viu."
   }
 }
