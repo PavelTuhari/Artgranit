@@ -1,4 +1,17 @@
 {
+  "GHID_BACKOFFICE.md": {
+    "title": {
+      "ro": "Ghidul back-office-ului (pe meniuri)",
+      "ru": "Руководство по бэк-офису (по меню)",
+      "en": "Back-office guide (by menu)"
+    },
+    "descr": {
+      "ro": "Pentru operator: fiecare fila din back-office — ce este, ce fac butoanele, capturi de ecran. Verificat pe sistemul real 05.09.2026.",
+      "ru": "Для оператора: каждая вкладка бэк-офиса — что это, что делают кнопки, скриншоты. Проверено на боевой системе 05.09.2026.",
+      "en": "For the operator: every back-office tab — what it is, what the buttons do, screenshots. Verified on the live system 05.09.2026."
+    },
+    "audience": "operator"
+  },
   "PROJECT_BIRO26.md": {
     "title": {
       "ro": "Descrierea proiectului",
