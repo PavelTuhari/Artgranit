@@ -157,3 +157,49 @@ def test_page_uses_url_for_and_has_the_demo_crm_features():
                  "DEL_ARMED", 'value="today"', 'value="with_address"', "label-state"):
         assert must in tpl, must
     assert "alert(" not in js and "confirm(" not in js, "fara ferestre modale (regula Demo CRM)"
+
+
+# ── cautarea unica + scriptul de pornire (05.09.2026) ────────────────────
+def test_launcher_script_all_three_kinds_are_valid_python():
+    import ast
+    from modules.crm import launcher as L
+    for k in ("py", "command", "bat"):
+        body = L.render(k, lang="ru", port=9494, return_url="https://x/UNA.md/orasldev/crm/", generated="t")
+        if k == "command":
+            assert body.startswith("#!/bin/bash") and "python3 - <<'PYEOF'" in body
+            py = body.split("<<'PYEOF'\n", 1)[1].rsplit("\nPYEOF", 1)[0]
+        elif k == "bat":
+            first, rest = body.split("\r\n", 1)
+            assert first.startswith('@(python -x "%~f0"') and "py -3 -x" in first
+            py = rest.replace("\r\n", "\n")
+        else:
+            py = body
+        ast.parse(py)
+        assert "PORT = 9494" in py and 'LANG = "ru"' in py and "github.com/PavelTuhari/Contragenti" in py
+        for os_name in ("Darwin", "Windows", "Linux"):
+            assert os_name in py
+    import pytest
+    with pytest.raises(ValueError):
+        L.render("exe")
+
+
+def test_launcher_script_uses_only_the_standard_library():
+    from modules.crm import launcher as L
+    import re
+    py = L.render("py")
+    mods = set()
+    for m in re.finditer(r"^(?:from|import)\s+([\w\.]+(?:\s*,\s*[\w\.]+)*)", py, re.M):
+        mods |= {x.strip().split(".")[0] for x in m.group(1).split(",")}
+    assert mods <= {"io", "os", "platform", "shutil", "subprocess", "sys", "time", "venv",
+                    "webbrowser", "zipfile", "urllib"}, mods
+
+
+def test_page_single_search_falls_back_to_date_gov_and_offers_starter():
+    tpl = _read("modules", "crm", "templates", "crm_app.html")
+    assert "async function searchAll" in tpl and "await createClient(q)" in tpl
+    assert "n === 0 && q" in tpl, "fara rezultate in baza -> date.gov.md"
+    for k in ("launcher/command", "launcher/bat", "launcher/py"):
+        assert k in tpl
+    assert 'id="offline-box"' in tpl and "showOffline(true)" in tpl and "cgHost()" in tpl
+    routes = _read("modules", "crm", "routes.py")
+    assert '"/launcher/<kind>"' in routes and "Content-Disposition" in routes

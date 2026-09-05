@@ -122,6 +122,30 @@ def contragenti_callback():
     return redirect(url_for("crm.app_page") + "?cb=" + msg)
 
 
+@blueprint.route("/launcher/<kind>")
+def launcher(kind):
+    """RO: scriptul de pornire a Contragenti (py / command / bat), cu limba si
+    portul din setari si adresa de revenire in CRM."""
+    if not AuthController.is_authenticated():
+        return redirect("/login?next=" + url_for("crm.app_page"))
+    from datetime import datetime
+    from urllib.parse import urlparse
+    from flask import Response
+    from modules.crm import launcher as L
+    if kind not in L.KINDS:
+        return jsonify({"success": False, "error": "tip necunoscut"}), 404
+    s = CrmStore.settings()
+    try:
+        port = int(urlparse(s.get("contragenti_url") or "").port or 9393)
+    except (TypeError, ValueError):
+        port = 9393
+    body = L.render(kind, lang=s.get("lang") or "ro", port=port,
+                    return_url=url_for("crm.app_page", _external=True),
+                    generated=datetime.now().strftime("%d.%m.%Y %H:%M"))
+    return Response(body, mimetype=L.KINDS[kind] + "; charset=utf-8",
+                    headers={"Content-Disposition": "attachment; filename=%s" % L.file_name(kind)})
+
+
 # ── setari, statistici, jurnal ───────────────────────────────────────────
 @blueprint.route("/api/settings", methods=["GET", "POST"])
 def api_settings():

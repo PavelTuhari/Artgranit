@@ -80,7 +80,7 @@
   <a href="/UNA.md/orasldev/modules" style="margin-top:18px;color:var(--muted)">← <span data-i="nav_portal">Portal</span></a>
 </nav>
 <div class="top">
-  <input id="gsearch" data-ph="search" placeholder="Căutare globală (nume, IDNO, adresă)…" onkeydown="if(event.key==='Enter'){show('clients');loadClients()}">
+  <input id="gsearch" data-ph="search" placeholder="Căutare: nume / IDNO / adresă — în baza OfficePlus, apoi automat pe date.gov.md" onkeydown="if(event.key==='Enter')searchAll(this.value)">
   <button class="plus" title="Creează client" onclick="createClient()">+</button>
   <span class="sp"></span>
   <span id="cg" class="muted"><span class="dot"></span>Contragenti</span>
@@ -109,9 +109,21 @@
       <option value="today" data-i="p_today">Adăugate azi</option>
       <option value="with_address" data-i="p_addr">Cu adresă juridică</option>
     </select>
-    <input id="q" data-ph="filter" placeholder="Filtru: nume / IDNO / adresă" onkeydown="if(event.key==='Enter')loadClients()">
-    <button class="btn" onclick="loadClients()" data-i="btn_find">Caută</button>
+    <input id="q" data-ph="filter" placeholder="Căutare: nume / IDNO / adresă (OfficePlus → date.gov.md)" onkeydown="if(event.key==='Enter')searchAll(this.value)">
+    <button class="btn" onclick="searchAll(document.getElementById('q').value)" data-i="btn_find">Caută</button>
+    <button class="btn" onclick="searchGov(document.getElementById('q').value)" data-i="btn_gov">🌐 date.gov.md</button>
     <span class="muted" id="cnt"></span>
+  </div>
+  <div class="panel" id="offline-box" hidden style="padding:12px;margin-bottom:12px;border-color:#f0ad4e;background:#fff8ec">
+    <b>⚠ <span id="offline-host">Contragenti (127.0.0.1:9393)</span> <span data-i="off_title">nu este disponibil</span></b>
+    <p class="muted" style="margin:6px 0" data-i="off_text">Utilitarul Contragenti nu rulează pe acest calculator (sau a fost închis). Descărcați scriptul de pornire și lansați-l — el găsește instalarea (sau o descarcă de pe GitHub), pornește utilitarul și vă întoarce aici. Apoi apăsați din nou «Creează client».</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <a class="btn btn-primary" id="dl-command" href="launcher/command" download> macOS — start_contragenti.command</a>
+      <a class="btn" id="dl-bat" href="launcher/bat" download>⊞ Windows — start_contragenti.bat</a>
+      <a class="btn" id="dl-py" href="launcher/py" download>🐧 Linux / orice OS — start_contragenti.py</a>
+      <button class="btn" onclick="checkContragenti(true)" data-i="btn_check">Verifică Contragenti</button>
+    </div>
+    <p class="muted" style="margin:8px 0 0" id="off-hint"></p>
   </div>
   <div class="panel" id="import-box" hidden style="padding:12px;margin-bottom:12px">
     <p class="muted" style="margin:0 0 6px" data-i="import_hint">Lipiți XML-ul cardului Contragenti (&lt;counterparty&gt;…) sau alegeți fișierul — echivalentul «ContragentiCRM.exe --import card.xml».</p>
@@ -148,6 +160,9 @@
     <div class="kv" style="border-top:1px solid var(--line)">
       <label data-i="s_how">Cum funcționează</label>
       <div class="muted" data-i="s_how_text">Contragenti rulează pe calculatorul dvs. (Windows, din instalatorul MSI) și ține un API local pe portul 9393. «Creează client» îl deschide cu filtrul introdus; după «Vernuti contragent» cardul XML ajunge aici și clientul se salvează în Oracle (CRM_*), cu deduplicare după IDNO. Dacă browserul nu poate apela API-ul local, se folosește revenirea (return_to) — Contragenti trimite browserul înapoi aici cu datele.</div>
+      <label data-i="s_start">Pornirea utilitarului</label>
+      <div><a class="btn" href="launcher/command" download> macOS .command</a> <a class="btn" href="launcher/bat" download>⊞ Windows .bat</a> <a class="btn" href="launcher/py" download>🐧 Linux .py</a>
+        <span class="muted" data-i="s_start_text"> — același script Python (doar biblioteca standard): găsește sau descarcă Contragenti, îl pornește și revine în CRM.</span></div>
       <label data-i="s_links">Legături</label>
       <div><a href="https://github.com/PavelTuhari/Contragenti" target="_blank" rel="noopener">github.com/PavelTuhari/Contragenti ↗</a> · <a href="https://github.com/PavelTuhari/Contragenti/blob/main/INSTALL_WINDOWS_ru.md" target="_blank" rel="noopener">instalare Windows ↗</a> · <a id="cg-home" href="#" target="_blank" rel="noopener">API-ul local ↗</a></div>
     </div>
@@ -180,8 +195,8 @@ const I18N = {
        c_name:'Название',c_form:'Юр. форма',c_addr:'Адрес',c_added:'Добавлен',overview:'Обзор',pick_hint:'Выберите клиента в списке.',
        settings_title:'Настройки',s_url:'Адрес Contragenti (локальный API)',s_lang:'Язык окна Contragenti',s_timeout:'Ожидание выбора, с',btn_save:'Сохранить',btn_check:'Проверить Contragenti',
        s_how:'Как это работает',s_how_text:'Contragenti работает на вашем компьютере (Windows, из MSI-инсталлятора) и держит локальный API на порту 9393. «Создать клиента» открывает его с введённым фильтром; после «Вернуть контрагента» XML карточки попадает сюда, и клиент сохраняется в Oracle (CRM_*) с дедупликацией по IDNO. Если браузер не может вызвать локальный API, используется возврат (return_to) — Contragenti отправляет браузер обратно сюда с данными.',s_links:'Ссылки',ready:'Готово.',
-       search:'Глобальный поиск (название, IDNO, адрес)…',filter:'Фильтр: название / IDNO / адрес',
-       m_added:'Клиент добавлен',m_dup:'Дубликат: такой IDNO уже есть',m_updated:'Клиент обновлён',m_cancel:'Выбор отменён',m_timeout:'Истёк таймаут выбора',m_offline:'Contragenti не запущен (нет ответа от локального API). Запустите его или импортируйте XML.',m_wait:'Ожидание выбора в Contragenti…',m_deleted:'Клиент удалён',m_del_arm:'Нажмите «Удалить» ещё раз для подтверждения',m_saved:'Настройки сохранены',m_online:'Contragenti на связи',m_nosel:'Клиент не выбран',
+       search:'Поиск: название / IDNO / адрес — в базе OfficePlus, затем автоматически на date.gov.md',filter:'Поиск: название / IDNO / адрес (OfficePlus → date.gov.md)',
+       m_added:'Клиент добавлен',m_dup:'Дубликат: такой IDNO уже есть',m_updated:'Клиент обновлён',m_cancel:'Выбор отменён',m_timeout:'Истёк таймаут выбора',m_offline:'Contragenti не запущен на этом компьютере. Скачайте скрипт запуска ниже и запустите его.',m_notavail:'недоступен',btn_gov:'🌐 date.gov.md',off_title:'недоступен',off_text:'Утилита Contragenti не запущена на этом компьютере (или была закрыта). Скачайте скрипт запуска и запустите его — он найдёт установку (или скачает с GitHub), запустит утилиту и вернёт вас сюда. Затем снова нажмите «Создать клиента».',s_start:'Запуск утилиты',s_start_text:' — один и тот же Python-скрипт (только стандартная библиотека): находит или скачивает Contragenti, запускает его и возвращает в CRM.',m_wait:'Ожидание выбора в Contragenti…',m_deleted:'Клиент удалён',m_del_arm:'Нажмите «Удалить» ещё раз для подтверждения',m_saved:'Настройки сохранены',m_online:'Contragenti на связи',m_nosel:'Клиент не выбран',
        ov_name:'Название',ov_idno:'IDNO',ov_reg:'Регистрация',ov_form:'Юр. форма',ov_liq:'Ликвидирована',ov_addr:'Адрес',ov_mgr:'Руководители',ov_src:'Источник',ov_added:'Добавлен',ov_note:'Заметка',founders:'Учредители',debts:'Долги перед бюджетом',none:'нет данных',btn_del:'Удалить',btn_note:'Сохранить заметку',btn_refresh:'Обновить из Contragenti',
        d_total:'Всего клиентов',d_today:'Добавлено сегодня',d_addr:'С адресом',d_liq:'Ликвидированы',yes:'Да',no:'Нет'},
   en: {beta:'beta · Artgranit + Contragenti',nav_home:'Home',nav_clients:'Accounts',nav_contacts:'Contacts',nav_leads:'Leads',nav_deals:'Opportunities',nav_cal:'Calendar',nav_settings:'Settings',nav_portal:'Portal',
@@ -191,12 +206,12 @@ const I18N = {
        c_name:'Name',c_form:'Legal form',c_addr:'Address',c_added:'Added',overview:'Overview',pick_hint:'Select an account from the list.',
        settings_title:'Settings',s_url:'Contragenti address (local API)',s_lang:'Contragenti window language',s_timeout:'Pick timeout, s',btn_save:'Save',btn_check:'Check Contragenti',
        s_how:'How it works',s_how_text:'Contragenti runs on your computer (Windows MSI) and serves a local API on port 9393. «Create Account» opens it with your filter; after «Return counterparty» the XML card lands here and the account is saved to Oracle (CRM_*) with IDNO deduplication. If the browser cannot call the local API, the return_to flow is used — Contragenti redirects the browser back here with the data.',s_links:'Links',ready:'Ready.',
-       search:'Global search (name, IDNO, address)…',filter:'Filter: name / IDNO / address',
-       m_added:'Account added',m_dup:'Duplicate: this IDNO already exists',m_updated:'Account updated',m_cancel:'Selection cancelled',m_timeout:'Selection timed out',m_offline:'Contragenti is not running (no answer from the local API). Start it or import XML.',m_wait:'Waiting for the selection in Contragenti…',m_deleted:'Account deleted',m_del_arm:'Press «Delete» again to confirm',m_saved:'Settings saved',m_online:'Contragenti is online',m_nosel:'No account selected',
+       search:'Search: name / IDNO / address — in the OfficePlus base, then automatically on date.gov.md',filter:'Search: name / IDNO / address (OfficePlus → date.gov.md)',
+       m_added:'Account added',m_dup:'Duplicate: this IDNO already exists',m_updated:'Account updated',m_cancel:'Selection cancelled',m_timeout:'Selection timed out',m_offline:'Contragenti is not running on this computer. Download the starter script below and run it.',m_notavail:'is not available',btn_gov:'🌐 date.gov.md',off_title:'is not available',off_text:'The Contragenti tool is not running on this computer (or was closed). Download the starter script and run it — it finds the installation (or downloads it from GitHub), starts the tool and brings you back here. Then press «Create Account» again.',s_start:'Starting the tool',s_start_text:' — the same Python script (standard library only): finds or downloads Contragenti, starts it and returns to the CRM.',m_wait:'Waiting for the selection in Contragenti…',m_deleted:'Account deleted',m_del_arm:'Press «Delete» again to confirm',m_saved:'Settings saved',m_online:'Contragenti is online',m_nosel:'No account selected',
        ov_name:'Name',ov_idno:'IDNO',ov_reg:'Registered',ov_form:'Legal form',ov_liq:'Liquidated',ov_addr:'Address',ov_mgr:'Managers',ov_src:'Source',ov_added:'Added',ov_note:'Note',founders:'Founders',debts:'Budget debts',none:'no data',btn_del:'Delete',btn_note:'Save note',btn_refresh:'Refresh from Contragenti',
        d_total:'Accounts',d_today:'Added today',d_addr:'With address',d_liq:'Liquidated',yes:'Yes',no:'No'}
 };
-const RO = {m_added:'Client adăugat',m_dup:'Duplicat: acest IDNO există deja',m_updated:'Client actualizat',m_cancel:'Selecția a fost anulată',m_timeout:'Timpul de selecție a expirat',m_offline:'Contragenti nu rulează (API-ul local nu răspunde). Porniți-l sau importați XML.',m_wait:'Se așteaptă selecția în Contragenti…',m_deleted:'Client șters',m_del_arm:'Apăsați «Șterge» încă o dată pentru confirmare',m_saved:'Setări salvate',m_online:'Contragenti răspunde',m_nosel:'Niciun client selectat',
+const RO = {m_added:'Client adăugat',m_dup:'Duplicat: acest IDNO există deja',m_updated:'Client actualizat',m_cancel:'Selecția a fost anulată',m_timeout:'Timpul de selecție a expirat',m_offline:'Contragenti nu rulează pe acest calculator. Descărcați scriptul de pornire de mai jos și lansați-l.',m_notavail:'nu este disponibil',m_wait:'Se așteaptă selecția în Contragenti…',m_deleted:'Client șters',m_del_arm:'Apăsați «Șterge» încă o dată pentru confirmare',m_saved:'Setări salvate',m_online:'Contragenti răspunde',m_nosel:'Niciun client selectat',
   ov_name:'Denumirea',ov_idno:'IDNO',ov_reg:'Înregistrare',ov_form:'Forma juridică',ov_liq:'Lichidată',ov_addr:'Adresa',ov_mgr:'Administratori',ov_src:'Sursa',ov_added:'Adăugat',ov_note:'Notiță',founders:'Fondatori',debts:'Datorii la buget',none:'fără date',btn_del:'Șterge',btn_note:'Salvează notița',btn_refresh:'Reîmprospătează din Contragenti',
   d_total:'Clienți în total',d_today:'Adăugați azi',d_addr:'Cu adresă',d_liq:'Lichidate',yes:'Da',no:'Nu'};
 let LANG = 'ro';
@@ -246,26 +261,62 @@ async function checkContragenti(loud) {
     const j = await r.json();
     el.innerHTML = `<span class="dot on"></span>Contragenti v${esc(j.version || '?')} · ${j.db_count ?? '?'} în bază`;
     if (loud) say('success', T('m_online'));
+    showOffline(false);
     return true;
   } catch (e) {
     el.innerHTML = '<span class="dot off"></span>Contragenti offline';
-    if (loud) say('warning', T('m_offline'));
+    if (loud) { say('warning', 'Contragenti (' + cgHost() + ') ' + T('m_notavail') + ' — ' + T('m_offline')); show('clients'); showOffline(true); }
     return false;
   }
 }
-async function createClient() {
+function cgHost() { return cgBase().replace(/^https?:\/\//, ''); }
+function showOffline(on) {
+  // RO: «127.0.0.1:9393 nu este disponibil» + scriptul de pornire pentru OS-ul curent
+  const box = document.getElementById('offline-box');
+  box.hidden = !on;
+  if (!on) return;
+  document.getElementById('offline-host').textContent = 'Contragenti (' + cgHost() + ')';
+  const p = (navigator.platform || '') + ' ' + (navigator.userAgent || '');
+  const os = /Mac/i.test(p) ? 'command' : /Win/i.test(p) ? 'bat' : 'py';
+  ['command', 'bat', 'py'].forEach(k => document.getElementById('dl-' + k).className = 'btn' + (k === os ? ' btn-primary' : ''));
+  document.getElementById('off-hint').textContent = {
+    command: 'macOS: după descărcare, dublu-click pe start_contragenti.command (prima dată: click-dreapta → Deschide). Se deschide Terminal, pornește Contragenti și browserul revine aici.',
+    bat: 'Windows: dublu-click pe start_contragenti.bat. Are nevoie de Python 3 (python.org) dacă Contragenti nu e instalat din MSI.',
+    py: 'Linux: python3 start_contragenti.py (Tkinter: sudo apt install python3-tk).'}[os];
+}
+async function searchAll(q) {
+  // RO: o singura cautare: baza OfficePlus (CRM_CLIENT); daca nu gaseste
+  //     nimic -> automat pe date.gov.md prin Contragenti (cerinta 05.09.2026)
+  q = (q || '').trim();
+  document.getElementById('q').value = q; document.getElementById('gsearch').value = q;
+  show('clients');
+  const n = await loadClients();
+  if (n === 0 && q) {
+    say('primary', (LANG === 'ru' ? 'В базе OfficePlus ничего нет для «' + q + '» — ищу на date.gov.md через Contragenti…'
+      : LANG === 'en' ? 'Nothing in the OfficePlus base for «' + q + '» — searching date.gov.md via Contragenti…'
+      : 'Nimic în baza OfficePlus pentru «' + q + '» — caut pe date.gov.md prin Contragenti…'));
+    await createClient(q);
+  }
+  return n;
+}
+async function searchGov(q) { show('clients'); await createClient((q || '').trim()); }
+async function createClient(qArg) {
   // RO: butonul «Creeaza client» din Demo CRM: Contragenti se deschide cu
   //     filtrul din cautare, asteptam alegerea, importam XML-ul (3 iesiri:
   //     adaugat / duplicat / anulat). Calea 1: fetch la API-ul local (CORS *).
-  const q = (document.getElementById('gsearch').value || document.getElementById('q').value || '').trim();
-  if (!(await checkContragenti(false))) { say('warning', T('m_offline')); show('settings'); return; }
+  const q = (typeof qArg === 'string' ? qArg : (document.getElementById('gsearch').value || document.getElementById('q').value || '')).trim();
+  if (!(await checkContragenti(false))) {
+    say('warning', 'Contragenti (' + cgHost() + ') ' + T('m_notavail') + ' — ' + T('m_offline'));
+    show('clients'); showOffline(true); return;
+  }
+  showOffline(false);
   say('primary', T('m_wait'));
   const t = Number(CFG.pick_timeout || 300);
   try {
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), (t + 5) * 1000);
     const r = await fetch(cgBase() + `/pick?q=${encodeURIComponent(q)}&lang=${encodeURIComponent(CFG.lang || 'ro')}&timeout=${t}&format=xml`,
                           {signal: ctl.signal, headers: {'Accept': 'application/xml'}});
-    if (r.status === 204) { say('warning', T('m_cancel')); return; }
+    if (r.status === 204) { say('warning', T('m_cancel') + (q ? ' («' + q + '»)' : '')); return; }
     if (r.status === 504) { say('warning', T('m_timeout')); return; }
     if (r.status !== 200) { say('danger', 'Contragenti HTTP ' + r.status); return; }
     await importXmlText(await r.text(), 'contragenti', false);
@@ -308,13 +359,14 @@ async function loadClients() {
   const q = document.getElementById('q').value.trim() || document.getElementById('gsearch').value.trim();
   const r = await api(`api/clients?preset=${document.getElementById('preset').value}&q=${encodeURIComponent(q)}`);
   const tb = document.querySelector('#ctab tbody');
-  if (!r.success) { tb.innerHTML = `<tr><td colspan="6">${esc(r.error)}</td></tr>`; say('danger', r.error); return; }
+  if (!r.success) { tb.innerHTML = `<tr><td colspan="6">${esc(r.error)}</td></tr>`; say('danger', r.error); return -1; }
   document.getElementById('cnt').textContent = r.data.length ? r.data.length + ' ' + (LANG === 'ru' ? 'записей' : LANG === 'en' ? 'records' : 'înregistrări') : '';
   tb.innerHTML = r.data.map(c => `<tr class="r ${SEL && SEL.id === c.id ? 'sel' : ''}" id="row-${c.id}" onclick="openClient(${c.id})">
     <td><input type="checkbox" onclick="event.stopPropagation()"></td>
     <td><b>${esc(c.name)}</b>${c.is_liquidated ? ' <span class="tag liq">lichidată</span>' : ''}</td>
     <td>${esc(c.idno)}</td><td>${esc(c.legal_form)}</td><td>${esc(c.address)}</td><td class="muted">${esc(c.created)}</td></tr>`).join('')
     || `<tr><td colspan="6" class="muted">${LANG === 'ru' ? 'нет записей' : LANG === 'en' ? 'no records' : 'nicio înregistrare'}</td></tr>`;
+  return r.data.length;
 }
 async function openClient(id) {
   const r = await api('api/clients/' + id);
