@@ -92,10 +92,25 @@ footer{border-top:1px solid var(--rule);margin-top:48px;padding-top:18px;font-fa
   <h1>Cinci întrebări — decizii, obiecte, pași</h1>
   <div class="byline">
     <span>Pentru: Mariana Solomon</span>
-    <span>3 septembrie 2026, revizuit</span>
+    <span>revizuit 5 septembrie 2026</span>
     <span>Mediu: Oracle una.md</span>
   </div>
 </header>
+
+<h2><span class="n">0.</span>Matricea deciziilor</h2>
+<div class="tw"><table>
+  <thead><tr><th>Întrebare</th><th>Decizie</th><th>Mecanism în una.md</th><th>Stare</th></tr></thead>
+  <tbody>
+    <tr><td>1. Identificare articole</td><td>tabel separat pe EAN, niciun câmp nou în <code>TMS_MPT</code></td><td><code>SDA_PACK</code> + <code>SDA_PACK_SKU</code> + vederea <code>VSDA_MPT</code></td><td>propus</td></tr>
+    <tr><td>2. Recunoaștere la vânzare</td><td>decide EAN-ul scanat, server-side</td><td><code>PK_SDA.DEPOZIT(ean, data)</code> → linie pe cod analitic „Depozit SDA”</td><td>propus</td></tr>
+    <tr><td>3a. Preluare — operațiune</td><td>document propriu, linii pe categorie × metodă</td><td>coduri analitice în grupa „SDA”, formule proprii, fără clasa 6</td><td>propus</td></tr>
+    <tr><td>3b. Preluare — pe bon</td><td>mijloc de plată, nu reducere</td><td>tip de plată „Restituire depozit SD”</td><td><b>agreat</b></td></tr>
+    <tr><td>3c. TVA pe depozit</td><td>în afara bazei impozabile</td><td>parametru, nu cod</td><td class="no">de confirmat de voi</td></tr>
+    <tr><td>4. Tichet RVM</td><td>cod unic, valoarea în registru, consum unic</td><td>tip de plată „Tichet SDA” + <code>PK_SDA.VOUCHER_REDEEM</code></td><td>propus</td></tr>
+    <tr><td>5. Aparate</td><td>integrare bidirecțională, timp real, rezervă offline</td><td>API modul + HMAC în codul tichetului</td><td>propus, depinde de furnizor</td></tr>
+  </tbody>
+</table></div>
+<p>„Propus” = implementabil imediat, nu contrazice legea, așteaptă doar acordul vostru. Detaliile pe fiecare rând — mai jos.</p>
 
 <h2><span class="n">1.</span>Identificarea articolelor SDA</h2>
 
@@ -132,6 +147,16 @@ footer{border-top:1px solid var(--rule);margin-top:48px;padding-top:18px;font-fa
 
 <p>Dacă totuși doriți un indicator rapid pe articol pentru vitrină sau rapoarte, îl dă vederea <code>VSDA_MPT</code>. Nu îl stocăm pe articol ca sursă de adevăr — ar fi o a doua copie care se desincronizează.</p>
 
+<h3>Precizare: două straturi, ca să nu se confunde</h3>
+<div class="tw"><table>
+  <thead><tr><th>Strat</th><th>Ce este</th><th>Unde stă</th><th>Schimbă schema?</th></tr></thead>
+  <tbody>
+    <tr><td>Atributele ambalajului</td><td>material, volum, greutate, categorii, valabilitate</td><td><code>SDA_PACK</code> — tabel separat</td><td>da, tabele noi cu prefix propriu</td></tr>
+    <tr><td>Liniile de pe bon</td><td>„Depozit SDA”, „Restituire depozit SD”</td><td>coduri analitice în nomenclatorul vostru, grupă „SDA”</td><td class="no">nu — sunt date, configurate ca orice serviciu</td></tr>
+  </tbody>
+</table></div>
+<p>Deci răspunsul complet la „câmp sau tabel”: <b>atributele — tabel separat; liniile de bon — coduri analitice existente ca mecanism</b>, într-o grupă nouă, cu formulele lor contabile. Casa emite linia printr-un cod pe care îl cunoaște deja; ce nu cunoaște — valoarea și dacă se aplică — primește de la <code>PK_SDA</code>.</p>
+
 <h2><span class="n">2.</span>Identificarea la vânzare, cu stoc nemarcat în tranziție</h2>
 
 <div class="ans"><b>Decide EAN-ul scanat.</b> Casa nu ține date SDA: trimite EAN + data, primește valoare sau NULL.</div>
@@ -159,6 +184,17 @@ footer{border-top:1px solid var(--rule);margin-top:48px;padding-top:18px;font-fa
   </tbody>
 </table></div>
 
+<h3>Cine decide ce, pentru fiecare articol</h3>
+<div class="tw"><table>
+  <thead><tr><th>Situație la 25.01.2027</th><th>Recomandare</th><th>Cine decide</th></tr></thead>
+  <tbody>
+    <tr><td>Furnizorul confirmă EAN nou pe ambalajul marcat</td><td>nimic de făcut — registrul rezolvă</td><td>—</td></tr>
+    <tr><td>Același EAN, stoc rezidual sub ~2 săptămâni de vânzare</td><td><code>ACTIV_DIN</code> = data estimată a epuizării; până atunci fără depozit</td><td>categoria / achiziții</td></tr>
+    <tr><td>Același EAN, stoc rezidual mare sau imprevizibil</td><td>cod geamăn „(fără SD)” în nomenclator pentru restul; codul de bază primește <code>ACTIV_DIN</code> = 25.01.2027</td><td>categoria / achiziții</td></tr>
+  </tbody>
+</table></div>
+<p>Motivul pragului: cât timp regula e o dată pe articol, un singur câmp o rezolvă; când stocul rezidual e mare, casa trebuie să distingă fizic două stocuri sub același cod — ceea ce OfficePlus nu face, iar noi nu vrem să-l învățăm doar pentru șase luni. Codul geamăn e mai ieftin. Lista articolelor în cazul 2 vs 3 o putem genera din stocul curent, dacă ne dați accesul.</p>
+
 <div class="stop"><b>EAN necunoscut ≠ zero.</b> Dacă un produs care e băutură în ambalaj SD nu se găsește în registru, sistemul ridică alertă de conformitate. Nu îl tratează ca „fără depozit”, pentru că asta înseamnă sub-încasare descoperită la reconcilierea cu Administratorul.</div>
 
 <div class="flag"><b>Parametru, nu constantă:</b> valoarea depozitului (2 lei) stă în <code>SDA_TARIFF</code> cu perioadă de valabilitate. Un ordin care o schimbă = un rând nou, zero modificări de cod, deconturile vechi rămân corecte.</div>
@@ -167,8 +203,9 @@ footer{border-top:1px solid var(--rule);margin-top:48px;padding-top:18px;font-fa
 
 <div class="ans"><b>Document propriu, nu vânzare și nu retur de marfă.</b> Pe bon — mijloc de plată (agreat). Analitica include obligatoriu <b>metoda de preluare</b>.</div>
 
-<h3>Documentul</h3>
-<p>Tip nou: „Preluare ambalaje SD”, serie proprie. Liniile sunt <b>pe categorie de ambalaj</b>, nu pe cod de marfă. Ambalajele nu intră în stoc: sunt proprietatea Administratorului din momentul preluării <span class="ref">pct. 88</span>.</p>
+<h3>Documentul și codurile</h3>
+<p>Tip nou: „Preluare ambalaje SD”, serie proprie. Liniile lui folosesc <b>coduri analitice</b> din nomenclatorul vostru, grupă „SDA — preluare”, <b>un cod per categorie × metodă</b> (5 categorii × 2 metode = 10 coduri, plus dublu pentru reutilizabil unde e cazul). Nu sunt coduri de marfă: fără stoc, fără preț de achiziție, fără clasa 6. Ambalajele nu intră în gestiune — sunt proprietatea Administratorului din momentul preluării <span class="ref">pct. 88</span>.</p>
+<p>Răspunsul direct la „cod de marfă cu altfel de formule?”: <b>da — cod analitic de serviciu, cu formule proprii (cont de decontare, fără TVA), nu cod de marfă.</b> Exact mecanismul pe care casa și contabilitatea îl au deja; se adaugă o grupă și formulele ei, nu un tip nou de obiect.</p>
 
 <h3>Analitica pe fiecare linie</h3>
 <div class="tw"><table>
@@ -218,6 +255,9 @@ footer{border-top:1px solid var(--rule);margin-top:48px;padding-top:18px;font-fa
     <tr><td><code>STARE</code></td><td>EMIS → PRESCHIMBAT_NUMERAR / FOLOSIT_CUMPARATURI / EXPIRAT / ANULAT</td></tr>
   </tbody>
 </table></div>
+
+<h3>Cum intră în casă</h3>
+<p>Ca <b>tip de plată</b> nou în nomenclatorul vostru de mijloace de plată: „Tichet SDA”. La fel „Restituire depozit SD” pentru preluarea manuală cu bon curent. Tipul de plată e cel care declanșează validarea prin <code>PK_SDA</code>; valoarea liniei de plată vine din registru, nu se tastează.</p>
 
 <h3>Pașii la casă</h3>
 <pre><b>FUNCTION</b> PK_SDA.VOUCHER_CHECK (p_cod <b>IN VARCHAR2</b>) <b>RETURN</b> ...;  -- doar citește
