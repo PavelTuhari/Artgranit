@@ -279,7 +279,7 @@ async function createClient() {
 async function importXmlText(xml, src, refresh) {
   const r = await api('api/import-xml', {method: 'POST', body: JSON.stringify({xml, src, refresh})});
   if (!r.success) { say('danger', r.error || 'eroare la import'); return r; }
-  const label = {added: 'm_added', dup: 'm_dup', updated: 'm_updated'}[r.result] || r.result;
+  const label = {added: 'm_added', dup: 'm_dup', updated: 'm_updated'}[r.result] || r.result || 'ok';
   say(r.result === 'dup' ? 'warning' : 'success', T(label) + ': ' + (r.name || '') + (r.warning ? ' · ' + r.warning : ''));
   show('clients'); await loadClients(); if (r.id) openClient(r.id);
   return r;
