@@ -311,7 +311,7 @@ flowchart TB
             <h3 class="font-display text-xl text-slate-900 mb-1">6. Flux Detaliat Stocuri &amp; Inventar (GET_SOLDT / YBIRO_STOCK_CALC / 9301)</h3>
             <p class="text-sm text-slate-500 mb-4">Stocul nu se ține într-o tabelă „web": se calculează din contabilitate și se fotografiază; comenzile neexpediate se contabilizează extrabilanțier ca să nu vândă de două ori aceeași marfă.</p>
             <pre class="mermaid">
-flowchart LR
+flowchart TB
     A[Recepție marfă<br/>documente ERP] --> B[(Conturi 217 / 2165 / 2114)]
     B -->|UN$SOLD.GET_SOLDT la dată, departament| C[Back-office → Stoc calcul]
     C --> D[(YBIRO_STOCK_CALC<br/>+ _ITEM: snapshot)]
