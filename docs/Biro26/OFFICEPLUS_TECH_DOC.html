@@ -726,25 +726,25 @@ AND NOT EXISTS (SELECT 1 FROM tpr1d_perprlist p WHERE p.sc = u.cod);
 <span class="c">-- Rânduri din feed încă fără cheie (status Nou)</span>
 SELECT brand, COUNT(*) FROM biro26_goods
 WHERE  cod_univers IS NULL GROUP BY brand ORDER BY 2 DESC;</pre>
-<pre class="code"><span class="c">-- Ultimul snapshot de stoc și primele poziții</span>
-SELECT c.id, c.data_doc, c.dep, c.total_cant
-FROM   ybiro_stock_calc c ORDER BY c.id DESC FETCH_FIRST_ROWNUM; <span class="c">-- 11g: WHERE ROWNUM = 1</span>
+<pre class="code"><span class="c">-- Ultimul snapshot de stoc (11g: fără FETCH FIRST — is_latest / ROWNUM)</span>
+SELECT c.id, c.run_at, c.data_doc, c.dep_filter, c.cont_filter, c.row_count, c.status
+FROM   ybiro_stock_calc c WHERE c.is_latest = '1';
 SELECT i.sc, u.denumirea, i.cant
 FROM   ybiro_stock_calc_item i JOIN tms_univers u ON u.cod = i.sc
 WHERE  i.calc_id = :id AND ROWNUM &lt;= 300;
 
-<span class="c">-- Conturi create din site azi, cu metoda de plată</span>
-SELECT d.cod, d.nrset, d.datadoc, m.pay_method, m.credit_plan_id
-FROM   tmdb_docs d JOIN ybiro_doc_meta m ON m.cod = d.cod
+<span class="c">-- Conturi create din site azi, cu meta-datele web</span>
+SELECT d.cod, d.nrset, d.datadoc, m.tva_mode, m.created
+FROM   tmdb_docs d JOIN ybiro_doc_meta m ON m.doc_cod = d.cod
 WHERE  TRUNC(d.datadoc) = TRUNC(SYSDATE) ORDER BY d.cod DESC;
 
-<span class="c">-- Cereri de credit și ultimul eveniment</span>
-SELECT r.id, r.provider, r.urn, r.status, r.amount,
-       (SELECT MAX(e.created) FROM tms_credite_req_event e WHERE e.req_id = r.id) last_ev
+<span class="c">-- Cereri de credit și ultimul apel API</span>
+SELECT r.id, r.provider_code, r.ext_ref, r.status, r.api_status, r.amount, r.months,
+       (SELECT MAX(e.created) FROM tms_credite_req_event e WHERE e.req_id = r.id) last_call
 FROM   tms_credite_req r ORDER BY r.id DESC;
 
 <span class="c">-- Versiunea aplicației (identică în Oracle și MySQL)</span>
-SELECT app_key, app_version, src_hash, updated FROM tms_webappvers;</pre>
+SELECT app_code, vers, src_hash, released FROM tms_webappvers WHERE is_current = '1';</pre>
     </div>
 </div>
 
