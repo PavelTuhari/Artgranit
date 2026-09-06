@@ -231,15 +231,24 @@ flowchart LR
         <div class="bg-white border border-slate-200 rounded-3xl p-6">
             <h3 class="font-display text-xl text-slate-900 mb-1">3. Module Retail Principale</h3>
             <pre class="mermaid">
-flowchart TB
+flowchart LR
     Core[(TMS_UNIVERS<br/>nomenclator unic)]
-    Core --- MPT[TMS_MPT / _TVR / _BARCODE / _WEBATTR<br/>cartela mărfii, foto, coduri de bare, descrieri web]
-    Core --- PR[TPR1D_PERPRLIST<br/>prețuri pe perioade • liste 0 SOCIALE / 1 BIRO]
-    Core --- DOC[TMDB_DOCS + VMDB_*<br/>conturi, facturi, note de livrare]
-    Core --- ST[UN$SOLD.GET_SOLDT → YBIRO_STOCK_CALC<br/>soldul contabil pe conturi]
-    Core --- CR[TMS_CREDITE_* + TMDB_CREDITE_*<br/>furnizori de credit, planuri, cereri, dosare]
-    Core --- IMP[BIRO26_GOODS + BIRO26PT_importData<br/>staging furnizori, profiluri de mapare]
-    Core --- WEB[YBIRO_SETTINGS / YBIRO_SITE_* / YBIRO_CLIENT<br/>setări, hero, oferte, abonați, clienți]
+    subgraph Marfa["Marfă"]
+        MPT[TMS_MPT / _TVR / _BARCODE / _WEBATTR<br/>cartelă, foto, coduri de bare, descrieri web]
+        IMP[BIRO26_GOODS + BIRO26PT_importData<br/>staging furnizori, profiluri de mapare]
+    end
+    subgraph Bani["Prețuri & documente"]
+        PR[TPR1D_PERPRLIST<br/>prețuri pe perioade • liste 0 SOCIALE / 1 BIRO]
+        DOC[TMDB_DOCS + VMDB_*<br/>conturi, facturi, note de livrare]
+        ST[UN$SOLD.GET_SOLDT → YBIRO_STOCK_CALC<br/>soldul contabil pe conturi]
+    end
+    subgraph Web["Web & credite"]
+        CR[TMS_CREDITE_* + TMDB_CREDITE_*<br/>furnizori de credit, planuri, cereri, dosare]
+        WEB[YBIRO_SETTINGS / YBIRO_SITE_* / YBIRO_CLIENT<br/>setări, hero, oferte, abonați, clienți]
+    end
+    Core --- Marfa
+    Core --- Bani
+    Core --- Web
             </pre>
         </div>
 
