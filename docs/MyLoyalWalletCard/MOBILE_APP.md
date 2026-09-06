@@ -181,7 +181,61 @@ Android-эмулятор (Pixel 7, API 36), светлая и тёмная те�
 
 ---
 
-## 7. Известные грабли
+## 7. Тексты — только в словарях, ни строки в коде (06.09.2026)
+
+Все видимые пользователю строки живут в `config/l10n/{ro,ru,en}.json` (171 ключ,
+наборы ключей совпадают). Тот же раздел приходит с бэкенда в `GET /app-config`
+→ `translations`, поэтому текст правится **на эксплуатации, без пересборки**:
+достаточно отдать новый словарь.
+
+В код вернулись только технические строки: диагностика `Unknown block type`
+под `__DEV__` и текст самой ошибки исключения при старте.
+
+### Что вынесено 06.09.2026
+
+| Было в коде | Ключ |
+|---|---|
+| `LOCALE_LABELS = { ro: 'Română', … }` | `locale.ro`, `locale.ru`, `locale.en` |
+| `'mon' … 'sun'` в карточке магазина | `stores.day_mon` … `stores.day_sun` |
+| `Alert.alert('Error', …)` | `common.error_title` |
+| `placeholder="+373 60 123 456"`, `"https://example.md/api"`, `'1990-01-31'` | `auth.phone_placeholder`, `settings.api_placeholder`, `account.birthday_placeholder` |
+| `dev code: {code}` | `auth.dev_code` |
+| `API: {url}`, `{name} · {id} · config v{version}` | `settings.api_current`, `settings.app_info` |
+| `-{percent}%` на бейдже скидки, `{percent}%` у уровня | `product.discount_badge`, `loyalty.tier_progress` |
+| `−{сумма}` скидки в чеке | `receipt.discount_amount` |
+| `label="+"` в списке покупок | `list.add_button` |
+| заголовки карточек магазина | `stores.working_hours`, `stores.services` |
+
+### Правила
+
+1. **Никаких строк в JSX.** Только `t('ключ')` и параметры: `t('sync.pending', { count })`.
+   Подстановка — `{name}` внутри значения.
+2. **Имя ключа = раздел.раздел_поле**: `auth.*`, `account.*`, `stores.*`, `settings.*`,
+   `receipt.*`, `product.*`, `loyalty.*`, `list.*`, `common.*`, `locale.*`.
+3. **Поля профиля не требуют кода.** Подпись поля ищется как `account.<поле>`,
+   подсказка — как `account.<поле>_placeholder` (нет ключа — нет подсказки).
+   Добавить поле в `account.editableFields` и строку в словари достаточно.
+4. **Отсутствующий ключ виден:** `t()` возвращает сам ключ — в QA бросается в глаза,
+   в проде не ломает экран.
+
+### Защита от возврата строк в код
+
+`npm run validate-config` теперь сканирует `src/` и `App.tsx`, собирает все
+`t('…')` и **падает**, если хоть один ключ отсутствует в любом из словарей;
+вычисляемые ключи (``t(`stores.day_${day}`)``) проверяются по префиксу.
+
+```
+config: 10 entities, 8 screens, 6 tabs, 3 locales
+configuration is valid (0 warnings, 110 keys used in the sources)
+```
+
+Проверено намеренной поломкой: удаление `auth.dev_code` из `en.json` даёт
+`error l10n/en.json: missing key "auth.dev_code" used in the sources` и код возврата 1.
+Реализация — `tools/collectSourceKeys.ts`.
+
+---
+
+## 8. Известные грабли
 
 | Симптом | Причина и лечение |
 |---|---|
@@ -195,7 +249,7 @@ Android-эмулятор (Pixel 7, API 36), светлая и тёмная те�
 
 ---
 
-## 8. Чего в приложении пока нет
+## 9. Чего в приложении пока нет
 
 Триггер присутствия по Wi-Fi/BLE (телефон сообщает кассе о входе в магазин, та подтягивает
 баланс из центральной БД заранее). Сейчас синхронизация идёт по расписанию и при запуске,
