@@ -1,4 +1,17 @@
 {
+  "OFFICEPLUS_TECH_DOC.html": {
+    "title": {
+      "ro": "Documentatie tehnica: platforma Oracle E-commerce",
+      "ru": "Техническая документация: платформа Oracle E-commerce",
+      "en": "Technical documentation: Oracle E-commerce platform"
+    },
+    "descr": {
+      "ro": "Arhitectura completa cu 8 diagrame: topologie, flux comanda → ERP, stocuri, preturi, checkout; module la nivel Oracle, realizare Python, structura, query-uri.",
+      "ru": "Полная архитектура с 8 диаграммами: топология, поток заказ → ERP, остатки, цены, checkout; модули на уровне Oracle, реализация на Python, структура, запросы.",
+      "en": "Full architecture with 8 diagrams: topology, order → ERP flow, stock, prices, checkout; Oracle-level modules, Python implementation, structure, queries."
+    },
+    "audience": "architect"
+  },
   "GHID_BACKOFFICE.md": {
     "title": {
       "ro": "Ghidul back-office-ului (pe meniuri)",
