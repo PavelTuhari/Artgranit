@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfficePlus • Oracle E-commerce Platform • Documentație tehnică</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .font-display { font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif; font-weight: 600; }
+        .module-card { transition: all .2s cubic-bezier(.4,0,.2,1); }
+        .module-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / .05), 0 4px 6px -4px rgb(0 0 0 / .05); }
+        .table-header { background: #f8fafc; font-weight: 600; color: #334155; }
+        .data-table td { padding-top: .75rem; padding-bottom: .75rem; }
+        .retail-badge { background: linear-gradient(90deg,#0f172a,#1e2937); color:#fff; font-size:.75rem; padding:.125rem .75rem; border-radius:9999px; font-weight:600; letter-spacing:.025em; }
+        .mermaid { background:#fff !important; padding:16px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 2px rgb(0 0 0 / .05); }
+        .mermaid svg { max-width:100%; height:auto; }
+        .mermaid .node rect, .mermaid .node circle, .mermaid .node ellipse, .mermaid .node polygon { fill:#f8fafc !important; stroke:#334155 !important; stroke-width:1.5px !important; }
+        .mermaid .node .label, .mermaid .nodeLabel, .mermaid .edgeLabel, .mermaid text { fill:#0f172a !important; color:#0f172a !important; }
+        .mermaid .cluster rect { fill:#f1f5f9 !important; stroke:#94a3b8 !important; }
+        .mermaid .cluster-label text, .mermaid .cluster-label .nodeLabel { fill:#1e293b !important; color:#1e293b !important; font-weight:600; }
+        .mermaid .edgePath .path, .mermaid .flowchart-link { stroke:#475569 !important; stroke-width:1.5px !important; }
+        .mermaid .marker { fill:#475569 !important; stroke:#475569 !important; }
+        .mermaid .actor { fill:#f8fafc !important; stroke:#334155 !important; }
+        .mermaid .messageText { fill:#0f172a !important; stroke:none !important; }
+        .mermaid .messageLine0, .mermaid .messageLine1 { stroke:#475569 !important; }
+        .mermaid .note { fill:#fef3c7 !important; stroke:#d97706 !important; }
+        pre.code { background:#0f172a; color:#e2e8f0; padding:16px; border-radius:12px; font-size:12.5px; line-height:1.55; overflow-x:auto; }
+        pre.code .c { color:#94a3b8; } pre.code .k { color:#7dd3fc; } pre.code .s { color:#bbf7d0; }
+        nav a { white-space:nowrap; }
+        html { scroll-behavior: smooth; }
+        .toc a:hover { color:#059669; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<!-- ── NAV ─────────────────────────────────────────────── -->
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div class="max-w-screen-xl mx-auto px-8 h-14 flex items-center justify-between gap-6">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex w-8 h-8 rounded-lg bg-slate-900 text-white items-center justify-center font-display text-sm">OP</span>
+            <span class="font-display text-slate-900">OfficePlus • Oracle E-commerce Platform</span>
+        </div>
+        <nav class="hidden lg:flex gap-5 text-sm text-slate-600 overflow-x-auto">
+            <a href="#business" class="hover:text-emerald-600">Business</a>
+            <a href="#diagrams" class="hover:text-emerald-600">Diagrame</a>
+            <a href="#all-in-one" class="hover:text-emerald-600">All-in-One</a>
+            <a href="#modules" class="hover:text-emerald-600">Module</a>
+            <a href="#python-implementation" class="hover:text-emerald-600">Realizare Python</a>
+            <a href="#structure" class="hover:text-emerald-600">Structură</a>
+            <a href="#pseudocode" class="hover:text-emerald-600">Pseudocod</a>
+            <a href="#problems" class="hover:text-emerald-600">Probleme</a>
+            <a href="#queries" class="hover:text-emerald-600">Query-uri</a>
+            <a href="#access" class="hover:text-emerald-600">Acces</a>
+        </nav>
+    </div>
+</header>
+
+<!-- ── HERO ─────────────────────────────────────────────── -->
+<div class="max-w-screen-xl mx-auto px-8 pt-12 pb-8">
+    <div class="retail-badge inline-block mb-3">DOCUMENTAȚIE TEHNICĂ • 06.09.2026</div>
+    <h1 class="font-display text-4xl md:text-5xl text-slate-900 tracking-tight">OfficePlus — magazin online și back-office peste ERP-ul Oracle</h1>
+    <p class="mt-4 text-lg text-slate-600 max-w-3xl">
+        Cum funcționează <strong>officeplus.md</strong>: vitrina, coșul, plățile (MAIB, EasyCredit, Liber Card),
+        back-office-ul, importul de la furnizori și legătura directă cu ERP-ul <strong>OfficePlus / UNA.md</strong>
+        pe Oracle 11g — un singur catalog, un singur set de prețuri, un singur sold de stoc pentru vânzarea
+        online și pentru operațiunile interne.
+    </p>
+    <div class="mt-6 flex flex-wrap gap-2 text-xs">
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">Python 3.12 · Flask</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">Oracle 11.2.0.4 (OFFICEPLUS)</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">Oracle ADB (portal)</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">WordPress 6.8 (vitrină / conținut)</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">nginx failover · Oracle Cloud + office</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">jsReport / pdfme (PDF)</span>
+    </div>
+</div>
+
+<!-- ── BUSINESS ─────────────────────────────────────────── -->
+<div id="business" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="bg-white border border-slate-200 rounded-3xl p-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <div class="retail-badge mb-2 inline-block">EXECUTIVE SUMMARY</div>
+                <h2 class="text-3xl font-semibold tracking-tight">Valoare pentru Business</h2>
+            </div>
+            <div class="text-right text-sm text-slate-500">Implementare live pe<br><strong class="text-slate-900">officeplus.md</strong></div>
+        </div>
+
+        <div class="grid md:grid-cols-4 gap-6">
+            <div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">168k</div>
+                <div class="text-sm font-medium text-slate-700">Produse active în catalog</div>
+                <div class="text-xs text-slate-500 mt-1">168 371 în TMS_UNIVERS (220 603 total, cu arhivă)</div>
+            </div>
+            <div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">240k</div>
+                <div class="text-sm font-medium text-slate-700">Rânduri de preț pe perioade</div>
+                <div class="text-xs text-slate-500 mt-1">TPR1D_PERPRLIST — istoric fără goluri</div>
+            </div>
+            <div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">232k</div>
+                <div class="text-sm font-medium text-slate-700">Rânduri primite de la furnizori</div>
+                <div class="text-xs text-slate-500 mt-1">BIRO26_GOODS — ULTRA, Crafti, Biblion, Birolux…</div>
+            </div>
+            <div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">1 382</div>
+                <div class="text-sm font-medium text-slate-700">Tabele în schema Oracle</div>
+                <div class="text-xs text-slate-500 mt-1">ERP complet + strat web (YBIRO_*, BIRO26_*, TMS_CREDITE_*)</div>
+            </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t text-sm grid md:grid-cols-3 gap-x-6 text-slate-600">
+            <div><strong class="text-slate-900">Frontend:</strong> vitrină bilingvă RO/RU cu catalog, coș, cont client, plată cu cardul, rate și credit online.</div>
+            <div><strong class="text-slate-900">Retail Engine:</strong> catalogul, prețurile, stocul, documentele — toate nativ în ERP-ul OfficePlus, fără copii.</div>
+            <div><strong class="text-slate-900">Avantaj:</strong> comanda de pe site devine cont de plată în ERP în aceeași secundă; contabilitatea vede totul fără re-tastare.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick stats -->
+<div class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">WEB FRONTEND</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">154 098</div>
+            <div class="text-sm text-slate-600">produse vizibile în magazin</div>
+            <div class="mt-3 text-[10px] text-emerald-600 font-medium">143 grupe • 6 965 branduri • căutare Oracle Text</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">MASTER DATA</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">205 425</div>
+            <div class="text-sm text-slate-600">coduri de bare</div>
+            <div class="text-xs text-slate-500 mt-1">69 734 atribute web (descrieri RO/RU/EN, BLOB cu diacritice)</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">E-COMMERCE</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">3</div>
+            <div class="text-sm text-slate-600">canale de plată integrate</div>
+            <div class="text-xs text-slate-500 mt-1">MAIB Checkout • EasyCredit Request_v3 • Liber Card (Iute)</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">PLATFORMĂ</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">964</div>
+            <div class="text-sm text-slate-600">rute Flask pe portal</div>
+            <div class="text-xs text-slate-500 mt-1">din care ~90 API <code>/api/biro26/*</code> + module izolate</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── DIAGRAMS ─────────────────────────────────────────── -->
+<div id="diagrams" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">ARHITECTURĂ</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Diagrame de Arhitectură</h2>
+        <p class="text-slate-600 mt-2">Opt vederi ale aceluiași sistem — de la topologia rețelei până la secvența exactă a unei comenzi.</p>
+    </div>
+
+    <div class="space-y-8">
+
+        <!-- 1 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">1. Arhitectură Generală (Web + Oracle) — topologia reală</h3>
+            <p class="text-sm text-slate-500 mb-4">Adresa publică nu se schimbă niciodată (MAIB o are înregistrată); cine răspunde în spate — se vede în antetul <code>X-Shop-Origin: office | spare</code>.</p>
+            <pre class="mermaid">
+flowchart TB
+    Browser[Client<br/>officeplus.md] -->|HTTPS 443| Front
+    subgraph Front["Oracle Cloud • 92.5.130.1 (HestiaCP + nginx)"]
+        NG[nginx: officeplus-hybrid.conf]
+        WP[WordPress 6.8<br/>pagini, blog, wp-login secret]
+        FO[officeplus-failover.conf<br/>127.0.0.1:8001<br/>error_page 502/503/504 → @spare]
+        SPARE[Flask :8000<br/>copie de rezervă]
+        NG -->|/, /blog, /wp-*| WP
+        NG -->|/cos, /catalog, /UNA.md/*, /api/*| FO
+        FO -.->|@spare când oficiul tace| SPARE
+    end
+    FO -->|proxy 93.115.136.18| NAT
+    subgraph Office["Oficiu • LAN 192.168.0.0/24 (VPN93 pentru administrare)"]
+        NAT[192.168.0.148<br/>CentOS 7 • nginx 1.20<br/>doar proxy]
+        SHOP[192.168.0.250:8001<br/>Flask app.py + Apache + MariaDB<br/>MAGAZINUL REAL]
+        WRK[biro26_worker.py<br/>subproces thick oracledb]
+        ORA[(Oracle 11g<br/>schema OFFICEPLUS<br/>ERP UNA.md)]
+        RPT[reports/ Node<br/>jsReport + pdfme :5488]
+        NAT --> SHOP
+        SHOP --> WRK --> ORA
+        SHOP --> RPT
+    end
+    SPARE -.->|aceeași bază| ORA
+            </pre>
+        </div>
+
+        <!-- 2 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">2. Flux E-commerce → ERP</h3>
+            <p class="text-sm text-slate-500 mb-4">Coșul nu are o tabelă proprie de comenzi „web": documentul se naște direct în ERP prin pachetul <code>Y_AI_BIRO26</code>.</p>
+            <pre class="mermaid">
+flowchart LR
+    subgraph Site["Vitrina (site_base / site_cart)"]
+        Cat[Catalog<br/>biro26_catalog_fast]
+        Cart[Coș<br/>sessionStorage + /api/biro26/shop/cart]
+        Pay[Alegere plată<br/>Standard / MAIB / EasyCredit / Liber Card]
+    end
+    subgraph ERP["Oracle OFFICEPLUS"]
+        Inv[Y_AI_BIRO26.create_invoice<br/>TMDB_DOCS + VMDB_DOCS_OLE]
+        Cli[YBIRO_CLIENT<br/>cont client / IDNP / adresă]
+        Cred[TMDB_CREDITE_M/D<br/>seria CR — dosar de credit]
+        Ext[y_ai_BIRO26_comenzi<br/>cont 9301 extrabilanțier<br/>order_gfc / order_close / order_sold]
+        Sold[UN$SOLD.GET_SOLDT<br/>stoc 217 / 2165 / 2114]
+    end
+    subgraph Out["Ieșiri"]
+        PDF[PDF cont / comandă<br/>jsReport sau pdfme]
+        Mail[Email / Telegram / WhatsApp<br/>biro26_notify]
+        GS[Google Sheets<br/>registru credite]
+    end
+    Cat --> Cart --> Pay
+    Pay -->|POST /api/biro26/shop/invoice| Inv
+    Pay --> Cli
+    Pay -->|credit| Cred
+    Inv --> Ext
+    Inv --> PDF
+    Inv --> Mail
+    Cred --> GS
+    Sold -.->|cantități în catalog| Cat
+            </pre>
+        </div>
+
+        <!-- 3 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">3. Module Retail Principale</h3>
+            <pre class="mermaid">
+flowchart TB
+    Core[(TMS_UNIVERS<br/>nomenclator unic)]
+    Core --- MPT[TMS_MPT / _TVR / _BARCODE / _WEBATTR<br/>cartela mărfii, foto, coduri de bare, descrieri web]
+    Core --- PR[TPR1D_PERPRLIST<br/>prețuri pe perioade • liste 0 SOCIALE / 1 BIRO]
+    Core --- DOC[TMDB_DOCS + VMDB_*<br/>conturi, facturi, note de livrare]
+    Core --- ST[UN$SOLD.GET_SOLDT → YBIRO_STOCK_CALC<br/>soldul contabil pe conturi]
+    Core --- CR[TMS_CREDITE_* + TMDB_CREDITE_*<br/>furnizori de credit, planuri, cereri, dosare]
+    Core --- IMP[BIRO26_GOODS + BIRO26PT_importData<br/>staging furnizori, profiluri de mapare]
+    Core --- WEB[YBIRO_SETTINGS / YBIRO_SITE_* / YBIRO_CLIENT<br/>setări, hero, oferte, abonați, clienți]
+            </pre>
+        </div>
+
+        <!-- 4 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">4. Arhitectură All-in-One (Back + Front + Oracle ERP + Contabilitate + E-comm)</h3>
+            <pre class="mermaid">
+flowchart TB
+    subgraph FRONT["FRONT — public"]
+        F1[WordPress<br/>pagini, blog, SEO, atribuire social]
+        F2[Vitrina Flask<br/>/cos /catalog /produs/…<br/>RO / RU, mobil-first]
+        F3[Cabinet client<br/>facturi, acte de verificare, dosare credit]
+    end
+    subgraph BACK["BACK — autentificat pe portal"]
+        B1[Back-office 9 file<br/>Sursă → Nomenclator → Grupe → Prețuri → Mapare → Import → Marfă/Stoc → Stoc → Servicii]
+        B2[Import fișiere PT<br/>xlsx / csv / zip → dry-run → import]
+        B3[Administrare site<br/>hero, oferte, program, comisioane, credite]
+        B4[Șabloane PDF<br/>jsReport .hbs / pdfme designer]
+        B5[Jurnal universal + log integrări]
+    end
+    subgraph ORACLE["ORACLE 11g — schema OFFICEPLUS (ERP UNA.md)"]
+        O1[Master data]
+        O2[Prețuri pe perioade]
+        O3[Documente TMDB_DOCS]
+        O4[Contabilitate<br/>VMDB_CMI, conturi 9301 extrabilanțiere]
+        O5[Credite TMS_CREDITE_*]
+    end
+    subgraph EXT["INTEGRĂRI"]
+        E1[MAIB Checkout]
+        E2[EasyCredit REST<br/>Request_v3]
+        E3[Iute / Liber Card]
+        E4[Google Sheets]
+        E5[Ultra B2B API<br/>modules/partner]
+    end
+    FRONT --> ORACLE
+    BACK --> ORACLE
+    F2 --> E1 & E2 & E3
+    O5 --> E4
+    O1 --> E5
+            </pre>
+        </div>
+
+        <!-- 5 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">5. Straturi All-in-One (Back-Front-Oracle-ERP-Contabilitate-Ecomm)</h3>
+            <pre class="mermaid">
+flowchart TB
+    L1["1 · Prezentare<br/>Jinja2 + JS vanilla (fără framework) · WordPress pentru conținut"]
+    L2["2 · Rute & controlere<br/>app.py (rute vechi) · modules/&lt;cheie&gt;/ (blueprint-uri izolate: b26docs, biro26web, partner, seoforge…)<br/>controllers/biro26_controller.py — validare, sesiune client"]
+    L3["3 · Logică de domeniu<br/>models/biro26_*.py — câte un fișier pe temă: credit, pay, catalog_fast, notify, journal, services, gsheets, version…"]
+    L4["4 · Acces la date<br/>biro26_oracle_store.py → biro26_db.py → subproces biro26_worker.py (thick client, CL8MSWIN1251, NLS_DATE_FORMAT=DD.MM.YYYY)"]
+    L5["5 · Oracle 11g OFFICEPLUS<br/>pachete Y_AI_BIRO26, y_ai_BIRO26_comenzi, BIRO26PT_importData, YBIRO_TEXT_UTIL · triggere · secvențe · Oracle Text"]
+    L6["6 · Contabilitate & ERP nativ UNA.md<br/>TMDB_DOCS, VMDB_CMI, plan de conturi, UN$SOLD, configurare A$ADM / A$ADP / A$ABC"]
+    L1 --> L2 --> L3 --> L4 --> L5 --> L6
+            </pre>
+        </div>
+
+        <!-- 6 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">6. Flux Detaliat Stocuri &amp; Inventar (GET_SOLDT / YBIRO_STOCK_CALC / 9301)</h3>
+            <p class="text-sm text-slate-500 mb-4">Stocul nu se ține într-o tabelă „web": se calculează din contabilitate și se fotografiază; comenzile neexpediate se contabilizează extrabilanțier ca să nu vândă de două ori aceeași marfă.</p>
+            <pre class="mermaid">
+flowchart LR
+    A[Recepție marfă<br/>documente ERP] --> B[(Conturi 217 / 2165 / 2114)]
+    B -->|UN$SOLD.GET_SOLDT la dată, departament| C[Back-office → Stoc calcul]
+    C --> D[(YBIRO_STOCK_CALC<br/>+ _ITEM: snapshot)]
+    D -->|REAL_CANT| E[Catalog / Marfă-Stoc<br/>cantitate afișată]
+    E -->|fără snapshot| F[Constanta 1000<br/>YBIRO_SETTINGS / browser]
+    G[Cont de plată din site] -->|order_gfc: Ct 9301 pasiv| H[(VMDB_CMI<br/>înregistrare unilaterală)]
+    I[Notă de livrare] -->|order_close: Dt 9301| H
+    I -->|marfă expediată| B
+    H -.->|rezervă vizibilă| E
+            </pre>
+        </div>
+
+        <!-- 7 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">7. Flux Motor Prețuri &amp; Rate</h3>
+            <pre class="mermaid">
+flowchart TB
+    S[Fișier furnizor<br/>xlsx / csv] --> ST[BIRO26_GOODS<br/>RETAIL1 · ANGRO · IONLINE]
+    ST -->|Validare → Pregătire → Atribuie chei| K[COD_UNIVERS]
+    K -->|Import grupe| G[Grupe listă preț<br/>group ← brand]
+    G -->|Import date| P0[Perioadă nouă<br/>data start]
+    P0 -->|Import prețuri<br/>☑ doar după Articol| P[(TPR1D_PERPRLIST<br/>PRETV / PRETV1 / PRETV2)]
+    P -->|INSTEAD OF trigger| V[VTPR1D_PERPRLIST<br/>perioade fără goluri]
+    V --> C[Preț în catalog la data curentă]
+    C --> R{Metoda de plată}
+    R -->|Standard / MAIB| C1[Preț de raft + transport]
+    R -->|EasyCredit / Liber Card| C2["Preț în rate =<br/>preț × (1 + PLAN.MARKUP_PCT + ORG.TRANSPORT_MARKUP_PCT)<br/>fără transport în cont"]
+    P -->|Anulează lista| X[rollback_pricelist<br/>șterge perioada importată]
+            </pre>
+        </div>
+
+        <!-- 8 -->
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-xl text-slate-900 mb-1">8. Flux Combinat Prețuri + Stocuri la Checkout</h3>
+            <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as Client (browser)
+    participant F as Flask (controller)
+    participant W as Worker Oracle
+    participant O as Oracle OFFICEPLUS
+    participant P as MAIB / EasyCredit
+    U->>F: POST /api/biro26/shop/invoice {items, metodă, client}
+    F->>F: prag minim (biro26_credit_min: 1500 lei pentru rate)
+    F->>W: prețuri la data curentă + comision plan
+    W->>O: SELECT VTPR1D_PERPRLIST, TMS_CREDITE_PLAN/ORG
+    O-->>W: preț raft / preț în rate
+    F->>W: Y_AI_BIRO26.create_invoice(p_client, p_items)
+    W->>O: INSERT TMDB_DOCS (SYSFID, USERID, VALUTA…) + VMDB_DOCS_OLE
+    O-->>W: cod, nrset
+    W->>O: y_ai_BIRO26_comenzi.order_gfc → Ct 9301 (VMDB_CMI)
+    alt MAIB
+        F->>P: create checkout (sumă, orderId = cod)
+        P-->>U: pagină de plată
+        P->>F: callback → YBIRO_PAYMENTS, status plătit
+    else EasyCredit
+        F->>P: Request_v3 {Login, Password, Product 54, UIN, CreditAmount, NumberOfInstallments 6–11…}
+        P-->>F: {response: URN} → TMS_CREDITE_REQ + _EVENT
+        F->>W: TMDB_CREDITE_M/D (seria CR)
+    end
+    F-->>U: cont de plată PDF + email/Telegram
+    Note over O: Nota de livrare → order_close (Dt 9301) → stocul scade din 217
+            </pre>
+        </div>
+    </div>
+</div>
+
+<!-- ── ALL-IN-ONE BRIEF ────────────────────────────────── -->
+<div id="all-in-one" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="bg-slate-900 text-slate-100 rounded-3xl p-8">
+        <div class="retail-badge inline-block mb-2 !bg-emerald-600">ALL-IN-ONE BRIEF</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Back + Front + Oracle ERP + Contabilitate + E-comm — de ce un singur sistem</h2>
+        <div class="grid md:grid-cols-3 gap-6 mt-6 text-sm text-slate-300">
+            <div class="bg-slate-800/60 rounded-2xl p-5">
+                <div class="text-emerald-400 font-semibold mb-2"><i class="fa-solid fa-database mr-2"></i>O singură sursă de adevăr</div>
+                Catalogul de pe site <em>este</em> <code>TMS_UNIVERS</code>. Prețul de pe site <em>este</em> perioada activă din <code>TPR1D_PERPRLIST</code>. Nu există sincronizări nocturne care pot rămâne în urmă.
+            </div>
+            <div class="bg-slate-800/60 rounded-2xl p-5">
+                <div class="text-emerald-400 font-semibold mb-2"><i class="fa-solid fa-file-invoice mr-2"></i>Comanda = document contabil</div>
+                Clic pe „Comandă" creează <code>TMDB_DOCS</code> cu aceleași triggere și numerotare ca un cont scris de operator în UNA.md. Contabilitatea îl vede imediat, cu rezerva pe 9301.
+            </div>
+            <div class="bg-slate-800/60 rounded-2xl p-5">
+                <div class="text-emerald-400 font-semibold mb-2"><i class="fa-solid fa-shield-halved mr-2"></i>Rezistent la căderi</div>
+                Adresa publică stă în Oracle Cloud; magazinul real — în oficiu, pe LAN-ul bazei (2–3 s pe pagină). Când oficiul se stinge, nginx trece singur pe copia din cloud (<code>@spare</code>), fără schimbări de DNS sau la MAIB.
+            </div>
+        </div>
+        <div class="mt-6 grid md:grid-cols-4 gap-3 text-xs">
+            <div class="border border-slate-700 rounded-xl p-3"><span class="text-slate-400">Versiune</span><br><code>TMS_WebAppVers</code> în Oracle <em>și</em> MySQL, valoare = data release-ului + hash surse</div>
+            <div class="border border-slate-700 rounded-xl p-3"><span class="text-slate-400">Setări</span><br>în <code>YBIRO_SETTINGS</code>, nu în cod — rescrierea unui fișier nu pierde valori</div>
+            <div class="border border-slate-700 rounded-xl p-3"><span class="text-slate-400">Documentație</span><br>servită din repository: <code>/UNA.md/orasldev/b26docs/</code> (62 documente)</div>
+            <div class="border border-slate-700 rounded-xl p-3"><span class="text-slate-400">Backup</span><br><code>YBIRO_BACKUP_DEST</code> + pagina <code>biro26-backups</code></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── MODULES ─────────────────────────────────────────── -->
+<div id="modules" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">ORACLE LEVEL</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Module Detaliate</h2>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-cart-shopping text-emerald-600 mr-2"></i>1. Comenzi &amp; E-commerce</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Vitrină</td><td><code>site_base.html</code>, <code>site_cart.html</code>, <code>site_product.html</code>, <code>shop.html</code> · JS: <code>static/biro26/site.js</code> + fișiere pe temă</td></tr>
+                <tr><td class="table-header pl-3">API public</td><td><code>/api/biro26/shop/*</code> — 42 rute: products, tree, brands, cart, invoice, register/login/me, report/&lt;kind&gt;/&lt;cod&gt;</td></tr>
+                <tr><td class="table-header pl-3">Document</td><td><code>Y_AI_BIRO26.create_invoice</code> → <code>TMDB_DOCS</code> (SYSFID, USERID=UID, VALUTA, ISGFC, DOCCOLOR, CODF, AT2/AT3 obligatorii pentru triggere)</td></tr>
+                <tr><td class="table-header pl-3">Rezervă</td><td><code>y_ai_BIRO26_comenzi.order_gfc</code> — Ct 9301 pasiv; <code>order_close</code> la notă de livrare; <code>order_sold</code></td></tr>
+                <tr><td class="table-header pl-3">Prag</td><td><code>models/biro26_credit_min.py</code> — 1 500 lei (<code>YBIRO_SETTINGS.CREDIT_MIN_ORDER</code>); server-side, nu doar în JS</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-boxes-stacked text-emerald-600 mr-2"></i>2. Stocuri &amp; Inventar</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Sursă</td><td><code>UN$SOLD.GET_SOLDT(pData, pDep, pCont='217 2165 2114')</code> — funcția nativă a ERP-ului</td></tr>
+                <tr><td class="table-header pl-3">Snapshot</td><td><code>YBIRO_STOCK_CALC</code> (antet: dată, dep, total) + <code>YBIRO_STOCK_CALC_ITEM</code> (cod, cant.)</td></tr>
+                <tr><td class="table-header pl-3">API</td><td><code>POST /api/biro26/stock/calculate</code>, <code>GET /stock/latest</code>, <code>GET /stock/items</code></td></tr>
+                <tr><td class="table-header pl-3">Afișare</td><td><code>REAL_CANT</code> în grilă; lipsă snapshot → constanta 1000 (nu zero, ca marfa neinventariată să rămână vandabilă)</td></tr>
+                <tr><td class="table-header pl-3">Scădere</td><td>la facturile expediate + toate documentele extrabilanțiere din conturi (cabinet client: acte de verificare pe note de livrare)</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-tags text-emerald-600 mr-2"></i>3. Prețuri &amp; Rate</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Tabel</td><td><code>TPR1D_PERPRLIST</code> (240 750 rânduri) — CODPRICE, CODGRP, SC, DATASTART, PRETV/1/2/3; view <code>VTPR1D_PERPRLIST</code> cu INSTEAD OF pentru perioade</td></tr>
+                <tr><td class="table-header pl-3">Liste</td><td><code>0 SOCIALE</code>, <code>1 BIRO</code> · 126 grupe (group ← brand)</td></tr>
+                <tr><td class="table-header pl-3">Import</td><td><code>YBIRO_IMPORT_MARFA.import_prices(p_codprice, dates, only_articol)</code>; <code>PRICE_UPDATE_BY_ARTICLE</code> = Y implicit</td></tr>
+                <tr><td class="table-header pl-3">Rate</td><td>comision efectiv = <code>TMS_CREDITE_PLAN.MARKUP_PCT + TMS_CREDITE_ORG.TRANSPORT_MARKUP_PCT</code>; trebuie identic în <code>biro26_credit.calc</code>, <code>shop_invoice</code> și cele 3 șabloane</td></tr>
+                <tr><td class="table-header pl-3">Etalon</td><td><code>COMISIOANE_BASELINE.md</code> — valorile de dinainte de integrarea Ultra, ca să nu se schimbe suma</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-sitemap text-emerald-600 mr-2"></i>4. Catalog &amp; Master Data (TMS_UNIVERS)</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Nomenclator</td><td><code>TMS_UNIVERS</code> — COD (cheie, secvența <code>ID_TMS_UNIVERS</code>), CODVECHI (articol furnizor, 20), DENUMIREA (160), GR1, UM, ISARHIV (1 arhivat / 2 dezactivat, trigger <code>TMS_UNIVERS_DONT_DELETE</code>)</td></tr>
+                <tr><td class="table-header pl-3">Cartelă</td><td><code>TMS_MPT</code> (contabil), <code>TMS_MPT_TVR</code> (IE_LINKADRES = foto), <code>TMS_MPT_BARCODE</code> (205 425), <code>TMS_MPT_WEBATTR</code> (descrieri BLOB RO/RU/EN + copii de căutare fără diacritice), <code>TMS_MPT_WEBIMG</code></td></tr>
+                <tr><td class="table-header pl-3">Arbore</td><td>GRUPA › CATEGORIE din <code>BIRO26_GOODS</code>; <code>YBIRO_GRP_I18N</code> pentru denumiri traduse; rename/move din back-office</td></tr>
+                <tr><td class="table-header pl-3">Căutare</td><td>index Oracle Text pe atribute (<code>19_webattr_text_index.sql</code>) — catalog 4–8 s → 0,7–1,5 s; căutare instant</td></tr>
+                <tr><td class="table-header pl-3">Charset</td><td><code>CL8MSWIN1251</code>: chirilica se scrie doar prin python-oracledb; diacriticele — în BLOB (<code>YBIRO_TEXT_UTIL</code>, trigger <code>YBIRO_UNIVERS_CHK_DIACRITICE</code>)</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-users text-emerald-600 mr-2"></i>5. Clienți, Credite &amp; Parteneri</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Clienți</td><td><code>YBIRO_CLIENT</code> (+ câmpuri din <code>06_ybiro_client_fields</code>: IDNP, telefon, adresă; înregistrare de operator + Contragenti date.gov.md) · cabinet: facturi, acte de verificare, dosare</td></tr>
+                <tr><td class="table-header pl-3">Credite</td><td><code>TMS_CREDITE_PROVIDER / ORG / PLAN / REQ / REQ_EVENT / API_LOG</code> — în <strong>ambele</strong> baze (ADB + OfficePlus); <code>deploy_credite_oracle.py --target both</code></td></tr>
+                <tr><td class="table-header pl-3">EasyCredit</td><td>REST <code>api.ecredit.md/{TEST|PRODUCTION}/</code>, autentificare pe două niveluri, <strong>Request_v3</strong> (12 câmpuri; fără ShopID — magazinul se alege după Login); produs 54, 6–11 rate</td></tr>
+                <tr><td class="table-header pl-3">Dosar</td><td><code>TMDB_CREDITE_M/D</code> seria CR, creat din cont; ancheta completă a solicitantului; sincronizare Google Sheets (<code>biro26_gsheets</code>, JWT RS256)</td></tr>
+                <tr><td class="table-header pl-3">B2B</td><td><code>modules/partner</code> — contract Ultra V1, <code>PAPI_*</code>, <code>/api/v1</code> + <code>/api-documentation</code></td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-file-lines text-emerald-600 mr-2"></i>6. Documente &amp; Contabilitate (TMDB_DOCS)</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Antet / linii</td><td><code>TMDB_DOCS</code> (secvența <code>ID_TMDB_DOCS</code>, numerotare <code>XNRDOC</code>) + <code>VMDB_DOCS_OLE</code>, <code>VMDB_DOCS_WORK</code>, <code>VMDB_ST201M/D</code></td></tr>
+                <tr><td class="table-header pl-3">Meta web</td><td><code>YBIRO_DOC_META</code> (metoda de plată, plan credit, comentarii), <code>YBIRO_PAYMENTS</code> (MAIB), <code>YBIRO_CLIENT_INVOICE_FMT</code></td></tr>
+                <tr><td class="table-header pl-3">Extrabilanțier</td><td>înregistrări unilaterale în <code>VMDB_CMI</code>; contul 9301 din grupa 9*** (9992 era luat de retururi); <code>ALTER SESSION SET NLS_DATE_FORMAT='DD.MM.YYYY'</code> obligatoriu — triggerul lor folosește date ca text</td></tr>
+                <tr><td class="table-header pl-3">Configurare UNA</td><td>arbore <code>A$ADM / A$ADP / A$ABC</code>: OBJ_TYPE=1 Documents, OBJ_SUBTYPE 2 Action / 4 Sold; proprietățile nodului devin bind-uri <code>:ini_&lt;cheie&gt;</code></td></tr>
+                <tr><td class="table-header pl-3">Tipărire</td><td><code>reports/</code>: jsReport (Handlebars + chrome-pdf) sau pdfme (JSON + pdf-lib); comutator pe formular în <code>engines.json</code></td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-file-import text-emerald-600 mr-2"></i>7. Import de la furnizori</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Fișiere</td><td>pagina <code>biro26-import-pt</code>: xlsx / csv / zip → <code>biro26pt_loader.py</code> → staging → <code>BIRO26PT_importData.import_file(p_load_id, p_commit)</code> dry-run apoi commit</td></tr>
+                <tr><td class="table-header pl-3">Detecție</td><td>3 strategii de recunoaștere a coloanelor (RO / RU / EN); regula de aur: fișierul are coloana <strong>Articol</strong>; <code>YBIRO_IMPORT_ALGO</code>, <code>YBIRO_IMPORT_LOG</code>, <code>YBIRO_IMPORT_GROUPS</code></td></tr>
+                <tr><td class="table-header pl-3">Profiluri</td><td><code>YBIRO_MAP_PROFILE / PARAM</code>: coloane sursă + constante (um, gr1, tip, codtva, lungimi) — profilul <code>default</code>, codprice 1</td></tr>
+                <tr><td class="table-header pl-3">Prefixe</td><td>fiecare furnizor cu prefix de articol propriu (<code>IMPORT_SURSE.md</code>); <code>YBIRO_PREFIX_DEDUP</code>, <code>20_biro26_goods_unique.sql</code></td></tr>
+                <tr><td class="table-header pl-3">Servicii</td><td><code>YBIRO_SERVICE_FUNCTIONS</code> — registru de funcții CSV (o funcție = un INSERT); prima: carduri cu diacritice stricate (1 645)</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-credit-card text-emerald-600 mr-2"></i>8. Plăți &amp; Integrări</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">MAIB</td><td>Checkout PRODUCTION; <code>models/biro26_pay.py</code>, <code>/api/biro26/pay/*</code> (8 rute), callback → <code>YBIRO_PAYMENTS</code>; <code>BIRO26_MAIB_PROJECT_SECRET</code> doar în <code>.env</code></td></tr>
+                <tr><td class="table-header pl-3">Credit</td><td><code>integrations/easycredit_rest.py</code> (Request_v3), <code>iute_client.py</code> (Liber Card); log în <code>TMS_CREDITE_API_LOG</code>, jurnal <code>biro26-integration-log</code> cu grid sortabil</td></tr>
+                <tr><td class="table-header pl-3">Notificări</td><td><code>biro26_notify.py</code>: SMTP (<code>BIRO26_SMTP_*</code>), Telegram, WhatsApp; setări în <code>biro26-notify-settings</code></td></tr>
+                <tr><td class="table-header pl-3">Conținut</td><td>WordPress pe 92.5.130.1 (iframe / sub_filter <code>officeplus.una.md → officeplus.md</code>), atribuire social → plugin Social Analytics</td></tr>
+                <tr><td class="table-header pl-3">Sănătate</td><td><code>/api/biro26/health</code>, <code>X-Shop-Origin</code>, versiune în footer din <code>TMS_WebAppVers</code></td></tr>
+            </tbody></table>
+        </div>
+    </div>
+</div>
+
+<!-- ── PYTHON IMPLEMENTATION ───────────────────────────── -->
+<div id="python-implementation" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">IMPLEMENTARE</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Realizare Tehnică în Python / Flask</h2>
+        <p class="text-slate-600 mt-2">Spre deosebire de o platformă PHP clasică, aici un singur proces Flask servește portalul intern (Oracle ADB, thin) și magazinul (Oracle 11g, thick) — cele două drivere nu pot coexista în același proces, de aceea există worker-ul.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-5">
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900 mb-3">Arhitectură Completă (3+ Layere)</h3>
+            <ol class="text-sm space-y-2 text-slate-600 list-decimal pl-4">
+                <li><strong>Prezentare</strong> — Jinja2 + JS vanilla; fără CDN-uri în vitrină (mobil, rețea slabă); i18n RO/RU (<code>biro26_i18n</code>, <code>YBIRO_GRP_I18N</code>).</li>
+                <li><strong>Rute</strong> — <code>app.py</code> pentru modulele vechi; <code>core/module_loader.py</code> montează automat orice <code>modules/&lt;cheie&gt;/</code> cu <code>blueprint</code> la <code>/UNA.md/orasldev/&lt;cheie&gt;</code>.</li>
+                <li><strong>Domeniu</strong> — <code>models/biro26_&lt;temă&gt;.py</code>, un fișier pe temă (regula №2: logica nu intră în fișiere comune).</li>
+                <li><strong>Date</strong> — <code>Biro26Store</code> → <code>Biro26DB</code> → subproces <code>biro26_worker.py</code>: contract JSON <code>{success, columns, data, rowcount, message}</code>; <code>execute_query / execute_dml / execute_script / call_proc</code>.</li>
+                <li><strong>Oracle</strong> — pachete PL/SQL pentru tot ce e tranzacțional; Python nu scrie niciodată „manual" în <code>TMDB_DOCS</code>.</li>
+            </ol>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900 mb-3">Implementare Reală a Funcționalităților Site-ului</h3>
+            <ul class="text-sm space-y-2 text-slate-600">
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Catalog cu arbore, branduri multiple, preț la dată, carduri compacte, „Produsul zilei", căutare Oracle Text</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Coș + prag 1 500 lei pentru rate (server-side) + transport în modalul plății Standard</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Cont client, cabinet: facturi, acte de verificare pe note de livrare, dosare de credit</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> MAIB Checkout, EasyCredit Request_v3, Liber Card; log tehnic pentru clienții marcați admin</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> PDF cont / comandă în două motoare; designer vizual pdfme</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Program de lucru real în banner (L–V 09–18, S 09–15, D liber, Europe/Chisinau)</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Back-office 9 file cu ghid „?" pe fiecare; import fișiere cu dry-run</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Failover automat, versiune în două baze, wp-login pe adresă secretă</li>
+            </ul>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900 mb-3">Concluzii despre Realizarea Tehnică</h3>
+            <ul class="text-sm space-y-2 text-slate-600">
+                <li><strong>Oracle-first:</strong> nicio stare autoritativă în JSON / SQLite / KV generic; tabele normalizate cu prefix (<code>YBIRO_</code>, <code>BIRO26_</code>, <code>TMS_CREDITE_</code>).</li>
+                <li><strong>11g impune disciplină:</strong> fără OFFSET/FETCH (paginare ROWNUM), fără IDENTITY (secvență + trigger), doar bind-uri; CLOB bind ultimul (ORA-24816).</li>
+                <li><strong>Izolare:</strong> module noi doar în <code>modules/&lt;cheie&gt;/</code> cu teste de izolare; fișierele comune primesc un singur rând de apel.</li>
+                <li><strong>Operare:</strong> deploy punctual (patch de fișiere, md5 înainte de a atinge o platformă), <code>systemctl restart artgranit</code>, verificare <code>/cos</code> → 200 după orice schimbare.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ── STRUCTURE ───────────────────────────────────────── -->
+<div id="structure" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="bg-white border border-slate-200 rounded-3xl p-8">
+        <div class="retail-badge inline-block mb-2">REPOSITORY</div>
+        <h2 class="text-3xl font-semibold tracking-tight mb-4">Structura Proiectului (Artgranit / Biro26)</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+<pre class="code"><span class="c"># rădăcina repository-ului Artgranit</span>
+app.py                         <span class="c"># portalul + rutele vechi (biro26 inclusiv)</span>
+config.py · .env               <span class="c"># secrete DOAR aici (DB, MAIB, SMTP, EasyCredit)</span>
+core/module_loader.py          <span class="c"># montează modules/&lt;cheie&gt;/ automat</span>
+controllers/
+  auth_controller.py
+  biro26_controller.py         <span class="c"># validare, sesiune client, shop_invoice</span>
+models/
+  biro26_db.py                 <span class="c"># conexiune → subproces</span>
+  biro26_worker.py             <span class="c"># SINGURUL loc cu init_oracle_client (thick)</span>
+  biro26_oracle_store.py       <span class="c"># SQL-ul back-office-ului</span>
+  biro26_catalog_fast.py       <span class="c"># catalog rapid + cache</span>
+  biro26_credit.py · biro26_credit_min.py
+  biro26_pay.py · biro26_notify.py · biro26_report.py
+  biro26_journal.py · biro26_services.py · biro26_gsheets.py
+  biro26_site.py · biro26_social.py · biro26_version.py
+  biro26pt_loader.py · biro26pt_store.py   <span class="c"># import fișiere</span>
+  doc_registry.py · module_registry.py     <span class="c"># meniu + hub docs automat</span>
+integrations/
+  easycredit_rest.py (Request_v3) · easycredit_provider.py · iute_client.py</pre>
+<pre class="code">templates/biro26/
+  site_base.html · site_cart.html · site_product.html · shop.html
+  backoffice.html (9 file) · import_pt.html · backup_admin.html
+static/biro26/
+  site.js · styles.css · backoffice-tabs.js · backoffice-help.js
+  grid-export.js (sortare/filtru/export pe orice grid)
+  docs/backoffice/*.png        <span class="c"># capturi pentru ghid</span>
+modules/                       <span class="c"># module izolate (blueprint = cheia)</span>
+  b26docs/ · biro26web/ · partner/ · seoforge/ · sda/ · tbcontrol/ …
+sql/biro26/                    <span class="c"># DDL numerotat 01..20 + pachete</span>
+  04_y_ai_biro26.sql · 19_y_ai_biro26_comenzi.sql
+  12_tms_credite.sql · 13_tmdb_credite.sql · 18_tms_webappvers*.sql
+  BIRO26PT_importData.pkg.sql · YBIRO_TEXT_UTIL.pkg.sql
+reports/                       <span class="c"># sidecar Node: jsReport + pdfme (:5488)</span>
+deploy/officeplus/             <span class="c"># nginx: failover, wp-login-gate</span>
+docs/Biro26/                   <span class="c"># 60+ documente .md/.html + docs.json</span>
+scripts/set_app_version.py     <span class="c"># TMS_WebAppVers în Oracle + MySQL</span>
+CLAUDE.md · AGENTS.md          <span class="c"># regulile №1–№4 pentru agenți</span></pre>
+        </div>
+    </div>
+</div>
+
+<!-- ── PSEUDOCODE ──────────────────────────────────────── -->
+<div id="pseudocode" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">FLOW-URI CHEIE</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Exemple de Cod (Python pseudocod)</h2>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-base text-slate-900 mb-2">a) Cont de plată din coș</h3>
+<pre class="code"><span class="k">def</span> shop_invoice(client, items, method, plan_id=None):
+    <span class="c"># 1. prag server-side pentru rate (fișier separat)</span>
+    ok, msg = biro26_credit_min.check(total(items))
+    <span class="k">if</span> plan_id <span class="k">and not</span> ok: <span class="k">return</span> error(msg)
+
+    <span class="c"># 2. preț efectiv: raft sau în rate (aceeași formulă ca în șabloane)</span>
+    <span class="k">for</span> it <span class="k">in</span> items:
+        it.price = price_at(it.cod, today())
+        <span class="k">if</span> plan_id:
+            it.price *= 1 + plan.MARKUP_PCT + org.TRANSPORT_MARKUP_PCT
+
+    <span class="c"># 3. documentul îl scrie PL/SQL, nu Python</span>
+    r = db.call_proc(<span class="s">"Y_AI_BIRO26.create_invoice"</span>,
+                     p_client=client.cod, p_items=json(items),
+                     p_transport=<span class="k">None if</span> plan_id <span class="k">else</span> transport)
+    cod, nrset = r[<span class="s">"cod"</span>], r[<span class="s">"nrset"</span>]
+    db.call_proc(<span class="s">"y_ai_BIRO26_comenzi.order_gfc"</span>, p_cod=cod)  <span class="c"># Ct 9301</span>
+    journal.log(<span class="s">"invoice"</span>, cod, method)
+    notify.send(client, cod)
+    <span class="k">return</span> {<span class="s">"cod"</span>: cod, <span class="s">"nrset"</span>: nrset}</pre>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-base text-slate-900 mb-2">b) Cerere EasyCredit (Request_v3)</h3>
+<pre class="code"><span class="k">def</span> submit_request(env, req):
+    base = <span class="s">f"https://api.ecredit.md/{env}/"</span>
+    body = {<span class="s">"request"</span>: {
+        <span class="s">"Login"</span>: cfg.login, <span class="s">"Password"</span>: cfg.password,
+        <span class="s">"Product"</span>: 54, <span class="s">"UIN"</span>: req.idnp,
+        <span class="s">"ApDateOfBirth"</span>: req.dob, <span class="s">"ApFirstName"</span>: req.first,
+        <span class="s">"ApLastName"</span>: req.last, <span class="s">"CaMobile"</span>: req.phone,
+        <span class="s">"GoodsName"</span>: req.goods, <span class="s">"CreditAmount"</span>: req.amount,
+        <span class="s">"NumberOfInstallments"</span>: req.months,   <span class="c"># 6..11</span>
+        <span class="s">"FirstInstallmentDate"</span>: req.first_pay}}
+    r = post(base + <span class="s">"Request_v3"</span>, json=body)
+    j = r.json()
+    <span class="c"># 4xx fără plicul {request,response} = eroare de transport</span>
+    <span class="k">if</span> r.status_code &gt;= 400 <span class="k">and</span> <span class="s">"response"</span> <span class="k">not in</span> j:
+        <span class="k">return</span> <span class="k">None</span>, <span class="s">f"HTTP {r.status_code}: {j.get('detail')}"</span>
+    urn = j[<span class="s">"response"</span>][<span class="s">"URN"</span>]
+    store.save_req(req, urn); store.log_api(body_masked, j)
+    <span class="k">return</span> urn, <span class="k">None</span></pre>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-base text-slate-900 mb-2">c) Worker Oracle (thick, izolat)</h3>
+<pre class="code"><span class="c"># models/biro26_worker.py — rulează ca subproces</span>
+oracledb.init_oracle_client(lib_dir=BIRO26_INSTANT_CLIENT)
+conn = oracledb.connect(user, pwd, dsn)          <span class="c"># 11g, CL8MSWIN1251</span>
+cur = conn.cursor()
+cur.execute(<span class="s">"ALTER SESSION SET NLS_DATE_FORMAT='DD.MM.YYYY'"</span>)
+job = json.load(sys.stdin)                       <span class="c"># {op, sql, params}</span>
+<span class="k">if</span> job[<span class="s">"op"</span>] == <span class="s">"query"</span>:
+    cur.execute(job[<span class="s">"sql"</span>], unb64(job[<span class="s">"params"</span>]))
+    out = {<span class="s">"success"</span>: <span class="k">True</span>, <span class="s">"columns"</span>: cols(cur),
+           <span class="s">"data"</span>: cur.fetchall(), <span class="s">"rowcount"</span>: cur.rowcount}
+<span class="k">elif</span> job[<span class="s">"op"</span>] == <span class="s">"proc"</span>:
+    cur.callproc(<span class="s">"DBMS_OUTPUT.ENABLE"</span>); cur.callproc(job[<span class="s">"name"</span>], job[<span class="s">"args"</span>])
+    out = {<span class="s">"success"</span>: <span class="k">True</span>, <span class="s">"message"</span>: read_dbms_output(cur)}
+print(json.dumps(out, default=str))</pre>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-base text-slate-900 mb-2">d) Failover nginx (92.5.130.1)</h3>
+<pre class="code"><span class="c"># deploy/officeplus/officeplus-failover.conf</span>
+server {
+    listen 127.0.0.1:8001;
+    location / {
+        proxy_pass http://93.115.136.18;      <span class="c"># oficiu → .148 → .250:8001</span>
+        proxy_intercept_errors on;
+        proxy_connect_timeout 5s;
+        error_page 502 503 504 = @spare;
+        add_header X-Shop-Origin office always;
+        sub_filter 'officeplus.una.md' 'officeplus.md';
+    }
+    location @spare {
+        proxy_pass http://127.0.0.1:8000;     <span class="c"># copia locală, aceeași bază</span>
+        add_header X-Shop-Origin spare always;
+    }
+}</pre>
+        </div>
+    </div>
+</div>
+
+<!-- ── PROBLEMS ────────────────────────────────────────── -->
+<div id="problems" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">LECȚII &amp; MODERNIZARE</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Probleme &amp; Recomandări</h2>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden">
+        <table class="data-table w-full text-sm">
+            <thead><tr class="table-header text-left"><th class="p-3">Problemă (întâlnită real)</th><th class="p-3">Cauză</th><th class="p-3">Recomandare / stare</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+                <tr><td class="p-3">Deploy „reușit", dar site-ul nu se schimbă</td><td class="p-3">deploy-ul mergea pe 92.5.130.1, care e doar rezerva; magazinul real e pe .250</td><td class="p-3">verifică <code>X-Shop-Origin</code>; patch punctual pe .250 cu md5 înainte (regula №4)</td></tr>
+                <tr><td class="p-3">502 pe 90 s după deploy</td><td class="p-3"><code>app.py</code> trimis fără modulele pe care le importă</td><td class="p-3">patch-ul conține setul coerent; după restart: <code>grep -c ModuleNotFound</code> = 0</td></tr>
+                <tr><td class="p-3">Muncă ștearsă de altă sesiune</td><td class="p-3">logica scrisă în fișiere comune, rescrise integral</td><td class="p-3">regulile №2–№4: fișier propriu + doc .md + commit/push pe pas</td></tr>
+                <tr><td class="p-3">ORA-01843 la scriere în VMDB_CMI</td><td class="p-3">triggerul ERP-ului compară date ca text <code>'01.01.2014'</code></td><td class="p-3"><code>ALTER SESSION SET NLS_DATE_FORMAT='DD.MM.YYYY'</code> în worker, nu în triggerul lor</td></tr>
+                <tr><td class="p-3">ORA-20101 USERID=0 la crearea documentelor</td><td class="p-3">triggerele TMDB_DOCS cer SYSFID / USERID</td><td class="p-3">oglindit setul de câmpuri din <code>y_ai_BIRO26</code></td></tr>
+                <tr><td class="p-3">Catalog 4–8 s</td><td class="p-3">interogări fără index pe atribute web</td><td class="p-3">index Oracle Text + <code>biro26_catalog_fast</code> → 0,7–1,5 s ✔</td></tr>
+                <tr><td class="p-3">EasyCredit HTTP 404 / servicii greșite</td><td class="p-3"><code>eShopRequest*</code> nu e pentru parteneri</td><td class="p-3"><strong>Request_v3</strong> (fără ShopID) ✔; de cerut Product ID-urile de PRODUCTION</td></tr>
+                <tr><td class="p-3">Chirilica cu „?" în denumiri</td><td class="p-3">charset CL8MSWIN1251 + SQLcl</td><td class="p-3">scriere doar prin python-oracledb; diacritice în BLOB; funcția din <em>Servicii</em> pentru cazurile vechi</td></tr>
+                <tr><td class="p-3">Modernizare: <code>app.py</code> ~9 000 linii</td><td class="p-3">13 module vechi în același fișier</td><td class="p-3">migrare câte unul în <code>modules/&lt;cheie&gt;/</code> (b26docs, biro26web deja); teste de izolare</td></tr>
+                <tr><td class="p-3">Modernizare: stoc în timp real</td><td class="p-3">snapshot manual din Stoc (calcul)</td><td class="p-3">job periodic + scădere automată la notele de livrare (în lucru)</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── QUERIES ─────────────────────────────────────────── -->
+<div id="queries" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">SQL</div>
+        <h2 class="text-3xl font-semibold tracking-tight">Exemple de Query-uri Utile</h2>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+<pre class="code"><span class="c">-- Prețul valabil azi pentru o marfă (lista 1 BIRO)</span>
+SELECT p.sc, u.denumirea, p.datastart, p.pretv, p.pretv1, p.pretv2
+FROM   tpr1d_perprlist p JOIN tms_univers u ON u.cod = p.sc
+WHERE  p.codprice = 1 AND p.sc = :cod
+AND    p.datastart = (SELECT MAX(datastart) FROM tpr1d_perprlist
+                      WHERE codprice = 1 AND sc = :cod AND datastart &lt;= SYSDATE);
+
+<span class="c">-- Marfă fără nicio perioadă de preț</span>
+SELECT u.cod, u.codvechi, u.denumirea
+FROM   tms_univers u
+WHERE  u.tip = 'P' AND NVL(u.isarhiv,0) = 0
+AND NOT EXISTS (SELECT 1 FROM tpr1d_perprlist p WHERE p.sc = u.cod);
+
+<span class="c">-- Rânduri din feed încă fără cheie (status Nou)</span>
+SELECT brand, COUNT(*) FROM biro26_goods
+WHERE  cod_univers IS NULL GROUP BY brand ORDER BY 2 DESC;</pre>
+<pre class="code"><span class="c">-- Ultimul snapshot de stoc și primele poziții</span>
+SELECT c.id, c.data_doc, c.dep, c.total_cant
+FROM   ybiro_stock_calc c ORDER BY c.id DESC FETCH_FIRST_ROWNUM; <span class="c">-- 11g: WHERE ROWNUM = 1</span>
+SELECT i.sc, u.denumirea, i.cant
+FROM   ybiro_stock_calc_item i JOIN tms_univers u ON u.cod = i.sc
+WHERE  i.calc_id = :id AND ROWNUM &lt;= 300;
+
+<span class="c">-- Conturi create din site azi, cu metoda de plată</span>
+SELECT d.cod, d.nrset, d.datadoc, m.pay_method, m.credit_plan_id
+FROM   tmdb_docs d JOIN ybiro_doc_meta m ON m.cod = d.cod
+WHERE  TRUNC(d.datadoc) = TRUNC(SYSDATE) ORDER BY d.cod DESC;
+
+<span class="c">-- Cereri de credit și ultimul eveniment</span>
+SELECT r.id, r.provider, r.urn, r.status, r.amount,
+       (SELECT MAX(e.created) FROM tms_credite_req_event e WHERE e.req_id = r.id) last_ev
+FROM   tms_credite_req r ORDER BY r.id DESC;
+
+<span class="c">-- Versiunea aplicației (identică în Oracle și MySQL)</span>
+SELECT app_key, app_version, src_hash, updated FROM tms_webappvers;</pre>
+    </div>
+</div>
+
+<!-- ── ACCESS ──────────────────────────────────────────── -->
+<div id="access" class="max-w-screen-xl mx-auto px-8 pb-16">
+    <div class="bg-white border border-slate-200 rounded-3xl p-8">
+        <div class="retail-badge inline-block mb-2">OPERARE</div>
+        <h2 class="text-3xl font-semibold tracking-tight mb-4">Acces &amp; Conexiune la Bază de Date</h2>
+        <div class="grid md:grid-cols-2 gap-6 text-sm">
+            <div>
+                <table class="data-table w-full"><tbody class="divide-y divide-slate-100">
+                    <tr><td class="table-header w-44 pl-3">Oracle ERP</td><td>11.2.0.4 EE, schema <code>OFFICEPLUS</code>, charset CL8MSWIN1251 — accesibil doar din LAN-ul oficiului (VPN93 pentru administrare)</td></tr>
+                    <tr><td class="table-header pl-3">Oracle ADB</td><td>portalul Artgranit — wallet în <code>/home/ubuntu/oracle_wallets/…</code>, <code>WALLET_DIR</code> absolut în <code>.env</code></td></tr>
+                    <tr><td class="table-header pl-3">Secrete</td><td><strong>numai</strong> în <code>.env</code> (BIRO26_DB_*, BIRO26_MAIB_*, BIRO26_SMTP_*, EasyCredit); niciodată în cod, repo sau bază</td></tr>
+                    <tr><td class="table-header pl-3">Magazin real</td><td><code>192.168.0.250</code> — <code>/home/ubuntu/artgranit</code>, <code>systemctl restart artgranit</code>, port 8001 intern</td></tr>
+                    <tr><td class="table-header pl-3">Front public</td><td><code>92.5.130.1</code> (HestiaCP): nginx <code>conf.d/officeplus-hybrid.conf</code> + <code>officeplus-failover.conf</code>, WordPress, copia Flask :8000</td></tr>
+                    <tr><td class="table-header pl-3">Proxy oficiu</td><td><code>192.168.0.148</code> — CentOS 7, nginx 1.20, doar proxy spre .250</td></tr>
+                </tbody></table>
+            </div>
+            <div>
+<pre class="code"><span class="c"># Cine răspunde acum pentru officeplus.md?</span>
+curl -sI https://officeplus.md/ | grep -i x-shop-origin   <span class="c"># office | spare</span>
+
+<span class="c"># Verificare obligatorie după ORICE schimbare pe server</span>
+curl -s -o /dev/null -w '%{http_code}' https://officeplus.md/cos     <span class="c"># 200</span>
+curl -I https://nufarul.eminescu.md/login                            <span class="c"># 200</span>
+
+<span class="c"># Restart corect (niciodată pkill + nohup)</span>
+sudo systemctl restart artgranit &amp;&amp; sleep 8
+sudo journalctl -u artgranit --since '-1min' | grep -c ModuleNotFound  <span class="c"># 0</span>
+
+<span class="c"># Documentația proiectului (autentificat pe portal)</span>
+https://officeplus.md/UNA.md/orasldev/b26docs/
+https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/GHID_BACKOFFICE.md</pre>
+            </div>
+        </div>
+        <p class="text-xs text-slate-500 mt-6">
+            Cifrele din document sunt citite din baza de producție la 05–06.09.2026. Sursa acestui fișier:
+            <code>docs/Biro26/OFFICEPLUS_TECH_DOC.html</code>; model: documentația Artmasiv (eminescu.md). Diagramele — Mermaid, randate în browser.
+        </p>
+    </div>
+</div>
+
+<footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-screen-xl mx-auto px-8 py-6 text-xs text-slate-500 flex flex-wrap justify-between gap-2">
+        <span>OfficePlus • Oracle E-commerce Platform • documentație tehnică</span>
+        <span>UNA.md and ORACLE OCI based • Artgranit / Biro26</span>
+    </div>
+</footer>
+
+<script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose',
+        flowchart: { htmlLabels: true, curve: 'basis' }, sequence: { showSequenceNumbers: true } });
+</script>
+</body>
+</html>
