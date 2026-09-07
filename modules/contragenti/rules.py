@@ -20,7 +20,7 @@ import legal_forms  # noqa: E402  (copie MIT din repo-ul Contragenti)
 
 _TRANSLIT = str.maketrans({"ă": "a", "â": "a", "î": "i", "ș": "s", "ş": "s", "ț": "t", "ţ": "t",
                            "Ă": "A", "Â": "A", "Î": "I", "Ș": "S", "Ş": "S", "Ț": "T", "Ţ": "T",
-                           "—": "-", "–": "-", "«": '"', "»": '"', "’": "'", "“": '"', "”": '"'})
+                           "—": "-", "–": "-", "«": "", "»": "", "’": "'", "“": '"', "”": '"'})
 
 
 def to_db_charset(text: Optional[str]) -> str:
@@ -34,7 +34,9 @@ def to_db_charset(text: Optional[str]) -> str:
             out.append(ch)
         except UnicodeEncodeError:
             continue
-    return "".join(out).strip()
+    # RO: ghilimelele sint refuzate de TRIG_BFIU_TMS_UNIVERS_CK_BANK (ORA-20000 «fara simboluri
+    #     speciale (")», 08.09.2026, «S.R.L. "ECONOM SOP"») — le scoatem si strangem spatiile
+    return re.sub(r"\s+", " ", "".join(out).replace('"', "").replace("'", "")).strip()
 
 
 def cut(text: Optional[str], n: int) -> Optional[str]:

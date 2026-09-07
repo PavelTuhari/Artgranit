@@ -165,3 +165,13 @@ def test_quick_add_transliterates_and_form_add_goes_through_bridge():
     assert "if(body.is_company && body.idno && window.govUpsertFields)" in t
     c = rules.card_from_fields({"idno": "1002600009035", "denumire": "X", "phone": "069", "email": "A@B.md"})
     assert c["phone"] == "069" and c["email"] == "a@b.md"
+
+
+def test_quotes_never_reach_denumirea():
+    """RO: 08.09.2026 — «S.R.L. "ECONOM SOP"»: TRIG_BFIU_TMS_UNIVERS_CK_BANK refuza ghilimelele."""
+    from models.biro26_charset import to_db_charset
+    assert to_db_charset('S.R.L. "ECONOM ȘOP"') == "S.R.L. ECONOM SOP"
+    assert rules.to_db_charset('«Iurilen-Flor» S.R.L.') == "Iurilen-Flor S.R.L."
+    m = rules.map_card({"idno": "1017600047260", "denumire": 'S.R.L. "ECONOM ȘOP"'})
+    assert '"' not in m["univers"]["DENUMIREA"] and '"' not in m["univers"]["NAMERUS"]
+    assert "clients-gov.js?v=20260908" in _read("templates", "biro26", "clients.html")
