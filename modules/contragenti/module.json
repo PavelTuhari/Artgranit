@@ -1,0 +1,14 @@
+{
+  "title": {"ro": "Contragenti → una.md", "ru": "Contragenti → una.md", "en": "Contragenti → una.md"},
+  "icon": "🏛",
+  "order": 65,
+  "url": "/UNA.md/orasldev/contragenti",
+  "descr": {
+    "ro": "Puntea dintre utilitarul Contragenti (registrul de stat date.gov.md) și nomenclatorul una.md: cardul contrapărții intră în TMS_UNIVERS (CODVECHI = IDNO), TMS_ORG (CODFISCAL) și fișa clientului, cu deduplicare după IDNO și denumire; jurnalul întregului lanț.",
+    "ru": "Мост между утилитой Contragenti (госреестр date.gov.md) и справочником una.md: карточка контрагента попадает в TMS_UNIVERS (CODVECHI = IDNO), TMS_ORG (CODFISCAL) и карточку клиента, с дедупликацией по IDNO и названию; журнал всей цепочки.",
+    "en": "Bridge between the Contragenti tool (state registry date.gov.md) and the una.md directory: counterparty card into TMS_UNIVERS (CODVECHI = IDNO), TMS_ORG (CODFISCAL) and the client record, deduplicated by IDNO and name; full chain log."
+  },
+  "sql_prefix": "CTG_",
+  "docs": "Contragenti",
+  "pages": {"contragenti.journal_page": {"ro": "Jurnalul lanțului", "ru": "Журнал цепочки", "en": "Chain log"}}
+}

@@ -194,12 +194,14 @@ async function pickFromGov(qArg){
   if(!(await govHealth())){ govOffline(msg); return; }
   msg.textContent = 'Se deschide utilitarul Contragenti… alegeți compania și apăsați «Vernuti contragentul».';
   const url = GOV_BASE + '/pick?q=' + encodeURIComponent(q) + '&lang=ro&timeout=300&format=xml';
+  if(window.govLog) govLog('pick_start', 'ok', q, 'fetch ' + GOV_BASE + '/pick');
   try{
     const r = await fetch(url, {headers:{'Accept':'application/xml'}});
-    if(r.status === 204){ msg.textContent = 'Selecție anulată de operator.'; return; }
-    if(r.status === 504){ msg.textContent = 'A expirat timpul de selecție.'; return; }
-    if(!r.ok){ msg.textContent = 'Utilitarul a răspuns cu codul ' + r.status; return; }
-    const xml = new DOMParser().parseFromString(await r.text(), 'application/xml');
+    if(r.status === 204){ msg.textContent = 'Selecție anulată de operator.'; if(window.govLog) govLog('pick_cancel', 'warn', q); return; }
+    if(r.status === 504){ msg.textContent = 'A expirat timpul de selecție.'; if(window.govLog) govLog('pick_timeout', 'warn', q); return; }
+    if(!r.ok){ msg.textContent = 'Utilitarul a răspuns cu codul ' + r.status; if(window.govLog) govLog('pick_error', 'error', q, 'HTTP ' + r.status); return; }
+    const raw = await r.text();
+    const xml = new DOMParser().parseFromString(raw, 'application/xml');
     const set = (id,v)=>{ if(v) document.getElementById(id).value = v; };
     set('nc-name', govText(xml,'denumire'));
     set('nc-idno', govText(xml,'idno'));
@@ -208,8 +210,9 @@ async function pickFromGov(qArg){
     const lich = govText(xml,'lichidata');
     msg.textContent = 'Preluat din date.gov.md: ' + (govText(xml,'denumire') || '—') +
       (govText(xml,'inregistrare') ? ' · înregistrată ' + govText(xml,'inregistrare') : '') +
-      (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '') +
-      ' — verificați și apăsați «Adaugă client».';
+      (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
+    // RO: scrierea in una.md (TMS_UNIVERS.CODVECHI, TMS_ORG.CODFISCAL) cu dedup — modules/contragenti
+    if(window.govUpsertXml) await govUpsertXml(raw, q);
   }catch(e){
     // RO: pagina e pe HTTPS, utilitarul pe http://127.0.0.1 — unele browsere
     //     blocheaza apelul din pagina. Atunci deschidem utilitarul intr-o
@@ -254,6 +257,7 @@ window.addEventListener('message', function(ev){
     (d.inregistrare ? ' · înregistrată ' + d.inregistrare : '') +
     (d.lichidata && d.lichidata.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
   if(GOV_WIN && !GOV_WIN.closed) GOV_WIN.close();
+  if(window.govUpsertFields) govUpsertFields(d);
 });
 async function addClient(){
   const msg = document.getElementById('nc-msg');

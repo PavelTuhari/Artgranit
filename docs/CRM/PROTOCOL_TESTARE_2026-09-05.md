@@ -321,3 +321,28 @@ dublu-click-ul, nici rularea directă nu pot merge. Indicația finală pentru
 macOS: `bash ~/Downloads/start_contragenti.command` (nu cere nici `chmod`,
 nici scoaterea carantinei); pentru Linux `python3 ~/Downloads/start_contragenti.py`.
 Verificat pe Mac-ul proprietarului în partea J (rularea prin `bash`).
+
+---
+
+# Partea a IV-a (07.09.2026) — IDNO în nomenclatorul una.md, repararea înregistrărilor vechi, jurnalul lanțului
+
+Cerința: `TMS_UNIVERS.CODVECHI` și `TMS_ORG.CODFISCAL` ← IDNO la inserarea din
+Contragenti; la o nouă alegere a unei firme înregistrate fără cod fiscal
+(518172) informația să se corecteze; jurnalizarea întregului lanț. Soluția:
+modulul izolat `modules/contragenti/` (`CTG_EVENT_LOG`), descris în
+`docs/Contragenti/CONTRAGENTI_INSERARE_UNA.md`.
+
+| # | Pas | Rezultat |
+|---|---|---|
+| S1 | unitare `tests/test_contragenti.py` (izolare, normalizarea denumirii, maparea CODVECHI/CODFISCAL, potrivirea pe baza simulată, DDL, hook-urile paginii) | 12 / 12 PASS; total 34 cu `test_crm` și `test_biro26_clients_gov` |
+| S2 | DDL `CTG_EVENT_LOG` pe Oracle-ul comun | 5 obiecte, VALID |
+| S3 | 518172 înainte | `codvechi=None, codfiscal=None, yb_idno=1006600064263`, fără rînd TMS_ORG |
+| S4 | cardul REAL din Contragenti (`/card?idno=1006600064263`) → `api/upsert` | `repaired` după `yb_idno`: `TMS_UNIVERS.CODVECHI`, `TMS_ORG (rînd nou)`; după: CODVECHI = CODFISCAL = 1006600064263, ADRESS «MUN.CHISINAU, SEC.BUIUCANI Alexei Mateevici 60» |
+| S5 | același card a doua oară | `unchanged`, fără dublură — **defect găsit**: UPDATE gol pe TMS_ORG refuzat de trigger (`ORA-20000 Access denied`) → corectat (UPDATE doar pe coloanele goale cu valoare); a treia oară `unchanged` curat |
+| S6 | `contragenti_backfill.py --apply` | 6 firme completate (453495, 518168–518171, 301271), 2 fișe de test sărite (IDNO fals) |
+| S7 | API: fără sesiune 401; `api/log` din browser; `api/upsert` din cîmpuri (`return_to`) → `unchanged` pe 518172; `api/find` după «Societatea cu Raspundere Limitata CONINFO» → 518169 (`name`); `api/events` pe IDNO; pagina jurnal 200 | PASS |
+| S8 | nucleul: `contragenti` în `loaded` | PASS |
+
+Rămîne la proprietar: alegerea în fereastra Contragenti din pagina biro26-clients
+— acum rezultatul se scrie automat («Înregistrare existentă COMPLETATĂ» /
+«Client NOU înregistrat», cu CODVECHI/CODFISCAL afișate și link la jurnal).

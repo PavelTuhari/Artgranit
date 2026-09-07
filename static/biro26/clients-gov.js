@@ -19,6 +19,37 @@
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])); }
 
+  /* RO: jurnalul lantului (modules/contragenti, CTG_EVENT_LOG): pasii din browser */
+  const CTG = '/UNA.md/orasldev/contragenti/api/';
+  window.govLog = function (step, result, q, detail, idno) {
+    try {
+      fetch(CTG + 'log', {method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({page: 'biro26-clients', step, result: result || 'ok', q: q || '', detail: detail || '', idno: idno || ''})});
+    } catch (e) {}
+  };
+  /* RO: cardul primit -> una.md (TMS_UNIVERS.CODVECHI, TMS_ORG.CODFISCAL, YBIRO_CLIENT.IDNO),
+     cu deduplicare: o firma deja inregistrata fara cod fiscal se REPARA, nu se dubleaza. */
+  async function upsert(body) {
+    const msg = document.getElementById('nc-msg');
+    let r;
+    try {
+      r = await fetch(CTG + 'upsert', {method: 'POST', credentials: 'include', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(Object.assign({page: 'biro26-clients'}, body))}).then(x => x.json());
+    } catch (e) { r = {success: false, error: String(e)}; }
+    if (!r.success) { if (msg) msg.textContent = 'Nu am putut scrie in una.md: ' + (r.error || ''); return r; }
+    const what = {created: 'Client NOU inregistrat', repaired: 'Inregistrare existenta COMPLETATA', unchanged: 'Inregistrare existenta, nimic de completat'}[r.result] || r.result;
+    const a = r.after || {};
+    if (msg) msg.innerHTML = '<b>' + esc(what) + '</b>: COD ' + esc(r.univers_cod) + ' «' + esc(r.name) + '»' +
+      (r.changes && r.changes.length ? ' — completat: ' + esc(r.changes.join(', ')) : '') +
+      ' · TMS_UNIVERS.CODVECHI=' + esc(a.codvechi || '—') + ', TMS_ORG.CODFISCAL=' + esc(a.codfiscal || '—') +
+      ' · <a href="/UNA.md/orasldev/contragenti?idno=' + esc(r.card && r.card.idno) + '" target="_blank">jurnal</a>';
+    if (typeof toast === 'function') toast(what + ' ✓');
+    if (typeof load === 'function') { const q = document.getElementById('q'); if (q) q.value = (r.card && r.card.idno) || q.value; load(); }
+    return r;
+  }
+  window.govUpsertXml = function (xml, q) { return upsert({xml, q}); };
+  window.govUpsertFields = function (d) { return upsert(Object.assign({q: ''}, d)); };
+
   /* RO: panoul «Contragenti (127.0.0.1:9393) nu este disponibil» + scriptul de pornire */
   window.govOffline = function (msgEl) {
     if (!msgEl) return;
@@ -38,6 +69,7 @@
       bat: 'Windows: dublu-click pe start_contragenti.bat (are nevoie de Python 3 dacă Contragenti nu e instalat din MSI). Dacă SmartScreen avertizează: «Mai multe informații» → «Rulează oricum».',
       py: 'Linux: în terminal — python3 ~/Downloads/start_contragenti.py (Tkinter: sudo apt install python3-tk).'}[cur];
     msgEl.dataset.dl = '1';
+    window.govLog('offline', 'warn', (document.getElementById('q') || {}).value, 'API-ul local ' + host() + ' nu raspunde');
     msgEl.innerHTML =
       '<div style="border:1px solid #f0ad4e;background:#fff8ec;border-radius:8px;padding:10px 12px;margin-top:6px">' +
       '<b>⚠ Contragenti (' + esc(host()) + ') nu este disponibil</b> · <span style="color:#64748b">Утилита Contragenti недоступна</span>' +
@@ -69,6 +101,7 @@
     const h = window.govHealth ? await window.govHealth() : null;
     if (!h) { window.govOffline(msg); return; }
     if (msg) { msg.dataset.dl = ''; msg.textContent = 'Nimic în baza OfficePlus pentru «' + q + '» — caut pe date.gov.md prin Contragenti… · В базе OfficePlus ничего нет, ищу на date.gov.md'; }
+    window.govLog('search_fallback', 'ok', q, 'nimic in baza OfficePlus -> date.gov.md');
     const wrap = document.querySelector('.wrap'); if (wrap) wrap.scrollIntoView({behavior: 'smooth', block: 'start'});
     if (!window.pickFromGov) return;
     const p = window.pickFromGov(q);
