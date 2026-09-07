@@ -53,7 +53,7 @@ def test_norm_name_matches_registry_and_erp_spellings():
 
 def test_charset_folding_keeps_cyrillic_and_drops_diacritics():
     assert rules.to_db_charset("Chişinău, str. Alba-Iulia") == "Chisinau, str. Alba-Iulia"
-    assert rules.to_db_charset("ООО «Тест» — да") == 'ООО "Тест" - да'
+    assert rules.to_db_charset("ООО «Тест» — да") == 'ООО Тест - да'   # ghilimelele se scot (trigger)
     assert rules.strip_role("TUHARI PAVEL [Administrator]") == "TUHARI PAVEL"
 
 

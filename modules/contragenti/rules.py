@@ -20,7 +20,7 @@ import legal_forms  # noqa: E402  (copie MIT din repo-ul Contragenti)
 
 _TRANSLIT = str.maketrans({"ă": "a", "â": "a", "î": "i", "ș": "s", "ş": "s", "ț": "t", "ţ": "t",
                            "Ă": "A", "Â": "A", "Î": "I", "Ș": "S", "Ş": "S", "Ț": "T", "Ţ": "T",
-                           "—": "-", "–": "-", "«": "", "»": "", "’": "'", "“": '"', "”": '"'})
+                           "—": "-", "–": "-", "«": "", "»": "", "’": "", "“": "", "”": ""})
 
 
 def to_db_charset(text: Optional[str]) -> str:
