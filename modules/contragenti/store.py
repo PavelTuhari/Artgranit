@@ -151,6 +151,15 @@ class CtgStore:
                     changes.append("TMS_ORG (rind nou)")
                 else:
                     CtgStore.log("org_insert", "error", univers_cod=cod, detail=str(r.get("message"))[:500], **lg)
+            # YBIRO_CLIENT: telefon / e-mail din formular, doar daca fisa le are goale
+            if ex.get("yb_cod") and (card.get("phone") or card.get("email")):
+                for col, val in (("PHONE", card.get("phone")), ("EMAIL", card.get("email"))):
+                    if val:
+                        r = db.execute_dml("UPDATE YBIRO_CLIENT SET %s = :v WHERE UNIVERS_COD = :c AND (%s IS NULL OR %s = '' "
+                                           "OR %s LIKE 'bo-%%@officeplus.local')" % (col, col, col, col),
+                                           {"v": rules.to_db_charset(val)[:200], "c": cod})
+                        if r.get("success"):
+                            changes.append("YBIRO_CLIENT." + col)
             # YBIRO_CLIENT.IDNO
             if ex.get("yb_cod") and not ex.get("yb_idno"):
                 r = db.execute_dml("UPDATE YBIRO_CLIENT SET IDNO = :i, IS_COMPANY = '1' WHERE UNIVERS_COD = :c",
@@ -166,7 +175,8 @@ class CtgStore:
         CtgStore.log("match_none", "ok", detail="nicio inregistrare dupa IDNO/denumire — creez", **lg)
         from models.biro26_journal import Biro26Journal
         r = Biro26Journal.client_quick_add(m["univers"]["DENUMIREA"] or name, is_company=True,
-                                           idno=idno, address=m["org"]["ADRESS"] or "")
+                                           idno=idno, address=m["org"]["ADRESS"] or "",
+                                           phone=card.get("phone") or "", email=card.get("email") or "")
         if not r.get("success"):
             CtgStore.log("client_create", "error", detail=str(r.get("error"))[:500], **lg)
             return {"success": False, "error": r.get("error")}

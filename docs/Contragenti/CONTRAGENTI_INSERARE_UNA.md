@@ -104,3 +104,19 @@ fără dubluri.
 Pagina: `static/biro26/clients-gov.js` (`govUpsertXml`, `govUpsertFields`,
 `govLog`) + 4 apeluri punctuale în `templates/biro26/clients.html`.
 Teste: `tests/test_contragenti.py` (12).
+
+## Completare 07.09.2026 (după-amiază): diacriticele și butonul «Adaugă client»
+
+La «SOCIETATEA PE ACȚIUNI DAAC HERMES» butonul vechi «Adaugă client» a căzut cu
+`ORA-20077` (trigger `YBIRO_UNIVERS_CHK_DIACRITICE`): denumirea din registru
+ajungea cu diacritice în `register_client`. Corecții:
+- `models/biro26_charset.py` (fișier propriu) + două apeluri în
+  `client_quick_add`: denumirea și adresa se transliterează înainte de scriere;
+- «Adaugă client» pentru persoană juridică cu IDNO merge acum prin
+  `api/upsert` (dedup, CODVECHI/CODFISCAL, jurnal); telefonul și e-mailul din
+  formular ajung pe fișă (la client nou, sau completate dacă erau goale);
+- DAAC HERMES adăugat: COD 518179, «DAAC HERMES SA», CODVECHI = CODFISCAL =
+  1002600009035, adresa transliterată; a doua încercare → `unchanged`.
+Observație: căutarea acelui IDNO nu a lăsat nicio urmă în `CTG_EVENT_LOG` —
+pagina fusese încărcată înainte de raskatare (JS vechi în cache). După
+reîncărcare (Cmd+Shift+R) pașii apar în jurnal.

@@ -112,6 +112,7 @@ def card_from_fields(d: Dict[str, Any]) -> Dict[str, Any]:
             "lichidata": str(d.get("lichidata") or "").strip().lower() in ("da", "yes", "1", "true"),
             "adresa": (d.get("adresa") or d.get("address") or "").strip(),
             "administratori": (d.get("administratori") or "").strip(),
+            "phone": (d.get("phone") or "").strip(), "email": (d.get("email") or "").strip().lower(),
             "source": d.get("source") or "date.gov.md", "updated": d.get("updated") or ""}
 
 

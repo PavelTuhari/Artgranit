@@ -269,6 +269,12 @@ async function addClient(){
     email: document.getElementById('nc-email').value.trim(),
     address: document.getElementById('nc-addr').value.trim()};
   if(body.name.length < 3){ msg.textContent = 'Denumirea este obligatorie'; return; }
+  // RO: persoana juridica cu IDNO -> prin puntea Contragenti (dedup, CODVECHI/CODFISCAL, jurnal)
+  if(body.is_company && body.idno && window.govUpsertFields){
+    const u = await govUpsertFields({idno: body.idno, denumire: body.name, adresa: body.address, phone: body.phone, email: body.email, source: 'form'});
+    if(u && u.success){ ['nc-name','nc-idno','nc-phone','nc-email','nc-addr'].forEach(i=>document.getElementById(i).value=''); }
+    return;
+  }
   const r = await fetch('/api/biro26/shop-clients',{method:'POST',
     headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
     .then(x=>x.json()).catch(()=>({}));

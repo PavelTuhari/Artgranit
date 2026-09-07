@@ -152,3 +152,16 @@ def test_page_hooks_and_js_upsert():
         assert "govLog('%s'" % step in t
     for step in ("offline", "search_fallback"):
         assert "govLog('%s'" % step in js
+
+
+def test_quick_add_transliterates_and_form_add_goes_through_bridge():
+    """RO: ORA-20077 pe «SOCIETATEA PE ACȚIUNI DAAC HERMES» (07.09.2026)."""
+    from models.biro26_charset import to_db_charset
+    assert to_db_charset("SOCIETATEA PE ACȚIUNI DAAC HERMES") == "SOCIETATEA PE ACTIUNI DAAC HERMES"
+    assert to_db_charset("MD-2069, CHIŞINĂU, str. CALEA IEŞILOR, 10") == "MD-2069, CHISINAU, str. CALEA IESILOR, 10"
+    j = _read("models", "biro26_journal.py")
+    assert "nm = to_db_charset(name)" in j and "address = to_db_charset(address)" in j
+    t = _read("templates", "biro26", "clients.html")
+    assert "if(body.is_company && body.idno && window.govUpsertFields)" in t
+    c = rules.card_from_fields({"idno": "1002600009035", "denumire": "X", "phone": "069", "email": "A@B.md"})
+    assert c["phone"] == "069" and c["email"] == "a@b.md"
