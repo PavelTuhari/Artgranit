@@ -38,7 +38,15 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 sys.path.insert(0, ROOT)
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-JULY_XLSX = "/Users/pt/Projects.AI/BIRO26/Set_data_import/8/ULTRA.md (1).xlsx"
+# RO: incarcarea din iulie 2026 — sursa auxiliara de chei pentru punte.
+#     Calea se ia din mediu, altfel din primul loc gasit: pe server fisierul
+#     sta linga proiect, pe statia de lucru — in Set_data_import.
+# EN: July 2026 load, auxiliary bridge-key source; path from env or first hit.
+JULY_XLSX = next(
+    (q for q in (os.environ.get("PARTNER_ULTRA_JULY_XLSX"),
+                 os.path.join(ROOT, "data", "ULTRA_iulie_2026.xlsx"),
+                 "/Users/pt/Projects.AI/BIRO26/Set_data_import/8/ULTRA.md (1).xlsx")
+     if q and os.path.exists(q)), "")
 REFS = [  # (таблица, колонка кода) — что чистится у дубля
     ("TPR1D_PERPRLIST", "SC"), ("TMS_SYSGRP", "SC"), ("TMS_MPT_BARCODE", "COD"),
     ("TMS_MPT_TVR", "COD"), ("TMS_MPT_IMPSRC", "COD"), ("TMS_MPT_WEBATTR", "COD"),
