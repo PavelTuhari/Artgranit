@@ -228,3 +228,28 @@ Sincronizarea completa a adus 26 186 uuid-uri unice din 38 853 vazute —
 paginarea Ultra dupa `updated_at` pierde pozitii cind ele se schimba in
 timpul parcurgerii. Restul de 11 190 s-au adus adresat prin
 `POST /product/batch` (`ultra_codes`), 3 nu mai exista la Ultra.
+
+### Dublurile create la 09.09.2026 si schlopuirea lor
+
+Puntea prin imagine a ratat cartelele ale caror poze s-au schimbat la Ultra
+din iulie (A27: cdn.ultra.md → esempla); conveierul le-a creat corect cartele
+`ULT*` noi — **88 de dubluri** (cheie nume+culoare 118 ∪ imagine 35, minus
+cele legate deja). `modules/partner/scripts/ultra_dedup.py --apply`:
+supravietuieste `GOG*` (adrese pe site, istoric), primeste perioada de pret de
+azi si marcajul (`MATCH_STATUS='DEDUP'`), dublura isi pierde referintele si e
+stearsa cu triggerele protectoare dezactivate temporar (backup in
+`Y_AI_ULTRA_DUP_*`). Rezultat: 88/88 sterse, 88/88 supravietuitori cu pret si
+marcaj, triggere reactivate. Cartela 304287: 5 899 (20.07–07.09) → **6 599 din 08.09**.
+
+Capcane gasite pe drum (toate tratate in scripturi):
+
+- `Y_AI_BIRO26.dup_set_triggers` exista doar in `.pkg.sql`, **nu in baza**
+  (PLS-00302) — se foloseste `ALTER TRIGGER ... DISABLE/ENABLE` direct.
+- `BIRO26_GOODS.COD_UNIVERS` are index **unic** — rindul din iulie trebuie
+  sters inainte de a redirectiona rindul ULTRA spre codul GOG.
+- `BIRO26_GOODS` nu are index pe `ARTICOL`: o subinterogare corelata pe 37k
+  rinduri a mers ore si a blocat (`enq: TX`) rularea urmatoare — JOIN pe
+  agregat, si `ALTER SYSTEM KILL SESSION` pentru sesiunea orfana.
+- BOOLEAN PL/SQL nu se leaga ca parametru pe Oracle 11g (ORA-03115): literal.
+- Marcajele `TMS_MPT_IMPSRC` si jurnalul `YBIRO_IMPORT_LOG` **nu** le scrie
+  pachetul — le scrie `ultra_publish.py` dupa `import_file`.

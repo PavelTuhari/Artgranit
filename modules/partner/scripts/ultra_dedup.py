@@ -181,7 +181,11 @@ def apply(con, pairs: dict[int, int]) -> None:
     print(f"  цена, маркер и ссылки перенесены для {len(pairs)} пар")
 
     # 5) удаление дублей из TMS_UNIVERS под выключенными защитными триггерами
-    cur.execute("BEGIN Y_AI_BIRO26.dup_set_triggers(FALSE); END;")
+    # RO: Y_AI_BIRO26.dup_set_triggers exista doar in .pkg.sql, NU in baza
+    #     (09.09.2026: PLS-00302). Facem acelasi lucru direct, cu lista lui.
+    TRG = ("TMS_UNIVERS_DONT_DELETE", "TMS_UNIVERS_DONT_DELETE_2022", "TMH_UNIVERS_TRG")
+    for t in TRG:
+        cur.execute(f"ALTER TRIGGER {t} DISABLE")
     deleted = failed = 0
     try:
         for dup in pairs:
@@ -197,7 +201,8 @@ def apply(con, pairs: dict[int, int]) -> None:
                 print(f"  ! {dup}: {str(e)[:90]}")
         con.commit()
     finally:
-        cur.execute("BEGIN Y_AI_BIRO26.dup_set_triggers(TRUE); END;")
+        for t in TRG:
+            cur.execute(f"ALTER TRIGGER {t} ENABLE")
         con.commit()
     print(f"  удалено дублей: {deleted}, не удалось: {failed}; триггеры включены обратно")
 
