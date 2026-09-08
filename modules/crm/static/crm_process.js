@@ -99,6 +99,7 @@
     if (CUR.key) renderList();
     if (!document.getElementById('sec-kanban').hidden) loadBoard();
     if (!document.getElementById('sec-workspace').hidden) loadWorkspace();
+    if (!document.getElementById('sec-alerts').hidden && window.crmAlertsShow) window.crmAlertsShow();
   }
   const oldSetLang = window.setLang;
   window.setLang = function (l) { oldSetLang(l); applyLang(); };
