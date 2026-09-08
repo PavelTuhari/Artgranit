@@ -136,3 +136,39 @@ python3 modules/partner/scripts/ultra_bridge.py --apply    # scrie legatura
 
 Preturile curente ale cartelelor `GOG*` sint din 20.07.2026 —
 `VTPR1D_PERPRLIST.SC` = codul marfii (nu `CODPRICE`).
+
+### De ce puntea e obligatorie: assign_keys nu cauta nimic
+
+`YBIRO_Import_Marfa.assign_keys` **nu potriveste marfa cu nomenclatorul**. El
+doar da un numar nou din secventa fiecarui rind fara cheie:
+
+> `UPDATE BIRO26_GOODS SET COD_UNIVERS = <secventa>.NEXTVAL WHERE COD_UNIVERS IS NULL`
+
+Deci orice rind care intra in conveier cu `COD_UNIVERS` gol devine o cartela
+NOUA. Exact asa au aparut in iulie cele ~22 000 de cartele `GOG*`, si exact asa
+s-ar dubla acum 15 952.
+
+**Concluzie: puntea trebuie sa scrie `BIRO26_GOODS.COD_UNIVERS`** pentru cele
+15 952 de pozitii INAINTE de `assign_keys`. Atunci `assign_keys` primeste doar
+cele 18 485 de pozitii cu adevarat noi, iar cele existente isi actualizeaza
+pretul si stocul prin `import_prices`.
+
+Legatura in `TMS_MPT_IMPSRC` (SRC_PID / SRC_ARTICOL) ramine necesara separat —
+pentru sincronizarile incrementale urmatoare prin `/api/changes`.
+
+### Actualizarea automata a preturilor (de configurat)
+
+Lantul, o data pe ora:
+
+1. `ultra_sync.py` — incremental prin `/api/changes` (reperul
+   `PARTNER_ULTRA_SINCE`), reimprospateaza `RETAIL1` / `ANGRO` / `STOC`;
+2. `ultra_bridge.py --apply` — leaga pozitiile noi aparute intre timp;
+3. `YBIRO_Import_Marfa.import_prices` — scrie preturile in lista.
+
+Pasul 3 insereaza doar perioade care lipsesc (`NOT EXISTS ... datastart`), deci
+rularea repetata e sigura.
+
+**Stare la 09.09.2026: pasii 1–3 NU sint automatizati.** Codul pentru 1 si 2
+exista si e testat in regim de analiza; scrierea in productie a fost blocata de
+clasificatorul modului automat al agentului, iar drepturile nu si le poate
+acorda singur — trebuie adaugate de proprietar in `.claude/settings.json`.
