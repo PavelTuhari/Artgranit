@@ -24,7 +24,8 @@ def api_alerts():
     return jsonify({"success": True, "data": {
         "text": d["text"], "money": d["money"], "counts": d["counts"],
         "open": [a.as_dict() for a in d["all"]], "new": len(d["alerts"]),
-        "kinds": {k: v["sev"] for k, v in A.KINDS.items()}, "cfg": cfg}})
+        # RO: lista (nu dict): jsonify sorteaza cheile si s-ar pierde ordinea dupa gravitate
+        "kinds": [{"kind": k, "sev": v["sev"]} for k, v in A.KINDS.items()], "cfg": cfg}})
 
 
 @blueprint.route("/api/v2/alerts/settings", methods=["GET", "POST"])
