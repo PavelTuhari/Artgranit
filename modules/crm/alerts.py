@@ -195,6 +195,30 @@ def _line(a: Alert, lang: str) -> str:
     return "%s %s" % (icon, body)
 
 
+WA_LIMIT = 320                   # RO: callmebot trece textul prin URL -> 414 la mesaje lungi
+
+
+def render_short(alerts: Iterable[Alert], lang: str = "ro", tenant: str = "OfficePlus",
+                 today: Optional[date] = None, url: str = "") -> str:
+    """RO: varianta scurta pentru WhatsApp (callmebot pune textul in adresa,
+    iar un sumar intreg da HTTP 414): totalul, citi de fiecare tip, link."""
+    t = TEXTS.get(lang) or TEXTS["ro"]
+    items = list(alerts)
+    if not items:
+        return "%s: %s" % (tenant, t["nothing"])
+    money_sum = sum(a.amount for a in items if a.kind in MONEY_KINDS)
+    money_cnt = sum(1 for a in items if a.kind in MONEY_KINDS)
+    titles = KIND_TITLES.get(lang, KIND_TITLES["ro"])
+    parts = ["%s: %d" % (titles[k].lower(), sum(1 for a in items if a.kind == k))
+             for k in ALL_KINDS if any(a.kind == k for a in items)]
+    head = "%s — %s" % (tenant, (t["title"] % tenant).split("— ", 1)[-1])
+    body = t["total"] % (money(money_sum), money_cnt) if money_cnt else ""
+    text = "\n".join(x for x in (head, body, "; ".join(parts)) if x)
+    if url:
+        text += "\n" + url
+    return text[:WA_LIMIT]
+
+
 def render(alerts: Iterable[Alert], lang: str = "ro", tenant: str = "OfficePlus",
            today: Optional[date] = None, url: str = "") -> str:
     """RO: mesajul pentru Telegram — text simplu (fara parse_mode: numele
