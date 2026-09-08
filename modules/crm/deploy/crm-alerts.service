@@ -1,0 +1,15 @@
+[Unit]
+# RO: sumarul CRM in Telegram (tranzactii nefinisate si datorii). Ruleaza in
+#     fiecare ora; scriptul alege chiriasii a caror ora de sumar coincide.
+#     Instalare: vezi docs/CRM/ALERTE_TELEGRAM.md
+Description=CRM Telegram alerts (unfinished transactions and debts)
+After=network-online.target artgranit.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/artgranit
+EnvironmentFile=/home/ubuntu/artgranit/.env
+Environment=CRM_ALERTS_URL=https://nufarul.eminescu.md/UNA.md/orasldev/crm/
+ExecStart=/home/ubuntu/artgranit/venv/bin/python modules/crm/scripts/crm_alerts.py
+TimeoutStartSec=600
