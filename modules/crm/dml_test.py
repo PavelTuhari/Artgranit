@@ -28,7 +28,7 @@ def run(data: CrmData) -> Dict[str, Any]:
             fails += 1
 
     def crud(key: str, name_field: str, ins: Dict[str, Any], upd: Dict[str, Any]) -> None:
-        tbl = data.t and __import__("modules.crm.entities", fromlist=["entity"]).entity(key).table
+        tbl = entity(key).table
         n0 = data.count(tbl)
         rid = data.insert(key, ins)
         check(rid > 0, "%s: INSERT -> id %d" % (key, rid))
