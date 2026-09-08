@@ -303,3 +303,113 @@ def test_page_has_no_modal_dialogs_and_loads_the_process_script():
         assert bad not in js and bad not in page, bad
     assert "crm.static" in page and "crm_process.js" in page and "CRM_CABINET" in page
     assert "draggable" in js and "board/" in js and "workspace/stages" in js
+
+
+# ── alerte Telegram: tranzactii nefinisate si datorii (08.09.2026) ───────
+from datetime import date  # noqa: E402
+
+from modules.crm import alerts as A  # noqa: E402
+
+
+def _alert(kind="debt", rid=1, amount=100.0, total=200.0, due="2026-01-01", days=5):
+    return A.Alert(kind=kind, ref_id=rid, title="#0001", client="TEST S.R.L.",
+                   amount=amount, total=total, due=due, days=days, status="Выполнен")
+
+
+def test_alert_kinds_cover_unfinished_transactions_and_debts():
+    """RO: cele doua cerinte ale proprietarului: tranzactii nefinisate + datorii."""
+    for k in ("debt", "project_debt"):                    # datorii
+        assert k in A.KINDS and k in A.MONEY_KINDS
+    for k in ("await_advance", "ready_to_ship", "unposted", "overdue_work", "deal_stale", "due_soon"):
+        assert k in A.KINDS                                # tranzactii nefinisate
+    assert all(v["sev"] in (0, 1, 2) for v in A.KINDS.values())
+    assert all(v["table"] in ("orders", "projects", "deals") for v in A.KINDS.values())
+
+
+def test_alert_key_is_stable_and_unique_per_document():
+    a, b = _alert(rid=7), _alert(rid=8)
+    assert a.key == "debt:7" and b.key == "debt:8" and a.key != b.key
+    assert _alert(kind="ready_to_ship", rid=7).key != a.key
+
+
+def test_days_late_counts_from_the_due_date():
+    assert A.days_late("2026-09-01", date(2026, 9, 8)) == 7
+    assert A.days_late("2026-09-10", date(2026, 9, 8)) == -2
+    assert A.days_late("", date(2026, 9, 8)) == 0 and A.days_late(None) == 0
+    assert A.days_late("nu-i data", date(2026, 9, 8)) == 0
+
+
+def test_resend_only_after_quiet_period_or_when_the_amount_changed():
+    today = date(2026, 9, 8)
+    assert A.should_resend(None, 100, 1, today)                                    # niciodata trimisa
+    sent = {"amount": 100, "sent_at": "2026-09-08"}
+    assert not A.should_resend(sent, 100, 1, today)                                # azi, aceeasi suma
+    assert A.should_resend(sent, 150, 1, today)                                    # datoria s-a schimbat
+    assert A.should_resend({"amount": 100, "sent_at": "2026-09-05"}, 100, 1, today)  # a trecut linistea
+    assert not A.should_resend({"amount": 100, "sent_at": "2026-09-07"}, 100, 3, today)
+
+
+def test_enabled_kinds_filters_and_ignores_unknown():
+    assert A.enabled_kinds({}) == list(A.ALL_KINDS)
+    assert A.enabled_kinds({"kinds": "debt, unposted"}) == ["debt", "unposted"]
+    assert A.enabled_kinds({"kinds": "debt,inventat"}) == ["debt"]
+
+
+def test_message_has_the_total_groups_and_three_languages():
+    items = [_alert("debt", 1, 1000, 2000, "2026-09-01", 7),
+             _alert("project_debt", 2, 500, 5000, "2026-09-20", -12),
+             _alert("await_advance", 3, 0, 300, "2026-09-30", -22)]
+    for lang in ("ro", "ru", "en"):
+        txt = A.render(items, lang, "OfficePlus", date(2026, 9, 8))
+        assert "OfficePlus" in txt and "2026-09-08" in txt
+        assert "1,500.00" in txt                                   # totalul de incasat: 1000 + 500
+        assert A.KIND_TITLES[lang]["debt"] in txt and A.KIND_TITLES[lang]["await_advance"] in txt
+        assert "%s" not in txt and "%d" not in txt                 # toate locurile completate
+    assert A.TEXTS["ru"]["nothing"] in A.render([], "ru", "OfficePlus")
+
+
+def test_message_is_plain_text_and_fits_telegram():
+    many = [_alert("debt", i, 1000.0 + i, 2000, "2026-09-01", 3) for i in range(400)]
+    txt = A.render(many, "ro", "client #7", date(2026, 9, 8))
+    assert len(txt) <= A.TG_LIMIT + 200
+    assert A.TEXTS["ro"]["more"].split("%")[0].strip() in txt      # «... si inca N»
+    for md in ("*", "_", "`", "["):                                # fara Markdown: numele firmelor contin astfel de semne
+        assert md not in txt.replace("client #7", "")
+
+
+def test_alerts_module_reuses_the_stage_conditions():
+    """RO: conditiile comenzilor nu se scriu a doua oara — vin din process.py."""
+    src = _read("modules", "crm", "notify.py")
+    for s in ("stage_where(\"await_payment\")", "overdue_where(\"in_work\")",
+              "stage_where(\"await_advance\")", "stage_where(\"ready_to_ship\")"):
+        assert s in src, s
+    assert "OWNER_KIND" not in src or "data.t.where()" in src       # totul pe chirias
+
+
+def test_alerts_routes_and_page_exist_and_hide_the_token():
+    src = _read("modules", "crm", "routes_alerts.py")
+    for r in ('"/api/v2/alerts"', '"/api/v2/alerts/settings"', '"/api/v2/alerts/send"'):
+        assert r in src, r
+    ntf = _read("modules", "crm", "notify.py")
+    assert 'cfg.pop("tg_token", None)' in ntf                       # tokenul nu iese spre browser
+    page = _read("modules", "crm", "templates", "crm_app.html")
+    js = _read("modules", "crm", "static", "crm_alerts.js")
+    assert "crm_alerts.js" in page and 'id="sec-alerts"' in page
+    for bad in ("window.alert(", "confirm(", "prompt("):
+        assert bad not in js, bad
+    for lang in ("ro", "ru", "en"):
+        assert ("%s:" % lang) in js.replace(" ", "") or ("%s: {" % lang) in js
+
+
+def test_alerts_ddl_is_ascii_multi_tenant_and_slashed():
+    src = _read("modules", "crm", "sql", "03_crm_alerts.sql")
+    assert src.isascii()
+    for t in ("CRM_ALERT_CFG", "CRM_ALERT_SENT"):
+        assert "CREATE TABLE %s (" % t in src
+        assert "OWNER_KIND" in src.split("CREATE TABLE %s (" % t)[1].split("/")[0]
+    assert "UNIQUE (OWNER_KIND, OWNER_ID, ALERT_KEY)" in src
+    for line in src.splitlines():
+        s = line.strip()
+        if s.startswith("--"):
+            assert ";" not in s and "'" not in s, s
+    assert src.rstrip().endswith("/")
