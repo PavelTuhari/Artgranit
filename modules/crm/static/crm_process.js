@@ -214,6 +214,7 @@
     }
     host.innerHTML = `<h3>${CUR.id ? esc(row[e.fields[0].name] || '#' + CUR.id) : esc(S('btn.create'))}</h3>
       <div class="kv">${parts.join('')}</div>${extra}<div class="actions">${acts.join('')}</div>`;
+    if (key === 'orders' && CUR.id) fillLineItems();
   }
   function resolveDefault(d) {
     if (d.startsWith('today')) { const n = parseInt(d.slice(5) || '0', 10) || 0; const x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); }
