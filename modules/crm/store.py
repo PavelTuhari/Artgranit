@@ -31,6 +31,13 @@ _CLIENT_COLS = ("SELECT c.ID, c.IDNO, c.NAME, c.REG_DATE, c.LEGAL_FORM, c.IS_LIQ
                 "FROM CRM_CLIENT c")
 
 
+def _tw(alias: str = "c"):
+    """RO: chiriasul sesiunii (08.09.2026: OfficePlus sau clientul din cabinet) —
+    conditia + bindurile pentru orice SQL pe CRM_CLIENT / CRM_EVENT_LOG."""
+    t = tenant_mod.current() or tenant_mod.Tenant(tenant_mod.OFFICE, 0)
+    return " AND " + t.where(alias), t.params(), t
+
+
 class CrmStore:
     # ── setari ───────────────────────────────────────────────────────────
     @staticmethod
