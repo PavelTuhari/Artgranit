@@ -172,3 +172,43 @@ rularea repetata e sigura.
 exista si e testat in regim de analiza; scrierea in productie a fost blocata de
 clasificatorul modului automat al agentului, iar drepturile nu si le poate
 acorda singur — trebuie adaugate de proprietar in `.claude/settings.json`.
+
+---
+
+## Publicarea catalogului Ultra prin conveierul standard (09.09.2026)
+
+`modules/partner/scripts/ultra_publish.py` — tamponul `BIRO26_GOODS`
+(SHEET='ULTRA') → xlsx cu antet recunoscut de `detect_columns` → incarcatorul
+standard `models/biro26pt_loader.py` → `BIRO26PT_importData.import_file(
+p_src=>'ULTRA', p_algo=>'UNIVERSAL', p_mark_all_new=>FALSE)`.
+
+Conveierul da singur: marcajul sursei (`TMS_MPT_IMPSRC`), jurnalul
+`YBIRO_IMPORT_LOG`, plasarea in arbore dupa GRUPA/CATEGORIE, preturile cu
+**perioada noua si inchiderea celei vechi** (vitrina citeste pretul cu
+`:pd BETWEEN DATASTART AND DATAEND`), EAN-13 si „noutate" doar pentru pozitiile
+noi. Fara `--commit` e DRY-RUN real: doar `classify`, nimic in productie.
+
+**Puntea catre cartelele `GOG*` din iulie = codul de bare.** Cartela se
+gaseste dupa uuid-ul imaginii (`TMS_MPT_TVR.IE_LINKADRES` ↔ `photo_url` din
+API), iar in coloana `Barcode` se pune codul ei de bare unic `4841…`
+(24 057 coduri, fiecare la exact o cartela activa). Prioritatea 1 din
+`classify()` face restul. Scriptul nu contine logica proprie de potrivire.
+
+Maparea antetului, verificata pe viu (load 326, test):
+`Articol→ARTICOL, Barcode→BARCODE, Denumire→DENUMIRE, Grupa→GRUPA,
+Categorie→CATEG, Brand→FURNIZOR, Angro→ANGRO, Retail→RETAIL, Image URL→URL`.
+
+**Automat, o data pe ora:** `modules/partner/scripts/ultra_cron.sh`
+(sync incremental → publish --commit, cu lock; jurnal `/tmp/ultra_cron.log`).
+
+### Defectele sincronizarii reparate in aceeasi zi
+
+| Defect | Efect | Reparatie |
+|---|---|---|
+| token de 1h, fara reautentificare | rularea completa murea la mijloc, **nimic scris** | re-login la 401/403 „token" + scriere in blocuri de 2 000 |
+| `_lang(hierarchy[i])` in loc de `["name"]` | GRUPA goala la toate cele 34 437 | `element["name"]`; fara categorie → `Ultra - diverse` |
+| text nefiltrat prin cp1251 | 6 813 denumiri cu `?` | `cp1251_safe()` pe tot textul |
+
+### Rezultatul publicarii
+
+_(se completeaza dupa rularea cu --commit)_
