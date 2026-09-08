@@ -286,9 +286,20 @@ def send(data: CrmData, cfg: Optional[Dict[str, Any]] = None, only_new: bool = T
     own_chat = str(cfg.get("tg_chat") or "").strip()
 
     if data.t.is_office and not own_chat:
-        # RO: exact canalele bifate pentru comenzile de pe site (e-mail / Telegram / WhatsApp)
-        r = Biro26Notify.send_all(subject, d["text"])
-        res = (r.get("data") or {})
+        # RO: exact canalele bifate pentru comenzile de pe site (e-mail / Telegram /
+        #     WhatsApp), dar textul difera pe canal: callmebot trece mesajul prin
+        #     URL si un sumar intreg da HTTP 414 — acolo pleaca varianta scurta.
+        s = shop_settings()
+        short = A.render_short(d["alerts"] or d["all"], lang, data.t.label, url=url)
+        res: Dict[str, Any] = {}
+        if s.get("notify_email_enabled") == "1":
+            res["email"] = Biro26Notify._send_email(s, subject, d["text"])
+        if s.get("notify_tg_enabled") == "1":
+            res["telegram"] = Biro26Notify._send_telegram(s, d["text"])
+        if s.get("notify_wa_enabled") == "1":
+            # RO: modul 'cloud' nu are limita de adresa — acolo merge textul intreg
+            res["whatsapp"] = Biro26Notify._send_whatsapp(
+                s, d["text"] if s.get("notify_wa_mode") == "cloud" else short)
         ok = [k for k, v in res.items() if v.get("success")]
         if not ok:
             errs = "; ".join("%s: %s" % (k, v.get("error")) for k, v in res.items()) or "niciun canal activ"
