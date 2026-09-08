@@ -17,8 +17,9 @@ blueprint = Blueprint("crm", __name__, template_folder="templates",
                       static_folder="static", static_url_path="/static")
 
 # RO: routes = clientii din Contragenti (beta, 05.09.2026); routes_process =
-#     procesul «de la contract la bani» dupa prototip + cabinetul clientului
-#     (08.09.2026). Fisiere separate (CLAUDE.md, regula nr. 2).
-from modules.crm import routes, routes_process  # noqa: E402,F401  (inregistreaza rutele)
+#     procesul «de la contract la bani» dupa prototip + cabinetul clientului;
+#     routes_alerts = alertele Telegram (tranzactii nefinisate si datorii,
+#     08.09.2026). Fisiere separate (CLAUDE.md, regula nr. 2).
+from modules.crm import routes, routes_process, routes_alerts  # noqa: E402,F401  (inregistreaza rutele)
 
 __all__ = ["blueprint"]
