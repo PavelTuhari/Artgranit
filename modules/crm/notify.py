@@ -47,26 +47,50 @@ def get_cfg(data: CrmData) -> Dict[str, Any]:
         for k in ("enabled", "days_before_due", "quiet_days", "send_hour"):
             cfg[k] = int(cfg[k] or 0)
         cfg["min_debt"] = float(cfg["min_debt"] or 0)
-    # RO: tokenul mostenit de la OfficePlus — clientul da doar chat_id-ul
     cfg["tg_token_own"] = bool((cfg.get("tg_token") or "").strip())
-    cfg["tg_token_inherited"] = bool(_office_token()) and not cfg["tg_token_own"]
-    cfg["configured"] = bool((cfg.get("tg_chat") or "").strip()) and (cfg["tg_token_own"] or cfg["tg_token_inherited"])
     cfg.pop("tg_token", None)                       # RO: tokenul nu iese niciodata din server
+    cfg["channels"] = channels(data, cfg)
+    cfg["configured"] = any(c["ready"] for c in cfg["channels"])
     return cfg
 
 
-def _office_token() -> str:
+def shop_settings() -> Dict[str, str]:
+    """RO: setarile de notificari ale magazinului (pagina biro26-notify-settings)."""
     try:
         r = Biro26Notify.get_settings()
-        return (r.get("data", {}).get("notify_tg_token") or "").strip() if r.get("success") else ""
+        return (r.get("data") or {}) if r.get("success") else {}
     except Exception:                                            # noqa: BLE001
-        return ""
+        return {}
+
+
+def channels(data: CrmData, cfg: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    """RO: pe unde pleaca sumarul. OfficePlus = canalele bifate pentru
+    comenzile de pe site; clientul din cabinet = Telegram-ul lui."""
+    s = shop_settings()
+    if data.t.is_office:
+        own = (cfg or {}).get("tg_chat") or ""
+        if str(own).strip():                        # RO: chat propriu pentru CRM (rar, dar posibil)
+            return [{"channel": "telegram", "target": str(own).strip(), "ready": bool(s.get("notify_tg_token")),
+                     "source": "crm"}]
+        out = [{"channel": "email", "target": s.get("notify_email_to") or "",
+                "ready": s.get("notify_email_enabled") == "1" and bool(s.get("smtp_configured")), "source": "shop"},
+               {"channel": "telegram", "target": s.get("notify_tg_chat") or "",
+                "ready": s.get("notify_tg_enabled") == "1" and bool(s.get("notify_tg_token")) and bool(s.get("notify_tg_chat")),
+                "source": "shop"},
+               {"channel": "whatsapp",
+                "target": (s.get("notify_wa_cloud_to") if s.get("notify_wa_mode") == "cloud" else s.get("notify_wa_phone")) or "",
+                "ready": s.get("notify_wa_enabled") == "1" and bool(s.get("notify_wa_phone") or s.get("notify_wa_cloud_to")),
+                "source": "shop"}]
+        return [c for c in out if c["target"] or c["ready"]]
+    chat = str((cfg or {}).get("tg_chat") or "").strip()
+    return [{"channel": "telegram", "target": chat, "ready": bool(chat) and bool(_token_for(data)),
+             "source": "crm"}]
 
 
 def _token_for(data: CrmData) -> str:
     rows = data.rows("SELECT TG_TOKEN FROM CRM_ALERT_CFG t WHERE %s" % data.t.where(), data.t.params())
     own = (rows[0].get("tg_token") if rows else "") or ""
-    return own.strip() or _office_token()
+    return own.strip() or (shop_settings().get("notify_tg_token") or "").strip()
 
 
 def save_cfg(data: CrmData, values: Dict[str, Any]) -> Dict[str, Any]:
