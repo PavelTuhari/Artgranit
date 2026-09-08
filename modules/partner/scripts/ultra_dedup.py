@@ -61,73 +61,50 @@ def connect():
 
 
 def find_pairs(con) -> dict[int, int]:
-    """{cod дубля ULT: cod выжившей GOG} — по любой картинке ИЛИ по имени+цвету."""
-    import openpyxl
+    """{cod дубля ULT: cod выжившей GOG} — по SRC_PID (uuid товара у Ultra).
+
+    Раньше пары искались по июльскому xlsx, лежащему только на рабочей машине.
+    На сервере файла нет, мост молча деградировал и прогон 08.09.2026 завёл
+    1 339 дублей. Теперь источник — сама база: после публикации у каждой
+    карточки в TMS_MPT_IMPSRC стоит SRC_PID = uuid товара у Ultra, и один
+    uuid на двух активных карточках это и есть дубль.
+
+    Берём только пары «GOG (июльская, выживает) + ULT (созданная импортом)»
+    ровно по две на uuid. Пары GOG+GOG — старые июльские дубли, отдельный
+    вопрос ассортимента, их не трогаем.
+    """
     cur = con.cursor()
-    gog = {a: b for a, b in cur.execute(
-        "SELECT codvechi, cod FROM tms_univers WHERE tip='P' AND codvechi LIKE 'GOG%' "
-        "AND NVL(isarhiv,'0') <> '2'")}
-    ult = {a: b for a, b in cur.execute(
-        "SELECT codvechi, cod FROM tms_univers WHERE tip='P' AND codvechi LIKE 'ULT%' "
-        "AND codvechi NOT LIKE 'ULTRAC%' AND NVL(isarhiv,'0') <> '2'")}
-    # RO: cartelele GOG deja legate de Ultra NU sint dubluri — au primit pretul
-    already = {c for (c,) in cur.execute(
-        "SELECT cod FROM tms_mpt_impsrc WHERE src_source_code='ULTRA'")}
-
-    j_uuid, j_key, amb = {}, {}, set()
-    wb = openpyxl.load_workbook(JULY_XLSX, read_only=True, data_only=True)
-    for sn in wb.sheetnames:
-        it = wb[sn].iter_rows(values_only=True)
-        next(it, None)
-        for r in it:
-            if not r or not r[1]:
-                continue
-            g = str(r[1]).strip()
-            if g not in gog:
-                continue
-            m = UUID_RE.search(str(r[0] or ""))
-            if m:
-                j_uuid.setdefault(m.group(), g)
-            colour = str(r[5] or "").split("|")[-1].strip() if r[5] else ""
-            k = norm(str(r[3] or "") + colour)
-            if k:
-                if k in j_key and j_key[k] != g:
-                    amb.add(k)
-                j_key.setdefault(k, g)
-    wb.close()
-    for k in amb:
-        j_key.pop(k, None)
-
-    a_key, amb2, a_img = {}, set(), {}
-    for art, den, photo in cur.execute(
-            "SELECT articol, denumire, photo_url FROM biro26_goods WHERE sheet='ULTRA'"):
-        k = norm(den)
-        if k in a_key and a_key[k] != art:
-            amb2.add(k)
-        a_key.setdefault(k, art)
-        m = UUID_RE.search(photo or "")
-        if m:
-            a_img.setdefault(m.group(), art)
-    for k in amb2:
-        a_key.pop(k, None)
-
     pairs: dict[int, int] = {}
-    for k, g in j_key.items():            # имя + цвет
-        art = a_key.get(k)
-        if art in ult and gog[g] not in already:
-            pairs[ult[art]] = gog[g]
-    for u, g in j_uuid.items():           # картинка
-        art = a_img.get(u)
-        if art in ult and gog[g] not in already:
-            pairs.setdefault(ult[art], gog[g])
-    # RO: un GOG nu poate absorbi doua ULT — ambiguu, se lasa
-    seen, out = {}, {}
+    for pid, cards in cur.execute("""
+        SELECT i.src_pid,
+               LISTAGG(u.codvechi || '=' || u.cod, ',') WITHIN GROUP (ORDER BY u.cod)
+          FROM tms_mpt_impsrc i
+          JOIN tms_univers u ON u.cod = i.cod AND u.tip = 'P'
+                            AND NVL(u.isarhiv, '0') <> '2'
+         WHERE i.src_source_code = 'ULTRA' AND i.src_pid IS NOT NULL
+         GROUP BY i.src_pid
+        HAVING COUNT(*) = 2"""):
+        items = [x.split("=") for x in str(cards).split(",")]
+        gog = [int(c) for a, c in items if a.startswith("GOG")]
+        ult = [int(c) for a, c in items if a.startswith("ULT") and not a.startswith("ULTRAC")]
+        if len(gog) == 1 and len(ult) == 1:
+            pairs[ult[0]] = gog[0]
+    # RO: acelasi predicat ca la punte — nu schlopuim doua marfuri diferite.
+    #     Fara el, 08.09.2026 legatura a unit Xiaomi Poco M8 cu Epson L6550.
+    import sys as _s
+    _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from ultra_publish import same_product
+    ok, dropped = {}, 0
     for d, k in pairs.items():
-        seen.setdefault(k, []).append(d)
-    for k, ds in seen.items():
-        if len(ds) == 1:
-            out[ds[0]] = k
-    return out
+        nd = cur.execute("SELECT denumirea FROM tms_univers WHERE cod=:c", c=d).fetchone()
+        nk = cur.execute("SELECT denumirea FROM tms_univers WHERE cod=:c", c=k).fetchone()
+        if nd and nk and same_product(nd[0], nk[0]):
+            ok[d] = k
+        else:
+            dropped += 1
+    if dropped:
+        print(f"  отклонено пар с непохожими названиями: {dropped}")
+    return ok
 
 
 def apply(con, pairs: dict[int, int]) -> None:

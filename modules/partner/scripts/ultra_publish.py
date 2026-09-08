@@ -56,17 +56,42 @@ def connect():
                             dsn=Config.BIRO26_DB_DSN)
 
 
+def _tokens(s):
+    return set(re.findall(r"[A-Za-zА-Яа-я0-9]{3,}", str(s or "").upper()))
+
+
+def same_product(a: str, b: str, min_overlap: float = 0.15) -> bool:
+    """Похожи ли названия настолько, чтобы считать это одним товаром.
+
+    Это НЕ поиск пары, а последний предохранитель перед записью связи.
+    08.09.2026 без него мост связал 393 карточки с чужим товаром (Xiaomi Poco
+    M8 получил цену Epson L6550, GoPro Hero 10 — 419 лей вместо 5 849), потому
+    что в июльской выгрузке 1 702 позиции делят один и тот же uuid картинки.
+    """
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return False
+    return len(ta & tb) / max(len(ta | tb), 1) >= min_overlap
+
+
 def export_xlsx(con, path: str) -> dict:
-    """Буфер ULTRA -> xlsx; Barcode = штрихкод июльской GOG-карточки (мост)."""
+    """Буфер ULTRA -> xlsx; Barcode = штрихкод июльской GOG-карточки (мост).
+
+    Источники ключа, в порядке надёжности:
+      1. TMS_MPT_IMPSRC.SRC_PID — uuid товара, записанный прошлой публикацией.
+         Работает на любой машине и не зависит от файлов.
+      2. TMS_MPT_TVR.IE_LINKADRES — uuid картинки на карточке.
+      3. Июльская выгрузка (если файл доступен) — uuid картинки и «имя+цвет»;
+         НЕОДНОЗНАЧНЫЕ ключи отбрасываются, а не берутся «первый попавшийся».
+
+    Любое совпадение проходит проверку same_product(): без неё мост уводит
+    цену на чужой товар (инцидент 08.09.2026, откат в Y_AI_ULTRA_BADPRICE).
+    """
     cur = con.cursor()
-    # RO: uuid imaginii -> (cod GOG, un cod de bare UNIC al cartelei).
-    #     Sursa PRINCIPALA: fisierul incarcarii din iulie (Set_data_import/8),
-    #     unde coloana URL tine imaginea cu uuid — 15 952 potriviri verificate.
-    #     IE_LINKADRES din TMS_MPT_TVR acopera doar 1 663 de cartele si e doar
-    #     completare. EN: main source = July file map; IE_LINKADRES is a fallback.
-    bridge = {}
-    gog2bc = {g: b for g, b in cur.execute("""
-        SELECT u.codvechi, MIN(b.barcode)
+    # RO: cod de bare UNIC per cartela GOG (o singura cartela activa pe cod)
+    gog2bc, cod2name = {}, {}
+    for cv, nm, bc in cur.execute("""
+        SELECT u.codvechi, u.denumirea, MIN(b.barcode)
           FROM tms_univers u JOIN tms_mpt_barcode b ON b.cod = u.cod
          WHERE u.tip = 'P' AND u.codvechi LIKE 'GOG%' AND NVL(u.isarhiv,'0') <> '2'
            AND b.barcode LIKE '4841%'
@@ -74,98 +99,94 @@ def export_xlsx(con, path: str) -> dict:
                  JOIN tms_univers u2 ON u2.cod = b2.cod AND u2.tip = 'P'
                   AND NVL(u2.isarhiv,'0') <> '2'
                 WHERE b2.barcode = b.barcode) = 1
-         GROUP BY u.codvechi""")}
-    if os.path.exists(JULY_XLSX):
-        import openpyxl as _ox
-        wb0 = _ox.load_workbook(JULY_XLSX, read_only=True, data_only=True)
-        for sn in wb0.sheetnames:
-            it = wb0[sn].iter_rows(values_only=True)
-            next(it, None)
-            for r0 in it:
-                if not r0 or not r0[1]:
-                    continue
-                m0 = UUID_RE.search(str(r0[0] or ""))
-                g0 = str(r0[1]).strip()
-                if m0 and g0 in gog2bc:
-                    bridge.setdefault(m0.group(), (g0, gog2bc[g0]))
-        wb0.close()
-    # RO: a treia cheie — NUME + CULOARE. In fisierul din iulie culoarea nu e in
-    #     nume, ci la sfirsitul DESCRIERE ("... | Negru"); la Ultra numele o
-    #     contine ("..., Negru"). Normalizat (fara spatii/semne) cele doua
-    #     coincid. Acopera cartelele ale caror imagini s-au schimbat intre timp
-    #     (Galaxy A27: iulie cdn.ultra.md, acum esempla) — 118 dubluri create pe
-    #     09.09.2026 exact din cauza asta. Doar chei UNICE pe ambele parti.
-    # EN: third key = normalized name + colour (July colour lives at the end of
-    #     DESCRIERE); unique on both sides only.
-    def _norm(x):
-        return re.sub(r"[^A-Z0-9А-Я]", "", str(x or "").upper())
-    if os.path.exists(JULY_XLSX):
-        jkey, jamb = {}, set()
-        wb0 = _ox.load_workbook(JULY_XLSX, read_only=True, data_only=True)
-        for sn in wb0.sheetnames:
-            it = wb0[sn].iter_rows(values_only=True)
-            next(it, None)
-            for r0 in it:
-                if not r0 or not r0[1]:
-                    continue
-                colour = str(r0[5] or "").split("|")[-1].strip() if r0[5] else ""
-                k = _norm(str(r0[3] or "") + colour)
-                g0 = str(r0[1]).strip()
-                if k and g0 in gog2bc:
-                    if k in jkey and jkey[k] != g0:
-                        jamb.add(k)
-                    jkey.setdefault(k, g0)
-        wb0.close()
-        for k in jamb:
-            jkey.pop(k, None)
-        name_bridge = {}
-        for k, g0 in jkey.items():
-            name_bridge[k] = (g0, gog2bc[g0])
-    else:
-        name_bridge = {}
-    for cod, link, bc in cur.execute("""
-        SELECT u.cod, t.ie_linkadres,
-               (SELECT MIN(b.barcode) FROM tms_mpt_barcode b
-                 WHERE b.cod = u.cod AND b.barcode LIKE '4841%'
-                   AND (SELECT COUNT(DISTINCT b2.cod) FROM tms_mpt_barcode b2
-                         JOIN tms_univers u2 ON u2.cod = b2.cod AND u2.tip = 'P'
-                          AND NVL(u2.isarhiv,'0') <> '2'
-                        WHERE b2.barcode = b.barcode) = 1)
+         GROUP BY u.codvechi, u.denumirea"""):
+        gog2bc[cv] = bc
+        cod2name[cv] = nm
+
+    bridge, name_bridge = {}, {}
+
+    # 1) из базы: uuid товара -> карточка (самый надёжный, не зависит от машины)
+    pid_bridge = {}
+    for pid, cv in cur.execute("""
+        SELECT i.src_pid, u.codvechi
+          FROM tms_mpt_impsrc i JOIN tms_univers u ON u.cod = i.cod
+         WHERE i.src_source_code = 'ULTRA' AND i.src_pid IS NOT NULL
+           AND u.codvechi LIKE 'GOG%' AND NVL(u.isarhiv,'0') <> '2'"""):
+        if cv in gog2bc:
+            pid_bridge[pid] = (cv, gog2bc[cv])
+
+    # 2) uuid картинки с карточки
+    for cv, link in cur.execute("""
+        SELECT u.codvechi, t.ie_linkadres
           FROM tms_univers u JOIN tms_mpt_tvr t ON t.cod = u.cod
          WHERE u.tip = 'P' AND u.codvechi LIKE 'GOG%' AND NVL(u.isarhiv,'0') <> '2'
            AND LOWER(t.ie_linkadres) LIKE '%ultra%'"""):
         m = UUID_RE.search(link or "")
-        if m and bc:
-            bridge.setdefault(m.group(), (cod, bc))
+        if m and cv in gog2bc:
+            bridge.setdefault(m.group(), (cv, gog2bc[cv]))
+
+    # 3) июльская выгрузка — только если файл рядом и только однозначные ключи
+    if os.path.exists(JULY_XLSX):
+        import openpyxl as _ox
+        j_uuid, j_key, amb_u, amb_k = {}, {}, set(), set()
+        wb0 = _ox.load_workbook(JULY_XLSX, read_only=True, data_only=True)
+        for sn in wb0.sheetnames:
+            it = wb0[sn].iter_rows(values_only=True)
+            next(it, None)
+            for r0 in it:
+                if not r0 or not r0[1]:
+                    continue
+                g0 = str(r0[1]).strip()
+                if g0 not in gog2bc:
+                    continue
+                m0 = UUID_RE.search(str(r0[0] or ""))
+                if m0:
+                    if m0.group() in j_uuid and j_uuid[m0.group()] != g0:
+                        amb_u.add(m0.group())      # 1 702 таких — их нельзя брать
+                    j_uuid.setdefault(m0.group(), g0)
+                colour = str(r0[5] or "").split("|")[-1].strip() if r0[5] else ""
+                k = re.sub(r"[^A-Z0-9А-Я]", "", (str(r0[3] or "") + colour).upper())
+                if k:
+                    if k in j_key and j_key[k] != g0:
+                        amb_k.add(k)
+                    j_key.setdefault(k, g0)
+        wb0.close()
+        for u in amb_u:
+            j_uuid.pop(u, None)
+        for k in amb_k:
+            j_key.pop(k, None)
+        for u, g0 in j_uuid.items():
+            bridge.setdefault(u, (g0, gog2bc[g0]))
+        name_bridge = {k: (g0, gog2bc[g0]) for k, g0 in j_key.items()}
 
     import openpyxl
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "ULTRA"
     ws.append(HEAD)
-    n = linked = 0
+    n = linked = rejected = 0
     for art, den, grupa, categ, brand, angro, retail, photo, stoc in cur.execute("""
         SELECT articol, denumire, grupa, categorie, brand, angro, retail1, photo_url, stoc
           FROM biro26_goods
          WHERE sheet = 'ULTRA' AND denumire IS NOT NULL
-           -- RO: doar rindurile ATINSE de ultima sincronizare: ea pune mereu o
-           --     grupa (sau «Ultra - diverse»). Rindurile cu GRUPA goala sint
-           --     resturi vechi (pret vechi, denumiri cu «?») si NU se publica.
-           -- EN: only rows refreshed by the sync (it always sets a group);
-           --     stale leftovers are never published.
            AND grupa IS NOT NULL"""):
         m = UUID_RE.search(photo or "")
-        hit = bridge.get(m.group()) if m else None
-        if not hit:
-            hit = name_bridge.get(_norm(den))
+        hit = None
+        if m:
+            hit = pid_bridge.get(m.group()) or bridge.get(m.group())
+        if not hit and name_bridge:
+            hit = name_bridge.get(re.sub(r"[^A-Z0-9А-Я]", "", str(den or "").upper()))
+        if hit and not same_product(cod2name.get(hit[0]), den):
+            rejected += 1          # связь есть, но товары разные — не рискуем
+            hit = None
         if hit:
             linked += 1
         ws.append([art, hit[1] if hit else None, den, grupa, categ, brand,
                    angro, retail, photo, stoc])
         n += 1
     wb.save(path)
-    return {"rows": n, "linked": linked, "bridge_cards": len(bridge)}
-
+    return {"rows": n, "linked": linked, "rejected": rejected,
+            "bridge_cards": len(bridge) + len(pid_bridge)}
 
 def load_raw(path: str) -> int:
     """Штатный загрузчик RAW; возвращает load_id."""
@@ -297,7 +318,7 @@ def main() -> None:
         print(f"повторное использование загрузки load_id={load_id}")
     else:
         st = export_xlsx(con, args.xlsx)
-        print(f"экспорт: {st['rows']} строк, мост по штрихкоду: {st['linked']} "
+        print(f"экспорт: {st['rows']} строк, мост: {st['linked']} (отклонено по несовпадению имени: {st['rejected']}) "
               f"(карточек GOG с uuid: {st['bridge_cards']}) -> {args.xlsx}")
         load_id = load_raw(args.xlsx)
         print(f"загрузка RAW: load_id={load_id}")
