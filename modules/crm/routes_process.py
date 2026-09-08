@@ -1,6 +1,6 @@
 """Rutele procesului CRM — API-ul v2 al TZ (§7.4) pe blueprint-ul modulului.
 
-RO: FARA prefix (il pune nucleul: /UNA.md/orasldev/crm). Contractul:
+RO: FARA prefix (il pune nucleul, sub cheia modulului). Contractul:
 JSON UTF-8, date yyyy-mm-dd, sume cu doua zecimale, erori {error, detail,
 field} cu HTTP 4xx (niciodata 200 cu text de eroare), paginare <= 500.
 Chiriasul se ia din sesiune (tenant.py): portalul = OfficePlus, clientul
