@@ -1,15 +1,19 @@
-"""Alertele CRM in Telegram: colectarea si trimiterea.
+"""Alertele CRM: colectarea si trimiterea pe canalele deja configurate.
 
 RO: regulile (ce e o alerta, cum arata textul, cind se repeta) sint in
-`alerts.py`; aici sint interogarile si botul. Conditiile comenzilor NU se
-scriu din nou: se iau din `process.stage_where` / `overdue_where`, ca sa
+`alerts.py`; aici sint interogarile si trimiterea. Conditiile comenzilor NU
+se scriu din nou: se iau din `process.stage_where` / `overdue_where`, ca sa
 existe un singur adevar despre etape (regula prototipului).
 
-Botul: acelasi transport ca restul portalului — `Biro26Notify._send_telegram`.
-Tokenul il tine OfficePlus (setarile de notificari ale magazinului); clientul
-din cabinet indica doar `chat_id`-ul lui, deci nu avem token-uri de clienti
-prin baza. Un client poate pune si tokenul lui, daca vrea botul lui.
-EN: collect alerts (reusing the stage conditions) and send them to Telegram.
+Canalele NU se configureaza a doua oara (cerinta proprietarului 08.09.2026:
+«Telegram si WhatsApp sint deja setate pentru comenzile de pe site, folositi
+acele setari»): pentru OfficePlus sumarul pleaca prin `Biro26Notify.send_all`
+— exact canalele bifate in «Setari notificari» ale magazinului (e-mail,
+Telegram, WhatsApp). Clientul din cabinet nu are acces la acele setari, deci
+el indica doar `chat_id`-ul lui de Telegram, iar botul ramine cel al
+magazinului — asa nu apar token-uri de clienti in baza.
+EN: alerts are delivered through the channels already configured for site
+orders (Biro26Notify.send_all); cabinet clients only add their chat id.
 """
 from __future__ import annotations
 
