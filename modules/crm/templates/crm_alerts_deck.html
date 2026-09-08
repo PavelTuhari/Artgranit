@@ -31,6 +31,11 @@
   figure img{width:100%;border:1px solid var(--line);border-radius:8px;display:block;background:#fff}
   figcaption{color:var(--muted);font-size:12.5px;margin-top:7px}
   .shot-tall{max-height:420px;object-fit:cover;object-position:top}
+  /* RO: capturi inalte (mesajul, lista) — taiate curat, cu estompare in jos */
+  .crop{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+  .crop img{display:block;width:100%;border:none;border-radius:0}
+  .crop.h480{max-height:480px}.crop.h430{max-height:430px}
+  .crop::after{content:"";position:absolute;left:0;right:0;bottom:0;height:60px;background:linear-gradient(transparent,#fff)}
   .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px 0 18px}
   .kpi div{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:14px}
   .kpi b{display:block;font-size:27px;font-weight:600;letter-spacing:-.02em}
