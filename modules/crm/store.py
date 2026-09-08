@@ -81,7 +81,8 @@ class CrmStore:
     @staticmethod
     def get(client_id: int) -> Optional[Dict[str, Any]]:
         db = Biro26DB()
-        rows = _rows(db.execute_query(_CLIENT_COLS + " WHERE c.ID = :id", {"id": int(client_id)}))
+        tw, tp, _ = _tw()
+        rows = _rows(db.execute_query(_CLIENT_COLS + " WHERE c.ID = :id" + tw, dict(tp, id=int(client_id))))
         if not rows:
             return None
         c = rows[0]
