@@ -100,8 +100,9 @@ class CrmStore:
 
     @staticmethod
     def find_by_idno(idno: str) -> Optional[Dict[str, Any]]:
+        tw, tp, _ = _tw()
         rows = _rows(Biro26DB().execute_query(
-            "SELECT ID, NAME FROM CRM_CLIENT WHERE IDNO = :i", {"i": str(idno)}))
+            "SELECT c.ID, c.NAME FROM CRM_CLIENT c WHERE c.IDNO = :i" + tw, dict(tp, i=str(idno))))
         return rows[0] if rows else None
 
     @staticmethod
