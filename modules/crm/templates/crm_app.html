@@ -115,10 +115,52 @@
   <span class="sp"></span>
   <span id="cg" class="muted" {% if cabinet %}hidden{% endif %}><span class="dot"></span>Contragenti</span>
   <select id="ui-lang" onchange="setLang(this.value)" style="padding:4px"><option value="ro">RO</option><option value="ru">RU</option><option value="en">EN</option></select>
-  <span class="user">{{ session.get('user_name') or session.get('username') or '' }}</span>
+  <span class="user">{% if cabinet %}{{ session.get('biro26_client', {}).get('name') or ('client #' ~ tenant_id) }}{% else %}{{ session.get('user_name') or session.get('username') or '' }}{% endif %}</span>
 </div>
 
 <main>
+<!-- ── Tablou de lucru (8 etape «de la contract la bani») ───────────────── -->
+<section id="sec-workspace" hidden>
+  <div class="page-head"><h1 data-s="nav.workspace">Tablou de lucru</h1>
+    <span class="muted" id="ws-summary"></span>
+    {% if not cabinet %}<button class="btn" onclick="crmSeed()" title="date demo (TEC-03)">⚗ demo</button>{% endif %}</div>
+  <div class="ws-h" data-s="workspace.contract">CONTRACT CU CLIENTUL</div>
+  <div class="ws-row" id="ws-contract"></div>
+  <div class="ws-h" data-s="workspace.execution">EXECUTAREA COMENZILOR</div>
+  <div class="ws-row" id="ws-exec"></div>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    <div class="panel"><h3 style="margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px" data-s="workspace.last_orders">Ultimele comenzi</h3><table><tbody id="ws-orders"></tbody></table></div>
+    <div class="panel"><h3 style="margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px" data-s="workspace.next_tasks">Sarcini apropiate</h3><table><tbody id="ws-tasks"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ── Kanban ────────────────────────────────────────────────────────── -->
+<section id="sec-kanban" hidden>
+  <div class="page-head"><h1 id="kb-title">Kanban</h1>
+    <select id="kb-kind" onchange="crmBoardKind(this.value)">
+      <option value="orders">orders</option><option value="deals">deals</option><option value="tasks">tasks</option>
+      <option value="projects">projects</option><option value="project_tasks">project_tasks</option></select>
+    <span class="muted" id="kb-hint"></span></div>
+  <div class="kb" id="kb"></div>
+</section>
+
+<!-- ── entitati (construite din /api/v2/meta) ─────────────────────────── -->
+<section id="sec-clients2" hidden></section>
+<section id="sec-contacts" hidden></section>
+<section id="sec-leads" hidden></section>
+<section id="sec-deals" hidden></section>
+<section id="sec-items" hidden></section>
+<section id="sec-orders" hidden></section>
+<section id="sec-projects" hidden></section>
+<section id="sec-tasks" hidden></section>
+
+<!-- ── Rapoarte ──────────────────────────────────────────────────────── -->
+<section id="sec-reports" hidden>
+  <div class="page-head"><h1 data-s="reports.title">Rapoarte</h1></div>
+  <div class="rp-list" id="rp-list"></div>
+  <div id="rp-view"></div>
+</section>
+
 <!-- ── Acasa ─────────────────────────────────────────────────────────── -->
 <section id="sec-home">
   <div class="page-head"><h1 data-i="home_title">Acasă</h1>
