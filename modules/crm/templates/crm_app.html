@@ -518,9 +518,10 @@ async function saveSettings() {
     show('clients'); await loadClients(); if (id && Number(id)) openClient(Number(id));
     return;
   }
-  const sec = (location.hash || '#home').slice(1);
-  show(['home', 'clients', 'settings'].includes(sec) ? sec : 'home');
+  // RO: navigarea initiala o face crm_process.js (tabloul de lucru); aici doar revenirea din Contragenti
 })();
 </script>
+<script>window.CRM_CABINET = {{ 'true' if cabinet else 'false' }};</script>
+<script src="{{ url_for('crm.static', filename='crm_process.js') }}"></script>
 </body>
 </html>
