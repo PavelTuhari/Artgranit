@@ -168,12 +168,63 @@ def run_import(con, load_id: int, commit: bool) -> list[str]:
     return lines
 
 
+def write_markers(con, load_id: int) -> dict:
+    """Журнал YBIRO_IMPORT_LOG + маркеры TMS_MPT_IMPSRC для загрузки.
+
+    Пакет BIRO26PT_importData этого НЕ делает — у прошлых импортов (atehno,
+    bestbuy…) это писала python-обёртка. Без маркера карточка не знает, откуда
+    пришла, а инкрементальный синк не может её узнать по uuid (SRC_PID).
+    """
+    cur = con.cursor()
+    cur.execute("""SELECT COUNT(*),
+                          SUM(CASE WHEN status='NEW' THEN 1 ELSE 0 END),
+                          SUM(CASE WHEN status='EXISTING' THEN 1 ELSE 0 END),
+                          SUM(CASE WHEN status IN ('AMBIGUOUS','NOARTICOL') THEN 1 ELSE 0 END)
+                     FROM biro26pt_stg WHERE load_id = :l""", l=load_id)
+    total, new, exist, skipped = cur.fetchone()
+    cur.execute("SELECT YBIRO_IMPORT_LOG_SEQ.NEXTVAL FROM dual")
+    import_id = cur.fetchone()[0]
+    cur.execute("""INSERT INTO ybiro_import_log
+                     (import_id, source_code, src_file, load_id, started_at, finished_at,
+                      rows_total, rows_inserted, rows_matched, rows_skipped, notes)
+                   VALUES (:i, 'ULTRA', :f, :l, SYSTIMESTAMP, SYSTIMESTAMP,
+                           :t, :n, :e, :s, :note)""",
+                i=import_id, f=f"Ultra B2B API /product ({dt.date.today()})", l=load_id,
+                t=total, n=new, e=exist, s=skipped,
+                note="RO: punte prin cod de bare 4841 al cartelelor GOG din iulie; "
+                     "SRC_PID = uuid-ul produsului la Ultra")
+    # RO: marcajul de sursa: uuid din tampon (dupa articol), cale de grup, statusul potrivirii
+    cur.execute("""MERGE INTO tms_mpt_impsrc t
+                   USING (SELECT s.cod_univers cod, s.articol, s.status,
+                                 SUBSTR(s.grupa || ' > ' || s.categ, 1, 400) gpath,
+                                 (SELECT MAX(g.guid) FROM biro26_goods g
+                                   WHERE g.sheet='ULTRA' AND g.articol = s.articol) guid
+                            FROM biro26pt_stg s
+                           WHERE s.load_id = :l AND s.cod_univers IS NOT NULL
+                             AND s.status IN ('NEW','EXISTING')) u
+                   ON (t.cod = u.cod)
+                   WHEN MATCHED THEN UPDATE SET
+                        t.src_source_code = 'ULTRA', t.src_import_id = :i,
+                        t.src_row_guid = u.guid, t.src_pid = u.guid,
+                        t.src_articol = u.articol, t.src_group_path = u.gpath,
+                        t.match_status = u.status, t.updated_at = SYSDATE
+                   WHEN NOT MATCHED THEN INSERT
+                        (cod, src_source_code, src_import_id, src_row_guid, src_pid,
+                         src_articol, src_group_path, match_status, updated_at)
+                        VALUES (u.cod, 'ULTRA', :i, u.guid, u.guid, u.articol,
+                                u.gpath, u.status, SYSDATE)""",
+                l=load_id, i=import_id)
+    marked = cur.rowcount
+    con.commit()
+    return {"import_id": import_id, "marked": marked, "new": new, "existing": exist}
+
+
 def prune_staging(con, keep: int = 3) -> None:
     """Уборка СТЕЙДЖИНГА (не прода): старые загрузки ULTRA_*, кроме последних N.
     Почасовой cron иначе оставлял бы 37k строк RAW каждый час."""
     cur = con.cursor()
     cur.execute("""SELECT load_id FROM biro26pt_file
-                    WHERE src_file LIKE 'ULTRA\_%' ESCAPE '\\' ORDER BY load_id DESC""")
+                    WHERE src_file LIKE 'ULTRA%' ORDER BY load_id DESC""")
     old = [r[0] for r in cur.fetchall()][keep:]
     for lid in old:
         for t in ("biro26pt_stg", "biro26pt_map", "biro26pt_raw",
@@ -207,6 +258,9 @@ def main() -> None:
     for ln in run_import(con, load_id, args.commit):
         print("  " + ln)
     if args.commit:
+        mk = write_markers(con, load_id)
+        print(f"  журнал import_id={mk['import_id']}, маркеров источника: {mk['marked']} "
+              f"(новых {mk['new']}, существующих {mk['existing']})")
         prune_staging(con, keep=3)
     print("\nрежим:", "ЗАПИСЬ (p_commit=TRUE)" if args.commit else "разбор без записи")
 
