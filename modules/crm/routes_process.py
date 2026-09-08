@@ -228,6 +228,7 @@ def api_stages():
     last_orders = g.crm.list("orders", limit=8)
     return jsonify({"success": True, "data": {"stages": st, "orders_total": sum(s["count"] for s in orders),
                                               "orders_overdue": sum(s["overdue"] for s in orders),
+                                              "orders_overdue_sum": sum(s["overdue_sum"] for s in orders),
                                               "next_tasks": tasks, "last_orders": last_orders}})
 
 
