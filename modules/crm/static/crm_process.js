@@ -108,7 +108,8 @@
         <div class="th">${esc(E('stage_hint', s.hint))}</div></div>`;
     document.getElementById('ws-contract').innerHTML = d.stages.slice(0, 3).map(tile).join('');
     document.getElementById('ws-exec').innerHTML = d.stages.slice(3).map(tile).join('');
-    document.getElementById('ws-summary').textContent = S('workspace.summary', d.orders_total, d.orders_overdue);
+    // RO: sirul prototipului are 3 locuri: comenzi, suma neinchisa, cite intirzie
+    document.getElementById('ws-summary').textContent = S('workspace.summary', d.orders_total, money(d.orders_overdue_sum), d.orders_overdue);
     document.getElementById('ws-orders').innerHTML = d.last_orders.map(o => `<tr class="r" onclick="crmOpen('orders',${o.id})">
         <td>№${esc(o.number)}</td><td>${esc(o.client_id__disp || S('kanban.no_client'))}</td><td>${esc(E('order_kind', o.kind))}</td>
         <td>${esc(E('order_status', o.status))}</td><td class="num">${money(o.total)}</td><td>${esc(o.due_date || '')}</td></tr>`).join('') || '<tr><td class="muted">—</td></tr>';
