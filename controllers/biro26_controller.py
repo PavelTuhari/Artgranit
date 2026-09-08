@@ -293,7 +293,9 @@ class Biro26Controller:
     @staticmethod
     def get_products_stock() -> Dict[str, Any]:
         a = request.args
-        return Biro26Store.get_products_stock(
+        # RO: 0 produse la o fraza lunga -> variante mai scurte (models/biro26_search_relax.py)
+        from models.biro26_search_relax import with_fallback
+        return with_fallback(Biro26Store.get_products_stock, dict(
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
             grupa=a.get("grupa"), cod=a.get("cod", type=int),
@@ -311,7 +313,7 @@ class Biro26Controller:
                       and bool(session.get("username")
                                or session.get("authenticated"))),
             sort=(a.get("sort") if a.get("sort") in
-                  ("name", "name_desc", "price_asc", "price_desc") else "name"))
+                  ("name", "name_desc", "price_asc", "price_desc") else "name")))
 
     @staticmethod
     def product_archive(cod: int) -> Dict[str, Any]:
