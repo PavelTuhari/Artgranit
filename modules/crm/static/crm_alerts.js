@@ -142,8 +142,8 @@
       quiet_days: document.getElementById('ac-quiet_days').value,
       send_hour: document.getElementById('ac-send_hour').value
     };
-    const tok = document.getElementById('ac-tg_token').value.trim();
-    if (tok) body.tg_token = tok;
+    const tokEl = document.getElementById('ac-tg_token');
+    if (tokEl && tokEl.value.trim()) body.tg_token = tokEl.value.trim();
     const r = await api(V2 + 'alerts/settings', { method: 'POST', body: JSON.stringify(body) });
     if (!r.success) { say('danger', r.error + (r.detail ? ' — ' + r.detail : '')); return; }
     say('success', t('saved')); await crmAlertsPreview();
