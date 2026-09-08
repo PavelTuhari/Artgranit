@@ -273,8 +273,12 @@
         <select id="ln-item" style="flex:1;min-width:160px"></select>
         <input id="ln-qty" type="number" step="any" value="1" style="width:70px" title="qty">
         <input id="ln-price" type="number" step="any" placeholder="${esc(cap('Цена, MDL'))}" style="width:100px">
-        <button class="btn" onclick="crmAddLine()">${esc(S('btn.add_line'))}</button></div>
-      <script>(async()=>{const r=await api('${V2}lookup/item');const s=document.getElementById('ln-item');if(s&&r.success)s.innerHTML=r.data.map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('')})()<\/script></div>`;
+        <button class="btn" onclick="crmAddLine()">${esc(S('btn.add_line'))}</button></div></div>`;
+  }
+  async function fillLineItems() {
+    const s = document.getElementById('ln-item'); if (!s) return;
+    const r = await api(V2 + 'lookup/item');
+    if (r.success) s.innerHTML = r.data.map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
   }
   window.crmAddLine = async function () {
     const body = { item_id: document.getElementById('ln-item').value, qty: document.getElementById('ln-qty').value, price: document.getElementById('ln-price').value };
