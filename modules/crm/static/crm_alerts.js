@@ -101,8 +101,9 @@
   function renderCfg() {
     const kinds = Object.keys(DATA.kinds || {});
     const on = String(CFG.kinds || '').split(',').map(s => s.trim()).filter(Boolean);
-    document.getElementById('al-cfg').innerHTML = `<div class="kv">
-      <label>${esc(t('enabled'))}</label><div><input type="checkbox" id="ac-enabled" ${CFG.enabled ? 'checked' : ''}></div>
+    document.getElementById('al-cfg').innerHTML = `<h3 style="margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px">${esc(t('settings'))}</h3>
+      <div class="kv">
+      <div><label style="margin:0"><input type="checkbox" id="ac-enabled" ${CFG.enabled ? 'checked' : ''}> ${esc(t('enabled'))}</label></div>
       <label>${esc(t('chat'))}</label><input id="ac-tg_chat" value="${esc(CFG.tg_chat || '')}" placeholder="-1001234567890">
       <label>${esc(t('token'))}</label><div><input id="ac-tg_token" type="password" placeholder="${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}">
         <span class="muted" style="font-size:11.5px">${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}</span></div>
