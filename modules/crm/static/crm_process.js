@@ -62,9 +62,13 @@
   const cap = c => (CAP[LANG2] && CAP[LANG2][c]) || c;
   const NAV_KEY = { workspace: 'nav.workspace', kanban: 'nav.kanban', clients: 'nav.clients', contacts: 'nav.contacts', leads: 'nav.leads',
                     deals: 'nav.deals', items: 'nav.items', orders: 'nav.orders', projects: 'nav.projects', tasks: 'nav.calendar',
-                    reports: 'nav.reports', settings: 'nav.settings' };
+                    reports: 'nav.reports', alerts: 'nav.alerts', settings: 'nav.settings' };
   const ENTITY_KEYS = ['contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks'];
-  const SECTIONS = ['home', 'workspace', 'kanban', 'clients', ...ENTITY_KEYS, 'reports', 'settings'];
+  const SECTIONS = ['home', 'workspace', 'kanban', 'clients', ...ENTITY_KEYS, 'reports', 'alerts', 'settings'];
+  // RO: «Alerte» nu e in lang.json-ul prototipului (nu exista in Delphi) — trei limbi aici
+  const NAV_EXTRA = { ro: 'Alerte', ru: 'Оповещения', en: 'Alerts' };
+  window.crmS = (k, ...a) => S(k, ...a);      // RO: traducerile, pentru crm_alerts.js
+  window.crmMoney = v => money(v);
 
   // ── navigare (inlocuieste show() din beta; sectiunile beta raman) ────────
   window.show = function (sec) {
