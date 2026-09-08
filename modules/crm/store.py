@@ -65,8 +65,9 @@ class CrmStore:
     # ── clienti ──────────────────────────────────────────────────────────
     @staticmethod
     def list(preset: str = "all", q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
-        where = " WHERE 1=1" + rules.preset_where(preset)
-        params: Dict[str, Any] = {"l": max(1, min(int(limit), 1000))}
+        tw, tp, _ = _tw()
+        where = " WHERE 1=1" + tw + rules.preset_where(preset)
+        params: Dict[str, Any] = dict(tp, l=max(1, min(int(limit), 1000)))
         if q and q.strip():
             where += (" AND (UPPER(c.NAME) LIKE :q OR c.IDNO LIKE :q2 "
                       "OR UPPER(c.ADDRESS) LIKE :q OR UPPER(c.MANAGERS) LIKE :q)")
