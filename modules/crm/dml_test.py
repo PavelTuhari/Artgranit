@@ -160,4 +160,5 @@ def run(data: CrmData) -> Dict[str, Any]:
         rep = reports.build(data, slug, "ro")
         check(len(rep["columns"]) > 0 and isinstance(rep["rows"], list), "report %s: se construieste (%d rinduri)" % (slug, len(rep["rows"])))
     data.dml("DELETE FROM CRM_CLIENT WHERE ID = :c", {"c": cid})
+    cleanup(data)
     return {"ok": fails == 0, "fails": fails, "log": log}
