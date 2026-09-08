@@ -21,6 +21,7 @@
 
   // ── i18n (lang.json al prototipului) ────────────────────────────────────
   const S = (k, ...a) => {
+    if (k === 'nav.alerts') return NAV_EXTRA[LANG2] || NAV_EXTRA.ro;
     let s = (LNG && LNG[LANG2] && LNG[LANG2].strings[k]) || (LNG && LNG.ro && LNG.ro.strings[k]) || k;
     a.forEach(v => { s = s.replace(/%[sd]/, v); });
     return s;
