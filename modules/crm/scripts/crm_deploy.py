@@ -22,8 +22,11 @@ SQL_DIR = os.path.join(ROOT, "modules", "crm", "sql")
 #     se poate inlocui; la reinstalare tipurile sint neschimbate -> SKIP.
 #     Daca un tip chiar se schimba: DROP PACKAGE EFA_REPORT, DROP TYPE ..._TAB,
 #     DROP TYPE ..._T, apoi instalatorul din nou.
+#     ORA-02443 = DROP CONSTRAINT pe o constringere deja scoasa (02_crm_process:
+#     UQ_CRM_CLIENT_IDNO -> UQ_CRM_CLIENT_IDNO_OWNER) — la reinstalare e SKIP.
+#     ORA-01430 = ALTER TABLE ADD pe o coloana deja adaugata (multi-chirias) — SKIP.
 EXISTS_OK = ("ORA-00955", "ORA-01543", "ORA-02260", "ORA-00001", "ORA-01408",
-             "ORA-02303")
+             "ORA-02303", "ORA-02443", "ORA-01430", "ORA-02275")
 
 
 def run_file(db, path):
