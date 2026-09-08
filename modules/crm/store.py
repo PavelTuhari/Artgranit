@@ -207,11 +207,12 @@ class CrmStore:
 
     @staticmethod
     def events(limit: int = 50, client_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        where = " WHERE CLIENT_ID = :c" if client_id else ""
-        params: Dict[str, Any] = {"l": max(1, min(int(limit), 500))}
+        tw, tp, _ = _tw("e")
+        where = " WHERE 1=1" + tw + (" AND e.CLIENT_ID = :c" if client_id else "")
+        params: Dict[str, Any] = dict(tp, l=max(1, min(int(limit), 500)))
         if client_id:
             params["c"] = int(client_id)
         return _rows(Biro26DB().execute_query(
-            "SELECT * FROM (SELECT ID, TO_CHAR(TS,'DD.MM.YYYY HH24:MI:SS') TS, CLIENT_ID, IDNO, "
-            f"EVENT, SRC, DETAIL FROM CRM_EVENT_LOG{where} ORDER BY ID DESC) WHERE ROWNUM <= :l",
+            "SELECT * FROM (SELECT e.ID, TO_CHAR(e.TS,'DD.MM.YYYY HH24:MI:SS') TS, e.CLIENT_ID, e.IDNO, "
+            f"e.EVENT, e.SRC, e.DETAIL FROM CRM_EVENT_LOG e{where} ORDER BY e.ID DESC) WHERE ROWNUM <= :l",
             params))
