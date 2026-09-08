@@ -1,16 +1,16 @@
 -- RO: Conturul CRM_* partea a doua (08.09.2026) - procesul "de la contract la bani"
---     dupa schema prototipului Demo CRM (crm_delphi/uCrmData.pas, TZ_CRM_ZAVOD §9.1):
+--     dupa schema prototipului Demo CRM (crm_delphi/uCrmData.pas, TZ_CRM_ZAVOD par. 9.1):
 --       contacts, leads, deals, items, orders + order_lines, tasks, projects.
 --     Numele coloanelor = cele din prototip (compatibilitate cu clientii Delphi/Swift
 --     si cu datele demo), cu trei exceptii impuse de Oracle: number -> DOC_NO,
 --     sum -> LINE_SUM, position -> JOB_TITLE, unit_ ramine UNIT_.
 --     Multi-chirias (cerinta 08.09.2026: instrument al OfficePlus SI al fiecarui
---     client din cabinet): fiecare rind are OWNER_KIND ('office' | 'client') si
+--     client din cabinet): fiecare rind are OWNER_KIND (office | client) si
 --     OWNER_ID (0 pentru office, YBIRO_CLIENT.ID pentru client). Rindurile vechi
---     din CRM_CLIENT devin 'office'.
+--     din CRM_CLIENT devin office.
 --     Valorile enumerarilor se scriu canonic (ca in prototip), traducerile sint in
 --     lang.json - de aceea DDL-ul nu are DEFAULT-uri pe ele (text ASCII in DDL).
---     Datele sint DATE (nu TEXT ca in SQLite); API-ul le da/primeste yyyy-mm-dd.
+--     Datele sint DATE (nu TEXT ca in SQLite), API-ul le da/primeste yyyy-mm-dd.
 -- EN: CRM process schema mirroring the Demo CRM prototype, multi-tenant.
 
 ALTER TABLE CRM_CLIENT ADD (

@@ -203,3 +203,103 @@ def test_page_single_search_falls_back_to_date_gov_and_offers_starter():
     assert 'id="offline-box"' in tpl and "showOffline(true)" in tpl and "cgHost()" in tpl
     routes = _read("modules", "crm", "routes.py")
     assert '"/launcher/<kind>"' in routes and "Content-Disposition" in routes
+
+
+# ── procesul «de la contract la bani» (08.09.2026) — fara Oracle ─────────
+from modules.crm import entities, process  # noqa: E402
+
+
+def test_entities_mirror_the_prototype_schema():
+    """RO: tabelele si cimpurile din TZ §9.1 / uCrmData.pas, cu numele prototipului."""
+    for key in ("clients", "contacts", "leads", "deals", "items", "orders", "tasks", "projects"):
+        assert key in entities.ENTITIES
+    o = entities.entity("orders")
+    assert [f.name for f in o.fields][:6] == ["number", "order_date", "client_id", "project_id", "kind", "status"]
+    assert o.field("number").column == "DOC_NO" and o.field("total").kind == entities.READONLY
+    assert entities.entity("contacts").field("position").column == "JOB_TITLE"
+    t = entities.entity("tasks")
+    for n in ("stage", "priority", "assignee", "plan_start", "hours_plan", "hours_fact", "depends_on", "seq"):
+        assert t.field(n), n
+    assert entities.ENUMS["order_status"] == ["Черновик", "Подтверждён", "В работе", "Выполнен", "Оплачен", "Отменён"]
+    assert entities.ENUMS["project_status"][0] == "Тендер" and entities.ENUMS["project_status"][-1] == "Проигран"
+
+
+def test_stage_conditions_are_exclusive_and_bound_not_inlined():
+    """RO: 8 etape, valorile canonice doar ca binduri (CL8MSWIN1251), alias t."""
+    assert len(process.STAGES) == 8
+    for s in process.STAGES:
+        sql, p = process.stage_where(s)
+        assert "t." in sql and sql.isascii(), sql
+        assert all(not v.isascii() for v in p.values() if isinstance(v, str)), p
+        osql, _ = process.overdue_where(s)
+        assert osql.startswith(sql)
+    assert "ADVANCE,0) <= 0" in process.stage_where("await_advance")[0]
+    assert "SHIP_DATE IS NULL" in process.stage_where("ready_to_ship")[0]
+    assert "PAID,0) >= NVL(t.TOTAL" in process.stage_where("closed")[0]
+    assert process.overdue_where("closed")[0].endswith("1=0")
+
+
+def test_boards_and_single_move_point():
+    for k in process.BOARDS:
+        cols = process.board_columns(k)
+        assert len(cols) == len(process.BOARD_COLORS[k]), k
+        for i in range(len(cols)):
+            sets, p = process.board_move_sql(k, i)
+            assert "WHERE" not in sets and sets.isascii()
+            w, _ = process.board_column_where(k, i)
+            assert "t." in w
+    with pytest.raises(ValueError):
+        process.board_move_sql("deals", 9)
+    assert process.board_move_sql("project_tasks", 4)[1]["d"] == 1        # Готово <=> done
+    assert process.board_move_sql("orders", 4)[1]["s"] == "Оплачен"
+
+
+def test_posting_and_conversion_rules():
+    assert process.post_sign("Продажа") == -1 and process.post_sign("Производство") == 1 and process.post_sign("Услуга") == 0
+    assert process.post_allowed("Выполнен") and process.post_allowed("Оплачен") and not process.post_allowed("Черновик")
+    assert process.done_steps_for("Закрыт") == 11 and process.done_steps_for("Проигран") == 1
+    assert process.resolve_default("today+14") > process.resolve_default("today")
+    assert process.enum_ok("deal_stage", "Выиграна") and not process.enum_ok("deal_stage", "Won")
+
+
+def test_lang_json_has_three_languages_with_positional_enums():
+    d = json.loads(_read("modules", "crm", "lang.json"))
+    for lang in ("ro", "en", "ru"):
+        assert set(d[lang]["strings"]) == set(d["ro"]["strings"]), lang
+        for e, v in entities.ENUMS.items():
+            assert len(d[lang]["enums"][e]) == len(v), (lang, e)
+        assert len(d[lang]["enums"]["stage_title"]) == 8
+    assert d["ru"]["enums"]["order_kind"] == entities.ENUMS["order_kind"]
+
+
+def test_process_ddl_is_ascii_multi_tenant_and_slashed():
+    src = _read("modules", "crm", "sql", "02_crm_process.sql")
+    assert src.isascii()
+    for t in ("CRM_CONTACT", "CRM_LEAD", "CRM_DEAL", "CRM_ITEM", "CRM_PROJECT", "CRM_ORDER", "CRM_ORDER_LINE", "CRM_TASK"):
+        assert "CREATE TABLE %s (" % t in src
+        if t != "CRM_ORDER_LINE":
+            assert "OWNER_KIND" in src.split("CREATE TABLE %s (" % t)[1].split("/")[0]
+    assert "UNIQUE (OWNER_KIND, OWNER_ID, IDNO)" in src
+    for line in src.splitlines():
+        s = line.strip()
+        if s.startswith("--"):
+            assert ";" not in s and "'" not in s, s
+    blocks = [b for b in src.split("\n/\n") if b.strip()]
+    assert all(b.strip() for b in blocks) and src.rstrip().endswith("/")
+
+
+def test_process_routes_and_cabinet_are_prefix_free():
+    src = _read("modules", "crm", "routes_process.py")
+    assert "/UNA.md" not in src.replace("/UNA.md/orasldev/biro26-site/account", "")
+    for r in ('"/cabinet"', '"/api/v2/<key>"', '"/api/v2/orders/<int:rid>/post"', '"/api/v2/leads/<int:rid>/convert"',
+              '"/api/v2/board/<kind>/move"', '"/api/v2/workspace/stages"', '"/api/v2/reports/<slug>"'):
+        assert r in src, r
+
+
+def test_page_has_no_modal_dialogs_and_loads_the_process_script():
+    page = _read("modules", "crm", "templates", "crm_app.html")
+    js = _read("modules", "crm", "static", "crm_process.js")
+    for bad in ("window.alert(", "alert(", "confirm(", "prompt("):
+        assert bad not in js and bad not in page, bad
+    assert "crm.static" in page and "crm_process.js" in page and "CRM_CABINET" in page
+    assert "draggable" in js and "board/" in js and "workspace/stages" in js

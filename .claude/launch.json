@@ -3,8 +3,10 @@
   "configurations": [
     {
       "name": "artgranit",
-      "runtimeExecutable": "venv/bin/python",
-      "runtimeArgs": ["app.py"],
+      "runtimeExecutable": "/Users/pt/Projects.AI/Artgranit/venv/bin/python",
+      "runtimeArgs": [
+        "app.py"
+      ],
       "port": 3003,
       "autoPort": true
     }

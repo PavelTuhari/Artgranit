@@ -28,5 +28,15 @@
     "title": "Protocol de testare 05.09.2026",
     "audience": "pentru proprietar și QA",
     "descr": "Partea I: unitare, API pe Oracle, Contragenti real, UI, servere. Partea II: căutarea unică în CRM, offline, scriptul de pornire. Partea III: pagina biro26-clients — căutare unică OfficePlus → date.gov.md, panoul «nu este disponibil», 14 capturi."
+  },
+  "PROCESS.md": {
+    "slug": "process",
+    "public": true,
+    "icon": "🔁",
+    "cls": "g",
+    "order": 15,
+    "title": "Procesul «de la contract la bani», cabinetul clientului, API v2",
+    "audience": "pentru proprietar, operatori și dezvoltatori",
+    "descr": "Faza 0 a TZ-ului: schema prototipului pe Oracle (8 tabele, multi-chiriaș), 8 etape, kanban, 6 rapoarte, date demo = seed.log, DML-test 0 FAIL, API v2, cabinetul clientului. Livrat 08.09.2026 doar pe nufarul."
   }
 }
