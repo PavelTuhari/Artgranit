@@ -149,6 +149,9 @@ class CrmData:
                 values[f.name] = process.resolve_default(f.default)
         self._validate(e, values)
         rid = self.next_id(e.table)
+        if key == "clients" and not str(values.get("idno") or "").strip():
+            # RO: IDNO e UNIC si NOT NULL; clientul fara IDNO primeste codul tehnic «M-<id>»
+            values["idno"] = "M-%d" % rid
         cols, exprs = ["ID", "OWNER_KIND", "OWNER_ID"], [":rid", ":ok", ":oi"]
         params: Dict[str, Any] = dict(self.t.params(), rid=rid)
         for f in e.writable():
