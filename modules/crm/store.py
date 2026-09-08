@@ -140,12 +140,13 @@ class CrmStore:
         else:
             nx = _rows(db.execute_query("SELECT CRM_CLIENT_SEQ.NEXTVAL N FROM dual"))
             cid = int(nx[0]["n"])
+            _, tp, _ = _tw()
             r = db.execute_dml(
                 # RO: CLOB-ul ULTIMUL intre binduri (ORA-24816 altfel)
                 "INSERT INTO CRM_CLIENT (ID, IDNO, NAME, REG_DATE, LEGAL_FORM, IS_LIQUIDATED, "
-                "ADDRESS, MANAGERS, SOURCE, SOURCE_UPDATED, DETAILS_TEXT) VALUES "
-                "(:id, :idno, :name, :reg, :lf, :liq, :addr, :mgr, :src, :upd, :det)",
-                dict(vals, id=cid))
+                "ADDRESS, MANAGERS, SOURCE, SOURCE_UPDATED, OWNER_KIND, OWNER_ID, DETAILS_TEXT) VALUES "
+                "(:id, :idno, :name, :reg, :lf, :liq, :addr, :mgr, :src, :upd, :ok, :oi, :det)",
+                dict(vals, id=cid, **tp))
             if not r.get("success"):
                 msg = str(r.get("message") or "")
                 if "ORA-00001" in msg:            # RO: cursa: altcineva l-a adaugat intre timp
