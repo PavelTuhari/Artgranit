@@ -83,7 +83,14 @@ def export_xlsx(con, path: str) -> dict:
     n = linked = 0
     for art, den, grupa, categ, brand, angro, retail, photo, stoc in cur.execute("""
         SELECT articol, denumire, grupa, categorie, brand, angro, retail1, photo_url, stoc
-          FROM biro26_goods WHERE sheet = 'ULTRA' AND denumire IS NOT NULL"""):
+          FROM biro26_goods
+         WHERE sheet = 'ULTRA' AND denumire IS NOT NULL
+           -- RO: doar rindurile ATINSE de ultima sincronizare: ea pune mereu o
+           --     grupa (sau «Ultra - diverse»). Rindurile cu GRUPA goala sint
+           --     resturi vechi (pret vechi, denumiri cu «?») si NU se publica.
+           -- EN: only rows refreshed by the sync (it always sets a group);
+           --     stale leftovers are never published.
+           AND grupa IS NOT NULL"""):
         m = UUID_RE.search(photo or "")
         hit = bridge.get(m.group()) if m else None
         if hit:
