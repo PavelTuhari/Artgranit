@@ -1,24 +1,29 @@
 {
   "title": {
-    "ro": "CRM (beta)",
-    "ru": "CRM (бета)",
-    "en": "CRM (beta)"
+    "ro": "CRM",
+    "ru": "CRM",
+    "en": "CRM"
   },
   "icon": "🤝",
   "order": 64,
   "url": "/UNA.md/orasldev/crm",
   "descr": {
-    "ro": "Baza de clienți a firmei, integrată cu Contragenti: clientul se adaugă din registrul de stat (date.gov.md) prin cardul XML al contrapărții, cu fondatori, datorii la buget și deduplicare după IDNO. Beta = replica web a Demo CRM din repo-ul Contragenti.",
-    "ru": "База клиентов фирмы с интеграцией Contragenti: клиент заводится из госреестра (date.gov.md) по XML-карточке контрагента — учредители, долги перед бюджетом, дедупликация по IDNO. Бета = веб-реплика Demo CRM из репозитория Contragenti.",
-    "en": "Company client base integrated with Contragenti: clients are created from the state registry (date.gov.md) via the counterparty XML card, with founders, budget debts and IDNO deduplication. Beta mirrors the Contragenti Demo CRM."
+    "ro": "CRM «de la contract la bani» după prototipul Demo CRM (Contragenti): clienți din registrul de stat (date.gov.md, dedup IDNO), contacte, lead-uri, oportunități, nomenclator, comenzi cu contare, proiecte cu sarcini, tablou de lucru cu 8 etape, kanban, 6 rapoarte, RO/RU/EN. Instrumentul OfficePlus și al fiecărui client din cabinet.",
+    "ru": "CRM «от договора до денег» по образцу Demo CRM (Contragenti): клиенты из госреестра (date.gov.md, дедупликация по IDNO), контакты, лиды, сделки, номенклатура, заказы с проводкой, проекты с задачами, рабочий стол с 8 этапами, канбан, 6 отчётов, RO/RU/EN. Инструмент OfficePlus и каждого клиента в его кабинете.",
+    "en": "Contract-to-cash CRM after the Contragenti Demo CRM: state-registry clients (IDNO dedup), contacts, leads, deals, items, orders with posting, projects with tasks, 8-stage workspace, kanban, 6 reports, RO/RU/EN. For OfficePlus and for every client in their cabinet."
   },
   "sql_prefix": "CRM_",
   "docs": "CRM",
   "pages": {
     "crm.app_page": {
-      "ro": "Clienți",
-      "ru": "Клиенты",
-      "en": "Clients"
+      "ro": "CRM OfficePlus",
+      "ru": "CRM OfficePlus",
+      "en": "OfficePlus CRM"
+    },
+    "crm.cabinet_page": {
+      "ro": "CRM-ul clientului (cabinet)",
+      "ru": "CRM клиента (кабинет)",
+      "en": "Client CRM (cabinet)"
     }
   }
 }
