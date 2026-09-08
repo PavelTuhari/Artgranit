@@ -102,12 +102,22 @@
     const kinds = (DATA.kinds || []).map(k => k.kind);          // ordinea dupa gravitate, de la server
     const sev = Object.fromEntries((DATA.kinds || []).map(k => [k.kind, k.sev]));
     const on = String(CFG.kinds || '').split(',').map(s => s.trim()).filter(Boolean);
+    // RO: canalele NU se configureaza aici — sint cele deja setate pentru comenzile de pe site
+    const CH_ICON = { email: '✉', telegram: '➤', whatsapp: '☏' };
+    const chans = (CFG.channels || []).map(c => `<div style="display:flex;gap:6px;align-items:baseline;font-size:12.5px;padding:1px 0">
+        <span style="color:${c.ready ? '#2a9a4c' : '#d9534f'}">${c.ready ? '✓' : '✕'}</span>
+        <span>${CH_ICON[c.channel] || ''} ${esc(c.channel)}</span>
+        <span class="muted">${esc(c.target || '—')}</span></div>`).join('') || `<span class="muted">—</span>`;
     document.getElementById('al-cfg').innerHTML = `<h3 style="margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px">${esc(t('settings'))}</h3>
       <div class="kv">
       <div><label style="margin:0"><input type="checkbox" id="ac-enabled" ${CFG.enabled ? 'checked' : ''}> ${esc(t('enabled'))}</label></div>
-      <label>${esc(t('chat'))}</label><input id="ac-tg_chat" value="${esc(CFG.tg_chat || '')}" placeholder="-1001234567890">
-      <label>${esc(t('token'))}</label><div><input id="ac-tg_token" type="password" placeholder="${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}">
-        <span class="muted" style="font-size:11.5px">${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}</span></div>
+      <label>${esc(t('channels'))}</label><div>${chans}
+        <div class="muted" style="font-size:11.5px;margin-top:4px">${esc(t('channels_hint'))}
+          ${CRM_CABINET ? '' : `<a href="/UNA.md/orasldev/biro26-notify-settings" target="_blank" rel="noopener">${esc(t('channels_link'))}</a>`}</div></div>
+      <label>${esc(t('chat'))}</label><div><input id="ac-tg_chat" value="${esc(CFG.tg_chat || '')}" placeholder="${esc(CRM_CABINET ? '-1001234567890' : t('chat_opt'))}">
+        ${CRM_CABINET ? '' : `<span class="muted" style="font-size:11.5px">${esc(t('chat_hint'))}</span>`}</div>
+      ${CRM_CABINET ? '' : `<label>${esc(t('token'))}</label><div><input id="ac-tg_token" type="password" placeholder="${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}">
+        <span class="muted" style="font-size:11.5px">${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}</span></div>`}
       <label>${esc(t('lang'))}</label><select id="ac-lang">${['ro', 'ru', 'en'].map(l => `<option value="${l}" ${CFG.lang === l ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}</select>
       <label>${esc(t('kinds'))}</label><div>${kinds.map(k => `<label style="font-weight:400;font-size:12.5px;display:flex;gap:6px;align-items:baseline;padding:1px 0"><input type="checkbox" class="ac-kind" value="${k}" ${(!on.length || on.includes(k)) ? 'checked' : ''} style="width:auto;flex:none"><span style="color:${SEV_COLOR[sev[k]]}">${esc(kindName(k))}</span></label>`).join('')}</div>
       <label>${esc(t('days_before'))}</label><input id="ac-days_before_due" type="number" min="0" max="60" value="${CFG.days_before_due}">
