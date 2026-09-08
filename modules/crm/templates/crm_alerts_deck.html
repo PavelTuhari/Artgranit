@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Бот тревог CRM — незавершённые сделки и долги</title>
+<style>
+  /* RO: prezentarea botului de alerte — slide-uri A4 landscape, fara CDN
+     (portalul lucreaza si fara internet extern); Ctrl/Cmd+P da PDF. */
+  :root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--blue:#5589ca;--red:#d9534f;--amber:#f0ad4e;--green:#2a9a4c;--bg:#eef1f4}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  .deck{max-width:1180px;margin:0 auto;padding:24px 16px 60px}
+  .slide{background:#fff;border:1px solid var(--line);border-radius:10px;padding:34px 40px;margin-bottom:22px;
+         min-height:600px;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .slide h1{font-size:34px;line-height:1.15;margin:0 0 6px;letter-spacing:-.02em}
+  .slide h2{font-size:25px;margin:0 0 4px;letter-spacing:-.01em}
+  .slide .sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+  .num{position:absolute;right:22px;top:16px;color:#cbd5e1;font-size:12px;font-weight:600}
+  .slide{position:relative}
+  .lead{font-size:17px;color:#334155;max-width:78ch}
+  ul{margin:8px 0 0;padding-left:20px}li{margin:5px 0}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start;flex:1}
+  .cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th{text-align:left;color:var(--muted);font-weight:600;border-bottom:2px solid var(--line);padding:7px 9px}
+  td{border-bottom:1px solid #f1f5f9;padding:7px 9px;vertical-align:top}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:.9em}
+  .pill{display:inline-block;padding:2px 9px;border-radius:99px;color:#fff;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .r{background:var(--red)}.a{background:var(--amber)}.g{background:#7f8c8d}.gr{background:var(--green)}.b{background:var(--blue)}
+  figure{margin:0}
+  figure img{width:100%;border:1px solid var(--line);border-radius:8px;display:block;background:#fff}
+  figcaption{color:var(--muted);font-size:12.5px;margin-top:7px}
+  .shot-tall{max-height:420px;object-fit:cover;object-position:top}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:10px 0 18px}
+  .kpi div{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:14px}
+  .kpi b{display:block;font-size:27px;font-weight:600;letter-spacing:-.02em}
+  .kpi span{color:var(--muted);font-size:12.5px}
+  .tg{background:#e7f0f8;border-radius:12px;padding:14px 16px;font:12.5px/1.55 Menlo,Consolas,monospace;
+      white-space:pre-wrap;color:#0f172a;border:1px solid #cfe0ef;max-height:430px;overflow:hidden;position:relative}
+  .tg::after{content:"";position:absolute;left:0;right:0;bottom:0;height:52px;background:linear-gradient(transparent,#e7f0f8)}
+  .wa{background:#e8f6e8;border-color:#cfe8cf}
+  .wa::after{background:linear-gradient(transparent,#e8f6e8)}
+  .note{background:#fff8ec;border:1px solid #f0d9b0;border-radius:8px;padding:12px 14px;font-size:13.5px;margin-top:14px}
+  .ok{color:var(--green);font-weight:600}.bad{color:var(--red);font-weight:600}
+  .flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0}
+  .flow div{background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:9px 13px;font-size:13px}
+  .flow i{color:#94a3b8;font-style:normal}
+  .foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;
+        display:flex;justify-content:space-between;gap:12px}
+  .title-slide{justify-content:center;background:linear-gradient(160deg,#0f172a,#1e2937);color:#fff;border:none}
+  .title-slide h1{font-size:44px;color:#fff}
+  .title-slide .sub{color:#94a3b8;font-size:16px}
+  .title-slide .foot{border-top-color:#334155;color:#94a3b8}
+  .badge{display:inline-block;background:#334155;color:#fff;font-size:11.5px;font-weight:600;
+         padding:3px 11px;border-radius:99px;letter-spacing:.04em}
+  @media print{
+    body{background:#fff}
+    .deck{max-width:none;padding:0}
+    .slide{page-break-after:always;border:none;box-shadow:none;border-radius:0;min-height:auto;height:190mm;margin:0}
+    @page{size:A4 landscape;margin:10mm}
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 1 ─────────────────────────────────────────────────────────── -->
+<section class="slide title-slide">
+  <span class="badge">CRM OfficePlus · 08.09.2026</span>
+  <h1 style="margin-top:14px">Бот тревог:<br>незавершённые сделки и долги</h1>
+  <p class="sub" style="max-width:70ch">Каждое утро — одно сообщение о том, где стоят деньги и где стоит работа.
+     Telegram, WhatsApp и e-mail — те же каналы, что уже настроены для заказов с сайта.</p>
+  <div class="foot"><span>nufarul.eminescu.md · модуль CRM</span><span>Презентация для владельца</span></div>
+</section>
+
+<!-- 2 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">2</span>
+  <h2>Зачем</h2>
+  <p class="sub">Проблема не в том, что данных нет — они есть в CRM. Проблема в том, что за ними надо ходить.</p>
+  <div class="cols">
+    <div>
+      <p class="lead"><b>Было:</b> чтобы узнать, кто должен и что зависло, надо открыть CRM, пройти по вкладкам,
+         сложить в голове. Пока никто не смотрит — заказ лежит «готов к отгрузке» неделю, а счёт висит неоплаченным месяц.</p>
+      <p class="lead" style="margin-top:14px"><b>Стало:</b> система сама смотрит за вас и присылает то, что требует
+         действия — с суммами, клиентами и сроками. Ничего не надо открывать, чтобы узнать, что всё в порядке.</p>
+      <div class="note"><b>Принцип:</b> тревога — это не «уведомление о событии», а <b>деньги или работа, которые
+        застряли</b>. Если всё в порядке — сообщение так и говорит: сообщать нечего.</div>
+    </div>
+    <div>
+      <p class="sub" style="margin-bottom:8px">Что бот увидел на реальном контуре в первый же день:</p>
+      <figure>
+        <img src="{{ url_for('crm.static', filename='deck/01_dash.png') }}" alt="Плитки: к получению, открытых тревог, новых, критичных">
+        <figcaption>291 132,40 MDL — сумма, которую ждём, но не получили. 21 тревога, из них 15 критичных.</figcaption>
+      </figure>
+    </div>
+  </div>
+  <div class="foot"><span>Бот тревог CRM</span><span>2</span></div>
+</section>
+
+<!-- 3 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">3</span>
+  <h2>Что именно считается тревогой</h2>
+  <p class="sub">Восемь типов: две группы про деньги, шесть — про застрявшую работу.</p>
+  <table>
+    <thead><tr><th style="width:170px">Тип</th><th>Когда срабатывает</th><th style="width:230px">Откуда берётся условие</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pill r">Долг</span></td><td>отгружено, оплата не покрывает сумму</td><td>этап «Отгружено — ждём оплату»</td></tr>
+      <tr><td><span class="pill r">Проект без покрытия</span></td><td>проект открыт, бюджет − аванс − оплаты &gt; порога</td><td>карточка проекта</td></tr>
+      <tr><td><span class="pill r">Просрочен срок</span></td><td>в работе, срок исполнения прошёл</td><td>этап «В работе» + просрочка</td></tr>
+      <tr><td><span class="pill a">Ожидает аванс</span></td><td>заказ подтверждён, аванс не поступил</td><td>этап «Ожидает аванс»</td></tr>
+      <tr><td><span class="pill a">Готов, не отгружен</span></td><td>выполнен, отгрузка не оформлена</td><td>этап «Готово к отгрузке»</td></tr>
+      <tr><td><span class="pill a">Не проведён</span></td><td>выполнен или оплачен, но проводка не сделана</td><td>признак проводки в заказе</td></tr>
+      <tr><td><span class="pill g">Сделка без движения</span></td><td>«Предложение/Переговоры», дата закрытия прошла</td><td>карточка сделки</td></tr>
+      <tr><td><span class="pill g">Близкий срок</span></td><td>срок наступает через N дней, ещё не отгружено</td><td>заказ + настройка N</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><b>Важно:</b> условия заказов не написаны заново — они те же, по которым живут рабочий стол и
+    канбан. Если этап поменяется в одном месте, бот поменяется вместе с ним. Это исключает расхождение
+    «на доске одно, в сообщении другое».</div>
+  <div class="foot"><span>В «Итого к получению» входят только долги и проекты — остальное сигнал процесса, а не денег</span><span>3</span></div>
+</section>
+
+<!-- 4 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">4</span>
+  <h2>Экран «Тревоги» в CRM</h2>
+  <p class="sub">Список того же, что уходит в сообщение. Клик по строке открывает документ.</p>
+  <div class="cols" style="grid-template-columns:1.35fr 1fr">
+    <figure>
+      <img class="shot-tall" src="{{ url_for('crm.static', filename='deck/02_table.png') }}" alt="Список тревог с типом, документом, клиентом, суммой, сроком">
+      <figcaption>Цвет метки = серьёзность. Красная дата и «+25» — просрочка в днях; «−15» — срок ещё впереди.</figcaption>
+    </figure>
+    <div>
+      <ul>
+        <li><b>Тип</b> — цветом: красный требует денег или уже просрочен, жёлтый — стоит процесс, серый — к сведению.</li>
+        <li><b>Сумма</b> — для долга это <i>непогашенный остаток</i>, а не вся сумма документа.</li>
+        <li><b>Дни</b> — «+» просрочено, «−» осталось до срока.</li>
+        <li><b>Клик</b> — открывается сам заказ, проект или сделка, сразу можно действовать.</li>
+      </ul>
+      <div class="note">Страница доступна и в личном кабинете клиента: он видит <b>только свои</b> данные —
+        условие владельца строки входит в каждый запрос, а не только в список.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Экран снят на боевом контуре, демо-данные</span><span>4</span></div>
+</section>
+
+<!-- 5 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">5</span>
+  <h2>Само сообщение</h2>
+  <p class="sub">Реальный текст, отправленный 08.09.2026 в 18:34. Язык переключается (RO / RU / EN).</p>
+  <div class="cols" style="grid-template-columns:1.15fr 1fr">
+    <figure>
+      <img class="shot-tall" src="{{ url_for('crm.static', filename='deck/04_message.png') }}" alt="Текст сообщения: итог, долги, просроченные сроки, ожидают аванс">
+      <figcaption>Telegram и e-mail получают полную сводку, сгруппированную по типам.</figcaption>
+    </figure>
+    <div>
+      <p class="sub" style="margin-bottom:8px">WhatsApp — короткая версия:</p>
+      <div class="tg wa">OfficePlus — незавершённые сделки и долги
+ИТОГО к получению: 291,132.40 MDL (12 позиций)
+долги: 4; просроченные сроки: 3; ожидают аванс: 2; готовы, не отгружены: 2; проекты без покрытия: 8; ближайшие сроки: 2
+https://nufarul.eminescu.md/UNA.md/orasldev/crm/#alerts</div>
+      <div class="note"><b>Почему короткая:</b> WhatsApp через callmebot передаёт текст в адресной строке —
+        полная сводка вернула <code>HTTP 414 Request-URI Too Large</code>. Итог и ссылка помещаются;
+        при переходе на WhatsApp Cloud API ограничение снимается и уйдёт полный текст.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Без Markdown: в названиях фирм есть «_», «*», «(» — форматирование сломало бы отправку</span><span>5</span></div>
+</section>
+
+<!-- 6 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">6</span>
+  <h2>Каналы — уже ваши</h2>
+  <p class="sub">Новых настроек нет. Берутся те, что настроены для уведомлений о заказах с сайта.</p>
+  <div class="cols" style="grid-template-columns:1fr 1.25fr">
+    <figure>
+      <img class="shot-tall" src="{{ url_for('crm.static', filename='deck/03_settings.png') }}" alt="Панель настроек: каналы, типы, пороги, час сводки">
+      <figcaption>Галочка = канал готов. Ссылка ведёт в те самые «Настройки уведомлений» магазина.</figcaption>
+    </figure>
+    <div>
+      <table>
+        <thead><tr><th>Канал</th><th>Адрес</th><th>Что уходит</th></tr></thead>
+        <tbody>
+          <tr><td>Telegram</td><td><code>8906016952</code></td><td>полная сводка</td></tr>
+          <tr><td>WhatsApp</td><td><code>+373 620 07 211</code></td><td>короткая версия</td></tr>
+          <tr><td>E-mail</td><td><code>officeplussrl@gmail.com</code></td><td>полная сводка, с темой</td></tr>
+        </tbody>
+      </table>
+      <p class="lead" style="margin-top:14px">Настраивать канал нужно <b>в одном месте</b> — там же, где для заказов.
+        Поменяли чат или телефон для заказов — тревоги поедут туда же автоматически.</p>
+      <p class="lead" style="margin-top:10px"><b>Клиент в кабинете</b> к настройкам магазина доступа не имеет,
+        поэтому указывает только свой <code>chat_id</code>. Бот остаётся магазинный — чужих токенов в базе не появляется.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Токен бота никогда не отдаётся в браузер</span><span>6</span></div>
+</section>
+
+<!-- 7 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">7</span>
+  <h2>Почему это не превратится в спам</h2>
+  <p class="sub">Главный риск любого бота — его перестают читать. Здесь три правила против этого.</p>
+  <div class="cols3" style="margin-top:6px">
+    <div class="note" style="background:#f8fafc;border-color:var(--line)">
+      <b>1. Повтор только по делу</b><br><br>
+      Уже отправленная тревога уйдёт снова, если прошёл «период тишины» (по умолчанию сутки)
+      <b>или</b> изменилась сумма — долг вырос либо частично погасили.
+    </div>
+    <div class="note" style="background:#f8fafc;border-color:var(--line)">
+      <b>2. Решённое забывается</b><br><br>
+      Как только тревога исчезла (оплатили, отгрузили) — она стирается из истории.
+      Если ситуация повторится, бот сообщит как о новой, а не промолчит.
+    </div>
+    <div class="note" style="background:#f8fafc;border-color:var(--line)">
+      <b>3. Пороги и выбор типов</b><br><br>
+      Долги ниже порога не тревожат; любой из восьми типов можно выключить галочкой.
+      Мелочь на 74 лея не будет будить каждое утро.
+    </div>
+  </div>
+  <div class="flow" style="margin-top:26px">
+    <div>Сводка в 8:00</div><i>→</i>
+    <div>только то, что ново или изменилось</div><i>→</i>
+    <div>нечего сообщать — <b>сообщения нет</b></div>
+  </div>
+  <p class="lead">Кнопка «Отправить сейчас» на странице шлёт сводку немедленно, даже если нового нет —
+    для проверки или когда нужно быстро свести картину.</p>
+  <div class="foot"><span>Час сводки, период тишины и пороги — настройки, не код</span><span>7</span></div>
+</section>
+
+<!-- 8 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">8</span>
+  <h2>Как это работает и что проверено</h2>
+  <div class="cols">
+    <div>
+      <p class="sub" style="margin-bottom:6px">Расписание</p>
+      <div class="flow">
+        <div>таймер, каждый час</div><i>→</i><div>чей час пришёл</div><i>→</i><div>сбор тревог</div><i>→</i><div>отправка</div>
+      </div>
+      <p class="lead">Служба на сервере запускается ежечасно и отправляет только тем, у кого совпал выбранный час
+        и включены тревоги. У каждого — свой час: OfficePlus в 8:00, клиент может выбрать 18:00.</p>
+      <p class="sub" style="margin:18px 0 6px">Текущее состояние</p>
+      <ul>
+        <li>Тревоги <b>включены</b>, язык русский, сводка в <b>8:00</b> (Кишинёв).</li>
+        <li>Таймер установлен и работает на nufarul.</li>
+        <li>Развёрнуто только на nufarul — площадки officeplus не тронуты.</li>
+      </ul>
+    </div>
+    <div>
+      <p class="sub" style="margin-bottom:6px">Проверка 08.09.2026</p>
+      <table>
+        <tbody>
+          <tr><td>Автотесты</td><td class="ok">38 пройдено</td></tr>
+          <tr><td>Установка таблиц</td><td class="ok">выполнена, повторный запуск безопасен</td></tr>
+          <tr><td>Сбор на реальных данных</td><td class="ok">21 тревога, 291 132,40 MDL</td></tr>
+          <tr><td>Telegram</td><td class="ok">доставлено</td></tr>
+          <tr><td>WhatsApp</td><td class="ok">доставлено</td></tr>
+          <tr><td>E-mail</td><td class="bad">не отправлен</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>E-mail:</b> Gmail отвечает «Username and Password not accepted» — нужен
+        <b>пароль приложения</b>, а не пароль аккаунта. Тот же <code>.env</code> используют письма о заказах,
+        значит они сейчас тоже не доходят. Это не сломано тревогами и чинится одной настройкой, без правок кода.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Ежедневная сводка уходит сама, начиная с ближайшего 8:00</span><span>8</span></div>
+</section>
+
+<!-- 9 ─────────────────────────────────────────────────────────── -->
+<section class="slide"><span class="num">9</span>
+  <h2>Что дальше — по вашему решению</h2>
+  <p class="sub">Всё ниже — расширения того же механизма, не переделка.</p>
+  <div class="cols3">
+    <div class="note" style="background:#f8fafc;border-color:var(--line)"><b>Порог «будить сразу»</b><br><br>
+      Долг больше заданной суммы или просрочка больше N дней — отдельное сообщение сразу, не дожидаясь утра.</div>
+    <div class="note" style="background:#f8fafc;border-color:var(--line)"><b>Свой канал у менеджера</b><br><br>
+      Сводка только по своим клиентам — каждому в его чат, вместо одной общей на всех.</div>
+    <div class="note" style="background:#f8fafc;border-color:var(--line)"><b>Кнопки в сообщении</b><br><br>
+      «Открыть заказ», «Напомнить клиенту» прямо из Telegram — потребует бота с обработкой ответов.</div>
+  </div>
+  <p class="lead" style="margin-top:22px"><b>Ближайший шаг, который ничего не стоит:</b> исправить пароль приложения
+    Gmail — и третий канал заработает сам.</p>
+  <div class="foot"><span>Документация: docs/CRM/ALERTE_TELEGRAM.md</span><span>9</span></div>
+</section>
+
+</div>
+</body>
+</html>
