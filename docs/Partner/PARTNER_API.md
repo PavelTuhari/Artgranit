@@ -253,3 +253,43 @@ Capcane gasite pe drum (toate tratate in scripturi):
 - BOOLEAN PL/SQL nu se leaga ca parametru pe Oracle 11g (ORA-03115): literal.
 - Marcajele `TMS_MPT_IMPSRC` si jurnalul `YBIRO_IMPORT_LOG` **nu** le scrie
   pachetul — le scrie `ultra_publish.py` dupa `import_file`.
+
+---
+
+## Incidentul 08.09.2026: puntea a legat marfa straina (rezolvat)
+
+**Ce s-a intimplat.** Puntea lua cheile din fisierul incarcarii din iulie, pe o
+cale existenta doar pe statia de lucru. Pe server fisierul lipsea, puntea a
+degradat tacut (16 094 in loc de 17 500) si o rulare a creat **1 339 dubluri**.
+Mai grav: in fisierul din iulie **1 702 pozitii impart acelasi uuid de imagine**,
+iar codul lua prima potrivire (`setdefault`) — asa **393 de cartele s-au legat
+de un produs STRAIN**, iar la **229** a plecat si pretul:
+
+| Cartela | Pret corect | Pret gresit |
+|---|---|---|
+| Camera action GoPro Hero 10 | 5 849 | **419** |
+| Insta360 Ace Pro 2 | 14 999 | **1 749** |
+| Smartphone Xiaomi Poco M8 Pro | 2 889 | **7 999** (pretul unui Epson) |
+
+**Remediere (facuta):** preturile intoarse la valoarea anterioara (backup
+`Y_AI_ULTRA_BADPRICE`), 393 de marcaje gresite sterse, 177 de dubluri
+schlopuite. Verificare: cartele legate de marfa straina — **0**.
+
+**Ce impiedica repetarea:**
+
+1. Cheia se ia **din baza** (`TMS_MPT_IMPSRC.SRC_PID`, `TMS_MPT_TVR.IE_LINKADRES`)
+   — merge pe orice masina. Fisierul din iulie doar completeaza, calea vine din
+   `PARTNER_ULTRA_JULY_XLSX` sau `data/ULTRA_iulie_2026.xlsx` (pus pe toate
+   cele trei platforme).
+2. Cheile **ambigue se arunca**, nu se ia „prima gasita".
+3. `same_product()` — ultimul predicat inainte de a scrie legatura: numele
+   celor doua marfuri trebuie sa se suprapuna. La rularea de control a respins
+   **1 362** de potriviri gresite. Acelasi predicat e si in schlopuire.
+4. Lantul din cron e inchis: **sync → publish → dedup** (o parte din perechi se
+   vede abia dupa ce publicarea scrie marcajele).
+
+**Cron:** ruleaza pe serverul de productie (`92.5.130.1`, `17 * * * *`,
+jurnal `/home/ubuntu/ultra_cron.log`), nu pe statia de lucru.
+
+Ramin **491 de perechi GOG+GOG** — dubluri din incarcarea din iulie, anterioare
+acestei lucrari. Nu au fost atinse: e o decizie de sortiment, nu tehnica.
