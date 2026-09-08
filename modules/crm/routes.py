@@ -26,7 +26,8 @@ def _guard():
 def app_page():
     if not AuthController.is_authenticated():
         return redirect("/login?next=" + url_for("crm.app_page"))
-    return render_template("crm_app.html")
+    # RO: instrumentul OfficePlus (chiriasul 'office'); clientul din cabinet -> /cabinet (routes_process)
+    return render_template("crm_app.html", tenant_kind="office", tenant_id=0, cabinet=False)
 
 
 # ── clienti ──────────────────────────────────────────────────────────────
