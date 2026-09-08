@@ -30,5 +30,12 @@ cd "$ROOT" || exit 1
   "$PY" modules/partner/scripts/ultra_sync.py || { echo "sync ESUAT"; exit 1; }
   echo "=== $(date '+%F %T') publish ==="
   "$PY" modules/partner/scripts/ultra_publish.py --commit --xlsx /tmp/ULTRA_cron.xlsx
+  # RO: pasul 3 — schlopuirea dublurilor. Puntea vede o parte din perechi abia
+  #     DUPA ce publicarea scrie marcajele (SRC_PID), asa ca fiecare rulare
+  #     lasa citeva cartele noi care de fapt exista deja. Aici se unesc, cu
+  #     acelasi predicat same_product ca la punte.
+  # EN: step 3 — collapse duplicates that only become visible once markers exist.
+  echo "=== $(date '+%F %T') dedup ==="
+  "$PY" modules/partner/scripts/ultra_dedup.py --apply
   echo "=== $(date '+%F %T') gata ==="
 } >> "$LOG" 2>&1
