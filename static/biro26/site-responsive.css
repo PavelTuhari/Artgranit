@@ -104,3 +104,40 @@ html, body { background: #ffffff; }
   .cart-tbl input { width: 54px; }
   .acc-box { min-width: 0; }
 }
+
+/* ── PLASA DE SIGURANTA: carduri compacte pe desktop ─────────────────────
+   RO: site_base.html (sablon comun) e rescris periodic de cealalta echipa.
+   Pe 01.09.2026 rescrierea a pierdut <link>-ul catre site-mobile.css SI a
+   pus in blocul <style> inline (dupa foile legate):
+       @media (min-width:1025px){.plp .product-grid{grid-template-columns:repeat(4,1fr)}}
+   `1fr` = minmax(auto, 1fr): coloana creste pina la cel mai lung cuvint
+   nerupt din denumire («IR2016/2018/2020/...») — doua coloane de 870px in loc
+   de sase compacte. Aceeasi specificitate + sursa mai tirzie = inline-ul
+   cistiga. De aceea regulile de aici folosesc ID-ul grilei (#grid): un ID
+   bate orice regula doar-cu-clase, oriunde ar sta ea. Fisierul acesta a
+   ramas legat in sablonul lor, deci supravietuieste urmatoarei rescrieri.
+   EN: safety net with ID specificity so the shared template's inline
+   repeat(4,1fr) can never win again. */
+#grid.product-grid, .plp #grid.product-grid, #grid.product-grid.five {
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+}
+#grid .product-card { min-width: 0; }
+#grid .product-card .product-name,
+#grid .product-card .product-code { overflow-wrap: anywhere; }
+/* RO: denumirile din «Piese Imprimanta» au 6-7 rinduri si cardul ajungea la
+   518px inaltime. Pe desktop denumirea se taie la 4 rinduri (pe telefon la 3,
+   in site-mobile.css); numele intreg e pe fisa produsului si in title. */
+#grid .product-card .product-name {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 1024px) {
+  #grid.product-grid, .plp #grid.product-grid, #grid.product-grid.five {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  #grid.product-grid, .plp #grid.product-grid, #grid.product-grid.five {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
