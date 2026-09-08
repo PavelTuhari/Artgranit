@@ -99,7 +99,8 @@
   };
 
   function renderCfg() {
-    const kinds = Object.keys(DATA.kinds || {});
+    const kinds = (DATA.kinds || []).map(k => k.kind);          // ordinea dupa gravitate, de la server
+    const sev = Object.fromEntries((DATA.kinds || []).map(k => [k.kind, k.sev]));
     const on = String(CFG.kinds || '').split(',').map(s => s.trim()).filter(Boolean);
     document.getElementById('al-cfg').innerHTML = `<h3 style="margin:0;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14px">${esc(t('settings'))}</h3>
       <div class="kv">
