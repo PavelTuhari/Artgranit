@@ -235,12 +235,17 @@ def write_markers(con, load_id: int) -> dict:
                             -- RO: o singura linie per cartela: catalogul Ultra are
                             --     ~1 800 de pozitii dublate, iar MERGE ar insera
                             --     acelasi COD de doua ori (ORA-00001).
+                            -- RO: JOIN pe un agregat, nu subinterogare corelata:
+                            --     BIRO26_GOODS nu are index pe ARTICOL si varianta
+                            --     corelata facea 37k scanari complete (ore).
                             SELECT s.cod_univers cod, s.articol, s.status,
                                    SUBSTR(s.grupa || ' > ' || s.categ, 1, 400) gpath,
-                                   (SELECT MAX(g.guid) FROM biro26_goods g
-                                     WHERE g.sheet='ULTRA' AND g.articol = s.articol) guid,
+                                   g.guid,
                                    ROW_NUMBER() OVER (PARTITION BY s.cod_univers ORDER BY s.id) rn
                               FROM biro26pt_stg s
+                              LEFT JOIN (SELECT articol, MAX(guid) guid FROM biro26_goods
+                                          WHERE sheet = 'ULTRA' GROUP BY articol) g
+                                     ON g.articol = s.articol
                              WHERE s.load_id = :l AND s.cod_univers IS NOT NULL
                                AND s.status IN ('NEW','EXISTING')) WHERE rn = 1) u
                    ON (t.cod = u.cod)
