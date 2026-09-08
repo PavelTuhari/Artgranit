@@ -41,6 +41,7 @@ import datetime as dt
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 sys.path.insert(0, ROOT)
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+JULY_XLSX = "/Users/pt/Projects.AI/BIRO26/Set_data_import/8/ULTRA.md (1).xlsx"
 
 # RO: antetul EXACT dupa sabloanele din BIRO26PT_COLMAP (detect_columns)
 HEAD = ["Articol", "Barcode", "Denumire", "Grupa", "Categorie", "Brand",
@@ -58,8 +59,36 @@ def connect():
 def export_xlsx(con, path: str) -> dict:
     """Буфер ULTRA -> xlsx; Barcode = штрихкод июльской GOG-карточки (мост)."""
     cur = con.cursor()
-    # RO: uuid imaginii -> (cod GOG, un cod de bare UNIC al cartelei)
+    # RO: uuid imaginii -> (cod GOG, un cod de bare UNIC al cartelei).
+    #     Sursa PRINCIPALA: fisierul incarcarii din iulie (Set_data_import/8),
+    #     unde coloana URL tine imaginea cu uuid — 15 952 potriviri verificate.
+    #     IE_LINKADRES din TMS_MPT_TVR acopera doar 1 663 de cartele si e doar
+    #     completare. EN: main source = July file map; IE_LINKADRES is a fallback.
     bridge = {}
+    gog2bc = {g: b for g, b in cur.execute("""
+        SELECT u.codvechi, MIN(b.barcode)
+          FROM tms_univers u JOIN tms_mpt_barcode b ON b.cod = u.cod
+         WHERE u.tip = 'P' AND u.codvechi LIKE 'GOG%' AND NVL(u.isarhiv,'0') <> '2'
+           AND b.barcode LIKE '4841%'
+           AND (SELECT COUNT(DISTINCT b2.cod) FROM tms_mpt_barcode b2
+                 JOIN tms_univers u2 ON u2.cod = b2.cod AND u2.tip = 'P'
+                  AND NVL(u2.isarhiv,'0') <> '2'
+                WHERE b2.barcode = b.barcode) = 1
+         GROUP BY u.codvechi""")}
+    if os.path.exists(JULY_XLSX):
+        import openpyxl as _ox
+        wb0 = _ox.load_workbook(JULY_XLSX, read_only=True, data_only=True)
+        for sn in wb0.sheetnames:
+            it = wb0[sn].iter_rows(values_only=True)
+            next(it, None)
+            for r0 in it:
+                if not r0 or not r0[1]:
+                    continue
+                m0 = UUID_RE.search(str(r0[0] or ""))
+                g0 = str(r0[1]).strip()
+                if m0 and g0 in gog2bc:
+                    bridge.setdefault(m0.group(), (g0, gog2bc[g0]))
+        wb0.close()
     for cod, link, bc in cur.execute("""
         SELECT u.cod, t.ie_linkadres,
                (SELECT MIN(b.barcode) FROM tms_mpt_barcode b
@@ -70,7 +99,7 @@ def export_xlsx(con, path: str) -> dict:
                         WHERE b2.barcode = b.barcode) = 1)
           FROM tms_univers u JOIN tms_mpt_tvr t ON t.cod = u.cod
          WHERE u.tip = 'P' AND u.codvechi LIKE 'GOG%' AND NVL(u.isarhiv,'0') <> '2'
-           AND t.ie_linkadres LIKE '%cdn.ultra.md%'"""):
+           AND LOWER(t.ie_linkadres) LIKE '%ultra%'"""):
         m = UUID_RE.search(link or "")
         if m and bc:
             bridge.setdefault(m.group(), (cod, bc))
@@ -123,10 +152,13 @@ def run_import(con, load_id: int, commit: bool) -> list[str]:
     cur.execute("BEGIN UN4PUBLIC.ENVUN4.EnvSetValue('PARAM_PERIODEND', :d); END;",
                 d=nxt.strftime("%d.%m.%Y"))
     cur.callproc("dbms_output.enable", [1_000_000])
-    cur.execute("""BEGIN BIRO26PT_importData.import_file(
-                     p_load_id => :lid, p_commit => :c, p_mark_all_new => FALSE,
+    # RO: pe Oracle 11g un BOOLEAN PL/SQL nu se poate lega ca parametru
+    #     (ORA-03115) — se scrie literal in text.
+    cur.execute(f"""BEGIN BIRO26PT_importData.import_file(
+                     p_load_id => :lid, p_commit => {'TRUE' if commit else 'FALSE'},
+                     p_mark_all_new => FALSE,
                      p_src => 'ULTRA', p_algo => 'UNIVERSAL'); END;""",
-                lid=load_id, c=commit)
+                lid=load_id)
     lines, line, status = [], cur.var(str), cur.var(int)
     while True:
         cur.callproc("dbms_output.get_line", (line, status))
