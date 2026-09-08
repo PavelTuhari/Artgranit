@@ -109,7 +109,7 @@
       <label>${esc(t('token'))}</label><div><input id="ac-tg_token" type="password" placeholder="${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}">
         <span class="muted" style="font-size:11.5px">${esc(CFG.tg_token_own ? t('token_own') : t('token_inh'))}</span></div>
       <label>${esc(t('lang'))}</label><select id="ac-lang">${['ro', 'ru', 'en'].map(l => `<option value="${l}" ${CFG.lang === l ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}</select>
-      <label>${esc(t('kinds'))}</label><div>${kinds.map(k => `<label style="font-weight:400;font-size:12.5px;display:flex;gap:6px;align-items:baseline;padding:1px 0"><input type="checkbox" class="ac-kind" value="${k}" ${(!on.length || on.includes(k)) ? 'checked' : ''} style="width:auto;flex:none"><span style="color:${SEV_COLOR[DATA.kinds[k]]}">${esc(kindName(k))}</span></label>`).join('')}</div>
+      <label>${esc(t('kinds'))}</label><div>${kinds.map(k => `<label style="font-weight:400;font-size:12.5px;display:flex;gap:6px;align-items:baseline;padding:1px 0"><input type="checkbox" class="ac-kind" value="${k}" ${(!on.length || on.includes(k)) ? 'checked' : ''} style="width:auto;flex:none"><span style="color:${SEV_COLOR[sev[k]]}">${esc(kindName(k))}</span></label>`).join('')}</div>
       <label>${esc(t('days_before'))}</label><input id="ac-days_before_due" type="number" min="0" max="60" value="${CFG.days_before_due}">
       <label>${esc(t('min_debt'))}</label><input id="ac-min_debt" type="number" step="any" min="0" value="${CFG.min_debt}">
       <label>${esc(t('quiet'))}</label><input id="ac-quiet_days" type="number" min="0" max="30" value="${CFG.quiet_days}">
