@@ -325,10 +325,11 @@
   window.crmDrop = async function (ev, col) {
     ev.preventDefault(); ev.currentTarget.classList.remove('over');
     if (!DRAG || DRAG.col === col) { DRAG = null; return; }
+    const moved = DRAG.id;
     const r = await api(`${V2}board/${BOARD}/move`, { method: 'POST', body: JSON.stringify({ id: DRAG.id, col }) });
     DRAG = null;
     if (!r.success) { say('danger', r.error + (r.detail ? ' — ' + r.detail : '')); return; }
-    say('success', S('kanban.moved', '#' + (r.id || ''), document.querySelectorAll('#kb .kh b')[col].textContent));
+    say('success', S('kanban.moved', '#' + moved, document.querySelectorAll('#kb .kh b')[col].textContent));
     loadBoard();
   };
   window.crmOpenCard = function (id) {
