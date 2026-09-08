@@ -271,26 +271,43 @@ def digest(data: CrmData, cfg: Optional[Dict[str, Any]] = None, only_new: bool =
 
 def send(data: CrmData, cfg: Optional[Dict[str, Any]] = None, only_new: bool = True,
          url: str = "", force: bool = False) -> Dict[str, Any]:
-    """RO: trimite sumarul in Telegram. `force` = si daca nu e nimic nou
-    (butonul «Trimite acum»)."""
+    """RO: trimite sumarul pe canalele deja configurate. `force` = si daca nu
+    e nimic nou (butonul «Trimite acum»)."""
     cfg = cfg if cfg is not None else get_cfg(data)
-    chat = (cfg.get("tg_chat") or "").strip()
-    if not chat:
-        return {"success": False, "error": "Telegram chat_id lipseste"}
+    chans = cfg.get("channels") or channels(data, cfg)
+    if not any(c["ready"] for c in chans):
+        return {"success": False, "error": "niciun canal pregatit — verificati «Setari notificari» ale magazinului"
+                                           if data.t.is_office else "Telegram chat_id lipseste"}
     d = digest(data, cfg, only_new=only_new, url=url)
     if not d["alerts"] and not force:
         return {"success": True, "sent": False, "reason": "nimic nou", "counts": d["counts"]}
-    token = _token_for(data)
-    if not token:
-        return {"success": False, "error": "Telegram token lipseste (setarile de notificari OfficePlus)"}
-    r = Biro26Notify._send_telegram({"notify_tg_token": token, "notify_tg_chat": chat}, d["text"])
-    if not r.get("success"):
-        return {"success": False, "error": r.get("error")}
+    lang = cfg.get("lang") or "ro"
+    subject = (A.TEXTS.get(lang) or A.TEXTS["ro"])["title"] % data.t.label
+    own_chat = str(cfg.get("tg_chat") or "").strip()
+
+    if data.t.is_office and not own_chat:
+        # RO: exact canalele bifate pentru comenzile de pe site (e-mail / Telegram / WhatsApp)
+        r = Biro26Notify.send_all(subject, d["text"])
+        res = (r.get("data") or {})
+        ok = [k for k, v in res.items() if v.get("success")]
+        if not ok:
+            errs = "; ".join("%s: %s" % (k, v.get("error")) for k, v in res.items()) or "niciun canal activ"
+            return {"success": False, "error": errs}
+    else:
+        token = _token_for(data)
+        if not token:
+            return {"success": False, "error": "Telegram token lipseste (setarile de notificari ale magazinului)"}
+        one = Biro26Notify._send_telegram({"notify_tg_token": token, "notify_tg_chat": own_chat}, d["text"])
+        if not one.get("success"):
+            return {"success": False, "error": one.get("error")}
+        res, ok = {"telegram": one}, ["telegram"]
+
     mark_sent(data, d["alerts"])
     prune_sent(data, d["all"])
     data.dml("UPDATE CRM_ALERT_CFG t SET LAST_RUN = SYSDATE WHERE %s" % data.t.where(), data.t.params())
     return {"success": True, "sent": True, "alerts": len(d["alerts"]), "open": len(d["all"]),
-            "money": d["money"], "counts": d["counts"], "text": d["text"]}
+            "money": d["money"], "counts": d["counts"], "text": d["text"],
+            "channels": ok, "results": {k: {"success": v.get("success"), "error": v.get("error")} for k, v in res.items()}}
 
 
 # ── rularea programata (toti chiriasii) ───────────────────────────────────
