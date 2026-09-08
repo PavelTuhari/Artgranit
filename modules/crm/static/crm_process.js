@@ -377,8 +377,8 @@
     LANG2 = (typeof LANG !== 'undefined' && LANG) || 'ro';
     // RO: meniul: intrarile prototipului, in ordinea lui
     const nav = document.getElementById('nav-process');
-    const ICON = { workspace: '⌂', kanban: '▦', clients: '▤', contacts: '☺', leads: '◎', deals: '$', items: '▣', orders: '☰', projects: '◈', tasks: '▦', reports: '▥' };
-    nav.innerHTML = ['workspace', 'kanban', 'clients', 'contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks', 'reports']
+    const ICON = { workspace: '⌂', kanban: '▦', clients: '▤', contacts: '☺', leads: '◎', deals: '$', items: '▣', orders: '☰', projects: '◈', tasks: '▦', reports: '▥', alerts: '🔔' };
+    nav.innerHTML = ['workspace', 'kanban', 'clients', 'contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks', 'reports', 'alerts']
       .map(s => `<a href="#${s}" data-sec="${s}"><span class="ic">${ICON[s]}</span><span data-s="${NAV_KEY[s]}">${esc(S(NAV_KEY[s]))}</span></a>`).join('');
     document.querySelectorAll('[data-s]').forEach(el => { el.textContent = S(el.dataset.s); });
     const sec = (location.hash || '#workspace').slice(1);
