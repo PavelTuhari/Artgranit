@@ -1,0 +1,23 @@
+-- FRZ_: Oracle-объекты модуля furnizori. Нормализованная схема, свой префикс.
+-- Ставится ТОЛЬКО своим установщиком modules/furnizori/scripts/furnizori_deploy.py.
+-- '/' обязателен и ПЕРЕД, и ПОСЛЕ каждого PL/SQL-блока (CLAUDE.md, §2 п.5).
+
+CREATE TABLE FRZ_SETTINGS (
+  ID          NUMBER        NOT NULL,
+  CODE        VARCHAR2(50)  NOT NULL,
+  VALUE       VARCHAR2(500),
+  UPDATED_AT  TIMESTAMP     DEFAULT SYSTIMESTAMP,
+  CONSTRAINT PK_FRZ_SETTINGS PRIMARY KEY (ID),
+  CONSTRAINT UK_FRZ_SETTINGS_CODE UNIQUE (CODE)
+);
+
+CREATE SEQUENCE FRZ_SETTINGS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+/
+CREATE OR REPLACE TRIGGER FRZ_SETTINGS_BI
+BEFORE INSERT ON FRZ_SETTINGS FOR EACH ROW
+BEGIN
+  IF :NEW.ID IS NULL THEN
+    SELECT FRZ_SETTINGS_SEQ.NEXTVAL INTO :NEW.ID FROM DUAL;
+  END IF;
+END;
+/
