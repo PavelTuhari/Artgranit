@@ -87,9 +87,11 @@
     else if (sec === 'workspace') loadWorkspace();
     else if (sec === 'kanban') loadBoard();
     else if (sec === 'reports') loadReportList();
+    else if (sec === 'alerts') { if (window.crmAlertsShow) window.crmAlertsShow(); }
     else if (sec === 'clients2') openEntity('clients');
     else if (ENTITY_KEYS.includes(sec)) openEntity(sec);
   };
+  window.crmLang = () => LANG2;
 
   function applyLang() {
     LANG2 = (typeof LANG !== 'undefined' && LANG) || 'ro';
