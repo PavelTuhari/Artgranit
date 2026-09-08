@@ -172,6 +172,8 @@
 <section id="sec-alerts" hidden>
   <div class="page-head"><h1 id="al-title">Alerte</h1>
     <span class="muted" id="al-state"></span>
+    <a class="btn" href="{{ url_for('crm.alerts_deck') }}" target="_blank" rel="noopener"
+       style="text-decoration:none" title="Prezentarea botului de alerte (Ctrl/Cmd+P = PDF)">📊 <span id="al-deck">Prezentare</span></a>
     <button class="btn" onclick="crmAlertsPreview()" id="al-refresh">Actualizează</button>
     <button class="btn btn-primary" onclick="crmAlertsSend()" id="al-send">Trimite acum</button></div>
   <div class="dash" id="al-dash"></div>
