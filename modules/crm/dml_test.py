@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from modules.crm import process, reports
+from modules.crm.entities import entity
 from modules.crm.store_process import CrmData
 
 
