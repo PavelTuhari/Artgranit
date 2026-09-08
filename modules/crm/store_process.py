@@ -206,12 +206,13 @@ class CrmData:
                  "WHERE ID = :i", {"g": "Готово", "i": int(task_id)})
 
     def set_task_done(self, task_id: int, done: bool) -> None:
-        p = dict(self.t.params(), i=int(task_id), g="Готово", w="В работе")
+        # RO: Oracle refuza bindurile nefolosite (ORA-01036) — parametrii per ramura
+        p = dict(self.t.params(), i=int(task_id), g="Готово")
         if done:
             self.dml("UPDATE CRM_TASK t SET DONE = 1, STAGE = :g WHERE t.ID = :i AND %s" % self.t.where(), p)
         else:
             self.dml("UPDATE CRM_TASK t SET DONE = 0, STAGE = CASE WHEN STAGE = :g THEN :w ELSE STAGE END "
-                     "WHERE t.ID = :i AND %s" % self.t.where(), p)
+                     "WHERE t.ID = :i AND %s" % self.t.where(), dict(p, w="В работе"))
 
     def project_summary(self, project_id: int) -> Dict[str, Any]:
         r = self.rows(
