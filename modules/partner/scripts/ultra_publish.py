@@ -89,6 +89,40 @@ def export_xlsx(con, path: str) -> dict:
                 if m0 and g0 in gog2bc:
                     bridge.setdefault(m0.group(), (g0, gog2bc[g0]))
         wb0.close()
+    # RO: a treia cheie — NUME + CULOARE. In fisierul din iulie culoarea nu e in
+    #     nume, ci la sfirsitul DESCRIERE ("... | Negru"); la Ultra numele o
+    #     contine ("..., Negru"). Normalizat (fara spatii/semne) cele doua
+    #     coincid. Acopera cartelele ale caror imagini s-au schimbat intre timp
+    #     (Galaxy A27: iulie cdn.ultra.md, acum esempla) — 118 dubluri create pe
+    #     09.09.2026 exact din cauza asta. Doar chei UNICE pe ambele parti.
+    # EN: third key = normalized name + colour (July colour lives at the end of
+    #     DESCRIERE); unique on both sides only.
+    def _norm(x):
+        return re.sub(r"[^A-Z0-9А-Я]", "", str(x or "").upper())
+    if os.path.exists(JULY_XLSX):
+        jkey, jamb = {}, set()
+        wb0 = _ox.load_workbook(JULY_XLSX, read_only=True, data_only=True)
+        for sn in wb0.sheetnames:
+            it = wb0[sn].iter_rows(values_only=True)
+            next(it, None)
+            for r0 in it:
+                if not r0 or not r0[1]:
+                    continue
+                colour = str(r0[5] or "").split("|")[-1].strip() if r0[5] else ""
+                k = _norm(str(r0[3] or "") + colour)
+                g0 = str(r0[1]).strip()
+                if k and g0 in gog2bc:
+                    if k in jkey and jkey[k] != g0:
+                        jamb.add(k)
+                    jkey.setdefault(k, g0)
+        wb0.close()
+        for k in jamb:
+            jkey.pop(k, None)
+        name_bridge = {}
+        for k, g0 in jkey.items():
+            name_bridge[k] = (g0, gog2bc[g0])
+    else:
+        name_bridge = {}
     for cod, link, bc in cur.execute("""
         SELECT u.cod, t.ie_linkadres,
                (SELECT MIN(b.barcode) FROM tms_mpt_barcode b
@@ -122,6 +156,8 @@ def export_xlsx(con, path: str) -> dict:
            AND grupa IS NOT NULL"""):
         m = UUID_RE.search(photo or "")
         hit = bridge.get(m.group()) if m else None
+        if not hit:
+            hit = name_bridge.get(_norm(den))
         if hit:
             linked += 1
         ws.append([art, hit[1] if hit else None, den, grupa, categ, brand,
@@ -195,13 +231,18 @@ def write_markers(con, load_id: int) -> dict:
                      "SRC_PID = uuid-ul produsului la Ultra")
     # RO: marcajul de sursa: uuid din tampon (dupa articol), cale de grup, statusul potrivirii
     cur.execute("""MERGE INTO tms_mpt_impsrc t
-                   USING (SELECT s.cod_univers cod, s.articol, s.status,
-                                 SUBSTR(s.grupa || ' > ' || s.categ, 1, 400) gpath,
-                                 (SELECT MAX(g.guid) FROM biro26_goods g
-                                   WHERE g.sheet='ULTRA' AND g.articol = s.articol) guid
-                            FROM biro26pt_stg s
-                           WHERE s.load_id = :l AND s.cod_univers IS NOT NULL
-                             AND s.status IN ('NEW','EXISTING')) u
+                   USING (SELECT cod, articol, status, gpath, guid FROM (
+                            -- RO: o singura linie per cartela: catalogul Ultra are
+                            --     ~1 800 de pozitii dublate, iar MERGE ar insera
+                            --     acelasi COD de doua ori (ORA-00001).
+                            SELECT s.cod_univers cod, s.articol, s.status,
+                                   SUBSTR(s.grupa || ' > ' || s.categ, 1, 400) gpath,
+                                   (SELECT MAX(g.guid) FROM biro26_goods g
+                                     WHERE g.sheet='ULTRA' AND g.articol = s.articol) guid,
+                                   ROW_NUMBER() OVER (PARTITION BY s.cod_univers ORDER BY s.id) rn
+                              FROM biro26pt_stg s
+                             WHERE s.load_id = :l AND s.cod_univers IS NOT NULL
+                               AND s.status IN ('NEW','EXISTING')) WHERE rn = 1) u
                    ON (t.cod = u.cod)
                    WHEN MATCHED THEN UPDATE SET
                         t.src_source_code = 'ULTRA', t.src_import_id = :i,
