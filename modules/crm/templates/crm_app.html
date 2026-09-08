@@ -95,21 +95,25 @@
 </head>
 <body>
 <nav class="nav">
-  <div class="brand">CRM <small data-i="beta">beta · Artgranit + Contragenti</small></div>
-  <a href="#home" data-sec="home"><span class="ic">⌂</span><span data-i="nav_home">Acasă</span></a>
-  <a href="#clients" data-sec="clients"><span class="ic">▤</span><span data-i="nav_clients">Clienți</span></a>
-  <a class="disabled" title="în versiunea următoare"><span class="ic">☺</span><span data-i="nav_contacts">Contacte</span></a>
-  <a class="disabled"><span class="ic">◎</span><span data-i="nav_leads">Leaduri</span></a>
-  <a class="disabled"><span class="ic">$</span><span data-i="nav_deals">Oferte</span></a>
-  <a class="disabled"><span class="ic">▦</span><span data-i="nav_cal">Calendar</span></a>
+  <div class="brand">CRM <small>{% if cabinet %}OfficePlus · cabinet{% else %}OfficePlus · Artgranit + Contragenti{% endif %}</small></div>
+  <div id="nav-process"><!-- RO: meniul procesului se construieste din crm_process.js (ordinea prototipului) --></div>
+  {% if not cabinet %}
+  <a href="#home" data-sec="home"><span class="ic">≡</span><span data-i="nav_home">Jurnal Contragenti</span></a>
   <a href="#settings" data-sec="settings"><span class="ic">⚙</span><span data-i="nav_settings">Setări</span></a>
   <a href="/UNA.md/orasldev/modules" style="margin-top:18px;color:var(--muted)">← <span data-i="nav_portal">Portal</span></a>
+  {% else %}
+  <a href="/UNA.md/orasldev/biro26-site/account" style="margin-top:18px;color:var(--muted)">← <span data-s="login.logout">Contul meu</span></a>
+  {% endif %}
 </nav>
 <div class="top">
+  {% if not cabinet %}
   <input id="gsearch" data-ph="search" placeholder="Căutare: nume / IDNO / adresă — în baza OfficePlus, apoi automat pe date.gov.md" onkeydown="if(event.key==='Enter')searchAll(this.value)">
   <button class="plus" title="Creează client" onclick="createClient()">+</button>
+  {% else %}
+  <input id="gsearch" placeholder="" hidden>
+  {% endif %}
   <span class="sp"></span>
-  <span id="cg" class="muted"><span class="dot"></span>Contragenti</span>
+  <span id="cg" class="muted" {% if cabinet %}hidden{% endif %}><span class="dot"></span>Contragenti</span>
   <select id="ui-lang" onchange="setLang(this.value)" style="padding:4px"><option value="ro">RO</option><option value="ru">RU</option><option value="en">EN</option></select>
   <span class="user">{{ session.get('user_name') or session.get('username') or '' }}</span>
 </div>
