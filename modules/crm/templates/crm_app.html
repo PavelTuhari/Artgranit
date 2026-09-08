@@ -507,6 +507,7 @@ async function saveSettings() {
 // ── start ────────────────────────────────────────────────────────────────
 (async function init() {
   try { setLang(localStorage.getItem('crm_lang') || 'ro'); } catch (e) { setLang('ro'); }
+  if (window.CRM_CABINET) return;            // RO: clientul din cabinet nu are Contragenti / setari
   const r = await api('api/settings'); if (r.success) CFG = r.data;
   document.getElementById('cg-home').href = cgBase() + '/';
   checkContragenti(false);
