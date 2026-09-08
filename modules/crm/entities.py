@@ -92,6 +92,20 @@ def F(name, caption, kind, width=0, required=False, enum="", default="", col=Non
 
 
 ENTITIES: Dict[str, Entity] = {
+    # RO: clientul manual (cabinet / lead); cardul din registru vine prin Contragenti (store.py)
+    "clients": Entity("clients", "CRM_CLIENT", "Клиенты", [
+        F("name", "Название", TEXT, 260, True),
+        F("idno", "IDNO", TEXT, 110),
+        F("client_type", "Тип", ENUM, 100, True, "client_type", "Клиент"),
+        F("legal_form", "Форма", TEXT, 140),
+        F("address", "Адрес", TEXT, 220),
+        F("contact_person", "Контактное лицо", TEXT, 150),
+        F("phone", "Телефон", TEXT, 120),
+        F("email", "E-mail", TEXT, 150),
+        F("managers", "Руководитель", TEXT, 0),
+        F("notes", "Заметки", MEMO, col="NOTE"),
+    ], "t.NAME", ["name", "idno", "phone", "email", "address"]),
+
     "contacts": Entity("contacts", "CRM_CONTACT", "Контакты", [
         F("name", "Имя", TEXT, 220, True),
         F("client_id", "Клиент", LOOKUP_CLIENT, 240),
