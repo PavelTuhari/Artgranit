@@ -313,9 +313,10 @@ function say(kind, msg) {
 
 // ── navigare ─────────────────────────────────────────────────────────────
 function show(sec) {
+  // RO: versiunea beta (3 sectiuni); crm_process.js o inlocuieste cu una pentru toate sectiunile
   ['home', 'clients', 'settings'].forEach(s => {
-    document.getElementById('sec-' + s).hidden = (s !== sec);
-    document.querySelector(`.nav a[data-sec="${s}"]`).classList.toggle('active', s === sec);
+    const el = document.getElementById('sec-' + s); if (el) el.hidden = (s !== sec);
+    const a = document.querySelector(`.nav a[data-sec="${s}"]`); if (a) a.classList.toggle('active', s === sec);
   });
   location.hash = sec;
   if (sec === 'home') loadDash();
