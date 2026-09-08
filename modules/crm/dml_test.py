@@ -132,7 +132,7 @@ def run(data: CrmData) -> Dict[str, Any]:
     t2 = data.insert("tasks", {"subject": "Шаг 2", "project_id": proj, "stage": "В работе", "due_at": "2020-01-01", "hours_plan": 8})
     sm = data.project_summary(proj)
     check(sm["total"] == 2 and sm["done"] == 1 and sm["overdue"] == 1 and sm["progress"] == 50,
-          "projects: sumar 2 sarcini / 1 gata / 1 intirziata / 50 %%")
+          "projects: sumar 2 sarcini / 1 gata / 1 intirziata / 50 %")
     data.delete("projects", proj)
     check(data.get("tasks", t1) is None and data.get("tasks", t2) is None, "projects: sarcinile pleaca cu proiectul")
     crud("projects", "name", {"name": "Проект DML 2", "kind": "Другое", "status": "Тендер", "due_date": "2026-12-31"},
