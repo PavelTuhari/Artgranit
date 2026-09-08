@@ -209,6 +209,22 @@ Categorie→CATEG, Brand→FURNIZOR, Angro→ANGRO, Retail→RETAIL, Image URL�
 | `_lang(hierarchy[i])` in loc de `["name"]` | GRUPA goala la toate cele 34 437 | `element["name"]`; fara categorie → `Ultra - diverse` |
 | text nefiltrat prin cp1251 | 6 813 denumiri cu `?` | `cp1251_safe()` pe tot textul |
 
-### Rezultatul publicarii
+### Rezultatul publicarii — 09.09.2026, load 326, `--commit`
 
-_(se completeaza dupa rularea cu --commit)_
+| | |
+|---|---|
+| rinduri publicate | 37 373 |
+| EXISTENTE (punte prin cod de bare) | **17 356**, din care cu pret schimbat **4 345** |
+| NOI — cartele create, plasate in arbore, cu imagine si EAN-13 | **19 955** |
+| AMBIGUE (nume deja pe o cartela activa — sarite) | 62 |
+| perioade noi de pret | 24 221 |
+| perioade anterioare inchise | 4 266 |
+| grupe de pret noi | 12 |
+| verificare pret | OK — toata marfa cu pret in fisier are pret in lista |
+
+Cartela 304287 (Galaxy A27 Negru): 5 899 (20.07 → 08.09) → **6 599 din 09.09**.
+
+Sincronizarea completa a adus 26 186 uuid-uri unice din 38 853 vazute —
+paginarea Ultra dupa `updated_at` pierde pozitii cind ele se schimba in
+timpul parcurgerii. Restul de 11 190 s-au adus adresat prin
+`POST /product/batch` (`ultra_codes`), 3 nu mai exista la Ultra.

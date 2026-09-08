@@ -168,22 +168,46 @@ def run_import(con, load_id: int, commit: bool) -> list[str]:
     return lines
 
 
+def prune_staging(con, keep: int = 3) -> None:
+    """Уборка СТЕЙДЖИНГА (не прода): старые загрузки ULTRA_*, кроме последних N.
+    Почасовой cron иначе оставлял бы 37k строк RAW каждый час."""
+    cur = con.cursor()
+    cur.execute("""SELECT load_id FROM biro26pt_file
+                    WHERE src_file LIKE 'ULTRA\_%' ESCAPE '\\' ORDER BY load_id DESC""")
+    old = [r[0] for r in cur.fetchall()][keep:]
+    for lid in old:
+        for t in ("biro26pt_stg", "biro26pt_map", "biro26pt_raw",
+                  "biro26pt_header", "biro26pt_file"):
+            cur.execute(f"DELETE FROM {t} WHERE load_id = :l", l=lid)
+    con.commit()
+    if old:
+        print(f"  стейджинг: убраны старые загрузки ULTRA {old}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--commit", action="store_true")
     ap.add_argument("--xlsx", default="/tmp/ULTRA_publish.xlsx")
+    # RO: ca operatorul: DRY-RUN pe o incarcare, apoi --commit pe ACEEASI incarcare
+    ap.add_argument("--load-id", type=int, help="reuse an already loaded/classified load")
     args = ap.parse_args()
     from dotenv import load_dotenv
     load_dotenv(os.path.join(ROOT, ".env"))
 
     con = connect()
-    st = export_xlsx(con, args.xlsx)
-    print(f"экспорт: {st['rows']} строк, мост по штрихкоду: {st['linked']} "
-          f"(карточек GOG с uuid: {st['bridge_cards']}) -> {args.xlsx}")
-    load_id = load_raw(args.xlsx)
-    print(f"загрузка RAW: load_id={load_id}")
+    if args.load_id:
+        load_id = args.load_id
+        print(f"повторное использование загрузки load_id={load_id}")
+    else:
+        st = export_xlsx(con, args.xlsx)
+        print(f"экспорт: {st['rows']} строк, мост по штрихкоду: {st['linked']} "
+              f"(карточек GOG с uuid: {st['bridge_cards']}) -> {args.xlsx}")
+        load_id = load_raw(args.xlsx)
+        print(f"загрузка RAW: load_id={load_id}")
     for ln in run_import(con, load_id, args.commit):
         print("  " + ln)
+    if args.commit:
+        prune_staging(con, keep=3)
     print("\nрежим:", "ЗАПИСЬ (p_commit=TRUE)" if args.commit else "разбор без записи")
 
 
