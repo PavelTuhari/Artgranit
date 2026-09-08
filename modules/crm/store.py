@@ -185,10 +185,11 @@ class CrmStore:
     # ── statistici + jurnal ──────────────────────────────────────────────
     @staticmethod
     def stats() -> Dict[str, Any]:
+        tw, tp, _ = _tw()
         rows = _rows(Biro26DB().execute_query(
             "SELECT COUNT(*) TOTAL, SUM(CASE WHEN TRUNC(CREATED)=TRUNC(SYSDATE) THEN 1 ELSE 0 END) TODAY, "
             "SUM(CASE WHEN ADDRESS IS NOT NULL THEN 1 ELSE 0 END) WITH_ADDRESS, "
-            "SUM(IS_LIQUIDATED) LIQUIDATED FROM CRM_CLIENT"))
+            "SUM(IS_LIQUIDATED) LIQUIDATED FROM CRM_CLIENT c WHERE 1=1" + tw, tp))
         s = rows[0] if rows else {}
         return {k: int(s.get(k) or 0) for k in ("total", "today", "with_address", "liquidated")}
 
