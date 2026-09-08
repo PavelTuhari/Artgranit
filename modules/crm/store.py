@@ -196,11 +196,12 @@ class CrmStore:
     @staticmethod
     def log(event: str, src: str, idno: Optional[str], client_id: Optional[int], detail: str) -> None:
         try:
+            _, tp, _ = _tw()
             Biro26DB().execute_dml(
-                "INSERT INTO CRM_EVENT_LOG (CLIENT_ID, IDNO, EVENT, SRC, DETAIL) "
-                "VALUES (:c, :i, :e, :s, :d)",
-                {"c": client_id, "i": (idno or "")[:20] or None, "e": event[:40],
-                 "s": (src or "")[:20], "d": (detail or "")[:2000]})
+                "INSERT INTO CRM_EVENT_LOG (CLIENT_ID, IDNO, EVENT, SRC, DETAIL, OWNER_KIND, OWNER_ID) "
+                "VALUES (:c, :i, :e, :s, :d, :ok, :oi)",
+                dict(tp, c=client_id, i=(idno or "")[:20] or None, e=event[:40],
+                     s=(src or "")[:20], d=(detail or "")[:2000]))
         except Exception:                                    # noqa: BLE001
             pass
 
