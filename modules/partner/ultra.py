@@ -53,7 +53,8 @@ class UltraClient:
 
     # ── HTTP ───────────────────────────────────────────────────────────
     def _req(self, method: str, path: str, payload: Optional[Dict] = None,
-             params: Optional[Dict] = None, auth: bool = True) -> Dict[str, Any]:
+             params: Optional[Dict] = None, auth: bool = True,
+             _retry: bool = False) -> Dict[str, Any]:
         url = self.base + path
         if params:
             url += "?" + urllib.parse.urlencode(
@@ -72,6 +73,17 @@ class UltraClient:
                         "data": json.loads(resp.read().decode() or "{}")}
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")[:400]
+            # RO: access-token-ul Ultra traieste 1 ora, iar o sincronizare
+            #     completa (34k produse) dureaza mai mult — la 09.09.2026
+            #     rularea a murit la mijloc cu "Invalid or expired token" si
+            #     NIMIC nu s-a scris. La expirare ne relogam o data si
+            #     repetam aceeasi cerere; un al doilea esec se intoarce.
+            # EN: the access token lives 1h and a full sync takes longer; on
+            #     expiry re-login once and retry the same request.
+            if (auth and e.code in (401, 403) and not _retry
+                    and "token" in body.lower()):
+                if self.login().get("success"):
+                    return self._req(method, path, payload, params, auth, _retry=True)
             return {"success": False, "status": e.code, "error": body}
         except Exception as e:                               # noqa: BLE001
             return {"success": False, "error": str(e)[:300]}
@@ -228,9 +240,16 @@ class UltraClient:
         cat = p.get("category") or {}
         hierarchy = cat.get("hierarchy") or []
         cat_ro = UltraClient._lang(cat.get("name"), "ro", "ru", "en")
-        grupa = UltraClient._lang(hierarchy[0] if hierarchy else cat_ro, "ro", "ru")[:200]
-        categorie = (UltraClient._lang(hierarchy[-1], "ro", "ru")[:200]
-                     if len(hierarchy) > 1 else cat_ro[:200])
+        # RO: hierarchy = [{code, name{en,ro,ru}, uuid}, ...] de la radacina
+        #     spre frunza. Prima versiune dadea _lang(element) in loc de
+        #     _lang(element["name"]) si primea "" — de aceea GRUPA a fost
+        #     goala la TOATE cele 34 437 de rinduri din prima sincronizare.
+        # EN: each hierarchy element is {code, name{...}, uuid}; take ["name"].
+        def _hname(el):
+            return UltraClient._lang((el or {}).get("name") if isinstance(el, dict) else el,
+                                     "ro", "ru", "en")
+        grupa = (_hname(hierarchy[0]) if hierarchy else cat_ro)[:200]
+        categorie = (_hname(hierarchy[-1]) if len(hierarchy) > 1 else cat_ro)[:200]
         retail = UltraClient._money(p.get("fixed_price"))             or UltraClient._money(p.get("promo_b2b"))
         dealer = UltraClient._money(p.get("user_price"))             or UltraClient._money(p.get("price_d"))
         # RO: TOT textul trece prin cp1251_safe INAINTE de scriere. Baza e
@@ -306,14 +325,20 @@ class UltraClient:
         since = Biro26Store.get_setting("PARTNER_ULTRA_SINCE", "")
         try:
             if full or not since:
-                rows, seen, uniq = [], 0, set()
+                # RO: scriem la fiecare 2000 de rinduri, nu la sfirsit: daca
+                #     API-ul cade la pagina 30, primele 29 ramin in baza.
+                # EN: flush every 2000 rows so a mid-run failure keeps progress.
+                rows, seen, written, uniq = [], 0, 0, set()
                 for p in self.iter_products():
                     seen += 1
                     row = self._staging_row(p)
                     if row and row["guid"] not in uniq:
                         uniq.add(row["guid"])
                         rows.append(row)
-                written = self.upsert_staging(rows)
+                    if len(rows) >= 2000:
+                        written += self.upsert_staging(rows)
+                        rows = []
+                written += self.upsert_staging(rows)
                 mode = "full"
             else:
                 ids, next_since = self.changed_ids(since)

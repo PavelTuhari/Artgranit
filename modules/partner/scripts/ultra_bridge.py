@@ -32,10 +32,23 @@ uuid. Общего ключа между `GOG` и `ULT` в базе нет:
 
 Что пишется:
 
+    BIRO26_GOODS.COD_UNIVERS       <- код существующей карточки  ← ГЛАВНОЕ
     TMS_MPT_IMPSRC.SRC_PID         <- uuid товара в Ultra
     TMS_MPT_IMPSRC.SRC_ARTICOL     <- артикул ULT*
     TMS_MPT_IMPSRC.SRC_SOURCE_CODE <- 'ULTRA'
     MATCH_STATUS                   <- 'IMG_UUID'
+
+Почему COD_UNIVERS решает всё. `YBIRO_Import_Marfa.assign_keys` НЕ ищет товар
+в номенклатуре — он просто выдаёт новый номер из последовательности каждой
+строке, где ключ пуст:
+
+    UPDATE BIRO26_GOODS SET COD_UNIVERS = ID_TMS_UNIVERS.NEXTVAL
+     WHERE COD_UNIVERS IS NULL
+
+Поэтому без моста все 34 437 строк получат новые коды и станут новыми
+карточками — ровно так в июле и появились 22 000 дублей. Проставив ключ
+заранее, мы оставляем `assign_keys` только 18 485 действительно новых
+позиций, а 15 952 существующих обновятся по цене и остатку.
 
 `TMS_UNIVERS.CODVECHI` не трогаем: код `GOG*` показан на витрине, стоит в
 адресах товара и в истории продаж. Цены тут тоже не пишутся — это работа
@@ -122,6 +135,12 @@ def main() -> None:
         stmts, params = [], {}
         for j, (cod, art, guid) in enumerate(chunk):
             params[f"cod{j}"], params[f"art{j}"], params[f"pid{j}"] = cod, art, guid
+            # RO: cheia conveierului — fara ea assign_keys da un cod NOU si
+            #     marfa se dubleaza. Se scrie doar acolo unde e goala, ca sa
+            #     nu rescriem o legatura facuta de operator.
+            stmts.append(
+                f"UPDATE BIRO26_GOODS SET COD_UNIVERS = :cod{j} "
+                f"WHERE GUID = :pid{j} AND SHEET = 'ULTRA' AND COD_UNIVERS IS NULL;")
             stmts.append(
                 "MERGE INTO TMS_MPT_IMPSRC t USING "
                 f"(SELECT :cod{j} COD FROM dual) s ON (t.COD = s.COD) "
