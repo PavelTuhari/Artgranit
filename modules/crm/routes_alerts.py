@@ -7,11 +7,21 @@ EN: Telegram alert routes: settings, preview, send now.
 """
 from __future__ import annotations
 
-from flask import g, jsonify, request
+from flask import g, jsonify, redirect, render_template, request, url_for
+
+from controllers.auth_controller import AuthController
 
 from modules.crm import alerts as A
 from modules.crm import blueprint, notify
 from modules.crm.routes_process import err, with_data
+
+
+@blueprint.route("/alerte/prezentare")
+def alerts_deck():
+    """RO: prezentarea botului de alerte (slide-uri + capturi reale). Ctrl/Cmd+P = PDF."""
+    if not AuthController.is_authenticated():
+        return redirect("/login?next=" + url_for("crm.alerts_deck"))
+    return render_template("crm_alerts_deck.html")
 
 
 @blueprint.route("/api/v2/alerts")
