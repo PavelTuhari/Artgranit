@@ -23,12 +23,20 @@ Condițiile comenzilor **nu sunt rescrise**: vin din `process.stage_where` / `ov
 
 În „TOTAL de încasat” intră doar `debt` și `project_debt` — restul sunt semnale de proces, nu bani de așteptat.
 
-## Cum ajunge în Telegram
+## Pe ce canale pleacă
 
-- **Botul:** același transport ca restul portalului (`Biro26Notify._send_telegram`). Tokenul îl ține **OfficePlus** (setările de notificări ale magazinului) — clientul din cabinet indică doar `chat_id`-ul lui, deci nu apar token-uri de clienți prin bază. Un client poate pune totuși tokenul lui, dacă vrea bot separat.
-- **Mesaj text simplu**, fără `parse_mode`: denumirile firmelor conțin `_`, `*`, `(` și Markdown-ul ar refuza mesajul. Peste 3800 de caractere se taie pe rând întreg, cu „... și încă N”.
-- **Fără spam:** o alertă deja trimisă se repetă doar dacă a trecut perioada de liniște (`QUIET_DAYS`) **sau** dacă suma s-a schimbat (datoria a crescut / s-a plătit parțial). Alertele rezolvate se șterg din istoric, ca la reapariție să fie anunțate din nou.
-- **Per chiriaș:** OfficePlus are setările lui, fiecare client din cabinet — pe ale lui (`OWNER_KIND/OWNER_ID` în ambele tabele).
+**Nu se configurează canale noi.** Sumarul merge pe exact aceleași canale ca notificările despre comenzile de pe site — cele din **Back-office → Setări notificări** (`/UNA.md/orasldev/biro26-notify-settings`): e-mail, Telegram, WhatsApp, fiecare dacă e bifat acolo. Starea lor se vede în pagina «Alerte», cu bifă verde / cruce roșie.
+
+| Canal | Text trimis | De ce |
+|---|---|---|
+| Telegram | sumarul întreg | fără `parse_mode`: denumirile firmelor conțin `_`, `*`, `(` și Markdown-ul ar refuza mesajul; peste 3800 de caractere se taie pe rând întreg |
+| WhatsApp `callmebot` | **variantă scurtă** (total + câte de fiecare tip + link) | callmebot trece textul prin adresa URL — sumarul întreg dă `HTTP 414 Request-URI Too Large` (verificat 08.09.2026) |
+| WhatsApp `cloud` | sumarul întreg | Cloud API nu are limita de adresă |
+| E-mail | sumarul întreg, cu subiect | — |
+
+**Clientul din cabinet** nu are acces la setările magazinului, deci el indică doar `chat_id`-ul lui de Telegram; botul rămâne cel al magazinului — așa nu apar token-uri de clienți în bază. OfficePlus poate pune și el un chat separat doar pentru CRM (câmpul e opțional): atunci sumarul pleacă doar acolo.
+
+**Fără spam:** o alertă deja trimisă se repetă doar dacă a trecut perioada de liniște (`QUIET_DAYS`) **sau** dacă suma s-a schimbat (datoria a crescut / s-a plătit parțial). Alertele rezolvate se șterg din istoric, ca la reapariție să fie anunțate din nou.
 
 ## Pagina «Alerte»
 
@@ -37,8 +45,8 @@ Condițiile comenzilor **nu sunt rescrise**: vin din `process.stage_where` / `ov
 | Setare | Implicit | Ce face |
 |---|---|---|
 | Alerte pornite | oprit | fără ea sumarul programat nu pleacă |
-| Telegram chat ID | — | scrieți botului un mesaj, luați id-ul din `@userinfobot` |
-| Token bot | gol = al OfficePlus | doar dacă vreți bot separat |
+| Telegram chat ID | gol | **opțional**: un chat separat doar pentru CRM; gol = canalele magazinului |
+| Token bot | gol = al magazinului | doar dacă vreți bot separat |
 | Limba mesajului | `ro` | ro / ru / en |
 | Tipuri incluse | toate | bifele de mai sus |
 | Avertizare cu N zile înainte | 3 | `due_soon`; 0 = oprit |
@@ -46,7 +54,7 @@ Condițiile comenzilor **nu sunt rescrise**: vin din `process.stage_where` / `ov
 | Nu repeta (zile) | 1 | perioada de liniște |
 | Ora sumarului | 8 | ora locală (Europe/Chișinău) |
 
-Butonul **Trimite acum** trimite imediat, chiar dacă nu e nimic nou.
+Butonul **Trimite acum** trimite imediat pe toate canalele pregătite, chiar dacă nu e nimic nou.
 
 ## Obiecte și fișiere
 
@@ -91,7 +99,8 @@ journalctl -u crm-alerts --since '-1d' --no-pager | tail
 | `crm_deploy.py` | tabelele `CRM_ALERT_*` instalate, instalatorul rămâne idempotent |
 | `crm_alerts.py --dry-run --office` | 21 alerte pe datele demo: 4 datorii, 3 termene depășite, 8 proiecte, 2+2+2 |
 | Pagina, salvarea setărilor | prag 500 lei și două tipuri scoase → 21 → 18 alerte |
-| Trimiterea reală | a ajuns la API-ul Telegram: `Bad Request: chat not found` — botul OfficePlus funcționează, doar `chat_id`-ul de test era inventat |
-| După test | setările au fost readuse la starea inițială (oprite, fără chat) — baza e comună cu officeplus |
+| **Trimitere reală pe canalele magazinului** | Telegram **OK**, WhatsApp **OK** (după trecerea la varianta scurtă), e-mail — `SMTP is not configured` (așa e și pentru comenzile de pe site) |
+| Timer | `crm-alerts.timer` instalat și pornit pe nufarul |
+| Alerte pornite | da, limba `ru`, ora 8:00 (Europe/Chișinău) |
 
-**Rămâne de făcut de proprietar:** deschideți pagina, puneți `chat_id`-ul dvs. (sau al grupului), bifați «Alerte pornite», alegeți ora — și instalați timerul cu comenzile de mai sus.
+**De reținut:** e-mailul nu pleacă până nu se completează SMTP în `.env` — aceeași situație ca la notificările despre comenzi. Telegram și WhatsApp funcționează.

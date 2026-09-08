@@ -1,7 +1,7 @@
-/* CRM — pagina «Alerte»: tranzactii nefinisate si datorii in Telegram.
+/* CRM — pagina «Alerte»: tranzactii nefinisate si datorii.
  *
  * RO: fisier separat (regula nr. 2). Arata ce e deschis acum, textul care
- *     pleaca in Telegram si setarile chiriasului (bot, praguri, ora).
+ *     pleaca pe canalele magazinului (Telegram/WhatsApp/e-mail) si setarile.
  *     Fara ferestre modale — mesajele in linia de jos (say), ca in Demo CRM.
  *     Foloseste din crm_app.html / crm_process.js: api(), esc(), say(),
  *     crmMoney(), crmLang().
@@ -18,37 +18,37 @@
   const T = {
     ro: { title: 'Alerte: tranzacții nefinisate și datorii', refresh: 'Actualizează', send: 'Trimite acum',
           kind: 'Tip', doc: 'Document', client: 'Client', amount: 'Sumă, MDL', due: 'Termen', days: 'Zile',
-          preview: 'Mesajul care pleacă în Telegram', settings: 'Setări', enabled: 'Alerte pornite',
+          preview: 'Mesajul care pleacă', settings: 'Setări', enabled: 'Alerte pornite',
           chat: 'Telegram chat ID', token: 'Token bot (opțional)', token_inh: 'se folosește botul OfficePlus',
           token_own: 'bot propriu configurat', lang: 'Limba mesajului', kinds: 'Tipuri incluse',
           days_before: 'Avertizare cu N zile înainte de termen', min_debt: 'Prag datorie, MDL',
           quiet: 'Nu repeta aceeași alertă (zile)', hour: 'Ora sumarului zilnic', save: 'Salvează',
-          last: 'Ultimul sumar', never: 'niciodată', off: 'oprite', on: 'pornite', nochat: 'chat ID lipsește',
-          total: 'De încasat', open: 'Alerte deschise', newc: 'Noi (netrimise)', sent: 'Trimis în Telegram',
+          last: 'Ultimul sumar', never: 'niciodată', off: 'oprite', on: 'pornite', nochat: 'niciun canal',
+          total: 'De încasat', open: 'Alerte deschise', newc: 'Noi (netrimise)', sent: 'Trimis',
           nothing: 'Nimic nou de trimis', saved: 'Setări salvate', empty: 'Nicio alertă deschisă — totul e la zi.',
-          hint: 'Chat ID: scrieți botului un mesaj, apoi luați id-ul din @userinfobot. Sumarul zilnic pleacă la ora indicată.' },
+          hint: 'Chat ID: scrieți botului un mesaj, apoi luați id-ul din @userinfobot. Sumarul zilnic pleacă la ora indicată.', channels: 'Canale', channels_hint: 'Aceleași ca la comenzile de pe site.', channels_link: 'Setări notificări', chat_opt: 'opțional: alt chat doar pentru CRM', chat_hint: 'gol = se folosesc canalele de mai sus' },
     ru: { title: 'Оповещения: незавершённые сделки и долги', refresh: 'Обновить', send: 'Отправить сейчас',
           kind: 'Тип', doc: 'Документ', client: 'Клиент', amount: 'Сумма, MDL', due: 'Срок', days: 'Дней',
-          preview: 'Сообщение, которое уйдёт в Telegram', settings: 'Настройки', enabled: 'Оповещения включены',
+          preview: 'Сообщение, которое уйдёт', settings: 'Настройки', enabled: 'Оповещения включены',
           chat: 'Telegram chat ID', token: 'Токен бота (необязательно)', token_inh: 'используется бот OfficePlus',
           token_own: 'настроен свой бот', lang: 'Язык сообщения', kinds: 'Какие типы включать',
           days_before: 'Предупреждать за N дней до срока', min_debt: 'Порог долга, MDL',
           quiet: 'Не повторять одно и то же (дней)', hour: 'Час ежедневной сводки', save: 'Сохранить',
-          last: 'Последняя сводка', never: 'никогда', off: 'выключены', on: 'включены', nochat: 'не указан chat ID',
-          total: 'К получению', open: 'Открытых оповещений', newc: 'Новых (не отправлено)', sent: 'Отправлено в Telegram',
+          last: 'Последняя сводка', never: 'никогда', off: 'выключены', on: 'включены', nochat: 'нет канала',
+          total: 'К получению', open: 'Открытых оповещений', newc: 'Новых (не отправлено)', sent: 'Отправлено',
           nothing: 'Нового отправлять нечего', saved: 'Настройки сохранены', empty: 'Открытых оповещений нет — всё в порядке.',
-          hint: 'Chat ID: напишите боту сообщение и возьмите id у @userinfobot. Ежедневная сводка уходит в указанный час.' },
+          hint: 'Chat ID: напишите боту сообщение и возьмите id у @userinfobot. Ежедневная сводка уходит в указанный час.', channels: 'Каналы', channels_hint: 'Те же, что для заказов с сайта.', channels_link: 'Настройки уведомлений', chat_opt: 'необязательно: отдельный чат только для CRM', chat_hint: 'пусто = используются каналы выше' },
     en: { title: 'Alerts: unfinished transactions and debts', refresh: 'Refresh', send: 'Send now',
           kind: 'Kind', doc: 'Document', client: 'Client', amount: 'Amount, MDL', due: 'Due', days: 'Days',
-          preview: 'The message that goes to Telegram', settings: 'Settings', enabled: 'Alerts enabled',
+          preview: 'The message that goes out', settings: 'Settings', enabled: 'Alerts enabled',
           chat: 'Telegram chat ID', token: 'Bot token (optional)', token_inh: 'using the OfficePlus bot',
           token_own: 'own bot configured', lang: 'Message language', kinds: 'Included kinds',
           days_before: 'Warn N days before due', min_debt: 'Debt threshold, MDL',
           quiet: 'Do not repeat the same alert (days)', hour: 'Daily digest hour', save: 'Save',
-          last: 'Last digest', never: 'never', off: 'off', on: 'on', nochat: 'chat ID missing',
-          total: 'Receivable', open: 'Open alerts', newc: 'New (unsent)', sent: 'Sent to Telegram',
+          last: 'Last digest', never: 'never', off: 'off', on: 'on', nochat: 'no channel',
+          total: 'Receivable', open: 'Open alerts', newc: 'New (unsent)', sent: 'Sent',
           nothing: 'Nothing new to send', saved: 'Settings saved', empty: 'No open alerts — everything is up to date.',
-          hint: 'Chat ID: message the bot, then take the id from @userinfobot. The daily digest goes out at the given hour.' }
+          hint: 'Chat ID: message the bot, then take the id from @userinfobot. The daily digest goes out at the given hour.', channels: 'Channels', channels_hint: 'The same ones used for site orders.', channels_link: 'Notification settings', chat_opt: 'optional: a separate chat for CRM only', chat_hint: 'empty = the channels above are used' }
   };
   const t = k => (T[L()] || T.ro)[k] || k;
   const KIND_T = {
@@ -80,7 +80,8 @@
     DATA = r.data; CFG = r.data.cfg;
     document.getElementById('al-text').textContent = DATA.text;
     document.getElementById('al-state').textContent =
-      (CFG.enabled ? t('on') : t('off')) + ' · ' + (CFG.tg_chat ? 'chat ' + CFG.tg_chat : t('nochat')) +
+      (CFG.enabled ? t('on') : t('off')) + ' · ' +
+      ((CFG.channels || []).filter(c => c.ready).map(c => c.channel).join(', ') || t('nochat')) +
       ' · ' + t('last') + ': ' + (CFG.last_run || t('never'));
     const bySev = s => DATA.open.filter(a => a.sev === s).length;
     document.getElementById('al-dash').innerHTML =

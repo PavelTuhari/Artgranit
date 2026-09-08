@@ -413,3 +413,27 @@ def test_alerts_ddl_is_ascii_multi_tenant_and_slashed():
         if s.startswith("--"):
             assert ";" not in s and "'" not in s, s
     assert src.rstrip().endswith("/")
+
+
+def test_short_message_fits_a_callmebot_url():
+    """RO: WhatsApp (callmebot) trece textul prin adresa — sumarul intreg da HTTP 414."""
+    many = [_alert("debt", i, 1000.0 + i, 2000, "2026-09-01", 3) for i in range(50)]
+    for lang in ("ro", "ru", "en"):
+        s = A.render_short(many, lang, "OfficePlus", date(2026, 9, 8), "https://x.md/crm")
+        assert len(s) <= A.WA_LIMIT and "https://x.md/crm" in s
+        assert A.money(sum(a.amount for a in many))[:5] in s      # totalul e in mesaj
+    assert A.TEXTS["ro"]["nothing"] in A.render_short([], "ro", "OfficePlus")
+
+
+def test_alerts_use_the_channels_already_configured_for_site_orders():
+    """RO: cerinta 08.09.2026 — nu se configureaza canale noi, se folosesc cele
+    ale magazinului (pagina biro26-notify-settings)."""
+    src = _read("modules", "crm", "notify.py")
+    assert "Biro26Notify.get_settings()" in src                   # setarile magazinului
+    for ch in ("notify_email_enabled", "notify_tg_enabled", "notify_wa_enabled"):
+        assert ch in src, ch
+    assert "_send_whatsapp" in src and "render_short" in src       # varianta scurta pe WhatsApp
+    assert 'notify_wa_mode") == "cloud"' in src                    # cloud primeste textul intreg
+    js = _read("modules", "crm", "static", "crm_alerts.js")
+    assert "biro26-notify-settings" in js                          # link catre setarile magazinului
+    assert "channels" in js
