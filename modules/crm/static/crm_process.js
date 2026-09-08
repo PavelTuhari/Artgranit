@@ -376,5 +376,10 @@
     document.querySelectorAll('[data-s]').forEach(el => { el.textContent = S(el.dataset.s); });
     const sec = (location.hash || '#workspace').slice(1);
     if (!new URLSearchParams(location.search).get('cb')) show(SECTIONS.includes(sec) ? sec : 'workspace');
+    // RO: linkurile din meniu sint #sectiune — navigarea prin hash (si butonul Inapoi)
+    window.addEventListener('hashchange', () => {
+      const s = location.hash.slice(1);
+      if (SECTIONS.includes(s) && document.getElementById('sec-' + (s === 'clients' && CAB ? 'clients2' : s)).hidden) show(s);
+    });
   })();
 })();
