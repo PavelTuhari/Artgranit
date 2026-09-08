@@ -107,9 +107,9 @@ def run(data: CrmData) -> Dict[str, Any]:
     check(abs(float((data.get("orders", order) or {}).get("total") or 0) - 100) < 0.01, "orders: dupa stergerea liniei TOTAL = 100")
     for o in (order, porder, sorder):
         data.delete("orders", o)
-    check(data.count("CRM_ORDER_LINE", "1=1") >= 0 and not data.rows(
-        "SELECT ID FROM CRM_ORDER_LINE WHERE ORDER_ID IN (:a, :b, :c)", {"a": order, "b": porder, "c": sorder}),
-        "orders: liniile pleaca odata cu comanda (ON DELETE CASCADE)")
+    check(not data.rows("SELECT ID FROM CRM_ORDER_LINE WHERE ORDER_ID IN (:a, :b, :c)",
+                        {"a": order, "b": porder, "c": sorder}),
+          "orders: liniile pleaca odata cu comanda (ON DELETE CASCADE)")
     for it in (goods, prod, svc):
         data.delete("items", it)
 
