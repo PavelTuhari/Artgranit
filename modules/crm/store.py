@@ -14,6 +14,7 @@ from models.biro26_db import Biro26DB
 from models.biro26_oracle_store import _rows
 
 from modules.crm import rules
+from modules.crm import tenant as tenant_mod
 
 DEFAULTS = {
     "contragenti_url": "http://127.0.0.1:9393",   # API-ul local al Contragenti
