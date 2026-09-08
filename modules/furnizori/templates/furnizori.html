@@ -5,23 +5,260 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Работа с поставщиками</title>
   <style>
-    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #0f1419; color: #e6edf3; }
-    header { padding: 14px 18px; background: #161b22; border-bottom: 1px solid #30363d; }
-    main { padding: 18px; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; max-width: 520px; }
+    :root { --bg:#0f1419; --panel:#161b22; --line:#30363d; --fg:#e6edf3; --mut:#8b949e;
+            --acc:#2f81f7; --ok:#2ea043; --warn:#d29922; --bad:#f85149; }
+    * { box-sizing: border-box; }
+    body { font-family:-apple-system, system-ui, sans-serif; margin:0; background:var(--bg); color:var(--fg); font-size:14px; }
+    header { padding:14px 18px; background:var(--panel); border-bottom:1px solid var(--line);
+             display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    header strong { font-size:16px; }
+    main { padding:18px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .chip { padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:transparent;
+            color:var(--mut); cursor:pointer; font-size:13px; }
+    .chip.on { border-color:var(--acc); color:var(--fg); background:#132441; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; font-weight:600; color:var(--mut); font-size:12px; text-transform:uppercase;
+         letter-spacing:.04em; padding:8px 10px; border-bottom:1px solid var(--line); }
+    td { padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    tr.sel td { background:#11203a; }
+    .st { font-size:12px; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+    .st-NOU{background:#21262d;color:var(--mut)} .st-TRIMIS{background:#132e1a;color:var(--ok)}
+    .st-RASPUNS{background:#2b2410;color:var(--warn)} .st-INCHIS{background:#1c2128;color:var(--mut)}
+    button, select, input, textarea { font:inherit; }
+    .btn { padding:5px 11px; border:1px solid var(--line); border-radius:7px; background:#21262d;
+           color:var(--fg); cursor:pointer; }
+    .btn:hover { border-color:var(--acc); }
+    .btn.pri { background:var(--acc); border-color:var(--acc); }
+    .btn.del { color:var(--bad); }
+    .btn:disabled { opacity:.45; cursor:default; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:16px; }
+    .files li { display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid var(--line); }
+    .files li:last-child { border-bottom:none; }
+    .mut { color:var(--mut); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+    input, select, textarea { width:100%; padding:6px 9px; background:#0d1117; color:var(--fg);
+                              border:1px solid var(--line); border-radius:7px; }
+    dialog { background:var(--panel); color:var(--fg); border:1px solid var(--line);
+             border-radius:12px; padding:18px; width:min(560px,92vw); }
+    dialog::backdrop { background:#000a; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    #msg { min-height:18px; font-size:13px; }
   </style>
 </head>
 <body>
-  <header><strong>Работа с поставщиками</strong></header>
+  <header>
+    <strong>📦 Работа с поставщиками</strong>
+    <div class="chips" id="filters"></div>
+    <span style="flex:1"></span>
+    <button class="btn pri" id="addBtn">Новое письмо</button>
+  </header>
+
   <main>
-    <div class="card">
-      <p>Модуль <code>furnizori</code> подключён ядром. Статус API: <span id="st">…</span></p>
+    <div id="msg" class="mut"></div>
+
+    <div class="panel" style="padding:0">
+      <table>
+        <thead><tr>
+          <th>Поставщик</th><th>Тема</th><th>Тип</th><th>Позиций</th>
+          <th>Статус</th><th>Кому</th><th>Отправлено</th><th>Файлы</th><th></th>
+        </tr></thead>
+        <tbody id="rows"><tr><td colspan="9" class="mut">Загрузка…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="panel" id="detail" hidden>
+      <div class="row" style="justify-content:space-between">
+        <strong id="dTitle"></strong>
+        <button class="btn" id="closeDetail">Скрыть</button>
+      </div>
+      <div class="row" style="margin:12px 0">
+        <span class="mut">Отметить:</span>
+        <span id="stBtns" class="row"></span>
+      </div>
+      <div class="row" style="margin-bottom:12px">
+        <input id="sentTo" placeholder="кому отправлено (адрес)" style="max-width:320px">
+        <button class="btn" id="saveTo">Сохранить адрес</button>
+      </div>
+      <p class="mut" style="margin:14px 0 6px">Вложения</p>
+      <ul class="files" id="fileList" style="list-style:none;padding:0;margin:0"></ul>
+      <div class="row" style="margin-top:12px">
+        <input type="file" id="upFile" style="max-width:320px">
+        <button class="btn" id="upBtn">Добавить файл</button>
+      </div>
     </div>
   </main>
-  <script>
-    // Базу адреса берём у сервера, не пишем строкой: модуль не привязан к точке монтирования
-    fetch("{{ url_for('furnizori.api_status') }}")
-      .then(r => r.json()).then(j => document.getElementById("st").textContent = JSON.stringify(j.data || j));
-  </script>
+
+  <dialog id="dlg">
+    <h3 style="margin:0 0 14px">Новое письмо поставщику</h3>
+    <div class="grid">
+      <label>Поставщик<select id="fSrc"></select></label>
+      <label>Тип<select id="fTip"></select></label>
+      <label>Позиций<input id="fN" type="number" min="0"></label>
+      <label>Кому<input id="fTo" placeholder="office@..."></label>
+    </div>
+    <label style="display:block;margin-top:10px">Тема<input id="fSubj"></label>
+    <label style="display:block;margin-top:10px">Заметка<textarea id="fNotes" rows="2"></textarea></label>
+    <div class="row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="dlgCancel">Отмена</button>
+      <button class="btn pri" id="dlgOk">Создать</button>
+    </div>
+  </dialog>
+
+<script>
+// Адреса берём у сервера — модуль не привязан к точке монтирования
+const U = {
+  letters: "{{ url_for('furnizori.api_letters') }}",
+  ref:     "{{ url_for('furnizori.api_reference') }}",
+  letter:  id => "{{ url_for('furnizori.api_letters') }}/" + id,
+  files:   id => "{{ url_for('furnizori.api_letters') }}/" + id + "/files",
+  file:    id => "{{ url_for('furnizori.api_file_delete', file_id=0) }}".replace(/0$/, id),
+  dl:      id => "{{ url_for('furnizori.api_file_download', file_id=0) }}".replace(/0\/download$/, id + "/download"),
+};
+let REF = {statuses: [], tipuri: [], suppliers: []}, CUR = null, FILTER = "";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const say = (t, bad) => { const m = $("#msg"); m.textContent = t || ""; m.style.color = bad ? "var(--bad)" : "var(--mut)"; };
+
+async function api(url, opt) {
+  const r = await fetch(url, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.success === false) throw new Error(j.message || ("Ошибка " + r.status));
+  return j.data;
+}
+const kb = n => n == null ? "" : (n < 1024 ? n + " Б" : Math.round(n / 1024) + " КБ");
+const dt = s => s ? String(s).slice(0, 10) : "";
+
+async function loadRef() {
+  REF = await api(U.ref);
+  $("#filters").innerHTML =
+    `<button class="chip on" data-st="">Все</button>` +
+    REF.statuses.map(s => `<button class="chip" data-st="${s.code}">${esc(s.label)}</button>`).join("");
+  $("#filters").onclick = e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    FILTER = b.dataset.st;
+    document.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c === b));
+    loadRows();
+  };
+  $("#fSrc").innerHTML = `<option value="">— не из реестра —</option>` +
+    REF.suppliers.map(s => `<option value="${esc(s.SRC_CODE)}">${esc(s.SRC_NAME)}</option>`).join("");
+  $("#fTip").innerHTML = REF.tipuri.map(t => `<option value="${t.code}">${esc(t.label)}</option>`).join("");
+}
+
+async function loadRows() {
+  const rows = await api(U.letters + (FILTER ? "?status=" + FILTER : ""));
+  $("#rows").innerHTML = rows.length ? rows.map(r => `
+    <tr data-id="${r.LETTER_ID}" class="${CUR === r.LETTER_ID ? 'sel' : ''}">
+      <td>${esc(r.FURNIZOR)}${r.SRC_CODE ? `<div class="mut" style="font-size:12px">${esc(r.SRC_CODE)}</div>` : ""}</td>
+      <td>${esc(r.SUBIECT)}</td>
+      <td class="mut">${esc(r.TIP_LABEL)}</td>
+      <td>${r.N_POZITII ?? ""}</td>
+      <td><span class="st st-${r.STATUS}">${esc(r.STATUS_LABEL)}</span></td>
+      <td class="mut">${esc(r.SENT_TO || "")}</td>
+      <td class="mut">${dt(r.SENT_AT)}</td>
+      <td>${r.N_FILES || 0}</td>
+      <td class="row">
+        <button class="btn" data-act="open">Открыть</button>
+        <button class="btn del" data-act="del">✕</button>
+      </td>
+    </tr>`).join("") : `<tr><td colspan="9" class="mut">Писем нет</td></tr>`;
+}
+
+$("#rows").onclick = async e => {
+  const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+  const id = +tr.dataset.id, act = e.target.dataset.act;
+  try {
+    if (act === "del") {
+      if (!confirm("Удалить письмо вместе с вложениями?")) return;
+      await api(U.letter(id), {method: "DELETE"});
+      if (CUR === id) { CUR = null; $("#detail").hidden = true; }
+      say("Письмо удалено"); await loadRows();
+    } else { await openLetter(id); }
+  } catch (err) { say(err.message, true); }
+};
+
+async function openLetter(id) {
+  CUR = id;
+  const row = (await api(U.letters)).find(r => r.LETTER_ID === id);
+  if (!row) return;
+  $("#detail").hidden = false;
+  $("#dTitle").textContent = row.FURNIZOR + " — " + row.SUBIECT;
+  $("#sentTo").value = row.SENT_TO || "";
+  $("#stBtns").innerHTML = REF.statuses.map(s =>
+    `<button class="btn ${s.code === row.STATUS ? 'pri' : ''}" data-st="${s.code}" ${s.code === row.STATUS ? 'disabled' : ''}>${esc(s.label)}</button>`).join("");
+  await loadFiles(id);
+  await loadRows();
+}
+
+$("#stBtns").onclick = async e => {
+  const b = e.target.closest("button[data-st]"); if (!b || !CUR) return;
+  try {
+    await api(U.letter(CUR), {method: "PATCH", headers: {"Content-Type": "application/json"},
+                              body: JSON.stringify({status: b.dataset.st})});
+    say("Отметка проставлена"); await openLetter(CUR);
+  } catch (err) { say(err.message, true); }
+};
+
+$("#saveTo").onclick = async () => {
+  if (!CUR) return;
+  try {
+    await api(U.letter(CUR), {method: "PATCH", headers: {"Content-Type": "application/json"},
+                              body: JSON.stringify({sent_to: $("#sentTo").value})});
+    say("Адрес сохранён"); await loadRows();
+  } catch (err) { say(err.message, true); }
+};
+
+async function loadFiles(id) {
+  const fs = await api(U.files(id));
+  $("#fileList").innerHTML = fs.length ? fs.map(f => `
+    <li>
+      <a href="${U.dl(f.FILE_ID)}">${esc(f.FILE_NAME)}</a>
+      <span class="mut">${esc(f.FILE_KIND)} · ${kb(f.FILE_SIZE)}</span>
+      <span style="flex:1"></span>
+      <button class="btn del" data-fid="${f.FILE_ID}">Удалить</button>
+    </li>`).join("") : `<li class="mut">Вложений нет</li>`;
+}
+
+$("#fileList").onclick = async e => {
+  const b = e.target.closest("button[data-fid]"); if (!b) return;
+  if (!confirm("Удалить файл?")) return;
+  try {
+    await api(U.file(b.dataset.fid), {method: "DELETE"});
+    say("Файл удалён"); await loadFiles(CUR); await loadRows();
+  } catch (err) { say(err.message, true); }
+};
+
+$("#upBtn").onclick = async () => {
+  const f = $("#upFile").files[0];
+  if (!f || !CUR) { say("Выберите файл", true); return; }
+  const fd = new FormData(); fd.append("file", f);
+  try {
+    await api(U.files(CUR), {method: "POST", body: fd});
+    $("#upFile").value = ""; say("Файл добавлен");
+    await loadFiles(CUR); await loadRows();
+  } catch (err) { say(err.message, true); }
+};
+
+$("#addBtn").onclick = () => $("#dlg").showModal();
+$("#dlgCancel").onclick = () => $("#dlg").close();
+$("#dlgOk").onclick = async () => {
+  const src = $("#fSrc").value;
+  const sup = REF.suppliers.find(s => s.SRC_CODE === src);
+  try {
+    await api(U.letters, {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        src_code: src || null, cod_org: sup ? sup.COD_ORG : null,
+        furnizor: sup ? sup.SRC_NAME : ($("#fSubj").value || "Без названия"),
+        subiect: $("#fSubj").value, tip: $("#fTip").value,
+        n_pozitii: $("#fN").value || null, sent_to: $("#fTo").value,
+        notes: $("#fNotes").value})});
+    $("#dlg").close(); say("Письмо создано"); await loadRows();
+  } catch (err) { say(err.message, true); }
+};
+$("#closeDetail").onclick = () => { $("#detail").hidden = true; CUR = null; loadRows(); };
+
+(async () => { try { await loadRef(); await loadRows(); say(""); }
+               catch (e) { say(e.message, true); } })();
+</script>
 </body>
 </html>
