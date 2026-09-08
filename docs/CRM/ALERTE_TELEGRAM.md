@@ -66,7 +66,7 @@ Butonul **Trimite acum** trimite imediat pe toate canalele pregătite, chiar dac
 | Pagina | `modules/crm/static/crm_alerts.js` + secțiunea `#sec-alerts` |
 | DDL | `modules/crm/sql/03_crm_alerts.sql` — `CRM_ALERT_CFG`, `CRM_ALERT_SENT` |
 | Script + timer | `modules/crm/scripts/crm_alerts.py`, `modules/crm/deploy/crm-alerts.{service,timer}` |
-| Teste (fără Oracle) | `tests/test_crm.py` — 10 teste noi din 36 |
+| Teste (fără Oracle) | `tests/test_crm.py` — 12 teste noi din 38 |
 
 Fișiere separate, în modul, conform CLAUDE.md regula nr. 2; în codul comun nu s-a adăugat nimic.
 
@@ -95,12 +95,12 @@ journalctl -u crm-alerts --since '-1d' --no-pager | tail
 
 | Verificare | Rezultat |
 |---|---|
-| `pytest tests/test_crm.py` | **36 passed** (10 noi pentru alerte) |
+| `pytest tests/test_crm.py` | **38 passed** (12 noi pentru alerte) |
 | `crm_deploy.py` | tabelele `CRM_ALERT_*` instalate, instalatorul rămâne idempotent |
 | `crm_alerts.py --dry-run --office` | 21 alerte pe datele demo: 4 datorii, 3 termene depășite, 8 proiecte, 2+2+2 |
 | Pagina, salvarea setărilor | prag 500 lei și două tipuri scoase → 21 → 18 alerte |
-| **Trimitere reală pe canalele magazinului** | Telegram **OK**, WhatsApp **OK** (după trecerea la varianta scurtă), e-mail — `SMTP is not configured` (așa e și pentru comenzile de pe site) |
+| **Trimitere reală de pe server (calea planificatorului)** | Telegram **OK**, WhatsApp **OK** (după trecerea la varianta scurtă), e-mail **eșuat**: `535 Username and Password not accepted` (Gmail) |
 | Timer | `crm-alerts.timer` instalat și pornit pe nufarul |
 | Alerte pornite | da, limba `ru`, ora 8:00 (Europe/Chișinău) |
 
-**De reținut:** e-mailul nu pleacă până nu se completează SMTP în `.env` — aceeași situație ca la notificările despre comenzi. Telegram și WhatsApp funcționează.
+**De reținut:** e-mailul nu pleacă din cauza credențialelor Gmail din `.env` (`BIRO26_SMTP_USER/PASSWORD`) — Google cere o *parolă de aplicație*, nu parola contului. Aceeași problemă afectează și notificările despre comenzile de pe site, deci nu e ceva introdus de alerte. Telegram și WhatsApp funcționează; după corectarea parolei de aplicație va merge și e-mailul, fără alte modificări.
