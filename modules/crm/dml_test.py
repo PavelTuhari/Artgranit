@@ -17,9 +17,17 @@ from modules.crm.entities import entity
 from modules.crm.store_process import CrmData
 
 
+def cleanup(data: CrmData) -> None:
+    """RO: chiriasul tehnic porneste gol si ramine gol (si dupa un test intrerupt)."""
+    for tbl in ("CRM_TASK", "CRM_ORDER", "CRM_PROJECT", "CRM_DEAL", "CRM_LEAD", "CRM_CONTACT",
+                "CRM_ITEM", "CRM_CLIENT", "CRM_EVENT_LOG"):
+        data.dml("DELETE FROM %s t WHERE %s" % (tbl, data.t.where()), data.t.params())
+
+
 def run(data: CrmData) -> Dict[str, Any]:
     log: List[str] = []
     fails = 0
+    cleanup(data)
 
     def check(cond: bool, what: str) -> None:
         nonlocal fails
