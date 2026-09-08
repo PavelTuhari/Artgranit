@@ -258,7 +258,7 @@ def api_report(slug):
         raise LookupError("raport necunoscut")
     rep = reports.build(g.crm, slug, request.args.get("lang", "ro"))
     if request.args.get("format") == "csv":
-        return Response(reports.to_csv(rep), mimetype="text/csv; charset=utf-8",
+        return Response(reports.to_csv(rep), mimetype="text/csv",
                         headers={"Content-Disposition": "attachment; filename=crm_%s.csv" % slug})
     return jsonify({"success": True, "data": rep})
 
