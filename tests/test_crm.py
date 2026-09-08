@@ -437,3 +437,18 @@ def test_alerts_use_the_channels_already_configured_for_site_orders():
     js = _read("modules", "crm", "static", "crm_alerts.js")
     assert "biro26-notify-settings" in js                          # link catre setarile magazinului
     assert "channels" in js
+
+
+def test_alerts_presentation_exists_with_real_screenshots():
+    """RO: prezentarea botului — slide-uri + capturi reale, servite din modul."""
+    src = _read("modules", "crm", "routes_alerts.py")
+    assert '"/alerte/prezentare"' in src and "AuthController.is_authenticated()" in src
+    deck = _read("modules", "crm", "templates", "crm_alerts_deck.html")
+    assert deck.count('class="slide') >= 9
+    for shot in ("01_dash.png", "02_table.png", "03_settings.png", "04_message.png"):
+        assert shot in deck, shot
+        assert os.path.getsize(os.path.join(MODULE_DIR, "static", "deck", shot)) > 10000, shot
+    assert "url_for('crm.static'" in deck                      # fara adrese scrise de mina
+    assert "@page{size:A4landscape" in deck.replace(" ", "")   # Ctrl/Cmd+P -> PDF
+    page = _read("modules", "crm", "templates", "crm_app.html")
+    assert "crm.alerts_deck" in page                           # butonul din pagina de alerte

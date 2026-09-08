@@ -27,7 +27,7 @@
           total: 'De încasat', open: 'Alerte deschise', newc: 'Noi (netrimise)', sent: 'Trimis',
           nothing: 'Nimic nou de trimis', saved: 'Setări salvate', empty: 'Nicio alertă deschisă — totul e la zi.',
           hint: 'Chat ID: scrieți botului un mesaj, apoi luați id-ul din @userinfobot. Sumarul zilnic pleacă la ora indicată.', channels: 'Canale', channels_hint: 'Aceleași ca la comenzile de pe site.', channels_link: 'Setări notificări', chat_opt: 'opțional: alt chat doar pentru CRM', chat_hint: 'gol = se folosesc canalele de mai sus' },
-    ru: { title: 'Оповещения: незавершённые сделки и долги', refresh: 'Обновить', send: 'Отправить сейчас',
+    ru: { title: ', deck: 'Prezentare'Оповещения: незавершённые сделки и долги', refresh: 'Обновить', send: 'Отправить сейчас',
           kind: 'Тип', doc: 'Документ', client: 'Клиент', amount: 'Сумма, MDL', due: 'Срок', days: 'Дней',
           preview: 'Сообщение, которое уйдёт', settings: 'Настройки', enabled: 'Оповещения включены',
           chat: 'Telegram chat ID', token: 'Токен бота (необязательно)', token_inh: 'используется бот OfficePlus',
@@ -38,7 +38,7 @@
           total: 'К получению', open: 'Открытых оповещений', newc: 'Новых (не отправлено)', sent: 'Отправлено',
           nothing: 'Нового отправлять нечего', saved: 'Настройки сохранены', empty: 'Открытых оповещений нет — всё в порядке.',
           hint: 'Chat ID: напишите боту сообщение и возьмите id у @userinfobot. Ежедневная сводка уходит в указанный час.', channels: 'Каналы', channels_hint: 'Те же, что для заказов с сайта.', channels_link: 'Настройки уведомлений', chat_opt: 'необязательно: отдельный чат только для CRM', chat_hint: 'пусто = используются каналы выше' },
-    en: { title: 'Alerts: unfinished transactions and debts', refresh: 'Refresh', send: 'Send now',
+    en: { title: ', deck: 'Презентация'Alerts: unfinished transactions and debts', refresh: 'Refresh', send: 'Send now',
           kind: 'Kind', doc: 'Document', client: 'Client', amount: 'Amount, MDL', due: 'Due', days: 'Days',
           preview: 'The message that goes out', settings: 'Settings', enabled: 'Alerts enabled',
           chat: 'Telegram chat ID', token: 'Bot token (optional)', token_inh: 'using the OfficePlus bot',
@@ -52,7 +52,7 @@
   };
   const t = k => (T[L()] || T.ro)[k] || k;
   const KIND_T = {
-    ro: { debt: 'Datorie', overdue_work: 'Termen depășit', await_advance: 'Așteaptă avans', ready_to_ship: 'Gata, nelivrată',
+    ro: { debt: ', deck: 'Presentation'Datorie', overdue_work: 'Termen depășit', await_advance: 'Așteaptă avans', ready_to_ship: 'Gata, nelivrată',
           unposted: 'Necontabilizată', project_debt: 'Proiect neacoperit', deal_stale: 'Ofertă fără mișcare', due_soon: 'Termen apropiat' },
     ru: { debt: 'Долг', overdue_work: 'Просрочен срок', await_advance: 'Ожидает аванс', ready_to_ship: 'Готов, не отгружен',
           unposted: 'Не проведён', project_debt: 'Проект без покрытия', deal_stale: 'Сделка без движения', due_soon: 'Близкий срок' },
@@ -67,6 +67,7 @@
       const el = document.getElementById(id);
       if (el) el.textContent = [t('title'), t('refresh'), t('send'), t('preview')][i];
     });
+    const dk = document.getElementById('al-deck'); if (dk) dk.textContent = t('deck');
     [['al-h-kind', 'kind'], ['al-h-doc', 'doc'], ['al-h-client', 'client'], ['al-h-amount', 'amount'],
      ['al-h-due', 'due'], ['al-h-days', 'days']].forEach(([id, k]) => {
       const el = document.getElementById(id); if (el) el.textContent = t(k);

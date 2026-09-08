@@ -55,6 +55,7 @@ Condițiile comenzilor **nu sunt rescrise**: vin din `process.stage_where` / `ov
 | Ora sumarului | 8 | ora locală (Europe/Chișinău) |
 
 Butonul **Trimite acum** trimite imediat pe toate canalele pregătite, chiar dacă nu e nimic nou.
+Butonul **📊 Prezentare** deschide prezentarea botului (9 slide-uri cu capturi reale); `Ctrl/Cmd+P` o salvează ca PDF A4 landscape.
 
 ## Obiecte și fișiere
 
@@ -66,6 +67,7 @@ Butonul **Trimite acum** trimite imediat pe toate canalele pregătite, chiar dac
 | Pagina | `modules/crm/static/crm_alerts.js` + secțiunea `#sec-alerts` |
 | DDL | `modules/crm/sql/03_crm_alerts.sql` — `CRM_ALERT_CFG`, `CRM_ALERT_SENT` |
 | Script + timer | `modules/crm/scripts/crm_alerts.py`, `modules/crm/deploy/crm-alerts.{service,timer}` |
+| Prezentare (9 slide-uri, capturi reale) | `modules/crm/templates/crm_alerts_deck.html` + `static/deck/*.png`, ruta `/UNA.md/orasldev/crm/alerte/prezentare` |
 | Teste (fără Oracle) | `tests/test_crm.py` — 12 teste noi din 38 |
 
 Fișiere separate, în modul, conform CLAUDE.md regula nr. 2; în codul comun nu s-a adăugat nimic.
