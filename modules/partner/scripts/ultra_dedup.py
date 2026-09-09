@@ -115,6 +115,63 @@ def find_pairs(con) -> dict[int, int]:
     return ok
 
 
+def find_groups(con) -> dict[int, int]:
+    """{cod лишней: cod выжившей} для ВСЕХ групп «один товар Ultra — несколько
+    наших карточек», включая пары GOG+GOG из июльской загрузки.
+
+    Эталон — поставщик: у Ultra на один uuid ровно один товар, значит лишние
+    карточки у нас. Кто выживает, по убыванию веса:
+
+      1. карточка с движением в документах (реальная история продаж) — таких 3;
+      2. чьё название ближе к текущему названию у Ultra;
+      3. меньший COD — она старше, на неё скорее ссылаются.
+
+    Группы, где по правилу выживших несколько или названия непохожи, целиком
+    пропускаются: лучше оставить дубль, чем удалить не то.
+    """
+    import sys as _s
+    _s.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from ultra_publish import same_product, _tokens
+    cur = con.cursor()
+    ultra_name = {g: n for g, n in cur.execute(
+        "SELECT guid, denumire FROM biro26_goods WHERE sheet = 'ULTRA'")}
+    with_doc = {c for (c,) in cur.execute(
+        "SELECT DISTINCT d.ctsc FROM vmdb_st201d d WHERE d.ctsc IS NOT NULL")}
+
+    groups: dict[str, list] = {}
+    for pid, cod, name in cur.execute("""
+        SELECT i.src_pid, u.cod, u.denumirea
+          FROM tms_mpt_impsrc i JOIN tms_univers u ON u.cod = i.cod
+         WHERE i.src_source_code = 'ULTRA' AND i.src_pid IS NOT NULL
+           AND u.tip = 'P' AND NVL(u.isarhiv, '0') <> '2'"""):
+        groups.setdefault(pid, []).append((cod, name))
+
+    out, skipped = {}, 0
+    for pid, cards in groups.items():
+        if len(cards) < 2:
+            continue
+        ref = ultra_name.get(pid)
+        # RO: toate cartelele din grup trebuie sa fie acelasi produs
+        if not ref or not all(same_product(ref, n) for _c, n in cards):
+            skipped += 1
+            continue
+        tr = _tokens(ref)
+
+        def score(item):
+            cod, name = item
+            t = _tokens(name)
+            sim = len(t & tr) / max(len(t | tr), 1)
+            return (cod in with_doc, sim, -cod)
+
+        keep = max(cards, key=score)[0]
+        for cod, _n in cards:
+            if cod != keep:
+                out[cod] = keep
+    if skipped:
+        print(f"  групп пропущено (названия расходятся): {skipped}")
+    return out
+
+
 def apply(con, pairs: dict[int, int]) -> None:
     cur = con.cursor()
     today = dt.date.today()
@@ -195,11 +252,13 @@ def apply(con, pairs: dict[int, int]) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--all-groups", action="store_true",
+                    help="все группы «один товар Ultra — несколько карточек», не только ULT-дубли")
     args = ap.parse_args()
     from dotenv import load_dotenv
     load_dotenv(os.path.join(ROOT, ".env"))
     con = connect()
-    pairs = find_pairs(con)
+    pairs = find_groups(con) if args.all_groups else find_pairs(con)
     print(f"пар дубль(ULT) -> выживший(GOG): {len(pairs)}")
     cur = con.cursor()
     for d, k in list(pairs.items())[:5]:
