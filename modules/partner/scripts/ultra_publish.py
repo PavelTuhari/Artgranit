@@ -294,6 +294,34 @@ def write_markers(con, load_id: int) -> dict:
     return {"import_id": import_id, "marked": marked, "new": new, "existing": exist}
 
 
+def propagate_stock(con) -> int:
+    """Перенести остаток поставщика на строки, которые видит витрина.
+
+    В BIRO26_GOODS два параллельных набора по одному и тому же товару:
+
+      SHEET='ULTRA'  — от ultra_sync: есть STOC и GUID, но COD_UNIVERS пуст;
+      SHEET=NULL     — их пишет сам конвейер (do_writes): есть COD_UNIVERS,
+                       но STOC пуст.
+
+    Каталог соединяется по COD_UNIVERS и берёт вторую строку — поэтому
+    остаток поставщика до витрины не доходил, и все 37 295 позиций Ultra
+    показывались «La comandă», включая 10 616 со складом у поставщика.
+    Копируем STOC по артикулу — соединением по хешу, а не коррелированным
+    подзапросом: индекса по ARTICOL нет.
+    """
+    cur = con.cursor()
+    cur.execute("""MERGE INTO biro26_goods t
+                   USING (SELECT articol, MAX(stoc) stoc FROM biro26_goods
+                           WHERE sheet = 'ULTRA' AND articol IS NOT NULL
+                           GROUP BY articol) u
+                   ON (t.articol = u.articol AND t.sheet IS NULL)
+                   WHEN MATCHED THEN UPDATE SET t.stoc = u.stoc
+                    WHERE NVL(t.stoc, -1) <> NVL(u.stoc, -1)""")
+    n = cur.rowcount
+    con.commit()
+    return n
+
+
 def prune_staging(con, keep: int = 3) -> None:
     """Уборка СТЕЙДЖИНГА (не прода): старые загрузки ULTRA_*, кроме последних N.
     Почасовой cron иначе оставлял бы 37k строк RAW каждый час."""
@@ -333,6 +361,8 @@ def main() -> None:
     for ln in run_import(con, load_id, args.commit):
         print("  " + ln)
     if args.commit:
+        n_st = propagate_stock(con)
+        print(f"  остаток поставщика перенесён на строки витрины: {n_st}")
         mk = write_markers(con, load_id)
         print(f"  журнал import_id={mk['import_id']}, маркеров источника: {mk['marked']} "
               f"(новых {mk['new']}, существующих {mk['existing']})")
