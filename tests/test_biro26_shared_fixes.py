@@ -69,3 +69,27 @@ class TestSiteConfigTimeAlias(unittest.TestCase):
     def test_alias_not_shadowed(self):
         src = open(os.path.join(ROOT, "models", "biro26_site.py"), encoding="utf-8").read()
         self.assertNotIn("_t, _html = _wp(", src)
+
+
+# --- наличие по остатку ПОСТАВЩИКА (товар дилера не лежит на нашем складе) ---
+
+def test_jsonld_supplier_stock_counts_as_in_stock():
+    """Товар Ultra не лежит у нас, но если он есть у поставщика — он в наличии.
+
+    Без этого все 37 295 позиций Ultra уходили в BackOrder, включая 10 616,
+    которые поставщик держит на складе.
+    """
+    from models.biro26_jsonld import availability
+    assert availability({"avail_cant": 0, "furnizor_stoc": 3}).endswith("InStock")
+    assert availability({"avail_cant": 0, "furnizor_stoc": 0}).endswith("BackOrder")
+    assert availability({"avail_cant": 2, "furnizor_stoc": 0}).endswith("InStock")
+    # мусор в поле не должен ронять карточку
+    assert availability({"avail_cant": None, "furnizor_stoc": "нет"}).endswith("BackOrder")
+
+
+def test_catalog_queries_expose_supplier_stock():
+    """Обе ветки каталога отдают FURNIZOR_STOC — иначе фронт его не увидит."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for f in ("models/biro26_oracle_store.py", "models/biro26_catalog_fast.py"):
+        with open(os.path.join(root, f), encoding="utf-8") as fh:
+            assert "FURNIZOR_STOC" in fh.read(), f

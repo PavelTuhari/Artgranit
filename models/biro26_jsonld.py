@@ -62,10 +62,18 @@ def availability(row: Dict[str, Any]) -> str:
     avail = row.get("avail_cant")
     if avail is None:
         avail = row.get("real_cant")
-    try:
-        in_stock = float(avail or 0) > 0
-    except (TypeError, ValueError):
-        in_stock = False
+
+    def _num(v):
+        try:
+            return float(v or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    # RO: marfa de dealer (Ultra) nu sta in depozitul nostru, dar e livrabila
+    #     cind furnizorul o are pe stoc — vezi FURNIZOR_STOC in interogarea de
+    #     catalog. Fara asta toate cele 37 295 de pozitii Ultra ar fi BackOrder.
+    # EN: dealer goods are deliverable when the SUPPLIER has them in stock.
+    in_stock = _num(avail) > 0 or _num(row.get("furnizor_stoc")) > 0
     return ("https://schema.org/InStock" if in_stock
             else "https://schema.org/BackOrder")
 

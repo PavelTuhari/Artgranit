@@ -118,6 +118,15 @@ def build(price_expr: str, price_date: str, *,
         "NVL(pl.PRETV1, g.ANGRO) ANGRO, NVL(pl.PRETV2, g.IONLINE) IONLINE, "
         f"{price_expr} RETAIL1, "
         "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2, 2) ANGRO_FARA_TVA, "
+        # RO: stocul FURNIZORULUI (BIRO26_GOODS.STOC) — pentru marfa de dealer, cum e
+        #     Ultra, ea nu sta in depozitul nostru: YBIRO_STOCK_CALC_ITEM da 0 la toate
+        #     cele 37 295 de pozitii, si vitrina le arata pe TOATE "La comandă", chiar
+        #     si cele 10 616 pe care furnizorul le are pe stoc. Il scoatem separat, ca
+        #     AVAIL_CANT sa ramina EXACT stocul nostru (rezervari, API pentru parteneri).
+        # EN: SUPPLIER stock — dealer goods never sit in our warehouse, so AVAIL_CANT is
+        #     0 for all of them and everything shows "on order". Exposed separately so
+        #     AVAIL_CANT keeps meaning our own stock.
+        "g.STOC FURNIZOR_STOC, "
         "NVL(m.IE_LINKADRES, NVL(g.PHOTO_URL, g.IMAGE_LINK)) IMAGE, "
         "s.CANT REAL_CANT, NVL(rz.QTY, 0) RESERVED, "
         "GREATEST(NVL(s.CANT, 0) - NVL(rz.QTY, 0), 0) AVAIL_CANT, "
