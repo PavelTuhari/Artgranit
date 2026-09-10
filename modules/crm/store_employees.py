@@ -138,7 +138,7 @@ BEGIN
     VALUES (v_obj, 7, 0, :grp, TO_CHAR(v_obj), :name0);
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, SVALUE) VALUES (v_obj, 'USERNAME', 'UserName', 'S', :uname);
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, IVALUE) VALUES (v_obj, 'ID', 'ID', 'I', :uid);
-  INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, BVALUE) VALUES (v_obj, 'ENABLED', 'Enabled', 'B', 'T');
+  INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, BVALUE) VALUES (v_obj, 'ENABLED', 'Enabled', 'B', '1');
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, IVALUE) VALUES (v_obj, 'GROUPID', 'GroupID', 'I', :grp);
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, SVALUE) VALUES (v_obj, 'ADMIN', 'Admin', 'S', :adm);
   IF :fname IS NOT NULL THEN
@@ -151,7 +151,7 @@ BEGIN
 END;"""
         # RO: `call_proc` nu intoarce parametri OUT — nodul nou il regasim dupa nume
         r = self.db.call_proc(plsql, {
-            "grp": int(group_id), "section": str(group_id), "name0": name0[:255],
+            "grp": int(group_id), "name0": name0[:255],
             "uname": username, "uid": user_id, "adm": "1" if is_admin else "0",
             "fname": (full_name or "").strip()[:200] or None, "pwd": pwd,
             "mail": (email or "").strip()[:120] or None, "tel": (phone or "").strip()[:60] or None})

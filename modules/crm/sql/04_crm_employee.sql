@@ -134,7 +134,9 @@ CREATE OR REPLACE PACKAGE BODY CRM_EMP_SYNC IS
     IF g_busy THEN RETURN; END IF;
     g_busy := TRUE;
     IF is_user_node(p_obj_id) THEN
-      set_prop(p_obj_id, 'Enabled', 'B', p_b => CASE WHEN p_enabled = 1 THEN 'T' ELSE 'F' END);
+      -- RO: in arbore boolean-ul e '1' / '0' (A$ADP$V face decode(bvalue,1,'true',0,'false'),
+      --     deci un 'T' ar da ORA-01722 chiar la a$util.login)
+      set_prop(p_obj_id, 'Enabled', 'B', p_b => CASE WHEN p_enabled = 1 THEN '1' ELSE '0' END);
       IF p_full  IS NOT NULL THEN set_prop(p_obj_id, 'Familia', 'S', p_s => p_full);  END IF;
       IF p_email IS NOT NULL THEN set_prop(p_obj_id, 'Email',   'S', p_s => p_email); END IF;
       IF p_phone IS NOT NULL THEN set_prop(p_obj_id, 'Phone',   'S', p_s => p_phone); END IF;
@@ -154,7 +156,7 @@ CREATE OR REPLACE PACKAGE BODY CRM_EMP_SYNC IS
     IF v_key = 'USERNAME' THEN
       UPDATE CRM_EMPLOYEE SET USERNAME = NVL(p_svalue, USERNAME), SYNCED = SYSDATE WHERE OBJ_ID = p_obj_id;
     ELSIF v_key = 'ENABLED' THEN
-      UPDATE CRM_EMPLOYEE SET ENABLED = CASE WHEN UPPER(NVL(p_bvalue,'T')) IN ('F','0','N') THEN 0 ELSE 1 END,
+      UPDATE CRM_EMPLOYEE SET ENABLED = CASE WHEN NVL(p_bvalue,'1') IN ('0','F','N','f','n') THEN 0 ELSE 1 END,
              SYNCED = SYSDATE WHERE OBJ_ID = p_obj_id;
     ELSIF v_key = 'ID' THEN
       UPDATE CRM_EMPLOYEE SET USER_ID = p_ivalue, SYNCED = SYSDATE WHERE OBJ_ID = p_obj_id;
@@ -194,7 +196,7 @@ CREATE OR REPLACE PACKAGE BODY CRM_EMP_SYNC IS
     SELECT PARENT_ID, MODIFIED INTO v_group, v_modified FROM A$ADM WHERE OBJ_ID = p_obj_id;
     SELECT MAX(CASE WHEN KEY = 'USERNAME' THEN SVALUE END),
            MAX(CASE WHEN KEY = 'ID' THEN IVALUE END),
-           MAX(CASE WHEN KEY = 'ENABLED' THEN CASE WHEN UPPER(NVL(BVALUE,'T')) IN ('F','0','N') THEN 0 ELSE 1 END END),
+           MAX(CASE WHEN KEY = 'ENABLED' THEN CASE WHEN NVL(BVALUE,'1') IN ('0','F','N','f','n') THEN 0 ELSE 1 END END),
            MAX(CASE WHEN KEY = 'ADMIN' THEN CASE WHEN NVL(SVALUE,'0') = '1' THEN 1 ELSE 0 END END),
            MAX(CASE WHEN KEY IN ('FAMILIA', 'FAMILIA NUMELE PRENUMELE') THEN SVALUE END),
            MAX(CASE WHEN KEY = 'EMAIL' THEN SVALUE END),
