@@ -235,14 +235,25 @@ BEGIN
 END;
 /
 
--- RO: arbore -> fisa. Trigger INGUST: doar cheile de mai jos, doar daca fisa
---     exista deja, si cu exceptia inghitita in pachet - scrierile ERP-ului nu
---     pot fi rupte de aici.
+-- RO: arbore -> fisa. Acesta e SINGURUL obiect al modulului asezat pe o tabela
+--     nativa a ERP-ului, deci e facut sa nu poata strica nimic:
+--       1. WHEN il lasa sa porneasca doar la cele zece chei ale utilizatorului;
+--       2. apelul e DINAMIC - daca pachetul CRM_EMP_SYNC lipseste sau e invalid,
+--          triggerul NU devine invalid si nu blocheaza scrierile in A$ADP
+--          (un apel static ar da ORA-04098 la fiecare salvare din uniConf);
+--       3. orice eroare e inghitita: configuratorul isi scrie proprietatea mai
+--          departe, iar fisa se aduce la zi la urmatorul «Sincronizeaza».
+--     Fara tranzactie proprie: mergem in aceeasi tranzactie ca ERP-ul, deci un
+--     rollback al configuratorului anuleaza si oglindirea.
 CREATE OR REPLACE TRIGGER CRM_EMP_ADP_AIU
 AFTER INSERT OR UPDATE ON A$ADP FOR EACH ROW
 WHEN (NEW.KEY IN ('USERNAME','ENABLED','ID','ADMIN','FAMILIA','FAMILIA NUMELE PRENUMELE',
                   'EMAIL','PHONE','PASSDATE','AUTOLOCKEDDATE'))
 BEGIN
-  CRM_EMP_SYNC.prop_changed(:NEW.OBJ_ID, :NEW.KEY, :NEW.SVALUE, :NEW.IVALUE, :NEW.BVALUE, :NEW.DVALUE);
+  EXECUTE IMMEDIATE
+    'begin CRM_EMP_SYNC.prop_changed(:1, :2, :3, :4, :5, :6); end;'
+    USING :NEW.OBJ_ID, :NEW.KEY, :NEW.SVALUE, :NEW.IVALUE, :NEW.BVALUE, :NEW.DVALUE;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
 END;
 /
