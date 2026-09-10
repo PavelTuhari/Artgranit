@@ -23,12 +23,23 @@ from models.biro26_db import Biro26DB  # noqa: E402
 TABLES = ("CRM_CLIENT", "CRM_CONTACT", "CRM_LEAD", "CRM_DEAL", "CRM_ITEM",
           "CRM_ORDER", "CRM_PROJECT", "CRM_TASK", "CRM_EVENT_LOG", "CRM_ALERT_SENT")
 
+# RO: rindurile ADUSE DIN ERP nu sint date demonstrative si nu se muta
+#     niciodata (lectia din 11.09.2026: prima varianta a mutat si cei 44 de
+#     contragenti reali sincronizati cu o ora inainte).
+KEEP = {
+    "CRM_CLIENT": " AND (SOURCE IS NULL OR SOURCE NOT IN ('erp:TMS_ORG','shop:YBIRO_CLIENT'))",
+    "CRM_ITEM": " AND ERP_COD IS NULL",
+}
+
+
+def where(t):
+    return "OWNER_KIND = :k AND OWNER_ID = 0" + KEEP.get(t, "")
+
 
 def counts(db, kind):
     out = {}
     for t in TABLES:
-        r = db.execute_query("SELECT COUNT(*) FROM %s WHERE OWNER_KIND = :k AND OWNER_ID = 0" % t,
-                             {"k": kind})
+        r = db.execute_query("SELECT COUNT(*) FROM %s WHERE %s" % (t, where(t)), {"k": kind})
         out[t] = int((r.get("data") or [[0]])[0][0] or 0)
     return out
 
@@ -50,7 +61,7 @@ def main():
     for t in TABLES:
         if not before[t]:
             continue
-        r = db.execute_dml("UPDATE %s SET OWNER_KIND = :d WHERE OWNER_KIND = :s AND OWNER_ID = 0" % t,
+        r = db.execute_dml("UPDATE %s SET OWNER_KIND = :d WHERE %s" % (t, where(t).replace(":k", ":s")),
                            {"d": dst, "s": src})
         if not r.get("success"):
             print("  FAIL %s: %s" % (t, str(r.get("message"))[:200]))
