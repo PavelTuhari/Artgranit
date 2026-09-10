@@ -128,17 +128,16 @@ CREATE OR REPLACE PACKAGE BODY CRM_EMP_SYNC IS
     END IF;
   END;
 
-  PROCEDURE to_erp(p_obj_id NUMBER) IS
-    r CRM_EMPLOYEE%ROWTYPE;
+  PROCEDURE to_erp(p_obj_id NUMBER, p_enabled NUMBER, p_full VARCHAR2,
+                   p_email VARCHAR2, p_phone VARCHAR2) IS
   BEGIN
     IF g_busy THEN RETURN; END IF;
     g_busy := TRUE;
-    SELECT * INTO r FROM CRM_EMPLOYEE WHERE OBJ_ID = p_obj_id;
     IF is_user_node(p_obj_id) THEN
-      set_prop(p_obj_id, 'Enabled', 'B', p_b => CASE WHEN r.ENABLED = 1 THEN 'T' ELSE 'F' END);
-      IF r.FULL_NAME IS NOT NULL THEN set_prop(p_obj_id, 'Familia', 'S', p_s => r.FULL_NAME); END IF;
-      IF r.EMAIL     IS NOT NULL THEN set_prop(p_obj_id, 'Email',   'S', p_s => r.EMAIL);     END IF;
-      IF r.PHONE     IS NOT NULL THEN set_prop(p_obj_id, 'Phone',   'S', p_s => r.PHONE);     END IF;
+      set_prop(p_obj_id, 'Enabled', 'B', p_b => CASE WHEN p_enabled = 1 THEN 'T' ELSE 'F' END);
+      IF p_full  IS NOT NULL THEN set_prop(p_obj_id, 'Familia', 'S', p_s => p_full);  END IF;
+      IF p_email IS NOT NULL THEN set_prop(p_obj_id, 'Email',   'S', p_s => p_email); END IF;
+      IF p_phone IS NOT NULL THEN set_prop(p_obj_id, 'Phone',   'S', p_s => p_phone); END IF;
     END IF;
     g_busy := FALSE;
   EXCEPTION WHEN OTHERS THEN
