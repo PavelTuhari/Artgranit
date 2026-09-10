@@ -143,6 +143,7 @@
         ${CUR.filter.stage ? `<span class="tag">${esc(E('stage_title', META.stages.find(s => s.stage === CUR.filter.stage).title))} <a href="#" onclick="crmClearFilter();return false">×</a></span>` : ''}
         <button class="btn" onclick="crmReload()">${esc(S('btn.refresh'))}</button>
         <button class="btn btn-primary" onclick="crmNew()">${esc(S('btn.create'))}</button></div>
+      ${window.crmErpPanelHtml ? crmErpPanelHtml(key, META.tenant.kind === 'office') : ''}
       <div class="filters"><input id="ef-${key}" placeholder="${esc(S('app.search'))}" onkeydown="if(event.key==='Enter')crmReload()">
         <button class="btn" onclick="crmReload()">${esc(S('btn.refresh'))}</button><span class="muted" id="ecnt-${key}"></span></div>
       <div class="grid"><div class="panel" style="overflow:auto"><table id="et-${key}"><thead><tr>${e.fields.filter(f => f.width).map(f => `<th class="${['money', 'number', 'readonly'].includes(f.kind) ? 'num' : ''}">${esc(cap(f.caption))}</th>`).join('')}</tr></thead><tbody></tbody></table></div>
@@ -388,6 +389,11 @@
     const [m, l] = await Promise.all([api(V2 + 'meta'), api(V2 + 'lang')]);
     if (!m.success) { say('danger', m.error); return; }
     META = m.data; LNG = l; Object.assign(ENT, META.entities);
+    // RO: regimul chiriasului (date reale OfficePlus / set demonstrativ) — crm_real.js
+    const mh = document.getElementById('crm-mode-host');
+    if (mh && !CAB && window.crmModeBadge) mh.innerHTML = crmModeBadge(META.tenant.kind);
+    const sb = document.getElementById('btn-seed');
+    if (sb) sb.hidden = META.tenant.kind !== 'demo';
     LANG2 = (typeof LANG !== 'undefined' && LANG) || 'ro';
     // RO: meniul: intrarile prototipului, in ordinea lui
     const nav = document.getElementById('nav-process');

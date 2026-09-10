@@ -64,8 +64,12 @@ def run_file(db, path):
 def main():
     db = Biro26DB()
     total_fail = 0
+    # RO: --file 05_crm_real.sql — doar un fisier (instalarea unei etape noi)
+    only = ""
+    if "--file" in sys.argv:
+        only = sys.argv[sys.argv.index("--file") + 1]
     for fn in sorted(os.listdir(SQL_DIR)):
-        if not fn.endswith(".sql"):
+        if not fn.endswith(".sql") or (only and fn != only):
             continue
         print(f"== {fn} ==")
         _, _, fail = run_file(db, os.path.join(SQL_DIR, fn))

@@ -17,7 +17,12 @@ from flask import session
 
 from controllers.auth_controller import AuthController
 
-OFFICE, CLIENT = "office", "client"
+OFFICE, CLIENT, DEMO = "office", "client", "demo"
+
+# RO: cheia din sesiune care tine regimul demonstrativ. Cerinta 10.09.2026:
+#     in OfficePlus totul lucreaza pe datele reale din Oracle, iar setul
+#     demonstrativ ramine separat — alt chirias, nu alt cod.
+DEMO_KEY = "crm_demo"
 
 
 @dataclass(frozen=True)
@@ -29,6 +34,15 @@ class Tenant:
     def is_office(self) -> bool:
         return self.kind == OFFICE
 
+    @property
+    def is_demo(self) -> bool:
+        return self.kind == DEMO
+
+    @property
+    def real(self) -> bool:
+        """RO: datele reale din ERP se arata doar chiriasului OfficePlus."""
+        return self.kind == OFFICE
+
     def params(self, prefix: str = "") -> Dict[str, object]:
         return {prefix + "ok": self.kind, prefix + "oi": int(self.id)}
 
@@ -37,7 +51,16 @@ class Tenant:
 
     @property
     def label(self) -> str:
-        return "OfficePlus" if self.is_office else "client #%d" % self.id
+        if self.is_office:
+            return "OfficePlus"
+        return "Demo" if self.is_demo else "client #%d" % self.id
+
+
+def set_demo(on: bool) -> bool:
+    """RO: comuta regimul demonstrativ pentru sesiunea curenta (doar portal)."""
+    session[DEMO_KEY] = bool(on)
+    session.modified = True
+    return bool(on)
 
 
 def current(prefer_client: bool = False) -> Optional[Tenant]:
@@ -49,7 +72,7 @@ def current(prefer_client: bool = False) -> Optional[Tenant]:
     if prefer_client and cid:
         return Tenant(CLIENT, int(cid))
     if AuthController.is_authenticated():
-        return Tenant(OFFICE, 0)
+        return Tenant(DEMO, 0) if session.get(DEMO_KEY) else Tenant(OFFICE, 0)
     if cid:
         return Tenant(CLIENT, int(cid))
     return None

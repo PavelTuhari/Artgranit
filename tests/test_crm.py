@@ -542,3 +542,74 @@ def test_report_by_person_exists_in_all_three_languages():
     assert "reports.persons(g.crm)" in api                  # lista pentru selector
     js = _read("modules", "crm", "static", "crm_process.js")
     assert "crmReportPerson" in js and "META.persons" in js
+
+
+# ── date reale din ERP si separarea regimului demo (10.09.2026) ──────────
+from modules.crm import erp_source as ERP  # noqa: E402
+from modules.crm.tenant import Tenant  # noqa: E402
+
+
+def test_only_officeplus_sees_the_real_erp_data():
+    """RO: datele reale sint ale chiriasului OfficePlus; demo si cabinetul
+    clientului au datele lor."""
+    assert Tenant("office", 0).real and not Tenant("office", 0).is_demo
+    assert not Tenant("demo", 0).real and Tenant("demo", 0).is_demo
+    assert not Tenant("client", 7).real
+    assert Tenant("demo", 0).label == "Demo" and Tenant("office", 0).label == "OfficePlus"
+    src = _read("modules", "crm", "store_erp.py")
+    assert "def _guard" in src and "self.t.real" in src
+    for op in ("def import_item", "def sync_clients", "def refresh_items"):
+        i = src.index(op)
+        assert "self._guard()" in src[i:i + 400], op        # fiecare scriere e pazita
+
+
+def test_goods_search_hits_the_erp_dictionary_not_a_copy():
+    """RO: 232 mii de pozitii nu se copiaza in CRM — cautarea merge in
+    TMS_UNIVERS, cu pretul din lista in vigoare si stocul din flux."""
+    sql, p = ERP.goods_sql("creion", limit=5)
+    assert "FROM TMS_UNIVERS u" in sql and "u.TIP = 'P'" in sql
+    assert "TPR1D_PERPRLIST" in sql and "pl.CODPRICE = 1" in sql   # acelasi lant ca magazinul
+    assert "BIRO26_GOODS" in sql and "TMS_MPT_BARCODE" in sql
+    assert p == {"s": "%creion%"} and "ROWNUM <= 5" in sql
+    sql2, p2 = ERP.goods_sql(cod=123)
+    assert p2 == {"cod": 123} and "u.COD = :cod" in sql2
+    assert "ROWNUM <= %d" % ERP.MAX_ROWS in ERP.goods_sql("x", limit=9999)[0]
+
+
+def test_erp_good_maps_to_the_prototype_item():
+    it = ERP.item_from_good({"cod": 7, "codvechi": "CF81764", "denumirea": "Creion HB",
+                             "um": "buc", "price": 1.8, "stoc": "1000"})
+    assert it["erp_cod"] == 7 and it["code"] == "CF81764" and it["price"] == 1.8
+    assert it["kind"] == "Товар" and it["unit_"] == "шт"       # valori canonice
+    assert ERP.unit_of("kg") == "кг" and ERP.unit_of("ora") == "час" and ERP.unit_of("?") == "шт"
+    # fara denumire romana se ia cea rusa
+    assert ERP.item_from_good({"cod": 8, "namerus": "Карандаш"})["name"] == "Карандаш"
+
+
+def test_real_clients_come_from_the_erp_and_the_shop():
+    assert "TMS_ORG" in ERP.ORG_SQL and "CODFISCAL" in ERP.ORG_SQL
+    assert "YBIRO_CLIENT" in ERP.SHOP_SQL
+    org = ERP.client_from_org({"cod": 5, "name": "AGRO S.R.L.", "idno": "1002600021871",
+                               "telefon": "022123456", "director": "Ion Popescu"})
+    assert org["idno"] == "1002600021871" and org["source"] == "erp:TMS_ORG" and org["erp_cod"] == 5
+    # contul magazinului fara IDNO nu se pierde — cheia devine shop:<id>
+    shop = ERP.client_from_shop({"id": 12, "name": "Persoana fizica", "idno": ""})
+    assert shop["idno"] == "shop:12" and shop["source"] == "shop:YBIRO_CLIENT"
+
+
+def test_demo_data_is_never_seeded_over_the_real_one():
+    """RO: butonul «demo» seamana doar in regimul demo (chiriasul 'demo')."""
+    src = _read("modules", "crm", "routes_process.py")
+    i = src.index("def api_seed")
+    assert "g.crm.t.real" in src[i:i + 500] and "409" in src[i:i + 500]
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert "sb.hidden = META.tenant.kind !== 'demo'" in js
+    assert "crmModeBadge" in js                                # comutatorul real/demo
+
+
+def test_real_source_ddl_is_ascii_and_indexes_only_erp_rows():
+    ddl = _read("modules", "crm", "sql", "05_crm_real.sql")
+    assert ddl.isascii() and ddl.rstrip().endswith("/")
+    assert "ALTER TABLE CRM_ITEM ADD" in ddl and "ERP_COD" in ddl
+    # RO: unicul pe (chirias, ERP_COD) trebuie sa ignore rindurile proprii
+    assert "CASE WHEN ERP_COD IS NULL THEN NULL ELSE OWNER_KIND END" in ddl

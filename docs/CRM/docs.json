@@ -58,5 +58,15 @@
     "title": "Angajați: conturi, dezactivare, parole, raport pe persoane",
     "audience": "pentru proprietar și administratori",
     "descr": "Conturile ERP (arborele A$ADM/A$ADP) în back-office: înregistrare, data înregistrării, dezactivare, parolă standard cu recuperare, e-mail și telefon, sincronizare prin triggere în ambele părți și raportul pe persoane cu total."
+  },
+  "DATE_REALE.md": {
+    "slug": "date-reale",
+    "public": false,
+    "icon": "🗄",
+    "cls": "v",
+    "order": 26,
+    "title": "Date reale din ERP; demo separat",
+    "audience": "pentru proprietar și dezvoltatori",
+    "descr": "Marfa reală din dicționarul ERP (căutare vie, preț din lista în vigoare, import la cerere), contragenții din TMS_ORG și din conturile magazinului, comutatorul «date reale / demo» și mutarea setului demonstrativ în chiriașul demo."
   }
 }

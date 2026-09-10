@@ -128,6 +128,7 @@
   <input id="gsearch" placeholder="" hidden>
   {% endif %}
   <span class="sp"></span>
+  <span id="crm-mode-host" {% if cabinet %}hidden{% endif %}></span>
   <span id="cg" class="muted" {% if cabinet %}hidden{% endif %}><span class="dot"></span>Contragenti</span>
   <select id="ui-lang" onchange="setLang(this.value)" style="padding:4px"><option value="ro">RO</option><option value="ru">RU</option><option value="en">EN</option></select>
   <span class="user">{% if cabinet %}{{ session.get('biro26_client', {}).get('name') or ('client #' ~ tenant_id) }}{% else %}{{ session.get('user_name') or session.get('username') or '' }}{% endif %}</span>
@@ -138,7 +139,7 @@
 <section id="sec-workspace" hidden>
   <div class="page-head"><h1 data-s="nav.workspace">Tablou de lucru</h1>
     <span class="muted" id="ws-summary"></span>
-    {% if not cabinet %}<button class="btn" onclick="crmSeed()" title="date demo (TEC-03)">⚗ demo</button>{% endif %}</div>
+    {% if not cabinet %}<button class="btn" id="btn-seed" hidden onclick="crmSeed()" title="date demo (TEC-03)">⚗ demo</button>{% endif %}</div>
   <div class="ws-h" data-s="workspace.contract">CONTRACT CU CLIENTUL</div>
   <div class="ws-row" id="ws-contract"></div>
   <div class="ws-h" data-s="workspace.execution">EXECUTAREA COMENZILOR</div>
@@ -233,6 +234,8 @@
 <section id="sec-clients" hidden>
   <div class="page-head"><h1 data-i="clients_title">Clienți</h1>
     <button class="btn" onclick="toggleImport()" data-i="btn_import">Import XML</button>
+    {% if not cabinet %}<button class="btn" id="btn-erp-clients" onclick="crmErpSyncClients()"
+       title="contragentii reali din ERP (TMS_ORG) si conturile magazinului">⇄ ERP</button>{% endif %}
     <button class="btn btn-primary" onclick="createClient()" data-i="btn_create">Creează client</button></div>
   <div class="filters">
     <select id="preset" onchange="loadClients()">
@@ -586,5 +589,6 @@ async function saveSettings() {
 <script src="{{ url_for('crm.static', filename='crm_process.js') }}"></script>
 <script src="{{ url_for('crm.static', filename='crm_alerts.js') }}"></script>
 <script src="{{ url_for('crm.static', filename='crm_employees.js') }}"></script>
+<script src="{{ url_for('crm.static', filename='crm_real.js') }}"></script>
 </body>
 </html>

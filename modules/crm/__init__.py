@@ -22,6 +22,6 @@ blueprint = Blueprint("crm", __name__, template_folder="templates",
 #     08.09.2026); routes_employees = conturile angajatilor peste arborele
 #     ERP (10.09.2026). Fisiere separate (CLAUDE.md, regula nr. 2).
 from modules.crm import (routes, routes_process, routes_alerts,  # noqa: E402,F401
-                         routes_employees)                     # (inregistreaza rutele)
+                         routes_employees, routes_erp)         # (inregistreaza rutele)
 
 __all__ = ["blueprint"]

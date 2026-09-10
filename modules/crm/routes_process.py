@@ -268,6 +268,11 @@ def api_report(slug):
 @blueprint.route("/api/v2/seed", methods=["POST"])
 @with_data
 def api_seed():
+    # RO: 10.09.2026 — datele demonstrative nu mai intra la OfficePlus:
+    #     acolo sint datele reale din ERP. Semanatul merge in regimul demo
+    #     (chiriasul 'demo') sau in cabinetul unui client.
+    if g.crm.t.real:
+        return err("datele demonstrative se seamana in regimul demo, nu peste datele reale", 409)
     st = seed.run(g.crm)
     return jsonify({"success": True, "data": st, "text": seed.text(st), "counts": g.crm.counts()})
 
