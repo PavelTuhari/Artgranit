@@ -131,8 +131,11 @@ class EmployeeStore:
 DECLARE
   v_obj NUMBER;
 BEGIN
-  INSERT INTO A$ADM (OBJ_TYPE, OBJ_SUBTYPE, PARENT_ID, SECTION, NAME0)
-    VALUES (7, 0, :grp, :section, :name0) RETURNING OBJ_ID INTO v_obj;
+  -- RO: SECTION e UNIC pe toata tabela (A$ADM$UQ). In arbore conventia e
+  --     SECTION = OBJ_ID, deci luam numarul din secventa inainte de insert.
+  SELECT A$ADM$SQ.NEXTVAL INTO v_obj FROM dual;
+  INSERT INTO A$ADM (OBJ_ID, OBJ_TYPE, OBJ_SUBTYPE, PARENT_ID, SECTION, NAME0)
+    VALUES (v_obj, 7, 0, :grp, TO_CHAR(v_obj), :name0);
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, SVALUE) VALUES (v_obj, 'USERNAME', 'UserName', 'S', :uname);
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, IVALUE) VALUES (v_obj, 'ID', 'ID', 'I', :uid);
   INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, BVALUE) VALUES (v_obj, 'ENABLED', 'Enabled', 'B', 'T');
