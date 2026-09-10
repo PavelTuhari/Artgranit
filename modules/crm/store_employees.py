@@ -145,14 +145,13 @@ BEGIN
   CRM_EMP_SYNC.from_erp(v_obj);
   UPDATE CRM_EMPLOYEE SET EMAIL = :mail, PHONE = :tel, SRC = 'web', REG_DATE = SYSDATE
    WHERE OBJ_ID = v_obj;
-  :out_obj := v_obj;
 END;"""
+        # RO: `call_proc` nu intoarce parametri OUT — nodul nou il regasim dupa nume
         r = self.db.call_proc(plsql, {
             "grp": int(group_id), "section": str(group_id), "name0": name0[:255],
             "uname": username, "uid": user_id, "adm": "1" if is_admin else "0",
             "fname": (full_name or "").strip()[:200] or None, "pwd": pwd,
-            "mail": (email or "").strip()[:120] or None, "tel": (phone or "").strip()[:60] or None,
-            "out_obj": {"dir": "out", "type": "int"}})
+            "mail": (email or "").strip()[:120] or None, "tel": (phone or "").strip()[:60] or None})
         if not r.get("success"):
             raise RuntimeError(r.get("message") or "nu s-a putut crea utilizatorul")
         row = self.by_username(username)
