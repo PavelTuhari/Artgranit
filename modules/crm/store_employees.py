@@ -210,12 +210,18 @@ END;"""
         return self.get(obj_id) or {}
 
     def check_login(self, username: str, password: str) -> Dict[str, Any]:
-        """RO: «Verifica parola» — chiar apelul pe care il face UniacCLNT."""
-        r = self.db.call_proc("BEGIN :out_obj := A$UTIL.LOGIN(:u, :p); END;",
-                              {"u": username, "p": password, "out_obj": {"dir": "out", "type": "int"}})
+        """RO: «Verifica parola» — chiar apelul pe care il face UniacCLNT.
+        Nu se poate chema din SELECT: la parola gresita `a$util.login` scrie
+        contorul de incercari si face commit (ORA-14551 intr-o interogare).
+        De aceea bloc PL/SQL, iar rezultatul vine prin DBMS_OUTPUT."""
+        r = self.db.call_proc(
+            "DECLARE v NUMBER; BEGIN v := A$UTIL.LOGIN(:u, :p); "
+            "DBMS_OUTPUT.PUT_LINE('OBJ_ID=' || v); END;",
+            {"u": username, "p": password}, capture_output=True)
         if not r.get("success"):
             return {"ok": False, "error": str(r.get("message") or "")[:300]}
-        return {"ok": True}
+        out = " ".join(r.get("output_lines") or [])
+        return {"ok": "OBJ_ID=" in out, "detail": out.strip()[:200]}
 
     def sync(self, actor: str = "") -> Dict[str, Any]:
         """RO: aduce din arbore utilizatorii aparuti / schimbati din uniConf."""
