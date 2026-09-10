@@ -226,8 +226,7 @@ END;"""
     def sync(self, actor: str = "") -> Dict[str, Any]:
         """RO: aduce din arbore utilizatorii aparuti / schimbati din uniConf."""
         before = int(self.scalar("SELECT COUNT(*) FROM CRM_EMPLOYEE") or 0)
-        r = self.db.call_proc("BEGIN :out_n := CRM_EMP_SYNC.PULL_ALL; END;",
-                              {"out_n": {"dir": "out", "type": "int"}})
+        r = self.db.call_proc("DECLARE n NUMBER; BEGIN n := CRM_EMP_SYNC.PULL_ALL; END;")
         if not r.get("success"):
             raise RuntimeError(r.get("message") or "sincronizare esuata")
         after = int(self.scalar("SELECT COUNT(*) FROM CRM_EMPLOYEE") or 0)
