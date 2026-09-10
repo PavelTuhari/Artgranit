@@ -16,7 +16,7 @@ from typing import Any, Dict, List
 from modules.crm import process
 from modules.crm.store_process import CrmData
 
-SLUGS = ("process", "receivables", "sales_by_client", "funnel", "stock", "projects")
+SLUGS = ("process", "receivables", "sales_by_client", "funnel", "stock", "projects", "by_person")
 
 # RO: titluri + coloane in 3 limbi (rusa = canonic din prototip)
 _T: Dict[str, Dict[str, Dict[str, Any]]] = {
@@ -67,6 +67,16 @@ _T: Dict[str, Dict[str, Dict[str, Any]]] = {
                "cols": ["Cod", "Denumire", "Tip", "U.M.", "Pret, MDL", "Stoc", "Valoare, MDL"], "total": "Total"},
         "en": {"title": "Stock", "sub": "Goods and products (services have no stock) as of %s",
                "cols": ["Code", "Name", "Kind", "Unit", "Price, MDL", "Stock", "Value, MDL"], "total": "Total"}},
+    "by_person": {
+        "ru": {"title": "По сотрудникам", "sub": "Проекты и задачи по ответственным на %s",
+               "cols": ["Сотрудник", "Проектов", "Бюджет, MDL", "Получено, MDL", "Долг, MDL",
+                        "Задач", "Готово", "Просрочено", "Часы план", "Часы факт"], "total": "ИТОГО"},
+        "ro": {"title": "Pe angajati", "sub": "Proiecte si sarcini pe responsabili la %s",
+               "cols": ["Angajat", "Proiecte", "Buget, MDL", "Incasat, MDL", "Datorie, MDL",
+                        "Sarcini", "Gata", "Intirziate", "Ore plan", "Ore fapt"], "total": "TOTAL"},
+        "en": {"title": "By employee", "sub": "Projects and tasks by owner as of %s",
+               "cols": ["Employee", "Projects", "Budget, MDL", "Received, MDL", "Debt, MDL",
+                        "Tasks", "Done", "Overdue", "Hours plan", "Hours fact"], "total": "TOTAL"}},
     "projects": {
         "ru": {"title": "Проекты", "sub": "Состояние на %s. Долг = бюджет − аванс − оплата (для незакрытых и не проигранных).",
                "cols": ["Проект", "Клиент", "Этап", "Тендер", "Бюджет, MDL", "Аванс, %", "Аванс, MDL", "Оплачено, MDL",
@@ -91,13 +101,27 @@ def _f(v: Any) -> float:
         return 0.0
 
 
-def build(data: CrmData, slug: str, lang: str = "ro") -> Dict[str, Any]:
+def persons(data: CrmData) -> List[str]:
+    """RO: cine poate fi ales in raport: responsabilii de proiecte si executantii
+    de sarcini care chiar apar in date (nu tot personalul)."""
+    tw, tp = data.t.where(), data.t.params()
+    rows = data.rows(
+        "SELECT DISTINCT TRIM(t.MANAGER) P FROM CRM_PROJECT t WHERE %s AND TRIM(t.MANAGER) IS NOT NULL "
+        "UNION SELECT DISTINCT TRIM(t.ASSIGNEE) FROM CRM_TASK t WHERE %s AND TRIM(t.ASSIGNEE) IS NOT NULL "
+        "ORDER BY 1" % (tw, tw), dict(tp))
+    return [r["p"] for r in rows if (r.get("p") or "").strip()]
+
+
+def build(data: CrmData, slug: str, lang: str = "ro", person: str = "") -> Dict[str, Any]:
+    """RO: `person` — raportul pe o singura persoana; gol = pe toti, cu total."""
     if slug not in SLUGS:
         raise KeyError("raport necunoscut: %s" % slug)
     t = _t(slug, lang)
     today = date.today().isoformat()
-    out: Dict[str, Any] = {"slug": slug, "title": t["title"], "subtitle": t["sub"] % today,
-                           "columns": t["cols"], "rows": [], "totals": []}
+    who = (person or "").strip()
+    out: Dict[str, Any] = {"slug": slug, "title": t["title"],
+                           "subtitle": (t["sub"] % today) + (" | %s" % who if who else ""),
+                           "columns": t["cols"], "rows": [], "totals": [], "person": who}
     tw, tp = data.t.where(), data.t.params()
 
     if slug == "process":
@@ -171,9 +195,10 @@ def build(data: CrmData, slug: str, lang: str = "ro") -> Dict[str, Any]:
         rows = data.rows(
             "SELECT t.ID, t.NAME, NVL(c.NAME,'-') AS CLIENT, t.STATUS, NVL(t.TENDER_NO,' ') TENDER, NVL(t.BUDGET,0) BUDGET, "
             "NVL(t.PREPAY_PCT,0) PCT, NVL(t.PREPAID,0) PREPAID, NVL(t.PAID,0) PAID, TO_CHAR(t.DUE_DATE,'YYYY-MM-DD') DUE "
-            "FROM CRM_PROJECT t LEFT JOIN CRM_CLIENT c ON c.ID = t.CLIENT_ID WHERE %s "
-            "ORDER BY CASE t.STATUS WHEN :closed THEN 2 WHEN :lost THEN 3 ELSE 1 END, t.DUE_DATE" % tw,
-            dict(tp, closed="Закрыт", lost="Проигран"))
+            "FROM CRM_PROJECT t LEFT JOIN CRM_CLIENT c ON c.ID = t.CLIENT_ID WHERE %s%s "
+            "ORDER BY CASE t.STATUS WHEN :closed THEN 2 WHEN :lost THEN 3 ELSE 1 END, t.DUE_DATE"
+            % (tw, " AND TRIM(t.MANAGER) = :who" if who else ""),
+            dict(tp, closed="Закрыт", lost="Проигран", **({"who": who} if who else {})))
         sb = sp = sd = 0.0
         over_all = 0
         for r in rows:
@@ -190,7 +215,48 @@ def build(data: CrmData, slug: str, lang: str = "ro") -> Dict[str, Any]:
                 sd += debt
             over_all += sm["overdue"]
         out["totals"] = [t["total"], "%d" % len(rows), "", "", sb, "", "", sp, sd, "", "", over_all, ""]
+    elif slug == "by_person":
+        # RO: doua surse cu responsabil: proiectele (MANAGER) si sarcinile
+        #     (ASSIGNEE). Le unim pe nume si adaugam rindul de total, ca sa se
+        #     poata citi si «pe o persoana», si «pe toti».
+        pw = " AND TRIM(t.MANAGER) = :who" if who else ""
+        proj = data.rows(
+            "SELECT TRIM(t.MANAGER) P, COUNT(*) N, NVL(SUM(t.BUDGET),0) B, "
+            "NVL(SUM(NVL(t.PREPAID,0) + NVL(t.PAID,0)),0) GOT, "
+            "NVL(SUM(CASE WHEN t.STATUS IN (:closed, :lost) THEN 0 "
+            "     ELSE GREATEST(NVL(t.BUDGET,0) - NVL(t.PREPAID,0) - NVL(t.PAID,0), 0) END),0) DEBT "
+            "FROM CRM_PROJECT t WHERE %s AND TRIM(t.MANAGER) IS NOT NULL%s "
+            "GROUP BY TRIM(t.MANAGER)" % (tw, pw),
+            dict(tp, closed="Закрыт", lost="Проигран", **({"who": who} if who else {})))
+        tw2 = " AND TRIM(t.ASSIGNEE) = :who" if who else ""
+        task = data.rows(
+            "SELECT TRIM(t.ASSIGNEE) P, COUNT(*) N, SUM(CASE WHEN t.DONE = 1 THEN 1 ELSE 0 END) D, "
+            "SUM(CASE WHEN t.DONE = 0 AND t.DUE_AT IS NOT NULL AND t.DUE_AT < TRUNC(SYSDATE) THEN 1 ELSE 0 END) O, "
+            "NVL(SUM(t.HOURS_PLAN),0) HP, NVL(SUM(t.HOURS_FACT),0) HF "
+            "FROM CRM_TASK t WHERE %s AND TRIM(t.ASSIGNEE) IS NOT NULL%s "
+            "GROUP BY TRIM(t.ASSIGNEE)" % (tw, tw2),
+            dict(tp, **({"who": who} if who else {})))
+        agg: Dict[str, Dict[str, float]] = {}
+        for r in proj:
+            a = agg.setdefault(r["p"], {})
+            a.update(projects=int(r["n"] or 0), budget=_f(r["b"]), got=_f(r["got"]), debt=_f(r["debt"]))
+        for r in task:
+            a = agg.setdefault(r["p"], {})
+            a.update(tasks=int(r["n"] or 0), done=int(r["d"] or 0), over=int(r["o"] or 0),
+                     hp=_f(r["hp"]), hf=_f(r["hf"]))
+        tot = {k: 0.0 for k in ("projects", "budget", "got", "debt", "tasks", "done", "over", "hp", "hf")}
+        for name in sorted(agg):
+            a = agg[name]
+            row = [name, int(a.get("projects", 0)), a.get("budget", 0.0), a.get("got", 0.0), a.get("debt", 0.0),
+                   int(a.get("tasks", 0)), int(a.get("done", 0)), int(a.get("over", 0)) or "",
+                   a.get("hp", 0.0), a.get("hf", 0.0)]
+            out["rows"].append(row)
+            for k in tot:
+                tot[k] += a.get(k, 0) or 0
+        out["totals"] = [t["total"], int(tot["projects"]), tot["budget"], tot["got"], tot["debt"],
+                         int(tot["tasks"]), int(tot["done"]), int(tot["over"]) or "", tot["hp"], tot["hf"]]
     return out
+
 
 
 def to_csv(rep: Dict[str, Any]) -> str:

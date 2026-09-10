@@ -22,6 +22,7 @@
   // ── i18n (lang.json al prototipului) ────────────────────────────────────
   const S = (k, ...a) => {
     if (k === 'nav.alerts') return NAV_EXTRA[LANG2] || NAV_EXTRA.ro;
+    if (k === 'nav.employees') return NAV_EMP[LANG2] || NAV_EMP.ro;
     let s = (LNG && LNG[LANG2] && LNG[LANG2].strings[k]) || (LNG && LNG.ro && LNG.ro.strings[k]) || k;
     a.forEach(v => { s = s.replace(/%[sd]/, v); });
     return s;
@@ -63,11 +64,12 @@
   const cap = c => (CAP[LANG2] && CAP[LANG2][c]) || c;
   const NAV_KEY = { workspace: 'nav.workspace', kanban: 'nav.kanban', clients: 'nav.clients', contacts: 'nav.contacts', leads: 'nav.leads',
                     deals: 'nav.deals', items: 'nav.items', orders: 'nav.orders', projects: 'nav.projects', tasks: 'nav.calendar',
-                    reports: 'nav.reports', alerts: 'nav.alerts', settings: 'nav.settings' };
+                    reports: 'nav.reports', alerts: 'nav.alerts', employees: 'nav.employees', settings: 'nav.settings' };
   const ENTITY_KEYS = ['contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks'];
-  const SECTIONS = ['home', 'workspace', 'kanban', 'clients', ...ENTITY_KEYS, 'reports', 'alerts', 'settings'];
+  const SECTIONS = ['home', 'workspace', 'kanban', 'clients', ...ENTITY_KEYS, 'reports', 'alerts', 'employees', 'settings'];
   // RO: «Alerte» nu e in lang.json-ul prototipului (nu exista in Delphi) — trei limbi aici
   const NAV_EXTRA = { ro: 'Alerte', ru: 'Оповещения', en: 'Alerts' };
+  const NAV_EMP = { ro: 'Angajați', ru: 'Сотрудники', en: 'Employees' };
   window.crmS = (k, ...a) => S(k, ...a);      // RO: traducerile, pentru crm_alerts.js
   window.crmMoney = v => money(v);
 
@@ -88,6 +90,7 @@
     else if (sec === 'kanban') loadBoard();
     else if (sec === 'reports') loadReportList();
     else if (sec === 'alerts') { if (window.crmAlertsShow) window.crmAlertsShow(); }
+    else if (sec === 'employees') { if (window.crmEmployeesShow) window.crmEmployeesShow(); }
     else if (sec === 'clients2') openEntity('clients');
     else if (ENTITY_KEYS.includes(sec)) openEntity(sec);
   };
@@ -347,16 +350,26 @@
   };
 
   // ── rapoarte ─────────────────────────────────────────────────────────────
-  const REPORT_KEY = { process: 'report.process', receivables: 'report.receivables', sales_by_client: 'report.sales', funnel: 'report.funnel', stock: 'report.stock', projects: 'report.projects' };
+  const REPORT_KEY = { by_person: 'report.by_person', process: 'report.process', receivables: 'report.receivables', sales_by_client: 'report.sales', funnel: 'report.funnel', stock: 'report.stock', projects: 'report.projects' };
   function loadReportList() {
     document.getElementById('rp-list').innerHTML = META.reports.map(s => `<a href="#" class="rp" onclick="crmReport('${s}');return false"><b>${esc(S(REPORT_KEY[s]))}</b><br><span class="muted">${esc(S(REPORT_KEY[s] + '.hint'))}</span></a>`).join('');
   }
+  let RP_PERSON = '';
+  window.crmReportPerson = function (v) { RP_PERSON = v || ''; if (RP_SLUG) crmReport(RP_SLUG); };
+  let RP_SLUG = '';
   window.crmReport = async function (slug) {
-    const r = await api(`${V2}reports/${slug}?lang=${LANG2}`); if (!r.success) { say('danger', r.error + (r.detail ? ' — ' + r.detail : '')); return; }
+    RP_SLUG = slug;
+    const pq = RP_PERSON ? '&person=' + encodeURIComponent(RP_PERSON) : '';
+    const r = await api(`${V2}reports/${slug}?lang=${LANG2}${pq}`); if (!r.success) { say('danger', r.error + (r.detail ? ' — ' + r.detail : '')); return; }
     const d = r.data;
     const fmt = v => typeof v === 'number' ? (Number.isInteger(v) ? String(v) : money(v)) : esc(String(v));
+    const PT = { ro: 'Total (toți)', ru: 'Итого (все)', en: 'Total (everyone)' };
+    const persons = (META.persons || []);
     document.getElementById('rp-view').innerHTML = `<div class="page-head"><h1 style="font-size:18px">${esc(d.title)}</h1>
-        <a class="btn" href="${BASE}/${V2}reports/${slug}?lang=${LANG2}&format=csv">${esc(S('btn.export_xlsx'))} (CSV)</a></div>
+        <select onchange="crmReportPerson(this.value)" title="${esc(S('col.contact'))}">
+          <option value="">${esc(PT[LANG2] || PT.ro)}</option>
+          ${persons.map(p => `<option value="${esc(p)}" ${p === RP_PERSON ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select>
+        <a class="btn" href="${BASE}/${V2}reports/${slug}?lang=${LANG2}&format=csv${pq}">${esc(S('btn.export_xlsx'))} (CSV)</a></div>
       <p class="muted">${esc(d.subtitle)}</p><div class="panel" style="overflow:auto"><table><thead><tr>${d.columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead>
       <tbody>${d.rows.map(row => `<tr>${row.map(v => `<td class="${typeof v === 'number' ? 'num' : ''}">${fmt(v)}</td>`).join('')}</tr>`).join('')}</tbody>
       ${d.totals && d.totals.length ? `<tfoot><tr>${d.totals.map(v => `<th class="${typeof v === 'number' ? 'num' : ''}">${fmt(v)}</th>`).join('')}</tr></tfoot>` : ''}</table></div>`;
@@ -378,8 +391,8 @@
     LANG2 = (typeof LANG !== 'undefined' && LANG) || 'ro';
     // RO: meniul: intrarile prototipului, in ordinea lui
     const nav = document.getElementById('nav-process');
-    const ICON = { workspace: '⌂', kanban: '▦', clients: '▤', contacts: '☺', leads: '◎', deals: '$', items: '▣', orders: '☰', projects: '◈', tasks: '▦', reports: '▥', alerts: '🔔' };
-    nav.innerHTML = ['workspace', 'kanban', 'clients', 'contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks', 'reports', 'alerts']
+    const ICON = { workspace: '⌂', kanban: '▦', clients: '▤', contacts: '☺', leads: '◎', deals: '$', items: '▣', orders: '☰', projects: '◈', tasks: '▦', reports: '▥', alerts: '🔔', employees: '👤' };
+    nav.innerHTML = ['workspace', 'kanban', 'clients', 'contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks', 'reports', 'alerts'].concat(CAB ? [] : ['employees'])
       .map(s => `<a href="#${s}" data-sec="${s}"><span class="ic">${ICON[s]}</span><span data-s="${NAV_KEY[s]}">${esc(S(NAV_KEY[s]))}</span></a>`).join('');
     document.querySelectorAll('[data-s]').forEach(el => { el.textContent = S(el.dataset.s); });
     const sec = (location.hash || '#workspace').slice(1);

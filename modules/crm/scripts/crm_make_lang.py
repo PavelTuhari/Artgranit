@@ -73,6 +73,7 @@ RU = {
     "report.sales": "Продажи по клиентам", "report.sales.hint": "Заказы, выручка, оплаты и долги по каждому клиенту",
     "report.stock": "Остатки номенклатуры", "report.stock.hint": "Товары и изделия: остаток и его стоимость",
     "reports.preview": "Предпросмотр", "reports.title": "Отчёты",
+    "report.by_person": "По сотрудникам", "report.by_person.hint": "Проекты и задачи по ответственным, с итогом",
     "settings.erp_key": "Ключ:", "settings.erp_url": "ERP una.md, адрес API:", "settings.lang_saved": "Язык изменён.",
     "settings.language": "Язык интерфейса:", "settings.launcher": "Путь к Contragenti (exe/py):", "settings.pass_changed": "Пароль изменён.",
     "settings.password": "Новый пароль:", "settings.saved": "Настройки сохранены.",

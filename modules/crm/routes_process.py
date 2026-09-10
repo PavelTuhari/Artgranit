@@ -88,7 +88,7 @@ def api_meta():
         "stages": [{"stage": s, "title": process.STAGE_TITLES[i], "hint": process.STAGE_HINTS[i],
                     "table": "deals" if s.startswith("deal_") else "orders"} for i, s in enumerate(process.STAGES)],
         "boards": {k: {"columns": process.board_columns(k), "colors": process.BOARD_COLORS[k]} for k in process.BOARDS},
-        "reports": list(reports.SLUGS),
+        "reports": list(reports.SLUGS), "persons": reports.persons(g.crm),
         "tenant": {"kind": g.crm.t.kind, "id": g.crm.t.id, "label": g.crm.t.label}}})
 
 
@@ -256,7 +256,8 @@ def api_board_move(kind):
 def api_report(slug):
     if slug not in reports.SLUGS:
         raise LookupError("raport necunoscut")
-    rep = reports.build(g.crm, slug, request.args.get("lang", "ro"))
+    rep = reports.build(g.crm, slug, request.args.get("lang", "ro"),
+                        person=request.args.get("person", ""))
     if request.args.get("format") == "csv":
         return Response(reports.to_csv(rep), mimetype="text/csv",
                         headers={"Content-Disposition": "attachment; filename=crm_%s.csv" % slug})

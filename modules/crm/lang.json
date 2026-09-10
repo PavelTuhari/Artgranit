@@ -179,7 +179,9 @@
    "kanban.project": "Proiect: %s",
    "kanban.tasks_of": "sarcini %s",
    "report.projects": "Proiecte: licitații, avansuri, sarcini",
-   "report.projects.hint": "Fiecare proiect: etapă, buget, avans și plată, datorie, sarcini și întârzieri"
+   "report.projects.hint": "Fiecare proiect: etapă, buget, avans și plată, datorie, sarcini și întârzieri",
+   "report.by_person": "Pe angajati",
+   "report.by_person.hint": "Proiecte si sarcini pe responsabili, cu total"
   },
   "enums": {
    "client_type": [
@@ -458,7 +460,9 @@
    "kanban.project": "Project: %s",
    "kanban.tasks_of": "tasks %s",
    "report.projects": "Projects: tenders, advances, tasks",
-   "report.projects.hint": "Each project: stage, budget, advance and payment, debt, tasks and overdue"
+   "report.projects.hint": "Each project: stage, budget, advance and payment, debt, tasks and overdue",
+   "report.by_person": "By employee",
+   "report.by_person.hint": "Projects and tasks by owner, with a total"
   },
   "enums": {
    "client_type": [
@@ -737,7 +741,9 @@
    "workspace.late": "запаздывает %d  ·  %s MDL",
    "workspace.next_tasks": "Ближайшие задачи",
    "workspace.on_time": "всё в срок",
-   "workspace.summary": "заказов в работе и закрытых: %d   ·   незакрытых просрочено: %d"
+   "workspace.summary": "заказов в работе и закрытых: %d   ·   незакрытых просрочено: %d",
+   "report.by_person": "По сотрудникам",
+   "report.by_person.hint": "Проекты и задачи по ответственным, с итогом"
   },
   "enums": {
    "client_type": [

@@ -452,3 +452,93 @@ def test_alerts_presentation_exists_with_real_screenshots():
     assert "@page{size:A4landscape" in deck.replace(" ", "")   # Ctrl/Cmd+P -> PDF
     page = _read("modules", "crm", "templates", "crm_app.html")
     assert "crm.alerts_deck" in page                           # butonul din pagina de alerte
+
+
+# ── angajati (utilizatorii ERP) ──────────────────────────────────────────
+from modules.crm import employees as EMP  # noqa: E402
+
+
+def test_username_rules_match_what_a_util_login_accepts():
+    """RO: a$util.login cauta UPPER(USERNAME) — deci fara spatii, fara
+    chirilica, unic indiferent de registru."""
+    for ok in ("admin", "ion.popescu", "user_26", "A-b_c.9"):
+        assert EMP.check_username(ok) == ok
+    for bad in ("", "ab", "1user", "ion popescu", "Иван", "a" * 51, "ion@x"):
+        with pytest.raises(ValueError):
+            EMP.check_username(bad)
+
+
+def test_standard_password_is_long_and_free_of_confusable_glyphs():
+    """RO: parola standard se dicteaza la telefon — fara 0/O si 1/l/I."""
+    seen = set()
+    for _ in range(50):
+        p = EMP.gen_password()
+        assert len(p) == EMP.PWD_LEN
+        assert not (set(p) & set("0O1lI")), p
+        seen.add(p)
+    assert len(seen) > 45                       # aleatoare, nu constanta
+    assert EMP.check_password("Parola26") == "Parola26"
+    for bad in ("", "scurt", "x" * 61):
+        with pytest.raises(ValueError):
+            EMP.check_password(bad)
+
+
+def test_optional_contacts_are_validated():
+    EMP.check_optional("ion@officeplus.md", "+373 22 123456")
+    for bad in (("ion(at)x.md", ""), ("", "abc")):
+        with pytest.raises(ValueError):
+            EMP.check_optional(*bad)
+
+
+def test_node_name_keeps_the_format_already_used_in_the_erp_tree():
+    assert EMP.node_name(51, "Gherganova Janna", "janna") == "51 Gherganova Janna"
+    assert EMP.node_name(None, "", "janna") == "janna"
+
+
+def test_employee_ddl_writes_both_ways_without_its_own_transaction():
+    """RO: sincronizarea in ambele parti (cerinta 10.09.2026) — trigger pe
+    CRM_EMPLOYEE catre arbore si trigger pe A$ADP catre fisa. Pe A$ADP scrie
+    tot ERP-ul, deci: WHEN ingust, apel dinamic (pachetul invalid nu poate
+    bloca uniConf), fara COMMIT/AUTONOMOUS_TRANSACTION propriu."""
+    ddl = _read("modules", "crm", "sql", "04_crm_employee.sql")
+    assert "CREATE OR REPLACE TRIGGER CRM_EMPLOYEE_AIU" in ddl
+    assert "CREATE OR REPLACE TRIGGER CRM_EMP_ADP_AIU" in ddl
+    assert "AUTONOMOUS_TRANSACTION" not in ddl.upper()
+    assert "COMMIT" not in ddl.upper()
+    assert "WHEN (NEW.KEY IN" in ddl                       # nu pe fiecare rind din A$ADP
+    assert "EXECUTE IMMEDIATE" in ddl                      # apel dinamic al pachetului
+    assert "CRM_EMP_SYNC.to_erp(:NEW.OBJ_ID" in ddl        # valorile trec ca parametri
+    assert ":NEW.ENABLED" in ddl                           # nu SELECT (ORA-04091)
+    assert ddl.isascii()                                   # regula proiectului
+    for block in ("CREATE OR REPLACE PACKAGE", "CREATE OR REPLACE TRIGGER"):
+        assert block in ddl
+    assert ddl.rstrip().endswith("/")
+
+
+def test_employee_api_is_closed_for_cabinet_clients():
+    """RO: angajatii sint treaba OfficePlus — clientul din cabinet primeste 403."""
+    src = _read("modules", "crm", "routes_employees.py")
+    assert "def office_only" in src and "403" in src
+    for route in ("/api/v2/employees", "/enabled", "/password", "/check", "/sync", "/events"):
+        assert route in src, route
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert "CAB ? [] : ['employees']" in js                 # pagina ascunsa in cabinet
+    page = _read("modules", "crm", "templates", "crm_app.html")
+    assert 'id="sec-employees"' in page and "crm_employees.js" in page
+
+
+def test_report_by_person_exists_in_all_three_languages():
+    """RO: «in RAPORT sa fie posibil de a alege raportul pe persoane si total»."""
+    from modules.crm import reports as R
+    assert "by_person" in R.SLUGS
+    lang = json.loads(_read("modules", "crm", "lang.json"))
+    for lg in ("ro", "ru", "en"):
+        for key in ("report.by_person", "report.by_person.hint"):
+            assert lang[lg]["strings"].get(key), (lg, key)
+    src = _read("modules", "crm", "reports.py")
+    assert "def persons(" in src and "person" in src
+    api = _read("modules", "crm", "routes_process.py")
+    assert 'person=request.args.get("person"' in api
+    assert "reports.persons(g.crm)" in api                  # lista pentru selector
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert "crmReportPerson" in js and "META.persons" in js

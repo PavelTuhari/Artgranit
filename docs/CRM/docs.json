@@ -48,5 +48,15 @@
     "title": "Alerte Telegram: tranzacții nefinisate și datorii",
     "audience": "pentru proprietar și operatori",
     "descr": "Cele 8 tipuri de alertă (datorii, termene depășite, așteaptă avans, gata nelivrate, necontabilizate, proiecte neacoperite, oferte fără mișcare, termene apropiate), pagina cu setări, sumarul zilnic prin systemd timer. 08.09.2026."
+  },
+  "ANGAJATI.md": {
+    "slug": "angajati",
+    "public": false,
+    "icon": "👤",
+    "cls": "g",
+    "order": 25,
+    "title": "Angajați: conturi, dezactivare, parole, raport pe persoane",
+    "audience": "pentru proprietar și administratori",
+    "descr": "Conturile ERP (arborele A$ADM/A$ADP) în back-office: înregistrare, data înregistrării, dezactivare, parolă standard cu recuperare, e-mail și telefon, sincronizare prin triggere în ambele părți și raportul pe persoane cu total."
   }
 }
