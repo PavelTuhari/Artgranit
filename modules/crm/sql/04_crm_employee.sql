@@ -1,7 +1,7 @@
 -- RO: Conturul CRM_* partea a patra (10.09.2026) - ANGAJATII.
 --     Cerinta proprietarului: angajatii ii inregistreaza administratorul, in
 --     lista se vede data inregistrarii, contul se poate dezactiva, parola
---     standard cu posibilitate de recuperare, e-mailul si telefonul; in
+--     standard cu posibilitate de recuperare, e-mailul si telefonul, in
 --     rapoarte - alegere pe persoana si total.
 --
 --     Utilizatorul REAL al ERP-ului UNA nu se muta si nu se dubleaza: el
@@ -80,8 +80,11 @@ CREATE OR REPLACE PACKAGE CRM_EMP_SYNC IS
   -- RO: proprietatile nodului utilizator pe care le tinem sincronizate
   FUNCTION is_user_node(p_obj_id NUMBER) RETURN BOOLEAN;
 
-  -- RO: fisa -> arbore (o cheama triggerul de pe CRM_EMPLOYEE)
-  PROCEDURE to_erp(p_obj_id NUMBER);
+  -- RO: fisa -> arbore. Valorile vin ca parametri (:NEW din trigger), NU se
+  --     citesc din CRM_EMPLOYEE: un SELECT pe tabela care tocmai se schimba
+  --     da ORA-04091 (mutating table) si sincronizarea ar tacea.
+  PROCEDURE to_erp(p_obj_id NUMBER, p_enabled NUMBER, p_full VARCHAR2,
+                   p_email VARCHAR2, p_phone VARCHAR2);
 
   -- RO: arbore -> fisa, o proprietate (o cheama triggerul de pe A$ADP)
   PROCEDURE prop_changed(p_obj_id NUMBER, p_key VARCHAR2, p_svalue VARCHAR2,
@@ -118,7 +121,7 @@ CREATE OR REPLACE PACKAGE BODY CRM_EMP_SYNC IS
      WHERE OBJ_ID = p_obj_id AND KEY = UPPER(p_key);
     IF SQL%ROWCOUNT = 0 THEN
       -- RO: grupa proprietatii (coloana GR) o luam de la nodul insusi, ca sa
-      --     apara in uniConf linga celelalte; asa nu scriem chirilica in DDL.
+      --     apara in uniConf linga celelalte, asa nu scriem chirilica in DDL.
       SELECT MAX(GR) INTO v_gr FROM A$ADP WHERE OBJ_ID = p_obj_id AND KEY = 'USERNAME';
       INSERT INTO A$ADP (OBJ_ID, KEY, NAME, GR, VTYPE, SVALUE, IVALUE, BVALUE, DVALUE)
       VALUES (p_obj_id, UPPER(p_key), p_key, v_gr, p_vtype, p_s, p_i, p_b, p_d);
@@ -241,12 +244,12 @@ END;
 
 -- RO: arbore -> fisa. Acesta e SINGURUL obiect al modulului asezat pe o tabela
 --     nativa a ERP-ului, deci e facut sa nu poata strica nimic:
---       1. WHEN il lasa sa porneasca doar la cele zece chei ale utilizatorului;
+--       1. WHEN il lasa sa porneasca doar la cele zece chei ale utilizatorului,
 --       2. apelul e DINAMIC - daca pachetul CRM_EMP_SYNC lipseste sau e invalid,
 --          triggerul NU devine invalid si nu blocheaza scrierile in A$ADP
---          (un apel static ar da ORA-04098 la fiecare salvare din uniConf);
+--          (un apel static ar da ORA-04098 la fiecare salvare din uniConf),
 --       3. orice eroare e inghitita: configuratorul isi scrie proprietatea mai
---          departe, iar fisa se aduce la zi la urmatorul «Sincronizeaza».
+--          departe, iar fisa se aduce la zi la urmatorul "Sincronizeaza".
 --     Fara tranzactie proprie: mergem in aceeasi tranzactie ca ERP-ul, deci un
 --     rollback al configuratorului anuleaza si oglindirea.
 CREATE OR REPLACE TRIGGER CRM_EMP_ADP_AIU
