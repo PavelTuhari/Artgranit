@@ -96,6 +96,11 @@
   #al-cfg .kv > div > label{color:#333;margin:0;display:flex;align-items:baseline;gap:6px}
   #al-cfg .kv input[type=checkbox]{width:auto;flex:none}
   #al-tab td,#emp-tab td{font-size:12.5px}
+  /* RO: grupul si datele nu se rup pe mai multe rinduri — lista ramine citibila */
+  #emp-tab td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+  #emp-tab td:nth-child(5){max-width:88px}
+  #emp-tab th:nth-child(6),#emp-tab td:nth-child(6),
+  #emp-tab th:nth-child(7),#emp-tab td:nth-child(7){white-space:nowrap;width:1%}
   #emp-card .kv{grid-template-columns:120px 1fr;padding:12px}
   #emp-card .kv label{font-size:12px}
   #emp-card .kv input,#emp-card .kv textarea{width:100%;padding:5px 7px;border:1px solid #cfd6da;border-radius:3px;font:inherit}
@@ -180,7 +185,7 @@
     <button class="btn btn-primary" onclick="crmEmpNew()" id="emp-add">Înregistrează angajat</button></div>
   <div class="dash" id="emp-dash"></div>
   <div class="panel" id="emp-new" hidden style="margin-bottom:14px"></div>
-  <div class="grid" style="grid-template-columns:minmax(0,1fr) 380px">
+  <div class="grid" style="grid-template-columns:minmax(0,1fr) 340px">
     <div class="panel" style="overflow:auto"><table id="emp-tab"><thead><tr>
       <th id="emp-h-user">Utilizator</th><th id="emp-h-name">Nume</th><th id="emp-h-mail">E-mail</th>
       <th id="emp-h-tel">Telefon</th><th id="emp-h-group">Grupa</th><th id="emp-h-reg">Înregistrat</th>

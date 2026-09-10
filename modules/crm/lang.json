@@ -180,8 +180,8 @@
    "kanban.tasks_of": "sarcini %s",
    "report.projects": "Proiecte: licitații, avansuri, sarcini",
    "report.projects.hint": "Fiecare proiect: etapă, buget, avans și plată, datorie, sarcini și întârzieri",
-   "report.by_person": "Pe angajati",
-   "report.by_person.hint": "Proiecte si sarcini pe responsabili, cu total"
+   "report.by_person": "Pe angajați",
+   "report.by_person.hint": "Proiecte și sarcini pe responsabili, cu total"
   },
   "enums": {
    "client_type": [
