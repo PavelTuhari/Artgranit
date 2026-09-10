@@ -88,8 +88,29 @@ def api_meta():
         "stages": [{"stage": s, "title": process.STAGE_TITLES[i], "hint": process.STAGE_HINTS[i],
                     "table": "deals" if s.startswith("deal_") else "orders"} for i, s in enumerate(process.STAGES)],
         "boards": {k: {"columns": process.board_columns(k), "colors": process.BOARD_COLORS[k]} for k in process.BOARDS},
-        "reports": list(reports.SLUGS), "persons": reports.persons(g.crm),
+        "reports": list(reports.SLUGS), "persons": _persons(),
         "tenant": {"kind": g.crm.t.kind, "id": g.crm.t.id, "label": g.crm.t.label}}})
+
+
+def _persons():
+    """RO: cine se poate alege ca responsabil: angajatii inregistrati (conturile
+    ERP) plus numele care apar deja in date, ca nimic scris inainte sa nu se
+    piarda. Cerinta 11.09.2026 (captura din prototip): sageata de alegere din
+    lista angajatilor. In cabinetul clientului lista angajatilor nu se vede."""
+    out = []
+    if g.crm.t.is_office:
+        try:
+            from modules.crm.store_employees import EmployeeStore
+            for e in EmployeeStore(g.crm.db).list(only="active"):
+                name = (e.get("full_name") or e.get("username") or "").strip()
+                if name and name not in out:
+                    out.append(name)
+        except Exception:                       # ERP indisponibil - lista din date
+            pass
+    for p in reports.persons(g.crm):
+        if p not in out:
+            out.append(p)
+    return out
 
 
 # ── CRUD generic ─────────────────────────────────────────────────────────

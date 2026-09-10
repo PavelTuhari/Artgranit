@@ -613,3 +613,36 @@ def test_real_source_ddl_is_ascii_and_indexes_only_erp_rows():
     assert "ALTER TABLE CRM_ITEM ADD" in ddl and "ERP_COD" in ddl
     # RO: unicul pe (chirias, ERP_COD) trebuie sa ignore rindurile proprii
     assert "CASE WHEN ERP_COD IS NULL THEN NULL ELSE OWNER_KIND END" in ddl
+
+
+# ── ajustarile cerute pe capturile prototipului (11.09.2026) ─────────────
+def test_responsible_is_chosen_from_the_employee_list():
+    """RO: «sa fie adaugat sageata de alegere din lista angajatilor» —
+    executantul sarcinii si managerul proiectului sint liste, nu text liber;
+    in baza ramine tot numele (kind PERSON se comporta ca TEXT in SQL)."""
+    from modules.crm.entities import ENTITIES, PERSON
+    assert ENTITIES["tasks"].field("assignee").kind == PERSON
+    assert ENTITIES["projects"].field("manager").kind == PERSON
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert "function personSelect" in js and "f.kind === 'person'" in js
+    assert "list.unshift(v)" in js                      # valoarea veche nu se pierde
+    api = _read("modules", "crm", "routes_process.py")
+    assert "def _persons" in api and "EmployeeStore" in api
+    assert 'g.crm.t.is_office' in api                   # in cabinet nu se vad angajatii
+    store = _read("modules", "crm", "store_process.py")
+    assert "import PERSON" not in store and ", PERSON" not in store   # SQL: acelasi caz ca TEXT
+
+
+def test_dates_are_picked_from_a_calendar():
+    """RO: «ar fi bine de adaugat calendarul pentru a alege data»."""
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert """<input type="date" data-f=""" in js
+
+
+def test_employees_sit_next_to_clients_in_the_menu():
+    """RO: «de adaugat mapa cu angajati» — sageata din captura arata locul,
+    imediat dupa Clienti."""
+    js = _read("modules", "crm", "static", "crm_process.js")
+    i = js.index("nav.innerHTML")
+    frag = js[i:i + 300]
+    assert "'clients'].concat(CAB ? [] : ['employees'])" in frag

@@ -141,3 +141,19 @@ din pagină sau `begin CRM_EMP_SYNC.pull_all; end;`.
 | `modules/crm/static/crm_employees.js` | pagina |
 | `modules/crm/reports.py` | raportul `by_person`, `persons()` |
 | `tests/test_crm.py` | reguli, DDL sigur, API închis în cabinet, raport în 3 limbi |
+
+---
+
+## 8. Ajustările cerute pe capturile prototipului (11.09.2026)
+
+Proprietarul a trimis două capturi din *Demo CRM* (Delphi) cu trei observații;
+toate trei sunt făcute în CRM-web:
+
+| Observația din captură | Ce s-a făcut |
+|---|---|
+| «de adaugat mapa cu angajati» (săgeata arată locul din meniu, sub *Clienți*) | punctul **Angajați** stă acum imediat după *Clienți*, nu la coada meniului; în cabinetul clientului rămâne ascuns |
+| «sa fie adaugat sageata de alegere din lista angajatilor» (câmpul *Исполнитель*) | *Executant* (sarcini) și *Manager* (proiecte) sunt **liste de alegere**: tipul de câmp nou `PERSON`. Lista = angajații activi (conturile ERP) plus numele care apar deja în date; dacă valoarea veche nu e în listă, ea rămâne prima opțiune, deci nimic nu se pierde. În baza de date rămâne tot numele (în SQL `PERSON` se poartă exact ca `TEXT`) |
+| «ar fi bine de adaugat calendarul pentru a alege data» | câmpurile de dată sunt `<input type="date">` — calendarul nativ al browserului, cu iconița din dreapta (*Început*, *Termen*, *Sdare*, *Termen tender* etc.) |
+
+În cabinetul clientului lista angajaților nu se vede: `/api/v2/meta` întoarce
+doar numele care apar în datele lui.

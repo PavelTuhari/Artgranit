@@ -189,6 +189,15 @@
     renderEditor();
   };
   window.crmNew = function () { CUR.id = 0; CUR.row = {}; DEL2 = null; renderEditor(); };
+  // RO: responsabilul se alege din lista angajatilor (cerinta 11.09.2026),
+  //     dar valorile scrise inainte nu se pierd: daca numele nu e in lista,
+  //     el ramine prima optiune aleasa.
+  function personSelect(f, v) {
+    const list = (META.persons || []).slice();
+    if (v && !list.includes(v)) list.unshift(v);
+    return `<select data-f="${f.name}"><option value=""></option>${list.map(n =>
+      `<option value="${esc(n)}" ${n === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+  }
   async function lookupOptions(kind, sel) {
     const r = await api(V2 + 'lookup/' + kind.replace('lookup_', ''));
     return `<option value=""></option>` + ((r.success ? r.data : []).map(o => `<option value="${o.id}" ${String(o.id) === String(sel) ? 'selected' : ''}>${esc(o.name)}</option>`).join(''));
@@ -204,6 +213,7 @@
       else if (f.kind === 'memo') inp = `<textarea data-f="${f.name}">${esc(v)}</textarea>`;
       else if (f.kind === 'enum') inp = `<select data-f="${f.name}">${f.values.map((c, i) => `<option value="${esc(c)}" ${(v || f.default) === c ? 'selected' : ''}>${esc(EL(f.enum)[i] || c)}</option>`).join('')}</select>`;
       else if (f.kind.startsWith('lookup')) inp = `<select data-f="${f.name}" data-lk="${f.kind}">${await lookupOptions(f.kind, v)}</select>`;
+      else if (f.kind === 'person') inp = personSelect(f, v);
       else if (f.kind === 'bool') inp = `<input type="checkbox" data-f="${f.name}" ${v ? 'checked' : ''}>`;
       else if (f.kind === 'date') inp = `<input type="date" data-f="${f.name}" value="${esc(v || (CUR.id ? '' : (f.default ? resolveDefault(f.default) : '')))}">`;
       else if (f.kind === 'money' || f.kind === 'number') inp = `<input type="number" step="any" data-f="${f.name}" value="${v === '' ? (CUR.id ? '' : f.default) : v}">`;
@@ -398,7 +408,8 @@
     // RO: meniul: intrarile prototipului, in ordinea lui
     const nav = document.getElementById('nav-process');
     const ICON = { workspace: '⌂', kanban: '▦', clients: '▤', contacts: '☺', leads: '◎', deals: '$', items: '▣', orders: '☰', projects: '◈', tasks: '▦', reports: '▥', alerts: '🔔', employees: '👤' };
-    nav.innerHTML = ['workspace', 'kanban', 'clients', 'contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks', 'reports', 'alerts'].concat(CAB ? [] : ['employees'])
+    nav.innerHTML = ['workspace', 'kanban', 'clients'].concat(CAB ? [] : ['employees'])
+      .concat(['contacts', 'leads', 'deals', 'items', 'orders', 'projects', 'tasks', 'reports', 'alerts'])
       .map(s => `<a href="#${s}" data-sec="${s}"><span class="ic">${ICON[s]}</span><span data-s="${NAV_KEY[s]}">${esc(S(NAV_KEY[s]))}</span></a>`).join('');
     document.querySelectorAll('[data-s]').forEach(el => { el.textContent = S(el.dataset.s); });
     const sec = (location.hash || '#workspace').slice(1);

@@ -34,6 +34,11 @@ ENUMS: Dict[str, List[str]] = {
 # tipurile de cimp (TFieldKind)
 TEXT, MEMO, NUMBER, MONEY, DATE, ENUM, BOOL, READONLY = (
     "text", "memo", "number", "money", "date", "enum", "bool", "readonly")
+# RO: PERSON = tot text in baza (numele responsabilului, ca in prototip), dar
+#     in fisa se alege din lista angajatilor — cerinta proprietarului
+#     (11.09.2026, captura din prototip: «sa fie adaugat sageata de alegere
+#     din lista angajatilor»). In SQL se comporta exact ca TEXT.
+PERSON = "person"
 LOOKUP_CLIENT, LOOKUP_DEAL, LOOKUP_ITEM, LOOKUP_PROJECT = (
     "lookup_client", "lookup_deal", "lookup_item", "lookup_project")
 LOOKUPS = (LOOKUP_CLIENT, LOOKUP_DEAL, LOOKUP_ITEM, LOOKUP_PROJECT)
@@ -165,7 +170,7 @@ ENTITIES: Dict[str, Entity] = {
         F("project_id", "Проект", LOOKUP_PROJECT, 170),
         F("stage", "Этап", ENUM, 90, True, "task_stage", "Новая"),
         F("priority", "Приоритет", ENUM, 80, True, "task_priority", "Обычный"),
-        F("assignee", "Исполнитель", TEXT, 120),
+        F("assignee", "Исполнитель", PERSON, 120),
         F("kind", "Вид", ENUM, 80, True, "task_kind", "Задача"),
         F("plan_start", "Начало", DATE, 85, False, "", "today"),
         F("due_at", "Срок", DATE, 85, True, "", "today"),
@@ -192,7 +197,7 @@ ENTITIES: Dict[str, Entity] = {
         F("paid", "Оплачено", MONEY, 90),
         F("start_date", "Начало", DATE, 85, False, "", "today"),
         F("due_date", "Сдача", DATE, 85, True, "", "today+30"),
-        F("manager", "Менеджер", TEXT, 110),
+        F("manager", "Менеджер", PERSON, 110),
         F("notes", "Описание", MEMO),
     ], "t.ID DESC", ["name", "tender_no", "manager"]),
 }
