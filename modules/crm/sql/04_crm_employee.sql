@@ -111,13 +111,17 @@ CREATE OR REPLACE PACKAGE BODY CRM_EMP_SYNC IS
   PROCEDURE set_prop(p_obj_id NUMBER, p_key VARCHAR2, p_vtype VARCHAR2,
                      p_s VARCHAR2 := NULL, p_i NUMBER := NULL,
                      p_b VARCHAR2 := NULL, p_d DATE := NULL) IS
+    v_gr A$ADP.GR%TYPE;
   BEGIN
     UPDATE A$ADP SET VTYPE = p_vtype, SVALUE = p_s, IVALUE = p_i,
                      BVALUE = p_b, DVALUE = p_d
      WHERE OBJ_ID = p_obj_id AND KEY = UPPER(p_key);
     IF SQL%ROWCOUNT = 0 THEN
-      INSERT INTO A$ADP (OBJ_ID, KEY, NAME, VTYPE, SVALUE, IVALUE, BVALUE, DVALUE)
-      VALUES (p_obj_id, UPPER(p_key), p_key, p_vtype, p_s, p_i, p_b, p_d);
+      -- RO: grupa proprietatii (coloana GR) o luam de la nodul insusi, ca sa
+      --     apara in uniConf linga celelalte; asa nu scriem chirilica in DDL.
+      SELECT MAX(GR) INTO v_gr FROM A$ADP WHERE OBJ_ID = p_obj_id AND KEY = 'USERNAME';
+      INSERT INTO A$ADP (OBJ_ID, KEY, NAME, GR, VTYPE, SVALUE, IVALUE, BVALUE, DVALUE)
+      VALUES (p_obj_id, UPPER(p_key), p_key, v_gr, p_vtype, p_s, p_i, p_b, p_d);
     END IF;
   END;
 
