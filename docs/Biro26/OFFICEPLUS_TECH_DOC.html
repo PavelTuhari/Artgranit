@@ -625,6 +625,7 @@ flowchart TB
                 <tr><td class="table-header pl-3">Prețul</td><td>lista în vigoare <code>TPR1D_PERPRLIST</code> (CODPRICE=1, perioada care cuprinde ziua), cu întoarcere pe fluxul <code>BIRO26_GOODS</code> — <strong>același lanț ca la magazin</strong>, ca să nu existe două adevăruri despre același preț</td></tr>
                 <tr><td class="table-header pl-3">Import</td><td>poziția folosită într-o comandă intră o singură dată în <code>CRM_ITEM</code> (<code>SRC='erp'</code>, <code>ERP_COD</code>); butonul „Reîmprospătează prețurile” o resincronizează</td></tr>
                 <tr><td class="table-header pl-3">Contragenți</td><td><code>TMS_ORG</code> + <code>YBIRO_CLIENT</code> → <code>CRM_CLIENT</code>, unire după IDNO; actualizarea completează doar golurile (<code>NVL(coloana, valoare)</code>) — 45 de clienți reali</td></tr>
+                <tr><td class="table-header pl-3">În liste</td><td><b>Nomenclatorul</b> arată pozițiile proprii și, după ele, dicționarul real; <b>Comenzile</b> arată conturile de plată ale magazinului (<code>TMDB_DOCS</code> SYSFID=12280, 168 documente) cu liniile reale din <code>VMDB_ST201D</code>. Rândurile ERP au <code>id = -COD</code>, bară verde și fișă în citire; marfa se poate aduce în nomenclator cu un buton</td></tr>
                 <tr><td class="table-header pl-3">Demo</td><td>chiriașul <code>('demo',0)</code>: 17 clienți, 21 poziții, 23 comenzi, 10 proiecte, 124 sarcini. Semănatul peste datele reale e refuzat cu <code>409</code></td></tr>
             </tbody></table>
         </div>
@@ -658,11 +659,10 @@ flowchart TB
     </div>
 
     <div class="mt-5 bg-amber-50 border border-amber-200 rounded-3xl p-6 text-sm text-slate-700">
-        <strong class="text-slate-900">Unde rulează acum:</strong> CRM-ul complet (proces, kanban, rapoarte, angajați,
-        alerte, date reale) este desfășurat pe <strong>nufarul.eminescu.md</strong> — conturul de probă, care lucrează
-        cu <em>aceeași</em> bază Oracle. Pe <strong>officeplus.md</strong> este activă deocamdată doar puntea de clienți
-        (<code>/UNA.md/orasldev/crm</code>: căutare unică OfficePlus → date.gov.md, import card XML). Mutarea completă
-        pe conturul de producție este pasul următor, după validarea de către operatori.
+        <strong class="text-slate-900">Unde rulează acum:</strong> din 12.09.2026 CRM-ul complet rulează pe
+        <strong>ambele</strong> contururi — <strong>officeplus.md</strong> și <strong>nufarul.eminescu.md</strong> — cu
+        <em>același</em> cod (51 de fișiere, md5 identice) și <em>aceeași</em> bază Oracle. Sumarul zilnic de alerte
+        pleacă dintr-un singur loc (timer-ul de pe nufarul), ca să nu iasă mesaje duble.
     </div>
 </div>
 
