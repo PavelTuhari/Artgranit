@@ -314,9 +314,11 @@
         ERP, actele încărcate, adăugare rapidă din date.gov.md.</div>
       <div class="lc-cta">Deschide →</div>
     </a>
-    <!-- RO: CRM web (12.09.2026). Aici deschide puntea de clienti; versiunea
-         completa (proces, kanban, rapoarte, angajati, alerte) ruleaza deocamdata
-         pe conturul nufarul, cu ACEEASI baza Oracle. -->
+    <!-- RO: CRM web (12.09.2026). Pe conturul unde ruleaza versiunea completa
+         (proces, kanban, rapoarte, angajati, alerte) legaturile sint locale;
+         pe celalalt duc explicit acolo — o singura variabila, un singur fisier.
+         Baza Oracle e ACEEASI pe ambele conturi. -->
+    {% set crm_full = '/UNA.md/orasldev/crm' if 'nufarul' in request.host else 'https://nufarul.eminescu.md/UNA.md/orasldev/crm' %}
     <a class="launch-card primary" href="/UNA.md/orasldev/crm/">
       <div class="lc-icon">🤝</div>
       <div class="lc-title">CRM
@@ -325,13 +327,25 @@
         oportunități, comenzi, proiecte și sarcini — pe <b>datele reale</b> ale
         ERP-ului (marfa din TMS_UNIVERS, contragenții din TMS_ORG). Tablou de
         lucru cu 8 etape, kanban, calendar și 7 rapoarte; regimul demo este
-        separat, cu comutator.
+        separat, cu comutator în bara de sus.
         <a class="lc-doc" href="/UNA.md/orasldev/b26docs/CRM/README.md" target="_blank">documentație ↗</a>
         <a class="lc-doc" href="/UNA.md/orasldev/b26docs/CRM/DATE_REALE.md" target="_blank">date reale ↗</a>
-        <a class="lc-doc" href="https://nufarul.eminescu.md/UNA.md/orasldev/crm/" target="_blank">versiunea completă ↗</a></div>
+        {% if 'nufarul' not in request.host %}<a class="lc-doc" href="{{ crm_full }}/" target="_blank">versiunea completă ↗</a>{% endif %}</div>
       <div class="lc-cta">Deschide CRM →</div>
     </a>
-    <a class="launch-card" href="https://nufarul.eminescu.md/UNA.md/orasldev/crm/#employees">
+    <a class="launch-card" href="{{ crm_full }}/#kanban">
+      <div class="lc-icon">▦</div>
+      <div class="lc-title">CRM · Proces și kanban
+        <span class="lc-badge b-new">nou</span></div>
+      <div class="lc-desc">Cele opt etape „de la contract la bani”, calculate
+        din date, nu ținute într-o coloană de stare; cinci table kanban
+        (comenzi, oportunități, sarcini, proiecte, sarcini de proiect) cu
+        mutarea cardului printr-un singur punct.
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/CRM/PROCESS.md" target="_blank">procesul ↗</a>
+        <a class="lc-doc" href="{{ crm_full }}/#reports" target="_blank">rapoarte ↗</a></div>
+      <div class="lc-cta">Deschide tabla →</div>
+    </a>
+    <a class="launch-card" href="{{ crm_full }}/#employees">
       <div class="lc-icon">🧑‍💼</div>
       <div class="lc-title">CRM · Angajați
         <span class="lc-badge b-new">nou</span></div>
@@ -342,7 +356,7 @@
         <a class="lc-doc" href="/UNA.md/orasldev/b26docs/CRM/ANGAJATI.md" target="_blank">documentație ↗</a></div>
       <div class="lc-cta">Deschide lista →</div>
     </a>
-    <a class="launch-card" href="https://nufarul.eminescu.md/UNA.md/orasldev/crm/#alerts">
+    <a class="launch-card" href="{{ crm_full }}/#alerts">
       <div class="lc-icon">🔔</div>
       <div class="lc-title">CRM · Alerte
         <span class="lc-badge b-new">nou</span></div>
@@ -350,8 +364,18 @@
         alerte, sumar zilnic pe <b>aceleași canale ca la comenzile de pe site</b>
         (Telegram, WhatsApp, e-mail), fără configurare nouă.
         <a class="lc-doc" href="/UNA.md/orasldev/b26docs/CRM/ALERTE_TELEGRAM.md" target="_blank">documentație ↗</a>
-        <a class="lc-doc" href="https://nufarul.eminescu.md/UNA.md/orasldev/crm/alerte/prezentare" target="_blank">prezentare ↗</a></div>
+        <a class="lc-doc" href="{{ crm_full }}/alerte/prezentare" target="_blank">prezentare ↗</a></div>
       <div class="lc-cta">Deschide alertele →</div>
+    </a>
+    <a class="launch-card" href="{{ crm_full }}/cabinet">
+      <div class="lc-icon">🧑‍💻</div>
+      <div class="lc-title">CRM în cabinetul clientului
+        <span class="lc-badge b-new">nou</span></div>
+      <div class="lc-desc">Același CRM, dar pentru clientul OfficePlus
+        autentificat în magazin: vede doar datele lui — chiriaș separat
+        <code>('client', id)</code>, lista de angajați îi este închisă (403).
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/CRM/PROTOCOL_TESTARE_2026-09-05.md" target="_blank">protocol de testare ↗</a></div>
+      <div class="lc-cta">Deschide cabinetul →</div>
     </a>
     <a class="launch-card" href="/UNA.md/orasldev/biro26-import-pt">
       <div class="lc-icon">📥</div>
