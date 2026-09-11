@@ -15,7 +15,9 @@ DOCS = os.path.join(ROOT, "docs")
 # RO: doar folderele proiectului care au documentatie de citit din portal.
 #     Lista albila, nu «orice folder din docs» — vizualizatorul nu trebuie sa
 #     poata scoate un fisier de altundeva.
-FOLDERS = ("Biro26", "Partner")
+# RO: 12.09.2026 — si documentele CRM-ului web (docs/CRM), ca legaturile din
+#     hub-ul Biro26 sa deschida ceva, nu 404.
+FOLDERS = ("Biro26", "Partner", "CRM")
 EXT = (".md", ".html", ".htm")
 
 
