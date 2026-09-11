@@ -265,7 +265,10 @@ class EfaController:
             return {"success": False, "error": r.get("error")}
         parsed = r.get("parsed") or {}
         posted = parsed.get("TotalInvoicesPosted") or parsed.get("Status")
-        err = parsed.get("ErrorMessage")
+        # RO: textul SFS + ce trebuie sa stie operatorul (a cui e vina si daca
+        #     se poate repeta) — regula pura, in rules.py (11.09.2026, doc 431)
+        from modules.efactura.rules import explain_sfs_error
+        err = explain_sfs_error(parsed.get("ErrorMessage"), parsed) or None
         status = "SENT" if not err else "ERROR"
         EfaStore.doc_upsert(doc_cod, STATUS=status,
                             REQUEST_ID=str(r.get("request_id"))[:80],

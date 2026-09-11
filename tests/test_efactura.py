@@ -862,3 +862,34 @@ def test_report_routes_and_page():
     import json
     m = json.load(open(os.path.join(ROOT, "modules/efactura/module.json"), encoding="utf-8"))
     assert "efactura.report_page" in m["pages"]
+
+
+# ── refuzurile SFS explicate operatorului (11.09.2026, documentul 431) ───
+def test_sfs_transient_error_is_named_as_theirs_and_marked_repeatable():
+    """RO: SFS a raspuns «A aparut o eroare la incarcarea atasamentului. Va
+    rugam sa incercati mai tarziu» cu TotalInvoicesPosted=0 — nimic nu a
+    intrat la ei, deci actiunea se poate repeta, iar vina nu e a documentului."""
+    from modules.efactura.rules import explain_sfs_error, sfs_transient
+    p = {"TotalInvoices": "1", "TotalInvoicesPosted": "0"}
+    msg = explain_sfs_error("A aparut o eroare la incarcarea atasamentului. "
+                            "Va rugam sa incercati mai tarziu.", p)
+    assert "eroare la SFS, nu in document" in msg and "se poate repeta" in msg
+    assert sfs_transient("...ataşamentului...") and sfs_transient("try again later")
+    # un refuz al documentului nostru nu se da drept eroare a lor
+    ours = explain_sfs_error("Motivul Crearii este indicat incorect trebue sa fie 1 sau 2", p)
+    assert "eroare la SFS" not in ours and "se poate repeta" in ours
+    assert not sfs_transient("Motivul Crearii este indicat incorect")
+
+
+def test_partially_posted_batch_warns_against_repeating():
+    """RO: daca ceva a INTRAT deja, repetarea face dubluri (03.09.2026: patru
+    apasari = patru facturi in SFS)."""
+    from modules.efactura.rules import explain_sfs_error
+    msg = explain_sfs_error("eroare", {"TotalInvoices": "2", "TotalInvoicesPosted": "1"})
+    assert "nu repetati" in msg and "se poate repeta" not in msg
+    assert explain_sfs_error("", {"TotalInvoices": "1"}) == ""
+
+
+def test_controller_shows_the_explained_error_in_the_native_window():
+    src = open(os.path.join(ROOT, "modules/efactura/controller.py"), encoding="utf-8").read()
+    assert "explain_sfs_error(parsed.get(\"ErrorMessage\"), parsed)" in src
