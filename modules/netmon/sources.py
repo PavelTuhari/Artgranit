@@ -8,6 +8,7 @@ SQL — в store.py, правила разбора — в rules.py. Секрет
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import urllib.request
 
