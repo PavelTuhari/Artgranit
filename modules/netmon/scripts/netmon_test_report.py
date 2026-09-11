@@ -62,10 +62,12 @@ body{margin:0;background:var(--bg);color:var(--txt);
 .org{color:var(--head);font-weight:700;letter-spacing:.12em;font-size:12px;text-transform:uppercase}
 h1{font-size:29px;margin:10px 0 6px;font-weight:650;line-height:1.25}
 .sub{color:var(--dim);font-size:15px}
-.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:0;
-      margin-top:22px;border:1px solid var(--line);border-radius:7px;overflow:hidden}
-.meta div{padding:11px 15px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
-.meta div:last-child{border-right:0}
+/* сетка «в линейку»: фон просвечивает между ячейками, поэтому при любом
+   переносе колонок рамка остаётся ровной, без висящих линий */
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:1px;
+      margin-top:22px;border:1px solid var(--line);border-radius:7px;overflow:hidden;
+      background:var(--line)}
+.meta div{padding:11px 15px;background:var(--bg)}
 .meta .k{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
 .meta .v{font-weight:600;margin-top:2px}
 h2{font-size:20px;margin:36px 0 10px;padding-bottom:7px;border-bottom:2px solid var(--head);font-weight:640}
