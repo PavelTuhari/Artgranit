@@ -93,6 +93,9 @@
     if (!r.success) { say('danger', r.error + (r.detail ? ' — ' + r.detail : '')); return; }
     say('success', t('added', (r.data[0] || {}).name || cod));
     if (window.crmReload) window.crmReload();
+    // RO: dupa aducere pozitia are rind propriu in CRM — deschidem fisa lui
+    const id = (r.data[0] || {}).id;
+    if (id && window.crmOpen) window.crmOpen('items', id);
   };
 
   window.crmErpRefresh = async function () {

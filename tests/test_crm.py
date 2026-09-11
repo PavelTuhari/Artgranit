@@ -646,3 +646,54 @@ def test_employees_sit_next_to_clients_in_the_menu():
     i = js.index("nav.innerHTML")
     frag = js[i:i + 300]
     assert "'clients'].concat(CAB ? [] : ['employees'])" in frag
+
+
+# ── marfa si comenzile REALE in listele CRM (12.09.2026) ─────────────────
+def test_real_orders_come_from_the_shop_invoices():
+    """RO: «в оракл полно реальных данных» — comenzile sint conturile de plata
+    ale magazinului (SYSFID=12280), cu liniile lor din VMDB_ST201D."""
+    assert ERP.WEB_INVOICE_SYSFID == 12280
+    sql, p = ERP.orders_sql("artinica", limit=5)
+    assert "TMDB_DOCS" in sql and "VMDB_ST201M" in sql and "TMS_UNIVERS" in sql
+    assert "d.SYSFID = 12280" in sql and "ROWNUM <= 5" in sql and p["s"] == "%artinica%"
+    assert "VMDB_ST201D" in ERP.ORDER_LINES_SQL and "l.CANT" in ERP.ORDER_LINES_SQL
+    o = ERP.order_from_doc({"cod": 431, "nrmanual": "A-93", "ddate": "2026-09-10",
+                            "client_name": "SRL ARTINICA-CV", "total": 310, "client_cod": 539985})
+    assert o["id"] == -431 and o["number"] == "A-93" and o["total"] == 310.0
+    assert o["client_id__disp"] == "SRL ARTINICA-CV" and o["src"] == "erp"
+    assert o["status"] == "Подтверждён"                       # fara nota de livrare
+    assert ERP.order_from_doc({"cod": 1, "livr_cod": 7})["status"] == "Выполнен"
+
+
+def test_erp_rows_have_negative_ids_and_are_read_only():
+    """RO: rindul real din ERP nu se poate confunda cu unul propriu si nu se
+    modifica din CRM — documentele le tine contabilitatea in ERP."""
+    assert ERP.erp_id(431) == -431 and ERP.cod_of(-431) == 431
+    assert ERP.is_erp_id(-1) and not ERP.is_erp_id(0) and not ERP.is_erp_id(5)
+    api = _read("modules", "crm", "routes_process.py")
+    assert "def _no_write_on_erp" in api
+    for m in ('methods=["PUT"]', 'methods=["DELETE"]'):
+        i = api.index(m)
+        assert "_no_write_on_erp(rid)" in api[i:i + 300], m
+    # RO: <int:...> NU prinde numerele negative — rutele fisei sint semnate
+    assert '"/api/v2/<key>/<int(signed=True):rid>"' in api
+    assert '"/api/v2/<key>/<int:rid>"' not in api
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert "if (CUR.id < 0)" in js and "ERPT" in js             # fisa in citire
+    assert "const ro = (row.id || 0) < 0" in js                 # liniile fara stergere
+
+
+def test_lists_show_erp_rows_after_the_crm_ones():
+    """RO: «Nomenclator» si «Comenzi» arata intii rindurile CRM, apoi ce e in
+    ERP; la filtru de etapa/doua nu se amesteca nimic, iar o eroare a ERP-ului
+    nu goleste lista."""
+    api = _read("modules", "crm", "routes_process.py")
+    i = api.index("def _erp_rows")
+    frag = api[i:i + 900]
+    assert 'key not in ("items", "orders")' in frag and "g.crm.t.real" in frag
+    assert "filtered" in frag and "except Exception" in frag
+    assert "rows += _erp_rows(" in api
+    src = _read("modules", "crm", "store_erp.py")
+    assert "def items_view" in src and "def orders_view" in src
+    assert "def order_lines_view" in src
+    assert "ERP_COD IS NOT NULL" in src                        # pozitia adusa nu se dubleaza

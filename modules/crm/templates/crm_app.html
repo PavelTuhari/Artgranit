@@ -96,6 +96,9 @@
   #al-cfg .kv > div > label{color:#333;margin:0;display:flex;align-items:baseline;gap:6px}
   #al-cfg .kv input[type=checkbox]{width:auto;flex:none}
   #al-tab td,#emp-tab td{font-size:12.5px}
+  /* RO: rindurile venite din ERP (marfa si comenzile reale) — in citire */
+  tr.r.erp td:first-child{box-shadow:inset 3px 0 0 #9ccc9c}
+  tr.r.erp{background:#fbfdfb}
   /* RO: grupul si datele nu se rup pe mai multe rinduri — lista ramine citibila */
   #emp-tab td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
   #emp-tab td:nth-child(5){max-width:88px}

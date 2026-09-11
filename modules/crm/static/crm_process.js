@@ -176,7 +176,7 @@
     const key = CUR.key, e = ENT[key];
     const tb = document.querySelector(`#et-${key} tbody`); if (!tb) return;
     const cols = e.fields.filter(f => f.width);
-    tb.innerHTML = CUR.rows.map(row => `<tr class="r ${CUR.id === row.id ? 'sel' : ''}" id="er-${key}-${row.id}" onclick="crmOpen('${key}',${row.id})">${cols.map(f => `<td class="${['money', 'number', 'readonly'].includes(f.kind) ? 'num' : ''} ${f.kind === 'date' && row[f.name] && row[f.name] < today() && !row.done && (key === 'tasks' || key === 'orders' || key === 'projects') && ['due_at', 'due_date'].includes(f.name) ? 'late' : ''}">${cell(f, row)}</td>`).join('')}</tr>`).join('')
+    tb.innerHTML = CUR.rows.map(row => `<tr class="r ${CUR.id === row.id ? 'sel' : ''} ${row.id < 0 ? 'erp' : ''}" id="er-${key}-${row.id}" onclick="crmOpen('${key}',${row.id})">${cols.map(f => `<td class="${['money', 'number', 'readonly'].includes(f.kind) ? 'num' : ''} ${f.kind === 'date' && row[f.name] && row[f.name] < today() && !row.done && (key === 'tasks' || key === 'orders' || key === 'projects') && ['due_at', 'due_date'].includes(f.name) ? 'late' : ''}">${cell(f, row)}</td>`).join('')}</tr>`).join('')
       || `<tr><td colspan="${cols.length}" class="muted">—</td></tr>`;
     if (CUR.id) renderEditor();
   }
@@ -198,6 +198,15 @@
     return `<select data-f="${f.name}"><option value=""></option>${list.map(n =>
       `<option value="${esc(n)}" ${n === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
   }
+  // RO: insemnele rindurilor aduse din ERP (marfa si comenzile reale)
+  const ERPT = {
+    ro: { badge: 'din ERP', add: 'Adaugă în nomenclator',
+          hint: 'Rând real din ERP — se vede aici, se modifică în ERP (documentele le ține contabilitatea).' },
+    ru: { badge: 'из ERP', add: 'Добавить в номенклатуру',
+          hint: 'Реальная строка из ERP — здесь только просмотр, изменения делаются в ERP.' },
+    en: { badge: 'from ERP', add: 'Add to the catalogue',
+          hint: 'A real ERP row — shown here, edited in the ERP (documents belong to accounting).' }
+  };
   async function lookupOptions(kind, sel) {
     const r = await api(V2 + 'lookup/' + kind.replace('lookup_', ''));
     return `<option value=""></option>` + ((r.success ? r.data : []).map(o => `<option value="${o.id}" ${String(o.id) === String(sel) ? 'selected' : ''}>${esc(o.name)}</option>`).join(''));
@@ -227,6 +236,19 @@
       extra = `<div class="sub"><h4>${esc(S('kanban.tasks_of', ''))}</h4><div>${s.done}/${s.total} · ${s.progress}% · ${esc(S('kanban.overdue'))}: ${s.overdue} · ${esc(S('gantt.plan'))} ${s.hours_plan} h / ${esc(S('gantt.run'))} ${s.hours_fact} h</div>
         <div style="margin-top:6px"><button class="btn" onclick="crmProjectTasks(${CUR.id})">${esc(S('kanban.board_project_tasks'))}</button>
         <button class="btn" onclick="crmProjectOrders(${CUR.id})">${esc(S('nav.orders'))}</button></div></div>`;
+    }
+    // RO: rindurile reale din ERP (id negativ) se vad, nu se modifica din CRM
+    if (CUR.id < 0) {
+      const t = ERPT[LANG2] || ERPT.ro;
+      const add = key === 'items'
+        ? `<button class="btn btn-primary" onclick="crmErpImport(${-CUR.id})">${esc(t.add)}</button>` : '';
+      host.innerHTML = `<h3>${esc(row[e.fields[0].name] || '')} <span class="tag">${esc(t.badge)}</span></h3>
+        <div class="kv">${parts.join('')}</div>${extra}
+        <div class="actions">${add}</div>
+        <div class="muted" style="padding:0 12px 12px">${esc(t.hint)}</div>`;
+      if (key === 'orders') fillLineItems();
+      document.querySelectorAll(`#ed-${key} [data-f]`).forEach(el => { el.disabled = true; });
+      return;
     }
     const acts = [`<button class="btn btn-primary" onclick="crmSave()">${esc(S('btn.save'))}</button>`];
     if (CUR.id) {
@@ -290,14 +312,16 @@
   // ── liniile comenzii ─────────────────────────────────────────────────────
   function renderLines(row) {
     const lines = row.lines || [];
-    return `<div class="sub"><h4>${esc(S('btn.add_line'))}</h4>
+    // RO: comanda reala din ERP se citeste — fara stergere de rinduri, fara adaugare
+    const ro = (row.id || 0) < 0;
+    return `<div class="sub"><h4>${esc(ro ? S('nav.items') : S('btn.add_line'))}</h4>
       <table>${lines.map(l => `<tr><td>${esc(l.item_name || '')}</td><td class="num">${l.qty} ${esc(l.unit_ || '')}</td><td class="num">${money(l.price)}</td><td class="num"><b>${money(l.sum)}</b></td>
-        <td><a href="#" class="btn-danger" onclick="crmDelLine(${l.id});return false" title="${esc(S('btn.del_line'))}">×</a></td></tr>`).join('') || `<tr><td class="muted">—</td></tr>`}</table>
-      <div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
+        <td>${ro ? '' : `<a href="#" class="btn-danger" onclick="crmDelLine(${l.id});return false" title="${esc(S('btn.del_line'))}">×</a>`}</td></tr>`).join('') || `<tr><td class="muted">—</td></tr>`}</table>
+      ${ro ? '' : `<div style="display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap">
         <select id="ln-item" style="flex:1;min-width:160px"></select>
         <input id="ln-qty" type="number" step="any" value="1" style="width:70px" title="qty">
         <input id="ln-price" type="number" step="any" placeholder="${esc(cap('Цена, MDL'))}" style="width:100px">
-        <button class="btn" onclick="crmAddLine()">${esc(S('btn.add_line'))}</button></div></div>`;
+        <button class="btn" onclick="crmAddLine()">${esc(S('btn.add_line'))}</button></div>`}</div>`;
   }
   async function fillLineItems() {
     const s = document.getElementById('ln-item'); if (!s) return;

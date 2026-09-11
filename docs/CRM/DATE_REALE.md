@@ -105,3 +105,38 @@ Mutarea schimbă doar `OWNER_KIND` al rândurilor demonstrative (270 rânduri î
 * sincronizarea contragenților: 38 noi, 19 actualizați (61 clienți în total);
 * capcană rezolvată: `ORA-01036` — Oracle refuză legăturile nefolosite, deci
   fiecare ramură (INSERT / UPDATE) primește exact parametrii instrucțiunii ei.
+
+---
+
+## 8. Marfa și comenzile reale direct în liste (12.09.2026)
+
+**Cerința proprietarului:** *«особенно обрати внимание на marfa и на comenzi,
+тут полно в оракл реальных данных»*. Deci cele două secțiuni nu mai arată doar
+ce a fost introdus în CRM:
+
+| Secțiune | Ce se vede acum |
+|---|---|
+| **Nomenclator** | pozițiile proprii (aduse din ERP sau create în CRM) și, după ele, **marfa reală din dicționar** — 188 857 poziții active, cu prețul din lista în vigoare și stocul din flux |
+| **Comenzi** | comenzile proprii și **conturile de plată reale ale magazinului** — `TMDB_DOCS` cu `SYSFID=12280` (168 documente), cu client, dată, total și **liniile reale** din `VMDB_ST201D` (articol, cantitate, preț, sumă) |
+
+### Cum se deosebesc de rândurile CRM
+
+* **id negativ**: rândul ERP are `id = -COD` (rândurile CRM au întotdeauna
+  `id > 0`), deci nu se pot confunda niciodată;
+* în listă au o **bară verde** la stânga, iar în fișă un semn `din ERP`;
+* fișa este **în citire**: câmpurile sunt blocate, liniile comenzii nu au
+  „×", nu există formular de adăugare. `PUT`/`DELETE` pe un id negativ sunt
+  refuzate cu mesaj („se modifică în ERP, nu în CRM");
+* la marfă, fișa are butonul **„Adaugă în nomenclator”** — poziția intră o
+  singură dată în `CRM_ITEM` (cu `ERP_COD`) și de atunci are rând propriu, iar
+  din lista ERP dispare (nu se dublează).
+
+### Capcană rezolvată
+
+Ruta `/api/v2/<key>/<int:rid>` **nu prinde numerele negative** — convertorul
+`int` al Werkzeug este fără semn, deci fișa unui rând ERP dădea `HTTP 404`.
+Rutele fișei sunt acum `<int(signed=True):rid>`.
+
+Filtrele de etapă și coloanele de kanban nu amestecă rânduri ERP (ele se aplică
+numai datelor CRM), iar dacă ERP-ul nu răspunde, lista rămâne cu rândurile CRM
+— nu se golește.

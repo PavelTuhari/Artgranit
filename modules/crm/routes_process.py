@@ -92,6 +92,23 @@ def api_meta():
         "tenant": {"kind": g.crm.t.kind, "id": g.crm.t.id, "label": g.crm.t.label}}})
 
 
+def _erp_rows(key, q, room, filtered):
+    """RO: marfa si comenzile REALE din Oracle, dupa rindurile proprii ale CRM-ului.
+    Cerinta proprietarului 12.09.2026: in «Nomenclator» si «Comenzi» trebuie sa se
+    vada ce e in ERP, nu doar ce a fost introdus in CRM. Randurile ERP sint in
+    CITIRE (id negativ); filtrele de etapa/doua nu li se aplica, deci atunci nu se
+    adauga deloc. Erorile nu strica lista: fara ERP raman rindurile CRM."""
+    if filtered or room <= 0 or key not in ("items", "orders") or not g.crm.t.real:
+        return []
+    try:
+        from modules.crm.store_erp import ErpSource
+        e = ErpSource(g.crm.t, g.crm.db)
+        return (e.items_view(q, limit=room) if key == "items"
+                else e.orders_view(q, limit=room))
+    except Exception:                                # noqa: BLE001
+        return []
+
+
 def _persons():
     """RO: cine se poate alege ca responsabil: angajatii inregistrati (conturile
     ERP) plus numele care apar deja in date, ca nimic scris inainte sa nu se
@@ -111,6 +128,29 @@ def _persons():
         if p not in out:
             out.append(p)
     return out
+
+
+def _no_write_on_erp(rid):
+    """RO: rindurile reale din ERP se vad, nu se modifica din CRM — documentele
+    si dictionarul se schimba in ERP, unde le tine contabilitatea."""
+    from modules.crm import erp_source as es
+    if es.is_erp_id(rid):
+        raise ValueError("rind din ERP: se modifica in ERP, nu in CRM "
+                         "(marfa o puteti aduce in nomenclator cu «Adauga din ERP»)")
+
+
+def _erp_one(key, rid):
+    """RO: fisa unui rind real din ERP (id negativ) — doar citire."""
+    from modules.crm import erp_source as es
+    if not es.is_erp_id(rid) or key not in ("items", "orders") or not g.crm.t.real:
+        return None
+    from modules.crm.store_erp import ErpSource
+    e = ErpSource(g.crm.t, g.crm.db)
+    row = (e.item_view(es.cod_of(rid)) if key == "items"
+           else e.order_view(es.cod_of(rid)))
+    if row is None:
+        raise LookupError("inregistrarea nu mai exista in ERP")
+    return row
 
 
 # ── CRUD generic ─────────────────────────────────────────────────────────
@@ -148,15 +188,20 @@ def api_list(key):
     if cid and entity(key).field("client_id"):
         extra = (extra + " AND " if extra else "") + "t.CLIENT_ID = :cid"
         params["cid"] = cid
+    lim = min(request.args.get("limit", 500, type=int), 500)
     rows = g.crm.list(key, q=request.args.get("q", ""), extra_where=extra, extra_params=params,
-                      limit=min(request.args.get("limit", 500, type=int), 500))
+                      limit=lim)
+    rows += _erp_rows(key, request.args.get("q", ""), lim - len(rows), bool(extra))
     return jsonify({"success": True, "data": rows, "count": len(rows)})
 
 
-@blueprint.route("/api/v2/<key>/<int:rid>")
+@blueprint.route("/api/v2/<key>/<int(signed=True):rid>")
 @with_data
 def api_get(key, rid):
     _entity_or_404(key)
+    row = _erp_one(key, rid)
+    if row is not None:
+        return jsonify({"success": True, "data": row})
     row = g.crm.get(key, rid)
     if not row:
         raise LookupError("inregistrare inexistenta")
@@ -175,18 +220,20 @@ def api_create(key):
     return jsonify({"success": True, "data": g.crm.get(key, rid), "id": rid}), 201
 
 
-@blueprint.route("/api/v2/<key>/<int:rid>", methods=["PUT"])
+@blueprint.route("/api/v2/<key>/<int(signed=True):rid>", methods=["PUT"])
 @with_data
 def api_update(key, rid):
     _entity_or_404(key)
+    _no_write_on_erp(rid)
     g.crm.update(key, rid, request.get_json(silent=True) or {})
     return jsonify({"success": True, "data": g.crm.get(key, rid)})
 
 
-@blueprint.route("/api/v2/<key>/<int:rid>", methods=["DELETE"])
+@blueprint.route("/api/v2/<key>/<int(signed=True):rid>", methods=["DELETE"])
 @with_data
 def api_delete(key, rid):
     _entity_or_404(key)
+    _no_write_on_erp(rid)
     g.crm.delete(key, rid)
     return jsonify({"success": True})
 

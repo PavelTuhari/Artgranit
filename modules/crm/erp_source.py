@@ -155,3 +155,108 @@ def summary(goods: int, clients: int) -> str:
 
 def rows_to_items(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [item_from_good(r) for r in rows]
+
+
+# ── vederile ERP pentru nomenclator si comenzi (12.09.2026) ──────────────
+# RO: cerinta proprietarului: «особенно обрати внимание на marfa и на comenzi,
+#     тут полно в оракл реальных данных». Deci cele doua sectiuni nu mai arata
+#     doar ce a intrat in CRM: ele arata MARFA reala din dictionar si COMENZILE
+#     reale (conturile de plata web, SYSFID=12280) — in citire, cu acelasi
+#     lant de preturi ca magazinul. Randurile ERP au id NEGATIV (-COD), ca sa
+#     nu se incurce niciodata cu randurile proprii (CRM_ITEM/CRM_ORDER.ID > 0).
+WEB_INVOICE_SYSFID = 12280
+
+
+def erp_id(cod) -> int:
+    """RO: id-ul de afisare al unui rind ERP: -COD (randurile CRM au id > 0)."""
+    return -abs(int(cod or 0))
+
+
+def is_erp_id(rid) -> bool:
+    return int(rid or 0) < 0
+
+
+def cod_of(rid) -> int:
+    return abs(int(rid or 0))
+
+
+# RO: comenzile reale = conturile de plata emise de magazin. Antetul in
+#     TMDB_DOCS + VMDB_ST201M (m.DTDEP = contragentul), totalul din liniile
+#     VMDB_ST201D, denumirea clientului din TMS_UNIVERS.
+ORDERS_SELECT = (
+    "SELECT d.COD, TRIM(d.NRMANUAL) AS NRMANUAL, d.NRSET, "
+    "       TO_CHAR(d.DATAMANUAL,'YYYY-MM-DD') AS DDATE, "
+    "       m.DTDEP AS CLIENT_COD, u.DENUMIREA AS CLIENT_NAME, "
+    "       (SELECT ROUND(SUM(l.SUMA),2) FROM VMDB_ST201D l WHERE l.NRDOC = d.COD) AS TOTAL, "
+    "       m.CTNRDOC AS LIVR_COD "
+    "  FROM TMDB_DOCS d "
+    "  JOIN VMDB_ST201M m ON m.NRDOC = d.COD "
+    "  LEFT JOIN TMS_UNIVERS u ON u.COD = m.DTDEP "
+    " WHERE d.SYSFID = %d" % WEB_INVOICE_SYSFID)
+
+ORDER_LINES_SQL = (
+    "SELECT l.CTSC, l.CANT, l.PRET, l.SUMA, u.DENUMIREA, u.UM, u.CODVECHI "
+    "  FROM VMDB_ST201D l LEFT JOIN TMS_UNIVERS u ON u.COD = l.CTSC "
+    " WHERE l.NRDOC = :cod ORDER BY l.RROWID")
+
+
+def orders_sql(q: str = "", limit: int = 200, cod: int = 0):
+    """RO: comenzile reale, cele mai noi primele."""
+    sql, p = ORDERS_SELECT, {}
+    if cod:
+        sql += " AND d.COD = :cod"
+        p["cod"] = int(cod)
+    else:
+        text = (q or "").strip()
+        if text:
+            sql += (" AND (UPPER(u.DENUMIREA) LIKE UPPER(:s) OR TRIM(d.NRMANUAL) LIKE :s2 "
+                    "OR TO_CHAR(d.NRSET) = :s3 OR TO_CHAR(d.COD) = :s3)")
+            p.update({"s": "%" + text + "%", "s2": "%" + text + "%",
+                      "s3": text.lstrip("#")})
+    n = max(1, min(int(limit or 200), 500))
+    return "SELECT * FROM (%s ORDER BY d.COD DESC) WHERE ROWNUM <= %d" % (sql, n), p
+
+
+def order_from_doc(row) -> dict:
+    """RO: contul de plata -> cimpurile entitatii «comenzi». Documentul are
+    deja o nota de livrare (CTNRDOC) => comanda e livrata."""
+    livrat = bool(row.get("livr_cod"))
+    return {
+        "id": erp_id(row.get("cod")),
+        "number": (row.get("nrmanual") or "").strip() or str(row.get("nrset") or row.get("cod")),
+        "order_date": row.get("ddate") or "",
+        "client_id": None,
+        "client_id__disp": (row.get("client_name") or "").strip(),
+        "project_id": None, "project_id__disp": "",
+        "kind": "Продажа",
+        "status": "Выполнен" if livrat else "Подтверждён",
+        "total": float(row.get("total") or 0),
+        "advance": None, "paid": None,
+        "due_date": row.get("ddate") or "", "ship_date": None,
+        "notes": "",
+        "src": "erp", "erp_cod": int(row.get("cod") or 0),
+        "erp_client_cod": int(row.get("client_cod") or 0) or None,
+    }
+
+
+def line_from_doc(row) -> dict:
+    qty = float(row.get("cant") or 0)
+    total = float(row.get("suma") or 0)
+    price = float(row.get("pret") or 0) or (round(total / qty, 2) if qty else 0.0)
+    # RO: numele cimpurilor sint cele pe care le asteapta pagina (item_name, sum)
+    return {
+        "id": erp_id(row.get("ctsc")),
+        "item_id": erp_id(row.get("ctsc")),
+        "item_name": (row.get("denumirea") or "").strip(),
+        "item_id__disp": (row.get("denumirea") or "").strip(),
+        "code": (row.get("codvechi") or "").strip(),
+        "unit_": row.get("um") or "",
+        "qty": qty, "price": price, "sum": total, "line_sum": total,
+    }
+
+
+def item_row(row) -> dict:
+    """RO: pozitia dictionarului ERP in forma entitatii «nomenclator»."""
+    it = item_from_good(row)
+    it.update({"id": erp_id(row.get("cod")), "src": "erp", "notes": ""})
+    return it

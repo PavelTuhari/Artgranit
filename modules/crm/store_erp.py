@@ -173,3 +173,41 @@ class ErpSource:
         return {"erp_goods": goods, "erp_orgs": orgs, "shop_clients": shop,
                 "items": int(mine[0]["c"] or 0), "items_erp": int(mine[0]["e"] or 0),
                 "clients": int(cl[0]["c"] or 0), "tenant": self.t.kind, "real": self.t.real}
+
+    # ── vederi ERP: marfa si comenzile reale (12.09.2026) ────────────────
+    def items_view(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
+        """RO: marfa reala din dictionar, gata de afisat in «Nomenclator».
+        Pozitiile deja aduse in CRM nu se repeta — ele au rindul lor propriu."""
+        self._guard()
+        sql, p = src.goods_sql(q, only_active=True, limit=limit)
+        taken = {int(r["erp_cod"]) for r in self._rows(
+            "SELECT ERP_COD FROM CRM_ITEM WHERE OWNER_KIND = :ok AND OWNER_ID = :oi "
+            "AND ERP_COD IS NOT NULL", self.t.params())}
+        return [src.item_row(r) for r in self._rows(sql, p)
+                if int(r.get("cod") or 0) not in taken]
+
+    def orders_view(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
+        """RO: comenzile reale = conturile de plata ale magazinului."""
+        self._guard()
+        sql, p = src.orders_sql(q, limit=limit)
+        return [src.order_from_doc(r) for r in self._rows(sql, p)]
+
+    def order_view(self, cod: int) -> Optional[Dict[str, Any]]:
+        self._guard()
+        sql, p = src.orders_sql(cod=int(cod))
+        rows = self._rows(sql, p)
+        if not rows:
+            return None
+        out = src.order_from_doc(rows[0])
+        out["lines"] = self.order_lines_view(cod)
+        return out
+
+    def order_lines_view(self, cod: int) -> List[Dict[str, Any]]:
+        return [src.line_from_doc(r) for r in
+                self._rows(src.ORDER_LINES_SQL, {"cod": int(cod)})]
+
+    def item_view(self, cod: int) -> Optional[Dict[str, Any]]:
+        self._guard()
+        sql, p = src.goods_sql(cod=int(cod), limit=1)
+        rows = self._rows(sql, p)
+        return src.item_row(rows[0]) if rows else None
