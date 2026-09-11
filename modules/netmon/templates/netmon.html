@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мониторинг офиса: сеть и Telegram</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #0f1419; color: #e6edf3; }
+    header { padding: 14px 18px; background: #161b22; border-bottom: 1px solid #30363d; }
+    main { padding: 18px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; max-width: 520px; }
+  </style>
+</head>
+<body>
+  <header><strong>Мониторинг офиса: сеть и Telegram</strong></header>
+  <main>
+    <div class="card">
+      <p>Модуль <code>netmon</code> подключён ядром. Статус API: <span id="st">…</span></p>
+    </div>
+  </main>
+  <script>
+    // Базу адреса берём у сервера, не пишем строкой: модуль не привязан к точке монтирования
+    fetch("{{ url_for('netmon.api_status') }}")
+      .then(r => r.json()).then(j => document.getElementById("st").textContent = JSON.stringify(j.data || j));
+  </script>
+</body>
+</html>
