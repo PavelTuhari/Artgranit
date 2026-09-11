@@ -91,12 +91,24 @@ SIA e-Factura (0 din 1) - actiunea se poate repeta.
 3. Verificarea, fără a trimite nimic:
    `SELECT EFA_NATIVE.doc_status(431) FROM dual;`
 
-## Deploy
+## Deploy — făcut 11.09.2026, 16:4x
 
-Modificările sunt pe ramura `feat/efactura` (Python, fără DDL). Conturul care
-răspunde la `http://officeplus.md/api/biro26/efactura/...` este cel din
-birou (192.168.0.250), accesibil doar prin **VPN93** — tunelul refuză acum
-conexiunea (`L2TP: incorrect user shared secret`), iar cheia partajată o
-poate reintroduce doar proprietarul (Preferințe → Rețea → VPN93). Până
-atunci în producție rămâne mesajul vechi (scurt), dar **comportamentul nu se
-schimbă**: și acum se poate repeta în siguranță.
+Conturul din birou (192.168.0.250, serviciul `artgranit`, magazinul pe 8001)
+a primit `modules/efactura/rules.py` și `controller.py`, cu copii de
+siguranță `*.bak-20260911`. Verificat după restart:
+
+* `systemctl is-active artgranit` → `active`, 0 `Traceback` în jurnal;
+* `http://127.0.0.1:8001/` → 200, `https://officeplus.md/cos` → 200,
+  antetul `X-Shop-Origin: office` (răspunde biroul, nu rezerva);
+* mesajul explicat, rulat pe serverul însuși:
+  «… [eroare la SFS, nu in document] Nimic nu a intrat in SIA e-Factura
+  (0 din 1) — actiunea se poate repeta.»
+
+Nu s-a atins `tests/test_efactura.py` de pe server: acolo este o variantă
+mai veche, diferită de ramură (763 de linii diferență, alt furnizor de
+probă), iar testele nu se execută în producție — regula nr. 4 (nu se
+suprascrie munca altcuiva).
+
+Serviciul SFS a răspuns la metoda `Test` (apel fără efecte) imediat după
+deploy: **serverul lor este accesibil acum**. Asta nu garantează că
+salvarea atașamentelor la ei s-a reparat — se vede doar la o nouă trimitere.
