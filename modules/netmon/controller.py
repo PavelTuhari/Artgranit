@@ -116,8 +116,9 @@ class NetmonController:
         """Лента отправленных сообщений из Zabbix → Oracle (идемпотентно)."""
         try:
             rows = sources.Zabbix().alerts(days=days)
-            added = skipped = 0
+            skipped = 0
             cache: dict[str, int] = {}
+            ready = []
             for a in rows:
                 cid = cache.get(a["chat_id"])
                 if cid is None:
@@ -127,8 +128,8 @@ class NetmonController:
                         continue
                     cache[a["chat_id"]] = cid
                 a["channel_id"] = cid
-                if store.upsert_alert(a):
-                    added += 1
+                ready.append(a)
+            added = store.upsert_alerts(ready)
             return _ok({"fetched": len(rows), "added": added, "skipped_no_channel": skipped})
         except Exception as e:  # noqa: BLE001
             return _fail(e)
