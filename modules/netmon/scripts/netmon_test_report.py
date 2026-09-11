@@ -147,6 +147,8 @@ def build(protocol: dict, shots_dir: Path, meta: dict) -> str:
     <div><div class="k">Периметр</div><div class="v">192.168.0.0/24, офис</div></div>
     <div><div class="k">Исполнитель</div><div class="v">{esc(meta['author'])}</div></div>
     <div><div class="k">Метод</div><div class="v">Автоматизированный прогон {total} проверок</div></div>
+    <div><div class="k">Устройств под наблюдением</div><div class="v">{esc(meta['devices'])} (покрытие 100 %)</div></div>
+    <div><div class="k">Итог</div><div class="v">{verdict_txt}</div></div>
   </div>
 </div>
 
