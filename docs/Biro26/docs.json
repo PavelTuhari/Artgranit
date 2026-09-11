@@ -6,9 +6,9 @@
       "en": "Technical documentation: Oracle E-commerce platform"
     },
     "descr": {
-      "ro": "Arhitectura completa cu 8 diagrame: topologie, flux comanda → ERP, stocuri, preturi, checkout; module la nivel Oracle, realizare Python, structura, query-uri.",
-      "ru": "Полная архитектура с 8 диаграммами: топология, поток заказ → ERP, остатки, цены, checkout; модули на уровне Oracle, реализация на Python, структура, запросы.",
-      "en": "Full architecture with 8 diagrams: topology, order → ERP flow, stock, prices, checkout; Oracle-level modules, Python implementation, structure, queries."
+      "ro": "Arhitectura completa cu 9 diagrame: topologie, flux comanda → ERP, stocuri, preturi, checkout si CRM-ul web; module la nivel Oracle (inclusiv e-Factura si CRM multi-chirias), realizare Python, structura, query-uri. Cifre remasurate 12.09.2026.",
+      "ru": "Полная архитектура с 9 диаграммами: топология, поток заказ → ERP, остатки, цены, checkout и веб-CRM; модули на уровне Oracle (включая e-Factura и мультиарендный CRM), реализация на Python, структура, запросы. Цифры перемерены 12.09.2026.",
+      "en": "Full architecture with 9 diagrams: topology, order → ERP flow, stock, prices, checkout and the web CRM; Oracle-level modules (e-Factura and the multi-tenant CRM included), Python implementation, structure, queries. Figures re-measured 12.09.2026."
     },
     "audience": "architect"
   },
