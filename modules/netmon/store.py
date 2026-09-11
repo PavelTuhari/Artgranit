@@ -226,7 +226,15 @@ def upsert_alerts(rows: list[dict]) -> int:
     with DatabaseModel() as db:
         have = {int(r[0]) for r in _rows(db.execute_query(
             "SELECT ZBX_ALERTID FROM NMON_TG_ALERTS"))}
-        fresh = [a for a in rows if int(a["alertid"]) not in have]
+        # дедупликация и по базе, и внутри самой пачки: Zabbix отдаёт один
+        # alertid дважды, когда сообщение ушло в несколько адресатов
+        fresh, seen = [], set()
+        for a in rows:
+            aid = int(a["alertid"])
+            if aid in have or aid in seen:
+                continue
+            seen.add(aid)
+            fresh.append(a)
         if not fresh:
             return 0
         data = [{
