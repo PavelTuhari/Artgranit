@@ -49,6 +49,7 @@
             <a href="#diagrams" class="hover:text-emerald-600">Diagrame</a>
             <a href="#all-in-one" class="hover:text-emerald-600">All-in-One</a>
             <a href="#modules" class="hover:text-emerald-600">Module</a>
+            <a href="#crm" class="hover:text-emerald-600">CRM web</a>
             <a href="#python-implementation" class="hover:text-emerald-600">Realizare Python</a>
             <a href="#structure" class="hover:text-emerald-600">Structură</a>
             <a href="#pseudocode" class="hover:text-emerald-600">Pseudocod</a>
@@ -61,13 +62,19 @@
 
 <!-- ── HERO ─────────────────────────────────────────────── -->
 <div class="max-w-screen-xl mx-auto px-8 pt-12 pb-8">
-    <div class="retail-badge inline-block mb-3">DOCUMENTAȚIE TEHNICĂ • 06.09.2026</div>
+    <div class="retail-badge inline-block mb-3">DOCUMENTAȚIE TEHNICĂ • actualizată 12.09.2026</div>
     <h1 class="font-display text-4xl md:text-5xl text-slate-900 tracking-tight">OfficePlus — magazin online și back-office peste ERP-ul Oracle</h1>
     <p class="mt-4 text-lg text-slate-600 max-w-3xl">
         Cum funcționează <strong>officeplus.md</strong>: vitrina, coșul, plățile (MAIB, EasyCredit, Liber Card),
         back-office-ul, importul de la furnizori și legătura directă cu ERP-ul <strong>OfficePlus / UNA.md</strong>
         pe Oracle 11g — un singur catalog, un singur set de prețuri, un singur sold de stoc pentru vânzarea
         online și pentru operațiunile interne.
+    </p>
+    <p class="mt-3 text-sm text-slate-500 max-w-3xl">
+        <strong class="text-slate-700">Ce s-a adăugat de la prima redacție (06.09.2026):</strong> cifrele sunt
+        remăsurate pe baza reală; a apărut <a href="#crm" class="text-emerald-600 hover:underline">CRM-ul web</a>
+        (multi-chiriaș, pe datele reale din ERP, cu gestiunea conturilor de utilizatori și alerte Telegram/WhatsApp)
+        și modulul <strong>e-Factura</strong> (SOAP către SIA e-Factura a SFS, chemat direct din aplicația nativă).
     </p>
     <div class="mt-6 flex flex-wrap gap-2 text-xs">
         <span class="px-3 py-1 rounded-full bg-white border border-slate-200">Python 3.12 · Flask</span>
@@ -76,6 +83,8 @@
         <span class="px-3 py-1 rounded-full bg-white border border-slate-200">WordPress 6.8 (vitrină / conținut)</span>
         <span class="px-3 py-1 rounded-full bg-white border border-slate-200">nginx failover · Oracle Cloud + office</span>
         <span class="px-3 py-1 rounded-full bg-white border border-slate-200">jsReport / pdfme (PDF)</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">CRM web multi-chiriaș</span>
+        <span class="px-3 py-1 rounded-full bg-white border border-slate-200">e-Factura SFS (SOAP)</span>
     </div>
 </div>
 
@@ -92,24 +101,24 @@
 
         <div class="grid md:grid-cols-4 gap-6">
             <div>
-                <div class="text-4xl font-semibold tabular-nums text-emerald-600">168k</div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">189k</div>
                 <div class="text-sm font-medium text-slate-700">Produse active în catalog</div>
-                <div class="text-xs text-slate-500 mt-1">168 371 în TMS_UNIVERS (220 603 total, cu arhivă)</div>
+                <div class="text-xs text-slate-500 mt-1">188 857 nearhivate în TMS_UNIVERS (232 149 total) · 12.09.2026</div>
             </div>
             <div>
-                <div class="text-4xl font-semibold tabular-nums text-emerald-600">240k</div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">265k</div>
                 <div class="text-sm font-medium text-slate-700">Rânduri de preț pe perioade</div>
-                <div class="text-xs text-slate-500 mt-1">TPR1D_PERPRLIST — istoric fără goluri</div>
+                <div class="text-xs text-slate-500 mt-1">265 457 în TPR1D_PERPRLIST — istoric fără goluri</div>
             </div>
             <div>
-                <div class="text-4xl font-semibold tabular-nums text-emerald-600">232k</div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">255k</div>
                 <div class="text-sm font-medium text-slate-700">Rânduri primite de la furnizori</div>
-                <div class="text-xs text-slate-500 mt-1">BIRO26_GOODS — ULTRA, Crafti, Biblion, Birolux…</div>
+                <div class="text-xs text-slate-500 mt-1">255 239 în BIRO26_GOODS (217 863 legate de catalog)</div>
             </div>
             <div>
-                <div class="text-4xl font-semibold tabular-nums text-emerald-600">1 382</div>
+                <div class="text-4xl font-semibold tabular-nums text-emerald-600">1 401</div>
                 <div class="text-sm font-medium text-slate-700">Tabele în schema Oracle</div>
-                <div class="text-xs text-slate-500 mt-1">ERP complet + strat web (YBIRO_*, BIRO26_*, TMS_CREDITE_*)</div>
+                <div class="text-xs text-slate-500 mt-1">ERP complet + strat web (YBIRO_*, BIRO26_*, TMS_CREDITE_*, CRM_*, EFA_*)</div>
             </div>
         </div>
 
@@ -132,9 +141,9 @@
         </div>
         <div class="bg-white border border-slate-200 rounded-3xl p-5">
             <div class="text-xs font-semibold text-slate-500 tracking-widest">MASTER DATA</div>
-            <div class="mt-1 text-3xl font-semibold tabular-nums">205 425</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">225 908</div>
             <div class="text-sm text-slate-600">coduri de bare</div>
-            <div class="text-xs text-slate-500 mt-1">69 734 atribute web (descrieri RO/RU/EN, BLOB cu diacritice)</div>
+            <div class="text-xs text-slate-500 mt-1">225 908 coduri · 69 040 atribute web (descrieri RO/RU/EN, BLOB cu diacritice)</div>
         </div>
         <div class="bg-white border border-slate-200 rounded-3xl p-5">
             <div class="text-xs font-semibold text-slate-500 tracking-widest">E-COMMERCE</div>
@@ -144,9 +153,9 @@
         </div>
         <div class="bg-white border border-slate-200 rounded-3xl p-5">
             <div class="text-xs font-semibold text-slate-500 tracking-widest">PLATFORMĂ</div>
-            <div class="mt-1 text-3xl font-semibold tabular-nums">964</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">1 094</div>
             <div class="text-sm text-slate-600">rute Flask pe portal</div>
-            <div class="text-xs text-slate-500 mt-1">din care ~90 API <code>/api/biro26/*</code> + module izolate</div>
+            <div class="text-xs text-slate-500 mt-1">din care 188 API <code>/api/biro26/*</code> · 10 module izolate încărcate de nucleu</div>
         </div>
     </div>
 </div>
@@ -502,6 +511,158 @@ sequenceDiagram
                 <tr><td class="table-header pl-3">Sănătate</td><td><code>/api/biro26/health</code>, <code>X-Shop-Origin</code>, versiune în footer din <code>TMS_WebAppVers</code></td></tr>
             </tbody></table>
         </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-file-invoice text-emerald-600 mr-2"></i>9. e-Factura (SIA e-Factura · SFS)</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Transport</td><td>SOAP 1.1 cu <code>UsernameToken</code> către <code>efactura-api.sfs.md/Service.svc</code>; ordinea câmpurilor și namespace-urile luate din WSDL-ul viu, nu din presupuneri</td></tr>
+                <tr><td class="table-header pl-3">XML</td><td><code>build_invoice_xml()</code> după <code>TaxInvoiceSchema.xsd</code> oficial: <code>Documents/Document/SupplierInfo</code>, secvență strictă, <code>BankAccount</code> mereu prezent, <code>CreationMotiv</code> după statutul TVA al furnizorului</td></tr>
+                <tr><td class="table-header pl-3">Pornire din ERP</td><td>acțiunea nativă «Выгрузить в e-Factura» → pachetul <code>EFA_NATIVE</code> (UTL_HTTP) → <code>/api/biro26/efactura/send/&lt;cod&gt;</code>; rezultatul intră în istoria documentului (<code>TMDB_DOCS_LOG</code>)</td></tr>
+                <tr><td class="table-header pl-3">Stare</td><td><code>EFA_DOC</code> (status, RequestId, seria/nr. SFS, mesaj) · <code>EFA_CALL</code> — jurnalul integral al apelurilor (cerere + răspuns), <code>EFA_REPORT</code> pentru raport Excel/PDF</td></tr>
+                <tr><td class="table-header pl-3">Refuzuri</td><td>SFS răspunde HTTP 200 și pune motivul în <code>ErrorMessage</code>; ce contează e <code>TotalInvoicesPosted</code>. <code>explain_sfs_error()</code> spune operatorului dacă e eroare la SFS și dacă repetarea e sigură — 0 postate ⇒ se poate repeta, altfel avertisment contra dublurilor</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-handshake text-emerald-600 mr-2"></i>10. CRM web (multi-chiriaș)</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Pachet</td><td><code>modules/crm/</code> — modul izolat (nimic în <code>app.py</code>), 49 obiecte <code>CRM_*</code>, instalator propriu <code>crm_deploy.py</code></td></tr>
+                <tr><td class="table-header pl-3">Chiriași</td><td><code>(OWNER_KIND, OWNER_ID)</code> pe fiecare rând: <code>office</code> (date reale), <code>demo</code>, <code>client</code> (cabinetul clientului magazinului)</td></tr>
+                <tr><td class="table-header pl-3">Legături ERP</td><td>marfa din <code>TMS_UNIVERS</code> + preț din <code>TPR1D_PERPRLIST</code>; contragenți din <code>TMS_ORG</code> și <code>YBIRO_CLIENT</code>; utilizatori din <code>A$ADM/A$ADP</code></td></tr>
+                <tr><td class="table-header pl-3">Detalii</td><td>vezi secțiunea <a href="#crm" class="text-emerald-600 hover:underline">CRM web</a> — proces în 8 etape, kanban, 7 rapoarte, conturi de angajați, alerte</td></tr>
+            </tbody></table>
+        </div>
+    </div>
+</div>
+
+<!-- ── CRM WEB ─────────────────────────────────────────── -->
+<div id="crm" class="max-w-screen-xl mx-auto px-8 pb-12">
+    <div class="mb-6">
+        <div class="retail-badge inline-block mb-2">MODUL NOU • 08–12.09.2026</div>
+        <h2 class="text-3xl font-semibold tracking-tight">CRM web — instrumentul OfficePlus și al fiecărui client</h2>
+        <p class="text-slate-600 mt-2 max-w-4xl">
+            Replica web a prototipului <em>Demo CRM</em> (Delphi/Pascal, SDK Contragenti), scrisă ca modul izolat
+            <code>modules/crm/</code> peste același Oracle. Nu este un CRM separat lipit de magazin: rulează pe
+            <strong>datele reale ale ERP-ului</strong> — marfa din <code>TMS_UNIVERS</code>, contragenții din
+            <code>TMS_ORG</code>, conturile magazinului din <code>YBIRO_CLIENT</code>, utilizatorii din arborele
+            de configurare al UNA. Setul demonstrativ există în continuare, dar ca <em>chiriaș separat</em>.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">OBIECTE ORACLE</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">49</div>
+            <div class="text-sm text-slate-600">obiecte <code>CRM_*</code></div>
+            <div class="text-xs text-slate-500 mt-1">11 tabele cu chiriaș, secvențe, triggere, pachetul de sincronizare</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">ENTITĂȚI</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">10</div>
+            <div class="text-sm text-slate-600">descrieri de entitate</div>
+            <div class="text-xs text-slate-500 mt-1">clienți, contacte, lead-uri, oportunități, nomenclator, comenzi, proiecte, sarcini…</div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">ETAPE PROCES</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">8</div>
+            <div class="text-sm text-slate-600">de la ofertă la încasare</div>
+            <div class="text-xs text-slate-500 mt-1">calculate, nu stocate — o singură definiție în <code>process.py</code></div>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-3xl p-5">
+            <div class="text-xs font-semibold text-slate-500 tracking-widest">CONTURI ERP</div>
+            <div class="mt-1 text-3xl font-semibold tabular-nums">35</div>
+            <div class="text-sm text-slate-600">angajați administrați din web</div>
+            <div class="text-xs text-slate-500 mt-1">26 active · sincronizare în ambele sensuri cu uniConf</div>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-3xl p-6 mb-6">
+        <h3 class="font-display text-xl text-slate-900 mb-1">9. CRM web peste ERP — chiriași, date reale, sincronizare</h3>
+        <p class="text-sm text-slate-600 mb-3">
+            Fiecare rând <code>CRM_*</code> poartă <code>(OWNER_KIND, OWNER_ID)</code>. Portalul vede
+            <code>('office',0)</code> — datele reale; comutatorul din bara de sus trece pe <code>('demo',0)</code>;
+            clientul autentificat în magazin vede doar <code>('client', id)</code>, în cabinetul lui.
+        </p>
+        <div class="mermaid">
+flowchart TB
+    subgraph WEB["Flask · modules/crm (modul izolat)"]
+        UI["Pagina SPA<br/>tablou de lucru · kanban · calendar<br/>rapoarte · angajati · alerte"]
+        API["API v2<br/>/api/v2/:entitate · /board · /reports<br/>/employees · /erp · /mode"]
+        TEN["tenant.py<br/>office | demo | client"]
+    end
+    subgraph ORA["Oracle 11g OFFICEPLUS"]
+        CRM["CRM_CLIENT · CRM_ITEM · CRM_ORDER<br/>CRM_PROJECT · CRM_TASK · CRM_DEAL<br/>CRM_LEAD · CRM_CONTACT"]
+        EMP["CRM_EMPLOYEE + CRM_EMP_SYNC"]
+        ERP["TMS_UNIVERS · TPR1D_PERPRLIST<br/>TMS_ORG · YBIRO_CLIENT"]
+        TREE["A$ADM / A$ADP<br/>arborele de configurare UNA"]
+    end
+    UI --> API --> TEN --> CRM
+    API -->|"cautare vie, fara copie"| ERP
+    ERP -->|"import la cerere: ERP_COD"| CRM
+    EMP <-->|"triggere in ambele sensuri"| TREE
+    API --> EMP
+    CRM -->|"alerte: datorii, termene"| TG["Telegram · WhatsApp · e-mail<br/>canalele magazinului"]
+        </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5">
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-diagram-project text-emerald-600 mr-2"></i>Procesul „de la contract la bani”</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Etape</td><td>8, exclusive între ele, <strong>calculate</strong> din date (avans, execuție, livrare, plată), nu ținute într-o coloană de stare — <code>process.py</code>, <code>stage_where()</code></td></tr>
+                <tr><td class="table-header pl-3">Kanban</td><td>5 table (comenzi, oportunități, sarcini, proiecte, sarcini de proiect); mutarea cardului trece prin <strong>un singur punct</strong> — <code>move_card()</code> (portul lui <code>MoveBoardCard</code>)</td></tr>
+                <tr><td class="table-header pl-3">Contare</td><td><code>post_order()</code>: vânzare −stoc, producție +stoc, serviciu 0 — semnele din prototip, păstrate identic</td></tr>
+                <tr><td class="table-header pl-3">Rapoarte</td><td>7: proces, creanțe, vânzări pe clienți, pâlnie, stocuri, proiecte și <strong>pe angajați</strong> (cu rând TOTAL); filtru pe persoană, export CSV</td></tr>
+                <tr><td class="table-header pl-3">Limbi</td><td>RO / RU / EN — valorile enumerărilor rămân canonice în bază, traducerea e pozițională în <code>lang.json</code></td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-database text-emerald-600 mr-2"></i>Date reale, nu copii</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Marfa</td><td>căutare vie în <code>TMS_UNIVERS</code> (denumire RO/RU, articol, cod de bare). <strong>Nu se copiază</strong> cele 232 149 de poziții: o copie ar fi moartă a doua zi</td></tr>
+                <tr><td class="table-header pl-3">Prețul</td><td>lista în vigoare <code>TPR1D_PERPRLIST</code> (CODPRICE=1, perioada care cuprinde ziua), cu întoarcere pe fluxul <code>BIRO26_GOODS</code> — <strong>același lanț ca la magazin</strong>, ca să nu existe două adevăruri despre același preț</td></tr>
+                <tr><td class="table-header pl-3">Import</td><td>poziția folosită într-o comandă intră o singură dată în <code>CRM_ITEM</code> (<code>SRC='erp'</code>, <code>ERP_COD</code>); butonul „Reîmprospătează prețurile” o resincronizează</td></tr>
+                <tr><td class="table-header pl-3">Contragenți</td><td><code>TMS_ORG</code> + <code>YBIRO_CLIENT</code> → <code>CRM_CLIENT</code>, unire după IDNO; actualizarea completează doar golurile (<code>NVL(coloana, valoare)</code>) — 45 de clienți reali</td></tr>
+                <tr><td class="table-header pl-3">Demo</td><td>chiriașul <code>('demo',0)</code>: 17 clienți, 21 poziții, 23 comenzi, 10 proiecte, 124 sarcini. Semănatul peste datele reale e refuzat cu <code>409</code></td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-user-shield text-emerald-600 mr-2"></i>Conturi de utilizator = nodurile ERP-ului</h3>
+            <p class="text-sm text-slate-600 mt-2">
+                În UNA nu există un tabel de utilizatori: omul <strong>este un nod</strong> în arborele de configurare.
+                Modulul nu duplică registrul — <code>CRM_EMPLOYEE</code> adaugă doar ce lipsește (e-mail, telefon, data
+                înregistrării, observații), cheia fiind <code>OBJ_ID</code>-ul nodului.
+            </p>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Arbore</td><td><code>A$ADM</code> (OBJ_TYPE=7, SUBTYPE=0) + proprietăți în <code>A$ADP</code>: USERNAME, ENABLED, ADMIN, FAMILIA, PASSDATE…</td></tr>
+                <tr><td class="table-header pl-3">Autentificare</td><td><code>a$util.login(user, pass)</code> — același lanț ca <code>UniacCLNT</code> (<code>uDMA.cpp RegisterUser</code> → <code>UN$USERPARAMS.REGISTERUSER</code>); parola prin <code>a$util.set_passwd</code>; blocare = <code>Enabled='false'</code></td></tr>
+                <tr><td class="table-header pl-3">Sincronizare</td><td>două triggere: pe <code>CRM_EMPLOYEE</code> → arbore și pe <code>A$ADP</code> → fișă. Cel de pe <code>A$ADP</code> e făcut sigur prin construcție: <code>WHEN</code> îngust, apel dinamic (un pachet invalid nu poate bloca scrierile uniConf), fără tranzacție proprie, cu pază de buclă</td></tr>
+                <tr><td class="table-header pl-3">Capcane</td><td>booleanele se scriu <code>'1'/'0'</code> (cu <code>'T'</code> → ORA-01722 la login); <code>SECTION</code> e unic <strong>global</strong>, deci se ia întâi <code>A$ADM$SQ.NEXTVAL</code>; valorile trec ca parametri în trigger (altfel ORA-04091, tabel în mutație)</td></tr>
+                <tr><td class="table-header pl-3">Interfață</td><td>listă cu data înregistrării și starea contului, fișă cu e-mail/telefon, parolă standard generată (10 semne, fără <code>0 O 1 l I</code>), arătată o singură dată; dezactivare/activare; verificarea parolei prin ERP</td></tr>
+            </tbody></table>
+        </div>
+
+        <div class="module-card bg-white border border-slate-200 rounded-3xl p-6">
+            <h3 class="font-display text-lg text-slate-900"><i class="fa-solid fa-bell text-emerald-600 mr-2"></i>Alerte: tranzacții nefinisate și datorii</h3>
+            <table class="data-table w-full text-sm mt-3"><tbody>
+                <tr><td class="table-header w-44 rounded-l-lg pl-3">Tipuri</td><td>8: datorie, termen depășit, așteaptă avans, gata dar nelivrată, necontabilizată, proiect neacoperit, ofertă fără mișcare, termen apropiat</td></tr>
+                <tr><td class="table-header pl-3">Canale</td><td><strong>aceleași ca la comenzile de pe site</strong> (<code>Biro26Notify</code>): e-mail, Telegram, WhatsApp — nu se configurează nimic nou</td></tr>
+                <tr><td class="table-header pl-3">WhatsApp</td><td>variantă scurtă (≤320 semne): callmebot trece textul prin adresă și sumarul întreg dă <code>HTTP 414</code></td></tr>
+                <tr><td class="table-header pl-3">Repetare</td><td><code>CRM_ALERT_SENT</code> + „nu repeta aceeași alertă N zile”; sumar zilnic la ora din setări (<code>systemd timer</code>)</td></tr>
+                <tr><td class="table-header pl-3">Prezentare</td><td>pagină de 9 slide-uri cu capturi reale, Ctrl/Cmd+P → PDF</td></tr>
+            </tbody></table>
+        </div>
+    </div>
+
+    <div class="mt-5 bg-amber-50 border border-amber-200 rounded-3xl p-6 text-sm text-slate-700">
+        <strong class="text-slate-900">Unde rulează acum:</strong> CRM-ul complet (proces, kanban, rapoarte, angajați,
+        alerte, date reale) este desfășurat pe <strong>nufarul.eminescu.md</strong> — conturul de probă, care lucrează
+        cu <em>aceeași</em> bază Oracle. Pe <strong>officeplus.md</strong> este activă deocamdată doar puntea de clienți
+        (<code>/UNA.md/orasldev/crm</code>: căutare unică OfficePlus → date.gov.md, import card XML). Mutarea completă
+        pe conturul de producție este pasul următor, după validarea de către operatori.
     </div>
 </div>
 
@@ -535,6 +696,8 @@ sequenceDiagram
                 <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Program de lucru real în banner (L–V 09–18, S 09–15, D liber, Europe/Chisinau)</li>
                 <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Back-office 9 file cu ghid „?" pe fiecare; import fișiere cu dry-run</li>
                 <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> Failover automat, versiune în două baze, wp-login pe adresă secretă</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> e-Factura: XML după XSD-ul oficial, trimitere direct din aplicația nativă, jurnal integral al apelurilor SFS</li>
+                <li><i class="fa-solid fa-check text-emerald-600 mr-1"></i> CRM web pe datele reale ale ERP-ului, cu regim demo separat și conturi de angajați sincronizate cu uniConf</li>
             </ul>
         </div>
         <div class="bg-white border border-slate-200 rounded-3xl p-6">
@@ -543,6 +706,8 @@ sequenceDiagram
                 <li><strong>Oracle-first:</strong> nicio stare autoritativă în JSON / SQLite / KV generic; tabele normalizate cu prefix (<code>YBIRO_</code>, <code>BIRO26_</code>, <code>TMS_CREDITE_</code>).</li>
                 <li><strong>11g impune disciplină:</strong> fără OFFSET/FETCH (paginare ROWNUM), fără IDENTITY (secvență + trigger), doar bind-uri; CLOB bind ultimul (ORA-24816).</li>
                 <li><strong>Izolare:</strong> module noi doar în <code>modules/&lt;cheie&gt;/</code> cu teste de izolare; fișierele comune primesc un singur rând de apel.</li>
+                <li><strong>Multi-chiriaș fără baze separate:</strong> în CRM fiecare rând poartă <code>(OWNER_KIND, OWNER_ID)</code>, condiția intră în fiecare SQL — portalul, regimul demo și cabinetul clientului nu se văd între ele.</li>
+                <li><strong>Fără copii ale ERP-ului:</strong> catalogul, prețul și contragenții se citesc la sursă; se copiază doar ce trebuie legat de un document (cu <code>ERP_COD</code> și posibilitatea de reîmprospătare).</li>
                 <li><strong>Operare:</strong> deploy punctual (patch de fișiere, md5 înainte de a atinge o platformă), <code>systemctl restart artgranit</code>, verificare <code>/cos</code> → 200 după orice schimbare.</li>
             </ul>
         </div>
@@ -583,7 +748,14 @@ static/biro26/
   grid-export.js (sortare/filtru/export pe orice grid)
   docs/backoffice/*.png        <span class="c"># capturi pentru ghid</span>
 modules/                       <span class="c"># module izolate (blueprint = cheia)</span>
-  b26docs/ · biro26web/ · partner/ · seoforge/ · sda/ · tbcontrol/ …
+  b26docs/ · biro26web/ · partner/ · efactura/ · crm/
+  contragenti/ · seo/ · seoforge/ · social/ · funnel/ …
+  crm/  entities.py process.py store_process.py    <span class="c"># proces, 8 etape, kanban</span>
+        store_erp.py erp_source.py                 <span class="c"># marfa si contragentii reali</span>
+        store_employees.py routes_employees.py     <span class="c"># conturi peste A$ADM/A$ADP</span>
+        alerts.py notify.py sql/01..05_crm_*.sql
+  efactura/ sfs.py (SOAP) · controller.py · rules.py
+        sql/03_efa_native.sql                      <span class="c"># EFA_NATIVE pentru actiunea nativa</span>
 sql/biro26/                    <span class="c"># DDL numerotat 01..20 + pachete</span>
   04_y_ai_biro26.sql · 19_y_ai_biro26_comenzi.sql
   12_tms_credite.sql · 13_tmdb_credite.sql · 18_tms_webappvers*.sql
@@ -753,7 +925,25 @@ SELECT r.id, r.provider_code, r.ext_ref, r.status, r.api_status, r.amount, r.mon
 FROM   tms_credite_req r ORDER BY r.id DESC;
 
 <span class="c">-- Versiunea aplicației (identică în Oracle și MySQL)</span>
-SELECT app_code, vers, src_hash, released FROM tms_webappvers WHERE is_current = '1';</pre>
+SELECT app_code, vers, src_hash, released FROM tms_webappvers WHERE is_current = '1';
+
+<span class="c">-- CRM: ce are fiecare chiriaș (office = date reale, demo = setul de probă)</span>
+SELECT owner_kind, COUNT(*) FROM crm_client GROUP BY owner_kind;
+
+<span class="c">-- CRM: pozițiile aduse din dicționarul ERP și când s-au reîmprospătat</span>
+SELECT i.id, i.code, i.name, i.price, i.erp_cod, i.synced
+FROM   crm_item i WHERE i.src = 'erp' AND i.owner_kind = 'office';
+
+<span class="c">-- Conturi de angajați: fișa web lângă nodul real din arborele UNA</span>
+SELECT e.username, e.full_name, e.email, e.phone, e.reg_date, e.enabled,
+       (SELECT p.svalue FROM a$adp p
+        WHERE p.obj_id = e.obj_id AND p.key = 'USERNAME') AS in_tree
+FROM   crm_employee e ORDER BY e.username;
+
+<span class="c">-- e-Factura: ce s-a trimis și ce a răspuns SFS (TotalInvoicesPosted contează)</span>
+SELECT d.doc_cod, d.nrmanual, d.status, d.sfs_seria, d.sfs_number, d.sent_at,
+       SUBSTR(d.err_msg, 1, 120) err
+FROM   efa_doc d ORDER BY d.id DESC;</pre>
     </div>
 </div>
 
