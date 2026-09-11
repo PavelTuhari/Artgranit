@@ -1,27 +1,305 @@
+{# Мониторинг офиса: сеть и Telegram-каналы Zabbix.
+   Одностраничная панель модуля netmon. Базу адреса берём через url_for —
+   модуль не привязан к точке монтирования (CLAUDE.md, правило №1). #}
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Мониторинг офиса: сеть и Telegram</title>
-  <style>
-    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: #0f1419; color: #e6edf3; }
-    header { padding: 14px 18px; background: #161b22; border-bottom: 1px solid #30363d; }
-    main { padding: 18px; }
-    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 14px; max-width: 520px; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мониторинг офиса — сеть и Telegram</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --mid:#db6d28;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+       background:var(--bg);color:var(--txt)}
+  header{position:sticky;top:0;z-index:20;background:#0d1117ee;backdrop-filter:blur(8px);
+         border-bottom:1px solid var(--line);padding:12px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:650}
+  header .sub{color:var(--dim);font-size:12px}
+  .spacer{flex:1}
+  button{background:#21262d;color:var(--txt);border:1px solid var(--line);border-radius:7px;
+         padding:7px 13px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--acc);color:var(--acc)}
+  button.primary{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  button:disabled{opacity:.5;cursor:wait}
+  nav{display:flex;gap:4px;padding:10px 18px 0;flex-wrap:wrap}
+  nav a{padding:7px 14px;border-radius:7px 7px 0 0;color:var(--dim);text-decoration:none;
+        border:1px solid transparent;font-size:13px}
+  nav a.on{background:var(--panel);color:var(--txt);border-color:var(--line);border-bottom-color:var(--panel)}
+  main{padding:0 18px 40px}
+  .panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:16px}
+  .panel.on{display:block}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .tile{background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:13px}
+  .tile .v{font-size:25px;font-weight:700;line-height:1.1}
+  .tile .l{color:var(--dim);font-size:12px;margin-top:3px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .crit{color:var(--crit)} .mid{color:var(--mid)} .dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;
+     position:sticky;top:0;background:var(--panel)}
+  tr:hover td{background:#1c2128}
+  .tbl-wrap{overflow-x:auto;max-height:66vh;overflow-y:auto}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .b-ok{background:#23863622;color:var(--ok);border:1px solid #2386364d}
+  .b-no{background:#f8514922;color:var(--crit);border:1px solid #f851494d}
+  .b-dim{background:#8b949e22;color:var(--dim);border:1px solid #8b949e4d}
+  .b-warn{background:#d2992222;color:var(--warn);border:1px solid #d299224d}
+  .chan{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:#0d1117;border:1px solid var(--line);border-radius:11px;padding:15px}
+  .card.live{border-color:#2386364d;box-shadow:0 0 0 1px #23863622}
+  .card h3{margin:0 0 3px;font-size:15px;display:flex;gap:8px;align-items:center}
+  .card .cid{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;color:var(--dim)}
+  .card .row{display:flex;gap:16px;margin-top:11px;flex-wrap:wrap}
+  .card .row div{font-size:12px;color:var(--dim)}
+  .card .row b{display:block;font-size:17px;color:var(--txt);font-weight:650}
+  .bar{display:flex;gap:2px;align-items:flex-end;height:52px;margin-top:12px}
+  .bar span{flex:1;background:var(--acc);border-radius:2px 2px 0 0;min-height:2px;opacity:.75}
+  .bar span:hover{opacity:1}
+  .feed{max-height:62vh;overflow-y:auto}
+  .msg{display:flex;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .msg:hover{background:#1c2128}
+  .msg .em{font-size:15px;width:24px;flex:0 0 24px;text-align:center}
+  .msg .body{flex:1;min-width:0}
+  .msg .subj{font-size:13px;word-break:break-word}
+  .msg .meta{color:var(--dim);font-size:11px;margin-top:2px}
+  .filters{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  select,input[type=search]{background:#0d1117;color:var(--txt);border:1px solid var(--line);
+    border-radius:7px;padding:6px 10px;font-size:13px}
+  .note{color:var(--dim);font-size:12px;margin-top:12px}
+  code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;color:var(--acc)}
+  @media(max-width:640px){th{position:static}.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
-  <header><strong>Мониторинг офиса: сеть и Telegram</strong></header>
-  <main>
-    <div class="card">
-      <p>Модуль <code>netmon</code> подключён ядром. Статус API: <span id="st">…</span></p>
+<header>
+  <h1>📡 Мониторинг офиса</h1>
+  <span class="sub" id="hdr">загрузка…</span>
+  <span class="spacer"></span>
+  <button id="btn-sync-tg">↻ Telegram</button>
+  <button id="btn-sync-dev">↻ Скан сети</button>
+  <button class="primary" id="btn-reload">Обновить</button>
+</header>
+
+<nav>
+  <a href="#" class="on" data-p="dash">Сводка</a>
+  <a href="#" data-p="devices">Устройства</a>
+  <a href="#" data-p="channels">Telegram-каналы</a>
+  <a href="#" data-p="feed">Лента сообщений</a>
+</nav>
+
+<main>
+  <section class="panel on" id="p-dash">
+    <div class="tiles" id="dash-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Состав сети по классам устройств</h3>
+    <div class="tbl-wrap"><table id="kind-tbl"><thead>
+      <tr><th>Класс устройства</th><th style="width:90px">Штук</th><th>Доля</th></tr>
+    </thead><tbody></tbody></table></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Кто чаще всего попадает в Telegram</h3>
+    <div class="tbl-wrap"><table id="top-tbl"><thead>
+      <tr><th>Хост</th><th style="width:110px">Сообщений</th></tr>
+    </thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-devices">
+    <div class="filters">
+      <select id="f-kind"><option value="">Все классы</option></select>
+      <label style="font-size:13px;color:var(--dim)">
+        <input type="checkbox" id="f-missing"> только вне мониторинга</label>
+      <input type="search" id="f-find" placeholder="поиск по IP, имени, порту…" style="flex:1;min-width:160px">
+      <span class="dim" id="dev-count"></span>
     </div>
-  </main>
-  <script>
-    // Базу адреса берём у сервера, не пишем строкой: модуль не привязан к точке монтирования
-    fetch("{{ url_for('netmon.api_status') }}")
-      .then(r => r.json()).then(j => document.getElementById("st").textContent = JSON.stringify(j.data || j));
-  </script>
+    <div class="tbl-wrap"><table id="dev-tbl"><thead><tr>
+      <th style="width:120px">IP</th><th>Класс</th><th>Имя / заголовок</th>
+      <th style="width:150px">Порты</th><th style="width:100px">Важность</th>
+      <th style="width:150px">Zabbix</th><th style="width:90px">Статус</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-channels">
+    <div class="chan" id="chan-cards"></div>
+    <div class="note">Канал считается включённым, когда в Zabbix активны и тип media, и сам адресат
+      у пользователя. Выключенный канал оставлен в списке намеренно: по нему видно, что адресат
+      заведён, но сообщения туда не идут.</div>
+  </section>
+
+  <section class="panel" id="p-feed">
+    <div class="filters">
+      <select id="f-chan"><option value="">Все каналы</option></select>
+      <select id="f-sev">
+        <option value="">Любая важность</option>
+        <option value="disaster">🔴🔴 Disaster</option>
+        <option value="high">🔴 High</option>
+        <option value="average">🟠 Average</option>
+        <option value="warning">🟡 Warning</option>
+        <option value="resolved">🟢 Resolved</option>
+      </select>
+      <input type="search" id="f-msg" placeholder="поиск по тексту…" style="flex:1;min-width:160px">
+      <span class="dim" id="feed-count"></span>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+</main>
+
+<script>
+// Базу адреса берём у сервера: модуль не привязан к точке монтирования
+const API = "{{ url_for('netmon.api_overview') }}".replace(/\/api\/overview$/, "/api");
+const EM = {disaster:"🔴🔴", high:"🔴", average:"🟠", warning:"🟡",
+            information:"🔵", resolved:"🟢", other:"⚪"};
+let DEV = [], FEED = [], CH = [];
+
+const esc = s => (s ?? "").toString().replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function get(path){
+  const r = await fetch(API + path, {headers:{"Accept":"application/json"}});
+  const j = await r.json();
+  if (!j.success) throw new Error(j.message || "ошибка запроса");
+  return j.data;
+}
+async function post(path){
+  const r = await fetch(API + path, {method:"POST"});
+  const j = await r.json();
+  if (!j.success) throw new Error(j.message || "ошибка синхронизации");
+  return j.data;
+}
+
+function tile(v, l, cls){
+  return `<div class="tile"><div class="v ${cls||''}">${v}</div><div class="l">${l}</div></div>`;
+}
+
+function renderDash(o){
+  const d = o.devices, a = o.alerts, cov = o.coverage_pct;
+  document.getElementById("dash-tiles").innerHTML =
+    tile(d.total, "устройств в сети") +
+    tile(d.in_zabbix, "на мониторинге Zabbix", cov >= 99 ? "ok" : "warn") +
+    tile(cov + "%", "покрытие мониторингом", cov >= 99 ? "ok" : "warn") +
+    tile(d.critical, "критичных узлов", d.critical ? "mid" : "dim") +
+    tile(o.channels.length, "Telegram-каналов") +
+    tile(a.total, "сообщений за 30 дней") +
+    tile(a.last_24h, "за последние сутки") +
+    tile(a.failed, "ошибок доставки", a.failed ? "crit" : "ok");
+  document.getElementById("hdr").textContent =
+    `${d.total} устройств · покрытие ${cov}% · последний скан ${d.last_scan || "—"}`;
+
+  document.querySelector("#kind-tbl tbody").innerHTML = d.by_kind.map(k =>
+    `<tr><td>${esc(k.kind)}</td><td>${k.count}</td>
+     <td><div style="background:var(--acc);height:8px;border-radius:4px;opacity:.7;
+       width:${Math.round(k.count*100/Math.max(d.total,1))}%"></div></td></tr>`).join("");
+
+  document.querySelector("#top-tbl tbody").innerHTML =
+    a.top_hosts.map(h => `<tr><td>${esc(h.host)}</td><td>${h.count}</td></tr>`).join("")
+    || `<tr><td colspan="2" class="dim">нет данных</td></tr>`;
+
+  document.getElementById("f-kind").innerHTML = `<option value="">Все классы</option>` +
+    d.by_kind.map(k => `<option value="${esc(k.kind)}">${esc(k.kind)} (${k.count})</option>`).join("");
+}
+
+function renderChannels(list, byDay){
+  CH = list;
+  const max = Math.max(1, ...(byDay || []).map(x => x.count));
+  document.getElementById("chan-cards").innerHTML = list.map(c => {
+    const live = c.is_enabled === "Y";
+    const bars = live ? `<div class="bar">${(byDay||[]).map(x =>
+        `<span style="height:${Math.round(x.count*100/max)}%" title="${x.day}: ${x.count}"></span>`).join("")}</div>
+        <div class="dim" style="font-size:11px;margin-top:4px">сообщений по дням, 14 дней</div>` : "";
+    return `<div class="card ${live ? "live" : ""}">
+      <h3>${live ? "🟢" : "⚪"} ${esc(c.title)}</h3>
+      <div class="cid">${esc(c.chat_id)} · ${esc(c.chat_type)} · бот @${esc(c.bot_username || "—")}</div>
+      <div class="row">
+        <div>Статус<b class="${live ? "ok" : "dim"}">${live ? "активен" : "выключен"}</b></div>
+        <div>Участников<b>${c.members_cnt ?? "—"}</b></div>
+        <div>Сообщений<b>${c.alerts_total}</b></div>
+        <div>За сутки<b>${c.alerts_24h}</b></div>
+        <div>Ошибок<b class="${c.alerts_failed ? "crit" : "ok"}">${c.alerts_failed}</b></div>
+      </div>
+      <div class="row"><div>Media в Zabbix<b style="font-size:13px">${esc(c.mediatype || "—")}</b></div>
+        <div>Последнее<b style="font-size:13px">${esc(c.last_alert_at || "—")}</b></div></div>
+      ${bars}</div>`;
+  }).join("");
+  document.getElementById("f-chan").innerHTML = `<option value="">Все каналы</option>` +
+    list.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join("");
+}
+
+function renderDevices(){
+  const kind = document.getElementById("f-kind").value;
+  const miss = document.getElementById("f-missing").checked;
+  const q = document.getElementById("f-find").value.toLowerCase().trim();
+  const rows = DEV.filter(d =>
+    (!kind || d.kind === kind) && (!miss || d.in_zabbix === "N") &&
+    (!q || [d.ip, d.kind, d.title, d.dns_name, d.ports, d.zabbix_host]
+      .some(v => (v || "").toString().toLowerCase().includes(q))));
+  document.getElementById("dev-count").textContent = `${rows.length} из ${DEV.length}`;
+  const crit = {high:["b-no","высокая"], medium:["b-warn","средняя"], low:["b-dim","обычная"]};
+  document.querySelector("#dev-tbl tbody").innerHTML = rows.map(d => {
+    const c = crit[d.criticality] || crit.low;
+    return `<tr>
+      <td><code>${esc(d.ip)}</code></td>
+      <td>${esc(d.kind)}</td>
+      <td>${esc(d.title || d.dns_name || d.ssh_banner || d.server_banner || "—")}</td>
+      <td class="dim">${esc(d.ports || "—")}</td>
+      <td><span class="badge ${c[0]}">${c[1]}</span></td>
+      <td>${d.in_zabbix === "Y"
+            ? `<span class="badge b-ok">${esc(d.zabbix_host || "да")}</span>`
+            : `<span class="badge b-no">не заведён</span>`}</td>
+      <td>${d.status === "up"
+            ? `<span class="badge b-ok">онлайн</span>`
+            : `<span class="badge b-dim">пропал</span>`}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="dim">ничего не найдено</td></tr>`;
+}
+
+function renderFeed(){
+  const ch = document.getElementById("f-chan").value;
+  const sev = document.getElementById("f-sev").value;
+  const q = document.getElementById("f-msg").value.toLowerCase().trim();
+  const rows = FEED.filter(a =>
+    (!ch || String(a.channel_id) === ch) && (!sev || a.severity === sev) &&
+    (!q || (a.subject || "").toLowerCase().includes(q)));
+  document.getElementById("feed-count").textContent = `${rows.length} из ${FEED.length}`;
+  document.getElementById("feed").innerHTML = rows.map(a => `
+    <div class="msg"><div class="em">${EM[a.severity] || "⚪"}</div>
+      <div class="body"><div class="subj">${esc(a.subject)}</div>
+        <div class="meta">${esc(a.sent_at)} · ${esc(a.channel_title)} ·
+          ${a.send_status === "sent" ? "доставлено" : esc(a.send_status)}
+          ${a.error_text ? " · " + esc(a.error_text) : ""}</div></div></div>`).join("")
+    || `<div class="note">сообщений не найдено</div>`;
+}
+
+async function loadAll(){
+  const o = await get("/overview");
+  renderDash(o);
+  renderChannels(o.channels, o.alerts.by_day);
+  DEV = await get("/devices");            renderDevices();
+  FEED = await get("/alerts?limit=400");  renderFeed();
+}
+
+document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  document.querySelectorAll("nav a").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x => x.classList.remove("on"));
+  a.classList.add("on");
+  document.getElementById("p-" + a.dataset.p).classList.add("on");
+});
+["f-kind","f-missing","f-find"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderDevices));
+["f-chan","f-sev","f-msg"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderFeed));
+
+async function withBusy(btn, fn){
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "…";
+  try { await fn(); await loadAll(); }
+  catch (e) { alert("Ошибка: " + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+document.getElementById("btn-reload").onclick = e => withBusy(e.target, async () => {});
+document.getElementById("btn-sync-tg").onclick = e => withBusy(e.target, async () => {
+  await post("/sync/channels"); await post("/sync/alerts"); });
+document.getElementById("btn-sync-dev").onclick = e => withBusy(e.target, () => post("/sync/devices"));
+
+loadAll().catch(e => document.getElementById("hdr").textContent = "Ошибка: " + e.message);
+</script>
 </body>
 </html>
