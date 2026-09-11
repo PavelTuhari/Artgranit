@@ -214,28 +214,39 @@ def channel_id_by_chat(chat_id: str):
 
 # ------------------------------------------------------------------ лента алертов
 
-def upsert_alert(a: dict) -> bool:
-    """Пишет одно отправленное сообщение; True, если оно новое."""
+def upsert_alerts(rows: list[dict]) -> int:
+    """Пишет пачку отправленных сообщений в ОДНОМ соединении.
+
+    По одному соединению на запись 1200 алертов грузились минутами — поэтому
+    здесь единственный connect, один SELECT существующих id и executemany.
+    Возвращает число реально добавленных.
+    """
+    if not rows:
+        return 0
     with DatabaseModel() as db:
-        found = _rows(db.execute_query(
-            "SELECT ID FROM NMON_TG_ALERTS WHERE ZBX_ALERTID = :aid", {"aid": a["alertid"]}))
-        if found:
-            return False
+        have = {int(r[0]) for r in _rows(db.execute_query(
+            "SELECT ZBX_ALERTID FROM NMON_TG_ALERTS"))}
+        fresh = [a for a in rows if int(a["alertid"]) not in have]
+        if not fresh:
+            return 0
+        data = [{
+            "aid": int(a["alertid"]), "ch": a["channel_id"], "clock": a["clock"],
+            "subj": (a.get("subject") or "")[:500], "sev": a.get("severity"),
+            "host": (a.get("host") or "")[:128] or None, "status": a.get("status"),
+            "retries": a.get("retries") or 0,
+            "err": (a.get("error") or "")[:500] or None,
+        } for a in fresh]
+        sql = ("INSERT INTO NMON_TG_ALERTS (ZBX_ALERTID, CHANNEL_ID, SENT_AT, SUBJECT, "
+               "SEVERITY, HOST_NAME, SEND_STATUS, RETRIES, ERROR_TEXT) VALUES (:aid, :ch, "
+               "TO_TIMESTAMP('1970-01-01', 'YYYY-MM-DD') + NUMTODSINTERVAL(:clock, 'SECOND'), "
+               ":subj, :sev, :host, :status, :retries, :err)")
+        with db.connection.cursor() as cur:
+            cur.executemany(sql, data)
         db.execute_query(
-            "INSERT INTO NMON_TG_ALERTS (ZBX_ALERTID, CHANNEL_ID, SENT_AT, SUBJECT, SEVERITY, "
-            "HOST_NAME, SEND_STATUS, RETRIES, ERROR_TEXT) VALUES (:aid, :ch, "
-            "TO_TIMESTAMP('1970-01-01', 'YYYY-MM-DD') + NUMTODSINTERVAL(:clock, 'SECOND'), "
-            ":subj, :sev, :host, :status, :retries, :err)",
-            {"aid": a["alertid"], "ch": a["channel_id"], "clock": a["clock"],
-             "subj": (a.get("subject") or "")[:500], "sev": a.get("severity"),
-             "host": (a.get("host") or "")[:128] or None, "status": a.get("status"),
-             "retries": a.get("retries") or 0,
-             "err": (a.get("error") or "")[:500] or None})
-        db.execute_query(
-            "UPDATE NMON_TG_CHANNELS SET LAST_ALERT_AT = SYSTIMESTAMP WHERE ID = :ch",
-            {"ch": a["channel_id"]})
+            "UPDATE NMON_TG_CHANNELS c SET LAST_ALERT_AT = "
+            "(SELECT MAX(SENT_AT) FROM NMON_TG_ALERTS a WHERE a.CHANNEL_ID = c.ID)")
         _commit(db)
-        return True
+        return len(fresh)
 
 
 ALERT_COLS = ("id", "zbx_alertid", "channel_id", "sent_at", "subject", "severity",
