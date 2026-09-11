@@ -299,8 +299,13 @@ def t_readonly():
 @check("SEC-07", "Безопасность", "Версия Zabbix и риск поддержки",
        "зафиксировать версию; 3.4 снята с поддержки — ожидается WARN")
 def t_version():
-    z = _zbx()
-    ver = z.call("apiinfo.version", {})
+    # apiinfo.version — единственный метод, который вызывается БЕЗ auth
+    body = json.dumps({"jsonrpc": "2.0", "method": "apiinfo.version",
+                       "params": {}, "id": 1}).encode()
+    from modules.netmon import sources
+    req = urllib.request.Request(sources.ZBX_URL, body,
+                                 {"Content-Type": "application/json-rpc"})
+    ver = json.load(urllib.request.urlopen(req, timeout=20)).get("result")
     old = str(ver).startswith(("3.", "4.", "5."))
     return ("WARN" if old else "PASS"), \
         f"Zabbix API {ver} — версия снята с поддержки, обновлений безопасности нет" if old \
