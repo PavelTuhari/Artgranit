@@ -116,19 +116,23 @@ def telegram_chats(chat_ids: list[str]) -> dict[str, dict]:
     if not pw:
         return {}
     ids = " ".join(chat_ids)
+    # Команда уходит одной строкой в sh на контейнере: кавычки внутри $() не
+    # экранируем — ssh и так передаёт аргумент целиком, лишние \" ломали curl.
     remote = (
-        'T=$(grep -oE "[0-9]{8,}:[A-Za-z0-9_-]{30,}" ' + ALERTSCRIPT + ' | head -1); '
-        '[ -z "$T" ] && exit 0; '
-        'echo "BOT $(curl -s --max-time 10 https://api.telegram.org/bot$T/getMe)"; '
-        'for C in ' + ids + '; do '
-        'echo "CHAT $C $(curl -s --max-time 10 \\"https://api.telegram.org/bot$T/getChat?chat_id=$C\\")"; '
-        'echo "CNT $C $(curl -s --max-time 10 \\"https://api.telegram.org/bot$T/getChatMembersCount?chat_id=$C\\")"; '
-        'done')
+        "T=$(grep -oE '[0-9]{8,}:[A-Za-z0-9_-]{30,}' " + ALERTSCRIPT + " | head -1); "
+        "[ -z \"$T\" ] && exit 0; "
+        "echo BOT $(curl -s --max-time 10 https://api.telegram.org/bot$T/getMe); "
+        "for C in " + ids + "; do "
+        "echo CHAT $C $(curl -s --max-time 10 https://api.telegram.org/bot$T/getChat?chat_id=$C); "
+        "echo CNT $C $(curl -s --max-time 10 https://api.telegram.org/bot$T/getChatMembersCount?chat_id=$C); "
+        "done")
+    env = dict(os.environ)
+    env["SSHPASS"] = pw
     r = subprocess.run(
         ["sshpass", "-e", "ssh", "-o", "HostKeyAlgorithms=+ssh-rsa",
          "-o", "PubkeyAcceptedKeyTypes=+ssh-rsa", "-o", "StrictHostKeyChecking=no",
          "-o", "ConnectTimeout=15", f"root@{ZBX_HOST}", remote],
-        capture_output=True, text=True, env={"SSHPASS": pw, "PATH": "/usr/bin:/bin:/opt/homebrew/bin"})
+        capture_output=True, text=True, env=env)
     out: dict[str, dict] = {}
     bot = ""
     for line in r.stdout.splitlines():
