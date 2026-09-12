@@ -63,6 +63,8 @@ https://nufarul.eminescu.md/myloyalwalletcard/una-pos?tech=rogob2026
 - `MOBILE_APP.md` — приложение UNA Market (Android + iOS): настройки без пересборки, сборка, грабли
 - `IOS_BUILD_AND_EU_DISTRIBUTION.md` — iOS-сборка, установка на iPhone, альтернативные магазины ЕС
 - `ALTSTORE_REPO.md` — репозиторий приложений для AltStore
+- **`GARILEAUTO_INTEGRATION.md`** — стыковка с боевыми автовокзалами garileauto.md и garaauto.eu: что там стоит, чего не хватает, какие три вызова нужны
+- **`TELEGRAM_BOT_ROADMAP.md`** — как свести телеграм-бот и приложение в один кошелёк билетов
 
 ## Мобильные и десктопные приложения
 
