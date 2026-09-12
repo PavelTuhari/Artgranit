@@ -31,17 +31,19 @@ echo '===STORAGE==='
 pvesm status 2>/dev/null
 echo '===BACKUPS==='
 ls -l --time-style=+%Y-%m-%d /var/lib/vz/dump/ 2>/dev/null | grep -E '\.(vma|tar)' || true
-for i in $(qm list 2>/dev/null | tail -n +2 | awk '{print $1}'); do
-  echo "===CONFIG qemu $i==="
-  qm config $i 2>/dev/null
-  echo "===SNAP qemu $i==="
-  qm listsnapshot $i 2>/dev/null | grep -v no-parent || true
+# Конфиги читаем файлами из /etc/pve, а не вызовами qm/pct: на PVE 4.4
+# 51 вызов занимает больше трёх минут и упирается в таймаут, а cat — мгновенно.
+for f in /etc/pve/qemu-server/*.conf; do
+  [ -e "$f" ] || continue
+  b=$(basename "$f" .conf)
+  echo "===CONFIG qemu $b==="
+  cat "$f"
 done
-for i in $(pct list 2>/dev/null | tail -n +2 | awk '{print $1}'); do
-  echo "===CONFIG lxc $i==="
-  pct config $i 2>/dev/null
-  echo "===SNAP lxc $i==="
-  pct listsnapshot $i 2>/dev/null || true
+for f in /etc/pve/lxc/*.conf; do
+  [ -e "$f" ] || continue
+  b=$(basename "$f" .conf)
+  echo "===CONFIG lxc $b==="
+  cat "$f"
 done
 echo '===END==='
 """
