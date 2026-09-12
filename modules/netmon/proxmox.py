@@ -331,12 +331,19 @@ def passport(g: dict) -> dict:
     else:
         decision = DECISION_KEEP
 
-    # извлекаем из описания то, что админы писали руками
+    # извлекаем из описания то, что админы писали руками; секреты маскируем
     fields = {}
+    has_secret = False
     for line in (g.get("description") or "").splitlines():
-        m = re.match(r"^\s*(IP|Auth|Role|OS|Роль|Логин)\s*[:=]\s*(.+)$", line, re.I)
+        m = re.match(r"^\s*(IP|Auth|Role|OS|Роль|Логин|Пароль|Password)\s*[:=]\s*(.+)$",
+                     line, re.I)
         if m:
-            fields[m.group(1).strip().lower()] = m.group(2).strip()
+            name, value = m.group(1).strip().lower(), m.group(2).strip()
+            if any(s in name for s in _SECRET_FIELDS):
+                has_secret = True
+            fields[name] = _mask_secret(name, value)
+    if has_secret:
+        risks.append("в описании ВМ хранятся учётные данные открытым текстом")
 
     return {
         "legacy_os": bool(legacy),
