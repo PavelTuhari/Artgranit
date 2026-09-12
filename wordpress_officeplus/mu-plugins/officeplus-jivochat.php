@@ -16,6 +16,7 @@
 if (!defined('ABSPATH')) { exit; }
 
 const OFFICEPLUS_JIVO_OPTION = 'officeplus_jivo_id';
+const OFFICEPLUS_JIVO_DOC = 'https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/JIVOCHAT.md';
 
 /** Поле в «Настройки → Общие», чтобы ID менялся из админки, а не в коде. */
 add_action('admin_init', function () {
@@ -36,7 +37,11 @@ add_action('admin_init', function () {
                . OFFICEPLUS_JIVO_OPTION . '" value="' . $v . '" class="regular-text">'
                . '<p class="description">Из личного кабинета JivoChat: Управление → '
                . 'Установить JivoChat → код вида <code>//code.jivosite.com/widget/'
-               . '<b>XXXXXXXXXX</b></code>. Пусто — чат выключен.</p>';
+               . '<b>XXXXXXXXXX</b></code>. Пусто — чат выключен.<br>'
+               . 'Тот же ID нужно ввести и в магазине: '
+               . '<a href="https://officeplus.md/UNA.md/orasldev/biro26-notify-settings" target="_blank">'
+               . 'настройки витрины</a>. Инструкция: '
+               . '<a href="' . OFFICEPLUS_JIVO_DOC . '" target="_blank">' . OFFICEPLUS_JIVO_DOC . '</a></p>';
         },
         'general'
     );
