@@ -133,3 +133,24 @@ def api_sync_pve():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.sync_pve())
+
+
+@blueprint.route("/api/assets")
+def api_assets():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.assets())
+
+
+@blueprint.route("/api/vault")
+def api_vault():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.vault())
+
+
+@blueprint.route("/api/sync/assets", methods=["POST"])
+def api_sync_assets():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.sync_assets())

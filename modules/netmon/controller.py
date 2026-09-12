@@ -191,3 +191,92 @@ class NetmonController:
                         "summary": proxmox.summary(data)})
         except Exception as e:  # noqa: BLE001
             return _fail(e)
+
+    # ---------------------------------------------------------------- бизнес-активы
+
+    @staticmethod
+    def assets():
+        """Домены, серверы в стойке и перерасход энергии — одним ответом."""
+        try:
+            from modules.netmon import assets as a
+            doms = a.check_domains()
+            night = []
+            try:
+                night = a.night_activity(sources.Zabbix())
+            except Exception:  # noqa: BLE001 — Zabbix может быть недоступен без VPN
+                pass
+            ws = [n for n in night if n["is_workstation"] and n["always_on"]]
+            energy = a.energy_waste(len(ws) or 0)
+            return _ok({
+                "domains": doms,
+                "domains_alert": [d for d in doms if d["level"] in ("critical", "warning")],
+                "rack": a.RACK_SERVERS,
+                "night": night,
+                "always_on_workstations": ws,
+                "energy": energy,
+            })
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def sync_assets():
+        """Проверяет домены и отправляет показатели в Zabbix."""
+        try:
+            from modules.netmon import assets as a
+            doms = a.check_domains()
+            vals = a.domain_values(doms)
+            night = a.night_activity(sources.Zabbix())
+            ws = [n for n in night if n["is_workstation"] and n["always_on"]]
+            e = a.energy_waste(len(ws))
+            vals.update({"energy.idle.machines": len(ws),
+                         "energy.idle.mdl_month": e["mdl_month"],
+                         "energy.idle.kwh_month": int(e["kwh_month"])})
+            res = a.push_to_zabbix(vals)
+            return _ok({"domains_checked": len(doms), "workstations_always_on": len(ws),
+                        "energy": e, "zabbix": res})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    # ---------------------------------------------------------------- пароли
+
+    @staticmethod
+    def vault():
+        """Реестр доступов: ЧТО есть и ГДЕ лежит. Сами пароли не отдаются."""
+        try:
+            from modules.netmon.scripts import netmon_vault as v
+            groups: dict[str, list] = {}
+            for account, service, what, where in v.KNOWN:
+                ok = bool(v.kc_get(account, service))
+                groups.setdefault(_vault_group(what), []).append({
+                    "what": what, "where": where, "login": account,
+                    "keychain": service, "kind": "generic", "present": ok,
+                    "howto": f"security find-generic-password -a {account} -s {service} -w"})
+            for account, service, what, where in v.KNOWN_INTERNET:
+                ok = bool(v.kc_get(account, service, internet=True))
+                groups.setdefault(_vault_group(what), []).append({
+                    "what": what, "where": where, "login": account,
+                    "keychain": service, "kind": "internet", "present": ok,
+                    "howto": f"security find-internet-password -a {account} -s {service} -w"})
+            total = sum(len(v_) for v_ in groups.values())
+            return _ok({"groups": [{"group": g, "items": sorted(items, key=lambda x: x["what"])}
+                                   for g, items in sorted(groups.items())],
+                        "total": total,
+                        "note": ("Значения паролей через веб не отдаются намеренно. "
+                                 "Панель показывает, какой доступ существует и как достать "
+                                 "его из Keychain на рабочей машине.")})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+
+def _vault_group(what: str) -> str:
+    """Группировка доступов по типу объекта."""
+    w = what.lower()
+    if "oracle" in w or "схема" in w:
+        return "Базы данных Oracle"
+    if "zabbix" in w:
+        return "Мониторинг"
+    if "гипервизор" in w or "proxmox" in w:
+        return "Виртуализация"
+    if "ssh" in w or "сервер" in w:
+        return "Серверы (SSH)"
+    return "Прочее"

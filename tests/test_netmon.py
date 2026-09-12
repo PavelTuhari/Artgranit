@@ -233,3 +233,65 @@ def test_pve_ddl_uses_character_semantics_for_cyrillic_columns():
     ddl = _read("modules/netmon/sql/201_nmon_pve.sql")
     for col in ("DECISION", "RISKS", "NOTES", "DESCR", "ROLE_HINT"):
         assert re.search(rf"{col}\s+VARCHAR2\(\d+ CHAR\)", ddl), col
+
+
+# ------------------------------------------------------------------ активы и энергия
+
+def test_cpu_thresholds_follow_intel_spec_not_blynk_emoji():
+    # Пороги 52 °C были взяты из эмодзи Blynk-бота и оказались занижены:
+    # для Xeon E5-26xx v3 Tcase = 72,6 °C, троттлинг около 85 °C.
+    doc = _read("modules/netmon/assets.py")
+    assert "73" in doc and "85" in doc
+
+
+def test_domain_expiry_levels():
+    from modules.netmon import assets
+    assert assets.domain_level(10) == "critical"
+    assert assets.domain_level(30) == "critical"      # ровно месяц — уже срочно
+    assert assets.domain_level(60) == "warning"
+    assert assets.domain_level(365) == "ok"
+    assert assets.domain_level(None) == "unknown"     # реестр .eu не отдаёт дату
+
+
+def test_domains_without_known_date_are_not_pushed_to_zabbix():
+    # Отправить 0 значило бы поднять ложную тревогу «регистрация истекла»
+    from modules.netmon import assets
+    vals = assets.domain_values([
+        {"domain": "a.md", "days_left": 100},
+        {"domain": "b.eu", "days_left": None},
+    ])
+    assert "domain.days[a.md]" in vals and "domain.days[b.eu]" not in vals
+
+
+def test_energy_counts_only_hours_outside_working_time():
+    from modules.netmon import assets
+    e = assets.energy_waste(1, watt=100, tariff=3.0)
+    assert e["idle_hours_week"] == 118          # 168 − 50
+    assert e["kwh_week"] == 11.8
+    assert e["mdl_year"] > 0
+
+
+def test_energy_scales_with_machine_count():
+    from modules.netmon import assets
+    one = assets.energy_waste(1)["mdl_year"]
+    ten = assets.energy_waste(10)["mdl_year"]
+    # округление идёт на каждом расчёте, поэтому сравниваем с допуском
+    assert abs(ten - one * 10) <= 10
+
+
+def test_vault_never_returns_password_values():
+    # Панель показывает, какой доступ есть и как достать его из Keychain,
+    # но не сами значения.
+    src = _read("modules/netmon/controller.py")
+    vault = src[src.index("def vault("):src.index("def _vault_group")]
+    # проверяем наличие пароля только там, где он был бы значением,
+    # а не в названии команды security find-*-password
+    cleaned = vault.replace("find-generic-password", "").replace("find-internet-password", "")
+    assert "kc_get" in vault, "статус доступа должен проверяться"
+    assert '"password"' not in cleaned and "'password'" not in cleaned, \
+        "панель не должна отдавать значения паролей"
+
+
+def test_vault_file_must_live_outside_the_repository():
+    src = _read("modules/netmon/scripts/netmon_vault.py")
+    assert "внутри репозитория" in src and "0o600" in src

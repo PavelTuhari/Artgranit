@@ -82,6 +82,7 @@
   <button id="btn-sync-tg">↻ Telegram</button>
   <button id="btn-sync-dev">↻ Скан сети</button>
   <button id="btn-sync-pve">↻ Proxmox</button>
+  <button id="btn-sync-as">↻ Домены</button>
   <button class="primary" id="btn-reload">Обновить</button>
 </header>
 
@@ -92,6 +93,8 @@
   <a href="#" data-p="feed">Лента сообщений</a>
   <a href="#" data-p="zabbix">Обзор Zabbix</a>
   <a href="#" data-p="pve">Proxmox: машины</a>
+  <a href="#" data-p="assets">Домены и стойка</a>
+  <a href="#" data-p="vault">Доступы</a>
 </nav>
 
 <main>
@@ -182,6 +185,32 @@
     </tr></thead><tbody></tbody></table></div>
     <div class="note">Строка кликается — откроется полный паспорт машины. Учётные данные из описаний на гипервизоре
       намеренно не показываются.</div>
+  </section>
+
+  <section class="panel" id="p-assets">
+    <div class="tiles" id="as-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Домены: сроки и кому платить</h3>
+    <div class="tbl-wrap"><table id="dom-tbl"><thead><tr>
+      <th style="width:150px">Домен</th><th style="width:110px">Истекает</th>
+      <th style="width:110px">Осталось</th><th style="width:170px">Регистратор</th>
+      <th>Назначение</th><th style="width:120px">Владелец</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Перерасход электроэнергии</h3>
+    <div id="energy-box"></div>
+    <div class="tbl-wrap" style="margin-top:10px"><table id="night-tbl"><thead><tr>
+      <th style="width:170px">Устройство</th><th style="width:120px">Тип</th>
+      <th style="width:140px">Доступен ночью</th><th>Вывод</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Серверы в стойке: статус и инструкции</h3>
+    <div id="rack-box"></div>
+  </section>
+
+  <section class="panel" id="p-vault">
+    <div class="tiles" id="v-tiles"></div>
+    <div id="vault-box"></div>
+    <div class="note" id="vault-note"></div>
   </section>
 </main>
 
@@ -446,6 +475,98 @@ async function showPassport(vmid){
       панель видят все, у кого есть вход в портал.</div>`;
 }
 
+
+// ---------------------------------------------------------------- Домены, стойка, энергия
+let AS = null;
+const DOM_CLS = {critical:"crit", warning:"warn", notice:"mid", ok:"ok", unknown:"dim"};
+const DOM_WORD = {critical:"срочно платить", warning:"скоро продление",
+                  notice:"в этом полугодии", ok:"в порядке", unknown:"проверить вручную"};
+
+function renderAssets(){
+  if (!AS) return;
+  const crit = AS.domains.filter(d => d.level === "critical").length;
+  const e = AS.energy;
+  document.getElementById("as-tiles").innerHTML =
+    tile(AS.domains.length, "доменов под контролем") +
+    tile(crit, "требуют оплаты сейчас", crit ? "crit" : "ok") +
+    tile(AS.always_on_workstations.length, "ПК работают круглосуточно",
+         AS.always_on_workstations.length ? "warn" : "ok") +
+    tile(e.mdl_month + " лей", "перерасход в месяц", e.mdl_month ? "warn" : "ok") +
+    tile(e.mdl_year + " лей", "перерасход в год", e.mdl_year ? "crit" : "ok") +
+    tile(AS.rack.length, "сервера в стойке");
+
+  document.querySelector("#dom-tbl tbody").innerHTML = AS.domains
+    .slice().sort((a,b) => (a.days_left ?? 99999) - (b.days_left ?? 99999))
+    .map(d => `<tr>
+      <td><b>${esc(d.domain)}</b></td>
+      <td>${esc(d.expires || "—")}</td>
+      <td class="${DOM_CLS[d.level]}"><b>${d.days_left ?? "?"}</b> дн
+        <div style="font-size:11px">${DOM_WORD[d.level]}</div></td>
+      <td class="dim">${esc(d.registrar || "—")}</td>
+      <td style="font-size:12px">${esc(d.role)}</td>
+      <td class="dim" style="font-size:12px">${esc(d.owner || "—")}</td></tr>`).join("");
+
+  document.getElementById("energy-box").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Машин впустую<b class="warn">${e.machines}</b></div>
+      <div>Лишних часов в неделю<b>${e.idle_hours_week}</b></div>
+      <div>кВт·ч в месяц<b>${e.kwh_month}</b></div>
+      <div>Лей в месяц<b class="warn">${e.mdl_month}</b></div>
+      <div>Лей в год<b class="crit">${e.mdl_year}</b></div>
+    </div>
+    <div class="note" style="margin-top:8px">Расчёт: ${e.watt_per_machine} Вт на машину в простое,
+      тариф ${e.tariff_mdl} лей/кВт·ч, рабочее время 10 ч × 5 дней. Учитываются только часы вне
+      рабочего времени. Выключение на ночь возвращает всю сумму.</div></div>`;
+
+  document.querySelector("#night-tbl tbody").innerHTML = (AS.night || [])
+    .filter(n => n.always_on)
+    .map(n => `<tr>
+      <td><code>${esc(n.host)}</code></td>
+      <td>${n.is_workstation ? '<span class="badge b-warn">рабочая станция</span>'
+                             : '<span class="badge b-dim">оборудование</span>'}</td>
+      <td>${n.night_uptime_pct}% <span class="dim">(${n.samples} замеров)</span></td>
+      <td class="dim" style="font-size:12px">${n.is_workstation
+          ? "не выключается — прямой перерасход" : "работает постоянно, так и задумано"}</td>
+    </tr>`).join("") || `<tr><td colspan="4" class="dim">нет данных</td></tr>`;
+
+  document.getElementById("rack-box").innerHTML = AS.rack.map(s => `
+    <div class="card" style="margin-bottom:10px">
+      <h3>🖥 ${esc(s.name)} <span class="dim" style="font-size:12px">${esc(s.ip)}</span></h3>
+      <div class="dim" style="font-size:12px;margin-bottom:4px">${esc(s.role)} · ${esc(s.cpu)}</div>
+      <div class="badge b-no" style="margin-bottom:8px">${esc(s.criticality)}</div>
+      <ul style="margin:6px 0 0;padding-left:20px;font-size:13px">
+        ${s.runbook.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>`).join("");
+}
+
+// ---------------------------------------------------------------- Доступы
+let VAULT = null;
+function renderVault(){
+  if (!VAULT) return;
+  const all = VAULT.groups.flatMap(g => g.items);
+  document.getElementById("v-tiles").innerHTML =
+    tile(VAULT.total, "учётных записей") +
+    tile(all.filter(i => i.present).length, "есть в Keychain", "ok") +
+    tile(all.filter(i => !i.present).length, "отсутствуют",
+         all.some(i => !i.present) ? "crit" : "ok") +
+    tile(VAULT.groups.length, "групп объектов");
+  document.getElementById("vault-box").innerHTML = VAULT.groups.map(g => `
+    <h3 style="margin:18px 0 8px;font-size:14px">${esc(g.group)}
+      <span class="dim" style="font-weight:400">— ${g.items.length}</span></h3>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:34%">Система</th><th style="width:150px">Где</th>
+      <th style="width:110px">Логин</th><th style="width:90px">Статус</th>
+      <th>Как достать пароль</th></tr></thead><tbody>
+      ${g.items.map(i => `<tr>
+        <td>${esc(i.what)}</td>
+        <td class="dim"><code>${esc(i.where)}</code></td>
+        <td><code>${esc(i.login)}</code></td>
+        <td>${i.present ? '<span class="badge b-ok">есть</span>'
+                        : '<span class="badge b-no">нет</span>'}</td>
+        <td><code style="font-size:11px">${esc(i.howto)}</code></td></tr>`).join("")}
+    </tbody></table></div>`).join("");
+  document.getElementById("vault-note").textContent = VAULT.note;
+}
+
 async function loadAll(){
   const o = await get("/overview");
   renderDash(o);
@@ -454,6 +575,8 @@ async function loadAll(){
   FEED = await get("/alerts?limit=400");  renderFeed();
   try { PVE = await get("/pve"); renderPve(); } catch (e) { console.warn("proxmox:", e.message); }
   try { ZBX = await get("/zabbix"); renderZabbix(); } catch (e) { console.warn("zabbix:", e.message); }
+  try { AS = await get("/assets"); renderAssets(); } catch (e) { console.warn("assets:", e.message); }
+  try { VAULT = await get("/vault"); renderVault(); } catch (e) { console.warn("vault:", e.message); }
 }
 
 document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
@@ -483,6 +606,7 @@ document.getElementById("btn-sync-tg").onclick = e => withBusy(e.target, async (
   await post("/sync/channels"); await post("/sync/alerts"); });
 document.getElementById("btn-sync-dev").onclick = e => withBusy(e.target, () => post("/sync/devices"));
 document.getElementById("btn-sync-pve").onclick = e => withBusy(e.target, () => post("/sync/pve"));
+document.getElementById("btn-sync-as").onclick = e => withBusy(e.target, () => post("/sync/assets"));
 
 loadAll().catch(e => document.getElementById("hdr").textContent = "Ошибка: " + e.message);
 </script>

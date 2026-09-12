@@ -235,3 +235,47 @@ RACK_SERVERS = [
         ],
     },
 ]
+
+
+# ------------------------------------------------------------------ отправка в Zabbix
+
+def domain_values(domains: list[dict]) -> dict:
+    """Готовит значения для Zabbix, пропуская домены с неизвестной датой.
+
+    Реестр .eu публично дат не отдаёт. Отправить для такого домена 0 значило
+    бы поднять ложную тревогу «регистрация истекла», поэтому его просто
+    пропускаем, а в панели он показан как «требует ручной проверки».
+    """
+    return {f"domain.days[{d['domain']}]": d["days_left"]
+            for d in domains if d.get("days_left") is not None}
+
+
+def push_to_zabbix(values: dict, host: str = "business-metrics",
+                   server: str = "192.168.0.110") -> dict:
+    """Отправляет бизнес-показатели в Zabbix через zabbix_sender на контейнере.
+
+    Локально zabbix_sender может быть не установлен, поэтому отправка идёт
+    с самого сервера мониторинга по SSH — он гарантированно умеет.
+    """
+    import os
+    from modules.netmon import proxmox  # keychain-помощник лежит там
+
+    pw = proxmox.keychain("root", "zabbix34-ct")
+    if not pw:
+        return {"sent": 0, "error": "нет пароля контейнера Zabbix в Keychain"}
+    lines = "\n".join(f'- {k} {v}' for k, v in values.items())
+    remote = (f"cat <<'EOF' > /tmp/netmon_values.txt\n{lines}\nEOF\n"
+              f"zabbix_sender -z 127.0.0.1 -s {host} -i /tmp/netmon_values.txt 2>&1 | tail -2; "
+              f"rm -f /tmp/netmon_values.txt")
+    env = dict(os.environ)
+    env["SSHPASS"] = pw
+    r = subprocess.run(
+        ["sshpass", "-e", "ssh", "-o", "HostKeyAlgorithms=+ssh-rsa",
+         "-o", "PubkeyAcceptedKeyTypes=+ssh-rsa", "-o", "StrictHostKeyChecking=no",
+         "-o", "ConnectTimeout=15", "root@192.168.0.110", remote],
+        capture_output=True, text=True, env=env, timeout=60)
+    out = (r.stdout or "") + (r.stderr or "")
+    m = re.search(r"processed:\s*(\d+);\s*failed:\s*(\d+)", out)
+    return {"sent": int(m.group(1)) if m else 0,
+            "failed": int(m.group(2)) if m else 0,
+            "raw": out.strip()[:200]}
