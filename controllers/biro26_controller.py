@@ -344,6 +344,10 @@ class Biro26Controller:
             max_nr = None
         return {"success": True, "data": {
             "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24"),
+            # RO: ID-ul widget-ului JivoChat. Gol = chatul e stins complet.
+            #     ACELASI id trebuie pus si in WordPress (Setari -> Generale),
+            #     altfel chatul dispare pe paginile de continut.
+            "jivo_id": Biro26Store.get_setting("SHOP_JIVO_ID", ""),
             # RO: filtrul dupa brand in catalogul noului site (OFF implicit)
             "brand_filter": Biro26Store.get_setting("SHOP_BRAND_FILTER", "0"),
             # RO: formatele de cont disponibile clientilor (PDF mereu;
@@ -372,6 +376,17 @@ class Biro26Controller:
             if not 1 <= n <= 200:
                 return {"success": False, "error": "shop_page_size: 1..200"}
             r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
+            if not r.get("success"):
+                return r
+        # RO: ID-ul JivoChat — doar litere, cifre si liniuta: valoarea ajunge
+        #     direct in <script src="//code.jivosite.com/widget/...">, deci nu
+        #     are voie sa contina nimic din ce ar putea inchide tagul.
+        if "jivo_id" in d:
+            import re as _re
+            v = _re.sub(r"[^A-Za-z0-9\-]", "", str(d.get("jivo_id") or "")).strip()
+            if len(v) > 64:
+                return {"success": False, "error": "jivo_id: maxim 64 de caractere"}
+            r = Biro26Store.set_setting("SHOP_JIVO_ID", v)
             if not r.get("success"):
                 return r
         # RO: coloana de pret pentru fizice / juridice

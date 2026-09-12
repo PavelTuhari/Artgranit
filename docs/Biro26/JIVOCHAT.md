@@ -18,8 +18,15 @@
 
 | Часть | Где | Ключ |
 |---|---|---|
-| Витрина | `YBIRO_SETTINGS` | `SHOP_JIVO_ID` |
+| Витрина | страница настроек бэк-офиса, раздел «Chat JivoChat» | `SHOP_JIVO_ID` |
 | WordPress | Настройки → Общие → «JivoChat: ID виджета» | опция `officeplus_jivo_id` |
+
+Полные адреса:
+
+- настройки витрины — <https://officeplus.md/UNA.md/orasldev/biro26-notify-settings>
+- админка WordPress — <https://officeplus.md/wp-admin/options-general.php>
+- кабинет JivoChat — <https://app.jivosite.com/>
+- справка по установке — <https://www.jivochat.com/help/installation/how-to-install-on-wordpress.html>
 
 **ID должен быть один и тот же.** Он берётся в личном кабинете JivoChat:
 Управление → Установить JivoChat → код вида
@@ -36,7 +43,8 @@
 На внутренних именах хоста (не публичный магазин) виджет не выводится — та же
 защита, что у аналитики: чтобы тестовый трафик не смешивался с боевым.
 
-**WordPress.** `wp-content/mu-plugins/officeplus-jivochat.php` — обязательный
+**WordPress.** `/var/www/officeplus/wp-content/mu-plugins/officeplus-jivochat.php`
+(копия в репозитории: `/Users/pt/Projects.AI/Artgranit-core/wordpress_officeplus/mu-plugins/officeplus-jivochat.php`) — обязательный
 плагин, как соседние `noindex-internal.php` и `auto-updates.php`. Не
 отключается случайно и переживает смену темы. Добавляет поле в «Настройки →
 Общие» и выводит скрипт в подвал с приоритетом 99.
@@ -49,3 +57,13 @@ ID из админки чистится регуляркой до `[A-Za-z0-9-]`
 1. Чат появился и на `/catalog`, и на `/despre-companie`.
 2. Переход между этими страницами не теряет начатый диалог.
 3. В консоли браузера нет ошибок загрузки `code.jivosite.com`.
+
+## Полные адреса материалов
+
+| Что | Адрес |
+|---|---|
+| Эта страница в хабе | <https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/JIVOCHAT.md> |
+| Страница настроек витрины | <https://officeplus.md/UNA.md/orasldev/biro26-notify-settings> |
+| Админка WordPress | <https://officeplus.md/wp-admin/options-general.php> |
+| Шаблон витрины | `/Users/pt/Projects.AI/Artgranit-core/templates/biro26/site_base.html` |
+| Плагин WordPress | `/var/www/officeplus/wp-content/mu-plugins/officeplus-jivochat.php` |

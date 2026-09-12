@@ -160,6 +160,31 @@ input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-rad
   </div>
 
   <div class="card">
+    <h3>💬 Chat JivoChat · Чат JivoChat</h3>
+    <div class="hint">
+      Chatul apare pe magazin <b>si</b> pe paginile de continut. ID-ul se ia din
+      contul JivoChat: <b>Gestionare → Instalare JivoChat</b>, din codul
+      <code>//code.jivosite.com/widget/<b>XXXXXXXXXX</b></code> — doar partea
+      îngroșată. Gol = chatul este oprit complet.<br>
+      Чат показывается и в магазине, и на контентных страницах. ID берётся в
+      кабинете JivoChat: <b>Управление → Установить JivoChat</b>, из кода
+      <code>//code.jivosite.com/widget/<b>XXXXXXXXXX</b></code> — только
+      выделенная часть. Пусто — чат выключен.
+    </div>
+    <label>ID widget · ID виджета</label>
+    <input type="text" id="f-jivo-id" placeholder="de ex. 3QxYz12AbC" style="max-width:280px">
+    <div style="margin-top:10px;padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;line-height:1.6">
+      <b>Al doilea loc, obligatoriu · Второе место, обязательно.</b>
+      Paginile de continut (<code>/despre-companie</code> s.a.) sînt servite de
+      WordPress, nu de magazin. Același ID trebuie pus și acolo:
+      <b>WordPress → Setări → Generale → „JivoChat: ID виджета"</b>.
+      Fără asta chatul dispare cînd vizitatorul trece pe acele pagini și
+      discuția începută se pierde.<br>
+      Контентные страницы отдаёт WordPress, а не магазин. Тот же ID нужно
+      указать и там: <b>WordPress → Настройки → Общие</b>.
+    </div>
+  </div>
+  <div class="card">
     <h3>🛒 Magazin · Магазин</h3>
     <div class="hint">Cîte produse se afișează pe o pagină în magazinul public
       (paginare numerotată). / Сколько товаров на странице в магазине.</div>
@@ -360,6 +385,7 @@ async function loadShop() {
   const r = await j('/api/biro26/shop-settings');
   if (!r.success) return;
   document.getElementById('f-shop-pagesize').value = r.data.shop_page_size || '24';
+  document.getElementById('f-jivo-id').value = r.data.jivo_id || '';
   document.getElementById('f-brand-filter').checked = r.data.brand_filter === '1';
   document.getElementById('f-fmt-html').checked = r.data.fmt_html === '1';
   document.getElementById('f-fmt-xlsx').checked = r.data.fmt_xlsx === '1';
@@ -373,6 +399,7 @@ async function saveShop() {
   const v = document.getElementById('f-shop-pagesize').value.trim();
   const r = await j('/api/biro26/shop-settings', {method: 'PUT',
     body: JSON.stringify({shop_page_size: v,
+      jivo_id: document.getElementById('f-jivo-id').value.trim(),
       brand_filter: document.getElementById('f-brand-filter').checked ? '1' : '0',
       fmt_html: document.getElementById('f-fmt-html').checked ? '1' : '0',
       fmt_xlsx: document.getElementById('f-fmt-xlsx').checked ? '1' : '0',
