@@ -129,6 +129,32 @@ python3 scripts/biro26_cart_test.py nufarul     # doar cel de probă</pre>
     </ol>
   </div>
 
+
+  <!-- DUPA PUNEREA IN PRODUCTIE -->
+  <div class="bg-white border border-slate-200 rounded-3xl p-6 mt-6" id="dupa-deploy">
+    <h2 class="font-display text-xl text-slate-900 mb-2">6. După punerea în producție (12.09.2026)</h2>
+    <p class="text-[15px] text-slate-700 mb-4">Proprietarul a aprobat punerea în producție. Cele două șabloane au
+      fost puse pe <strong>officeplus.md</strong> (cu copii de siguranță <span class="k">*.bak-20260912-cos</span>),
+      serviciul a fost repornit, iar <strong>aceeași probă a fost rulată din nou pe magazinul viu</strong>.</p>
+    <table class="g">
+      <tr><th style="width:50%">Pasul</th><th>officeplus.md — după punerea în producție</th></tr>
+      <tr><td>Produse puse în coș</td><td class="ok">2</td></tr>
+      <tr><td>Coșul după «Creează cont de plată»</td><td class="ok">2 — coșul a rămas</td></tr>
+      <tr><td>Coșul după plata nereușită (<span class="k">?pay=fail</span>)</td><td class="ok">2 — coșul a rămas</td></tr>
+      <tr><td>Coșul după plata confirmată (<span class="k">?pay=ok</span>)</td><td class="ok">0 — golit, corect</td></tr>
+      <tr><td>Verificări de sănătate</td><td class="ok">serviciu activ · magazin 200 · /cos 200 · 0 erori în jurnal · X-Shop-Origin: office</td></tr>
+    </table>
+    <div class="grid md:grid-cols-2 gap-4 mt-4">
+      <div><img class="shot" src="/static/biro26/docs/cart-test/officeplus_5a_cos_dupa_deploy.png" alt="officeplus, coșul după deploy">
+        <p class="text-xs text-slate-500 mt-1">Coșul cu cele două produse pe magazinul viu.</p></div>
+      <div><img class="shot" src="/static/biro26/docs/cart-test/officeplus_5_dupa_deploy.png" alt="officeplus, după factură, după deploy">
+        <p class="text-xs text-emerald-700 mt-1 font-medium">După «Creează cont de plată»: coșul are ambele produse (3 688,00 LEI) și contul e creat — comportamentul dorit.</p></div>
+    </div>
+    <p class="text-[15px] text-slate-700 mt-4"><strong>Întoarcere înapoi</strong>, dacă va fi nevoie: pe server se
+      pun la loc <span class="k">templates/biro26/shop.html.bak-20260912-cos</span> și
+      <span class="k">site_payment_result.html.bak-20260912-cos</span>, apoi
+      <span class="k">sudo systemctl restart artgranit</span>.</p>
+  </div>
   <!-- VERDICT -->
   <div class="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 mt-6">
     <h2 class="font-display text-xl text-slate-900 mb-2">5. Verdict și ce urmează</h2>
@@ -136,9 +162,9 @@ python3 scripts/biro26_cart_test.py nufarul     # doar cel de probă</pre>
       nu atinge nimic altceva: fișierele schimbate sunt două șabloane
       (<span class="k">templates/biro26/shop.html</span>, <span class="k">site_payment_result.html</span>),
       fără cod de server și fără schimbări în baza de date.</p>
-    <p class="text-[15px] text-slate-700 mt-2"><strong>Rămâne decizia proprietarului:</strong> dacă
-      comportamentul e cel dorit, aceleași două fișiere se pun pe officeplus.md (cu copii de siguranță și
-      verificare după repornire). Până atunci producția lucrează ca înainte.</p>
+    <p class="text-[15px] text-slate-700 mt-2"><strong>Starea la 12.09.2026:</strong> modificarea este
+      <strong>în producție pe officeplus.md</strong>, verificată acolo cu aceeași probă (secțiunea 6), cu copii
+      de siguranță pe server pentru întoarcere imediată.</p>
     <p class="text-xs text-slate-500 mt-4">Act întocmit automat pe baza rezultatelor din
       <span class="k">static/biro26/docs/cart-test/rezultate.json</span>.</p>
   </div>
