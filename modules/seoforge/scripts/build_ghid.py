@@ -6,18 +6,22 @@
 import html
 import pathlib
 import re
+import sys
 
 import markdown
 
 DOCS = pathlib.Path("/Users/pt/Projects.AI/Artgranit-core/docs/SEOForge")
-OUT = pathlib.Path(__file__).with_name("ghid.html")
+# Куда класть страницу: аргументом. Готовая страница — не исходник,
+# в репозитории ей не место.
+OUT = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else \
+    pathlib.Path(__file__).with_name("ghid.html")
 
 CHAPTERS = [
     ("cap-0", "GHID_0_HARTA.md", "", "Harta cărții", "toți", "5 min"),
-    ("cap-1", "GHID_1_DIRECTOR.md", "I", "Pentru director", "proprietar, director", "25 min"),
-    ("cap-2", "GHID_2_EXECUTANT.md", "II", "Manualul executantului", "marketolog, operator", "40 min"),
-    ("cap-3", "GHID_3_CONTINUT.md", "III", "Conținutul", "cine scrie și publică", "30 min"),
-    ("cap-4", "GHID_4_MASURARE.md", "IV", "Măsurarea", "director, marketolog", "20 min"),
+    ("cap-1", "GHID_1_DIRECTOR.md", "I", "Pentru director", "proprietar, director", "35 min"),
+    ("cap-2", "GHID_2_EXECUTANT.md", "II", "Manualul executantului", "marketolog, operator", "45 min"),
+    ("cap-3", "GHID_3_CONTINUT.md", "III", "Conținutul", "cine scrie și publică", "35 min"),
+    ("cap-4", "GHID_4_MASURARE.md", "IV", "Măsurarea", "director, marketolog", "25 min"),
     ("cap-5", "GHID_5_PROBLEME.md", "V", "Când ceva nu merge", "toți", "la nevoie"),
 ]
 ANCHOR = {f: cid for cid, f, *_ in CHAPTERS}
