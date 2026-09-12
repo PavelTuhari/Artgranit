@@ -100,3 +100,6 @@ wordpress_officeplus/db/
 wordpress/servouts26/public_html/
 wordpress/servouts26/db/
 .playwright-mcp/
+
+# Снимки оборудования офиса: операционные данные, не исходный код
+modules/netmon/photos/

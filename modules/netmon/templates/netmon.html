@@ -95,6 +95,7 @@
   <a href="#" data-p="pve">Proxmox: машины</a>
   <a href="#" data-p="assets">Домены и стойка</a>
   <a href="#" data-p="vault">Доступы</a>
+  <a href="#" data-p="fac">Оборудование офиса</a>
 </nav>
 
 <main>
@@ -212,11 +213,33 @@
     <div id="vault-box"></div>
     <div class="note" id="vault-note"></div>
   </section>
+
+  <section class="panel" id="p-fac">
+    <div class="tiles" id="fac-tiles"></div>
+
+    <h3 style="margin:18px 0 8px;font-size:14px">Умные розетки — дистанционное управление</h3>
+    <div id="plug-box"></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Инженерное оборудование и регламент обслуживания</h3>
+    <div class="filters">
+      <select id="f-fac-kind"><option value="">Все типы</option></select>
+      <input type="search" id="f-fac" placeholder="поиск по коду, названию, комнате…" style="flex:1;min-width:180px">
+      <span class="dim" id="fac-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="fac-tbl"><thead><tr>
+      <th style="width:96px">Код</th><th style="width:180px">Тип</th>
+      <th>Название</th><th style="width:150px">Помещение</th>
+      <th style="width:170px">Обслуживание</th><th style="width:110px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Строка кликается — откроется паспорт с журналом работ и фотографиями.
+      Кондиционеры: фильтры раз в 90 дней, фреон раз в 2 года. Лифт — осмотр ежемесячно.</div>
+  </section>
 </main>
 
 <script>
 // Базу адреса берём у сервера: модуль не привязан к точке монтирования
 const API = "{{ url_for('netmon.api_overview') }}".replace(/\/api\/overview$/, "/api");
+const PHOTO_BASE = "{{ url_for('netmon.photo_file', photo_id=0) }}".replace(/\/0$/, "");
 const EM = {disaster:"🔴🔴", high:"🔴", average:"🟠", warning:"🟡",
             information:"🔵", resolved:"🟢", other:"⚪"};
 let DEV = [], FEED = [], CH = [];
@@ -567,6 +590,171 @@ function renderVault(){
   document.getElementById("vault-note").textContent = VAULT.note;
 }
 
+
+// ---------------------------------------------------------------- Оборудование офиса
+let FAC = null, PLUGS = null;
+const SRV_CLS = {overdue:"crit", soon:"warn", unknown:"mid", ok:"ok"};
+
+function renderFac(){
+  if (!FAC) return;
+  const s = FAC.stats;
+  document.getElementById("fac-tiles").innerHTML =
+    tile(s.total, "объектов на учёте") +
+    tile(FAC.overdue, "просрочено обслуживание", FAC.overdue ? "crit" : "ok") +
+    tile(s.by_kind.aircon || 0, "кондиционеров") +
+    tile(s.by_kind.smartplug || 0, "умных розеток") +
+    tile(s.works, "записей в журнале") +
+    tile(s.photos, "фотографий");
+
+  const sel = document.getElementById("f-fac-kind");
+  if (sel.options.length <= 1)
+    sel.innerHTML = '<option value="">Все типы</option>' +
+      Object.entries(FAC.kinds).map(([k, v]) =>
+        `<option value="${k}">${esc(v)} (${s.by_kind[k] || 0})</option>`).join("");
+
+  const kind = sel.value, q = document.getElementById("f-fac").value.toLowerCase().trim();
+  const rows = FAC.facilities.filter(f =>
+    (!kind || f.kind === kind) &&
+    (!q || [f.code, f.name, f.room, f.ip].some(v => (v || "").toLowerCase().includes(q))));
+  document.getElementById("fac-count").textContent = `${rows.length} из ${FAC.facilities.length}`;
+  document.querySelector("#fac-tbl tbody").innerHTML = rows.map(f => `
+    <tr style="cursor:pointer" onclick="showFacility('${esc(f.code)}')">
+      <td><code>${esc(f.code)}</code></td>
+      <td>${esc(f.kind_title)}</td>
+      <td><b>${esc(f.name)}</b>${f.ip ? ` <span class="dim">${esc(f.ip)}</span>` : ""}</td>
+      <td class="dim">${esc(f.room || "—")}</td>
+      <td class="${SRV_CLS[f.service.level]}">${esc(f.service.text)}
+        ${f.service.work ? `<div style="font-size:11px" class="dim">${esc(f.service.work)}</div>` : ""}</td>
+      <td><button onclick="event.stopPropagation();showFacility('${esc(f.code)}')">паспорт</button></td>
+    </tr>`).join("") || `<tr><td colspan="6" class="dim">ничего не найдено</td></tr>`;
+}
+
+function renderPlugs(){
+  if (!PLUGS) return;
+  document.getElementById("plug-box").innerHTML = `
+    <div class="chan">${PLUGS.plugs.map(p => `
+      <div class="card ${p.online ? "live" : ""}">
+        <h3>🔌 ${esc(p.ip)}
+          <span class="badge ${p.online ? "b-ok" : "b-no"}">${p.online ? "в сети" : "недоступна"}</span></h3>
+        <div class="row">
+          <div>Отклик<b>${p.latency_ms ?? "—"} мс</b></div>
+          <div>Состояние<b class="${p.switch_on ? "ok" : "dim"}">${
+            p.controllable ? (p.switch_on ? "включена" : "выключена") : "неизвестно"}</b></div>
+          ${p.power_w != null ? `<div>Мощность<b>${p.power_w} Вт</b></div>` : ""}
+        </div>
+        ${p.controllable ? `
+          <div style="margin-top:10px;display:flex;gap:6px">
+            <button onclick="switchPlug('${esc(p.ip)}','on')">Включить</button>
+            <button onclick="switchPlug('${esc(p.ip)}','off')">Выключить</button>
+          </div>` : `
+          <div class="note" style="margin-top:8px">${esc(p.reason || "управление недоступно")}</div>`}
+      </div>`).join("")}</div>
+    ${PLUGS.controllable === 0 ? `<div class="note">${esc(PLUGS.hint)}</div>` : ""}`;
+}
+
+async function switchPlug(ip, state){
+  try {
+    await post(`/plugs/${ip}/${state}`);
+    PLUGS = await get("/plugs"); renderPlugs();
+  } catch (e) { alert("Не удалось переключить розетку: " + e.message); }
+}
+
+async function showFacility(code){
+  const m = document.getElementById("modal"), b = document.getElementById("modal-body");
+  b.innerHTML = "<div class='dim'>загрузка паспорта…</div>";
+  m.style.display = "block";
+  let f;
+  try { f = await get("/facilities/" + encodeURIComponent(code)); }
+  catch (e) { b.innerHTML = `<div class="crit">Ошибка: ${esc(e.message)}</div>`; return; }
+  const row = (k, v) => v ? `<tr><td class="dim" style="width:180px">${k}</td><td>${v}</td></tr>` : "";
+  b.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1">
+        <h2 style="margin:0 0 4px;font-size:20px">${esc(f.name)}
+          <span class="dim" style="font-size:14px">${esc(f.code)}</span></h2>
+        <div><span class="badge b-dim">${esc(f.kind_title)}</span>
+          <span class="badge ${SRV_CLS[f.service.level] === "ok" ? "b-ok" : "b-warn"}">
+            ${esc(f.service.text)}${f.service.work ? " · " + esc(f.service.work) : ""}</span></div>
+      </div>
+      <button onclick="document.getElementById('modal').style.display='none'">Закрыть</button>
+    </div>
+    <table style="margin-top:12px">
+      ${row("Помещение", esc(f.room || ""))}
+      ${row("Производитель", esc(f.vendor || ""))}
+      ${row("Модель", esc(f.model || ""))}
+      ${row("Серийный номер", esc(f.serial_no || ""))}
+      ${row("Адрес в сети", f.ip ? `<code>${esc(f.ip)}</code> ${esc(f.protocol || "")}` : "")}
+      ${row("Ответственный", esc(f.responsible || ""))}
+      ${row("Регламент", f.service_days + " дней между работами")}
+      ${row("Примечание", esc(f.note || ""))}
+    </table>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">Журнал работ — ${f.log.length}</h3>
+    <div class="tbl-wrap" style="max-height:none"><table><thead><tr>
+      <th style="width:100px">Дата</th><th style="width:170px">Вид работ</th>
+      <th>Что сделано</th><th style="width:140px">Исполнитель</th>
+      <th style="width:110px">Повтор</th></tr></thead><tbody>
+      ${f.log.map(w => `<tr>
+        <td>${esc(w.done_at)}</td><td>${esc(w.work_title)}</td>
+        <td>${esc(w.description || "")}${w.cost_mdl ? ` <span class="dim">(${w.cost_mdl} лей)</span>` : ""}</td>
+        <td class="dim">${esc(w.performer || "")}</td>
+        <td class="dim">${esc(w.next_due || "—")}</td></tr>`).join("") ||
+        `<tr><td colspan="5" class="dim">работ пока не заносили</td></tr>`}
+    </tbody></table></div>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">Фотографии состояния — ${f.photos.length}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+      ${f.photos.map(p => `
+        <div class="card" style="padding:8px">
+          <a href="${PHOTO_BASE}/${p.id}" target="_blank">
+            <img src="${PHOTO_BASE}/${p.id}" style="width:100%;border-radius:6px;display:block"
+                 alt="${esc(p.caption || "")}"></a>
+          <div style="font-size:11px;margin-top:5px">${esc(p.caption || "без подписи")}</div>
+          <div class="dim" style="font-size:11px">${esc(p.taken_by || "")} · ${esc(p.taken_at)}</div>
+        </div>`).join("") || `<div class="dim">снимков пока нет</div>`}
+    </div>
+
+    <h3 style="margin:20px 0 8px;font-size:15px">Добавить запись</h3>
+    <div class="filters">
+      <select id="w-kind">${Object.entries(FAC.work_kinds).map(([k, v]) =>
+        `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      <input type="text" id="w-descr" placeholder="что сделано" style="flex:1;min-width:200px">
+      <input type="text" id="w-perf" placeholder="исполнитель" style="width:150px">
+      <button class="primary" onclick="addWork('${esc(f.code)}')">Записать</button>
+    </div>
+    <div class="filters">
+      <input type="file" id="w-photo" accept="image/*" capture="environment">
+      <input type="text" id="w-cap" placeholder="подпись к снимку" style="flex:1;min-width:180px">
+      <button onclick="addPhoto('${esc(f.code)}')">Загрузить фото</button>
+    </div>
+    <div class="note">Снимок можно сделать телефоном прямо на месте: поле открывает камеру.</div>`;
+}
+
+async function addWork(code){
+  const body = {work_kind: document.getElementById("w-kind").value,
+                description: document.getElementById("w-descr").value,
+                performer: document.getElementById("w-perf").value};
+  if (!body.description.trim()) { alert("Опишите, что сделано"); return; }
+  try { await post(`/facilities/${encodeURIComponent(code)}/work`, body);
+        FAC = await get("/facilities"); renderFac(); await showFacility(code); }
+  catch (e) { alert("Не записалось: " + e.message); }
+}
+
+async function addPhoto(code){
+  const input = document.getElementById("w-photo");
+  if (!input.files.length) { alert("Выберите снимок"); return; }
+  const fd = new FormData();
+  fd.append("photo", input.files[0]);
+  fd.append("caption", document.getElementById("w-cap").value);
+  try {
+    const r = await fetch(`${API}/facilities/${encodeURIComponent(code)}/photo`,
+                          {method: "POST", body: fd});
+    const j = await r.json();
+    if (!j.success) throw new Error(j.message || "ошибка");
+    FAC = await get("/facilities"); renderFac(); await showFacility(code);
+  } catch (e) { alert("Снимок не загрузился: " + e.message); }
+}
+
 async function loadAll(){
   const o = await get("/overview");
   renderDash(o);
@@ -577,6 +765,8 @@ async function loadAll(){
   try { ZBX = await get("/zabbix"); renderZabbix(); } catch (e) { console.warn("zabbix:", e.message); }
   try { AS = await get("/assets"); renderAssets(); } catch (e) { console.warn("assets:", e.message); }
   try { VAULT = await get("/vault"); renderVault(); } catch (e) { console.warn("vault:", e.message); }
+  try { FAC = await get("/facilities"); renderFac(); } catch (e) { console.warn("facilities:", e.message); }
+  try { PLUGS = await get("/plugs"); renderPlugs(); } catch (e) { console.warn("plugs:", e.message); }
 }
 
 document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
@@ -594,6 +784,8 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   document.getElementById(id).addEventListener("input", renderZabbix));
 ["f-pve","f-pve-dec","f-pve-st","f-pve-risk"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderPve));
+["f-fac","f-fac-kind"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderFac));
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";

@@ -154,3 +154,68 @@ def api_sync_assets():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.sync_assets())
+
+
+@blueprint.route("/api/facilities")
+def api_facilities():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.facilities(kind=request.args.get("kind"),
+                                              room=request.args.get("room")))
+
+
+@blueprint.route("/api/facilities/<code>")
+def api_facility(code):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.facility(code))
+
+
+@blueprint.route("/api/facilities/<code>/work", methods=["POST"])
+def api_facility_work(code):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.add_work(code, request.get_json(silent=True) or {},
+                                            user=session.get("username", "system")))
+
+
+@blueprint.route("/api/facilities/<code>/photo", methods=["POST"])
+def api_facility_photo(code):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.add_photo(
+        code, request.files.get("photo"),
+        caption=request.form.get("caption", ""),
+        user=session.get("username", "system"),
+        log_id=request.form.get("log_id", type=int)))
+
+
+@blueprint.route("/photo/<int:photo_id>")
+def photo_file(photo_id):
+    """Отдаёт снимок. Файлы лежат вне статики, поэтому только через маршрут."""
+    if not AuthController.is_authenticated():
+        return redirect(url_for("login"))
+    from flask import send_file
+    from modules.netmon import store as st
+    with_ = [p for f in st.facilities() for p in st.facility_photos(f["id"])
+             if p["id"] == photo_id]
+    if not with_:
+        return jsonify({"success": False, "message": "снимок не найден"}), 404
+    return send_file(with_[0]["file_path"])
+
+
+@blueprint.route("/api/plugs")
+def api_plugs():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.plugs())
+
+
+@blueprint.route("/api/plugs/<ip>/<state>", methods=["POST"])
+def api_plug_switch(ip, state):
+    if (g := _guard()) is not None:
+        return g
+    if state not in ("on", "off"):
+        return jsonify({"success": False, "message": "состояние: on или off"}), 400
+    return _reply(NetmonController.switch_plug(ip, state == "on",
+                                               user=session.get("username", "system")))

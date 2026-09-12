@@ -438,3 +438,159 @@ def guest_stats() -> dict:
         "by_decision": [{"decision": d, "count": int(c)} for d, c in by_dec],
         "by_risk": {k: int(v) for k, v in by_risk},
     }
+
+
+# ------------------------------------------------------------------ оборудование
+
+FAC_COLS = ("id", "code", "kind", "name", "room", "model", "serial_no", "vendor",
+            "ip", "protocol", "installed_on", "responsible", "service_days",
+            "status", "is_monitored", "note", "updated_at")
+
+FAC_SELECT = ("SELECT ID, CODE, KIND, NAME, ROOM, MODEL, SERIAL_NO, VENDOR, IP, "
+              "PROTOCOL, TO_CHAR(INSTALLED_ON,'YYYY-MM-DD'), RESPONSIBLE, "
+              "SERVICE_DAYS, STATUS, IS_MONITORED, NOTE, "
+              "TO_CHAR(UPDATED_AT,'DD.MM.YYYY HH24:MI') FROM NMON_FACILITIES")
+
+
+def upsert_facility(f: dict) -> bool:
+    p = {"code": f["code"], "kind": f["kind"], "name": f["name"],
+         "room": f.get("room"), "model": f.get("model"), "serial": f.get("serial_no"),
+         "vendor": f.get("vendor"), "ip": f.get("ip"), "proto": f.get("protocol"),
+         "resp": f.get("responsible"), "days": f.get("service_days", 180),
+         "status": f.get("status", "ok"), "mon": f.get("is_monitored", "N"),
+         "note": f.get("note")}
+    with DatabaseModel() as db:
+        found = _rows(db.execute_query(
+            "SELECT ID FROM NMON_FACILITIES WHERE CODE = :code", {"code": p["code"]}))
+        if found:
+            db.execute_query(
+                "UPDATE NMON_FACILITIES SET KIND=:kind, NAME=:name, ROOM=:room, "
+                "MODEL=:model, SERIAL_NO=:serial, VENDOR=:vendor, IP=:ip, "
+                "PROTOCOL=:proto, RESPONSIBLE=:resp, SERVICE_DAYS=:days, "
+                "STATUS=:status, IS_MONITORED=:mon, NOTE=:note, "
+                "UPDATED_AT=SYSTIMESTAMP WHERE CODE=:code", p)
+            _commit(db)
+            return False
+        db.execute_query(
+            "INSERT INTO NMON_FACILITIES (CODE, KIND, NAME, ROOM, MODEL, SERIAL_NO, "
+            "VENDOR, IP, PROTOCOL, RESPONSIBLE, SERVICE_DAYS, STATUS, IS_MONITORED, "
+            "NOTE) VALUES (:code, :kind, :name, :room, :model, :serial, :vendor, :ip, "
+            ":proto, :resp, :days, :status, :mon, :note)", p)
+        _commit(db)
+        return True
+
+
+def facilities(kind: str | None = None, room: str | None = None) -> list[dict]:
+    sql, p = FAC_SELECT + " WHERE 1 = 1", {}
+    if kind:
+        sql += " AND KIND = :kind"
+        p["kind"] = kind
+    if room:
+        sql += " AND ROOM = :room"
+        p["room"] = room
+    sql += " ORDER BY KIND, CODE"
+    with DatabaseModel() as db:
+        rows = _dicts(db.execute_query(sql, p or None), FAC_COLS)
+    # к каждому объекту — дата последних работ каждого вида
+    last = last_works()
+    for r in rows:
+        r["last_works"] = last.get(r["id"], {})
+    return rows
+
+
+def facility(code: str) -> dict | None:
+    with DatabaseModel() as db:
+        rows = _dicts(db.execute_query(FAC_SELECT + " WHERE CODE = :c", {"c": code}),
+                      FAC_COLS)
+    if not rows:
+        return None
+    f = rows[0]
+    f["log"] = facility_log(f["id"])
+    f["photos"] = facility_photos(f["id"])
+    f["last_works"] = last_works().get(f["id"], {})
+    return f
+
+
+def last_works() -> dict:
+    """Последняя дата каждого вида работ по каждому объекту."""
+    with DatabaseModel() as db:
+        rows = _rows(db.execute_query(
+            "SELECT FACILITY_ID, WORK_KIND, TO_CHAR(MAX(DONE_AT),'YYYY-MM-DD') "
+            "FROM NMON_FAC_LOG GROUP BY FACILITY_ID, WORK_KIND"))
+    out: dict = {}
+    for fid, kind, when in rows:
+        out.setdefault(int(fid), {})[kind] = when
+    return out
+
+
+LOG_COLS = ("id", "facility_id", "work_kind", "done_at", "performer",
+            "description", "next_due", "cost_mdl", "created_by", "created_at")
+
+
+def add_log(facility_id: int, work: dict) -> int:
+    p = {"fid": facility_id, "kind": work["work_kind"],
+         "done": work.get("done_at"), "perf": work.get("performer"),
+         "descr": work.get("description"), "due": work.get("next_due"),
+         "cost": work.get("cost_mdl"), "usr": work.get("created_by", "system")}
+    with DatabaseModel() as db:
+        db.execute_query(
+            "INSERT INTO NMON_FAC_LOG (FACILITY_ID, WORK_KIND, DONE_AT, PERFORMER, "
+            "DESCRIPTION, NEXT_DUE, COST_MDL, CREATED_BY) VALUES (:fid, :kind, "
+            "NVL(TO_DATE(:done,'YYYY-MM-DD'), SYSDATE), :perf, :descr, "
+            "TO_DATE(:due,'YYYY-MM-DD'), :cost, :usr)", p)
+        r = db.execute_query("SELECT NMON_FAC_LOG_SEQ.CURRVAL FROM DUAL")
+        _commit(db)
+        return int(_rows(r)[0][0])
+
+
+def facility_log(facility_id: int, limit: int = 100) -> list[dict]:
+    with DatabaseModel() as db:
+        return _dicts(db.execute_query(
+            "SELECT ID, FACILITY_ID, WORK_KIND, TO_CHAR(DONE_AT,'YYYY-MM-DD'), "
+            "PERFORMER, DESCRIPTION, TO_CHAR(NEXT_DUE,'YYYY-MM-DD'), COST_MDL, "
+            "CREATED_BY, TO_CHAR(CREATED_AT,'DD.MM.YYYY HH24:MI') FROM NMON_FAC_LOG "
+            "WHERE FACILITY_ID = :fid ORDER BY DONE_AT DESC, ID DESC",
+            {"fid": facility_id}), LOG_COLS)
+
+
+PHOTO_COLS = ("id", "facility_id", "log_id", "file_path", "file_name", "caption",
+              "taken_by", "taken_at", "size_kb")
+
+
+def add_photo(facility_id: int, ph: dict) -> int:
+    p = {"fid": facility_id, "log": ph.get("log_id"), "path": ph["file_path"],
+         "name": ph.get("file_name"), "cap": ph.get("caption"),
+         "usr": ph.get("taken_by", "system"), "kb": ph.get("size_kb")}
+    with DatabaseModel() as db:
+        db.execute_query(
+            "INSERT INTO NMON_FAC_PHOTO (FACILITY_ID, LOG_ID, FILE_PATH, FILE_NAME, "
+            "CAPTION, TAKEN_BY, SIZE_KB) VALUES (:fid, :log, :path, :name, :cap, "
+            ":usr, :kb)", p)
+        r = db.execute_query("SELECT NMON_FAC_PHOTO_SEQ.CURRVAL FROM DUAL")
+        _commit(db)
+        return int(_rows(r)[0][0])
+
+
+def facility_photos(facility_id: int, limit: int = 60) -> list[dict]:
+    with DatabaseModel() as db:
+        return _dicts(db.execute_query(
+            "SELECT ID, FACILITY_ID, LOG_ID, FILE_PATH, FILE_NAME, CAPTION, TAKEN_BY, "
+            "TO_CHAR(TAKEN_AT,'DD.MM.YYYY HH24:MI'), SIZE_KB FROM NMON_FAC_PHOTO "
+            "WHERE FACILITY_ID = :fid ORDER BY TAKEN_AT DESC", {"fid": facility_id}),
+            PHOTO_COLS)
+
+
+def facility_stats() -> dict:
+    with DatabaseModel() as db:
+        by_kind = _rows(db.execute_query(
+            "SELECT KIND, COUNT(*) FROM NMON_FACILITIES GROUP BY KIND"))
+        tot = _rows(db.execute_query(
+            "SELECT COUNT(*), SUM(CASE WHEN STATUS='ok' THEN 1 ELSE 0 END), "
+            "SUM(CASE WHEN IS_MONITORED='Y' THEN 1 ELSE 0 END) FROM NMON_FACILITIES"))
+        works = _rows(db.execute_query("SELECT COUNT(*) FROM NMON_FAC_LOG"))
+        photos = _rows(db.execute_query("SELECT COUNT(*) FROM NMON_FAC_PHOTO"))
+    t = tot[0] if tot else (0, 0, 0)
+    return {"total": int(t[0] or 0), "ok": int(t[1] or 0), "monitored": int(t[2] or 0),
+            "by_kind": {k: int(c) for k, c in by_kind},
+            "works": int(works[0][0]) if works else 0,
+            "photos": int(photos[0][0]) if photos else 0}

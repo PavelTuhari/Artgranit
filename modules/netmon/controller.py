@@ -266,6 +266,134 @@ class NetmonController:
                                  "его из Keychain на рабочей машине.")})
         except Exception as e:  # noqa: BLE001
             return _fail(e)
+    # ---------------------------------------------------------------- оборудование
+
+    @staticmethod
+    def facilities(kind=None, room=None):
+        """Реестр инженерного оборудования со сроками обслуживания."""
+        try:
+            from datetime import date
+            from modules.netmon import facility as fac
+            rows = store.facilities(kind=kind, room=room)
+            for r in rows:
+                r["kind_title"] = fac.KIND_TITLE.get(r["kind"], r["kind"])
+                r["service"] = _service_summary(r, fac)
+            overdue = [r for r in rows if r["service"]["level"] == "overdue"]
+            return _ok({"facilities": rows, "stats": store.facility_stats(),
+                        "overdue": len(overdue),
+                        "work_kinds": fac.WORK_TITLE, "kinds": fac.KIND_TITLE})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def facility(code):
+        """Паспорт объекта: журнал работ и фотографии."""
+        try:
+            from modules.netmon import facility as fac
+            f = store.facility(code)
+            if not f:
+                return _fail(f"объект {code} не найден", 404)
+            f["kind_title"] = fac.KIND_TITLE.get(f["kind"], f["kind"])
+            f["service"] = _service_summary(f, fac)
+            for w in f["log"]:
+                w["work_title"] = fac.WORK_TITLE.get(w["work_kind"], w["work_kind"])
+            return _ok(f)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def add_work(code, data, user="system"):
+        """Запись в журнал: что сделали с оборудованием и когда повторить."""
+        try:
+            from datetime import date
+            from modules.netmon import facility as fac
+            f = store.facility(code)
+            if not f:
+                return _fail(f"объект {code} не найден", 404)
+            kind = (data.get("work_kind") or "").strip()
+            if kind not in fac.WORK_TITLE:
+                return _fail(f"вид работ должен быть одним из: "
+                             f"{', '.join(fac.WORK_TITLE)}", 400)
+            due = data.get("next_due")
+            if not due:
+                d = fac.next_due(kind, f["kind"])
+                due = d.isoformat() if d else None
+            log_id = store.add_log(f["id"], {
+                "work_kind": kind, "done_at": data.get("done_at"),
+                "performer": (data.get("performer") or user)[:120],
+                "description": (data.get("description") or "")[:2000],
+                "next_due": due, "cost_mdl": data.get("cost_mdl"),
+                "created_by": user})
+            return _ok({"log_id": log_id, "facility": code, "next_due": due})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def add_photo(code, file_storage, caption="", user="system", log_id=None):
+        """Снимок состояния оборудования от сотрудника."""
+        try:
+            from modules.netmon import facility as fac
+            f = store.facility(code)
+            if not f:
+                return _fail(f"объект {code} не найден", 404)
+            if not file_storage or not file_storage.filename:
+                return _fail("файл не передан", 400)
+            try:
+                name = fac.safe_filename(file_storage.filename, code)
+            except ValueError as e:
+                return _fail(str(e), 400)
+            path = fac.photo_path(name)
+            file_storage.save(str(path))
+            size_kb = path.stat().st_size // 1024
+            if size_kb > fac.MAX_PHOTO_MB * 1024:
+                path.unlink(missing_ok=True)
+                return _fail(f"снимок больше {fac.MAX_PHOTO_MB} МБ", 400)
+            pid = store.add_photo(f["id"], {
+                "file_path": str(path), "file_name": name,
+                "caption": (caption or "")[:500], "taken_by": user,
+                "size_kb": size_kb, "log_id": log_id})
+            return _ok({"photo_id": pid, "file": name, "size_kb": size_kb})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    # ---------------------------------------------------------------- розетки
+
+    @staticmethod
+    def plugs():
+        try:
+            from modules.netmon import smartplug
+            rows = smartplug.all_status()
+            return _ok({"plugs": rows,
+                        "online": sum(1 for r in rows if r.get("online")),
+                        "controllable": sum(1 for r in rows if r.get("controllable")),
+                        "hint": ("Управление включается, когда для розетки заведён "
+                                 "ключ в Keychain: запись tuya-<ip>, логин = device_id, "
+                                 "пароль = local_key. Как их получить — "
+                                 "docs/Netmon/SMART_PLUGS.md")})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def switch_plug(ip, on: bool, user="system"):
+        """Включение и выключение розетки. Действие записывается в журнал."""
+        try:
+            from modules.netmon import smartplug
+            if ip not in smartplug.KNOWN_PLUGS:
+                return _fail(f"розетка {ip} не в списке известных", 404)
+            res = smartplug.switch(ip, on)
+            code = "PLUG-" + ip.rsplit(".", 1)[-1]
+            f = store.facility(code)
+            if f:
+                store.add_log(f["id"], {
+                    "work_kind": "other",
+                    "description": f"Дистанционное {'включение' if on else 'выключение'} "
+                                   f"розетки через панель мониторинга",
+                    "performer": user, "created_by": user})
+            return _ok(res)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e, 400)
+
+
 
 
 def _vault_group(what: str) -> str:
@@ -280,3 +408,21 @@ def _vault_group(what: str) -> str:
     if "ssh" in w or "сервер" in w:
         return "Серверы (SSH)"
     return "Прочее"
+
+def _service_summary(f: dict, fac) -> dict:
+    """Ближайшая просрочка по объекту среди всех видов регламентных работ."""
+    from datetime import date
+    rules = fac.SERVICE_RULES.get(f["kind"], {})
+    worst = {"level": "ok", "text": "по регламенту", "work": None}
+    order = {"overdue": 3, "unknown": 2, "soon": 1, "ok": 0}
+    for work, days in rules.items():
+        if not days:
+            continue
+        last = (f.get("last_works") or {}).get(work)
+        last_date = date.fromisoformat(last) if last else None
+        st = fac.service_state(last_date, days)
+        st["work"] = fac.WORK_TITLE.get(work, work)
+        st["last"] = last
+        if order[st["level"]] > order[worst["level"]]:
+            worst = st
+    return worst

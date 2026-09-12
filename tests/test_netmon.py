@@ -295,3 +295,69 @@ def test_vault_never_returns_password_values():
 def test_vault_file_must_live_outside_the_repository():
     src = _read("modules/netmon/scripts/netmon_vault.py")
     assert "внутри репозитория" in src and "0o600" in src
+
+
+# ------------------------------------------------------------------ оборудование офиса
+
+def test_no_reserved_word_as_bind_variable_name():
+    # ORA-01745: BY зарезервировано в Oracle (GROUP BY / ORDER BY).
+    # Ловушка уже стоила отладки в TBControl, см. CLAUDE.md.
+    src = _read("modules/netmon/store.py")
+    reserved = (":by", ":level", ":order", ":group", ":size", ":comment", ":date")
+    for word in reserved:
+        assert f"{word})" not in src and f"{word}," not in src, \
+            f"{word} — зарезервированное слово Oracle в имени bind-переменной"
+
+
+def test_service_state_marks_overdue():
+    from datetime import date, timedelta
+    from modules.netmon import facility as fac
+    today = date(2026, 9, 12)
+    assert fac.service_state(today - timedelta(days=120), 90, today)["level"] == "overdue"
+    assert fac.service_state(today - timedelta(days=10), 90, today)["level"] == "ok"
+    assert fac.service_state(None, 90, today)["level"] == "unknown"
+
+
+def test_service_state_counts_days_overdue():
+    from datetime import date, timedelta
+    from modules.netmon import facility as fac
+    today = date(2026, 9, 12)
+    st = fac.service_state(today - timedelta(days=100), 90, today)
+    assert st["days_over"] == 10
+
+
+def test_next_due_follows_regulation():
+    from datetime import date
+    from modules.netmon import facility as fac
+    done = date(2026, 9, 12)
+    assert (fac.next_due("filter", "aircon", done) - done).days == 90
+    assert (fac.next_due("freon", "aircon", done) - done).days == 730
+    assert (fac.next_due("inspect", "elevator", done) - done).days == 30
+
+
+def test_photo_filename_rejects_foreign_formats_and_paths():
+    from modules.netmon import facility as fac
+    import pytest
+    with pytest.raises(ValueError):
+        fac.safe_filename("evil.exe", "AC-01")
+    name = fac.safe_filename("../../../etc/passwd.jpg", "AC-01")
+    assert "/" not in name and name.endswith(".jpg")
+
+
+def test_every_office_room_has_its_own_aircon():
+    from modules.netmon import facility as fac
+    rooms = [f["room"] for f in fac.SEED if f["kind"] == "aircon"]
+    assert len(rooms) == 4 and len(set(rooms)) == 4
+
+
+def test_all_discovered_plugs_are_registered():
+    from modules.netmon import facility as fac, smartplug
+    codes = {f["ip"] for f in fac.SEED if f["kind"] == "smartplug"}
+    assert codes == set(smartplug.KNOWN_PLUGS)
+
+
+def test_plug_keys_are_read_from_keychain_only():
+    # local_key не должен появляться в коде или конфигах
+    src = _read("modules/netmon/smartplug.py")
+    assert "keychain_pair" in src
+    assert "local_key=" not in src.replace("local_key=local_key", "")
