@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -49,7 +50,20 @@ KNOWN_INTERNET = [
 ]
 
 
+def keychain_available() -> bool:
+    """Keychain есть только на macOS. На сервере команды `security` нет."""
+    return shutil.which("security") is not None
+
+
 def kc_get(account: str, service: str, internet: bool = False) -> str | None:
+    """Значение из Keychain или None.
+
+    На Linux (боевой сервер) Keychain недоступен — возвращаем None, но НЕ
+    падаем: реестр доступов остаётся полезен и там, он показывает, какой
+    доступ существует и какой командой его достать на рабочей машине.
+    """
+    if not keychain_available():
+        return None
     cmd = ["security", "find-internet-password" if internet else "find-generic-password",
            "-a", account, "-s", service, "-w"]
     r = subprocess.run(cmd, capture_output=True, text=True)

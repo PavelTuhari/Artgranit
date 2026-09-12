@@ -258,12 +258,17 @@ class NetmonController:
                     "keychain": service, "kind": "internet", "present": ok,
                     "howto": f"security find-internet-password -a {account} -s {service} -w"})
             total = sum(len(v_) for v_ in groups.values())
+            here = v.keychain_available()
+            note = ("Значения паролей через веб не отдаются намеренно. Панель "
+                    "показывает, какой доступ существует и как достать его из "
+                    "Keychain на рабочей машине.")
+            if not here:
+                note += (" Столбец «статус» пуст: Keychain есть только на macOS, "
+                         "а эта страница открыта с сервера — проверить наличие "
+                         "записи можно только на рабочей машине владельца.")
             return _ok({"groups": [{"group": g, "items": sorted(items, key=lambda x: x["what"])}
                                    for g, items in sorted(groups.items())],
-                        "total": total,
-                        "note": ("Значения паролей через веб не отдаются намеренно. "
-                                 "Панель показывает, какой доступ существует и как достать "
-                                 "его из Keychain на рабочей машине.")})
+                        "total": total, "keychain_here": here, "note": note})
         except Exception as e:  # noqa: BLE001
             return _fail(e)
     # ---------------------------------------------------------------- оборудование

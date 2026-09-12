@@ -568,9 +568,11 @@ function renderVault(){
   const all = VAULT.groups.flatMap(g => g.items);
   document.getElementById("v-tiles").innerHTML =
     tile(VAULT.total, "учётных записей") +
-    tile(all.filter(i => i.present).length, "есть в Keychain", "ok") +
-    tile(all.filter(i => !i.present).length, "отсутствуют",
-         all.some(i => !i.present) ? "crit" : "ok") +
+    (VAULT.keychain_here
+      ? tile(all.filter(i => i.present).length, "есть в Keychain", "ok") +
+        tile(all.filter(i => !i.present).length, "отсутствуют",
+             all.some(i => !i.present) ? "crit" : "ok")
+      : tile("—", "Keychain доступен только на рабочей машине", "dim")) +
     tile(VAULT.groups.length, "групп объектов");
   document.getElementById("vault-box").innerHTML = VAULT.groups.map(g => `
     <h3 style="margin:18px 0 8px;font-size:14px">${esc(g.group)}
@@ -583,8 +585,9 @@ function renderVault(){
         <td>${esc(i.what)}</td>
         <td class="dim"><code>${esc(i.where)}</code></td>
         <td><code>${esc(i.login)}</code></td>
-        <td>${i.present ? '<span class="badge b-ok">есть</span>'
-                        : '<span class="badge b-no">нет</span>'}</td>
+        <td>${!VAULT.keychain_here ? '<span class="badge b-dim">—</span>'
+              : (i.present ? '<span class="badge b-ok">есть</span>'
+                           : '<span class="badge b-no">нет</span>')}</td>
         <td><code style="font-size:11px">${esc(i.howto)}</code></td></tr>`).join("")}
     </tbody></table></div>`).join("");
   document.getElementById("vault-note").textContent = VAULT.note;
