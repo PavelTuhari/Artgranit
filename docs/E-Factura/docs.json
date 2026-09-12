@@ -1,0 +1,62 @@
+{
+  "efactura_instructiune_contabil.html": {
+    "title": {
+      "ro": "e-Factura: instructiune pentru contabil",
+      "ru": "e-Factura: инструкция бухгалтеру",
+      "en": "e-Factura: accountant's guide"
+    },
+    "descr": {
+      "ro": "Cum functioneaza regulile de repartizare, cum se adauga una noua si ce trebuie verificat inainte de prima factura reala.",
+      "ru": "Как работают правила разноски, как добавить своё и что проверить до первой настоящей накладной.",
+      "en": "How the posting rules work, how to add one, and what to verify before the first real invoice."
+    }
+  },
+  "efactura_reguli_raport.html": {
+    "title": {
+      "ro": "e-Factura: regulile completate — raport",
+      "ru": "e-Factura: заполненные правила — отчёт",
+      "en": "e-Factura: filled rules — report"
+    },
+    "descr": {
+      "ro": "Cele 34 de reguli din TMS_IMPORT_EFACTURA: sablon, cont, temei. 12 marcate ca necesitind confirmarea contabilului.",
+      "ru": "34 правила в TMS_IMPORT_EFACTURA: шаблон, счёт, основание. 12 помечены как требующие подтверждения бухгалтера.",
+      "en": "The 34 rules in TMS_IMPORT_EFACTURA with pattern, account and rationale; 12 flagged for confirmation."
+    }
+  },
+  "Ghid de integrare a sistemelor de contabilitate (ERP) cu eFactura prin API-.html": {
+    "title": {
+      "ro": "Ghid SFS: integrarea ERP cu eFactura prin API",
+      "ru": "Руководство SFS: интеграция ERP с eFactura через API",
+      "en": "SFS guide: ERP to eFactura via API"
+    },
+    "descr": {
+      "ro": "Documentul oficial al SFS.",
+      "ru": "Официальный документ SFS.",
+      "en": "Official SFS document."
+    }
+  },
+  "Ghid_integrare_Complet_Automatizata.pdf": {
+    "title": {
+      "ro": "Ghid SFS: integrare complet automatizata",
+      "ru": "Руководство SFS: полностью автоматическая интеграция",
+      "en": "SFS guide: fully automated integration"
+    },
+    "descr": {
+      "ro": "Documentul oficial al SFS (PDF).",
+      "ru": "Официальный документ SFS (PDF).",
+      "en": "Official SFS document (PDF)."
+    }
+  },
+  "Ghid_integrare_Semi_Automatizata.pdf": {
+    "title": {
+      "ro": "Ghid SFS: integrare semi-automatizata",
+      "ru": "Руководство SFS: полуавтоматическая интеграция",
+      "en": "SFS guide: semi-automated integration"
+    },
+    "descr": {
+      "ro": "Documentul oficial al SFS (PDF).",
+      "ru": "Официальный документ SFS (PDF).",
+      "en": "Official SFS document (PDF)."
+    }
+  }
+}

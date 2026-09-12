@@ -1,0 +1,169 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>e-Factura: правила разноски — что заполнено</title>
+<style>
+ body{font:15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;margin:0;color:#1a1a1a;background:#f6f7f9}
+ .wrap{max-width:1080px;margin:0 auto;padding:32px 24px 64px}
+ h1{font-size:26px;margin:0 0 4px} h2{font-size:19px;margin:34px 0 10px;padding-top:18px;border-top:1px solid #dde}
+ .sub{color:#666;margin:0 0 24px}
+ .cards{display:flex;gap:14px;flex-wrap:wrap;margin:20px 0 8px}
+ .card{flex:1;min-width:150px;background:#fff;border:1px solid #e3e6ea;border-radius:10px;padding:14px 16px}
+ .card b{display:block;font-size:26px;line-height:1.2} .card span{color:#666;font-size:13px}
+ table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e6ea;border-radius:10px;overflow:hidden}
+ th{background:#1f4e79;color:#fff;text-align:left;padding:9px 11px;font-size:13px;font-weight:600}
+ td{padding:8px 11px;border-top:1px solid #eef0f3;vertical-align:top;font-size:14px}
+ tr.chk td{background:#fff8e1} .mono{font-family:ui-monospace,Menlo,monospace;font-size:13px}
+ .num{text-align:right;white-space:nowrap} .acc{font-weight:600}
+ .why{color:#555;font-size:13px}
+ .warn{background:#fff3cd;border-left:4px solid #e0a800;padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+ .ok{background:#e8f5e9;border-left:4px solid #43a047;padding:12px 16px;border-radius:0 8px 8px 0;margin:16px 0}
+ code{background:#eef0f3;padding:1px 5px;border-radius:4px;font-size:13px}
+</style></head><body><div class="wrap">
+<h1>e-Factura: правила разноски</h1>
+<p class="sub">Что я заполнил в <code>TMS_IMPORT_EFACTURA</code> · 12.09.2026 · база OFFICEPLUS</p>
+
+<div class="cards">
+ <div class="card"><b>34</b><span>правил всего</span></div>
+ <div class="card"><b>22</b><span>взято с рабочей инсталляции</span></div>
+ <div class="card"><b style="color:#b8860b">12</b><span>требуют вашей проверки</span></div>
+ <div class="card"><b>2</b><span>счёта задействовано</span></div>
+</div>
+
+<h2>Зачем это нужно</h2>
+<p>Когда приходит электронная накладная, программа смотрит на название услуги в строке
+и по нему определяет, на какой бухгалтерский счёт её отнести. Правило — это пара
+«кусок названия → счёт». Символ <code>%</code> означает «здесь может быть что угодно»:
+шаблон <code>%SERVICII%BROKER%</code> поймает и «Servicii broker vamal», и
+«Prestare servicii de broker».</p>
+<p>Правила применяются по возрастанию приоритета — первое подошедшее и срабатывает.
+Поэтому частные случаи стоят выше общих: «брокер таможенный» (10) раньше, чем
+просто «брокер» (20).</p>
+
+<h2>Откуда взяты счета</h2>
+<div class="ok"><b>Я не придумывал номера счетов.</b> Там, где тип услуги совпадает,
+счёт взят с работающей инсталляции UNA (схема NUFARUL), где этот же механизм
+используется в бою: логистика и таможня → <b>5442</b>, административные услуги →
+<b>7135</b>. Это стандартные счета молдавского плана (SNC).</p></div>
+<div class="warn"><b>12 правил помечены жёлтым.</b> Это услуги, которых у той
+инсталляции нет, — коммуналка, связь, реклама, уборка. Счёт я поставил по аналогии
+(7135), но его нужно сверить с вашим планом счетов. Отдельно обратите внимание на
+<b>рекламу</b>: обычно она идёт на расходы по сбыту (712x), а не на административные.</p></div>
+
+<h2>Все правила</h2>
+<table><thead><tr><th>Приоритет</th><th>Шаблон названия</th><th>Счёт</th><th>Что это</th><th>Основание</th></tr></thead>
+<tbody><tr class="">
+      <td class="num">10</td><td class="mono">%SERVICII%BROKER%VAMAL%</td>
+      <td class="num acc">5442</td><td>Брокерские услуги на таможне</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">20</td><td class="mono">%SERVICII%BROKER%</td>
+      <td class="num acc">5442</td><td>Брокерские услуги</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">30</td><td class="mono">%PERFECTAREA%DECLARATIEI%VAMALE%</td>
+      <td class="num acc">5442</td><td>Оформление таможенной декларации</td>
+      <td class="why">из NUFARUL</td></tr><tr class="">
+      <td class="num">40</td><td class="mono">%DECLARATIE%VAMALA%</td>
+      <td class="num acc">5442</td><td>Таможенная декларация</td>
+      <td class="why">из NUFARUL (по аналогии)</td></tr><tr class="">
+      <td class="num">50</td><td class="mono">%SERVICII%DE%LIVRARE%</td>
+      <td class="num acc">5442</td><td>Услуги доставки</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">60</td><td class="mono">%SERVICII%TERMINAL%</td>
+      <td class="num acc">5442</td><td>Терминальные услуги</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">70</td><td class="mono">%INTRAREA%SI%STATIONAREA%</td>
+      <td class="num acc">5442</td><td>Въезд и стоянка транспорта</td>
+      <td class="why">из NUFARUL</td></tr><tr class="">
+      <td class="num">80</td><td class="mono">%SERVICII%DE%TRANSPORT%</td>
+      <td class="num acc">5442</td><td>Транспортные услуги</td>
+      <td class="why">по аналогии с доставкой</td></tr><tr class="">
+      <td class="num">90</td><td class="mono">%CURIERAT%</td>
+      <td class="num acc">5442</td><td>Курьерская доставка</td>
+      <td class="why">по аналогии с доставкой</td></tr><tr class="">
+      <td class="num">100</td><td class="mono">%ARENDA%</td>
+      <td class="num acc">7135</td><td>Аренда</td>
+      <td class="why">из NUFARUL (ARENDA ECHIPAMENTULUI)</td></tr><tr class="">
+      <td class="num">110</td><td class="mono">%CHIRIE%</td>
+      <td class="num acc">7135</td><td>Аренда (второе название)</td>
+      <td class="why">по аналогии с ARENDA</td></tr><tr class="">
+      <td class="num">120</td><td class="mono">%LOCATIUNE%</td>
+      <td class="num acc">7135</td><td>Аренда помещения</td>
+      <td class="why">по аналогии с ARENDA</td></tr><tr class="">
+      <td class="num">130</td><td class="mono">%DESERVIRE%BLOC%</td>
+      <td class="num acc">7135</td><td>Обслуживание здания</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">140</td><td class="mono">%TRANSPORTARE%DESEURI%</td>
+      <td class="num acc">7135</td><td>Вывоз отходов</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">150</td><td class="mono">%SALUBRIZARE%</td>
+      <td class="num acc">7135</td><td>Санитарная уборка территории</td>
+      <td class="why">по аналогии с вывозом отходов</td></tr><tr class="">
+      <td class="num">160</td><td class="mono">%ASIGURARE%</td>
+      <td class="num acc">7135</td><td>Страхование</td>
+      <td class="why">из NUFARUL (CASCO, RCA)</td></tr><tr class="">
+      <td class="num">170</td><td class="mono">%SERVICII%ASIGURARI%</td>
+      <td class="num acc">7135</td><td>Страховые услуги</td>
+      <td class="why">из NUFARUL</td></tr><tr class="">
+      <td class="num">180</td><td class="mono">%INSPECTIE%TEHNICA%</td>
+      <td class="num acc">7135</td><td>Техосмотр</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">190</td><td class="mono">%REPARATIE%AUTO%</td>
+      <td class="num acc">7135</td><td>Ремонт автомобиля</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">200</td><td class="mono">%SPALATORIE%AUTO%</td>
+      <td class="num acc">7135</td><td>Мойка автомобиля</td>
+      <td class="why">из NUFARUL (точное совпадение)</td></tr><tr class="">
+      <td class="num">210</td><td class="mono">%SEMNALIZARE%</td>
+      <td class="num acc">7135</td><td>Охранная сигнализация</td>
+      <td class="why">из NUFARUL (DESER SISTEM DE SEMNALIZARE)</td></tr><tr class="">
+      <td class="num">220</td><td class="mono">%PAZA%</td>
+      <td class="num acc">7135</td><td>Охрана</td>
+      <td class="why">по аналогии с сигнализацией</td></tr><tr class="chk">
+      <td class="num">230</td><td class="mono">%ENERGIE%ELECTRICA%</td>
+      <td class="num acc">7135</td><td>Электроэнергия</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">240</td><td class="mono">%GAZE%NATURALE%</td>
+      <td class="num acc">7135</td><td>Природный газ</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">250</td><td class="mono">%APA%SI%CANALIZARE%</td>
+      <td class="num acc">7135</td><td>Вода и канализация</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">260</td><td class="mono">%SERVICII%COMUNALE%</td>
+      <td class="num acc">7135</td><td>Коммунальные услуги</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">270</td><td class="mono">%SERVICII%TELEFONIE%</td>
+      <td class="num acc">7135</td><td>Телефония</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">280</td><td class="mono">%SERVICII%INTERNET%</td>
+      <td class="num acc">7135</td><td>Интернет</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">290</td><td class="mono">%SERVICII%CONTABILE%</td>
+      <td class="num acc">7135</td><td>Бухгалтерские услуги</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">300</td><td class="mono">%SERVICII%JURIDICE%</td>
+      <td class="num acc">7135</td><td>Юридические услуги</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">310</td><td class="mono">%PUBLICITATE%</td>
+      <td class="num acc">7135</td><td>Реклама</td>
+      <td class="why">ПРОВЕРИТЬ: обычно 712x (расходы на сбыт), не 713x</td></tr><tr class="chk">
+      <td class="num">320</td><td class="mono">%SERVICII%DE%CURATENIE%</td>
+      <td class="num acc">7135</td><td>Уборка</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">330</td><td class="mono">%MENTENANTA%</td>
+      <td class="num acc">7135</td><td>Техническое обслуживание</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr><tr class="chk">
+      <td class="num">340</td><td class="mono">%ABONAMENT%</td>
+      <td class="num acc">7135</td><td>Подписка / абонплата</td>
+      <td class="why">ПРОВЕРИТЬ: у NUFARUL аналога нет</td></tr></tbody></table>
+
+<h2>Чего я НЕ заполнял и почему</h2>
+<p><b>Колонка DTSC</b> (карточка номенклатуры) оставлена пустой во всех правилах.
+На рабочей инсталляции она заполнена, но их коды означают у нас другое: у них
+<code>33610</code> — «Bilet de avion», у нас тот же <code>33610</code> — банк
+«BC Unibanc». Перенос привёл бы к разноске услуг на банки.</p>
+<p>Для услуг карточка обычно и не нужна — достаточно счёта. Заполняйте DTSC
+только если конкретную услугу нужно привязать к позиции номенклатуры.</p>
+
+<h2>Проверка на пересечения</h2>
+<p>Прогнал шесть типовых названий: ни одно не попадает под два правила с разными
+счетами. «Servicii broker vamal» подходит под два шаблона, но оба ведут на 5442,
+и по приоритету срабатывает более точный.</p>
+</div></body></html>

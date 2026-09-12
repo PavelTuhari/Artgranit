@@ -1,0 +1,89 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>Импорт e-Factura — инструкция бухгалтеру</title>
+<style>
+ body{font:16px/1.7 -apple-system,Segoe UI,Roboto,sans-serif;margin:0;color:#1a1a1a;background:#f6f7f9}
+ .wrap{max-width:860px;margin:0 auto;padding:32px 24px 72px;background:#fff}
+ h1{font-size:27px;margin:0 0 6px} h2{font-size:20px;margin:36px 0 12px;padding-top:18px;border-top:2px solid #1f4e79;color:#1f4e79}
+ h3{font-size:17px;margin:22px 0 8px}
+ .sub{color:#666;margin:0 0 26px}
+ ol,ul{padding-left:22px} li{margin:7px 0}
+ code{background:#eef0f3;padding:2px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+ .box{background:#f0f6ff;border-left:4px solid #1f4e79;padding:13px 17px;border-radius:0 8px 8px 0;margin:16px 0}
+ .warn{background:#fff3cd;border-left:4px solid #e0a800;padding:13px 17px;border-radius:0 8px 8px 0;margin:16px 0}
+ .bad{background:#fdecea;border-left:4px solid #d93025;padding:13px 17px;border-radius:0 8px 8px 0;margin:16px 0}
+ table{width:100%;border-collapse:collapse;margin:14px 0}
+ th{background:#1f4e79;color:#fff;text-align:left;padding:8px 11px;font-size:14px}
+ td{padding:8px 11px;border-top:1px solid #eef0f3;font-size:15px;vertical-align:top}
+ .ex{font-family:ui-monospace,Menlo,monospace;font-size:14px;background:#f6f7f9;padding:10px 13px;border-radius:8px}
+</style></head><body><div class="wrap">
+<h1>Импорт e-Factura: как это работает и что делать</h1>
+<p class="sub">Инструкция бухгалтеру · 12.09.2026</p>
+
+<h2>Коротко</h2>
+<p>Раньше форма импорта e-Factura падала с ошибкой «таблица или представление не
+существует» — в базе не было объектов, на которые она опирается. Объекты созданы,
+форма открывается. Вдобавок заполнены 34 правила разноски: программа сама
+определяет счёт по названию услуги в накладной.</p>
+
+<h2>Что такое правило разноски</h2>
+<p>Это пара «кусок названия услуги → бухгалтерский счёт». Символ <code>%</code>
+означает «здесь может быть что угодно».</p>
+<div class="ex">%SERVICII%BROKER%  →  счёт 5442</div>
+<p>Такое правило поймает и «Servicii broker vamal», и «Prestare servicii de broker
+pentru vamuire», и «SERVICII BROKER».</p>
+<div class="box"><b>Порядок важен.</b> Правила проверяются по возрастанию приоритета,
+срабатывает первое подошедшее. Поэтому частные случаи стоят выше общих: «брокер
+таможенный» с приоритетом 10 сработает раньше, чем просто «брокер» с приоритетом 20.
+Если добавляете своё правило — ставьте приоритет с учётом этого.</p></div>
+
+<h2>Что нужно сделать до первой настоящей накладной</h2>
+<ol>
+ <li><b>Сверить 12 правил, помеченных жёлтым</b> в отчёте. Это коммуналка, связь,
+     реклама, уборка — услуги, для которых я поставил счёт по аналогии (7135), но
+     не мог проверить по вашему плану счетов.</li>
+ <li><b>Отдельно проверить рекламу.</b> Я поставил 7135 (административные расходы),
+     но по правилам она обычно относится на расходы по сбыту — счета 712x. Если так —
+     поменяйте счёт в правиле <code>%PUBLICITATE%</code>.</li>
+ <li><b>Прогнать одну реальную накладную</b> и посмотреть, на какие счета легли
+     строки, прежде чем импортировать пачкой.</li>
+</ol>
+
+<h2>Как добавить своё правило</h2>
+<ol>
+ <li>Откройте форму импорта e-Factura (список правил).</li>
+ <li>Добавьте строку: <b>шаблон</b> названия услуги (не забудьте <code>%</code> по
+     краям), <b>счёт</b>, <b>приоритет</b>.</li>
+ <li>Карточку номенклатуры (DTSC) заполняйте <b>только</b> если услугу нужно
+     привязать к конкретной позиции. Для обычных услуг она не нужна.</li>
+</ol>
+<h3>Как писать шаблон</h3>
+<table>
+ <tr><th>Задача</th><th>Шаблон</th></tr>
+ <tr><td>Слово где угодно в названии</td><td><code>%ARENDA%</code></td></tr>
+ <tr><td>Два слова подряд, но между ними что-то есть</td><td><code>%SERVICII%BROKER%</code></td></tr>
+ <tr><td>Название начинается со слова</td><td><code>ARENDA%</code></td></tr>
+</table>
+<div class="warn"><b>Регистр не важен</b>, а вот диакритика важна: «Arendă» и «Arenda» —
+разные строки. Пишите шаблон без диакритики и с <code>%</code> вместо буквы, если
+не уверены: <code>%AREND%</code> поймает оба варианта.</div>
+
+<h2>Если строка не подошла ни под одно правило</h2>
+<p>Программа не сможет определить счёт — строку придётся разнести вручную. Это не
+ошибка: значит появился новый тип услуги. Разнесите руками и добавьте правило,
+чтобы в следующий раз сработало само.</p>
+
+<h2>Чего делать не нужно</h2>
+<div class="bad"><b>Не копируйте правила из других баз UNA.</b> Там в правилах указаны
+их карточки номенклатуры: код 33610 у них — «Билет на самолёт», а у нас тот же код —
+банк «BC Unibanc». Услуги разнесутся на банки. Счета переносить можно, карточки —
+нет.</div>
+
+<h2>Где что лежит</h2>
+<table>
+ <tr><th>Что</th><th>Где</th></tr>
+ <tr><td>Правила разноски</td><td>таблица <code>TMS_IMPORT_EFACTURA</code></td></tr>
+ <tr><td>То же для формы (с названием карточки)</td><td>представление <code>VMS_IMPORT_EFACTURA</code></td></tr>
+ <tr><td>Отчёт о заполненных правилах</td><td><code>efactura_reguli_raport.html</code></td></tr>
+ <tr><td>Как объекты создавались</td><td><code>TMS_IMPORT_EFACTURA.tab.sql</code></td></tr>
+</table>
+</div></body></html>
