@@ -93,3 +93,31 @@ def test_catalog_queries_expose_supplier_stock():
     for f in ("models/biro26_oracle_store.py", "models/biro26_catalog_fast.py"):
         with open(os.path.join(root, f), encoding="utf-8") as fh:
             assert "FURNIZOR_STOC" in fh.read(), f
+
+
+# --- чат JivoChat: выключен, пока не задан ID ---
+
+def test_jivochat_renders_only_when_configured():
+    """Пустой SHOP_JIVO_ID = чата нет вовсе.
+
+    Шаблон обязан прятать скрипт целиком, а не выводить пустой адрес
+    //code.jivosite.com/widget/ — такой запрос уходил бы на их CDN с каждой
+    страницы и возвращал 404.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "templates/biro26/site_base.html"), encoding="utf-8") as fh:
+        tpl = fh.read()
+    assert "{% if jivo_id %}" in tpl, "скрипт не закрыт условием"
+    i = tpl.index("code.jivosite.com")
+    assert tpl.rindex("{% if jivo_id %}", 0, i) > tpl.rindex("{% endif %}", 0, i), \
+        "тег чата должен быть ВНУТРИ условия"
+
+
+def test_jivochat_is_off_outside_the_public_shop():
+    """На внутренних хостах чат гасится — как и счётчик аналитики."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    i = src.index("BIRO26_SHOP_HOSTS:")
+    tail = src[i:i + 400]
+    assert "jivo_id = ''" in tail, "чат не гасится на непубличных хостах"

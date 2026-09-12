@@ -448,5 +448,14 @@ window.RATE_PLANS = {{ rate_plans|default([])|tojson }};
 })();
 </script>
 {% block js %}{% endblock %}
+  {# RO: JivoChat — scriptul LOR, incarcat asincron, chiar inainte de </body>
+       ca sa nu intirzie afisarea paginii. Se randeaza doar cind jivo_id e setat
+       (SHOP_JIVO_ID in YBIRO_SETTINGS) si doar pe magazinul public.
+       ATENTIE: acelasi ID trebuie sa fie si in mu-plugin-ul WordPress —
+       paginile de continut (/despre-companie s.a.) sint servite de WP, nu de
+       aplicatie, iar fara el chatul dispare cind vizitatorul trece acolo. #}
+  {% if jivo_id %}
+  <script src="//code.jivosite.com/widget/{{ jivo_id }}" async></script>
+  {% endif %}
 </body>
 </html>

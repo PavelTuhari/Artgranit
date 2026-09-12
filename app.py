@@ -8303,6 +8303,11 @@ def _biro26_chrome_refresh():
         'fmt_html': s.get('SHOP_FMT_HTML') or '1',
         'fmt_xlsx': s.get('SHOP_FMT_XLSX') or '1',
         'ga_id': s.get('SHOP_GA_ID') or 'G-STJ1NQDGY0',
+        # RO: widget-ul JivoChat. Gol = chatul e stins complet. Acelasi ID
+        #     trebuie pus si in WordPress (mu-plugin), altfel chatul dispare
+        #     cind vizitatorul trece de pe magazin pe paginile de continut.
+        # EN: JivoChat widget id; empty disables the chat entirely.
+        'jivo_id': s.get('SHOP_JIVO_ID') or '',
         'price_fiz': s.get('SHOP_PRICE_FIZ') or 'retail1',
         'pay_logos': pay_logos,
         # порог рассрочки — логика в models/biro26_credit_min.py (правило N2)
@@ -8335,6 +8340,7 @@ def _biro26_site_ctx():
     #     amestece traficul de test cu cel real. Se poate goli din setari ca sa fie
     #     oprit complet. EN: GA id injected into <head> only on the public host.
     ga_id = chrome['ga_id']
+    jivo_id = chrome.get('jivo_id') or ''
     from flask import request as _rq
     # RO: cererea ajunge la aplicatie sub numele intern (vezi
     #     BIRO26_SHOP_HOSTS), nu sub cel public - de aceea nu se compara cu
@@ -8344,6 +8350,7 @@ def _biro26_site_ctx():
     _host = (_rq.host or '').lower().split(':')[0]
     if _host not in Config.BIRO26_SHOP_HOSTS:
         ga_id = ''   # RO: doar pe magazinul public / EN: public shop only
+        jivo_id = ''   # RO: chatul doar pe magazinul public / EN: public shop only
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
     #     vizitatorii vad preturile pentru persoane fizice
     # RO: vizitatorul neautentificat ia coloana din partea comuna (deja citita),
@@ -8367,7 +8374,8 @@ def _biro26_site_ctx():
             'price_field': price_field,
             'pay_logos': pay_logos,
             'asset_v': _asset_version(),
-            'ga_id': ga_id}
+            'ga_id': ga_id,
+            'jivo_id': jivo_id}
 
 # RO: adresa CANONICA a paginii curente. Doua lucruri de rezolvat:
 #   1. domeniul — mereu cel PUBLIC (officeplus.md). Pe officeplus.una.md, care e
