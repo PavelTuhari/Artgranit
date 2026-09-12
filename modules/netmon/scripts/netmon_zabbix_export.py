@@ -43,6 +43,16 @@ JSON_DUMPS = {
 }
 
 
+def api_version() -> str:
+    """apiinfo.version — единственный метод Zabbix, вызываемый БЕЗ auth."""
+    import urllib.request
+    body = json.dumps({"jsonrpc": "2.0", "method": "apiinfo.version",
+                       "params": {}, "id": 1}).encode()
+    req = urllib.request.Request(sources.ZBX_URL, body,
+                                 {"Content-Type": "application/json-rpc"})
+    return json.load(urllib.request.urlopen(req, timeout=20)).get("result", "?")
+
+
 def dump(path: Path, data) -> int:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     return path.stat().st_size
