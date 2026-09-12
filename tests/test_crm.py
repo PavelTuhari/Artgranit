@@ -690,10 +690,50 @@ def test_lists_show_erp_rows_after_the_crm_ones():
     api = _read("modules", "crm", "routes_process.py")
     i = api.index("def _erp_rows")
     frag = api[i:i + 900]
-    assert 'key not in ("items", "orders")' in frag and "g.crm.t.real" in frag
+    assert "key not in ERP_VIEWS" in frag and "g.crm.t.real" in frag
     assert "filtered" in frag and "except Exception" in frag
+    # RO: proiectele si sarcinile nu au echivalent in ERP — nu se inventeaza
+    for k in ("items", "orders", "contacts", "leads", "deals"):
+        assert '"%s":' % k in api[api.index("ERP_VIEWS = {"):api.index("ERP_VIEWS = {") + 320], k
+    assert '"projects"' not in api[api.index("ERP_VIEWS = {"):api.index("ERP_VIEWS = {") + 320]
     assert "rows += _erp_rows(" in api
     src = _read("modules", "crm", "store_erp.py")
     assert "def items_view" in src and "def orders_view" in src
     assert "def order_lines_view" in src
     assert "ERP_COD IS NOT NULL" in src                        # pozitia adusa nu se dubleaza
+
+
+def test_contacts_leads_and_deals_come_from_real_oracle_sources():
+    """RO: cerinta 12.09.2026 «везде должны быть реальные данные из оракл».
+    Contactele = oamenii conturilor magazinului + persoana de contact a
+    contragentului; lead-urile = inregistrari fara comenzi + abonati;
+    oportunitatile = cererile de credit (au suma, produs si stare)."""
+    assert "YBIRO_CLIENT" in ERP.CONTACTS_SQL and "TMS_ORG" in ERP.CONTACTS_SQL
+    assert "YBIRO_SITE_SUBSCRIBER" in ERP.LEADS_SQL and "NOT EXISTS" in ERP.LEADS_SQL
+    assert "TMS_CREDITE_REQ" in ERP.DEALS_SQL
+    c = ERP.contact_row({"src": "shop", "key_id": 7, "name": "Ion", "phone": "060", "company": "SRL X"})
+    assert c["id"] == -7 and c["client_id__disp"] == "SRL X" and c["src"] == "erp"
+    # RO: cheile din surse diferite nu se ciocnesc (decalaj de 10/20/30 milioane)
+    assert ERP.contact_row({"src": "org", "key_id": 7, "name": "a"})["id"] == -10000007
+    assert ERP.lead_row({"src": "news", "key_id": 7, "name": "a"})["id"] == -20000007
+    d = ERP.deal_row({"id": 7, "client_name": "Popescu", "amount": 25000, "months": 4,
+                      "product_name": "Credit", "status": "NEW", "ddate": "2026-08-10"})
+    assert d["id"] == -30000007 and d["amount"] == 25000.0 and d["stage"] == "Предложение"
+    assert ERP.deal_row({"id": 1, "status": "PROCESSED"})["stage"] == "Выиграна"
+    assert ERP.deal_row({"id": 1, "status": "REJECTED"})["stage"] == "Проиграна"
+    store = _read("modules", "crm", "store_erp.py")
+    for m in ("def contacts_view", "def leads_view", "def deals_view", "def one_view"):
+        assert m in store, m
+
+
+def test_item_card_reuses_the_backoffice_implementation():
+    """RO: cerinta 12.09.2026 — fisa produsului din CRM foloseste ce exista
+    deja in back-office (Nomenclator), nu un al doilea SQL paralel."""
+    src = _read("modules", "crm", "store_erp.py")
+    assert "from models.biro26_oracle_store import Biro26Store" in src
+    assert "Biro26Store.get_univers_card" in src and "Biro26Store.get_price_history" in src
+    assert "def erp_card" in src and 'out["card"] = self.erp_card' in src
+    js = _read("modules", "crm", "static", "crm_process.js")
+    assert "function erpCard" in js and "biro26-backoffice" in js      # legatura spre back-office
+    for k in ("barcodes", "prices", "photo"):
+        assert k in js, k

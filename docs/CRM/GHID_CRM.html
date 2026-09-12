@@ -168,9 +168,22 @@
         <p class="text-sm text-slate-500 mt-3"><strong>Contacte</strong> = persoanele din firma clientului.
           <strong>Lead-uri</strong> = interesul brut (sunat, formular de pe site).
           <strong>Oportunități</strong> = discuția cu preț și termen, care merge spre comandă.</p>
+        <table class="g mt-4">
+          <tr><th style="width:32%">Secțiunea</th><th>De unde vin datele reale</th></tr>
+          <tr><td><strong>Contacte</strong></td><td>oamenii din spatele conturilor magazinului și persoana de contact / directorul din fișa contragentului ERP</td></tr>
+          <tr><td><strong>Lead-uri</strong></td><td>conturi înregistrate în magazin care <em>nu au nicio comandă</em>, plus abonații la noutățile site-ului</td></tr>
+          <tr><td><strong>Oportunități</strong></td><td>cererile de credit de pe site: client, telefon, produs, sumă, termen și stare (etapa se pune singură din starea cererii)</td></tr>
+          <tr><td><strong>Proiecte, Calendar</strong></td><td>nu au echivalent în ERP — acolo sunt doar înregistrările create în CRM (nu inventăm date)</td></tr>
+        </table>
       </div>
       <div>
         <img class="shot" src="../../crm/static/docs/03_clienti.png" alt="Clienți">
+        <img class="shot mt-4" src="../../crm/static/docs/03b_contacte.png" alt="Contacte">
+        <p class="text-xs text-slate-500 mt-2">Contacte — oameni reali, cu telefon și firma lor.</p>
+        <img class="shot mt-4" src="../../crm/static/docs/03d_oportunitati.png" alt="Oportunități">
+        <p class="text-xs text-slate-500 mt-2">Oportunități — cererile de credit de pe site, cu sumă și etapă.</p>
+        <img class="shot mt-4" src="../../crm/static/docs/03c_leaduri.png" alt="Lead-uri">
+        <p class="text-xs text-slate-500 mt-2">Lead-uri — cine s-a înregistrat, dar încă nu a cumpărat.</p>
       </div>
     </div>
   </div>
@@ -201,6 +214,12 @@
         <tr><td>adaug un serviciu propriu</td><td><span class="k">Creează</span> — o poziție nouă, doar a CRM-ului (tip <em>Serviciu</em>, fără stoc).</td></tr>
       </table>
       <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-[15px] text-slate-700">
+        <p class="mb-3"><strong>Fișa produsului este cea din back-office.</strong> Sub câmpuri vedeți exact ce
+          arată fila <em>Nomenclator</em> a back-office-ului: poza, articolul, codurile de bare, grupa și
+          categoria, istoricul de prețuri pe perioade. Butonul <span class="k">Deschide în back-office ↗</span>
+          duce la
+          <a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/biro26-backoffice">
+          officeplus.md/UNA.md/orasldev/biro26-backoffice</a>, unde poziția se și editează.</p>
         <p><strong>De ce unele rânduri nu se pot edita?</strong> Pentru că sunt chiar dicționarul ERP-ului.
           Denumirea, prețul și stocul se schimbă acolo unde le ține contabilitatea — în UNA.md — și apar
           aici imediat. Așa nu există „două adevăruri” despre același preț.</p>

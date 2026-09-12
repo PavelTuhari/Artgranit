@@ -92,19 +92,25 @@ def api_meta():
         "tenant": {"kind": g.crm.t.kind, "id": g.crm.t.id, "label": g.crm.t.label}}})
 
 
+# RO: ce sectiune are date reale in ERP si de unde le ia. Proiectele si
+#     sarcinile NU au echivalent acolo — raman doar rindurile CRM-ului.
+ERP_VIEWS = {"items": "items_view", "orders": "orders_view",
+             "contacts": "contacts_view", "leads": "leads_view",
+             "deals": "deals_view"}
+
+
 def _erp_rows(key, q, room, filtered):
     """RO: marfa si comenzile REALE din Oracle, dupa rindurile proprii ale CRM-ului.
     Cerinta proprietarului 12.09.2026: in «Nomenclator» si «Comenzi» trebuie sa se
     vada ce e in ERP, nu doar ce a fost introdus in CRM. Randurile ERP sint in
     CITIRE (id negativ); filtrele de etapa/doua nu li se aplica, deci atunci nu se
     adauga deloc. Erorile nu strica lista: fara ERP raman rindurile CRM."""
-    if filtered or room <= 0 or key not in ("items", "orders") or not g.crm.t.real:
+    if filtered or room <= 0 or key not in ERP_VIEWS or not g.crm.t.real:
         return []
     try:
         from modules.crm.store_erp import ErpSource
         e = ErpSource(g.crm.t, g.crm.db)
-        return (e.items_view(q, limit=room) if key == "items"
-                else e.orders_view(q, limit=room))
+        return getattr(e, ERP_VIEWS[key])(q, limit=room)
     except Exception:                                # noqa: BLE001
         return []
 
@@ -142,12 +148,16 @@ def _no_write_on_erp(rid):
 def _erp_one(key, rid):
     """RO: fisa unui rind real din ERP (id negativ) — doar citire."""
     from modules.crm import erp_source as es
-    if not es.is_erp_id(rid) or key not in ("items", "orders") or not g.crm.t.real:
+    if not es.is_erp_id(rid) or key not in ERP_VIEWS or not g.crm.t.real:
         return None
     from modules.crm.store_erp import ErpSource
     e = ErpSource(g.crm.t, g.crm.db)
-    row = (e.item_view(es.cod_of(rid)) if key == "items"
-           else e.order_view(es.cod_of(rid)))
+    if key == "items":
+        row = e.item_view(es.cod_of(rid))
+    elif key == "orders":
+        row = e.order_view(es.cod_of(rid))
+    else:
+        row = e.one_view(key, rid)
     if row is None:
         raise LookupError("inregistrarea nu mai exista in ERP")
     return row

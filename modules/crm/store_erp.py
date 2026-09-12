@@ -207,7 +207,71 @@ class ErpSource:
                 self._rows(src.ORDER_LINES_SQL, {"cod": int(cod)})]
 
     def item_view(self, cod: int) -> Optional[Dict[str, Any]]:
+        """RO: fisa unei pozitii reale. Partea «cum arata in ERP» NU se scrie
+        din nou: se foloseste chiar implementarea din back-office
+        (`Biro26Store.get_univers_card` — poza prin imgproxy, coduri de bare,
+        brand/grupa, fisa TMS_MPT) plus istoricul de preturi al filei
+        «Marfa/Stoc» (`get_price_history`). Un singur adevar despre produs,
+        aceleasi date ca la /UNA.md/orasldev/biro26-backoffice."""
         self._guard()
         sql, p = src.goods_sql(cod=int(cod), limit=1)
         rows = self._rows(sql, p)
-        return src.item_row(rows[0]) if rows else None
+        if not rows:
+            return None
+        out = src.item_row(rows[0])
+        out["card"] = self.erp_card(int(cod))
+        return out
+
+    def erp_card(self, cod: int) -> Dict[str, Any]:
+        """RO: fisa produsului asa cum o vede back-office-ul (reutilizare, nu copie)."""
+        from models.biro26_oracle_store import Biro26Store
+        card: Dict[str, Any] = {}
+        try:
+            r = Biro26Store.get_univers_card(int(cod))
+            d = (r.get("data") or {}) if r.get("success") else {}
+            u, g = d.get("univers") or {}, d.get("goods") or {}
+            card = {
+                "photo": d.get("photo_url") or d.get("image_link") or "",
+                "barcodes": d.get("barcodes") or [],
+                "group": u.get("gr1") or "", "um": u.get("um") or "",
+                "articol": u.get("codvechi") or "", "name_ru": u.get("namerus") or "",
+                "archived": str(u.get("isarhiv") or "0") not in ("0", "None"),
+                "brand": g.get("brand") or "", "categorie": g.get("categorie") or "",
+                "feed_retail": g.get("retail1") or "", "feed_angro": g.get("angro") or "",
+            }
+        except Exception:                            # noqa: BLE001
+            card = {}
+        try:
+            h = Biro26Store.get_price_history(int(cod))
+            card["prices"] = (h.get("data") or [])[-5:] if h.get("success") else []
+        except Exception:                            # noqa: BLE001
+            card["prices"] = []
+        return card
+
+    # ── contacte, lead-uri, oportunitati reale ───────────────────────────
+    def contacts_view(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
+        self._guard()
+        sql, p = src.contacts_sql(q, limit)
+        return [src.contact_row(r) for r in self._rows(sql, p)]
+
+    def leads_view(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
+        self._guard()
+        sql, p = src.leads_sql(q, limit)
+        return [src.lead_row(r) for r in self._rows(sql, p)]
+
+    def deals_view(self, q: str = "", limit: int = 200) -> List[Dict[str, Any]]:
+        self._guard()
+        sql, p = src.deals_sql(q, limit)
+        return [src.deal_row(r) for r in self._rows(sql, p)]
+
+    def one_view(self, key: str, rid: int) -> Optional[Dict[str, Any]]:
+        """RO: fisa unui rind ERP dintr-o lista «de citire» — se cauta in
+        aceeasi vedere, dupa id (sursele n-au o cheie comuna)."""
+        view = {"contacts": self.contacts_view, "leads": self.leads_view,
+                "deals": self.deals_view}.get(key)
+        if view is None:
+            return None
+        for r in view("", limit=500):
+            if int(r["id"]) == int(rid):
+                return r
+        return None

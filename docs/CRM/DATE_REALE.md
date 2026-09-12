@@ -141,6 +141,41 @@ Filtrele de etapă și coloanele de kanban nu amestecă rânduri ERP (ele se apl
 numai datelor CRM), iar dacă ERP-ul nu răspunde, lista rămâne cu rândurile CRM
 — nu se golește.
 
+
+---
+
+## 9. Fiecare secțiune pe date reale (12.09.2026)
+
+Cerința proprietarului: *«везде должны быть реальные данные из оракл»*. Ce
+sursă are fiecare secțiune în Oracle:
+
+| Secțiune | Sursa reală | Cantitate (12.09.2026) |
+|---|---|---|
+| Clienți | `TMS_ORG` + `YBIRO_CLIENT`, uniți după IDNO | 45 |
+| **Contacte** | oamenii conturilor magazinului (`YBIRO_CLIENT`) + `CONTACT`/`DIRECTOR` din `TMS_ORG` | 27 |
+| **Lead-uri** | conturi înregistrate **fără nicio comandă** + `YBIRO_SITE_SUBSCRIBER` | 18 |
+| **Oportunități** | `TMS_CREDITE_REQ` — cererile de credit (sumă, produs, termen, stare) | 33 |
+| Nomenclator | `TMS_UNIVERS` + preț `TPR1D_PERPRLIST` + stoc din flux | 188 857 |
+| Comenzi | `TMDB_DOCS` SYSFID=12280 + linii `VMDB_ST201D` | 164 |
+| Angajați | arborele `A$ADM`/`A$ADP` | 35 |
+| Proiecte, Calendar | **nu au echivalent în ERP** — rămân doar rândurile CRM | — |
+
+Etapa oportunității se deduce din starea cererii: `NEW` → *Предложение*,
+`PROCESSED`/`APPROVED` → *Выиграна*, `REJECTED`/`CANCELLED` → *Проиграна*.
+
+Cheile din surse diferite nu se ciocnesc: contul magazinului rămâne `-id`,
+contragentul ERP primește `-(id + 10 000 000)`, abonatul `-(id + 20 000 000)`,
+cererea de credit `-(id + 30 000 000)`.
+
+### Fișa produsului = cea din back-office
+
+Pentru o poziție reală, CRM-ul **nu redesenează** fișa: folosește chiar
+implementarea back-office-ului (`Biro26Store.get_univers_card` — poză prin
+imgproxy, coduri de bare, brand/grupă/categorie, fișa `TMS_MPT`) plus
+istoricul de prețuri al filei *Marfă/Stoc* (`get_price_history`). Un singur
+adevăr despre produs, aceleași date ca la
+<https://officeplus.md/UNA.md/orasldev/biro26-backoffice>.
+
 ---
 
 ## Adrese live

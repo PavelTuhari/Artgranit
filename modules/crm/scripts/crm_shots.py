@@ -23,6 +23,9 @@ SHOTS = [
     ("01_workspace.png", "workspace", 4, None),
     ("02_kanban.png", "kanban", 5, None),
     ("03_clienti.png", "clients", 4, None),
+    ("03b_contacte.png", "contacts", 4, None),
+    ("03c_leaduri.png", "leads", 4, None),
+    ("03d_oportunitati.png", "deals", 4, None),
     ("04_nomenclator.png", "items", 5, None),
     ("05_comenzi.png", "orders", 5, None),
     ("07_proiecte.png", "projects", 4, None),
@@ -43,23 +46,25 @@ def main():
         pg.goto(BASE + "/login", wait_until="networkidle")
         pg.click("button[type=submit]")
         pg.wait_for_load_state("networkidle")
-        for name, sec, wait, sel in SHOTS:
-            pg.goto(CRM + "#" + sec, wait_until="networkidle")
+        for i, (name, sec, wait, sel) in enumerate(SHOTS):
+            # RO: parametru unic — altfel navigarea la aceeasi adresa cu alt
+            #     hash e anulata de browser (net::ERR_ABORTED)
+            pg.goto("%s?v=%d#%s" % (CRM, i, sec), wait_until="networkidle")
             pg.wait_for_timeout(wait * 1000)
             target = pg.locator(sel) if sel else pg
             target.screenshot(path=os.path.join(OUT, name))
             print("  ", name)
         # RO: fise deschise — se vede cum arata cardul, nu doar lista
-        pg.goto(CRM + "#orders", wait_until="networkidle")
+        pg.goto(CRM + "?v=90#orders", wait_until="networkidle")
         pg.wait_for_timeout(5000)
         pg.locator("#et-orders tbody tr.r").first.click()
         pg.wait_for_timeout(2500)
         pg.screenshot(path=os.path.join(OUT, "06_comanda_erp.png"))
         print("   06_comanda_erp.png")
-        pg.goto(CRM + "#items", wait_until="networkidle")
+        pg.goto(CRM + "?v=91#items", wait_until="networkidle")
         pg.wait_for_timeout(5000)
         pg.locator("#et-items tbody tr.r.erp").first.click()
-        pg.wait_for_timeout(2500)
+        pg.wait_for_timeout(3500)                 # fisa produsului din ERP se incarca
         pg.screenshot(path=os.path.join(OUT, "10_marfa_erp.png"))
         print("   10_marfa_erp.png")
         br.close()

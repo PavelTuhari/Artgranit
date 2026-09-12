@@ -201,12 +201,47 @@
   // RO: insemnele rindurilor aduse din ERP (marfa si comenzile reale)
   const ERPT = {
     ro: { badge: 'din ERP', add: 'Adaugă în nomenclator',
-          hint: 'Rând real din ERP — se vede aici, se modifică în ERP (documentele le ține contabilitatea).' },
+          hint: 'Rând real din ERP — se vede aici, se modifică în ERP (documentele le ține contabilitatea).',
+          card: 'Fișa produsului în ERP', articol: 'Articol', barcode: 'Cod de bare', group: 'Grupă',
+          brand: 'Brand', archived: 'arhivată', from: 'Din data', price1: 'Preț', price2: 'Preț 2',
+          backoffice: 'Deschide în back-office ↗' },
     ru: { badge: 'из ERP', add: 'Добавить в номенклатуру',
-          hint: 'Реальная строка из ERP — здесь только просмотр, изменения делаются в ERP.' },
+          hint: 'Реальная строка из ERP — здесь только просмотр, изменения делаются в ERP.',
+          card: 'Карточка товара в ERP', articol: 'Артикул', barcode: 'Штрих-код', group: 'Группа',
+          brand: 'Бренд', archived: 'в архиве', from: 'С даты', price1: 'Цена', price2: 'Цена 2',
+          backoffice: 'Открыть в бэк-офисе ↗' },
     en: { badge: 'from ERP', add: 'Add to the catalogue',
-          hint: 'A real ERP row — shown here, edited in the ERP (documents belong to accounting).' }
+          hint: 'A real ERP row — shown here, edited in the ERP (documents belong to accounting).',
+          card: 'Product card in the ERP', articol: 'Article', barcode: 'Barcode', group: 'Group',
+          brand: 'Brand', archived: 'archived', from: 'From', price1: 'Price', price2: 'Price 2',
+          backoffice: 'Open in the back-office ↗' }
   };
+  // RO: fisa produsului asa cum o arata back-office-ul (poza, coduri de bare,
+  //     grupa, istoricul de preturi) — datele vin gata din API (store_erp
+  //     reutilizeaza Biro26Store.get_univers_card), aici doar le asezam.
+  function erpCard(row, t) {
+    const c = row.card; if (!c) return '';
+    const bc = (c.barcodes || []).join(' · ');
+    const pr = (c.prices || []).map(p => `<tr><td>${esc(p.datastart || '')}</td>
+        <td class="num">${money(p.pretv)}</td><td class="num">${money(p.pretv1)}</td></tr>`).join('');
+    return `<div class="sub"><h4>${esc(t.card)}</h4>
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        ${c.photo ? `<img src="${esc(c.photo)}" alt="" style="width:120px;height:120px;object-fit:contain;
+             border:1px solid var(--line);border-radius:8px;background:#fff">` : ''}
+        <div style="flex:1;min-width:180px;font-size:12.5px;line-height:1.7">
+          ${c.articol ? `<div><b>${esc(t.articol)}:</b> ${esc(c.articol)}</div>` : ''}
+          ${bc ? `<div><b>${esc(t.barcode)}:</b> ${esc(bc)}</div>` : ''}
+          ${c.group ? `<div><b>${esc(t.group)}:</b> ${esc(c.group)}${c.categorie ? ' · ' + esc(c.categorie) : ''}</div>` : ''}
+          ${c.brand ? `<div><b>${esc(t.brand)}:</b> ${esc(c.brand)}</div>` : ''}
+          ${c.name_ru ? `<div><b>RU:</b> ${esc(c.name_ru)}</div>` : ''}
+          ${c.archived ? `<div class="tag">${esc(t.archived)}</div>` : ''}
+        </div>
+      </div>
+      ${pr ? `<table style="margin-top:8px"><thead><tr><th>${esc(t.from)}</th>
+        <th class="num">${esc(t.price1)}</th><th class="num">${esc(t.price2)}</th></tr></thead><tbody>${pr}</tbody></table>` : ''}
+      <div style="margin-top:8px"><a class="btn" target="_blank"
+        href="${BASE.replace(/\/crm$/, '')}/biro26-backoffice">${esc(t.backoffice)}</a></div></div>`;
+  }
   async function lookupOptions(kind, sel) {
     const r = await api(V2 + 'lookup/' + kind.replace('lookup_', ''));
     return `<option value=""></option>` + ((r.success ? r.data : []).map(o => `<option value="${o.id}" ${String(o.id) === String(sel) ? 'selected' : ''}>${esc(o.name)}</option>`).join(''));
@@ -243,7 +278,7 @@
       const add = key === 'items'
         ? `<button class="btn btn-primary" onclick="crmErpImport(${-CUR.id})">${esc(t.add)}</button>` : '';
       host.innerHTML = `<h3>${esc(row[e.fields[0].name] || '')} <span class="tag">${esc(t.badge)}</span></h3>
-        <div class="kv">${parts.join('')}</div>${extra}
+        <div class="kv">${parts.join('')}</div>${erpCard(row, t)}${extra}
         <div class="actions">${add}</div>
         <div class="muted" style="padding:0 12px 12px">${esc(t.hint)}</div>`;
       if (key === 'orders') fillLineItems();

@@ -260,3 +260,139 @@ def item_row(row) -> dict:
     it = item_from_good(row)
     it.update({"id": erp_id(row.get("cod")), "src": "erp", "notes": ""})
     return it
+
+
+# ── contacte, lead-uri si oportunitati reale (12.09.2026) ────────────────
+# RO: cerinta proprietarului: «везде должны быть реальные данные из оракл».
+#     Ce exista cu adevarat in baza si ce inseamna pentru CRM:
+#       * CONTACTE = oamenii din spatele conturilor magazinului (YBIRO_CLIENT)
+#         plus persoana de contact / directorul din fisa contragentului ERP;
+#       * LEAD-URI = interes fara cumparare: conturi inregistrate care n-au
+#         niciun cont de plata, plus abonatii la noutati;
+#       * OPORTUNITATI = cererile de credit (TMS_CREDITE_REQ): au client,
+#         suma, produs, termen si stare — adica exact o afacere in lucru.
+#     Proiectele si sarcinile NU au echivalent in ERP: acolo raman doar
+#     rindurile CRM-ului (nu inventam date).
+
+CONTACTS_SQL = (
+    "SELECT 'shop' AS SRC, c.ID AS KEY_ID, c.FULL_NAME AS NAME, c.PHONE, c.EMAIL, "
+    "       c.UNIVERS_COD, u.DENUMIREA AS COMPANY, c.IS_COMPANY "
+    "  FROM YBIRO_CLIENT c LEFT JOIN TMS_UNIVERS u ON u.COD = c.UNIVERS_COD "
+    " WHERE c.FULL_NAME IS NOT NULL "
+    " UNION ALL "
+    "SELECT 'org', o.COD, NVL(o.CONTACT, o.DIRECTOR), NVL(o.TELEFON, o.TELPRIM), NULL, "
+    "       o.COD, u.DENUMIREA, '1' "
+    "  FROM TMS_ORG o LEFT JOIN TMS_UNIVERS u ON u.COD = o.COD AND u.TIP = 'O' "
+    " WHERE NVL(o.CONTACT, o.DIRECTOR) IS NOT NULL")
+
+# RO: interes fara cumparare — cont inregistrat fara niciun cont de plata
+LEADS_SQL = (
+    "SELECT 'shop' AS SRC, c.ID AS KEY_ID, c.FULL_NAME AS NAME, c.PHONE, c.EMAIL, "
+    "       u.DENUMIREA AS COMPANY, TO_CHAR(c.CREATED_AT,'YYYY-MM-DD') AS DDATE "
+    "  FROM YBIRO_CLIENT c LEFT JOIN TMS_UNIVERS u ON u.COD = c.UNIVERS_COD "
+    " WHERE NOT EXISTS (SELECT 1 FROM VMDB_ST201M m JOIN TMDB_DOCS d "
+    "                    ON d.COD = m.NRDOC AND d.SYSFID = %d "
+    "                   WHERE m.DTDEP = c.UNIVERS_COD) "
+    " UNION ALL "
+    "SELECT 'news', s.ID, s.EMAIL, NULL, s.EMAIL, NULL, TO_CHAR(s.CREATED,'YYYY-MM-DD') "
+    "  FROM YBIRO_SITE_SUBSCRIBER s" % WEB_INVOICE_SYSFID)
+
+DEALS_SQL = (
+    "SELECT r.ID, r.CLIENT_NAME, r.PHONE, r.EMAIL, r.AMOUNT, r.MONTHS, r.STATUS, "
+    "       r.API_STATUS, r.PRODUCT_NAME, r.PROVIDER_CODE, r.CLIENT_COD, "
+    "       TO_CHAR(r.CREATED,'YYYY-MM-DD') AS DDATE "
+    "  FROM TMS_CREDITE_REQ r")
+
+# RO: starea cererii de credit -> etapa canonica a oportunitatii
+_DEAL_STAGE = {"NEW": "Предложение", "PROCESSED": "Выиграна",
+               "APPROVED": "Выиграна", "REJECTED": "Проиграна",
+               "CANCELLED": "Проиграна"}
+
+
+def _page(sql: str, order: str, limit: int) -> str:
+    n = max(1, min(int(limit or 200), 500))
+    return "SELECT * FROM (SELECT x.* FROM (%s) x ORDER BY %s) WHERE ROWNUM <= %d" % (sql, order, n)
+
+
+def contacts_sql(q: str = "", limit: int = 200):
+    sql, p = CONTACTS_SQL, {}
+    if (q or "").strip():
+        sql = ("SELECT * FROM (%s) WHERE UPPER(NAME) LIKE UPPER(:s) "
+               "OR UPPER(NVL(COMPANY,' ')) LIKE UPPER(:s) OR NVL(PHONE,' ') LIKE :s "
+               "OR UPPER(NVL(EMAIL,' ')) LIKE UPPER(:s)" % CONTACTS_SQL)
+        p["s"] = "%" + q.strip() + "%"
+    return _page(sql, "x.NAME", limit), p
+
+
+def leads_sql(q: str = "", limit: int = 200):
+    sql, p = LEADS_SQL, {}
+    if (q or "").strip():
+        sql = ("SELECT * FROM (%s) WHERE UPPER(NAME) LIKE UPPER(:s) "
+               "OR UPPER(NVL(EMAIL,' ')) LIKE UPPER(:s) OR NVL(PHONE,' ') LIKE :s" % LEADS_SQL)
+        p["s"] = "%" + q.strip() + "%"
+    return _page(sql, "x.DDATE DESC", limit), p
+
+
+def deals_sql(q: str = "", limit: int = 200):
+    sql, p = DEALS_SQL, {}
+    if (q or "").strip():
+        sql += (" WHERE UPPER(r.CLIENT_NAME) LIKE UPPER(:s) "
+                "OR UPPER(NVL(r.PRODUCT_NAME,' ')) LIKE UPPER(:s) OR NVL(r.PHONE,' ') LIKE :s")
+        p["s"] = "%" + q.strip() + "%"
+    return _page(sql, "x.ID DESC", limit), p
+
+
+def contact_row(row) -> dict:
+    """RO: persoana reala -> entitatea «contacte». Cheia: contul magazinului
+    (shop) sau contragentul ERP (org) — ambele au COD-uri proprii, deci le
+    separam ca sa nu se ciocneasca id-urile."""
+    shop = (row.get("src") or "") == "shop"
+    key = int(row.get("key_id") or 0)
+    return {
+        "id": erp_id(key if shop else key + 10_000_000),
+        "name": (row.get("name") or "").strip(),
+        "client_id": None,
+        "client_id__disp": (row.get("company") or "").strip(),
+        "position": "cont magazin" if shop else "persoana de contact",
+        "phone": (row.get("phone") or "").strip(),
+        "email": (row.get("email") or "").strip(),
+        "notes": "",
+        "src": "erp",
+    }
+
+
+def lead_row(row) -> dict:
+    shop = (row.get("src") or "") == "shop"
+    key = int(row.get("key_id") or 0)
+    return {
+        "id": erp_id(key if shop else key + 20_000_000),
+        "name": (row.get("name") or "").strip(),
+        "company": (row.get("company") or "").strip(),
+        "status": "Новый",
+        "source": "Сайт",
+        "phone": (row.get("phone") or "").strip(),
+        "email": (row.get("email") or "").strip(),
+        "notes": ("cont inregistrat in magazin, fara comenzi" if shop
+                  else "abonat la noutatile site-ului") + ", din " + (row.get("ddate") or ""),
+        "src": "erp",
+    }
+
+
+def deal_row(row) -> dict:
+    """RO: cererea de credit -> oportunitate. Suma si termenul sint reale."""
+    months = int(row.get("months") or 0)
+    return {
+        "id": erp_id(int(row.get("id") or 0) + 30_000_000),
+        "title": ((row.get("product_name") or "Cerere de credit").strip()
+                  + (" · %d luni" % months if months else "")),
+        "client_id": None,
+        "client_id__disp": (row.get("client_name") or "").strip(),
+        "stage": _DEAL_STAGE.get((row.get("status") or "").upper(), "Новая"),
+        "amount": float(row.get("amount") or 0),
+        "close_date": row.get("ddate") or "",
+        "notes": "cerere de credit %s · %s · %s" % (
+            (row.get("provider_code") or "").strip(),
+            (row.get("phone") or "").strip(),
+            (row.get("api_status") or row.get("status") or "").strip()),
+        "src": "erp",
+    }
