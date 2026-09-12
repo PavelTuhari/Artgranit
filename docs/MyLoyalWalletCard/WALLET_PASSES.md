@@ -154,7 +154,57 @@ hash = sha256({prev, passId, type, actor, actorId, createdAt, meta})
 | `TRANSIT_SOURCE` | `mock` или `iruta` | `mock` |
 | `IRUTA_BASE_URL`, `IRUTA_API_KEY` | доступ к системе продаж автовокзала | пусто |
 
-## 9. Проверка
+## 9. Выкат на прод (12.09.2026)
+
+Кошелёк работает на **https://nufarul.eminescu.md/myloyalwalletcard**.
+
+Порядок, которым это сделано (и которым повторять):
+
+```bash
+# 1. Бэкап базы ДО миграции
+ssh … 'mysqldump -uloyalty -p… loyalty_platform > ~/loyalty_platform_backup_$(date +%Y%m%d_%H%M%S).sql'
+
+# 2. SQL миграции: сравнение старой схемы с сервера и новой
+scp …:/home/ubuntu/myloyalwalletcard/schema.prisma /tmp/schema-prod.prisma
+npx prisma migrate diff --from-schema-datamodel /tmp/schema-prod.prisma \
+    --to-schema-datamodel prisma/schema.prisma --script > /tmp/wallet-migration.sql
+# проверить глазами: должно быть только CREATE TABLE + FK, без ALTER/DROP чужих таблиц
+
+# 3. Применить и обновить схему на сервере (для будущих диффов)
+scp /tmp/wallet-migration.sql …:/tmp/ && ssh … 'mysql -uloyalty -p… loyalty_platform < /tmp/wallet-migration.sql'
+scp prisma/schema.prisma …:/home/ubuntu/myloyalwalletcard/schema.prisma
+
+# 4. Переменные окружения в systemd-юните (ключ шифрования секретов!)
+ssh … 'sudo cp /etc/systemd/system/myloyalwallet.service ~/myloyalwallet.service.bak.$(date +%F_%H%M%S)'
+#   WALLET_SECRET_KEY=<openssl rand -base64 48>, WALLET_ISSUER=…, TRANSIT_SOURCE=mock
+ssh … 'sudo systemctl daemon-reload'
+
+# 5. Сборка и доставка дельтой
+NEXT_BASE_PATH=/myloyalwalletcard npx next build
+SKIP_BUILD=1 ./scripts/sync-to-server.sh
+```
+
+Бэкап базы перед миграцией: `~/loyalty_platform_backup_20260912_064648.sql` (456 КБ),
+копия юнита: `~/myloyalwallet.service.bak.*`. Миграция только добавляющая:
+шесть таблиц и внешние ключи, чужие таблицы не тронуты (14 → 20 таблиц).
+
+**Проверено на проде после выката:** выпуск карты и билета кассой, проверка
+подлинного токена, отказ подделанной подписи (`bad_signature`), отказ неверного
+динамического кода, `401` без ключа оператора, расписание рейсов, журнал с целой
+цепочкой, отзыв. Проверочные карта и билет отозваны. Регрессии нет: POS API —
+29/29, страницы `/`, `/una-pos`, `/docs`, `/join/rogob`, карта клиента — 200,
+соседи (nufarul, `/apps/`, `/una-api`, artgranit:8000) не задеты, служба без
+перезапусков и ошибок в журнале.
+
+### Попутно исправлено: редирект терял префикс приложения
+
+`/cashier`, `/admin` и `/station` без входа уводили на
+`https://nufarul.eminescu.md/cashier/login` — то есть в чужой 404: `req.url`
+приходит уже без `basePath`, а редирект собирался от корня. Дефект был и до
+кошелька. Теперь путь собирается через `NEXT_BASE_PATH` (`src/proxy.ts`),
+все три ведут на `…/myloyalwalletcard/…/login` → 200.
+
+## 10. Проверка
 
 ```bash
 cd loyalty-platform
