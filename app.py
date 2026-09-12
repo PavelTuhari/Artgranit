@@ -8279,7 +8279,7 @@ def _biro26_chrome_refresh():
     try:
         s = Biro26Store.get_settings_many(
             ['SHOP_BRAND_FILTER', 'SHOP_FMT_HTML', 'SHOP_FMT_XLSX',
-             'SHOP_GA_ID', 'SHOP_PRICE_FIZ', 'SHOP_HOURS'])
+             'SHOP_GA_ID', 'SHOP_JIVO_ID', 'SHOP_PRICE_FIZ', 'SHOP_HOURS'])
     except Exception:                                        # noqa: BLE001
         s = {}
     # RO: siglele de plata DISPONIBILE pe disc — subsolul cere <img> doar
