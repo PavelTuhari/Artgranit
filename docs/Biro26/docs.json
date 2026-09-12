@@ -360,5 +360,18 @@
       "ru": "Ce s-a reparat: deploy complet, proxy de imagini, health cu commit.",
       "en": "Ce s-a reparat: deploy complet, proxy de imagini, health cu commit."
     }
+  },
+  "WP_LOGIN_SECRET.md": {
+    "title": {
+      "ro": "WordPress: adresa secretă de intrare",
+      "ru": "WordPress: секретный адрес входа",
+      "en": "WordPress: secret login address"
+    },
+    "descr": {
+      "ro": "Formularul de login al WordPress-ului de pe officeplus.md este 404 pentru oricine nu vine pe adresa secretă; cum funcționează poarta, cum se schimbă adresa și cum se revine la starea de dinainte.",
+      "ru": "Форма входа WordPress на officeplus.md отдаёт 404 всем, кто не пришёл по секретному адресу: как устроены ворота, как сменить адрес и как откатить.",
+      "en": "The WordPress login form on officeplus.md returns 404 unless you arrive through the secret address: how the gate works, how to change it and how to roll back."
+    },
+    "audience": "admin"
   }
 }

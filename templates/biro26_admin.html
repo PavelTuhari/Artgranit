@@ -278,12 +278,25 @@
         comparație și pentru clienții obișnuiți cu ea.</div>
       <div class="lc-cta">Deschide →</div>
     </a>
-    <a class="launch-card" href="/UNA.md/orasldev/biro26-wp">
+    <!-- RO: WordPress-ul NU sta la aceeasi adresa pe cele doua contururi:
+         pe nufarul e o copie servita de nginx sub /UNA.md/orasldev/biro26-wp/,
+         pe officeplus.md e instalarea de productie in radacina domeniului, iar
+         intrarea in admin merge prin adresa secreta (wp-login e 404 fara ea —
+         vezi WP_LOGIN_SECRET.md). De aceea legaturile se aleg dupa gazda. -->
+    {% set wp_site = '/UNA.md/orasldev/biro26-wp/' if 'nufarul' in request.host else 'https://officeplus.md/' %}
+    {% set wp_admin = '/UNA.md/orasldev/biro26-wp/wp-admin/' if 'nufarul' in request.host else 'https://officeplus.md/op-intrare-6b89dc08' %}
+    <a class="launch-card" href="{{ wp_site }}" target="_blank">
       <div class="lc-icon">📰</div>
       <div class="lc-title">WordPress (conținut)</div>
       <div class="lc-desc">Paginile de conținut (Despre noi, Contacte, Livrare)
         pe care vitrina le afișează prin API.
-        <a class="lc-doc" href="/UNA.md/orasldev/biro26-wp/wp-admin/" target="_blank">wp-admin ↗</a></div>
+        {% if 'nufarul' in request.host %}Copia de probă, servită de nginx sub
+        <code>/UNA.md/orasldev/biro26-wp/</code>.{% else %}Instalarea de producție
+        din rădăcina <code>officeplus.md</code>; intrarea în admin merge prin
+        <b>adresa secretă</b> (formularul de login este 404 pentru oricine altcineva).{% endif %}
+        <a class="lc-doc" href="{{ wp_admin }}" target="_blank">wp-admin ↗</a>
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/Biro26/WP_LOGIN_SECRET.md" target="_blank">adresa secretă ↗</a>
+        <a class="lc-doc" href="/UNA.md/orasldev/b26docs/Biro26/WP_SHOP_NUFARUL.md" target="_blank">cum e montat ↗</a></div>
       <div class="lc-cta">Deschide →</div>
     </a>
   </div>
