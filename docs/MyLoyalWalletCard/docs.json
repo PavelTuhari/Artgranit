@@ -108,5 +108,25 @@
     "title": "Как ведётся документация MyLoyalWalletCard",
     "audience": "для агентов и разработчиков",
     "descr": "Рабочий процесс по docs/GIT_WORKFLOW.md: свой worktree Artgranit-myloyalwalletcard, ветка feat/myloyalwalletcard, коммит и push каждого шага."
+  },
+  "GARILEAUTO_INTEGRATION.md": {
+    "slug": "myloyalwalletcard-garileauto",
+    "public": false,
+    "icon": "🚏",
+    "cls": "c",
+    "order": 56,
+    "title": "Стыковка с автовокзалами garileauto.md и garaauto.eu",
+    "audience": "для интеграторов и руководства",
+    "descr": "Что стоит на боевых серверах, результат проверки адаптера, три вызова, которые нужны от билетной системы, и вариант моста по коду брони без открытия API."
+  },
+  "TELEGRAM_BOT_ROADMAP.md": {
+    "slug": "myloyalwalletcard-telegram",
+    "public": false,
+    "icon": "💬",
+    "cls": "c",
+    "order": 58,
+    "title": "Роадмап: телеграм-бот и приложение — один кошелёк",
+    "audience": "для разработчиков бота",
+    "descr": "Шесть этапов от общего пассажира до оплаты внутри Telegram, с оценкой доработок на стороне платформы и списком того, чего делать не нужно."
   }
 }
