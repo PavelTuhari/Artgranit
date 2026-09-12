@@ -98,8 +98,43 @@ def _parse_config(text: str) -> dict:
 
 
 def _unescape_description(raw: str) -> str:
-    """В конфиге Proxmox описание хранится с %0A вместо переводов строк."""
-    return re.sub(r"%([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), raw or "")
+    """Описание в конфиге Proxmox хранится percent-encoded: %0A, %D0%B5 и т.п.
+
+    Декодировать посимвольно нельзя: кириллица там — многобайтовый UTF-8,
+    и chr() на каждый байт даёт мусор вида «Ð µÑ‰Ñ‘». Собираем байты и
+    декодируем целиком.
+    """
+    if not raw:
+        return ""
+    out = bytearray()
+    i = 0
+    while i < len(raw):
+        if raw[i] == "%" and i + 2 < len(raw) + 1:
+            try:
+                out.append(int(raw[i + 1:i + 3], 16))
+                i += 3
+                continue
+            except ValueError:
+                pass
+        out.extend(raw[i].encode("utf-8"))
+        i += 1
+    return out.decode("utf-8", "replace")
+
+
+# Поля описания, которые нельзя показывать: там админы держат пароли
+_SECRET_FIELDS = ("auth", "pass", "password", "пароль", "логин", "login", "pwd")
+
+
+def _mask_secret(name: str, value: str) -> str:
+    """Учётные данные из описания ВМ наружу не отдаём.
+
+    В описаниях гостей на PROXMOX3 обнаружены строки вида
+    «Auth: root/<пароль>». Показывать их на панели и класть в базу нельзя:
+    панель доступна всем, у кого есть вход в портал.
+    """
+    if any(s in name.lower() for s in _SECRET_FIELDS):
+        return "указаны в описании ВМ на гипервизоре (скрыты)"
+    return value
 
 
 def _disks(cfg: dict) -> list[dict]:
