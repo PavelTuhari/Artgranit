@@ -102,3 +102,34 @@ def api_sync_all():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.sync_all(run_by=session.get("username", "system")))
+
+
+@blueprint.route("/api/zabbix")
+def api_zabbix():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.zabbix_overview())
+
+
+@blueprint.route("/api/pve")
+def api_pve():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.pve_guests(
+        status=request.args.get("status"),
+        decision=request.args.get("decision"),
+        risk=request.args.get("risk")))
+
+
+@blueprint.route("/api/pve/<int:vmid>")
+def api_pve_guest(vmid):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.pve_guest(vmid))
+
+
+@blueprint.route("/api/sync/pve", methods=["POST"])
+def api_sync_pve():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.sync_pve())

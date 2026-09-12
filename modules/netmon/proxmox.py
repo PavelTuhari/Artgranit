@@ -55,7 +55,7 @@ def keychain(account: str, service: str) -> str:
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
-def _ssh(command: str, timeout: int = 180) -> str:
+def _ssh(command: str, timeout: int = 300) -> str:
     pw = keychain("root", KEYCHAIN_SERVICE)
     if not pw:
         raise RuntimeError(f"нет пароля Proxmox в Keychain (запись {KEYCHAIN_SERVICE})")

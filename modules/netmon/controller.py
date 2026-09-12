@@ -144,3 +144,50 @@ class NetmonController:
             payload, code = fn()
             result[name] = payload.get("data") if code == 200 else {"error": payload.get("message")}
         return _ok(result)
+
+    # ---------------------------------------------------------------- Zabbix-обзор
+
+    @staticmethod
+    def zabbix_overview():
+        """Зеркало состояния Zabbix на текущий момент — читается напрямую."""
+        try:
+            return _ok(sources.zabbix_overview())
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    # ---------------------------------------------------------------- Proxmox
+
+    @staticmethod
+    def pve_guests(status=None, decision=None, risk=None):
+        try:
+            return _ok({"guests": store.guests(status=status, decision=decision, risk=risk),
+                        "stats": store.guest_stats()})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def pve_guest(vmid: int):
+        """Паспорт одной машины — то, что открывается в один клик."""
+        try:
+            rows = [g for g in store.guests() if g["vmid"] == int(vmid)]
+            if not rows:
+                return _fail(f"гость {vmid} не найден; выполните синхронизацию", 404)
+            return _ok(rows[0])
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def sync_pve():
+        """Опрос гипервизора и обновление паспортов всех гостей."""
+        try:
+            from modules.netmon import proxmox
+            data = proxmox.collect()
+            new = 0
+            for g in data["guests"]:
+                if store.upsert_guest(data["node"], g):
+                    new += 1
+            return _ok({"node": data["node"], "guests": len(data["guests"]), "new": new,
+                        "storages": data.get("storages", []),
+                        "summary": proxmox.summary(data)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)

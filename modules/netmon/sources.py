@@ -166,3 +166,77 @@ def telegram_chats(chat_ids: list[str]) -> dict[str, dict]:
     for cid in out:
         out[cid]["bot_username"] = bot
     return out
+
+
+def zabbix_overview() -> dict:
+    """Всё, что видно в Zabbix: хосты, их доступность, элементы, проблемы.
+
+    Читается напрямую из Zabbix (не из Oracle): это «зеркало» состояния
+    мониторинга на текущую секунду, а не снимок из базы модуля.
+    """
+    z = Zabbix()
+    hosts = z.call("host.get", {
+        "output": ["hostid", "host", "name", "status", "available", "error"],
+        "selectInterfaces": ["ip", "type"], "selectGroups": ["name"],
+        "selectParentTemplates": ["host"]})
+    items = z.call("item.get", {"output": ["itemid", "hostid", "type", "status", "state"]})
+    triggers = z.call("trigger.get", {"output": ["triggerid", "priority", "value", "status"],
+                                      "monitored": 1, "filter": {"value": 1},
+                                      "only_true": 1, "skipDependent": 1,
+                                      "selectHosts": ["hostid"], "expandDescription": 1})
+
+    per_host: dict[str, dict] = {}
+    for it in items:
+        h = per_host.setdefault(it["hostid"], {"items": 0, "broken": 0, "disabled": 0})
+        h["items"] += 1
+        if it.get("status") == "1":
+            h["disabled"] += 1
+        elif it.get("state") == "1":
+            h["broken"] += 1
+    for t in triggers:
+        for h in t.get("hosts", []):
+            per_host.setdefault(h["hostid"], {"items": 0, "broken": 0, "disabled": 0}) \
+                .setdefault("problems", 0)
+            per_host[h["hostid"]]["problems"] = per_host[h["hostid"]].get("problems", 0) + 1
+
+    avail = {"0": "неизвестно", "1": "доступен", "2": "недоступен"}
+    rows = []
+    for h in hosts:
+        st = per_host.get(h["hostid"], {})
+        rows.append({
+            "hostid": h["hostid"],
+            "host": h["host"],
+            "name": h.get("name") or h["host"],
+            "enabled": h.get("status") == "0",
+            "available": avail.get(h.get("available"), "?"),
+            "error": (h.get("error") or "")[:160],
+            "ip": (h.get("interfaces") or [{}])[0].get("ip", ""),
+            "groups": [g["name"] for g in h.get("groups", [])],
+            "templates": [t["host"] for t in h.get("parentTemplates", [])],
+            "items": st.get("items", 0),
+            "items_broken": st.get("broken", 0),
+            "items_disabled": st.get("disabled", 0),
+            "problems": st.get("problems", 0),
+        })
+    rows.sort(key=lambda r: (-r["problems"], not r["enabled"], r["host"].lower()))
+
+    sev = {}
+    for t in triggers:
+        p = int(t.get("priority", 0))
+        sev[p] = sev.get(p, 0) + 1
+    return {
+        "hosts": rows,
+        "totals": {
+            "hosts": len(rows),
+            "enabled": sum(1 for r in rows if r["enabled"]),
+            "disabled": sum(1 for r in rows if not r["enabled"]),
+            "unavailable": sum(1 for r in rows if r["available"] == "недоступен"),
+            "items": sum(r["items"] for r in rows),
+            "items_broken": sum(r["items_broken"] for r in rows),
+            "problems": len(triggers),
+        },
+        "problems_by_severity": [
+            {"severity": ["Not classified", "Information", "Warning", "Average",
+                          "High", "Disaster"][min(max(p, 0), 5)], "count": c}
+            for p, c in sorted(sev.items(), reverse=True)],
+    }

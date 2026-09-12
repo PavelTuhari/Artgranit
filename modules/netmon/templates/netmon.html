@@ -81,6 +81,7 @@
   <span class="spacer"></span>
   <button id="btn-sync-tg">↻ Telegram</button>
   <button id="btn-sync-dev">↻ Скан сети</button>
+  <button id="btn-sync-pve">↻ Proxmox</button>
   <button class="primary" id="btn-reload">Обновить</button>
 </header>
 
@@ -89,6 +90,8 @@
   <a href="#" data-p="devices">Устройства</a>
   <a href="#" data-p="channels">Telegram-каналы</a>
   <a href="#" data-p="feed">Лента сообщений</a>
+  <a href="#" data-p="zabbix">Обзор Zabbix</a>
+  <a href="#" data-p="pve">Proxmox: машины</a>
 </nav>
 
 <main>
@@ -141,6 +144,44 @@
       <span class="dim" id="feed-count"></span>
     </div>
     <div class="feed" id="feed"></div>
+  </section>
+
+  <section class="panel" id="p-zabbix">
+    <div class="tiles" id="zbx-tiles"></div>
+    <div class="filters">
+      <input type="search" id="f-zbx" placeholder="поиск по хосту, IP, группе, шаблону…" style="flex:1;min-width:200px">
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="f-zbx-bad"> только с проблемами</label>
+      <span class="dim" id="zbx-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="zbx-tbl"><thead><tr>
+      <th style="width:150px">Хост</th><th style="width:110px">IP</th><th>Группы</th>
+      <th style="width:90px">Элементов</th><th style="width:90px">Сломано</th>
+      <th style="width:90px">Проблем</th><th style="width:120px">Агент</th><th style="width:90px">Статус</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Данные читаются напрямую из Zabbix в момент открытия — это его текущее состояние, а не снимок из базы.</div>
+  </section>
+
+  <section class="panel" id="p-pve">
+    <div class="tiles" id="pve-tiles"></div>
+    <div class="filters">
+      <select id="f-pve-dec"><option value="">Любое решение</option></select>
+      <select id="f-pve-st">
+        <option value="">Все состояния</option>
+        <option value="running">запущенные</option>
+        <option value="stopped">выключенные</option>
+      </select>
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="f-pve-risk"> только с рисками</label>
+      <input type="search" id="f-pve" placeholder="поиск по имени, VMID, роли, IP…" style="flex:1;min-width:180px">
+      <span class="dim" id="pve-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="pve-tbl"><thead><tr>
+      <th style="width:64px">VMID</th><th style="width:160px">Имя</th><th style="width:64px">Тип</th>
+      <th style="width:90px">Состояние</th><th style="width:110px">CPU / RAM</th>
+      <th style="width:80px">Диск</th><th style="width:100px">Бэкап</th>
+      <th>Роль</th><th style="width:150px">Решение</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Строка кликается — откроется полный паспорт машины. Учётные данные из описаний на гипервизоре
+      намеренно не показываются.</div>
   </section>
 </main>
 
@@ -268,12 +309,151 @@ function renderFeed(){
     || `<div class="note">сообщений не найдено</div>`;
 }
 
+
+// ---------------------------------------------------------------- Обзор Zabbix
+let ZBX = null;
+function renderZabbix(){
+  if (!ZBX) return;
+  const tt = ZBX.totals;
+  document.getElementById("zbx-tiles").innerHTML =
+    tile(tt.hosts, "хостов в Zabbix") +
+    tile(tt.enabled, "активных", "ok") +
+    tile(tt.disabled, "выключенных", tt.disabled ? "dim" : "ok") +
+    tile(tt.unavailable, "агент недоступен", tt.unavailable ? "crit" : "ok") +
+    tile(tt.items, "элементов данных") +
+    tile(tt.items_broken, "не поддерживается", tt.items_broken ? "warn" : "ok") +
+    tile(tt.problems, "активных проблем", tt.problems ? "mid" : "ok");
+  const q = document.getElementById("f-zbx").value.toLowerCase().trim();
+  const bad = document.getElementById("f-zbx-bad").checked;
+  const rows = ZBX.hosts.filter(h =>
+    (!bad || h.problems > 0 || h.items_broken > 0 || h.available === "недоступен") &&
+    (!q || [h.host, h.name, h.ip, (h.groups||[]).join(" "), (h.templates||[]).join(" ")]
+      .some(v => (v||"").toLowerCase().includes(q))));
+  document.getElementById("zbx-count").textContent = `${rows.length} из ${ZBX.hosts.length}`;
+  document.querySelector("#zbx-tbl tbody").innerHTML = rows.map(h => `<tr>
+    <td><b>${esc(h.host)}</b>${h.name !== h.host ? `<div class="dim" style="font-size:11px">${esc(h.name)}</div>` : ""}</td>
+    <td><code>${esc(h.ip)}</code></td>
+    <td class="dim" style="font-size:12px">${esc((h.groups||[]).join(", "))}</td>
+    <td>${h.items}</td>
+    <td class="${h.items_broken ? "warn" : "dim"}">${h.items_broken || "—"}</td>
+    <td class="${h.problems ? "crit" : "dim"}">${h.problems || "—"}</td>
+    <td><span class="badge ${h.available === "доступен" ? "b-ok" : h.available === "недоступен" ? "b-no" : "b-dim"}">${esc(h.available)}</span>
+        ${h.error ? `<div class="dim" style="font-size:11px" title="${esc(h.error)}">${esc(h.error.slice(0,40))}…</div>` : ""}</td>
+    <td>${h.enabled ? `<span class="badge b-ok">включён</span>` : `<span class="badge b-dim">выключен</span>`}</td>
+  </tr>`).join("") || `<tr><td colspan="8" class="dim">ничего не найдено</td></tr>`;
+}
+
+// ---------------------------------------------------------------- Proxmox
+let PVE = {guests: [], stats: null};
+const DEC_CLS = {"списать":"b-dim", "переносить":"b-ok",
+                 "пересоздать на новой ОС":"b-no", "нужно решение":"b-warn",
+                 "оставить как есть":"b-dim"};
+
+function renderPve(){
+  const s = PVE.stats;
+  if (s) document.getElementById("pve-tiles").innerHTML =
+    tile(s.total, "машин на гипервизоре") +
+    tile(s.running, "запущено", "ok") +
+    tile(s.stopped, "выключено", s.stopped ? "dim" : "ok") +
+    tile(s.legacy_os, "на снятых с поддержки ОС", s.legacy_os ? "crit" : "ok") +
+    tile(s.no_backup, "без резервной копии", s.no_backup ? "crit" : "ok") +
+    tile(s.disk_gb + " ГБ", "суммарно дисков") +
+    tile(Math.round(s.memory_mb/1024) + " ГБ", "выделено памяти");
+  const dec = document.getElementById("f-pve-dec").value;
+  const st = document.getElementById("f-pve-st").value;
+  const onlyRisk = document.getElementById("f-pve-risk").checked;
+  const q = document.getElementById("f-pve").value.toLowerCase().trim();
+  const rows = PVE.guests.filter(g =>
+    (!dec || g.decision === dec) &&
+    (!st || (st === "running" ? g.status === "running" : g.status !== "running")) &&
+    (!onlyRisk || g.risk_level !== "low") &&
+    (!q || [g.name, g.vmid, g.role_hint, g.ip_hint, g.os_hint, g.ostype]
+      .some(v => (v ?? "").toString().toLowerCase().includes(q))));
+  document.getElementById("pve-count").textContent = `${rows.length} из ${PVE.guests.length}`;
+  document.querySelector("#pve-tbl tbody").innerHTML = rows.map(g => `
+    <tr style="cursor:pointer" onclick="showPassport(${g.vmid})">
+      <td><code>${g.vmid}</code></td>
+      <td><b>${esc(g.name)}</b>${g.legacy_os === "Y" ? ' <span class="badge b-no">старая ОС</span>' : ""}</td>
+      <td class="dim">${g.kind === "qemu" ? "ВМ" : "CT"}</td>
+      <td>${g.status === "running"
+            ? `<span class="badge b-ok">работает</span>`
+            : `<span class="badge b-dim">выключена</span>`}</td>
+      <td class="dim">${g.cores || "—"} / ${g.memory_mb ? Math.round(g.memory_mb/1024*10)/10 + " ГБ" : "—"}</td>
+      <td class="dim">${g.disk_gb || "—"}</td>
+      <td class="${g.last_backup ? (g.last_backup < "2025" ? "warn" : "ok") : "crit"}">${esc(g.last_backup || "нет")}</td>
+      <td class="dim" style="font-size:12px">${esc((g.role_hint || "").slice(0, 52))}</td>
+      <td><span class="badge ${DEC_CLS[g.decision] || "b-dim"}">${esc(g.decision || "—")}</span></td>
+    </tr>`).join("") || `<tr><td colspan="9" class="dim">ничего не найдено</td></tr>`;
+  const sel = document.getElementById("f-pve-dec");
+  if (s && sel.options.length <= 1)
+    sel.innerHTML = `<option value="">Любое решение</option>` +
+      s.by_decision.map(d => `<option value="${esc(d.decision)}">${esc(d.decision)} (${d.count})</option>`).join("");
+}
+
+// Паспорт машины — в один клик по строке
+async function showPassport(vmid){
+  const m = document.getElementById("modal"), b = document.getElementById("modal-body");
+  b.innerHTML = "<div class='dim'>загрузка паспорта…</div>";
+  m.style.display = "block";
+  let g;
+  try { g = await get("/pve/" + vmid); }
+  catch (e) { b.innerHTML = `<div class="crit">Ошибка: ${esc(e.message)}</div>`; return; }
+  const nets = (() => { try { return JSON.parse(g.nets || "[]"); } catch { return []; } })();
+  const disks = (() => { try { return JSON.parse(g.disks || "[]"); } catch { return []; } })();
+  const row = (k, v) => v ? `<tr><td class="dim" style="width:190px">${k}</td><td>${v}</td></tr>` : "";
+  b.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1">
+        <h2 style="margin:0 0 4px;font-size:20px">${esc(g.name)}
+          <span class="dim" style="font-size:14px">VMID ${g.vmid} · ${g.kind === "qemu" ? "виртуальная машина" : "контейнер"}</span></h2>
+        <div><span class="badge ${g.status === "running" ? "b-ok" : "b-dim"}">${g.status === "running" ? "работает" : "выключена"}</span>
+          <span class="badge ${DEC_CLS[g.decision] || "b-dim"}">${esc(g.decision || "")}</span>
+          ${g.legacy_os === "Y" ? '<span class="badge b-no">ОС снята с поддержки</span>' : ""}</div>
+      </div>
+      <button onclick="document.getElementById('modal').style.display='none'">Закрыть</button>
+    </div>
+    ${g.risks ? `<div style="margin:14px 0;padding:11px 14px;border-left:4px solid var(--crit);
+        background:#f8514911;border-radius:0 8px 8px 0">
+        <b class="crit">Риски для миграции</b><div style="margin-top:5px">${esc(g.risks)}</div></div>` : ""}
+    ${g.notes ? `<div style="margin:12px 0;padding:10px 14px;border-left:4px solid var(--warn);
+        background:#d2992211;border-radius:0 8px 8px 0"><b class="warn">Замечания</b>
+        <div style="margin-top:5px">${esc(g.notes)}</div></div>` : ""}
+    <h3 style="margin:16px 0 6px;font-size:15px">Паспорт</h3>
+    <table>
+      ${row("Узел гипервизора", esc(g.node_name))}
+      ${row("Тип гостя", g.kind === "qemu" ? "KVM (своё ядро)" : "LXC (ядро хоста)")}
+      ${row("Процессор", g.cores ? g.cores + " ядер" : "")}
+      ${row("Память", g.memory_mb ? g.memory_mb + " МБ" : "")}
+      ${row("Диски", disks.map(d => `${d.slot}: ${d.size || "?"} на «${d.storage}»`).join("<br>") ||
+             (g.disk_gb ? g.disk_gb + " ГБ" : ""))}
+      ${row("Сеть", nets.map(n => `${n.slot}: ${n.bridge || "?"}${n.ip ? " · " + n.ip : ""}${n.mac ? " · " + n.mac : ""} (${n.model})`).join("<br>"))}
+      ${row("Тип ОС в Proxmox", esc(g.ostype))}
+      ${row("ОС по описанию", esc(g.os_hint))}
+      ${row("IP по описанию", esc(g.ip_hint))}
+      ${row("Роль", esc(g.role_hint))}
+      ${row("Автозапуск", g.onboot === "Y" ? "включён" : "<span class='warn'>выключен</span>")}
+      ${row("Снимков", g.snapshots || "0")}
+      ${row("Последняя резервная копия", g.last_backup
+            ? `<span class="${g.last_backup < "2025" ? "warn" : "ok"}">${esc(g.last_backup)}</span>`
+            : "<span class='crit'>нет ни одной</span>")}
+      ${row("Время работы", g.uptime_s ? Math.floor(g.uptime_s/86400) + " дней" : "")}
+      ${row("Данные обновлены", esc(g.synced_at))}
+    </table>
+    ${g.descr ? `<h3 style="margin:16px 0 6px;font-size:15px">Описание с гипервизора</h3>
+      <pre style="white-space:pre-wrap;background:#0d1117;border:1px solid var(--line);
+        border-radius:8px;padding:12px;font-size:12px;margin:0">${esc(g.descr)}</pre>` : ""}
+    <div class="note">Учётные данные, если они были записаны в описании, скрыты намеренно:
+      панель видят все, у кого есть вход в портал.</div>`;
+}
+
 async function loadAll(){
   const o = await get("/overview");
   renderDash(o);
   renderChannels(o.channels, o.alerts.by_day);
   DEV = await get("/devices");            renderDevices();
   FEED = await get("/alerts?limit=400");  renderFeed();
+  try { PVE = await get("/pve"); renderPve(); } catch (e) { console.warn("proxmox:", e.message); }
+  try { ZBX = await get("/zabbix"); renderZabbix(); } catch (e) { console.warn("zabbix:", e.message); }
 }
 
 document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
@@ -287,6 +467,10 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   document.getElementById(id).addEventListener("input", renderDevices));
 ["f-chan","f-sev","f-msg"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderFeed));
+["f-zbx","f-zbx-bad"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderZabbix));
+["f-pve","f-pve-dec","f-pve-st","f-pve-risk"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderPve));
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";
@@ -298,8 +482,14 @@ document.getElementById("btn-reload").onclick = e => withBusy(e.target, async ()
 document.getElementById("btn-sync-tg").onclick = e => withBusy(e.target, async () => {
   await post("/sync/channels"); await post("/sync/alerts"); });
 document.getElementById("btn-sync-dev").onclick = e => withBusy(e.target, () => post("/sync/devices"));
+document.getElementById("btn-sync-pve").onclick = e => withBusy(e.target, () => post("/sync/pve"));
 
 loadAll().catch(e => document.getElementById("hdr").textContent = "Ошибка: " + e.message);
 </script>
+<div id="modal" style="display:none;position:fixed;inset:0;background:#000a;z-index:50;
+     padding:20px;overflow:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="max-width:820px;margin:20px auto;background:var(--panel);border:1px solid var(--line);
+       border-radius:12px;padding:20px" id="modal-body"></div>
+</div>
 </body>
 </html>

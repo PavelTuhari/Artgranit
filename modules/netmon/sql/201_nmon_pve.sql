@@ -1,4 +1,7 @@
 -- NMON_PVE_*: паспорта гостей гипервизора Proxmox для решений о миграции.
+-- Текстовые колонки объявлены в СИМВОЛЬНОЙ семантике (N CHAR): по умолчанию
+-- Oracle считает VARCHAR2 в байтах, и кириллица «пересоздать на новой ОС»
+-- (43 байта) не влезала в VARCHAR2(40) — вставка молча падала.
 -- Ставится своим установщиком modules/netmon/scripts/netmon_deploy.py.
 -- '/' обязателен и ПЕРЕД, и ПОСЛЕ каждого PL/SQL-блока (CLAUDE.md, §2 п.5).
 --
@@ -10,7 +13,7 @@ CREATE TABLE NMON_PVE_GUESTS (
   NODE_NAME     VARCHAR2(64)  NOT NULL,
   VMID          NUMBER        NOT NULL,
   KIND          VARCHAR2(8)   NOT NULL,
-  NAME          VARCHAR2(128),
+  NAME          VARCHAR2(128 CHAR),
   STATUS        VARCHAR2(16),
   CORES         NUMBER,
   MEMORY_MB     NUMBER,
@@ -19,18 +22,18 @@ CREATE TABLE NMON_PVE_GUESTS (
   ONBOOT        CHAR(1)       DEFAULT 'N' NOT NULL,
   LEGACY_OS     CHAR(1)       DEFAULT 'N' NOT NULL,
   RISK_LEVEL    VARCHAR2(10)  DEFAULT 'low' NOT NULL,
-  DECISION      VARCHAR2(40),
+  DECISION      VARCHAR2(60 CHAR),
   LAST_BACKUP   VARCHAR2(10),
   SNAPSHOTS     NUMBER        DEFAULT 0,
   UPTIME_S      NUMBER        DEFAULT 0,
-  IP_HINT       VARCHAR2(64),
-  ROLE_HINT     VARCHAR2(300),
-  OS_HINT       VARCHAR2(120),
-  RISKS         VARCHAR2(1000),
-  NOTES         VARCHAR2(1000),
-  DESCR         VARCHAR2(2000),
-  NETS          VARCHAR2(600),
-  DISKS         VARCHAR2(600),
+  IP_HINT       VARCHAR2(64 CHAR),
+  ROLE_HINT     VARCHAR2(300 CHAR),
+  OS_HINT       VARCHAR2(120 CHAR),
+  RISKS         VARCHAR2(1000 CHAR),
+  NOTES         VARCHAR2(1000 CHAR),
+  DESCR         VARCHAR2(2000 CHAR),
+  NETS          VARCHAR2(600 CHAR),
+  DISKS         VARCHAR2(600 CHAR),
   SYNCED_AT     TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
   CONSTRAINT PK_NMON_PVE_GUESTS PRIMARY KEY (ID),
   CONSTRAINT UK_NMON_PVE_GUEST UNIQUE (NODE_NAME, VMID),

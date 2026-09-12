@@ -20,6 +20,17 @@ def _dicts(r, cols):
     return [dict(zip(cols, row)) for row in _rows(r)]
 
 
+def _checked(r, what: str = "запрос"):
+    """execute_query НЕ бросает исключений: при ошибке возвращает success=False.
+
+    Из-за этого неудачная вставка выглядела как успешная, и 5 из 51 паспорта
+    молча не сохранялись. Все изменяющие запросы проходят через эту проверку.
+    """
+    if isinstance(r, dict) and r.get("success") is False:
+        raise RuntimeError(f"{what}: {r.get('message', 'неизвестная ошибка')}")
+    return r
+
+
 def _commit(db) -> None:
     try:
         db.connection.commit()
@@ -311,3 +322,119 @@ def counters() -> dict:
     d = device_stats()
     a = alert_stats()
     return {"devices": d["total"], "in_zabbix": d["in_zabbix"], "alerts": a["total"]}
+
+
+# ------------------------------------------------------------------ гости Proxmox
+
+def _j(value, limit: int) -> str | None:
+    """Списки и словари кладём строкой: их показывают как есть, не ищут по ним."""
+    import json as _json
+    if not value:
+        return None
+    s = value if isinstance(value, str) else _json.dumps(value, ensure_ascii=False)
+    return s[:limit] or None
+
+
+def upsert_guest(node: str, g: dict) -> bool:
+    """Паспорт гостя гипервизора. True, если запись новая."""
+    f = g.get("descr_fields") or {}
+    params = {
+        "node": node, "vmid": g["vmid"], "kind": g["kind"],
+        "name": (g.get("name") or "")[:128] or None,
+        "status": (g.get("status") or "")[:16] or None,
+        "cores": g.get("cores") or 0,
+        "mem": g.get("memory_mb") or 0,
+        "disk": g.get("disk_gb") or 0,
+        "os": (g.get("ostype") or "")[:32] or None,
+        "onboot": "Y" if g.get("onboot") else "N",
+        "legacy": "Y" if g.get("legacy_os") else "N",
+        "risk": g.get("risk_level") or "low",
+        "dec": (g.get("decision") or "")[:40] or None,
+        "backup": (g.get("last_backup") or "")[:10] or None,
+        "snaps": g.get("snapshots") or 0,
+        "up": g.get("uptime_s") or 0,
+        "ip": (f.get("ip") or "")[:64] or None,
+        "role": (f.get("role") or f.get("роль") or "")[:300] or None,
+        "oshint": (f.get("os") or "")[:120] or None,
+        "risks": _j("; ".join(g.get("risks") or []), 1000),
+        "notes": _j("; ".join(g.get("notes") or []), 1000),
+        "descr": _j(g.get("description"), 2000),
+        "nets": _j(g.get("nets"), 600),
+        "disks": _j(g.get("disks"), 600),
+    }
+    with DatabaseModel() as db:
+        found = _rows(db.execute_query(
+            "SELECT ID FROM NMON_PVE_GUESTS WHERE NODE_NAME = :node AND VMID = :vmid",
+            {"node": node, "vmid": g["vmid"]}))
+        if found:
+            _checked(db.execute_query(
+                "UPDATE NMON_PVE_GUESTS SET KIND=:kind, NAME=:name, STATUS=:status, "
+                "CORES=:cores, MEMORY_MB=:mem, DISK_GB=:disk, OSTYPE=:os, ONBOOT=:onboot, "
+                "LEGACY_OS=:legacy, RISK_LEVEL=:risk, DECISION=:dec, LAST_BACKUP=:backup, "
+                "SNAPSHOTS=:snaps, UPTIME_S=:up, IP_HINT=:ip, ROLE_HINT=:role, "
+                "OS_HINT=:oshint, RISKS=:risks, NOTES=:notes, DESCR=:descr, NETS=:nets, "
+                "DISKS=:disks, SYNCED_AT=SYSTIMESTAMP "
+                "WHERE NODE_NAME=:node AND VMID=:vmid", params), f"обновление гостя {g['vmid']}")
+            _commit(db)
+            return False
+        _checked(db.execute_query(
+            "INSERT INTO NMON_PVE_GUESTS (NODE_NAME, VMID, KIND, NAME, STATUS, CORES, "
+            "MEMORY_MB, DISK_GB, OSTYPE, ONBOOT, LEGACY_OS, RISK_LEVEL, DECISION, "
+            "LAST_BACKUP, SNAPSHOTS, UPTIME_S, IP_HINT, ROLE_HINT, OS_HINT, RISKS, NOTES, "
+            "DESCR, NETS, DISKS) VALUES (:node, :vmid, :kind, :name, :status, :cores, :mem, "
+            ":disk, :os, :onboot, :legacy, :risk, :dec, :backup, :snaps, :up, :ip, :role, "
+            ":oshint, :risks, :notes, :descr, :nets, :disks)", params), f"вставка гостя {g['vmid']}")
+        _commit(db)
+        return True
+
+
+GUEST_COLS = ("id", "node_name", "vmid", "kind", "name", "status", "cores", "memory_mb",
+              "disk_gb", "ostype", "onboot", "legacy_os", "risk_level", "decision",
+              "last_backup", "snapshots", "uptime_s", "ip_hint", "role_hint", "os_hint",
+              "risks", "notes", "descr", "nets", "disks", "synced_at")
+
+
+def guests(status: str | None = None, decision: str | None = None,
+           risk: str | None = None) -> list[dict]:
+    sql = ("SELECT ID, NODE_NAME, VMID, KIND, NAME, STATUS, CORES, MEMORY_MB, DISK_GB, "
+           "OSTYPE, ONBOOT, LEGACY_OS, RISK_LEVEL, DECISION, LAST_BACKUP, SNAPSHOTS, "
+           "UPTIME_S, IP_HINT, ROLE_HINT, OS_HINT, RISKS, NOTES, DESCR, NETS, DISKS, "
+           "TO_CHAR(SYNCED_AT, 'DD.MM HH24:MI') FROM NMON_PVE_GUESTS WHERE 1 = 1")
+    p: dict = {}
+    if status:
+        sql += " AND STATUS = :st"
+        p["st"] = status
+    if decision:
+        sql += " AND DECISION = :dec"
+        p["dec"] = decision
+    if risk:
+        sql += " AND RISK_LEVEL = :risk"
+        p["risk"] = risk
+    sql += " ORDER BY VMID"
+    with DatabaseModel() as db:
+        return _dicts(db.execute_query(sql, p or None), GUEST_COLS)
+
+
+def guest_stats() -> dict:
+    with DatabaseModel() as db:
+        t = _rows(db.execute_query(
+            "SELECT COUNT(*), SUM(CASE WHEN STATUS='running' THEN 1 ELSE 0 END), "
+            "SUM(CASE WHEN LEGACY_OS='Y' THEN 1 ELSE 0 END), "
+            "SUM(CASE WHEN LAST_BACKUP IS NULL THEN 1 ELSE 0 END), "
+            "SUM(DISK_GB), SUM(MEMORY_MB), SUM(CASE WHEN KIND='qemu' THEN 1 ELSE 0 END) "
+            "FROM NMON_PVE_GUESTS"))
+        by_dec = _rows(db.execute_query(
+            "SELECT DECISION, COUNT(*) FROM NMON_PVE_GUESTS GROUP BY DECISION "
+            "ORDER BY COUNT(*) DESC"))
+        by_risk = _rows(db.execute_query(
+            "SELECT RISK_LEVEL, COUNT(*) FROM NMON_PVE_GUESTS GROUP BY RISK_LEVEL"))
+    r = t[0] if t else (0, 0, 0, 0, 0, 0, 0)
+    return {
+        "total": int(r[0] or 0), "running": int(r[1] or 0),
+        "stopped": int(r[0] or 0) - int(r[1] or 0),
+        "legacy_os": int(r[2] or 0), "no_backup": int(r[3] or 0),
+        "disk_gb": round(float(r[4] or 0), 1), "memory_mb": int(r[5] or 0),
+        "vm": int(r[6] or 0), "ct": int(r[0] or 0) - int(r[6] or 0),
+        "by_decision": [{"decision": d, "count": int(c)} for d, c in by_dec],
+        "by_risk": {k: int(v) for k, v in by_risk},
+    }

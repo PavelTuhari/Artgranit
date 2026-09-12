@@ -176,3 +176,60 @@ def test_export_tool_is_read_only():
     for danger in (".create", ".update", ".delete", "configuration.import"):
         assert danger not in src, f"экспорт умеет {danger} — должен только читать"
     assert "configuration.export" in src
+
+
+# ------------------------------------------------------------------ Proxmox
+
+def test_credentials_from_vm_descriptions_are_never_exposed():
+    # В описаниях ВМ на PROXMOX3 записаны пары «логин/пароль» — ни одна
+    # не должна попасть ни в базу, ни на панель.
+    from modules.netmon import proxmox
+    raw = "IP: 192.168.0.1\nAuth: root/s3cretpass\nRole: сервер\nadmin/qwerty123"
+    clean = proxmox._strip_secrets(raw)
+    assert "s3cretpass" not in clean and "qwerty123" not in clean
+    assert "192.168.0.1" in clean and "сервер" in clean
+
+
+def test_masked_field_keeps_useful_values():
+    from modules.netmon import proxmox
+    assert proxmox._mask_secret("role", "сервер печати") == "сервер печати"
+    assert "скрыт" in proxmox._mask_secret("auth", "root/pass")
+
+
+def test_cyrillic_description_decodes_correctly():
+    from modules.netmon import proxmox
+    # Proxmox хранит описание percent-encoded; кириллица — многобайтовая
+    assert proxmox._unescape_description("%D0%A1%D0%B5%D1%80%D0%B2%D0%B5%D1%80") == "Сервер"
+    assert proxmox._unescape_description("a%0Ab") == "a\nb"
+
+
+def test_legacy_os_guest_is_not_proposed_for_plain_migration():
+    from modules.netmon import proxmox
+    g = {"vmid": 1, "ostype": "winxp", "status": "running", "last_backup": "2026-09-01",
+         "description": "", "disk_gb": 20, "memory_mb": 2048, "onboot": True}
+    p = proxmox.passport(g)
+    assert p["legacy_os"] and p["decision"] == proxmox.DECISION_REPLACE
+    assert p["risk_level"] == "high"
+
+
+def test_unused_stopped_guest_is_proposed_for_retirement():
+    from modules.netmon import proxmox
+    g = {"vmid": 2, "ostype": "l26", "status": "stopped", "last_backup": "2020-01-01",
+         "description": "not used", "disk_gb": 10, "memory_mb": 512, "onboot": False}
+    assert proxmox.passport(g)["decision"] == proxmox.DECISION_RETIRE
+
+
+def test_guest_without_backup_is_high_risk():
+    from modules.netmon import proxmox
+    g = {"vmid": 3, "ostype": "l26", "status": "running", "last_backup": "",
+         "description": "", "disk_gb": 10, "memory_mb": 1024, "onboot": True}
+    p = proxmox.passport(g)
+    assert p["risk_level"] == "high"
+    assert any("резервной копии нет" in r for r in p["risks"])
+
+
+def test_pve_ddl_uses_character_semantics_for_cyrillic_columns():
+    # Oracle считает VARCHAR2 в байтах: «пересоздать на новой ОС» = 43 байта
+    ddl = _read("modules/netmon/sql/201_nmon_pve.sql")
+    for col in ("DECISION", "RISKS", "NOTES", "DESCR", "ROLE_HINT"):
+        assert re.search(rf"{col}\s+VARCHAR2\(\d+ CHAR\)", ddl), col
