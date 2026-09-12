@@ -89,13 +89,30 @@ def _split_sections(out: str) -> dict:
 
 
 def _parse_config(text: str) -> dict:
-    """Конфиг qm/pct: строки вида «ключ: значение»."""
+    """Конфиг гостя из /etc/pve: строки «ключ: значение» плюс описание.
+
+    Описание в ФАЙЛЕ конфигурации хранится строками, начинающимися с «#»
+    (в отличие от вывода `qm config`, где это поле `description:` с
+    percent-кодировкой). Отбрасывать их как комментарии нельзя: именно там
+    администраторы записали роль машины, её IP и, к сожалению, пароли.
+
+    Секции снимков начинаются со строки «[имя]» — всё после них к основному
+    конфигу не относится.
+    """
     cfg: dict[str, str] = {}
+    descr: list[str] = []
     for line in text.splitlines():
-        if ":" not in line or line.startswith("#"):
+        if line.startswith("["):          # началась секция снимка
+            break
+        if line.startswith("#"):
+            descr.append(line[1:].strip())
+            continue
+        if ":" not in line:
             continue
         k, v = line.split(":", 1)
         cfg[k.strip()] = v.strip()
+    if descr and "description" not in cfg:
+        cfg["description"] = "\n".join(descr)
     return cfg
 
 
