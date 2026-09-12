@@ -386,5 +386,18 @@
       "en": "Live-page test in a real browser on both contours, with screenshots: the invoice no longer empties the cart. The document-creation call was intercepted, so nothing was written to Oracle."
     },
     "audience": "owner"
+  },
+  "ACT_ACCEPTARE_2026-09-12.html": {
+    "title": {
+      "ro": "Act de acceptare: CRM pe date reale, magazin, documente",
+      "ru": "Акт приёмки: CRM на реальных данных, магазин, документы",
+      "en": "Acceptance report: CRM on real data, shop, documents"
+    },
+    "descr": {
+      "ro": "Treisprezece puncte verificate pe paginile vii, în browser real, pe conturul de lucru: datele reale în fiecare secțiune a CRM-ului, fișa produsului din back-office, comenzile cu liniile lor, angajații, rapoartele, alertele, separarea regimului demo, plachetele hub-ului, documentele și sănătatea contururilor. Cu capturi de ecran; proba doar citește.",
+      "ru": "Тринадцать пунктов, проверенных на живых страницах в реальном браузере на боевом контуре: реальные данные в каждом разделе CRM, карточка товара из бэк-офиса, заказы со строками, сотрудники, отчёты, алерты, отделённый демо-режим, плитки хаба, документы и здоровье контуров. Со скриншотами; проба только читает.",
+      "en": "Thirteen checks on live pages in a real browser on the production contour: real data in every CRM section, the product card from the back-office, orders with their lines, employees, reports, alerts, demo separation, hub tiles, documents and contour health. With screenshots; the test only reads."
+    },
+    "audience": "owner"
   }
 }
