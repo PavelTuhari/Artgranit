@@ -25,6 +25,7 @@ KIND_LINUX_WEB = "Сервер Linux (веб)"
 KIND_LINUX = "Сервер Linux"
 KIND_WEB = "Веб-устройство"
 KIND_UNKNOWN = "Неопознанное устройство"
+KIND_SMARTPLUG = "Умная розетка (Tuya)"
 
 CRIT_HIGH = "high"
 CRIT_MEDIUM = "medium"
@@ -44,6 +45,7 @@ _CRITICALITY = {
     KIND_NETGEAR: CRIT_LOW,
     KIND_WEB: CRIT_LOW,
     KIND_UNKNOWN: CRIT_LOW,
+    KIND_SMARTPLUG: CRIT_LOW,
 }
 
 
@@ -78,6 +80,12 @@ def classify(ttl, ports, title: str = "", server: str = "") -> str:
         return KIND_ROUTER
     if "zabbix" in t:
         return KIND_ZABBIX
+    # 6668 — локальный протокол Tuya/Smart Life. Проверяем раньше TTL:
+    # у розеток TTL 255, и они иначе попадают в «сетевое оборудование».
+    if 6668 in p or 6667 in p or 8899 in p:
+        return KIND_SMARTPLUG
+    if 9999 in p:            # TP-Link Kasa
+        return KIND_SMARTPLUG
     if ttl >= 200:
         return KIND_NETGEAR
     if 3389 in p:

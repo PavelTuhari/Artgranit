@@ -361,3 +361,27 @@ def test_plug_keys_are_read_from_keychain_only():
     src = _read("modules/netmon/smartplug.py")
     assert "keychain_pair" in src
     assert "local_key=" not in src.replace("local_key=local_key", "")
+
+
+def test_zabbix_items_for_days_must_allow_negative_values():
+    # value_type 3 (unsigned) превращает отрицательные значения в 0,
+    # и просрочка обслуживания никогда бы не показалась.
+    src = _read("modules/netmon/scripts/netmon_zabbix_facility.py")
+    block = src[src.index('key_": key'):src.index("created += 1")]
+    assert '"value_type": 0' in block, "дни до срока должны быть numeric float"
+
+
+def test_missing_work_does_not_swallow_real_deadlines():
+    # Невыполненная работа даёт -интервал, а не «минус бесконечность»,
+    # иначе по числу не понять, насколько всё запущено.
+    src = _read("modules/netmon/scripts/netmon_zabbix_facility.py")
+    assert "-999" not in src
+    assert "-days if not last" in src
+
+
+def test_classifier_detects_smart_plugs_before_ttl_rule():
+    from modules.netmon import rules
+    # у розеток TTL 255 — без проверки порта они уедут в «сетевое оборудование»
+    assert rules.classify(254, [6668]) == rules.KIND_SMARTPLUG
+    assert rules.classify(254, [9999]) == rules.KIND_SMARTPLUG
+    assert rules.classify(254, []) == rules.KIND_NETGEAR

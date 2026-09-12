@@ -137,7 +137,9 @@ def facility_host(z, dry: bool) -> tuple[str, int]:
             continue
         z.call("item.create", {
             "name": f"{f['name']}: дней до обслуживания", "key_": key,
-            "hostid": hostid, "type": 2, "value_type": 3, "units": "дней",
+            # value_type 0 (float), а НЕ 3 (unsigned): просрочка — отрицательное
+            # число, unsigned превращает его в 0 и проблему не видно.
+            "hostid": hostid, "type": 2, "value_type": 0, "units": "дней",
             "history": "365d", "trends": "1095d",
             "description": f"Помещение: {f['room']}. Регламент: {f['service_days']} дней.\n"
                            f"Отрицательное значение — просрочка."})
@@ -160,24 +162,28 @@ def facility_host(z, dry: bool) -> tuple[str, int]:
 def facility_values() -> dict:
     """Сколько дней осталось до обслуживания каждого объекта.
 
-    Берём самый срочный вид работ по объекту: если фильтры просрочены на 10
-    дней, а осмотр только через месяц — показываем −10.
+    Берём самый срочный вид работ: если фильтры просрочены на 10 дней, а
+    осмотр только через месяц — показываем −10.
+
+    Вид работ, который не делали ни разу, тоже считается просроченным, но
+    не «минус бесконечность»: берём −(интервал), то есть «срок вышел ровно
+    один период назад». Иначе одна невыполненная работа затирала бы
+    реальные сроки по остальным, и по числу нельзя было бы понять,
+    насколько всё запущено.
     """
+    from datetime import timedelta
     vals = {}
     today = date.today()
     for f in store.facilities():
         if f["kind"] == "smartplug":
             continue
-        rules = fac.SERVICE_RULES.get(f["kind"], {})
         worst = None
-        for work, days in rules.items():
+        for work, days in fac.SERVICE_RULES.get(f["kind"], {}).items():
             if not days:
                 continue
             last = (f.get("last_works") or {}).get(work)
-            if not last:
-                worst = -999 if worst is None else min(worst, -999)
-                continue
-            left = (date.fromisoformat(last) + __import__("datetime").timedelta(days=days) - today).days
+            left = (-days if not last
+                    else (date.fromisoformat(last) + timedelta(days=days) - today).days)
             worst = left if worst is None else min(worst, left)
         if worst is not None:
             vals[f"facility.days[{f['code']}]"] = worst
@@ -204,8 +210,8 @@ def main() -> None:
     vals = facility_values()
     print("\nСроки обслуживания:")
     for k, v in sorted(vals.items()):
-        mark = "просрочено" if v < 0 else f"через {v} дн"
-        print(f"   {k:<34} {v:>6}  {mark if v > -999 else 'работ не было'}")
+        mark = f"просрочено на {-v} дн" if v < 0 else f"через {v} дн"
+        print(f"   {k:<34} {v:>6}  {mark}")
     res = assets.push_to_zabbix(vals, host=FACILITY_HOST)
     print(f"\nотправлено в Zabbix: {res.get('sent')} значений, отказов {res.get('failed')}")
 
