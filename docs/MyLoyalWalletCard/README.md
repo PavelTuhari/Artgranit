@@ -73,6 +73,7 @@ Artgranit **незакоммиченными**, репозиторий стоя�
 | `IOS_BUILD_AND_EU_DISTRIBUTION.md` | iOS-сборка, установка на iPhone, магазины ЕС (DMA) |
 | `ALTSTORE_REPO.md` | репозиторий приложений для AltStore |
 | `OWN_APP_STORE.md` | портал `https://nufarul.eminescu.md/apps/`: 4 приложения, 5 платформ |
+| `WALLET_PASSES.md` | кошелёк: удостоверение держателя, подписанные пропуска, билеты автовокзала, контроль |
 | `docs.json` | карточки для хаба документации |
 
 Плюс в самом проекте: `loyalty-platform/TESTING.md` (план тестирования, он же
