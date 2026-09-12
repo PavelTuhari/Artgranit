@@ -236,7 +236,9 @@ def collect() -> dict:
             "disks": disks,
             "disk_gb": round(sum(_size_to_gb(d["size"]) for d in disks), 1),
             "nets": _nets(cfg),
-            "description": descr.strip(),
+            # сырое описание наружу не отдаём: в нём встречаются пароли.
+            # Пользователю показываем только разобранные и очищенные поля.
+            "description": _strip_secrets(descr).strip(),
             "snapshots": len(snaps),
             "last_backup": backups.get(vmid, ""),
             "uptime_s": int(r.get("uptime", 0) or 0),
@@ -354,6 +356,29 @@ def passport(g: dict) -> dict:
         "risk_level": "high" if legacy or not g.get("last_backup") else
                       ("medium" if risks else "low"),
     }
+
+
+# Пара «логин/пароль», записанная без подписи — встречается в описаниях
+# отдельной строкой вида «admin/s3cret». Ловим её отдельно от «Auth: …».
+_CREDENTIAL_PAIR = re.compile(r"\b[\w.@-]{3,24}\s*/\s*\S{5,}", re.UNICODE)
+
+
+def _strip_secrets(text: str) -> str:
+    """Вычищает из описания учётные данные — и подписанные, и голые пары.
+
+    Две формы записи в реальных описаниях на PROXMOX3:
+      «Auth: root/пароль»  — ловится по имени поля;
+      «admin/пароль»       — отдельной строкой без подписи, ловится образцом.
+    """
+    keep = []
+    for line in (text or "").splitlines():
+        name = line.split(":", 1)[0].strip().lower() if ":" in line else ""
+        if name and any(s in name for s in _SECRET_FIELDS):
+            keep.append(f"{line.split(':', 1)[0]}: (скрыто)")
+            continue
+        cleaned = _CREDENTIAL_PAIR.sub("(учётные данные скрыты)", line)
+        keep.append(cleaned)
+    return "\n".join(keep)
 
 
 def summary(data: dict) -> dict:
