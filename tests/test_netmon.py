@@ -152,3 +152,27 @@ def test_secrets_come_from_keychain_not_from_code():
     src = _read("modules/netmon/sources.py")
     assert "find-generic-password" in src
     assert "zabbix-web" in src  # имя записи Keychain, не сам пароль
+
+
+# ------------------------------------------------------------------ миграция
+
+def test_migration_plan_names_the_blocking_versions():
+    # План обязан называть конкретные версии-блокеры, а не «всё устарело»
+    doc = _read("docs/Netmon/ZABBIX_MIGRATION_PLAN.md")
+    for fact in ("3.4.15", "7.9.2009", "5.5.68", "5.6.40", "Proxmox VE **4.4-1**"):
+        assert fact.replace("**", "") in doc.replace("**", ""), fact
+
+
+def test_migration_plan_covers_rollback_and_acceptance():
+    doc = _read("docs/Netmon/ZABBIX_MIGRATION_PLAN.md")
+    for section in ("План отката", "Тесты приёмки", "Технические требования",
+                    "Стратегия переноса данных"):
+        assert section in doc, section
+
+
+def test_export_tool_is_read_only():
+    # Инструмент выгрузки не должен уметь менять Zabbix
+    src = _read("modules/netmon/scripts/netmon_zabbix_export.py")
+    for danger in (".create", ".update", ".delete", "configuration.import"):
+        assert danger not in src, f"экспорт умеет {danger} — должен только читать"
+    assert "configuration.export" in src
