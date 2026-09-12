@@ -68,5 +68,15 @@
     "title": "Date reale din ERP; demo separat",
     "audience": "pentru proprietar și dezvoltatori",
     "descr": "Marfa reală din dicționarul ERP (căutare vie, preț din lista în vigoare, import la cerere), contragenții din TMS_ORG și din conturile magazinului, comutatorul «date reale / demo» și mutarea setului demonstrativ în chiriașul demo."
+  },
+  "GHID_CRM.html": {
+    "slug": "ghid-crm",
+    "public": true,
+    "icon": "📘",
+    "cls": "g",
+    "order": 5,
+    "title": "Ghidul utilizatorului CRM",
+    "audience": "pentru operatori",
+    "descr": "Pas cu pas, cu capturi de ecran: tabloul de lucru și cele opt etape, kanban, clienți din registrul de stat, marfa reală din ERP, comenzile (conturile magazinului), proiecte și calendar, cele șapte rapoarte, alertele, conturile angajaților și întrebările care apar des."
   }
 }

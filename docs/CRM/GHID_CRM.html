@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM OfficePlus • Ghidul utilizatorului</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+  body{font-family:'Inter',system-ui,sans-serif}
+  .font-display{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-weight:600}
+  html{scroll-behavior:smooth}
+  .shot{border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 1px 2px rgb(0 0 0/.06);width:100%}
+  .step{counter-increment:s}
+  .step::before{content:counter(s);display:inline-flex;width:22px;height:22px;border-radius:999px;
+    background:#0f172a;color:#fff;font-size:12px;align-items:center;justify-content:center;margin-right:8px;font-weight:600}
+  ol.steps{counter-reset:s;list-style:none;padding:0}
+  ol.steps>li{margin:.5rem 0;display:flex;gap:.25rem;align-items:flex-start}
+  .k{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;font-size:12.5px;white-space:nowrap}
+  .badge{background:linear-gradient(90deg,#0f172a,#1e2937);color:#fff;font-size:.72rem;padding:.15rem .7rem;border-radius:999px;font-weight:600;letter-spacing:.03em}
+  table.g{width:100%;font-size:14px;border-collapse:collapse}
+  table.g th{background:#f8fafc;text-align:left;font-weight:600;color:#334155;padding:8px 10px;border-bottom:1px solid #e2e8f0}
+  table.g td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+  .toc a{display:block;padding:4px 0;color:#475569;font-size:14px}
+  .toc a:hover{color:#059669}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-slate-200">
+  <div class="max-w-screen-xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex w-8 h-8 rounded-lg bg-slate-900 text-white items-center justify-center font-display text-sm">🤝</span>
+      <span class="font-display text-slate-900">CRM OfficePlus • Ghidul utilizatorului</span>
+    </div>
+    <nav class="hidden lg:flex gap-4 text-sm text-slate-600 overflow-x-auto">
+      <a href="#start" class="hover:text-emerald-600">Start</a>
+      <a href="#workspace" class="hover:text-emerald-600">Tablou</a>
+      <a href="#kanban" class="hover:text-emerald-600">Kanban</a>
+      <a href="#clienti" class="hover:text-emerald-600">Clienți</a>
+      <a href="#marfa" class="hover:text-emerald-600">Marfă</a>
+      <a href="#comenzi" class="hover:text-emerald-600">Comenzi</a>
+      <a href="#proiecte" class="hover:text-emerald-600">Proiecte</a>
+      <a href="#rapoarte" class="hover:text-emerald-600">Rapoarte</a>
+      <a href="#alerte" class="hover:text-emerald-600">Alerte</a>
+      <a href="#angajati" class="hover:text-emerald-600">Angajați</a>
+      <a href="#intrebari" class="hover:text-emerald-600">Întrebări</a>
+    </nav>
+  </div>
+</header>
+
+<div class="max-w-screen-xl mx-auto px-6 pt-10 pb-6">
+  <div class="badge inline-block mb-3">GHID PENTRU OPERATORI • 12.09.2026</div>
+  <h1 class="font-display text-4xl text-slate-900 tracking-tight">CRM OfficePlus — de la primul client la banii încasați</h1>
+  <p class="mt-4 text-lg text-slate-600 max-w-3xl">
+    CRM-ul lucrează pe <strong>datele reale</strong> ale ERP-ului: aceeași marfă, aceiași contragenți,
+    aceleași comenzi pe care le vedeți în UNA.md. Nimic nu se copiază pe alături, nimic nu trebuie
+    re-tastat. Ghidul de față arată fiecare secțiune așa cum o vedeți pe ecran.
+  </p>
+  <div class="mt-5 flex flex-wrap gap-2 text-xs">
+    <span class="px-3 py-1 rounded-full bg-white border border-slate-200">RO · RU · EN</span>
+    <span class="px-3 py-1 rounded-full bg-white border border-slate-200">officeplus.md și nufarul.eminescu.md — același CRM</span>
+    <span class="px-3 py-1 rounded-full bg-white border border-slate-200">fără ferestre modale: mesajele apar jos, pe linia de stare</span>
+  </div>
+</div>
+
+<!-- START -->
+<div id="start" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-3">1. Cum intrați și ce vedeți în bara de sus</h2>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div>
+        <ol class="steps text-[15px] text-slate-700">
+          <li class="step"><span>Deschideți portalul și intrați cu contul dumneavoastră.</span></li>
+          <li class="step"><span>În hub-ul <span class="k">Biro26</span> apăsați plăcuța <strong>CRM</strong>
+            (sau direct adresa <span class="k">/UNA.md/orasldev/crm/</span>).</span></li>
+          <li class="step"><span>În stânga este meniul cu toate secțiunile, în dreapta — fișa înregistrării alese.</span></li>
+        </ol>
+        <table class="g mt-5">
+          <tr><th>Element</th><th>Ce înseamnă</th></tr>
+          <tr><td><span class="k">● Date reale</span></td><td>lucrați cu datele adevărate ale firmei. Un clic pe el trece în <span class="k">⚗ Demo</span> — un set de probă, complet separat; datele reale rămân neatinse. Încă un clic vă întoarce.</td></tr>
+          <tr><td><span class="k">RO ▾</span></td><td>limba interfeței: română, rusă, engleză.</td></tr>
+          <tr><td><span class="k">Contragenti</span></td><td>indicatorul instrumentului de căutare în registrul de stat (verde = pornit pe calculatorul dumneavoastră).</td></tr>
+          <tr><td>linia de jos</td><td>toate mesajele apar acolo: „Salvat”, „Adăugat”, erori. Nu există ferestre care sar în față.</td></tr>
+        </table>
+      </div>
+      <div>
+        <img class="shot" src="../../crm/static/docs/01_workspace.png" alt="Tabloul de lucru">
+        <p class="text-xs text-slate-500 mt-2">Tabloul de lucru: cele opt etape „de la contract la bani”.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div id="workspace" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">2. Tabloul de lucru — unde stă fiecare afacere</h2>
+    <p class="text-slate-600 mb-4">Prima pagină arată în ce etapă se află lucrurile chiar acum. Etapele se
+      <strong>calculează singure</strong> din documente (avans primit, executat, livrat, plătit) — nu trebuie
+      să le puneți manual.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <table class="g">
+        <tr><th>Etapa</th><th>Ce înseamnă pentru dumneavoastră</th></tr>
+        <tr><td><strong>Ofertă</strong></td><td>am trimis prețul, așteptăm răspuns.</td></tr>
+        <tr><td><strong>Negocieri</strong></td><td>se discută condițiile.</td></tr>
+        <tr><td><strong>Gata de comandă</strong></td><td>oportunitate câștigată — creați comanda.</td></tr>
+        <tr><td><strong>Așteaptă avans</strong></td><td>comanda e confirmată, banii de avans nu au intrat.</td></tr>
+        <tr><td><strong>În lucru / producție</strong></td><td>avansul e primit, se execută.</td></tr>
+        <tr><td><strong>Gata de livrare</strong></td><td>executat, dar nu s-a livrat.</td></tr>
+        <tr><td><strong>Livrat — așteaptă plata</strong></td><td>marfa e la client, plata nu e închisă.</td></tr>
+        <tr><td><strong>Închis</strong></td><td>livrat și plătit integral.</td></tr>
+      </table>
+      <div class="text-[15px] text-slate-700">
+        <p class="mb-3"><strong>Cifra roșie</strong> de sub o plăcuță arată câte înregistrări întârzie și cu ce sumă.
+          Un clic pe plăcuță deschide lista filtrată exact pe acea etapă — vedeți imediat cine e de sunat.</p>
+        <p class="mb-3">Jos sunt <strong>ultimele comenzi</strong> și <strong>sarcinile apropiate</strong>: un clic pe rând
+          deschide fișa.</p>
+        <p class="text-sm text-slate-500">Rândul de sub titlu rezumă ziua: câte comenzi sunt în lucru și închise,
+          ce sumă nu e încă încasată, câte întârzie.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KANBAN -->
+<div id="kanban" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">3. Kanban — mutați cardul, nu completați formulare</h2>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div>
+        <p class="text-slate-600 mb-3">Cinci table, alegeți din lista de sus: <strong>Comenzi</strong>,
+          <strong>Oportunități</strong>, <strong>Sarcini</strong>, <strong>Proiecte</strong>, <strong>Sarcinile unui proiect</strong>.</p>
+        <ol class="steps text-[15px] text-slate-700">
+          <li class="step"><span>Trageți cardul cu mouse-ul în altă coloană — etapa se schimbă pe loc.</span></li>
+          <li class="step"><span>Dublu clic pe card — se deschide fișa completă.</span></li>
+          <li class="step"><span>Dacă mutarea nu are sens (de exemplu înapoi peste o plată deja făcută),
+            cardul se întoarce singur și pe linia de jos scrie de ce.</span></li>
+        </ol>
+        <p class="text-sm text-slate-500 mt-3">Sub numele fiecărei coloane scrie câte carduri întârzie.
+          Pe card: clientul, suma, termenul și cât a mai rămas („−3 z” = trei zile întârziere).</p>
+      </div>
+      <div>
+        <img class="shot" src="../../crm/static/docs/02_kanban.png" alt="Kanban">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENTI -->
+<div id="clienti" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">4. Clienți, contacte, lead-uri, oportunități</h2>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div>
+        <p class="text-slate-600 mb-3">Lista clienților este cea reală: contragenții din ERP și conturile
+          magazinului, uniți după IDNO.</p>
+        <table class="g">
+          <tr><th>Vreau să…</th><th>Cum fac</th></tr>
+          <tr><td>găsesc un client</td><td>scriu în căutare numele, IDNO-ul sau adresa. Caută întâi în baza OfficePlus, apoi pe date.gov.md.</td></tr>
+          <tr><td>adaug un client din registrul de stat</td><td>butonul <span class="k">Creează client</span> deschide instrumentul Contragenti; după alegere cartela vine singură, cu verificare de dublură după IDNO.</td></tr>
+          <tr><td>aduc contragenții din ERP</td><td>butonul <span class="k">⇄ ERP</span> — aduce <code>TMS_ORG</code> și conturile magazinului; completează doar golurile, nu șterge ce ați scris.</td></tr>
+          <tr><td>notez ceva despre client</td><td>câmpul <em>Notițe</em> din fișă, apoi <span class="k">Salvează</span>.</td></tr>
+          <tr><td>transform un lead în client</td><td>în fișa lead-ului, butonul <span class="k">În clienți</span>.</td></tr>
+        </table>
+        <p class="text-sm text-slate-500 mt-3"><strong>Contacte</strong> = persoanele din firma clientului.
+          <strong>Lead-uri</strong> = interesul brut (sunat, formular de pe site).
+          <strong>Oportunități</strong> = discuția cu preț și termen, care merge spre comandă.</p>
+      </div>
+      <div>
+        <img class="shot" src="../../crm/static/docs/03_clienti.png" alt="Clienți">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MARFA -->
+<div id="marfa" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">5. Nomenclator (marfa) — dicționarul real al firmei</h2>
+    <p class="text-slate-600 mb-4">Nu există un catalog paralel: vedeți <strong>marfa adevărată</strong> —
+      peste 188 000 de poziții active, cu prețul din lista în vigoare și stocul din flux, exact ca în magazin.</p>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div>
+        <img class="shot" src="../../crm/static/docs/04_nomenclator.png" alt="Nomenclator">
+        <p class="text-xs text-slate-500 mt-2">Rândurile cu <strong>bară verde</strong> vin direct din ERP.</p>
+      </div>
+      <div>
+        <img class="shot" src="../../crm/static/docs/10_marfa_erp.png" alt="Fișa unei poziții din ERP">
+        <p class="text-xs text-slate-500 mt-2">Fișa unei poziții ERP: în citire, cu butonul de aducere în nomenclator.</p>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 mt-5">
+      <table class="g">
+        <tr><th>Vreau să…</th><th>Cum fac</th></tr>
+        <tr><td>caut o marfă</td><td>panoul <span class="k">Adaugă din ERP</span>: denumire (RO sau RU), articol sau cod de bare.</td></tr>
+        <tr><td>o folosesc într-o comandă</td><td>deschid fișa și apăs <span class="k">Adaugă în nomenclator</span> — poziția primește rând propriu și poate intra în comenzi.</td></tr>
+        <tr><td>actualizez prețurile</td><td><span class="k">Reîmprospătează prețurile</span> — pozițiile aduse iau din nou prețul și stocul curent.</td></tr>
+        <tr><td>adaug un serviciu propriu</td><td><span class="k">Creează</span> — o poziție nouă, doar a CRM-ului (tip <em>Serviciu</em>, fără stoc).</td></tr>
+      </table>
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-[15px] text-slate-700">
+        <p><strong>De ce unele rânduri nu se pot edita?</strong> Pentru că sunt chiar dicționarul ERP-ului.
+          Denumirea, prețul și stocul se schimbă acolo unde le ține contabilitatea — în UNA.md — și apar
+          aici imediat. Așa nu există „două adevăruri” despre același preț.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMENZI -->
+<div id="comenzi" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">6. Comenzi — conturile reale ale magazinului</h2>
+    <p class="text-slate-600 mb-4">Lista arată <strong>documentele adevărate</strong>: conturile de plată emise
+      de magazin (peste 160), cu client, dată, sumă și starea livrării — plus comenzile pe care le creați
+      chiar aici, în CRM.</p>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div><img class="shot" src="../../crm/static/docs/05_comenzi.png" alt="Comenzi"></div>
+      <div>
+        <img class="shot" src="../../crm/static/docs/06_comanda_erp.png" alt="Fișa unei comenzi reale">
+        <p class="text-xs text-slate-500 mt-2">Fișa unui cont real: pozițiile, cantitățile și sumele din document.</p>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-6 mt-5">
+      <div>
+        <h3 class="font-display text-lg text-slate-900 mb-2">O comandă nouă, pas cu pas</h3>
+        <ol class="steps text-[15px] text-slate-700">
+          <li class="step"><span><span class="k">Creează</span>, alegeți clientul și tipul (vânzare, serviciu, producție).</span></li>
+          <li class="step"><span>Salvați — abia apoi se pot adăuga rânduri.</span></li>
+          <li class="step"><span>Jos, în <em>Nomenclator</em>: alegeți poziția, cantitatea, prețul → <span class="k">+ Rând</span>.
+            Prețul se completează singur din fișa mărfii.</span></li>
+          <li class="step"><span>Completați avansul și plata pe măsură ce intră banii.</span></li>
+          <li class="step"><span><span class="k">Provează</span> — mișcă stocul: vânzarea îl scade, producția îl crește,
+            serviciul nu-l atinge.</span></li>
+        </ol>
+      </div>
+      <table class="g">
+        <tr><th>Semn</th><th>Ce înseamnă</th></tr>
+        <tr><td>bară verde + <span class="k">din ERP</span></td><td>document real, emis de magazin. Se citește aici, se modifică în ERP.</td></tr>
+        <tr><td>termen roșu</td><td>a trecut data și comanda nu e închisă.</td></tr>
+        <tr><td><em>Confirmată</em></td><td>contul e emis, nu are încă notă de livrare.</td></tr>
+        <tr><td><em>Executată</em></td><td>documentul are notă de livrare în ERP.</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PROIECTE + CALENDAR -->
+<div id="proiecte" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">7. Proiecte și calendarul de sarcini</h2>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div>
+        <img class="shot" src="../../crm/static/docs/07_proiecte.png" alt="Proiecte">
+        <p class="text-[15px] text-slate-700 mt-3">Proiectul ține împreună tot ce ține de o lucrare: licitația,
+          bugetul, avansul, plata, etapele și sarcinile. În fișă vedeți câte sarcini sunt gata din total, câte
+          întârzie și cât s-a lucrat față de plan; două butoane duc la sarcinile și comenzile proiectului.</p>
+      </div>
+      <div>
+        <img class="shot" src="../../crm/static/docs/08_calendar.png" alt="Calendar">
+        <p class="text-[15px] text-slate-700 mt-3">Calendarul este lista sarcinilor cu termene.
+          <strong>Executant</strong> se alege din lista angajaților, <strong>datele</strong> se aleg din calendarul
+          browserului. Butonul <span class="k">Executat</span> închide sarcina; termenele depășite sunt roșii.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RAPOARTE -->
+<div id="rapoarte" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">8. Rapoarte</h2>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div>
+        <table class="g">
+          <tr><th>Raport</th><th>Răspunde la întrebarea</th></tr>
+          <tr><td>Procesul de execuție</td><td>unde se blochează comenzile, de la avans până la plată.</td></tr>
+          <tr><td>Creanțe</td><td>cine ne datorează bani și de câte zile.</td></tr>
+          <tr><td>Vânzări pe clienți</td><td>cât a cumpărat fiecare client și cât a plătit.</td></tr>
+          <tr><td>Pâlnia de vânzări</td><td>câte oportunități sunt pe fiecare etapă și ce sumă.</td></tr>
+          <tr><td>Stocuri</td><td>ce marfă avem și cât valorează.</td></tr>
+          <tr><td>Proiecte</td><td>buget, avans, plată și sarcini pe fiecare proiect.</td></tr>
+          <tr><td><strong>Pe angajați</strong></td><td>cine cât duce: proiecte, buget, sarcini, întârzieri — cu rând <strong>TOTAL</strong>.</td></tr>
+        </table>
+        <p class="text-[15px] text-slate-700 mt-3">Sus, în capul raportului, alegeți persoana
+          (sau <em>Total — toți</em>). Butonul <span class="k">Export în Excel (CSV)</span> descarcă exact ce vedeți,
+          cu filtrul păstrat.</p>
+      </div>
+      <div><img class="shot" src="../../crm/static/docs/09_rapoarte.png" alt="Rapoarte"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTE -->
+<div id="alerte" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">9. Alerte — tranzacții nefinisate și datorii</h2>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div><img class="shot" src="../../crm/static/docs/11_alerte.png" alt="Alerte"></div>
+      <div>
+        <p class="text-[15px] text-slate-700 mb-3">Opt tipuri de alerte: datorie, termen depășit, așteaptă avans,
+          gata dar nelivrată, necontabilizată, proiect neacoperit, ofertă fără mișcare, termen apropiat.</p>
+        <table class="g">
+          <tr><th>Buton</th><th>Ce face</th></tr>
+          <tr><td><span class="k">Actualizează</span></td><td>recalculează lista pe datele de acum.</td></tr>
+          <tr><td><span class="k">Trimite acum</span></td><td>trimite sumarul imediat, fără să aștepte ora zilnică.</td></tr>
+          <tr><td><span class="k">📊 Prezentare</span></td><td>prezentarea botului (Ctrl/Cmd+P → PDF).</td></tr>
+        </table>
+        <p class="text-[15px] text-slate-700 mt-3">Mesajele pleacă pe <strong>aceleași canale ca notificările
+          comenzilor de pe site</strong> — e-mail, Telegram, WhatsApp. Nu trebuie configurat nimic nou; ce e
+          pornit acolo, se folosește aici. În dreapta alegeți tipurile incluse, pragul datoriei, cu câte zile
+          înainte să avertizeze și ora sumarului zilnic.</p>
+        <p class="text-sm text-slate-500 mt-2">Aceeași alertă nu se repetă în zilele setate, ca să nu vă inunde.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANGAJATI -->
+<div id="angajati" class="max-w-screen-xl mx-auto px-6 pb-10">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-2">10. Angajați — conturile de acces</h2>
+    <div class="grid md:grid-cols-2 gap-6 items-start">
+      <div><img class="shot" src="../../crm/static/docs/12_angajati.png" alt="Angajați"></div>
+      <div>
+        <p class="text-[15px] text-slate-700 mb-3">Aici administrați <strong>conturile reale ale ERP-ului</strong>:
+          contul creat aici funcționează imediat și în programul UNA.md, iar o schimbare făcută în configurator
+          apare aici.</p>
+        <ol class="steps text-[15px] text-slate-700">
+          <li class="step"><span><span class="k">Înregistrează angajat</span>: utilizator (litere latine, fără spații),
+            nume, grup, e-mail, telefon.</span></li>
+          <li class="step"><span>Parola standard se generează automată și se arată <strong>o singură dată</strong> —
+            copiați-o cu butonul de lângă ea.</span></li>
+          <li class="step"><span>Uitată parola? <span class="k">Parolă nouă</span> generează alta; cea veche nu mai merge.</span></li>
+          <li class="step"><span>Pleacă din firmă? <span class="k">Dezactivează</span> — ERP-ul refuză logarea, iar contul
+            rămâne pentru istoric. <span class="k">Activează</span> îl pornește la loc.</span></li>
+        </ol>
+        <p class="text-sm text-slate-500 mt-2">În listă vedeți data înregistrării, starea contului, e-mailul și
+          telefonul. Clientul din cabinetul magazinului <strong>nu vede</strong> această secțiune.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INTREBARI -->
+<div id="intrebari" class="max-w-screen-xl mx-auto px-6 pb-16">
+  <div class="bg-white border border-slate-200 rounded-3xl p-7">
+    <h2 class="font-display text-2xl text-slate-900 mb-3">11. Întrebări care apar des</h2>
+    <table class="g">
+      <tr><th style="width:38%">Întrebarea</th><th>Răspunsul</th></tr>
+      <tr><td>Am apăsat „Demo” din greșeală — am stricat ceva?</td><td>Nu. Demo este un set complet separat.
+        Apăsați încă o dată pe indicator și vă întoarceți la datele reale, neatinse.</td></tr>
+      <tr><td>De ce nu pot schimba prețul unei mărfi?</td><td>Este poziția din dicționarul ERP. Aduceți-o în
+        nomenclator (buton în fișă) sau schimbați prețul în UNA.md — acolo îl ține contabilitatea.</td></tr>
+      <tr><td>De ce nu pot edita un cont de plată?</td><td>Documentele emise se corectează în ERP. CRM-ul le arată
+        ca să vedeți starea lucrurilor, nu ca să le rescrie.</td></tr>
+      <tr><td>Unde văd ce s-a întâmplat cu un client?</td><td>În <em>Jurnal Contragenți</em> — toate căutările,
+        importurile și modificările, cu dată și utilizator.</td></tr>
+      <tr><td>Clientul meu poate intra în CRM?</td><td>Da, în cabinetul lui din magazin: vede <strong>doar</strong>
+        datele lui. Lista angajaților îi este închisă.</td></tr>
+      <tr><td>Am greșit un rând — cum îl șterg?</td><td>Butonul <span class="k">Șterge</span> din fișă, apăsat
+        de două ori (a doua oară confirmă). Rândurile din ERP nu se șterg din CRM.</td></tr>
+      <tr><td>Cifrele din raport nu se potrivesc cu ce știu eu</td><td>Verificați filtrul de persoană din capul
+        raportului și dacă nu sunteți cumva în regimul Demo.</td></tr>
+    </table>
+    <p class="text-sm text-slate-500 mt-5">Documente legate:
+      <a class="text-emerald-600 hover:underline" href="README.md">prezentarea modulului</a> ·
+      <a class="text-emerald-600 hover:underline" href="DATE_REALE.md">datele reale și regimul demo</a> ·
+      <a class="text-emerald-600 hover:underline" href="ANGAJATI.md">conturile angajaților</a> ·
+      <a class="text-emerald-600 hover:underline" href="ALERTE_TELEGRAM.md">alertele</a> ·
+      <a class="text-emerald-600 hover:underline" href="PROCESS.md">procesul în opt etape</a>.
+    </p>
+  </div>
+</div>
+
+</body>
+</html>
