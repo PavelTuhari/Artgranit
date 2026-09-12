@@ -1,0 +1,40 @@
+[
+ {
+  "site": "nufarul",
+  "base": "https://nufarul.eminescu.md",
+  "cos_initial": 2,
+  "produse": [
+   "\"24-port 10/100Mbps Switch TP-LINK \"\"TL-SF1024D\"\", 1U 13-inch rack-mountable steel case, Innovative energy-efficient technology saves power up to 75%, Supports  x1",
+   "\"48-port 10/100Mbps Switch TP-LINK \"\"TL-SF1048\"\", 1U 19\"\" Rack Mount, Metal Case, Complies with IEEE 802.3, IEEE 802.3u standards, 48 10/100Mbps Auto-Negotiatio x1"
+  ],
+  "versiune_pagina": "noua",
+  "cos_dupa_factura": 2,
+  "factura_afisata": true,
+  "cos_dupa_pay_fail": 2,
+  "cos_dupa_pay_ok": 0,
+  "verdict": {
+   "cos_pastrat_la_factura": true,
+   "cos_pastrat_la_plata_esuata": true,
+   "cos_golit_la_plata_reusita": true
+  }
+ },
+ {
+  "site": "officeplus",
+  "base": "https://officeplus.md",
+  "cos_initial": 2,
+  "produse": [
+   "\"24-port 10/100Mbps Switch TP-LINK \"\"TL-SF1024D\"\", 1U 13-inch rack-mountable steel case, Innovative energy-efficient technology saves power up to 75%, Supports  x1",
+   "\"48-port 10/100Mbps Switch TP-LINK \"\"TL-SF1048\"\", 1U 19\"\" Rack Mount, Metal Case, Complies with IEEE 802.3, IEEE 802.3u standards, 48 10/100Mbps Auto-Negotiatio x1"
+  ],
+  "versiune_pagina": "veche",
+  "cos_dupa_factura": 0,
+  "factura_afisata": true,
+  "cos_dupa_pay_fail": 0,
+  "cos_dupa_pay_ok": 0,
+  "verdict": {
+   "cos_pastrat_la_factura": false,
+   "cos_pastrat_la_plata_esuata": false,
+   "cos_golit_la_plata_reusita": true
+  }
+ }
+]

@@ -373,5 +373,18 @@
       "en": "The WordPress login form on officeplus.md returns 404 unless you arrive through the secret address: how the gate works, how to change it and how to roll back."
     },
     "audience": "admin"
+  },
+  "ACT_TESTARE_COS_2026-09-12.html": {
+    "title": {
+      "ro": "Act de testare: coșul se golește doar după plata confirmată",
+      "ru": "Акт тестирования: корзина очищается только после подтверждённой оплаты",
+      "en": "Test report: the cart is cleared only after confirmed payment"
+    },
+    "descr": {
+      "ro": "Proba pe paginile vii, în browser real, pe ambele contururi, cu capturi: contul de plată nu mai golește coșul; marfa rămâne până la plata confirmată. Apelul de creare a documentului a fost interceptat — nimic nu s-a scris în Oracle.",
+      "ru": "Проверка на живых страницах в реальном браузере на обоих контурах, со скриншотами: счёт больше не очищает корзину, товар остаётся до подтверждённой оплаты. Запрос создания документа перехвачен — в Oracle ничего не записано.",
+      "en": "Live-page test in a real browser on both contours, with screenshots: the invoice no longer empties the cart. The document-creation call was intercepted, so nothing was written to Oracle."
+    },
+    "audience": "owner"
   }
 }

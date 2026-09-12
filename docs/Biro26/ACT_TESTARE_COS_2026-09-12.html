@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Act de testare • Coșul se golește doar după plata confirmată</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+  body{font-family:'Inter',system-ui,sans-serif}
+  .font-display{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-weight:600}
+  .shot{border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 1px 2px rgb(0 0 0/.06);width:100%}
+  table.g{width:100%;font-size:14px;border-collapse:collapse}
+  table.g th{background:#f8fafc;text-align:left;font-weight:600;color:#334155;padding:9px 11px;border-bottom:1px solid #e2e8f0}
+  table.g td{padding:9px 11px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+  td.ok{color:#047857;font-weight:600;background:#ecfdf5}
+  td.bad{color:#b91c1c;font-weight:600;background:#fef2f2}
+  .badge{background:linear-gradient(90deg,#0f172a,#1e2937);color:#fff;font-size:.72rem;padding:.15rem .7rem;border-radius:999px;font-weight:600;letter-spacing:.03em}
+  .k{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;font-size:12.5px;white-space:nowrap}
+  pre.code{background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;font-size:12.5px;overflow-x:auto}
+  @media print{.noprint{display:none}body{background:#fff}}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+<div class="max-w-screen-xl mx-auto px-6 py-10">
+
+  <div class="badge inline-block mb-3">ACT DE TESTARE • 12.09.2026</div>
+  <h1 class="font-display text-3xl md:text-4xl text-slate-900 tracking-tight">
+    Coșul se golește doar după plata confirmată</h1>
+  <p class="mt-3 text-lg text-slate-600 max-w-3xl">
+    Verificarea modificării: <strong>contul de plată nu mai golește coșul</strong>; marfa rămâne
+    până când plata este confirmată (MIA sau card MAIB). Proba s-a făcut pe paginile vii, în browser
+    real, pe <strong>ambele contururi</strong> — ca să se vadă diferența față de comportamentul din
+    producție.
+  </p>
+
+  <!-- METODA -->
+  <div class="bg-white border border-slate-200 rounded-3xl p-6 mt-8">
+    <h2 class="font-display text-xl text-slate-900 mb-3">1. Cum s-a testat</h2>
+    <div class="grid md:grid-cols-2 gap-6 text-[15px] text-slate-700">
+      <div>
+        <ol class="list-decimal ml-5 space-y-1">
+          <li>se deschide magazinul și se apasă <strong>«adaugă în coș»</strong> la două produse reale;</li>
+          <li>se deschide coșul cu butonul lui și se fotografiază;</li>
+          <li>se apasă <strong>«Creează cont de plată»</strong>;</li>
+          <li>se verifică ce a rămas în coș;</li>
+          <li>se deschide pagina rezultatului plății cu <span class="k">?pay=fail</span> (plată nereușită);</li>
+          <li>apoi cu <span class="k">?pay=ok</span> (plată confirmată).</li>
+        </ol>
+        <p class="mt-3">Produsele luate din vitrină:</p>
+        <ul class="list-disc ml-5 text-sm text-slate-600"><li>&quot;24-port 10/100Mbps Switch TP-LINK &quot;&quot;TL-SF1024D&quot;&quot;, 1U 13-inch rac</li><li>&quot;48-port 10/100Mbps Switch TP-LINK &quot;&quot;TL-SF1048&quot;&quot;, 1U 19&quot;&quo</li></ul>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+        <p class="mb-2"><strong>Nimic nu s-a scris în Oracle.</strong> Apelul
+          <span class="k">/api/biro26/shop/invoice</span> a fost <strong>interceptat</strong> în browser și i
+          s-a răspuns cu un document inventat (<span class="k">COD 999999, Nr. PROBA-ACT</span>).</p>
+        <p>Astfel pagina execută exact ramura reală — «ce se întâmplă după ce serverul a confirmat că
+          documentul e creat» — fără să apară vreun cont de plată adevărat în baza de date.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- REZULTATE -->
+  <div class="bg-white border border-slate-200 rounded-3xl p-6 mt-6">
+    <h2 class="font-display text-xl text-slate-900 mb-3">2. Rezultatul</h2>
+    <table class="g">
+      <tr><th style="width:40%">Pasul</th>
+          <th>nufarul.eminescu.md<br><span class="font-normal text-slate-500">versiunea nouă (testul)</span></th>
+          <th>officeplus.md<br><span class="font-normal text-slate-500">versiunea din producție</span></th></tr>
+      <tr><td>Produse puse în coș</td><td class="ok">2</td><td class="ok">2</td></tr>
+      <tr><td>Coșul după <strong>«Creează cont de plată»</strong></td><td class="ok">2 — coșul a rămas</td><td class="bad">0 — coșul s-a golit</td></tr>
+      <tr><td>Coșul după plata <strong>nereușită</strong> (<span class="k">?pay=fail</span>)</td><td class="ok">2 — coșul a rămas</td><td class="bad">0 — era deja gol</td></tr>
+      <tr><td>Coșul după plata <strong>confirmată</strong> (<span class="k">?pay=ok</span>)</td><td class="ok">0 — golit, corect</td><td class="ok">0 — golit</td></tr>
+      <tr><td>Contul de plată s-a afișat în pagină</td>
+          <td class="ok">da</td><td class="ok">da</td></tr>
+    </table>
+    <p class="mt-4 text-[15px] text-slate-700">
+      <strong>Concluzie:</strong> pe versiunea nouă coșul supraviețuiește creării contului și plății
+      nereușite, și se golește numai după plata confirmată. Pe versiunea aflată acum în producție coșul
+      se golește <strong>imediat la crearea contului</strong> — clientul care se răzgândește sau vrea să
+      adauge o poziție rămâne fără marfă în coș.
+    </p>
+  </div>
+
+  <!-- CAPTURI -->
+  <div class="bg-white border border-slate-200 rounded-3xl p-6 mt-6">
+    <h2 class="font-display text-xl text-slate-900 mb-1">3. Capturi</h2>
+    <p class="text-slate-600 text-sm mb-4">Stânga — nufarul (versiunea nouă), dreapta — officeplus.md (producție).</p>
+
+    <h3 class="font-display text-slate-900 mt-4 mb-2">Pasul 1 · coșul cu două produse</h3>
+    <div class="grid md:grid-cols-2 gap-4">
+      <img class="shot" src="/static/biro26/docs/cart-test/nufarul_1_cos.png" alt="nufarul, coșul">
+      <img class="shot" src="/static/biro26/docs/cart-test/officeplus_1_cos.png" alt="officeplus, coșul">
+    </div>
+
+    <h3 class="font-display text-slate-900 mt-6 mb-2">Pasul 2 · imediat după «Creează cont de plată»</h3>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div><img class="shot" src="/static/biro26/docs/cart-test/nufarul_2_dupa_factura.png" alt="nufarul, după factură">
+        <p class="text-xs text-emerald-700 mt-1 font-medium">Coșul are ambele produse (3 688,00 LEI), contul e creat.</p></div>
+      <div><img class="shot" src="/static/biro26/docs/cart-test/officeplus_2_dupa_factura.png" alt="officeplus, după factură">
+        <p class="text-xs text-red-700 mt-1 font-medium">«Coșul este gol · Корзина пуста», Total 0.00 LEI — marfa a dispărut.</p></div>
+    </div>
+
+    <h3 class="font-display text-slate-900 mt-6 mb-2">Pasul 3 · plata nereușită</h3>
+    <div class="grid md:grid-cols-2 gap-4">
+      <img class="shot" src="/static/biro26/docs/cart-test/nufarul_3_pay_fail.png" alt="nufarul, pay=fail">
+      <img class="shot" src="/static/biro26/docs/cart-test/officeplus_3_pay_fail.png" alt="officeplus, pay=fail">
+    </div>
+
+    <h3 class="font-display text-slate-900 mt-6 mb-2">Pasul 4 · plata confirmată</h3>
+    <div class="grid md:grid-cols-2 gap-4">
+      <img class="shot" src="/static/biro26/docs/cart-test/nufarul_4_pay_ok.png" alt="nufarul, pay=ok">
+      <img class="shot" src="/static/biro26/docs/cart-test/officeplus_4_pay_ok.png" alt="officeplus, pay=ok">
+    </div>
+  </div>
+
+  <!-- REPRODUCERE -->
+  <div class="bg-white border border-slate-200 rounded-3xl p-6 mt-6">
+    <h2 class="font-display text-xl text-slate-900 mb-3">4. Cum se repetă proba</h2>
+    <p class="text-[15px] text-slate-700 mb-3">Proba e un script, nu clicuri de mână — se poate rula oricând,
+      iar capturile se refac singure:</p>
+<pre class="code">python3 scripts/biro26_cart_test.py              # ambele contururi
+python3 scripts/biro26_cart_test.py nufarul     # doar cel de probă</pre>
+    <p class="text-[15px] text-slate-700 mt-3">Manual, fără script (fără nicio scriere în bază):</p>
+    <ol class="list-decimal ml-5 text-[15px] text-slate-700 space-y-1">
+      <li>puneți ceva în coș pe <a class="text-emerald-600 hover:underline" href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-shop">nufarul.eminescu.md/UNA.md/orasldev/biro26-shop</a>;</li>
+      <li>deschideți <a class="text-emerald-600 hover:underline" href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-1shop/payment-result?pay=fail&amp;cod=123">…/payment-result?pay=fail&amp;cod=123</a> — coșul rămâne;</li>
+      <li>deschideți <a class="text-emerald-600 hover:underline" href="https://nufarul.eminescu.md/UNA.md/orasldev/biro26-1shop/payment-result?pay=ok&amp;cod=123">…/payment-result?pay=ok&amp;cod=123</a> — coșul se golește.</li>
+    </ol>
+  </div>
+
+  <!-- VERDICT -->
+  <div class="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 mt-6">
+    <h2 class="font-display text-xl text-slate-900 mb-2">5. Verdict și ce urmează</h2>
+    <p class="text-[15px] text-slate-700">Modificarea funcționează așa cum trebuie pe conturul de probă și
+      nu atinge nimic altceva: fișierele schimbate sunt două șabloane
+      (<span class="k">templates/biro26/shop.html</span>, <span class="k">site_payment_result.html</span>),
+      fără cod de server și fără schimbări în baza de date.</p>
+    <p class="text-[15px] text-slate-700 mt-2"><strong>Rămâne decizia proprietarului:</strong> dacă
+      comportamentul e cel dorit, aceleași două fișiere se pun pe officeplus.md (cu copii de siguranță și
+      verificare după repornire). Până atunci producția lucrează ca înainte.</p>
+    <p class="text-xs text-slate-500 mt-4">Act întocmit automat pe baza rezultatelor din
+      <span class="k">static/biro26/docs/cart-test/rezultate.json</span>.</p>
+  </div>
+</div>
+</body>
+</html>
