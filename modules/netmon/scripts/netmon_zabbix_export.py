@@ -6,7 +6,7 @@
 
 Забирает через API всё, что придётся воссоздавать на новом сервере:
 шаблоны и хосты в XML (родной формат экспорта 3.4), а также действия,
-пользователей,媒 media types, группы, скрипты и настройки — в JSON.
+пользователей,media types, группы, скрипты и настройки — в JSON.
 Ничего не меняет: только чтение.
 
 План миграции: docs/Netmon/ZABBIX_MIGRATION_PLAN.md
@@ -95,7 +95,7 @@ def main() -> None:
 
     inventory = {
         "exported_at": datetime.now().isoformat(timespec="seconds"),
-        "zabbix_api": z.call("apiinfo.version", {}) if False else None,
+        "zabbix_api": api_version(),
         "hosts": len(hosts),
         "templates": len(templates),
         "items_own": len(items),
