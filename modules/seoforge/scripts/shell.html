@@ -1,0 +1,232 @@
+<title>Ghidul OfficePlus online</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F8F7; --surface:#FFFFFF; --surface-2:#EEF3F1;
+  --ink:#151E1C; --muted:#5B6A65; --rule:#DBE2DE; --rule-soft:#E8EDEB;
+  --accent:#0E6A5B; --accent-soft:#E2F0EC; --accent-ink:#0B5449;
+  --amber:#9C6410; --amber-soft:#F6EEDE;
+  --shadow:0 1px 2px rgba(20,35,31,.05), 0 8px 24px -12px rgba(20,35,31,.18);
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Literata",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1312; --surface:#151C1A; --surface-2:#1B2422;
+    --ink:#E6ECE9; --muted:#94A49E; --rule:#25302D; --rule-soft:#1E2725;
+    --accent:#47AE97; --accent-soft:#13302B; --accent-ink:#7FCBB9;
+    --amber:#D8A05A; --amber-soft:#2A2317;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1312; --surface:#151C1A; --surface-2:#1B2422;
+  --ink:#E6ECE9; --muted:#94A49E; --rule:#25302D; --rule-soft:#1E2725;
+  --accent:#47AE97; --accent-soft:#13302B; --accent-ink:#7FCBB9;
+  --amber:#D8A05A; --amber-soft:#2A2317;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper); color:var(--ink); font-family:var(--body);
+     font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink); text-decoration:none;
+  border-bottom:1px solid color-mix(in srgb, var(--accent) 35%, transparent)}
+a:hover{border-bottom-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+/* ── каркас ───────────────────────────────────────────── */
+.wrap{max-width:1160px; margin:0 auto; padding:0 24px;
+      display:grid; grid-template-columns:250px minmax(0,1fr); gap:56px; align-items:start}
+.col{max-width:768px; min-width:0}
+
+/* ── оглавление сбоку ─────────────────────────────────── */
+.rail{position:sticky; top:0; padding:40px 0 40px; max-height:100vh; overflow-y:auto}
+.rail-title{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+            text-transform:uppercase; color:var(--muted); margin:0 0 14px 2px}
+.nav-link{display:flex; gap:12px; align-items:baseline; padding:9px 10px;
+          border:0; border-radius:8px; color:var(--ink); text-decoration:none}
+.nav-link:hover{background:var(--surface-2)}
+.nav-link.on{background:var(--accent-soft)}
+.nav-link.on .nav-num{color:var(--accent-ink)}
+.nav-num{font-family:var(--mono); font-size:11px; color:var(--muted);
+         min-width:20px; letter-spacing:.04em}
+.nav-txt b{display:block; font-family:var(--display); font-weight:600;
+           font-size:14.5px; line-height:1.3}
+.nav-txt i{display:block; font-style:normal; font-family:var(--mono);
+           font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.4}
+
+/* ── обложка ──────────────────────────────────────────── */
+.cover{padding:64px 0 40px; border-bottom:1px solid var(--rule)}
+.stamp{display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+       font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+       color:var(--accent-ink); background:var(--accent-soft);
+       padding:5px 11px; border-radius:999px}
+h1{font-family:var(--display); font-weight:700; font-size:clamp(34px,5.6vw,52px);
+   line-height:1.06; letter-spacing:-.022em; margin:20px 0 0; text-wrap:balance}
+.lede{font-size:19px; color:var(--muted); margin:16px 0 0; max-width:34em}
+.facts{display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+       background:var(--rule); border:1px solid var(--rule);
+       border-radius:10px; overflow:hidden; margin:32px 0 0}
+.fact{background:var(--surface); padding:16px 18px}
+.fact b{display:block; font-family:var(--display); font-weight:700; font-size:25px;
+        letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.fact span{display:block; font-family:var(--mono); font-size:10.5px; color:var(--muted);
+           text-transform:uppercase; letter-spacing:.08em; margin-top:5px}
+.issued{font-family:var(--mono); font-size:11.5px; color:var(--muted); margin:18px 0 0}
+
+/* ── маршрутизатор ────────────────────────────────────── */
+.router{padding:36px 0 8px}
+.router h2{font-family:var(--display); font-size:13px; font-weight:600;
+           letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+           margin:0 0 16px}
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px}
+.card{display:block; background:var(--surface); border:1px solid var(--rule);
+      border-radius:12px; padding:18px 18px 16px; box-shadow:var(--shadow)}
+.card:hover{border-color:var(--accent)}
+.card b{display:block; font-family:var(--display); font-weight:600; font-size:16.5px}
+.card p{margin:7px 0 0; font-size:14.5px; color:var(--muted); line-height:1.5}
+
+/* ── главы ────────────────────────────────────────────── */
+.chapter{padding:56px 0 8px; scroll-margin-top:24px}
+.chapter + .chapter{border-top:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+         text-transform:uppercase; color:var(--accent-ink); margin:0}
+.ch-head h2{font-family:var(--display); font-weight:700;
+            font-size:clamp(27px,3.7vw,37px); line-height:1.12;
+            letter-spacing:-.02em; margin:10px 0 0; text-wrap:balance}
+.ch-meta{display:flex; align-items:center; gap:10px; margin:12px 0 0;
+         font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+.dot{width:3px; height:3px; border-radius:50%; background:var(--muted); display:inline-block}
+
+/* ── текст ────────────────────────────────────────────── */
+.prose{margin-top:8px}
+.prose h3{font-family:var(--display); font-weight:600; font-size:22px;
+          letter-spacing:-.012em; line-height:1.25; margin:40px 0 0; text-wrap:balance}
+.prose h4{font-family:var(--display); font-weight:600; font-size:16.5px;
+          margin:28px 0 0; color:var(--ink)}
+.prose p{margin:14px 0 0}
+.prose ul,.prose ol{margin:14px 0 0; padding-left:22px}
+.prose li{margin:7px 0 0}
+.prose li::marker{color:var(--muted)}
+.prose strong{font-weight:600}
+.prose hr{border:0; border-top:1px solid var(--rule-soft); margin:34px 0 0}
+.prose code{font-family:var(--mono); font-size:.855em; background:var(--surface-2);
+            padding:2px 6px; border-radius:5px; word-break:break-word}
+.prose pre{margin:18px 0 0; background:var(--surface); border:1px solid var(--rule);
+           border-radius:10px; padding:15px 17px; overflow-x:auto}
+.prose pre code{background:none; padding:0; font-size:13px; line-height:1.62}
+
+blockquote{margin:22px 0 0; padding:14px 18px; background:var(--amber-soft);
+           border-left:3px solid var(--amber); border-radius:0 8px 8px 0}
+blockquote p{margin:6px 0 0} blockquote p:first-child{margin:0}
+
+/* надпись на экране: интерфейс back-office русский */
+.ui{font-family:var(--mono); font-size:.84em; background:var(--accent-soft);
+    color:var(--accent-ink); padding:1px 6px; border-radius:5px; white-space:nowrap}
+/* технический документ модуля — лежит в репозитории, не на этой странице */
+.tech{border-bottom:1px dotted var(--muted)}
+.tech-mark{font-family:var(--mono); font-size:9px; letter-spacing:.06em;
+           text-transform:uppercase; color:var(--muted);
+           vertical-align:super; margin-left:3px}
+
+/* ── таблицы ──────────────────────────────────────────── */
+.tw{overflow-x:auto; margin:22px 0 0; border:1px solid var(--rule);
+    border-radius:10px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:14.8px;
+      font-variant-numeric:tabular-nums}
+th{font-family:var(--mono); font-weight:500; font-size:10.5px; letter-spacing:.09em;
+   text-transform:uppercase; color:var(--muted); text-align:left;
+   padding:11px 16px; border-bottom:1px solid var(--rule); white-space:nowrap}
+td{padding:12px 16px; border-bottom:1px solid var(--rule-soft);
+   vertical-align:top; line-height:1.5}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600}
+td code{font-size:.82em}
+
+/* ── подвал ───────────────────────────────────────────── */
+.foot{margin:64px 0 72px; padding-top:22px; border-top:1px solid var(--rule);
+      font-family:var(--mono); font-size:11.5px; color:var(--muted); line-height:1.7}
+
+/* ── узкий экран ──────────────────────────────────────── */
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr; gap:0; padding:0 18px}
+  .rail{position:sticky; top:0; z-index:5; max-height:none; padding:10px 0;
+        background:color-mix(in srgb, var(--paper) 92%, transparent);
+        backdrop-filter:blur(8px); border-bottom:1px solid var(--rule)}
+  .rail-title{display:none}
+  .rail nav{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px}
+  .nav-link{flex:0 0 auto; padding:7px 11px; background:var(--surface-2); border-radius:999px}
+  .nav-txt i{display:none}
+  .nav-txt b{font-size:13px}
+  .cover{padding:34px 0 30px}
+  .facts{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+html{scroll-behavior:smooth}
+
+@media print{
+  .rail,.router{display:none}
+  .wrap{display:block; max-width:none; padding:0}
+  body{font-size:11pt; background:#fff; color:#000}
+  .chapter{page-break-before:always; padding-top:0}
+  .tw,.card{box-shadow:none}
+}
+</style>
+
+<div class="wrap">
+  <aside class="rail">
+    <p class="rail-title">Cuprins</p>
+    <nav><!--NAV--></nav>
+  </aside>
+
+  <main class="col">
+    <header class="cover">
+      <span class="stamp">Metodologie · versiunea 1</span>
+      <h1>Ghidul OfficePlus online</h1>
+      <p class="lede">Cum se aduc clienți pe officeplus.md cu instrumentele
+        deja construite — pentru conducere și pentru omul care apasă butoanele.</p>
+      <div class="facts">
+        <div class="fact"><b>172 594</b><span>produse în catalog</span></div>
+        <div class="fact"><b>526</b><span>articole publicate</span></div>
+        <div class="fact"><b>83</b><span>grupe de marfă</span></div>
+      </div>
+      <p class="issued">12 septembrie 2026 · se actualizează odată cu modulul</p>
+    </header>
+
+    <section class="router">
+      <h2>De unde începeți</h2>
+      <div class="cards">
+        <a class="card" href="#cap-1"><b>Sunt director</b>
+          <p>25 de minute: ce aduce bani, ce decizii vă revin, ce așteptați în 12 luni.</p></a>
+        <a class="card" href="#cap-2"><b>Eu execut</b>
+          <p>Rutina zilnică, săptămânală și lunară, pas cu pas, cu ecranele deschise.</p></a>
+        <a class="card" href="#cap-5"><b>Ceva nu merge</b>
+          <p>Tabelul simptom → cauză → ce faceți, înainte să sunați programatorul.</p></a>
+      </div>
+    </section>
+
+<!--BODY-->
+
+    <footer class="foot">
+      Documentul se generează din fișierele modulului SEOForge
+      (<code>docs/SEOForge/GHID_*.md</code>) — textul paginii și cel din
+      repozitoriu nu pot să difere.<br>
+      Documentele tehnice marcate <span class="tech-mark">doc</span> se
+      găsesc în aceeași mapă.
+    </footer>
+  </main>
+</div>
+
+<script>
+const links = [...document.querySelectorAll('.nav-link')];
+const spy = new IntersectionObserver(es => {
+  es.forEach(e => {
+    if (!e.isIntersecting) return;
+    const id = '#' + e.target.id;
+    links.forEach(l => l.classList.toggle('on', l.getAttribute('href') === id));
+  });
+}, {rootMargin: '-10% 0px -80% 0px'});
+document.querySelectorAll('.chapter').forEach(c => spy.observe(c));
+</script>
