@@ -385,3 +385,36 @@ def test_classifier_detects_smart_plugs_before_ttl_rule():
     assert rules.classify(254, [6668]) == rules.KIND_SMARTPLUG
     assert rules.classify(254, [9999]) == rules.KIND_SMARTPLUG
     assert rules.classify(254, []) == rules.KIND_NETGEAR
+
+
+# ------------------------------------------------------------------ фронт-офисы
+
+def test_service_schemas_are_not_counted_as_front_offices():
+    # SYS, XWIKI и учётки мониторинга — не торговые точки
+    from modules.netmon import frontoffice as fo
+    assert "SYS" in fo.NOT_FRONTOFFICE and "XWIKI" in fo.NOT_FRONTOFFICE
+    assert "RETAILMARKETS" not in fo.NOT_FRONTOFFICE
+
+
+def test_both_databases_are_monitored():
+    from modules.netmon import frontoffice as fo
+    assert set(fo.DATABASES) == {"cloudbd", "clouddev"}
+
+
+def test_front_office_trigger_tolerates_restart():
+    # Порог nodata должен быть заметно больше времени перезагрузки кассы,
+    # иначе каждый перезапуск даёт ложную тревогу.
+    src = _read("modules/netmon/scripts/netmon_zabbix_frontoffice.py")
+    assert "NODATA_MIN = 30" in src
+
+
+def test_front_office_items_allow_float():
+    src = _read("modules/netmon/scripts/netmon_zabbix_frontoffice.py")
+    assert '"value_type": 3' not in src, "unsigned обнуляет отрицательные значения"
+
+
+def test_handover_covers_every_role():
+    doc = _read("docs/Netmon/HANDOVER.md")
+    for topic in ("Oracle DBA", "clouddev", "Резервное копирование",
+                  "Доступы", "Чего в этом хозяйстве нет"):
+        assert topic in doc, f"в передаче дел не хватает раздела: {topic}"
