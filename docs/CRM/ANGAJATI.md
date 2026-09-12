@@ -157,3 +157,13 @@ toate trei sunt făcute în CRM-web:
 
 În cabinetul clientului lista angajaților nu se vede: `/api/v2/meta` întoarce
 doar numele care apar în datele lui.
+
+---
+
+## Adrese live
+
+| Ce | Adresa |
+|---|---|
+| Lista angajaților | <https://officeplus.md/UNA.md/orasldev/crm/#employees> · <https://nufarul.eminescu.md/UNA.md/orasldev/crm/#employees> |
+| Capitolul din ghid (cu capturi) | <https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html#angajati> |
+| Raportul pe angajați | <https://officeplus.md/UNA.md/orasldev/crm/#reports> |

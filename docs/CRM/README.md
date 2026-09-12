@@ -99,3 +99,17 @@ Contacte / Leaduri / Oferte / Calendar (acum doar în navigație, ca în Demo
 CRM); «Creează în ERP» — cele trei blocuri `TMS_UNIVERS / TMS_ORG / TMS_ORG26`
 exact ca hub-ul una.md din Contragenti (`HUB_ru.md`); legătura client CRM ↔
 `TMS_UNIVERS.CODVECHI = IDNO`.
+
+---
+
+## Adrese live (se deschid direct)
+
+| Unde | OfficePlus (lucru) | Nufarul (probă) |
+|---|---|---|
+| CRM | <https://officeplus.md/UNA.md/orasldev/crm/> | <https://nufarul.eminescu.md/UNA.md/orasldev/crm/> |
+| Cabinetul clientului | <https://officeplus.md/UNA.md/orasldev/crm/cabinet> | <https://nufarul.eminescu.md/UNA.md/orasldev/crm/cabinet> |
+| Hub-ul Biro26 | <https://officeplus.md/UNA.md/orasldev/biro26> | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26> |
+
+**Ghidul utilizatorului (cu capturi):**
+<https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html>
+· celelalte documente ale modulului: <https://officeplus.md/UNA.md/orasldev/b26docs/>

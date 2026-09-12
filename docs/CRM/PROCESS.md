@@ -72,3 +72,13 @@ cd /Users/pt/Projects.AI/Artgranit-crm
 ## Ce urmează (fazele 1–4 din TZ)
 
 Roluri și audit (OWN-05), aprobări (OWN-04), documente și plăți (ACC-02/03), KP/specificații/contracte (COM-03/04), BOM și rute (PRD-01/02), depozite (WHS-01/02), Gantt și calendar cu drag&drop (COM-07), export xlsx/pdf prin `reports/` (jsReport). Fiecare — entitate nouă în `entities.py` + generator demo + DML-test + pas de test, în același commit (TEC-03).
+
+---
+
+## Adrese live
+
+| Ce | Adresa |
+|---|---|
+| Tabloul de lucru (cele opt etape) | <https://officeplus.md/UNA.md/orasldev/crm/#workspace> |
+| Kanban | <https://officeplus.md/UNA.md/orasldev/crm/#kanban> |
+| Capitolele din ghid | <https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html#workspace> · <https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html#kanban> |

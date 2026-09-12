@@ -106,3 +106,14 @@ journalctl -u crm-alerts --since '-1d' --no-pager | tail
 | Alerte pornite | da, limba `ru`, ora 8:00 (Europe/Chișinău) |
 
 **De reținut:** e-mailul nu pleacă din cauza credențialelor Gmail din `.env` (`BIRO26_SMTP_USER/PASSWORD`) — Google cere o *parolă de aplicație*, nu parola contului. Aceeași problemă afectează și notificările despre comenzile de pe site, deci nu e ceva introdus de alerte. Telegram și WhatsApp funcționează; după corectarea parolei de aplicație va merge și e-mailul, fără alte modificări.
+
+---
+
+## Adrese live
+
+| Ce | Adresa |
+|---|---|
+| Pagina alertelor | <https://officeplus.md/UNA.md/orasldev/crm/#alerts> · <https://nufarul.eminescu.md/UNA.md/orasldev/crm/#alerts> |
+| Prezentarea botului (Ctrl/Cmd+P → PDF) | <https://nufarul.eminescu.md/UNA.md/orasldev/crm/alerte/prezentare> |
+| Canalele magazinului (aceleași) | <https://officeplus.md/UNA.md/orasldev/biro26-notify-settings> |
+| Capitolul din ghid | <https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html#alerte> |

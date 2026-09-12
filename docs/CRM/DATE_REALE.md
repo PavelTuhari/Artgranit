@@ -140,3 +140,16 @@ Rutele fișei sunt acum `<int(signed=True):rid>`.
 Filtrele de etapă și coloanele de kanban nu amestecă rânduri ERP (ele se aplică
 numai datelor CRM), iar dacă ERP-ul nu răspunde, lista rămâne cu rândurile CRM
 — nu se golește.
+
+---
+
+## Adrese live
+
+| Ce vreau să văd | Adresa |
+|---|---|
+| Marfa reală în nomenclator | <https://officeplus.md/UNA.md/orasldev/crm/#items> |
+| Comenzile reale (conturile magazinului) | <https://officeplus.md/UNA.md/orasldev/crm/#orders> |
+| Clienții reali | <https://officeplus.md/UNA.md/orasldev/crm/#clients> |
+| Comutatorul real/demo | în bara de sus a <https://officeplus.md/UNA.md/orasldev/crm/> |
+| Aceleași, pe conturul de probă | <https://nufarul.eminescu.md/UNA.md/orasldev/crm/> |
+| Ghidul cu capturi (capitolele 5 și 6) | <https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html#marfa> · <https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html#comenzi> |
