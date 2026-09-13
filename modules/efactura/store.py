@@ -57,7 +57,8 @@ DEFAULTS = {
     "in_dt": "2171",             # antet DT (marfa TVR)
     "in_ct": "5211",             # antet CT (obligatii comerciale)
     "in_dtdep": "1",             # depozitul implicit (Magazin 1)
-    "in_dt_row": "2171",         # DT implicit pe pozitie, pina la analitica
+    "in_dt_row": "2171",
+    "in_userid": "1",       # RO: USERID pentru documentele create de sistem (TMS_USERS)         # DT implicit pe pozitie, pina la analitica
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }

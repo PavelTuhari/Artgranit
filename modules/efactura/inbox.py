@@ -366,9 +366,22 @@ PKG_STATUS = {1: "valida", 3: "DocumentType/DocumentForm neacceptat", 4: "seria 
               14: "dublura in VINZ (seria+nr)", 15: "eroare la crearea documentului"}
 
 
-def package_xml(xmls: List[str]) -> str:
+def with_unloading_code(doc: str, code: Optional[str]) -> str:
+    """RO: PKG_EDI_XML ia subdiviziunea cumparatorului (depozitul, VMS_UNIVERS TIP O/GR1 I) din
+    SupplierInfo/UnloadingPointCode; SFS nu il trimite (doar textul UnloadingPoint), asa ca
+    il completam din setarea in_dtdep — altfel vendorul da STATUS_DOC 8. Nu suprascriem unul existent."""
+    if not code or "<UnloadingPointCode" in doc:
+        return doc
+    tag = "<UnloadingPointCode>%s</UnloadingPointCode>" % str(code).strip()
+    if "<UnloadingPoint>" in doc:
+        return doc.replace("<UnloadingPoint>", tag + "<UnloadingPoint>", 1)
+    return doc.replace("<Total>", tag + "<Total>", 1)
+
+
+def package_xml(xmls: List[str], unloading_code: Optional[str] = None) -> str:
     """RO: pachetul e-Factura ca in fisierul descarcat de pe portal: <Documents> cu N <Document>."""
-    body = "".join(re.sub(r"^<\?xml[^>]*\?>\s*", "", strip_signature(x).strip()) for x in xmls if x and x.strip())
+    body = "".join(with_unloading_code(re.sub(r"^<\?xml[^>]*\?>\s*", "", strip_signature(x).strip()), unloading_code)
+                   for x in xmls if x and x.strip())
     return '<?xml version="1.0" encoding="UTF-8"?><Documents>' + body + "</Documents>"
 
 
@@ -396,7 +409,8 @@ class EfaPackage:
         for r in EfaPackage.rows(nrdoc):
             db.execute_dml(
                 "UPDATE EFA_IN SET PKG_NRDOC=:n, PKG_NRDOC1=:n1, PKG_STATUS=:st, PKG_COMMENT=:c, DEST_NRDOC=:d, "
-                "STATUS=CASE WHEN :d IS NOT NULL THEN 'IMPORTED' WHEN :st = 1 THEN STATUS ELSE 'ERROR' END, UPDATED=SYSDATE "
+                "STATUS=CASE WHEN :d IS NOT NULL THEN 'IMPORTED' WHEN :st = 1 THEN STATUS ELSE 'ERROR' END, "
+                "ERR_MSG=CASE WHEN :d IS NOT NULL THEN NULL ELSE ERR_MSG END, UPDATED=SYSDATE "
                 "WHERE ID IN (%s) AND SERIA=:s AND NUMBER_=:nr" % ",".join(str(int(i)) for i in ids),
                 {"n": int(nrdoc), "n1": r["nrdoc1"], "st": r["status_doc"], "c": (r.get("comments") or r["status_text"])[:2000],
                  "d": r.get("nrdoc_dest"), "s": r.get("factura_seria") or "", "nr": r.get("factura_nr") or ""})
@@ -413,7 +427,8 @@ class EfaPackage:
         xmls = [x for x in xmls if x.strip()]
         if not xmls:
             return {"success": False, "error": "facturile nu au XML — reia preluarea"}
-        pkg = package_xml(xmls)
+        from .store import EfaStore
+        pkg = package_xml(xmls, EfaStore.settings().get("in_dtdep"))
         fname = "EFACTURA_API_%s.xml" % __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
         if nrdoc:
             r = db.call_proc("BEGIN EFA_INBOX.attach(:n, :x, :f); END;", {"n": int(nrdoc), "x": pkg, "f": fname})

@@ -23,7 +23,8 @@ SQL_DIR = os.path.join(ROOT, "modules", "efactura", "sql")
 #     Daca un tip chiar se schimba: DROP PACKAGE EFA_REPORT, DROP TYPE ..._TAB,
 #     DROP TYPE ..._T, apoi instalatorul din nou.
 EXISTS_OK = ("ORA-00955", "ORA-01543", "ORA-02260", "ORA-00001", "ORA-01408",
-             "ORA-02303")
+             "ORA-02303",   # tipul obiect are dependenti (reinstalare)
+             "ORA-01430")   # coloana exista deja (ALTER TABLE ADD idempotent)
 
 
 def run_file(db, path):

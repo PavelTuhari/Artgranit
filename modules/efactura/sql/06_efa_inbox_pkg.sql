@@ -18,7 +18,7 @@ CREATE OR REPLACE PACKAGE EFA_INBOX AS
   PROCEDURE land(p_nrdoc IN NUMBER, p_xml IN CLOB, p_file_name IN VARCHAR2);
   FUNCTION  reserve_nrdoc RETURN NUMBER;
   FUNCTION  d(p IN VARCHAR2) RETURN DATE;
-  -- RO: documentul 12103 + XML-ul ca OLE; intoarce COD-ul documentului
+  -- RO: documentul 12103 + XML-ul ca OLE, intoarce COD-ul documentului
   FUNCTION  new_package(p_xml IN CLOB, p_file_name IN VARCHAR2, p_userid IN NUMBER DEFAULT NULL) RETURN NUMBER;
   -- RO: XML-ul unui pachet existent (creat din Delphi) - atasat ca OLE
   PROCEDURE attach(p_nrdoc IN NUMBER, p_xml IN CLOB, p_file_name IN VARCHAR2);
@@ -36,6 +36,7 @@ END EFA_INBOX;
 /
 
 CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
+  g_userid_set BOOLEAN := FALSE;
 
   c_base CONSTANT VARCHAR2(200) := 'http://officeplus.md/api/biro26/efactura';
 
@@ -96,20 +97,50 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
     DBMS_LOB.CONVERTTOBLOB(v_blob, p_xml, DBMS_LOB.LOBMAXSIZE, v_dest, v_src, DBMS_LOB.DEFAULT_CSID, v_lang, v_warn);
   END attach;
 
+  -- RO: perioada de lucru (TPARAMS) e goala in sesiunile de sistem (API, job), deci
+  --     TRIG_BFALL_TMDB_DOCS ar refuza orice document. Folosim ocolirea prevazuta de
+  --     trigger (envun4.dont_fire_trigger), ca Y_AI_BIRO26, si o ridicam imediat.
+  --     Tot aici dam sesiunii de sistem un PARAM_USERID (setarea in_userid, implicit 1):
+  --     triggerele TMDB_DOCS inlocuiesc USERID cu acest context, altfel ramine gol.
+  PROCEDURE sys_guard(p_on IN BOOLEAN) IS
+  BEGIN
+    IF p_on THEN
+      un4public.envun4.envsetvalue('dont_fire_trigger', '1');
+      IF SYS_CONTEXT('envun4', 'param_userid') IS NULL THEN
+        un4public.envun4.envsetvalue('param_userid', setting('in_userid', '1'));
+        g_userid_set := TRUE;
+      END IF;
+    ELSE
+      un4public.envun4.envsetvalue('dont_fire_trigger', NULL);
+      IF g_userid_set THEN
+        un4public.envun4.envsetvalue('param_userid', NULL);
+        g_userid_set := FALSE;
+      END IF;
+    END IF;
+  END sys_guard;
+
   FUNCTION new_package(p_xml IN CLOB, p_file_name IN VARCHAR2, p_userid IN NUMBER DEFAULT NULL) RETURN NUMBER IS
     v_cod   NUMBER;
     v_nrset NUMBER := TO_NUMBER(setting('in_nrset', '201'));
   BEGIN
     SELECT ID_TMDB_DOCS.NEXTVAL INTO v_cod FROM dual;
     -- RO: ca in BMPUBLIC (doc 9140): TIP P, SYSFID 12103, NRSET, LEI, AT3 1, CODF 0
-    INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA, NRSET, ISGFC, DOCCOLOR, CODF, AT3)
-    VALUES (v_cod, 'P', 12103, NVL(p_userid, UID), TRUNC(SYSDATE), 'LEI', v_nrset, 0, '`', 0, 1);
+    sys_guard(TRUE);
+    BEGIN
+      INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA, NRSET, ISGFC, DOCCOLOR, CODF, AT3)
+      VALUES (v_cod, 'P', 12103, NVL(p_userid, UID), TRUNC(SYSDATE), 'LEI', v_nrset, 0, '`', 0, 1);
+      sys_guard(FALSE);
+    EXCEPTION WHEN OTHERS THEN sys_guard(FALSE); RAISE;
+    END;
     attach(v_cod, p_xml, p_file_name);
     RETURN v_cod;
   END new_package;
 
   PROCEDURE import_package(p_nrdoc IN NUMBER) IS
   BEGIN
+    -- RO: vendorul doar adauga rinduri, iar la o reluare stergem pozitiile fara document creat,
+    --     ca sa nu se dubleze (Delphi face acelasi lucru inainte de re-import)
+    DELETE FROM TMDB_XML_PACKAGE WHERE NRDOC = p_nrdoc AND NRDOC_DEST IS NULL;
     pkg_edi_xml.import_xml_package_object(p_nrdoc);
   END import_package;
 
@@ -169,7 +200,7 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
     v_seria  VARCHAR2(10);
     v_nr     VARCHAR2(50);
   BEGIN
-    -- RO: pozitiile facturii (seria+nr ale pachetului p_nrdoc1); ROWN din ID_TMDB_XML_PACKAGE,
+    -- RO: pozitiile facturii (seria+nr ale pachetului p_nrdoc1), ROWN din ID_TMDB_XML_PACKAGE,
     --     IDNO = NRDOC1 al pachetului, CODE = marfa dupa cod de bare sau 1 (conventia vendorului)
     SELECT FACTURA_SERIA, FACTURA_NR INTO v_seria, v_nr FROM TMDB_XML_PACKAGE WHERE NRDOC = p_nrdoc AND NRDOC1 = p_nrdoc1;
     INSERT INTO TMDB_XML_FACTURA
@@ -256,6 +287,10 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
     DBMS_LOB.CREATETEMPORARY(v_clob, TRUE);
     DBMS_LOB.CONVERTTOCLOB(v_clob, v_blob, DBMS_LOB.LOBMAXSIZE, v_dest, v_src, DBMS_LOB.DEFAULT_CSID, v_lang, v_warn);
 
+    -- RO: totul sub ocolirea de sistem: triggerele VMDB_ST201M/D (UN$GFC) actualizeaza TMDB_DOCS
+    --     si ar reactiva verificarea perioadei de lucru la fiecare rind
+    sys_guard(TRUE);
+    BEGIN
     FOR b IN c_ff LOOP
       -- RO: furnizorul dupa IDNO (VMS_ORG.CODFISCAL sau CODVECHI), ca fill_doc_12103
       BEGIN
@@ -271,7 +306,7 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
         CONTINUE;
       END IF;
       SELECT ID_TMDB_DOCS.NEXTVAL INTO v_nrdoc FROM dual;
-      -- RO: ca documentul 1209 nr. 4 din OfficePlus: TIP P, NRSET 201, LEI; data = data facturii
+      -- RO: ca documentul 1209 nr. 4 din OfficePlus: TIP P, NRSET 201, LEI, data = data facturii
       INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA, NRSET, ISGFC, CODF, AT3, NRMANUAL)
       VALUES (v_nrdoc, 'P', 1209, UID, NVL(b.FACTURA_ISSUEDDATE, TRUNC(SYSDATE)), 'LEI', v_nrset, 0, 0, 1,
               SUBSTR(b.FACTURA_SERIA || b.FACTURA_NR, 1, 25));
@@ -295,11 +330,14 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
       WHERE x.NRDOC = v_nrdoc AND NVL(x.CODE, '0') = '0';
       -- pozitiile: cantitate, pret fara TVA, suma cu TVA, suma fara TVA, TVA
       INSERT INTO VMDB_ST201D (NRDOC, RROWID, DT, DTSC, CANT, PRET, SUMA, SUMAGAAP, SUMAVALCT)
-      SELECT NRDOC, ROWN, v_dt_row, CASE WHEN CODE > '1' THEN TO_NUMBER(CODE) END,
+      SELECT NRDOC, ROW_NUMBER() OVER (ORDER BY ROWN), v_dt_row, CASE WHEN CODE > '1' THEN TO_NUMBER(CODE) END,
              ABS(QUANTITY), UNITPRICEWITHOUTTVA, TOTALPRICE, TOTALPRICEWITHOUTTVA, TOTALTVA
       FROM TMDB_XML_FACTURA WHERE NRDOC = v_nrdoc AND NVL(CODE, '0') > '0' AND IDNO = TO_CHAR(b.NRDOC1);
       compl_analitica(v_nrdoc);
     END LOOP;
+    sys_guard(FALSE);
+    EXCEPTION WHEN OTHERS THEN sys_guard(FALSE); RAISE;
+    END;
   END create_docs_1209;
 
   -- -- din Delphi: prin API-ul web (UTL_HTTP, HTTP simplu, ca EFA_NATIVE) --
