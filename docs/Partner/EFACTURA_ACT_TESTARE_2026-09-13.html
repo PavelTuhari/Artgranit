@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Act de testare e-Factura — facturi primite, contul real OfficePlus, 13.09.2026</title>
+<style>
+  body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;background:#f8fafc;margin:0}
+  main{max-width:1100px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:26px;margin:0 0 6px}h2{font-size:20px;margin:34px 0 10px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
+  .muted{color:#6b7280}
+  table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:#fff;font-size:14px}
+  th,td{border:1px solid #e5e7eb;padding:7px 9px;vertical-align:top;text-align:left}
+  th{background:#f1f5f9}
+  code{font:13px ui-monospace,Menlo,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+  pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;overflow:auto;font-size:12.5px}
+  .ok{color:#047857;font-weight:600}.skip{color:#b45309;font-weight:600}.fail{color:#b91c1c;font-weight:600}
+  .box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin:12px 0}
+  .stop{background:#fef2f2;border-left:4px solid #ef4444;padding:10px 14px;margin:14px 0}
+  img{max-width:100%;border:1px solid #e5e7eb;border-radius:8px;margin:6px 0}
+  a{color:#1d4ed8}
+</style>
+</head>
+<body><main>
+<h1>Act de testare — e-Factura, facturi primite de la parteneri</h1>
+<p class="muted">Data: 13.09.2026 · Executant: agentul (Claude), pe cerința proprietarului «тестируй всё сам» ·
+Instrucțiunea aplicată: <a href="EFACTURA_INSTRUCTIUNE_TESTARE.html">EFACTURA_INSTRUCTIUNE_TESTARE.html</a> ·
+Ramura <code>feat/efactura</code>, worktree <code>Artgranit-efactura</code>.</p>
+
+<h2>1. Mediul și contul</h2>
+<table>
+<tr><th>Element</th><th>Folosit în test</th></tr>
+<tr><td>Contul SFS</td><td><b>real</b>: <code>officeplus_api</code>, endpoint <code>https://efactura-api.sfs.md/Service.svc</code> (din <code>EFA_SETTING</code> al OfficePlus; nu s-a tastat nicio parolă în browser — apelurile s-au făcut din cod cu contul salvat)</td></tr>
+<tr><td>Firma cumpărător</td><td>S.R.L. «GRECU OFFICE GROUP», IDNO 1026602001837 (neplătitor de TVA)</td></tr>
+<tr><td>Baza</td><td>OFFICEPLUS de producție, cloudbd (orange.una.md) — aceeași pentru officeplus.md și nufarul.eminescu.md</td></tr>
+<tr><td>Cod</td><td>commit-urile din 13.09.2026 pe <code>feat/efactura</code>, desfășurate pe nufarul (92.5.3.187) și office (192.168.0.250 → officeplus.md)</td></tr>
+<tr><td>Web</td><td>pagina de test rulată din worktree pe <code>127.0.0.1:3010</code> cu sesiune de operator (pentru capturi) și prin clientul de test Flask; serverele vii verificate prin coduri HTTP</td></tr>
+</table>
+
+<h2>2. Rezultatele pe pași</h2>
+<table>
+<tr><th>#</th><th>Pas (din instrucțiune)</th><th>Rezultat obținut</th><th>Verdict</th></tr>
+<tr><td>0</td><td>Pregătire: setări, formular nativ</td><td>setările <code>in_nrset 201 / in_dt 2171 / in_ct 5211 / in_dtdep 1 / in_dt_row 2171 / in_userid 1</code>, <code>vat_payer 0</code>, <code>creation_motiv 1</code>; formularul 12103 creat în <code>A$ADM</code> (OBJ_ID 11530 sub «Intrări», 5 acțiuni); <code>TMS_SYSS</code> tip XM completat (23 rînduri) după modelul FPROIECT</td><td class="ok">OK</td></tr>
+<tr><td>2</td><td>«Preia din e-Factura» (contul real, rol cumpărător)</td><td><code>GetInvoicesForSigning</code> ActorRole 2 (Order 1 și 2) + <code>GetAcceptedInvoices</code>: <b>found 1, added 0, updated 1, errors []</b> — factura <b>EBL 000435006</b> din 24.08.2026, furnizor S.R.L. «TOTAL COMPUTER» (1008602007200), total 101,00 lei, TVA 16,84, <code>InvoiceStatus 7</code> (așteaptă decizia cumpărătorului), 2 poziții. Repetarea preluării nu a dublat rîndul (<code>updated</code>, nu <code>added</code>)</td><td class="ok">OK</td></tr>
+<tr><td>2</td><td>Lista (<code>GET …/test/inbox?env=prod</code>)</td><td><code>200</code>; rîndul cu seria/nr, furnizor, IDNO, data, total, TVA, SFS 7, statut, «În una.md», poziții 0/2 — vezi captura 1</td><td class="ok">OK</td></tr>
+<tr><td>3</td><td>Detaliul (<code>GET …/test/inbox/21</code>)</td><td><code>200</code>; cumpărătorul «S.R.L. "GRECU OFFICE GROUP"», 2 poziții: «Power Cord PC-220V 1.8m Russian Plug…» 1 buc 38,33 + TVA 7,67 = 46,00; «Power Cord PC-220V 1.8m Euro Plug PC-186» 1 buc 45,83 + 9,17 = 55,00; ambele <i>nepotrivite</i> (fără cod de bare, fără regulă) — vezi capturile 2–3</td><td class="ok">OK</td></tr>
+<tr><td>4</td><td>XML</td><td><code>200 application/xml</code>, 2125 octeți, <code>&lt;Document&gt;&lt;SupplierInfo&gt;…</code> fără semnătură</td><td class="ok">OK</td></tr>
+<tr><td>5</td><td>«Repotrivește» (<code>POST …/21/match</code>)</td><td><code>{"rows":{"barcode":0,"none":2,"rule":0},"supplier_cod":540710}</code> — furnizorul găsit după IDNO după pasul 6, marfa nepotrivită (corect: nu există în nomenclator)</td><td class="ok">OK</td></tr>
+<tr><td>6</td><td>Furnizorul lipsă → puntea Contragenti</td><td>înainte: «furnizorul (IDNO) nu există în nomenclator» (statut 7 în pachet). <code>CtgController.upsert</code> → <b>created</b>: COD <b>540710</b> «TOTAL COMPUTER SRL», <code>CODVECHI</code>/<code>CODFISCAL</code> 1008602007200, GR1 E, adresa «MUN.BALTI ?tefan cel Mare nr.73» (Ș pierdut la CL8MSWIN1251 — vezi observația O2)</td><td class="ok">OK</td></tr>
+<tr><td>7</td><td>Import în una.md (pachet 12103 → 1209)</td><td>pachet <b>442</b> (OLE <code>EFACTURA_API_20260913_141759.xml</code>) → <code>pkg_edi_xml.import_xml_package_object</code>: <b>STATUS_DOC 1 valida</b> → <code>EFA_INBOX.create_docs_1209</code> → document <b>1209 nr. 443</b>; <code>EFA_IN</code> 21 → <code>IMPORTED</code>, <code>DEST_NRDOC 443</code>, <code>ERR_MSG</code> gol</td><td class="ok">OK</td></tr>
+<tr><td>8</td><td>Verificarea documentului 1209 nr. 443 în bază</td><td><code>TMDB_DOCS</code>: TIP P, SYSFID 1209, NRSET 201, NRMANUAL <b>EBL000435006</b>, data <b>24.08.2026</b>, LEI, USERID 1.<br>
+<code>VMDB_ST201M</code>: DT 2171 / CT 5211, DTDEP 1 «Magazin 1», CTDEP 540710 «TOTAL COMPUTER SRL, 1008602007200», DTDATA 24.08.2026.<br>
+<code>VMDB01M_VINZ</code>: PRTVA_SERIA EBL, PRTVA_NR 000435006.<br>
+<code>VMDB_ST201D</code>: rînd 1 — 1 buc, PRET 46, SUMA 46,00, fără TVA 38,33, TVA 7,67; rînd 2 — 1 buc, 55,00 / 45,83 / 9,17; DTSC gol la ambele (marfa nu e în nomenclator — se alege manual, ca în Delphi)</td><td class="ok">OK</td></tr>
+<tr><td>9</td><td>Idempotență</td><td>a doua preluare: <code>updated 1</code>, fără dublare; re-importul aceluiași pachet șterge pozițiile fără document și le reface (NRDOC1 8 → 11), documentul 1209 creat o singură dată</td><td class="ok">OK</td></tr>
+<tr><td>10</td><td>Decizia în SFS (Acceptă / Respinge)</td><td><b>neexecutat intenționat</b>: e o acțiune ireversibilă către SFS și furnizor pe contul real; o face contabilul. Mecanismul a fost verificat pe mediul de probă (EAA 002514972: <code>PostAcceptedInvoices → Status 2</code>, apoi <code>InvoiceStatus 3</code>)</td><td class="skip">SĂRIT (decizia contabilului)</td></tr>
+<tr><td>N1</td><td>Lanțul nativ: Oracle → API → SFS</td><td><code>SELECT EFA_INBOX.fetch_api(442) FROM dual</code> pe baza de producție → <code>HTTP 200: {"success":true,"nrdoc":442,"found":1,"imported":1,"summary":"facturi noi: 1; valide: 0; cu probleme: EBL000435006: furnizorul (IDNO) nu exista in nomenclator"}</code> — serverul a adus factura reală din SFS în pachet; după pasul 6 importul a devenit valid</td><td class="ok">OK</td></tr>
+<tr><td>—</td><td>Securitate</td><td>toate rutele <code>/test/inbox…</code> fără sesiune → <code>401</code>; API nativ fără cheie → <code>401</code> (verificat pe officeplus.md); documentele modulului (<code>/efactura/docs/…</code>) fără sesiune → <code>302 /login</code>, traversare de cale → <code>404</code></td><td class="ok">OK</td></tr>
+<tr><td>—</td><td>Teste unitare, instalator</td><td><code>tests/test_efactura.py</code>: <b>68 passed</b>; <code>efactura_deploy.py</code>: 0 FAIL, <code>EFA_INBOX</code> VALID</td><td class="ok">OK</td></tr>
+<tr><td>—</td><td>Desfășurare</td><td>nufarul și office: <code>/login 200</code>, 0 Traceback în jurnal; <code>https://nufarul.eminescu.md/login</code> 200; <code>https://officeplus.md/cos</code> 200</td><td class="ok">OK</td></tr>
+</table>
+
+<h2>3. Capturi</h2>
+<div class="box"><b>1. Lista facturilor primite (contul real, mediul real)</b><br><img src="img/act_01_lista_primite_prod.png" alt="lista"></div>
+<div class="box"><b>2. Detaliul EBL 000435006 — furnizorul în una.md, pachetul 442, documentul 1209 nr. 443</b><br><img src="img/act_02_detaliu_ebl000435006.png" alt="detaliu"></div>
+<div class="box"><b>3. Pozițiile și potrivirea</b><br><img src="img/act_03_pozitii_si_potrivire.png" alt="pozitii"></div>
+<div class="box"><b>4. Pachetul 442 (<code>GET …/test/inbox/package/442</code>)</b><br><img src="img/act_04_pachet_442_json.png" alt="pachet"></div>
+<div class="box"><b>5. Administrare — contul real și setările contabile</b><br><img src="img/act_05_admin_setari.png" alt="admin"></div>
+<div class="box"><b>6. Jurnalul comunicărilor cu SFS (cerere + răspuns, inclusiv cele reușite)</b><br><img src="img/act_06_jurnal_sfs.png" alt="jurnal"></div>
+
+<h2>4. Defecte găsite în timpul testării și rezolvate în aceeași zi</h2>
+<table>
+<tr><th>#</th><th>Defect</th><th>Cauza</th><th>Rezolvare (commit pe feat/efactura)</th></tr>
+<tr><td>D1</td><td><code>ORA-20101 … inafara perioadei de lucru (-)</code> la crearea oricărui document</td><td><code>TRIG_BFALL_TMDB_DOCS</code> cere perioada de lucru din <code>TPARAMS</code>, goală în sesiunile de sistem</td><td><code>EFA_INBOX.sys_guard</code>: ocolirea prevăzută de trigger (<code>envun4.dont_fire_trigger</code>) pe tot blocul de creare, ridicată la ieșire și la excepție</td></tr>
+<tr><td>D2</td><td>USERID gol pe documentele create</td><td>triggerele înlocuiesc USERID cu <code>param_userid</code> din context</td><td><code>sys_guard</code> pune <code>param_userid</code> = <code>in_userid</code></td></tr>
+<tr><td>D3</td><td><code>ORA-01403</code> în <code>PKG_EDI_XML</code> linia 3629</td><td>lipsea <code>TMS_SYSS</code> tip XM cod 1/6 (intervalul de zile)</td><td><code>07_efa_syss_seed.sql</code> (MERGE, 364 zile ca FPROIECT)</td></tr>
+<tr><td>D4</td><td>statut 8 «subdiviziunea cumpărătorului»</td><td>vendorul cere <code>UnloadingPointCode</code>, SFS nu-l trimite</td><td>injectat din <code>in_dtdep</code> la ambalarea pachetului</td></tr>
+<tr><td>D5</td><td>pozițiile pachetului se dublau la re-import</td><td>vendorul doar adaugă</td><td>ștergerea pozițiilor fără <code>NRDOC_DEST</code> înainte de import</td></tr>
+<tr><td>D6</td><td><code>RROWID</code> începea de la 7</td><td>numărătoare pe tot pachetul</td><td><code>ROW_NUMBER()</code> per document</td></tr>
+<tr><td>D7</td><td><code>ERR_MSG</code> vechi rămînea după succes</td><td>—</td><td>șters cînd <code>DEST_NRDOC</code> e completat</td></tr>
+</table>
+
+<h2>5. Observații (nerezolvate, pentru decizie)</h2>
+<table>
+<tr><th>#</th><th>Observație</th><th>Propunere</th></tr>
+<tr><td>O1</td><td>Marfa din facturile primite nu are cod de bare și nu are reguli în <code>TMS_IMPORT_EFACTURA</code> → <code>DTSC</code> rămîne gol, se alege manual</td><td>contabilul definește reguli (LIKE pe denumire → card) pentru mărfurile/serviciile care se repetă; sau furnizorii pun <code>BarCode</code></td></tr>
+<tr><td>O2</td><td>Diacriticele din adresa furnizorului («Ștefan» → «?tefan») se pierd în XML-ul salvat în <code>EFA_IN.XML</code> (baza e CL8MSWIN1251)</td><td>la salvare transliterare ca la Contragenti (<code>to_db_charset</code>); nu afectează sumele sau potrivirea</td></tr>
+<tr><td>O3</td><td>Documente rămase în baza de producție după test: 12103 nr. <b>438</b> (gol), <b>439</b> (proba de pe preprod EAA 002514972), <b>442</b> (pachetul real); 1209 nr. <b>441</b> (proba preprod, datat 11.06.2020) și <b>443</b> (factura reală EBL 000435006)</td><td>441 și 438/439 — de șters (date de probă); 442/443 — <b>documente reale</b> ale firmei, contabilul decide dacă rămîn</td></tr>
+<tr><td>O4</td><td>Factura EBL 000435006 e încă în coada SFS (statut 7) — firma nu a acceptat-o</td><td>contabilul apasă «Acceptă în SFS» (sau în cabinetul sfs.md)</td></tr>
+</table>
+
+<div class="stop"><b>Concluzie:</b> fluxul de primire a facturilor pe contul real OfficePlus funcționează cap-coadă (SFS → una.md → document 1209),
+identic cu celelalte baze cloudbd. Singurul pas neexecutat e decizia (acceptare/respingere) în SFS — rezervat contabilului.</div>
+
+<h2>6. Adrese live</h2>
+<ul>
+<li><a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a> · <a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test">nufarul</a></li>
+<li><a href="https://officeplus.md/UNA.md/orasldev/efactura/admin">https://officeplus.md/UNA.md/orasldev/efactura/admin</a> · <a href="https://officeplus.md/UNA.md/orasldev/efactura/admin/calls">jurnalul SFS</a></li>
+<li>acest act: <a href="https://officeplus.md/UNA.md/orasldev/efactura/docs/EFACTURA_ACT_TESTARE_2026-09-13.html">officeplus.md</a> · <a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/docs/EFACTURA_ACT_TESTARE_2026-09-13.html">nufarul</a></li>
+<li>instrucțiunea: <a href="https://officeplus.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">officeplus.md</a> · <a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">nufarul</a></li>
+</ul>
+</main></body></html>
