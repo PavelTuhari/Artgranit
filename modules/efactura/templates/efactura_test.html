@@ -452,7 +452,7 @@ function inboxRows(list) {
   tb.innerHTML = (list || []).map(x => `<tr style="cursor:pointer" onclick="inboxOpen(${x.id})">
     <td><b>${esc(x.seria)} ${esc(x.number_)}</b></td><td>${esc(x.supplier_name)}</td><td>${esc(x.supplier_idno)}</td>
     <td>${esc(x.issued_date)}</td><td>${esc(x.total)}</td><td>${esc(x.total_tva)}</td>
-    <td>${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')}</td><td><b>${esc(x.status)}</b>${x.nrdoc ? ' · NRDOC ' + x.nrdoc : ''}</td>
+    <td>${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')}</td><td><b>${esc(x.status)}</b>${x.dest_nrdoc ? ' · doc 1209 ' + x.dest_nrdoc : x.pkg_nrdoc ? ' · pachet ' + x.pkg_nrdoc : ''}</td>
     <td>${x.supplier_cod ? '✓ ' + esc(x.supplier_una) : '<span class="err">furnizor negăsit</span>'}</td>
     <td>${x.matched_cnt} / ${x.rows_cnt} potrivite</td></tr>`).join('')
     || '<tr><td colspan="10" class="muted">nicio factură primită (în mediul acesta)</td></tr>';
@@ -480,11 +480,11 @@ async function inboxOpen(id) {
   d.innerHTML = `<b>${esc(x.seria)} ${esc(x.number_)}</b> din ${esc(x.issued_d)} · furnizor <b>${esc(x.supplier_name)}</b> (${esc(x.supplier_idno)})
     → în una.md: ${x.supplier_cod ? '✓ COD ' + x.supplier_cod + ' ' + esc(x.supplier_una) : '<span class="err">negăsit</span> <button class="btn gray" type="button" onclick="inboxAddSupplier(' + id + ')">➕ Adaugă furnizorul în una.md (puntea Contragenti)</button>'}
     · total ${esc(x.total)} (TVA ${esc(x.total_tva)}) · SFS ${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')} · statut <b>${esc(x.status)}</b>
-    ${x.nrdoc ? ' · TMDB_XML_FACTURA NRDOC ' + x.nrdoc : ''}${x.err_msg ? '<br><span class="err">' + esc(x.err_msg) + '</span>' : ''}
+    ${x.pkg_nrdoc ? ' · pachet 12103 <b>COD ' + x.pkg_nrdoc + '</b> (' + esc(x.pkg_comment || '') + ')' : ''}${x.dest_nrdoc ? ' · <b>document 1209 COD ' + x.dest_nrdoc + '</b>' : ''}${x.err_msg ? '<br><span class="err">' + esc(x.err_msg) + '</span>' : ''}
     <div class="row" style="margin:8px 0">
       <a class="btn gray" target="_blank" href="${BASE}/inbox/${id}/xml">👁 XML</a>
       <button class="btn gray" type="button" onclick="inboxMatch(${id})">🔗 Repotrivește</button>
-      <button class="btn gray" type="button" onclick="inboxLand(${id})">📦 Aterizează în una.md (TMDB_XML_FACTURA)</button>
+      <button class="btn gray" type="button" onclick="inboxImport(${id})">📦 Import în una.md (pachet 12103 → document 1209)</button>
       <button class="btn gray" type="button" onclick="inboxDecide(${id}, 'accept')">✅ Acceptă în SFS</button>
       <button class="btn gray" type="button" onclick="inboxDecide(${id}, 'reject')">⛔ Respinge în SFS…</button>
       <span id="in-act" class="muted"></span></div>
@@ -512,6 +512,15 @@ async function inboxAddSupplier(id) {
   await inboxMatch(id);
 }
 async function inboxMatch(id) { const r = await j('inbox/' + id + '/match', {method: 'POST', body: '{}'}); document.getElementById('in-act').textContent = r.success ? 'potrivire: ' + JSON.stringify(r.rows) : r.error; inboxOpen(id); inboxLoad(); }
+async function inboxImport(id) {
+  // RO: ca in celelalte baze una.md: pachet 12103 (XML ca OLE) -> parserul vendorului -> documente 1209
+  document.getElementById('in-act').textContent = 'Se importă în una.md…';
+  const r = await j('inbox/import', {method: 'POST', body: JSON.stringify({ids: [id]})});
+  if (!r.success) { document.getElementById('in-act').innerHTML = '<span class="err">' + esc(r.error) + '</span>'; inboxOpen(id); return; }
+  const rows = (r.package || []).map(p => `${esc(p.factura_seria)}${esc(p.factura_nr)}: ${p.status_doc === 1 ? '✓' : '⚠'} ${esc(p.status_text)}${p.nrdoc_dest ? ' → document 1209 COD ' + p.nrdoc_dest + ' «' + esc(p.dest_nrmanual) + '», ' + p.dest_rows + ' poziții, ' + p.dest_rows_matched + ' cu card' : ''}${p.comments && p.status_doc !== 1 ? ' (' + esc(p.comments) + ')' : ''}`);
+  document.getElementById('in-act').innerHTML = `<span style="color:#16a34a">pachet 12103 COD ${r.nrdoc} (${esc(r.file_name)})</span> · ` + rows.join(' · ');
+  inboxOpen(id); inboxLoad(); loadLog();
+}
 async function inboxLand(id) {
   const r = await j('inbox/' + id + '/land', {method: 'POST', body: '{}'});
   document.getElementById('in-act').innerHTML = r.success ? `<span style="color:#16a34a">aterizat: NRDOC ${r.nrdoc}, ${r.rows_landed} rînduri (antet + poziții), fișier ${esc(r.file_name)}</span>` : '<span class="err">' + esc(r.error) + '</span>';

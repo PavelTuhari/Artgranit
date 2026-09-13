@@ -51,6 +51,13 @@ DEFAULTS = {
     #     добавь опцию»). 1 = platitor, 0 = neplatitor: TVA 0 in XML si
     #     CreationMotiv din grupa 1/2/3 (4|5 se traduc in 1).
     "vat_payer": "1",
+    # RO: importul facturilor PRIMITE (pachet 12103 -> documente 1209), constantele
+    #     documentului 1209 nr. 4 din OfficePlus: NRSET 201, DT 2171, CT 5211, depozit 1
+    "in_nrset": "201",
+    "in_dt": "2171",             # antet DT (marfa TVR)
+    "in_ct": "5211",             # antet CT (obligatii comerciale)
+    "in_dtdep": "1",             # depozitul implicit (Magazin 1)
+    "in_dt_row": "2171",         # DT implicit pe pozitie, pina la analitica
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }

@@ -35,6 +35,7 @@ ROOT_PATHS = [
     "/api/biro26/efactura/health",
     "/api/biro26/efactura/send/<int:doc_cod>",
     "/api/biro26/efactura/status/<int:doc_cod>",
+    "/api/biro26/efactura/inbox/package/<int:nrdoc>",
 ]
 
 
@@ -109,3 +110,22 @@ def native_status(doc_cod):
         return err
     from modules.efactura.controller import EfaController
     return _reply(EfaController.status(doc_cod))
+
+
+@root_blueprint.route("/api/biro26/efactura/inbox/package/<int:nrdoc>")
+def native_inbox_package(nrdoc):
+    """RO: actiunea «Preia din e-Factura» de pe pachetul 12103 din una.md:
+    facturile primite (cumparator) din SFS -> XML-ul pachetului ca OLE pe
+    documentul dat -> parserul vendorului (TMDB_XML_PACKAGE cu statute)."""
+    err = _guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaPackage
+    r = EfaPackage.fill_from_sfs(nrdoc, api=None, src="native")
+    if r.get("success"):
+        pk = r.get("package") or []
+        r["summary"] = "facturi noi: %s; valide: %s; cu probleme: %s" % (
+            r.get("imported", 0), sum(1 for x in pk if x.get("status_doc") == 1),
+            "; ".join("%s%s: %s" % (x.get("factura_seria"), x.get("factura_nr"), x.get("status_text")) for x in pk if x.get("status_doc") != 1)[:800] or "-")
+        r.pop("package", None)
+    return _reply(r)

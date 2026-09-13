@@ -165,7 +165,8 @@ class EfaInbox:
         return rows(db.execute_query(
             "SELECT * FROM (SELECT i.ID, i.ENV, i.SERIA, i.NUMBER_, i.SFS_STATUS, i.SFS_QUEUE, i.SUPPLIER_IDNO, "
             "i.SUPPLIER_NAME, i.BUYER_IDNO, TO_CHAR(i.ISSUED_DATE,'DD.MM.YYYY') ISSUED_DATE, i.TOTAL, i.TOTAL_TVA, "
-            "i.STATUS, i.SUPPLIER_COD, i.NRDOC, i.ERR_MSG, TO_CHAR(i.FETCHED_AT,'DD.MM.YYYY HH24:MI') FETCHED_AT, "
+            "i.STATUS, i.SUPPLIER_COD, i.NRDOC, i.PKG_NRDOC, i.PKG_STATUS, i.PKG_COMMENT, i.DEST_NRDOC, i.ERR_MSG, "
+            "TO_CHAR(i.FETCHED_AT,'DD.MM.YYYY HH24:MI') FETCHED_AT, "
             "(SELECT COUNT(*) FROM EFA_IN_ROW r WHERE r.IN_ID=i.ID) ROWS_CNT, "
             "(SELECT COUNT(*) FROM EFA_IN_ROW r WHERE r.IN_ID=i.ID AND r.MATCH_KIND IN ('barcode','rule')) MATCHED_CNT, "
             "u.DENUMIREA SUPPLIER_UNA FROM EFA_IN i LEFT JOIN TMS_UNIVERS u ON u.COD=i.SUPPLIER_COD "
@@ -356,6 +357,113 @@ class EfaInbox:
                         "id": int(in_id)})
         return {"success": bool(ok), "sfs": {"status": r.get("status"), "result": res},
                 "error": None if ok else (res.get("message") or r.get("error") or "SFS nu a confirmat")}
+
+
+PKG_STATUS = {1: "valida", 3: "DocumentType/DocumentForm neacceptat", 4: "seria trebuie sa aiba doar litere latine mari",
+              5: "numarul trebuie sa aiba doar cifre / exista deja", 6: "data facturii in afara intervalului permis",
+              7: "furnizorul (IDNO) nu exista in nomenclator", 8: "subdiviziunea cumparatorului nu exista",
+              9: "dublura in documente", 10: "dublura in XML", 12: "exista deja in CST3A", 13: "exista deja in alt pachet",
+              14: "dublura in VINZ (seria+nr)", 15: "eroare la crearea documentului"}
+
+
+def package_xml(xmls: List[str]) -> str:
+    """RO: pachetul e-Factura ca in fisierul descarcat de pe portal: <Documents> cu N <Document>."""
+    body = "".join(re.sub(r"^<\?xml[^>]*\?>\s*", "", strip_signature(x).strip()) for x in xmls if x and x.strip())
+    return '<?xml version="1.0" encoding="UTF-8"?><Documents>' + body + "</Documents>"
+
+
+class EfaPackage:
+    """RO: pachetul 12103 + documentele 1209 — EXACT fluxul din BMPUBLIC/FPROIECT."""
+
+    @staticmethod
+    def rows(nrdoc: int) -> List[Dict[str, Any]]:
+        db, rows = EfaInbox._db()
+        out = rows(db.execute_query(
+            "SELECT p.NRDOC1, p.FACTURA_SERIA, p.FACTURA_NR, TO_CHAR(p.FACTURA_ISSUEDDATE,'DD.MM.YYYY') ISSUED, p.SUPPLIER_DIV, "
+            "p.STATUS_DOC, p.NRDOC_DEST, p.COMMENTS, p.TOTAL, p.TOTALTVA, d.NRMANUAL DEST_NRMANUAL, "
+            "(SELECT COUNT(*) FROM VMDB_ST201D l WHERE l.NRDOC = p.NRDOC_DEST) DEST_ROWS, "
+            "(SELECT COUNT(*) FROM VMDB_ST201D l WHERE l.NRDOC = p.NRDOC_DEST AND l.DTSC IS NOT NULL) DEST_ROWS_MATCHED "
+            "FROM TMDB_XML_PACKAGE p LEFT JOIN TMDB_DOCS d ON d.COD = p.NRDOC_DEST WHERE p.NRDOC = :n ORDER BY p.NRDOC1",
+            {"n": int(nrdoc)}))
+        for r in out:
+            r["status_text"] = PKG_STATUS.get(int(r["status_doc"] or 0), "statut %s" % r.get("status_doc"))
+        return out
+
+    @staticmethod
+    def _apply(nrdoc: int, ids: List[int]) -> None:
+        """RO: rezultatul pachetului inapoi in EFA_IN (dupa seria+nr)."""
+        db, rows = EfaInbox._db()
+        for r in EfaPackage.rows(nrdoc):
+            db.execute_dml(
+                "UPDATE EFA_IN SET PKG_NRDOC=:n, PKG_NRDOC1=:n1, PKG_STATUS=:st, PKG_COMMENT=:c, DEST_NRDOC=:d, "
+                "STATUS=CASE WHEN :d IS NOT NULL THEN 'IMPORTED' WHEN :st = 1 THEN STATUS ELSE 'ERROR' END, UPDATED=SYSDATE "
+                "WHERE ID IN (%s) AND SERIA=:s AND NUMBER_=:nr" % ",".join(str(int(i)) for i in ids),
+                {"n": int(nrdoc), "n1": r["nrdoc1"], "st": r["status_doc"], "c": (r.get("comments") or r["status_text"])[:2000],
+                 "d": r.get("nrdoc_dest"), "s": r.get("factura_seria") or "", "nr": r.get("factura_nr") or ""})
+
+    @staticmethod
+    def import_invoices(ids: List[int], *, nrdoc: Optional[int] = None, create_docs: bool = True) -> Dict[str, Any]:
+        """RO: 1) XML-ul pachetului din EFA_IN; 2) document 12103 nou (sau cel dat) + OLE;
+        3) pkg_edi_xml.import_xml_package_object; 4) EFA_INBOX.create_docs_1209."""
+        db, rows = EfaInbox._db()
+        ids = [int(i) for i in ids]
+        if not ids:
+            return {"success": False, "error": "nicio factura aleasa"}
+        xmls = [EfaInbox.xml(i) for i in ids]
+        xmls = [x for x in xmls if x.strip()]
+        if not xmls:
+            return {"success": False, "error": "facturile nu au XML — reia preluarea"}
+        pkg = package_xml(xmls)
+        fname = "EFACTURA_API_%s.xml" % __import__("datetime").datetime.now().strftime("%Y%m%d_%H%M%S")
+        if nrdoc:
+            r = db.call_proc("BEGIN EFA_INBOX.attach(:n, :x, :f); END;", {"n": int(nrdoc), "x": pkg, "f": fname})
+            if not r.get("success"):
+                return {"success": False, "error": "attach: " + str(r.get("message"))[:600]}
+        else:
+            r = db.call_proc("BEGIN :n := EFA_INBOX.new_package(:x, :f); END;", {"n": 0, "x": pkg, "f": fname})
+            nrdoc = None
+            if r.get("success"):
+                got = rows(db.execute_query("SELECT MAX(COD) N FROM TMDB_DOCS WHERE SYSFID = 12103"))
+                nrdoc = int(got[0]["n"]) if got and got[0]["n"] else None
+            if not nrdoc:
+                return {"success": False, "error": "new_package: " + str(r.get("message"))[:600]}
+        r = db.call_proc("BEGIN EFA_INBOX.import_package(:n); END;", {"n": int(nrdoc)})
+        if not r.get("success"):
+            for i in ids:
+                db.execute_dml("UPDATE EFA_IN SET PKG_NRDOC=:n, STATUS='ERROR', ERR_MSG=:m, UPDATED=SYSDATE WHERE ID=:id",
+                               {"n": int(nrdoc), "m": str(r.get("message"))[:2000], "id": i})
+            return {"success": False, "error": "import_xml_package_object: " + str(r.get("message"))[:600], "nrdoc": nrdoc}
+        created = None
+        if create_docs:
+            rc = db.call_proc("BEGIN EFA_INBOX.create_docs_1209(:n); END;", {"n": int(nrdoc)})
+            created = rc.get("success")
+            if not created:
+                for i in ids:
+                    db.execute_dml("UPDATE EFA_IN SET ERR_MSG=:m WHERE ID=:id", {"m": str(rc.get("message"))[:2000], "id": i})
+        EfaPackage._apply(nrdoc, ids)
+        prows = EfaPackage.rows(nrdoc)
+        return {"success": True, "nrdoc": int(nrdoc), "file_name": fname, "package": prows,
+                "created_docs": [int(x["nrdoc_dest"]) for x in prows if x.get("nrdoc_dest")],
+                "create_docs_ok": created}
+
+    @staticmethod
+    def fill_from_sfs(nrdoc: int, api: Optional[Dict[str, Any]] = None, src: str = "native") -> Dict[str, Any]:
+        """RO: actiunea din Delphi pe pachetul 12103: aduce din SFS facturile NOI (neimportate)
+        ale cumparatorului si le pune in pachet; documentele 1209 le face «Сформировать документы»."""
+        c = sfs.SfsClient.from_settings(signer=1, src=src) if api is None else sfs.SfsClient.from_api(api, 1, src)
+        env = env_of(c.endpoint)
+        s = sync(api if api is not None else {"endpoint": c.endpoint, "username": c.username, "password": c.password}, src=src)
+        if not s.get("success"):
+            return s
+        db, rows = EfaInbox._db()
+        pend = rows(db.execute_query("SELECT ID FROM EFA_IN WHERE ENV=:e AND PKG_NRDOC IS NULL AND DEST_NRDOC IS NULL "
+                                     "AND XML IS NOT NULL ORDER BY ID", {"e": env}))
+        ids = [int(x["id"]) for x in pend]
+        if not ids:
+            return {"success": True, "nrdoc": int(nrdoc), "found": s.get("found"), "imported": 0, "message": "nicio factura noua"}
+        r = EfaPackage.import_invoices(ids, nrdoc=int(nrdoc), create_docs=False)
+        r["found"], r["imported"] = s.get("found"), len(ids)
+        return r
 
 
 def sync(api: Optional[Dict[str, Any]], src: str = "test-page") -> Dict[str, Any]:

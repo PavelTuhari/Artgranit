@@ -419,6 +419,26 @@ def test_inbox_land(in_id):
     return _reply(EfaInbox.land(in_id))
 
 
+@blueprint.route("/test/inbox/import", methods=["POST"])
+def test_inbox_import():
+    """RO: {ids: [...]} -> pachet 12103 + documente 1209, ca in celelalte baze una.md."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaPackage
+    b = _body()
+    return _reply(EfaPackage.import_invoices(b.get("ids") or [], create_docs=b.get("create_docs", True)))
+
+
+@blueprint.route("/test/inbox/package/<int:nrdoc>")
+def test_inbox_package(nrdoc):
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaPackage
+    return _reply({"success": True, "nrdoc": nrdoc, "data": EfaPackage.rows(nrdoc)})
+
+
 @blueprint.route("/test/inbox/<int:in_id>/decision", methods=["POST"])
 def test_inbox_decision(in_id):
     """RO: {api, action: accept|reject, comment} -> PostAccepted/PostRejectedInvoices."""

@@ -33,6 +33,7 @@
   "root_paths": [
     "/api/biro26/efactura/health",
     "/api/biro26/efactura/send/<int:doc_cod>",
-    "/api/biro26/efactura/status/<int:doc_cod>"
+    "/api/biro26/efactura/status/<int:doc_cod>",
+    "/api/biro26/efactura/inbox/package/<int:nrdoc>"
   ]
 }

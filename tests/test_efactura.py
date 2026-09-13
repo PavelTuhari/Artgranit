@@ -979,3 +979,39 @@ def test_inbox_ddl_and_page():
     routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
     for r in ('"/test/inbox"', '"/test/inbox/sync"', '"/test/inbox/<int:in_id>/land"', '"/test/inbox/<int:in_id>/decision"'):
         assert r in routes
+
+
+# ── importul ca in celelalte baze una.md: pachet 12103 -> 1209 (13.09.2026) ──
+def test_package_xml_wraps_many_documents():
+    from modules.efactura import inbox
+    a = '<?xml version="1.0"?><Document><SupplierInfo><Seria>A</Seria></SupplierInfo><Signatures><s/></Signatures></Document>'
+    b = "<Document><SupplierInfo><Seria>B</Seria></SupplierInfo></Document>"
+    p = inbox.package_xml([a, b, ""])
+    assert p.startswith('<?xml version="1.0" encoding="UTF-8"?><Documents><Document>') and p.count("<Document>") == 2
+    assert "Signatures" not in p and p.endswith("</Documents>") and p.count("<?xml") == 1
+    assert inbox.PKG_STATUS[1] == "valida" and inbox.PKG_STATUS[7].startswith("furnizorul")
+
+
+def test_package_flow_sql_and_form_script():
+    src = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert src.isascii()
+    for must in ("pkg_edi_xml.import_xml_package_object", "PROCEDURE create_docs_1209", "SYSFID 12103" if False else "12103",
+                 "INSERT INTO VMDB_ST201M", "INSERT INTO VMDB01M_VINZ", "INSERT INTO VMDB_ST201D", "VMS_IMPORT_EFACTURA",
+                 "VMS_MPT_BARCODE", "inbox/package/", "ALTER TABLE EFA_IN ADD"):
+        assert must in src, must
+    for line in src.splitlines():
+        s = line.strip()
+        if s.startswith("--"):
+            assert ";" not in s and "'" not in s and '"' not in s, s
+    f = open(os.path.join(ROOT, "modules/efactura/scripts/efactura_native_form12103.py"), encoding="utf-8").read()
+    assert '"DB ID": ("I", 12103)' in f and "EFA_INBOX.fetch_api_pr(:nrdoc)" in f and "EFA_INBOX.create_docs_1209(:nrdoc)" in f
+    assert "pkg_edi_xml.import_xml_package_object(:nrdoc)" in f and "PARENT = 2453" in f
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert '"/test/inbox/import"' in routes and '"/test/inbox/package/<int:nrdoc>"' in routes
+    nat = open(os.path.join(ROOT, "modules/efactura/native_api.py"), encoding="utf-8").read()
+    assert '"/api/biro26/efactura/inbox/package/<int:nrdoc>"' in nat
+    import json
+    m = json.load(open(os.path.join(ROOT, "modules/efactura/module.json"), encoding="utf-8"))
+    assert "/api/biro26/efactura/inbox/package/<int:nrdoc>" in m["root_paths"]
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
+    assert "inbox/import" in tpl and "pachet 12103" in tpl
