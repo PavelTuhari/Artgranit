@@ -69,6 +69,6 @@ copiate din documentul 1209 nr. 4 al OfficePlus; contabilul le confirmă.
 ## 5. Adrese live
 
 - pagina de test (cardul «📥 Facturi primite»): https://officeplus.md/UNA.md/orasldev/efactura/test (302 → login) · https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test
-- administrare (setări `in_*`, jurnalul SFS): https://officeplus.md/UNA.md/orasldev/efactura/admin
+- administrare (setări `in_*`, jurnalul SFS): https://officeplus.md/UNA.md/orasldev/efactura/
 - API nativ: `http://officeplus.md/api/biro26/efactura/inbox/package/<nrdoc>?api_key=…` (401 fără cheie)
 - cod: `modules/efactura/inbox.py`, `sql/06_efa_inbox_pkg.sql`, `sql/07_efa_syss_seed.sql`, `scripts/efactura_native_form12103.py`, `native_api.py`
