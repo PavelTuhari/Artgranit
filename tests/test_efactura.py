@@ -893,3 +893,89 @@ def test_partially_posted_batch_warns_against_repeating():
 def test_controller_shows_the_explained_error_in_the_native_window():
     src = open(os.path.join(ROOT, "modules/efactura/controller.py"), encoding="utf-8").read()
     assert "explain_sfs_error(parsed.get(\"ErrorMessage\"), parsed)" in src
+
+
+# ── facturile PRIMITE (partea de cumparator), 13.09.2026 ─────────────────
+def _inbound_xml():
+    return open(os.path.join(ROOT, "docs/Partner/sfs/ModelFacturaPrimita.xml"), encoding="utf-8").read()
+
+
+def test_inbox_parses_real_received_invoice():
+    from modules.efactura import inbox
+    inv = inbox.parse_invoice(_inbound_xml())
+    assert inv["seria"] == "EAA" and inv["number"] == "002514972" and inv["issued_date"] == "2020-06-11"
+    assert inv["supplier"]["idno"] == "1014600011116" and inv["supplier"]["title"].startswith("POSEIDONGRUP")
+    assert inv["buyer"]["idno"] == "1003600116460" and inv["total"] == 3500.0 and inv["total_tva"] == 583.33
+    assert len(inv["rows"]) == 1 and inv["rows"][0]["name"].startswith("Mariflex") and inv["rows"][0]["qty"] == 35
+    assert inv["rows"][0]["barcode"] == "" and inv["rows"][0]["tva_pct"] == 20
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        inbox.parse_invoice("<html/>")
+
+
+def test_inbox_wraps_for_pkg_edi_xml_and_strips_signature():
+    from modules.efactura import inbox
+    xml = "<Document><SupplierInfo><Seria>A</Seria></SupplierInfo><Signatures><x>1</x></Signatures></Document>"
+    w = inbox.wrap_documents(xml)
+    assert w.startswith("<Documents><Document>") and "Signatures" not in w and w.endswith("</Documents>")
+    assert inbox.wrap_documents("<Documents><Document/></Documents>") == "<Documents><Document/></Documents>"
+
+
+def test_inbox_rules_like_oracle():
+    """RO: TMS_IMPORT_EFACTURA.TEXT1 e un LIKE Oracle (%, _), pe denumire, dupa PRIORITET."""
+    from modules.efactura import inbox
+    rules = [{"idn": 2, "dt": 5442, "dtsc": None, "text1": "%SERVICII%BROKER%", "text2": "Brokeraj", "prioritet": 20},
+             {"idn": 1, "dt": 5442, "dtsc": None, "text1": "%SERVICII%BROKER%VAMAL%", "text2": "Brokeraj vamal", "prioritet": 10}]
+    rules.sort(key=lambda r: (r["prioritet"], r["idn"]))
+    assert inbox.match_rule("Servicii de broker vamal", rules)["idn"] == 1
+    assert inbox.match_rule("SERVICII BROKER", rules)["idn"] == 2
+    assert inbox.match_rule("Mariflex PU 30 Grey 600 ML", rules) is None
+    assert inbox.like_to_regex("A_C%").match("ABCDEF") and not inbox.like_to_regex("A_C%").match("ABDC")
+    assert inbox.fold("Servicii de curățenie") == "SERVICII DE CURATENIE"
+
+
+def test_inbox_soap_requests_follow_xsd_order():
+    from modules.efactura import sfs
+    calls = []
+    c = sfs.SfsClient("https://x/Service.svc", "u", "p")
+    c.call = lambda method, body="": calls.append((method, body)) or {"success": True, "raw": ""}
+    c.search_invoices(sfs.ROLE_BUYER, buyer_idno="1003600116460", issued_from="2026-01-01", issued_to="2026-09-13", seria="EAA")
+    m, b = calls[-1]
+    assert m == "SearchInvoices" and b.index("<a:ActorRole>2") < b.index("<a:Parameters>")
+    assert b.index("<a:BuyerIDNO>") < b.index("<a:IssuedOn>") < b.index("<a:Seria>") and b.index("<a:EndDate>") < b.index("<a:StartDate>")
+    c.post_rejected([("EAA", "002514972", "marfa <lipsa>")])
+    m, b = calls[-1]
+    assert m == "PostRejectedInvoices" and b.index("<a:Number>") < b.index("<a:Seria>") < b.index("<a:Comment>") and "&lt;lipsa&gt;" in b
+    c.post_accepted([("EAA", "002514972")]); assert calls[-1][0] == "PostAcceptedInvoices" and "<a:SeriaAndNumbers>" in calls[-1][1]
+    c.get_content_for_print([("EAA", "1")], sfs.ROLE_BUYER); b = calls[-1][1]
+    assert b.index("<a:SeriaAndNumbers>") < b.index("<a:ActorRole>") < b.index("<a:Orientation>")
+
+
+def test_inbox_sfs_entries_and_env():
+    from modules.efactura import inbox
+    raw = ('<s:Envelope xmlns:s="x"><s:Body><R xmlns:a="y"><a:Results><a:XmlInvoice><a:Message/><a:Number>1</a:Number>'
+           '<a:Seria>EAA</a:Seria><a:Status>2</a:Status><a:InvoiceStatus>7</a:InvoiceStatus><a:Xml>&lt;Document/&gt;</a:Xml>'
+           '</a:XmlInvoice></a:Results></R></s:Body></s:Envelope>')
+    e = inbox.sfs_entries(raw)
+    assert e == [{"seria": "EAA", "number": "1", "status": "2", "invoice_status": "7", "message": "", "xml": "<Document/>"}]
+    dec = ('<R xmlns:a="y"><a:Results><a:InvoiceResult><a:Number>1</a:Number><a:Seria>EAA</a:Seria><a:Message/>'
+           '<a:Status>2</a:Status></a:InvoiceResult></a:Results></R>')
+    assert inbox.sfs_entries(dec)[0]["status"] == "2"      # DecisionResponse (PostAccepted/Rejected)
+    assert inbox.env_of("https://efactura-api.sfs.md/Service.svc") == "prod" and inbox.env_of("https://apiefactura-pre.sfs.md/Service.svc") == "test"
+
+
+def test_inbox_ddl_and_page():
+    src = open(os.path.join(ROOT, "modules/efactura/sql/05_efa_inbox.sql"), encoding="utf-8").read()
+    for b in [b for b in src.split("\n/\n") if b.strip()]:
+        body = "\n".join(l for l in b.splitlines() if not l.strip().startswith("--")).strip()
+        assert body.startswith("CREATE ") and body.count("\nCREATE ") == 0, body[:60]
+    assert src.isascii() and "PACKAGE BODY EFA_INBOX" in src and "//Documents/Document/SupplierInfo/" in src
+    for line in src.splitlines():
+        s = line.strip()
+        if s.startswith("--"):
+            assert ";" not in s and "'" not in s and '"' not in s, s
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
+    assert 'id="inbox-card"' in tpl and "inbox/sync" in tpl and "/land" in tpl and "/decision" in tpl
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    for r in ('"/test/inbox"', '"/test/inbox/sync"', '"/test/inbox/<int:in_id>/land"', '"/test/inbox/<int:in_id>/decision"'):
+        assert r in routes

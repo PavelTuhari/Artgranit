@@ -192,6 +192,24 @@
     <div id="result" class="result" style="display:none"></div>
   </div>
 
+  <div class="card" id="inbox-card">
+    <h2>📥 Facturi primite de la parteneri (partea de cumpărător)
+      <button class="btn gray" type="button" onclick="inboxSync()">⬇ Preia din e-Factura</button>
+      <button class="btn gray" type="button" onclick="inboxLoad()">↻ Reîncarcă</button>
+      <span id="in-info" class="muted"></span></h2>
+    <p class="muted">Facturile în care firma din contul API e <b>cumpărător</b>:
+      <code>GetInvoicesForSigning</code> cu <code>ActorRole = 2</code> (așteaptă decizia noastră, vin cu XML)
+      și <code>GetAcceptedInvoices</code> (rol 2). Fiecare factură se potrivește cu nomenclatorul una.md:
+      furnizorul după IDNO (<code>TMS_UNIVERS.CODVECHI</code> / <code>TMS_ORG.CODFISCAL</code>), marfa după cod de bare
+      (<code>TMS_MPT_BARCODE</code>), serviciile după regulile <code>TMS_IMPORT_EFACTURA</code> — exact ce folosește
+      și clientul Delphi. «Aterizează» o scrie în <code>TMDB_XML_FACTURA</code> (tabela standard, aceleași XPath-uri ca
+      <code>PKG_EDI_XML</code>), «Acceptă» / «Respinge» trimit decizia în SFS.</p>
+    <table id="inbox"><thead><tr><th>Seria / nr.</th><th>Furnizor</th><th>IDNO</th><th>Data</th>
+      <th>Total</th><th>TVA</th><th>SFS</th><th>Statut</th><th>În una.md</th><th>Poziții</th></tr></thead>
+      <tbody><tr><td colspan="10" class="muted">apăsați «Preia din e-Factura»</td></tr></tbody></table>
+    <div id="in-detail" hidden style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px"></div>
+  </div>
+
   <div class="card">
     <h2>Jurnalul apelurilor către e-Factura
       <button class="btn gray" type="button" style="padding:5px 10px;font-size:12px;margin-left:8px"
@@ -425,6 +443,86 @@ const RES_RO = {ok: 'acceptat', rejected: 'respins', fault: 'eroare SOAP',
                 html: 'HTML (mascat)', network: 'fără rețea'};
 function envName(ep) {
   return /-pre\./.test(ep || '') ? 'probă' : (/efactura-api/.test(ep || '') ? 'REAL' : (ep || ''));
+}
+// ── facturile primite (cumparator) ─────────────────────────────────────
+// RO: InvoiceStatus din SFS — doar valorile MASURATE (13.09.2026): 7 = in coada cumparatorului, 3 = dupa acceptarea noastra
+const SFS_ST = {3:'acceptată de cumpărător', 7:'așteaptă cumpărătorul'};
+function inboxRows(list) {
+  const tb = document.querySelector('#inbox tbody');
+  tb.innerHTML = (list || []).map(x => `<tr style="cursor:pointer" onclick="inboxOpen(${x.id})">
+    <td><b>${esc(x.seria)} ${esc(x.number_)}</b></td><td>${esc(x.supplier_name)}</td><td>${esc(x.supplier_idno)}</td>
+    <td>${esc(x.issued_date)}</td><td>${esc(x.total)}</td><td>${esc(x.total_tva)}</td>
+    <td>${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')}</td><td><b>${esc(x.status)}</b>${x.nrdoc ? ' · NRDOC ' + x.nrdoc : ''}</td>
+    <td>${x.supplier_cod ? '✓ ' + esc(x.supplier_una) : '<span class="err">furnizor negăsit</span>'}</td>
+    <td>${x.matched_cnt} / ${x.rows_cnt} potrivite</td></tr>`).join('')
+    || '<tr><td colspan="10" class="muted">nicio factură primită (în mediul acesta)</td></tr>';
+}
+async function inboxLoad() {
+  const a = api() || {};
+  const env = (a.endpoint || '').includes('efactura-api.sfs.md') ? 'prod' : 'test';
+  const r = await j('inbox?env=' + env);
+  if (r.success) inboxRows(r.data); else document.getElementById('in-info').innerHTML = '<span class="err">' + esc(r.error) + '</span>';
+}
+async function inboxSync() {
+  document.getElementById('in-info').textContent = 'Se preia din SFS…';
+  const r = await j('inbox/sync', {method: 'POST', body: JSON.stringify({api: api()})});
+  document.getElementById('in-info').innerHTML = r.success
+    ? ` găsite ${r.found}, noi ${r.added}, actualizate ${r.updated}` + (r.errors && r.errors.length ? ' · <span class="err">' + esc(r.errors.join('; ')) + '</span>' : '')
+    : '<span class="err">' + esc(r.error) + '</span>';
+  if (r.success) inboxRows(r.data);
+  loadLog();
+}
+async function inboxOpen(id) {
+  const r = await j('inbox/' + id);
+  const d = document.getElementById('in-detail'); d.hidden = false;
+  if (!r.success) { d.innerHTML = '<span class="err">' + esc(r.error) + '</span>'; return; }
+  const x = r.data;
+  d.innerHTML = `<b>${esc(x.seria)} ${esc(x.number_)}</b> din ${esc(x.issued_d)} · furnizor <b>${esc(x.supplier_name)}</b> (${esc(x.supplier_idno)})
+    → în una.md: ${x.supplier_cod ? '✓ COD ' + x.supplier_cod + ' ' + esc(x.supplier_una) : '<span class="err">negăsit</span> <button class="btn gray" type="button" onclick="inboxAddSupplier(' + id + ')">➕ Adaugă furnizorul în una.md (puntea Contragenti)</button>'}
+    · total ${esc(x.total)} (TVA ${esc(x.total_tva)}) · SFS ${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')} · statut <b>${esc(x.status)}</b>
+    ${x.nrdoc ? ' · TMDB_XML_FACTURA NRDOC ' + x.nrdoc : ''}${x.err_msg ? '<br><span class="err">' + esc(x.err_msg) + '</span>' : ''}
+    <div class="row" style="margin:8px 0">
+      <a class="btn gray" target="_blank" href="${BASE}/inbox/${id}/xml">👁 XML</a>
+      <button class="btn gray" type="button" onclick="inboxMatch(${id})">🔗 Repotrivește</button>
+      <button class="btn gray" type="button" onclick="inboxLand(${id})">📦 Aterizează în una.md (TMDB_XML_FACTURA)</button>
+      <button class="btn gray" type="button" onclick="inboxDecide(${id}, 'accept')">✅ Acceptă în SFS</button>
+      <button class="btn gray" type="button" onclick="inboxDecide(${id}, 'reject')">⛔ Respinge în SFS…</button>
+      <span id="in-act" class="muted"></span></div>
+    <table><thead><tr><th>#</th><th>Cod furnizor</th><th>Denumirea</th><th>UM</th><th>Cant.</th><th>Preț</th><th>TVA %</th><th>Total</th><th>Cod bare</th><th>Potrivire în una.md</th></tr></thead>
+    <tbody>${(x.rows || []).map(w => `<tr><td>${w.rown}</td><td>${esc(w.code)}</td><td>${esc(w.name)}</td><td>${esc(w.um)}</td>
+      <td>${esc(w.qty)}</td><td>${esc(w.price)}</td><td>${esc(w.tva_pct)}</td><td>${esc(w.total)}</td><td>${esc(w.barcode || '')}</td>
+      <td>${w.match_kind === 'barcode' ? '✓ marfă COD ' + w.match_cod + ' ' + esc(w.una_name) :
+            w.match_kind === 'rule' ? '✓ regulă #' + w.match_rule + ' → cont ' + esc(w.match_dt) + (w.match_cod ? ', card ' + w.match_cod + ' ' + esc(w.una_name) : '') + ' (' + esc(w.match_name) + ')' :
+            '<span class="err">nepotrivit — fără cod de bare și fără regulă</span>'}</td></tr>`).join('')}</tbody></table>`;
+}
+async function inboxAddSupplier(id) {
+  // RO: furnizorul din factura -> nomenclatorul una.md prin puntea Contragenti
+  //     (modules/contragenti: TMS_UNIVERS.CODVECHI = IDNO, TMS_ORG.CODFISCAL, dedup dupa IDNO/denumire)
+  const r0 = await j('inbox/' + id); if (!r0.success) return;
+  const x = r0.data;
+  const CTG = '{{ contragenti_upsert_url }}';
+  if (!CTG) { document.getElementById('in-act').innerHTML = '<span class="err">modulul Contragenti nu e instalat pe acest contur</span>'; return; }
+  const r = await fetch(CTG, {method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({page: 'efactura-inbox', q: x.seria + ' ' + x.number_, idno: x.supplier_idno, denumire: x.supplier_name, adresa: x.supplier_address || '', source: 'e-factura'})})
+    .then(r => r.json()).catch(e => ({success: false, error: String(e)}));
+  document.getElementById('in-act').innerHTML = r.success
+    ? `<span style="color:#16a34a">furnizor ${r.result === 'created' ? 'CREAT' : r.result === 'repaired' ? 'COMPLETAT' : 'existent'}: COD ${r.univers_cod} ${esc(r.name)}</span>`
+    : '<span class="err">' + esc(r.error || 'puntea Contragenti nu răspunde') + '</span>';
+  await inboxMatch(id);
+}
+async function inboxMatch(id) { const r = await j('inbox/' + id + '/match', {method: 'POST', body: '{}'}); document.getElementById('in-act').textContent = r.success ? 'potrivire: ' + JSON.stringify(r.rows) : r.error; inboxOpen(id); inboxLoad(); }
+async function inboxLand(id) {
+  const r = await j('inbox/' + id + '/land', {method: 'POST', body: '{}'});
+  document.getElementById('in-act').innerHTML = r.success ? `<span style="color:#16a34a">aterizat: NRDOC ${r.nrdoc}, ${r.rows_landed} rînduri (antet + poziții), fișier ${esc(r.file_name)}</span>` : '<span class="err">' + esc(r.error) + '</span>';
+  inboxOpen(id); inboxLoad();
+}
+async function inboxDecide(id, action) {
+  let comment = '';
+  if (action === 'reject') { comment = prompt('Motivul respingerii (ajunge la furnizor):', ''); if (comment === null) return; }
+  const r = await j('inbox/' + id + '/decision', {method: 'POST', body: JSON.stringify({api: api(), action, comment})});
+  document.getElementById('in-act').innerHTML = r.success ? `<span style="color:#16a34a">SFS a confirmat: ${action === 'accept' ? 'ACCEPTATĂ' : 'RESPINSĂ'}</span>` : '<span class="err">' + esc(r.error) + '</span>';
+  inboxOpen(id); inboxLoad(); loadLog();
 }
 async function loadLog() {
   const r = await j('log?limit=40');

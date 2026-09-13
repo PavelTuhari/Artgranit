@@ -380,6 +380,68 @@ class SfsClient:
         return self.call("GetInvoicesBySeriaNumber", _request([
             ("RequestId", uuid.uuid4().hex), ("SeriaAndNumbers", item)]))
 
+    # ── partea de CUMPARATOR: facturile primite de la parteneri (13.09.2026) ──
+    @staticmethod
+    def _ids(pairs) -> str:
+        """RO: ArrayOfInvoiceIndentificator; in element intii Number, apoi Seria."""
+        return "".join("<a:InvoiceIndentificator><a:Number>%s</a:Number><a:Seria>%s</a:Seria>"
+                       "</a:InvoiceIndentificator>" % (_esc(n), _esc(s)) for s, n in pairs)
+
+    def search_invoices(self, actor_role: int = ROLE_BUYER, *, seria: str = "",
+                        number: str = "", supplier_idno: str = "", buyer_idno: str = "",
+                        issued_from: str = "", issued_to: str = "",
+                        invoice_status: Optional[int] = None) -> Dict[str, Any]:
+        """RO: `SearchRequest` — RequestId, ActorRole, Parameters; in Parameters
+        copiii in ordine alfabetica (XSD): APIeInvoiceId, BuyerIDNO, DeliveredOn,
+        InvoiceStatus, InvoiceType, IssuedOn{EndDate, StartDate}, Number,
+        RegisteredOn, Seria, SupplierIDNO, TransporterIDNO. Datele ca
+        YYYY-MM-DD; un interval gol a dat Status 3 (masurat 13.09.2026)."""
+        p = []
+        if buyer_idno:
+            p.append("<a:BuyerIDNO>%s</a:BuyerIDNO>" % _esc(buyer_idno))
+        if invoice_status is not None:
+            p.append("<a:InvoiceStatus>%d</a:InvoiceStatus>" % int(invoice_status))
+        if issued_from or issued_to:
+            p.append("<a:IssuedOn><a:EndDate>%sT23:59:59</a:EndDate><a:StartDate>%sT00:00:00"
+                     "</a:StartDate></a:IssuedOn>" % (_esc(issued_to or issued_from),
+                                                     _esc(issued_from or issued_to)))
+        if number:
+            p.append("<a:Number>%s</a:Number>" % _esc(number))
+        if seria:
+            p.append("<a:Seria>%s</a:Seria>" % _esc(seria))
+        if supplier_idno:
+            p.append("<a:SupplierIDNO>%s</a:SupplierIDNO>" % _esc(supplier_idno))
+        return self.call("SearchInvoices", _request([
+            ("RequestId", uuid.uuid4().hex), ("ActorRole", int(actor_role)),
+            ("Parameters", "".join(p))]))
+
+    def check_status(self, pairs) -> Dict[str, Any]:
+        """RO: `InvoicesRequest` -> InvoicesResponse (statutul fiecarei facturi)."""
+        return self.call("CheckInvoicesStatus", _request([
+            ("RequestId", uuid.uuid4().hex), ("SeriaAndNumbers", self._ids(pairs))]))
+
+    def post_accepted(self, pairs) -> Dict[str, Any]:
+        """RO: cumparatorul ACCEPTA facturile primite (`AcceptedRequest`)."""
+        return self.call("PostAcceptedInvoices", _request([
+            ("RequestId", uuid.uuid4().hex), ("SeriaAndNumbers", self._ids(pairs))]))
+
+    def post_rejected(self, items) -> Dict[str, Any]:
+        """RO: cumparatorul RESPINGE, cu motiv (`RejectRequest`: InvoicesComments/
+        InvoiceComment{Number, Seria, Comment} — baza intii, apoi Comment)."""
+        body = "".join("<a:InvoiceComment><a:Number>%s</a:Number><a:Seria>%s</a:Seria>"
+                       "<a:Comment>%s</a:Comment></a:InvoiceComment>"
+                       % (_esc(n), _esc(s), _esc(c)) for s, n, c in items)
+        return self.call("PostRejectedInvoices", _request([
+            ("RequestId", uuid.uuid4().hex), ("InvoicesComments", body)]))
+
+    def get_content_for_print(self, pairs, actor_role: int = ROLE_BUYER,
+                              orientation: int = 0) -> Dict[str, Any]:
+        """RO: PDF-ul facturii (`InvoicesContentRequest`: RequestId, SeriaAndNumbers,
+        ActorRole, Orientation) -> InvoiceContent{Content base64, Format}."""
+        return self.call("GetInvoicesContentForPrint", _request([
+            ("RequestId", uuid.uuid4().hex), ("SeriaAndNumbers", self._ids(pairs)),
+            ("ActorRole", int(actor_role)), ("Orientation", int(orientation))]))
+
     def get_taxpayer(self, idno: str) -> Dict[str, Any]:
         """RO: `TaxpayersRequest` — lista de coduri fiscale; elementele
         listei stau in namespace-ul Arrays al WCF."""

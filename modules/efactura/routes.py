@@ -309,7 +309,13 @@ def test_page():
     #     de proba al SFS. Asa proba merge la fel din orice modul.
     from modules.efactura import sfs
     from modules.efactura.testff import MAX_LINES, MAX_TOTAL, MIN_TOTAL
-    return render_template("efactura_test.html", min_total=MIN_TOTAL,
+    # RO: puntea Contragenti e alt modul — adresa ei vine de la nucleu (url_for),
+    #     nu scrisa in sablon; lipseste pe un contur fara modulul contragenti
+    try:
+        ctg_upsert = url_for("contragenti.api_upsert")
+    except Exception:                                        # noqa: BLE001
+        ctg_upsert = ""
+    return render_template("efactura_test.html", contragenti_upsert_url=ctg_upsert, min_total=MIN_TOTAL,
                            max_total=MAX_TOTAL, max_lines=MAX_LINES,
                            test_endpoint=sfs.TEST_ENDPOINT,
                            endpoint_test=sfs.ENDPOINT_TEST,
@@ -349,6 +355,79 @@ def test_queues():
         return err
     from modules.efactura import testff
     return _reply(testff.signing_queues(_body().get("api")))
+
+
+# ── facturile PRIMITE (partea de cumparator) — pagina de test, 13.09.2026 ──
+@blueprint.route("/test/inbox")
+def test_inbox_list():
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    return _reply({"success": True, "data": EfaInbox.list(request.args.get("env", "test"))})
+
+
+@blueprint.route("/test/inbox/sync", methods=["POST"])
+def test_inbox_sync():
+    """RO: aduce din SFS facturile in care sintem cumparator, cu contul din formular."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import inbox
+    r = inbox.sync(_body().get("api"))
+    if r.get("success"):
+        r["data"] = inbox.EfaInbox.list(r.get("env", "test"))
+    return _reply(r)
+
+
+@blueprint.route("/test/inbox/<int:in_id>")
+def test_inbox_get(in_id):
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    rec = EfaInbox.get(in_id)
+    return _reply({"success": bool(rec), "data": rec, "error": None if rec else "factura inexistenta"})
+
+
+@blueprint.route("/test/inbox/<int:in_id>/xml")
+def test_inbox_xml(in_id):
+    err = _test_guard()
+    if err:
+        return err
+    from flask import Response
+    from modules.efactura.inbox import EfaInbox
+    return Response(EfaInbox.xml(in_id), mimetype="application/xml; charset=utf-8")
+
+
+@blueprint.route("/test/inbox/<int:in_id>/match", methods=["POST"])
+def test_inbox_match(in_id):
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    return _reply(EfaInbox.match(in_id))
+
+
+@blueprint.route("/test/inbox/<int:in_id>/land", methods=["POST"])
+def test_inbox_land(in_id):
+    """RO: aterizarea in TMDB_XML_FACTURA (tabela standard una.md), prin EFA_INBOX.land."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    return _reply(EfaInbox.land(in_id))
+
+
+@blueprint.route("/test/inbox/<int:in_id>/decision", methods=["POST"])
+def test_inbox_decision(in_id):
+    """RO: {api, action: accept|reject, comment} -> PostAccepted/PostRejectedInvoices."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    b = _body()
+    return _reply(EfaInbox.decide(in_id, b.get("action") or "", b.get("comment") or "", b.get("api")))
 
 
 @blueprint.route("/test/log")

@@ -125,3 +125,19 @@ birou). Toate patru: acceptate, in coada primei semnaturi.
 - in Setari e-Factura: adresa reala, conturile reale, `seller_*` GOALE
   (se ia firma din ERP), `seria` reala, `tva_rate` confirmat de contabil;
 - regula datei in procesul de lucru: factura se trimite in ziua eliberarii.
+
+## 4. Facturile PRIMITE (partea de cumparator) — 13.09.2026
+
+| Pas | Ce | Cum | Semnul ca e bine |
+|---|---|---|---|
+| 8 | coada cumparatorului | pagina probei → «📥 Preia din e-Factura» (`GetInvoicesForSigning`, rol 2) | facturile emise NOUA apar in lista, cu pozitii |
+| 9 | potrivirea cu una.md | click pe factura | furnizor «✓ COD …» sau buton «Adauga furnizorul»; pozitii: marfa (cod de bare) / regula / nepotrivit |
+| 10 | aterizarea | «📦 Aterizeaza in una.md» | `NRDOC …, n rinduri` in `TMDB_XML_FACTURA` (antet + pozitii), acelasi NRDOC la repetare |
+| 11 | decizia | «✅ Accepta in SFS» / «⛔ Respinge…» | SFS `Status 2`; factura dispare din coada si apare in acceptate (`InvoiceStatus 3`) |
+
+Nuante noi: 18. `PostAcceptedInvoices` raspunde cu `Results/InvoiceResult`, nu
+`Invoice`. 19. SFS trimite datele cu fractiuni si fus (`…09.8985986+03:00`) —
+`TO_DATE`-ul din `PKG_EDI_XML` le-ar refuza, `EFA_INBOX.d` taie la 19
+caractere. 20. `TMDB_XML_FACTURA.FILE_NAME` trebuie completat la aterizare,
+altfel `export_xml` (care ia `file_name IS NULL and tip_doc=1`) ar exporta
+factura primita ca pe una a noastra. Detalii: `EFACTURA_FACTURI_PRIMITE.md`.
