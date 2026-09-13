@@ -542,4 +542,19 @@ def docs_file(name):
         abort(404)
     if not safe.endswith((".html", ".md", ".png", ".jpg", ".xml")):
         abort(404)
+    if safe.endswith(".md"):
+        # RO: .md se arata ca pagina HTML (altfel browserul il descarca ca text)
+        import markdown
+        from flask import Response
+        full = os.path.join(_DOCS_DIR, safe)
+        if not os.path.isfile(full):
+            abort(404)
+        body = markdown.markdown(open(full, encoding="utf-8").read(), extensions=["tables", "fenced_code"])
+        page = ("<!DOCTYPE html><html lang='ro'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'>"
+                "<title>%s</title><style>body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;"
+                "max-width:1000px;margin:0 auto;padding:24px}table{border-collapse:collapse}th,td{border:1px solid #e5e7eb;"
+                "padding:6px 9px;vertical-align:top}th{background:#f1f5f9}pre{background:#0f172a;color:#e2e8f0;padding:12px;"
+                "border-radius:8px;overflow:auto}code{background:#eef2f7;padding:1px 4px;border-radius:4px}pre code{background:none}"
+                "a{color:#1d4ed8}</style></head><body>%s</body></html>") % (os.path.basename(safe), body)
+        return Response(page, mimetype="text/html; charset=utf-8")
     return send_from_directory(_DOCS_DIR, safe)

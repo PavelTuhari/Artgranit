@@ -39,7 +39,7 @@ import în una.md) se poate repeta și șterge.</div>
 <tr><th>Element</th><th>Valoare</th></tr>
 <tr><td>Firma (cumpărător)</td><td>S.R.L. «GRECU OFFICE GROUP», IDNO <code>1026602001837</code> — clientul OfficePlus, neplătitor de TVA</td></tr>
 <tr><td>Contul API SFS (real)</td><td>utilizatorul <code>officeplus_api</code> (al doilea semnatar <code>officeplus2_api</code>), creat în cabinetul sfs.md al firmei;
-parola — cea salvată în pagina de administrare (<a href="https://officeplus.md/UNA.md/orasldev/efactura/admin">…/efactura/admin</a>). Contul se ia din bază, nu se transmite prin e-mail.</td></tr>
+parola — cea salvată în pagina de administrare (<a href="https://officeplus.md/UNA.md/orasldev/efactura/">…/efactura/</a>). Contul se ia din bază, nu se transmite prin e-mail.</td></tr>
 <tr><td>Adresa serviciului</td><td><code>https://efactura-api.sfs.md/Service.svc</code> — butonul <b>«mediu real»</b> de pe pagina de test</td></tr>
 <tr><td>Pagina de test (web)</td><td><a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a> (boevoi) ·
 <a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test">https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test</a> (test, aceeași bază Oracle)</td></tr>
@@ -137,7 +137,7 @@ SELECT DT, CT, DTDEP, CTDEP, CLCCTDEPT FROM VMDB_ST201M WHERE NRDOC = :doc;
 SELECT RROWID, DTSC, CANT, PRET, SUMA, SUMAGAAP, SUMAVALCT FROM VMDB_ST201D WHERE NRDOC = :doc ORDER BY RROWID;
 -- toate comunicarile cu SFS (cerere + raspuns, si cele reusite)
 SELECT ID, SRC, OP, STATUS, CREATED FROM EFA_CALL ORDER BY ID DESC;</pre>
-<p>Jurnalul comunicărilor cu SFS e și în web: <a href="https://officeplus.md/UNA.md/orasldev/efactura/admin/calls">…/efactura/admin/calls</a>.</p>
+<p>Jurnalul comunicărilor cu SFS e și în web: <a href="https://officeplus.md/UNA.md/orasldev/efactura/#calls">…/efactura/#calls</a>.</p>
 
 <h2>6. Curățenie după test</h2>
 <p>Documentele create în test (12103 și 1209) se șterg din back-office-ul nativ sau, dacă data lor e în afara perioadei de lucru,
@@ -147,7 +147,7 @@ preluare se actualizează, nu se dublează.</p>
 <h2>7. Adrese live</h2>
 <ul>
 <li>Pagina de test: <a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a></li>
-<li>Administrare (cont, setări, jurnal): <a href="https://officeplus.md/UNA.md/orasldev/efactura/admin">https://officeplus.md/UNA.md/orasldev/efactura/admin</a></li>
+<li>Administrare (cont, setări, jurnal): <a href="https://officeplus.md/UNA.md/orasldev/efactura/">https://officeplus.md/UNA.md/orasldev/efactura/</a></li>
 <li>Raportul facturilor transmise: <a href="https://officeplus.md/UNA.md/orasldev/efactura/report">https://officeplus.md/UNA.md/orasldev/efactura/report</a></li>
 <li>Aceeași instrucțiune pe contur: <a href="https://officeplus.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">officeplus.md</a> ·
 <a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">nufarul.eminescu.md</a></li>
