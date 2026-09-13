@@ -521,3 +521,25 @@ def widget_js():
     from flask import Response
     return Response(js, mimetype="application/javascript",
                     headers={"Cache-Control": "public, max-age=300"})
+
+
+# ── documentatia modulului (instructiuni HTML, acte de testare, capturi) ──────
+_DOCS_DIR = __import__("os").path.join(
+    __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.dirname(
+        __import__("os").path.abspath(__file__)))), "docs", "Partner")
+
+
+@blueprint.route("/docs/<path:name>")
+def docs_file(name):
+    """RO: serveste docs/Partner/<name> (html, md, png) — instructiunea de testare si actele.
+    Doar nume simple (fara '..'), doar sub docs/Partner; cere sesiune, ca restul paginilor."""
+    import os
+    from flask import abort, send_from_directory
+    if not AuthController.is_authenticated():
+        return redirect(url_for("login", next=request.path))
+    safe = os.path.normpath(name).replace("\\", "/")
+    if safe.startswith("..") or safe.startswith("/") or "/../" in safe:
+        abort(404)
+    if not safe.endswith((".html", ".md", ".png", ".jpg", ".xml")):
+        abort(404)
+    return send_from_directory(_DOCS_DIR, safe)
