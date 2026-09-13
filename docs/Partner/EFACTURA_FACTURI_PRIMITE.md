@@ -75,6 +75,18 @@ SFS (rol 2 = cumpărător)  ──GetInvoicesForSigning / GetAcceptedInvoices─
   pozițiile și potrivirea, butoane «XML», «Repotrivește», «Aterizează în una.md»,
   «Acceptă în SFS», «Respinge în SFS…», «Adaugă furnizorul în una.md».
 
+## 2a. Importul «ca în celelalte baze cloudbd» (13.09.2026, după cerința proprietarului)
+
+Fluxul de mai sus (`EFA_INBOX.land` → `TMDB_XML_FACTURA`) a rămas ca «aterizare
+brută»; importul real merge acum **exact ca în BMPUBLIC / FPROIECT**: document
+12103 «pachet XML» + OLE → `pkg_edi_xml.import_xml_package_object` (parserul și
+validările vendorului, `TMDB_XML_PACKAGE`) → `EFA_INBOX.create_docs_1209`
+(documente 1209 cu `VMDB_ST201M/D`, `VMDB01M_VINZ`, analitica după reguli /
+cod de bare / denumire). Are și formular nativ 12103 cu acțiunea «Preia din
+e-Factura (API)». Punctul 4.1 de mai jos e astfel rezolvat: documentul contabil
+**se creează** (1209 «Оприходование товара»). Proba vie, reparațiile și
+protocolul: [EFACTURA_IMPORT_PACHET_12103_2026-09-13.md](EFACTURA_IMPORT_PACHET_12103_2026-09-13.md).
+
 ## 3. Proba reală (13.09.2026, mediul de probă, contul UNISIM-SOFT)
 
 | Pas | Rezultat |
