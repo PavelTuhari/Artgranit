@@ -13,7 +13,7 @@ EN: three entry points, one implementation; they differ only in who may call.
 """
 from __future__ import annotations
 
-from flask import jsonify, redirect, render_template, request
+from flask import jsonify, redirect, render_template, request, url_for
 
 from controllers.auth_controller import AuthController
 from controllers.biro26_controller import Biro26Controller
