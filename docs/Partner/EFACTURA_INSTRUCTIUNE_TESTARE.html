@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>e-Factura — instrucțiune de testare (facturi primite, contul real OfficePlus)</title>
+<style>
+  body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;background:#f8fafc;margin:0}
+  main{max-width:1060px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:26px;margin:0 0 6px}h2{font-size:20px;margin:34px 0 10px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
+  h3{font-size:16px;margin:22px 0 6px}
+  .muted{color:#6b7280}.warn{background:#fff7ed;border-left:4px solid #f59e0b;padding:10px 14px;margin:14px 0}
+  .stop{background:#fef2f2;border-left:4px solid #ef4444;padding:10px 14px;margin:14px 0}
+  .ok{background:#ecfdf5;border-left:4px solid #10b981;padding:10px 14px;margin:14px 0}
+  table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:#fff}
+  th,td{border:1px solid #e5e7eb;padding:7px 9px;vertical-align:top;text-align:left}
+  th{background:#f1f5f9}
+  code,kbd{font:13px ui-monospace,Menlo,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+  pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;overflow:auto;font-size:13px}
+  a{color:#1d4ed8}
+  .step{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin:12px 0}
+  .step b.n{display:inline-block;background:#1d4ed8;color:#fff;border-radius:999px;padding:0 9px;margin-right:8px}
+  img{max-width:100%;border:1px solid #e5e7eb;border-radius:8px;margin:6px 0}
+  .chk{list-style:none;padding-left:0}.chk li::before{content:"☐ ";color:#6b7280}
+</style>
+</head>
+<body><main>
+<h1>e-Factura — instrucțiune de testare</h1>
+<p class="muted">Facturile fiscale <b>primite</b> de la parteneri (rolul de cumpărător), pe <b>contul real</b> al
+OfficePlus la SFS. Versiunea 13.09.2026. Actul de testare executat după această instrucțiune:
+<a href="EFACTURA_ACT_TESTARE_2026-09-13.html">EFACTURA_ACT_TESTARE_2026-09-13.html</a>.</p>
+
+<div class="stop"><b>Ce NU se face în test fără decizia contabilului:</b> «Acceptă în SFS» și «Respinge în SFS…».
+Ambele trimit decizia firmei la SFS și la furnizor și nu se pot retrage. Tot restul (preluare, potrivire,
+import în una.md) se poate repeta și șterge.</div>
+
+<h2>1. Ce se testează și cu ce cont</h2>
+<table>
+<tr><th>Element</th><th>Valoare</th></tr>
+<tr><td>Firma (cumpărător)</td><td>S.R.L. «GRECU OFFICE GROUP», IDNO <code>1026602001837</code> — clientul OfficePlus, neplătitor de TVA</td></tr>
+<tr><td>Contul API SFS (real)</td><td>utilizatorul <code>officeplus_api</code> (al doilea semnatar <code>officeplus2_api</code>), creat în cabinetul sfs.md al firmei;
+parola — cea salvată în pagina de administrare (<a href="https://officeplus.md/UNA.md/orasldev/efactura/admin">…/efactura/admin</a>). Contul se ia din bază, nu se transmite prin e-mail.</td></tr>
+<tr><td>Adresa serviciului</td><td><code>https://efactura-api.sfs.md/Service.svc</code> — butonul <b>«mediu real»</b> de pe pagina de test</td></tr>
+<tr><td>Pagina de test (web)</td><td><a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a> (boevoi) ·
+<a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test">https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test</a> (test, aceeași bază Oracle)</td></tr>
+<tr><td>Back-office nativ (Delphi)</td><td>«Intrări» → formularul <b>12103 «Pachet XML e-Factura»</b> și <b>1209 «Оприходование товара»</b></td></tr>
+<tr><td>Baza</td><td>OFFICEPLUS pe cloudbd (orange.una.md). Obiectele modulului: <code>EFA_IN</code>, <code>EFA_IN_ROW</code>, pachetul <code>EFA_INBOX</code>;
+ale sistemului: <code>TMDB_DOCS</code>, <code>TMDB_DOCS_OLE</code>, <code>TMDB_XML_PACKAGE</code>, <code>VMDB_ST201M/D</code>, <code>VMDB01M_VINZ</code></td></tr>
+</table>
+
+<div class="warn"><b>Ordinea e importantă:</b> facturile primite se citesc din SFS (pasul 3), se potrivesc cu nomenclatorul (pasul 5),
+furnizorul lipsă se adaugă (pasul 6), abia apoi se importă în una.md (pasul 7). Importul rulează <b>exact</b> fluxul din celelalte
+baze una.md: pachet 12103 → parserul vendorului <code>PKG_EDI_XML</code> → document 1209.</div>
+
+<h2>2. Pregătire</h2>
+<ul class="chk">
+<li>Intrare în back-office-ul web cu contul de operator (pagina <code>/login</code>).</li>
+<li>În pagina de administrare e-Factura sînt completate: contul API real, <code>vat_payer = 0</code>, <code>creation_motiv = 1</code>,
+setările contabile <code>in_nrset 201</code>, <code>in_dt 2171</code>, <code>in_ct 5211</code>, <code>in_dtdep 1</code>, <code>in_dt_row 2171</code>, <code>in_userid 1</code>.</li>
+<li>Butonul «Testează conexiunea» din administrare dă verde (mesajul rămîne pe ecran, nu dispare).</li>
+<li>Un furnizor v-a transmis cel puțin o factură fiscală prin e-Factura (ea apare în cabinetul sfs.md la «Facturi primite → de semnat»).</li>
+</ul>
+
+<h2>3. Pașii de test (web)</h2>
+
+<div class="step"><b class="n">1</b><b>Deschideți pagina de test</b> și în blocul «Contul API» scrieți utilizatorul și parola contului real;
+apăsați <b>«mediu real»</b> (adresa devine <code>https://efactura-api.sfs.md/Service.svc</code>).
+<br><span class="muted">Așteptat: nimic nu se trimite încă; pagina nu salvează contul nicăieri.</span></div>
+
+<div class="step"><b class="n">2</b><b>Cardul «📥 Facturi primite de la parteneri»</b> → <b>«Preia din e-Factura»</b>.
+<br><span class="muted">Așteptat: mesaj «găsite N, adăugate A, actualizate U»; în tabel apar facturile în care firma e cumpărător:
+seria/nr, furnizor, IDNO, data, total, TVA, statutul SFS (<code>7 așteaptă cumpărătorul</code> sau <code>3 acceptată</code>), statutul nostru
+(<code>NEW</code>), coloana «În una.md» (✓ furnizorul găsit sau «lipsește»), «Poziții» (potrivite / total).</span>
+<img src="img/act_01_lista_primite_prod.png" alt="lista facturilor primite"></div>
+
+<div class="step"><b class="n">3</b><b>Click pe factură</b> → se deschide detaliul cu pozițiile.
+<br><span class="muted">Așteptat: pentru fiecare poziție: denumirea, UM, cantitatea, prețul fără TVA, TVA %, total, codul de bare
+și «Potrivire în una.md»: <i>cod de bare</i> (card găsit în <code>TMS_MPT_BARCODE</code>), <i>regulă</i> (<code>TMS_IMPORT_EFACTURA</code>)
+sau <i>nepotrivit</i>.</span>
+<img src="img/act_02_detaliu_ebl000435006.png" alt="detaliul facturii"></div>
+
+<div class="step"><b class="n">4</b><b>«XML»</b> — se deschide XML-ul facturii așa cum l-a dat SFS (fără semnătura XAdES).
+<br><span class="muted">Așteptat: <code>&lt;Document&gt;&lt;SupplierInfo&gt;…</code> cu Supplier/Buyer/Merchandises.</span></div>
+
+<div class="step"><b class="n">5</b><b>«Repotrivește»</b> — reia potrivirea furnizorului și a pozițiilor.
+<br><span class="muted">Așteptat: «potrivire: {barcode: n, rule: m, none: k}»; furnizorul după IDNO în
+<code>TMS_UNIVERS.CODVECHI</code> / <code>TMS_ORG.CODFISCAL</code>.</span></div>
+
+<div class="step"><b class="n">6</b><b>Dacă furnizorul lipsește</b> → <b>«Adaugă furnizorul în una.md»</b> (puntea Contragenti).
+<br><span class="muted">Așteptat: firma apare în nomenclator cu COD nou, <code>CODVECHI</code> = IDNO, GR1 = E, rînd în <code>TMS_ORG</code> cu
+<code>CODFISCAL</code>; coloana «În una.md» devine ✓. Dacă firma există fără cod fiscal, se repară (nu se dublează).</span></div>
+
+<div class="step"><b class="n">7</b><b>«Import în una.md (pachet 12103 → document 1209)»</b>.
+<br><span class="muted">Așteptat: mesaj cu numărul pachetului (<code>COD</code> al documentului 12103) și statutul din
+<code>TMDB_XML_PACKAGE</code>: <b>valida</b> → documentul 1209 creat (numărul lui apare în rînd, statutul nostru <code>IMPORTED</code>).
+Alte statute posibile și ce înseamnă:</span>
+<table>
+<tr><th>Statut</th><th>Sens</th><th>Ce faceți</th></tr>
+<tr><td>6</td><td>data facturii în afara intervalului (±364 zile, <code>TMS_SYSS XM 1/6</code>)</td><td>factură veche — se introduce manual sau se mărește intervalul</td></tr>
+<tr><td>7</td><td>furnizorul (IDNO) nu există în nomenclator</td><td>pasul 6, apoi din nou importul</td></tr>
+<tr><td>8</td><td>subdiviziunea cumpărătorului lipsește</td><td>verificați setarea <code>in_dtdep</code> (depozitul, <code>VMS_UNIVERS</code> TIP O / GR1 I)</td></tr>
+<tr><td>2, 13</td><td>factura e deja în bază (1209 / 12103)</td><td>nu se importă a doua oară</td></tr>
+<tr><td>15</td><td>eroare la completarea documentului</td><td>textul erorii e în comentariu; se raportează</td></tr>
+</table></div>
+
+<div class="step"><b class="n">8</b><b>Verificare în back-office-ul nativ:</b> «Intrări» → 1209 «Оприходование товара» → documentul cu
+<code>NRMANUAL</code> = seria+numărul facturii.
+<br><span class="muted">Așteptat: data = data facturii; antet DT <code>2171</code> / CT <code>5211</code>, depozit (DTDEP) = <code>in_dtdep</code>,
+furnizor (CTDEP) = firma din pasul 6; seria/nr facturii fiscale în cîmpurile FF; pozițiile cu cantitate, preț fără TVA, suma cu TVA,
+suma fără TVA, TVA; cardul de marfă (DTSC) completat doar unde potrivirea a găsit un card — restul se alege manual, ca la importul
+din Delphi. Pachetul 12103 are XML-ul atașat (OLE) și lista facturilor cu statute.</span></div>
+
+<div class="step"><b class="n">9</b><b>Idempotență:</b> repetați «Preia din e-Factura» și «Import».
+<br><span class="muted">Așteptat: factura nu se dublează în <code>EFA_IN</code>; importul unei facturi deja importate NU creează al doilea
+document 1209 (statut 2/13 sau «deja importată»).</span></div>
+
+<div class="step"><b class="n">10</b><b>Decizia în SFS</b> — <b>doar contabilul</b>: «Acceptă în SFS» (factura trece în «acceptate», statut SFS 3)
+sau «Respinge în SFS…» cu motiv (ajunge la furnizor). În test se sare peste acest pas.</div>
+
+<h2>4. Pașii de test (back-office nativ, Delphi)</h2>
+<div class="step"><b class="n">N1</b> «Intrări» → 12103 «Pachet XML e-Factura» → document nou → acțiunea <b>«Preia din e-Factura (API)»</b>.
+<br><span class="muted">Așteptat: Oracle cheamă <code>EFA_INBOX.fetch_api_pr</code> → serverul web
+(<code>officeplus.md/api/biro26/efactura/inbox/package/&lt;nrdoc&gt;</code>) aduce facturile noi din SFS și le pune în pachet;
+mesaj «facturi noi: N; valide: V; cu probleme: …». Fără cheie API adresa răspunde <code>401</code>.</span></div>
+<div class="step"><b class="n">N2</b> Acțiunea <b>«Загрузить XML»</b> (a vendorului) — reface validările; <b>«Сформировать документы 1209»</b> — creează documentele
+pentru pozițiile valide. Rezultatul e același ca la pasul 7 din web.</div>
+
+<h2>5. Verificări în bază (pentru IT)</h2>
+<pre>-- facturile primite si soarta lor
+SELECT ID, ENV, SERIA, NUMBER_, SUPPLIER_NAME, TOTAL, SFS_STATUS, STATUS, PKG_NRDOC, PKG_STATUS, DEST_NRDOC
+FROM EFA_IN ORDER BY ID;
+-- pachetul si statutele vendorului
+SELECT NRDOC, NRDOC1, FACTURA_SERIA, FACTURA_NR, STATUS_DOC, NRDOC_DEST, COMMENTS FROM TMDB_XML_PACKAGE WHERE NRDOC = :pachet;
+-- documentul 1209
+SELECT COD, NRMANUAL, DATAMANUAL, USERID FROM TMDB_DOCS WHERE COD = :doc;
+SELECT DT, CT, DTDEP, CTDEP, CLCCTDEPT FROM VMDB_ST201M WHERE NRDOC = :doc;
+SELECT RROWID, DTSC, CANT, PRET, SUMA, SUMAGAAP, SUMAVALCT FROM VMDB_ST201D WHERE NRDOC = :doc ORDER BY RROWID;
+-- toate comunicarile cu SFS (cerere + raspuns, si cele reusite)
+SELECT ID, SRC, OP, STATUS, CREATED FROM EFA_CALL ORDER BY ID DESC;</pre>
+<p>Jurnalul comunicărilor cu SFS e și în web: <a href="https://officeplus.md/UNA.md/orasldev/efactura/admin/calls">…/efactura/admin/calls</a>.</p>
+
+<h2>6. Curățenie după test</h2>
+<p>Documentele create în test (12103 și 1209) se șterg din back-office-ul nativ sau, dacă data lor e în afara perioadei de lucru,
+de către IT cu ocolirea de sistem (<code>envun4.dont_fire_trigger</code>). Rîndurile din <code>EFA_IN</code> se pot lăsa — la următoarea
+preluare se actualizează, nu se dublează.</p>
+
+<h2>7. Adrese live</h2>
+<ul>
+<li>Pagina de test: <a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a></li>
+<li>Administrare (cont, setări, jurnal): <a href="https://officeplus.md/UNA.md/orasldev/efactura/admin">https://officeplus.md/UNA.md/orasldev/efactura/admin</a></li>
+<li>Raportul facturilor transmise: <a href="https://officeplus.md/UNA.md/orasldev/efactura/report">https://officeplus.md/UNA.md/orasldev/efactura/report</a></li>
+<li>Aceeași instrucțiune pe contur: <a href="https://officeplus.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">officeplus.md</a> ·
+<a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">nufarul.eminescu.md</a></li>
+<li>Documentație tehnică: <a href="EFACTURA_FACTURI_PRIMITE.md">EFACTURA_FACTURI_PRIMITE.md</a>, <a href="EFACTURA_IMPORT_PACHET_12103_2026-09-13.md">EFACTURA_IMPORT_PACHET_12103_2026-09-13.md</a>,
+<a href="EFACTURA_SCENARIU_TESTARE.md">EFACTURA_SCENARIU_TESTARE.md</a> (partea de vînzător)</li>
+</ul>
+</main></body></html>
