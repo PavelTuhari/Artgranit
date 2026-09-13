@@ -40,7 +40,7 @@ Ramura <code>feat/efactura</code>, worktree <code>Artgranit-efactura</code>.</p>
 <h2>2. Rezultatele pe pași</h2>
 <table>
 <tr><th>#</th><th>Pas (din instrucțiune)</th><th>Rezultat obținut</th><th>Verdict</th></tr>
-<tr><td>0</td><td>Pregătire: setări, formular nativ</td><td>setările <code>in_nrset 201 / in_dt 2171 / in_ct 5211 / in_dtdep 1 / in_dt_row 2171 / in_userid 1</code>, <code>vat_payer 0</code>, <code>creation_motiv 1</code>; formularul 12103 creat în <code>A$ADM</code> (OBJ_ID 11530 sub «Intrări», 5 acțiuni); <code>TMS_SYSS</code> tip XM completat (23 rînduri) după modelul FPROIECT</td><td class="ok">OK</td></tr>
+<tr><td>0</td><td>Pregătire: setări, formular nativ</td><td>setările <code>in_nrset 201 / in_dt 2171 / in_ct 5211 / in_dtdep 1 / in_dt_row 2171 / in_userid 1</code> (acum vizibile și editabile în pagina de administrare — defectul D8), <code>vat_payer 0</code>, <code>creation_motiv 1</code>; formularul 12103 creat în <code>A$ADM</code> (OBJ_ID 11530 sub «Intrări», 5 acțiuni); <code>TMS_SYSS</code> tip XM completat (23 rînduri) după modelul FPROIECT</td><td class="ok">OK</td></tr>
 <tr><td>2</td><td>«Preia din e-Factura» (contul real, rol cumpărător)</td><td><code>GetInvoicesForSigning</code> ActorRole 2 (Order 1 și 2) + <code>GetAcceptedInvoices</code>: <b>found 1, added 0, updated 1, errors []</b> — factura <b>EBL 000435006</b> din 24.08.2026, furnizor S.R.L. «TOTAL COMPUTER» (1008602007200), total 101,00 lei, TVA 16,84, <code>InvoiceStatus 7</code> (așteaptă decizia cumpărătorului), 2 poziții. Repetarea preluării nu a dublat rîndul (<code>updated</code>, nu <code>added</code>)</td><td class="ok">OK</td></tr>
 <tr><td>2</td><td>Lista (<code>GET …/test/inbox?env=prod</code>)</td><td><code>200</code>; rîndul cu seria/nr, furnizor, IDNO, data, total, TVA, SFS 7, statut, «În una.md», poziții 0/2 — vezi captura 1</td><td class="ok">OK</td></tr>
 <tr><td>3</td><td>Detaliul (<code>GET …/test/inbox/21</code>)</td><td><code>200</code>; cumpărătorul «S.R.L. "GRECU OFFICE GROUP"», 2 poziții: «Power Cord PC-220V 1.8m Russian Plug…» 1 buc 38,33 + TVA 7,67 = 46,00; «Power Cord PC-220V 1.8m Euro Plug PC-186» 1 buc 45,83 + 9,17 = 55,00; ambele <i>nepotrivite</i> (fără cod de bare, fără regulă) — vezi capturile 2–3</td><td class="ok">OK</td></tr>
@@ -65,8 +65,17 @@ Ramura <code>feat/efactura</code>, worktree <code>Artgranit-efactura</code>.</p>
 <div class="box"><b>2. Detaliul EBL 000435006 — furnizorul în una.md, pachetul 442, documentul 1209 nr. 443</b><br><img src="img/act_02_detaliu_ebl000435006.png" alt="detaliu"></div>
 <div class="box"><b>3. Pozițiile și potrivirea</b><br><img src="img/act_03_pozitii_si_potrivire.png" alt="pozitii"></div>
 <div class="box"><b>4. Pachetul 442 (<code>GET …/test/inbox/package/442</code>)</b><br><img src="img/act_04_pachet_442_json.png" alt="pachet"></div>
-<div class="box"><b>5. Administrare — contul real și setările contabile</b><br><img src="img/act_05_admin_setari.png" alt="admin"></div>
-<div class="box"><b>6. Jurnalul comunicărilor cu SFS (cerere + răspuns, inclusiv cele reușite)</b><br><img src="img/act_06_jurnal_sfs.png" alt="jurnal"></div>
+<div class="box"><b>5. Administrare — contul real, regimul TVA și conturile documentului de intrare</b>
+<br><span class="muted">Pagina <code>/UNA.md/orasldev/efactura/</code>: endpoint REAL, utilizatorii <code>officeplus_api</code> /
+<code>officeplus2_api</code> (parolele nu se afișează — cîmpurile arată «neschimbată»), firma NEplătitoare de TVA,
+motivul 1, cota 0, plus blocul nou «Facturi PRIMITE — conturile documentului de intrare» (defectul D8).</span>
+<br><img src="img/act_05_admin_setari.png" alt="administrarea e-Factura"></div>
+<div class="box"><b>6. Jurnalul comunicărilor cu SFS (cerere + răspuns, inclusiv cele reușite)</b>
+<br><span class="muted">Primele rînduri din <code>/UNA.md/orasldev/efactura/#calls</code>: apelurile probei de azi
+(sursa <code>act-test</code>, contul <code>officeplus_api</code>, <code>GetInvoicesForSigning</code> /
+<code>GetAcceptedInvoices</code>, HTTP 200, <code>Status=2</code> cu RequestId). Click pe rînd → plicul SOAP întreg,
+cu parola mascată.</span>
+<br><img src="img/act_06_jurnal_sfs.png" alt="jurnalul comunicarilor cu SFS"></div>
 
 <h2>4. Defecte găsite în timpul testării și rezolvate în aceeași zi</h2>
 <table>
@@ -78,6 +87,8 @@ Ramura <code>feat/efactura</code>, worktree <code>Artgranit-efactura</code>.</p>
 <tr><td>D5</td><td>pozițiile pachetului se dublau la re-import</td><td>vendorul doar adaugă</td><td>ștergerea pozițiilor fără <code>NRDOC_DEST</code> înainte de import</td></tr>
 <tr><td>D6</td><td><code>RROWID</code> începea de la 7</td><td>numărătoare pe tot pachetul</td><td><code>ROW_NUMBER()</code> per document</td></tr>
 <tr><td>D7</td><td><code>ERR_MSG</code> vechi rămînea după succes</td><td>—</td><td>șters cînd <code>DEST_NRDOC</code> e completat</td></tr>
+<tr><td>D8</td><td>Setările contabile ale importului (<code>in_nrset</code>, <code>in_dt</code>, <code>in_ct</code>, <code>in_dtdep</code>, <code>in_dt_row</code>, <code>in_userid</code>) existau doar în bază — contabilul nu le putea vedea și confirma</td><td>blocul lipsea din pagina de administrare</td><td>adăugat blocul «Facturi PRIMITE — conturile documentului de intrare» în <code>efactura_admin.html</code> (citire + salvare verificate) — captura 5</td></tr>
+<tr><td>D9</td><td>Linkuri moarte în act și instrucțiune (<code>/efactura/admin</code>, <code>/efactura/admin/calls</code>) și captura 5 arăta pagina «Not Found»</td><td>pagina de administrare e chiar rădăcina modulului (<code>/efactura/</code>), jurnalul e o secțiune a ei</td><td>linkurile corectate (<code>/efactura/</code>, ancora <code>#calls</code>), capturile 5 și 6 refăcute; <code>.md</code> din <code>/efactura/docs/…</code> se afișează acum ca HTML, nu se descarcă</td></tr>
 </table>
 
 <h2>5. Observații (nerezolvate, pentru decizie)</h2>

@@ -113,6 +113,18 @@
     <div><label>Cota TVA implicită, % (cînd documentul nu are TVA; neplătitor = 0)</label>
       <input id="s-tva_rate" style="width:80px"></div>
   </div>
+  <h2 style="margin-top:14px">Facturi PRIMITE — conturile documentului de intrare</h2>
+  <p class="muted">Cînd o factură primită de la partener se importă în una.md, modulul creează
+    documentul <b>1209 «Оприходование товара»</b>. Valorile de mai jos sînt copiate din documentul
+    1209 existent al firmei — contabilul le confirmă o singură dată.</p>
+  <div class="row">
+    <div><label>Setul de documente (NRSET)</label><input id="s-in_nrset" style="width:110px"></div>
+    <div><label>Debit antet (DT)</label><input id="s-in_dt" style="width:110px"></div>
+    <div><label>Credit antet (CT)</label><input id="s-in_ct" style="width:110px"></div>
+    <div><label>Depozit / subdiviziune (DTDEP)</label><input id="s-in_dtdep" style="width:130px"></div>
+    <div><label>Debit poziții (DT rînd)</label><input id="s-in_dt_row" style="width:110px"></div>
+    <div><label>USERID pentru documentele create automat</label><input id="s-in_userid" style="width:150px"></div>
+  </div>
   <div class="row">
     <div><label>Trimitere automată la emiterea contului</label>
       <select id="s-auto_send"><option value="0">Nu</option><option value="1">Da</option></select></div>
@@ -182,7 +194,8 @@ const KEYS = ['endpoint','namespace','username','username2','signer1_name',
               'signer2_name','mode','seller_idno','seller_name',
               'seller_address','seller_iban','seller_bank_code','seria',
               'creation_motiv','tva_rate','vat_payer',
-              'auto_send','only_companies'];
+              'auto_send','only_companies',
+              'in_nrset','in_dt','in_ct','in_dtdep','in_dt_row','in_userid'];
 
 function syncVat() {
   // RO: neplatitor -> motivul din grupa 1/2/3 si cota 0; platitor -> 4/5 si 20
