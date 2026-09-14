@@ -57,6 +57,20 @@ def parse_package(xml: str) -> List[Dict[str, Any]]:
     return out
 
 
+class DbError(RuntimeError):
+    """RO: interogare cazuta. `execute_query` intoarce lista goala si la eroare
+    (DPY-4011 / ORA-12537 la o cadere de retea, vazut pe 14.09.2026), iar o analiza
+    «zero potriviri» ar impinge operatorul sa creeze duplicate peste tot nomenclatorul.
+    De aceea orice esec se ridica si oprește analiza."""
+
+
+def _q(db, rows, sql: str, binds: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    r = db.execute_query(sql, binds or {})
+    if not r.get("success"):
+        raise DbError(str(r.get("message") or "interogare esuata")[:400])
+    return rows(r)
+
+
 class EfaSimple:
     """RO: analiza si importul unui fisier XML de facturi, cu refolosirea nomenclatorului."""
 
@@ -85,13 +99,13 @@ class EfaSimple:
                 # RO: GRUPA — un card nelegat de o grupa de marfuri (TMS_SYSGRP/TMS_SYSGRPH)
                 #     e refuzat de triggerul YBON_PRIH la documentul de intrare, deci il
                 #     aratam separat: cardul exista, dar nu poate intra inca in document
-                for r in rows(db.execute_query(
+                for r in _q(db, rows,
                         "SELECT u.COD, u.DENUMIREA, u.UM, %s KEY_, "
                         "(SELECT COUNT(*) FROM TMS_SYSGRP d, TMS_SYSGRPH m WHERE d.SC=u.COD "
                         " AND m.GROUP1=d.GROUP1 AND m.GROUP2=d.GROUP2 AND m.GROUP3=d.GROUP3 "
                         " AND m.GROUP4=d.GROUP4 AND m.GROUP5=d.GROUP5 AND m.SCH IS NOT NULL) GRP "
                         "FROM TMS_UNIVERS u WHERE u.TIP='P' AND u.ISARHIV IS NULL AND %s IN (%s)"
-                        % (col, col, inlist), binds)):
+                        % (col, col, inlist), binds):
                     key = str(r.get("key_") or "")
                     name = by_fold.get(key) if step == "fold" else None
                     if name is None:
@@ -108,9 +122,9 @@ class EfaSimple:
         if not idno:
             return None
         db, rows = EfaInbox._db()
-        r = rows(db.execute_query(
+        r = _q(db, rows,
             "SELECT u.COD, u.DENUMIREA, u.CODVECHI, o.CODFISCAL FROM TMS_UNIVERS u LEFT JOIN TMS_ORG o ON o.COD=u.COD "
-            "WHERE u.TIP='O' AND (TRIM(u.CODVECHI)=:i OR o.CODFISCAL=:i) AND ROWNUM<=1", {"i": str(idno).strip()}))
+            "WHERE u.TIP='O' AND (TRIM(u.CODVECHI)=:i OR o.CODFISCAL=:i) AND ROWNUM<=1", {"i": str(idno).strip()})
         if not r:
             return None
         return {"cod": int(r[0]["cod"]), "denumirea": r[0].get("denumirea"),
@@ -129,7 +143,10 @@ class EfaSimple:
         names: List[str] = []
         for d in docs:
             names.extend((r.get("name") or "") for r in d.get("rows") or [])
-        cards = EfaSimple.goods_by_names(names)
+        try:
+            cards = EfaSimple.goods_by_names(names)
+        except DbError as e:
+            return {"success": False, "error": "baza de date nu a raspuns: %s" % e}
         orgs: Dict[str, Optional[Dict[str, Any]]] = {}
         out, seen = [], {}
         n_rows = n_reuse = n_new = n_nogrp = 0
@@ -137,7 +154,10 @@ class EfaSimple:
             sup, buy = d.get("supplier") or {}, d.get("buyer") or {}
             for idno in (sup.get("idno"), buy.get("idno")):
                 if idno and idno not in orgs:
-                    orgs[idno] = EfaSimple.org_by_idno(idno)
+                    try:
+                        orgs[idno] = EfaSimple.org_by_idno(idno)
+                    except DbError as e:
+                        return {"success": False, "error": "baza de date nu a raspuns: %s" % e}
             direction = ("out" if mine and sup.get("idno") == mine else
                          "in" if mine and buy.get("idno") == mine else "?")
             rws = []

@@ -1104,3 +1104,20 @@ def test_simple_wiring_sql_routes_and_page():
     assert "simple-card" in tpl and "simple/analyze" in tpl and "simple/import" in tpl
     mod = open(os.path.join(ROOT, "modules/efactura/simple.py"), encoding="utf-8").read()
     assert "TMS_ORG" in mod and "CODVECHI" in mod and "TMS_SYSGRP" in mod
+
+
+def test_simple_db_failure_is_not_zero_matches(monkeypatch):
+    """RO: o cadere de retea (DPY-4011 / ORA-12537) NU trebuie sa arate «zero potriviri» —
+    altfel operatorul ar crea duplicate peste tot nomenclatorul (14.09.2026)."""
+    from modules.efactura import simple
+
+    class DeadDb:
+        def execute_query(self, sql, binds=None):
+            return {"success": False, "data": [], "message": "ORA-12537: TNS:connection closed"}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (DeadDb(), lambda r: [])))
+    an = simple.EfaSimple.analyze(_PKG_2, seller_idno="1026602001837")
+    assert an["success"] is False and "ORA-12537" in an["error"]
+    # importul se opreste in acelasi punct, deci nu creeaza nimic
+    r = simple.EfaSimple.import_file(_PKG_2, create_goods=True, create_orgs=True, seller_idno="1026602001837")
+    assert r["success"] is False and "created" not in r

@@ -80,8 +80,7 @@ refuză: «Seria si numarul facturii sunt deja introduse in doc-tt 443» (trigge
 importul raportează eroarea pe factura respectivă și continuă cu celelalte</td><td class="ok">OK</td></tr>
 <tr><td>8</td><td>Securitate</td><td><code>/test/simple/analyze</code> și <code>/test/simple/import</code> fără
 sesiune → <code>401</code>; fișier străin → mesaj clar «fișierul nu conține documente e-Factura»</td><td class="ok">OK</td></tr>
-<tr><td>9</td><td>Teste, instalator, desfășurare</td><td><code>tests/test_efactura.py</code>: <b>72 passed</b>
-(4 teste noi); instalatorul 0 FAIL, <code>EFA_INBOX</code> VALID; nufarul și office: <code>login 200</code>,
+<tr><td>9</td><td>Teste, instalator, desfășurare</td><td><code>tests/test_efactura.py</code>: <b>73 passed</b> (5 teste noi); instalatorul 0 FAIL, <code>EFA_INBOX</code> VALID; nufarul și office: <code>login 200</code>,
 0 Traceback; <code>https://nufarul.eminescu.md/login</code> 200, <code>https://officeplus.md/cos</code> 200</td><td class="ok">OK</td></tr>
 <tr><td>10</td><td>Crearea nomenclatorului lipsă (bifele)</td><td><b>neexecutată pe date reale</b>: ar adăuga 152 de
 carduri și 10 contragenți în nomenclatorul de producție — decizia proprietarului. Mecanismul e scris și acoperit
@@ -91,7 +90,45 @@ de teste</td><td class="skip">SĂRIT (decizia proprietarului)</td></tr>
 <div class="box"><b>Cardul nou pe pagina de test, cu fișierul real încărcat</b>
 <br><img src="img/act_07_import_simplu_fisier.png" alt="import simplu dintr-un fisier XML"></div>
 
-<h2>3. Două defecte găsite în timpul probei (ambele reparate)</h2>
+<h2>2a. Proba pe facturile PRIMITE (al doilea fișier, tot 14.09.2026)</h2>
+<p class="muted">Proprietarul a trimis apoi exportul în care firma e <b>cumpărător</b>:
+<code>EFactura_639250048292811215.xml</code>, 1,5 MB — <b>47 facturi primite</b> de la <b>13 furnizori</b>,
+<b>352 poziții</b>. Acesta e cazul pentru care calea de import a fost făcută.</p>
+<table>
+<tr><th>#</th><th>Pas</th><th>Rezultat</th><th>Verdict</th></tr>
+<tr><td>11</td><td>Direcția</td><td>toate cele <b>47</b> recunoscute ca <b>primite</b> (cumpărătorul = IDNO-ul nostru
+1026602001837) — deci pentru ele se pot crea documente de intrare</td><td class="ok">OK</td></tr>
+<tr><td>12</td><td>Analiza (≈2 s)</td><td><b>115 poziții din 352 se refolosesc</b> (card existent, potrivire pe
+denumirea întreagă), 237 ar fi carduri noi, <b>14</b> carduri găsite nu au grupă de mărfuri;
+furnizori: <b>4 din 13</b> găsiți după IDNO în <code>CODVECHI</code> — printre ei «TOTAL COMPUTER» COD 540710,
+adăugat ieri prin puntea Contragenti, ceea ce confirmă întreg lanțul</td><td class="ok">OK</td></tr>
+<tr><td>13</td><td>Persistarea analizei</td><td>toate cele 47 de facturi în <code>EFA_IN</code> (mediu
+<code>file</code>) cu 352 de poziții în <code>EFA_IN_ROW</code> și potrivirile scrise în
+<code>MATCH_KIND='denumire'</code> / <code>MATCH_COD</code></td><td class="ok">OK</td></tr>
+<tr><td>14</td><td>Documentul 1209 dintr-o factură primită reală (probă cu <b>ROLLBACK</b>)</td>
+<td><b>EBI 000810800</b> de la «CRAFTI BUSINESS» S.R.L. (1004600069507), 02.06.2026, 13 346,16 lei, 52 poziții:
+document cu <code>NRMANUAL EBI000810800</code>, NRSET 201, LEI, USERID 1; antet DT 2171 / CT 5211, DTDEP 1,
+<b>CTDEP 161245 «CRAFTI BUSSINES SRL, 1004600069507»</b> (furnizorul găsit după IDNO); FF EBI 000810800;
+<b>52 rînduri</b>, 20 cu card (25 potrivite, 5 fără grupă → lăsate goale);
+<b>suma documentului = suma facturii = 13 346,16</b>; toate cele 52 de rînduri identice cu sursa.
+<code>ROLLBACK</code> — nimic nu a rămas în baza de producție</td><td class="ok">OK</td></tr>
+<tr><td>15</td><td>Crearea documentelor reale</td><td><b>neexecutată</b>: un document 1209 mișcă stocul firmei,
+iar ștergerea lui e blocată de sistem (trigger <code>YBMB_DOCS</code>). Rămîne la un clic al contabilului
+(bifa «creează documentele 1209»)</td><td class="skip">SĂRIT (decizia contabilului)</td></tr>
+</table>
+<div class="box"><b>Analiza celor 47 de facturi primite pe pagina de test</b>
+<br><img src="img/act_08_facturi_primite_47.png" alt="47 facturi primite analizate"></div>
+
+<div class="stop"><b>D13 — găsit în timpul acestei probe, reparat.</b> În mijlocul analizei baza de producție a
+repornit (<code>ORA-12537</code>, apoi <code>ORA-01033: ORACLE initialization or shutdown in progress</code>).
+<code>execute_query</code> înghite eroarea și întoarce o listă goală, așa că analiza a afișat liniștit
+«0 poziții se refolosesc, 13 contragenți lipsesc» — o imagine <b>falsă</b>: dacă operatorul apăsa atunci
+«creează», ar fi primit 13 contragenți și 352 de carduri <b>duplicate</b> în nomenclatorul de producție.
+<br><b>Reparat:</b> orice interogare eșuată din analiză ridică acum eroare (<code>DbError</code>), iar pagina
+arată «baza de date nu a răspuns: …» în loc de zerouri; importul se oprește în același punct și nu creează nimic.
+Acoperit de un test care simulează căderea rețelei.</div>
+
+<h2>3. Defectele găsite în timpul probelor (toate reparate)</h2>
 <div class="stop"><b>D10 — cel important.</b> Un <code>INSERT ... SELECT</code> cu mai multe rînduri în
 <code>VMDB_ST201D</code> (view cu trigger <code>INSTEAD OF</code> peste tipuri obiect) scria în <b>toate</b>
 rîndurile valorile <b>ultimului</b> rînd: la proba pe 62 de poziții toate au primit același card
@@ -115,9 +152,14 @@ punct de revenire</td><td><code>SAVEPOINT efa_doc_from_in</code> + <code>ROLLBAC
 <h2>4. Observații pentru proprietar</h2>
 <table>
 <tr><th>#</th><th>Observație</th><th>Propunere</th></tr>
-<tr><td>O5</td><td>Fișierul dat conține numai facturi <b>emise de noi</b>, deci documente de intrare nu se creează
-din el (ar fi greșit contabil). Valoarea lui în probă: analiza nomenclatorului</td><td>pentru proba completă a
-documentelor e nevoie de un export cu facturi în care firma e <b>cumpărător</b></td></tr>
+<tr><td>O5</td><td><s>Primul fișier conținea numai facturi emise de noi</s> — <b>rezolvat</b>: al doilea fișier
+(47 facturi primite) a permis proba completă, vezi §2a</td><td>—</td></tr>
+<tr><td>O9</td><td>Din cele 13 firme furnizoare doar 4 sînt în nomenclator; 237 din 352 de poziții nu au card</td>
+<td>înainte de importul în masă: bifele «creează contragenții lipsă» și «creează cardurile de marfă lipsă»,
+apoi legarea cardurilor noi de grupe de mărfuri</td></tr>
+<tr><td>O10</td><td>Cele 47 de facturi primite stau acum în <code>EFA_IN</code> (mediu <code>file</code>, id 41–107)
+doar ca analiză — documente contabile NU s-au creat</td><td>contabilul alege facturile și apasă «creează
+documentele 1209»; fiecare document mișcă stocul, iar ștergerea lui e blocată de sistem</td></tr>
 <tr><td>O6</td><td>152 de poziții din 345 nu au card, iar 29 au card fără grupă de mărfuri</td><td>înainte de un
 import în masă: bifa «creează cardurile de marfă lipsă», apoi legarea lor de grupe în back-office-ul nativ (altfel
 nu intră în documentele de intrare)</td></tr>
