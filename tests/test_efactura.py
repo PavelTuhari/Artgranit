@@ -1015,3 +1015,92 @@ def test_package_flow_sql_and_form_script():
     assert "/api/biro26/efactura/inbox/package/<int:nrdoc>" in m["root_paths"]
     tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
     assert "inbox/import" in tpl and "pachet 12103" in tpl
+
+
+# ── importul SIMPLU dintr-un fisier XML (cerinta din 14.09.2026) ─────────────
+_PKG_2 = (
+    '<?xml version="1.0" encoding="utf-8"?><Documents>'
+    '<Document><SupplierInfo><Seria>EBH</Seria><Number>000141537</Number>'
+    '<IssuedDate>2026-04-07T20:06:39.9077801+03:00</IssuedDate>'
+    '<Supplier IDNO="1026602001837" Title="S.R.L. &quot;GRECU OFFICE GROUP&quot;" Address="MUN.BALTI"/>'
+    '<Buyer IDNO="1004602003374" Title="&quot;IVANOV V.N.&quot; I.I." Address="MUN.BALTI"/>'
+    '<Total>325</Total><TotalTVA>0.00</TotalTVA><Merchandises>'
+    '<Row Code="1" Name="Pix Delta 0,7mm, albastru" UnitOfMeasure="buc" Quantity="5" '
+    'UnitPriceWithoutTVA="65.00" TotalPriceWithoutTVA="325.00" TVA="-" TotalTVA="0" TotalPrice="325"/>'
+    '</Merchandises><CreationMotiv>1</CreationMotiv></SupplierInfo>'
+    '<Signatures><SignatureContent>xxx</SignatureContent></Signatures></Document>'
+    '<Document><SupplierInfo><Seria>EBL</Seria><Number>000435006</Number>'
+    '<IssuedDate>2026-08-24T07:09:43.6678563+03:00</IssuedDate>'
+    '<Supplier IDNO="1008602007200" Title="S.R.L. &quot;TOTAL COMPUTER&quot;" Address="MUN.BALTI"/>'
+    '<Buyer IDNO="1026602001837" Title="S.R.L. &quot;GRECU OFFICE GROUP&quot;" Address="MUN.BALTI"/>'
+    '<Total>101</Total><TotalTVA>16.84</TotalTVA><Merchandises>'
+    '<Row Code="1" Name="Power Cord PC-220V" UnitOfMeasure="buc." Quantity="1" '
+    'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>'
+    '</Merchandises><CreationMotiv>4</CreationMotiv></SupplierInfo></Document>'
+    '</Documents>')
+
+
+def test_simple_split_and_parse_package():
+    from modules.efactura.simple import parse_package, split_documents
+    assert len(split_documents(_PKG_2)) == 2
+    # o singura factura, fara invelisul <Documents>, merge la fel
+    one = split_documents(_PKG_2)[0]
+    assert len(split_documents(one)) == 1
+    assert split_documents("<altceva/>") == []
+    docs = parse_package(_PKG_2)
+    assert [d["seria"] for d in docs] == ["EBH", "EBL"]
+    assert [d["nr_in_file"] for d in docs] == [1, 2]
+    assert docs[0]["number"] == "000141537" and docs[0]["total"] == 325.0
+    assert docs[0]["supplier"]["idno"] == "1026602001837"
+    assert docs[1]["buyer"]["idno"] == "1026602001837" and docs[1]["rows"][0]["total"] == 46.0
+    # semnatura nu ajunge in XML-ul pastrat pentru document
+    assert "Signatures" not in docs[0]["xml"]
+
+
+def test_simple_direction_and_reuse(monkeypatch):
+    """RO: directia se ia din IDNO-ul nostru, iar cardurile gasite se REFOLOSESC."""
+    from modules.efactura import simple
+    monkeypatch.setattr(simple.EfaSimple, "goods_by_names", staticmethod(lambda names: {
+        "Pix Delta 0,7mm, albastru": {"cod": 174355, "denumirea": "Pix Delta 0,7mm, albastru",
+                                      "um": "buc.", "how": "denumire", "has_group": True},
+        "Power Cord PC-220V": {"cod": 999001, "denumirea": "Power Cord PC-220V",
+                               "um": "buc.", "how": "denumire", "has_group": False}}))
+    monkeypatch.setattr(simple.EfaSimple, "org_by_idno", staticmethod(
+        lambda idno: {"cod": 479135, "denumirea": "GRECU OFFICE GROUP SRL", "how": "codvechi"}
+        if idno == "1026602001837" else None))
+    an = simple.EfaSimple.analyze(_PKG_2, seller_idno="1026602001837")
+    assert an["success"]
+    d_out, d_in = an["docs"]
+    assert d_out["direction"] == "out" and d_in["direction"] == "in"
+    assert d_out["rows"][0]["card_cod"] == 174355 and d_out["rows"][0]["how"] == "denumire"
+    assert d_out["rows"][0]["card_no_group"] is False
+    # cardul exista, dar nu e legat de o grupa -> nu poate intra in documentul de intrare
+    assert d_in["rows"][0]["card_cod"] == 999001 and d_in["rows"][0]["card_no_group"] is True
+    assert d_in["supplier"]["match"] is None and d_in["buyer"]["match"]["cod"] == 479135
+    s = an["summary"]
+    assert s["documents"] == 2 and s["incoming"] == 1 and s["outgoing"] == 1
+    assert s["rows"] == 2 and s["rows_reused"] == 2 and s["rows_new"] == 0 and s["rows_no_group"] == 1
+    assert s["orgs"] == 3 and s["orgs_found"] == 1 and s["orgs_new"] == 2
+
+
+def test_simple_db_text_for_cl8mswin1251():
+    from modules.efactura.simple import db_text
+    assert db_text('S.R.L. "ECONOM ȘOP"') == "S.R.L. ECONOM SOP"
+    assert db_text("Acuarelă 12 culori Luch") == "Acuarela 12 culori Luch"
+    assert db_text("  doua   spatii  ") == "doua spatii"
+    assert db_text(None) == ""
+
+
+def test_simple_wiring_sql_routes_and_page():
+    src = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert "PROCEDURE create_doc_from_in" in src and "FUNCTION  card_ok" in src
+    # rind cu rind: un INSERT ... SELECT in VMDB_ST201D strica DTSC si SUMA
+    assert "FOR x IN (SELECT ROWN, MATCH_COD" in src and "SAVEPOINT efa_doc_from_in" in src
+    assert "card_ok(x.MATCH_COD) = 1" in src and "card_ok(x.SC) = 1" in src
+    assert src.count("INSERT INTO VMDB_ST201D") == 2
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert '"/test/simple/analyze"' in routes and '"/test/simple/import"' in routes
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
+    assert "simple-card" in tpl and "simple/analyze" in tpl and "simple/import" in tpl
+    mod = open(os.path.join(ROOT, "modules/efactura/simple.py"), encoding="utf-8").read()
+    assert "TMS_ORG" in mod and "CODVECHI" in mod and "TMS_SYSGRP" in mod

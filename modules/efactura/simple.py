@@ -82,16 +82,24 @@ class EfaSimple:
                 inlist = ", ".join(":k%d" % j for j in range(len(part)))
                 col = ("UPPER(TRIM(u.DENUMIREA))" if step == "exact" else
                        "UPPER(TRIM(TRANSLATE(u.DENUMIREA, 'ăâîșşțţĂÂÎȘŞȚŢ', 'aaisstt AAISSTT')))")
+                # RO: GRUPA — un card nelegat de o grupa de marfuri (TMS_SYSGRP/TMS_SYSGRPH)
+                #     e refuzat de triggerul YBON_PRIH la documentul de intrare, deci il
+                #     aratam separat: cardul exista, dar nu poate intra inca in document
                 for r in rows(db.execute_query(
-                        "SELECT u.COD, u.DENUMIREA, u.UM, %s KEY_ FROM TMS_UNIVERS u "
-                        "WHERE u.TIP='P' AND u.ISARHIV IS NULL AND %s IN (%s)" % (col, col, inlist), binds)):
+                        "SELECT u.COD, u.DENUMIREA, u.UM, %s KEY_, "
+                        "(SELECT COUNT(*) FROM TMS_SYSGRP d, TMS_SYSGRPH m WHERE d.SC=u.COD "
+                        " AND m.GROUP1=d.GROUP1 AND m.GROUP2=d.GROUP2 AND m.GROUP3=d.GROUP3 "
+                        " AND m.GROUP4=d.GROUP4 AND m.GROUP5=d.GROUP5 AND m.SCH IS NOT NULL) GRP "
+                        "FROM TMS_UNIVERS u WHERE u.TIP='P' AND u.ISARHIV IS NULL AND %s IN (%s)"
+                        % (col, col, inlist), binds)):
                     key = str(r.get("key_") or "")
                     name = by_fold.get(key) if step == "fold" else None
                     if name is None:
                         name = next((n for n in left if n.upper() == key), None)
                     if name and name not in found:
                         found[name] = {"cod": int(r["cod"]), "denumirea": r.get("denumirea"),
-                                       "um": r.get("um"), "how": "denumire" if step == "exact" else "denumire-translit"}
+                                       "um": r.get("um"), "has_group": bool(r.get("grp")),
+                                       "how": "denumire" if step == "exact" else "denumire-translit"}
         return found
 
     @staticmethod
@@ -124,7 +132,7 @@ class EfaSimple:
         cards = EfaSimple.goods_by_names(names)
         orgs: Dict[str, Optional[Dict[str, Any]]] = {}
         out, seen = [], {}
-        n_rows = n_reuse = n_new = 0
+        n_rows = n_reuse = n_new = n_nogrp = 0
         for d in docs:
             sup, buy = d.get("supplier") or {}, d.get("buyer") or {}
             for idno in (sup.get("idno"), buy.get("idno")):
@@ -139,10 +147,13 @@ class EfaSimple:
                 n_rows += 1
                 if card:
                     n_reuse += 1
+                    if not card.get("has_group"):
+                        n_nogrp += 1
                 else:
                     n_new += 1
                 rws.append(dict(r, name=name, card_cod=(card or {}).get("cod"),
                                 card_name=(card or {}).get("denumirea"), card_um=(card or {}).get("um"),
+                                card_no_group=bool(card) and not card.get("has_group"),
                                 how=(card or {}).get("how", "nou")))
             key = (d.get("seria") or "", d.get("number") or "")
             out.append({"nr_in_file": d.get("nr_in_file"), "seria": key[0], "number": key[1],
@@ -155,7 +166,7 @@ class EfaSimple:
         return {"success": True, "seller_idno": mine, "docs": out, "summary": {
             "documents": len(out), "incoming": sum(1 for d in out if d["direction"] == "in"),
             "outgoing": sum(1 for d in out if d["direction"] == "out"),
-            "rows": n_rows, "rows_reused": n_reuse, "rows_new": n_new,
+            "rows": n_rows, "rows_reused": n_reuse, "rows_new": n_new, "rows_no_group": n_nogrp,
             "orgs": len(orgs), "orgs_found": sum(1 for v in orgs.values() if v),
             "orgs_new": sum(1 for v in orgs.values() if not v)}}
 
@@ -165,7 +176,7 @@ class EfaSimple:
         """RO: contragent nou dupa conventia una.md: TMS_UNIVERS TIP 'O' GR1 'E',
         CODVECHI = IDNO, plus rindul TMS_ORG cu CODFISCAL (la fel ca puntea Contragenti)."""
         db, rows = EfaInbox._db()
-        den = EfaInbox_db_text(name)
+        den = db_text(name)
         if not den:
             return {"success": False, "error": "denumire goala"}
         nx = rows(db.execute_query("SELECT ID_TMS_UNIVERS.NEXTVAL N FROM dual"))
@@ -176,14 +187,14 @@ class EfaSimple:
         if not r.get("success"):
             return {"success": False, "error": str(r.get("message"))[:400]}
         db.execute_dml("INSERT INTO TMS_ORG (COD, CODFISCAL, ADRESS) VALUES (:c, :i, :a)",
-                       {"c": cod, "i": str(idno).strip(), "a": EfaInbox_db_text(address)[:200] or None})
+                       {"c": cod, "i": str(idno).strip(), "a": db_text(address)[:200] or None})
         return {"success": True, "cod": cod, "denumirea": den}
 
     @staticmethod
     def create_goods(name: str, um: str = "buc.") -> Dict[str, Any]:
         """RO: card nou de marfa/serviciu: TMS_UNIVERS TIP 'P' GR1 'TVR' + rindul TMS_MPT_TVR."""
         db, rows = EfaInbox._db()
-        den = EfaInbox_db_text(name)
+        den = db_text(name)
         if not den:
             return {"success": False, "error": "denumire goala"}
         nx = rows(db.execute_query("SELECT ID_TMS_UNIVERS.NEXTVAL N FROM dual"))
@@ -201,18 +212,22 @@ class EfaSimple:
     def import_file(xml: str, *, only: Optional[List[str]] = None, create_goods: bool = False,
                     create_orgs: bool = False, create_docs: bool = False,
                     env: str = "file", seller_idno: Optional[str] = None) -> Dict[str, Any]:
-        """RO: analiza + scriere. Implicit NU creeaza nimic: doar aduce facturile in
-        EFA_IN/EFA_IN_ROW cu potrivirile gasite (analiza persistata). Cu
-        `create_goods`/`create_orgs` completeaza nomenclatorul lipsa, cu
+        """RO: analiza + scriere. Implicit NU creeaza nimic nou: aduce facturile in
+        EFA_IN/EFA_IN_ROW cu potrivirile gasite (analiza ramine in baza). Cu
+        `create_goods` / `create_orgs` completeaza nomenclatorul lipsa, cu
         `create_docs` face documentul 1209 pentru facturile in care sintem CUMPARATOR.
 
-        `only` — lista «SERIA NUMAR» de procesat (implicit toate)."""
+        `only` — lista de chei «SERIA NUMAR» de procesat (implicit toate)."""
         an = EfaSimple.analyze(xml, seller_idno)
         if not an.get("success"):
             return an
+        raw = {d.get("nr_in_file"): d.get("xml") or "" for d in parse_package(xml)}
         db, rows = EfaInbox._db()
         pick = set(only or [])
         made_goods, made_orgs, made_docs, errors = [], [], [], []
+        # RO: harta denumire -> card, ca EfaInbox.match sa nu mai caute per rind
+        cards = {r["name"]: {"cod": r["card_cod"], "denumirea": r.get("card_name")}
+                 for d in an["docs"] for r in d["rows"] if r.get("card_cod")}
         for d in an["docs"]:
             key = ("%s %s" % (d["seria"], d["number"])).strip()
             if pick and key not in pick:
@@ -220,46 +235,40 @@ class EfaSimple:
             if d.get("error"):
                 errors.append("%s: %s" % (key, d["error"]))
                 continue
-            # 1) contragentii
+            # 1) contragentii lipsa
             for side in ("supplier", "buyer"):
                 p = d[side]
-                if p.get("match") or not p.get("idno"):
+                if p.get("match") or not p.get("idno") or not create_orgs:
                     continue
-                if create_orgs:
-                    r = EfaSimple.create_org(p["idno"], p.get("title") or "", p.get("address") or "")
-                    if r.get("success"):
-                        p["match"] = {"cod": r["cod"], "denumirea": r["denumirea"], "how": "creat"}
-                        made_orgs.append({"idno": p["idno"], "cod": r["cod"], "denumirea": r["denumirea"]})
-                    else:
-                        errors.append("%s: contragent %s — %s" % (key, p["idno"], r.get("error")))
-            # 2) marfa
+                r = EfaSimple.create_org(p["idno"], p.get("title") or "", p.get("address") or "")
+                if r.get("success"):
+                    p["match"] = {"cod": r["cod"], "denumirea": r["denumirea"], "how": "creat"}
+                    made_orgs.append({"idno": p["idno"], "cod": r["cod"], "denumirea": r["denumirea"]})
+                else:
+                    errors.append("%s: contragent %s — %s" % (key, p["idno"], r.get("error")))
+            # 2) marfa lipsa
             for r0 in d["rows"]:
                 if r0.get("card_cod") or not create_goods:
                     continue
                 g = EfaSimple.create_goods(r0["name"], r0.get("um") or "buc.")
                 if g.get("success"):
                     r0["card_cod"], r0["card_name"], r0["how"] = g["cod"], g["denumirea"], "creat"
+                    cards[r0["name"]] = {"cod": g["cod"], "denumirea": g["denumirea"]}
                     made_goods.append({"cod": g["cod"], "denumirea": g["denumirea"]})
                 else:
                     errors.append("%s: marfa «%s» — %s" % (key, r0["name"][:40], g.get("error")))
-            # 3) factura in EFA_IN + pozitiile cu potrivirile (analiza ramine in baza)
-            up = EfaInbox.upsert(env, {"xml": d_xml(xml, d), "seria": d["seria"], "number": d["number"]}, "file")
+            # 3) factura + pozitiile cu potrivirile, in aceleasi tabele ca la SFS
+            up = EfaInbox.upsert(env, {"xml": raw.get(d["nr_in_file"], ""), "seria": d["seria"],
+                                       "number": d["number"]}, "file", cards)
             if not up.get("success"):
                 errors.append("%s: %s" % (key, up.get("error")))
                 continue
             iid = int(up["id"])
-            for r0 in d["rows"]:
-                if r0.get("card_cod"):
-                    db.execute_dml(
-                        "UPDATE EFA_IN_ROW SET MATCH_KIND=:k, MATCH_COD=:c, MATCH_NAME=:n WHERE IN_ID=:i AND ROWN=:r "
-                        "AND (MATCH_COD IS NULL OR MATCH_KIND IN ('none','denumire','denumire-translit','creat'))",
-                        {"k": r0["how"], "c": int(r0["card_cod"]), "n": (r0.get("card_name") or "")[:200] or None,
-                         "i": iid, "r": r0["rown"]})
+            d["in_id"] = iid
             sup_cod = (d["supplier"].get("match") or {}).get("cod")
             if sup_cod:
                 db.execute_dml("UPDATE EFA_IN SET SUPPLIER_COD=:c WHERE ID=:i", {"c": int(sup_cod), "i": iid})
-            d["in_id"] = iid
-            # 4) documentul de intrare — doar cind sintem cumparator
+            # 4) documentul de intrare — doar acolo unde firma noastra e CUMPARATOR
             if create_docs and d["direction"] == "in":
                 if not sup_cod:
                     errors.append("%s: furnizorul lipseste din nomenclator" % key)
@@ -267,25 +276,18 @@ class EfaSimple:
                 r = db.call_proc("BEGIN EFA_INBOX.create_doc_from_in(:i); END;", {"i": iid})
                 if r.get("success"):
                     got = rows(db.execute_query("SELECT DEST_NRDOC N FROM EFA_IN WHERE ID=:i", {"i": iid}))
-                    nr = int(got[0]["n"]) if got and got[0]["n"] else None
-                    d["dest_nrdoc"] = nr
-                    made_docs.append({"key": key, "nrdoc": nr})
+                    d["dest_nrdoc"] = int(got[0]["n"]) if got and got[0]["n"] else None
+                    made_docs.append({"key": key, "nrdoc": d["dest_nrdoc"]})
                 else:
                     errors.append("%s: document — %s" % (key, str(r.get("message"))[:300]))
         an["created"] = {"goods": made_goods, "orgs": made_orgs, "docs": made_docs}
         an["errors"] = errors
-        an["summary"]["goods_created"] = len(made_goods)
-        an["summary"]["orgs_created"] = len(made_orgs)
-        an["summary"]["docs_created"] = len(made_docs)
+        an["summary"].update({"goods_created": len(made_goods), "orgs_created": len(made_orgs),
+                              "docs_created": len(made_docs)})
         return an
 
 
-def d_xml(_pkg: str, d: Dict[str, Any]) -> str:
-    """RO: XML-ul unui singur document din pachet (parse_package il pastreaza)."""
-    return d.get("xml") or ""
-
-
-def EfaInbox_db_text(s: Optional[str]) -> str:
+def db_text(s: Optional[str]) -> str:
     """RO: text pentru CL8MSWIN1251: fara diacritice romanesti, fara ghilimele
     (triggerele YBIRO_UNIVERS_CHK_DIACRITICE si TRIG_BFIU_TMS_UNIVERS_CK_BANK)."""
     out = []

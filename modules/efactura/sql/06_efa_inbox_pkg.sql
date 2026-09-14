@@ -26,6 +26,13 @@ CREATE OR REPLACE PACKAGE EFA_INBOX AS
   PROCEDURE import_package(p_nrdoc IN NUMBER);
   -- RO: documentele 1209 din pozitiile valide (STATUS_DOC = 1) ale pachetului
   PROCEDURE create_docs_1209(p_nrdoc IN NUMBER);
+  -- RO: importul SIMPLU dintr-un fisier XML: documentul 1209 direct din EFA_IN si
+  --     EFA_IN_ROW, fara pachetul vendorului. Cardul de marfa e cel deja potrivit
+  --     in MATCH_COD (cod de bare, regula sau DENUMIREA intreaga din TMS_UNIVERS)
+  PROCEDURE create_doc_from_in(p_in_id IN NUMBER);
+  -- RO: 1 daca marfa poate intra intr-un document de intrare (e legata de o grupa
+  --     de marfuri), altfel 0. Triggerul YBON_PRIH refuza cardurile fara grupa
+  FUNCTION  card_ok(p_cod IN NUMBER) RETURN NUMBER;
   -- RO: analitica pozitiilor: reguli, cod de bare, denumire
   PROCEDURE compl_analitica(p_nrdoc IN NUMBER);
   -- RO: din Delphi: aduce din SFS facturile noi in acest pachet (prin API-ul web)
@@ -329,10 +336,17 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
       SELECT v_nrdoc, b.FACTURA_SERIA, b.FACTURA_NR, x.NOTES FROM TMDB_XML_FACTURA x
       WHERE x.NRDOC = v_nrdoc AND NVL(x.CODE, '0') = '0';
       -- pozitiile: cantitate, pret fara TVA, suma cu TVA, suma fara TVA, TVA
-      INSERT INTO VMDB_ST201D (NRDOC, RROWID, DT, DTSC, CANT, PRET, SUMA, SUMAGAAP, SUMAVALCT)
-      SELECT NRDOC, ROW_NUMBER() OVER (ORDER BY ROWN), v_dt_row, CASE WHEN CODE > '1' THEN TO_NUMBER(CODE) END,
-             ABS(QUANTITY), UNITPRICEWITHOUTTVA, TOTALPRICE, TOTALPRICEWITHOUTTVA, TOTALTVA
-      FROM TMDB_XML_FACTURA WHERE NRDOC = v_nrdoc AND NVL(CODE, '0') > '0' AND IDNO = TO_CHAR(b.NRDOC1);
+      -- RO: rind cu rind, din acelasi motiv ca la create_doc_from_in
+      FOR x IN (SELECT ROW_NUMBER() OVER (ORDER BY ROWN) RN,
+                       CASE WHEN CODE > '1' THEN TO_NUMBER(CODE) END SC,
+                       ABS(QUANTITY) Q, UNITPRICEWITHOUTTVA P, TOTALPRICE T,
+                       TOTALPRICEWITHOUTTVA T0, TOTALTVA TT
+                  FROM TMDB_XML_FACTURA
+                 WHERE NRDOC = v_nrdoc AND NVL(CODE, '0') > '0' AND IDNO = TO_CHAR(b.NRDOC1)
+                 ORDER BY ROWN) LOOP
+        INSERT INTO VMDB_ST201D (NRDOC, RROWID, DT, DTSC, CANT, PRET, SUMA, SUMAGAAP, SUMAVALCT)
+        VALUES (v_nrdoc, x.RN, v_dt_row, CASE WHEN card_ok(x.SC) = 1 THEN x.SC END, x.Q, x.P, x.T, x.T0, x.TT);
+      END LOOP;
       compl_analitica(v_nrdoc);
     END LOOP;
     sys_guard(FALSE);
@@ -341,6 +355,78 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
   END create_docs_1209;
 
   -- -- din Delphi: prin API-ul web (UTL_HTTP, HTTP simplu, ca EFA_NATIVE) --
+  FUNCTION card_ok(p_cod IN NUMBER) RETURN NUMBER IS
+    v NUMBER;
+  BEGIN
+    IF p_cod IS NULL THEN RETURN 0; END IF;
+    SELECT COUNT(*) INTO v FROM dual WHERE EXISTS (
+      SELECT 1 FROM TMS_SYSGRP d, TMS_SYSGRPH m
+       WHERE d.SC = p_cod AND m.GROUP1 = d.GROUP1 AND m.GROUP2 = d.GROUP2
+         AND m.GROUP3 = d.GROUP3 AND m.GROUP4 = d.GROUP4 AND m.GROUP5 = d.GROUP5
+         AND m.SCH IS NOT NULL);
+    RETURN CASE WHEN v > 0 THEN 1 ELSE 0 END;
+  EXCEPTION WHEN OTHERS THEN RETURN 0;
+  END card_ok;
+
+  PROCEDURE create_doc_from_in(p_in_id IN NUMBER) IS
+    v_seria   EFA_IN.SERIA%TYPE;
+    v_nr      EFA_IN.NUMBER_%TYPE;
+    v_data    DATE;
+    v_sup     NUMBER;
+    v_dest    NUMBER;
+    v_nrdoc   NUMBER;
+    v_nrset   NUMBER := TO_NUMBER(setting('in_nrset', '201'));
+    v_dt      NUMBER := TO_NUMBER(setting('in_dt', '2171'));
+    v_ct      NUMBER := TO_NUMBER(setting('in_ct', '5211'));
+    v_dtdep   NUMBER := TO_NUMBER(setting('in_dtdep', '1'));
+    v_dt_row  NUMBER := TO_NUMBER(setting('in_dt_row', '2171'));
+  BEGIN
+    SELECT SERIA, NUMBER_, NVL(ISSUED_DATE, TRUNC(SYSDATE)), SUPPLIER_COD, DEST_NRDOC
+      INTO v_seria, v_nr, v_data, v_sup, v_dest
+      FROM EFA_IN WHERE ID = p_in_id;
+    IF v_dest IS NOT NULL THEN
+      RAISE_APPLICATION_ERROR(-20000, 'e-Factura: factura are deja documentul ' || v_dest);
+    END IF;
+    IF v_sup IS NULL THEN
+      RAISE_APPLICATION_ERROR(-20000, 'e-Factura: furnizorul nu e potrivit in nomenclator');
+    END IF;
+    SELECT ID_TMDB_DOCS.NEXTVAL INTO v_nrdoc FROM dual;
+    -- RO: aceleasi constante ca la fluxul prin pachet, sub ocolirea de sistem.
+    --     SAVEPOINT: daca un trigger refuza la mijloc (de ex. seria si numarul
+    --     facturii deja introduse in alt document), nu ramine un antet orfan
+    SAVEPOINT efa_doc_from_in;
+    sys_guard(TRUE);
+    BEGIN
+      INSERT INTO TMDB_DOCS (COD, TIP, SYSFID, USERID, DATAMANUAL, VALUTA, NRSET, ISGFC, CODF, AT3, NRMANUAL)
+      VALUES (v_nrdoc, 'P', 1209, UID, v_data, 'LEI', v_nrset, 0, 0, 1,
+              SUBSTR(v_seria || v_nr, 1, 25));
+      INSERT INTO VMDB_ST201M (NRDOC, DT, CT, DTDEP, CTDEP, DTDATA, CTDATA)
+      VALUES (v_nrdoc, v_dt, v_ct, v_dtdep, v_sup, v_data, v_data);
+      INSERT INTO VMDB01M_VINZ (COD, PRTVA_SERIA, PRTVA_NR)
+      VALUES (v_nrdoc, v_seria, v_nr);
+      -- RO: RIND CU RIND. Un INSERT ... SELECT cu mai multe rinduri in VMDB_ST201D
+      --     (view cu trigger INSTEAD OF peste tipuri obiect) pune in TOATE rindurile
+      --     valorile ULTIMULUI rind - DTSC si SUMA gresite (probat pe 62 pozitii, 14.09.2026)
+      FOR x IN (SELECT ROWN, MATCH_COD, QTY, PRICE, TOTAL, TOTAL_NO_TVA, TOTAL_TVA
+                  FROM EFA_IN_ROW WHERE IN_ID = p_in_id ORDER BY ROWN) LOOP
+        INSERT INTO VMDB_ST201D (NRDOC, RROWID, DT, DTSC, CANT, PRET, SUMA, SUMAGAAP, SUMAVALCT)
+        -- RO: cardul intra doar daca e legat de o grupa de marfuri, altfel rindul
+        --     ramine fara card si contabilul il alege manual (ca in Delphi)
+        VALUES (v_nrdoc, x.ROWN, v_dt_row,
+                CASE WHEN card_ok(x.MATCH_COD) = 1 THEN x.MATCH_COD END, ABS(NVL(x.QTY, 0)), x.PRICE,
+                x.TOTAL, x.TOTAL_NO_TVA, x.TOTAL_TVA);
+      END LOOP;
+      sys_guard(FALSE);
+    EXCEPTION WHEN OTHERS THEN
+      sys_guard(FALSE);
+      ROLLBACK TO efa_doc_from_in;
+      RAISE;
+    END;
+    UPDATE EFA_IN SET DEST_NRDOC = v_nrdoc, NRDOC = NVL(NRDOC, v_nrdoc), STATUS = 'IMPORTED',
+                      ERR_MSG = NULL, UPDATED = SYSDATE
+     WHERE ID = p_in_id;
+  END create_doc_from_in;
+
   FUNCTION api_key RETURN VARCHAR2 IS
     v VARCHAR2(400);
   BEGIN

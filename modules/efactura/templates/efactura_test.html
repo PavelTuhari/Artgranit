@@ -192,6 +192,38 @@
     <div id="result" class="result" style="display:none"></div>
   </div>
 
+  <div class="card" id="simple-card">
+    <h2>📂 Import simplu dintr-un fișier XML (analiza pozițiilor)
+      <span id="sf-info" class="muted"></span></h2>
+    <p class="muted">A treia cale de import, pe lîngă pachetul 12103 și acțiunea din back-office-ul nativ:
+      se ia fișierul descărcat din cabinetul e-Factura (un <code>&lt;Documents&gt;</code> cu oricîte facturi) și
+      se <b>analizează</b> fiecare poziție. Ce există deja în <code>TMS_UNIVERS</code> cu <b>aceeași denumire
+      întreagă</b> se <b>refolosește</b> (nu se creează card nou); contragentul se caută după IDNO în
+      <code>TMS_UNIVERS.CODVECHI</code> și <code>TMS_ORG.CODFISCAL</code>. Nu trece prin validările vendorului
+      (dată, subdiviziune), deci merge și pentru facturi vechi.</p>
+    <div class="row">
+      <div class="fld" style="flex:2"><label>Fișierul e-Factura (.xml)</label>
+        <input type="file" id="sf-file" accept=".xml,text/xml" onchange="sfAnalyze()"></div>
+      <div class="fld"><label>&nbsp;</label>
+        <div><button class="btn gray" type="button" onclick="sfAnalyze()">🔍 Analizează</button></div></div>
+    </div>
+    <div id="sf-sum" class="muted" style="margin-top:6px"></div>
+    <div id="sf-act" hidden style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+        <span><input type="checkbox" id="sf-orgs" style="width:auto;display:inline-block;vertical-align:middle">
+          <span style="vertical-align:middle">creează contragenții lipsă</span></span>
+        <span><input type="checkbox" id="sf-goods" style="width:auto;display:inline-block;vertical-align:middle">
+          <span style="vertical-align:middle">creează cardurile de marfă lipsă</span></span>
+        <span><input type="checkbox" id="sf-docs" style="width:auto;display:inline-block;vertical-align:middle">
+          <span style="vertical-align:middle">creează documentele 1209 (doar unde sîntem cumpărător)</span></span>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn" type="button" onclick="sfImport()">📥 Importă în una.md</button>
+        <span id="sf-res" class="muted"></span></div>
+    </div>
+    <div id="sf-tab" style="margin-top:10px"></div>
+  </div>
+
   <div class="card" id="inbox-card">
     <h2>📥 Facturi primite de la parteneri (partea de cumpărător)
       <button class="btn gray" type="button" onclick="inboxSync()">⬇ Preia din e-Factura</button>
@@ -462,6 +494,66 @@ async function inboxLoad() {
   const env = (a.endpoint || '').includes('efactura-api.sfs.md') ? 'prod' : 'test';
   const r = await j('inbox?env=' + env);
   if (r.success) inboxRows(r.data); else document.getElementById('in-info').innerHTML = '<span class="err">' + esc(r.error) + '</span>';
+}
+// ── import simplu dintr-un fisier XML ────────────────────────────────────
+let SF_XML = '';
+async function sfRead() {
+  const f = document.getElementById('sf-file').files[0];
+  if (!f) { return ''; }
+  return await f.text();
+}
+async function sfAnalyze() {
+  const info = document.getElementById('sf-info');
+  SF_XML = await sfRead();
+  if (!SF_XML) { info.textContent = 'alegeți fișierul'; return; }
+  info.textContent = 'Se analizează…';
+  const r = await j('simple/analyze', {method: 'POST', body: JSON.stringify({xml: SF_XML})});
+  if (!r.success) { info.innerHTML = '<span class="err">' + esc(r.error) + '</span>'; return; }
+  info.textContent = '';
+  sfRender(r);
+  document.getElementById('sf-act').hidden = false;
+}
+function sfRender(r) {
+  const s = r.summary || {};
+  document.getElementById('sf-sum').innerHTML =
+    `<b>${s.documents}</b> facturi (primite: ${s.incoming}, emise de noi: ${s.outgoing}) · ` +
+    `<b>${s.rows}</b> poziții: <span style="color:#16a34a">${s.rows_reused} se refolosesc</span>, ` +
+    `${s.rows_new} ar fi carduri noi` +
+    (s.rows_no_group ? ` <span class="err">(${s.rows_no_group} carduri fără grupă de mărfuri — intră în document fără card)</span>` : '') +
+    ` · contragenți: ${s.orgs_found}/${s.orgs} găsiți, ${s.orgs_new} lipsesc` +
+    (s.docs_created != null ? ` · <b>create:</b> ${s.goods_created} carduri, ${s.orgs_created} contragenți, ${s.docs_created} documente` : '');
+  const rows = (r.docs || []).map(d => {
+    const nr = (d.rows || []).length, re = (d.rows || []).filter(x => x.card_cod).length;
+    const dir = d.direction === 'in' ? 'primită' : d.direction === 'out' ? 'emisă de noi' : '?';
+    const part = d.direction === 'in' ? d.supplier : d.buyer;
+    const m = part && part.match;
+    return `<tr><td>${esc(d.seria)} ${esc(d.number)}</td><td>${esc(d.issued_date || '')}</td>
+      <td>${dir}</td><td>${esc((part && part.title) || '')}</td><td>${esc((part && part.idno) || '')}</td>
+      <td>${m ? '✓ COD ' + m.cod + ' <span class="muted">(' + esc(m.how) + ')</span>' : '<span class="err">lipsește</span>'}</td>
+      <td>${d.total == null ? '' : d.total}</td>
+      <td>${re}/${nr}${d.dest_nrdoc ? ' → doc <b>' + d.dest_nrdoc + '</b>' : ''}</td></tr>`;
+  });
+  const miss = [];
+  (r.docs || []).forEach(d => (d.rows || []).forEach(x => { if (!x.card_cod && miss.length < 40 && !miss.includes(x.name)) miss.push(x.name); }));
+  document.getElementById('sf-tab').innerHTML =
+    `<table><thead><tr><th>Seria / nr.</th><th>Data</th><th>Direcție</th><th>Contragent</th><th>IDNO</th>
+      <th>În una.md</th><th>Total</th><th>Poziții refolosite</th></tr></thead><tbody>${rows.join('')}</tbody></table>` +
+    (miss.length ? `<details style="margin-top:8px"><summary class="muted">poziții fără card în una.md (primele ${miss.length})</summary>
+      <ul class="muted">${miss.map(x => '<li>' + esc(x) + '</li>').join('')}</ul></details>` : '') +
+    ((r.errors && r.errors.length) ? `<div class="err" style="margin-top:8px">${r.errors.map(esc).join('<br>')}</div>` : '');
+}
+async function sfImport() {
+  if (!SF_XML) { return; }
+  const res = document.getElementById('sf-res');
+  res.textContent = 'Se importă…';
+  const r = await j('simple/import', {method: 'POST', body: JSON.stringify({
+    xml: SF_XML,
+    create_orgs: document.getElementById('sf-orgs').checked,
+    create_goods: document.getElementById('sf-goods').checked,
+    create_docs: document.getElementById('sf-docs').checked})});
+  if (!r.success) { res.innerHTML = '<span class="err">' + esc(r.error) + '</span>'; return; }
+  res.innerHTML = '<span style="color:#16a34a">gata ✓</span>';
+  sfRender(r); inboxLoad(); loadLog();
 }
 async function inboxSync() {
   document.getElementById('in-info').textContent = 'Se preia din SFS…';

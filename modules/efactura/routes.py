@@ -439,6 +439,31 @@ def test_inbox_package(nrdoc):
     return _reply({"success": True, "nrdoc": nrdoc, "data": EfaPackage.rows(nrdoc)})
 
 
+@blueprint.route("/test/simple/analyze", methods=["POST"])
+def test_simple_analyze():
+    """RO: {xml} -> analiza fisierului e-Factura, FARA sa scrie ceva in baza."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.simple import EfaSimple
+    b = _body()
+    return _reply(EfaSimple.analyze(b.get("xml") or "", b.get("seller_idno")))
+
+
+@blueprint.route("/test/simple/import", methods=["POST"])
+def test_simple_import():
+    """RO: {xml, only, create_goods, create_orgs, create_docs} -> importul simplu."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.simple import EfaSimple
+    b = _body()
+    return _reply(EfaSimple.import_file(
+        b.get("xml") or "", only=b.get("only") or None,
+        create_goods=bool(b.get("create_goods")), create_orgs=bool(b.get("create_orgs")),
+        create_docs=bool(b.get("create_docs")), seller_idno=b.get("seller_idno")))
+
+
 @blueprint.route("/test/inbox/<int:in_id>/decision", methods=["POST"])
 def test_inbox_decision(in_id):
     """RO: {api, action: accept|reject, comment} -> PostAccepted/PostRejectedInvoices."""

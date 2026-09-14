@@ -210,7 +210,8 @@ class EfaInbox:
         return "".join(parts)
 
     @staticmethod
-    def upsert(env: str, entry: Dict[str, Any], queue: str) -> Dict[str, Any]:
+    def upsert(env: str, entry: Dict[str, Any], queue: str,
+               cards: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
         """RO: o factura primita -> EFA_IN (+ pozitiile in EFA_IN_ROW), dupa (ENV, SERIA, NUMBER)."""
         db, rows = EfaInbox._db()
         xml = strip_signature(entry.get("xml") or "")
@@ -266,12 +267,15 @@ class EfaInbox:
                     {"i": iid, "r": row["rown"], "c": row["code"][:64], "nm": row["name"][:400], "um": row["um"][:20],
                      "q": row["qty"], "p": row["price"], "t0": row["total_no_tva"], "tp": row["tva_pct"],
                      "tt": row["total_tva"], "t": row["total"], "b": row["barcode"][:40] or None})
-            EfaInbox.match(iid)
+            EfaInbox.match(iid, cards)
         return {"success": True, "result": result, "id": iid, "seria": seria, "number": number}
 
     @staticmethod
-    def match(in_id: int) -> Dict[str, Any]:
-        """RO: furnizorul dupa IDNO; pozitiile: cod de bare -> marfa, altfel regula."""
+    def match(in_id: int, cards: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+        """RO: furnizorul dupa IDNO; pozitiile: cod de bare -> regula -> DENUMIREA INTREAGA.
+
+        `cards` — potrivirile pe denumire deja calculate in bloc (importul simplu
+        dintr-un fisier cu sute de pozitii); lipsa lor => cautare per rind."""
         db, rows = EfaInbox._db()
         head = rows(db.execute_query("SELECT SUPPLIER_IDNO FROM EFA_IN WHERE ID=:id", {"id": int(in_id)}))
         if not head:
@@ -285,7 +289,7 @@ class EfaInbox:
         rules = rows(db.execute_query(
             "SELECT i.IDN, i.DT, i.DTSC, i.TEXT1, i.TEXT2, i.PRIORITET, u.DENUMIREA CARD FROM TMS_IMPORT_EFACTURA i "
             "LEFT JOIN TMS_UNIVERS u ON u.COD=i.DTSC ORDER BY i.PRIORITET, i.IDN"))
-        stats = {"barcode": 0, "rule": 0, "none": 0}
+        stats = {"barcode": 0, "rule": 0, "denumire": 0, "none": 0}
         for r in rows(db.execute_query("SELECT ID, NAME, BARCODE FROM EFA_IN_ROW WHERE IN_ID=:id ORDER BY ROWN", {"id": int(in_id)})):
             kind, cod, dt, rule_id, mname = "none", None, None, None, None
             if r.get("barcode"):
@@ -300,10 +304,38 @@ class EfaInbox:
                     kind, dt, rule_id = "rule", ru.get("dt"), ru.get("idn")
                     cod = int(ru["dtsc"]) if ru.get("dtsc") else None
                     mname = ru.get("card") or ru.get("text2")
-            stats[kind] += 1
+            if kind == "none" and (r.get("name") or "").strip():
+                # RO: cerinta proprietarului (14.09.2026): daca denumirea INTREAGA exista
+                #     deja in TMS_UNIVERS, cardul se refoloseste, nu se creeaza altul.
+                got = (cards or {}).get((r.get("name") or "").strip())
+                if got is None and cards is None:
+                    got = EfaInbox.goods_by_name(r.get("name") or "")
+                if got:
+                    kind, cod, mname = "denumire", int(got["cod"]), got.get("denumirea")
+            stats[kind] = stats.get(kind, 0) + 1
             db.execute_dml("UPDATE EFA_IN_ROW SET MATCH_KIND=:k, MATCH_COD=:c, MATCH_DT=:d, MATCH_RULE=:r, MATCH_NAME=:n WHERE ID=:id",
                            {"k": kind, "c": cod, "d": dt, "r": rule_id, "n": (mname or "")[:200] or None, "id": int(r["id"])})
         return {"success": True, "supplier_cod": int(sup[0]["cod"]) if sup else None, "rows": stats}
+
+    @staticmethod
+    def goods_by_name(name: str) -> Optional[Dict[str, Any]]:
+        """RO: cardul de marfa/serviciu cu ACEEASI denumire: intii exact, apoi fara
+        diacritice (baza e CL8MSWIN1251: cardul vechi poate fi «Acuarela», factura «Acuarelă»)."""
+        nm = (name or "").strip()
+        if not nm:
+            return None
+        db, rows = EfaInbox._db()
+        r = rows(db.execute_query(
+            "SELECT COD, DENUMIREA, UM FROM TMS_UNIVERS WHERE TIP='P' AND ISARHIV IS NULL "
+            "AND UPPER(TRIM(DENUMIREA))=:n AND ROWNUM<=1", {"n": nm.upper()}))
+        if not r:
+            r = rows(db.execute_query(
+                "SELECT COD, DENUMIREA, UM FROM TMS_UNIVERS WHERE TIP='P' AND ISARHIV IS NULL AND "
+                "UPPER(TRIM(TRANSLATE(DENUMIREA, 'ăâîșşțţĂÂÎȘŞȚŢ', 'aaisstt AAISSTT')))=:n AND ROWNUM<=1",
+                {"n": fold(nm)}))
+        if not r:
+            return None
+        return {"cod": int(r[0]["cod"]), "denumirea": r[0].get("denumirea"), "um": r[0].get("um")}
 
     @staticmethod
     def land(in_id: int) -> Dict[str, Any]:
