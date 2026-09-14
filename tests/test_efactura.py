@@ -1176,3 +1176,73 @@ def test_no_translate_with_diacritics_in_sql():
         for m in re.finditer(r"TRANSLATE\(", src):
             line = src[src.rfind("\n", 0, m.start()) + 1: src.find("\n", m.start())]
             assert "ă" not in line and "ș" not in line, "%s: %s" % (f, line.strip())
+
+
+def test_simple_matches_card_created_from_same_name(monkeypatch):
+    """RO: cardul se scrie prin db_text (spatii strinse, fara diacritice/ghilimele);
+    potrivirea trebuie sa foloseasca aceeasi normalizare, altfel factura nu-si
+    gaseste propriul card (14.09.2026: 31 de denumiri)."""
+    from modules.efactura import simple
+    cerut = ["Acuarela   6 cul. ZOO", 'Set "ABC"', "Pensula veveriţa № 1"]
+    vazute = {}
+
+    class Db:
+        def execute_query(self, sql, binds=None):
+            vazute.setdefault("pasi", []).append(sorted(binds.values()))
+            # baza contine denumirile deja normalizate, ca la creare
+            have = {"ACUARELA 6 CUL. ZOO": (1, "Acuarela 6 cul. ZOO"),
+                    "SET ABC": (2, "Set ABC"),
+                    "PENSULA VEVERITA № 1": (3, "Pensula veverita № 1")}
+            out = [{"cod": c, "denumirea": d, "um": "buc.", "key_": k, "grp": 1}
+                   for k, (c, d) in have.items() if k in (binds or {}).values()]
+            return {"success": True, "data": out}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(
+        lambda: (Db(), lambda r: r.get("data") or [])))
+    got = simple.EfaSimple.goods_by_names(cerut)
+    assert set(got) == set(cerut), got
+    # cele cu spatii duble / ghilimele se gasesc DOAR prin normalizarea de la scriere
+    assert got["Acuarela   6 cul. ZOO"] == {"cod": 1, "denumirea": "Acuarela 6 cul. ZOO",
+                                            "um": "buc.", "has_group": True, "how": "denumire-normalizata"}
+    assert got['Set "ABC"']["how"] == "denumire-normalizata" and got['Set "ABC"']["cod"] == 2
+
+
+def test_simple_writes_match_by_row_number(monkeypatch):
+    """RO: MATCH_COD se scrie dupa ROWN. Denumirea din EFA_IN_ROW e pastrata in baza cu
+    «?» in locul diacriticelor, deci o potrivire dupa nume ar rata cardul (14.09.2026)."""
+    from modules.efactura import simple
+    monkeypatch.setattr(simple.EfaSimple, "goods_by_names", staticmethod(lambda names: {
+        n: {"cod": 700 + i, "denumirea": n, "um": "buc.", "how": "denumire", "has_group": True}
+        for i, n in enumerate(dict.fromkeys(x.strip() for x in names if x))}))
+    monkeypatch.setattr(simple.EfaSimple, "org_by_idno", staticmethod(lambda idno: {"cod": 5, "how": "codvechi"}))
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 77, "result": "added"}))
+    scrise = []
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            if "EFA_IN_ROW" in sql:
+                scrise.append((binds["i"], binds["r"], binds["c"]))
+            return {"success": True}
+
+        def call_proc(self, sql, binds=None):
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (Db(), lambda r: r.get("data") or [])))
+    simple.EfaSimple.import_file(_PKG_2, seller_idno="1026602001837")
+    assert scrise and all(in_id == 77 and rown == 1 for in_id, rown, _ in scrise)
+    assert len(scrise) == 2  # cite un rind pe fiecare factura din pachet
+
+
+def test_match_kind_column_fits_all_kinds():
+    """RO: MATCH_KIND trebuie sa incapa cel mai lung fel de potrivire.
+    Cu 10 caractere, «denumire-normalizata» pica cu ORA-12899 — TACUT (14.09.2026)."""
+    ddl = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert "MODIFY (MATCH_KIND VARCHAR2(30))" in ddl
+    src = open(os.path.join(ROOT, "modules/efactura/simple.py"), encoding="utf-8").read()
+    for kind in re.findall(r'"(denumire[-\w]*|creat|barcode|rule|none)"', src):
+        assert len(kind) <= 30, kind
+    assert '(r0.get("how") or "denumire")[:30]' in src

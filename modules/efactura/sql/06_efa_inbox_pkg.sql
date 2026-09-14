@@ -14,6 +14,10 @@
 ALTER TABLE EFA_IN ADD (PKG_NRDOC NUMBER, PKG_NRDOC1 NUMBER, PKG_STATUS NUMBER, PKG_COMMENT VARCHAR2(2000), DEST_NRDOC NUMBER)
 /
 
+-- RO: felul potrivirii a crescut (denumire-normalizata) si nu mai incapea in 16 caractere
+--     ORA-12899 pica TACUT prin execute_dml, deci 12 potriviri se pierdeau (14.09.2026)
+ALTER TABLE EFA_IN_ROW MODIFY (MATCH_KIND VARCHAR2(30))
+/
 CREATE OR REPLACE PACKAGE EFA_INBOX AS
   PROCEDURE land(p_nrdoc IN NUMBER, p_xml IN CLOB, p_file_name IN VARCHAR2);
   FUNCTION  reserve_nrdoc RETURN NUMBER;

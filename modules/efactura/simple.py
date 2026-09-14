@@ -99,11 +99,18 @@ class EfaSimple:
         want = [n for n in dict.fromkeys((x or "").strip() for x in names) if n]
         found: Dict[str, Dict[str, Any]] = {}
         by_fold = {fold(n): n for n in want}
-        for step in ("exact", "fold"):
+        # RO: al treilea pas foloseste EXACT normalizarea cu care se si SCRIE cardul
+        #     (db_text: fara diacritice, fara ghilimele, spatiile strinse). Fara el, o
+        #     factura cu «Acuarela   6 cul.» (doua spatii) nu-si gaseste propriul card,
+        #     creat ca «Acuarela 6 cul.» — vazut pe 14.09.2026 la 31 de denumiri.
+        by_db = {db_text(n).upper(): n for n in want}
+        for step in ("exact", "fold", "db"):
             left = [n for n in want if n not in found]
             if not left:
                 break
-            keys = [n.upper() for n in left] if step == "exact" else [fold(n) for n in left]
+            keys = ([n.upper() for n in left] if step == "exact"
+                    else [fold(n) for n in left] if step == "fold"
+                    else [db_text(n).upper() for n in left])
             keys = list(dict.fromkeys(keys))
             for i in range(0, len(keys), _CHUNK):
                 part = keys[i:i + _CHUNK]
@@ -125,13 +132,15 @@ class EfaSimple:
                         "FROM TMS_UNIVERS u WHERE u.TIP='P' AND u.ISARHIV IS NULL AND %s IN (%s)"
                         % (col, col, inlist), binds):
                     key = str(r.get("key_") or "")
-                    name = by_fold.get(key) if step == "fold" else None
+                    name = (by_fold.get(key) if step == "fold"
+                            else by_db.get(key) if step == "db" else None)
                     if name is None:
                         name = next((n for n in left if n.upper() == key), None)
                     if name and name not in found:
                         found[name] = {"cod": int(r["cod"]), "denumirea": r.get("denumirea"),
                                        "um": r.get("um"), "has_group": bool(r.get("grp")),
-                                       "how": "denumire" if step == "exact" else "denumire-translit"}
+                                       "how": {"exact": "denumire", "fold": "denumire-translit",
+                                               "db": "denumire-normalizata"}[step]}
         return found
 
     @staticmethod
@@ -329,6 +338,17 @@ class EfaSimple:
                 continue
             iid = int(up["id"])
             d["in_id"] = iid
+            # RO: potrivirile se scriu DUPA numarul rindului, nu dupa denumire: in baza
+            #     (CL8MSWIN1251) denumirea rindului e pastrata cu «?» in locul diacriticelor
+            #     («Caiet de schi?e»), deci o cautare dupa nume nu si-ar gasi cardul.
+            for r0 in d["rows"]:
+                if not r0.get("card_cod"):
+                    continue
+                db.execute_dml(
+                    "UPDATE EFA_IN_ROW SET MATCH_KIND=:k, MATCH_COD=:c, MATCH_NAME=:n "
+                    "WHERE IN_ID=:i AND ROWN=:r AND (MATCH_COD IS NULL OR MATCH_KIND LIKE 'denumire%' OR MATCH_KIND='creat')",
+                    {"k": (r0.get("how") or "denumire")[:30], "c": int(r0["card_cod"]),
+                     "n": (r0.get("card_name") or "")[:200] or None, "i": iid, "r": r0["rown"]})
             sup_cod = (d["supplier"].get("match") or {}).get("cod")
             if sup_cod:
                 db.execute_dml("UPDATE EFA_IN SET SUPPLIER_COD=:c WHERE ID=:i", {"c": int(sup_cod), "i": iid})
