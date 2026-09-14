@@ -57,6 +57,21 @@ def parse_package(xml: str) -> List[Dict[str, Any]]:
     return out
 
 
+# RO: in nomenclatorul OfficePlus practic toata marfa are UM «buc.» (232 826 carduri),
+#     iar furnizorii scriu «шт», «buc», «un.» — aducem la forma casei, ca sa nu apara
+#     zeci de unitati sinonime pe cardurile nou create
+_UM = {"buc": "buc.", "buc.": "buc.", "bucata": "buc.", "bucati": "buc.", "un": "buc.", "un.": "buc.",
+       "шт": "buc.", "шт.": "buc.", "штук": "buc.", "pcs": "buc.",
+       "serv": "serv.", "serv.": "serv.", "servicii": "serv.", "услуга": "serv.",
+       "kg": "kg", "kg.": "kg", "кг": "kg", "km": "km", "l": "l", "litru": "l",
+       "pachet": "pachet", "cut.": "cut.", "cutie": "cut.", "set": "set"}
+
+
+def norm_um(um: Optional[str]) -> str:
+    u = re.sub(r"\s+", " ", (um or "").strip())
+    return _UM.get(u.lower(), db_text(u)[:10] or "buc.")
+
+
 class DbError(RuntimeError):
     """RO: interogare cazuta. `execute_query` intoarce lista goala si la eroare
     (DPY-4011 / ORA-12537 la o cadere de retea, vazut pe 14.09.2026), iar o analiza
@@ -222,7 +237,7 @@ class EfaSimple:
         r = db.execute_dml(
             "INSERT INTO TMS_UNIVERS (COD, DENUMIREA, NAMERUS, TIP, GR1, UM, CODTVA) "
             "VALUES (:c, :d, :d, 'P', 'TVR', :u, 'A')",
-            {"c": cod, "d": den[:200], "u": (um or "buc.")[:10]})
+            {"c": cod, "d": den[:200], "u": norm_um(um)})
         if not r.get("success"):
             return {"success": False, "error": str(r.get("message"))[:400]}
         db.execute_dml("INSERT INTO TMS_MPT_TVR (COD) VALUES (:c)", {"c": cod})
@@ -245,6 +260,12 @@ class EfaSimple:
         db, rows = EfaInbox._db()
         pick = set(only or [])
         made_goods, made_orgs, made_docs, errors = [], [], [], []
+        fresh_orgs: Dict[str, Dict[str, Any]] = {}
+        # RO: cardurile deja potrivite in analiza, indexate normalizat — baza pentru
+        #     refolosire in cadrul aceluiasi import (vezi comentariul de la crearea marfii)
+        fresh_goods: Dict[str, Dict[str, Any]] = {
+            fold(r["name"]): {"cod": r["card_cod"], "denumirea": r.get("card_name"), "how": r.get("how")}
+            for d0 in an["docs"] for r in d0["rows"] if r.get("card_cod")}
         # RO: harta denumire -> card, ca EfaInbox.match sa nu mai caute per rind
         cards = {r["name"]: {"cod": r["card_cod"], "denumirea": r.get("card_name")}
                  for d in an["docs"] for r in d["rows"] if r.get("card_cod")}
@@ -258,22 +279,42 @@ class EfaSimple:
             # 1) contragentii lipsa
             for side in ("supplier", "buyer"):
                 p = d[side]
-                if p.get("match") or not p.get("idno") or not create_orgs:
+                if p.get("match") or not p.get("idno"):
+                    continue
+                # RO: acelasi furnizor apare pe mai multe facturi din pachet — cel creat
+                #     la prima factura se REFOLOSESTE la urmatoarele (altfel baza il
+                #     refuza corect ca dublu, dar rindurile ramin fara SUPPLIER_COD)
+                if p["idno"] in fresh_orgs:
+                    p["match"] = fresh_orgs[p["idno"]]
+                    continue
+                if not create_orgs:
                     continue
                 r = EfaSimple.create_org(p["idno"], p.get("title") or "", p.get("address") or "")
                 if r.get("success"):
                     p["match"] = {"cod": r["cod"], "denumirea": r["denumirea"], "how": "creat"}
+                    fresh_orgs[p["idno"]] = p["match"]
                     made_orgs.append({"idno": p["idno"], "cod": r["cod"], "denumirea": r["denumirea"]})
                 else:
                     errors.append("%s: contragent %s — %s" % (key, p["idno"], r.get("error")))
             # 2) marfa lipsa
             for r0 in d["rows"]:
-                if r0.get("card_cod") or not create_goods:
+                if r0.get("card_cod"):
+                    continue
+                # RO: aceeasi denumire apare pe zeci de rinduri si pe mai multe facturi din
+                #     pachet — cardul creat la primul rind se REFOLOSESTE la toate celelalte.
+                #     Fara aceasta verificare se creeaza cite un card PER RIND: pe 14.09.2026
+                #     asa au aparut 69 de carduri duble (237 in loc de 168), de arhivat manual.
+                got = fresh_goods.get(fold(r0["name"]))
+                if got:
+                    r0["card_cod"], r0["card_name"], r0["how"] = got["cod"], got["denumirea"], got.get("how", "creat")
+                    continue
+                if not create_goods:
                     continue
                 g = EfaSimple.create_goods(r0["name"], r0.get("um") or "buc.")
                 if g.get("success"):
                     r0["card_cod"], r0["card_name"], r0["how"] = g["cod"], g["denumirea"], "creat"
                     cards[r0["name"]] = {"cod": g["cod"], "denumirea": g["denumirea"]}
+                    fresh_goods[fold(r0["name"])] = {"cod": g["cod"], "denumirea": g["denumirea"], "how": "creat"}
                     made_goods.append({"cod": g["cod"], "denumirea": g["denumirea"]})
                 else:
                     errors.append("%s: marfa «%s» — %s" % (key, r0["name"][:40], g.get("error")))

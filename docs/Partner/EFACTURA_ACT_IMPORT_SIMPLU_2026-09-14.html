@@ -80,7 +80,7 @@ refuză: «Seria si numarul facturii sunt deja introduse in doc-tt 443» (trigge
 importul raportează eroarea pe factura respectivă și continuă cu celelalte</td><td class="ok">OK</td></tr>
 <tr><td>8</td><td>Securitate</td><td><code>/test/simple/analyze</code> și <code>/test/simple/import</code> fără
 sesiune → <code>401</code>; fișier străin → mesaj clar «fișierul nu conține documente e-Factura»</td><td class="ok">OK</td></tr>
-<tr><td>9</td><td>Teste, instalator, desfășurare</td><td><code>tests/test_efactura.py</code>: <b>73 passed</b> (5 teste noi); instalatorul 0 FAIL, <code>EFA_INBOX</code> VALID; nufarul și office: <code>login 200</code>,
+<tr><td>9</td><td>Teste, instalator, desfășurare</td><td><code>tests/test_efactura.py</code>: <b>74 passed</b> (6 teste noi); instalatorul 0 FAIL, <code>EFA_INBOX</code> VALID; nufarul și office: <code>login 200</code>,
 0 Traceback; <code>https://nufarul.eminescu.md/login</code> 200, <code>https://officeplus.md/cos</code> 200</td><td class="ok">OK</td></tr>
 <tr><td>10</td><td>Crearea nomenclatorului lipsă (bifele)</td><td><b>neexecutată pe date reale</b>: ar adăuga 152 de
 carduri și 10 contragenți în nomenclatorul de producție — decizia proprietarului. Mecanismul e scris și acoperit
@@ -127,6 +127,40 @@ repornit (<code>ORA-12537</code>, apoi <code>ORA-01033: ORACLE initialization or
 <br><b>Reparat:</b> orice interogare eșuată din analiză ridică acum eroare (<code>DbError</code>), iar pagina
 arată «baza de date nu a răspuns: …» în loc de zerouri; importul se oprește în același punct și nu creează nimic.
 Acoperit de un test care simulează căderea rețelei.</div>
+
+<h2>2b. Importul executat pe datele reale (după «da, fă-o»)</h2>
+<table>
+<tr><th>Pas</th><th>Ce s-a făcut</th><th>Rezultat</th></tr>
+<tr><td>1. Contragenții</td><td>bifa «creează contragenții lipsă»</td><td><b>9 furnizori creați</b>
+(COD 540715–540729) cu IDNO în <code>CODVECHI</code> și rîndul <code>TMS_ORG.CODFISCAL</code>:
+PAVLIUDENIX, POLIGRAF-DESIGN, LICENSE SOFT, I.P. STISC, IMPRESO-PRINT, I.P. CTIF, FALCOM TEXTIL,
+ULTRA DISTRIBUTION, TIPOGRAFIA DIN BALTI. Acum <b>toate cele 13</b> firme din pachet sînt în nomenclator
+și toate cele 47 de facturi au <code>SUPPLIER_COD</code></td></tr>
+<tr><td>2. Cardurile de marfă</td><td>bifa «creează cardurile de marfă lipsă»</td><td><b>168 carduri active</b>
+(COD 540732–540968), UM adusă la forma casei («шт», «un.», «buc» → <code>buc.</code>).
+Vezi incidentul I1 de mai jos</td></tr>
+<tr><td>3. Repotrivirea</td><td>reluarea analizei după creare</td><td><b>329 din 352 poziții</b> au acum card
+(erau 115); 23 rămîn fără card</td></tr>
+<tr><td>4. Grupele de mărfuri</td><td>propunere automată, <b>nescrisă</b></td><td>157 din 168 carduri au o grupă
+propusă după cardurile existente cu denumire asemănătoare: <b>73 sigure</b>, 73 de verificat, 11 slabe,
+11 fără propunere. Raportul:
+<a href="EFACTURA_GRUPE_MARFA_2026-09-14.html">EFACTURA_GRUPE_MARFA_2026-09-14.html</a></td></tr>
+<tr><td>5. Documentele 1209</td><td><b>nu s-au creat</b></td><td>fără grupă de mărfuri cardul nu intră în
+document, deci acum 228 din cele 329 de poziții potrivite ar rămîne oricum fără card. Documentele se fac
+după ce grupele sînt confirmate — fiecare document mișcă stocul și nu poate fi șters</td></tr>
+</table>
+
+<div class="stop"><b>I1 — incident, remediat în aceeași sesiune.</b> La crearea cardurilor s-au făcut
+<b>237 în loc de 168</b>: verificarea «există deja» se uita doar la rezultatul analizei, nu și la cardurile
+create cu cîteva rînduri mai devreme în același import, așa că o denumire care apare pe mai multe rînduri
+sau facturi primea cîte un card de fiecare dată (12 copii pentru «Hirtie pentru tehnica de birou REY COPY»).
+<br><b>Remediere:</b> cele <b>69 de duplicate au fost arhivate</b> (<code>ISARHIV='2'</code>, păstrînd cardul cu
+codul cel mai mic din fiecare denumire) pe calea prevăzută de sistem — <code>DOC_CHANGE_ISARHIV</code> +
+<code>iniparam_adminlevel</code> + utilizatorul 1, care e în grupa <code>UNIVERS/DEL/ALLOW</code>; ștergerea
+propriu-zisă e blocată de trigger. Nu au mai rămas duplicate active, iar nicio poziție nu arată spre un card
+arhivat.
+<br><b>Cauza a fost reparată în cod</b> (un card pe DENUMIRE, nu pe rînd, cu index normalizat) și acoperită de
+un test care repetă aceeași denumire pe două facturi și în două scrieri diferite.</div>
 
 <h2>3. Defectele găsite în timpul probelor (toate reparate)</h2>
 <div class="stop"><b>D10 — cel important.</b> Un <code>INSERT ... SELECT</code> cu mai multe rînduri în

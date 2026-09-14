@@ -1121,3 +1121,47 @@ def test_simple_db_failure_is_not_zero_matches(monkeypatch):
     # importul se opreste in acelasi punct, deci nu creeaza nimic
     r = simple.EfaSimple.import_file(_PKG_2, create_goods=True, create_orgs=True, seller_idno="1026602001837")
     assert r["success"] is False and "created" not in r
+
+
+def test_simple_creates_one_card_per_name_not_per_row(monkeypatch):
+    """RO: aceeasi denumire pe mai multe rinduri/facturi => UN singur card.
+    Pe 14.09.2026 lipsa acestei verificari a creat 237 de carduri in loc de 168."""
+    from modules.efactura import simple
+    pkg = _PKG_2.replace(
+        '<Row Code="1" Name="Power Cord PC-220V" UnitOfMeasure="buc." Quantity="1" '
+        'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>',
+        '<Row Code="1" Name="Power Cord PC-220V" UnitOfMeasure="buc." Quantity="1" '
+        'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>'
+        '<Row Code="2" Name="power cord pc-220v" UnitOfMeasure="шт" Quantity="1" '
+        'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>')
+    monkeypatch.setattr(simple.EfaSimple, "goods_by_names", staticmethod(lambda names: {}))
+    monkeypatch.setattr(simple.EfaSimple, "org_by_idno", staticmethod(lambda idno: None))
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 1, "result": "added"}))
+    seq = iter(range(900001, 900100))
+    made = []
+
+    def fake_create(name, um="buc."):
+        cod = next(seq)
+        made.append((cod, name, um))
+        return {"success": True, "cod": cod, "denumirea": name}
+
+    monkeypatch.setattr(simple.EfaSimple, "create_goods", staticmethod(fake_create))
+    monkeypatch.setattr(simple.EfaSimple, "create_org", staticmethod(
+        lambda idno, name, address="": {"success": True, "cod": 800001, "denumirea": name}))
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            return {"success": True}
+
+        def call_proc(self, sql, binds=None):
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (Db(), lambda r: [])))
+    r = simple.EfaSimple.import_file(pkg, create_goods=True, seller_idno="1026602001837")
+    assert r["success"] and r["summary"]["goods_created"] == 2, made
+    names = [m[1] for m in made]
+    assert "Pix Delta 0,7mm, albastru" in names and len(set(n.lower() for n in names)) == 2
