@@ -43,6 +43,8 @@ parola — cea salvată în pagina de administrare (<a href="https://officeplus.
 <tr><td>Adresa serviciului</td><td><code>https://efactura-api.sfs.md/Service.svc</code> — butonul <b>«mediu real»</b> de pe pagina de test</td></tr>
 <tr><td>Pagina de test (web)</td><td><a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a> (boevoi) ·
 <a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test">https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test</a> (test, aceeași bază Oracle)</td></tr>
+<tr><td>Fișier de probă</td><td>orice export din cabinetul e-Factura (<code>&lt;Documents&gt;</code> cu N facturi);
+în actul din 14.09.2026 — un pachet real de <b>32 facturi / 345 poziții</b></td></tr>
 <tr><td>Back-office nativ (Delphi)</td><td>«Intrări» → formularul <b>12103 «Pachet XML e-Factura»</b> și <b>1209 «Оприходование товара»</b></td></tr>
 <tr><td>Baza</td><td>OFFICEPLUS pe cloudbd (orange.una.md). Obiectele modulului: <code>EFA_IN</code>, <code>EFA_IN_ROW</code>, pachetul <code>EFA_INBOX</code>;
 ale sistemului: <code>TMDB_DOCS</code>, <code>TMDB_DOCS_OLE</code>, <code>TMDB_XML_PACKAGE</code>, <code>VMDB_ST201M/D</code>, <code>VMDB01M_VINZ</code></td></tr>
@@ -116,6 +118,35 @@ document 1209 (statut 2/13 sau «deja importată»).</span></div>
 
 <div class="step"><b class="n">10</b><b>Decizia în SFS</b> — <b>doar contabilul</b>: «Acceptă în SFS» (factura trece în «acceptate», statut SFS 3)
 sau «Respinge în SFS…» cu motiv (ajunge la furnizor). În test se sare peste acest pas.</div>
+
+<h2>3a. Pașii de test — importul SIMPLU dintr-un fișier XML (din 14.09.2026)</h2>
+<p>A treia cale de import, pentru cazul în care factura (sau un pachet întreg de facturi) se ia ca
+<b>fișier</b> din cabinetul e-Factura, nu prin API. Nu trece prin pachetul 12103 și prin validările
+vendorului (dată, subdiviziune), deci merge și pentru facturi vechi. Ideea centrală:
+<b>ce există deja în nomenclator se refolosește</b>.</p>
+<div class="step"><b class="n">F1</b><b>Cardul «📂 Import simplu dintr-un fișier XML»</b> → alegeți fișierul
+(<code>.xml</code> descărcat din cabinet, poate conține zeci de facturi). Analiza pornește singură.
+<br><span class="muted">Așteptat: rezumatul «N facturi (primite / emise de noi) · M poziții: X se refolosesc,
+Y ar fi carduri noi · contragenți: găsiți / lipsesc», apoi tabelul pe facturi.</span>
+<img src="img/act_07_import_simplu_fisier.png" alt="import simplu dintr-un fisier"></div>
+<div class="step"><b class="n">F2</b><b>Citiți analiza.</b> Pentru fiecare factură: direcția (primită sau emisă de noi),
+contragentul și dacă a fost găsit în una.md (<code>✓ COD …</code> cu felul potrivirii: <code>codvechi</code> sau
+<code>codfiscal</code>), totalul și cîte poziții se refolosesc din total.
+<br><span class="muted">Potrivirea pozițiilor: <b>denumirea întreagă</b> din <code>TMS_UNIVERS</code> (TIP 'P'),
+întîi exact, apoi fără diacritice — baza e CL8MSWIN1251, deci cardul vechi poate fi scris «Acuarela», iar
+factura vine cu «Acuarelă». Lista denumirilor fără card se deschide sub tabel.</span></div>
+<div class="step"><b class="n">F3</b><b>Atenție la «carduri fără grupă de mărfuri».</b> Un card care există, dar nu e
+legat de o grupă (<code>TMS_SYSGRP</code>), este refuzat de sistem la documentul de intrare (trigger
+<code>YBON_PRIH</code>: «Товар не привязан к товарной группе»). Astfel de poziții intră în document
+<b>fără card</b> — contabilul îl alege manual sau leagă întîi cardul de o grupă.</div>
+<div class="step"><b class="n">F4</b><b>Importul.</b> Implicit nu se creează nimic nou: facturile și potrivirile
+se salvează în <code>EFA_IN</code> / <code>EFA_IN_ROW</code>. Bifele adaugă, la cerere:
+<i>contragenții lipsă</i> (TMS_UNIVERS TIP 'O' GR1 'E' cu <code>CODVECHI</code> = IDNO + rîndul
+<code>TMS_ORG</code> cu <code>CODFISCAL</code>), <i>cardurile de marfă lipsă</i> (TIP 'P' GR1 'TVR' + rînd
+<code>TMS_MPT_TVR</code>) și <i>documentele 1209</i> — acestea doar pentru facturile în care firma noastră
+e <b>cumpărător</b>.
+<br><span class="muted">Așteptat: în tabel apare numărul documentului creat; a doua rulare nu dublează nimic
+(seria și numărul facturii sînt unice în una.md — sistemul refuză un al doilea document).</span></div>
 
 <h2>4. Pașii de test (back-office nativ, Delphi)</h2>
 <div class="step"><b class="n">N1</b> «Intrări» → 12103 «Pachet XML e-Factura» → document nou → acțiunea <b>«Preia din e-Factura (API)»</b>.
