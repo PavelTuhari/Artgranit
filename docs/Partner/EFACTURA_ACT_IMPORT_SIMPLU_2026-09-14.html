@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Act de testare — importul simplu dintr-un fișier e-Factura, 14.09.2026</title>
+<style>
+  body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;background:#f8fafc;margin:0}
+  main{max-width:1100px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:26px;margin:0 0 6px}h2{font-size:20px;margin:34px 0 10px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
+  .muted{color:#6b7280}
+  table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:#fff;font-size:14px}
+  th,td{border:1px solid #e5e7eb;padding:7px 9px;vertical-align:top;text-align:left}
+  th{background:#f1f5f9}
+  code{font:13px ui-monospace,Menlo,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+  pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;overflow:auto;font-size:12.5px}
+  .ok{color:#047857;font-weight:600}.skip{color:#b45309;font-weight:600}.fail{color:#b91c1c;font-weight:600}
+  .box{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin:12px 0}
+  .stop{background:#fef2f2;border-left:4px solid #ef4444;padding:10px 14px;margin:14px 0}
+  .good{background:#ecfdf5;border-left:4px solid #10b981;padding:10px 14px;margin:14px 0}
+  img{max-width:100%;border:1px solid #e5e7eb;border-radius:8px;margin:6px 0}
+  a{color:#1d4ed8}
+</style>
+</head>
+<body><main>
+<h1>Act de testare — importul SIMPLU dintr-un fișier e-Factura</h1>
+<p class="muted">Data: 14.09.2026 · Cerința proprietarului: «ещё один способ импорта НН из e-factura как
+простой импорт данных с анализом входящих позиций — если встречаются уже в oracle tms_univers по полному
+совпадению, то использовать повторно; то же самое и про idno поставщика в поле codvechi и codfiscal» ·
+Instrucțiunea: <a href="EFACTURA_INSTRUCTIUNE_TESTARE.html">EFACTURA_INSTRUCTIUNE_TESTARE.html</a>, §3a ·
+Actul căii prin pachetul 12103: <a href="EFACTURA_ACT_TESTARE_2026-09-13.html">13.09.2026</a>.</p>
+
+<h2>1. Ce s-a construit</h2>
+<table>
+<tr><th>Element</th><th>Ce face</th></tr>
+<tr><td><code>modules/efactura/simple.py</code></td><td>citește fișierul (<code>&lt;Documents&gt;</code> cu oricîte
+<code>&lt;Document&gt;</code>), analizează pozițiile și le leagă de nomenclatorul existent; scrie facturile în
+<code>EFA_IN</code>/<code>EFA_IN_ROW</code>; opțional creează ce lipsește</td></tr>
+<tr><td>Potrivirea mărfii</td><td><b>denumirea întreagă</b> în <code>TMS_UNIVERS</code> (TIP 'P', nearhivate):
+întîi exact, apoi fără diacritice. În bloc, pe grupuri de 200 de denumiri — un pachet de 345 de poziții se
+analizează în ~2 secunde</td></tr>
+<tr><td>Potrivirea contragentului</td><td>după IDNO în <code>TMS_UNIVERS.CODVECHI</code> (convenția GR1 'E') și
+<code>TMS_ORG.CODFISCAL</code>; rezultatul arată prin care dintre ele s-a găsit</td></tr>
+<tr><td><code>EFA_INBOX.create_doc_from_in</code></td><td>documentul 1209 direct din <code>EFA_IN</code>, fără
+pachetul vendorului: <code>TMDB_DOCS</code> + <code>VMDB_ST201M</code> + <code>VMDB01M_VINZ</code> +
+<code>VMDB_ST201D</code>, cardul fiind cel deja potrivit (<code>MATCH_COD</code>)</td></tr>
+<tr><td><code>EFA_INBOX.card_ok</code></td><td>verifică dacă marfa e legată de o grupă (<code>TMS_SYSGRP</code>)
+— fără grupă, sistemul refuză rîndul, deci acesta intră fără card</td></tr>
+<tr><td>Pasul nou în potrivirea obișnuită</td><td><code>EfaInbox.match</code>: cod de bare → regulă
+<code>TMS_IMPORT_EFACTURA</code> → <b>denumirea întreagă</b>. Beneficiază și fluxul prin SFS</td></tr>
+<tr><td>Interfață / API</td><td>cardul «📂 Import simplu dintr-un fișier XML» pe pagina de test;
+<code>POST …/test/simple/analyze</code> (nu scrie nimic) și <code>POST …/test/simple/import</code></td></tr>
+</table>
+
+<h2>2. Proba pe fișierul real al firmei</h2>
+<p class="muted">Fișierul dat de proprietar: export din cabinetul e-Factura,
+<code>EFactura_639249951468274651.xml</code>, 804 KB.</p>
+<table>
+<tr><th>#</th><th>Pas</th><th>Rezultat</th><th>Verdict</th></tr>
+<tr><td>1</td><td>Citirea fișierului</td><td><b>32</b> facturi, <b>345</b> poziții, 299 denumiri distincte; toate
+au ca furnizor chiar firma noastră (GRECU OFFICE GROUP) — adică sînt facturi <b>emise de noi</b>; direcția e
+determinată automat din <code>seller_idno</code></td><td class="ok">OK</td></tr>
+<tr><td>2</td><td>Analiza (nu scrie nimic)</td><td>în ~2 s: <b>193 poziții se refolosesc</b> (card existent găsit
+după denumirea întreagă), 152 ar fi carduri noi; <b>29</b> dintre cardurile găsite nu sînt legate de o grupă de
+mărfuri; contragenți: <b>13 din 23</b> găsiți după IDNO (<code>codvechi</code>), 10 lipsesc</td><td class="ok">OK</td></tr>
+<tr><td>3</td><td>Potrivirea fără diacritice</td><td>pe denumirile distincte: 151 exact + <b>3 în plus</b> după
+înlăturarea diacriticelor («Acuarelă» în factură ↔ «Acuarela» pe card) — fără acest pas s-ar fi creat 3 duplicate</td><td class="ok">OK</td></tr>
+<tr><td>4</td><td>Import fără creare (implicit)</td><td>facturile alese au intrat în <code>EFA_IN</code>
+(id 41, 42, 43) cu pozițiile în <code>EFA_IN_ROW</code>; la factura <b>EBL 000389846</b> — <b>44 din 62</b> poziții
+cu <code>MATCH_KIND='denumire'</code> și codul cardului real (ex.: «Caiet A5, 12 file, linie» → COD 165049)</td><td class="ok">OK</td></tr>
+<tr><td>5</td><td>Contragentul</td><td>furnizorul din fișier găsit după <code>CODVECHI</code>: COD 479135
+«GRECU OFFICE GROUP SRL»; scris în <code>EFA_IN.SUPPLIER_COD</code></td><td class="ok">OK</td></tr>
+<tr><td>6</td><td>Documentul 1209 (probă cu <b>ROLLBACK</b>, ca să nu rămînă nimic în producție)</td>
+<td>din factura de 62 de poziții: document cu <code>NRMANUAL EBL000389846</code>, data 20.08.2026, NRSET 201, LEI,
+USERID 1; antet DT 2171 / CT 5211, DTDEP 1, CTDEP 479135; seria/nr în cîmpurile FF; <b>62 rînduri</b>, din care
+<b>37 cu card</b> (restul — carduri fără grupă, lăsate goale); <b>suma documentului = suma facturii = 4657,00</b>;
+toate cele 62 de rînduri identice cu sursa. <code>ROLLBACK</code> — baza a rămas neatinsă</td><td class="ok">OK</td></tr>
+<tr><td>7</td><td>Protecția la dublare</td><td>import repetat al unei facturi deja introduse → sistemul însuși
+refuză: «Seria si numarul facturii sunt deja introduse in doc-tt 443» (trigger <code>TMDB01M_VINZ_FACT</code>);
+importul raportează eroarea pe factura respectivă și continuă cu celelalte</td><td class="ok">OK</td></tr>
+<tr><td>8</td><td>Securitate</td><td><code>/test/simple/analyze</code> și <code>/test/simple/import</code> fără
+sesiune → <code>401</code>; fișier străin → mesaj clar «fișierul nu conține documente e-Factura»</td><td class="ok">OK</td></tr>
+<tr><td>9</td><td>Teste, instalator, desfășurare</td><td><code>tests/test_efactura.py</code>: <b>72 passed</b>
+(4 teste noi); instalatorul 0 FAIL, <code>EFA_INBOX</code> VALID; nufarul și office: <code>login 200</code>,
+0 Traceback; <code>https://nufarul.eminescu.md/login</code> 200, <code>https://officeplus.md/cos</code> 200</td><td class="ok">OK</td></tr>
+<tr><td>10</td><td>Crearea nomenclatorului lipsă (bifele)</td><td><b>neexecutată pe date reale</b>: ar adăuga 152 de
+carduri și 10 contragenți în nomenclatorul de producție — decizia proprietarului. Mecanismul e scris și acoperit
+de teste</td><td class="skip">SĂRIT (decizia proprietarului)</td></tr>
+</table>
+
+<div class="box"><b>Cardul nou pe pagina de test, cu fișierul real încărcat</b>
+<br><img src="img/act_07_import_simplu_fisier.png" alt="import simplu dintr-un fisier XML"></div>
+
+<h2>3. Două defecte găsite în timpul probei (ambele reparate)</h2>
+<div class="stop"><b>D10 — cel important.</b> Un <code>INSERT ... SELECT</code> cu mai multe rînduri în
+<code>VMDB_ST201D</code> (view cu trigger <code>INSTEAD OF</code> peste tipuri obiect) scria în <b>toate</b>
+rîndurile valorile <b>ultimului</b> rînd: la proba pe 62 de poziții toate au primit același card
+(<code>DTSC=164112</code>) și aceeași sumă (15,00), deși sursa avea 44 de carduri diferite și sume diferite.
+Cu 1–2 poziții defectul nu se vedea, de aceea a trecut neobservat la documentele 441 și 443.
+<br><b>Reparat:</b> inserare <b>rînd cu rînd</b>, atît în <code>create_doc_from_in</code>, cît și în
+<code>create_docs_1209</code> (calea prin pachetul 12103, care avea exact același tipar). După reparație:
+62 de rînduri identice cu sursa, suma documentului = suma facturii.</div>
+<table>
+<tr><th>#</th><th>Defect</th><th>Cauza</th><th>Reparație</th></tr>
+<tr><td>D11</td><td>Documentul pica întreg cu «Товар не привязан к товарной группе!» din cauza unei singure
+poziții</td><td>trigger <code>YBON_PRIH</code> → <code>Ylin_Docs.get_KTN</code>: cardul trebuie legat de o grupă
+în <code>TMS_SYSGRP</code>/<code>TMS_SYSGRPH</code>; 7 din 44 de carduri potrivite nu erau</td>
+<td><code>EFA_INBOX.card_ok</code>: cardul se pune doar dacă are grupă, altfel rîndul intră fără card (ca în
+Delphi); analiza arată separat cîte astfel de poziții sînt</td></tr>
+<tr><td>D12</td><td>La o eroare în mijlocul creării putea rămîne un antet de document orfan</td><td>blocul nu avea
+punct de revenire</td><td><code>SAVEPOINT efa_doc_from_in</code> + <code>ROLLBACK TO</code> în tratarea excepției;
+<code>COMMIT</code>-ul intern scos — tranzacția o închide apelantul</td></tr>
+</table>
+
+<h2>4. Observații pentru proprietar</h2>
+<table>
+<tr><th>#</th><th>Observație</th><th>Propunere</th></tr>
+<tr><td>O5</td><td>Fișierul dat conține numai facturi <b>emise de noi</b>, deci documente de intrare nu se creează
+din el (ar fi greșit contabil). Valoarea lui în probă: analiza nomenclatorului</td><td>pentru proba completă a
+documentelor e nevoie de un export cu facturi în care firma e <b>cumpărător</b></td></tr>
+<tr><td>O6</td><td>152 de poziții din 345 nu au card, iar 29 au card fără grupă de mărfuri</td><td>înainte de un
+import în masă: bifa «creează cardurile de marfă lipsă», apoi legarea lor de grupe în back-office-ul nativ (altfel
+nu intră în documentele de intrare)</td></tr>
+<tr><td>O7</td><td>10 contragenți din 23 lipsesc din nomenclator</td><td>bifa «creează contragenții lipsă» îi
+adaugă cu IDNO în <code>CODVECHI</code> și <code>CODFISCAL</code>, exact ca puntea Contragenti</td></tr>
+<tr><td>O8</td><td>Rîndurile rămase în <code>EFA_IN</code> de la probă: id 41, 42, 43 (mediu <code>file</code>)</td>
+<td>sînt doar analiză, nu documente contabile; se pot lăsa sau șterge la cerere</td></tr>
+</table>
+
+<h2>5. Adrese live</h2>
+<ul>
+<li>Pagina de test (cardul «📂 Import simplu»): <a href="https://officeplus.md/UNA.md/orasldev/efactura/test">https://officeplus.md/UNA.md/orasldev/efactura/test</a> ·
+<a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/test">nufarul</a></li>
+<li>Administrare și jurnalul SFS: <a href="https://officeplus.md/UNA.md/orasldev/efactura/">https://officeplus.md/UNA.md/orasldev/efactura/</a></li>
+<li>Acest act: <a href="https://officeplus.md/UNA.md/orasldev/efactura/docs/EFACTURA_ACT_IMPORT_SIMPLU_2026-09-14.html">officeplus.md</a> ·
+<a href="https://nufarul.eminescu.md/UNA.md/orasldev/efactura/docs/EFACTURA_ACT_IMPORT_SIMPLU_2026-09-14.html">nufarul</a></li>
+<li>Instrucțiunea de testare: <a href="https://officeplus.md/UNA.md/orasldev/efactura/docs/EFACTURA_INSTRUCTIUNE_TESTARE.html">officeplus.md</a></li>
+</ul>
+</main></body></html>
