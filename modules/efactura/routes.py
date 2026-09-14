@@ -565,7 +565,7 @@ def docs_file(name):
     safe = os.path.normpath(name).replace("\\", "/")
     if safe.startswith("..") or safe.startswith("/") or "/../" in safe:
         abort(404)
-    if not safe.endswith((".html", ".md", ".png", ".jpg", ".xml")):
+    if not safe.endswith((".html", ".md", ".png", ".jpg", ".xml", ".xlsx", ".pdf", ".csv")):
         abort(404)
     if safe.endswith(".md"):
         # RO: .md se arata ca pagina HTML (altfel browserul il descarca ca text)

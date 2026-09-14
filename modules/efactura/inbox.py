@@ -328,11 +328,12 @@ class EfaInbox:
         r = rows(db.execute_query(
             "SELECT COD, DENUMIREA, UM FROM TMS_UNIVERS WHERE TIP='P' AND ISARHIV IS NULL "
             "AND UPPER(TRIM(DENUMIREA))=:n AND ROWNUM<=1", {"n": nm.upper()}))
-        if not r:
+        if not r and fold(nm) != nm.upper():
+            # RO: doar denumirea din factura se transliterează; baza nu poate pastra
+            #     diacritice, iar TRANSLATE cu ele in SQL strica textul (vezi simple.py)
             r = rows(db.execute_query(
                 "SELECT COD, DENUMIREA, UM FROM TMS_UNIVERS WHERE TIP='P' AND ISARHIV IS NULL AND "
-                "UPPER(TRIM(TRANSLATE(DENUMIREA, 'ăâîșşțţĂÂÎȘŞȚŢ', 'aaisstt AAISSTT')))=:n AND ROWNUM<=1",
-                {"n": fold(nm)}))
+                "UPPER(TRIM(DENUMIREA))=:n AND ROWNUM<=1", {"n": fold(nm)}))
         if not r:
             return None
         return {"cod": int(r[0]["cod"]), "denumirea": r[0].get("denumirea"), "um": r[0].get("um")}

@@ -109,8 +109,11 @@ class EfaSimple:
                 part = keys[i:i + _CHUNK]
                 binds = {"k%d" % j: v for j, v in enumerate(part)}
                 inlist = ", ".join(":k%d" % j for j in range(len(part)))
-                col = ("UPPER(TRIM(u.DENUMIREA))" if step == "exact" else
-                       "UPPER(TRIM(TRANSLATE(u.DENUMIREA, 'ăâîșşțţĂÂÎȘŞȚŢ', 'aaisstt AAISSTT')))")
+                # RO: NU transliteram in SQL. Un literal cu diacritice ajunge in baza
+                #     (CL8MSWIN1251) ca «aai?s?t», iar TRANSLATE cu el STRICA denumirile
+                #     («Agrafe» -> « grafe») si potrivirea da zero. Baza nici nu poate pastra
+                #     diacritice, deci se transliterează doar denumirea din factura (`fold`).
+                col = "UPPER(TRIM(u.DENUMIREA))"
                 # RO: GRUPA — un card nelegat de o grupa de marfuri (TMS_SYSGRP/TMS_SYSGRPH)
                 #     e refuzat de triggerul YBON_PRIH la documentul de intrare, deci il
                 #     aratam separat: cardul exista, dar nu poate intra inca in document

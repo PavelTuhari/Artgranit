@@ -1,5 +1,6 @@
 """Testele modulului e-Factura: izolarea + logica pura (fara wallet Oracle)."""
 import os
+import re
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1165,3 +1166,13 @@ def test_simple_creates_one_card_per_name_not_per_row(monkeypatch):
     assert r["success"] and r["summary"]["goods_created"] == 2, made
     names = [m[1] for m in made]
     assert "Pix Delta 0,7mm, albastru" in names and len(set(n.lower() for n in names)) == 2
+
+
+def test_no_translate_with_diacritics_in_sql():
+    """RO: un literal cu diacritice ajunge in baza CL8MSWIN1251 ca «aai?s?t», iar
+    TRANSLATE cu el strica denumirile («Agrafe» -> « grafe»). In SQL nu transliteram."""
+    for f in ("modules/efactura/simple.py", "modules/efactura/inbox.py"):
+        src = open(os.path.join(ROOT, f), encoding="utf-8").read()
+        for m in re.finditer(r"TRANSLATE\(", src):
+            line = src[src.rfind("\n", 0, m.start()) + 1: src.find("\n", m.start())]
+            assert "ă" not in line and "ș" not in line, "%s: %s" % (f, line.strip())
