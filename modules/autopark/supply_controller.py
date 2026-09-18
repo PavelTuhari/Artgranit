@@ -14,7 +14,9 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
+from modules.autopark import periods as per
 from modules.autopark import supply_rules as rules
+from modules.autopark.periods_store import PeriodsStore
 from modules.autopark.store import AutoparkStore
 from modules.autopark.supply_store import SupplyStore
 
@@ -176,7 +178,7 @@ class SupplyController:
     # ── расчёт плана ────────────────────────────────────────────────
 
     @staticmethod
-    def _truck_catalog() -> Dict[str, Any]:
+    def _truck_catalog(on_date: Optional[date] = None) -> Dict[str, Any]:
         """Бензовозы с их реальными отсеками и допустимыми семействами топлива.
 
         Цистерна, которой разрешены и бензин, и дизель, — это НЕ ошибка
@@ -193,11 +195,17 @@ class SupplyController:
         trucks_res = AutoparkStore.list_trucks()
         if not trucks_res.get("success"):
             return trucks_res
-        sections_res = SupplyStore.list_sections()
+        sections_res = PeriodsStore.sections()
         if not sections_res.get("success"):
             return sections_res
+        # Берём конфигурацию отсеков, действующую НА ДАТУ ПЛАНА: цистерну
+        # могли перепаспортизировать, и план недельной давности обязан
+        # объясняться теми отсеками, что были тогда.
+        on_date = on_date or date.today()
         by_truck: Dict[Any, List[Dict[str, Any]]] = {}
         for sec in sections_res["data"]:
+            if not per.covers(sec, on_date):
+                continue
             by_truck.setdefault(sec["truck_id"], []).append(
                 {"id": sec["id"], "seq_no": sec["seq_no"],
                  "volume_l": float(sec["volume_l"])})
@@ -236,6 +244,21 @@ class SupplyController:
             return settings_res
         settings = dict(settings_res["data"])
 
+        # Параметры, действующие СЕГОДНЯ, перекрывают значения из общей
+        # строки настроек: заказчик планирует их наперёд (зимний потолок
+        # запаса, летний), и расчёт обязан брать те, что действуют на
+        # дату расчёта, а не последние введённые.
+        plan_date = date.today()
+        eff = PeriodsStore.effective_params(plan_date)
+        params_id = None
+        if eff.get("success") and (eff["data"].get("params") or {}):
+            row = eff["data"]["params"]
+            params_id = row.get("id")
+            for key in ("max_cover_days", "plan_horizon_days", "group_min_stations",
+                        "group_max_stations", "volume_diff_pct"):
+                if row.get(key) is not None:
+                    settings[key] = row[key]
+
         try:
             override = {
                 "max_cover_days": _as_float(payload.get("max_cover_days"), "Запас, дней"),
@@ -254,7 +277,7 @@ class SupplyController:
         if not tanks:
             return _fail("Не заведён ни один резервуар АЗС")
 
-        catalog = SupplyController._truck_catalog()
+        catalog = SupplyController._truck_catalog(plan_date)
         if not catalog.get("success"):
             return catalog
         trucks = catalog["data"]["trucks"]
@@ -263,8 +286,18 @@ class SupplyController:
             return _fail("Нет ни одной цистерны с заведёнными отсеками — "
                          "планировать нечем")
 
-        groups_res = SupplyStore.list_groups()
-        groups = [g for g in (groups_res.get("data") or []) if g.get("active")]
+        # Состав группы тоже привязан к периоду: АЗС переходит из
+        # северного круга в центральный на время ремонта дороги.
+        groups_res = PeriodsStore.groups()
+        groups = []
+        for g in (groups_res.get("data") or []):
+            if not g.get("active"):
+                continue
+            station_ids = [i["station_id"] for i in g.get("items", [])
+                           if per.covers(i, plan_date)]
+            if station_ids:
+                groups.append({"id": g["id"], "code": g.get("code"),
+                               "name": g.get("name"), "station_ids": station_ids})
 
         load_points_res = AutoparkStore.list_load_points()
         if not load_points_res.get("success"):
@@ -285,6 +318,7 @@ class SupplyController:
                           "warnings": warnings},
                          "Потребности нет: на всех АЗС запаса хватает")
 
+        settings["params_id"] = params_id
         saved = SupplyStore.save_plan(plan, settings, username)
         if not saved.get("success"):
             return saved

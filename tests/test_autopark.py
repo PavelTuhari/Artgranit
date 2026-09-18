@@ -175,6 +175,11 @@ def test_deploy_script_installs_all_flt_files_in_order():
         # обязателен, 126 читает колонки, которые добавляет 125.
         "125_flt_supply.sql", "126_flt_supply_views.sql",
         "127_flt_supply_seed.sql",
+        # Параметры по периодам и представления, которые их разрешают:
+        # 129 переопределяет V_FLT_TANK_STATE и V_FLT_TRIP_PAY, поэтому
+        # идёт после 126.
+        "128_flt_periods.sql", "129_flt_period_views.sql",
+        "130_flt_period_keys.sql",
     )
 
 

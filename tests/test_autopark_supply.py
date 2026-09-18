@@ -554,3 +554,82 @@ def test_supply_routes_are_registered_on_the_module_blueprint():
     from modules.autopark import blueprint
     import modules.autopark.supply_routes  # noqa: F401
     assert blueprint.name == "autopark"
+
+
+# ── параметры по периодам (настройка заказчиком) ─────────────────────
+
+from datetime import date  # noqa: E402
+
+from modules.autopark import periods as per  # noqa: E402
+
+
+def row(id_, frm, to=None, **kw):
+    d = {"id": id_, "valid_from": frm, "valid_to": to}
+    d.update(kw)
+    return d
+
+
+def test_effective_picks_the_row_covering_the_date():
+    rows = [row(1, date(2024, 1, 1), date(2026, 9, 17), rate=2.75),
+            row(2, date(2026, 9, 18), None, rate=3.50)]
+    assert per.effective(rows, date(2026, 8, 20))["rate"] == 2.75
+    assert per.effective(rows, date(2026, 9, 18))["rate"] == 3.50
+    assert per.effective(rows, date(2027, 5, 1))["rate"] == 3.50
+
+
+def test_effective_boundaries_are_inclusive():
+    rows = [row(1, date(2026, 9, 1), date(2026, 9, 30), rate=3)]
+    assert per.effective(rows, date(2026, 9, 1)) is not None
+    assert per.effective(rows, date(2026, 9, 30)) is not None
+    assert per.effective(rows, date(2026, 10, 1)) is None
+
+
+def test_effective_is_deterministic_when_rows_overlap():
+    # Строки могли попасть в базу мимо интерфейса -- расчёт обязан
+    # остаться воспроизводимым, а не зависеть от порядка выборки.
+    rows = [row(1, date(2026, 9, 1), None, rate=3),
+            row(2, date(2026, 9, 1), None, rate=4)]
+    assert per.effective(rows, date(2026, 9, 10))["rate"] == 4
+    assert per.effective(list(reversed(rows)), date(2026, 9, 10))["rate"] == 4
+
+
+def test_validate_period_rejects_an_overlap():
+    existing = [row(1, date(2026, 9, 1), date(2026, 9, 30))]
+    errors = per.validate_period(row(None, date(2026, 9, 15), date(2026, 10, 5)), existing)
+    assert errors and "пересекается" in errors[0]
+
+
+def test_validate_period_allows_an_adjacent_period():
+    existing = [row(1, date(2026, 9, 1), date(2026, 9, 30))]
+    assert per.validate_period(row(None, date(2026, 10, 1), None), existing) == []
+
+
+def test_validate_period_ignores_the_row_being_edited():
+    existing = [row(7, date(2026, 9, 1), date(2026, 9, 30))]
+    assert per.validate_period(row(7, date(2026, 9, 1), date(2026, 10, 31)), existing) == []
+
+
+def test_validate_period_rejects_a_backwards_range():
+    errors = per.validate_period(row(None, date(2026, 9, 10), date(2026, 9, 1)), [])
+    assert errors and "раньше" in errors[0]
+
+
+def test_new_period_closes_the_previous_open_one_the_day_before():
+    existing = [row(1, date(2026, 9, 18), None)]
+    closing = per.close_open_period(existing, date(2026, 10, 1))
+    assert closing == [{"id": 1, "valid_to": date(2026, 9, 30)}]
+
+
+def test_effective_all_resolves_one_row_per_object():
+    rows = [row(1, date(2026, 1, 1), date(2026, 8, 31), tank_id=10, min_stock_l=3000),
+            row(2, date(2026, 9, 1), None, tank_id=10, min_stock_l=5000),
+            row(3, date(2026, 1, 1), None, tank_id=20, min_stock_l=1000)]
+    got = {r["tank_id"]: r["min_stock_l"]
+           for r in per.effective_all(rows, date(2026, 9, 15), "tank_id")}
+    assert got == {10: 5000, 20: 1000}
+
+
+def test_rows_without_dates_are_always_effective():
+    # Так выглядят строки, заведённые до появления периодов.
+    rows = [row(1, None, None, volume_l=6000)]
+    assert per.effective(rows, date(2020, 1, 1))["volume_l"] == 6000

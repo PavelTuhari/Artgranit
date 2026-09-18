@@ -147,3 +147,57 @@ def api_supply_settings_save():
 def api_supply_management():
     """Отчёт для руководства: экономика перевозки и рейтинг водителей."""
     return _guard() or jsonify(SupplyController.management(request.args))
+
+
+# ── настройки по периодам (админка заказчика) ────────────────────────
+#
+# Всё, что ТЗ оставляло «на потом» — минимальный остаток, допустимый
+# залив, потолок запаса в днях, ставка водителя, отсеки цистерн, состав
+# групп АЗС — заказчик правит здесь сам, и правит НА ПЕРИОД.
+
+from modules.autopark.periods_controller import PeriodsController  # noqa: E402
+
+
+@blueprint.route("/api/periods/<kind>", methods=["GET"])
+def api_periods_list(kind):
+    return _guard() or jsonify(
+        PeriodsController.list(kind, request.args.get("owner_id")))
+
+
+@blueprint.route("/api/periods/<kind>", methods=["POST"])
+def api_periods_save(kind):
+    return _guard() or jsonify(
+        PeriodsController.save(kind, request.get_json(silent=True) or {}, _username()))
+
+
+@blueprint.route("/api/periods/<kind>/<int:row_id>/delete", methods=["POST"])
+def api_periods_delete(kind, row_id):
+    return _guard() or jsonify(PeriodsController.delete(kind, row_id, _username()))
+
+
+@blueprint.route("/api/periods-effective", methods=["GET"])
+def api_periods_effective():
+    """Что действует на дату — ставка и параметры планирования."""
+    return _guard() or jsonify(PeriodsController.effective(request.args))
+
+
+@blueprint.route("/api/sections-periods", methods=["GET"])
+def api_sections_periods():
+    return _guard() or jsonify(PeriodsController.sections(request.args.get("truck_id")))
+
+
+@blueprint.route("/api/sections-periods", methods=["POST"])
+def api_sections_periods_save():
+    return _guard() or jsonify(
+        PeriodsController.save_sections(request.get_json(silent=True) or {}, _username()))
+
+
+@blueprint.route("/api/group-periods", methods=["GET"])
+def api_group_periods():
+    return _guard() or jsonify(PeriodsController.groups())
+
+
+@blueprint.route("/api/group-periods/<int:group_id>", methods=["POST"])
+def api_group_period_save(group_id):
+    return _guard() or jsonify(PeriodsController.save_group_period(
+        group_id, request.get_json(silent=True) or {}, _username()))

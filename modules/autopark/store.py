@@ -96,11 +96,15 @@ class AutoparkStore:
                 r = _run(db, "SELECT ID, CODE, NAME, ADDRESS, ACTIVE "
                              "FROM FLT_STATIONS ORDER BY CODE")
                 stations = _rows(r)
-                t = _run(db, "SELECT STATION_ID, PRODUCT_CODE, CAPACITY_L "
+                # ID резервуара отдаём наружу: на него ссылаются лимиты
+                # по периодам (FLT_TANK_LIMITS), и без него интерфейс не
+                # может показать, какому баку настройка принадлежит.
+                t = _run(db, "SELECT ID, STATION_ID, PRODUCT_CODE, CAPACITY_L "
                              "FROM FLT_STATION_TANKS ORDER BY STATION_ID")
                 tanks_by_station: Dict[int, List[Dict[str, Any]]] = {}
                 for row in _rows(t):
                     tanks_by_station.setdefault(row["station_id"], []).append({
+                        "id": row["id"],
                         "product_code": row["product_code"],
                         "capacity_l": float(row["capacity_l"]),
                     })

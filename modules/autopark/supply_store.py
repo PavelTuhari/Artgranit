@@ -219,14 +219,15 @@ class SupplyStore:
             with DatabaseModel() as db:
                 _run(db, "INSERT INTO FLT_SUPPLY_PLANS "
                          "(HORIZON_DAYS, COVER_DAYS, NEEDS_CNT, TRIPS_CNT, "
-                         " VOLUME_L, CREATED_BY) "
+                         " VOLUME_L, CREATED_BY, PARAMS_ID) "
                          "VALUES (:horizon, :cover, :needs_cnt, :trips_cnt, "
-                         "        :volume, :username)",
+                         "        :volume, :username, :params_id)",
                      {"horizon": settings.get("plan_horizon_days") or 0,
                       "cover": settings.get("max_cover_days") or 7,
                       "needs_cnt": len(needs), "trips_cnt": len(trips),
                       "volume": sum(float(t.get("volume_l") or 0) for t in trips),
-                      "username": username})
+                      "username": username,
+                      "params_id": settings.get("params_id")})
                 plan_id = _rows(_run(db, "SELECT MAX(ID) AS ID FROM FLT_SUPPLY_PLANS"))[0]["id"]
 
                 need_ids: Dict[Any, int] = {}

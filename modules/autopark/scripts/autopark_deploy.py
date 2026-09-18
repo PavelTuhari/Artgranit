@@ -34,6 +34,9 @@ FILES = (
     "125_flt_supply.sql",
     "126_flt_supply_views.sql",
     "127_flt_supply_seed.sql",
+    "128_flt_periods.sql",
+    "129_flt_period_views.sql",
+    "130_flt_period_keys.sql",
 )
 
 
