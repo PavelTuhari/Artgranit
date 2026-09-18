@@ -57,6 +57,39 @@
 Подробно про саму прослойку (контракт ingest, как подключить реального
 провайдера, как работает симулятор) — `GPS_INTEGRATION.md`.
 
+### Контур распределения топлива (ТЗ 18.09.2026)
+
+Отдельный контур поверх тех же `FLT_*`: потребность АЗС, подбор отсеков,
+рейсы и контроль исполнения. Полное описание — `SPEC_SUPPLY_2026-09-18.md`.
+
+| Таблица | Назначение |
+|---|---|
+| `FLT_TRUCK_SECTIONS` | Реальные отсеки цистерны: номер (1 у кабины, последний хвостовой) и объём. Разгрузка идёт с хвоста |
+| `FLT_TANK_STOCK` | Снимки остатков из Petrol Expert (история снимков, не текущее значение поверх) |
+| `FLT_STATION_GROUPS`, `FLT_STATION_GROUP_ITEMS` | Группы АЗС, обслуживаемые одним рейсом |
+| `FLT_SUPPLY_PLANS` | Шапка расчёта: горизонт, потолок запаса в днях, итоги |
+| `FLT_SUPPLY_NEEDS` | Строка плана по ТЗ п.7 — все числа, на которых принято решение |
+| `FLT_SUPPLY_TRIPS` | Предложенный рейс: цистерна, семейство топлива, группа, пробег |
+| `FLT_SUPPLY_LOADS` | Распределение по отсекам и порядок разгрузки |
+
+Новые колонки: `FLT_STATION_TANKS.MAX_FILL_L / MIN_STOCK_L / MAX_COVER_DAYS`,
+`FLT_TRIPS.START_POINT_ID` (стоянка — первый участок норматива), `PLAN_ID`,
+`FLT_TRIP_STOP_ITEMS.LOADED_L / DOC_L / ACCEPTED_L / SECTION_ID / UNLOAD_SEQ`,
+`FLT_REF_TRIP_STATUS.IS_PAYABLE` (какой статус является основанием зарплаты).
+
+Представления: `V_FLT_TANK_STATE`, `V_FLT_SUPPLY_PLAN`, `V_FLT_SUPPLY_LOADS`,
+`V_FLT_TRIP_EXECUTION`; `V_FLT_TRIP_PAY` переопределено в
+`126_flt_supply_views.sql` — оплата идёт по `IS_PAYABLE`, а не по «всё, что
+не черновик».
+
+DDL: `sql/125_flt_supply.sql`, `126_flt_supply_views.sql`,
+`127_flt_supply_seed.sql`. Код: `supply_rules.py` (расчёт без БД),
+`supply_store.py`, `supply_controller.py`, `supply_routes.py`,
+`templates/_supply_panel.html`. API — `/api/supply/*`.
+
+**Ставка зарплаты с 18.09.2026 — 3,50 лея/км, доплата за рейс 0** (прежние
+2,75 + 600 заменены новой редакцией ТЗ). Обе величины — настройки.
+
 ### Event log
 
 `FLT_EVENT_LOG` — append-only журнал операций (создание накладной,

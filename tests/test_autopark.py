@@ -170,6 +170,11 @@ def test_deploy_script_installs_all_flt_files_in_order():
     assert FILES == (
         "120_flt_tables.sql", "121_flt_views.sql", "122_flt_seed.sql",
         "123_flt_prices.sql", "124_flt_gps.sql",
+        # Контур распределения топлива (ТЗ 18.09.2026): таблицы, потом
+        # представления над ними, потом справочные данные -- порядок
+        # обязателен, 126 читает колонки, которые добавляет 125.
+        "125_flt_supply.sql", "126_flt_supply_views.sql",
+        "127_flt_supply_seed.sql",
     )
 
 

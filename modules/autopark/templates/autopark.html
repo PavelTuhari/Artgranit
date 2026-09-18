@@ -122,6 +122,7 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
       <button class="nav-item" data-panel="deliveries" onclick="showPanel('deliveries')"><span class="ic">🛢️</span><span>Поставки</span></button>
       <button class="nav-item" data-panel="trips" onclick="showPanel('trips')"><span class="ic">🚛</span><span>Рейсы</span></button>
       <button class="nav-item" data-panel="planning" onclick="showPanel('planning')"><span class="ic">🗺️</span><span>Планирование</span></button>
+      <button class="nav-item" data-panel="supply" onclick="showPanel('supply')"><span class="ic">⛽</span><span>Распределение топлива</span></button>
       <button class="nav-item" data-panel="payroll" onclick="showPanel('payroll')"><span class="ic">💰</span><span>Зарплата</span></button>
       <button class="nav-item" data-panel="control" onclick="showPanel('control')"><span class="ic">🚦</span><span>Контроль</span></button>
       <button class="nav-item" data-panel="prices" onclick="showPanel('prices')"><span class="ic">💹</span><span>Цены</span></button>
@@ -358,6 +359,9 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
         <div class="table-wrap" id="planTripsTable">Загрузка…</div>
       </div>
     </section>
+
+    {# Контур распределения топлива (ТЗ 18.09.2026) -- свой файл целиком #}
+    {% include "_supply_panel.html" %}
 
     <!-- ============ ПАНЕЛЬ: ЗАРПЛАТА ============ -->
     <section class="panel" id="panel-payroll">
@@ -659,6 +663,7 @@ function onPanelShown(name) {
   if (name === 'deliveries') { loadDeliveries(); }
   if (name === 'trips') { loadTrips(); }
   if (name === 'planning') { loadSupplyPlan(); }
+  if (name === 'supply') { loadSupplyPanel(); }
   if (name === 'payroll') { loadPayroll(); }
   if (name === 'control') { loadControl(); }
   if (name === 'prices') { loadPrices(); }

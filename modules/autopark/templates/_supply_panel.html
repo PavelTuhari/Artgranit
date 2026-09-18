@@ -1,0 +1,546 @@
+{# Autopark -- панель контура распределения топлива (ТЗ заказчика 18.09.2026).
+
+   Отдельный файл, подключается в autopark.html одной строкой {% include %}.
+   Так требует правило №2 проекта: свой код -- в свой файл. Разметка и
+   скрипт панели живут здесь целиком, наружу нужна ровно одна функция --
+   loadSupplyPanel(), её зовёт onPanelShown().
+
+   Стили не дублируются: используются классы основного шаблона (card,
+   toolbar, table-wrap, btn, num, warn). #}
+
+<section class="panel" id="panel-supply">
+  <h1>Распределение топлива</h1>
+  <div class="crumbs">Потребность АЗС, подбор отсеков и рейсы — ТЗ от 18.09.2026</div>
+  <div class="note">
+    Объём поставки ограничен дважды: допустимым заливом резервуара за вычетом
+    остатка и того, что уже в пути (п.4.1, п.5), и допустимым запасом в днях
+    (п.4.2). Отсек сливается целиком, поэтому объём — это всегда сумма
+    отсеков, а не «сколько не хватает». Разгрузка идёт с хвостового отсека.
+  </div>
+
+  <div class="toolbar">
+    <label>Горизонт, суток
+      <input type="number" id="supHorizon" value="2" min="0" max="14" step="1" style="width:70px">
+    </label>
+    <label>Запас, дней
+      <input type="number" id="supCover" value="" placeholder="из настроек" min="1" max="30" step="0.5" style="width:110px">
+    </label>
+    <label>АЗС в рейсе
+      <input type="number" id="supMaxStations" value="" placeholder="из настроек" min="1" max="8" step="1" style="width:110px">
+    </label>
+    <button class="btn btn-primary btn-sm" onclick="supplyBuildPlan()">Рассчитать план</button>
+    <button class="btn btn-secondary btn-sm" onclick="loadSupplyPanel()">Обновить</button>
+  </div>
+
+  <div class="card">
+    <h2>Состояние резервуаров</h2>
+    <div class="hint">Остаток — последний снимок из Petrol Expert, при его отсутствии — суточный учёт. «Дней» — до минимального остатка с учётом топлива в пути.</div>
+    <div class="table-wrap" id="supTanksTable">Загрузка…</div>
+  </div>
+
+  <div class="card">
+    <h2>План: что, куда и сколько везти</h2>
+    <div class="hint" id="supPlanHint">План ещё не рассчитан.</div>
+    <div class="table-wrap" id="supNeedsTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Рейсы и распределение по отсекам</h2>
+    <div class="hint">Порядок строк — порядок разгрузки: первым идёт хвостовой отсек. Объём в отсеке правится вручную, после правки план перепроверяется на перелив и вместимость отсека.</div>
+    <div class="table-wrap" id="supTripsTable"></div>
+    <div class="toolbar" id="supConfirmBar" style="display:none">
+      <label>Стоянка
+        <select id="supStartPoint"></select>
+      </label>
+      <label>Конечный пункт
+        <select id="supEndPoint"></select>
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="supplyConfirmPlan()">Утвердить план и создать рейсы</button>
+    </div>
+    <div class="table-wrap" id="supDriversTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Исполнение поставок</h2>
+    <div class="hint">Цепочка статусов: запланировано → заявлено на погрузку → загружено → в пути → доставлено → принято АЗС. Сравниваются план, загрузка, документ и протокол разгрузки (п.9).</div>
+    <div class="toolbar">
+      <label>с <input type="date" id="supExecFrom"></label>
+      <label>по <input type="date" id="supExecTo"></label>
+      <label><input type="checkbox" id="supExecOnlyDiff"> только расхождения</label>
+      <button class="btn btn-secondary btn-sm" onclick="loadSupplyExecution()">Показать</button>
+    </div>
+    <div class="table-wrap" id="supExecTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Экономика перевозки и рейтинг водителей</h2>
+    <div class="hint">Стоимость литра — зарплата водителей плюс стоимость перерасходованного дизеля, без амортизации и ремонта: этих данных у модуля нет. «Эффект оптимизации» — стоимость лишнего пробега и перерасхода, то есть то, что перестанет тратиться при устранении отклонений.</div>
+    <div class="toolbar">
+      <label>с <input type="date" id="supMgmtFrom"></label>
+      <label>по <input type="date" id="supMgmtTo"></label>
+      <button class="btn btn-secondary btn-sm" onclick="loadSupplyManagement()">Показать</button>
+    </div>
+    <div class="table-wrap" id="supMgmtTable"></div>
+    <div class="table-wrap" id="supRatingTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Отсеки цистерн и группы АЗС</h2>
+    <div class="hint">Отсеки — реальные объёмы, номер 1 у кабины, последний хвостовой. Группа — АЗС, которые обслуживаются одним рейсом (обычно 2–4).</div>
+    <div class="table-wrap" id="supSectionsTable"></div>
+    <div class="table-wrap" id="supGroupsTable"></div>
+  </div>
+</section>
+
+<script>
+'use strict';
+
+var SUPPLY_PLAN_ID = null;
+var SUPPLY_TRIPS = [];
+
+function supplyNum(v, digits) {
+  if (v === null || v === undefined || v === '') { return '—'; }
+  var n = Number(v);
+  if (isNaN(n)) { return '—'; }
+  return n.toFixed(digits === undefined ? 0 : digits);
+}
+
+var SUPPLY_WARN_TEXT = {
+  no_room: 'нет свободного объёма',
+  no_section: 'не хватило отсеков',
+  cover_exceeded: 'запас превысит норму в днях',
+  underfill: 'недовоз до цели (слив отсеками целиком)',
+  partial_section: 'отсек сливается не полностью'
+};
+
+function supplyWarn(code) {
+  if (!code) { return ''; }
+  return String(code).split(',').map(function (c) {
+    return SUPPLY_WARN_TEXT[c] || c;
+  }).join(', ');
+}
+
+// ---- состояние резервуаров ----------------------------------------------
+
+function loadSupplyPanel() {
+  clearMsgs();
+  if (!document.getElementById('supExecFrom').value) {
+    document.getElementById('supExecFrom').value = isoDaysAgo(7);
+    document.getElementById('supExecTo').value = todayIso();
+  }
+  apiGet('/api/supply/tanks').then(function (res) {
+    if (!checkOk(res, 'Резервуары')) { return; }
+    var rows = res.data || [];
+    var host = document.getElementById('supTanksTable');
+    clearNode(host);
+    host.appendChild(buildTable(
+      ['АЗС', 'Продукт', {label: 'Остаток, л'}, {label: 'Мин., л'},
+       {label: 'Залив, л'}, {label: 'Продажи/сут'}, {label: 'Дней'},
+       {label: 'В пути, л'}, {label: 'Допустимо, л'}, 'Источник'],
+      rows,
+      function (row) {
+        return [
+          {text: row.station_code + ' ' + (row.station_name || '')},
+          {text: row.product_code},
+          {cls: 'num', text: supplyNum(row.current_l)},
+          {cls: 'num', text: supplyNum(row.min_stock_l)},
+          {cls: 'num', text: supplyNum(row.max_fill_l)},
+          {cls: 'num', text: supplyNum(row.avg_daily_l)},
+          {cls: 'num', text: row.days_to_min === null ? '—' : supplyNum(row.days_to_min, 1)},
+          {cls: 'num', text: supplyNum(row.in_transit_l)},
+          {cls: 'num', text: supplyNum(row.allowed_l)},
+          {text: row.stock_source === 'PETROL_EXPERT' ? 'Petrol Expert' : 'суточный учёт'}
+        ];
+      },
+      function (row) {
+        return (row.days_to_min !== null && Number(row.days_to_min) < 1) ? 'warn' : '';
+      }));
+  });
+  loadSupplySections();
+  loadSupplyGroups();
+  loadSupplyLastPlan();
+  loadSupplyManagement();
+}
+
+// ---- расчёт плана --------------------------------------------------------
+
+function supplyBuildPlan() {
+  clearMsgs();
+  var body = {horizon_days: document.getElementById('supHorizon').value};
+  var cover = document.getElementById('supCover').value;
+  var maxSt = document.getElementById('supMaxStations').value;
+  if (cover) { body.max_cover_days = cover; }
+  if (maxSt) { body.group_max_stations = maxSt; }
+  apiPost('/api/supply/plan', body).then(function (res) {
+    if (!checkOk(res, 'Расчёт плана')) { return; }
+    showOk(res.message || 'План рассчитан');
+    var warns = (res.data && res.data.warnings) || [];
+    if (warns.length) { showErr(warns.join('; ')); }
+    if (res.data && res.data.plan_id) {
+      renderSupplyPlan(res.data.plan_id);
+    } else {
+      document.getElementById('supPlanHint').textContent = res.message || '';
+      clearNode(document.getElementById('supNeedsTable'));
+      clearNode(document.getElementById('supTripsTable'));
+    }
+  });
+}
+
+function loadSupplyLastPlan() {
+  apiGet('/api/supply/plans?limit=1').then(function (res) {
+    if (!res || !res.success || !res.data || !res.data.length) { return; }
+    renderSupplyPlan(res.data[0].id);
+  });
+}
+
+function renderSupplyPlan(planId) {
+  SUPPLY_PLAN_ID = planId;
+  apiGet('/api/supply/plans/' + planId).then(function (res) {
+    if (!checkOk(res, 'План')) { return; }
+    var plan = res.data.plan || {};
+    var needs = res.data.needs || [];
+    SUPPLY_TRIPS = res.data.trips || [];
+
+    document.getElementById('supPlanHint').textContent =
+      'План №' + plan.id + ' от ' + fmtDate(plan.plan_date) + ' · статус ' +
+      (plan.status_code === 'CONFIRMED' ? 'утверждён' : 'черновик') +
+      ' · потребностей ' + needs.length + ' · рейсов ' + SUPPLY_TRIPS.length +
+      ' · объём ' + supplyNum(plan.volume_l) + ' л';
+
+    var host = document.getElementById('supNeedsTable');
+    clearNode(host);
+    host.appendChild(buildTable(
+      ['АЗС', 'Продукт', {label: 'Остаток'}, {label: 'Продажи/сут'},
+       {label: 'Дней до мин.'}, {label: 'В пути'}, {label: 'Допустимо'},
+       {label: 'Рекомендовано'}, {label: 'Запас после, дн'}, 'Машина', 'Примечание'],
+      needs,
+      function (row) {
+        return [
+          {text: row.station_code + ' ' + (row.station_name || '')},
+          {text: row.product_code},
+          {cls: 'num', text: supplyNum(row.current_l)},
+          {cls: 'num', text: supplyNum(row.avg_daily_l)},
+          {cls: 'num', text: row.days_to_min === null ? '—' : supplyNum(row.days_to_min, 1)},
+          {cls: 'num', text: supplyNum(row.in_transit_l)},
+          {cls: 'num', text: supplyNum(row.allowed_l)},
+          {cls: 'num', text: supplyNum(row.planned_l)},
+          {cls: 'num', text: row.cover_days === null ? '—' : supplyNum(row.cover_days, 1)},
+          {text: row.plate || '—'},
+          {text: supplyWarn(row.warning)}
+        ];
+      },
+      function (row) {
+        if (Number(row.planned_l) > 0) { return ''; }
+        return 'warn';
+      }));
+
+    renderSupplyTrips(plan.status_code === 'CONFIRMED');
+  });
+}
+
+function renderSupplyTrips(confirmed) {
+  var host = document.getElementById('supTripsTable');
+  clearNode(host);
+  if (!SUPPLY_TRIPS.length) {
+    host.appendChild(txt('div', 'hint', 'Рейсы не предложены.'));
+    document.getElementById('supConfirmBar').style.display = 'none';
+    clearNode(document.getElementById('supDriversTable'));
+    return;
+  }
+  for (var i = 0; i < SUPPLY_TRIPS.length; i++) {
+    var trip = SUPPLY_TRIPS[i];
+    var head = txt('h3', '', 'Рейс ' + trip.seq_no + ' · ' + trip.plate + ' · ' +
+      (trip.fuel_group === 'DIESEL' ? 'дизель' : 'бензин') + ' · ' +
+      (trip.load_point_name || '') + ' · ' + supplyNum(trip.volume_l) + ' л' +
+      (trip.est_km ? ' · ~' + supplyNum(trip.est_km) + ' км' : '') +
+      (trip.trip_id ? ' · рейс №' + trip.trip_id : ''));
+    host.appendChild(head);
+    host.appendChild(buildTable(
+      [{label: 'Слив'}, {label: 'Отсек'}, 'АЗС', 'Продукт', {label: 'Объём, л'},
+       {label: 'Отсек, л'}, 'Правка'],
+      trip.loads || [],
+      function (row) {
+        var cell = txt('span');
+        if (!confirmed) {
+          var input = txt('input');
+          input.type = 'number';
+          input.value = Number(row.volume_l);
+          input.step = '100';
+          input.style.width = '90px';
+          input.setAttribute('data-load-id', row.id);
+          input.onchange = function () { supplyUpdateLoad(this); };
+          cell.appendChild(input);
+        } else {
+          cell.textContent = '—';
+        }
+        return [
+          {cls: 'num', text: row.unload_seq},
+          {cls: 'num', text: '№' + row.section_no},
+          {text: row.station_code + ' ' + (row.station_name || '')},
+          {text: row.product_code},
+          {cls: 'num', text: supplyNum(row.volume_l)},
+          {cls: 'num', text: supplyNum(row.section_volume_l)},
+          {node: cell}
+        ];
+      },
+      function (row) { return Number(row.partial_section) ? 'warn' : ''; }));
+  }
+  document.getElementById('supConfirmBar').style.display = confirmed ? 'none' : '';
+  if (!confirmed) { renderSupplyDrivers(); }
+  else { clearNode(document.getElementById('supDriversTable')); }
+}
+
+function renderSupplyDrivers() {
+  var host = document.getElementById('supDriversTable');
+  clearNode(host);
+  ensureRefsThen(function () {
+    fillSelect(document.getElementById('supStartPoint'), REFS.end_points, 'id', 'name');
+    fillSelect(document.getElementById('supEndPoint'), REFS.end_points, 'id', 'name');
+    var trucks = {};
+    for (var i = 0; i < SUPPLY_TRIPS.length; i++) { trucks[SUPPLY_TRIPS[i].truck_id] = SUPPLY_TRIPS[i].plate; }
+    var rows = Object.keys(trucks).map(function (id) {
+      return {truck_id: Number(id), plate: trucks[id]};
+    });
+    host.appendChild(buildTable(
+      ['Цистерна', 'Водитель'],
+      rows,
+      function (row) {
+        var sel = txt('select');
+        sel.setAttribute('data-truck-id', row.truck_id);
+        sel.className = 'sup-driver';
+        fillSelect(sel, REFS.drivers, 'id', 'full_name');
+        // Если за цистерной закреплён водитель -- он и подставляется,
+        // но остаётся заменяемым: ТЗ прямо просит место для ручного ввода.
+        for (var j = 0; j < (REFS.drivers || []).length; j++) {
+          if (REFS.drivers[j].truck_id === row.truck_id) { sel.value = REFS.drivers[j].id; break; }
+        }
+        return [{text: row.plate}, {node: sel}];
+      }));
+  });
+}
+
+function supplyUpdateLoad(input) {
+  var loadId = input.getAttribute('data-load-id');
+  apiPost('/api/supply/loads/' + loadId, {
+    volume_l: input.value, plan_id: SUPPLY_PLAN_ID
+  }).then(function (res) {
+    if (!checkOk(res, 'Правка объёма')) { return; }
+    var val = res.data && res.data.validation;
+    if (val && val.problems && val.problems.length) {
+      var msgs = val.problems.map(function (p) { return p.message; });
+      if (val.errors) { showErr(msgs.join('; ')); } else { showOk(msgs.join('; ')); }
+    } else {
+      showOk('Сохранено, ограничения соблюдены');
+    }
+    renderSupplyPlan(SUPPLY_PLAN_ID);
+  });
+}
+
+function supplyConfirmPlan() {
+  clearMsgs();
+  if (!SUPPLY_PLAN_ID) { showErr('План не рассчитан'); return; }
+  var drivers = {};
+  var sels = document.querySelectorAll('.sup-driver');
+  for (var i = 0; i < sels.length; i++) {
+    var truckId = sels[i].getAttribute('data-truck-id');
+    if (!sels[i].value) { showErr('Выберите водителя для каждой цистерны'); return; }
+    drivers[truckId] = sels[i].value;
+  }
+  apiPost('/api/supply/plans/' + SUPPLY_PLAN_ID + '/confirm', {
+    drivers: drivers,
+    start_point_id: document.getElementById('supStartPoint').value,
+    end_point_id: document.getElementById('supEndPoint').value
+  }).then(function (res) {
+    if (!checkOk(res, 'Утверждение плана')) { return; }
+    showOk(res.message || 'Рейсы созданы');
+    renderSupplyPlan(SUPPLY_PLAN_ID);
+    loadSupplyExecution();
+  });
+}
+
+// ---- исполнение ----------------------------------------------------------
+
+var SUPPLY_STATUS_FLOW = ['PLANNED', 'LOAD_REQ', 'LOADED', 'IN_TRANSIT',
+                          'DELIVERED', 'ACCEPTED'];
+var SUPPLY_STATUS_TEXT = {
+  PLANNED: 'запланировано', LOAD_REQ: 'заявлено на погрузку', LOADED: 'загружено',
+  IN_TRANSIT: 'в пути', DELIVERED: 'доставлено', ACCEPTED: 'принято АЗС',
+  DRAFT: 'черновик', APPROVED: 'утверждён', DONE: 'завершён', CANCELLED: 'отменён'
+};
+
+function loadSupplyExecution() {
+  clearMsgs();
+  var q = '?date_from=' + document.getElementById('supExecFrom').value +
+          '&date_to=' + document.getElementById('supExecTo').value +
+          (document.getElementById('supExecOnlyDiff').checked ? '&only_discrepancies=1' : '');
+  apiGet('/api/supply/execution' + q).then(function (res) {
+    if (!checkOk(res, 'Исполнение')) { return; }
+    var host = document.getElementById('supExecTable');
+    clearNode(host);
+    var rows = res.data || [];
+    if (!rows.length) {
+      host.appendChild(txt('div', 'hint', 'За выбранный период поставок нет.'));
+      return;
+    }
+    host.appendChild(buildTable(
+      ['Дата', 'Рейс', 'Машина', 'АЗС', 'Продукт', {label: 'План, л'},
+       {label: 'Загружено'}, {label: 'Документ'}, {label: 'Принято'},
+       'Статус', 'Действие'],
+      rows,
+      function (row) {
+        var wrap = txt('span');
+        if (SUPPLY_STATUS_FLOW.indexOf(row.status_code) >= 0) {
+          var next = SUPPLY_STATUS_FLOW[SUPPLY_STATUS_FLOW.indexOf(row.status_code) + 1];
+          if (next) {
+            var btn = txt('button', 'btn btn-secondary btn-sm', SUPPLY_STATUS_TEXT[next]);
+            btn.onclick = (function (tripId, status) {
+              return function () { supplySetStatus(tripId, status); };
+            })(row.trip_id, next);
+            wrap.appendChild(btn);
+          }
+        }
+        return [
+          {text: fmtDate(row.trip_date)}, {text: row.trip_id}, {text: row.plate},
+          {text: row.station_code}, {text: row.product_code},
+          {cls: 'num', text: supplyNum(row.plan_l)},
+          {node: supplyFactInput(row, 'loaded_l')},
+          {node: supplyFactInput(row, 'doc_l')},
+          {node: supplyFactInput(row, 'accepted_l')},
+          {text: SUPPLY_STATUS_TEXT[row.status_code] || row.status_code},
+          {node: wrap}
+        ];
+      },
+      function (row) { return Number(row.has_discrepancy) ? 'warn' : ''; }));
+  });
+}
+
+function supplyFactInput(row, field) {
+  var input = txt('input');
+  input.type = 'number';
+  input.step = '10';
+  input.style.width = '90px';
+  if (row[field] !== null && row[field] !== undefined) { input.value = Number(row[field]); }
+  input.setAttribute('data-item-id', row.item_id);
+  input.setAttribute('data-field', field);
+  input.onchange = function () {
+    var body = {};
+    body[this.getAttribute('data-field')] = this.value;
+    apiPost('/api/supply/items/' + this.getAttribute('data-item-id') + '/fact', body)
+      .then(function (res) {
+        if (!checkOk(res, 'Факт поставки')) { return; }
+        showOk('Сохранено');
+        loadSupplyExecution();
+      });
+  };
+  return input;
+}
+
+function supplySetStatus(tripId, status) {
+  apiPost('/api/supply/trips/' + tripId + '/status', {status_code: status})
+    .then(function (res) {
+      if (!checkOk(res, 'Статус рейса')) { return; }
+      showOk('Статус: ' + (SUPPLY_STATUS_TEXT[status] || status));
+      loadSupplyExecution();
+    });
+}
+
+// ---- отчёт руководству ---------------------------------------------------
+
+function loadSupplyManagement() {
+  clearMsgs();
+  var from = document.getElementById('supMgmtFrom');
+  var to = document.getElementById('supMgmtTo');
+  if (!from.value) { from.value = isoDaysAgo(30); to.value = todayIso(); }
+  apiGet('/api/supply/management?date_from=' + from.value + '&date_to=' + to.value)
+    .then(function (res) {
+      if (!checkOk(res, 'Отчёт руководству')) { return; }
+      var e = res.data.economics || {};
+      var host = document.getElementById('supMgmtTable');
+      clearNode(host);
+      var rows = [
+        ['Рейсов за период', e.trips],
+        ['Нормативный пробег, км', supplyNum(e.norm_km)],
+        ['Фактический пробег, км', supplyNum(e.fact_km)],
+        ['Сверхнормативный пробег, км', supplyNum(e.extra_km)],
+        ['Перевезено, л', supplyNum(e.volume_l)],
+        ['Средняя загрузка цистерн, %', e.avg_load_pct === null ? '—' : supplyNum(e.avg_load_pct, 1)],
+        ['Зарплата водителей, лей', supplyNum(e.pay_total)],
+        ['Норматив расхода ДТ, л', supplyNum(e.fuel_norm_l)],
+        ['Фактический расход ДТ, л', supplyNum(e.fuel_fact_l)],
+        ['Перерасход ДТ, л', supplyNum(e.fuel_over_l)],
+        ['Стоимость перевозки 1 литра, лей', e.cost_per_liter === null ? '—' : supplyNum(e.cost_per_liter, 4)],
+        ['Рейсов с отклонением по пробегу', e.deviation_trips],
+        ['Эффект от оптимизации маршрутов, лей', supplyNum(e.optimization_effect)]
+      ];
+      host.appendChild(buildTable(['Показатель', {label: 'Значение'}], rows,
+        function (row) { return [{text: row[0]}, {cls: 'num', text: row[1]}]; }));
+
+      var rating = res.data.drivers || [];
+      var rhost = document.getElementById('supRatingTable');
+      clearNode(rhost);
+      rhost.appendChild(txt('h3', '', 'Рейтинг водителей по соблюдению маршрута'));
+      if (!rating.length) {
+        rhost.appendChild(txt('div', 'hint',
+          'Нет рейсов с заполненным фактическим пробегом за период.'));
+        return;
+      }
+      rhost.appendChild(buildTable(
+        [{label: '#'}, 'Водитель', {label: 'Внутр.'}, {label: 'Импорт'},
+         {label: 'Норматив, км'}, {label: 'Факт, км'}, {label: 'Перепробег, %'},
+         {label: 'Зарплата, лей'}],
+        rating,
+        function (row) {
+          return [{cls: 'num', text: row.rank}, {text: row.full_name},
+                  {cls: 'num', text: row.domestic_cnt}, {cls: 'num', text: row.import_cnt},
+                  {cls: 'num', text: supplyNum(row.norm_km)},
+                  {cls: 'num', text: supplyNum(row.fact_km)},
+                  {cls: 'num', text: supplyNum(row.extra_pct, 2)},
+                  {cls: 'num', text: supplyNum(row.pay)}];
+        },
+        function (row) { return row.extra_pct > 5 ? 'warn' : ''; }));
+    });
+}
+
+// ---- отсеки и группы -----------------------------------------------------
+
+function loadSupplySections() {
+  apiGet('/api/supply/sections').then(function (res) {
+    if (!res || !res.success) { return; }
+    var host = document.getElementById('supSectionsTable');
+    clearNode(host);
+    host.appendChild(txt('h3', '', 'Отсеки цистерн'));
+    host.appendChild(buildTable(
+      ['Цистерна', {label: 'Отсек №'}, {label: 'Объём, л'}],
+      res.data || [],
+      function (row) {
+        return [{text: row.plate}, {cls: 'num', text: row.seq_no},
+                {cls: 'num', text: supplyNum(row.volume_l)}];
+      }));
+  });
+}
+
+function loadSupplyGroups() {
+  apiGet('/api/supply/groups').then(function (res) {
+    if (!res || !res.success) { return; }
+    var host = document.getElementById('supGroupsTable');
+    clearNode(host);
+    host.appendChild(txt('h3', '', 'Группы АЗС для одного рейса'));
+    var rows = res.data || [];
+    if (!rows.length) {
+      host.appendChild(txt('div', 'hint',
+        'Группы не заведены — каждая АЗС планируется отдельным рейсом.'));
+      return;
+    }
+    host.appendChild(buildTable(
+      ['Код', 'Наименование', 'АЗС'],
+      rows,
+      function (row) {
+        var names = (row.station_ids || []).map(function (id) {
+          var st = STATIONS_BY_ID[id];
+          return st ? st.code : id;
+        });
+        return [{text: row.code}, {text: row.name}, {text: names.join(', ')}];
+      }));
+  });
+}
+</script>

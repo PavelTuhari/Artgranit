@@ -31,6 +31,9 @@ FILES = (
     "122_flt_seed.sql",
     "123_flt_prices.sql",
     "124_flt_gps.sql",
+    "125_flt_supply.sql",
+    "126_flt_supply_views.sql",
+    "127_flt_supply_seed.sql",
 )
 
 

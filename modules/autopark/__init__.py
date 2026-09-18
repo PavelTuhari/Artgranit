@@ -22,5 +22,6 @@ blueprint = Blueprint(
 )
 
 from modules.autopark import routes  # noqa: E402,F401  (регистрирует маршруты)
+from modules.autopark import supply_routes  # noqa: E402,F401  (контур распределения топлива)
 
 __all__ = ["blueprint"]
