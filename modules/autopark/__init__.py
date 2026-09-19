@@ -19,9 +19,15 @@ blueprint = Blueprint(
     "autopark",
     __name__,
     template_folder="templates",
+    # Свои статические файлы модуль везёт с собой: скриншоты руководства
+    # пользователя лежат в static/docs/ и отдаются по адресу модуля.
+    # Общий каталог static/ -- чужая территория (правило №1 проекта).
+    static_folder="static",
+    static_url_path="/static",
 )
 
 from modules.autopark import routes  # noqa: E402,F401  (регистрирует маршруты)
 from modules.autopark import supply_routes  # noqa: E402,F401  (контур распределения топлива)
+from modules.autopark import docs_routes  # noqa: E402,F401  (хаб документации модуля)
 
 __all__ = ["blueprint"]

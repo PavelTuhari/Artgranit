@@ -20,6 +20,28 @@ from models.database import DatabaseModel
 from modules.autopark.store import AutoparkSqlError, _done, _fail, _rows, _run
 
 
+def _insert_many(db, sql: str, rows: Sequence[Dict[str, Any]]) -> None:
+    """Пакетная вставка одним обращением к базе.
+
+    `execute_query` умеет только одну строку за вызов, а план — это
+    десятки строк: каждая отдельным запросом превращала сохранение плана
+    в пять секунд ожидания на кнопке «Рассчитать». Здесь берётся курсор
+    напрямую и используется executemany.
+
+    Про ORA-12860 (урок PECO, см. docstring store.py): она возникает на
+    `INSERT ... SELECT ... NEXTVAL` в тексте запроса. Здесь такого нет —
+    ID присваивает BEFORE INSERT триггер таблицы, а executemany шлёт
+    обычный многострочный bind.
+    """
+    if not rows:
+        return
+    cursor = db.connection.cursor()
+    try:
+        cursor.executemany(sql, list(rows))
+    finally:
+        cursor.close()
+
+
 class SupplyStore:
     """Таблицы FLT_TANK_STOCK / FLT_TRUCK_SECTIONS / FLT_SUPPLY_* ."""
 
@@ -230,18 +252,17 @@ class SupplyStore:
                       "params_id": settings.get("params_id")})
                 plan_id = _rows(_run(db, "SELECT MAX(ID) AS ID FROM FLT_SUPPLY_PLANS"))[0]["id"]
 
+                # Сначала вставляем ВСЕ строки потребности, и только потом
+                # одним запросом забираем их ID. Прежняя версия делала
+                # SELECT MAX(ID) после каждой вставки: на плане из
+                # одиннадцати строк это одиннадцать лишних рейсов до
+                # Ирландии, то есть примерно две секунды ожидания на
+                # ровном месте.
                 need_ids: Dict[Any, int] = {}
+                need_rows = []
                 for need in needs:
-                    _run(db, "INSERT INTO FLT_SUPPLY_NEEDS "
-                             "(PLAN_ID, STATION_ID, PRODUCT_CODE, TANK_ID, CURRENT_L, "
-                             " AVG_DAILY_L, MIN_STOCK_L, MAX_FILL_L, IN_TRANSIT_L, "
-                             " DAYS_TO_MIN, ALLOWED_L, TARGET_L, PLANNED_L, COVER_DAYS, "
-                             " WARNING) "
-                             "VALUES (:plan_id, :station_id, :product_code, :tank_id, "
-                             " :current_l, :avg_daily_l, :min_stock_l, :max_fill_l, "
-                             " :in_transit_l, :days_to_min, :allowed_l, :target_l, "
-                             " :planned_l, :cover_days, :warning)",
-                         {"plan_id": plan_id,
+                    need_rows.append(
+                        {"plan_id": plan_id,
                           "station_id": need["station_id"],
                           "product_code": need["product_code"],
                           "tank_id": need.get("tank_id"),
@@ -256,13 +277,19 @@ class SupplyStore:
                           "planned_l": need.get("planned_l") or 0,
                           "cover_days": need.get("cover_days_after"),
                           "warning": ",".join(need.get("warnings") or []) or None})
-                    row = _rows(_run(db, "SELECT MAX(ID) AS ID FROM FLT_SUPPLY_NEEDS "
-                                         "WHERE PLAN_ID = :plan_id AND STATION_ID = :station_id "
-                                         "AND PRODUCT_CODE = :product_code",
-                                     {"plan_id": plan_id,
-                                      "station_id": need["station_id"],
-                                      "product_code": need["product_code"]}))
-                    need_ids[(need["station_id"], need["product_code"])] = row[0]["id"]
+                _insert_many(db,
+                    "INSERT INTO FLT_SUPPLY_NEEDS "
+                    "(PLAN_ID, STATION_ID, PRODUCT_CODE, TANK_ID, CURRENT_L, "
+                    " AVG_DAILY_L, MIN_STOCK_L, MAX_FILL_L, IN_TRANSIT_L, "
+                    " DAYS_TO_MIN, ALLOWED_L, TARGET_L, PLANNED_L, COVER_DAYS, WARNING) "
+                    "VALUES (:plan_id, :station_id, :product_code, :tank_id, "
+                    " :current_l, :avg_daily_l, :min_stock_l, :max_fill_l, "
+                    " :in_transit_l, :days_to_min, :allowed_l, :target_l, "
+                    " :planned_l, :cover_days, :warning)", need_rows)
+                for row in _rows(_run(db,
+                        "SELECT ID, STATION_ID, PRODUCT_CODE FROM FLT_SUPPLY_NEEDS "
+                        "WHERE PLAN_ID = :plan_id", {"plan_id": plan_id})):
+                    need_ids[(row["station_id"], row["product_code"])] = row["id"]
 
                 for trip in trips:
                     _run(db, "INSERT INTO FLT_SUPPLY_TRIPS "
@@ -277,23 +304,24 @@ class SupplyStore:
                           "group_id": trip.get("group_id"),
                           "volume_l": trip.get("volume_l") or 0,
                           "est_km": trip.get("est_km")})
-                    strip_id = _rows(_run(db, "SELECT MAX(ID) AS ID FROM FLT_SUPPLY_TRIPS "
-                                              "WHERE PLAN_ID = :plan_id",
-                                          {"plan_id": plan_id}))[0]["id"]
-                    for load in trip.get("loads") or []:
-                        _run(db, "INSERT INTO FLT_SUPPLY_LOADS "
-                                 "(SUPPLY_TRIP_ID, NEED_ID, SECTION_ID, STATION_ID, "
-                                 " PRODUCT_CODE, VOLUME_L, UNLOAD_SEQ) "
-                                 "VALUES (:trip_id, :need_id, :section_id, :station_id, "
-                                 " :product_code, :volume_l, :unload_seq)",
-                             {"trip_id": strip_id,
-                              "need_id": need_ids.get((load["station_id"],
-                                                       load["product_code"])),
-                              "section_id": load["section_id"],
-                              "station_id": load["station_id"],
-                              "product_code": load["product_code"],
-                              "volume_l": load["volume_l"],
-                              "unload_seq": load["unload_seq"]})
+                    strip_id = _rows(_run(db,
+                        "SELECT MAX(ID) AS ID FROM FLT_SUPPLY_TRIPS "
+                        "WHERE PLAN_ID = :plan_id", {"plan_id": plan_id}))[0]["id"]
+                    _insert_many(db,
+                        "INSERT INTO FLT_SUPPLY_LOADS "
+                        "(SUPPLY_TRIP_ID, NEED_ID, SECTION_ID, STATION_ID, "
+                        " PRODUCT_CODE, VOLUME_L, UNLOAD_SEQ) "
+                        "VALUES (:trip_id, :need_id, :section_id, :station_id, "
+                        " :product_code, :volume_l, :unload_seq)",
+                        [{"trip_id": strip_id,
+                          "need_id": need_ids.get((load["station_id"],
+                                                   load["product_code"])),
+                          "section_id": load["section_id"],
+                          "station_id": load["station_id"],
+                          "product_code": load["product_code"],
+                          "volume_l": load["volume_l"],
+                          "unload_seq": load["unload_seq"]}
+                         for load in (trip.get("loads") or [])])
                 db.connection.commit()
             return _done({"plan_id": plan_id, "needs": len(needs), "trips": len(trips)})
         except AutoparkSqlError as exc:
@@ -643,5 +671,74 @@ class SupplyStore:
                     "ORDER BY PRICE_DATE DESC FETCH FIRST 1 ROWS ONLY",
                     {"d": on_date}))
                 return _done(rows[0] if rows else None)
+        except AutoparkSqlError as exc:
+            return _fail(str(exc))
+
+    @staticmethod
+    def plan_inputs(on_date) -> Dict[str, Any]:
+        """Всё, что нужно расчёту плана, одним подключением.
+
+        Прежде контроллер собирал вход из восьми методов разных хранилищ,
+        и каждый открывал своё соединение с облачной ADB: расчёт плана
+        занимал 7,5 секунды при том, что сами выборки — десятки
+        миллисекунд. Платили за рукопожатия, а не за работу.
+
+        Матрица расстояний читается целиком и возвращается словарём:
+        маршрут спрашивает её десятки раз, поштучные SELECT были бы N
+        запросов вместо одного.
+        """
+        try:
+            with DatabaseModel() as db:
+                settings = _rows(_run(db,
+                    "SELECT MAX_COVER_DAYS, PLAN_HORIZON_DAYS, GROUP_MIN_STATIONS, "
+                    "GROUP_MAX_STATIONS, VOLUME_DIFF_PCT, SAFETY_DAYS, RATE_PER_KM, "
+                    "TRIP_BONUS FROM FLT_SETTINGS WHERE ID = 1"))
+                params = _rows(_run(db,
+                    "SELECT ID, VALID_FROM, VALID_TO, MAX_COVER_DAYS, PLAN_HORIZON_DAYS, "
+                    "GROUP_MIN_STATIONS, GROUP_MAX_STATIONS, VOLUME_DIFF_PCT "
+                    "FROM FLT_SUPPLY_PARAMS "
+                    "WHERE VALID_FROM <= :d AND (VALID_TO IS NULL OR VALID_TO >= :d) "
+                    "ORDER BY VALID_FROM DESC, ID DESC FETCH FIRST 1 ROWS ONLY",
+                    {"d": on_date}))
+                tanks = _rows(_run(db,
+                    "SELECT TANK_ID, STATION_ID, STATION_CODE, STATION_NAME, "
+                    "PRODUCT_CODE, FUEL_GROUP, CAPACITY_L, MAX_FILL_L, CURRENT_L, "
+                    "AVG_DAILY_L, MIN_STOCK_L, MAX_COVER_DAYS, IN_TRANSIT_L, "
+                    "ALLOWED_L, DAYS_TO_MIN FROM V_FLT_TANK_STATE"))
+                sections = _rows(_run(db,
+                    "SELECT s.ID, s.TRUCK_ID, t.PLATE, s.SEQ_NO, s.VOLUME_L, "
+                    "s.VALID_FROM, s.VALID_TO FROM FLT_TRUCK_SECTIONS s "
+                    "JOIN FLT_TRUCKS t ON t.ID = s.TRUCK_ID ORDER BY s.TRUCK_ID, s.SEQ_NO"))
+                trucks = _rows(_run(db,
+                    "SELECT ID, PLATE, CAPACITY_L, SECTIONS_CNT, ACTIVE FROM FLT_TRUCKS"))
+                truck_products = _rows(_run(db,
+                    "SELECT TRUCK_ID, PRODUCT_CODE FROM FLT_TRUCK_PRODUCTS"))
+                groups = _rows(_run(db,
+                    "SELECT ID, CODE, NAME, ACTIVE FROM FLT_STATION_GROUPS"))
+                group_items = _rows(_run(db,
+                    "SELECT GROUP_ID, STATION_ID, SEQ_NO, VALID_FROM, VALID_TO "
+                    "FROM FLT_STATION_GROUP_ITEMS ORDER BY GROUP_ID, SEQ_NO"))
+                load_points = _rows(_run(db,
+                    "SELECT ID, CODE, NAME, IS_FOREIGN FROM FLT_LOAD_POINTS ORDER BY ID"))
+                distances = _rows(_run(db,
+                    "SELECT FROM_KIND, FROM_ID, TO_KIND, TO_ID, KM FROM FLT_DISTANCES"))
+
+            by_truck: Dict[Any, List[str]] = {}
+            for row in truck_products:
+                by_truck.setdefault(row["truck_id"], []).append(row["product_code"])
+            for truck in trucks:
+                truck["products"] = by_truck.get(truck["id"], [])
+            by_group: Dict[Any, List[Dict[str, Any]]] = {}
+            for item in group_items:
+                by_group.setdefault(item["group_id"], []).append(item)
+            for group in groups:
+                group["items"] = by_group.get(group["id"], [])
+            matrix = {(r["from_kind"], r["from_id"], r["to_kind"], r["to_id"]):
+                      float(r["km"]) for r in distances}
+            return _done({"settings": settings[0] if settings else {},
+                          "params": params[0] if params else None,
+                          "tanks": tanks, "sections": sections, "trucks": trucks,
+                          "groups": groups, "load_points": load_points,
+                          "distances": matrix})
         except AutoparkSqlError as exc:
             return _fail(str(exc))

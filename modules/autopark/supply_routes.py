@@ -57,7 +57,7 @@ def api_supply_sections():
 @blueprint.route("/api/supply/sections", methods=["POST"])
 def api_supply_sections_save():
     return _guard() or jsonify(
-        SupplyController.sections_save(request.get_json(silent=True) or {}))
+        SupplyController.sections_save(request.get_json(silent=True) or {}, _username()))
 
 
 @blueprint.route("/api/supply/groups", methods=["GET"])
@@ -201,3 +201,30 @@ def api_group_periods():
 def api_group_period_save(group_id):
     return _guard() or jsonify(PeriodsController.save_group_period(
         group_id, request.get_json(silent=True) or {}, _username()))
+
+
+# ── сводка первого лица ──────────────────────────────────────────────
+
+from datetime import date, datetime, timedelta  # noqa: E402
+
+from modules.autopark import board as board_view  # noqa: E402
+
+
+@blueprint.route("/api/board", methods=["GET"])
+def api_board():
+    """Три ответа руководителю: сеть, деньги, эффект автоматизации."""
+    guard = _guard()
+    if guard:
+        return guard
+
+    def _date(raw, default):
+        if not raw:
+            return default
+        try:
+            return datetime.strptime(str(raw)[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return default
+
+    date_to = _date(request.args.get("date_to"), date.today())
+    date_from = _date(request.args.get("date_from"), date_to - timedelta(days=30))
+    return jsonify(board_view.build(date_from, date_to))

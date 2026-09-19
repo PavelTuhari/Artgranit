@@ -116,15 +116,32 @@ class SupplyController:
 
     @staticmethod
     def sections_list(truck_id: Any = None) -> Dict[str, Any]:
-        try:
-            truck_id = _as_int(truck_id, "Цистерна")
-        except ValueError as exc:
-            return _fail(str(exc))
-        return SupplyStore.list_sections(truck_id)
+        """Отсеки цистерн. Делегирует в контур периодов.
+
+        Два источника правды об отсеках -- это гарантированное
+        расхождение: один показывал бы конфигурацию с периодами, другой
+        без них, и пользователь получал бы разные объёмы на двух
+        экранах. Адрес /api/supply/sections оставлен ради совместимости.
+        """
+        from modules.autopark.periods_controller import PeriodsController
+        return PeriodsController.sections(truck_id)
 
     @staticmethod
-    def sections_save(payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Отсеки цистерны (ТЗ п.6: бензин 5 отсеков, дизель 4)."""
+    def sections_save(payload: Dict[str, Any], username: str = "system") -> Dict[str, Any]:
+        """Отсеки цистерны (ТЗ п.6: бензин 5 отсеков, дизель 4).
+
+        Тоже делегирует: сохранение с периодом умеет закрывать прежнюю
+        конфигурацию, а прежняя версия этого метода просто запрещала
+        правку, если отсек уже участвовал в плане.
+        """
+        from modules.autopark.periods_controller import PeriodsController
+        return PeriodsController.save_sections(payload, username)
+
+    @staticmethod
+    def _sections_save_legacy(payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Прежняя реализация без периодов. Оставлена только как
+        документация того, почему замена понадобилась: она удаляла
+        конфигурацию целиком и поэтому запрещала правку задним числом."""
         try:
             truck_id = _as_int(payload.get("truck_id"), "Цистерна")
         except ValueError as exc:
@@ -238,21 +255,22 @@ class SupplyController:
 
     @staticmethod
     def plan_build(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
-        """Расчёт плана распределения (ТЗ п.3 — п.7) и его сохранение."""
-        settings_res = SupplyStore.supply_settings()
-        if not settings_res.get("success"):
-            return settings_res
-        settings = dict(settings_res["data"])
+        """Расчёт плана распределения (ТЗ п.3 — п.7) и его сохранение.
 
-        # Параметры, действующие СЕГОДНЯ, перекрывают значения из общей
-        # строки настроек: заказчик планирует их наперёд (зимний потолок
-        # запаса, летний), и расчёт обязан брать те, что действуют на
-        # дату расчёта, а не последние введённые.
+        Весь вход читается ОДНИМ подключением (SupplyStore.plan_inputs):
+        восемь отдельных соединений с облачной ADB давали 7,5 секунды на
+        кнопку «Рассчитать план».
+        """
         plan_date = date.today()
-        eff = PeriodsStore.effective_params(plan_date)
+        raw = SupplyStore.plan_inputs(plan_date)
+        if not raw.get("success"):
+            return raw
+        src = raw["data"]
+
+        settings = dict(src.get("settings") or {})
         params_id = None
-        if eff.get("success") and (eff["data"].get("params") or {}):
-            row = eff["data"]["params"]
+        if src.get("params"):
+            row = src["params"]
             params_id = row.get("id")
             for key in ("max_cover_days", "plan_horizon_days", "group_min_stations",
                         "group_max_stations", "volume_diff_pct"):
@@ -270,27 +288,47 @@ class SupplyController:
             return _fail(str(exc))
         settings.update({k: v for k, v in override.items() if v is not None})
 
-        tanks_res = SupplyStore.tank_state()
-        if not tanks_res.get("success"):
-            return tanks_res
-        tanks = tanks_res["data"]
+        tanks = src["tanks"]
         if not tanks:
             return _fail("Не заведён ни один резервуар АЗС")
 
-        catalog = SupplyController._truck_catalog(plan_date)
-        if not catalog.get("success"):
-            return catalog
-        trucks = catalog["data"]["trucks"]
-        warnings = list(catalog["data"]["warnings"])
+        # Отсеки и состав групп -- те, что действуют на дату расчёта.
+        warnings: List[str] = []
+        by_truck: Dict[Any, List[Dict[str, Any]]] = {}
+        for sec in src["sections"]:
+            if not per.covers(sec, plan_date):
+                continue
+            by_truck.setdefault(sec["truck_id"], []).append(
+                {"id": sec["id"], "seq_no": sec["seq_no"],
+                 "volume_l": float(sec["volume_l"])})
+
+        trucks: List[Dict[str, Any]] = []
+        for t in src["trucks"]:
+            if not t.get("active"):
+                continue
+            products = t.get("products") or []
+            groups_allowed = set()
+            if "DIESEL" in products:
+                groups_allowed.add("DIESEL")
+            if any(p != "DIESEL" for p in products):
+                groups_allowed.add("PETROL")
+            if not groups_allowed:
+                groups_allowed = {"PETROL", "DIESEL"}
+                warnings.append(f"Цистерне {t.get('plate')} не заданы разрешённые "
+                                "продукты — она доступна для любого топлива")
+            sections = by_truck.get(t["id"]) or []
+            if not sections:
+                warnings.append(f"У цистерны {t.get('plate')} нет действующих отсеков "
+                                "— в планирование она не попадёт")
+                continue
+            trucks.append({"id": t["id"], "plate": t.get("plate"),
+                           "fuel_groups": sorted(groups_allowed), "sections": sections})
         if not trucks:
             return _fail("Нет ни одной цистерны с заведёнными отсеками — "
                          "планировать нечем")
 
-        # Состав группы тоже привязан к периоду: АЗС переходит из
-        # северного круга в центральный на время ремонта дороги.
-        groups_res = PeriodsStore.groups()
         groups = []
-        for g in (groups_res.get("data") or []):
+        for g in src["groups"]:
             if not g.get("active"):
                 continue
             station_ids = [i["station_id"] for i in g.get("items", [])
@@ -299,18 +337,19 @@ class SupplyController:
                 groups.append({"id": g["id"], "code": g.get("code"),
                                "name": g.get("name"), "station_ids": station_ids})
 
-        load_points_res = AutoparkStore.list_load_points()
-        if not load_points_res.get("success"):
-            return load_points_res
         load_point_id = payload.get("load_point_id")
         if load_point_id is None:
-            domestic = [p for p in load_points_res["data"] if not p.get("is_foreign")]
+            domestic = [p for p in src["load_points"] if not p.get("is_foreign")]
             if not domestic:
                 return _fail("Не заведён ни один внутренний пункт загрузки")
             load_point_id = domestic[0]["id"]
         settings["load_point_id"] = load_point_id
 
-        dist_lookup = AutoparkStore.distance_lookup_fn()
+        matrix = src["distances"]
+
+        def dist_lookup(from_kind, from_id, to_kind, to_id):
+            return matrix.get((from_kind, from_id, to_kind, to_id))
+
         plan = rules.build_plan(tanks, trucks, groups, settings, dist_lookup)
 
         if not plan["needs"]:

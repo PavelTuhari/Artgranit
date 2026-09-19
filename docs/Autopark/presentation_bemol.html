@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEMOL — автоматизация логистики топлива</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b1220;--panel:#111c2f;--line:#24354f;--fg:#e9eef7;--muted:#93a6c2;
+      --accent:#3b82f6;--accent2:#60a5fa;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+     background:var(--bg);color:var(--fg);line-height:1.6}
+.slide{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+       padding:60px 70px;border-bottom:1px solid var(--line);position:relative;
+       max-width:1280px;margin:0 auto}
+.slide .num{position:absolute;right:40px;bottom:28px;font-size:12px;color:#4a5b76}
+.kicker{font-size:12.5px;text-transform:uppercase;letter-spacing:1.4px;
+        color:var(--accent2);margin-bottom:14px;font-weight:600}
+h1{font-size:56px;letter-spacing:-.02em;line-height:1.1;margin-bottom:20px}
+h2{font-size:38px;letter-spacing:-.02em;line-height:1.15;margin-bottom:18px}
+h3{font-size:17px;margin-bottom:8px}
+p{font-size:17.5px;color:#cbd8ea;max-width:900px;margin-bottom:14px}
+.lead{font-size:21px;color:#dbe6f5}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:20px 22px;border-top:3px solid var(--accent)}
+.card.ok{border-top-color:var(--ok)}.card.warn{border-top-color:var(--warn)}
+.card.bad{border-top-color:var(--bad)}
+.card p{font-size:14.5px;margin:0;color:var(--muted)}
+.big{font-size:44px;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin-bottom:6px}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:15px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.7px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.4px;
+     padding:3px 9px;border-radius:6px;background:rgba(59,130,246,.16);color:var(--accent2)}
+.tag.ok{background:rgba(34,197,94,.16);color:#4ade80}
+.foot{margin-top:24px;font-size:13.5px;color:var(--muted)}
+.live{display:inline-block;margin-right:10px;font-size:13.5px;padding:7px 14px;
+      border:1px solid var(--line);border-radius:8px;color:var(--accent2);text-decoration:none}
+.live:hover{background:var(--panel)}
+img{max-width:100%;border:1px solid var(--line);border-radius:10px;margin-top:14px}
+@media print{.slide{min-height:auto;page-break-after:always;border:none}}
+</style>
+</head>
+<body>
+
+<section class="slide">
+  <div class="kicker">Сеть BEMOL · автоматизация логистики</div>
+  <h1>Топливо приезжает туда,<br>где оно закончится завтра</h1>
+  <p class="lead">Система планирует завоз на АЗС, считает зарплату водителей по
+     нормативному пробегу и показывает, где сеть теряет деньги. Работает на
+     контуре сети, данные — в вашей Oracle.</p>
+  <div class="foot">19.09.2026 · по двум техническим заданиям заказчика от 18.09.2026</div>
+  <div class="num">1</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Проблема</div>
+  <h2>Сеть узнаёт о проблеме, когда колонка уже стоит</h2>
+  <div class="cols3">
+    <div class="card bad"><h3>Остаток</h3>
+      <p>Узнаётся звонком на АЗС. К моменту решения цифра устарела на часы.</p></div>
+    <div class="card bad"><h3>Объём</h3>
+      <p>Решается по опыту. Недовоз — сухой бак, перевоз — лишний рейс и мёртвые деньги.</p></div>
+    <div class="card bad"><h3>Потери</h3>
+      <p>Лишний пробег и перерасход не видны, пока не сойдётся годовой баланс.</p></div>
+  </div>
+  <p style="margin-top:22px">Главная беда не в трудозатратах логиста, а в невидимости:
+     нет способа отличить обоснованный пробег от необоснованного и увидеть
+     станцию, которая встанет завтра.</p>
+  <div class="num">2</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Решение одной фразой</div>
+  <h2>Система считает, человек утверждает</h2>
+  <p class="lead">По каждому резервуару известно: сколько осталось, как быстро
+     продаётся, сколько влезет и сколько уже едет. Из этого собирается план
+     рейсов — с учётом физики цистерны.</p>
+  <div class="cols3" style="margin-top:20px">
+    <div class="card"><h3>Отсек сливается целиком</h3>
+      <p>Объём поставки — сумма целых отсеков, а не «сколько не хватает».
+         Оставить топливо в отсеке нельзя технически.</p></div>
+    <div class="card"><h3>Разгрузка с хвоста</h3>
+      <p>Первая АЗС по маршруту получает хвостовые отсеки. Порядок назначения —
+         условие исполнимости рейса, а не оформление.</p></div>
+    <div class="card"><h3>Бензин отдельно от дизеля</h3>
+      <p>Одна цистерна — одно семейство топлива в рейсе. Запрет на уровне
+         расчёта, а не инструкции.</p></div>
+  </div>
+  <div class="num">3</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Экран первого лица</div>
+  <h2>Три ответа вместо десяти таблиц</h2>
+  <p>Под контролем ли сеть · во что обходится логистика · что дала автоматизация.
+     Плюс одна строка: что требует решения сегодня.</p>
+  <img src="/UNA.md/orasldev/autopark/static/docs/01-board.png" alt="Экран руководителя">
+  <div class="num">4</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Как это работает у логиста</div>
+  <h2>План на всю сеть — за три секунды</h2>
+  <p>Таблица показывает по каждому резервуару: остаток, темп продаж, срок до
+     минимума, объём в пути, рекомендуемый и максимально допустимый объём,
+     машину и раскладку по отсекам с порядком разгрузки.</p>
+  <img src="/UNA.md/orasldev/autopark/static/docs/02-supply.png"
+       alt="Распределение топлива" style="max-height:52vh;object-fit:cover;object-position:top">
+  <div class="num">5</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Контроль</div>
+  <h2>Четыре числа вместо одного</h2>
+  <table>
+    <thead><tr><th>Этап</th><th>Что фиксируется</th><th>Кто вводит</th></tr></thead>
+    <tbody>
+      <tr><td>План</td><td>сколько система рассчитала</td><td>расчёт</td></tr>
+      <tr><td>Загружено</td><td>сколько налили в цистерну</td><td>оператор погрузки</td></tr>
+      <tr><td>Документ</td><td>сколько в накладной</td><td>по документам</td></tr>
+      <tr><td>Принято</td><td>сколько приняла АЗС</td><td>протокол разгрузки</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:18px">Расхождение больше порога подсвечивается в день поставки,
+     а не при инвентаризации. Проверено: недостача 700 л найдена автоматически.</p>
+  <div class="num">6</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Зарплата</div>
+  <h2>Ставка действует с даты — прошлое не переписывается</h2>
+  <div class="cols2">
+    <div class="card ok"><div class="big">3,50</div>
+      <p>лея за километр с 18.09.2026 — по новой редакции ТЗ</p></div>
+    <div class="card"><div class="big">2,75 + 600</div>
+      <p>прежняя ставка с доплатой за внутренний рейс — по ней остаётся
+         посчитанным август</p></div>
+  </div>
+  <p style="margin-top:20px">Зарплата = нормативный пробег × ставка. Норматив считается
+     от стоянки до стоянки, включая участок до терминала погрузки — раньше он
+     терялся, и зарплата занижалась.</p>
+  <p>Оплачивается доставленный рейс, а не запланированный.</p>
+  <div class="num">7</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Настройки</div>
+  <h2>Сеть настраивает систему сама</h2>
+  <p>Ставка, потолок запаса в днях, минимальный остаток по резервуару, объёмы
+     отсеков, состав групп АЗС — заводит сотрудник сети, каждое значение
+     с датой действия.</p>
+  <img src="/UNA.md/orasldev/autopark/static/docs/03-periods.png"
+       alt="Настройки по периодам" style="max-height:48vh;object-fit:cover;object-position:top">
+  <div class="num">8</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Измерено, а не заявлено</div>
+  <h2>Что показала проверка</h2>
+  <table>
+    <thead><tr><th>Показатель</th><th class="num">Значение</th></tr></thead>
+    <tbody>
+      <tr><td>Расчёт плана по 22 резервуарам</td><td class="num">3,4 с</td></tr>
+      <tr><td>Сводка первого лица</td><td class="num">1,4 с</td></tr>
+      <tr><td>Проверок по шести ролям пройдено</td><td class="num">20 из 20</td></tr>
+      <tr><td>Автоматических тестов расчёта</td><td class="num">201</td></tr>
+      <tr><td>Стоимость доставки литра</td><td class="num">0,15 лея</td></tr>
+      <tr><td>Доля от цены литра дизеля</td><td class="num">0,45 %</td></tr>
+      <tr><td>Найдено потерь за период</td><td class="num">3 547 лей</td></tr>
+    </tbody>
+  </table>
+  <p class="foot">Данные демонстрационные: 9 АЗС, 22 резервуара, 3 бензовоза,
+     два года истории. После подключения Petrol Expert и UNA те же показатели
+     пересчитываются на реальной сети — менять в системе ничего не нужно.</p>
+  <div class="num">9</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Дальше</div>
+  <h2>Два решения — и система работает на реальных данных</h2>
+  <div class="cols2">
+    <div class="card"><h3>1. Доступ к Petrol Expert и UNA</h3>
+      <p>Приёмная часть написана и ждёт источник. Один-два рабочих дня после
+         получения доступа.</p></div>
+    <div class="card"><h3>2. Ответственный за справочники</h3>
+      <p>Паспорта цистерн, группы АЗС, минимальные остатки. Заводится в
+         интерфейсе за час.</p></div>
+  </div>
+  <p style="margin-top:22px">Дальнейшие этапы — GPS на весь парк, импортные рейсы,
+     прогноз продаж, оптимизация маршрутов — описаны в дорожной карте и могут
+     идти по одному, каждый с самостоятельной ценностью.</p>
+  <div style="margin-top:20px">
+    <a class="live" href="/UNA.md/orasldev/autopark" target="_blank" rel="noopener">Открыть систему</a>
+    <a class="live" href="/UNA.md/orasldev/autopark/docs/bemol" target="_blank" rel="noopener">Дорожная карта</a>
+    <a class="live" href="/UNA.md/orasldev/autopark/docs/offer" target="_blank" rel="noopener">Коммерческое предложение</a>
+  </div>
+  <div class="num">10</div>
+</section>
+
+</body>
+</html>

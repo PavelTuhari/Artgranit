@@ -118,6 +118,7 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
     </div>
     <div class="sb-nav" id="sbNav">
       <button class="nav-item active" data-panel="dashboard" onclick="showPanel('dashboard')"><span class="ic">📊</span><span>Сводка</span></button>
+      <button class="nav-item" data-panel="board" onclick="showPanel('board')"><span class="ic">🏛️</span><span>Руководству</span></button>
       <button class="nav-item" data-panel="refs" onclick="showPanel('refs')"><span class="ic">📚</span><span>Справочники</span></button>
       <button class="nav-item" data-panel="deliveries" onclick="showPanel('deliveries')"><span class="ic">🛢️</span><span>Поставки</span></button>
       <button class="nav-item" data-panel="trips" onclick="showPanel('trips')"><span class="ic">🚛</span><span>Рейсы</span></button>
@@ -366,6 +367,9 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
 
     {# Настройки заказчика с датами действия -- тоже свой файл #}
     {% include "_periods_panel.html" %}
+
+    {# Сводка первого лица: три ответа вместо таблиц #}
+    {% include "_board_panel.html" %}
 
     <!-- ============ ПАНЕЛЬ: ЗАРПЛАТА ============ -->
     <section class="panel" id="panel-payroll">
@@ -669,6 +673,7 @@ function onPanelShown(name) {
   if (name === 'planning') { loadSupplyPlan(); }
   if (name === 'supply') { loadSupplyPanel(); }
   if (name === 'periods') { loadPeriodsPanel(); }
+  if (name === 'board') { loadBoardPanel(); }
   if (name === 'payroll') { loadPayroll(); }
   if (name === 'control') { loadControl(); }
   if (name === 'prices') { loadPrices(); }

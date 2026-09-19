@@ -1,0 +1,169 @@
+{# Autopark -- сводка первого лица.
+
+   Отдельный файл, подключается одной строкой. Наружу -- одна функция
+   loadBoardPanel().
+
+   Отличие от остальных панелей: здесь НЕ таблицы. Руководителю нужны
+   три ответа и список того, что требует его вмешательства. Всё
+   остальное -- по ссылке в рабочие разделы. #}
+
+<style>
+.board-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px; margin-bottom: 18px; }
+.board-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 18px 20px; border-top: 4px solid #94a3b8; }
+.board-card.good { border-top-color: #16a34a; }
+.board-card.warn { border-top-color: #f59e0b; }
+.board-card.bad  { border-top-color: #dc2626; }
+.board-card h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px;
+  color: #64748b; margin-bottom: 10px; font-weight: 600; }
+.board-card .big { font-size: 34px; font-weight: 700; letter-spacing: -.02em;
+  line-height: 1.1; color: #0f172a; }
+.board-card .sub { font-size: 13.5px; color: #475569; margin-top: 8px; line-height: 1.5; }
+.board-card .rows { margin-top: 12px; font-size: 13px; color: #334155; }
+.board-card .rows div { display: flex; justify-content: space-between; gap: 10px;
+  padding: 3px 0; border-bottom: 1px dashed #e2e8f0; }
+.board-card .rows b { font-variant-numeric: tabular-nums; }
+.board-actions { background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb;
+  border-radius: 10px; padding: 16px 20px; }
+.board-actions h3 { font-size: 15px; margin-bottom: 8px; }
+.board-actions li { margin: 5px 0 5px 18px; font-size: 14.5px; }
+.board-note { font-size: 12.5px; color: #64748b; margin-top: 14px; line-height: 1.6; }
+</style>
+
+<section class="panel" id="panel-board">
+  <h1>Сводка для руководства</h1>
+  <div class="crumbs">Три вопроса: под контролем ли сеть, во что обходится логистика, что дала автоматизация</div>
+
+  <div class="toolbar">
+    <label>с <input type="date" id="boardFrom"></label>
+    <label>по <input type="date" id="boardTo"></label>
+    <button class="btn btn-secondary btn-sm" onclick="loadBoardPanel()">Обновить</button>
+    <button class="btn btn-secondary btn-sm" onclick="window.print()">Распечатать</button>
+  </div>
+
+  <div class="board-grid" id="boardCards"></div>
+  <div class="board-actions" id="boardActions"></div>
+  <div class="board-note" id="boardNote"></div>
+</section>
+
+<script>
+'use strict';
+
+function boardNum(v, digits) {
+  if (v === null || v === undefined || v === '') { return '—'; }
+  var n = Number(v);
+  if (isNaN(n)) { return '—'; }
+  return n.toLocaleString('ru-RU', {minimumFractionDigits: digits || 0,
+                                    maximumFractionDigits: digits || 0});
+}
+
+function boardPlural(n, forms) {
+  // Экран видит первое лицо -- «3 рейсов» на нём выглядит так же, как
+  // опечатка в годовом отчёте.
+  var abs = Math.abs(Number(n)) % 100;
+  var last = abs % 10;
+  if (abs > 10 && abs < 20) { return forms[2]; }
+  if (last > 1 && last < 5) { return forms[1]; }
+  if (last === 1) { return forms[0]; }
+  return forms[2];
+}
+
+function boardCard(cls, title, big, sub, rows) {
+  var card = txt('div', 'board-card ' + (cls || ''));
+  card.appendChild(txt('h3', '', title));
+  card.appendChild(txt('div', 'big', big));
+  if (sub) { card.appendChild(txt('div', 'sub', sub)); }
+  if (rows && rows.length) {
+    var box = txt('div', 'rows');
+    for (var i = 0; i < rows.length; i++) {
+      var line = txt('div');
+      line.appendChild(txt('span', '', rows[i][0]));
+      line.appendChild(txt('b', '', rows[i][1]));
+      box.appendChild(line);
+    }
+    card.appendChild(box);
+  }
+  return card;
+}
+
+function loadBoardPanel() {
+  clearMsgs();
+  var from = document.getElementById('boardFrom');
+  var to = document.getElementById('boardTo');
+  if (!from.value) { from.value = isoDaysAgo(30); to.value = todayIso(); }
+  // Сводка собирается по всей сети и идёт около секунды. Пустой экран
+  // за это время читается как «данных нет» -- худшее, что может
+  // показать система первому лицу.
+  var cards = document.getElementById('boardCards');
+  clearNode(cards);
+  cards.appendChild(txt('div', 'board-card', 'Считаю по сети…'));
+  apiGet('/api/board?date_from=' + from.value + '&date_to=' + to.value)
+    .then(function (res) {
+      if (!checkOk(res, 'Сводка')) { return; }
+      var d = res.data;
+      var host = document.getElementById('boardCards');
+      clearNode(host);
+
+      var n = d.network;
+      host.appendChild(boardCard(n.level, 'Наличие топлива в сети',
+        n.stations_ok + ' из ' + n.stations_total,
+        n.headline + '. Считается запас до минимального остатка с учётом того, что уже в пути.',
+        [['Требуют завоза сегодня', n.stations_risky],
+         ['Близко к минимуму', n.stations_low],
+         ['Запас в норме', n.stations_ok],
+         ['Самый срочный', n.worst ? (n.worst.station + ' · ' + n.worst.product +
+            ' · ' + Number(n.worst.days).toFixed(1) + ' сут') : '—']]));
+
+      var m = d.money;
+      host.appendChild(boardCard(m.level, 'Стоимость доставки',
+        boardNum(m.cost_per_liter, 2) + ' лей/л',
+        'Столько стоит довезти литр: зарплата водителей плюс перерасход топлива. ' +
+        (m.cost_share_pct ? 'Это ' + boardNum(m.cost_share_pct, 2) +
+         '% от цены литра дизеля.' : ''),
+        [['Перевезено', boardNum(m.volume_l) + ' л'],
+         ['Зарплата водителей', boardNum(m.pay_total) + ' лей'],
+         ['Лишний пробег', boardNum(m.extra_km) + ' км (' + boardNum(m.extra_pct, 1) + '%)'],
+         ['Перерасход топлива', boardNum(m.fuel_over_l) + ' л'],
+         ['Итого потери', boardNum(m.loss_total) + ' лей']]));
+
+      var a = d.automation;
+      host.appendChild(boardCard('good', 'Что дала автоматизация',
+        boardNum(a.planned_trips) + ' ' +
+          boardPlural(a.planned_trips, ['рейс', 'рейса', 'рейсов']),
+        a.headline + '. Планы собраны расчётом: остаток, темп продаж, свободный объём и ' +
+        'раскладка по отсекам считаются системой, логист утверждает.',
+        [['Утверждённых планов', a.plans],
+         ['Объём в планах', boardNum(a.planned_volume_l) + ' л'],
+         ['Доля рейсов из расчёта', a.auto_share_pct === null ? '—' :
+            boardNum(a.auto_share_pct, 1) + '%'],
+         ['Сэкономлено времени логиста', boardNum(a.saved_hours, 1) + ' ч']]));
+
+      var acts = document.getElementById('boardActions');
+      clearNode(acts);
+      acts.appendChild(txt('h3', '', 'Что требует решения'));
+      var ul = txt('ul');
+      for (var i = 0; i < d.actions.length; i++) {
+        ul.appendChild(txt('li', '', d.actions[i]));
+      }
+      acts.appendChild(ul);
+
+      var note = document.getElementById('boardNote');
+      clearNode(note);
+      var best = d.rating_best, worst = d.rating_worst;
+      var text = 'Ставка водителя в периоде: ' + boardNum(d.rate_per_km, 2) + ' лей/км. ';
+      if (best) {
+        text += 'Лучший по соблюдению маршрута — ' + best.full_name +
+                ' (' + boardNum(best.extra_pct, 1) + '%)';
+        if (worst) {
+          text += ', худший — ' + worst.full_name + ' (' + boardNum(worst.extra_pct, 1) + '%)';
+        }
+        text += '. ';
+      }
+      text += 'Экономия времени логиста — оценка по нормативу ' +
+              a.manual_minutes_per_trip + ' мин ручного планирования на рейс, ' +
+              'а не измерение.';
+      note.appendChild(txt('div', '', text));
+    });
+}
+</script>
