@@ -122,7 +122,7 @@
 | `COMMERCIAL_OFFER.md` | Коммерческое предложение |
 | `ROLE_TESTING.md` | Акт тестирования: двадцать проверок по шести ролям |
 | `USER_GUIDE_RU.md` / `USER_GUIDE_RO.md` | Руководство пользователя со скриншотами |
-| `presentation_bemol.html` | Презентация на десять слайдов |
+| `presentation_bemol.html` | Презентация на четырнадцать слайдов |
 
 Живой контур: https://nufarul.eminescu.md/UNA.md/orasldev/autopark
 (раздел «Руководству»; вход по учётной записи сети).

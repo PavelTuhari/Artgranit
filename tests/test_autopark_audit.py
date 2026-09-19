@@ -500,3 +500,100 @@ def test_workbook_builds_when_nothing_was_found(tmp_path):
     path = str(tmp_path / "clean.xlsx")
     audit_excel.build_workbook(rep, pop, path)
     assert os.path.getsize(path) > 10_000
+
+
+# ── Боевой запрос против фактической схемы ─────────────────────────────
+
+def _ddl_objects():
+    """Таблицы, представления и колонки из DDL модуля — без обращения к БД."""
+    import re
+    sql_dir = os.path.join(ROOT, "modules", "autopark", "sql")
+    text = "\n".join(
+        _read("modules", "autopark", "sql", name)
+        for name in sorted(os.listdir(sql_dir)) if name.endswith(".sql"))
+    names = set(re.findall(
+        r"CREATE\s+(?:OR\s+REPLACE\s+)?(?:TABLE|VIEW|FORCE\s+VIEW)\s+"
+        r"([A-Z0-9_]+)", text, re.I))
+    names |= set(re.findall(r"add_col\s*\(\s*'([A-Z0-9_]+)'", text, re.I))
+    return {n.upper() for n in names}, text.upper()
+
+
+def test_live_sql_names_only_objects_that_exist_in_the_ddl():
+    """Ловит «FLT_TANKS» и «PLATE_NO» до того, как их поймает Oracle.
+
+    Первая версия боевого запроса ссылалась на таблицу FLT_TANKS, которой
+    в схеме нет (резервуары лежат в FLT_STATION_TANKS), и на колонку
+    PLATE_NO вместо PLATE. Юнит-тесты это пропускали: движок чист и
+    прогоняется на сгенерированном наборе, где Oracle не участвует.
+    """
+    import ast
+    import re
+    objects, _ = _ddl_objects()
+    module = ast.parse(_read("modules", "autopark", "audit_data.py"))
+    # Только строковые литералы с SQL: имена полей контракта популяции
+    # (например ключ «fuel_deviation_limit») колонками не являются и под
+    # эту проверку попадать не должны.
+    sql = "\n".join(
+        node.value for node in ast.walk(module)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        and "SELECT" in node.value).upper()
+
+    used = set(re.findall(r"\b(?:FROM|JOIN)\s+([A-Z][A-Z0-9_]*)", sql))
+    unknown = {name for name in used if name not in objects}
+    assert not unknown, f"боевой запрос ссылается на несуществующее: {unknown}"
+
+    # Имена, на которых уже обжигались.
+    for column in ("PLATE_NO", "FUEL_DEVIATION_LIMIT", "I.TANK_ID"):
+        assert column not in sql, f"боевой запрос снова использует {column}"
+
+
+# ── Оговорки, которые выяснились на боевых данных ──────────────────────
+
+def test_rate_cannot_raise_severity_on_a_tiny_population():
+    """«1 отклонение из 1» — это 100 %, но не вывод о частоте."""
+    assert audit._severity(100.0, 0.0, tested=1) == audit.SEV_LOW
+    assert audit._severity(100.0, 0.0, tested=29) == audit.SEV_LOW
+    assert audit._severity(100.0, 0.0, tested=30) == audit.SEV_HIGH
+
+
+def test_money_raises_severity_regardless_of_population():
+    """Деньги не зависят от объёма выборки."""
+    assert audit._severity(0.0, 60_000.0, tested=1) == audit.SEV_HIGH
+    assert audit._severity(0.0, 6_000.0, tested=1) == audit.SEV_MED
+
+
+def test_thin_population_is_stated_in_the_finding():
+    pop = _pop(tanks=[dict(TANK)],
+               trips=[{"id": 1, "status_code": "APPROVED"}],
+               trip_items=[{"trip_id": 1, "tank_id": 1, "station_code": "X",
+                            "product_code": "DIESEL", "loaded_l": 5000.0,
+                            "accepted_l": 4000.0}])
+    rep = audit.run_audit(pop)
+    fnd = next(f for f in rep["findings"] if f["test_id"] == "T-05")
+    assert fnd["thin_population"] is True
+    assert "недостаточно для вывода о частоте" in fnd["observation"]
+    heat = next(h for h in rep["heat_map"] if h["id"] == fnd["id"])
+    assert heat["likelihood"] == 1
+
+
+def test_two_trips_of_one_tanker_a_day_are_not_a_duplicate():
+    """Бензовоз может сделать два коротких рейса за день — это работа."""
+    trips = [
+        {"id": 1, "trip_date": date(2026, 9, 1), "truck_id": 1, "driver_id": 1,
+         "status_code": "APPROVED", "norm_km": 120.0, "waybill_no": "AP-1"},
+        {"id": 2, "trip_date": date(2026, 9, 1), "truck_id": 1, "driver_id": 2,
+         "status_code": "APPROVED", "norm_km": 260.0, "waybill_no": "AP-2"},
+    ]
+    assert audit.test_duplicates(_pop(trips=trips))["exceptions"] == 0
+
+
+def test_fully_identical_document_is_a_duplicate():
+    trips = [
+        {"id": 1, "trip_date": date(2026, 9, 1), "truck_id": 1, "driver_id": 1,
+         "status_code": "APPROVED", "norm_km": 120.0},
+        {"id": 2, "trip_date": date(2026, 9, 1), "truck_id": 1, "driver_id": 1,
+         "status_code": "APPROVED", "norm_km": 120.0},
+    ]
+    res = audit.test_duplicates(_pop(trips=trips))
+    assert res["exceptions"] == 1
+    assert "овпадающий" in res["rows"][0][-1]

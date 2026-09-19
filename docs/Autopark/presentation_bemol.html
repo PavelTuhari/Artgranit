@@ -166,17 +166,83 @@ img{max-width:100%;border:1px solid var(--line);border-radius:10px;margin-top:14
     <tbody>
       <tr><td>Расчёт плана по 22 резервуарам</td><td class="num">3,4 с</td></tr>
       <tr><td>Сводка первого лица</td><td class="num">1,4 с</td></tr>
-      <tr><td>Проверок по шести ролям пройдено</td><td class="num">20 из 20</td></tr>
-      <tr><td>Автоматических тестов расчёта</td><td class="num">201</td></tr>
       <tr><td>Стоимость доставки литра</td><td class="num">0,15 лея</td></tr>
       <tr><td>Доля от цены литра дизеля</td><td class="num">0,45 %</td></tr>
       <tr><td>Найдено потерь за период</td><td class="num">3 547 лей</td></tr>
+      <tr><td>Проверок по семи ролям пройдено</td><td class="num">25 из 25</td></tr>
+      <tr><td>Автоматических тестов расчёта</td><td class="num">247</td></tr>
     </tbody>
   </table>
   <p class="foot">Данные демонстрационные: 9 АЗС, 22 резервуара, 3 бензовоза,
      два года истории. После подключения Petrol Expert и UNA те же показатели
      пересчитываются на реальной сети — менять в системе ничего не нужно.</p>
   <div class="num">9</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Аудит контура</div>
+  <h2>Кто проверит саму систему</h2>
+  <p>Тестирование отвечает «работает ли функция». Аудит отвечает на другой вопрос:
+     <b>можно ли доверять числу</b>, которое система выдала бухгалтеру и руководству.
+     Тринадцать процедур пересчитывают <b>100 % документов периода</b> — не выборку.</p>
+  <table>
+    <thead><tr><th>Что проверяется</th><th class="num">Охват</th></tr></thead>
+    <tbody>
+      <tr><td>Зарплата: пересчёт по ставке на дату рейса</td><td class="num">все рейсы</td></tr>
+      <tr><td>Сверка «загружено → документ → принято»</td><td class="num">все поставки</td></tr>
+      <tr><td>Необоснованный пробег и перерасход топлива</td><td class="num">все рейсы с GPS</td></tr>
+      <tr><td>Двойной учёт, полнота, разделение полномочий</td><td class="num">все документы</td></tr>
+    </tbody>
+  </table>
+  <p class="foot">Пересчёт выполнен <b>отдельной реализацией формул</b>: если бы аудит
+     вызывал проверяемый код, совпадение доказывало бы только то, что код равен сам себе.</p>
+  <div class="num">10</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Оценка контролей</div>
+  <h2>Два правила, которые нельзя обойти</h2>
+  <div class="cols2">
+    <div class="card"><h3>Дефект дизайна ограничивает оценку</h3>
+      <p>Контроль, который легко обойти, не получает «эффективен», даже если
+         в периоде его никто не обходил. Отсутствие попыток обхода — не
+         доказательство работы контроля.</p></div>
+    <div class="card"><h3>«Ноль из нуля» — это не «эффективен»</h3>
+      <p>Если в данных нет реквизита для проверки, контроль получает отдельную
+         оценку <b>«не тестировался»</b>. Именно так контрольная среда и
+         выглядит здоровой на бумаге.</p></div>
+  </div>
+  <img src="/UNA.md/orasldev/autopark/static/docs/autopark-audit-demo-04-controls.png"
+       alt="Матрица контролей" style="max-height:40vh;object-fit:cover;object-position:top">
+  <div class="num">11</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Отчёт в Excel</div>
+  <h2>Книга остаётся живой после выгрузки</h2>
+  <p>Тринадцать листов: заключение, матрица контролей, реестр находок с местом под
+     ответ руководства, карта рисков, расшифровка каждого отклонения.
+     Плюс <b>BI-панель</b>: меняете месяц или регион в выпадающем списке — показатели
+     и диаграммы пересчитываются в самом Excel.</p>
+  <img src="/UNA.md/orasldev/autopark/static/docs/autopark-audit-demo-03-bi.png"
+       alt="BI-панель аудиторского отчёта" style="max-height:46vh;object-fit:cover;object-position:top">
+  <p class="foot">Ни один показатель не записан посчитанным числом — только формулы.
+     Записанное число осталось бы прежним при смене среза и врало бы уверенно и молча.</p>
+  <div class="num">12</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Проверка самой проверки</div>
+  <h2>Аудиту дали набор с известными ошибками</h2>
+  <p>Проверка, которой нечего находить, ничего не доказывает: она одинаково молчит
+     и когда всё чисто, и когда сломана сама. Поэтому в набор из <b>3 534 рейсов и
+     10 576 позиций</b> намеренно заложено известное число нарушений каждого вида,
+     а проверка прогнана вслепую.</p>
+  <img src="/UNA.md/orasldev/autopark/static/docs/autopark-audit-demo-08-selfcheck.png"
+       alt="Самопроверка методики" style="max-height:44vh;object-fit:cover;object-position:top">
+  <p class="foot">616 заложенных дефектов по 13 процедурам воспроизведены полностью.
+     Ни одного пропуска и ни одного ложного срабатывания.</p>
+  <div class="num">13</div>
 </section>
 
 <section class="slide">
@@ -197,8 +263,9 @@ img{max-width:100%;border:1px solid var(--line);border-radius:10px;margin-top:14
     <a class="live" href="/UNA.md/orasldev/autopark" target="_blank" rel="noopener">Открыть систему</a>
     <a class="live" href="/UNA.md/orasldev/autopark/docs/bemol" target="_blank" rel="noopener">Дорожная карта</a>
     <a class="live" href="/UNA.md/orasldev/autopark/docs/offer" target="_blank" rel="noopener">Коммерческое предложение</a>
+    <a class="live" href="/UNA.md/orasldev/autopark/docs/audit-act" target="_blank" rel="noopener">Акт проверки</a>
   </div>
-  <div class="num">10</div>
+  <div class="num">14</div>
 </section>
 
 </body>

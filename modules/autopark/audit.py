@@ -70,6 +70,16 @@ WARN_RATE = 0.0
 HIGH_IMPACT_LEI = 50_000.0
 MED_IMPACT_LEI = 5_000.0
 
+#: Минимальная популяция, на которой доля отклонений вообще что-то значит.
+#: «Одно отклонение из одного проверенного объекта» — это 100 %, и по
+#: шкале частоты такая находка уезжает в «высокий». На боевых данных
+#: именно так и вышло: приёмка была зафиксирована ровно у одной позиции,
+#: она разошлась с отгрузкой, и контур получил находку высшей значимости
+#: на популяции из одного документа. Вывод о ЧАСТОТЕ на таком объёме
+#: недопустим; вывод о ДЕНЬГАХ — допустим, деньги не зависят от объёма
+#: выборки, поэтому денежный порог продолжает работать без оглядки сюда.
+MIN_RATE_POPULATION = 30
+
 
 class AuditInputError(Exception):
     """Популяция не соответствует контракту — аудит строить не из чего."""
@@ -127,10 +137,17 @@ def _pct(part: int, whole: int) -> float:
     return round(part / whole * 100, 2) if whole else 0.0
 
 
-def _severity(rate_pct: float, impact_lei: float) -> str:
-    if impact_lei >= HIGH_IMPACT_LEI or rate_pct >= BAD_RATE * 100:
+def _severity(rate_pct: float, impact_lei: float, tested: int = 10 ** 9) -> str:
+    """Значимость из двух измеренных величин — с оговоркой про объём.
+
+    Доля отклонений повышает значимость только тогда, когда проверено
+    достаточно объектов, чтобы о доле вообще можно было говорить
+    (`MIN_RATE_POPULATION`). Денежная оценка действует всегда.
+    """
+    rate_counts = tested >= MIN_RATE_POPULATION
+    if impact_lei >= HIGH_IMPACT_LEI or (rate_counts and rate_pct >= BAD_RATE * 100):
         return SEV_HIGH
-    if impact_lei >= MED_IMPACT_LEI or rate_pct >= 1.0:
+    if impact_lei >= MED_IMPACT_LEI or (rate_counts and rate_pct >= 1.0):
         return SEV_MED
     return SEV_LOW
 
@@ -560,9 +577,21 @@ def test_segregation_of_duties(pop: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def test_duplicates(pop: Dict[str, Any]) -> Dict[str, Any]:
-    """T-11. Один бензовоз — один рейс в день; накладная не задвоена."""
-    seen_truck: Dict[Any, Any] = {}
+    """T-11. Один и тот же рейс не учтён дважды.
+
+    Первая версия считала отклонением любые два рейса одного бензовоза
+    за день. На сгенерированном наборе это работало — там машина выходит
+    на линию раз в сутки, — а на боевых данных дало две ложные находки:
+    бензовоз вполне может сделать за день два коротких внутренних рейса,
+    и это нормальная работа, а не двойной учёт.
+
+    Признаком двойного учёта считается то, что им и является: повтор
+    номера путевого листа либо ПОЛНОСТЬЮ совпадающий документ — тот же
+    бензовоз, тот же день, тот же водитель и тот же нормативный пробег.
+    Два разных рейса одной машины так не совпадают.
+    """
     seen_doc: Dict[Any, Any] = {}
+    seen_same: Dict[Any, Any] = {}
     rows: List[List[Any]] = []
     tested = 0
     for trip in sorted(pop["trips"], key=lambda t: (
@@ -571,29 +600,33 @@ def test_duplicates(pop: Dict[str, Any]) -> Dict[str, Any]:
             continue
         tested += 1
         day = _as_date(trip.get("trip_date"))
-        key = (trip.get("truck_id"), day)
-        if key in seen_truck:
-            rows.append([trip["id"], day.isoformat() if day else "",
-                         trip.get("truck_id"), seen_truck[key],
-                         "Второй рейс того же бензовоза в тот же день"])
-        else:
-            seen_truck[key] = trip["id"]
         doc = trip.get("waybill_no")
         if doc:
             if doc in seen_doc:
                 rows.append([trip["id"], day.isoformat() if day else "",
-                             doc, seen_doc[doc],
+                             f"путевой лист {doc}", seen_doc[doc],
                              "Дубль номера путевого листа"])
-            else:
-                seen_doc[doc] = trip["id"]
+                continue
+            seen_doc[doc] = trip["id"]
+        key = (trip.get("truck_id"), day, trip.get("driver_id"),
+               round(_f(trip.get("norm_km")), 1))
+        if key in seen_same:
+            rows.append([trip["id"], day.isoformat() if day else "",
+                         "бензовоз + дата + водитель + норматив",
+                         seen_same[key],
+                         "Полностью совпадающий документ"])
+        else:
+            seen_same[key] = trip["id"]
     return _test(
         "T-11", "Дублирование документов",
         "Один и тот же рейс не может быть учтён дважды — ни через второй "
-        "путевой лист, ни через повторную постановку бензовоза на линию.",
-        "Поиск повторов по ключам (бензовоз + дата) и (номер путевого "
-        "листа) по всей популяции рейсов.",
+        "путевой лист, ни через полностью повторённый документ.",
+        "Поиск повторов по номеру путевого листа и по полному совпадению "
+        "реквизитов (бензовоз, дата, водитель, нормативный пробег) по "
+        "всей популяции рейсов. Два разных рейса одной машины за день "
+        "отклонением не считаются.",
         "100 % рейсов периода со статусом не «черновик»", tested,
-        ["Рейс", "Дата", "Ключ", "Первый рейс с тем же ключом",
+        ["Рейс", "Дата", "Ключ повтора", "Первый рейс с тем же ключом",
          "Характер отклонения"], rows)
 
 
@@ -909,7 +942,9 @@ def _build_findings(tests: Sequence[Dict[str, Any]],
             continue
         seq += 1
         text = FINDING_TEXT.get(test["id"], {})
-        severity = _severity(test["rate_pct"], test["impact_lei"])
+        severity = _severity(test["rate_pct"], test["impact_lei"],
+                             test["tested"])
+        thin = test["tested"] < MIN_RATE_POPULATION
         findings.append({
             "id": f"F-{seq:02d}",
             "severity": severity,
@@ -921,7 +956,11 @@ def _build_findings(tests: Sequence[Dict[str, Any]],
                 f"выявлено {test['exceptions']} отклонений "
                 f"({test['rate_pct']:.2f} %)."
                 + (f" Денежная оценка: {test['impact_lei']:,.2f} лея."
-                   .replace(",", " ") if test["impact_lei"] else "")),
+                   .replace(",", " ") if test["impact_lei"] else "")
+                + (f" Популяции ({test['tested']}) недостаточно для вывода "
+                   f"о частоте: значимость определена только денежной "
+                   f"оценкой." if thin else "")),
+            "thin_population": thin,
             "risk": text.get("risk", ""),
             "recommendation": text.get("rec", ""),
             "exceptions": test["exceptions"],
@@ -946,7 +985,12 @@ def _heat_map(findings: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     результата тестирования, а не назначаются экспертно: иначе карта
     рисков превращается в картинку.
     """
-    def likelihood(rate: float) -> int:
+    def likelihood(rate: float, tested: int) -> int:
+        # На популяции меньше порога о частоте судить нельзя: ставим
+        # минимальную вероятность, иначе «1 из 1» уезжает в верхний ряд
+        # карты и вытесняет оттуда настоящие риски.
+        if tested < MIN_RATE_POPULATION:
+            return 1
         for bound, score in ((10.0, 5), (5.0, 4), (1.0, 3), (0.1, 2)):
             if rate >= bound:
                 return score
@@ -963,7 +1007,7 @@ def _heat_map(findings: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for f in findings:
         cells.append({
             "id": f["id"], "title": f["title"], "severity": f["severity"],
-            "likelihood": likelihood(f["rate_pct"]),
+            "likelihood": likelihood(f["rate_pct"], f["tested"]),
             "impact": impact(f["impact_lei"], f["exceptions"]),
         })
     return cells

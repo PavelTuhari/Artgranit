@@ -289,14 +289,19 @@ TRIPS_SQL = """
       LEFT JOIN V_FLT_TRIP_PAY p ON p.TRIP_ID = t.ID
      WHERE t.TRIP_DATE >= :date_from AND t.TRIP_DATE < :date_to + 1"""
 
+#: Резервуар у позиции груза не хранится: позиция знает АЗС и продукт.
+#: Поэтому TANK_ID выводится соединением с FLT_STATION_TANKS по паре
+#: (АЗС, продукт) — та же связь, по которой его определяет и планировщик.
 ITEMS_SQL = """
     SELECT i.ID, s.TRIP_ID, s.STATION_ID, st.CODE AS STATION_CODE,
-           i.TANK_ID, i.PRODUCT_CODE, i.SECTION_ID, i.VOLUME_L,
+           k.ID AS TANK_ID, i.PRODUCT_CODE, i.SECTION_ID, i.VOLUME_L,
            i.LOADED_L, i.DOC_L, i.ACCEPTED_L, t.TRIP_DATE
       FROM FLT_TRIP_STOP_ITEMS i
       JOIN FLT_TRIP_STOPS s ON s.ID = i.STOP_ID
       JOIN FLT_TRIPS t ON t.ID = s.TRIP_ID
       LEFT JOIN FLT_STATIONS st ON st.ID = s.STATION_ID
+      LEFT JOIN FLT_STATION_TANKS k ON k.STATION_ID = s.STATION_ID
+                                   AND k.PRODUCT_CODE = i.PRODUCT_CODE
      WHERE t.TRIP_DATE >= :date_from AND t.TRIP_DATE < :date_to + 1"""
 
 
@@ -319,13 +324,17 @@ def live_population(date_from: date, date_to: date) -> Dict[str, Any]:
     with DatabaseModel() as db:
         trips_raw = _rows(_run(db, TRIPS_SQL, window))
         items_raw = _rows(_run(db, ITEMS_SQL, window))
+        # Состояние резервуаров берём из представления, а не из таблиц:
+        # там уже сведены паспорт (FLT_STATION_TANKS), лимиты периода
+        # (FLT_TANK_LIMITS) и последний остаток (FLT_TANK_STOCK). Собирать
+        # эту связку второй раз в аудите значило бы завести второе место,
+        # где живёт правило «какой лимит действует сегодня».
         tanks_raw = _rows(_run(db,
-            "SELECT k.ID, k.STATION_ID, s.CODE AS STATION_CODE, "
-            "k.PRODUCT_CODE, k.CAPACITY_L, k.MAX_FILL_L, k.MIN_STOCK_L, "
-            "k.CURRENT_L, k.AVG_DAILY_L "
-            "FROM FLT_TANKS k JOIN FLT_STATIONS s ON s.ID = k.STATION_ID"))
+            "SELECT TANK_ID AS ID, STATION_ID, STATION_CODE, PRODUCT_CODE, "
+            "CAPACITY_L, MAX_FILL_L, MIN_STOCK_L, CURRENT_L, AVG_DAILY_L "
+            "FROM V_FLT_TANK_STATE"))
         trucks_raw = _rows(_run(db,
-            "SELECT ID, PLATE_NO, CAPACITY_L, NORM_L_PER_100KM FROM FLT_TRUCKS"))
+            "SELECT ID, PLATE, CAPACITY_L, NORM_L_PER_100KM FROM FLT_TRUCKS"))
         sections_raw = _rows(_run(db,
             "SELECT ID, TRUCK_ID, SEQ_NO, VOLUME_L FROM FLT_TRUCK_SECTIONS"))
         drivers_raw = _rows(_run(db,
@@ -337,7 +346,7 @@ def live_population(date_from: date, date_to: date) -> Dict[str, Any]:
             "FROM FLT_RATE_PERIODS ORDER BY VALID_FROM"))
         settings_raw = _rows(_run(db,
             "SELECT RATE_PER_KM, TRIP_BONUS, KM_DEVIATION_LIMIT, "
-            "FUEL_DEVIATION_LIMIT FROM FLT_SETTINGS WHERE ID = 1"))
+            "FUEL_DEVIATION_PCT FROM FLT_SETTINGS WHERE ID = 1"))
         price_raw = _rows(_run(db,
             "SELECT PRODUCT_CODE, PRICE_LEI FROM FLT_FUEL_PRICES f "
             "WHERE PRICE_DATE = (SELECT MAX(PRICE_DATE) FROM FLT_FUEL_PRICES "
@@ -354,7 +363,7 @@ def live_population(date_from: date, date_to: date) -> Dict[str, Any]:
     settings = {"rate_per_km": st.get("rate_per_km"),
                 "trip_bonus": st.get("trip_bonus"),
                 "km_deviation_limit": st.get("km_deviation_limit") or 5.0,
-                "fuel_deviation_limit": st.get("fuel_deviation_limit") or 5.0,
+                "fuel_deviation_limit": st.get("fuel_deviation_pct") or 5.0,
                 "loss_tolerance_l": 50.0}
 
     station_name = {s["id"]: s.get("code") for s in stations_raw}
@@ -369,7 +378,7 @@ def live_population(date_from: date, date_to: date) -> Dict[str, Any]:
                       "name": s.get("name"), "region": "—"}
                      for s in stations_raw],
         "tanks": [dict(t) for t in tanks_raw],
-        "trucks": [{"id": t["id"], "plate": t.get("plate_no"),
+        "trucks": [{"id": t["id"], "plate": t.get("plate"),
                     "capacity_l": t.get("capacity_l"),
                     "norm_l_per_100km": t.get("norm_l_per_100km"),
                     "sections": sec_by_truck.get(t["id"], [])}
