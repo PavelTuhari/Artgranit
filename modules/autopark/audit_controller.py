@@ -15,7 +15,14 @@ import tempfile
 from datetime import date, timedelta
 from typing import Any, Dict, Optional, Tuple
 
-from modules.autopark import audit, audit_data, audit_excel
+from modules.autopark import audit, audit_data
+
+# `audit_excel` намеренно НЕ импортируется здесь. Он тянет openpyxl, а
+# цепочка импортов у модуля такая: __init__ → audit_routes →
+# audit_controller. Отсутствие библиотеки отчётности уронило бы загрузку
+# всего контура — вместе с планированием завоза и зарплатой, — и модуль
+# просто исчез бы из меню портала. Выгрузка книги важна, но не настолько.
+# Импорт живёт внутри `workbook()`: без openpyxl ломается одна кнопка.
 
 #: Период по умолчанию, если его не передали: последний квартал.
 DEFAULT_DAYS = 90
@@ -98,6 +105,8 @@ class AuditController:
     @staticmethod
     def workbook(params: Optional[Dict[str, Any]] = None) -> Tuple[str, str]:
         """Книга Excel по боевым данным. Возвращает (путь, имя файла)."""
+        from modules.autopark import audit_excel
+
         date_from, date_to = _window(params or {})
         pop = audit_data.live_population(date_from, date_to)
         rep = audit.run_audit(pop)

@@ -622,3 +622,20 @@ def test_finding_observation_reads_correctly_for_a_single_case():
     assert "Проверен 1 объектов" not in text
     assert "1 объект (" in text
     assert "1 отклонение (" in text
+
+
+def test_module_loads_without_the_excel_library():
+    """Отсутствие openpyxl не должно уносить весь контур из меню.
+
+    Цепочка импортов модуля: __init__ → audit_routes → audit_controller.
+    Если бы контроллер тянул openpyxl на уровне файла, отсутствие
+    библиотеки отчётности ломало бы и планирование завоза, и зарплату.
+    """
+    src = _read("modules", "autopark", "audit_controller.py")
+    head = src[:src.index("class AuditController")]
+    assert "audit_excel" not in head.replace(
+        "# `audit_excel` намеренно НЕ импортируется здесь.", ""), \
+        "audit_controller тянет openpyxl на уровне файла"
+    body = src[src.index("def workbook"):]
+    assert "from modules.autopark import audit_excel" in body, \
+        "импорт не перенесён внутрь workbook()"
