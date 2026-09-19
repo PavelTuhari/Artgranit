@@ -133,6 +133,31 @@ def _rate_on(rate_periods: Sequence[Dict], day: Optional[date],
     return best or fallback
 
 
+def _plural(n: int, one: str, few: str, many: str) -> str:
+    """Склонение числительного.
+
+    «Проверен 1 объектов» в отчёте, который читает совет директоров,
+    обесценивает всё остальное в этом отчёте: если не сходится грамматика,
+    читатель справедливо сомневается и в цифрах.
+    """
+    tail100 = abs(n) % 100
+    tail10 = tail100 % 10
+    if 10 < tail100 < 20:
+        return many
+    if tail10 == 1:
+        return one
+    if 1 < tail10 < 5:
+        return few
+    return many
+
+
+def _money(value: float) -> str:
+    """Сумма с разрядами и правильным «лей/лея/леев»."""
+    whole = int(abs(value))
+    word = _plural(whole, "лей", "лея", "леев")
+    return f"{value:,.2f}".replace(",", " ") + " " + word
+
+
 def _pct(part: int, whole: int) -> float:
     return round(part / whole * 100, 2) if whole else 0.0
 
@@ -952,14 +977,18 @@ def _build_findings(tests: Sequence[Dict[str, Any]],
             "test_id": test["id"],
             "title": test["title"],
             "observation": (
-                f"При проверке {test['tested']} объектов ({test['scope']}) "
-                f"выявлено {test['exceptions']} отклонений "
-                f"({test['rate_pct']:.2f} %)."
-                + (f" Денежная оценка: {test['impact_lei']:,.2f} лея."
-                   .replace(",", " ") if test["impact_lei"] else "")
-                + (f" Популяции ({test['tested']}) недостаточно для вывода "
-                   f"о частоте: значимость определена только денежной "
-                   f"оценкой." if thin else "")),
+                f"Проверено {test['tested']} "
+                + _plural(test["tested"], "объект", "объекта", "объектов")
+                + f" ({test['scope']}), выявлено {test['exceptions']} "
+                + _plural(test["exceptions"], "отклонение", "отклонения",
+                          "отклонений")
+                + f" ({test['rate_pct']:.2f} %)."
+                + (f" Денежная оценка: {_money(test['impact_lei'])}."
+                   if test["impact_lei"] else "")
+                + (f" Популяции ({test['tested']} "
+                   + _plural(test["tested"], "объект", "объекта", "объектов")
+                   + ") недостаточно для вывода о частоте: значимость "
+                     "определена только денежной оценкой." if thin else "")),
             "thin_population": thin,
             "risk": text.get("risk", ""),
             "recommendation": text.get("rec", ""),

@@ -388,7 +388,7 @@ class Runner:
         role = "Аудитор"
 
         def verdict():
-            d, _, ms = self.call("/api/audit")
+            d, _, secs = self.call("/api/audit")
             assert d["success"], d.get("message")
             data = d["data"]
             op = data["opinion"]
@@ -397,7 +397,7 @@ class Runner:
             return True, (f"«{op['title']}», проверено "
                           f"{data['facts']['total_tested']} объектов "
                           f"по {len(data['tests'])} процедурам за "
-                          f"{ms / 1000:.1f} с"), data
+                          f"{secs:.2f} с"), data
         audit_data = self.step(role, "Получает заключение по контуру", verdict)
 
         def consistency():

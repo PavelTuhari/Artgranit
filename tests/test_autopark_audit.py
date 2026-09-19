@@ -597,3 +597,28 @@ def test_fully_identical_document_is_a_duplicate():
     res = audit.test_duplicates(_pop(trips=trips))
     assert res["exceptions"] == 1
     assert "овпадающий" in res["rows"][0][-1]
+
+
+def test_numerals_are_declined_in_findings():
+    """«Проверен 1 объектов» обесценивает весь отчёт."""
+    assert audit._plural(1, "объект", "объекта", "объектов") == "объект"
+    assert audit._plural(2, "объект", "объекта", "объектов") == "объекта"
+    assert audit._plural(5, "объект", "объекта", "объектов") == "объектов"
+    assert audit._plural(11, "объект", "объекта", "объектов") == "объектов"
+    assert audit._plural(21, "объект", "объекта", "объектов") == "объект"
+    assert audit._plural(114, "объект", "объекта", "объектов") == "объектов"
+    assert audit._money(1).endswith("лей")
+    assert audit._money(23_147.0).endswith("леев")
+    assert audit._money(1_232.5).endswith("лея")
+
+
+def test_finding_observation_reads_correctly_for_a_single_case():
+    pop = _pop(tanks=[dict(TANK)],
+               trips=[{"id": 1, "status_code": "APPROVED"}],
+               trip_items=[{"trip_id": 1, "tank_id": 1, "station_code": "X",
+                            "product_code": "DIESEL", "loaded_l": 5000.0,
+                            "accepted_l": 4000.0}])
+    text = audit.run_audit(pop)["findings"][0]["observation"]
+    assert "Проверен 1 объектов" not in text
+    assert "1 объект (" in text
+    assert "1 отклонение (" in text
