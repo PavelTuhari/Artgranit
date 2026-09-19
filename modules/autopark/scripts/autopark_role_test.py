@@ -383,6 +383,93 @@ class Runner:
             return True, f"без входа система отвечает {code}", code
         self.step(role, "Данные закрыты от анонимного доступа", guard)
 
+    def role_auditor(self):
+        """Седьмая роль: проверяющий, который не верит системе на слово."""
+        role = "Аудитор"
+
+        def verdict():
+            d, _, ms = self.call("/api/audit")
+            assert d["success"], d.get("message")
+            data = d["data"]
+            op = data["opinion"]
+            assert op.get("title"), "нет заключения"
+            assert data["facts"]["total_tested"] >= 0
+            return True, (f"«{op['title']}», проверено "
+                          f"{data['facts']['total_tested']} объектов "
+                          f"по {len(data['tests'])} процедурам за "
+                          f"{ms / 1000:.1f} с"), data
+        audit_data = self.step(role, "Получает заключение по контуру", verdict)
+
+        def consistency():
+            d, _, _ = self.call("/api/audit")
+            data = d["data"]
+            by_test = {t["id"]: t for t in data["tests"]}
+            bad = []
+            for c in data["controls"]:
+                # Контроль не может быть «эффективен», если ни одна
+                # процедура его не проверяла: это ровно тот случай, когда
+                # контрольная среда выглядит здоровой на пустом месте.
+                if not c["test_ids"]:
+                    bad.append(f"{c['id']}: нет процедуры")
+                if c["rating"] == "Эффективен" and c["tested"] == 0:
+                    bad.append(f"{c['id']}: «эффективен» при нулевом покрытии")
+                if c["exceptions"] and c["rating"] == "Эффективен":
+                    bad.append(f"{c['id']}: «эффективен» при отклонениях")
+                for tid in c["test_ids"]:
+                    if tid not in by_test:
+                        bad.append(f"{c['id']}: процедура {tid} не выполнялась")
+            assert not bad, "; ".join(bad[:3])
+            return True, (f"{len(data['controls'])} контролей связаны с "
+                          "процедурами, оценки согласованы"), None
+        self.step(role, "Оценка контроля не выдаётся без процедуры",
+                  consistency)
+
+        def selfcheck():
+            d, _, _ = self.call("/api/audit/demo")
+            assert d["success"], d.get("message")
+            sc = d["data"]["selfcheck"]
+            miss = [r for r in sc["rows"] if r["injected"] != r["found"]]
+            assert sc["passed"] and not miss, (
+                "методика не воспроизвела заложенные дефекты: " +
+                ", ".join(f"{r['test']} {r['injected']}≠{r['found']}"
+                          for r in miss[:3]))
+            total = sum(r["injected"] for r in sc["rows"])
+            return True, (f"{total} заложенных дефектов по "
+                          f"{len(sc['rows'])} процедурам воспроизведены "
+                          "полностью, ложных срабатываний нет"), sc
+        self.step(role, "Методика ловит намеренно заложенные дефекты",
+                  selfcheck)
+
+        def workbook():
+            url = self.base + MODULE + "/audit/demo.xlsx"
+            req = urllib.request.Request(
+                url, headers={"Cookie": "session=" + self.cookie})
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                blob = resp.read()
+            assert blob[:2] == b"PK", "получен не xlsx"
+            import io
+            import zipfile
+            names = zipfile.ZipFile(io.BytesIO(blob)).namelist()
+            sheets = [n for n in names if n.startswith("xl/worksheets/sheet")]
+            charts = [n for n in names if n.startswith("xl/charts/chart")]
+            assert len(sheets) >= 12, f"в книге {len(sheets)} листов"
+            assert charts, "в книге нет ни одной диаграммы"
+            return True, (f"{len(blob) // 1024} КБ, {len(sheets)} листов, "
+                          f"{len(charts)} диаграмм"), None
+        self.step(role, "Выгружает книгу Excel с BI-панелью", workbook)
+
+        def guard():
+            url = self.base + MODULE + "/api/audit"
+            req = urllib.request.Request(url)
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    code = resp.status
+            except urllib.error.HTTPError as exc:
+                code = exc.code
+            assert code in (401, 302), f"без сессии отдано {code}"
+            return True, f"без входа система отвечает {code}", code
+        self.step(role, "Аудит закрыт от анонимного доступа", guard)
+
     def run(self):
         self.role_logist()
         self.role_buyer()
@@ -390,6 +477,7 @@ class Runner:
         self.role_accountant()
         self.role_director()
         self.role_admin()
+        self.role_auditor()
         return self.results
 
 

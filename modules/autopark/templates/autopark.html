@@ -129,6 +129,7 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
       <button class="nav-item" data-panel="control" onclick="showPanel('control')"><span class="ic">🚦</span><span>Контроль</span></button>
       <button class="nav-item" data-panel="prices" onclick="showPanel('prices')"><span class="ic">💹</span><span>Цены</span></button>
       <button class="nav-item" data-panel="gps" onclick="showPanel('gps')"><span class="ic">📍</span><span>GPS</span></button>
+      <button class="nav-item" data-panel="audit" onclick="showPanel('audit')"><span class="ic">🔍</span><span>Аудит контура</span></button>
     </div>
   </div>
 
@@ -370,6 +371,9 @@ tr.hl-crit td { background: rgba(239,68,68,.08); }
 
     {# Сводка первого лица: три ответа вместо таблиц #}
     {% include "_board_panel.html" %}
+
+    {# Аудит контура: независимый пересчёт по всей популяции #}
+    {% include "_audit_panel.html" %}
 
     <!-- ============ ПАНЕЛЬ: ЗАРПЛАТА ============ -->
     <section class="panel" id="panel-payroll">
