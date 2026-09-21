@@ -926,3 +926,35 @@ def test_reads_reuse_a_connection_but_writes_get_a_fresh_one():
     assert "query" in w._READ_OPS and "test" in w._READ_OPS
     for write_op in ("dml", "plsql", "script"):
         assert write_op not in w._READ_OPS
+
+
+def test_imgproxy_folder_url_counts_as_no_photo():
+    """RO: adresa care se opreste la folder («…/detail/») nu e poza: browserul arata
+    o imagine rupta. 22.09.2026: 1601 produse din catalog aveau asa ceva."""
+    from models.biro26_imgproxy import has_no_file, is_stub, proxy_url
+    assert has_no_file("https://papirus.md/upload/products/detail/") is True
+    assert has_no_file("https://papirus.md/") is True
+    assert has_no_file("https://papirus.md/upload/products/detail/gcy.jpg") is False
+    assert has_no_file("https://x.md/img?id=12") is False
+    assert has_no_file(None) is False and has_no_file("") is False
+    assert is_stub("https://papirus.md/upload/products/detail/") is True
+    assert proxy_url("https://papirus.md/upload/products/detail/") is None
+    # pozele adevarate raman neatinse
+    assert proxy_url("https://papirus.md/a/b.jpg") == "https://papirus.md/a/b.jpg"
+
+
+def test_cat_ro_translates_catalog_categories():
+    """RO: denumirile de categorii venite in rusa devin romanesti, cu ordinea de
+    cuvinte a limbii («Cablu UTP», nu «UTP Cablu»)."""
+    from models.biro26_cat_ro import ramine_rus, tradu
+    assert tradu("UTP Кабель - ELAN") == "Cablu UTP - ELAN"
+    assert tradu("UTP кабель внутреннего исполнения") == "Cablu UTP de interior"
+    assert tradu("Dome камеры") == "Camere Dome"
+    assert tradu("16-ти канальные HD-TVI DVR") == "16 canale HD-TVI DVR"
+    assert tradu("Дюбеля трехстороннего распора") == "Dibluri cu expansiune pe trei parti"
+    # formele deja romanesti nu se strica
+    assert tradu("Canale de cablu") == "Canale de cablu"
+    # litera chirilica ratacita intr-un cuvint latin se curata
+    assert tradu("Motoсultoare") == "Motocultoare"
+    for n in ("UTP Кабель", "Саморезы", "Тачки", "Охранные системы"):
+        assert not ramine_rus(tradu(n)), n

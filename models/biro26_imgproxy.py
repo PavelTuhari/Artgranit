@@ -42,11 +42,29 @@ STUB_MARKERS = ("noimage", "no-image", "no_image", "placeholder",
                 "img/default.jpg", "/default.jpg")
 
 
-def is_stub(url) -> bool:
-    """RO: True daca URL-ul e stub-ul 'fara imagine' al unei surse.
-    EN: True when the URL is a source-site no-image stub."""
+def has_no_file(url) -> bool:
+    """RO: True cind adresa se opreste la FOLDER, fara nume de fisier
+    («https://papirus.md/upload/products/detail/»). Sursa a dat calea, dar nu si
+    poza: browserul arata o imagine rupta, mai rau decit placeholder-ul propriu.
+    Pe 22.09.2026 erau 1601 produse in catalog cu asemenea adresa.
+    EN: True when the URL ends at a directory — no file name, so nothing to show."""
     if not url or not isinstance(url, str):
         return False
+    try:
+        path = urllib.parse.urlsplit(url.strip()).path
+    except ValueError:
+        return True
+    return not path.rsplit("/", 1)[-1].strip()
+
+
+def is_stub(url) -> bool:
+    """RO: True daca URL-ul e stub-ul 'fara imagine' al unei surse SAU daca adresa
+    nu duce la un fisier. In ambele cazuri interfata trebuie sa-si arate placeholder-ul.
+    EN: True when the URL is a source-site no-image stub or points at no file."""
+    if not url or not isinstance(url, str):
+        return False
+    if has_no_file(url):
+        return True
     low = url.lower()
     return any(m in low for m in STUB_MARKERS)
 
