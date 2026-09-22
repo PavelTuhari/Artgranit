@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultra.md — cum se actualizează marfa (instrucțiune)</title>
+<style>
+  body{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;background:#f8fafc;margin:0}
+  main{max-width:1060px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:26px;margin:0 0 6px}h2{font-size:20px;margin:32px 0 10px;border-bottom:2px solid #e5e7eb;padding-bottom:4px}
+  .muted{color:#6b7280}.warn{background:#fff7ed;border-left:4px solid #f59e0b;padding:10px 14px;margin:14px 0}
+  .stop{background:#fef2f2;border-left:4px solid #ef4444;padding:10px 14px;margin:14px 0}
+  .ok{background:#ecfdf5;border-left:4px solid #10b981;padding:10px 14px;margin:14px 0}
+  table{border-collapse:collapse;width:100%;margin:10px 0 18px;background:#fff}
+  th,td{border:1px solid #e5e7eb;padding:7px 9px;vertical-align:top;text-align:left}th{background:#f1f5f9}
+  code,kbd{font:13px ui-monospace,Menlo,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+  pre{background:#0f172a;color:#e2e8f0;padding:12px 14px;border-radius:8px;overflow:auto;font-size:13px}
+  a{color:#1d4ed8}.step{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 16px;margin:12px 0}
+  .step b.n{display:inline-block;background:#1d4ed8;color:#fff;border-radius:999px;padding:0 9px;margin-right:8px}
+</style>
+</head>
+<body><main>
+<h1>Ultra.md — cum se actualizează marfa</h1>
+<p class="muted">Instrucțiune pentru operator · versiunea 22.09.2026 · integrarea este cea din modulul
+<b>Partner API (B2B)</b>: officeplus.md e <b>dealer</b> al ultra.md și citește catalogul lor prin
+<code>https://eshop.ultra.md/api</code> (Ultra B2B API V1).</p>
+
+<div class="ok"><b>Starea la 22.09.2026, verificată viu:</b> contul de dealer
+<code>officeplussrl@gmail.com</code> e configurat și <b>API-ul răspunde</b> (conectare 1,1 s).
+Ultima actualizare a fost pe <b>08.09.2026</b> — de atunci nimeni nu a mai rulat nimic, pentru că
+<b>nu există niciun cron</b> pe nicio mașină. @STARE_NOU@</div>
+
+<h2>1. Cum funcționează (ca să știți ce apăsați)</h2>
+<table>
+<tr><th>Pas</th><th>Ce se întîmplă</th><th>Unde se vede</th></tr>
+<tr><td><b>Sincronizare</b></td><td>catalogul Ultra vine în <b>tamponul</b> <code>BIRO26_GOODS</code> (foaia <code>ULTRA</code>,
+cheie = uuid-ul Ultra). Nu atinge nomenclatorul și nici prețurile. <i>Incrementală</i> = doar ce s-a schimbat de la
+reperul <code>PARTNER_ULTRA_SINCE</code> (prin <code>/api/changes</code>); <i>completă</i> = tot catalogul, ~37 000 poziții, cîte 1 000 pe pagină.</td>
+<td>tampon: 37 376 rînduri; reper: <code>PARTNER_ULTRA_SINCE</code> în <code>YBIRO_SETTINGS</code></td></tr>
+<tr><td><b>Publicare</b></td><td>tamponul trece prin <b>conveierul standard de import</b> (același ca la impreso / officeshop):
+pozițiile noi primesc cartelă + EAN + marcaj «noutate», cele existente primesc <b>perioadă nouă de preț doar dacă prețul
+diferă</b>. Rulare repetată = fără efect dublu.</td><td>jurnal <code>YBIRO_IMPORT_LOG</code> (sursa <code>ULTRA</code>)</td></tr>
+<tr><td><b>Dedup</b></td><td>unește cartelele care s-au dovedit a fi același produs abia după marcaje.</td><td>—</td></tr>
+</table>
+
+<h2>2. Actualizarea din back-office (fără terminal)</h2>
+<div class="step"><b class="n">1</b> Deschideți <a href="https://officeplus.md/UNA.md/orasldev/partner/">https://officeplus.md/UNA.md/orasldev/partner/</a>,
+secțiunea <b>«Integrare Ultra (noi ca partener ultra.md)»</b>.</div>
+<div class="step"><b class="n">2</b> <b>«🔌 Testează conexiunea»</b> — trebuie să apară «conectat la Ultra B2B API» și un produs de probă.
+Dacă e 401: parola dealerului s-a schimbat — cîmpurile <i>Utilizator (dealer)</i> / <i>Parola</i>, apoi «💾 Salvează».</div>
+<div class="step"><b class="n">3</b> <b>«⟳ Sincronizare incrementală»</b> — aduce în tampon doar ce s-a schimbat. Rezultatul:
+«✅ incremental: văzute N, scrise în tampon M». Dacă au trecut multe săptămîni, poate dura cîteva minute — Ultra
+limitează ritmul («Too Many Attempts»), iar clientul <b>așteaptă și reia singur</b> (de la 22.09.2026).
+<br><span class="muted">«⟳⟳ Sincronizare completă» — doar la prima instalare sau dacă reperul s-a pierdut; ~37 000 poziții, 15–30 min.</span></div>
+<div class="step"><b class="n">4</b> <b>Publicarea</b> se face din terminal (pasul 3 din secțiunea următoare) sau prin cron.
+Din back-office nu există încă buton de publicare — ca să nu se apese din greșeală «tot catalogul în prod».</div>
+
+<h2>3. Actualizarea din terminal (server sau Mac cu acces la ERP)</h2>
+<pre>cd /home/ubuntu/artgranit              # pe server; pe Mac: worktree-ul proiectului
+./venv/bin/python modules/partner/scripts/ultra_sync.py            # 1) incremental (implicit)
+./venv/bin/python modules/partner/scripts/ultra_sync.py --full     #    sau tot catalogul
+./venv/bin/python modules/partner/scripts/ultra_publish.py         # 2) DRY-RUN: arată ce ar intra, nu scrie
+./venv/bin/python modules/partner/scripts/ultra_publish.py --commit   #    scrie în nomenclator + prețuri
+./venv/bin/python modules/partner/scripts/ultra_dedup.py --apply   # 3) unește dublurile rămase</pre>
+<p>Sau <b>tot lanțul dintr-o comandă</b> (ce face și cronul): <code>modules/partner/scripts/ultra_cron.sh</code> —
+jurnal în <code>/tmp/ultra_cron.log</code>, cu blocaj ca două rulări să nu se suprapună.</p>
+
+<h2>4. Actualizare automată (recomandat) — cron o dată pe oră</h2>
+<div class="warn">Astăzi <b>nu este instalat nicăieri</b> (verificat: Mac, nufarul, 92.5.130.1, office 192.168.0.250).
+De aceea marfa Ultra a rămas la 08.09.2026. Alegeți o singură mașină — cea care are acces la ERP — și puneți:</div>
+<pre>crontab -e
+17 * * * * /home/ubuntu/artgranit/modules/partner/scripts/ultra_cron.sh</pre>
+<p class="muted">Pe server variabila <code>PY</code> din script trebuie să arate spre <code>/home/ubuntu/artgranit/venv/bin/python</code>
+(<code>PY=… ultra_cron.sh</code> sau editarea liniei din script). Prima rulare după o pauză lungă poate dura mai mult din cauza limitării de ritm.</p>
+
+<h2>5. Cum verific că a mers</h2>
+<table>
+<tr><th>Ce</th><th>Cum</th></tr>
+<tr><td>a venit ceva nou în tampon</td><td>în back-office, după sincronizare: «scrise în tampon M» &gt; 0; sau
+<code>SELECT COUNT(*) FROM BIRO26_GOODS WHERE SHEET='ULTRA'</code></td></tr>
+<tr><td>s-a publicat</td><td><code>SELECT * FROM YBIRO_IMPORT_LOG WHERE SOURCE_CODE='ULTRA' ORDER BY STARTED_AT DESC</code> —
+coloanele <code>ROWS_INSERTED</code> (cartele noi) și <code>ROWS_MATCHED</code> (existente, preț reîmprospătat)</td></tr>
+<tr><td>noutățile pe vitrină</td><td><a href="https://officeplus.md/catalog">https://officeplus.md/catalog</a> — pozițiile noi au marcajul «noutate»</td></tr>
+<tr><td>apelurile către Ultra</td><td>jurnalul <code>PAPI_LOG</code> (fiecare cerere, cu statut)</td></tr>
+</table>
+
+<h2>6. Probleme cunoscute și ce înseamnă</h2>
+<table>
+<tr><th>Mesaj</th><th>Cauza</th><th>Ce faceți</th></tr>
+<tr><td><code>Too Many Attempts</code> (429)</td><td>Ultra limitează numărul de cereri; apare cînd s-au adunat multe schimbări</td>
+<td>nimic — din 22.09.2026 clientul așteaptă (<i>Retry-After</i> sau 5 → 15 → 30 → 60 → 90 s) și reia; dacă tot cade, rulați din nou peste o oră</td></tr>
+<tr><td><code>Invalid or expired token</code></td><td>tokenul Ultra trăiește 1 oră, sincronizarea completă durează mai mult</td><td>nimic — clientul se reloghează singur o dată și repetă cererea</td></tr>
+<tr><td>401 la «Testează conexiunea»</td><td>parola dealerului s-a schimbat în cabinetul ultra.md</td><td>introduceți-o din nou în back-office</td></tr>
+<tr><td>publicarea creează cartele care există deja</td><td>perechea se vede abia după marcaje</td><td>pasul <code>ultra_dedup.py --apply</code> (cronul îl face singur)</td></tr>
+</table>
+
+<h2>Adrese</h2>
+<ul>
+<li>Administrare: <a href="https://officeplus.md/UNA.md/orasldev/partner/">https://officeplus.md/UNA.md/orasldev/partner/</a></li>
+<li>Această instrucțiune: <a href="https://officeplus.md/UNA.md/orasldev/partner/docs/ULTRA_ACTUALIZARE_INSTRUCTIUNE.html">officeplus.md</a> ·
+<a href="https://nufarul.eminescu.md/UNA.md/orasldev/partner/docs/ULTRA_ACTUALIZARE_INSTRUCTIUNE.html">nufarul</a></li>
+<li>Documentația API-ului nostru (același contract): <a href="https://officeplus.md/api-documentation">https://officeplus.md/api-documentation</a></li>
+<li>Cod: <code>modules/partner/ultra.py</code>, <code>modules/partner/scripts/ultra_sync.py · ultra_publish.py · ultra_dedup.py · ultra_cron.sh</code></li>
+</ul>
+</main></body></html>
