@@ -17,12 +17,15 @@ BIRO26_GOODS staging; publication stays on the operator pipeline.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
 TIMEOUT_S = 60
+# RO: pauzele la 429, in secunde, una dupa alta / EN: 429 back-off schedule
+BACKOFF_S = (5, 15, 30, 60, 90)
 PAGE = 1000
 BATCH = 40          # rinduri per bloc PL/SQL la upsert (un subproces per bloc)
 
@@ -54,7 +57,7 @@ class UltraClient:
     # ── HTTP ───────────────────────────────────────────────────────────
     def _req(self, method: str, path: str, payload: Optional[Dict] = None,
              params: Optional[Dict] = None, auth: bool = True,
-             _retry: bool = False) -> Dict[str, Any]:
+             _retry: bool = False, _backoff: int = 0) -> Dict[str, Any]:
         url = self.base + path
         if params:
             url += "?" + urllib.parse.urlencode(
@@ -73,6 +76,17 @@ class UltraClient:
                         "data": json.loads(resp.read().decode() or "{}")}
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")[:400]
+            # RO: Ultra limiteaza ritmul (429 "Too Many Attempts"). Dupa doua
+            #     saptamini fara sincronizare, /changes are zeci de pagini si
+            #     la 22.09.2026 incrementalul a picat la a N-a pagina, fara sa
+            #     salveze nimic. Asteptam cit cere Retry-After (sau crescator)
+            #     si repetam aceeasi cerere de citeva ori.
+            # EN: back off on 429 (Retry-After or exponential) and retry.
+            if e.code == 429 and _backoff < len(BACKOFF_S):
+                wait = e.headers.get("Retry-After")
+                time.sleep(int(wait) if wait and wait.isdigit() else BACKOFF_S[_backoff])
+                return self._req(method, path, payload, params, auth,
+                                 _retry=_retry, _backoff=_backoff + 1)
             # RO: access-token-ul Ultra traieste 1 ora, iar o sincronizare
             #     completa (34k produse) dureaza mai mult — la 09.09.2026
             #     rularea a murit la mijloc cu "Invalid or expired token" si
@@ -83,7 +97,8 @@ class UltraClient:
             if (auth and e.code in (401, 403) and not _retry
                     and "token" in body.lower()):
                 if self.login().get("success"):
-                    return self._req(method, path, payload, params, auth, _retry=True)
+                    return self._req(method, path, payload, params, auth,
+                                     _retry=True, _backoff=_backoff)
             return {"success": False, "status": e.code, "error": body}
         except Exception as e:                               # noqa: BLE001
             return {"success": False, "error": str(e)[:300]}
