@@ -238,8 +238,17 @@ class EfaSimple:
         return {"success": True, "cod": cod, "denumirea": den}
 
     @staticmethod
-    def create_goods(name: str, um: str = "buc.") -> Dict[str, Any]:
-        """RO: card nou de marfa/serviciu: TMS_UNIVERS TIP 'P' GR1 'TVR' + rindul TMS_MPT_TVR."""
+    def create_goods(name: str, um: str = "buc.", barcode: Optional[str] = None,
+                     supplier_cod: Optional[int] = None) -> Dict[str, Any]:
+        """RO: card nou de marfa/serviciu: TMS_UNIVERS TIP 'P' GR1 'TVR' + TMS_MPT_TVR
+        + rindul-parinte TMS_MPT + codul de bare (EFA_INBOX.ensure_barcode).
+
+        De ce si TMS_MPT si barcode: pina pe 22.09.2026 cardul se facea doar din
+        TMS_UNIVERS + TMS_MPT_TVR, iar in documentul 1209 coloana «Barcode» ramineea
+        goala — codul de bare sta in TMS_MPT_BARCODE, care are FK spre TMS_MPT, deci
+        fara rindul-parinte nici nu se poate scrie. Conventia casei (conveierul
+        BIRO26PT_IMPORTDATA): fiecare card nou primeste EAN-13 «2000…» generat din
+        BIRO26PT_EAN_SEQ daca factura nu aduce unul. Vezi docs/Partner/EFACTURA_CODURI_DE_BARE.md."""
         db, rows = EfaInbox._db()
         den = db_text(name)
         if not den:
@@ -253,7 +262,23 @@ class EfaSimple:
         if not r.get("success"):
             return {"success": False, "error": str(r.get("message"))[:400]}
         db.execute_dml("INSERT INTO TMS_MPT_TVR (COD) VALUES (:c)", {"c": cod})
-        return {"success": True, "cod": cod, "denumirea": den}
+        # RO: MATGR1=1 si DEP_PRODUCER=furnizorul — la fel ca la cardurile facute de
+        #     conveierul standard si de Ultra; fara TMS_MPT nu exista cod de bare.
+        db.execute_dml("INSERT INTO TMS_MPT (COD, MATGR1, DEP_PRODUCER) VALUES (:c, 1, :s)",
+                       {"c": cod, "s": supplier_cod})
+        bc = EfaSimple.ensure_barcode(cod, barcode)
+        return {"success": True, "cod": cod, "denumirea": den, "barcode": bc}
+
+    @staticmethod
+    def ensure_barcode(cod: int, barcode: Optional[str] = None) -> Optional[str]:
+        """RO: codul de bare al cardului: cel existent, altfel cel din factura (daca nu e
+        deja al altui card), altfel EAN-13 generat «2000…». Logica sta in pachetul
+        EFA_INBOX.ensure_barcode — aici doar apelul; None daca baza a refuzat."""
+        db, rows = EfaInbox._db()
+        r = db.execute_query("SELECT EFA_INBOX.ensure_barcode(:c, :b) BC FROM dual",
+                             {"c": cod, "b": (barcode or "")[:40] or None})
+        got = rows(r)
+        return (got[0].get("bc") if got else None) or None
 
     @staticmethod
     def import_file(xml: str, *, only: Optional[List[str]] = None, create_goods: bool = False,
@@ -322,7 +347,9 @@ class EfaSimple:
                     continue
                 if not create_goods:
                     continue
-                g = EfaSimple.create_goods(r0["name"], r0.get("um") or "buc.")
+                g = EfaSimple.create_goods(r0["name"], r0.get("um") or "buc.",
+                                           barcode=r0.get("barcode"),
+                                           supplier_cod=((d.get("supplier") or {}).get("match") or {}).get("cod"))
                 if g.get("success"):
                     r0["card_cod"], r0["card_name"], r0["how"] = g["cod"], g["denumirea"], "creat"
                     cards[r0["name"]] = {"cod": g["cod"], "denumirea": g["denumirea"]}

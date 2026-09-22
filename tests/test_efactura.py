@@ -1142,7 +1142,7 @@ def test_simple_creates_one_card_per_name_not_per_row(monkeypatch):
     seq = iter(range(900001, 900100))
     made = []
 
-    def fake_create(name, um="buc."):
+    def fake_create(name, um="buc.", barcode=None, supplier_cod=None):
         cod = next(seq)
         made.append((cod, name, um))
         return {"success": True, "cod": cod, "denumirea": name}
@@ -1246,3 +1246,71 @@ def test_match_kind_column_fits_all_kinds():
     for kind in re.findall(r'"(denumire[-\w]*|creat|barcode|rule|none)"', src):
         assert len(kind) <= 30, kind
     assert '(r0.get("how") or "denumire")[:30]' in src
+
+
+def test_create_goods_writes_tms_mpt_and_barcode(monkeypatch):
+    from modules.efactura import simple
+    """RO: cardul nou primeste si rindul-parinte TMS_MPT (MATGR1=1, furnizorul) si un
+    cod de bare prin EFA_INBOX.ensure_barcode. Pina pe 22.09.2026 lipseau amindoua:
+    170 de carduri din facturile primite stateau in 1209 cu coloana «Barcode» goala,
+    iar TMS_MPT_BARCODE nici nu accepta rindul (FK spre TMS_MPT)."""
+    sqls = []
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            sqls.append((sql, binds))
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            sqls.append((sql, binds))
+            if "NEXTVAL" in sql:
+                return {"success": True, "data": [{"n": 540999}]}
+            if "ensure_barcode" in sql:
+                assert binds == {"c": 540999, "b": "4840070001172"}
+                return {"success": True, "data": [{"bc": "4840070001172"}]}
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(
+        lambda: (Db(), lambda r: r.get("data") or [])))
+    g = simple.EfaSimple.create_goods("Pix Delta", "buc", barcode="4840070001172", supplier_cod=161245)
+    assert g == {"success": True, "cod": 540999, "denumirea": "Pix Delta", "barcode": "4840070001172"}
+    mpt = [b for sql, b in sqls if "INSERT INTO TMS_MPT (" in sql]
+    assert mpt == [{"c": 540999, "s": 161245}]
+    assert any("INSERT INTO TMS_MPT_TVR" in sql for sql, _ in sqls)
+    assert any("EFA_INBOX.ensure_barcode" in sql for sql, _ in sqls)
+
+
+def test_import_file_passes_invoice_barcode_and_supplier_to_create_goods(monkeypatch):
+    from modules.efactura import simple
+    """RO: codul de bare din factura si furnizorul ajung la crearea cardului — altfel
+    s-ar genera un EAN «2000…» chiar daca marfa are deja EAN-ul producatorului."""
+    pkg = _PKG_2.replace("<Barcode></Barcode>", "<Barcode>4840070001172</Barcode>", 1) \
+        if "<Barcode></Barcode>" in _PKG_2 else _PKG_2
+    monkeypatch.setattr(simple.EfaSimple, "analyze", staticmethod(lambda xml, seller=None: {
+        "success": True, "seller_idno": "1026602001837", "summary": {}, "docs": [{
+            "seria": "EBL", "number": "1", "nr_in_file": 1, "direction": "in", "issued_date": "2026-09-01",
+            "supplier": {"idno": "1002600000001", "title": "F SRL", "match": {"cod": 161245, "denumirea": "F SRL"}},
+            "buyer": {"idno": "1026602001837", "match": {"cod": 1}}, "duplicate_in_file": False,
+            "rows": [{"rown": 1, "name": "Pix Delta", "um": "buc", "barcode": "4840070001172", "qty": 1}]}]}))
+    monkeypatch.setattr(simple, "parse_package", lambda xml: [{"nr_in_file": 1, "xml": ""}])
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 1, "result": "added"}))
+    got = {}
+
+    def fake_create(name, um="buc.", barcode=None, supplier_cod=None):
+        got.update(name=name, barcode=barcode, supplier_cod=supplier_cod)
+        return {"success": True, "cod": 540999, "denumirea": name, "barcode": barcode}
+
+    monkeypatch.setattr(simple.EfaSimple, "create_goods", staticmethod(fake_create))
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (Db(), lambda r: [])))
+    r = simple.EfaSimple.import_file(pkg, create_goods=True, seller_idno="1026602001837")
+    assert r["success"], r
+    assert got == {"name": "Pix Delta", "barcode": "4840070001172", "supplier_cod": 161245}

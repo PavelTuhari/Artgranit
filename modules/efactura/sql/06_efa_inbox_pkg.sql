@@ -37,6 +37,12 @@ CREATE OR REPLACE PACKAGE EFA_INBOX AS
   -- RO: 1 daca marfa poate intra intr-un document de intrare (e legata de o grupa
   --     de marfuri), altfel 0. Triggerul YBON_PRIH refuza cardurile fara grupa
   FUNCTION  card_ok(p_cod IN NUMBER) RETURN NUMBER;
+  -- RO: codul de bare al unui card nou, DUPA REGULA CASEI (BIRO26PT_IMPORTDATA):
+  --     cel din factura daca exista si e liber, altfel EAN-13 intern generat
+  --     (prefix 20 + BIRO26PT_EAN_SEQ + cifra de control). Fara cod de bare
+  --     cardul nu se vede in grila documentului 1209 si nu se scaneaza la casa
+  FUNCTION  gen_ean13(p_seq IN NUMBER) RETURN VARCHAR2;
+  FUNCTION  ensure_barcode(p_cod IN NUMBER, p_barcode IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2;
   -- RO: analitica pozitiilor: reguli, cod de bare, denumire
   PROCEDURE compl_analitica(p_nrdoc IN NUMBER);
   -- RO: din Delphi: aduce din SFS facturile noi in acest pachet (prin API-ul web)
@@ -430,6 +436,54 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
                       ERR_MSG = NULL, UPDATED = SYSDATE
      WHERE ID = p_in_id;
   END create_doc_from_in;
+
+  FUNCTION gen_ean13(p_seq IN NUMBER) RETURN VARCHAR2 IS
+    -- RO: copie a functiei PRIVATE din BIRO26PT_IMPORTDATA (acelasi prefix 20,
+    --     aceeasi secventa, aceeasi cifra de control) ca sa nu existe doua serii
+    v12 VARCHAR2(12); s PLS_INTEGER := 0; d PLS_INTEGER;
+  BEGIN
+    v12 := '20' || LPAD(TO_CHAR(p_seq), 10, '0');
+    FOR i IN 1 .. 12 LOOP
+      d := TO_NUMBER(SUBSTR(v12, i, 1));
+      IF MOD(i, 2) = 1 THEN s := s + d; ELSE s := s + d * 3; END IF;
+    END LOOP;
+    RETURN v12 || TO_CHAR(MOD(10 - MOD(s, 10), 10));
+  END gen_ean13;
+
+  PROCEDURE set_main_barcode(p_cod IN NUMBER, p_bc IN VARCHAR2) IS
+    -- RO: TMS_MPT.STRIH1_CODPRODUCER = codul de bare PRINCIPAL. Pe el il arata
+    --     documentul 1209 (YBON_VMDB_ST201D_TVR.CLCSTRINGX_1) si VMS_MPT_BARCODE
+    --     (SECONDARY=0); TMS_MPT_BARCODE tine doar codurile secundare. Fara el
+    --     coloana «Штрих-код» din document ramine goala chiar daca cardul are cod
+    --     de bare in tabel. Se completeaza doar daca e gol — nu suprascriem
+    --     alegerea operatorului. Acelasi lucru il face
+    --     YBIRO_IMPORT_MARFA.assign_default_barcode la conveierul standard.
+  BEGIN
+    UPDATE TMS_MPT SET STRIH1_CODPRODUCER = p_bc
+     WHERE COD = p_cod AND STRIH1_CODPRODUCER IS NULL;
+  END set_main_barcode;
+
+  FUNCTION ensure_barcode(p_cod IN NUMBER, p_barcode IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2 IS
+    v_have VARCHAR2(15); v_bc VARCHAR2(15); v_n NUMBER;
+  BEGIN
+    SELECT MIN(BARCODE) INTO v_have FROM TMS_MPT_BARCODE WHERE COD = p_cod;
+    IF v_have IS NOT NULL THEN set_main_barcode(p_cod, v_have); RETURN v_have; END IF;
+    v_bc := TRIM(p_barcode);
+    IF v_bc IS NOT NULL THEN
+      -- RO: codul din factura se ia doar daca nu e al altui card (triggerele ar refuza oricum)
+      SELECT COUNT(*) INTO v_n FROM TMS_BARCODE_UNIQ WHERE BARCODE = v_bc AND COD <> p_cod;
+      IF v_n > 0 THEN v_bc := NULL; END IF;
+    END IF;
+    IF v_bc IS NULL THEN
+      SELECT BIRO26PT_EAN_SEQ.NEXTVAL INTO v_n FROM dual;
+      v_bc := gen_ean13(v_n);
+    END IF;
+    INSERT INTO TMS_MPT_BARCODE (COD, BARCODE, COMENT)
+    VALUES (p_cod, v_bc, CASE WHEN TRIM(p_barcode) = v_bc THEN 'RO: cod de bare din e-Factura / EN: barcode from e-Factura'
+                              ELSE 'RO: EAN generat produs nou / EN: generated EAN new product' END);
+    set_main_barcode(p_cod, v_bc);
+    RETURN v_bc;
+  END ensure_barcode;
 
   FUNCTION api_key RETURN VARCHAR2 IS
     v VARCHAR2(400);
