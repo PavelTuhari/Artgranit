@@ -389,6 +389,12 @@ class EfaSimple:
                     got = rows(db.execute_query("SELECT DEST_NRDOC N FROM EFA_IN WHERE ID=:i", {"i": iid}))
                     d["dest_nrdoc"] = int(got[0]["n"]) if got and got[0]["n"] else None
                     made_docs.append({"key": key, "nrdoc": d["dest_nrdoc"]})
+                    # RO: preturile pozitiilor (lista = factura, vinzare = lista/(1-10%)),
+                    #     regula proprietarului din 22.09.2026; procentul e in YBIRO_SETTINGS
+                    if d["dest_nrdoc"]:
+                        pr = db.call_proc("BEGIN EFA_INBOX.ensure_prices(:n); END;", {"n": d["dest_nrdoc"]})
+                        if not pr.get("success"):
+                            errors.append("%s: preturi — %s" % (key, str(pr.get("message"))[:200]))
                 else:
                     errors.append("%s: document — %s" % (key, str(r.get("message"))[:300]))
         an["created"] = {"goods": made_goods, "orgs": made_orgs, "docs": made_docs}

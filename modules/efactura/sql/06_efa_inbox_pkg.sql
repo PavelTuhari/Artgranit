@@ -43,6 +43,14 @@ CREATE OR REPLACE PACKAGE EFA_INBOX AS
   --     cardul nu se vede in grila documentului 1209 si nu se scaneaza la casa
   FUNCTION  gen_ean13(p_seq IN NUMBER) RETURN VARCHAR2;
   FUNCTION  ensure_barcode(p_cod IN NUMBER, p_barcode IN VARCHAR2 DEFAULT NULL) RETURN VARCHAR2;
+  -- RO: preturile pozitiilor unui document 1209 (regula proprietarului, 22.09.2026:
+  --     pretul de price sa fie cu 10% mai mic ca pretul de vinzare):
+  --     PRETV2 (pret de lista / achizitie) = pretul din factura, PRETV4 (vinzare)
+  --     = PRETV2 / (1 - pct/100). Procentul: YBIRO_SETTINGS.EFA_PRICE_BELOW_SALE_PCT
+  --     (implicit 10). Completeaza doar ce lipseste - nu suprascrie preturi existente.
+  --     Fara PRETV4 documentul arata pretul de vinzare gol si diferenta = -PRET.
+  FUNCTION  price_below_sale_pct RETURN NUMBER;
+  PROCEDURE ensure_prices(p_nrdoc IN NUMBER, p_pct IN NUMBER DEFAULT NULL);
   -- RO: analitica pozitiilor: reguli, cod de bare, denumire
   PROCEDURE compl_analitica(p_nrdoc IN NUMBER);
   -- RO: din Delphi: aduce din SFS facturile noi in acest pachet (prin API-ul web)
@@ -453,9 +461,9 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
   PROCEDURE set_main_barcode(p_cod IN NUMBER, p_bc IN VARCHAR2) IS
     -- RO: TMS_MPT.STRIH1_CODPRODUCER = codul de bare PRINCIPAL. Pe el il arata
     --     documentul 1209 (YBON_VMDB_ST201D_TVR.CLCSTRINGX_1) si VMS_MPT_BARCODE
-    --     (SECONDARY=0); TMS_MPT_BARCODE tine doar codurile secundare. Fara el
-    --     coloana «Штрих-код» din document ramine goala chiar daca cardul are cod
-    --     de bare in tabel. Se completeaza doar daca e gol — nu suprascriem
+    --     (SECONDARY=0), TMS_MPT_BARCODE tine doar codurile secundare. Fara el
+    --     coloana Strih-kod din document ramine goala chiar daca cardul are cod
+    --     de bare in tabel. Se completeaza doar daca e gol - nu suprascriem
     --     alegerea operatorului. Acelasi lucru il face
     --     YBIRO_IMPORT_MARFA.assign_default_barcode la conveierul standard.
   BEGIN
@@ -484,6 +492,45 @@ CREATE OR REPLACE PACKAGE BODY EFA_INBOX AS
     set_main_barcode(p_cod, v_bc);
     RETURN v_bc;
   END ensure_barcode;
+
+  FUNCTION price_below_sale_pct RETURN NUMBER IS
+    v VARCHAR2(40);
+  BEGIN
+    SELECT sval INTO v FROM YBIRO_SETTINGS WHERE skey = 'EFA_PRICE_BELOW_SALE_PCT';
+    RETURN NVL(TO_NUMBER(REPLACE(TRIM(v), ',', '.')), 10);
+  EXCEPTION WHEN OTHERS THEN RETURN 10;
+  END price_below_sale_pct;
+
+  PROCEDURE ensure_prices(p_nrdoc IN NUMBER, p_pct IN NUMBER DEFAULT NULL) IS
+    v_pct  NUMBER := NVL(p_pct, price_below_sale_pct);
+    v_data DATE;
+    v_sale NUMBER;
+    v_cnt  NUMBER;
+  BEGIN
+    IF v_pct <= 0 OR v_pct >= 100 THEN v_pct := 10; END IF;
+    SELECT datamanual INTO v_data FROM VMDB_DOCS WHERE cod = p_nrdoc;
+    -- RO: pretul din factura e PRET (cu TVA - firma nu e platitoare, deci acesta e costul)
+    --     la aceeasi marfa pe mai multe rinduri se ia cel mai mare
+    FOR c IN (SELECT dtsc, MAX(pret) pret FROM VMDB_ST201D
+               WHERE nrdoc = p_nrdoc AND dtsc IS NOT NULL AND NVL(pret, 0) > 0
+               GROUP BY dtsc) LOOP
+      v_sale := ROUND(c.pret / (1 - v_pct / 100), 2);
+      SELECT COUNT(*) INTO v_cnt FROM VPR_PRLIST_TVR
+       WHERE sc = c.dtsc AND v_data BETWEEN data AND dataf;
+      IF v_cnt = 0 THEN
+        -- RO: prima perioada de pret a cardului - triggerul view-ului inchide singur
+        --     perioada vecina si pune DATAF = 31.12.3000 (ca YLIN_DOCS la postare)
+        INSERT INTO VPR_PRLIST_TVR (DATA, SC, PRETV2, PRETV4, N1)
+        VALUES (v_data, c.dtsc, c.pret, v_sale, p_nrdoc);
+      ELSE
+        UPDATE VPR_PRLIST_TVR
+           SET PRETV2 = NVL(PRETV2, c.pret),
+               PRETV4 = NVL(PRETV4, ROUND(NVL(PRETV2, c.pret) / (1 - v_pct / 100), 2))
+         WHERE sc = c.dtsc AND v_data BETWEEN data AND dataf
+           AND (PRETV2 IS NULL OR PRETV4 IS NULL);
+      END IF;
+    END LOOP;
+  END ensure_prices;
 
   FUNCTION api_key RETURN VARCHAR2 IS
     v VARCHAR2(400);

@@ -1314,3 +1314,50 @@ def test_import_file_passes_invoice_barcode_and_supplier_to_create_goods(monkeyp
     r = simple.EfaSimple.import_file(pkg, create_goods=True, seller_idno="1026602001837")
     assert r["success"], r
     assert got == {"name": "Pix Delta", "barcode": "4840070001172", "supplier_cod": 161245}
+
+
+def test_import_file_sets_prices_after_creating_document(monkeypatch):
+    """RO: dupa create_doc_from_in se cheama EFA_INBOX.ensure_prices(nrdoc) — regula
+    proprietarului (22.09.2026): pretul de lista e cu 10% sub pretul de vinzare.
+    Fara asta documentul arata «Продажная цена» goala si «Разница» = -PRET."""
+    from modules.efactura import simple
+    monkeypatch.setattr(simple.EfaSimple, "analyze", staticmethod(lambda xml, seller=None: {
+        "success": True, "seller_idno": "1026602001837", "summary": {}, "docs": [{
+            "seria": "EBL", "number": "1", "nr_in_file": 1, "direction": "in", "issued_date": "2026-09-01",
+            "supplier": {"idno": "1002600000001", "title": "F SRL", "match": {"cod": 161245, "denumirea": "F SRL"}},
+            "buyer": {"idno": "1026602001837", "match": {"cod": 1}}, "duplicate_in_file": False,
+            "rows": [{"rown": 1, "name": "Pix Delta", "um": "buc", "qty": 1, "card_cod": 162456, "how": "exact"}]}]}))
+    monkeypatch.setattr(simple, "parse_package", lambda xml: [{"nr_in_file": 1, "xml": ""}])
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 7, "result": "added"}))
+    procs = []
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            return {"success": True}
+
+        def call_proc(self, sql, binds=None):
+            procs.append((sql, binds))
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            if "DEST_NRDOC" in sql:
+                return {"success": True, "data": [{"n": 478}]}
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(
+        lambda: (Db(), lambda r: r.get("data") or [])))
+    r = simple.EfaSimple.import_file("<x/>", create_docs=True, seller_idno="1026602001837")
+    assert r["success"] and r["summary"]["docs_created"] == 1, r
+    assert procs[0][0].startswith("BEGIN EFA_INBOX.create_doc_from_in") and procs[0][1] == {"i": 7}
+    assert procs[1] == ("BEGIN EFA_INBOX.ensure_prices(:n); END;", {"n": 478})
+
+
+def test_ensure_prices_rule_is_in_package_and_setting_seeded():
+    """RO: regula PRETV4 = PRETV2/(1-pct/100) sta in pachet, procentul in YBIRO_SETTINGS
+    (nu constanta in cod — regula nr. 2 din CLAUDE.md), iar seed-ul e idempotent."""
+    pkg = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert "PROCEDURE ensure_prices(p_nrdoc IN NUMBER, p_pct IN NUMBER DEFAULT NULL)" in pkg
+    assert "EFA_PRICE_BELOW_SALE_PCT" in pkg and "ROUND(c.pret / (1 - v_pct / 100), 2)" in pkg
+    seed = open(os.path.join(ROOT, "modules/efactura/sql/07_efa_syss_seed.sql"), encoding="utf-8").read()
+    assert "MERGE INTO YBIRO_SETTINGS" in seed and "'EFA_PRICE_BELOW_SALE_PCT', '10'" in seed

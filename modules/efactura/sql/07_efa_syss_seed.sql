@@ -32,3 +32,10 @@ BEGIN
   COMMIT;
 END;
 /
+
+-- RO: procentul cu care pretul de lista (PRETV2) sta SUB pretul de vinzare (PRETV4)
+--     la marfa venita din e-Factura (proprietarul, 22.09.2026: 10%). Nu suprascrie o valoare deja pusa.
+MERGE INTO YBIRO_SETTINGS s USING (SELECT 'EFA_PRICE_BELOW_SALE_PCT' k FROM dual) n ON (s.SKEY = n.k)
+WHEN NOT MATCHED THEN INSERT (SKEY, SVAL, DESCR)
+VALUES ('EFA_PRICE_BELOW_SALE_PCT', '10', 'e-Factura: pretul de lista e cu N% sub pretul de vinzare (PRETV4 = PRETV2/(1-N/100))')
+/

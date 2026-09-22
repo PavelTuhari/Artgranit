@@ -9,7 +9,8 @@ Pe scurt, ce s-a găsit și ce s-a făcut:
 | | Înainte | După |
 |---|---|---|
 | Rînduri cu «Штрих-код» în EBL000413321 | 0 din 61 | **61 din 61** |
-| Rînduri cu «Штрих-код» în toate cele 46 de documente importate | 0 din 352 | **352 din 352** |
+| Rînduri cu «Штрих-код» în toate cele 47 de documente importate | 0 din 352 | **352 din 352** |
+| Rînduri cu preț de vînzare (regula −10%, §5) | 0 din 352 | **351 din 352** |
 | Carduri active care aveau cod de bare în tabel, dar nu-l arătau în documente | 126 330 | **0** |
 | Carduri e-Factura fără rînd-părinte `TMS_MPT` (deci fără drept la cod de bare) | 170 | 0 |
 | Carduri active fără niciun cod de bare nicăieri | 10 536 | 10 533 (vezi §6) |
