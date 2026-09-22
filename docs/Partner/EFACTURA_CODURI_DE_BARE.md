@@ -196,9 +196,31 @@ minus prețul de achiziție. Nu e o eroare de calcul — e semnalul că marfa nu
 încă preț de listă / de vînzare. La fel «Продажная цена» (`VINZ_PRET` = `PRETV4`)
 și «КТН наш» sînt goale pentru ele.
 
-Ce trebuie decis de proprietar: cu ce preț de vînzare intră aceste 170 de
-poziții (lista `VPR_PRLIST_TVR` sau prețuri pe diviziune `VPR_PRICES_ALL`). Pînă
-atunci ele nu apar cu preț pe vitrină.
+### Regula prețurilor (proprietarul, 22.09.2026): «prețul de price să fie cu 10% mai mic ca prețul de vînzare»
+
+Adică prețul de listă (`PRETV2`, cel cu care se compară factura) = prețul din
+factură, iar prețul de vînzare (`PRETV4`) = `PRETV2 / (1 − 10%)`:
+14,95 → 16,61; 1,95 → 2,17; 3,55 → 3,94. Prețul din factură se ia **cu TVA**
+(`VMDB_ST201D.PRET`) — firma nu e plătitoare, deci acesta e costul real.
+
+| Ce | Unde |
+|---|---|
+| Procentul (10) | `YBIRO_SETTINGS.EFA_PRICE_BELOW_SALE_PCT` — se schimbă din setări, nu din cod; seed idempotent în `07_efa_syss_seed.sql` |
+| Regula | `EFA_INBOX.ensure_prices(nrdoc [, pct])` — pentru fiecare marfă din document: dacă nu are perioadă de preț la data documentului → `INSERT INTO VPR_PRLIST_TVR (DATA, SC, PRETV2, PRETV4, N1=nrdoc)` (triggerul view-ului închide singur perioada vecină, `DATAF = 31.12.3000`, exact ca `YLIN_DOCS` la postare); dacă are → completează **doar** `PRETV2`/`PRETV4` goale. Prețurile puse de operator nu se ating; rîndurile cu preț ≤ 0 (retururi, reduceri) se sar |
+| Apel | `simple.py` → imediat după `create_doc_from_in` la importul simplu |
+
+Aplicat pe cele 47 de documente importate (în ordinea datei): **256 din 257
+carduri** au acum preț de listă = factura și preț de vînzare = listă/0,9; toate
+cele 61 de rînduri din EBL000413321 au «Разница» = 0,00 și «Продажная цена»
+completată. Singurul rînd rămas e o linie cu preț **−650** (reducere), care nu e
+marfă cu preț. Cardurile vechi din aceleași documente (86) care nu aveau nicio
+perioadă de preț au primit-o după aceeași regulă; cele 5 care aveau preț de
+vînzare au rămas cu al lor.
+
+Atenție, două prețuri ≠ vitrina: officeplus.md citește `VTPR1D_PERPRLIST`
+(liste pe `CODPRICE`, `PRETV`/`PRETV1`/`PRETV2` = retail/angro/online) și
+`BIRO26_GOODS`; cele 170 de carduri e-Factura nu sînt în `BIRO26_GOODS`, deci nu
+apar pe site pînă nu sînt puse într-o listă de prețuri a vitrinei.
 
 ## 6. Ce a rămas fără cod de bare și de ce nu s-a generat
 
