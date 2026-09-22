@@ -28,7 +28,7 @@
 <div class="ok"><b>Starea la 22.09.2026, verificată viu:</b> contul de dealer
 <code>officeplussrl@gmail.com</code> e configurat și <b>API-ul răspunde</b> (conectare 1,1 s).
 Ultima actualizare a fost pe <b>08.09.2026</b> — de atunci nimeni nu a mai rulat nimic, pentru că
-<b>nu există niciun cron</b> pe nicio mașină. @STARE_NOU@</div>
+<b>nu există niciun cron</b> pe nicio mașină. <b>Au marfă nouă?</b> Da — de la 08.09 s-au adunat atît de multe schimbări, încît listarea lor prin <code>/api/changes</code> (pagini de cîte 1 000) lovește limita de ritm a Ultra («Too Many Attempts») înainte de a ajunge la capăt; numărul exact nu s-a putut citi fără a bloca contul pentru o oră. De aceea, <b>după o pauză de săptămîni se pornește cu o sincronizare COMPLETĂ</b> (38 de pagini din <code>/api/product</code> — mult mai puține cereri decît schimbările acumulate), apoi publicarea, apoi cronul, ca să nu se mai adune.</div>
 
 <h2>1. Cum funcționează (ca să știți ce apăsați)</h2>
 <table>
@@ -51,14 +51,14 @@ Dacă e 401: parola dealerului s-a schimbat — cîmpurile <i>Utilizator (dealer
 <div class="step"><b class="n">3</b> <b>«⟳ Sincronizare incrementală»</b> — aduce în tampon doar ce s-a schimbat. Rezultatul:
 «✅ incremental: văzute N, scrise în tampon M». Dacă au trecut multe săptămîni, poate dura cîteva minute — Ultra
 limitează ritmul («Too Many Attempts»), iar clientul <b>așteaptă și reia singur</b> (de la 22.09.2026).
-<br><span class="muted">«⟳⟳ Sincronizare completă» — doar la prima instalare sau dacă reperul s-a pierdut; ~37 000 poziții, 15–30 min.</span></div>
+<br><span class="muted">«⟳⟳ Sincronizare completă» — la prima instalare, dacă reperul s-a pierdut <b>sau după o pauză de săptămîni</b> (cazul de acum: 08.09 → 22.09); ~37 000 poziții, 15–30 min. Ea rescrie și reperul, deci incrementalele următoare pornesc curat.</span></div>
 <div class="step"><b class="n">4</b> <b>Publicarea</b> se face din terminal (pasul 3 din secțiunea următoare) sau prin cron.
 Din back-office nu există încă buton de publicare — ca să nu se apese din greșeală «tot catalogul în prod».</div>
 
 <h2>3. Actualizarea din terminal (server sau Mac cu acces la ERP)</h2>
 <pre>cd /home/ubuntu/artgranit              # pe server; pe Mac: worktree-ul proiectului
-./venv/bin/python modules/partner/scripts/ultra_sync.py            # 1) incremental (implicit)
-./venv/bin/python modules/partner/scripts/ultra_sync.py --full     #    sau tot catalogul
+./venv/bin/python modules/partner/scripts/ultra_sync.py --full     # 1) ACUM: tot catalogul (pauza de 2 saptamini)
+./venv/bin/python modules/partner/scripts/ultra_sync.py            #    apoi, zilnic/orar: incremental (implicit)
 ./venv/bin/python modules/partner/scripts/ultra_publish.py         # 2) DRY-RUN: arată ce ar intra, nu scrie
 ./venv/bin/python modules/partner/scripts/ultra_publish.py --commit   #    scrie în nomenclator + prețuri
 ./venv/bin/python modules/partner/scripts/ultra_dedup.py --apply   # 3) unește dublurile rămase</pre>
@@ -81,7 +81,7 @@ De aceea marfa Ultra a rămas la 08.09.2026. Alegeți o singură mașină — ce
 <tr><td>s-a publicat</td><td><code>SELECT * FROM YBIRO_IMPORT_LOG WHERE SOURCE_CODE='ULTRA' ORDER BY STARTED_AT DESC</code> —
 coloanele <code>ROWS_INSERTED</code> (cartele noi) și <code>ROWS_MATCHED</code> (existente, preț reîmprospătat)</td></tr>
 <tr><td>noutățile pe vitrină</td><td><a href="https://officeplus.md/catalog">https://officeplus.md/catalog</a> — pozițiile noi au marcajul «noutate»</td></tr>
-<tr><td>apelurile către Ultra</td><td>jurnalul <code>PAPI_LOG</code> (fiecare cerere, cu statut)</td></tr>
+<tr><td>ce a făcut cronul</td><td><code>/tmp/ultra_cron.log</code> pe mașina cu cronul (sync → publish → dedup, cu ora fiecărui pas). <span class="muted">Atenție: <code>PAPI_LOG</code> e jurnalul API-ului <b>nostru</b> pentru parteneri, nu al apelurilor către Ultra.</span></td></tr>
 </table>
 
 <h2>6. Probleme cunoscute și ce înseamnă</h2>
