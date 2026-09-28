@@ -23,6 +23,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from modules.seoforge import csv_format as seo_csv
+from modules.seoforge import playbooks as seo_playbooks
 from modules.seoforge import store as seo_oracle_store
 
 Reply = Tuple[Dict[str, Any], int]
@@ -377,6 +378,53 @@ class SeoController:
         if mode is not None and mode not in ("BLOCK", "WARN"):
             return cls._fail("BUDGET_OVERRUN_MODE принимает только BLOCK или WARN")
         return cls._reply(cls._store.save_settings(values, cls._username()))
+
+    # ── стратегии и плейбуки ─────────────────────────────────────────
+
+    _playbooks = seo_playbooks
+
+    @classmethod
+    def playbooks(cls, site_cod: Optional[int] = None,
+                  kind: Optional[str] = None,
+                  all_versions: bool = False) -> Reply:
+        if kind and kind not in cls._playbooks.KINDS:
+            return cls._fail("неизвестный вид документа")
+        return cls._reply(cls._playbooks.list_playbooks(
+            site_cod, kind, latest_only=not all_versions))
+
+    @classmethod
+    def playbook(cls, cod: Any) -> Reply:
+        try:
+            number = int(cod)
+        except (TypeError, ValueError):
+            return cls._fail("номер документа должен быть числом")
+        result = cls._playbooks.get_playbook(number)
+        if not result.get("success") and "не найден" in result.get("message", ""):
+            return cls._fail(result["message"], 404)
+        return cls._reply(result)
+
+    @classmethod
+    def save_playbook(cls, payload: Dict[str, Any]) -> Reply:
+        payload = payload or {}
+        return cls._reply(cls._playbooks.save_playbook(
+            cls._text(payload, "code"),
+            cls._text(payload, "title"),
+            payload.get("body") or "",
+            kind=cls._text(payload, "kind") or "STRATEGY",
+            site_cod=payload.get("site_cod"),
+            period=cls._text(payload, "period") or None,
+            status=cls._text(payload, "status") or "DRAFT",
+            author=cls._username(),
+            note=payload.get("note")))
+
+    @classmethod
+    def set_playbook_status(cls, cod: Any, status: str) -> Reply:
+        try:
+            number = int(cod)
+        except (TypeError, ValueError):
+            return cls._fail("номер документа должен быть числом")
+        return cls._reply(cls._playbooks.set_status(
+            number, (status or "").upper(), cls._username()))
 
     @classmethod
     def events(cls) -> Reply:

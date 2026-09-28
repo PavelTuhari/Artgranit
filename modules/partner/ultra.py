@@ -17,14 +17,24 @@ BIRO26_GOODS staging; publication stays on the operator pipeline.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
 TIMEOUT_S = 60
+# RO: pauzele la 429, in secunde, una dupa alta / EN: 429 back-off schedule
+BACKOFF_S = (5, 15, 30, 60, 90)
 PAGE = 1000
 BATCH = 40          # rinduri per bloc PL/SQL la upsert (un subproces per bloc)
+
+# RO: grupa-tampon pentru marfa care vine de la Ultra fara categorie. Fara ea
+#     produsul nu are nod in arborele de catalog si nu apare pe vitrina.
+#     Numele e deliberat vizibil, ca operatorul sa gaseasca si sa mute.
+# EN: fallback group for Ultra goods with no category — without a group they
+#     have no catalog node and stay invisible on the shop.
+GRUPA_FALLBACK = "Ultra - diverse"
 
 
 class UltraClient:
@@ -46,7 +56,8 @@ class UltraClient:
 
     # ── HTTP ───────────────────────────────────────────────────────────
     def _req(self, method: str, path: str, payload: Optional[Dict] = None,
-             params: Optional[Dict] = None, auth: bool = True) -> Dict[str, Any]:
+             params: Optional[Dict] = None, auth: bool = True,
+             _retry: bool = False, _backoff: int = 0) -> Dict[str, Any]:
         url = self.base + path
         if params:
             url += "?" + urllib.parse.urlencode(
@@ -65,6 +76,29 @@ class UltraClient:
                         "data": json.loads(resp.read().decode() or "{}")}
         except urllib.error.HTTPError as e:
             body = e.read().decode(errors="replace")[:400]
+            # RO: Ultra limiteaza ritmul (429 "Too Many Attempts"). Dupa doua
+            #     saptamini fara sincronizare, /changes are zeci de pagini si
+            #     la 22.09.2026 incrementalul a picat la a N-a pagina, fara sa
+            #     salveze nimic. Asteptam cit cere Retry-After (sau crescator)
+            #     si repetam aceeasi cerere de citeva ori.
+            # EN: back off on 429 (Retry-After or exponential) and retry.
+            if e.code == 429 and _backoff < len(BACKOFF_S):
+                wait = e.headers.get("Retry-After")
+                time.sleep(int(wait) if wait and wait.isdigit() else BACKOFF_S[_backoff])
+                return self._req(method, path, payload, params, auth,
+                                 _retry=_retry, _backoff=_backoff + 1)
+            # RO: access-token-ul Ultra traieste 1 ora, iar o sincronizare
+            #     completa (34k produse) dureaza mai mult — la 09.09.2026
+            #     rularea a murit la mijloc cu "Invalid or expired token" si
+            #     NIMIC nu s-a scris. La expirare ne relogam o data si
+            #     repetam aceeasi cerere; un al doilea esec se intoarce.
+            # EN: the access token lives 1h and a full sync takes longer; on
+            #     expiry re-login once and retry the same request.
+            if (auth and e.code in (401, 403) and not _retry
+                    and "token" in body.lower()):
+                if self.login().get("success"):
+                    return self._req(method, path, payload, params, auth,
+                                     _retry=True, _backoff=_backoff)
             return {"success": False, "status": e.code, "error": body}
         except Exception as e:                               # noqa: BLE001
             return {"success": False, "error": str(e)[:300]}
@@ -221,18 +255,39 @@ class UltraClient:
         cat = p.get("category") or {}
         hierarchy = cat.get("hierarchy") or []
         cat_ro = UltraClient._lang(cat.get("name"), "ro", "ru", "en")
+        # RO: hierarchy = [{code, name{en,ro,ru}, uuid}, ...] de la radacina
+        #     spre frunza. Prima versiune dadea _lang(element) in loc de
+        #     _lang(element["name"]) si primea "" — de aceea GRUPA a fost
+        #     goala la TOATE cele 34 437 de rinduri din prima sincronizare.
+        # EN: each hierarchy element is {code, name{...}, uuid}; take ["name"].
+        def _hname(el):
+            return UltraClient._lang((el or {}).get("name") if isinstance(el, dict) else el,
+                                     "ro", "ru", "en")
+        grupa = (_hname(hierarchy[0]) if hierarchy else cat_ro)[:200]
+        categorie = (_hname(hierarchy[-1]) if len(hierarchy) > 1 else cat_ro)[:200]
         retail = UltraClient._money(p.get("fixed_price"))             or UltraClient._money(p.get("promo_b2b"))
         dealer = UltraClient._money(p.get("user_price"))             or UltraClient._money(p.get("price_d"))
+        # RO: TOT textul trece prin cp1251_safe INAINTE de scriere. Baza e
+        #     CL8MSWIN1251 si nu are ș ț ă â î — Oracle le-ar pune ca '?',
+        #     iar "Periuța de dinți" ajunge "Periu?a de din?i" (6813 randuri
+        #     in prima sincronizare). Regula si tabela de transliterare sint
+        #     cele ale echipei de import (models/biro26pt_loader.py).
+        # EN: all text goes through cp1251_safe before writing — the DB has no
+        #     Romanian diacritics and Oracle would store them as '?'.
+        from models.biro26pt_loader import cp1251_safe as _safe
+
+        # RO: marfa fara grupa nu are unde sta in arborele de catalog si ar
+        #     ramine invizibila pe vitrina. Ii dam o grupa-tampon, vizibila,
+        #     ca operatorul sa o poata muta apoi in nodul corect.
+        # EN: goods with no group have no node in the catalog tree; give them
+        #     a visible fallback group the operator can re-file later.
         return {
             "guid": str(uuid)[:100],
             "articol": art,
-            "denumire": name_ro[:500],
-            "brand": str((p.get("brand") or {}).get("name") or "")[:100] or None,
-            "grupa": (UltraClient._lang(
-                hierarchy[0] if hierarchy else cat_ro, "ro", "ru")[:200] or None),
-            "categorie": (UltraClient._lang(
-                hierarchy[-1], "ro", "ru")[:200] if len(hierarchy) > 1
-                else (cat_ro[:200] or None)),
+            "denumire": _safe(name_ro)[:500],
+            "brand": _safe(str((p.get("brand") or {}).get("name") or ""))[:100] or None,
+            "grupa": _safe(grupa)[:200] or GRUPA_FALLBACK,
+            "categorie": _safe(categorie)[:200] or GRUPA_FALLBACK,
             "stoc": int(p.get("quantity") or 0),
             "retail1": (str(retail) if retail is not None else None),
             "angro": (str(dealer) if dealer is not None else None),
@@ -285,14 +340,20 @@ class UltraClient:
         since = Biro26Store.get_setting("PARTNER_ULTRA_SINCE", "")
         try:
             if full or not since:
-                rows, seen, uniq = [], 0, set()
+                # RO: scriem la fiecare 2000 de rinduri, nu la sfirsit: daca
+                #     API-ul cade la pagina 30, primele 29 ramin in baza.
+                # EN: flush every 2000 rows so a mid-run failure keeps progress.
+                rows, seen, written, uniq = [], 0, 0, set()
                 for p in self.iter_products():
                     seen += 1
                     row = self._staging_row(p)
                     if row and row["guid"] not in uniq:
                         uniq.add(row["guid"])
                         rows.append(row)
-                written = self.upsert_staging(rows)
+                    if len(rows) >= 2000:
+                        written += self.upsert_staging(rows)
+                        rows = []
+                written += self.upsert_staging(rows)
                 mode = "full"
             else:
                 ids, next_since = self.changed_ids(since)

@@ -48,17 +48,20 @@ class Biro26Services:
             return _result(res)
         out: List[Dict[str, Any]] = []
         for r in _rows(res):
+            # RO: _rows() intoarce DICTIONARE cu chei mici, nu tuple —
+            #     indexarea numerica dadea KeyError: 0 si pagina «Servicii» era
+            #     moarta (03.09.2026, ambele contururi).
             out.append({
-                "code": r[0],
-                "kind": r[1],
-                "ord": r[2],
-                "name": r[{"ro": 3, "ru": 4, "en": 5}[lang]] or r[3],
-                "descr": r[{"ro": 6, "ru": 7, "en": 8}[lang]] or r[6],
-                "file_name": r[9],
+                "code": r["code"],
+                "kind": r["kind"],
+                "ord": r["ord"],
+                "name": r.get("name_" + lang) or r.get("name_ro"),
+                "descr": r.get("descr_" + lang) or r.get("descr_ro"),
+                "file_name": r.get("file_name"),
                 # RO: numarul de randuri se cere separat (poate fi lent)
                 # EN: row count is fetched separately (can be slow)
-                "count_url": f"/api/biro26/services/{r[0]}/count",
-                "csv_url": f"/api/biro26/services/{r[0]}/csv",
+                "count_url": f"/api/biro26/services/{r['code']}/count",
+                "csv_url": f"/api/biro26/services/{r['code']}/csv",
             })
         return {"success": True, "data": out}
 
@@ -70,7 +73,7 @@ class Biro26Services:
         rows = _rows(res)
         if not rows:
             return None
-        sql, file_name, kind = rows[0][0], rows[0][1], rows[0][2]
+        sql, file_name, kind = rows[0]["src_sql"], rows[0]["file_name"], rows[0]["kind"]
         if isinstance(sql, str) is False:          # CLOB-safe
             sql = str(sql)
         sql = sql.strip().rstrip(";")
@@ -88,12 +91,12 @@ class Biro26Services:
         if not spec:
             return {"success": False, "error": "unknown or unsafe function"}
         res = Biro26DB().execute_query(
-            f"SELECT COUNT(*) FROM ({spec['sql']})")
+            f"SELECT COUNT(*) CNT FROM ({spec['sql']})")
         rows = _rows(res)
         if not res.get("success"):
             return _result(res)
         return {"success": True, "data": {"code": code,
-                                          "count": rows[0][0] if rows else 0}}
+                                          "count": rows[0]["cnt"] if rows else 0}}
 
     @staticmethod
     def to_csv(code: str) -> Dict[str, Any]:
@@ -111,7 +114,10 @@ class Biro26Services:
         cols = res.get("columns") or []
         if cols:
             writer.writerow(cols)
-        for row in _rows(res):
+        # RO: _rows() da dictionare — iterat direct, ar scrie NUMELE
+        #     coloanelor pe fiecare rind; valorile vin din tuplele brute,
+        #     in ordinea lui `columns`.
+        for row in res.get("data") or []:
             writer.writerow(["" if v is None else v for v in row])
         return {"success": True,
                 "csv": buf.getvalue(),

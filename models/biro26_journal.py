@@ -164,7 +164,11 @@ class Biro26Journal:
         from controllers.biro26_controller import Biro26Controller
         import secrets
 
-        nm = (name or "").strip()
+        # RO: baza e CL8MSWIN1251 — diacriticele din registrul de stat se translitereaza
+        #     (models/biro26_charset.py), altfel ORA-20077 din YBIRO_UNIVERS_CHK_DIACRITICE
+        from models.biro26_charset import to_db_charset
+        nm = to_db_charset(name)
+        address = to_db_charset(address)
         if len(nm) < 3:
             return {"success": False, "error": "denumirea este obligatorie (min. 3 caractere)"}
         idno = (idno or "").strip()

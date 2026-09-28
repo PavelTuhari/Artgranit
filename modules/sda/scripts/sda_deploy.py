@@ -26,6 +26,7 @@ if ROOT not in sys.path:
 
 FILES = (
     "117_sda_tables.sql",
+    "118_sda_returns.sql",
 )
 
 

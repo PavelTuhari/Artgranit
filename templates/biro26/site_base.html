@@ -14,25 +14,29 @@
   </script>
   {% endif %}
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#194681">
-  <meta name="format-detection" content="telephone=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }} – Totul de ce ai nevoie într-un singur loc{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="description" content="{{ app_name }} — magazin online de birotică și papetărie în Moldova: catalog live, coș, achitare online (MAIB/MIA), rate și credit.">
-  <link rel="canonical" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
-  <link rel="alternate" hreflang="ro" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}">
-  <link rel="alternate" hreflang="ru" href="https://{{ request.host }}{{ request.path if request.path != '/UNA.md/orasldev/biro26-site' else '/' }}?lang=ru">
+  {# RO: adresele absolute folosesc DOAR domeniul public (canonical_url / public_base).
+       Cu request.host, pe officeplus.una.md — care e doar o redirectare de reclama —
+       canonical trimitea spre acel domeniu, deci motoarele vedeau doua site-uri
+       identice si nu indexau niciunul ca principal. #}
+  <link rel="canonical" href="{{ canonical_url }}">
+  <link rel="alternate" hreflang="ro" href="{{ canonical_url }}">
+  <link rel="alternate" hreflang="ru" href="{{ canonical_url }}{{ '&' if '?' in canonical_url else '?' }}lang=ru">
+  <link rel="alternate" hreflang="x-default" href="{{ canonical_url }}">
+  <meta property="og:url" content="{{ canonical_url }}">
   <meta property="og:title" content="{{ self.title() }}">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://{{ request.host }}/static/biro26/landing/assets/logo.png">
+  <meta property="og:image" content="{{ public_base }}/static/biro26/landing/assets/logo.png">
   <link rel="icon" href="/static/biro26/landing/assets/logo.png">
-  <link rel="stylesheet" href="{{ asset('biro26/landing/styles.css') }}">
-  <link rel="stylesheet" href="{{ asset('biro26/site-responsive.css') }}">
+  <link rel="stylesheet" href="/static/biro26/landing/styles.css?v={{ asset_v }}">
+  <link rel="stylesheet" href="/static/biro26/site-responsive.css?v={{ asset_v }}">
   <!-- RO: stilurile OFICIALE ale butonului maib liber (materialele bancii) -->
-  <link rel="stylesheet" href="{{ asset('biro26/maib-liber.css') }}">
+  <link rel="stylesheet" href="/static/biro26/maib-liber.css?v={{ asset_v }}">
   <style>
     /* RO: completari LIVE peste CSS-ul prototipului Figma — comune tuturor
        paginilor noului site (PLP/PDP/cos/cont). Tokens neschimbate. */
@@ -88,17 +92,7 @@
     .plp-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
     .plp-count{font-size:14px;color:#676767}
     .plp-sort{padding:9px 12px;border:1px solid #d1d1d1;border-radius:10px;font-size:14px;background:#fff}
-    /* RO: catalogul umple rindul cu carduri compacte (min 178px), nu cu 4
-       late. ATENTIE la min-width:0 si la ruperea cuvintelor: pista `1fr` nu
-       coboara sub min-content, iar codurile lungi fara spatii (barcod,
-       articol) umflau coloanele pina la 900px — de acolo veneau cardurile
-       uriase. EN: fill the row with compact cards; long unbroken codes must
-       wrap, else the 1fr track inflates to their min-content width. */
-    @media (min-width:1025px){
-      .plp .product-grid{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
-    }
-    .product-card{min-width:0}
-    .product-card .product-name,.product-card .product-code{overflow-wrap:anywhere}
+    @media (min-width:1025px){.plp .product-grid{grid-template-columns:repeat(4,1fr)}}
     .pager{display:flex;gap:6px;justify-content:center;margin-top:26px;flex-wrap:wrap;align-items:center}
     .pg{min-width:38px;height:38px;border:1px solid #d1d1d1;border-radius:10px;background:#fff;
       font-weight:600;cursor:pointer;font-size:14px}
@@ -183,11 +177,6 @@
     .breadcrumbs a{color:#194681}
     {% block css %}{% endblock %}
   </style>
-  <!-- RO: stratul MOBIL se incarca ULTIMUL, dupa blocul <style> de mai
-       sus: la specificitate egala cistiga regula care vine ultima, iar
-       altfel stilurile de desktop din <style> anulau adaptarile de
-       telefon (poza PDP, titluri). EN: mobile layer must come last. -->
-  <link rel="stylesheet" href="{{ asset('biro26/site-mobile.css') }}">
 </head>
 <body>
   <div class="page-shell">
@@ -198,11 +187,7 @@
           <div class="topbar-inner">
             <div class="topbar-left">
               <span class="topbar-icon clock" aria-hidden="true"></span>
-              {# RO: programul REAL al zilei — vine din server (fus Moldova, setarea
-     SHOP_HOURS). Fara data-t: dictionarul ar suprascrie textul cu fraza
-     fixa de altadata. Ambele limbi stau in data-*, comutarea le ia de acolo. #}
-              <span class="topbar-text" id="topbar-hours"
-                    data-hours-ro="{{ hours_ro }}" data-hours-ru="{{ hours_ru }}">{{ hours_ro }}</span>
+              <span class="topbar-text" data-t="hours">Astăzi lucrăm de la 09:00 până la 19:00</span>
               <a class="topbar-link" href="/livrare" data-t="delivery">Livrare</a>
               <nav class="topbar-nav">
                 <a class="topbar-link" href="/despre-noi" data-t="about">Despre companie</a>
@@ -366,19 +351,111 @@ window.CREDIT_MIN_ORDER = {{ credit_min_order|default(0) }};
 // produsului si in cos. Vezi _biro26_site_ctx() in app.py.
 window.RATE_PLANS = {{ rate_plans|default([])|tojson }};
 </script>
-
-<!-- RO: bara de navigare fixa jos — DOAR pe telefon (site-mobile.css);
-     legaturile pretty sint traduse de siteURL/interceptor ca peste tot.
-     EN: app-like bottom tab bar, phones only. -->
-<div class="sheet-overlay" id="sheet-overlay"></div>
-<nav class="bnav" id="bnav" aria-label="Meniu mobil">
-  <a href="/" data-bn="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span data-t="navHome">Acasă</span></a>
-  <a href="/catalog" data-bn="/catalog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span data-t="catalog">Catalog</span></a>
-  <a href="/cos" data-bn="/cos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h15l-1.5 9h-12L6 6z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg><span data-t="cart">Coș</span><span class="badge" id="cart-badge-m" style="display:none">0</span></a>
-  <a href="/favorite" data-bn="/favorite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 20.5S4 15 4 9.6C4 6.9 6 5 8.4 5c1.5 0 2.9.8 3.6 2 .7-1.2 2.1-2 3.6-2C18 5 20 6.9 20 9.6c0 5.4-8 10.9-8 10.9z"/></svg><span data-t="favorites">Favorite</span></a>
-  <a href="/cont" data-bn="/cont"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.2c1.3-3.4 4.1-5.2 7.5-5.2s6.2 1.8 7.5 5.2"/></svg><span data-t="navAcc">Cont</span></a>
-</nav>
-<script src="{{ asset('biro26/site.js') }}"></script>
+<script src="/static/biro26/site.js?v={{ asset_v }}"></script>
+{# ── Ghidul magazinului — butonul plutitor «шпаргалка» ──────────────
+   RO: un buton mereu la indemina care deschide ce e mai interesant in
+   magazin: bestsellerurile din comenzile REALE, categoriile mari, rate
+   fara dobinda, livrarea si contactul rapid. Toate legaturile sint
+   adrese reale (siteURL), deci ajuta si navigarea, si retinerea
+   vizitatorului. EN: the floating cheat-sheet button - bestsellers from
+   real orders, big categories, credit, delivery, quick contact. #}
+<style>
+#opGuideBtn{position:fixed;right:18px;bottom:18px;z-index:1200;border:none;cursor:pointer;
+  width:58px;height:58px;border-radius:50%;color:#fff;font-size:25px;
+  background:linear-gradient(135deg,#194681,#e8632c);
+  box-shadow:0 6px 22px rgba(25,70,129,.45);transition:transform .15s}
+#opGuideBtn:hover{transform:scale(1.08)}
+#opGuide{position:fixed;right:18px;bottom:86px;z-index:1200;width:min(370px,calc(100vw - 36px));
+  max-height:min(72vh,640px);overflow:auto;background:#fff;border-radius:16px;
+  box-shadow:0 12px 40px rgba(0,0,0,.28);padding:16px 16px 12px;display:none;
+  font-size:13.5px;color:#232323}
+#opGuide.open{display:block}
+#opGuide h4{margin:14px 0 8px;font-size:12px;text-transform:uppercase;
+  letter-spacing:.07em;color:#8a8a8a}
+#opGuide h4:first-child{margin-top:0}
+#opGuide .g-best a{display:flex;gap:10px;align-items:center;text-decoration:none;
+  color:#232323;padding:6px 6px;border-radius:10px}
+#opGuide .g-best a:hover{background:#f2f5fa}
+#opGuide .g-best .im{width:40px;height:40px;border-radius:8px;flex:none;
+  background:#f4f4f4 center/contain no-repeat}
+#opGuide .g-best .nm{flex:1;line-height:1.3;max-height:2.6em;overflow:hidden}
+#opGuide .g-cats{display:flex;flex-wrap:wrap;gap:6px}
+#opGuide .g-cats a{background:#eef3fa;color:#194681;border-radius:999px;
+  padding:5px 11px;text-decoration:none;font-size:12.5px}
+#opGuide .g-cats a:hover{background:#194681;color:#fff}
+#opGuide .g-links{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#opGuide .g-links a{display:block;background:#f7f7f7;border-radius:10px;
+  padding:8px 10px;text-decoration:none;color:#232323;font-size:12.5px}
+#opGuide .g-links a b{display:block;color:#194681}
+#opGuide .g-foot{margin-top:10px;font-size:11.5px;color:#9a9a9a;text-align:center}
+@media(max-width:640px){ #opGuideBtn{right:12px;bottom:12px} #opGuide{right:12px;bottom:78px} }
+</style>
+<button id="opGuideBtn" type="button" aria-label="Ghid" title="Ghidul magazinului"
+        onclick="opGuideToggle()">✦</button>
+<div id="opGuide" role="dialog" aria-label="Ghidul magazinului">
+  <h4 id="gT1">Se cumpără chiar acum</h4>
+  <div class="g-best" id="gBest">…</div>
+  <h4 id="gT2">Categorii mari</h4>
+  <div class="g-cats" id="gCats">…</div>
+  <h4 id="gT3">Util</h4>
+  <div class="g-links" id="gLinks"></div>
+  <div class="g-foot" id="gFoot"></div>
+</div>
+<script>
+(function(){
+  var loaded=false;
+  window.opGuideToggle=function(){
+    var p=document.getElementById('opGuide');
+    p.classList.toggle('open');
+    if(p.classList.contains('open')&&!loaded){loaded=true;opGuideLoad();}
+  };
+  function ru(){try{return curLang()==='ru'}catch(e){return false}}
+  function url(p){try{return siteURL(p)}catch(e){return p}}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  async function opGuideLoad(){
+    var isru=ru();
+    document.getElementById('gT1').textContent=isru?'Покупают прямо сейчас':'Se cumpără chiar acum';
+    document.getElementById('gT2').textContent=isru?'Большие разделы':'Categorii mari';
+    document.getElementById('gT3').textContent=isru?'Полезное':'Util';
+    document.getElementById('gLinks').innerHTML=[
+      ['/credite',isru?'Рассрочка 0%':'Rate 0%',isru?'Liber Card и другие':'Liber Card și altele'],
+      ['/livrare',isru?'Доставка':'Livrare',isru?'по всей Молдове':'în toată Moldova'],
+      ['/branduri',isru?'Бренды':'Branduri',isru?'официально':'oficial'],
+      ['tel:+37362007211',isru?'Позвонить':'Sună-ne','062-007-211'],
+    ].map(function(l){return '<a href="'+(l[0][0]==='/'?url(l[0]):l[0])+'"><b>'+l[1]+'</b>'+l[2]+'</a>'}).join('');
+    try{
+      var b=await (await fetch(url('/api/biro26/shop/bestsellers?limit=6'))).json();
+      document.getElementById('gBest').innerHTML=(b.data||[]).slice(0,6).map(function(x){
+        return '<a href="'+url('/produs/'+x.cod)+'">'
+          +'<span class="im"'+(x.image?' style="background-image:url(\''+esc(x.image)+'\')"':'')+'></span>'
+          +'<span class="nm">'+esc(String(x.denumirea).slice(0,60))+'</span></a>';
+      }).join('')||'<div style="color:#999">—</div>';
+    }catch(e){document.getElementById('gBest').innerHTML='<div style="color:#999">—</div>';}
+    try{
+      var t=await (await fetch(url('/api/biro26/shop/tree'))).json();
+      var by={};(t.data||[]).forEach(function(r){by[r.grupa]=(by[r.grupa]||0)+(r.cnt||0)});
+      var top=Object.keys(by).map(function(k){return [k,by[k]]})
+        .sort(function(a,b2){return b2[1]-a[1]}).slice(0,8);
+      var total=Object.values(by).reduce(function(s,n){return s+n},0);
+      document.getElementById('gCats').innerHTML=top.map(function(c){
+        return '<a href="'+url('/catalog?grupa='+encodeURIComponent(c[0]))+'">'
+          +esc(c[0])+' · '+c[1].toLocaleString()+'</a>'}).join('');
+      document.getElementById('gFoot').textContent=(isru?'Всего в каталоге: ':'Total în catalog: ')
+        +total.toLocaleString()+(isru?' товаров':' produse');
+    }catch(e){}
+  }
+})();
+</script>
 {% block js %}{% endblock %}
+  {# RO: JivoChat — scriptul LOR, incarcat asincron, chiar inainte de </body>
+       ca sa nu intirzie afisarea paginii. Se randeaza doar cind jivo_id e setat
+       (SHOP_JIVO_ID in YBIRO_SETTINGS) si doar pe magazinul public.
+       ATENTIE: acelasi ID trebuie sa fie si in mu-plugin-ul WordPress —
+       paginile de continut (/despre-companie s.a.) sint servite de WP, nu de
+       aplicatie, iar fara el chatul dispare cind vizitatorul trece acolo. #}
+  {% if jivo_id %}
+  <script src="//code.jivosite.com/widget/{{ jivo_id }}" async></script>
+  {% endif %}
 </body>
 </html>

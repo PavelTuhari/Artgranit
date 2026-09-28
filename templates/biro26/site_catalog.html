@@ -258,12 +258,12 @@ function renderCrumbs() {
   const l = curLang();
   let h = '<a href="' + siteURL('/') + '">' + tr('home') + '</a> › ';
   if (!F.grupa) { box.innerHTML = h + '<span>' + tr('catalog') + '</span>'; return; }
-  h += '<a href="javascript:void(0)" onclick="resetF()">' + tr('catalog') + '</a> › ';
+  h += '<a href="' + catURL() + '" onclick="resetF();return false">' + tr('catalog') + '</a> › ';
   const node = TREE.find(t => t.grupa === F.grupa) || {};
   const gl = (l === 'ru' && node.grupa_ru) ? node.grupa_ru : F.grupa;
   if (!F.categorie) { box.innerHTML = h + '<span>' + esc(gl) + '</span>'; return; }
-  h += '<a href="javascript:void(0)" onclick="pickGrupa(\'' +
-       esc(F.grupa).replace(/'/g, '&#39;') + '\')">' + esc(gl) + '</a> › ';
+  h += '<a href="' + esc(catURL(F.grupa)) + '" onclick="pickGrupa(\'' +
+       esc(F.grupa).replace(/'/g, '&#39;') + '\');return false">' + esc(gl) + '</a> › ';
   const cn = TREE.find(t => t.grupa === F.grupa && t.categorie === F.categorie) || {};
   const cl = (l === 'ru' && cn.cat_ru) ? cn.cat_ru : F.categorie;
   box.innerHTML = h + '<span>' + esc(cl) + '</span>';
@@ -289,16 +289,16 @@ function renderFly(byG) {
   const gq = esc(g.grupa).replace(/'/g, '&#39;');
   document.getElementById('cat-fly-title').textContent = gl;
   // primul rind: toata grupa, fara filtru de categorie
-  let html = '<a href="javascript:void(0)" class="cat-fly-all' +
+  let html = '<a href="' + catURL(g.grupa) + '" class="cat-fly-all' +
     (F.grupa === g.grupa && !F.categorie ? ' on' : '') +
-    '" onclick="pickGrupa(\'' + gq + '\')">' + tr('all') +
+    '" onclick="pickGrupa(\'' + gq + '\');return false">' + tr('all') +
     ' <span style="opacity:.55">(' + g.cnt + ')</span></a>';
   html += g.cats.slice().sort((a, b) =>
     clbl(a).localeCompare(clbl(b), l === 'ru' ? 'ru' : 'ro')).map(c =>
-    '<a href="javascript:void(0)" class="' +
+    '<a href="' + catURL(g.grupa, c.categorie) + '" class="' +
     (F.categorie === c.categorie ? 'on' : '') +
     '" onclick="pickCat(\'' + gq + '\',\'' +
-    esc(c.categorie).replace(/'/g, '&#39;') + '\')">' + esc(clbl(c)) +
+    esc(c.categorie).replace(/'/g, '&#39;') + '\');return false">' + esc(clbl(c)) +
     ' <span style="opacity:.55">(' + (c.cnt || 0) + ')</span></a>').join('');
   document.getElementById('cat-fly-list').innerHTML = html;
   fly.hidden = false;
@@ -328,6 +328,21 @@ function closeFly() {
   renderSide();
 }
 
+/* RO: adresa REALA a unei grupe/categorii — exact cea pe care o scrie deja
+   history.replaceState la filtrare. Legaturile din arbore si din firimituri
+   trebuie sa o poarte in href: fara ea motoarele de cautare vad
+   javascript:void(0), adica NICIO adresa, si nu exista pagina de categorie
+   pe care sa o indexeze (166 din 194 legaturi erau goale).
+   Click-ul ramine SPA — onclick filtreaza si intoarce false.
+   EN: the REAL URL of a group/category — the same one replaceState already
+   writes. Crawlers need it in href; the click stays SPA. */
+function catURL(grupa, categorie) {
+  const p = new URLSearchParams();
+  if (grupa) p.set('grupa', grupa);
+  if (categorie) p.set('categorie', categorie);
+  return siteURL('/catalog' + (p.toString() ? '?' + p : ''));
+}
+
 function renderSide() {
   const l = curLang();
   renderCrumbs();
@@ -354,8 +369,8 @@ function renderSide() {
     //     (toggleGrp o scotea din OPEN, iar filtrul o redeschidea imediat).
     const isOpen = OPEN.has(g.grupa);
     let h = '<div class="grp-row' + (isOpen ? ' open' : '') + '">' +
-      '<a href="javascript:void(0)" class="' + (F.grupa === g.grupa ? 'on' : '') +
-      '" onclick="pickGrupa(\'' + gq + '\')">' +
+      '<a href="' + esc(catURL(g.grupa)) + '" class="' + (F.grupa === g.grupa ? 'on' : '') +
+      '" onclick="pickGrupa(\'' + gq + '\');return false">' +
       esc(gl) + ' <span style="opacity:.55">(' + g.cnt + ')</span></a>' +
       (g.cats.length ? '<span class="grp-arrow" onclick="toggleGrp(\'' + gq +
         '\')">▶</span>' : '') + '</div>';

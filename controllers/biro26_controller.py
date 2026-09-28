@@ -293,7 +293,9 @@ class Biro26Controller:
     @staticmethod
     def get_products_stock() -> Dict[str, Any]:
         a = request.args
-        return Biro26Store.get_products_stock(
+        # RO: 0 produse la o fraza lunga -> variante mai scurte (models/biro26_search_relax.py)
+        from models.biro26_search_relax import with_fallback
+        return with_fallback(Biro26Store.get_products_stock, dict(
             search=a.get("search"), gr1=a.get("gr1"),
             brand=a.get("brand"), categorie=a.get("categorie"),
             grupa=a.get("grupa"), cod=a.get("cod", type=int),
@@ -311,7 +313,7 @@ class Biro26Controller:
                       and bool(session.get("username")
                                or session.get("authenticated"))),
             sort=(a.get("sort") if a.get("sort") in
-                  ("name", "name_desc", "price_asc", "price_desc") else "name"))
+                  ("name", "name_desc", "price_asc", "price_desc") else "name")))
 
     @staticmethod
     def product_archive(cod: int) -> Dict[str, Any]:
@@ -344,6 +346,7 @@ class Biro26Controller:
             max_nr = None
         return {"success": True, "data": {
             "shop_page_size": Biro26Store.get_setting("SHOP_PAGE_SIZE", "24"),
+            "jivo_id": Biro26Store.get_setting("SHOP_JIVO_ID", ""),
             # RO: filtrul dupa brand in catalogul noului site (OFF implicit)
             "brand_filter": Biro26Store.get_setting("SHOP_BRAND_FILTER", "0"),
             # RO: formatele de cont disponibile clientilor (PDF mereu;
@@ -372,6 +375,14 @@ class Biro26Controller:
             if not 1 <= n <= 200:
                 return {"success": False, "error": "shop_page_size: 1..200"}
             r = Biro26Store.set_setting("SHOP_PAGE_SIZE", str(n))
+            if not r.get("success"):
+                return r
+        if "jivo_id" in d:
+            import re as _re
+            v = _re.sub(r"[^A-Za-z0-9\\-]", "", str(d.get("jivo_id") or "")).strip()
+            if len(v) > 64:
+                return {"success": False, "error": "jivo_id: maxim 64 de caractere"}
+            r = Biro26Store.set_setting("SHOP_JIVO_ID", v)
             if not r.get("success"):
                 return r
         # RO: coloana de pret pentru fizice / juridice

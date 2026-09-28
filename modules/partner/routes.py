@@ -307,3 +307,38 @@ def admin_ultra_sync():
     full = bool(_body().get("full"))
     r = UltraClient.from_settings().sync(full=full)
     return jsonify(r), (200 if r.get("success") else 502)
+
+
+# ── documentatia modulului: instructiuni HTML si acte din docs/Partner ────────
+_DOCS_DIR = __import__("os").path.join(
+    __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.dirname(
+        __import__("os").path.abspath(__file__)))), "docs", "Partner")
+
+
+@blueprint.route("/docs/<path:name>")
+def docs_file(name):
+    """RO: serveste docs/Partner/<name> (html, md, xlsx, png) dupa login — instructiunea
+    de actualizare de la Ultra si actele. Doar nume simple, doar sub docs/Partner."""
+    import os
+    from flask import abort, redirect, send_from_directory, url_for
+    if not AuthController.is_authenticated():
+        return redirect(url_for("login", next=request.path))
+    safe = os.path.normpath(name).replace("\\", "/")
+    if safe.startswith("..") or safe.startswith("/") or "/../" in safe:
+        abort(404)
+    if not safe.endswith((".html", ".md", ".png", ".jpg", ".xlsx", ".pdf", ".csv")):
+        abort(404)
+    if safe.endswith(".md"):
+        import markdown
+        from flask import Response
+        full = os.path.join(_DOCS_DIR, safe)
+        if not os.path.isfile(full):
+            abort(404)
+        body = markdown.markdown(open(full, encoding="utf-8").read(), extensions=["tables", "fenced_code"])
+        return Response("<!DOCTYPE html><html lang='ro'><head><meta charset='utf-8'><title>%s</title>"
+                        "<style>body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;max-width:1000px;"
+                        "margin:0 auto;padding:24px;color:#1f2937}table{border-collapse:collapse}th,td{border:1px solid "
+                        "#e5e7eb;padding:6px 9px}th{background:#f1f5f9}code{background:#eef2f7;padding:1px 4px;"
+                        "border-radius:4px}a{color:#1d4ed8}</style></head><body>%s</body></html>"
+                        % (os.path.basename(safe), body), mimetype="text/html; charset=utf-8")
+    return send_from_directory(_DOCS_DIR, safe)

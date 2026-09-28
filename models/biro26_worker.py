@@ -6,8 +6,15 @@ that breaks the main Flask app's thin cloud-wallet connection (the one productio
 nufarul.eminescu.md depends on). So all OfficePlus access happens here, in a
 short-lived child process that the main (thin) app spawns via models/biro26_db.py.
 
-PROTOCOL: read one JSON request object from stdin, write one JSON response object
-to stdout. Requests:
+PROTOCOL: two modes share the same request/response shapes.
+  one-shot (no args): read ONE JSON request from stdin, write ONE JSON response.
+  serve (--serve):    long-lived; one JSON request PER LINE on stdin, one JSON
+                      response per line on stdout. The heavy parts — Python
+                      start-up and thick-client init — happen once; each request
+                      still opens its OWN Oracle connection, so session state
+                      (NLS, envun4 context, package globals) can never leak
+                      between requests: semantics are identical to one-shot.
+Requests:
   {"op":"test"}
   {"op":"query","sql":..,"params":{..}}              -> {success,columns,data,rowcount}
   {"op":"dml","sql":..,"params":{..}}                -> {success,rowcount} (commits)
@@ -122,8 +129,17 @@ def _exec(cur, sql, params):
 def _handle(conn, req):
     op = req.get("op")
     cur = conn.cursor()
-    for stmt in _nls_statements(req):
-        cur.execute(stmt)
+    # RO: pe o conexiune TINUTA deschisa setarile NLS raman valabile - trei
+    #     ALTER SESSION identice la fiecare cerere ar insemna trei drumuri
+    #     prin internet degeaba. Se rescriu doar daca cererea vrea alt set.
+    # EN: on a KEPT connection the NLS settings persist; re-run the three
+    #     ALTER SESSIONs only when the requested set differs.
+    stmts = _nls_statements(req)
+    key = tuple(stmts)
+    if getattr(conn, "_nls_applied", None) != key:
+        for stmt in stmts:
+            cur.execute(stmt)
+        conn._nls_applied = key
 
     if op == "test":
         cur.execute("SELECT banner FROM v$version WHERE ROWNUM = 1")
@@ -164,24 +180,23 @@ def _handle(conn, req):
     return {"success": False, "message": f"unknown op: {op}"}
 
 
-def main():
-    try:
-        req = json.loads(sys.stdin.read() or "{}")
-    except Exception as e:
-        print(json.dumps({"success": False, "message": f"bad request json: {e}"}))
-        return
-
+def _thick_init():
     try:
         oracledb.init_oracle_client(lib_dir=Config.BIRO26_INSTANT_CLIENT)
+        return None
     except Exception as e:
-        if "already been initialized" not in str(e):
-            print(json.dumps({"success": False, "message": f"thick init failed: {e}"}))
-            return
+        if "already been initialized" in str(e):
+            return None
+        return {"success": False, "message": f"thick init failed: {e}"}
 
+
+def _serve_one(req):
+    """RO: o cerere = o conexiune proprie, commit/rollback si inchidere.
+    EN: one request = its own connection, commit/rollback, close."""
     # RO: "auth" optional in request — alte module (ex. ServOuts26/UNITEST)
     #     refolosesc acelasi worker cu credentiale proprii.
-    # EN: optional "auth" in the request — other modules (e.g. ServOuts26/
-    #     UNITEST) reuse this worker with their own credentials.
+    # EN: optional "auth" — other modules reuse this worker with their own
+    #     credentials; with a connection per request the pool serves them too.
     auth = req.get("auth") or {}
     conn = None
     try:
@@ -190,14 +205,14 @@ def main():
             password=auth.get("password") or Config.BIRO26_DB_PASSWORD,
             dsn=auth.get("dsn") or Config.BIRO26_DB_DSN,
         )
-        out = _handle(conn, req)
+        return _handle(conn, req)
     except Exception as e:
         if conn is not None:
             try:
                 conn.rollback()
             except Exception:
                 pass
-        out = {"success": False, "message": str(e)}
+        return {"success": False, "message": str(e)}
     finally:
         if conn is not None:
             try:
@@ -205,8 +220,108 @@ def main():
             except Exception:
                 pass
 
+
+def main():
+    try:
+        req = json.loads(sys.stdin.read() or "{}")
+    except Exception as e:
+        print(json.dumps({"success": False, "message": f"bad request json: {e}"}))
+        return
+    err = _thick_init()
+    out = err if err else _serve_one(req)
     print(json.dumps(out, default=str))
 
 
+# RO: op-urile care DOAR citesc. Ele nu ating starea sesiunii (nu fac SET_ENV,
+#     nu schimba variabile de pachet), deci pot refolosi o conexiune tinuta
+#     deschisa - iar conectarea prin internet costa ~1 s pe cerere. Scrierile
+#     (dml/plsql/script) primesc mereu conexiune PROASPATA: ele seteaza
+#     contextul de sesiune (perioada de lucru, utilizatorul) si acesta nu are
+#     voie sa se scurga in cererile urmatoare.
+# EN: read-only ops reuse a kept-open connection (the WAN connect costs ~1s
+#     per call). Writes always get a FRESH connection - they set session
+#     context which must never leak into later requests.
+_READ_OPS = ("query", "test")
+
+_kept: dict = {}
+
+
+def _auth_key(req):
+    auth = req.get("auth") or {}
+    return (auth.get("user") or Config.BIRO26_DB_USER,
+            auth.get("dsn") or Config.BIRO26_DB_DSN)
+
+
+def _kept_conn(req):
+    key = _auth_key(req)
+    conn = _kept.get(key)
+    if conn is None:
+        auth = req.get("auth") or {}
+        conn = oracledb.connect(
+            user=auth.get("user") or Config.BIRO26_DB_USER,
+            password=auth.get("password") or Config.BIRO26_DB_PASSWORD,
+            dsn=auth.get("dsn") or Config.BIRO26_DB_DSN)
+        _kept[key] = conn
+    return key, conn
+
+
+def _drop_kept(key):
+    conn = _kept.pop(key, None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def _serve_read(req):
+    """RO: citire pe conexiunea tinuta; daca a murit intre timp (retea,
+    idle-timeout), se reconecteaza O data si se reincearca.
+    EN: read on the kept connection; reconnect once if it died meanwhile."""
+    for attempt in (1, 2):
+        key = None
+        try:
+            key, conn = _kept_conn(req)
+            out = _handle(conn, req)
+            # RO: citirile nu deschid tranzactii intentionat, dar rollback-ul
+            #     elibereaza orice s-ar fi agatat de sesiune.
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            return out
+        except Exception as e:
+            if key is not None:
+                _drop_kept(key)
+            if attempt == 2:
+                return {"success": False, "message": str(e)}
+
+
+def serve():
+    """RO: bucla procesului DE LUNGA DURATA — pornirea Python si initierea
+    thick-client se platesc O DATA, nu la fiecare interogare (~1,5 s fiecare
+    pornire). EN: the LONG-LIVED loop — Python start-up and thick init are
+    paid once, not per query."""
+    err = _thick_init()
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+        except Exception as e:
+            out = {"success": False, "message": f"bad request json: {e}"}
+        else:
+            if err:
+                out = err
+            elif req.get("op") in _READ_OPS:
+                out = _serve_read(req)
+            else:
+                out = _serve_one(req)
+        # RO: un raspuns = O linie; json.dumps nu produce randuri noi.
+        sys.stdout.write(json.dumps(out, default=str) + "\n")
+        sys.stdout.flush()
+
+
 if __name__ == "__main__":
-    main()
+    serve() if "--serve" in sys.argv[1:] else main()

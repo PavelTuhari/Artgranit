@@ -38,6 +38,27 @@ DEFAULTS = {
     "seller_iban": "",
     "seller_bank_code": "",
     "seria": "",
+    # RO: cota TVA folosita cind documentul ERP nu are TVA calculat
+    "tva_rate": "20",
+    # RO: CreationMotiv din XML depinde de STATUTUL firmei in registrul SFS
+    #     (XSD, documentatia elementului): platitor TVA -> 4 Livrare / 5
+    #     Non-livrare; NEplatitor TVA -> 1 livrare / 2 refacturare / 3
+    #     combinata. Mediul de proba (UNISIM-SOFT, platitor) a cerut 4|5;
+    #     mediul real (Grecu Office Group, neplatitor) a refuzat 4 pe
+    #     03.09.2026: «trebue sa fie 1 sau 2». Se alege in Setari.
+    "creation_motiv": "4",
+    # RO: statutul TVA al firmei (proprietar, 03.09.2026: «Не плательщик,
+    #     добавь опцию»). 1 = platitor, 0 = neplatitor: TVA 0 in XML si
+    #     CreationMotiv din grupa 1/2/3 (4|5 se traduc in 1).
+    "vat_payer": "1",
+    # RO: importul facturilor PRIMITE (pachet 12103 -> documente 1209), constantele
+    #     documentului 1209 nr. 4 din OfficePlus: NRSET 201, DT 2171, CT 5211, depozit 1
+    "in_nrset": "201",
+    "in_dt": "2171",             # antet DT (marfa TVR)
+    "in_ct": "5211",             # antet CT (obligatii comerciale)
+    "in_dtdep": "1",             # depozitul implicit (Magazin 1)
+    "in_dt_row": "2171",
+    "in_userid": "1",       # RO: USERID pentru documentele create de sistem (TMS_USERS)         # DT implicit pe pozitie, pina la analitica
     "auto_send": "0",            # trimitere automata la emiterea contului
     "only_companies": "1",       # doar clientilor persoane juridice
 }

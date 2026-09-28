@@ -13,7 +13,7 @@ EN: three entry points, one implementation; they differ only in who may call.
 """
 from __future__ import annotations
 
-from flask import jsonify, redirect, render_template, request
+from flask import jsonify, redirect, render_template, request, url_for
 
 from controllers.auth_controller import AuthController
 from controllers.biro26_controller import Biro26Controller
@@ -42,7 +42,10 @@ def _admin_guard():
 def admin_page():
     if not AuthController.is_authenticated():
         return redirect("/login?next=/UNA.md/orasldev/efactura/")
-    return render_template("efactura_admin.html")
+    from modules.efactura import sfs
+    return render_template("efactura_admin.html",
+                           endpoint_test=sfs.ENDPOINT_TEST,
+                           endpoint_prod=sfs.ENDPOINT_PROD)
 
 
 @blueprint.route("/admin/settings", methods=["GET", "POST"])
@@ -60,9 +63,12 @@ def admin_test():
     err = _admin_guard()
     if err:
         return err
-    from modules.efactura.sfs import SfsClient
-    r = SfsClient.from_settings().test()
-    EfaStore.log(None, "test", str(r)[:600], "backoffice")
+    # RO: verdict pe fiecare semnatar + indiciu «cont pe alt mediu» —
+    #     vezi modules/efactura/conncheck.py (03.09.2026).
+    from modules.efactura import conncheck
+    r = conncheck.check("backoffice")
+    EfaStore.log(None, "test", str({k: v for k, v in r.items()
+                                    if k != "signers"})[:600], "backoffice")
     return _reply(r, bad=502)
 
 
@@ -83,12 +89,99 @@ def admin_log():
     return jsonify(EfaStore.log_list(request.args.get("limit", 200, type=int)))
 
 
+# ── raportul «facturi transmise» (pachetul EFA_REPORT, 3 seturi) ────────
+@blueprint.route("/report")
+def report_page():
+    if not AuthController.is_authenticated():
+        return redirect("/login?next=/UNA.md/orasldev/efactura/report")
+    from modules.efactura.report import STATUSES
+    return render_template("efactura_report.html", statuses=STATUSES)
+
+
+def _report_data():
+    from modules.efactura import report
+    filters = report.parse_filters(request.args)
+    return report.fetch(filters)
+
+
+@blueprint.route("/admin/report")
+def admin_report():
+    err = _admin_guard()
+    if err:
+        return err
+    try:
+        return jsonify(_report_data())
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+@blueprint.route("/admin/report.xlsx")
+def admin_report_xlsx():
+    err = _admin_guard()
+    if err:
+        return err
+    from flask import Response
+    from modules.efactura import report
+    try:
+        data = _report_data()
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 400
+    return Response(report.to_xlsx(data),
+                    mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": "attachment; filename=%s"
+                             % report.file_name(data["filters"], "xlsx")})
+
+
+@blueprint.route("/admin/report.pdf")
+def admin_report_pdf():
+    err = _admin_guard()
+    if err:
+        return err
+    from flask import Response
+    from modules.efactura import report
+    try:
+        data = _report_data()
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 400
+    return Response(report.to_pdf(data), mimetype="application/pdf",
+                    headers={"Content-Disposition": "inline; filename=%s"
+                             % report.file_name(data["filters"], "pdf")})
+
+
+@blueprint.route("/admin/calls")
+def admin_calls():
+    """RO: TOATE comunicarile cu SFS — reusite si esuate — cu plicul trimis
+    (parola mascata) si raspunsul intors (03.09.2026, cerinta proprietarului)."""
+    err = _admin_guard()
+    if err:
+        return err
+    from modules.efactura import journal
+    try:
+        rows = journal.recent(request.args.get("limit", 100, type=int))
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "data": rows})
+
+
+@blueprint.route("/admin/calls/<int:call_id>")
+def admin_call(call_id):
+    err = _admin_guard()
+    if err:
+        return err
+    from modules.efactura import journal
+    row = journal.get(call_id)
+    if not row:
+        return jsonify({"success": False, "error": "apel inexistent"}), 404
+    return jsonify({"success": True, "data": row})
+
+
 @blueprint.route("/admin/send/<int:doc_cod>", methods=["POST"])
 def admin_send(doc_cod):
     err = _admin_guard()
     if err:
         return err
-    return _reply(EfaController.send(doc_cod, src="backoffice"))
+    return _reply(EfaController.send(doc_cod, src="backoffice",
+                                     resend=bool(_body().get("resend"))))
 
 
 @blueprint.route("/admin/preview/<int:doc_cod>")
@@ -156,10 +249,15 @@ def _api_guard():
 
 @blueprint.route("/api/send/<int:doc_cod>", methods=["POST"])
 def api_send(doc_cod):
+    """RO: corpul JSON optional: {"override_date": "YYYY-MM-DD"} — DOAR pentru
+    probe pe mediul de test cu documente vechi (SFS primeste facturi doar cu
+    data de azi…azi+10). In productie nu se trimite."""
     err = _api_guard()
     if err:
         return err
-    return _reply(EfaController.send(doc_cod, src="api"))
+    body = _body()
+    return _reply(EfaController.send(doc_cod, src="api",
+                                     override_date=body.get("override_date")))
 
 
 @blueprint.route("/api/status/<int:doc_cod>")
@@ -211,7 +309,13 @@ def test_page():
     #     de proba al SFS. Asa proba merge la fel din orice modul.
     from modules.efactura import sfs
     from modules.efactura.testff import MAX_LINES, MAX_TOTAL, MIN_TOTAL
-    return render_template("efactura_test.html", min_total=MIN_TOTAL,
+    # RO: puntea Contragenti e alt modul — adresa ei vine de la nucleu (url_for),
+    #     nu scrisa in sablon; lipseste pe un contur fara modulul contragenti
+    try:
+        ctg_upsert = url_for("contragenti.api_upsert")
+    except Exception:                                        # noqa: BLE001
+        ctg_upsert = ""
+    return render_template("efactura_test.html", contragenti_upsert_url=ctg_upsert, min_total=MIN_TOTAL,
                            max_total=MAX_TOTAL, max_lines=MAX_LINES,
                            test_endpoint=sfs.TEST_ENDPOINT,
                            endpoint_test=sfs.ENDPOINT_TEST,
@@ -251,6 +355,139 @@ def test_queues():
         return err
     from modules.efactura import testff
     return _reply(testff.signing_queues(_body().get("api")))
+
+
+# ── facturile PRIMITE (partea de cumparator) — pagina de test, 13.09.2026 ──
+@blueprint.route("/test/inbox")
+def test_inbox_list():
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    return _reply({"success": True, "data": EfaInbox.list(request.args.get("env", "test"))})
+
+
+@blueprint.route("/test/inbox/sync", methods=["POST"])
+def test_inbox_sync():
+    """RO: aduce din SFS facturile in care sintem cumparator, cu contul din formular."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import inbox
+    r = inbox.sync(_body().get("api"))
+    if r.get("success"):
+        r["data"] = inbox.EfaInbox.list(r.get("env", "test"))
+    return _reply(r)
+
+
+@blueprint.route("/test/inbox/<int:in_id>")
+def test_inbox_get(in_id):
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    rec = EfaInbox.get(in_id)
+    return _reply({"success": bool(rec), "data": rec, "error": None if rec else "factura inexistenta"})
+
+
+@blueprint.route("/test/inbox/<int:in_id>/xml")
+def test_inbox_xml(in_id):
+    err = _test_guard()
+    if err:
+        return err
+    from flask import Response
+    from modules.efactura.inbox import EfaInbox
+    return Response(EfaInbox.xml(in_id), mimetype="application/xml; charset=utf-8")
+
+
+@blueprint.route("/test/inbox/<int:in_id>/match", methods=["POST"])
+def test_inbox_match(in_id):
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    return _reply(EfaInbox.match(in_id))
+
+
+@blueprint.route("/test/inbox/<int:in_id>/land", methods=["POST"])
+def test_inbox_land(in_id):
+    """RO: aterizarea in TMDB_XML_FACTURA (tabela standard una.md), prin EFA_INBOX.land."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    return _reply(EfaInbox.land(in_id))
+
+
+@blueprint.route("/test/inbox/import", methods=["POST"])
+def test_inbox_import():
+    """RO: {ids: [...]} -> pachet 12103 + documente 1209, ca in celelalte baze una.md."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaPackage
+    b = _body()
+    return _reply(EfaPackage.import_invoices(b.get("ids") or [], create_docs=b.get("create_docs", True)))
+
+
+@blueprint.route("/test/inbox/package/<int:nrdoc>")
+def test_inbox_package(nrdoc):
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaPackage
+    return _reply({"success": True, "nrdoc": nrdoc, "data": EfaPackage.rows(nrdoc)})
+
+
+@blueprint.route("/test/simple/analyze", methods=["POST"])
+def test_simple_analyze():
+    """RO: {xml} -> analiza fisierului e-Factura, FARA sa scrie ceva in baza."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.simple import EfaSimple
+    b = _body()
+    return _reply(EfaSimple.analyze(b.get("xml") or "", b.get("seller_idno")))
+
+
+@blueprint.route("/test/simple/import", methods=["POST"])
+def test_simple_import():
+    """RO: {xml, only, create_goods, create_orgs, create_docs} -> importul simplu."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.simple import EfaSimple
+    b = _body()
+    return _reply(EfaSimple.import_file(
+        b.get("xml") or "", only=b.get("only") or None,
+        create_goods=bool(b.get("create_goods")), create_orgs=bool(b.get("create_orgs")),
+        create_docs=bool(b.get("create_docs")), seller_idno=b.get("seller_idno")))
+
+
+@blueprint.route("/test/inbox/<int:in_id>/decision", methods=["POST"])
+def test_inbox_decision(in_id):
+    """RO: {api, action: accept|reject, comment} -> PostAccepted/PostRejectedInvoices."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura.inbox import EfaInbox
+    b = _body()
+    return _reply(EfaInbox.decide(in_id, b.get("action") or "", b.get("comment") or "", b.get("api")))
+
+
+@blueprint.route("/test/log")
+def test_log():
+    """RO: jurnalul apelurilor paginii de proba — ce s-a trimis, ce a raspuns
+    SFS, cit a durat. Parola nu e in jurnal (mascata la scriere)."""
+    err = _test_guard()
+    if err:
+        return err
+    from modules.efactura import journal
+    try:
+        rows = journal.recent(int(request.args.get("limit", 40)), src="test-page")
+    except Exception as e:                                   # noqa: BLE001
+        return jsonify({"success": False, "error": str(e)[:300]}), 500
+    return jsonify({"success": True, "data": rows})
 
 
 @blueprint.route("/test/ping", methods=["POST"])
@@ -309,3 +546,40 @@ def widget_js():
     from flask import Response
     return Response(js, mimetype="application/javascript",
                     headers={"Cache-Control": "public, max-age=300"})
+
+
+# ── documentatia modulului (instructiuni HTML, acte de testare, capturi) ──────
+_DOCS_DIR = __import__("os").path.join(
+    __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.dirname(
+        __import__("os").path.abspath(__file__)))), "docs", "Partner")
+
+
+@blueprint.route("/docs/<path:name>")
+def docs_file(name):
+    """RO: serveste docs/Partner/<name> (html, md, png) — instructiunea de testare si actele.
+    Doar nume simple (fara '..'), doar sub docs/Partner; cere sesiune, ca restul paginilor."""
+    import os
+    from flask import abort, send_from_directory
+    if not AuthController.is_authenticated():
+        return redirect(url_for("login", next=request.path))
+    safe = os.path.normpath(name).replace("\\", "/")
+    if safe.startswith("..") or safe.startswith("/") or "/../" in safe:
+        abort(404)
+    if not safe.endswith((".html", ".md", ".png", ".jpg", ".xml", ".xlsx", ".pdf", ".csv")):
+        abort(404)
+    if safe.endswith(".md"):
+        # RO: .md se arata ca pagina HTML (altfel browserul il descarca ca text)
+        import markdown
+        from flask import Response
+        full = os.path.join(_DOCS_DIR, safe)
+        if not os.path.isfile(full):
+            abort(404)
+        body = markdown.markdown(open(full, encoding="utf-8").read(), extensions=["tables", "fenced_code"])
+        page = ("<!DOCTYPE html><html lang='ro'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width'>"
+                "<title>%s</title><style>body{font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;"
+                "max-width:1000px;margin:0 auto;padding:24px}table{border-collapse:collapse}th,td{border:1px solid #e5e7eb;"
+                "padding:6px 9px;vertical-align:top}th{background:#f1f5f9}pre{background:#0f172a;color:#e2e8f0;padding:12px;"
+                "border-radius:8px;overflow:auto}code{background:#eef2f7;padding:1px 4px;border-radius:4px}pre code{background:none}"
+                "a{color:#1d4ed8}</style></head><body>%s</body></html>") % (os.path.basename(safe), body)
+        return Response(page, mimetype="text/html; charset=utf-8")
+    return send_from_directory(_DOCS_DIR, safe)

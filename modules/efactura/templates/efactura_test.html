@@ -23,6 +23,16 @@
   .fld label{display:block;font-size:11.5px;color:var(--gray);margin-bottom:3px}
   input,select{width:100%;padding:8px 10px;border:1px solid #cbd5e1;
                border-radius:8px;font:inherit}
+  .result{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:13.5px;line-height:1.45}
+  .ok-box{background:#ecfdf5;border:1px solid #a7f3d0}
+  .err-box{background:#fef2f2;border:1px solid #fecaca}
+  .errlist{margin:6px 0 8px 18px;padding:0}.errlist li{margin:2px 0}
+  #calls tr.r-ok td:nth-child(6){color:#15803d;font-weight:700}
+  #calls tr.r-rejected td:nth-child(6),#calls tr.r-fault td:nth-child(6),
+  #calls tr.r-html td:nth-child(6),#calls tr.r-network td:nth-child(6){color:#dc2626;font-weight:700}
+  #calls tbody tr.row{cursor:pointer}#calls tbody tr.row:hover td{background:#f8fafc}
+  #calls td.xml{background:#0f172a;color:#e2e8f0;font:12px/1.4 ui-monospace,Menlo,monospace;
+    white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:8px}
   table{border-collapse:collapse;width:100%;font-size:13px}
   th,td{border-bottom:1px solid var(--bd);padding:6px 5px;text-align:left}
   th{font-size:11.5px;color:var(--gray);font-weight:600}
@@ -68,16 +78,28 @@
       vreunui magazin. Parola se folosește doar pentru apelul curent: nu se
       salvează pe server, nu intră în jurnal și nu rămâne în browser
       (se rețin doar utilizatorii).</p>
+    <!-- RO: doua formulare separate, cu autocomplete standard, ca browserul
+         (Safari → Keychain, Chrome → managerul lui de parole) sa OFERE
+         salvarea fiecarei perechi utilizator/parola. Noi nu le tinem nicaieri. -->
     <div class="row">
-      <div class="fld"><label>Utilizator (primul semnatar)</label>
-        <input id="a-user" autocomplete="off" placeholder="utilizator API"></div>
-      <div class="fld"><label>Parola</label>
-        <input id="a-pass" type="password" autocomplete="new-password"></div>
-      <div class="fld"><label>Utilizator (al doilea semnatar)</label>
-        <input id="a-user2" autocomplete="off" placeholder="opțional"></div>
-      <div class="fld"><label>Parola</label>
-        <input id="a-pass2" type="password" autocomplete="new-password"></div>
+      <form class="fld" style="display:flex;gap:10px;flex:2" autocomplete="on"
+            onsubmit="return false" data-signer="1">
+        <div class="fld"><label>Utilizator (primul semnatar)</label>
+          <input id="a-user" name="username" autocomplete="username" placeholder="utilizator API"></div>
+        <div class="fld"><label>Parola</label>
+          <input id="a-pass" name="password" type="password" autocomplete="current-password"></div>
+      </form>
+      <form class="fld" style="display:flex;gap:10px;flex:2" autocomplete="on"
+            onsubmit="return false" data-signer="2">
+        <div class="fld"><label>Utilizator (al doilea semnatar)</label>
+          <input id="a-user2" name="username" autocomplete="username" placeholder="opțional"></div>
+        <div class="fld"><label>Parola</label>
+          <input id="a-pass2" name="password" type="password" autocomplete="current-password"></div>
+      </form>
     </div>
+    <p class="muted" style="margin-top:2px">Browserul vă poate propune să rețină
+      perechile utilizator/parolă (Safari — în Keychain, Chrome — în managerul lui
+      de parole). Pagina însăși nu le salvează nicăieri.</p>
     <div class="row">
       <div class="fld" style="flex:2"><label>Adresa serviciului SFS</label>
         <input id="a-endpoint" autocomplete="off"
@@ -167,6 +189,72 @@
     <p class="muted" style="margin-top:8px">Valorile introduse se păstrează automat
       în acest browser (doar local, nu pe server) și revin la următoarea deschidere.</p>
     <pre id="out" style="display:none;margin-top:12px"></pre>
+    <div id="result" class="result" style="display:none"></div>
+  </div>
+
+  <div class="card" id="simple-card">
+    <h2>📂 Import simplu dintr-un fișier XML (analiza pozițiilor)
+      <span id="sf-info" class="muted"></span></h2>
+    <p class="muted">A treia cale de import, pe lîngă pachetul 12103 și acțiunea din back-office-ul nativ:
+      se ia fișierul descărcat din cabinetul e-Factura (un <code>&lt;Documents&gt;</code> cu oricîte facturi) și
+      se <b>analizează</b> fiecare poziție. Ce există deja în <code>TMS_UNIVERS</code> cu <b>aceeași denumire
+      întreagă</b> se <b>refolosește</b> (nu se creează card nou); contragentul se caută după IDNO în
+      <code>TMS_UNIVERS.CODVECHI</code> și <code>TMS_ORG.CODFISCAL</code>. Nu trece prin validările vendorului
+      (dată, subdiviziune), deci merge și pentru facturi vechi.</p>
+    <div class="row">
+      <div class="fld" style="flex:2"><label>Fișierul e-Factura (.xml)</label>
+        <input type="file" id="sf-file" accept=".xml,text/xml" onchange="sfAnalyze()"></div>
+      <div class="fld"><label>&nbsp;</label>
+        <div><button class="btn gray" type="button" onclick="sfAnalyze()">🔍 Analizează</button></div></div>
+    </div>
+    <div id="sf-sum" class="muted" style="margin-top:6px"></div>
+    <div id="sf-act" hidden style="margin-top:10px;border-top:1px solid #e5e7eb;padding-top:10px">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+        <span><input type="checkbox" id="sf-orgs" style="width:auto;display:inline-block;vertical-align:middle">
+          <span style="vertical-align:middle">creează contragenții lipsă</span></span>
+        <span><input type="checkbox" id="sf-goods" style="width:auto;display:inline-block;vertical-align:middle">
+          <span style="vertical-align:middle">creează cardurile de marfă lipsă</span></span>
+        <span><input type="checkbox" id="sf-docs" style="width:auto;display:inline-block;vertical-align:middle">
+          <span style="vertical-align:middle">creează documentele 1209 (doar unde sîntem cumpărător)</span></span>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn" type="button" onclick="sfImport()">📥 Importă în una.md</button>
+        <span id="sf-res" class="muted"></span></div>
+    </div>
+    <div id="sf-tab" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" id="inbox-card">
+    <h2>📥 Facturi primite de la parteneri (partea de cumpărător)
+      <button class="btn gray" type="button" onclick="inboxSync()">⬇ Preia din e-Factura</button>
+      <button class="btn gray" type="button" onclick="inboxLoad()">↻ Reîncarcă</button>
+      <span id="in-info" class="muted"></span></h2>
+    <p class="muted">Facturile în care firma din contul API e <b>cumpărător</b>:
+      <code>GetInvoicesForSigning</code> cu <code>ActorRole = 2</code> (așteaptă decizia noastră, vin cu XML)
+      și <code>GetAcceptedInvoices</code> (rol 2). Fiecare factură se potrivește cu nomenclatorul una.md:
+      furnizorul după IDNO (<code>TMS_UNIVERS.CODVECHI</code> / <code>TMS_ORG.CODFISCAL</code>), marfa după cod de bare
+      (<code>TMS_MPT_BARCODE</code>), serviciile după regulile <code>TMS_IMPORT_EFACTURA</code> — exact ce folosește
+      și clientul Delphi. «Aterizează» o scrie în <code>TMDB_XML_FACTURA</code> (tabela standard, aceleași XPath-uri ca
+      <code>PKG_EDI_XML</code>), «Acceptă» / «Respinge» trimit decizia în SFS.</p>
+    <table id="inbox"><thead><tr><th>Seria / nr.</th><th>Furnizor</th><th>IDNO</th><th>Data</th>
+      <th>Total</th><th>TVA</th><th>SFS</th><th>Statut</th><th>În una.md</th><th>Poziții</th></tr></thead>
+      <tbody><tr><td colspan="10" class="muted">apăsați «Preia din e-Factura»</td></tr></tbody></table>
+    <div id="in-detail" hidden style="margin-top:12px;border-top:1px solid #e5e7eb;padding-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Jurnalul apelurilor către e-Factura
+      <button class="btn gray" type="button" style="padding:5px 10px;font-size:12px;margin-left:8px"
+              onclick="loadLog()">↻ Reîncarcă</button></h2>
+    <p class="muted" style="margin-top:0">Fiecare comandă trimisă de această pagină
+      serviciului SFS și răspunsul lui, întregi, așa cum s-au înregistrat pe server
+      (tabela <code>EFA_CALL</code>). Parola API nu apare — e înlocuită la scriere.
+      Apăsați pe un rînd ca să vedeți cererea și răspunsul.</p>
+    <table id="calls"><thead><tr>
+      <th style="width:135px">Cînd</th><th style="width:150px">Comanda</th>
+      <th style="width:70px">Mediu</th><th style="width:55px">HTTP</th>
+      <th style="width:60px">Durata</th><th style="width:85px">Rezultat</th><th>Ce a răspuns SFS</th>
+    </tr></thead><tbody><tr><td colspan="7" class="muted">…</td></tr></tbody></table>
   </div>
 </div>
 <script>
@@ -266,6 +354,35 @@ function show(r, okMsg) {
     : '<span class="err">' + esc(r.error || '') + ' ' +
       esc(JSON.stringify(r.errors || '')) + '</span>';
 }
+// RO: dupa trimitere omul trebuie sa stie TREI lucruri: a ajuns sau nu, DE CE
+//     nu (textul intreg al SFS, ca lista), si UNDE se uita daca a ajuns.
+function showSend(r) {
+  const box = document.getElementById('result');
+  box.style.display = 'block';
+  const d = r.data || {};
+  const rep = d.reply || {};
+  const err = r.error || d.error || rep.ErrorMessage || '';
+  if (r.success) {
+    box.className = 'result ok-box';
+    box.innerHTML = '<b>✅ Acceptată de SIA e-Factura</b> — nr. ' + esc(d.number || '') +
+      ', RequestId ' + esc(d.request_id || '') + (rep.TotalInvoicesPosted != null
+        ? ', facturi înregistrate: ' + esc(rep.TotalInvoicesPosted) : '') +
+      '.<div class="muted" style="margin-top:6px">Unde apare: portalul ales mai sus → ' +
+      'Cabinetul personal → SIA e-Factura → facturile emise / <b>de semnat</b> ' +
+      '(coada primei semnături, Order 1). Documentul a plecat NEsemnat — semnarea se face acolo. ' +
+      'Butonul «Vezi cozile de semnare» de mai sus o confirmă.</div>';
+  } else {
+    const parts = String(err).split(/[\t\r\n]+|Validation error:/).map(x => x.trim()).filter(Boolean);
+    box.className = 'result err-box';
+    box.innerHTML = '<b>❌ Respinsă — nu s-a înregistrat nimic în e-Factura.</b>' +
+      (d.request_id ? '<div class="muted">RequestId ' + esc(d.request_id) + '</div>' : '') +
+      '<div style="margin-top:6px">Ce a răspuns SFS:</div><ul class="errlist">' +
+      parts.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' +
+      '<div class="muted">Textul complet al cererii și al răspunsului e în jurnalul de mai jos.</div>';
+  }
+  out_scroll(box);
+}
+function out_scroll(el) { try { el.scrollIntoView({block: 'nearest'}); } catch (e) {} }
 async function preview() {
   document.getElementById('info').textContent = 'Se generează…';
   show(await j('preview', {method: 'POST', body: JSON.stringify(payload())}),
@@ -276,24 +393,41 @@ async function ping() {
   const r = await j('ping', {method: 'POST',
                              body: JSON.stringify({api: api()})});
   document.getElementById('q-info').innerHTML = ' ' + qtext(r);
+  loadLog();
 }
 function qtext(r) {
   if (!r.success) return '<span class="err">' + esc(r.error || 'eroare') + '</span>';
-  return Object.entries(r.data || {}).map(([k, x]) => k.replace(/_/g, ' ') +
-    ': ' + (x.configured ? (x.ok ? '✅' : '❌ ' + esc(x.reply || ''))
-                         : '— neconfigurat')).join(' · ');
+  // RO: pentru cozile de semnare aratam si CE asteapta (ce e IN sistem —
+  //     SFS inlocuieste denumirile cu cele din registru si da seria/numarul
+  //     abia la semnare, de aceea pot fi goale).
+  return Object.entries(r.data || {}).map(([k, x]) => {
+    let head = k.replace(/_/g, ' ') + ': ' +
+      (x.configured ? (x.ok ? '✅ ' + esc(x.reply || '') : '❌ ' + esc(x.reply || '')) : '— neconfigurat');
+    if (x.invoices && x.invoices.length) {
+      head += '<ul class="errlist" style="margin-top:4px">' + x.invoices.map(v =>
+        '<li>' + esc((v.seria || v.number) ? (v.seria + ' ' + v.number).trim() : 'fără serie/număr încă') +
+        ' — ' + esc(v.total || '?') + ' lei — ' + esc(v.first_row || '') +
+        (v.buyer ? ' → ' + esc(v.buyer) : '') +
+        ' (' + (v.invoice_status === '0' ? 'nesemnată' : 'stare ' + esc(v.invoice_status)) + ')</li>').join('') + '</ul>';
+    }
+    return '<div>' + head + '</div>';
+  }).join('');
 }
 async function send() {
   if (!confirm('Factura ajunge în sistemul FISCAL real al SFS. Continuați?')) return;
   document.getElementById('info').textContent = 'Se trimite…';
   const r = await j('send', {method: 'POST', body: JSON.stringify(payload())});
-  show(r, 'Trimis ✓ ' + ((r.data && r.data.number) || ''));
+  document.getElementById('info').textContent = '';
+  document.getElementById('out').style.display = 'none';
+  showSend(r);
+  loadLog();
 }
 async function queues() {
   document.getElementById('q-info').textContent = 'Se verifică…';
   const r = await j('queues', {method: 'POST',
                                body: JSON.stringify({api: api()})});
   document.getElementById('q-info').innerHTML = ' ' + qtext(r);
+  loadLog();
 }
 const LS = 'efa_test_form_v1';
 // RO: se pastreaza doar ce nu e secret. Parolele (a-pass, a-pass2) NU intra
@@ -336,6 +470,194 @@ FIELDS.forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('input', save);
 });
+// ── jurnalul apelurilor (EFA_CALL) ──────────────────────────────────
+const RES_RO = {ok: 'acceptat', rejected: 'respins', fault: 'eroare SOAP',
+                html: 'HTML (mascat)', network: 'fără rețea'};
+function envName(ep) {
+  return /-pre\./.test(ep || '') ? 'probă' : (/efactura-api/.test(ep || '') ? 'REAL' : (ep || ''));
+}
+// ── facturile primite (cumparator) ─────────────────────────────────────
+// RO: InvoiceStatus din SFS — doar valorile MASURATE (13.09.2026): 7 = in coada cumparatorului, 3 = dupa acceptarea noastra
+const SFS_ST = {3:'acceptată de cumpărător', 7:'așteaptă cumpărătorul'};
+function inboxRows(list) {
+  const tb = document.querySelector('#inbox tbody');
+  tb.innerHTML = (list || []).map(x => `<tr style="cursor:pointer" onclick="inboxOpen(${x.id})">
+    <td><b>${esc(x.seria)} ${esc(x.number_)}</b></td><td>${esc(x.supplier_name)}</td><td>${esc(x.supplier_idno)}</td>
+    <td>${esc(x.issued_date)}</td><td>${esc(x.total)}</td><td>${esc(x.total_tva)}</td>
+    <td>${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')}</td><td><b>${esc(x.status)}</b>${x.dest_nrdoc ? ' · doc 1209 ' + x.dest_nrdoc : x.pkg_nrdoc ? ' · pachet ' + x.pkg_nrdoc : ''}</td>
+    <td>${x.supplier_cod ? '✓ ' + esc(x.supplier_una) : '<span class="err">furnizor negăsit</span>'}</td>
+    <td>${x.matched_cnt} / ${x.rows_cnt} potrivite</td></tr>`).join('')
+    || '<tr><td colspan="10" class="muted">nicio factură primită (în mediul acesta)</td></tr>';
+}
+async function inboxLoad() {
+  const a = api() || {};
+  const env = (a.endpoint || '').includes('efactura-api.sfs.md') ? 'prod' : 'test';
+  const r = await j('inbox?env=' + env);
+  if (r.success) inboxRows(r.data); else document.getElementById('in-info').innerHTML = '<span class="err">' + esc(r.error) + '</span>';
+}
+// ── import simplu dintr-un fisier XML ────────────────────────────────────
+let SF_XML = '';
+async function sfRead() {
+  const f = document.getElementById('sf-file').files[0];
+  if (!f) { return ''; }
+  return await f.text();
+}
+async function sfAnalyze() {
+  const info = document.getElementById('sf-info');
+  SF_XML = await sfRead();
+  if (!SF_XML) { info.textContent = 'alegeți fișierul'; return; }
+  info.textContent = 'Se analizează…';
+  const r = await j('simple/analyze', {method: 'POST', body: JSON.stringify({xml: SF_XML})});
+  if (!r.success) { info.innerHTML = '<span class="err">' + esc(r.error) + '</span>'; return; }
+  info.textContent = '';
+  sfRender(r);
+  document.getElementById('sf-act').hidden = false;
+}
+function sfRender(r) {
+  const s = r.summary || {};
+  document.getElementById('sf-sum').innerHTML =
+    `<b>${s.documents}</b> facturi (primite: ${s.incoming}, emise de noi: ${s.outgoing}) · ` +
+    `<b>${s.rows}</b> poziții: <span style="color:#16a34a">${s.rows_reused} se refolosesc</span>, ` +
+    `${s.rows_new} ar fi carduri noi` +
+    (s.rows_no_group ? ` <span class="err">(${s.rows_no_group} carduri fără grupă de mărfuri — intră în document fără card)</span>` : '') +
+    ` · contragenți: ${s.orgs_found}/${s.orgs} găsiți, ${s.orgs_new} lipsesc` +
+    (s.docs_created != null ? ` · <b>create:</b> ${s.goods_created} carduri, ${s.orgs_created} contragenți, ${s.docs_created} documente` : '');
+  const rows = (r.docs || []).map(d => {
+    const nr = (d.rows || []).length, re = (d.rows || []).filter(x => x.card_cod).length;
+    const dir = d.direction === 'in' ? 'primită' : d.direction === 'out' ? 'emisă de noi' : '?';
+    const part = d.direction === 'in' ? d.supplier : d.buyer;
+    const m = part && part.match;
+    return `<tr><td>${esc(d.seria)} ${esc(d.number)}</td><td>${esc(d.issued_date || '')}</td>
+      <td>${dir}</td><td>${esc((part && part.title) || '')}</td><td>${esc((part && part.idno) || '')}</td>
+      <td>${m ? '✓ COD ' + m.cod + ' <span class="muted">(' + esc(m.how) + ')</span>' : '<span class="err">lipsește</span>'}</td>
+      <td>${d.total == null ? '' : d.total}</td>
+      <td>${re}/${nr}${d.dest_nrdoc ? ' → doc <b>' + d.dest_nrdoc + '</b>' : ''}</td></tr>`;
+  });
+  const miss = [];
+  (r.docs || []).forEach(d => (d.rows || []).forEach(x => { if (!x.card_cod && miss.length < 40 && !miss.includes(x.name)) miss.push(x.name); }));
+  document.getElementById('sf-tab').innerHTML =
+    `<table><thead><tr><th>Seria / nr.</th><th>Data</th><th>Direcție</th><th>Contragent</th><th>IDNO</th>
+      <th>În una.md</th><th>Total</th><th>Poziții refolosite</th></tr></thead><tbody>${rows.join('')}</tbody></table>` +
+    (miss.length ? `<details style="margin-top:8px"><summary class="muted">poziții fără card în una.md (primele ${miss.length})</summary>
+      <ul class="muted">${miss.map(x => '<li>' + esc(x) + '</li>').join('')}</ul></details>` : '') +
+    ((r.errors && r.errors.length) ? `<div class="err" style="margin-top:8px">${r.errors.map(esc).join('<br>')}</div>` : '');
+}
+async function sfImport() {
+  if (!SF_XML) { return; }
+  const res = document.getElementById('sf-res');
+  res.textContent = 'Se importă…';
+  const r = await j('simple/import', {method: 'POST', body: JSON.stringify({
+    xml: SF_XML,
+    create_orgs: document.getElementById('sf-orgs').checked,
+    create_goods: document.getElementById('sf-goods').checked,
+    create_docs: document.getElementById('sf-docs').checked})});
+  if (!r.success) { res.innerHTML = '<span class="err">' + esc(r.error) + '</span>'; return; }
+  res.innerHTML = '<span style="color:#16a34a">gata ✓</span>';
+  sfRender(r); inboxLoad(); loadLog();
+}
+async function inboxSync() {
+  document.getElementById('in-info').textContent = 'Se preia din SFS…';
+  const r = await j('inbox/sync', {method: 'POST', body: JSON.stringify({api: api()})});
+  document.getElementById('in-info').innerHTML = r.success
+    ? ` găsite ${r.found}, noi ${r.added}, actualizate ${r.updated}` + (r.errors && r.errors.length ? ' · <span class="err">' + esc(r.errors.join('; ')) + '</span>' : '')
+    : '<span class="err">' + esc(r.error) + '</span>';
+  if (r.success) inboxRows(r.data);
+  loadLog();
+}
+async function inboxOpen(id) {
+  const r = await j('inbox/' + id);
+  const d = document.getElementById('in-detail'); d.hidden = false;
+  if (!r.success) { d.innerHTML = '<span class="err">' + esc(r.error) + '</span>'; return; }
+  const x = r.data;
+  d.innerHTML = `<b>${esc(x.seria)} ${esc(x.number_)}</b> din ${esc(x.issued_d)} · furnizor <b>${esc(x.supplier_name)}</b> (${esc(x.supplier_idno)})
+    → în una.md: ${x.supplier_cod ? '✓ COD ' + x.supplier_cod + ' ' + esc(x.supplier_una) : '<span class="err">negăsit</span> <button class="btn gray" type="button" onclick="inboxAddSupplier(' + id + ')">➕ Adaugă furnizorul în una.md (puntea Contragenti)</button>'}
+    · total ${esc(x.total)} (TVA ${esc(x.total_tva)}) · SFS ${esc(x.sfs_status)} ${esc(SFS_ST[x.sfs_status] || '')} · statut <b>${esc(x.status)}</b>
+    ${x.pkg_nrdoc ? ' · pachet 12103 <b>COD ' + x.pkg_nrdoc + '</b> (' + esc(x.pkg_comment || '') + ')' : ''}${x.dest_nrdoc ? ' · <b>document 1209 COD ' + x.dest_nrdoc + '</b>' : ''}${x.err_msg ? '<br><span class="err">' + esc(x.err_msg) + '</span>' : ''}
+    <div class="row" style="margin:8px 0">
+      <a class="btn gray" target="_blank" href="${BASE}/inbox/${id}/xml">👁 XML</a>
+      <button class="btn gray" type="button" onclick="inboxMatch(${id})">🔗 Repotrivește</button>
+      <button class="btn gray" type="button" onclick="inboxImport(${id})">📦 Import în una.md (pachet 12103 → document 1209)</button>
+      <button class="btn gray" type="button" onclick="inboxDecide(${id}, 'accept')">✅ Acceptă în SFS</button>
+      <button class="btn gray" type="button" onclick="inboxDecide(${id}, 'reject')">⛔ Respinge în SFS…</button>
+      <span id="in-act" class="muted"></span></div>
+    <table><thead><tr><th>#</th><th>Cod furnizor</th><th>Denumirea</th><th>UM</th><th>Cant.</th><th>Preț</th><th>TVA %</th><th>Total</th><th>Cod bare</th><th>Potrivire în una.md</th></tr></thead>
+    <tbody>${(x.rows || []).map(w => `<tr><td>${w.rown}</td><td>${esc(w.code)}</td><td>${esc(w.name)}</td><td>${esc(w.um)}</td>
+      <td>${esc(w.qty)}</td><td>${esc(w.price)}</td><td>${esc(w.tva_pct)}</td><td>${esc(w.total)}</td><td>${esc(w.barcode || '')}</td>
+      <td>${w.match_kind === 'barcode' ? '✓ marfă COD ' + w.match_cod + ' ' + esc(w.una_name) :
+            w.match_kind === 'rule' ? '✓ regulă #' + w.match_rule + ' → cont ' + esc(w.match_dt) + (w.match_cod ? ', card ' + w.match_cod + ' ' + esc(w.una_name) : '') + ' (' + esc(w.match_name) + ')' :
+            '<span class="err">nepotrivit — fără cod de bare și fără regulă</span>'}</td></tr>`).join('')}</tbody></table>`;
+}
+async function inboxAddSupplier(id) {
+  // RO: furnizorul din factura -> nomenclatorul una.md prin puntea Contragenti
+  //     (modules/contragenti: TMS_UNIVERS.CODVECHI = IDNO, TMS_ORG.CODFISCAL, dedup dupa IDNO/denumire)
+  const r0 = await j('inbox/' + id); if (!r0.success) return;
+  const x = r0.data;
+  const CTG = '{{ contragenti_upsert_url }}';
+  if (!CTG) { document.getElementById('in-act').innerHTML = '<span class="err">modulul Contragenti nu e instalat pe acest contur</span>'; return; }
+  const r = await fetch(CTG, {method: 'POST', credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({page: 'efactura-inbox', q: x.seria + ' ' + x.number_, idno: x.supplier_idno, denumire: x.supplier_name, adresa: x.supplier_address || '', source: 'e-factura'})})
+    .then(r => r.json()).catch(e => ({success: false, error: String(e)}));
+  document.getElementById('in-act').innerHTML = r.success
+    ? `<span style="color:#16a34a">furnizor ${r.result === 'created' ? 'CREAT' : r.result === 'repaired' ? 'COMPLETAT' : 'existent'}: COD ${r.univers_cod} ${esc(r.name)}</span>`
+    : '<span class="err">' + esc(r.error || 'puntea Contragenti nu răspunde') + '</span>';
+  await inboxMatch(id);
+}
+async function inboxMatch(id) { const r = await j('inbox/' + id + '/match', {method: 'POST', body: '{}'}); document.getElementById('in-act').textContent = r.success ? 'potrivire: ' + JSON.stringify(r.rows) : r.error; inboxOpen(id); inboxLoad(); }
+async function inboxImport(id) {
+  // RO: ca in celelalte baze una.md: pachet 12103 (XML ca OLE) -> parserul vendorului -> documente 1209
+  document.getElementById('in-act').textContent = 'Se importă în una.md…';
+  const r = await j('inbox/import', {method: 'POST', body: JSON.stringify({ids: [id]})});
+  if (!r.success) { document.getElementById('in-act').innerHTML = '<span class="err">' + esc(r.error) + '</span>'; inboxOpen(id); return; }
+  const rows = (r.package || []).map(p => `${esc(p.factura_seria)}${esc(p.factura_nr)}: ${p.status_doc === 1 ? '✓' : '⚠'} ${esc(p.status_text)}${p.nrdoc_dest ? ' → document 1209 COD ' + p.nrdoc_dest + ' «' + esc(p.dest_nrmanual) + '», ' + p.dest_rows + ' poziții, ' + p.dest_rows_matched + ' cu card' : ''}${p.comments && p.status_doc !== 1 ? ' (' + esc(p.comments) + ')' : ''}`);
+  document.getElementById('in-act').innerHTML = `<span style="color:#16a34a">pachet 12103 COD ${r.nrdoc} (${esc(r.file_name)})</span> · ` + rows.join(' · ');
+  inboxOpen(id); inboxLoad(); loadLog();
+}
+async function inboxLand(id) {
+  const r = await j('inbox/' + id + '/land', {method: 'POST', body: '{}'});
+  document.getElementById('in-act').innerHTML = r.success ? `<span style="color:#16a34a">aterizat: NRDOC ${r.nrdoc}, ${r.rows_landed} rînduri (antet + poziții), fișier ${esc(r.file_name)}</span>` : '<span class="err">' + esc(r.error) + '</span>';
+  inboxOpen(id); inboxLoad();
+}
+async function inboxDecide(id, action) {
+  let comment = '';
+  if (action === 'reject') { comment = prompt('Motivul respingerii (ajunge la furnizor):', ''); if (comment === null) return; }
+  const r = await j('inbox/' + id + '/decision', {method: 'POST', body: JSON.stringify({api: api(), action, comment})});
+  document.getElementById('in-act').innerHTML = r.success ? `<span style="color:#16a34a">SFS a confirmat: ${action === 'accept' ? 'ACCEPTATĂ' : 'RESPINSĂ'}</span>` : '<span class="err">' + esc(r.error) + '</span>';
+  inboxOpen(id); inboxLoad(); loadLog();
+}
+async function loadLog() {
+  const r = await j('log?limit=40');
+  const tb = document.querySelector('#calls tbody');
+  if (!r.success) { tb.innerHTML = '<tr><td colspan="7" class="err">' + esc(r.error || '') + '</td></tr>'; return; }
+  const rows = r.data || [];
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="muted">Încă nicio comandă trimisă.</td></tr>'; return; }
+  tb.innerHTML = rows.map((x, i) =>
+    '<tr class="row r-' + esc(x.result) + '" onclick="toggleCall(' + i + ')">' +
+    '<td>' + esc(x.ts) + '</td><td>' + esc(x.method) + '</td><td>' + esc(envName(x.endpoint)) + '</td>' +
+    '<td>' + esc(x.http_status == null ? '—' : x.http_status) + '</td>' +
+    '<td>' + esc(x.duration_ms == null ? '' : x.duration_ms + ' ms') + '</td>' +
+    '<td>' + esc(RES_RO[x.result] || x.result) + '</td>' +
+    '<td>' + esc((x.summary || '').slice(0, 220)) + '</td></tr>' +
+    '<tr id="call-' + i + '" style="display:none"><td colspan="7">' +
+    '<div class="muted" style="margin:2px 0 4px">Cererea (parola mascată):</div>' +
+    '<div class="xml" style="display:block;background:#0f172a;color:#e2e8f0;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:8px">' +
+    esc(pretty(x.request_xml)) + '</div>' +
+    '<div class="muted" style="margin:8px 0 4px">Răspunsul SFS:</div>' +
+    '<div style="display:block;background:#0f172a;color:#e2e8f0;font:12px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;padding:10px;border-radius:8px">' +
+    esc(pretty(x.response_xml)) + '</div></td></tr>').join('');
+}
+function toggleCall(i) {
+  const el = document.getElementById('call-' + i);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+function pretty(x) {
+  x = String(x || '');
+  if (x.lstrip && false) return x;
+  if (/^\s*<!doctype|^\s*<html/i.test(x)) return x.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600) + ' …';
+  return x.replace(/></g, '>\n<').slice(0, 30000);
+}
+loadLog();
+
 if (!restore()) addLine({name: 'Serviciu de test', um: 'buc.', qty: 1, price: 1.00});
 </script>
 </body></html>
